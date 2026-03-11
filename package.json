@@ -1,0 +1,14 @@
+{
+  "name": "smartcar-security",
+  "private": true,
+  "workspaces": [
+    "services/shared",
+    "services/frontend",
+    "services/backend"
+  ],
+  "devDependencies": {
+    "@types/node": "^25.3.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

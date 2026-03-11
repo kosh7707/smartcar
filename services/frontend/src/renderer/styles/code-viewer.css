@@ -1,0 +1,71 @@
+/* ── Code Viewer ── */
+
+.code-viewer {
+  background: var(--code-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  overflow-x: auto;
+  color: var(--code-text);
+  border: 1px solid var(--code-border);
+}
+
+.code-line {
+  display: flex;
+  align-items: center;
+  padding: 1px var(--space-4);
+  line-height: 1.7;
+  transition: background var(--transition-fast);
+}
+
+.code-line:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.code-line-highlight {
+  background: rgba(220, 38, 38, 0.15);
+  border-left: 3px solid var(--severity-critical);
+}
+
+.code-line-highlight:hover {
+  background: rgba(220, 38, 38, 0.2);
+}
+
+.code-line-num {
+  width: 40px;
+  text-align: right;
+  margin-right: var(--space-4);
+  color: var(--code-line-num);
+  user-select: none;
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+}
+
+.code-line-content {
+  flex: 1;
+  white-space: pre;
+}
+
+.code-line-marker {
+  color: var(--severity-critical);
+  font-size: var(--text-xs);
+  margin-left: var(--space-4);
+  white-space: nowrap;
+  font-family: var(--font-family);
+  font-weight: var(--weight-medium);
+}
+
+/* ── Fix Code ── */
+
+.fix-code {
+  background: var(--success-bg);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  color: var(--success);
+  border-left: 3px solid var(--success);
+  line-height: var(--leading-relaxed);
+  overflow-x: auto;
+}

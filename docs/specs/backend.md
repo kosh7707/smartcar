@@ -1,0 +1,658 @@
+# S2. Core Service 기능 명세
+
+> Express.js + TypeScript 기반 백엔드 서비스
+> Service(Orchestrator) 패턴: 각 검증 모듈을 독립 Service로 구현, Core가 조율
+> DAO를 통한 DB 접근 캡슐화
+
+---
+
+## 개발 방향
+
+**S2는 플랫폼의 진실원(source of truth)이다.** 분석 파이프라인(정적/동적/테스트)은 구현 완료 상태이며, 이 위에 **Evidence → Findings → Quality Gate → Policy → Approval** 구조를 점진적으로 적층한다. 기존 파이프라인을 재작성하지 않고 정규화 레이어를 추가하는 전략이다.
+
+상세 근거: `docs/외부피드백/S2_backend_adapter_simulator_working_guide.md`
+
+## 구현 현황
+
+| 단계 | 대상 | 상태 |
+|------|------|------|
+| 기존 파이프라인 | 정적 분석, 동적 분석, 동적 테스트, 프로젝트 CRUD/Overview, 룰/어댑터/설정 | **구현 완료** |
+| 1단계 | Run 모델 승격 + 코어 도메인 확정 | 미착수 |
+| 2단계 | Finding 정규화 + 증적 관리 | 미착수 |
+| 3단계 | Quality Gate + Approval | 미착수 |
+| 4단계 | Adapter capability 고도화 | 미착수 |
+| 5단계 | Simulator 고도화 (fault model, replay) | 미착수 |
+| 6단계 | WS 이벤트 표준화 + 테스트 코드 | 미착수 |
+
+---
+
+## 데이터베이스
+
+SQLite(`better-sqlite3`)를 사용하여 별도 DB 서버 없이 파일 단일로 운영한다.
+
+- DB 파일: `services/backend/smartcar.db` (환경변수 `DB_PATH`로 변경 가능)
+- WAL 모드 활성화 (읽기/쓰기 동시성 향상)
+- 테이블: `projects`, `uploaded_files`, `analysis_results`, `rules`, `adapters`, `project_settings`, `dynamic_analysis_sessions`, `dynamic_analysis_alerts`, `dynamic_analysis_messages`, `dynamic_test_results`
+- `analysis_results` 테이블에 `warnings TEXT` 컬럼 추가 (JSON, 기본값 `'[]'`)
+- `analysis_results` 테이블에 `analyzed_file_ids TEXT` 컬럼 추가 (JSON, 기본값 `'[]'`) — 분석 대상 파일 ID 목록
+
+---
+
+## P0: 정적 분석 (연차보고서 필수) ✅ 구현 완료
+
+### P0-1. 파일 업로드 처리 ✅
+
+```
+POST /api/static-analysis/upload
+Content-Type: multipart/form-data
+Field: files (복수), projectId (string)
+```
+
+- 멀티파트 파일 수신 (복수 파일)
+- `projectId` 필드로 프로젝트에 파일 연결 (`uploaded_files.project_id`)
+- 한글 파일명 인코딩 처리: multer가 latin1로 해석하는 `originalname`을 `Buffer.from(name, "latin1").toString("utf-8")`로 UTF-8 복원
+- 지원 확장자 검증 (.c, .cpp, .h, .hpp, .py, .java, .js, .ts)
+- SQLite `uploaded_files` 테이블에 저장 (파일 내용 포함)
+- 업로드된 파일 목록 반환 (`UploadedFile[]`)
+
+### P0-2. 정적 분석 실행 ✅
+
+```
+POST /api/static-analysis/run
+Body: { "projectId": string, "files": [{ "id": string }], "analysisId"?: string }
+```
+
+분석 전체 흐름을 오케스트레이션한다. `projectId` 필수. `analysisId`는 optional — S1이 WS 프로그레스를 받기 위해 미리 생성하여 전달할 수 있다.
+
+#### 청크 기반 LLM 분석
+
+대량 파일을 한 번에 LLM에 보내면 토큰 한도를 초과한다. 파일을 **청크 단위로 분할**하여 여러 번 LLM에 요청한다.
+
+- 토큰 추정: `chars / 3.5` (코드 기준 경험적 상수)
+- 청크 예산: **6,000 토큰** (~21,000 chars) — 프롬프트 오버헤드 + 응답 토큰 감안
+- Greedy bin-packing: 파일 순서대로 청크에 누적, 초과 시 새 청크
+- 단일 파일이 예산 초과 시 단독 청크 + `CHUNK_TOO_LARGE` warning
+
+```
+요청 수신 (projectId + fileIds + analysisId?)
+  → [1계층] 패턴 매칭 서비스 호출
+      RuleEngine에 등록된 룰을 순회하며 매칭
+      결과: 확정 취약점 목록
+      WS progress: rule_engine (0/1 → 1/1)
+  → 파일 청크 분할 (chunker)
+  → [2계층] 청크별 LLM 분석 (순차)
+      각 청크마다:
+        해당 청크 파일의 ruleResults만 필터
+        LlmClient.analyze() 호출
+        성공 → llmVulns 수집
+        실패 → warnings에 LLM_CHUNK_FAILED 추가
+        WS progress: llm_chunk (i/N)
+  → 결과 병합
+      같은 location의 중복 제거 (룰 결과 우선), 심각도 정렬
+      각 취약점에 source(rule/llm) 표시
+      WS progress: merging (0/1 → 1/1)
+  → 결과 저장 (AnalysisResultDAO, warnings 포함)
+  → WS complete 이벤트
+  → StaticAnalysisResponse 반환
+```
+
+#### Warnings
+
+LLM 분석 중 일부 청크가 실패하더라도 룰 결과는 항상 반환된다. 실패 정보는 `AnalysisResult.warnings` 배열에 포함된다.
+
+| warning code | 의미 |
+|---|---|
+| `LLM_CHUNK_FAILED` | 특정 청크의 LLM 호출 실패 |
+| `CHUNK_TOO_LARGE` | 단일 파일이 청크 예산 초과 (단독 청크로 처리됨) |
+
+#### WebSocket 프로그레스
+
+```
+WS: /ws/static-analysis?analysisId=xxx
+```
+
+S1이 분석 요청 전 WS를 연결하면 실시간 프로그레스를 수신할 수 있다. WS 미연결 시에도 POST /run은 정상 동작 (하위 호환).
+
+메시지 타입:
+- `static-progress`: `{ analysisId, phase, current, total, message }`
+- `static-warning`: `{ analysisId, code, message }`
+- `static-complete`: `{ analysisId }`
+- `static-error`: `{ analysisId, error }`
+
+### P0-3. 룰 엔진 인터페이스 ✅
+
+패턴 매칭 룰의 추가/제거가 용이하도록 추상화한다.
+
+```typescript
+interface AnalysisRule {
+  id: string;
+  name: string;
+  severity: Severity;
+  description: string;
+  suggestion: string;
+  match(sourceCode: string, filename: string): RuleMatch[];
+}
+```
+
+- 모든 룰은 이 인터페이스를 구현
+- RuleEngine이 등록된 룰을 순회하며 실행
+- 기본 제공 룰 (22개 — 프로젝트 생성 시 자동 시딩):
+  - 위험 함수 (9패턴): gets, strcpy, scanf, sprintf, strcat, system, memcpy, alloca, popen
+  - 안전하지 않은 패턴 (8패턴): printf format string, atoi, rand, hardcoded secret/key, fixed srand seed, VLA, deprecated crypto, unauthenticated CAN send
+  - 메모리 안전 (5패턴): Use-After-Free hint, unsafe realloc, unchecked malloc/calloc, double-free, integer overflow in allocation size
+- 모든 룰은 프로젝트 스코프. 빌트인/커스텀 구분 없이 동일하게 CRUD 가능
+- 분석 시 해당 프로젝트의 enabled 룰만 사용 (per-analysis RuleEngine 빌드)
+
+```
+RuleEngine
+  - registerRule(rule: AnalysisRule)
+  - removeRule(ruleId: string)
+  - runAll(sourceCode: string, filename: string): RuleMatch[]
+  - getRules(): AnalysisRule[]
+```
+
+### P0-4. LLM 분석 요청 ✅
+
+Core Service → LLM Gateway(S3) 통신.
+
+```
+POST http://S3:8000/api/llm/analyze
+```
+
+- 1계층 결과(ruleResults) + 원본 소스코드를 S3에 전달
+- S3 응답을 파싱하여 취약점 목록으로 변환
+- S3 연결 실패 시 1계층 결과만으로 응답 반환 (graceful degradation)
+- S3 URL: 환경변수 `LLM_GATEWAY_URL` (기본값: `http://localhost:8000`)
+
+### P0-5. 분석 결과 조회 ✅
+
+```
+GET /api/static-analysis/results?projectId=     프로젝트별 분석 결과 목록
+GET /api/static-analysis/results/:analysisId     개별 분석 결과 조회
+```
+
+- 목록: 프로젝트별 분석 결과 반환 (`projectId` 필수 쿼리)
+- 개별: SQLite에 저장된 분석 결과 반환 (StaticAnalysisResponse)
+- 취약점 목록 포함 (심각도, 출처, 위치, 설명, 수정 가이드)
+
+### P0-6. 보고서 데이터 생성 ✅
+
+```
+GET /api/static-analysis/report/:analysisId
+```
+
+- 분석 결과를 보고서 형식으로 가공하여 반환
+- 심각도별 통계, 취약점 전체 목록, 수정 가이드 포함
+- Frontend에서 HTML 렌더링에 사용
+
+### P0-7. 헬스체크 ✅
+
+```
+GET /health
+```
+
+- 서비스 상태 반환 (서비스명, 상태, 버전)
+- S3(LLM Gateway) 연결 상태도 함께 확인하여 반환 (`llmGateway` 필드)
+
+---
+
+## P1: 동적 분석 ✅ 구현 완료
+
+### P1-1. CAN 데이터 수신 (WebSocket) ✅
+
+세 개의 WebSocket 엔드포인트:
+
+- **`/ws/dynamic-analysis?sessionId=xxx`** — S2 → S1 실시간 push
+  - `{ type: "message", payload: CanMessage }` — CAN 메시지 (flagged 포함)
+  - `{ type: "alert", payload: DynamicAlert }` — 이상 탐지 알림
+  - `{ type: "status", payload: { messageCount, alertCount } }` — 상태 업데이트 (20건마다)
+- **`/ws/static-analysis?analysisId=xxx`** — S2 → S1 정적 분석 프로그레스 push
+  - `{ type: "static-progress", payload: { analysisId, phase, current, total, message } }`
+  - `{ type: "static-warning", payload: { analysisId, code, message } }`
+  - `{ type: "static-complete", payload: { analysisId } }`
+- **`/ws/dynamic-test?testId=xxx`** — S2 → S1 동적 테스트 프로그레스 push
+  - `{ type: "test-progress", payload: { testId, current, total, crashes, anomalies, message } }`
+  - `{ type: "test-finding", payload: { testId, finding: DynamicTestFinding } }`
+  - `{ type: "test-complete", payload: { testId } }`
+
+### P1-2. 프로젝트별 어댑터 관리 ✅
+
+어댑터는 프로젝트 단위로 관리된다. 프로젝트 설정에서 어댑터를 등록/연결/해제/삭제한다.
+
+> Adapter 서비스 자체의 프로토콜·메시지 형식은 [Adapter 명세](adapter.md) 참조.
+> ECU Simulator의 동작·시나리오는 [ECU Simulator 명세](ecu-simulator.md) 참조.
+
+```
+ECU Sim A ←WS→ Adapter A (:4000) ←WS→ S2 (Backend) ←WS→ S1 (Frontend)
+ECU Sim B ←WS→ Adapter B (:4001) ←WS→     ↑
+```
+
+- **AdapterManager** (`adapter-manager.ts`): 다중 AdapterClient 관리, CRUD + 연결/해제
+- **AdapterClient** (`adapter-client.ts`): 개별 Adapter WS 연결, CAN 프레임 수신 + inject 요청-응답
+- 자동 재연결 지원 (3초 간격)
+- `GET /health` 응답에 `adapters: { total, connected }` 포함
+- 세션/테스트 생성 시 `adapterId`가 해당 `projectId` 소속인지 검증
+- ECU 메타데이터: ECU Sim이 연결 시 `ecu-info` 메시지로 이름/CAN ID 목록 전송 → Adapter가 릴레이 → Backend가 `Adapter.ecuMeta`에 반영 (런타임 상태)
+
+#### 어댑터 CRUD API (프로젝트 스코프)
+
+```
+GET    /api/projects/:pid/adapters                  프로젝트 어댑터 목록
+POST   /api/projects/:pid/adapters                  등록  Body: { name, url }
+PUT    /api/projects/:pid/adapters/:id              수정  Body: { name?, url? }
+DELETE /api/projects/:pid/adapters/:id              삭제 (연결 중이면 먼저 disconnect)
+POST   /api/projects/:pid/adapters/:id/connect      연결 시도
+POST   /api/projects/:pid/adapters/:id/disconnect   연결 해제
+```
+
+- DB 테이블: `adapters (id, name, url, project_id, created_at)`. `connected`/`ecuConnected`/`ecuMeta`는 런타임 상태
+- `url`은 `ws://` 또는 `wss://` 필수
+- 프로젝트 삭제 시 소속 어댑터 cascade 삭제
+
+### P1-3. 룰 기반 실시간 탐지 (1계층) ✅
+
+CAN 전용 룰 엔진 (`CanRuleEngine`)으로 수신 메시지를 실시간 평가:
+
+| 룰 | 탐지 대상 | 심각도 |
+|----|----------|--------|
+| `FrequencyRule` | 슬라이딩 윈도우(500ms) 내 같은 CAN ID 10건 초과 | high |
+| `UnauthorizedIdRule` | 허용 목록(0x000~0x7FF 표준 범위 중 등록된 ID) 외 CAN ID | medium |
+| `AttackSignatureRule` | 진단 DoS(0x7DF 폭풍), 리플레이(동일 id+data 3회+), Bus-Off(0xFF 페이로드) | critical/high |
+
+이상 탐지 시 즉시 DynamicAlert 생성 + WS push.
+
+### P1-4. LLM 심층 분석 (2계층) ✅
+
+혼합 문턱값 방식. 관련 상수 (`dynamic-analysis.service.ts`):
+
+| 상수 | 값 | 설명 |
+|------|---|------|
+| `ALERT_LLM_THRESHOLD` | 3 | alert 누적 N건 시 컨텍스트 LLM 호출 |
+| `CONTEXT_WINDOW` | 20 | 컨텍스트 호출 시 전후 메시지 수 (실제 전송: x2 = 40건) |
+| `RECENT_BUFFER_SIZE` | 100 | 인메모리 circular buffer (룰 컨텍스트 + LLM 컨텍스트) |
+
+- **트리거 A (alert 누적)**: `alertsSinceLastLlm >= 3` 도달 시, 최근 40건 메시지 + 최근 3건 alert를 S3에 전달 → `alert.llmAnalysis` 업데이트 → WS push. 호출 후 카운터 리셋.
+- **트리거 B (세션 종료)**: DB에서 전체 메시지 + 전체 alerts 조회 → S3에 전달 → `analysis_results` 테이블에 `module="dynamic_analysis"`로 저장 → Overview 자동 집계 호환
+
+기존 `LlmClient`를 재사용. `canLog` 필드로 CAN 로그 문자열 전송 (타임스탬프 CAN_ID [DLC] 데이터 형식, 줄 단위).
+
+### P1-5. 동적 분석 세션 관리 ✅
+
+```
+POST   /api/dynamic-analysis/sessions              세션 생성 Body: { projectId, adapterId }
+GET    /api/dynamic-analysis/sessions               세션 목록 (?projectId=)
+GET    /api/dynamic-analysis/sessions/:id           세션 상세 (session + alerts + recentMessages)
+POST   /api/dynamic-analysis/sessions/:id/start     모니터링 시작
+DELETE /api/dynamic-analysis/sessions/:id           세션 종료 + LLM 종합 분석
+```
+
+- `adapterId` 필수: 해당 프로젝트 소속이 아닌 어댑터 지정 시 에러 반환
+- 미연결 어댑터 지정 시 에러 반환
+
+세션 생명주기: `connected` → `monitoring` → `stopped`
+
+### P1-5b. CAN 메시지 주입 ✅
+
+분석가가 모니터링 세션에서 CAN 메시지를 직접 주입하고 ECU 응답을 확인할 수 있다.
+
+```
+GET    /api/dynamic-analysis/scenarios                     사전정의 공격 시나리오 목록 (6개)
+POST   /api/dynamic-analysis/sessions/:id/inject           CAN 메시지 단일 주입
+POST   /api/dynamic-analysis/sessions/:id/inject-scenario  사전정의 시나리오 실행
+GET    /api/dynamic-analysis/sessions/:id/injections       주입 이력 조회
+```
+
+- 세션이 `monitoring` 상태가 아니면 400 반환
+- 주입 메시지는 CAN 스트림에 `injected: true`로 투입 → 룰 엔진 평가 + WS push
+- ECU 응답 분류: `normal` / `crash` / `anomaly` / `timeout`
+- WS `injection-result` 이벤트로 주입 결과 실시간 push
+
+#### 사전정의 공격 시나리오 (6개)
+
+| ID | 이름 | 설명 | 심각도 |
+|----|------|------|--------|
+| `dos-burst` | DoS Burst | 동일 메시지 10회 고속 반복 | high |
+| `diagnostic-abuse` | 진단 서비스 남용 | 0x7DF 진단 ID 비인가 명령 3종 | critical |
+| `replay-attack` | 리플레이 공격 | 동일 페이로드 5회 반복 | high |
+| `bus-off` | Bus-Off 유도 | 0xFF 페이로드 Bus-Off | critical |
+| `unauthorized-id` | 비인가 CAN ID | 허용 외 CAN ID 3종 | medium |
+| `boundary-probe` | 경계값 탐색 | 0x00/0xFF/0x7F/0x80 | medium |
+
+### P1-6. 분석 결과 삭제 ✅
+
+```
+DELETE /api/static-analysis/results/:analysisId
+```
+
+- 분석 결과 삭제 (프론트 요청으로 추가)
+
+### 동적 분석 DB 테이블 (3개)
+
+| 테이블 | 용도 |
+|--------|------|
+| `dynamic_analysis_sessions` | 세션 관리 (id, project_id, status, source, counts, timestamps) |
+| `dynamic_analysis_alerts` | 이상 탐지 알림 (severity, title, description, llm_analysis, related_messages) |
+| `dynamic_analysis_messages` | CAN 메시지 로그 (session_id, timestamp, can_id, dlc, data, flagged, injected) |
+
+---
+
+## P1: 동적 테스트 (퍼징/침투) ✅ 구현 완료
+
+동적 분석이 ECU에 수동적으로 붙어 CAN 트래픽을 관찰하는 것이라면, 동적 테스트는 **ECU에 능동적으로 패킷을 주입하고 반응을 관찰**하는 것이다.
+
+### P1-5. 퍼징/침투 테스트 실행 ✅
+
+```
+POST /api/dynamic-test/run
+Body: { "projectId": string, "config": DynamicTestConfig, "adapterId": string, "testId"?: string }
+```
+
+- `adapterId` 필수: 해당 프로젝트 소속이 아닌 어댑터 또는 미연결 어댑터 지정 시 에러 반환
+- `testId`는 optional — S1이 WS 프로그레스를 받기 위해 미리 생성하여 전달할 수 있다.
+- `config.testType`: `"fuzzing"` | `"pentest"`
+- `config.strategy`: `"random"` | `"boundary"` | `"scenario"`
+- `config.count`: optional. random 전략에서만 필수 (1~1000, 기본값 10). boundary/scenario는 고정 입력셋이므로 무시됨
+- 동일 프로젝트 동시 실행 방지 (409 Conflict)
+
+```
+요청 수신 (projectId + config + testId?)
+  → DB 초기 레코드 저장 (status: "running")
+  → InputGenerator.generate(config) — 3전략 입력 생성
+      random: count개 무작위 CAN 프레임 (count 필수, 1~1000)
+      boundary: 경계값 고정 12개 (count 무시)
+      scenario: 공격 시나리오 고정 20개 (count 무시)
+  → AdapterManager.getClient(adapterId) → AdapterClient (IEcuAdapter)
+  → 각 입력 순차 실행:
+      ecuAdapter.sendAndReceive(input) → Adapter → ECU Sim → inject-response
+      응답 분류 (crash / anomaly / timeout / normal)
+      Finding 생성 시 → WS test-finding push
+      WS test-progress push (current/total/crashes/anomalies)
+  → findings가 있으면 S3 LLM 분석 호출
+      testResults 텍스트 포맷 변환
+      llmClient.analyze({ module: "dynamic_testing", testResults })
+      LLM 결과를 각 finding.llmAnalysis에 매핑
+  → DynamicTestResult DB 업데이트 (status: "completed")
+  → AnalysisResult로도 저장 (module: "dynamic_testing", Overview 호환)
+  → WS test-complete
+  → DynamicTestResult 반환
+```
+
+**LLM 실패 시**: 1계층 결과(findings)만으로 완전한 결과 반환 (graceful degradation)
+
+#### ECU 주입 응답
+
+S2는 `AdapterClient` (IEcuAdapter 구현)를 통해 Adapter → ECU Simulator에 주입 요청을 보내고 응답을 받는다.
+MockEcu는 fallback/단위 테스트용으로 유지하며, 동일한 응답 규칙을 따른다.
+
+> 응답 규칙 상세 (6가지 시나리오별 응답)는 [ECU Simulator 명세 — 주입 응답 규칙](ecu-simulator.md#주입-응답-규칙-ecuengine) 참조.
+
+#### WebSocket 프로그레스
+
+```
+WS: /ws/dynamic-test?testId=xxx
+```
+
+메시지 타입:
+- `test-progress`: `{ testId, current, total, crashes, anomalies, message }`
+- `test-finding`: `{ testId, finding: DynamicTestFinding }` — 비정상 발견 시 실시간 push
+- `test-complete`: `{ testId }`
+- `test-error`: `{ testId, error }`
+
+### P1-6. 동적 테스트 결과 조회/삭제 ✅
+
+```
+GET    /api/dynamic-test/results?projectId=   프로젝트별 테스트 결과 목록
+GET    /api/dynamic-test/results/:testId      결과 상세 조회
+DELETE /api/dynamic-test/results/:testId      결과 삭제
+```
+
+- 테스트 실행 결과 반환 (DynamicTestResult)
+- crashes/anomalies 카운트 + findings 배열 + LLM 해석 포함
+
+### 동적 테스트 DB 테이블
+
+| 테이블 | 용도 |
+|--------|------|
+| `dynamic_test_results` | 테스트 결과 (id, project_id, config(JSON), status, total_runs, crashes, anomalies, findings(JSON), created_at) |
+
+---
+
+## P1: 프로젝트 관리 ✅ 구현 완료
+
+### P1-8. 프로젝트 CRUD ✅
+
+```
+POST   /api/projects              프로젝트 생성  Body: { name, description? }
+GET    /api/projects              프로젝트 목록
+GET    /api/projects/:id          프로젝트 상세
+PUT    /api/projects/:id          프로젝트 수정  Body: { name?, description? }
+DELETE /api/projects/:id          프로젝트 삭제
+```
+
+- 모든 분석 결과는 프로젝트에 종속 (projectId)
+- SQLite `projects` 테이블에 저장
+- 응답 형식: `ProjectResponse` / `ProjectListResponse`
+
+### P1-9. 프로젝트 Overview API ✅
+
+```
+GET /api/projects/:id/overview
+```
+
+- 해당 프로젝트의 분석 결과 종합 (`ProjectOverviewResponse`)
+- `fileCount`: 프로젝트에 업로드된 파일 수
+- 취약점 집계: **모듈별 최신 완료 분석 1건**의 summary만 합산 (재분석 시 중복 방지)
+- 최근 분석 이력 (최대 10건)
+
+### P1-10. 프로젝트 파일 관리 API ✅
+
+```
+GET    /api/projects/:projectId/files              프로젝트 파일 목록
+GET    /api/files/:fileId/download                  파일 내용 다운로드 (text/plain)
+DELETE /api/projects/:projectId/files/:fileId        프로젝트에서 파일 삭제
+```
+
+- `uploaded_files` 테이블에 `project_id` 컬럼 + 인덱스 추가 완료
+- `GET files`: 해당 프로젝트의 `UploadedFile[]` 반환 (`ProjectFilesResponse`)
+- `GET download`: 파일 content를 `text/plain`으로 반환, `Content-Disposition` 헤더 포함
+- `DELETE`: 프로젝트+파일 ID 일치 시 삭제
+
+---
+
+## 프로젝트별 룰 관리 API ✅ 구현 완료
+
+룰은 프로젝트 단위로 관리된다. 프로젝트 생성 시 22개 기본 룰이 자동 시딩되며, 사용자가 자유롭게 추가/수정/삭제할 수 있다. 빌트인/커스텀 구분 없이 모든 룰이 동일하게 CRUD 가능하다.
+
+```
+GET    /api/projects/:pid/rules              프로젝트 룰 목록
+POST   /api/projects/:pid/rules              룰 생성  Body: { name, pattern, severity?, description?, suggestion?, fixCode? }
+PUT    /api/projects/:pid/rules/:id          룰 수정  Body: { name?, pattern?, severity?, enabled?, ... }
+DELETE /api/projects/:pid/rules/:id          룰 삭제
+```
+
+- `pattern`은 JavaScript 정규식 문자열 (유효하지 않으면 400)
+- 정적 분석 실행 시 해당 프로젝트의 enabled 룰만 사용 (per-analysis RuleEngine 빌드)
+- DB `rules` 테이블: `id, name, severity, description, suggestion, pattern, fix_code, enabled, project_id, created_at`
+- 프로젝트 삭제 시 소속 룰 cascade 삭제
+
+---
+
+## 프로젝트 설정 API ✅ 구현 완료
+
+프로젝트별 설정을 KV 테이블(`project_settings`)로 관리한다. 미설정 키는 서버 기본값으로 fallback.
+
+```
+GET /api/projects/:pid/settings           프로젝트 설정 조회 (모든 키, 기본값 포함)
+PUT /api/projects/:pid/settings           설정 수정 (부분 업데이트)  Body: { llmUrl?: string }
+```
+
+- 빈 문자열(`""`) PUT 시 해당 키 삭제 → 기본값 복원
+- 프로젝트 삭제 시 설정 cascade 삭제
+- 분석 서비스(정적/동적/테스트)는 `ProjectSettingsService.get(projectId, "llmUrl")`로 프로젝트별 LLM URL 해석
+
+| 키 | 타입 | 기본값 | 설명 |
+|----|------|--------|------|
+| `llmUrl` | string | `LLM_GATEWAY_URL` 환경변수 (기본 `http://localhost:8000`) | 프로젝트가 사용할 LLM Gateway 주소 |
+
+---
+
+## 신규: 코어 도메인 (미구현 — 로드맵 1~3단계)
+
+> 아래는 외부 피드백 기반으로 확정된 방향이다. 상세 설계는 구현 시 확정.
+
+### Run 모델
+
+`AnalysisResult`를 `Run`으로 승격한다. 결과 payload는 자식 엔티티(`run_outputs`, `artifacts`)로 분리.
+
+### Finding 정규화
+
+기존 Vulnerability/DynamicAlert/DynamicTestFinding → **ResultNormalizer**로 canonical Finding 변환. 라이프사이클: Open → Needs Review → Accepted Risk / False Positive / Fixed → Needs Revalidation. LLM 결과는 Sandbox/Needs Review에서 시작.
+
+### Artifact + EvidenceRef
+
+"재검증과 audit에 필요한 것"만 저장. V1 최소 세트: source input snapshot, rule engine raw result, LLM request/response, CAN frame window, test input spec/seed.
+
+### Quality Gate
+
+자동 평가(run 완료 시) + 수동 평가(보조). 동기식으로 시작. 규칙 예시: critical finding → fail, evidence missing → warning, LLM-only → gate 미반영.
+
+### Approval (Local Confirmation)
+
+인증 없이 local confirmation으로 시작. 고위험 액션 시 시스템이 승인 필요 상태로 대기, 사용자가 확인하면 진행. 스키마는 추후 실제 user id 확장 가능하게 설계.
+
+### 사용자 인증 (후순위)
+
+```
+POST /api/auth/register           회원가입
+POST /api/auth/login              로그인 (JWT 발급)
+POST /api/auth/logout             로그아웃
+GET  /api/auth/me                 현재 사용자 정보
+```
+
+- JWT 기반 인증. Approval 고도화 시 필요
+
+---
+
+## 내부 아키텍처
+
+```
+[Express.js Router]
+    │
+    ├── StaticAnalysisController
+    │       → StaticAnalysisService
+    │             → RuleEngine (1계층)
+    │             → Chunker (파일 청크 분할)
+    │             → LlmClient (2계층, 청크별 S3 호출)
+    │             → WebSocketManager (프로그레스 push)
+    │             → AnalysisResultDAO
+    │
+    ├── DynamicAnalysisController
+    │       → DynamicAnalysisService
+    │             → WebSocketManager
+    │             → RuleEngine (1계층)
+    │             → LlmClient (2계층)
+    │             → SessionDAO
+    │
+    ├── DynamicTestController
+    │       → DynamicTestService
+    │             → InputGenerator
+    │             → EcuClient (→ Mock)
+    │             → LlmClient (2계층)
+    │             → TestResultDAO
+    │
+    ├── ProjectController
+    │       → ProjectService
+    │             → ProjectDAO
+    │             → AnalysisResultDAO
+    │             → SessionDAO
+    │             → TestResultDAO
+    │
+    ├── ProjectRulesController
+    │       → RuleService
+    │             → RuleDAO
+    │
+    ├── ProjectAdaptersController
+    │       → AdapterManager
+    │             → AdapterClient(N) → Adapter(N)
+    │             → AdapterDAO
+    │
+    ├── ProjectSettingsController
+    │       → ProjectSettingsService
+    │             → ProjectSettingsDAO
+    │
+    ├── FileController
+    │       → FileStore (DAO 직접)
+    │
+    └── HealthController
+```
+
+- Controller: 요청 수신, 입력 검증, 응답 반환
+- Service: 비즈니스 로직, 오케스트레이션
+- DAO: DB 접근 캡슐화 (SQLite via `better-sqlite3`)
+- 외부 통신: LlmClient(S3), EcuClient(Mock)
+
+---
+
+## 소스 디렉토리 구조
+
+```
+services/backend/src/
+├── index.ts                          앱 진입점 (Express 초기화, DI, 라우터 마운트, WS attach)
+├── db.ts                             SQLite 초기화, 테이블 10개 생성, 마이그레이션
+├── controllers/
+│   ├── health.controller.ts          GET /health
+│   ├── static-analysis.controller.ts POST upload, POST run, GET results, DELETE results, GET report
+│   ├── dynamic-analysis.controller.ts 동적 분석 REST API 5개 엔드포인트
+│   ├── project.controller.ts         CRUD + Overview (fileCount, 모듈별 최신 1건 집계)
+│   ├── file.controller.ts            프로젝트 파일 목록/다운로드/삭제
+│   ├── project-rules.controller.ts   프로젝트 스코프 룰 CRUD
+│   ├── project-adapters.controller.ts 프로젝트 스코프 어댑터 CRUD+연결
+│   ├── project-settings.controller.ts 프로젝트 설정 GET/PUT
+│   └── dynamic-test.controller.ts   동적 테스트 API 4개 (run, results, detail, delete)
+├── services/
+│   ├── static-analysis.service.ts    정적 분석 오케스트레이션 (청크 분할 → 룰 → LLM → 병합 + WS 프로그레스)
+│   ├── chunker.ts                    파일 청크 분할 (토큰 추정, greedy bin-packing)
+│   ├── attack-scenarios.ts           사전정의 공격 시나리오 6개 (CAN 주입용)
+│   ├── dynamic-analysis.service.ts   동적 분석 오케스트레이터 (세션, 메시지, 룰, LLM, CAN 주입)
+│   ├── ws-manager.ts                 WebSocket 서버 3개 (dynamic-analysis + static-analysis + dynamic-test)
+│   ├── adapter-client.ts            Adapter WS 클라이언트 (IEcuAdapter 구현 + CAN 프레임 수신)
+│   ├── dynamic-test.service.ts       동적 테스트 오케스트레이터 (입력생성→Adapter→평가→LLM→결과저장)
+│   ├── mock-ecu.ts                   Mock ECU (IEcuAdapter 인터페이스, fallback + 단위 테스트용)
+│   ├── input-generator.ts            3전략 입력 생성기 (random/boundary/scenario)
+│   ├── project.service.ts            프로젝트 CRUD + Overview 집계 + cascade 삭제
+│   ├── project-settings.service.ts   프로젝트 설정 (KV, 기본값 fallback)
+│   ├── adapter-manager.ts             프로젝트별 어댑터 관리 (CRUD + 연결/해제 + CAN 프레임 라우팅)
+│   ├── rule.service.ts               프로젝트별 룰 CRUD, 기본 룰 시딩, per-analysis 엔진 빌드
+│   └── llm-client.ts                 S3 LLM Gateway HTTP 클라이언트 (per-project URL 오버라이드 지원)
+├── dao/
+│   ├── file-store.ts                 uploaded_files 테이블 DAO
+│   ├── analysis-result.dao.ts        analysis_results 테이블 DAO
+│   ├── project.dao.ts               projects 테이블 DAO
+│   ├── rule.dao.ts                  rules 테이블 DAO (프로젝트 스코프)
+│   ├── adapter.dao.ts               adapters 테이블 DAO (프로젝트 스코프)
+│   ├── project-settings.dao.ts     project_settings 테이블 DAO (KV)
+│   ├── dynamic-session.dao.ts       dynamic_analysis_sessions DAO
+│   ├── dynamic-alert.dao.ts         dynamic_analysis_alerts DAO
+│   ├── dynamic-message.dao.ts       dynamic_analysis_messages DAO
+│   └── dynamic-test-result.dao.ts   dynamic_test_results DAO
+├── rules/                            정적 분석 룰
+│   ├── types.ts                      AnalysisRule 인터페이스, RuleMatch 타입
+│   ├── rule-engine.ts                룰 등록/실행 엔진 (per-analysis 인스턴스)
+│   ├── custom-rule.ts                정규식 기반 룰 클래스 (모든 룰이 이것 사용)
+│   └── default-rule-templates.ts     기본 제공 룰 22개 템플릿 데이터
+└── can-rules/                        동적 분석 CAN 룰
+    ├── types.ts                      CanAnalysisRule, CanRuleMatch 인터페이스
+    ├── can-rule-engine.ts            CAN 룰 등록/실행 엔진
+    ├── frequency-rule.ts             슬라이딩 윈도우 빈도 탐지
+    ├── unauthorized-id-rule.ts       허용 목록 외 CAN ID 탐지
+    └── attack-signature-rule.ts      공격 시그니처 (진단 DoS, 리플레이, Bus-Off)
+```
+
+---
+
+## 관련 문서
+
+- [전체 개요](technical-overview.md)
+- [S1. UI Service](frontend.md)
+- [Adapter 명세](adapter.md) — ECU↔Backend 릴레이, WS 프로토콜, 메시지 형식
+- [ECU Simulator 명세](ecu-simulator.md) — CAN 트래픽 생성, 주입 응답 규칙, 시나리오

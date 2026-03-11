@@ -1,0 +1,16 @@
+{
+  "name": "@smartcar/ecu-simulator",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.3"
+  }
+}

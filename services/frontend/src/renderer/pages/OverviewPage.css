@@ -1,0 +1,323 @@
+/* ── Status Chips ── */
+
+.overview-status-chips {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.overview-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  border: 1px solid var(--border-default);
+  font-family: inherit;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.overview-status-chip:hover {
+  background: var(--surface-3);
+  border-color: var(--accent-border);
+}
+
+/* ── Security Overview Card ── */
+
+.overview-security-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.overview-module-rows {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.overview-module-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.overview-module-row:hover {
+  background: var(--surface-2);
+}
+
+.overview-module-row__icon {
+  display: flex;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.overview-module-row__name {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  min-width: 76px;
+  white-space: nowrap;
+}
+
+.overview-module-row__time {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.overview-module-row__empty {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
+
+/* ── Bottom Grid (Files + History) ── */
+
+.overview-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.overview-bottom-grid > .card {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  .overview-bottom-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .overview-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-security-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* ── Files Card ── */
+
+.overview-files-card,
+.overview-vuln-card,
+.overview-history-card {
+  position: relative;
+}
+
+.overview-file-header {
+  cursor: pointer;
+  padding: var(--space-1) 0;
+  border-radius: var(--radius-md);
+  transition: color var(--transition-fast);
+}
+
+.overview-file-header:hover {
+  color: var(--accent);
+}
+
+.overview-files-body,
+.overview-vuln-body,
+.overview-history-body {
+  position: relative;
+  max-height: 280px;
+  overflow: hidden;
+}
+
+.overview-files-body.has-fade,
+.overview-vuln-body.has-fade,
+.overview-history-body.has-fade {
+  height: 280px;
+}
+
+.overview-card-fade {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: linear-gradient(transparent, var(--surface-1));
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: var(--space-2);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--accent);
+  font-weight: var(--weight-medium);
+  transition: color var(--transition-fast);
+}
+
+.overview-card-fade:hover {
+  color: var(--accent-hover);
+}
+
+.overview-file-total-size {
+  font-weight: var(--weight-normal);
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.overview-file-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  font-size: var(--text-sm);
+}
+
+.overview-file-row--clickable {
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  margin: 0 calc(-1 * var(--space-2));
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+.overview-file-row--clickable:hover {
+  background: var(--surface-2);
+}
+
+.overview-file-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 1px;
+}
+
+.overview-file-name {
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overview-file-path {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.overview-lang-tag {
+  font-size: var(--text-xs);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
+
+.overview-file-size {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
+
+/* ── Top Vulnerabilities Card ── */
+
+.overview-vuln-header {
+  cursor: pointer;
+  padding: var(--space-1) 0;
+  border-radius: var(--radius-md);
+  transition: color var(--transition-fast);
+}
+
+.overview-vuln-header:hover {
+  color: var(--accent);
+}
+
+.overview-vuln-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  margin: 0 calc(-1 * var(--space-2));
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.overview-vuln-row:hover {
+  background: var(--surface-2);
+}
+
+.overview-vuln-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 1px;
+}
+
+.overview-vuln-title {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overview-vuln-location {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+
+/* ── History Card ── */
+
+.overview-history-header {
+  cursor: pointer;
+  padding: var(--space-1) 0;
+  border-radius: var(--radius-md);
+  transition: color var(--transition-fast);
+}
+
+.overview-history-header:hover {
+  color: var(--accent);
+}
+
+.overview-history-label {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+}
+
+.overview-history-files {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.overview-history-time {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+/* ── Empty Text ── */
+
+.overview-empty-text {
+  color: var(--text-tertiary);
+  font-size: var(--text-base);
+  padding: var(--space-2) 0;
+}

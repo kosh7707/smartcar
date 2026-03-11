@@ -1,0 +1,147 @@
+.vuln-filter-bar {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.vuln-filter-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-0);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.vuln-filter-tab:hover {
+  border-color: var(--accent);
+  background: var(--surface-1);
+}
+
+.vuln-filter-tab--active {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border-color: var(--accent);
+}
+
+.vuln-filter-tab--active:hover {
+  background: var(--accent);
+}
+
+.vuln-filter-count {
+  font-size: var(--text-xs);
+  opacity: 0.8;
+}
+
+.vuln-module-tag {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-tertiary);
+}
+
+/* ── Date Filter ── */
+
+.vuln-date-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.vuln-date-filter__icon {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.vuln-date-filter__input {
+  max-width: 160px;
+  font-size: var(--text-sm);
+}
+
+.vuln-date-filter__sep {
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+/* ── Empty state ── */
+
+.vuln-empty-enter {
+  animation: vuln-card-enter 200ms ease-out both;
+}
+
+.vuln-empty-card {
+  padding: var(--space-8);
+  text-align: center;
+}
+
+/* ── Vulnerability Groups ── */
+
+.vuln-group {
+  padding: 0;
+  overflow: hidden;
+}
+
+.vuln-group--static  { border-left: 3px solid #7c6ee6; }
+.vuln-group--dynamic { border-left: 3px solid var(--success); }
+.vuln-group--test    { border-left: 3px solid var(--accent); }
+
+.vuln-group__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  background: var(--surface-0);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.vuln-group--static  .vuln-group__header { background: rgba(124, 110, 230, 0.10); }
+.vuln-group--dynamic .vuln-group__header { background: rgba(34, 197, 94, 0.10); }
+.vuln-group--test    .vuln-group__header { background: rgba(59, 130, 246, 0.10); }
+
+.vuln-group__header-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.vuln-group__sep {
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.vuln-group__time {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.vuln-group__vcount {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.vuln-group__body .vuln-card {
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.vuln-group__body .vuln-card:last-child {
+  border-bottom: none;
+}
+
+.vuln-group__body .vuln-card:hover {
+  background: var(--surface-2);
+  box-shadow: none;
+}
