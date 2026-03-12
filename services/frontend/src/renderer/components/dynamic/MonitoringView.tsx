@@ -18,6 +18,7 @@ import {
   fetchInjections,
 } from "../../api/client";
 import { BackButton, SeverityBadge, Spinner } from "../ui";
+import { useToast } from "../../contexts/ToastContext";
 
 const MAX_MESSAGES = 500;
 
@@ -56,6 +57,7 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
   const [runningScenario, setRunningScenario] = useState<string | null>(null);
   const [injError, setInjError] = useState<string | null>(null);
 
+  const toast = useToast();
   const wsRef = useRef<WebSocket | null>(null);
   const canWrapperRef = useRef<HTMLDivElement>(null);
 
@@ -157,6 +159,7 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
       onStopped();
     } catch (e) {
       console.error("Stop session failed:", e);
+      toast.error("세션 종료에 실패했습니다.");
       setStopping(false);
     }
   }, [session.id, onStopped]);

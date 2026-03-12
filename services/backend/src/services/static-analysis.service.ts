@@ -14,6 +14,10 @@ import { chunkFiles } from "./chunker";
 import type { WsManager } from "./ws-manager";
 import type { RuleService } from "./rule.service";
 import type { ProjectSettingsService } from "./project-settings.service";
+import { createLogger } from "../lib/logger";
+import { NotFoundError } from "../lib/errors";
+
+const logger = createLogger("static-analysis");
 
 const SEVERITY_ORDER: Record<Severity, number> = {
   critical: 0,
@@ -34,11 +38,12 @@ export class StaticAnalysisService {
   async runAnalysis(
     projectId: string,
     fileIds: string[],
-    analysisId?: string
+    analysisId?: string,
+    requestId?: string
   ): Promise<AnalysisResult> {
     const files = fileStore.findByIds(fileIds);
     if (files.length === 0) {
-      throw new Error("No files found for the given IDs");
+      throw new NotFoundError("No files found for the given IDs");
     }
 
     const id = analysisId ?? `analysis-${crypto.randomUUID()}`;
@@ -107,7 +112,7 @@ export class StaticAnalysisService {
             severity: m.severity,
             location: m.location,
           })),
-        }, llmUrl);
+        }, llmUrl, requestId);
 
         if (llmRes.success) {
           const chunkVulns = llmRes.vulnerabilities.map((v, vi) => ({
@@ -139,6 +144,7 @@ export class StaticAnalysisService {
         }
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : "Unknown error";
+        logger.warn({ err, analysisId: id, chunk: i + 1 }, "LLM chunk analysis failed");
         warnings.push({
           code: "LLM_CHUNK_FAILED",
           message: `LLM request error for chunk ${i + 1}/${totalChunks}: ${errMsg}`,

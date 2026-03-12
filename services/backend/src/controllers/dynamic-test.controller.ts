@@ -9,7 +9,7 @@ export function createDynamicTestRouter(service: DynamicTestService): Router {
   const router = Router();
 
   // 테스트 실행
-  router.post("/run", async (req, res) => {
+  router.post("/run", async (req, res, next) => {
     const { projectId, config, adapterId, testId } = req.body as {
       projectId?: string;
       config?: DynamicTestConfig;
@@ -46,12 +46,10 @@ export function createDynamicTestRouter(service: DynamicTestService): Router {
     }
 
     try {
-      const result = await service.runTest(projectId, config, adapterId, testId);
+      const result = await service.runTest(projectId, config, adapterId, testId, req.requestId);
       res.json({ success: true, data: result });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      const status = message.includes("already running") ? 409 : 500;
-      res.status(status).json({ success: false, error: message });
+      next(err);
     }
   });
 

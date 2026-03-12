@@ -26,13 +26,59 @@
 
 ---
 
+## Observability
+
+### 에러 응답 형식
+
+모든 에러 응답은 하위호환 `error` string + 구조화된 `errorDetail` 객체를 포함한다.
+
+```json
+{
+  "success": false,
+  "error": "Session not found",
+  "errorDetail": {
+    "code": "NOT_FOUND",
+    "message": "Session not found",
+    "requestId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "retryable": false
+  }
+}
+```
+
+### 에러 코드 목록
+
+| 코드 | HTTP | retryable | 용도 |
+|------|------|-----------|------|
+| `INVALID_INPUT` | 400 | N | 필수 필드 누락, 잘못된 형식 |
+| `NOT_FOUND` | 404 | N | 리소스 없음 |
+| `CONFLICT` | 409 | N | 동시 실행 등 |
+| `ADAPTER_UNAVAILABLE` | 502 | Y | 어댑터 미연결 |
+| `LLM_UNAVAILABLE` | 502 | Y | S3 네트워크 불가 |
+| `LLM_HTTP_ERROR` | 502 | N | S3가 4xx/5xx 반환 |
+| `LLM_PARSE_ERROR` | 502 | Y | S3 응답 JSON 파싱 실패 |
+| `LLM_TIMEOUT` | 504 | Y | S3 응답 시간 초과 |
+| `DB_ERROR` | 500 | N | SQLite 오류 |
+| `INTERNAL_ERROR` | 500 | N | catch-all |
+
+### Request ID
+
+- 모든 응답에 `X-Request-Id` 헤더 포함
+- 클라이언트가 `X-Request-Id` 헤더를 보내면 그 값을 사용, 없으면 서버가 생성
+- S2 → S3 호출 시 `X-Request-Id` 헤더로 전파
+
+### 로그 포맷
+
+JSON structured logging (stdout, pino). 상세 규약: `docs/specs/observability.md`
+
+---
+
 ## 데이터베이스
 
 SQLite(`better-sqlite3`)를 사용하여 별도 DB 서버 없이 파일 단일로 운영한다.
 
 - DB 파일: `services/backend/smartcar.db` (환경변수 `DB_PATH`로 변경 가능)
 - WAL 모드 활성화 (읽기/쓰기 동시성 향상)
-- 테이블: `projects`, `uploaded_files`, `analysis_results`, `rules`, `adapters`, `project_settings`, `dynamic_analysis_sessions`, `dynamic_analysis_alerts`, `dynamic_analysis_messages`, `dynamic_test_results`
+- 테이블: `projects`, `uploaded_files`, `analysis_results`, `rules`, `adapters`, `project_settings`, `dynamic_analysis_sessions`, `dynamic_analysis_alerts`, `dynamic_analysis_messages`, `dynamic_test_results`, `audit_log`
 - `analysis_results` 테이블에 `warnings TEXT` 컬럼 추가 (JSON, 기본값 `'[]'`)
 - `analysis_results` 테이블에 `analyzed_file_ids TEXT` 컬럼 추가 (JSON, 기본값 `'[]'`) — 분석 대상 파일 ID 목록
 

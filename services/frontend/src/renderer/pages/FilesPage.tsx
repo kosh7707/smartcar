@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback, DragEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import type { UploadedFile } from "@smartcar/shared";
-import { FileText, Folder, FolderOpen, Upload, Trash2, Download, ChevronRight, Search, FolderUp, HardDrive, AlertTriangle, X, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { FileText, Folder, FolderOpen, Upload, Trash2, Download, ChevronRight, Search, FolderUp, HardDrive, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { fetchProjectFiles, uploadFiles, deleteProjectFile, downloadFile } from "../api/client";
 import { EmptyState, Spinner } from "../components/ui";
+import { useToast } from "../contexts/ToastContext";
 import { formatFileSize } from "../utils/format";
 import "./FilesPage.css";
 
@@ -217,7 +218,7 @@ export const FilesPage: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [search, setSearch] = useState("");
   const [dragOver, setDragOver] = useState(false);
-  const [toast, setToast] = useState<{ type: "error" | "warning"; message: string } | null>(null);
+  const toast = useToast();
   const [treeKey, setTreeKey] = useState(0);
   const [treeDefaultOpen, setTreeDefaultOpen] = useState<boolean | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -227,7 +228,7 @@ export const FilesPage: React.FC = () => {
     if (!projectId) return;
     fetchProjectFiles(projectId)
       .then(setFiles)
-      .catch((e) => console.error("Failed to load files:", e))
+      .catch((e) => { console.error("Failed to load files:", e); toast.error("파일 목록을 불러올 수 없습니다."); })
       .finally(() => setLoading(false));
   }, [projectId]);
 
@@ -260,11 +261,6 @@ export const FilesPage: React.FC = () => {
 
   const totalSize = useMemo(() => files.reduce((sum, f) => sum + (f.size || 0), 0), [files]);
 
-  const showToast = useCallback((type: "error" | "warning", message: string) => {
-    setToast({ type, message });
-    setTimeout(() => setToast(null), 5000);
-  }, []);
-
   const handleUpload = async (fileList: FileList) => {
     if (!projectId || fileList.length === 0) return;
 
@@ -274,7 +270,7 @@ export const FilesPage: React.FC = () => {
       const names = skipped.length <= 3
         ? skipped.join(", ")
         : `${skipped.slice(0, 3).join(", ")} 외 ${skipped.length - 3}개`;
-      showToast("warning", `지원하지 않는 파일 제외됨: ${names} (.c, .cpp, .h, .hpp, .py, .java, .js, .ts만 지원)`);
+      toast.warning(`지원하지 않는 파일 제외됨: ${names} (.c, .cpp, .h, .hpp, .py, .java, .js, .ts만 지원)`);
     }
 
     if (supported.length === 0) {
@@ -289,7 +285,7 @@ export const FilesPage: React.FC = () => {
       setFiles((prev) => [...prev, ...uploaded]);
     } catch (e) {
       console.error("Upload failed:", e);
-      showToast("error", "파일 업로드에 실패했습니다. 다시 시도해주세요.");
+      toast.error("파일 업로드에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -305,6 +301,7 @@ export const FilesPage: React.FC = () => {
       setFiles((prev) => prev.filter((f) => f.id !== file.id));
     } catch (e) {
       console.error("Delete failed:", e);
+      toast.error("파일 삭제에 실패했습니다.");
     }
   };
 
@@ -320,6 +317,7 @@ export const FilesPage: React.FC = () => {
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error("Download failed:", e);
+      toast.error("파일 다운로드에 실패했습니다.");
     }
   };
 
@@ -502,16 +500,6 @@ export const FilesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Toast */}
-      {toast && (
-        <div className={`fpage-toast fpage-toast--${toast.type}`}>
-          <AlertTriangle size={16} />
-          <span className="fpage-toast__message">{toast.message}</span>
-          <button className="fpage-toast__close" onClick={() => setToast(null)}>
-            <X size={14} />
-          </button>
-        </div>
-      )}
     </div>
   );
 };

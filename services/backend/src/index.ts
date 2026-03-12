@@ -1,5 +1,9 @@
 import express from "express";
 import cors from "cors";
+import { logger, generateRequestId } from "./lib";
+import { requestIdMiddleware } from "./middleware/request-id.middleware";
+import { requestLoggerMiddleware } from "./middleware/request-logger.middleware";
+import { errorHandlerMiddleware } from "./middleware/error-handler.middleware";
 import { createHealthRouter } from "./controllers/health.controller";
 import { createStaticAnalysisRouter } from "./controllers/static-analysis.controller";
 import { createProjectRouter } from "./controllers/project.controller";
@@ -23,6 +27,16 @@ import { DynamicTestService } from "./services/dynamic-test.service";
 import { createDynamicTestRouter } from "./controllers/dynamic-test.controller";
 import { AdapterManager } from "./services/adapter-manager";
 
+// --- 프로세스 레벨 에러 핸들러 ---
+process.on("uncaughtException", (err) => {
+  logger.fatal({ err }, "Uncaught exception — shutting down");
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason) => {
+  logger.error({ err: reason }, "Unhandled rejection");
+});
+
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const LLM_GATEWAY_URL =
@@ -30,6 +44,8 @@ const LLM_GATEWAY_URL =
 
 app.use(cors());
 app.use(express.json());
+app.use(requestIdMiddleware);
+app.use(requestLoggerMiddleware);
 
 // 서비스 초기화
 const llmClient = new LlmClient(LLM_GATEWAY_URL);
@@ -41,11 +57,13 @@ const projectService = new ProjectService(ruleService, adapterManager, settingsS
 const staticAnalysisService = new StaticAnalysisService(ruleService, llmClient, settingsService, wsManager);
 
 // 기존 프로젝트에 기본 룰 시딩 (1회 마이그레이션)
+const seedRequestId = generateRequestId("sys");
+logger.info({ requestId: seedRequestId }, "Rule seeding check started");
 for (const project of projectService.findAll()) {
   const rules = ruleService.findByProjectId(project.id);
   if (rules.length === 0) {
     ruleService.seedDefaultRules(project.id);
-    console.log(`[Core Service] 기본 룰 시딩: ${project.name} (${project.id})`);
+    logger.info({ requestId: seedRequestId, projectId: project.id, projectName: project.name }, "기본 룰 시딩 완료");
   }
 }
 
@@ -86,9 +104,12 @@ app.use(
 );
 app.use("/api/dynamic-test", createDynamicTestRouter(dynamicTestService));
 
+// 글로벌 에러 핸들러 (모든 라우터 뒤에 마운트)
+app.use(errorHandlerMiddleware);
+
 const server = app.listen(PORT, () => {
-  console.log(`[Core Service] http://localhost:${PORT}`);
-  console.log(`[Core Service] LLM Gateway: ${LLM_GATEWAY_URL}`);
+  logger.info({ port: PORT }, "Core Service started");
+  logger.info({ llmGatewayUrl: LLM_GATEWAY_URL }, "LLM Gateway configured");
 });
 
 wsManager.attach(server);

@@ -1,16 +1,43 @@
 import logging
+import os
+import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pythonjsonlogger import jsonlogger
 
 from app.config import settings
+from app.context import get_request_id
 from app.routers import analyze, health
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
+
+class _JsonFormatter(jsonlogger.JsonFormatter):
+    def add_fields(self, log_record, record, message_dict):
+        super().add_fields(log_record, record, message_dict)
+        log_record["level"] = record.levelname.lower()
+        log_record["time"] = int(record.created * 1000)
+        log_record["service"] = "s3-llm-gateway"
+        log_record["msg"] = log_record.pop("message", "")
+        request_id = get_request_id()
+        if request_id:
+            log_record["requestId"] = request_id
+
+
+_formatter = _JsonFormatter()
+
+_stdout_handler = logging.StreamHandler(sys.stdout)
+_stdout_handler.setFormatter(_formatter)
+
+_log_dir = Path(os.environ.get("LOG_DIR", Path(__file__).resolve().parent.parent.parent.parent / "logs"))
+_log_dir.mkdir(parents=True, exist_ok=True)
+_file_handler = logging.FileHandler(_log_dir / "s3-llm-gateway.jsonl")
+_file_handler.setFormatter(_formatter)
+
+logging.root.handlers = [_stdout_handler, _file_handler]
+logging.root.setLevel(logging.INFO)
+
 logger = logging.getLogger(__name__)
 
 

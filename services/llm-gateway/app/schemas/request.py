@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class RuleResult(BaseModel):
@@ -14,5 +14,5 @@ class AnalyzeRequest(BaseModel):
     canLog: str | None = None
     testResults: str | None = None
     ruleResults: list[RuleResult] = []
-    maxTokens: int = 2048
-    temperature: float = 0.7
+    maxTokens: int = Field(2048, ge=1, le=8192)
+    temperature: float = Field(0.7, ge=0.0, le=2.0)

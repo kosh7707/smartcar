@@ -64,7 +64,7 @@ export function createProjectAdaptersRouter(adapterManager: AdapterManager): Rou
   });
 
   // 연결
-  router.post("/:id/connect", async (req, res) => {
+  router.post("/:id/connect", async (req, res, next) => {
     const pid = (req.params as any).pid as string;
     const { id } = req.params;
     const adapter = adapterManager.findById(id);
@@ -76,8 +76,7 @@ export function createProjectAdaptersRouter(adapterManager: AdapterManager): Rou
       const connected = await adapterManager.connect(id);
       res.json({ success: true, data: connected });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Connection failed";
-      res.status(502).json({ success: false, error: message });
+      next(err);
     }
   });
 

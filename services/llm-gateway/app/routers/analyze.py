@@ -1,8 +1,11 @@
 import logging
 import time
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 
+from app.context import get_request_id, set_request_id
+from app.errors import LlmHttpError, LlmTimeoutError, LlmUnavailableError, S3Error
 from app.schemas.request import AnalyzeRequest
 from app.schemas.response import AnalyzeResponse
 from app.services.clients import create_llm_client
@@ -19,12 +22,49 @@ llm_client = create_llm_client()
 VALID_MODULES = ("static_analysis", "dynamic_analysis", "dynamic_testing")
 
 
-@router.post("/api/llm/analyze", response_model=AnalyzeResponse)
-async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
+def _error_response(
+    status_code: int,
+    message: str,
+    *,
+    code: str,
+    retryable: bool = False,
+) -> JSONResponse:
+    request_id = get_request_id()
+    body = {
+        "success": False,
+        "vulnerabilities": [],
+        "error": message,
+        "errorDetail": {
+            "code": code,
+            "message": message,
+            "requestId": request_id,
+            "retryable": retryable,
+        },
+    }
+    headers = {"X-Request-Id": request_id} if request_id else {}
+    return JSONResponse(status_code=status_code, content=body, headers=headers)
+
+
+def _ok_response(result) -> JSONResponse:
+    request_id = get_request_id()
+    body = AnalyzeResponse(
+        success=True,
+        vulnerabilities=result.vulnerabilities,
+        note=result.note,
+    ).model_dump(mode="json")
+    headers = {"X-Request-Id": request_id} if request_id else {}
+    return JSONResponse(content=body, headers=headers)
+
+
+@router.post("/api/llm/analyze")
+async def analyze(request: AnalyzeRequest, req: Request) -> JSONResponse:
+    set_request_id(req.headers.get("x-request-id"))
+
     if request.module not in VALID_MODULES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid module: {request.module}. Must be one of {VALID_MODULES}",
+        return _error_response(
+            400,
+            f"Invalid module: {request.module}. Must be one of {VALID_MODULES}",
+            code="INVALID_INPUT",
         )
 
     start = time.time()
@@ -33,12 +73,10 @@ async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
 
         for msg in messages:
             if msg["role"] == "system":
-                logger.info(
-                    "[%s] === System Prompt ===\n%s", request.module, msg["content"],
-                )
+                logger.debug("[%s] System Prompt:\n%s", request.module, msg["content"])
             elif msg["role"] == "user":
-                logger.info(
-                    "[%s] === User Prompt (%d chars) ===\n%s",
+                logger.debug(
+                    "[%s] User Prompt (%d chars):\n%s",
                     request.module, len(msg["content"]), msg["content"],
                 )
 
@@ -48,8 +86,8 @@ async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
             temperature=request.temperature,
         )
 
-        logger.info(
-            "[%s] === LLM Response (%d chars) ===\n%s",
+        logger.debug(
+            "[%s] LLM Response (%d chars):\n%s",
             request.module, len(raw_response), raw_response,
         )
 
@@ -59,27 +97,37 @@ async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
 
         if result.error:
             logger.warning(
-                "[%s] parse failed in %.2fs: %s",
+                "[%s] Parse failed (%.2fs): %s",
                 request.module, elapsed, result.error,
             )
-            return AnalyzeResponse(
-                success=False,
-                vulnerabilities=[],
-                error=result.error,
+            return _error_response(
+                502, result.error, code="LLM_PARSE_ERROR", retryable=True,
             )
 
         logger.info(
-            "[%s] analysis done in %.2fs — %d vulnerabilities",
+            "[%s] Analysis completed (%.2fs) — %d vulnerabilities",
             request.module, elapsed, len(result.vulnerabilities),
         )
+        return _ok_response(result)
 
-        return AnalyzeResponse(
-            success=True,
-            vulnerabilities=result.vulnerabilities,
-            note=result.note,
-        )
-
-    except Exception as e:
+    except LlmTimeoutError as e:
         elapsed = time.time() - start
-        logger.error("[%s] analysis failed in %.2fs: %s", request.module, elapsed, e)
-        return AnalyzeResponse(success=False, vulnerabilities=[], error=str(e))
+        logger.error("[%s] LLM timeout (%.2fs)", request.module, elapsed)
+        return _error_response(504, str(e), code=e.code, retryable=e.retryable)
+
+    except (LlmUnavailableError, LlmHttpError) as e:
+        elapsed = time.time() - start
+        logger.error("[%s] LLM error (%.2fs): %s", request.module, elapsed, e)
+        return _error_response(502, str(e), code=e.code, retryable=e.retryable)
+
+    except S3Error as e:
+        elapsed = time.time() - start
+        logger.error("[%s] S3 error (%.2fs): %s", request.module, elapsed, e)
+        return _error_response(502, str(e), code=e.code, retryable=e.retryable)
+
+    except Exception:
+        elapsed = time.time() - start
+        logger.error(
+            "[%s] Internal error (%.2fs)", request.module, elapsed, exc_info=True,
+        )
+        return _error_response(500, "Internal server error", code="INTERNAL_ERROR")

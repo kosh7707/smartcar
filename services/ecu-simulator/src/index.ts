@@ -4,6 +4,7 @@ import { EcuEngine } from "./ecu-engine";
 import { TrafficGenerator } from "./traffic-generator";
 import type { AdapterToEcuMessage, EcuToAdapterMessage } from "./protocol";
 import type { CanScenario } from "./scenarios";
+import logger from "./logger";
 
 // CLI args
 const args = process.argv.slice(2);
@@ -20,14 +21,14 @@ const loop = args.includes("--loop");
 
 const scenario = SCENARIOS[scenarioName];
 if (!scenario) {
-  console.error(
-    `Unknown scenario: ${scenarioName}. Available: ${Object.keys(SCENARIOS).join(", ")}`
+  logger.fatal(
+    { scenarioName, available: Object.keys(SCENARIOS) },
+    "Unknown scenario"
   );
   process.exit(1);
 }
 
-console.log(`[ECU Sim] Connecting to ${adapterUrl}`);
-console.log(`[ECU Sim] Scenario: ${scenario.name}, Speed: ${speed}x, Loop: ${loop}`);
+logger.info({ adapterUrl, scenario: scenario.name, speed, loop }, "ECU Simulator starting");
 
 const ecuEngine = new EcuEngine();
 const trafficGenerator = new TrafficGenerator();
@@ -38,7 +39,7 @@ function connect(): void {
   ws = new WebSocket(adapterUrl);
 
   ws.on("open", () => {
-    console.log("[ECU Sim] Connected to Adapter");
+    logger.info("Connected to Adapter");
     running = true;
 
     // 시나리오에서 사용하는 CAN ID 추출 후 ecu-info 전송
@@ -58,7 +59,7 @@ function connect(): void {
     try {
       const msg: AdapterToEcuMessage = JSON.parse(raw.toString());
       if (msg.type === "inject-request") {
-        console.log(`[ECU Sim] Inject request: ${msg.requestId} → ${msg.frame.id} [${msg.frame.dlc}] ${msg.frame.data}`);
+        logger.debug({ requestId: msg.requestId, canId: msg.frame.id, dlc: msg.frame.dlc }, "Inject request received");
         const response = await ecuEngine.processInjection(msg.frame);
         const reply: EcuToAdapterMessage = {
           type: "inject-response",
@@ -75,14 +76,14 @@ function connect(): void {
   });
 
   ws.on("close", () => {
-    console.log("[ECU Sim] Disconnected from Adapter");
+    logger.info("Disconnected from Adapter");
     running = false;
     // auto-reconnect after 3s
     setTimeout(connect, 3000);
   });
 
   ws.on("error", (err) => {
-    console.error(`[ECU Sim] Connection error: ${err.message}`);
+    logger.error({ err }, "Connection error");
   });
 }
 
@@ -97,12 +98,12 @@ async function startTraffic(): Promise<void> {
     totalSent++;
 
     if (totalSent % 100 === 0) {
-      console.log(`[ECU Sim] Sent ${totalSent} frames`);
+      logger.info({ totalSent }, "Traffic progress");
     }
   }
 
   if (running) {
-    console.log(`[ECU Sim] Traffic generation complete. Total: ${totalSent}`);
+    logger.info({ totalSent }, "Traffic generation complete");
   }
 }
 

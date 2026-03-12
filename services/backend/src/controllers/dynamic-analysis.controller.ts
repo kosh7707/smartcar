@@ -8,7 +8,7 @@ export function createDynamicAnalysisRouter(
   const router = Router();
 
   // 세션 생성
-  router.post("/sessions", (req, res) => {
+  router.post("/sessions", (req, res, next) => {
     const { projectId, adapterId } = req.body as { projectId?: string; adapterId?: string };
     if (!projectId) {
       res.status(400).json({ success: false, error: "projectId is required" });
@@ -22,9 +22,7 @@ export function createDynamicAnalysisRouter(
       const session = service.createSession(projectId, adapterId);
       res.status(201).json({ success: true, data: session });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      const status = message.includes("not found") ? 404 : 400;
-      res.status(status).json({ success: false, error: message });
+      next(err);
     }
   });
 
@@ -59,17 +57,16 @@ export function createDynamicAnalysisRouter(
   });
 
   // 세션 종료
-  router.delete("/sessions/:id", async (req, res) => {
+  router.delete("/sessions/:id", async (req, res, next) => {
     try {
-      const session = await service.stopSession(req.params.id);
+      const session = await service.stopSession(req.params.id, req.requestId);
       if (!session) {
         res.status(404).json({ success: false, error: "Session not found" });
         return;
       }
       res.json({ success: true, data: session });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      res.status(500).json({ success: false, error: message });
+      next(err);
     }
   });
 
@@ -82,7 +79,7 @@ export function createDynamicAnalysisRouter(
   });
 
   // CAN 메시지 단일 주입
-  router.post("/sessions/:id/inject", async (req, res) => {
+  router.post("/sessions/:id/inject", async (req, res, next) => {
     const { canId, dlc, data, label } = req.body as {
       canId?: string; dlc?: number; data?: string; label?: string;
     };
@@ -102,15 +99,12 @@ export function createDynamicAnalysisRouter(
       const result = await service.injectMessage(req.params.id, { canId, dlc, data, label });
       res.json({ success: true, data: result });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      const status = message.includes("not in monitoring") ? 400
-        : message.includes("not found") ? 404 : 500;
-      res.status(status).json({ success: false, error: message });
+      next(err);
     }
   });
 
   // 사전정의 시나리오 실행
-  router.post("/sessions/:id/inject-scenario", async (req, res) => {
+  router.post("/sessions/:id/inject-scenario", async (req, res, next) => {
     const { scenarioId } = req.body as { scenarioId?: string };
     if (!scenarioId) {
       res.status(400).json({ success: false, error: "scenarioId is required" });
@@ -120,11 +114,7 @@ export function createDynamicAnalysisRouter(
       const results = await service.injectScenario(req.params.id, scenarioId as AttackScenarioId);
       res.json({ success: true, data: results });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      const status = message.includes("Unknown scenario") ? 400
-        : message.includes("not in monitoring") ? 400
-        : message.includes("not found") ? 404 : 500;
-      res.status(status).json({ success: false, error: message });
+      next(err);
     }
   });
 

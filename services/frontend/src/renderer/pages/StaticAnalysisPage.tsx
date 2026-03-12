@@ -3,7 +3,8 @@ import { useParams, useSearchParams } from "react-router-dom";
 import type { AnalysisResult, UploadedFile } from "@smartcar/shared";
 import { FileSearch, Plus, Trash2, FolderSearch, ListChecks } from "lucide-react";
 import { useStaticAnalysis } from "../hooks/useStaticAnalysis";
-import { fetchAnalysisResults, fetchAnalysisResult, deleteAnalysisResult, fetchProjectFiles } from "../api/client";
+import { fetchAnalysisResults, fetchAnalysisResult, deleteAnalysisResult, fetchProjectFiles, ApiError } from "../api/client";
+import { useToast } from "../contexts/ToastContext";
 import { FileUploadView } from "../components/static/FileUploadView";
 import { AnalysisProgressView } from "../components/static/AnalysisProgressView";
 import { AnalysisResultsView } from "../components/static/AnalysisResultsView";
@@ -17,6 +18,7 @@ export const StaticAnalysisPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const analysis = useStaticAnalysis(projectId!);
+  const toast = useToast();
 
   const [history, setHistory] = useState<AnalysisResult[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -34,7 +36,11 @@ export const StaticAnalysisPage: React.FC = () => {
         setHistory(analyses.filter(a => a.module === "static_analysis"));
         setProjectFiles(files);
       })
-      .catch((e) => console.error("Failed to load history:", e))
+      .catch((e) => {
+        console.error("Failed to load history:", e);
+        const retry = e instanceof ApiError && e.retryable ? { label: "다시 시도", onClick: loadHistory } : undefined;
+        toast.error(e instanceof Error ? e.message : "분석 이력을 불러올 수 없습니다.", retry);
+      })
       .finally(() => setHistoryLoading(false));
   };
 
@@ -45,6 +51,7 @@ export const StaticAnalysisPage: React.FC = () => {
       setHistory((prev) => prev.filter((h) => h.id !== a.id));
     } catch (e) {
       console.error("Delete analysis failed:", e);
+      toast.error("분석 이력 삭제에 실패했습니다.");
     }
   };
 
@@ -57,7 +64,7 @@ export const StaticAnalysisPage: React.FC = () => {
     if (analysisId) {
       fetchAnalysisResult(analysisId)
         .then(setViewingResult)
-        .catch((e) => console.error("Failed to load analysis:", e));
+        .catch((e) => { console.error("Failed to load analysis:", e); toast.error("분석 결과를 불러올 수 없습니다."); });
     } else {
       setViewingResult(null);
     }

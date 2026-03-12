@@ -9,6 +9,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { fetchAnalysisResults, deleteAnalysisResult } from "../api/client";
+import { useToast } from "../contexts/ToastContext";
 import { PageHeader, SeveritySummary, ListItem, Spinner } from "../components/ui";
 import { extractFiles } from "../utils/analysis";
 import { formatDateTime } from "../utils/format";
@@ -33,13 +34,14 @@ export const AnalysisHistoryPage: React.FC = () => {
   const [results, setResults] = useState<AnalysisResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const toast = useToast();
 
   useEffect(() => {
     if (!projectId) return;
     setLoading(true);
     fetchAnalysisResults(projectId)
       .then(setResults)
-      .catch((e) => console.error("Failed to fetch analysis history:", e))
+      .catch((e) => { console.error("Failed to fetch analysis history:", e); toast.error("분석 이력을 불러올 수 없습니다."); })
       .finally(() => setLoading(false));
   }, [projectId]);
 
@@ -50,6 +52,7 @@ export const AnalysisHistoryPage: React.FC = () => {
       setResults((prev) => prev.filter((h) => h.id !== a.id));
     } catch (e) {
       console.error("Delete analysis failed:", e);
+      toast.error("분석 이력 삭제에 실패했습니다.");
     }
   };
 

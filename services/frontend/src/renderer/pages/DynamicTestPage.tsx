@@ -13,8 +13,9 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
-import { getDynamicTestResults, getDynamicTestResult, deleteDynamicTestResult } from "../api/client";
+import { getDynamicTestResults, getDynamicTestResult, deleteDynamicTestResult, ApiError } from "../api/client";
 import { useDynamicTest, type TestProgress } from "../hooks/useDynamicTest";
+import { useToast } from "../contexts/ToastContext";
 import { useAdapters } from "../hooks/useAdapters";
 import { PageHeader, EmptyState, ListItem, SeverityBadge, StatCard, Spinner, BackButton, AdapterSelector } from "../components/ui";
 import { formatDateTime } from "../utils/format";
@@ -41,6 +42,7 @@ const FINDING_TYPE_LABEL: Record<string, string> = {
 export const DynamicTestPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { connected, hasConnected } = useAdapters(projectId);
+  const toast = useToast();
   const test = useDynamicTest(projectId!);
 
   const [history, setHistory] = useState<DynamicTestResult[]>([]);
@@ -59,7 +61,11 @@ export const DynamicTestPage: React.FC = () => {
   const loadHistory = () => {
     getDynamicTestResults(projectId!)
       .then(setHistory)
-      .catch((e) => console.error("Failed to load test history:", e))
+      .catch((e) => {
+        console.error("Failed to load test history:", e);
+        const retry = e instanceof ApiError && e.retryable ? { label: "다시 시도", onClick: loadHistory } : undefined;
+        toast.error(e instanceof Error ? e.message : "테스트 이력을 불러올 수 없습니다.", retry);
+      })
       .finally(() => setHistoryLoading(false));
   };
 
@@ -108,6 +114,7 @@ export const DynamicTestPage: React.FC = () => {
       setHistory((prev) => prev.filter((h) => h.id !== r.id));
     } catch (e) {
       console.error("Delete failed:", e);
+      toast.error("테스트 결과 삭제에 실패했습니다.");
     }
   };
 
@@ -117,6 +124,7 @@ export const DynamicTestPage: React.FC = () => {
       test.viewResult(detail);
     } catch (e) {
       console.error("Failed to load result:", e);
+      toast.error("테스트 결과를 불러올 수 없습니다.");
     }
   };
 

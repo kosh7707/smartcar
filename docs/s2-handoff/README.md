@@ -90,12 +90,22 @@ S4(실 LLM)는 아직 없다. S3가 Mock 응답을 반환하지만, 인터페이
 
 ```
 services/backend/
-├── package.json                    # @smartcar/backend, Express 5, better-sqlite3, multer, ws
+├── package.json                    # @smartcar/backend, Express 5, better-sqlite3, multer, ws, pino
 ├── tsconfig.json
 ├── smartcar.db                     # SQLite DB 파일 (자동 생성)
 └── src/
-    ├── index.ts                    # 앱 진입점 (Express 초기화, DI, 라우터 마운트, WS attach)
-    ├── db.ts                       # SQLite 초기화, 테이블 10개 생성, 마이그레이션
+    ├── index.ts                    # 앱 진입점 (Express 초기화, DI, 미들웨어, 라우터 마운트, WS attach)
+    ├── db.ts                       # SQLite 초기화, 테이블 11개 생성, 마이그레이션
+    ├── lib/
+    │   ├── logger.ts              # pino 루트 로거 + createLogger(component)
+    │   ├── errors.ts              # AppError 계층 (10개 에러 클래스)
+    │   └── index.ts               # barrel export
+    ├── middleware/
+    │   ├── request-id.middleware.ts     # X-Request-Id 생성/전파
+    │   ├── request-logger.middleware.ts # 요청 시작/완료 로깅
+    │   └── error-handler.middleware.ts  # 글로벌 에러 핸들러 (AppError → statusCode/code)
+    ├── types/
+    │   └── express.d.ts           # Express Request에 requestId 타입 확장
     ├── controllers/
     │   ├── health.controller.ts    # GET /health (어댑터 연결 현황 포함)
     │   ├── static-analysis.controller.ts  # 파일 업로드 + 분석 실행/조회/목록/삭제/보고서
@@ -176,7 +186,7 @@ Controller → Service → DAO → SQLite
 
 SQLite(`better-sqlite3`), WAL 모드. DB 파일: `services/backend/smartcar.db` (환경변수 `DB_PATH`로 변경 가능).
 
-### 테이블 10개
+### 테이블 11개
 
 | 테이블 | 용도 | 주요 컬럼 |
 |--------|------|----------|
@@ -190,6 +200,7 @@ SQLite(`better-sqlite3`), WAL 모드. DB 파일: `services/backend/smartcar.db` 
 | `dynamic_analysis_alerts` | 이상 탐지 알림 | id, session_id, severity, title, description, llm_analysis, related_messages(JSON) |
 | `dynamic_analysis_messages` | CAN 메시지 로그 | id(auto), session_id, timestamp, can_id, dlc, data, flagged, injected |
 | `dynamic_test_results` | 동적 테스트 결과 | id, project_id, config(JSON), status, total_runs, crashes, anomalies, findings(JSON), created_at |
+| `audit_log` | 감사 로그 (스키마만) | id, timestamp, actor, action, resource, resource_id, detail(JSON), request_id |
 
 ### 마이그레이션 주의사항
 
@@ -510,14 +521,113 @@ curl -X POST http://localhost:3000/api/projects/proj-xxx/adapters/adp-xxx/connec
 
 ---
 
-## 9. 알려진 이슈 / 주의사항
+## 9. Observability (에러 핸들링 + 구조화 로깅 + Request ID)
 
-### S1 대기 중인 작업 요청 (2026-03-10 기준)
+### 규약 문서
 
-`docs/work-requests/`에 S1 대기 작업이 남아있다:
-- `s2-to-s1-injection-ui.md` — 동적 분석 CAN 주입 UI (주입 폼 + 시나리오 카드 + 이력 패널)
-- `s2-to-s1-per-file-vuln-display.md` — 정적 분석 취약점 파일별 그룹핑 표시
-- `s2-to-s1-ecu-meta-ready.md` — ECU 메타데이터 API 완료 통보 (어댑터 선택 시 ECU 이름/CAN ID 자동 채움)
+`docs/specs/observability.md` — MSA 전체 공통 규약 (에러 응답 형식, 에러 코드, 로그 포맷, Request ID, 로그 레벨 기준)
+
+### 에러 클래스 계층 (`src/lib/errors.ts`)
+
+```
+AppError (code, statusCode, message, retryable, cause?)
+  ├── NotFoundError         (404)
+  ├── InvalidInputError     (400)
+  ├── ConflictError         (409)
+  ├── AdapterUnavailableError (502, retryable)
+  ├── LlmUnavailableError   (502, retryable)
+  ├── LlmHttpError          (502)
+  ├── LlmParseError         (502, retryable)
+  ├── LlmTimeoutError       (504, retryable)
+  └── DbError               (500)
+```
+
+서비스에서 `throw new NotFoundError("...")` 하면 글로벌 에러 핸들러가 적절한 HTTP 상태코드 + `errorDetail` 객체로 응답한다.
+
+### 로거 (`src/lib/logger.ts`)
+
+pino 기반 JSON structured logging. `createLogger("component")` → child logger.
+
+```typescript
+import { createLogger } from "../lib/logger";
+const logger = createLogger("my-service");
+logger.info({ projectId }, "Analysis started");
+logger.warn({ err, sessionId }, "LLM call failed");
+```
+
+### 로그 저장
+
+pino transport로 **stdout + JSONL 파일** 동시 출력. 서비스가 어떻게 실행되든(start.sh, 직접 실행) 항상 파일에 기록됨.
+
+```
+logs/                       # 프로젝트 루트 (git-ignored, 자동 생성)
+├── s2-backend.jsonl        # S2 백엔드
+├── adapter.jsonl           # Adapter
+└── ecu-simulator.jsonl     # ECU Simulator
+```
+
+- 환경변수 `LOG_DIR`로 경로 변경 가능 (기본값: 프로젝트 루트 `logs/`)
+- append 모드 — 재시작해도 이전 로그 유지
+- 관리자 도구에서 `logs/*.jsonl`을 줄 단위 `JSON.parse()`로 파싱하여 시각화 예정
+
+### 미들웨어 스택 (`src/middleware/`)
+
+```
+express.json()
+  → requestIdMiddleware    — X-Request-Id 생성/전파, req.requestId에 저장
+  → requestLoggerMiddleware — 요청 시작/완료 로그 (/health은 debug)
+  → [라우터들]
+  → errorHandlerMiddleware — AppError → statusCode/code, 그 외 → 500/INTERNAL_ERROR
+```
+
+### Request ID (Correlation ID) 흐름
+
+`requestId`는 HTTP 요청뿐 아니라 모든 추적 가능한 작업 단위에 부여된다. `generateRequestId(prefix)` 유틸리티로 생성.
+
+| 접두사 | 생성 위치 | 용도 |
+|--------|-----------|------|
+| `req-` | HTTP 미들웨어 | HTTP 요청 |
+| `can-` | `DynamicAnalysisService.handleAlert()` | CAN alert → LLM 분석 체인 |
+| `reconn-` | `AdapterClient` auto-reconnect | 어댑터 자동 재연결 시도 |
+| `sys-` | `index.ts` 기동 로직 | 룰 시딩, 마이그레이션 등 |
+
+```
+HTTP:  S1 → [X-Request-Id] → S2 미들웨어 → req.requestId → 서비스 → LlmClient → S3
+CAN:   alert 누적 → generateRequestId("can") → LLM 분석 → 로그
+기동:  generateRequestId("sys") → 룰 시딩 → 로그
+재연결: generateRequestId("reconn") → 어댑터 연결 → 로그
+```
+
+### 프로세스 레벨 핸들러
+
+- `uncaughtException` → fatal 로그 + process.exit(1)
+- `unhandledRejection` → error 로그
+
+### audit_log 테이블
+
+```sql
+CREATE TABLE IF NOT EXISTS audit_log (
+  id TEXT PRIMARY KEY,
+  timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+  actor TEXT NOT NULL DEFAULT 'system',
+  action TEXT NOT NULL,
+  resource TEXT NOT NULL,
+  resource_id TEXT,
+  detail TEXT NOT NULL DEFAULT '{}',
+  request_id TEXT
+);
+```
+
+스키마만 생성. 실제 기록은 Finding/Approval 구현 시.
+
+---
+
+## 10. 알려진 이슈 / 주의사항
+
+### 대기 중인 작업 요청 (2026-03-12 기준)
+
+`docs/work-requests/`:
+- `s2-to-s3-log-file-storage.md` — S3에게 JSONL 로그 파일 저장 요청 (대기 중)
 
 ### DB hot-reload 함정
 

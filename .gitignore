@@ -7,3 +7,9 @@ dist/
 .env
 .env.*
 *.log
+logs/
+__pycache__/
+*.pyc
+.venv/
+scripts/.pids/
+scripts/.logs/

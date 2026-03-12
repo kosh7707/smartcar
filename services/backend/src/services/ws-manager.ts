@@ -1,6 +1,9 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server } from "http";
 import type { WsMessage, WsStaticMessage, WsTestMessage } from "@smartcar/shared";
+import { createLogger } from "../lib/logger";
+
+const logger = createLogger("ws-manager");
 
 export class WsManager {
   private clientWss: WebSocketServer | null = null;
@@ -57,14 +60,14 @@ export class WsManager {
         this.staticClients.set(analysisId, new Set());
       }
       this.staticClients.get(analysisId)!.add(ws);
-      console.log(`[WS] Static analysis client connected: ${analysisId}`);
+      logger.debug({ analysisId }, "Static analysis WS client connected");
 
       ws.on("close", () => {
         this.staticClients.get(analysisId)?.delete(ws);
         if (this.staticClients.get(analysisId)?.size === 0) {
           this.staticClients.delete(analysisId);
         }
-        console.log(`[WS] Static analysis client disconnected: ${analysisId}`);
+        logger.debug({ analysisId }, "Static analysis WS client disconnected");
       });
     });
 
@@ -80,14 +83,14 @@ export class WsManager {
         this.testClients.set(testId, new Set());
       }
       this.testClients.get(testId)!.add(ws);
-      console.log(`[WS] Dynamic test client connected: ${testId}`);
+      logger.debug({ testId }, "Dynamic test WS client connected");
 
       ws.on("close", () => {
         this.testClients.get(testId)?.delete(ws);
         if (this.testClients.get(testId)?.size === 0) {
           this.testClients.delete(testId);
         }
-        console.log(`[WS] Dynamic test client disconnected: ${testId}`);
+        logger.debug({ testId }, "Dynamic test WS client disconnected");
       });
     });
 
@@ -103,14 +106,14 @@ export class WsManager {
         this.clientsBySession.set(sessionId, new Set());
       }
       this.clientsBySession.get(sessionId)!.add(ws);
-      console.log(`[WS] S1 client connected: ${sessionId}`);
+      logger.debug({ sessionId }, "S1 WS client connected");
 
       ws.on("close", () => {
         this.clientsBySession.get(sessionId)?.delete(ws);
         if (this.clientsBySession.get(sessionId)?.size === 0) {
           this.clientsBySession.delete(sessionId);
         }
-        console.log(`[WS] S1 client disconnected: ${sessionId}`);
+        logger.debug({ sessionId }, "S1 WS client disconnected");
       });
     });
   }
@@ -121,7 +124,12 @@ export class WsManager {
     const data = JSON.stringify(message);
     for (const ws of clients) {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(data);
+        try {
+          ws.send(data);
+        } catch (err) {
+          logger.warn({ err, sessionId }, "WS send failed — removing client");
+          clients.delete(ws);
+        }
       }
     }
   }
@@ -132,7 +140,12 @@ export class WsManager {
     const data = JSON.stringify(message);
     for (const ws of clients) {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(data);
+        try {
+          ws.send(data);
+        } catch (err) {
+          logger.warn({ err, analysisId }, "WS send failed — removing client");
+          clients.delete(ws);
+        }
       }
     }
   }
@@ -143,7 +156,12 @@ export class WsManager {
     const data = JSON.stringify(message);
     for (const ws of clients) {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(data);
+        try {
+          ws.send(data);
+        } catch (err) {
+          logger.warn({ err, testId }, "WS send failed — removing client");
+          clients.delete(ws);
+        }
       }
     }
   }

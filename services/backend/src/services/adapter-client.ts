@@ -1,6 +1,9 @@
 import WebSocket from "ws";
 import crypto from "crypto";
 import type { IEcuAdapter, EcuInput, EcuResponse } from "./mock-ecu";
+import { createLogger, generateRequestId } from "../lib/logger";
+
+const logger = createLogger("adapter-client");
 
 export interface CanFrame {
   timestamp: string;
@@ -102,7 +105,7 @@ export class AdapterClient implements IEcuAdapter {
         clearTimeout(connectTimeout);
         this.ws = ws;
         this._connected = true;
-        console.log(`[AdapterClient] Connected to ${this._url}`);
+        logger.info({ url: this._url }, "Connected to Adapter");
         resolved = true;
         resolve();
       });
@@ -116,7 +119,7 @@ export class AdapterClient implements IEcuAdapter {
         this._connected = false;
         this.ws = null;
         this.ecuConnected = false;
-        console.log("[AdapterClient] Disconnected from Adapter");
+        logger.info("Disconnected from Adapter");
 
         // timeout all pending requests
         for (const [, pending] of this.pendingRequests) {
@@ -128,8 +131,9 @@ export class AdapterClient implements IEcuAdapter {
         // auto-reconnect (only if not user-initiated disconnect)
         if (this.shouldReconnect && this._url) {
           this.reconnectTimer = setTimeout(() => {
-            console.log("[AdapterClient] Reconnecting...");
-            this.doConnect().catch(() => {});
+            const reconnRequestId = generateRequestId("reconn");
+            logger.info({ requestId: reconnRequestId, url: this._url }, "Reconnecting to Adapter...");
+            this.doConnect().catch((err) => logger.warn({ err, requestId: reconnRequestId, url: this._url }, "Adapter reconnect failed"));
           }, RECONNECT_DELAY_MS);
         }
       });
@@ -202,10 +206,10 @@ export class AdapterClient implements IEcuAdapter {
       if (msg.status === "disconnected") {
         this._ecuMeta = null;
       }
-      console.log(`[AdapterClient] ECU status: ${msg.status}`);
+      logger.debug({ status: msg.status }, "ECU status changed");
     } else if (msg.type === "ecu-info") {
       this._ecuMeta = msg.ecu;
-      console.log(`[AdapterClient] ECU info: ${msg.ecu.name}, CAN IDs: ${msg.ecu.canIds.join(", ")}`);
+      logger.info({ ecuName: msg.ecu.name, canIds: msg.ecu.canIds }, "ECU info received");
     }
   }
 }

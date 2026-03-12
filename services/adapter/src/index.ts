@@ -2,6 +2,7 @@ import express from "express";
 import { createServer } from "http";
 import { WebSocketServer } from "ws";
 import { Relay } from "./relay";
+import logger from "./logger";
 
 const args = process.argv.slice(2);
 function getArg(name: string, defaultVal: string): string {
@@ -76,6 +77,6 @@ backendWss.on("connection", (ws) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`[Adapter] http://localhost:${PORT}`);
-  console.log(`[Adapter] WS endpoints: /ws/ecu, /ws/backend`);
+  logger.info({ port: PORT }, "Adapter started");
+  logger.info("WS endpoints: /ws/ecu, /ws/backend");
 });

@@ -15,6 +15,15 @@ import type { ProjectSettingsService } from "./project-settings.service";
 import { InputGenerator, type TestInput } from "./input-generator";
 import { dynamicTestResultDAO } from "../dao/dynamic-test-result.dao";
 import { analysisResultDAO } from "../dao/analysis-result.dao";
+import { createLogger } from "../lib/logger";
+import {
+  NotFoundError,
+  InvalidInputError,
+  AdapterUnavailableError,
+  ConflictError,
+} from "../lib/errors";
+
+const logger = createLogger("dynamic-test");
 
 const SEVERITY_ORDER: Record<Severity, number> = {
   critical: 0,
@@ -39,21 +48,22 @@ export class DynamicTestService {
     projectId: string,
     config: DynamicTestConfig,
     adapterId: string,
-    testId?: string
+    testId?: string,
+    requestId?: string
   ): Promise<DynamicTestResult> {
     const id = testId ?? `test-${crypto.randomUUID()}`;
 
     // 어댑터 검증
     const adapter = this.adapterManager.findById(adapterId);
-    if (!adapter) throw new Error("Adapter not found");
-    if (adapter.projectId !== projectId) throw new Error("Adapter does not belong to this project");
-    if (!adapter.connected) throw new Error("Adapter is not connected");
+    if (!adapter) throw new NotFoundError("Adapter not found");
+    if (adapter.projectId !== projectId) throw new InvalidInputError("Adapter does not belong to this project");
+    if (!adapter.connected) throw new AdapterUnavailableError("Adapter is not connected");
     const ecuAdapter = this.adapterManager.getClient(adapterId);
-    if (!ecuAdapter) throw new Error("Adapter client not available");
+    if (!ecuAdapter) throw new AdapterUnavailableError("Adapter client not available");
 
     // 동시 실행 방지
     if (this.runningTests.has(projectId)) {
-      throw new Error("A test is already running for this project");
+      throw new ConflictError("A test is already running for this project");
     }
     this.runningTests.add(projectId);
 
@@ -104,7 +114,7 @@ export class DynamicTestService {
 
       // LLM 분석 (findings가 있을 때만)
       if (findings.length > 0) {
-        await this.runLlmAnalysis(findings, config, projectId);
+        await this.runLlmAnalysis(findings, config, projectId, requestId);
       }
 
       // 최종 결과
@@ -210,7 +220,8 @@ export class DynamicTestService {
   private async runLlmAnalysis(
     findings: DynamicTestFinding[],
     config: DynamicTestConfig,
-    projectId: string
+    projectId: string,
+    requestId?: string
   ): Promise<void> {
     try {
       const llmUrl = this.settingsService.get(projectId, "llmUrl");
@@ -224,7 +235,7 @@ export class DynamicTestService {
           severity: f.severity,
           location: `${config.targetEcu} (${config.targetId})`,
         })),
-      }, llmUrl);
+      }, llmUrl, requestId);
 
       if (llmRes.success && llmRes.vulnerabilities.length > 0) {
         // LLM 분석 결과를 각 finding에 매핑
@@ -236,8 +247,9 @@ export class DynamicTestService {
           }
         }
       }
-    } catch {
+    } catch (err) {
       // LLM 실패 시 1계층 결과만으로 진행 (graceful degradation)
+      logger.warn({ err, projectId }, "Dynamic test LLM analysis failed — using rule-only results");
     }
   }
 

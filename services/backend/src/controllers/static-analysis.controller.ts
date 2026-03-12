@@ -5,6 +5,9 @@ import type { UploadedFile } from "@smartcar/shared";
 import { StaticAnalysisService } from "../services/static-analysis.service";
 import { fileStore } from "../dao/file-store";
 import { analysisResultDAO } from "../dao/analysis-result.dao";
+import { createLogger } from "../lib/logger";
+
+const logger = createLogger("static-analysis-controller");
 
 const ALLOWED_EXTENSIONS = [
   ".c", ".cpp", ".h", ".hpp", ".py", ".java", ".js", ".ts",
@@ -50,7 +53,11 @@ export function createStaticAnalysisRouter(
 
     const pathsRaw = req.body?.paths as string | undefined;
     let paths: string[] = [];
-    try { if (pathsRaw) paths = JSON.parse(pathsRaw); } catch {}
+    try {
+      if (pathsRaw) paths = JSON.parse(pathsRaw);
+    } catch (err) {
+      logger.warn({ err }, "Failed to parse paths field");
+    }
 
     const uploaded: UploadedFile[] = [];
     for (let i = 0; i < files.length; i++) {
@@ -89,7 +96,7 @@ export function createStaticAnalysisRouter(
   });
 
   // P0-2: 정적 분석 실행
-  router.post("/run", async (req, res) => {
+  router.post("/run", async (req, res, next) => {
     const { projectId, files, analysisId } = req.body as {
       projectId?: string;
       files?: Array<{ id: string }>;
@@ -108,12 +115,12 @@ export function createStaticAnalysisRouter(
       const result = await service.runAnalysis(
         projectId,
         files.map((f) => f.id),
-        analysisId
+        analysisId,
+        req.requestId
       );
       res.json({ success: true, data: result });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      res.status(500).json({ success: false, error: message });
+      next(err);
     }
   });
 

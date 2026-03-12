@@ -11,7 +11,7 @@ export function createProjectRulesRouter(ruleService: RuleService): Router {
   });
 
   // 룰 생성
-  router.post("/", (req, res) => {
+  router.post("/", (req, res, next) => {
     const pid = (req.params as any).pid as string;
     const { name, severity, description, suggestion, pattern, fixCode } = req.body;
     if (!name || !pattern) {
@@ -26,13 +26,12 @@ export function createProjectRulesRouter(ruleService: RuleService): Router {
       });
       res.status(201).json({ success: true, data: rule });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Invalid pattern";
-      res.status(400).json({ success: false, error: msg });
+      next(err);
     }
   });
 
   // 룰 수정
-  router.put("/:id", (req, res) => {
+  router.put("/:id", (req, res, next) => {
     const pid = (req.params as any).pid as string;
     const { id } = req.params;
     const existing = ruleService.findById(id);
@@ -49,8 +48,7 @@ export function createProjectRulesRouter(ruleService: RuleService): Router {
       }
       res.json({ success: true, data: updated });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Invalid pattern";
-      res.status(400).json({ success: false, error: msg });
+      next(err);
     }
   });
 

@@ -23,6 +23,7 @@ import {
   fetchProjectSettings, updateProjectSettings,
 } from "../api/client";
 import { useAdapters } from "../hooks/useAdapters";
+import { useToast } from "../contexts/ToastContext";
 import { PageHeader, SeverityBadge, Spinner } from "../components/ui";
 import { SEVERITY_ORDER } from "../utils/severity";
 import "./SettingsPage.css";
@@ -53,6 +54,7 @@ export const ProjectSettingsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Adapters (shared store)
+  const toast = useToast();
   const { adapters, refresh: refreshAdapters } = useAdapters(projectId);
   const [showAdapterForm, setShowAdapterForm] = useState(false);
   const [editingAdapterId, setEditingAdapterId] = useState<string | null>(null);
@@ -107,6 +109,7 @@ export const ProjectSettingsPage: React.FC = () => {
       await refreshAdapters();
     } catch (e) {
       console.error("Delete adapter failed:", e);
+      toast.error("어댑터 삭제에 실패했습니다.");
     }
   };
 
@@ -131,6 +134,7 @@ export const ProjectSettingsPage: React.FC = () => {
       await refreshAdapters();
     } catch (e) {
       console.error("Disconnect failed:", e);
+      toast.error("어댑터 연결 해제에 실패했습니다.");
     }
   };
 
@@ -150,6 +154,7 @@ export const ProjectSettingsPage: React.FC = () => {
       setRules(data);
     } catch (e) {
       console.error("Failed to fetch rules:", e);
+      toast.error("룰 목록을 불러올 수 없습니다.");
     } finally {
       setLoading(false);
     }
@@ -174,6 +179,7 @@ export const ProjectSettingsPage: React.FC = () => {
       setRules((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
     } catch (e) {
       console.error("Failed to toggle rule:", e);
+      toast.error("룰 상태 변경에 실패했습니다.");
     }
   };
 
@@ -185,6 +191,7 @@ export const ProjectSettingsPage: React.FC = () => {
       setRules((prev) => prev.filter((r) => r.id !== rule.id));
     } catch (e) {
       console.error("Failed to delete rule:", e);
+      toast.error("룰 삭제에 실패했습니다.");
     }
   };
 

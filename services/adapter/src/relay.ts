@@ -5,6 +5,7 @@ import type {
   AdapterToBackendMessage,
   BackendToAdapterMessage,
 } from "./protocol";
+import logger from "./logger";
 
 const INJECT_TIMEOUT_MS = 5000;
 
@@ -37,14 +38,14 @@ export class Relay {
       this.ecuWs.close(1000, "replaced");
     }
     this.ecuWs = ws;
-    console.log("[Adapter] ECU connected");
+    logger.info("ECU connected");
     this.broadcastToBackends({ type: "ecu-status", status: "connected" });
   }
 
   onEcuDisconnect(): void {
     this.ecuWs = null;
     this._ecuMeta = null;
-    console.log("[Adapter] ECU disconnected");
+    logger.info("ECU disconnected");
     this.broadcastToBackends({ type: "ecu-status", status: "disconnected" });
 
     // timeout all pending requests
@@ -61,7 +62,7 @@ export class Relay {
 
   onBackendConnect(ws: WebSocket): void {
     this.backendClients.add(ws);
-    console.log(`[Adapter] Backend connected (total: ${this.backendClients.size})`);
+    logger.info({ total: this.backendClients.size }, "Backend connected");
     // send current ECU status
     this.sendToBackend(ws, {
       type: "ecu-status",
@@ -75,7 +76,7 @@ export class Relay {
 
   onBackendDisconnect(ws: WebSocket): void {
     this.backendClients.delete(ws);
-    console.log(`[Adapter] Backend disconnected (total: ${this.backendClients.size})`);
+    logger.info({ total: this.backendClients.size }, "Backend disconnected");
 
     // clean up pending requests from this backend
     for (const [requestId, pending] of this.pendingRequests) {
@@ -99,7 +100,7 @@ export class Relay {
       this.broadcastToBackends({ type: "can-frame", frame: msg.frame });
     } else if (msg.type === "ecu-info") {
       this._ecuMeta = msg.ecu;
-      console.log(`[Adapter] ECU info: ${msg.ecu.name}, CAN IDs: ${msg.ecu.canIds.join(", ")}`);
+      logger.info({ ecuName: msg.ecu.name, canIds: msg.ecu.canIds }, "ECU info received");
       this.broadcastToBackends({ type: "ecu-info", ecu: msg.ecu });
     } else if (msg.type === "inject-response") {
       // route inject response to the requesting backend
@@ -141,7 +142,17 @@ export class Relay {
         requestId: msg.requestId,
         frame: msg.frame,
       };
-      this.ecuWs!.send(JSON.stringify(ecuMsg));
+      try {
+        this.ecuWs!.send(JSON.stringify(ecuMsg));
+      } catch (err) {
+        logger.warn({ err, requestId: msg.requestId }, "Failed to send inject-request to ECU");
+        this.sendToBackend(ws, {
+          type: "inject-response",
+          requestId: msg.requestId,
+          response: { success: false, error: "no_response" },
+        });
+        return;
+      }
 
       // register timeout
       const timer = setTimeout(() => {
@@ -161,14 +172,23 @@ export class Relay {
     const data = JSON.stringify(msg);
     for (const ws of this.backendClients) {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(data);
+        try {
+          ws.send(data);
+        } catch (err) {
+          logger.warn({ err }, "Failed to send to backend — removing client");
+          this.backendClients.delete(ws);
+        }
       }
     }
   }
 
   private sendToBackend(ws: WebSocket, msg: AdapterToBackendMessage): void {
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(msg));
+      try {
+        ws.send(JSON.stringify(msg));
+      } catch (err) {
+        logger.warn({ err }, "Failed to send to backend");
+      }
     }
   }
 }

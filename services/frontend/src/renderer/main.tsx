@@ -10,6 +10,10 @@ import "./styles/components.css";
 import "./styles/code-viewer.css";
 import "./styles/utilities.css";
 
+window.addEventListener("unhandledrejection", (e) => {
+  console.error("Unhandled promise rejection:", e.reason);
+});
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <App />

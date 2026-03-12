@@ -1,6 +1,7 @@
 import type { CanFrame } from "./protocol";
 import type { CanScenario, CanScenarioStep } from "./scenarios";
 import { randomPayload } from "./scenarios";
+import logger from "./logger";
 
 function generateFrame(step: CanScenarioStep): CanFrame {
   return {
@@ -21,7 +22,7 @@ export class TrafficGenerator {
 
     do {
       for (const phase of scenario.phases) {
-        console.log(`[ECU Sim] Phase: ${phase.name} (${phase.count} messages)`);
+        logger.info({ phase: phase.name, count: phase.count }, "Phase started");
 
         for (let i = 0; i < phase.count; i++) {
           const step = phase.steps[i % phase.steps.length];
@@ -36,7 +37,7 @@ export class TrafficGenerator {
       }
 
       if (loop) {
-        console.log("[ECU Sim] Scenario complete. Looping...");
+        logger.info("Scenario complete — looping");
       }
     } while (loop);
   }

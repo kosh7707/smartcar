@@ -3,6 +3,7 @@ import type { DynamicAnalysisSession, DynamicAlert, CanMessage } from "@smartcar
 import { Clock, Radio, AlertTriangle, Plug } from "lucide-react";
 import { fetchDynamicSessionDetail } from "../../api/client";
 import { BackButton, SeverityBadge, Spinner } from "../ui";
+import { useToast } from "../../contexts/ToastContext";
 import { formatDateTime } from "../../utils/format";
 
 interface Props {
@@ -21,6 +22,7 @@ export const SessionDetailView: React.FC<Props> = ({ sessionId, onBack }) => {
   const [alerts, setAlerts] = useState<DynamicAlert[]>([]);
   const [messages, setMessages] = useState<CanMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const toast = useToast();
 
   useEffect(() => {
     fetchDynamicSessionDetail(sessionId)
@@ -29,7 +31,7 @@ export const SessionDetailView: React.FC<Props> = ({ sessionId, onBack }) => {
         setAlerts(detail.alerts);
         setMessages(detail.recentMessages);
       })
-      .catch((e) => console.error("Failed to load session:", e))
+      .catch((e) => { console.error("Failed to load session:", e); toast.error("세션 정보를 불러올 수 없습니다."); })
       .finally(() => setLoading(false));
   }, [sessionId]);
 

@@ -1,0 +1,81 @@
+import React, { createContext, useContext, useState, useCallback, useRef } from "react";
+import { AlertTriangle, CheckCircle, X, XCircle } from "lucide-react";
+
+type ToastType = "error" | "warning" | "success";
+
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
+interface Toast {
+  id: number;
+  type: ToastType;
+  message: string;
+  action?: ToastAction;
+}
+
+interface ToastApi {
+  error: (message: string, action?: ToastAction) => void;
+  warning: (message: string, action?: ToastAction) => void;
+  success: (message: string, action?: ToastAction) => void;
+}
+
+const ToastContext = createContext<ToastApi | null>(null);
+
+const ICONS: Record<ToastType, React.ReactNode> = {
+  error: <XCircle size={16} />,
+  warning: <AlertTriangle size={16} />,
+  success: <CheckCircle size={16} />,
+};
+
+const AUTO_DISMISS_MS = 5000;
+
+export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const nextId = useRef(0);
+
+  const dismiss = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const show = useCallback((type: ToastType, message: string, action?: ToastAction) => {
+    const id = nextId.current++;
+    setToasts((prev) => [...prev.slice(-4), { id, type, message, action }]);
+    setTimeout(() => dismiss(id), AUTO_DISMISS_MS);
+  }, [dismiss]);
+
+  const api = useCallback((): ToastApi => ({
+    error: (msg, action) => show("error", msg, action),
+    warning: (msg, action) => show("warning", msg, action),
+    success: (msg, action) => show("success", msg, action),
+  }), [show]);
+
+  return (
+    <ToastContext.Provider value={api()}>
+      {children}
+      <div className="toast-container">
+        {toasts.map((t) => (
+          <div key={t.id} className={`toast toast--${t.type}`}>
+            {ICONS[t.type]}
+            <span className="toast__message">{t.message}</span>
+            {t.action && (
+              <button className="toast__action" onClick={() => { dismiss(t.id); t.action!.onClick(); }}>
+                {t.action.label}
+              </button>
+            )}
+            <button className="toast__close" onClick={() => dismiss(t.id)}>
+              <X size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
+};
+
+export function useToast(): ToastApi {
+  const ctx = useContext(ToastContext);
+  if (!ctx) throw new Error("useToast must be used within ToastProvider");
+  return ctx;
+}

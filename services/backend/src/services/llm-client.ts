@@ -1,3 +1,13 @@
+import { createLogger } from "../lib/logger";
+import {
+  LlmUnavailableError,
+  LlmHttpError,
+  LlmParseError,
+  LlmTimeoutError,
+} from "../lib/errors";
+
+const logger = createLogger("llm-client");
+
 export interface LlmAnalyzeRequest {
   module: string;
   sourceCode?: string;
@@ -47,29 +57,56 @@ export function validateLlmSeverity(raw: string | undefined | null): string {
 export class LlmClient {
   constructor(private baseUrl: string) {}
 
-  async analyze(request: LlmAnalyzeRequest, baseUrl?: string): Promise<LlmAnalyzeResponse> {
+  async analyze(
+    request: LlmAnalyzeRequest,
+    baseUrl?: string,
+    requestId?: string
+  ): Promise<LlmAnalyzeResponse> {
+    const url = baseUrl ?? this.baseUrl;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (requestId) headers["X-Request-Id"] = requestId;
+
+    let res: Response;
     try {
-      const url = baseUrl ?? this.baseUrl;
-      const res = await fetch(`${url}/api/llm/analyze`, {
+      res = await fetch(`${url}/api/llm/analyze`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(request),
       });
-      return (await res.json()) as LlmAnalyzeResponse;
-    } catch {
-      return {
-        success: false,
-        vulnerabilities: [],
-        error: "LLM Gateway unreachable",
-      };
+    } catch (err) {
+      // 네트워크 에러 (DNS 실패, 연결 거부, 타임아웃 등)
+      const message = err instanceof Error ? err.message : "Network error";
+      if (message.includes("timeout") || message.includes("ETIMEDOUT")) {
+        throw new LlmTimeoutError(`LLM Gateway timeout: ${message}`, err);
+      }
+      throw new LlmUnavailableError(`LLM Gateway unreachable: ${message}`, err);
     }
+
+    // HTTP 상태코드 검사
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new LlmHttpError(
+        `LLM Gateway returned HTTP ${res.status}: ${body.slice(0, 200)}`,
+      );
+    }
+
+    // JSON 파싱
+    let data: LlmAnalyzeResponse;
+    try {
+      data = (await res.json()) as LlmAnalyzeResponse;
+    } catch (err) {
+      throw new LlmParseError("Failed to parse LLM Gateway response as JSON", err);
+    }
+
+    return data;
   }
 
   async checkHealth(): Promise<Record<string, unknown> | null> {
     try {
       const res = await fetch(`${this.baseUrl}/health`);
       return (await res.json()) as Record<string, unknown>;
-    } catch {
+    } catch (err) {
+      logger.warn({ err }, "LLM Gateway health check failed");
       return null;
     }
   }

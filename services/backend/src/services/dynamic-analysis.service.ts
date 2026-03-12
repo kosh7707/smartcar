@@ -23,6 +23,14 @@ import { dynamicAlertDAO } from "../dao/dynamic-alert.dao";
 import { dynamicMessageDAO } from "../dao/dynamic-message.dao";
 import { analysisResultDAO } from "../dao/analysis-result.dao";
 import { ATTACK_SCENARIOS } from "./attack-scenarios";
+import { createLogger, generateRequestId } from "../lib/logger";
+import {
+  NotFoundError,
+  InvalidInputError,
+  AdapterUnavailableError,
+} from "../lib/errors";
+
+const logger = createLogger("dynamic-analysis");
 
 const RECENT_BUFFER_SIZE = 100;
 const ALERT_LLM_THRESHOLD = 3;
@@ -69,9 +77,9 @@ export class DynamicAnalysisService {
 
   createSession(projectId: string, adapterId: string): DynamicAnalysisSession {
     const adapter = this.adapterManager.findById(adapterId);
-    if (!adapter) throw new Error("Adapter not found");
-    if (adapter.projectId !== projectId) throw new Error("Adapter does not belong to this project");
-    if (!adapter.connected) throw new Error("Adapter is not connected");
+    if (!adapter) throw new NotFoundError("Adapter not found");
+    if (adapter.projectId !== projectId) throw new InvalidInputError("Adapter does not belong to this project");
+    if (!adapter.connected) throw new AdapterUnavailableError("Adapter is not connected");
 
     const session: DynamicAnalysisSession = {
       id: `dyn-${crypto.randomUUID()}`,
@@ -109,7 +117,7 @@ export class DynamicAnalysisService {
     return { ...session, status: "monitoring" };
   }
 
-  async stopSession(sessionId: string): Promise<DynamicAnalysisSession | undefined> {
+  async stopSession(sessionId: string, requestId?: string): Promise<DynamicAnalysisSession | undefined> {
     const session = dynamicSessionDAO.findById(sessionId);
     if (!session || session.status === "stopped") return undefined;
 
@@ -117,7 +125,7 @@ export class DynamicAnalysisService {
     dynamicSessionDAO.stop(sessionId, endedAt);
 
     // 전체 로그 LLM 종합 분석
-    await this.runFinalLlmAnalysis(sessionId, session.projectId);
+    await this.runFinalLlmAnalysis(sessionId, session.projectId, requestId);
 
     this.activeSessions.delete(sessionId);
 
@@ -212,13 +220,16 @@ export class DynamicAnalysisService {
 
     // 2계층: alert 누적 문턱값 도달 시 LLM 분석
     if (active.alertsSinceLastLlm >= ALERT_LLM_THRESHOLD) {
-      this.runContextLlmAnalysis(active, alert).catch(() => {});
+      const canRequestId = generateRequestId("can");
+      logger.info({ requestId: canRequestId, sessionId: active.id, alertId: alert.id }, "CAN alert threshold reached — triggering LLM analysis");
+      this.runContextLlmAnalysis(active, alert, canRequestId)
+        .catch((err) => logger.warn({ err, requestId: canRequestId, sessionId: active.id }, "Context LLM analysis failed"));
     }
   }
 
   // --- 2계층 LLM 분석 ---
 
-  private async runContextLlmAnalysis(active: ActiveSession, triggerAlert: DynamicAlert): Promise<void> {
+  private async runContextLlmAnalysis(active: ActiveSession, triggerAlert: DynamicAlert, requestId?: string): Promise<void> {
     active.alertsSinceLastLlm = 0;
 
     const llmUrl = this.settingsService.get(active.projectId, "llmUrl");
@@ -238,7 +249,7 @@ export class DynamicAnalysisService {
       module: "dynamic_analysis",
       canLog,
       ruleResults,
-    }, llmUrl);
+    }, llmUrl, requestId);
 
     if (res.success && res.vulnerabilities.length > 0) {
       const llmText = res.vulnerabilities
@@ -253,7 +264,7 @@ export class DynamicAnalysisService {
     }
   }
 
-  private async runFinalLlmAnalysis(sessionId: string, projectId: string): Promise<void> {
+  private async runFinalLlmAnalysis(sessionId: string, projectId: string, requestId?: string): Promise<void> {
     const allMessages = dynamicMessageDAO.findBySessionId(sessionId);
     const alerts = dynamicAlertDAO.findBySessionId(sessionId);
 
@@ -269,11 +280,17 @@ export class DynamicAnalysisService {
       location: "CAN bus",
     }));
 
-    const res = await this.llmClient.analyze({
-      module: "dynamic_analysis",
-      canLog,
-      ruleResults,
-    }, llmUrl);
+    let res;
+    try {
+      res = await this.llmClient.analyze({
+        module: "dynamic_analysis",
+        canLog,
+        ruleResults,
+      }, llmUrl, requestId);
+    } catch (err) {
+      logger.warn({ err, sessionId }, "Final LLM analysis failed — saving rule-only results");
+      res = { success: false, vulnerabilities: [] };
+    }
 
     // alerts -> Vulnerability 변환
     const vulns: Vulnerability[] = alerts.map((a, i) => ({
@@ -333,15 +350,15 @@ export class DynamicAnalysisService {
 
   async injectMessage(sessionId: string, req: CanInjectionRequest): Promise<CanInjectionResponse> {
     const active = this.activeSessions.get(sessionId);
-    if (!active) throw new Error("Session not found or not active");
+    if (!active) throw new NotFoundError("Session not found or not active");
 
     const session = dynamicSessionDAO.findById(sessionId);
     if (!session || session.status !== "monitoring") {
-      throw new Error("Session is not in monitoring state");
+      throw new InvalidInputError("Session is not in monitoring state");
     }
 
     const client = this.adapterManager.getClient(active.adapterId);
-    if (!client) throw new Error("Adapter client not available");
+    if (!client) throw new AdapterUnavailableError("Adapter client not available");
 
     // ECU에 메시지 주입
     const ecuResponse = await client.sendAndReceive({
@@ -387,7 +404,7 @@ export class DynamicAnalysisService {
 
   async injectScenario(sessionId: string, scenarioId: AttackScenarioId): Promise<CanInjectionResponse[]> {
     const scenario = ATTACK_SCENARIOS.find((s) => s.id === scenarioId);
-    if (!scenario) throw new Error(`Unknown scenario: ${scenarioId}`);
+    if (!scenario) throw new InvalidInputError(`Unknown scenario: ${scenarioId}`);
 
     const results: CanInjectionResponse[] = [];
     for (const step of scenario.steps) {

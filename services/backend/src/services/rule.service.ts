@@ -4,6 +4,9 @@ import { ruleDAO } from "../dao/rule.dao";
 import { RuleEngine } from "../rules/rule-engine";
 import { CustomRule } from "../rules/custom-rule";
 import { DEFAULT_RULE_TEMPLATES } from "../rules/default-rule-templates";
+import { createLogger } from "../lib/logger";
+
+const logger = createLogger("rule-service");
 
 export class RuleService {
   /** 프로젝트 생성 시 기본 룰 22개를 시딩한다 */
@@ -36,8 +39,8 @@ export class RuleService {
       if (!rule.enabled) continue;
       try {
         engine.registerRule(new CustomRule(rule));
-      } catch {
-        // 잘못된 정규식 — 스킵
+      } catch (err) {
+        logger.warn({ err, ruleId: rule.id, pattern: rule.pattern }, "Invalid rule pattern — skipped");
       }
     }
 

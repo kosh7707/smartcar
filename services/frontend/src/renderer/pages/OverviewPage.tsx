@@ -15,6 +15,7 @@ import {
   Shield,
 } from "lucide-react";
 import { fetchProjectOverview, fetchProjectFiles, fetchProjectSettings, healthCheck } from "../api/client";
+import { useToast } from "../contexts/ToastContext";
 import { useAdapters } from "../hooks/useAdapters";
 import { PageHeader, StatCard, SeveritySummary, SeverityBadge, DonutChart, ListItem, Spinner } from "../components/ui";
 import { extractFiles, extractFileNames } from "../utils/analysis";
@@ -116,6 +117,7 @@ export const OverviewPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [backendStatus, setBackendStatus] = useState<"ok" | "error" | "checking">("checking");
   const [llmStatus, setLlmStatus] = useState<"ok" | "error" | "checking">("checking");
+  const toast = useToast();
   const { adapters, connected } = useAdapters(projectId);
 
   useEffect(() => {
@@ -154,7 +156,7 @@ export const OverviewPage: React.FC = () => {
         setOverview(ov);
         setProjectFiles(files);
       })
-      .catch((e) => console.error("Failed to fetch overview:", e))
+      .catch((e) => { console.error("Failed to fetch overview:", e); toast.error("프로젝트 개요를 불러올 수 없습니다."); })
       .finally(() => setLoading(false));
   };
 

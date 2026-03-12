@@ -1,5 +1,8 @@
 import Database, { type Database as DatabaseType } from "better-sqlite3";
 import path from "path";
+import { createLogger } from "./lib/logger";
+
+const logger = createLogger("db");
 
 const DB_PATH = process.env.DB_PATH ?? path.join(__dirname, "..", "smartcar.db");
 
@@ -53,9 +56,9 @@ db.exec(`
 `);
 
 // 기존 DB 마이그레이션
-try { db.exec(`ALTER TABLE analysis_results ADD COLUMN project_id TEXT NOT NULL DEFAULT ''`); } catch {}
-try { db.exec(`ALTER TABLE uploaded_files ADD COLUMN project_id TEXT NOT NULL DEFAULT ''`); } catch {}
-try { db.exec(`ALTER TABLE uploaded_files ADD COLUMN path TEXT NOT NULL DEFAULT ''`); } catch {}
+try { db.exec(`ALTER TABLE analysis_results ADD COLUMN project_id TEXT NOT NULL DEFAULT ''`); } catch (err) { logger.debug({ err }, "Migration skipped: analysis_results.project_id"); }
+try { db.exec(`ALTER TABLE uploaded_files ADD COLUMN project_id TEXT NOT NULL DEFAULT ''`); } catch (err) { logger.debug({ err }, "Migration skipped: uploaded_files.project_id"); }
+try { db.exec(`ALTER TABLE uploaded_files ADD COLUMN path TEXT NOT NULL DEFAULT ''`); } catch (err) { logger.debug({ err }, "Migration skipped: uploaded_files.path"); }
 
 // 인덱스 (마이그레이션 이후)
 db.exec(`CREATE INDEX IF NOT EXISTS idx_uploaded_files_project ON uploaded_files(project_id)`);
@@ -102,15 +105,15 @@ db.exec(`
 `);
 
 // 동적 분석 세션 마이그레이션
-try { db.exec(`ALTER TABLE dynamic_analysis_sessions ADD COLUMN source TEXT NOT NULL DEFAULT '{}'`); } catch {}
+try { db.exec(`ALTER TABLE dynamic_analysis_sessions ADD COLUMN source TEXT NOT NULL DEFAULT '{}'`); } catch (err) { logger.debug({ err }, "Migration skipped: dynamic_analysis_sessions.source"); }
 
 // 동적 분석 메시지 injected 컬럼 마이그레이션
-try { db.exec(`ALTER TABLE dynamic_analysis_messages ADD COLUMN injected INTEGER NOT NULL DEFAULT 0`); } catch {}
+try { db.exec(`ALTER TABLE dynamic_analysis_messages ADD COLUMN injected INTEGER NOT NULL DEFAULT 0`); } catch (err) { logger.debug({ err }, "Migration skipped: dynamic_analysis_messages.injected"); }
 
 // 정적 분석 warnings 마이그레이션
-try { db.exec(`ALTER TABLE analysis_results ADD COLUMN warnings TEXT NOT NULL DEFAULT '[]'`); } catch {}
+try { db.exec(`ALTER TABLE analysis_results ADD COLUMN warnings TEXT NOT NULL DEFAULT '[]'`); } catch (err) { logger.debug({ err }, "Migration skipped: analysis_results.warnings"); }
 // 분석 대상 파일 ID 목록
-try { db.exec(`ALTER TABLE analysis_results ADD COLUMN analyzed_file_ids TEXT NOT NULL DEFAULT '[]'`); } catch {}
+try { db.exec(`ALTER TABLE analysis_results ADD COLUMN analyzed_file_ids TEXT NOT NULL DEFAULT '[]'`); } catch (err) { logger.debug({ err }, "Migration skipped: analysis_results.analyzed_file_ids"); }
 
 // 동적 테스트 테이블
 db.exec(`
@@ -145,13 +148,13 @@ db.exec(`
 try {
   db.exec(`ALTER TABLE rules ADD COLUMN project_id TEXT NOT NULL DEFAULT ''`);
   db.exec(`DELETE FROM rules WHERE project_id = ''`);
-} catch {}
+} catch (err) { logger.debug({ err }, "Migration skipped: rules.project_id"); }
 
 // adapters: project_id 추가 + 기존 글로벌 데이터 삭제
 try {
   db.exec(`ALTER TABLE adapters ADD COLUMN project_id TEXT NOT NULL DEFAULT ''`);
   db.exec(`DELETE FROM adapters WHERE project_id = ''`);
-} catch {}
+} catch (err) { logger.debug({ err }, "Migration skipped: adapters.project_id"); }
 
 db.exec(`CREATE INDEX IF NOT EXISTS idx_rules_project ON rules(project_id)`);
 db.exec(`CREATE INDEX IF NOT EXISTS idx_adapters_project ON adapters(project_id)`);
@@ -166,6 +169,20 @@ db.exec(`
     PRIMARY KEY (project_id, key)
   );
   CREATE INDEX IF NOT EXISTS idx_project_settings_project ON project_settings(project_id);
+`);
+
+// 감사 로그 테이블
+db.exec(`
+  CREATE TABLE IF NOT EXISTS audit_log (
+    id          TEXT PRIMARY KEY,
+    timestamp   TEXT NOT NULL DEFAULT (datetime('now')),
+    actor       TEXT NOT NULL DEFAULT 'system',
+    action      TEXT NOT NULL,
+    resource    TEXT NOT NULL,
+    resource_id TEXT,
+    detail      TEXT NOT NULL DEFAULT '{}',
+    request_id  TEXT
+  );
 `);
 
 export default db;

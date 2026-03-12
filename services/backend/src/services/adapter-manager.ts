@@ -2,6 +2,7 @@ import crypto from "crypto";
 import type { Adapter } from "@smartcar/shared";
 import { AdapterClient, type CanFrame } from "./adapter-client";
 import { adapterDAO } from "../dao/adapter.dao";
+import { NotFoundError } from "../lib/errors";
 
 export class AdapterManager {
   private clients = new Map<string, AdapterClient>();
@@ -100,7 +101,7 @@ export class AdapterManager {
 
   async connect(id: string): Promise<Adapter> {
     const row = adapterDAO.findById(id);
-    if (!row) throw new Error("Adapter not found");
+    if (!row) throw new NotFoundError("Adapter not found");
 
     // 기존 연결 정리
     const existing = this.clients.get(id);
