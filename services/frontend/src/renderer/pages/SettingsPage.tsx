@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Settings, Server, Info, Check, X } from "lucide-react";
+import { Settings, Server, Info, Check, X, Sun, Moon, Monitor } from "lucide-react";
 import { getBackendUrl, setBackendUrl } from "../api/client";
+import { getThemePreference, setThemePreference, type ThemePreference } from "../utils/theme";
 import { PageHeader, Spinner } from "../components/ui";
 import "./SettingsPage.css";
 
@@ -11,6 +12,12 @@ export const SettingsPage: React.FC = () => {
   const [saved, setSaved] = useState(false);
   const [testStatus, setTestStatus] = useState<TestStatus>("idle");
   const [testDetail, setTestDetail] = useState("");
+  const [theme, setTheme] = useState<ThemePreference>(getThemePreference);
+
+  const handleThemeChange = (pref: ThemePreference) => {
+    setTheme(pref);
+    setThemePreference(pref);
+  };
 
   const handleSave = () => {
     setBackendUrl(url);
@@ -92,6 +99,34 @@ export const SettingsPage: React.FC = () => {
         )}
 
         <button className="gs-reset-link" onClick={handleReset}>기본값으로 초기화</button>
+      </div>
+
+      {/* Theme */}
+      <div className="card gs-card">
+        <div className="gs-card__header">
+          <div className="gs-card__icon"><Sun size={18} /></div>
+          <div>
+            <div className="gs-card__title">테마</div>
+            <div className="gs-card__desc">애플리케이션 테마를 설정합니다.</div>
+          </div>
+        </div>
+
+        <div className="gs-theme-options">
+          {([
+            { value: "light" as const, icon: <Sun size={16} />, label: "라이트" },
+            { value: "dark" as const, icon: <Moon size={16} />, label: "다크" },
+            { value: "system" as const, icon: <Monitor size={16} />, label: "시스템" },
+          ]).map((opt) => (
+            <button
+              key={opt.value}
+              className={`gs-theme-btn${theme === opt.value ? " gs-theme-btn--active" : ""}`}
+              onClick={() => handleThemeChange(opt.value)}
+            >
+              {opt.icon}
+              <span>{opt.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Info */}

@@ -467,7 +467,7 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 | 라우팅 | react-router-dom v6 (HashRouter) |
 | 상태관리 | React Context + useState (ProjectContext, ToastContext) |
 | 아이콘 | lucide-react |
-| 스타일 | CSS (다크 테마, CSS 변수, 토큰 시스템) |
+| 스타일 | CSS (라이트 테마, 사이드바만 다크, CSS 변수 토큰 시스템) |
 | API 통신 | fetch (Electron preload / 브라우저 직접) |
 | 실시간 통신 | WebSocket |
 | 공유 타입 | @smartcar/shared (monorepo) |

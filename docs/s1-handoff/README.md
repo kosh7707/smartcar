@@ -76,7 +76,7 @@
 | 라우팅 | react-router-dom v6 (HashRouter) |
 | 상태관리 | React Context + useState |
 | 아이콘 | lucide-react |
-| 스타일 | CSS (다크 테마, CSS 변수, 토큰 시스템) |
+| 스타일 | CSS (라이트 테마, 사이드바만 다크, CSS 변수 토큰 시스템) |
 | API 통신 | fetch (Electron preload / 브라우저 직접) |
 | 실시간 통신 | WebSocket |
 | 공유 타입 | @smartcar/shared (monorepo) |
@@ -305,7 +305,7 @@ npm run build
 | 아이콘 | lucide-react, `var(--text-secondary)` |
 | severity 컬러 | `--severity-critical`, `--severity-high`, `--severity-medium`, `--severity-low` |
 | 클릭 가능한 행 | `cursor: pointer`, hover 배경, `ChevronRight` |
-| 테마 | 다크 기본, CSS 변수 토큰 (`tokens.css`) |
+| 테마 | 라이트 기본 (사이드바만 다크), CSS 변수 토큰 (`tokens.css`) |
 | 빈 상태 | `EmptyState` 컴포넌트 |
 | 로딩 | `Spinner` 컴포넌트, `.centered-loader` 유틸리티 |
 | 프로그레스바 | `.shimmer-fill` 공유 클래스 (쉬머 효과) |

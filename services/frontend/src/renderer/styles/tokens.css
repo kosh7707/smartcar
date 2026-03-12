@@ -122,10 +122,80 @@
   --code-border: var(--sidebar-surface);
   --code-line-num: var(--text-secondary);
 
+  /* ── Shimmer ── */
+  --shimmer-color: rgba(255, 255, 255, 0.3);
+
   /* ── Legacy aliases (backward compat) ── */
   --bg-primary: var(--surface-0);
   --bg-secondary: var(--surface-1);
   --bg-card: var(--surface-2);
   --border-color: var(--border-default);
   --statusbar-height: 32px;
+}
+
+/* ══════════════════════════════════════════════
+   Dark Theme
+   JS가 <html data-theme="dark"> 를 설정하면 적용됨.
+   "시스템" 모드에서도 JS가 matchMedia로 감지하여 동일하게 설정.
+   ══════════════════════════════════════════════ */
+
+[data-theme="dark"] {
+  --surface-0: #0c1222;
+  --surface-1: #111827;
+  --surface-2: #1e293b;
+  --surface-3: #334155;
+  --surface-raised: #1e293b;
+
+  --sidebar-bg: #070d1a;
+  --sidebar-surface: #0f172a;
+  --sidebar-hover: #1e293b;
+  --sidebar-border: #0f172a;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  --text-inverse: #0f172a;
+
+  --accent-subtle: rgba(59, 130, 246, 0.12);
+  --accent-border: rgba(59, 130, 246, 0.3);
+  --accent-surface: rgba(59, 130, 246, 0.06);
+
+  --severity-critical-bg: rgba(220, 38, 38, 0.15);
+  --severity-critical-border: rgba(220, 38, 38, 0.3);
+  --severity-high-bg: rgba(234, 88, 12, 0.15);
+  --severity-high-border: rgba(234, 88, 12, 0.3);
+  --severity-medium-bg: rgba(202, 138, 4, 0.15);
+  --severity-medium-border: rgba(202, 138, 4, 0.3);
+  --severity-low-bg: rgba(37, 99, 235, 0.15);
+  --severity-low-border: rgba(37, 99, 235, 0.3);
+  --severity-info-bg: rgba(100, 116, 139, 0.15);
+  --severity-info-border: rgba(100, 116, 139, 0.3);
+
+  --success-bg: rgba(22, 163, 74, 0.15);
+  --warning-bg: rgba(217, 119, 6, 0.15);
+  --danger-bg: rgba(220, 38, 38, 0.15);
+
+  --border-default: #1e293b;
+  --border-subtle: #1e293b;
+  --border-strong: #475569;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  --shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-sidebar: 4px 0 12px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 8px 25px -5px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--accent-border);
+
+  --code-bg: #070d1a;
+  --code-text: #e2e8f0;
+  --code-border: #0f172a;
+
+  --shimmer-color: rgba(255, 255, 255, 0.08);
+
+  --bg-primary: var(--surface-0);
+  --bg-secondary: var(--surface-1);
+  --bg-card: var(--surface-2);
+  --border-color: var(--border-default);
 }

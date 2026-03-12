@@ -1,3 +1,37 @@
+/* ── Theme Selector ── */
+
+.gs-theme-options {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.gs-theme-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-0);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.gs-theme-btn:hover {
+  border-color: var(--accent-border);
+  color: var(--text-primary);
+}
+
+.gs-theme-btn--active {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
 /* ── Settings Tabs ── */
 
 .settings-tabs {
