@@ -101,7 +101,8 @@ services/frontend/
 │       ├── api/
 │       │   └── client.ts             모든 백엔드 API 함수
 │       ├── contexts/
-│       │   └── ProjectContext.tsx     프로젝트 목록 공유 상태
+│       │   ├── ProjectContext.tsx     프로젝트 목록 공유 상태
+│       │   └── ToastContext.tsx       전역 toast 알림 (에러/경고/성공, 액션 버튼)
 │       ├── hooks/
 │       │   ├── useStaticAnalysis.ts   정적 분석 흐름
 │       │   ├── useDynamicTest.ts      동적 테스트 흐름 (WebSocket)
@@ -111,6 +112,7 @@ services/frontend/
 │       ├── components/
 │       │   ├── Sidebar.tsx            2-tier 사이드바
 │       │   ├── StatusBar.tsx          하단 상태바
+│       │   ├── ErrorBoundary.tsx      렌더링 크래시 방어 (class component)
 │       │   ├── ui/                    공통 UI 컴포넌트
 │       │   ├── static/               정적 분석 하위 컴포넌트
 │       │   └── dynamic/              동적 분석 하위 컴포넌트
@@ -172,6 +174,7 @@ services/frontend/
 | 취약점 통합 뷰 | VulnerabilitiesPage | 분석 세션별 그룹, 심각도/날짜 필터, 모듈별 컬러 구분 |
 | 분석 이력 | AnalysisHistoryPage | 전 모듈 타임라인 |
 | 설정 | SettingsPage + ProjectSettingsPage | 글로벌/프로젝트 |
+| 에러 핸들링 | ErrorBoundary, ToastContext, apiFetch 에러 분류 | X-Request-Id, errorDetail 대응, retryable 재시도 버튼 |
 | 공통 UI | Sidebar, StatusBar, 10+ ui 컴포넌트 | — |
 
 ### 미구현 (새 방향 — S2 shared 모델 확장 대기)
@@ -192,6 +195,17 @@ services/frontend/
 ---
 
 ## 7. 핵심 설계 결정
+
+### 에러 핸들링 아키텍처
+
+4계층 구조로 설계됨:
+
+1. **앱 안정성**: `ErrorBoundary` (렌더링 크래시 → fallback UI, Sidebar/StatusBar 유지), `unhandledrejection` 전역 핸들러 (`main.tsx`)
+2. **사용자 알림**: `ToastContext` — 전역 toast (에러/경고/성공), 5초 자동 닫기, 최대 5개 스택, 액션 버튼 지원
+3. **API 에러 분류**: `apiFetch`에서 네트워크 에러 / HTTP 상태코드 / JSON 파싱 실패 분류, `ApiError` 커스텀 에러 클래스 (`code`, `retryable`, `requestId`)
+4. **MSA 연동**: 모든 요청에 `X-Request-Id` 자동 부착, S2 `errorDetail` (구조화 에러 코드) 파싱, `retryable` 에러 시 toast에 "다시 시도" 버튼 표시
+
+에러 코드 매핑: `INVALID_INPUT`, `NOT_FOUND`, `CONFLICT`, `ADAPTER_UNAVAILABLE`, `LLM_UNAVAILABLE`, `LLM_HTTP_ERROR`, `LLM_PARSE_ERROR`, `LLM_TIMEOUT`, `DB_ERROR`, `INTERNAL_ERROR` → 한국어 사용자 메시지
 
 ### Electron vs 브라우저 이중 지원
 

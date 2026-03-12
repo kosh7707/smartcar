@@ -434,6 +434,7 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 | 취약점 통합 뷰 | 분석 세션별 그룹(모듈 컬러), 심각도/날짜 필터 (Finding 기반 재설계 필요) |
 | 분석 이력 타임라인 | 전 모듈 통합 |
 | 글로벌/프로젝트 설정 | 어댑터, LLM URL, 룰 CRUD |
+| 에러 핸들링 인프라 | ErrorBoundary, ToastContext, apiFetch 에러 분류, X-Request-Id, retryable 대응 |
 | 사이드바/브레드크럼/상태바 | 2-tier, 프로젝트 컨텍스트 |
 
 ### 미구현 (새 방향)
@@ -464,7 +465,7 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 | 언어 | TypeScript |
 | 빌드 | Vite |
 | 라우팅 | react-router-dom v6 (HashRouter) |
-| 상태관리 | React Context + useState |
+| 상태관리 | React Context + useState (ProjectContext, ToastContext) |
 | 아이콘 | lucide-react |
 | 스타일 | CSS (다크 테마, CSS 변수, 토큰 시스템) |
 | API 통신 | fetch (Electron preload / 브라우저 직접) |
@@ -515,6 +516,28 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 모든 백엔드 통신은 `services/frontend/src/renderer/api/client.ts`에 집중.
 
 백엔드 URL 결정: `localStorage` → `window.api.backendUrl` → `http://localhost:3000`
+
+### 에러 핸들링
+
+`apiFetch`가 `ApiError` 커스텀 에러를 throw한다:
+
+```typescript
+class ApiError extends Error {
+  code: string;        // 에러 코드 (예: "LLM_TIMEOUT", "NOT_FOUND")
+  retryable: boolean;  // 재시도 가능 여부
+  requestId: string;   // X-Request-Id (MSA 추적용)
+}
+```
+
+**에러 분류 흐름**:
+1. `fetch()` 자체 실패 → `NETWORK_ERROR` (retryable: true)
+2. `!res.ok` → 응답 body에서 `errorDetail` 파싱 → `errorDetail.code`로 한국어 매핑
+3. `errorDetail` 없으면 → 기존 `error` string 또는 HTTP 상태코드 폴백
+4. `res.json()` 파싱 실패 → `PARSE_ERROR`
+
+**X-Request-Id**: 모든 요청에 `crypto.randomUUID()` 자동 부착. S2가 그대로 사용하여 S2→S3 체인까지 전파.
+
+**retryable 대응**: `retryable: true`인 에러 발생 시 toast에 "다시 시도" 액션 버튼 표시. 클릭 시 해당 함수 재실행.
 
 ### 현재 구현된 API
 
@@ -592,6 +615,7 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 | `BackButton` | 뒤로가기 |
 | `Spinner` | 로딩 스피너 |
 | `AdapterSelector` | 어댑터 선택 (ECU 이름·CAN ID 수 표시) |
+| `ErrorBoundary` | 렌더링 크래시 방어 (class component, fallback UI) |
 
 ### 추가 필요한 컴포넌트
 
