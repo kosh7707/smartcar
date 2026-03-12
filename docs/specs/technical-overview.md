@@ -75,7 +75,7 @@ MSA(Microservice Architecture) 기반 4개 독립 서비스 구성.
         ▼
 ┌──────────────────┐
 │ LLM Engine       │  LLM 추론
-│ (Qwen 14B)       │  Port: 8080 (예정)
+│ (Qwen 32B/vLLM)  │  Port: 8080
 └──────────────────┘
 ```
 
@@ -88,7 +88,7 @@ MSA(Microservice Architecture) 기반 4개 독립 서비스 구성.
 | S1 | UI Service | Electron + React + TypeScript | 사용자 인터페이스, 결과 시각화 | 데스크탑 앱 |
 | S2 | Core Service | Express.js + TypeScript | 비즈니스 로직, 검증 오케스트레이션, DB | 3000 |
 | S3 | LLM Gateway | Python + FastAPI | LLM 호출 추상화, 프롬프트 관리 | 8000 |
-| S4 | LLM Engine | Qwen 14B on DGX Spark | LLM 추론 (추후 연동) | 8080 |
+| S4 | LLM Engine | Qwen 32B on DGX Spark (vLLM) | LLM 추론 | 8080 |
 
 ### S1. UI Service
 
@@ -128,8 +128,8 @@ MSA(Microservice Architecture) 기반 4개 독립 서비스 구성.
 - 소스코드 취약점 분석 및 수정 가이드 생성
 - CAN 트래픽 이상 패턴 해석 및 공격 유형 분류
 - 퍼징/침투 테스트 결과 해석 및 추가 공격 벡터 제안
-- 2차년도: S3(LLM Gateway)가 맥락 기반 Mock 응답 반환 (ruleResults 심층 분석, CAN 로그 파싱, 테스트 분류)
-- 3차년도 이후: 실 LLM 연동
+- 2차년도: S3(LLM Gateway)가 맥락 기반 Mock 응답 반환 (ruleResults 심층 분석, CAN 로그 파싱, 테스트 분류) ✅
+- 3차년도: DGX Spark + vLLM + Qwen 32B 실 LLM 연동 (S4 입주 준비 중)
 
 ---
 
@@ -396,30 +396,39 @@ CAN 데이터 소스 → [S2] WebSocket 수신
 
 ## 9. 개발 단계
 
-### 2차년도 (현재) - 프로토타입
+### 2차년도 — 프로토타입 (v0.0.0, 2026-03-12 완료)
 
 - [x] 프로젝트 구조 및 빌드 환경 구성
-- [x] 서비스 간 통신 검증 (Hello World)
-- [x] 공유 데이터 모델/DTO 확정 (`@smartcar/shared` — Project, Vulnerability, AnalysisResult 등)
-- [ ] Frontend 기본 UI (대시보드, 사이드바, 각 모듈 화면)
-- [x] Backend P0 정적 분석 API (업로드, 분석 실행, 결과 조회, 보고서)
-- [x] Backend P1 프로젝트 CRUD + Overview API (fileCount, 모듈별 최신 집계)
-- [x] Backend P1 프로젝트 파일 관리 API (목록/다운로드/삭제)
-- [x] Backend 룰 관리 API (CRUD, 빌트인 토글, 커스텀 정규식 룰)
-- [x] Backend SQLite DB 구축 (projects, uploaded_files, analysis_results, rules)
-- [ ] Backend P1 동적 분석/테스트 API
-- [x] LLM Gateway 구현 (Mock LLM + 고도화된 프롬프트 + 프롬프트 로깅)
-- [x] 정적 분석: 룰 인터페이스 + L1~L2 최소 룰 + LLM mock 연동 검증 완료
-- [ ] 동적 분석: WebSocket 인터페이스 + Mock 데이터 생성기
-- [ ] 동적 테스트: 인터페이스 + Mock ECU 응답
+- [x] 서비스 간 통신 검증
+- [x] 공유 데이터 모델/DTO 확정 (`@smartcar/shared`)
+- [x] Frontend 기본 UI (대시보드, 사이드바, 각 모듈 화면, 테마, 에러 핸들링)
+- [x] Backend 정적 분석 API (업로드, 청크 분할, 룰+LLM 2계층, 결과 조회/삭제/보고서)
+- [x] Backend 동적 분석 API (세션 관리, CAN 모니터링, 룰+LLM 2계층, CAN 주입, 시나리오)
+- [x] Backend 동적 테스트 API (퍼징/침투, 3전략 입력 생성, 어댑터 통신, LLM 분석)
+- [x] Backend 프로젝트 CRUD + Overview + 파일/룰/어댑터/설정 관리
+- [x] Backend SQLite DB (14개 테이블)
+- [x] Backend 코어 도메인 (Run, Finding 7-state, EvidenceRef, AuditLog, ResultNormalizer)
+- [x] LLM Gateway v0 (Mock LLM + 모듈별 프롬프트 + 에러 분류 + 구조화 로깅)
+- [x] LLM Gateway v1 뼈대 (Task API, prompt/model registry, schema/evidence validation, confidence)
+- [x] Adapter + ECU Simulator (WS 중계, CAN 프레임, 주입 요청-응답)
+- [x] MSA Observability (에러 클래스 계층, 구조화 로깅, Correlation ID, JSONL 파일 저장)
+- [x] 서비스 관리 스크립트 (start.sh/stop.sh, DB 유틸)
+
+### 2→3차년도 전환기 (현재)
+
+- [x] S4 문서 준비 (기능 명세, API 계약서, 인수인계서) — S3가 초안 작성
+- [ ] **S4(DGX Spark) 입주** — vLLM + Qwen 32B 서빙 셋업
+- [ ] S3 `mock` → `real` 전환 (환경변수만 변경하면 동작)
+- [ ] S2 Quality Gate + Approval (3단계)
+- [ ] S1 코어 도메인 UI (Finding triage, Run 상세, Evidence 탐색)
 
 ### 3차년도
 
-- [ ] LLM 실 연동 (Qwen 14B on DGX Spark)
+- [ ] LLM 실 연동 안정화 (프롬프트 튜닝, 성능 최적화)
+- [ ] Agentic SAST (Tool calling, Prepared Guided Agent)
 - [ ] 패턴 매칭 룰 확장 (L3~L4)
 - [ ] 페스카로/GITC 실데이터 연동
-- [ ] DB 연동, 사용자 인증
-- [ ] Agentic RAG, Planning & Execute
+- [ ] 사용자 인증 (JWT)
 
 ### 4차년도
 
@@ -430,7 +439,25 @@ CAN 데이터 소스 → [S2] WebSocket 수신
 
 ---
 
-## 10. 관련 문서
+## 10. 문서 소유권
+
+| 카테고리 | 문서 | 소유자 |
+|----------|------|--------|
+| 전체 개요 | `specs/technical-overview.md` | **S2 주도** |
+| 서비스 명세 | `specs/frontend.md` | S1 |
+| | `specs/backend.md`, `specs/adapter.md`, `specs/ecu-simulator.md` | S2 |
+| | `specs/observability.md` | S2 |
+| | `specs/llm-gateway.md` | S3 |
+| | `specs/llm-engine.md` | **S4** |
+| API 계약 | `api/shared-models.md` | **S2 단독** |
+| | `api/llm-gateway-api.md` | S3 |
+| | `api/llm-engine-api.md` | **S3** (S4는 work-request로 변경 요청) |
+| 인수인계서 | `{sN}-handoff/README.md` | 각 서비스 담당자 |
+| 외부 피드백 | `외부피드백/` | 소유자 없음 (읽기 전용 참고) |
+
+---
+
+## 11. 관련 문서
 
 - 서비스별 상세 명세
   - [S1. Frontend](frontend.md)
@@ -439,3 +466,12 @@ CAN 데이터 소스 → [S2] WebSocket 수신
   - [S2. ECU Simulator](ecu-simulator.md)
   - [S3. LLM Gateway](llm-gateway.md)
   - [S4. LLM Engine](llm-engine.md)
+- 인수인계서
+  - [S1 Handoff](../s1-handoff/README.md)
+  - [S2 Handoff](../s2-handoff/README.md)
+  - [S3 Handoff](../s3-handoff/README.md)
+  - [S4 Handoff](../s4-handoff/README.md)
+- API 계약서
+  - [S1↔S2 공유 모델](../api/shared-models.md)
+  - [S2↔S3 API](../api/llm-gateway-api.md)
+  - [S3↔S4 API](../api/llm-engine-api.md)
