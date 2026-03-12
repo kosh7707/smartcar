@@ -1,19 +1,20 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import type { AdapterManager } from "../services/adapter-manager";
+import { asyncHandler } from "../middleware/async-handler";
 
 export function createProjectAdaptersRouter(adapterManager: AdapterManager): Router {
   const router = Router({ mergeParams: true });
 
   // 프로젝트 어댑터 목록
-  router.get("/", (req, res) => {
-    const pid = (req.params as any).pid as string;
+  router.get("/", (req: Request<{ pid: string }>, res) => {
+    const pid = req.params.pid;
     const adapters = adapterManager.findByProjectId(pid);
     res.json({ success: true, data: adapters });
   });
 
   // 어댑터 등록
-  router.post("/", (req, res) => {
-    const pid = (req.params as any).pid as string;
+  router.post("/", (req: Request<{ pid: string }>, res) => {
+    const pid = req.params.pid;
     const { name, url } = req.body as { name?: string; url?: string };
     if (!name || !url) {
       res.status(400).json({ success: false, error: "name and url are required" });
@@ -28,8 +29,8 @@ export function createProjectAdaptersRouter(adapterManager: AdapterManager): Rou
   });
 
   // 어댑터 수정
-  router.put("/:id", (req, res) => {
-    const pid = (req.params as any).pid as string;
+  router.put("/:id", (req: Request<{ pid: string; id: string }>, res) => {
+    const pid = req.params.pid;
     const { id } = req.params;
     const adapter = adapterManager.findById(id);
     if (!adapter) {
@@ -51,8 +52,8 @@ export function createProjectAdaptersRouter(adapterManager: AdapterManager): Rou
   });
 
   // 어댑터 삭제
-  router.delete("/:id", (req, res) => {
-    const pid = (req.params as any).pid as string;
+  router.delete("/:id", (req: Request<{ pid: string; id: string }>, res) => {
+    const pid = req.params.pid;
     const { id } = req.params;
     const adapter = adapterManager.findById(id);
     if (!adapter || adapter.projectId !== pid) {
@@ -64,25 +65,21 @@ export function createProjectAdaptersRouter(adapterManager: AdapterManager): Rou
   });
 
   // 연결
-  router.post("/:id/connect", async (req, res, next) => {
-    const pid = (req.params as any).pid as string;
+  router.post("/:id/connect", asyncHandler(async (req: Request<{ pid: string; id: string }>, res) => {
+    const pid = req.params.pid;
     const { id } = req.params;
     const adapter = adapterManager.findById(id);
     if (!adapter || adapter.projectId !== pid) {
       res.status(404).json({ success: false, error: "Adapter not found" });
       return;
     }
-    try {
-      const connected = await adapterManager.connect(id);
-      res.json({ success: true, data: connected });
-    } catch (err) {
-      next(err);
-    }
-  });
+    const connected = await adapterManager.connect(id);
+    res.json({ success: true, data: connected });
+  }));
 
   // 연결 해제
-  router.post("/:id/disconnect", (req, res) => {
-    const pid = (req.params as any).pid as string;
+  router.post("/:id/disconnect", (req: Request<{ pid: string; id: string }>, res) => {
+    const pid = req.params.pid;
     const { id } = req.params;
     const adapter = adapterManager.findById(id);
     if (!adapter || adapter.projectId !== pid) {

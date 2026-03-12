@@ -125,6 +125,18 @@
   /* ── Shimmer ── */
   --shimmer-color: rgba(255, 255, 255, 0.3);
 
+  /* ── Module colors ── */
+  --module-static: #7c6ee6;
+  --module-static-bg: rgba(124, 110, 230, 0.1);
+  --module-dynamic: var(--success);
+  --module-dynamic-bg: rgba(22, 163, 74, 0.1);
+  --module-test: var(--accent);
+  --module-test-bg: rgba(59, 130, 246, 0.1);
+
+  /* ── Extra semantic ── */
+  --danger-hover: #b91c1c;
+  --text-2xs: 10px;
+
   /* ── Legacy aliases (backward compat) ── */
   --bg-primary: var(--surface-0);
   --bg-secondary: var(--surface-1);
@@ -193,6 +205,15 @@
   --code-border: #0f172a;
 
   --shimmer-color: rgba(255, 255, 255, 0.08);
+
+  /* ── Module colors (dark) ── */
+  --module-static: #9b8afb;
+  --module-static-bg: rgba(155, 138, 251, 0.15);
+  --module-dynamic-bg: rgba(22, 163, 74, 0.15);
+  --module-test-bg: rgba(59, 130, 246, 0.15);
+
+  /* ── Extra semantic (dark) ── */
+  --danger-hover: #ef4444;
 
   --bg-primary: var(--surface-0);
   --bg-secondary: var(--surface-1);

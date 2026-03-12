@@ -3,9 +3,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import type { UploadedFile } from "@smartcar/shared";
 import { FileText, Folder, FolderOpen, Upload, Trash2, Download, ChevronRight, Search, FolderUp, HardDrive, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { fetchProjectFiles, uploadFiles, deleteProjectFile, downloadFile } from "../api/client";
-import { EmptyState, Spinner } from "../components/ui";
+import { EmptyState, PageHeader, ConfirmDialog, Spinner } from "../components/ui";
 import { useToast } from "../contexts/ToastContext";
 import { formatFileSize } from "../utils/format";
+import { LANG_GROUPS, getLangColor } from "../constants/languages";
 import "./FilesPage.css";
 
 const ALLOWED_EXTENSIONS = new Set(["c", "cpp", "h", "hpp", "py", "java", "js", "ts"]);
@@ -23,36 +24,6 @@ function filterSupportedFiles(fileList: File[]): { supported: File[]; skipped: s
     }
   }
   return { supported, skipped };
-}
-
-// ── Language config ──
-
-const LANG_COLORS: Record<string, string> = {
-  c: "#555599",
-  cpp: "#004482",
-  h: "#6a5acd",
-  hpp: "#6a5acd",
-  python: "#3572a5",
-  java: "#b07219",
-  javascript: "#f1e05a",
-  typescript: "#3178c6",
-};
-
-const LANG_GROUPS: Record<string, { group: string; color: string }> = {
-  c: { group: "C/C++", color: "#555599" },
-  cpp: { group: "C/C++", color: "#555599" },
-  h: { group: "C/C++", color: "#6a5acd" },
-  hpp: { group: "C/C++", color: "#6a5acd" },
-  python: { group: "Python", color: "#3572a5" },
-  java: { group: "Java", color: "#b07219" },
-  javascript: { group: "JavaScript", color: "#f1e05a" },
-  typescript: { group: "TypeScript", color: "#3178c6" },
-};
-
-function getLangColor(file: UploadedFile): string {
-  if (file.language && LANG_COLORS[file.language]) return LANG_COLORS[file.language];
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  return LANG_COLORS[ext] ?? "var(--text-tertiary)";
 }
 
 // ── Tree data ──
@@ -221,6 +192,7 @@ export const FilesPage: React.FC = () => {
   const toast = useToast();
   const [treeKey, setTreeKey] = useState(0);
   const [treeDefaultOpen, setTreeDefaultOpen] = useState<boolean | undefined>(undefined);
+  const [confirmDeleteFile, setConfirmDeleteFile] = useState<UploadedFile | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -293,9 +265,8 @@ export const FilesPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (file: UploadedFile) => {
+  const handleDeleteConfirmed = async (file: UploadedFile) => {
     if (!projectId) return;
-    if (!confirm(`"${file.name}" 파일을 삭제하시겠습니까?`)) return;
     try {
       await deleteProjectFile(projectId, file.id);
       setFiles((prev) => prev.filter((f) => f.id !== file.id));
@@ -303,6 +274,10 @@ export const FilesPage: React.FC = () => {
       console.error("Delete failed:", e);
       toast.error("파일 삭제에 실패했습니다.");
     }
+  };
+
+  const handleDelete = (file: UploadedFile) => {
+    setConfirmDeleteFile(file);
   };
 
   const handleDownload = async (file: UploadedFile) => {
@@ -344,7 +319,7 @@ export const FilesPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="page-enter fpage-loading">
+      <div className="page-enter centered-loader">
         <Spinner size={36} label="파일 로딩 중..." />
       </div>
     );
@@ -357,18 +332,11 @@ export const FilesPage: React.FC = () => {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Header panel */}
-      <div className="card fpage-hero">
-        <div className="fpage-hero__top">
-          <div className="fpage-hero__title-area">
-            <div className="fpage-hero__icon">
-              <HardDrive size={20} />
-            </div>
-            <div>
-              <h2 className="fpage-hero__title">파일 탐색기</h2>
-              <p className="fpage-hero__subtitle">{files.length}개 파일 · {formatFileSize(totalSize)}</p>
-            </div>
-          </div>
+      <PageHeader
+        title="파일 탐색기"
+        icon={<HardDrive size={20} />}
+        subtitle={`${files.length}개 파일 · ${formatFileSize(totalSize)}`}
+        action={
           <div className="fpage-header-actions">
             <button
               className="fpage-action-btn"
@@ -403,8 +371,8 @@ export const FilesPage: React.FC = () => {
               onChange={(e) => e.target.files && handleUpload(e.target.files)}
             />
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {files.length === 0 ? (
         <EmptyState
@@ -500,6 +468,15 @@ export const FilesPage: React.FC = () => {
         </div>
       )}
 
+      <ConfirmDialog
+        open={confirmDeleteFile !== null}
+        title="파일 삭제"
+        message={confirmDeleteFile ? `"${confirmDeleteFile.name}" 파일을 삭제하시겠습니까?` : ""}
+        confirmLabel="삭제"
+        danger
+        onConfirm={() => { if (confirmDeleteFile) handleDeleteConfirmed(confirmDeleteFile); setConfirmDeleteFile(null); }}
+        onCancel={() => setConfirmDeleteFile(null)}
+      />
     </div>
   );
 };

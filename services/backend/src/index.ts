@@ -26,6 +26,11 @@ import { DynamicAnalysisService } from "./services/dynamic-analysis.service";
 import { DynamicTestService } from "./services/dynamic-test.service";
 import { createDynamicTestRouter } from "./controllers/dynamic-test.controller";
 import { AdapterManager } from "./services/adapter-manager";
+import { ResultNormalizer } from "./services/result-normalizer";
+import { FindingService } from "./services/finding.service";
+import { RunService } from "./services/run.service";
+import { createRunRouter, createRunDetailRouter } from "./controllers/run.controller";
+import { createFindingRouter, createFindingDetailRouter } from "./controllers/finding.controller";
 
 // --- 프로세스 레벨 에러 핸들러 ---
 process.on("uncaughtException", (err) => {
@@ -54,7 +59,10 @@ const ruleService = new RuleService();
 const adapterManager = new AdapterManager();
 const settingsService = new ProjectSettingsService();
 const projectService = new ProjectService(ruleService, adapterManager, settingsService);
-const staticAnalysisService = new StaticAnalysisService(ruleService, llmClient, settingsService, wsManager);
+const resultNormalizer = new ResultNormalizer();
+const findingService = new FindingService();
+const runService = new RunService();
+const staticAnalysisService = new StaticAnalysisService(ruleService, llmClient, settingsService, wsManager, resultNormalizer);
 
 // 기존 프로젝트에 기본 룰 시딩 (1회 마이그레이션)
 const seedRequestId = generateRequestId("sys");
@@ -79,16 +87,19 @@ const dynamicAnalysisService = new DynamicAnalysisService(
   llmClient,
   wsManager,
   adapterManager,
-  settingsService
+  settingsService,
+  resultNormalizer
 );
 
 // 동적 테스트 서비스 초기화
-const dynamicTestService = new DynamicTestService(llmClient, adapterManager, settingsService, wsManager);
+const dynamicTestService = new DynamicTestService(llmClient, adapterManager, settingsService, wsManager, resultNormalizer);
 
 // 라우터 마운트 — 프로젝트 스코프 (신규)
 app.use("/api/projects/:pid/adapters", createProjectAdaptersRouter(adapterManager));
 app.use("/api/projects/:pid/rules", createProjectRulesRouter(ruleService));
 app.use("/api/projects/:pid/settings", createProjectSettingsRouter(settingsService));
+app.use("/api/projects/:pid/runs", createRunRouter(runService));
+app.use("/api/projects/:pid/findings", createFindingRouter(findingService));
 
 // 라우터 마운트
 app.use("/health", createHealthRouter(llmClient, adapterManager));
@@ -103,6 +114,8 @@ app.use(
   createDynamicAnalysisRouter(dynamicAnalysisService)
 );
 app.use("/api/dynamic-test", createDynamicTestRouter(dynamicTestService));
+app.use("/api/runs", createRunDetailRouter(runService));
+app.use("/api/findings", createFindingDetailRouter(findingService));
 
 // 글로벌 에러 핸들러 (모든 라우터 뒤에 마운트)
 app.use(errorHandlerMiddleware);

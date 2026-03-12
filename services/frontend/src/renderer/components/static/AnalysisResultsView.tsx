@@ -3,17 +3,7 @@ import type { AnalysisResult, Vulnerability, Severity } from "@smartcar/shared";
 import { StatCard, PageHeader, BackButton, SeveritySummary } from "../ui";
 import { Shield, AlertTriangle, AlertCircle, Info, FileSearch, FileCode } from "lucide-react";
 import { SEVERITY_ORDER } from "../../utils/severity";
-
-/* ── Location parsing ── */
-
-function parseLocation(location?: string | null): { fileName: string; line?: string } {
-  if (!location) return { fileName: "기타" };
-  const lastColon = location.lastIndexOf(":");
-  if (lastColon <= 0) return { fileName: location };
-  const maybeLine = location.substring(lastColon + 1);
-  if (!/^\d+$/.test(maybeLine)) return { fileName: location };
-  return { fileName: location.substring(0, lastColon), line: maybeLine };
-}
+import { parseLocation } from "../../utils/location";
 
 interface FileGroup {
   fileName: string;

@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import type { Vulnerability, Severity, AnalysisResult } from "@smartcar/shared";
-import { Shield, AlertTriangle, AlertCircle, Info, FileSearch, Activity, FlaskConical, Calendar } from "lucide-react";
+import { Shield, AlertTriangle, AlertCircle, Info, Calendar } from "lucide-react";
 import { fetchProjectOverview } from "../api/client";
 import { useToast } from "../contexts/ToastContext";
 import { VulnerabilityDetailView } from "../components/static/VulnerabilityDetailView";
-import { PageHeader, SeverityBadge, SeveritySummary, Spinner } from "../components/ui";
+import { PageHeader, EmptyState, SeverityBadge, SeveritySummary, Spinner } from "../components/ui";
 import { SEVERITY_ORDER } from "../utils/severity";
 import { formatDateTime } from "../utils/format";
+import { MODULE_META } from "../constants/modules";
 import "./VulnerabilitiesPage.css";
 
 const SEVERITY_ICONS: Record<string, React.ReactNode> = {
@@ -16,12 +17,6 @@ const SEVERITY_ICONS: Record<string, React.ReactNode> = {
   medium: <AlertCircle size={14} />,
   low: <Info size={14} />,
   info: <Info size={14} />,
-};
-
-const MODULE_META: Record<string, { label: string; icon: React.ReactNode; badge: string }> = {
-  static_analysis: { label: "정적 분석", icon: <FileSearch size={14} />, badge: "static" },
-  dynamic_analysis: { label: "동적 분석", icon: <Activity size={14} />, badge: "dynamic" },
-  dynamic_testing: { label: "동적 테스트", icon: <FlaskConical size={14} />, badge: "test" },
 };
 
 export const VulnerabilitiesPage: React.FC = () => {
@@ -149,11 +144,10 @@ export const VulnerabilitiesPage: React.FC = () => {
 
       {/* Grouped vulnerability list */}
       {!hasFiltered ? (
-        <div key={`empty-${activeSeverity}`} className="card vuln-empty-enter vuln-empty-card">
-          <p className="text-tertiary">
-            {activeSeverity === "all" ? "발견된 취약점이 없습니다" : `${activeSeverity.toUpperCase()} 수준의 취약점이 없습니다`}
-          </p>
-        </div>
+        <EmptyState
+          icon={<Shield size={28} />}
+          title={activeSeverity === "all" ? "발견된 취약점이 없습니다" : `${activeSeverity.toUpperCase()} 수준의 취약점이 없습니다`}
+        />
       ) : (
         dateFiltered.map((a) => {
           const meta = MODULE_META[a.module] ?? { label: a.module, icon: null, badge: "" };

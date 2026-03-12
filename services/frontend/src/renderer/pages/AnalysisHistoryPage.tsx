@@ -1,25 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import type { AnalysisResult, AnalysisModule } from "@smartcar/shared";
-import {
-  Clock,
-  FileSearch,
-  Activity,
-  FlaskConical,
-  Trash2,
-} from "lucide-react";
+import { Clock, Trash2 } from "lucide-react";
 import { fetchAnalysisResults, deleteAnalysisResult } from "../api/client";
 import { useToast } from "../contexts/ToastContext";
-import { PageHeader, SeveritySummary, ListItem, Spinner } from "../components/ui";
+import { PageHeader, EmptyState, ConfirmDialog, SeveritySummary, ListItem, Spinner } from "../components/ui";
 import { extractFiles } from "../utils/analysis";
 import { formatDateTime } from "../utils/format";
+import { MODULE_META, getModuleRoute } from "../constants/modules";
 import "./AnalysisHistoryPage.css";
-
-const MODULE_META: Record<string, { label: string; icon: React.ReactNode }> = {
-  static_analysis: { label: "정적 분석", icon: <FileSearch size={14} /> },
-  dynamic_analysis: { label: "동적 분석", icon: <Activity size={14} /> },
-  dynamic_testing: { label: "동적 테스트", icon: <FlaskConical size={14} /> },
-};
 
 const FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: "all", label: "전체" },
@@ -34,6 +23,7 @@ export const AnalysisHistoryPage: React.FC = () => {
   const [results, setResults] = useState<AnalysisResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [confirmTarget, setConfirmTarget] = useState<AnalysisResult | null>(null);
   const toast = useToast();
 
   useEffect(() => {
@@ -46,7 +36,6 @@ export const AnalysisHistoryPage: React.FC = () => {
   }, [projectId]);
 
   const handleDelete = async (a: AnalysisResult) => {
-    if (!confirm(`이 분석 이력을 삭제하시겠습니까? (취약점 ${a.summary.total}건)`)) return;
     try {
       await deleteAnalysisResult(a.id);
       setResults((prev) => prev.filter((h) => h.id !== a.id));
@@ -61,12 +50,7 @@ export const AnalysisHistoryPage: React.FC = () => {
     : results.filter((a) => a.module === filter);
 
   const navigateToResult = (a: AnalysisResult) => {
-    const route = a.module === "static_analysis"
-      ? `/projects/${projectId}/static-analysis?analysisId=${a.id}`
-      : a.module === "dynamic_analysis"
-        ? `/projects/${projectId}/dynamic-analysis`
-        : `/projects/${projectId}/dynamic-test`;
-    navigate(route);
+    navigate(getModuleRoute(a.module, projectId!, a.id));
   };
 
   if (loading) {
@@ -95,9 +79,10 @@ export const AnalysisHistoryPage: React.FC = () => {
 
       <div className="card">
         {filtered.length === 0 ? (
-          <p className="history-empty-text">
-            {filter === "all" ? "아직 분석 이력이 없습니다." : "해당 모듈의 분석 이력이 없습니다."}
-          </p>
+          <EmptyState
+            icon={<Clock size={28} />}
+            title={filter === "all" ? "아직 분석 이력이 없습니다" : "해당 모듈의 분석 이력이 없습니다"}
+          />
         ) : (
           filtered.map((a) => {
             const meta = MODULE_META[a.module] ?? { label: a.module, icon: null };
@@ -112,7 +97,7 @@ export const AnalysisHistoryPage: React.FC = () => {
                     <button
                       className="btn-icon btn-danger history-item-delete"
                       title="삭제"
-                      onClick={(e) => { e.stopPropagation(); handleDelete(a); }}
+                      onClick={(e) => { e.stopPropagation(); setConfirmTarget(a); }}
                     >
                       <Trash2 size={14} />
                     </button>
@@ -134,6 +119,16 @@ export const AnalysisHistoryPage: React.FC = () => {
           })
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmTarget !== null}
+        title="분석 이력 삭제"
+        message={confirmTarget ? `이 분석 이력을 삭제하시겠습니까? (취약점 ${confirmTarget.summary.total}건)` : ""}
+        confirmLabel="삭제"
+        danger
+        onConfirm={() => { if (confirmTarget) handleDelete(confirmTarget); setConfirmTarget(null); }}
+        onCancel={() => setConfirmTarget(null)}
+      />
     </div>
   );
 };

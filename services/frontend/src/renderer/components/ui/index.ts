@@ -9,3 +9,4 @@ export { BackButton } from "./BackButton";
 export { SeverityBar } from "./SeverityBar";
 export { DonutChart } from "./DonutChart";
 export { AdapterSelector } from "./AdapterSelector";
+export { ConfirmDialog } from "./ConfirmDialog";

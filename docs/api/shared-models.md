@@ -229,6 +229,77 @@ CAN 메시지 주입 결과.
 
 > `AttackScenarioId`: `"dos-burst" \| "diagnostic-abuse" \| "replay-attack" \| "bus-off" \| "unauthorized-id" \| "boundary-probe"`
 
+### Run
+
+하나의 분석 수행을 나타내는 코어 도메인 엔티티. AnalysisResult가 저장된 후 ResultNormalizer가 생성한다.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | string | `"run-{uuid}"` |
+| projectId | string | 소속 프로젝트 ID |
+| module | `"static_analysis" \| "dynamic_analysis" \| "dynamic_testing"` | 분석 모듈 |
+| status | `"pending" \| "running" \| "completed" \| "failed"` | Run 상태 |
+| analysisResultId | string | 원본 AnalysisResult ID (역참조) |
+| findingCount | number | 정규화된 Finding 수 |
+| startedAt | string (optional, ISO 8601) | 시작 시각 |
+| endedAt | string (optional, ISO 8601) | 종료 시각 |
+| createdAt | string (ISO 8601) | 생성 시각 |
+
+### Finding
+
+정규화된 보안 발견 사항. 7-state 라이프사이클을 가진다.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | string | `"finding-{uuid}"` |
+| runId | string | 소속 Run ID |
+| projectId | string | 소속 프로젝트 ID |
+| module | AnalysisModule | 분석 모듈 |
+| status | FindingStatus | 라이프사이클 상태 |
+| severity | Severity | 심각도 |
+| confidence | `"high" \| "medium" \| "low"` | 신뢰도 |
+| sourceType | `"rule-engine" \| "llm-assist" \| "both"` | 탐지 출처 |
+| title | string | 제목 |
+| description | string | 상세 설명 |
+| location | string (optional) | 발생 위치 |
+| suggestion | string (optional) | 수정 방안 |
+| ruleId | string (optional) | 룰 ID |
+| createdAt | string (ISO 8601) | 생성 시각 |
+| updatedAt | string (ISO 8601) | 수정 시각 |
+
+> **FindingStatus** (7-state): `"open" \| "needs_review" \| "accepted_risk" \| "false_positive" \| "fixed" \| "needs_revalidation" \| "sandbox"`
+>
+> 상태 전이: `open → needs_review`, `sandbox → needs_review`, `needs_review → accepted_risk|false_positive|fixed|open`, `accepted_risk|false_positive → needs_review`, `fixed → needs_revalidation`, `needs_revalidation → open|fixed`
+
+### EvidenceRef
+
+Finding과 증적(artifact) 간의 참조 연결.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | string | `"evr-{uuid}"` |
+| findingId | string | 소속 Finding ID |
+| artifactId | string | 증적 ID (AnalysisResult, 파일, 세션 등) |
+| artifactType | `"analysis-result" \| "uploaded-file" \| "dynamic-session" \| "test-result"` | 증적 유형 |
+| locatorType | `"line-range" \| "packet-range" \| "timestamp-window" \| "request-response-pair"` | 위치 지시자 유형 |
+| locator | object | 위치 상세 (예: `{ file, startLine, endLine }`) |
+| createdAt | string (ISO 8601) | 생성 시각 |
+
+### AuditLogEntry
+
+감사 로그 엔트리. Finding 상태 변경 등 추적 가능한 액션을 기록한다.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | string | 고유 식별자 |
+| timestamp | string (ISO 8601) | 발생 시각 |
+| actor | string | 수행자 |
+| action | string | 액션 (예: `"finding.status_change"`) |
+| resource | string | 리소스 유형 (예: `"finding"`) |
+| resourceId | string (optional) | 리소스 ID |
+| detail | object | 상세 정보 (예: `{ from, to, reason }`) |
+| requestId | string (optional) | 요청 추적 ID |
+
 ### DynamicTestConfig
 
 동적 테스트 설정.
@@ -484,6 +555,57 @@ CAN 메시지 주입 결과.
 |------|------|------|
 | success | boolean | 성공 여부 |
 | data | Rule[] | 룰 목록 |
+
+### Run
+
+#### RunListResponse
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| success | boolean | 성공 여부 |
+| data | Run[] | Run 목록 |
+
+#### RunDetailResponse
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| success | boolean | 성공 여부 |
+| data | Run & { findings: Finding[] } (optional) | Run + Finding 목록 |
+| error | string (optional) | 에러 메시지 |
+
+### Finding
+
+#### FindingListResponse
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| success | boolean | 성공 여부 |
+| data | Finding[] | Finding 목록 |
+
+#### FindingDetailResponse
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| success | boolean | 성공 여부 |
+| data | Finding & { evidenceRefs: EvidenceRef[], auditLog: AuditLogEntry[] } (optional) | Finding + 증적 + 감사 로그 |
+| error | string (optional) | 에러 메시지 |
+
+#### FindingStatusUpdateRequest
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| status | FindingStatus | 변경할 상태 |
+| reason | string | 변경 사유 |
+| actor | string (optional) | 수행자 (기본: "system") |
+
+#### FindingSummaryResponse
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| success | boolean | 성공 여부 |
+| data.byStatus | Record<string, number> | 상태별 카운트 |
+| data.bySeverity | Record<string, number> | 심각도별 카운트 |
+| data.total | number | 전체 Finding 수 |
 
 ### 공통
 

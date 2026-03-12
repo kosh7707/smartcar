@@ -95,12 +95,14 @@ services/backend/
 ├── smartcar.db                     # SQLite DB 파일 (자동 생성)
 └── src/
     ├── index.ts                    # 앱 진입점 (Express 초기화, DI, 미들웨어, 라우터 마운트, WS attach)
-    ├── db.ts                       # SQLite 초기화, 테이블 11개 생성, 마이그레이션
+    ├── db.ts                       # SQLite 초기화, 테이블 14개 생성, 마이그레이션
     ├── lib/
     │   ├── logger.ts              # pino 루트 로거 + createLogger(component)
     │   ├── errors.ts              # AppError 계층 (10개 에러 클래스)
+    │   ├── vulnerability-utils.ts # SEVERITY_ORDER, computeSummary, sortBySeverity (3개 서비스 공용)
     │   └── index.ts               # barrel export
     ├── middleware/
+    │   ├── async-handler.ts            # asyncHandler — async 핸들러 에러를 next()로 전파
     │   ├── request-id.middleware.ts     # X-Request-Id 생성/전파
     │   ├── request-logger.middleware.ts # 요청 시작/완료 로깅
     │   └── error-handler.middleware.ts  # 글로벌 에러 핸들러 (AppError → statusCode/code)
@@ -115,7 +117,9 @@ services/backend/
     │   ├── project-rules.controller.ts    # 프로젝트 스코프 룰 CRUD (/api/projects/:pid/rules)
     │   ├── project-adapters.controller.ts # 프로젝트 스코프 어댑터 CRUD+연결 (/api/projects/:pid/adapters)
     │   ├── project-settings.controller.ts # 프로젝트 설정 GET/PUT (/api/projects/:pid/settings)
-    │   └── dynamic-test.controller.ts # 동적 테스트 API 4개 (run, results, detail, delete)
+    │   ├── dynamic-test.controller.ts # 동적 테스트 API 4개 (run, results, detail, delete)
+    │   ├── run.controller.ts        # Run 목록/상세 API
+    │   └── finding.controller.ts    # Finding 목록/상세/상태변경/집계 API
     ├── services/
     │   ├── static-analysis.service.ts  # 정적 분석 오케스트레이션 (청크→룰→LLM→병합 + WS 프로그레스)
     │   ├── chunker.ts              # 파일 청크 분할 (토큰 추정, greedy bin-packing)
@@ -130,7 +134,10 @@ services/backend/
     │   ├── project.service.ts      # 프로젝트 CRUD + Overview 집계 + cascade 삭제 (룰/어댑터/설정)
     │   ├── project-settings.service.ts # 프로젝트 설정 KV (typed, defaults fallback)
     │   ├── rule.service.ts         # 프로젝트별 룰 CRUD, 기본 룰 시딩, per-analysis RuleEngine 빌드
-    │   └── llm-client.ts          # S3 LLM Gateway HTTP 클라이언트 (per-project baseUrl 지원)
+    │   ├── llm-client.ts          # S3 LLM Gateway HTTP 클라이언트 (per-project baseUrl 지원)
+    │   ├── result-normalizer.ts   # AnalysisResult → Run+Finding+EvidenceRef 정규화 (멱등, 원자적)
+    │   ├── finding.service.ts     # Finding CRUD + 7-state 라이프사이클 + audit trail
+    │   └── run.service.ts         # Run 읽기 전용 서비스
     ├── dao/
     │   ├── file-store.ts          # uploaded_files 테이블
     │   ├── analysis-result.dao.ts # analysis_results 테이블
@@ -141,7 +148,11 @@ services/backend/
     │   ├── dynamic-alert.dao.ts   # dynamic_analysis_alerts 테이블
     │   ├── dynamic-message.dao.ts # dynamic_analysis_messages 테이블
     │   ├── dynamic-test-result.dao.ts # dynamic_test_results 테이블
-    │   └── project-settings.dao.ts  # project_settings KV 테이블
+    │   ├── project-settings.dao.ts  # project_settings KV 테이블
+    │   ├── run.dao.ts              # runs 테이블
+    │   ├── finding.dao.ts          # findings 테이블 (필터, 집계)
+    │   ├── evidence-ref.dao.ts     # evidence_refs 테이블
+    │   └── audit-log.dao.ts        # audit_log 테이블
     ├── rules/                      # 정적 분석 룰
     │   ├── types.ts               # AnalysisRule 인터페이스, RuleMatch 타입
     │   ├── rule-engine.ts         # 룰 등록/실행 엔진 (per-analysis 빌드)
@@ -169,7 +180,7 @@ Controller → Service → DAO → SQLite
                 ↘ ProjectSettingsService (프로젝트별 설정 KV — llmUrl 등)
 ```
 
-- **Controller**: 요청 수신, 입력 검증, 응답 반환
+- **Controller**: 요청 수신, 입력 검증, 응답 반환. async 핸들러는 `asyncHandler()` 래퍼로 에러를 글로벌 핸들러에 전파
 - **Service**: 비즈니스 로직, 오케스트레이션
 - **DAO**: DB 접근 캡슐화 (better-sqlite3 prepared statements)
 - **RuleService**: 프로젝트별 룰 CRUD + 기본 룰 시딩 + `buildRuleEngine(projectId)`로 per-analysis 엔진 빌드
@@ -186,7 +197,7 @@ Controller → Service → DAO → SQLite
 
 SQLite(`better-sqlite3`), WAL 모드. DB 파일: `services/backend/smartcar.db` (환경변수 `DB_PATH`로 변경 가능).
 
-### 테이블 11개
+### 테이블 14개
 
 | 테이블 | 용도 | 주요 컬럼 |
 |--------|------|----------|
@@ -200,7 +211,10 @@ SQLite(`better-sqlite3`), WAL 모드. DB 파일: `services/backend/smartcar.db` 
 | `dynamic_analysis_alerts` | 이상 탐지 알림 | id, session_id, severity, title, description, llm_analysis, related_messages(JSON) |
 | `dynamic_analysis_messages` | CAN 메시지 로그 | id(auto), session_id, timestamp, can_id, dlc, data, flagged, injected |
 | `dynamic_test_results` | 동적 테스트 결과 | id, project_id, config(JSON), status, total_runs, crashes, anomalies, findings(JSON), created_at |
-| `audit_log` | 감사 로그 (스키마만) | id, timestamp, actor, action, resource, resource_id, detail(JSON), request_id |
+| `audit_log` | 감사 로그 | id, timestamp, actor, action, resource, resource_id, detail(JSON), request_id |
+| `runs` | 코어 도메인 — Run | id, project_id, module, status, analysis_result_id, finding_count, started_at, ended_at |
+| `findings` | 코어 도메인 — Finding | id, run_id, project_id, module, status, severity, confidence, source_type, title, description, location, suggestion, rule_id |
+| `evidence_refs` | 코어 도메인 — EvidenceRef | id, finding_id, artifact_id, artifact_type, locator_type, locator(JSON) |
 
 ### 마이그레이션 주의사항
 
@@ -263,6 +277,12 @@ SQLite(`better-sqlite3`), WAL 모드. DB 파일: `services/backend/smartcar.db` 
 | WebSocket | `/ws/dynamic-test?testId=` | 동적 테스트 프로그레스 push (progress/finding/complete) |
 | GET | `/api/projects/:pid/settings` | 프로젝트 설정 조회 (defaults fallback) |
 | PUT | `/api/projects/:pid/settings` | 프로젝트 설정 수정 (partial update) |
+| GET | `/api/projects/:pid/runs` | 프로젝트 Run 목록 |
+| GET | `/api/runs/:id` | Run 상세 (findings 포함) |
+| GET | `/api/projects/:pid/findings` | Finding 목록 (?status=&severity=&module=) |
+| GET | `/api/projects/:pid/findings/summary` | Finding 집계 (byStatus, bySeverity, total) |
+| GET | `/api/findings/:id` | Finding 상세 (evidenceRefs + auditLog) |
+| PATCH | `/api/findings/:id/status` | Finding 상태 변경 ({ status, reason, actor? }) |
 
 ### 미구현
 
@@ -649,22 +669,25 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 정적 분석, 동적 분석, 동적 테스트(퍼징/침투), 프로젝트 CRUD/Overview, 프로젝트 스코프 어댑터/룰/설정 CRUD 모두 완료. 이 파이프라인은 유지하면서 위에 canonical control plane을 적층한다.
 
-### 1단계: 코어 도메인 확정
+### 1단계: 코어 도메인 확정 ✅ 구현 완료
 
-- [ ] `AnalysisResult` → **`Run`** 승격 (메타데이터 확장: environment, rulePackVersion, requestedBy 등)
-- [ ] `Run` 결과 payload를 `run_outputs` / `artifacts`로 분리
-- [ ] 신규 도메인 모델 정의: `Artifact`, `EvidenceRef`, `Finding`(라이프사이클), `GateStatus`, `Approval`
-- [ ] 공통 enum/status 확정 (FindingStatus, GateResult, ApprovalDecision 등)
-- [ ] `services/shared/src/models.ts` + `docs/api/shared-models.md` 동시 업데이트
+- [x] `Run` 모델 정의 + DB 테이블 + DAO + API
+- [x] `Finding` 모델 정의 (7-state 라이프사이클) + DB 테이블 + DAO + API
+- [x] `EvidenceRef` 모델 정의 + DB 테이블 + DAO
+- [x] `AuditLogEntry` 모델 + DAO (Finding 상태 변경 감사로그)
+- [x] 공통 타입: `FindingStatus`, `FindingSourceType`, `RunStatus`, `LocatorType`, `Confidence`, `ArtifactType`
+- [x] `services/shared/src/models.ts` + `docs/api/shared-models.md` 동시 업데이트
 
-### 2단계: Finding 정규화 + 증적 관리
+### 2단계: Finding 정규화 + 증적 관리 ✅ 구현 완료
 
-- [ ] **ResultNormalizer** 레이어 구현 — 기존 결과(Vulnerability, DynamicAlert, DynamicTestFinding)를 canonical Finding으로 변환
-- [ ] Finding 라이프사이클 구현 (Open → Needs Review → Accepted Risk / False Positive / Fixed → Needs Revalidation)
-- [ ] LLM 결과는 **Sandbox/Needs Review**에서 시작 (즉시 확정 금지)
-- [ ] Artifact + EvidenceRef 저장 — "재검증과 audit에 필요한 것"만 (V1 최소 세트)
-- [ ] Finding 상태 변경 감사로그 (actor, reason, timestamp)
-- [ ] Findings API: 목록/상세/상태변경/triage
+- [x] **ResultNormalizer** — AnalysisResult 저장 직후 Run+Finding+EvidenceRef 원자적 생성 (멱등)
+- [x] 3개 파이프라인 통합: 정적/동적/동적테스트 각각 normalizer 호출 1~2줄 추가
+- [x] Finding 라이프사이클: open → needs_review → accepted_risk/false_positive/fixed → needs_revalidation
+- [x] LLM 결과: `status: "sandbox"` (즉시 확정 금지), rule 결과: `status: "open"`
+- [x] EvidenceRef: 모듈별 artifact 유형 + locator 유형 매핑
+- [x] Finding 상태 변경 감사로그 (actor, from, to, reason, requestId)
+- [x] Run API: `GET /api/projects/:pid/runs`, `GET /api/runs/:id`
+- [x] Finding API: 목록, 집계, 상세(evidenceRefs+auditLog), 상태변경(PATCH)
 
 ### 3단계: Quality Gate + Approval
 

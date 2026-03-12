@@ -24,7 +24,7 @@ import {
 } from "../api/client";
 import { useAdapters } from "../hooks/useAdapters";
 import { useToast } from "../contexts/ToastContext";
-import { PageHeader, SeverityBadge, Spinner } from "../components/ui";
+import { PageHeader, EmptyState, ConfirmDialog, SeverityBadge, Spinner } from "../components/ui";
 import { SEVERITY_ORDER } from "../utils/severity";
 import "./SettingsPage.css";
 
@@ -61,6 +61,10 @@ export const ProjectSettingsPage: React.FC = () => {
   const [adapterForm, setAdapterForm] = useState({ name: "", url: "ws://localhost:4000" });
   const [adapterError, setAdapterError] = useState<string | null>(null);
   const [connectingId, setConnectingId] = useState<string | null>(null);
+
+  // Confirm dialogs
+  const [confirmDeleteAdapter, setConfirmDeleteAdapter] = useState<Adapter | null>(null);
+  const [confirmDeleteRule, setConfirmDeleteRule] = useState<Rule | null>(null);
 
   // LLM settings
   const [llmUrl, setLlmUrl] = useState("");
@@ -101,9 +105,12 @@ export const ProjectSettingsPage: React.FC = () => {
     setAdapterError(null);
   };
 
-  const handleAdapterDelete = async (a: Adapter) => {
+  const handleAdapterDelete = (a: Adapter) => {
+    setConfirmDeleteAdapter(a);
+  };
+
+  const handleAdapterDeleteConfirmed = async (a: Adapter) => {
     if (!projectId) return;
-    if (!confirm(`"${a.name}" 어댑터를 삭제하시겠습니까?`)) return;
     try {
       await deleteAdapter(projectId, a.id);
       await refreshAdapters();
@@ -183,9 +190,12 @@ export const ProjectSettingsPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (rule: Rule) => {
+  const handleDelete = (rule: Rule) => {
+    setConfirmDeleteRule(rule);
+  };
+
+  const handleDeleteConfirmed = async (rule: Rule) => {
     if (!projectId) return;
-    if (!confirm(`"${rule.name}" 룰을 삭제하시겠습니까?`)) return;
     try {
       await deleteRule(projectId, rule.id);
       setRules((prev) => prev.filter((r) => r.id !== rule.id));
@@ -241,7 +251,7 @@ export const ProjectSettingsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="page-enter" style={{ display: "flex", justifyContent: "center", paddingTop: "var(--space-16)" }}>
+      <div className="page-enter centered-loader">
         <Spinner label="설정 로딩 중..." />
       </div>
     );
@@ -275,7 +285,7 @@ export const ProjectSettingsPage: React.FC = () => {
           {/* Adapter Management */}
           <div className="card">
             <div className="settings-rule-header">
-              <div className="card-title" style={{ marginBottom: 0 }}>
+              <div className="card-title card-title--flush">
                 <Plug size={16} />
                 Adapter
               </div>
@@ -324,7 +334,7 @@ export const ProjectSettingsPage: React.FC = () => {
             )}
 
             {adapters.length === 0 ? (
-              <p className="text-tertiary" style={{ fontSize: "var(--text-sm)" }}>등록된 어댑터가 없습니다. 어댑터를 추가해주세요.</p>
+              <EmptyState compact title="등록된 어댑터가 없습니다. 어댑터를 추가해주세요." />
             ) : (
               adapters.map((a) => (
                 <div key={a.id} className="adapter-row">
@@ -450,7 +460,7 @@ export const ProjectSettingsPage: React.FC = () => {
       {activeTab === "rules" && (
         <div className="card">
           <div className="settings-rule-header">
-            <div className="card-title" style={{ marginBottom: 0 }}>
+            <div className="card-title card-title--flush">
               <Shield size={16} />
               룰 관리
             </div>
@@ -511,10 +521,30 @@ export const ProjectSettingsPage: React.FC = () => {
               <RuleRow key={rule.id} rule={rule} onToggle={handleToggle} onEdit={handleEdit} onDelete={handleDelete} />
             ))
           ) : (
-            <p className="text-tertiary">등록된 룰이 없습니다.</p>
+            <EmptyState compact title="등록된 룰이 없습니다." />
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmDeleteAdapter !== null}
+        title="어댑터 삭제"
+        message={confirmDeleteAdapter ? `"${confirmDeleteAdapter.name}" 어댑터를 삭제하시겠습니까?` : ""}
+        confirmLabel="삭제"
+        danger
+        onConfirm={() => { if (confirmDeleteAdapter) handleAdapterDeleteConfirmed(confirmDeleteAdapter); setConfirmDeleteAdapter(null); }}
+        onCancel={() => setConfirmDeleteAdapter(null)}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteRule !== null}
+        title="룰 삭제"
+        message={confirmDeleteRule ? `"${confirmDeleteRule.name}" 룰을 삭제하시겠습니까?` : ""}
+        confirmLabel="삭제"
+        danger
+        onConfirm={() => { if (confirmDeleteRule) handleDeleteConfirmed(confirmDeleteRule); setConfirmDeleteRule(null); }}
+        onCancel={() => setConfirmDeleteRule(null)}
+      />
     </div>
   );
 };

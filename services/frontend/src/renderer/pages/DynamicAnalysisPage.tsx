@@ -12,16 +12,11 @@ import {
 import { useToast } from "../contexts/ToastContext";
 import { MonitoringView } from "../components/dynamic/MonitoringView";
 import { SessionDetailView } from "../components/dynamic/SessionDetailView";
-import { PageHeader, EmptyState, ListItem, Spinner, AdapterSelector, BackButton } from "../components/ui";
+import { PageHeader, EmptyState, ConfirmDialog, ListItem, Spinner, AdapterSelector, BackButton } from "../components/ui";
 import { useAdapters } from "../hooks/useAdapters";
 import { formatDateTime } from "../utils/format";
+import { STATUS_LABELS } from "../constants/dynamic";
 import "./DynamicAnalysisPage.css";
-
-const STATUS_LABELS: Record<string, string> = {
-  connected: "대기",
-  monitoring: "모니터링 중",
-  stopped: "종료됨",
-};
 
 export const DynamicAnalysisPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -38,6 +33,7 @@ export const DynamicAnalysisPage: React.FC = () => {
   // View state
   const [activeSession, setActiveSession] = useState<DynamicAnalysisSession | null>(null);
   const [viewingSessionId, setViewingSessionId] = useState<string | null>(null);
+  const [confirmStopId, setConfirmStopId] = useState<string | null>(null);
 
   const loadSessions = useCallback(() => {
     if (!projectId) return;
@@ -197,7 +193,7 @@ export const DynamicAnalysisPage: React.FC = () => {
         </div>
 
         {creating && (
-          <div style={{ display: "flex", justifyContent: "center", paddingTop: "var(--space-4)" }}>
+          <div className="centered-loader--compact">
             <Spinner label="세션 생성 중..." />
           </div>
         )}
@@ -227,7 +223,7 @@ export const DynamicAnalysisPage: React.FC = () => {
       )}
 
       {loading ? (
-        <div style={{ display: "flex", justifyContent: "center", paddingTop: "var(--space-10)" }}>
+        <div className="centered-loader--compact">
           <Spinner label="세션 이력 로딩 중..." />
         </div>
       ) : sessions.length === 0 ? (
@@ -256,7 +252,7 @@ export const DynamicAnalysisPage: React.FC = () => {
                       title="종료"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (confirm("세션을 종료하시겠습니까?")) handleStopSession(s.id).then(loadSessions);
+                        setConfirmStopId(s.id);
                       }}
                     >
                       <Activity size={14} />
@@ -301,6 +297,16 @@ export const DynamicAnalysisPage: React.FC = () => {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmStopId !== null}
+        title="세션 종료"
+        message="세션을 종료하시겠습니까?"
+        confirmLabel="종료"
+        danger
+        onConfirm={() => { if (confirmStopId) handleStopSession(confirmStopId).then(loadSessions); setConfirmStopId(null); }}
+        onCancel={() => setConfirmStopId(null)}
+      />
     </div>
   );
 };

@@ -193,7 +193,7 @@
 .can-inject-tag {
   display: inline-block;
   font-family: var(--font-sans);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   font-weight: var(--weight-bold);
   line-height: 1;
   letter-spacing: 0.04em;
@@ -248,7 +248,7 @@
 }
 
 .monitor-panel-tab__badge {
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-weight: var(--weight-bold);
   background: var(--accent);
   color: var(--text-inverse);
@@ -539,7 +539,7 @@
 }
 
 .btn-stop:hover {
-  background: var(--danger-hover, #b91c1c);
+  background: var(--danger-hover);
 }
 
 .btn-stop:disabled {

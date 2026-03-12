@@ -23,12 +23,14 @@ import { dynamicAlertDAO } from "../dao/dynamic-alert.dao";
 import { dynamicMessageDAO } from "../dao/dynamic-message.dao";
 import { analysisResultDAO } from "../dao/analysis-result.dao";
 import { ATTACK_SCENARIOS } from "./attack-scenarios";
+import type { ResultNormalizer } from "./result-normalizer";
 import { createLogger, generateRequestId } from "../lib/logger";
 import {
   NotFoundError,
   InvalidInputError,
   AdapterUnavailableError,
 } from "../lib/errors";
+import { computeSummary } from "../lib/vulnerability-utils";
 
 const logger = createLogger("dynamic-analysis");
 
@@ -56,7 +58,8 @@ export class DynamicAnalysisService {
     private llmClient: LlmClient,
     private wsManager: WsManager,
     private adapterManager: AdapterManager,
-    private settingsService: ProjectSettingsService
+    private settingsService: ProjectSettingsService,
+    private resultNormalizer?: ResultNormalizer
   ) {
     // Adapter에서 CAN 프레임 수신 -> 해당 어댑터에 바인딩된 세션에만 라우팅
     this.adapterManager.setCanFrameHandler((adapterId, frame) => {
@@ -319,14 +322,7 @@ export class DynamicAnalysisService {
       }
     }
 
-    const summary = {
-      total: vulns.length,
-      critical: vulns.filter((v) => v.severity === "critical").length,
-      high: vulns.filter((v) => v.severity === "high").length,
-      medium: vulns.filter((v) => v.severity === "medium").length,
-      low: vulns.filter((v) => v.severity === "low").length,
-      info: vulns.filter((v) => v.severity === "info").length,
-    };
+    const summary = computeSummary(vulns);
 
     const result: AnalysisResult = {
       id: `analysis-dyn-${sessionId}`,
@@ -339,6 +335,7 @@ export class DynamicAnalysisService {
     };
 
     analysisResultDAO.save(result);
+    this.resultNormalizer?.normalizeAnalysisResult(result, { sessionId });
     dynamicSessionDAO.updateCounts(
       sessionId,
       dynamicMessageDAO.countBySessionId(sessionId),

@@ -31,3 +31,23 @@
 .empty-state__action {
   margin-top: var(--space-4);
 }
+
+/* ── Compact variant (inline, no card wrapper) ── */
+
+.empty-state--compact {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.empty-state--compact__icon {
+  display: flex;
+  align-items: center;
+}
+
+.empty-state--compact__title {
+  color: var(--text-tertiary);
+}

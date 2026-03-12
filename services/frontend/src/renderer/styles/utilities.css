@@ -40,3 +40,4 @@
 /* ── Loading ── */
 
 .centered-loader { display: flex; justify-content: center; padding-top: var(--space-16); }
+.centered-loader--compact { display: flex; justify-content: center; padding-top: var(--space-10); }

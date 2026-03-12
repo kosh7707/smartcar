@@ -19,6 +19,7 @@ import {
 } from "../../api/client";
 import { BackButton, SeverityBadge, Spinner } from "../ui";
 import { useToast } from "../../contexts/ToastContext";
+import { formatTime } from "../../utils/format";
 
 const MAX_MESSAGES = 500;
 
@@ -195,13 +196,6 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
     } finally {
       setRunningScenario(null);
     }
-  };
-
-  const formatTime = (ts: string) => {
-    if (ts.includes("T")) {
-      return ts.split("T")[1]?.replace("Z", "").slice(0, 12) ?? ts;
-    }
-    return ts;
   };
 
   return (

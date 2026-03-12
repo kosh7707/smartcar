@@ -56,6 +56,11 @@
   font-weight: var(--weight-medium);
 }
 
+.code-viewer--scrollable {
+  max-height: 400px;
+  overflow: auto;
+}
+
 /* ── Fix Code ── */
 
 .fix-code {

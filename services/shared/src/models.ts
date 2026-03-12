@@ -211,6 +211,76 @@ export interface CanInjectionRequest {
 
 export type InjectionClassification = "normal" | "crash" | "anomaly" | "timeout";
 
+// ============================================================
+// 코어 도메인: Run / Finding / EvidenceRef
+// ============================================================
+
+export type FindingStatus =
+  | "open"
+  | "needs_review"
+  | "accepted_risk"
+  | "false_positive"
+  | "fixed"
+  | "needs_revalidation"
+  | "sandbox";
+
+export type FindingSourceType = "rule-engine" | "llm-assist" | "both";
+export type RunStatus = "pending" | "running" | "completed" | "failed";
+export type LocatorType = "line-range" | "packet-range" | "timestamp-window" | "request-response-pair";
+export type Confidence = "high" | "medium" | "low";
+export type ArtifactType = "analysis-result" | "uploaded-file" | "dynamic-session" | "test-result";
+
+export interface Run {
+  id: string;
+  projectId: string;
+  module: AnalysisModule;
+  status: RunStatus;
+  analysisResultId: string;
+  findingCount: number;
+  startedAt?: string;
+  endedAt?: string;
+  createdAt: string;
+}
+
+export interface Finding {
+  id: string;
+  runId: string;
+  projectId: string;
+  module: AnalysisModule;
+  status: FindingStatus;
+  severity: Severity;
+  confidence: Confidence;
+  sourceType: FindingSourceType;
+  title: string;
+  description: string;
+  location?: string;
+  suggestion?: string;
+  ruleId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EvidenceRef {
+  id: string;
+  findingId: string;
+  artifactId: string;
+  artifactType: ArtifactType;
+  locatorType: LocatorType;
+  locator: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  timestamp: string;
+  actor: string;
+  action: string;
+  resource: string;
+  resourceId?: string;
+  detail: Record<string, unknown>;
+  requestId?: string;
+}
+
 export interface CanInjectionResponse {
   id: string;
   request: CanInjectionRequest;

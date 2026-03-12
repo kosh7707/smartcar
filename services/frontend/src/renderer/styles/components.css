@@ -40,6 +40,10 @@
   gap: var(--space-2);
 }
 
+.card-title--flush {
+  margin-bottom: 0;
+}
+
 .card-title .lucide {
   color: var(--accent);
 }
@@ -244,27 +248,27 @@
   border-color: var(--accent);
 }
 
-.stat-card .stat-card__header {
+.stat-card__header {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   margin-bottom: var(--space-2);
 }
 
-.stat-card .stat-card__label {
+.stat-card__label {
   font-size: var(--text-sm);
   color: var(--text-secondary);
   font-weight: var(--weight-medium);
 }
 
-.stat-card .stat-card__value {
+.stat-card__value {
   font-size: var(--text-2xl);
   font-weight: var(--weight-bold);
   line-height: 1;
   animation: countUp 400ms ease both;
 }
 
-.stat-card .stat-card__detail {
+.stat-card__detail {
   margin-top: var(--space-2);
   font-size: var(--text-xs);
   line-height: 1.3;
@@ -329,8 +333,8 @@
 }
 
 .analysis-item__badge--static {
-  color: #7c6ee6;
-  background: rgba(124, 110, 230, 0.1);
+  color: var(--module-static);
+  background: var(--module-static-bg);
 }
 
 .analysis-item__badge--dynamic {
@@ -594,35 +598,6 @@
   color: var(--text-inverse);
 }
 
-/* ── Progress ── */
-
-.progress-bar-container {
-  width: 100%;
-  max-width: 400px;
-  height: 8px;
-  background: var(--surface-2);
-  border-radius: var(--radius-full);
-  margin: 0 auto var(--space-2);
-  overflow: hidden;
-}
-
-.progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
-  border-radius: var(--radius-full);
-  transition: width 0.3s ease;
-  position: relative;
-}
-
-.progress-bar::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, var(--shimmer-color), transparent);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
-}
-
 /* ── Shimmer Fill (shared utility) ── */
 
 .shimmer-fill {
@@ -636,48 +611,6 @@
   background: linear-gradient(90deg, transparent, var(--shimmer-color), transparent);
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
-}
-
-.progress-label {
-  font-size: var(--text-md);
-  color: var(--text-secondary);
-  font-weight: var(--weight-medium);
-  margin-bottom: var(--space-4);
-}
-
-.progress-step {
-  font-size: var(--text-base);
-  color: var(--text-tertiary);
-}
-
-/* ── Tab Bar (shared base) ── */
-
-.tab-bar {
-  display: flex;
-  gap: 0;
-  border-bottom: 1px solid var(--border-default);
-}
-
-.tab-bar__item {
-  padding: var(--space-2) var(--space-4);
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  font-family: inherit;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  transition: color var(--transition-fast), border-color var(--transition-fast);
-}
-
-.tab-bar__item:hover {
-  color: var(--text-primary);
-}
-
-.tab-bar__item--active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
 }
 
 /* ── Adapter Warning ── */
@@ -1016,5 +949,72 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* ── Confirm Dialog ── */
+
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  animation: confirm-fade-in var(--transition-fast) ease-out;
+}
+
+.confirm-dialog {
+  width: 380px;
+  max-width: 90vw;
+  padding: var(--space-6) !important;
+  margin: 0 !important;
+  animation: confirm-slide-up var(--transition-base) ease-out;
+}
+
+.confirm-dialog__title {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2);
+}
+
+.confirm-dialog__message {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
+  margin: 0 0 var(--space-5);
+}
+
+.confirm-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.confirm-dialog__btn--danger {
+  background: var(--danger);
+  color: var(--text-inverse);
+}
+
+.confirm-dialog__btn--danger:hover {
+  background: var(--danger-hover);
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25);
+}
+
+@keyframes confirm-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes confirm-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }

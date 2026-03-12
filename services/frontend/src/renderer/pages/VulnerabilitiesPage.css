@@ -91,7 +91,7 @@
   overflow: hidden;
 }
 
-.vuln-group--static  { border-left: 3px solid #7c6ee6; }
+.vuln-group--static  { border-left: 3px solid var(--module-static); }
 .vuln-group--dynamic { border-left: 3px solid var(--success); }
 .vuln-group--test    { border-left: 3px solid var(--accent); }
 
@@ -104,9 +104,9 @@
   border-bottom: 1px solid var(--border-default);
 }
 
-.vuln-group--static  .vuln-group__header { background: rgba(124, 110, 230, 0.10); }
-.vuln-group--dynamic .vuln-group__header { background: rgba(34, 197, 94, 0.10); }
-.vuln-group--test    .vuln-group__header { background: rgba(59, 130, 246, 0.10); }
+.vuln-group--static  .vuln-group__header { background: var(--module-static-bg); }
+.vuln-group--dynamic .vuln-group__header { background: var(--module-dynamic-bg); }
+.vuln-group--test    .vuln-group__header { background: var(--module-test-bg); }
 
 .vuln-group__header-top {
   display: flex;

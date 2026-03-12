@@ -17,7 +17,7 @@ import { getDynamicTestResults, getDynamicTestResult, deleteDynamicTestResult, A
 import { useDynamicTest, type TestProgress } from "../hooks/useDynamicTest";
 import { useToast } from "../contexts/ToastContext";
 import { useAdapters } from "../hooks/useAdapters";
-import { PageHeader, EmptyState, ListItem, SeverityBadge, StatCard, Spinner, BackButton, AdapterSelector } from "../components/ui";
+import { PageHeader, EmptyState, ConfirmDialog, ListItem, SeverityBadge, StatCard, Spinner, BackButton, AdapterSelector } from "../components/ui";
 import { formatDateTime } from "../utils/format";
 import "./DynamicTestPage.css";
 
@@ -49,6 +49,7 @@ export const DynamicTestPage: React.FC = () => {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [showConfig, setShowConfig] = useState(false);
   const [adapterWarning, setAdapterWarning] = useState(false);
+  const [confirmDeleteTarget, setConfirmDeleteTarget] = useState<DynamicTestResult | null>(null);
 
   // Config form state
   const [testType, setTestType] = useState<"fuzzing" | "pentest">("fuzzing");
@@ -108,7 +109,6 @@ export const DynamicTestPage: React.FC = () => {
   };
 
   const handleDelete = async (r: DynamicTestResult) => {
-    if (!confirm(`이 테스트 결과를 삭제하시겠습니까?`)) return;
     try {
       await deleteDynamicTestResult(r.id);
       setHistory((prev) => prev.filter((h) => h.id !== r.id));
@@ -239,12 +239,11 @@ export const DynamicTestPage: React.FC = () => {
               <label className="dtest-config__label">입력 수</label>
               <input
                 type="number"
-                className="form-input"
+                className="form-input dtest-config__count-input"
                 min={1}
                 max={1000}
                 value={count}
                 onChange={(e) => setCount(Math.max(1, Math.min(1000, Number(e.target.value))))}
-                style={{ maxWidth: 140 }}
               />
               <span className="dtest-config__hint">1 ~ 1,000</span>
             </div>
@@ -323,7 +322,7 @@ export const DynamicTestPage: React.FC = () => {
       )}
 
       {historyLoading ? (
-        <div className="centered-loader" style={{ paddingTop: "var(--space-10)" }}>
+        <div className="centered-loader--compact">
           <Spinner label="이력 로딩 중..." />
         </div>
       ) : history.length === 0 ? (
@@ -353,7 +352,7 @@ export const DynamicTestPage: React.FC = () => {
                   <button
                     className="btn-icon btn-danger analysis-item__delete"
                     title="삭제"
-                    onClick={(e) => { e.stopPropagation(); handleDelete(r); }}
+                    onClick={(e) => { e.stopPropagation(); setConfirmDeleteTarget(r); }}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -379,6 +378,16 @@ export const DynamicTestPage: React.FC = () => {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmDeleteTarget !== null}
+        title="테스트 결과 삭제"
+        message="이 테스트 결과를 삭제하시겠습니까?"
+        confirmLabel="삭제"
+        danger
+        onConfirm={() => { if (confirmDeleteTarget) handleDelete(confirmDeleteTarget); setConfirmDeleteTarget(null); }}
+        onCancel={() => setConfirmDeleteTarget(null)}
+      />
     </div>
   );
 };
@@ -631,9 +640,10 @@ const ResultsView: React.FC<ResultsViewProps> = ({ result, onNewTest }) => {
           ))}
         </div>
       ) : (
-        <div className="card" style={{ textAlign: "center", padding: "var(--space-8)" }}>
-          <p style={{ color: "var(--text-tertiary)", margin: 0 }}>발견된 이상이 없습니다</p>
-        </div>
+        <EmptyState
+          icon={<FlaskConical size={28} />}
+          title="발견된 이상이 없습니다"
+        />
       )}
     </div>
   );

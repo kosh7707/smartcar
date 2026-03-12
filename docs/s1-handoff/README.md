@@ -116,9 +116,10 @@ services/frontend/
 │       │   ├── ui/                    공통 UI 컴포넌트
 │       │   ├── static/               정적 분석 하위 컴포넌트
 │       │   └── dynamic/              동적 분석 하위 컴포넌트
+│       ├── constants/                  공유 상수 (모듈 메타, 언어 색상, 동적 분석 라벨)
 │       ├── pages/                     각 페이지 컴포넌트 + CSS
 │       ├── styles/                    토큰, 리셋, 전역, 컴포넌트 CSS
-│       └── utils/                     포맷팅, 심각도, 파일 유틸
+│       └── utils/                     포맷팅, 심각도, 파일 유틸, location 파싱
 ```
 
 ---

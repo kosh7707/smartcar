@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { LlmClient } from "../services/llm-client";
 import type { AdapterManager } from "../services/adapter-manager";
+import { asyncHandler } from "../middleware/async-handler";
 
 export function createHealthRouter(
   llmClient: LlmClient,
@@ -8,7 +9,7 @@ export function createHealthRouter(
 ): Router {
   const router = Router();
 
-  router.get("/", async (_req, res) => {
+  router.get("/", asyncHandler(async (_req, res) => {
     const llmHealth = await llmClient.checkHealth();
     const adapters = adapterManager.findAll();
     const connectedCount = adapters.filter((a) => a.connected).length;
@@ -23,7 +24,7 @@ export function createHealthRouter(
         connected: connectedCount,
       },
     });
-  });
+  }));
 
   return router;
 }

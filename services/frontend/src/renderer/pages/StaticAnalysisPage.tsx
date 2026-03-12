@@ -9,7 +9,7 @@ import { FileUploadView } from "../components/static/FileUploadView";
 import { AnalysisProgressView } from "../components/static/AnalysisProgressView";
 import { AnalysisResultsView } from "../components/static/AnalysisResultsView";
 import { VulnerabilityDetailView } from "../components/static/VulnerabilityDetailView";
-import { PageHeader, EmptyState, SeveritySummary, ListItem, BackButton, Spinner } from "../components/ui";
+import { PageHeader, EmptyState, ConfirmDialog, SeveritySummary, ListItem, BackButton, Spinner } from "../components/ui";
 import { extractFiles } from "../utils/analysis";
 import { formatDateTime } from "../utils/format";
 import "./StaticAnalysisPage.css";
@@ -26,6 +26,7 @@ export const StaticAnalysisPage: React.FC = () => {
   const [showUpload, setShowUpload] = useState(false);
   const [showModeSelect, setShowModeSelect] = useState(false);
   const [projectFiles, setProjectFiles] = useState<UploadedFile[]>([]);
+  const [confirmTarget, setConfirmTarget] = useState<AnalysisResult | null>(null);
 
   const loadHistory = () => {
     Promise.all([
@@ -45,7 +46,6 @@ export const StaticAnalysisPage: React.FC = () => {
   };
 
   const handleDeleteAnalysis = async (a: AnalysisResult) => {
-    if (!confirm(`이 분석 이력을 삭제하시겠습니까? (취약점 ${a.summary.total}건)`)) return;
     try {
       await deleteAnalysisResult(a.id);
       setHistory((prev) => prev.filter((h) => h.id !== a.id));
@@ -202,7 +202,7 @@ export const StaticAnalysisPage: React.FC = () => {
       />
 
       {historyLoading ? (
-        <div className="centered-loader" style={{ paddingTop: "var(--space-10)" }}>
+        <div className="centered-loader--compact">
           <Spinner label="이력 로딩 중..." />
         </div>
       ) : history.length === 0 ? (
@@ -226,7 +226,7 @@ export const StaticAnalysisPage: React.FC = () => {
                     <button
                       className="btn-icon btn-danger analysis-item__delete"
                       title="삭제"
-                      onClick={(e) => { e.stopPropagation(); handleDeleteAnalysis(a); }}
+                      onClick={(e) => { e.stopPropagation(); setConfirmTarget(a); }}
                     >
                       <Trash2 size={14} />
                     </button>
@@ -253,6 +253,16 @@ export const StaticAnalysisPage: React.FC = () => {
           })}
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmTarget !== null}
+        title="분석 이력 삭제"
+        message={confirmTarget ? `이 분석 이력을 삭제하시겠습니까? (취약점 ${confirmTarget.summary.total}건)` : ""}
+        confirmLabel="삭제"
+        danger
+        onConfirm={() => { if (confirmTarget) handleDeleteAnalysis(confirmTarget); setConfirmTarget(null); }}
+        onCancel={() => setConfirmTarget(null)}
+      />
     </div>
   );
 };

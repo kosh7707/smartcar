@@ -12,6 +12,11 @@ import {
   CanMessage,
   DynamicAlert,
   CanInjectionResponse,
+  Run,
+  Finding,
+  EvidenceRef,
+  FindingStatus,
+  AuditLogEntry,
 } from "./models";
 
 // ============================================================
@@ -298,4 +303,49 @@ export interface HealthResponse {
   service: string;
   status: "ok" | "error";
   version: string;
+}
+
+// ============================================================
+// Run
+// ============================================================
+
+export interface RunListResponse {
+  success: boolean;
+  data: Run[];
+}
+
+export interface RunDetailResponse {
+  success: boolean;
+  data?: Run & { findings: Finding[] };
+  error?: string;
+}
+
+// ============================================================
+// Finding
+// ============================================================
+
+export interface FindingListResponse {
+  success: boolean;
+  data: Finding[];
+}
+
+export interface FindingDetailResponse {
+  success: boolean;
+  data?: Finding & { evidenceRefs: EvidenceRef[]; auditLog: AuditLogEntry[] };
+  error?: string;
+}
+
+export interface FindingStatusUpdateRequest {
+  status: FindingStatus;
+  reason: string;
+  actor?: string;
+}
+
+export interface FindingSummaryResponse {
+  success: boolean;
+  data: {
+    byStatus: Record<string, number>;
+    bySeverity: Record<string, number>;
+    total: number;
+  };
 }

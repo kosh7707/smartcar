@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { DynamicTestConfig } from "@smartcar/shared";
 import { DynamicTestService } from "../services/dynamic-test.service";
+import { asyncHandler } from "../middleware/async-handler";
 
 const VALID_TEST_TYPES = ["fuzzing", "pentest"];
 const VALID_STRATEGIES = ["random", "boundary", "scenario"];
@@ -9,7 +10,7 @@ export function createDynamicTestRouter(service: DynamicTestService): Router {
   const router = Router();
 
   // 테스트 실행
-  router.post("/run", async (req, res, next) => {
+  router.post("/run", asyncHandler(async (req, res) => {
     const { projectId, config, adapterId, testId } = req.body as {
       projectId?: string;
       config?: DynamicTestConfig;
@@ -45,13 +46,9 @@ export function createDynamicTestRouter(service: DynamicTestService): Router {
       }
     }
 
-    try {
-      const result = await service.runTest(projectId, config, adapterId, testId, req.requestId);
-      res.json({ success: true, data: result });
-    } catch (err) {
-      next(err);
-    }
-  });
+    const result = await service.runTest(projectId, config, adapterId, testId, req.requestId);
+    res.json({ success: true, data: result });
+  }));
 
   // 결과 목록 (프로젝트별)
   router.get("/results", (req, res) => {

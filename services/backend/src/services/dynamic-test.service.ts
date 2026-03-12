@@ -5,8 +5,6 @@ import type {
   DynamicTestFinding,
   AnalysisResult,
   Vulnerability,
-  AnalysisSummary,
-  Severity,
 } from "@smartcar/shared";
 import { LlmClient } from "./llm-client";
 import type { WsManager } from "./ws-manager";
@@ -15,6 +13,7 @@ import type { ProjectSettingsService } from "./project-settings.service";
 import { InputGenerator, type TestInput } from "./input-generator";
 import { dynamicTestResultDAO } from "../dao/dynamic-test-result.dao";
 import { analysisResultDAO } from "../dao/analysis-result.dao";
+import type { ResultNormalizer } from "./result-normalizer";
 import { createLogger } from "../lib/logger";
 import {
   NotFoundError,
@@ -22,16 +21,9 @@ import {
   AdapterUnavailableError,
   ConflictError,
 } from "../lib/errors";
+import { sortBySeverity, computeSummary } from "../lib/vulnerability-utils";
 
 const logger = createLogger("dynamic-test");
-
-const SEVERITY_ORDER: Record<Severity, number> = {
-  critical: 0,
-  high: 1,
-  medium: 2,
-  low: 3,
-  info: 4,
-};
 
 export class DynamicTestService {
   private runningTests = new Set<string>();
@@ -41,7 +33,8 @@ export class DynamicTestService {
     private llmClient: LlmClient,
     private adapterManager: AdapterManager,
     private settingsService: ProjectSettingsService,
-    private wsManager?: WsManager
+    private wsManager?: WsManager,
+    private resultNormalizer?: ResultNormalizer
   ) {}
 
   async runTest(
@@ -140,6 +133,10 @@ export class DynamicTestService {
 
       // Overview 호환: AnalysisResult로도 저장
       this.saveAsAnalysisResult(result);
+
+      // 코어 도메인 정규화
+      const ar = analysisResultDAO.findById(`analysis-test-${result.id}`);
+      if (ar) this.resultNormalizer?.normalizeAnalysisResult(ar, { testResultId: result.id });
 
       this.sendProgress(id, inputs.length, inputs.length, crashes, anomalies, "테스트 완료");
       this.sendComplete(id);
@@ -296,23 +293,15 @@ export class DynamicTestService {
       suggestion: f.llmAnalysis ?? undefined,
     }));
 
-    vulns.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
-
-    const summary: AnalysisSummary = {
-      total: vulns.length,
-      critical: vulns.filter((v) => v.severity === "critical").length,
-      high: vulns.filter((v) => v.severity === "high").length,
-      medium: vulns.filter((v) => v.severity === "medium").length,
-      low: vulns.filter((v) => v.severity === "low").length,
-      info: vulns.filter((v) => v.severity === "info").length,
-    };
+    const sorted = sortBySeverity(vulns);
+    const summary = computeSummary(sorted);
 
     const analysisResult: AnalysisResult = {
       id: `analysis-test-${result.id}`,
       projectId: result.projectId,
       module: "dynamic_testing",
       status: "completed",
-      vulnerabilities: vulns,
+      vulnerabilities: sorted,
       summary,
       createdAt: result.createdAt,
     };

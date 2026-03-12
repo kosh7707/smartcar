@@ -5,7 +5,7 @@ import { FileText, Download, FileSearch, Shield } from "lucide-react";
 import { fetchProjectOverview, fetchProjectFiles, fetchFileContent } from "../api/client";
 import { useToast } from "../contexts/ToastContext";
 import { VulnerabilityDetailView } from "../components/static/VulnerabilityDetailView";
-import { BackButton, SeverityBadge, SeveritySummary, ListItem, Spinner } from "../components/ui";
+import { BackButton, EmptyState, SeverityBadge, SeveritySummary, ListItem, Spinner } from "../components/ui";
 import { formatFileSize, formatDateTime } from "../utils/format";
 import { findFileByLocation } from "../utils/fileMatch";
 import "./FileDetailPage.css";
@@ -91,7 +91,7 @@ export const FileDetailPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="page-enter" style={{ display: "flex", justifyContent: "center", paddingTop: "var(--space-16)" }}>
+      <div className="page-enter centered-loader">
         <Spinner size={36} label="파일 정보 로딩 중..." />
       </div>
     );
@@ -122,7 +122,7 @@ export const FileDetailPage: React.FC = () => {
       <div className="file-detail-header">
         <FileText size={24} className="file-detail-header__icon" />
         <div className="file-detail-header__info">
-          <h2 className="page-title" style={{ marginBottom: 0 }}>{file.name}</h2>
+          <h2 className="page-title card-title--flush">{file.name}</h2>
           <div className="file-detail-header__meta">
             {file.language && <span>{file.language}</span>}
             <span>{formatFileSize(file.size)}</span>
@@ -138,7 +138,7 @@ export const FileDetailPage: React.FC = () => {
       {sourceCode !== null && (
         <div className="card">
           <div className="card-title">소스 코드</div>
-          <div className="code-viewer" style={{ maxHeight: 400, overflow: "auto" }}>
+          <div className="code-viewer code-viewer--scrollable">
             {sourceLines.map((line, i) => {
               const lineNum = i + 1;
               const hasVuln = fileVulns.some((v) => {
@@ -169,7 +169,10 @@ export const FileDetailPage: React.FC = () => {
           발견된 취약점 ({fileVulns.length})
         </div>
         {fileVulns.length === 0 ? (
-          <p className="text-tertiary">이 파일에서 발견된 취약점이 없습니다.</p>
+          <EmptyState
+            icon={<Shield size={28} />}
+            title="이 파일에서 발견된 취약점이 없습니다"
+          />
         ) : (
           <div>
             {fileVulns.map((v) => (

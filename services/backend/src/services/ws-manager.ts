@@ -119,39 +119,24 @@ export class WsManager {
   }
 
   broadcast(sessionId: string, message: WsMessage): void {
-    const clients = this.clientsBySession.get(sessionId);
-    if (!clients) return;
-    const data = JSON.stringify(message);
-    for (const ws of clients) {
-      if (ws.readyState === WebSocket.OPEN) {
-        try {
-          ws.send(data);
-        } catch (err) {
-          logger.warn({ err, sessionId }, "WS send failed — removing client");
-          clients.delete(ws);
-        }
-      }
-    }
+    this.broadcastToClients(this.clientsBySession, sessionId, message, "sessionId");
   }
 
   broadcastStatic(analysisId: string, message: WsStaticMessage): void {
-    const clients = this.staticClients.get(analysisId);
-    if (!clients) return;
-    const data = JSON.stringify(message);
-    for (const ws of clients) {
-      if (ws.readyState === WebSocket.OPEN) {
-        try {
-          ws.send(data);
-        } catch (err) {
-          logger.warn({ err, analysisId }, "WS send failed — removing client");
-          clients.delete(ws);
-        }
-      }
-    }
+    this.broadcastToClients(this.staticClients, analysisId, message, "analysisId");
   }
 
   broadcastTest(testId: string, message: WsTestMessage): void {
-    const clients = this.testClients.get(testId);
+    this.broadcastToClients(this.testClients, testId, message, "testId");
+  }
+
+  private broadcastToClients(
+    clientMap: Map<string, Set<WebSocket>>,
+    key: string,
+    message: unknown,
+    logContext: string
+  ): void {
+    const clients = clientMap.get(key);
     if (!clients) return;
     const data = JSON.stringify(message);
     for (const ws of clients) {
@@ -159,7 +144,7 @@ export class WsManager {
         try {
           ws.send(data);
         } catch (err) {
-          logger.warn({ err, testId }, "WS send failed — removing client");
+          logger.warn({ err, [logContext]: key }, "WS send failed — removing client");
           clients.delete(ws);
         }
       }

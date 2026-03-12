@@ -2,20 +2,15 @@ import React, { useEffect, useState } from "react";
 import type { DynamicAnalysisSession, DynamicAlert, CanMessage } from "@smartcar/shared";
 import { Clock, Radio, AlertTriangle, Plug } from "lucide-react";
 import { fetchDynamicSessionDetail } from "../../api/client";
-import { BackButton, SeverityBadge, Spinner } from "../ui";
+import { BackButton, EmptyState, SeverityBadge, Spinner } from "../ui";
 import { useToast } from "../../contexts/ToastContext";
-import { formatDateTime } from "../../utils/format";
+import { formatDateTime, formatTime } from "../../utils/format";
+import { STATUS_LABELS } from "../../constants/dynamic";
 
 interface Props {
   sessionId: string;
   onBack: () => void;
 }
-
-const STATUS_LABELS: Record<string, string> = {
-  connected: "대기",
-  monitoring: "모니터링 중",
-  stopped: "종료됨",
-};
 
 export const SessionDetailView: React.FC<Props> = ({ sessionId, onBack }) => {
   const [session, setSession] = useState<DynamicAnalysisSession | null>(null);
@@ -37,7 +32,7 @@ export const SessionDetailView: React.FC<Props> = ({ sessionId, onBack }) => {
 
   if (loading) {
     return (
-      <div className="page-enter" style={{ display: "flex", justifyContent: "center", paddingTop: "var(--space-16)" }}>
+      <div className="page-enter centered-loader">
         <Spinner size={36} label="세션 정보 로딩 중..." />
       </div>
     );
@@ -51,13 +46,6 @@ export const SessionDetailView: React.FC<Props> = ({ sessionId, onBack }) => {
       </div>
     );
   }
-
-  const formatTime = (ts: string) => {
-    if (ts.includes("T")) {
-      return ts.split("T")[1]?.replace("Z", "").slice(0, 12) ?? ts;
-    }
-    return ts;
-  };
 
   return (
     <div className="page-enter">
@@ -104,9 +92,7 @@ export const SessionDetailView: React.FC<Props> = ({ sessionId, onBack }) => {
       <div className="card">
         <div className="card-title">탐지 알림 ({alerts.length})</div>
         {alerts.length === 0 ? (
-          <p className="text-tertiary" style={{ padding: "var(--space-2) 0" }}>
-            탐지된 이상이 없습니다
-          </p>
+          <EmptyState compact title="탐지된 이상이 없습니다" />
         ) : (
           <div className="alert-list">
             {alerts.map((alert) => (
@@ -133,9 +119,7 @@ export const SessionDetailView: React.FC<Props> = ({ sessionId, onBack }) => {
       <div className="card">
         <div className="card-title">CAN 메시지 (최근 {messages.length}건)</div>
         {messages.length === 0 ? (
-          <p className="text-tertiary" style={{ padding: "var(--space-2) 0" }}>
-            수신된 메시지가 없습니다
-          </p>
+          <EmptyState compact title="수신된 메시지가 없습니다" />
         ) : (
           <div className="can-table-wrapper can-table-wrapper--compact">
             <table className="can-table">

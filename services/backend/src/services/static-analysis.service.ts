@@ -3,7 +3,6 @@ import type {
   AnalysisResult,
   AnalysisWarning,
   Vulnerability,
-  AnalysisSummary,
   Severity,
 } from "@smartcar/shared";
 import type { RuleMatch } from "../rules/types";
@@ -14,25 +13,20 @@ import { chunkFiles } from "./chunker";
 import type { WsManager } from "./ws-manager";
 import type { RuleService } from "./rule.service";
 import type { ProjectSettingsService } from "./project-settings.service";
+import type { ResultNormalizer } from "./result-normalizer";
 import { createLogger } from "../lib/logger";
 import { NotFoundError } from "../lib/errors";
+import { SEVERITY_ORDER, computeSummary } from "../lib/vulnerability-utils";
 
 const logger = createLogger("static-analysis");
-
-const SEVERITY_ORDER: Record<Severity, number> = {
-  critical: 0,
-  high: 1,
-  medium: 2,
-  low: 3,
-  info: 4,
-};
 
 export class StaticAnalysisService {
   constructor(
     private ruleService: RuleService,
     private llmClient: LlmClient,
     private settingsService: ProjectSettingsService,
-    private wsManager?: WsManager
+    private wsManager?: WsManager,
+    private resultNormalizer?: ResultNormalizer
   ) {}
 
   async runAnalysis(
@@ -157,7 +151,7 @@ export class StaticAnalysisService {
     // 4. 병합 + 중복 제거 + 정렬
     this.sendProgress(id, "merging", 0, 1, "결과 병합 중...");
     const merged = this.mergeAndSort(ruleVulns, allLlmVulns);
-    const summary = this.computeSummary(merged);
+    const summary = computeSummary(merged);
     this.sendProgress(id, "merging", 1, 1, "결과 병합 완료");
 
     // 5. 결과 생성 + 저장
@@ -174,6 +168,7 @@ export class StaticAnalysisService {
     };
 
     analysisResultDAO.save(result);
+    this.resultNormalizer?.normalizeAnalysisResult(result, { analyzedFileIds: fileIds });
 
     // 6. 완료 이벤트
     this.sendComplete(id);
@@ -223,14 +218,4 @@ export class StaticAnalysisService {
     return all;
   }
 
-  private computeSummary(vulns: Vulnerability[]): AnalysisSummary {
-    return {
-      total: vulns.length,
-      critical: vulns.filter((v) => v.severity === "critical").length,
-      high: vulns.filter((v) => v.severity === "high").length,
-      medium: vulns.filter((v) => v.severity === "medium").length,
-      low: vulns.filter((v) => v.severity === "low").length,
-      info: vulns.filter((v) => v.severity === "info").length,
-    };
-  }
 }

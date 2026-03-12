@@ -5,9 +5,6 @@ import {
   AlertTriangle,
   AlertCircle,
   Info,
-  FileSearch,
-  Activity,
-  FlaskConical,
   Clock,
   FileText,
   LayoutDashboard,
@@ -21,23 +18,9 @@ import { PageHeader, StatCard, SeveritySummary, SeverityBadge, DonutChart, ListI
 import { extractFiles, extractFileNames } from "../utils/analysis";
 import { SEVERITY_ORDER } from "../utils/severity";
 import { formatFileSize, formatDateTime } from "../utils/format";
+import { MODULE_META, MODULE_LABELS, getModuleRoute } from "../constants/modules";
+import { LANG_COLORS, getLangColor } from "../constants/languages";
 import "./OverviewPage.css";
-
-const LANG_COLORS: Record<string, string> = {
-  c: "#555599", cpp: "#004482", h: "#6a5acd", hpp: "#6a5acd",
-  python: "#3572a5", java: "#b07219", javascript: "#f1e05a", typescript: "#3178c6",
-};
-
-function getFileLangColor(file: UploadedFile): string {
-  if (file.language && LANG_COLORS[file.language]) return LANG_COLORS[file.language];
-  return "var(--text-tertiary)";
-}
-
-const MODULES = [
-  { key: "static_analysis", label: "정적 분석", icon: <FileSearch size={14} />, path: "static-analysis" },
-  { key: "dynamic_analysis", label: "동적 분석", icon: <Activity size={14} />, path: "dynamic-analysis" },
-  { key: "dynamic_testing", label: "동적 테스트", icon: <FlaskConical size={14} />, path: "dynamic-test" },
-] as const;
 
 function getTopVulnerabilities(analyses: AnalysisResult[], count = 5): Vulnerability[] {
   const all: Vulnerability[] = [];
@@ -58,12 +41,6 @@ function getLatestPerModule(analyses: AnalysisResult[]): Map<string, AnalysisRes
   }
   return map;
 }
-
-const MODULE_LABELS: { key: string; label: string }[] = [
-  { key: "static_analysis", label: "정적" },
-  { key: "dynamic_analysis", label: "동적" },
-  { key: "dynamic_testing", label: "테스트" },
-];
 
 function getLangBreakdown(files: UploadedFile[]): React.ReactNode {
   if (files.length === 0) return undefined;
@@ -166,7 +143,7 @@ export const OverviewPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="page-enter" style={{ display: "flex", justifyContent: "center", paddingTop: "var(--space-16)" }}>
+      <div className="page-enter centered-loader">
         <Spinner size={36} label="데이터 로딩 중..." />
       </div>
     );
@@ -222,16 +199,16 @@ export const OverviewPage: React.FC = () => {
         <div className="overview-security-card">
           <DonutChart summary={sev} size={140} showLegend={false} />
           <div className="overview-module-rows">
-            {MODULES.map((m) => {
-              const latest = latestMap.get(m.key);
+            {Object.entries(MODULE_META).map(([key, meta]) => {
+              const latest = latestMap.get(key);
               return (
                 <div
-                  key={m.key}
+                  key={key}
                   className="overview-module-row"
-                  onClick={() => navigate(`/projects/${projectId}/${m.path}`)}
+                  onClick={() => navigate(`/projects/${projectId}/${meta.path}`)}
                 >
-                  <span className="overview-module-row__icon">{m.icon}</span>
-                  <span className="overview-module-row__name">{m.label}</span>
+                  <span className="overview-module-row__icon">{meta.icon}</span>
+                  <span className="overview-module-row__name">{meta.label}</span>
                   {latest ? (
                     <>
                       <SeveritySummary summary={latest.summary} />
@@ -282,7 +259,7 @@ export const OverviewPage: React.FC = () => {
                   className="overview-file-row overview-file-row--clickable"
                   onClick={() => navigate(`/projects/${projectId}/files/${file.id}`)}
                 >
-                  <FileText size={14} style={{ color: getFileLangColor(file), flexShrink: 0 }} />
+                  <FileText size={14} style={{ color: getLangColor(file), flexShrink: 0 }} />
                   <div className="overview-file-info">
                     <span className="overview-file-name">{file.name}</span>
                     {file.path && file.path !== file.name && (
@@ -360,23 +337,15 @@ export const OverviewPage: React.FC = () => {
             <div className={`overview-history-body${recentAnalyses.length >= 5 ? " has-fade" : ""}`}>
               {recentAnalyses.slice(0, 8).map((a) => {
                 const fileHint = extractFileNames(a, 3);
-                const moduleLabel = a.module === "static_analysis" ? "정적 분석" : a.module === "dynamic_analysis" ? "동적 분석" : "동적 테스트";
                 return (
                   <ListItem
                     key={a.id}
-                    onClick={() => {
-                      const route = a.module === "static_analysis"
-                        ? `/projects/${projectId}/static-analysis?analysisId=${a.id}`
-                        : a.module === "dynamic_analysis"
-                          ? `/projects/${projectId}/dynamic-analysis`
-                          : `/projects/${projectId}/dynamic-test`;
-                      navigate(route);
-                    }}
+                    onClick={() => navigate(getModuleRoute(a.module, projectId!, a.id))}
                     trailing={<span className="overview-history-time">{formatDateTime(a.createdAt)}</span>}
                   >
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                        <span className="overview-history-label">{moduleLabel}</span>
+                        <span className="overview-history-label">{MODULE_META[a.module]?.label ?? a.module}</span>
                         <SeveritySummary summary={a.summary} />
                       </div>
                       {fileHint && (

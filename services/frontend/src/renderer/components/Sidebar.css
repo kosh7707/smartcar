@@ -58,7 +58,7 @@
 .sidebar-title {
   font-size: var(--text-md);
   font-weight: var(--weight-bold);
-  color: #ffffff;
+  color: var(--sidebar-text-active);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

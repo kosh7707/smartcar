@@ -99,6 +99,10 @@
   margin: 0;
 }
 
+.dtest-config__count-input {
+  max-width: 140px;
+}
+
 .dtest-config__actions {
   padding-top: var(--space-2);
 }

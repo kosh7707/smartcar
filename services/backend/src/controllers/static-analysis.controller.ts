@@ -6,6 +6,7 @@ import { StaticAnalysisService } from "../services/static-analysis.service";
 import { fileStore } from "../dao/file-store";
 import { analysisResultDAO } from "../dao/analysis-result.dao";
 import { createLogger } from "../lib/logger";
+import { asyncHandler } from "../middleware/async-handler";
 
 const logger = createLogger("static-analysis-controller");
 
@@ -96,7 +97,7 @@ export function createStaticAnalysisRouter(
   });
 
   // P0-2: 정적 분석 실행
-  router.post("/run", async (req, res, next) => {
+  router.post("/run", asyncHandler(async (req, res) => {
     const { projectId, files, analysisId } = req.body as {
       projectId?: string;
       files?: Array<{ id: string }>;
@@ -111,18 +112,14 @@ export function createStaticAnalysisRouter(
       return;
     }
 
-    try {
-      const result = await service.runAnalysis(
-        projectId,
-        files.map((f) => f.id),
-        analysisId,
-        req.requestId
-      );
-      res.json({ success: true, data: result });
-    } catch (err) {
-      next(err);
-    }
-  });
+    const result = await service.runAnalysis(
+      projectId,
+      files.map((f) => f.id),
+      analysisId,
+      req.requestId
+    );
+    res.json({ success: true, data: result });
+  }));
 
   // 분석 결과 목록 (프로젝트별)
   router.get("/results", (req, res) => {
