@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useMemo, useCallback, DragEvent } f
 import { useParams, useNavigate } from "react-router-dom";
 import type { UploadedFile } from "@smartcar/shared";
 import { FileText, Folder, FolderOpen, Upload, Trash2, Download, ChevronRight, Search, FolderUp, HardDrive, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
-import { fetchProjectFiles, uploadFiles, deleteProjectFile, downloadFile } from "../api/client";
+import { fetchProjectFiles, uploadFiles, deleteProjectFile, downloadFile, logError } from "../api/client";
 import { EmptyState, PageHeader, ConfirmDialog, Spinner } from "../components/ui";
 import { useToast } from "../contexts/ToastContext";
 import { formatFileSize } from "../utils/format";
@@ -200,7 +200,7 @@ export const FilesPage: React.FC = () => {
     if (!projectId) return;
     fetchProjectFiles(projectId)
       .then(setFiles)
-      .catch((e) => { console.error("Failed to load files:", e); toast.error("파일 목록을 불러올 수 없습니다."); })
+      .catch((e) => { logError("Load files", e); toast.error("파일 목록을 불러올 수 없습니다."); })
       .finally(() => setLoading(false));
   }, [projectId]);
 
@@ -256,7 +256,7 @@ export const FilesPage: React.FC = () => {
       const uploaded = await uploadFiles(projectId, supported);
       setFiles((prev) => [...prev, ...uploaded]);
     } catch (e) {
-      console.error("Upload failed:", e);
+      logError("Upload files", e);
       toast.error("파일 업로드에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setUploading(false);
@@ -271,7 +271,7 @@ export const FilesPage: React.FC = () => {
       await deleteProjectFile(projectId, file.id);
       setFiles((prev) => prev.filter((f) => f.id !== file.id));
     } catch (e) {
-      console.error("Delete failed:", e);
+      logError("Delete file", e);
       toast.error("파일 삭제에 실패했습니다.");
     }
   };
@@ -291,7 +291,7 @@ export const FilesPage: React.FC = () => {
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      console.error("Download failed:", e);
+      logError("Download file", e);
       toast.error("파일 다운로드에 실패했습니다.");
     }
   };

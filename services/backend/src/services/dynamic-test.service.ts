@@ -6,8 +6,8 @@ import type {
   AnalysisResult,
   Vulnerability,
 } from "@smartcar/shared";
-import { LlmClient } from "./llm-client";
-import type { WsManager } from "./ws-manager";
+import type { LlmV1Adapter } from "./llm-v1-adapter";
+import type { WsBroadcaster } from "./ws-broadcaster";
 import type { AdapterManager } from "./adapter-manager";
 import type { ProjectSettingsService } from "./project-settings.service";
 import { InputGenerator, type TestInput } from "./input-generator";
@@ -30,10 +30,10 @@ export class DynamicTestService {
   private inputGenerator = new InputGenerator();
 
   constructor(
-    private llmClient: LlmClient,
+    private llmClient: LlmV1Adapter,
     private adapterManager: AdapterManager,
     private settingsService: ProjectSettingsService,
-    private wsManager?: WsManager,
+    private ws?: WsBroadcaster<import("@smartcar/shared").WsTestMessage>,
     private resultNormalizer?: ResultNormalizer
   ) {}
 
@@ -319,21 +319,21 @@ export class DynamicTestService {
     anomalies: number,
     message: string
   ): void {
-    this.wsManager?.broadcastTest(testId, {
+    this.ws?.broadcast(testId, {
       type: "test-progress",
       payload: { testId, current, total, crashes, anomalies, message },
     });
   }
 
   private sendFinding(testId: string, finding: DynamicTestFinding): void {
-    this.wsManager?.broadcastTest(testId, {
+    this.ws?.broadcast(testId, {
       type: "test-finding",
       payload: { testId, finding },
     });
   }
 
   private sendComplete(testId: string): void {
-    this.wsManager?.broadcastTest(testId, {
+    this.ws?.broadcast(testId, {
       type: "test-complete",
       payload: { testId },
     });

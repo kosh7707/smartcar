@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import type { AnalysisResult, AnalysisModule } from "@smartcar/shared";
 import { Clock, Trash2 } from "lucide-react";
-import { fetchAnalysisResults, deleteAnalysisResult } from "../api/client";
+import { fetchAnalysisResults, deleteAnalysisResult, logError } from "../api/client";
 import { useToast } from "../contexts/ToastContext";
 import { PageHeader, EmptyState, ConfirmDialog, SeveritySummary, ListItem, Spinner } from "../components/ui";
 import { extractFiles } from "../utils/analysis";
@@ -31,7 +31,7 @@ export const AnalysisHistoryPage: React.FC = () => {
     setLoading(true);
     fetchAnalysisResults(projectId)
       .then(setResults)
-      .catch((e) => { console.error("Failed to fetch analysis history:", e); toast.error("분석 이력을 불러올 수 없습니다."); })
+      .catch((e) => { logError("Fetch analysis history", e); toast.error("분석 이력을 불러올 수 없습니다."); })
       .finally(() => setLoading(false));
   }, [projectId]);
 
@@ -40,7 +40,7 @@ export const AnalysisHistoryPage: React.FC = () => {
       await deleteAnalysisResult(a.id);
       setResults((prev) => prev.filter((h) => h.id !== a.id));
     } catch (e) {
-      console.error("Delete analysis failed:", e);
+      logError("Delete analysis", e);
       toast.error("분석 이력 삭제에 실패했습니다.");
     }
   };

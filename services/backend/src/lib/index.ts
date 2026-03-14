@@ -12,4 +12,4 @@ export {
   DbError,
 } from "./errors";
 export type { ErrorCode } from "./errors";
-export { SEVERITY_ORDER, computeSummary, sortBySeverity } from "./vulnerability-utils";
+export { SEVERITY_ORDER, computeSummary, sortBySeverity, validateLlmSeverity } from "./vulnerability-utils";

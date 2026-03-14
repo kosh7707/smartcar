@@ -7,6 +7,10 @@ import { fileStore } from "../dao/file-store";
 import { analysisResultDAO } from "../dao/analysis-result.dao";
 import { createLogger } from "../lib/logger";
 import { asyncHandler } from "../middleware/async-handler";
+import { analysisTracker } from "../services/analysis-tracker";
+import { findingDAO } from "../dao/finding.dao";
+import { runDAO } from "../dao/run.dao";
+import { gateResultDAO } from "../dao/gate-result.dao";
 
 const logger = createLogger("static-analysis-controller");
 
@@ -96,7 +100,7 @@ export function createStaticAnalysisRouter(
     res.json({ success: true, data: uploaded });
   });
 
-  // P0-2: 정적 분석 실행
+  // P0-2: 정적 분석 실행 (비동기 기본, ?sync=true 시 동기)
   router.post("/run", asyncHandler(async (req, res) => {
     const { projectId, files, analysisId } = req.body as {
       projectId?: string;
@@ -112,14 +116,108 @@ export function createStaticAnalysisRouter(
       return;
     }
 
-    const result = await service.runAnalysis(
-      projectId,
-      files.map((f) => f.id),
-      analysisId,
-      req.requestId
-    );
-    res.json({ success: true, data: result });
+    const sync = req.query.sync === "true";
+    const id = analysisId ?? `analysis-${crypto.randomUUID()}`;
+    const fileIds = files.map((f) => f.id);
+
+    if (sync) {
+      // 동기 모드 (하위 호환)
+      const result = await service.runAnalysis(projectId, fileIds, id, req.requestId);
+      res.json({ success: true, data: result });
+      return;
+    }
+
+    // 비동기 모드
+    let abortController: AbortController;
+    try {
+      abortController = analysisTracker.start(id, projectId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      res.status(409).json({ success: false, error: message });
+      return;
+    }
+
+    res.status(202).json({ success: true, data: { analysisId: id, status: "running" } });
+
+    // 백그라운드 실행
+    service.runAnalysis(projectId, fileIds, id, req.requestId, abortController.signal)
+      .then(() => {
+        analysisTracker.complete(id);
+      })
+      .catch((err) => {
+        if (err instanceof Error && err.name === "AbortError") {
+          // abort()로 중단된 경우 — tracker는 이미 aborted 상태
+          return;
+        }
+        const message = err instanceof Error ? err.message : "Unknown error";
+        analysisTracker.fail(id, message);
+        logger.error({ err, analysisId: id }, "Async analysis failed");
+      });
   }));
+
+  // 전체 분석 현황 목록
+  router.get("/status", (req, res) => {
+    const entries = analysisTracker.getAll();
+    res.json({ success: true, data: entries });
+  });
+
+  // 단건 분석 진행률
+  router.get("/status/:analysisId", (req, res) => {
+    const entry = analysisTracker.get(req.params.analysisId);
+    if (!entry) {
+      res.status(404).json({ success: false, error: "Analysis not found" });
+      return;
+    }
+    res.json({ success: true, data: entry });
+  });
+
+  // 분석 중단
+  router.post("/abort/:analysisId", (req, res) => {
+    const ok = analysisTracker.abort(req.params.analysisId);
+    if (!ok) {
+      res.status(404).json({ success: false, error: "No running analysis found with this ID" });
+      return;
+    }
+    res.json({ success: true, data: { analysisId: req.params.analysisId, status: "aborted" } });
+  });
+
+  // 대시보드 집계
+  router.get("/summary", (req, res) => {
+    const projectId = req.query.projectId as string | undefined;
+    if (!projectId) {
+      res.status(400).json({ success: false, error: "projectId query is required" });
+      return;
+    }
+    const period = (req.query.period as string) ?? "30d";
+    const since = periodToDate(period);
+
+    const dist = findingDAO.summaryByModule(projectId, "static_analysis", since);
+    const topFiles = findingDAO.topFilesByModule(projectId, "static_analysis", 10, since);
+    const topRules = findingDAO.topRulesByModule(projectId, "static_analysis", 10, since);
+    const trend = runDAO.trendByModule(projectId, "static_analysis", since);
+    const gateStats = gateResultDAO.statsByProject(projectId, since);
+
+    const unresolvedCount = {
+      open: (dist.byStatus["open"] ?? 0),
+      needsReview: (dist.byStatus["needs_review"] ?? 0),
+      needsRevalidation: (dist.byStatus["needs_revalidation"] ?? 0),
+      sandbox: (dist.byStatus["sandbox"] ?? 0),
+    };
+
+    res.json({
+      success: true,
+      data: {
+        bySeverity: dist.bySeverity,
+        byStatus: dist.byStatus,
+        bySource: dist.bySource,
+        topFiles,
+        topRules,
+        trend,
+        gateStats,
+        unresolvedCount,
+      },
+    });
+  });
 
   // 분석 결과 목록 (프로젝트별)
   router.get("/results", (req, res) => {
@@ -173,4 +271,14 @@ export function createStaticAnalysisRouter(
   });
 
   return router;
+}
+
+function periodToDate(period: string): string | undefined {
+  if (period === "all") return undefined;
+  const match = period.match(/^(\d+)d$/);
+  if (!match) return undefined;
+  const days = Number(match[1]);
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date.toISOString();
 }

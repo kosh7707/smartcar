@@ -258,7 +258,7 @@ POST /v1/tasks
 
 | 필드 | 설명 |
 |------|------|
-| profileId | 프로필 식별자 (예: `qwen-14b-default`) |
+| profileId | 프로필 식별자 (예: `Qwen/Qwen3.5-35B-A3B-FP8-default`) |
 | provider | 제공자/서버 |
 | modelName | 모델명 |
 | build | 빌드/버전 |
@@ -519,51 +519,28 @@ prompt/model/parser 변경 시:
 
 ## 14. 현재 구현 상태 (as-is)
 
-현재 S3는 v0 프로토타입 상태로 동작 중이다. v1으로 마이그레이션을 진행한다.
+v0 코드는 완전 제거됨 (2026-03-13). 현재 v1 Task API만 운영 중.
 
-### v0 API (현행, 동작 중)
+### API
 
-- `POST /api/llm/analyze` — module 기반 단일 엔드포인트 (static_analysis / dynamic_analysis / dynamic_testing)
-- `GET /health` — 헬스체크
+- `POST /v1/tasks` — Task 기반 AI 분석 요청 (5개 taskType)
+- `GET /v1/health` — 서비스 상태 + vLLM 백엔드 연결 상태
+- `GET /v1/models` — 등록된 model profile 목록
+- `GET /v1/prompts` — 등록된 prompt template 목록
 
-### v0 내부 구조
+### LLM 백엔드
 
-v0 리팩토링(2026-03-10) 후 패키지 구성:
+- **vLLM + Qwen3.5-35B-A3B FP8** (DGX Spark, 포트 8000)
+- OpenAI-compatible `/v1/chat/completions` 프로토콜
+- `RealLlmClient`: thinking 제어(`chat_template_kwargs`), structured output(`response_format: json_object`), 토큰 캡처
+- `Semaphore(1)` — 단일 GPU 환경에서 순차 처리
 
-| 패키지 | 역할 | 핵심 파일 |
-|--------|------|----------|
-| `app/models/` | 도메인 모델 | `Severity` StrEnum (critical~info), `VulnerabilityData` dataclass, `AnalysisResult` dataclass |
-| `app/schemas/` | API DTO (v0 계약) | `AnalyzeRequest`, `AnalyzeResponse`, `VulnerabilityItem` |
-| `app/data/` | DAO — 템플릿 데이터 | 정적 14개 키워드 템플릿, 복합 패턴 4개, CAN 상수, 테스트 템플릿 3개 |
-| `app/services/clients/` | LLM 클라이언트 | `LlmClient` ABC → `MockLlmClient` / `RealLlmClient`, `create_llm_client()` 팩토리 |
-| `app/services/clients/mock/` | Mock 분석기 | `static_analyzer.py`, `dynamic_analyzer.py`, `testing_analyzer.py` (모듈 함수) |
-| `app/services/` | 파이프라인 | `prompt_builder.py`, `response_parser.py` |
-| `app/templates/` | 프롬프트 템플릿 | 3개 모듈별 system/user 프롬프트 |
+### LLM 모드
 
-### v0 → v1 매핑
-
-| v0 module | v1 task type |
-|-----------|-------------|
-| static_analysis | static-explain (+ static-cluster) |
-| dynamic_analysis | dynamic-annotate |
-| dynamic_testing | test-plan-propose (+ 기존 테스트 결과 분석) |
-| (없음) | report-draft |
-
-### v0에서 유지할 것
-
-- FastAPI 기반 구조
-- LlmClient ABC (Mock ↔ Real 교체 패턴)
-- 모듈별 프롬프트 템플릿 분리 구조
-- models/ 도메인 모델 (Severity enum은 v1에서도 활용)
-- data/ 패키지의 데이터-로직 분리 패턴
-
-### v0에서 바꿔야 할 것
-
-- 단일 analyze 엔드포인트 → task type 기반 라우팅
-- VulnerabilityItem[] → Assessment 모델 (claims, caveats, confidence, evidenceRefs)
-- 단순 success/error → 구조화된 status + validation + audit
-- 프롬프트 하드코딩 → prompt registry + versioning
-- 환경변수 4개 → model profile registry
+| 모드 | 클라이언트 | 용도 |
+|------|-----------|------|
+| `mock` | V1MockDispatcher | 개발/테스트 |
+| `real` | RealLlmClient | **운영** (vLLM) |
 
 ---
 

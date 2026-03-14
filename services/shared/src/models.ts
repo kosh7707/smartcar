@@ -4,7 +4,7 @@
 
 export type Severity = "critical" | "high" | "medium" | "low" | "info";
 export type AnalysisModule = "static_analysis" | "dynamic_analysis" | "dynamic_testing";
-export type AnalysisStatus = "pending" | "running" | "completed" | "failed";
+export type AnalysisStatus = "pending" | "running" | "completed" | "failed" | "aborted";
 export type VulnerabilitySource = "rule" | "llm";
 
 // ============================================================
@@ -310,4 +310,116 @@ export interface AttackScenario {
   description: string;
   severity: Severity;
   steps: CanInjectionRequest[];
+}
+
+// ============================================================
+// Report
+// ============================================================
+
+export interface ReportMeta {
+  generatedAt: string;
+  projectId: string;
+  projectName: string;
+  module: AnalysisModule;
+}
+
+export interface ReportSummary {
+  totalFindings: number;
+  bySeverity: Record<string, number>;
+  byStatus: Record<string, number>;
+  bySource: Record<string, number>;
+}
+
+export interface RunReportEntry {
+  run: Run;
+  gate?: GateResult;
+}
+
+export interface FindingReportEntry {
+  finding: Finding;
+  evidenceRefs: EvidenceRef[];
+}
+
+export interface ModuleReport {
+  meta: ReportMeta;
+  summary: ReportSummary;
+  runs: RunReportEntry[];
+  findings: FindingReportEntry[];
+  gateResults: GateResult[];
+}
+
+export interface ProjectReport {
+  generatedAt: string;
+  projectId: string;
+  projectName: string;
+  modules: {
+    static?: ModuleReport;
+    dynamic?: ModuleReport;
+    test?: ModuleReport;
+  };
+  totalSummary: ReportSummary;
+  approvals: ApprovalRequest[];
+  auditTrail: AuditLogEntry[];
+}
+
+// ============================================================
+// Quality Gate
+// ============================================================
+
+export type GateStatus = "pass" | "fail" | "warning";
+
+export type GateRuleId =
+  | "no-critical"
+  | "high-threshold"
+  | "evidence-coverage"
+  | "sandbox-unreviewed";
+
+export interface GateRuleResult {
+  ruleId: GateRuleId;
+  result: "passed" | "failed" | "warning";
+  message: string;
+  linkedFindingIds: string[];
+}
+
+export interface GateResult {
+  id: string;
+  runId: string;
+  projectId: string;
+  status: GateStatus;
+  rules: GateRuleResult[];
+  evaluatedAt: string;
+  override?: {
+    overriddenBy: string;
+    reason: string;
+    approvalId: string;
+    overriddenAt: string;
+  };
+  createdAt: string;
+}
+
+// ============================================================
+// Approval
+// ============================================================
+
+export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
+
+export type ApprovalActionType =
+  | "gate.override"
+  | "finding.accepted_risk";
+
+export interface ApprovalRequest {
+  id: string;
+  actionType: ApprovalActionType;
+  requestedBy: string;
+  targetId: string;
+  projectId: string;
+  reason: string;
+  status: ApprovalStatus;
+  decision?: {
+    decidedBy: string;
+    decidedAt: string;
+    comment?: string;
+  };
+  expiresAt: string;
+  createdAt: string;
 }

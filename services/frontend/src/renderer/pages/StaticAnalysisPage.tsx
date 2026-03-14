@@ -1,145 +1,234 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import type { AnalysisResult, UploadedFile } from "@smartcar/shared";
-import { FileSearch, Plus, Trash2, FolderSearch, ListChecks } from "lucide-react";
+import type { RunDetailResponse } from "@smartcar/shared";
+import { FileSearch, FolderSearch, ListChecks } from "lucide-react";
 import { useStaticAnalysis } from "../hooks/useStaticAnalysis";
-import { fetchAnalysisResults, fetchAnalysisResult, deleteAnalysisResult, fetchProjectFiles, ApiError } from "../api/client";
+import { useStaticDashboard } from "../hooks/useStaticDashboard";
+import { useAsyncAnalysis } from "../hooks/useAsyncAnalysis";
+import {
+  fetchAnalysisResult,
+  fetchProjectFiles,
+  fetchRunDetail,
+  ApiError,
+  logError,
+} from "../api/client";
 import { useToast } from "../contexts/ToastContext";
 import { FileUploadView } from "../components/static/FileUploadView";
-import { AnalysisProgressView } from "../components/static/AnalysisProgressView";
 import { AnalysisResultsView } from "../components/static/AnalysisResultsView";
 import { VulnerabilityDetailView } from "../components/static/VulnerabilityDetailView";
-import { PageHeader, EmptyState, ConfirmDialog, SeveritySummary, ListItem, BackButton, Spinner } from "../components/ui";
-import { extractFiles } from "../utils/analysis";
-import { formatDateTime } from "../utils/format";
+import { StaticDashboard } from "../components/static/StaticDashboard";
+import { AsyncAnalysisProgressView } from "../components/static/AsyncAnalysisProgressView";
+import { RunDetailView } from "../components/static/RunDetailView";
+import { FindingDetailView } from "../components/static/FindingDetailView";
+import { PageHeader, BackButton, Spinner, ConfirmDialog } from "../components/ui";
 import "./StaticAnalysisPage.css";
+
+type DashboardView =
+  | "dashboard"
+  | "modeSelect"
+  | "upload"
+  | "progress"
+  | "runDetail"
+  | "findingDetail"
+  | "legacyResult";
 
 export const StaticAnalysisPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const analysis = useStaticAnalysis(projectId!);
   const toast = useToast();
 
-  const [history, setHistory] = useState<AnalysisResult[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(true);
-  const [viewingResult, setViewingResult] = useState<AnalysisResult | null>(null);
-  const [showUpload, setShowUpload] = useState(false);
-  const [showModeSelect, setShowModeSelect] = useState(false);
+  // Legacy sync analysis hook (for mode select flow compat)
+  const legacyAnalysis = useStaticAnalysis(projectId!);
+
+  // New hooks
+  const dashboard = useStaticDashboard(projectId!);
+  const asyncAnalysis = useAsyncAnalysis(projectId!);
+
+  // View routing
+  const [view, setView] = useState<DashboardView>("dashboard");
   const [projectFiles, setProjectFiles] = useState<UploadedFile[]>([]);
-  const [confirmTarget, setConfirmTarget] = useState<AnalysisResult | null>(null);
+  const [viewingResult, setViewingResult] = useState<AnalysisResult | null>(null);
+  const [runDetail, setRunDetail] = useState<RunDetailResponse["data"] | null>(null);
+  const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
+  const [runDetailLoading, setRunDetailLoading] = useState(false);
+  const [showAbortConfirm, setShowAbortConfirm] = useState(false);
 
-  const loadHistory = () => {
-    Promise.all([
-      fetchAnalysisResults(projectId!),
-      fetchProjectFiles(projectId!).catch(() => [] as UploadedFile[]),
-    ])
-      .then(([analyses, files]) => {
-        setHistory(analyses.filter(a => a.module === "static_analysis"));
-        setProjectFiles(files);
-      })
+  // Load project files for mode select
+  const loadProjectFiles = useCallback(() => {
+    fetchProjectFiles(projectId!)
       .catch((e) => {
-        console.error("Failed to load history:", e);
-        const retry = e instanceof ApiError && e.retryable ? { label: "다시 시도", onClick: loadHistory } : undefined;
-        toast.error(e instanceof Error ? e.message : "분석 이력을 불러올 수 없습니다.", retry);
+        logError("Load project files", e);
+        return [] as UploadedFile[];
       })
-      .finally(() => setHistoryLoading(false));
-  };
-
-  const handleDeleteAnalysis = async (a: AnalysisResult) => {
-    try {
-      await deleteAnalysisResult(a.id);
-      setHistory((prev) => prev.filter((h) => h.id !== a.id));
-    } catch (e) {
-      console.error("Delete analysis failed:", e);
-      toast.error("분석 이력 삭제에 실패했습니다.");
-    }
-  };
-
-  useEffect(() => {
-    loadHistory();
+      .then(setProjectFiles);
   }, [projectId]);
 
+  useEffect(() => {
+    loadProjectFiles();
+  }, [loadProjectFiles]);
+
+  // Handle ?analysisId= legacy URL
   useEffect(() => {
     const analysisId = searchParams.get("analysisId");
     if (analysisId) {
       fetchAnalysisResult(analysisId)
-        .then(setViewingResult)
-        .catch((e) => { console.error("Failed to load analysis:", e); toast.error("분석 결과를 불러올 수 없습니다."); });
-    } else {
-      setViewingResult(null);
+        .then((result) => {
+          setViewingResult(result);
+          setView("legacyResult");
+        })
+        .catch((e) => {
+          logError("Load analysis", e);
+          toast.error("분석 결과를 불러올 수 없습니다.");
+        });
     }
-  }, [searchParams]);
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleNewAnalysisComplete = () => {
-    analysis.reset();
-    setShowModeSelect(false);
-    setShowUpload(false);
-    loadHistory();
-  };
+  // Navigation helpers
+  const goToDashboard = useCallback(() => {
+    setView("dashboard");
+    setSearchParams({});
+    setViewingResult(null);
+    setRunDetail(null);
+    setSelectedFindingId(null);
+    legacyAnalysis.reset();
+    asyncAnalysis.reset();
+    dashboard.refresh();
+  }, [setSearchParams, legacyAnalysis, asyncAnalysis, dashboard]);
 
-  const handleRunFullProject = () => {
-    analysis.setAllExisting(projectFiles);
-    setShowModeSelect(false);
-    analysis.runAnalysis(projectFiles);
-  };
+  const handleViewRun = useCallback(async (runId: string) => {
+    setRunDetailLoading(true);
+    setView("runDetail");
+    try {
+      const detail = await fetchRunDetail(runId);
+      setRunDetail(detail);
+    } catch (e) {
+      logError("Run detail load", e);
+      toast.error("Run 상세를 불러올 수 없습니다.");
+      setView("dashboard");
+    } finally {
+      setRunDetailLoading(false);
+    }
+  }, [toast]);
 
-  // Viewing existing result
-  if (viewingResult) {
-    if (analysis.selectedVuln) {
+  const handleSelectFinding = useCallback((findingId: string) => {
+    setSelectedFindingId(findingId);
+    setView("findingDetail");
+  }, []);
+
+  const handleNewAnalysis = useCallback(() => {
+    loadProjectFiles();
+    setView("modeSelect");
+  }, [loadProjectFiles]);
+
+  const handleRunFullProject = useCallback(() => {
+    asyncAnalysis.setAllExisting(projectFiles);
+    asyncAnalysis.startAnalysis(projectId!, projectFiles);
+    setView("progress");
+  }, [asyncAnalysis, projectFiles, projectId]);
+
+  const handleStartFromUpload = useCallback(() => {
+    const allExisting = asyncAnalysis.selectedExisting;
+    asyncAnalysis.startAnalysis(projectId!, allExisting);
+    setView("progress");
+  }, [asyncAnalysis, projectId]);
+
+  const handleAbortAnalysis = useCallback(async () => {
+    await asyncAnalysis.abortAnalysis();
+    setShowAbortConfirm(false);
+  }, [asyncAnalysis]);
+
+  const handleResumeAnalysis = useCallback(() => {
+    if (asyncAnalysis.progress) {
+      setView("progress");
+    }
+  }, [asyncAnalysis.progress]);
+
+  const handleAnalysisViewResult = useCallback((analysisId: string) => {
+    // When async analysis completes, refresh dashboard and go back
+    goToDashboard();
+  }, [goToDashboard]);
+
+  const handleViewLegacyResult = useCallback((analysisResultId: string) => {
+    setSearchParams({ analysisId: analysisResultId });
+  }, [setSearchParams]);
+
+  // ── Render by view ──
+
+  // Legacy result view (?analysisId= compat)
+  if (view === "legacyResult" && viewingResult) {
+    if (legacyAnalysis.selectedVuln) {
       return (
         <VulnerabilityDetailView
-          vulnerability={analysis.selectedVuln}
+          vulnerability={legacyAnalysis.selectedVuln}
           projectId={projectId!}
-          onBack={() => analysis.setSelectedVuln(null)}
+          onBack={() => legacyAnalysis.setSelectedVuln(null)}
         />
       );
     }
     return (
       <AnalysisResultsView
         result={viewingResult}
-        onSelectVuln={analysis.setSelectedVuln}
-        onNewAnalysis={() => { setSearchParams({}); setViewingResult(null); }}
+        onSelectVuln={legacyAnalysis.setSelectedVuln}
+        onNewAnalysis={goToDashboard}
       />
     );
   }
 
-  // New analysis in progress
-  if (analysis.view !== "upload") {
-    if (analysis.selectedVuln) {
-      return (
-        <VulnerabilityDetailView
-          vulnerability={analysis.selectedVuln}
-          projectId={projectId!}
-          onBack={() => analysis.setSelectedVuln(null)}
-        />
-      );
-    }
-
-    if (analysis.view === "progress") {
-      return (
-        <AnalysisProgressView
-          progress={analysis.progress}
-          step={analysis.progressStep}
-        />
-      );
-    }
-
-    if (analysis.view === "results" && analysis.result) {
-      return (
-        <AnalysisResultsView
-          result={analysis.result}
-          onSelectVuln={analysis.setSelectedVuln}
-          onNewAnalysis={handleNewAnalysisComplete}
-        />
-      );
-    }
+  // Finding detail
+  if (view === "findingDetail" && selectedFindingId) {
+    return (
+      <FindingDetailView
+        findingId={selectedFindingId}
+        projectId={projectId!}
+        onBack={() => {
+          setSelectedFindingId(null);
+          setView(runDetail ? "runDetail" : "dashboard");
+        }}
+      />
+    );
   }
 
-  // Mode selection view
-  if (showModeSelect) {
+  // Run detail
+  if (view === "runDetail") {
+    if (runDetailLoading || !runDetail) {
+      return (
+        <div className="page-enter">
+          <BackButton onClick={goToDashboard} label="대시보드로" />
+          <div className="centered-loader--compact">
+            <Spinner label="Run 로딩 중..." />
+          </div>
+        </div>
+      );
+    }
+    return (
+      <RunDetailView
+        runDetail={runDetail}
+        projectId={projectId!}
+        onBack={goToDashboard}
+        onSelectFinding={handleSelectFinding}
+        onViewLegacyResult={handleViewLegacyResult}
+      />
+    );
+  }
+
+  // Async progress
+  if (view === "progress" && asyncAnalysis.progress) {
+    return (
+      <AsyncAnalysisProgressView
+        progress={asyncAnalysis.progress}
+        onAbort={handleAbortAnalysis}
+        onViewResult={handleAnalysisViewResult}
+        onBack={goToDashboard}
+      />
+    );
+  }
+
+  // Mode selection
+  if (view === "modeSelect") {
     return (
       <div className="page-enter">
-        <BackButton onClick={() => { setShowModeSelect(false); analysis.reset(); }} label="이력으로" />
+        <BackButton onClick={goToDashboard} label="대시보드로" />
         <PageHeader title="새 정적 분석" icon={<FileSearch size={20} />} />
         <div className="static-mode-cards">
           <div
@@ -155,7 +244,7 @@ export const StaticAnalysisPage: React.FC = () => {
           </div>
           <div
             className="card card--interactive static-mode-card"
-            onClick={() => { setShowModeSelect(false); setShowUpload(true); }}
+            onClick={() => setView("upload")}
           >
             <ListChecks size={28} className="static-mode-card__icon" />
             <h3 className="static-mode-card__title">수동 파일 지정</h3>
@@ -168,101 +257,74 @@ export const StaticAnalysisPage: React.FC = () => {
     );
   }
 
-  // Upload view (manual file selection)
-  if (showUpload) {
+  // Upload view
+  if (view === "upload") {
     return (
       <div className="page-enter">
-        <BackButton onClick={() => { setShowUpload(false); setShowModeSelect(true); }} label="모드 선택으로" />
+        <BackButton onClick={() => setView("modeSelect")} label="모드 선택으로" />
         <FileUploadView
           existingFiles={projectFiles}
-          selectedExisting={analysis.selectedExisting}
-          onToggleExisting={analysis.toggleExistingFile}
-          onSelectAll={() => analysis.setAllExisting(projectFiles)}
-          files={analysis.files}
-          onAddFiles={analysis.addFiles}
-          onRemoveFile={analysis.removeFile}
-          onStartAnalysis={analysis.runAnalysis}
+          selectedExisting={asyncAnalysis.selectedExisting}
+          onToggleExisting={asyncAnalysis.toggleExistingFile}
+          onSelectAll={() => asyncAnalysis.setAllExisting(projectFiles)}
+          files={asyncAnalysis.files}
+          onAddFiles={asyncAnalysis.addFiles}
+          onRemoveFile={asyncAnalysis.removeFile}
+          onStartAnalysis={handleStartFromUpload}
         />
       </div>
     );
   }
 
-  // Default: history list
-  return (
-    <div className="page-enter">
-      <PageHeader
-        title="정적 분석"
-        icon={<FileSearch size={20} />}
-        action={
-          <button className="btn" onClick={() => setShowModeSelect(true)}>
-            <Plus size={16} />
-            새 분석
-          </button>
-        }
-      />
-
-      {historyLoading ? (
+  // Default: Dashboard
+  if (dashboard.loading) {
+    return (
+      <div className="page-enter">
         <div className="centered-loader--compact">
-          <Spinner label="이력 로딩 중..." />
+          <Spinner label="대시보드 로딩 중..." />
         </div>
-      ) : history.length === 0 ? (
-        <EmptyState
-          icon={<FileSearch size={28} />}
-          title="아직 분석 이력이 없습니다"
-          description="파일을 업로드하고 보안 분석을 시작하세요"
-          action={<button className="btn" onClick={() => setShowModeSelect(true)}>첫 분석 시작</button>}
-        />
-      ) : (
-        <div className="card">
-          {history.map((a) => {
-            const files = extractFiles(a);
-            return (
-              <ListItem
-                key={a.id}
-                onClick={() => setSearchParams({ analysisId: a.id })}
-                trailing={
-                  <>
-                    <span className="analysis-item__time">{formatDateTime(a.createdAt)}</span>
-                    <button
-                      className="btn-icon btn-danger analysis-item__delete"
-                      title="삭제"
-                      onClick={(e) => { e.stopPropagation(); setConfirmTarget(a); }}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </>
-                }
-              >
-                <div>
-                  <div className="analysis-item__header">
-                    <span className="analysis-item__badge analysis-item__badge--static">
-                      <FileSearch size={11} />
-                      정적 분석
-                    </span>
-                    <span className="analysis-item__stat">
-                      취약점 {a.summary.total - (a.summary.info ?? 0)}건
-                    </span>
-                    <SeveritySummary summary={a.summary} />
-                  </div>
-                  {files.length > 0 && (
-                    <div className="analysis-item__sub">{files.join(", ")}</div>
-                  )}
-                </div>
-              </ListItem>
-            );
-          })}
+      </div>
+    );
+  }
+
+  if (!dashboard.summary) {
+    return (
+      <div className="page-enter">
+        <PageHeader title="정적 분석" icon={<FileSearch size={20} />} />
+        <div className="card" style={{ padding: "var(--space-6)", textAlign: "center" }}>
+          <p className="text-tertiary">대시보드 데이터를 불러올 수 없습니다.</p>
+          <button className="btn btn-secondary" onClick={dashboard.refresh} style={{ marginTop: "var(--space-3)" }}>
+            다시 시도
+          </button>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <StaticDashboard
+        projectId={projectId!}
+        summary={dashboard.summary}
+        recentRuns={dashboard.recentRuns}
+        activeAnalysis={dashboard.activeAnalysis}
+        period={dashboard.period}
+        onPeriodChange={dashboard.setPeriod}
+        onNewAnalysis={handleNewAnalysis}
+        onViewRun={handleViewRun}
+        onResumeAnalysis={handleResumeAnalysis}
+        onAbortAnalysis={() => setShowAbortConfirm(true)}
+      />
 
       <ConfirmDialog
-        open={confirmTarget !== null}
-        title="분석 이력 삭제"
-        message={confirmTarget ? `이 분석 이력을 삭제하시겠습니까? (취약점 ${confirmTarget.summary.total}건)` : ""}
-        confirmLabel="삭제"
+        open={showAbortConfirm}
+        title="분석 중단"
+        message="진행 중인 분석을 중단하시겠습니까?"
+        confirmLabel="중단"
         danger
-        onConfirm={() => { if (confirmTarget) handleDeleteAnalysis(confirmTarget); setConfirmTarget(null); }}
-        onCancel={() => setConfirmTarget(null)}
+        onConfirm={handleAbortAnalysis}
+        onCancel={() => setShowAbortConfirm(false)}
       />
-    </div>
+    </>
   );
 };

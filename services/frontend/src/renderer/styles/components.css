@@ -183,6 +183,90 @@
   border: 1px solid var(--severity-info-border);
 }
 
+/* ── Finding Status Badges ── */
+
+.badge-status--open {
+  background: var(--status-open-bg);
+  color: var(--status-open);
+  border: 1px solid var(--status-open-border);
+}
+
+.badge-status--needs_review {
+  background: var(--status-needs-review-bg);
+  color: var(--status-needs-review);
+  border: 1px solid var(--status-needs-review-border);
+}
+
+.badge-status--accepted_risk {
+  background: var(--status-accepted-risk-bg);
+  color: var(--status-accepted-risk);
+  border: 1px solid var(--status-accepted-risk-border);
+}
+
+.badge-status--false_positive {
+  background: var(--status-false-positive-bg);
+  color: var(--status-false-positive);
+  border: 1px solid var(--status-false-positive-border);
+}
+
+.badge-status--fixed {
+  background: var(--status-fixed-bg);
+  color: var(--status-fixed);
+  border: 1px solid var(--status-fixed-border);
+}
+
+.badge-status--needs_revalidation {
+  background: var(--status-needs-revalidation-bg);
+  color: var(--status-needs-revalidation);
+  border: 1px solid var(--status-needs-revalidation-border);
+}
+
+.badge-status--sandbox {
+  background: var(--status-sandbox-bg);
+  color: var(--status-sandbox);
+  border: 1px solid var(--status-sandbox-border);
+}
+
+/* ── Confidence Badges ── */
+
+.badge-confidence--high {
+  background: var(--confidence-high-bg);
+  color: var(--confidence-high);
+  border: 1px solid var(--confidence-high-border);
+}
+
+.badge-confidence--medium {
+  background: var(--confidence-medium-bg);
+  color: var(--confidence-medium);
+  border: 1px solid var(--confidence-medium-border);
+}
+
+.badge-confidence--low {
+  background: var(--confidence-low-bg);
+  color: var(--confidence-low);
+  border: 1px solid var(--confidence-low-border);
+}
+
+/* ── Source Badges ── */
+
+.badge-source--rule-engine {
+  background: var(--source-rule-bg);
+  color: var(--source-rule);
+  border: 1px solid var(--source-rule-border);
+}
+
+.badge-source--llm-assist {
+  background: var(--source-ai-bg);
+  color: var(--source-ai);
+  border: 1px dashed var(--source-ai-border);
+}
+
+.badge-source--both {
+  background: var(--source-both-bg);
+  color: var(--source-both);
+  border: 1px solid var(--source-both-border);
+}
+
 /* ── Severity summary badges (compact inline) ── */
 
 .severity-summary {
@@ -217,6 +301,7 @@
 @media (max-width: 480px) {
   .stat-cards {
     grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
   }
 }
 

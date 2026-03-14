@@ -4,8 +4,8 @@
 
 ## 역할
 
-Core Service(S2)로부터 분석 요청을 받아 프롬프트를 조립하고,
-LLM(또는 Mock)에 전달하여 파싱된 취약점 분석 결과를 반환한다.
+Core Service(S2)로부터 Task 기반 분석 요청을 받아 프롬프트를 조립하고,
+LLM(또는 Mock)에 전달하여 구조화된 Assessment를 반환한다.
 
 ## 실행
 
@@ -17,49 +17,52 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ## 환경변수
 
+`services/llm-gateway/.env` 파일에서 자동 로드된다.
+
 | 변수 | 기본값 | 설명 |
 |------|--------|------|
-| SMARTCAR_LLM_MODE | mock | `mock`: Mock 응답 / `real`: 실 LLM 연동 |
-| SMARTCAR_LLM_ENDPOINT | http://localhost:8080 | LLM Engine(S4) 엔드포인트 |
-| SMARTCAR_LLM_MODEL | qwen-14b | 사용할 모델명 |
-| SMARTCAR_LLM_API_KEY | (빈 문자열) | API 키 (필요 시) |
+| SMARTCAR_LLM_MODE | mock | `mock` / `real` |
+| SMARTCAR_LLM_ENDPOINT | http://10.126.37.19:8000 | LLM Engine(S4) 엔드포인트 (vLLM) |
+| SMARTCAR_LLM_MODEL | Qwen/Qwen3.5-35B-A3B-FP8 | 사용할 모델명 |
+| SMARTCAR_LLM_API_KEY | (빈 문자열) | API 키 (vLLM: 불필요) |
 
 ## API
 
-- `POST /api/llm/analyze` — LLM 분석 요청
-- `GET /health` — 헬스체크
+- `POST /v1/tasks` — Task 기반 AI 분석 요청
+- `GET /v1/health` — 서비스 상태 확인
+- `GET /v1/models` — 등록된 model profile 목록
+- `GET /v1/prompts` — 등록된 prompt template 목록
 
 상세: [API 명세](../../docs/api/llm-gateway-api.md)
-
-## 실 LLM 전환
-
-```bash
-export SMARTCAR_LLM_MODE=real
-export SMARTCAR_LLM_ENDPOINT=http://dgx-spark:8080
-export SMARTCAR_LLM_MODEL=qwen-14b
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-환경변수만 바꾸면 동일 코드로 실 LLM이 연동됩니다.
 
 ## 내부 구조
 
 ```
 app/
 ├── main.py                 # FastAPI 앱 진입점
-├── config.py               # 설정 (환경변수 → Settings)
-├── routers/
-│   ├── analyze.py          # POST /api/llm/analyze
-│   └── health.py           # GET /health
+├── config.py               # 설정 (.env → Settings)
+├── context.py              # 요청 컨텍스트 (requestId)
+├── errors.py               # S3Error 계층
+├── types.py                # TaskType, TaskStatus, FailureCode
+├── clients/
+│   ├── base.py             # LlmClient ABC
+│   └── real.py             # RealLlmClient (OpenAI-compatible, vLLM 대상)
 ├── schemas/
-│   ├── request.py          # 요청 Pydantic 모델
-│   └── response.py         # 응답 Pydantic 모델
-├── services/
-│   ├── prompt_builder.py   # 모듈별 프롬프트 조립
-│   ├── llm_client.py       # LlmClient ABC + Mock/Real 구현
-│   └── response_parser.py  # LLM 응답 → 구조화 JSON 변환
-└── templates/
-    ├── static_analysis.py  # 정적 분석 프롬프트 템플릿
-    ├── dynamic_analysis.py # 동적 분석 프롬프트 템플릿
-    └── dynamic_testing.py  # 동적 테스트 프롬프트 템플릿
+│   ├── request.py          # TaskRequest, EvidenceRef, Context, Constraints
+│   └── response.py         # TaskSuccessResponse, AssessmentResult, AuditInfo 등
+├── registry/
+│   ├── prompt_registry.py  # PromptEntry + PromptRegistry
+│   └── model_registry.py   # ModelProfile + ModelProfileRegistry
+├── validators/
+│   ├── schema_validator.py # 출력 스키마 검증
+│   └── evidence_validator.py # refId hallucination 감지
+├── pipeline/
+│   ├── prompt_builder.py   # 3계층 trust 분리 프롬프트 조립
+│   ├── response_parser.py  # Assessment JSON 파싱
+│   ├── confidence.py       # 신뢰도 산출 (4항목 가중합)
+│   └── task_pipeline.py    # 오케스트레이터
+├── mock/
+│   └── dispatcher.py       # Mock Assessment 생성
+└── routers/
+    └── tasks.py            # API 엔드포인트
 ```

@@ -14,8 +14,9 @@ import type {
 } from "@smartcar/shared";
 import { CanRuleEngine } from "../can-rules/can-rule-engine";
 import type { CanRuleMatch } from "../can-rules/types";
-import { LlmClient, validateLlmSeverity } from "./llm-client";
-import { WsManager } from "./ws-manager";
+import type { LlmV1Adapter } from "./llm-v1-adapter";
+import { validateLlmSeverity } from "../lib/vulnerability-utils";
+import type { WsBroadcaster } from "./ws-broadcaster";
 import type { AdapterManager } from "./adapter-manager";
 import type { ProjectSettingsService } from "./project-settings.service";
 import { dynamicSessionDAO } from "../dao/dynamic-session.dao";
@@ -55,8 +56,8 @@ export class DynamicAnalysisService {
 
   constructor(
     private canRuleEngine: CanRuleEngine,
-    private llmClient: LlmClient,
-    private wsManager: WsManager,
+    private llmClient: LlmV1Adapter,
+    private ws: WsBroadcaster<import("@smartcar/shared").WsMessage>,
     private adapterManager: AdapterManager,
     private settingsService: ProjectSettingsService,
     private resultNormalizer?: ResultNormalizer
@@ -174,7 +175,7 @@ export class DynamicAnalysisService {
     active.messageCount++;
 
     // S1에 메시지 push
-    this.wsManager.broadcast(sessionId, {
+    this.ws.broadcast(sessionId, {
       type: "message",
       payload: storedMsg,
     });
@@ -191,7 +192,7 @@ export class DynamicAnalysisService {
 
     // 상태 push (매 20건)
     if (active.messageCount % 20 === 0) {
-      this.wsManager.broadcast(sessionId, {
+      this.ws.broadcast(sessionId, {
         type: "status",
         payload: {
           messageCount: active.messageCount,
@@ -216,7 +217,7 @@ export class DynamicAnalysisService {
     active.alertsSinceLastLlm++;
 
     // S1에 alert push
-    this.wsManager.broadcast(active.id, {
+    this.ws.broadcast(active.id, {
       type: "alert",
       payload: alert,
     });
@@ -263,7 +264,7 @@ export class DynamicAnalysisService {
 
       // 업데이트된 alert를 push
       const updated: DynamicAlert = { ...triggerAlert, llmAnalysis: llmText };
-      this.wsManager.broadcast(active.id, { type: "alert", payload: updated });
+      this.ws.broadcast(active.id, { type: "alert", payload: updated });
     }
   }
 
@@ -391,7 +392,7 @@ export class DynamicAnalysisService {
     active.injectionCount++;
 
     // WS injection-result 이벤트
-    this.wsManager.broadcast(sessionId, {
+    this.ws.broadcast(sessionId, {
       type: "injection-result",
       payload: result,
     });

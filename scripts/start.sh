@@ -152,25 +152,33 @@ rollback() {
   rm -rf "$PID_DIR" 2>/dev/null
 }
 
+# .env 로드 헬퍼 — 서브쉘 커맨드 앞에 삽입
+load_env() {
+  local envfile="$1"
+  if [ -f "$envfile" ]; then
+    echo "set -a; source '$envfile'; set +a;"
+  fi
+}
+
 # 순서대로 기동 — 하나라도 실패하면 즉시 중단
 run_all() {
   start_service "llm-gateway" 8000 \
-    "cd '$ROOT_DIR/services/llm-gateway' && source .venv/bin/activate && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload" || return 1
+    "cd '$ROOT_DIR/services/llm-gateway' && $(load_env "$ROOT_DIR/services/llm-gateway/.env") source .venv/bin/activate && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload" || return 1
 
   start_service "adapter" 4000 \
-    "exec npx tsx watch '$ROOT_DIR/services/adapter/src/index.ts' --port=4000" || return 1
+    "$(load_env "$ROOT_DIR/services/adapter/.env") exec npx tsx watch '$ROOT_DIR/services/adapter/src/index.ts' --port=4000" || return 1
 
   start_service "backend" 3000 \
-    "exec npx tsx watch '$ROOT_DIR/services/backend/src/index.ts'" || return 1
+    "$(load_env "$ROOT_DIR/services/backend/.env") exec npx tsx watch '$ROOT_DIR/services/backend/src/index.ts'" || return 1
 
   if [ "$START_ECU" = true ]; then
     start_service "ecu-simulator" "" \
-      "exec npx tsx watch '$ROOT_DIR/services/ecu-simulator/src/index.ts' --adapter=ws://localhost:4000/ws/ecu --scenario=$SCENARIO --speed=$SPEED --loop" || return 1
+      "$(load_env "$ROOT_DIR/services/ecu-simulator/.env") exec npx tsx watch '$ROOT_DIR/services/ecu-simulator/src/index.ts' --adapter=ws://localhost:4000/ws/ecu --scenario=$SCENARIO --speed=$SPEED --loop" || return 1
   fi
 
   if [ "$START_FRONTEND" = true ]; then
     start_service "frontend" 5173 \
-      "cd '$ROOT_DIR/services/frontend' && exec npm run dev" || return 1
+      "$(load_env "$ROOT_DIR/services/frontend/.env") cd '$ROOT_DIR/services/frontend' && exec npm run dev" || return 1
   fi
 }
 

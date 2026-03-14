@@ -11,7 +11,7 @@ import {
   ChevronRight,
   Shield,
 } from "lucide-react";
-import { fetchProjectOverview, fetchProjectFiles, fetchProjectSettings, healthCheck } from "../api/client";
+import { fetchProjectOverview, fetchProjectFiles, healthCheck, healthFetch, fetchProjectSettings, logError } from "../api/client";
 import { useToast } from "../contexts/ToastContext";
 import { useAdapters } from "../hooks/useAdapters";
 import { PageHeader, StatCard, SeveritySummary, SeverityBadge, DonutChart, ListItem, Spinner } from "../components/ui";
@@ -110,9 +110,8 @@ export const OverviewPage: React.FC = () => {
       try {
         const settings = await fetchProjectSettings(projectId);
         const url = settings.llmUrl?.trim() || "http://localhost:8000";
-        const res = await fetch(`${url}/health`);
-        const data = await res.json();
-        if (!cancelled) setLlmStatus(data?.status === "ok" ? "ok" : "error");
+        const { ok } = await healthFetch(url);
+        if (!cancelled) setLlmStatus(ok ? "ok" : "error");
       } catch {
         if (!cancelled) setLlmStatus("error");
       }
@@ -133,7 +132,7 @@ export const OverviewPage: React.FC = () => {
         setOverview(ov);
         setProjectFiles(files);
       })
-      .catch((e) => { console.error("Failed to fetch overview:", e); toast.error("프로젝트 개요를 불러올 수 없습니다."); })
+      .catch((e) => { logError("Fetch overview", e); toast.error("프로젝트 개요를 불러올 수 없습니다."); })
       .finally(() => setLoading(false));
   };
 

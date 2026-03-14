@@ -62,6 +62,46 @@ class RunDAO {
   updateFindingCount(id: string, count: number): void {
     updateFindingCountStmt.run(count, id);
   }
+
+  trendByModule(
+    projectId: string,
+    module: string,
+    since?: string
+  ): Array<{ date: string; runCount: number; findingCount: number; gatePassCount: number }> {
+    const conditions = ["r.project_id = ?", "r.module = ?"];
+    const params: any[] = [projectId, module];
+    if (since) {
+      conditions.push("r.created_at >= ?");
+      params.push(since);
+    }
+
+    const sql = `
+      SELECT
+        DATE(r.created_at) as date,
+        COUNT(DISTINCT r.id) as run_count,
+        COALESCE(SUM(r.finding_count), 0) as finding_count,
+        COUNT(DISTINCT CASE WHEN g.status = 'pass' THEN g.id END) as gate_pass_count
+      FROM runs r
+      LEFT JOIN gate_results g ON g.run_id = r.id
+      WHERE ${conditions.join(" AND ")}
+      GROUP BY DATE(r.created_at)
+      ORDER BY date ASC
+    `;
+
+    const rows = db.prepare(sql).all(...params) as Array<{
+      date: string;
+      run_count: number;
+      finding_count: number;
+      gate_pass_count: number;
+    }>;
+
+    return rows.map((row) => ({
+      date: row.date,
+      runCount: row.run_count,
+      findingCount: row.finding_count,
+      gatePassCount: row.gate_pass_count,
+    }));
+  }
 }
 
 export const runDAO = new RunDAO();

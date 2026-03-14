@@ -17,6 +17,11 @@ import {
   EvidenceRef,
   FindingStatus,
   AuditLogEntry,
+  GateResult,
+  ApprovalRequest,
+  ModuleReport,
+  ProjectReport,
+  AnalysisModule,
 } from "./models";
 
 // ============================================================
@@ -316,7 +321,11 @@ export interface RunListResponse {
 
 export interface RunDetailResponse {
   success: boolean;
-  data?: Run & { findings: Finding[] };
+  data?: {
+    run: Run;
+    gate?: GateResult;
+    findings: Array<{ finding: Finding; evidenceRefs: EvidenceRef[] }>;
+  };
   error?: string;
 }
 
@@ -348,4 +357,130 @@ export interface FindingSummaryResponse {
     bySeverity: Record<string, number>;
     total: number;
   };
+}
+
+// ============================================================
+// Quality Gate
+// ============================================================
+
+export interface GateResultResponse {
+  success: boolean;
+  data?: GateResult;
+  error?: string;
+}
+
+export interface GateResultListResponse {
+  success: boolean;
+  data: GateResult[];
+}
+
+export interface GateOverrideRequest {
+  reason: string;
+  actor?: string;
+}
+
+// ============================================================
+// Approval
+// ============================================================
+
+export interface ApprovalListResponse {
+  success: boolean;
+  data: ApprovalRequest[];
+}
+
+export interface ApprovalDetailResponse {
+  success: boolean;
+  data?: ApprovalRequest;
+  error?: string;
+}
+
+export interface ApprovalDecisionRequest {
+  decision: "approved" | "rejected";
+  comment?: string;
+  actor?: string;
+}
+
+// ============================================================
+// Report
+// ============================================================
+
+export interface ModuleReportResponse {
+  success: boolean;
+  data?: ModuleReport;
+  error?: string;
+}
+
+export interface ProjectReportResponse {
+  success: boolean;
+  data?: ProjectReport;
+  error?: string;
+}
+
+// ============================================================
+// 분석 진행률 (Part A: 비동기 분석)
+// ============================================================
+
+export type AnalysisPhase = "queued" | "rule_engine" | "llm_chunk" | "merging" | "complete";
+export type AnalysisTrackerStatus = "running" | "completed" | "failed" | "aborted";
+
+export interface AnalysisProgress {
+  analysisId: string;
+  projectId: string;
+  status: AnalysisTrackerStatus;
+  phase: AnalysisPhase;
+  currentChunk: number;
+  totalChunks: number;
+  message: string;
+  startedAt: string;
+  updatedAt: string;
+  endedAt?: string;
+  error?: string;
+}
+
+export interface AnalysisStatusResponse {
+  success: boolean;
+  data?: AnalysisProgress;
+  error?: string;
+}
+
+export interface AnalysisStatusListResponse {
+  success: boolean;
+  data: AnalysisProgress[];
+}
+
+export interface AnalysisRunAcceptedResponse {
+  success: boolean;
+  data?: {
+    analysisId: string;
+    status: AnalysisTrackerStatus;
+  };
+  error?: string;
+}
+
+// ============================================================
+// 정적 분석 대시보드 집계 (Part B)
+// ============================================================
+
+export interface StaticAnalysisDashboardSummary {
+  // 분포
+  bySeverity: Record<string, number>;
+  byStatus: Record<string, number>;
+  bySource: Record<string, number>;
+
+  // 랭킹
+  topFiles: Array<{ filePath: string; findingCount: number; topSeverity: string }>;
+  topRules: Array<{ ruleId: string; hitCount: number }>;
+
+  // 트렌드
+  trend: Array<{ date: string; runCount: number; findingCount: number; gatePassCount: number }>;
+
+  // KPI
+  gateStats: { total: number; passed: number; failed: number; rate: number };
+  unresolvedCount: { open: number; needsReview: number; needsRevalidation: number; sandbox: number };
+}
+
+export interface StaticDashboardResponse {
+  success: boolean;
+  data?: StaticAnalysisDashboardSummary;
+  error?: string;
 }

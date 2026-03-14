@@ -7,10 +7,6 @@
 
 ## 1. 프로젝트 전체 그림
 
-### 과제
-
-"가상환경 기반 자동차 전장부품 사이버보안 수준 검증 기술 및 플랫폼 개발" — 부산대학교가 컨소시엄 참여기관으로, 생성형 AI 기반 지능형 사이버보안 공격/검증 프레임워크를 개발한다.
-
 ### 서비스 아키텍처
 
 ```
@@ -27,7 +23,7 @@
 - **S1 (Frontend)**: 사용자 인터페이스. Electron + React + TypeScript
 - **S2 (Backend)**: 비즈니스 로직, DB, API. Express.js + TypeScript + SQLite ← **너의 담당 (Backend, Adapter, ECU Simulator, 쉘 스크립트 모두 포함)**
 - **S3 (LLM Gateway)**: LLM 호출 전담, 프롬프트 관리. Python + FastAPI
-- **S4 (LLM Engine)**: Qwen 14B on DGX Spark. 아직 없음. 추후 연동 예정
+- **S4 (LLM Engine)**: Qwen3.5-35B-A3B FP8 on DGX Spark (vLLM). 입주 완료, 실 LLM 연동 중
 
 통신 방향: `ECU Sim → Adapter → S2 → S3 → S4`, `S2 → S1`
 
@@ -48,7 +44,7 @@
 - S2의 최우선 목표는 "분석을 수행하는 것"이 아니라 **결과를 추적 가능하고 관리 가능한 구조로 만드는 것**
 - S2 API가 선행되고, S1(프론트)이 따라간다
 
-S4(실 LLM)는 아직 없다. S3가 Mock 응답을 반환하지만, 인터페이스와 파이프라인은 실제와 동일하게 구현한다.
+S4(DGX Spark + vLLM + Qwen3.5-35B-A3B FP8)가 입주하여 실 LLM 연동이 완료되었다. S3는 `real` 모드로 운영 중이다.
 
 ---
 
@@ -119,13 +115,16 @@ services/backend/
     │   ├── project-settings.controller.ts # 프로젝트 설정 GET/PUT (/api/projects/:pid/settings)
     │   ├── dynamic-test.controller.ts # 동적 테스트 API 4개 (run, results, detail, delete)
     │   ├── run.controller.ts        # Run 목록/상세 API
-    │   └── finding.controller.ts    # Finding 목록/상세/상태변경/집계 API
+    │   ├── finding.controller.ts    # Finding 목록/상세/상태변경/집계 API
+    │   ├── quality-gate.controller.ts # Quality Gate 목록/상세 API
+    │   ├── approval.controller.ts   # Approval 목록/상세 API
+    │   └── report.controller.ts     # Report 생성 API
     ├── services/
     │   ├── static-analysis.service.ts  # 정적 분석 오케스트레이션 (청크→룰→LLM→병합 + WS 프로그레스)
     │   ├── chunker.ts              # 파일 청크 분할 (토큰 추정, greedy bin-packing)
     │   ├── attack-scenarios.ts          # 사전정의 공격 시나리오 6개 (CAN 주입용)
     │   ├── dynamic-analysis.service.ts # 동적 분석 오케스트레이터 (세션+메시지+룰+LLM+CAN 주입)
-    │   ├── ws-manager.ts           # WebSocket 서버 3개 관리 (dynamic-analysis + static-analysis + dynamic-test)
+    │   ├── ws-broadcaster.ts       # 제너릭 WsBroadcaster<T> + attachWsServers() (모듈별 독립 인스턴스)
     │   ├── adapter-client.ts      # Adapter WS 클라이언트 (IEcuAdapter 구현 + CAN 프레임 수신)
     │   ├── adapter-manager.ts     # 프로젝트별 어댑터 관리 (CRUD + 연결/해제 + CAN 프레임 라우팅 + 소속 검증)
     │   ├── dynamic-test.service.ts # 동적 테스트 오케스트레이터 (입력생성→Adapter→평가→LLM→결과저장)
@@ -134,10 +133,15 @@ services/backend/
     │   ├── project.service.ts      # 프로젝트 CRUD + Overview 집계 + cascade 삭제 (룰/어댑터/설정)
     │   ├── project-settings.service.ts # 프로젝트 설정 KV (typed, defaults fallback)
     │   ├── rule.service.ts         # 프로젝트별 룰 CRUD, 기본 룰 시딩, per-analysis RuleEngine 빌드
-    │   ├── llm-client.ts          # S3 LLM Gateway HTTP 클라이언트 (per-project baseUrl 지원)
+    │   ├── llm-task-client.ts     # S3 v1 Task API HTTP 클라이언트 (POST /v1/tasks, GET /v1/health)
+    │   ├── llm-v1-adapter.ts     # v0 analyze() 시그니처 → v1 TaskRequest/TaskResponse 변환 어댑터
     │   ├── result-normalizer.ts   # AnalysisResult → Run+Finding+EvidenceRef 정규화 (멱등, 원자적)
     │   ├── finding.service.ts     # Finding CRUD + 7-state 라이프사이클 + audit trail
-    │   └── run.service.ts         # Run 읽기 전용 서비스
+    │   ├── run.service.ts         # Run 읽기 전용 서비스
+    │   ├── quality-gate.service.ts # Quality Gate 평가 서비스
+    │   ├── approval.service.ts    # Approval 워크플로우 서비스
+    │   ├── report.service.ts      # Report 생성 서비스
+    │   └── analysis-tracker.ts    # 비동기 분석 진행률 추적 (phase, abort 지원)
     ├── dao/
     │   ├── file-store.ts          # uploaded_files 테이블
     │   ├── analysis-result.dao.ts # analysis_results 테이블
@@ -152,7 +156,8 @@ services/backend/
     │   ├── run.dao.ts              # runs 테이블
     │   ├── finding.dao.ts          # findings 테이블 (필터, 집계)
     │   ├── evidence-ref.dao.ts     # evidence_refs 테이블
-    │   └── audit-log.dao.ts        # audit_log 테이블
+    │   ├── audit-log.dao.ts        # audit_log 테이블
+    │   └── gate-result.dao.ts     # gate_results 테이블
     ├── rules/                      # 정적 분석 룰
     │   ├── types.ts               # AnalysisRule 인터페이스, RuleMatch 타입
     │   ├── rule-engine.ts         # 룰 등록/실행 엔진 (per-analysis 빌드)
@@ -173,8 +178,8 @@ Controller → Service → DAO → SQLite
                 ↘ RuleService.buildRuleEngine(projectId) → RuleEngine (1계층: 정적 분석, per-analysis)
                 ↘ Chunker (정적 분석 파일 청크 분할)
                 ↘ CanRuleEngine (1계층: 동적 분석)
-                ↘ LlmClient → S3 (2계층)
-                ↘ WsManager (WebSocket push: 동적 분석 + 정적 분석 + 동적 테스트 프로그레스)
+                ↘ LlmV1Adapter → LlmTaskClient → S3 v1 Task API (2계층)
+                ↘ WsBroadcaster<T> (제너릭 WebSocket broadcaster — 모듈별 독립 인스턴스)
                 ↘ AdapterManager → AdapterClient(N개) → Adapter(N대) (CAN 프레임 수신 + 주입 요청-응답)
                 ↘ InputGenerator (동적 테스트 입력 생성)
                 ↘ ProjectSettingsService (프로젝트별 설정 KV — llmUrl 등)
@@ -186,10 +191,11 @@ Controller → Service → DAO → SQLite
 - **RuleService**: 프로젝트별 룰 CRUD + 기본 룰 시딩 + `buildRuleEngine(projectId)`로 per-analysis 엔진 빌드
 - **RuleEngine**: 정적 분석 패턴 매칭 룰 실행. 글로벌 싱글톤이 아닌 분석 시마다 `RuleService.buildRuleEngine()`으로 생성
 - **CanRuleEngine**: 동적 분석 CAN 룰 (빈도, 비인가 ID, 공격 시그니처)
-- **WsManager**: WebSocket 서버 3개 관리 (dynamic-analysis push + static-analysis progress + dynamic-test progress)
+- **WsBroadcaster\<T\>**: 제너릭 WebSocket broadcaster. 모듈별 독립 인스턴스 (dynamicAnalysisWs, staticAnalysisWs, dynamicTestWs). `attachWsServers()`로 HTTP server에 일괄 연결
 - **AdapterManager**: 프로젝트별 어댑터 관리. CRUD + 연결/해제. CAN 프레임 수신 시 `adapterId`를 포함하여 세션에 라우팅. 소속 검증(projectId) 지원. ECU 메타데이터(`ecuMeta`) 런타임 노출
 - **AdapterClient**: 개별 Adapter WS 클라이언트. `IEcuAdapter` 인터페이스 구현. `ecu-info` 메시지 수신 시 ECU 메타(name, canIds) 저장. AdapterManager가 내부적으로 관리
-- **LlmClient**: S3 호출, 실패 시 graceful degradation (1계층 결과만 반환)
+- **LlmTaskClient**: S3 v1 Task API 직접 호출 (`POST /v1/tasks`, `GET /v1/health`)
+- **LlmV1Adapter**: 기존 서비스가 사용하던 v0 `analyze()` 시그니처를 유지하면서 내부적으로 v1 TaskRequest/TaskResponse 변환. concurrency queue 내장. 실패 시 graceful degradation (1계층 결과만 반환)
 
 ---
 
@@ -302,7 +308,7 @@ SQLite(`better-sqlite3`), WAL 모드. DB 파일: `services/backend/smartcar.db` 
   → [1계층] RuleService.buildRuleEngine(projectId) → ruleEngine.runAll() — 프로젝트 enabled 룰만 실행, RuleMatch[] 반환
   → 파일 청크 분할 (chunker.ts) — 6000토큰 예산, greedy bin-packing
   → [2계층] 청크별 LLM 분석 (순차)
-      각 청크마다 LlmClient.analyze() 호출
+      각 청크마다 LlmV1Adapter.analyze() 호출 (내부에서 v1 TaskRequest로 변환)
       성공 → llmVulns 수집
       실패 → warnings에 LLM_CHUNK_FAILED 추가
       WS progress push (phase: llm_chunk, i/N)
@@ -364,7 +370,7 @@ RuleEngine (per-analysis 인스턴스)
     → [1계층] CanRuleEngine.evaluateMessage() — 3개 CAN 룰 실시간 평가
     → DB 저장 (messages + alerts)
     → WS push → S1 (메시지 + 알림 + 상태)
-    → [2계층] alert 3건 누적 시 LlmClient.analyze() — 컨텍스트 분석
+    → [2계층] alert 3건 누적 시 LlmV1Adapter.analyze() — 컨텍스트 분석
   → 세션 종료 (DELETE /sessions/:id) → status: "stopped"
     → 전체 로그 LLM 종합 분석 → analysis_results 저장
     → Overview 자동 집계 호환 (module="dynamic_analysis")
@@ -411,7 +417,7 @@ RuleEngine (per-analysis 인스턴스)
       ecuAdapter.sendAndReceive(input) → 응답 분류
       Finding 생성 시 → WS test-finding push
       WS test-progress push (current/total/crashes/anomalies)
-  → [2계층] findings가 있으면 LlmClient.analyze() — module: "dynamic_testing"
+  → [2계층] findings가 있으면 LlmV1Adapter.analyze() — module: "dynamic_testing"
       LLM 결과를 각 finding.llmAnalysis에 매핑
   → DynamicTestResult DB 저장 + AnalysisResult 이중 저장 (Overview 호환)
   → WS test-complete
@@ -423,21 +429,29 @@ RuleEngine (per-analysis 인스턴스)
 
 **Overview 호환**: 테스트 결과를 `analysis_results` 테이블에 `module="dynamic_testing"`으로도 저장. `ProjectService.getOverview()`에서 자동 집계.
 
-### S3 통신 (`LlmClient`)
+### S3 통신 (`LlmV1Adapter` → `LlmTaskClient`)
+
+v0 엔드포인트(`POST /api/llm/analyze`, `GET /health`)는 S3에서 완전 폐기됨. v1 Task API로 전환 완료 (2026-03-13).
 
 ```typescript
-POST http://localhost:8000/api/llm/analyze
-Body: {
-  module: "static_analysis",
-  sourceCode: "// === filename.c ===\n...",
-  ruleResults: [{ ruleId, title, severity, location }]
-}
-Response: { success, vulnerabilities: [{ severity, title, description, location, suggestion, fixCode }] }
+POST http://localhost:8000/v1/tasks
+Body: TaskRequest { taskType, taskId, context: { trusted, untrusted }, evidenceRefs, constraints? }
+Response: TaskResponse { status: "completed", result: { claims, caveats, suggestedSeverity, ... } }
+                       | { status: "validation_failed"|..., failureCode, failureDetail }
+
+GET http://localhost:8000/v1/health
 ```
+
+**어댑터 패턴**: `LlmV1Adapter`가 기존 서비스의 `analyze(request, baseUrl?, requestId?, signal?)` 시그니처를 유지하면서 내부적으로 v0→v1 변환 수행. 3개 서비스(정적/동적/동적테스트)는 import + 타입 교체만으로 전환 완료.
+
+**모듈 → taskType 매핑**:
+- `static_analysis` → `static-explain`
+- `dynamic_analysis` → `dynamic-annotate`
+- `dynamic_testing` → `test-plan-propose`
 
 - S3 URL: 프로젝트 설정 `llmUrl` 우선, 없으면 환경변수 `LLM_GATEWAY_URL` (기본값: `http://localhost:8000`)
 - S3 연결 실패 시 `{ success: false, vulnerabilities: [] }` 반환 → 1계층 결과만으로 응답 (graceful degradation)
-- **필드명은 camelCase** (`sourceCode`, `ruleResults` 등)
+- concurrency queue (기본 1) — v0에서 이식
 
 ### 한글 파일명 처리
 
@@ -515,9 +529,19 @@ curl -X POST http://localhost:3000/api/projects/proj-xxx/adapters/adp-xxx/connec
 # → { success: true, data: { ..., connected: true, ecuConnected: true } }
 ```
 
-**환경변수**:
-- `LLM_GATEWAY_URL`: S3 주소 (기본값: `http://localhost:8000`)
-- `PORT`: S2 포트 (기본값: `3000`)
+**환경변수 (.env)**:
+
+각 서비스는 `services/<서비스명>/.env` 파일에서 환경변수를 로드한다. 개별 스크립트(`scripts/start-*.sh`)와 통합 기동(`scripts/start.sh`) 모두 `.env`를 자동 로드한다. `.env`는 `.gitignore`에 의해 Git 추적 제외.
+
+| 서비스 | .env 위치 | 주요 변수 |
+|--------|----------|----------|
+| backend | `services/backend/.env` | `PORT`, `LLM_GATEWAY_URL`, `DB_PATH`, `LOG_DIR`, `LOG_LEVEL` |
+| adapter | `services/adapter/.env` | `PORT`, `LOG_DIR`, `LOG_LEVEL` |
+| ecu-simulator | `services/ecu-simulator/.env` | `ADAPTER_URL`, `SCENARIO`, `SPEED`, `LOG_DIR`, `LOG_LEVEL` |
+| frontend | `services/frontend/.env` | `VITE_BACKEND_URL` |
+| llm-gateway | `services/llm-gateway/.env` | `SMARTCAR_LLM_MODE`, `SMARTCAR_LLM_ENDPOINT`, `SMARTCAR_LLM_MODEL`, `SMARTCAR_LLM_API_KEY`, `LOG_DIR` |
+
+> 우선순위: `.env` 기본값 → CLI 인수 오버라이드 (해당 시). DB 유틸 스크립트(`scripts/backend/`)도 backend `.env`에서 `DB_PATH`를 읽는다.
 
 **유틸 스크립트** (`scripts/backend/`):
 - `reset-db.sh` — DB 삭제 (확인 프롬프트). 서버 정지 후 사용
@@ -526,6 +550,7 @@ curl -X POST http://localhost:3000/api/projects/proj-xxx/adapters/adp-xxx/connec
 
 **서비스 관리 스크립트** (`scripts/`) — **너의 담당**:
 - `start.sh` — 전체 서비스 기동
+  - 각 서비스의 `.env`를 서브쉘에 주입 (`load_env()` 헬퍼)
   - 포트 헬스체크 (LISTEN 상태까지 최대 10초 대기, 프로세스 즉시 종료 감지)
   - 기동 실패 시 이미 띄운 서비스 자동 롤백 (역순 종료)
   - 색상 출력 + 소요시간 표시 + 서머리 (`기동 완료 (5건 시작)`)
@@ -612,7 +637,7 @@ express.json()
 | `sys-` | `index.ts` 기동 로직 | 룰 시딩, 마이그레이션 등 |
 
 ```
-HTTP:  S1 → [X-Request-Id] → S2 미들웨어 → req.requestId → 서비스 → LlmClient → S3
+HTTP:  S1 → [X-Request-Id] → S2 미들웨어 → req.requestId → 서비스 → LlmV1Adapter → LlmTaskClient → S3
 CAN:   alert 누적 → generateRequestId("can") → LLM 분석 → 로그
 기동:  generateRequestId("sys") → 룰 시딩 → 로그
 재연결: generateRequestId("reconn") → 어댑터 연결 → 로그
@@ -644,10 +669,11 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 ## 10. 알려진 이슈 / 주의사항
 
-### 대기 중인 작업 요청 (2026-03-12 기준)
+### 대기 중인 작업 요청 (2026-03-14 기준)
 
 `docs/work-requests/`:
-- `s2-to-s3-log-file-storage.md` — S3에게 JSONL 로그 파일 저장 요청 (대기 중)
+- `s2-to-s1-static-analysis-progress-phases.md` — S1에게 정적 분석 WS 진행률 phase 세분화 안내
+- `s2-to-s3-observability-compliance.md` — S3에게 observability 규약 준수 요청 (requestId 전파, errorDetail 형식)
 
 ### DB hot-reload 함정
 
@@ -749,7 +775,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 | 전체 기술 개요 | `docs/specs/technical-overview.md` | 프로젝트 전체 구조 이해 |
 | S2 기능 명세 | `docs/specs/backend.md` | 네가 관리하는 계약서 — 현황 파악 필수 |
 | S1 프론트 명세 | `docs/specs/frontend.md` | 프론트가 S2를 어떻게 쓰는지 이해 |
-| S3 API 명세 | `docs/api/llm-gateway-api.md` | S3 호출 스펙 (LlmClient가 참조) |
+| S3 API 명세 | `docs/api/llm-gateway-api.md` | S3 호출 스펙 (LlmTaskClient가 참조) |
 | 공유 모델 | `docs/api/shared-models.md` | S1-S2 간 데이터 구조 |
 | S3 인수인계서 | `docs/s3-handoff/README.md` | S3 개발자의 현황 (참고용) |
 | 외부 피드백 (S2) | `docs/외부피드백/S2_backend_adapter_simulator_working_guide.md` | 아키텍처 고도화 근거. **필독** |

@@ -16,6 +16,7 @@ import {
   injectCanMessage,
   injectScenario,
   fetchInjections,
+  logError,
 } from "../../api/client";
 import { BackButton, SeverityBadge, Spinner } from "../ui";
 import { useToast } from "../../contexts/ToastContext";
@@ -69,9 +70,9 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
     const wsUrl = getWsBaseUrl();
     const ws = new WebSocket(`${wsUrl}/ws/dynamic-analysis?sessionId=${session.id}`);
 
-    ws.onopen = () => setWsConnected(true);
-    ws.onclose = () => setWsConnected(false);
-    ws.onerror = () => setWsConnected(false);
+    ws.onopen = () => { console.info("[WS:dynamic-analysis] connected"); setWsConnected(true); };
+    ws.onclose = (e) => { console.info(`[WS:dynamic-analysis] closed (code: ${e.code})`); setWsConnected(false); };
+    ws.onerror = () => { console.warn("[WS:dynamic-analysis] error"); setWsConnected(false); };
 
     ws.onmessage = (event) => {
       try {
@@ -103,8 +104,8 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
             setInjError(msg.payload.error);
             break;
         }
-      } catch {
-        // ignore malformed messages
+      } catch (e) {
+        console.warn("[WS:dynamic-analysis] malformed message:", e);
       }
     };
 
@@ -119,10 +120,10 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
   useEffect(() => {
     fetchScenarios()
       .then(setScenarios)
-      .catch((e) => console.error("Failed to load scenarios:", e));
+      .catch((e) => logError("Load scenarios", e));
     fetchInjections(session.id)
       .then((data) => setInjections([...data].reverse()))
-      .catch((e) => console.error("Failed to load injections:", e));
+      .catch((e) => logError("Load injections", e));
   }, [session.id]);
 
   // Keep pausedRef in sync
@@ -159,7 +160,7 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
       await stopDynamicSession(session.id);
       onStopped();
     } catch (e) {
-      console.error("Stop session failed:", e);
+      logError("Stop session", e);
       toast.error("세션 종료에 실패했습니다.");
       setStopping(false);
     }

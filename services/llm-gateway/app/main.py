@@ -10,8 +10,7 @@ from pythonjsonlogger import jsonlogger
 
 from app.config import settings
 from app.context import get_request_id
-from app.routers import analyze, health
-from app.v1.routers import tasks as v1_tasks
+from app.routers import tasks
 
 
 class _JsonFormatter(jsonlogger.JsonFormatter):
@@ -62,9 +61,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(analyze.router)
-app.include_router(health.router)
-app.include_router(v1_tasks.router)
+app.include_router(tasks.router)
 
 
 if __name__ == "__main__":

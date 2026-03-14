@@ -1,32 +1,85 @@
-from pydantic import BaseModel
+from __future__ import annotations
+
+from pydantic import BaseModel, Field
+
+from app.types import FailureCode, TaskStatus, TaskType
 
 
-class VulnerabilityItem(BaseModel):
-    severity: str
-    title: str
-    description: str
-    location: str | None = None
-    suggestion: str
-    fixCode: str | None = None
+class Claim(BaseModel):
+    statement: str
+    supportingEvidenceRefs: list[str] = []
 
 
-class ErrorDetail(BaseModel):
-    code: str
-    message: str
-    requestId: str | None = None
-    retryable: bool = False
+class ConfidenceBreakdown(BaseModel):
+    grounding: float = 0.0
+    deterministicSupport: float = 0.0
+    consistency: float = 0.0
+    schemaCompliance: float = 0.0
 
 
-class AnalyzeResponse(BaseModel):
-    success: bool
-    vulnerabilities: list[VulnerabilityItem] = []
-    note: str | None = None
-    error: str | None = None
-    errorDetail: ErrorDetail | None = None
+class TestPlan(BaseModel):
+    objective: str
+    hypotheses: list[str] = []
+    targetProtocol: str | None = None
+    targetServiceClass: str | None = None
+    preconditions: list[str] = []
+    dataToCollect: list[str] = []
+    stopConditions: list[str] = []
+    safetyConstraints: list[str] = []
+    suggestedExecutorTemplateIds: list[str] = []
+    suggestedRiskLevel: str | None = None
 
 
-class HealthResponse(BaseModel):
-    service: str
-    status: str
-    version: str
-    llmStatus: str
+class AssessmentResult(BaseModel):
+    summary: str
+    claims: list[Claim] = []
+    caveats: list[str] = []
+    usedEvidenceRefs: list[str] = []
+    suggestedSeverity: str | None = None
+    confidence: float = Field(0.0, ge=0.0, le=1.0)
+    confidenceBreakdown: ConfidenceBreakdown = Field(
+        default_factory=ConfidenceBreakdown,
+    )
+    needsHumanReview: bool = True
+    recommendedNextSteps: list[str] = []
+    policyFlags: list[str] = []
+    plan: TestPlan | None = None
+
+
+class ValidationInfo(BaseModel):
+    valid: bool
+    errors: list[str] = []
+
+
+class TokenUsage(BaseModel):
+    prompt: int = 0
+    completion: int = 0
+
+
+class AuditInfo(BaseModel):
+    inputHash: str
+    latencyMs: int = 0
+    tokenUsage: TokenUsage = Field(default_factory=TokenUsage)
+    retryCount: int = 0
+    createdAt: str
+
+
+class TaskSuccessResponse(BaseModel):
+    taskId: str
+    taskType: TaskType
+    status: TaskStatus = TaskStatus.COMPLETED
+    modelProfile: str
+    promptVersion: str
+    schemaVersion: str
+    validation: ValidationInfo
+    result: AssessmentResult
+    audit: AuditInfo
+
+
+class TaskFailureResponse(BaseModel):
+    taskId: str
+    taskType: TaskType
+    status: TaskStatus
+    failureCode: FailureCode
+    failureDetail: str
+    audit: AuditInfo

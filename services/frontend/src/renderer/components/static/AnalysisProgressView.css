@@ -89,7 +89,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  max-width: 400px;
+  max-width: min(400px, 100%);
   margin: 0 auto var(--space-3);
 }
 
@@ -105,7 +105,7 @@
   height: 100%;
   background: linear-gradient(90deg, var(--accent), var(--accent-hover));
   border-radius: var(--radius-full);
-  transition: width 0.4s ease;
+  transition: width var(--transition-slow);
   position: relative;
 }
 

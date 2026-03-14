@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import type { Project } from "@smartcar/shared";
 import * as api from "../api/client";
-import { ApiError } from "../api/client";
+import { ApiError, logError } from "../api/client";
 import { useToast } from "./ToastContext";
 
 interface ProjectContextValue {
@@ -24,7 +24,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       const data = await api.fetchProjects();
       setProjects(data);
     } catch (e) {
-      console.error("Failed to fetch projects:", e);
+      logError("Fetch projects", e);
       const msg = e instanceof Error ? e.message : "프로젝트 목록을 불러올 수 없습니다.";
       const retry = e instanceof ApiError && e.retryable ? { label: "다시 시도", onClick: () => refreshProjects() } : undefined;
       toast.error(msg, retry);

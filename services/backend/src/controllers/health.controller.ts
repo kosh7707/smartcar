@@ -1,10 +1,10 @@
 import { Router } from "express";
-import { LlmClient } from "../services/llm-client";
+import type { LlmV1Adapter } from "../services/llm-v1-adapter";
 import type { AdapterManager } from "../services/adapter-manager";
 import { asyncHandler } from "../middleware/async-handler";
 
 export function createHealthRouter(
-  llmClient: LlmClient,
+  llmClient: LlmV1Adapter,
   adapterManager: AdapterManager
 ): Router {
   const router = Router();

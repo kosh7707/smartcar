@@ -1,0 +1,266 @@
+/* ── Report Page ── */
+
+.report-page__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.report-page__filter-active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Filter Panel ── */
+
+.report-filters__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.report-filters__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.report-filters__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+}
+
+.report-filters__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* ── Module Tabs ── */
+
+.report-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border-default);
+  margin-bottom: var(--space-4);
+}
+
+.report-tabs__item {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-tertiary);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.report-tabs__item:hover {
+  color: var(--text-secondary);
+}
+
+.report-tabs__item--active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Summary ── */
+
+.report-summary__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.report-summary__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.report-summary__stat-value {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+}
+
+.report-summary__stat-label {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
+
+.report-summary__breakdown {
+  display: flex;
+  gap: var(--space-6);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.report-summary__section {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.report-summary__section-label {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.report-summary__status-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.report-summary__status-item {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  background: var(--surface-2);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Findings Table ── */
+
+.report-findings__header {
+  display: grid;
+  grid-template-columns: 100px 80px 1fr 90px 80px 50px;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.report-findings__row {
+  display: grid;
+  grid-template-columns: 100px 80px 1fr 90px 80px 50px;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--text-sm);
+}
+
+.report-findings__row:last-child {
+  border-bottom: none;
+}
+
+.report-findings__title {
+  display: block;
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+}
+
+.report-findings__location {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+.report-findings__col--evidence {
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+/* ── Runs ── */
+
+.report-runs__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--text-sm);
+}
+
+.report-runs__row:last-child {
+  border-bottom: none;
+}
+
+.report-runs__module {
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+}
+
+.report-runs__count {
+  color: var(--text-secondary);
+}
+
+/* ── Approval Row ── */
+
+.report-approval-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--text-sm);
+}
+
+.report-approval-row:last-child {
+  border-bottom: none;
+}
+
+/* ── Audit Trail ── */
+
+.report-audit__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--text-sm);
+}
+
+.report-audit__row:last-child {
+  border-bottom: none;
+}
+
+.report-audit__time {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.report-audit__actor {
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+}
+
+.report-audit__action {
+  color: var(--text-secondary);
+}
+
+/* ── Print ── */
+
+@media print {
+  .print-hide {
+    display: none !important;
+  }
+
+  .report-page {
+    padding: 0;
+  }
+
+  .card {
+    box-shadow: none;
+    border: 1px solid #ddd;
+    break-inside: avoid;
+  }
+}

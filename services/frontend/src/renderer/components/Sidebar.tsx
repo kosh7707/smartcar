@@ -11,6 +11,7 @@ import {
   Shield,
   Files,
   Clock,
+  FileText,
 } from "lucide-react";
 import { useProjects } from "../contexts/ProjectContext";
 import "./Sidebar.css";
@@ -25,6 +26,7 @@ const projectNavItems = [
   { sub: "dynamic-analysis", label: "동적 분석", icon: Activity },
   { sub: "dynamic-test", label: "동적 테스트", icon: FlaskConical },
   { sub: "analysis-history", label: "분석 이력", icon: Clock },
+  { sub: "report", label: "보고서", icon: FileText },
 ];
 
 export const Sidebar: React.FC = () => {

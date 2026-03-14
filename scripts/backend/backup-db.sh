@@ -3,7 +3,13 @@
 # Usage: ./scripts/backend/backup-db.sh [backup-name]
 
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-DB_PATH="$ROOT_DIR/services/backend/smartcar.db"
+ENV_FILE="$ROOT_DIR/services/backend/.env"
+
+if [ -f "$ENV_FILE" ]; then
+  set -a; source "$ENV_FILE"; set +a
+fi
+
+DB_PATH="${DB_PATH:-$ROOT_DIR/services/backend/smartcar.db}"
 BACKUP_DIR="$ROOT_DIR/scripts/backend/.backups"
 
 if [ ! -f "$DB_PATH" ]; then

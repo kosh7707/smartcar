@@ -401,11 +401,18 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 - approval required 표시 (실제 ECU 대상, fuzzing 등)
 - stop / pause / kill switch 상태
 
-### 5.11 보고서 / 감사 추적 ⬜ 미구현
+### 5.11 보고서 / 감사 추적 ✅ 구현 완료 (확장 필요)
 
-- 보고서 미리보기 (report API 연동)
-- 감사 추적 뷰 (finding 상태 변경 이력, approval 이력)
-- PDF 내보내기
+현재:
+- ReportPage: 프로젝트 보고서 (전체/모듈별 탭, 필터 패널)
+- Finding 테이블 (상태, 심각도, 출처, 모듈, 증적 수)
+- Run 이력 + Gate 결과
+- 승인 이력 + 감사 추적 뷰
+- PDF 내보내기 (window.print)
+
+추가 필요:
+- 고급 필터 (RunId 기반 필터링)
+- 커스텀 보고서 템플릿
 
 ### 5.12 파일 탐색기 ✅ 구현 완료
 
@@ -435,7 +442,13 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 | 분석 이력 타임라인 | 전 모듈 통합 |
 | 글로벌/프로젝트 설정 | 어댑터, LLM URL, 룰 CRUD |
 | 에러 핸들링 인프라 | ErrorBoundary, ToastContext, apiFetch 에러 분류, X-Request-Id, retryable 대응 |
+| 로깅 인프라 | `logError` (requestId 포함), `healthFetch` (non-throwing health check), WebSocket 이벤트 로깅 |
+| 정적 분석 대시보드 | KPI 4개, 심각도/출처 분포, 트렌드 차트, 파일/룰 랭킹, 최근 Run, 활성 분석 배너 |
+| Run 상세 | RunDetailView — 메타, GateResultCard, Finding 파일별 그룹, 레거시 호환 |
+| Finding 상세 | FindingDetailView — Evidence-first, 상태 변경, 감사 로그, EvidencePanel/Viewer |
+| 보고서 | ReportPage — 모듈 탭, 필터 패널, Finding 테이블, Run/Gate, 승인, 감사 추적, PDF 내보내기 |
 | 사이드바/브레드크럼/상태바 | 2-tier, 프로젝트 컨텍스트 |
+| CSS 품질 | `!important` 0건, 인라인 스타일 최소화, transition 토큰, 반응형 보강 |
 
 ### 미구현 (새 방향)
 
@@ -443,16 +456,13 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 |------|----------|
 | TargetAsset / VersionSnapshot 계층 | shared 모델 확장 (S2) |
 | Run 목록/상세 | shared 모델 확장 (S2) |
-| Finding 상태 머신 + triage | Finding 엔티티 확장 (S2) |
-| Finding 상세 + evidence panel | Evidence 엔티티 (S2) |
-| Evidence registry-based viewer | Evidence API (S2) |
-| Quality Gate 화면 | Gate 엔티티 + API (S2) |
+| Finding 독립 목록/triage 페이지 | 기본 구현 완료 (VulnerabilitiesPage → Finding 기반 재설계 필요) |
+| Finding 상세 + evidence panel | ✅ 기본 구현 완료 (FindingDetailView + EvidencePanel + EvidenceViewer) |
+| Quality Gate 독립 화면 | GateResultCard 구현 완료, RunDetailView에 연동. 독립 화면은 추가 필요 |
 | Approval Queue 화면 | Approval 엔티티 + API (S2) |
 | 동적 분석 운영 콘솔 고도화 | drop/backpressure/gap 감지 WS 확장 (S2) |
 | LLM provenance panel | LLM metadata 확장 (S2/S3) |
 | 재검증 상태 배지 | validation status 필드 (S2) |
-| 보고서 화면 | report API 연동 |
-| 감사 추적 뷰 | audit trail API (S2) |
 | 테스트 (단위/계약/시나리오/E2E) | — |
 
 ---
@@ -467,7 +477,7 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 | 라우팅 | react-router-dom v6 (HashRouter) |
 | 상태관리 | React Context + useState (ProjectContext, ToastContext) |
 | 아이콘 | lucide-react |
-| 스타일 | CSS (라이트 테마, 사이드바만 다크, CSS 변수 토큰 시스템) |
+| 스타일 | CSS (라이트/다크/시스템 3-way 테마, CSS 변수 토큰 시스템) |
 | API 통신 | fetch (Electron preload / 브라우저 직접) |
 | 실시간 통신 | WebSocket |
 | 공유 타입 | @smartcar/shared (monorepo) |
@@ -490,8 +500,9 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
   /files/:fileId                 → FileDetailPage
   /vulnerabilities               → VulnerabilitiesPage (?severity=)
   /analysis-history              → AnalysisHistoryPage
+  /report                        → ReportPage (모듈 탭, 필터, Finding 테이블, 감사 추적, PDF)
   /settings                      → ProjectSettingsPage
-/settings                        → SettingsPage
+/settings                        → SettingsPage (글로벌: 백엔드 URL, 테마 3-way)
 ```
 
 ### 추가 예정
@@ -500,13 +511,12 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 /projects/:projectId
   /targets                       → TargetAsset 목록
   /targets/:targetId             → VersionSnapshot 목록
-  /runs                          → Run 목록
-  /runs/:runId                   → Run 상세
-  /findings                      → Finding 목록 (triage)
-  /findings/:findingId           → Finding 상세 + evidence
-  /quality-gate                  → Quality Gate 결과
+  /runs                          → Run 목록 (현재는 대시보드 내 RecentRunsList)
+  /runs/:runId                   → Run 상세 (현재는 대시보드 내 RunDetailView)
+  /findings                      → Finding 목록 (triage) (현재는 대시보드 내 뷰)
+  /findings/:findingId           → Finding 상세 + evidence (현재는 대시보드 내 FindingDetailView)
+  /quality-gate                  → Quality Gate 독립 화면
   /approvals                     → Approval Queue
-  /report                        → 보고서
 ```
 
 ---
@@ -535,9 +545,13 @@ class ApiError extends Error {
 3. `errorDetail` 없으면 → 기존 `error` string 또는 HTTP 상태코드 폴백
 4. `res.json()` 파싱 실패 → `PARSE_ERROR`
 
-**X-Request-Id**: 모든 요청에 `crypto.randomUUID()` 자동 부착. S2가 그대로 사용하여 S2→S3 체인까지 전파.
+**X-Request-Id**: 모든 요청에 `crypto.randomUUID()` 자동 부착. S2가 그대로 사용하여 S2→S3 체인까지 전파. `downloadFile()`도 X-Request-Id 포함.
 
 **retryable 대응**: `retryable: true`인 에러 발생 시 toast에 "다시 시도" 액션 버튼 표시. 클릭 시 해당 함수 재실행.
+
+**로깅 헬퍼**:
+- `logError(context, e)`: `ApiError`에서 `requestId`를 추출해 로그에 포함. 모든 catch 블록에서 `console.error` 대신 사용.
+- `healthFetch(url)`: 헬스체크 전용. `X-Request-Id` 부착, throw 안 함, `{ ok, data }` 반환. StatusBar, SettingsPage, ProjectSettingsPage, OverviewPage에서 사용.
 
 ### 현재 구현된 API
 
@@ -581,6 +595,24 @@ class ApiError extends Error {
 | | `createRule(pid, rule)` | POST /api/projects/:pid/rules |
 | | `updateRule(pid, id, upd)` | PUT /api/projects/:pid/rules/:id |
 | | `deleteRule(pid, id)` | DELETE /api/projects/:pid/rules/:id |
+| Static+ | `runStaticAnalysisAsync(pid, files)` | POST /api/static-analysis/run |
+| | `fetchAnalysisProgress(id)` | GET /api/static-analysis/status/:id |
+| | `fetchAllAnalysisStatuses()` | GET /api/static-analysis/status |
+| | `abortAnalysis(id)` | POST /api/static-analysis/abort/:id |
+| | `fetchStaticDashboardSummary(pid, p)` | GET /api/static-analysis/summary?projectId=&period= |
+| Runs | `fetchProjectRuns(pid)` | GET /api/projects/:pid/runs |
+| | `fetchRunDetail(runId)` | GET /api/runs/:runId |
+| Findings | `fetchProjectFindings(pid, filters)` | GET /api/projects/:pid/findings |
+| | `fetchFindingDetail(fId)` | GET /api/findings/:fId |
+| | `updateFindingStatus(fId, status, reason)` | PATCH /api/findings/:fId/status |
+| Report | `fetchProjectReport(pid, filters)` | GET /api/projects/:pid/report |
+| | `fetchModuleReport(pid, module, filters)` | GET /api/projects/:pid/report/:module |
+| CAN | `fetchScenarios()` | GET /api/dynamic-analysis/scenarios |
+| | `injectCanMessage(sId, req)` | POST /api/dynamic-analysis/sessions/:sId/inject |
+| | `injectScenario(sId, scenarioId)` | POST /api/dynamic-analysis/sessions/:sId/inject-scenario |
+| | `fetchInjections(sId)` | GET /api/dynamic-analysis/sessions/:sId/injections |
+| Helpers | `logError(context, e)` | — (requestId 포함 에러 로깅) |
+| | `healthFetch(url)` | GET :url/health (X-Request-Id, non-throwing) |
 | WebSocket | `getWsBaseUrl()` | http → ws 변환 |
 
 ### 추가 필요한 API (S2 구현 대기)
@@ -617,18 +649,28 @@ class ApiError extends Error {
 | `AdapterSelector` | 어댑터 선택 (ECU 이름·CAN ID 수 표시) |
 | `ErrorBoundary` | 렌더링 크래시 방어 (class component, fallback UI) |
 
+### 추가된 컴포넌트 (구현 완료)
+
+| 컴포넌트 | 용도 |
+|---------|------|
+| `FindingStatusBadge` | Finding 상태 배지 (7-state) ✅ |
+| `ConfidenceBadge` | confidence 점수 배지 ✅ |
+| `SourceBadge` | 탐지 출처 배지 (rule / llm) ✅ |
+| `FindingSummary` | Finding 요약 인라인 ✅ |
+| `EvidencePanel` | evidence 목록 + 선택 ✅ |
+| `EvidenceViewer` | evidence type별 렌더러 (오버레이) ✅ |
+| `StateTransitionDialog` | 상태 변경 다이얼로그 (허용 전이 + 사유 필수) ✅ |
+| `GateResultCard` | quality gate 결과 카드 (pass/fail/warning + rules) ✅ |
+| `PeriodSelector` | 기간 선택기 (7d/30d/90d/all) ✅ |
+| `TrendChart` | 트렌드 SVG 차트 ✅ |
+| `ConfirmDialog` | 확인/취소 다이얼로그 ✅ |
+
 ### 추가 필요한 컴포넌트
 
 | 컴포넌트 | 용도 |
 |---------|------|
-| `FindingStatusBadge` | Finding 상태 배지 (7-state) |
 | `ValidationStatusBadge` | 재검증 상태 배지 |
-| `SourceBadge` | 탐지 출처 배지 (rule / AI-only / manual) |
-| `EvidencePanel` | evidence 목록 + viewer |
-| `EvidenceViewer` | registry-based type별 렌더러 |
-| `StateTransitionDialog` | 상태 변경 다이얼로그 |
 | `ApprovalCard` | 승인 요청 카드 |
-| `GateResultPanel` | quality gate 결과 패널 |
 | `RunHeader` | run 정보 헤더 |
 | `EventStream` | 실시간 이벤트 스트림 |
 | `TimelineView` | 타임라인 뷰 |
@@ -637,9 +679,11 @@ class ApiError extends Error {
 
 | Hook | 용도 |
 |------|------|
-| `useStaticAnalysis` | 정적 분석 워크플로우 |
+| `useStaticAnalysis` | 정적 분석 워크플로우 (레거시 동기) |
+| `useStaticDashboard` | 대시보드 데이터 + 활성 분석 폴링 |
+| `useAsyncAnalysis` | 비동기 분석 실행 + 진행률 폴링 |
 | `useDynamicTest` | 동적 테스트 워크플로우 (WebSocket) |
-| `useAdapters` | 어댑터 상태 (5초 폴링) |
+| `useAdapters` | 어댑터 상태 (5초 폴링, ecuMeta) |
 
 ---
 

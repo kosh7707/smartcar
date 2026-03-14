@@ -86,9 +86,10 @@ JSON structured logging (stdout). 모든 서비스 공통.
 ### 4.2 HTTP 전파
 
 - 헤더명: `X-Request-Id`
-- S2 미들웨어가 생성 (`crypto.randomUUID()`) 또는 수신 헤더 사용
+- S2 미들웨어가 생성 (`req-{uuid}`) 또는 수신 헤더 사용
 - S2 → S3 호출 시 `X-Request-Id` 헤더로 전달
 - S3는 수신한 Request ID를 로그에 포함
+- S3 → S4 호출 시에도 `X-Request-Id` 헤더로 전달 (S4가 무시하더라도 S3 로그에 기록)
 - 응답 헤더에 `X-Request-Id` 포함 (디버깅용)
 
 ### 4.3 비-HTTP 작업
@@ -139,8 +140,8 @@ logs/                       # 프로젝트 루트 (git-ignored)
 파일의 각 줄이 독립된 JSON 객체 (JSON Lines 형식):
 
 ```
-{"level":30,"time":1741776000000,"name":"s2-backend","component":"llm-client","requestId":"req-xxx","msg":"LLM analysis started"}
-{"level":30,"time":1741776001000,"name":"s2-backend","component":"llm-client","requestId":"req-xxx","msg":"LLM analysis completed"}
+{"level":30,"time":1741776000000,"name":"s2-backend","component":"llm-task-client","requestId":"req-xxx","msg":"v1 Task completed"}
+{"level":30,"time":1741776001000,"name":"s2-backend","component":"llm-v1-adapter","requestId":"req-xxx","msg":"LLM request queued (concurrency=1)"}
 ```
 
 관리자 도구에서 줄 단위로 `JSON.parse()` 하여 필터링/시각화.
@@ -165,3 +166,35 @@ logs/                       # 프로젝트 루트 (git-ignored)
 ### 6.5 로그 로테이션 (후속 과제)
 
 현재는 단일 파일에 append. 파일이 커지면 날짜/크기 기반 로테이션 도입 예정 (`pino-roll` 등).
+
+---
+
+## 7. S4 (LLM Engine) 관측 원칙
+
+S4는 vLLM 컨테이너로 자체 계측이 불가능하다. 대신 **S3가 관측 지점** 역할을 수행한다.
+
+### 7.1 관측 방식
+
+S3가 S4의 유일한 caller이므로, S3에서 S4 호출 전후를 기록하면 S4를 별도 계측 없이 관측할 수 있다.
+
+```
+S3 로그 (S4 호출 시):
+  ┌─ 호출 시작: requestId, model, max_tokens
+  │   ↓ S4 처리 (블랙박스)
+  └─ 호출 완료: requestId, latencyMs, tokenUsage, status
+     또는
+  └─ 호출 실패: requestId, error, latencyMs
+```
+
+### 7.2 S3가 기록해야 하는 S4 관측 필드
+
+| 시점 | 필드 | 설명 |
+|------|------|------|
+| 호출 시작 | `requestId`, `model`, `maxTokens` | 어떤 요청을 보냈는지 |
+| 호출 성공 | `requestId`, `latencyMs`, `promptTokens`, `completionTokens` | 응답 성능 + 토큰 사용량 |
+| 호출 실패 | `requestId`, `errorCode`, `latencyMs` | 실패 원인 + 소요 시간 |
+
+### 7.3 vLLM 자체 메트릭 (향후)
+
+vLLM은 `GET /metrics` (Prometheus 형식) 엔드포인트를 제공한다.
+토큰 처리량, 큐 깊이, GPU 사용률 등 서빙 레벨 메트릭을 수집할 수 있으며, 필요 시 S4 운영 담당이 별도 수집 체계를 구성한다.

@@ -14,6 +14,7 @@ import { runDAO } from "../dao/run.dao";
 import { findingDAO } from "../dao/finding.dao";
 import { evidenceRefDAO } from "../dao/evidence-ref.dao";
 import { createLogger } from "../lib/logger";
+import type { QualityGateService } from "./quality-gate.service";
 
 const logger = createLogger("result-normalizer");
 
@@ -24,6 +25,7 @@ export interface NormalizerContext {
 }
 
 export class ResultNormalizer {
+  constructor(private gateService?: QualityGateService) {}
   normalizeAnalysisResult(result: AnalysisResult, context?: NormalizerContext): Run | undefined {
     // 멱등성: 이미 정규화된 결과면 skip
     const existing = runDAO.findByAnalysisResultId(result.id);
@@ -79,10 +81,12 @@ export class ResultNormalizer {
       };
 
       // 원자적 저장: Run + Findings + EvidenceRefs
+      // 주의: DAO.saveMany()는 내부에서 db.transaction()을 생성하므로
+      // 중첩 트랜잭션을 피하기 위해 개별 save()를 직접 호출한다.
       const tx = db.transaction(() => {
         runDAO.save(run);
-        if (findings.length > 0) findingDAO.saveMany(findings);
-        if (evidenceRefs.length > 0) evidenceRefDAO.saveMany(evidenceRefs);
+        for (const f of findings) findingDAO.save(f);
+        for (const r of evidenceRefs) evidenceRefDAO.save(r);
       });
       tx();
 
@@ -93,6 +97,16 @@ export class ResultNormalizer {
         findingCount: findings.length,
         evidenceCount: evidenceRefs.length,
       }, "Analysis result normalized");
+
+      // Gate 평가 (실패해도 정규화 결과에 영향 없음)
+      if (this.gateService) {
+        try {
+          const gate = this.gateService.evaluateRun(runId);
+          logger.info({ runId, gateStatus: gate.status }, "Gate evaluated");
+        } catch (err) {
+          logger.warn({ err, runId }, "Gate evaluation failed — skipped");
+        }
+      }
 
       return run;
     } catch (err) {

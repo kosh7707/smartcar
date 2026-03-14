@@ -17,6 +17,7 @@ import { FileDetailPage } from "./pages/FileDetailPage";
 import { FilesPage } from "./pages/FilesPage";
 import { VulnerabilitiesPage } from "./pages/VulnerabilitiesPage";
 import { AnalysisHistoryPage } from "./pages/AnalysisHistoryPage";
+import { ReportPage } from "./pages/ReportPage";
 
 export const App: React.FC = () => {
   return (
@@ -41,6 +42,7 @@ export const App: React.FC = () => {
                     <Route path="files/:fileId" element={<FileDetailPage />} />
                     <Route path="vulnerabilities" element={<VulnerabilitiesPage />} />
                     <Route path="analysis-history" element={<AnalysisHistoryPage />} />
+                    <Route path="report" element={<ReportPage />} />
                     <Route path="settings" element={<ProjectSettingsPage />} />
                   </Route>
                   <Route path="/settings" element={<SettingsPage />} />

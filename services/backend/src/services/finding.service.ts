@@ -16,14 +16,15 @@ import { createLogger } from "../lib/logger";
 const logger = createLogger("finding-service");
 
 // 상태 전이 규칙
+// 유연 워크플로우: 분석가가 직접 분류 가능. sandbox→sandbox 제외 (시스템 전용).
 const VALID_TRANSITIONS: Record<FindingStatus, FindingStatus[]> = {
-  open: ["needs_review"],
-  sandbox: ["needs_review"],
+  open: ["needs_review", "accepted_risk", "false_positive", "fixed"],
+  sandbox: ["needs_review", "open", "false_positive"],
   needs_review: ["accepted_risk", "false_positive", "fixed", "open"],
-  accepted_risk: ["needs_review"],
-  false_positive: ["needs_review"],
-  fixed: ["needs_revalidation"],
-  needs_revalidation: ["open", "fixed"],
+  accepted_risk: ["needs_review", "open"],
+  false_positive: ["needs_review", "open"],
+  fixed: ["needs_revalidation", "open"],
+  needs_revalidation: ["open", "fixed", "false_positive"],
 };
 
 export class FindingService {
@@ -38,7 +39,14 @@ export class FindingService {
 
   findByProjectId(
     projectId: string,
-    filters?: { status?: FindingStatus; severity?: Severity; module?: AnalysisModule }
+    filters?: {
+      status?: FindingStatus | FindingStatus[];
+      severity?: Severity | Severity[];
+      module?: AnalysisModule;
+      runId?: string;
+      from?: string;
+      to?: string;
+    },
   ): Finding[] {
     return findingDAO.findByProjectId(projectId, filters);
   }

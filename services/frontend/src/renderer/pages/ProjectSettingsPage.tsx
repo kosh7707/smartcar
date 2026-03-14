@@ -21,6 +21,7 @@ import {
   createAdapter, updateAdapter, deleteAdapter,
   connectAdapterById, disconnectAdapterById,
   fetchProjectSettings, updateProjectSettings,
+  logError, healthFetch,
 } from "../api/client";
 import { useAdapters } from "../hooks/useAdapters";
 import { useToast } from "../contexts/ToastContext";
@@ -115,7 +116,7 @@ export const ProjectSettingsPage: React.FC = () => {
       await deleteAdapter(projectId, a.id);
       await refreshAdapters();
     } catch (e) {
-      console.error("Delete adapter failed:", e);
+      logError("Delete adapter", e);
       toast.error("어댑터 삭제에 실패했습니다.");
     }
   };
@@ -140,7 +141,7 @@ export const ProjectSettingsPage: React.FC = () => {
       await disconnectAdapterById(projectId, a.id);
       await refreshAdapters();
     } catch (e) {
-      console.error("Disconnect failed:", e);
+      logError("Disconnect adapter", e);
       toast.error("어댑터 연결 해제에 실패했습니다.");
     }
   };
@@ -160,7 +161,7 @@ export const ProjectSettingsPage: React.FC = () => {
       const data = await fetchRules(projectId);
       setRules(data);
     } catch (e) {
-      console.error("Failed to fetch rules:", e);
+      logError("Fetch rules", e);
       toast.error("룰 목록을 불러올 수 없습니다.");
     } finally {
       setLoading(false);
@@ -172,8 +173,8 @@ export const ProjectSettingsPage: React.FC = () => {
     try {
       const s = await fetchProjectSettings(projectId);
       setLlmUrl(s.llmUrl);
-    } catch {
-      // default
+    } catch (e) {
+      logError("Load project settings", e);
     }
   };
 
@@ -185,7 +186,7 @@ export const ProjectSettingsPage: React.FC = () => {
       const updated = await updateRule(projectId, rule.id, { enabled: !rule.enabled });
       setRules((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
     } catch (e) {
-      console.error("Failed to toggle rule:", e);
+      logError("Toggle rule", e);
       toast.error("룰 상태 변경에 실패했습니다.");
     }
   };
@@ -200,7 +201,7 @@ export const ProjectSettingsPage: React.FC = () => {
       await deleteRule(projectId, rule.id);
       setRules((prev) => prev.filter((r) => r.id !== rule.id));
     } catch (e) {
-      console.error("Failed to delete rule:", e);
+      logError("Delete rule", e);
       toast.error("룰 삭제에 실패했습니다.");
     }
   };
@@ -403,15 +404,9 @@ export const ProjectSettingsPage: React.FC = () => {
                 onClick={async () => {
                   setLlmTesting(true);
                   setLlmTestResult("idle");
-                  try {
-                    const res = await fetch(`${llmUrl.trim() || "http://localhost:8000"}/health`);
-                    const data = await res.json();
-                    setLlmTestResult(data?.status === "ok" ? "ok" : "error");
-                  } catch {
-                    setLlmTestResult("error");
-                  } finally {
-                    setLlmTesting(false);
-                  }
+                  const { ok } = await healthFetch(llmUrl.trim() || "http://localhost:8000");
+                  setLlmTestResult(ok ? "ok" : "error");
+                  setLlmTesting(false);
                 }}
                 disabled={llmTesting}
               >
@@ -426,7 +421,7 @@ export const ProjectSettingsPage: React.FC = () => {
                     setLlmUrl(updated.llmUrl);
                     setLlmSaved(true);
                     setTimeout(() => setLlmSaved(false), 2000);
-                  } catch { /* ignore */ }
+                  } catch (e) { logError("Save LLM URL", e); }
                 }}
               >
                 {llmSaved ? "저장됨" : "저장"}
@@ -447,7 +442,7 @@ export const ProjectSettingsPage: React.FC = () => {
                   const updated = await updateProjectSettings(projectId, { llmUrl: "" });
                   setLlmUrl(updated.llmUrl);
                   setLlmTestResult("idle");
-                } catch { /* ignore */ }
+                } catch (e) { logError("Reset LLM URL", e); }
               }}
             >
               서버 기본값으로 초기화

@@ -73,11 +73,11 @@ export function useDynamicTest(projectId: string) {
             cleanup();
             break;
         }
-      } catch { /* ignore parse errors */ }
+      } catch (e) { console.warn("[WS:dynamic-test] malformed message:", e); }
     };
 
     ws.onerror = () => {
-      // WS failure is non-fatal; HTTP response still works
+      console.warn("[WS:dynamic-test] error (non-fatal, HTTP response still works)");
     };
 
     // 2. POST to start (wait briefly for WS to connect)

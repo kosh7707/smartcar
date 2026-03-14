@@ -27,6 +27,25 @@ import type {
   AdapterListResponse,
   AdapterResponse,
   ProjectSettings,
+  ProjectReport,
+  ProjectReportResponse,
+  ModuleReport,
+  ModuleReportResponse,
+
+  StaticAnalysisDashboardSummary,
+  StaticDashboardResponse,
+  RunDetailResponse,
+  AnalysisProgress,
+  AnalysisStatusResponse,
+  AnalysisStatusListResponse,
+  AnalysisRunAcceptedResponse,
+  Run,
+  Finding,
+  FindingStatus,
+  RunListResponse,
+  FindingListResponse,
+  FindingDetailResponse,
+  FindingStatusUpdateRequest,
 } from "@smartcar/shared";
 
 const DEFAULT_BACKEND_URL = "http://localhost:3000";
@@ -76,6 +95,32 @@ export class ApiError extends Error {
     this.code = code;
     this.retryable = retryable;
     this.requestId = requestId;
+  }
+}
+
+/** Extract requestId from ApiError and log with context. */
+export function logError(context: string, e: unknown): void {
+  const requestId = e instanceof ApiError ? e.requestId : undefined;
+  const msg = e instanceof Error ? e.message : String(e);
+  if (requestId) {
+    console.error(`[${context}] ${msg} (requestId: ${requestId})`);
+  } else {
+    console.error(`[${context}]`, msg, e);
+  }
+}
+
+/** Health check with X-Request-Id. Returns ok status without throwing. */
+export async function healthFetch(url: string): Promise<{ ok: boolean; data?: Record<string, unknown> }> {
+  const requestId = crypto.randomUUID();
+  try {
+    const res = await fetch(`${url}/health`, {
+      headers: { "X-Request-Id": requestId },
+    });
+    const data = await res.json();
+    return { ok: data?.status === "ok", data };
+  } catch {
+    console.warn(`[healthFetch] ${url} unreachable (requestId: ${requestId})`);
+    return { ok: false };
   }
 }
 
@@ -243,8 +288,11 @@ export async function fetchProjectFiles(projectId: string): Promise<UploadedFile
 }
 
 export async function downloadFile(fileId: string): Promise<string> {
-  const res = await fetch(`${(window as any).api?.backendUrl ?? "http://localhost:3000"}/api/files/${fileId}/download`);
-  if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+  const requestId = crypto.randomUUID();
+  const res = await fetch(`${getBaseUrl()}/api/files/${fileId}/download`, {
+    headers: { "X-Request-Id": requestId },
+  });
+  if (!res.ok) throw new ApiError(`Download failed: ${res.status}`, "DOWNLOAD_ERROR", false, requestId);
   return res.text();
 }
 
@@ -472,4 +520,118 @@ export async function updateRule(projectId: string, id: string, updates: RuleUpd
 
 export async function deleteRule(projectId: string, id: string): Promise<void> {
   await apiFetch(`/api/projects/${projectId}/rules/${id}`, { method: "DELETE" });
+}
+
+// ── Static Analysis Dashboard ──
+
+export async function fetchStaticDashboardSummary(
+  projectId: string,
+  period: string = "30d",
+): Promise<StaticAnalysisDashboardSummary> {
+  const res = await apiFetch<StaticDashboardResponse>(
+    `/api/static-analysis/summary?projectId=${encodeURIComponent(projectId)}&period=${period}`,
+  );
+  return res.data!;
+}
+
+export async function runStaticAnalysisAsync(
+  projectId: string,
+  files: UploadedFile[],
+): Promise<AnalysisRunAcceptedResponse> {
+  return apiFetch<AnalysisRunAcceptedResponse>("/api/static-analysis/run", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ projectId, files }),
+  });
+}
+
+export async function fetchAnalysisProgress(id: string): Promise<AnalysisProgress> {
+  const res = await apiFetch<AnalysisStatusResponse>(`/api/static-analysis/status/${id}`);
+  return res.data!;
+}
+
+export async function fetchAllAnalysisStatuses(): Promise<AnalysisProgress[]> {
+  const res = await apiFetch<AnalysisStatusListResponse>("/api/static-analysis/status");
+  return res.data;
+}
+
+export async function abortAnalysis(id: string): Promise<void> {
+  await apiFetch(`/api/static-analysis/abort/${id}`, { method: "POST" });
+}
+
+export async function fetchProjectRuns(projectId: string): Promise<Run[]> {
+  const res = await apiFetch<RunListResponse>(`/api/projects/${projectId}/runs`);
+  return res.data;
+}
+
+export async function fetchRunDetail(runId: string): Promise<RunDetailResponse["data"]> {
+  const res = await apiFetch<RunDetailResponse>(`/api/runs/${runId}`);
+  return res.data!;
+}
+
+export async function fetchProjectFindings(
+  projectId: string,
+  filters?: { status?: string; severity?: string; module?: string },
+): Promise<Finding[]> {
+  const params = new URLSearchParams();
+  if (filters?.status) params.set("status", filters.status);
+  if (filters?.severity) params.set("severity", filters.severity);
+  if (filters?.module) params.set("module", filters.module);
+  const qs = params.toString();
+  const res = await apiFetch<FindingListResponse>(
+    `/api/projects/${projectId}/findings${qs ? `?${qs}` : ""}`,
+  );
+  return res.data;
+}
+
+export async function fetchFindingDetail(
+  findingId: string,
+): Promise<Finding & { evidenceRefs: import("@smartcar/shared").EvidenceRef[]; auditLog: import("@smartcar/shared").AuditLogEntry[] }> {
+  const res = await apiFetch<FindingDetailResponse>(`/api/findings/${findingId}`);
+  return res.data!;
+}
+
+export async function updateFindingStatus(
+  findingId: string,
+  status: FindingStatus,
+  reason: string,
+): Promise<Finding> {
+  const res = await apiFetch<{ success: boolean; data: Finding }>(`/api/findings/${findingId}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status, reason } satisfies FindingStatusUpdateRequest),
+  });
+  return res.data;
+}
+
+// ── Report ──
+
+export interface ReportFilters {
+  from?: string;
+  to?: string;
+  severity?: string;
+  status?: string;
+  runId?: string;
+}
+
+function buildReportQuery(filters?: ReportFilters): string {
+  if (!filters) return "";
+  const params = new URLSearchParams();
+  if (filters.from) params.set("from", filters.from);
+  if (filters.to) params.set("to", filters.to);
+  if (filters.severity) params.set("severity", filters.severity);
+  if (filters.status) params.set("status", filters.status);
+  if (filters.runId) params.set("runId", filters.runId);
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
+}
+
+export async function fetchProjectReport(projectId: string, filters?: ReportFilters): Promise<ProjectReport> {
+  const res = await apiFetch<ProjectReportResponse>(`/api/projects/${projectId}/report${buildReportQuery(filters)}`);
+  return res.data!;
+}
+
+export async function fetchModuleReport(projectId: string, module: "static" | "dynamic" | "test", filters?: ReportFilters): Promise<ModuleReport> {
+  const res = await apiFetch<ModuleReportResponse>(`/api/projects/${projectId}/report/${module}${buildReportQuery(filters)}`);
+  return res.data!;
 }

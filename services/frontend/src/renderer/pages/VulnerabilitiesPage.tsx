@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import type { Vulnerability, Severity, AnalysisResult } from "@smartcar/shared";
 import { Shield, AlertTriangle, AlertCircle, Info, Calendar } from "lucide-react";
-import { fetchProjectOverview } from "../api/client";
+import { fetchProjectOverview, logError } from "../api/client";
 import { useToast } from "../contexts/ToastContext";
 import { VulnerabilityDetailView } from "../components/static/VulnerabilityDetailView";
 import { PageHeader, EmptyState, SeverityBadge, SeveritySummary, Spinner } from "../components/ui";
@@ -53,7 +53,7 @@ export const VulnerabilitiesPage: React.FC = () => {
           info: infoCount,
         });
       })
-      .catch((e) => { console.error("Failed to load vulnerabilities:", e); toast.error("취약점 목록을 불러올 수 없습니다."); })
+      .catch((e) => { logError("Load vulnerabilities", e); toast.error("취약점 목록을 불러올 수 없습니다."); })
       .finally(() => setLoading(false));
   }, [projectId]);
 

@@ -7,8 +7,7 @@
 
 ## 1. 시스템 목적
 
-자동차 전장부품(ECU)의 소스코드 및 바이너리를 대상으로
-정적 분석, 동적 분석, 동적 테스트를 수행하고,
+소스코드 및 바이너리를 대상으로 정적 분석, 동적 분석, 동적 테스트를 수행하고,
 LLM 기반 분석을 통해 취약점 탐지 및 수정 가이드를 제공하는 보안 검증 프레임워크.
 
 ---
@@ -61,10 +60,13 @@ MSA(Microservice Architecture) 기반 4개 독립 서비스 구성.
 └───────┬──────────┘
         │ HTTP (REST) + WebSocket
         ▼
-┌──────────────────┐
-│ Core Service     │  검증 오케스트레이션
-│ (Express.js)     │  Port: 3000
-└───────┬──────────┘
+┌──────────────────────────────────────┐
+│ Core Service (Express.js) Port:3000 │
+│  ┌────────┐ ┌──────┐ ┌───────────┐ │
+│  │  Core  │ │Static│ │  Dynamic  │ │
+│  │Domain  │ │Analy.│ │Analy/Test │ │
+│  └────────┘ └──────┘ └───────────┘ │
+└───────┬──────────────────────────────┘
         │ HTTP (REST)
         ▼
 ┌──────────────────┐
@@ -75,7 +77,7 @@ MSA(Microservice Architecture) 기반 4개 독립 서비스 구성.
         ▼
 ┌──────────────────┐
 │ LLM Engine       │  LLM 추론
-│ (Qwen 32B/vLLM)  │  Port: 8080
+│ (Qwen3.5 35B/vLLM)│  Port: 8000
 └──────────────────┘
 ```
 
@@ -86,9 +88,11 @@ MSA(Microservice Architecture) 기반 4개 독립 서비스 구성.
 | ID | 서비스명 | 기술 스택 | 역할 | 포트 |
 |----|---------|----------|------|------|
 | S1 | UI Service | Electron + React + TypeScript | 사용자 인터페이스, 결과 시각화 | 데스크탑 앱 |
-| S2 | Core Service | Express.js + TypeScript | 비즈니스 로직, 검증 오케스트레이션, DB | 3000 |
+| S2 | Core Service | Express.js + TypeScript | 도메인 관리, 정책, DB | 3000 |
+| S2-SA | Static Analysis | (S2 내부 모듈, 향후 분리 예정) | 정적 분석 워크로드 | — |
+| S2-DA | Dynamic Analysis | (S2 내부 모듈, 향후 분리 예정) | 동적 분석/테스트 워크로드 | — |
 | S3 | LLM Gateway | Python + FastAPI | LLM 호출 추상화, 프롬프트 관리 | 8000 |
-| S4 | LLM Engine | Qwen 32B on DGX Spark (vLLM) | LLM 추론 | 8080 |
+| S4 | LLM Engine | Qwen3.5-35B-A3B FP8 on DGX Spark (vLLM) | LLM 추론 | 8000 |
 
 ### S1. UI Service
 
@@ -101,16 +105,75 @@ MSA(Microservice Architecture) 기반 4개 독립 서비스 구성.
 - 전체 현황 대시보드 (취약점 통계, 심각도 분포 차트, 분석 이력)
 - LLM 연결 상태 확인 및 설정
 
-### S2. Core Service
+### S2. Core Service (3-도메인 구조)
 
+현재는 단일 Express.js 프로세스이나, 내부적으로 3개 도메인으로 구분된다. DB가 PostgreSQL로 전환되는 시점에 물리적 분리 예정.
+
+**Core (도메인 관리)**
 - 프로젝트 CRUD 및 DB 관리
-- 정적 분석 모듈: 룰 기반 패턴 매칭 엔진 실행, 룰 추가/제거 인터페이스
-- 동적 분석 모듈: CAN 데이터 수신 (WebSocket), 룰 기반 실시간 탐지, 로그 버퍼링
-- 동적 테스트 모듈: 퍼징 입력 생성, ECU 전송, 응답 수집
-- 각 모듈의 1계층(룰) 결과를 LLM Gateway에 전달하여 2계층(LLM) 분석 요청
-- 1계층 + 2계층 결과 병합, 중복 제거, 심각도 정렬
-- 분석 결과 저장 및 이력 관리
+- Finding/Run/EvidenceRef 코어 도메인 + 상태 머신
+- Quality Gate 정책 엔진 + Approval 워크플로우
+- AuditLog 감사 추적
 - 보고서 데이터 생성
+
+```
+┌─ Project ─────────────────────────────────────────────┐
+│                                                       │
+│  ┌─ Run ────────────────────────────────────────┐     │
+│  │ analysisResultId, module, status              │     │
+│  │                                               │     │
+│  │  ┌─ Finding ──────────────────────────┐       │     │
+│  │  │ severity, status (7-state FSM)     │       │     │
+│  │  │ confidence, sourceType             │       │     │
+│  │  │                                    │       │     │
+│  │  │  ├── EvidenceRef (artifact 연결)   │       │     │
+│  │  │  └── AuditLog (상태 변경 이력)     │       │     │
+│  │  └────────────────────────────────────┘       │     │
+│  │                                               │     │
+│  │  ┌─ GateResult ───────────────────────┐       │     │
+│  │  │ status: pass / fail / warning      │       │     │
+│  │  │ rules[] (정책 규칙 평가 결과)      │       │     │
+│  │  │ override? ──→ Approval 필요        │       │     │
+│  │  └────────────────────────────────────┘       │     │
+│  └───────────────────────────────────────────────┘     │
+│                                                       │
+│  ┌─ Approval ────────────────────────────────────┐    │
+│  │ actionType: gate.override | finding.accepted  │    │
+│  │ status: pending → approved / rejected / expired│    │
+│  │ decision → AuditLog 기록                       │    │
+│  └────────────────────────────────────────────────┘    │
+└───────────────────────────────────────────────────────┘
+```
+
+```
+Finding 상태 머신 (7-state)
+
+                    ┌──────────────────────┐
+                    ▼                      │
+  ┌──────┐    ┌──────────┐    ┌────────────────┐
+  │ open │◄──►│needs_    │───►│ accepted_risk  │
+  └──┬───┘    │review    │    │ false_positive │
+     │        └──────────┘    │ fixed          │
+     │             ▲          └───────┬────────┘
+     │             │                  │ (fixed only)
+     ▼             │                  ▼
+  ┌────────┐       │          ┌──────────────────┐
+  │sandbox │───────┘          │needs_revalidation│
+  └────────┘                  └──────────────────┘
+  (LLM-only)                    → open / fixed / false_positive
+```
+
+**Static Analysis (정적 분석 워크로드)**
+- 룰 기반 패턴 매칭 엔진 (L1~L4)
+- 소스코드 파일 업로드/관리
+- LLM 분석 요청 (S3 호출)
+- 1계층 + 2계층 결과 병합, 정렬
+
+**Dynamic (동적 분석/테스트 워크로드)**
+- CAN 데이터 수신 (WebSocket), 룰 기반 실시간 탐지, 로그 버퍼링
+- 퍼징 입력 생성, ECU 전송, 응답 수집
+- Adapter/ECU Simulator 통신
+- LLM 분석 요청 (S3 호출)
 
 ### S3. LLM Gateway
 
@@ -128,8 +191,8 @@ MSA(Microservice Architecture) 기반 4개 독립 서비스 구성.
 - 소스코드 취약점 분석 및 수정 가이드 생성
 - CAN 트래픽 이상 패턴 해석 및 공격 유형 분류
 - 퍼징/침투 테스트 결과 해석 및 추가 공격 벡터 제안
-- 2차년도: S3(LLM Gateway)가 맥락 기반 Mock 응답 반환 (ruleResults 심층 분석, CAN 로그 파싱, 테스트 분류) ✅
-- 3차년도: DGX Spark + vLLM + Qwen 32B 실 LLM 연동 (S4 입주 준비 중)
+- v0: S3(LLM Gateway)가 맥락 기반 Mock 응답 반환 (ruleResults 심층 분석, CAN 로그 파싱, 테스트 분류) ✅
+- v1: DGX Spark + vLLM + Qwen3.5-35B-A3B FP8 실 LLM 연동 ✅ (S4 입주 완료, S3 real 모드 운영 중)
 
 ---
 
@@ -173,11 +236,11 @@ Core Service(S2) 내부에서 3개의 검증 모듈을 관리한다.
 
 ### 5.2 모듈 목록
 
-| 모듈 | 성격 | 하는 일 | 제안서 꼭지 매핑 |
-|------|------|--------|----------------|
-| 정적 분석 | 코드를 실행하지 않고 분석 | 소스코드 패턴 매칭 + LLM 코드 리뷰 | 코드 검토/취약성 탐지/수정 지침 자동화, LLM 통합 정적 분석 모듈 구축 |
-| 동적 분석 | 실행 중 관찰 (수동적) | CAN 트래픽 스트리밍 모니터링, 이상 징후 탐지 | 런타임 분석 및 이상 징후 탐지 개발 |
-| 동적 테스트 | 실행 중 개입 (능동적) | ECU 대상 퍼징/침투 테스트 | 동적 테스트 기능 개발 |
+| 모듈 | 성격 | 하는 일 |
+|------|------|--------|
+| 정적 분석 | 코드를 실행하지 않고 분석 | 소스코드 패턴 매칭 + LLM 코드 리뷰 |
+| 동적 분석 | 실행 중 관찰 (수동적) | CAN 트래픽 스트리밍 모니터링, 이상 징후 탐지 |
+| 동적 테스트 | 실행 중 개입 (능동적) | ECU 대상 퍼징/침투 테스트 |
 
 ### 5.3 모듈별 상세
 
@@ -198,8 +261,8 @@ Core Service(S2) 내부에서 3개의 검증 모듈을 관리한다.
     → 보고서 반환
 ```
 
-- 2차년도: 인터페이스 구현 + L1~L2 최소 룰 + LLM mock
-- 3차년도 이후: L3~L4 룰 확장 + 실제 LLM 연동
+- v0: 인터페이스 구현 + L1~L2 최소 룰 + LLM mock
+- 향후: L3~L4 룰 확장 + 실제 LLM 연동
 
 #### 동적 분석
 
@@ -215,8 +278,8 @@ CAN 트래픽 스트리밍 수신 (WebSocket)
     → 대시보드 실시간 표시 + 알림
 ```
 
-- 2차년도: WebSocket 인터페이스 + Mock 데이터 생성기 + 룰 인터페이스 + LLM mock
-- 3차년도 이후: 페스카로/GITC 실데이터 연동
+- v0: WebSocket 인터페이스 + Mock 데이터 생성기 + 룰 인터페이스 + LLM mock
+- 향후: 실 CAN 데이터 연동
 
 #### 동적 테스트
 
@@ -230,8 +293,8 @@ ECU 대상 퍼징/침투 테스트
     → 결과 보고서
 ```
 
-- 2차년도: 인터페이스 + Mock ECU 응답
-- 3차년도 이후: 실 ECU 연동 (페스카로/GITC HIL 환경)
+- v0: 인터페이스 + Mock ECU 응답
+- 향후: 실 ECU 연동 (HIL 환경)
 
 ---
 
@@ -352,10 +415,10 @@ HealthResponse             헬스체크 응답 (공통)
          [S1] → POST /api/analysis → [S2]
                 [S2] 1계층: 패턴 매칭 (룰 엔진)
                 [S2] 2계층: LLM 분석 요청
-                [S2] → POST /api/llm/analyze → [S3]
+                [S2] → POST /v1/tasks → [S3]
                        [S3] 프롬프트 구성 → [S4] LLM 호출
                        [S4] 응답 생성 → [S3]
-                [S3] → 응답 파싱 → [S2]
+                [S3] → TaskResponse → [S2]
                 [S2] 결과 종합 (룰 + LLM 결과 병합) + 저장
          [S2] → AnalysisResponse → [S1]
          [S1] 결과 시각화 + 리포트
@@ -369,7 +432,7 @@ CAN 데이터 소스 → [S2] WebSocket 수신
                   [S2] → WebSocket push → [S1] 실시간 모니터링 표시
                   [S2] 버퍼 축적 → 임계치 도달
                   [S2] 2계층: LLM 분석 요청
-                  [S2] → POST /api/llm/analyze → [S3] → [S4]
+                  [S2] → POST /v1/tasks → [S3] → [S4]
                   [S2] → WebSocket push → [S1] 알림 + 분석 결과 표시
 ```
 
@@ -379,7 +442,7 @@ CAN 데이터 소스 → [S2] WebSocket 수신
 사용자 → [S1] 테스트 대상 설정 + 실행 요청
          [S1] → POST /api/dynamic-test → [S2]
                 [S2] 입력 생성 → ECU 전송 → 응답 수집
-                [S2] → POST /api/llm/analyze → [S3] → [S4]
+                [S2] → POST /v1/tasks → [S3] → [S4]
                 [S2] 결과 종합
          [S2] → TestResponse → [S1]
          [S1] 결과 시각화 + 리포트
@@ -389,14 +452,14 @@ CAN 데이터 소스 → [S2] WebSocket 수신
 
 ```
 [S1] → GET /health → [S2] → 200 OK
-[S2] → GET /health → [S3] → 200 OK
+[S2] → GET /v1/health → [S3] → 200 OK
 ```
 
 ---
 
 ## 9. 개발 단계
 
-### 2차년도 — 프로토타입 (v0.0.0, 2026-03-12 완료)
+### v0.0.0 — 프로토타입 (2026-03-12 완료)
 
 - [x] 프로젝트 구조 및 빌드 환경 구성
 - [x] 서비스 간 통신 검증
@@ -414,28 +477,26 @@ CAN 데이터 소스 → [S2] WebSocket 수신
 - [x] MSA Observability (에러 클래스 계층, 구조화 로깅, Correlation ID, JSONL 파일 저장)
 - [x] 서비스 관리 스크립트 (start.sh/stop.sh, DB 유틸)
 
-### 2→3차년도 전환기 (현재)
+### v0 → v1 전환기 (현재)
 
 - [x] S4 문서 준비 (기능 명세, API 계약서, 인수인계서) — S3가 초안 작성
-- [ ] **S4(DGX Spark) 입주** — vLLM + Qwen 32B 서빙 셋업
-- [ ] S3 `mock` → `real` 전환 (환경변수만 변경하면 동작)
+- [x] **S4(DGX Spark) 입주** — vLLM + Qwen3.5-35B-A3B FP8 서빙 완료
+- [x] S3 `mock` → `real` 전환 완료 (ollama 경유 후 vLLM 직접 연동)
 - [ ] S2 Quality Gate + Approval (3단계)
 - [ ] S1 코어 도메인 UI (Finding triage, Run 상세, Evidence 탐색)
 
-### 3차년도
+### v1 — LLM 실 연동
 
 - [ ] LLM 실 연동 안정화 (프롬프트 튜닝, 성능 최적화)
 - [ ] Agentic SAST (Tool calling, Prepared Guided Agent)
 - [ ] 패턴 매칭 룰 확장 (L3~L4)
-- [ ] 페스카로/GITC 실데이터 연동
 - [ ] 사용자 인증 (JWT)
 
-### 4차년도
+### v2+ — 확장
 
-- [ ] 실차/실 ECU 데이터 기반 검증
+- [ ] 실 ECU 데이터 기반 검증
 - [ ] SIEM 통합
 - [ ] CI/CD 파이프라인 통합
-- [ ] 국제규격 준수 검증
 
 ---
 
@@ -451,7 +512,7 @@ CAN 데이터 소스 → [S2] WebSocket 수신
 | | `specs/llm-engine.md` | **S4** |
 | API 계약 | `api/shared-models.md` | **S2 단독** |
 | | `api/llm-gateway-api.md` | S3 |
-| | `api/llm-engine-api.md` | **S3** (S4는 work-request로 변경 요청) |
+| | `api/llm-engine-api.md` | **S4** (S4 입주 후 소유권 이전 완료) |
 | 인수인계서 | `{sN}-handoff/README.md` | 각 서비스 담당자 |
 | 외부 피드백 | `외부피드백/` | 소유자 없음 (읽기 전용 참고) |
 

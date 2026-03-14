@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useMatch, useNavigate } from "react-router-dom";
-import { healthCheck, fetchProjectSettings } from "../api/client";
+import { healthCheck, fetchProjectSettings, healthFetch } from "../api/client";
 import { useAdapters } from "../hooks/useAdapters";
 import "./StatusBar.css";
 
@@ -35,9 +35,8 @@ export const StatusBar: React.FC = () => {
       try {
         const settings = await fetchProjectSettings(projectId);
         const url = settings.llmUrl?.trim() || "http://localhost:8000";
-        const res = await fetch(`${url}/health`);
-        const data = await res.json();
-        if (!cancelled) setLlmStatus(data?.status === "ok" ? "ok" : "error");
+        const { ok } = await healthFetch(url);
+        if (!cancelled) setLlmStatus(ok ? "ok" : "error");
       } catch {
         if (!cancelled) setLlmStatus("error");
       }

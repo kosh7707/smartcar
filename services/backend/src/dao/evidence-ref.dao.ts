@@ -44,6 +44,26 @@ class EvidenceRefDAO {
   findByFindingId(findingId: string): EvidenceRef[] {
     return selectByFindingStmt.all(findingId).map(rowToEvidenceRef);
   }
+
+  findByFindingIds(findingIds: string[]): Map<string, EvidenceRef[]> {
+    const result = new Map<string, EvidenceRef[]>();
+    if (findingIds.length === 0) return result;
+
+    const placeholders = findingIds.map(() => "?").join(",");
+    const rows = db
+      .prepare(
+        `SELECT * FROM evidence_refs WHERE finding_id IN (${placeholders}) ORDER BY created_at`,
+      )
+      .all(...findingIds);
+
+    for (const row of rows) {
+      const ref = rowToEvidenceRef(row);
+      const list = result.get(ref.findingId);
+      if (list) list.push(ref);
+      else result.set(ref.findingId, [ref]);
+    }
+    return result;
+  }
 }
 
 export const evidenceRefDAO = new EvidenceRefDAO();

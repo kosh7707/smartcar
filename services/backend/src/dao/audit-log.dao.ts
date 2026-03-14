@@ -39,6 +39,18 @@ class AuditLogDAO {
   findByResourceId(resourceId: string): AuditLogEntry[] {
     return selectByResourceStmt.all(resourceId).map(rowToAuditLogEntry);
   }
+
+  findByResourceIds(resourceIds: string[], limit = 100): AuditLogEntry[] {
+    if (resourceIds.length === 0) return [];
+
+    const placeholders = resourceIds.map(() => "?").join(",");
+    return db
+      .prepare(
+        `SELECT * FROM audit_log WHERE resource_id IN (${placeholders}) ORDER BY timestamp DESC LIMIT ?`,
+      )
+      .all(...resourceIds, limit)
+      .map(rowToAuditLogEntry);
+  }
 }
 
 export const auditLogDAO = new AuditLogDAO();

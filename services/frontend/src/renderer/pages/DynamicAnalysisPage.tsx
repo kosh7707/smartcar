@@ -8,6 +8,7 @@ import {
   startDynamicSession,
   stopDynamicSession,
   ApiError,
+  logError,
 } from "../api/client";
 import { useToast } from "../contexts/ToastContext";
 import { MonitoringView } from "../components/dynamic/MonitoringView";
@@ -40,7 +41,7 @@ export const DynamicAnalysisPage: React.FC = () => {
     fetchDynamicSessions(projectId)
       .then(setSessions)
       .catch((e) => {
-        console.error("Failed to load sessions:", e);
+        logError("Load sessions", e);
         const retry = e instanceof ApiError && e.retryable ? { label: "다시 시도", onClick: loadSessions } : undefined;
         toast.error(e instanceof Error ? e.message : "세션 목록을 불러올 수 없습니다.", retry);
       })
@@ -67,7 +68,7 @@ export const DynamicAnalysisPage: React.FC = () => {
       const started = await startDynamicSession(session.id);
       setActiveSession(started);
     } catch (e) {
-      console.error("Failed to create session:", e);
+      logError("Create session", e);
       const retry = e instanceof ApiError && e.retryable ? { label: "다시 시도", onClick: () => handleCreateSession(adapterId) } : undefined;
       toast.error(e instanceof Error ? e.message : "세션 생성에 실패했습니다.", retry);
     } finally {
@@ -93,7 +94,7 @@ export const DynamicAnalysisPage: React.FC = () => {
     try {
       await stopDynamicSession(sessionId);
     } catch (e) {
-      console.error("Stop failed:", e);
+      logError("Stop session", e);
       toast.error("세션 종료에 실패했습니다.");
     }
   };

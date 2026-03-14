@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Settings, Server, Info, Check, X, Sun, Moon, Monitor } from "lucide-react";
-import { getBackendUrl, setBackendUrl } from "../api/client";
+import { getBackendUrl, setBackendUrl, healthFetch } from "../api/client";
 import { getThemePreference, setThemePreference, type ThemePreference } from "../utils/theme";
 import { PageHeader, Spinner } from "../components/ui";
 import "./SettingsPage.css";
@@ -34,19 +34,13 @@ export const SettingsPage: React.FC = () => {
   const handleTest = async () => {
     setTestStatus("testing");
     setTestDetail("");
-    try {
-      const res = await fetch(`${url.trim()}/health`);
-      const data = await res.json();
-      if (data?.status === "ok") {
-        setTestStatus("ok");
-        setTestDetail(`${data.service ?? "backend"} ${data.version ?? ""}`.trim());
-      } else {
-        setTestStatus("error");
-        setTestDetail("비정상 응답");
-      }
-    } catch {
+    const { ok, data } = await healthFetch(url.trim());
+    if (ok && data) {
+      setTestStatus("ok");
+      setTestDetail(`${data.service ?? "backend"} ${data.version ?? ""}`.trim());
+    } else {
       setTestStatus("error");
-      setTestDetail("연결 실패");
+      setTestDetail(ok ? "비정상 응답" : "연결 실패");
     }
   };
 

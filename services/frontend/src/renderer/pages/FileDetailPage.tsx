@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import type { AnalysisResult, UploadedFile, Vulnerability } from "@smartcar/shared";
 import { FileText, Download, FileSearch, Shield } from "lucide-react";
-import { fetchProjectOverview, fetchProjectFiles, fetchFileContent } from "../api/client";
+import { fetchProjectOverview, fetchProjectFiles, fetchFileContent, logError } from "../api/client";
 import { useToast } from "../contexts/ToastContext";
 import { VulnerabilityDetailView } from "../components/static/VulnerabilityDetailView";
 import { BackButton, EmptyState, SeverityBadge, SeveritySummary, ListItem, Spinner } from "../components/ui";
@@ -57,7 +57,7 @@ export const FileDetailPage: React.FC = () => {
           setAnalyses(filtered);
         }
       })
-      .catch((e) => { console.error("Failed to load file detail:", e); toast.error("파일 정보를 불러올 수 없습니다."); })
+      .catch((e) => { logError("Load file detail", e); toast.error("파일 정보를 불러올 수 없습니다."); })
       .finally(() => setLoading(false));
   }, [projectId, fileId]);
 

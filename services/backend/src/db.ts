@@ -237,4 +237,38 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_evidence_refs_finding ON evidence_refs(finding_id);
 `);
 
+// Quality Gate + Approval 테이블
+db.exec(`
+  CREATE TABLE IF NOT EXISTS gate_results (
+    id           TEXT PRIMARY KEY,
+    run_id       TEXT NOT NULL,
+    project_id   TEXT NOT NULL,
+    status       TEXT NOT NULL,
+    rules        TEXT NOT NULL DEFAULT '[]',
+    evaluated_at TEXT NOT NULL,
+    override     TEXT,
+    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_gate_results_run ON gate_results(run_id);
+  CREATE INDEX IF NOT EXISTS idx_gate_results_project ON gate_results(project_id);
+
+  CREATE TABLE IF NOT EXISTS approvals (
+    id            TEXT PRIMARY KEY,
+    action_type   TEXT NOT NULL,
+    requested_by  TEXT NOT NULL DEFAULT 'analyst',
+    target_id     TEXT NOT NULL,
+    project_id    TEXT NOT NULL,
+    reason        TEXT NOT NULL,
+    status        TEXT NOT NULL DEFAULT 'pending',
+    decision      TEXT,
+    expires_at    TEXT NOT NULL,
+    created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_approvals_status ON approvals(status);
+  CREATE INDEX IF NOT EXISTS idx_approvals_project ON approvals(project_id);
+  CREATE INDEX IF NOT EXISTS idx_approvals_target ON approvals(target_id);
+`);
+
 export default db;

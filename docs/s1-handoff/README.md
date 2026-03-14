@@ -7,10 +7,6 @@
 
 ## 1. 프로젝트 전체 그림
 
-### 과제
-
-"가상환경 기반 자동차 전장부품 사이버보안 수준 검증 기술 및 플랫폼 개발" — 부산대학교가 컨소시엄 참여기관으로, 생성형 AI 기반 지능형 사이버보안 공격/검증 프레임워크를 개발한다.
-
 ### 4-서비스 MSA 구조
 
 ```
@@ -26,11 +22,6 @@
 - **1계층**: S2의 룰 엔진이 패턴 매칭으로 빠른 탐지 (정규식 기반)
 - **2계층**: S3가 1계층 결과 + 원본 데이터를 받아 LLM 심층 분석
 - 프론트에서는 탐지 출처로 구분 (`rule` vs `llm`)
-
-### 방향 전환
-
-이 프로젝트는 더이상 연차보고서/데모 시연 기준으로 개발하지 않는다.
-**외부 피드백(`docs/외부피드백/S1_frontend_working_guide.md`)을 기준으로 "진짜 보안 분석 운영 콘솔"을 만든다.**
 
 ---
 
@@ -76,7 +67,7 @@
 | 라우팅 | react-router-dom v6 (HashRouter) |
 | 상태관리 | React Context + useState |
 | 아이콘 | lucide-react |
-| 스타일 | CSS (라이트 테마, 사이드바만 다크, CSS 변수 토큰 시스템) |
+| 스타일 | CSS (라이트/다크/시스템 3-way 테마, CSS 변수 토큰 시스템) |
 | API 통신 | fetch (Electron preload / 브라우저 직접) |
 | 실시간 통신 | WebSocket |
 | 공유 타입 | @smartcar/shared (monorepo) |
@@ -99,12 +90,14 @@ services/frontend/
 │       ├── main.tsx                   ReactDOM.createRoot
 │       ├── App.tsx                    라우팅 + ProjectProvider
 │       ├── api/
-│       │   └── client.ts             모든 백엔드 API 함수
+│       │   └── client.ts             모든 백엔드 API 함수 + logError, healthFetch 헬퍼
 │       ├── contexts/
 │       │   ├── ProjectContext.tsx     프로젝트 목록 공유 상태
 │       │   └── ToastContext.tsx       전역 toast 알림 (에러/경고/성공, 액션 버튼)
 │       ├── hooks/
-│       │   ├── useStaticAnalysis.ts   정적 분석 흐름
+│       │   ├── useStaticAnalysis.ts   정적 분석 흐름 (레거시 동기)
+│       │   ├── useStaticDashboard.ts  대시보드 데이터 + 활성 분석 폴링
+│       │   ├── useAsyncAnalysis.ts    비동기 분석 실행 + 진행률 폴링
 │       │   ├── useDynamicTest.ts      동적 테스트 흐름 (WebSocket)
 │       │   └── useAdapters.ts         어댑터 상태 (5초 폴링, ecuMeta 포함)
 │       ├── layouts/
@@ -113,10 +106,11 @@ services/frontend/
 │       │   ├── Sidebar.tsx            2-tier 사이드바
 │       │   ├── StatusBar.tsx          하단 상태바
 │       │   ├── ErrorBoundary.tsx      렌더링 크래시 방어 (class component)
-│       │   ├── ui/                    공통 UI 컴포넌트
-│       │   ├── static/               정적 분석 하위 컴포넌트
-│       │   └── dynamic/              동적 분석 하위 컴포넌트
-│       ├── constants/                  공유 상수 (모듈 메타, 언어 색상, 동적 분석 라벨)
+│       │   ├── ui/                    공통 UI (배지, 다이얼로그, 카드, PeriodSelector, TrendChart, GateResultCard 등)
+│       │   ├── static/               정적 분석 (Dashboard, Run/Finding 상세, 비동기 진행, 랭킹)
+│       │   ├── dynamic/              동적 분석 하위 컴포넌트
+│       │   └── finding/              Finding/Evidence 컴포넌트 (EvidencePanel, EvidenceViewer)
+│       ├── constants/                  공유 상수 (모듈, 언어, 동적, Finding, Evidence)
 │       ├── pages/                     각 페이지 컴포넌트 + CSS
 │       ├── styles/                    토큰, 리셋, 전역, 컴포넌트 CSS
 │       └── utils/                     포맷팅, 심각도, 파일 유틸, location 파싱
@@ -133,15 +127,16 @@ services/frontend/
 /projects                        → ProjectsPage
 /projects/:projectId             → ProjectLayout
   /overview                      → OverviewPage
-  /static-analysis               → StaticAnalysisPage
+  /static-analysis               → StaticAnalysisPage (내부 뷰: dashboard|modeSelect|upload|progress|runDetail|findingDetail|legacyResult)
   /dynamic-analysis              → DynamicAnalysisPage
   /dynamic-test                  → DynamicTestPage
   /files                         → FilesPage
   /files/:fileId                 → FileDetailPage
   /vulnerabilities               → VulnerabilitiesPage
   /analysis-history              → AnalysisHistoryPage
+  /report                        → ReportPage (모듈 탭, 필터, Finding 테이블, 감사 추적, PDF 내보내기)
   /settings                      → ProjectSettingsPage
-/settings                        → SettingsPage
+/settings                        → SettingsPage (글로벌: 백엔드 URL, 테마 3-way)
 ```
 
 ### 추가 예정
@@ -155,7 +150,6 @@ services/frontend/
   /findings/:findingId           → Finding 상세 + evidence
   /quality-gate                  → Quality Gate 결과
   /approvals                     → Approval Queue
-  /report                        → 보고서
 ```
 
 ---
@@ -168,30 +162,34 @@ services/frontend/
 |------|---------|------|
 | 프로젝트 CRUD | ProjectsPage + ProjectContext | 생성/조회/삭제 |
 | Overview 대시보드 | OverviewPage | 도넛, StatCard(모듈별 분포+언어별), 파일/취약점/이력 |
-| 정적 분석 전체 흐름 | StaticAnalysisPage + AnalysisResultsView | 업로드→진행→결과(파일별 그룹)→상세→이력 |
+| 정적 분석 대시보드 | StaticAnalysisPage + StaticDashboard | KPI 4개, 심각도/출처 분포, 트렌드, 랭킹, 최근 Run, 활성 분석 배너 |
+| 비동기 분석 흐름 | AsyncAnalysisProgressView + useAsyncAnalysis | 5단계 스테퍼, 2.5초 폴링, 중단, 비동기 API |
+| Run 상세 | RunDetailView | Run 메타 + GateResultCard + Finding 파일별 그룹 |
+| Finding 상세 | FindingDetailView | Evidence-first 레이아웃, 상태 변경, 감사 로그 |
+| 정적 분석 레거시 | AnalysisResultsView + VulnerabilityDetailView | ?analysisId= URL 호환 유지 |
 | 동적 분석 | DynamicAnalysisPage + MonitoringView | 세션 관리, CAN 모니터링, 일시정지/재개, 알림 패킷 분리 표시 |
 | 동적 테스트 | DynamicTestPage + useDynamicTest | 전략 선택, WebSocket 진행률, 결과, ecuMeta 자동 채움 |
 | 파일 탐색기/상세 | FilesPage + FileDetailPage | 트리 뷰, 코드, 취약점 하이라이팅 |
 | 취약점 통합 뷰 | VulnerabilitiesPage | 분석 세션별 그룹, 심각도/날짜 필터, 모듈별 컬러 구분 |
 | 분석 이력 | AnalysisHistoryPage | 전 모듈 타임라인 |
+| 보고서 | ReportPage | 프로젝트 보고서 (모듈 탭, 필터, Finding 테이블, Run/Gate, 승인, 감사 추적, PDF 내보내기) |
 | 설정 | SettingsPage + ProjectSettingsPage | 글로벌/프로젝트 |
 | 에러 핸들링 | ErrorBoundary, ToastContext, apiFetch 에러 분류 | X-Request-Id, errorDetail 대응, retryable 재시도 버튼 |
 | 공통 UI | Sidebar, StatusBar, 10+ ui 컴포넌트 | — |
+| Finding UI 컴포넌트 | FindingStatusBadge, ConfidenceBadge, SourceBadge, FindingSummary, StateTransitionDialog | FindingDetailView에 연결 완료 |
+| Evidence 뷰어 | EvidencePanel, EvidenceItemRow, EvidenceViewer | FindingDetailView에서 연동 완료 |
+| 대시보드 UI | PeriodSelector, TrendChart, GateResultCard | 공통 컴포넌트로 추가 |
 
-### 미구현 (새 방향 — S2 shared 모델 확장 대기)
+### 미구현 (S2 API/모델 확장 대기)
 
 | 기능 | 선행 조건 |
 |------|----------|
 | TargetAsset / VersionSnapshot 계층 | shared 모델 (S2) |
-| Run 목록/상세 | shared 모델 (S2) |
-| Finding 상태 머신 + triage | Finding 엔티티 (S2) |
-| Evidence registry-based viewer | Evidence 엔티티 + API (S2) |
+| 독립 Run/Finding 목록 페이지 (/runs, /findings 라우트) | 대시보드 내 뷰로 존재. 독립 라우트 전환은 선택 사항 |
 | Quality Gate 화면 | Gate 엔티티 + API (S2) |
 | Approval Queue | Approval 엔티티 + API (S2) |
 | 동적 분석 운영 콘솔 고도화 | drop/backpressure/gap 감지 (S2 WS 확장) |
 | LLM provenance panel | LLM metadata 확장 (S2/S3) |
-| 보고서 화면 | report API 연동 |
-| 테스트 | — |
 
 ---
 
@@ -205,6 +203,7 @@ services/frontend/
 2. **사용자 알림**: `ToastContext` — 전역 toast (에러/경고/성공), 5초 자동 닫기, 최대 5개 스택, 액션 버튼 지원
 3. **API 에러 분류**: `apiFetch`에서 네트워크 에러 / HTTP 상태코드 / JSON 파싱 실패 분류, `ApiError` 커스텀 에러 클래스 (`code`, `retryable`, `requestId`)
 4. **MSA 연동**: 모든 요청에 `X-Request-Id` 자동 부착, S2 `errorDetail` (구조화 에러 코드) 파싱, `retryable` 에러 시 toast에 "다시 시도" 버튼 표시
+5. **로깅 인프라**: `logError(context, e)` — `ApiError`에서 `requestId`를 추출해 로그에 포함. `healthFetch(url)` — 헬스체크 전용 래퍼 (`X-Request-Id` 부착, 에러 시 throw 안 함). 전 컴포넌트에서 `console.error` 대신 `logError` 사용. WebSocket 연결/해제/에러에 `console.info`/`console.warn` 로깅 추가.
 
 에러 코드 매핑: `INVALID_INPUT`, `NOT_FOUND`, `CONFLICT`, `ADAPTER_UNAVAILABLE`, `LLM_UNAVAILABLE`, `LLM_HTTP_ERROR`, `LLM_PARSE_ERROR`, `LLM_TIMEOUT`, `DB_ERROR`, `INTERNAL_ERROR` → 한국어 사용자 메시지
 
@@ -281,6 +280,16 @@ cd services/backend && npm install && npm run dev
 # → http://localhost:3000
 ```
 
+**환경변수 (.env)**:
+
+각 서비스는 `services/<서비스명>/.env` 파일에서 환경변수를 로드한다. 개별 스크립트와 `start.sh` 모두 `.env`를 자동 로드한다. `.env`는 `.gitignore`에 의해 Git 추적 제외.
+
+| 서비스 | .env 위치 | 주요 변수 |
+|--------|----------|----------|
+| frontend | `services/frontend/.env` | `VITE_BACKEND_URL` |
+
+> 나머지 서비스의 `.env`는 S2가 관리한다. 프론트엔드 `.env`만 너의 담당.
+
 **주의**: WSL2 환경.
 
 ---
@@ -306,7 +315,7 @@ npm run build
 | 아이콘 | lucide-react, `var(--text-secondary)` |
 | severity 컬러 | `--severity-critical`, `--severity-high`, `--severity-medium`, `--severity-low` |
 | 클릭 가능한 행 | `cursor: pointer`, hover 배경, `ChevronRight` |
-| 테마 | 라이트 기본 (사이드바만 다크), CSS 변수 토큰 (`tokens.css`) |
+| 테마 | 라이트/다크/시스템 3-way 전환 (`theme.ts`), CSS 변수 토큰 (`tokens.css`) |
 | 빈 상태 | `EmptyState` 컴포넌트 |
 | 로딩 | `Spinner` 컴포넌트, `.centered-loader` 유틸리티 |
 | 프로그레스바 | `.shimmer-fill` 공유 클래스 (쉬머 효과) |
@@ -330,23 +339,25 @@ npm run build
 
 새 방향의 핵심은 **S2가 도메인 모델을 확장해야 프론트가 움직일 수 있다**는 점이다.
 
-### S2 모델 확장 전에 S1이 할 수 있는 것
+### S1 독립 작업 가능
 
-1. 보고서 화면 (report API 이미 존재)
-2. 동적 분석 운영 콘솔 고도화 (drop/backpressure/gap 감지 — S2 WS 확장 필요)
-3. UI 컴포넌트 선행 개발 (FindingStatusBadge, ValidationStatusBadge, SourceBadge, StateTransitionDialog 등)
-4. Evidence 뷰어 골격 (registry-based 구조, type renderer 인터페이스)
-5. 테스트 인프라 구축
-6. 취약점 목록 그룹 헤더 CSS 틴트 배경 미반영 이슈 조사 (값은 적용되어 있으나 렌더링 확인 필요)
+1. 대시보드 시각 QA — 브라우저에서 KPI, 차트, 랭킹, 반응형(768px) 확인 필요
+2. 비동기 분석 E2E — 새 분석 → 진행 뷰 → 완료 → 대시보드 갱신 플로우 검증
+3. Run/Finding 상세 E2E — Run 클릭 → Finding 클릭 → 상태 변경 → 감사 로그 검증
+4. 동적 분석 운영 콘솔 고도화 (drop/backpressure/gap 감지 — S2 WS 확장 필요)
+5. 독립 라우트 전환 — `/runs/:id`, `/findings/:id` URL 라우트 추가 (현재는 대시보드 내 뷰)
 
-### S2 모델 확장 후 S1이 할 것
+### 완료된 작업 (2026-03-14)
+
+1. ✅ CSS 폴리싱 — `!important` 13개 제거, 인라인 스타일 ~30개 → CSS 클래스 전환, transition 토큰화, 반응형 보강
+2. ✅ 로깅 강화 — `logError`/`healthFetch` 헬퍼 추가, 전 컴포넌트 `console.error` → `logError` 전환 (~33건), direct `fetch` health check → `healthFetch`, silent catch 해소 (11건), WebSocket 이벤트 로깅 추가, `downloadFile` X-Request-Id 추가
+
+### S2 추가 모델 확장 후 S1이 할 것
 
 1. TargetAsset / VersionSnapshot 계층 화면
-2. Run 목록/상세
-3. Finding 목록 (triage) + 상세 (evidence panel)
-4. Quality Gate 화면
-5. Approval Queue
-6. 감사 추적 뷰
+2. Quality Gate 독립 화면
+3. Approval Queue
+4. LLM provenance panel
 
 ---
 

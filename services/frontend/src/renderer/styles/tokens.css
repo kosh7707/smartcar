@@ -133,6 +133,51 @@
   --module-test: var(--accent);
   --module-test-bg: rgba(59, 130, 246, 0.1);
 
+  /* ── Finding Status ── */
+  --status-open: #64748b;
+  --status-open-bg: rgba(100, 116, 139, 0.08);
+  --status-open-border: rgba(100, 116, 139, 0.2);
+  --status-needs-review: #d97706;
+  --status-needs-review-bg: rgba(217, 119, 6, 0.08);
+  --status-needs-review-border: rgba(217, 119, 6, 0.2);
+  --status-accepted-risk: #ca8a04;
+  --status-accepted-risk-bg: rgba(202, 138, 4, 0.08);
+  --status-accepted-risk-border: rgba(202, 138, 4, 0.2);
+  --status-false-positive: #64748b;
+  --status-false-positive-bg: rgba(100, 116, 139, 0.08);
+  --status-false-positive-border: rgba(100, 116, 139, 0.2);
+  --status-fixed: #16a34a;
+  --status-fixed-bg: rgba(22, 163, 74, 0.08);
+  --status-fixed-border: rgba(22, 163, 74, 0.2);
+  --status-needs-revalidation: #ea580c;
+  --status-needs-revalidation-bg: rgba(234, 88, 12, 0.08);
+  --status-needs-revalidation-border: rgba(234, 88, 12, 0.2);
+  --status-sandbox: #94a3b8;
+  --status-sandbox-bg: rgba(148, 163, 184, 0.08);
+  --status-sandbox-border: rgba(148, 163, 184, 0.2);
+
+  /* ── Confidence ── */
+  --confidence-high: #16a34a;
+  --confidence-high-bg: rgba(22, 163, 74, 0.08);
+  --confidence-high-border: rgba(22, 163, 74, 0.2);
+  --confidence-medium: #d97706;
+  --confidence-medium-bg: rgba(217, 119, 6, 0.08);
+  --confidence-medium-border: rgba(217, 119, 6, 0.2);
+  --confidence-low: #dc2626;
+  --confidence-low-bg: rgba(220, 38, 38, 0.08);
+  --confidence-low-border: rgba(220, 38, 38, 0.2);
+
+  /* ── Source ── */
+  --source-rule: var(--module-static);
+  --source-rule-bg: rgba(124, 110, 230, 0.08);
+  --source-rule-border: rgba(124, 110, 230, 0.2);
+  --source-ai: #0ea5e9;
+  --source-ai-bg: rgba(14, 165, 233, 0.08);
+  --source-ai-border: rgba(14, 165, 233, 0.25);
+  --source-both: #8b5cf6;
+  --source-both-bg: rgba(139, 92, 246, 0.08);
+  --source-both-border: rgba(139, 92, 246, 0.2);
+
   /* ── Extra semantic ── */
   --danger-hover: #b91c1c;
   --text-2xs: 10px;
@@ -211,6 +256,38 @@
   --module-static-bg: rgba(155, 138, 251, 0.15);
   --module-dynamic-bg: rgba(22, 163, 74, 0.15);
   --module-test-bg: rgba(59, 130, 246, 0.15);
+
+  /* ── Finding Status (dark) ── */
+  --status-open-bg: rgba(100, 116, 139, 0.15);
+  --status-open-border: rgba(100, 116, 139, 0.3);
+  --status-needs-review-bg: rgba(217, 119, 6, 0.15);
+  --status-needs-review-border: rgba(217, 119, 6, 0.3);
+  --status-accepted-risk-bg: rgba(202, 138, 4, 0.15);
+  --status-accepted-risk-border: rgba(202, 138, 4, 0.3);
+  --status-false-positive-bg: rgba(100, 116, 139, 0.15);
+  --status-false-positive-border: rgba(100, 116, 139, 0.3);
+  --status-fixed-bg: rgba(22, 163, 74, 0.15);
+  --status-fixed-border: rgba(22, 163, 74, 0.3);
+  --status-needs-revalidation-bg: rgba(234, 88, 12, 0.15);
+  --status-needs-revalidation-border: rgba(234, 88, 12, 0.3);
+  --status-sandbox-bg: rgba(148, 163, 184, 0.15);
+  --status-sandbox-border: rgba(148, 163, 184, 0.3);
+
+  /* ── Confidence (dark) ── */
+  --confidence-high-bg: rgba(22, 163, 74, 0.15);
+  --confidence-high-border: rgba(22, 163, 74, 0.3);
+  --confidence-medium-bg: rgba(217, 119, 6, 0.15);
+  --confidence-medium-border: rgba(217, 119, 6, 0.3);
+  --confidence-low-bg: rgba(220, 38, 38, 0.15);
+  --confidence-low-border: rgba(220, 38, 38, 0.3);
+
+  /* ── Source (dark) ── */
+  --source-rule-bg: rgba(155, 138, 251, 0.15);
+  --source-rule-border: rgba(155, 138, 251, 0.3);
+  --source-ai-bg: rgba(14, 165, 233, 0.15);
+  --source-ai-border: rgba(14, 165, 233, 0.3);
+  --source-both-bg: rgba(139, 92, 246, 0.15);
+  --source-both-border: rgba(139, 92, 246, 0.3);
 
   /* ── Extra semantic (dark) ── */
   --danger-hover: #ef4444;
