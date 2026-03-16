@@ -58,7 +58,8 @@ _ASSESSMENT_OUTPUT_SCHEMA = """\
   "usedEvidenceRefs": ["eref-001"],
   "suggestedSeverity": "critical|high|medium|low|info|null",
   "needsHumanReview": true,
-  "recommendedNextSteps": ["후속 조치 제안"]
+  "recommendedNextSteps": ["후속 조치 제안"],
+  "policyFlags": ["ISO21434-noncompliant", "needs-safety-impact-review"]
 }
 
 ## 출력 규칙
@@ -66,12 +67,13 @@ _ASSESSMENT_OUTPUT_SCHEMA = """\
 - claims[].supportingEvidenceRefs에는 [사용 가능한 Evidence Refs]에 나열된 refId만 사용하라.
 - 존재하지 않는 refId를 발명하지 마라.
 - 설명은 한국어로 작성하되, 기술 용어는 영문을 유지한다.
-- "이것은 확정 취약점이다" 형태의 최종 판정을 내리지 마라. assessment(평가 제안)만 제공한다.
+- "이것은 확정 취약점이다" 형태의 최종 판정을 내리지 마라. assessment(평가 제언)만 제공한다.
 - severity는 critical / high / medium / low / info / null 중 하나를 사용한다.
+- policyFlags에는 해당하는 정책 플래그만 포함하라: ISO21434-noncompliant, MISRA-violation, needs-safety-impact-review, UNECE-R155-relevant, crypto-weakness, hardcoded-secret. 해당 없으면 빈 배열.
 - JSON만 출력하라. 앞뒤에 인사말, 설명문, 마크다운을 붙이지 마라.
 
 ## 올바른 출력 예시
-{"summary": "gets() 함수 사용으로 인한 버퍼 오버플로우 취약점이 확인됩니다.", "claims": [{"statement": "gets()는 입력 길이를 제한하지 않아 스택 기반 버퍼 오버플로우를 유발합니다.", "supportingEvidenceRefs": ["eref-001"]}], "caveats": ["ASLR/DEP 적용 여부를 확인하지 못했습니다."], "usedEvidenceRefs": ["eref-001"], "suggestedSeverity": "critical", "needsHumanReview": true, "recommendedNextSteps": ["fgets()로 교체"]}"""
+{"summary": "gets() 함수 사용으로 인한 버퍼 오버플로우 취약점이 확인됩니다.", "claims": [{"statement": "gets()는 입력 길이를 제한하지 않아 스택 기반 버퍼 오버플로우를 유발합니다.", "supportingEvidenceRefs": ["eref-001"]}], "caveats": ["ASLR/DEP 적용 여부를 확인하지 못했습니다."], "usedEvidenceRefs": ["eref-001"], "suggestedSeverity": "critical", "needsHumanReview": true, "recommendedNextSteps": ["fgets()로 교체"], "policyFlags": ["MISRA-violation"]}"""
 
 _TEST_PLAN_OUTPUT_SCHEMA = """\
 [출력 형식]
@@ -152,6 +154,9 @@ ${evidence_refs_list}
 [구조화된 컨텍스트]
 ${trusted_context}
 
+[위협 지식 DB 참고]
+${threat_knowledge_context}
+
 BEGIN_UNTRUSTED_EVIDENCE
 ${untrusted_content}
 END_UNTRUSTED_EVIDENCE
@@ -195,6 +200,9 @@ ${evidence_refs_list}
 [파싱된 이벤트 데이터]
 ${semi_trusted_context}
 
+[위협 지식 DB 참고]
+${threat_knowledge_context}
+
 BEGIN_UNTRUSTED_EVIDENCE
 ${untrusted_content}
 END_UNTRUSTED_EVIDENCE
@@ -222,9 +230,12 @@ END_UNTRUSTED_EVIDENCE
 
 ## 제안 원칙
 1. 제공된 목표와 제약 조건 내에서 시나리오를 구성하라.
-2. 실제 CAN frame 바이트열, shell command, ECU write payload를 포함하지 마라.
+2. 실제 CAN frame 바이트열, shell command, ECU write payload, seed/key 계산 결과를 포함하지 마라.
 3. 실행 가능한 스크립트를 생성하지 마라. 시나리오 수준의 계획만 제공한다.
-4. 안전 제약과 중단 조건을 반드시 명시하라.
+4. 안전 제약과 중단 조건을 반드시 명시하라:
+   - 안전 제약 예시: "ABS/ESC 관련 ECU에는 Write 명령 금지", "엔진 가동 중 테스트 금지"
+   - 중단 조건 예시: "ECU 비응답 3회 연속", "워치독 리셋 감지 시 즉시 중단"
+5. 가설(hypotheses)은 테스트로 검증 가능한 형태로 작성하라 (예: "SecurityAccess 서비스가 brute-force에 lockout을 적용하는가").
 
 /no_think""",
         userTemplate="""\
@@ -233,6 +244,9 @@ ${trusted_context}
 
 [사용 가능한 Evidence Refs]
 ${evidence_refs_list}
+
+[위협 지식 DB 참고]
+${threat_knowledge_context}
 
 BEGIN_UNTRUSTED_EVIDENCE
 ${untrusted_content}
@@ -250,10 +264,19 @@ END_UNTRUSTED_EVIDENCE
 당신은 자동차 전장부품 사이버보안 전문가입니다. \
 유사한 정적 분석 finding들을 그룹핑하고 중복 가능성을 평가합니다.
 
+## 그룹핑 기준 (우선순위 순)
+1. **동일 근본 원인**: 같은 CWE 또는 같은 취약 패턴 (예: CWE-120 계열 버퍼 오버플로우)
+2. **동일 코드 경로**: 같은 함수/모듈에서 발생하는 관련 finding
+3. **동일 수정 전략**: 하나의 코드 변경으로 함께 해결 가능한 finding
+4. **유사 영향 범위**: 같은 ECU/컴포넌트에 영향을 미치는 finding
+
 ## 분석 원칙
-1. 제공된 finding 목록에서 유사한 것들을 묶어 그룹을 제안하라.
-2. 각 그룹에 대해 유사성 근거와 중복 가능성을 설명하라.
-3. 증거에 기반한 주장(claim)만 하라.
+1. 제공된 finding 목록에서 위 기준에 따라 그룹을 제안하라.
+2. 각 그룹에 대해 유사성 근거, 중복 가능성(높음/중간/낮음), 대표 severity를 명시하라.
+3. 그룹에 속하지 않는 독립적 finding은 별도로 표기하라.
+4. summary에 총 finding 수, 제안 그룹 수, 예상 중복 비율을 명시하라.
+5. 각 claim은 "finding A와 B는 [근거]로 그룹핑됨" 형식으로 작성하라.
+6. 증거에 기반한 주장(claim)만 하라. 확인되지 않은 사항은 caveat으로 명시하라.
 
 /no_think""",
         userTemplate="""\
@@ -262,6 +285,9 @@ ${trusted_context}
 
 [사용 가능한 Evidence Refs]
 ${evidence_refs_list}
+
+[위협 지식 DB 참고]
+${threat_knowledge_context}
 
 BEGIN_UNTRUSTED_EVIDENCE
 ${untrusted_content}
@@ -279,10 +305,26 @@ END_UNTRUSTED_EVIDENCE
 당신은 자동차 사이버보안 보고서 작성 전문가입니다. \
 확정된 finding, gate 결과, evidence 요약을 바탕으로 보고서 초안을 생성합니다.
 
+## 준거 기준
+- ISO/SAE 21434 (Cybersecurity Engineering)
+- UNECE WP.29 R155 (CSMS)
+- MISRA C:2012 / AUTOSAR C++14
+
+## 보고서 구조
+summary에 다음 구조를 따라 보고서 초안을 작성하라:
+1. **경영층 요약**: 전체 분석 범위, 핵심 위험, 권고 사항 (비기술적 언어)
+2. **분석 범위**: 대상 ECU/컴포넌트, 분석 도구, 분석 유형
+3. **주요 Finding 요약**: severity별 분류, 각 finding의 1줄 요약
+4. **위험 평가**: 전체 보안 수준 평가, 가장 긴급한 조치 대상
+5. **권고 사항**: 단기(즉시 조치) / 중기(다음 릴리즈) / 장기(아키텍처) 구분
+
 ## 작성 원칙
-1. 제공된 확정 finding과 evidence를 바탕으로 보고서 초안을 작성하라.
-2. 경영층 요약과 기술 부록을 포함하라.
-3. 증거에 기반한 서술만 하라.
+1. 제공된 확정 finding과 evidence만을 바탕으로 서술하라.
+2. 각 finding에 대해 claim을 생성하고 supportingEvidenceRefs를 연결하라.
+3. finding 간 연관관계(같은 공격 체인, 복합 취약점)를 분석하라.
+4. severity 분포를 집계하여 suggestedSeverity에 전체 위험 수준을 반영하라.
+5. 확인되지 않은 사항(미분석 영역, 추가 검증 필요)은 caveat으로 명시하라.
+6. 최종 판정을 내리지 마라. 보고서 초안(assessment)만 제공한다.
 
 /no_think""",
         userTemplate="""\
@@ -291,6 +333,9 @@ ${trusted_context}
 
 [사용 가능한 Evidence Refs]
 ${evidence_refs_list}
+
+[위협 지식 DB 참고]
+${threat_knowledge_context}
 
 BEGIN_UNTRUSTED_EVIDENCE
 ${untrusted_content}

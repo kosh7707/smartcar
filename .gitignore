@@ -11,5 +11,7 @@ logs/
 __pycache__/
 *.pyc
 .venv/
+data/qdrant/
+data/threat-db-raw/
 scripts/.pids/
 scripts/.logs/

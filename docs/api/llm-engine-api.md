@@ -55,6 +55,16 @@ LLM 추론 요청. OpenAI-compatible 형식.
 | stream | boolean | X | 스트리밍 여부. S3는 `false` 사용 (기본: `false`) |
 | chat_template_kwargs | object | X | 템플릿 파라미터. thinking 제어에 사용 |
 
+#### 컨텍스트 한도
+
+| 항목 | 값 | 비고 |
+|------|-----|------|
+| max_model_len | 262,144 토큰 | 모델 컨텍스트 윈도우 |
+| 실질 입력 한도 | max_model_len - max_tokens | 요청별 가변. max_tokens=4096이면 입력 최대 258,048 토큰 |
+| 초과 시 응답 | HTTP 400 | `VLLMValidationError` 메시지에 실제 토큰 수 포함 |
+
+**주의**: S3는 S4 호출 전에 프롬프트 크기를 사전 검증하여 400 에러를 방지해야 한다. 대량 소스 코드 입력 시 truncation 또는 chunking 필요.
+
 #### Message 스키마
 
 | 필드 | 타입 | 설명 |

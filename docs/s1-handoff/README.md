@@ -44,6 +44,15 @@
 
 상세 설계 원칙은 `docs/specs/frontend.md` 2장 참조.
 
+### API 계약 소통 원칙 (필수)
+
+- **다른 서비스의 동작은 반드시 API 계약서(`docs/api/`)로만 파악한다**
+- **다른 서비스의 코드를 절대 읽지 않는다** — 코드를 보고 동작을 파악하거나 거기에 맞춰 구현하는 것은 금지
+- 계약서에 없는 필드/엔드포인트는 "존재하지 않는다"고 간주한다
+- 계약서와 실제 동작이 다르면, 해당 서비스 소유자에게 계약서 갱신을 work-request로 요청한다
+- **공유 모델(`shared-models.md`) 또는 API 계약서가 변경되면, 영향받는 상대 서비스에게 반드시 work-request로 고지한다**
+- 계약서 없이 우회 구현하면 나중에 반드시 깨진다 (예: LLM 직접 health check 사건)
+
 ### 다른 서비스 코드
 
 - S2(백엔드), S3(LLM Gateway) 코드는 기본적으로 수정하지 않음
@@ -110,7 +119,8 @@ services/frontend/
 │       │   ├── static/               정적 분석 (Dashboard, Run/Finding 상세, 비동기 진행, 랭킹)
 │       │   ├── dynamic/              동적 분석 하위 컴포넌트
 │       │   └── finding/              Finding/Evidence 컴포넌트 (EvidencePanel, EvidenceViewer)
-│       ├── constants/                  공유 상수 (모듈, 언어, 동적, Finding, Evidence)
+│       ├── constants/                  공유 상수 (모듈, 언어, 동적, Finding, Evidence, defaults)
+│       ├── types/                     타입 선언 (window.d.ts, react-html.d.ts)
 │       ├── pages/                     각 페이지 컴포넌트 + CSS
 │       ├── styles/                    토큰, 리셋, 전역, 컴포넌트 CSS
 │       └── utils/                     포맷팅, 심각도, 파일 유틸, location 파싱
@@ -260,6 +270,9 @@ Finding 상세에서 보여야 할 순서:
 | 취약점 상세 코드가 가짜 | mock 하드코딩 | downloadFile() 실제 fetch |
 | Overview 하단 수평 스크롤 | grid 자식 min-width: auto | min-width: 0 추가 |
 | VulnerabilitiesPage hooks 에러 | useMemo가 조건부 return 뒤 | useMemo를 early return 위로 이동 |
+| 코드 위치 파싱 불일치 | `getFilename()`이 `split(":")[0]` 사용, 콜론 포함 경로 실패 | `getFileNameFromLocation()` 신규 도입, `parseLocation()` 기반 통일 |
+| 청크 표시 혼란 | "청크 3/41" 사용자 이해 불가 | "LLM 분석 X/Y 단계"로 라벨 변경 |
+| Finding 제목 잘림 | S2 `slice(0,100)` 하드코딩 (S2에 완화 요청) | S1 `.vuln-title`에 CSS line-clamp 2줄 방어 |
 
 ---
 
@@ -351,6 +364,16 @@ npm run build
 
 1. ✅ CSS 폴리싱 — `!important` 13개 제거, 인라인 스타일 ~30개 → CSS 클래스 전환, transition 토큰화, 반응형 보강
 2. ✅ 로깅 강화 — `logError`/`healthFetch` 헬퍼 추가, 전 컴포넌트 `console.error` → `logError` 전환 (~33건), direct `fetch` health check → `healthFetch`, silent catch 해소 (11건), WebSocket 이벤트 로깅 추가, `downloadFile` X-Request-Id 추가
+
+### 완료된 작업 (2026-03-16)
+
+3. ✅ 종합 리팩토링 — 버그 3건 수정 + 코드 품질 감사 ~50건 일괄 정리
+   - **버그 수정**: location 파싱 통일 (`getFilename` → `getFileNameFromLocation`), 청크 라벨 개선, Finding 제목 line-clamp
+   - **`as any` 전량 제거** (7건 → 0건): `window.d.ts`/`react-html.d.ts` 타입 선언, `ErrorBoundary` CSS 클래스 전환
+   - **`projectId!` 전량 제거** (12건 → 0건): 4개 훅 시그니처 optional 전환, 6개 페이지 가드 추가
+   - **CSS `!important` 잔여 제거** (7건 → 0건, print 1건 유지): 특이성 증가 셀렉터로 전환
+   - **하드코딩 URL 상수화**: `constants/defaults.ts` 신규, `ProjectSettingsPage` 6곳 치환
+   - **S2 work-request 2건 발송**: `AnalysisProgress.totalFiles` 필드 추가, Finding 제목 `slice(0,100)` 완화
 
 ### S2 추가 모델 확장 후 S1이 할 것
 

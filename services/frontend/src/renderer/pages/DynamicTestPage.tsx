@@ -43,7 +43,7 @@ export const DynamicTestPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { connected, hasConnected } = useAdapters(projectId);
   const toast = useToast();
-  const test = useDynamicTest(projectId!);
+  const test = useDynamicTest(projectId);
 
   const [history, setHistory] = useState<DynamicTestResult[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -60,7 +60,8 @@ export const DynamicTestPage: React.FC = () => {
   const [selectedAdapterId, setSelectedAdapterId] = useState<string>("");
 
   const loadHistory = () => {
-    getDynamicTestResults(projectId!)
+    if (!projectId) return;
+    getDynamicTestResults(projectId)
       .then(setHistory)
       .catch((e) => {
         logError("Load test history", e);

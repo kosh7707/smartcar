@@ -1,10 +1,11 @@
 import type { AnalysisResult } from "@smartcar/shared";
+import { parseLocation } from "./location";
 
 export function extractFiles(analysis: AnalysisResult): string[] {
   const files = new Set<string>();
   for (const v of analysis.vulnerabilities) {
     if (v.location) {
-      const file = v.location.split(":")[0];
+      const file = parseLocation(v.location).fileName;
       if (file) files.add(file);
     }
   }

@@ -13,7 +13,6 @@ export function getHighlightLine(location?: string): number {
   return match ? parseInt(match[1]) : -1;
 }
 
-export function getFilename(location?: string): string {
-  if (!location) return "";
-  return location.split(":")[0];
+export function getFileNameFromLocation(location?: string | null): string {
+  return parseLocation(location).fileName;
 }

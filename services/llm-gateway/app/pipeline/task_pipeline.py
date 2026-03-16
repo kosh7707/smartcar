@@ -8,7 +8,7 @@ import time
 from datetime import datetime, timezone
 
 from app.config import settings
-from app.errors import LlmHttpError, LlmTimeoutError, LlmUnavailableError
+from app.errors import LlmHttpError, LlmInputTooLargeError, LlmTimeoutError, LlmUnavailableError
 from app.pipeline.confidence import ConfidenceCalculator
 from app.pipeline.prompt_builder import V1PromptBuilder
 from app.pipeline.response_parser import V1ResponseParser
@@ -31,9 +31,9 @@ from app.validators.schema_validator import SchemaValidator
 
 logger = logging.getLogger(__name__)
 
-# 단일 GPU — 동시 요청 시 응답 시간 증가 방지.
-# vLLM은 concurrent 가능하지만, 단일 GPU에서는 순차가 안정적이다.
-_llm_semaphore = asyncio.Semaphore(1)
+# vLLM continuous batching 활용 — 동시 요청 수 제어.
+# SMARTCAR_LLM_CONCURRENCY 환경변수로 조정 가능 (기본 4).
+_llm_semaphore = asyncio.Semaphore(settings.llm_concurrency)
 
 
 class TaskPipeline:
@@ -47,6 +47,8 @@ class TaskPipeline:
         self,
         prompt_registry: PromptRegistry,
         model_registry: ModelProfileRegistry,
+        context_enricher: "ContextEnricher | None" = None,
+        llm_client: "RealLlmClient | None" = None,
     ) -> None:
         self._prompt_registry = prompt_registry
         self._model_registry = model_registry
@@ -55,6 +57,8 @@ class TaskPipeline:
         self._schema_validator = SchemaValidator()
         self._evidence_validator = EvidenceValidator()
         self._confidence_calculator = ConfidenceCalculator()
+        self._context_enricher = context_enricher
+        self._llm_client = llm_client
 
     async def execute(
         self,
@@ -91,12 +95,39 @@ class TaskPipeline:
                 f"model '{profile.profileId}'에서 {request.taskType} 미허용",
             )
 
+        # 3.5 RAG 컨텍스트 증강
+        threat_context = ""
+        rag_hits_count = 0
+        if self._context_enricher:
+            try:
+                threat_context, rag_hits_count = self._context_enricher.enrich(
+                    request, top_k=settings.rag_top_k,
+                )
+            except Exception:
+                logger.warning("[%s] RAG 증강 실패, 건너뜀", request.taskType, exc_info=True)
+
         # 4. 프롬프트 조립
-        messages = self._prompt_builder.build(request, prompt_entry)
-        logger.debug(
-            "[%s] Prompt built (%d messages)",
-            request.taskType, len(messages),
+        messages = self._prompt_builder.build(
+            request, prompt_entry, threat_context=threat_context,
         )
+        logger.debug(
+            "[%s] Prompt built (%d messages, rag_hits=%d)",
+            request.taskType, len(messages), rag_hits_count,
+        )
+
+        # 4.5 프롬프트 길이 사전 검증
+        prompt_chars = sum(len(m.get("content", "")) for m in messages)
+        if prompt_chars > settings.llm_max_input_chars:
+            logger.warning(
+                "[%s] 프롬프트 길이 초과: %d자 > %d자 상한",
+                request.taskType, prompt_chars, settings.llm_max_input_chars,
+            )
+            return self._failure(
+                request, start,
+                TaskStatus.BUDGET_EXCEEDED,
+                FailureCode.INPUT_TOO_LARGE,
+                f"프롬프트가 입력 한도를 초과합니다 ({prompt_chars:,}자 > {settings.llm_max_input_chars:,}자 상한). 입력 크기를 줄여 주세요.",
+            )
 
         # 5. LLM 호출
         raw_response: str
@@ -110,12 +141,20 @@ class TaskPipeline:
                 FailureCode.TIMEOUT,
                 "LLM 요청 시간 초과",
             )
+        except LlmInputTooLargeError as e:
+            return self._failure(
+                request, start,
+                TaskStatus.BUDGET_EXCEEDED,
+                FailureCode.INPUT_TOO_LARGE,
+                str(e),
+            )
         except (LlmUnavailableError, LlmHttpError) as e:
             return self._failure(
                 request, start,
                 TaskStatus.MODEL_ERROR,
                 FailureCode.MODEL_UNAVAILABLE,
                 str(e),
+                retryable=e.retryable,
             )
 
         # 5.5 빈 응답 조기 차단 (Qwen3 thinking 모드에서 content 빈 문자열 가능)
@@ -163,9 +202,11 @@ class TaskPipeline:
             )
 
         # 10. Confidence 산출
+        # 빈 배열/빈 dict는 False로 평가되므로 실 데이터가 있는지 확인
+        rule_matches = request.context.trusted.get("ruleMatches", [])
         has_rules = bool(
             request.context.trusted.get("finding")
-            or request.context.trusted.get("ruleMatches")
+            or (isinstance(rule_matches, list) and len(rule_matches) > 0)
         )
         confidence, breakdown = self._confidence_calculator.calculate(
             parsed, allowed_refs,
@@ -216,11 +257,11 @@ class TaskPipeline:
         )
 
         elapsed_ms = int((time.time() - start) * 1000)
-        audit = self._build_audit(request, elapsed_ms, token_usage)
+        audit = self._build_audit(request, elapsed_ms, token_usage, rag_hits_count)
 
         logger.info(
-            "[%s] Task completed (%.2fs, confidence=%.4f)",
-            request.taskType, elapsed_ms / 1000, confidence,
+            "[%s] Task completed (%.2fs, confidence=%.4f, rag_hits=%d)",
+            request.taskType, elapsed_ms / 1000, confidence, rag_hits_count,
         )
 
         return TaskSuccessResponse(
@@ -241,17 +282,19 @@ class TaskPipeline:
         messages: list[dict[str, str]],
     ) -> tuple[str, TokenUsage]:
         if settings.llm_mode == "real":
-            from app.clients.real import RealLlmClient
+            client = self._llm_client
+            if client is None:
+                from app.clients.real import RealLlmClient
 
-            profile = self._model_registry.get_default()
-            endpoint = profile.endpoint if profile else settings.llm_endpoint
-            model = profile.modelName if profile else settings.llm_model
-            api_key = profile.apiKey if profile else settings.llm_api_key
+                profile = self._model_registry.get_default()
+                endpoint = profile.endpoint if profile else settings.llm_endpoint
+                model = profile.modelName if profile else settings.llm_model
+                api_key = profile.apiKey if profile else settings.llm_api_key
 
-            client = RealLlmClient(
-                endpoint=endpoint, model=model, api_key=api_key,
-                enable_thinking=False, json_mode=True,
-            )
+                client = RealLlmClient(
+                    endpoint=endpoint, model=model, api_key=api_key,
+                    enable_thinking=False, json_mode=True,
+                )
 
             async with _llm_semaphore:
                 content = await client.generate(
@@ -278,6 +321,7 @@ class TaskPipeline:
         status: TaskStatus,
         code: FailureCode,
         detail: str,
+        retryable: bool = False,
     ) -> TaskFailureResponse:
         elapsed_ms = int((time.time() - start) * 1000)
         logger.warning(
@@ -290,6 +334,7 @@ class TaskPipeline:
             status=status,
             failureCode=code,
             failureDetail=detail,
+            retryable=retryable,
             audit=self._build_audit(request, elapsed_ms),
         )
 
@@ -298,6 +343,7 @@ class TaskPipeline:
         request: TaskRequest,
         elapsed_ms: int,
         token_usage: TokenUsage | None = None,
+        rag_hits: int = 0,
     ) -> AuditInfo:
         input_str = request.model_dump_json()
         input_hash = f"sha256:{hashlib.sha256(input_str.encode()).hexdigest()[:16]}"
@@ -306,5 +352,6 @@ class TaskPipeline:
             latencyMs=elapsed_ms,
             tokenUsage=token_usage or TokenUsage(),
             retryCount=0,
+            ragHits=rag_hits,
             createdAt=datetime.now(timezone.utc).isoformat(),
         )

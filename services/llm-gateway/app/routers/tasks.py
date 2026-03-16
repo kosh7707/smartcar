@@ -17,6 +17,8 @@ router = APIRouter(prefix="/v1", tags=["v1"])
 
 _prompt_registry = create_prompt_registry()
 _model_registry = create_model_registry()
+
+# 파이프라인은 초기에는 enricher 없이 생성. lifespan에서 갱신.
 _pipeline = TaskPipeline(_prompt_registry, _model_registry)
 
 
@@ -28,6 +30,19 @@ def _json_response(
     return JSONResponse(
         content=data.model_dump(mode="json"),
         headers=headers,
+    )
+
+
+def _rebuild_pipeline(threat_search=None, llm_client=None) -> None:
+    """lifespan에서 RAG/LLM 클라이언트 초기화 후 파이프라인 재구성."""
+    global _pipeline
+    enricher = None
+    if threat_search:
+        from app.rag.context_enricher import ContextEnricher
+        enricher = ContextEnricher(threat_search)
+    _pipeline = TaskPipeline(
+        _prompt_registry, _model_registry,
+        context_enricher=enricher, llm_client=llm_client,
     )
 
 
@@ -63,7 +78,7 @@ async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
 
 
 @router.get("/health")
-async def health() -> dict:
+async def health(req: Request) -> dict:
     result = {
         "service": "smartcar-llm-gateway",
         "status": "ok",
@@ -79,6 +94,16 @@ async def health() -> dict:
     }
     if settings.llm_mode == "real":
         result["llmBackend"] = await _check_llm_backend()
+        result["llmConcurrency"] = settings.llm_concurrency
+
+    # RAG 상태
+    threat_search = getattr(req.app.state, "threat_search", None)
+    result["rag"] = {
+        "enabled": settings.rag_enabled,
+        "qdrantPath": settings.qdrant_path,
+        "status": "ok" if threat_search else "disabled",
+    }
+
     return result
 
 

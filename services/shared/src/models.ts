@@ -45,7 +45,7 @@ export interface AnalysisSummary {
 }
 
 export interface AnalysisWarning {
-  code: string;        // "LLM_CHUNK_FAILED" | "LLM_UNAVAILABLE" | "CHUNK_TOO_LARGE"
+  code: string;        // "LLM_CHUNK_FAILED" | "LLM_UNAVAILABLE" | "CHUNK_TOO_LARGE" | "FILE_TOO_LARGE" | "CHUNK_INPUT_SIZE_EXCEEDED"
   message: string;
   details?: string;
 }

@@ -115,7 +115,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
           상태 변경
         </button>
         {finding.location && (
-          <span className="detail-meta-item" style={{ marginLeft: "var(--space-3)" }}>
+          <span className="detail-meta-item">
             <MapPin size={14} />
             {finding.location}
           </span>

@@ -12,6 +12,8 @@ interface AnalysisEntry {
   phase: AnalysisPhase;
   currentChunk: number;
   totalChunks: number;
+  totalFiles?: number;
+  processedFiles?: number;
   message: string;
   startedAt: string;
   updatedAt: string;
@@ -50,7 +52,7 @@ export class AnalysisTracker {
     return abortController;
   }
 
-  update(analysisId: string, patch: Partial<Pick<AnalysisEntry, "phase" | "currentChunk" | "totalChunks" | "message">>): void {
+  update(analysisId: string, patch: Partial<Pick<AnalysisEntry, "phase" | "currentChunk" | "totalChunks" | "totalFiles" | "processedFiles" | "message">>): void {
     const entry = this.entries.get(analysisId);
     if (!entry) return;
 
@@ -137,6 +139,8 @@ export class AnalysisTracker {
       phase: entry.phase,
       currentChunk: entry.currentChunk,
       totalChunks: entry.totalChunks,
+      ...(entry.totalFiles != null ? { totalFiles: entry.totalFiles } : {}),
+      ...(entry.processedFiles != null ? { processedFiles: entry.processedFiles } : {}),
       message: entry.message,
       startedAt: entry.startedAt,
       updatedAt: entry.updatedAt,

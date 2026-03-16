@@ -147,8 +147,8 @@
   background: var(--surface-1);
 }
 
-.can-row--flagged {
-  background: rgba(220, 38, 38, 0.06) !important;
+tbody tr.can-row--flagged {
+  background: rgba(220, 38, 38, 0.06);
   border-left: 3px solid var(--danger);
 }
 
@@ -176,17 +176,17 @@
   letter-spacing: 0.05em;
 }
 
-.can-table__empty {
+td.can-table__empty {
   text-align: center;
   color: var(--text-tertiary);
-  padding: var(--space-8) 0 !important;
+  padding: var(--space-8) 0;
   font-family: var(--font-sans);
 }
 
 /* ── Injected Row ── */
 
-.can-row--injected {
-  background: var(--accent-surface) !important;
+tbody tr.can-row--injected {
+  background: var(--accent-surface);
   border-left: 3px solid var(--accent);
 }
 

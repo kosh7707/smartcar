@@ -8,7 +8,7 @@ import {
   logError,
 } from "../api/client";
 
-export function useStaticDashboard(projectId: string) {
+export function useStaticDashboard(projectId?: string) {
   const [summary, setSummary] = useState<StaticAnalysisDashboardSummary | null>(null);
   const [recentRuns, setRecentRuns] = useState<Run[]>([]);
   const [activeAnalysis, setActiveAnalysis] = useState<AnalysisProgress | null>(null);
@@ -18,6 +18,7 @@ export function useStaticDashboard(projectId: string) {
 
   const loadData = useCallback(
     async (p: DashboardPeriod) => {
+      if (!projectId) return;
       try {
         const [summaryData, runs] = await Promise.all([
           fetchStaticDashboardSummary(projectId, p),
@@ -39,6 +40,7 @@ export function useStaticDashboard(projectId: string) {
   );
 
   const checkActive = useCallback(async () => {
+    if (!projectId) return false;
     try {
       const statuses = await fetchAllAnalysisStatuses();
       const running = statuses.find(

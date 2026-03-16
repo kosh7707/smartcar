@@ -18,9 +18,10 @@ const PHASE_LABELS: Record<string, string> = {
 
 export const ActiveAnalysisBanner: React.FC<Props> = ({ progress, onView, onAbort }) => {
   const phaseText = PHASE_LABELS[progress.phase] ?? progress.phase;
+  const llmDone = progress.phase === "llm_chunk" && progress.totalChunks > 0 && progress.currentChunk >= progress.totalChunks;
   const chunkText =
     progress.phase === "llm_chunk" && progress.totalChunks > 0
-      ? ` (${progress.currentChunk}/${progress.totalChunks})`
+      ? llmDone ? " (완료)" : ` (${progress.currentChunk}/${progress.totalChunks} 단계)`
       : "";
 
   // Rough percentage for shimmer bar
@@ -37,7 +38,7 @@ export const ActiveAnalysisBanner: React.FC<Props> = ({ progress, onView, onAbor
       <div className="active-analysis-banner__content">
         <Loader2 size={16} className="spin" />
         <span className="active-analysis-banner__text">
-          분석 진행 중 — {phaseText}{chunkText}
+          {progress.totalFiles ? `${progress.processedFiles ?? 0}/${progress.totalFiles}개 파일 ` : ""}분석 진행 중 — {phaseText}{chunkText}
         </span>
         <div className="active-analysis-banner__actions">
           <button className="btn btn-secondary btn-sm" onClick={onView}>

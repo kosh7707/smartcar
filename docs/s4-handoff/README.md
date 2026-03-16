@@ -83,10 +83,18 @@ S4의 작업은 두 환경에 걸쳐 이루어진다:
 
 ### 너는 하지 않는다
 
-- 프롬프트 작성 → S3 담당 (`services/llm-gateway/app/registry/prompt_registry.py`)
-- LLM 응답 파싱/검증 → S3 담당 (`services/llm-gateway/app/pipeline/`)
+- 프롬프트 작성 → S3 담당
+- LLM 응답 파싱/검증 → S3 담당
 - 분석 결과 최종 판정 → S2 담당
 - UI → S1 담당
+
+### API 계약 소통 원칙 (필수)
+
+- **다른 서비스의 동작은 반드시 API 계약서(`docs/api/`)로만 파악한다**
+- **다른 서비스의 코드를 절대 읽지 않는다** — 코드를 보고 동작을 파악하거나 거기에 맞춰 구현하는 것은 금지
+- 계약서에 없는 필드/엔드포인트는 "존재하지 않는다"고 간주한다
+- 계약서와 실제 코드가 다르면, 해당 서비스 소유자에게 계약서 갱신을 work-request로 요청한다
+- **공유 모델(`shared-models.md`) 또는 API 계약서가 변경되면, 영향받는 상대 서비스에게 반드시 work-request로 고지한다**
 
 ### 작업 요청 주고받기
 
@@ -124,7 +132,7 @@ S4의 작업은 두 환경에 걸쳐 이루어진다:
 ### Phase 3: 최적화 (향후)
 
 - [ ] Tool calling 실 연동 테스트 (S3와 함께)
-- [ ] Structured output (`response_format: json_object`) 테스트
+- [x] Structured output (`response_format: json_object`) 테스트 — 2026-03-16 실 검증 완료
 - [ ] 모델 업그레이드 평가 (Qwen3.5 122B 등)
 - [ ] Tensor Parallelism (GB10 2대 구성 시)
 
@@ -136,6 +144,16 @@ S4의 작업은 두 환경에 걸쳐 이루어진다:
 | Phase 1 | ollama + Qwen3 32B | llama.cpp 기반, CC 12.1 네이티브 지원 |
 | Phase 2 | ollama `/api/chat` 전환 | OpenAI 호환 레이어에서 thinking 제어 불가 |
 | **현재** | **vLLM (spark-vllm-docker) + Qwen3.5-35B-A3B FP8** | CC 12.1 사전 컴파일 휠로 해결, MoE 모델로 2.5배 성능 향상 |
+
+### 최근 활동 (2026-03-16)
+
+- 정적분석 통합테스트 완료 — S1→S2→S3→S4 전 구간 연동 확인
+- vLLM 로그 리뷰: 400 Bad Request 2건 발견 (S3가 프롬프트 길이 제한 없이 전송)
+  - 43MB 프롬프트 (43,026,069자) → 400 거절
+  - 260,097 토큰 프롬프트 (max_model_len 초과) → 400 거절
+- API 계약서(`llm-engine-api.md`)에 컨텍스트 한도(262,144 토큰) 섹션 추가
+- S3에 work-request 발송: 프롬프트 길이 사전 검증 요청 + S2와 입력 크기 책임 분담 협의 요청
+- Structured output (`response_format: json_object`) 실 검증 완료
 
 ---
 
@@ -224,7 +242,7 @@ ssh -i ~/.ssh/dgx_spark accslab@10.126.37.19 'docker logs vllm_node --tail 20'
 
 ### S3가 S4를 호출하는 방식
 
-S3의 `RealLlmClient`(`services/llm-gateway/app/services/clients/real.py`)가 httpx로 호출:
+API 계약(`docs/api/llm-engine-api.md`)에 따라 S3는 다음 형식으로 호출한다:
 
 ```
 POST {endpoint}/v1/chat/completions
@@ -232,7 +250,7 @@ Headers: Content-Type: application/json
 Body: { model, messages, max_tokens, temperature, chat_template_kwargs }
 ```
 
-S3는 응답에서 `choices[0].message.content`를 추출한다. Thinking 활성화 시 `choices[0].message.reasoning`으로 사고 과정에 접근 가능.
+S3는 응답에서 `choices[0].message.content`를 추출한다. Thinking 활성화 시 `choices[0].message.reasoning`으로 사고 과정에 접근 가능. 상세 스키마는 API 계약서 참조.
 
 ### S3 환경변수 변경
 
@@ -397,8 +415,6 @@ S3는 S4의 응답(`choices[0].message.content`)이 **JSON 문자열**이기를 
 | 문서 | 경로 | 왜 봐야 하는지 |
 |------|------|--------------|
 | 전체 기술 개요 | `docs/specs/technical-overview.md` | 프로젝트 전체 구조 이해 |
-| S3 기능 명세 | `docs/specs/llm-gateway.md` | S3가 S4를 어떻게 쓰는지 이해 (필독) |
-| S3 API 명세 | `docs/api/llm-gateway-api.md` | S3가 S4 응답을 어떻게 가공하는지 |
-| S3 인수인계서 | `docs/s3-handoff/README.md` | S3 현재 상태 및 v1 파이프라인 |
+| S3 API 명세 | `docs/api/llm-gateway-api.md` | S3↔S4 계약의 S3 측 관점 (필독) |
 | 외부 피드백 (Agentic) | `docs/외부피드백/S3_agentic_sast_design_feedback.md` | 성능 가이드 |
 | spark-vllm-docker | `~/spark-vllm-docker/README.md` (DGX Spark) | vLLM 빌드/배포 가이드 |

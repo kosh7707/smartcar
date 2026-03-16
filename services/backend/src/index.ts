@@ -53,6 +53,7 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const LLM_GATEWAY_URL =
   process.env.LLM_GATEWAY_URL ?? "http://localhost:8000";
+const LLM_CONCURRENCY = Number(process.env.LLM_CONCURRENCY) || 4;
 
 app.use(cors());
 app.use(express.json());
@@ -61,7 +62,7 @@ app.use(requestLoggerMiddleware);
 
 // 서비스 초기화
 const llmTaskClient = new LlmTaskClient(LLM_GATEWAY_URL);
-const llmAdapter = new LlmV1Adapter(llmTaskClient, 1);
+const llmAdapter = new LlmV1Adapter(llmTaskClient, LLM_CONCURRENCY);
 const dynamicAnalysisWs = new WsBroadcaster<import("@smartcar/shared").WsMessage>("/ws/dynamic-analysis", "sessionId");
 const staticAnalysisWs = new WsBroadcaster<import("@smartcar/shared").WsStaticMessage>("/ws/static-analysis", "analysisId");
 const dynamicTestWs = new WsBroadcaster<import("@smartcar/shared").WsTestMessage>("/ws/dynamic-test", "testId");

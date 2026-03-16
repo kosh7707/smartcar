@@ -27,6 +27,7 @@ import { useAdapters } from "../hooks/useAdapters";
 import { useToast } from "../contexts/ToastContext";
 import { PageHeader, EmptyState, ConfirmDialog, SeverityBadge, Spinner } from "../components/ui";
 import { SEVERITY_ORDER } from "../utils/severity";
+import { DEFAULT_ADAPTER_URL, DEFAULT_LLM_URL } from "../constants/defaults";
 import "./SettingsPage.css";
 
 type SettingsTab = "connections" | "rules";
@@ -59,7 +60,7 @@ export const ProjectSettingsPage: React.FC = () => {
   const { adapters, refresh: refreshAdapters } = useAdapters(projectId);
   const [showAdapterForm, setShowAdapterForm] = useState(false);
   const [editingAdapterId, setEditingAdapterId] = useState<string | null>(null);
-  const [adapterForm, setAdapterForm] = useState({ name: "", url: "ws://localhost:4000" });
+  const [adapterForm, setAdapterForm] = useState({ name: "", url: DEFAULT_ADAPTER_URL });
   const [adapterError, setAdapterError] = useState<string | null>(null);
   const [connectingId, setConnectingId] = useState<string | null>(null);
 
@@ -92,7 +93,7 @@ export const ProjectSettingsPage: React.FC = () => {
       await refreshAdapters();
       setShowAdapterForm(false);
       setEditingAdapterId(null);
-      setAdapterForm({ name: "", url: "ws://localhost:4000" });
+      setAdapterForm({ name: "", url: DEFAULT_ADAPTER_URL });
       setAdapterError(null);
     } catch (e) {
       setAdapterError(e instanceof Error ? e.message : "저장 실패");
@@ -149,7 +150,7 @@ export const ProjectSettingsPage: React.FC = () => {
   const handleAdapterCancel = () => {
     setShowAdapterForm(false);
     setEditingAdapterId(null);
-    setAdapterForm({ name: "", url: "ws://localhost:4000" });
+    setAdapterForm({ name: "", url: DEFAULT_ADAPTER_URL });
     setAdapterError(null);
   };
 
@@ -292,7 +293,7 @@ export const ProjectSettingsPage: React.FC = () => {
               </div>
               <button
                 className="btn btn-sm"
-                onClick={() => { setShowAdapterForm(true); setEditingAdapterId(null); setAdapterForm({ name: "", url: "ws://localhost:4000" }); setAdapterError(null); }}
+                onClick={() => { setShowAdapterForm(true); setEditingAdapterId(null); setAdapterForm({ name: "", url: DEFAULT_ADAPTER_URL }); setAdapterError(null); }}
               >
                 <Plus size={14} />
                 추가
@@ -321,7 +322,7 @@ export const ProjectSettingsPage: React.FC = () => {
                       className="form-input"
                       value={adapterForm.url}
                       onChange={(e) => setAdapterForm({ ...adapterForm, url: e.target.value })}
-                      placeholder="ws://localhost:4000"
+                      placeholder={DEFAULT_ADAPTER_URL}
                     />
                   </label>
                 </div>
@@ -392,7 +393,7 @@ export const ProjectSettingsPage: React.FC = () => {
                   className="form-input gs-url-input"
                   value={llmUrl}
                   onChange={(e) => { setLlmUrl(e.target.value); setLlmTestResult("idle"); }}
-                  placeholder="http://localhost:8000"
+                  placeholder={DEFAULT_LLM_URL}
                   spellCheck={false}
                 />
                 {llmTestResult === "ok" && <span className="gs-url-badge gs-url-badge--ok"><Check size={12} /></span>}
@@ -404,7 +405,7 @@ export const ProjectSettingsPage: React.FC = () => {
                 onClick={async () => {
                   setLlmTesting(true);
                   setLlmTestResult("idle");
-                  const { ok } = await healthFetch(llmUrl.trim() || "http://localhost:8000");
+                  const { ok } = await healthFetch(llmUrl.trim() || DEFAULT_LLM_URL);
                   setLlmTestResult(ok ? "ok" : "error");
                   setLlmTesting(false);
                 }}

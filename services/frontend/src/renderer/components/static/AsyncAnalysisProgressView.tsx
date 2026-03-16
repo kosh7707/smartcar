@@ -56,6 +56,7 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
   const isFailed = progress.status === "failed";
   const isAborted = progress.status === "aborted";
   const isDone = isCompleted || isFailed || isAborted;
+  const llmDone = progress.phase === "llm_chunk" && progress.totalChunks > 0 && progress.currentChunk >= progress.totalChunks;
 
   // Progress percentage
   const pct =
@@ -80,8 +81,8 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
         {/* 5-step stepper */}
         <div className="async-stepper">
           {STEPS.map((s, i) => {
-            const done = isCompleted ? true : currentIdx > i;
-            const active = !isDone && currentIdx === i;
+            const done = isCompleted ? true : currentIdx > i || (llmDone && i === currentIdx);
+            const active = !isDone && currentIdx === i && !done;
             const failed = (isFailed || isAborted) && currentIdx === i;
             return (
               <React.Fragment key={s.key}>
@@ -100,9 +101,9 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
         </div>
 
         {/* Chunk info */}
-        {progress.phase === "llm_chunk" && progress.totalChunks > 0 && !isDone && (
+        {progress.phase === "llm_chunk" && progress.totalChunks > 0 && !isDone && !llmDone && (
           <p className="async-progress__chunk">
-            청크 {progress.currentChunk} / {progress.totalChunks}
+            {progress.totalFiles ? `${progress.processedFiles ?? 0} / ${progress.totalFiles}개 파일 진행 중 — ` : ""}LLM 분석 {progress.currentChunk} / {progress.totalChunks} 단계
           </p>
         )}
 

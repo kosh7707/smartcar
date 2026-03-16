@@ -62,6 +62,15 @@ S4(DGX Spark + vLLM + Qwen3.5-35B-A3B FP8)가 입주하여 실 LLM 연동이 완
 - `docs/api/shared-models.md` 공유 모델 명세를 **단독 관리**
 - S1(프론트)에게 API를 제공하고, S3(LLM Gateway)를 호출하는 중간 허브
 
+### API 계약 소통 원칙 (필수)
+
+- **다른 서비스의 동작은 반드시 API 계약서(`docs/api/`)로만 파악한다**
+- **다른 서비스의 코드를 절대 읽지 않는다** — 코드를 보고 동작을 파악하거나 거기에 맞춰 구현하는 것은 금지
+- 계약서에 없는 필드/엔드포인트는 "존재하지 않는다"고 간주한다
+- 계약서와 실제 코드가 다르면, 해당 서비스 소유자에게 계약서 갱신을 work-request로 요청한다
+- **S2는 `shared-models.md`의 단독 소유자이므로, 코드 변경 시 계약서 동기화를 반드시 확인한다**
+- **공유 모델(`shared-models.md`) 또는 API 계약서가 변경되면, 영향받는 상대 서비스에게 반드시 work-request로 고지한다**
+
 ### 다른 서비스 코드
 
 - S1(프론트), S3(LLM Gateway) 코드는 기본적으로 수정하지 않음
@@ -319,7 +328,7 @@ SQLite(`better-sqlite3`), WAL 모드. DB 파일: `services/backend/smartcar.db` 
   → AnalysisResult 반환 (warnings 포함)
 ```
 
-**청크 분할 (`chunker.ts`)**: 토큰 추정 `chars / 3.5`, 청크 예산 6000토큰(~21000chars), 단독 초과 파일은 `CHUNK_TOO_LARGE` warning.
+**청크 분할 (`chunker.ts`)**: 토큰 추정 `chars / 3.5`, 청크 예산 6000토큰(~21000chars). 100KB 초과 파일은 `FILE_TOO_LARGE` warning으로 스킵(S3 입력 상한 보호). 21K~100K chars 파일은 단독 청크 + `CHUNK_TOO_LARGE` warning.
 
 **WS 프로그레스**: `/ws/static-analysis?analysisId=xxx` 경로로 연결. 동적 분석과 동일한 패턴 (session→analysisId). WS 미연결 시 기존과 동일하게 동작.
 
@@ -442,7 +451,7 @@ Response: TaskResponse { status: "completed", result: { claims, caveats, suggest
 GET http://localhost:8000/v1/health
 ```
 
-**어댑터 패턴**: `LlmV1Adapter`가 기존 서비스의 `analyze(request, baseUrl?, requestId?, signal?)` 시그니처를 유지하면서 내부적으로 v0→v1 변환 수행. 3개 서비스(정적/동적/동적테스트)는 import + 타입 교체만으로 전환 완료.
+**어댑터 패턴**: `LlmV1Adapter`가 기존 서비스의 `analyze(request, baseUrl?, requestId?, signal?)` 시그니처를 유지하면서 내부적으로 v0→v1 변환 수행. 3개 서비스(정적/동적/동적테스트)는 import + 타입 교체만으로 전환 완료. **태스크별 context 분기**: `static-explain`은 `trusted.finding`(단일 객체) + `untrusted.sourceSnippet`, `dynamic-annotate`는 `trusted.ruleMatches`(배열) + `untrusted.rawCanLog` (API 계약서 정합).
 
 **모듈 → taskType 매핑**:
 - `static_analysis` → `static-explain`
@@ -669,11 +678,11 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 ## 10. 알려진 이슈 / 주의사항
 
-### 대기 중인 작업 요청 (2026-03-14 기준)
+### 대기 중인 작업 요청 (2026-03-16 기준)
 
 `docs/work-requests/`:
-- `s2-to-s1-static-analysis-progress-phases.md` — S1에게 정적 분석 WS 진행률 phase 세분화 안내
-- `s2-to-s3-observability-compliance.md` — S3에게 observability 규약 준수 요청 (requestId 전파, errorDetail 형식)
+- `s2-to-s3-rag-query-empty.md` — S3에게 RAG 쿼리 추출 개선 요청 (96% 빈 쿼리, finding 없는 청크 대응)
+- `s2-to-s3-confidence-fixed-value.md` — S3에게 confidence 분별력 개선 요청 (전 청크 0.85 고정값)
 
 ### DB hot-reload 함정
 

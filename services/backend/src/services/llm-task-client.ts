@@ -120,6 +120,9 @@ export type TaskResponse = TaskResponseSuccess | TaskResponseFailure;
 // ── 클라이언트 ──
 
 export class LlmTaskClient {
+  private static readonly MAX_RETRIES = 3;
+  private static readonly RETRY_BASE_MS = 1000;
+
   constructor(private baseUrl: string) {}
 
   async submitTask(
@@ -133,35 +136,7 @@ export class LlmTaskClient {
     };
     if (requestId) headers["X-Request-Id"] = requestId;
 
-    let res: Response;
-    try {
-      res = await fetch(`${url}/v1/tasks`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(request),
-        signal: options?.signal,
-      });
-    } catch (err) {
-      // AbortError는 상위 전파
-      if (err instanceof Error && err.name === "AbortError") {
-        throw err;
-      }
-      const message = err instanceof Error ? err.message : "Network error";
-      if (message.includes("timeout") || message.includes("ETIMEDOUT")) {
-        throw new LlmTimeoutError(`v1 Task API timeout: ${message}`, err);
-      }
-      throw new LlmUnavailableError(
-        `v1 Task API unreachable: ${message}`,
-        err,
-      );
-    }
-
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      throw new LlmHttpError(
-        `v1 Task API returned HTTP ${res.status}: ${body.slice(0, 200)}`,
-      );
-    }
+    const res = await this.doFetch(url, headers, request, requestId, options?.signal);
 
     let data: TaskResponse;
     try {
@@ -200,6 +175,87 @@ export class LlmTaskClient {
     }
 
     return data;
+  }
+
+  // ── HTTP fetch + 503 재시도 ──
+
+  private async doFetch(
+    url: string,
+    headers: Record<string, string>,
+    request: TaskRequest,
+    requestId?: string,
+    signal?: AbortSignal,
+  ): Promise<Response> {
+    const body = JSON.stringify(request);
+
+    for (let attempt = 0; ; attempt++) {
+      let res: Response;
+      try {
+        res = await fetch(`${url}/v1/tasks`, {
+          method: "POST",
+          headers,
+          body,
+          signal,
+        });
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") throw err;
+        const message = err instanceof Error ? err.message : "Network error";
+        if (message.includes("timeout") || message.includes("ETIMEDOUT")) {
+          throw new LlmTimeoutError(`v1 Task API timeout: ${message}`, err);
+        }
+        throw new LlmUnavailableError(
+          `v1 Task API unreachable: ${message}`,
+          err,
+        );
+      }
+
+      // S3가 vLLM 과부하 시 503 + retryable 응답
+      if (res.status === 503 && attempt < LlmTaskClient.MAX_RETRIES) {
+        const text = await res.text().catch(() => "");
+        if (this.isRetryableBody(text)) {
+          const delay = LlmTaskClient.RETRY_BASE_MS * 2 ** attempt;
+          logger.warn(
+            { attempt: attempt + 1, maxRetries: LlmTaskClient.MAX_RETRIES, delayMs: delay, requestId },
+            "S3 overloaded (503), retrying",
+          );
+          await this.sleep(delay, signal);
+          continue;
+        }
+      }
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new LlmHttpError(
+          `v1 Task API returned HTTP ${res.status}: ${text.slice(0, 200)}`,
+        );
+      }
+
+      return res;
+    }
+  }
+
+  private isRetryableBody(body: string): boolean {
+    try {
+      const json = JSON.parse(body);
+      return json?.errorDetail?.retryable === true;
+    } catch {
+      return false;
+    }
+  }
+
+  private sleep(ms: number, signal?: AbortSignal): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(signal.reason);
+        return;
+      }
+      const timer = setTimeout(resolve, ms);
+      signal?.addEventListener(
+        "abort",
+        () => { clearTimeout(timer); reject(signal.reason); },
+        { once: true },
+      );
+    });
   }
 
   isSuccess(response: TaskResponse): response is TaskResponseSuccess {

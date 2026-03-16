@@ -11,7 +11,7 @@ import {
   ChevronRight,
   Shield,
 } from "lucide-react";
-import { fetchProjectOverview, fetchProjectFiles, healthCheck, healthFetch, fetchProjectSettings, logError } from "../api/client";
+import { fetchProjectOverview, fetchProjectFiles, healthCheck, logError } from "../api/client";
 import { useToast } from "../contexts/ToastContext";
 import { useAdapters } from "../hooks/useAdapters";
 import { PageHeader, StatCard, SeveritySummary, SeverityBadge, DonutChart, ListItem, Spinner } from "../components/ui";
@@ -98,28 +98,21 @@ export const OverviewPage: React.FC = () => {
   const { adapters, connected } = useAdapters(projectId);
 
   useEffect(() => {
-    healthCheck()
-      .then((d) => setBackendStatus(d?.status === "ok" ? "ok" : "error"))
-      .catch(() => setBackendStatus("error"));
-  }, []);
-
-  useEffect(() => {
-    if (!projectId) return;
     let cancelled = false;
-    const checkLlm = async () => {
-      try {
-        const settings = await fetchProjectSettings(projectId);
-        const url = settings.llmUrl?.trim() || "http://localhost:8000";
-        const { ok } = await healthFetch(url);
-        if (!cancelled) setLlmStatus(ok ? "ok" : "error");
-      } catch {
-        if (!cancelled) setLlmStatus("error");
-      }
-    };
-    setLlmStatus("checking");
-    checkLlm();
+    healthCheck()
+      .then((d) => {
+        if (cancelled) return;
+        setBackendStatus(d?.status === "ok" ? "ok" : "error");
+        const gw = d?.llmGateway;
+        setLlmStatus(gw?.status === "ok" ? "ok" : "error");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setBackendStatus("error");
+        setLlmStatus("error");
+      });
     return () => { cancelled = true; };
-  }, [projectId]);
+  }, []);
 
   const loadData = () => {
     if (!projectId) return;
@@ -339,7 +332,7 @@ export const OverviewPage: React.FC = () => {
                 return (
                   <ListItem
                     key={a.id}
-                    onClick={() => navigate(getModuleRoute(a.module, projectId!, a.id))}
+                    onClick={() => navigate(getModuleRoute(a.module, projectId ?? "", a.id))}
                     trailing={<span className="overview-history-time">{formatDateTime(a.createdAt)}</span>}
                   >
                     <div>

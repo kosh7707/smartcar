@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import type { Run, Finding, EvidenceRef, GateResult } from "@smartcar/shared";
 import { FileCode, Clock, PlayCircle } from "lucide-react";
 import { BackButton, PageHeader, StatCard, SeverityBadge, GateResultCard, FindingStatusBadge, ConfidenceBadge, SourceBadge } from "../ui";
+import { parseLocation } from "../../utils/location";
 import { formatDateTime } from "../../utils/format";
 
 interface FindingWithEvidence {
@@ -30,7 +31,7 @@ function groupFindingsByFile(findings: FindingWithEvidence[]): FileGroup[] {
   const map = new Map<string, FindingWithEvidence[]>();
   for (const f of findings) {
     const loc = f.finding.location ?? "기타";
-    const fileName = loc.includes(":") ? loc.split(":")[0] : loc;
+    const fileName = parseLocation(loc).fileName;
     if (!map.has(fileName)) map.set(fileName, []);
     map.get(fileName)!.push(f);
   }

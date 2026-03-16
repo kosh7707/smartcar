@@ -13,7 +13,7 @@ export interface LocalFile {
   info: UploadedFile;
 }
 
-export function useStaticAnalysis(projectId: string) {
+export function useStaticAnalysis(projectId?: string) {
   const [view, setView] = useState<AnalysisView>("upload");
   const [files, setFiles] = useState<LocalFile[]>([]);
   const [selectedExisting, setSelectedExisting] = useState<UploadedFile[]>([]);
@@ -53,6 +53,7 @@ export function useStaticAnalysis(projectId: string) {
   }, []);
 
   const runAnalysis = useCallback(async (overrideExisting?: UploadedFile[]) => {
+    if (!projectId) return;
     const existing = overrideExisting ?? selectedExisting;
     if (files.length === 0 && existing.length === 0) return;
 

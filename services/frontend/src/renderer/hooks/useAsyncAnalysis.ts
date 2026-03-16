@@ -9,7 +9,7 @@ import {
   logError,
 } from "../api/client";
 
-export function useAsyncAnalysis(projectId: string) {
+export function useAsyncAnalysis(projectId?: string) {
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [progress, setProgress] = useState<AnalysisProgress | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -88,10 +88,11 @@ export function useAsyncAnalysis(projectId: string) {
     [files, startPolling],
   );
 
-  const abortCurrentAnalysis = useCallback(async () => {
-    if (!analysisId) return;
+  const abortCurrentAnalysis = useCallback(async (overrideId?: string) => {
+    const id = overrideId || analysisId;
+    if (!id) return;
     try {
-      await abortAnalysisApi(analysisId);
+      await abortAnalysisApi(id);
       stopPolling();
       setIsRunning(false);
       setProgress((prev) => prev ? { ...prev, status: "aborted" } : null);

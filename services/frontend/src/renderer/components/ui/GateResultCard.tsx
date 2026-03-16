@@ -1,6 +1,7 @@
 import React from "react";
 import type { GateResult } from "@smartcar/shared";
 import { ShieldCheck, ShieldAlert, AlertTriangle } from "lucide-react";
+import { formatDateTime } from "../../utils/format";
 
 interface Props {
   gate: GateResult;
@@ -32,7 +33,7 @@ export const GateResultCard: React.FC<Props> = ({ gate, compact }) => {
         <Icon size={18} className={`gate-card__header-icon--${gate.status}`} />
         <span className="gate-card__title">Quality Gate: {cfg.label}</span>
         <span className="text-xs text-tertiary gate-card__time">
-          {new Date(gate.evaluatedAt).toLocaleString("ko-KR")}
+          {formatDateTime(gate.evaluatedAt)}
         </span>
       </div>
       <div className="gate-card__rules">

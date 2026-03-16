@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useMatch, useNavigate } from "react-router-dom";
-import { healthCheck, fetchProjectSettings, healthFetch } from "../api/client";
+import { healthCheck } from "../api/client";
 import { useAdapters } from "../hooks/useAdapters";
 import "./StatusBar.css";
 
@@ -13,38 +13,30 @@ export const StatusBar: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    let cancelled = false;
+
     const check = async () => {
       try {
         const data = await healthCheck();
+        if (cancelled) return;
         setBackendStatus(data?.status === "ok" ? "ok" : "error");
+        // LLM status from backend's server-side health check (llmGateway field)
+        const gw = data?.llmGateway;
+        if (gw) {
+          setLlmStatus(gw.status === "ok" ? "ok" : "error");
+        } else if (projectId) {
+          // Backend didn't include llmGateway — treat as unknown
+          setLlmStatus("error");
+        }
       } catch {
+        if (cancelled) return;
         setBackendStatus("error");
+        if (projectId) setLlmStatus("error");
       }
     };
 
     check();
     const interval = setInterval(check, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    if (!projectId) return;
-    let cancelled = false;
-
-    const checkLlm = async () => {
-      try {
-        const settings = await fetchProjectSettings(projectId);
-        const url = settings.llmUrl?.trim() || "http://localhost:8000";
-        const { ok } = await healthFetch(url);
-        if (!cancelled) setLlmStatus(ok ? "ok" : "error");
-      } catch {
-        if (!cancelled) setLlmStatus("error");
-      }
-    };
-
-    setLlmStatus("checking");
-    checkLlm();
-    const interval = setInterval(checkLlm, 15000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [projectId]);
 

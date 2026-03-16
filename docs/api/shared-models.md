@@ -73,7 +73,7 @@
 
 | 필드 | 타입 | 설명 |
 |------|------|------|
-| code | string | 경고 코드 (`"LLM_CHUNK_FAILED"` \| `"LLM_UNAVAILABLE"` \| `"CHUNK_TOO_LARGE"`) |
+| code | string | 경고 코드 (`"LLM_CHUNK_FAILED"` \| `"LLM_UNAVAILABLE"` \| `"CHUNK_TOO_LARGE"` \| `"FILE_TOO_LARGE"` \| `"CHUNK_INPUT_SIZE_EXCEEDED"`) |
 | message | string | 경고 메시지 |
 | details | string (optional) | 상세 정보 |
 
@@ -616,6 +616,47 @@ Finding과 증적(artifact) 간의 참조 연결.
 | service | string | 서비스명 |
 | status | `"ok" \| "error"` | 상태 |
 | version | string | 버전 |
+| llmGateway | `LlmGatewayHealth` | S3(LLM Gateway) 연결 상태 |
+| adapters | `AdaptersHealth` | 어댑터 연결 상태 |
+
+#### LlmGatewayHealth
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| status | `"ok" \| "unreachable"` | S3 연결 상태 |
+| endpoint? | string | S3 URL (연결 성공 시) |
+| error? | string | 에러 메시지 (연결 실패 시) |
+
+> S3 `/v1/health` 응답을 그대로 전달. S3 미연결 시 `{ status: "unreachable" }` 반환.
+
+#### AdaptersHealth
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| total | number | 등록된 어댑터 수 |
+| connected | number | 연결된 어댑터 수 |
+
+### 분석 진행률
+
+#### AnalysisProgress
+
+비동기 정적 분석의 진행 상태. `GET /api/static-analysis/status/:id`로 폴링.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| analysisId | string | 분석 ID |
+| projectId | string | 프로젝트 ID |
+| status | `"running" \| "completed" \| "failed" \| "aborted"` | 진행 상태 |
+| phase | `"queued" \| "rule_engine" \| "llm_chunk" \| "merging" \| "complete"` | 현재 단계 |
+| currentChunk | number | 현재 청크 번호 |
+| totalChunks | number | 전체 청크 수 |
+| totalFiles | number (optional) | 분석 대상 전체 파일 수 |
+| processedFiles | number (optional) | 현재까지 처리 완료된 파일 수 |
+| message | string | 진행 메시지 |
+| startedAt | string (ISO 8601) | 시작 시각 |
+| updatedAt | string (ISO 8601) | 마지막 갱신 시각 |
+| endedAt | string (optional, ISO 8601) | 종료 시각 |
+| error | string (optional) | 에러 메시지 |
 
 ---
 

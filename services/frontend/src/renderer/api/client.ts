@@ -53,7 +53,7 @@ const STORAGE_KEY = "smartcar:backendUrl";
 
 export function getBackendUrl(): string {
   return localStorage.getItem(STORAGE_KEY)
-    ?? (window as any).api?.backendUrl
+    ?? window.api?.backendUrl
     ?? DEFAULT_BACKEND_URL;
 }
 
@@ -111,15 +111,18 @@ export function logError(context: string, e: unknown): void {
 
 /** Health check with X-Request-Id. Returns ok status without throwing. */
 export async function healthFetch(url: string): Promise<{ ok: boolean; data?: Record<string, unknown> }> {
+  const trimmed = url?.trim().replace(/\/+$/, "");
+  if (!trimmed) return { ok: false };
+
   const requestId = crypto.randomUUID();
   try {
-    const res = await fetch(`${url}/health`, {
+    const res = await fetch(`${trimmed}/health`, {
       headers: { "X-Request-Id": requestId },
     });
     const data = await res.json();
     return { ok: data?.status === "ok", data };
   } catch {
-    console.warn(`[healthFetch] ${url} unreachable (requestId: ${requestId})`);
+    console.warn(`[healthFetch] ${trimmed} unreachable (requestId: ${requestId})`);
     return { ok: false };
   }
 }
@@ -183,7 +186,7 @@ export async function apiFetch<T = unknown>(
 }
 
 export async function healthCheck() {
-  const api = (window as any).api;
+  const api = window.api;
   if (api?.healthCheck) return api.healthCheck();
   return apiFetch("/health");
 }
@@ -243,7 +246,7 @@ export async function uploadFiles(projectId: string, files: File[]): Promise<Upl
   files.forEach((f) => formData.append("files", f));
 
   // 폴더 업로드 시 상대 경로 전달
-  const paths = files.map((f) => (f as any).webkitRelativePath || f.name);
+  const paths = files.map((f) => f.webkitRelativePath || f.name);
   formData.append("paths", JSON.stringify(paths));
 
   const res = await apiFetch<{ success: boolean; data: UploadedFile[] }>(

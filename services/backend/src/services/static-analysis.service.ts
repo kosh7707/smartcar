@@ -50,7 +50,7 @@ export class StaticAnalysisService {
 
     // 1. 프로젝트 룰 엔진 빌드 + 실행
     this.sendProgress(id, "rule_engine", 0, 1, "룰 엔진 분석 중...");
-    analysisTracker.update(id, { phase: "rule_engine", message: "룰 엔진 분석 중..." });
+    analysisTracker.update(id, { phase: "rule_engine", totalFiles: files.length, message: "룰 엔진 분석 중..." });
 
     const ruleEngine = this.ruleService.buildRuleEngine(projectId);
     const allRuleMatches: RuleMatch[] = [];
@@ -81,6 +81,7 @@ export class StaticAnalysisService {
     // 3. 청크별 LLM 분석
     const allLlmVulns: Vulnerability[] = [];
     const totalChunks = chunks.length;
+    let processedFiles = 0;
 
     for (let i = 0; i < totalChunks; i++) {
       // abort 검사
@@ -98,6 +99,7 @@ export class StaticAnalysisService {
         phase: "llm_chunk",
         currentChunk: i + 1,
         totalChunks,
+        processedFiles,
         message: `LLM 분석 중... (${i + 1}/${totalChunks})`,
       });
 
@@ -142,6 +144,13 @@ export class StaticAnalysisService {
               details: chunk.files.map((f) => f.path || f.name).join(", "),
             });
           }
+        } else if (llmRes.error?.includes("INPUT_TOO_LARGE")) {
+          warnings.push({
+            code: "CHUNK_INPUT_SIZE_EXCEEDED",
+            message: `입력 크기 초과로 chunk ${i + 1}/${totalChunks} 건너뜀: ${llmRes.error}`,
+            details: chunk.files.map((f) => f.path || f.name).join(", "),
+          });
+          this.sendWarning(id, "CHUNK_INPUT_SIZE_EXCEEDED", `Chunk ${i + 1} input too large`);
         } else {
           warnings.push({
             code: "LLM_CHUNK_FAILED",
@@ -164,6 +173,8 @@ export class StaticAnalysisService {
         });
         this.sendWarning(id, "LLM_CHUNK_FAILED", `Chunk ${i + 1} error: ${errMsg}`);
       }
+
+      processedFiles += chunk.files.length;
     }
 
     // LLM 분석 완료 알림

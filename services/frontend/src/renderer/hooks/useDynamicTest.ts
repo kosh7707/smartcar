@@ -17,7 +17,7 @@ export interface TestProgress {
   message: string;
 }
 
-export function useDynamicTest(projectId: string) {
+export function useDynamicTest(projectId?: string) {
   const [view, setView] = useState<TestView>("config");
   const [progress, setProgress] = useState<TestProgress>({ current: 0, total: 0, crashes: 0, anomalies: 0, message: "" });
   const [findings, setFindings] = useState<DynamicTestFinding[]>([]);
@@ -35,6 +35,7 @@ export function useDynamicTest(projectId: string) {
   useEffect(() => cleanup, [cleanup]);
 
   const startTest = useCallback(async (config: DynamicTestConfig, adapterId: string) => {
+    if (!projectId) return;
     setView("running");
     setProgress({ current: 0, total: config.count, crashes: 0, anomalies: 0, message: "테스트 준비 중..." });
     setFindings([]);

@@ -20,6 +20,7 @@ class V1PromptBuilder:
         self,
         request: TaskRequest,
         prompt_entry: PromptEntry,
+        threat_context: str = "",
     ) -> list[dict[str, str]]:
         system_content = prompt_entry.systemTemplate
 
@@ -33,9 +34,16 @@ class V1PromptBuilder:
         )
 
         finding_json = ""
-        if "finding" in request.context.trusted:
+        if request.context.trusted.get("finding"):
             finding_json = json.dumps(
                 request.context.trusted["finding"],
+                ensure_ascii=False,
+                indent=2,
+            )
+        elif request.context.trusted.get("ruleMatches"):
+            # S2가 ruleMatches 배열로 보낸 경우 finding_json 대체
+            finding_json = json.dumps(
+                request.context.trusted["ruleMatches"],
                 ensure_ascii=False,
                 indent=2,
             )
@@ -47,6 +55,7 @@ class V1PromptBuilder:
             trusted_context=trusted_context,
             semi_trusted_context=semi_trusted_context,
             untrusted_content=untrusted_content or "(없음)",
+            threat_knowledge_context=threat_context or "(해당 없음)",
         )
 
         return [

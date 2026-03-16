@@ -15,7 +15,7 @@ function filterSupportedFiles(fileList: File[]): { supported: File[]; skipped: s
   const supported: File[] = [];
   const skipped: string[] = [];
   for (const f of fileList) {
-    const name = (f as any).webkitRelativePath || f.name;
+    const name = f.webkitRelativePath || f.name;
     const ext = name.split(".").pop()?.toLowerCase() ?? "";
     if (ALLOWED_EXTENSIONS.has(ext)) {
       supported.push(f);
@@ -39,7 +39,7 @@ function buildTree(files: UploadedFile[]): TreeNode {
   const root: TreeNode = { name: "", path: "", children: [] };
 
   for (const file of files) {
-    const filePath = (file as any).path || file.name;
+    const filePath = ('path' in file ? (file as { path: string }).path : file.name) || file.name;
     const parts = filePath.split("/");
     let current = root;
 
@@ -365,7 +365,8 @@ export const FilesPage: React.FC = () => {
             <input
               ref={folderInputRef}
               type="file"
-              {...({ webkitdirectory: "", directory: "" } as any)}
+              webkitdirectory=""
+              directory=""
               multiple
               className="fpage-hidden-input"
               onChange={(e) => e.target.files && handleUpload(e.target.files)}

@@ -8,6 +8,13 @@ class Settings(BaseSettings):
     llm_endpoint: str = "http://localhost:8080"
     llm_model: str = "qwen-14b"
     llm_api_key: str = ""
+    llm_concurrency: int = 4
+    llm_max_input_chars: int = 800_000  # 프롬프트 문자 수 상한 (~200K 토큰 추정)
+
+    # RAG (위협 지식 DB) — 기본 활성화. Qdrant 데이터 없으면 자동 비활성화.
+    rag_enabled: bool = True
+    qdrant_path: str = "data/qdrant"
+    rag_top_k: int = 5
 
     model_config = {"env_prefix": "SMARTCAR_", "env_file": ".env"}
 

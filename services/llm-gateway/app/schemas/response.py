@@ -61,6 +61,7 @@ class AuditInfo(BaseModel):
     latencyMs: int = 0
     tokenUsage: TokenUsage = Field(default_factory=TokenUsage)
     retryCount: int = 0
+    ragHits: int = 0
     createdAt: str
 
 
@@ -82,4 +83,5 @@ class TaskFailureResponse(BaseModel):
     status: TaskStatus
     failureCode: FailureCode
     failureDetail: str
+    retryable: bool = False
     audit: AuditInfo

@@ -430,6 +430,8 @@ export interface AnalysisProgress {
   phase: AnalysisPhase;
   currentChunk: number;
   totalChunks: number;
+  totalFiles?: number;
+  processedFiles?: number;
   message: string;
   startedAt: string;
   updatedAt: string;

@@ -39,11 +39,11 @@ export const StaticAnalysisPage: React.FC = () => {
   const toast = useToast();
 
   // Legacy sync analysis hook (for mode select flow compat)
-  const legacyAnalysis = useStaticAnalysis(projectId!);
+  const legacyAnalysis = useStaticAnalysis(projectId);
 
   // New hooks
-  const dashboard = useStaticDashboard(projectId!);
-  const asyncAnalysis = useAsyncAnalysis(projectId!);
+  const dashboard = useStaticDashboard(projectId);
+  const asyncAnalysis = useAsyncAnalysis(projectId);
 
   // View routing
   const [view, setView] = useState<DashboardView>("dashboard");
@@ -56,7 +56,8 @@ export const StaticAnalysisPage: React.FC = () => {
 
   // Load project files for mode select
   const loadProjectFiles = useCallback(() => {
-    fetchProjectFiles(projectId!)
+    if (!projectId) return;
+    fetchProjectFiles(projectId)
       .catch((e) => {
         logError("Load project files", e);
         return [] as UploadedFile[];
@@ -123,20 +124,23 @@ export const StaticAnalysisPage: React.FC = () => {
 
   const handleRunFullProject = useCallback(() => {
     asyncAnalysis.setAllExisting(projectFiles);
-    asyncAnalysis.startAnalysis(projectId!, projectFiles);
+    if (!projectId) return;
+    asyncAnalysis.startAnalysis(projectId, projectFiles);
     setView("progress");
   }, [asyncAnalysis, projectFiles, projectId]);
 
   const handleStartFromUpload = useCallback(() => {
     const allExisting = asyncAnalysis.selectedExisting;
-    asyncAnalysis.startAnalysis(projectId!, allExisting);
+    if (!projectId) return;
+    asyncAnalysis.startAnalysis(projectId, allExisting);
     setView("progress");
   }, [asyncAnalysis, projectId]);
 
   const handleAbortAnalysis = useCallback(async () => {
-    await asyncAnalysis.abortAnalysis();
+    await asyncAnalysis.abortAnalysis(dashboard.activeAnalysis?.analysisId);
     setShowAbortConfirm(false);
-  }, [asyncAnalysis]);
+    dashboard.refresh();
+  }, [asyncAnalysis, dashboard]);
 
   const handleResumeAnalysis = useCallback(() => {
     if (asyncAnalysis.progress) {
@@ -144,7 +148,7 @@ export const StaticAnalysisPage: React.FC = () => {
     }
   }, [asyncAnalysis.progress]);
 
-  const handleAnalysisViewResult = useCallback((analysisId: string) => {
+  const handleAnalysisViewResult = useCallback(() => {
     // When async analysis completes, refresh dashboard and go back
     goToDashboard();
   }, [goToDashboard]);
@@ -155,13 +159,15 @@ export const StaticAnalysisPage: React.FC = () => {
 
   // ── Render by view ──
 
+  if (!projectId) return null;
+
   // Legacy result view (?analysisId= compat)
   if (view === "legacyResult" && viewingResult) {
     if (legacyAnalysis.selectedVuln) {
       return (
         <VulnerabilityDetailView
           vulnerability={legacyAnalysis.selectedVuln}
-          projectId={projectId!}
+          projectId={projectId}
           onBack={() => legacyAnalysis.setSelectedVuln(null)}
         />
       );
@@ -180,7 +186,7 @@ export const StaticAnalysisPage: React.FC = () => {
     return (
       <FindingDetailView
         findingId={selectedFindingId}
-        projectId={projectId!}
+        projectId={projectId}
         onBack={() => {
           setSelectedFindingId(null);
           setView(runDetail ? "runDetail" : "dashboard");
@@ -204,7 +210,7 @@ export const StaticAnalysisPage: React.FC = () => {
     return (
       <RunDetailView
         runDetail={runDetail}
-        projectId={projectId!}
+        projectId={projectId}
         onBack={goToDashboard}
         onSelectFinding={handleSelectFinding}
         onViewLegacyResult={handleViewLegacyResult}
@@ -291,9 +297,9 @@ export const StaticAnalysisPage: React.FC = () => {
     return (
       <div className="page-enter">
         <PageHeader title="정적 분석" icon={<FileSearch size={20} />} />
-        <div className="card" style={{ padding: "var(--space-6)", textAlign: "center" }}>
+        <div className="card card--empty">
           <p className="text-tertiary">대시보드 데이터를 불러올 수 없습니다.</p>
-          <button className="btn btn-secondary" onClick={dashboard.refresh} style={{ marginTop: "var(--space-3)" }}>
+          <button className="btn btn-secondary" onClick={dashboard.refresh}>
             다시 시도
           </button>
         </div>
@@ -304,7 +310,7 @@ export const StaticAnalysisPage: React.FC = () => {
   return (
     <>
       <StaticDashboard
-        projectId={projectId!}
+        projectId={projectId}
         summary={dashboard.summary}
         recentRuns={dashboard.recentRuns}
         activeAnalysis={dashboard.activeAnalysis}

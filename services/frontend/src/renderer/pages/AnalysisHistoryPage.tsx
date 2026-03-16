@@ -50,7 +50,8 @@ export const AnalysisHistoryPage: React.FC = () => {
     : results.filter((a) => a.module === filter);
 
   const navigateToResult = (a: AnalysisResult) => {
-    navigate(getModuleRoute(a.module, projectId!, a.id));
+    if (!projectId) return;
+    navigate(getModuleRoute(a.module, projectId, a.id));
   };
 
   if (loading) {

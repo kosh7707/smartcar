@@ -55,7 +55,7 @@ export const FileUploadView: React.FC<Props> = ({
             <FileText size={16} />
             프로젝트 파일에서 선택 ({selectedExisting.length}/{existingFiles.length})
             {onSelectAll && selectedExisting.length < existingFiles.length && (
-              <button className="btn btn-secondary btn-sm" style={{ marginLeft: "auto" }} onClick={onSelectAll}>
+              <button className="btn btn-secondary btn-sm ml-auto" onClick={onSelectAll}>
                 전체 선택
               </button>
             )}

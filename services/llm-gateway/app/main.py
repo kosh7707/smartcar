@@ -43,8 +43,49 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    logger.info("LLM Gateway started (mode: %s)", settings.llm_mode)
+    # RAG: rag_enabled=false로 명시 비활성화하지 않는 한, Qdrant 데이터 존재 시 자동 활성화
+    threat_search = None
+    if settings.rag_enabled:
+        try:
+            from app.rag.threat_search import ThreatSearch
+            threat_search = ThreatSearch(settings.qdrant_path)
+            logger.info("RAG 활성화: qdrant_path=%s", settings.qdrant_path)
+        except Exception as e:
+            logger.info("RAG 자동 감지 실패 (데이터 미적재 시 정상): %s", e)
+
+    _app.state.threat_search = threat_search
+
+    # real 모드: httpx 클라이언트를 1회 생성하여 connection pooling 활용
+    llm_client = None
+    if settings.llm_mode == "real":
+        from app.clients.real import RealLlmClient
+        from app.registry.model_registry import create_default_registry as create_model_registry
+
+        registry = create_model_registry()
+        profile = registry.get_default()
+        llm_client = RealLlmClient(
+            endpoint=profile.endpoint if profile else settings.llm_endpoint,
+            model=profile.modelName if profile else settings.llm_model,
+            api_key=profile.apiKey if profile else settings.llm_api_key,
+            enable_thinking=False, json_mode=True,
+        )
+
+    # RAG enricher + LLM 클라이언트를 주입하여 파이프라인 재구성
+    from app.routers.tasks import _rebuild_pipeline
+    _rebuild_pipeline(threat_search, llm_client)
+
+    logger.info(
+        "LLM Gateway started (mode: %s, rag: %s, concurrency: %d)",
+        settings.llm_mode,
+        "enabled" if threat_search else "disabled",
+        settings.llm_concurrency,
+    )
     yield
+
+    if llm_client:
+        await llm_client.aclose()
+    if threat_search:
+        threat_search.close()
 
 
 app = FastAPI(

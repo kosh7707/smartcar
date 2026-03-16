@@ -132,20 +132,7 @@ export class LlmV1Adapter {
     const taskRequest: TaskRequest = {
       taskType,
       taskId,
-      context: {
-        trusted: {
-          ...(request.ruleResults
-            ? { ruleMatches: request.ruleResults }
-            : {}),
-        },
-        untrusted: {
-          ...(request.sourceCode ? { sourceCode: request.sourceCode } : {}),
-          ...(request.canLog ? { rawCanLog: request.canLog } : {}),
-          ...(request.testResults
-            ? { testResults: request.testResults }
-            : {}),
-        },
-      },
+      context: this.buildContext(taskType, request),
       evidenceRefs,
       ...(request.maxTokens
         ? { constraints: { maxTokens: request.maxTokens } }
@@ -158,6 +145,33 @@ export class LlmV1Adapter {
     });
 
     return this.toV0Response(response);
+  }
+
+  private buildContext(taskType: TaskType, request: LlmAnalyzeRequest) {
+    if (taskType === "static-explain") {
+      return {
+        trusted: {
+          ...(request.ruleResults?.length
+            ? { finding: request.ruleResults[0] }
+            : {}),
+        },
+        untrusted: {
+          ...(request.sourceCode ? { sourceSnippet: request.sourceCode } : {}),
+        },
+      };
+    }
+
+    // dynamic-annotate, test-plan-propose, etc.
+    return {
+      trusted: {
+        ...(request.ruleResults ? { ruleMatches: request.ruleResults } : {}),
+      },
+      untrusted: {
+        ...(request.sourceCode ? { sourceCode: request.sourceCode } : {}),
+        ...(request.canLog ? { rawCanLog: request.canLog } : {}),
+        ...(request.testResults ? { testResults: request.testResults } : {}),
+      },
+    };
   }
 
   private buildEvidenceRefs(request: LlmAnalyzeRequest): TaskEvidenceRef[] {
@@ -223,7 +237,7 @@ export class LlmV1Adapter {
 
     const vulnerabilities: LlmVulnerability[] = result.claims.map((claim) => ({
       severity: result.suggestedSeverity ?? "medium",
-      title: claim.statement.slice(0, 100),
+      title: claim.statement.slice(0, 200),
       description: claim.statement,
       location: null,
       suggestion: result.recommendedNextSteps[0] ?? null,

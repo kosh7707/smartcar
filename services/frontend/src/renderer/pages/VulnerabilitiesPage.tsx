@@ -71,7 +71,7 @@ export const VulnerabilitiesPage: React.FC = () => {
     return (
       <VulnerabilityDetailView
         vulnerability={selectedVuln}
-        projectId={projectId!}
+        projectId={projectId ?? ""}
         onBack={() => setSelectedVuln(null)}
       />
     );

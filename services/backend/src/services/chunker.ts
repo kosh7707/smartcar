@@ -4,6 +4,7 @@ import type { StoredFile } from "../dao/file-store";
 const CHARS_PER_TOKEN = 3.5;
 const MAX_TOKENS_PER_CHUNK = 6000;
 const MAX_CHARS_PER_CHUNK = MAX_TOKENS_PER_CHUNK * CHARS_PER_TOKEN; // ~21,000
+const MAX_CHARS_SKIP_LIMIT = 100_000; // 100KB — S3 권장 50~100KB
 
 export interface FileChunk {
   files: StoredFile[];
@@ -36,7 +37,17 @@ export function chunkFiles(files: StoredFile[]): ChunkResult {
     const formatted = formatFile(file);
     const fileChars = formatted.length;
 
-    // 단일 파일이 예산 초과 → 단독 청크 + warning
+    // 과대 파일(100KB 초과) → 스킵 + FILE_TOO_LARGE warning
+    if (fileChars > MAX_CHARS_SKIP_LIMIT) {
+      warnings.push({
+        code: "FILE_TOO_LARGE",
+        message: `File "${file.path || file.name}" skipped (${fileChars} chars > ${MAX_CHARS_SKIP_LIMIT} limit)`,
+        details: file.id,
+      });
+      continue;
+    }
+
+    // 단일 파일이 청크 예산 초과 → 단독 청크 + warning
     if (fileChars > MAX_CHARS_PER_CHUNK) {
       // 현재 청크가 있으면 먼저 flush
       if (currentFiles.length > 0) {

@@ -1,6 +1,6 @@
-.empty-state {
+.card .empty-state {
   text-align: center;
-  padding: var(--space-12) var(--space-10) !important;
+  padding: var(--space-12) var(--space-10);
 }
 
 .empty-state__icon {

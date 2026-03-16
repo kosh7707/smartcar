@@ -76,8 +76,23 @@ class ConfidenceCalculator:
         assessment: dict,
         has_rule_results: bool,
     ) -> float:
-        if not has_rule_results:
-            return 0.5  # rule 결과 없으면 중립
-        # rule 결과가 있으면 claims와 부합한다고 가정 (Phase 1 단순화)
         claims = assessment.get("claims", [])
-        return 1.0 if claims else 0.3
+        if has_rule_results:
+            # rule 결과가 있으면 claims와 부합한다고 가정 (Phase 1 단순화)
+            return 1.0 if claims else 0.3
+
+        # rule 결과 없이 LLM만으로 분석한 경우:
+        # claims 수와 caveats 존재 여부로 세분화
+        if not claims:
+            return 0.3
+        has_caveats = bool(assessment.get("caveats"))
+        has_steps = bool(assessment.get("recommendedNextSteps"))
+        # claims가 있고 한계점을 인지하면 더 신뢰
+        score = 0.5
+        if has_caveats:
+            score += 0.15
+        if has_steps:
+            score += 0.1
+        if len(claims) >= 2:
+            score += 0.1
+        return min(score, 1.0)

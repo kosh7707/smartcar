@@ -8,6 +8,7 @@ import { VulnerabilityDetailView } from "../components/static/VulnerabilityDetai
 import { BackButton, EmptyState, SeverityBadge, SeveritySummary, ListItem, Spinner } from "../components/ui";
 import { formatFileSize, formatDateTime } from "../utils/format";
 import { findFileByLocation } from "../utils/fileMatch";
+import { parseLocation } from "../utils/location";
 import "./FileDetailPage.css";
 
 export const FileDetailPage: React.FC = () => {
@@ -49,7 +50,7 @@ export const FileDetailPage: React.FC = () => {
               // 2) 폴백: 취약점 location에 이 파일이 있는지 확인
               return a.vulnerabilities.some((v) => {
                 if (!v.location) return false;
-                const fname = v.location.split(":")[0];
+                const fname = parseLocation(v.location).fileName;
                 return fname === found.name || fname === found.path
                   || fname.split("/").pop() === found.name;
               });
@@ -83,7 +84,7 @@ export const FileDetailPage: React.FC = () => {
     return (
       <VulnerabilityDetailView
         vulnerability={selectedVuln}
-        projectId={projectId!}
+        projectId={projectId ?? ""}
         onBack={() => setSelectedVuln(null)}
       />
     );
@@ -105,7 +106,7 @@ export const FileDetailPage: React.FC = () => {
   for (const a of analyses) {
     for (const v of a.vulnerabilities) {
       if (!v.location) continue;
-      const fname = v.location.split(":")[0];
+      const fname = parseLocation(v.location).fileName;
       if (fname === file.name || fname === file.path || fname.split("/").pop() === file.name) {
         fileVulns.push(v);
       }

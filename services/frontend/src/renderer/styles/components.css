@@ -559,16 +559,16 @@
 
 /* ── File Upload ── */
 
-.drop-zone {
+.card.drop-zone {
   text-align: center;
   cursor: pointer;
-  border: 2px dashed var(--border-strong) !important;
+  border: 2px dashed var(--border-strong);
   transition: border-color var(--transition-base), background var(--transition-base);
 }
 
-.drop-zone:hover,
-.drop-zone--active {
-  border-color: var(--accent) !important;
+.card.drop-zone:hover,
+.card.drop-zone--active {
+  border-color: var(--accent);
   background: var(--accent-subtle);
 }
 
@@ -745,6 +745,10 @@
 .vuln-title {
   font-size: var(--text-md);
   font-weight: var(--weight-semibold);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .vuln-card-meta {
@@ -1050,11 +1054,11 @@
   animation: confirm-fade-in var(--transition-fast) ease-out;
 }
 
-.confirm-dialog {
+dialog.confirm-dialog {
   width: 380px;
   max-width: 90vw;
-  padding: var(--space-6) !important;
-  margin: 0 !important;
+  padding: var(--space-6);
+  margin: 0;
   animation: confirm-slide-up var(--transition-base) ease-out;
 }
 
