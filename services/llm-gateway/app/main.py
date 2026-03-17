@@ -38,6 +38,14 @@ _file_handler.setFormatter(_formatter)
 logging.root.handlers = [_stdout_handler, _file_handler]
 logging.root.setLevel(logging.INFO)
 
+# S4 교환 로그 — 요청/응답 JSON 전문 기록 (stdout 미출력)
+_exchange_handler = logging.FileHandler(_log_dir / "s4-exchange.jsonl")
+_exchange_handler.setFormatter(logging.Formatter("%(message)s"))
+_exchange_logger = logging.getLogger("s4_exchange")
+_exchange_logger.handlers = [_exchange_handler]
+_exchange_logger.setLevel(logging.INFO)
+_exchange_logger.propagate = False
+
 logger = logging.getLogger(__name__)
 
 

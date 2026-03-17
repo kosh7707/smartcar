@@ -1,7 +1,6 @@
 import crypto from "crypto";
 import type { ApprovalRequest, ApprovalActionType, ApprovalStatus, AuditLogEntry } from "@smartcar/shared";
-import { approvalDAO } from "../dao/approval.dao";
-import { auditLogDAO } from "../dao/audit-log.dao";
+import type { IApprovalDAO, IAuditLogDAO } from "../dao/interfaces";
 import { createLogger } from "../lib/logger";
 import { NotFoundError, InvalidInputError } from "../lib/errors";
 import type { QualityGateService } from "./quality-gate.service";
@@ -11,7 +10,11 @@ const logger = createLogger("approval");
 const EXPIRY_HOURS = 24;
 
 export class ApprovalService {
-  constructor(private gateService: QualityGateService) {}
+  constructor(
+    private approvalDAO: IApprovalDAO,
+    private auditLogDAO: IAuditLogDAO,
+    private gateService: QualityGateService,
+  ) {}
 
   /** 승인 요청 생성 */
   createRequest(
@@ -36,7 +39,7 @@ export class ApprovalService {
       createdAt: now.toISOString(),
     };
 
-    approvalDAO.save(request);
+    this.approvalDAO.save(request);
     logger.info({ approvalId: request.id, actionType, targetId }, "Approval requested");
     return request;
   }
@@ -49,12 +52,12 @@ export class ApprovalService {
     comment?: string,
     requestId?: string
   ): ApprovalRequest {
-    const request = approvalDAO.findById(approvalId);
+    const request = this.approvalDAO.findById(approvalId);
     if (!request) throw new NotFoundError(`Approval not found: ${approvalId}`);
 
     // lazy expiration 체크
     if (request.status === "pending" && new Date(request.expiresAt) < new Date()) {
-      approvalDAO.updateStatus(approvalId, "expired");
+      this.approvalDAO.updateStatus(approvalId, "expired");
       throw new InvalidInputError("Approval request has expired");
     }
 
@@ -68,7 +71,7 @@ export class ApprovalService {
       comment,
     };
 
-    approvalDAO.updateStatus(approvalId, decision, decisionRecord);
+    this.approvalDAO.updateStatus(approvalId, decision, decisionRecord);
 
     // 감사 로그
     const logEntry: AuditLogEntry = {
@@ -86,7 +89,7 @@ export class ApprovalService {
       },
       requestId,
     };
-    auditLogDAO.save(logEntry);
+    this.auditLogDAO.save(logEntry);
 
     logger.info({ approvalId, decision, actor, actionType: request.actionType }, "Approval decided");
 
@@ -99,26 +102,26 @@ export class ApprovalService {
   }
 
   getById(id: string): ApprovalRequest | undefined {
-    const request = approvalDAO.findById(id);
+    const request = this.approvalDAO.findById(id);
     if (request) return this.applyLazyExpiration(request);
     return undefined;
   }
 
   getPending(projectId?: string): ApprovalRequest[] {
     const requests = projectId
-      ? approvalDAO.findByProjectId(projectId, "pending")
-      : approvalDAO.findPending();
+      ? this.approvalDAO.findByProjectId(projectId, "pending")
+      : this.approvalDAO.findPending();
     return requests.map((r) => this.applyLazyExpiration(r)).filter((r) => r.status === "pending");
   }
 
   getByProjectId(projectId: string): ApprovalRequest[] {
-    return approvalDAO.findByProjectId(projectId).map((r) => this.applyLazyExpiration(r));
+    return this.approvalDAO.findByProjectId(projectId).map((r) => this.applyLazyExpiration(r));
   }
 
   /** 만료된 pending 요청을 expired로 전환 (lazy) */
   private applyLazyExpiration(request: ApprovalRequest): ApprovalRequest {
     if (request.status === "pending" && new Date(request.expiresAt) < new Date()) {
-      approvalDAO.updateStatus(request.id, "expired");
+      this.approvalDAO.updateStatus(request.id, "expired");
       return { ...request, status: "expired" };
     }
     return request;

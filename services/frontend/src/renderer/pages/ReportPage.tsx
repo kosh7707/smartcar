@@ -40,6 +40,7 @@ export const ReportPage: React.FC = () => {
 
   const [report, setReport] = useState<ProjectReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [activeTab, setActiveTab] = useState<ModuleTab>("all");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<ReportFilters>({});
@@ -48,10 +49,12 @@ export const ReportPage: React.FC = () => {
   const loadReport = useCallback(() => {
     if (!projectId) return;
     setLoading(true);
+    setLoadError(false);
     fetchProjectReport(projectId, filters)
       .then(setReport)
       .catch((e) => {
         logError("Load report", e);
+        setLoadError(true);
         const retry = e instanceof ApiError && e.retryable ? { label: "다시 시도", onClick: loadReport } : undefined;
         toast.error(e instanceof Error ? e.message : "보고서를 불러올 수 없습니다.", retry);
       })
@@ -93,8 +96,11 @@ export const ReportPage: React.FC = () => {
         <PageHeader title="보고서" icon={<FileText size={20} />} />
         <EmptyState
           icon={<FileText size={28} />}
-          title="보고서를 생성할 수 없습니다"
-          description="분석을 먼저 실행해주세요"
+          title={loadError ? "보고서를 불러올 수 없습니다" : "보고서를 생성할 수 없습니다"}
+          description={loadError ? "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요." : "분석을 먼저 실행해주세요"}
+          action={loadError ? (
+            <button className="btn btn-secondary" onClick={loadReport}>다시 시도</button>
+          ) : undefined}
         />
       </div>
     );

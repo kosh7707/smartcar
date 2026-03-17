@@ -105,7 +105,7 @@ services/frontend/
 │       │   └── ToastContext.tsx       전역 toast 알림 (에러/경고/성공, 액션 버튼)
 │       ├── hooks/
 │       │   ├── useStaticAnalysis.ts   정적 분석 흐름 (레거시 동기)
-│       │   ├── useStaticDashboard.ts  대시보드 데이터 + 활성 분석 폴링
+│       │   ├── useStaticDashboard.ts  대시보드 데이터 + 최신 Run 상세 + 활성 분석 폴링
 │       │   ├── useAsyncAnalysis.ts    비동기 분석 실행 + 진행률 폴링
 │       │   ├── useDynamicTest.ts      동적 테스트 흐름 (WebSocket)
 │       │   └── useAdapters.ts         어댑터 상태 (5초 폴링, ecuMeta 포함)
@@ -116,7 +116,7 @@ services/frontend/
 │       │   ├── StatusBar.tsx          하단 상태바
 │       │   ├── ErrorBoundary.tsx      렌더링 크래시 방어 (class component)
 │       │   ├── ui/                    공통 UI (배지, 다이얼로그, 카드, PeriodSelector, TrendChart, GateResultCard 등)
-│       │   ├── static/               정적 분석 (Dashboard, Run/Finding 상세, 비동기 진행, 랭킹)
+│       │   ├── static/               정적 분석 (2-탭 Dashboard, LatestAnalysisTab/OverallStatusTab, Run/Finding 상세, 비동기 진행, 랭킹)
 │       │   ├── dynamic/              동적 분석 하위 컴포넌트
 │       │   └── finding/              Finding/Evidence 컴포넌트 (EvidencePanel, EvidenceViewer)
 │       ├── constants/                  공유 상수 (모듈, 언어, 동적, Finding, Evidence, defaults)
@@ -137,7 +137,7 @@ services/frontend/
 /projects                        → ProjectsPage
 /projects/:projectId             → ProjectLayout
   /overview                      → OverviewPage
-  /static-analysis               → StaticAnalysisPage (내부 뷰: dashboard|modeSelect|upload|progress|runDetail|findingDetail|legacyResult)
+  /static-analysis               → StaticAnalysisPage (2-탭 dashboard[최신분석/전체현황]|modeSelect|upload|progress|runDetail|findingDetail|legacyResult)
   /dynamic-analysis              → DynamicAnalysisPage
   /dynamic-test                  → DynamicTestPage
   /files                         → FilesPage
@@ -172,7 +172,7 @@ services/frontend/
 |------|---------|------|
 | 프로젝트 CRUD | ProjectsPage + ProjectContext | 생성/조회/삭제 |
 | Overview 대시보드 | OverviewPage | 도넛, StatCard(모듈별 분포+언어별), 파일/취약점/이력 |
-| 정적 분석 대시보드 | StaticAnalysisPage + StaticDashboard | KPI 4개, 심각도/출처 분포, 트렌드, 랭킹, 최근 Run, 활성 분석 배너 |
+| 정적 분석 대시보드 | StaticAnalysisPage + StaticDashboard | SonarQube 패턴 2-탭 (최신 분석 / 전체 현황), Gate 배너, Finding 파일별 그룹, KPI, 차트, 랭킹, 활성 분석 배너 |
 | 비동기 분석 흐름 | AsyncAnalysisProgressView + useAsyncAnalysis | 5단계 스테퍼, 2.5초 폴링, 중단, 비동기 API |
 | Run 상세 | RunDetailView | Run 메타 + GateResultCard + Finding 파일별 그룹 |
 | Finding 상세 | FindingDetailView | Evidence-first 레이아웃, 상태 변경, 감사 로그 |
@@ -188,7 +188,7 @@ services/frontend/
 | 공통 UI | Sidebar, StatusBar, 10+ ui 컴포넌트 | — |
 | Finding UI 컴포넌트 | FindingStatusBadge, ConfidenceBadge, SourceBadge, FindingSummary, StateTransitionDialog | FindingDetailView에 연결 완료 |
 | Evidence 뷰어 | EvidencePanel, EvidenceItemRow, EvidenceViewer | FindingDetailView에서 연동 완료 |
-| 대시보드 UI | PeriodSelector, TrendChart, GateResultCard | 공통 컴포넌트로 추가 |
+| 대시보드 UI | PeriodSelector, TrendChart, GateResultCard, LatestAnalysisTab, OverallStatusTab | 공통 컴포넌트 + 2-탭 구조 |
 
 ### 미구현 (S2 API/모델 확장 대기)
 
@@ -210,7 +210,7 @@ services/frontend/
 4계층 구조로 설계됨:
 
 1. **앱 안정성**: `ErrorBoundary` (렌더링 크래시 → fallback UI, Sidebar/StatusBar 유지), `unhandledrejection` 전역 핸들러 (`main.tsx`)
-2. **사용자 알림**: `ToastContext` — 전역 toast (에러/경고/성공), 5초 자동 닫기, 최대 5개 스택, 액션 버튼 지원
+2. **사용자 알림**: `ToastContext` — 전역 toast (에러/경고/성공, `info` 미지원), 3초 자동 닫기, 우측 하단 고정, 최대 5개 스택, 액션 버튼 지원
 3. **API 에러 분류**: `apiFetch`에서 네트워크 에러 / HTTP 상태코드 / JSON 파싱 실패 분류, `ApiError` 커스텀 에러 클래스 (`code`, `retryable`, `requestId`)
 4. **MSA 연동**: 모든 요청에 `X-Request-Id` 자동 부착, S2 `errorDetail` (구조화 에러 코드) 파싱, `retryable` 에러 시 toast에 "다시 시도" 버튼 표시
 5. **로깅 인프라**: `logError(context, e)` — `ApiError`에서 `requestId`를 추출해 로그에 포함. `healthFetch(url)` — 헬스체크 전용 래퍼 (`X-Request-Id` 부착, 에러 시 throw 안 함). 전 컴포넌트에서 `console.error` 대신 `logError` 사용. WebSocket 연결/해제/에러에 `console.info`/`console.warn` 로깅 추가.
@@ -374,6 +374,16 @@ npm run build
    - **CSS `!important` 잔여 제거** (7건 → 0건, print 1건 유지): 특이성 증가 셀렉터로 전환
    - **하드코딩 URL 상수화**: `constants/defaults.ts` 신규, `ProjectSettingsPage` 6곳 치환
    - **S2 work-request 2건 발송**: `AnalysisProgress.totalFiles` 필드 추가, Finding 제목 `slice(0,100)` 완화
+
+### 완료된 작업 (2026-03-17)
+
+4. ✅ 정적 분석 대시보드 2-탭 개편 (SonarQube 패턴)
+   - **"최신 분석" 탭 (기본)**: Quality Gate 배너, Run 요약 StatCards(Finding/Critical+High/소요시간), 심각도 DonutChart, 취약 파일 Top 5, Finding 목록(파일별 그룹)
+   - **"전체 현황" 탭**: 기존 대시보드 body 이동 (KPI 4종, 심각도/출처 분포, 트렌드, 상태 분포, 랭킹, 최근 Run)
+   - `useStaticDashboard` 훅에 `latestRunDetail`/`latestRunLoading` 상태 추가, 최신 completed run 자동 fetch
+   - PeriodSelector를 전체 현황 탭 전용으로 이동
+   - 신규 컴포넌트: `LatestAnalysisTab`, `OverallStatusTab`
+   - ActiveAnalysisBanner는 탭과 무관하게 항상 표시
 
 ### S2 추가 모델 확장 후 S1이 할 것
 

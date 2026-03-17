@@ -100,11 +100,12 @@ services/backend/
 ├── smartcar.db                     # SQLite DB 파일 (자동 생성)
 └── src/
     ├── index.ts                    # 앱 진입점 (Express 초기화, DI, 미들웨어, 라우터 마운트, WS attach)
-    ├── db.ts                       # SQLite 초기화, 테이블 14개 생성, 마이그레이션
+    ├── db.ts                       # SQLite 초기화, 테이블 16개 생성, 마이그레이션
     ├── lib/
     │   ├── logger.ts              # pino 루트 로거 + createLogger(component)
     │   ├── errors.ts              # AppError 계층 (10개 에러 클래스)
-    │   ├── vulnerability-utils.ts # SEVERITY_ORDER, computeSummary, sortBySeverity (3개 서비스 공용)
+    │   ├── vulnerability-utils.ts # SEVERITY_ORDER, computeSummary, sortBySeverity, mergeAndDedup (3개 서비스 공용)
+    │   ├── __tests__/             # lib 단위 테스트
     │   └── index.ts               # barrel export
     ├── middleware/
     │   ├── async-handler.ts            # asyncHandler — async 핸들러 에러를 next()로 전파
@@ -212,13 +213,13 @@ Controller → Service → DAO → SQLite
 
 SQLite(`better-sqlite3`), WAL 모드. DB 파일: `services/backend/smartcar.db` (환경변수 `DB_PATH`로 변경 가능).
 
-### 테이블 14개
+### 테이블 16개
 
 | 테이블 | 용도 | 주요 컬럼 |
 |--------|------|----------|
 | `projects` | 프로젝트 관리 | id, name, description, created_at, updated_at |
 | `uploaded_files` | 업로드된 소스코드 | id, project_id, name, size, language, content |
-| `analysis_results` | 분석 결과 | id, project_id, module, status, vulnerabilities(JSON), summary(JSON), warnings(JSON), analyzed_file_ids(JSON) |
+| `analysis_results` | 분석 결과 | id, project_id, module, status, vulnerabilities(JSON), summary(JSON), warnings(JSON), analyzed_file_ids(JSON), file_coverage(JSON) |
 | `rules` | 패턴 매칭 룰 | id, name, severity, pattern, enabled, project_id |
 | `adapters` | 어댑터 등록 정보 | id, name, url, project_id, created_at |
 | `project_settings` | 프로젝트 설정 KV | project_id, key, value, updated_at (PK: project_id+key) |
@@ -298,6 +299,14 @@ SQLite(`better-sqlite3`), WAL 모드. DB 파일: `services/backend/smartcar.db` 
 | GET | `/api/projects/:pid/findings/summary` | Finding 집계 (byStatus, bySeverity, total) |
 | GET | `/api/findings/:id` | Finding 상세 (evidenceRefs + auditLog) |
 | PATCH | `/api/findings/:id/status` | Finding 상태 변경 ({ status, reason, actor? }) |
+| GET | `/api/projects/:pid/gates` | 프로젝트 Quality Gate 목록 |
+| GET | `/api/gates/:id` | Gate 상세 |
+| GET | `/api/projects/:pid/approvals` | 프로젝트 Approval 목록 |
+| POST | `/api/approvals/:id/decide` | Approval 승인/거부 ({ decision, actor, comment }) |
+| GET | `/api/projects/:pid/report` | 프로젝트 전체 보고서 |
+| GET | `/api/projects/:pid/report/static` | 정적 분석 모듈 보고서 |
+| GET | `/api/projects/:pid/report/dynamic` | 동적 분석 모듈 보고서 |
+| GET | `/api/projects/:pid/report/test` | 동적 테스트 모듈 보고서 |
 
 ### 미구현
 
@@ -315,24 +324,29 @@ SQLite(`better-sqlite3`), WAL 모드. DB 파일: `services/backend/smartcar.db` 
 요청 (projectId + fileIds + analysisId?)
   → fileStore에서 파일 내용 조회
   → [1계층] RuleService.buildRuleEngine(projectId) → ruleEngine.runAll() — 프로젝트 enabled 룰만 실행, RuleMatch[] 반환
-  → 파일 청크 분할 (chunker.ts) — 6000토큰 예산, greedy bin-packing
-  → [2계층] 청크별 LLM 분석 (순차)
+  → 파일 청크 분할 (chunker.ts) — 14000토큰 예산, greedy bin-packing
+  → [2계층] 청크별 LLM 분석 (병렬, concurrency=4)
       각 청크마다 LlmV1Adapter.analyze() 호출 (내부에서 v1 TaskRequest로 변환)
-      성공 → llmVulns 수집
+      성공 → llmVulns 수집, processedFiles += chunk.files.length
       실패 → warnings에 LLM_CHUNK_FAILED 추가
       WS progress push (phase: llm_chunk, i/N)
-  → mergeAndSort() — 같은 location 중복 제거 (룰 우선), 심각도순 정렬
+  → mergeAndSort() → mergeAndDedup() — 같은 location 중복 제거 (룰 우선, undefined location 제외), 심각도순 정렬
   → computeSummary() — 심각도별 카운트
-  → AnalysisResultDAO.save() — DB 저장 (warnings 포함)
+  → fileCoverage 빌드 (analyzed/skipped 파일 목록 + 파일별 findingCount)
+  → AnalysisResultDAO.save() — DB 저장 (warnings + fileCoverage 포함)
   → WS complete 이벤트
   → AnalysisResult 반환 (warnings 포함)
 ```
 
-**청크 분할 (`chunker.ts`)**: 토큰 추정 `chars / 3.5`, 청크 예산 6000토큰(~21000chars). 100KB 초과 파일은 `FILE_TOO_LARGE` warning으로 스킵(S3 입력 상한 보호). 21K~100K chars 파일은 단독 청크 + `CHUNK_TOO_LARGE` warning.
+**청크 분할 (`chunker.ts`)**: 토큰 추정 `chars / 3.5`, 청크 예산 14000토큰(~49000chars). 100KB 초과 파일은 `FILE_TOO_LARGE` warning으로 스킵(S3 입력 상한 보호). 49K~100K chars 파일은 단독 청크 + `CHUNK_TOO_LARGE` warning.
 
 **WS 프로그레스**: `/ws/static-analysis?analysisId=xxx` 경로로 연결. 동적 분석과 동일한 패턴 (session→analysisId). WS 미연결 시 기존과 동일하게 동작.
 
 **Warnings**: `AnalysisResult.warnings?: AnalysisWarning[]` — LLM 실패 시에도 룰 결과는 항상 반환.
+
+**fileCoverage**: `AnalysisResult.fileCoverage?: FileCoverageEntry[]` — 파일별 분석 커버리지. analyzed/skipped 상태 + findingCount 포함. S1이 커버리지율/스킵 파일 표시에 활용.
+
+**Location 형식**: 룰 엔진 결과는 `"{filePath}:{lineNumber}"` (file.path || file.name 사용), LLM 결과는 기본 `null`. 단, 단일 파일 청크의 경우 해당 파일 경로로 fallback한다.
 
 ### 룰 엔진 구조
 
@@ -460,7 +474,14 @@ GET http://localhost:8000/v1/health
 
 - S3 URL: 프로젝트 설정 `llmUrl` 우선, 없으면 환경변수 `LLM_GATEWAY_URL` (기본값: `http://localhost:8000`)
 - S3 연결 실패 시 `{ success: false, vulnerabilities: [] }` 반환 → 1계층 결과만으로 응답 (graceful degradation)
-- concurrency queue (기본 1) — v0에서 이식
+- concurrency queue (기본 4, 환경변수 `LLM_CONCURRENCY`)
+- S3 응답의 `confidenceBreakdown` 필드: `consistency` → `ragCoverage`로 변경됨 (S3 측 2026-03-16 반영)
+
+### 3차 통합 테스트 결과 (2026-03-16)
+
+21개 청크, 100% 성공 (INVALID 0건). S3의 RAG/프롬프트 고도화 이후 confidence가 4단계로 분화:
+- 0.8650 / 0.8900 / 0.9300 / 0.9550 (이전: 0.955 고정)
+- `ragCoverage` 반영으로 Quality Gate 판정에 충분한 분별력 확보
 
 ### 한글 파일명 처리
 
@@ -556,6 +577,12 @@ curl -X POST http://localhost:3000/api/projects/proj-xxx/adapters/adp-xxx/connec
 - `reset-db.sh` — DB 삭제 (확인 프롬프트). 서버 정지 후 사용
 - `db-stats.sh` — 테이블별 건수 + DB 크기 조회
 - `backup-db.sh [이름]` — sqlite3 `.backup`으로 스냅샷 저장 (`scripts/backend/.backups/`)
+
+**로그 관리 스크립트** (`scripts/common/`):
+- `reset-logs-all.sh` — 전체 서비스 로그 초기화
+- `reset-logs-s2.sh` — S2 백엔드 로그만 초기화
+- `clean-s3-logs.sh` — S3 LLM Gateway 로그 정리
+- `clear-s4-logs.sh` — S4 LLM Engine 로그 정리
 
 **서비스 관리 스크립트** (`scripts/`) — **너의 담당**:
 - `start.sh` — 전체 서비스 기동
@@ -678,11 +705,25 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 ## 10. 알려진 이슈 / 주의사항
 
-### 대기 중인 작업 요청 (2026-03-16 기준)
+### 대기 중인 작업 요청 (2026-03-17 기준)
 
-`docs/work-requests/`:
-- `s2-to-s3-rag-query-empty.md` — S3에게 RAG 쿼리 추출 개선 요청 (96% 빈 쿼리, finding 없는 청크 대응)
-- `s2-to-s3-confidence-fixed-value.md` — S3에게 confidence 분별력 개선 요청 (전 청크 0.85 고정값)
+`docs/work-requests/`: S1 앞 버그 수정 통보 1건 대기 중 (`s2-to-s1-bug-fixes-done.md`).
+
+**2026-03-17 세션 2: S1 WR 3건 처리 + 버그 수정**
+- Run 타임스탬프 0초 버그 수정: `NormalizerContext.startedAt` 추가, 3개 파이프라인 모두 분석 시작 시점 전달
+- `mergeAndSort` undefined-location 중복 제거 버그 수정: `mergeAndDedup()` 순수 함수 추출 (`vulnerability-utils.ts`), `undefined`/`null` location을 Set에서 제외 → LLM 취약점 누락 해소
+- 보고서 API 500 에러 수정: `report.service.ts` `m!` non-null assertion 제거 + `report.controller.ts` try-catch 에러 핸들링 추가
+- findingCount 불일치: mergeAndDedup 수정으로 신규 분석 시 해소. 기존 Run 데이터는 부정확할 수 있음
+- 테스트 133개 통과 (기존 118 + 신규 15)
+
+**2026-03-17 세션 1: 문서-코드 심층 감사 수행**
+- `shared-models.md` RunDetailResponse 구조 수정 (Critical — 문서와 코드 불일치)
+- `shared-models.md` Quality Gate/Approval/Report/StaticDashboard 모델 + DTO 문서화 (미문서화 14건 해소)
+- `llm-task-client.ts` 타입 3건 수정: TaskAudit.ragHits, TaskClaim.location, TaskResponseFailure.retryable (계약서 정합)
+- `backend.md` 테이블 수 16개, LLM_NOTE warning 코드 추가
+- `models.ts` AnalysisWarning.code 주석에 LLM_NOTE 추가
+- EvidenceRef 과다 연결 버그 수정 (S1 요청): Finding에 전체 파일이 아닌 location 매칭 파일만 연결
+- SAST 도구 통합 설계 완료 (S3/S4 요청): SastFinding 타입 + API 계약 확장, Semgrep 실행 인프라는 후속 과제
 
 ### DB hot-reload 함정
 
@@ -724,13 +765,41 @@ CREATE TABLE IF NOT EXISTS audit_log (
 - [x] Run API: `GET /api/projects/:pid/runs`, `GET /api/runs/:id`
 - [x] Finding API: 목록, 집계, 상세(evidenceRefs+auditLog), 상태변경(PATCH)
 
-### 3단계: Quality Gate + Approval
+### 3단계: Quality Gate + Approval + Report ✅ 구현 완료
 
-- [ ] GateEvaluationService — run 완료 시 자동 평가 (동기식으로 시작)
-- [ ] Gate 규칙: critical finding → fail, evidence missing → warning, LLM-only → gate 미반영
-- [ ] Approval — 인증 없이 **local confirmation**으로 시작 (스키마는 확장 가능하게)
-- [ ] 고위험 액션(실 ECU 퍼징, fault injection 등) 승인 필요 상태로 대기
-- [ ] Quality Gates API, Approvals API
+- [x] QualityGateService — Run 완료 시 자동 평가 (ResultNormalizer에서 호출)
+- [x] Gate 규칙: critical/high finding → fail, sandbox unreviewed → warning, evidence missing → warning
+- [x] Quality Gates API: `GET /api/projects/:pid/gates`, `GET /api/gates/:id`
+- [x] Approval — local confirmation 워크플로우 (pending → approved/rejected)
+- [x] Gate override: approval 승인 시 gate에 override 적용
+- [x] Approvals API: `GET /api/projects/:pid/approvals`, `POST /api/approvals/:id/decide`
+- [x] ReportService — 프로젝트/모듈별 보고서 생성 (findings + runs + gates + approvals + audit trail)
+- [x] Report API: `GET /api/projects/:pid/report`, `GET /api/projects/:pid/report/{static,dynamic,test}`
+
+### 테스트 인프라 ✅ 구현 완료
+
+vitest 기반 테스트 133개. `cd services/backend && npx vitest run`으로 실행.
+
+```
+src/
+├── test/
+│   ├── test-db.ts               # 인메모리 SQLite (테스트용)
+│   ├── create-test-app.ts       # Express + 전체 DI 구성 (API 계약 테스트용)
+│   └── factories.ts             # 팩토리 함수 (makeProject, makeRun, makeFinding, ...)
+├── __tests__/
+│   ├── contract/api-contract.test.ts        # API 엔드포인트 계약 테스트 (supertest)
+│   └── integration/
+│       ├── dao.integration.test.ts          # DAO 레이어 통합 테스트
+│       └── service.integration.test.ts      # 서비스 파이프라인 통합 테스트
+├── services/__tests__/
+│   ├── result-normalizer.test.ts            # ResultNormalizer 단위 테스트
+│   ├── finding.service.test.ts              # Finding 라이프사이클 테스트
+│   └── ... (서비스별 단위 테스트)
+├── dao/__tests__/                            # DAO 단위 테스트
+├── lib/__tests__/
+│   └── vulnerability-utils.test.ts          # mergeAndDedup 등 유틸 테스트
+└── rules/__tests__/                          # 룰 엔진 테스트
+```
 
 ### 4단계: Adapter 고도화
 

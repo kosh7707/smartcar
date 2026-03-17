@@ -1,21 +1,6 @@
 import type { Rule } from "@smartcar/shared";
-import db from "../db";
-
-const insertStmt = db.prepare(
-  `INSERT OR IGNORE INTO rules (id, name, severity, description, suggestion, pattern, fix_code, enabled, project_id, created_at)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-);
-const selectAllStmt = db.prepare(`SELECT * FROM rules ORDER BY created_at ASC`);
-const selectByIdStmt = db.prepare(`SELECT * FROM rules WHERE id = ?`);
-const selectByProjectStmt = db.prepare(
-  `SELECT * FROM rules WHERE project_id = ? ORDER BY created_at ASC`
-);
-const updateStmt = db.prepare(
-  `UPDATE rules SET name = ?, severity = ?, description = ?, suggestion = ?, pattern = ?, fix_code = ?, enabled = ? WHERE id = ?`
-);
-const toggleStmt = db.prepare(`UPDATE rules SET enabled = ? WHERE id = ?`);
-const deleteStmt = db.prepare(`DELETE FROM rules WHERE id = ?`);
-const deleteByProjectStmt = db.prepare(`DELETE FROM rules WHERE project_id = ?`);
+import type { DatabaseType } from "../db";
+import type { IRuleDAO } from "./interfaces";
 
 function rowToRule(row: any): Rule {
   return {
@@ -32,9 +17,36 @@ function rowToRule(row: any): Rule {
   };
 }
 
-class RuleDAO {
+export class RuleDAO implements IRuleDAO {
+  private insertStmt;
+  private selectAllStmt;
+  private selectByIdStmt;
+  private selectByProjectStmt;
+  private updateStmt;
+  private toggleStmt;
+  private deleteStmt;
+  private deleteByProjectStmt;
+
+  constructor(private db: DatabaseType) {
+    this.insertStmt = db.prepare(
+      `INSERT OR IGNORE INTO rules (id, name, severity, description, suggestion, pattern, fix_code, enabled, project_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    this.selectAllStmt = db.prepare(`SELECT * FROM rules ORDER BY created_at ASC`);
+    this.selectByIdStmt = db.prepare(`SELECT * FROM rules WHERE id = ?`);
+    this.selectByProjectStmt = db.prepare(
+      `SELECT * FROM rules WHERE project_id = ? ORDER BY created_at ASC`
+    );
+    this.updateStmt = db.prepare(
+      `UPDATE rules SET name = ?, severity = ?, description = ?, suggestion = ?, pattern = ?, fix_code = ?, enabled = ? WHERE id = ?`
+    );
+    this.toggleStmt = db.prepare(`UPDATE rules SET enabled = ? WHERE id = ?`);
+    this.deleteStmt = db.prepare(`DELETE FROM rules WHERE id = ?`);
+    this.deleteByProjectStmt = db.prepare(`DELETE FROM rules WHERE project_id = ?`);
+  }
+
   save(rule: Rule): void {
-    insertStmt.run(
+    this.insertStmt.run(
       rule.id, rule.name, rule.severity, rule.description,
       rule.suggestion, rule.pattern, rule.fixCode ?? null,
       rule.enabled ? 1 : 0, rule.projectId, rule.createdAt
@@ -42,15 +54,15 @@ class RuleDAO {
   }
 
   findAll(): Rule[] {
-    return selectAllStmt.all().map(rowToRule);
+    return this.selectAllStmt.all().map(rowToRule);
   }
 
   findByProjectId(projectId: string): Rule[] {
-    return (selectByProjectStmt.all(projectId) as any[]).map(rowToRule);
+    return (this.selectByProjectStmt.all(projectId) as any[]).map(rowToRule);
   }
 
   findById(id: string): Rule | undefined {
-    const row = selectByIdStmt.get(id);
+    const row = this.selectByIdStmt.get(id);
     return row ? rowToRule(row) : undefined;
   }
 
@@ -66,24 +78,22 @@ class RuleDAO {
     const fixCode = fields.fixCode !== undefined ? fields.fixCode : existing.fixCode;
     const enabled = fields.enabled !== undefined ? fields.enabled : existing.enabled;
 
-    updateStmt.run(name, severity, description, suggestion, pattern, fixCode ?? null, enabled ? 1 : 0, id);
+    this.updateStmt.run(name, severity, description, suggestion, pattern, fixCode ?? null, enabled ? 1 : 0, id);
     return { ...existing, name, severity, description, suggestion, pattern, fixCode, enabled };
   }
 
   toggleEnabled(id: string, enabled: boolean): boolean {
-    const result = toggleStmt.run(enabled ? 1 : 0, id);
+    const result = this.toggleStmt.run(enabled ? 1 : 0, id);
     return result.changes > 0;
   }
 
   delete(id: string): boolean {
-    const result = deleteStmt.run(id);
+    const result = this.deleteStmt.run(id);
     return result.changes > 0;
   }
 
   deleteByProjectId(projectId: string): number {
-    const result = deleteByProjectStmt.run(projectId);
+    const result = this.deleteByProjectStmt.run(projectId);
     return result.changes;
   }
 }
-
-export const ruleDAO = new RuleDAO();

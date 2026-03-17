@@ -1,18 +1,6 @@
 import type { Project } from "@smartcar/shared";
-import db from "../db";
-
-const insertStmt = db.prepare(
-  `INSERT INTO projects (id, name, description, created_at, updated_at)
-   VALUES (?, ?, ?, ?, ?)`
-);
-const selectByIdStmt = db.prepare(`SELECT * FROM projects WHERE id = ?`);
-const selectAllStmt = db.prepare(
-  `SELECT * FROM projects ORDER BY updated_at DESC`
-);
-const updateStmt = db.prepare(
-  `UPDATE projects SET name = ?, description = ?, updated_at = ? WHERE id = ?`
-);
-const deleteStmt = db.prepare(`DELETE FROM projects WHERE id = ?`);
+import type { DatabaseType } from "../db";
+import type { IProjectDAO } from "./interfaces";
 
 function rowToProject(row: any): Project {
   return {
@@ -24,9 +12,30 @@ function rowToProject(row: any): Project {
   };
 }
 
-class ProjectDAO {
+export class ProjectDAO implements IProjectDAO {
+  private insertStmt;
+  private selectByIdStmt;
+  private selectAllStmt;
+  private updateStmt;
+  private deleteStmt;
+
+  constructor(private db: DatabaseType) {
+    this.insertStmt = db.prepare(
+      `INSERT INTO projects (id, name, description, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)`
+    );
+    this.selectByIdStmt = db.prepare(`SELECT * FROM projects WHERE id = ?`);
+    this.selectAllStmt = db.prepare(
+      `SELECT * FROM projects ORDER BY updated_at DESC`
+    );
+    this.updateStmt = db.prepare(
+      `UPDATE projects SET name = ?, description = ?, updated_at = ? WHERE id = ?`
+    );
+    this.deleteStmt = db.prepare(`DELETE FROM projects WHERE id = ?`);
+  }
+
   save(project: Project): void {
-    insertStmt.run(
+    this.insertStmt.run(
       project.id,
       project.name,
       project.description,
@@ -36,12 +45,12 @@ class ProjectDAO {
   }
 
   findById(id: string): Project | undefined {
-    const row = selectByIdStmt.get(id);
+    const row = this.selectByIdStmt.get(id);
     return row ? rowToProject(row) : undefined;
   }
 
   findAll(): Project[] {
-    return selectAllStmt.all().map(rowToProject);
+    return this.selectAllStmt.all().map(rowToProject);
   }
 
   update(id: string, fields: { name?: string; description?: string }): Project | undefined {
@@ -52,14 +61,12 @@ class ProjectDAO {
     const description = fields.description ?? existing.description;
     const updatedAt = new Date().toISOString();
 
-    updateStmt.run(name, description, updatedAt, id);
+    this.updateStmt.run(name, description, updatedAt, id);
     return { ...existing, name, description, updatedAt };
   }
 
   delete(id: string): boolean {
-    const result = deleteStmt.run(id);
+    const result = this.deleteStmt.run(id);
     return result.changes > 0;
   }
 }
-
-export const projectDAO = new ProjectDAO();

@@ -32,7 +32,7 @@
 | severity | `"critical" \| "high" \| "medium" \| "low" \| "info"` | 심각도 |
 | title | string | 취약점 제목 |
 | description | string | 상세 설명 |
-| location | string (optional) | 발생 위치 (파일:라인) |
+| location | string (optional) | 발생 위치. 형식: `"{filePath}:{lineNumber}"` (룰 엔진), `null` (LLM 결과 기본), 또는 `"{filePath}"` (단일 파일 청크 LLM fallback) |
 | source | `"rule" \| "llm"` | 탐지 출처 |
 | ruleId | string (optional) | 룰 탐지 시 룰 ID |
 | suggestion | string (optional) | 수정 방안 |
@@ -52,6 +52,7 @@
 | summary | AnalysisSummary | 요약 통계 |
 | warnings | AnalysisWarning[] (optional) | 분석 중 발생한 경고 목록 |
 | analyzedFileIds | string[] (optional) | 실제 분석된 파일 ID 목록 |
+| fileCoverage | FileCoverageEntry[] (optional) | 파일별 분석 커버리지 (정적 분석만) |
 | createdAt | string (ISO 8601) | 생성 시각 |
 
 ### AnalysisSummary
@@ -73,9 +74,21 @@
 
 | 필드 | 타입 | 설명 |
 |------|------|------|
-| code | string | 경고 코드 (`"LLM_CHUNK_FAILED"` \| `"LLM_UNAVAILABLE"` \| `"CHUNK_TOO_LARGE"` \| `"FILE_TOO_LARGE"` \| `"CHUNK_INPUT_SIZE_EXCEEDED"`) |
+| code | string | 경고 코드 (`"LLM_CHUNK_FAILED"` \| `"LLM_UNAVAILABLE"` \| `"CHUNK_TOO_LARGE"` \| `"FILE_TOO_LARGE"` \| `"CHUNK_INPUT_SIZE_EXCEEDED"` \| `"LLM_NOTE"`) |
 | message | string | 경고 메시지 |
 | details | string (optional) | 상세 정보 |
+
+### FileCoverageEntry
+
+파일별 분석 커버리지 정보. 정적 분석에서만 사용된다.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| fileId | string | 파일 고유 식별자 |
+| filePath | string | 파일 경로 |
+| status | `"analyzed" \| "skipped"` | 분석 여부 |
+| skipReason | string (optional) | 스킵 사유 (`"FILE_TOO_LARGE"` 등) |
+| findingCount | number | 해당 파일의 Finding 수 |
 
 ### Rule
 
@@ -203,6 +216,14 @@ CAN 메시지 주입 요청.
 | data | string | 페이로드 (hex, 예: "FF FF FF FF FF FF FF FF") |
 | label | string (optional) | 사람이 읽을 수 있는 라벨 |
 
+### InjectionClassification
+
+ECU 주입 응답 분류 타입.
+
+```typescript
+type InjectionClassification = "normal" | "crash" | "anomaly" | "timeout";
+```
+
 ### CanInjectionResponse
 
 CAN 메시지 주입 결과.
@@ -212,7 +233,7 @@ CAN 메시지 주입 결과.
 | id | string | 주입 결과 고유 식별자 |
 | request | CanInjectionRequest | 원본 요청 |
 | ecuResponse | object | ECU 응답 (`{ success, data?, error?, delayMs? }`) |
-| classification | `"normal" \| "crash" \| "anomaly" \| "timeout"` | 응답 분류 |
+| classification | InjectionClassification | 응답 분류 |
 | injectedAt | string (ISO 8601) | 주입 시각 |
 
 ### AttackScenario
@@ -228,6 +249,44 @@ CAN 메시지 주입 결과.
 | steps | CanInjectionRequest[] | 주입할 메시지 목록 |
 
 > `AttackScenarioId`: `"dos-burst" \| "diagnostic-abuse" \| "replay-attack" \| "bus-off" \| "unauthorized-id" \| "boundary-probe"`
+
+### SastFinding (후속 과제 — SAST 도구 통합)
+
+외부 SAST 도구(Semgrep, CodeQL 등)의 분석 결과를 표현한다. S2가 SAST 도구를 실행하여 수집하고, S3에 `context.trusted.sastFindings`로 전달한다.
+
+#### SastFindingLocation
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| file | string | 소스 파일 경로 |
+| line | number | 시작 줄 번호 |
+| column | number (optional) | 시작 컬럼 |
+| endLine | number (optional) | 종료 줄 번호 |
+| endColumn | number (optional) | 종료 컬럼 |
+
+#### SastDataFlowStep
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| file | string | 파일 경로 |
+| line | number | 줄 번호 |
+| content | string (optional) | 해당 줄 코드 스니펫 |
+
+#### SastFinding
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| toolId | string | 도구 식별자 (`"semgrep"`, `"codeql"` 등) |
+| ruleId | string | 도구의 룰 ID (예: `"semgrep:c.lang.security.insecure-use-gets-fn"`) |
+| severity | string | 도구가 판정한 심각도 (S2가 Severity로 정규화) |
+| message | string | 도구가 생성한 설명 |
+| location | SastFindingLocation | 소스 위치 |
+| dataFlow | SastDataFlowStep[] (optional) | taint tracking 결과 |
+| metadata | object (optional) | 도구별 추가 정보 |
+
+> **S3 전달 방식**: `TaskRequest.context.trusted.sastFindings: SastFinding[]`
+>
+> **Evidence**: SAST finding은 `evidenceRefs`에 `artifactType: "sast-finding"`, `locatorType: "lineRange"`로 등록. S3 Evidence Validator가 refId를 검증할 수 있다.
 
 ### Run
 
@@ -280,7 +339,7 @@ Finding과 증적(artifact) 간의 참조 연결.
 | id | string | `"evr-{uuid}"` |
 | findingId | string | 소속 Finding ID |
 | artifactId | string | 증적 ID (AnalysisResult, 파일, 세션 등) |
-| artifactType | `"analysis-result" \| "uploaded-file" \| "dynamic-session" \| "test-result"` | 증적 유형 |
+| artifactType | `"analysis-result" \| "uploaded-file" \| "dynamic-session" \| "test-result" \| "sast-finding"` | 증적 유형 |
 | locatorType | `"line-range" \| "packet-range" \| "timestamp-window" \| "request-response-pair"` | 위치 지시자 유형 |
 | locator | object | 위치 상세 (예: `{ file, startLine, endLine }`) |
 | createdAt | string (ISO 8601) | 생성 시각 |
@@ -299,6 +358,147 @@ Finding과 증적(artifact) 간의 참조 연결.
 | resourceId | string (optional) | 리소스 ID |
 | detail | object | 상세 정보 (예: `{ from, to, reason }`) |
 | requestId | string (optional) | 요청 추적 ID |
+
+### ReportMeta
+
+보고서 메타데이터.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| generatedAt | string (ISO 8601) | 보고서 생성 시각 |
+| projectId | string | 프로젝트 ID |
+| projectName | string | 프로젝트명 |
+| module | AnalysisModule | 분석 모듈 |
+
+### ReportSummary
+
+보고서 집계 요약.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| totalFindings | number | 총 Finding 수 |
+| bySeverity | Record<string, number> | 심각도별 건수 |
+| byStatus | Record<string, number> | 상태별 건수 |
+| bySource | Record<string, number> | 출처별 건수 |
+
+### RunReportEntry
+
+보고서 내 Run 항목.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| run | Run | Run 정보 |
+| gate | GateResult (optional) | Quality Gate 결과 |
+
+### FindingReportEntry
+
+보고서 내 Finding 항목.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| finding | Finding | Finding 정보 |
+| evidenceRefs | EvidenceRef[] | 증적 목록 |
+
+### ModuleReport
+
+모듈별 보고서. (후속 과제)
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| meta | ReportMeta | 보고서 메타데이터 |
+| summary | ReportSummary | 집계 요약 |
+| runs | RunReportEntry[] | Run 목록 |
+| findings | FindingReportEntry[] | Finding 목록 |
+| gateResults | GateResult[] | Quality Gate 결과 목록 |
+
+### ProjectReport
+
+프로젝트 전체 보고서. (후속 과제)
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| generatedAt | string (ISO 8601) | 생성 시각 |
+| projectId | string | 프로젝트 ID |
+| projectName | string | 프로젝트명 |
+| modules | `{ static?: ModuleReport; dynamic?: ModuleReport; test?: ModuleReport }` | 모듈별 보고서 |
+| totalSummary | ReportSummary | 전체 집계 |
+| approvals | ApprovalRequest[] | 승인 요청 목록 |
+| auditTrail | AuditLogEntry[] | 감사 로그 |
+
+### GateStatus
+
+Quality Gate 상태 타입. (후속 과제 — 3단계, 스키마 선확정)
+
+```typescript
+type GateStatus = "pass" | "fail" | "warning";
+```
+
+### GateRuleId
+
+Quality Gate 규칙 식별자. (후속 과제 — 3단계, 스키마 선확정)
+
+```typescript
+type GateRuleId = "no-critical" | "high-threshold" | "evidence-coverage" | "sandbox-unreviewed";
+```
+
+### GateRuleResult
+
+Quality Gate 개별 규칙 평가 결과. (후속 과제 — 3단계, 스키마 선확정)
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| ruleId | GateRuleId | 규칙 식별자 |
+| result | `"passed" \| "failed" \| "warning"` | 평가 결과 |
+| message | string | 설명 메시지 |
+| linkedFindingIds | string[] | 관련 Finding ID 목록 |
+
+### GateResult
+
+Quality Gate 평가 결과. (후속 과제 — 3단계, 스키마 선확정)
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | string | 고유 식별자 |
+| runId | string | 소속 Run ID |
+| projectId | string | 프로젝트 ID |
+| status | GateStatus | 게이트 상태 |
+| rules | GateRuleResult[] | 규칙별 평가 결과 |
+| evaluatedAt | string (ISO 8601) | 평가 시각 |
+| override | object (optional) | 오버라이드 정보 (`{ overriddenBy, reason, approvalId, overriddenAt }`) |
+| createdAt | string (ISO 8601) | 생성 시각 |
+
+### ApprovalStatus
+
+승인 상태 타입. (후속 과제 — 3단계)
+
+```typescript
+type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
+```
+
+### ApprovalActionType
+
+승인 대상 액션 타입. (후속 과제 — 3단계)
+
+```typescript
+type ApprovalActionType = "gate.override" | "finding.accepted_risk";
+```
+
+### ApprovalRequest
+
+승인 요청. (후속 과제 — 3단계)
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | string | 고유 식별자 |
+| actionType | ApprovalActionType | 액션 유형 |
+| requestedBy | string | 요청자 |
+| targetId | string | 대상 리소스 ID |
+| projectId | string | 프로젝트 ID |
+| reason | string | 요청 사유 |
+| status | ApprovalStatus | 승인 상태 |
+| decision | object (optional) | 결정 정보 (`{ decidedBy, decidedAt, comment? }`) |
+| expiresAt | string (ISO 8601) | 만료 시각 |
+| createdAt | string (ISO 8601) | 생성 시각 |
 
 ### DynamicTestConfig
 
@@ -570,7 +770,9 @@ Finding과 증적(artifact) 간의 참조 연결.
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | success | boolean | 성공 여부 |
-| data | Run & { findings: Finding[] } (optional) | Run + Finding 목록 |
+| data.run | Run | Run 정보 |
+| data.gate | GateResult (optional) | Quality Gate 결과 (후속 과제 — 3단계) |
+| data.findings | Array<{ finding: Finding; evidenceRefs: EvidenceRef[] }> | Finding + 증적 목록 |
 | error | string (optional) | 에러 메시지 |
 
 ### Finding
@@ -606,6 +808,98 @@ Finding과 증적(artifact) 간의 참조 연결.
 | data.byStatus | Record<string, number> | 상태별 카운트 |
 | data.bySeverity | Record<string, number> | 심각도별 카운트 |
 | data.total | number | 전체 Finding 수 |
+
+### Quality Gate (후속 과제 — 3단계, 스키마 선확정)
+
+#### GateResultResponse
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| success | boolean | 성공 여부 |
+| data | GateResult (optional) | Quality Gate 결과 |
+| error | string (optional) | 에러 메시지 |
+
+#### GateResultListResponse
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| success | boolean | 성공 여부 |
+| data | GateResult[] | Quality Gate 결과 목록 |
+
+#### GateOverrideRequest
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| reason | string | 오버라이드 사유 |
+| actor | string (optional) | 수행자 |
+
+### Approval (후속 과제 — 3단계)
+
+#### ApprovalListResponse
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| success | boolean | 성공 여부 |
+| data | ApprovalRequest[] | 승인 요청 목록 |
+
+#### ApprovalDetailResponse
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| success | boolean | 성공 여부 |
+| data | ApprovalRequest (optional) | 승인 요청 상세 |
+| error | string (optional) | 에러 메시지 |
+
+#### ApprovalDecisionRequest
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| decision | `"approved" \| "rejected"` | 결정 |
+| comment | string (optional) | 코멘트 |
+| actor | string (optional) | 수행자 |
+
+### Report (후속 과제)
+
+#### ModuleReportResponse
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| success | boolean | 성공 여부 |
+| data | ModuleReport (optional) | 모듈별 보고서 |
+| error | string (optional) | 에러 메시지 |
+
+#### ProjectReportResponse
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| success | boolean | 성공 여부 |
+| data | ProjectReport (optional) | 프로젝트 보고서 |
+| error | string (optional) | 에러 메시지 |
+
+### 정적 분석 대시보드
+
+#### StaticAnalysisDashboardSummary
+
+정적 분석 대시보드 집계 데이터.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| bySeverity | Record<string, number> | 심각도별 Finding 수 |
+| byStatus | Record<string, number> | 상태별 Finding 수 |
+| bySource | Record<string, number> | 출처별 Finding 수 |
+| topFiles | Array<{ filePath, findingCount, topSeverity }> | 상위 파일 목록 |
+| topRules | Array<{ ruleId, hitCount }> | 상위 룰 목록 |
+| trend | Array<{ date, runCount, findingCount, gatePassCount }> | 일별 트렌드 |
+| gateStats | `{ total, passed, failed, rate }` | Quality Gate 통계 |
+| unresolvedCount | `{ open, needsReview, needsRevalidation, sandbox }` | 미해결 Finding 카운트 |
+
+#### StaticDashboardResponse
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| success | boolean | 성공 여부 |
+| data | StaticAnalysisDashboardSummary (optional) | 대시보드 집계 |
+| error | string (optional) | 에러 메시지 |
 
 ### 공통
 
@@ -651,7 +945,7 @@ Finding과 증적(artifact) 간의 참조 연결.
 | currentChunk | number | 현재 청크 번호 |
 | totalChunks | number | 전체 청크 수 |
 | totalFiles | number (optional) | 분석 대상 전체 파일 수 |
-| processedFiles | number (optional) | 현재까지 처리 완료된 파일 수 |
+| processedFiles | number (optional) | 현재까지 처리 완료된 파일 수. 청크 완료 시 해당 청크의 파일 수만큼 증가 |
 | message | string | 진행 메시지 |
 | startedAt | string (ISO 8601) | 시작 시각 |
 | updatedAt | string (ISO 8601) | 마지막 갱신 시각 |

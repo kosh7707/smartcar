@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import type { AnalysisResult, UploadedFile } from "@smartcar/shared";
 import type { RunDetailResponse } from "@smartcar/shared";
 import { FileSearch, FolderSearch, ListChecks } from "lucide-react";
@@ -36,6 +36,7 @@ type DashboardView =
 export const StaticAnalysisPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const toast = useToast();
 
   // Legacy sync analysis hook (for mode select flow compat)
@@ -156,6 +157,21 @@ export const StaticAnalysisPage: React.FC = () => {
   const handleViewLegacyResult = useCallback((analysisResultId: string) => {
     setSearchParams({ analysisId: analysisResultId });
   }, [setSearchParams]);
+
+  const handleFileClick = useCallback((filePath: string) => {
+    if (filePath === "기타") {
+      toast.warning("위치가 특정되지 않은 Finding입니다.");
+      return;
+    }
+    const matched = projectFiles.find(
+      (f) => f.path === filePath || f.name === filePath,
+    );
+    if (matched) {
+      navigate(`/projects/${projectId}/files/${matched.id}`);
+    } else {
+      toast.warning(`파일을 찾을 수 없습니다: ${filePath}`);
+    }
+  }, [projectFiles, projectId, navigate, toast]);
 
   // ── Render by view ──
 
@@ -314,12 +330,16 @@ export const StaticAnalysisPage: React.FC = () => {
         summary={dashboard.summary}
         recentRuns={dashboard.recentRuns}
         activeAnalysis={dashboard.activeAnalysis}
+        latestRunDetail={dashboard.latestRunDetail}
+        latestRunLoading={dashboard.latestRunLoading}
         period={dashboard.period}
         onPeriodChange={dashboard.setPeriod}
         onNewAnalysis={handleNewAnalysis}
         onViewRun={handleViewRun}
+        onSelectFinding={handleSelectFinding}
         onResumeAnalysis={handleResumeAnalysis}
         onAbortAnalysis={() => setShowAbortConfirm(true)}
+        onFileClick={handleFileClick}
       />
 
       <ConfirmDialog

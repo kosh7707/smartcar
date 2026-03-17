@@ -101,6 +101,37 @@ def test_search_preserves_crossrefs(mock_client_cls):
 
 
 @patch("app.rag.threat_search.QdrantClient")
+def test_min_score_filters_low_relevance(mock_client_cls):
+    """min_score 미만 결과가 제외된다."""
+    mock_client = MagicMock()
+    mock_client_cls.return_value = mock_client
+
+    col = MagicMock()
+    col.name = "threat_knowledge"
+    mock_client.get_collections.return_value = MagicMock(collections=[col])
+
+    mock_client.query.return_value = [
+        _mock_query_result("CWE-120", "CWE", "Buffer Overflow", 0.92),
+        _mock_query_result("CWE-787", "CWE", "OOB Write", 0.65),
+        _mock_query_result("CWE-200", "CWE", "Info Exposure", 0.30),
+        _mock_query_result("CWE-79", "CWE", "XSS", 0.15),
+        _mock_query_result("CWE-89", "CWE", "SQL Injection", 0.10),
+    ]
+
+    ts = ThreatSearch("/fake/path")
+
+    # min_score=0.35 → 0.30, 0.15, 0.10 제외
+    hits = ts.search("buffer overflow", top_k=5, min_score=0.35)
+    assert len(hits) == 2
+    assert hits[0].id == "CWE-120"
+    assert hits[1].id == "CWE-787"
+
+    # min_score=0 → 전부 포함
+    hits_all = ts.search("buffer overflow", top_k=5, min_score=0.0)
+    assert len(hits_all) == 5
+
+
+@patch("app.rag.threat_search.QdrantClient")
 def test_missing_collection_raises(mock_client_cls):
     """컬렉션이 없으면 RuntimeError."""
     mock_client = MagicMock()

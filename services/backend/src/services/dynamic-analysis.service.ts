@@ -19,10 +19,7 @@ import { validateLlmSeverity } from "../lib/vulnerability-utils";
 import type { WsBroadcaster } from "./ws-broadcaster";
 import type { AdapterManager } from "./adapter-manager";
 import type { ProjectSettingsService } from "./project-settings.service";
-import { dynamicSessionDAO } from "../dao/dynamic-session.dao";
-import { dynamicAlertDAO } from "../dao/dynamic-alert.dao";
-import { dynamicMessageDAO } from "../dao/dynamic-message.dao";
-import { analysisResultDAO } from "../dao/analysis-result.dao";
+import type { IDynamicSessionDAO, IDynamicAlertDAO, IDynamicMessageDAO, IAnalysisResultDAO } from "../dao/interfaces";
 import { ATTACK_SCENARIOS } from "./attack-scenarios";
 import type { ResultNormalizer } from "./result-normalizer";
 import { createLogger, generateRequestId } from "../lib/logger";
@@ -55,6 +52,10 @@ export class DynamicAnalysisService {
   private activeSessions = new Map<string, ActiveSession>();
 
   constructor(
+    private dynamicSessionDAO: IDynamicSessionDAO,
+    private dynamicAlertDAO: IDynamicAlertDAO,
+    private dynamicMessageDAO: IDynamicMessageDAO,
+    private analysisResultDAO: IAnalysisResultDAO,
     private canRuleEngine: CanRuleEngine,
     private llmClient: LlmV1Adapter,
     private ws: WsBroadcaster<import("@smartcar/shared").WsMessage>,
@@ -94,15 +95,15 @@ export class DynamicAnalysisService {
       alertCount: 0,
       startedAt: new Date().toISOString(),
     };
-    dynamicSessionDAO.save(session);
+    this.dynamicSessionDAO.save(session);
     return session;
   }
 
   startSession(sessionId: string): DynamicAnalysisSession | undefined {
-    const session = dynamicSessionDAO.findById(sessionId);
+    const session = this.dynamicSessionDAO.findById(sessionId);
     if (!session || session.status !== "connected") return undefined;
 
-    dynamicSessionDAO.updateStatus(sessionId, "monitoring");
+    this.dynamicSessionDAO.updateStatus(sessionId, "monitoring");
     this.canRuleEngine.resetAll();
 
     const active: ActiveSession = {
@@ -122,33 +123,33 @@ export class DynamicAnalysisService {
   }
 
   async stopSession(sessionId: string, requestId?: string): Promise<DynamicAnalysisSession | undefined> {
-    const session = dynamicSessionDAO.findById(sessionId);
+    const session = this.dynamicSessionDAO.findById(sessionId);
     if (!session || session.status === "stopped") return undefined;
 
     const endedAt = new Date().toISOString();
-    dynamicSessionDAO.stop(sessionId, endedAt);
+    this.dynamicSessionDAO.stop(sessionId, endedAt);
 
     // 전체 로그 LLM 종합 분석
-    await this.runFinalLlmAnalysis(sessionId, session.projectId, requestId);
+    await this.runFinalLlmAnalysis(sessionId, session.projectId, requestId, session.startedAt);
 
     this.activeSessions.delete(sessionId);
 
-    return dynamicSessionDAO.findById(sessionId);
+    return this.dynamicSessionDAO.findById(sessionId);
   }
 
   findSession(sessionId: string) {
-    const session = dynamicSessionDAO.findById(sessionId);
+    const session = this.dynamicSessionDAO.findById(sessionId);
     if (!session) return undefined;
 
-    const alerts = dynamicAlertDAO.findBySessionId(sessionId);
-    const recentMessages = dynamicMessageDAO.findRecent(sessionId, 50);
+    const alerts = this.dynamicAlertDAO.findBySessionId(sessionId);
+    const recentMessages = this.dynamicMessageDAO.findRecent(sessionId, 50);
 
     return { session, alerts, recentMessages };
   }
 
   findAllSessions(projectId?: string): DynamicAnalysisSession[] {
-    if (projectId) return dynamicSessionDAO.findByProjectId(projectId);
-    return dynamicSessionDAO.findAll();
+    if (projectId) return this.dynamicSessionDAO.findByProjectId(projectId);
+    return this.dynamicSessionDAO.findAll();
   }
 
   // --- CAN 메시지 처리 ---
@@ -171,7 +172,7 @@ export class DynamicAnalysisService {
     const storedMsg: CanMessage = { ...msg, flagged };
 
     // DB 저장
-    dynamicMessageDAO.save(sessionId, storedMsg);
+    this.dynamicMessageDAO.save(sessionId, storedMsg);
     active.messageCount++;
 
     // S1에 메시지 push
@@ -187,7 +188,7 @@ export class DynamicAnalysisService {
 
     // 주기적으로 DB 카운트 업데이트 (매 100건)
     if (active.messageCount % 100 === 0) {
-      dynamicSessionDAO.updateCounts(sessionId, active.messageCount, active.alertCount);
+      this.dynamicSessionDAO.updateCounts(sessionId, active.messageCount, active.alertCount);
     }
 
     // 상태 push (매 20건)
@@ -212,7 +213,7 @@ export class DynamicAnalysisService {
       detectedAt: new Date().toISOString(),
     };
 
-    dynamicAlertDAO.save(alert, active.id);
+    this.dynamicAlertDAO.save(alert, active.id);
     active.alertCount++;
     active.alertsSinceLastLlm++;
 
@@ -241,7 +242,7 @@ export class DynamicAnalysisService {
     // 전후 컨텍스트 추출
     const contextMessages = active.recentMessages.slice(-CONTEXT_WINDOW * 2);
     const canLog = this.messagesToLog(contextMessages);
-    const alerts = dynamicAlertDAO.findBySessionId(active.id);
+    const alerts = this.dynamicAlertDAO.findBySessionId(active.id);
     const ruleResults = alerts.slice(-ALERT_LLM_THRESHOLD).map((a) => ({
       ruleId: a.id,
       title: a.title,
@@ -260,7 +261,7 @@ export class DynamicAnalysisService {
         .map((v) => `[${v.severity}] ${v.title}: ${v.description}`)
         .join("\n");
 
-      dynamicAlertDAO.updateLlmAnalysis(triggerAlert.id, llmText);
+      this.dynamicAlertDAO.updateLlmAnalysis(triggerAlert.id, llmText);
 
       // 업데이트된 alert를 push
       const updated: DynamicAlert = { ...triggerAlert, llmAnalysis: llmText };
@@ -268,9 +269,9 @@ export class DynamicAnalysisService {
     }
   }
 
-  private async runFinalLlmAnalysis(sessionId: string, projectId: string, requestId?: string): Promise<void> {
-    const allMessages = dynamicMessageDAO.findBySessionId(sessionId);
-    const alerts = dynamicAlertDAO.findBySessionId(sessionId);
+  private async runFinalLlmAnalysis(sessionId: string, projectId: string, requestId?: string, sessionStartedAt?: string): Promise<void> {
+    const allMessages = this.dynamicMessageDAO.findBySessionId(sessionId);
+    const alerts = this.dynamicAlertDAO.findBySessionId(sessionId);
 
     if (allMessages.length === 0) return;
 
@@ -335,11 +336,11 @@ export class DynamicAnalysisService {
       createdAt: new Date().toISOString(),
     };
 
-    analysisResultDAO.save(result);
-    this.resultNormalizer?.normalizeAnalysisResult(result, { sessionId });
-    dynamicSessionDAO.updateCounts(
+    this.analysisResultDAO.save(result);
+    this.resultNormalizer?.normalizeAnalysisResult(result, { sessionId, startedAt: sessionStartedAt });
+    this.dynamicSessionDAO.updateCounts(
       sessionId,
-      dynamicMessageDAO.countBySessionId(sessionId),
+      this.dynamicMessageDAO.countBySessionId(sessionId),
       alerts.length
     );
   }
@@ -350,7 +351,7 @@ export class DynamicAnalysisService {
     const active = this.activeSessions.get(sessionId);
     if (!active) throw new NotFoundError("Session not found or not active");
 
-    const session = dynamicSessionDAO.findById(sessionId);
+    const session = this.dynamicSessionDAO.findById(sessionId);
     if (!session || session.status !== "monitoring") {
       throw new InvalidInputError("Session is not in monitoring state");
     }

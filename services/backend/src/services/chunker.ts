@@ -2,8 +2,8 @@ import type { AnalysisWarning } from "@smartcar/shared";
 import type { StoredFile } from "../dao/file-store";
 
 const CHARS_PER_TOKEN = 3.5;
-const MAX_TOKENS_PER_CHUNK = 6000;
-const MAX_CHARS_PER_CHUNK = MAX_TOKENS_PER_CHUNK * CHARS_PER_TOKEN; // ~21,000
+const MAX_TOKENS_PER_CHUNK = 14000;
+const MAX_CHARS_PER_CHUNK = MAX_TOKENS_PER_CHUNK * CHARS_PER_TOKEN; // ~49,000
 const MAX_CHARS_SKIP_LIMIT = 100_000; // 100KB — S3 권장 50~100KB
 
 export interface FileChunk {
@@ -15,6 +15,7 @@ export interface FileChunk {
 export interface ChunkResult {
   chunks: FileChunk[];
   warnings: AnalysisWarning[];
+  skippedFiles: Array<{ fileId: string; filePath: string; reason: string }>;
 }
 
 function estimateTokens(text: string): number {
@@ -28,6 +29,7 @@ function formatFile(file: StoredFile): string {
 export function chunkFiles(files: StoredFile[]): ChunkResult {
   const chunks: FileChunk[] = [];
   const warnings: AnalysisWarning[] = [];
+  const skippedFiles: ChunkResult["skippedFiles"] = [];
 
   let currentFiles: StoredFile[] = [];
   let currentParts: string[] = [];
@@ -43,6 +45,11 @@ export function chunkFiles(files: StoredFile[]): ChunkResult {
         code: "FILE_TOO_LARGE",
         message: `File "${file.path || file.name}" skipped (${fileChars} chars > ${MAX_CHARS_SKIP_LIMIT} limit)`,
         details: file.id,
+      });
+      skippedFiles.push({
+        fileId: file.id,
+        filePath: file.path || file.name,
+        reason: "FILE_TOO_LARGE",
       });
       continue;
     }
@@ -100,5 +107,5 @@ export function chunkFiles(files: StoredFile[]): ChunkResult {
     });
   }
 
-  return { chunks, warnings };
+  return { chunks, warnings, skippedFiles };
 }

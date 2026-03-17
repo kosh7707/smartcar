@@ -1,8 +1,5 @@
 import type { Run, Finding, GateResult, EvidenceRef } from "@smartcar/shared";
-import { runDAO } from "../dao/run.dao";
-import { findingDAO } from "../dao/finding.dao";
-import { gateResultDAO } from "../dao/gate-result.dao";
-import { evidenceRefDAO } from "../dao/evidence-ref.dao";
+import type { IRunDAO, IFindingDAO, IGateResultDAO, IEvidenceRefDAO } from "../dao/interfaces";
 
 export interface RunDetail {
   run: Run;
@@ -11,16 +8,23 @@ export interface RunDetail {
 }
 
 export class RunService {
+  constructor(
+    private runDAO: IRunDAO,
+    private findingDAO: IFindingDAO,
+    private gateResultDAO: IGateResultDAO,
+    private evidenceRefDAO: IEvidenceRefDAO,
+  ) {}
+
   findById(id: string): RunDetail | undefined {
-    const run = runDAO.findById(id);
+    const run = this.runDAO.findById(id);
     if (!run) return undefined;
 
-    const gate = gateResultDAO.findByRunId(id);
-    const findings = findingDAO.findByRunId(id);
+    const gate = this.gateResultDAO.findByRunId(id);
+    const findings = this.findingDAO.findByRunId(id);
 
     // 벌크 evidence 조회 (N+1 방지)
     const findingIds = findings.map((f) => f.id);
-    const evidenceMap = evidenceRefDAO.findByFindingIds(findingIds);
+    const evidenceMap = this.evidenceRefDAO.findByFindingIds(findingIds);
 
     const findingsWithEvidence = findings.map((finding) => ({
       finding,
@@ -31,6 +35,6 @@ export class RunService {
   }
 
   findByProjectId(projectId: string): Run[] {
-    return runDAO.findByProjectId(projectId);
+    return this.runDAO.findByProjectId(projectId);
   }
 }

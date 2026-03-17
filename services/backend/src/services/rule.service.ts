@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import type { Severity, Rule } from "@smartcar/shared";
-import { ruleDAO } from "../dao/rule.dao";
+import type { IRuleDAO } from "../dao/interfaces";
 import { RuleEngine } from "../rules/rule-engine";
 import { CustomRule } from "../rules/custom-rule";
 import { DEFAULT_RULE_TEMPLATES } from "../rules/default-rule-templates";
@@ -9,6 +9,8 @@ import { createLogger } from "../lib/logger";
 const logger = createLogger("rule-service");
 
 export class RuleService {
+  constructor(private ruleDAO: IRuleDAO) {}
+
   /** 프로젝트 생성 시 기본 룰 22개를 시딩한다 */
   seedDefaultRules(projectId: string): void {
     const pid = projectId.replace(/^proj-/, "").slice(0, 8);
@@ -26,14 +28,14 @@ export class RuleService {
         projectId,
         createdAt: new Date().toISOString(),
       };
-      ruleDAO.save(rule); // INSERT OR IGNORE — 중복 방지
+      this.ruleDAO.save(rule); // INSERT OR IGNORE — 중복 방지
     }
   }
 
   /** 프로젝트의 enabled 룰로 분석용 RuleEngine을 빌드한다 */
   buildRuleEngine(projectId: string): RuleEngine {
     const engine = new RuleEngine();
-    const rules = ruleDAO.findByProjectId(projectId);
+    const rules = this.ruleDAO.findByProjectId(projectId);
 
     for (const rule of rules) {
       if (!rule.enabled) continue;
@@ -48,15 +50,15 @@ export class RuleService {
   }
 
   findByProjectId(projectId: string): Rule[] {
-    return ruleDAO.findByProjectId(projectId);
+    return this.ruleDAO.findByProjectId(projectId);
   }
 
   findAll(): Rule[] {
-    return ruleDAO.findAll();
+    return this.ruleDAO.findAll();
   }
 
   findById(id: string): Rule | undefined {
-    return ruleDAO.findById(id);
+    return this.ruleDAO.findById(id);
   }
 
   create(projectId: string, fields: {
@@ -83,7 +85,7 @@ export class RuleService {
       createdAt: new Date().toISOString(),
     };
 
-    ruleDAO.save(rule);
+    this.ruleDAO.save(rule);
     return rule;
   }
 
@@ -96,21 +98,21 @@ export class RuleService {
     fixCode: string;
     enabled: boolean;
   }>): Rule | undefined {
-    const existing = ruleDAO.findById(id);
+    const existing = this.ruleDAO.findById(id);
     if (!existing) return undefined;
 
     if (fields.pattern !== undefined) {
       new RegExp(fields.pattern); // 유효성 검증
     }
 
-    return ruleDAO.update(id, fields);
+    return this.ruleDAO.update(id, fields);
   }
 
   delete(id: string): boolean {
-    return ruleDAO.delete(id);
+    return this.ruleDAO.delete(id);
   }
 
   deleteByProjectId(projectId: string): void {
-    ruleDAO.deleteByProjectId(projectId);
+    this.ruleDAO.deleteByProjectId(projectId);
   }
 }

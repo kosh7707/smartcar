@@ -5,15 +5,16 @@ import type {
   AnalysisModule,
 } from "@smartcar/shared";
 import type { ProjectOverviewResponse } from "@smartcar/shared";
-import { projectDAO } from "../dao/project.dao";
-import { analysisResultDAO } from "../dao/analysis-result.dao";
-import { fileStore } from "../dao/file-store";
+import type { IProjectDAO, IAnalysisResultDAO, IFileStore } from "../dao/interfaces";
 import type { RuleService } from "./rule.service";
 import type { AdapterManager } from "./adapter-manager";
 import type { ProjectSettingsService } from "./project-settings.service";
 
 export class ProjectService {
   constructor(
+    private projectDAO: IProjectDAO,
+    private analysisResultDAO: IAnalysisResultDAO,
+    private fileStore: IFileStore,
     private ruleService?: RuleService,
     private adapterManager?: AdapterManager,
     private settingsService?: ProjectSettingsService,
@@ -28,7 +29,7 @@ export class ProjectService {
       createdAt: now,
       updatedAt: now,
     };
-    projectDAO.save(project);
+    this.projectDAO.save(project);
 
     // 기본 룰 시딩
     this.ruleService?.seedDefaultRules(project.id);
@@ -37,15 +38,15 @@ export class ProjectService {
   }
 
   findById(id: string): Project | undefined {
-    return projectDAO.findById(id);
+    return this.projectDAO.findById(id);
   }
 
   findAll(): Project[] {
-    return projectDAO.findAll();
+    return this.projectDAO.findAll();
   }
 
   update(id: string, fields: { name?: string; description?: string }): Project | undefined {
-    return projectDAO.update(id, fields);
+    return this.projectDAO.update(id, fields);
   }
 
   delete(id: string): boolean {
@@ -53,15 +54,15 @@ export class ProjectService {
     this.ruleService?.deleteByProjectId(id);
     this.adapterManager?.deleteByProjectId(id);
     this.settingsService?.deleteByProjectId(id);
-    return projectDAO.delete(id);
+    return this.projectDAO.delete(id);
   }
 
   getOverview(projectId: string): ProjectOverviewResponse | undefined {
-    const project = projectDAO.findById(projectId);
+    const project = this.projectDAO.findById(projectId);
     if (!project) return undefined;
 
-    const analyses = analysisResultDAO.findByProjectId(projectId);
-    const fileCount = fileStore.countByProjectId(projectId);
+    const analyses = this.analysisResultDAO.findByProjectId(projectId);
+    const fileCount = this.fileStore.countByProjectId(projectId);
 
     // 모듈별 최신 완료 분석 1건만 사용 (재분석 시 중복 방지)
     const latestByModule = new Map<AnalysisModule, typeof analyses[0]>();

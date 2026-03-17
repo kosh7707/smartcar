@@ -1,20 +1,6 @@
 import type { Run } from "@smartcar/shared";
-import db from "../db";
-
-const insertStmt = db.prepare(
-  `INSERT INTO runs (id, project_id, module, status, analysis_result_id, finding_count, started_at, ended_at, created_at)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-);
-const selectByIdStmt = db.prepare(`SELECT * FROM runs WHERE id = ?`);
-const selectByProjectStmt = db.prepare(
-  `SELECT * FROM runs WHERE project_id = ? ORDER BY created_at DESC`
-);
-const selectByAnalysisResultStmt = db.prepare(
-  `SELECT * FROM runs WHERE analysis_result_id = ?`
-);
-const updateFindingCountStmt = db.prepare(
-  `UPDATE runs SET finding_count = ? WHERE id = ?`
-);
+import type { DatabaseType } from "../db";
+import type { IRunDAO } from "./interfaces";
 
 function rowToRun(row: any): Run {
   return {
@@ -30,9 +16,32 @@ function rowToRun(row: any): Run {
   };
 }
 
-class RunDAO {
+export class RunDAO implements IRunDAO {
+  private insertStmt;
+  private selectByIdStmt;
+  private selectByProjectStmt;
+  private selectByAnalysisResultStmt;
+  private updateFindingCountStmt;
+
+  constructor(private db: DatabaseType) {
+    this.insertStmt = db.prepare(
+      `INSERT INTO runs (id, project_id, module, status, analysis_result_id, finding_count, started_at, ended_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    this.selectByIdStmt = db.prepare(`SELECT * FROM runs WHERE id = ?`);
+    this.selectByProjectStmt = db.prepare(
+      `SELECT * FROM runs WHERE project_id = ? ORDER BY created_at DESC`
+    );
+    this.selectByAnalysisResultStmt = db.prepare(
+      `SELECT * FROM runs WHERE analysis_result_id = ?`
+    );
+    this.updateFindingCountStmt = db.prepare(
+      `UPDATE runs SET finding_count = ? WHERE id = ?`
+    );
+  }
+
   save(run: Run): void {
-    insertStmt.run(
+    this.insertStmt.run(
       run.id,
       run.projectId,
       run.module,
@@ -46,21 +55,21 @@ class RunDAO {
   }
 
   findById(id: string): Run | undefined {
-    const row = selectByIdStmt.get(id);
+    const row = this.selectByIdStmt.get(id);
     return row ? rowToRun(row) : undefined;
   }
 
   findByProjectId(projectId: string): Run[] {
-    return selectByProjectStmt.all(projectId).map(rowToRun);
+    return this.selectByProjectStmt.all(projectId).map(rowToRun);
   }
 
   findByAnalysisResultId(analysisResultId: string): Run | undefined {
-    const row = selectByAnalysisResultStmt.get(analysisResultId);
+    const row = this.selectByAnalysisResultStmt.get(analysisResultId);
     return row ? rowToRun(row) : undefined;
   }
 
   updateFindingCount(id: string, count: number): void {
-    updateFindingCountStmt.run(count, id);
+    this.updateFindingCountStmt.run(count, id);
   }
 
   trendByModule(
@@ -88,7 +97,7 @@ class RunDAO {
       ORDER BY date ASC
     `;
 
-    const rows = db.prepare(sql).all(...params) as Array<{
+    const rows = this.db.prepare(sql).all(...params) as Array<{
       date: string;
       run_count: number;
       finding_count: number;
@@ -103,5 +112,3 @@ class RunDAO {
     }));
   }
 }
-
-export const runDAO = new RunDAO();

@@ -96,17 +96,17 @@ services/llm-gateway/
 ├── requirements.txt              # fastapi, uvicorn, pydantic, pydantic-settings, httpx, python-json-logger, qdrant-client, fastembed
 ├── README.md                     # 실행법, 환경변수, 내부 구조
 ├── app/
-│   ├── main.py                   # FastAPI 앱 진입점, CORS, JSON 로깅, 라우터 등록, RAG lifespan
+│   ├── main.py                   # FastAPI 앱 진입점, CORS, JSON 로깅, S4 교환 로거, 라우터 등록, RAG lifespan
 │   ├── config.py                 # pydantic-settings 환경변수 → Settings 객체 (.env 자동 로드)
 │   ├── context.py                # contextvars 기반 요청 컨텍스트 (requestId)
 │   ├── errors.py                 # S3Error 계층 (LlmTimeoutError, LlmUnavailableError, LlmHttpError)
 │   ├── types.py                  # TaskType, TaskStatus, FailureCode StrEnum
 │   ├── clients/
 │   │   ├── base.py               # LlmClient ABC
-│   │   └── real.py               # RealLlmClient (OpenAI-compatible, vLLM 대상, httpx connection pooling, thinking 제어, 토큰 캡처, structured output)
+│   │   └── real.py               # RealLlmClient (OpenAI-compatible, vLLM 대상, httpx connection pooling, thinking 제어, 토큰 캡처, structured output, S4 교환 전문 로깅)
 │   ├── schemas/
 │   │   ├── request.py            # TaskRequest, EvidenceRef, Context, Constraints, RequestMetadata
-│   │   └── response.py           # TaskSuccessResponse, TaskFailureResponse, AssessmentResult, Claim, TestPlan, AuditInfo, TokenUsage
+│   │   └── response.py           # TaskSuccessResponse, TaskFailureResponse, AssessmentResult, Claim(location 포함), TestPlan, AuditInfo, TokenUsage
 │   ├── registry/
 │   │   ├── prompt_registry.py    # PromptEntry + PromptRegistry (5개 task type 등록)
 │   │   └── model_registry.py     # ModelProfile + ModelProfileRegistry (Settings 기반)
@@ -142,16 +142,22 @@ services/llm-gateway/
 │       └── requirements.txt      # ETL 전용 의존성
 ├── data/
 │   └── qdrant/                   # Qdrant 파일 기반 벡터 DB (ETL 빌드 산출물, git 추적 제외)
-├── tests/
+├── tests/                          # 147 tests total
+│   ├── conftest.py               # 공통 fixture: TestClient(client_live, client+mock_pipeline), 요청 빌더
 │   ├── test_response_parser.py   # 11 tests
 │   ├── test_evidence_validator.py # 5 tests
-│   ├── test_confidence.py        # 5 tests
-│   ├── test_schema_validator.py  # 7 tests (→ 9 tests)
-│   ├── test_mock_dispatcher.py   # 10 tests (→ 13 tests)
+│   ├── test_confidence.py        # 10 tests (RAG 분화 테스트 포함)
+│   ├── test_schema_validator.py  # 7 tests
+│   ├── test_mock_dispatcher.py   # 10 tests
 │   ├── test_prompt_builder.py    # 9 tests
-│   ├── test_registry.py          # 12 tests (→ 13 tests)
-│   ├── test_threat_search.py     # 5 tests (신규: RAG 검색)
-│   └── test_context_enricher.py  # 10 tests (신규: RAG 컨텍스트 증강, ruleMatches fallback 포함)
+│   ├── test_registry.py          # 12 tests
+│   ├── test_threat_search.py     # 6 tests (min_score 필터 포함)
+│   ├── test_context_enricher.py  # 11 tests (ruleMatches fallback, min_score 전달 포함)
+│   ├── test_pipeline_retry.py   # 11 tests (재시도 성공/소진/HTTP에러/토큰누적)
+│   ├── test_contract_endpoints.py      # 11 tests (GET /v1/health, /models, /prompts HTTP 응답 구조)
+│   ├── test_contract_task_success.py   # 17 tests (POST /v1/tasks 성공 응답 JSON 계약 검증)
+│   ├── test_contract_task_failure.py   # 21 tests (실패 응답 구조, retryable, 500 형식, failureCode×status)
+│   └── test_contract_input_validation.py # 6 tests (422 입력 검증: taskType/필드 누락/maxTokens 범위)
 ```
 
 ### 요청 처리 흐름
@@ -162,22 +168,27 @@ S2 요청 → tasks.py (POST /v1/tasks)
   → ModelProfileRegistry에서 profile 조회
   → [RAG] ContextEnricher로 위협 지식 DB 검색 + 컨텍스트 조립 (선택적)
   → V1PromptBuilder로 3계층 프롬프트 조립 (trusted/semi-trusted/untrusted + RAG 컨텍스트 분리)
-  → LLM 호출 (Semaphore(N)으로 동시성 제어, 기본 4)
-      mock: V1MockDispatcher
-      real: RealLlmClient (/v1/chat/completions, vLLM 대상, connection pooling)
-  → V1ResponseParser로 Assessment JSON 파싱
-  → SchemaValidator로 구조 검증
-  → EvidenceValidator로 refId hallucination 감지
-  → ConfidenceCalculator로 신뢰도 산출 (S3 자체 계산)
-  → TaskSuccessResponse 또는 TaskFailureResponse 반환 (audit.ragHits 포함)
+  → [Retry Loop] (최대 1 + SMARTCAR_LLM_MAX_RETRIES 회):
+      → LLM 호출 (Semaphore(N)으로 동시성 제어, 기본 4)
+          mock: V1MockDispatcher
+          real: RealLlmClient (/v1/chat/completions, vLLM 대상, connection pooling)
+          → S4 교환 전문을 logs/s4-exchange.jsonl에 기록 (요청 body + 응답 body)
+      → V1ResponseParser로 Assessment JSON 파싱
+      → SchemaValidator로 구조 검증
+      → EvidenceValidator로 refId hallucination 감지
+      → 실패 시: INVALID_SCHEMA/INVALID_GROUNDING/EMPTY_RESPONSE → 재시도
+      → HTTP 에러 → 즉시 실패 (429/503: LLM_OVERLOADED, 연결 불가: MODEL_UNAVAILABLE)
+  → ConfidenceCalculator로 신뢰도 산출 (S3 자체 계산, ragCoverage 반영)
+  → TaskSuccessResponse 또는 TaskFailureResponse 반환 (audit.ragHits, retryCount 포함)
 ```
 
 ### Confidence 산출 (S3 자체)
 
 ```
-confidence = 0.45×grounding + 0.30×deterministicSupport + 0.15×consistency + 0.10×schemaCompliance
+confidence = 0.45×grounding + 0.30×deterministicSupport + 0.15×ragCoverage + 0.10×schemaCompliance
 ```
-- consistency는 현재 1.0 고정 (dual-run 미구현)
+- ragCoverage = 0.4 + 0.6 × min(rag_hits / top_k, 1.0) — RAG 검색 결과에 따른 분석 배경 충실도
+- 0 hits → 0.40, 5 hits → 1.00. 이전 consistency(1.0 고정) 대체
 
 ### LLM 모드 2종
 
@@ -198,12 +209,25 @@ confidence = 0.45×grounding + 0.30×deterministicSupport + 0.15×consistency + 
 | SMARTCAR_LLM_API_KEY | (빈 문자열) | API 키 (vLLM: 불필요) |
 | SMARTCAR_LLM_CONCURRENCY | `4` | 동시 LLM 요청 수 (vLLM continuous batching 활용) |
 | SMARTCAR_LLM_MAX_INPUT_CHARS | `800000` | 프롬프트 문자 수 상한 (~200K 토큰). 초과 시 INPUT_TOO_LARGE |
+| SMARTCAR_LLM_MAX_RETRIES | `2` | LLM 출력 품질 재시도 횟수 (총 시도 = 1 + max_retries). 0이면 재시도 비활성화 |
 | SMARTCAR_RAG_ENABLED | `true` | RAG 위협 지식 DB (`true`/`false`). 데이터 없으면 자동 비활성화 |
 | SMARTCAR_QDRANT_PATH | `data/qdrant` | Qdrant 파일 스토리지 경로 |
 | SMARTCAR_RAG_TOP_K | `5` | RAG 검색 결과 상위 k건 |
+| SMARTCAR_RAG_MIN_SCORE | `0.35` | 이 점수 미만의 RAG 결과 제외. 0이면 필터 비활성화 |
 | LOG_DIR | `../../logs` (프로젝트 루트 `logs/`) | JSONL 로그 파일 디렉토리 |
 
 > 모든 서비스가 동일한 패턴(`services/<서비스명>/.env`)을 사용한다. 너의 `.env`는 네가 직접 관리.
+
+### 로그 파일
+
+| 파일 | 내용 | stdout |
+|------|------|--------|
+| `logs/s3-llm-gateway.jsonl` | 앱 구조화 로그 (JSON, requestId 포함) | O |
+| `logs/s4-exchange.jsonl` | S4 요청/응답 JSON 전문 (프롬프트 + LLM 응답 완전 기록) | X |
+| `scripts/.logs/llm-gateway.log` | 프로세스 stdout/stderr 캡처 (`start.sh` 기동 시) | — |
+
+- `s4-exchange.jsonl`은 디버깅/프롬프트 분석용. 한 줄 = 한 S4 호출 (request body + response body + latency + status)
+- 로그 정리: `scripts/common/clean-s3-logs.sh`
 
 ### 동시성 제어
 
@@ -214,7 +238,9 @@ confidence = 0.45×grounding + 0.30×deterministicSupport + 0.15×consistency + 
 
 ### Backpressure 처리
 
-- vLLM이 429/503 응답 시 `LlmHttpError(retryable=True, code="LLM_OVERLOADED")` 발생
+- vLLM이 429/503 응답 시 `LlmHttpError(retryable=True)` → `FailureCode.LLM_OVERLOADED` (`retryable: true`)
+- vLLM 연결 불가 시 `LlmUnavailableError` → `FailureCode.MODEL_UNAVAILABLE` (`retryable: true`)
+- 기타 HTTP 에러 → `FailureCode.MODEL_UNAVAILABLE` (`retryable: false`)
 - `TaskFailureResponse`에 `retryable: bool` 필드로 S2에 전달
 - S2가 자체 재시도 판단 (exponential backoff 권장)
 
@@ -228,6 +254,52 @@ confidence = 0.45×grounding + 0.30×deterministicSupport + 0.15×consistency + 
 ---
 
 ## 5. 수정 이력
+
+### API 계약-테스트 매핑 체계 구축 (2026-03-17, 완료, S2 작업요청)
+
+S2가 문서 심층 감사에서 14건의 코드-문서 불일치를 발견한 후, "자동화된 테스트만이 세션 간 안전망"이라는 결론과 함께 S3에도 동일 체계를 요청:
+- **HTTP 레벨 계약 테스트 55개 신규 추가**: 기존 92개(단위) + 신규 55개(계약) = 147개 전부 통과
+- **conftest.py**: TestClient fixture 2종 (`client_live`=mock 파이프라인 통과, `client`+`mock_pipeline`=pipeline mock 주입) + 요청 빌더 헬퍼
+- **test_contract_endpoints.py** (11개): GET /v1/health, /v1/models, /v1/prompts 응답 구조 검증
+- **test_contract_task_success.py** (17개): POST /v1/tasks 성공 응답 JSON 필드, audit(inputHash sha256: 접두어+16자 hex, createdAt ISO8601), confidence 가중평균, plan, X-Request-Id 전파, 5개 taskType 순회
+- **test_contract_task_failure.py** (21개): 실패 응답 구조, retryable 매핑(TIMEOUT/LLM_OVERLOADED/MODEL_UNAVAILABLE→true), 500 observability 형식, 10개 failureCode×status parametrize
+- **test_contract_input_validation.py** (6개): 422 반환 검증(unknown taskType, 필드 누락, 빈 body, invalid JSON, maxTokens 범위 초과)
+- **API 계약서 수정**: allowlist 외 taskType 응답 코드 `400` → `422` (Pydantic 검증 실동작 반영)
+
+수정 파일: `tests/conftest.py`, `tests/test_contract_*.py` (4개), `docs/api/llm-gateway-api.md`, `docs/s3-handoff/README.md`
+
+### 문서-코드 정합 (2026-03-17, 완료, 자체 개선)
+
+1. **`LLM_OVERLOADED` failureCode 승격**: `FailureCode` enum에 `LLM_OVERLOADED` 추가. 429/503 과부하와 연결 불가(`MODEL_UNAVAILABLE`)를 구분.
+2. **TIMEOUT `retryable: true` 수정**: 파이프라인에서 `_failure()` 호출 시 `retryable=True` 누락 → 추가.
+3. **`Semaphore(N)` 명세 반영**: 기능 명세서의 `Semaphore(1)` → `Semaphore(N)` + 환경변수 조정 가능 기술로 수정.
+
+수정 파일: `app/types.py`, `app/pipeline/task_pipeline.py`, `docs/specs/llm-gateway.md`, `docs/api/llm-gateway-api.md`, `docs/s3-handoff/README.md`
+
+### Claim location 필드 + S4 교환 로그 (2026-03-17, 완료, S2 작업요청 + 자체 개선)
+
+1. **Claim.location 필드 추가**: S2 요청에 따라 `claims[].location` 필드를 추가 (`"파일경로:라인번호"` | `null`). 프롬프트 출력 스키마 + 파이프라인 조립 + API 계약서 반영.
+2. **S4 교환 전문 로그**: `logs/s4-exchange.jsonl`에 vLLM 요청/응답 JSON 전문을 기록. 에러 시에도 요청 body를 남김. stdout에는 출력하지 않음.
+
+수정 파일: `app/schemas/response.py`, `app/registry/prompt_registry.py`, `app/pipeline/task_pipeline.py`, `app/clients/real.py`, `app/main.py`, `scripts/common/clean-s3-logs.sh`, `docs/api/llm-gateway-api.md`
+
+### LLM 출력 재시도 + Confidence RAG 분화 + RAG min_score 필터 (2026-03-16, 완료, 자체 개선 + S2 작업요청 4건 처리)
+
+2차 정적분석 통합테스트 결과 3/44 실패 (INVALID_GROUNDING 2, INVALID_SCHEMA 1) — 모두 LLM 출력 품질 문제:
+- **재시도 로직**: Steps 5-9를 `_attempt_llm_and_validate()`로 추출, retry loop 적용
+  - 재시도 대상: INVALID_SCHEMA, INVALID_GROUNDING, EMPTY_RESPONSE
+  - HTTP 에러(TIMEOUT, MODEL_UNAVAILABLE, INPUT_TOO_LARGE)는 즉시 실패
+  - 토큰 사용량 누적, `audit.retryCount` 반영
+  - `SMARTCAR_LLM_MAX_RETRIES=2` (기본, 총 3회 시도)
+- **Confidence RAG 분화**: `consistency`(1.0 고정) → `ragCoverage`로 교체
+  - `ragCoverage = 0.4 + 0.6 × min(rag_hits / top_k, 1.0)`
+  - 분별력 0.09 (0.8650~0.9550) — Quality Gate 판정에 활용 가능
+- **RAG min_score 필터**: `SMARTCAR_RAG_MIN_SCORE=0.35` — 관련성 낮은 결과 제외
+  - 이전: top_k=5 하드코딩 → 항상 ragHits=5
+  - 이후: 관련성 임계값 미만 제외 → ragHits 가변 (0~5)
+- **S2 work-request 4건 처리**: confidence 고정, INVALID_GROUNDING, INVALID_SCHEMA, ragHits 고정
+- **S2 work-request 발송**: `consistency` → `ragCoverage` 필드명 변경 통보
+- 테스트: 89개 전부 통과
 
 ### 프롬프트 품질 점검 (2026-03-16, 완료, 자체 개선)
 

@@ -30,6 +30,14 @@ export interface LlmAnalyzeRequest {
     severity: string;
     location: string;
   }>;
+  sastFindings?: Array<{
+    toolId: string;
+    ruleId: string;
+    severity: string;
+    message: string;
+    location: { file: string; line: number; column?: number; endLine?: number; endColumn?: number };
+    dataFlow?: Array<{ file: string; line: number; content?: string }>;
+  }>;
   maxTokens?: number;
   temperature?: number;
 }
@@ -154,6 +162,9 @@ export class LlmV1Adapter {
           ...(request.ruleResults?.length
             ? { finding: request.ruleResults[0] }
             : {}),
+          ...(request.sastFindings?.length
+            ? { sastFindings: request.sastFindings }
+            : {}),
         },
         untrusted: {
           ...(request.sourceCode ? { sourceSnippet: request.sourceCode } : {}),
@@ -219,6 +230,23 @@ export class LlmV1Adapter {
       }
     }
 
+    if (request.sastFindings) {
+      for (const sast of request.sastFindings) {
+        refs.push({
+          refId: crypto.randomUUID(),
+          artifactId: crypto.randomUUID(),
+          artifactType: "sast-finding",
+          locatorType: "lineRange",
+          locator: {
+            toolId: sast.toolId,
+            ruleId: sast.ruleId,
+            file: sast.location.file,
+            line: sast.location.line,
+          },
+        });
+      }
+    }
+
     return refs;
   }
 
@@ -237,7 +265,7 @@ export class LlmV1Adapter {
 
     const vulnerabilities: LlmVulnerability[] = result.claims.map((claim) => ({
       severity: result.suggestedSeverity ?? "medium",
-      title: claim.statement.slice(0, 200),
+      title: claim.statement,
       description: claim.statement,
       location: null,
       suggestion: result.recommendedNextSteps[0] ?? null,

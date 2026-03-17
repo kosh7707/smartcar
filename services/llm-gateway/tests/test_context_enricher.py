@@ -230,3 +230,20 @@ def test_format_hits_includes_severity():
     context, _ = enricher.enrich(request)
 
     assert "CVSS 9.8" in context
+
+
+def test_min_score_passed_to_search():
+    """min_score가 ThreatSearch.search()에 전달된다."""
+    mock_search = MagicMock()
+    mock_search.search.return_value = [_make_hit()]
+
+    enricher = ContextEnricher(mock_search)
+    request = _make_request(TaskType.STATIC_EXPLAIN, {
+        "finding": {"title": "test", "ruleId": "R1"},
+    })
+
+    enricher.enrich(request, top_k=5, min_score=0.35)
+
+    mock_search.search.assert_called_once()
+    _, kwargs = mock_search.search.call_args
+    assert kwargs.get("min_score") == 0.35

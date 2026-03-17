@@ -50,14 +50,16 @@ class ThreatSearch:
             qdrant_path, COLLECTION,
         )
 
-    def search(self, query: str, top_k: int = 5) -> list[ThreatHit]:
-        """시맨틱 검색 -> 상위 k건 반환."""
+    def search(
+        self, query: str, top_k: int = 5, min_score: float = 0.0,
+    ) -> list[ThreatHit]:
+        """시맨틱 검색 -> 상위 k건 반환 (min_score 미만 제외)."""
         results = self._client.query(
             collection_name=COLLECTION,
             query_text=query,
             limit=top_k,
         )
-        return [
+        hits = [
             ThreatHit(
                 id=r.metadata.get("id", ""),
                 source=r.metadata.get("source", ""),
@@ -72,6 +74,9 @@ class ThreatSearch:
             )
             for r in results
         ]
+        if min_score > 0:
+            hits = [h for h in hits if h.score >= min_score]
+        return hits
 
     def close(self) -> None:
         """Qdrant 클라이언트 종료."""

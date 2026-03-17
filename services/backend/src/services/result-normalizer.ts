@@ -9,10 +9,8 @@ import type {
   Confidence,
   Vulnerability,
 } from "@smartcar/shared";
-import db from "../db";
-import { runDAO } from "../dao/run.dao";
-import { findingDAO } from "../dao/finding.dao";
-import { evidenceRefDAO } from "../dao/evidence-ref.dao";
+import type { DatabaseType } from "../db";
+import type { IRunDAO, IFindingDAO, IEvidenceRefDAO } from "../dao/interfaces";
 import { createLogger } from "../lib/logger";
 import type { QualityGateService } from "./quality-gate.service";
 
@@ -20,15 +18,24 @@ const logger = createLogger("result-normalizer");
 
 export interface NormalizerContext {
   analyzedFileIds?: string[];
+  analyzedFiles?: Array<{ id: string; filePath: string }>;
   sessionId?: string;
   testResultId?: string;
+  startedAt?: string;
 }
 
 export class ResultNormalizer {
-  constructor(private gateService?: QualityGateService) {}
+  constructor(
+    private db: DatabaseType,
+    private runDAO: IRunDAO,
+    private findingDAO: IFindingDAO,
+    private evidenceRefDAO: IEvidenceRefDAO,
+    private gateService?: QualityGateService,
+  ) {}
+
   normalizeAnalysisResult(result: AnalysisResult, context?: NormalizerContext): Run | undefined {
     // 멱등성: 이미 정규화된 결과면 skip
-    const existing = runDAO.findByAnalysisResultId(result.id);
+    const existing = this.runDAO.findByAnalysisResultId(result.id);
     if (existing) {
       logger.debug({ analysisResultId: result.id, runId: existing.id }, "Already normalized — skipping");
       return existing;
@@ -75,7 +82,7 @@ export class ResultNormalizer {
         status: result.status === "completed" ? "completed" : result.status === "failed" ? "failed" : "completed",
         analysisResultId: result.id,
         findingCount: findings.length,
-        startedAt: result.createdAt,
+        startedAt: context?.startedAt ?? result.createdAt,
         endedAt: now,
         createdAt: now,
       };
@@ -83,10 +90,10 @@ export class ResultNormalizer {
       // 원자적 저장: Run + Findings + EvidenceRefs
       // 주의: DAO.saveMany()는 내부에서 db.transaction()을 생성하므로
       // 중첩 트랜잭션을 피하기 위해 개별 save()를 직접 호출한다.
-      const tx = db.transaction(() => {
-        runDAO.save(run);
-        for (const f of findings) findingDAO.save(f);
-        for (const r of evidenceRefs) evidenceRefDAO.save(r);
+      const tx = this.db.transaction(() => {
+        this.runDAO.save(run);
+        for (const f of findings) this.findingDAO.save(f);
+        for (const r of evidenceRefs) this.evidenceRefDAO.save(r);
       });
       tx();
 
@@ -157,18 +164,23 @@ export class ResultNormalizer {
     });
 
     // 모듈별 추가 증적
-    if (result.module === "static_analysis" && context?.analyzedFileIds) {
-      for (const fileId of context.analyzedFileIds) {
+    if (result.module === "static_analysis" && context?.analyzedFiles) {
+      // location에서 파일 경로를 추출하여 매칭되는 파일만 연결
+      const matchedFile = this.findMatchingFile(vuln.location, context.analyzedFiles);
+      if (matchedFile) {
         refs.push({
           id: `evr-${crypto.randomUUID()}`,
           findingId,
-          artifactId: fileId,
+          artifactId: matchedFile.id,
           artifactType: "uploaded-file",
           locatorType: "line-range",
           locator: this.parseLineRange(vuln.location),
           createdAt: now,
         });
       }
+    } else if (result.module === "static_analysis" && context?.analyzedFileIds) {
+      // 레거시 fallback: analyzedFiles가 없으면 기존 방식 (단, location 매칭 시도)
+      // 매칭 불가 시 증적 미생성 (과다 연결 방지)
     } else if (result.module === "dynamic_analysis" && context?.sessionId) {
       refs.push({
         id: `evr-${crypto.randomUUID()}`,
@@ -208,6 +220,21 @@ export class ResultNormalizer {
       return this.parseLineRange(vuln.location);
     }
     return {};
+  }
+
+  private findMatchingFile(
+    location: string | undefined,
+    files: Array<{ id: string; filePath: string }>
+  ): { id: string; filePath: string } | undefined {
+    if (!location || files.length === 0) return undefined;
+
+    // location format: "filePath:lineNumber" or "filePath"
+    const filePart = location.replace(/:(\d+)(?:-(\d+))?$/, "");
+    if (!filePart) return undefined;
+
+    // 정확 일치 우선, 없으면 경로 끝부분 일치
+    return files.find((f) => f.filePath === filePart)
+      ?? files.find((f) => filePart.endsWith(f.filePath) || f.filePath.endsWith(filePart));
   }
 
   private parseLineRange(location?: string): Record<string, unknown> {

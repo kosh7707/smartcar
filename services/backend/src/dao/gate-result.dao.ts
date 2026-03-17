@@ -1,18 +1,6 @@
 import type { GateResult } from "@smartcar/shared";
-import db from "../db";
-
-const insertStmt = db.prepare(
-  `INSERT INTO gate_results (id, run_id, project_id, status, rules, evaluated_at, override, created_at)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-);
-const selectByIdStmt = db.prepare(`SELECT * FROM gate_results WHERE id = ?`);
-const selectByRunStmt = db.prepare(`SELECT * FROM gate_results WHERE run_id = ?`);
-const selectByProjectStmt = db.prepare(
-  `SELECT * FROM gate_results WHERE project_id = ? ORDER BY created_at DESC`
-);
-const updateOverrideStmt = db.prepare(
-  `UPDATE gate_results SET status = 'pass', override = ? WHERE id = ?`
-);
+import type { DatabaseType } from "../db";
+import type { IGateResultDAO } from "./interfaces";
 
 function rowToGateResult(row: any): GateResult {
   return {
@@ -27,9 +15,30 @@ function rowToGateResult(row: any): GateResult {
   };
 }
 
-class GateResultDAO {
+export class GateResultDAO implements IGateResultDAO {
+  private insertStmt;
+  private selectByIdStmt;
+  private selectByRunStmt;
+  private selectByProjectStmt;
+  private updateOverrideStmt;
+
+  constructor(private db: DatabaseType) {
+    this.insertStmt = db.prepare(
+      `INSERT INTO gate_results (id, run_id, project_id, status, rules, evaluated_at, override, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    this.selectByIdStmt = db.prepare(`SELECT * FROM gate_results WHERE id = ?`);
+    this.selectByRunStmt = db.prepare(`SELECT * FROM gate_results WHERE run_id = ?`);
+    this.selectByProjectStmt = db.prepare(
+      `SELECT * FROM gate_results WHERE project_id = ? ORDER BY created_at DESC`
+    );
+    this.updateOverrideStmt = db.prepare(
+      `UPDATE gate_results SET status = 'pass', override = ? WHERE id = ?`
+    );
+  }
+
   save(result: GateResult): void {
-    insertStmt.run(
+    this.insertStmt.run(
       result.id,
       result.runId,
       result.projectId,
@@ -42,21 +51,21 @@ class GateResultDAO {
   }
 
   findById(id: string): GateResult | undefined {
-    const row = selectByIdStmt.get(id);
+    const row = this.selectByIdStmt.get(id);
     return row ? rowToGateResult(row) : undefined;
   }
 
   findByRunId(runId: string): GateResult | undefined {
-    const row = selectByRunStmt.get(runId);
+    const row = this.selectByRunStmt.get(runId);
     return row ? rowToGateResult(row) : undefined;
   }
 
   findByProjectId(projectId: string): GateResult[] {
-    return selectByProjectStmt.all(projectId).map(rowToGateResult);
+    return this.selectByProjectStmt.all(projectId).map(rowToGateResult);
   }
 
   updateOverride(id: string, override: GateResult["override"]): void {
-    updateOverrideStmt.run(JSON.stringify(override), id);
+    this.updateOverrideStmt.run(JSON.stringify(override), id);
   }
 
   statsByProject(
@@ -79,7 +88,7 @@ class GateResultDAO {
       WHERE ${conditions.join(" AND ")}
     `;
 
-    const row = db.prepare(sql).get(...params) as { total: number; passed: number; failed: number };
+    const row = this.db.prepare(sql).get(...params) as { total: number; passed: number; failed: number };
     return {
       total: row.total,
       passed: row.passed,
@@ -88,5 +97,3 @@ class GateResultDAO {
     };
   }
 }
-
-export const gateResultDAO = new GateResultDAO();

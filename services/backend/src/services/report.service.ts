@@ -8,13 +8,12 @@ import type {
   FindingReportEntry,
   RunReportEntry,
 } from "@smartcar/shared";
+import type { IEvidenceRefDAO, IAuditLogDAO } from "../dao/interfaces";
 import { ProjectService } from "./project.service";
 import { RunService } from "./run.service";
 import { FindingService } from "./finding.service";
 import { QualityGateService } from "./quality-gate.service";
 import { ApprovalService } from "./approval.service";
-import { evidenceRefDAO } from "../dao/evidence-ref.dao";
-import { auditLogDAO } from "../dao/audit-log.dao";
 
 const MODULE_KEY_MAP: Record<AnalysisModule, "static" | "dynamic" | "test"> = {
   static_analysis: "static",
@@ -38,6 +37,8 @@ export interface ReportFilters {
 
 export class ReportService {
   constructor(
+    private evidenceRefDAO: IEvidenceRefDAO,
+    private auditLogDAO: IAuditLogDAO,
     private projectService: ProjectService,
     private runService: RunService,
     private findingService: FindingService,
@@ -57,7 +58,7 @@ export class ReportService {
       module,
       ...filters,
     });
-    const evidenceMap = evidenceRefDAO.findByFindingIds(findings.map((f) => f.id));
+    const evidenceMap = this.evidenceRefDAO.findByFindingIds(findings.map((f) => f.id));
     const findingEntries: FindingReportEntry[] = findings.map((f) => ({
       finding: f,
       evidenceRefs: evidenceMap.get(f.id) ?? [],
@@ -115,11 +116,12 @@ export class ReportService {
 
     // Collect audit logs from all findings + approvals, limit 100
     const findingIds = Object.values(modules)
-      .flatMap((m) => m!.findings.map((f) => f.finding.id));
+      .filter((m): m is ModuleReport => m != null)
+      .flatMap((m) => m.findings.map((f) => f.finding.id));
     const approvalIds = approvals.map((a) => a.id);
     const resourceIds = [...findingIds, ...approvalIds];
 
-    const auditTrail = auditLogDAO.findByResourceIds(resourceIds, 100);
+    const auditTrail = this.auditLogDAO.findByResourceIds(resourceIds, 100);
 
     return {
       generatedAt: new Date().toISOString(),

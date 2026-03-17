@@ -1,5 +1,6 @@
 import type { UploadedFile } from "@smartcar/shared";
-import db from "../db";
+import type { DatabaseType } from "../db";
+import type { IFileStore } from "./interfaces";
 
 export interface StoredFile {
   id: string;
@@ -11,23 +12,6 @@ export interface StoredFile {
   language?: string;
   createdAt?: string;
 }
-
-const insertStmt = db.prepare(
-  `INSERT INTO uploaded_files (id, project_id, name, path, size, language, content) VALUES (?, ?, ?, ?, ?, ?, ?)`
-);
-const selectByIdStmt = db.prepare(
-  `SELECT id, project_id, name, path, size, language, content, created_at FROM uploaded_files WHERE id = ?`
-);
-const selectByProjectStmt = db.prepare(
-  `SELECT id, project_id, name, path, size, language, created_at FROM uploaded_files WHERE project_id = ? ORDER BY created_at DESC`
-);
-const countByProjectStmt = db.prepare(
-  `SELECT COUNT(*) AS cnt FROM uploaded_files WHERE project_id = ?`
-);
-const deleteStmt = db.prepare(`DELETE FROM uploaded_files WHERE id = ?`);
-const deleteByProjectAndFileStmt = db.prepare(
-  `DELETE FROM uploaded_files WHERE id = ? AND project_id = ?`
-);
 
 function rowToStored(row: any): StoredFile {
   return {
@@ -54,40 +38,64 @@ function rowToUploaded(row: any): UploadedFile {
   };
 }
 
-class FileStore {
+export class FileStore implements IFileStore {
+  private insertStmt;
+  private selectByIdStmt;
+  private selectByProjectStmt;
+  private countByProjectStmt;
+  private deleteStmt;
+  private deleteByProjectAndFileStmt;
+
+  constructor(private db: DatabaseType) {
+    this.insertStmt = db.prepare(
+      `INSERT INTO uploaded_files (id, project_id, name, path, size, language, content) VALUES (?, ?, ?, ?, ?, ?, ?)`
+    );
+    this.selectByIdStmt = db.prepare(
+      `SELECT id, project_id, name, path, size, language, content, created_at FROM uploaded_files WHERE id = ?`
+    );
+    this.selectByProjectStmt = db.prepare(
+      `SELECT id, project_id, name, path, size, language, created_at FROM uploaded_files WHERE project_id = ? ORDER BY created_at DESC`
+    );
+    this.countByProjectStmt = db.prepare(
+      `SELECT COUNT(*) AS cnt FROM uploaded_files WHERE project_id = ?`
+    );
+    this.deleteStmt = db.prepare(`DELETE FROM uploaded_files WHERE id = ?`);
+    this.deleteByProjectAndFileStmt = db.prepare(
+      `DELETE FROM uploaded_files WHERE id = ? AND project_id = ?`
+    );
+  }
+
   save(file: StoredFile): void {
-    insertStmt.run(file.id, file.projectId, file.name, file.path ?? "", file.size, file.language ?? null, file.content);
+    this.insertStmt.run(file.id, file.projectId, file.name, file.path ?? "", file.size, file.language ?? null, file.content);
   }
 
   findById(id: string): StoredFile | undefined {
-    const row = selectByIdStmt.get(id);
+    const row = this.selectByIdStmt.get(id);
     return row ? rowToStored(row) : undefined;
   }
 
   findByIds(ids: string[]): StoredFile[] {
     const placeholders = ids.map(() => "?").join(",");
-    const stmt = db.prepare(
+    const stmt = this.db.prepare(
       `SELECT id, project_id, name, path, size, language, content, created_at FROM uploaded_files WHERE id IN (${placeholders})`
     );
     return stmt.all(...ids).map(rowToStored);
   }
 
   findByProjectId(projectId: string): UploadedFile[] {
-    return selectByProjectStmt.all(projectId).map(rowToUploaded);
+    return this.selectByProjectStmt.all(projectId).map(rowToUploaded);
   }
 
   countByProjectId(projectId: string): number {
-    return (countByProjectStmt.get(projectId) as any).cnt;
+    return (this.countByProjectStmt.get(projectId) as any).cnt;
   }
 
   delete(id: string): void {
-    deleteStmt.run(id);
+    this.deleteStmt.run(id);
   }
 
   deleteByProjectAndFile(fileId: string, projectId: string): boolean {
-    const result = deleteByProjectAndFileStmt.run(fileId, projectId);
+    const result = this.deleteByProjectAndFileStmt.run(fileId, projectId);
     return result.changes > 0;
   }
 }
-
-export const fileStore = new FileStore();

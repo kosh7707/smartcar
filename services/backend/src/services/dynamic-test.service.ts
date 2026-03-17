@@ -11,8 +11,7 @@ import type { WsBroadcaster } from "./ws-broadcaster";
 import type { AdapterManager } from "./adapter-manager";
 import type { ProjectSettingsService } from "./project-settings.service";
 import { InputGenerator, type TestInput } from "./input-generator";
-import { dynamicTestResultDAO } from "../dao/dynamic-test-result.dao";
-import { analysisResultDAO } from "../dao/analysis-result.dao";
+import type { IDynamicTestResultDAO, IAnalysisResultDAO } from "../dao/interfaces";
 import type { ResultNormalizer } from "./result-normalizer";
 import { createLogger } from "../lib/logger";
 import {
@@ -30,6 +29,8 @@ export class DynamicTestService {
   private inputGenerator = new InputGenerator();
 
   constructor(
+    private dynamicTestResultDAO: IDynamicTestResultDAO,
+    private analysisResultDAO: IAnalysisResultDAO,
     private llmClient: LlmV1Adapter,
     private adapterManager: AdapterManager,
     private settingsService: ProjectSettingsService,
@@ -74,7 +75,7 @@ export class DynamicTestService {
         findings: [],
         createdAt: now,
       };
-      dynamicTestResultDAO.save(initialResult);
+      this.dynamicTestResultDAO.save(initialResult);
 
       // 입력 생성
       const inputs = this.inputGenerator.generate(config);
@@ -123,7 +124,7 @@ export class DynamicTestService {
         createdAt: now,
       };
 
-      dynamicTestResultDAO.updateResult(id, {
+      this.dynamicTestResultDAO.updateResult(id, {
         status: "completed",
         totalRuns: inputs.length,
         crashes,
@@ -135,8 +136,8 @@ export class DynamicTestService {
       this.saveAsAnalysisResult(result);
 
       // 코어 도메인 정규화
-      const ar = analysisResultDAO.findById(`analysis-test-${result.id}`);
-      if (ar) this.resultNormalizer?.normalizeAnalysisResult(ar, { testResultId: result.id });
+      const ar = this.analysisResultDAO.findById(`analysis-test-${result.id}`);
+      if (ar) this.resultNormalizer?.normalizeAnalysisResult(ar, { testResultId: result.id, startedAt: now });
 
       this.sendProgress(id, inputs.length, inputs.length, crashes, anomalies, "테스트 완료");
       this.sendComplete(id);
@@ -148,15 +149,15 @@ export class DynamicTestService {
   }
 
   findById(testId: string): DynamicTestResult | undefined {
-    return dynamicTestResultDAO.findById(testId);
+    return this.dynamicTestResultDAO.findById(testId);
   }
 
   findByProjectId(projectId: string): DynamicTestResult[] {
-    return dynamicTestResultDAO.findByProjectId(projectId);
+    return this.dynamicTestResultDAO.findByProjectId(projectId);
   }
 
   deleteById(testId: string): boolean {
-    return dynamicTestResultDAO.deleteById(testId);
+    return this.dynamicTestResultDAO.deleteById(testId);
   }
 
   // --- 응답 분류 ---
@@ -284,7 +285,7 @@ export class DynamicTestService {
     const vulns: Vulnerability[] = result.findings.map((f, i) => ({
       id: `VULN-TEST-${Date.now()}-${i}`,
       severity: f.severity,
-      title: `[${f.type.toUpperCase()}] ${f.description.slice(0, 60)}`,
+      title: `[${f.type.toUpperCase()}] ${f.description}`,
       description:
         f.description +
         (f.llmAnalysis ? `\n\nLLM 분석: ${f.llmAnalysis}` : ""),
@@ -306,7 +307,7 @@ export class DynamicTestService {
       createdAt: result.createdAt,
     };
 
-    analysisResultDAO.save(analysisResult);
+    this.analysisResultDAO.save(analysisResult);
   }
 
   // --- WS helpers ---

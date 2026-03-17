@@ -40,28 +40,36 @@ export function createReportRouter(service: ReportService): Router {
   const router = Router({ mergeParams: true });
 
   // GET / — 프로젝트 전체 보고서
-  router.get("/", (req: Request<{ pid: string }>, res) => {
-    const pid = req.params.pid;
-    const filters = parseFilters(req.query);
-    const report = service.generateProjectReport(pid, filters);
-    if (!report) {
-      res.status(404).json({ success: false, error: "Project not found" });
-      return;
-    }
-    res.json({ success: true, data: report });
-  });
-
-  // GET /static, /dynamic, /test — 모듈별 보고서
-  for (const [path, module] of Object.entries(MODULE_MAP)) {
-    router.get(`/${path}`, (req: Request<{ pid: string }>, res) => {
+  router.get("/", (req: Request<{ pid: string }>, res, next) => {
+    try {
       const pid = req.params.pid;
       const filters = parseFilters(req.query);
-      const report = service.generateModuleReport(pid, module, filters);
+      const report = service.generateProjectReport(pid, filters);
       if (!report) {
         res.status(404).json({ success: false, error: "Project not found" });
         return;
       }
       res.json({ success: true, data: report });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // GET /static, /dynamic, /test — 모듈별 보고서
+  for (const [path, module] of Object.entries(MODULE_MAP)) {
+    router.get(`/${path}`, (req: Request<{ pid: string }>, res, next) => {
+      try {
+        const pid = req.params.pid;
+        const filters = parseFilters(req.query);
+        const report = service.generateModuleReport(pid, module, filters);
+        if (!report) {
+          res.status(404).json({ success: false, error: "Project not found" });
+          return;
+        }
+        res.json({ success: true, data: report });
+      } catch (err) {
+        next(err);
+      }
     });
   }
 

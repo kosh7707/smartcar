@@ -1,5 +1,5 @@
 import type { ProjectSettings } from "@smartcar/shared";
-import { projectSettingsDAO } from "../dao/project-settings.dao";
+import type { IProjectSettingsDAO } from "../dao/interfaces";
 
 const DEFAULTS: ProjectSettings = {
   llmUrl: process.env.LLM_GATEWAY_URL ?? "http://localhost:8000",
@@ -8,13 +8,15 @@ const DEFAULTS: ProjectSettings = {
 const KNOWN_KEYS = new Set<keyof ProjectSettings>(Object.keys(DEFAULTS) as Array<keyof ProjectSettings>);
 
 export class ProjectSettingsService {
+  constructor(private projectSettingsDAO: IProjectSettingsDAO) {}
+
   getAll(projectId: string): ProjectSettings {
-    const overrides = projectSettingsDAO.getAll(projectId);
+    const overrides = this.projectSettingsDAO.getAll(projectId);
     return { ...DEFAULTS, ...pick(overrides, KNOWN_KEYS) };
   }
 
   get<K extends keyof ProjectSettings>(projectId: string, key: K): ProjectSettings[K] {
-    const val = projectSettingsDAO.get(projectId, key as string);
+    const val = this.projectSettingsDAO.get(projectId, key as string);
     return (val ?? DEFAULTS[key]) as ProjectSettings[K];
   }
 
@@ -22,16 +24,16 @@ export class ProjectSettingsService {
     for (const [key, value] of Object.entries(partial)) {
       if (!KNOWN_KEYS.has(key as keyof ProjectSettings)) continue;
       if (value === undefined || value === null || value === "") {
-        projectSettingsDAO.deleteKey(projectId, key);
+        this.projectSettingsDAO.deleteKey(projectId, key);
       } else {
-        projectSettingsDAO.set(projectId, key, String(value));
+        this.projectSettingsDAO.set(projectId, key, String(value));
       }
     }
     return this.getAll(projectId);
   }
 
   deleteByProjectId(projectId: string): void {
-    projectSettingsDAO.deleteByProjectId(projectId);
+    this.projectSettingsDAO.deleteByProjectId(projectId);
   }
 
   getDefaults(): ProjectSettings {

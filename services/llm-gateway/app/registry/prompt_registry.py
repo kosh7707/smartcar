@@ -51,7 +51,8 @@ _ASSESSMENT_OUTPUT_SCHEMA = """\
   "claims": [
     {
       "statement": "증거가 지지하는 구체적 주장",
-      "supportingEvidenceRefs": ["eref-001"]
+      "supportingEvidenceRefs": ["eref-001"],
+      "location": "src/main.c:42"
     }
   ],
   "caveats": ["한계, 불확실성, 확인되지 않은 사항"],
@@ -66,6 +67,7 @@ _ASSESSMENT_OUTPUT_SCHEMA = """\
 - summary, claims, caveats, usedEvidenceRefs는 필수이다.
 - claims[].supportingEvidenceRefs에는 [사용 가능한 Evidence Refs]에 나열된 refId만 사용하라.
 - 존재하지 않는 refId를 발명하지 마라.
+- claims[].location에는 해당 주장의 코드 위치를 "파일경로:라인번호" 형식으로 기입하라 (예: "src/main.c:42"). 코드 청크 헤더(// === 파일경로 ===)에서 파일 경로를 확인하고, 해당 라인 번호를 특정할 수 없으면 null을 사용하라.
 - 설명은 한국어로 작성하되, 기술 용어는 영문을 유지한다.
 - "이것은 확정 취약점이다" 형태의 최종 판정을 내리지 마라. assessment(평가 제언)만 제공한다.
 - severity는 critical / high / medium / low / info / null 중 하나를 사용한다.
@@ -73,7 +75,7 @@ _ASSESSMENT_OUTPUT_SCHEMA = """\
 - JSON만 출력하라. 앞뒤에 인사말, 설명문, 마크다운을 붙이지 마라.
 
 ## 올바른 출력 예시
-{"summary": "gets() 함수 사용으로 인한 버퍼 오버플로우 취약점이 확인됩니다.", "claims": [{"statement": "gets()는 입력 길이를 제한하지 않아 스택 기반 버퍼 오버플로우를 유발합니다.", "supportingEvidenceRefs": ["eref-001"]}], "caveats": ["ASLR/DEP 적용 여부를 확인하지 못했습니다."], "usedEvidenceRefs": ["eref-001"], "suggestedSeverity": "critical", "needsHumanReview": true, "recommendedNextSteps": ["fgets()로 교체"], "policyFlags": ["MISRA-violation"]}"""
+{"summary": "gets() 함수 사용으로 인한 버퍼 오버플로우 취약점이 확인됩니다.", "claims": [{"statement": "gets()는 입력 길이를 제한하지 않아 스택 기반 버퍼 오버플로우를 유발합니다.", "supportingEvidenceRefs": ["eref-001"], "location": "src/main.c:42"}], "caveats": ["ASLR/DEP 적용 여부를 확인하지 못했습니다."], "usedEvidenceRefs": ["eref-001"], "suggestedSeverity": "critical", "needsHumanReview": true, "recommendedNextSteps": ["fgets()로 교체"], "policyFlags": ["MISRA-violation"]}"""
 
 _TEST_PLAN_OUTPUT_SCHEMA = """\
 [출력 형식]

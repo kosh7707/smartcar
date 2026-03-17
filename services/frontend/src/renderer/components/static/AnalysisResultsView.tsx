@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
-import type { AnalysisResult, Vulnerability, Severity } from "@smartcar/shared";
+import type { AnalysisResult, Vulnerability, Severity, FileCoverageEntry } from "@smartcar/shared";
 import { StatCard, PageHeader, BackButton, SeveritySummary } from "../ui";
-import { Shield, AlertTriangle, AlertCircle, Info, FileSearch, FileCode } from "lucide-react";
+import { Shield, AlertTriangle, AlertCircle, Info, FileSearch, FileCode, CheckCircle2, SkipForward } from "lucide-react";
 import { SEVERITY_ORDER } from "../../utils/severity";
 import { parseLocation } from "../../utils/location";
 
@@ -36,6 +36,47 @@ function groupByFile(vulns: Vulnerability[]): FileGroup[] {
     },
   }));
 }
+
+/* ── File Coverage Summary ── */
+
+const FileCoverageSummary: React.FC<{ coverage: FileCoverageEntry[] }> = ({ coverage }) => {
+  const analyzed = coverage.filter((f) => f.status === "analyzed");
+  const skipped = coverage.filter((f) => f.status === "skipped");
+  const total = coverage.length;
+  const pct = total > 0 ? Math.round((analyzed.length / total) * 100) : 0;
+  const [showSkipped, setShowSkipped] = useState(false);
+
+  return (
+    <div className="card file-coverage">
+      <div className="file-coverage__header">
+        <FileCode size={16} />
+        <span className="file-coverage__title">파일 커버리지</span>
+        <span className="file-coverage__stat">
+          {analyzed.length} / {total}개 분석 완료 ({pct}%)
+        </span>
+        {skipped.length > 0 && (
+          <button className="btn-link" onClick={() => setShowSkipped(!showSkipped)}>
+            {showSkipped ? "접기" : `스킵 ${skipped.length}건 보기`}
+          </button>
+        )}
+      </div>
+      <div className="file-coverage__bar-track">
+        <div className="file-coverage__bar-fill" style={{ width: `${pct}%` }} />
+      </div>
+      {showSkipped && skipped.length > 0 && (
+        <div className="file-coverage__skipped">
+          {skipped.map((f) => (
+            <div key={f.fileId} className="file-coverage__skipped-item">
+              <SkipForward size={14} />
+              <span className="file-coverage__skipped-path">{f.filePath}</span>
+              {f.skipReason && <span className="file-coverage__skipped-reason">{f.skipReason}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 /* ── Component ── */
 
@@ -85,6 +126,11 @@ export const AnalysisResultsView: React.FC<Props> = ({
         <StatCard icon={<AlertCircle size={16} />} label="Medium" value={result.summary.medium} color="var(--severity-medium)" />
         <StatCard icon={<Info size={16} />} label="Low" value={result.summary.low} color="var(--severity-low)" />
       </div>
+
+      {/* File Coverage */}
+      {result.fileCoverage && result.fileCoverage.length > 0 && (
+        <FileCoverageSummary coverage={result.fileCoverage} />
+      )}
 
       {/* Filter bar */}
       <div className="card static-result-filter">

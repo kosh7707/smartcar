@@ -1,12 +1,14 @@
 import crypto from "crypto";
 import type { Adapter } from "@smartcar/shared";
 import { AdapterClient, type CanFrame } from "./adapter-client";
-import { adapterDAO } from "../dao/adapter.dao";
+import type { IAdapterDAO } from "../dao/interfaces";
 import { NotFoundError } from "../lib/errors";
 
 export class AdapterManager {
   private clients = new Map<string, AdapterClient>();
   private canFrameHandler: ((adapterId: string, frame: CanFrame) => void) | null = null;
+
+  constructor(private adapterDAO: IAdapterDAO) {}
 
   setCanFrameHandler(handler: (adapterId: string, frame: CanFrame) => void): void {
     this.canFrameHandler = handler;
@@ -17,12 +19,12 @@ export class AdapterManager {
   create(name: string, url: string, projectId: string): Adapter {
     const id = `adapter-${crypto.randomUUID().slice(0, 8)}`;
     const createdAt = new Date().toISOString();
-    adapterDAO.save({ id, name, url, projectId, createdAt });
+    this.adapterDAO.save({ id, name, url, projectId, createdAt });
     return { id, name, url, projectId, connected: false, ecuConnected: false, ecuMeta: [], createdAt };
   }
 
   findAll(): Adapter[] {
-    const rows = adapterDAO.findAll();
+    const rows = this.adapterDAO.findAll();
     return rows.map((row) => {
       const client = this.clients.get(row.id);
       const ecuMeta = client?.getEcuMeta();
@@ -36,7 +38,7 @@ export class AdapterManager {
   }
 
   findByProjectId(projectId: string): Adapter[] {
-    const rows = adapterDAO.findByProjectId(projectId);
+    const rows = this.adapterDAO.findByProjectId(projectId);
     return rows.map((row) => {
       const client = this.clients.get(row.id);
       const ecuMeta = client?.getEcuMeta();
@@ -50,7 +52,7 @@ export class AdapterManager {
   }
 
   findById(id: string): Adapter | undefined {
-    const row = adapterDAO.findById(id);
+    const row = this.adapterDAO.findById(id);
     if (!row) return undefined;
     const client = this.clients.get(id);
     const ecuMeta = client?.getEcuMeta();
@@ -71,7 +73,7 @@ export class AdapterManager {
       this.disconnect(id);
     }
 
-    adapterDAO.update(id, fields);
+    this.adapterDAO.update(id, fields);
     return this.findById(id);
   }
 
@@ -82,11 +84,11 @@ export class AdapterManager {
       client.disconnect();
       this.clients.delete(id);
     }
-    return adapterDAO.delete(id);
+    return this.adapterDAO.delete(id);
   }
 
   deleteByProjectId(projectId: string): void {
-    const adapters = adapterDAO.findByProjectId(projectId);
+    const adapters = this.adapterDAO.findByProjectId(projectId);
     for (const adapter of adapters) {
       const client = this.clients.get(adapter.id);
       if (client) {
@@ -94,13 +96,13 @@ export class AdapterManager {
         this.clients.delete(adapter.id);
       }
     }
-    adapterDAO.deleteByProjectId(projectId);
+    this.adapterDAO.deleteByProjectId(projectId);
   }
 
   // --- Connect / Disconnect ---
 
   async connect(id: string): Promise<Adapter> {
-    const row = adapterDAO.findById(id);
+    const row = this.adapterDAO.findById(id);
     if (!row) throw new NotFoundError("Adapter not found");
 
     // 기존 연결 정리

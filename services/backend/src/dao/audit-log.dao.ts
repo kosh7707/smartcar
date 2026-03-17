@@ -1,13 +1,6 @@
 import type { AuditLogEntry } from "@smartcar/shared";
-import db from "../db";
-
-const insertStmt = db.prepare(
-  `INSERT INTO audit_log (id, timestamp, actor, action, resource, resource_id, detail, request_id)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-);
-const selectByResourceStmt = db.prepare(
-  `SELECT * FROM audit_log WHERE resource_id = ? ORDER BY timestamp DESC`
-);
+import type { DatabaseType } from "../db";
+import type { IAuditLogDAO } from "./interfaces";
 
 function rowToAuditLogEntry(row: any): AuditLogEntry {
   return {
@@ -22,9 +15,22 @@ function rowToAuditLogEntry(row: any): AuditLogEntry {
   };
 }
 
-class AuditLogDAO {
+export class AuditLogDAO implements IAuditLogDAO {
+  private insertStmt;
+  private selectByResourceStmt;
+
+  constructor(private db: DatabaseType) {
+    this.insertStmt = db.prepare(
+      `INSERT INTO audit_log (id, timestamp, actor, action, resource, resource_id, detail, request_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    this.selectByResourceStmt = db.prepare(
+      `SELECT * FROM audit_log WHERE resource_id = ? ORDER BY timestamp DESC`
+    );
+  }
+
   save(entry: AuditLogEntry): void {
-    insertStmt.run(
+    this.insertStmt.run(
       entry.id,
       entry.timestamp,
       entry.actor,
@@ -37,14 +43,14 @@ class AuditLogDAO {
   }
 
   findByResourceId(resourceId: string): AuditLogEntry[] {
-    return selectByResourceStmt.all(resourceId).map(rowToAuditLogEntry);
+    return this.selectByResourceStmt.all(resourceId).map(rowToAuditLogEntry);
   }
 
   findByResourceIds(resourceIds: string[], limit = 100): AuditLogEntry[] {
     if (resourceIds.length === 0) return [];
 
     const placeholders = resourceIds.map(() => "?").join(",");
-    return db
+    return this.db
       .prepare(
         `SELECT * FROM audit_log WHERE resource_id IN (${placeholders}) ORDER BY timestamp DESC LIMIT ?`,
       )
@@ -52,5 +58,3 @@ class AuditLogDAO {
       .map(rowToAuditLogEntry);
   }
 }
-
-export const auditLogDAO = new AuditLogDAO();

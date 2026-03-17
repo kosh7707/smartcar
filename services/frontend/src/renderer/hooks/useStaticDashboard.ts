@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { StaticAnalysisDashboardSummary, Run, AnalysisProgress } from "@smartcar/shared";
+import type { StaticAnalysisDashboardSummary, Run, AnalysisProgress, RunDetailResponse } from "@smartcar/shared";
 import type { DashboardPeriod } from "../components/ui/PeriodSelector";
 import {
   fetchStaticDashboardSummary,
   fetchProjectRuns,
   fetchAllAnalysisStatuses,
+  fetchRunDetail,
   logError,
 } from "../api/client";
 
@@ -12,6 +13,8 @@ export function useStaticDashboard(projectId?: string) {
   const [summary, setSummary] = useState<StaticAnalysisDashboardSummary | null>(null);
   const [recentRuns, setRecentRuns] = useState<Run[]>([]);
   const [activeAnalysis, setActiveAnalysis] = useState<AnalysisProgress | null>(null);
+  const [latestRunDetail, setLatestRunDetail] = useState<RunDetailResponse["data"] | null>(null);
+  const [latestRunLoading, setLatestRunLoading] = useState(true);
   const [period, setPeriod] = useState<DashboardPeriod>("30d");
   const [loading, setLoading] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -25,11 +28,23 @@ export function useStaticDashboard(projectId?: string) {
           fetchProjectRuns(projectId),
         ]);
         setSummary(summaryData);
-        setRecentRuns(
-          runs
-            .filter((r) => r.module === "static_analysis")
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
-        );
+        const sorted = runs
+          .filter((r) => r.module === "static_analysis")
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setRecentRuns(sorted);
+
+        // Fetch latest completed run detail
+        const latestCompleted = sorted.find((r) => r.status === "completed");
+        if (latestCompleted) {
+          setLatestRunLoading(true);
+          fetchRunDetail(latestCompleted.id)
+            .then(setLatestRunDetail)
+            .catch((e) => logError("Latest run detail", e))
+            .finally(() => setLatestRunLoading(false));
+        } else {
+          setLatestRunDetail(null);
+          setLatestRunLoading(false);
+        }
       } catch (e) {
         logError("Dashboard load", e);
       } finally {
@@ -106,6 +121,8 @@ export function useStaticDashboard(projectId?: string) {
     summary,
     recentRuns,
     activeAnalysis,
+    latestRunDetail,
+    latestRunLoading,
     period,
     loading,
     setPeriod: handleSetPeriod,

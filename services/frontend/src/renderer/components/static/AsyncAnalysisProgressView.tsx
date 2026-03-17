@@ -35,15 +35,19 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
 }) => {
   const [elapsed, setElapsed] = useState(0);
   const [showAbortConfirm, setShowAbortConfirm] = useState(false);
+  const [autoRedirect, setAutoRedirect] = useState<number | null>(null);
+
+  const isDone = progress.status === "completed" || progress.status === "failed" || progress.status === "aborted";
 
   useEffect(() => {
     const start = new Date(progress.startedAt).getTime();
     setElapsed(Math.floor((Date.now() - start) / 1000));
+    if (isDone) return;
     const id = setInterval(() => {
       setElapsed(Math.floor((Date.now() - start) / 1000));
     }, 1000);
     return () => clearInterval(id);
-  }, [progress.startedAt]);
+  }, [progress.startedAt, isDone]);
 
   const mins = Math.floor(elapsed / 60);
   const secs = elapsed % 60;
@@ -51,11 +55,32 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
     ? `${mins}분 ${secs.toString().padStart(2, "0")}초`
     : `${secs}초`;
 
+  // Auto-redirect countdown on completion
+  useEffect(() => {
+    if (progress.status !== "completed") return;
+    setAutoRedirect(5);
+    const id = setInterval(() => {
+      setAutoRedirect((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(id);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [progress.status]);
+
+  useEffect(() => {
+    if (autoRedirect === 0) {
+      onViewResult(progress.analysisId);
+    }
+  }, [autoRedirect, onViewResult, progress.analysisId]);
+
   const currentIdx = PHASE_INDEX[progress.phase] ?? 0;
   const isCompleted = progress.status === "completed";
   const isFailed = progress.status === "failed";
   const isAborted = progress.status === "aborted";
-  const isDone = isCompleted || isFailed || isAborted;
   const llmDone = progress.phase === "llm_chunk" && progress.totalChunks > 0 && progress.currentChunk >= progress.totalChunks;
 
   // Progress percentage
@@ -132,7 +157,7 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
           {isCompleted && (
             <button className="btn" onClick={() => onViewResult(progress.analysisId)}>
               <Eye size={16} />
-              결과 보기
+              결과 보기{autoRedirect !== null && autoRedirect > 0 ? ` (${autoRedirect})` : ""}
             </button>
           )}
           {!isDone && (

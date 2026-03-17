@@ -1,16 +1,6 @@
 import type { DynamicAlert } from "@smartcar/shared";
-import db from "../db";
-
-const insertStmt = db.prepare(
-  `INSERT INTO dynamic_analysis_alerts (id, session_id, severity, title, description, llm_analysis, related_messages, detected_at)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-);
-const selectBySessionStmt = db.prepare(
-  `SELECT * FROM dynamic_analysis_alerts WHERE session_id = ? ORDER BY detected_at ASC`
-);
-const updateLlmStmt = db.prepare(
-  `UPDATE dynamic_analysis_alerts SET llm_analysis = ? WHERE id = ?`
-);
+import type { DatabaseType } from "../db";
+import type { IDynamicAlertDAO } from "./interfaces";
 
 function rowToAlert(row: any): DynamicAlert {
   return {
@@ -24,9 +14,26 @@ function rowToAlert(row: any): DynamicAlert {
   };
 }
 
-class DynamicAlertDAO {
+export class DynamicAlertDAO implements IDynamicAlertDAO {
+  private insertStmt;
+  private selectBySessionStmt;
+  private updateLlmStmt;
+
+  constructor(private db: DatabaseType) {
+    this.insertStmt = db.prepare(
+      `INSERT INTO dynamic_analysis_alerts (id, session_id, severity, title, description, llm_analysis, related_messages, detected_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    this.selectBySessionStmt = db.prepare(
+      `SELECT * FROM dynamic_analysis_alerts WHERE session_id = ? ORDER BY detected_at ASC`
+    );
+    this.updateLlmStmt = db.prepare(
+      `UPDATE dynamic_analysis_alerts SET llm_analysis = ? WHERE id = ?`
+    );
+  }
+
   save(alert: DynamicAlert, sessionId: string): void {
-    insertStmt.run(
+    this.insertStmt.run(
       alert.id,
       sessionId,
       alert.severity,
@@ -39,12 +46,10 @@ class DynamicAlertDAO {
   }
 
   findBySessionId(sessionId: string): DynamicAlert[] {
-    return selectBySessionStmt.all(sessionId).map(rowToAlert);
+    return this.selectBySessionStmt.all(sessionId).map(rowToAlert);
   }
 
   updateLlmAnalysis(alertId: string, llmAnalysis: string): void {
-    updateLlmStmt.run(llmAnalysis, alertId);
+    this.updateLlmStmt.run(llmAnalysis, alertId);
   }
 }
-
-export const dynamicAlertDAO = new DynamicAlertDAO();

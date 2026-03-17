@@ -12,6 +12,35 @@ import { createDynamicAnalysisRouter } from "./controllers/dynamic-analysis.cont
 import { createProjectAdaptersRouter } from "./controllers/project-adapters.controller";
 import { createProjectRulesRouter } from "./controllers/project-rules.controller";
 import { createProjectSettingsRouter } from "./controllers/project-settings.controller";
+import { createDynamicTestRouter } from "./controllers/dynamic-test.controller";
+import { createRunRouter, createRunDetailRouter } from "./controllers/run.controller";
+import { createFindingRouter, createFindingDetailRouter } from "./controllers/finding.controller";
+import { createQualityGateRouter, createQualityGateDetailRouter } from "./controllers/quality-gate.controller";
+import { createApprovalRouter, createApprovalDetailRouter } from "./controllers/approval.controller";
+import { createReportRouter } from "./controllers/report.controller";
+
+// DB + Schema
+import { createDatabase, initSchema } from "./db";
+
+// DAO classes
+import { RunDAO } from "./dao/run.dao";
+import { FindingDAO } from "./dao/finding.dao";
+import { EvidenceRefDAO } from "./dao/evidence-ref.dao";
+import { GateResultDAO } from "./dao/gate-result.dao";
+import { ApprovalDAO } from "./dao/approval.dao";
+import { AuditLogDAO } from "./dao/audit-log.dao";
+import { AnalysisResultDAO } from "./dao/analysis-result.dao";
+import { FileStore } from "./dao/file-store";
+import { DynamicSessionDAO } from "./dao/dynamic-session.dao";
+import { DynamicAlertDAO } from "./dao/dynamic-alert.dao";
+import { DynamicMessageDAO } from "./dao/dynamic-message.dao";
+import { DynamicTestResultDAO } from "./dao/dynamic-test-result.dao";
+import { ProjectDAO } from "./dao/project.dao";
+import { RuleDAO } from "./dao/rule.dao";
+import { AdapterDAO } from "./dao/adapter.dao";
+import { ProjectSettingsDAO } from "./dao/project-settings.dao";
+
+// Service classes
 import { ProjectSettingsService } from "./services/project-settings.service";
 import { StaticAnalysisService } from "./services/static-analysis.service";
 import { ProjectService } from "./services/project.service";
@@ -25,19 +54,13 @@ import { AttackSignatureRule } from "./can-rules/attack-signature-rule";
 import { WsBroadcaster, attachWsServers } from "./services/ws-broadcaster";
 import { DynamicAnalysisService } from "./services/dynamic-analysis.service";
 import { DynamicTestService } from "./services/dynamic-test.service";
-import { createDynamicTestRouter } from "./controllers/dynamic-test.controller";
 import { AdapterManager } from "./services/adapter-manager";
 import { ResultNormalizer } from "./services/result-normalizer";
 import { FindingService } from "./services/finding.service";
 import { RunService } from "./services/run.service";
-import { createRunRouter, createRunDetailRouter } from "./controllers/run.controller";
-import { createFindingRouter, createFindingDetailRouter } from "./controllers/finding.controller";
 import { QualityGateService } from "./services/quality-gate.service";
 import { ApprovalService } from "./services/approval.service";
-import { createQualityGateRouter, createQualityGateDetailRouter } from "./controllers/quality-gate.controller";
-import { createApprovalRouter, createApprovalDetailRouter } from "./controllers/approval.controller";
 import { ReportService } from "./services/report.service";
-import { createReportRouter } from "./controllers/report.controller";
 
 // --- 프로세스 레벨 에러 핸들러 ---
 process.on("uncaughtException", (err) => {
@@ -60,22 +83,50 @@ app.use(express.json());
 app.use(requestIdMiddleware);
 app.use(requestLoggerMiddleware);
 
-// 서비스 초기화
+// ── DB 초기화 ──
+const db = createDatabase();
+initSchema(db);
+
+// ── DAO 생성 ──
+const runDAO = new RunDAO(db);
+const findingDAO = new FindingDAO(db);
+const evidenceRefDAO = new EvidenceRefDAO(db);
+const gateResultDAO = new GateResultDAO(db);
+const approvalDAO = new ApprovalDAO(db);
+const auditLogDAO = new AuditLogDAO(db);
+const analysisResultDAO = new AnalysisResultDAO(db);
+const fileStore = new FileStore(db);
+const dynamicSessionDAO = new DynamicSessionDAO(db);
+const dynamicAlertDAO = new DynamicAlertDAO(db);
+const dynamicMessageDAO = new DynamicMessageDAO(db);
+const dynamicTestResultDAO = new DynamicTestResultDAO(db);
+const projectDAO = new ProjectDAO(db);
+const ruleDAO = new RuleDAO(db);
+const adapterDAO = new AdapterDAO(db);
+const projectSettingsDAO = new ProjectSettingsDAO(db);
+
+// ── 서비스 초기화 ──
 const llmTaskClient = new LlmTaskClient(LLM_GATEWAY_URL);
 const llmAdapter = new LlmV1Adapter(llmTaskClient, LLM_CONCURRENCY);
 const dynamicAnalysisWs = new WsBroadcaster<import("@smartcar/shared").WsMessage>("/ws/dynamic-analysis", "sessionId");
 const staticAnalysisWs = new WsBroadcaster<import("@smartcar/shared").WsStaticMessage>("/ws/static-analysis", "analysisId");
 const dynamicTestWs = new WsBroadcaster<import("@smartcar/shared").WsTestMessage>("/ws/dynamic-test", "testId");
-const ruleService = new RuleService();
-const adapterManager = new AdapterManager();
-const settingsService = new ProjectSettingsService();
-const projectService = new ProjectService(ruleService, adapterManager, settingsService);
-const qualityGateService = new QualityGateService();
-const approvalService = new ApprovalService(qualityGateService);
-const resultNormalizer = new ResultNormalizer(qualityGateService);
-const findingService = new FindingService();
-const runService = new RunService();
-const staticAnalysisService = new StaticAnalysisService(ruleService, llmAdapter, settingsService, staticAnalysisWs, resultNormalizer);
+
+const ruleService = new RuleService(ruleDAO);
+const adapterManager = new AdapterManager(adapterDAO);
+const settingsService = new ProjectSettingsService(projectSettingsDAO);
+const projectService = new ProjectService(projectDAO, analysisResultDAO, fileStore, ruleService, adapterManager, settingsService);
+
+const qualityGateService = new QualityGateService(findingDAO, evidenceRefDAO, gateResultDAO, runDAO);
+const resultNormalizer = new ResultNormalizer(db, runDAO, findingDAO, evidenceRefDAO, qualityGateService);
+
+const approvalService = new ApprovalService(approvalDAO, auditLogDAO, qualityGateService);
+const findingService = new FindingService(findingDAO, evidenceRefDAO, auditLogDAO);
+const runService = new RunService(runDAO, findingDAO, gateResultDAO, evidenceRefDAO);
+
+const staticAnalysisService = new StaticAnalysisService(
+  fileStore, analysisResultDAO, ruleService, llmAdapter, settingsService, staticAnalysisWs, resultNormalizer
+);
 
 // 기존 프로젝트에 기본 룰 시딩 (1회 마이그레이션)
 const seedRequestId = generateRequestId("sys");
@@ -96,19 +147,21 @@ canRuleEngine.registerRule(new AttackSignatureRule());
 
 // 동적 분석 서비스 초기화
 const dynamicAnalysisService = new DynamicAnalysisService(
-  canRuleEngine,
-  llmAdapter,
-  dynamicAnalysisWs,
-  adapterManager,
-  settingsService,
-  resultNormalizer
+  dynamicSessionDAO, dynamicAlertDAO, dynamicMessageDAO, analysisResultDAO,
+  canRuleEngine, llmAdapter, dynamicAnalysisWs, adapterManager, settingsService, resultNormalizer
 );
 
 // 동적 테스트 서비스 초기화
-const dynamicTestService = new DynamicTestService(llmAdapter, adapterManager, settingsService, dynamicTestWs, resultNormalizer);
+const dynamicTestService = new DynamicTestService(
+  dynamicTestResultDAO, analysisResultDAO,
+  llmAdapter, adapterManager, settingsService, dynamicTestWs, resultNormalizer
+);
 
 // 보고서 서비스 초기화
-const reportService = new ReportService(projectService, runService, findingService, qualityGateService, approvalService);
+const reportService = new ReportService(
+  evidenceRefDAO, auditLogDAO,
+  projectService, runService, findingService, qualityGateService, approvalService
+);
 
 // 라우터 마운트 — 프로젝트 스코프 (신규)
 app.use("/api/projects/:pid/adapters", createProjectAdaptersRouter(adapterManager));
@@ -123,10 +176,10 @@ app.use("/api/projects/:pid/report", createReportRouter(reportService));
 // 라우터 마운트
 app.use("/health", createHealthRouter(llmAdapter, adapterManager));
 app.use("/api/projects", createProjectRouter(projectService));
-app.use("/api", createFileRouter());
+app.use("/api", createFileRouter(fileStore));
 app.use(
   "/api/static-analysis",
-  createStaticAnalysisRouter(staticAnalysisService)
+  createStaticAnalysisRouter(staticAnalysisService, fileStore, analysisResultDAO, findingDAO, runDAO, gateResultDAO)
 );
 app.use(
   "/api/dynamic-analysis",

@@ -7,9 +7,7 @@ import type {
   Severity,
   AnalysisModule,
 } from "@smartcar/shared";
-import { findingDAO } from "../dao/finding.dao";
-import { evidenceRefDAO } from "../dao/evidence-ref.dao";
-import { auditLogDAO } from "../dao/audit-log.dao";
+import type { IFindingDAO, IEvidenceRefDAO, IAuditLogDAO } from "../dao/interfaces";
 import { InvalidInputError, NotFoundError } from "../lib/errors";
 import { createLogger } from "../lib/logger";
 
@@ -28,12 +26,18 @@ const VALID_TRANSITIONS: Record<FindingStatus, FindingStatus[]> = {
 };
 
 export class FindingService {
+  constructor(
+    private findingDAO: IFindingDAO,
+    private evidenceRefDAO: IEvidenceRefDAO,
+    private auditLogDAO: IAuditLogDAO,
+  ) {}
+
   findById(id: string): (Finding & { evidenceRefs: EvidenceRef[]; auditLog: AuditLogEntry[] }) | undefined {
-    const finding = findingDAO.findById(id);
+    const finding = this.findingDAO.findById(id);
     if (!finding) return undefined;
 
-    const evidenceRefs = evidenceRefDAO.findByFindingId(id);
-    const auditLog = auditLogDAO.findByResourceId(id);
+    const evidenceRefs = this.evidenceRefDAO.findByFindingId(id);
+    const auditLog = this.auditLogDAO.findByResourceId(id);
     return { ...finding, evidenceRefs, auditLog };
   }
 
@@ -48,11 +52,11 @@ export class FindingService {
       to?: string;
     },
   ): Finding[] {
-    return findingDAO.findByProjectId(projectId, filters);
+    return this.findingDAO.findByProjectId(projectId, filters);
   }
 
   findByRunId(runId: string): Finding[] {
-    return findingDAO.findByRunId(runId);
+    return this.findingDAO.findByRunId(runId);
   }
 
   updateStatus(
@@ -62,7 +66,7 @@ export class FindingService {
     reason: string,
     requestId?: string
   ): Finding {
-    const finding = findingDAO.findById(findingId);
+    const finding = this.findingDAO.findById(findingId);
     if (!finding) throw new NotFoundError("Finding not found");
 
     const allowed = VALID_TRANSITIONS[finding.status];
@@ -72,7 +76,7 @@ export class FindingService {
       );
     }
 
-    findingDAO.updateStatus(findingId, newStatus);
+    this.findingDAO.updateStatus(findingId, newStatus);
 
     // audit log 기록
     const logEntry: AuditLogEntry = {
@@ -89,7 +93,7 @@ export class FindingService {
       },
       requestId,
     };
-    auditLogDAO.save(logEntry);
+    this.auditLogDAO.save(logEntry);
 
     logger.info({
       findingId,
@@ -103,6 +107,6 @@ export class FindingService {
   }
 
   getSummary(projectId: string): { byStatus: Record<string, number>; bySeverity: Record<string, number>; total: number } {
-    return findingDAO.summaryByProjectId(projectId);
+    return this.findingDAO.summaryByProjectId(projectId);
   }
 }

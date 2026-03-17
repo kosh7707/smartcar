@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { fileStore } from "../dao/file-store";
+import type { IFileStore } from "../dao/interfaces";
 
-export function createFileRouter(): Router {
+export function createFileRouter(fileStore: IFileStore): Router {
   const router = Router();
 
   // P1-10: 프로젝트 파일 목록

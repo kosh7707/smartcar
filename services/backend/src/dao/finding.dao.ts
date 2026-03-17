@@ -1,20 +1,6 @@
 import type { Finding, FindingStatus, Severity, AnalysisModule } from "@smartcar/shared";
-import db from "../db";
-
-const insertStmt = db.prepare(
-  `INSERT INTO findings (id, run_id, project_id, module, status, severity, confidence, source_type, title, description, location, suggestion, rule_id, created_at, updated_at)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-);
-const selectByIdStmt = db.prepare(`SELECT * FROM findings WHERE id = ?`);
-const selectByRunStmt = db.prepare(
-  `SELECT * FROM findings WHERE run_id = ? ORDER BY created_at DESC`
-);
-const selectByProjectStmt = db.prepare(
-  `SELECT * FROM findings WHERE project_id = ? ORDER BY created_at DESC`
-);
-const updateStatusStmt = db.prepare(
-  `UPDATE findings SET status = ?, updated_at = ? WHERE id = ?`
-);
+import type { DatabaseType } from "../db";
+import type { IFindingDAO, FindingFilters } from "./interfaces";
 
 function rowToFinding(row: any): Finding {
   return {
@@ -36,18 +22,32 @@ function rowToFinding(row: any): Finding {
   };
 }
 
-interface FindingFilters {
-  status?: FindingStatus | FindingStatus[];
-  severity?: Severity | Severity[];
-  module?: AnalysisModule;
-  runId?: string;
-  from?: string;   // ISO date — createdAt >=
-  to?: string;     // ISO date — createdAt <=
-}
+export class FindingDAO implements IFindingDAO {
+  private insertStmt;
+  private selectByIdStmt;
+  private selectByRunStmt;
+  private selectByProjectStmt;
+  private updateStatusStmt;
 
-class FindingDAO {
+  constructor(private db: DatabaseType) {
+    this.insertStmt = db.prepare(
+      `INSERT INTO findings (id, run_id, project_id, module, status, severity, confidence, source_type, title, description, location, suggestion, rule_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    this.selectByIdStmt = db.prepare(`SELECT * FROM findings WHERE id = ?`);
+    this.selectByRunStmt = db.prepare(
+      `SELECT * FROM findings WHERE run_id = ? ORDER BY created_at DESC`
+    );
+    this.selectByProjectStmt = db.prepare(
+      `SELECT * FROM findings WHERE project_id = ? ORDER BY created_at DESC`
+    );
+    this.updateStatusStmt = db.prepare(
+      `UPDATE findings SET status = ?, updated_at = ? WHERE id = ?`
+    );
+  }
+
   save(finding: Finding): void {
-    insertStmt.run(
+    this.insertStmt.run(
       finding.id,
       finding.runId,
       finding.projectId,
@@ -67,24 +67,24 @@ class FindingDAO {
   }
 
   saveMany(findings: Finding[]): void {
-    const tx = db.transaction((items: Finding[]) => {
+    const tx = this.db.transaction((items: Finding[]) => {
       for (const f of items) this.save(f);
     });
     tx(findings);
   }
 
   findById(id: string): Finding | undefined {
-    const row = selectByIdStmt.get(id);
+    const row = this.selectByIdStmt.get(id);
     return row ? rowToFinding(row) : undefined;
   }
 
   findByRunId(runId: string): Finding[] {
-    return selectByRunStmt.all(runId).map(rowToFinding);
+    return this.selectByRunStmt.all(runId).map(rowToFinding);
   }
 
   findByProjectId(projectId: string, filters?: FindingFilters): Finding[] {
     if (!filters || (!filters.status && !filters.severity && !filters.module && !filters.runId && !filters.from && !filters.to)) {
-      return selectByProjectStmt.all(projectId).map(rowToFinding);
+      return this.selectByProjectStmt.all(projectId).map(rowToFinding);
     }
 
     const conditions = ["project_id = ?"];
@@ -118,15 +118,15 @@ class FindingDAO {
     }
 
     const sql = `SELECT * FROM findings WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC`;
-    return db.prepare(sql).all(...params).map(rowToFinding);
+    return this.db.prepare(sql).all(...params).map(rowToFinding);
   }
 
   updateStatus(id: string, status: FindingStatus): void {
-    updateStatusStmt.run(status, new Date().toISOString(), id);
+    this.updateStatusStmt.run(status, new Date().toISOString(), id);
   }
 
   summaryByProjectId(projectId: string): { byStatus: Record<string, number>; bySeverity: Record<string, number>; total: number } {
-    const rows = selectByProjectStmt.all(projectId).map(rowToFinding);
+    const rows = this.selectByProjectStmt.all(projectId).map(rowToFinding);
     const byStatus: Record<string, number> = {};
     const bySeverity: Record<string, number> = {};
 
@@ -151,7 +151,7 @@ class FindingDAO {
     }
 
     const sql = `SELECT severity, status, source_type FROM findings WHERE ${conditions.join(" AND ")}`;
-    const rows = db.prepare(sql).all(...params) as Array<{ severity: string; status: string; source_type: string }>;
+    const rows = this.db.prepare(sql).all(...params) as Array<{ severity: string; status: string; source_type: string }>;
 
     const bySeverity: Record<string, number> = {};
     const byStatus: Record<string, number> = {};
@@ -197,7 +197,7 @@ class FindingDAO {
     params.push(limit);
 
     const sevMap: Record<number, string> = { 1: "critical", 2: "high", 3: "medium", 4: "low", 5: "info" };
-    const rows = db.prepare(sql).all(...params) as Array<{ location: string; cnt: number; sev_rank: number }>;
+    const rows = this.db.prepare(sql).all(...params) as Array<{ location: string; cnt: number; sev_rank: number }>;
 
     return rows.map((row) => ({
       filePath: row.location,
@@ -229,9 +229,7 @@ class FindingDAO {
     `;
     params.push(limit);
 
-    const rows = db.prepare(sql).all(...params) as Array<{ rule_id: string; cnt: number }>;
+    const rows = this.db.prepare(sql).all(...params) as Array<{ rule_id: string; cnt: number }>;
     return rows.map((row) => ({ ruleId: row.rule_id, hitCount: row.cnt }));
   }
 }
-
-export const findingDAO = new FindingDAO();

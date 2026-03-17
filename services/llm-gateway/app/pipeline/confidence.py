@@ -5,7 +5,7 @@ from app.schemas.response import ConfidenceBreakdown
 # 가중치 (외부 피드백 기반)
 W_GROUNDING = 0.45
 W_DETERMINISTIC = 0.30
-W_CONSISTENCY = 0.15
+W_RAG_COVERAGE = 0.15
 W_SCHEMA = 0.10
 
 
@@ -18,16 +18,17 @@ class ConfidenceCalculator:
         input_ref_ids: set[str],
         schema_valid: bool,
         has_rule_results: bool = False,
+        rag_hits: int = 0,
     ) -> tuple[float, ConfidenceBreakdown]:
         grounding = self._calc_grounding(assessment, input_ref_ids)
         deterministic = self._calc_deterministic(assessment, has_rule_results)
-        consistency = 1.0  # Phase 1: dual-run 미구현, 고정값
+        rag_coverage = self._calc_rag_coverage(rag_hits)
         schema_compliance = 1.0 if schema_valid else 0.0
 
         score = (
             W_GROUNDING * grounding
             + W_DETERMINISTIC * deterministic
-            + W_CONSISTENCY * consistency
+            + W_RAG_COVERAGE * rag_coverage
             + W_SCHEMA * schema_compliance
         )
         score = round(min(max(score, 0.0), 1.0), 4)
@@ -35,7 +36,7 @@ class ConfidenceCalculator:
         breakdown = ConfidenceBreakdown(
             grounding=round(grounding, 4),
             deterministicSupport=round(deterministic, 4),
-            consistency=round(consistency, 4),
+            ragCoverage=round(rag_coverage, 4),
             schemaCompliance=round(schema_compliance, 4),
         )
         return score, breakdown
@@ -96,3 +97,8 @@ class ConfidenceCalculator:
         if len(claims) >= 2:
             score += 0.1
         return min(score, 1.0)
+
+    def _calc_rag_coverage(self, rag_hits: int, max_k: int = 5) -> float:
+        if rag_hits <= 0:
+            return 0.4
+        return 0.4 + 0.6 * min(rag_hits / max_k, 1.0)

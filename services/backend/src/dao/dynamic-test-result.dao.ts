@@ -1,22 +1,6 @@
 import type { DynamicTestResult, DynamicTestFinding, AnalysisStatus } from "@smartcar/shared";
-import db from "../db";
-
-const insertStmt = db.prepare(
-  `INSERT INTO dynamic_test_results (id, project_id, config, status, total_runs, crashes, anomalies, findings, created_at)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-);
-const selectByIdStmt = db.prepare(
-  `SELECT * FROM dynamic_test_results WHERE id = ?`
-);
-const selectByProjectStmt = db.prepare(
-  `SELECT * FROM dynamic_test_results WHERE project_id = ? ORDER BY created_at DESC`
-);
-const updateResultStmt = db.prepare(
-  `UPDATE dynamic_test_results SET status = ?, total_runs = ?, crashes = ?, anomalies = ?, findings = ? WHERE id = ?`
-);
-const deleteByIdStmt = db.prepare(
-  `DELETE FROM dynamic_test_results WHERE id = ?`
-);
+import type { DatabaseType } from "../db";
+import type { IDynamicTestResultDAO } from "./interfaces";
 
 function rowToResult(row: any): DynamicTestResult {
   return {
@@ -32,9 +16,34 @@ function rowToResult(row: any): DynamicTestResult {
   };
 }
 
-class DynamicTestResultDAO {
+export class DynamicTestResultDAO implements IDynamicTestResultDAO {
+  private insertStmt;
+  private selectByIdStmt;
+  private selectByProjectStmt;
+  private updateResultStmt;
+  private deleteByIdStmt;
+
+  constructor(private db: DatabaseType) {
+    this.insertStmt = db.prepare(
+      `INSERT INTO dynamic_test_results (id, project_id, config, status, total_runs, crashes, anomalies, findings, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    this.selectByIdStmt = db.prepare(
+      `SELECT * FROM dynamic_test_results WHERE id = ?`
+    );
+    this.selectByProjectStmt = db.prepare(
+      `SELECT * FROM dynamic_test_results WHERE project_id = ? ORDER BY created_at DESC`
+    );
+    this.updateResultStmt = db.prepare(
+      `UPDATE dynamic_test_results SET status = ?, total_runs = ?, crashes = ?, anomalies = ?, findings = ? WHERE id = ?`
+    );
+    this.deleteByIdStmt = db.prepare(
+      `DELETE FROM dynamic_test_results WHERE id = ?`
+    );
+  }
+
   save(result: DynamicTestResult): void {
-    insertStmt.run(
+    this.insertStmt.run(
       result.id,
       result.projectId,
       JSON.stringify(result.config),
@@ -48,12 +57,12 @@ class DynamicTestResultDAO {
   }
 
   findById(id: string): DynamicTestResult | undefined {
-    const row = selectByIdStmt.get(id);
+    const row = this.selectByIdStmt.get(id);
     return row ? rowToResult(row) : undefined;
   }
 
   findByProjectId(projectId: string): DynamicTestResult[] {
-    return selectByProjectStmt.all(projectId).map(rowToResult);
+    return this.selectByProjectStmt.all(projectId).map(rowToResult);
   }
 
   updateResult(
@@ -66,7 +75,7 @@ class DynamicTestResultDAO {
       findings: DynamicTestFinding[];
     }
   ): void {
-    updateResultStmt.run(
+    this.updateResultStmt.run(
       updates.status,
       updates.totalRuns,
       updates.crashes,
@@ -77,9 +86,7 @@ class DynamicTestResultDAO {
   }
 
   deleteById(id: string): boolean {
-    const result = deleteByIdStmt.run(id);
+    const result = this.deleteByIdStmt.run(id);
     return result.changes > 0;
   }
 }
-
-export const dynamicTestResultDAO = new DynamicTestResultDAO();

@@ -59,6 +59,7 @@ export interface TaskRequest {
 export interface TaskClaim {
   statement: string;
   supportingEvidenceRefs: string[];
+  location?: string | null;
 }
 
 export interface TaskResult {
@@ -71,7 +72,7 @@ export interface TaskResult {
   confidenceBreakdown: {
     grounding: number;
     deterministicSupport: number;
-    consistency: number;
+    ragCoverage: number;
     schemaCompliance: number;
   };
   needsHumanReview: boolean;
@@ -85,6 +86,7 @@ export interface TaskAudit {
   latencyMs: number;
   tokenUsage: Record<string, number>;
   retryCount: number;
+  ragHits?: number;
   createdAt: string;
 }
 
@@ -112,6 +114,7 @@ export interface TaskResponseFailure {
     | "empty_result";
   failureCode: string;
   failureDetail: string;
+  retryable?: boolean;
   audit: TaskAudit;
 }
 

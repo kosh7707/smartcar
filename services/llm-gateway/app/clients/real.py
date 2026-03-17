@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import time
 
@@ -10,6 +11,7 @@ from app.errors import LlmHttpError, LlmInputTooLargeError, LlmTimeoutError, Llm
 from app.clients.base import LlmClient
 
 logger = logging.getLogger(__name__)
+_exchange = logging.getLogger("s4_exchange")
 
 
 class RealLlmClient(LlmClient):
@@ -91,6 +93,14 @@ class RealLlmClient(LlmClient):
                 request_id, latency_ms,
                 self.last_prompt_tokens, self.last_completion_tokens,
             )
+            _exchange.info(json.dumps({
+                "time": int(time.time() * 1000),
+                "requestId": request_id,
+                "latencyMs": latency_ms,
+                "status": "ok",
+                "request": body,
+                "response": data,
+            }, ensure_ascii=False))
 
             return data["choices"][0]["message"]["content"]
         except httpx.TimeoutException as e:
@@ -99,6 +109,15 @@ class RealLlmClient(LlmClient):
                 "[S4 호출 실패] requestId=%s, error=TIMEOUT, latencyMs=%d",
                 request_id, latency_ms,
             )
+            _exchange.info(json.dumps({
+                "time": int(time.time() * 1000),
+                "requestId": request_id,
+                "latencyMs": latency_ms,
+                "status": "error",
+                "error": "TIMEOUT",
+                "request": body,
+                "response": None,
+            }, ensure_ascii=False))
             raise LlmTimeoutError() from e
         except httpx.ConnectError as e:
             latency_ms = int((time.time() - start) * 1000)
@@ -106,15 +125,33 @@ class RealLlmClient(LlmClient):
                 "[S4 호출 실패] requestId=%s, error=UNAVAILABLE, latencyMs=%d",
                 request_id, latency_ms,
             )
+            _exchange.info(json.dumps({
+                "time": int(time.time() * 1000),
+                "requestId": request_id,
+                "latencyMs": latency_ms,
+                "status": "error",
+                "error": "UNAVAILABLE",
+                "request": body,
+                "response": None,
+            }, ensure_ascii=False))
             raise LlmUnavailableError() from e
         except httpx.HTTPStatusError as e:
             latency_ms = int((time.time() - start) * 1000)
             status = e.response.status_code
+            resp_text = e.response.text[:2000] if e.response.text else ""
             logger.error(
                 "[S4 호출 실패] requestId=%s, error=HTTP_%d, latencyMs=%d, body=%s",
-                request_id, status, latency_ms,
-                e.response.text[:200] if e.response.text else "",
+                request_id, status, latency_ms, resp_text[:200],
             )
+            _exchange.info(json.dumps({
+                "time": int(time.time() * 1000),
+                "requestId": request_id,
+                "latencyMs": latency_ms,
+                "status": "error",
+                "error": f"HTTP_{status}",
+                "request": body,
+                "response": resp_text,
+            }, ensure_ascii=False))
             # S4가 400으로 입력 한도 초과를 알려줌
             if status == 400:
                 prompt_chars = sum(len(m.get("content", "")) for m in messages)

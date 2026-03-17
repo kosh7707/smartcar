@@ -1,13 +1,6 @@
 import type { EvidenceRef } from "@smartcar/shared";
-import db from "../db";
-
-const insertStmt = db.prepare(
-  `INSERT INTO evidence_refs (id, finding_id, artifact_id, artifact_type, locator_type, locator, created_at)
-   VALUES (?, ?, ?, ?, ?, ?, ?)`
-);
-const selectByFindingStmt = db.prepare(
-  `SELECT * FROM evidence_refs WHERE finding_id = ? ORDER BY created_at`
-);
+import type { DatabaseType } from "../db";
+import type { IEvidenceRefDAO } from "./interfaces";
 
 function rowToEvidenceRef(row: any): EvidenceRef {
   return {
@@ -21,9 +14,22 @@ function rowToEvidenceRef(row: any): EvidenceRef {
   };
 }
 
-class EvidenceRefDAO {
+export class EvidenceRefDAO implements IEvidenceRefDAO {
+  private insertStmt;
+  private selectByFindingStmt;
+
+  constructor(private db: DatabaseType) {
+    this.insertStmt = db.prepare(
+      `INSERT INTO evidence_refs (id, finding_id, artifact_id, artifact_type, locator_type, locator, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    );
+    this.selectByFindingStmt = db.prepare(
+      `SELECT * FROM evidence_refs WHERE finding_id = ? ORDER BY created_at`
+    );
+  }
+
   save(ref: EvidenceRef): void {
-    insertStmt.run(
+    this.insertStmt.run(
       ref.id,
       ref.findingId,
       ref.artifactId,
@@ -35,14 +41,14 @@ class EvidenceRefDAO {
   }
 
   saveMany(refs: EvidenceRef[]): void {
-    const tx = db.transaction((items: EvidenceRef[]) => {
+    const tx = this.db.transaction((items: EvidenceRef[]) => {
       for (const r of items) this.save(r);
     });
     tx(refs);
   }
 
   findByFindingId(findingId: string): EvidenceRef[] {
-    return selectByFindingStmt.all(findingId).map(rowToEvidenceRef);
+    return this.selectByFindingStmt.all(findingId).map(rowToEvidenceRef);
   }
 
   findByFindingIds(findingIds: string[]): Map<string, EvidenceRef[]> {
@@ -50,7 +56,7 @@ class EvidenceRefDAO {
     if (findingIds.length === 0) return result;
 
     const placeholders = findingIds.map(() => "?").join(",");
-    const rows = db
+    const rows = this.db
       .prepare(
         `SELECT * FROM evidence_refs WHERE finding_id IN (${placeholders}) ORDER BY created_at`,
       )
@@ -65,5 +71,3 @@ class EvidenceRefDAO {
     return result;
   }
 }
-
-export const evidenceRefDAO = new EvidenceRefDAO();

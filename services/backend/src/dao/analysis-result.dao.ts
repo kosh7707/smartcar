@@ -1,26 +1,11 @@
 import type { AnalysisResult } from "@smartcar/shared";
-import db from "../db";
-
-const insertStmt = db.prepare(
-  `INSERT INTO analysis_results (id, project_id, module, status, vulnerabilities, summary, warnings, analyzed_file_ids, created_at)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-);
-const selectByIdStmt = db.prepare(
-  `SELECT * FROM analysis_results WHERE id = ?`
-);
-const selectAllStmt = db.prepare(
-  `SELECT * FROM analysis_results ORDER BY created_at DESC`
-);
-const selectByModuleStmt = db.prepare(
-  `SELECT * FROM analysis_results WHERE module = ? ORDER BY created_at DESC`
-);
-const selectByProjectStmt = db.prepare(
-  `SELECT * FROM analysis_results WHERE project_id = ? ORDER BY created_at DESC`
-);
+import type { DatabaseType } from "../db";
+import type { IAnalysisResultDAO } from "./interfaces";
 
 function rowToResult(row: any): AnalysisResult {
   const warnings = JSON.parse(row.warnings || "[]");
   const analyzedFileIds = JSON.parse(row.analyzed_file_ids || "[]");
+  const fileCoverage = JSON.parse(row.file_coverage || "[]");
   return {
     id: row.id,
     projectId: row.project_id,
@@ -30,17 +15,43 @@ function rowToResult(row: any): AnalysisResult {
     summary: JSON.parse(row.summary),
     ...(warnings.length > 0 ? { warnings } : {}),
     ...(analyzedFileIds.length > 0 ? { analyzedFileIds } : {}),
+    ...(fileCoverage.length > 0 ? { fileCoverage } : {}),
     createdAt: row.created_at,
   };
 }
 
-const deleteByIdStmt = db.prepare(
-  `DELETE FROM analysis_results WHERE id = ?`
-);
+export class AnalysisResultDAO implements IAnalysisResultDAO {
+  private insertStmt;
+  private selectByIdStmt;
+  private selectAllStmt;
+  private selectByModuleStmt;
+  private selectByProjectStmt;
+  private deleteByIdStmt;
 
-class AnalysisResultDAO {
+  constructor(private db: DatabaseType) {
+    this.insertStmt = db.prepare(
+      `INSERT INTO analysis_results (id, project_id, module, status, vulnerabilities, summary, warnings, analyzed_file_ids, file_coverage, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    this.selectByIdStmt = db.prepare(
+      `SELECT * FROM analysis_results WHERE id = ?`
+    );
+    this.selectAllStmt = db.prepare(
+      `SELECT * FROM analysis_results ORDER BY created_at DESC`
+    );
+    this.selectByModuleStmt = db.prepare(
+      `SELECT * FROM analysis_results WHERE module = ? ORDER BY created_at DESC`
+    );
+    this.selectByProjectStmt = db.prepare(
+      `SELECT * FROM analysis_results WHERE project_id = ? ORDER BY created_at DESC`
+    );
+    this.deleteByIdStmt = db.prepare(
+      `DELETE FROM analysis_results WHERE id = ?`
+    );
+  }
+
   save(result: AnalysisResult): void {
-    insertStmt.run(
+    this.insertStmt.run(
       result.id,
       result.projectId,
       result.module,
@@ -49,31 +60,30 @@ class AnalysisResultDAO {
       JSON.stringify(result.summary),
       JSON.stringify(result.warnings ?? []),
       JSON.stringify(result.analyzedFileIds ?? []),
+      JSON.stringify(result.fileCoverage ?? []),
       result.createdAt
     );
   }
 
   findById(id: string): AnalysisResult | undefined {
-    const row = selectByIdStmt.get(id);
+    const row = this.selectByIdStmt.get(id);
     return row ? rowToResult(row) : undefined;
   }
 
   findAll(): AnalysisResult[] {
-    return selectAllStmt.all().map(rowToResult);
+    return this.selectAllStmt.all().map(rowToResult);
   }
 
   findByModule(module: string): AnalysisResult[] {
-    return selectByModuleStmt.all(module).map(rowToResult);
+    return this.selectByModuleStmt.all(module).map(rowToResult);
   }
 
   findByProjectId(projectId: string): AnalysisResult[] {
-    return selectByProjectStmt.all(projectId).map(rowToResult);
+    return this.selectByProjectStmt.all(projectId).map(rowToResult);
   }
 
   deleteById(id: string): boolean {
-    const result = deleteByIdStmt.run(id);
+    const result = this.deleteByIdStmt.run(id);
     return result.changes > 0;
   }
 }
-
-export const analysisResultDAO = new AnalysisResultDAO();

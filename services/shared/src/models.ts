@@ -45,9 +45,17 @@ export interface AnalysisSummary {
 }
 
 export interface AnalysisWarning {
-  code: string;        // "LLM_CHUNK_FAILED" | "LLM_UNAVAILABLE" | "CHUNK_TOO_LARGE" | "FILE_TOO_LARGE" | "CHUNK_INPUT_SIZE_EXCEEDED"
+  code: string;        // "LLM_CHUNK_FAILED" | "LLM_UNAVAILABLE" | "CHUNK_TOO_LARGE" | "FILE_TOO_LARGE" | "CHUNK_INPUT_SIZE_EXCEEDED" | "LLM_NOTE"
   message: string;
   details?: string;
+}
+
+export interface FileCoverageEntry {
+  fileId: string;
+  filePath: string;
+  status: "analyzed" | "skipped";
+  skipReason?: string;
+  findingCount: number;
 }
 
 export interface AnalysisResult {
@@ -59,6 +67,7 @@ export interface AnalysisResult {
   summary: AnalysisSummary;
   warnings?: AnalysisWarning[];
   analyzedFileIds?: string[];
+  fileCoverage?: FileCoverageEntry[];
   createdAt: string;
 }
 
@@ -212,6 +221,34 @@ export interface CanInjectionRequest {
 export type InjectionClassification = "normal" | "crash" | "anomaly" | "timeout";
 
 // ============================================================
+// SAST 도구 통합 (후속 과제 — SAST 도구 실행 인프라 구축 후 사용)
+// ============================================================
+
+export interface SastFindingLocation {
+  file: string;
+  line: number;
+  column?: number;
+  endLine?: number;
+  endColumn?: number;
+}
+
+export interface SastDataFlowStep {
+  file: string;
+  line: number;
+  content?: string;
+}
+
+export interface SastFinding {
+  toolId: string;                        // "semgrep" | "codeql" | ...
+  ruleId: string;                        // e.g. "semgrep:c.lang.security.insecure-use-gets-fn"
+  severity: string;                      // 도구의 심각도 (S2가 Severity로 정규화)
+  message: string;                       // 도구가 생성한 설명
+  location: SastFindingLocation;         // 소스 위치
+  dataFlow?: SastDataFlowStep[];         // taint tracking 결과 (선택)
+  metadata?: Record<string, unknown>;    // 도구별 추가 정보
+}
+
+// ============================================================
 // 코어 도메인: Run / Finding / EvidenceRef
 // ============================================================
 
@@ -228,7 +265,7 @@ export type FindingSourceType = "rule-engine" | "llm-assist" | "both";
 export type RunStatus = "pending" | "running" | "completed" | "failed";
 export type LocatorType = "line-range" | "packet-range" | "timestamp-window" | "request-response-pair";
 export type Confidence = "high" | "medium" | "low";
-export type ArtifactType = "analysis-result" | "uploaded-file" | "dynamic-session" | "test-result";
+export type ArtifactType = "analysis-result" | "uploaded-file" | "dynamic-session" | "test-result" | "sast-finding";
 
 export interface Run {
   id: string;

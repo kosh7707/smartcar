@@ -230,16 +230,35 @@ vLLM의 모델명은 HuggingFace 형식 `Qwen/Qwen3.5-35B-A3B-FP8`이다 (ollama
 
 ## 7. 성능 가이드라인
 
-### 실측 성능 (2026-03-13)
+### 실측 성능 (2026-03-17)
 
 | 항목 | 실측값 | 비고 |
 |------|--------|------|
-| 처리량 | **~26 tok/s** (non-thinking) | 워밍업 후 안정값 |
+| 처리량 (단일) | **~26 tok/s** (non-thinking) | 워밍업 후 안정값 |
 | 처리량 (첫 요청) | ~13 tok/s | torch.compile 워밍업 포함 |
 | 보안분석 응답 시간 | **19초** (509토큰) | 짧은 입력 기준 |
+| 배치 prompt throughput | **1,500~3,000 tok/s** | 4 reqs 병렬 처리 시 |
+| 배치 generation throughput | **60~113 tok/s** | 4 reqs 병렬 처리 시 |
 | GPU-Util | 96% | 추론 중 |
 | GPU 메모리 | 84,276MiB | 모델 + KV cache |
+| GPU KV cache 사용률 | 2.1% (피크) | 배치 처리 시. 여유 충분 |
+| Prefix cache hit rate | ~1.2% | 시스템 프롬프트 다양 시 낮음 |
+| 최대 동시 처리 | **4 reqs** | 대기 없이 처리 |
 | 모델 로딩 시간 | ~54초 | 컨테이너 기동 포함 ~4분 |
+
+### 배치 처리 특성 (2026-03-17 측정)
+
+7개 정적 분석 태스크 동시 실행 시 관측된 특성:
+
+| 태스크별 지표 | 범위 | 비고 |
+|-------------|------|------|
+| latency | 18.7~47.3초 | 입력 크기에 비례 |
+| promptTokens | 3,029~17,609 | 태스크별 편차 큼 |
+| completionTokens | 559~1,055 | 상대적으로 균일 |
+
+- vLLM이 최대 4개 요청을 병렬 처리, 대기(Waiting) 없음
+- KV cache 2.1%만 사용 → 더 큰 배치도 가능
+- 전 요청 200 OK, 에러 없음
 
 ### 성능 팁
 
@@ -305,6 +324,40 @@ vLLM에 `--enable-auto-tool-choice --tool-call-parser qwen3_coder`가 이미 설
 - S4에 도달하는 모든 입력은 S3가 이미 검증한 상태
 - S4는 파일시스템, 네트워크, ECU에 직접 접근하지 않음
 - Docker 컨테이너 내부에서 실행되어 호스트 격리
+
+---
+
+## 10. 로깅 및 관측성
+
+### 로그 파일
+
+| 로그 | 위치 | 작성자 | 내용 |
+|------|------|--------|------|
+| vLLM 서버 로그 | DGX Spark: `/tmp/vllm-launch.log` | vLLM | HTTP 요청 상태, 엔진 통계 |
+| S4 교환 로그 | `logs/s4-exchange.jsonl` | S3 (RealLlmClient) | 요청/응답 전문, 레이턴시, 토큰 수 |
+| S3 서비스 로그 | `logs/s3-llm-gateway.jsonl` | S3 | 태스크 수명주기, confidence, rag_hits |
+
+### vLLM 엔진 통계 (10초 주기 자동 출력)
+
+vLLM은 `/tmp/vllm-launch.log`에 10초 간격으로 엔진 통계를 기록한다:
+
+- **Avg prompt throughput**: 입력 처리 속도 (tokens/s)
+- **Avg generation throughput**: 생성 속도 (tokens/s)
+- **Running / Waiting reqs**: 동시 처리 / 대기 요청 수
+- **GPU KV cache usage**: KV cache 메모리 사용률 (%)
+- **Prefix cache hit rate**: 프리픽스 캐시 적중률 (%)
+
+### 로그 관리
+
+- S4 원격 로그 삭제: `./scripts/common/clear-s4-logs.sh`
+- 전체 로그 일괄 초기화: `./scripts/common/reset-logs-all.sh`
+- S4 교환 로그는 S3 관리 대상: `./scripts/common/clean-s3-logs.sh`
+
+### 관측 한계
+
+vLLM은 HTTP 액세스 로그와 엔진 통계만 기록한다.
+실제 프롬프트 내용이나 응답 본문은 vLLM 로그에 포함되지 않는다.
+프롬프트/응답 디버깅이 필요하면 `logs/s4-exchange.jsonl`을 참조한다.
 
 ---
 

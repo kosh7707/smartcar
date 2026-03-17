@@ -3,14 +3,10 @@ import multer from "multer";
 import crypto from "crypto";
 import type { UploadedFile } from "@smartcar/shared";
 import { StaticAnalysisService } from "../services/static-analysis.service";
-import { fileStore } from "../dao/file-store";
-import { analysisResultDAO } from "../dao/analysis-result.dao";
+import type { IFileStore, IAnalysisResultDAO, IFindingDAO, IRunDAO, IGateResultDAO } from "../dao/interfaces";
 import { createLogger } from "../lib/logger";
 import { asyncHandler } from "../middleware/async-handler";
 import { analysisTracker } from "../services/analysis-tracker";
-import { findingDAO } from "../dao/finding.dao";
-import { runDAO } from "../dao/run.dao";
-import { gateResultDAO } from "../dao/gate-result.dao";
 
 const logger = createLogger("static-analysis-controller");
 
@@ -42,7 +38,12 @@ function detectLanguage(ext: string): string {
 }
 
 export function createStaticAnalysisRouter(
-  service: StaticAnalysisService
+  service: StaticAnalysisService,
+  fileStore: IFileStore,
+  analysisResultDAO: IAnalysisResultDAO,
+  findingDAO: IFindingDAO,
+  runDAO: IRunDAO,
+  gateResultDAO: IGateResultDAO,
 ): Router {
   const router = Router();
   const upload = multer({ storage: multer.memoryStorage() });

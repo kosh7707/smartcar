@@ -8,12 +8,13 @@ from app.types import FailureCode, TaskStatus, TaskType
 class Claim(BaseModel):
     statement: str
     supportingEvidenceRefs: list[str] = []
+    location: str | None = None
 
 
 class ConfidenceBreakdown(BaseModel):
     grounding: float = 0.0
     deterministicSupport: float = 0.0
-    consistency: float = 0.0
+    ragCoverage: float = 0.0
     schemaCompliance: float = 0.0
 
 

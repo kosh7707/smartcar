@@ -10,6 +10,8 @@ const pageNames: Record<string, string> = {
   "dynamic-test": "동적 테스트",
   files: "파일 탐색기",
   vulnerabilities: "취약점 목록",
+  "analysis-history": "분석 이력",
+  report: "보고서",
   settings: "프로젝트 설정",
 };
 

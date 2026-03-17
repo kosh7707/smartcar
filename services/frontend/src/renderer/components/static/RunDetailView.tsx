@@ -53,9 +53,10 @@ export const RunDetailView: React.FC<Props> = ({
   const { run, gate, findings } = runDetail;
   const fileGroups = useMemo(() => groupFindingsByFile(findings), [findings]);
 
-  const duration = run.startedAt && run.endedAt
-    ? `${Math.round((new Date(run.endedAt).getTime() - new Date(run.startedAt).getTime()) / 1000)}초`
-    : "—";
+  const durationSec = run.startedAt && run.endedAt
+    ? Math.round((new Date(run.endedAt).getTime() - new Date(run.startedAt).getTime()) / 1000)
+    : null;
+  const duration = durationSec != null && durationSec > 0 ? `${durationSec}초` : "—";
 
   return (
     <div className="page-enter">

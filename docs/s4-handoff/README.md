@@ -145,7 +145,26 @@ S4의 작업은 두 환경에 걸쳐 이루어진다:
 | Phase 2 | ollama `/api/chat` 전환 | OpenAI 호환 레이어에서 thinking 제어 불가 |
 | **현재** | **vLLM (spark-vllm-docker) + Qwen3.5-35B-A3B FP8** | CC 12.1 사전 컴파일 휠로 해결, MoE 모델로 2.5배 성능 향상 |
 
-### 최근 활동 (2026-03-16)
+### 최근 활동 (2026-03-17)
+
+- S4 로그 삭제 스크립트 작성: `scripts/common/clear-s4-logs.sh`
+  - DGX Spark의 `/tmp/vllm-launch.log`를 SSH로 truncate
+- 정적 분석 배치 테스트 (requestId: `4aef1f36`) — **7개 태스크 전부 200 OK**, INVALID_GROUNDING 없음
+  - 병렬 처리: 최대 **4 reqs** 동시 처리
+  - Avg prompt throughput: 1,500~3,000 tokens/s
+  - Avg generation throughput: 60~113 tokens/s
+  - GPU KV cache 사용률: 최대 2.1% (여유 충분)
+  - Prefix cache hit rate: ~1.2%
+- 문서 갭 3건 수정 완료:
+  - 인수인계서 Section 5 로그 확인: `s4-exchange.jsonl`, `reset-logs-all.sh` 추가
+  - 인수인계서 Section 11 로드맵: Structured output 완료 표시로 변경
+  - 기능 명세(`llm-engine.md`) Section 10 "로깅 및 관측성" 신규 추가
+- SAST 도구 통합 + GraphRAG 로드맵 논의 → S3에 work-request 발송
+  - `docs/work-requests/s4-to-s3-sast-graphrag-roadmap.md`
+  - 결론: SAST 도구 통합 우선, GraphRAG는 현 단계에서 불필요
+  - S4 영향 없음 (프롬프트 길어질 뿐, 컨텍스트/KV cache 여유 충분)
+
+### 이전 활동 (2026-03-16)
 
 - 정적분석 통합테스트 완료 — S1→S2→S3→S4 전 구간 연동 확인
 - vLLM 로그 리뷰: 400 Bad Request 2건 발견 (S3가 프롬프트 길이 제한 없이 전송)
@@ -229,11 +248,20 @@ ssh -i ~/.ssh/dgx_spark accslab@10.126.37.19 'nvidia-smi'
 ### 로그 확인
 
 ```bash
-# vLLM 서버 로그
+# vLLM 서버 로그 (DGX Spark 원격)
 ssh -i ~/.ssh/dgx_spark accslab@10.126.37.19 'tail -20 /tmp/vllm-launch.log'
 
 # Docker 컨테이너 로그
 ssh -i ~/.ssh/dgx_spark accslab@10.126.37.19 'docker logs vllm_node --tail 20'
+
+# S4 교환 로그 (S3가 기록, 로컬) — 요청/응답 전문 + 레이턴시 + 토큰 수
+tail -20 logs/s4-exchange.jsonl
+
+# vLLM 로그 삭제 (DGX Spark 원격)
+./scripts/common/clear-s4-logs.sh
+
+# 전체 로그 일괄 초기화 (S2+S3+S4)
+./scripts/common/reset-logs-all.sh
 ```
 
 ---
@@ -336,12 +364,15 @@ S3는 S4의 응답(`choices[0].message.content`)이 **JSON 문자열**이기를 
 
 | 항목 | 실측값 | 비고 |
 |------|--------|------|
-| 처리량 (non-thinking) | **~26 tok/s** | 워밍업 후 |
+| 처리량 (non-thinking) | **~26 tok/s** | 단일 요청, 워밍업 후 |
 | 처리량 (첫 요청) | ~13 tok/s | torch.compile 포함 |
 | 보안분석 응답 시간 | **19초** | 짧은 입력, 509토큰 생성 |
+| 배치 prompt throughput | **1,500~3,000 tok/s** | 4 reqs 병렬 처리 시 |
+| 배치 generation throughput | **60~113 tok/s** | 4 reqs 병렬 처리 시 |
 | JSON 유효율 | 100% (테스트 기준) | `enable_thinking: false` |
 | GPU-Util | 96% | 추론 중 |
 | GPU 메모리 | 84,276MiB | 모델 + KV cache |
+| GPU KV cache 사용률 | 2.1% (피크) | 배치 처리 시 |
 
 ### 이전 대비 개선
 
@@ -392,9 +423,10 @@ S3는 S4의 응답(`choices[0].message.content`)이 **JSON 문자열**이기를 
 
 | 항목 | 시기 | 설명 |
 |------|------|------|
+| SAST 도구 통합 대응 | 다음 마일스톤 | S2 주도, S3 프롬프트 재설계. S4는 변경 없음 (배치 테스트 지원만) |
 | vLLM 자동 기동 | Phase 2 | Docker restart policy 또는 systemd |
 | Tool calling 연동 | v1.5 | S3와 함께 실 테스트 (vLLM에 이미 설정됨) |
-| Structured output | v1.5 | `response_format: json_object` |
+| ~~Structured output~~ | ~~v1.5~~ | ✅ 완료 (2026-03-16 실 검증) |
 | ollama 정리 | Phase 2 | 잔존 모델/서비스 제거 |
 | 모델 업그레이드 | 수시 | 새 모델 → 레시피 추가/변경 |
 
