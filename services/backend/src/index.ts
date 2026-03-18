@@ -11,7 +11,7 @@ import { createFileRouter } from "./controllers/file.controller";
 import { createDynamicAnalysisRouter } from "./controllers/dynamic-analysis.controller";
 import { createProjectAdaptersRouter } from "./controllers/project-adapters.controller";
 import { createProjectRulesRouter } from "./controllers/project-rules.controller";
-import { createProjectSettingsRouter } from "./controllers/project-settings.controller";
+import { createProjectSettingsRouter, createSdkProfileRouter } from "./controllers/project-settings.controller";
 import { createDynamicTestRouter } from "./controllers/dynamic-test.controller";
 import { createRunRouter, createRunDetailRouter } from "./controllers/run.controller";
 import { createFindingRouter, createFindingDetailRouter } from "./controllers/finding.controller";
@@ -174,6 +174,7 @@ app.use("/api/projects/:pid/approvals", createApprovalRouter(approvalService));
 app.use("/api/projects/:pid/report", createReportRouter(reportService));
 
 // 라우터 마운트
+app.use("/api/sdk-profiles", createSdkProfileRouter());
 app.use("/health", createHealthRouter(llmAdapter, adapterManager));
 app.use("/api/projects", createProjectRouter(projectService));
 app.use("/api", createFileRouter(fileStore));

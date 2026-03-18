@@ -53,7 +53,13 @@ export const OverallStatusTab: React.FC<Props> = ({
       {/* KPI Cards */}
       <div className="stat-cards stagger">
         <StatCard icon={<Shield size={16} />} label="총 Finding" value={totalFindings} accent />
-        <StatCard icon={<AlertTriangle size={16} />} label="미해결" value={unresolvedTotal} color="var(--severity-high)" />
+        <StatCard
+          icon={<AlertTriangle size={16} />}
+          label="미해결"
+          value={unresolvedTotal}
+          color="var(--severity-high)"
+          detail={<span className="text-xs text-tertiary">해결률 {totalFindings > 0 ? Math.round(((totalFindings - unresolvedTotal) / totalFindings) * 100) : 0}%</span>}
+        />
         <StatCard
           icon={<ShieldCheck size={16} />}
           label="Gate 통과율"

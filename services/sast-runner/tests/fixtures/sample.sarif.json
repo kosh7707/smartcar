@@ -1,0 +1,164 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Semgrep",
+          "semanticVersion": "1.45.0",
+          "rules": [
+            {
+              "id": "c.lang.security.insecure-use-gets-fn",
+              "shortDescription": {
+                "text": "Insecure use of gets() function"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": ["CWE-120", "CWE-242", "security"],
+                "references": [
+                  "https://cwe.mitre.org/data/definitions/120.html"
+                ]
+              }
+            },
+            {
+              "id": "c.lang.security.insecure-use-strcpy-fn",
+              "shortDescription": {
+                "text": "Insecure use of strcpy() function"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": ["CWE-120", "security"],
+                "references": [
+                  "https://cwe.mitre.org/data/definitions/120.html"
+                ]
+              }
+            },
+            {
+              "id": "c.lang.security.format-string-vuln",
+              "shortDescription": {
+                "text": "Potential format string vulnerability"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": ["CWE-134", "security"]
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "c.lang.security.insecure-use-gets-fn",
+          "level": "error",
+          "message": {
+            "text": "Call to `gets()` is insecure. It does not perform any bounds checking on the input, which can lead to a buffer overflow. Use `fgets()` instead."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/main.c"
+                },
+                "region": {
+                  "startLine": 4,
+                  "startColumn": 5,
+                  "endLine": 4,
+                  "endColumn": 14
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "c.lang.security.insecure-use-strcpy-fn",
+          "level": "warning",
+          "message": {
+            "text": "Call to `strcpy()` is insecure. Use `strncpy()` or `strlcpy()` instead."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/can_handler.c"
+                },
+                "region": {
+                  "startLine": 22,
+                  "startColumn": 3,
+                  "endLine": 22,
+                  "endColumn": 30
+                }
+              }
+            }
+          ],
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "src/can_handler.c"
+                          },
+                          "region": {
+                            "startLine": 18,
+                            "snippet": {
+                              "text": "  char *input = get_can_payload(msg);"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "src/can_handler.c"
+                          },
+                          "region": {
+                            "startLine": 22,
+                            "snippet": {
+                              "text": "  strcpy(dest, input);"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "c.lang.security.format-string-vuln",
+          "level": "warning",
+          "message": {
+            "text": "Potential format string vulnerability. User-controlled input used as format string."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/logger.c"
+                },
+                "region": {
+                  "startLine": 15,
+                  "startColumn": 3
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

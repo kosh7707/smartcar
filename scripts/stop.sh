@@ -8,6 +8,7 @@ PID_DIR="$ROOT_DIR/scripts/.pids"
 # 서비스 이름 → 포트 매핑 (PID 파일이 없을 때 포트로 fallback)
 declare -A SERVICE_PORTS=(
   [llm-gateway]=8000
+  [sast-runner]=9000
   [adapter]=4000
   [backend]=3000
   [ecu-simulator]=""
@@ -97,7 +98,7 @@ stop_service() {
 cleanup_ports() {
   local orphans=()
 
-  for name in llm-gateway adapter backend frontend; do
+  for name in llm-gateway sast-runner adapter backend frontend; do
     local port="${SERVICE_PORTS[$name]}"
     local occupant
     occupant=$(lsof -t -i :"$port" -sTCP:LISTEN 2>/dev/null | head -1)
@@ -108,7 +109,7 @@ cleanup_ports() {
 
   echo ""
   if [ ${#orphans[@]} -eq 0 ]; then
-    printf "  ${GREEN}포트 정상${NC}  (3000, 4000, 5173, 8000 모두 해제됨)\n"
+    printf "  ${GREEN}포트 정상${NC}  (3000, 4000, 5173, 8000, 9000 모두 해제됨)\n"
     return
   fi
 
@@ -139,8 +140,8 @@ echo "  Smartcar — 서비스 종료"
 echo "============================================"
 echo ""
 
-# 역순으로 종료 (frontend → ecu → backend → adapter → llm-gateway)
-for name in frontend ecu-simulator backend adapter llm-gateway; do
+# 역순으로 종료 (frontend → ecu → backend → adapter → sast-runner → llm-gateway)
+for name in frontend ecu-simulator backend adapter sast-runner llm-gateway; do
   stop_service "$name"
 done
 

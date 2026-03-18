@@ -212,7 +212,7 @@ Finding의 state와 별도로, 재검증 상태를 분리 표시:
 
 - 사이드바: 2-tier (프로젝트 컨텍스트 인식)
 - 브레드크럼: ProjectLayout에서 Outlet 감싸기
-- 상태바: Backend 헬스체크, 연결 상태
+- 상태바: Backend 헬스체크, 연결 상태, 어댑터 미등록 시 neutral(회색)
 
 ### 5.2 프로젝트 / 대상 / 버전 / 런 탐색
 
@@ -364,18 +364,18 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 - **2-탭 대시보드 (SonarQube 패턴)**:
   - **"최신 분석" 탭 (기본)**: 마지막 완료된 Run의 상세를 기본 뷰로 표시
     - Quality Gate 배너 (GateResultCard full mode)
-    - Run 요약 StatCards 3종: Finding 수, Critical+High 건수, 소요 시간
-    - 심각도 분포 DonutChart + 취약 파일 Top 5 (TopFilesCard)
+    - Run 요약 StatCards 3종: Finding 수, Critical+High 건수, 미해결
+    - 출처별 분포 (룰/AI/룰+AI 바차트) + 취약 파일 Top 5 (TopFilesCard)
     - Finding 목록 (파일별 그룹, vuln-card 클릭 → FindingDetailView)
     - 완료된 Run 없으면 EmptyState + "새 분석" 버튼
   - **"전체 현황" 탭**: 누적 데이터 기반 대시보드
     - PeriodSelector (7d/30d/90d/all, 이 탭 전용)
-    - KPI StatCards 4종: 총 Finding, 미해결, Gate 통과율, Run 수
+    - KPI StatCards 4종: 총 Finding, 미해결(해결률 표시), Gate 통과율, Run 수
     - 심각도/출처 분포 차트, 트렌드, 상태 분포
     - 파일/룰 랭킹, 최근 Run 목록
   - ActiveAnalysisBanner: 탭과 무관하게 항상 표시
 - 파일 업로드 (드래그 앤 드롭, 복수 파일, 폴더)
-- 분석 진행 (3단계 프로그레스, shimmer 공유 클래스)
+- 분석 진행 (5단계 스테퍼, 시간 가중치 진행률, shimmer 공유 클래스)
 - 결과: 파일별 그룹 표시 (location 파싱 → 파일명:라인), 심각도/출처/파일 3중 필터
 - 취약점 상세 (실제 소스 코드 ±15줄 컨텍스트)
 - 분석 이력 (목록, 드릴다운, 삭제)
@@ -422,6 +422,7 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 - Run 이력 + Gate 결과
 - 승인 이력 + 감사 추적 뷰
 - PDF 내보내기 (window.print)
+- API 에러 vs 빈 데이터 분리: `loadError` 상태로 에러 UI("서버 오류" + 재시도 버튼) / 빈 데이터 UI("분석을 먼저 실행해주세요") 구분
 
 추가 필요:
 - 고급 필터 (RunId 기반 필터링)
@@ -454,9 +455,9 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 | 취약점 통합 뷰 | 분석 세션별 그룹(모듈 컬러), 심각도/날짜 필터 (Finding 기반 재설계 필요) |
 | 분석 이력 타임라인 | 전 모듈 통합 |
 | 글로벌/프로젝트 설정 | 어댑터, LLM URL, 룰 CRUD |
-| 에러 핸들링 인프라 | ErrorBoundary, ToastContext, apiFetch 에러 분류, X-Request-Id, retryable 대응 |
+| 에러 핸들링 인프라 | ErrorBoundary, ToastContext(에러/경고/성공, 3초 자동 닫기, 우측 하단), apiFetch 에러 분류, X-Request-Id, retryable 대응 |
 | 로깅 인프라 | `logError` (requestId 포함), `healthFetch` (non-throwing health check), WebSocket 이벤트 로깅 |
-| 정적 분석 대시보드 | SonarQube 패턴 2-탭 (최신 분석: Gate 배너+Run 요약+Finding 목록 / 전체 현황: KPI+차트+랭킹+Run), 활성 분석 배너 |
+| 정적 분석 대시보드 | SonarQube 패턴 2-탭 (최신 분석: Gate+미해결+출처별 분포+Finding 목록 / 전체 현황: KPI+해결률+차트+랭킹+Run), 활성 분석 배너 |
 | Run 상세 | RunDetailView — 메타, GateResultCard, Finding 파일별 그룹, 레거시 호환 |
 | Finding 상세 | FindingDetailView — Evidence-first, 상태 변경, 감사 로그, EvidencePanel/Viewer |
 | 보고서 | ReportPage — 모듈 탭, 필터 패널, Finding 테이블, Run/Gate, 승인, 감사 추적, PDF 내보내기 |
@@ -666,16 +667,16 @@ class ApiError extends Error {
 
 | 컴포넌트 | 용도 |
 |---------|------|
-| `FindingStatusBadge` | Finding 상태 배지 (7-state) ✅ |
-| `ConfidenceBadge` | confidence 점수 배지 ✅ |
-| `SourceBadge` | 탐지 출처 배지 (rule / llm) ✅ |
+| `FindingStatusBadge` | Finding 상태 배지 (7-state, 툴팁) ✅ |
+| `ConfidenceBadge` | confidence 점수 배지 (툴팁) ✅ |
+| `SourceBadge` | 탐지 출처 배지 (rule / llm, 툴팁) ✅ |
 | `FindingSummary` | Finding 요약 인라인 ✅ |
 | `EvidencePanel` | evidence 목록 + 선택 ✅ |
 | `EvidenceViewer` | evidence type별 렌더러 (오버레이) ✅ |
 | `StateTransitionDialog` | 상태 변경 다이얼로그 (허용 전이 + 사유 필수) ✅ |
 | `GateResultCard` | quality gate 결과 카드 (pass/fail/warning + rules) ✅ |
 | `PeriodSelector` | 기간 선택기 (7d/30d/90d/all) ✅ |
-| `TrendChart` | 트렌드 SVG 차트 ✅ |
+| `TrendChart` | 트렌드 SVG 차트, 2회 미만 가이드 메시지 ✅ |
 | `ConfirmDialog` | 확인/취소 다이얼로그 ✅ |
 | `LatestAnalysisTab` | 최신 분석 탭 (Gate 배너+Run 요약+Finding 파일별 그룹) ✅ |
 | `OverallStatusTab` | 전체 현황 탭 (KPI+차트+랭킹+최근 Run) ✅ |
@@ -789,3 +790,4 @@ class ApiError extends Error {
 | 공유 모델/DTO | `docs/api/shared-models.md` |
 | 외부 피드백 (S1) | `docs/외부피드백/S1_frontend_working_guide.md` |
 | S1 인수인계서 | `docs/s1-handoff/README.md` |
+| AEGIS 공통 제약 | `docs/AEGIS.md` |

@@ -92,6 +92,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
   return (
     <div className="page-enter">
       <BackButton onClick={onBack} label="뒤로" />
+      <p className="text-sm text-tertiary" style={{ margin: "0 0 var(--space-3) 0" }}>정적 분석 › Finding 상세</p>
 
       {/* Header: severity banner */}
       <div
@@ -122,12 +123,6 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
         )}
       </div>
 
-      {/* Evidence Panel */}
-      <EvidencePanel
-        evidenceRefs={finding.evidenceRefs}
-        onSelectEvidence={setSelectedEvidence}
-      />
-
       {/* Description */}
       <div className="card">
         <div className="card-title">설명</div>
@@ -143,6 +138,12 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
           </p>
         </div>
       )}
+
+      {/* Evidence Panel */}
+      <EvidencePanel
+        evidenceRefs={finding.evidenceRefs}
+        onSelectEvidence={setSelectedEvidence}
+      />
 
       {/* Audit Log Timeline */}
       {finding.auditLog.length > 0 && (

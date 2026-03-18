@@ -165,6 +165,9 @@ run_all() {
   start_service "llm-gateway" 8000 \
     "cd '$ROOT_DIR/services/llm-gateway' && $(load_env "$ROOT_DIR/services/llm-gateway/.env") source .venv/bin/activate && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload" || return 1
 
+  start_service "sast-runner" 9000 \
+    "exec '$ROOT_DIR/scripts/start-sast-runner.sh'" || return 1
+
   start_service "adapter" 4000 \
     "$(load_env "$ROOT_DIR/services/adapter/.env") exec npx tsx watch '$ROOT_DIR/services/adapter/src/index.ts' --port=4000" || return 1
 
@@ -204,6 +207,7 @@ printf "  ${GREEN}기동 완료${NC}  (${started}건 시작"
 printf ")\n"
 echo "============================================"
 echo "  LLM Gateway:   http://localhost:8000"
+echo "  SAST Runner:   http://localhost:9000"
 echo "  Adapter:        http://localhost:4000"
 echo "  Backend:        http://localhost:3000"
 [ "$START_ECU" = true ]      && echo "  ECU Simulator:  시나리오=$SCENARIO, 속도=${SPEED}x"

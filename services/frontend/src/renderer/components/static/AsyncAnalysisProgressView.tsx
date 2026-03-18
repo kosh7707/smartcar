@@ -12,9 +12,9 @@ interface Props {
 }
 
 const STEPS = [
-  { key: "queued", label: "대기" },
-  { key: "rule_engine", label: "룰 엔진" },
-  { key: "llm_chunk", label: "LLM 분석" },
+  { key: "queued", label: "파일 추출" },
+  { key: "rule_engine", label: "룰 분석" },
+  { key: "llm_chunk", label: "AI 분석" },
   { key: "merging", label: "결과 병합" },
   { key: "complete", label: "완료" },
 ] as const;
@@ -83,13 +83,31 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
   const isAborted = progress.status === "aborted";
   const llmDone = progress.phase === "llm_chunk" && progress.totalChunks > 0 && progress.currentChunk >= progress.totalChunks;
 
-  // Progress percentage
-  const pct =
-    isCompleted ? 100
-    : isFailed || isAborted ? currentIdx * 20
-    : progress.phase === "llm_chunk" && progress.totalChunks > 0
-      ? 40 + (progress.currentChunk / progress.totalChunks) * 30
-      : currentIdx * 20 + 10;
+  // Phase weights — 서버 제공 시 우선, 없으면 기본값
+  const DEFAULT_WEIGHTS = { queued: 5, rule_engine: 5, llm_chunk: 80, merging: 10 };
+  const w = (progress as Record<string, unknown>).phaseWeights as Record<string, number> | undefined
+    ?? DEFAULT_WEIGHTS;
+  const cum = {
+    rule_engine: w.queued,
+    llm_chunk: w.queued + w.rule_engine,
+    merging: w.queued + w.rule_engine + w.llm_chunk,
+  };
+
+  // Progress percentage — time-weighted (LLM 분석이 대부분 시간 차지)
+  const calcPhaseProgress = (): number => {
+    switch (progress.phase) {
+      case "queued": return w.queued / 2;
+      case "rule_engine": return cum.rule_engine + w.rule_engine / 2;
+      case "llm_chunk":
+        return progress.totalChunks > 0
+          ? cum.llm_chunk + (progress.currentChunk / progress.totalChunks) * w.llm_chunk
+          : cum.llm_chunk;
+      case "merging": return cum.merging + w.merging / 2;
+      case "complete": return 100;
+      default: return 0;
+    }
+  };
+  const pct = isCompleted ? 100 : calcPhaseProgress();
 
   return (
     <div className="page-enter">

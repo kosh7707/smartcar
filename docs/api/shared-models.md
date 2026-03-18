@@ -138,6 +138,43 @@ ECU 어댑터 정보. 프로젝트에 종속된다.
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | llmUrl | string | LLM Gateway URL (프로젝트별 오버라이드) |
+| buildProfile | BuildProfile (optional) | 빌드 환경 설정 (SDK, 컴파일러, 타겟 아키텍처 등) |
+
+### SdkProfileId
+
+SDK 프로파일 식별자 타입. 사전 정의 SDK 또는 `"custom"`.
+
+```typescript
+type SdkProfileId = string;
+```
+
+### BuildProfile
+
+프로젝트의 빌드 환경 설정. SDK 프로파일을 선택하면 나머지 필드가 자동 추론된다.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| sdkId | SdkProfileId | SDK 프로파일 ID — 선택하면 나머지 자동 추론 |
+| compiler | string | 컴파일러 (SDK에서 추론 또는 사용자 지정) |
+| compilerVersion | string (optional) | 컴파일러 버전 |
+| targetArch | string | 타겟 아키텍처 (SDK에서 추론) |
+| languageStandard | string | 언어 표준 (SDK에서 추론 또는 사용자 지정) |
+| headerLanguage | `"c" \| "cpp" \| "auto"` | `.h` 파일 처리 방식 (SDK에서 추론 또는 사용자 지정) |
+| includePaths | string[] (optional) | 추가 인클루드 경로 |
+| defines | Record<string, string> (optional) | 추가 전처리기 매크로 |
+| flags | string[] (optional) | 추가 컴파일 플래그 |
+
+### SdkProfile
+
+사전 정의 SDK 프로파일. SDK를 선택하면 BuildProfile의 기본값이 자동으로 채워진다.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | SdkProfileId | SDK 프로파일 고유 식별자 |
+| name | string | SDK 이름 (예: "STM32CubeIDE") |
+| vendor | string | 제조사 (예: "STMicroelectronics") |
+| description | string | SDK 설명 |
+| defaults | Omit<BuildProfile, "sdkId"> | 이 SDK 선택 시 BuildProfile에 적용되는 기본값 |
 
 ### UploadedFile
 
@@ -715,6 +752,7 @@ type ApprovalActionType = "gate.override" | "finding.accepted_risk";
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | llmUrl | string (optional) | LLM Gateway URL |
+| buildProfile | BuildProfile (optional) | 빌드 환경 설정 |
 
 ### 룰
 

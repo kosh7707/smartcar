@@ -124,6 +124,45 @@ export interface Adapter {
 
 export interface ProjectSettings {
   llmUrl: string;
+  buildProfile?: BuildProfile;
+}
+
+// ============================================================
+// 빌드 프로파일 / SDK 프로파일
+// ============================================================
+
+/** SDK 프로파일 ID (사전 정의 SDK 또는 "custom") */
+export type SdkProfileId = string;
+
+/** 프로젝트의 빌드 환경 설정 */
+export interface BuildProfile {
+  /** SDK 프로파일 ID — 선택하면 나머지 자동 추론 */
+  sdkId: SdkProfileId;
+  /** 컴파일러 (SDK에서 추론 또는 사용자 지정) */
+  compiler: string;
+  /** 컴파일러 버전 (선택) */
+  compilerVersion?: string;
+  /** 타겟 아키텍처 (SDK에서 추론) */
+  targetArch: string;
+  /** 언어 표준 (SDK에서 추론 또는 사용자 지정) */
+  languageStandard: string;
+  /** .h 파일 처리 방식 (SDK에서 추론 또는 사용자 지정) */
+  headerLanguage: "c" | "cpp" | "auto";
+  /** 추가 인클루드 경로 (선택) */
+  includePaths?: string[];
+  /** 추가 전처리기 매크로 (선택) */
+  defines?: Record<string, string>;
+  /** 추가 컴파일 플래그 (선택) */
+  flags?: string[];
+}
+
+/** 사전 정의 SDK 프로파일 */
+export interface SdkProfile {
+  id: SdkProfileId;
+  name: string;
+  vendor: string;
+  description: string;
+  defaults: Omit<BuildProfile, "sdkId">;
 }
 
 // ============================================================

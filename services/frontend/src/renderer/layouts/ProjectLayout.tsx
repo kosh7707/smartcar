@@ -4,7 +4,7 @@ import { ChevronRight } from "lucide-react";
 import { useProjects } from "../contexts/ProjectContext";
 
 const pageNames: Record<string, string> = {
-  overview: "Overview",
+  overview: "대시보드",
   "static-analysis": "정적 분석",
   "dynamic-analysis": "동적 분석",
   "dynamic-test": "동적 테스트",

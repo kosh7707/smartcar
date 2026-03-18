@@ -38,6 +38,11 @@ export interface LlmAnalyzeRequest {
     location: { file: string; line: number; column?: number; endLine?: number; endColumn?: number };
     dataFlow?: Array<{ file: string; line: number; content?: string }>;
   }>;
+  buildProfile?: {
+    languageStandard: string;
+    targetArch: string;
+    compiler: string;
+  };
   maxTokens?: number;
   temperature?: number;
 }
@@ -159,6 +164,7 @@ export class LlmV1Adapter {
     if (taskType === "static-explain") {
       return {
         trusted: {
+          ...(request.buildProfile ? { buildProfile: request.buildProfile } : {}),
           ...(request.ruleResults?.length
             ? { finding: request.ruleResults[0] }
             : {}),

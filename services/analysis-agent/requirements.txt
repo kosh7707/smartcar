@@ -1,0 +1,9 @@
+fastapi==0.115.0
+uvicorn==0.30.0
+pydantic==2.9.0
+pydantic-settings==2.5.0
+httpx==0.27.0
+python-json-logger==2.0.7
+openai>=1.30.0
+pytest-asyncio>=1.0.0
+# qdrant-client, fastembed, networkx → knowledge-base 서비스로 이관

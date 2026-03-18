@@ -51,6 +51,25 @@ export class StaticAnalysisService {
     const warnings: AnalysisWarning[] = [];
 
     const llmUrl = this.settingsService.get(projectId, "llmUrl");
+    const buildProfile = this.settingsService.get(projectId, "buildProfile");
+    const llmBuildProfile = buildProfile ? {
+      languageStandard: buildProfile.languageStandard,
+      targetArch: buildProfile.targetArch,
+      compiler: buildProfile.compiler,
+    } : undefined;
+
+    // 0. phase별 시간 가중치 힌트 (프론트 진행률 계산용)
+    this.ws?.broadcast(id, {
+      type: "static-progress",
+      payload: {
+        analysisId: id,
+        phase: "queued",
+        current: 0,
+        total: 0,
+        message: "분석 대기 중...",
+        phaseWeights: { queued: 5, rule_engine: 5, llm_chunk: 80, merging: 10 },
+      },
+    });
 
     // 1. 프로젝트 룰 엔진 빌드 + 실행
     this.sendProgress(id, "rule_engine", 0, 1, "룰 엔진 분석 중...");
@@ -116,6 +135,7 @@ export class StaticAnalysisService {
           severity: m.severity,
           location: m.location,
         })),
+        buildProfile: llmBuildProfile,
       }, llmUrl, requestId, signal).then((llmRes) => {
         completedChunks++;
         processedFiles += chunk.files.length;
@@ -129,21 +149,36 @@ export class StaticAnalysisService {
         });
 
         if (llmRes.success) {
-          // LLM 응답에 location이 없으면 단일 파일 청크의 파일명으로 fallback
-          const fallbackLocation = chunk.files.length === 1
-            ? chunk.files[0].path || chunk.files[0].name
-            : undefined;
+          // LLM 응답에 location이 없으면 청크 파일 정보로 fallback
+          const chunkFilePaths = chunk.files.map((f) => f.path || f.name);
 
-          const chunkVulns = llmRes.vulnerabilities.map((v, vi) => ({
-            id: `VULN-LLM-${Date.now()}-${i}-${vi}`,
-            severity: validateLlmSeverity(v.severity) as Severity,
-            title: v.title,
-            description: v.description,
-            location: v.location ?? fallbackLocation,
-            source: "llm" as const,
-            suggestion: v.suggestion ?? undefined,
-            fixCode: v.fixCode ?? undefined,
-          }));
+          const chunkVulns = llmRes.vulnerabilities.map((v, vi) => {
+            let location = v.location ?? null;
+            if (!location) {
+              if (chunkFilePaths.length === 1) {
+                // 단일 파일 청크: 해당 파일
+                location = chunkFilePaths[0];
+              } else {
+                // 다중 파일 청크: 제목/설명에서 파일명 매칭 시도
+                const text = `${v.title} ${v.description}`;
+                const matched = chunkFilePaths.find((fp) => {
+                  const fileName = fp.includes("/") ? fp.split("/").pop()! : fp;
+                  return text.includes(fileName);
+                });
+                location = matched ?? chunkFilePaths[0];
+              }
+            }
+            return {
+              id: `VULN-LLM-${Date.now()}-${i}-${vi}`,
+              severity: validateLlmSeverity(v.severity) as Severity,
+              title: v.title,
+              description: v.description,
+              location,
+              source: "llm" as const,
+              suggestion: v.suggestion ?? undefined,
+              fixCode: v.fixCode ?? undefined,
+            };
+          });
           allLlmVulns.push(...chunkVulns);
 
           if (llmRes.note) {

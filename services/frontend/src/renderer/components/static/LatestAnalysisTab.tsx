@@ -1,9 +1,10 @@
-import React, { useMemo } from "react";
-import type { Run, Finding, EvidenceRef, GateResult, Severity } from "@smartcar/shared";
-import { FileCode, Clock, Shield, AlertTriangle, Plus } from "lucide-react";
-import { StatCard, DonutChart, EmptyState, Spinner, GateResultCard, SeverityBadge, FindingStatusBadge, SourceBadge } from "../ui";
+import React, { useMemo, useState } from "react";
+import type { Run, Finding, FindingStatus, FindingSourceType, EvidenceRef, GateResult, Severity } from "@smartcar/shared";
+import { FileCode, ShieldAlert, Shield, AlertTriangle, Plus, LayoutList, Layers, CheckSquare } from "lucide-react";
+import { StatCard, EmptyState, Spinner, GateResultCard, SeverityBadge, FindingStatusBadge, SourceBadge } from "../ui";
 import { TopFilesCard } from "./TopFilesCard";
 import { parseLocation } from "../../utils/location";
+import { FINDING_STATUS_LABELS, FINDING_STATUS_ORDER, SOURCE_TYPE_LABELS } from "../../constants/finding";
 
 interface FindingWithEvidence {
   finding: Finding;
@@ -18,18 +19,28 @@ interface Props {
   onNewAnalysis: () => void;
 }
 
-interface FileGroup {
-  fileName: string;
+interface FindingGroup {
+  key: string;
+  label: string;
   items: FindingWithEvidence[];
 }
 
+type GroupBy = "severity" | "file" | "status";
+
 const SEVERITY_ORDER: Severity[] = ["critical", "high", "medium", "low", "info"];
 
-function groupFindingsByFile(findings: FindingWithEvidence[]): FileGroup[] {
+const SEVERITY_LABELS: Record<Severity, string> = {
+  critical: "Critical",
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+  info: "Info",
+};
+
+function groupByFile(findings: FindingWithEvidence[]): FindingGroup[] {
   const map = new Map<string, FindingWithEvidence[]>();
   for (const f of findings) {
-    const loc = f.finding.location ?? "기타";
-    const fileName = parseLocation(loc).fileName;
+    const fileName = parseLocation(f.finding.location).fileName;
     if (!map.has(fileName)) map.set(fileName, []);
     map.get(fileName)!.push(f);
   }
@@ -39,8 +50,38 @@ function groupFindingsByFile(findings: FindingWithEvidence[]): FileGroup[] {
       if (b[0] === "기타") return -1;
       return b[1].length - a[1].length;
     })
-    .map(([fileName, items]) => ({ fileName, items }));
+    .map(([key, items]) => ({ key, label: key, items }));
 }
+
+function groupBySeverity(findings: FindingWithEvidence[]): FindingGroup[] {
+  const map = new Map<string, FindingWithEvidence[]>();
+  for (const f of findings) {
+    const sev = f.finding.severity;
+    if (!map.has(sev)) map.set(sev, []);
+    map.get(sev)!.push(f);
+  }
+  return SEVERITY_ORDER
+    .filter((s) => map.has(s))
+    .map((s) => ({ key: s, label: SEVERITY_LABELS[s], items: map.get(s)! }));
+}
+
+function groupByStatus(findings: FindingWithEvidence[]): FindingGroup[] {
+  const map = new Map<string, FindingWithEvidence[]>();
+  for (const f of findings) {
+    const st = f.finding.status;
+    if (!map.has(st)) map.set(st, []);
+    map.get(st)!.push(f);
+  }
+  return FINDING_STATUS_ORDER
+    .filter((s) => map.has(s))
+    .map((s) => ({ key: s, label: FINDING_STATUS_LABELS[s], items: map.get(s)! }));
+}
+
+const GROUP_FNS: Record<GroupBy, (f: FindingWithEvidence[]) => FindingGroup[]> = {
+  file: groupByFile,
+  severity: groupBySeverity,
+  status: groupByStatus,
+};
 
 export const LatestAnalysisTab: React.FC<Props> = ({
   runDetail,
@@ -87,7 +128,8 @@ const LatestAnalysisContent: React.FC<{
 }> = ({ runDetail, onSelectFinding, onFileClick }) => {
   const { run, gate, findings } = runDetail;
 
-  const fileGroups = useMemo(() => groupFindingsByFile(findings), [findings]);
+  const [severityFilter, setSeverityFilter] = useState<Severity | "all">("all");
+  const [groupBy, setGroupBy] = useState<GroupBy>("severity");
 
   const severityCounts = useMemo(() => {
     const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
@@ -98,17 +140,22 @@ const LatestAnalysisContent: React.FC<{
     return counts;
   }, [findings]);
 
-  const severitySummary = useMemo(() => ({
-    total: findings.length,
-    ...severityCounts,
-  }), [findings.length, severityCounts]);
-
   const critHighCount = severityCounts.critical + severityCounts.high;
 
-  const durationSec = run.startedAt && run.endedAt
-    ? Math.round((new Date(run.endedAt).getTime() - new Date(run.startedAt).getTime()) / 1000)
-    : null;
-  const duration = durationSec != null && durationSec > 0 ? `${durationSec}초` : "—";
+  const unresolvedCount = useMemo(() => {
+    const statuses: FindingStatus[] = ["open", "needs_review", "needs_revalidation", "sandbox"];
+    return findings.filter(f => statuses.includes(f.finding.status)).length;
+  }, [findings]);
+
+  const sourceCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const f of findings) {
+      const src = f.finding.sourceType;
+      counts[src] = (counts[src] || 0) + 1;
+    }
+    return counts;
+  }, [findings]);
+  const sourceTotal = Object.values(sourceCounts).reduce((a, b) => a + b, 0);
 
   const topFiles = useMemo(() => {
     const fileMap = new Map<string, { count: number; topSeverity: Severity }>();
@@ -135,6 +182,13 @@ const LatestAnalysisContent: React.FC<{
       }));
   }, [findings]);
 
+  const filteredFindings = useMemo(() => {
+    if (severityFilter === "all") return findings;
+    return findings.filter((f) => f.finding.severity === severityFilter);
+  }, [findings, severityFilter]);
+
+  const groups = useMemo(() => GROUP_FNS[groupBy](filteredFindings), [filteredFindings, groupBy]);
+
   return (
     <>
       {/* Quality Gate Banner */}
@@ -155,31 +209,102 @@ const LatestAnalysisContent: React.FC<{
           value={critHighCount}
           color={critHighCount > 0 ? "var(--severity-high)" : undefined}
         />
-        <StatCard icon={<Clock size={16} />} label="소요 시간" value={duration} />
+        <StatCard icon={<ShieldAlert size={16} />} label="미해결" value={unresolvedCount} color={unresolvedCount > 0 ? "var(--severity-high)" : undefined} />
       </div>
 
-      {/* Severity Distribution */}
+      {/* Source Distribution + Top Files */}
       {findings.length > 0 && (
         <div className="static-dashboard__charts">
           <div className="card chart-card--donut">
-            <div className="card-title">심각도 분포</div>
-            <DonutChart summary={severitySummary} size={140} />
+            <div className="card-title">출처별 분포</div>
+            {sourceTotal === 0 ? (
+              <p className="text-tertiary text-sm">데이터 없음</p>
+            ) : (
+              <div className="source-dist">
+                {Object.entries(sourceCounts).map(([key, val]) => (
+                  <div key={key} className="source-dist__row">
+                    <span className="text-sm source-dist__label">{SOURCE_TYPE_LABELS[key as FindingSourceType] ?? key}</span>
+                    <div className="source-dist__bar-track">
+                      <div
+                        className={`source-dist__bar-fill source-dist__bar-fill--${key}`}
+                        style={{ width: `${(val / sourceTotal) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-sm text-tertiary">{val}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <TopFilesCard topFiles={topFiles} onFileClick={onFileClick} />
         </div>
       )}
 
-      {/* Finding List by File */}
-      {fileGroups.length === 0 ? (
+      {/* Filter Bar */}
+      {findings.length > 0 && (
+        <div className="finding-filter-bar">
+          <div className="finding-filter-tabs">
+            <button
+              className={`finding-filter-tab${severityFilter === "all" ? " finding-filter-tab--active" : ""}`}
+              onClick={() => setSeverityFilter("all")}
+            >
+              전체 <span className="finding-filter-count">{findings.length}</span>
+            </button>
+            {SEVERITY_ORDER.map((sev) => {
+              const count = severityCounts[sev];
+              if (count === 0) return null;
+              return (
+                <button
+                  key={sev}
+                  className={`finding-filter-tab${severityFilter === sev ? " finding-filter-tab--active" : ""}`}
+                  onClick={() => setSeverityFilter(sev)}
+                >
+                  {SEVERITY_LABELS[sev]} <span className="finding-filter-count">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="finding-group-toggle">
+            <button
+              className={`finding-group-btn${groupBy === "severity" ? " finding-group-btn--active" : ""}`}
+              onClick={() => setGroupBy("severity")}
+              title="심각도별"
+            >
+              <Layers size={14} />
+            </button>
+            <button
+              className={`finding-group-btn${groupBy === "file" ? " finding-group-btn--active" : ""}`}
+              onClick={() => setGroupBy("file")}
+              title="파일별"
+            >
+              <FileCode size={14} />
+            </button>
+            <button
+              className={`finding-group-btn${groupBy === "status" ? " finding-group-btn--active" : ""}`}
+              onClick={() => setGroupBy("status")}
+              title="상태별"
+            >
+              <CheckSquare size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Finding List by Group */}
+      {groups.length === 0 ? (
         <div className="card card--empty">
-          <p className="text-tertiary">Finding이 없습니다</p>
+          <p className="text-tertiary">
+            {severityFilter === "all" ? "Finding이 없습니다" : `${SEVERITY_LABELS[severityFilter]} Finding이 없습니다`}
+          </p>
         </div>
       ) : (
-        fileGroups.map((group) => (
-          <div key={group.fileName} className="file-group card">
+        groups.map((group) => (
+          <div key={group.key} className="file-group card">
             <div className="file-group__header">
-              <FileCode size={16} className="file-group__icon" />
-              <span className="file-group__name">{group.fileName}</span>
+              {groupBy === "file" && <FileCode size={16} className="file-group__icon" />}
+              {groupBy === "severity" && <SeverityBadge severity={group.key as Severity} size="sm" />}
+              {groupBy === "status" && <FindingStatusBadge status={group.key as FindingStatus} size="sm" />}
+              <span className="file-group__name">{group.label}</span>
               <span className="file-group__count">{group.items.length}건</span>
             </div>
             <div className="file-group__body">

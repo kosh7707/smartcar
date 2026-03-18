@@ -14,6 +14,7 @@ import {
   logError,
 } from "../api/client";
 import { useToast } from "../contexts/ToastContext";
+import { useSetAnalysisGuard } from "../contexts/AnalysisGuardContext";
 import { FileUploadView } from "../components/static/FileUploadView";
 import { AnalysisResultsView } from "../components/static/AnalysisResultsView";
 import { VulnerabilityDetailView } from "../components/static/VulnerabilityDetailView";
@@ -38,6 +39,7 @@ export const StaticAnalysisPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { setBlocking } = useSetAnalysisGuard();
 
   // Legacy sync analysis hook (for mode select flow compat)
   const legacyAnalysis = useStaticAnalysis(projectId);
@@ -54,6 +56,13 @@ export const StaticAnalysisPage: React.FC = () => {
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const [runDetailLoading, setRunDetailLoading] = useState(false);
   const [showAbortConfirm, setShowAbortConfirm] = useState(false);
+
+  // Navigation guard: block when async analysis is running
+  const isRunning = view === "progress" && !!asyncAnalysis.progress;
+  useEffect(() => {
+    setBlocking(isRunning);
+    return () => setBlocking(false);
+  }, [isRunning, setBlocking]);
 
   // Load project files for mode select
   const loadProjectFiles = useCallback(() => {

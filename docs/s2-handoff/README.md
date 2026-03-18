@@ -1,50 +1,88 @@
-# S2. Core Service (Backend) 개발자 인수인계서
+# S2. AEGIS Core (Backend) 인수인계서
 
-> 이 문서는 S2(Core Service/Backend) 개발을 이어받는 다음 세션을 위한 인수인계서다.
+> **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
+> 이 문서는 S2(AEGIS Core/Backend) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
+> **마지막 업데이트: 2026-03-18**
 
 ---
 
 ## 1. 프로젝트 전체 그림
 
-### 서비스 아키텍처
+### 서비스 아키텍처 (AEGIS 6인 체제)
 
 ```
-[ECU Simulator] ←—WS—→ [Adapter] ←—WS—→ [Backend (S2)] ←—WS—→ [Frontend (S1)]
-  CAN 전용              프로토콜 변환       분석 로직             UI
-  :standalone           :4000              :3000               :5173 (dev)
-                                               ↓
-                                        [LLM Gateway (S3)] ←→ [LLM Engine (S4)]
-                                           :8000                DGX Spark
+                     S1 (Frontend :5173)
+                          │
+                     S2 (AEGIS Core :3000)  ← 플랫폼 오케스트레이터
+                    ╱     │     ╲      ╲
+                 S3       S4     S5      S6
+               Agent    SAST     KB    동적분석
+              :8001    :9000   :8002    :4000
+                │
+           LLM Engine
+            (DGX Spark)
 ```
 
-- **ECU Simulator** (`services/ecu-simulator/`): CAN 트래픽 생성 + 주입 응답. 독립 프로세스
-- **Adapter** (`services/adapter/`): ECU ↔ S2 프레임 중계. 추후 실 ECU 연결 시 이것만 교체
-- **S1 (Frontend)**: 사용자 인터페이스. Electron + React + TypeScript
-- **S2 (Backend)**: 비즈니스 로직, DB, API. Express.js + TypeScript + SQLite ← **너의 담당 (Backend, Adapter, ECU Simulator, 쉘 스크립트 모두 포함)**
-- **S3 (LLM Gateway)**: LLM 호출 전담, 프롬프트 관리. Python + FastAPI
-- **S4 (LLM Engine)**: Qwen3.5-35B-A3B FP8 on DGX Spark (vLLM). 입주 완료, 실 LLM 연동 중
+| 역할 | 서비스 | 포트 | 소유자 |
+|------|--------|------|--------|
+| S1 | Frontend + QA | :5173 | S1 |
+| **S2** | **AEGIS Core (Backend)** | **:3000** | **너** |
+| S3 | Analysis Agent + LLM Gateway + LLM Engine 관리 | :8000, :8001, DGX | S3 |
+| S4 | SAST Runner (6도구 + SCA + 코드 구조 + 빌드) | :9000 | S4 |
+| S5 | Knowledge Base (Neo4j + Qdrant) | :8002 | S5 |
+| S6 | Dynamic Analysis (ECU Sim + Adapter) | :4000 | S6 |
 
-통신 방향: `ECU Sim → Adapter → S2 → S3 → S4`, `S2 → S1`
+**S2가 전체 오케스트레이터.** S1에게 API를 제공하고, S3/S4/S5/S6를 호출하는 중추.
 
-### 2계층 보안 검증 구조
+### 보안 검증 구조 (전환 중)
 
-- **1계층**: S2의 룰 엔진이 패턴 매칭으로 빠른 탐지 (정규식 + 함수명 매칭)
+**현재 (2계층)**:
+- **1계층**: S2의 룰 엔진이 패턴 매칭으로 빠른 탐지 (정규식 + 함수명 매칭) -- **Transient, 제거 예정**
 - **2계층**: S3가 1계층 결과 + 원본 데이터를 받아 LLM 심층 분석
-- 적용 대상: 정적 분석, 동적 분석, 동적 테스트 (퍼징/침투)
 
-### 개발 전략
+**전환 목표**: SAST Runner(4개 도구)가 1계층 대체 -> S2 룰 엔진 제거
 
-**"진짜 자동차 보안 검증 플랫폼"**
+### 개발 전략: Durable vs Transient
 
-2026-03 기점으로 연차보고서용 프로토타입에서 실제 제품 개발로 전환했다. 외부 아키텍처 리뷰(`docs/외부피드백/S2_backend_adapter_simulator_working_guide.md`)를 기반으로, 기존 파이프라인 위에 **Evidence → Findings → Quality Gate → Policy → Approval** 구조를 점진적으로 적층한다.
+**핵심 원칙**: 모든 코드를 "투자할 것 (Durable)"과 "곧 교체할 것 (Transient)"으로 명확히 구분한다.
 
-핵심 원칙:
-- 재작성이 아닌 **정규화 레이어 적층** — 기존 파이프라인은 유지, canonical control plane을 위에 얹는다
-- S2의 최우선 목표는 "분석을 수행하는 것"이 아니라 **결과를 추적 가능하고 관리 가능한 구조로 만드는 것**
-- S2 API가 선행되고, S1(프론트)이 따라간다
+#### Durable (투자, 유지)
+| 영역 | 설명 |
+|------|------|
+| 파일 업로드/저장 | `uploaded_files`, `file-store.ts` |
+| BuildProfile / SDK 프로파일 | `sdk-profiles.ts`, `ProjectSettingsService` |
+| 코어 도메인 | Run, Finding (7-state), EvidenceRef, QG, Approval, Report |
+| SAST Runner 통합 | `POST /v1/scan` 호출 클라이언트 (구현 예정) |
+| `source.get_span` API | 에이전트 tool 백엔드 (구현 예정) |
+| DB 스키마 + DAO 레이어 | 전체 |
+| Observability | 에러 핸들링, 로깅, request ID |
 
-S4(DGX Spark + vLLM + Qwen3.5-35B-A3B FP8)가 입주하여 실 LLM 연동이 완료되었다. S3는 `real` 모드로 운영 중이다.
+#### Transient (투자 금지, 교체 예정)
+| 영역 | 대체 | 비고 |
+|------|------|------|
+| 정규식 룰 엔진 (22개) | SAST Runner (4도구) | SAST Runner 안정화 후 제거 |
+| `chunker.ts` | SAST Runner / S3 Agent | 파일 분할 불필요 |
+| `mergeAndDedup()` | SAST Runner 정규화 | 중복 제거 로직 불필요 |
+| `StaticAnalysisService` 파이프라인 오케스트레이션 | S3 Analysis Agent | S2는 data service로 전환 |
+| `LlmV1Adapter` 단일턴 호출 | S3 멀티턴 Agent 호출 | Agent 아키텍처 전환 시 |
+
+### 에이전트 아키텍처 (S3 구현 완료, S2 통합 대기)
+
+S3가 Analysis Agent(:8001)를 구현했다. Phase 1(결정론적: SAST + 코드 그래프 + SCA) + Phase 2(LLM 해석)의 2단계 구조:
+- S2가 `POST :8001/v1/tasks` (`taskType: "deep-analyze"`)로 요청
+- S3 Agent가 S4(SAST Runner), S5(KB), LLM Engine을 알아서 호출
+- S2는 결과를 받아 코어 도메인(Run, Finding, EvidenceRef)에 정규화
+- **S2는 플랫폼 오케스트레이터 역할 유지** — S3의 에이전트는 "분석" 기능의 내부 구현일 뿐
+
+### S4 실험 결과 참고 (RE100 프로젝트)
+
+| 도구 | 발견 수 | 비고 |
+|------|---------|------|
+| Semgrep | 0 | 현대 C++에서 약함 |
+| clang-tidy | 145 | 대부분 코드 품질 |
+| Cppcheck | 19 | |
+| LLM | 3 (real vulns) | 모든 도구가 놓친 것 발견 |
 
 ---
 
@@ -52,20 +90,27 @@ S4(DGX Spark + vLLM + Qwen3.5-35B-A3B FP8)가 입주하여 실 LLM 연동이 완
 
 ### 너는
 
-- S2 Core Service 개발자 + 인프라 스크립트 담당
+- **AEGIS Core 개발자 + 플랫폼 오케스트레이터 + 인프라 스크립트 담당**
 - `services/backend/` 하위 코드를 소유
-- `services/adapter/` Adapter 서비스 코드를 소유
-- `services/ecu-simulator/` ECU Simulator 코드를 소유
-- `scripts/` 전체 서비스 관리 쉘 스크립트를 소유
-- `services/shared/` 공유 타입 패키지를 **단독 소유** (S1은 수정 권한 없음)
-- `docs/specs/backend.md`, `docs/specs/adapter.md`, `docs/specs/ecu-simulator.md` 명세서를 작성/관리
+- `services/shared/` 공유 타입 패키지를 **단독 소유**
+- `scripts/start.sh`, `scripts/stop.sh` 통합 기동/종료 스크립트 소유
+- `scripts/backend/` DB 유틸 소유
+- `docs/specs/backend.md`, `docs/specs/observability.md`, `docs/specs/technical-overview.md` 명세서 관리
 - `docs/api/shared-models.md` 공유 모델 명세를 **단독 관리**
-- S1(프론트)에게 API를 제공하고, S3(LLM Gateway)를 호출하는 중간 허브
+- `docs/AEGIS.md` 공통 제약 사항 문서 **관리**
+- S1에게 API를 제공하고, S3/S4/S5/S6를 호출하는 전체 오케스트레이터
+
+### 더 이상 소유하지 않는 것 (S6로 이전)
+
+- ~~`services/adapter/`~~ → S6
+- ~~`services/ecu-simulator/`~~ → S6
+- ~~`docs/specs/adapter.md`~~ → S6
+- ~~`docs/specs/ecu-simulator.md`~~ → S6
 
 ### API 계약 소통 원칙 (필수)
 
 - **다른 서비스의 동작은 반드시 API 계약서(`docs/api/`)로만 파악한다**
-- **다른 서비스의 코드를 절대 읽지 않는다** — 코드를 보고 동작을 파악하거나 거기에 맞춰 구현하는 것은 금지
+- **다른 서비스의 코드를 절대 읽지 않는다** -- 코드를 보고 동작을 파악하거나 거기에 맞춰 구현하는 것은 금지
 - 계약서에 없는 필드/엔드포인트는 "존재하지 않는다"고 간주한다
 - 계약서와 실제 코드가 다르면, 해당 서비스 소유자에게 계약서 갱신을 work-request로 요청한다
 - **S2는 `shared-models.md`의 단독 소유자이므로, 코드 변경 시 계약서 동기화를 반드시 확인한다**
@@ -73,9 +118,7 @@ S4(DGX Spark + vLLM + Qwen3.5-35B-A3B FP8)가 입주하여 실 LLM 연동이 완
 
 ### 다른 서비스 코드
 
-- S1(프론트), S3(LLM Gateway) 코드는 기본적으로 수정하지 않음
-- 사용자가 풀스택 역할을 지정한 경우에만 직접 수정 가능
-- 그 외에는 문제점 + 수정방안만 전달
+- S1~S6 코드는 기본적으로 수정하지 않으며 **읽는 것도 금지** (API 계약서로만 소통)
 - `services/shared/` 디렉토리는 **S2가 단독 관리**. S1에게 변경 사항을 work-request로 통보
 
 ### 작업 요청 주고받기
@@ -123,6 +166,7 @@ services/backend/
     │   ├── project-rules.controller.ts    # 프로젝트 스코프 룰 CRUD (/api/projects/:pid/rules)
     │   ├── project-adapters.controller.ts # 프로젝트 스코프 어댑터 CRUD+연결 (/api/projects/:pid/adapters)
     │   ├── project-settings.controller.ts # 프로젝트 설정 GET/PUT (/api/projects/:pid/settings)
+    │   ├── sdk-profile.controller.ts      # SDK 프로파일 목록/조회 (/api/sdk-profiles)
     │   ├── dynamic-test.controller.ts # 동적 테스트 API 4개 (run, results, detail, delete)
     │   ├── run.controller.ts        # Run 목록/상세 API
     │   ├── finding.controller.ts    # Finding 목록/상세/상태변경/집계 API
@@ -130,8 +174,9 @@ services/backend/
     │   ├── approval.controller.ts   # Approval 목록/상세 API
     │   └── report.controller.ts     # Report 생성 API
     ├── services/
-    │   ├── static-analysis.service.ts  # 정적 분석 오케스트레이션 (청크→룰→LLM→병합 + WS 프로그레스)
-    │   ├── chunker.ts              # 파일 청크 분할 (토큰 추정, greedy bin-packing)
+    │   ├── static-analysis.service.ts  # 정적 분석 오케스트레이션 (청크→룰→LLM→병합 + WS 프로그레스) [Transient]
+    │   ├── chunker.ts              # 파일 청크 분할 (토큰 추정, greedy bin-packing) [Transient]
+    │   ├── sdk-profiles.ts         # 12개 사전정의 SDK 프로파일 (TI/NXP/Infineon/Renesas/ST/Linux/Custom)
     │   ├── attack-scenarios.ts          # 사전정의 공격 시나리오 6개 (CAN 주입용)
     │   ├── dynamic-analysis.service.ts # 동적 분석 오케스트레이터 (세션+메시지+룰+LLM+CAN 주입)
     │   ├── ws-broadcaster.ts       # 제너릭 WsBroadcaster<T> + attachWsServers() (모듈별 독립 인스턴스)
@@ -141,10 +186,10 @@ services/backend/
     │   ├── mock-ecu.ts             # Mock ECU (IEcuAdapter 인터페이스, fallback + 단위 테스트용)
     │   ├── input-generator.ts      # 3전략 입력 생성기 (random/boundary/scenario)
     │   ├── project.service.ts      # 프로젝트 CRUD + Overview 집계 + cascade 삭제 (룰/어댑터/설정)
-    │   ├── project-settings.service.ts # 프로젝트 설정 KV (typed, defaults fallback)
-    │   ├── rule.service.ts         # 프로젝트별 룰 CRUD, 기본 룰 시딩, per-analysis RuleEngine 빌드
+    │   ├── project-settings.service.ts # 프로젝트 설정 KV (typed, defaults fallback) + buildProfile JSON 직렬화 + resolveBuildProfile()
+    │   ├── rule.service.ts         # 프로젝트별 룰 CRUD, 기본 룰 시딩, per-analysis RuleEngine 빌드 [Transient]
     │   ├── llm-task-client.ts     # S3 v1 Task API HTTP 클라이언트 (POST /v1/tasks, GET /v1/health)
-    │   ├── llm-v1-adapter.ts     # v0 analyze() 시그니처 → v1 TaskRequest/TaskResponse 변환 어댑터
+    │   ├── llm-v1-adapter.ts     # v0 analyze() 시그니처 → v1 TaskRequest/TaskResponse 변환 어댑터 [Transient]
     │   ├── result-normalizer.ts   # AnalysisResult → Run+Finding+EvidenceRef 정규화 (멱등, 원자적)
     │   ├── finding.service.ts     # Finding CRUD + 7-state 라이프사이클 + audit trail
     │   ├── run.service.ts         # Run 읽기 전용 서비스
@@ -156,7 +201,7 @@ services/backend/
     │   ├── file-store.ts          # uploaded_files 테이블
     │   ├── analysis-result.dao.ts # analysis_results 테이블
     │   ├── project.dao.ts         # projects 테이블
-    │   ├── rule.dao.ts            # rules 테이블
+    │   ├── rule.dao.ts            # rules 테이블 [Transient — 룰 엔진 제거 시 삭제]
     │   ├── adapter.dao.ts         # adapters 테이블 (멀티 어댑터 CRUD)
     │   ├── dynamic-session.dao.ts # dynamic_analysis_sessions 테이블
     │   ├── dynamic-alert.dao.ts   # dynamic_analysis_alerts 테이블
@@ -168,7 +213,7 @@ services/backend/
     │   ├── evidence-ref.dao.ts     # evidence_refs 테이블
     │   ├── audit-log.dao.ts        # audit_log 테이블
     │   └── gate-result.dao.ts     # gate_results 테이블
-    ├── rules/                      # 정적 분석 룰
+    ├── rules/                      # 정적 분석 룰 [Transient — 전체 제거 예정]
     │   ├── types.ts               # AnalysisRule 인터페이스, RuleMatch 타입
     │   ├── rule-engine.ts         # 룰 등록/실행 엔진 (per-analysis 빌드)
     │   ├── custom-rule.ts         # 정규식 기반 룰 클래스 (모든 룰이 이것 사용)
@@ -185,27 +230,30 @@ services/backend/
 
 ```
 Controller → Service → DAO → SQLite
-                ↘ RuleService.buildRuleEngine(projectId) → RuleEngine (1계층: 정적 분석, per-analysis)
-                ↘ Chunker (정적 분석 파일 청크 분할)
+                ↘ RuleService.buildRuleEngine(projectId) → RuleEngine (1계층: 정적 분석, per-analysis) [Transient]
+                ↘ Chunker (정적 분석 파일 청크 분할) [Transient]
                 ↘ CanRuleEngine (1계층: 동적 분석)
-                ↘ LlmV1Adapter → LlmTaskClient → S3 v1 Task API (2계층)
+                ↘ LlmV1Adapter → LlmTaskClient → S3 v1 Task API (2계층) [Transient]
                 ↘ WsBroadcaster<T> (제너릭 WebSocket broadcaster — 모듈별 독립 인스턴스)
                 ↘ AdapterManager → AdapterClient(N개) → Adapter(N대) (CAN 프레임 수신 + 주입 요청-응답)
                 ↘ InputGenerator (동적 테스트 입력 생성)
-                ↘ ProjectSettingsService (프로젝트별 설정 KV — llmUrl 등)
+                ↘ ProjectSettingsService (프로젝트별 설정 KV — llmUrl, buildProfile 등)
+                ↘ SDK_PROFILES (12개 사전정의 SDK 프로파일)
 ```
 
 - **Controller**: 요청 수신, 입력 검증, 응답 반환. async 핸들러는 `asyncHandler()` 래퍼로 에러를 글로벌 핸들러에 전파
 - **Service**: 비즈니스 로직, 오케스트레이션
 - **DAO**: DB 접근 캡슐화 (better-sqlite3 prepared statements)
-- **RuleService**: 프로젝트별 룰 CRUD + 기본 룰 시딩 + `buildRuleEngine(projectId)`로 per-analysis 엔진 빌드
-- **RuleEngine**: 정적 분석 패턴 매칭 룰 실행. 글로벌 싱글톤이 아닌 분석 시마다 `RuleService.buildRuleEngine()`으로 생성
+- **RuleService**: 프로젝트별 룰 CRUD + 기본 룰 시딩 + `buildRuleEngine(projectId)`로 per-analysis 엔진 빌드 [Transient]
+- **RuleEngine**: 정적 분석 패턴 매칭 룰 실행. 글로벌 싱글톤이 아닌 분석 시마다 `RuleService.buildRuleEngine()`으로 생성 [Transient]
 - **CanRuleEngine**: 동적 분석 CAN 룰 (빈도, 비인가 ID, 공격 시그니처)
 - **WsBroadcaster\<T\>**: 제너릭 WebSocket broadcaster. 모듈별 독립 인스턴스 (dynamicAnalysisWs, staticAnalysisWs, dynamicTestWs). `attachWsServers()`로 HTTP server에 일괄 연결
 - **AdapterManager**: 프로젝트별 어댑터 관리. CRUD + 연결/해제. CAN 프레임 수신 시 `adapterId`를 포함하여 세션에 라우팅. 소속 검증(projectId) 지원. ECU 메타데이터(`ecuMeta`) 런타임 노출
 - **AdapterClient**: 개별 Adapter WS 클라이언트. `IEcuAdapter` 인터페이스 구현. `ecu-info` 메시지 수신 시 ECU 메타(name, canIds) 저장. AdapterManager가 내부적으로 관리
 - **LlmTaskClient**: S3 v1 Task API 직접 호출 (`POST /v1/tasks`, `GET /v1/health`)
-- **LlmV1Adapter**: 기존 서비스가 사용하던 v0 `analyze()` 시그니처를 유지하면서 내부적으로 v1 TaskRequest/TaskResponse 변환. concurrency queue 내장. 실패 시 graceful degradation (1계층 결과만 반환)
+- **LlmV1Adapter**: 기존 서비스가 사용하던 v0 `analyze()` 시그니처를 유지하면서 내부적으로 v1 TaskRequest/TaskResponse 변환. concurrency queue 내장. 실패 시 graceful degradation (1계층 결과만 반환) [Transient]
+- **ProjectSettingsService**: 프로젝트별 설정 KV. `buildProfile`을 JSON 직렬화하여 KV에 저장. `resolveBuildProfile()`로 SDK defaults + 사용자 override 병합
+- **SDK_PROFILES**: 12개 사전정의 SDK 프로파일 (`sdk-profiles.ts`). TI AM335x, TI TDA4VM, NXP S32K3, NXP S32G2, Infineon AURIX TC3xx, Infineon AURIX TC4xx, Renesas RH850, Renesas R-Car, ST Stellar SR6, Linux x86_64 (C), Linux x86_64 (C++), Custom
 
 ---
 
@@ -234,11 +282,11 @@ SQLite(`better-sqlite3`), WAL 모드. DB 파일: `services/backend/smartcar.db` 
 
 ### 마이그레이션 주의사항
 
-`db.ts`에서 `CREATE TABLE IF NOT EXISTS` → `ALTER TABLE ADD COLUMN` → `CREATE INDEX` 순서가 중요하다. 기존 DB에 컬럼이 없을 때 ALTER가 먼저 실행되어야 인덱스 생성이 성공한다. ALTER는 try/catch로 감싸서 이미 존재하면 무시.
+`db.ts`에서 `CREATE TABLE IF NOT EXISTS` -> `ALTER TABLE ADD COLUMN` -> `CREATE INDEX` 순서가 중요하다. 기존 DB에 컬럼이 없을 때 ALTER가 먼저 실행되어야 인덱스 생성이 성공한다. ALTER는 try/catch로 감싸서 이미 존재하면 무시.
 
 ### DB 클린 방법
 
-서버를 **완전히 종료**한 뒤 `rm smartcar.db` → 서버 재시작. hot-reload 중에 DB 파일만 삭제하면 0바이트 파일이 되어 테이블이 생성되지 않는다 (메모리 내 기존 연결이 남아있기 때문).
+서버를 **완전히 종료**한 뒤 `rm smartcar.db` -> 서버 재시작. hot-reload 중에 DB 파일만 삭제하면 0바이트 파일이 되어 테이블이 생성되지 않는다 (메모리 내 기존 연결이 남아있기 때문).
 
 ---
 
@@ -292,7 +340,9 @@ SQLite(`better-sqlite3`), WAL 모드. DB 파일: `services/backend/smartcar.db` 
 | DELETE | `/api/dynamic-test/results/:testId` | 테스트 결과 삭제 |
 | WebSocket | `/ws/dynamic-test?testId=` | 동적 테스트 프로그레스 push (progress/finding/complete) |
 | GET | `/api/projects/:pid/settings` | 프로젝트 설정 조회 (defaults fallback) |
-| PUT | `/api/projects/:pid/settings` | 프로젝트 설정 수정 (partial update) |
+| PUT | `/api/projects/:pid/settings` | 프로젝트 설정 수정 (partial update, buildProfile 포함) |
+| GET | `/api/sdk-profiles` | SDK 프로파일 전체 목록 (12개) |
+| GET | `/api/sdk-profiles/:id` | SDK 프로파일 상세 (id로 조회) |
 | GET | `/api/projects/:pid/runs` | 프로젝트 Run 목록 |
 | GET | `/api/runs/:id` | Run 상세 (findings 포함) |
 | GET | `/api/projects/:pid/findings` | Finding 목록 (?status=&severity=&module=) |
@@ -318,19 +368,20 @@ SQLite(`better-sqlite3`), WAL 모드. DB 파일: `services/backend/smartcar.db` 
 
 ## 6. 핵심 로직 상세
 
-### 정적 분석 파이프라인 (`StaticAnalysisService.runAnalysis`)
+### 정적 분석 파이프라인 (`StaticAnalysisService.runAnalysis`) [Transient -- SAST Runner 전환 후 대폭 변경 예정]
 
 ```
 요청 (projectId + fileIds + analysisId?)
   → fileStore에서 파일 내용 조회
-  → [1계층] RuleService.buildRuleEngine(projectId) → ruleEngine.runAll() — 프로젝트 enabled 룰만 실행, RuleMatch[] 반환
-  → 파일 청크 분할 (chunker.ts) — 14000토큰 예산, greedy bin-packing
+  → [1계층] RuleService.buildRuleEngine(projectId) → ruleEngine.runAll() — 프로젝트 enabled 룰만 실행, RuleMatch[] 반환  [Transient]
+  → 파일 청크 분할 (chunker.ts) — 14000토큰 예산, greedy bin-packing  [Transient]
   → [2계층] 청크별 LLM 분석 (병렬, concurrency=4)
       각 청크마다 LlmV1Adapter.analyze() 호출 (내부에서 v1 TaskRequest로 변환)
+      trusted.buildProfile 포함 (languageStandard, targetArch, compiler) — static-explain 태스크
       성공 → llmVulns 수집, processedFiles += chunk.files.length
       실패 → warnings에 LLM_CHUNK_FAILED 추가
       WS progress push (phase: llm_chunk, i/N)
-  → mergeAndSort() → mergeAndDedup() — 같은 location 중복 제거 (룰 우선, undefined location 제외), 심각도순 정렬
+  → mergeAndSort() → mergeAndDedup() — 같은 location 중복 제거 (룰 우선, undefined location 제외), 심각도순 정렬  [Transient]
   → computeSummary() — 심각도별 카운트
   → fileCoverage 빌드 (analyzed/skipped 파일 목록 + 파일별 findingCount)
   → AnalysisResultDAO.save() — DB 저장 (warnings + fileCoverage 포함)
@@ -338,19 +389,31 @@ SQLite(`better-sqlite3`), WAL 모드. DB 파일: `services/backend/smartcar.db` 
   → AnalysisResult 반환 (warnings 포함)
 ```
 
-**청크 분할 (`chunker.ts`)**: 토큰 추정 `chars / 3.5`, 청크 예산 14000토큰(~49000chars). 100KB 초과 파일은 `FILE_TOO_LARGE` warning으로 스킵(S3 입력 상한 보호). 49K~100K chars 파일은 단독 청크 + `CHUNK_TOO_LARGE` warning.
+**허용 확장자 (C/C++ only)**: `ALLOWED_EXTENSIONS = [".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hh", ".hxx"]`
+- 기존 `.py`, `.java`, `.js`, `.ts`는 제거됨 (2026-03-17)
+- `detectLanguage()`: `.h` -> `"c-or-cpp"` (기존: `"c"`), `.cc`/`.cxx` -> `"cpp"`, `.hh`/`.hxx` -> `"cpp"`
 
-**WS 프로그레스**: `/ws/static-analysis?analysisId=xxx` 경로로 연결. 동적 분석과 동일한 패턴 (session→analysisId). WS 미연결 시 기존과 동일하게 동작.
+**청크 분할 (`chunker.ts`)** [Transient]: 토큰 추정 `chars / 3.5`, 청크 예산 14000토큰(~49000chars). 100KB 초과 파일은 `FILE_TOO_LARGE` warning으로 스킵(S3 입력 상한 보호). 49K~100K chars 파일은 단독 청크 + `CHUNK_TOO_LARGE` warning.
 
-**Warnings**: `AnalysisResult.warnings?: AnalysisWarning[]` — LLM 실패 시에도 룰 결과는 항상 반환.
+**WS 프로그레스**: `/ws/static-analysis?analysisId=xxx` 경로로 연결.
+- 첫 번째 `static-progress` 이벤트에 `phaseWeights` 포함: `{ queued: 5, rule_engine: 5, llm_chunk: 80, merging: 10 }`
+- S1은 이 가중치를 사용하여 전체 진행률을 계산한다
 
-**fileCoverage**: `AnalysisResult.fileCoverage?: FileCoverageEntry[]` — 파일별 분석 커버리지. analyzed/skipped 상태 + findingCount 포함. S1이 커버리지율/스킵 파일 표시에 활용.
+**AI Finding location fallback (개선됨)**:
+- 단일 파일 청크: 해당 파일 경로로 fallback (기존 동작)
+- **멀티 파일 청크**: LLM finding의 title/description에서 파일명을 추출하여 청크 내 파일과 매칭 시도. 매칭 실패 시 청크의 첫 번째 파일로 fallback. 더 이상 `null` location이 발생하지 않음
 
-**Location 형식**: 룰 엔진 결과는 `"{filePath}:{lineNumber}"` (file.path || file.name 사용), LLM 결과는 기본 `null`. 단, 단일 파일 청크의 경우 해당 파일 경로로 fallback한다.
+**LLM context에 buildProfile 포함**: `static-explain` 태스크의 `trusted.buildProfile`에 `languageStandard`, `targetArch`, `compiler`를 전달. LLM이 타겟 환경을 고려한 분석을 수행할 수 있게 함.
 
-### 룰 엔진 구조
+**Warnings**: `AnalysisResult.warnings?: AnalysisWarning[]` -- LLM 실패 시에도 룰 결과는 항상 반환.
 
-**프로젝트 스코프 룰 시스템** — 빌트인/커스텀 구분 없이 모든 룰이 프로젝트에 소속된다.
+**fileCoverage**: `AnalysisResult.fileCoverage?: FileCoverageEntry[]` -- 파일별 분석 커버리지. analyzed/skipped 상태 + findingCount 포함. S1이 커버리지율/스킵 파일 표시에 활용.
+
+**Location 형식**: 룰 엔진 결과는 `"{filePath}:{lineNumber}"` (file.path || file.name 사용), LLM 결과는 filename fallback 적용 후 `"{filePath}"` 또는 `"{filePath}:{line}"`.
+
+### 룰 엔진 구조 [Transient -- SAST Runner 안정화 후 전체 제거]
+
+**프로젝트 스코프 룰 시스템** -- 빌트인/커스텀 구분 없이 모든 룰이 프로젝트에 소속된다.
 
 ```
 RuleService
@@ -373,6 +436,44 @@ RuleEngine (per-analysis 인스턴스)
   - 메모리 안전 (5개): UAF 힌트, 안전하지 않은 realloc, 미검사 malloc/calloc, double-free 힌트, 정수 오버플로우
 - **모든 룰**은 `CustomRule` 클래스로 실행 (라인별 정규식 매칭). 패턴은 `RegExp.source` 형태로 DB에 저장.
 - **per-analysis 빌드**: 분석 실행 시 `RuleService.buildRuleEngine(projectId)`로 해당 프로젝트의 enabled 룰만 포함한 RuleEngine을 생성. 글로벌 싱글톤 RuleEngine은 더 이상 없음.
+
+**제거 시 영향 범위** (SAST Runner 안정화 후):
+- `rules/` 디렉토리 전체
+- `RuleService`, `rule.dao.ts`
+- `project-rules.controller.ts`
+- DB `rules` 테이블
+- `ProjectService.seedDefaultRules()`
+- `result-normalizer.ts` (룰 Finding 생성 로직)
+- `mergeAndDedup()` (vulnerability-utils.ts)
+- S1 룰 CRUD UI (S1에게 work-request 필요)
+- 관련 테스트
+
+### BuildProfile / SDK 프로파일
+
+**공유 타입** (`services/shared/src/models.ts`):
+- `BuildProfile`: sdkId, compiler, compilerVersion, targetArch, languageStandard, headerLanguage, includePaths, defines, flags
+- `SdkProfile`: id, name, vendor, description, defaults (BuildProfile 부분집합)
+- `ProjectSettings`에 `buildProfile?: BuildProfile` 추가
+
+**SDK 프로파일 12개** (`sdk-profiles.ts`):
+| sdkId | 설명 |
+|-------|------|
+| `ti-am335x` | TI Sitara AM335x (ARM Cortex-A8) |
+| `ti-tda4vm` | TI Jacinto 7 TDA4VM (ARM Cortex-A72 + R5F, ADAS) |
+| `nxp-s32k3` | NXP S32K3 (ARM Cortex-M7, 차체 제어) |
+| `nxp-s32g2` | NXP S32G2 (ARM Cortex-A53/M7, 게이트웨이) |
+| `infineon-aurix-tc3xx` | Infineon AURIX TC3xx (TriCore 1.6.2, ASIL-D) |
+| `infineon-aurix-tc4xx` | Infineon AURIX TC4xx (TriCore 1.8, 차세대 ASIL-D) |
+| `renesas-rh850` | Renesas RH850 (V850E2M, 차체/섀시) |
+| `renesas-rcar` | Renesas R-Car H3/M3 (ARM Cortex-A57/A53, IVI/ADAS) |
+| `st-stellar-sr6` | ST Stellar SR6 (ARM Cortex-R52+, 차세대 ZCU) |
+| `linux-x86_64-c` | Linux x86_64 (C, gcc/clang) |
+| `linux-x86_64-cpp` | Linux x86_64 (C++, g++/clang++) |
+| `custom` | 사용자 정의 |
+
+**`resolveBuildProfile()`**: SDK 선택 시 defaults 자동 채움 -> 사용자가 개별 필드 override -> 병합 결과 반환.
+
+**ProjectSettingsService**: `buildProfile`을 JSON 직렬화하여 KV store의 `buildProfile` 키에 저장. `get()` 시 JSON 파싱하여 반환.
 
 ### Overview 집계 로직 (`ProjectService.getOverview`)
 
@@ -408,19 +509,19 @@ RuleEngine (per-analysis 인스턴스)
 | `CONTEXT_WINDOW` | 20 | 컨텍스트 LLM 호출 시 전후 메시지 수 (실제 전송: CONTEXT_WINDOW * 2 = 40건) |
 
 **LLM 호출 시점 2가지**:
-- **트리거 A (alert 누적)**: `alertsSinceLastLlm >= 3` 도달 시 → 최근 40건 메시지 + 최근 3건 alert를 S3에 전달 → `alert.llmAnalysis` 업데이트 + WS push. 호출 후 카운터 리셋.
-- **트리거 B (세션 종료)**: DB에서 전체 메시지 + 전체 alerts 조회 → S3에 전달 → `analysis_results` 테이블에 저장 (module="dynamic_analysis")
+- **트리거 A (alert 누적)**: `alertsSinceLastLlm >= 3` 도달 시 -> 최근 40건 메시지 + 최근 3건 alert를 S3에 전달 -> `alert.llmAnalysis` 업데이트 + WS push. 호출 후 카운터 리셋.
+- **트리거 B (세션 종료)**: DB에서 전체 메시지 + 전체 alerts 조회 -> S3에 전달 -> `analysis_results` 테이블에 저장 (module="dynamic_analysis")
 
 **CAN 주입 (분석가 주도)**:
-- `injectMessage(sessionId, req)`: monitoring 상태 검증 → AdapterClient.sendAndReceive() → ECU 응답 수신 → 주입 메시지를 handleCanMessage()에 `injected: true`로 투입 (룰 엔진 평가 + WS push) → 응답 분류(classifyResponse) → WS injection-result → 이력 기록
+- `injectMessage(sessionId, req)`: monitoring 상태 검증 -> AdapterClient.sendAndReceive() -> ECU 응답 수신 -> 주입 메시지를 handleCanMessage()에 `injected: true`로 투입 (룰 엔진 평가 + WS push) -> 응답 분류(classifyResponse) -> WS injection-result -> 이력 기록
 - `injectScenario(sessionId, scenarioId)`: 사전정의 시나리오(6개)의 steps를 순차 injectMessage() 호출
 - 주입 이력은 ActiveSession.injectionHistory에 인메모리 보관 (세션 종료 시 소멸)
 - 세션 종료 시 LLM 분석 canLog에 주입 메시지 `[INJ]` 접두사로 포함
 
 **주의사항**:
 - CAN 메시지는 circular buffer(100건)로 인메모리 유지 (룰 컨텍스트), 전체는 DB에 저장
-- alert 누적 LLM 호출은 비동기 (`.catch(() => {})` — 실패해도 세션 계속)
-- CAN 데이터는 AdapterManager → AdapterClient를 통해 수신. ECU Simulator → Adapter → AdapterClient → AdapterManager → 세션
+- alert 누적 LLM 호출은 비동기 (`.catch(() => {})` -- 실패해도 세션 계속)
+- CAN 데이터는 AdapterManager -> AdapterClient를 통해 수신. ECU Simulator -> Adapter -> AdapterClient -> AdapterManager -> 세션
 - 각 AdapterClient는 자동 재연결 지원 (3초 간격)
 - 프로젝트별 어댑터: 어댑터는 프로젝트에 소속. 세션 생성 시 `adapterId`의 `projectId` 소속 검증 (불일치 시 400 에러)
 - 어댑터 미연결 시 세션 생성 불가 (400 에러)
@@ -446,13 +547,13 @@ RuleEngine (per-analysis 인스턴스)
   → WS test-complete
 ```
 
-**Mock ECU 시나리오**: 0xFF→crash, 0x7DF→reset, 0x00→malformed, 반복3회→anomaly, 경계값→timeout(2000ms), 그 외→정상. 기본 지연 10~50ms.
+**Mock ECU 시나리오**: 0xFF->crash, 0x7DF->reset, 0x00->malformed, 반복3회->anomaly, 경계값->timeout(2000ms), 그 외->정상. 기본 지연 10~50ms.
 
-**동시 실행 방지**: `runningTests: Set<string>` — 같은 projectId로 동시 실행 불가 (409 Conflict).
+**동시 실행 방지**: `runningTests: Set<string>` -- 같은 projectId로 동시 실행 불가 (409 Conflict).
 
 **Overview 호환**: 테스트 결과를 `analysis_results` 테이블에 `module="dynamic_testing"`으로도 저장. `ProjectService.getOverview()`에서 자동 집계.
 
-### S3 통신 (`LlmV1Adapter` → `LlmTaskClient`)
+### S3 통신 (`LlmV1Adapter` -> `LlmTaskClient`) [Transient]
 
 v0 엔드포인트(`POST /api/llm/analyze`, `GET /health`)는 S3에서 완전 폐기됨. v1 Task API로 전환 완료 (2026-03-13).
 
@@ -465,17 +566,17 @@ Response: TaskResponse { status: "completed", result: { claims, caveats, suggest
 GET http://localhost:8000/v1/health
 ```
 
-**어댑터 패턴**: `LlmV1Adapter`가 기존 서비스의 `analyze(request, baseUrl?, requestId?, signal?)` 시그니처를 유지하면서 내부적으로 v0→v1 변환 수행. 3개 서비스(정적/동적/동적테스트)는 import + 타입 교체만으로 전환 완료. **태스크별 context 분기**: `static-explain`은 `trusted.finding`(단일 객체) + `untrusted.sourceSnippet`, `dynamic-annotate`는 `trusted.ruleMatches`(배열) + `untrusted.rawCanLog` (API 계약서 정합).
+**어댑터 패턴**: `LlmV1Adapter`가 기존 서비스의 `analyze(request, baseUrl?, requestId?, signal?)` 시그니처를 유지하면서 내부적으로 v0->v1 변환 수행. 3개 서비스(정적/동적/동적테스트)는 import + 타입 교체만으로 전환 완료. **태스크별 context 분기**: `static-explain`은 `trusted.finding`(단일 객체) + `trusted.buildProfile`(languageStandard, targetArch, compiler) + `untrusted.sourceSnippet`, `dynamic-annotate`는 `trusted.ruleMatches`(배열) + `untrusted.rawCanLog` (API 계약서 정합).
 
-**모듈 → taskType 매핑**:
-- `static_analysis` → `static-explain`
-- `dynamic_analysis` → `dynamic-annotate`
-- `dynamic_testing` → `test-plan-propose`
+**모듈 -> taskType 매핑**:
+- `static_analysis` -> `static-explain`
+- `dynamic_analysis` -> `dynamic-annotate`
+- `dynamic_testing` -> `test-plan-propose`
 
 - S3 URL: 프로젝트 설정 `llmUrl` 우선, 없으면 환경변수 `LLM_GATEWAY_URL` (기본값: `http://localhost:8000`)
-- S3 연결 실패 시 `{ success: false, vulnerabilities: [] }` 반환 → 1계층 결과만으로 응답 (graceful degradation)
+- S3 연결 실패 시 `{ success: false, vulnerabilities: [] }` 반환 -> 1계층 결과만으로 응답 (graceful degradation)
 - concurrency queue (기본 4, 환경변수 `LLM_CONCURRENCY`)
-- S3 응답의 `confidenceBreakdown` 필드: `consistency` → `ragCoverage`로 변경됨 (S3 측 2026-03-16 반영)
+- S3 응답의 `confidenceBreakdown` 필드: `consistency` -> `ragCoverage`로 변경됨 (S3 측 2026-03-16 반영)
 
 ### 3차 통합 테스트 결과 (2026-03-16)
 
@@ -509,7 +610,7 @@ multer가 multipart 헤더의 filename을 latin1(ISO-8859-1)로 해석한다. `s
 
 ## 8. 실행 방법
 
-> **⚠ 서버를 직접 실행하지 마라.** 서비스 기동/종료는 반드시 사용자에게 요청할 것.
+> **서버를 직접 실행하지 마라.** 서비스 기동/종료는 반드시 사용자에게 요청할 것.
 
 ```bash
 # 전체 기동 (권장)
@@ -529,6 +630,9 @@ cd services/backend && npx tsx watch src/index.ts
 # 4. S1 Frontend
 cd services/frontend && npm run dev
 
+# 5. SAST Runner (S4 소유, 포트 9000)
+# S4가 관리. start.sh에서 자동 기동
+
 # 전체 종료
 ./scripts/stop.sh
 ```
@@ -545,9 +649,14 @@ curl -X POST http://localhost:3000/api/projects \
   -H "Content-Type: application/json" -d '{"name":"Test"}'
 # → { success: true, data: { id: "proj-xxx", ... } }
 
-# 프로젝트 룰 확인
-curl http://localhost:3000/api/projects/proj-xxx/rules
-# → 22개 기본 룰
+# SDK 프로파일 목록
+curl http://localhost:3000/api/sdk-profiles
+# → { success: true, data: [ { id: "ti-am335x", ... }, ... ] }
+
+# 프로젝트 설정에 buildProfile 저장
+curl -X PUT http://localhost:3000/api/projects/proj-xxx/settings \
+  -H "Content-Type: application/json" \
+  -d '{"buildProfile":{"sdkId":"ti-am335x","languageStandard":"c99"}}'
 
 # 어댑터 등록 + 연결
 curl -X POST http://localhost:3000/api/projects/proj-xxx/adapters \
@@ -565,38 +674,41 @@ curl -X POST http://localhost:3000/api/projects/proj-xxx/adapters/adp-xxx/connec
 
 | 서비스 | .env 위치 | 주요 변수 |
 |--------|----------|----------|
-| backend | `services/backend/.env` | `PORT`, `LLM_GATEWAY_URL`, `DB_PATH`, `LOG_DIR`, `LOG_LEVEL` |
+| backend | `services/backend/.env` | `PORT`, `LLM_GATEWAY_URL`, `SAST_RUNNER_ENDPOINT`, `DB_PATH`, `LOG_DIR`, `LOG_LEVEL` |
 | adapter | `services/adapter/.env` | `PORT`, `LOG_DIR`, `LOG_LEVEL` |
 | ecu-simulator | `services/ecu-simulator/.env` | `ADAPTER_URL`, `SCENARIO`, `SPEED`, `LOG_DIR`, `LOG_LEVEL` |
 | frontend | `services/frontend/.env` | `VITE_BACKEND_URL` |
 | llm-gateway | `services/llm-gateway/.env` | `SMARTCAR_LLM_MODE`, `SMARTCAR_LLM_ENDPOINT`, `SMARTCAR_LLM_MODEL`, `SMARTCAR_LLM_API_KEY`, `LOG_DIR` |
+| sast-runner | `services/sast-runner/.env` | `PORT` (기본 9000). S4 관리 |
 
-> 우선순위: `.env` 기본값 → CLI 인수 오버라이드 (해당 시). DB 유틸 스크립트(`scripts/backend/`)도 backend `.env`에서 `DB_PATH`를 읽는다.
+> 우선순위: `.env` 기본값 -> CLI 인수 오버라이드 (해당 시). DB 유틸 스크립트(`scripts/backend/`)도 backend `.env`에서 `DB_PATH`를 읽는다.
 
 **유틸 스크립트** (`scripts/backend/`):
-- `reset-db.sh` — DB 삭제 (확인 프롬프트). 서버 정지 후 사용
-- `db-stats.sh` — 테이블별 건수 + DB 크기 조회
-- `backup-db.sh [이름]` — sqlite3 `.backup`으로 스냅샷 저장 (`scripts/backend/.backups/`)
+- `reset-db.sh` -- DB 삭제 (확인 프롬프트). 서버 정지 후 사용
+- `db-stats.sh` -- 테이블별 건수 + DB 크기 조회
+- `backup-db.sh [이름]` -- sqlite3 `.backup`으로 스냅샷 저장 (`scripts/backend/.backups/`)
 
 **로그 관리 스크립트** (`scripts/common/`):
-- `reset-logs-all.sh` — 전체 서비스 로그 초기화
-- `reset-logs-s2.sh` — S2 백엔드 로그만 초기화
-- `clean-s3-logs.sh` — S3 LLM Gateway 로그 정리
-- `clear-s4-logs.sh` — S4 LLM Engine 로그 정리
+- `reset-logs-all.sh` -- 전체 서비스 로그 초기화
+- `reset-logs-s2.sh` -- S2 백엔드 로그만 초기화
+- `clean-s3-logs.sh` -- S3 LLM Gateway 로그 정리
+- `clear-s4-logs.sh` -- S4 LLM Engine 로그 정리
 
-**서비스 관리 스크립트** (`scripts/`) — **너의 담당**:
-- `start.sh` — 전체 서비스 기동
+**서비스 관리 스크립트** (`scripts/`) -- **너의 담당**:
+- `start.sh` -- 전체 서비스 기동
+  - 기동 순서: Adapter -> ECU Simulator -> Backend -> LLM Gateway -> **SAST Runner (포트 9000)** -> Frontend
   - 각 서비스의 `.env`를 서브쉘에 주입 (`load_env()` 헬퍼)
   - 포트 헬스체크 (LISTEN 상태까지 최대 10초 대기, 프로세스 즉시 종료 감지)
   - 기동 실패 시 이미 띄운 서비스 자동 롤백 (역순 종료)
-  - 색상 출력 + 소요시간 표시 + 서머리 (`기동 완료 (5건 시작)`)
+  - 색상 출력 + 소요시간 표시 + 서머리 (`기동 완료 (6건 시작)`)
   - 옵션: `--no-ecu`, `--no-frontend`, `--scenario=NAME`, `--speed=N`
   - 모든 커맨드에 `exec` 사용 (PID 파일 = 실제 프로세스 PID)
-- `stop.sh` — 전체 서비스 종료
-  - 5개 서비스 모두 상태 표시 (OK/NOT RUNNING/KILLED/FAILED)
+- `stop.sh` -- 전체 서비스 종료
+  - 6개 서비스 모두 상태 표시 (OK/NOT RUNNING/KILLED/FAILED)
+  - SERVICE_PORTS에 sast-runner (9000) 포함
   - PID 파일 1순위 + 포트 탐색 2순위 (프로세스 트리 kill)
-  - 종료 후 포트 잔류 점검 (3000, 4000, 5173, 8000) + 좀비 프로세스 강제 정리
-  - 서머리 (`전체 종료 완료 (4건 종료, 1건 미실행)`)
+  - 종료 후 포트 잔류 점검 (3000, 4000, 5173, 8000, 9000) + 좀비 프로세스 강제 정리
+  - 서머리 (`전체 종료 완료 (5건 종료, 1건 미실행)`)
 
 **주의**: WSL2 환경이다. monorepo 루트에서 `npm install` 완료 상태여야 `@smartcar/shared` 심볼릭 링크가 동작한다.
 
@@ -606,7 +718,7 @@ curl -X POST http://localhost:3000/api/projects/proj-xxx/adapters/adp-xxx/connec
 
 ### 규약 문서
 
-`docs/specs/observability.md` — MSA 전체 공통 규약 (에러 응답 형식, 에러 코드, 로그 포맷, Request ID, 로그 레벨 기준)
+`docs/specs/observability.md` -- MSA 전체 공통 규약 (에러 응답 형식, 에러 코드, 로그 포맷, Request ID, 로그 레벨 기준)
 
 ### 에러 클래스 계층 (`src/lib/errors.ts`)
 
@@ -627,7 +739,7 @@ AppError (code, statusCode, message, retryable, cause?)
 
 ### 로거 (`src/lib/logger.ts`)
 
-pino 기반 JSON structured logging. `createLogger("component")` → child logger.
+pino 기반 JSON structured logging. `createLogger("component")` -> child logger.
 
 ```typescript
 import { createLogger } from "../lib/logger";
@@ -648,7 +760,7 @@ logs/                       # 프로젝트 루트 (git-ignored, 자동 생성)
 ```
 
 - 환경변수 `LOG_DIR`로 경로 변경 가능 (기본값: 프로젝트 루트 `logs/`)
-- append 모드 — 재시작해도 이전 로그 유지
+- append 모드 -- 재시작해도 이전 로그 유지
 - 관리자 도구에서 `logs/*.jsonl`을 줄 단위 `JSON.parse()`로 파싱하여 시각화 예정
 
 ### 미들웨어 스택 (`src/middleware/`)
@@ -668,7 +780,7 @@ express.json()
 | 접두사 | 생성 위치 | 용도 |
 |--------|-----------|------|
 | `req-` | HTTP 미들웨어 | HTTP 요청 |
-| `can-` | `DynamicAnalysisService.handleAlert()` | CAN alert → LLM 분석 체인 |
+| `can-` | `DynamicAnalysisService.handleAlert()` | CAN alert -> LLM 분석 체인 |
 | `reconn-` | `AdapterClient` auto-reconnect | 어댑터 자동 재연결 시도 |
 | `sys-` | `index.ts` 기동 로직 | 룰 시딩, 마이그레이션 등 |
 
@@ -681,8 +793,8 @@ CAN:   alert 누적 → generateRequestId("can") → LLM 분석 → 로그
 
 ### 프로세스 레벨 핸들러
 
-- `uncaughtException` → fatal 로그 + process.exit(1)
-- `unhandledRejection` → error 로그
+- `uncaughtException` -> fatal 로그 + process.exit(1)
+- `unhandledRejection` -> error 로그
 
 ### audit_log 테이블
 
@@ -703,31 +815,33 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 ---
 
-## 10. 알려진 이슈 / 주의사항
+## 10. 알려진 이슈 / 로드맵 / 세션 로그
 
-### 대기 중인 작업 요청 (2026-03-17 기준)
+### 대기 중인 작업 요청 (2026-03-18 기준)
 
-`docs/work-requests/`: S1 앞 버그 수정 통보 1건 대기 중 (`s2-to-s1-bug-fixes-done.md`).
+`docs/work-requests/`: 비어있음 (.gitkeep만 존재). 밀린 작업 없음.
 
-**2026-03-17 세션 2: S1 WR 3건 처리 + 버그 수정**
-- Run 타임스탬프 0초 버그 수정: `NormalizerContext.startedAt` 추가, 3개 파이프라인 모두 분석 시작 시점 전달
-- `mergeAndSort` undefined-location 중복 제거 버그 수정: `mergeAndDedup()` 순수 함수 추출 (`vulnerability-utils.ts`), `undefined`/`null` location을 Set에서 제외 → LLM 취약점 누락 해소
-- 보고서 API 500 에러 수정: `report.service.ts` `m!` non-null assertion 제거 + `report.controller.ts` try-catch 에러 핸들링 추가
-- findingCount 불일치: mergeAndDedup 수정으로 신규 분석 시 해소. 기존 Run 데이터는 부정확할 수 있음
-- 테스트 133개 통과 (기존 118 + 신규 15)
+**처리 완료 사항**:
+- S1 WR 3건 처리 완료 (AI location fix, audit log clarification, phaseWeights)
+- S4 SAST Runner 통합 완료 (start.sh/stop.sh)
+- S4 에이전트 아키텍처 제안에 대한 S2 응답 완료. S3 응답 대기 중.
 
-**2026-03-17 세션 1: 문서-코드 심층 감사 수행**
-- `shared-models.md` RunDetailResponse 구조 수정 (Critical — 문서와 코드 불일치)
-- `shared-models.md` Quality Gate/Approval/Report/StaticDashboard 모델 + DTO 문서화 (미문서화 14건 해소)
-- `llm-task-client.ts` 타입 3건 수정: TaskAudit.ragHits, TaskClaim.location, TaskResponseFailure.retryable (계약서 정합)
-- `backend.md` 테이블 수 16개, LLM_NOTE warning 코드 추가
-- `models.ts` AnalysisWarning.code 주석에 LLM_NOTE 추가
-- EvidenceRef 과다 연결 버그 수정 (S1 요청): Finding에 전체 파일이 아닌 location 매칭 파일만 연결
-- SAST 도구 통합 설계 완료 (S3/S4 요청): SastFinding 타입 + API 계약 확장, Semgrep 실행 인프라는 후속 과제
+### 미커밋 코드 (2026-03-17 세션 3)
+
+아래 변경사항은 모두 **UNCOMMITTED** 상태다. SAST Runner 호출 코드 완성 후 일괄 커밋 예정.
+- C/C++ only 확장자 변경
+- `detectLanguage()` 업데이트
+- BuildProfile / SdkProfile 타입 (shared models)
+- SDK 프로파일 12개 + API
+- ProjectSettingsService buildProfile 처리
+- LLM context에 buildProfile 포함
+- AI Finding location fallback (멀티파일 청크)
+- WS phaseWeights
+- start.sh / stop.sh SAST Runner 추가
 
 ### DB hot-reload 함정
 
-서버가 `tsx watch`로 실행 중일 때 `smartcar.db`를 삭제하면 0바이트 파일이 되고 테이블이 생성되지 않는다. 반드시 서버 프로세스를 종료 → DB 삭제 → 서버 재시작 순서로 진행할 것.
+서버가 `tsx watch`로 실행 중일 때 `smartcar.db`를 삭제하면 0바이트 파일이 되고 테이블이 생성되지 않는다. 반드시 서버 프로세스를 종료 -> DB 삭제 -> 서버 재시작 순서로 진행할 것.
 
 ### shared 타입 변경 시
 
@@ -739,44 +853,19 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 ---
 
-## 10. 개발 로드맵
+## 11. 개발 로드맵
 
-### 기존 파이프라인: 구현 완료 ✅
+### 기존 파이프라인: 구현 완료
 
-정적 분석, 동적 분석, 동적 테스트(퍼징/침투), 프로젝트 CRUD/Overview, 프로젝트 스코프 어댑터/룰/설정 CRUD 모두 완료. 이 파이프라인은 유지하면서 위에 canonical control plane을 적층한다.
+정적 분석, 동적 분석, 동적 테스트(퍼징/침투), 프로젝트 CRUD/Overview, 프로젝트 스코프 어댑터/룰/설정 CRUD, BuildProfile/SDK 프로파일 모두 완료.
 
-### 1단계: 코어 도메인 확정 ✅ 구현 완료
+### 코어 도메인 (1~3단계): 구현 완료
 
-- [x] `Run` 모델 정의 + DB 테이블 + DAO + API
-- [x] `Finding` 모델 정의 (7-state 라이프사이클) + DB 테이블 + DAO + API
-- [x] `EvidenceRef` 모델 정의 + DB 테이블 + DAO
-- [x] `AuditLogEntry` 모델 + DAO (Finding 상태 변경 감사로그)
-- [x] 공통 타입: `FindingStatus`, `FindingSourceType`, `RunStatus`, `LocatorType`, `Confidence`, `ArtifactType`
-- [x] `services/shared/src/models.ts` + `docs/api/shared-models.md` 동시 업데이트
+- Run, Finding (7-state 라이프사이클), EvidenceRef, AuditLog
+- ResultNormalizer (3개 파이프라인 통합)
+- Quality Gate, Approval, Report
 
-### 2단계: Finding 정규화 + 증적 관리 ✅ 구현 완료
-
-- [x] **ResultNormalizer** — AnalysisResult 저장 직후 Run+Finding+EvidenceRef 원자적 생성 (멱등)
-- [x] 3개 파이프라인 통합: 정적/동적/동적테스트 각각 normalizer 호출 1~2줄 추가
-- [x] Finding 라이프사이클: open → needs_review → accepted_risk/false_positive/fixed → needs_revalidation
-- [x] LLM 결과: `status: "sandbox"` (즉시 확정 금지), rule 결과: `status: "open"`
-- [x] EvidenceRef: 모듈별 artifact 유형 + locator 유형 매핑
-- [x] Finding 상태 변경 감사로그 (actor, from, to, reason, requestId)
-- [x] Run API: `GET /api/projects/:pid/runs`, `GET /api/runs/:id`
-- [x] Finding API: 목록, 집계, 상세(evidenceRefs+auditLog), 상태변경(PATCH)
-
-### 3단계: Quality Gate + Approval + Report ✅ 구현 완료
-
-- [x] QualityGateService — Run 완료 시 자동 평가 (ResultNormalizer에서 호출)
-- [x] Gate 규칙: critical/high finding → fail, sandbox unreviewed → warning, evidence missing → warning
-- [x] Quality Gates API: `GET /api/projects/:pid/gates`, `GET /api/gates/:id`
-- [x] Approval — local confirmation 워크플로우 (pending → approved/rejected)
-- [x] Gate override: approval 승인 시 gate에 override 적용
-- [x] Approvals API: `GET /api/projects/:pid/approvals`, `POST /api/approvals/:id/decide`
-- [x] ReportService — 프로젝트/모듈별 보고서 생성 (findings + runs + gates + approvals + audit trail)
-- [x] Report API: `GET /api/projects/:pid/report`, `GET /api/projects/:pid/report/{static,dynamic,test}`
-
-### 테스트 인프라 ✅ 구현 완료
+### 테스트 인프라: 구현 완료
 
 vitest 기반 테스트 133개. `cd services/backend && npx vitest run`으로 실행.
 
@@ -801,60 +890,107 @@ src/
 └── rules/__tests__/                          # 룰 엔진 테스트
 ```
 
-### 4단계: Adapter 고도화
+### 즉시 다음 작업 (Next S2 Session)
 
-- [ ] **capability discovery** 도입 — 지원하는 것만 `supported=true`, 나머지 `not_supported`
-- [ ] canonical error / canonical status 정규화
-- [ ] 안전 제어: dry-run mode, session timeout, max request rate
-- [ ] Adapter 계약 테스트
+1. **S3/S4 작업 요청 응답** — 역할 재편(AEGIS 6인 체제) 반영하여 대기 중인 WR 3건 처리
+   - `s3-to-s2-introduction.md` — 통합 논의 (deep-analyze 라우팅, projectPath vs files[], KB API)
+   - `s4-to-s2-daily-sync.md` — ProjectSettings 확장, SCA 데이터 모델
+   - `s4-to-all-agent-architecture-decision.md` — S2 응답 완료, S3 응답 대기
 
-### 5단계: Simulator 고도화
+2. **Analysis Agent 통합** — S3의 `deep-analyze` taskType 호출 코드 구현
+   - `POST :8001/v1/tasks` (taskType: "deep-analyze")
+   - buildProfile + files[] 전달
+   - 결과를 코어 도메인(Run, Finding, EvidenceRef)에 정규화
 
-- [ ] fault model simulator — timeout, delayed response, malformed frame, negative response burst, security access failure, ECU reset, session lockout
-- [ ] replay bench — 저장된 capture 재생, deterministic seed 지원
-- [ ] 상태 공개 API (current profile, fault mode, session state, reset count)
-- [ ] 회귀 테스트 환경
+3. **룰 엔진 제거** — SAST Runner + Analysis Agent 안정화 확인 후 착수
+   - 영향 범위: `rules/` 디렉토리, RuleService, rule.dao, project-rules.controller, DB rules 테이블, ProjectService.seedDefaultRules, result-normalizer (룰 Finding), mergeAndDedup, S1 rule CRUD UI (S1 WR 필요), 관련 테스트
 
-### 6단계: WS 이벤트 표준화 + 테스트
-
-- [ ] 이벤트 envelope 표준화 (eventId, runId, sequence, timestamp, source, type, payload)
-- [ ] sequence gap detection, backpressure metric, drop count event
-- [ ] 단위 테스트 / 계약 테스트 / 통합 테스트
+4. **미커밋 코드 커밋** — Analysis Agent 통합 완성 후 일괄 커밋
 
 ### 후순위
 
+- `source.get_span` API — 소스 파일의 특정 범위 반환 (S3 Agent가 tool로 호출)
+- `findings.get_cross` API — 교차 참조 Finding 조회
+- SCA 데이터 모델 (VendoredLibrary, LibraryCVE) — S4 요청
+- ProjectSettings 확장 (projectPath, buildCommand, compileCommandsPath) — S4 요청
+- WS 이벤트 표준화 (envelope, sequence gap, backpressure)
 - 사용자 인증 (JWT 기반) — Approval 고도화 시 필요
-- 어댑터 DB 영속화 연결 상태 복원
 
 ---
 
-## 11. 관리하는 문서
+## 12. 세션 로그
+
+### 2026-03-18 세션 4 (AEGIS 6인 체제 재편)
+- 프로젝트명 확정: **AEGIS — Automotive Embedded Governance & Inspection System** (전원 동의)
+- 6인 체제 재편: S1(Frontend+QA), S2(AEGIS Core), S3(Agent+LLM), S4(SAST), S5(KB), S6(동적분석)
+- `docs/AEGIS.md` 공통 제약 사항 문서 신규 작성 (S2 관리)
+- S2에서 Adapter/ECU Simulator 소유권 → S6로 이전
+- S2 = 플랫폼 오케스트레이터 역할 명확화
+- 인프라 스크립트 정책 강화 (start/stop은 S2만, 개별 기동 스크립트는 각 서비스 소유자)
+- MEMORY.md 전면 개편 (AEGIS 체제 반영)
+- S3/S4 작업 요청 3건 확인 (역할 재편 후 처리 예정)
+- 인수인계서 6개 헤더 양식 통일 (AEGIS.md 참조 → 역할 소개 → 마지막 업데이트 순서)
+- 풀스택 예외 조항 전면 삭제 (S1, S2, S3 — AEGIS.md에서 예외 없음 확정)
+- S3: Gateway/Agent "통합 예정" → "분리 유지 결정 (2026-03-18)" 반영
+- S4: AEGIS.md 참조 추가, LLM Engine 관리 문서 행 제거 (S3 이관 반영)
+- **상태: 문서만 변경, 코드 변경 없음**
+
+### 2026-03-17 세션 3 (SAST + BuildProfile + SDK)
+- C/C++ only 확장자 + detectLanguage 업데이트
+- BuildProfile / SdkProfile 타입 (shared models)
+- SDK 프로파일 12개 + API (`GET /api/sdk-profiles`, `GET /api/sdk-profiles/:id`)
+- ProjectSettingsService에 buildProfile JSON 직렬화 + resolveBuildProfile()
+- LLM context에 trusted.buildProfile 포함 (static-explain)
+- AI Finding location fallback 개선 (멀티파일 청크 filename 매칭)
+- WS phaseWeights 추가 (첫 static-progress 이벤트)
+- start.sh/stop.sh에 SAST Runner (포트 9000) 추가
+- S4 에이전트 아키텍처 전환 제안 검토 + S2 응답
+- Durable/Transient 전략 확정
+- **상태: UNCOMMITTED**
+
+### 2026-03-17 세션 2 (버그 수정 + S1 WR 처리)
+- Run 타임스탬프 0초 버그 수정: NormalizerContext.startedAt 추가
+- mergeAndSort undefined-location 중복 제거 버그 수정: mergeAndDedup() 순수 함수 추출
+- 보고서 API 500 에러 수정: non-null assertion 제거 + try-catch
+- findingCount 불일치 해소 (mergeAndDedup 수정으로)
+- 테스트 133개 통과 (기존 118 + 신규 15)
+
+### 2026-03-17 세션 1 (문서-코드 감사)
+- shared-models.md RunDetailResponse 구조 수정 (Critical)
+- 미문서화 14건 해소 (QG/Approval/Report/StaticDashboard 모델 + DTO)
+- llm-task-client.ts 타입 3건 수정 (계약서 정합)
+- backend.md 테이블 수 16개, LLM_NOTE warning 코드 추가
+- EvidenceRef 과다 연결 버그 수정
+- SAST 도구 통합 설계 완료 (SastFinding 타입 + API 계약 확장)
+
+---
+
+## 13. S2가 관리하는 문서
 
 | 문서 | 경로 | 용도 |
 |------|------|------|
-| 기능 명세서 | `docs/specs/backend.md` | S2의 모든 API + 아키텍처 상세. 프론트 친구가 참조하는 계약서 |
-| Adapter 명세 | `docs/specs/adapter.md` | ECU↔Backend 릴레이, WS 프로토콜, 메시지 형식 |
-| ECU Simulator 명세 | `docs/specs/ecu-simulator.md` | CAN 트래픽 생성, 주입 응답 규칙, 시나리오 |
-| 공유 모델 명세 | `docs/api/shared-models.md` | S1-S2 공유 타입 계약서. **S2 단독 관리** — `models.ts` 변경 시 반드시 같이 업데이트 |
-| 외부 피드백 (S2) | `docs/외부피드백/S2_backend_adapter_simulator_working_guide.md` | 아키텍처 고도화 방향 — 로드맵의 근거 문서 |
-| 전체 기술 개요 | `docs/specs/technical-overview.md` | 전체 시스템 구조. 다른 서비스 개발자와 공동 관리 |
+| **공통 제약 사항** | `docs/AEGIS.md` | 프로젝트 전체 거버넌스. **S2가 관리** |
+| 기능 명세서 | `docs/specs/backend.md` | S2의 모든 API + 아키텍처 상세 |
+| 전체 기술 개요 | `docs/specs/technical-overview.md` | 전체 시스템 구조 (**S2 주도**) |
+| Observability 규약 | `docs/specs/observability.md` | MSA 공통 규약 |
+| 공유 모델 명세 | `docs/api/shared-models.md` | 전 서비스 공유 타입. **S2 단독 관리** |
 | 서비스 관리 스크립트 | `scripts/start.sh`, `scripts/stop.sh` | 전체 서비스 기동/종료 |
 | DB 유틸 스크립트 | `scripts/backend/` | DB 초기화, 통계, 백업 |
 | 이 인수인계서 | `docs/s2-handoff/README.md` | 다음 세션용 |
 
-**중요**: 구현을 바꾸면 `docs/specs/backend.md`와 `docs/api/shared-models.md`도 반드시 같이 업데이트할 것. 프론트 친구가 이 문서들만 보고 연동한다. shared 변경 시 S1에게 work-request로 통보.
+**중요**: 구현을 바꾸면 `docs/specs/backend.md`와 `docs/api/shared-models.md`도 반드시 같이 업데이트할 것. shared 변경 시 영향받는 서비스에 work-request로 통보.
 
 ---
 
-## 12. 참고할 문서들
+## 14. 참고할 문서들
 
 | 문서 | 경로 | 왜 봐야 하는지 |
 |------|------|--------------|
-| 전체 기술 개요 | `docs/specs/technical-overview.md` | 프로젝트 전체 구조 이해 |
+| 공통 제약 사항 | `docs/AEGIS.md` | **필독** — 역할, 소유권, 소통 규칙 전부 |
 | S2 기능 명세 | `docs/specs/backend.md` | 네가 관리하는 계약서 — 현황 파악 필수 |
+| S3 API 명세 | `docs/api/llm-gateway-api.md` | S3 호출 스펙 (Analysis Agent 포함) |
+| SAST Runner API | `docs/api/sast-runner-api.md` | S4 호출 스펙 |
+| KB API | `docs/api/knowledge-base-api.md` | S5 호출 스펙 |
+| 공유 모델 | `docs/api/shared-models.md` | 전 서비스 공유 타입 |
 | S1 프론트 명세 | `docs/specs/frontend.md` | 프론트가 S2를 어떻게 쓰는지 이해 |
-| S3 API 명세 | `docs/api/llm-gateway-api.md` | S3 호출 스펙 (LlmTaskClient가 참조) |
-| 공유 모델 | `docs/api/shared-models.md` | S1-S2 간 데이터 구조 |
-| S3 인수인계서 | `docs/s3-handoff/README.md` | S3 개발자의 현황 (참고용) |
-| 외부 피드백 (S2) | `docs/외부피드백/S2_backend_adapter_simulator_working_guide.md` | 아키텍처 고도화 근거. **필독** |
-| 외부 피드백 README | `docs/외부피드백/README_ecu_platform_docs.md` | 공통 합의 포인트 + shared 변경 문서 템플릿 |
+| 외부 피드백 (S2) | `docs/외부피드백/S2_backend_adapter_simulator_working_guide.md` | 아키텍처 고도화 근거 |

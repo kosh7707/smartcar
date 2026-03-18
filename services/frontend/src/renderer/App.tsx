@@ -2,6 +2,7 @@ import React from "react";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ProjectProvider } from "./contexts/ProjectContext";
 import { ToastProvider } from "./contexts/ToastContext";
+import { AnalysisGuardProvider } from "./contexts/AnalysisGuardContext";
 import { Sidebar } from "./components/Sidebar";
 import { StatusBar } from "./components/StatusBar";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -23,6 +24,7 @@ export const App: React.FC = () => {
   return (
     <HashRouter>
       <ToastProvider>
+        <AnalysisGuardProvider>
         <ProjectProvider>
           <div className="app-layout">
             <Sidebar />
@@ -53,6 +55,7 @@ export const App: React.FC = () => {
             </div>
           </div>
         </ProjectProvider>
+        </AnalysisGuardProvider>
       </ToastProvider>
     </HashRouter>
   );

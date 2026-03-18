@@ -54,3 +54,7 @@
   background: var(--warning);
   animation: pulse 1.5s ease-in-out infinite;
 }
+
+.status-dot.neutral {
+  background: var(--text-tertiary);
+}

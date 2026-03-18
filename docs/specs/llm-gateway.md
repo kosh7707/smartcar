@@ -1,25 +1,34 @@
-# S3. LLM Gateway 기능 명세
+# S3. Analysis Agent + LLM Gateway 기능 명세 (AEGIS)
 
-> S3는 모델 서버를 감싸는 프록시가 아니라, AI 요청을 표준화하고,
-> 입력 신뢰도와 출력 검증을 관리하며, provenance와 audit를 남기는 통제 계층이다.
+> S3는 **감사 가능하고, 재현 가능하며, 자동화 가능한 증거 기반 보안 분석** 통제 계층이다.
+> 결정론적 처리(Phase 1)를 최대화하고, LLM의 결정 표면(Phase 2)을 최소화한다.
+> Knowledge Base는 S5로 분리 (2026-03-18). S5 투입까지 S3가 임시 관리.
+> **마지막 업데이트: 2026-03-18 (AEGIS 6인 체제)**
 
 ---
 
 ## 1. S3의 역할
 
+### 3개 서비스
+
+| 서비스 | 포트 | 역할 |
+|--------|------|------|
+| **LLM Gateway** | :8000 | 레거시 5개 taskType (static-explain 등) |
+| **Analysis Agent** | :8001 | `deep-analyze` — Phase 1(SAST+코드그래프+SCA 자동실행) → Phase 2(LLM 해석) |
+| **Knowledge Base** | :8002 | Neo4j 위협 지식 GraphRAG + Qdrant 벡터 검색 + 프로젝트별 코드 그래프 |
+
 ### 책임
 
-- S2가 호출하는 안정적 Task API 제공
-- Task type 기반 라우팅
-- Prompt template versioning
-- Model profile routing
+- S2가 호출하는 안정적 Task API 제공 (LLM Gateway + Analysis Agent)
+- **Phase 1: 결정론적 도구 실행** — SAST, 코드 그래프, SCA를 LLM 없이 자동 실행
+- **Phase 2: LLM 해석** — Phase 1 결과를 프롬프트에 주입하여 구조화 분석
+- **하이브리드 GraphRAG** — Neo4j(ID exact + graph neighbor) + Qdrant(vector semantic) 3경로 검색
+- **프로젝트별 코드 그래프** — 함수 호출 관계, dangerous-callers 자동 식별
+- 구조화 출력 강제 + schema validation + evidence grounding
+- Confidence 산출 (S3 자체 계산)
+- 전 구간 requestId 추적 + LLM 전문 덤프
+- Task type 기반 라우팅, Prompt template versioning, Model profile routing
 - Context packaging + 입력 신뢰도 라벨링 (trusted / semi-trusted / untrusted)
-- 구조화 출력 강제 + schema validation
-- Confidence 산출 (grounding 기반)
-- Provenance / audit metadata 생성
-- Rate limit / token budget / timeout 관리
-- Untrusted input 격리 (prompt injection 대응)
-- Agent planner 출력의 제약 (test-plan-propose)
 
 ### 비책임
 
@@ -28,6 +37,7 @@
 - Quality gate / 승인 결정
 - 정책 엔진 자체
 - 프론트엔드 직접 대응
+- SAST 도구 실행 자체 → S4 SAST Runner에 위임
 
 ---
 
@@ -579,28 +589,42 @@ prompt/model/parser 변경 시:
 
 ## 14. 현재 구현 상태 (as-is)
 
-v0 코드는 완전 제거됨 (2026-03-13). 현재 v1 Task API만 운영 중.
+v0 코드는 완전 제거됨 (2026-03-13). 2026-03-18 기준 3개 서비스 운영 중.
 
-### API
+### LLM Gateway (:8000) — 레거시
 
-- `POST /v1/tasks` — Task 기반 AI 분석 요청 (5개 taskType)
-- `GET /v1/health` — 서비스 상태 + vLLM 백엔드 연결 상태
-- `GET /v1/models` — 등록된 model profile 목록
-- `GET /v1/prompts` — 등록된 prompt template 목록
+- `POST /v1/tasks` — 5개 taskType
+- `GET /v1/health`, `/v1/models`, `/v1/prompts`
+- `Semaphore(N)` 동시성 제어, RAG 비활성화 (KB 전담)
+
+### Analysis Agent (:8001) — 심층 분석
+
+- `POST /v1/tasks` — `deep-analyze` taskType
+- **Phase 1**: SAST(16 findings) + 코드 그래프(98 함수) + SCA(6 라이브러리 + CVE) → LLM 없이 ~140초
+- **Phase 2**: Qwen 35B → 구조화 JSON (8 claims, confidence 0.865) → ~34초
+- 출력 스키마 명시 (summary, claims, caveats, usedEvidenceRefs 필수)
+- SCA CVE는 참고 정보로만 제공 (claims에 포함 금지 — 라이브러리 코드 미분석)
+
+### Knowledge Base (:8002) — GraphRAG
+
+- Neo4j: 1,857 위협 노드 + 4,003 관계 + 프로젝트별 코드 그래프 (121노드, 242엣지)
+- Qdrant: 벡터 검색 (paraphrase-multilingual-MiniLM-L12-v2)
+- 하이브리드 검색: ID exact(1.0) + graph neighbor(0.8) + vector semantic
+- dangerous-callers: popen, getenv, readlink 호출자 자동 식별
 
 ### LLM 백엔드
 
-- **vLLM + Qwen3.5-35B-A3B FP8** (DGX Spark, 포트 8000)
-- OpenAI-compatible `/v1/chat/completions` 프로토콜
-- `RealLlmClient`: thinking 제어(`chat_template_kwargs`), structured output(`response_format: json_object`), 토큰 캡처
-- `Semaphore(N)` — vLLM continuous batching 활용, `SMARTCAR_LLM_CONCURRENCY`로 조정 (기본 4)
+- **vLLM + Qwen3.5-35B-A3B FP8** (DGX Spark)
+- `max_tokens: 4096` (기본)
+- `RealLlmClient`: thinking 비활성, JSON structured output
 
-### LLM 모드
+### 최종 통합 테스트 결과 (2026-03-18)
 
-| 모드 | 클라이언트 | 용도 |
-|------|-----------|------|
-| `mock` | V1MockDispatcher | 개발/테스트 |
-| `real` | RealLlmClient | **운영** (vLLM) |
+RE100 gateway-webserver 12개 소스 파일:
+- SAST: 16 findings (SDK 필터링 후), 코드 그래프: 98 함수
+- SCA: 6 라이브러리, 3개 수정, CVE 40건
+- LLM: 8 claims, confidence 0.865, schemaValid=true, suggestedSeverity=critical
+- 전 구간 requestId 교차 추적 가능
 
 ---
 

@@ -53,3 +53,25 @@ export const CONFIDENCE_LABELS: Record<Confidence, string> = {
   medium: "중간",
   low: "낮음",
 };
+
+export const FINDING_STATUS_DESCRIPTIONS: Record<FindingStatus, string> = {
+  open: "새로 발견되어 아직 검토되지 않은 Finding",
+  needs_review: "분석가의 검토가 필요한 Finding",
+  accepted_risk: "위험을 인지하고 수용한 Finding",
+  false_positive: "실제 취약점이 아닌 것으로 판정된 Finding",
+  fixed: "수정 조치가 완료된 Finding",
+  needs_revalidation: "수정 후 재검증이 필요한 Finding",
+  sandbox: "AI가 제안했으나 아직 룰로 확인되지 않은 Finding",
+};
+
+export const CONFIDENCE_DESCRIPTIONS: Record<Confidence, string> = {
+  high: "룰 엔진 또는 다중 소스가 일치하는 높은 확신도",
+  medium: "단일 소스 기반의 보통 확신도",
+  low: "AI 추정 기반의 낮은 확신도",
+};
+
+export const SOURCE_TYPE_DESCRIPTIONS: Record<FindingSourceType, string> = {
+  "rule-engine": "정적 분석 룰에 의해 탐지된 Finding",
+  "llm-assist": "AI 모델이 제안한 Finding",
+  both: "룰 엔진과 AI 모두 탐지한 Finding",
+};

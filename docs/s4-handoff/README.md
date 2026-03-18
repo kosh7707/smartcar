@@ -1,27 +1,44 @@
-# S4. LLM Engine 개발자 인수인계서
+# S4. SAST Runner 인수인계서
 
-> 이 문서는 S4(LLM Engine) 셋업 및 운영을 이어받는 다음 세션을 위한 인수인계서다.
-> DGX Spark에 Qwen3.5-35B-A3B FP8을 vLLM으로 서빙하여 S3(LLM Gateway)에 추론 API를 제공하는 것이 목표다.
+> **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
+> 이 문서는 S4(SAST Runner) 개발을 이어받는 다음 세션을 위한 인수인계서다.
+> 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
+> **마지막 업데이트: 2026-03-18**
 
 ---
 
-## 1. 프로젝트 전체 그림
+## 1. AEGIS 전체 그림
 
-### 4-서비스 MSA 구조
+### 6인 체제 (2026-03-18 확정)
 
 ```
-[Electron + React + TS]  <-->  [Express.js + TS]  <-->  [Python FastAPI]  <-->  [vLLM + Qwen3.5 35B-A3B]
-     Frontend (S1)              Backend (S2)             LLM Gateway (S3)        LLM Engine (S4)
-     :5173 (dev)                :3000                    :8000                    :8000 (DGX Spark)
+                     S1 (Frontend :5173)
+                          │
+                     S2 (AEGIS Core :3000)
+                    ╱     │     ╲      ╲
+                 S3       S4     S5      S6
+               Agent    SAST     KB    동적분석
+              :8001    :9000   :8002    :4000
+                │
+           LLM Engine (DGX Spark :8000)
 ```
 
-통신 방향: `S1 → S2 → S3 → S4` (단방향 의존)
+| 역할 | 담당 | 포트 |
+|------|------|------|
+| S1 | Frontend + QA | :5173 |
+| S2 | AEGIS Core (Backend) — 플랫폼 오케스트레이터 | :3000 |
+| S3 | Analysis Agent + LLM Engine 관리 | :8000, :8001, DGX |
+| **S4** | **SAST Runner (정적 분석 전담)** | **:9000** |
+| S5 | Knowledge Base (Neo4j + Qdrant) | :8002 |
+| S6 | Dynamic Analysis (ECU Sim + Adapter) | :4000 |
 
 ### S4의 정체성
 
-> S4는 모델을 로드하고 추론을 수행하는 서빙 계층이다.
-> 프롬프트 구성, 출력 검증, 비즈니스 로직은 S3/S2의 영역이다.
-> S4는 **빠르고 안정적인 추론을 제공하는 데 집중**한다.
+> S4는 **SAST Runner(:9000) 전담**이다.
+> 6개 SAST 도구 + SCA(라이브러리+CVE) + 코드 구조 + 빌드 자동화를 제공한다.
+> **결정론적 처리를 최대화하고, LLM의 결정 표면을 최소화**하는 것이 핵심 원칙이다.
+>
+> ~~LLM Engine(DGX Spark)은 2026-03-18부로 S3에 이관됨.~~
 
 ---
 
@@ -76,17 +93,23 @@ S4의 작업은 두 환경에 걸쳐 이루어진다:
 
 ### 너는
 
-- S4 LLM Engine 운영자/개발자
-- DGX Spark 하드웨어 + vLLM 서빙을 관리
-- 모델 선정/교체/최적화 담당
-- `docs/api/llm-engine-api.md` API 계약서를 소유/관리 (S3↔S4 인터페이스)
+- **SAST Runner 전담 개발자** (`services/sast-runner/`)
+- `docs/api/sast-runner-api.md` API 계약서 소유
+- `docs/specs/sast-runner.md` 명세서 소유
+- `scripts/start-sast-runner.sh` + `services/sast-runner/.env` 소유
+- 7개 엔드포인트 관리: scan, functions, includes, metadata, libraries, build-and-analyze, health
 
 ### 너는 하지 않는다
 
-- 프롬프트 작성 → S3 담당
-- LLM 응답 파싱/검증 → S3 담당
-- 분석 결과 최종 판정 → S2 담당
-- UI → S1 담당
+- ~~LLM Engine 관리~~ → **S3로 이관됨** (2026-03-18)
+- ~~`docs/api/llm-engine-api.md`~~ → S3 소유
+- ~~`docs/specs/llm-engine.md`~~ → S3 소유
+- 프롬프트 작성, LLM 응답 파싱 → S3
+- 지식 그래프, 벡터 검색 → S5
+- 분석 결과 최종 판정, findings 심각도 정규화 → S2
+- 동적 분석, ECU 시뮬레이션 → S6
+- UI → S1
+- `scripts/start.sh` / `scripts/stop.sh` 직접 수정 금지 → S2에 work-request
 
 ### API 계약 소통 원칙 (필수)
 
@@ -145,8 +168,99 @@ S4의 작업은 두 환경에 걸쳐 이루어진다:
 | Phase 2 | ollama `/api/chat` 전환 | OpenAI 호환 레이어에서 thinking 제어 불가 |
 | **현재** | **vLLM (spark-vllm-docker) + Qwen3.5-35B-A3B FP8** | CC 12.1 사전 컴파일 휠로 해결, MoE 모델로 2.5배 성능 향상 |
 
-### 최근 활동 (2026-03-17)
+### 최근 활동 (2026-03-18)
 
+- **`/v1/build-and-analyze` — 빌드 자동 실행 + 전체 분석 한 방**
+  - `bear -- buildCommand` → compile_commands.json 자동 생성 → 전체 분석
+  - RE100 실측: projectPath + buildCommand → 빌드(5s) + SAST + 코드 그래프 + SCA + CVE = 236초
+  - 사용자 입력: 경로 + 빌드 명령어. 끝.
+- **CVE 조회 통합 — NVD/OSV API**
+  - `/v1/libraries`에 CVE 실시간 조회 추가
+  - RE100: mosquitto 20건, civetweb 5건(1 CRITICAL), tinydtls 9건(1 CRITICAL), rapidjson 3건 등
+  - 노이즈 포함 (NVD 키워드 검색 한계) → S3 reranking + LLM 최종 판정에 의존
+  - C/C++에 패키지 매니저가 없어서 생기는 근본적 문제 → "C/C++용 npm audit"
+- **통합 테스트 v2/v3 성공 — confidence 0.865, schemaValid=true**
+  - 전체 파이프라인 174초: SAST(121s) + 코드 그래프(7s) + SCA(13s) + LLM(34s)
+  - 8 claims, 17건 증거 참조, 56.7% evidence 활용률
+  - LLM이 SCA 라이브러리 수정분을 caveats에서 언급 — 통합 동작 확인
+  - SCA + CVE 포함 v3 테스트도 성공
+- **SCA 라이브러리 분석 — `/v1/libraries` 엔드포인트**
+  - RE100에서 6개 라이브러리 자동 식별, 3개 수정 탐지 (15초)
+  - `.git` 커밋 해시 기반 정확한 upstream 매칭 (태그 불일치 해결)
+  - SHA256 파일 해시 비교 (패키징 차이에 면역)
+  - rapidjson 100%, civetweb 100% → 원본 확정
+  - mosquitto 98.8% → 2파일 수정 (CERT_LOG), libcoap 99.1% → 1파일 수정 (OpenSSL debug)
+  - wakaama 97.6% → 1파일 수정 (DTLS connection.c)
+  - Qwen PoC: 수정 4건 전부 "프로덕션 제거 필요" 판정
+- **projectPath + compile_commands.json 지원**
+  - 파일시스템 직접 분석 모드 (헤더 부재 문제 해결)
+  - compile_commands.json → Cppcheck `--project=`, clang-tidy `-p`
+  - RE100 cross_build.sh에서 빌드 정보 참조
+- **코드 그래프 품질 혁신**
+  - NamespaceDecl 재귀 순회 (namespace gw{} 함수 누락 해결)
+  - CallExpr: ImplicitCastExpr→DeclRefExpr + MemberExpr 처리
+  - 3단계 필터링: loc.file + source_lines + CompoundStmt
+  - 결과: 1함수 → 98함수, run_curl→popen 호출 관계 정확 추출
+- **SAST Runner v0.3.0 — 6개 도구 + 목적별 MCP Tool**
+  - scan-build, gcc -fanalyzer 러너 추가 (총 6개 도구)
+  - BuildProfile 기반 도구 자동 선택 (C++이면 Semgrep 스킵 등)
+  - 실행 보고서 (`execution` 필드) — 도구별 상태/시간/스킵 사유, SDK 해석 정보, 필터링 정보
+  - `POST /v1/includes` 신규 — gcc -E -M 인클루드 트리
+  - `POST /v1/metadata` 신규 — gcc -E -dM 빌드 메타데이터 (ARM vs x86 차이 추출 검증)
+  - SDK 노이즈 사전 필터링 (254건 → 28건)
+  - AST dumper 사용자 코드 필터링 (표준 라이브러리 함수 제외)
+  - contextvars 기반 requestId 전 레이어 전파
+  - JSON structured logging (epoch ms, s4-sast-runner.jsonl)
+  - API 계약서 + specs v0.3.0 전면 재작성
+- **에이전트 PoC 성공 — Qwen 35B로 SAST 트리아지**
+  - 254건 findings → **RELEVANT 6건, INVESTIGATE 2건, NOISE 226건** (97% 노이즈 제거)
+  - ARM 특화 이슈(`stubs-soft.h` 누락) 정확히 태깅
+  - 파인튜닝 없음, 프롬프트 하나, `response_format: json_object`
+- **S3 통합 테스트 성공**
+  - Phase 1/2 분리 아키텍처 동작 확인
+  - S3가 Neo4j 지식 그래프 구축 (1857 노드, 3518 관계) + 코드 그래프 적재 (4568 노드)
+  - LLM이 자발적으로 tool 5회 호출 (knowledge.search 3회 + code_graph 1회 등)
+  - 16개 findings에서 CWE-78 (command injection) 정확 탐지
+- **아키텍처 결정**
+  - MCP Tool 구조: **B안 (목적별 Tool)** 확정 — sast.scan, code.functions, code.includes, build.metadata
+  - 에이전트 전환 → S2, S3 모두 동의
+  - **핵심 원칙: "결정론적 처리 최대화, LLM 결정 표면 최소화"**
+  - Phase 1(도구 자동 실행) → Phase 2(LLM 해석) 분리. LLM에게 도구 호출 선택권을 주면 안 부름 → 강제 분리 필요
+  - "Compound AI Systems" (Berkeley, 2024)의 실증 사례
+- **연구 조사**
+  - 기존 도구: IRIS(ICLR 2025), GitHub Taskflow Agent, Endor Labs, Aardvark(OpenAI)
+  - 기존 연구에 빈 자리: 멀티 도구 SAST + 로컬 LLM + 자동차 임베디드 C/C++
+  - 논문 가능성: "LLM-as-Final-Judge in Deterministic SAST Pipeline"
+  - 정확도 메트릭의 근본적 한계: FN(놓친 취약점) 측정 불가능. 상대 비교만 가능
+  - SBOM + vendored dependency: RE100 TinyDTLS 0.8.6이 2곳에 서로 다르게 수정
+- **프로젝트 방향 재확인**
+  - "범용 정적 분석 도구"가 아니라 **"자동차 보안 특화"**로 간다
+  - 도메인 특화 = 도구를 바꾸는 게 아니라, **LLM에게 먹이는 지식의 차이** (MISRA C, CAN 프로토콜, ISO 21434)
+  - 정적 분석 + 동적 분석 통합 루프: **정적(증거 수집) → LLM(공격 시나리오 생성) → 동적(공격 실행 + 증명) → 지식 그래프 업데이트 → 방어 생성 → 재검증**
+  - S2의 ECU Simulator + Adapter가 동적 분석 인프라로 **이미 존재**
+  - 이 전체 루프를 자동화한 시스템은 기존에 **없음**
+  - compile_commands.json 지원으로 Qt/AUTOSAR 등 복잡한 프로젝트 대응 필요
+
+### 이전 활동 (2026-03-17)
+
+- **RE100 실 코드 정적 분석 실험 + 에이전트 아키텍처 전환 제안**
+  - RE100 IoT 게이트웨이 코드 (C++17, 33파일, 2,650 SLOC)에 도구 6개 실행
+  - Semgrep 0건, Flawfinder 95건(노이즈), Cppcheck 19건, clang-tidy 145건, scan-build 0건, gcc -fanalyzer 0건
+  - **도구가 전부 놓친 실제 취약점 3건을 LLM이 직접 코드를 읽고 발견** (CWE-78, CWE-798, CWE-295)
+  - 결론: 단일 턴 파이프라인 → **에이전트 루프** 전환 필요
+  - S3 역할 변화: LLM Gateway → Analysis Agent
+  - 전 서비스 대상 work-request 발송 (`s4-to-all-agent-architecture-decision.md`)
+  - TI AM335x SDK 설치 완료 (`~/ti-sdk/`), RE100 코드 (`~/RE100/RE100/`)
+- **SAST Runner 서비스 구축 완료** (`services/sast-runner/`)
+  - Python + FastAPI + Semgrep, 포트 9000
+  - SARIF 파싱 → SastFinding[] 정규화 반환
+  - API 계약서 (`docs/api/sast-runner-api.md`) + 명세서 (`docs/specs/sast-runner.md`) 작성
+  - S2에 work-request로 기동 커맨드 통보
+- **BuildProfile 지원 추가** (S2 요청 대응)
+  - `POST /v1/scan`에 `buildProfile?: BuildProfile` 필드 추가
+  - `languageStandard` 기반 Semgrep 룰셋 C/C++ 자동 선택 (`ruleset_selector.py`)
+  - `headerLanguage` auto 모드 → languageStandard에서 추론
+  - 42개 테스트 통과 (SARIF 14 + 룰셋 17 + API 11)
 - S4 로그 삭제 스크립트 작성: `scripts/common/clear-s4-logs.sh`
   - DGX Spark의 `/tmp/vllm-launch.log`를 SSH로 truncate
 - 정적 분석 배치 테스트 (requestId: `4aef1f36`) — **7개 태스크 전부 200 OK**, INVALID_GROUNDING 없음
@@ -423,7 +537,7 @@ S3는 S4의 응답(`choices[0].message.content`)이 **JSON 문자열**이기를 
 
 | 항목 | 시기 | 설명 |
 |------|------|------|
-| SAST 도구 통합 대응 | 다음 마일스톤 | S2 주도, S3 프롬프트 재설계. S4는 변경 없음 (배치 테스트 지원만) |
+| ~~SAST 도구 통합 대응~~ | ~~다음 마일스톤~~ | ✅ SAST Runner 서비스 구축 완료 (2026-03-17). S2 연동 대기 중 |
 | vLLM 자동 기동 | Phase 2 | Docker restart policy 또는 systemd |
 | Tool calling 연동 | v1.5 | S3와 함께 실 테스트 (vLLM에 이미 설정됨) |
 | ~~Structured output~~ | ~~v1.5~~ | ✅ 완료 (2026-03-16 실 검증) |
@@ -436,17 +550,98 @@ S3는 S4의 응답(`choices[0].message.content`)이 **JSON 문자열**이기를 
 
 | 문서 | 경로 | 용도 |
 |------|------|------|
-| 기능 명세서 | `docs/specs/llm-engine.md` | S4 아키텍처, 모델, 서빙 설정 |
-| API 계약서 | `docs/api/llm-engine-api.md` | S3↔S4 인터페이스 명세 |
+| SAST Runner 명세서 | `docs/specs/sast-runner.md` | SAST Runner 아키텍처, Semgrep 통합 |
+| SAST Runner API 계약서 | `docs/api/sast-runner-api.md` | S2↔SAST Runner 인터페이스 명세 |
 | 이 인수인계서 | `docs/s4-handoff/README.md` | 다음 세션용 |
 
 ---
 
-## 13. 참고할 문서들
+## 13. SAST Runner 서비스
+
+### 개요
+
+S4가 소유하는 두 번째 서비스. Semgrep 기반 정적 분석을 수행하여 S2에 `SastFinding[]`을 반환한다.
+
+- **위치**: `services/sast-runner/` (monorepo 내, WSL2 로컬)
+- **스택**: Python 3.12 + FastAPI + Uvicorn + Semgrep
+- **포트**: 9000
+- **API 계약**: `docs/api/sast-runner-api.md`
+- **명세서**: `docs/specs/sast-runner.md`
+
+### 기동 방법
+
+```bash
+# 기동 스크립트 (단독 실행)
+./scripts/start-sast-runner.sh
+
+# 또는 수동
+cd services/sast-runner
+source .venv/bin/activate
+uvicorn app.main:app --host 0.0.0.0 --port 9000
+```
+
+### 초기 세팅 (venv이 없을 때)
+
+```bash
+cd services/sast-runner
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+semgrep --version  # 설치 확인
+```
+
+### 동작 확인
+
+```bash
+# 헬스체크
+curl http://localhost:9000/v1/health
+
+# 스캔 테스트
+curl -X POST http://localhost:9000/v1/scan \
+  -H "Content-Type: application/json" \
+  -d '{
+    "scanId": "test-001",
+    "projectId": "proj-test",
+    "files": [{"path": "main.c", "content": "#include <stdio.h>\nint main(){char buf[10];gets(buf);return 0;}"}],
+    "rulesets": ["p/c"]
+  }'
+```
+
+### 테스트
+
+```bash
+cd services/sast-runner
+source .venv/bin/activate
+pytest tests/ -v   # 22개 테스트
+```
+
+### 트러블슈팅
+
+| 증상 | 원인 | 해결 |
+|------|------|------|
+| `SEMGREP_NOT_AVAILABLE` (503) | Semgrep 미설치 | `pip install semgrep` |
+| `SCAN_TIMEOUT` (504) | 큰 파일/많은 파일 | `timeoutSeconds` 상향 또는 파일 분할 |
+| `SARIF_PARSE_ERROR` (502) | Semgrep 출력 이상 | venv에서 수동 `semgrep scan --sarif` 실행하여 출력 확인 |
+| 포트 9000 충돌 | 다른 프로세스 | `lsof -i :9000`으로 확인 후 종료 |
+
+### 현재 상태 (2026-03-17)
+
+- [x] 서비스 구축 완료 (22개 테스트 통과)
+- [x] API 계약서 작성 (`docs/api/sast-runner-api.md`)
+- [x] 명세서 작성 (`docs/specs/sast-runner.md`)
+- [ ] S2 연동 테스트 (S2가 `scripts/start.sh`에 추가 후)
+- [ ] Semgrep 실 스캔 테스트 (Semgrep 설치 후)
+- [ ] 커스텀 규칙셋 (자동차/임베디드 특화 규칙)
+
+---
+
+## 14. 참고할 문서들
 
 | 문서 | 경로 | 왜 봐야 하는지 |
 |------|------|--------------|
 | 전체 기술 개요 | `docs/specs/technical-overview.md` | 프로젝트 전체 구조 이해 |
 | S3 API 명세 | `docs/api/llm-gateway-api.md` | S3↔S4 계약의 S3 측 관점 (필독) |
+| SAST Runner API | `docs/api/sast-runner-api.md` | S2↔SAST Runner 계약 |
+| SastFinding 타입 | `docs/api/shared-models.md` (lines 253–289) | 응답 형식의 근거 |
 | 외부 피드백 (Agentic) | `docs/외부피드백/S3_agentic_sast_design_feedback.md` | 성능 가이드 |
 | spark-vllm-docker | `~/spark-vllm-docker/README.md` (DGX Spark) | vLLM 빌드/배포 가이드 |

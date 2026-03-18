@@ -1,6 +1,6 @@
 import React from "react";
 import type { FindingStatus } from "@smartcar/shared";
-import { FINDING_STATUS_LABELS } from "../../constants/finding";
+import { FINDING_STATUS_LABELS, FINDING_STATUS_DESCRIPTIONS } from "../../constants/finding";
 
 interface Props {
   status: FindingStatus;
@@ -10,7 +10,7 @@ interface Props {
 export const FindingStatusBadge: React.FC<Props> = ({ status, size = "md" }) => {
   const cls = size === "sm" ? "badge badge-sm" : "badge";
   return (
-    <span className={`${cls} badge-status--${status}`}>
+    <span className={`${cls} badge-status--${status}`} title={FINDING_STATUS_DESCRIPTIONS[status]}>
       {FINDING_STATUS_LABELS[status]}
     </span>
   );

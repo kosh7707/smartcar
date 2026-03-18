@@ -17,7 +17,6 @@ const SEGMENTS = [
 ];
 
 export const DonutChart: React.FC<Props> = ({ summary, size = 120, strokeWidth = 14, showLegend = true }) => {
-  const vulnCount = summary.total - (summary.info ?? 0);
   const total = summary.critical + summary.high + summary.medium + summary.low + (summary.info ?? 0);
 
   const cx = 60;
@@ -75,10 +74,10 @@ export const DonutChart: React.FC<Props> = ({ summary, size = 120, strokeWidth =
         )}
         {/* Center text */}
         <text x={cx} y={cy - 4} textAnchor="middle" dominantBaseline="central" fontSize="22" fontWeight="700" fill="var(--text-primary)">
-          {vulnCount}
+          {total}
         </text>
         <text x={cx} y={cy + 14} textAnchor="middle" dominantBaseline="central" fontSize="10" fill="var(--text-tertiary)">
-          취약점
+          Finding
         </text>
       </svg>
       {showLegend && (

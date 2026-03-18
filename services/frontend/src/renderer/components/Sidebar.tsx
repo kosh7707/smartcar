@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import { NavLink, useMatch, useNavigate } from "react-router-dom";
 import {
   FolderOpen,
@@ -14,12 +14,14 @@ import {
   FileText,
 } from "lucide-react";
 import { useProjects } from "../contexts/ProjectContext";
+import { useAnalysisGuard } from "../contexts/AnalysisGuardContext";
+import { ConfirmDialog } from "./ui";
 import "./Sidebar.css";
 
 const ICON_SIZE = 18;
 
 const projectNavItems = [
-  { sub: "overview", label: "Overview", icon: LayoutDashboard },
+  { sub: "overview", label: "대시보드", icon: LayoutDashboard },
   { sub: "files", label: "파일 탐색기", icon: Files },
   { sub: "vulnerabilities", label: "취약점 목록", icon: Shield },
   { sub: "static-analysis", label: "정적 분석", icon: FileSearch },
@@ -35,6 +37,22 @@ export const Sidebar: React.FC = () => {
   const { getProject } = useProjects();
   const project = projectId ? getProject(projectId) : null;
   const navigate = useNavigate();
+  const { isBlocking } = useAnalysisGuard();
+  const [pendingNav, setPendingNav] = useState<string | null>(null);
+
+  const handleNavClick = useCallback((e: React.MouseEvent, to: string) => {
+    if (isBlocking) {
+      e.preventDefault();
+      setPendingNav(to);
+    }
+  }, [isBlocking]);
+
+  const confirmNav = useCallback(() => {
+    if (pendingNav) {
+      navigate(pendingNav);
+      setPendingNav(null);
+    }
+  }, [pendingNav, navigate]);
 
   return (
     <nav className="sidebar">
@@ -42,7 +60,13 @@ export const Sidebar: React.FC = () => {
         <>
           <div
             className="sidebar-header sidebar-header-clickable"
-            onClick={() => navigate("/projects")}
+            onClick={(e) => {
+              if (isBlocking) {
+                setPendingNav("/projects");
+              } else {
+                navigate("/projects");
+              }
+            }}
           >
             <div className="sidebar-header-row">
               <ChevronLeft size={20} className="sidebar-header-icon" />
@@ -59,6 +83,7 @@ export const Sidebar: React.FC = () => {
                 <NavLink
                   to={`/projects/${projectId}/${item.sub}`}
                   className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
+                  onClick={(e) => handleNavClick(e, `/projects/${projectId}/${item.sub}`)}
                 >
                   <item.icon size={ICON_SIZE} />
                   {item.label}
@@ -73,6 +98,7 @@ export const Sidebar: React.FC = () => {
               <NavLink
                 to={`/projects/${projectId}/settings`}
                 className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
+                onClick={(e) => handleNavClick(e, `/projects/${projectId}/settings`)}
               >
                 <Settings size={ICON_SIZE} />
                 설정
@@ -119,6 +145,15 @@ export const Sidebar: React.FC = () => {
           </ul>
         </>
       )}
+
+      <ConfirmDialog
+        open={!!pendingNav}
+        title="분석 진행 중"
+        message="분석이 진행 중입니다. 이동하시겠습니까? (분석은 백그라운드에서 계속됩니다)"
+        confirmLabel="이동"
+        onConfirm={confirmNav}
+        onCancel={() => setPendingNav(null)}
+      />
     </nav>
   );
 };

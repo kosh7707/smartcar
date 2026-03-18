@@ -143,3 +143,40 @@ def test_semi_trusted_included():
     user = messages[1]["content"]
 
     assert "14:30:01" in user
+
+
+def test_build_profile_included():
+    req = _make_request(trusted={
+        "finding": {"ruleId": "CWE-120", "title": "Buffer Overflow"},
+        "buildProfile": {
+            "languageStandard": "c99",
+            "targetArch": "arm-cortex-m7",
+            "compiler": "arm-none-eabi-gcc",
+        },
+    })
+    messages = builder.build(req, entry)
+    user = messages[1]["content"]
+
+    assert "arm-cortex-m7" in user
+    assert "arm-none-eabi-gcc" in user
+    assert "c99" in user
+
+
+def test_build_profile_missing():
+    req = _make_request(trusted={"finding": {"ruleId": "CWE-120"}})
+    messages = builder.build(req, entry)
+    user = messages[1]["content"]
+
+    # buildProfile이 없으면 빈 문자열로 치환
+    assert "arm-cortex-m7" not in user
+
+
+def test_build_profile_partial():
+    req = _make_request(trusted={
+        "finding": {"ruleId": "CWE-120"},
+        "buildProfile": {"targetArch": "x86_64"},
+    })
+    messages = builder.build(req, entry)
+    user = messages[1]["content"]
+
+    assert "x86_64" in user

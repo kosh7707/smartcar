@@ -153,6 +153,13 @@
   line-height: 1.5;
 }
 
+.badge-sm {
+  padding: 2px 8px;
+  font-size: var(--text-sm);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .badge-critical {
   background: var(--severity-critical-bg);
   color: var(--severity-critical);
@@ -899,6 +906,56 @@
 }
 
 .severity-bar__legend-value {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+/* ── Status Bar (horizontal stacked + legend) ── */
+
+.status-bar-container {
+  margin-bottom: var(--space-2);
+}
+
+.status-bar {
+  display: flex;
+  height: 10px;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.status-bar__segment {
+  transition: width var(--transition-slow);
+  min-width: 0;
+}
+
+.status-bar__legend {
+  display: flex;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.status-bar__legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.status-bar__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.status-bar__legend-label {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.status-bar__legend-value {
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
   color: var(--text-primary);

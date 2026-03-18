@@ -99,7 +99,8 @@ Field: files (복수), projectId (string)
 - 멀티파트 파일 수신 (복수 파일)
 - `projectId` 필드로 프로젝트에 파일 연결 (`uploaded_files.project_id`)
 - 한글 파일명 인코딩 처리: multer가 latin1로 해석하는 `originalname`을 `Buffer.from(name, "latin1").toString("utf-8")`로 UTF-8 복원
-- 지원 확장자 검증 (.c, .cpp, .h, .hpp, .py, .java, .js, .ts)
+- 지원 확장자 검증 (.c, .cpp, .cc, .cxx, .h, .hpp, .hh, .hxx)
+- `detectLanguage()`: `.c` → `"c"`, `.cpp/.cc/.cxx` → `"cpp"`, `.h` → `"c-or-cpp"` (BuildProfile의 headerLanguage로 해석), `.hpp/.hh/.hxx` → `"cpp"`
 - SQLite `uploaded_files` 테이블에 저장 (파일 내용 포함)
 - 업로드된 파일 목록 반환 (`UploadedFile[]`)
 
@@ -175,7 +176,9 @@ WS: /ws/static-analysis?analysisId=xxx
 S1이 분석 요청 전 WS를 연결하면 실시간 프로그레스를 수신할 수 있다. WS 미연결 시에도 POST /run은 정상 동작 (하위 호환).
 
 메시지 타입:
-- `static-progress`: `{ analysisId, phase, current, total, message }`
+- `static-progress`: `{ analysisId, phase, current, total, message, phaseWeights? }`
+  - 첫 번째 이벤트(`phase: "queued"`)에만 `phaseWeights: { queued: 5, rule_engine: 5, llm_chunk: 80, merging: 10 }` 포함
+  - 이후 이벤트에는 `phaseWeights` 없음
 - `static-warning`: `{ analysisId, code, message }`
 - `static-complete`: `{ analysisId }`
 - `static-error`: `{ analysisId, error }`
@@ -223,7 +226,7 @@ POST http://S3:8000/v1/tasks
 - `LlmV1Adapter`가 기존 `analyze()` 시그니처를 유지하면서 내부적으로 v1 TaskRequest/TaskResponse 변환
 - 모듈 → taskType 매핑: `static_analysis` → `static-explain`, `dynamic_analysis` → `dynamic-annotate`, `dynamic_testing` → `test-plan-propose`
 - **태스크별 context 분기** (API 계약서 `docs/api/llm-gateway-api.md` 정합):
-  - `static-explain`: `trusted.finding` (단일 객체, ruleResults 첫 번째) + `untrusted.sourceSnippet`
+  - `static-explain`: `trusted.buildProfile` (optional, languageStandard/targetArch/compiler) + `trusted.finding` (단일 객체, ruleResults 첫 번째) + `trusted.sastFindings` (optional) + `untrusted.sourceSnippet`
   - `dynamic-annotate`: `trusted.ruleMatches` (배열) + `untrusted.rawCanLog`
   - `test-plan-propose`: `trusted.ruleMatches` + `untrusted.testResults`
 - S3 응답을 파싱하여 취약점 목록으로 변환
@@ -559,6 +562,22 @@ PUT /api/projects/:pid/settings           설정 수정 (부분 업데이트)  B
 | 키 | 타입 | 기본값 | 설명 |
 |----|------|--------|------|
 | `llmUrl` | string | `LLM_GATEWAY_URL` 환경변수 (기본 `http://localhost:8000`) | 프로젝트가 사용할 LLM Gateway 주소 |
+| `buildProfile` | BuildProfile (optional) | — | 빌드 환경 설정 (SDK, 컴파일러, 타겟 아키텍처 등). JSON으로 저장 |
+
+---
+
+## SDK 프로파일 API ✅ 구현 완료
+
+사전 정의 SDK 프로파일 조회. BuildProfile 설정 시 SDK를 선택하면 컴파일러, 타겟 아키텍처, 언어 표준 등이 자동 추론된다.
+
+```
+GET /api/sdk-profiles              사전 정의 SDK 프로파일 목록
+GET /api/sdk-profiles/:id          특정 SDK 프로파일 상세 (defaults 포함)
+```
+
+- 목록: 모든 사전 정의 SDK 프로파일 반환 (`SdkProfile[]`)
+- 상세: `defaults` 필드에 BuildProfile 기본값 포함 (compiler, targetArch, languageStandard, headerLanguage 등)
+- 존재하지 않는 ID 요청 시 404
 
 ---
 

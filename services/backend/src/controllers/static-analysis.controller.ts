@@ -11,7 +11,7 @@ import { analysisTracker } from "../services/analysis-tracker";
 const logger = createLogger("static-analysis-controller");
 
 const ALLOWED_EXTENSIONS = [
-  ".c", ".cpp", ".h", ".hpp", ".py", ".java", ".js", ".ts",
+  ".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hh", ".hxx",
 ];
 
 interface MulterFile {
@@ -26,13 +26,13 @@ interface MulterFile {
 function detectLanguage(ext: string): string {
   const map: Record<string, string> = {
     ".c": "c",
-    ".h": "c",
+    ".h": "c-or-cpp",
     ".cpp": "cpp",
+    ".cc": "cpp",
+    ".cxx": "cpp",
     ".hpp": "cpp",
-    ".py": "python",
-    ".java": "java",
-    ".js": "javascript",
-    ".ts": "typescript",
+    ".hh": "cpp",
+    ".hxx": "cpp",
   };
   return map[ext.toLowerCase()] ?? "unknown";
 }

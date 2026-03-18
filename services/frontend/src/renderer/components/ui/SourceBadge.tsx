@@ -1,7 +1,7 @@
 import React from "react";
 import type { FindingSourceType } from "@smartcar/shared";
 import { Sparkles, ShieldCheck } from "lucide-react";
-import { SOURCE_TYPE_LABELS } from "../../constants/finding";
+import { SOURCE_TYPE_LABELS, SOURCE_TYPE_DESCRIPTIONS } from "../../constants/finding";
 
 interface Props {
   sourceType: FindingSourceType;
@@ -18,7 +18,7 @@ export const SourceBadge: React.FC<Props> = ({ sourceType, ruleId }) => {
     : SOURCE_TYPE_LABELS[sourceType];
 
   return (
-    <span className={`badge badge-source--${sourceType}`}>
+    <span className={`badge badge-source--${sourceType}`} title={SOURCE_TYPE_DESCRIPTIONS[sourceType]}>
       {icon} {label}
     </span>
   );

@@ -454,6 +454,94 @@
   color: var(--accent-hover);
 }
 
+/* ── Finding Filter Bar ── */
+
+.finding-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.finding-filter-tabs {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.finding-filter-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-0);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.finding-filter-tab:hover {
+  border-color: var(--accent);
+  background: var(--surface-1);
+}
+
+.finding-filter-tab--active {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border-color: var(--accent);
+}
+
+.finding-filter-tab--active:hover {
+  background: var(--accent);
+}
+
+.finding-filter-count {
+  font-size: var(--text-xs);
+  opacity: 0.8;
+}
+
+.finding-group-toggle {
+  display: flex;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.finding-group-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2);
+  border: none;
+  background: var(--surface-0);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.finding-group-btn:not(:last-child) {
+  border-right: 1px solid var(--border-default);
+}
+
+.finding-group-btn:hover {
+  background: var(--surface-1);
+  color: var(--text-secondary);
+}
+
+.finding-group-btn--active {
+  background: var(--accent);
+  color: var(--text-inverse);
+}
+
+.finding-group-btn--active:hover {
+  background: var(--accent);
+}
+
 /* ── Responsive ── */
 
 @media (max-width: 768px) {
@@ -462,6 +550,11 @@
   .static-dashboard__rankings {
     grid-template-columns: 1fr;
     gap: var(--space-3);
+  }
+
+  .finding-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 

@@ -19,6 +19,17 @@ export const TrendChart: React.FC<Props> = ({ data, height = 200 }) => {
     return <EmptyState compact icon={<BarChart3 size={20} />} title="트렌드 데이터 없음" />;
   }
 
+  if (data.length < 2) {
+    return (
+      <div className="trend-chart" style={{ textAlign: "center", padding: "var(--space-6)", color: "var(--text-tertiary)" }}>
+        <BarChart3 size={24} style={{ marginBottom: "var(--space-2)", opacity: 0.5 }} />
+        <p style={{ fontSize: "var(--text-sm)", margin: 0 }}>
+          트렌드를 보려면 2회 이상 분석이 필요합니다. 현재 {data.length}회 완료.
+        </p>
+      </div>
+    );
+  }
+
   const pad = { top: 20, right: 16, bottom: 32, left: 40 };
   const w = 600;
   const h = height;

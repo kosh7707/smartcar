@@ -1,0 +1,280 @@
+# AEGIS — Automotive Embedded Governance & Inspection System
+
+> 이 문서는 AEGIS 프로젝트의 **공통 제약 사항**을 정의한다.
+> 모든 역할(S1~S6)은 이 문서를 준수해야 한다.
+> **이 문서의 수정 권한은 S2(AEGIS Core)에게 있다.** 변경 제안은 work-request로.
+
+---
+
+## 1. 프로젝트 정의
+
+**AEGIS** — Automotive Embedded Governance & Inspection System
+
+자동차 임베디드 소프트웨어의 보안 취약점을 SAST + LLM + 동적 분석으로 종합 검증하는 플랫폼.
+
+### 핵심 원칙
+
+1. **결정론적 처리를 최대화하고, LLM의 결정 표면을 최소화한다** — 도구 실행, 필터링, 정규화는 결정론적. LLM은 판단만.
+2. **Evidence-first** — 모든 Finding은 증적(EvidenceRef)에 근거해야 한다.
+3. **Analyst-first** — LLM은 보조 정보. 최종 판단은 분석가(사용자)가 한다.
+4. **S2가 플랫폼 오케스트레이터** — 모든 서비스는 S2가 호출하는 하위 서비스이다.
+
+---
+
+## 2. 역할 및 서비스 매핑
+
+| 역할 | 담당 | 서비스 | 포트 |
+|------|------|--------|------|
+| **S1** | Frontend + QA | `services/frontend/` | :5173 |
+| **S2** | AEGIS Core (Backend) | `services/backend/`, `services/shared/` | :3000 |
+| **S3** | Analysis Agent + LLM Gateway + LLM Engine 관리 | `services/llm-gateway/`, `services/analysis-agent/` | :8000, :8001, DGX |
+| **S4** | SAST Runner (정적 분석 도구 + SCA + 코드 구조 + 빌드 자동화) | `services/sast-runner/` | :9000 |
+| **S5** | Knowledge Base (위협 그래프 + 벡터 검색) | `services/knowledge-base/` | :8002 |
+| **S6** | Dynamic Analysis (ECU Simulator + Adapter) | `services/ecu-simulator/`, `services/adapter/` | :4000 |
+
+### 통신 구조
+
+```
+                     S1 (Frontend :5173)
+                          │
+                     S2 (AEGIS Core :3000)  ← 플랫폼 오케스트레이터
+                    ╱     │     ╲      ╲
+                 S3       S4     S5      S6
+               Agent    SAST     KB    동적분석
+              :8001    :9000   :8002    :4000
+                │
+           LLM Engine
+            (DGX Spark)
+```
+
+**기본 원칙**: S2가 모든 하위 서비스를 호출하는 플랫폼 오케스트레이터이다.
+**위임 허용**: S2가 S3에게 분석을 위임하면, S3는 내부적으로 S4/S5를 직접 호출할 수 있다. 마찬가지로 S2가 S4를 직접 호출할 수도 있다(사용자 요청에 의한 단독 SAST 스캔 등).
+
+| 통신 | 프로토콜 | 비고 |
+|------|----------|------|
+| S1 → S2 | REST API (HTTP) | S1의 유일한 서버 통신 대상 |
+| S2 → S3 | REST API (`POST /v1/tasks`) | 분석 위임 |
+| S2 → S4 | REST API (`POST /v1/scan` 등) | 직접 SAST 요청 (사용자 트리거) |
+| S2 → S5 | REST API (`POST /v1/search` 등) | 지식 조회 (Finding 상세 등) |
+| S2 → S6 | WebSocket | CAN 프레임 실시간 스트리밍 |
+| S3 → S4 | REST API | 에이전트 Phase 1에서 도구 호출 (S2 위임 하위) |
+| S3 → S5 | REST API | 에이전트가 지식 검색 (S2 위임 하위) |
+| S3 → LLM Engine | REST API | 추론 요청 |
+
+### 인프라 스크립트
+
+#### 소유 구분
+
+| 파일 | 소유자 | 비고 |
+|------|--------|------|
+| `scripts/start.sh` | **S2** | 전체 서비스 통합 기동. S2만 수정 |
+| `scripts/stop.sh` | **S2** | 전체 서비스 통합 종료. S2만 수정 |
+| `scripts/start-{서비스명}.sh` | **해당 서비스 소유자** | 자기 서비스 단독 기동 스크립트. 직접 작성/관리 |
+| `services/{서비스명}/.env` | **해당 서비스 소유자** | 자기 서비스 환경변수. 직접 작성/관리 |
+| `scripts/backend/` | S2 | DB 유틸 (reset-db, db-stats, backup-db) |
+| `scripts/common/` | S2 | 로그 관리 유틸 |
+
+#### 규칙
+
+1. **각 서비스 소유자는 자기 서비스의 `scripts/start-{서비스명}.sh`와 `.env`를 직접 작성·관리한다.**
+2. **`scripts/start.sh`와 `scripts/stop.sh`는 S2만 수정한다.** 다른 역할이 직접 수정하는 것은 금지.
+3. **신규 서비스 추가 또는 포트/기동 방식 변경 시, 반드시 S2에게 work-request를 보내** `start.sh`/`stop.sh` 통합을 요청한다.
+4. work-request에 포함할 정보: 서비스명, 포트, 기동 스크립트 경로, 기동 순서 위치(어떤 서비스 뒤에 기동할지)
+5. `start.sh`의 기동 순서와 `stop.sh`의 종료 순서(역순)는 S2가 전체 의존성을 고려하여 결정한다.
+
+---
+
+## 3. 코드 소유권
+
+각 역할은 자신의 코드만 수정한다. 다른 역할의 코드를 **읽는 것도 금지**한다 (API 계약서로만 소통).
+
+| 디렉토리 | 소유자 | 비고 |
+|----------|--------|------|
+| `services/frontend/` | S1 | |
+| `services/backend/` | S2 | |
+| `services/shared/` | **S2 단독** | S1 참조만 가능, 변경 시 S2가 work-request로 통보 |
+| `services/llm-gateway/` | S3 | LLM Gateway (:8000) |
+| `services/analysis-agent/` | S3 | Analysis Agent (:8001) |
+| `services/sast-runner/` | S4 | |
+| `services/knowledge-base/` | S5 | |
+| `services/ecu-simulator/` | S6 | |
+| `services/adapter/` | S6 | |
+| `scripts/` | S2 | 전체 서비스 기동/종료/유틸 |
+
+**예외 없음.** 다른 역할의 코드를 수정해야 하면 문제점 + 수정방안을 work-request로 전달한다.
+
+---
+
+## 4. 문서 소유권
+
+### 규칙
+
+1. **소유자만 수정한다.** 다른 역할이 변경을 원하면 work-request로 요청한다.
+2. **계약서 변경 시 영향받는 상대에게 반드시 work-request로 고지한다.**
+3. **`docs/외부피드백/`은 읽기 전용 참고 자료.** 누구든 추가 가능, 삭제 금지.
+4. **이 문서(`docs/AEGIS.md`)의 수정 권한은 S2에게 있다.** 변경 제안은 work-request로.
+
+### 명세서 (`docs/specs/`)
+
+| 문서 | 소유자 |
+|------|--------|
+| `technical-overview.md` | **S2 주도** (전체 아키텍처 통합) |
+| `backend.md` | S2 |
+| `frontend.md` | S1 |
+| `adapter.md` | **S6** |
+| `ecu-simulator.md` | **S6** |
+| `observability.md` | S2 (MSA 공통 규약) |
+| `sast-runner.md` | S4 |
+| `knowledge-base.md` | **S5** |
+| `llm-engine.md` | S3 (LLM Engine 관리 포함) |
+
+### API 계약서 (`docs/api/`)
+
+| 문서 | 소유자 | 비고 |
+|------|--------|------|
+| `shared-models.md` | **S2 단독** | 전 서비스 공유 타입 |
+| `llm-gateway-api.md` | S3 | S2↔S3 계약 |
+| `sast-runner-api.md` | S4 | S2↔S4, S3↔S4 계약 |
+| `knowledge-base-api.md` | **S5** | S2↔S5, S3↔S5 계약 |
+| `llm-engine-api.md` | S3 | S3↔LLM Engine 계약 |
+
+### 인수인계서 (`docs/{sN}-handoff/`)
+
+| 문서 | 소유자 |
+|------|--------|
+| `s1-handoff/README.md` | S1 |
+| `s2-handoff/README.md` | S2 |
+| `s3-handoff/README.md` | S3 |
+| `s4-handoff/README.md` | S4 |
+| `s5-handoff/README.md` | **S5** (신규) |
+| `s6-handoff/README.md` | **S6** (신규) |
+
+---
+
+## 5. 서비스 간 소통 규칙
+
+### 5.1 API 계약 원칙
+
+1. **다른 서비스의 동작은 반드시 API 계약서(`docs/api/`)로만 파악한다.**
+2. **다른 서비스의 코드를 절대 읽지 않는다.**
+3. 계약서에 없는 필드/엔드포인트는 "존재하지 않는다"고 간주한다.
+4. 계약서와 실제 코드가 다르면, 해당 서비스 소유자에게 계약서 갱신을 work-request로 요청한다.
+5. **공유 모델(`shared-models.md`) 변경 시, 영향받는 모든 서비스에게 work-request로 고지한다.**
+
+### 5.2 작업 요청 (Work Request)
+
+- **경로**: `docs/work-requests/`
+- **파일명**: `{보내는쪽}-to-{받는쪽}-{주제}.md` (예: `s1-to-s2-settings-ui.md`)
+- 전체 공지: `{보내는쪽}-to-all-{주제}.md` (예: `s4-to-all-agent-architecture-decision.md`)
+- **작업 완료 후 해당 요청 문서를 삭제한다.** 삭제는 **받는 쪽**이 처리 완료 후 수행한다. 단, `to-all` 문서는 **발신자**가 삭제한다.
+- 세션 시작 시 이 폴더를 확인하여 밀린 요청이 있는지 체크한다.
+- 폴더가 `.gitkeep`만 있으면 밀린 작업 없음.
+
+### 5.3 공유 타입 (`services/shared/`)
+
+- **S2가 단독 소유**한다. 다른 역할은 참조만 가능.
+- 타입 변경 시 `docs/api/shared-models.md`를 반드시 동시 업데이트한다.
+- 변경 후 영향받는 서비스에게 work-request로 통보한다.
+- DB 컬럼명(snake_case)과 TypeScript 필드명(camelCase) 변환은 각 서비스의 DAO 레이어에서 처리한다.
+
+---
+
+## 6. 포트 할당
+
+| 포트 | 서비스 | 소유자 |
+|------|--------|--------|
+| 3000 | AEGIS Core (Backend) | S2 |
+| 4000 | Adapter | S6 |
+| 5173 | Frontend (dev) | S1 |
+| 8000 | LLM Gateway (레거시) | S3 |
+| 8001 | Analysis Agent | S3 |
+| 8002 | Knowledge Base | S5 |
+| 9000 | SAST Runner | S4 |
+
+새 서비스 추가 시 기존 포트와 충돌하지 않는 포트를 선정하고, 이 표를 업데이트한다.
+
+---
+
+## 7. Observability 공통 규약
+
+상세: `docs/specs/observability.md`
+
+### 필수 준수 사항
+
+1. **에러 응답 형식**: `{ success: false, error: string, errorDetail: { code, message, requestId, retryable } }`
+2. **구조화 로깅**: JSON structured logging (pino 또는 동등). 서비스별 `logs/{service-name}.jsonl`에 기록.
+3. **X-Request-Id 전파**: 모든 서비스 간 HTTP 호출 시 `X-Request-Id` 헤더를 전파한다. 없으면 생성.
+4. **로그 파일 위치**: 프로젝트 루트 `logs/` 디렉토리 (git-ignored, 자동 생성).
+
+---
+
+## 8. 개발 환경
+
+### 하드웨어 + OS
+
+| 머신 | CPU / GPU | 메모리 | OS | 용도 |
+|------|-----------|--------|-----|------|
+| **개발 머신** | Intel i7-14700K (3.42GHz) | 64GB DDR5 | Windows 11 Education 24H2 (WSL2 Ubuntu 24.04.4 LTS) | S1, S2, S3(Gateway/Agent), S4(SAST Runner), S5, S6 실행 |
+| **DGX Spark** | NVIDIA GB10 (aarch64) | 128GB LPDDR5x | DGX Spark OS 7.4.0 (GNU/Linux 6.14.0) | S3(LLM Engine) — Qwen3.5-35B-A3B FP8 서빙 |
+
+### 언어 + 런타임
+
+- **TypeScript**: S1, S2, S6 (Node.js + tsx)
+- **Python**: S3, S4, S5 (venv + uvicorn)
+- **monorepo**: `npm install` 완료 상태에서 `@smartcar/shared` 심볼릭 링크 동작
+
+### 서비스별 의존성
+
+각 서비스의 핵심 의존성(라이브러리, 버전)은 **해당 서비스의 spec 문서(`docs/specs/{서비스명}.md`)에 명시**한다.
+의존성 추가/변경 시 spec 문서를 반드시 동시 업데이트할 것.
+
+### 운영 규칙
+
+- **서비스 기동/종료**: `scripts/start.sh`, `scripts/stop.sh` (S2 관리)
+- **각 서비스 환경변수**: `services/{서비스명}/.env` (git-ignored)
+- **서버 직접 실행 금지**: 기동/종료는 반드시 사용자에게 요청
+
+---
+
+## 9. 문서 구조 규칙
+
+```
+docs/
+├── AEGIS.md                      # 이 문서 — 공통 제약 사항 (S2 관리)
+├── specs/                        # 서비스별 기능 명세
+│   ├── technical-overview.md     # 전체 아키텍처 (S2 주도)
+│   ├── backend.md                # S2
+│   ├── frontend.md               # S1
+│   ├── adapter.md                # S6
+│   ├── ecu-simulator.md          # S6
+│   ├── sast-runner.md            # S4
+│   ├── knowledge-base.md         # S5
+│   ├── llm-engine.md             # S3
+│   └── observability.md          # S2 (공통 규약)
+├── api/                          # API 계약서
+│   ├── shared-models.md          # S2 단독
+│   ├── llm-gateway-api.md        # S3
+│   ├── sast-runner-api.md        # S4
+│   ├── knowledge-base-api.md     # S5
+│   └── llm-engine-api.md        # S3
+├── {sN}-handoff/                 # 역할별 인수인계서
+│   └── README.md
+├── work-requests/                # 서비스 간 작업 요청
+└── 외부피드백/                    # 읽기 전용 참고 자료
+```
+
+### 문서 작성 규칙
+
+1. **명세서는 소유자만 수정한다.** 다른 역할이 변경을 원하면 work-request.
+2. **인수인계서는 "이것만 읽으면 바로 작업 가능"해야 한다.** 세션 종료 시 반드시 최신화.
+3. **API 계약서는 코드와 항상 동기화한다.** 코드를 바꾸면 계약서도 같이 바꾼다.
+4. **새 문서 추가 시 위 구조를 따른다.** 구조 변경이 필요하면 S2에게 제안.
+5. **문서 내 상대 날짜 금지.** "내일", "이번 주" 대신 절대 날짜를 사용한다 (예: 2026-03-18).
+
+---
+
+## 10. 버전 히스토리
+
+| 날짜 | 변경 |
+|------|------|
+| 2026-03-18 | 최초 작성. AEGIS 명명 + 6인 체제 확정. S2(AEGIS Core) 관리. |

@@ -40,7 +40,7 @@ export const StatusBar: React.FC = () => {
     return () => { cancelled = true; clearInterval(interval); };
   }, [projectId]);
 
-  const adapterClass = adapters.length === 0 ? "error" : connected.length === adapters.length ? "ok" : connected.length > 0 ? "warning" : "error";
+  const adapterClass = adapters.length === 0 ? "neutral" : connected.length === adapters.length ? "ok" : connected.length > 0 ? "warning" : "error";
   const adapterLabel = adapters.length === 0 ? "미등록" : `${connected.length}/${adapters.length} 연결됨`;
 
   const goToSettings = () => {

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useRef } from "react";
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from "react";
 import { AlertTriangle, CheckCircle, X, XCircle } from "lucide-react";
 
 type ToastType = "error" | "warning" | "success";
@@ -45,14 +45,14 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTimeout(() => dismiss(id), AUTO_DISMISS_MS);
   }, [dismiss]);
 
-  const api = useCallback((): ToastApi => ({
+  const api = useMemo<ToastApi>(() => ({
     error: (msg, action) => show("error", msg, action),
     warning: (msg, action) => show("warning", msg, action),
     success: (msg, action) => show("success", msg, action),
   }), [show]);
 
   return (
-    <ToastContext.Provider value={api()}>
+    <ToastContext.Provider value={api}>
       {children}
       <div className="toast-container">
         {toasts.map((t) => (
