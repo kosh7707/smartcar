@@ -1,7 +1,7 @@
 # AEGIS — Automotive Embedded Governance & Inspection System
 
 > 이 문서는 AEGIS 프로젝트의 **공통 제약 사항**을 정의한다.
-> 모든 역할(S1~S6)은 이 문서를 준수해야 한다.
+> 모든 역할(S1~S7)은 이 문서를 준수해야 한다.
 > **이 문서의 수정 권한은 S2(AEGIS Core)에게 있다.** 변경 제안은 work-request로.
 
 ---
@@ -27,10 +27,11 @@
 |------|------|--------|------|
 | **S1** | Frontend + QA | `services/frontend/` | :5173 |
 | **S2** | AEGIS Core (Backend) | `services/backend/`, `services/shared/` | :3000 |
-| **S3** | Analysis Agent + LLM Gateway + LLM Engine 관리 | `services/llm-gateway/`, `services/analysis-agent/` | :8000, :8001, DGX |
+| **S3** | Analysis Agent — 보안 분석 자율 에이전트 | `services/analysis-agent/` | :8001 |
 | **S4** | SAST Runner (정적 분석 도구 + SCA + 코드 구조 + 빌드 자동화) | `services/sast-runner/` | :9000 |
 | **S5** | Knowledge Base (위협 그래프 + 벡터 검색) | `services/knowledge-base/` | :8002 |
 | **S6** | Dynamic Analysis (ECU Simulator + Adapter) | `services/ecu-simulator/`, `services/adapter/` | :4000 |
+| **S7** | LLM Gateway + LLM Engine 관리 — 플랫폼 LLM 서비스 | `services/llm-gateway/` | :8000, DGX |
 
 ### 통신 구조
 
@@ -43,23 +44,28 @@
                Agent    SAST     KB    동적분석
               :8001    :9000   :8002    :4000
                 │
+           S7 Gateway (:8000)  ← LLM 단일 관문
+                │
            LLM Engine
             (DGX Spark)
 ```
 
 **기본 원칙**: S2가 모든 하위 서비스를 호출하는 플랫폼 오케스트레이터이다.
 **위임 허용**: S2가 S3에게 분석을 위임하면, S3는 내부적으로 S4/S5를 직접 호출할 수 있다. 마찬가지로 S2가 S4를 직접 호출할 수도 있다(사용자 요청에 의한 단독 SAST 스캔 등).
+**LLM 접근 원칙**: 모든 LLM 호출은 S7(Gateway)을 경유한다. LLM Engine을 직접 호출하지 않는다.
 
 | 통신 | 프로토콜 | 비고 |
 |------|----------|------|
 | S1 → S2 | REST API (HTTP) | S1의 유일한 서버 통신 대상 |
 | S2 → S3 | REST API (`POST /v1/tasks`) | 분석 위임 |
+| S2 → S7 | REST API (`POST /v1/tasks`) | 구조화된 LLM 태스크 요청 |
 | S2 → S4 | REST API (`POST /v1/scan` 등) | 직접 SAST 요청 (사용자 트리거) |
 | S2 → S5 | REST API (`POST /v1/search` 등) | 지식 조회 (Finding 상세 등) |
 | S2 → S6 | WebSocket | CAN 프레임 실시간 스트리밍 |
+| S3 → S7 | REST API (`POST /v1/chat`) | Agent 멀티턴 LLM 호출 |
 | S3 → S4 | REST API | 에이전트 Phase 1에서 도구 호출 (S2 위임 하위) |
 | S3 → S5 | REST API | 에이전트가 지식 검색 (S2 위임 하위) |
-| S3 → LLM Engine | REST API | 추론 요청 |
+| S7 → LLM Engine | REST API | 추론 요청 (S7만 직접 접근) |
 
 ### 인프라 스크립트
 
@@ -93,7 +99,7 @@
 | `services/frontend/` | S1 | |
 | `services/backend/` | S2 | |
 | `services/shared/` | **S2 단독** | S1 참조만 가능, 변경 시 S2가 work-request로 통보 |
-| `services/llm-gateway/` | S3 | LLM Gateway (:8000) |
+| `services/llm-gateway/` | **S7** | LLM Gateway (:8000) |
 | `services/analysis-agent/` | S3 | Analysis Agent (:8001) |
 | `services/sast-runner/` | S4 | |
 | `services/knowledge-base/` | S5 | |
@@ -126,17 +132,21 @@
 | `observability.md` | S2 (MSA 공통 규약) |
 | `sast-runner.md` | S4 |
 | `knowledge-base.md` | **S5** |
-| `llm-engine.md` | S3 (LLM Engine 관리 포함) |
+| `analysis-agent.md` | S3 |
+| `llm-gateway.md` | **S7** |
+| `llm-engine.md` | **S7** (LLM Engine 관리 포함) |
 
 ### API 계약서 (`docs/api/`)
 
 | 문서 | 소유자 | 비고 |
 |------|--------|------|
 | `shared-models.md` | **S2 단독** | 전 서비스 공유 타입 |
-| `llm-gateway-api.md` | S3 | S2↔S3 계약 |
+| `llm-gateway-api.md` | **S7** | S2↔S7, S3↔S7 계약 |
 | `sast-runner-api.md` | S4 | S2↔S4, S3↔S4 계약 |
 | `knowledge-base-api.md` | **S5** | S2↔S5, S3↔S5 계약 |
-| `llm-engine-api.md` | S3 | S3↔LLM Engine 계약 |
+| `llm-engine-api.md` | **S7** | S7↔LLM Engine 계약 |
+| `analysis-agent-api.md` | S3 | S2↔S3 계약 |
+| `adapter-api.md` | **S6** | S2↔S6 WebSocket 계약 |
 
 ### 인수인계서 (`docs/{sN}-handoff/`)
 
@@ -148,6 +158,7 @@
 | `s4-handoff/README.md` | S4 |
 | `s5-handoff/README.md` | **S5** (신규) |
 | `s6-handoff/README.md` | **S6** (신규) |
+| `s7-handoff/README.md` | **S7** (신규) |
 
 ---
 
@@ -186,7 +197,7 @@
 | 3000 | AEGIS Core (Backend) | S2 |
 | 4000 | Adapter | S6 |
 | 5173 | Frontend (dev) | S1 |
-| 8000 | LLM Gateway (레거시) | S3 |
+| 8000 | LLM Gateway | S7 |
 | 8001 | Analysis Agent | S3 |
 | 8002 | Knowledge Base | S5 |
 | 9000 | SAST Runner | S4 |
@@ -214,14 +225,14 @@
 
 | 머신 | CPU / GPU | 메모리 | OS | 용도 |
 |------|-----------|--------|-----|------|
-| **개발 머신** | Intel i7-14700K (3.42GHz) | 64GB DDR5 | Windows 11 Education 24H2 (WSL2 Ubuntu 24.04.4 LTS) | S1, S2, S3(Gateway/Agent), S4(SAST Runner), S5, S6 실행 |
-| **DGX Spark** | NVIDIA GB10 (aarch64) | 128GB LPDDR5x | DGX Spark OS 7.4.0 (GNU/Linux 6.14.0) | S3(LLM Engine) — Qwen3.5-35B-A3B FP8 서빙 |
+| **개발 머신** | Intel i7-14700K (3.42GHz) | 64GB DDR5 | Windows 11 Education 24H2 (WSL2 Ubuntu 24.04.4 LTS) | S1, S2, S3, S4, S5, S6, S7(Gateway) 실행 |
+| **DGX Spark** | NVIDIA GB10 (aarch64) | 128GB LPDDR5x | DGX Spark OS 7.4.0 (GNU/Linux 6.14.0) | S7(LLM Engine) — Qwen3.5-35B-A3B FP8 서빙 |
 
 ### 언어 + 런타임
 
 - **TypeScript**: S1, S2, S6 (Node.js + tsx)
-- **Python**: S3, S4, S5 (venv + uvicorn)
-- **monorepo**: `npm install` 완료 상태에서 `@smartcar/shared` 심볼릭 링크 동작
+- **Python**: S3, S4, S5, S7 (venv + uvicorn)
+- **monorepo**: `npm install` 완료 상태에서 `@aegis/shared` 심볼릭 링크 동작
 
 ### 서비스별 의존성
 
@@ -249,14 +260,16 @@ docs/
 │   ├── ecu-simulator.md          # S6
 │   ├── sast-runner.md            # S4
 │   ├── knowledge-base.md         # S5
-│   ├── llm-engine.md             # S3
+│   ├── analysis-agent.md         # S3
+│   ├── llm-gateway.md            # S7
+│   ├── llm-engine.md             # S7
 │   └── observability.md          # S2 (공통 규약)
 ├── api/                          # API 계약서
 │   ├── shared-models.md          # S2 단독
-│   ├── llm-gateway-api.md        # S3
+│   ├── llm-gateway-api.md        # S7
 │   ├── sast-runner-api.md        # S4
 │   ├── knowledge-base-api.md     # S5
-│   └── llm-engine-api.md        # S3
+│   └── llm-engine-api.md        # S7
 ├── {sN}-handoff/                 # 역할별 인수인계서
 │   └── README.md
 ├── work-requests/                # 서비스 간 작업 요청
@@ -278,3 +291,4 @@ docs/
 | 날짜 | 변경 |
 |------|------|
 | 2026-03-18 | 최초 작성. AEGIS 명명 + 6인 체제 확정. S2(AEGIS Core) 관리. |
+| 2026-03-19 | S7(LLM Gateway + LLM Engine) 신설. S3에서 분리. 7인 체제. LLM 접근 원칙 추가. |

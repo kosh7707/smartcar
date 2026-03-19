@@ -13,7 +13,7 @@ import type {
   DynamicAlert,
   CanMessage,
   DynamicTestResult,
-} from "@smartcar/shared";
+} from "@aegis/shared";
 import type { StoredFile } from "../dao/file-store";
 
 const uuid = () => crypto.randomUUID();

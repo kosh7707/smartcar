@@ -1,6 +1,6 @@
-import type { Severity } from "@smartcar/shared";
+import type { Severity } from "@aegis/shared";
 import type { AnalysisRule, RuleMatch } from "./types";
-import type { Rule } from "@smartcar/shared";
+import type { Rule } from "@aegis/shared";
 
 export class CustomRule implements AnalysisRule {
   id: string;

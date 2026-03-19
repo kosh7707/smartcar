@@ -7,7 +7,7 @@ import type {
   ReportSummary,
   FindingReportEntry,
   RunReportEntry,
-} from "@smartcar/shared";
+} from "@aegis/shared";
 import type { IEvidenceRefDAO, IAuditLogDAO } from "../dao/interfaces";
 import { ProjectService } from "./project.service";
 import { RunService } from "./run.service";
@@ -15,10 +15,11 @@ import { FindingService } from "./finding.service";
 import { QualityGateService } from "./quality-gate.service";
 import { ApprovalService } from "./approval.service";
 
-const MODULE_KEY_MAP: Record<AnalysisModule, "static" | "dynamic" | "test"> = {
+const MODULE_KEY_MAP: Record<AnalysisModule, "static" | "dynamic" | "test" | "deep"> = {
   static_analysis: "static",
   dynamic_analysis: "dynamic",
   dynamic_testing: "test",
+  deep_analysis: "deep",
 };
 
 const ALL_MODULES: AnalysisModule[] = [

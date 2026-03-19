@@ -1,4 +1,4 @@
-import type { UploadedFile } from "@smartcar/shared";
+import type { UploadedFile } from "@aegis/shared";
 
 export const LANG_COLORS: Record<string, string> = {
   c: "#555599",

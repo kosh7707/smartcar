@@ -1,5 +1,5 @@
 import React from "react";
-import type { GateResult } from "@smartcar/shared";
+import type { GateResult } from "@aegis/shared";
 import { ShieldCheck, ShieldAlert, AlertTriangle } from "lucide-react";
 import { formatDateTime } from "../../utils/format";
 

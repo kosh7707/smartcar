@@ -1,5 +1,5 @@
 {
-  "name": "smartcar-security",
+  "name": "aegis",
   "private": true,
   "workspaces": [
     "services/shared",

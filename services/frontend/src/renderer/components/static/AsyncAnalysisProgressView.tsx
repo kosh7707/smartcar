@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import type { AnalysisProgress } from "@smartcar/shared";
+import type { AnalysisProgress } from "@aegis/shared";
 import { CheckCircle2, FileSearch, XCircle, Eye } from "lucide-react";
 import { PageHeader, Spinner, BackButton, ConfirmDialog } from "../ui";
 import "./AsyncAnalysisProgressView.css";

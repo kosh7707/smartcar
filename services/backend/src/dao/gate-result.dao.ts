@@ -1,4 +1,4 @@
-import type { GateResult } from "@smartcar/shared";
+import type { GateResult } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IGateResultDAO } from "./interfaces";
 

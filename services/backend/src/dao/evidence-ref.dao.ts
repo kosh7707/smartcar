@@ -1,4 +1,4 @@
-import type { EvidenceRef } from "@smartcar/shared";
+import type { EvidenceRef } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IEvidenceRefDAO } from "./interfaces";
 

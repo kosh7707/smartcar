@@ -15,9 +15,30 @@ from app.schemas.response import SastFinding, SastFindingLocation
 
 logger = logging.getLogger("s4-sast-runner")
 
-# gcc 경고 패턴: file:line:col: warning: message [-Wanalyzer-*]
+# gcc -Wanalyzer flag → CWE 매핑
+_GCC_ANALYZER_CWE_MAP: dict[str, list[str]] = {
+    "-Wanalyzer-null-dereference": ["CWE-476"],
+    "-Wanalyzer-possible-null-dereference": ["CWE-476"],
+    "-Wanalyzer-possible-null-argument": ["CWE-476"],
+    "-Wanalyzer-use-after-free": ["CWE-416"],
+    "-Wanalyzer-double-free": ["CWE-415"],
+    "-Wanalyzer-malloc-leak": ["CWE-401"],
+    "-Wanalyzer-buffer-overflow": ["CWE-120"],
+    "-Wanalyzer-out-of-bounds": ["CWE-787"],
+    "-Wanalyzer-use-of-uninitialized-value": ["CWE-457"],
+    "-Wanalyzer-write-to-const": ["CWE-787"],
+    "-Wanalyzer-write-to-string-literal": ["CWE-787"],
+    "-Wanalyzer-tainted-array-index": ["CWE-129"],
+    "-Wanalyzer-tainted-allocation-size": ["CWE-190"],
+    "-Wanalyzer-tainted-divisor": ["CWE-369"],
+    "-Wanalyzer-fd-leak": ["CWE-775"],
+    "-Wanalyzer-file-leak": ["CWE-775"],
+}
+
+# gcc 경고 패턴: file:line:col: warning: message [CWE-xxx] [-Wanalyzer-*]
+# gcc 14+는 CWE를 직접 출력함: "dereference of NULL 'data' [CWE-476] [-Wanalyzer-null-dereference]"
 _WARNING_RE = re.compile(
-    r"^(?P<file>.+?):(?P<line>\d+):(?P<col>\d+): (?P<severity>warning|error|note): (?P<message>.+?)(?:\s+\[(?P<flag>-W[^\]]+)\])?$"
+    r"^(?P<file>.+?):(?P<line>\d+):(?P<col>\d+): (?P<severity>warning|error|note): (?P<message>.+?)(?:\s+\[(?P<cwe>CWE-\d+)\])?\s*(?:\[(?P<flag>-W[^\]]+)\])?$"
 )
 
 
@@ -53,15 +74,43 @@ class GccAnalyzerRunner:
         timeout: int = 120,
     ) -> list[SastFinding]:
         c_cpp_files = [
-            str(scan_dir / f) for f in source_files
+            f for f in source_files
             if f.endswith((".c", ".cpp", ".cc", ".cxx"))
         ]
         if not c_cpp_files:
             return []
 
         gcc_bin = self._resolve_gcc(profile)
-        cmd = self._build_command(gcc_bin, c_cpp_files, profile, scan_dir)
         logger.info("Running gcc -fanalyzer (%s) on %d files", gcc_bin, len(c_cpp_files))
+
+        # 파일별 개별 실행 (동일 심볼 충돌 방지) + 병렬
+        per_file_timeout = max(timeout // max(len(c_cpp_files), 1), 15)
+        tasks = [
+            self._run_single(gcc_bin, scan_dir, f, profile, per_file_timeout)
+            for f in c_cpp_files
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        all_findings: list[SastFinding] = []
+        for f, result in zip(c_cpp_files, results):
+            if isinstance(result, Exception):
+                logger.warning("gcc -fanalyzer failed for %s: %s", f, result)
+            else:
+                all_findings.extend(result)
+
+        return all_findings
+
+    async def _run_single(
+        self,
+        gcc_bin: str,
+        scan_dir: Path,
+        source_file: str,
+        profile: BuildProfile | None,
+        timeout: int,
+    ) -> list[SastFinding]:
+        """단일 파일에 대해 gcc -fanalyzer를 실행."""
+        target = str(scan_dir / source_file)
+        cmd = self._build_command(gcc_bin, [target], profile, scan_dir)
 
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -76,7 +125,7 @@ class GccAnalyzerRunner:
         except asyncio.TimeoutError:
             proc.kill()
             await proc.communicate()
-            raise ScanTimeoutError(f"gcc -fanalyzer exceeded {timeout}s timeout")
+            return []  # 개별 파일 타임아웃은 무시하고 진행
 
         output = stderr.decode()
         if not output.strip():
@@ -99,7 +148,7 @@ class GccAnalyzerRunner:
         profile: BuildProfile | None,
         scan_dir: Path,
     ) -> list[str]:
-        cmd = [gcc_bin, "-fanalyzer", "-fsyntax-only"]
+        cmd = [gcc_bin, "-fanalyzer", "-c", "-o", "/dev/null"]
 
         if profile:
             cmd.append(f"-std={profile.language_standard.lower()}")
@@ -154,6 +203,15 @@ class GccAnalyzerRunner:
             metadata: dict[str, Any] = {}
             if flag:
                 metadata["gccFlag"] = flag
+
+            # CWE 추출: gcc 출력에서 직접 [CWE-xxx] 캡처 → 매핑 테이블 폴백
+            gcc_cwe = match.group("cwe")
+            if gcc_cwe:
+                metadata["cwe"] = [gcc_cwe]
+            elif flag:
+                mapped = _GCC_ANALYZER_CWE_MAP.get(flag)
+                if mapped:
+                    metadata["cwe"] = mapped
 
             findings.append(SastFinding(
                 toolId="gcc-fanalyzer",

@@ -494,7 +494,7 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 | 스타일 | CSS (라이트/다크/시스템 3-way 테마, CSS 변수 토큰 시스템) |
 | API 통신 | fetch (Electron preload / 브라우저 직접) |
 | 실시간 통신 | WebSocket |
-| 공유 타입 | @smartcar/shared (monorepo) |
+| 공유 타입 | @aegis/shared (monorepo) |
 
 ---
 

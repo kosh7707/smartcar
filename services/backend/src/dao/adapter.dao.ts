@@ -1,4 +1,4 @@
-import type { Adapter } from "@smartcar/shared";
+import type { Adapter } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IAdapterDAO } from "./interfaces";
 

@@ -1,0 +1,445 @@
+{
+  "timestamp": "2026-03-19T04:33:12.319379+00:00",
+  "julietPath": "/home/kosh/Juliet/C",
+  "variantFilter": "01",
+  "targetCWEs": [
+    "CWE-78",
+    "CWE-121",
+    "CWE-122",
+    "CWE-190",
+    "CWE-416",
+    "CWE-476"
+  ],
+  "results": {
+    "CWE-121": {
+      "cwe": "CWE-121",
+      "cweName": "Stack_Based_Buffer_Overflow",
+      "totalFiles": 72,
+      "combined": {
+        "tp": 55,
+        "fn": 17,
+        "recall": 0.7639
+      },
+      "byTool": {
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 0,
+          "fn": 72,
+          "recall": 0.0
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 55,
+          "fn": 17,
+          "recall": 0.7639
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fn": 72,
+          "recall": 0.0
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 0,
+          "fn": 72,
+          "recall": 0.0
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fn": 72,
+          "recall": 0.0
+        }
+      },
+      "detectedFiles": [
+        "CWE121_Stack_Based_Buffer_Overflow__CWE129_connect_socket_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE129_fgets_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE129_listen_socket_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE131_memcpy_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE135_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_alloca_cpy_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__char_type_overrun_memcpy_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__char_type_overrun_memmove_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_alloca_loop_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_alloca_memcpy_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_alloca_memmove_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_alloca_ncpy_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_declare_cpy_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_declare_loop_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_declare_memcpy_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_declare_memmove_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_declare_ncpy_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_char_alloca_loop_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_char_alloca_memcpy_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_char_alloca_memmove_01.c"
+      ],
+      "missedFiles": [
+        "CWE121_Stack_Based_Buffer_Overflow__CWE129_fscanf_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE129_large_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE129_rand_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE131_loop_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE131_memmove_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_int64_t_alloca_loop_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_int64_t_alloca_memmove_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_int64_t_declare_loop_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_int64_t_declare_memmove_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_int_alloca_loop_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_int_alloca_memmove_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_int_declare_loop_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_int_declare_memmove_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_struct_alloca_loop_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_struct_alloca_memmove_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_struct_declare_loop_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_struct_declare_memmove_01.c"
+      ]
+    },
+    "CWE-122": {
+      "cwe": "CWE-122",
+      "cweName": "Heap_Based_Buffer_Overflow",
+      "totalFiles": 45,
+      "combined": {
+        "tp": 31,
+        "fn": 14,
+        "recall": 0.6889
+      },
+      "byTool": {
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 0,
+          "fn": 45,
+          "recall": 0.0
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 31,
+          "fn": 14,
+          "recall": 0.6889
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fn": 45,
+          "recall": 0.0
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 0,
+          "fn": 45,
+          "recall": 0.0
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fn": 45,
+          "recall": 0.0
+        }
+      },
+      "detectedFiles": [
+        "CWE122_Heap_Based_Buffer_Overflow__char_type_overrun_memcpy_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__char_type_overrun_memmove_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__CWE131_memcpy_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__CWE135_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE129_connect_socket_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE129_fgets_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE129_listen_socket_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE193_char_cpy_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE193_char_loop_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE193_char_memcpy_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE193_char_memmove_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE193_char_ncpy_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_loop_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_memcpy_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_memmove_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_ncat_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_ncpy_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_snprintf_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_int64_t_memcpy_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_int_memcpy_01.c"
+      ],
+      "missedFiles": [
+        "CWE122_Heap_Based_Buffer_Overflow__CWE131_loop_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__CWE131_memmove_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE129_fscanf_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE129_large_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE129_rand_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_int64_t_loop_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_int64_t_memmove_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_int_loop_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_int_memmove_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_struct_loop_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_struct_memmove_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__sizeof_double_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__sizeof_int64_t_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__sizeof_struct_01.c"
+      ]
+    },
+    "CWE-190": {
+      "cwe": "CWE-190",
+      "cweName": "Integer_Overflow",
+      "totalFiles": 90,
+      "combined": {
+        "tp": 20,
+        "fn": 70,
+        "recall": 0.2222
+      },
+      "byTool": {
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 8,
+          "fn": 82,
+          "recall": 0.0889
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 15,
+          "fn": 75,
+          "recall": 0.1667
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fn": 90,
+          "recall": 0.0
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 0,
+          "fn": 90,
+          "recall": 0.0
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fn": 90,
+          "recall": 0.0
+        }
+      },
+      "detectedFiles": [
+        "CWE190_Integer_Overflow__int_connect_socket_add_01.c",
+        "CWE190_Integer_Overflow__int_connect_socket_multiply_01.c",
+        "CWE190_Integer_Overflow__int_connect_socket_square_01.c",
+        "CWE190_Integer_Overflow__int_fgets_add_01.c",
+        "CWE190_Integer_Overflow__int_fgets_multiply_01.c",
+        "CWE190_Integer_Overflow__int_fgets_square_01.c",
+        "CWE190_Integer_Overflow__int_fscanf_square_01.c",
+        "CWE190_Integer_Overflow__int_listen_socket_add_01.c",
+        "CWE190_Integer_Overflow__int_listen_socket_multiply_01.c",
+        "CWE190_Integer_Overflow__int_listen_socket_square_01.c",
+        "CWE190_Integer_Overflow__int_max_add_01.c",
+        "CWE190_Integer_Overflow__int_max_multiply_01.c",
+        "CWE190_Integer_Overflow__int_max_square_01.c",
+        "CWE190_Integer_Overflow__int_rand_square_01.c",
+        "CWE190_Integer_Overflow__int_connect_socket_postinc_01.c",
+        "CWE190_Integer_Overflow__int_fgets_postinc_01.c",
+        "CWE190_Integer_Overflow__int_listen_socket_postinc_01.c",
+        "CWE190_Integer_Overflow__int_connect_socket_preinc_01.c",
+        "CWE190_Integer_Overflow__int_fgets_preinc_01.c",
+        "CWE190_Integer_Overflow__int_listen_socket_preinc_01.c"
+      ],
+      "missedFiles": [
+        "CWE190_Integer_Overflow__char_fscanf_add_01.c",
+        "CWE190_Integer_Overflow__char_fscanf_multiply_01.c",
+        "CWE190_Integer_Overflow__char_fscanf_square_01.c",
+        "CWE190_Integer_Overflow__char_max_add_01.c",
+        "CWE190_Integer_Overflow__char_max_multiply_01.c",
+        "CWE190_Integer_Overflow__char_max_square_01.c",
+        "CWE190_Integer_Overflow__char_rand_add_01.c",
+        "CWE190_Integer_Overflow__char_rand_multiply_01.c",
+        "CWE190_Integer_Overflow__char_rand_square_01.c",
+        "CWE190_Integer_Overflow__int64_t_fscanf_add_01.c",
+        "CWE190_Integer_Overflow__int64_t_fscanf_multiply_01.c",
+        "CWE190_Integer_Overflow__int64_t_fscanf_square_01.c",
+        "CWE190_Integer_Overflow__int64_t_max_add_01.c",
+        "CWE190_Integer_Overflow__int64_t_max_multiply_01.c",
+        "CWE190_Integer_Overflow__int64_t_max_square_01.c",
+        "CWE190_Integer_Overflow__int64_t_rand_add_01.c",
+        "CWE190_Integer_Overflow__int64_t_rand_multiply_01.c",
+        "CWE190_Integer_Overflow__int64_t_rand_square_01.c",
+        "CWE190_Integer_Overflow__int_fscanf_add_01.c",
+        "CWE190_Integer_Overflow__int_fscanf_multiply_01.c"
+      ]
+    },
+    "CWE-416": {
+      "cwe": "CWE-416",
+      "cweName": "Use_After_Free",
+      "totalFiles": 6,
+      "combined": {
+        "tp": 0,
+        "fn": 6,
+        "recall": 0.0
+      },
+      "byTool": {
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 0,
+          "fn": 6,
+          "recall": 0.0
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 0,
+          "fn": 6,
+          "recall": 0.0
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fn": 6,
+          "recall": 0.0
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 0,
+          "fn": 6,
+          "recall": 0.0
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fn": 6,
+          "recall": 0.0
+        }
+      },
+      "detectedFiles": [],
+      "missedFiles": [
+        "CWE416_Use_After_Free__malloc_free_char_01.c",
+        "CWE416_Use_After_Free__malloc_free_int64_t_01.c",
+        "CWE416_Use_After_Free__malloc_free_int_01.c",
+        "CWE416_Use_After_Free__malloc_free_long_01.c",
+        "CWE416_Use_After_Free__malloc_free_struct_01.c",
+        "CWE416_Use_After_Free__return_freed_ptr_01.c"
+      ]
+    },
+    "CWE-476": {
+      "cwe": "CWE-476",
+      "cweName": "NULL_Pointer_Dereference",
+      "totalFiles": 8,
+      "combined": {
+        "tp": 8,
+        "fn": 0,
+        "recall": 1.0
+      },
+      "byTool": {
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 8,
+          "fn": 0,
+          "recall": 1.0
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 0,
+          "fn": 8,
+          "recall": 0.0
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fn": 8,
+          "recall": 0.0
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 0,
+          "fn": 8,
+          "recall": 0.0
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fn": 8,
+          "recall": 0.0
+        }
+      },
+      "detectedFiles": [
+        "CWE476_NULL_Pointer_Dereference__binary_if_01.c",
+        "CWE476_NULL_Pointer_Dereference__char_01.c",
+        "CWE476_NULL_Pointer_Dereference__deref_after_check_01.c",
+        "CWE476_NULL_Pointer_Dereference__int64_t_01.c",
+        "CWE476_NULL_Pointer_Dereference__int_01.c",
+        "CWE476_NULL_Pointer_Dereference__long_01.c",
+        "CWE476_NULL_Pointer_Dereference__null_check_after_deref_01.c",
+        "CWE476_NULL_Pointer_Dereference__struct_01.c"
+      ],
+      "missedFiles": []
+    },
+    "CWE-78": {
+      "cwe": "CWE-78",
+      "cweName": "OS_Command_Injection",
+      "totalFiles": 25,
+      "combined": {
+        "tp": 20,
+        "fn": 5,
+        "recall": 0.8
+      },
+      "byTool": {
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 0,
+          "fn": 25,
+          "recall": 0.0
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 20,
+          "fn": 5,
+          "recall": 0.8
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fn": 25,
+          "recall": 0.0
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 0,
+          "fn": 25,
+          "recall": 0.0
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fn": 25,
+          "recall": 0.0
+        }
+      },
+      "detectedFiles": [
+        "CWE78_OS_Command_Injection__char_connect_socket_execl_01.c",
+        "CWE78_OS_Command_Injection__char_connect_socket_execlp_01.c",
+        "CWE78_OS_Command_Injection__char_connect_socket_popen_01.c",
+        "CWE78_OS_Command_Injection__char_connect_socket_system_01.c",
+        "CWE78_OS_Command_Injection__char_console_execl_01.c",
+        "CWE78_OS_Command_Injection__char_console_execlp_01.c",
+        "CWE78_OS_Command_Injection__char_console_popen_01.c",
+        "CWE78_OS_Command_Injection__char_console_system_01.c",
+        "CWE78_OS_Command_Injection__char_environment_execl_01.c",
+        "CWE78_OS_Command_Injection__char_environment_execlp_01.c",
+        "CWE78_OS_Command_Injection__char_environment_popen_01.c",
+        "CWE78_OS_Command_Injection__char_environment_system_01.c",
+        "CWE78_OS_Command_Injection__char_file_execl_01.c",
+        "CWE78_OS_Command_Injection__char_file_execlp_01.c",
+        "CWE78_OS_Command_Injection__char_file_popen_01.c",
+        "CWE78_OS_Command_Injection__char_file_system_01.c",
+        "CWE78_OS_Command_Injection__char_listen_socket_execl_01.c",
+        "CWE78_OS_Command_Injection__char_listen_socket_execlp_01.c",
+        "CWE78_OS_Command_Injection__char_listen_socket_popen_01.c",
+        "CWE78_OS_Command_Injection__char_listen_socket_system_01.c"
+      ],
+      "missedFiles": [
+        "CWE78_OS_Command_Injection__char_connect_socket_w32spawnl_01.c",
+        "CWE78_OS_Command_Injection__char_console_w32spawnl_01.c",
+        "CWE78_OS_Command_Injection__char_environment_w32spawnl_01.c",
+        "CWE78_OS_Command_Injection__char_file_w32spawnl_01.c",
+        "CWE78_OS_Command_Injection__char_listen_socket_w32spawnl_01.c"
+      ]
+    }
+  },
+  "summary": {
+    "overallRecall": 0.5447,
+    "totalTP": 134,
+    "totalFN": 112,
+    "cweCount": 6
+  }
+}

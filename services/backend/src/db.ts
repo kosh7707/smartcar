@@ -7,7 +7,7 @@ const logger = createLogger("db");
 /** DB 인스턴스 생성 (테스트: ":memory:", 프로덕션: 파일 경로) */
 export function createDatabase(dbPath?: string): DatabaseType {
   const resolvedPath =
-    dbPath ?? process.env.DB_PATH ?? path.join(__dirname, "..", "smartcar.db");
+    dbPath ?? process.env.DB_PATH ?? path.join(__dirname, "..", "aegis.db");
   const db = new Database(resolvedPath);
   db.pragma("journal_mode = WAL");
   return db;

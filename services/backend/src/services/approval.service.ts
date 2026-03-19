@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import type { ApprovalRequest, ApprovalActionType, ApprovalStatus, AuditLogEntry } from "@smartcar/shared";
+import type { ApprovalRequest, ApprovalActionType, ApprovalStatus, AuditLogEntry } from "@aegis/shared";
 import type { IApprovalDAO, IAuditLogDAO } from "../dao/interfaces";
 import { createLogger } from "../lib/logger";
 import { NotFoundError, InvalidInputError } from "../lib/errors";

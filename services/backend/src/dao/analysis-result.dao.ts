@@ -1,4 +1,4 @@
-import type { AnalysisResult } from "@smartcar/shared";
+import type { AnalysisResult } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IAnalysisResultDAO } from "./interfaces";
 

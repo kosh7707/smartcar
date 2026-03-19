@@ -9,7 +9,7 @@ if [ -f "$ENV_FILE" ]; then
   set -a; source "$ENV_FILE"; set +a
 fi
 
-DB_PATH="${DB_PATH:-$ROOT_DIR/services/backend/smartcar.db}"
+DB_PATH="${DB_PATH:-$ROOT_DIR/services/backend/aegis.db}"
 
 echo ""
 echo "  DB 초기화: $DB_PATH"

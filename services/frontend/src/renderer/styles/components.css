@@ -274,6 +274,18 @@
   border: 1px solid var(--source-both-border);
 }
 
+.badge-source--agent {
+  background: var(--source-agent-bg);
+  color: var(--source-agent);
+  border: 1px dashed var(--source-agent-border);
+}
+
+.badge-source--sast-tool {
+  background: var(--source-sast-bg);
+  color: var(--source-sast);
+  border: 1px solid var(--source-sast-border);
+}
+
 /* ── Severity summary badges (compact inline) ── */
 
 .severity-summary {

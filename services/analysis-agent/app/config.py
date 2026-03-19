@@ -13,9 +13,12 @@ class Settings(BaseSettings):
     llm_max_input_chars: int = 800_000
     llm_max_retries: int = 2
 
-    # --- RAG (llm-gateway 동일) ---
+    # --- S4 SAST Runner ---
+    sast_endpoint: str = "http://localhost:9000"
+
+    # --- RAG (S5 Knowledge Base 연동) ---
     rag_enabled: bool = True
-    qdrant_path: str = "data/qdrant"
+    kb_endpoint: str = "http://localhost:8002"
     rag_top_k: int = 5
     rag_min_score: float = 0.35
 
@@ -31,7 +34,7 @@ class Settings(BaseSettings):
     agent_llm_retry_max: int = 1
     agent_graph_depth: int = 2
 
-    model_config = {"env_prefix": "SMARTCAR_", "env_file": ".env"}
+    model_config = {"env_prefix": "AEGIS_", "env_file": ".env"}
 
 
 settings = Settings()

@@ -1,15 +1,16 @@
-"""위협 지식 DB 벡터 검색 클라이언트."""
+"""S5 Knowledge Base 위협 검색 HTTP 클라이언트."""
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
 
-from qdrant_client import QdrantClient
+import httpx
+
+from app.context import get_request_id
 
 logger = logging.getLogger(__name__)
 
-EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-COLLECTION = "threat_knowledge"
+_TIMEOUT = 10.0  # S5 API 계약: 10초
 
 
 @dataclass
@@ -28,57 +29,68 @@ class ThreatHit:
 
 
 class ThreatSearch:
-    """위협 지식 DB 벡터 검색 클라이언트.
+    """S5 Knowledge Base 위협 검색 HTTP 클라이언트.
 
-    Qdrant 파일 기반 스토리지에서 시맨틱 검색을 수행한다.
-    ETL(build.py)이 사전에 실행되어 data/qdrant에 컬렉션이 존재해야 한다.
+    S5(KB) 서비스의 POST /v1/search 엔드포인트를 호출하여
+    시맨틱 검색 결과를 반환한다.
     """
 
-    def __init__(self, qdrant_path: str) -> None:
-        self._client = QdrantClient(path=qdrant_path)
-        self._client.set_model(EMBEDDING_MODEL)
-
-        # 컬렉션 존재 확인
-        collections = [c.name for c in self._client.get_collections().collections]
-        if COLLECTION not in collections:
-            raise RuntimeError(
-                f"Qdrant 컬렉션 '{COLLECTION}'이 없습니다. "
-                f"ETL을 먼저 실행하세요: python scripts/threat-db/build.py"
-            )
-        logger.info(
-            "ThreatSearch 초기화 완료: path=%s, collection=%s",
-            qdrant_path, COLLECTION,
+    def __init__(self, kb_endpoint: str) -> None:
+        self._kb_endpoint = kb_endpoint.rstrip("/")
+        self._client = httpx.AsyncClient(
+            base_url=self._kb_endpoint,
+            timeout=_TIMEOUT,
         )
+        logger.info("ThreatSearch 초기화 완료: kb_endpoint=%s", self._kb_endpoint)
 
-    def search(
-        self, query: str, top_k: int = 5, min_score: float = 0.0,
+    async def search(
+        self,
+        query: str,
+        top_k: int = 5,
+        min_score: float = 0.0,
+        graph_depth: int = 2,
     ) -> list[ThreatHit]:
-        """시맨틱 검색 -> 상위 k건 반환 (min_score 미만 제외)."""
-        results = self._client.query(
-            collection_name=COLLECTION,
-            query_text=query,
-            limit=top_k,
-        )
-        hits = [
-            ThreatHit(
-                id=r.metadata.get("id", ""),
-                source=r.metadata.get("source", ""),
-                title=r.metadata.get("title", ""),
-                threat_category=r.metadata.get("threat_category", ""),
-                severity=r.metadata.get("severity"),
-                attack_surfaces=r.metadata.get("attack_surfaces", []),
-                related_cwe=r.metadata.get("related_cwe", []),
-                related_cve=r.metadata.get("related_cve", []),
-                related_attack=r.metadata.get("related_attack", []),
-                score=r.score,
+        """S5 KB 시맨틱 검색 -> 상위 k건 반환."""
+        headers: dict[str, str] = {}
+        request_id = get_request_id()
+        if request_id:
+            headers["X-Request-Id"] = request_id
+
+        try:
+            resp = await self._client.post(
+                "/v1/search",
+                json={
+                    "query": query,
+                    "top_k": top_k,
+                    "min_score": min_score,
+                    "graph_depth": graph_depth,
+                },
+                headers=headers,
             )
-            for r in results
-        ]
-        if min_score > 0:
-            hits = [h for h in hits if h.score >= min_score]
+            resp.raise_for_status()
+        except (httpx.HTTPStatusError, httpx.ConnectError, httpx.TimeoutException) as e:
+            logger.warning("S5 KB 검색 실패 (graceful degradation): %s", e)
+            return []
+
+        data = resp.json()
+        hits: list[ThreatHit] = []
+        for h in data.get("hits", []):
+            graph_relations = h.get("graph_relations", {})
+            hits.append(ThreatHit(
+                id=h.get("id", ""),
+                source=h.get("source", ""),
+                title=h.get("title", ""),
+                threat_category=h.get("threat_category", ""),
+                severity=None,
+                attack_surfaces=[],
+                related_cwe=graph_relations.get("cwe", []),
+                related_cve=graph_relations.get("cve", []),
+                related_attack=graph_relations.get("attack", []),
+                score=h.get("score", 0.0),
+            ))
         return hits
 
-    def close(self) -> None:
-        """Qdrant 클라이언트 종료."""
-        self._client.close()
+    async def close(self) -> None:
+        """httpx 클라이언트 종료."""
+        await self._client.aclose()
         logger.info("ThreatSearch 종료")

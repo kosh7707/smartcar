@@ -10,8 +10,6 @@ import { ProjectLayout } from "./layouts/ProjectLayout";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { OverviewPage } from "./pages/OverviewPage";
 import { StaticAnalysisPage } from "./pages/StaticAnalysisPage";
-import { DynamicAnalysisPage } from "./pages/DynamicAnalysisPage";
-import { DynamicTestPage } from "./pages/DynamicTestPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ProjectSettingsPage } from "./pages/ProjectSettingsPage";
 import { FileDetailPage } from "./pages/FileDetailPage";
@@ -38,8 +36,6 @@ export const App: React.FC = () => {
                     <Route index element={<Navigate to="overview" replace />} />
                     <Route path="overview" element={<OverviewPage />} />
                     <Route path="static-analysis" element={<StaticAnalysisPage />} />
-                    <Route path="dynamic-analysis" element={<DynamicAnalysisPage />} />
-                    <Route path="dynamic-test" element={<DynamicTestPage />} />
                     <Route path="files" element={<FilesPage />} />
                     <Route path="files/:fileId" element={<FileDetailPage />} />
                     <Route path="vulnerabilities" element={<VulnerabilitiesPage />} />

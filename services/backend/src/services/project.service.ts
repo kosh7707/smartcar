@@ -3,8 +3,8 @@ import type {
   Project,
   AnalysisSummary,
   AnalysisModule,
-} from "@smartcar/shared";
-import type { ProjectOverviewResponse } from "@smartcar/shared";
+} from "@aegis/shared";
+import type { ProjectOverviewResponse } from "@aegis/shared";
 import type { IProjectDAO, IAnalysisResultDAO, IFileStore } from "../dao/interfaces";
 import type { RuleService } from "./rule.service";
 import type { AdapterManager } from "./adapter-manager";

@@ -1,0 +1,76 @@
+rules:
+  - id: aegis.c.cwe-78-system-with-variable
+    patterns:
+      - pattern: system($ARG)
+      - pattern-not: system("...")
+    message: >
+      Potential OS command injection: system() called with non-literal argument.
+      If $ARG contains user-controlled input, an attacker can execute arbitrary commands.
+    languages: [c]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-78"
+      category: security
+      confidence: HIGH
+      impact: HIGH
+
+  - id: aegis.c.cwe-78-popen-with-variable
+    patterns:
+      - pattern: popen($ARG, ...)
+      - pattern-not: popen("...", ...)
+    message: >
+      Potential OS command injection: popen() called with non-literal argument.
+    languages: [c]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-78"
+      category: security
+      confidence: HIGH
+      impact: HIGH
+
+  - id: aegis.c.cwe-78-execl-with-variable
+    patterns:
+      - pattern: execl($PATH, ...)
+      - pattern-not: execl("...", ...)
+    message: >
+      Potential OS command injection: execl() called with non-literal path.
+    languages: [c]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-78"
+      category: security
+      confidence: MEDIUM
+      impact: HIGH
+
+  - id: aegis.c.cwe-78-execlp-with-variable
+    patterns:
+      - pattern: execlp($CMD, ...)
+      - pattern-not: execlp("...", ...)
+    message: >
+      Potential OS command injection: execlp() called with non-literal command.
+    languages: [c]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-78"
+      category: security
+      confidence: MEDIUM
+      impact: HIGH
+
+  - id: aegis.c.cwe-78-execvp-with-variable
+    patterns:
+      - pattern: execvp($CMD, ...)
+      - pattern-not: execvp("...", ...)
+    message: >
+      Potential OS command injection: execvp() called with non-literal command.
+    languages: [c]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-78"
+      category: security
+      confidence: MEDIUM
+      impact: HIGH

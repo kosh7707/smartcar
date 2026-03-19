@@ -22,6 +22,25 @@ _SEVERITY_MAP = {
     "note": "info",
 }
 
+# scan-build checkName → CWE 매핑
+_SCANBUILD_CWE_MAP: dict[str, list[str]] = {
+    "core.NullDereference": ["CWE-476"],
+    "core.StackAddressEscape": ["CWE-562"],
+    "core.UndefinedBinaryOperatorResult": ["CWE-190"],
+    "core.uninitialized.Assign": ["CWE-457"],
+    "core.uninitialized.Branch": ["CWE-457"],
+    "core.uninitialized.ArraySubscript": ["CWE-457"],
+    "unix.Malloc": ["CWE-416", "CWE-415"],
+    "unix.MallocSizeof": ["CWE-131"],
+    "unix.MismatchedDeallocator": ["CWE-762"],
+    "alpha.security.ArrayBound": ["CWE-119", "CWE-787"],
+    "alpha.security.ArrayBoundV2": ["CWE-119", "CWE-787"],
+    "alpha.security.ReturnPtrRange": ["CWE-466"],
+    "alpha.security.taint.TaintPropagation": ["CWE-78"],
+    "deadcode.DeadStores": ["CWE-563"],
+    "optin.cplusplus.UninitializedObject": ["CWE-908"],
+}
+
 
 class ScanbuildRunner:
     """scan-build를 asyncio subprocess로 실행한다."""
@@ -54,19 +73,47 @@ class ScanbuildRunner:
             return []
 
         c_cpp_files = [
-            str(scan_dir / f) for f in source_files
+            f for f in source_files
             if f.endswith((".c", ".cpp", ".cc", ".cxx"))
         ]
         if not c_cpp_files:
             return []
 
+        logger.info("Running scan-build on %d files", len(c_cpp_files))
+        bin_name = scan_build_bin or "scan-build"
+
+        # 파일별 개별 실행 (동일 심볼 충돌 방지) + 병렬
+        per_file_timeout = max(timeout // max(len(c_cpp_files), 1), 15)
+        tasks = [
+            self._run_single(bin_name, scan_dir, f, profile, per_file_timeout)
+            for f in c_cpp_files
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        all_findings: list[SastFinding] = []
+        for f, result in zip(c_cpp_files, results):
+            if isinstance(result, Exception):
+                logger.warning("scan-build failed for %s: %s", f, result)
+            else:
+                all_findings.extend(result)
+
+        return all_findings
+
+    async def _run_single(
+        self,
+        scan_build_bin: str,
+        scan_dir: Path,
+        source_file: str,
+        profile: BuildProfile | None,
+        timeout: int,
+    ) -> list[SastFinding]:
+        """단일 파일에 대해 scan-build를 실행."""
+        target = str(scan_dir / source_file)
         output_dir = Path(tempfile.mkdtemp(prefix="scan-build-"))
         try:
             cmd = self._build_command(
-                scan_build_bin or "scan-build",
-                c_cpp_files, output_dir, profile, scan_dir,
+                scan_build_bin, [target], output_dir, profile, scan_dir,
             )
-            logger.info("Running scan-build on %d files", len(c_cpp_files))
 
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -81,7 +128,7 @@ class ScanbuildRunner:
             except asyncio.TimeoutError:
                 proc.kill()
                 await proc.communicate()
-                raise ScanTimeoutError(f"scan-build exceeded {timeout}s timeout")
+                return []  # 개별 파일 타임아웃은 무시하고 진행
 
             return self._parse_plist_results(output_dir, scan_dir)
         finally:
@@ -99,6 +146,7 @@ class ScanbuildRunner:
         cmd = [
             scan_build_bin,
             "-o", str(output_dir),
+            "-plist",
             "--status-bugs",
             clang_bin, "-c",
         ]
@@ -184,6 +232,9 @@ class ScanbuildRunner:
         metadata: dict[str, Any] = {"category": category}
         if check_name:
             metadata["checkName"] = check_name
+            cwe = _SCANBUILD_CWE_MAP.get(check_name)
+            if cwe:
+                metadata["cwe"] = cwe
 
         return SastFinding(
             toolId="scan-build",

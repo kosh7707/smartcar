@@ -1,4 +1,4 @@
-import type { ProjectSettings, BuildProfile } from "@smartcar/shared";
+import type { ProjectSettings, BuildProfile } from "@aegis/shared";
 import type { IProjectSettingsDAO } from "../dao/interfaces";
 import { findSdkProfile } from "./sdk-profiles";
 

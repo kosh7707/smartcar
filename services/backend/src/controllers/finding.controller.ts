@@ -1,5 +1,5 @@
 import { Router, type Request } from "express";
-import type { FindingStatus, Severity, AnalysisModule } from "@smartcar/shared";
+import type { FindingStatus, Severity, AnalysisModule } from "@aegis/shared";
 import type { FindingService } from "../services/finding.service";
 
 export function createFindingRouter(findingService: FindingService): Router {

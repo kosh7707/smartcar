@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import type { FindingStatus, FindingSourceType } from "@smartcar/shared";
+import type { FindingStatus, FindingSourceType } from "@aegis/shared";
 import {
   FINDING_STATUS_LABELS,
   ALLOWED_TRANSITIONS,

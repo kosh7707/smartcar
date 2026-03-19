@@ -1,4 +1,4 @@
-import type { Run } from "@smartcar/shared";
+import type { Run } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IRunDAO } from "./interfaces";
 

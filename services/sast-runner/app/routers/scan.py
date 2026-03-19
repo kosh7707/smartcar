@@ -20,7 +20,6 @@ from app.scanner.ast_dumper import AstDumper
 from app.scanner.build_metadata import BuildMetadataExtractor
 from app.scanner.build_runner import BuildRunner
 from app.scanner.include_resolver import IncludeResolver
-from app.scanner.cve_lookup import CveLookup
 from app.scanner.library_differ import LibraryDiffer
 from app.scanner.library_identifier import LibraryIdentifier
 from app.scanner.orchestrator import ScanOrchestrator
@@ -42,7 +41,6 @@ include_resolver = IncludeResolver()
 metadata_extractor = BuildMetadataExtractor()
 lib_identifier = LibraryIdentifier()
 lib_differ = LibraryDiffer()
-cve_lookup = CveLookup()
 build_runner = BuildRunner()
 _scan_semaphore = asyncio.Semaphore(settings.max_concurrent_scans)
 
@@ -326,10 +324,10 @@ async def metadata(request: Request, body: ScanRequest, response: Response):
 
 @router.post("/libraries")
 async def libraries(request: Request, body: ScanRequest, response: Response):
-    """프로젝트 내 vendored 라이브러리 식별 + upstream diff + CVE 정보.
+    """프로젝트 내 vendored 라이브러리 식별 + upstream diff.
 
     SCA (Software Composition Analysis) 엔드포인트.
-    projectPath 필수.
+    projectPath 필수. CVE 조회는 S5(KB) POST /v1/cve/batch-lookup으로 이관됨.
     """
     request_id = _get_request_id(request)
     set_request_id(request_id)
@@ -377,15 +375,6 @@ async def libraries(request: Request, body: ScanRequest, response: Response):
             entry["diff"] = None
             entry["note"] = "Unknown library — no upstream repo to compare"
 
-        # CVE 조회 (NVD/OSV)
-        cves = await cve_lookup.lookup(
-            name=lib.get("name", ""),
-            version=lib.get("version"),
-            commit=lib.get("commit"),
-        )
-        entry["cves"] = cves
-        entry["cveCount"] = len(cves)
-
         results.append(entry)
 
     elapsed_ms = int((time.perf_counter() - t0) * 1000)
@@ -405,7 +394,7 @@ async def build_and_analyze(request: Request, response: Response, body: dict):
     1. bear -- buildCommand → compile_commands.json 자동 생성
     2. /v1/scan (compile_commands 사용)
     3. /v1/functions (projectPath)
-    4. /v1/libraries (SCA + CVE)
+    4. /v1/libraries (SCA)
     5. /v1/metadata (빌드 메타데이터)
     전부 한 번에 반환.
     """
@@ -469,9 +458,6 @@ async def build_and_analyze(request: Request, response: Response, body: dict):
                 entry["diff"] = await lib_differ.diff(lib_path, repo_url, version, commit=commit)
             elif version:
                 entry["diff"] = await lib_differ.diff(lib_path, repo_url, version)
-        cves = await cve_lookup.lookup(lib.get("name", ""), version, commit)
-        entry["cves"] = cves
-        entry["cveCount"] = len(cves)
         lib_results.append(entry)
 
     # metadata

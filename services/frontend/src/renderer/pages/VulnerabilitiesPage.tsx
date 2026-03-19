@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import type { Vulnerability, Severity, AnalysisResult } from "@smartcar/shared";
+import type { Vulnerability, Severity, AnalysisResult } from "@aegis/shared";
 import { Shield, AlertTriangle, AlertCircle, Info, Calendar } from "lucide-react";
 import { fetchProjectOverview, logError } from "../api/client";
 import { useToast } from "../contexts/ToastContext";

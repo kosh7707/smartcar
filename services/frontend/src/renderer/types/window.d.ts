@@ -1,8 +1,8 @@
-interface SmartcarApi {
+interface AegisApi {
   backendUrl?: string;
   healthCheck?: () => Promise<unknown>;
 }
 
 interface Window {
-  api?: SmartcarApi;
+  api?: AegisApi;
 }

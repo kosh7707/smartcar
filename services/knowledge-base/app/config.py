@@ -9,9 +9,14 @@ class Settings(BaseSettings):
 
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
-    neo4j_password: str = "smartcar"
+    neo4j_password: str = "aegis-kb"
 
-    model_config = {"env_prefix": "SMARTCAR_KB_", "env_file": ".env"}
+    nvd_api_key: str = ""
+    nvd_api_base: str = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+    nvd_rate_delay: float = 1.0
+    nvd_cache_ttl: int = 86400
+
+    model_config = {"env_prefix": "AEGIS_KB_", "env_file": ".env"}
 
 
 settings = Settings()

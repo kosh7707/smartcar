@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import type { DynamicTestConfig } from "@smartcar/shared";
+import type { DynamicTestConfig } from "@aegis/shared";
 
 export interface TestInput {
   canId: string;

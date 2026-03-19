@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from "react";
-import type { Adapter } from "@smartcar/shared";
+import type { Adapter } from "@aegis/shared";
 import { fetchAdapters } from "../api/client";
 
 const POLL_INTERVAL = 5_000;

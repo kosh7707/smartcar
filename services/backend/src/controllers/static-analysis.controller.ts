@@ -1,7 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import crypto from "crypto";
-import type { UploadedFile } from "@smartcar/shared";
+import type { UploadedFile } from "@aegis/shared";
 import { StaticAnalysisService } from "../services/static-analysis.service";
 import type { IFileStore, IAnalysisResultDAO, IFindingDAO, IRunDAO, IGateResultDAO } from "../dao/interfaces";
 import { createLogger } from "../lib/logger";

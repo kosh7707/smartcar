@@ -1,5 +1,5 @@
 #!/bin/bash
-# Smartcar 전체 서비스 백그라운드 기동
+# AEGIS 전체 서비스 백그라운드 기동
 # Usage: ./scripts/start.sh [options]
 #   --no-ecu          ECU Simulator 미기동
 #   --no-frontend     Frontend 미기동
@@ -163,31 +163,37 @@ load_env() {
 # 순서대로 기동 — 하나라도 실패하면 즉시 중단
 run_all() {
   start_service "llm-gateway" 8000 \
-    "cd '$ROOT_DIR/services/llm-gateway' && $(load_env "$ROOT_DIR/services/llm-gateway/.env") source .venv/bin/activate && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload" || return 1
+    "exec '$ROOT_DIR/scripts/start-llm-gateway.sh'" || return 1
 
   start_service "sast-runner" 9000 \
     "exec '$ROOT_DIR/scripts/start-sast-runner.sh'" || return 1
 
+  start_service "knowledge-base" 8002 \
+    "exec '$ROOT_DIR/scripts/start-knowledge-base.sh'" || return 1
+
+  start_service "analysis-agent" 8001 \
+    "exec '$ROOT_DIR/scripts/start-analysis-agent.sh'" || return 1
+
   start_service "adapter" 4000 \
-    "$(load_env "$ROOT_DIR/services/adapter/.env") exec npx tsx watch '$ROOT_DIR/services/adapter/src/index.ts' --port=4000" || return 1
+    "exec '$ROOT_DIR/scripts/start-adapter.sh'" || return 1
 
   start_service "backend" 3000 \
-    "$(load_env "$ROOT_DIR/services/backend/.env") exec npx tsx watch '$ROOT_DIR/services/backend/src/index.ts'" || return 1
+    "exec '$ROOT_DIR/scripts/start-backend.sh'" || return 1
 
   if [ "$START_ECU" = true ]; then
     start_service "ecu-simulator" "" \
-      "$(load_env "$ROOT_DIR/services/ecu-simulator/.env") exec npx tsx watch '$ROOT_DIR/services/ecu-simulator/src/index.ts' --adapter=ws://localhost:4000/ws/ecu --scenario=$SCENARIO --speed=$SPEED --loop" || return 1
+      "exec '$ROOT_DIR/scripts/start-ecu-sim.sh' --adapter=ws://localhost:4000/ws/ecu --scenario=$SCENARIO --speed=$SPEED --loop" || return 1
   fi
 
   if [ "$START_FRONTEND" = true ]; then
     start_service "frontend" 5173 \
-      "$(load_env "$ROOT_DIR/services/frontend/.env") cd '$ROOT_DIR/services/frontend' && exec npm run dev" || return 1
+      "exec '$ROOT_DIR/scripts/start-frontend.sh'" || return 1
   fi
 }
 
 echo ""
 echo "============================================"
-echo "  Smartcar — 서비스 기동"
+echo "  AEGIS — 서비스 기동"
 echo "============================================"
 echo ""
 
@@ -208,6 +214,8 @@ printf ")\n"
 echo "============================================"
 echo "  LLM Gateway:   http://localhost:8000"
 echo "  SAST Runner:   http://localhost:9000"
+echo "  Knowledge Base: http://localhost:8002"
+echo "  Analysis Agent: http://localhost:8001"
 echo "  Adapter:        http://localhost:4000"
 echo "  Backend:        http://localhost:3000"
 [ "$START_ECU" = true ]      && echo "  ECU Simulator:  시나리오=$SCENARIO, 속도=${SPEED}x"

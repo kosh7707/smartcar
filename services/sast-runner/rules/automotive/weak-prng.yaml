@@ -1,0 +1,30 @@
+rules:
+  - id: aegis.c.cwe-338-rand
+    pattern-either:
+      - pattern: rand()
+      - pattern: srand(...)
+    message: >
+      Use of weak PRNG (rand/srand). For security-sensitive operations,
+      use a cryptographic PRNG (e.g., getrandom(), /dev/urandom).
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-338"
+      category: security
+      confidence: HIGH
+
+  - id: aegis.c.cwe-338-random
+    pattern-either:
+      - pattern: random()
+      - pattern: srandom(...)
+    message: >
+      Use of weak PRNG (random/srandom). For security-sensitive operations,
+      use a cryptographic PRNG.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-338"
+      category: security
+      confidence: HIGH

@@ -1,4 +1,4 @@
-import type { Severity } from "@smartcar/shared";
+import type { Severity } from "@aegis/shared";
 
 export const SEVERITY_COLORS: Record<string, string> = {
   critical: "var(--severity-critical)",

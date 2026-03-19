@@ -1,6 +1,6 @@
 # Shared (S1-S2) 데이터 구조 명세
 
-> `@smartcar/shared` 패키지에 정의되는 Model, DTO
+> `@aegis/shared` 패키지에 정의되는 Model, DTO
 > S1(Frontend)과 S2(Backend) 양쪽에서 직접 import하여 사용
 > **이 문서는 S2가 단독 관리한다.** 변경 시 S1에게 work-request로 통보
 

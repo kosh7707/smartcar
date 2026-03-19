@@ -6,8 +6,6 @@ import {
   ChevronLeft,
   LayoutDashboard,
   FileSearch,
-  Activity,
-  FlaskConical,
   Shield,
   Files,
   Clock,
@@ -25,8 +23,6 @@ const projectNavItems = [
   { sub: "files", label: "파일 탐색기", icon: Files },
   { sub: "vulnerabilities", label: "취약점 목록", icon: Shield },
   { sub: "static-analysis", label: "정적 분석", icon: FileSearch },
-  { sub: "dynamic-analysis", label: "동적 분석", icon: Activity },
-  { sub: "dynamic-test", label: "동적 테스트", icon: FlaskConical },
   { sub: "analysis-history", label: "분석 이력", icon: Clock },
   { sub: "report", label: "보고서", icon: FileText },
 ];
@@ -112,8 +108,8 @@ export const Sidebar: React.FC = () => {
             <div className="sidebar-header-row">
               <Shield size={20} className="sidebar-header-icon" />
               <div className="sidebar-header-text">
-                <span className="sidebar-title">Smartcar</span>
-                <span className="sidebar-subtitle">Security Framework</span>
+                <span className="sidebar-title">AEGIS</span>
+                <span className="sidebar-subtitle">Security Platform</span>
               </div>
             </div>
           </div>

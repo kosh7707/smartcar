@@ -177,6 +177,12 @@
   --source-both: #8b5cf6;
   --source-both-bg: rgba(139, 92, 246, 0.08);
   --source-both-border: rgba(139, 92, 246, 0.2);
+  --source-agent: #f59e0b;
+  --source-agent-bg: rgba(245, 158, 11, 0.08);
+  --source-agent-border: rgba(245, 158, 11, 0.2);
+  --source-sast: #10b981;
+  --source-sast-bg: rgba(16, 185, 129, 0.08);
+  --source-sast-border: rgba(16, 185, 129, 0.2);
 
   /* ── Extra semantic ── */
   --danger-hover: #b91c1c;
@@ -288,6 +294,10 @@
   --source-ai-border: rgba(14, 165, 233, 0.3);
   --source-both-bg: rgba(139, 92, 246, 0.15);
   --source-both-border: rgba(139, 92, 246, 0.3);
+  --source-agent-bg: rgba(245, 158, 11, 0.15);
+  --source-agent-border: rgba(245, 158, 11, 0.3);
+  --source-sast-bg: rgba(16, 185, 129, 0.15);
+  --source-sast-border: rgba(16, 185, 129, 0.3);
 
   /* ── Extra semantic (dark) ── */
   --danger-hover: #ef4444;

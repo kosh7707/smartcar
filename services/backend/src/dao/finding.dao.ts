@@ -1,4 +1,4 @@
-import type { Finding, FindingStatus, Severity, AnalysisModule } from "@smartcar/shared";
+import type { Finding, FindingStatus, Severity, AnalysisModule } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IFindingDAO, FindingFilters } from "./interfaces";
 

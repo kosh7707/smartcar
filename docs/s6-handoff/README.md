@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S6(Dynamic Analysis) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-18**
+> **마지막 업데이트: 2026-03-18 (이관 완료 세션)**
 
 ---
 
@@ -39,14 +39,16 @@ ECU Simulator ──WS──→ Adapter (:4000/ws/ecu)
 - `services/ecu-simulator/src/` — index.ts, ecu-engine.ts, scenarios.ts, traffic-generator.ts, protocol.ts, logger.ts
 
 ### 문서
-- `docs/specs/adapter.md` — Adapter 기능 명세 (S2가 작성, S6에 이전)
-- `docs/specs/ecu-simulator.md` — ECU Simulator 기능 명세 (S2가 작성, S6에 이전)
+- `docs/specs/adapter.md` — Adapter 기능 명세 (S6 소유)
+- `docs/specs/ecu-simulator.md` — ECU Simulator 기능 명세 (S6 소유)
+- `docs/api/adapter-api.md` — Adapter WS API 계약서 (S6 소유, S2 검토 승인 완료, AEGIS.md 등재)
 - `docs/s6-handoff/README.md` — 이 인수인계서
 
 ### 인프라
 - `services/adapter/.env` — Adapter 환경변수 (S6 관리)
 - `services/ecu-simulator/.env` — ECU Simulator 환경변수 (S6 관리)
-- `scripts/start-adapter.sh`는 현재 없음 — 필요 시 S6가 작성하고 S2에게 `start.sh` 통합 요청
+- `scripts/start-adapter.sh` — Adapter 기동 스크립트 (존재, `start.sh`/`stop.sh`에 통합 완료)
+- `scripts/start-ecu-sim.sh` — ECU Simulator 기동 스크립트 (존재, `start.sh`/`stop.sh`에 통합 완료)
 
 ---
 
@@ -63,7 +65,7 @@ ECU Simulator ──WS──→ Adapter (:4000/ws/ecu)
 
 ### ECU Simulator (`services/ecu-simulator/`)
 - Adapter의 `/ws/ecu`에 WS 클라이언트로 연결
-- 시나리오 기반 CAN 트래픽 생성 (mixed, normal, attack, diagnostic, heavy)
+- 시나리오 기반 CAN 트래픽 생성 (mixed, normal)
 - 주입 응답 규칙: 0xFF→crash, 0x7DF→reset, 0x00→malformed, 반복3회→anomaly, 경계값→timeout(2000ms)
 - CLI 옵션: `--adapter`, `--scenario`, `--speed`, `--loop`
 - 구조화 로깅 (pino, `logs/ecu-simulator.jsonl`)
@@ -88,10 +90,13 @@ ECU Simulator ──WS──→ Adapter (:4000/ws/ecu)
 - **S2가 Adapter를 호출하는 쪽이다.** S2의 `AdapterManager` → `AdapterClient`가 Adapter에 WS로 연결.
 - S6는 Adapter/ECU Simulator의 **내부 구현**을 소유하고, S2는 **호출자**이다.
 - Adapter의 WS 프로토콜(메시지 형식)을 변경하면 S2에 영향이 있으므로 **반드시 work-request로 고지**.
+- **WS 계약서**: `docs/api/adapter-api.md`가 S2↔S6 간 WS 프로토콜의 유일한 진실 소스. 변경 시 계약서 갱신 + S2에 WR 필수.
 
 ---
 
-## 6. 로드맵 (S2가 남긴 미착수 과제)
+## 6. 로드맵 (S2가 제시한 우선순위: 1→3)
+
+> S2 우선순위: (1) WS 계약서 작성 **완료** → (2) 멀티 ECU 지원 → (3) CAN FD 지원
 
 ### Adapter 고도화
 - [ ] capability discovery — 지원하는 것만 `supported=true`, 나머지 `not_supported`
@@ -116,6 +121,7 @@ ECU Simulator ──WS──→ Adapter (:4000/ws/ecu)
 | 문서 | 경로 | 용도 |
 |------|------|------|
 | 공통 제약 사항 | `docs/AEGIS.md` | **필독** |
+| Adapter WS 계약서 | `docs/api/adapter-api.md` | **S6 소유** — S2↔S6 WS 프로토콜 유일한 진실 소스 |
 | Adapter 명세 | `docs/specs/adapter.md` | S6 소유 |
 | ECU Simulator 명세 | `docs/specs/ecu-simulator.md` | S6 소유 |
 | S2 인수인계서 | `docs/s2-handoff/README.md` | S2가 Adapter를 어떻게 호출하는지 이해 |

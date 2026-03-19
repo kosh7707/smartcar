@@ -3,7 +3,7 @@
 // ============================================================
 
 export type Severity = "critical" | "high" | "medium" | "low" | "info";
-export type AnalysisModule = "static_analysis" | "dynamic_analysis" | "dynamic_testing";
+export type AnalysisModule = "static_analysis" | "dynamic_analysis" | "dynamic_testing" | "deep_analysis";
 export type AnalysisStatus = "pending" | "running" | "completed" | "failed" | "aborted";
 export type VulnerabilitySource = "rule" | "llm";
 
@@ -300,11 +300,11 @@ export type FindingStatus =
   | "needs_revalidation"
   | "sandbox";
 
-export type FindingSourceType = "rule-engine" | "llm-assist" | "both";
+export type FindingSourceType = "rule-engine" | "llm-assist" | "both" | "agent" | "sast-tool";
 export type RunStatus = "pending" | "running" | "completed" | "failed";
 export type LocatorType = "line-range" | "packet-range" | "timestamp-window" | "request-response-pair";
 export type Confidence = "high" | "medium" | "low";
-export type ArtifactType = "analysis-result" | "uploaded-file" | "dynamic-session" | "test-result" | "sast-finding";
+export type ArtifactType = "analysis-result" | "uploaded-file" | "dynamic-session" | "test-result" | "sast-finding" | "agent-assessment";
 
 export interface Run {
   id: string;
@@ -432,6 +432,7 @@ export interface ProjectReport {
     static?: ModuleReport;
     dynamic?: ModuleReport;
     test?: ModuleReport;
+    deep?: ModuleReport;
   };
   totalSummary: ReportSummary;
   approvals: ApprovalRequest[];

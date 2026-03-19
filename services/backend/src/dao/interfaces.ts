@@ -20,7 +20,7 @@ import type {
   DynamicTestFinding,
   AnalysisStatus,
   UploadedFile,
-} from "@smartcar/shared";
+} from "@aegis/shared";
 import type { StoredFile } from "./file-store";
 
 // ── Core Domain ──

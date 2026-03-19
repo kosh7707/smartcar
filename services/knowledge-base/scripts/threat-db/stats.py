@@ -21,6 +21,7 @@ def print_stats(records: list[UnifiedThreatRecord], output_dir: str | None = Non
             [colored_src("CWE"), source_counts.get("CWE", 0)],
             [colored_src("CVE"), source_counts.get("CVE", 0)],
             [colored_src("ATT&CK"), source_counts.get("ATT&CK", 0)],
+            [colored_src("CAPEC"), source_counts.get("CAPEC", 0)],
             [f"{C.B}합계{C.RST}", f"{C.B}{len(records)}{C.RST}"],
         ],
         [12, 8],
@@ -30,9 +31,9 @@ def print_stats(records: list[UnifiedThreatRecord], output_dir: str | None = Non
     # 2. 자동차 관련 레코드
     auto_records = [r for r in records if r.automotive_relevance >= 0.2]
     auto_by_source = Counter(r.source for r in auto_records)
-    print(f"\n  {C.B}[2] 자동차 도메인 관련 레코드 (relevance >= 0.2):{C.RST}")
+    print(f"\n  {C.B}[2] 도메인 관련 레코드 (relevance >= 0.2):{C.RST}")
     rows_2 = []
-    for src in ["CWE", "CVE", "ATT&CK"]:
+    for src in ["CWE", "CVE", "ATT&CK", "CAPEC"]:
         total = source_counts.get(src, 0)
         auto = auto_by_source.get(src, 0)
         pct = f"{auto*100//max(total,1)}%" if total > 0 else "N/A"

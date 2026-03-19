@@ -3,13 +3,13 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S4(SAST Runner) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-18**
+> **마지막 업데이트: 2026-03-19**
 
 ---
 
 ## 1. AEGIS 전체 그림
 
-### 6인 체제 (2026-03-18 확정)
+### 7인 체제 (2026-03-19 확정)
 
 ```
                      S1 (Frontend :5173)
@@ -20,76 +20,30 @@
                Agent    SAST     KB    동적분석
               :8001    :9000   :8002    :4000
                 │
-           LLM Engine (DGX Spark :8000)
+              S7 (LLM Gateway :8000)
+                │
+           LLM Engine (DGX Spark)
 ```
 
 | 역할 | 담당 | 포트 |
 |------|------|------|
 | S1 | Frontend + QA | :5173 |
 | S2 | AEGIS Core (Backend) — 플랫폼 오케스트레이터 | :3000 |
-| S3 | Analysis Agent + LLM Engine 관리 | :8000, :8001, DGX |
+| S3 | Analysis Agent — 보안 분석 자율 에이전트 | :8001 |
 | **S4** | **SAST Runner (정적 분석 전담)** | **:9000** |
 | S5 | Knowledge Base (Neo4j + Qdrant) | :8002 |
 | S6 | Dynamic Analysis (ECU Sim + Adapter) | :4000 |
+| S7 | LLM Gateway + LLM Engine 관리 | :8000, DGX |
 
 ### S4의 정체성
 
 > S4는 **SAST Runner(:9000) 전담**이다.
 > 6개 SAST 도구 + SCA(라이브러리+CVE) + 코드 구조 + 빌드 자동화를 제공한다.
 > **결정론적 처리를 최대화하고, LLM의 결정 표면을 최소화**하는 것이 핵심 원칙이다.
->
-> ~~LLM Engine(DGX Spark)은 2026-03-18부로 S3에 이관됨.~~
 
 ---
 
-## 2. DGX Spark 접속
-
-### 접속 정보
-
-| 항목 | 값 |
-|------|------|
-| IP | `10.126.37.19` |
-| 사용자 | `accslab` |
-| 호스트명 | `spark-be83` |
-| 아키텍처 | aarch64 (ARM64) |
-| OS | NVIDIA DGX Spark Version 7.4.0 (GNU/Linux 6.14.0-1015-nvidia) |
-
-### SSH 접속 방법
-
-SSH 키 인증이 설정되어 있다. 비밀번호 인증(`sshpass`)은 Claude Code 실행 환경에서 pty 제한으로 동작하지 않으므로 **키 인증만 사용**한다.
-
-```bash
-# 단발 명령 실행
-ssh -i ~/.ssh/dgx_spark accslab@10.126.37.19 "명령어"
-
-# 인터랙티브 셸 (사용자 직접 실행 시)
-ssh -i ~/.ssh/dgx_spark accslab@10.126.37.19
-```
-
-### SSH 키 재설정 (키가 없을 때)
-
-```bash
-# 1. 키 생성
-ssh-keygen -t ed25519 -f ~/.ssh/dgx_spark -N ""
-
-# 2. DGX Spark에 공개키 등록 (비밀번호 입력 필요 — 사용자가 직접 실행)
-ssh-copy-id -i ~/.ssh/dgx_spark.pub accslab@10.126.37.19
-```
-
-### 작업 흐름
-
-S4의 작업은 두 환경에 걸쳐 이루어진다:
-
-| 환경 | 하는 일 |
-|------|--------|
-| **DGX Spark** (원격) | vLLM 컨테이너 기동, 모델 관리, GPU 모니터링 |
-| **WSL2** (로컬) | 문서 업데이트 (`docs/` 하위 S4 담당 문서만), S3 연동 테스트 |
-
-원격 명령은 `ssh -i ~/.ssh/dgx_spark accslab@10.126.37.19 "..."` 형태로 실행한다.
-
----
-
-## 3. 너의 역할과 경계
+## 2. 너의 역할과 경계
 
 ### 너는
 
@@ -101,9 +55,7 @@ S4의 작업은 두 환경에 걸쳐 이루어진다:
 
 ### 너는 하지 않는다
 
-- ~~LLM Engine 관리~~ → **S3로 이관됨** (2026-03-18)
-- ~~`docs/api/llm-engine-api.md`~~ → S3 소유
-- ~~`docs/specs/llm-engine.md`~~ → S3 소유
+- DGX Spark / LLM Engine 관리 → **S7** (2026-03-19 S3에서 S7로 분리 신설)
 - 프롬프트 작성, LLM 응답 파싱 → S3
 - 지식 그래프, 벡터 검색 → S5
 - 분석 결과 최종 판정, findings 심각도 정규화 → S2
@@ -123,450 +75,85 @@ S4의 작업은 두 환경에 걸쳐 이루어진다:
 
 - **경로**: `docs/work-requests/`
 - **파일명**: `{보내는쪽}-to-{받는쪽}-{주제}.md`
-- S3에게 요청할 일이 있으면 이 폴더에 문서를 작성한다
+- 다른 서비스에 요청할 일이 있으면 이 폴더에 문서를 작성한다
 - **작업 완료 후 해당 요청 문서를 반드시 삭제한다**
 
 ---
 
-## 4. 현재 상태 (Setup Checklist)
-
-### Phase 1: 기본 서빙 ✅ 완료
-
-- [x] DGX Spark 물리 연결 — IP: 10.126.37.19, 호스트명: spark-be83
-- [x] OS/드라이버 확인 — NVIDIA 드라이버 580.126.09, CUDA 13.0
-- [x] SSH 키 인증 설정 — `~/.ssh/dgx_spark` (ed25519)
-- [x] Docker + NVIDIA Container Runtime 확인 — Docker 29.1.3, NCR 1.18.2
-- [x] spark-vllm-docker 설치 — `~/spark-vllm-docker/`
-- [x] vLLM 컨테이너 빌드 완료 — `vllm-node` 이미지 (7분)
-- [x] Qwen3.5-35B-A3B-FP8 모델 다운로드 — `~/.cache/huggingface/hub/` (5분)
-- [x] vLLM 서빙 기동 + GPU 사용 확인 (GPU-Util 96%, 84GB)
-- [x] WSL2 → DGX Spark 원격 추론 테스트 성공 (~26 tok/s)
-- [x] Thinking 모드 제어 확인 (`enable_thinking: false` 동작)
-- [x] S3 연동 검증 완료 — S3 vLLM 전환 완료, 통합 테스트 통과 (2026-03-14)
-
-### Phase 2: 안정화 (진행 필요)
-
-- [x] ollama systemd 서비스 설정 (이전 — 현재 비활성화됨)
-- [ ] vLLM 컨테이너 자동 시작 설정 (systemd 또는 Docker restart policy)
-- [ ] vLLM 헬스체크 + 자동 재시작
-- [ ] 이전 ollama 리소스 정리 (`~/.ollama/models/`, ollama systemd 제거)
-- [x] 성능 벤치마크 완료 — ~26 tok/s
-
-### Phase 3: 최적화 (향후)
-
-- [ ] Tool calling 실 연동 테스트 (S3와 함께)
-- [x] Structured output (`response_format: json_object`) 테스트 — 2026-03-16 실 검증 완료
-- [ ] 모델 업그레이드 평가 (Qwen3.5 122B 등)
-- [ ] Tensor Parallelism (GB10 2대 구성 시)
-
-### 기술 전환 이력
-
-| 시기 | 변경 | 이유 |
-|------|------|------|
-| Phase 1 초기 | vLLM 시도 → 실패 | PyTorch cu130이 CC 12.1 미지원 |
-| Phase 1 | ollama + Qwen3 32B | llama.cpp 기반, CC 12.1 네이티브 지원 |
-| Phase 2 | ollama `/api/chat` 전환 | OpenAI 호환 레이어에서 thinking 제어 불가 |
-| **현재** | **vLLM (spark-vllm-docker) + Qwen3.5-35B-A3B FP8** | CC 12.1 사전 컴파일 휠로 해결, MoE 모델로 2.5배 성능 향상 |
-
-### 최근 활동 (2026-03-18)
-
-- **`/v1/build-and-analyze` — 빌드 자동 실행 + 전체 분석 한 방**
-  - `bear -- buildCommand` → compile_commands.json 자동 생성 → 전체 분석
-  - RE100 실측: projectPath + buildCommand → 빌드(5s) + SAST + 코드 그래프 + SCA + CVE = 236초
-  - 사용자 입력: 경로 + 빌드 명령어. 끝.
-- **CVE 조회 통합 — NVD/OSV API**
-  - `/v1/libraries`에 CVE 실시간 조회 추가
-  - RE100: mosquitto 20건, civetweb 5건(1 CRITICAL), tinydtls 9건(1 CRITICAL), rapidjson 3건 등
-  - 노이즈 포함 (NVD 키워드 검색 한계) → S3 reranking + LLM 최종 판정에 의존
-  - C/C++에 패키지 매니저가 없어서 생기는 근본적 문제 → "C/C++용 npm audit"
-- **통합 테스트 v2/v3 성공 — confidence 0.865, schemaValid=true**
-  - 전체 파이프라인 174초: SAST(121s) + 코드 그래프(7s) + SCA(13s) + LLM(34s)
-  - 8 claims, 17건 증거 참조, 56.7% evidence 활용률
-  - LLM이 SCA 라이브러리 수정분을 caveats에서 언급 — 통합 동작 확인
-  - SCA + CVE 포함 v3 테스트도 성공
-- **SCA 라이브러리 분석 — `/v1/libraries` 엔드포인트**
-  - RE100에서 6개 라이브러리 자동 식별, 3개 수정 탐지 (15초)
-  - `.git` 커밋 해시 기반 정확한 upstream 매칭 (태그 불일치 해결)
-  - SHA256 파일 해시 비교 (패키징 차이에 면역)
-  - rapidjson 100%, civetweb 100% → 원본 확정
-  - mosquitto 98.8% → 2파일 수정 (CERT_LOG), libcoap 99.1% → 1파일 수정 (OpenSSL debug)
-  - wakaama 97.6% → 1파일 수정 (DTLS connection.c)
-  - Qwen PoC: 수정 4건 전부 "프로덕션 제거 필요" 판정
-- **projectPath + compile_commands.json 지원**
-  - 파일시스템 직접 분석 모드 (헤더 부재 문제 해결)
-  - compile_commands.json → Cppcheck `--project=`, clang-tidy `-p`
-  - RE100 cross_build.sh에서 빌드 정보 참조
-- **코드 그래프 품질 혁신**
-  - NamespaceDecl 재귀 순회 (namespace gw{} 함수 누락 해결)
-  - CallExpr: ImplicitCastExpr→DeclRefExpr + MemberExpr 처리
-  - 3단계 필터링: loc.file + source_lines + CompoundStmt
-  - 결과: 1함수 → 98함수, run_curl→popen 호출 관계 정확 추출
-- **SAST Runner v0.3.0 — 6개 도구 + 목적별 MCP Tool**
-  - scan-build, gcc -fanalyzer 러너 추가 (총 6개 도구)
-  - BuildProfile 기반 도구 자동 선택 (C++이면 Semgrep 스킵 등)
-  - 실행 보고서 (`execution` 필드) — 도구별 상태/시간/스킵 사유, SDK 해석 정보, 필터링 정보
-  - `POST /v1/includes` 신규 — gcc -E -M 인클루드 트리
-  - `POST /v1/metadata` 신규 — gcc -E -dM 빌드 메타데이터 (ARM vs x86 차이 추출 검증)
-  - SDK 노이즈 사전 필터링 (254건 → 28건)
-  - AST dumper 사용자 코드 필터링 (표준 라이브러리 함수 제외)
-  - contextvars 기반 requestId 전 레이어 전파
-  - JSON structured logging (epoch ms, s4-sast-runner.jsonl)
-  - API 계약서 + specs v0.3.0 전면 재작성
-- **에이전트 PoC 성공 — Qwen 35B로 SAST 트리아지**
-  - 254건 findings → **RELEVANT 6건, INVESTIGATE 2건, NOISE 226건** (97% 노이즈 제거)
-  - ARM 특화 이슈(`stubs-soft.h` 누락) 정확히 태깅
-  - 파인튜닝 없음, 프롬프트 하나, `response_format: json_object`
-- **S3 통합 테스트 성공**
-  - Phase 1/2 분리 아키텍처 동작 확인
-  - S3가 Neo4j 지식 그래프 구축 (1857 노드, 3518 관계) + 코드 그래프 적재 (4568 노드)
-  - LLM이 자발적으로 tool 5회 호출 (knowledge.search 3회 + code_graph 1회 등)
-  - 16개 findings에서 CWE-78 (command injection) 정확 탐지
-- **아키텍처 결정**
-  - MCP Tool 구조: **B안 (목적별 Tool)** 확정 — sast.scan, code.functions, code.includes, build.metadata
-  - 에이전트 전환 → S2, S3 모두 동의
-  - **핵심 원칙: "결정론적 처리 최대화, LLM 결정 표면 최소화"**
-  - Phase 1(도구 자동 실행) → Phase 2(LLM 해석) 분리. LLM에게 도구 호출 선택권을 주면 안 부름 → 강제 분리 필요
-  - "Compound AI Systems" (Berkeley, 2024)의 실증 사례
-- **연구 조사**
-  - 기존 도구: IRIS(ICLR 2025), GitHub Taskflow Agent, Endor Labs, Aardvark(OpenAI)
-  - 기존 연구에 빈 자리: 멀티 도구 SAST + 로컬 LLM + 자동차 임베디드 C/C++
-  - 논문 가능성: "LLM-as-Final-Judge in Deterministic SAST Pipeline"
-  - 정확도 메트릭의 근본적 한계: FN(놓친 취약점) 측정 불가능. 상대 비교만 가능
-  - SBOM + vendored dependency: RE100 TinyDTLS 0.8.6이 2곳에 서로 다르게 수정
-- **프로젝트 방향 재확인**
-  - "범용 정적 분석 도구"가 아니라 **"자동차 보안 특화"**로 간다
-  - 도메인 특화 = 도구를 바꾸는 게 아니라, **LLM에게 먹이는 지식의 차이** (MISRA C, CAN 프로토콜, ISO 21434)
-  - 정적 분석 + 동적 분석 통합 루프: **정적(증거 수집) → LLM(공격 시나리오 생성) → 동적(공격 실행 + 증명) → 지식 그래프 업데이트 → 방어 생성 → 재검증**
-  - S2의 ECU Simulator + Adapter가 동적 분석 인프라로 **이미 존재**
-  - 이 전체 루프를 자동화한 시스템은 기존에 **없음**
-  - compile_commands.json 지원으로 Qt/AUTOSAR 등 복잡한 프로젝트 대응 필요
-
-### 이전 활동 (2026-03-17)
-
-- **RE100 실 코드 정적 분석 실험 + 에이전트 아키텍처 전환 제안**
-  - RE100 IoT 게이트웨이 코드 (C++17, 33파일, 2,650 SLOC)에 도구 6개 실행
-  - Semgrep 0건, Flawfinder 95건(노이즈), Cppcheck 19건, clang-tidy 145건, scan-build 0건, gcc -fanalyzer 0건
-  - **도구가 전부 놓친 실제 취약점 3건을 LLM이 직접 코드를 읽고 발견** (CWE-78, CWE-798, CWE-295)
-  - 결론: 단일 턴 파이프라인 → **에이전트 루프** 전환 필요
-  - S3 역할 변화: LLM Gateway → Analysis Agent
-  - 전 서비스 대상 work-request 발송 (`s4-to-all-agent-architecture-decision.md`)
-  - TI AM335x SDK 설치 완료 (`~/ti-sdk/`), RE100 코드 (`~/RE100/RE100/`)
-- **SAST Runner 서비스 구축 완료** (`services/sast-runner/`)
-  - Python + FastAPI + Semgrep, 포트 9000
-  - SARIF 파싱 → SastFinding[] 정규화 반환
-  - API 계약서 (`docs/api/sast-runner-api.md`) + 명세서 (`docs/specs/sast-runner.md`) 작성
-  - S2에 work-request로 기동 커맨드 통보
-- **BuildProfile 지원 추가** (S2 요청 대응)
-  - `POST /v1/scan`에 `buildProfile?: BuildProfile` 필드 추가
-  - `languageStandard` 기반 Semgrep 룰셋 C/C++ 자동 선택 (`ruleset_selector.py`)
-  - `headerLanguage` auto 모드 → languageStandard에서 추론
-  - 42개 테스트 통과 (SARIF 14 + 룰셋 17 + API 11)
-- S4 로그 삭제 스크립트 작성: `scripts/common/clear-s4-logs.sh`
-  - DGX Spark의 `/tmp/vllm-launch.log`를 SSH로 truncate
-- 정적 분석 배치 테스트 (requestId: `4aef1f36`) — **7개 태스크 전부 200 OK**, INVALID_GROUNDING 없음
-  - 병렬 처리: 최대 **4 reqs** 동시 처리
-  - Avg prompt throughput: 1,500~3,000 tokens/s
-  - Avg generation throughput: 60~113 tokens/s
-  - GPU KV cache 사용률: 최대 2.1% (여유 충분)
-  - Prefix cache hit rate: ~1.2%
-- 문서 갭 3건 수정 완료:
-  - 인수인계서 Section 5 로그 확인: `s4-exchange.jsonl`, `reset-logs-all.sh` 추가
-  - 인수인계서 Section 11 로드맵: Structured output 완료 표시로 변경
-  - 기능 명세(`llm-engine.md`) Section 10 "로깅 및 관측성" 신규 추가
-- SAST 도구 통합 + GraphRAG 로드맵 논의 → S3에 work-request 발송
-  - `docs/work-requests/s4-to-s3-sast-graphrag-roadmap.md`
-  - 결론: SAST 도구 통합 우선, GraphRAG는 현 단계에서 불필요
-  - S4 영향 없음 (프롬프트 길어질 뿐, 컨텍스트/KV cache 여유 충분)
-
-### 이전 활동 (2026-03-16)
-
-- 정적분석 통합테스트 완료 — S1→S2→S3→S4 전 구간 연동 확인
-- vLLM 로그 리뷰: 400 Bad Request 2건 발견 (S3가 프롬프트 길이 제한 없이 전송)
-  - 43MB 프롬프트 (43,026,069자) → 400 거절
-  - 260,097 토큰 프롬프트 (max_model_len 초과) → 400 거절
-- API 계약서(`llm-engine-api.md`)에 컨텍스트 한도(262,144 토큰) 섹션 추가
-- S3에 work-request 발송: 프롬프트 길이 사전 검증 요청 + S2와 입력 크기 책임 분담 협의 요청
-- Structured output (`response_format: json_object`) 실 검증 완료
-
----
-
-## 5. 기동 방법
-
-### vLLM 서빙 기동
-
-```bash
-# DGX Spark에 SSH 접속 후
-cd ~/spark-vllm-docker
-
-# 서빙 시작 (포그라운드)
-./run-recipe.sh qwen3.5-35b-a3b-fp8 --solo --tensor-parallel 1 --port 8000
-
-# 백그라운드 기동
-nohup ./run-recipe.sh qwen3.5-35b-a3b-fp8 --solo --tensor-parallel 1 --port 8000 > /tmp/vllm-launch.log 2>&1 &
-```
-
-**주의**: `source $HOME/.local/bin/env`가 필요할 수 있음 (uvx 경로 설정).
-
-### 원격 기동 (WSL2에서)
-
-```bash
-ssh -i ~/.ssh/dgx_spark accslab@10.126.37.19 \
-  "source \$HOME/.local/bin/env && cd ~/spark-vllm-docker && nohup ./run-recipe.sh qwen3.5-35b-a3b-fp8 --solo --tensor-parallel 1 --port 8000 > /tmp/vllm-launch.log 2>&1 &"
-```
-
-### 서빙 중지
-
-```bash
-ssh -i ~/.ssh/dgx_spark accslab@10.126.37.19 'docker stop vllm_node && docker rm vllm_node'
-```
-
-### 기동 시간
-
-| 단계 | 소요 시간 |
-|------|-----------|
-| 컨테이너 시작 | ~10초 |
-| 모델 로딩 | ~54초 |
-| torch.compile (캐시 있을 때) | ~30초 |
-| torch.compile (첫 실행) | ~3분 |
-| **총 (캐시 있을 때)** | **~2분** |
-| 첫 요청 워밍업 | ~19초 (이후 ~5초) |
-
-### 동작 확인
-
-```bash
-# 헬스체크
-curl http://10.126.37.19:8000/health
-
-# 모델 목록
-curl http://10.126.37.19:8000/v1/models
-
-# 추론 테스트 (non-thinking)
-curl -X POST http://10.126.37.19:8000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "Qwen/Qwen3.5-35B-A3B-FP8",
-    "messages": [
-      {"role": "user", "content": "gets() 함수의 위험성을 한 문장으로 설명하세요."}
-    ],
-    "max_tokens": 128,
-    "temperature": 0.3,
-    "chat_template_kwargs": {"enable_thinking": false}
-  }'
-# 기대: choices[0].message.content에 응답 텍스트, reasoning: null
-
-# GPU 확인
-ssh -i ~/.ssh/dgx_spark accslab@10.126.37.19 'nvidia-smi'
-# 기대: GPU-Util ~96%, Memory ~84GB, VLLM::EngineCore 프로세스
-```
-
-### 로그 확인
-
-```bash
-# vLLM 서버 로그 (DGX Spark 원격)
-ssh -i ~/.ssh/dgx_spark accslab@10.126.37.19 'tail -20 /tmp/vllm-launch.log'
-
-# Docker 컨테이너 로그
-ssh -i ~/.ssh/dgx_spark accslab@10.126.37.19 'docker logs vllm_node --tail 20'
-
-# S4 교환 로그 (S3가 기록, 로컬) — 요청/응답 전문 + 레이턴시 + 토큰 수
-tail -20 logs/s4-exchange.jsonl
-
-# vLLM 로그 삭제 (DGX Spark 원격)
-./scripts/common/clear-s4-logs.sh
-
-# 전체 로그 일괄 초기화 (S2+S3+S4)
-./scripts/common/reset-logs-all.sh
-```
-
----
-
-## 6. S3와의 연동
-
-### S3가 S4를 호출하는 방식
-
-API 계약(`docs/api/llm-engine-api.md`)에 따라 S3는 다음 형식으로 호출한다:
-
-```
-POST {endpoint}/v1/chat/completions
-Headers: Content-Type: application/json
-Body: { model, messages, max_tokens, temperature, chat_template_kwargs }
-```
-
-S3는 응답에서 `choices[0].message.content`를 추출한다. Thinking 활성화 시 `choices[0].message.reasoning`으로 사고 과정에 접근 가능. 상세 스키마는 API 계약서 참조.
-
-### S3 환경변수 변경
-
-```env
-SMARTCAR_LLM_MODE=real
-SMARTCAR_LLM_ENDPOINT=http://10.126.37.19:8000        # vLLM 포트 8000
-SMARTCAR_LLM_MODEL=Qwen/Qwen3.5-35B-A3B-FP8          # HuggingFace 모델명
-SMARTCAR_LLM_API_KEY=                                    # vLLM: 불필요
-```
-
-**변경사항 (이전 ollama 대비)**:
-- 포트: `11434` → `8000`
-- 모델명: `qwen3:32b` → `Qwen/Qwen3.5-35B-A3B-FP8`
-- API: `/api/chat` (ollama 네이티브) → `/v1/chat/completions` (OpenAI 호환)
-- Thinking 제어: `"think": false` → `"chat_template_kwargs": {"enable_thinking": false}`
-- 응답: `message.content` → `choices[0].message.content`
-
-### 연동 확인 절차
-
-1. DGX Spark에서 vLLM 컨테이너 기동
-2. WSL2에서 `curl http://10.126.37.19:8000/v1/models` → 모델 목록 확인
-3. S3 환경변수 설정 후 S3 기동
-4. v1 테스트: `POST /v1/tasks` (taskType: static-explain)
-5. 로그 확인: `logs/s3-llm-gateway.jsonl`에 latency, tokenUsage 기록 확인
-
----
-
-## 7. S3가 기대하는 출력 형식
-
-S3는 S4의 응답(`choices[0].message.content`)이 **JSON 문자열**이기를 기대한다.
-
-### v1 Assessment 형식 (S3가 프롬프트로 지시)
-
-```json
-{
-  "summary": "분석 요약",
-  "claims": [
-    {
-      "statement": "증거 기반 주장",
-      "supportingEvidenceRefs": ["eref-001"]
-    }
-  ],
-  "caveats": ["한계, 불확실성"],
-  "usedEvidenceRefs": ["eref-001"],
-  "suggestedSeverity": "critical",
-  "needsHumanReview": true,
-  "recommendedNextSteps": ["후속 조치"]
-}
-```
-
-**중요**: S4는 이 형식을 **강제하지 않는다**. S3가 프롬프트로 지시하고, 응답을 파싱/검증한다. S4는 그냥 모델 출력을 있는 그대로 반환하면 된다.
-
-파싱 실패 시 S3가 자체적으로 `validation_failed` 응답을 생성한다.
-
----
-
-## 8. 하드웨어 사양 (DGX Spark)
-
-| 항목 | 사양 |
-|------|------|
-| GPU | NVIDIA GB10 (Blackwell), Compute Capability 12.1 |
-| 드라이버 | 580.126.09, CUDA 13.0 |
-| 메모리 | 128GB LPDDR5x unified (가용 ~119.7GB) |
-| 대역폭 | 273 GB/s |
-| 디스크 | 3.7TB NVMe |
-| 아키텍처 | aarch64 (ARM64) |
-| Python | 3.12.3 |
-| Docker | 29.1.3 + NVIDIA Container Runtime 1.18.2 |
-| 네트워크 | ConnectX-7 (100GbE) |
-
-### 모델 메모리 분석
-
-| 항목 | 크기 |
-|------|------|
-| Qwen3.5-35B-A3B FP8 모델 | ~34.2GB |
-| vLLM 총 GPU 사용 (모델 + KV cache + 런타임) | ~84GB |
-| 여유 | ~36GB |
-| 결론 | 128GB unified에 충분 |
-
----
-
-## 9. 성능 실측
-
-| 항목 | 실측값 | 비고 |
-|------|--------|------|
-| 처리량 (non-thinking) | **~26 tok/s** | 단일 요청, 워밍업 후 |
-| 처리량 (첫 요청) | ~13 tok/s | torch.compile 포함 |
-| 보안분석 응답 시간 | **19초** | 짧은 입력, 509토큰 생성 |
-| 배치 prompt throughput | **1,500~3,000 tok/s** | 4 reqs 병렬 처리 시 |
-| 배치 generation throughput | **60~113 tok/s** | 4 reqs 병렬 처리 시 |
-| JSON 유효율 | 100% (테스트 기준) | `enable_thinking: false` |
-| GPU-Util | 96% | 추론 중 |
-| GPU 메모리 | 84,276MiB | 모델 + KV cache |
-| GPU KV cache 사용률 | 2.1% (피크) | 배치 처리 시 |
-
-### 이전 대비 개선
-
-| 항목 | ollama + Qwen3 32B | vLLM + Qwen3.5 35B-A3B |
-|------|:---:|:---:|
-| 처리량 | 10.2 tok/s | **26 tok/s (+155%)** |
-| 보안분석 응답 | 48초 | **19초 (-60%)** |
-| GPU 메모리 활용 | 30GB | **84GB** |
-
----
-
-## 10. 트러블슈팅
-
-### S3에서 `LLM_UNAVAILABLE` 오류
-
-- vLLM 컨테이너가 기동되지 않았거나 포트가 다름
-- `curl http://10.126.37.19:8000/health`로 확인
-- `docker ps | grep vllm_node`으로 컨테이너 상태 확인
-- 방화벽/네트워크 확인 (WSL2↔DGX Spark)
-
-### S3에서 `LLM_TIMEOUT` 오류
-
-- 첫 요청 시 torch.compile 워밍업으로 ~19초 소요 (이후 ~5초)
-- `max_tokens`가 너무 크거나 입력이 너무 긴 경우
-- S3 타임아웃을 120초로 상향 권장
-
-### S3에서 `LLM_PARSE_ERROR`
-
-- 모델이 JSON이 아닌 자연어를 반환한 경우
-- `enable_thinking: false`가 제대로 전달되었는지 확인 (thinking 켜져 있으면 reasoning에 토큰 소비)
-- temperature를 낮추면 (0.1~0.3) JSON 준수율 향상
-
-### vLLM 관련
-
-- **첫 실행 OOM**: torch.compile이 메모리를 많이 사용. 재실행하면 캐시 사용으로 해결
-- **컨테이너 재시작**: `docker stop vllm_node && docker rm vllm_node` 후 다시 `run-recipe.sh`
-- **모델 재다운로드**: `./run-recipe.sh qwen3.5-35b-a3b-fp8 --solo --download-only`
-
-### ollama 잔존 (이전 설정)
-
-- ollama systemd 서비스가 아직 설정되어 있음 (비활성화 상태)
-- vLLM과 동시 실행 시 GPU 메모리 충돌 → ollama 서비스를 disable 처리할 것
-- `systemctl --user disable ollama.service`로 영구 비활성화
-
----
-
-## 11. 향후 로드맵
-
-| 항목 | 시기 | 설명 |
-|------|------|------|
-| ~~SAST 도구 통합 대응~~ | ~~다음 마일스톤~~ | ✅ SAST Runner 서비스 구축 완료 (2026-03-17). S2 연동 대기 중 |
-| vLLM 자동 기동 | Phase 2 | Docker restart policy 또는 systemd |
-| Tool calling 연동 | v1.5 | S3와 함께 실 테스트 (vLLM에 이미 설정됨) |
-| ~~Structured output~~ | ~~v1.5~~ | ✅ 완료 (2026-03-16 실 검증) |
-| ollama 정리 | Phase 2 | 잔존 모델/서비스 제거 |
-| 모델 업그레이드 | 수시 | 새 모델 → 레시피 추가/변경 |
-
----
-
-## 12. 관리하는 문서
-
-| 문서 | 경로 | 용도 |
-|------|------|------|
-| SAST Runner 명세서 | `docs/specs/sast-runner.md` | SAST Runner 아키텍처, Semgrep 통합 |
-| SAST Runner API 계약서 | `docs/api/sast-runner-api.md` | S2↔SAST Runner 인터페이스 명세 |
-| 이 인수인계서 | `docs/s4-handoff/README.md` | 다음 세션용 |
-
----
-
-## 13. SAST Runner 서비스
+## 3. SAST Runner 서비스
 
 ### 개요
 
-S4가 소유하는 두 번째 서비스. Semgrep 기반 정적 분석을 수행하여 S2에 `SastFinding[]`을 반환한다.
-
 - **위치**: `services/sast-runner/` (monorepo 내, WSL2 로컬)
-- **스택**: Python 3.12 + FastAPI + Uvicorn + Semgrep
+- **스택**: Python 3.12 + FastAPI + Uvicorn
 - **포트**: 9000
 - **API 계약**: `docs/api/sast-runner-api.md`
 - **명세서**: `docs/specs/sast-runner.md`
+
+### 6개 SAST 도구
+
+| 도구 | 역할 | 출력 형식 | 비고 |
+|------|------|-----------|------|
+| Semgrep | 패턴 매칭 | SARIF JSON | C++ 프로젝트에서 자동 스킵 |
+| Cppcheck | 코드 품질 + CTU | XML | `--project=` compile_commands 지원 |
+| clang-tidy | CERT 코딩 표준 + 버그 | 텍스트 | `-p` compile_commands 지원 |
+| Flawfinder | 위험 함수 빠른 스캔 | CSV | |
+| scan-build | Clang Static Analyzer | plist | 경로 민감 분석 |
+| gcc -fanalyzer | GCC 내장 정적 분석 | stderr 텍스트 | gcc 10+ 필요 |
+
+### 7개 엔드포인트
+
+| 엔드포인트 | 역할 |
+|-----------|------|
+| `POST /v1/scan` | 6개 도구 병렬 실행 → SastFinding[] |
+| `POST /v1/functions` | clang AST → 함수 목록 + 호출 관계 |
+| `POST /v1/includes` | gcc -E -M → 인클루드 트리 |
+| `POST /v1/metadata` | gcc -E -dM → 빌드 매크로/아키텍처 |
+| `POST /v1/libraries` | SCA: 라이브러리 식별 + upstream diff + CVE |
+| `POST /v1/build-and-analyze` | bear 빌드 + 위 전부 통합 실행 |
+| `GET /v1/health` | 6개 도구 가용성 확인 |
+
+### 코드 구조
+
+```
+services/sast-runner/
+├── app/
+│   ├── main.py              — FastAPI 앱, JSON 로깅, lifespan
+│   ├── config.py            — pydantic-settings (SAST_ prefix .env)
+│   ├── context.py           — contextvars 기반 requestId 전파
+│   ├── errors.py            — 커스텀 에러 4종
+│   ├── routers/
+│   │   └── scan.py          — 7개 엔드포인트 라우터
+│   ├── schemas/
+│   │   ├── request.py       — ScanRequest, BuildProfile, FileEntry
+│   │   └── response.py      — SastFinding, ScanResponse, HealthResponse
+│   └── scanner/
+│       ├── orchestrator.py   — 6도구 병렬 실행 + SDK 해석 + 필터링
+│       ├── semgrep_runner.py
+│       ├── cppcheck_runner.py
+│       ├── clangtidy_runner.py
+│       ├── flawfinder_runner.py
+│       ├── scanbuild_runner.py
+│       ├── gcc_analyzer_runner.py
+│       ├── sarif_parser.py   — SARIF→SastFinding 변환
+│       ├── ruleset_selector.py — BuildProfile 기반 룰셋 자동 선택
+│       ├── sdk_resolver.py   — SDK 인클루드 경로 레지스트리
+│       ├── ast_dumper.py     — clang AST 함수/호출 그래프 추출
+│       ├── include_resolver.py — gcc -E -M 인클루드 트리
+│       ├── build_metadata.py — gcc -E -dM 매크로 추출
+│       ├── build_runner.py   — bear 빌드 자동화
+│       ├── library_identifier.py — vendored 라이브러리 식별
+│       ├── library_differ.py — upstream diff (해시 기반)
+│       ├── library_hasher.py — SHA256 파일 해시 비교
+│       └── cve_lookup.py     — OSV/NVD API CVE 조회
+├── tests/
+│   ├── conftest.py          — 오케스트레이터 mock fixture
+│   ├── test_sarif_parser.py — SARIF 파싱 14개 테스트
+│   ├── test_ruleset_selector.py — 룰셋 선택 17개 테스트
+│   ├── test_scan_endpoint.py — API 엔드포인트 11개 테스트
+│   └── fixtures/sample.sarif.json
+└── requirements.txt
+```
 
 ### 기동 방법
 
@@ -612,7 +199,7 @@ curl -X POST http://localhost:9000/v1/scan \
 ```bash
 cd services/sast-runner
 source .venv/bin/activate
-pytest tests/ -v   # 22개 테스트
+pytest tests/ -v   # 42개 테스트
 ```
 
 ### 트러블슈팅
@@ -624,24 +211,118 @@ pytest tests/ -v   # 22개 테스트
 | `SARIF_PARSE_ERROR` (502) | Semgrep 출력 이상 | venv에서 수동 `semgrep scan --sarif` 실행하여 출력 확인 |
 | 포트 9000 충돌 | 다른 프로세스 | `lsof -i :9000`으로 확인 후 종료 |
 
-### 현재 상태 (2026-03-17)
+### 로그 확인
 
-- [x] 서비스 구축 완료 (22개 테스트 통과)
-- [x] API 계약서 작성 (`docs/api/sast-runner-api.md`)
-- [x] 명세서 작성 (`docs/specs/sast-runner.md`)
-- [ ] S2 연동 테스트 (S2가 `scripts/start.sh`에 추가 후)
-- [ ] Semgrep 실 스캔 테스트 (Semgrep 설치 후)
-- [ ] 커스텀 규칙셋 (자동차/임베디드 특화 규칙)
+```bash
+# SAST Runner 로그 (로컬)
+tail -20 logs/s4-sast-runner.jsonl
+```
 
 ---
 
-## 14. 참고할 문서들
+## 4. 현재 상태
+
+### 완료된 것
+
+- [x] SAST Runner 서비스 구축 (Python + FastAPI, 포트 9000)
+- [x] 6개 SAST 도구 통합 (Semgrep, Cppcheck, clang-tidy, Flawfinder, scan-build, gcc -fanalyzer)
+- [x] BuildProfile 기반 도구 자동 선택 (C++이면 Semgrep 스킵 등)
+- [x] SDK 자동 해석 (ti-am335x 레지스트리, 헤더 7개 경로 자동 주입)
+- [x] SDK 노이즈 필터링 (254건 → 28건)
+- [x] projectPath + compile_commands.json 지원
+- [x] 코드 그래프 추출 (/v1/functions) — 3단계 필터링, NamespaceDecl 재귀
+- [x] 인클루드 트리 추출 (/v1/includes) — gcc -E -M
+- [x] 빌드 메타데이터 추출 (/v1/metadata) — gcc -E -dM
+- [x] SCA 라이브러리 식별 (/v1/libraries) — git, CMake, configure.ac 등
+- [x] SCA upstream diff — SHA256 해시 기반 비교
+- [x] CVE 조회 — OSV/NVD API 실시간
+- [x] 빌드 자동화 (/v1/build-and-analyze) — bear 기반 compile_commands 생성
+- [x] contextvars 기반 requestId 전 레이어 전파
+- [x] JSON structured logging (epoch ms, s4-sast-runner.jsonl)
+- [x] API 계약서 + 명세서 작성
+- [x] 42개 테스트 통과 (SARIF 14 + 룰셋 17 + API 11)
+- [x] S3 통합 테스트 성공 (confidence 0.865, schemaValid=true)
+
+### 미완료 (S4 소관)
+
+- [ ] S2 연동 테스트 (S2가 `scripts/start.sh`에 SAST Runner 추가 후)
+- [ ] 커스텀 규칙셋 (자동차/임베디드 특화 Semgrep 규칙)
+- [ ] 코드 버전 동기화 (`main.py` v0.2.0 → v0.3.0으로 수정 필요)
+
+### RE100 실측 결과
+
+- RE100 IoT 게이트웨어 코드 (C++17, 33파일, 2,650 SLOC)
+- `/v1/build-and-analyze`: 빌드(5s) + SAST + 코드 그래프 + SCA + CVE = 236초
+- SAST 도구별: Semgrep 0건, Flawfinder 95건, Cppcheck 19건, clang-tidy 145건, scan-build 0건, gcc -fanalyzer 0건
+- SCA: 6개 라이브러리 식별, 3개 수정 탐지 (15초)
+- 코드 그래프: 73개 사용자 함수, 242개 호출 관계
+
+---
+
+## 5. 활동 이력
+
+### 2026-03-18
+
+- `/v1/build-and-analyze` 엔드포인트 구현 (빌드 자동 실행 + 전체 분석 통합)
+- CVE 조회 통합 (NVD/OSV API) — `/v1/libraries`에 추가
+- 통합 테스트 v2/v3 성공
+- SCA 라이브러리 분석 완성 (SHA256 해시 기반 upstream diff)
+- 코드 그래프 품질 혁신 (NamespaceDecl 재귀, CallExpr 처리, 3단계 필터링)
+- SAST Runner v0.3.0 (6개 도구 + 목적별 MCP Tool)
+- **LLM Engine → S7 분리 완료** (S4→S3 인수인계 후, S3→S7 분리 신설)
+
+### 2026-03-17
+
+- RE100 실 코드 정적 분석 실험 + 에이전트 아키텍처 전환 제안
+- SAST Runner 서비스 구축 완료 (`services/sast-runner/`)
+- BuildProfile 지원 추가 (S2 요청 대응)
+- 에이전트 PoC 성공 — Qwen 35B로 254건 → RELEVANT 8건 (97% 노이즈 제거)
+- 아키텍처 결정: B안 (목적별 Tool) 확정, "결정론적 처리 최대화" 원칙
+
+### 2026-03-16
+
+- 정적분석 통합테스트 완료 (S1→S2→S3→S4 전 구간)
+- Structured output 실 검증 완료
+
+---
+
+## 6. 향후 로드맵
+
+| 항목 | 시기 | 설명 |
+|------|------|------|
+| S2 연동 테스트 | 다음 | S2가 start.sh에 추가 후 |
+| 커스텀 규칙셋 | v1.0 | MISRA C, 자동차 임베디드 특화 Semgrep 규칙 |
+| 코드 버전 동기화 | 즉시 | main.py + HealthResponse 버전을 v0.3.0으로 |
+| AUTOSAR/Qt 대응 | v1.5 | 복잡한 빌드 시스템의 compile_commands.json 지원 확대 |
+
+---
+
+## 7. 관리하는 문서
+
+| 문서 | 경로 | 용도 |
+|------|------|------|
+| SAST Runner 명세서 | `docs/specs/sast-runner.md` | SAST Runner 아키텍처, 도구 통합 |
+| SAST Runner API 계약서 | `docs/api/sast-runner-api.md` | S2↔S4, S3↔S4 인터페이스 명세 |
+| 이 인수인계서 | `docs/s4-handoff/README.md` | 다음 세션용 |
+
+---
+
+## 8. 참고할 문서들
 
 | 문서 | 경로 | 왜 봐야 하는지 |
 |------|------|--------------|
 | 전체 기술 개요 | `docs/specs/technical-overview.md` | 프로젝트 전체 구조 이해 |
-| S3 API 명세 | `docs/api/llm-gateway-api.md` | S3↔S4 계약의 S3 측 관점 (필독) |
-| SAST Runner API | `docs/api/sast-runner-api.md` | S2↔SAST Runner 계약 |
-| SastFinding 타입 | `docs/api/shared-models.md` (lines 253–289) | 응답 형식의 근거 |
-| 외부 피드백 (Agentic) | `docs/외부피드백/S3_agentic_sast_design_feedback.md` | 성능 가이드 |
-| spark-vllm-docker | `~/spark-vllm-docker/README.md` (DGX Spark) | vLLM 빌드/배포 가이드 |
+| SAST Runner API | `docs/api/sast-runner-api.md` | S2↔S4 계약 (본인 소유) |
+| SastFinding 타입 | `docs/api/shared-models.md` | 응답 형식의 근거 |
+| S3 API 명세 | `docs/api/llm-gateway-api.md` | S3가 S4를 호출하는 방식 |
+| 외부 피드백 | `docs/외부피드백/S3_agentic_sast_design_feedback.md` | 에이전트 성능 가이드 |
+
+---
+
+## 9. 핵심 설계 원칙 (참고)
+
+- **결정론적 처리 최대화, LLM 결정 표면 최소화** — 도구 실행/필터링/정규화는 결정론적. LLM은 판단만.
+- **Phase 1(도구 자동 실행) → Phase 2(LLM 해석) 분리** — LLM에게 도구 호출 선택권을 주면 안 부름 → 강제 분리 필요
+- **Evidence-first** — 모든 Finding은 증적에 근거
+- **SDK 노이즈 사전 제거** — LLM에게 노이즈를 보내지 않음 (254건 → 28건)
+- **"범용 정적 분석"이 아니라 "자동차 보안 특화"** — 도메인 특화 = LLM에게 먹이는 지식의 차이 (MISRA C, CAN 프로토콜, ISO 21434)

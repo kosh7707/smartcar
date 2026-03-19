@@ -1,4 +1,4 @@
-import type { UploadedFile } from "@smartcar/shared";
+import type { UploadedFile } from "@aegis/shared";
 
 /**
  * Match a filename from vulnerability location against uploaded project files.

@@ -3,7 +3,7 @@ import { QualityGateService } from "../quality-gate.service";
 import type { IFindingDAO, IEvidenceRefDAO, IGateResultDAO, IRunDAO } from "../../dao/interfaces";
 import { makeFinding, makeRun, makeGateResult } from "../../test/factories";
 import { NotFoundError } from "../../lib/errors";
-import type { Finding, GateResult } from "@smartcar/shared";
+import type { Finding, GateResult } from "@aegis/shared";
 
 function createMockFindingDAO(): IFindingDAO {
   return {

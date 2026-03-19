@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import type { Adapter } from "@smartcar/shared";
+import type { Adapter } from "@aegis/shared";
 import { AdapterClient, type CanFrame } from "./adapter-client";
 import type { IAdapterDAO } from "../dao/interfaces";
 import { NotFoundError } from "../lib/errors";

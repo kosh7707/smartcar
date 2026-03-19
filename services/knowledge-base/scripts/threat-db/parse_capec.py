@@ -1,18 +1,45 @@
 """
-CAPEC XML 파서 -> CapecBridge 룩업 테이블 구축
-ATT&CK <-> CWE 연결의 유일한 경로
+CAPEC XML 파서 -> UnifiedThreatRecord 리스트 + CapecBridge 룩업 테이블 구축
+ATT&CK <-> CWE 연결의 유일한 경로 (브릿지) + 풀 노드 적재
 """
+import functools
 import xml.etree.ElementTree as ET
 from collections import defaultdict
-from schema import CapecBridge
+from schema import UnifiedThreatRecord, CapecBridge
+from taxonomy import classify_attack_surfaces, compute_automotive_relevance, classify_threat_category
+
+print = functools.partial(print, flush=True)
 
 # CAPEC XML 네임스페이스
 NS = {"capec": "http://capec.mitre.org/capec-3"}
 
+# Typical_Severity → 수치 매핑
+_SEVERITY_MAP = {
+    "very high": 9.0,
+    "high": 8.0,
+    "medium": 5.0,
+    "low": 2.0,
+    "very low": 1.0,
+}
 
-def parse_capec(xml_path: str) -> CapecBridge:
-    """CAPEC XML을 파싱하여 ATT&CK<->CWE 브릿지 테이블 구축"""
-    print(f"  [CAPEC] 브릿지 구축 중...")
+
+def _get_text_recursive(el) -> str:
+    """XML 요소에서 모든 텍스트를 재귀 추출."""
+    if el is None:
+        return ""
+    parts = []
+    if el.text:
+        parts.append(el.text.strip())
+    for child in el:
+        parts.append(_get_text_recursive(child))
+        if child.tail:
+            parts.append(child.tail.strip())
+    return " ".join(p for p in parts if p)
+
+
+def parse_capec(xml_path: str) -> tuple[list[UnifiedThreatRecord], CapecBridge]:
+    """CAPEC XML을 파싱하여 UnifiedThreatRecord 리스트 + CapecBridge 반환."""
+    print(f"  [CAPEC] 파싱 중...")
 
     tree = ET.parse(xml_path)
     root = tree.getroot()
@@ -22,10 +49,12 @@ def parse_capec(xml_path: str) -> CapecBridge:
     attack_to_capec: dict[str, list[str]] = defaultdict(list)
     cwe_to_capec: dict[str, list[str]] = defaultdict(list)
 
+    records: list[UnifiedThreatRecord] = []
+
     patterns_el = root.find("capec:Attack_Patterns", NS)
     if patterns_el is None:
         print("  [CAPEC] Attack_Patterns 요소를 찾을 수 없음")
-        return CapecBridge()
+        return [], CapecBridge()
 
     total = 0
     with_cwe = 0
@@ -35,12 +64,14 @@ def parse_capec(xml_path: str) -> CapecBridge:
         capec_id_num = pattern.get("ID", "")
         capec_id = f"CAPEC-{capec_id_num}"
         status = pattern.get("Status", "")
+        name = pattern.get("Name", "")
 
         if status == "Deprecated" or status == "Obsolete":
             continue
 
         total += 1
 
+        # ── 브릿지 구축 (기존 로직) ──
         rel_weaknesses = pattern.find("capec:Related_Weaknesses", NS)
         if rel_weaknesses is not None:
             for rw in rel_weaknesses.findall("capec:Related_Weakness", NS):
@@ -65,6 +96,54 @@ def parse_capec(xml_path: str) -> CapecBridge:
             if capec_to_attack[capec_id]:
                 with_attack += 1
 
+        # ── UnifiedThreatRecord 생성 (신규) ──
+        desc_el = pattern.find("capec:Description", NS)
+        description = _get_text_recursive(desc_el)
+
+        # severity
+        severity_el = pattern.find("capec:Typical_Severity", NS)
+        severity = None
+        if severity_el is not None and severity_el.text:
+            severity = _SEVERITY_MAP.get(severity_el.text.strip().lower())
+
+        # attack_surfaces, relevance
+        full_text = f"{name} {description}"
+        attack_surfaces = classify_attack_surfaces(full_text)
+        relevance = compute_automotive_relevance(name, description)
+
+        # threat_category: 첫 번째 관련 CWE 기반
+        related_cwe_ids = capec_to_cwe.get(capec_id, [])
+        threat_category = "Attack Pattern"
+        for cid in related_cwe_ids:
+            cat = classify_threat_category(cid)
+            if cat != "Other":
+                threat_category = cat
+                break
+
+        # mitigations
+        mitigations = []
+        mit_el = pattern.find("capec:Mitigations", NS)
+        if mit_el is not None:
+            for m in mit_el.findall("capec:Mitigation", NS):
+                mit_text = _get_text_recursive(m)
+                if mit_text:
+                    mitigations.append(mit_text[:300])
+
+        record = UnifiedThreatRecord(
+            id=capec_id,
+            source="CAPEC",
+            title=name,
+            description=description,
+            severity=severity,
+            attack_surfaces=attack_surfaces,
+            threat_category=threat_category,
+            related_cwe=list(related_cwe_ids),
+            related_attack=list(capec_to_attack.get(capec_id, [])),
+            mitigations=mitigations[:5],
+            automotive_relevance=relevance,
+        )
+        records.append(record)
+
     bridge = CapecBridge(
         capec_to_cwe=dict(capec_to_cwe),
         capec_to_attack=dict(capec_to_attack),
@@ -81,5 +160,6 @@ def parse_capec(xml_path: str) -> CapecBridge:
                 bridgeable += 1
                 break
     print(f"  [CAPEC] ATT&CK->CWE 브릿지 가능: {bridgeable}개 기법")
+    print(f"  [CAPEC] 노드 생성: {len(records)}개 레코드")
 
-    return bridge
+    return records, bridge

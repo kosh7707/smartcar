@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import type { DynamicAnalysisSession } from "@smartcar/shared";
+import type { DynamicAnalysisSession } from "@aegis/shared";
 import { Activity, Plus, Radio, AlertTriangle, Trash2, Plug } from "lucide-react";
 import {
   createDynamicSession,

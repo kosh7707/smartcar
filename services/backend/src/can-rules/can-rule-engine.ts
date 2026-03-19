@@ -1,4 +1,4 @@
-import type { CanMessage } from "@smartcar/shared";
+import type { CanMessage } from "@aegis/shared";
 import type { CanAnalysisRule, CanRuleMatch } from "./types";
 
 export class CanRuleEngine {

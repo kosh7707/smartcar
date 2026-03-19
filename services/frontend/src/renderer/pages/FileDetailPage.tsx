@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import type { AnalysisResult, UploadedFile, Vulnerability } from "@smartcar/shared";
+import type { AnalysisResult, UploadedFile, Vulnerability } from "@aegis/shared";
 import { FileText, Download, FileSearch, Shield } from "lucide-react";
 import { fetchProjectOverview, fetchProjectFiles, fetchFileContent, logError } from "../api/client";
 import { useToast } from "../contexts/ToastContext";

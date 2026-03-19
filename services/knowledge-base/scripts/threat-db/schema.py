@@ -11,7 +11,7 @@ class UnifiedThreatRecord(BaseModel):
 
     # 식별
     id: str                                          # "CWE-787", "CVE-2023-29389", "T0866"
-    source: str                                      # "CWE" | "CVE" | "ATT&CK"
+    source: str                                      # "CWE" | "CVE" | "ATT&CK" | "CAPEC"
 
     # Layer 1: AttackSurface (키워드 매칭 기반)
     attack_surfaces: list[str] = Field(default_factory=list)
@@ -36,7 +36,7 @@ class UnifiedThreatRecord(BaseModel):
     related_capec: list[str] = Field(default_factory=list)
 
     # 메타데이터
-    automotive_relevance: float = 0.0                # 0.0-1.0
+    automotive_relevance: float = 0.0                # 0.0-1.0 (embedded+system+automotive 도메인 관련성)
     last_updated: str = ""                           # ISO 8601
 
 

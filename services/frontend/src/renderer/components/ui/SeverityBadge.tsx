@@ -1,5 +1,5 @@
 import React from "react";
-import type { Severity } from "@smartcar/shared";
+import type { Severity } from "@aegis/shared";
 
 interface Props {
   severity: Severity | string;

@@ -1,4 +1,4 @@
-import type { AuditLogEntry } from "@smartcar/shared";
+import type { AuditLogEntry } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IAuditLogDAO } from "./interfaces";
 

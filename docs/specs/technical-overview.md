@@ -21,7 +21,7 @@ MSA(Microservice Architecture) 기반 4개 독립 서비스 구성.
 이 프로젝트는 다음 패턴을 전반에 걸쳐 따른다.
 
 **MVVM (Model-View-ViewModel)**
-- **Model**: 도메인 데이터 구조 (`@smartcar/shared`에 정의)
+- **Model**: 도메인 데이터 구조 (`@aegis/shared`에 정의)
 - **View**: React 컴포넌트 (화면 렌더링만 담당, 로직 없음)
 - **ViewModel**: React Hook (상태 관리, 데이터 가공, API 호출)
 
@@ -34,8 +34,8 @@ MSA(Microservice Architecture) 기반 4개 독립 서비스 구성.
 
 | 구분 | 역할 | 위치 | 예시 |
 |------|------|------|------|
-| Model | 도메인 핵심 데이터 구조 | `@smartcar/shared` | `Vulnerability`, `Project` |
-| DTO | 서비스 간 통신용 전송 객체 | `@smartcar/shared` | `AnalysisRequest`, `LlmResponse` |
+| Model | 도메인 핵심 데이터 구조 | `@aegis/shared` | `Vulnerability`, `Project` |
+| DTO | 서비스 간 통신용 전송 객체 | `@aegis/shared` | `AnalysisRequest`, `LlmResponse` |
 | DAO | DB 접근 및 영속화 담당 | Core Service 내부 | `ProjectDAO`, `AnalysisResultDAO` |
 
 - **Model**: 비즈니스 로직에서 사용하는 순수 데이터 구조. DB 스키마나 API 형식에 의존하지 않는다.
@@ -300,7 +300,7 @@ ECU 대상 퍼징/침투 테스트
 
 ## 6. 공유 데이터 구조
 
-UI Service(S1)와 Core Service(S2)는 TypeScript monorepo의 `@smartcar/shared` 패키지를 통해
+UI Service(S1)와 Core Service(S2)는 TypeScript monorepo의 `@aegis/shared` 패키지를 통해
 DTO, Model, 인터페이스 타입을 공유한다.
 
 ### 6.1 핵심 모델
@@ -463,7 +463,7 @@ CAN 데이터 소스 → [S2] WebSocket 수신
 
 - [x] 프로젝트 구조 및 빌드 환경 구성
 - [x] 서비스 간 통신 검증
-- [x] 공유 데이터 모델/DTO 확정 (`@smartcar/shared`)
+- [x] 공유 데이터 모델/DTO 확정 (`@aegis/shared`)
 - [x] Frontend 기본 UI (대시보드, 사이드바, 각 모듈 화면, 테마, 에러 핸들링)
 - [x] Backend 정적 분석 API (업로드, 청크 분할, 룰+LLM 2계층, 결과 조회/삭제/보고서)
 - [x] Backend 동적 분석 API (세션 관리, CAN 모니터링, 룰+LLM 2계층, CAN 주입, 시나리오)

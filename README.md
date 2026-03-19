@@ -1,6 +1,6 @@
-# Smartcar Security Framework
+# AEGIS — Automotive Embedded Governance & Inspection System
 
-차량 보안 분석 운영 콘솔 프로토타입.
+자동차 임베디드 소프트웨어 보안 취약점 종합 검증 플랫폼.
 
 ## Prerequisites
 

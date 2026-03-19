@@ -93,10 +93,20 @@ class SemgrepRunner:
         rulesets: list[str],
     ) -> list[str]:
         """Semgrep CLI 명령 조립."""
+        from app.config import settings
+
         cmd = ["semgrep", "scan"]
 
         for ruleset in rulesets:
             cmd.extend(["--config", ruleset])
+
+        # 커스텀 룰 디렉토리 추가
+        if settings.custom_rules_dir:
+            rules_path = Path(settings.custom_rules_dir)
+            if not rules_path.is_absolute():
+                rules_path = Path(__file__).resolve().parent.parent.parent / rules_path
+            if rules_path.is_dir():
+                cmd.extend(["--config", str(rules_path)])
 
         cmd.extend([
             "--sarif",              # SARIF JSON 출력

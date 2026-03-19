@@ -15,7 +15,7 @@ _exchange = logging.getLogger("s4_exchange")
 
 
 class RealLlmClient(LlmClient):
-    """OpenAI-compatible LLM 클라이언트 (vLLM 대상).
+    """S7 Gateway 경유 LLM 클라이언트.
 
     인스턴스 레벨에서 httpx.AsyncClient를 유지하여
     connection pooling + keep-alive를 활용한다.
@@ -77,7 +77,7 @@ class RealLlmClient(LlmClient):
 
         try:
             resp = await self._client.post(
-                f"{self.endpoint}/v1/chat/completions",
+                f"{self.endpoint}/v1/chat",
                 headers=headers,
                 json=body,
             )

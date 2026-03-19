@@ -11,7 +11,7 @@ import type {
   InjectionClassification,
   AttackScenario,
   AttackScenarioId,
-} from "@smartcar/shared";
+} from "@aegis/shared";
 import { CanRuleEngine } from "../can-rules/can-rule-engine";
 import type { CanRuleMatch } from "../can-rules/types";
 import type { LlmV1Adapter } from "./llm-v1-adapter";
@@ -58,7 +58,7 @@ export class DynamicAnalysisService {
     private analysisResultDAO: IAnalysisResultDAO,
     private canRuleEngine: CanRuleEngine,
     private llmClient: LlmV1Adapter,
-    private ws: WsBroadcaster<import("@smartcar/shared").WsMessage>,
+    private ws: WsBroadcaster<import("@aegis/shared").WsMessage>,
     private adapterManager: AdapterManager,
     private settingsService: ProjectSettingsService,
     private resultNormalizer?: ResultNormalizer

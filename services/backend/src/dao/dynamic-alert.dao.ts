@@ -1,4 +1,4 @@
-import type { DynamicAlert } from "@smartcar/shared";
+import type { DynamicAlert } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IDynamicAlertDAO } from "./interfaces";
 

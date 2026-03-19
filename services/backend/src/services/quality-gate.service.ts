@@ -6,7 +6,7 @@ import type {
   GateStatus,
   Finding,
   EvidenceRef,
-} from "@smartcar/shared";
+} from "@aegis/shared";
 import type { IFindingDAO, IEvidenceRefDAO, IGateResultDAO, IRunDAO } from "../dao/interfaces";
 import { createLogger } from "../lib/logger";
 import { NotFoundError } from "../lib/errors";

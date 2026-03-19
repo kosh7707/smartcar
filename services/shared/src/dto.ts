@@ -149,10 +149,11 @@ export interface WsStaticProgress {
   type: "static-progress";
   payload: {
     analysisId: string;
-    phase: "rule_engine" | "llm_chunk" | "merging" | "complete";
+    phase: "queued" | "rule_engine" | "llm_chunk" | "merging" | "complete";
     current: number;
     total: number;
     message: string;
+    phaseWeights?: Record<string, number>;
   };
 }
 
@@ -242,6 +243,51 @@ export type WsTestMessage =
   | WsTestFinding
   | WsTestComplete
   | WsTestError;
+
+// ============================================================
+// Quick → Deep 분석 WebSocket 메시지
+// ============================================================
+
+export interface WsAnalysisProgress {
+  type: "analysis-progress";
+  payload: {
+    analysisId: string;
+    phase: "quick_sast" | "quick_complete" | "deep_submitting" | "deep_analyzing" | "deep_complete";
+    message: string;
+  };
+}
+
+export interface WsAnalysisQuickComplete {
+  type: "analysis-quick-complete";
+  payload: {
+    analysisId: string;
+    findingCount: number;
+  };
+}
+
+export interface WsAnalysisDeepComplete {
+  type: "analysis-deep-complete";
+  payload: {
+    analysisId: string;
+    findingCount: number;
+  };
+}
+
+export interface WsAnalysisError {
+  type: "analysis-error";
+  payload: {
+    analysisId: string;
+    phase: "quick" | "deep";
+    error: string;
+    retryable: boolean;
+  };
+}
+
+export type WsAnalysisMessage =
+  | WsAnalysisProgress
+  | WsAnalysisQuickComplete
+  | WsAnalysisDeepComplete
+  | WsAnalysisError;
 
 // ============================================================
 // 룰
@@ -420,7 +466,7 @@ export interface ProjectReportResponse {
 // 분석 진행률 (Part A: 비동기 분석)
 // ============================================================
 
-export type AnalysisPhase = "queued" | "rule_engine" | "llm_chunk" | "merging" | "complete";
+export type AnalysisPhase = "queued" | "rule_engine" | "llm_chunk" | "merging" | "complete" | "quick_sast" | "deep_submitting" | "deep_analyzing" | "deep_complete";
 export type AnalysisTrackerStatus = "running" | "completed" | "failed" | "aborted";
 
 export interface AnalysisProgress {

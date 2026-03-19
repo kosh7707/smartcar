@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback, DragEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import type { UploadedFile } from "@smartcar/shared";
+import type { UploadedFile } from "@aegis/shared";
 import { FileText, Folder, FolderOpen, Upload, Trash2, Download, ChevronRight, Search, FolderUp, HardDrive, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { fetchProjectFiles, uploadFiles, deleteProjectFile, downloadFile, logError } from "../api/client";
 import { EmptyState, PageHeader, ConfirmDialog, Spinner } from "../components/ui";

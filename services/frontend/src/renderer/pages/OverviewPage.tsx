@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import type { ProjectOverviewResponse, AnalysisResult, AnalysisSummary, UploadedFile, Vulnerability } from "@smartcar/shared";
+import type { ProjectOverviewResponse, AnalysisResult, AnalysisSummary, UploadedFile, Vulnerability } from "@aegis/shared";
 import {
   AlertTriangle,
   AlertCircle,
@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { fetchProjectOverview, fetchProjectFiles, healthCheck, logError } from "../api/client";
 import { useToast } from "../contexts/ToastContext";
-import { useAdapters } from "../hooks/useAdapters";
 import { PageHeader, StatCard, SeveritySummary, SeverityBadge, DonutChart, ListItem, Spinner } from "../components/ui";
 import { extractFiles, extractFileNames } from "../utils/analysis";
 import { SEVERITY_ORDER } from "../utils/severity";
@@ -95,7 +94,6 @@ export const OverviewPage: React.FC = () => {
   const [backendStatus, setBackendStatus] = useState<"ok" | "error" | "checking">("checking");
   const [llmStatus, setLlmStatus] = useState<"ok" | "error" | "checking">("checking");
   const toast = useToast();
-  const { adapters, connected } = useAdapters(projectId);
 
   useEffect(() => {
     let cancelled = false;
@@ -149,8 +147,6 @@ export const OverviewPage: React.FC = () => {
   const sev = summary.bySeverity;
   const latestMap = getLatestPerModule(recentAnalyses);
 
-  const adapterClass = adapters.length === 0 ? "error" : connected.length === adapters.length ? "ok" : connected.length > 0 ? "warning" : "error";
-  const adapterLabel = adapters.length === 0 ? "미등록" : `${connected.length}/${adapters.length}`;
   const topVulns = getTopVulnerabilities(recentAnalyses, 8);
 
   return (
@@ -174,13 +170,6 @@ export const OverviewPage: React.FC = () => {
             >
               <span className={`status-dot ${llmStatus}`} />
               LLM
-            </button>
-            <button
-              className="overview-status-chip"
-              onClick={() => navigate(`/projects/${projectId}/settings`)}
-            >
-              <span className={`status-dot ${adapterClass}`} />
-              Adapter {adapterLabel}
             </button>
           </div>
         }

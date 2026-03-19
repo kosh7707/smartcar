@@ -139,7 +139,7 @@ export const SettingsPage: React.FC = () => {
           </div>
           <div className="gs-info-row">
             <span className="gs-info-label">프레임워크</span>
-            <span className="gs-info-value">Smartcar Security Framework</span>
+            <span className="gs-info-value">AEGIS</span>
           </div>
           <div className="gs-info-row">
             <span className="gs-info-label">라이선스</span>

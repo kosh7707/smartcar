@@ -3,7 +3,7 @@ import { ResultNormalizer, type NormalizerContext } from "../result-normalizer";
 import type { IRunDAO, IFindingDAO, IEvidenceRefDAO } from "../../dao/interfaces";
 import type { QualityGateService } from "../quality-gate.service";
 import { makeAnalysisResult } from "../../test/factories";
-import type { AnalysisResult, Run, Finding, Vulnerability } from "@smartcar/shared";
+import type { AnalysisResult, Run, Finding, Vulnerability } from "@aegis/shared";
 
 // minimal mock for better-sqlite3 DatabaseType
 function createMockDb(): any {

@@ -2,9 +2,12 @@
 Qdrant 벡터 DB 적재 -- UnifiedThreatRecord -> 임베딩 + 메타데이터
 파일 기반 영속 스토리지 사용 (S4 원본: in-memory -> 파일 기반으로 변경)
 """
+import functools
 import time
 from qdrant_client import QdrantClient
 from schema import UnifiedThreatRecord
+
+print = functools.partial(print, flush=True)
 
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 COLLECTION = "threat_knowledge"

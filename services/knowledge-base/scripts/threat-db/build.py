@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """
-Automotive Threat Knowledge Database Builder
-ETL Pipeline: CWE + CVE/NVD + ATT&CK + CAPEC -> Qdrant (파일 기반)
+AEGIS Threat Knowledge Database Builder
+ETL Pipeline: CWE + ATT&CK (ICS+Enterprise) + CAPEC -> Qdrant (파일 기반)
+
+CVE/NVD는 ETL에서 제외 — 프로젝트 분석 시 실시간 조회로 전환
 
 Usage:
-    cd services/llm-gateway
+    cd services/knowledge-base
     pip install -r scripts/threat-db/requirements.txt
     python scripts/threat-db/build.py --qdrant-path data/qdrant
 """
 import argparse
+import functools
 import os
 import sys
 import time
@@ -16,15 +19,17 @@ import warnings
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
+# stdout 버퍼링 제거 — 백그라운드 실행 시 실시간 출력 보장
+print = functools.partial(print, flush=True)
+
 # scripts/threat-db/ 디렉토리를 sys.path에 추가 (plain import용)
 _script_dir = os.path.dirname(os.path.abspath(__file__))
-_gateway_root = os.path.dirname(os.path.dirname(_script_dir))
+_service_root = os.path.dirname(os.path.dirname(_script_dir))
 if _script_dir not in sys.path:
     sys.path.insert(0, _script_dir)
 
 from download import download_all
 from parse_cwe import parse_cwe
-from parse_nvd import parse_nvd
 from parse_attack import parse_attack
 from parse_capec import parse_capec
 from crossref import crossref
@@ -34,7 +39,7 @@ from fmt import C, phase_header, title_box, table, colored_src
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Automotive Threat Knowledge DB Builder")
+    parser = argparse.ArgumentParser(description="AEGIS Threat Knowledge DB Builder")
     parser.add_argument(
         "--qdrant-path", default="data/qdrant",
         help="Qdrant 파일 스토리지 경로 (기본: data/qdrant)",
@@ -44,53 +49,57 @@ def main():
         help="통계 JSON 출력 디렉토리 (미지정 시 저장 안 함)",
     )
     parser.add_argument("--no-stats", action="store_true", help="통계 출력 생략")
+    parser.add_argument("--include-nvd", action="store_true", help="NVD CVE 사전 적재 (레거시)")
     args = parser.parse_args()
 
-    # qdrant-path를 절대경로로 변환 (services/llm-gateway 기준)
+    # qdrant-path를 절대경로로 변환
     qdrant_path = args.qdrant_path
     if not os.path.isabs(qdrant_path):
-        qdrant_path = os.path.join(_gateway_root, qdrant_path)
+        qdrant_path = os.path.join(_service_root, qdrant_path)
 
     title_box(
-        "Automotive Threat Knowledge DB -- ETL Pipeline",
-        f"CWE + CVE/NVD + ATT&CK ICS + CAPEC -> Qdrant ({qdrant_path})"
+        "AEGIS Threat Knowledge DB -- ETL Pipeline",
+        f"CWE + ATT&CK (ICS+Enterprise) + CAPEC -> Qdrant ({qdrant_path})"
     )
 
     t_start = time.time()
 
     # Phase 1: 데이터 수집
     phase_header(1, "데이터 수집")
-    paths = download_all()
+    paths = download_all(include_nvd=args.include_nvd)
 
     # Phase 2: 개별 파싱
     phase_header(2, "데이터 파싱")
     cwe_records = parse_cwe(paths["cwe"])
-    nvd_records = parse_nvd(paths["nvd"])
     attack_records = parse_attack(paths["attack"])
-    capec_bridge = parse_capec(paths["capec"])
+    capec_records, capec_bridge = parse_capec(paths["capec"])
 
-    cwe_auto = sum(1 for r in cwe_records if r.automotive_relevance >= 0.2)
-    nvd_auto = sum(1 for r in nvd_records if r.automotive_relevance >= 0.2)
-    nvd_cwe = sum(1 for r in nvd_records if r.related_cwe)
+    # NVD (레거시 옵션)
+    nvd_records = []
+    if paths.get("nvd"):
+        from parse_nvd import parse_nvd
+        nvd_records = parse_nvd(paths["nvd"])
+
     atk_mit = sum(1 for r in attack_records if r.mitigations)
-    capec_cnt = len(capec_bridge.capec_to_cwe)
 
     print(f"\n  {C.B}파싱 결과 요약:{C.RST}")
-    table(
-        ["소스", "건수", "자동차 관련", "비고"],
-        [
-            [colored_src("CWE"), len(cwe_records), cwe_auto, ""],
-            [colored_src("CVE"), len(nvd_records), nvd_auto, f"CWE 매핑 {nvd_cwe*100//max(len(nvd_records),1)}%"],
-            [colored_src("ATT&CK"), len(attack_records), len(attack_records), f"Mitigation {atk_mit}개"],
-            [colored_src("CAPEC"), f"{capec_cnt}패턴", "-", "Bridge 전용"],
-        ],
-        [11, 8, 12, 20],
-        "<>><",
-    )
+    rows = [
+        [colored_src("CWE"), len(cwe_records), sum(1 for r in cwe_records if r.automotive_relevance >= 0.2), "위협 분류 체계"],
+        [colored_src("ATT&CK"), len(attack_records), len(attack_records), f"Mitigation {atk_mit}개"],
+        [colored_src("CAPEC"), len(capec_records), sum(1 for r in capec_records if r.automotive_relevance >= 0.2), "풀 노드"],
+    ]
+    if nvd_records:
+        nvd_cwe = sum(1 for r in nvd_records if r.related_cwe)
+        rows.insert(1, [colored_src("CVE"), len(nvd_records), sum(1 for r in nvd_records if r.automotive_relevance >= 0.2), f"CWE 매핑 {nvd_cwe*100//max(len(nvd_records),1)}%"])
+
+    table(["소스", "건수", "도메인 관련", "비고"], rows, [11, 8, 12, 20], "<>><")
+
+    if not nvd_records:
+        print(f"\n  {C.DIM}CVE/NVD: 프로젝트 분석 시 실시간 조회로 전환됨{C.RST}")
 
     # Phase 3: 교차 참조
     phase_header(3, "교차 참조 해소")
-    unified = crossref(cwe_records, nvd_records, attack_records, capec_bridge)
+    unified = crossref(cwe_records, nvd_records, attack_records, capec_records, capec_bridge)
 
     # Phase 4: Qdrant 적재 (파일 기반)
     phase_header(4, "벡터 DB 적재 (파일 기반)")

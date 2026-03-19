@@ -5,7 +5,7 @@ import type {
   DynamicTestFinding,
   AnalysisResult,
   Vulnerability,
-} from "@smartcar/shared";
+} from "@aegis/shared";
 import type { LlmV1Adapter } from "./llm-v1-adapter";
 import type { WsBroadcaster } from "./ws-broadcaster";
 import type { AdapterManager } from "./adapter-manager";
@@ -34,7 +34,7 @@ export class DynamicTestService {
     private llmClient: LlmV1Adapter,
     private adapterManager: AdapterManager,
     private settingsService: ProjectSettingsService,
-    private ws?: WsBroadcaster<import("@smartcar/shared").WsTestMessage>,
+    private ws?: WsBroadcaster<import("@aegis/shared").WsTestMessage>,
     private resultNormalizer?: ResultNormalizer
   ) {}
 

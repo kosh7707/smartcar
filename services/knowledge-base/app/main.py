@@ -9,9 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.observability import setup_logging
-from app.routers import api, code_graph_api
+from app.routers import api, code_graph_api, cve_api
 
-setup_logging("smartcar-knowledge-base")
+setup_logging("aegis-knowledge-base")
 logger = logging.getLogger(__name__)
 
 
@@ -70,14 +70,27 @@ async def lifespan(_app: FastAPI):
         # fallback: assembler without graph (graph methods return empty)
         assembler = None
 
+    # NVD 실시간 CVE 조회 클라이언트
+    from app.cve.nvd_client import NvdClient
+    nvd_client = NvdClient(
+        api_key=settings.nvd_api_key,
+        api_base=settings.nvd_api_base,
+        rate_delay=settings.nvd_rate_delay,
+        cache_ttl=settings.nvd_cache_ttl,
+        neo4j_graph=neo4j_graph,
+    )
+    logger.info("NVD 클라이언트 초기화 완료 (API 키: %s)", "있음" if settings.nvd_api_key else "없음")
+
     api.set_assembler(assembler)
     api.set_neo4j_graph(neo4j_graph)
     code_graph_api.set_service(code_graph_svc)
+    cve_api.set_nvd_client(nvd_client)
 
     logger.info("Knowledge Base 초기화 완료")
 
     yield
 
+    await nvd_client.close()
     if threat_search:
         threat_search.close()
     if driver:
@@ -86,7 +99,7 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(
-    title="Smartcar Knowledge Base",
+    title="AEGIS Knowledge Base",
     description="위협 지식 검색 서비스 — Qdrant 벡터 검색 + Neo4j 관계 그래프",
     version="0.2.0",
     lifespan=lifespan,
@@ -101,6 +114,7 @@ app.add_middleware(
 
 app.include_router(api.router)
 app.include_router(code_graph_api.router)
+app.include_router(cve_api.router)
 
 
 if __name__ == "__main__":

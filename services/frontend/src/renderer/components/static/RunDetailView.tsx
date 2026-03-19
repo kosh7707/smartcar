@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import type { Run, Finding, EvidenceRef, GateResult } from "@smartcar/shared";
+import type { Run, Finding, EvidenceRef, GateResult } from "@aegis/shared";
 import { FileCode, Clock, PlayCircle } from "lucide-react";
 import { BackButton, PageHeader, StatCard, SeverityBadge, GateResultCard, FindingStatusBadge, ConfidenceBadge, SourceBadge } from "../ui";
 import { parseLocation } from "../../utils/location";

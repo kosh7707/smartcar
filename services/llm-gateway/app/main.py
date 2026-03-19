@@ -51,15 +51,12 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # RAG: rag_enabled=false로 명시 비활성화하지 않는 한, Qdrant 데이터 존재 시 자동 활성화
+    # RAG: S5 Knowledge Base HTTP 클라이언트 초기화
     threat_search = None
     if settings.rag_enabled:
-        try:
-            from app.rag.threat_search import ThreatSearch
-            threat_search = ThreatSearch(settings.qdrant_path)
-            logger.info("RAG 활성화: qdrant_path=%s", settings.qdrant_path)
-        except Exception as e:
-            logger.info("RAG 자동 감지 실패 (데이터 미적재 시 정상): %s", e)
+        from app.rag.threat_search import ThreatSearch
+        threat_search = ThreatSearch(settings.kb_endpoint)
+        logger.info("RAG 활성화: kb_endpoint=%s", settings.kb_endpoint)
 
     _app.state.threat_search = threat_search
 
@@ -79,8 +76,11 @@ async def lifespan(_app: FastAPI):
         )
 
     # RAG enricher + LLM 클라이언트를 주입하여 파이프라인 재구성
-    from app.routers.tasks import _rebuild_pipeline
+    from app.routers.tasks import _rebuild_pipeline, _init_proxy_client
     _rebuild_pipeline(threat_search, llm_client)
+
+    # LLM Engine 프록시 클라이언트 초기화 (/v1/chat 용)
+    _init_proxy_client()
 
     logger.info(
         "LLM Gateway started (mode: %s, rag: %s, concurrency: %d)",
@@ -90,14 +90,16 @@ async def lifespan(_app: FastAPI):
     )
     yield
 
+    from app.routers.tasks import _close_proxy_client
+    await _close_proxy_client()
     if llm_client:
         await llm_client.aclose()
     if threat_search:
-        threat_search.close()
+        await threat_search.close()
 
 
 app = FastAPI(
-    title="Smartcar LLM Gateway",
+    title="AEGIS LLM Gateway",
     description="자동차 전장부품 사이버보안 검증 프레임워크 - LLM 연동 게이트웨이",
     version="0.1.0",
     lifespan=lifespan,

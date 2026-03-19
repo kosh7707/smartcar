@@ -49,7 +49,7 @@ class _LlmAttemptFailure:
 
 
 # vLLM continuous batching 활용 — 동시 요청 수 제어.
-# SMARTCAR_LLM_CONCURRENCY 환경변수로 조정 가능 (기본 4).
+# AEGIS_LLM_CONCURRENCY 환경변수로 조정 가능 (기본 4).
 _llm_semaphore = asyncio.Semaphore(settings.llm_concurrency)
 
 
@@ -117,7 +117,7 @@ class TaskPipeline:
         rag_hits_count = 0
         if self._context_enricher:
             try:
-                threat_context, rag_hits_count = self._context_enricher.enrich(
+                threat_context, rag_hits_count = await self._context_enricher.enrich(
                     request, top_k=settings.rag_top_k,
                     min_score=settings.rag_min_score,
                 )

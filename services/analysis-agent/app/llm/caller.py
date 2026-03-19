@@ -1,4 +1,4 @@
-"""LlmCaller — vLLM HTTP 호출 + tool_calls 파싱. 분기 판단은 하지 않음."""
+"""LlmCaller — S7 Gateway 경유 LLM 호출 + tool_calls 파싱. 분기 판단은 하지 않음."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ _exchange_logger = logging.getLogger("s4_exchange")
 
 
 class LlmCaller:
-    """vLLM OpenAI-compatible API 호출. tool_calls 파싱을 지원한다."""
+    """S7 Gateway 경유 LLM 호출. tool_calls 파싱을 지원한다."""
 
     def __init__(
         self,
@@ -88,7 +88,7 @@ class LlmCaller:
             hasTools=bool(tools), toolCount=len(tools) if tools else 0,
         )
 
-        url = f"{self._endpoint}/v1/chat/completions"
+        url = f"{self._endpoint}/v1/chat"
         start = time.monotonic()
 
         try:

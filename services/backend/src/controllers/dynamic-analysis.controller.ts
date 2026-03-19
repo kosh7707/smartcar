@@ -1,5 +1,5 @@
 import { Router, type Request } from "express";
-import type { AttackScenarioId } from "@smartcar/shared";
+import type { AttackScenarioId } from "@aegis/shared";
 import { DynamicAnalysisService } from "../services/dynamic-analysis.service";
 import { asyncHandler } from "../middleware/async-handler";
 

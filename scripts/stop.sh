@@ -1,5 +1,5 @@
 #!/bin/bash
-# Smartcar 전체 서비스 종료
+# AEGIS 전체 서비스 종료
 # Usage: ./scripts/stop.sh
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -11,6 +11,8 @@ declare -A SERVICE_PORTS=(
   [sast-runner]=9000
   [adapter]=4000
   [backend]=3000
+  [knowledge-base]=8002
+  [analysis-agent]=8001
   [ecu-simulator]=""
   [frontend]=5173
 )
@@ -98,7 +100,7 @@ stop_service() {
 cleanup_ports() {
   local orphans=()
 
-  for name in llm-gateway sast-runner adapter backend frontend; do
+  for name in llm-gateway sast-runner knowledge-base analysis-agent adapter backend frontend; do
     local port="${SERVICE_PORTS[$name]}"
     local occupant
     occupant=$(lsof -t -i :"$port" -sTCP:LISTEN 2>/dev/null | head -1)
@@ -109,7 +111,7 @@ cleanup_ports() {
 
   echo ""
   if [ ${#orphans[@]} -eq 0 ]; then
-    printf "  ${GREEN}포트 정상${NC}  (3000, 4000, 5173, 8000, 9000 모두 해제됨)\n"
+    printf "  ${GREEN}포트 정상${NC}  (3000, 4000, 5173, 8000, 8001, 8002, 9000 모두 해제됨)\n"
     return
   fi
 
@@ -136,12 +138,12 @@ cleanup_ports() {
 
 echo ""
 echo "============================================"
-echo "  Smartcar — 서비스 종료"
+echo "  AEGIS — 서비스 종료"
 echo "============================================"
 echo ""
 
-# 역순으로 종료 (frontend → ecu → backend → adapter → sast-runner → llm-gateway)
-for name in frontend ecu-simulator backend adapter sast-runner llm-gateway; do
+# 역순으로 종료 (frontend → ecu → backend → adapter → knowledge-base → sast-runner → llm-gateway)
+for name in frontend ecu-simulator backend adapter analysis-agent knowledge-base sast-runner llm-gateway; do
   stop_service "$name"
 done
 

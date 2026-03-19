@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import type { Severity, Rule } from "@smartcar/shared";
+import type { Severity, Rule } from "@aegis/shared";
 import type { IRuleDAO } from "../dao/interfaces";
 import { RuleEngine } from "../rules/rule-engine";
 import { CustomRule } from "../rules/custom-rule";

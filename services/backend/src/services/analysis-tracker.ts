@@ -1,4 +1,4 @@
-import type { AnalysisPhase, AnalysisTrackerStatus, AnalysisProgress } from "@smartcar/shared";
+import type { AnalysisPhase, AnalysisTrackerStatus, AnalysisProgress } from "@aegis/shared";
 import { createLogger } from "../lib/logger";
 
 const logger = createLogger("analysis-tracker");

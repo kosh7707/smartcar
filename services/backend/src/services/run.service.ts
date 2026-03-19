@@ -1,4 +1,4 @@
-import type { Run, Finding, GateResult, EvidenceRef } from "@smartcar/shared";
+import type { Run, Finding, GateResult, EvidenceRef } from "@aegis/shared";
 import type { IRunDAO, IFindingDAO, IGateResultDAO, IEvidenceRefDAO } from "../dao/interfaces";
 
 export interface RunDetail {

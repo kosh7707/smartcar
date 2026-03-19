@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import type { Finding, EvidenceRef, AuditLogEntry, FindingStatus } from "@smartcar/shared";
+import type { Finding, EvidenceRef, AuditLogEntry, FindingStatus } from "@aegis/shared";
 import { MapPin, Copy, Clock } from "lucide-react";
 import {
   BackButton,

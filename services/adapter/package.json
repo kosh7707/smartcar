@@ -1,5 +1,5 @@
 {
-  "name": "@smartcar/adapter",
+  "name": "@aegis/adapter",
   "version": "0.1.0",
   "private": true,
   "scripts": {

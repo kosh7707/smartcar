@@ -46,10 +46,10 @@ import type {
   FindingListResponse,
   FindingDetailResponse,
   FindingStatusUpdateRequest,
-} from "@smartcar/shared";
+} from "@aegis/shared";
 
 const DEFAULT_BACKEND_URL = "http://localhost:3000";
-const STORAGE_KEY = "smartcar:backendUrl";
+const STORAGE_KEY = "aegis:backendUrl";
 
 export function getBackendUrl(): string {
   return localStorage.getItem(STORAGE_KEY)
@@ -283,6 +283,63 @@ export async function deleteAnalysisResult(analysisId: string): Promise<void> {
   await apiFetch(`/api/static-analysis/results/${analysisId}`, { method: "DELETE" });
 }
 
+// ── Source Management ──
+
+export interface SourceFileEntry {
+  relativePath: string;
+  size: number;
+  language: string;
+}
+
+export interface SourceUploadResponse {
+  projectPath: string;
+  fileCount: number;
+  files: SourceFileEntry[];
+}
+
+export async function uploadSource(projectId: string, file: File): Promise<SourceUploadResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await apiFetch<{ success: boolean; data: SourceUploadResponse }>(
+    `/api/projects/${projectId}/source/upload`,
+    { method: "POST", body: formData },
+  );
+  return res.data;
+}
+
+export async function cloneSource(projectId: string, url: string, branch?: string): Promise<SourceUploadResponse> {
+  const res = await apiFetch<{ success: boolean; data: SourceUploadResponse }>(
+    `/api/projects/${projectId}/source/clone`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, branch: branch || undefined }),
+    },
+  );
+  return res.data;
+}
+
+export async function fetchSourceFiles(projectId: string): Promise<SourceFileEntry[]> {
+  const res = await apiFetch<{ success: boolean; data: SourceFileEntry[] }>(
+    `/api/projects/${projectId}/source/files`,
+  );
+  return res.data;
+}
+
+// ── New Analysis API ──
+
+export async function runAnalysis(projectId: string): Promise<{ analysisId: string; status: string }> {
+  const res = await apiFetch<{ success: boolean; data: { analysisId: string; status: string } }>(
+    "/api/analysis/run",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectId }),
+    },
+  );
+  return res.data;
+}
+
 // ── Project Files ──
 
 export async function fetchProjectFiles(projectId: string): Promise<UploadedFile[]> {
@@ -372,8 +429,8 @@ export async function stopDynamicSession(sessionId: string): Promise<DynamicAnal
 
 // ── CAN Injection ──
 
-export async function fetchScenarios(): Promise<import("@smartcar/shared").AttackScenario[]> {
-  const res = await apiFetch<{ success: boolean; data: import("@smartcar/shared").AttackScenario[] }>(
+export async function fetchScenarios(): Promise<import("@aegis/shared").AttackScenario[]> {
+  const res = await apiFetch<{ success: boolean; data: import("@aegis/shared").AttackScenario[] }>(
     "/api/dynamic-analysis/scenarios",
   );
   return res.data;
@@ -381,9 +438,9 @@ export async function fetchScenarios(): Promise<import("@smartcar/shared").Attac
 
 export async function injectCanMessage(
   sessionId: string,
-  req: import("@smartcar/shared").CanInjectionRequest,
-): Promise<import("@smartcar/shared").CanInjectionResponse> {
-  const res = await apiFetch<{ success: boolean; data: import("@smartcar/shared").CanInjectionResponse }>(
+  req: import("@aegis/shared").CanInjectionRequest,
+): Promise<import("@aegis/shared").CanInjectionResponse> {
+  const res = await apiFetch<{ success: boolean; data: import("@aegis/shared").CanInjectionResponse }>(
     `/api/dynamic-analysis/sessions/${sessionId}/inject`,
     {
       method: "POST",
@@ -397,8 +454,8 @@ export async function injectCanMessage(
 export async function injectScenario(
   sessionId: string,
   scenarioId: string,
-): Promise<import("@smartcar/shared").CanInjectionResponse[]> {
-  const res = await apiFetch<{ success: boolean; data: import("@smartcar/shared").CanInjectionResponse[] }>(
+): Promise<import("@aegis/shared").CanInjectionResponse[]> {
+  const res = await apiFetch<{ success: boolean; data: import("@aegis/shared").CanInjectionResponse[] }>(
     `/api/dynamic-analysis/sessions/${sessionId}/inject-scenario`,
     {
       method: "POST",
@@ -411,8 +468,8 @@ export async function injectScenario(
 
 export async function fetchInjections(
   sessionId: string,
-): Promise<import("@smartcar/shared").CanInjectionResponse[]> {
-  const res = await apiFetch<{ success: boolean; data: import("@smartcar/shared").CanInjectionResponse[] }>(
+): Promise<import("@aegis/shared").CanInjectionResponse[]> {
+  const res = await apiFetch<{ success: boolean; data: import("@aegis/shared").CanInjectionResponse[] }>(
     `/api/dynamic-analysis/sessions/${sessionId}/injections`,
   );
   return res.data;
@@ -589,7 +646,7 @@ export async function fetchProjectFindings(
 
 export async function fetchFindingDetail(
   findingId: string,
-): Promise<Finding & { evidenceRefs: import("@smartcar/shared").EvidenceRef[]; auditLog: import("@smartcar/shared").AuditLogEntry[] }> {
+): Promise<Finding & { evidenceRefs: import("@aegis/shared").EvidenceRef[]; auditLog: import("@aegis/shared").AuditLogEntry[] }> {
   const res = await apiFetch<FindingDetailResponse>(`/api/findings/${findingId}`);
   return res.data!;
 }

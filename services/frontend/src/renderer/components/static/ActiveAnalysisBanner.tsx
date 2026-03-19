@@ -1,5 +1,5 @@
 import React from "react";
-import type { AnalysisProgress } from "@smartcar/shared";
+import type { AnalysisProgress } from "@aegis/shared";
 import { Loader2, Eye, XCircle } from "lucide-react";
 
 interface Props {

@@ -1,4 +1,4 @@
-import type { AttackScenario } from "@smartcar/shared";
+import type { AttackScenario } from "@aegis/shared";
 
 export const ATTACK_SCENARIOS: AttackScenario[] = [
   {

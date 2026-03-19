@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
-import type { DynamicTestConfig, DynamicTestResult, DynamicTestFinding, TestStrategy } from "@smartcar/shared";
+import type { DynamicTestConfig, DynamicTestResult, DynamicTestFinding, TestStrategy } from "@aegis/shared";
 import {
   FlaskConical,
   Plus,

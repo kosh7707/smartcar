@@ -1,18 +1,22 @@
 """
-교차 참조 엔진 -- CWE<->CVE<->ATT&CK 관계 해소
+교차 참조 엔진 -- CWE<->CVE<->ATT&CK<->CAPEC 관계 해소
 """
+import functools
 from collections import defaultdict
 from schema import UnifiedThreatRecord, CapecBridge
 from fmt import C, table
+
+print = functools.partial(print, flush=True)
 
 
 def crossref(
     cwe_records: list[UnifiedThreatRecord],
     nvd_records: list[UnifiedThreatRecord],
     attack_records: list[UnifiedThreatRecord],
+    capec_records: list[UnifiedThreatRecord],
     bridge: CapecBridge,
 ) -> list[UnifiedThreatRecord]:
-    """3개 소스 간 교차 참조 해소 후 통합 리스트 반환"""
+    """4개 소스 간 교차 참조 해소 후 통합 리스트 반환"""
 
     # 역인덱스: CWE ID -> CVE IDs
     cwe_to_cves: dict[str, list[str]] = defaultdict(list)
@@ -79,15 +83,27 @@ def crossref(
                 if aid not in cwe.related_attack:
                     cwe.related_attack.append(aid)
 
-    all_records = cwe_records + nvd_records + attack_records
+    # 4. CAPEC -> CVE (CWE 경유 간접)
+    capec_to_cve_linked = 0
+    for capec in capec_records:
+        for cwe_id in capec.related_cwe:
+            cve_ids = cwe_to_cves.get(cwe_id, [])
+            for cve_id in cve_ids:
+                if cve_id not in capec.related_cve:
+                    capec.related_cve.append(cve_id)
+        if capec.related_cve:
+            capec_to_cve_linked += 1
+
+    all_records = cwe_records + nvd_records + attack_records + capec_records
 
     total_crossrefs = sum(
-        len(r.related_cwe) + len(r.related_cve) + len(r.related_attack)
+        len(r.related_cwe) + len(r.related_cve) + len(r.related_attack) + len(r.related_capec)
         for r in all_records
     )
     cve_with_cwe = sum(1 for r in nvd_records if r.related_cwe)
     cwe_with_cve = sum(1 for r in cwe_records if r.related_cve)
     cwe_with_attack = sum(1 for r in cwe_records if r.related_attack)
+    capec_with_cwe = sum(1 for r in capec_records if r.related_cwe)
 
     def _pct(a, b):
         return f"{a*100//max(b,1)}%" if b > 0 else "N/A"
@@ -101,6 +117,8 @@ def crossref(
             ["ATT&CK -> CWE", attack_to_cwe_linked, len(attack_records), _pct(attack_to_cwe_linked, len(attack_records))],
             ["CWE -> CVE", cwe_with_cve, len(cwe_records), _pct(cwe_with_cve, len(cwe_records))],
             ["CWE -> ATT&CK", cwe_with_attack, len(cwe_records), _pct(cwe_with_attack, len(cwe_records))],
+            ["CAPEC -> CWE", capec_with_cwe, len(capec_records), _pct(capec_with_cwe, len(capec_records))],
+            ["CAPEC -> CVE", capec_to_cve_linked, len(capec_records), _pct(capec_to_cve_linked, len(capec_records))],
         ],
         [14, 8, 8, 10],
         "<>>>"

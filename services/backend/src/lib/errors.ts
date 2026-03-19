@@ -7,6 +7,10 @@ export type ErrorCode =
   | "LLM_HTTP_ERROR"
   | "LLM_PARSE_ERROR"
   | "LLM_TIMEOUT"
+  | "AGENT_UNAVAILABLE"
+  | "AGENT_TIMEOUT"
+  | "SAST_UNAVAILABLE"
+  | "SAST_TIMEOUT"
   | "DB_ERROR"
   | "INTERNAL_ERROR";
 
@@ -76,6 +80,34 @@ export class LlmTimeoutError extends AppError {
   constructor(message: string, cause?: unknown) {
     super("LLM_TIMEOUT", 504, message, true, cause);
     this.name = "LlmTimeoutError";
+  }
+}
+
+export class AgentUnavailableError extends AppError {
+  constructor(message: string, cause?: unknown) {
+    super("AGENT_UNAVAILABLE", 502, message, true, cause);
+    this.name = "AgentUnavailableError";
+  }
+}
+
+export class AgentTimeoutError extends AppError {
+  constructor(message: string, cause?: unknown) {
+    super("AGENT_TIMEOUT", 504, message, true, cause);
+    this.name = "AgentTimeoutError";
+  }
+}
+
+export class SastUnavailableError extends AppError {
+  constructor(message: string, cause?: unknown) {
+    super("SAST_UNAVAILABLE", 502, message, true, cause);
+    this.name = "SastUnavailableError";
+  }
+}
+
+export class SastTimeoutError extends AppError {
+  constructor(message: string, cause?: unknown) {
+    super("SAST_TIMEOUT", 504, message, true, cause);
+    this.name = "SastTimeoutError";
   }
 }
 

@@ -28,12 +28,13 @@
 |------|--------|------|--------|
 | S1 | Frontend + QA | :5173 | S1 |
 | **S2** | **AEGIS Core (Backend)** | **:3000** | **너** |
-| S3 | Analysis Agent + LLM Gateway + LLM Engine 관리 | :8000, :8001, DGX | S3 |
+| S3 | Analysis Agent — 보안 분석 자율 에이전트 | :8001 | S3 |
 | S4 | SAST Runner (6도구 + SCA + 코드 구조 + 빌드) | :9000 | S4 |
 | S5 | Knowledge Base (Neo4j + Qdrant) | :8002 | S5 |
 | S6 | Dynamic Analysis (ECU Sim + Adapter) | :4000 | S6 |
+| S7 | LLM Gateway + LLM Engine 관리 — 플랫폼 LLM 서비스 | :8000, DGX | S7 |
 
-**S2가 전체 오케스트레이터.** S1에게 API를 제공하고, S3/S4/S5/S6를 호출하는 중추.
+**S2가 전체 오케스트레이터.** S1에게 API를 제공하고, S3/S4/S5/S6/S7를 호출하는 중추.
 
 ### 보안 검증 구조 (전환 중)
 
@@ -71,7 +72,7 @@
 
 S3가 Analysis Agent(:8001)를 구현했다. Phase 1(결정론적: SAST + 코드 그래프 + SCA) + Phase 2(LLM 해석)의 2단계 구조:
 - S2가 `POST :8001/v1/tasks` (`taskType: "deep-analyze"`)로 요청
-- S3 Agent가 S4(SAST Runner), S5(KB), LLM Engine을 알아서 호출
+- S3 Agent가 S7(Gateway), S4(SAST Runner), S5(KB)를 호출
 - S2는 결과를 받아 코어 도메인(Run, Finding, EvidenceRef)에 정규화
 - **S2는 플랫폼 오케스트레이터 역할 유지** — S3의 에이전트는 "분석" 기능의 내부 구현일 뿐
 
@@ -138,9 +139,9 @@ S3가 Analysis Agent(:8001)를 구현했다. Phase 1(결정론적: SAST + 코드
 
 ```
 services/backend/
-├── package.json                    # @smartcar/backend, Express 5, better-sqlite3, multer, ws, pino
+├── package.json                    # @aegis/backend, Express 5, better-sqlite3, multer, ws, pino
 ├── tsconfig.json
-├── smartcar.db                     # SQLite DB 파일 (자동 생성)
+├── aegis.db                     # SQLite DB 파일 (자동 생성)
 └── src/
     ├── index.ts                    # 앱 진입점 (Express 초기화, DI, 미들웨어, 라우터 마운트, WS attach)
     ├── db.ts                       # SQLite 초기화, 테이블 16개 생성, 마이그레이션
@@ -259,7 +260,7 @@ Controller → Service → DAO → SQLite
 
 ## 4. 데이터베이스
 
-SQLite(`better-sqlite3`), WAL 모드. DB 파일: `services/backend/smartcar.db` (환경변수 `DB_PATH`로 변경 가능).
+SQLite(`better-sqlite3`), WAL 모드. DB 파일: `services/backend/aegis.db` (환경변수 `DB_PATH`로 변경 가능).
 
 ### 테이블 16개
 
@@ -286,7 +287,7 @@ SQLite(`better-sqlite3`), WAL 모드. DB 파일: `services/backend/smartcar.db` 
 
 ### DB 클린 방법
 
-서버를 **완전히 종료**한 뒤 `rm smartcar.db` -> 서버 재시작. hot-reload 중에 DB 파일만 삭제하면 0바이트 파일이 되어 테이블이 생성되지 않는다 (메모리 내 기존 연결이 남아있기 때문).
+서버를 **완전히 종료**한 뒤 `rm aegis.db` -> 서버 재시작. hot-reload 중에 DB 파일만 삭제하면 0바이트 파일이 되어 테이블이 생성되지 않는다 (메모리 내 기존 연결이 남아있기 때문).
 
 ---
 
@@ -573,8 +574,8 @@ GET http://localhost:8000/v1/health
 - `dynamic_analysis` -> `dynamic-annotate`
 - `dynamic_testing` -> `test-plan-propose`
 
-- S3 URL: 프로젝트 설정 `llmUrl` 우선, 없으면 환경변수 `LLM_GATEWAY_URL` (기본값: `http://localhost:8000`)
-- S3 연결 실패 시 `{ success: false, vulnerabilities: [] }` 반환 -> 1계층 결과만으로 응답 (graceful degradation)
+- S7 URL: 프로젝트 설정 `llmUrl` 우선, 없으면 환경변수 `LLM_GATEWAY_URL` (기본값: `http://localhost:8000`)
+- S7 연결 실패 시 `{ success: false, vulnerabilities: [] }` 반환 -> 1계층 결과만으로 응답 (graceful degradation)
 - concurrency queue (기본 4, 환경변수 `LLM_CONCURRENCY`)
 - S3 응답의 `confidenceBreakdown` 필드: `consistency` -> `ragCoverage`로 변경됨 (S3 측 2026-03-16 반영)
 
@@ -594,7 +595,7 @@ multer가 multipart 헤더의 filename을 latin1(ISO-8859-1)로 해석한다. `s
 
 ```json
 {
-  "@smartcar/shared": "*",         // 공유 Model/DTO 타입 (monorepo workspace)
+  "@aegis/shared": "*",         // 공유 Model/DTO 타입 (monorepo workspace)
   "better-sqlite3": "^12.6.2",    // SQLite 드라이버
   "express": "^5.2.1",            // HTTP 프레임워크 (v5)
   "cors": "^2.8.6",               // CORS 미들웨어
@@ -642,7 +643,7 @@ cd services/frontend && npm run dev
 확인:
 ```bash
 curl http://localhost:3000/health
-# {"service":"smartcar-core-service","status":"ok","version":"0.1.0","llmGateway":{...},"adapters":{"total":1,"connected":1}}
+# {"service":"aegis-core-service","status":"ok","version":"0.1.0","llmGateway":{...},"adapters":{"total":1,"connected":1}}
 
 # 프로젝트 생성 → 기본 룰 22개 자동 시딩
 curl -X POST http://localhost:3000/api/projects \
@@ -691,7 +692,7 @@ curl -X POST http://localhost:3000/api/projects/proj-xxx/adapters/adp-xxx/connec
 **로그 관리 스크립트** (`scripts/common/`):
 - `reset-logs-all.sh` -- 전체 서비스 로그 초기화
 - `reset-logs-s2.sh` -- S2 백엔드 로그만 초기화
-- `clean-s3-logs.sh` -- S3 LLM Gateway 로그 정리
+- `clean-s3-logs.sh` -- S7 LLM Gateway 로그 정리 (S7 소유)
 - `clear-s4-logs.sh` -- S4 LLM Engine 로그 정리
 
 **서비스 관리 스크립트** (`scripts/`) -- **너의 담당**:
@@ -710,7 +711,7 @@ curl -X POST http://localhost:3000/api/projects/proj-xxx/adapters/adp-xxx/connec
   - 종료 후 포트 잔류 점검 (3000, 4000, 5173, 8000, 9000) + 좀비 프로세스 강제 정리
   - 서머리 (`전체 종료 완료 (5건 종료, 1건 미실행)`)
 
-**주의**: WSL2 환경이다. monorepo 루트에서 `npm install` 완료 상태여야 `@smartcar/shared` 심볼릭 링크가 동작한다.
+**주의**: WSL2 환경이다. monorepo 루트에서 `npm install` 완료 상태여야 `@aegis/shared` 심볼릭 링크가 동작한다.
 
 ---
 
@@ -841,11 +842,11 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 ### DB hot-reload 함정
 
-서버가 `tsx watch`로 실행 중일 때 `smartcar.db`를 삭제하면 0바이트 파일이 되고 테이블이 생성되지 않는다. 반드시 서버 프로세스를 종료 -> DB 삭제 -> 서버 재시작 순서로 진행할 것.
+서버가 `tsx watch`로 실행 중일 때 `aegis.db`를 삭제하면 0바이트 파일이 되고 테이블이 생성되지 않는다. 반드시 서버 프로세스를 종료 -> DB 삭제 -> 서버 재시작 순서로 진행할 것.
 
 ### shared 타입 변경 시
 
-`@smartcar/shared`는 S2가 단독 소유한다. 변경 시 `docs/api/shared-models.md`를 같이 업데이트하고, S1에게 work-request로 통보한다. DB 컬럼명(snake_case)과 TypeScript 필드명(camelCase) 변환은 DAO의 `rowTo*()` 함수에서 수동으로 한다.
+`@aegis/shared`는 S2가 단독 소유한다. 변경 시 `docs/api/shared-models.md`를 같이 업데이트하고, S1에게 work-request로 통보한다. DB 컬럼명(snake_case)과 TypeScript 필드명(camelCase) 변환은 DAO의 `rowTo*()` 함수에서 수동으로 한다.
 
 ### 마이그레이션 순서
 
@@ -988,7 +989,7 @@ src/
 |------|------|--------------|
 | 공통 제약 사항 | `docs/AEGIS.md` | **필독** — 역할, 소유권, 소통 규칙 전부 |
 | S2 기능 명세 | `docs/specs/backend.md` | 네가 관리하는 계약서 — 현황 파악 필수 |
-| S3 API 명세 | `docs/api/llm-gateway-api.md` | S3 호출 스펙 (Analysis Agent 포함) |
+| S7 API 명세 | `docs/api/llm-gateway-api.md` | S2↔S7, S3↔S7 호출 스펙 |
 | SAST Runner API | `docs/api/sast-runner-api.md` | S4 호출 스펙 |
 | KB API | `docs/api/knowledge-base-api.md` | S5 호출 스펙 |
 | 공유 모델 | `docs/api/shared-models.md` | 전 서비스 공유 타입 |

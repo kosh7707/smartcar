@@ -1,4 +1,4 @@
-import type { SdkProfile } from "@smartcar/shared";
+import type { SdkProfile } from "@aegis/shared";
 
 /**
  * 사전 정의 SDK 프로파일

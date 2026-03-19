@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { EvidenceRef, LocatorType } from "@smartcar/shared";
+import type { EvidenceRef, LocatorType } from "@aegis/shared";
 import { X } from "lucide-react";
 import { ARTIFACT_TYPE_LABELS, LOCATOR_TYPE_LABELS } from "../../constants/evidence";
 import { formatDateTime } from "../../utils/format";

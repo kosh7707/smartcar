@@ -1,5 +1,5 @@
 import React from "react";
-import type { Confidence } from "@smartcar/shared";
+import type { Confidence } from "@aegis/shared";
 import { CONFIDENCE_LABELS, CONFIDENCE_DESCRIPTIONS } from "../../constants/finding";
 
 interface Props {

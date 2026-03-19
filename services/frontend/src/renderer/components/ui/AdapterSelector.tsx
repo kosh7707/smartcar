@@ -1,5 +1,5 @@
 import { Plug } from "lucide-react";
-import type { Adapter } from "@smartcar/shared";
+import type { Adapter } from "@aegis/shared";
 import "./AdapterSelector.css";
 
 interface Props {

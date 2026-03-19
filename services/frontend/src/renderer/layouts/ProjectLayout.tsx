@@ -6,8 +6,6 @@ import { useProjects } from "../contexts/ProjectContext";
 const pageNames: Record<string, string> = {
   overview: "대시보드",
   "static-analysis": "정적 분석",
-  "dynamic-analysis": "동적 분석",
-  "dynamic-test": "동적 테스트",
   files: "파일 탐색기",
   vulnerabilities: "취약점 목록",
   "analysis-history": "분석 이력",

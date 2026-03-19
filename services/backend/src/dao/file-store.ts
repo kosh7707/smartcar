@@ -1,4 +1,4 @@
-import type { UploadedFile } from "@smartcar/shared";
+import type { UploadedFile } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IFileStore } from "./interfaces";
 

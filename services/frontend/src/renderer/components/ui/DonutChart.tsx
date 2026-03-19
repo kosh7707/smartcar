@@ -1,5 +1,5 @@
 import React from "react";
-import type { AnalysisSummary } from "@smartcar/shared";
+import type { AnalysisSummary } from "@aegis/shared";
 
 interface Props {
   summary: AnalysisSummary;

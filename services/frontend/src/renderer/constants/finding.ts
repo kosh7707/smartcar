@@ -1,4 +1,4 @@
-import type { FindingStatus, FindingSourceType, Confidence } from "@smartcar/shared";
+import type { FindingStatus, FindingSourceType, Confidence } from "@aegis/shared";
 
 export const FINDING_STATUS_LABELS: Record<FindingStatus, string> = {
   open: "열림",
@@ -38,7 +38,7 @@ export function canTransitionTo(
 ): boolean {
   const allowed = ALLOWED_TRANSITIONS[from];
   if (!allowed.includes(to)) return false;
-  if (sourceType === "llm-assist" && (to === "accepted_risk" || to === "fixed")) return false;
+  if ((sourceType === "llm-assist" || sourceType === "agent") && (to === "accepted_risk" || to === "fixed")) return false;
   return true;
 }
 
@@ -46,6 +46,8 @@ export const SOURCE_TYPE_LABELS: Record<FindingSourceType, string> = {
   "rule-engine": "룰",
   "llm-assist": "AI",
   both: "룰 + AI",
+  agent: "에이전트",
+  "sast-tool": "SAST",
 };
 
 export const CONFIDENCE_LABELS: Record<Confidence, string> = {
@@ -74,4 +76,6 @@ export const SOURCE_TYPE_DESCRIPTIONS: Record<FindingSourceType, string> = {
   "rule-engine": "정적 분석 룰에 의해 탐지된 Finding",
   "llm-assist": "AI 모델이 제안한 Finding",
   both: "룰 엔진과 AI 모두 탐지한 Finding",
+  agent: "심층 분석 에이전트가 제안한 Finding",
+  "sast-tool": "SAST 도구에 의해 탐지된 Finding",
 };

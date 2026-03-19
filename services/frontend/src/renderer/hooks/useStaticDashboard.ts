@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { StaticAnalysisDashboardSummary, Run, AnalysisProgress, RunDetailResponse } from "@smartcar/shared";
+import type { StaticAnalysisDashboardSummary, Run, AnalysisProgress, RunDetailResponse } from "@aegis/shared";
 import type { DashboardPeriod } from "../components/ui/PeriodSelector";
 import {
   fetchStaticDashboardSummary,
@@ -29,7 +29,7 @@ export function useStaticDashboard(projectId?: string) {
         ]);
         setSummary(summaryData);
         const sorted = runs
-          .filter((r) => r.module === "static_analysis")
+          .filter((r) => r.module === "static_analysis" || r.module === "deep_analysis")
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setRecentRuns(sorted);
 

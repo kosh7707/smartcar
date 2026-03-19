@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { EvidenceRef } from "@smartcar/shared";
+import type { EvidenceRef } from "@aegis/shared";
 import { FileCheck, ChevronDown, ChevronUp } from "lucide-react";
 import { EvidenceItemRow } from "./EvidenceItemRow";
 import { EmptyState } from "../ui";

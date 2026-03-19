@@ -11,4 +11,4 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 echo "[Frontend] 개발 서버 기동..."
-cd "$ROOT_DIR/services/frontend" && exec npm run dev
+cd "$ROOT_DIR/services/frontend" && exec npm run dev:renderer

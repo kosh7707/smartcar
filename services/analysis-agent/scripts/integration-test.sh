@@ -1,13 +1,13 @@
 #!/bin/bash
-# Analysis Agent 통합 테스트 — S4 SAST Runner + LLM Engine
-# 사전 조건: S4 서비스 가동 중 (SAST Runner :9000, LLM Engine 10.126.37.19:8000)
+# Analysis Agent 통합 테스트 — S4 SAST Runner + S7 Gateway
+# 사전 조건: S7 Gateway(:8000), S4 SAST Runner(:9000) 가동 중
 # 사용법: ./scripts/integration-test.sh
 
 set -euo pipefail
 
 AGENT_URL="http://localhost:8001"
 SAST_URL="http://localhost:9000"
-LLM_URL="http://10.126.37.19:8000"
+GATEWAY_URL="http://localhost:8000"
 
 echo "=== Analysis Agent 통합 테스트 ==="
 echo ""
@@ -17,8 +17,8 @@ echo "[0] 서비스 상태 확인..."
 echo -n "  SAST Runner: "
 curl -sf "$SAST_URL/v1/health" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'{d[\"status\"]} (v{d[\"version\"]})')" || echo "UNREACHABLE"
 
-echo -n "  LLM Engine:  "
-curl -sf "$LLM_URL/health" | python3 -c "import sys,json; d=json.load(sys.stdin); print('ok')" 2>/dev/null || echo "UNREACHABLE"
+echo -n "  S7 Gateway:  "
+curl -sf "$GATEWAY_URL/v1/health" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'{d[\"status\"]} (mode: {d[\"llmMode\"]})')" 2>/dev/null || echo "UNREACHABLE"
 
 echo -n "  Agent:       "
 curl -sf "$AGENT_URL/v1/health" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'{d[\"status\"]} (mode: {d[\"llmMode\"]})')" || echo "UNREACHABLE"

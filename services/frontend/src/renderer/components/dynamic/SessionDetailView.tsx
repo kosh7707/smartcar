@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import type { DynamicAnalysisSession, DynamicAlert, CanMessage } from "@smartcar/shared";
+import type { DynamicAnalysisSession, DynamicAlert, CanMessage } from "@aegis/shared";
 import { Clock, Radio, AlertTriangle, Plug } from "lucide-react";
 import { fetchDynamicSessionDetail, logError } from "../../api/client";
 import { BackButton, EmptyState, SeverityBadge, Spinner } from "../ui";

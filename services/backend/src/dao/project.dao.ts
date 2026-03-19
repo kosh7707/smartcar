@@ -1,4 +1,4 @@
-import type { Project } from "@smartcar/shared";
+import type { Project } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IProjectDAO } from "./interfaces";
 

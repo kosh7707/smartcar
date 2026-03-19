@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { DynamicTestConfig } from "@smartcar/shared";
+import type { DynamicTestConfig } from "@aegis/shared";
 import { DynamicTestService } from "../services/dynamic-test.service";
 import { asyncHandler } from "../middleware/async-handler";
 

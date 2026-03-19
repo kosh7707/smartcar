@@ -1,4 +1,4 @@
-import type { Severity } from "@smartcar/shared";
+import type { Severity } from "@aegis/shared";
 
 export interface RuleMatch {
   ruleId: string;

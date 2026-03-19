@@ -127,6 +127,8 @@ async def _handle_deep_analyze(request: TaskRequest) -> TaskSuccessResponse | Ta
         sast_tool=sast_impl,
         codegraph_tool=codegraph_impl,
         sca_tool=sca_impl,
+        kb_endpoint=settings.kb_endpoint,
+        sast_endpoint=settings.sast_endpoint,
     )
     phase1_result = await phase1_executor.execute(session)
 
@@ -240,7 +242,7 @@ async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
 @router.get("/health")
 async def health(req: Request) -> dict:
     result = {
-        "service": "smartcar-analysis-agent",
+        "service": "aegis-analysis-agent",
         "status": "ok",
         "version": "0.1.0",
         "llmMode": settings.llm_mode,
@@ -268,7 +270,7 @@ async def health(req: Request) -> dict:
     threat_search = getattr(req.app.state, "threat_search", None)
     result["rag"] = {
         "enabled": settings.rag_enabled,
-        "qdrantPath": settings.qdrant_path,
+        "kbEndpoint": settings.kb_endpoint,
         "status": "ok" if threat_search else "disabled",
     }
 
@@ -276,18 +278,23 @@ async def health(req: Request) -> dict:
 
 
 async def _check_llm_backend() -> dict:
+    """S7 Gateway 연결 상태를 확인한다."""
     import httpx
 
-    profile = _model_registry.get_default()
-    endpoint = profile.endpoint if profile else settings.llm_endpoint
+    endpoint = settings.llm_endpoint  # S7 Gateway 주소
 
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(f"{endpoint}/health")
+            resp = await client.get(f"{endpoint}/v1/health")
             resp.raise_for_status()
-            return {"status": "ok", "endpoint": endpoint}
+            data = resp.json()
+            return {
+                "status": "ok",
+                "gateway": endpoint,
+                "gatewayLlmBackend": data.get("llmBackend"),
+            }
     except Exception as e:
-        return {"status": "unreachable", "endpoint": endpoint, "error": str(e)}
+        return {"status": "unreachable", "gateway": endpoint, "error": str(e)}
 
 
 @router.get("/models")

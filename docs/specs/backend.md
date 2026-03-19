@@ -77,7 +77,7 @@ JSON structured logging (stdout, pino). 상세 규약: `docs/specs/observability
 
 SQLite(`better-sqlite3`)를 사용하여 별도 DB 서버 없이 파일 단일로 운영한다.
 
-- DB 파일: `services/backend/smartcar.db` (환경변수 `DB_PATH`로 변경 가능)
+- DB 파일: `services/backend/aegis.db` (환경변수 `DB_PATH`로 변경 가능)
 - WAL 모드 활성화 (읽기/쓰기 동시성 향상)
 - 테이블 (16개): `projects`, `uploaded_files`, `analysis_results`, `rules`, `adapters`, `project_settings`, `dynamic_analysis_sessions`, `dynamic_analysis_alerts`, `dynamic_analysis_messages`, `dynamic_test_results`, `audit_log`, `runs`, `findings`, `evidence_refs`, `gate_results`, `approvals` (후속 과제 — 3단계, 스키마 선확정)
 - `analysis_results` 테이블에 `warnings TEXT` 컬럼 추가 (JSON, 기본값 `'[]'`)

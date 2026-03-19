@@ -1,5 +1,5 @@
 import { Router, type Request } from "express";
-import type { AnalysisModule, FindingStatus, Severity } from "@smartcar/shared";
+import type { AnalysisModule, FindingStatus, Severity } from "@aegis/shared";
 import { ReportService, type ReportFilters } from "../services/report.service";
 
 const MODULE_MAP: Record<string, AnalysisModule> = {

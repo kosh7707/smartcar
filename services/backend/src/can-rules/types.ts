@@ -1,4 +1,4 @@
-import type { Severity, CanMessage } from "@smartcar/shared";
+import type { Severity, CanMessage } from "@aegis/shared";
 
 export interface CanRuleMatch {
   ruleId: string;

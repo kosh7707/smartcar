@@ -1,4 +1,4 @@
-import type { DynamicTestResult, DynamicTestFinding, AnalysisStatus } from "@smartcar/shared";
+import type { DynamicTestResult, DynamicTestFinding, AnalysisStatus } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IDynamicTestResultDAO } from "./interfaces";
 

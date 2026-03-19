@@ -6,7 +6,7 @@ import type {
   AuditLogEntry,
   Severity,
   AnalysisModule,
-} from "@smartcar/shared";
+} from "@aegis/shared";
 import type { IFindingDAO, IEvidenceRefDAO, IAuditLogDAO } from "../dao/interfaces";
 import { InvalidInputError, NotFoundError } from "../lib/errors";
 import { createLogger } from "../lib/logger";

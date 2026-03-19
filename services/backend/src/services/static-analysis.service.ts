@@ -5,7 +5,7 @@ import type {
   FileCoverageEntry,
   Vulnerability,
   Severity,
-} from "@smartcar/shared";
+} from "@aegis/shared";
 import type { RuleMatch } from "../rules/types";
 import type { LlmV1Adapter } from "./llm-v1-adapter";
 import { validateLlmSeverity } from "../lib/vulnerability-utils";
@@ -30,7 +30,7 @@ export class StaticAnalysisService {
     private ruleService: RuleService,
     private llmClient: LlmV1Adapter,
     private settingsService: ProjectSettingsService,
-    private ws?: WsBroadcaster<import("@smartcar/shared").WsStaticMessage>,
+    private ws?: WsBroadcaster<import("@aegis/shared").WsStaticMessage>,
     private resultNormalizer?: ResultNormalizer
   ) {}
 

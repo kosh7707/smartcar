@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { StaticAnalysisDashboardSummary, Run, AnalysisProgress, RunDetailResponse } from "@smartcar/shared";
+import type { StaticAnalysisDashboardSummary, Run, AnalysisProgress, RunDetailResponse } from "@aegis/shared";
 import type { DashboardPeriod } from "../ui/PeriodSelector";
 import { PageHeader } from "../ui";
 import { FileSearch, Plus } from "lucide-react";

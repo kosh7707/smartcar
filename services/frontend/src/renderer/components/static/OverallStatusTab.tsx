@@ -1,5 +1,5 @@
 import React from "react";
-import type { StaticAnalysisDashboardSummary, Run } from "@smartcar/shared";
+import type { StaticAnalysisDashboardSummary, Run } from "@aegis/shared";
 import type { DashboardPeriod } from "../ui/PeriodSelector";
 import { StatCard, DonutChart, PeriodSelector, TrendChart, FindingSummary } from "../ui";
 import { Shield, AlertTriangle, ShieldCheck, PlayCircle } from "lucide-react";

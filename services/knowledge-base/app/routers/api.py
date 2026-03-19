@@ -33,6 +33,7 @@ class SearchRequest(BaseModel):
     top_k: int = Field(default=5, ge=1, le=20)
     min_score: float = Field(default=0.35, ge=0.0, le=1.0)
     graph_depth: int = Field(default=2, ge=0, le=5)
+    exclude_ids: list[str] = Field(default_factory=list, max_length=100)
 
 
 @router.post("/search")
@@ -52,6 +53,7 @@ async def search(
         top_k=req.top_k,
         min_score=req.min_score,
         graph_depth=req.graph_depth,
+        exclude_ids=req.exclude_ids,
     )
 
     elapsed_ms = int((time.monotonic() - start) * 1000)
@@ -120,7 +122,7 @@ async def health() -> dict:
             graph_info = {"backend": "neo4j", "connected": False}
 
     return {
-        "service": "smartcar-knowledge-base",
+        "service": "aegis-knowledge-base",
         "status": "ok",
         "version": "0.2.0",
         "qdrantPath": settings.qdrant_path,

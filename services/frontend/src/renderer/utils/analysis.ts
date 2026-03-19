@@ -1,4 +1,4 @@
-import type { AnalysisResult } from "@smartcar/shared";
+import type { AnalysisResult } from "@aegis/shared";
 import { parseLocation } from "./location";
 
 export function extractFiles(analysis: AnalysisResult): string[] {

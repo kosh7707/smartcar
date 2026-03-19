@@ -1,0 +1,174 @@
+/* ── Two Stage Progress View ── */
+
+.two-stage-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.two-stage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.two-stage-elapsed {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Stepper ── */
+
+.two-stage-stepper {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: var(--space-6);
+}
+
+.two-stage-step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  position: relative;
+  padding-bottom: var(--space-6);
+}
+
+.two-stage-step:last-child {
+  padding-bottom: 0;
+}
+
+.two-stage-step__indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.two-stage-step--complete .two-stage-step__indicator {
+  color: var(--success);
+}
+
+.two-stage-step--active .two-stage-step__indicator {
+  color: var(--primary);
+}
+
+.two-stage-step--pending .two-stage-step__indicator {
+  color: var(--text-tertiary);
+}
+
+.two-stage-step__number {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-tertiary);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--border-default);
+  border-radius: 50%;
+}
+
+.two-stage-step__body {
+  flex: 1;
+  padding-top: var(--space-1);
+}
+
+.two-stage-step__label {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.two-stage-step--pending .two-stage-step__label {
+  color: var(--text-tertiary);
+}
+
+.two-stage-step__result {
+  font-size: var(--text-sm);
+  color: var(--success);
+  margin-top: var(--space-1);
+}
+
+.two-stage-step__message {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: var(--space-1);
+}
+
+/* Connector line between steps */
+.two-stage-connector {
+  position: absolute;
+  left: 15px;
+  top: 36px;
+  bottom: 0;
+  width: 2px;
+  background: var(--border-default);
+}
+
+.two-stage-connector--complete {
+  background: var(--success);
+}
+
+/* ── Spinning loader ── */
+
+.spin {
+  animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ── Error ── */
+
+.two-stage-error {
+  border-color: var(--danger);
+  padding: var(--space-4) var(--space-6);
+}
+
+.two-stage-error__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--danger);
+  font-weight: var(--weight-semibold);
+  margin-bottom: var(--space-2);
+}
+
+.two-stage-error__message {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-3);
+}
+
+/* ── Actions ── */
+
+.two-stage-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+/* ── Quick complete CTA ── */
+
+.two-stage-quick-cta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.two-stage-quick-cta__icon {
+  color: var(--success);
+  flex-shrink: 0;
+}

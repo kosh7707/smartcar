@@ -1,6 +1,6 @@
 export type ThemePreference = "light" | "dark" | "system";
 
-const STORAGE_KEY = "smartcar:theme";
+const STORAGE_KEY = "aegis:theme";
 
 export function getThemePreference(): ThemePreference {
   return (localStorage.getItem(STORAGE_KEY) as ThemePreference) ?? "system";

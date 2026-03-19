@@ -1,4 +1,4 @@
-import type { ArtifactType, LocatorType } from "@smartcar/shared";
+import type { ArtifactType, LocatorType } from "@aegis/shared";
 
 export const ARTIFACT_TYPE_LABELS: Record<ArtifactType, string> = {
   "analysis-result": "분석 결과",

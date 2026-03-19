@@ -7,7 +7,7 @@ import type {
   CanInjectionResponse,
   AttackScenario,
   InjectionClassification,
-} from "@smartcar/shared";
+} from "@aegis/shared";
 import { Square, Radio, AlertTriangle, Wifi, WifiOff, Plug, Send, Play, Pause } from "lucide-react";
 import {
   getWsBaseUrl,

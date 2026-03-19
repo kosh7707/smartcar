@@ -21,10 +21,10 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 | 변수 | 기본값 | 설명 |
 |------|--------|------|
-| SMARTCAR_LLM_MODE | mock | `mock` / `real` |
-| SMARTCAR_LLM_ENDPOINT | http://10.126.37.19:8000 | LLM Engine(S4) 엔드포인트 (vLLM) |
-| SMARTCAR_LLM_MODEL | Qwen/Qwen3.5-35B-A3B-FP8 | 사용할 모델명 |
-| SMARTCAR_LLM_API_KEY | (빈 문자열) | API 키 (vLLM: 불필요) |
+| AEGIS_LLM_MODE | mock | `mock` / `real` |
+| AEGIS_LLM_ENDPOINT | http://10.126.37.19:8000 | LLM Engine(S4) 엔드포인트 (vLLM) |
+| AEGIS_LLM_MODEL | Qwen/Qwen3.5-35B-A3B-FP8 | 사용할 모델명 |
+| AEGIS_LLM_API_KEY | (빈 문자열) | API 키 (vLLM: 불필요) |
 
 ## API
 

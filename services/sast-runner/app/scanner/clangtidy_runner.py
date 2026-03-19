@@ -206,13 +206,30 @@ class ClangTidyRunner:
 
 # CERT C/C++ 체크 → CWE 매핑 (주요 보안 관련만)
 _CERT_TO_CWE: dict[str, str] = {
+    # CERT C/C++
     "cert-env33-c": "CWE-78",
     "cert-err33-c": "CWE-252",
     "cert-err34-c": "CWE-704",
     "cert-err52-cpp": "CWE-404",
+    "cert-exp34-c": "CWE-476",
     "cert-flp30-c": "CWE-835",
+    "cert-int30-c": "CWE-190",
+    "cert-int32-c": "CWE-190",
+    "cert-mem30-c": "CWE-416",
+    "cert-mem50-cpp": "CWE-416",
     "cert-msc30-c": "CWE-338",
     "cert-msc32-c": "CWE-338",
     "cert-msc51-cpp": "CWE-338",
     "cert-str30-c": "CWE-787",
+    # bugprone
+    "bugprone-use-after-move": "CWE-416",
+    "bugprone-dangling-handle": "CWE-416",
+    "bugprone-sizeof-expression": "CWE-131",
+    "bugprone-integer-division": "CWE-190",
+    "bugprone-string-constructor": "CWE-665",
+    # clang-analyzer (clang-tidy 경유)
+    "clang-analyzer-core.NullDereference": "CWE-476",
+    "clang-analyzer-core.UndefinedBinaryOperatorResult": "CWE-190",
+    "clang-analyzer-unix.Malloc": "CWE-416",
+    "clang-analyzer-alpha.security.ArrayBoundV2": "CWE-787",
 }

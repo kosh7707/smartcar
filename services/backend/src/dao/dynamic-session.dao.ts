@@ -1,4 +1,4 @@
-import type { DynamicAnalysisSession, DynamicSource } from "@smartcar/shared";
+import type { DynamicAnalysisSession, DynamicSource } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IDynamicSessionDAO } from "./interfaces";
 

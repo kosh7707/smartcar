@@ -49,14 +49,14 @@ class ContextEnricher:
     def __init__(self, threat_search: ThreatSearch) -> None:
         self._search = threat_search
 
-    def enrich(
+    async def enrich(
         self, request: TaskRequest, top_k: int = 5, min_score: float = 0.0,
     ) -> tuple[str, int]:
         """요청에서 쿼리 추출 -> 검색 -> (포맷된 컨텍스트, hit 수) 반환."""
         query = self._extract_query(request)
         if not query:
             return "", 0
-        hits = self._search.search(query, top_k=top_k, min_score=min_score)
+        hits = await self._search.search(query, top_k=top_k, min_score=min_score)
         if not hits:
             return "", 0
         logger.info(

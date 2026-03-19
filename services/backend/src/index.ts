@@ -61,6 +61,14 @@ import { RunService } from "./services/run.service";
 import { QualityGateService } from "./services/quality-gate.service";
 import { ApprovalService } from "./services/approval.service";
 import { ReportService } from "./services/report.service";
+import { AnalysisTracker } from "./services/analysis-tracker";
+import { SastClient } from "./services/sast-client";
+import { AgentClient } from "./services/agent-client";
+import { ProjectSourceService } from "./services/project-source.service";
+import { AnalysisOrchestrator } from "./services/analysis-orchestrator";
+import { createAnalysisRouter } from "./controllers/analysis.controller";
+import { createProjectSourceRouter } from "./controllers/project-source.controller";
+import path from "path";
 
 // --- 프로세스 레벨 에러 핸들러 ---
 process.on("uncaughtException", (err) => {
@@ -77,6 +85,13 @@ const PORT = Number(process.env.PORT) || 3000;
 const LLM_GATEWAY_URL =
   process.env.LLM_GATEWAY_URL ?? "http://localhost:8000";
 const LLM_CONCURRENCY = Number(process.env.LLM_CONCURRENCY) || 4;
+const ANALYSIS_AGENT_URL =
+  process.env.ANALYSIS_AGENT_URL ?? "http://localhost:8001";
+const SAST_RUNNER_URL =
+  process.env.SAST_RUNNER_URL ?? "http://localhost:9000";
+const UPLOADS_DIR = path.resolve(
+  process.env.UPLOADS_DIR ?? path.join(__dirname, "..", "..", "..", "uploads"),
+);
 
 app.use(cors());
 app.use(express.json());
@@ -108,9 +123,9 @@ const projectSettingsDAO = new ProjectSettingsDAO(db);
 // ── 서비스 초기화 ──
 const llmTaskClient = new LlmTaskClient(LLM_GATEWAY_URL);
 const llmAdapter = new LlmV1Adapter(llmTaskClient, LLM_CONCURRENCY);
-const dynamicAnalysisWs = new WsBroadcaster<import("@smartcar/shared").WsMessage>("/ws/dynamic-analysis", "sessionId");
-const staticAnalysisWs = new WsBroadcaster<import("@smartcar/shared").WsStaticMessage>("/ws/static-analysis", "analysisId");
-const dynamicTestWs = new WsBroadcaster<import("@smartcar/shared").WsTestMessage>("/ws/dynamic-test", "testId");
+const dynamicAnalysisWs = new WsBroadcaster<import("@aegis/shared").WsMessage>("/ws/dynamic-analysis", "sessionId");
+const staticAnalysisWs = new WsBroadcaster<import("@aegis/shared").WsStaticMessage>("/ws/static-analysis", "analysisId");
+const dynamicTestWs = new WsBroadcaster<import("@aegis/shared").WsTestMessage>("/ws/dynamic-test", "testId");
 
 const ruleService = new RuleService(ruleDAO);
 const adapterManager = new AdapterManager(adapterDAO);
@@ -157,6 +172,17 @@ const dynamicTestService = new DynamicTestService(
   llmAdapter, adapterManager, settingsService, dynamicTestWs, resultNormalizer
 );
 
+// ── 새 파이프라인 (Quick → Deep) ──
+const analysisWs = new WsBroadcaster<import("@aegis/shared").WsAnalysisMessage>("/ws/analysis", "analysisId");
+const sastClient = new SastClient(SAST_RUNNER_URL);
+const agentClient = new AgentClient(ANALYSIS_AGENT_URL);
+const projectSourceService = new ProjectSourceService(UPLOADS_DIR);
+const analysisTracker = new AnalysisTracker();
+const analysisOrchestrator = new AnalysisOrchestrator(
+  projectSourceService, sastClient, agentClient,
+  analysisResultDAO, settingsService, resultNormalizer, analysisWs,
+);
+
 // 보고서 서비스 초기화
 const reportService = new ReportService(
   evidenceRefDAO, auditLogDAO,
@@ -175,7 +201,7 @@ app.use("/api/projects/:pid/report", createReportRouter(reportService));
 
 // 라우터 마운트
 app.use("/api/sdk-profiles", createSdkProfileRouter());
-app.use("/health", createHealthRouter(llmAdapter, adapterManager));
+app.use("/health", createHealthRouter(llmAdapter, adapterManager, agentClient, sastClient));
 app.use("/api/projects", createProjectRouter(projectService));
 app.use("/api", createFileRouter(fileStore));
 app.use(
@@ -187,6 +213,8 @@ app.use(
   createDynamicAnalysisRouter(dynamicAnalysisService)
 );
 app.use("/api/dynamic-test", createDynamicTestRouter(dynamicTestService));
+app.use("/api/analysis", createAnalysisRouter(analysisOrchestrator, analysisResultDAO, analysisTracker));
+app.use("/api/projects/:pid/source", createProjectSourceRouter(projectSourceService, projectDAO));
 app.use("/api/runs", createRunDetailRouter(runService));
 app.use("/api/findings", createFindingDetailRouter(findingService));
 app.use("/api/gates", createQualityGateDetailRouter(qualityGateService, approvalService));
@@ -200,4 +228,4 @@ const server = app.listen(PORT, () => {
   logger.info({ llmGatewayUrl: LLM_GATEWAY_URL }, "LLM Gateway configured");
 });
 
-attachWsServers(server, [dynamicAnalysisWs, staticAnalysisWs, dynamicTestWs]);
+attachWsServers(server, [dynamicAnalysisWs, staticAnalysisWs, dynamicTestWs, analysisWs]);

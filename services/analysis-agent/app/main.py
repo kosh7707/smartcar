@@ -27,15 +27,12 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # RAG 초기화
+    # RAG: S5 Knowledge Base HTTP 클라이언트 초기화
     threat_search = None
     if settings.rag_enabled:
-        try:
-            from app.rag.threat_search import ThreatSearch
-            threat_search = ThreatSearch(settings.qdrant_path)
-            logger.info("RAG 활성화: qdrant_path=%s", settings.qdrant_path)
-        except Exception as e:
-            logger.info("RAG 자동 감지 실패 (데이터 미적재 시 정상): %s", e)
+        from app.rag.threat_search import ThreatSearch
+        threat_search = ThreatSearch(settings.kb_endpoint)
+        logger.info("RAG 활성화: kb_endpoint=%s", settings.kb_endpoint)
 
     _app.state.threat_search = threat_search
 
@@ -69,11 +66,11 @@ async def lifespan(_app: FastAPI):
     if llm_client:
         await llm_client.aclose()
     if threat_search:
-        threat_search.close()
+        await threat_search.close()
 
 
 app = FastAPI(
-    title="Smartcar Analysis Agent",
+    title="AEGIS Analysis Agent",
     description="자동차 전장부품 사이버보안 검증 프레임워크 - 에이전트 기반 분석 서비스",
     version="0.1.0",
     lifespan=lifespan,

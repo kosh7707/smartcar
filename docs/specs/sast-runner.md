@@ -3,7 +3,7 @@
 > SAST Runner는 C/C++ 프로젝트의 보안 분석에 필요한 **결정론적 전처리**를 담당하는 서비스다.
 > 6개 SAST 도구 병렬 실행, SCA(라이브러리 식별 + upstream diff + CVE 조회), 코드 구조 추출,
 > 빌드 메타데이터 추출, 빌드 자동 실행을 하나의 API로 제공한다.
-> S2(Backend) 또는 S3(Analysis Agent)가 호출하며, S4(LLM Engine 팀)가 소유한다.
+> S2(Backend) 또는 S3(Analysis Agent)가 호출하며, S4(SAST Runner)가 소유한다.
 
 ---
 
@@ -154,7 +154,7 @@ Phase 1 (결정론적, LLM 없음, ~140초):
     └─ /v1/metadata    → 타겟 정보
 
 Phase 2 (LLM 해석, ~34초):
-  S3 → LLM Engine (Qwen 35B) → 판단/분류
+  S3 → S7 Gateway (:8000) → LLM Engine → 판단/분류
 ```
 
 ---
@@ -173,6 +173,5 @@ Phase 2 (LLM 해석, ~34초):
 
 - [API 계약서](../api/sast-runner-api.md) — 전체 엔드포인트 스키마
 - [SastFinding 타입](../api/shared-models.md)
-- [LLM Engine API](../api/llm-engine-api.md)
 - [MSA Observability 규약](observability.md)
 - [S4 인수인계서](../s4-handoff/README.md)

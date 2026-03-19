@@ -1,4 +1,4 @@
-import type { AnalysisWarning } from "@smartcar/shared";
+import type { AnalysisWarning } from "@aegis/shared";
 import type { StoredFile } from "../dao/file-store";
 
 const CHARS_PER_TOKEN = 3.5;

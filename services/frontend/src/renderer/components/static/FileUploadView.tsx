@@ -1,6 +1,6 @@
 import React, { useCallback } from "react";
 import { Upload, FileText, Check } from "lucide-react";
-import type { UploadedFile } from "@smartcar/shared";
+import type { UploadedFile } from "@aegis/shared";
 import type { LocalFile } from "../../hooks/useStaticAnalysis";
 import { formatFileSize } from "../../utils/format";
 

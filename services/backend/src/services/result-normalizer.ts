@@ -8,11 +8,13 @@ import type {
   FindingSourceType,
   Confidence,
   Vulnerability,
-} from "@smartcar/shared";
+  Severity,
+} from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IRunDAO, IFindingDAO, IEvidenceRefDAO } from "../dao/interfaces";
 import { createLogger } from "../lib/logger";
 import type { QualityGateService } from "./quality-gate.service";
+import type { AgentResponseSuccess, AgentEvidenceRef } from "./agent-client";
 
 const logger = createLogger("result-normalizer");
 
@@ -22,6 +24,7 @@ export interface NormalizerContext {
   sessionId?: string;
   testResultId?: string;
   startedAt?: string;
+  agentEvidenceRefs?: AgentEvidenceRef[];
 }
 
 export class ResultNormalizer {
@@ -249,5 +252,140 @@ export class ResultNormalizer {
       };
     }
     return { file: location };
+  }
+
+  // ── Agent 결과 정규화 (claims → Finding) ──
+
+  normalizeAgentResult(
+    result: AnalysisResult,
+    agentResponse: AgentResponseSuccess,
+    context?: NormalizerContext,
+  ): Run | undefined {
+    const existing = this.runDAO.findByAnalysisResultId(result.id);
+    if (existing) {
+      logger.debug({ analysisResultId: result.id, runId: existing.id }, "Agent result already normalized — skipping");
+      return existing;
+    }
+
+    try {
+      const now = new Date().toISOString();
+      const runId = `run-${crypto.randomUUID()}`;
+      const assessment = agentResponse.result;
+
+      const findings: Finding[] = [];
+      const evidenceRefs: EvidenceRef[] = [];
+      const severity = this.validateSeverity(assessment.suggestedSeverity);
+      const confidence = this.mapAgentConfidence(assessment.confidence);
+
+      for (const claim of assessment.claims) {
+        const findingId = `finding-${crypto.randomUUID()}`;
+
+        findings.push({
+          id: findingId,
+          runId,
+          projectId: result.projectId,
+          module: "deep_analysis",
+          status: "needs_review" as FindingStatus,
+          severity,
+          confidence,
+          sourceType: "agent" as FindingSourceType,
+          title: this.extractTitle(claim.statement),
+          description: claim.statement,
+          location: claim.location ?? undefined,
+          suggestion: assessment.recommendedNextSteps[0] ?? undefined,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        // Agent가 인용한 evidenceRef → EvidenceRef 매핑
+        for (const refId of claim.supportingEvidenceRefs) {
+          const agentRef = context?.agentEvidenceRefs?.find(r => r.refId === refId);
+          if (agentRef) {
+            evidenceRefs.push({
+              id: `evr-${crypto.randomUUID()}`,
+              findingId,
+              artifactId: agentRef.artifactId,
+              artifactType: agentRef.artifactType as EvidenceRef["artifactType"],
+              locatorType: "line-range",
+              locator: agentRef.locator,
+              createdAt: now,
+            });
+          }
+        }
+
+        // Agent assessment 자체를 증적으로 추가
+        evidenceRefs.push({
+          id: `evr-${crypto.randomUUID()}`,
+          findingId,
+          artifactId: result.id,
+          artifactType: "agent-assessment",
+          locatorType: "line-range",
+          locator: claim.location ? this.parseLineRange(claim.location) : {},
+          createdAt: now,
+        });
+      }
+
+      const run: Run = {
+        id: runId,
+        projectId: result.projectId,
+        module: "deep_analysis",
+        status: "completed",
+        analysisResultId: result.id,
+        findingCount: findings.length,
+        startedAt: context?.startedAt ?? result.createdAt,
+        endedAt: now,
+        createdAt: now,
+      };
+
+      const tx = this.db.transaction(() => {
+        this.runDAO.save(run);
+        for (const f of findings) this.findingDAO.save(f);
+        for (const r of evidenceRefs) this.evidenceRefDAO.save(r);
+      });
+      tx();
+
+      logger.info({
+        runId,
+        analysisResultId: result.id,
+        claimCount: assessment.claims.length,
+        findingCount: findings.length,
+        evidenceCount: evidenceRefs.length,
+        confidence: assessment.confidence,
+      }, "Agent result normalized");
+
+      if (this.gateService) {
+        try {
+          const gate = this.gateService.evaluateRun(runId);
+          logger.info({ runId, gateStatus: gate.status }, "Gate evaluated");
+        } catch (err) {
+          logger.warn({ err, runId }, "Gate evaluation failed — skipped");
+        }
+      }
+
+      return run;
+    } catch (err) {
+      logger.error({ err, analysisResultId: result.id }, "Failed to normalize agent result");
+      return undefined;
+    }
+  }
+
+  private mapAgentConfidence(confidence: number): Confidence {
+    if (confidence >= 0.8) return "high";
+    if (confidence >= 0.5) return "medium";
+    return "low";
+  }
+
+  private validateSeverity(severity?: string | null): Severity {
+    const valid = new Set(["critical", "high", "medium", "low", "info"]);
+    if (severity && valid.has(severity)) return severity as Severity;
+    return "medium";
+  }
+
+  private extractTitle(statement: string): string {
+    // 첫 문장 추출 (마침표, 120자 제한)
+    const firstSentence = statement.split(/[.。]/)[0] ?? statement;
+    return firstSentence.length > 120
+      ? firstSentence.slice(0, 117) + "..."
+      : firstSentence;
   }
 }

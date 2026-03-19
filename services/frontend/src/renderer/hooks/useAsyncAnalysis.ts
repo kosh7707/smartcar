@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import type { AnalysisProgress, UploadedFile } from "@smartcar/shared";
+import type { AnalysisProgress, UploadedFile } from "@aegis/shared";
 import type { LocalFile } from "./useStaticAnalysis";
 import {
   uploadFiles,

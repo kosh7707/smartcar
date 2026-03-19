@@ -26,7 +26,7 @@ def main():
     parser.add_argument("--qdrant-path", default="data/qdrant", help="Qdrant 파일 스토리지 경로")
     parser.add_argument("--neo4j-uri", default="bolt://localhost:7687", help="Neo4j URI")
     parser.add_argument("--neo4j-user", default="neo4j")
-    parser.add_argument("--neo4j-password", default="smartcar")
+    parser.add_argument("--neo4j-password", default="aegis-kb")
     parser.add_argument("--clear", action="store_true", help="기존 Neo4j 데이터 삭제 후 재적재")
     args = parser.parse_args()
 

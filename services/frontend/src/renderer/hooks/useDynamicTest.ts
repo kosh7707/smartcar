@@ -4,7 +4,7 @@ import type {
   DynamicTestResult,
   DynamicTestFinding,
   WsTestMessage,
-} from "@smartcar/shared";
+} from "@aegis/shared";
 import { runDynamicTest, getWsBaseUrl } from "../api/client";
 
 export type TestView = "config" | "running" | "results";

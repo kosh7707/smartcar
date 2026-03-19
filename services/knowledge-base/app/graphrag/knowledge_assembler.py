@@ -28,7 +28,6 @@ def _extract_ids(query: str) -> list[str]:
     for pattern in _ID_PATTERNS:
         for match in pattern.finditer(query):
             raw = match.group(1)
-            # CWE/CVE/CAPEC는 대문자 정규화
             if raw.upper().startswith(("CWE", "CVE", "CAPEC")):
                 raw = raw.upper()
             if raw not in ids:
@@ -51,30 +50,46 @@ class KnowledgeAssembler:
         self,
         vector_search: VectorSearch,
         relation_graph: GraphLike,
+        *,
+        neighbor_score: float = 0.8,
     ) -> None:
         self._vector = vector_search
         self._graph = relation_graph
+        self._neighbor_score = neighbor_score
 
-    def assemble(
+    def _enrich_with_graph(
+        self, node_id: str, hit_dict: dict,
+    ) -> tuple[set[str], set[str], set[str]]:
+        """그래프 관계를 hit에 추가하고 관련 ID 집합을 반환한다."""
+        cwe: set[str] = set()
+        cve: set[str] = set()
+        attack: set[str] = set()
+        related = self._graph.get_related(node_id)
+        if related:
+            hit_dict["graph_relations"] = related
+            cwe.update(related.get("cwe", []))
+            cve.update(related.get("cve", []))
+            attack.update(related.get("attack", []))
+        return cwe, cve, attack
+
+    def _path_id_exact(
         self,
-        query: str,
-        *,
-        top_k: int = 5,
-        min_score: float = 0.35,
-        graph_depth: int = 2,
-    ) -> dict:
-        """3경로 하이브리드 검색 → 병합 → 그래프 보강."""
-        seen_ids: set[str] = set()
+        extracted_ids: list[str],
+        seen_ids: set[str],
+        graph_depth: int,
+        top_k: int,
+    ) -> tuple[list[dict], set[str], set[str], set[str]]:
+        """경로 1: ID 직접 조회 + 그래프 이웃."""
         enriched_hits: list[dict] = []
-        all_related_cwe: set[str] = set()
-        all_related_cve: set[str] = set()
-        all_related_attack: set[str] = set()
-
-        # ── 경로 1: ID 직접 조회 (Neo4j) ──
-        extracted_ids = _extract_ids(query)
-        graph_direct_hits: list[dict] = []
+        graph_neighbor_hits: list[dict] = []
+        all_cwe: set[str] = set()
+        all_cve: set[str] = set()
+        all_attack: set[str] = set()
 
         for eid in extracted_ids:
+            if eid in seen_ids:
+                continue
+
             node_info = self._graph.get_node_info(eid)
             if node_info is None:
                 continue
@@ -83,52 +98,67 @@ class KnowledgeAssembler:
                 "id": node_info.get("id", eid),
                 "source": node_info.get("source", ""),
                 "title": node_info.get("title", ""),
-                "score": 1.0,  # 정확 매칭 — 최고 점수
+                "score": 1.0,
                 "threat_category": node_info.get("threat_category", ""),
                 "match_type": "id_exact",
             }
 
-            # 그래프 관계 보강
-            related = self._graph.get_related(eid)
-            if related:
-                hit_dict["graph_relations"] = related
-                all_related_cwe.update(related.get("cwe", []))
-                all_related_cve.update(related.get("cve", []))
-                all_related_attack.update(related.get("attack", []))
+            cwe, cve, att = self._enrich_with_graph(eid, hit_dict)
+            all_cwe |= cwe
+            all_cve |= cve
+            all_attack |= att
 
-            # 이웃 노드도 수집 (depth=1로 가까운 것만)
+            # 이웃 노드 수집
             neighbor_ids = self._graph.neighbors(eid, depth=min(graph_depth, 2))
             for nid in neighbor_ids[:10]:
+                if nid in seen_ids:
+                    continue
                 ninfo = self._graph.get_node_info(nid)
-                if ninfo and nid not in seen_ids:
-                    n_related = self._graph.get_related(nid)
-                    neighbor_dict = {
-                        "id": ninfo.get("id", nid),
-                        "source": ninfo.get("source", ""),
-                        "title": ninfo.get("title", ""),
-                        "score": 0.8,  # 이웃 — 높은 관련성
-                        "threat_category": ninfo.get("threat_category", ""),
-                        "match_type": "graph_neighbor",
-                    }
-                    if n_related:
-                        neighbor_dict["graph_relations"] = n_related
-                    graph_direct_hits.append(neighbor_dict)
-                    seen_ids.add(nid)
+                if not ninfo:
+                    continue
+                neighbor_dict = {
+                    "id": ninfo.get("id", nid),
+                    "source": ninfo.get("source", ""),
+                    "title": ninfo.get("title", ""),
+                    "score": self._neighbor_score,
+                    "threat_category": ninfo.get("threat_category", ""),
+                    "match_type": "graph_neighbor",
+                }
+                n_cwe, n_cve, n_att = self._enrich_with_graph(nid, neighbor_dict)
+                all_cwe |= n_cwe
+                all_cve |= n_cve
+                all_attack |= n_att
+                graph_neighbor_hits.append(neighbor_dict)
+                seen_ids.add(nid)
 
             enriched_hits.append(hit_dict)
             seen_ids.add(eid)
 
-        # 이웃 hits를 추가 (top_k 범위 내)
-        remaining_slots = max(0, top_k - len(enriched_hits))
-        enriched_hits.extend(graph_direct_hits[:remaining_slots])
+        # 이웃 hits를 top_k 범위 내에서 추가
+        remaining = max(0, top_k - len(enriched_hits))
+        enriched_hits.extend(graph_neighbor_hits[:remaining])
 
-        # ── 경로 2: 벡터 시맨틱 검색 (Qdrant) ──
+        return enriched_hits, all_cwe, all_cve, all_attack
+
+    def _path_vector_semantic(
+        self,
+        query: str,
+        seen_ids: set[str],
+        top_k: int,
+        min_score: float,
+    ) -> tuple[list[dict], set[str], set[str], set[str]]:
+        """경로 2: 벡터 시맨틱 검색 + 그래프 보강."""
+        enriched_hits: list[dict] = []
+        all_cwe: set[str] = set()
+        all_cve: set[str] = set()
+        all_attack: set[str] = set()
+
         vector_hits = self._vector.search(query, top_k=top_k, min_score=min_score)
 
         for hit in vector_hits:
             if hit.id in seen_ids:
                 continue
-            if len(enriched_hits) >= top_k * 2:  # 최대 2배까지 허용
+            if len(enriched_hits) >= top_k * 2:
                 break
 
             hit_dict = {
@@ -140,30 +170,54 @@ class KnowledgeAssembler:
                 "match_type": "vector_semantic",
             }
 
-            # 그래프 관계 보강
-            related = self._graph.get_related(hit.id)
-            if related:
-                hit_dict["graph_relations"] = related
-                all_related_cwe.update(related.get("cwe", []))
-                all_related_cve.update(related.get("cve", []))
-                all_related_attack.update(related.get("attack", []))
+            cwe, cve, att = self._enrich_with_graph(hit.id, hit_dict)
+            all_cwe |= cwe
+            all_cve |= cve
+            all_attack |= att
 
-            all_related_cwe.update(hit.related_cwe)
-            all_related_cve.update(hit.related_cve)
-            all_related_attack.update(hit.related_attack)
+            all_cwe.update(hit.related_cwe)
+            all_cve.update(hit.related_cve)
+            all_attack.update(hit.related_attack)
 
             enriched_hits.append(hit_dict)
             seen_ids.add(hit.id)
 
-        # 점수 내림차순 정렬
-        enriched_hits.sort(key=lambda h: h.get("score", 0), reverse=True)
+        return enriched_hits, all_cwe, all_cve, all_attack
+
+    def assemble(
+        self,
+        query: str,
+        *,
+        top_k: int = 5,
+        min_score: float = 0.35,
+        graph_depth: int = 2,
+        exclude_ids: list[str] | None = None,
+    ) -> dict:
+        """3경로 하이브리드 검색 → 병합 → 그래프 보강."""
+        seen_ids: set[str] = set(exclude_ids) if exclude_ids else set()
+        extracted_ids = _extract_ids(query)
+
+        exact_hits, cwe1, cve1, att1 = self._path_id_exact(
+            extracted_ids, seen_ids, graph_depth, top_k,
+        )
+        vector_hits, cwe2, cve2, att2 = self._path_vector_semantic(
+            query, seen_ids, top_k, min_score,
+        )
+
+        all_hits = exact_hits + vector_hits
+        all_hits.sort(key=lambda h: h.get("score", 0), reverse=True)
 
         return {
             "query": query,
-            "hits": enriched_hits,
-            "total": len(enriched_hits),
+            "hits": all_hits,
+            "total": len(all_hits),
             "extracted_ids": extracted_ids,
-            "related_cwe": sorted(all_related_cwe),
-            "related_cve": sorted(all_related_cve),
-            "related_attack": sorted(all_related_attack),
+            "related_cwe": sorted(cwe1 | cwe2),
+            "related_cve": sorted(cve1 | cve2),
+            "related_attack": sorted(att1 | att2),
+            "match_type_counts": {
+                "id_exact": sum(1 for h in all_hits if h.get("match_type") == "id_exact"),
+                "graph_neighbor": sum(1 for h in all_hits if h.get("match_type") == "graph_neighbor"),
+                "vector_semantic": sum(1 for h in all_hits if h.get("match_type") == "vector_semantic"),
+            },
         }

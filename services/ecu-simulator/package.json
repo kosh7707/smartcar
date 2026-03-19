@@ -1,5 +1,5 @@
 {
-  "name": "@smartcar/ecu-simulator",
+  "name": "@aegis/ecu-simulator",
   "version": "0.1.0",
   "private": true,
   "scripts": {

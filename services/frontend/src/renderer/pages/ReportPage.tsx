@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import type { ProjectReport, AnalysisModule } from "@smartcar/shared";
+import type { ProjectReport, AnalysisModule } from "@aegis/shared";
 import { FileText, Download, Filter, Calendar, X } from "lucide-react";
 import { fetchProjectReport, ApiError, logError } from "../api/client";
 import type { ReportFilters } from "../api/client";

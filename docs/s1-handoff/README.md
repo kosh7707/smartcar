@@ -11,7 +11,7 @@
 
 ### AEGIS — Automotive Embedded Governance & Inspection System
 
-6-서비스 MSA 구조 (2026-03-18 재편):
+7-서비스 MSA 구조 (2026-03-19 재편):
 
 ```
                      S1 (Frontend :5173)
@@ -22,6 +22,10 @@
                Agent    SAST     KB    동적분석
               :8001    :9000   :8002    :4000
                 │
+               S7
+            Gateway
+             :8000
+                │
            LLM Engine
             (DGX Spark)
 ```
@@ -30,12 +34,13 @@
 |------|------|------|
 | **S1** | **Frontend + QA** | :5173 |
 | S2 | AEGIS Core (Backend) — 플랫폼 오케스트레이터 | :3000 |
-| S3 | Analysis Agent + LLM Gateway + LLM Engine 관리 | :8000, :8001, DGX |
+| S3 | Analysis Agent — 보안 분석 자율 에이전트 | :8001 |
 | S4 | SAST Runner (6도구 + SCA + 코드 구조 + 빌드) | :9000 |
 | S5 | Knowledge Base (Neo4j + Qdrant) | :8002 |
 | S6 | Dynamic Analysis (ECU Simulator + Adapter) | :4000 |
+| S7 | LLM Gateway + LLM Engine 관리 — 플랫폼 LLM 서비스 | :8000, DGX |
 
-통신 방향: `S1 → S2` (프론트는 S2하고만 통신). S2가 S3~S6를 내부적으로 호출.
+통신 방향: `S1 → S2` (프론트는 S2하고만 통신). S2가 S3~S7을 내부적으로 호출.
 
 ### 보안 검증 구조
 
@@ -52,7 +57,7 @@
 
 - S1 Frontend + QA 개발자
 - `services/frontend/` 하위 코드를 소유
-- `services/shared/` (`@smartcar/shared`) — **S2 단독 소유**. S1은 참조만, 변경 필요 시 work-request로 요청
+- `services/shared/` (`@aegis/shared`) — **S2 단독 소유**. S1은 참조만, 변경 필요 시 work-request로 요청
 - `docs/specs/frontend.md` 직접 관리
 - `docs/api/shared-models.md` — S2 관리. S1은 참조
 - **공통 제약 사항**: `docs/AEGIS.md` 참조 (역할, 소유권, 소통 규칙 일체)
@@ -100,7 +105,7 @@
 | 스타일 | CSS (라이트/다크/시스템 3-way 테마, CSS 변수 토큰 시스템) |
 | API 통신 | fetch (Electron preload / 브라우저 직접) |
 | 실시간 통신 | WebSocket |
-| 공유 타입 | @smartcar/shared (monorepo) |
+| 공유 타입 | @aegis/shared (monorepo) |
 
 ---
 
@@ -125,11 +130,12 @@ services/frontend/
 │       │   ├── ProjectContext.tsx     프로젝트 목록 공유 상태
 │       │   └── ToastContext.tsx       전역 toast 알림 (에러/경고/성공, 액션 버튼)
 │       ├── hooks/
-│       │   ├── useStaticAnalysis.ts   정적 분석 흐름 (레거시 동기)
+│       │   ├── useStaticAnalysis.ts   정적 분석 흐름 (레거시 동기, 미사용)
 │       │   ├── useStaticDashboard.ts  대시보드 데이터 + 최신 Run 상세 + 활성 분석 폴링
-│       │   ├── useAsyncAnalysis.ts    비동기 분석 실행 + 진행률 폴링
-│       │   ├── useDynamicTest.ts      동적 테스트 흐름 (WebSocket)
-│       │   └── useAdapters.ts         어댑터 상태 (5초 폴링, ecuMeta 포함)
+│       │   ├── useAnalysisWebSocket.ts WS 기반 Quick+Deep 2단계 분석 훅 (신규)
+│       │   ├── useAsyncAnalysis.ts    비동기 분석 (레거시, useAnalysisWebSocket으로 대체)
+│       │   ├── useDynamicTest.ts      동적 테스트 흐름 (숨김 — 코드 유지)
+│       │   └── useAdapters.ts         어댑터 상태 (숨김 — 코드 유지)
 │       ├── layouts/
 │       │   └── ProjectLayout.tsx      breadcrumb + Outlet
 │       ├── components/
@@ -137,8 +143,8 @@ services/frontend/
 │       │   ├── StatusBar.tsx          하단 상태바
 │       │   ├── ErrorBoundary.tsx      렌더링 크래시 방어 (class component)
 │       │   ├── ui/                    공통 UI (배지, 다이얼로그, 카드, PeriodSelector, TrendChart, GateResultCard 등)
-│       │   ├── static/               정적 분석 (2-탭 Dashboard, LatestAnalysisTab/OverallStatusTab, Run/Finding 상세, 비동기 진행, 랭킹)
-│       │   ├── dynamic/              동적 분석 하위 컴포넌트
+│       │   ├── static/               정적 분석 (Dashboard, SourceUploadView, TwoStageProgressView, Run/Finding 상세)
+│       │   ├── dynamic/              동적 분석 하위 컴포넌트 (숨김 — 코드 유지)
 │       │   └── finding/              Finding/Evidence 컴포넌트 (EvidencePanel, EvidenceViewer)
 │       ├── constants/                  공유 상수 (모듈, 언어, 동적, Finding, Evidence, defaults)
 │       ├── types/                     타입 선언 (window.d.ts, react-html.d.ts)
@@ -158,17 +164,17 @@ services/frontend/
 /projects                        → ProjectsPage
 /projects/:projectId             → ProjectLayout
   /overview                      → OverviewPage
-  /static-analysis               → StaticAnalysisPage (2-탭 dashboard[최신분석/전체현황]|modeSelect|upload|progress|runDetail|findingDetail|legacyResult)
-  /dynamic-analysis              → DynamicAnalysisPage
-  /dynamic-test                  → DynamicTestPage
+  /static-analysis               → StaticAnalysisPage (dashboard|sourceUpload|progress|runDetail|findingDetail|legacyResult)
   /files                         → FilesPage
   /files/:fileId                 → FileDetailPage
   /vulnerabilities               → VulnerabilitiesPage
   /analysis-history              → AnalysisHistoryPage
   /report                        → ReportPage (모듈 탭, 필터, Finding 테이블, 감사 추적, PDF 내보내기)
-  /settings                      → ProjectSettingsPage
+  /settings                      → ProjectSettingsPage (LLM Gateway URL + buildProfile)
 /settings                        → SettingsPage (글로벌: 백엔드 URL, 테마 3-way)
 ```
+
+**숨김 라우트** (2026-03-19): `/dynamic-analysis`, `/dynamic-test` — 코드 유지, 라우트/사이드바에서 제거
 
 ### 추가 예정
 
@@ -194,17 +200,18 @@ services/frontend/
 | 프로젝트 CRUD | ProjectsPage + ProjectContext | 생성/조회/삭제 |
 | Overview 대시보드 | OverviewPage | 도넛, StatCard(모듈별 분포+언어별), 파일/취약점/이력 |
 | 정적 분석 대시보드 | StaticAnalysisPage + StaticDashboard | SonarQube 패턴 2-탭 (최신 분석: Gate+미해결+출처별 분포 / 전체 현황: KPI+해결률+차트+랭킹), 활성 분석 배너 |
-| 비동기 분석 흐름 | AsyncAnalysisProgressView + useAsyncAnalysis | 5단계 스테퍼, 시간 가중치 진행률(서버 phaseWeights 우선), 2.5초 폴링, 중단, 비동기 API |
+| 소스코드 업로드 | SourceUploadView | ZIP/tar.gz 드래그 앤 드롭 + Git URL 클론, 파일 트리 표시, 재업로드 |
+| 2단계 분석 진행률 | TwoStageProgressView + useAnalysisWebSocket | Quick SAST → Deep Agent WebSocket 2단계, 중간 결과 열람, 중단 |
 | Run 상세 | RunDetailView | Run 메타 + GateResultCard + Finding 파일별 그룹 |
 | Finding 상세 | FindingDetailView | Evidence-first 레이아웃, 상태 변경, 감사 로그, 간이 브레드크럼 |
 | 정적 분석 레거시 | AnalysisResultsView + VulnerabilityDetailView | ?analysisId= URL 호환 유지 |
-| 동적 분석 | DynamicAnalysisPage + MonitoringView | 세션 관리, CAN 모니터링, 일시정지/재개, 알림 패킷 분리 표시 |
-| 동적 테스트 | DynamicTestPage + useDynamicTest | 전략 선택, WebSocket 진행률, 결과, ecuMeta 자동 채움 |
+| 동적 분석 | DynamicAnalysisPage + MonitoringView | **숨김** — 코드 유지, 라우트/사이드바 제거 |
+| 동적 테스트 | DynamicTestPage + useDynamicTest | **숨김** — 코드 유지, 라우트/사이드바 제거 |
 | 파일 탐색기/상세 | FilesPage + FileDetailPage | 트리 뷰, 코드, 취약점 하이라이팅 |
 | 취약점 통합 뷰 | VulnerabilitiesPage | 분석 세션별 그룹, 심각도/날짜 필터, 모듈별 컬러 구분 |
 | 분석 이력 | AnalysisHistoryPage | 전 모듈 타임라인 |
 | 보고서 | ReportPage | 프로젝트 보고서 (모듈 탭, 필터, Finding 테이블, Run/Gate, 승인, 감사 추적, PDF 내보내기) |
-| 설정 | SettingsPage + ProjectSettingsPage | 글로벌/프로젝트 |
+| 설정 | SettingsPage + ProjectSettingsPage | 글로벌/프로젝트 (어댑터·룰 제거, LLM URL만 유지) |
 | 에러 핸들링 | ErrorBoundary, ToastContext, apiFetch 에러 분류 | X-Request-Id, errorDetail 대응, retryable 재시도 버튼 |
 | 공통 UI | Sidebar, StatusBar, 10+ ui 컴포넌트 | — |
 | Finding UI 컴포넌트 | FindingStatusBadge, ConfidenceBadge, SourceBadge, FindingSummary, StateTransitionDialog | FindingDetailView에 연결 완료, 전 배지 title 툴팁 |
@@ -219,7 +226,7 @@ services/frontend/
 | 독립 Run/Finding 목록 페이지 (/runs, /findings 라우트) | 대시보드 내 뷰로 존재. 독립 라우트 전환은 선택 사항 |
 | Quality Gate 화면 | Gate 엔티티 + API (S2) |
 | Approval Queue | Approval 엔티티 + API (S2) |
-| 동적 분석 운영 콘솔 고도화 | drop/backpressure/gap 감지 (S2 WS 확장) |
+| 동적 분석 운영 콘솔 고도화 | 현재 숨김 상태. 재활성화 시 S2 WS 확장 필요 |
 | LLM provenance panel | LLM metadata 확장 (S2/S3) |
 
 ---
@@ -252,7 +259,7 @@ services/frontend/
 ### 타입 공유
 
 - 프론트에서 로컬 타입 정의 금지
-- 모든 타입은 `@smartcar/shared`에서 import
+- 모든 타입은 `@aegis/shared`에서 import
 
 ### Finding 상태 머신 (새 방향)
 
@@ -458,11 +465,32 @@ npm run build
     - `docs/AEGIS.md` 신설 (공통 제약 사항) — S1 인수인계서 + 명세서에 참조 반영
     - `docs/s1-qa/` 폴더 폐기 (4파일 삭제)
 
-### AEGIS 재편 후 S2에서 WR 예정 (아직 미발송)
+12. ✅ `smartcar` → `AEGIS` 네이밍 전환 (S2 WR `s2-to-all-rename-smartcar-to-aegis.md` 대응)
+    - `package.json`: `@smartcar/frontend` → `@aegis/frontend`, 의존성 `@aegis/shared`
+    - HTML/Electron 윈도우 타이틀 → `AEGIS`
+    - Sidebar 브랜드: `Smartcar` / `Security Framework` → `AEGIS` / `Security Platform`
+    - SettingsPage 프레임워크명 → `AEGIS`
+    - `window.d.ts`: `SmartcarApi` → `AegisApi`
+    - localStorage 키: `smartcar:backendUrl` → `aegis:backendUrl`, `smartcar:theme` → `aegis:theme`
+    - 소스 49개 파일 `@smartcar/shared` → `@aegis/shared` import 전량 치환
+    - S1 소유 문서 2건 (`s1-handoff/README.md`, `specs/frontend.md`) 치환
+    - S1 영역 `smartcar`/`Smartcar` 잔여 0건 확인
 
-1. 룰 엔진 제거 시 룰 CRUD UI 제거/대체
-2. Knowledge Base 데이터 시각화 (CWE/CVE 관계 탐색, 코드 그래프)
-3. Analysis Agent 진행 상황 표시 (멀티턴 상태)
+### 완료된 작업 (2026-03-19)
+
+13. ✅ 7인 체제 전환 대응 (S2 WR `s2-to-s1-update-handoff-s7.md` 처리)
+    - 인수인계서 역할표 + 아키텍처 다이어그램: S3/S7 분리 반영
+14. ✅ 프론트엔드 대규모 개편 (S2 WR `s2-to-s1-frontend-overhaul.md` 대응)
+    - **Phase 1 — UI 숨김**: 동적 분석/테스트/어댑터/룰 UI 사이드바+라우트에서 제거 (코드 유지), ProjectSettingsPage 588줄→117줄(LLM URL만), StatusBar 어댑터 제거, OverviewPage 어댑터 칩 제거
+    - **Phase 2 — 소스코드 업로드**: `SourceUploadView` 신규 (ZIP/tar.gz 드래그 앤 드롭 + Git URL 클론), `client.ts`에 `uploadSource`/`cloneSource`/`fetchSourceFiles`/`runAnalysis` API 추가
+    - **Phase 3 — WebSocket 분석 진행률**: `useAnalysisWebSocket` 훅 신규 (Quick SAST→Deep Agent 2단계), `TwoStageProgressView` 신규 (2단계 스테퍼, 중간 결과 열람, 에러 재시도), `useStaticDashboard` 필터에 `deep_analysis` 추가
+    - **Phase 4 — Finding 뱃지 확장**: `agent`/`sast-tool` sourceType 라벨+설명+아이콘+CSS 추가, `SourceBadge` 5-way 맵, `canTransitionTo` agent 제한, `modules.tsx`에 `deep_analysis` 추가
+    - StaticAnalysisPage: modeSelect/upload→sourceUpload, useAsyncAnalysis→useAnalysisWebSocket 교체
+
+### S2에서 WR 예정 (아직 미발송)
+
+1. Knowledge Base 데이터 시각화 (CWE/CVE 관계 탐색, 코드 그래프)
+2. Analysis Agent 진행 상황 표시 (멀티턴 상태)
 
 ### S2 추가 모델 확장 후 S1이 할 것
 

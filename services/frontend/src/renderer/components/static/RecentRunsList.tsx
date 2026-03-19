@@ -1,5 +1,5 @@
 import React from "react";
-import type { Run } from "@smartcar/shared";
+import type { Run } from "@aegis/shared";
 import { ListItem } from "../ui";
 import { PlayCircle } from "lucide-react";
 import { formatDateTime } from "../../utils/format";

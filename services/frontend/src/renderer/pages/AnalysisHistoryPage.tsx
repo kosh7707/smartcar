@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import type { AnalysisResult, AnalysisModule } from "@smartcar/shared";
+import type { AnalysisResult, AnalysisModule } from "@aegis/shared";
 import { Clock, Trash2 } from "lucide-react";
 import { fetchAnalysisResults, deleteAnalysisResult, logError } from "../api/client";
 import { useToast } from "../contexts/ToastContext";

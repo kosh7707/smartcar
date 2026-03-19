@@ -3,7 +3,7 @@ import type {
   AnalysisResult,
   Vulnerability,
   UploadedFile,
-} from "@smartcar/shared";
+} from "@aegis/shared";
 import { uploadFiles, runStaticAnalysis } from "../api/client";
 
 export type AnalysisView = "upload" | "progress" | "results";

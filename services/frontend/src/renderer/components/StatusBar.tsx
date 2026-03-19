@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useMatch, useNavigate } from "react-router-dom";
 import { healthCheck } from "../api/client";
-import { useAdapters } from "../hooks/useAdapters";
 import "./StatusBar.css";
 
 export const StatusBar: React.FC = () => {
@@ -9,7 +8,6 @@ export const StatusBar: React.FC = () => {
   const [llmStatus, setLlmStatus] = useState<"ok" | "error" | "checking">("checking");
   const projectMatch = useMatch("/projects/:projectId/*");
   const projectId = projectMatch?.params.projectId;
-  const { adapters, connected } = useAdapters(projectId);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -40,9 +38,6 @@ export const StatusBar: React.FC = () => {
     return () => { cancelled = true; clearInterval(interval); };
   }, [projectId]);
 
-  const adapterClass = adapters.length === 0 ? "neutral" : connected.length === adapters.length ? "ok" : connected.length > 0 ? "warning" : "error";
-  const adapterLabel = adapters.length === 0 ? "미등록" : `${connected.length}/${adapters.length} 연결됨`;
-
   const goToSettings = () => {
     if (projectId) navigate(`/projects/${projectId}/settings`);
   };
@@ -61,10 +56,6 @@ export const StatusBar: React.FC = () => {
           <div className="statusbar-item statusbar-item--clickable" onClick={goToSettings}>
             <span className={`status-dot ${llmStatus}`} />
             <span>LLM: {llmStatus === "checking" ? "확인 중..." : llmStatus === "ok" ? "연결됨" : "연결 안됨"}</span>
-          </div>
-          <div className="statusbar-item statusbar-item--clickable" onClick={goToSettings}>
-            <span className={`status-dot ${adapterClass}`} />
-            <span>Adapter: {adapterLabel}</span>
           </div>
         </>
       )}

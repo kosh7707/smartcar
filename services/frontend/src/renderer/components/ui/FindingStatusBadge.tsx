@@ -1,5 +1,5 @@
 import React from "react";
-import type { FindingStatus } from "@smartcar/shared";
+import type { FindingStatus } from "@aegis/shared";
 import { FINDING_STATUS_LABELS, FINDING_STATUS_DESCRIPTIONS } from "../../constants/finding";
 
 interface Props {

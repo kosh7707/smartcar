@@ -1,4 +1,4 @@
-import type { Rule } from "@smartcar/shared";
+import type { Rule } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IRuleDAO } from "./interfaces";
 

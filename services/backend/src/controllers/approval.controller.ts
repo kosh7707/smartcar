@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { Request } from "express";
 import { asyncHandler } from "../middleware/async-handler";
 import type { ApprovalService } from "../services/approval.service";
-import type { ApprovalStatus } from "@smartcar/shared";
+import type { ApprovalStatus } from "@aegis/shared";
 
 /** 프로젝트 스코프: /api/projects/:pid/approvals */
 export function createApprovalRouter(service: ApprovalService): Router {

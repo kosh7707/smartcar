@@ -1,5 +1,5 @@
 import React from "react";
-import type { Severity } from "@smartcar/shared";
+import type { Severity } from "@aegis/shared";
 import { ExternalLink } from "lucide-react";
 import { SeverityBadge } from "../ui";
 

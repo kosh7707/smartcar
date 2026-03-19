@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import type { Run, Finding, FindingStatus, FindingSourceType, EvidenceRef, GateResult, Severity } from "@smartcar/shared";
+import type { Run, Finding, FindingStatus, FindingSourceType, EvidenceRef, GateResult, Severity } from "@aegis/shared";
 import { FileCode, ShieldAlert, Shield, AlertTriangle, Plus, LayoutList, Layers, CheckSquare } from "lucide-react";
 import { StatCard, EmptyState, Spinner, GateResultCard, SeverityBadge, FindingStatusBadge, SourceBadge } from "../ui";
 import { TopFilesCard } from "./TopFilesCard";

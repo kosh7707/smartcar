@@ -77,8 +77,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Smartcar SAST Runner",
-    version="0.2.0",
+    title="AEGIS SAST Runner",
+    version="0.4.0",
     lifespan=lifespan,
 )
 

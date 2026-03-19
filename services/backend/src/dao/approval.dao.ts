@@ -1,4 +1,4 @@
-import type { ApprovalRequest, ApprovalStatus } from "@smartcar/shared";
+import type { ApprovalRequest, ApprovalStatus } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IApprovalDAO } from "./interfaces";
 

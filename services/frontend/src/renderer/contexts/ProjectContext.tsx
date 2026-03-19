@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
-import type { Project } from "@smartcar/shared";
+import type { Project } from "@aegis/shared";
 import * as api from "../api/client";
 import { ApiError, logError } from "../api/client";
 import { useToast } from "./ToastContext";
