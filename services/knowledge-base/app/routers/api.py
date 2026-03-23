@@ -34,6 +34,25 @@ class SearchRequest(BaseModel):
     min_score: float = Field(default=0.35, ge=0.0, le=1.0)
     graph_depth: int = Field(default=2, ge=0, le=5)
     exclude_ids: list[str] = Field(default_factory=list, max_length=100)
+    source_filter: list[str] | None = Field(
+        default=None,
+        description="소스 필터: CWE, ATT&CK, CAPEC 중 선택",
+    )
+
+
+class SearchBatchItem(BaseModel):
+    query: str
+    top_k: int = Field(default=5, ge=1, le=20)
+    min_score: float = Field(default=0.35, ge=0.0, le=1.0)
+    graph_depth: int = Field(default=2, ge=0, le=5)
+    source_filter: list[str] | None = None
+
+
+class SearchBatchRequest(BaseModel):
+    queries: list[SearchBatchItem] = Field(
+        ..., min_length=1, max_length=20,
+        description="배치 검색 쿼리 목록 (최대 20개)",
+    )
 
 
 @router.post("/search")
@@ -54,6 +73,7 @@ async def search(
         min_score=req.min_score,
         graph_depth=req.graph_depth,
         exclude_ids=req.exclude_ids,
+        source_filter=req.source_filter,
     )
 
     elapsed_ms = int((time.monotonic() - start) * 1000)
@@ -71,8 +91,48 @@ async def search(
     return result
 
 
+@router.post("/search/batch")
+async def search_batch(
+    req: SearchBatchRequest,
+    x_request_id: str | None = Header(None, alias="X-Request-Id"),
+) -> dict:
+    set_request_id(x_request_id)
+    start = time.monotonic()
+
+    if _assembler is None:
+        return {"error": "Knowledge base not initialized", "results": [], "global_stats": {}}
+
+    queries = [
+        {
+            "query": q.query,
+            "top_k": q.top_k,
+            "min_score": q.min_score,
+            "graph_depth": q.graph_depth,
+            "source_filter": q.source_filter,
+        }
+        for q in req.queries
+    ]
+
+    result = _assembler.batch_assemble(queries)
+
+    elapsed_ms = int((time.monotonic() - start) * 1000)
+    logger.info(
+        "배치 검색",
+        extra={"_extra": {
+            "queryCount": len(req.queries),
+            "totalHits": result["global_stats"]["total_hits"],
+            "latencyMs": elapsed_ms,
+        }},
+    )
+
+    return {**result, "latency_ms": elapsed_ms}
+
+
 @router.get("/graph/stats")
-async def graph_stats() -> dict:
+async def graph_stats(
+    x_request_id: str | None = Header(None, alias="X-Request-Id"),
+) -> dict:
+    set_request_id(x_request_id)
     if _neo4j_graph is None:
         return {"error": "Graph not initialized", "nodeCount": 0, "edgeCount": 0}
     return _neo4j_graph.get_stats()
@@ -82,7 +142,9 @@ async def graph_stats() -> dict:
 async def graph_neighbors(
     node_id: str,
     depth: int = Query(default=2, ge=1, le=5),
+    x_request_id: str | None = Header(None, alias="X-Request-Id"),
 ) -> dict:
+    set_request_id(x_request_id)
     if _neo4j_graph is None:
         return {"error": "Graph not initialized"}
 

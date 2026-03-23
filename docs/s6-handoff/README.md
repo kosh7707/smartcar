@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S6(Dynamic Analysis) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-18 (이관 완료 세션)**
+> **마지막 업데이트: 2026-03-23**
 
 ---
 
@@ -85,7 +85,20 @@ ECU Simulator ──WS──→ Adapter (:4000/ws/ecu)
 
 ---
 
-## 5. S2와의 관계
+## 5. Observability
+
+`docs/specs/observability.md` 준수. 로그 레벨 숫자 표준, 서비스 식별자, X-Request-Id 전파 규칙은 해당 문서 참조.
+
+| 서비스 | service 식별자 | 로그 파일 |
+|--------|---------------|----------|
+| Adapter | `s6-adapter` | `logs/adapter.jsonl` |
+| ECU Simulator | `s6-ecu` | `logs/ecu-simulator.jsonl` |
+
+WebSocket 통신에서는 HTTP 헤더 대신 메시지 페이로드의 `requestId` 필드로 요청을 추적한다 (`inject-request`/`inject-response`).
+
+---
+
+## 6. S2와의 관계
 
 - **S2가 Adapter를 호출하는 쪽이다.** S2의 `AdapterManager` → `AdapterClient`가 Adapter에 WS로 연결.
 - S6는 Adapter/ECU Simulator의 **내부 구현**을 소유하고, S2는 **호출자**이다.
@@ -94,7 +107,7 @@ ECU Simulator ──WS──→ Adapter (:4000/ws/ecu)
 
 ---
 
-## 6. 로드맵 (S2가 제시한 우선순위: 1→3)
+## 7. 로드맵 (S2가 제시한 우선순위: 1→3)
 
 > S2 우선순위: (1) WS 계약서 작성 **완료** → (2) 멀티 ECU 지원 → (3) CAN FD 지원
 
@@ -110,13 +123,14 @@ ECU Simulator ──WS──→ Adapter (:4000/ws/ecu)
 - [ ] 상태 공개 API (current profile, fault mode, session state, reset count)
 - [ ] 회귀 테스트 환경
 
-### 에이전트 시대 비전 (S4 제안)
+### 에이전트 통합 비전
 - S6가 에이전트의 tool로 동작 — `dynamic.inject`, `dynamic.capture` 같은 tool call을 S3 Agent가 호출
-- 정적 분석(S4) 결과 + 동적 분석(S6) 결과를 LLM이 통합 판단
+- 정적 분석(S4) 결과 + 동적 분석(S6) 결과를 LLM(S7 Gateway 경유)이 통합 판단
+- S3의 종합 통합 테스트(2026-03-20)에서 정적 분석 파이프라인 검증 완료. 동적 분석 통합은 미착수
 
 ---
 
-## 7. 참고 문서
+## 8. 참고 문서
 
 | 문서 | 경로 | 용도 |
 |------|------|------|

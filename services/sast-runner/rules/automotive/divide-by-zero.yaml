@@ -1,0 +1,113 @@
+rules:
+  - id: aegis.c.cwe-369-atoi-as-divisor
+    patterns:
+      - pattern: $X / atoi(...)
+    message: >
+      Potential divide by zero: atoi() result used as divisor without zero check.
+      atoi() returns 0 on invalid input, leading to division by zero.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-369"
+      category: security
+      confidence: HIGH
+      impact: MEDIUM
+
+  - id: aegis.c.cwe-369-strtol-as-divisor
+    patterns:
+      - pattern: $X / strtol(...)
+    message: >
+      Potential divide by zero: strtol() result used as divisor without zero check.
+      strtol() returns 0 on invalid input, leading to division by zero.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-369"
+      category: security
+      confidence: HIGH
+      impact: MEDIUM
+
+  - id: aegis.c.cwe-369-atoi-then-divide
+    patterns:
+      - pattern: |
+          $Y = atoi(...);
+          ...
+          $X / $Y;
+    message: >
+      Potential divide by zero: atoi() result stored in variable then used as divisor.
+      atoi() returns 0 on invalid input.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-369"
+      category: security
+      confidence: HIGH
+      impact: MEDIUM
+
+  - id: aegis.c.cwe-369-atoi-then-modulo
+    patterns:
+      - pattern: |
+          $Y = atoi(...);
+          ...
+          $X % $Y;
+    message: >
+      Potential modulo by zero: atoi() result stored in variable then used as divisor.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-369"
+      category: security
+      confidence: HIGH
+      impact: MEDIUM
+
+  - id: aegis.c.cwe-369-scanf-divisor
+    patterns:
+      - pattern: |
+          scanf(..., &$Y);
+          ...
+          $X / $Y;
+    message: >
+      Potential divide by zero: scanf() input used as divisor without zero check.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-369"
+      category: security
+      confidence: MEDIUM
+      impact: MEDIUM
+
+  - id: aegis.c.cwe-369-fscanf-divisor
+    patterns:
+      - pattern: |
+          fscanf(..., ..., &$Y);
+          ...
+          $X / $Y;
+    message: >
+      Potential divide by zero: fscanf() input used as divisor without zero check.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-369"
+      category: security
+      confidence: MEDIUM
+      impact: MEDIUM
+
+  - id: aegis.c.cwe-369-modulo-by-zero
+    patterns:
+      - pattern: $X % atoi(...)
+    message: >
+      Potential modulo by zero: atoi() result used in modulo without zero check.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-369"
+      category: security
+      confidence: HIGH
+      impact: MEDIUM

@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S1(Frontend + QA) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-18**
+> **마지막 업데이트: 2026-03-21**
 
 ---
 
@@ -47,7 +47,7 @@
 - **결정론적 계층**: S4(SAST Runner)가 6개 도구로 정적 분석 + SCA + 코드 그래프 (LLM 없이)
 - **LLM 해석 계층**: S3(Analysis Agent)가 결정론적 결과를 LLM에 주입하여 구조화 분석
 - **위협 지식**: S5(Knowledge Base)가 CWE/CVE/ATT&CK 그래프 + 벡터 검색 제공
-- 프론트에서는 탐지 출처로 구분 (`rule-engine` vs `llm-assist` vs `both`)
+- 프론트에서는 탐지 출처로 구분 (`rule-engine` / `llm-assist` / `both` / `sast-tool` / `agent`)
 
 ---
 
@@ -82,7 +82,7 @@
 
 ### 다른 서비스 코드
 
-- S2~S6 코드는 기본적으로 수정하지 않으며 **읽는 것도 금지** (API 계약서로만 소통)
+- S2~S7 코드는 기본적으로 수정하지 않으며 **읽는 것도 금지** (API 계약서로만 소통)
 
 ### 작업 요청 주고받기
 
@@ -106,6 +106,7 @@
 | API 통신 | fetch (Electron preload / 브라우저 직접) |
 | 실시간 통신 | WebSocket |
 | 공유 타입 | @aegis/shared (monorepo) |
+| 테스트 | vitest + @testing-library/react + jsdom |
 
 ---
 
@@ -130,9 +131,11 @@ services/frontend/
 │       │   ├── ProjectContext.tsx     프로젝트 목록 공유 상태
 │       │   └── ToastContext.tsx       전역 toast 알림 (에러/경고/성공, 액션 버튼)
 │       ├── hooks/
-│       │   ├── useStaticAnalysis.ts   정적 분석 흐름 (레거시 동기, 미사용)
+│       │   ├── useElapsedTimer.ts     경과 시간 타이머 공통 훅
+│       │   ├── useAnalysisWebSocket.ts WS 기반 Quick+Deep 2단계 분석 훅 (타겟 진행률 포함)
+│       │   ├── useBuildTargets.ts     빌드 타겟 CRUD + 자동 탐색 훅
 │       │   ├── useStaticDashboard.ts  대시보드 데이터 + 최신 Run 상세 + 활성 분석 폴링
-│       │   ├── useAnalysisWebSocket.ts WS 기반 Quick+Deep 2단계 분석 훅 (신규)
+│       │   ├── useStaticAnalysis.ts   정적 분석 흐름 (레거시 동기, 미사용)
 │       │   ├── useAsyncAnalysis.ts    비동기 분석 (레거시, useAnalysisWebSocket으로 대체)
 │       │   ├── useDynamicTest.ts      동적 테스트 흐름 (숨김 — 코드 유지)
 │       │   └── useAdapters.ts         어댑터 상태 (숨김 — 코드 유지)
@@ -142,15 +145,15 @@ services/frontend/
 │       │   ├── Sidebar.tsx            2-tier 사이드바
 │       │   ├── StatusBar.tsx          하단 상태바
 │       │   ├── ErrorBoundary.tsx      렌더링 크래시 방어 (class component)
-│       │   ├── ui/                    공통 UI (배지, 다이얼로그, 카드, PeriodSelector, TrendChart, GateResultCard 등)
-│       │   ├── static/               정적 분석 (Dashboard, SourceUploadView, TwoStageProgressView, Run/Finding 상세)
+│       │   ├── ui/                    공통 UI (배지, 다이얼로그, 카드, FileTreeNode, PeriodSelector, TrendChart 등)
+│       │   ├── static/               정적 분석 (Dashboard, SourceUploadView, SourceTreeView, TwoStageProgressView, BuildTargetSection, BuildProfileForm, TargetSelectDialog, Run/Finding 상세)
 │       │   ├── dynamic/              동적 분석 하위 컴포넌트 (숨김 — 코드 유지)
 │       │   └── finding/              Finding/Evidence 컴포넌트 (EvidencePanel, EvidenceViewer)
-│       ├── constants/                  공유 상수 (모듈, 언어, 동적, Finding, Evidence, defaults)
+│       ├── constants/                  공유 상수 (모듈, 언어, 동적, Finding, Evidence, defaults, sdkProfiles)
 │       ├── types/                     타입 선언 (window.d.ts, react-html.d.ts)
 │       ├── pages/                     각 페이지 컴포넌트 + CSS
 │       ├── styles/                    토큰, 리셋, 전역, 컴포넌트 CSS
-│       └── utils/                     포맷팅, 심각도, 파일 유틸, location 파싱
+│       └── utils/                     포맷팅, 심각도, 파일 유틸, location 파싱, tree, findingOverlay, markdown
 ```
 
 ---
@@ -164,13 +167,13 @@ services/frontend/
 /projects                        → ProjectsPage
 /projects/:projectId             → ProjectLayout
   /overview                      → OverviewPage
-  /static-analysis               → StaticAnalysisPage (dashboard|sourceUpload|progress|runDetail|findingDetail|legacyResult)
+  /static-analysis               → StaticAnalysisPage (dashboard|sourceUpload|sourceTree|progress|runDetail|findingDetail|legacyResult)
   /files                         → FilesPage
   /files/:fileId                 → FileDetailPage
   /vulnerabilities               → VulnerabilitiesPage
   /analysis-history              → AnalysisHistoryPage
   /report                        → ReportPage (모듈 탭, 필터, Finding 테이블, 감사 추적, PDF 내보내기)
-  /settings                      → ProjectSettingsPage (LLM Gateway URL + buildProfile)
+  /settings                      → ProjectSettingsPage (LLM Gateway URL + 빌드 타겟 관리)
 /settings                        → SettingsPage (글로벌: 백엔드 URL, 테마 3-way)
 ```
 
@@ -200,10 +203,13 @@ services/frontend/
 | 프로젝트 CRUD | ProjectsPage + ProjectContext | 생성/조회/삭제 |
 | Overview 대시보드 | OverviewPage | 도넛, StatCard(모듈별 분포+언어별), 파일/취약점/이력 |
 | 정적 분석 대시보드 | StaticAnalysisPage + StaticDashboard | SonarQube 패턴 2-탭 (최신 분석: Gate+미해결+출처별 분포 / 전체 현황: KPI+해결률+차트+랭킹), 활성 분석 배너 |
-| 소스코드 업로드 | SourceUploadView | ZIP/tar.gz 드래그 앤 드롭 + Git URL 클론, 파일 트리 표시, 재업로드 |
-| 2단계 분석 진행률 | TwoStageProgressView + useAnalysisWebSocket | Quick SAST → Deep Agent WebSocket 2단계, 중간 결과 열람, 중단 |
+| 소스코드 업로드 | SourceUploadView | ZIP/tar.gz 드래그 앤 드롭 + Git URL 클론, 디렉토리 요약, 타겟 탐색 버튼 |
+| 소스 트리 탐색기 | SourceTreeView | 2패널(트리+코드 프리뷰), Finding 오버레이(폴더별 severity 배지), 검색, 반응형 |
+| 빌드 타겟 관리 | BuildTargetSection + BuildProfileForm | 타겟 목록/추가/편집/삭제, SDK 프로파일 선택(12+1), 자동 탐색(S4), 상세 설정 |
+| 타겟 선택 분석 | TargetSelectDialog | 분석 실행 전 타겟 체크 선택, 전체 선택/해제, 하위 호환(타겟 없으면 기존 플로우) |
+| 2단계 분석 진행률 | TwoStageProgressView + useAnalysisWebSocket | Quick SAST → Deep Agent WebSocket 2단계, 타겟별 진행률, 중간 결과 열람, 중단 |
 | Run 상세 | RunDetailView | Run 메타 + GateResultCard + Finding 파일별 그룹 |
-| Finding 상세 | FindingDetailView | Evidence-first 레이아웃, 상태 변경, 감사 로그, 간이 브레드크럼 |
+| Finding 상세 | FindingDetailView | Evidence-first 레이아웃, 상태 변경, 감사 로그, 상세 분석(마크다운), PoC 생성(agent Finding) |
 | 정적 분석 레거시 | AnalysisResultsView + VulnerabilityDetailView | ?analysisId= URL 호환 유지 |
 | 동적 분석 | DynamicAnalysisPage + MonitoringView | **숨김** — 코드 유지, 라우트/사이드바 제거 |
 | 동적 테스트 | DynamicTestPage + useDynamicTest | **숨김** — 코드 유지, 라우트/사이드바 제거 |
@@ -211,7 +217,7 @@ services/frontend/
 | 취약점 통합 뷰 | VulnerabilitiesPage | 분석 세션별 그룹, 심각도/날짜 필터, 모듈별 컬러 구분 |
 | 분석 이력 | AnalysisHistoryPage | 전 모듈 타임라인 |
 | 보고서 | ReportPage | 프로젝트 보고서 (모듈 탭, 필터, Finding 테이블, Run/Gate, 승인, 감사 추적, PDF 내보내기) |
-| 설정 | SettingsPage + ProjectSettingsPage | 글로벌/프로젝트 (어댑터·룰 제거, LLM URL만 유지) |
+| 설정 | SettingsPage + ProjectSettingsPage | 글로벌/프로젝트 (LLM URL + 빌드 타겟 관리) |
 | 에러 핸들링 | ErrorBoundary, ToastContext, apiFetch 에러 분류 | X-Request-Id, errorDetail 대응, retryable 재시도 버튼 |
 | 공통 UI | Sidebar, StatusBar, 10+ ui 컴포넌트 | — |
 | Finding UI 컴포넌트 | FindingStatusBadge, ConfidenceBadge, SourceBadge, FindingSummary, StateTransitionDialog | FindingDetailView에 연결 완료, 전 배지 title 툴팁 |
@@ -282,6 +288,14 @@ Finding 상세에서 보여야 할 순서:
 - LLM-only finding은 `Sandbox` 상태로 시작
 - provenance 표시: prompt version, model version, validation status
 
+### Observability
+
+`docs/specs/observability.md` 준수. 로그 레벨 숫자 표준, 서비스 식별자, X-Request-Id 전파 규칙은 해당 문서 참조.
+- service 식별자: `s1-frontend`
+- 로그 파일: 해당 없음 (브라우저 콘솔)
+- X-Request-Id: `apiFetch`에서 `crypto.randomUUID()` 자동 생성 + 전달 (`client.ts`)
+- 에러 시 `requestId`를 `ApiError` 클래스에 포함하여 콘솔 출력
+
 ### React hooks 규칙
 
 - 모든 `useState`/`useEffect`는 조건부 return 이전에 선언 필수
@@ -318,13 +332,17 @@ Finding 상세에서 보여야 할 순서:
 # 전체 기동 (권장)
 ./scripts/start.sh
 
-# 프론트만 기동
-cd services/frontend && npm install && npm run dev
+# 프론트만 기동 (Vite dev server만, Electron 없음)
+cd services/frontend && npm install && npm run dev:renderer
 # → http://localhost:5173
 
 # 백엔드도 필요
 cd services/backend && npm install && npm run dev
 # → http://localhost:3000
+
+# 테스트
+cd services/frontend && npm test          # 전체 실행
+cd services/frontend && npm run test:watch  # watch 모드
 ```
 
 **환경변수 (.env)**:
@@ -389,11 +407,11 @@ npm run build
 
 ### S1 독립 작업 가능
 
-1. 대시보드 시각 QA — 브라우저에서 KPI, 차트, 랭킹, 반응형(768px) 확인 필요
-2. 비동기 분석 E2E — 새 분석 → 진행 뷰 → 완료 → 대시보드 갱신 플로우 검증
-3. Run/Finding 상세 E2E — Run 클릭 → Finding 클릭 → 상태 변경 → 감사 로그 검증
-4. 동적 분석 운영 콘솔 고도화 (drop/backpressure/gap 감지 — S2 WS 확장 필요)
-5. 독립 라우트 전환 — `/runs/:id`, `/findings/:id` URL 라우트 추가 (현재는 대시보드 내 뷰)
+1. 통합 테스트 QA — S2 백엔드 기동 후 소스 업로드 → 타겟 탐색 → 분석 실행 → WS 진행률 → 결과 확인 E2E 검증
+2. 대시보드 시각 QA — 브라우저에서 KPI, 차트, 랭킹, 반응형(768px) 확인
+3. Run/Finding 상세 E2E — Run 클릭 → Finding 클릭 → 상태 변경 → 감사 로그 → PoC 생성 검증
+4. 독립 라우트 전환 — `/runs/:id`, `/findings/:id` URL 라우트 추가 (현재는 대시보드 내 뷰)
+5. 테스트 확장 — useStaticDashboard 훅 테스트, 추가 컴포넌트 테스트 (현재 185건, `npm test`로 실행)
 
 ### 완료된 작업 (2026-03-14)
 
@@ -486,6 +504,53 @@ npm run build
     - **Phase 3 — WebSocket 분석 진행률**: `useAnalysisWebSocket` 훅 신규 (Quick SAST→Deep Agent 2단계), `TwoStageProgressView` 신규 (2단계 스테퍼, 중간 결과 열람, 에러 재시도), `useStaticDashboard` 필터에 `deep_analysis` 추가
     - **Phase 4 — Finding 뱃지 확장**: `agent`/`sast-tool` sourceType 라벨+설명+아이콘+CSS 추가, `SourceBadge` 5-way 맵, `canTransitionTo` agent 제한, `modules.tsx`에 `deep_analysis` 추가
     - StaticAnalysisPage: modeSelect/upload→sourceUpload, useAsyncAnalysis→useAnalysisWebSocket 교체
+
+### 완료된 작업 (2026-03-20)
+
+15. ✅ 코드 리뷰 + 리팩토링 (3개 리뷰 에이전트 병렬 실행)
+    - **High priority 수정**: SourceUploadView stale closure 해소 (handleZipUpload useCallback화, eslint-disable 제거), useAnalysisWebSocket onclose 레이스 컨디션 수정 + 연결 에러 시 stuck 방지 + isRunning 파생 전환 + useMemo 안정 반환, StaticAnalysisPage unstable useCallback deps 수정, TwoStageProgressView 미사용 import/변수 제거
+    - **useElapsedTimer 훅 추출**: 경과 시간 타이머 3곳 중복 → `hooks/useElapsedTimer.ts` 공통 훅으로 통합
+    - **useStaticDashboard 버그 수정**: 마운트 시 API 이중 호출 제거, stale period 클로저 수정(periodRef), 불필요한 handleSetPeriod 래퍼 제거
+    - **ProjectSettingsPage 핸들러 추출**: 인라인 async → handleTestLlm/handleSaveLlm/handleResetLlm useCallback + setTimeout 클린업
+    - **OverviewPage useMemo 보강**: getLatestPerModule/getTopVulnerabilities 매 렌더 재계산 방지
+    - **CSS 중복 제거**: TwoStageProgressView `.spin` → 글로벌 `.animate-spin`, SourceUploadView `.drop-zone--active` 중복 제거
+
+### 완료된 작업 (2026-03-21)
+
+16. ✅ 소스코드 트리 탐색 UI (S2 WR `s2-to-s1-source-tree-ux.md` 대응)
+    - `utils/tree.ts`: 제네릭 트리 유틸 (buildTree, filterTree, countFiles, getTopDirs)
+    - `utils/findingOverlay.ts`: 디렉토리별 Finding severity 집계
+    - `components/ui/FileTreeNode.tsx`: 공유 재귀 트리 노드 (render props, A11Y)
+    - `components/static/SourceTreeView.tsx`: 2패널 탐색기 (트리+코드 프리뷰+Finding 하이라이트)
+    - FilesPage 리팩토링: 인라인 트리 로직 → 공유 유틸/컴포넌트로 전환
+    - StaticAnalysisPage에 `"sourceTree"` 뷰 상태 추가, 대시보드에 "소스 탐색" 버튼
+17. ✅ 빌드 타겟 설정 UI (S2 WR `s2-to-s1-build-target-ui.md` 대응)
+    - `constants/sdkProfiles.ts`: 12+1 SDK 프로파일 상수 (AUTOSAR, NXP, Renesas, TI 등)
+    - `hooks/useBuildTargets.ts`: 타겟 CRUD + S4 자동 탐색 훅
+    - `components/static/BuildProfileForm.tsx`: SDK 선택 + 빌드 프로파일 편집 (상세 설정 토글)
+    - `components/static/BuildTargetSection.tsx`: ProjectSettingsPage 타겟 관리 카드
+    - `components/static/TargetSelectDialog.tsx`: 분석 전 타겟 선택 다이얼로그 (전체/개별)
+    - `useAnalysisWebSocket`: targetName/targetProgress 상태 추가, startAnalysis(pid, targetIds?) 확장
+    - `TwoStageProgressView`: 타겟별 진행률 표시 (`[gateway] 분석 중 — 1/3 타겟`)
+    - SourceUploadView에 "타겟 탐색" 버튼 추가
+    - `runAnalysis(projectId, targetIds?)` API 시그니처 확장 (하위 호환)
+18. ✅ Finding 상세 분석 + PoC 생성 UI (S2 WR `s2-to-s1-claim-detail-poc.md` 대응)
+    - `utils/markdown.tsx`: 간단한 마크다운→React 렌더러 (코드블록, 헤딩, 리스트, 볼드/이탤릭)
+    - FindingDetailView: `detail` 마크다운 렌더링 ("상세 분석" 섹션), PoC 생성 버튼 (agent Finding만)
+    - `generatePoc(projectId, findingId)` API 추가, PoC 결과 마크다운 표시 + audit 정보
+19. ✅ 전체 코드 리뷰 + 리팩토링 (9개 리뷰 에이전트 병렬)
+    - **HIGH 버그 수정 4건**: useAnalysisWebSocket error 시 target 초기화, tree.ts 빈 경로 세그먼트 필터, BuildTargetSection 유효성 검사 순서, findingOverlay severity 타입 가드
+    - **코드 품질 7건**: handleGitClone useCallback, markdown \r\n 처리, setTimeout cleanup (FindingDetailView+VulnerabilityDetailView), 미사용 import 제거, filter().map() 패턴, CSS focus-visible 추가, A11Y 속성 (role/aria-expanded/aria-checked/onKeyDown)
+    - filterTree 폴더명 매칭 버그 발견 및 수정 (테스트 과정에서 발견)
+20. ✅ 테스트 인프라 구축 + 185 테스트 케이스 작성
+    - vitest 4.1.0 + @testing-library/react + jsdom 설치
+    - `npm test` / `npm run test:watch` / `npm run test:ui` 스크립트 추가
+    - **유틸 유닛 89건**: tree, location, findingOverlay, format, fileMatch, markdown, severity, analysis
+    - **상수 유닛 26건**: finding (상태 전이 canTransitionTo), languages, modules, sdkProfiles
+    - **API 통합 11건**: fetch 모킹 + CRUD/runAnalysis/PoC/source API
+    - **훅 테스트 14건**: useElapsedTimer (fake timer), useBuildTargets (API 모킹 CRUD+discover)
+    - **컴포넌트 테스트 39건**: TargetSelectDialog, BuildProfileForm, FileTreeNode, ConfirmDialog
+    - **컨텍스트 테스트 6건**: ToastContext (auto-dismiss, max 5, action button)
 
 ### S2에서 WR 예정 (아직 미발송)
 

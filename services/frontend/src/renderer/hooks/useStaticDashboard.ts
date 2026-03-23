@@ -18,6 +18,8 @@ export function useStaticDashboard(projectId?: string) {
   const [period, setPeriod] = useState<DashboardPeriod>("30d");
   const [loading, setLoading] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const periodRef = useRef(period);
+  periodRef.current = period;
 
   const loadData = useCallback(
     async (p: DashboardPeriod) => {
@@ -78,16 +80,14 @@ export function useStaticDashboard(projectId?: string) {
       if (!stillRunning && pollRef.current) {
         clearInterval(pollRef.current);
         pollRef.current = null;
-        // Refresh dashboard data when analysis completes
-        loadData(period);
+        loadData(periodRef.current);
       }
     }, 3000);
-  }, [checkActive, loadData, period]);
+  }, [checkActive, loadData]);
 
-  // Initial load
+  // Initial load + active check
   useEffect(() => {
     setLoading(true);
-    loadData(period);
     checkActive().then((running) => {
       if (running) startPolling();
     });
@@ -100,22 +100,18 @@ export function useStaticDashboard(projectId?: string) {
     };
   }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Period change
+  // Period change (also handles initial load)
   useEffect(() => {
     loadData(period);
-  }, [period]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [period, loadData]);
 
   const refresh = useCallback(() => {
     setLoading(true);
-    loadData(period);
+    loadData(periodRef.current);
     checkActive().then((running) => {
       if (running) startPolling();
     });
-  }, [loadData, period, checkActive, startPolling]);
-
-  const handleSetPeriod = useCallback((p: DashboardPeriod) => {
-    setPeriod(p);
-  }, []);
+  }, [loadData, checkActive, startPolling]);
 
   return {
     summary,
@@ -125,7 +121,7 @@ export function useStaticDashboard(projectId?: string) {
     latestRunLoading,
     period,
     loading,
-    setPeriod: handleSetPeriod,
+    setPeriod,
     refresh,
     startPolling,
   };

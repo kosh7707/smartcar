@@ -33,6 +33,8 @@ export interface Vulnerability {
   ruleId?: string;
   suggestion?: string;
   fixCode?: string;
+  /** 상세 분석 (공격 경로, 영향 범위, 코드 흐름 등) */
+  detail?: string;
 }
 
 export interface AnalysisSummary {
@@ -68,7 +70,48 @@ export interface AnalysisResult {
   warnings?: AnalysisWarning[];
   analyzedFileIds?: string[];
   fileCoverage?: FileCoverageEntry[];
+  /** Agent 분석 한계/불확실성 (caveats) */
+  caveats?: string[];
+  /** Agent 신뢰도 원본 점수 (0.0~1.0) */
+  confidenceScore?: number;
+  /** Agent 신뢰도 세부 항목 */
+  confidenceBreakdown?: ConfidenceBreakdown;
+  /** Agent가 사람 검토 필요 판단 */
+  needsHumanReview?: boolean;
+  /** Agent 수정 권고 전체 목록 */
+  recommendedNextSteps?: string[];
+  /** 정책 플래그 (CWE-78, ISO21434 등) */
+  policyFlags?: string[];
+  /** SCA 라이브러리 목록 */
+  scaLibraries?: ScaLibrary[];
+  /** 에이전트 감사 요약 */
+  agentAudit?: AgentAuditSummary;
   createdAt: string;
+}
+
+/** Agent 신뢰도 세부 항목 */
+export interface ConfidenceBreakdown {
+  grounding: number;
+  deterministicSupport: number;
+  ragCoverage: number;
+  schemaCompliance: number;
+}
+
+/** SCA 라이브러리 정보 (S4 응답) */
+export interface ScaLibrary {
+  name: string;
+  version?: string;
+  path: string;
+  repoUrl?: string;
+}
+
+/** 에이전트 감사 요약 (S1 표시용) */
+export interface AgentAuditSummary {
+  latencyMs: number;
+  tokenUsage: { prompt: number; completion: number };
+  turnCount?: number;
+  toolCallCount?: number;
+  terminationReason?: string;
 }
 
 export interface UploadedFile {
@@ -163,6 +206,26 @@ export interface SdkProfile {
   vendor: string;
   description: string;
   defaults: Omit<BuildProfile, "sdkId">;
+}
+
+// ============================================================
+// 빌드 타겟
+// ============================================================
+
+/** 프로젝트 내 독립 빌드 단위 */
+export interface BuildTarget {
+  id: string;
+  projectId: string;
+  /** 타겟 이름 (e.g. "gateway", "body-control") */
+  name: string;
+  /** 프로젝트 루트 기준 상대 경로 (e.g. "gateway/") */
+  relativePath: string;
+  /** 타겟별 독립 빌드 설정 */
+  buildProfile: BuildProfile;
+  /** 빌드 시스템 (S4 탐색 결과) */
+  buildSystem?: "cmake" | "make" | "custom";
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ============================================================
@@ -331,6 +394,8 @@ export interface Finding {
   description: string;
   location?: string;
   suggestion?: string;
+  /** 상세 분석 (Agent claim.detail — 공격 경로, 영향 범위, 악용 시나리오 등) */
+  detail?: string;
   ruleId?: string;
   createdAt: string;
   updatedAt: string;

@@ -1,4 +1,4 @@
-"""NvdClient — NVD API 2.0 실시간 CVE 조회 + 버전 매칭 + 그래프 보강."""
+"""NvdClient — NVD API 2.0 실시간 CVE 조회 + 버전 매칭 + 그래프 보강 + EPSS/KEV."""
 
 from __future__ import annotations
 
@@ -146,7 +146,9 @@ class NvdClient:
     - 라이브러리명+버전으로 CVE 검색
     - CPE 버전 범위와 대조하여 version_match 판정
     - Neo4j 그래프로 CWE → ATT&CK 관계 보강
+    - EPSS 악용 확률 + CISA KEV 활성 공격 플래그
     - 인메모리 캐시 (TTL 기반)
+    - asyncio.gather 기반 병렬 배치 조회
     """
 
     def __init__(
@@ -156,6 +158,9 @@ class NvdClient:
         rate_delay: float = 1.0,
         cache_ttl: int = 86400,
         neo4j_graph: Neo4jGraph | None = None,
+        nvd_concurrency: int = 5,
+        epss_enabled: bool = True,
+        kev_ttl: int = 3600,
     ) -> None:
         self._api_key = api_key
         self._api_base = api_base
@@ -165,7 +170,20 @@ class NvdClient:
 
         self._client = httpx.AsyncClient(timeout=30.0)
         self._cache: dict[str, tuple[float, dict]] = {}
+        self._cache_max_size: int = 1000
         self._last_request_time: float = 0.0
+
+        # 동시성 제어
+        self._nvd_semaphore = asyncio.Semaphore(nvd_concurrency)
+        self._nvd_lock = asyncio.Lock()
+
+        # EPSS
+        self._epss_enabled = epss_enabled
+
+        # KEV
+        self._kev_set: set[str] | None = None
+        self._kev_last_fetch: float = 0.0
+        self._kev_ttl = kev_ttl
 
     async def close(self) -> None:
         await self._client.aclose()
@@ -260,28 +278,90 @@ class NvdClient:
                     pass
         return related_attack
 
+    # ── EPSS ──
+
+    async def _enrich_epss(self, cve_ids: list[str]) -> dict[str, dict]:
+        """FIRST.org EPSS API로 CVE별 악용 확률을 배치 조회한다."""
+        if not cve_ids or not self._epss_enabled:
+            return {}
+
+        result: dict[str, dict] = {}
+        for batch_start in range(0, len(cve_ids), 100):
+            batch = cve_ids[batch_start:batch_start + 100]
+            try:
+                resp = await self._client.get(
+                    "https://api.first.org/data/v1/epss",
+                    params={"cve": ",".join(batch)},
+                )
+                if resp.status_code != 200:
+                    logger.warning("EPSS API returned %d", resp.status_code)
+                    continue
+                data = resp.json()
+                for entry in data.get("data", []):
+                    cve_id = entry.get("cve", "")
+                    if cve_id:
+                        result[cve_id] = {
+                            "epss": float(entry.get("epss", 0)),
+                            "percentile": float(entry.get("percentile", 0)),
+                        }
+            except Exception as e:
+                logger.warning("EPSS 조회 실패: %s", e)
+
+        return result
+
+    # ── KEV ──
+
+    async def _load_kev_catalog(self) -> set[str]:
+        """CISA KEV 카탈로그를 lazy-load. 메모리 캐시 + TTL."""
+        now = time.monotonic()
+        if self._kev_set is not None and (now - self._kev_last_fetch) < self._kev_ttl:
+            return self._kev_set
+
+        try:
+            resp = await self._client.get(
+                "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            kev_set = {
+                v.get("cveID", "")
+                for v in data.get("vulnerabilities", [])
+                if v.get("cveID")
+            }
+            self._kev_set = kev_set
+            self._kev_last_fetch = now
+            logger.info("KEV 카탈로그 로드 완료: %d건", len(kev_set))
+            return kev_set
+        except Exception as e:
+            logger.warning("KEV 카탈로그 다운로드 실패: %s", e)
+            return self._kev_set or set()
+
     # ── NVD ──
 
     async def _nvd_request(self, params: dict) -> dict | None:
-        """NVD API 단일 요청 (rate limit + 에러 처리)."""
-        elapsed = time.monotonic() - self._last_request_time
-        if elapsed < self._rate_delay:
-            await asyncio.sleep(self._rate_delay - elapsed)
+        """NVD API 단일 요청 (세마포어 + rate limit + 에러 처리)."""
+        async with self._nvd_semaphore:
+            # rate-limit 타이밍 직렬화
+            async with self._nvd_lock:
+                elapsed = time.monotonic() - self._last_request_time
+                if elapsed < self._rate_delay:
+                    await asyncio.sleep(self._rate_delay - elapsed)
+                self._last_request_time = time.monotonic()
 
-        headers = {}
-        if self._api_key:
-            headers["apiKey"] = self._api_key
+            # HTTP 요청 (lock 해제, 세마포어 내)
+            headers = {}
+            if self._api_key:
+                headers["apiKey"] = self._api_key
 
-        resp = await self._client.get(
-            self._api_base, params=params, headers=headers,
-        )
-        self._last_request_time = time.monotonic()
+            resp = await self._client.get(
+                self._api_base, params=params, headers=headers,
+            )
 
-        if resp.status_code == 429:
-            logger.warning("NVD API 429 — rate limit 초과")
-            return None
-        resp.raise_for_status()
-        return resp.json()
+            if resp.status_code == 429:
+                logger.warning("NVD API 429 — rate limit 초과")
+                return None
+            resp.raise_for_status()
+            return resp.json()
 
     async def lookup(
         self, name: str, version: str,
@@ -293,6 +373,7 @@ class NvdClient:
           1. OSV.dev commit 기반 (commit + repo_url 필요) — 가장 정밀
           2. NVD CPE 기반 (repo_url에서 vendor 추론) — 정밀
           3. NVD keywordSearch 폴백 — 넓음
+        + EPSS 악용 확률 + CISA KEV 플래그 보강
         """
         cache_key = f"{name.lower()}:{version}"
         now = time.monotonic()
@@ -352,6 +433,11 @@ class NvdClient:
                 if name.lower() not in desc.lower() and name.lower() not in cve_id.lower():
                     continue
 
+                # OSV에서 이미 찾은 CVE는 스킵 (중복 방지)
+                osv_ids = {c["id"] for c in cves}
+                if cve_id in osv_ids:
+                    continue
+
                 # CVSS
                 metrics = cve_data.get("metrics", {})
                 severity, attack_vector = _extract_cvss(metrics)
@@ -384,17 +470,7 @@ class NvdClient:
                                     affected_versions = av
 
                 # Neo4j 보강: CWE → ATT&CK 관계
-                related_attack = []
-                if self._graph and related_cwe:
-                    for cwe_id in related_cwe[:3]:
-                        try:
-                            related = self._graph.get_related(cwe_id)
-                            if related:
-                                for aid in related.get("attack", []):
-                                    if aid not in related_attack:
-                                        related_attack.append(aid)
-                        except Exception:
-                            pass
+                related_attack = self._enrich_cwe_to_attack(related_cwe)
 
                 cves.append({
                     "id": cve_id,
@@ -406,6 +482,7 @@ class NvdClient:
                     "version_match": version_match,
                     "related_cwe": related_cwe,
                     "related_attack": related_attack,
+                    "source": "nvd",
                 })
 
         except httpx.HTTPStatusError as e:
@@ -414,6 +491,28 @@ class NvdClient:
         except Exception as e:
             logger.error("NVD 조회 실패: %s", e)
             return {"library": name, "version": version, "cves": [], "total": 0, "error": str(e)}
+
+        # EPSS 보강
+        cve_ids = [c["id"] for c in cves if c["id"].startswith("CVE-")]
+        if cve_ids:
+            epss_map = await self._enrich_epss(cve_ids)
+            for cve_entry in cves:
+                epss_data = epss_map.get(cve_entry["id"])
+                if epss_data:
+                    cve_entry["epss_score"] = epss_data["epss"]
+                    cve_entry["epss_percentile"] = epss_data["percentile"]
+                else:
+                    cve_entry["epss_score"] = None
+                    cve_entry["epss_percentile"] = None
+        else:
+            for cve_entry in cves:
+                cve_entry["epss_score"] = None
+                cve_entry["epss_percentile"] = None
+
+        # KEV 플래그
+        kev_set = await self._load_kev_catalog()
+        for cve_entry in cves:
+            cve_entry["kev"] = cve_entry["id"] in kev_set
 
         # 점수순 정렬
         cves.sort(key=lambda c: c.get("severity") or 0, reverse=True)
@@ -426,15 +525,40 @@ class NvdClient:
             "cached": False,
         }
 
+        # 캐시 크기 제한: 초과 시 가장 오래된 엔트리 제거
+        if len(self._cache) >= self._cache_max_size:
+            oldest_key = min(self._cache, key=lambda k: self._cache[k][0])
+            del self._cache[oldest_key]
+
         self._cache[cache_key] = (time.monotonic(), result)
         return result
 
     async def batch_lookup(self, libraries: list[dict]) -> list[dict]:
-        """여러 라이브러리의 CVE를 순차 조회한다."""
-        results = []
-        for lib in libraries:
-            result = await self.lookup(
-                lib["name"], lib["version"], repo_url=lib.get("repo_url"),
+        """여러 라이브러리의 CVE를 병렬 조회한다.
+
+        asyncio.gather로 동시 실행, NVD 세마포어가 rate limit 자동 조절.
+        """
+        tasks = [
+            self.lookup(
+                lib["name"], lib["version"],
+                repo_url=lib.get("repo_url"),
+                commit=lib.get("commit"),
             )
-            results.append(result)
-        return results
+            for lib in libraries
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        final = []
+        for lib, result in zip(libraries, results):
+            if isinstance(result, Exception):
+                logger.error("batch_lookup 실패: %s — %s", lib["name"], result)
+                final.append({
+                    "library": lib["name"],
+                    "version": lib["version"],
+                    "cves": [],
+                    "total": 0,
+                    "error": str(result),
+                })
+            else:
+                final.append(result)
+        return final

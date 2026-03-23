@@ -198,3 +198,47 @@ async def test_aclose():
     caller._client.aclose = AsyncMock()
     await caller.aclose()
     caller._client.aclose.assert_awaited_once()
+
+
+# ───────────────────────────────────────────────
+# Adaptive Timeout
+# ───────────────────────────────────────────────
+
+class TestAdaptiveTimeout:
+    def test_tool_call_turn_generous_timeout(self):
+        """도구 호출 턴은 느슨한 타임아웃."""
+        caller = LlmCaller("http://fake:8000", "qwen")
+        messages = [{"role": "user", "content": "x" * 3000}]  # ~1500 토큰 (÷2)
+        timeout = caller._estimate_timeout(messages, max_tokens=8192, has_tools=True)
+        # overhead 60s + prefill + generation → *2.0, min 120s
+        assert 120 <= timeout <= 400
+
+    def test_large_prompt_tool_call_gets_more_time(self):
+        """큰 프롬프트의 도구 호출은 prefill 반영으로 더 긴 타임아웃."""
+        caller = LlmCaller("http://fake:8000", "qwen")
+        messages = [{"role": "user", "content": "x" * 13000}]  # ~6500 토큰 (÷2)
+        timeout = caller._estimate_timeout(messages, max_tokens=16384, has_tools=True)
+        # overhead 60s + prefill ~65s + generation ~100s → *2.0 ≈ 450s
+        assert 300 <= timeout <= 600
+
+    def test_final_report_long_timeout(self):
+        """최종 보고서 턴은 긴 타임아웃 (max_tokens 전체 생성 기대)."""
+        caller = LlmCaller("http://fake:8000", "qwen")
+        messages = [{"role": "user", "content": "x" * 18000}]  # ~9000 토큰 (÷2)
+        timeout = caller._estimate_timeout(messages, max_tokens=16384, has_tools=False)
+        # capped at 600s
+        assert timeout == 600.0
+
+    def test_small_request_gets_minimum(self):
+        """작은 요청도 최소 120초는 보장된다."""
+        caller = LlmCaller("http://fake:8000", "qwen")
+        messages = [{"role": "user", "content": "hello"}]
+        timeout = caller._estimate_timeout(messages, max_tokens=100, has_tools=True)
+        assert timeout >= 120.0
+
+    def test_empty_content_handled(self):
+        """content가 None인 메시지도 안전하게 처리된다."""
+        caller = LlmCaller("http://fake:8000", "qwen")
+        messages = [{"role": "assistant", "content": None}, {"role": "user", "content": "hi"}]
+        timeout = caller._estimate_timeout(messages, max_tokens=4096, has_tools=False)
+        assert timeout >= 30.0

@@ -192,7 +192,7 @@ export class ProjectSourceService {
       for (const item of fs.readdirSync(tmpDir)) {
         fs.renameSync(path.join(tmpDir, item), path.join(dir, item));
       }
-      fs.rmdirSync(tmpDir);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   }
 }

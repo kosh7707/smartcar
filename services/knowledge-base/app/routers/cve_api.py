@@ -23,9 +23,12 @@ def set_nvd_client(client) -> None:
 
 
 class LibraryItem(BaseModel):
+    model_config = {"populate_by_name": True}
+
     name: str = Field(..., description="라이브러리 이름 (예: libcurl)")
     version: str = Field(..., description="버전 문자열 (예: 7.68.0)")
-    repo_url: str | None = Field(None, description="upstream git URL (vendor 추론용, 예: https://github.com/eclipse/mosquitto.git)")
+    repo_url: str | None = Field(None, alias="repoUrl", description="upstream git URL (vendor 추론용)")
+    commit: str | None = Field(None, description="git commit hash (OSV.dev 정밀 조회용)")
 
 
 class BatchLookupRequest(BaseModel):
@@ -49,7 +52,7 @@ async def batch_lookup(
         raise HTTPException(503, "NVD client not initialized")
 
     results = await _nvd_client.batch_lookup(
-        [{"name": lib.name, "version": lib.version, "repo_url": lib.repo_url} for lib in req.libraries]
+        [{"name": lib.name, "version": lib.version, "repo_url": lib.repo_url, "commit": lib.commit} for lib in req.libraries]
     )
 
     elapsed_ms = int((time.monotonic() - start) * 1000)

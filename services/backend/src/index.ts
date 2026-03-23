@@ -39,6 +39,7 @@ import { ProjectDAO } from "./dao/project.dao";
 import { RuleDAO } from "./dao/rule.dao";
 import { AdapterDAO } from "./dao/adapter.dao";
 import { ProjectSettingsDAO } from "./dao/project-settings.dao";
+import { BuildTargetDAO } from "./dao/build-target.dao";
 
 // Service classes
 import { ProjectSettingsService } from "./services/project-settings.service";
@@ -66,8 +67,10 @@ import { SastClient } from "./services/sast-client";
 import { AgentClient } from "./services/agent-client";
 import { ProjectSourceService } from "./services/project-source.service";
 import { AnalysisOrchestrator } from "./services/analysis-orchestrator";
+import { BuildTargetService } from "./services/build-target.service";
 import { createAnalysisRouter } from "./controllers/analysis.controller";
 import { createProjectSourceRouter } from "./controllers/project-source.controller";
+import { createBuildTargetRouter } from "./controllers/build-target.controller";
 import path from "path";
 
 // --- 프로세스 레벨 에러 핸들러 ---
@@ -119,6 +122,7 @@ const projectDAO = new ProjectDAO(db);
 const ruleDAO = new RuleDAO(db);
 const adapterDAO = new AdapterDAO(db);
 const projectSettingsDAO = new ProjectSettingsDAO(db);
+const buildTargetDAO = new BuildTargetDAO(db);
 
 // ── 서비스 초기화 ──
 const llmTaskClient = new LlmTaskClient(LLM_GATEWAY_URL);
@@ -130,7 +134,8 @@ const dynamicTestWs = new WsBroadcaster<import("@aegis/shared").WsTestMessage>("
 const ruleService = new RuleService(ruleDAO);
 const adapterManager = new AdapterManager(adapterDAO);
 const settingsService = new ProjectSettingsService(projectSettingsDAO);
-const projectService = new ProjectService(projectDAO, analysisResultDAO, fileStore, ruleService, adapterManager, settingsService);
+const buildTargetService = new BuildTargetService(buildTargetDAO, settingsService);
+const projectService = new ProjectService(projectDAO, analysisResultDAO, fileStore, ruleService, adapterManager, settingsService, buildTargetService);
 
 const qualityGateService = new QualityGateService(findingDAO, evidenceRefDAO, gateResultDAO, runDAO);
 const resultNormalizer = new ResultNormalizer(db, runDAO, findingDAO, evidenceRefDAO, qualityGateService);
@@ -180,7 +185,7 @@ const projectSourceService = new ProjectSourceService(UPLOADS_DIR);
 const analysisTracker = new AnalysisTracker();
 const analysisOrchestrator = new AnalysisOrchestrator(
   projectSourceService, sastClient, agentClient,
-  analysisResultDAO, settingsService, resultNormalizer, analysisWs,
+  analysisResultDAO, settingsService, resultNormalizer, analysisWs, buildTargetService,
 );
 
 // 보고서 서비스 초기화
@@ -213,8 +218,9 @@ app.use(
   createDynamicAnalysisRouter(dynamicAnalysisService)
 );
 app.use("/api/dynamic-test", createDynamicTestRouter(dynamicTestService));
-app.use("/api/analysis", createAnalysisRouter(analysisOrchestrator, analysisResultDAO, analysisTracker));
+app.use("/api/analysis", createAnalysisRouter(analysisOrchestrator, analysisResultDAO, analysisTracker, findingDAO, runDAO, gateResultDAO, agentClient, projectSourceService));
 app.use("/api/projects/:pid/source", createProjectSourceRouter(projectSourceService, projectDAO));
+app.use("/api/projects/:pid/targets", createBuildTargetRouter(buildTargetService, projectDAO, projectSourceService, sastClient));
 app.use("/api/runs", createRunDetailRouter(runService));
 app.use("/api/findings", createFindingDetailRouter(findingService));
 app.use("/api/gates", createQualityGateDetailRouter(qualityGateService, approvalService));

@@ -9,6 +9,7 @@ import type { IProjectDAO, IAnalysisResultDAO, IFileStore } from "../dao/interfa
 import type { RuleService } from "./rule.service";
 import type { AdapterManager } from "./adapter-manager";
 import type { ProjectSettingsService } from "./project-settings.service";
+import type { BuildTargetService } from "./build-target.service";
 
 export class ProjectService {
   constructor(
@@ -18,6 +19,7 @@ export class ProjectService {
     private ruleService?: RuleService,
     private adapterManager?: AdapterManager,
     private settingsService?: ProjectSettingsService,
+    private buildTargetService?: BuildTargetService,
   ) {}
 
   create(name: string, description?: string): Project {
@@ -54,6 +56,7 @@ export class ProjectService {
     this.ruleService?.deleteByProjectId(id);
     this.adapterManager?.deleteByProjectId(id);
     this.settingsService?.deleteByProjectId(id);
+    this.buildTargetService?.deleteByProjectId(id);
     return this.projectDAO.delete(id);
   }
 

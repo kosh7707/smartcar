@@ -16,6 +16,7 @@ function rowToFinding(row: any): Finding {
     description: row.description,
     location: row.location ?? undefined,
     suggestion: row.suggestion ?? undefined,
+    detail: row.detail ?? undefined,
     ruleId: row.rule_id ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -31,8 +32,8 @@ export class FindingDAO implements IFindingDAO {
 
   constructor(private db: DatabaseType) {
     this.insertStmt = db.prepare(
-      `INSERT INTO findings (id, run_id, project_id, module, status, severity, confidence, source_type, title, description, location, suggestion, rule_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO findings (id, run_id, project_id, module, status, severity, confidence, source_type, title, description, location, suggestion, detail, rule_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     this.selectByIdStmt = db.prepare(`SELECT * FROM findings WHERE id = ?`);
     this.selectByRunStmt = db.prepare(
@@ -60,6 +61,7 @@ export class FindingDAO implements IFindingDAO {
       finding.description,
       finding.location ?? null,
       finding.suggestion ?? null,
+      finding.detail ?? null,
       finding.ruleId ?? null,
       finding.createdAt,
       finding.updatedAt

@@ -22,7 +22,7 @@ class TestHealthEndpoint:
 
     def test_health_service_name(self, client_live):
         data = client_live.get("/v1/health").json()
-        assert data["service"] == "aegis-llm-gateway"
+        assert data["service"] == "s7-gateway"
 
     def test_health_status_ok(self, client_live):
         data = client_live.get("/v1/health").json()
@@ -50,6 +50,15 @@ class TestHealthEndpoint:
         data = client_live.get("/v1/health").json()
         assert data["llmMode"] == "mock"
         assert "llmBackend" not in data
+
+    def test_health_circuit_breaker_field(self, client_live):
+        data = client_live.get("/v1/health").json()
+        cb = data.get("circuitBreaker")
+        assert cb is not None
+        assert cb["state"] == "closed"
+        assert cb["consecutiveFailures"] == 0
+        assert "threshold" in cb
+        assert "recoverySeconds" in cb
 
 
 # ---------------------------------------------------------------------------
@@ -104,6 +113,49 @@ class TestPromptsEndpoint:
 # POST /v1/chat — LLM Engine 프록시
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# GET /v1/usage
+# ---------------------------------------------------------------------------
+
+class TestUsageEndpoint:
+    def test_usage_response_structure(self, client_live):
+        resp = client_live.get("/v1/usage")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "startedAt" in data
+        assert "totalRequests" in data
+        assert "totalErrors" in data
+        assert "tokens" in data
+        assert data["tokens"]["total"] == data["tokens"]["prompt"] + data["tokens"]["completion"]
+
+    def test_usage_initial_zeros(self, client_live):
+        data = client_live.get("/v1/usage").json()
+        assert data["totalRequests"] >= 0
+        assert data["totalErrors"] >= 0
+
+
+# ---------------------------------------------------------------------------
+# GET /metrics
+# ---------------------------------------------------------------------------
+
+class TestMetricsEndpoint:
+    def test_metrics_returns_prometheus_format(self, client_live):
+        resp = client_live.get("/metrics")
+        assert resp.status_code == 200
+        body = resp.text
+        assert "aegis_llm_requests_total" in body
+        assert "aegis_llm_tokens_total" in body
+        assert "aegis_llm_circuit_breaker_state" in body
+
+    def test_metrics_content_type(self, client_live):
+        resp = client_live.get("/metrics")
+        assert "text/plain" in resp.headers["content-type"] or "text/openmetrics" in resp.headers.get("content-type", "")
+
+
+# ---------------------------------------------------------------------------
+# POST /v1/chat — LLM Engine 프록시
+# ---------------------------------------------------------------------------
+
 class TestChatProxy:
     """POST /v1/chat 프록시 엔드포인트 계약 테스트."""
 
@@ -129,6 +181,51 @@ class TestChatProxy:
         assert "choices" in data
         assert data["choices"][0]["message"]["content"] == '{"test": true}'
         assert data["usage"]["prompt_tokens"] == 10
+
+    def test_chat_proxy_auto_request_id(self, client_live):
+        """requestId가 없으면 Gateway가 gw- 접두사로 자동 생성한다."""
+        mock_llm_response = {
+            "choices": [{"message": {"content": '{"ok": true}'}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 5, "completion_tokens": 3},
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+
+        with patch("app.routers.tasks._proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            resp = client_live.post("/v1/chat", json={
+                "model": "test-model",
+                "messages": [{"role": "user", "content": "test"}],
+            })
+            # X-Request-Id 헤더 없이 요청
+
+        assert resp.status_code == 200
+        rid = resp.headers.get("x-request-id", "")
+        assert rid.startswith("gw-"), f"expected gw- prefix, got: {rid}"
+
+    def test_chat_proxy_caller_timeout_header(self, client_live):
+        """X-Timeout-Seconds 헤더로 per-request 타임아웃을 전달한다."""
+        mock_llm_response = {
+            "choices": [{"message": {"content": '{"ok": true}'}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 5, "completion_tokens": 3},
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+
+        with patch("app.routers.tasks._proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            resp = client_live.post(
+                "/v1/chat",
+                json={"model": "test", "messages": [{"role": "user", "content": "x"}]},
+                headers={"X-Timeout-Seconds": "300"},
+            )
+
+        assert resp.status_code == 200
+        # post() 호출 시 timeout 인자가 전달되었는지 확인
+        call_kwargs = mock_client.post.call_args
+        req_timeout = call_kwargs.kwargs.get("timeout") or call_kwargs[1].get("timeout")
+        assert req_timeout is not None
+        assert req_timeout.read == 300.0
 
     def test_chat_proxy_503_on_connect_error(self, client_live):
         """LLM Engine 연결 실패 시 503 반환."""

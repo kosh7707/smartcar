@@ -1,10 +1,12 @@
-import React, { useState, useCallback } from "react";
-import { Upload, GitBranch, FolderArchive, FileText, Play } from "lucide-react";
+import React, { useState, useMemo, useCallback } from "react";
+import { Upload, GitBranch, FolderArchive, Folder, Play, Search, Crosshair } from "lucide-react";
 import type { SourceFileEntry } from "../../api/client";
 import { uploadSource, cloneSource, fetchSourceFiles, logError } from "../../api/client";
 import { useToast } from "../../contexts/ToastContext";
 import { Spinner } from "../ui";
 import { formatFileSize } from "../../utils/format";
+import { buildTree, countFiles } from "../../utils/tree";
+import { LANG_GROUPS } from "../../constants/languages";
 import "./SourceUploadView.css";
 
 type UploadTab = "zip" | "git";
@@ -12,9 +14,13 @@ type UploadTab = "zip" | "git";
 interface Props {
   projectId: string;
   onAnalysisStart: () => void;
+  /** Called to open the full source tree explorer */
+  onBrowseTree?: () => void;
+  /** Called to auto-discover build targets */
+  onDiscoverTargets?: () => void;
 }
 
-export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart }) => {
+export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, onBrowseTree, onDiscoverTargets }) => {
   const toast = useToast();
   const [tab, setTab] = useState<UploadTab>("zip");
   const [uploading, setUploading] = useState(false);
@@ -37,22 +43,7 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart }
 
   React.useEffect(() => { loadSourceFiles(); }, [loadSourceFiles]);
 
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (!file) return;
-    await handleZipUpload(file);
-  }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    await handleZipUpload(file);
-    e.target.value = "";
-  }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleZipUpload = async (file: File) => {
+  const handleZipUpload = useCallback(async (file: File) => {
     const ext = file.name.toLowerCase();
     if (!ext.endsWith(".zip") && !ext.endsWith(".tar.gz") && !ext.endsWith(".tgz")) {
       toast.error("ZIP 또는 tar.gz 파일만 업로드할 수 있습니다.");
@@ -69,9 +60,24 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart }
     } finally {
       setUploading(false);
     }
-  };
+  }, [projectId, toast]);
 
-  const handleGitClone = async () => {
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    await handleZipUpload(file);
+  }, [handleZipUpload]);
+
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await handleZipUpload(file);
+    e.target.value = "";
+  }, [handleZipUpload]);
+
+  const handleGitClone = useCallback(async () => {
     if (!gitUrl.trim()) {
       toast.error("Git URL을 입력해주세요.");
       return;
@@ -87,41 +93,102 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart }
     } finally {
       setUploading(false);
     }
-  };
+  }, [projectId, gitUrl, gitBranch, toast]);
 
   const handleReupload = () => {
     setSourceFiles(null);
   };
 
+  // Compute top-level directory summary
+  const topDirs = useMemo(() => {
+    if (!sourceFiles || sourceFiles.length === 0) return [];
+    const tree = buildTree(sourceFiles, (f) => f.relativePath);
+    return tree.children
+      .filter((c) => !c.data) // folders only
+      .map((c) => ({ name: c.name, count: countFiles(c) }))
+      .sort((a, b) => b.count - a.count);
+  }, [sourceFiles]);
+
+  // Language stats for bar
+  const langStats = useMemo(() => {
+    if (!sourceFiles || sourceFiles.length === 0) return [];
+    const grouped: Record<string, { count: number; color: string }> = {};
+    for (const f of sourceFiles) {
+      const lang = f.language || "기타";
+      const info = LANG_GROUPS[lang];
+      const group = info?.group ?? "기타";
+      const color = info?.color ?? "var(--text-tertiary)";
+      if (!grouped[group]) grouped[group] = { count: 0, color };
+      grouped[group].count += 1;
+    }
+    return Object.entries(grouped)
+      .map(([group, { count, color }]) => ({ group, count, color }))
+      .sort((a, b) => b.count - a.count);
+  }, [sourceFiles]);
+
+  const totalSize = useMemo(
+    () => (sourceFiles ?? []).reduce((sum, f) => sum + (f.size || 0), 0),
+    [sourceFiles],
+  );
+
   return (
     <div className="source-upload">
-      {/* Already have source — show file tree + actions */}
+      {/* Already have source — show summary + actions */}
       {sourceFiles && sourceFiles.length > 0 ? (
         <>
           <div className="card source-files-card">
             <div className="card-title card-title--flush">
               <FolderArchive size={16} />
-              소스코드 ({sourceFiles.length}개 파일)
+              소스코드 ({sourceFiles.length}개 파일 · {formatFileSize(totalSize)})
             </div>
-            <div className="source-file-tree">
-              {sourceFiles.slice(0, 50).map((f) => (
-                <div key={f.relativePath} className="source-file-row">
-                  <FileText size={14} className="source-file-icon" />
-                  <span className="source-file-path">{f.relativePath}</span>
-                  {f.language && <span className="source-file-lang">{f.language}</span>}
-                  <span className="source-file-size">{formatFileSize(f.size)}</span>
-                </div>
-              ))}
-              {sourceFiles.length > 50 && (
-                <div className="source-file-more">... 외 {sourceFiles.length - 50}개 파일</div>
-              )}
-            </div>
+
+            {/* Language bar */}
+            {langStats.length > 0 && (
+              <div className="source-summary-langbar">
+                {langStats.map((item) => (
+                  <div
+                    key={item.group}
+                    className="source-summary-langbar__seg"
+                    style={{
+                      width: `${(item.count / sourceFiles.length) * 100}%`,
+                      background: item.color,
+                    }}
+                    title={`${item.group}: ${item.count}`}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Top-level directories */}
+            {topDirs.length > 0 && (
+              <div className="source-dir-list">
+                {topDirs.map((d) => (
+                  <div key={d.name} className="source-dir-row">
+                    <Folder size={14} className="source-dir-icon" />
+                    <span className="source-dir-name">{d.name}/</span>
+                    <span className="source-dir-count">{d.count}개 파일</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="source-actions">
+            {onBrowseTree && (
+              <button className="btn btn-secondary" onClick={onBrowseTree}>
+                <Search size={14} />
+                소스코드 탐색
+              </button>
+            )}
+            {onDiscoverTargets && (
+              <button className="btn btn-secondary" onClick={onDiscoverTargets}>
+                <Crosshair size={14} />
+                타겟 탐색
+              </button>
+            )}
             <button className="btn btn-secondary" onClick={handleReupload}>
               <Upload size={14} />
-              소스코드 재업로드
+              재업로드
             </button>
             <button className="btn" onClick={onAnalysisStart}>
               <Play size={14} />

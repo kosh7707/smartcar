@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+from uuid import uuid4
 
 import httpx
 from fastapi import APIRouter, Request
@@ -15,7 +16,7 @@ from app.schemas.request import TaskRequest
 from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
 
 logger = logging.getLogger(__name__)
-_exchange_logger = logging.getLogger("s4_exchange")
+_exchange_logger = logging.getLogger("llm_exchange")
 
 router = APIRouter(prefix="/v1", tags=["v1"])
 
@@ -24,6 +25,12 @@ _model_registry = create_model_registry()
 
 # LLM Engine 프록시 클라이언트 — lifespan에서 초기화
 _proxy_client: httpx.AsyncClient | None = None
+
+# Circuit Breaker + TokenTracker — lifespan에서 초기화
+from app.circuit_breaker import CircuitBreaker
+from app.metrics.token_tracker import TokenTracker
+_circuit_breaker: CircuitBreaker | None = None
+_token_tracker: TokenTracker | None = None
 
 # 동시성 제어 세마포어 — lifespan에서 초기화
 import asyncio
@@ -48,7 +55,12 @@ def _init_proxy_client() -> None:
     """lifespan에서 호출 — LLM Engine 프록시 httpx 클라이언트 초기화."""
     global _proxy_client
     _proxy_client = httpx.AsyncClient(
-        timeout=120.0,
+        timeout=httpx.Timeout(
+            connect=settings.llm_connect_timeout,
+            read=settings.llm_read_timeout,
+            write=10.0,
+            pool=10.0,
+        ),
         limits=httpx.Limits(max_connections=10, max_keepalive_connections=4),
     )
 
@@ -59,6 +71,18 @@ async def _close_proxy_client() -> None:
     if _proxy_client:
         await _proxy_client.aclose()
         _proxy_client = None
+
+
+def _set_circuit_breaker(cb: CircuitBreaker) -> None:
+    """lifespan에서 호출 — Circuit Breaker 주입."""
+    global _circuit_breaker
+    _circuit_breaker = cb
+
+
+def _set_token_tracker(tt: TokenTracker) -> None:
+    """lifespan에서 호출 — TokenTracker 주입."""
+    global _token_tracker
+    _token_tracker = tt
 
 
 def _rebuild_pipeline(threat_search=None, llm_client=None) -> None:
@@ -76,16 +100,24 @@ def _rebuild_pipeline(threat_search=None, llm_client=None) -> None:
 
 @router.post("/tasks")
 async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
-    set_request_id(req.headers.get("x-request-id"))
+    set_request_id(req.headers.get("x-request-id") or f"gw-{uuid4().hex[:12]}")
     logger.info(
         "[v1] Task received: taskId=%s, taskType=%s",
         request.taskId, request.taskType,
     )
 
+    task_start = time.monotonic()
     try:
         result = await _pipeline.execute(request)
     except Exception:
         logger.error("[v1] Unexpected error", exc_info=True)
+        task_duration = time.monotonic() - task_start
+        if _token_tracker:
+            _token_tracker.record(
+                endpoint="tasks", task_type=request.taskType,
+                success=False, duration_s=task_duration,
+                error_type="INTERNAL_ERROR",
+            )
         request_id = get_request_id()
         return JSONResponse(
             status_code=500,
@@ -102,13 +134,27 @@ async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
             headers={"X-Request-Id": request_id} if request_id else {},
         )
 
+    task_duration = time.monotonic() - task_start
+    if _token_tracker:
+        is_success = hasattr(result, "status") and result.status == "completed"
+        token_usage = getattr(getattr(result, "audit", None), "tokenUsage", None)
+        _token_tracker.record(
+            endpoint="tasks",
+            task_type=request.taskType,
+            prompt_tokens=token_usage.prompt if token_usage else 0,
+            completion_tokens=token_usage.completion if token_usage else 0,
+            success=is_success,
+            duration_s=task_duration,
+            error_type=getattr(result, "failureCode", None) if not is_success else None,
+        )
+
     return _json_response(result)
 
 
 @router.get("/health")
 async def health(req: Request) -> dict:
     result = {
-        "service": "aegis-llm-gateway",
+        "service": "s7-gateway",
         "status": "ok",
         "version": "1.0.0",
         "llmMode": settings.llm_mode,
@@ -123,6 +169,11 @@ async def health(req: Request) -> dict:
     if settings.llm_mode == "real":
         result["llmBackend"] = await _check_llm_backend()
         result["llmConcurrency"] = settings.llm_concurrency
+
+    # Circuit Breaker 상태
+    cb = getattr(req.app.state, "circuit_breaker", None)
+    if cb:
+        result["circuitBreaker"] = cb.snapshot()
 
     # RAG 상태
     threat_search = getattr(req.app.state, "threat_search", None)
@@ -142,7 +193,8 @@ async def chat_proxy(req: Request) -> Response:
     S3 Agent 등 LLM 소비자가 이 엔드포인트를 통해 LLM Engine에 접근한다.
     Gateway가 단일 관문 역할을 하므로 LLM 벤더/API 변경 시 이곳만 수정하면 된다.
     """
-    set_request_id(req.headers.get("x-request-id"))
+    raw_id = req.headers.get("x-request-id") or f"gw-{uuid4().hex[:12]}"
+    set_request_id(raw_id)
     request_id = get_request_id() or ""
 
     body = await req.json()
@@ -150,13 +202,41 @@ async def chat_proxy(req: Request) -> Response:
     profile = _model_registry.get_default()
     llm_endpoint = profile.endpoint if profile else settings.llm_endpoint
 
+    # 모델명 오버라이드 — 호출자가 어떤 모델명을 보내든 Gateway가 실제 모델로 교체
+    body["model"] = profile.modelName if profile else settings.llm_model
+
     fwd_headers: dict[str, str] = {"Content-Type": "application/json"}
     if settings.llm_api_key:
         fwd_headers["Authorization"] = f"Bearer {settings.llm_api_key}"
     if request_id:
         fwd_headers["X-Request-Id"] = request_id
 
+    # 호출자 타임아웃: X-Timeout-Seconds 헤더로 전달, 미전달 시 기본 1800초
+    _MAX_TIMEOUT = 1800.0
+    caller_timeout = min(
+        float(req.headers.get("x-timeout-seconds", _MAX_TIMEOUT)),
+        _MAX_TIMEOUT,
+    )
+    req_timeout = httpx.Timeout(
+        connect=settings.llm_connect_timeout,
+        read=caller_timeout,
+        write=10.0,
+        pool=10.0,
+    )
+
     start = time.monotonic()
+
+    # Circuit Breaker 확인
+    if _circuit_breaker:
+        from app.errors import LlmCircuitOpenError
+        try:
+            await _circuit_breaker.check()
+        except LlmCircuitOpenError:
+            logger.warning("[chat proxy] Circuit Breaker OPEN — 즉시 실패")
+            return JSONResponse(
+                status_code=503,
+                content={"error": "LLM Engine circuit open", "retryable": True},
+            )
 
     try:
         async with _llm_semaphore:
@@ -164,20 +244,35 @@ async def chat_proxy(req: Request) -> Response:
                 f"{llm_endpoint}/v1/chat/completions",
                 json=body,
                 headers=fwd_headers,
+                timeout=req_timeout,
             )
     except httpx.ConnectError:
         elapsed_ms = int((time.monotonic() - start) * 1000)
-        logger.error("[chat proxy] LLM Engine 연결 실패, latencyMs=%d", elapsed_ms)
+        has_tools = bool(body.get("tools"))
+        logger.error(
+            "[chat proxy] 실패 requestId=%s, latencyMs=%d, error=CONNECT, hasTools=%s",
+            request_id, elapsed_ms, has_tools,
+        )
+        if _circuit_breaker:
+            await _circuit_breaker.record_failure()
         return JSONResponse(
             status_code=503,
             content={"error": "LLM Engine unreachable", "retryable": True},
+            headers={"X-Request-Id": request_id},
         )
     except httpx.TimeoutException:
         elapsed_ms = int((time.monotonic() - start) * 1000)
-        logger.error("[chat proxy] LLM Engine 타임아웃, latencyMs=%d", elapsed_ms)
+        has_tools = bool(body.get("tools"))
+        logger.error(
+            "[chat proxy] 실패 requestId=%s, latencyMs=%d, error=TIMEOUT, hasTools=%s",
+            request_id, elapsed_ms, has_tools,
+        )
+        if _circuit_breaker:
+            await _circuit_breaker.record_failure()
         return JSONResponse(
             status_code=504,
             content={"error": "LLM Engine timeout", "retryable": True},
+            headers={"X-Request-Id": request_id},
         )
 
     elapsed_ms = int((time.monotonic() - start) * 1000)
@@ -200,11 +295,33 @@ async def chat_proxy(req: Request) -> Response:
     }, ensure_ascii=False))
 
     if resp.status_code == 200:
+        if _circuit_breaker:
+            await _circuit_breaker.record_success()
+        usage = resp_data.get("usage", {}) if resp_data else {}
+        if _token_tracker:
+            _token_tracker.record(
+                endpoint="chat",
+                prompt_tokens=usage.get("prompt_tokens", 0),
+                completion_tokens=usage.get("completion_tokens", 0),
+                success=True,
+                duration_s=elapsed_ms / 1000,
+            )
+        choices = resp_data.get("choices", [{}]) if resp_data else [{}]
+        finish_reason = choices[0].get("finish_reason", "?") if choices else "?"
         logger.info(
-            "[chat proxy] 완료 requestId=%s, latencyMs=%d, model=%s",
+            "[chat proxy] 완료 requestId=%s, latencyMs=%d, model=%s, "
+            "promptTokens=%d, completionTokens=%d, finishReason=%s, hasTools=%s",
             request_id, elapsed_ms, body.get("model", ""),
+            usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0),
+            finish_reason, bool(body.get("tools")),
         )
     else:
+        if _token_tracker:
+            _token_tracker.record(
+                endpoint="chat", success=False,
+                duration_s=elapsed_ms / 1000,
+                error_type=f"HTTP_{resp.status_code}",
+            )
         logger.warning(
             "[chat proxy] LLM Engine HTTP_%d, requestId=%s, latencyMs=%d",
             resp.status_code, request_id, elapsed_ms,
@@ -214,6 +331,7 @@ async def chat_proxy(req: Request) -> Response:
         content=resp.content,
         status_code=resp.status_code,
         media_type="application/json",
+        headers={"X-Request-Id": request_id} if request_id else {},
     )
 
 
@@ -233,6 +351,13 @@ async def _check_llm_backend() -> dict:
         return {"status": "unreachable", "endpoint": endpoint, "error": str(e)}
 
 
+@router.get("/usage")
+async def usage() -> dict:
+    if _token_tracker:
+        return _token_tracker.snapshot()
+    return {"error": "TokenTracker not initialized"}
+
+
 @router.get("/models")
 async def list_models() -> dict:
     return {"profiles": _model_registry.list_all()}
@@ -241,3 +366,17 @@ async def list_models() -> dict:
 @router.get("/prompts")
 async def list_prompts() -> dict:
     return {"prompts": _prompt_registry.list_all()}
+
+
+# Prometheus 메트릭 — /v1 prefix 밖에 위치
+from fastapi import APIRouter as _AR
+_metrics_router = _AR()
+
+
+@_metrics_router.get("/metrics")
+async def metrics() -> Response:
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    return Response(
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST,
+    )

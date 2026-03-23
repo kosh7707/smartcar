@@ -34,6 +34,17 @@ class TestExtractCweIds:
     def test_empty(self):
         assert Phase1Executor._extract_cwe_ids([]) == set()
 
+    def test_from_metadata_cwe(self):
+        """metadata.cwe 배열에서 CWE를 추출한다 (S4 v0.4.0+)."""
+        findings = [{"ruleId": "", "message": "", "metadata": {"cwe": ["CWE-476"]}}]
+        assert Phase1Executor._extract_cwe_ids(findings) == {"CWE-476"}
+
+    def test_metadata_cwe_combined(self):
+        """ruleId + metadata.cwe에서 중복 없이 추출한다."""
+        findings = [{"ruleId": "CWE-78", "message": "", "metadata": {"cwe": ["CWE-78", "CWE-77"]}}]
+        result = Phase1Executor._extract_cwe_ids(findings)
+        assert result == {"CWE-78", "CWE-77"}
+
     def test_no_cwe(self):
         findings = [{"ruleId": "bugprone-easily-swappable", "message": "parameters swapped"}]
         assert Phase1Executor._extract_cwe_ids(findings) == set()
@@ -79,7 +90,9 @@ class TestRunThreatQuery:
         mock_resp.status_code = 200
         mock_resp.raise_for_status = MagicMock()
         mock_resp.json.return_value = {
-            "hits": [{"id": "CWE-78", "source": "CWE", "title": "OS Command Injection"}],
+            "results": [
+                {"query": "CWE-78", "hits": [{"id": "CWE-78", "source": "CWE", "title": "OS Command Injection"}]},
+            ],
         }
         executor._kb_client.post = AsyncMock(return_value=mock_resp)
 
@@ -88,6 +101,9 @@ class TestRunThreatQuery:
         assert len(result.threat_context) == 1
         assert result.threat_context[0]["id"] == "CWE-78"
         assert result.threat_query_duration_ms >= 0
+        # 배치 API 호출 확인
+        call_args = executor._kb_client.post.call_args
+        assert "/v1/search/batch" in str(call_args)
         await executor.aclose()
 
     @pytest.mark.asyncio
@@ -242,6 +258,23 @@ class TestBuildPhase2Prompt:
         assert "CVE-2023-999" not in user
         assert "버전 매칭 완료" in user
 
+    def test_epss_kev_critical_cve_section(self):
+        """EPSS 높거나 KEV인 CVE가 긴급 섹션으로 분류된다."""
+        result = Phase1Result(
+            cve_lookup=[
+                {"id": "CVE-2021-001", "version_match": True, "_library": "curl", "_version": "7.68",
+                 "title": "critical vuln", "severity": 9.8, "kev": True, "epss_score": 0.92},
+                {"id": "CVE-2021-002", "version_match": True, "_library": "curl", "_version": "7.68",
+                 "title": "normal vuln", "severity": 5.0, "kev": False, "epss_score": 0.1},
+            ],
+        )
+        _, user = build_phase2_prompt(result, {"objective": "test"})
+
+        assert "긴급 CVE" in user
+        assert "CISA KEV" in user
+        assert "EPSS 0.92" in user
+        assert "일반 CVE" in user
+
     def test_includes_dangerous_callers(self):
         """위험 함수 호출자가 프롬프트에 포함된다."""
         result = Phase1Result(
@@ -254,3 +287,159 @@ class TestBuildPhase2Prompt:
         assert "위험 함수 호출자" in user
         assert "postJson" in user
         assert "popen" in user
+
+
+# ───────────────────────────────────────────────
+# targetPath 지원
+# ───────────────────────────────────────────────
+
+class TestTargetPath:
+    @pytest.mark.asyncio
+    async def test_target_path_combines_with_project_path(self):
+        """targetPath가 지정되면 projectPath/targetPath를 분석 루트로 사용한다."""
+        from app.core.agent_session import AgentSession
+        from app.schemas.request import TaskRequest
+
+        request = TaskRequest.model_validate({
+            "taskType": "deep-analyze",
+            "taskId": "test-target",
+            "context": {
+                "trusted": {
+                    "objective": "test",
+                    "projectPath": "/uploads/project",
+                    "targetPath": "gateway/",
+                    "projectId": "proj-1",
+                    "buildProfile": {"sdkId": "nxp-s32g2"},
+                }
+            },
+        })
+        from app.schemas.agent import BudgetState
+        budget = BudgetState(max_steps=1, max_completion_tokens=100)
+        session = AgentSession(request, budget)
+
+        executor = Phase1Executor(
+            sast_endpoint="http://localhost:9000",
+            kb_endpoint="http://localhost:8002",
+        )
+
+        # build-and-analyze를 mock하여 전달된 project_path를 캡처
+        captured_path = {}
+
+        async def mock_ba(result, project_id, project_path, build_command, build_profile, request_id):
+            captured_path["path"] = project_path
+            return result
+
+        executor._run_build_and_analyze = mock_ba
+
+        await executor.execute(session)
+
+        assert captured_path["path"] == "/uploads/project/gateway"
+        await executor.aclose()
+
+    @pytest.mark.asyncio
+    async def test_no_target_path_uses_project_path(self):
+        """targetPath가 없으면 projectPath를 그대로 사용한다."""
+        from app.core.agent_session import AgentSession
+        from app.schemas.request import TaskRequest
+
+        request = TaskRequest.model_validate({
+            "taskType": "deep-analyze",
+            "taskId": "test-no-target",
+            "context": {
+                "trusted": {
+                    "objective": "test",
+                    "projectPath": "/uploads/project",
+                    "projectId": "proj-1",
+                    "buildProfile": {"sdkId": "nxp-s32g2"},
+                }
+            },
+        })
+        from app.schemas.agent import BudgetState
+        budget = BudgetState(max_steps=1, max_completion_tokens=100)
+        session = AgentSession(request, budget)
+
+        executor = Phase1Executor(
+            sast_endpoint="http://localhost:9000",
+            kb_endpoint="http://localhost:8002",
+        )
+
+        captured_path = {}
+
+        async def mock_ba(result, project_id, project_path, build_command, build_profile, request_id):
+            captured_path["path"] = project_path
+            return result
+
+        executor._run_build_and_analyze = mock_ba
+
+        await executor.execute(session)
+
+        assert captured_path["path"] == "/uploads/project"
+        await executor.aclose()
+
+    @pytest.mark.asyncio
+    async def test_target_path_traversal_blocked(self):
+        """targetPath에 ../가 포함되면 projectPath로 fallback한다."""
+        from app.core.agent_session import AgentSession
+        from app.schemas.request import TaskRequest
+
+        request = TaskRequest.model_validate({
+            "taskType": "deep-analyze",
+            "taskId": "test-traversal",
+            "context": {
+                "trusted": {
+                    "objective": "test",
+                    "projectPath": "/uploads/project",
+                    "targetPath": "../../etc/",
+                    "projectId": "proj-1",
+                    "buildProfile": {"sdkId": "nxp-s32g2"},
+                }
+            },
+        })
+        from app.schemas.agent import BudgetState
+        budget = BudgetState(max_steps=1, max_completion_tokens=100)
+        session = AgentSession(request, budget)
+
+        executor = Phase1Executor(
+            sast_endpoint="http://localhost:9000",
+            kb_endpoint="http://localhost:8002",
+        )
+
+        captured_path = {}
+
+        async def mock_ba(result, project_id, project_path, build_command, build_profile, request_id):
+            captured_path["path"] = project_path
+            return result
+
+        executor._run_build_and_analyze = mock_ba
+
+        await executor.execute(session)
+
+        # traversal이 차단되어 projectPath로 fallback
+        assert captured_path["path"] == "/uploads/project"
+        await executor.aclose()
+
+
+# ───────────────────────────────────────────────
+# _format_origin_label
+# ───────────────────────────────────────────────
+
+class TestFormatOriginLabel:
+    def test_modified_third_party(self):
+        from app.core.phase_one import _format_origin_label
+        func = {"origin": "modified-third-party", "original_lib": "libcurl", "original_version": "7.68.0"}
+        assert _format_origin_label(func) == " [수정된 서드파티: libcurl v7.68.0]"
+
+    def test_third_party(self):
+        from app.core.phase_one import _format_origin_label
+        func = {"origin": "third-party", "originalLib": "rapidjson"}  # camelCase
+        assert _format_origin_label(func) == " [서드파티: rapidjson]"
+
+    def test_user_code(self):
+        from app.core.phase_one import _format_origin_label
+        func = {"name": "main", "file": "src/main.cpp"}
+        assert _format_origin_label(func) == ""
+
+    def test_null_origin(self):
+        from app.core.phase_one import _format_origin_label
+        func = {"origin": None}
+        assert _format_origin_label(func) == ""

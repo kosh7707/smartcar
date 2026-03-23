@@ -13,6 +13,7 @@ import { AnalysisResultDAO } from "../../dao/analysis-result.dao";
 import { FileStore } from "../../dao/file-store";
 import { AdapterDAO } from "../../dao/adapter.dao";
 import { ProjectSettingsDAO } from "../../dao/project-settings.dao";
+import { BuildTargetDAO } from "../../dao/build-target.dao";
 import {
   makeProject,
   makeRun,
@@ -24,6 +25,7 @@ import {
   makeAnalysisResult,
   makeRule,
   makeStoredFile,
+  makeBuildTarget,
 } from "../../test/factories";
 
 describe("DAO Integration Tests", () => {
@@ -236,6 +238,83 @@ describe("DAO Integration Tests", () => {
       dao.set("p1", "key", "v1");
       dao.set("p1", "key", "v2");
       expect(dao.get("p1", "key")).toBe("v2");
+    });
+  });
+
+  describe("BuildTargetDAO", () => {
+    it("CRUD lifecycle", () => {
+      const dao = new BuildTargetDAO(db);
+      const target = makeBuildTarget({ id: "t1", projectId: "p1", name: "gateway" });
+      dao.save(target);
+
+      const found = dao.findById("t1");
+      expect(found).toBeDefined();
+      expect(found!.name).toBe("gateway");
+      expect(found!.buildProfile).toMatchObject({ sdkId: "linux-x86_64-c" });
+
+      const byProject = dao.findByProjectId("p1");
+      expect(byProject).toHaveLength(1);
+
+      const updated = dao.update("t1", { name: "renamed" });
+      expect(updated!.name).toBe("renamed");
+
+      expect(dao.delete("t1")).toBe(true);
+      expect(dao.findById("t1")).toBeUndefined();
+    });
+
+    it("deleteByProjectId removes all targets", () => {
+      const dao = new BuildTargetDAO(db);
+      dao.save(makeBuildTarget({ id: "t1", projectId: "p1" }));
+      dao.save(makeBuildTarget({ id: "t2", projectId: "p1" }));
+      dao.save(makeBuildTarget({ id: "t3", projectId: "p2" }));
+
+      expect(dao.deleteByProjectId("p1")).toBe(2);
+      expect(dao.findByProjectId("p1")).toHaveLength(0);
+      expect(dao.findByProjectId("p2")).toHaveLength(1);
+    });
+  });
+
+  describe("AnalysisResultDAO — new fields", () => {
+    it("persists and retrieves agent metadata", () => {
+      const dao = new AnalysisResultDAO(db);
+
+      const result = makeAnalysisResult({
+        id: "deep-1",
+        module: "deep_analysis",
+        caveats: ["Test caveat"],
+        confidenceScore: 0.865,
+        confidenceBreakdown: { grounding: 0.95, deterministicSupport: 1.0, ragCoverage: 0.4, schemaCompliance: 1.0 },
+        needsHumanReview: true,
+        recommendedNextSteps: ["Step 1", "Step 2"],
+        policyFlags: ["CWE-78"],
+        scaLibraries: [{ name: "openssl", version: "1.1.1", path: "libs/openssl" }],
+        agentAudit: { latencyMs: 12000, tokenUsage: { prompt: 3000, completion: 1500 }, turnCount: 2, toolCallCount: 3, terminationReason: "content_returned" },
+      });
+
+      dao.save(result);
+      const loaded = dao.findById("deep-1")!;
+
+      expect(loaded.caveats).toEqual(["Test caveat"]);
+      expect(loaded.confidenceScore).toBe(0.865);
+      expect(loaded.confidenceBreakdown).toMatchObject({ grounding: 0.95 });
+      expect(loaded.needsHumanReview).toBe(true);
+      expect(loaded.recommendedNextSteps).toEqual(["Step 1", "Step 2"]);
+      expect(loaded.policyFlags).toEqual(["CWE-78"]);
+      expect(loaded.scaLibraries).toHaveLength(1);
+      expect(loaded.scaLibraries![0].name).toBe("openssl");
+      expect(loaded.agentAudit).toMatchObject({ latencyMs: 12000, turnCount: 2 });
+    });
+
+    it("omits empty arrays in response", () => {
+      const dao = new AnalysisResultDAO(db);
+
+      const result = makeAnalysisResult({ id: "basic-1" });
+      dao.save(result);
+      const loaded = dao.findById("basic-1")!;
+
+      expect(loaded.caveats).toBeUndefined();
+      expect(loaded.confidenceScore).toBeUndefined();
+      expect(loaded.agentAudit).toBeUndefined();
     });
   });
 });

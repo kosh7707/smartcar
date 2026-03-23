@@ -8,13 +8,13 @@ from app.config import settings
 from app.observability import setup_logging
 from app.routers import tasks
 
-_SERVICE_NAME = "s3-analysis-agent"
-_log_dir = setup_logging(_SERVICE_NAME)
+_SERVICE_NAME = "aegis-analysis-agent"
+_log_dir = setup_logging(_SERVICE_NAME, service_id="s3-agent")
 
-# S4 교환 로그
-_exchange_handler = logging.FileHandler(_log_dir / "s4-exchange.jsonl")
+# LLM 교환 로그
+_exchange_handler = logging.FileHandler(_log_dir / "llm-exchange.jsonl")
 _exchange_handler.setFormatter(logging.Formatter("%(message)s"))
-_exchange_logger = logging.getLogger("s4_exchange")
+_exchange_logger = logging.getLogger("llm_exchange")
 _exchange_logger.handlers = [_exchange_handler]
 _exchange_logger.setLevel(logging.INFO)
 _exchange_logger.propagate = False

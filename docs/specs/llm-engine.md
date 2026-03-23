@@ -9,7 +9,7 @@
 
 ### 책임
 
-- Qwen3.5-35B-A3B FP8 모델 로딩 및 추론 수행
+- Qwen3.5-122B-A10B-GPTQ-Int4 모델 로딩 및 추론 수행
 - OpenAI-compatible REST API 제공 (`/v1/chat/completions`)
 - Thinking 모드 제어 (`enable_thinking` 파라미터)
 - Tool calling 지원 (`qwen3_coder` 파서)
@@ -47,21 +47,21 @@
 
 | 항목 | 크기 |
 |------|------|
-| Qwen3.5-35B-A3B FP8 모델 | ~34.2GB |
-| vLLM 런타임 + KV cache + FlashInfer | ~50GB |
-| 총 GPU 메모리 사용 | ~84GB (gpu_memory_utilization: 0.7) |
+| Qwen3.5-122B-A10B-GPTQ-Int4 모델 | ~67 GiB |
+| vLLM 런타임 + KV cache + FlashInfer | ~24 GiB |
+| 총 GPU 메모리 사용 | ~91 GiB (gpu_memory_utilization: 0.7) |
 | 결론 | 128GB unified에 충분, 262K 컨텍스트 처리 가능 |
 
 ---
 
-## 3. 모델: Qwen3.5-35B-A3B
+## 3. 모델: Qwen3.5-122B-A10B-GPTQ-Int4
 
 ### MoE (Mixture of Experts) 아키텍처
 
 | 항목 | 값 |
 |------|------|
-| 총 파라미터 | 35B |
-| 활성 파라미터 (토큰당) | **3B** |
+| 총 파라미터 | 122B |
+| 활성 파라미터 (토큰당) | **10B** |
 | 전문가 수 | 256개 |
 | 활성 전문가 (토큰당) | 8 라우팅 + 1 공유 = 9개 |
 | 어텐션 | Gated Delta Networks + Sparse MoE 하이브리드 |
@@ -69,7 +69,7 @@
 | 양자화 | FP8 (네이티브, 정밀도 손실 최소) |
 | 라이선스 | Apache 2.0 |
 
-35B 파라미터 중 토큰당 3B만 활성화하여, dense 32B 모델 대비 **훨씬 빠른 추론 속도**를 달성한다.
+122B 파라미터 중 토큰당 10B만 활성화하여, dense 모델 대비 **훨씬 빠른 추론 속도**를 달성한다. GPTQ-Int4 양자화 적용(Expert=INT4, Attention=BF16).
 
 ### 지원 기능
 
@@ -116,7 +116,7 @@
 DGX Spark
   └── Docker (vllm-node 컨테이너)
         └── vLLM 0.17.1rc1 (CUDA 13.1, aarch64)
-              └── Qwen3.5-35B-A3B-FP8
+              └── Qwen3.5-122B-A10B-GPTQ-Int4
                     ├── FlashInfer attention (CC 12.1a)
                     ├── FP8 KV cache
                     ├── Prefix caching
@@ -128,7 +128,7 @@ DGX Spark
 ```bash
 # DGX Spark에서
 cd ~/spark-vllm-docker
-./run-recipe.sh qwen3.5-35b-a3b-fp8 --solo --tensor-parallel 1 --port 8000
+./run-recipe.sh qwen3.5-122b-gptq-int4 --solo --tensor-parallel 1 --port 8000
 ```
 
 ### 주요 vLLM 파라미터
@@ -188,12 +188,12 @@ OpenAI-compatible JSON. `choices[0].message.content`로 응답 추출.
 S7 Gateway (LLM Gateway, :8000)
   │
   │  POST /v1/chat/completions
-  │  (httpx, timeout 120s)
+  │  (httpx, connect 10s / read 600s)
   │
   ▼
 LLM Engine (DGX Spark, :8000)
   │
-  │  vLLM (Qwen3.5-35B-A3B-FP8) inference
+  │  vLLM (Qwen3.5-122B-A10B-GPTQ-Int4) inference
   │  Docker container on DGX Spark
   │
   ▼
@@ -207,7 +207,7 @@ S7 Gateway의 환경변수로 LLM Engine을 가리킨다:
 ```env
 AEGIS_LLM_MODE=real
 AEGIS_LLM_ENDPOINT=http://10.126.37.19:8000
-AEGIS_LLM_MODEL=Qwen/Qwen3.5-35B-A3B-FP8
+AEGIS_LLM_MODEL=Qwen/Qwen3.5-122B-A10B-GPTQ-Int4
 AEGIS_LLM_API_KEY=                              # vLLM: 불필요
 ```
 
@@ -215,7 +215,7 @@ AEGIS_LLM_API_KEY=                              # vLLM: 불필요
 
 ### 모델명 규칙
 
-vLLM의 모델명은 HuggingFace 형식 `Qwen/Qwen3.5-35B-A3B-FP8`이다 (ollama의 `qwen3:32b` 형식과 다름).
+vLLM의 모델명은 HuggingFace 형식 `Qwen/Qwen3.5-122B-A10B-GPTQ-Int4`이다 (ollama의 `qwen3:32b` 형식과 다름).
 
 ### 연동 확인 절차
 
@@ -277,7 +277,7 @@ vLLM에 `--enable-auto-tool-choice --tool-call-parser qwen3_coder`가 이미 설
 
 ```json
 {
-  "model": "Qwen/Qwen3.5-35B-A3B-FP8",
+  "model": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
   "messages": [...],
   "tools": [
     {

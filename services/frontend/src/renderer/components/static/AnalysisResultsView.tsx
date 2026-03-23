@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import type { AnalysisResult, Vulnerability, Severity, FileCoverageEntry } from "@aegis/shared";
 import { StatCard, PageHeader, BackButton, SeveritySummary } from "../ui";
-import { Shield, AlertTriangle, AlertCircle, Info, FileSearch, FileCode, CheckCircle2, SkipForward } from "lucide-react";
+import { Shield, AlertTriangle, AlertCircle, Info, FileSearch, FileCode, SkipForward } from "lucide-react";
 import { SEVERITY_ORDER } from "../../utils/severity";
 import { parseLocation } from "../../utils/location";
 

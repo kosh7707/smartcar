@@ -13,7 +13,7 @@ from app.scanner.sdk_resolver import get_sdk_compiler
 from app.schemas.request import BuildProfile
 from app.schemas.response import SastFinding, SastFindingLocation
 
-logger = logging.getLogger("s4-sast-runner")
+logger = logging.getLogger("aegis-sast-runner")
 
 # gcc -Wanalyzer flag → CWE 매핑
 _GCC_ANALYZER_CWE_MAP: dict[str, list[str]] = {
@@ -134,12 +134,43 @@ class GccAnalyzerRunner:
         return self._parse_output(output, scan_dir)
 
     def _resolve_gcc(self, profile: BuildProfile | None) -> str:
-        """BuildProfile에서 SDK 크로스 컴파일러를 찾거나, 호스트 gcc를 반환."""
+        """BuildProfile에서 SDK 크로스 컴파일러를 찾거나, 호스트 gcc를 반환.
+
+        -fanalyzer는 GCC 10+에서만 지원. SDK 크로스컴파일러가 9.x면 호스트 gcc로 폴백.
+        """
         if profile:
             sdk_gcc = get_sdk_compiler(profile)
-            if sdk_gcc:
+            if sdk_gcc and self._gcc_supports_analyzer(sdk_gcc):
                 return sdk_gcc
+            elif sdk_gcc:
+                logger.info(
+                    "SDK gcc (%s) does not support -fanalyzer, falling back to host gcc",
+                    sdk_gcc,
+                )
         return "gcc"
+
+    _analyzer_support_cache: dict[str, bool] = {}
+
+    @classmethod
+    def _gcc_supports_analyzer(cls, gcc_path: str) -> bool:
+        """GCC가 -fanalyzer를 지원하는지 (10+) 확인. 결과 캐시."""
+        if gcc_path in cls._analyzer_support_cache:
+            return cls._analyzer_support_cache[gcc_path]
+
+        import subprocess
+        supported = False
+        try:
+            result = subprocess.run(
+                [gcc_path, "--version"], capture_output=True, text=True, timeout=5,
+            )
+            match = re.search(r"(\d+)\.\d+\.\d+", result.stdout)
+            if match:
+                supported = int(match.group(1)) >= 10
+        except Exception:
+            pass
+
+        cls._analyzer_support_cache[gcc_path] = supported
+        return supported
 
     def _build_command(
         self,
@@ -177,6 +208,8 @@ class GccAnalyzerRunner:
         for line in output.splitlines():
             match = _WARNING_RE.match(line)
             if not match:
+                if line.strip() and not line.startswith("In file included"):
+                    logger.debug("gcc-fanalyzer: unmatched line: %s", line[:120])
                 continue
 
             file_path = self._normalize_path(match.group("file"), scan_dir)

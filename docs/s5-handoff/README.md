@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S5(Knowledge Base) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-19**
+> **마지막 업데이트: 2026-03-20 (고도화: CVE 병렬+EPSS+KEV, 검색 강화)**
 
 ---
 
@@ -66,10 +66,16 @@ S3 Agent Phase 1 (결정론적):
   S3: version_match == true만 필터 → Phase 2 프롬프트에 주입
 ```
 
-NvdClient 전략:
-1. **CPE 정밀 조회** (repoUrl에서 vendor 추론) — 우선
-2. **keywordSearch 폴백** — CPE 실패 시
-3. **인메모리 캐시** (TTL 24시간)
+NvdClient 3단계 전략:
+1. **OSV.dev commit 기반** (commit + repo_url 필요) — 가장 정밀, version_match=항상 true
+2. **NVD CPE 기반** (repoUrl에서 vendor 추론) — 정밀
+3. **NVD keywordSearch 폴백** — 넓은 검색
+
+보강:
+- **EPSS**: FIRST.org API로 CVE별 30일 내 악용 확률 (`epss_score`, `epss_percentile`)
+- **KEV**: CISA 카탈로그로 실제 악용 확인 CVE 플래그 (`kev: true/false`)
+- **병렬 조회**: `asyncio.gather` + 세마포어(5) — 배치 20개 기준 ~4~7초
+- 인메모리 캐시 (TTL 24시간, 최대 1,000건)
 
 ---
 
@@ -79,7 +85,8 @@ NvdClient 전략:
 
 | 메서드 | 경로 | 용도 |
 |--------|------|------|
-| POST | `/v1/search` | 하이브리드 검색 (exclude_ids 지원) |
+| POST | `/v1/search` | 하이브리드 검색 (exclude_ids, source_filter 지원) |
+| POST | `/v1/search/batch` | 배치 검색 (최대 20쿼리, 교차 중복 제거) |
 | GET | `/v1/graph/stats` | 위협 그래프 통계 |
 | GET | `/v1/graph/neighbors/{node_id}?depth=2` | CWE/ATT&CK/CAPEC 관계 탐색 |
 
@@ -145,7 +152,7 @@ NvdClient 전략:
 ```
 services/knowledge-base/
 ├── app/
-│   ├── main.py                    # FastAPI 앱. Qdrant + Neo4j + NvdClient 초기화
+│   ├── main.py                    # FastAPI 앱. Qdrant + Neo4j + NvdClient 초기화 + NullGraph 폴백
 │   ├── config.py                  # Settings (neo4j, qdrant, nvd 설정)
 │   ├── context.py                 # requestId ContextVar
 │   ├── observability.py           # JSON structured logging
@@ -187,6 +194,13 @@ services/knowledge-base/
     ├── test_knowledge_assembler.py # 6 tests
     └── test_nvd_client.py         # 17 tests (버전 매칭, 캐시, CPE 추론)
 ```
+
+### Observability
+
+`docs/specs/observability.md` 준수. 로그 레벨 숫자 표준, 서비스 식별자, X-Request-Id 전파 규칙은 해당 문서 참조.
+- service 식별자: `s5-kb`
+- 로그 파일: `logs/aegis-knowledge-base.jsonl`
+- 응답 헤더에 `X-Request-Id` 반환 (`_RequestIdMiddleware`)
 
 ---
 
@@ -270,19 +284,48 @@ curl http://localhost:8002/v1/health
 ## 10. 테스트
 
 ```bash
-.venv/bin/python -m pytest tests/ -q  # 36 passed
+.venv/bin/python -m pytest tests/ -q  # 54 passed
 ```
 
 | 테스트 파일 | 건수 | 대상 |
 |------------|------|------|
 | test_neo4j_graph.py | 6 | Neo4jGraph mock |
 | test_code_graph_service.py | 7 | CodeGraphService mock |
-| test_knowledge_assembler.py | 6 | 하이브리드 검색, 중복 제거 |
-| test_nvd_client.py | 17 | 버전 매칭, 캐시, CPE 추론, 배치 |
+| test_knowledge_assembler.py | 15 | 하이브리드 검색, 중복 제거, 소스 필터, 배치, RRF |
+| test_nvd_client.py | 26 | 버전 매칭, 캐시, CPE 추론, 배치 병렬, EPSS, KEV |
 
 ---
 
-## 11. 2026-03-19 주요 변경 이력
+## 11. 변경 이력
+
+### 2026-03-20 (고도화: CVE 병렬+EPSS+KEV, 검색 강화)
+
+| 변경 | 상세 |
+|------|------|
+| CVE 배치 병렬 조회 | `asyncio.gather` + 세마포어(5). 20개 기준 ~20s → ~4~7s |
+| EPSS 악용 확률 보강 | FIRST.org API 배치 조회. CVE에 `epss_score`, `epss_percentile` 추가 |
+| CISA KEV 플래그 | KEV 카탈로그 lazy-load (TTL 1h). CVE에 `kev: true/false` 추가 |
+| 검색 소스 필터링 | `source_filter: ["CWE"]` 등. ID exact + vector 모두 필터링 |
+| 배치 검색 API | `POST /v1/search/batch` — 최대 20쿼리, 교차 중복 제거 |
+| RRF 점수 융합 | Reciprocal Rank Fusion (k=60). id_exact + neighbor + vector 3-list 융합 |
+| 테스트 36→54 | NVD client +9, Assembler +9 |
+
+### 2026-03-20 (통합 테스트 + 코드 리뷰 안정화)
+
+| 변경 | 상세 |
+|------|------|
+| OSV.dev commit 기반 조회 추가 | 3단계: OSV commit → NVD CPE → NVD keyword |
+| CVE batch-lookup camelCase 호환 | `repoUrl`(S4 원본)과 `repo_url` 모두 수용 |
+| Assembler fallback (NullGraph) | Neo4j 다운 시에도 벡터 검색 가능하도록 _NullGraph 폴백 |
+| NvdClient 초기화 보호 | try/except 감싸기 |
+| 빈 쿼리 검증 | assemble()에서 빈/공백 쿼리 시 즉시 빈 결과 반환 |
+| 캐시 크기 제한 | 최대 1,000건, 초과 시 oldest 제거 |
+| requestId 전파 보강 | graph/stats, graph/neighbors, code-graph ingest/dangerous-callers에 추가 |
+| Neo4j 종료 graceful 처리 | 외부 종료 시 에러 대신 경고 |
+| 기동 스크립트 Neo4j 대기 | sleep 5 → Bolt 포트 능동 대기 |
+| 통합 테스트 통과 | S3 Agent Phase 1+2 정상, LLM 자발적 도구 호출 3건 확인 |
+
+### 2026-03-19
 
 | 변경 | 상세 |
 |------|------|
@@ -294,8 +337,15 @@ curl http://localhost:8002/v1/health
 | POST /v1/search exclude_ids | 결과 제외 후 재검색 지원 |
 | KnowledgeAssembler 리팩토링 | 메서드 분리, _enrich_with_graph, match_type_counts |
 | Neo4j 비밀번호 | smartcar → aegis-kb |
-| 기동 스크립트 | Neo4j 자동 기동 포함 |
 | S4 CVE 조회 이관 | S4 cve_lookup.py → S5 /v1/cve/batch-lookup으로 대체 완료 |
+
+### 2026-03-18
+
+| 변경 | 상세 |
+|------|------|
+| S3 코드/데이터 이관 | Qdrant, ETL 캐시, context_enricher.py |
+| smartcar → AEGIS 리네이밍 | env_prefix, 서비스명, 로그, 문서 전부 |
+| API 계약서 + 명세서 작성 | docs/api/knowledge-base-api.md, docs/specs/knowledge-base.md |
 
 ---
 

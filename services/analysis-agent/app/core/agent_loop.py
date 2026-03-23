@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from app.budget.manager import BudgetManager
@@ -77,15 +78,22 @@ class AgentLoop:
         while not self._termination_policy.should_stop(session):
             turn = session.turn_count + 1
 
+            # 도구 예산 소진 시 tools를 제거하여 LLM이 content만 반환하도록 유도
+            if self._budget_manager.no_callable_tools_remaining():
+                current_tools = None
+            else:
+                current_tools = tools_schema
+
             agent_log(
                 logger, "턴 시작",
                 component="agent_loop", phase="turn_start",
                 turn=turn, budget=_budget_snapshot(session),
+                toolsAvailable=current_tools is not None,
             )
 
             # LLM 호출 (재시도 포함)
             try:
-                response = await self._call_with_retry(session, tools_schema)
+                response = await self._call_with_retry(session, current_tools)
             except S3Error as e:
                 logger.error("LLM 호출 실패 (재시도 소진): %s", e)
                 return self._result_assembler.build_failure(
@@ -174,13 +182,16 @@ class AgentLoop:
             except S3Error as e:
                 last_error = e
                 if self._retry_policy.should_retry(e, attempt):
+                    delay = self._retry_policy.get_delay_seconds(e, attempt)
                     agent_log(
                         logger, "LLM 재시도",
                         component="llm_caller", phase="llm_retry",
                         turn=turn, attempt=attempt + 1,
                         errorCode=type(e).__name__,
+                        delaySeconds=delay,
                         level=logging.WARNING,
                     )
+                    await asyncio.sleep(delay)
                     continue
                 raise
 

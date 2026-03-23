@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import type { ProjectOverviewResponse, AnalysisResult, AnalysisSummary, UploadedFile, Vulnerability } from "@aegis/shared";
 import {
@@ -145,9 +145,8 @@ export const OverviewPage: React.FC = () => {
 
   const { project, summary, recentAnalyses } = overview;
   const sev = summary.bySeverity;
-  const latestMap = getLatestPerModule(recentAnalyses);
-
-  const topVulns = getTopVulnerabilities(recentAnalyses, 8);
+  const latestMap = useMemo(() => getLatestPerModule(recentAnalyses), [recentAnalyses]);
+  const topVulns = useMemo(() => getTopVulnerabilities(recentAnalyses, 8), [recentAnalyses]);
 
   return (
     <div className="page-enter">

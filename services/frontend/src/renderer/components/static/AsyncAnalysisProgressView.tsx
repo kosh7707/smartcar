@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import type { AnalysisProgress } from "@aegis/shared";
 import { CheckCircle2, FileSearch, XCircle, Eye } from "lucide-react";
+import { useElapsedTimer } from "../../hooks/useElapsedTimer";
 import { PageHeader, Spinner, BackButton, ConfirmDialog } from "../ui";
 import "./AsyncAnalysisProgressView.css";
 
@@ -33,27 +34,11 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
   onViewResult,
   onBack,
 }) => {
-  const [elapsed, setElapsed] = useState(0);
   const [showAbortConfirm, setShowAbortConfirm] = useState(false);
   const [autoRedirect, setAutoRedirect] = useState<number | null>(null);
 
   const isDone = progress.status === "completed" || progress.status === "failed" || progress.status === "aborted";
-
-  useEffect(() => {
-    const start = new Date(progress.startedAt).getTime();
-    setElapsed(Math.floor((Date.now() - start) / 1000));
-    if (isDone) return;
-    const id = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - start) / 1000));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [progress.startedAt, isDone]);
-
-  const mins = Math.floor(elapsed / 60);
-  const secs = elapsed % 60;
-  const timeStr = mins > 0
-    ? `${mins}분 ${secs.toString().padStart(2, "0")}초`
-    : `${secs}초`;
+  const { timeStr } = useElapsedTimer(!isDone, progress.startedAt);
 
   // Auto-redirect countdown on completion
   useEffect(() => {

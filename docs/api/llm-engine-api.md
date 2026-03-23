@@ -25,7 +25,7 @@ LLM 추론 요청. OpenAI-compatible 형식.
 
 ```json
 {
-  "model": "Qwen/Qwen3.5-35B-A3B-FP8",
+  "model": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
   "messages": [
     {
       "role": "system",
@@ -46,7 +46,7 @@ LLM 추론 요청. OpenAI-compatible 형식.
 
 | 필드 | 타입 | 필수 | 설명 |
 |------|------|------|------|
-| model | string | O | 모델 식별자 (`Qwen/Qwen3.5-35B-A3B-FP8`) |
+| model | string | O | 모델 식별자 (`Qwen/Qwen3.5-122B-A10B-GPTQ-Int4`) |
 | messages | Message[] | O | 대화 메시지 리스트 |
 | max_tokens | number | X | 최대 생성 토큰 수 (S7 기본: `4096`) |
 | temperature | number | X | 생성 온도 (S7 기본: `0.3`) |
@@ -93,7 +93,7 @@ vLLM의 `--reasoning-parser qwen3` 옵션으로 OpenAI-compatible API에서 thin
   "id": "chatcmpl-abc123",
   "object": "chat.completion",
   "created": 1741830575,
-  "model": "Qwen/Qwen3.5-35B-A3B-FP8",
+  "model": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
   "choices": [
     {
       "index": 0,
@@ -120,7 +120,7 @@ vLLM의 `--reasoning-parser qwen3` 옵션으로 OpenAI-compatible API에서 thin
   "id": "chatcmpl-def456",
   "object": "chat.completion",
   "created": 1741830600,
-  "model": "Qwen/Qwen3.5-35B-A3B-FP8",
+  "model": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
   "choices": [
     {
       "index": 0,
@@ -209,7 +209,7 @@ Agentic SAST를 위한 tool calling. vLLM에 `--enable-auto-tool-choice --tool-c
 
 ```json
 {
-  "model": "Qwen/Qwen3.5-35B-A3B-FP8",
+  "model": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
   "messages": [
     { "role": "system", "content": "..." },
     { "role": "user", "content": "..." }
@@ -246,7 +246,7 @@ Agentic SAST를 위한 tool calling. vLLM에 `--enable-auto-tool-choice --tool-c
 {
   "id": "chatcmpl-ghi789",
   "object": "chat.completion",
-  "model": "Qwen/Qwen3.5-35B-A3B-FP8",
+  "model": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
   "choices": [
     {
       "index": 0,
@@ -281,7 +281,7 @@ Agentic SAST를 위한 tool calling. vLLM에 `--enable-auto-tool-choice --tool-c
 
 ```json
 {
-  "model": "Qwen/Qwen3.5-35B-A3B-FP8",
+  "model": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
   "messages": [
     { "role": "system", "content": "..." },
     { "role": "user", "content": "..." },
@@ -323,7 +323,7 @@ Agentic SAST를 위한 tool calling. vLLM에 `--enable-auto-tool-choice --tool-c
 
 ```json
 {
-  "model": "Qwen/Qwen3.5-35B-A3B-FP8",
+  "model": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
   "messages": [...],
   "response_format": { "type": "json_object" },
   "max_tokens": 4096,
@@ -345,7 +345,7 @@ Agentic SAST를 위한 tool calling. vLLM에 `--enable-auto-tool-choice --tool-c
   "object": "list",
   "data": [
     {
-      "id": "Qwen/Qwen3.5-35B-A3B-FP8",
+      "id": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
       "object": "model",
       "created": 1741776000,
       "owned_by": "vllm"
@@ -384,11 +384,11 @@ HTTP 200이면 정상. S7은 이 엔드포인트 또는 `/v1/models`로 LLM Engi
 | LLM Engine 상황 | S7 예외 | S7 HTTP | S7 코드 |
 |---------|---------|---------|---------|
 | 연결 거부 (서버 미기동) | `LlmUnavailableError` | 502 | `LLM_UNAVAILABLE` |
-| 120초 초과 | `LlmTimeoutError` | 504 | `LLM_TIMEOUT` |
+| read timeout 초과 | `LlmTimeoutError` | 504 | `LLM_TIMEOUT` |
 | HTTP 4xx/5xx | `LlmHttpError` | 502 | `LLM_HTTP_ERROR` |
 | 응답 JSON 구조 이상 | `LlmHttpError(502)` | 502 | `LLM_HTTP_ERROR` |
 
-**참고**: 타임아웃을 기존 60초에서 **120초**로 상향 권장. MoE 모델이라 빠르지만, 긴 입력 + thinking 조합 시 여유가 필요하다.
+**타임아웃 구조**: Gateway는 connect timeout 10초(장애 빠른 감지) + read timeout은 호출자가 `X-Timeout-Seconds` 헤더로 전달(기본 1800초, 상한 1800초). `/v1/tasks`는 Gateway 내부 설정(`AEGIS_LLM_READ_TIMEOUT`, 기본 600초)을 사용.
 
 ---
 
@@ -409,7 +409,7 @@ curl http://10.126.37.19:8000/health
 curl -X POST http://10.126.37.19:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "Qwen/Qwen3.5-35B-A3B-FP8",
+    "model": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
     "messages": [
       {"role": "system", "content": "당신은 보안 전문가입니다."},
       {"role": "user", "content": "gets() 함수의 위험성을 설명하세요."}
@@ -423,7 +423,7 @@ curl -X POST http://10.126.37.19:8000/v1/chat/completions \
 curl -X POST http://10.126.37.19:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "Qwen/Qwen3.5-35B-A3B-FP8",
+    "model": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
     "messages": [
       {"role": "system", "content": "당신은 보안 전문가입니다."},
       {"role": "user", "content": "gets() 함수의 위험성을 설명하세요."}
@@ -440,7 +440,7 @@ curl -X POST http://10.126.37.19:8000/v1/chat/completions \
 # S7 환경변수 설정
 export AEGIS_LLM_MODE=real
 export AEGIS_LLM_ENDPOINT=http://10.126.37.19:8000
-export AEGIS_LLM_MODEL=Qwen/Qwen3.5-35B-A3B-FP8
+export AEGIS_LLM_MODEL=Qwen/Qwen3.5-122B-A10B-GPTQ-Int4
 
 # S7 Gateway 기동 후 v1 Task 테스트
 curl -X POST http://localhost:8000/v1/tasks \

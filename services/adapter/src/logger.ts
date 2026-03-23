@@ -12,7 +12,7 @@ const transport = pino.transport({
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? "info",
-  name: "adapter",
+  base: { service: "s6-adapter" },
 }, transport);
 
 export default logger;

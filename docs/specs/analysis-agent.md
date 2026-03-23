@@ -1,7 +1,7 @@
 # S3. Analysis Agent 기능 명세
 
 > **소유자**: S3
-> **최종 업데이트**: 2026-03-19
+> **최종 업데이트**: 2026-03-20
 
 > Analysis Agent는 자동차 임베디드 소프트웨어의 **증거 기반 보안 심층 분석**을 수행하는 서비스다.
 > 결정론적 도구 실행(Phase 1)과 LLM 해석(Phase 2)을 분리하여,
@@ -56,9 +56,9 @@ POST /v1/tasks (taskType: "deep-analyze")
   │
   ├── Phase 2: LLM 해석 (~34초)
   │   ├── Phase 1 결과를 프롬프트에 주입 (출력 스키마 명시)
-  │   ├── LLM이 추가 tool 호출 가능: knowledge.search, code_graph.get_functions
+  │   ├── LLM이 추가 tool 호출 가능: knowledge.search, code_graph.callers
   │   ├── LLM 호출은 S7 Gateway 경유 (POST /v1/chat)
-  │   └── Qwen 35B → 구조화 JSON (claims + evidence refs)
+  │   └── Qwen 122B GPTQ-Int4 → 구조화 JSON (claims + evidence refs)
   │
   └── 응답: TaskSuccessResponse (API 계약 준수)
 ```
@@ -161,7 +161,7 @@ Phase 1 완료 후 `build_phase2_prompt()`가 결과를 시스템 프롬프트 +
 | 도구 | cost tier | 대상 | 용도 |
 |------|-----------|------|------|
 | `knowledge.search` | CHEAP | S5 KB `POST /v1/search` | CWE/CVE/ATT&CK 위협 지식 검색 |
-| `code_graph.get_functions` | MEDIUM | S4 `POST /v1/functions` | 특정 함수 상세 정보 |
+| `code_graph.callers` | MEDIUM | S5 KB `GET /v1/code-graph/{pid}/callers/{fn}` | 특정 함수의 호출자 체인 조회 |
 
 > `sast.scan`과 `sca.libraries`는 Phase 1에서 이미 실행되므로 Phase 2 도구에 포함되지 않는다.
 
@@ -181,7 +181,8 @@ Phase 1 완료 후 `build_phase2_prompt()`가 결과를 시스템 프롬프트 +
 | 파일 | 도구명 | 호출 대상 |
 |------|--------|-----------|
 | `sast_tool.py` | `sast.scan` | S4 `/v1/scan` |
-| `codegraph_tool.py` | `code_graph.get_functions` | S4 `/v1/functions` |
+| `codegraph_tool.py` | `code_graph.callers` | S5 KB `/v1/code-graph/callers/` |
+| `codegraph_phase1_tool.py` | (Phase 1 전용) | S4 `/v1/functions` |
 | `knowledge_tool.py` | `knowledge.search` | S5 `/v1/search` |
 | `sca_tool.py` | `sca.libraries` | S4 `/v1/libraries` |
 
@@ -196,7 +197,7 @@ BudgetState:
     max_steps: 6              # 총 턴 수
     max_completion_tokens: 2000  # LLM 생성 토큰 한도
     max_cheap_calls: 3        # knowledge.search 등
-    max_medium_calls: 2       # code_graph.get_functions 등
+    max_medium_calls: 2       # code_graph.callers
     max_expensive_calls: 1    # 향후 고비용 도구
     max_consecutive_no_evidence: 2  # 증거 없는 턴 연속 한도
 ```
@@ -303,14 +304,16 @@ grep '{request-id}' logs/*.jsonl  # Agent + SAST + KB + Gateway 한번에 추적
 
 ---
 
-## 13. RE100 실측 (2026-03-18)
+## 13. RE100 실측 (2026-03-20)
 
 | Phase | 항목 | 결과 |
 |-------|------|------|
-| Phase 1 | SAST 스캔 | 40 findings (12파일, 10.8s) |
-| Phase 1 | 코드 그래프 | 1,329 함수 추출 |
-| Phase 1 | SCA | 6 라이브러리, CVE 40건 |
-| Phase 2 | LLM 분석 | 7 claims, confidence 0.865 (167s) |
-| 전체 | 파이프라인 | ~3분 (SAST + 코드 그래프 + SCA + LLM) |
+| Phase 1 | SAST 스캔 | 49 findings (12파일, 4도구, 11s) |
+| Phase 1 | 코드 그래프 | 1,329 함수 추출 → KB 적재 (121노드, 242엣지) |
+| Phase 1 | SCA | 6 라이브러리 |
+| Phase 1 | KB 위협 조회 | 9 CWE → 43 hits |
+| Phase 1 | 위험 호출자 | 2 함수 → KB 조회 |
+| Phase 2 | LLM 분석 (122B GPTQ) | 4턴, 도구 5회 (knowledge.search×3, code_graph.callers×2), claims 4개, confidence 0.865 |
+| 전체 | 파이프라인 | **125초** |
 
-> Phase 1 확장 후 재측정 예정 (2026-03-19 고도화 반영)
+핵심 결과: LLM이 `code_graph.callers("popen")`으로 `run_curl → popen` 호출 체인을 확인하고, "HTTP 클라이언트 통신 경로에서 악용 가능"이라는 공격 표면을 특정.

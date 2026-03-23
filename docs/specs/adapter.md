@@ -29,7 +29,8 @@ services/adapter/
 └── src/
     ├── index.ts        # 진입점: HTTP 서버 + WS 업그레이드 라우팅
     ├── relay.ts        # 릴레이 코어: 메시지 라우팅, 타임아웃, 상태 관리
-    └── protocol.ts     # 메시지 타입 정의
+    ├── protocol.ts     # 메시지 타입 정의
+    └── logger.ts       # 구조화 로깅 (pino)
 ```
 
 ---

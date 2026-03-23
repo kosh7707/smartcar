@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger("s4-sast-runner")
+logger = logging.getLogger("aegis-sast-runner")
 
 # 소스 코드 확장자
 _SOURCE_EXTS = {".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hxx"}

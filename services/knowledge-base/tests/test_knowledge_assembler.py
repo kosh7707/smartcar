@@ -68,7 +68,7 @@ def _make_assembler(hits: list | None = None) -> KnowledgeAssembler:
         {"id": "CAPEC-88", "source": "CAPEC", "title": "OS CI Attack", "related_cwe": ["CWE-78"], "related_cve": [], "related_attack": [], "related_capec": []},
     ])
 
-    return KnowledgeAssembler(vs, graph)
+    return KnowledgeAssembler(vs, graph, rrf_k=0)
 
 
 def test_assemble_combines_vector_and_graph():
@@ -127,3 +127,142 @@ def test_hybrid_deduplication():
 
     cwe78_hits = [h for h in result["hits"] if h["id"] == "CWE-78"]
     assert len(cwe78_hits) == 1  # 중복 없음
+
+
+# ── 소스 필터링 ──
+
+
+def _make_assembler_multi_source(hits=None, rrf_k=0):
+    """CWE + CAPEC + ATT&CK 노드가 있는 assembler 생성."""
+    mock_search = MagicMock()
+
+    default_hits = [
+        FakeHit(id="CWE-79", source="CWE", title="XSS"),
+        FakeHit(id="CAPEC-86", source="CAPEC", title="XSS via HTTP"),
+    ] if hits is None else hits
+
+    mock_search.search.return_value = default_hits
+    vs = VectorSearch.__new__(VectorSearch)
+    vs._search = mock_search
+
+    graph = FakeGraph([
+        {"id": "CWE-78", "source": "CWE", "title": "OS CI", "related_capec": ["CAPEC-88"], "related_cwe": [], "related_cve": [], "related_attack": []},
+        {"id": "CAPEC-88", "source": "CAPEC", "title": "OS CI Attack", "related_cwe": ["CWE-78"], "related_cve": [], "related_attack": [], "related_capec": []},
+        {"id": "CWE-79", "source": "CWE", "title": "XSS", "related_capec": [], "related_cwe": [], "related_cve": [], "related_attack": []},
+        {"id": "CAPEC-86", "source": "CAPEC", "title": "XSS via HTTP", "related_cwe": [], "related_cve": [], "related_attack": [], "related_capec": []},
+    ])
+
+    return KnowledgeAssembler(vs, graph, rrf_k=rrf_k)
+
+
+def test_source_filter_cwe_only():
+    """source_filter=["CWE"] → CWE만 반환, CAPEC 제외."""
+    assembler = _make_assembler_multi_source()
+    result = assembler.assemble("CWE-78 injection", source_filter=["CWE"])
+
+    for hit in result["hits"]:
+        assert hit["source"] == "CWE", f"Non-CWE hit found: {hit['id']}"
+
+
+def test_source_filter_none_returns_all():
+    """source_filter=None → 전체 소스 반환."""
+    assembler = _make_assembler_multi_source()
+    result = assembler.assemble("CWE-78 injection", source_filter=None)
+
+    sources = {h["source"] for h in result["hits"]}
+    assert len(sources) >= 1  # 최소 1개 소스
+
+
+def test_source_filter_in_id_exact():
+    """ID exact path에서도 소스 필터가 동작하는지 확인."""
+    assembler = _make_assembler_multi_source(hits=[])  # 벡터 검색 0건
+    result = assembler.assemble("CWE-78", source_filter=["CWE"])
+
+    # CWE-78은 CWE이므로 통과, CAPEC-88은 이웃이지만 CAPEC이므로 필터링
+    for hit in result["hits"]:
+        assert hit["source"] == "CWE"
+
+
+# ── 배치 검색 ──
+
+
+def test_batch_assemble_dedup():
+    """쿼리 간 중복 제거: 첫 쿼리에 나온 ID는 두 번째 쿼리에서 제외."""
+    assembler = _make_assembler()
+
+    result = assembler.batch_assemble([
+        {"query": "CWE-78"},
+        {"query": "CWE-78"},  # 동일 쿼리
+    ])
+
+    # 첫 쿼리에서 CWE-78이 반환되면 두 번째에서는 중복 제거됨
+    assert result["results"][0]["total"] >= 1
+    second_ids = {h["id"] for h in result["results"][1]["hits"]}
+    first_ids = {h["id"] for h in result["results"][0]["hits"]}
+    assert second_ids.isdisjoint(first_ids)
+
+
+def test_batch_assemble_stats():
+    """global_stats 정확성 확인."""
+    assembler = _make_assembler(hits=[])
+
+    result = assembler.batch_assemble([
+        {"query": "CWE-78"},
+    ])
+
+    assert result["global_stats"]["total_queries"] == 1
+    assert "total_hits" in result["global_stats"]
+    assert "unique_ids" in result["global_stats"]
+
+
+def test_batch_assemble_empty():
+    """빈 queries 리스트는 빈 results."""
+    assembler = _make_assembler()
+
+    result = assembler.batch_assemble([])
+
+    assert result["results"] == []
+    assert result["global_stats"]["total_queries"] == 0
+
+
+# ── RRF ──
+
+
+def test_rrf_basic():
+    """3-list RRF 점수 계산+정렬 검증."""
+    list1 = [{"id": "A", "match_type": "id_exact", "source": "CWE", "title": "a", "score": 1.0}]
+    list2 = [{"id": "B", "match_type": "graph_neighbor", "source": "CWE", "title": "b", "score": 0.8}]
+    list3 = [
+        {"id": "A", "match_type": "vector_semantic", "source": "CWE", "title": "a", "score": 0.9},
+        {"id": "C", "match_type": "vector_semantic", "source": "CWE", "title": "c", "score": 0.7},
+    ]
+
+    merged = KnowledgeAssembler._apply_rrf([list1, list2, list3], k=60)
+
+    # A는 list1과 list3에 모두 등장 → RRF 점수 더 높음
+    assert merged[0]["id"] == "A"
+    assert len(merged) == 3
+
+
+def test_rrf_disabled():
+    """rrf_k=0이면 기존 단순 정렬 동작."""
+    assembler = _make_assembler_multi_source(hits=[], rrf_k=0)
+    result = assembler.assemble("CWE-78")
+
+    # rrf_k=0이면 id_exact는 score=1.0 고정
+    exact_hits = [h for h in result["hits"] if h["match_type"] == "id_exact"]
+    for h in exact_hits:
+        assert h["score"] == 1.0
+
+
+def test_rrf_single_list():
+    """리스트 1개만 있을 때도 정상 동작."""
+    single = [
+        {"id": "X", "match_type": "id_exact", "source": "CWE", "title": "x", "score": 1.0},
+        {"id": "Y", "match_type": "id_exact", "source": "CWE", "title": "y", "score": 1.0},
+    ]
+    merged = KnowledgeAssembler._apply_rrf([single], k=60)
+    assert len(merged) == 2
+    # 첫 번째가 rank 1 → 1/(60+1), 두 번째가 rank 2 → 1/(60+2)
+    assert merged[0]["id"] == "X"
+    assert merged[0]["score"] > merged[1]["score"]

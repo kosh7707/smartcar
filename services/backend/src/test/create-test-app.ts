@@ -16,6 +16,7 @@ import { ProjectDAO } from "../dao/project.dao";
 import { RuleDAO } from "../dao/rule.dao";
 import { AdapterDAO } from "../dao/adapter.dao";
 import { ProjectSettingsDAO } from "../dao/project-settings.dao";
+import { BuildTargetDAO } from "../dao/build-target.dao";
 
 // Services
 import { FindingService } from "../services/finding.service";
@@ -26,6 +27,7 @@ import { ProjectService } from "../services/project.service";
 import { RuleService } from "../services/rule.service";
 import { AdapterManager } from "../services/adapter-manager";
 import { ProjectSettingsService } from "../services/project-settings.service";
+import { BuildTargetService } from "../services/build-target.service";
 import { ReportService } from "../services/report.service";
 import { ResultNormalizer } from "../services/result-normalizer";
 
@@ -37,6 +39,7 @@ import { createQualityGateRouter, createQualityGateDetailRouter } from "../contr
 import { createApprovalRouter, createApprovalDetailRouter } from "../controllers/approval.controller";
 import { createReportRouter } from "../controllers/report.controller";
 import { createFileRouter } from "../controllers/file.controller";
+import { createBuildTargetRouter } from "../controllers/build-target.controller";
 
 export interface TestAppContext {
   app: express.Express;
@@ -52,9 +55,11 @@ export interface TestAppContext {
   analysisResultDAO: AnalysisResultDAO;
   fileStore: FileStore;
   ruleDAO: RuleDAO;
+  buildTargetDAO: BuildTargetDAO;
   // Services exposed for seeding
   gateService: QualityGateService;
   normalizer: ResultNormalizer;
+  buildTargetService: BuildTargetService;
 }
 
 export function createTestApp(): TestAppContext {
@@ -73,12 +78,14 @@ export function createTestApp(): TestAppContext {
   const ruleDAO = new RuleDAO(db);
   const adapterDAO = new AdapterDAO(db);
   const projectSettingsDAO = new ProjectSettingsDAO(db);
+  const buildTargetDAO = new BuildTargetDAO(db);
 
   // Services
   const ruleService = new RuleService(ruleDAO);
   const adapterManager = new AdapterManager(adapterDAO);
   const settingsService = new ProjectSettingsService(projectSettingsDAO);
-  const projectService = new ProjectService(projectDAO, analysisResultDAO, fileStore, ruleService, adapterManager, settingsService);
+  const buildTargetService = new BuildTargetService(buildTargetDAO, settingsService);
+  const projectService = new ProjectService(projectDAO, analysisResultDAO, fileStore, ruleService, adapterManager, settingsService, buildTargetService);
   const gateService = new QualityGateService(findingDAO, evidenceRefDAO, gateResultDAO, runDAO);
   const normalizer = new ResultNormalizer(db, runDAO, findingDAO, evidenceRefDAO, gateService);
   const approvalService = new ApprovalService(approvalDAO, auditLogDAO, gateService);
@@ -96,6 +103,7 @@ export function createTestApp(): TestAppContext {
   app.use("/api/projects/:pid/gates", createQualityGateRouter(gateService));
   app.use("/api/projects/:pid/approvals", createApprovalRouter(approvalService));
   app.use("/api/projects/:pid/report", createReportRouter(reportService));
+  app.use("/api/projects/:pid/targets", createBuildTargetRouter(buildTargetService, projectDAO, null as any, null));
   app.use("/api/projects", createProjectRouter(projectService));
   app.use("/api", createFileRouter(fileStore));
   app.use("/api/runs", createRunDetailRouter(runService));
@@ -109,6 +117,7 @@ export function createTestApp(): TestAppContext {
     app, db,
     projectDAO, runDAO, findingDAO, evidenceRefDAO, gateResultDAO,
     approvalDAO, auditLogDAO, analysisResultDAO, fileStore, ruleDAO,
-    gateService, normalizer,
+    buildTargetDAO,
+    gateService, normalizer, buildTargetService,
   };
 }

@@ -10,7 +10,7 @@ from typing import Any
 from app.scanner.sdk_resolver import get_sdk_compiler
 from app.schemas.request import BuildProfile
 
-logger = logging.getLogger("s4-sast-runner")
+logger = logging.getLogger("aegis-sast-runner")
 
 # 관심 있는 매크로 목록
 _INTERESTING_MACROS = {

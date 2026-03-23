@@ -7,6 +7,7 @@ from app.types import FailureCode, TaskStatus, TaskType
 
 class Claim(BaseModel):
     statement: str
+    detail: str | None = None
     supportingEvidenceRefs: list[str] = []
     location: str | None = None
 

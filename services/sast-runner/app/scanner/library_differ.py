@@ -11,7 +11,7 @@ from typing import Any
 
 from app.scanner.library_hasher import compare_hashes, hash_source_files
 
-logger = logging.getLogger("s4-sast-runner")
+logger = logging.getLogger("aegis-sast-runner")
 
 
 class LibraryDiffer:

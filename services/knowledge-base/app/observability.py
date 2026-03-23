@@ -13,8 +13,18 @@ from app.context import get_request_id
 _log_dir: Path | None = None
 
 
+# Python logging level → pino numeric level
+_PINO_LEVELS = {
+    logging.DEBUG: 20,
+    logging.INFO: 30,
+    logging.WARNING: 40,
+    logging.ERROR: 50,
+    logging.CRITICAL: 60,
+}
+
+
 class _JsonFormatter(logging.Formatter):
-    """JSON structured log formatter."""
+    """JSON structured log formatter (pino 호환)."""
 
     def __init__(self, service_name: str) -> None:
         super().__init__()
@@ -22,7 +32,7 @@ class _JsonFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         log_record: dict = {
-            "level": record.levelname.lower(),
+            "level": _PINO_LEVELS.get(record.levelno, 30),
             "time": int(record.created * 1000),
             "service": self._service,
             "msg": record.getMessage(),
@@ -36,7 +46,11 @@ class _JsonFormatter(logging.Formatter):
         return json.dumps(log_record, ensure_ascii=False)
 
 
-def setup_logging(service_name: str, log_dir: Path | None = None) -> Path:
+def setup_logging(
+    service_name: str,
+    log_dir: Path | None = None,
+    log_file_name: str | None = None,
+) -> Path:
     """JSON structured logging + JSONL file output. Returns log_dir."""
     global _log_dir
     if log_dir is None:
@@ -52,10 +66,15 @@ def setup_logging(service_name: str, log_dir: Path | None = None) -> Path:
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setFormatter(formatter)
 
-    file_handler = logging.FileHandler(log_dir / f"{service_name}.jsonl")
+    file_name = log_file_name or service_name
+    file_handler = logging.FileHandler(log_dir / f"{file_name}.jsonl")
     file_handler.setFormatter(formatter)
 
     logging.root.handlers = [stdout_handler, file_handler]
     logging.root.setLevel(logging.INFO)
+
+    # 서드파티 라이브러리 로그 노이즈 억제
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
 
     return log_dir

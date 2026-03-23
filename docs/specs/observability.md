@@ -1,13 +1,15 @@
 # MSA Observability 규약
 
-> S2 주도로 확정. S1/S3는 이 문서를 참조하여 자체 구현.
-> 최초 작성: 2026-03-12
+> **S2(AEGIS Core)가 관리하는 전 서비스 공통 규약.**
+> 모든 서비스(S1~S7)는 이 문서를 준수해야 한다.
+> 변경 제안은 S2에게 work-request로.
+> **마지막 업데이트: 2026-03-23**
 
 ---
 
 ## 1. 에러 응답 형식
 
-모든 서비스의 에러 응답은 아래 형식을 따른다.
+모든 HTTP 서비스의 에러 응답은 아래 형식을 따른다.
 
 ```json
 {
@@ -22,12 +24,9 @@
 }
 ```
 
-- `error`: 기존 string 메시지 유지 (S1 마이그레이션 전까지 하위호환)
-- `errorDetail`: 구조화된 에러 정보. S1이 마이그레이션 완료 후 `error`를 대체
-
 ---
 
-## 2. 에러 코드 체계 (v0, flat)
+## 2. 에러 코드 체계
 
 | 코드 | HTTP | retryable | 용도 |
 |------|------|-----------|------|
@@ -35,166 +34,197 @@
 | `NOT_FOUND` | 404 | N | 리소스 없음 |
 | `CONFLICT` | 409 | N | 동시 실행 등 |
 | `ADAPTER_UNAVAILABLE` | 502 | Y | 어댑터 미연결 |
-| `LLM_UNAVAILABLE` | 502 | Y | S3 네트워크 불가 |
-| `LLM_HTTP_ERROR` | 502 | N | S3가 4xx/5xx 반환 |
-| `LLM_PARSE_ERROR` | 502 | Y | S3 응답 JSON 파싱 실패 |
-| `LLM_TIMEOUT` | 504 | Y | S3 응답 시간 초과 |
-| `DB_ERROR` | 500 | N | SQLite 오류 |
+| `LLM_UNAVAILABLE` | 502 | Y | LLM Gateway 네트워크 불가 |
+| `LLM_HTTP_ERROR` | 502 | N | LLM Gateway가 4xx/5xx 반환 |
+| `LLM_PARSE_ERROR` | 502 | Y | LLM 응답 JSON 파싱 실패 |
+| `LLM_TIMEOUT` | 504 | Y | LLM 응답 시간 초과 |
+| `LLM_CIRCUIT_OPEN` | 502 | Y | S7 Circuit Breaker OPEN 상태 |
+| `AGENT_UNAVAILABLE` | 502 | Y | S3 Agent 네트워크 불가 |
+| `AGENT_TIMEOUT` | 504 | Y | S3 Agent 응답 시간 초과 |
+| `SAST_UNAVAILABLE` | 502 | Y | S4 SAST Runner 네트워크 불가 |
+| `SAST_TIMEOUT` | 504 | Y | S4 SAST Runner 시간 초과 |
+| `DB_ERROR` | 500 | N | 데이터베이스 오류 |
 | `INTERNAL_ERROR` | 500 | N | catch-all |
 
 ---
 
-## 3. 로그 포맷
+## 3. 구조화 로그 형식
 
-JSON structured logging (stdout). 모든 서비스 공통.
+### 3.1 필수 필드
 
-```json
-{
-  "level": "info",
-  "time": 1741776000000,
-  "service": "s2-backend",
-  "requestId": "req-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-  "msg": "Request completed"
-}
+**모든 서비스의 모든 JSONL 로그 라인에 아래 필드를 포함한다.**
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| `level` | **number** | O | 로그 레벨 (아래 표 참조) |
+| `time` | number | O | Unix timestamp (밀리초, epoch ms) |
+| `service` | string | O | 서비스 식별자 (아래 표 참조) |
+| `msg` | string | O | 로그 메시지 |
+| `requestId` | string | △ | 요청 추적 ID (요청 컨텍스트가 있을 때) |
+
+### 3.2 로그 레벨 (숫자 표준)
+
+**전 서비스(TypeScript, Python 무관) 숫자를 사용한다.**
+
+| 값 | 이름 | 기준 | 예시 |
+|----|------|------|------|
+| 20 | debug | 개발/디버깅 상세 정보 | DB 마이그레이션 스킵, WS 연결/해제 |
+| 30 | info | 정상 동작 마일스톤 | 요청 시작/완료, 서버 기동, 분석 시작 |
+| 40 | warn | 열화 운전 (기능은 유지) | LLM 호출 실패 (graceful degradation), 재연결 시도 |
+| 50 | error | 요청 실패 | 처리 불가 에러, 5xx 응답 |
+| 60 | fatal | 서버 기동 불가 | uncaughtException, DB 초기화 실패 |
+
+- TypeScript: pino 기본값과 동일
+- Python: `logging.INFO`(30) → `30`, `logging.WARNING`(30) → `40` 으로 매핑
+
+### 3.3 서비스 식별자
+
+| 서비스 | `service` 값 | 로그 파일 |
+|--------|-------------|----------|
+| S1 Frontend | `s1-frontend` | (콘솔 로그, JSONL 해당 없음) |
+| S2 Backend | `s2-backend` | `logs/s2-backend.jsonl` |
+| S3 Agent | `s3-agent` | `logs/aegis-analysis-agent.jsonl` |
+| S4 SAST | `s4-sast` | `logs/s4-sast-runner.jsonl` |
+| S5 KB | `s5-kb` | `logs/aegis-knowledge-base.jsonl` |
+| S6 Adapter | `s6-adapter` | `logs/adapter.jsonl` |
+| S6 ECU Sim | `s6-ecu` | `logs/ecu-simulator.jsonl` |
+| S7 Gateway | `s7-gateway` | `logs/aegis-llm-gateway.jsonl` |
+
+### 3.4 로그 출력 예시
+
+```jsonl
+{"level":30,"time":1774252583684,"service":"s2-backend","requestId":"req-abc123","msg":"→ POST :8001/v1/tasks","target":"s3-agent"}
+{"level":30,"time":1774252774000,"service":"s3-agent","requestId":"req-abc123","msg":"deep-analyze completed","claims":4,"confidence":0.865}
+{"level":30,"time":1774252774100,"service":"s2-backend","requestId":"req-abc123","msg":"← 200 OK from :8001/v1/tasks","elapsedMs":190416}
 ```
-
-### 공통 필드
-
-| 필드 | 타입 | 설명 |
-|------|------|------|
-| `level` | string | 로그 레벨 (debug/info/warn/error/fatal) |
-| `time` | number | Unix timestamp (ms) |
-| `service` | string | 서비스 식별자 (s2-backend, adapter, ecu-simulator, s3-llm-gateway) |
-| `msg` | string | 로그 메시지 |
-| `requestId` | string? | 요청 추적 ID (HTTP 요청 컨텍스트에서만) |
 
 ---
 
-## 4. Request ID (Correlation ID) 전파
+## 4. X-Request-Id 전파 규약
 
-`requestId`는 HTTP 요청뿐 아니라 **모든 추적 가능한 작업 단위**에 부여된다.
+### 4.1 생성 규칙
 
-### 4.1 생성 시점과 접두사
+| 조건 | 행동 |
+|------|------|
+| S1→S2 요청에 `X-Request-Id` 없음 | S2가 생성 (`req-{uuid}`) |
+| S1→S2 요청에 `X-Request-Id` 있음 | S2가 그대로 사용 |
+| 내부 이벤트 (CAN alert, 시스템 시딩 등) | 해당 서비스가 생성 (접두사 자유) |
+| 하위 서비스가 헤더 없이 요청 수신 | 서버 측에서 자체 생성 |
+
+### 4.2 접두사 규약
 
 | 접두사 | 생성 위치 | 용도 |
 |--------|-----------|------|
-| `req-` | S1 또는 S2 HTTP 미들웨어 | HTTP 요청 (S1이 `X-Request-Id` 헤더로 전달, 없으면 S2가 생성) |
-| `can-` | `DynamicAnalysisService.handleAlert()` | CAN alert 누적 → LLM 분석 체인 |
-| `reconn-` | `AdapterClient` auto-reconnect | 어댑터 자동 재연결 시도 |
-| `sys-` | `index.ts` 기동 로직 | 기동 시 룰 시딩, 마이그레이션 등 시스템 작업 |
+| `req-` | S1 또는 S2 HTTP 미들웨어 | HTTP 요청 |
+| `can-` | S2 동적 분석 서비스 | CAN alert → LLM 분석 체인 |
+| `reconn-` | S2 AdapterClient | 어댑터 자동 재연결 |
+| `sys-` | 각 서비스 기동 로직 | 시스템 초기화 |
+| `gw-` | S7 Gateway | S7이 자체 생성 시 |
 
-### 4.2 HTTP 전파
+### 4.3 전파 원칙
 
-- 헤더명: `X-Request-Id`
-- S2 미들웨어가 생성 (`req-{uuid}`) 또는 수신 헤더 사용
-- S2 → S3 호출 시 `X-Request-Id` 헤더로 전달
-- S3는 수신한 Request ID를 로그에 포함
-- S3 → S4 호출 시에도 `X-Request-Id` 헤더로 전달 (S4가 무시하더라도 S3 로그에 기록)
-- 응답 헤더에 `X-Request-Id` 포함 (디버깅용)
+**한 번 생성된 requestId는 파이프라인 끝까지 전파한다.**
 
-### 4.3 비-HTTP 작업
+```
+S1 → [X-Request-Id: req-abc123] → S2
+  S2 → [X-Request-Id: req-abc123] → S4 (SAST scan)
+  S2 → [X-Request-Id: req-abc123] → S3 (deep-analyze)
+    S3 → [X-Request-Id: req-abc123] → S4 (functions)
+    S3 → [X-Request-Id: req-abc123] → S5 (CVE lookup)
+    S3 → [X-Request-Id: req-abc123] → S7 (LLM chat)
+      S7 → [X-Request-Id: req-abc123] → LLM Engine
+```
 
-HTTP 미들웨어를 타지 않는 작업은 `generateRequestId(prefix)` 유틸리티로 직접 생성한다.
-생성된 ID는 해당 작업의 모든 로그에 `requestId` 필드로 포함되어, 단일 작업 단위를
-로그에서 추적할 수 있다.
+### 4.4 구현 규칙
+
+1. **HTTP 클라이언트**: 하위 서비스 호출 시 반드시 `X-Request-Id` 헤더를 포함
+2. **HTTP 서버**: 수신한 `X-Request-Id`를 요청 컨텍스트에 저장, 모든 로그에 `requestId` 기록
+3. **응답 헤더**: HTTP 응답에 `X-Request-Id` 헤더를 포함하여 반환
+4. **WebSocket**: 요청-응답 패턴 메시지에 `requestId` 필드 포함 (스트리밍/이벤트는 해당 없음)
+
+### 4.5 S1 (Frontend) 규칙
+
+- S2 API 호출 시 `X-Request-Id` 헤더를 생성하여 전달 (UUID v4 권장, `req-` 접두사)
+- fetch/axios 인터셉터에서 자동 부착 권장
+- 응답의 `X-Request-Id`를 콘솔 로그에 기록하면 프론트-백 추적 가능
 
 ---
 
-## 5. 로그 레벨 기준
+## 5. 서비스 간 HTTP 호출 로그 표준
 
-| 레벨 | 기준 | 예시 |
-|------|------|------|
-| `debug` | 개발/디버깅 상세 정보 | DB 마이그레이션 스킵, WS 연결/해제 |
-| `info` | 정상 동작 마일스톤 | 요청 시작/완료, 서버 기동, 분석 시작 |
-| `warn` | 열화 운전 (기능은 유지) | LLM 호출 실패 (graceful degradation), 재연결 시도 |
-| `error` | 요청 실패 | 처리 불가 에러, 5xx 응답 |
-| `fatal` | 서버 기동 불가 | uncaughtException, DB 초기화 실패 |
+서비스 간 HTTP 호출 시 **요청 시작**과 **응답 수신**을 각각 기록한다.
+
+```jsonl
+{"level":30,"time":...,"service":"s2-backend","requestId":"req-abc123","msg":"→ POST :8001/v1/tasks","target":"s3-agent","method":"POST","path":"/v1/tasks"}
+{"level":30,"time":...,"service":"s2-backend","requestId":"req-abc123","msg":"← 200 OK from :8001/v1/tasks","target":"s3-agent","status":200,"elapsedMs":190316}
+```
+
+| 필드 | 설명 |
+|------|------|
+| `target` | 호출 대상 서비스 식별자 |
+| `method` | HTTP 메서드 |
+| `path` | 요청 경로 |
+| `status` | 응답 HTTP 상태 코드 (응답 시) |
+| `elapsedMs` | 소요 시간 (응답 시) |
+
+이 형식으로 로그를 남기면 `aegis-trace` 도구가 requestId → grep → 시간순 정렬 → 워터폴 생성 가능.
 
 ---
 
 ## 6. 로그 저장
 
-### 6.1 저장 방식
-
-pino transport를 사용하여 **stdout + JSONL 파일** 동시 출력.
-
-- stdout: 개발 시 터미널에서 실시간 확인 (`| npx pino-pretty` 조합 가능)
-- JSONL 파일: 관리자 도구에서 파싱/시각화 용도
-
-### 6.2 파일 위치
+### 6.1 저장 위치
 
 ```
-logs/                       # 프로젝트 루트 (git-ignored)
-├── s2-backend.jsonl        # S2 백엔드
-├── adapter.jsonl           # Adapter
-├── ecu-simulator.jsonl     # ECU Simulator
-└── s3-llm-gateway.jsonl    # S3 LLM Gateway (S3가 관리)
+logs/                              # 프로젝트 루트 (git-ignored, 자동 생성)
+├── s2-backend.jsonl               # S2 Backend
+├── aegis-analysis-agent.jsonl     # S3 Agent
+├── s4-sast-runner.jsonl           # S4 SAST Runner
+├── aegis-knowledge-base.jsonl     # S5 Knowledge Base
+├── adapter.jsonl                  # S6 Adapter
+├── ecu-simulator.jsonl            # S6 ECU Simulator
+├── aegis-llm-gateway.jsonl        # S7 Gateway (메인 앱 로그)
+└── llm-exchange.jsonl             # S7 LLM 교환 전문 (디버깅용)
 ```
 
 - 환경변수 `LOG_DIR`로 경로 변경 가능 (기본값: 프로젝트 루트 `logs/`)
-- pino `mkdir: true` 옵션으로 디렉토리 자동 생성
 - append 모드 — 서비스 재시작해도 기존 로그 유지
+- 관리: `scripts/common/reset-logs.sh`로 일괄 초기화
 
-### 6.3 JSONL 형식
+### 6.2 JSONL 형식
 
-파일의 각 줄이 독립된 JSON 객체 (JSON Lines 형식):
-
-```
-{"level":30,"time":1741776000000,"name":"s2-backend","component":"llm-task-client","requestId":"req-xxx","msg":"v1 Task completed"}
-{"level":30,"time":1741776001000,"name":"s2-backend","component":"llm-v1-adapter","requestId":"req-xxx","msg":"LLM request queued (concurrency=1)"}
-```
-
+파일의 각 줄이 독립된 JSON 객체 (JSON Lines 형식).
 관리자 도구에서 줄 단위로 `JSON.parse()` 하여 필터링/시각화.
-
-### 6.4 관리자 도구 연동 (예정)
-
-별도 프로그램에서 `logs/*.jsonl` 파일을 읽어 파싱하는 구조:
-
-```
-서비스 (pino transport)
-  ├── stdout (개발 터미널)
-  └── logs/{service}.jsonl (JSONL 파일)
-
-관리자 도구 (별도 앱)
-  └── logs/*.jsonl 읽기 → 줄 단위 JSON.parse
-      → requestId로 요청 경로 추적
-      → 레벨별 필터링
-      → 서비스별 로그 분리
-      → 시간대별 에러 추이
-```
-
-### 6.5 로그 로테이션 (후속 과제)
-
-현재는 단일 파일에 append. 파일이 커지면 날짜/크기 기반 로테이션 도입 예정 (`pino-roll` 등).
 
 ---
 
-## 7. S4 (LLM Engine) 관측 원칙
+## 7. LLM Engine 관측
 
-S4는 vLLM 컨테이너로 자체 계측이 불가능하다. 대신 **S3가 관측 지점** 역할을 수행한다.
+S7(LLM Gateway)이 LLM Engine(DGX Spark)의 유일한 caller이므로, S7에서 호출 전후를 기록한다.
 
-### 7.1 관측 방식
+| 시점 | 필드 |
+|------|------|
+| 호출 시작 | `requestId`, `model`, `maxTokens` |
+| 호출 성공 | `requestId`, `latencyMs`, `promptTokens`, `completionTokens` |
+| 호출 실패 | `requestId`, `errorCode`, `latencyMs` |
 
-S3가 S4의 유일한 caller이므로, S3에서 S4 호출 전후를 기록하면 S4를 별도 계측 없이 관측할 수 있다.
+vLLM의 `GET /metrics` (Prometheus 형식) 엔드포인트로 서빙 레벨 메트릭 수집 가능 (향후).
 
+---
+
+## 8. 파이프라인 추적 도구 (예정)
+
+`scripts/common/aegis-trace.sh` — requestId 입력 → 전 서비스 로그에서 해당 요청의 파이프라인을 시간순 워터폴로 표시.
+
+```bash
+scripts/common/aegis-trace.sh <requestId> [--errors-only] [--service s3,s7]
 ```
-S3 로그 (S4 호출 시):
-  ┌─ 호출 시작: requestId, model, max_tokens
-  │   ↓ S4 처리 (블랙박스)
-  └─ 호출 완료: requestId, latencyMs, tokenUsage, status
-     또는
-  └─ 호출 실패: requestId, error, latencyMs
-```
 
-### 7.2 S3가 기록해야 하는 S4 관측 필드
+---
 
-| 시점 | 필드 | 설명 |
-|------|------|------|
-| 호출 시작 | `requestId`, `model`, `maxTokens` | 어떤 요청을 보냈는지 |
-| 호출 성공 | `requestId`, `latencyMs`, `promptTokens`, `completionTokens` | 응답 성능 + 토큰 사용량 |
-| 호출 실패 | `requestId`, `errorCode`, `latencyMs` | 실패 원인 + 소요 시간 |
+## 9. 버전 히스토리
 
-### 7.3 vLLM 자체 메트릭 (향후)
-
-vLLM은 `GET /metrics` (Prometheus 형식) 엔드포인트를 제공한다.
-토큰 처리량, 큐 깊이, GPU 사용률 등 서빙 레벨 메트릭을 수집할 수 있으며, 필요 시 S4 운영 담당이 별도 수집 체계를 구성한다.
+| 날짜 | 변경 |
+|------|------|
+| 2026-03-12 | 최초 작성 (에러 응답, 에러 코드, 로그 포맷, Request ID) |
+| 2026-03-23 | 전면 개편: 로그 레벨 숫자 표준 확정, 서비스 식별자 7개 확정, X-Request-Id 전파 규약 강화, HTTP 호출 로그 표준 추가, 로그 파일 위치 현행화, S1 규칙 추가, 에러 코드 확장 (Agent/SAST/Circuit Breaker) |

@@ -9,6 +9,7 @@ import type {
   AuditLogEntry,
   AnalysisResult,
   Rule,
+  BuildTarget,
   DynamicAnalysisSession,
   DynamicAlert,
   CanMessage,
@@ -151,6 +152,26 @@ export function makeStoredFile(overrides?: Partial<StoredFile>): StoredFile {
     name: "test.c",
     size: 100,
     content: "// test content",
+    ...overrides,
+  };
+}
+
+export function makeBuildTarget(overrides?: Partial<BuildTarget>): BuildTarget {
+  return {
+    id: `target-${uuid()}`,
+    projectId: `proj-${uuid()}`,
+    name: "test-target",
+    relativePath: "src/",
+    buildProfile: {
+      sdkId: "linux-x86_64-c",
+      compiler: "gcc",
+      targetArch: "x86_64",
+      languageStandard: "c11",
+      headerLanguage: "auto",
+    },
+    buildSystem: "cmake",
+    createdAt: now(),
+    updatedAt: now(),
     ...overrides,
   };
 }

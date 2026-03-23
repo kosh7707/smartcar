@@ -39,8 +39,18 @@ class _JsonFormatter(logging.Formatter):
         return json.dumps(log_record, ensure_ascii=False)
 
 
-def setup_logging(service_name: str, log_dir: Path | None = None) -> Path:
-    """JSON structured logging + JSONL file output. Returns log_dir."""
+def setup_logging(
+    service_name: str,
+    log_dir: Path | None = None,
+    *,
+    service_id: str | None = None,
+) -> Path:
+    """JSON structured logging + JSONL file output. Returns log_dir.
+
+    Args:
+        service_name: 로그 파일명에 사용 (예: "aegis-analysis-agent" → aegis-analysis-agent.jsonl)
+        service_id: 로그 JSON의 service 필드 (예: "s3-agent"). 미지정 시 service_name 사용.
+    """
     global _log_dir
     if log_dir is None:
         log_dir = Path(os.environ.get(
@@ -50,7 +60,7 @@ def setup_logging(service_name: str, log_dir: Path | None = None) -> Path:
     log_dir.mkdir(parents=True, exist_ok=True)
     _log_dir = log_dir
 
-    formatter = _JsonFormatter(service_name)
+    formatter = _JsonFormatter(service_id or service_name)
 
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setFormatter(formatter)

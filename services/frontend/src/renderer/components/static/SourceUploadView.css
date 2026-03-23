@@ -61,65 +61,56 @@
   align-self: flex-end;
 }
 
-/* File tree */
+/* Source files summary card */
 .source-files-card .card-title {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
 
-.source-file-tree {
-  max-height: 400px;
-  overflow-y: auto;
+/* Language bar in summary */
+.source-summary-langbar {
+  display: flex;
+  height: 6px;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  background: var(--surface-2);
+  margin: var(--space-3) var(--space-4) 0;
 }
 
-.source-file-row {
+.source-summary-langbar__seg {
+  transition: width var(--transition-slow);
+  min-width: 2px;
+}
+
+/* Directory list */
+.source-dir-list {
+  padding: var(--space-3) var(--space-4) var(--space-1);
+}
+
+.source-dir-row {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-1) var(--space-4);
+  padding: var(--space-1) 0;
   font-size: var(--text-sm);
-  border-bottom: 1px solid var(--border-subtle);
 }
 
-.source-file-row:last-child {
-  border-bottom: none;
-}
-
-.source-file-icon {
-  color: var(--text-tertiary);
+.source-dir-icon {
+  color: var(--warning);
   flex-shrink: 0;
 }
 
-.source-file-path {
+.source-dir-name {
   flex: 1;
   font-family: var(--font-mono);
-  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
   color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.source-file-lang {
-  font-size: var(--text-2xs);
-  color: var(--text-tertiary);
-  background: var(--surface-1);
-  padding: 1px var(--space-2);
-  border-radius: var(--radius-sm);
-}
-
-.source-file-size {
+.source-dir-count {
   font-size: var(--text-xs);
   color: var(--text-tertiary);
-  white-space: nowrap;
-}
-
-.source-file-more {
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
-  text-align: center;
 }
 
 /* Actions footer */
@@ -127,10 +118,4 @@
   display: flex;
   justify-content: flex-end;
   gap: var(--space-3);
-}
-
-/* Drop zone active state */
-.drop-zone--active {
-  border-color: var(--primary);
-  background: rgba(var(--primary-rgb, 99, 102, 241), 0.04);
 }

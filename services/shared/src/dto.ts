@@ -254,6 +254,10 @@ export interface WsAnalysisProgress {
     analysisId: string;
     phase: "quick_sast" | "quick_complete" | "deep_submitting" | "deep_analyzing" | "deep_complete";
     message: string;
+    /** 현재 처리 중인 빌드 타겟 이름 */
+    targetName?: string;
+    /** 전체 타겟 진행률 */
+    targetProgress?: { current: number; total: number };
   };
 }
 

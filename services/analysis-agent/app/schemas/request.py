@@ -22,8 +22,8 @@ class Context(BaseModel):
 
 
 class Constraints(BaseModel):
-    maxTokens: int = Field(2048, ge=1, le=8192)
-    timeoutMs: int = Field(15000, ge=1000, le=300000)
+    maxTokens: int = Field(2048, ge=1, le=16384)
+    timeoutMs: int = Field(15000, ge=1000, le=900000)
     outputSchema: str | None = None
 
 

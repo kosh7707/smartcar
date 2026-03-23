@@ -24,7 +24,7 @@ from app.scanner.library_differ import LibraryDiffer
 from app.scanner.library_identifier import LibraryIdentifier
 from app.scanner.orchestrator import ScanOrchestrator
 from app.scanner.ruleset_selector import resolve_rulesets
-from app.schemas.request import ScanRequest
+from app.schemas.request import BuildProfile, ScanRequest
 from app.schemas.response import (
     ErrorDetail,
     HealthResponse,
@@ -32,7 +32,7 @@ from app.schemas.response import (
     ScanStats,
 )
 
-logger = logging.getLogger("s4-sast-runner")
+logger = logging.getLogger("aegis-sast-runner")
 
 router = APIRouter(prefix="/v1", tags=["v1"])
 orchestrator = ScanOrchestrator()
@@ -47,6 +47,41 @@ _scan_semaphore = asyncio.Semaphore(settings.max_concurrent_scans)
 
 def _get_request_id(request: Request) -> str:
     return request.headers.get("X-Request-Id") or f"req-{uuid.uuid4()}"
+
+
+def _error_response(
+    request_id: str,
+    exc: Exception,
+    response: Response,
+) -> dict:
+    """observability.md 준수 에러 응답을 생성한다."""
+    if isinstance(exc, SastRunnerError):
+        response.status_code = exc.status_code
+        code = exc.code
+        message = exc.message
+        retryable = exc.retryable
+    else:
+        response.status_code = 500
+        code = "INTERNAL_ERROR"
+        message = str(exc)
+        retryable = False
+
+    logger.error(
+        "Request failed: %s", message,
+        extra={"requestId": request_id, "code": code},
+        exc_info=not isinstance(exc, SastRunnerError),
+    )
+
+    return {
+        "success": False,
+        "error": message,
+        "errorDetail": {
+            "code": code,
+            "message": message,
+            "requestId": request_id,
+            "retryable": retryable,
+        },
+    }
 
 
 def _prepare_scan_dir(body: ScanRequest) -> tuple[Path, list[str], bool]:
@@ -148,8 +183,31 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
                     timeout=timeout,
                 )
 
+                # 5. projectPath 모드: codeGraph + SCA
+                code_graph_result = None
+                sca_result = None
+                if body.project_path:
+                    # 라이브러리 식별 먼저 (origin 태깅에 필요)
+                    libs = lib_identifier.identify(scan_dir)
+
+                    # SCA: 라이브러리 정보 (CVE는 S5 담당)
+                    sca_libs = []
+                    for lib in libs:
+                        sca_libs.append({
+                            "name": lib["name"],
+                            "version": lib.get("version"),
+                            "path": lib["path"],
+                            "repoUrl": lib.get("repoUrl"),
+                        })
+                    sca_result = {"libraries": sca_libs}
+
+                    # 코드그래프: 라이브러리 정보로 origin 태깅
+                    code_graph_result = await ast_dumper.dump_functions(
+                        scan_dir, source_files, bp, libraries=libs,
+                    )
+
             finally:
-                # 5. temp dir 정리 (projectPath 모드에서는 실제 디렉토리이므로 삭제 안 함)
+                # 6. temp dir 정리 (projectPath 모드에서는 실제 디렉토리이므로 삭제 안 함)
                 if should_cleanup:
                     shutil.rmtree(scan_dir, ignore_errors=True)
 
@@ -162,6 +220,8 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
                 "scanId": scan_id,
                 "findingsCount": len(findings),
                 "toolsRun": execution.get("toolsRun", []),
+                "hasCodeGraph": code_graph_result is not None,
+                "scaLibraries": len(sca_result["libraries"]) if sca_result else 0,
                 "elapsedMs": elapsed_ms,
             },
         )
@@ -172,12 +232,14 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
             status="completed",
             findings=findings,
             stats=ScanStats(
-                filesScanned=len(body.files),
+                filesScanned=len(source_files),
                 rulesRun=len(execution.get("toolsRun", [])),
                 findingsTotal=len(findings),
                 elapsedMs=elapsed_ms,
             ),
             execution=execution,
+            codeGraph=code_graph_result,
+            sca=sca_result,
         )
 
     except SastRunnerError as exc:
@@ -249,8 +311,30 @@ async def functions(request: Request, body: ScanRequest, response: Response):
     )
 
     try:
+        # projectPath 모드: 라이브러리 식별 → origin 태깅
+        libs = None
+        if body.project_path:
+            libs_raw = lib_identifier.identify(scan_dir)
+            libs = []
+            for lib in libs_raw:
+                entry = dict(lib)
+                lib_path = scan_dir / lib["path"]
+                repo_url = lib.get("repoUrl")
+                version = lib.get("version")
+                commit = lib.get("commit")
+                if repo_url:
+                    try:
+                        if commit:
+                            entry["diff"] = await lib_differ.diff(lib_path, repo_url, version, commit=commit)
+                        elif version:
+                            entry["diff"] = await lib_differ.diff(lib_path, repo_url, version)
+                    except Exception as diff_exc:
+                        logger.warning("lib_differ.diff failed for %s: %s", lib["name"], diff_exc)
+                        entry["diff"] = None
+                libs.append(entry)
+
         result = await ast_dumper.dump_functions(
-            scan_dir, source_files, body.build_profile,
+            scan_dir, source_files, body.build_profile, libraries=libs,
         )
 
         elapsed_ms = int((time.perf_counter() - t0) * 1000)
@@ -263,6 +347,8 @@ async def functions(request: Request, body: ScanRequest, response: Response):
             },
         )
         return result
+    except Exception as exc:
+        return _error_response(request_id, exc, response)
     finally:
         if should_cleanup:
             shutil.rmtree(scan_dir, ignore_errors=True)
@@ -275,32 +361,29 @@ async def includes(request: Request, body: ScanRequest, response: Response):
     set_request_id(request_id)
     response.headers["X-Request-Id"] = request_id
 
-    if not body.files:
-        raise NoFilesError("No files provided")
+    if not body.files and not body.project_path:
+        raise NoFilesError("No files or projectPath provided")
     for f in body.files:
         _validate_path(f.path)
 
     t0 = time.perf_counter()
-    scan_dir = Path(tempfile.mkdtemp(prefix="includes-"))
+    scan_dir, source_files, should_cleanup = _prepare_scan_dir(body)
     try:
-        source_files: list[str] = []
-        for f in body.files:
-            file_path = scan_dir / f.path
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            file_path.write_text(f.content, encoding="utf-8")
-            source_files.append(f.path)
-
         result = await include_resolver.resolve(
             scan_dir, source_files, body.build_profile,
         )
         elapsed_ms = int((time.perf_counter() - t0) * 1000)
         logger.info(
             "Include resolution completed",
-            extra={"requestId": request_id, "filesCount": len(result), "elapsedMs": elapsed_ms},
+            extra={"requestId": request_id, "filesCount": len(result), "elapsedMs": elapsed_ms,
+                    "projectPath": body.project_path},
         )
         return {"includes": result}
+    except Exception as exc:
+        return _error_response(request_id, exc, response)
     finally:
-        shutil.rmtree(scan_dir, ignore_errors=True)
+        if should_cleanup:
+            shutil.rmtree(scan_dir, ignore_errors=True)
 
 
 @router.post("/metadata")
@@ -310,16 +393,19 @@ async def metadata(request: Request, body: ScanRequest, response: Response):
     set_request_id(request_id)
     response.headers["X-Request-Id"] = request_id
 
-    result = await metadata_extractor.extract(body.build_profile)
-    logger.info(
-        "Build metadata extracted",
-        extra={
-            "requestId": request_id,
-            "compiler": result.get("compiler"),
-            "macroCount": len(result.get("macros", {})),
-        },
-    )
-    return result
+    try:
+        result = await metadata_extractor.extract(body.build_profile)
+        logger.info(
+            "Build metadata extracted",
+            extra={
+                "requestId": request_id,
+                "compiler": result.get("compiler"),
+                "macroCount": len(result.get("macros", {})),
+            },
+        )
+        return result
+    except Exception as exc:
+        return _error_response(request_id, exc, response)
 
 
 @router.post("/libraries")
@@ -343,47 +429,55 @@ async def libraries(request: Request, body: ScanRequest, response: Response):
     t0 = time.perf_counter()
     logger.info("Library analysis started", extra={"requestId": request_id, "projectPath": body.project_path})
 
-    # 1. 라이브러리 식별
-    libs = lib_identifier.identify(project_dir)
+    try:
+        # 1. 라이브러리 식별
+        libs = lib_identifier.identify(project_dir)
 
-    # 2. 각 라이브러리에 대해 upstream diff
-    results = []
-    for lib in libs:
-        lib_path = project_dir / lib["path"]
-        repo_url = lib.get("repoUrl")
-        version = lib.get("version")
+        # 2. 각 라이브러리에 대해 upstream diff
+        results = []
+        for lib in libs:
+            lib_path = project_dir / lib["path"]
+            repo_url = lib.get("repoUrl")
+            version = lib.get("version")
 
-        entry: dict[str, Any] = {
-            "name": lib["name"],
-            "version": version,
-            "path": lib["path"],
-            "source": lib.get("source"),
-            "repoUrl": repo_url,
-        }
+            entry: dict[str, Any] = {
+                "name": lib["name"],
+                "version": version,
+                "path": lib["path"],
+                "source": lib.get("source"),
+                "repoUrl": repo_url,
+            }
 
-        commit = lib.get("commit")
+            commit = lib.get("commit")
 
-        if repo_url:
-            if commit:
-                diff_result = await lib_differ.diff(lib_path, repo_url, version, commit=commit)
-            elif version:
-                diff_result = await lib_differ.diff(lib_path, repo_url, version)
+            if repo_url:
+                try:
+                    if commit:
+                        diff_result = await lib_differ.diff(lib_path, repo_url, version, commit=commit)
+                    elif version:
+                        diff_result = await lib_differ.diff(lib_path, repo_url, version)
+                    else:
+                        diff_result = await lib_differ.find_closest_version(lib_path, repo_url)
+                    entry["diff"] = diff_result
+                except Exception as diff_exc:
+                    logger.warning("lib_differ.diff failed for %s: %s", lib["name"], diff_exc)
+                    entry["diff"] = None
             else:
-                diff_result = await lib_differ.find_closest_version(lib_path, repo_url)
-            entry["diff"] = diff_result
-        else:
-            entry["diff"] = None
-            entry["note"] = "Unknown library — no upstream repo to compare"
+                entry["diff"] = None
+                entry["note"] = "Unknown library — no upstream repo to compare"
 
-        results.append(entry)
+            results.append(entry)
 
-    elapsed_ms = int((time.perf_counter() - t0) * 1000)
-    logger.info(
-        "Library analysis completed",
-        extra={"requestId": request_id, "libraryCount": len(results), "elapsedMs": elapsed_ms},
-    )
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        logger.info(
+            "Library analysis completed",
+            extra={"requestId": request_id, "libraryCount": len(results), "elapsedMs": elapsed_ms},
+        )
 
-    return {"libraries": results, "elapsedMs": elapsed_ms}
+        return {"libraries": results, "elapsedMs": elapsed_ms}
+
+    except Exception as exc:
+        return _error_response(request_id, exc, response)
 
 
 @router.post("/build-and-analyze")
@@ -405,89 +499,150 @@ async def build_and_analyze(request: Request, response: Response, body: dict):
     project_path = body.get("projectPath")
     build_command = body.get("buildCommand")
 
-    if not project_path or not build_command:
+    if not project_path:
         response.status_code = 400
-        return {"error": "projectPath and buildCommand are required"}
+        return {"error": "projectPath is required"}
 
     project_dir = Path(project_path)
     if not project_dir.is_dir():
         response.status_code = 400
         return {"error": f"projectPath not found: {project_path}"}
 
+    # buildCommand 자동 감지
+    if not build_command:
+        build_command = build_runner.detect_build_command(project_dir)
+        if not build_command:
+            response.status_code = 400
+            return {"error": "buildCommand not provided and could not be auto-detected (no Makefile, CMakeLists.txt, or configure found)"}
+        logger.info("Auto-detected build command: %s", build_command)
+
+    # buildProfile → SDK environment-setup 적용
+    bp_dict = body.get("buildProfile")
+    bp = BuildProfile(**bp_dict) if bp_dict else None
+
     t0 = time.perf_counter()
 
-    # 1. 빌드 (bear)
-    logger.info("Build-and-analyze started", extra={"requestId": request_id, "projectPath": project_path})
-    build_result = await build_runner.build(project_dir, build_command)
-    if not build_result.get("success"):
-        return {"build": build_result, "error": "Build failed"}
+    try:
+        # 1. 빌드 (bear)
+        logger.info("Build-and-analyze started", extra={"requestId": request_id, "projectPath": project_path})
+        build_result = await build_runner.build(project_dir, build_command, profile=bp)
+        if not build_result.get("success"):
+            return {"build": build_result, "error": "Build failed"}
 
-    cc_path = build_result.get("compileCommandsPath")
+        cc_path = build_result.get("compileCommandsPath")
 
-    # 2. 병렬 실행: scan + functions + libraries + metadata
-    scan_req = ScanRequest(
-        scanId=f"build-analyze-{request_id}",
-        projectId=body.get("projectId", "auto"),
-        projectPath=project_path,
-        compileCommands=cc_path,
-    )
+        # 2. 병렬 실행: scan + functions + libraries + metadata
+        scan_req = ScanRequest(
+            scanId=f"build-analyze-{request_id}",
+            projectId=body.get("projectId", "auto"),
+            projectPath=project_path,
+            compileCommands=cc_path,
+        )
 
-    # scan
-    scan_dir, source_files, should_cleanup = _prepare_scan_dir(scan_req)
-    rulesets = resolve_rulesets(None, None, settings.default_rulesets)
-    findings, execution = await orchestrator.run(
-        scan_dir=scan_dir, source_files=source_files,
-        profile=None, rulesets=rulesets,
-        compile_commands=cc_path, timeout=120,
-    )
+        # scan
+        scan_dir, source_files, should_cleanup = _prepare_scan_dir(scan_req)
+        rulesets = resolve_rulesets(None, bp, settings.default_rulesets)
+        findings, execution = await orchestrator.run(
+            scan_dir=scan_dir, source_files=source_files,
+            profile=bp, rulesets=rulesets,
+            compile_commands=cc_path, timeout=120,
+        )
 
-    # functions
-    func_result = await ast_dumper.dump_functions(scan_dir, source_files, None)
+        # functions
+        func_result = await ast_dumper.dump_functions(scan_dir, source_files, bp)
 
-    # libraries
-    libs = lib_identifier.identify(project_dir)
-    lib_results = []
-    for lib in libs:
-        lib_path = project_dir / lib["path"]
-        repo_url = lib.get("repoUrl")
-        commit = lib.get("commit")
-        version = lib.get("version")
-        entry = dict(lib)
-        if repo_url:
-            if commit:
-                entry["diff"] = await lib_differ.diff(lib_path, repo_url, version, commit=commit)
-            elif version:
-                entry["diff"] = await lib_differ.diff(lib_path, repo_url, version)
-        lib_results.append(entry)
+        # libraries
+        libs = lib_identifier.identify(project_dir)
+        lib_results = []
+        for lib in libs:
+            lib_path = project_dir / lib["path"]
+            repo_url = lib.get("repoUrl")
+            commit = lib.get("commit")
+            version = lib.get("version")
+            entry = dict(lib)
+            if repo_url:
+                try:
+                    if commit:
+                        entry["diff"] = await lib_differ.diff(lib_path, repo_url, version, commit=commit)
+                    elif version:
+                        entry["diff"] = await lib_differ.diff(lib_path, repo_url, version)
+                except Exception as diff_exc:
+                    logger.warning("lib_differ.diff failed for %s: %s", lib["name"], diff_exc)
+                    entry["diff"] = None
+            lib_results.append(entry)
 
-    # metadata
-    meta = await metadata_extractor.extract(None)
+        # metadata
+        meta = await metadata_extractor.extract(bp)
 
-    elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+
+        logger.info(
+            "Build-and-analyze completed",
+            extra={
+                "requestId": request_id,
+                "findingsCount": len(findings),
+                "functionsCount": len(func_result.get("functions", [])),
+                "libraryCount": len(lib_results),
+                "elapsedMs": elapsed_ms,
+            },
+        )
+
+        return {
+            "build": build_result,
+            "scan": {
+                "findings": [f.model_dump(by_alias=True, exclude_none=True) for f in findings],
+                "findingsCount": len(findings),
+                "execution": execution,
+            },
+            "codeGraph": func_result,
+            "libraries": lib_results,
+            "metadata": meta,
+            "elapsedMs": elapsed_ms,
+        }
+
+    except Exception as exc:
+        return _error_response(request_id, exc, response)
+
+
+@router.post("/discover-targets")
+async def discover_targets(request: Request, response: Response, body: dict):
+    """프로젝트 내 빌드 타겟(독립 빌드 단위)을 자동 탐색.
+
+    빌드 파일(CMakeLists.txt, Makefile, meson.build 등)을 재귀 탐색하여
+    각 빌드 단위를 반환한다. 빌드 실행 없이 파일시스템 스캔만 수행.
+    """
+    request_id = _get_request_id(request)
+    set_request_id(request_id)
+    response.headers["X-Request-Id"] = request_id
+
+    project_path = body.get("projectPath")
+    if not project_path:
+        response.status_code = 400
+        return {"error": "projectPath is required"}
+
+    project_dir = Path(project_path)
+    if not project_dir.is_dir():
+        response.status_code = 400
+        return {"error": f"projectPath not found: {project_path}"}
+
+    try:
+        t0 = time.perf_counter()
+        targets = build_runner.discover_targets(project_dir)
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+    except Exception as exc:
+        return _error_response(request_id, exc, response)
 
     logger.info(
-        "Build-and-analyze completed",
+        "Target discovery completed",
         extra={
             "requestId": request_id,
-            "findingsCount": len(findings),
-            "functionsCount": len(func_result.get("functions", [])),
-            "libraryCount": len(lib_results),
+            "projectPath": project_path,
+            "targetCount": len(targets),
             "elapsedMs": elapsed_ms,
         },
     )
 
-    return {
-        "build": build_result,
-        "scan": {
-            "findings": [f.model_dump(by_alias=True, exclude_none=True) for f in findings],
-            "findingsCount": len(findings),
-            "execution": execution,
-        },
-        "codeGraph": func_result,
-        "libraries": lib_results,
-        "metadata": meta,
-        "elapsedMs": elapsed_ms,
-    }
+    return {"targets": targets, "elapsedMs": elapsed_ms}
 
 
 @router.get("/health", response_model=HealthResponse)

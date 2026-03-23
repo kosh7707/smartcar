@@ -12,7 +12,7 @@ from app.errors import ScanTimeoutError
 from app.schemas.request import BuildProfile
 from app.schemas.response import SastFinding, SastFindingLocation
 
-logger = logging.getLogger("s4-sast-runner")
+logger = logging.getLogger("aegis-sast-runner")
 
 # clang-tidy 경고 패턴: file:line:col: severity: message [check-name]
 _WARNING_RE = re.compile(
@@ -226,6 +226,7 @@ _CERT_TO_CWE: dict[str, str] = {
     "bugprone-dangling-handle": "CWE-416",
     "bugprone-sizeof-expression": "CWE-131",
     "bugprone-integer-division": "CWE-190",
+    "bugprone-narrowing-conversions": "CWE-190",
     "bugprone-string-constructor": "CWE-665",
     # clang-analyzer (clang-tidy 경유)
     "clang-analyzer-core.NullDereference": "CWE-476",

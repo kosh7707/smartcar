@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import type { Finding, EvidenceRef, AuditLogEntry, FindingStatus } from "@aegis/shared";
-import { MapPin, Copy, Clock } from "lucide-react";
+import { MapPin, Copy, Clock, FlaskConical, Timer, Cpu } from "lucide-react";
 import {
   BackButton,
   Spinner,
@@ -12,9 +12,11 @@ import {
 } from "../ui";
 import { EvidencePanel } from "../finding/EvidencePanel";
 import { EvidenceViewer } from "../finding/EvidenceViewer";
-import { fetchFindingDetail, updateFindingStatus, logError } from "../../api/client";
+import { fetchFindingDetail, updateFindingStatus, generatePoc, logError } from "../../api/client";
+import type { PocResponse } from "../../api/client";
 import { useToast } from "../../contexts/ToastContext";
 import { formatDateTime } from "../../utils/format";
+import { renderMarkdown } from "../../utils/markdown";
 
 interface Props {
   findingId: string;
@@ -29,6 +31,11 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
   const [showTransition, setShowTransition] = useState(false);
   const [selectedEvidence, setSelectedEvidence] = useState<EvidenceRef | null>(null);
   const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // PoC state
+  const [pocData, setPocData] = useState<PocResponse | null>(null);
+  const [pocLoading, setPocLoading] = useState(false);
 
   const loadDetail = useCallback(async () => {
     try {
@@ -44,7 +51,9 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
 
   useEffect(() => {
     setLoading(true);
+    setPocData(null);
     loadDetail();
+    return () => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); };
   }, [findingId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleStatusChange = async (newStatus: FindingStatus, reason: string) => {
@@ -54,7 +63,6 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
       setFinding((prev) => prev ? { ...prev, ...updated } : null);
       setShowTransition(false);
       toast.success("상태가 변경되었습니다.");
-      // Reload to get updated auditLog
       loadDetail();
     } catch (e) {
       logError("Status update", e);
@@ -62,12 +70,27 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
     }
   };
 
-  const handleCopyCode = (text: string) => {
+  const handleCopyCode = useCallback((text: string) => {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
     });
-  };
+  }, []);
+
+  const handleGeneratePoc = useCallback(async () => {
+    if (!finding) return;
+    setPocLoading(true);
+    try {
+      const result = await generatePoc(projectId, finding.id);
+      setPocData(result);
+    } catch (e) {
+      logError("Generate PoC", e);
+      toast.error("PoC 생성에 실패했습니다.");
+    } finally {
+      setPocLoading(false);
+    }
+  }, [finding, projectId, toast]);
 
   if (loading) {
     return (
@@ -88,6 +111,8 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
       </div>
     );
   }
+
+  const canGeneratePoc = finding.sourceType === "agent";
 
   return (
     <div className="page-enter">
@@ -110,11 +135,21 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
         </div>
       </div>
 
-      {/* Status change button */}
+      {/* Status change + PoC button */}
       <div className="finding-actions">
         <button className="btn btn-secondary" onClick={() => setShowTransition(true)}>
           상태 변경
         </button>
+        {canGeneratePoc && !pocData && (
+          <button
+            className="btn btn-secondary"
+            onClick={handleGeneratePoc}
+            disabled={pocLoading}
+          >
+            {pocLoading ? <Spinner size={14} /> : <FlaskConical size={14} />}
+            PoC 생성
+          </button>
+        )}
         {finding.location && (
           <span className="detail-meta-item">
             <MapPin size={14} />
@@ -129,6 +164,16 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
         <p className="finding-body-text">{finding.description}</p>
       </div>
 
+      {/* Detail (Agent deep analysis — markdown) */}
+      {finding.detail && (
+        <div className="card">
+          <div className="card-title">상세 분석</div>
+          <div className="finding-detail-md">
+            {renderMarkdown(finding.detail)}
+          </div>
+        </div>
+      )}
+
       {/* Suggestion + fixCode */}
       {finding.suggestion && (
         <div className="card">
@@ -136,6 +181,43 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
           <p className="finding-suggestion-text">
             {finding.suggestion}
           </p>
+        </div>
+      )}
+
+      {/* PoC result */}
+      {pocLoading && (
+        <div className="card poc-section">
+          <div className="card-title">
+            <FlaskConical size={16} />
+            PoC 생성 중...
+          </div>
+          <div className="poc-loading">
+            <Spinner label="LLM이 PoC 코드를 생성하고 있습니다..." />
+          </div>
+        </div>
+      )}
+
+      {pocData && (
+        <div className="card poc-section">
+          <div className="poc-header">
+            <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+              <FlaskConical size={16} />
+              PoC — {pocData.poc.statement}
+            </div>
+          </div>
+          <div className="finding-detail-md">
+            {renderMarkdown(pocData.poc.detail)}
+          </div>
+          <div className="poc-audit">
+            <span className="poc-audit-item">
+              <Timer size={12} />
+              {(pocData.audit.latencyMs / 1000).toFixed(1)}초
+            </span>
+            <span className="poc-audit-item">
+              <Cpu size={12} />
+              {pocData.audit.tokenUsage.prompt + pocData.audit.tokenUsage.completion} tokens
+            </span>
+          </div>
         </div>
       )}
 

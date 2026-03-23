@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     scan_timeout: int = 120
     max_concurrent_scans: int = 1
     custom_rules_dir: str | None = "rules"
+    sdk_root: str | None = None
     log_dir: str = ""
 
     @property

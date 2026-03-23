@@ -7,7 +7,7 @@ def test_health_endpoint(client_live):
     resp = client_live.get("/v1/health")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["service"] == "aegis-analysis-agent"
+    assert data["service"] == "s3-agent"
     assert data["status"] == "ok"
     assert "agentConfig" in data
     assert data["agentConfig"]["maxSteps"] == 6

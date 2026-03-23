@@ -18,11 +18,19 @@ if TYPE_CHECKING:
     from app.core.agent_session import AgentSession
 
 logger = logging.getLogger(__name__)
-_exchange_logger = logging.getLogger("s4_exchange")
+_exchange_logger = logging.getLogger("llm_exchange")
 
 
 class LlmCaller:
     """S7 Gateway 경유 LLM 호출. tool_calls 파싱을 지원한다."""
+
+    # Adaptive timeout 파라미터 (122B GPTQ 기준, 느슨하게)
+    _TOKENS_PER_SECOND = 10.0       # 보수적 생성 속도 (부하 시 감속 대비)
+    _PREFILL_PER_1K_TOKENS = 10.0   # 입력 1000토큰당 prefill 시간 (초)
+    _OVERHEAD_SECONDS = 60.0        # 네트워크 + 스케줄링 + torch + 큐 대기
+    _SAFETY_FACTOR = 2.0            # 안전 배수 (넉넉하게)
+    _MIN_TIMEOUT = 120.0            # 최소 타임아웃 — 아무리 짧아도 2분
+    _MAX_TIMEOUT = 600.0            # 최대 타임아웃 (S7 Gateway read timeout과 맞춤)
 
     def __init__(
         self,
@@ -31,7 +39,6 @@ class LlmCaller:
         api_key: str = "",
         *,
         enable_thinking: bool = False,
-        timeout: float = 120.0,
         default_max_tokens: int = 4096,
     ) -> None:
         self._endpoint = endpoint
@@ -40,9 +47,35 @@ class LlmCaller:
         self._enable_thinking = enable_thinking
         self._default_max_tokens = default_max_tokens
         self._client = httpx.AsyncClient(
-            timeout=timeout,
+            timeout=httpx.Timeout(connect=10.0, read=self._MAX_TIMEOUT, write=10.0, pool=10.0),
             limits=httpx.Limits(max_connections=10, max_keepalive_connections=4),
         )
+
+    def _estimate_timeout(self, messages: list[dict], max_tokens: int, has_tools: bool) -> float:
+        """요청별 adaptive timeout을 계산한다.
+
+        입력 크기(prefill) + 예상 생성량(generation) + 오버헤드로 산출.
+        도구 호출 턴은 짧은 응답, 최종 보고서 턴은 max_tokens 전체를 기대한다.
+        """
+        # 입력 토큰 추정 (한영 혼재 보수적 기준 ~2자/토큰)
+        input_chars = sum(len(m.get("content", "") or "") for m in messages)
+        est_input_tokens = input_chars / 2
+
+        # prefill 시간
+        prefill = est_input_tokens / 1000 * self._PREFILL_PER_1K_TOKENS
+
+        # 예상 생성 토큰
+        if has_tools:
+            # 도구 호출 응답은 짧음 (tool_call JSON ~200-1000 토큰)
+            est_output = min(max_tokens, 1000)
+        else:
+            # 최종 보고서 — max_tokens 전체 사용 가능
+            est_output = max_tokens
+
+        generation = est_output / self._TOKENS_PER_SECOND
+        timeout = (prefill + generation + self._OVERHEAD_SECONDS) * self._SAFETY_FACTOR
+
+        return max(self._MIN_TIMEOUT, min(timeout, self._MAX_TIMEOUT))
 
     async def call(
         self,
@@ -81,18 +114,27 @@ class LlmCaller:
 
         turn = (session.turn_count + 1) if session else None
 
+        # Adaptive timeout: 입력 크기 + 예상 생성량 기반
+        req_timeout = self._estimate_timeout(messages, max_tokens, has_tools=bool(tools))
+        # S7 Gateway에 타임아웃 동기화 (X-Timeout-Seconds)
+        headers["X-Timeout-Seconds"] = str(int(req_timeout))
+
         agent_log(
             logger, "LLM 호출",
             component="llm_caller", phase="llm_request",
             turn=turn, messageCount=len(messages),
             hasTools=bool(tools), toolCount=len(tools) if tools else 0,
+            adaptiveTimeoutSec=round(req_timeout, 1),
         )
 
         url = f"{self._endpoint}/v1/chat"
         start = time.monotonic()
 
         try:
-            resp = await self._client.post(url, json=body, headers=headers)
+            resp = await self._client.post(
+                url, json=body, headers=headers,
+                timeout=httpx.Timeout(connect=10.0, read=req_timeout, write=10.0, pool=10.0),
+            )
         except httpx.TimeoutException:
             elapsed_ms = int((time.monotonic() - start) * 1000)
             agent_log(
@@ -124,11 +166,13 @@ class LlmCaller:
 
         if resp.status_code != 200:
             text = resp.text[:500]
-            error_code = f"HTTP_{resp.status_code}"
+            is_circuit_open = resp.status_code == 503 and "circuit" in text.lower()
+            error_code = "CIRCUIT_OPEN" if is_circuit_open else f"HTTP_{resp.status_code}"
+            retryable = resp.status_code in (429, 503)
             agent_log(
                 logger, "LLM 에러",
                 component="llm_caller", phase="llm_error",
-                turn=turn, errorCode=error_code, retryable=False,
+                turn=turn, errorCode=error_code, retryable=retryable,
                 latencyMs=elapsed_ms, level=logging.ERROR,
             )
             self._write_exchange_and_dump(

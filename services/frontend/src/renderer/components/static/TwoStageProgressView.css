@@ -18,6 +18,28 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Target progress bar (multi-target) */
+.two-stage-target-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) var(--space-4);
+  background: var(--accent-subtle);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+.two-stage-target-name {
+  font-weight: var(--weight-medium);
+  color: var(--accent);
+}
+
+.two-stage-target-progress {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Stepper ── */
 
 .two-stage-stepper {
@@ -114,17 +136,6 @@
 
 .two-stage-connector--complete {
   background: var(--success);
-}
-
-/* ── Spinning loader ── */
-
-.spin {
-  animation: spin 1.5s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
 }
 
 /* ── Error ── */

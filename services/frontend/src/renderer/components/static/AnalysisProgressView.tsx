@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { CheckCircle2, FileSearch } from "lucide-react";
+import { useElapsedTimer } from "../../hooks/useElapsedTimer";
 import { PageHeader, Spinner } from "../ui";
 import "./AnalysisProgressView.css";
 
@@ -15,19 +16,7 @@ const STEPS = [
 ];
 
 export const AnalysisProgressView: React.FC<Props> = ({ progress, step }) => {
-  const [elapsed, setElapsed] = useState(0);
-
-  useEffect(() => {
-    setElapsed(0);
-    const id = setInterval(() => setElapsed((t) => t + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  const mins = Math.floor(elapsed / 60);
-  const secs = elapsed % 60;
-  const timeStr = mins > 0
-    ? `${mins}분 ${secs.toString().padStart(2, "0")}초`
-    : `${secs}초`;
+  const { timeStr } = useElapsedTimer(true);
 
   return (
     <div className="page-enter">

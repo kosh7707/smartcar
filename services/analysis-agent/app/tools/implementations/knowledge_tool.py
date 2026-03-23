@@ -23,6 +23,7 @@ class KnowledgeTool:
     async def execute(self, arguments: dict) -> ToolResult:
         query = arguments.get("query", "")
         top_k = arguments.get("top_k", 5)
+        source_filter = arguments.get("source_filter")
 
         if not query:
             return ToolResult(
@@ -39,9 +40,13 @@ class KnowledgeTool:
             if request_id:
                 headers["X-Request-Id"] = request_id
 
+            body: dict = {"query": query, "top_k": top_k}
+            if source_filter:
+                body["source_filter"] = source_filter
+
             resp = await self._client.post(
                 f"{self._base_url}/v1/search",
-                json={"query": query, "top_k": top_k},
+                json=body,
                 headers=headers,
             )
             resp.raise_for_status()

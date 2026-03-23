@@ -8,6 +8,7 @@ class TaskType(StrEnum):
     TEST_PLAN_PROPOSE = "test-plan-propose"
     REPORT_DRAFT = "report-draft"
     DEEP_ANALYZE = "deep-analyze"
+    GENERATE_POC = "generate-poc"
 
 
 class TaskStatus(StrEnum):

@@ -20,7 +20,7 @@ from app.scanner.semgrep_runner import SemgrepRunner
 from app.schemas.request import BuildProfile
 from app.schemas.response import SastFinding
 
-logger = logging.getLogger("s4-sast-runner")
+logger = logging.getLogger("aegis-sast-runner")
 
 ALL_TOOLS = ["semgrep", "cppcheck", "flawfinder", "clang-tidy", "scan-build", "gcc-fanalyzer"]
 
@@ -79,11 +79,15 @@ class ScanOrchestrator:
         sdk_info = self._build_sdk_info(profile, enriched_profile)
 
         # 3. 도구별 태스크 생성
+        # - clang-tidy, scan-build: enriched (SDK 헤더 필요 — 컴파일 기반 분석)
+        # - cppcheck: original (SDK 헤더 -I 시 전부 파싱하여 타임아웃)
+        # - gcc-fanalyzer: original (호스트 gcc 폴백 시 ARM 헤더 불필요)
+        # - semgrep, flawfinder: profile 불필요 (텍스트/패턴 기반)
         task_map = {}
         if "semgrep" in active_tools:
             task_map["semgrep"] = self._run_semgrep(scan_dir, rulesets, timeout)
         if "cppcheck" in active_tools:
-            task_map["cppcheck"] = self._run_cppcheck(scan_dir, enriched_profile, timeout, compile_commands)
+            task_map["cppcheck"] = self._run_cppcheck(scan_dir, profile, timeout, compile_commands)
         if "flawfinder" in active_tools:
             task_map["flawfinder"] = self._run_flawfinder(scan_dir, timeout)
         if "clang-tidy" in active_tools:
@@ -96,7 +100,7 @@ class ScanOrchestrator:
             )
         if "gcc-fanalyzer" in active_tools:
             task_map["gcc-fanalyzer"] = self._run_gcc_analyzer(
-                scan_dir, source_files, enriched_profile, timeout,
+                scan_dir, source_files, profile, timeout,
             )
 
         # 4. 병렬 실행 + 시간 측정

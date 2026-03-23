@@ -1,4 +1,4 @@
-"""KnowledgeAssembler — 하이브리드 검색 (ID 직접조회 + 벡터 + 그래프 보강)."""
+"""KnowledgeAssembler — 하이브리드 검색 (ID 직접조회 + 벡터 + 그래프 보강 + RRF)."""
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ class GraphLike(Protocol):
 
 
 class KnowledgeAssembler:
-    """하이브리드 검색: ID 직접조회 + 벡터 유사도 + 그래프 보강."""
+    """하이브리드 검색: ID 직접조회 + 벡터 유사도 + 그래프 보강 + RRF."""
 
     def __init__(
         self,
@@ -52,10 +52,12 @@ class KnowledgeAssembler:
         relation_graph: GraphLike,
         *,
         neighbor_score: float = 0.8,
+        rrf_k: int = 60,
     ) -> None:
         self._vector = vector_search
         self._graph = relation_graph
         self._neighbor_score = neighbor_score
+        self._rrf_k = rrf_k
 
     def _enrich_with_graph(
         self, node_id: str, hit_dict: dict,
@@ -78,6 +80,7 @@ class KnowledgeAssembler:
         seen_ids: set[str],
         graph_depth: int,
         top_k: int,
+        source_filter: list[str] | None = None,
     ) -> tuple[list[dict], set[str], set[str], set[str]]:
         """경로 1: ID 직접 조회 + 그래프 이웃."""
         enriched_hits: list[dict] = []
@@ -92,6 +95,10 @@ class KnowledgeAssembler:
 
             node_info = self._graph.get_node_info(eid)
             if node_info is None:
+                continue
+
+            # 소스 필터링
+            if source_filter and node_info.get("source", "") not in source_filter:
                 continue
 
             hit_dict = {
@@ -115,6 +122,8 @@ class KnowledgeAssembler:
                     continue
                 ninfo = self._graph.get_node_info(nid)
                 if not ninfo:
+                    continue
+                if source_filter and ninfo.get("source", "") not in source_filter:
                     continue
                 neighbor_dict = {
                     "id": ninfo.get("id", nid),
@@ -146,6 +155,7 @@ class KnowledgeAssembler:
         seen_ids: set[str],
         top_k: int,
         min_score: float,
+        source_filter: list[str] | None = None,
     ) -> tuple[list[dict], set[str], set[str], set[str]]:
         """경로 2: 벡터 시맨틱 검색 + 그래프 보강."""
         enriched_hits: list[dict] = []
@@ -153,10 +163,14 @@ class KnowledgeAssembler:
         all_cve: set[str] = set()
         all_attack: set[str] = set()
 
-        vector_hits = self._vector.search(query, top_k=top_k, min_score=min_score)
+        vector_hits = self._vector.search(
+            query, top_k=top_k, min_score=min_score, source_filter=source_filter,
+        )
 
         for hit in vector_hits:
             if hit.id in seen_ids:
+                continue
+            if source_filter and hit.source not in source_filter:
                 continue
             if len(enriched_hits) >= top_k * 2:
                 break
@@ -184,6 +198,28 @@ class KnowledgeAssembler:
 
         return enriched_hits, all_cwe, all_cve, all_attack
 
+    @staticmethod
+    def _apply_rrf(result_lists: list[list[dict]], k: int = 60) -> list[dict]:
+        """Reciprocal Rank Fusion — 여러 검색 결과 리스트를 융합한다."""
+        rrf_scores: dict[str, float] = {}
+        hit_map: dict[str, dict] = {}
+
+        for result_list in result_lists:
+            for rank, hit in enumerate(result_list):
+                doc_id = hit["id"]
+                rrf_scores[doc_id] = rrf_scores.get(doc_id, 0.0) + 1.0 / (k + rank + 1)
+                if doc_id not in hit_map:
+                    hit_map[doc_id] = hit
+
+        merged = []
+        for doc_id, rrf_score in rrf_scores.items():
+            hit = hit_map[doc_id].copy()
+            hit["score"] = round(rrf_score, 6)
+            merged.append(hit)
+
+        merged.sort(key=lambda h: h["score"], reverse=True)
+        return merged
+
     def assemble(
         self,
         query: str,
@@ -192,20 +228,41 @@ class KnowledgeAssembler:
         min_score: float = 0.35,
         graph_depth: int = 2,
         exclude_ids: list[str] | None = None,
+        source_filter: list[str] | None = None,
     ) -> dict:
         """3경로 하이브리드 검색 → 병합 → 그래프 보강."""
+        if not query or not query.strip():
+            return {
+                "query": query or "",
+                "hits": [],
+                "total": 0,
+                "extracted_ids": [],
+                "related_cwe": [],
+                "related_cve": [],
+                "related_attack": [],
+                "match_type_counts": {"id_exact": 0, "graph_neighbor": 0, "vector_semantic": 0},
+            }
+
         seen_ids: set[str] = set(exclude_ids) if exclude_ids else set()
         extracted_ids = _extract_ids(query)
 
         exact_hits, cwe1, cve1, att1 = self._path_id_exact(
-            extracted_ids, seen_ids, graph_depth, top_k,
+            extracted_ids, seen_ids, graph_depth, top_k, source_filter=source_filter,
         )
         vector_hits, cwe2, cve2, att2 = self._path_vector_semantic(
-            query, seen_ids, top_k, min_score,
+            query, seen_ids, top_k, min_score, source_filter=source_filter,
         )
 
-        all_hits = exact_hits + vector_hits
-        all_hits.sort(key=lambda h: h.get("score", 0), reverse=True)
+        # RRF 또는 단순 정렬
+        if self._rrf_k > 0:
+            id_exact_list = [h for h in exact_hits if h.get("match_type") == "id_exact"]
+            neighbor_list = [h for h in exact_hits if h.get("match_type") == "graph_neighbor"]
+            all_hits = self._apply_rrf(
+                [id_exact_list, neighbor_list, vector_hits], k=self._rrf_k,
+            )
+        else:
+            all_hits = exact_hits + vector_hits
+            all_hits.sort(key=lambda h: h.get("score", 0), reverse=True)
 
         return {
             "query": query,
@@ -219,5 +276,40 @@ class KnowledgeAssembler:
                 "id_exact": sum(1 for h in all_hits if h.get("match_type") == "id_exact"),
                 "graph_neighbor": sum(1 for h in all_hits if h.get("match_type") == "graph_neighbor"),
                 "vector_semantic": sum(1 for h in all_hits if h.get("match_type") == "vector_semantic"),
+            },
+        }
+
+    def batch_assemble(self, queries: list[dict]) -> dict:
+        """여러 쿼리를 순차 실행하며 교차 중복을 제거한다."""
+        global_seen_ids: set[str] = set()
+        results = []
+
+        for q in queries:
+            exclude = list(global_seen_ids)
+            if q.get("exclude_ids"):
+                exclude.extend(q["exclude_ids"])
+
+            result = self.assemble(
+                q["query"],
+                top_k=q.get("top_k", 5),
+                min_score=q.get("min_score", 0.35),
+                graph_depth=q.get("graph_depth", 2),
+                exclude_ids=exclude,
+                source_filter=q.get("source_filter"),
+            )
+
+            for hit in result.get("hits", []):
+                global_seen_ids.add(hit["id"])
+
+            results.append(result)
+
+        total_hits = sum(r.get("total", 0) for r in results)
+
+        return {
+            "results": results,
+            "global_stats": {
+                "total_queries": len(queries),
+                "total_hits": total_hits,
+                "unique_ids": len(global_seen_ids),
             },
         }

@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback, DragEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import type { UploadedFile } from "@aegis/shared";
-import { FileText, Folder, FolderOpen, Upload, Trash2, Download, ChevronRight, Search, FolderUp, HardDrive, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { FileText, Upload, Trash2, Download, Search, FolderUp, HardDrive, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { fetchProjectFiles, uploadFiles, deleteProjectFile, downloadFile, logError } from "../api/client";
-import { EmptyState, PageHeader, ConfirmDialog, Spinner } from "../components/ui";
+import { EmptyState, PageHeader, ConfirmDialog, Spinner, FileTreeNode } from "../components/ui";
 import { useToast } from "../contexts/ToastContext";
 import { formatFileSize } from "../utils/format";
+import { buildTree, filterTree } from "../utils/tree";
 import { LANG_GROUPS, getLangColor } from "../constants/languages";
 import "./FilesPage.css";
 
@@ -25,159 +26,6 @@ function filterSupportedFiles(fileList: File[]): { supported: File[]; skipped: s
   }
   return { supported, skipped };
 }
-
-// ── Tree data ──
-
-interface TreeNode {
-  name: string;
-  path: string;
-  children: TreeNode[];
-  file?: UploadedFile;
-}
-
-function buildTree(files: UploadedFile[]): TreeNode {
-  const root: TreeNode = { name: "", path: "", children: [] };
-
-  for (const file of files) {
-    const filePath = ('path' in file ? (file as { path: string }).path : file.name) || file.name;
-    const parts = filePath.split("/");
-    let current = root;
-
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      const isFile = i === parts.length - 1;
-      const pathSoFar = parts.slice(0, i + 1).join("/");
-
-      if (isFile) {
-        current.children.push({ name: part, path: pathSoFar, children: [], file });
-      } else {
-        let folder = current.children.find((c) => c.name === part && !c.file);
-        if (!folder) {
-          folder = { name: part, path: pathSoFar, children: [] };
-          current.children.push(folder);
-        }
-        current = folder;
-      }
-    }
-  }
-
-  const sortNodes = (nodes: TreeNode[]) => {
-    nodes.sort((a, b) => {
-      const aIsFolder = !a.file;
-      const bIsFolder = !b.file;
-      if (aIsFolder !== bIsFolder) return aIsFolder ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
-    nodes.forEach((n) => sortNodes(n.children));
-  };
-  sortNodes(root.children);
-
-  return root;
-}
-
-function countFiles(node: TreeNode): number {
-  if (node.file) return 1;
-  return node.children.reduce((sum, c) => sum + countFiles(c), 0);
-}
-
-function filterTree(node: TreeNode, query: string): TreeNode | null {
-  if (node.file) {
-    return node.name.toLowerCase().includes(query) ? node : null;
-  }
-  const filtered = node.children
-    .map((c) => filterTree(c, query))
-    .filter(Boolean) as TreeNode[];
-  if (filtered.length === 0 && !node.name.toLowerCase().includes(query)) return null;
-  return { ...node, children: filtered };
-}
-
-// ── Tree node component ──
-
-const FileTreeNode: React.FC<{
-  node: TreeNode;
-  depth: number;
-  searchOpen: boolean;
-  defaultOpen?: boolean;
-  onClickFile: (file: UploadedFile) => void;
-  onDeleteFile: (file: UploadedFile) => void;
-  onDownloadFile: (file: UploadedFile) => void;
-}> = ({ node, depth, searchOpen, defaultOpen, onClickFile, onDeleteFile, onDownloadFile }) => {
-  const [open, setOpen] = useState(defaultOpen ?? depth < 2);
-  const isFolder = !node.file;
-
-  // When searching, force all folders open
-  const effectiveOpen = searchOpen || open;
-
-  // Indent guides
-  const guides = [];
-  for (let i = 0; i < depth; i++) {
-    guides.push(<span key={i} className="ftree-guide" />);
-  }
-
-  if (isFolder) {
-    return (
-      <>
-        <div
-          className="ftree-row ftree-row--folder"
-          onClick={() => setOpen(!open)}
-        >
-          <div className="ftree-indent">{guides}</div>
-          <ChevronRight size={14} className={`ftree-chevron${effectiveOpen ? " ftree-chevron--open" : ""}`} />
-          {effectiveOpen
-            ? <FolderOpen size={16} className="ftree-icon--folder" />
-            : <Folder size={16} className="ftree-icon--folder" />
-          }
-          <span className="ftree-name">{node.name}</span>
-          <span className="ftree-meta ftree-count">{countFiles(node)}개</span>
-        </div>
-        {effectiveOpen && node.children.map((child) => (
-          <FileTreeNode
-            key={child.path}
-            node={child}
-            depth={depth + 1}
-            searchOpen={searchOpen}
-            defaultOpen={defaultOpen}
-            onClickFile={onClickFile}
-            onDeleteFile={onDeleteFile}
-            onDownloadFile={onDownloadFile}
-          />
-        ))}
-      </>
-    );
-  }
-
-  const langColor = node.file ? getLangColor(node.file) : "var(--text-tertiary)";
-
-  return (
-    <div
-      className="ftree-row ftree-row--file"
-      onClick={() => node.file && onClickFile(node.file)}
-    >
-      <div className="ftree-indent">{guides}</div>
-      <span className="ftree-icon-spacer" />
-      <FileText size={16} style={{ color: langColor, flexShrink: 0 }} />
-      <span className="ftree-name">{node.name}</span>
-      {node.file?.language && <span className="ftree-meta ftree-lang">{node.file.language}</span>}
-      <span className="ftree-meta ftree-size">{node.file ? formatFileSize(node.file.size) : ""}</span>
-      <div className="ftree-actions">
-        <button
-          className="btn-icon"
-          title="다운로드"
-          onClick={(e) => { e.stopPropagation(); node.file && onDownloadFile(node.file); }}
-        >
-          <Download size={13} />
-        </button>
-        <button
-          className="btn-icon btn-danger"
-          title="삭제"
-          onClick={(e) => { e.stopPropagation(); node.file && onDeleteFile(node.file); }}
-        >
-          <Trash2 size={13} />
-        </button>
-      </div>
-    </div>
-  );
-};
 
 // ── Page ──
 
@@ -208,7 +56,9 @@ export const FilesPage: React.FC = () => {
     loadFiles();
   }, [loadFiles]);
 
-  const tree = useMemo(() => buildTree(files), [files]);
+  const getFilePath = useCallback((f: UploadedFile) => f.path || f.name, []);
+
+  const tree = useMemo(() => buildTree(files, getFilePath), [files, getFilePath]);
 
   const displayTree = useMemo(() => {
     if (!search.trim()) return tree;
@@ -296,9 +146,39 @@ export const FilesPage: React.FC = () => {
     }
   };
 
-  const handleClickFile = (file: UploadedFile) => {
+  const handleClickFile = useCallback((file: UploadedFile) => {
     navigate(`/projects/${projectId}/files/${file.id}`);
-  };
+  }, [navigate, projectId]);
+
+  const renderFileIcon = useCallback((file: UploadedFile) => (
+    <FileText size={16} style={{ color: getLangColor(file), flexShrink: 0 }} />
+  ), []);
+
+  const renderFileMeta = useCallback((file: UploadedFile) => (
+    <>
+      {file.language && <span className="ftree-meta ftree-lang">{file.language}</span>}
+      <span className="ftree-meta ftree-size">{formatFileSize(file.size)}</span>
+    </>
+  ), []);
+
+  const renderActions = useCallback((file: UploadedFile) => (
+    <>
+      <button
+        className="btn-icon"
+        title="다운로드"
+        onClick={(e) => { e.stopPropagation(); handleDownload(file); }}
+      >
+        <Download size={13} />
+      </button>
+      <button
+        className="btn-icon btn-danger"
+        title="삭제"
+        onClick={(e) => { e.stopPropagation(); handleDelete(file); }}
+      >
+        <Trash2 size={13} />
+      </button>
+    </>
+  ), []);
 
   // Drag & Drop
   const handleDragOver = (e: DragEvent) => {
@@ -444,15 +324,16 @@ export const FilesPage: React.FC = () => {
                 </div>
               ) : (
                 displayTree.children.map((node) => (
-                  <FileTreeNode
+                  <FileTreeNode<UploadedFile>
                     key={`${treeKey}-${node.path}`}
                     node={node}
                     depth={0}
                     searchOpen={search.trim().length > 0}
                     defaultOpen={treeDefaultOpen}
                     onClickFile={handleClickFile}
-                    onDeleteFile={handleDelete}
-                    onDownloadFile={handleDownload}
+                    renderFileIcon={renderFileIcon}
+                    renderFileMeta={renderFileMeta}
+                    renderActions={renderActions}
                   />
                 ))
               )}

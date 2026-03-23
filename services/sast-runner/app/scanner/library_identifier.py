@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger("s4-sast-runner")
+logger = logging.getLogger("aegis-sast-runner")
 
 # 버전 추출 패턴들
 _PATTERNS: list[tuple[str, str, re.Pattern]] = [
@@ -107,7 +107,7 @@ class LibraryIdentifier:
                     else:
                         scan(child, depth + 1)
             except PermissionError:
-                pass
+                logger.warning("Permission denied scanning directory: %s", child)
 
         scan(project_path)
         return candidates

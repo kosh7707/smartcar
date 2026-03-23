@@ -1,7 +1,7 @@
 # Knowledge Base 명세서
 
 > **소유자**: S5
-> **최종 업데이트**: 2026-03-19
+> **최종 업데이트**: 2026-03-20
 
 ---
 
@@ -219,7 +219,7 @@ ETL에서 11개 공격 표면으로 분류 (`scripts/threat-db/taxonomy.py`):
 
 ```bash
 cd services/knowledge-base
-.venv/bin/python -m pytest tests/ -q  # 36 passed
+.venv/bin/python -m pytest tests/ -q  # 54 passed (2026-03-20 확인)
 ```
 
 모든 테스트는 Neo4j 드라이버를 mock하여 실행 — Neo4j/Qdrant 미설치 환경에서도 통과.
@@ -228,8 +228,8 @@ cd services/knowledge-base
 |------------|------|------|
 | `test_neo4j_graph.py` | 6 | Neo4jGraph (노드/엣지 카운트, 이웃, 관계, 노드 조회) |
 | `test_code_graph_service.py` | 7 | CodeGraphService (적재, 호출자/피호출, 위험함수, 프로젝트 관리) |
-| `test_knowledge_assembler.py` | 6 | 하이브리드 검색, 중복 제거, ID 정확 매칭, 교차 참조 |
-| `test_nvd_client.py` | 17 | 버전 매칭, 캐시, CPE 추론, 배치 조회 |
+| `test_knowledge_assembler.py` | 15 | 하이브리드 검색, 중복 제거, 소스 필터링, 배치, RRF |
+| `test_nvd_client.py` | 26 | 버전 매칭, 캐시, CPE 추론, 배치 병렬, EPSS, KEV |
 
 ---
 

@@ -156,9 +156,9 @@
 | `s2-handoff/README.md` | S2 |
 | `s3-handoff/README.md` | S3 |
 | `s4-handoff/README.md` | S4 |
-| `s5-handoff/README.md` | **S5** (신규) |
-| `s6-handoff/README.md` | **S6** (신규) |
-| `s7-handoff/README.md` | **S7** (신규) |
+| `s5-handoff/README.md` | **S5** |
+| `s6-handoff/README.md` | **S6** |
+| `s7-handoff/README.md` | **S7** |
 
 ---
 
@@ -208,14 +208,17 @@
 
 ## 7. Observability 공통 규약
 
-상세: `docs/specs/observability.md`
+**상세: `docs/specs/observability.md`** — 전 서비스가 이 문서를 참조하며, 각 인수인계서에서도 이 문서를 참조해야 한다.
 
 ### 필수 준수 사항
 
 1. **에러 응답 형식**: `{ success: false, error: string, errorDetail: { code, message, requestId, retryable } }`
-2. **구조화 로깅**: JSON structured logging (pino 또는 동등). 서비스별 `logs/{service-name}.jsonl`에 기록.
-3. **X-Request-Id 전파**: 모든 서비스 간 HTTP 호출 시 `X-Request-Id` 헤더를 전파한다. 없으면 생성.
-4. **로그 파일 위치**: 프로젝트 루트 `logs/` 디렉토리 (git-ignored, 자동 생성).
+2. **구조화 로깅**: JSON structured logging. 서비스별 `logs/{service-name}.jsonl`에 기록.
+3. **로그 레벨 숫자 표준**: `20`(debug), `30`(info), `40`(warn), `50`(error), `60`(fatal). TypeScript/Python 무관 전 서비스 동일.
+4. **로그 필수 필드**: `level`(숫자), `time`(epoch ms), `service`(서비스 식별자), `msg`, `requestId`(요청 컨텍스트 시).
+5. **서비스 식별자**: `s1-frontend`, `s2-backend`, `s3-agent`, `s4-sast`, `s5-kb`, `s6-adapter`, `s6-ecu`, `s7-gateway`.
+6. **X-Request-Id 전파**: 모든 서비스 간 HTTP 호출 시 `X-Request-Id` 헤더를 전파한다. 없으면 생성. 응답에도 포함.
+7. **로그 파일 위치**: 프로젝트 루트 `logs/` 디렉토리 (git-ignored, 자동 생성).
 
 ---
 
@@ -226,7 +229,7 @@
 | 머신 | CPU / GPU | 메모리 | OS | 용도 |
 |------|-----------|--------|-----|------|
 | **개발 머신** | Intel i7-14700K (3.42GHz) | 64GB DDR5 | Windows 11 Education 24H2 (WSL2 Ubuntu 24.04.4 LTS) | S1, S2, S3, S4, S5, S6, S7(Gateway) 실행 |
-| **DGX Spark** | NVIDIA GB10 (aarch64) | 128GB LPDDR5x | DGX Spark OS 7.4.0 (GNU/Linux 6.14.0) | S7(LLM Engine) — Qwen3.5-35B-A3B FP8 서빙 |
+| **DGX Spark** | NVIDIA GB10 (aarch64) | 128GB LPDDR5x | DGX Spark OS 7.4.0 (GNU/Linux 6.14.0) | S7(LLM Engine) — Qwen3.5-122B-A10B-GPTQ-Int4 서빙 |
 
 ### 언어 + 런타임
 
@@ -292,3 +295,4 @@ docs/
 |------|------|
 | 2026-03-18 | 최초 작성. AEGIS 명명 + 6인 체제 확정. S2(AEGIS Core) 관리. |
 | 2026-03-19 | S7(LLM Gateway + LLM Engine) 신설. S3에서 분리. 7인 체제. LLM 접근 원칙 추가. |
+| 2026-03-23 | S5/S6/S7 인수인계서 (신규) 태그 제거. Observability 규약 강화 (로그 레벨 숫자 표준, 서비스 식별자, X-Request-Id 규약). |

@@ -20,3 +20,5 @@ export type { DashboardPeriod } from "./PeriodSelector";
 export { TrendChart } from "./TrendChart";
 export type { TrendPoint } from "./TrendChart";
 export { GateResultCard } from "./GateResultCard";
+export { FileTreeNode } from "./FileTreeNode";
+export type { FileTreeNodeProps } from "./FileTreeNode";

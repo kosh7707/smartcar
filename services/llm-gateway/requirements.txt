@@ -4,5 +4,6 @@ pydantic==2.9.0
 pydantic-settings==2.5.0
 httpx==0.27.0
 python-json-logger==2.0.7
+prometheus_client==0.21.1
 # qdrant-client, fastembed -> knowledge-base 서비스로 이관
 pytest-asyncio>=1.0.0

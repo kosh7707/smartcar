@@ -13,16 +13,31 @@ from fastapi.middleware.cors import CORSMiddleware
 from pythonjsonlogger.json import JsonFormatter
 
 
+# Python logging level → pino numeric level
+_LEVEL_TO_PINO = {
+    logging.DEBUG: 20,
+    logging.INFO: 30,
+    logging.WARNING: 40,
+    logging.ERROR: 50,
+    logging.CRITICAL: 60,
+}
+
+
 class _EpochMsFormatter(JsonFormatter):
-    """timestamp를 epoch ms로 출력하는 JSON 포매터."""
+    """timestamp를 epoch ms, level을 pino 숫자로 출력하는 JSON 포매터."""
 
     def add_fields(self, log_record, record, message_dict):
         super().add_fields(log_record, record, message_dict)
         log_record["time"] = int(record.created * 1000)
         log_record.pop("timestamp", None)
+        # level을 pino 숫자 표준으로 변환
+        log_record["level"] = _LEVEL_TO_PINO.get(record.levelno, 30)
+
+from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.context import RequestIdFilter
+from app.context import RequestIdFilter, get_request_id
+from app.errors import SastRunnerError
 from app.routers.scan import router as scan_router
 from app.scanner.orchestrator import ScanOrchestrator
 
@@ -33,7 +48,7 @@ def _setup_logging() -> None:
     formatter = _EpochMsFormatter(
         fmt="%(levelname)s %(message)s",
         rename_fields={"levelname": "level", "message": "msg"},
-        static_fields={"service": "s4-sast-runner"},
+        static_fields={"service": "s4-sast"},
     )
     handler.setFormatter(formatter)
 
@@ -44,7 +59,7 @@ def _setup_logging() -> None:
     file_handler = logging.FileHandler(log_path / "s4-sast-runner.jsonl", mode="a")
     file_handler.setFormatter(formatter)
 
-    logger = logging.getLogger("s4-sast-runner")
+    logger = logging.getLogger("aegis-sast-runner")
     logger.setLevel(logging.INFO)
     logger.addFilter(RequestIdFilter())
     logger.addHandler(handler)
@@ -55,7 +70,7 @@ def _setup_logging() -> None:
 async def lifespan(app: FastAPI):
     """앱 시작/종료 시 실행."""
     _setup_logging()
-    logger = logging.getLogger("s4-sast-runner")
+    logger = logging.getLogger("aegis-sast-runner")
 
     orch = ScanOrchestrator()
     tools = await orch.check_tools()
@@ -90,3 +105,22 @@ app.add_middleware(
 )
 
 app.include_router(scan_router)
+
+
+@app.exception_handler(SastRunnerError)
+async def sast_runner_error_handler(request, exc: SastRunnerError):
+    """SastRunnerError를 observability.md 형식으로 변환."""
+    request_id = request.headers.get("X-Request-Id") or get_request_id() or "unknown"
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "error": exc.message,
+            "errorDetail": {
+                "code": exc.code,
+                "message": exc.message,
+                "requestId": request_id,
+                "retryable": exc.retryable,
+            },
+        },
+    )

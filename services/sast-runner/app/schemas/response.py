@@ -64,6 +64,8 @@ class ScanResponse(BaseModel):
     findings: list[SastFinding] | None = None
     stats: ScanStats | None = None
     execution: dict[str, Any] | None = None
+    code_graph: dict[str, Any] | None = Field(default=None, alias="codeGraph")
+    sca: dict[str, Any] | None = None
     error: str | None = None
     error_detail: ErrorDetail | None = Field(default=None, alias="errorDetail")
 
@@ -71,7 +73,7 @@ class ScanResponse(BaseModel):
 
 
 class HealthResponse(BaseModel):
-    service: str = "s4-sast-runner"
+    service: str = "s4-sast"
     status: str = "ok"
     version: str = "0.4.0"
     semgrep: dict[str, Any] = {}

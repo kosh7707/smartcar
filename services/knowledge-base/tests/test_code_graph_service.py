@@ -135,3 +135,80 @@ def test_delete_nonexistent_project():
 
     deleted = svc.delete_project("nonexistent")
     assert deleted is False
+
+
+# ── origin 메타데이터 ──
+
+
+def test_normalize_functions_camelcase():
+    """S4 camelCase → snake_case 변환 확인."""
+    from app.graphrag.code_graph_service import CodeGraphService
+
+    functions = [
+        {
+            "name": "curl_exec",
+            "file": "third-party/libcurl/curl_exec.c",
+            "line": 42,
+            "origin": "modified-third-party",
+            "originalLib": "libcurl",
+            "originalVersion": "7.68.0",
+        },
+    ]
+    normalized = CodeGraphService._normalize_functions(functions)
+
+    assert normalized[0]["original_lib"] == "libcurl"
+    assert normalized[0]["original_version"] == "7.68.0"
+    assert normalized[0]["origin"] == "modified-third-party"
+
+
+def test_normalize_functions_no_origin():
+    """origin 필드 없는 일반 프로젝트 함수도 정상 처리."""
+    from app.graphrag.code_graph_service import CodeGraphService
+
+    functions = [
+        {"name": "main", "file": "src/main.cpp", "line": 1},
+    ]
+    normalized = CodeGraphService._normalize_functions(functions)
+
+    assert normalized[0]["name"] == "main"
+    assert normalized[0]["origin"] is None
+    assert normalized[0]["original_lib"] is None
+
+
+def test_ingest_with_origin():
+    """origin 포함 함수 적재 시 Neo4j SET 쿼리에 origin 필드 포함 확인."""
+    svc, session = _make_service()
+
+    def run_side_effect(query, **kwargs):
+        result = MagicMock()
+        if "count(n)" in query:
+            result.single.return_value = {"cnt": 2}
+        elif "count(r)" in query:
+            result.single.return_value = {"cnt": 1}
+        elif "DISTINCT n.file" in query:
+            result.__iter__ = MagicMock(return_value=iter([{"file": "curl_exec.c"}]))
+        return result
+
+    session.run.side_effect = run_side_effect
+
+    functions = [
+        {
+            "name": "curl_exec",
+            "file": "third-party/libcurl/curl_exec.c",
+            "line": 42,
+            "calls": ["curl_multi_perform"],
+            "originalLib": "libcurl",
+            "originalVersion": "7.68.0",
+            "origin": "modified-third-party",
+        },
+    ]
+
+    result = svc.ingest("test-project", functions)
+    assert result["project_id"] == "test-project"
+
+    # UNWIND 쿼리에 origin 필드가 포함되었는지 확인
+    unwind_calls = [
+        call for call in session.run.call_args_list
+        if "UNWIND" in str(call) and "origin" in str(call)
+    ]
+    assert len(unwind_calls) >= 1

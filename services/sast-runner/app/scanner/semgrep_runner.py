@@ -10,7 +10,7 @@ from typing import Any
 
 from app.errors import ScanTimeoutError, SemgrepNotAvailableError
 
-logger = logging.getLogger("s4-sast-runner")
+logger = logging.getLogger("aegis-sast-runner")
 
 
 class SemgrepRunner:

@@ -40,6 +40,7 @@ async def run_benchmark(
     target_cwes: list[int] | None = None,
     variant_filter: str | None = "01",
     timeout: int = 300,
+    custom_rules: bool = True,
 ) -> BenchmarkResult:
     """Juliet 벤치마크를 실행하고 결과를 반환.
 
@@ -48,7 +49,14 @@ async def run_benchmark(
         target_cwes: 대상 CWE 번호. None이면 PRIORITY_CWES 사용
         variant_filter: "01"이면 _01.c만. None이면 전부
         timeout: 도구 타임아웃 (초)
+        custom_rules: False이면 커스텀 Semgrep 룰 비활성화 (delta 측정용)
     """
+    # 커스텀 룰 비활성화 (delta 측정용)
+    from app.config import settings
+    _orig_rules_dir = settings.custom_rules_dir
+    if not custom_rules:
+        settings.custom_rules_dir = None
+        logger.info("Custom Semgrep rules DISABLED for this benchmark run")
     if target_cwes is None:
         target_cwes = PRIORITY_CWES
 
@@ -87,6 +95,11 @@ async def run_benchmark(
         )
 
     logger.info("=== Overall Recall: %.1f%% ===", result.overall_recall * 100)
+
+    # 커스텀 룰 복원
+    if not custom_rules:
+        settings.custom_rules_dir = _orig_rules_dir
+
     return result
 
 
@@ -201,6 +214,10 @@ def main() -> None:
         "--timeout", type=int, default=300,
         help="도구 타임아웃 (초, 기본: 300)",
     )
+    parser.add_argument(
+        "--no-custom-rules", action="store_true",
+        help="커스텀 Semgrep 룰 비활성화 (delta 측정용)",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -219,6 +236,7 @@ def main() -> None:
         target_cwes=target_cwes,
         variant_filter=variant,
         timeout=args.timeout,
+        custom_rules=not args.no_custom_rules,
     ))
 
     # JSON 출력

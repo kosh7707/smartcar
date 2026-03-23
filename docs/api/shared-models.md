@@ -37,6 +37,7 @@
 | ruleId | string (optional) | 룰 탐지 시 룰 ID |
 | suggestion | string (optional) | 수정 방안 |
 | fixCode | string (optional) | 수정 코드 예시 |
+| detail | string (optional) | 상세 분석 — 공격 경로, 영향 범위, 코드 흐름, 악용 시나리오 |
 
 ### AnalysisResult
 
@@ -46,14 +47,56 @@
 |------|------|------|
 | id | string | 고유 식별자 |
 | **projectId** | string | 소속 프로젝트 ID |
-| module | `"static_analysis" \| "dynamic_analysis" \| "dynamic_testing"` | 수행 모듈 |
-| status | `"pending" \| "running" \| "completed" \| "failed"` | 분석 상태 |
+| module | `"static_analysis" \| "dynamic_analysis" \| "dynamic_testing" \| "deep_analysis"` | 수행 모듈 |
+| status | `"pending" \| "running" \| "completed" \| "failed" \| "aborted"` | 분석 상태 |
 | vulnerabilities | Vulnerability[] | 발견된 취약점 목록 |
 | summary | AnalysisSummary | 요약 통계 |
 | warnings | AnalysisWarning[] (optional) | 분석 중 발생한 경고 목록 |
 | analyzedFileIds | string[] (optional) | 실제 분석된 파일 ID 목록 |
 | fileCoverage | FileCoverageEntry[] (optional) | 파일별 분석 커버리지 (정적 분석만) |
+| caveats | string[] (optional) | Agent 분석 한계/불확실성 (deep_analysis만) |
+| confidenceScore | number (optional) | Agent 신뢰도 원본 점수 (0.0~1.0) |
+| confidenceBreakdown | ConfidenceBreakdown (optional) | Agent 신뢰도 세부 항목 |
+| needsHumanReview | boolean (optional) | Agent가 사람 검토 필요 판단 |
+| recommendedNextSteps | string[] (optional) | Agent 수정 권고 전체 목록 |
+| policyFlags | string[] (optional) | 정책 플래그 (CWE-78, ISO21434 등) |
+| scaLibraries | ScaLibrary[] (optional) | SCA 라이브러리 목록 |
+| agentAudit | AgentAuditSummary (optional) | 에이전트 감사 요약 |
 | createdAt | string (ISO 8601) | 생성 시각 |
+
+### ConfidenceBreakdown
+
+Agent 신뢰도 세부 항목. 각 값은 0.0~1.0.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| grounding | number | 증적 근거 기반 판정 비율 |
+| deterministicSupport | number | 결정론적 도구 뒷받침 비율 |
+| ragCoverage | number | KB 위협 지식 커버리지 |
+| schemaCompliance | number | 스키마 준수율 |
+
+### ScaLibrary
+
+SCA(Software Composition Analysis)로 탐지된 라이브러리 정보.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| name | string | 라이브러리 이름 (e.g. "openssl") |
+| version | string (optional) | 버전 |
+| path | string | 프로젝트 내 경로 |
+| repoUrl | string (optional) | 원본 저장소 URL |
+
+### AgentAuditSummary
+
+에이전트 분석 감사 요약. S1 UI에서 분석 메타데이터 표시용.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| latencyMs | number | 전체 소요 시간 (밀리초) |
+| tokenUsage | `{ prompt: number, completion: number }` | LLM 토큰 사용량 |
+| turnCount | number (optional) | 에이전트 루프 턴 수 |
+| toolCallCount | number (optional) | 도구 호출 횟수 |
+| terminationReason | string (optional) | 종료 사유 (e.g. "content_returned") |
 
 ### AnalysisSummary
 
@@ -175,6 +218,21 @@ type SdkProfileId = string;
 | vendor | string | 제조사 (예: "STMicroelectronics") |
 | description | string | SDK 설명 |
 | defaults | Omit<BuildProfile, "sdkId"> | 이 SDK 선택 시 BuildProfile에 적용되는 기본값 |
+
+### BuildTarget
+
+프로젝트 내 독립 빌드 단위. MSA 구조 프로젝트에서 각 서비스를 별도 타겟으로 관리한다.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | string | 고유 식별자 (`target-{uuid}`) |
+| projectId | string | 소속 프로젝트 ID |
+| name | string | 타겟 이름 (e.g. "gateway", "body-control") |
+| relativePath | string | 프로젝트 루트 기준 상대 경로 (e.g. "gateway/") |
+| buildProfile | BuildProfile | 타겟별 독립 빌드 설정 |
+| buildSystem | "cmake" \| "make" \| "custom" (optional) | 빌드 시스템 (S4 탐색 결과) |
+| createdAt | string (ISO 8601) | 생성 시각 |
+| updatedAt | string (ISO 8601) | 수정 시각 |
 
 ### UploadedFile
 
@@ -333,7 +391,7 @@ CAN 메시지 주입 결과.
 |------|------|------|
 | id | string | `"run-{uuid}"` |
 | projectId | string | 소속 프로젝트 ID |
-| module | `"static_analysis" \| "dynamic_analysis" \| "dynamic_testing"` | 분석 모듈 |
+| module | `"static_analysis" \| "dynamic_analysis" \| "dynamic_testing" \| "deep_analysis"` | 분석 모듈 |
 | status | `"pending" \| "running" \| "completed" \| "failed"` | Run 상태 |
 | analysisResultId | string | 원본 AnalysisResult ID (역참조) |
 | findingCount | number | 정규화된 Finding 수 |
@@ -354,11 +412,12 @@ CAN 메시지 주입 결과.
 | status | FindingStatus | 라이프사이클 상태 |
 | severity | Severity | 심각도 |
 | confidence | `"high" \| "medium" \| "low"` | 신뢰도 |
-| sourceType | `"rule-engine" \| "llm-assist" \| "both"` | 탐지 출처 |
+| sourceType | `"rule-engine" \| "llm-assist" \| "both" \| "agent" \| "sast-tool"` | 탐지 출처 |
 | title | string | 제목 |
 | description | string | 상세 설명 |
 | location | string (optional) | 발생 위치 |
 | suggestion | string (optional) | 수정 방안 |
+| detail | string (optional) | 상세 분석 — 공격 경로, 영향 범위, 코드 흐름, 악용 시나리오 (Agent claim.detail) |
 | ruleId | string (optional) | 룰 ID |
 | createdAt | string (ISO 8601) | 생성 시각 |
 | updatedAt | string (ISO 8601) | 수정 시각 |
@@ -376,7 +435,7 @@ Finding과 증적(artifact) 간의 참조 연결.
 | id | string | `"evr-{uuid}"` |
 | findingId | string | 소속 Finding ID |
 | artifactId | string | 증적 ID (AnalysisResult, 파일, 세션 등) |
-| artifactType | `"analysis-result" \| "uploaded-file" \| "dynamic-session" \| "test-result" \| "sast-finding"` | 증적 유형 |
+| artifactType | `"analysis-result" \| "uploaded-file" \| "dynamic-session" \| "test-result" \| "sast-finding" \| "agent-assessment"` | 증적 유형 |
 | locatorType | `"line-range" \| "packet-range" \| "timestamp-window" \| "request-response-pair"` | 위치 지시자 유형 |
 | locator | object | 위치 상세 (예: `{ file, startLine, endLine }`) |
 | createdAt | string (ISO 8601) | 생성 시각 |
@@ -457,7 +516,7 @@ Finding과 증적(artifact) 간의 참조 연결.
 | generatedAt | string (ISO 8601) | 생성 시각 |
 | projectId | string | 프로젝트 ID |
 | projectName | string | 프로젝트명 |
-| modules | `{ static?: ModuleReport; dynamic?: ModuleReport; test?: ModuleReport }` | 모듈별 보고서 |
+| modules | `{ static?: ModuleReport; dynamic?: ModuleReport; test?: ModuleReport; deep?: ModuleReport }` | 모듈별 보고서 |
 | totalSummary | ReportSummary | 전체 집계 |
 | approvals | ApprovalRequest[] | 승인 요청 목록 |
 | auditTrail | AuditLogEntry[] | 감사 로그 |
@@ -688,6 +747,72 @@ type ApprovalActionType = "gate.override" | "finding.accepted_risk";
 | `"status"` | `{ messageCount, alertCount }` | 세션 상태 업데이트 |
 | `"injection-result"` | CanInjectionResponse | CAN 주입 결과 |
 | `"injection-error"` | `{ error: string }` | CAN 주입 실패 |
+
+#### WebSocket 메시지 — 정적 분석 (S2 → S1, `/ws/static-analysis?analysisId=`)
+
+| type | payload | 설명 |
+|------|---------|------|
+| `"static-progress"` | `{ analysisId, phase, currentChunk?, totalChunks?, totalFiles?, processedFiles?, message?, phaseWeights? }` | 진행률 |
+| `"static-warning"` | `{ analysisId, code, message }` | 경고 (LLM 실패 등) |
+| `"static-complete"` | `{ analysisId, resultId, findingCount, summary }` | 완료 |
+| `"static-error"` | `{ analysisId, error }` | 에러 |
+
+`phase`: `"queued" | "rule_engine" | "llm_chunk" | "merging" | "complete"`
+`phaseWeights`: 첫 번째 progress 이벤트에 포함 `{ queued: 2.5, rule_engine: 7.5, llm_chunk: 80, merging: 10 }`
+
+#### WebSocket 메시지 — 동적 테스트 (S2 → S1, `/ws/dynamic-test?testId=`)
+
+| type | payload | 설명 |
+|------|---------|------|
+| `"test-progress"` | `{ testId, current, total, crashes, anomalies }` | 진행률 |
+| `"test-finding"` | `{ testId, finding }` | 개별 Finding 발견 |
+| `"test-complete"` | `{ testId, resultId, findings }` | 완료 |
+| `"test-error"` | `{ testId, error }` | 에러 |
+
+#### WebSocket 메시지 — Quick→Deep 분석 (S2 → S1, `/ws/analysis?analysisId=`)
+
+| type | payload | 설명 |
+|------|---------|------|
+| `"analysis-progress"` | `{ analysisId, phase, message, targetName?, targetProgress? }` | 진행률 |
+| `"analysis-quick-complete"` | `{ analysisId, findingCount }` | Quick 완료 |
+| `"analysis-deep-complete"` | `{ analysisId, findingCount }` | Deep 완료 |
+| `"analysis-error"` | `{ analysisId, phase, error, retryable }` | 에러 |
+
+`phase`: `"quick_sast" | "quick_complete" | "deep_submitting" | "deep_analyzing" | "deep_complete"`
+`targetProgress`: `{ current: number, total: number }` (타겟별 분석 시)
+
+#### Analysis 진행 추적 DTO
+
+`POST /api/analysis/run` → `202 Accepted`:
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| analysisId | string | 분석 추적 ID |
+| status | `"running"` | 초기 상태 |
+
+`GET /api/analysis/status/:id`:
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| analysisId | string | 분석 추적 ID |
+| projectId | string | 프로젝트 ID |
+| status | `"running" \| "completed" \| "failed" \| "aborted"` | 현재 상태 |
+| error | string (optional) | 실패 시 에러 메시지 |
+
+#### PocResponse (`POST /api/analysis/poc`)
+
+요청: `{ projectId: string, findingId: string }`
+응답: `{ success: true, data: PocResponse }`
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| findingId | string | 대상 Finding ID |
+| poc.statement | string | PoC 제목/요약 |
+| poc.detail | string | PoC 상세 (마크다운 — 코드 블록, 실행 방법, 예상 결과) |
+| audit.latencyMs | number | S3 Agent 소요 시간 (ms) |
+| audit.tokenUsage | `{ prompt: number, completion: number }` | LLM 토큰 사용량 |
+
+> PoC 결과는 DB에 저장되지 않음 (on-demand, 매번 재생성). S1에서 세션 내 캐싱 가능.
 
 ### 동적 테스트
 
@@ -941,32 +1066,19 @@ type ApprovalActionType = "gate.override" | "finding.accepted_risk";
 
 ### 공통
 
-#### HealthResponse
+#### HealthResponse (`GET /health`)
 
 | 필드 | 타입 | 설명 |
 |------|------|------|
-| service | string | 서비스명 |
+| service | string | `"aegis-core-service"` |
 | status | `"ok" \| "error"` | 상태 |
-| version | string | 버전 |
-| llmGateway | `LlmGatewayHealth` | S3(LLM Gateway) 연결 상태 |
-| adapters | `AdaptersHealth` | 어댑터 연결 상태 |
+| version | string | 버전 (e.g. `"0.2.0"`) |
+| llmGateway | object \| null | S7(LLM Gateway) `/v1/health` 응답 원본. 미연결 시 `null` |
+| analysisAgent | object \| null | S3(Analysis Agent) `/v1/health` 응답 원본. 미연결 시 `null` |
+| sastRunner | object \| null | S4(SAST Runner) `/v1/health` 응답 원본. 미연결 시 `null` |
+| adapters | `{ total: number, connected: number }` | 어댑터 연결 현황 |
 
-#### LlmGatewayHealth
-
-| 필드 | 타입 | 설명 |
-|------|------|------|
-| status | `"ok" \| "unreachable"` | S3 연결 상태 |
-| endpoint? | string | S3 URL (연결 성공 시) |
-| error? | string | 에러 메시지 (연결 실패 시) |
-
-> S3 `/v1/health` 응답을 그대로 전달. S3 미연결 시 `{ status: "unreachable" }` 반환.
-
-#### AdaptersHealth
-
-| 필드 | 타입 | 설명 |
-|------|------|------|
-| total | number | 등록된 어댑터 수 |
-| connected | number | 연결된 어댑터 수 |
+> 각 하위 서비스 health는 `Promise.all` + `.catch(() => null)`로 수집. 하나가 실패해도 나머지는 반환.
 
 ### 분석 진행률
 

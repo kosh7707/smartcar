@@ -46,6 +46,8 @@ import type {
   FindingListResponse,
   FindingDetailResponse,
   FindingStatusUpdateRequest,
+  BuildTarget,
+  BuildProfile,
 } from "@aegis/shared";
 
 const DEFAULT_BACKEND_URL = "http://localhost:3000";
@@ -326,15 +328,64 @@ export async function fetchSourceFiles(projectId: string): Promise<SourceFileEnt
   return res.data;
 }
 
+export interface SourceFileContentResponse {
+  path: string;
+  content: string;
+  language: string;
+  size: number;
+}
+
+export async function fetchSourceFileContent(
+  projectId: string,
+  path: string,
+): Promise<SourceFileContentResponse> {
+  const res = await apiFetch<{ success: boolean; data: SourceFileContentResponse }>(
+    `/api/projects/${projectId}/source/file?path=${encodeURIComponent(path)}`,
+  );
+  return res.data;
+}
+
 // ── New Analysis API ──
 
-export async function runAnalysis(projectId: string): Promise<{ analysisId: string; status: string }> {
+export async function runAnalysis(
+  projectId: string,
+  targetIds?: string[],
+): Promise<{ analysisId: string; status: string }> {
+  const body: Record<string, unknown> = { projectId };
+  if (targetIds && targetIds.length > 0) body.targetIds = targetIds;
   const res = await apiFetch<{ success: boolean; data: { analysisId: string; status: string } }>(
     "/api/analysis/run",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ projectId }),
+      body: JSON.stringify(body),
+    },
+  );
+  return res.data;
+}
+
+export interface PocResponse {
+  findingId: string;
+  poc: {
+    statement: string;
+    detail: string;
+  };
+  audit: {
+    latencyMs: number;
+    tokenUsage: { prompt: number; completion: number };
+  };
+}
+
+export async function generatePoc(
+  projectId: string,
+  findingId: string,
+): Promise<PocResponse> {
+  const res = await apiFetch<{ success: boolean; data: PocResponse }>(
+    "/api/analysis/poc",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectId, findingId }),
     },
   );
   return res.data;
@@ -589,7 +640,7 @@ export async function fetchStaticDashboardSummary(
   period: string = "30d",
 ): Promise<StaticAnalysisDashboardSummary> {
   const res = await apiFetch<StaticDashboardResponse>(
-    `/api/static-analysis/summary?projectId=${encodeURIComponent(projectId)}&period=${period}`,
+    `/api/analysis/summary?projectId=${encodeURIComponent(projectId)}&period=${period}`,
   );
   return res.data!;
 }
@@ -694,4 +745,59 @@ export async function fetchProjectReport(projectId: string, filters?: ReportFilt
 export async function fetchModuleReport(projectId: string, module: "static" | "dynamic" | "test", filters?: ReportFilters): Promise<ModuleReport> {
   const res = await apiFetch<ModuleReportResponse>(`/api/projects/${projectId}/report/${module}${buildReportQuery(filters)}`);
   return res.data!;
+}
+
+// ── Build Targets ──
+
+export async function fetchBuildTargets(projectId: string): Promise<BuildTarget[]> {
+  const res = await apiFetch<{ success: boolean; data: BuildTarget[] }>(
+    `/api/projects/${projectId}/targets`,
+  );
+  return res.data;
+}
+
+export async function createBuildTarget(
+  projectId: string,
+  body: { name: string; relativePath: string; buildProfile?: BuildProfile },
+): Promise<BuildTarget> {
+  const res = await apiFetch<{ success: boolean; data: BuildTarget }>(
+    `/api/projects/${projectId}/targets`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+  return res.data;
+}
+
+export async function updateBuildTarget(
+  projectId: string,
+  targetId: string,
+  body: { name?: string; buildProfile?: BuildProfile },
+): Promise<BuildTarget> {
+  const res = await apiFetch<{ success: boolean; data: BuildTarget }>(
+    `/api/projects/${projectId}/targets/${targetId}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+  return res.data;
+}
+
+export async function deleteBuildTarget(
+  projectId: string,
+  targetId: string,
+): Promise<void> {
+  await apiFetch(`/api/projects/${projectId}/targets/${targetId}`, { method: "DELETE" });
+}
+
+export async function discoverBuildTargets(projectId: string): Promise<BuildTarget[]> {
+  const res = await apiFetch<{ success: boolean; data: BuildTarget[] }>(
+    `/api/projects/${projectId}/targets/discover`,
+    { method: "POST" },
+  );
+  return res.data;
 }

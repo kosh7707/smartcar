@@ -57,8 +57,8 @@ class TerminationPolicy:
     def _check(self, session: AgentSession) -> str:
         budget = session.budget
 
-        # 1. max steps
-        if budget.total_steps >= budget.max_steps:
+        # 1. max turns (턴 수 기반)
+        if session.turn_count >= budget.max_steps:
             return "max_steps"
 
         # 2. completion token 예산

@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     nvd_api_base: str = "https://services.nvd.nist.gov/rest/json/cves/2.0"
     nvd_rate_delay: float = 1.0
     nvd_cache_ttl: int = 86400
+    nvd_batch_concurrency: int = 5
+    epss_enabled: bool = True
+    kev_ttl: int = 3600
+
+    rrf_k: int = 60
 
     model_config = {"env_prefix": "AEGIS_KB_", "env_file": ".env"}
 

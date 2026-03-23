@@ -9,7 +9,7 @@ from typing import Any
 from app.errors import SarifParseError
 from app.schemas.response import SastDataFlowStep, SastFinding, SastFindingLocation
 
-logger = logging.getLogger("s4-sast-runner")
+logger = logging.getLogger("aegis-sast-runner")
 
 
 def parse_sarif(

@@ -20,8 +20,14 @@ if [ -x "$NEO4J_HOME/bin/neo4j" ]; then
   if echo "$STATUS" | grep -q "not running"; then
     echo "[KB] Neo4j 기동 중..."
     "$NEO4J_HOME/bin/neo4j" start
-    echo "[KB] Neo4j 기동 완료 — 안정화 대기 5초"
-    sleep 5
+    # Bolt 포트(7687) 열릴 때까지 대기 (최대 15초, sleep 5 대신 능동 대기)
+    for i in $(seq 1 15); do
+      if bash -c "echo > /dev/tcp/localhost/7687" 2>/dev/null; then
+        echo "[KB] Neo4j ready (${i}초)"
+        break
+      fi
+      sleep 1
+    done
   else
     echo "[KB] Neo4j 이미 실행 중"
   fi

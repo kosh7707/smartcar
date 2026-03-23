@@ -7,6 +7,12 @@ import { NotFoundError, InvalidInputError } from "../lib/errors";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500 * 1024 * 1024 } });
 
+function validateProjectId(pid: string): void {
+  if (!pid || !/^[\w-]+$/.test(pid)) {
+    throw new InvalidInputError("Invalid project ID format");
+  }
+}
+
 export function createProjectSourceRouter(
   sourceService: ProjectSourceService,
   projectDAO: IProjectDAO,
@@ -16,6 +22,7 @@ export function createProjectSourceRouter(
   // POST /api/projects/:pid/source/upload — ZIP/tar.gz 업로드
   router.post("/upload", upload.single("file"), asyncHandler(async (req, res) => {
     const pid = req.params.pid as string;
+    validateProjectId(pid);
     if (!projectDAO.findById(pid)) throw new NotFoundError(`Project not found: ${pid}`);
     if (!req.file) throw new InvalidInputError("No file uploaded. Send a ZIP or tar.gz as 'file'");
 
@@ -35,6 +42,7 @@ export function createProjectSourceRouter(
   // POST /api/projects/:pid/source/clone — Git clone
   router.post("/clone", asyncHandler(async (req, res) => {
     const pid = req.params.pid as string;
+    validateProjectId(pid);
     if (!projectDAO.findById(pid)) throw new NotFoundError(`Project not found: ${pid}`);
 
     const { gitUrl, branch } = req.body as { gitUrl?: string; branch?: string };
@@ -56,6 +64,7 @@ export function createProjectSourceRouter(
   // GET /api/projects/:pid/source/files — 파일 트리
   router.get("/files", asyncHandler(async (req, res) => {
     const pid = req.params.pid as string;
+    validateProjectId(pid);
     if (!projectDAO.findById(pid)) throw new NotFoundError(`Project not found: ${pid}`);
 
     const files = sourceService.listFiles(pid);
@@ -65,6 +74,7 @@ export function createProjectSourceRouter(
   // GET /api/projects/:pid/source/file — 파일 내용 읽기
   router.get("/file", asyncHandler(async (req, res) => {
     const pid = req.params.pid as string;
+    validateProjectId(pid);
     const filePath = req.query.path as string;
     if (!filePath) throw new InvalidInputError("path query parameter required");
 
@@ -75,6 +85,7 @@ export function createProjectSourceRouter(
   // DELETE /api/projects/:pid/source — 소스 삭제
   router.delete("/", asyncHandler(async (req, res) => {
     const pid = req.params.pid as string;
+    validateProjectId(pid);
     sourceService.deleteSource(pid);
     res.json({ success: true });
   }));

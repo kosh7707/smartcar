@@ -27,3 +27,8 @@ export function getLangColor(file: UploadedFile): string {
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
   return LANG_COLORS[ext] ?? "var(--text-tertiary)";
 }
+
+/** Get color by language name string (for SourceFileEntry etc.) */
+export function getLangColorByName(language: string): string {
+  return LANG_COLORS[language] ?? "var(--text-tertiary)";
+}

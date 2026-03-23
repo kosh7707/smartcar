@@ -40,6 +40,19 @@ export interface SastToolResult {
   error?: string;
 }
 
+export interface SastCodeGraph {
+  functions: Array<{ name: string; file: string; line: number; complexity?: number }>;
+  callEdges: Array<{ caller: string; callee: string; file: string; line: number }>;
+  complexity?: Record<string, number>;
+}
+
+export interface SastScaLibrary {
+  name: string;
+  version?: string;
+  path: string;
+  repoUrl?: string;
+}
+
 export interface SastScanResponse {
   success: boolean;
   scanId: string;
@@ -65,7 +78,22 @@ export interface SastScanResponse {
       sdkNoiseRemoved: number;
     };
   };
+  /** 코드 구조 그래프 (projectPath 모드에서만 반환) */
+  codeGraph?: SastCodeGraph | null;
+  /** SCA 분석 결과 — 라이브러리 목록 (CVE는 S5에서 별도 조회) */
+  sca?: { libraries: SastScaLibrary[] } | null;
   error?: string;
+}
+
+/** 빌드 타겟 탐색 응답 */
+export interface DiscoverTargetsResponse {
+  targets: Array<{
+    name: string;
+    relativePath: string;
+    buildSystem: string;
+    buildFile: string;
+  }>;
+  elapsedMs: number;
 }
 
 // ── 클라이언트 ──
@@ -123,6 +151,27 @@ export class SastClient {
     }
 
     return data;
+  }
+
+  async discoverTargets(
+    projectPath: string,
+    requestId?: string,
+  ): Promise<DiscoverTargetsResponse> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (requestId) headers["X-Request-Id"] = requestId;
+
+    const res = await this.doFetch(
+      `${this.baseUrl}/v1/discover-targets`,
+      headers,
+      { projectPath },
+      requestId,
+    );
+
+    try {
+      return (await res.json()) as DiscoverTargetsResponse;
+    } catch (err) {
+      throw new SastUnavailableError("Failed to parse discover-targets response", err);
+    }
   }
 
   async checkHealth(): Promise<Record<string, unknown> | null> {

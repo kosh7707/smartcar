@@ -19,17 +19,19 @@ import {
 import { formatDateTime } from "../utils/format";
 import "./ReportPage.css";
 
-type ModuleTab = "all" | "static" | "dynamic" | "test";
+type ModuleTab = "all" | "static" | "deep" | "dynamic" | "test";
 
 const MODULE_TAB_LABELS: Record<ModuleTab, string> = {
   all: "전체",
   static: "정적 분석",
+  deep: "심층 분석",
   dynamic: "동적 분석",
   test: "동적 테스트",
 };
 
 const MODULE_KEY_MAP: Record<string, AnalysisModule> = {
   static: "static_analysis",
+  deep: "deep_analysis",
   dynamic: "dynamic_analysis",
   test: "dynamic_testing",
 };
@@ -108,7 +110,7 @@ export const ReportPage: React.FC = () => {
 
   // Collect findings for active tab
   const activeModules = activeTab === "all"
-    ? (["static", "dynamic", "test"] as const)
+    ? (["static", "deep", "dynamic", "test"] as const)
     : [activeTab] as const;
 
   const moduleEntries = activeModules

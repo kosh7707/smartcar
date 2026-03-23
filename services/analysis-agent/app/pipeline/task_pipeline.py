@@ -245,6 +245,7 @@ class TaskPipeline:
         claims = [
             Claim(
                 statement=c.get("statement", ""),
+                detail=c.get("detail"),
                 supportingEvidenceRefs=c.get("supportingEvidenceRefs", []),
                 location=c.get("location"),
             )

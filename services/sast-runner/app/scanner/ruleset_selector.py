@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.schemas.request import BuildProfile
 
-logger = logging.getLogger("s4-sast-runner")
+logger = logging.getLogger("aegis-sast-runner")
 
 # 언어 표준 → 언어 계열 매핑
 _CPP_STANDARDS = frozenset({

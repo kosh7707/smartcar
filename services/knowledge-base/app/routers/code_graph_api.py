@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query
+
+from app.context import set_request_id
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -39,7 +41,11 @@ def _require_service():
 
 
 @router.post("/{project_id}/ingest")
-async def ingest(project_id: str, req: IngestRequest) -> dict:
+async def ingest(
+    project_id: str, req: IngestRequest,
+    x_request_id: str | None = Header(None, alias="X-Request-Id"),
+) -> dict:
+    set_request_id(x_request_id)
     _require_service()
     result = _service.ingest(project_id, req.functions)
     return result
@@ -72,7 +78,9 @@ async def callees(project_id: str, function_name: str) -> dict:
 @router.post("/{project_id}/dangerous-callers")
 async def dangerous_callers(
     project_id: str, req: DangerousCallersRequest,
+    x_request_id: str | None = Header(None, alias="X-Request-Id"),
 ) -> dict:
+    set_request_id(x_request_id)
     _require_service()
     results = _service.find_dangerous_callers(project_id, req.dangerous_functions)
     return {"results": results}

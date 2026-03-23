@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { CheckCircle, AlertTriangle, Loader, XCircle } from "lucide-react";
 import type { AnalysisStage } from "../../hooks/useAnalysisWebSocket";
-import { ConfirmDialog, Spinner } from "../ui";
+import { useElapsedTimer } from "../../hooks/useElapsedTimer";
+import { ConfirmDialog } from "../ui";
 import "./TwoStageProgressView.css";
 
 interface Props {
@@ -13,6 +14,8 @@ interface Props {
   error: string | null;
   errorPhase: "quick" | "deep" | null;
   retryable: boolean;
+  targetName?: string | null;
+  targetProgress?: { current: number; total: number } | null;
   onRetry: () => void;
   onViewResults: () => void;
   onBack: () => void;
@@ -22,14 +25,6 @@ const STAGES: { key: AnalysisStage; label: string }[] = [
   { key: "quick_sast", label: "빠른 분석 (SAST)" },
   { key: "deep_analyzing", label: "심층 분석 (Agent)" },
 ];
-
-function getStageIndex(stage: AnalysisStage): number {
-  if (stage === "quick_sast") return 0;
-  if (stage === "quick_complete") return 0;
-  if (stage === "deep_submitting" || stage === "deep_analyzing") return 1;
-  if (stage === "deep_complete") return 1;
-  return -1;
-}
 
 function isStageComplete(stageKey: string, currentStage: AnalysisStage): boolean {
   if (stageKey === "quick_sast") {
@@ -60,34 +55,18 @@ export const TwoStageProgressView: React.FC<Props> = ({
   error,
   errorPhase,
   retryable,
+  targetName,
+  targetProgress,
   onRetry,
   onViewResults,
   onBack,
 }) => {
-  const [elapsed, setElapsed] = useState(0);
-  const startRef = useRef(Date.now());
   const [showAbortConfirm, setShowAbortConfirm] = useState(false);
-
-  useEffect(() => {
-    startRef.current = Date.now();
-    setElapsed(0);
-  }, [analysisId]);
-
-  useEffect(() => {
-    if (stage === "deep_complete" || stage === "error" || stage === "idle") return;
-    const timer = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [stage]);
-
-  const minutes = Math.floor(elapsed / 60);
-  const seconds = elapsed % 60;
-  const timeStr = minutes > 0 ? `${minutes}분 ${seconds}초` : `${seconds}초`;
+  const timerActive = stage !== "deep_complete" && stage !== "error" && stage !== "idle";
+  const { timeStr } = useElapsedTimer(timerActive, analysisId);
 
   const isComplete = stage === "deep_complete";
   const isError = stage === "error";
-  const currentIndex = getStageIndex(stage);
 
   return (
     <div className="page-enter two-stage-progress">
@@ -97,6 +76,18 @@ export const TwoStageProgressView: React.FC<Props> = ({
         </h2>
         <span className="two-stage-elapsed">{timeStr}</span>
       </div>
+
+      {/* Target progress (multi-target only) */}
+      {targetProgress && targetProgress.total > 1 && (
+        <div className="two-stage-target-info">
+          <span className="two-stage-target-name">
+            {targetName ? `[${targetName}]` : "타겟"} 분석 중
+          </span>
+          <span className="two-stage-target-progress">
+            {targetProgress.current} / {targetProgress.total} 타겟
+          </span>
+        </div>
+      )}
 
       {/* Stepper */}
       <div className="card two-stage-stepper">
@@ -111,7 +102,7 @@ export const TwoStageProgressView: React.FC<Props> = ({
                 {complete ? (
                   <CheckCircle size={24} />
                 ) : active ? (
-                  <Loader size={24} className="spin" />
+                  <Loader size={24} className="animate-spin" />
                 ) : (
                   <span className="two-stage-step__number">{i + 1}</span>
                 )}

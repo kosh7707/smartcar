@@ -20,6 +20,12 @@ class RetryPolicy:
             return True
         return False
 
-    def get_delay_ms(self, attempt: int) -> int:
-        """지수 백오프: 1000 * 2^attempt, 최대 8000ms."""
-        return min(1000 * (2 ** attempt), 8000)
+    def get_delay_seconds(self, error: Exception, attempt: int) -> float:
+        """재시도 전 대기 시간 (초).
+
+        Circuit Breaker 503 → 30초 (S7 복구 주기에 맞춤).
+        기타 → 지수 백오프 1s, 2s, 4s, 8s max.
+        """
+        if isinstance(error, LlmHttpError) and error.upstream_status == 503:
+            return 30.0
+        return min(1.0 * (2 ** attempt), 8.0)

@@ -20,6 +20,8 @@ import type {
   DynamicTestFinding,
   AnalysisStatus,
   UploadedFile,
+  BuildTarget,
+  BuildProfile,
 } from "@aegis/shared";
 import type { StoredFile } from "./file-store";
 
@@ -206,4 +208,16 @@ export interface IProjectSettingsDAO {
   set(projectId: string, key: string, value: string): void;
   deleteKey(projectId: string, key: string): void;
   deleteByProjectId(projectId: string): void;
+}
+
+export interface IBuildTargetDAO {
+  save(target: BuildTarget): void;
+  findById(id: string): BuildTarget | undefined;
+  findByProjectId(projectId: string): BuildTarget[];
+  update(
+    id: string,
+    fields: { name?: string; relativePath?: string; buildProfile?: BuildProfile; buildSystem?: string },
+  ): BuildTarget | undefined;
+  delete(id: string): boolean;
+  deleteByProjectId(projectId: string): number;
 }

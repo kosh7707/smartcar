@@ -1,31 +1,38 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
-import type { AnalysisResult, UploadedFile } from "@aegis/shared";
+import type { AnalysisResult, UploadedFile, Finding } from "@aegis/shared";
 import type { RunDetailResponse } from "@aegis/shared";
+import type { SourceFileEntry } from "../api/client";
 import { FileSearch } from "lucide-react";
 import { useStaticDashboard } from "../hooks/useStaticDashboard";
 import { useAnalysisWebSocket } from "../hooks/useAnalysisWebSocket";
+import { useBuildTargets } from "../hooks/useBuildTargets";
 import {
   fetchAnalysisResult,
   fetchProjectFiles,
+  fetchProjectFindings,
+  fetchSourceFiles,
   fetchRunDetail,
   logError,
 } from "../api/client";
 import { useToast } from "../contexts/ToastContext";
 import { useSetAnalysisGuard } from "../contexts/AnalysisGuardContext";
 import { SourceUploadView } from "../components/static/SourceUploadView";
+import { SourceTreeView } from "../components/static/SourceTreeView";
 import { AnalysisResultsView } from "../components/static/AnalysisResultsView";
 import { VulnerabilityDetailView } from "../components/static/VulnerabilityDetailView";
 import { StaticDashboard } from "../components/static/StaticDashboard";
 import { TwoStageProgressView } from "../components/static/TwoStageProgressView";
 import { RunDetailView } from "../components/static/RunDetailView";
 import { FindingDetailView } from "../components/static/FindingDetailView";
+import { TargetSelectDialog } from "../components/static/TargetSelectDialog";
 import { PageHeader, BackButton, Spinner } from "../components/ui";
 import "./StaticAnalysisPage.css";
 
 type PageView =
   | "dashboard"
   | "sourceUpload"
+  | "sourceTree"
   | "progress"
   | "runDetail"
   | "findingDetail"
@@ -41,15 +48,20 @@ export const StaticAnalysisPage: React.FC = () => {
   // Hooks
   const dashboard = useStaticDashboard(projectId);
   const analysis = useAnalysisWebSocket();
+  const buildTargets = useBuildTargets(projectId);
 
   // View routing
   const [view, setView] = useState<PageView>("dashboard");
   const [projectFiles, setProjectFiles] = useState<UploadedFile[]>([]);
+  const [sourceFiles, setSourceFiles] = useState<SourceFileEntry[]>([]);
+  const [findings, setFindings] = useState<Finding[]>([]);
   const [viewingResult, setViewingResult] = useState<AnalysisResult | null>(null);
   const [selectedVuln, setSelectedVuln] = useState<AnalysisResult["vulnerabilities"][0] | null>(null);
   const [runDetail, setRunDetail] = useState<RunDetailResponse["data"] | null>(null);
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const [runDetailLoading, setRunDetailLoading] = useState(false);
+  const [analysisResultData, setAnalysisResultData] = useState<AnalysisResult | null>(null);
+  const [showTargetSelect, setShowTargetSelect] = useState(false);
 
   // Navigation guard: block when analysis is running
   useEffect(() => {
@@ -66,6 +78,19 @@ export const StaticAnalysisPage: React.FC = () => {
   }, [projectId]);
 
   useEffect(() => { loadProjectFiles(); }, [loadProjectFiles]);
+
+  // Load source files + findings for source tree overlay
+  const loadSourceData = useCallback(() => {
+    if (!projectId) return;
+    fetchSourceFiles(projectId)
+      .then(setSourceFiles)
+      .catch(() => setSourceFiles([]));
+    fetchProjectFindings(projectId)
+      .then(setFindings)
+      .catch(() => setFindings([]));
+  }, [projectId]);
+
+  useEffect(() => { loadSourceData(); }, [loadSourceData]);
 
   // Handle ?analysisId= legacy URL
   useEffect(() => {
@@ -93,14 +118,22 @@ export const StaticAnalysisPage: React.FC = () => {
     setSelectedFindingId(null);
     analysis.reset();
     dashboard.refresh();
-  }, [setSearchParams, analysis, dashboard]);
+    loadSourceData(); // refresh source files + findings
+  }, [setSearchParams, analysis.reset, dashboard.refresh, loadSourceData]);
 
   const handleViewRun = useCallback(async (runId: string) => {
     setRunDetailLoading(true);
+    setAnalysisResultData(null);
     setView("runDetail");
     try {
       const detail = await fetchRunDetail(runId);
       setRunDetail(detail);
+      // Fetch agent analysis result if available
+      if (detail.run.analysisResultId) {
+        fetchAnalysisResult(detail.run.analysisResultId)
+          .then(setAnalysisResultData)
+          .catch(() => {}); // agent result unavailable is OK
+      }
     } catch (e) {
       logError("Run detail load", e);
       toast.error("Run 상세를 불러올 수 없습니다.");
@@ -119,16 +152,41 @@ export const StaticAnalysisPage: React.FC = () => {
     setView("sourceUpload");
   }, []);
 
+  const handleBrowseTree = useCallback(() => {
+    setView("sourceTree");
+  }, []);
+
+  const handleDiscoverTargets = useCallback(async () => {
+    try {
+      const discovered = await buildTargets.discover();
+      toast.success(`${discovered.length}개 빌드 타겟 발견`);
+    } catch {
+      toast.error("타겟 탐색에 실패했습니다.");
+    }
+  }, [buildTargets, toast]);
+
   const handleAnalysisStart = useCallback(() => {
     if (!projectId) return;
+    // If build targets exist, show selection dialog first
+    if (buildTargets.targets.length > 0) {
+      setShowTargetSelect(true);
+      return;
+    }
     analysis.startAnalysis(projectId);
     setView("progress");
-  }, [projectId, analysis]);
+  }, [projectId, analysis.startAnalysis, buildTargets.targets.length]);
+
+  const handleAnalysisWithTargets = useCallback((selectedTargetIds: string[]) => {
+    if (!projectId) return;
+    setShowTargetSelect(false);
+    analysis.startAnalysis(projectId, selectedTargetIds);
+    setView("progress");
+  }, [projectId, analysis.startAnalysis]);
 
   const handleRetry = useCallback(() => {
     if (!projectId) return;
     analysis.startAnalysis(projectId);
-  }, [projectId, analysis]);
+  }, [projectId, analysis.startAnalysis]);
 
   const handleViewResults = useCallback(() => {
     goToDashboard();
@@ -212,6 +270,7 @@ export const StaticAnalysisPage: React.FC = () => {
     return (
       <RunDetailView
         runDetail={runDetail}
+        analysisResult={analysisResultData}
         projectId={projectId}
         onBack={goToDashboard}
         onSelectFinding={handleSelectFinding}
@@ -232,10 +291,29 @@ export const StaticAnalysisPage: React.FC = () => {
         error={analysis.error}
         errorPhase={analysis.errorPhase}
         retryable={analysis.retryable}
+        targetName={analysis.targetName}
+        targetProgress={analysis.targetProgress}
         onRetry={handleRetry}
         onViewResults={handleViewResults}
         onBack={goToDashboard}
       />
+    );
+  }
+
+  // Source tree explorer
+  if (view === "sourceTree") {
+    return (
+      <div className="page-enter">
+        <BackButton onClick={goToDashboard} label="대시보드로" />
+        <SourceTreeView
+          projectId={projectId}
+          sourceFiles={sourceFiles}
+          findings={findings}
+          onAnalysisStart={handleAnalysisStart}
+          onReupload={() => setView("sourceUpload")}
+          onSelectFinding={handleSelectFinding}
+        />
+      </div>
     );
   }
 
@@ -248,6 +326,8 @@ export const StaticAnalysisPage: React.FC = () => {
         <SourceUploadView
           projectId={projectId}
           onAnalysisStart={handleAnalysisStart}
+          onBrowseTree={handleBrowseTree}
+          onDiscoverTargets={handleDiscoverTargets}
         />
       </div>
     );
@@ -279,6 +359,7 @@ export const StaticAnalysisPage: React.FC = () => {
   }
 
   return (
+    <>
     <StaticDashboard
       projectId={projectId}
       summary={dashboard.summary}
@@ -294,6 +375,16 @@ export const StaticAnalysisPage: React.FC = () => {
       onResumeAnalysis={handleResumeAnalysis}
       onAbortAnalysis={goToDashboard}
       onFileClick={handleFileClick}
+      onBrowseTree={sourceFiles.length > 0 ? handleBrowseTree : undefined}
     />
+
+    {/* Target selection dialog */}
+    <TargetSelectDialog
+      open={showTargetSelect}
+      targets={buildTargets.targets}
+      onConfirm={handleAnalysisWithTargets}
+      onCancel={() => setShowTargetSelect(false)}
+    />
+    </>
   );
 };

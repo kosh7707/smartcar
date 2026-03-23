@@ -1,0 +1,115 @@
+rules:
+  - id: aegis.c.cwe-190-atoi-arithmetic
+    patterns:
+      - pattern-either:
+          - pattern: atoi(...) + $Y
+          - pattern: atoi(...) * $Y
+          - pattern: $Y + atoi(...)
+          - pattern: $Y * atoi(...)
+    message: >
+      Potential integer overflow: arithmetic on atoi() result without bounds check.
+      atoi() can return large values from untrusted input.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-190"
+      category: security
+      confidence: MEDIUM
+      impact: MEDIUM
+
+  - id: aegis.c.cwe-190-strtol-arithmetic
+    patterns:
+      - pattern-either:
+          - pattern: strtol(...) + $Y
+          - pattern: strtol(...) * $Y
+          - pattern: $Y + strtol(...)
+          - pattern: $Y * strtol(...)
+    message: >
+      Potential integer overflow: arithmetic on strtol() result without bounds check.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-190"
+      category: security
+      confidence: MEDIUM
+      impact: MEDIUM
+
+  - id: aegis.c.cwe-190-fscanf-arithmetic
+    patterns:
+      - pattern-either:
+          - pattern: |
+              fscanf(..., ..., &$X);
+              ...
+              $X + $Y;
+          - pattern: |
+              fscanf(..., ..., &$X);
+              ...
+              $X * $Y;
+          - pattern: |
+              fscanf(..., ..., &$X);
+              ...
+              $Y + $X;
+          - pattern: |
+              fscanf(..., ..., &$X);
+              ...
+              $Y * $X;
+    message: >
+      Potential integer overflow: fscanf() input used in arithmetic without bounds check.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-190"
+      category: security
+      confidence: MEDIUM
+      impact: MEDIUM
+
+  - id: aegis.c.cwe-190-atoi-then-arithmetic
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $X = atoi(...);
+              ...
+              $X + $Y;
+          - pattern: |
+              $X = atoi(...);
+              ...
+              $X * $Y;
+    message: >
+      Potential integer overflow: atoi() result used in arithmetic without bounds check.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-190"
+      category: security
+      confidence: MEDIUM
+      impact: MEDIUM
+
+  - id: aegis.c.cwe-190-fgets-atoi-arithmetic
+    patterns:
+      - pattern-either:
+          - pattern: |
+              fgets(..., ..., ...);
+              ...
+              $X = atoi(...);
+              ...
+              $X + $Y;
+          - pattern: |
+              fgets(..., ..., ...);
+              ...
+              $X = atoi(...);
+              ...
+              $X * $Y;
+    message: >
+      Potential integer overflow: user input via fgets/atoi used in arithmetic.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-190"
+      category: security
+      confidence: MEDIUM
+      impact: MEDIUM

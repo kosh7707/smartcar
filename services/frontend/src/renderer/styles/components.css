@@ -1175,3 +1175,102 @@ dialog.confirm-dialog {
     transform: translateY(0) scale(1);
   }
 }
+
+/* ── Markdown Renderer ── */
+
+.md-heading {
+  margin: var(--space-3) 0 var(--space-2);
+  color: var(--text-primary);
+}
+
+.md-heading:first-child {
+  margin-top: 0;
+}
+
+.md-para {
+  margin: var(--space-2) 0;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.md-list {
+  margin: var(--space-2) 0;
+  padding-left: var(--space-6);
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.md-list li {
+  margin-bottom: var(--space-1);
+}
+
+.md-code-block {
+  position: relative;
+  margin: var(--space-3) 0;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre;
+  border: 1px solid var(--border-subtle);
+}
+
+.md-code-lang {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-3);
+  font-size: var(--text-2xs);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.md-inline-code {
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+/* PoC section */
+.poc-section {
+  margin-top: var(--space-3);
+}
+
+.poc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.poc-header .card-title {
+  margin: 0;
+}
+
+.poc-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) 0;
+}
+
+.poc-audit {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  gap: var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.poc-audit-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}

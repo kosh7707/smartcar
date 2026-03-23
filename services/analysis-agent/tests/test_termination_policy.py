@@ -7,10 +7,11 @@ from app.policy.termination import TerminationPolicy
 from app.schemas.agent import BudgetState
 
 
-def _make_session(budget_overrides: dict | None = None, elapsed_ms: int = 0):
+def _make_session(budget_overrides: dict | None = None, elapsed_ms: int = 0, turn_count: int = 0):
     session = MagicMock()
     session.budget = BudgetState(**(budget_overrides or {}))
     session.elapsed_ms.return_value = elapsed_ms
+    session.turn_count = turn_count
     session.set_termination_reason = MagicMock()
     return session
 
@@ -23,7 +24,7 @@ def test_not_stopped_when_within_all_budgets():
 
 def test_stops_at_max_steps():
     policy = TerminationPolicy()
-    session = _make_session({"max_steps": 3, "total_steps": 3})
+    session = _make_session({"max_steps": 3}, turn_count=3)
     assert policy.should_stop(session) is True
     session.set_termination_reason.assert_called_with("max_steps")
 
@@ -74,11 +75,11 @@ def test_does_not_stop_with_remaining_tier():
 
 
 def test_priority_max_steps_before_tokens():
-    """max_steps가 tokens보다 먼저 체크됨."""
+    """max_steps(턴 수)가 tokens보다 먼저 체크됨."""
     policy = TerminationPolicy()
     session = _make_session({
-        "max_steps": 2, "total_steps": 2,
+        "max_steps": 2,
         "max_completion_tokens": 100, "total_completion_tokens": 100,
-    })
+    }, turn_count=2)
     assert policy.should_stop(session) is True
     session.set_termination_reason.assert_called_with("max_steps")

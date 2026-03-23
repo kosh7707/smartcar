@@ -14,7 +14,7 @@ from app.errors import ScanTimeoutError
 from app.schemas.request import BuildProfile
 from app.schemas.response import SastDataFlowStep, SastFinding, SastFindingLocation
 
-logger = logging.getLogger("s4-sast-runner")
+logger = logging.getLogger("aegis-sast-runner")
 
 _SEVERITY_MAP = {
     "warning": "warning",

@@ -26,16 +26,29 @@ export interface AgentEvidenceRef {
 }
 
 export interface AgentTaskRequest {
-  taskType: "deep-analyze";
+  taskType: "deep-analyze" | "generate-poc";
   taskId: string;
   context: {
     trusted: {
       objective: string;
-      files: Array<{ path: string; content: string }>;
+      files?: Array<{ path: string; content: string }>;
       projectId?: string;
       projectPath?: string;
+      /** 프로젝트 내 빌드 타겟 상대 경로 (e.g. "gateway/") */
+      targetPath?: string;
+      buildCommand?: string;
       buildProfile?: Partial<BuildProfile>;
       sastFindings?: SastFinding[];
+      /** Phase 1 캐싱: 코드그래프 요약 (S4 /v1/scan 응답에서 추출) */
+      codeGraphSummary?: unknown;
+      /** Phase 1 캐싱: SCA 라이브러리 목록 (S4 /v1/scan 응답에서 추출) */
+      scaLibraries?: unknown;
+      /** PoC 생성 시 대상 클레임 */
+      claim?: {
+        statement: string;
+        detail?: string;
+        location?: string;
+      };
     };
   };
   evidenceRefs: AgentEvidenceRef[];
@@ -53,6 +66,8 @@ export interface AgentTaskRequest {
 
 export interface AgentClaim {
   statement: string;
+  /** 상세 분석 — 공격 경로, 영향 범위, 코드 흐름, 악용 시나리오 */
+  detail?: string | null;
   supportingEvidenceRefs: string[];
   location?: string | null;
 }

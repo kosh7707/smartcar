@@ -212,7 +212,7 @@ Finding의 state와 별도로, 재검증 상태를 분리 표시:
 
 - 사이드바: 2-tier (프로젝트 컨텍스트 인식)
 - 브레드크럼: ProjectLayout에서 Outlet 감싸기
-- 상태바: Backend 헬스체크, 연결 상태, 어댑터 미등록 시 neutral(회색)
+- 상태바: Backend + LLM 헬스체크 (어댑터 표시 숨김 — 2026-03-19)
 
 ### 5.2 프로젝트 / 대상 / 버전 / 런 탐색
 
@@ -374,8 +374,13 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
     - 심각도/출처 분포 차트, 트렌드, 상태 분포
     - 파일/룰 랭킹, 최근 Run 목록
   - ActiveAnalysisBanner: 탭과 무관하게 항상 표시
-- 파일 업로드 (드래그 앤 드롭, 복수 파일, 폴더)
-- 분석 진행 (5단계 스테퍼, 시간 가중치 진행률, shimmer 공유 클래스)
+- **소스코드 업로드**: ZIP/tar.gz 드래그앤드롭 + Git URL 클론, 디렉토리 요약 뷰, 타겟 탐색 버튼
+- **소스 트리 탐색기**: 2패널(트리+코드 프리뷰), Finding 오버레이(폴더별 severity 배지), 검색, 파일 선택 시 코드 표시 + Finding 라인 하이라이트
+- **빌드 타겟 관리**: ProjectSettingsPage에서 타겟 CRUD, SDK 프로파일 선택(12+1 사전정의), S4 자동 탐색
+- **타겟 선택 분석**: 분석 실행 시 타겟 선택 다이얼로그 (전체/개별 체크, 하위 호환)
+- **분석 진행**: 2단계 스테퍼(Quick SAST → Deep Agent), 타겟별 진행률(`[targetName] 분석 중 — N/M 타겟`), 중간 결과 열람
+- **Finding 상세**: detail 마크다운 렌더링(상세 분석), PoC 생성 버튼(agent Finding), 상태 변경, 감사 로그
+- **Agent 분석 결과**: AgentResultPanel — Confidence 게이지(4항목 분해), Caveats(CVE 하이라이트), 수정 권고, 정책 플래그(CWE/CVE 뱃지), SCA 라이브러리 테이블, Agent Audit(접을 수 있음)
 - 결과: 파일별 그룹 표시 (location 파싱 → 파일명:라인), 심각도/출처/파일 3중 필터
 - 취약점 상세 (실제 소스 코드 ±15줄 컨텍스트)
 - 분석 이력 (목록, 드릴다운, 삭제)
@@ -435,8 +440,11 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 
 ### 5.13 설정 ✅ 구현 완료
 
-- 글로벌 설정 (백엔드 URL)
-- 프로젝트 설정 (연결 탭: 어댑터 + LLM URL, 규칙 탭: 룰 CRUD)
+- 글로벌 설정 (백엔드 URL, 테마 3-way)
+- 프로젝트 설정:
+  - LLM Gateway URL (테스트/저장/초기화)
+  - 빌드 타겟 관리 (BuildTargetSection) — 타겟 CRUD, SDK 프로파일 선택(12+1), S4 자동 탐색, BuildProfileForm(상세 설정 토글)
+  - 어댑터·룰 UI 숨김 (2026-03-19)
 
 ---
 
@@ -448,18 +456,22 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 |------|------|
 | 프로젝트 CRUD | ProjectContext 공유 |
 | Overview 대시보드 | 도넛, StatCard(모듈별 분포), 파일/취약점/이력 |
-| 정적 분석 전체 흐름 | 업로드→진행→결과(파일별 그룹, 3중 필터)→상세 |
-| 동적 분석 | 세션 관리, CAN 모니터링, 일시정지/재개, 알림 패킷 분리, CAN 주입 |
-| 동적 테스트 | 전략 선택, ecuMeta 자동 채움, WebSocket 진행률, 실시간 차트, 결과 |
+| 소스코드 업로드 | ZIP/tar.gz 드래그앤드롭 + Git URL 클론, 디렉토리 요약, 타겟 탐색 버튼 |
+| 소스 트리 탐색기 | SourceTreeView — 2패널(트리+코드 프리뷰), Finding 오버레이(폴더별 severity 배지), 검색 |
+| 빌드 타겟 관리 | BuildTargetSection + BuildProfileForm — 타겟 CRUD, SDK 프로파일(12+1), S4 자동 탐색 |
+| 타겟 선택 분석 | TargetSelectDialog — 분석 실행 전 타겟 체크 선택, 전체/개별, 하위 호환 |
+| 정적 분석 전체 흐름 | 소스 업로드→타겟 설정→WS 2단계 진행(Quick SAST→Deep Agent, 타겟별 진행률)→대시보드/결과 |
+| 동적 분석 | **숨김** (2026-03-19) — 코드 유지, 라우트/사이드바 제거 |
+| 동적 테스트 | **숨김** (2026-03-19) — 코드 유지, 라우트/사이드바 제거 |
 | 파일 탐색기/상세 | 트리 뷰, 코드 표시, 취약점 하이라이팅 |
-| 취약점 통합 뷰 | 분석 세션별 그룹(모듈 컬러), 심각도/날짜 필터 (Finding 기반 재설계 필요) |
+| 취약점 통합 뷰 | 분석 세션별 그룹(모듈 컬러), 심각도/날짜 필터 |
 | 분석 이력 타임라인 | 전 모듈 통합 |
-| 글로벌/프로젝트 설정 | 어댑터, LLM URL, 룰 CRUD |
+| 글로벌/프로젝트 설정 | LLM URL + 빌드 타겟 관리 (어댑터·룰 숨김) |
 | 에러 핸들링 인프라 | ErrorBoundary, ToastContext(에러/경고/성공, 3초 자동 닫기, 우측 하단), apiFetch 에러 분류, X-Request-Id, retryable 대응 |
 | 로깅 인프라 | `logError` (requestId 포함), `healthFetch` (non-throwing health check), WebSocket 이벤트 로깅 |
 | 정적 분석 대시보드 | SonarQube 패턴 2-탭 (최신 분석: Gate+미해결+출처별 분포+Finding 목록 / 전체 현황: KPI+해결률+차트+랭킹+Run), 활성 분석 배너 |
-| Run 상세 | RunDetailView — 메타, GateResultCard, Finding 파일별 그룹, 레거시 호환 |
-| Finding 상세 | FindingDetailView — Evidence-first, 상태 변경, 감사 로그, EvidencePanel/Viewer |
+| Run 상세 | RunDetailView — 메타, GateResultCard, AgentResultPanel(confidence+caveats+권고+정책+SCA+audit), Finding 파일별 그룹 |
+| Finding 상세 | FindingDetailView — Evidence-first, 상태 변경, detail 마크다운, PoC 생성(agent), 감사 로그 |
 | 보고서 | ReportPage — 모듈 탭, 필터 패널, Finding 테이블, Run/Gate, 승인, 감사 추적, PDF 내보내기 |
 | 사이드바/브레드크럼/상태바 | 2-tier, 프로젝트 컨텍스트 |
 | CSS 품질 | `!important` 0건, 인라인 스타일 최소화, transition 토큰, 반응형 보강 |
@@ -468,16 +480,12 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 
 | 기능 | 선행 조건 |
 |------|----------|
-| TargetAsset / VersionSnapshot 계층 | shared 모델 확장 (S2) |
-| Run 목록/상세 | shared 모델 확장 (S2) |
+| Run 독립 목록 페이지 | 대시보드 내 뷰로 존재. 독립 라우트 전환 선택 |
 | Finding 독립 목록/triage 페이지 | 기본 구현 완료 (VulnerabilitiesPage → Finding 기반 재설계 필요) |
-| Finding 상세 + evidence panel | ✅ 기본 구현 완료 (FindingDetailView + EvidencePanel + EvidenceViewer) |
 | Quality Gate 독립 화면 | GateResultCard 구현 완료, RunDetailView에 연동. 독립 화면은 추가 필요 |
 | Approval Queue 화면 | Approval 엔티티 + API (S2) |
-| 동적 분석 운영 콘솔 고도화 | drop/backpressure/gap 감지 WS 확장 (S2) |
-| LLM provenance panel | LLM metadata 확장 (S2/S3) |
+| 동적 분석 운영 콘솔 고도화 | 현재 숨김 상태. 재활성화 시 S2 WS 확장 필요 |
 | 재검증 상태 배지 | validation status 필드 (S2) |
-| 테스트 (단위/계약/시나리오/E2E) | — |
 
 ---
 
@@ -495,6 +503,7 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 | API 통신 | fetch (Electron preload / 브라우저 직접) |
 | 실시간 통신 | WebSocket |
 | 공유 타입 | @aegis/shared (monorepo) |
+| 테스트 | vitest + @testing-library/react + jsdom (192 테스트) |
 
 ---
 
@@ -507,16 +516,16 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 /projects                        → ProjectsPage
 /projects/:projectId             → ProjectLayout
   /overview                      → OverviewPage
-  /static-analysis               → StaticAnalysisPage (2-탭 dashboard|modeSelect|upload|progress|runDetail|findingDetail|legacyResult)
-  /dynamic-analysis              → DynamicAnalysisPage
-  /dynamic-test                  → DynamicTestPage
+  /static-analysis               → StaticAnalysisPage (dashboard|sourceUpload|sourceTree|progress|runDetail|findingDetail|legacyResult)
   /files                         → FilesPage
   /files/:fileId                 → FileDetailPage
   /vulnerabilities               → VulnerabilitiesPage (?severity=)
   /analysis-history              → AnalysisHistoryPage
   /report                        → ReportPage (모듈 탭, 필터, Finding 테이블, 감사 추적, PDF)
-  /settings                      → ProjectSettingsPage
+  /settings                      → ProjectSettingsPage (LLM Gateway URL + 빌드 타겟 관리)
 /settings                        → SettingsPage (글로벌: 백엔드 URL, 테마 3-way)
+
+숨김 라우트 (2026-03-19): /dynamic-analysis, /dynamic-test — 코드 유지, 라우트/사이드바 제거
 ```
 
 ### 추가 예정
@@ -585,7 +594,19 @@ class ApiError extends Error {
 | | `fetchFileContent(fileId)` | GET /api/files/:fileId/content |
 | | `downloadFile(fileId)` | GET /api/files/:fileId/download |
 | | `deleteProjectFile(pid, fid)` | DELETE /api/projects/:pid/files/:fid |
-| Static | `uploadFiles(pid, files)` | POST /api/static-analysis/upload |
+| Source | `uploadSource(pid, file)` | POST /api/projects/:pid/source/upload |
+| | `cloneSource(pid, url, branch?)` | POST /api/projects/:pid/source/clone |
+| | `fetchSourceFiles(pid)` | GET /api/projects/:pid/source/files |
+| Source | `fetchSourceFileContent(pid, path)` | GET /api/projects/:pid/source/file?path= |
+| Analysis | `runAnalysis(pid, targetIds?)` | POST /api/analysis/run |
+| | `generatePoc(pid, findingId)` | POST /api/analysis/poc |
+| | WS `/ws/analysis?analysisId={id}` | WebSocket (Quick+Deep 진행률, targetName/targetProgress) |
+| Targets | `fetchBuildTargets(pid)` | GET /api/projects/:pid/targets |
+| | `createBuildTarget(pid, body)` | POST /api/projects/:pid/targets |
+| | `updateBuildTarget(pid, tid, body)` | PUT /api/projects/:pid/targets/:tid |
+| | `deleteBuildTarget(pid, tid)` | DELETE /api/projects/:pid/targets/:tid |
+| | `discoverBuildTargets(pid)` | POST /api/projects/:pid/targets/discover |
+| Static (legacy) | `uploadFiles(pid, files)` | POST /api/static-analysis/upload |
 | | `runStaticAnalysis(pid, files)` | POST /api/static-analysis/run |
 | | `fetchAnalysisResults(pid)` | GET /api/static-analysis/results?projectId= |
 | | `fetchAnalysisResult(aId)` | GET /api/static-analysis/results/:aId |
@@ -609,11 +630,11 @@ class ApiError extends Error {
 | | `createRule(pid, rule)` | POST /api/projects/:pid/rules |
 | | `updateRule(pid, id, upd)` | PUT /api/projects/:pid/rules/:id |
 | | `deleteRule(pid, id)` | DELETE /api/projects/:pid/rules/:id |
+| Dashboard | `fetchStaticDashboardSummary(pid, p)` | GET /api/analysis/summary?projectId=&period= |
 | Static+ | `runStaticAnalysisAsync(pid, files)` | POST /api/static-analysis/run |
 | | `fetchAnalysisProgress(id)` | GET /api/static-analysis/status/:id |
 | | `fetchAllAnalysisStatuses()` | GET /api/static-analysis/status |
 | | `abortAnalysis(id)` | POST /api/static-analysis/abort/:id |
-| | `fetchStaticDashboardSummary(pid, p)` | GET /api/static-analysis/summary?projectId=&period= |
 | Runs | `fetchProjectRuns(pid)` | GET /api/projects/:pid/runs |
 | | `fetchRunDetail(runId)` | GET /api/runs/:runId |
 | Findings | `fetchProjectFindings(pid, filters)` | GET /api/projects/:pid/findings |
@@ -633,14 +654,8 @@ class ApiError extends Error {
 
 | 카테고리 | 예상 엔드포인트 |
 |---------|---------------|
-| TargetAsset | CRUD /api/projects/:pid/targets |
-| VersionSnapshot | CRUD /api/projects/:pid/targets/:tid/versions |
-| Run | 목록/상세 /api/runs |
-| Finding | CRUD + 상태 변경 /api/findings |
-| Evidence | 목록/상세/다운로드 /api/evidence |
 | Quality Gate | profile/result /api/quality-gates |
 | Approval | queue/detail/resolve /api/approvals |
-| Report | 생성/조회 /api/reports |
 
 ---
 
@@ -678,8 +693,14 @@ class ApiError extends Error {
 | `PeriodSelector` | 기간 선택기 (7d/30d/90d/all) ✅ |
 | `TrendChart` | 트렌드 SVG 차트, 2회 미만 가이드 메시지 ✅ |
 | `ConfirmDialog` | 확인/취소 다이얼로그 ✅ |
+| `FileTreeNode` | 공유 재귀 트리 노드 (render props, A11Y) ✅ |
 | `LatestAnalysisTab` | 최신 분석 탭 (Gate 배너+Run 요약+Finding 파일별 그룹) ✅ |
 | `OverallStatusTab` | 전체 현황 탭 (KPI+차트+랭킹+최근 Run) ✅ |
+| `SourceTreeView` | 2패널 소스 트리 탐색기 (트리+코드 프리뷰+Finding 오버레이) ✅ |
+| `BuildTargetSection` | 빌드 타겟 관리 카드 (CRUD + S4 자동 탐색) ✅ |
+| `BuildProfileForm` | SDK 선택 + 빌드 프로파일 편집 (상세 설정 토글) ✅ |
+| `TargetSelectDialog` | 분석 전 타겟 선택 다이얼로그 (전체/개별 체크) ✅ |
+| `AgentResultPanel` | Agent 분석 결과 패널 (confidence+caveats+권고+정책+SCA+audit) ✅ |
 
 ### 추가 필요한 컴포넌트
 
@@ -695,11 +716,14 @@ class ApiError extends Error {
 
 | Hook | 용도 |
 |------|------|
-| `useStaticAnalysis` | 정적 분석 워크플로우 (레거시 동기) |
+| `useElapsedTimer` | 경과 시간 타이머 공통 훅 |
+| `useAnalysisWebSocket` | WS 기반 Quick+Deep 2단계 분석 (targetName/targetProgress 포함) |
+| `useBuildTargets` | 빌드 타겟 CRUD + S4 자동 탐색 훅 |
 | `useStaticDashboard` | 대시보드 데이터 + 최신 Run 상세 fetch + 활성 분석 폴링 |
-| `useAsyncAnalysis` | 비동기 분석 실행 + 진행률 폴링 |
-| `useDynamicTest` | 동적 테스트 워크플로우 (WebSocket) |
-| `useAdapters` | 어댑터 상태 (5초 폴링, ecuMeta) |
+| `useStaticAnalysis` | 정적 분석 워크플로우 (레거시 동기, 미사용) |
+| `useAsyncAnalysis` | 비동기 분석 (레거시, useAnalysisWebSocket으로 대체) |
+| `useDynamicTest` | 동적 테스트 워크플로우 (숨김 — 코드 유지) |
+| `useAdapters` | 어댑터 상태 (숨김 — 코드 유지) |
 
 ---
 
@@ -755,29 +779,26 @@ class ApiError extends Error {
 
 ---
 
-## 13. 테스트 전략
+## 13. 테스트 현황
 
-### 단위 테스트
-- mapper, viewmodel, formatting utilities
-- evidence locator resolver
-- event dedupe logic
-- badge/status mapping
+vitest 4.1.0 + @testing-library/react + jsdom. `npm test` 실행.
 
-### 계약 테스트
-- shared DTO 샘플 payload 기준 역직렬화 검증
-- optional/required 필드 처리
-- enum 호환성
+### 구현 완료 (192 테스트)
 
-### 시나리오 테스트
-1. 정적 분석 finding 생성 → triage → accepted risk 표시
-2. 동적 분석 run 실시간 스트림 수신 → rule match → finding 생성
-3. backpressure 발생 → UI 경고 표시
-4. approval required 생성 → approval queue 반영
-5. LLM annotation 완료 → provenance panel 표시
-6. evidence 다운로드 / jump
+| 유형 | 파일 수 | 테스트 수 | 대상 |
+|------|---------|----------|------|
+| 유틸 유닛 | 9 | 89 | tree, location, findingOverlay, format, fileMatch, markdown, severity, analysis, cveHighlight |
+| 상수 유닛 | 3 | 26 | finding (상태 전이 canTransitionTo), languages, modules |
+| API 통합 | 1 | 11 | fetch 모킹 + CRUD/runAnalysis/PoC/source API |
+| 훅 테스트 | 2 | 14 | useElapsedTimer (fake timer), useBuildTargets (API 모킹) |
+| 컴포넌트 | 4 | 39 | TargetSelectDialog, BuildProfileForm, FileTreeNode, ConfirmDialog |
+| 컨텍스트 | 1 | 6 | ToastContext (auto-dismiss, max 5, action) |
+| UI 컴포넌트 | 1 | 7 | SeverityBadge, SourceBadge, Spinner, EmptyState |
 
-### E2E 테스트
-- ECU Simulator 활용: live run → finding → evidence detail → quality gate → approval flow
+### 추가 예정
+- useStaticDashboard 훅 테스트
+- 추가 컴포넌트 테스트 (AgentResultPanel, SourceTreeView 등)
+- E2E 시나리오 테스트
 
 ---
 

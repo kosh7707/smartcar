@@ -229,7 +229,22 @@ export function initSchema(db: DatabaseType): void {
     CREATE INDEX IF NOT EXISTS idx_findings_run ON findings(run_id);
     CREATE INDEX IF NOT EXISTS idx_findings_project ON findings(project_id);
     CREATE INDEX IF NOT EXISTS idx_findings_status ON findings(status);
+  `);
 
+  // 마이그레이션: findings.detail 컬럼 추가
+  try { db.exec(`ALTER TABLE findings ADD COLUMN detail TEXT`); } catch { /* 이미 존재 */ }
+
+  // 마이그레이션: analysis_results — Agent 응답 메타데이터 보존
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN caveats TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN confidence_score REAL`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN confidence_breakdown TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN needs_human_review INTEGER`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN recommended_next_steps TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN policy_flags TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN sca_libraries TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN agent_audit TEXT`); } catch { /* 이미 존재 */ }
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS evidence_refs (
       id            TEXT PRIMARY KEY,
       finding_id    TEXT NOT NULL,
@@ -275,6 +290,18 @@ export function initSchema(db: DatabaseType): void {
     CREATE INDEX IF NOT EXISTS idx_approvals_status ON approvals(status);
     CREATE INDEX IF NOT EXISTS idx_approvals_project ON approvals(project_id);
     CREATE INDEX IF NOT EXISTS idx_approvals_target ON approvals(target_id);
+
+    CREATE TABLE IF NOT EXISTS build_targets (
+      id            TEXT PRIMARY KEY,
+      project_id    TEXT NOT NULL,
+      name          TEXT NOT NULL,
+      relative_path TEXT NOT NULL,
+      build_profile TEXT NOT NULL DEFAULT '{}',
+      build_system  TEXT,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_build_targets_project ON build_targets(project_id);
   `);
 }
 

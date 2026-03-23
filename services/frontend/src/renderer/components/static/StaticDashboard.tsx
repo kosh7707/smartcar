@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import type { StaticAnalysisDashboardSummary, Run, AnalysisProgress, RunDetailResponse } from "@aegis/shared";
 import type { DashboardPeriod } from "../ui/PeriodSelector";
 import { PageHeader } from "../ui";
-import { FileSearch, Plus } from "lucide-react";
+import { FileSearch, Plus, Code } from "lucide-react";
 import { ActiveAnalysisBanner } from "./ActiveAnalysisBanner";
 import { LatestAnalysisTab } from "./LatestAnalysisTab";
 import { OverallStatusTab } from "./OverallStatusTab";
@@ -24,6 +24,7 @@ interface Props {
   onResumeAnalysis: () => void;
   onAbortAnalysis: () => void;
   onFileClick?: (filePath: string) => void;
+  onBrowseTree?: () => void;
 }
 
 export const StaticDashboard: React.FC<Props> = ({
@@ -40,6 +41,7 @@ export const StaticDashboard: React.FC<Props> = ({
   onResumeAnalysis,
   onAbortAnalysis,
   onFileClick,
+  onBrowseTree,
 }) => {
   const [activeTab, setActiveTab] = useState<TabId>("latest");
 
@@ -49,10 +51,18 @@ export const StaticDashboard: React.FC<Props> = ({
         title="정적 분석"
         icon={<FileSearch size={20} />}
         action={
-          <button className="btn" onClick={onNewAnalysis}>
-            <Plus size={16} />
-            새 분석
-          </button>
+          <div style={{ display: "flex", gap: "var(--space-2)" }}>
+            {onBrowseTree && (
+              <button className="btn btn-secondary" onClick={onBrowseTree}>
+                <Code size={16} />
+                소스 탐색
+              </button>
+            )}
+            <button className="btn" onClick={onNewAnalysis}>
+              <Plus size={16} />
+              새 분석
+            </button>
+          </div>
         }
       />
 

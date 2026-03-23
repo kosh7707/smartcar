@@ -12,7 +12,7 @@ from app.errors import ScanTimeoutError
 from app.schemas.request import BuildProfile
 from app.schemas.response import SastDataFlowStep, SastFinding, SastFindingLocation
 
-logger = logging.getLogger("s4-sast-runner")
+logger = logging.getLogger("aegis-sast-runner")
 
 # Cppcheck severity → SastFinding severity
 _SEVERITY_MAP = {
@@ -85,9 +85,11 @@ class CppcheckRunner:
         cmd = [
             "cppcheck",
             "--enable=all",
+            "--check-level=exhaustive",
             "--xml",
             "--quiet",
             "--suppress=missingIncludeSystem",
+            "--suppress=missingInclude",
         ]
 
         # compile_commands.json이 있으면 --project로 사용 (BuildProfile보다 우선)
@@ -108,6 +110,8 @@ class CppcheckRunner:
                 cmd.append(f"--std={std}")
 
             # includePaths → -I (상대 경로는 scan_dir 기준으로 변환)
+            # 주의: orchestrator가 original profile(SDK 미병합)을 전달하므로
+            #       여기에는 사용자가 명시한 경로만 들어온다.
             if profile.include_paths:
                 for inc in profile.include_paths:
                     inc_path = Path(inc)

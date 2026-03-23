@@ -11,7 +11,7 @@ from typing import Any
 from app.errors import ScanTimeoutError
 from app.schemas.request import BuildProfile
 
-logger = logging.getLogger("s4-sast-runner")
+logger = logging.getLogger("aegis-sast-runner")
 
 
 class AstDumper:
@@ -53,16 +53,22 @@ class AstDumper:
         source_files: list[str],
         profile: BuildProfile | None,
         timeout: int = 60,
+        libraries: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """소스 파일들에서 함수 목록 + 호출 관계를 추출.
 
         clang AST의 전체 덤프 대신 함수 선언/호출만 추출하여 경량화.
+        libraries가 제공되면 함수에 origin 태깅 (서드파티 출처 식별).
 
         Returns:
             {
               "functions": [
                 { "name": "postJson", "file": "src/http_client.cpp", "line": 8,
-                  "calls": ["getenv", "popen", "fgets", "pclose"] }
+                  "calls": ["getenv", "popen", "fgets", "pclose"] },
+                { "name": "curl_exec", "file": "third-party/libcurl/curl_exec.c", "line": 42,
+                  "calls": ["curl_multi_perform"],
+                  "origin": "modified-third-party",
+                  "originalLib": "libcurl", "originalVersion": "7.68.0" }
               ]
             }
         """
@@ -81,7 +87,42 @@ class AstDumper:
             funcs = await self._extract_functions(full_path, scan_dir, profile, timeout)
             functions.extend(funcs)
 
+        # origin 태깅: 라이브러리 경로와 함수 파일 경로를 교차 대조
+        if libraries:
+            self._tag_origin(functions, libraries)
+
         return {"functions": functions}
+
+    def _tag_origin(
+        self,
+        functions: list[dict[str, Any]],
+        libraries: list[dict[str, Any]],
+    ) -> None:
+        """함수에 서드파티 출처 메타데이터를 태깅.
+
+        라이브러리 path와 함수 file 경로를 대조하여:
+        - diff.matchRatio == 100% → origin: "third-party"
+        - diff.matchRatio < 100% → origin: "modified-third-party"
+        """
+        for func in functions:
+            file_path = func["file"]
+            for lib in libraries:
+                lib_path = lib.get("path", "")
+                if not lib_path:
+                    continue
+                # 함수 파일이 라이브러리 경로 하위인지 확인
+                if file_path.startswith(lib_path):
+                    # 수정 여부 판별
+                    diff = lib.get("diff")
+                    match_ratio = diff.get("matchRatio", 100) if diff else 100
+                    if match_ratio >= 100:
+                        func["origin"] = "third-party"
+                    else:
+                        func["origin"] = "modified-third-party"
+                    func["originalLib"] = lib["name"]
+                    if lib.get("version"):
+                        func["originalVersion"] = lib["version"]
+                    break
 
     async def _dump_single(
         self,

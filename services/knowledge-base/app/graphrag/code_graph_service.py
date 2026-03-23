@@ -15,12 +15,31 @@ class CodeGraphService:
     def __init__(self, driver: neo4j.Driver) -> None:
         self._driver = driver
 
+    @staticmethod
+    def _normalize_functions(functions: list[dict]) -> list[dict]:
+        """S4 camelCase → snake_case 변환 + origin 필드 정규화."""
+        normalized = []
+        for func in functions:
+            item = {
+                "name": func["name"],
+                "file": func.get("file"),
+                "line": func.get("line"),
+                "origin": func.get("origin"),
+                "original_lib": func.get("original_lib") or func.get("originalLib"),
+                "original_version": func.get("original_version") or func.get("originalVersion"),
+            }
+            normalized.append(item)
+        return normalized
+
     def ingest(self, project_id: str, functions: list[dict]) -> dict:
         """함수 목록에서 Function 노드 + CALLS 관계를 생성한다.
 
         기존 project_id 데이터는 삭제 후 재생성.
         functions: [{"name": "postJson", "file": "src/http_client.cpp", "line": 8, "calls": ["popen", "fgets"]}]
+        선택 필드: origin, originalLib/original_lib, originalVersion/original_version
         """
+        normalized = self._normalize_functions(functions)
+
         with self._driver.session() as session:
             # 기존 프로젝트 데이터 삭제
             session.run(
@@ -29,12 +48,14 @@ class CodeGraphService:
             )
 
             # Function 노드 생성 (배치)
-            for batch_start in range(0, len(functions), 100):
-                batch = functions[batch_start:batch_start + 100]
+            for batch_start in range(0, len(normalized), 100):
+                batch = normalized[batch_start:batch_start + 100]
                 session.run(
                     "UNWIND $batch AS f "
                     "MERGE (fn:Function {project_id: $pid, name: f.name}) "
-                    "SET fn.file = f.file, fn.line = f.line",
+                    "SET fn.file = f.file, fn.line = f.line, "
+                    "fn.origin = f.origin, fn.original_lib = f.original_lib, "
+                    "fn.original_version = f.original_version",
                     batch=batch, pid=project_id,
                 )
 
@@ -69,7 +90,9 @@ class CodeGraphService:
             result = session.run(
                 f"MATCH (target:Function {{project_id: $pid, name: $name}})"
                 f"<-[:CALLS*1..{depth}]-(caller:Function) "
-                "RETURN DISTINCT caller.name AS name, caller.file AS file, caller.line AS line",
+                "RETURN DISTINCT caller.name AS name, caller.file AS file, caller.line AS line, "
+                "coalesce(caller.origin, null) AS origin, coalesce(caller.original_lib, null) AS original_lib, "
+                "coalesce(caller.original_version, null) AS original_version",
                 pid=project_id, name=function_name,
             )
             return [dict(rec) for rec in result]
@@ -80,7 +103,9 @@ class CodeGraphService:
             result = session.run(
                 "MATCH (fn:Function {project_id: $pid, name: $name})"
                 "-[:CALLS]->(callee:Function) "
-                "RETURN callee.name AS name, callee.file AS file, callee.line AS line",
+                "RETURN callee.name AS name, callee.file AS file, callee.line AS line, "
+                "coalesce(callee.origin, null) AS origin, coalesce(callee.original_lib, null) AS original_lib, "
+                "coalesce(callee.original_version, null) AS original_version",
                 pid=project_id, name=function_name,
             )
             return [dict(rec) for rec in result]
@@ -95,7 +120,9 @@ class CodeGraphService:
                 "-[:CALLS]->(d:Function {project_id: $pid}) "
                 "WHERE d.name IN $dangerous AND caller.file IS NOT NULL "
                 "RETURN caller.name AS name, caller.file AS file, "
-                "caller.line AS line, collect(DISTINCT d.name) AS dangerous_calls",
+                "caller.line AS line, collect(DISTINCT d.name) AS dangerous_calls, "
+                "coalesce(caller.origin, null) AS origin, coalesce(caller.original_lib, null) AS original_lib, "
+                "coalesce(caller.original_version, null) AS original_version",
                 pid=project_id, dangerous=dangerous_functions,
             )
             return [dict(rec) for rec in result]

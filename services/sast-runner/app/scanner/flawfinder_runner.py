@@ -12,7 +12,7 @@ from typing import Any
 from app.errors import ScanTimeoutError
 from app.schemas.response import SastFinding, SastFindingLocation
 
-logger = logging.getLogger("s4-sast-runner")
+logger = logging.getLogger("aegis-sast-runner")
 
 # Flawfinder risk level → severity
 _SEVERITY_MAP = {

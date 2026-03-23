@@ -15,9 +15,9 @@ export function createHealthRouter(
 
   router.get("/", asyncHandler(async (_req, res) => {
     const [llmHealth, agentHealth, sastHealth] = await Promise.all([
-      llmClient.checkHealth(),
-      agentClient?.checkHealth() ?? null,
-      sastClient?.checkHealth() ?? null,
+      llmClient.checkHealth().catch(() => null),
+      agentClient?.checkHealth().catch(() => null) ?? null,
+      sastClient?.checkHealth().catch(() => null) ?? null,
     ]);
     const adapters = adapterManager.findAll();
     const connectedCount = adapters.filter((a) => a.connected).length;

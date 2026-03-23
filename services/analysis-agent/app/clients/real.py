@@ -11,7 +11,7 @@ from app.errors import LlmHttpError, LlmInputTooLargeError, LlmTimeoutError, Llm
 from app.clients.base import LlmClient
 
 logger = logging.getLogger(__name__)
-_exchange = logging.getLogger("s4_exchange")
+_exchange = logging.getLogger("llm_exchange")
 
 
 class RealLlmClient(LlmClient):

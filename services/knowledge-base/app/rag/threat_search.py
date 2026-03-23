@@ -52,13 +52,17 @@ class ThreatSearch:
 
     def search(
         self, query: str, top_k: int = 5, min_score: float = 0.0,
+        query_filter=None,
     ) -> list[ThreatHit]:
         """시맨틱 검색 -> 상위 k건 반환 (min_score 미만 제외)."""
-        results = self._client.query(
-            collection_name=COLLECTION,
-            query_text=query,
-            limit=top_k,
-        )
+        kwargs = {
+            "collection_name": COLLECTION,
+            "query_text": query,
+            "limit": top_k,
+        }
+        if query_filter is not None:
+            kwargs["query_filter"] = query_filter
+        results = self._client.query(**kwargs)
         hits = [
             ThreatHit(
                 id=r.metadata.get("id", ""),

@@ -50,7 +50,8 @@ _ASSESSMENT_OUTPUT_SCHEMA = """\
   "summary": "분석 요약 (1~3문장)",
   "claims": [
     {
-      "statement": "증거가 지지하는 구체적 주장",
+      "statement": "취약점 요약 (1문장)",
+      "detail": "상세 분석: 공격 경로, 영향 범위, 코드 흐름, 악용 시나리오",
       "supportingEvidenceRefs": ["eref-001"],
       "location": "src/main.c:42"
     }
@@ -72,10 +73,11 @@ _ASSESSMENT_OUTPUT_SCHEMA = """\
 - "이것은 확정 취약점이다" 형태의 최종 판정을 내리지 마라. assessment(평가 제언)만 제공한다.
 - severity는 critical / high / medium / low / info / null 중 하나를 사용한다.
 - policyFlags에는 해당하는 정책 플래그만 포함하라: ISO21434-noncompliant, MISRA-violation, needs-safety-impact-review, UNECE-R155-relevant, crypto-weakness, hardcoded-secret. 해당 없으면 빈 배열.
-- JSON만 출력하라. 앞뒤에 인사말, 설명문, 마크다운을 붙이지 마라.
+- 순수 JSON만 출력하라. ```json 코드 펜스, 인사말, 설명문을 절대 붙이지 마라. 첫 문자는 반드시 {이어야 한다.
+- claims[].detail에 공격 경로, 영향 범위, 코드 흐름을 상세히 작성하라.
 
 ## 올바른 출력 예시
-{"summary": "gets() 함수 사용으로 인한 버퍼 오버플로우 취약점이 확인됩니다.", "claims": [{"statement": "gets()는 입력 길이를 제한하지 않아 스택 기반 버퍼 오버플로우를 유발합니다.", "supportingEvidenceRefs": ["eref-001"], "location": "src/main.c:42"}], "caveats": ["ASLR/DEP 적용 여부를 확인하지 못했습니다."], "usedEvidenceRefs": ["eref-001"], "suggestedSeverity": "critical", "needsHumanReview": true, "recommendedNextSteps": ["fgets()로 교체"], "policyFlags": ["MISRA-violation"]}"""
+{"summary": "gets() 함수 사용으로 인한 버퍼 오버플로우 취약점이 확인됩니다.", "claims": [{"statement": "gets()는 입력 길이를 제한하지 않아 스택 기반 버퍼 오버플로우를 유발합니다.", "detail": "gets() 함수는 입력 길이를 검증하지 않으며, 공격자가 버퍼 크기를 초과하는 입력을 전달하면 스택 메모리를 덮어쓸 수 있습니다. 특히 임베디드 환경에서는 ASLR이 부재하여 공격 재현이 용이합니다.", "supportingEvidenceRefs": ["eref-001"], "location": "src/main.c:42"}], "caveats": ["ASLR/DEP 적용 여부를 확인하지 못했습니다."], "usedEvidenceRefs": ["eref-001"], "suggestedSeverity": "critical", "needsHumanReview": true, "recommendedNextSteps": ["fgets()로 교체"], "policyFlags": ["MISRA-violation"]}"""
 
 _TEST_PLAN_OUTPUT_SCHEMA = """\
 [출력 형식]
@@ -346,6 +348,45 @@ ${threat_knowledge_context}
 BEGIN_UNTRUSTED_EVIDENCE
 ${untrusted_content}
 END_UNTRUSTED_EVIDENCE
+
+""" + _ASSESSMENT_OUTPUT_SCHEMA,
+    ))
+
+    registry.register(PromptEntry(
+        promptId="generate-poc",
+        version="v1",
+        taskType=TaskType.GENERATE_POC,
+        description="특정 취약점의 PoC(Proof of Concept) 코드 생성",
+        systemTemplate="""\
+당신은 자동차 임베디드 보안 연구원입니다. \
+정적 분석으로 발견된 취약점에 대한 PoC(Proof of Concept)를 작성합니다.
+
+## 당신의 임무
+
+deep-analyze에서 발견된 특정 취약점(claim)에 대해:
+1. 제공된 소스코드를 분석하여 취약점의 실제 트리거 조건을 파악하라
+2. 취약점 존재를 증명하는 최소한의 PoC 코드를 작성하라
+3. 실행 방법과 예상 결과를 명확하게 기술하라
+
+## PoC 작성 원칙
+- 취약점 존재를 **증명**하되, **파괴적 동작은 포함하지 마라** (id, whoami, echo 등 무해한 커맨드 사용)
+- PoC는 Python, curl, 또는 셸 스크립트로 작성하라 (재현 용이성 우선)
+- 실행 환경의 전제 조건 (타겟 서비스 기동, 포트, 인증 등)을 명시하라
+- 방어 우회가 필요한 경우 (ASLR, 스택 카나리 등) 그 한계를 caveat에 명시하라
+
+/no_think""",
+        userTemplate="""\
+[분석된 취약점 (Claim)]
+${trusted_context}
+
+[관련 소스코드]
+${finding_json}
+
+[사용 가능한 Evidence Refs]
+${evidence_refs_list}
+
+[위협 지식 DB 참고]
+${threat_knowledge_context}
 
 """ + _ASSESSMENT_OUTPUT_SCHEMA,
     ))

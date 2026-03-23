@@ -24,13 +24,13 @@ class Settings(BaseSettings):
 
     # --- Agent loop (신규) ---
     agent_max_steps: int = 6
-    agent_max_completion_tokens: int = 2000
+    agent_max_completion_tokens: int = 20000
     agent_max_cheap_calls: int = 3
     agent_max_medium_calls: int = 2
     agent_max_expensive_calls: int = 1
     agent_no_evidence_threshold: int = 2
     agent_tool_timeout_ms: int = 30_000
-    agent_llm_max_tokens: int = 4096
+    agent_llm_max_tokens: int = 16384
     agent_llm_retry_max: int = 1
     agent_graph_depth: int = 2
 

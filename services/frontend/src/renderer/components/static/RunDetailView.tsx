@@ -1,7 +1,8 @@
 import React, { useMemo } from "react";
-import type { Run, Finding, EvidenceRef, GateResult } from "@aegis/shared";
+import type { Run, Finding, EvidenceRef, GateResult, AnalysisResult } from "@aegis/shared";
 import { FileCode, Clock, PlayCircle } from "lucide-react";
 import { BackButton, PageHeader, StatCard, SeverityBadge, GateResultCard, FindingStatusBadge, ConfidenceBadge, SourceBadge } from "../ui";
+import { AgentResultPanel } from "./AgentResultPanel";
 import { parseLocation } from "../../utils/location";
 import { formatDateTime } from "../../utils/format";
 
@@ -16,6 +17,7 @@ interface Props {
     gate?: GateResult;
     findings: FindingWithEvidence[];
   };
+  analysisResult?: AnalysisResult | null;
   projectId: string;
   onBack: () => void;
   onSelectFinding: (findingId: string) => void;
@@ -46,6 +48,7 @@ function groupFindingsByFile(findings: FindingWithEvidence[]): FileGroup[] {
 
 export const RunDetailView: React.FC<Props> = ({
   runDetail,
+  analysisResult,
   onBack,
   onSelectFinding,
   onViewLegacyResult,
@@ -87,6 +90,9 @@ export const RunDetailView: React.FC<Props> = ({
 
       {/* Gate result */}
       {gate && <GateResultCard gate={gate} />}
+
+      {/* Agent analysis metadata */}
+      {analysisResult && <AgentResultPanel analysisResult={analysisResult} />}
 
       {/* Finding list by file */}
       {fileGroups.length === 0 ? (

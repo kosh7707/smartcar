@@ -12,6 +12,7 @@ import {
   makeApproval,
   makeAnalysisResult,
   makeStoredFile,
+  makeBuildTarget,
 } from "../../test/factories";
 
 describe("API Contract Tests", () => {
@@ -366,6 +367,72 @@ describe("API Contract Tests", () => {
       expect(res.body.errorDetail).toHaveProperty("code", "INVALID_INPUT");
       expect(res.body.errorDetail).toHaveProperty("message");
       expect(res.body.errorDetail.retryable).toBe(false);
+    });
+  });
+
+  describe("Build Targets", () => {
+    it("POST /api/projects/:pid/targets creates target", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-bt" }));
+
+      const res = await request(app)
+        .post("/api/projects/p-bt/targets")
+        .send({ name: "gateway", relativePath: "gateway/", buildSystem: "cmake" });
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.name).toBe("gateway");
+      expect(res.body.data.relativePath).toBe("gateway/");
+      expect(res.body.data.id).toMatch(/^target-/);
+    });
+
+    it("GET /api/projects/:pid/targets lists targets", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-bt2" }));
+      ctx.buildTargetDAO.save(makeBuildTarget({ id: "t1", projectId: "p-bt2", name: "a" }));
+      ctx.buildTargetDAO.save(makeBuildTarget({ id: "t2", projectId: "p-bt2", name: "b" }));
+
+      const res = await request(app).get("/api/projects/p-bt2/targets");
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(2);
+    });
+
+    it("PUT /api/projects/:pid/targets/:id updates target", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-bt3" }));
+      ctx.buildTargetDAO.save(makeBuildTarget({ id: "t3", projectId: "p-bt3", name: "old" }));
+
+      const res = await request(app)
+        .put("/api/projects/p-bt3/targets/t3")
+        .send({ name: "new-name" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.name).toBe("new-name");
+    });
+
+    it("DELETE /api/projects/:pid/targets/:id deletes target", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-bt4" }));
+      ctx.buildTargetDAO.save(makeBuildTarget({ id: "t4", projectId: "p-bt4" }));
+
+      const res = await request(app).delete("/api/projects/p-bt4/targets/t4");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+    });
+
+    it("POST rejects relativePath with ..", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-bt5" }));
+
+      const res = await request(app)
+        .post("/api/projects/p-bt5/targets")
+        .send({ name: "evil", relativePath: "../etc/" });
+
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 404 for wrong project ownership", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-bt6" }));
+      ctx.projectDAO.save(makeProject({ id: "p-bt7" }));
+      ctx.buildTargetDAO.save(makeBuildTarget({ id: "t6", projectId: "p-bt6" }));
+
+      const res = await request(app).put("/api/projects/p-bt7/targets/t6").send({ name: "x" });
+      expect(res.status).toBe(404);
     });
   });
 });

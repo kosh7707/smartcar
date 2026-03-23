@@ -1,4 +1,4 @@
-"""VectorSearch — 기존 ThreatSearch의 얇은 래퍼."""
+"""VectorSearch — 기존 ThreatSearch의 얇은 래퍼 + 소스 필터링."""
 
 from __future__ import annotations
 
@@ -19,5 +19,14 @@ class VectorSearch:
         query: str,
         top_k: int = 5,
         min_score: float = 0.35,
+        source_filter: list[str] | None = None,
     ) -> list[ThreatHit]:
-        return self._search.search(query, top_k=top_k, min_score=min_score)
+        query_filter = None
+        if source_filter:
+            from qdrant_client.models import Filter, FieldCondition, MatchAny
+            query_filter = Filter(
+                must=[FieldCondition(key="source", match=MatchAny(any=source_filter))]
+            )
+        return self._search.search(
+            query, top_k=top_k, min_score=min_score, query_filter=query_filter,
+        )

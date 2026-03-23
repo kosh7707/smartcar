@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S3(Analysis Agent) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-19**
+> **마지막 업데이트: 2026-03-20**
 
 ---
 
@@ -149,9 +149,9 @@ POST /v1/tasks (taskType: "deep-analyze")
   ├── Phase 2: LLM 해석
   │   ├── Phase 1 결과(SAST+코드+SCA+CVE+위협+호출자)를 프롬프트에 주입
   │   ├── 시스템 프롬프트: 임무 중심 4단계 (평가→연결→도구→보고서)
-  │   ├── LLM이 추가 tool 호출 가능: knowledge.search, code_graph.get_functions
+  │   ├── LLM이 추가 tool 호출 가능: knowledge.search, code_graph.callers
   │   ├── LLM 호출은 S7 Gateway 경유 (POST /v1/chat)
-  │   └── Qwen 35B → 구조화 JSON (claims + evidence refs)
+  │   └── Qwen 122B GPTQ-Int4 → 구조화 JSON (claims + evidence refs)
   │
   └── 응답: TaskSuccessResponse (기존 API 계약 준수)
 ```
@@ -188,7 +188,8 @@ services/analysis-agent/
 │   │   ├── executor.py            # ToolExecutor (타임아웃)
 │   │   └── implementations/
 │   │       ├── sast_tool.py       # SAST Runner /v1/scan
-│   │       ├── codegraph_tool.py  # SAST Runner /v1/functions
+│   │       ├── codegraph_tool.py        # Phase 2: S5 KB /v1/code-graph/callers (호출자 체인)
+│   │       ├── codegraph_phase1_tool.py # Phase 1: S4 /v1/functions (코드 그래프 추출)
 │   │       ├── knowledge_tool.py  # KB /v1/search
 │   │       └── sca_tool.py        # SAST Runner /v1/libraries
 │   ├── budget/                    # BudgetManager, TokenCounter
@@ -198,8 +199,14 @@ services/analysis-agent/
 ├── scripts/
 │   ├── integration-test.sh        # 단일 파일 통합 테스트
 │   └── project-scan.sh            # 프로젝트 전반 분석 파이프라인
-└── tests/                         # 114 tests
+└── tests/                         # 116 tests
 ```
+
+### Observability
+
+`docs/specs/observability.md` 준수. 로그 레벨 숫자 표준, 서비스 식별자, X-Request-Id 전파 규칙은 해당 문서 참조.
+- service 식별자: `s3-agent`
+- 로그 파일: `logs/aegis-analysis-agent.jsonl`, `logs/llm-exchange.jsonl`, `logs/llm-dumps/`
 
 ### 환경변수 (.env)
 
@@ -208,7 +215,7 @@ services/analysis-agent/
 | 변수 | 기본값 | 설명 |
 |------|--------|------|
 | AEGIS_LLM_ENDPOINT | `http://localhost:8000` | S7 LLM Gateway 주소 (http://localhost:8000) |
-| AEGIS_LLM_MODEL | `Qwen/Qwen3.5-35B-A3B-FP8` | Agent가 요청 시 지정하는 모델명 |
+| AEGIS_LLM_MODEL | `Qwen/Qwen3.5-122B-A10B-GPTQ-Int4` | Agent가 요청 시 지정하는 모델명 (S7 Gateway가 오버라이드) |
 | LOG_DIR | `../../logs` (프로젝트 루트 `logs/`) | JSONL 로그 파일 디렉토리 |
 
 > 모든 서비스가 동일한 패턴(`services/<서비스명>/.env`)을 사용한다. 너의 `.env`는 네가 직접 관리.
@@ -268,8 +275,8 @@ services/knowledge-base/
 
 | 파일 | 서비스 | 내용 |
 |------|--------|------|
-| `logs/s3-analysis-agent.jsonl` | Agent | Phase 1/2 전체 이벤트 (phase_one, agent_loop, llm_caller, tool_router 등) |
-| `logs/s4-exchange.jsonl` | Agent | LLM 호출 요약 (turn, tokens, latency, dumpFile) |
+| `logs/aegis-analysis-agent.jsonl` | Agent | Phase 1/2 전체 이벤트 (phase_one, agent_loop, llm_caller, tool_router 등) |
+| `logs/llm-exchange.jsonl` | Agent | LLM 호출 요약 (turn, tokens, latency, dumpFile) |
 | `logs/llm-dumps/*.json` | Agent | LLM 호출별 request+response 전문 (프롬프트 재현용) |
 | `logs/aegis-knowledge-base.jsonl` | KB | 검색 요청, 코드 그래프 적재 |
 | `logs/s4-sast-runner.jsonl` | SAST Runner (S4) | 도구 실행 상세 |
@@ -283,6 +290,19 @@ grep '{request-id}' logs/*.jsonl  # 여러 서비스 한번에 추적
 ---
 
 ## 7. 수정 이력
+
+### 에이전트 루프 버그 수정 + 도구 전환 + 로그 리네이밍 (2026-03-20, 완료)
+
+- **code_graph 도구 전환**: Phase 2 `code_graph.get_functions`(S4 /v1/functions) → `code_graph.callers`(S5 KB /v1/code-graph/callers/) — LLM이 함수명만으로 호출자 체인 조회 가능
+- **Phase 1 KB 코드 그래프 적재**: 개별 도구 경로에서도 KB에 코드 그래프 자동 적재
+- **build-and-analyze 분기 수정**: buildCommand/buildProfile 없으면 시도 안 함 (불필요한 400 제거)
+- **에이전트 루프 버그 수정**: 턴 기반 종료(total_steps→turn_count) + 도구 예산 소진 시 tools 제거
+- **프롬프트 도구 사용 지침 추가**: 실패 시 재시도 금지, 도구 호출 후 반드시 보고서 작성
+- **로그 리네이밍**: s3-analysis-agent→aegis-analysis-agent, s4-exchange→llm-exchange
+- **LLM 모델 전환**: 35B-FP8 → 122B-GPTQ-Int4 (S7 수행, S3 코드 변경 없음)
+- **CVE batch-lookup 422 수정**: S5가 camelCase alias 추가, S3 필드 변환 제거
+- **metadata.cwe 추출 보강**: S4 v0.4.0+ 전 도구 CWE 태깅 대응
+- **통합 테스트**: RE100 4턴, claims 4개(popen→run_curl 호출 체인 탐지), code_graph.callers 성공, confidence 0.865, 116 tests
 
 ### Phase 1 확장 + 시스템 프롬프트 재설계 (2026-03-19, 완료)
 
@@ -358,6 +378,119 @@ S3에서 LLM Gateway + LLM Engine 관리를 S7으로 분리:
 - evaluation harness
 - golden set 관리
 - regression 검증
+
+---
+
+## v2 추후 구현 사항
+
+### 동적 분석: QEMU + GDB MCP (Phase 3)
+
+정적 분석(Phase 1/2)이 발견한 취약점을 **동적으로 확인**하는 단계.
+
+```
+Phase 1 (결정론적)  →  "여기가 의심됨" (SAST finding)
+Phase 2 (LLM 해석)  →  "이런 이유로 위험함" (상세 claim)
+Phase 3 (GDB 확인)  →  "실제로 이 값이 들어옴. 확정." (동적 검증)
+```
+
+- **QEMU user-mode**: ARM 크로스컴파일 바이너리를 x86에서 실행. 네트워크 syscall은 호스트 매핑.
+- **GDB MCP 서버**: `debug.launch`, `debug.breakpoint`, `debug.continue`, `debug.inspect`, `debug.backtrace`, `debug.terminate`
+- **Agent가 Phase 1 finding 위치를 기반으로 GDB 도구 호출** — 탐색 공간이 이미 좁혀져 있음
+- S6(Dynamic Analysis) 영역. S3는 Phase 3 오케스트레이션 담당.
+
+### 동적 분석: 트래픽 주입 템플릿
+
+PoC를 **Python 코드 텍스트** 대신 **구조화된 실행 가능 템플릿**으로 생성하여, 동적 분석 러너가 자동 실행.
+
+#### 프로토콜별 템플릿 분류
+
+| 카테고리 | 프로토콜 | 페이로드 | 템플릿 형태 |
+|---------|---------|---------|-----------|
+| REST | HTTP/HTTPS | JSON/text | method + path + headers + body |
+| RPC | gRPC, DoIP | protobuf/hex | service + method + payload_hex |
+| 차량 버스 | CAN, CAN-FD | hex frame | arbitration_id + data_hex + DLC |
+| 진단 | UDS (ISO 14229) | hex | service_id + sub_function + data |
+| IoT | MQTT | JSON/binary | topic + payload |
+
+#### HTTP 템플릿 예시
+
+```json
+{
+  "templateType": "http",
+  "vulnerability": "CWE-78",
+  "target": {"host": "${TARGET}", "port": 8080},
+  "steps": [
+    {"action": "send", "method": "GET", "path": "/api?host=;id"},
+    {"action": "assert", "responseContains": "uid="}
+  ],
+  "gdb": {
+    "breakpoint": "src/net.c:142",
+    "inspect": "cmd_str"
+  }
+}
+```
+
+#### gRPC / 바이너리 템플릿 예시
+
+```json
+{
+  "templateType": "grpc",
+  "vulnerability": "CWE-120",
+  "target": {"host": "${TARGET}", "port": 50051},
+  "steps": [
+    {"action": "send", "service": "DiagService", "method": "ReadData",
+     "payload_hex": "22F190" },
+    {"action": "assert", "responseCode": "not_error"}
+  ]
+}
+```
+
+#### 구현 방향
+
+1. **LLM이 PoC 생성 시 템플릿도 함께 출력** — `claims[0].pocTemplate` 필드
+2. **템플릿 러너** (S6 또는 신규): QEMU 위에서 서비스 실행 → 템플릿대로 트래픽 주입 → GDB로 확인
+3. **GDB 연동**: 템플릿의 `gdb.breakpoint`에 중단점 → 트래픽 주입 → `gdb.inspect`로 변수 값 확인 → "확정"
+4. **결과**: `confirmed` / `denied` / `inconclusive` — Phase 2 claim의 신뢰도를 동적으로 갱신
+
+#### AEGIS 분석 범위 (확정)
+
+| IN-SCOPE | OUT-OF-SCOPE |
+|----------|-------------|
+| 바이너리 (소스→빌드→실행→내부 로직 검증) | 부채널 공격 (전력, 타이밍, EM) |
+| 네트워크 (서비스 간 통신, 트래픽 주입, 프로토콜 퍼징) | 하드웨어 결함 주입 (voltage glitching) |
+| | GPIO/SPI/I2C 런타임 분석 |
+
+### LLM 빌드 에이전트 (S4 연계)
+
+SDK 프로필이 없는 프로젝트에 대해 LLM이 빌드 구성을 자동 추론하는 fallback 에이전트.
+
+```
+1. CMakeLists.txt / Makefile / build.gradle 등 빌드 파일 읽기
+2. LLM: 빌드 시스템 식별 → 컴파일러/플래그/의존성 추론 → 빌드 명령 생성
+3. 실행 → 실패 시 에러 로그를 LLM에 피드백 → 수정 → 재시도 (최대 N회)
+4. 성공 시: 확정된 빌드 설정을 SDK 프로필로 저장 (이후 결정론적 재현)
+```
+
+#### 왜 v1에서 안 하는가
+
+- LLM이 생성한 셸 명령 자동 실행 → 보안 표면이 넓음 (명령어 주입, 파일시스템 조작)
+- 빌드 에러 재시도 루프 → 비용/시간 예측 불가
+- SDK 프로필 기반 빌드(S4 현재 방식)가 결정론적이고 안전함
+
+#### v2 구현 방향
+
+- **샌드박스 필수**: Docker/nsjail 안에서만 빌드 명령 실행. 네트워크 차단, 파일시스템 격리.
+- **화이트리스트 명령어**: `cmake`, `make`, `gcc`, `g++` 등만 허용. 임의 셸 명령 차단.
+- **성공 시 프로필 저장**: LLM이 찾아낸 빌드 설정을 SDK 프로필로 고정 → 이후 빌드는 결정론적.
+- **담당**: S4(빌드 자동화) + S7(LLM 호출). S3는 빌드 결과만 소비.
+
+### DPO 파인튜닝
+
+AEGIS 분석 로그(LLM 요청/응답 + 사람 피드백)를 축적 → DPO(Direct Preference Optimization)로 Qwen 122B를 AEGIS 도메인에 특화.
+
+- **데이터 수집**: `logs/llm-dumps/*.json`에 전 LLM 호출 전문 저장 중
+- **선호 쌍 구성**: 사람이 claim을 승인/거부 → (승인 응답, 거부 응답) 쌍
+- **학습**: S7(LLM Engine) 영역. S3는 학습 데이터 제공자.
 
 ---
 

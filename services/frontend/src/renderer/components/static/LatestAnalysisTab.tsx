@@ -250,19 +250,17 @@ const LatestAnalysisContent: React.FC<{
             >
               전체 <span className="finding-filter-count">{findings.length}</span>
             </button>
-            {SEVERITY_ORDER.map((sev) => {
-              const count = severityCounts[sev];
-              if (count === 0) return null;
-              return (
+            {SEVERITY_ORDER
+              .filter((sev) => severityCounts[sev] > 0)
+              .map((sev) => (
                 <button
                   key={sev}
                   className={`finding-filter-tab${severityFilter === sev ? " finding-filter-tab--active" : ""}`}
                   onClick={() => setSeverityFilter(sev)}
                 >
-                  {SEVERITY_LABELS[sev]} <span className="finding-filter-count">{count}</span>
+                  {SEVERITY_LABELS[sev]} <span className="finding-filter-count">{severityCounts[sev]}</span>
                 </button>
-              );
-            })}
+              ))}
           </div>
           <div className="finding-group-toggle">
             <button

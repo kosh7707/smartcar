@@ -292,7 +292,8 @@ export class ResultNormalizer {
           title: this.extractTitle(claim.statement),
           description: claim.statement,
           location: claim.location ?? undefined,
-          suggestion: assessment.recommendedNextSteps[0] ?? undefined,
+          suggestion: assessment.recommendedNextSteps?.length ? assessment.recommendedNextSteps.join("\n") : undefined,
+          detail: claim.detail ?? undefined,
           createdAt: now,
           updatedAt: now,
         });
@@ -301,11 +302,15 @@ export class ResultNormalizer {
         for (const refId of claim.supportingEvidenceRefs) {
           const agentRef = context?.agentEvidenceRefs?.find(r => r.refId === refId);
           if (agentRef) {
+            const validArtifactTypes = new Set(["analysis-result", "uploaded-file", "dynamic-session", "test-result", "sast-finding", "agent-assessment"]);
+            const artifactType = validArtifactTypes.has(agentRef.artifactType)
+              ? (agentRef.artifactType as EvidenceRef["artifactType"])
+              : "analysis-result";
             evidenceRefs.push({
               id: `evr-${crypto.randomUUID()}`,
               findingId,
               artifactId: agentRef.artifactId,
-              artifactType: agentRef.artifactType as EvidenceRef["artifactType"],
+              artifactType,
               locatorType: "line-range",
               locator: agentRef.locator,
               createdAt: now,

@@ -21,7 +21,7 @@ async def test_health_endpoint(client: AsyncClient) -> None:
     assert resp.status_code == 200
 
     data = resp.json()
-    assert data["service"] == "s4-sast-runner"
+    assert data["service"] == "s4-sast"
     assert data["status"] == "ok"
     assert "semgrep" in data
     assert "defaultRulesets" in data
@@ -236,3 +236,100 @@ async def test_scan_error_response_format(client: AsyncClient) -> None:
     assert "message" in detail
     assert "requestId" in detail
     assert "retryable" in detail
+
+
+# === /v1/discover-targets ===
+
+
+@pytest.mark.asyncio
+async def test_discover_targets_no_project_path(client: AsyncClient) -> None:
+    """projectPath 없으면 400."""
+    resp = await client.post("/v1/discover-targets", json={})
+    assert resp.status_code == 400
+    assert "projectPath" in resp.json()["error"]
+
+
+@pytest.mark.asyncio
+async def test_discover_targets_invalid_path(client: AsyncClient) -> None:
+    """존재하지 않는 경로면 400."""
+    resp = await client.post(
+        "/v1/discover-targets",
+        json={"projectPath": "/nonexistent/path"},
+    )
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_discover_targets_basic(client: AsyncClient, tmp_path) -> None:
+    """빌드 파일 탐지 기본 동작."""
+    (tmp_path / "gateway").mkdir()
+    (tmp_path / "gateway" / "CMakeLists.txt").touch()
+    (tmp_path / "controller").mkdir()
+    (tmp_path / "controller" / "Makefile").touch()
+
+    resp = await client.post(
+        "/v1/discover-targets",
+        json={"projectPath": str(tmp_path)},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["targets"]) == 2
+    names = {t["name"] for t in data["targets"]}
+    assert "gateway" in names
+    assert "controller" in names
+
+
+@pytest.mark.asyncio
+async def test_discover_targets_nested_dedup(client: AsyncClient, tmp_path) -> None:
+    """중첩 빌드 파일은 상위만 반환."""
+    (tmp_path / "app").mkdir()
+    (tmp_path / "app" / "CMakeLists.txt").touch()
+    (tmp_path / "app" / "src").mkdir()
+    (tmp_path / "app" / "src" / "CMakeLists.txt").touch()  # 중첩 — 제거
+
+    resp = await client.post(
+        "/v1/discover-targets",
+        json={"projectPath": str(tmp_path)},
+    )
+    data = resp.json()
+    assert len(data["targets"]) == 1
+    assert data["targets"][0]["name"] == "app"
+
+
+# === /v1/functions ===
+
+
+@pytest.mark.asyncio
+async def test_functions_no_input_returns_error(client: AsyncClient) -> None:
+    """files도 projectPath도 없으면 에러."""
+    resp = await client.post(
+        "/v1/functions",
+        json={"scanId": "test-fn-001", "projectId": "proj-test", "files": []},
+    )
+    assert resp.status_code == 400
+
+
+# === /v1/includes ===
+
+
+@pytest.mark.asyncio
+async def test_includes_no_input_returns_error(client: AsyncClient) -> None:
+    """files도 projectPath도 없으면 에러."""
+    resp = await client.post(
+        "/v1/includes",
+        json={"scanId": "test-inc-001", "projectId": "proj-test", "files": []},
+    )
+    assert resp.status_code == 400
+
+
+# === /v1/libraries ===
+
+
+@pytest.mark.asyncio
+async def test_libraries_no_project_path(client: AsyncClient) -> None:
+    """projectPath 없으면 에러."""
+    resp = await client.post(
+        "/v1/libraries",
+        json={"scanId": "test-lib-001", "projectId": "proj-test", "files": []},
+    )
+    assert resp.status_code == 400
