@@ -43,12 +43,15 @@ cd ../..
 | `--scenario=NAME` | ECU 시나리오 (기본: mixed) |
 | `--speed=N` | ECU 트래픽 속도 (기본: 1) |
 
-## Services
+## Services (7인 체제, 8서비스)
 
-| 서비스 | 포트 | 스택 |
-|--------|------|------|
-| LLM Gateway | 8000 | Python / FastAPI |
-| Adapter | 4000 | TypeScript |
-| Backend | 3000 | TypeScript |
-| ECU Simulator | — | TypeScript |
-| Frontend | 5173 | Vite + React |
+| ID | 서비스 | 포트 | 스택 |
+|----|--------|------|------|
+| S1 | Frontend + QA | 5173 | Vite + React + TypeScript |
+| S2 | AEGIS Core (Backend) | 3000 | Express 5 + TypeScript + SQLite |
+| S3 | Analysis Agent | 8001 | Python + FastAPI |
+| S3 | Build Agent (S3 겸임) | 8003 | Python + FastAPI |
+| S4 | SAST Runner | 9000 | Python + FastAPI |
+| S5 | Knowledge Base | 8002 | Python + FastAPI + Neo4j + Qdrant |
+| S6 | Dynamic Analysis (Adapter + ECU Sim) | 4000 | TypeScript |
+| S7 | LLM Gateway + Engine | 8000, DGX | Python + FastAPI + vLLM |

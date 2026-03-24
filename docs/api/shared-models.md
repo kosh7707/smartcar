@@ -219,9 +219,29 @@ type SdkProfileId = string;
 | description | string | SDK 설명 |
 | defaults | Omit<BuildProfile, "sdkId"> | 이 SDK 선택 시 BuildProfile에 적용되는 기본값 |
 
+### BuildTargetStatus
+
+빌드 타겟(서브 프로젝트) 상태머신. 12가지 상태를 가진다.
+
+```typescript
+type BuildTargetStatus =
+  | "pending"           // 초기 상태
+  | "copying"           // includedPaths 기반 소스 복사 중
+  | "copied"            // 소스 복사 완료
+  | "building"          // S4 빌드 실행 중 (compile_commands.json 생성)
+  | "built"             // 빌드 완료
+  | "scanning"          // S4 SAST 스캔 실행 중
+  | "scanned"           // 스캔 완료
+  | "graphing"          // S5 코드그래프 생성 중
+  | "ready"             // 파이프라인 완료 (빌드+스캔+그래프 모두 완료)
+  | "build_failed"      // 빌드 실패
+  | "scan_failed"       // 스캔 실패
+  | "graph_failed";     // 코드그래프 실패
+```
+
 ### BuildTarget
 
-프로젝트 내 독립 빌드 단위. MSA 구조 프로젝트에서 각 서비스를 별도 타겟으로 관리한다.
+프로젝트 내 독립 빌드 단위(서브 프로젝트). MSA 구조 프로젝트에서 각 서비스를 별도 타겟으로 관리한다.
 
 | 필드 | 타입 | 설명 |
 |------|------|------|
@@ -231,6 +251,16 @@ type SdkProfileId = string;
 | relativePath | string | 프로젝트 루트 기준 상대 경로 (e.g. "gateway/") |
 | buildProfile | BuildProfile | 타겟별 독립 빌드 설정 |
 | buildSystem | "cmake" \| "make" \| "custom" (optional) | 빌드 시스템 (S4 탐색 결과) |
+| status | BuildTargetStatus | 파이프라인 상태 (기본: "pending") |
+| includedPaths | string[] (optional) | 물리적으로 복사할 소스 경로 목록 (JSON) |
+| sourcePath | string (optional) | 복사된 소스의 실제 경로 |
+| compileCommandsPath | string (optional) | S4 빌드 결과 compile_commands.json 경로 |
+| buildLog | string (optional) | 빌드 로그 |
+| sastScanId | string (optional) | S4 SAST 스캔 결과 ID |
+| scaLibraries | ScaLibrary[] (optional) | SCA 라이브러리 목록 (JSON) |
+| codeGraphStatus | string (optional) | S5 코드그래프 상태 |
+| codeGraphNodeCount | number (optional) | 코드그래프 노드 수 |
+| lastBuiltAt | string (optional, ISO 8601) | 마지막 빌드 시각 |
 | createdAt | string (ISO 8601) | 생성 시각 |
 | updatedAt | string (ISO 8601) | 수정 시각 |
 
@@ -1101,6 +1131,62 @@ type ApprovalActionType = "gate.override" | "finding.accepted_risk";
 | updatedAt | string (ISO 8601) | 마지막 갱신 시각 |
 | endedAt | string (optional, ISO 8601) | 종료 시각 |
 | error | string (optional) | 에러 메시지 |
+
+### SourceFileEntry
+
+소스 파일 목록 응답의 개별 항목. `GET /api/projects/:pid/source/files`에서 반환.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| path | string | 프로젝트 루트 기준 상대 경로 |
+| size | number | 파일 크기 (bytes) |
+| language | string (optional) | 감지된 언어 (c, cpp, python 등 30+) |
+| fileType | SourceFileType | 파일 유형 분류 |
+| previewable | boolean | 텍스트 미리보기 가능 여부 |
+| lineCount | number (optional) | 텍스트 파일의 줄 수 |
+
+> **SourceFileType** (12종): `"source" | "header" | "build" | "config" | "doc" | "data" | "binary" | "object" | "library" | "script" | "test" | "other"`
+
+### WebSocket 메시지 — 파이프라인 (S2 → S1, `/ws/pipeline?projectId=`)
+
+| type | payload | 설명 |
+|------|---------|------|
+| `"pipeline-target-status"` | `{ projectId, targetId, targetName, status: BuildTargetStatus, phase: PipelinePhase, message? }` | 개별 서브 프로젝트 상태 변경 |
+| `"pipeline-complete"` | `{ projectId, completedCount, failedCount }` | 전체 파이프라인 완료 |
+| `"pipeline-error"` | `{ projectId, targetId?, error }` | 파이프라인 에러 |
+
+> **PipelinePhase**: `"copy" | "build" | "scan" | "graph" | "done" | "error"`
+
+### WebSocket 메시지 — 업로드 (S2 → S1, `/ws/upload?uploadId=`)
+
+| type | payload | 설명 |
+|------|---------|------|
+| `"upload-progress"` | `{ uploadId, phase: UploadPhase, message?, fileCount?, totalSize? }` | 업로드 진행률 |
+| `"upload-complete"` | `{ uploadId, projectId, fileCount, composition }` | 업로드 완료 |
+| `"upload-error"` | `{ uploadId, error }` | 업로드 에러 |
+
+> **UploadPhase**: `"received" | "extracting" | "indexing" | "complete"`
+
+### 서브 프로젝트 파이프라인 API
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| POST | `/api/projects/:pid/pipeline/run` | 전체 빌드&스캔 파이프라인 실행 (202) `{ targetIds? }` |
+| POST | `/api/projects/:pid/pipeline/run/:targetId` | 개별 서브 프로젝트 재실행 |
+| GET | `/api/projects/:pid/pipeline/status` | 전체 서브 프로젝트 상태 |
+
+### 업로드 API (비동기 전환)
+
+`POST /api/projects/:pid/source/upload`는 `202 Accepted`를 반환하며, 실제 처리는 비동기로 진행된다.
+
+응답 (202):
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| uploadId | string | 업로드 추적 ID |
+| status | `"received"` | 초기 상태 |
+
+진행률은 WebSocket `/ws/upload?uploadId=`로 push된다. 상태머신: `received → extracting → indexing → complete`.
 
 ---
 

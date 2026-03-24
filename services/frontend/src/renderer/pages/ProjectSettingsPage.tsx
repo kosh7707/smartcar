@@ -1,14 +1,9 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { useParams } from "react-router-dom";
-import {
-  Settings,
-  Cpu,
-  Check,
-  X,
-} from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Settings, Cpu } from "lucide-react";
 import {
   fetchProjectSettings, updateProjectSettings,
-  logError, healthFetch,
+  logError,
 } from "../api/client";
 import { useToast } from "../contexts/ToastContext";
 import { PageHeader, Spinner } from "../components/ui";
@@ -18,14 +13,13 @@ import "./SettingsPage.css";
 
 export const ProjectSettingsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
   const toast = useToast();
   const [loading, setLoading] = useState(true);
 
   // LLM settings
   const [llmUrl, setLlmUrl] = useState("");
   const [llmSaved, setLlmSaved] = useState(false);
-  const [llmTesting, setLlmTesting] = useState(false);
-  const [llmTestResult, setLlmTestResult] = useState<"idle" | "ok" | "error">("idle");
   const savedTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
@@ -40,14 +34,6 @@ export const ProjectSettingsPage: React.FC = () => {
     return () => { if (savedTimerRef.current) clearTimeout(savedTimerRef.current); };
   }, []);
 
-  const handleTestLlm = useCallback(async () => {
-    setLlmTesting(true);
-    setLlmTestResult("idle");
-    const { ok } = await healthFetch(llmUrl.trim() || DEFAULT_LLM_URL);
-    setLlmTestResult(ok ? "ok" : "error");
-    setLlmTesting(false);
-  }, [llmUrl]);
-
   const handleSaveLlm = useCallback(async () => {
     if (!projectId) return;
     try {
@@ -56,15 +42,17 @@ export const ProjectSettingsPage: React.FC = () => {
       setLlmSaved(true);
       if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
       savedTimerRef.current = setTimeout(() => setLlmSaved(false), 2000);
-    } catch (e) { logError("Save LLM URL", e); }
-  }, [projectId, llmUrl]);
+    } catch (e) {
+      logError("Save LLM URL", e);
+      toast.error("설정 저장에 실패했습니다.");
+    }
+  }, [projectId, llmUrl, toast]);
 
   const handleResetLlm = useCallback(async () => {
     if (!projectId) return;
     try {
       const updated = await updateProjectSettings(projectId, { llmUrl: "" });
       setLlmUrl(updated.llmUrl);
-      setLlmTestResult("idle");
     } catch (e) { logError("Reset LLM URL", e); }
   }, [projectId]);
 
@@ -91,32 +79,18 @@ export const ProjectSettingsPage: React.FC = () => {
         </div>
 
         <div className="gs-url-row">
-          <div className="gs-url-input-wrap">
-            <input
-              type="text"
-              className="form-input gs-url-input"
-              value={llmUrl}
-              onChange={(e) => { setLlmUrl(e.target.value); setLlmTestResult("idle"); }}
-              placeholder={DEFAULT_LLM_URL}
-              spellCheck={false}
-            />
-            {llmTestResult === "ok" && <span className="gs-url-badge gs-url-badge--ok"><Check size={12} /></span>}
-            {llmTestResult === "error" && <span className="gs-url-badge gs-url-badge--error"><X size={12} /></span>}
-            {llmTesting && <span className="gs-url-badge gs-url-badge--testing"><Spinner size={12} /></span>}
-          </div>
-          <button className="btn btn-secondary btn-sm" onClick={handleTestLlm} disabled={llmTesting}>
-            테스트
-          </button>
+          <input
+            type="text"
+            className="form-input gs-url-input"
+            value={llmUrl}
+            onChange={(e) => setLlmUrl(e.target.value)}
+            placeholder={DEFAULT_LLM_URL}
+            spellCheck={false}
+          />
           <button className="btn btn-sm" onClick={handleSaveLlm}>
             {llmSaved ? "저장됨" : "저장"}
           </button>
         </div>
-
-        {llmTestResult !== "idle" && !llmTesting && (
-          <div className={`gs-test-msg gs-test-msg--${llmTestResult}`}>
-            {llmTestResult === "ok" ? "LLM Gateway 연결 성공" : "LLM Gateway 연결 실패"}
-          </div>
-        )}
 
         <button className="gs-reset-link" onClick={handleResetLlm}>
           서버 기본값으로 초기화
@@ -124,7 +98,14 @@ export const ProjectSettingsPage: React.FC = () => {
       </div>
 
       {/* Build Targets */}
-      {projectId && <BuildTargetSection projectId={projectId} />}
+      {projectId && (
+        <BuildTargetSection
+          projectId={projectId}
+          onStartDeepAnalysis={(targetIds) => {
+            navigate(`/projects/${projectId}/static-analysis`);
+          }}
+        />
+      )}
     </div>
   );
 };

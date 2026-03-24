@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S4(SAST Runner) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-20**
+> **마지막 업데이트: 2026-03-24**
 
 ---
 
@@ -45,8 +45,8 @@
 - `docs/api/sast-runner-api.md` API 계약서 소유
 - `docs/specs/sast-runner.md` 명세서 소유
 - `scripts/start-sast-runner.sh` + `services/sast-runner/.env` 소유
-- 8개 엔드포인트 관리: scan, functions, includes, metadata, libraries, build-and-analyze, discover-targets, health
-- SDK 레지스트리 관리 (`app/scanner/sdk_resolver.py`)
+- 10개 엔드포인트 관리: scan, functions, includes, metadata, libraries, build, build-and-analyze, discover-targets, sdk-registry, health
+- SDK 레지스트리 관리 (`$SAST_SDK_ROOT/sdk-registry.json` 외부 파일)
 
 ### 너는 하지 않는다
 
@@ -101,7 +101,7 @@ services/sast-runner/
 │   ├── config.py            — pydantic-settings (SAST_ prefix)
 │   ├── context.py           — contextvars requestId 전파
 │   ├── errors.py            — 커스텀 에러 4종
-│   ├── routers/scan.py      — 7개 엔드포인트
+│   ├── routers/scan.py      — 10개 엔드포인트
 │   ├── schemas/
 │   │   ├── request.py       — ScanRequest, BuildProfile
 │   │   └── response.py      — SastFinding, ScanResponse, HealthResponse
@@ -115,17 +115,17 @@ services/sast-runner/
 │       ├── gcc_analyzer_runner.py — CWE 매핑 16개 + gcc 출력 직접 파싱, 파일별 실행, GCC 버전 체크 + 캐시
 │       ├── sarif_parser.py
 │       ├── ruleset_selector.py
-│       ├── sdk_resolver.py   — SDK 레지스트리 (SAST_SDK_ROOT 기반)
-│       ├── ast_dumper.py
+│       ├── sdk_resolver.py   — SDK 레지스트리 (외부 sdk-registry.json 로드)
+│       ├── ast_dumper.py     — 함수 추출 + origin 태깅 (서드파티 출처 식별)
 │       ├── include_resolver.py
 │       ├── build_metadata.py
-│       ├── build_runner.py
+│       ├── build_runner.py   — 빌드 실행 + 타겟 탐색 + buildCommand 감지
 │       ├── library_identifier.py
 │       ├── library_differ.py
 │       └── library_hasher.py
 ├── rules/automotive/        — 커스텀 Semgrep 룰
 │   ├── command-injection.yaml  (CWE-78, 5개 룰)
-│   ├── divide-by-zero.yaml     (CWE-369, 6개 룰)
+│   ├── divide-by-zero.yaml     (CWE-369, 7개 룰)
 │   ├── integer-overflow.yaml   (CWE-190, 5개 룰)
 │   ├── hardcoded-credentials.yaml (CWE-798, 2개 룰)
 │   └── weak-prng.yaml         (CWE-338, 2개 룰)
@@ -135,7 +135,7 @@ services/sast-runner/
 │   ├── cwe_matcher.py
 │   ├── metrics.py
 │   └── data/baselines/      — 측정 결과 JSON
-├── tests/                   — 42개 테스트
+├── tests/                   — 51개 테스트
 └── requirements.txt
 ```
 
@@ -176,14 +176,28 @@ tail -20 logs/s4-sast-runner.jsonl
 
 ```
 $SAST_SDK_ROOT/              ← .env: SAST_SDK_ROOT=/home/kosh/sdks
+  ├── sdk-registry.json       ← SDK 메타데이터 (외부 설정, 코드 밖)
   └── ti-am335x/              ← sdkId = 폴더명 (현재 ~/ti-sdk 심링크)
+```
+
+`sdk-registry.json` 예시:
+```json
+{
+  "ti-am335x": {
+    "description": "TI Processor SDK Linux AM335x 08.02.00.24",
+    "sysroot": "linux-devkit/sysroots/x86_64-arago-linux",
+    "compiler_prefix": "arm-none-linux-gnueabihf",
+    "gcc_version": "9.2.1",
+    "environment_setup": "linux-devkit/environment-setup-armv7at2hf-neon-linux-gnueabi"
+  }
+}
 ```
 
 | sdkId | SDK | 크로스 컴파일러 | 헤더 | env-setup | GCC 버전 |
 |-------|-----|----------------|:---:|:---:|:---:|
 | `ti-am335x` | TI AM335x 08.02.00.24 | `arm-none-linux-gnueabihf-gcc` | 7개 | O | 9.2.1 (**-fanalyzer 미지원** → 호스트 폴백) |
 
-새 SDK 추가: 폴더 설치 → `sdk_resolver.py` `_SDK_REGISTRY` 등록 → 문서 갱신.
+새 SDK 추가: `$SAST_SDK_ROOT/` 하위에 폴더 설치 → `sdk-registry.json`에 항목 추가. 코드 수정 불필요.
 
 ---
 
@@ -204,7 +218,7 @@ cd services/sast-runner
 
 Juliet 위치: `~/Juliet/C/` (프로젝트 외부, 106K 파일)
 
-### 최신 Recall 결과 (v0.4.1, 12 CWE, 361 파일)
+### 최신 Recall 결과 (v0.4.0, 12 CWE, 361 파일)
 
 | Tier | CWE | Recall | 주력 도구 |
 |------|-----|:---:|---|
@@ -253,14 +267,22 @@ Juliet 위치: `~/Juliet/C/` (프로젝트 외부, 106K 파일)
 - [x] `smartcar` → `AEGIS` 네이밍 → `s4-sast` 로그 표준화 (`s4-sast-runner.jsonl`, level 숫자, service `s4-sast`)
 - [x] 기동 스크립트 수정 (venv PATH, .env 파싱)
 - [x] 통합 테스트 성공 (S3 Agent Phase 1/2 전 구간)
-- [x] 42개 테스트 통과
+- [x] 51개 테스트 통과
 - [x] `/v1/includes`에 `projectPath` 지원 추가
 - [x] SDK environment-setup 자동 적용 (`build_runner.py`)
-- [x] `buildCommand` 자동 감지 (CMakeLists.txt/Makefile/configure)
-- [x] 커스텀 Semgrep 룰 추가: CWE-369 (6룰), CWE-190 (5룰)
+- [x] `buildCommand` 자동 감지 (빌드 스크립트 우선 → CMake → Make → configure)
+- [x] 커스텀 Semgrep 룰 추가: CWE-369 (7룰), CWE-190 (5룰)
 - [x] Cppcheck `--check-level=exhaustive` 활성화
 - [x] 벤치마크 `--no-custom-rules` delta 측정 기능
-- [x] Juliet Recall 68.1% → **70.9%** (+2.8%)
+- [x] Juliet Recall 54.5% → **70.9%** (+16.4%)
+- [x] `/v1/scan` 응답에 `codeGraph` + `sca` 통합 (projectPath 모드)
+- [x] `/v1/functions` origin 태깅 (third-party / modified-third-party 식별)
+- [x] `/v1/build` 엔드포인트 신규 (빌드 전용, 파이프라인 단계별 제어)
+- [x] `/v1/discover-targets` 엔드포인트 신규 (빌드 타겟 자동 탐색)
+- [x] `/v1/sdk-registry` 엔드포인트 신규 (등록된 SDK 목록, 빌드 Agent 연동)
+- [x] SDK 레지스트리 외부화 (`sdk-registry.json`, 코드 수정 불필요)
+- [x] 전역 SastRunnerError 예외 핸들러 + 전 엔드포인트 에러 핸들링
+- [x] Observability v2 준수 (service `s4-sast`, level 숫자, X-Request-Id 전파)
 
 ### 미완료
 
@@ -268,10 +290,10 @@ Juliet 위치: `~/Juliet/C/` (프로젝트 외부, 106K 파일)
 
 ### 향후 개선 아이디어
 
-- CWE-369 (22%) 추가 개선: 소켓/파일 소스 기반 패턴은 SAST 도구 한계 → S3 LLM 분석에 위임
-- CWE-190 (53%) 추가 개선: int64_t/unsigned_int 타입 커버리지 확대
+- S3 빌드 Agent 연동: S3가 `build-resolve` Agent 구현 중 — `/v1/build` + `/v1/sdk-registry`로 연동 예정
+- functions 추출 성능: 782파일 79.8초 → 병렬화 또는 vendored 라이브러리 스킵 검토
+- CWE-369 (22%) / CWE-190 (53%) 추가 개선: 데이터 플로우 추적은 SAST 한계 → S3 LLM에 위임
 - Juliet variant 확장: 현재 variant_01만 → 전체 variant 벤치마크
-- 커스텀 Semgrep 룰 CWE-798/338: Juliet에 해당 CWE 없어서 delta 미측정
 
 ---
 

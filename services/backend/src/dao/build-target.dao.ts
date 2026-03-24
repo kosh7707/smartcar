@@ -1,8 +1,14 @@
-import type { BuildTarget, BuildProfile } from "@aegis/shared";
+import type { BuildTarget, BuildProfile, BuildTargetStatus, ScaLibrary } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IBuildTargetDAO } from "./interfaces";
 
+function parseJsonOrDefault<T>(raw: string | null | undefined, fallback: T): T {
+  if (!raw) return fallback;
+  try { return JSON.parse(raw) as T; } catch { return fallback; }
+}
+
 function rowToBuildTarget(row: any): BuildTarget {
+  const scaLibraries = parseJsonOrDefault<ScaLibrary[]>(row.sca_libraries, []);
   return {
     id: row.id,
     projectId: row.project_id,
@@ -10,6 +16,17 @@ function rowToBuildTarget(row: any): BuildTarget {
     relativePath: row.relative_path,
     buildProfile: JSON.parse(row.build_profile ?? "{}"),
     buildSystem: row.build_system ?? undefined,
+    includedPaths: parseJsonOrDefault<string[]>(row.included_paths, []).length > 0
+      ? parseJsonOrDefault<string[]>(row.included_paths, []) : undefined,
+    sourcePath: row.source_path ?? undefined,
+    status: (row.status ?? "discovered") as BuildTargetStatus,
+    compileCommandsPath: row.compile_commands_path ?? undefined,
+    buildLog: row.build_log ?? undefined,
+    sastScanId: row.sast_scan_id ?? undefined,
+    scaLibraries: scaLibraries.length > 0 ? scaLibraries : undefined,
+    codeGraphStatus: row.code_graph_status ?? undefined,
+    codeGraphNodeCount: row.code_graph_node_count ?? undefined,
+    lastBuiltAt: row.last_built_at ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -20,20 +37,24 @@ export class BuildTargetDAO implements IBuildTargetDAO {
   private selectByIdStmt;
   private selectByProjectStmt;
   private updateStmt;
+  private updateStatusStmt;
   private deleteStmt;
   private deleteByProjectStmt;
 
   constructor(private db: DatabaseType) {
     this.insertStmt = db.prepare(
-      `INSERT INTO build_targets (id, project_id, name, relative_path, build_profile, build_system, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO build_targets (id, project_id, name, relative_path, build_profile, build_system, status, included_paths, source_path, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     this.selectByIdStmt = db.prepare(`SELECT * FROM build_targets WHERE id = ?`);
     this.selectByProjectStmt = db.prepare(
       `SELECT * FROM build_targets WHERE project_id = ? ORDER BY name ASC`,
     );
     this.updateStmt = db.prepare(
-      `UPDATE build_targets SET name = ?, relative_path = ?, build_profile = ?, build_system = ?, updated_at = ? WHERE id = ?`,
+      `UPDATE build_targets SET name = ?, relative_path = ?, build_profile = ?, build_system = ?, status = ?, updated_at = ? WHERE id = ?`,
+    );
+    this.updateStatusStmt = db.prepare(
+      `UPDATE build_targets SET status = ?, compile_commands_path = ?, build_log = ?, sast_scan_id = ?, sca_libraries = ?, code_graph_status = ?, code_graph_node_count = ?, last_built_at = ?, updated_at = ? WHERE id = ?`,
     );
     this.deleteStmt = db.prepare(`DELETE FROM build_targets WHERE id = ?`);
     this.deleteByProjectStmt = db.prepare(`DELETE FROM build_targets WHERE project_id = ?`);
@@ -47,6 +68,9 @@ export class BuildTargetDAO implements IBuildTargetDAO {
       target.relativePath,
       JSON.stringify(target.buildProfile),
       target.buildSystem ?? null,
+      target.status ?? "discovered",
+      JSON.stringify(target.includedPaths ?? []),
+      target.sourcePath ?? null,
       target.createdAt,
       target.updatedAt,
     );
@@ -63,7 +87,7 @@ export class BuildTargetDAO implements IBuildTargetDAO {
 
   update(
     id: string,
-    fields: { name?: string; relativePath?: string; buildProfile?: BuildProfile; buildSystem?: string },
+    fields: { name?: string; relativePath?: string; buildProfile?: BuildProfile; buildSystem?: string; status?: BuildTargetStatus },
   ): BuildTarget | undefined {
     const existing = this.findById(id);
     if (!existing) return undefined;
@@ -72,10 +96,45 @@ export class BuildTargetDAO implements IBuildTargetDAO {
     const relativePath = fields.relativePath ?? existing.relativePath;
     const buildProfile = fields.buildProfile ?? existing.buildProfile;
     const buildSystem = fields.buildSystem ?? existing.buildSystem;
+    const status = fields.status ?? existing.status;
     const updatedAt = new Date().toISOString();
 
-    this.updateStmt.run(name, relativePath, JSON.stringify(buildProfile), buildSystem ?? null, updatedAt, id);
-    return { ...existing, name, relativePath, buildProfile, buildSystem: buildSystem as BuildTarget["buildSystem"], updatedAt };
+    this.updateStmt.run(name, relativePath, JSON.stringify(buildProfile), buildSystem ?? null, status, updatedAt, id);
+    return { ...existing, name, relativePath, buildProfile, buildSystem: buildSystem as BuildTarget["buildSystem"], status, updatedAt };
+  }
+
+  /** 파이프라인 상태 전이용 (모든 파이프라인 관련 필드 일괄 업데이트) */
+  updatePipelineState(
+    id: string,
+    fields: {
+      status: BuildTargetStatus;
+      compileCommandsPath?: string;
+      buildLog?: string;
+      sastScanId?: string;
+      scaLibraries?: ScaLibrary[];
+      codeGraphStatus?: string;
+      codeGraphNodeCount?: number;
+      lastBuiltAt?: string;
+    },
+  ): BuildTarget | undefined {
+    const existing = this.findById(id);
+    if (!existing) return undefined;
+
+    const updatedAt = new Date().toISOString();
+    this.updateStatusStmt.run(
+      fields.status,
+      fields.compileCommandsPath ?? existing.compileCommandsPath ?? null,
+      fields.buildLog ?? existing.buildLog ?? null,
+      fields.sastScanId ?? existing.sastScanId ?? null,
+      JSON.stringify(fields.scaLibraries ?? existing.scaLibraries ?? []),
+      fields.codeGraphStatus ?? existing.codeGraphStatus ?? "pending",
+      fields.codeGraphNodeCount ?? existing.codeGraphNodeCount ?? 0,
+      fields.lastBuiltAt ?? existing.lastBuiltAt ?? null,
+      updatedAt,
+      id,
+    );
+
+    return this.findById(id);
   }
 
   delete(id: string): boolean {

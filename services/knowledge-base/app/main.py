@@ -17,7 +17,8 @@ from app.graphrag.neo4j_graph import Neo4jGraph
 from app.graphrag.vector_search import VectorSearch
 from app.observability import setup_logging
 from app.rag.threat_search import ThreatSearch
-from app.routers import api, code_graph_api, cve_api
+from app.graphrag.project_memory_service import ProjectMemoryService
+from app.routers import api, code_graph_api, cve_api, project_memory_api
 
 setup_logging("s5-kb", log_file_name="aegis-knowledge-base")
 logger = logging.getLogger(__name__)
@@ -55,6 +56,7 @@ async def lifespan(_app: FastAPI):
     # Neo4j 그래프 초기화
     neo4j_graph = None
     code_graph_svc = None
+    memory_svc = None
 
     try:
         driver = neo4j.GraphDatabase.driver(
@@ -65,6 +67,7 @@ async def lifespan(_app: FastAPI):
 
         neo4j_graph = Neo4jGraph(driver)
         code_graph_svc = CodeGraphService(driver)
+        memory_svc = ProjectMemoryService(driver)
 
         logger.info(
             "Neo4j 연결 완료: %d nodes, %d edges",
@@ -100,6 +103,7 @@ async def lifespan(_app: FastAPI):
     api.set_neo4j_graph(neo4j_graph)
     code_graph_api.set_service(code_graph_svc)
     cve_api.set_nvd_client(nvd_client)
+    project_memory_api.set_service(memory_svc if neo4j_graph else None)
 
     logger.info("Knowledge Base 초기화 완료")
 
@@ -146,6 +150,7 @@ app.add_middleware(
 app.include_router(api.router)
 app.include_router(code_graph_api.router)
 app.include_router(cve_api.router)
+app.include_router(project_memory_api.router)
 
 
 if __name__ == "__main__":

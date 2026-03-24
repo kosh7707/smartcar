@@ -9,6 +9,7 @@ import "./styles/animations.css";
 import "./styles/layout.css";
 import "./styles/components.css";
 import "./styles/code-viewer.css";
+import "./styles/highlight.css";
 import "./styles/utilities.css";
 
 window.addEventListener("unhandledrejection", (e) => {

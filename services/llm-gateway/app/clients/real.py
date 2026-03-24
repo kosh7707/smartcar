@@ -108,8 +108,12 @@ class RealLlmClient(LlmClient):
                 self.last_prompt_tokens, self.last_completion_tokens,
             )
             _exchange.info(json.dumps({
+                "service": "s7-gateway",
+                "level": 30,
                 "time": int(time.time() * 1000),
+                "msg": f"[LLM exchange] ok latencyMs={latency_ms}",
                 "requestId": request_id,
+                "elapsedMs": latency_ms,
                 "latencyMs": latency_ms,
                 "status": "ok",
                 "request": body,
@@ -126,8 +130,12 @@ class RealLlmClient(LlmClient):
                 request_id, latency_ms,
             )
             _exchange.info(json.dumps({
+                "service": "s7-gateway",
+                "level": 50,
                 "time": int(time.time() * 1000),
+                "msg": f"[LLM exchange] TIMEOUT latencyMs={latency_ms}",
                 "requestId": request_id,
+                "elapsedMs": latency_ms,
                 "latencyMs": latency_ms,
                 "status": "error",
                 "error": "TIMEOUT",
@@ -144,8 +152,12 @@ class RealLlmClient(LlmClient):
                 request_id, latency_ms,
             )
             _exchange.info(json.dumps({
+                "service": "s7-gateway",
+                "level": 50,
                 "time": int(time.time() * 1000),
+                "msg": f"[LLM exchange] UNAVAILABLE latencyMs={latency_ms}",
                 "requestId": request_id,
+                "elapsedMs": latency_ms,
                 "latencyMs": latency_ms,
                 "status": "error",
                 "error": "UNAVAILABLE",
@@ -164,8 +176,12 @@ class RealLlmClient(LlmClient):
                 request_id, status, latency_ms, resp_text[:200],
             )
             _exchange.info(json.dumps({
+                "service": "s7-gateway",
+                "level": 50,
                 "time": int(time.time() * 1000),
+                "msg": f"[LLM exchange] HTTP_{status} latencyMs={latency_ms}",
                 "requestId": request_id,
+                "elapsedMs": latency_ms,
                 "latencyMs": latency_ms,
                 "status": "error",
                 "error": f"HTTP_{status}",

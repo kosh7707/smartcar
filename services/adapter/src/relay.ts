@@ -12,6 +12,7 @@ const INJECT_TIMEOUT_MS = 5000;
 interface PendingRequest {
   timer: NodeJS.Timeout;
   backendWs: WebSocket;
+  startTime: number;
 }
 
 export class Relay {
@@ -91,7 +92,8 @@ export class Relay {
     let msg: EcuToAdapterMessage;
     try {
       msg = JSON.parse(raw);
-    } catch {
+    } catch (err) {
+      logger.debug({ err }, "Failed to parse ECU message");
       return;
     }
 
@@ -108,11 +110,13 @@ export class Relay {
       if (pending) {
         clearTimeout(pending.timer);
         this.pendingRequests.delete(msg.requestId);
+        const elapsedMs = Date.now() - pending.startTime;
         this.sendToBackend(pending.backendWs, {
           type: "inject-response",
           requestId: msg.requestId,
           response: msg.response,
         });
+        logger.info({ requestId: msg.requestId, target: "s6-ecu", elapsedMs }, "← inject-response from s6-ecu");
       }
     }
   }
@@ -121,7 +125,8 @@ export class Relay {
     let msg: BackendToAdapterMessage;
     try {
       msg = JSON.parse(raw);
-    } catch {
+    } catch (err) {
+      logger.debug({ err }, "Failed to parse Backend message");
       return;
     }
 
@@ -142,6 +147,7 @@ export class Relay {
         requestId: msg.requestId,
         frame: msg.frame,
       };
+      const startTime = Date.now();
       try {
         this.ecuWs!.send(JSON.stringify(ecuMsg));
       } catch (err) {
@@ -154,17 +160,21 @@ export class Relay {
         return;
       }
 
+      logger.info({ requestId: msg.requestId, target: "s6-ecu" }, "→ inject-request → s6-ecu");
+
       // register timeout
       const timer = setTimeout(() => {
+        const elapsedMs = Date.now() - startTime;
         this.pendingRequests.delete(msg.requestId);
         this.sendToBackend(ws, {
           type: "inject-response",
           requestId: msg.requestId,
           response: { success: false, error: "no_response" },
         });
+        logger.warn({ requestId: msg.requestId, elapsedMs }, "inject-request timeout (5s)");
       }, INJECT_TIMEOUT_MS);
 
-      this.pendingRequests.set(msg.requestId, { timer, backendWs: ws });
+      this.pendingRequests.set(msg.requestId, { timer, backendWs: ws, startTime });
     }
   }
 

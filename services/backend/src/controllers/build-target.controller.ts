@@ -36,15 +36,23 @@ export function createBuildTargetRouter(
     validateProjectId(pid);
     if (!projectDAO.findById(pid)) throw new NotFoundError(`Project not found: ${pid}`);
 
-    const { name, relativePath, buildProfile, buildSystem } = req.body;
+    const { name, relativePath, buildProfile, buildSystem, includedPaths } = req.body;
     if (!name || !relativePath) {
       throw new InvalidInputError("name and relativePath are required");
     }
     if (relativePath.includes("..")) {
       throw new InvalidInputError("relativePath must not contain '..'");
     }
+    // includedPaths 검증
+    if (Array.isArray(includedPaths)) {
+      for (const p of includedPaths) {
+        if (typeof p === "string" && p.includes("..")) {
+          throw new InvalidInputError("includedPaths must not contain '..'");
+        }
+      }
+    }
 
-    const target = buildTargetService.create(pid, name, relativePath, buildProfile, buildSystem);
+    const target = buildTargetService.create(pid, name, relativePath, buildProfile, buildSystem, includedPaths);
     res.status(201).json({ success: true, data: target });
   }));
 

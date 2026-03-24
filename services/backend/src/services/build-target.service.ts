@@ -2,6 +2,7 @@ import crypto from "crypto";
 import type { BuildTarget, BuildProfile } from "@aegis/shared";
 import type { IBuildTargetDAO } from "../dao/interfaces";
 import type { ProjectSettingsService } from "./project-settings.service";
+import type { ProjectSourceService } from "./project-source.service";
 import { createLogger } from "../lib/logger";
 import { NotFoundError, InvalidInputError } from "../lib/errors";
 
@@ -11,6 +12,7 @@ export class BuildTargetService {
   constructor(
     private dao: IBuildTargetDAO,
     private settingsService: ProjectSettingsService,
+    private sourceService?: ProjectSourceService,
   ) {}
 
   create(
@@ -19,25 +21,37 @@ export class BuildTargetService {
     relativePath: string,
     buildProfile?: Partial<BuildProfile>,
     buildSystem?: string,
+    includedPaths?: string[],
   ): BuildTarget {
     const now = new Date().toISOString();
     const resolved = this.settingsService.resolveBuildProfile(
       buildProfile ?? this.settingsService.get(projectId, "buildProfile") ?? {},
     );
 
+    const targetId = `target-${crypto.randomUUID()}`;
+
+    // includedPaths가 있으면 물리적 복사
+    let sourcePath: string | undefined;
+    if (includedPaths?.length && this.sourceService) {
+      sourcePath = this.sourceService.copyToSubproject(projectId, targetId, includedPaths);
+    }
+
     const target: BuildTarget = {
-      id: `target-${crypto.randomUUID()}`,
+      id: targetId,
       projectId,
       name,
       relativePath: relativePath.endsWith("/") ? relativePath : `${relativePath}/`,
+      includedPaths: includedPaths?.length ? includedPaths : undefined,
+      sourcePath,
       buildProfile: resolved,
       buildSystem: buildSystem as BuildTarget["buildSystem"],
+      status: "discovered",
       createdAt: now,
       updatedAt: now,
     };
 
     this.dao.save(target);
-    logger.info({ projectId, targetId: target.id, name }, "Build target created");
+    logger.info({ projectId, targetId, name, includedPaths: includedPaths?.length ?? 0, sourcePath }, "Build target created");
     return target;
   }
 

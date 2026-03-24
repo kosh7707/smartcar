@@ -22,6 +22,8 @@ import type {
   UploadedFile,
   BuildTarget,
   BuildProfile,
+  BuildTargetStatus,
+  ScaLibrary,
 } from "@aegis/shared";
 import type { StoredFile } from "./file-store";
 
@@ -216,7 +218,20 @@ export interface IBuildTargetDAO {
   findByProjectId(projectId: string): BuildTarget[];
   update(
     id: string,
-    fields: { name?: string; relativePath?: string; buildProfile?: BuildProfile; buildSystem?: string },
+    fields: { name?: string; relativePath?: string; buildProfile?: BuildProfile; buildSystem?: string; status?: BuildTargetStatus },
+  ): BuildTarget | undefined;
+  updatePipelineState(
+    id: string,
+    fields: {
+      status: BuildTargetStatus;
+      compileCommandsPath?: string;
+      buildLog?: string;
+      sastScanId?: string;
+      scaLibraries?: ScaLibrary[];
+      codeGraphStatus?: string;
+      codeGraphNodeCount?: number;
+      lastBuiltAt?: string;
+    },
   ): BuildTarget | undefined;
   delete(id: string): boolean;
   deleteByProjectId(projectId: string): number;

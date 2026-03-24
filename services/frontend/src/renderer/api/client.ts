@@ -291,18 +291,33 @@ export interface SourceFileEntry {
   relativePath: string;
   size: number;
   language: string;
+  fileType?: "source" | "config" | "build" | "script" | "doc" | "linker" | "executable" | "object" | "shared-lib" | "archive" | "image" | "unknown";
+  previewable?: boolean;
+}
+
+export interface SourceUploadAccepted {
+  uploadId: string;
+  status: string;
 }
 
 export interface SourceUploadResponse {
-  projectPath: string;
+  projectPath?: string;
   fileCount: number;
+  savedCount?: number;
   files: SourceFileEntry[];
+  mode?: "archive" | "files";
 }
 
-export async function uploadSource(projectId: string, file: File): Promise<SourceUploadResponse> {
+/**
+ * Unified source upload — handles both archives and individual files.
+ * POST /api/projects/:pid/source/upload (FormData, field "file", 1~N files)
+ * Returns 202 Accepted with uploadId for WS progress tracking.
+ */
+export async function uploadSource(projectId: string, fileOrFiles: File | File[]): Promise<SourceUploadAccepted> {
   const formData = new FormData();
-  formData.append("file", file);
-  const res = await apiFetch<{ success: boolean; data: SourceUploadResponse }>(
+  const files = Array.isArray(fileOrFiles) ? fileOrFiles : [fileOrFiles];
+  for (const f of files) formData.append("file", f);
+  const res = await apiFetch<{ success: boolean; data: SourceUploadAccepted }>(
     `/api/projects/${projectId}/source/upload`,
     { method: "POST", body: formData },
   );
@@ -321,11 +336,25 @@ export async function cloneSource(projectId: string, url: string, branch?: strin
   return res.data;
 }
 
+export interface SourceFilesResponse {
+  success: boolean;
+  data: SourceFileEntry[];
+  composition?: Record<string, { count: number; bytes: number }>;
+  totalFiles?: number;
+  totalSize?: number;
+}
+
 export async function fetchSourceFiles(projectId: string): Promise<SourceFileEntry[]> {
-  const res = await apiFetch<{ success: boolean; data: SourceFileEntry[] }>(
+  const res = await apiFetch<SourceFilesResponse>(
     `/api/projects/${projectId}/source/files`,
   );
   return res.data;
+}
+
+export async function fetchSourceFilesWithComposition(projectId: string): Promise<SourceFilesResponse> {
+  return apiFetch<SourceFilesResponse>(
+    `/api/projects/${projectId}/source/files`,
+  );
 }
 
 export interface SourceFileContentResponse {
@@ -333,6 +362,9 @@ export interface SourceFileContentResponse {
   content: string;
   language: string;
   size: number;
+  fileType?: string;
+  previewable?: boolean;
+  lineCount?: number;
 }
 
 export async function fetchSourceFileContent(
@@ -758,7 +790,7 @@ export async function fetchBuildTargets(projectId: string): Promise<BuildTarget[
 
 export async function createBuildTarget(
   projectId: string,
-  body: { name: string; relativePath: string; buildProfile?: BuildProfile },
+  body: { name: string; relativePath: string; buildProfile?: BuildProfile; includedPaths?: string[] },
 ): Promise<BuildTarget> {
   const res = await apiFetch<{ success: boolean; data: BuildTarget }>(
     `/api/projects/${projectId}/targets`,
@@ -798,6 +830,46 @@ export async function discoverBuildTargets(projectId: string): Promise<BuildTarg
   const res = await apiFetch<{ success: boolean; data: BuildTarget[] }>(
     `/api/projects/${projectId}/targets/discover`,
     { method: "POST" },
+  );
+  return res.data;
+}
+
+// ── Pipeline ──
+
+export async function runPipeline(
+  projectId: string,
+  targetIds?: string[],
+): Promise<{ pipelineId: string; status: string }> {
+  const body: Record<string, unknown> = {};
+  if (targetIds && targetIds.length > 0) body.targetIds = targetIds;
+  const res = await apiFetch<{ success: boolean; data: { pipelineId: string; status: string } }>(
+    `/api/projects/${projectId}/pipeline/run`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+  );
+  return res.data;
+}
+
+export async function runPipelineTarget(
+  projectId: string,
+  targetId: string,
+): Promise<{ pipelineId: string }> {
+  const res = await apiFetch<{ success: boolean; data: { pipelineId: string } }>(
+    `/api/projects/${projectId}/pipeline/run/${targetId}`,
+    { method: "POST" },
+  );
+  return res.data;
+}
+
+export interface PipelineStatusResponse {
+  targets: Array<{ id: string; name: string; status: string; phase: string; message: string }>;
+  readyCount: number;
+  failedCount: number;
+  totalCount: number;
+}
+
+export async function fetchPipelineStatus(projectId: string): Promise<PipelineStatusResponse> {
+  const res = await apiFetch<{ success: boolean; data: PipelineStatusResponse }>(
+    `/api/projects/${projectId}/pipeline/status`,
   );
   return res.data;
 }

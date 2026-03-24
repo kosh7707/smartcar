@@ -71,6 +71,14 @@ class BuildRunner:
                 accepted.append(target)
                 accepted_paths.append(path)
 
+        # 3. 각 타겟에 빌드 스크립트 탐색 결과 추가
+        for target in accepted:
+            rel_path = target["relativePath"]
+            target_dir = project_path / rel_path if rel_path else project_path
+            detected = self.detect_build_command(target_dir)
+            if detected:
+                target["detectedBuildCommand"] = detected
+
         logger.info(
             "Discovered %d build targets in %s (scanned %d candidates)",
             len(accepted), project_path, len(raw_targets),
@@ -80,8 +88,28 @@ class BuildRunner:
     def detect_build_command(self, project_path: Path) -> str | None:
         """프로젝트 빌드 시스템을 자동 감지하여 빌드 명령어를 반환.
 
-        우선순위: CMakeLists.txt > Makefile > configure
+        우선순위:
+        1. 빌드 스크립트 (cross_build.sh, build.sh 등) — 크로스컴파일 지원
+        2. CMakeLists.txt → cmake (네이티브 빌드만, 크로스컴파일은 buildCommand 명시 필요)
+        3. Makefile → make
+        4. configure → ./configure && make
+
+        주의: 크로스컴파일(SDK 사용) 프로젝트에서는 자동 감지가 부정확할 수 있음.
+        buildProfile.sdkId가 있는 경우 buildCommand를 명시적으로 제공하는 것을 권장.
         """
+        # 1. 빌드 스크립트 탐색 (scripts/ 하위 + 루트)
+        script_candidates = [
+            "scripts/cross_build.sh",
+            "scripts/build.sh",
+            "cross_build.sh",
+            "build.sh",
+        ]
+        for script in script_candidates:
+            script_path = project_path / script
+            if script_path.exists() and script_path.is_file():
+                return f"./{script}"
+
+        # 2. 표준 빌드 시스템
         if (project_path / "CMakeLists.txt").exists():
             return "mkdir -p build && cd build && cmake .. && make"
         if (project_path / "Makefile").exists():

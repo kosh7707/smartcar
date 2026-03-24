@@ -170,6 +170,7 @@ export function makeBuildTarget(overrides?: Partial<BuildTarget>): BuildTarget {
       headerLanguage: "auto",
     },
     buildSystem: "cmake",
+    status: "discovered",
     createdAt: now(),
     updatedAt: now(),
     ...overrides,

@@ -33,9 +33,10 @@ export function useBuildTargets(projectId?: string) {
     name: string,
     relativePath: string,
     buildProfile?: BuildProfile,
+    includedPaths?: string[],
   ) => {
     if (!projectId) return;
-    const created = await createBuildTarget(projectId, { name, relativePath, buildProfile });
+    const created = await createBuildTarget(projectId, { name, relativePath, buildProfile, includedPaths });
     setTargets((prev) => [...prev, created]);
     return created;
   }, [projectId]);

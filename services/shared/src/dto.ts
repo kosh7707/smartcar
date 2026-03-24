@@ -294,6 +294,86 @@ export type WsAnalysisMessage =
   | WsAnalysisError;
 
 // ============================================================
+// 소스코드 업로드 상태머신
+// ============================================================
+
+export type UploadPhase = "received" | "extracting" | "indexing" | "complete" | "failed";
+
+export interface WsUploadProgress {
+  type: "upload-progress";
+  payload: {
+    uploadId: string;
+    phase: UploadPhase;
+    message: string;
+    fileCount?: number;
+  };
+}
+
+export interface WsUploadComplete {
+  type: "upload-complete";
+  payload: {
+    uploadId: string;
+    fileCount: number;
+    projectPath: string;
+  };
+}
+
+export interface WsUploadError {
+  type: "upload-error";
+  payload: {
+    uploadId: string;
+    phase: UploadPhase;
+    error: string;
+  };
+}
+
+export type WsUploadMessage = WsUploadProgress | WsUploadComplete | WsUploadError;
+
+// ============================================================
+// 서브 프로젝트 파이프라인 (빌드 → 스캔 → 코드그래프)
+// ============================================================
+
+import type { BuildTargetStatus } from "./models";
+
+/** 파이프라인 UI 간소화 3단계 */
+export type PipelinePhase = "setup" | "build" | "ready";
+
+export interface WsPipelineTargetStatus {
+  type: "pipeline-target-status";
+  payload: {
+    projectId: string;
+    targetId: string;
+    targetName: string;
+    status: BuildTargetStatus;
+    message: string;
+    phase: PipelinePhase;
+  };
+}
+
+export interface WsPipelineComplete {
+  type: "pipeline-complete";
+  payload: {
+    projectId: string;
+    readyCount: number;
+    failedCount: number;
+    totalCount: number;
+  };
+}
+
+export interface WsPipelineError {
+  type: "pipeline-error";
+  payload: {
+    projectId: string;
+    targetId: string;
+    targetName: string;
+    phase: string;
+    error: string;
+  };
+}
+
+export type WsPipelineMessage = WsPipelineTargetStatus | WsPipelineComplete | WsPipelineError;
+
+// ============================================================
 // 룰
 // ============================================================
 

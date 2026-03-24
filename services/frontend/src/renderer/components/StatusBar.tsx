@@ -1,66 +1,38 @@
-import React, { useEffect, useState } from "react";
-import { useMatch, useNavigate } from "react-router-dom";
+import React, { useEffect, useRef } from "react";
 import { healthCheck } from "../api/client";
+import { useToast } from "../contexts/ToastContext";
 import "./StatusBar.css";
 
 export const StatusBar: React.FC = () => {
-  const [backendStatus, setBackendStatus] = useState<"ok" | "error" | "checking">("checking");
-  const [llmStatus, setLlmStatus] = useState<"ok" | "error" | "checking">("checking");
-  const projectMatch = useMatch("/projects/:projectId/*");
-  const projectId = projectMatch?.params.projectId;
-  const navigate = useNavigate();
+  const toast = useToast();
+  const wasConnected = useRef(true);
 
   useEffect(() => {
-    let cancelled = false;
-
     const check = async () => {
       try {
         const data = await healthCheck();
-        if (cancelled) return;
-        setBackendStatus(data?.status === "ok" ? "ok" : "error");
-        // LLM status from backend's server-side health check (llmGateway field)
-        const gw = data?.llmGateway;
-        if (gw) {
-          setLlmStatus(gw.status === "ok" ? "ok" : "error");
-        } else if (projectId) {
-          // Backend didn't include llmGateway — treat as unknown
-          setLlmStatus("error");
+        const ok = data?.status === "ok";
+        if (!ok && wasConnected.current) {
+          toast.error("백엔드 연결이 끊어졌습니다.");
         }
+        wasConnected.current = ok;
       } catch {
-        if (cancelled) return;
-        setBackendStatus("error");
-        if (projectId) setLlmStatus("error");
+        if (wasConnected.current) {
+          toast.error("백엔드 연결이 끊어졌습니다.");
+        }
+        wasConnected.current = false;
       }
     };
 
     check();
-    const interval = setInterval(check, 10000);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, [projectId]);
-
-  const goToSettings = () => {
-    if (projectId) navigate(`/projects/${projectId}/settings`);
-  };
+    const interval = setInterval(check, 15000);
+    return () => clearInterval(interval);
+  }, [toast]);
 
   return (
     <div className="statusbar">
-      <div
-        className={`statusbar-item${projectId ? " statusbar-item--clickable" : ""}`}
-        onClick={projectId ? goToSettings : undefined}
-      >
-        <span className={`status-dot ${backendStatus}`} />
-        <span>Backend: {backendStatus === "checking" ? "확인 중..." : backendStatus === "ok" ? "연결됨" : "연결 안됨"}</span>
-      </div>
-      {projectId && (
-        <>
-          <div className="statusbar-item statusbar-item--clickable" onClick={goToSettings}>
-            <span className={`status-dot ${llmStatus}`} />
-            <span>LLM: {llmStatus === "checking" ? "확인 중..." : llmStatus === "ok" ? "연결됨" : "연결 안됨"}</span>
-          </div>
-        </>
-      )}
       <div className="statusbar-item">
-        <span>v0.1.0</span>
+        <span>AEGIS v0.1.0</span>
       </div>
     </div>
   );

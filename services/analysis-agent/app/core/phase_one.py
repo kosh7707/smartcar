@@ -37,6 +37,7 @@ class Phase1Result:
     threat_context: list[dict] = field(default_factory=list)
     dangerous_callers: list[dict] = field(default_factory=list)
     cve_lookup: list[dict] = field(default_factory=list)
+    project_memory: list[dict] = field(default_factory=list)
     sast_duration_ms: int = 0
     code_graph_duration_ms: int = 0
     sca_duration_ms: int = 0
@@ -101,6 +102,10 @@ class Phase1Executor:
                     targetPath=target_path, level=logging.WARNING,
                 )
                 analysis_path = project_path
+
+        # 프로젝트 메모리 조회 (이전 분석 이력, false positive, 사용자 선호)
+        if project_id:
+            result.project_memory = await self._fetch_project_memory(project_id, request_id)
 
         # Pre-computed Phase 1 결과가 있으면 SAST/코드그래프/SCA 스킵
         pre_findings = trusted.get("sastFindings")
@@ -614,6 +619,36 @@ class Phase1Executor:
         )
         return result
 
+    async def _fetch_project_memory(self, project_id: str, request_id: str) -> list[dict]:
+        """S5 KB에서 프로젝트 메모리를 조회한다."""
+        headers: dict[str, str] = {}
+        if request_id:
+            headers["X-Request-Id"] = request_id
+
+        try:
+            resp = await self._kb_client.get(
+                f"/v1/project-memory/{project_id}",
+                headers=headers,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            memories = data.get("memories", [])
+            if memories:
+                agent_log(
+                    logger, "Phase 1: 프로젝트 메모리 조회",
+                    component="phase_one", phase="memory_loaded",
+                    memoryCount=len(memories),
+                    types=[m.get("type") for m in memories],
+                )
+            return memories
+        except Exception as e:
+            agent_log(
+                logger, "Phase 1: 프로젝트 메모리 조회 실패 (무시)",
+                component="phase_one", phase="memory_error",
+                error=str(e), level=logging.WARNING,
+            )
+            return []
+
     @staticmethod
     def _extract_cwe_ids(findings: list[dict]) -> set[str]:
         """findings에서 고유 CWE ID를 결정론적으로 추출한다."""
@@ -721,6 +756,11 @@ def build_phase2_prompt(
         "- 위협 지식이 부족하면 `knowledge.search`로 CWE/CVE/ATT&CK 정보를 보강하라.\n"
         "- 도구 호출이 실패하면 재시도하지 말고, 현재까지 수집된 정보로 보고서를 작성하라.\n"
         "- 도구를 호출한 후에는 반드시 보고서를 작성하라. 도구 결과를 확인하기 위해 또 다른 도구를 호출하지 마라.\n\n"
+        "## 프로젝트 메모리 활용 지침\n"
+        "- 아래에 `[프로젝트 분석 기억]` 섹션이 있으면, 이전 분석 결과와 비교하여 변화를 보고하라.\n"
+        "- `[False Positive]`로 표시된 패턴은 claims에 포함하지 말고, 필요 시 caveat으로만 언급하라.\n"
+        "- `[해소됨]`으로 표시된 취약점이 실제로 수정되었는지 현재 findings에서 확인하라.\n"
+        "- `[이전 분석]`과 현재 분석의 차이가 있으면 summary에 '변경 사항'을 명시하라.\n\n"
         "[보고서 스키마]\n"
         "```json\n"
         "{\n"
@@ -912,6 +952,38 @@ def build_phase2_prompt(
                 f"{origin_label} → 위험 호출: {', '.join(dc.get('dangerous_calls', []))}"
             )
         sections.append("\n".join(caller_lines))
+
+    # 프로젝트 메모리 (이전 분석 이력, false positive, 사용자 선호)
+    if phase1.project_memory:
+        mem_lines = ["## 프로젝트 분석 기억 (이전 세션에서 축적)"]
+        for mem in phase1.project_memory:
+            mtype = mem.get("type", "?")
+            data = mem.get("data", {})
+            if mtype == "analysis_history":
+                claims_summary = ", ".join(
+                    f"{c.get('statement', '?')}({c.get('severity', '?')})"
+                    for c in data.get("claims", [])[:5]
+                )
+                mem_lines.append(
+                    f"- **[이전 분석 {data.get('date', '?')}]** "
+                    f"{data.get('claimCount', '?')}개 claims, severity={data.get('severity', '?')}, "
+                    f"confidence={data.get('confidence', '?')} — {claims_summary}"
+                )
+            elif mtype == "false_positive":
+                mem_lines.append(
+                    f"- **[False Positive]** {data.get('cwe', '?')}: {data.get('pattern', '?')} "
+                    f"— 사유: {data.get('reason', '?')}"
+                )
+            elif mtype == "resolved":
+                mem_lines.append(
+                    f"- **[해소됨]** {data.get('cwe', '?')} at {data.get('location', '?')} "
+                    f"— {data.get('resolution', '?')}"
+                )
+            elif mtype == "preference":
+                mem_lines.append(
+                    f"- **[선호]** {data.get('key', '?')} = {data.get('value', '?')}"
+                )
+        sections.append("\n".join(mem_lines))
 
     # 원본 파일 목록 (내용은 제외 — 이미 SAST가 분석함)
     files = trusted_context.get("files", [])

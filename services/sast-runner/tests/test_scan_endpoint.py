@@ -309,6 +309,30 @@ async def test_functions_no_input_returns_error(client: AsyncClient) -> None:
     assert resp.status_code == 400
 
 
+# === /v1/build ===
+
+
+@pytest.mark.asyncio
+async def test_build_no_project_path(client: AsyncClient) -> None:
+    """projectPath 없으면 400."""
+    resp = await client.post("/v1/build", json={})
+    assert resp.status_code == 400
+    data = resp.json()
+    assert data["success"] is False
+
+
+@pytest.mark.asyncio
+async def test_build_invalid_path(client: AsyncClient) -> None:
+    """존재하지 않는 경로면 400."""
+    resp = await client.post(
+        "/v1/build",
+        json={"projectPath": "/nonexistent/path"},
+    )
+    assert resp.status_code == 400
+    data = resp.json()
+    assert data["success"] is False
+
+
 # === /v1/includes ===
 
 

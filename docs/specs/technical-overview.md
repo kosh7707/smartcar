@@ -3,7 +3,7 @@
 > 이 문서는 AEGIS 시스템 전체 구조, 서비스 구성, 통신 방식, 데이터 흐름을 정의한다.
 > 서비스별 상세 명세는 개별 문서로 분리한다.
 > **이 문서의 소유자는 S2(AEGIS Core)이다.** 변경 제안은 work-request로.
-> **마지막 업데이트: 2026-03-20**
+> **마지막 업데이트: 2026-03-24**
 
 ---
 
@@ -33,8 +33,8 @@ MSA(Microservice Architecture) 기반 7개 독립 서비스 구성.
                      S2 (AEGIS Core :3000)  ← 플랫폼 오케스트레이터
                     ╱     │     ╲      ╲
                  S3       S4     S5      S6
-               Agent    SAST     KB    동적분석
-              :8001    :9000   :8002    :4000
+            Agent+Build  SAST    KB    동적분석
+          :8001/:8003  :9000  :8002    :4000
                 │
            S7 Gateway (:8000)  ← LLM 단일 관문
                 │
@@ -82,7 +82,7 @@ MSA(Microservice Architecture) 기반 7개 독립 서비스 구성.
 |----|---------|----------|------|------|
 | S1 | Frontend + QA | React + TypeScript + Vite | 사용자 인터페이스, 결과 시각화 | :5173 |
 | S2 | AEGIS Core (Backend) | Express 5 + TypeScript + SQLite | 도메인 관리, 오케스트레이션, DB | :3000 |
-| S3 | Analysis Agent | Python + FastAPI | 보안 분석 자율 에이전트 (Phase 1 결정론적 + Phase 2 LLM) | :8001 |
+| S3 | Analysis Agent + Build Agent | Python + FastAPI | 보안 분석 자율 에이전트 + 빌드 자동화 에이전트 | :8001, :8003 |
 | S4 | SAST Runner | Python + FastAPI | 6개 SAST 도구 + SCA + 코드 구조 + 빌드 자동화 | :9000 |
 | S5 | Knowledge Base | Python + FastAPI + Neo4j + Qdrant | 위협 그래프 + 벡터 검색 (CWE, ATT&CK, CAPEC, CVE) | :8002 |
 | S6 | Dynamic Analysis | TypeScript + Node.js | ECU Simulator + Adapter (CAN 통신) | :4000 |
@@ -118,6 +118,8 @@ MSA(Microservice Architecture) 기반 7개 독립 서비스 구성.
 - Phase 1 (결정론적): S4(SAST) + 코드 구조 그래프 + S5(KB) + SCA + CVE 조회
 - Phase 2 (LLM 판정): S7(Gateway)를 통해 LLM 2턴 호출, 도구 자발 호출, 핵심 취약점만 claim
 - 결과: `claims[]` + `audit` + `evidenceRefs` 반환
+
+**Build Agent (:8003)** — S3가 겸임. LLM 에이전트가 빌드 파일(CMakeLists.txt, Makefile)을 분석하여 빌드 명령어 + buildProfile + compile_commands.json을 자동 생성.
 
 ### S4. SAST Runner
 
@@ -256,6 +258,18 @@ CAN 데이터: ECU Simulator → Adapter → S2 WebSocket 수신
   → [2계층] findings 있으면 LLM 분석 (S7 경유)
   → DynamicTestResult + AnalysisResult 저장
 ```
+
+### 6.4 서브 프로젝트 파이프라인
+
+프로젝트 내 독립 빌드 단위(서브 프로젝트)별로 빌드→스캔→코드그래프 적재를 순차 실행.
+
+```
+discovered → configured → building → built → scanning → scanned → graphing → graphed → ready
+```
+
+- S2가 오케스트레이션, S4(빌드+스캔), S5(코드그래프 적재) 호출
+- 서브 프로젝트별 물리적 복사로 완전 격리 (`uploads/{projectId}/{targetId}/`)
+- 사용자가 파일 트리 체크박스로 포함 파일/폴더 선택 (`includedPaths`)
 
 ---
 

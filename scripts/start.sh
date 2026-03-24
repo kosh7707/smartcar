@@ -171,6 +171,9 @@ run_all() {
   start_service "knowledge-base" 8002 \
     "exec '$ROOT_DIR/scripts/start-knowledge-base.sh'" || return 1
 
+  start_service "build-agent" 8003 \
+    "exec '$ROOT_DIR/scripts/start-build-agent.sh'" || return 1
+
   start_service "analysis-agent" 8001 \
     "exec '$ROOT_DIR/scripts/start-analysis-agent.sh'" || return 1
 

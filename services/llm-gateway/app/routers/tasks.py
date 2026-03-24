@@ -285,9 +285,13 @@ async def chat_proxy(req: Request) -> Response:
         pass
 
     _exchange_logger.info(json.dumps({
+        "service": "s7-gateway",
+        "level": 30,
         "time": int(time.time() * 1000),
         "requestId": request_id,
+        "msg": f"[LLM exchange] {body.get('model', '')} latencyMs={elapsed_ms}",
         "type": "chat_proxy",
+        "elapsedMs": elapsed_ms,
         "latencyMs": elapsed_ms,
         "status": "ok" if resp.status_code == 200 else f"HTTP_{resp.status_code}",
         "model": body.get("model", ""),
@@ -314,6 +318,7 @@ async def chat_proxy(req: Request) -> Response:
             request_id, elapsed_ms, body.get("model", ""),
             usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0),
             finish_reason, bool(body.get("tools")),
+            extra={"elapsedMs": elapsed_ms},
         )
     else:
         if _token_tracker:

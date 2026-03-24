@@ -5,10 +5,11 @@
   border-radius: var(--radius-lg);
   padding: var(--space-3) 0;
   font-family: var(--font-mono);
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   overflow-x: auto;
   color: var(--code-text);
   border: 1px solid var(--code-border);
+  line-height: 1.6;
 }
 
 .code-line {
@@ -57,7 +58,7 @@
 }
 
 .code-viewer--scrollable {
-  max-height: 400px;
+  max-height: 625px; /* ~25 lines at 25px/line */
   overflow: auto;
 }
 

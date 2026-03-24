@@ -1,0 +1,116 @@
+/* ── Subproject Create Dialog ── */
+
+.spcd {
+  width: 600px;
+  max-width: 95vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.spcd__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Checkbox tree container */
+.spcd__tree-wrap {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  overflow-y: auto;
+  max-height: 350px;
+  padding: var(--space-2) 0;
+}
+
+/* Checkbox tree row */
+.spcd__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px var(--space-3);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  min-height: 30px;
+}
+
+.spcd__row:hover {
+  background: var(--surface-2);
+}
+
+/* Indent */
+.spcd__indent {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.spcd__indent-guide {
+  width: 18px;
+  flex-shrink: 0;
+}
+
+/* Checkbox */
+.spcd__check {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-default);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+  color: white;
+}
+
+.spcd__check--checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.spcd__check--indeterminate {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Name + meta */
+.spcd__name {
+  font-size: var(--text-sm);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spcd__row--folder .spcd__name {
+  font-weight: var(--weight-medium);
+}
+
+.spcd__meta {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+/* Selection summary */
+.spcd__summary {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  padding: var(--space-2) 0;
+}
+
+.spcd__summary strong {
+  color: var(--accent);
+}
+
+/* Actions */
+.spcd__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}

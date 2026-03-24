@@ -204,7 +204,7 @@ Adapter: requestId로 원래 요청한 B1 식별
 | `ecuWs` | `WebSocket \| null` | 현재 연결된 ECU (단일) |
 | `_ecuMeta` | `{ name, canIds } \| null` | ECU 메타데이터 (ecu-info 수신 시 저장) |
 | `backendClients` | `Set<WebSocket>` | 연결된 Backend 목록 |
-| `pendingRequests` | `Map<requestId, { timer, backendWs }>` | 진행 중인 주입 요청 |
+| `pendingRequests` | `Map<requestId, { timer, backendWs, startTime }>` | 진행 중인 주입 요청 (startTime으로 elapsedMs 계산) |
 
 모든 상태는 인메모리. Adapter 재시작 시 초기화됨.
 
@@ -242,10 +242,29 @@ Backend의 `adapter-client.ts`가 Adapter에 WS 클라이언트로 연결한다.
 
 ---
 
+## 로깅
+
+| 항목 | 값 |
+|------|-----|
+| 로그 파일 | `logs/adapter.jsonl` |
+| 형식 | JSON structured (observability.md 준수) |
+| 필수 필드 | `level`, `time` (epoch ms), `service` ("s6-adapter"), `msg` |
+| 라이브러리 | pino |
+
+주요 로그 이벤트:
+- ECU 연결/해제
+- Backend 연결/해제 (현재 수)
+- ECU info 수신
+- `→ inject-request → s6-ecu` (requestId, target)
+- `← inject-response from s6-ecu` (requestId, target, elapsedMs)
+- inject 타임아웃 (requestId, elapsedMs)
+
+---
+
 ## 제약사항
 
 - ECU 연결은 1개만 가능 (새 연결 시 기존 종료)
 - 인증/인가 없음 (아무나 연결 가능)
-- 잘못된 JSON은 무시 (try/catch)
+- 잘못된 JSON은 debug 로그 후 무시
 - 주입 타임아웃 5초 하드코딩
 - 바이너리 프레임 미지원 (JSON 텍스트만)

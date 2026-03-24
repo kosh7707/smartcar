@@ -86,6 +86,16 @@ export interface SastScanResponse {
 }
 
 /** 빌드 타겟 탐색 응답 */
+/** S4 POST /v1/build 응답 */
+export interface BuildResponse {
+  success: boolean;
+  compileCommandsPath?: string;
+  entries?: number;
+  elapsedMs?: number;
+  error?: string;
+  buildLog?: string;
+}
+
 export interface DiscoverTargetsResponse {
   targets: Array<{
     name: string;
@@ -151,6 +161,29 @@ export class SastClient {
     }
 
     return data;
+  }
+
+  async build(
+    request: { projectPath: string; buildProfile?: BuildProfile; buildCommand?: string },
+    requestId?: string,
+    signal?: AbortSignal,
+  ): Promise<BuildResponse> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (requestId) headers["X-Request-Id"] = requestId;
+
+    const res = await this.doFetch(
+      `${this.baseUrl}/v1/build`,
+      headers,
+      request,
+      requestId,
+      signal,
+    );
+
+    try {
+      return (await res.json()) as BuildResponse;
+    } catch (err) {
+      throw new SastUnavailableError("Failed to parse build response", err);
+    }
   }
 
   async discoverTargets(

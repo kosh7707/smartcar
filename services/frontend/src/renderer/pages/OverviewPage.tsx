@@ -11,7 +11,7 @@ import {
   ChevronRight,
   Shield,
 } from "lucide-react";
-import { fetchProjectOverview, fetchProjectFiles, healthCheck, logError } from "../api/client";
+import { fetchProjectOverview, fetchProjectFiles, logError } from "../api/client";
 import { useToast } from "../contexts/ToastContext";
 import { PageHeader, StatCard, SeveritySummary, SeverityBadge, DonutChart, ListItem, Spinner } from "../components/ui";
 import { extractFiles, extractFileNames } from "../utils/analysis";
@@ -91,26 +91,7 @@ export const OverviewPage: React.FC = () => {
   const [overview, setOverview] = useState<ProjectOverviewResponse | null>(null);
   const [projectFiles, setProjectFiles] = useState<UploadedFile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [backendStatus, setBackendStatus] = useState<"ok" | "error" | "checking">("checking");
-  const [llmStatus, setLlmStatus] = useState<"ok" | "error" | "checking">("checking");
   const toast = useToast();
-
-  useEffect(() => {
-    let cancelled = false;
-    healthCheck()
-      .then((d) => {
-        if (cancelled) return;
-        setBackendStatus(d?.status === "ok" ? "ok" : "error");
-        const gw = d?.llmGateway;
-        setLlmStatus(gw?.status === "ok" ? "ok" : "error");
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setBackendStatus("error");
-        setLlmStatus("error");
-      });
-    return () => { cancelled = true; };
-  }, []);
 
   const loadData = () => {
     if (!projectId) return;
@@ -131,6 +112,10 @@ export const OverviewPage: React.FC = () => {
     loadData();
   }, [projectId]);
 
+  const recentAnalyses = overview?.recentAnalyses ?? [];
+  const latestMap = useMemo(() => getLatestPerModule(recentAnalyses), [recentAnalyses]);
+  const topVulns = useMemo(() => getTopVulnerabilities(recentAnalyses, 8), [recentAnalyses]);
+
   if (loading) {
     return (
       <div className="page-enter centered-loader">
@@ -143,10 +128,8 @@ export const OverviewPage: React.FC = () => {
     return <h2 className="page-title">데이터를 불러올 수 없습니다</h2>;
   }
 
-  const { project, summary, recentAnalyses } = overview;
+  const { project, summary } = overview;
   const sev = summary.bySeverity;
-  const latestMap = useMemo(() => getLatestPerModule(recentAnalyses), [recentAnalyses]);
-  const topVulns = useMemo(() => getTopVulnerabilities(recentAnalyses, 8), [recentAnalyses]);
 
   return (
     <div className="page-enter">
@@ -154,24 +137,6 @@ export const OverviewPage: React.FC = () => {
         title={project.name}
         icon={<LayoutDashboard size={20} />}
         subtitle={project.description || undefined}
-        action={
-          <div className="overview-status-chips">
-            <button
-              className="overview-status-chip"
-              onClick={() => navigate(`/projects/${projectId}/settings`)}
-            >
-              <span className={`status-dot ${backendStatus}`} />
-              Backend
-            </button>
-            <button
-              className="overview-status-chip"
-              onClick={() => navigate(`/projects/${projectId}/settings`)}
-            >
-              <span className={`status-dot ${llmStatus}`} />
-              LLM
-            </button>
-          </div>
-        }
       />
 
       {/* Security overview: Donut + module rows */}

@@ -10,6 +10,7 @@ import tempfile
 import time
 import uuid
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, Request, Response
 
@@ -23,6 +24,7 @@ from app.scanner.include_resolver import IncludeResolver
 from app.scanner.library_differ import LibraryDiffer
 from app.scanner.library_identifier import LibraryIdentifier
 from app.scanner.orchestrator import ScanOrchestrator
+from app.scanner.sdk_resolver import get_sdk_registry
 from app.scanner.ruleset_selector import resolve_rulesets
 from app.schemas.request import BuildProfile, ScanRequest
 from app.schemas.response import (
@@ -604,6 +606,62 @@ async def build_and_analyze(request: Request, response: Response, body: dict):
         return _error_response(request_id, exc, response)
 
 
+@router.post("/build")
+async def build(request: Request, response: Response, body: dict):
+    """빌드만 수행 — bear → compile_commands.json 생성.
+
+    스캔/SCA/코드그래프는 별도 호출. 서브 프로젝트 파이프라인의 빌드 단계용.
+    """
+    request_id = _get_request_id(request)
+    set_request_id(request_id)
+    response.headers["X-Request-Id"] = request_id
+
+    project_path = body.get("projectPath")
+    if not project_path:
+        response.status_code = 400
+        return {"success": False, "error": "projectPath is required"}
+
+    project_dir = Path(project_path)
+    if not project_dir.is_dir():
+        response.status_code = 400
+        return {"success": False, "error": f"projectPath not found: {project_path}"}
+
+    build_command = body.get("buildCommand")
+    if not build_command:
+        build_command = build_runner.detect_build_command(project_dir)
+        if not build_command:
+            response.status_code = 400
+            return {"success": False, "error": "buildCommand not provided and could not be auto-detected"}
+        logger.info("Auto-detected build command: %s", build_command)
+
+    bp_dict = body.get("buildProfile")
+    bp = BuildProfile(**bp_dict) if bp_dict else None
+
+    try:
+        logger.info(
+            "Build started",
+            extra={"requestId": request_id, "projectPath": project_path, "buildCommand": build_command},
+        )
+        result = await build_runner.build(project_dir, build_command, profile=bp)
+
+        if result.get("success"):
+            logger.info(
+                "Build completed",
+                extra={"requestId": request_id, "entries": result.get("entries"), "elapsedMs": result.get("elapsedMs")},
+            )
+        else:
+            logger.warning(
+                "Build failed: %s",
+                result.get("error"),
+                extra={"requestId": request_id},
+            )
+
+        return result
+
+    except Exception as exc:
+        return _error_response(request_id, exc, response)
+
+
 @router.post("/discover-targets")
 async def discover_targets(request: Request, response: Response, body: dict):
     """프로젝트 내 빌드 타겟(독립 빌드 단위)을 자동 탐색.
@@ -643,6 +701,13 @@ async def discover_targets(request: Request, response: Response, body: dict):
     )
 
     return {"targets": targets, "elapsedMs": elapsed_ms}
+
+
+@router.get("/sdk-registry")
+async def sdk_registry():
+    """등록된 SDK 목록을 반환. 빌드 Agent가 SDK 매칭에 사용."""
+    sdks = get_sdk_registry()
+    return {"sdks": sdks}
 
 
 @router.get("/health", response_model=HealthResponse)

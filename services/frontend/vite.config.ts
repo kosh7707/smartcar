@@ -6,6 +6,10 @@ export default defineConfig({
   plugins: [react()],
   root: ".",
   base: "./",
+  resolve: {
+    preserveSymlinks: true,
+    dedupe: ["react", "react-dom"],
+  },
   build: {
     outDir: "dist/renderer",
   },

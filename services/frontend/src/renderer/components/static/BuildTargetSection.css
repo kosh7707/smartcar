@@ -173,3 +173,58 @@
   color: var(--text-tertiary);
   font-size: var(--text-base);
 }
+
+/* Name + status badge inline */
+.bt-row__name-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Status-based row styling */
+.bt-row--failed {
+  border-color: var(--severity-high);
+  background: color-mix(in srgb, var(--severity-high) 4%, transparent);
+}
+
+.bt-row--ready {
+  border-color: #16a34a;
+}
+
+/* Stepper area */
+.bt-row__stepper {
+  margin-top: var(--space-2);
+}
+
+/* Progress summary */
+.bt-progress-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.bt-progress-counts {
+  margin-left: auto;
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.bt-progress-failed {
+  color: var(--severity-high);
+}
+
+/* Ready summary */
+.bt-ready-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--text-sm);
+  color: #16a34a;
+  font-weight: var(--weight-medium);
+}

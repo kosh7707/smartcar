@@ -29,7 +29,7 @@ const ICONS: Record<ToastType, React.ReactNode> = {
   success: <CheckCircle size={16} />,
 };
 
-const AUTO_DISMISS_MS = 3000;
+const AUTO_DISMISS_MS = 5000;
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);

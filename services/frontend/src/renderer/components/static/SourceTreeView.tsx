@@ -19,6 +19,7 @@ import { computeFindingOverlay, getFindingCount } from "../../utils/findingOverl
 import type { DirFindingCount } from "../../utils/findingOverlay";
 import { formatFileSize } from "../../utils/format";
 import { parseLocation } from "../../utils/location";
+import { highlightLines as hlLines } from "../../utils/highlight";
 import { LANG_GROUPS, getLangColorByName } from "../../constants/languages";
 import "./SourceTreeView.css";
 
@@ -32,6 +33,31 @@ interface Props {
 }
 
 const getSourcePath = (f: SourceFileEntry) => f.relativePath;
+
+const HighlightedCode: React.FC<{
+  code: string;
+  language?: string;
+  highlightLineNos?: Set<number>;
+}> = React.memo(({ code, language, highlightLineNos }) => {
+  const lines = useMemo(() => hlLines(code, language), [code, language]);
+  return (
+    <div className="source-tree__code">
+      {lines.map((html, i) => {
+        const lineNo = i + 1;
+        const isHL = highlightLineNos?.has(lineNo);
+        return (
+          <div
+            key={lineNo}
+            className={`source-tree__code-line${isHL ? " source-tree__code-line--highlight" : ""}`}
+          >
+            <span className="source-tree__line-no">{lineNo}</span>
+            <span className="source-tree__line-content" dangerouslySetInnerHTML={{ __html: html }} />
+          </div>
+        );
+      })}
+    </div>
+  );
+});
 
 export const SourceTreeView: React.FC<Props> = ({
   projectId,
@@ -310,21 +336,11 @@ export const SourceTreeView: React.FC<Props> = ({
 
               <div className="source-tree__preview-body">
                 {previewContent !== null ? (
-                  <div className="source-tree__code">
-                    {previewContent.split("\n").map((line, i) => {
-                      const lineNo = i + 1;
-                      const isHighlight = highlightLines.has(lineNo);
-                      return (
-                        <div
-                          key={lineNo}
-                          className={`source-tree__code-line${isHighlight ? " source-tree__code-line--highlight" : ""}`}
-                        >
-                          <span className="source-tree__line-no">{lineNo}</span>
-                          <span className="source-tree__line-content">{line}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <HighlightedCode
+                    code={previewContent}
+                    language={previewLang}
+                    highlightLineNos={highlightLines}
+                  />
                 ) : (
                   <div className="source-tree__preview-empty">
                     <span>파일 내용을 불러올 수 없습니다</span>

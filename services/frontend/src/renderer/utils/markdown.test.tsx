@@ -1,98 +1,91 @@
 import { describe, it, expect } from "vitest";
 import React from "react";
+import { render } from "@testing-library/react";
 import { renderMarkdown } from "./markdown";
 
-// Helper: render to simplified string for testing
-function renderToText(node: React.ReactNode): string {
-  return flattenNode(node);
-}
-
-function flattenNode(node: React.ReactNode): string {
-  if (node === null || node === undefined) return "";
-  if (typeof node === "string" || typeof node === "number") return String(node);
-  if (Array.isArray(node)) return node.map(flattenNode).join("");
-  if (React.isValidElement(node)) {
-    const { children } = node.props as { children?: React.ReactNode };
-    const tag = node.type;
-    if (typeof tag === "string") {
-      const inner = flattenNode(children);
-      return `<${tag}>${inner}</${tag}>`;
-    }
-    return flattenNode(children);
-  }
-  return "";
+function renderMd(md: string) {
+  const { container } = render(<div>{renderMarkdown(md)}</div>);
+  return container;
 }
 
 describe("renderMarkdown", () => {
   it("renders plain text as paragraph", () => {
-    const result = renderToText(renderMarkdown("Hello world"));
-    expect(result).toContain("<p>");
-    expect(result).toContain("Hello world");
+    const c = renderMd("Hello world");
+    expect(c.querySelector("p")).toBeTruthy();
+    expect(c.textContent).toContain("Hello world");
   });
 
   it("renders headings", () => {
-    const result = renderToText(renderMarkdown("## Heading"));
-    expect(result).toContain("<h3>");
-    expect(result).toContain("Heading");
+    const c = renderMd("## Heading");
+    expect(c.querySelector("h2")).toBeTruthy();
+    expect(c.textContent).toContain("Heading");
   });
 
   it("renders code blocks", () => {
-    const md = "```python\nprint('hello')\n```";
-    const result = renderToText(renderMarkdown(md));
-    expect(result).toContain("<pre>");
-    expect(result).toContain("<code>");
-    expect(result).toContain("print('hello')");
-    expect(result).toContain("<span>python</span>");
+    const c = renderMd("```python\nprint('hello')\n```");
+    expect(c.querySelector("pre")).toBeTruthy();
+    expect(c.querySelector("code")).toBeTruthy();
   });
 
   it("renders bullet lists", () => {
-    const md = "- item 1\n- item 2\n- item 3";
-    const result = renderToText(renderMarkdown(md));
-    expect(result).toContain("<ul>");
-    expect(result).toContain("<li>item 1</li>");
-    expect(result).toContain("<li>item 2</li>");
+    const c = renderMd("- item 1\n- item 2\n- item 3");
+    expect(c.querySelector("ul")).toBeTruthy();
+    expect(c.querySelectorAll("li").length).toBe(3);
   });
 
   it("renders numbered lists", () => {
-    const md = "1. first\n2. second";
-    const result = renderToText(renderMarkdown(md));
-    expect(result).toContain("<ol>");
-    expect(result).toContain("<li>first</li>");
+    const c = renderMd("1. first\n2. second");
+    expect(c.querySelector("ol")).toBeTruthy();
   });
 
   it("renders bold text", () => {
-    const result = renderToText(renderMarkdown("This is **bold** text"));
-    expect(result).toContain("<strong>bold</strong>");
+    const c = renderMd("This is **bold** text");
+    expect(c.querySelector("strong")).toBeTruthy();
+    expect(c.querySelector("strong")?.textContent).toBe("bold");
   });
 
   it("renders inline code", () => {
-    const result = renderToText(renderMarkdown("Use `printf()` here"));
-    expect(result).toContain("<code>printf()</code>");
+    const c = renderMd("Use `printf()` here");
+    expect(c.querySelector("code")).toBeTruthy();
+    expect(c.querySelector("code")?.textContent).toBe("printf()");
   });
 
   it("renders italic text", () => {
-    const result = renderToText(renderMarkdown("This is *italic* text"));
-    expect(result).toContain("<em>italic</em>");
+    const c = renderMd("This is *italic* text");
+    expect(c.querySelector("em")).toBeTruthy();
   });
 
-  it("handles \\r\\n line endings", () => {
-    const md = "Line 1\r\n\r\nLine 2";
-    const result = renderToText(renderMarkdown(md));
-    expect(result).toContain("Line 1");
-    expect(result).toContain("Line 2");
+  it("renders links", () => {
+    const c = renderMd("[Click here](https://example.com)");
+    const link = c.querySelector("a");
+    expect(link).toBeTruthy();
+    expect(link?.getAttribute("href")).toBe("https://example.com");
+  });
+
+  it("renders horizontal rules", () => {
+    const c = renderMd("Above\n\n---\n\nBelow");
+    expect(c.querySelector("hr")).toBeTruthy();
+  });
+
+  it("renders blockquotes", () => {
+    const c = renderMd("> This is a quote");
+    expect(c.querySelector("blockquote")).toBeTruthy();
+  });
+
+  it("renders tables (GFM)", () => {
+    const c = renderMd("| A | B |\n|---|---|\n| 1 | 2 |");
+    expect(c.querySelector("table")).toBeTruthy();
   });
 
   it("handles empty input", () => {
-    const result = renderMarkdown("");
-    expect(result).toBeDefined();
+    const c = renderMd("");
+    expect(c).toBeTruthy();
   });
 
-  it("handles mixed content (heading + code + text)", () => {
-    const md = "## Title\n\nSome text\n\n```c\nint main() {}\n```\n\n- bullet";
-    const result = renderToText(renderMarkdown(md));
-    expect(result).toContain("<h3>");
-    expect(result).toContain("Some text");
-    expect(result).toContain("<pre>");
-    expect(result).toContain("<ul>");
+  it("handles mixed content", () => {
+    const c = renderMd("## Title\n\nSome text\n\n```c\nint main() {}\n```\n\n- bullet");
+    expect(c.querySelector("h2")).toBeTruthy();
+    expect(c.querySelector("pre")).toBeTruthy();
+    expect(c.querySelector("ul")).toBeTruthy();
   });
 });

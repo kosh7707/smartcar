@@ -1,4 +1,4 @@
-import WebSocket from "ws";
+import { WebSocket } from "ws";
 import { SCENARIOS } from "./scenarios";
 import { EcuEngine } from "./ecu-engine";
 import { TrafficGenerator } from "./traffic-generator";
@@ -68,6 +68,7 @@ function connect(): void {
         };
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify(reply));
+          logger.info({ requestId: msg.requestId, success: response.success }, "inject-response sent");
         }
       }
     } catch {

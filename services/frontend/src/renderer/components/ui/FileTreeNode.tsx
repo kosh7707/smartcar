@@ -20,6 +20,12 @@ export interface FileTreeNodeProps<T> {
   renderFolderBadge?: (node: TreeNode<T>) => ReactNode;
   /** Highlight the currently selected file */
   selectedPath?: string;
+  /** Controlled open state: set of open folder paths */
+  openPaths?: Set<string>;
+  /** Called when a folder is toggled (for controlled mode) */
+  onToggleFolder?: (path: string, open: boolean) => void;
+  /** Inline panel rendered below folder row when expanded (e.g. subproject settings) */
+  renderFolderPanel?: (node: TreeNode<T>) => ReactNode;
 }
 
 function FileTreeNodeInner<T>({
@@ -33,10 +39,24 @@ function FileTreeNodeInner<T>({
   renderActions,
   renderFolderBadge,
   selectedPath,
+  openPaths,
+  onToggleFolder,
+  renderFolderPanel,
 }: FileTreeNodeProps<T>) {
-  const [open, setOpen] = useState(defaultOpen ?? depth < 2);
+  const controlled = openPaths !== undefined;
+  const [localOpen, setLocalOpen] = useState(defaultOpen ?? depth < 2);
+
   const isFolder = !node.data;
+  const open = controlled ? (openPaths!.has(node.path)) : localOpen;
   const effectiveOpen = searchOpen || open;
+
+  const handleToggle = () => {
+    if (controlled && onToggleFolder) {
+      onToggleFolder(node.path, !open);
+    } else {
+      setLocalOpen(!localOpen);
+    }
+  };
 
   // Indent guides
   const guides = [];
@@ -52,8 +72,8 @@ function FileTreeNodeInner<T>({
           role="button"
           aria-expanded={effectiveOpen}
           tabIndex={0}
-          onClick={() => setOpen(!open)}
-          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(!open); } }}
+          onClick={handleToggle}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleToggle(); } }}
         >
           <div className="ftree-indent">{guides}</div>
           <ChevronRight
@@ -69,6 +89,7 @@ function FileTreeNodeInner<T>({
           <span className="ftree-meta ftree-count">{countFiles(node)}개</span>
           {renderFolderBadge?.(node)}
         </div>
+        {effectiveOpen && renderFolderPanel?.(node)}
         {effectiveOpen &&
           node.children.map((child) => (
             <FileTreeNodeInner
@@ -83,6 +104,9 @@ function FileTreeNodeInner<T>({
               renderActions={renderActions}
               renderFolderBadge={renderFolderBadge}
               selectedPath={selectedPath}
+              openPaths={openPaths}
+              onToggleFolder={onToggleFolder}
+              renderFolderPanel={renderFolderPanel}
             />
           ))}
       </>

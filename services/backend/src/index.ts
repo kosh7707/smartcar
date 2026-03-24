@@ -68,9 +68,12 @@ import { AgentClient } from "./services/agent-client";
 import { ProjectSourceService } from "./services/project-source.service";
 import { AnalysisOrchestrator } from "./services/analysis-orchestrator";
 import { BuildTargetService } from "./services/build-target.service";
+import { KbClient } from "./services/kb-client";
+import { PipelineOrchestrator } from "./services/pipeline-orchestrator";
 import { createAnalysisRouter } from "./controllers/analysis.controller";
 import { createProjectSourceRouter } from "./controllers/project-source.controller";
 import { createBuildTargetRouter } from "./controllers/build-target.controller";
+import { createPipelineRouter } from "./controllers/pipeline.controller";
 import path from "path";
 
 // --- 프로세스 레벨 에러 핸들러 ---
@@ -95,6 +98,7 @@ const SAST_RUNNER_URL =
 const UPLOADS_DIR = path.resolve(
   process.env.UPLOADS_DIR ?? path.join(__dirname, "..", "..", "..", "uploads"),
 );
+const KB_URL = process.env.KB_URL ?? "http://localhost:8002";
 
 app.use(cors());
 app.use(express.json());
@@ -134,7 +138,9 @@ const dynamicTestWs = new WsBroadcaster<import("@aegis/shared").WsTestMessage>("
 const ruleService = new RuleService(ruleDAO);
 const adapterManager = new AdapterManager(adapterDAO);
 const settingsService = new ProjectSettingsService(projectSettingsDAO);
-const buildTargetService = new BuildTargetService(buildTargetDAO, settingsService);
+// projectSourceService를 먼저 생성 (buildTargetService가 물리적 복사에 의존)
+const projectSourceService = new ProjectSourceService(UPLOADS_DIR);
+const buildTargetService = new BuildTargetService(buildTargetDAO, settingsService, projectSourceService);
 const projectService = new ProjectService(projectDAO, analysisResultDAO, fileStore, ruleService, adapterManager, settingsService, buildTargetService);
 
 const qualityGateService = new QualityGateService(findingDAO, evidenceRefDAO, gateResultDAO, runDAO);
@@ -179,13 +185,20 @@ const dynamicTestService = new DynamicTestService(
 
 // ── 새 파이프라인 (Quick → Deep) ──
 const analysisWs = new WsBroadcaster<import("@aegis/shared").WsAnalysisMessage>("/ws/analysis", "analysisId");
+const uploadWs = new WsBroadcaster<import("@aegis/shared").WsUploadMessage>("/ws/upload", "uploadId");
+const pipelineWs = new WsBroadcaster<import("@aegis/shared").WsPipelineMessage>("/ws/pipeline", "projectId");
 const sastClient = new SastClient(SAST_RUNNER_URL);
 const agentClient = new AgentClient(ANALYSIS_AGENT_URL);
-const projectSourceService = new ProjectSourceService(UPLOADS_DIR);
+// projectSourceService, buildTargetService는 위에서 이미 생성됨
 const analysisTracker = new AnalysisTracker();
+const kbClient = new KbClient(KB_URL);
 const analysisOrchestrator = new AnalysisOrchestrator(
   projectSourceService, sastClient, agentClient,
   analysisResultDAO, settingsService, resultNormalizer, analysisWs, buildTargetService,
+);
+const pipelineOrchestrator = new PipelineOrchestrator(
+  projectSourceService, sastClient, kbClient,
+  buildTargetDAO, analysisResultDAO, resultNormalizer, pipelineWs,
 );
 
 // 보고서 서비스 초기화
@@ -219,8 +232,9 @@ app.use(
 );
 app.use("/api/dynamic-test", createDynamicTestRouter(dynamicTestService));
 app.use("/api/analysis", createAnalysisRouter(analysisOrchestrator, analysisResultDAO, analysisTracker, findingDAO, runDAO, gateResultDAO, agentClient, projectSourceService));
-app.use("/api/projects/:pid/source", createProjectSourceRouter(projectSourceService, projectDAO));
+app.use("/api/projects/:pid/source", createProjectSourceRouter(projectSourceService, projectDAO, uploadWs));
 app.use("/api/projects/:pid/targets", createBuildTargetRouter(buildTargetService, projectDAO, projectSourceService, sastClient));
+app.use("/api/projects/:pid/pipeline", createPipelineRouter(pipelineOrchestrator, projectDAO, buildTargetDAO));
 app.use("/api/runs", createRunDetailRouter(runService));
 app.use("/api/findings", createFindingDetailRouter(findingService));
 app.use("/api/gates", createQualityGateDetailRouter(qualityGateService, approvalService));
@@ -234,4 +248,4 @@ const server = app.listen(PORT, () => {
   logger.info({ llmGatewayUrl: LLM_GATEWAY_URL }, "LLM Gateway configured");
 });
 
-attachWsServers(server, [dynamicAnalysisWs, staticAnalysisWs, dynamicTestWs, analysisWs]);
+attachWsServers(server, [dynamicAnalysisWs, staticAnalysisWs, dynamicTestWs, analysisWs, uploadWs, pipelineWs]);

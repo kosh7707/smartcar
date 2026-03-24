@@ -3,7 +3,7 @@
 > **소유자**: S5 (Knowledge Base)
 > **포트**: 8002
 > **호출자**: S2 (Backend), S3 (Analysis Agent)
-> **최종 업데이트**: 2026-03-23 (origin 메타데이터, observability v2, X-Request-Id 응답 반환)
+> **최종 업데이트**: 2026-03-24 (프로젝트 메모리 API, origin 메타데이터, observability v2)
 
 ---
 
@@ -646,6 +646,134 @@ S3 → S4 POST /v1/libraries → [{name, version, repoUrl, commit}]
 S3 → S5 POST /v1/cve/batch-lookup → [{cves: [..., version_match, epss_score, kev]}]
 S3: version_match == true + epss_score/kev 기반 필터 → Phase 2 프롬프트에 주입
 ```
+
+---
+
+## 프로젝트 메모리
+
+**공통 에러**: 모든 `/v1/project-memory/*` 엔드포인트는 Neo4j 미연결 시 **HTTP 503**을 반환합니다.
+
+### GET /v1/project-memory/{project_id}
+
+프로젝트의 에이전트 메모리 목록을 조회한다. 이전 분석 이력, false positive, 수정 확인, 사용자 선호를 기억하여 분석 품질을 높인다.
+
+#### 파라미터
+
+| 이름 | 위치 | 타입 | 기본값 | 설명 |
+|------|------|------|--------|------|
+| `project_id` | path | string | (필수) | 프로젝트 ID |
+| `type` | query | string? | null | 메모리 타입 필터: `analysis_history`, `false_positive`, `resolved`, `preference` |
+
+#### 응답
+
+```json
+{
+  "projectId": "re100-gateway",
+  "memories": [
+    {
+      "id": "mem-a1b2c3d4",
+      "type": "analysis_history",
+      "data": {
+        "date": "2026-03-23",
+        "claimCount": 4,
+        "severity": "critical",
+        "confidence": 0.865
+      },
+      "createdAt": "2026-03-23T15:00:00+00:00"
+    },
+    {
+      "id": "mem-e5f6g7h8",
+      "type": "false_positive",
+      "data": {
+        "pattern": "readlink TOCTOU in fs.cpp",
+        "cwe": "CWE-362",
+        "reason": "사용자 기각: readlink는 /proc/self/exe에만 사용"
+      },
+      "createdAt": "2026-03-23T16:00:00+00:00"
+    }
+  ]
+}
+```
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `projectId` | string | 프로젝트 ID |
+| `memories` | array | 메모리 목록 (생성일 내림차순) |
+| `memories[].id` | string | 메모리 ID (`mem-{hex8}`) |
+| `memories[].type` | string | 메모리 타입 |
+| `memories[].data` | object | 자유 형식 데이터 |
+| `memories[].createdAt` | string | ISO 8601 생성 시각 |
+
+---
+
+### POST /v1/project-memory/{project_id}
+
+프로젝트 메모리를 생성한다.
+
+#### 요청
+
+```json
+{
+  "type": "false_positive",
+  "data": {
+    "pattern": "readlink TOCTOU in fs.cpp",
+    "cwe": "CWE-362",
+    "reason": "사용자 기각: readlink는 /proc/self/exe에만 사용"
+  }
+}
+```
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `type` | string | (필수) `analysis_history`, `false_positive`, `resolved`, `preference` 중 하나 |
+| `data` | object | (필수) 자유 형식 JSON 데이터 |
+
+#### 응답
+
+```json
+{
+  "id": "mem-a1b2c3d4",
+  "type": "false_positive",
+  "createdAt": "2026-03-24T10:00:00+00:00"
+}
+```
+
+#### 에러
+
+| HTTP | 조건 |
+|------|------|
+| 422 | 유효하지 않은 메모리 타입 |
+| 503 | Neo4j 미연결 |
+
+---
+
+### DELETE /v1/project-memory/{project_id}/{memory_id}
+
+프로젝트 메모리를 삭제한다.
+
+#### 응답
+
+```json
+{"deleted": true, "projectId": "re100-gateway", "memoryId": "mem-a1b2c3d4"}
+```
+
+#### 에러
+
+| HTTP | 조건 |
+|------|------|
+| 404 | 해당 메모리 없음 |
+| 503 | Neo4j 미연결 |
+
+---
+
+### 메모리 타입
+
+| type | 설명 | 생성 주체 |
+|------|------|----------|
+| `analysis_history` | 분석 세션 결과 요약 | S3 (분석 완료 후) |
+| `false_positive` | 사용자가 기각한 claim | S2 (사용자 피드백 시) |
+| `resolved` | 수정 확인된 취약점 | S2/S3 |
+| `preference` | 사용자 분석 선호 설정 | S2 (사용자 설정 시) |
 
 ---
 

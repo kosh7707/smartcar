@@ -116,11 +116,11 @@
   --transition-slow: 300ms ease;
   --transition-spring: 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* ── Code Viewer (dark) ── */
-  --code-bg: var(--sidebar-bg);
-  --code-text: #e2e8f0;
-  --code-border: var(--sidebar-surface);
-  --code-line-num: var(--text-secondary);
+  /* ── Code Viewer ── */
+  --code-bg: #f6f8fa;
+  --code-text: #1f2328;
+  --code-border: #d1d9e0;
+  --code-line-num: #8b949e;
 
   /* ── Shimmer ── */
   --shimmer-color: rgba(255, 255, 255, 0.3);

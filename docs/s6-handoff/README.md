@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S6(Dynamic Analysis) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-23**
+> **마지막 업데이트: 2026-03-24**
 
 ---
 
@@ -60,15 +60,15 @@ ECU Simulator ──WS──→ Adapter (:4000/ws/ecu)
 - Backend 측 WS: `/ws/backend` (1:N)
 - CAN 프레임 양방향 중계
 - ECU 메타데이터(`ecu-info`) 수신 시 Backend에 전파
-- inject-request/inject-response 요청-응답 패턴
-- 구조화 로깅 (pino, `logs/adapter.jsonl`)
+- inject-request/inject-response 요청-응답 패턴 (requestId, target, elapsedMs 구조화 로깅)
+- 구조화 로깅 (pino, `logs/adapter.jsonl`, service: `s6-adapter`)
 
 ### ECU Simulator (`services/ecu-simulator/`)
 - Adapter의 `/ws/ecu`에 WS 클라이언트로 연결
 - 시나리오 기반 CAN 트래픽 생성 (mixed, normal)
 - 주입 응답 규칙: 0xFF→crash, 0x7DF→reset, 0x00→malformed, 반복3회→anomaly, 경계값→timeout(2000ms)
-- CLI 옵션: `--adapter`, `--scenario`, `--speed`, `--loop`
-- 구조화 로깅 (pino, `logs/ecu-simulator.jsonl`)
+- CLI 옵션: `--adapter`, `--scenario`, `--ecu-name`, `--speed`, `--loop`
+- 구조화 로깅 (pino, `logs/ecu-simulator.jsonl`, service: `s6-ecu`)
 
 ### 상세 명세
 - Adapter: `docs/specs/adapter.md`
@@ -96,6 +96,8 @@ ECU Simulator ──WS──→ Adapter (:4000/ws/ecu)
 
 WebSocket 통신에서는 HTTP 헤더 대신 메시지 페이로드의 `requestId` 필드로 요청을 추적한다 (`inject-request`/`inject-response`).
 
+Adapter의 inject 로그에 `target`, `elapsedMs` 필드를 포함하여 MCP `trace_request` 워터폴에서 S6 inject 사이클이 표시된다.
+
 ---
 
 ## 6. S2와의 관계
@@ -107,8 +109,9 @@ WebSocket 통신에서는 HTTP 헤더 대신 메시지 페이로드의 `requestI
 
 ---
 
-## 7. 로드맵 (S2가 제시한 우선순위: 1→3)
+## 7. 로드맵
 
+> **v1.0.0 범위**: 정적 분석 파이프라인 (ZIP→빌드→SAST+LLM). **동적 분석(S6)은 v2+로 명시적 미포함** (2026-03-21 확정).
 > S2 우선순위: (1) WS 계약서 작성 **완료** → (2) 멀티 ECU 지원 → (3) CAN FD 지원
 
 ### Adapter 고도화
@@ -126,7 +129,7 @@ WebSocket 통신에서는 HTTP 헤더 대신 메시지 페이로드의 `requestI
 ### 에이전트 통합 비전
 - S6가 에이전트의 tool로 동작 — `dynamic.inject`, `dynamic.capture` 같은 tool call을 S3 Agent가 호출
 - 정적 분석(S4) 결과 + 동적 분석(S6) 결과를 LLM(S7 Gateway 경유)이 통합 판단
-- S3의 종합 통합 테스트(2026-03-20)에서 정적 분석 파이프라인 검증 완료. 동적 분석 통합은 미착수
+- S3의 종합 통합 테스트 v2(2026-03-21)에서 정적 분석 풀 파이프라인 검증 완료 (SAST+SCA+CVE+KB+LLM). 동적 분석 통합은 미착수
 
 ---
 

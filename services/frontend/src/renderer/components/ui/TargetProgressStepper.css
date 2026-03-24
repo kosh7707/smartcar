@@ -1,0 +1,115 @@
+/* ── Target Progress Stepper ── */
+
+.tps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.tps__steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+/* Step */
+.tps__step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.tps__dot {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--border-default);
+  background: var(--surface-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  transition: all var(--transition-fast);
+}
+
+.tps__label {
+  font-size: 9px;
+  color: var(--text-tertiary);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+/* States */
+.tps__step--done .tps__dot {
+  border-color: #16a34a;
+  background: #16a34a;
+  color: white;
+}
+
+.tps__step--done .tps__label {
+  color: #16a34a;
+}
+
+.tps__step--active .tps__dot {
+  border-color: var(--severity-medium);
+  background: color-mix(in srgb, var(--severity-medium) 15%, transparent);
+  color: var(--severity-medium);
+}
+
+.tps__step--active .tps__label {
+  color: var(--severity-medium);
+  font-weight: var(--weight-semibold);
+}
+
+.tps__step--current .tps__dot {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.tps__step--current .tps__label {
+  color: var(--accent);
+}
+
+.tps__step--failed .tps__dot {
+  border-color: var(--severity-high);
+  background: var(--severity-high);
+  color: white;
+}
+
+.tps__step--failed .tps__label {
+  color: var(--severity-high);
+  font-weight: var(--weight-semibold);
+}
+
+/* Connector line */
+.tps__connector {
+  flex: 1;
+  height: 2px;
+  min-width: 16px;
+  max-width: 40px;
+  background: var(--border-default);
+  margin: 0 2px;
+  margin-bottom: 14px; /* align with dot center, not label */
+  transition: background var(--transition-fast);
+}
+
+.tps__connector--done {
+  background: #16a34a;
+}
+
+.tps__connector--active {
+  background: linear-gradient(90deg, #16a34a 50%, var(--border-default) 50%);
+}
+
+/* Message below stepper */
+.tps__message {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  padding-left: 2px;
+}
+
+.tps__message--error {
+  color: var(--severity-high);
+}

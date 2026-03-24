@@ -3,7 +3,7 @@
 > **소유자**: S3 (Analysis Agent)
 > **포트**: 8001
 > **호출자**: S2 (Backend)
-> **최종 업데이트**: 2026-03-23
+> **최종 업데이트**: 2026-03-24
 
 S2(AEGIS Core)가 S3(Analysis Agent)를 호출할 때 참조하는 API 계약서.
 Analysis Agent는 AEGIS의 **증거 기반 보안 심층 분석 에이전트**로, Phase 1(결정론적 도구 실행) + Phase 2(LLM 해석)를 자동 수행한다.
@@ -447,3 +447,6 @@ Pydantic 검증 실패 시 `422 Unprocessable Entity`:
 4. S2 → S3: generate-poc → PoC 코드 반환
 5. S2 → S1: PoC 결과를 UI에 표시
 ```
+
+> **build-resolve**는 별도 서비스 `services/build-agent/`(:8003)로 분리되었습니다. API 계약서: `docs/api/build-agent-api.md`
+

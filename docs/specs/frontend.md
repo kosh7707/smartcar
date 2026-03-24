@@ -503,7 +503,9 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 | API 통신 | fetch (Electron preload / 브라우저 직접) |
 | 실시간 통신 | WebSocket |
 | 공유 타입 | @aegis/shared (monorepo) |
-| 테스트 | vitest + @testing-library/react + jsdom (192 테스트) |
+| 코드 하이라이팅 | highlight.js (14개 언어, 라이트/다크 테마) |
+| 마크다운 렌더링 | react-markdown + remark-gfm (GFM 완전 지원) |
+| 테스트 | vitest + @testing-library/react + jsdom (195 테스트) |
 
 ---
 
@@ -606,6 +608,11 @@ class ApiError extends Error {
 | | `updateBuildTarget(pid, tid, body)` | PUT /api/projects/:pid/targets/:tid |
 | | `deleteBuildTarget(pid, tid)` | DELETE /api/projects/:pid/targets/:tid |
 | | `discoverBuildTargets(pid)` | POST /api/projects/:pid/targets/discover |
+| Pipeline | `runPipeline(pid, targetIds?)` | POST /api/projects/:pid/pipeline/run |
+| | `runPipelineTarget(pid, tid)` | POST /api/projects/:pid/pipeline/run/:tid |
+| | `fetchPipelineStatus(pid)` | GET /api/projects/:pid/pipeline/status |
+| | WS `/ws/pipeline?projectId=` | WebSocket (pipeline-target-status, complete, error) |
+| Upload | WS `/ws/upload?uploadId=` | WebSocket (upload-progress, complete, error) |
 | Static (legacy) | `uploadFiles(pid, files)` | POST /api/static-analysis/upload |
 | | `runStaticAnalysis(pid, files)` | POST /api/static-analysis/run |
 | | `fetchAnalysisResults(pid)` | GET /api/static-analysis/results?projectId= |
@@ -701,6 +708,9 @@ class ApiError extends Error {
 | `BuildProfileForm` | SDK 선택 + 빌드 프로파일 편집 (상세 설정 토글) ✅ |
 | `TargetSelectDialog` | 분석 전 타겟 선택 다이얼로그 (전체/개별 체크) ✅ |
 | `AgentResultPanel` | Agent 분석 결과 패널 (confidence+caveats+권고+정책+SCA+audit) ✅ |
+| `SubprojectCreateDialog` | 체크박스 파일 트리로 서브 프로젝트 생성 (includedPaths) ✅ |
+| `TargetStatusBadge` | 서브 프로젝트 상태 뱃지 (12상태, 색상+아이콘) ✅ |
+| `TargetProgressStepper` | 파이프라인 5단계 스테퍼 (설정→빌드→스캔→그래프→완료) ✅ |
 
 ### 추가 필요한 컴포넌트
 
@@ -718,7 +728,9 @@ class ApiError extends Error {
 |------|------|
 | `useElapsedTimer` | 경과 시간 타이머 공통 훅 |
 | `useAnalysisWebSocket` | WS 기반 Quick+Deep 2단계 분석 (targetName/targetProgress 포함) |
-| `useBuildTargets` | 빌드 타겟 CRUD + S4 자동 탐색 훅 |
+| `useBuildTargets` | 빌드 타겟 CRUD + 자동 탐색 + includedPaths 지원 |
+| `usePipelineProgress` | 서브 프로젝트 빌드→스캔 파이프라인 WS 훅 |
+| `useUploadProgress` | 업로드 WS 진행률 (received→extracting→indexing→complete) |
 | `useStaticDashboard` | 대시보드 데이터 + 최신 Run 상세 fetch + 활성 분석 폴링 |
 | `useStaticAnalysis` | 정적 분석 워크플로우 (레거시 동기, 미사용) |
 | `useAsyncAnalysis` | 비동기 분석 (레거시, useAnalysisWebSocket으로 대체) |
@@ -783,7 +795,7 @@ class ApiError extends Error {
 
 vitest 4.1.0 + @testing-library/react + jsdom. `npm test` 실행.
 
-### 구현 완료 (192 테스트)
+### 구현 완료 (195 테스트)
 
 | 유형 | 파일 수 | 테스트 수 | 대상 |
 |------|---------|----------|------|

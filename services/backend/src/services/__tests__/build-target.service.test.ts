@@ -11,6 +11,7 @@ function createMockDAO(): IBuildTargetDAO {
     findById: vi.fn(),
     findByProjectId: vi.fn().mockReturnValue([]),
     update: vi.fn(),
+    updatePipelineState: vi.fn(),
     delete: vi.fn().mockReturnValue(true),
     deleteByProjectId: vi.fn().mockReturnValue(0),
   };

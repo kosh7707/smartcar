@@ -28,6 +28,7 @@
 | **S1** | Frontend + QA | `services/frontend/` | :5173 |
 | **S2** | AEGIS Core (Backend) | `services/backend/`, `services/shared/` | :3000 |
 | **S3** | Analysis Agent — 보안 분석 자율 에이전트 | `services/analysis-agent/` | :8001 |
+| **S3** (겸임) | Build Agent — 빌드 자동화 에이전트 | `services/build-agent/` | :8003 |
 | **S4** | SAST Runner (정적 분석 도구 + SCA + 코드 구조 + 빌드 자동화) | `services/sast-runner/` | :9000 |
 | **S5** | Knowledge Base (위협 그래프 + 벡터 검색) | `services/knowledge-base/` | :8002 |
 | **S6** | Dynamic Analysis (ECU Simulator + Adapter) | `services/ecu-simulator/`, `services/adapter/` | :4000 |
@@ -65,6 +66,7 @@
 | S3 → S7 | REST API (`POST /v1/chat`) | Agent 멀티턴 LLM 호출 |
 | S3 → S4 | REST API | 에이전트 Phase 1에서 도구 호출 (S2 위임 하위) |
 | S3 → S5 | REST API | 에이전트가 지식 검색 (S2 위임 하위) |
+| S2 → S3(Build) | REST API (POST /v1/tasks) | 빌드 자동화 위임 (build-resolve) |
 | S7 → LLM Engine | REST API | 추론 요청 (S7만 직접 접근) |
 
 ### 인프라 스크립트
@@ -101,6 +103,7 @@
 | `services/shared/` | **S2 단독** | S1 참조만 가능, 변경 시 S2가 work-request로 통보 |
 | `services/llm-gateway/` | **S7** | LLM Gateway (:8000) |
 | `services/analysis-agent/` | S3 | Analysis Agent (:8001) |
+| `services/build-agent/` | S3 | Build Agent (S3 겸임) |
 | `services/sast-runner/` | S4 | |
 | `services/knowledge-base/` | S5 | |
 | `services/ecu-simulator/` | S6 | |
@@ -199,6 +202,7 @@
 | 5173 | Frontend (dev) | S1 |
 | 8000 | LLM Gateway | S7 |
 | 8001 | Analysis Agent | S3 |
+| 8003 | Build Agent | S3 (겸임) |
 | 8002 | Knowledge Base | S5 |
 | 9000 | SAST Runner | S4 |
 
@@ -296,3 +300,4 @@ docs/
 | 2026-03-18 | 최초 작성. AEGIS 명명 + 6인 체제 확정. S2(AEGIS Core) 관리. |
 | 2026-03-19 | S7(LLM Gateway + LLM Engine) 신설. S3에서 분리. 7인 체제. LLM 접근 원칙 추가. |
 | 2026-03-23 | S5/S6/S7 인수인계서 (신규) 태그 제거. Observability 규약 강화 (로그 레벨 숫자 표준, 서비스 식별자, X-Request-Id 규약). |
+| 2026-03-24 | Build Agent(:8003) 신설 (S3 겸임). 서브 프로젝트 파이프라인 아키텍처. 풀스택 통합 테스트. |

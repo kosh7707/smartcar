@@ -212,18 +212,46 @@ export interface SdkProfile {
 // 빌드 타겟
 // ============================================================
 
-/** 프로젝트 내 독립 빌드 단위 */
+/** 서브 프로젝트(빌드 타겟) 라이프사이클 상태 */
+export type BuildTargetStatus =
+  | "discovered" | "configured"
+  | "building" | "built" | "build_failed"
+  | "scanning" | "scanned" | "scan_failed"
+  | "graphing" | "graphed" | "graph_failed"
+  | "ready";
+
+/** 프로젝트 내 독립 빌드 단위 (서브 프로젝트) */
 export interface BuildTarget {
   id: string;
   projectId: string;
   /** 타겟 이름 (e.g. "gateway", "body-control") */
   name: string;
-  /** 프로젝트 루트 기준 상대 경로 (e.g. "gateway/") */
+  /** 메인 빌드 루트 상대 경로 (e.g. "gateway-webserver/") */
   relativePath: string;
+  /** 포함할 파일/폴더 경로 목록 (프로젝트 루트 기준 상대 경로) */
+  includedPaths?: string[];
+  /** 물리적 복사본 경로 (uploads/{projectId}/{targetId}/) — S2가 자동 생성 */
+  sourcePath?: string;
   /** 타겟별 독립 빌드 설정 */
   buildProfile: BuildProfile;
   /** 빌드 시스템 (S4 탐색 결과) */
   buildSystem?: "cmake" | "make" | "custom";
+  /** 라이프사이클 상태 */
+  status: BuildTargetStatus;
+  /** bear 빌드 결과 compile_commands.json 경로 */
+  compileCommandsPath?: string;
+  /** 빌드 로그 (실패 시 디버깅용) */
+  buildLog?: string;
+  /** Quick 분석 결과 ID (→ analysis_results) */
+  sastScanId?: string;
+  /** SCA 라이브러리 캐시 */
+  scaLibraries?: ScaLibrary[];
+  /** 코드그래프 KB 적재 상태 */
+  codeGraphStatus?: "pending" | "ingested" | "failed";
+  /** KB에 적재된 노드 수 */
+  codeGraphNodeCount?: number;
+  /** 마지막 빌드 시각 */
+  lastBuiltAt?: string;
   createdAt: string;
   updatedAt: string;
 }

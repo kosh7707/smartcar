@@ -1,25 +1,73 @@
 .file-detail-header {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: var(--space-3);
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-4);
 }
 
-.file-detail-header__icon {
-  color: var(--text-tertiary);
-  flex-shrink: 0;
+.file-detail-header__top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
 }
 
 .file-detail-header__info {
   flex: 1;
+  min-width: 0;
 }
 
-.file-detail-header__meta {
-  display: flex;
-  gap: var(--space-3);
-  font-size: var(--text-sm);
+.file-detail-header__name {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-detail-header__path {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
   color: var(--text-tertiary);
   margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Badges row */
+.file-detail-header__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.file-detail-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  background: var(--surface-1);
+  white-space: nowrap;
+}
+
+.file-detail-badge__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.file-detail-badge--warn {
+  border-color: var(--severity-high);
+  color: var(--severity-high);
+  background: color-mix(in srgb, var(--severity-high) 8%, transparent);
 }
 
 .file-detail-vuln-row {
@@ -41,4 +89,108 @@
 .file-detail-vuln-source {
   font-size: var(--text-xs);
   color: var(--text-tertiary);
+}
+
+/* Toolbar (tabs + maximize) */
+.file-detail-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-default);
+  margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) var(--space-4);
+  padding: 0 var(--space-3) 0 var(--space-4);
+  min-height: 40px;
+}
+
+.file-detail-maximize-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.file-detail-maximize-btn:hover {
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+/* Tabs (inside toolbar) */
+.file-detail-tabs {
+  display: flex;
+  gap: 0;
+}
+
+.file-detail-tab {
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  background: none;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.file-detail-tab:hover {
+  color: var(--text-primary);
+}
+
+.file-detail-tab--active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.file-detail-md-preview {
+  padding: var(--space-2) 0;
+  line-height: 1.7;
+  max-height: 625px;
+  overflow: auto;
+}
+
+.file-detail-md-preview--maximized {
+  max-height: none;
+}
+
+/* Maximized overlay */
+.file-detail-maximized-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  animation: fadeIn var(--transition-fast) ease-out;
+}
+
+.file-detail-maximized-panel {
+  width: 100%;
+  height: 100%;
+  max-width: 1400px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.file-detail-maximized-panel .file-detail-toolbar {
+  flex-shrink: 0;
+  margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) 0;
+  padding: 0 var(--space-3) 0 var(--space-4);
+}
+
+.file-detail-maximized-body {
+  flex: 1;
+  overflow: auto;
+  padding: var(--space-3) 0;
 }

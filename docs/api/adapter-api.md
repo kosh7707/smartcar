@@ -299,7 +299,7 @@ GET http://localhost:4000/health
 | ecuWs | WebSocket \| null | 현재 연결된 ECU (단일) |
 | ecuMeta | `{ name, canIds }` \| null | ECU 메타데이터 (ecu-info 수신 시 저장) |
 | backendClients | Set\<WebSocket\> | 연결된 Backend 목록 |
-| pendingRequests | Map\<requestId, { timer, backendWs }\> | 진행 중인 주입 요청 |
+| pendingRequests | Map\<requestId, { timer, backendWs, startTime }\> | 진행 중인 주입 요청 (startTime으로 elapsedMs 계산) |
 
 ---
 
@@ -321,7 +321,7 @@ GET http://localhost:4000/health
 |------|-----|
 | 로그 파일 | `logs/adapter.jsonl` |
 | 형식 | JSON structured (observability.md 준수) |
-| 필수 필드 | `level`, `time` (epoch ms), `name` ("adapter"), `msg` |
+| 필수 필드 | `level`, `time` (epoch ms), `service` ("s6-adapter"), `msg` |
 | 라이브러리 | pino |
 
 ---

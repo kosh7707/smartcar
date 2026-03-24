@@ -64,7 +64,7 @@ describe("ToastProvider rendering", () => {
     expect(screen.getByText("성공!")).toBeInTheDocument();
   });
 
-  it("auto-dismisses after 3 seconds", () => {
+  it("auto-dismisses after 5 seconds", () => {
     function TestComponent() {
       const toast = useToast();
       return <button onClick={() => toast.warning("경고!")}>show</button>;
@@ -75,7 +75,7 @@ describe("ToastProvider rendering", () => {
 
     expect(screen.getByText("경고!")).toBeInTheDocument();
 
-    act(() => { vi.advanceTimersByTime(3100); });
+    act(() => { vi.advanceTimersByTime(5100); });
 
     expect(screen.queryByText("경고!")).not.toBeInTheDocument();
   });

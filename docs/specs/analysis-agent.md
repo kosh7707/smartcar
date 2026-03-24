@@ -1,7 +1,7 @@
 # S3. Analysis Agent 기능 명세
 
 > **소유자**: S3
-> **최종 업데이트**: 2026-03-20
+> **최종 업데이트**: 2026-03-24
 
 > Analysis Agent는 자동차 임베디드 소프트웨어의 **증거 기반 보안 심층 분석**을 수행하는 서비스다.
 > 결정론적 도구 실행(Phase 1)과 LLM 해석(Phase 2)을 분리하여,
@@ -37,6 +37,7 @@
 | 메서드 | 경로 | 용도 |
 |--------|------|------|
 | POST | `/v1/tasks` | `deep-analyze` taskType — Phase 1/2 자동 실행 |
+| POST | `/v1/tasks` | `generate-poc` taskType — 특정 클레임 PoC 코드 생성 |
 | GET | `/v1/health` | 서비스 상태 + 에이전트 설정 + S7 Gateway 연결 상태 |
 
 ---
@@ -154,7 +155,7 @@ Phase 1 완료 후 `build_phase2_prompt()`가 결과를 시스템 프롬프트 +
 - OpenAI chat completion 포맷 (messages, model, tools, tool_choice, response_format)
 - tool_calls 파싱: id, function.name, function.arguments → `ToolCallRequest`
 - 토큰 추적: prompt_tokens, completion_tokens → `TokenCounter`
-- 교환 로그: `logs/s4-exchange.jsonl` + `logs/llm-dumps/{requestId}_turn-{nn}_{ts}.json`
+- 교환 로그: `logs/llm-exchange.jsonl` + `logs/llm-dumps/{requestId}_turn-{nn}_{ts}.json`
 
 ### 6.3 Phase 2 도구
 
@@ -290,7 +291,7 @@ Analysis Agent (:8001)
 | 항목 | 값 |
 |------|-----|
 | 로그 파일 | `logs/s3-analysis-agent.jsonl` |
-| 교환 로그 | `logs/s4-exchange.jsonl` (LLM 호출 요약) |
+| 교환 로그 | `logs/llm-exchange.jsonl` (LLM 호출 요약) |
 | LLM 전문 덤프 | `logs/llm-dumps/{requestId}_turn-{nn}_{ts}.json` |
 | 형식 | JSON structured, `time` epoch ms |
 | 요청 추적 | `contextvars` 기반 `requestId` + `X-Request-Id` 전파 |
@@ -313,7 +314,7 @@ grep '{request-id}' logs/*.jsonl  # Agent + SAST + KB + Gateway 한번에 추적
 | Phase 1 | SCA | 6 라이브러리 |
 | Phase 1 | KB 위협 조회 | 9 CWE → 43 hits |
 | Phase 1 | 위험 호출자 | 2 함수 → KB 조회 |
-| Phase 2 | LLM 분석 (122B GPTQ) | 4턴, 도구 5회 (knowledge.search×3, code_graph.callers×2), claims 4개, confidence 0.865 |
-| 전체 | 파이프라인 | **125초** |
+| Phase 2 | LLM 분석 (122B GPTQ) | 2턴, 도구 3회 (code_graph.callers×2, knowledge.search×1), claims 4개(detail 포함), confidence 0.865, PoC 4/4 성공 |
+| 전체 | 파이프라인 | **170초 (SCA + CVE 조회 포함)** |
 
-핵심 결과: LLM이 `code_graph.callers("popen")`으로 `run_curl → popen` 호출 체인을 확인하고, "HTTP 클라이언트 통신 경로에서 악용 가능"이라는 공격 표면을 특정.
+핵심 결과: LLM이 `code_graph.callers("popen")`으로 `run_curl → popen` 호출 체인을 확인하고, "HTTP 클라이언트 통신 경로에서 악용 가능"이라는 공격 표면을 특정. Claim.detail 포함 상세 분석, CVE-2025-55763 자동 발견, 서드파티 origin 메타데이터 활용

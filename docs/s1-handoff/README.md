@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S1(Frontend + QA) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-21**
+> **마지막 업데이트: 2026-03-24**
 
 ---
 
@@ -106,7 +106,9 @@
 | API 통신 | fetch (Electron preload / 브라우저 직접) |
 | 실시간 통신 | WebSocket |
 | 공유 타입 | @aegis/shared (monorepo) |
-| 테스트 | vitest + @testing-library/react + jsdom |
+| 코드 하이라이팅 | highlight.js (14개 언어, 라이트/다크 테마) |
+| 마크다운 렌더링 | react-markdown + remark-gfm |
+| 테스트 | vitest + @testing-library/react + jsdom (195 테스트) |
 
 ---
 
@@ -133,7 +135,9 @@ services/frontend/
 │       ├── hooks/
 │       │   ├── useElapsedTimer.ts     경과 시간 타이머 공통 훅
 │       │   ├── useAnalysisWebSocket.ts WS 기반 Quick+Deep 2단계 분석 훅 (타겟 진행률 포함)
-│       │   ├── useBuildTargets.ts     빌드 타겟 CRUD + 자동 탐색 훅
+│       │   ├── useBuildTargets.ts     빌드 타겟 CRUD + 자동 탐색 + includedPaths 지원
+│       │   ├── usePipelineProgress.ts 서브 프로젝트 빌드→스캔 파이프라인 WS 훅
+│       │   ├── useUploadProgress.ts   업로드 WS 진행률 (received→extracting→indexing→complete)
 │       │   ├── useStaticDashboard.ts  대시보드 데이터 + 최신 Run 상세 + 활성 분석 폴링
 │       │   ├── useStaticAnalysis.ts   정적 분석 흐름 (레거시 동기, 미사용)
 │       │   ├── useAsyncAnalysis.ts    비동기 분석 (레거시, useAnalysisWebSocket으로 대체)
@@ -143,17 +147,17 @@ services/frontend/
 │       │   └── ProjectLayout.tsx      breadcrumb + Outlet
 │       ├── components/
 │       │   ├── Sidebar.tsx            2-tier 사이드바
-│       │   ├── StatusBar.tsx          하단 상태바
+│       │   ├── StatusBar.tsx          하단 상태바 (백엔드 연결 끊김 시 토스트 알림)
 │       │   ├── ErrorBoundary.tsx      렌더링 크래시 방어 (class component)
-│       │   ├── ui/                    공통 UI (배지, 다이얼로그, 카드, FileTreeNode, PeriodSelector, TrendChart 등)
-│       │   ├── static/               정적 분석 (Dashboard, SourceUploadView, SourceTreeView, TwoStageProgressView, BuildTargetSection, BuildProfileForm, TargetSelectDialog, Run/Finding 상세)
+│       │   ├── ui/                    공통 UI (배지, 다이얼로그, 카드, FileTreeNode, TargetStatusBadge, TargetProgressStepper, PeriodSelector, TrendChart 등 26개)
+│       │   ├── static/               정적 분석 (Dashboard, SourceUploadView, SourceTreeView, TwoStageProgressView, BuildTargetSection, BuildProfileForm, TargetSelectDialog, SubprojectCreateDialog, AgentResultPanel, Run/Finding 상세 등 24개)
 │       │   ├── dynamic/              동적 분석 하위 컴포넌트 (숨김 — 코드 유지)
 │       │   └── finding/              Finding/Evidence 컴포넌트 (EvidencePanel, EvidenceViewer)
 │       ├── constants/                  공유 상수 (모듈, 언어, 동적, Finding, Evidence, defaults, sdkProfiles)
 │       ├── types/                     타입 선언 (window.d.ts, react-html.d.ts)
 │       ├── pages/                     각 페이지 컴포넌트 + CSS
-│       ├── styles/                    토큰, 리셋, 전역, 컴포넌트 CSS
-│       └── utils/                     포맷팅, 심각도, 파일 유틸, location 파싱, tree, findingOverlay, markdown
+│       ├── styles/                    토큰, 리셋, 전역, 컴포넌트, 코드뷰어, 하이라이트, 애니메이션, 레이아웃, 유틸리티 CSS (9개)
+│       └── utils/                     format, severity, fileMatch, location, tree, findingOverlay, markdown, cveHighlight, highlight, analysis, theme
 ```
 
 ---
@@ -552,17 +556,47 @@ npm run build
     - **컴포넌트 테스트 39건**: TargetSelectDialog, BuildProfileForm, FileTreeNode, ConfirmDialog
     - **컨텍스트 테스트 6건**: ToastContext (auto-dismiss, max 5, action button)
 
-### S2에서 WR 예정 (아직 미발송)
+### 완료된 작업 (2026-03-23)
 
-1. Knowledge Base 데이터 시각화 (CWE/CVE 관계 탐색, 코드 그래프)
-2. Analysis Agent 진행 상황 표시 (멀티턴 상태)
+21. ✅ Summary API 전환 (`/api/static-analysis/summary` → `/api/analysis/summary`)
+22. ✅ v1.0.0 풀스택 통합 UI — AgentResultPanel (confidence 게이지, caveats, 수정 권고, 정책 플래그, SCA 라이브러리, Agent audit)
+23. ✅ Observability v2 대응 — 인수인계서에 Observability 참조 추가, X-Request-Id 이미 구현 확인
+24. ✅ OverviewPage useMemo 조건부 return 위 이동 (hooks 순서 에러 수정)
+25. ✅ ReportPage에 `deep` 모듈 탭 추가 (S2 ProjectReport.modules 확장 대응)
+
+### 완료된 작업 (2026-03-24)
+
+26. ✅ 업로드 엔드포인트 통합 — 파일 유형 분기 로직 제거, `uploadSource` 단일 엔드포인트
+27. ✅ LLM 직접 통신 제거 — StatusBar/OverviewPage/ProjectSettingsPage에서 상태 칩 제거, 백엔드 연결 끊김 시 토스트 방식
+28. ✅ 업로드 비동기 + WS 프로그레스 — `useUploadProgress` 훅 (received→extracting→indexing→complete), 202 Accepted 방식
+29. ✅ 파일 확장자 필터 완전 제거 — S2 서버 측 500MB 제한으로 충분
+30. ✅ 파일 유형 메타데이터 (fileType 12종, previewable) — 파일별 아이콘 분기 (FileCode/Terminal/Wrench/Settings/BookOpen/Binary/Archive 등)
+31. ✅ 코드 하이라이팅 — highlight.js 14개 언어 (C/C++/Shell/CMake/Python/JSON/YAML 등), 라이트/다크 테마, 5곳 적용 (FileDetail/VulnDetail/SourceTree/markdown/fixCode)
+32. ✅ 마크다운 렌더러 → react-markdown + remark-gfm 교체 (GFM 테이블/링크/인용 완전 지원)
+33. ✅ 파일 디테일 헤더 고도화 — 언어별 아이콘, 경로 표시, pill 뱃지 (언어/크기/줄 수/취약점), Maximize 전체 화면
+34. ✅ 마크다운 프리뷰 탭 — .md 파일에서 코드/프리뷰 탭 전환
+35. ✅ 파일 구성 서버 composition — S2가 GitHub Linguist 스타일 집계 제공, 프론트 LANG_GROUPS 조합 불필요
+36. ✅ 코드 뷰어 CSS 개선 — 라이트 모드 밝은 배경, 주석 가독성 향상, 25줄 max-height
+37. ✅ 토스트 5초 지속, 불투명 배경 + backdrop-filter
+38. ✅ 서브 프로젝트 파이프라인 UI — `usePipelineProgress` WS 훅, `TargetStatusBadge` (12상태), `TargetProgressStepper` (5단계 스테퍼), BuildTargetSection 파이프라인 제어 패널
+39. ✅ 서브 프로젝트 생성 — `SubprojectCreateDialog` 체크박스 파일 트리, `includedPaths` 지원 (공유 라이브러리 포함 가능)
+40. ✅ 언어 분류 대폭 확장 — Shell/Build/Config/Docs/Assembly/Linker + inferLanguage 자동 추론
+41. ✅ 폴더 접힘 상태 sessionStorage 유지
+42. ✅ pipeline/upload/source API 다수 추가
+43. ✅ 테스트 195건 (유닛 89 + 상수 26 + API 11 + 훅 14 + 컴포넌트 39 + 컨텍스트 6 + UI 7 + CVE 3)
+
+### S1 독립 작업 가능
+
+1. 통합 테스트 QA — 소스 업로드 → 서브 프로젝트 생성 → 빌드 파이프라인 → 분석 → 결과 E2E
+2. 대시보드 시각 QA — 반응형 확인
+3. 추가 테스트 확장 — useStaticDashboard 훅, AgentResultPanel 컴포넌트 등
+4. 파일 탐색기 서브 프로젝트 편집 UI — includedPaths 수정 다이얼로그
 
 ### S2 추가 모델 확장 후 S1이 할 것
 
-1. TargetAsset / VersionSnapshot 계층 화면
-2. Quality Gate 독립 화면
-3. Approval Queue
-4. LLM provenance panel
+1. Quality Gate 독립 화면
+2. Approval Queue
+3. 파일 탐색기에 서브 프로젝트 소속 표시 (S2 `buildTarget?` 필드 추가 후)
 
 ---
 

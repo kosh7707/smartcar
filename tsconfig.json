@@ -12,5 +12,6 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "dist"
-  }
+  },
+  "exclude": ["uploads", "logs", "node_modules", "dist"]
 }

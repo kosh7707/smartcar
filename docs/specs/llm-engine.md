@@ -49,7 +49,7 @@
 |------|------|
 | Qwen3.5-122B-A10B-GPTQ-Int4 모델 | ~67 GiB |
 | vLLM 런타임 + KV cache + FlashInfer | ~24 GiB |
-| 총 GPU 메모리 사용 | ~91 GiB (gpu_memory_utilization: 0.7) |
+| 총 GPU 메모리 사용 | ~96 GiB (gpu_memory_utilization: 0.75) |
 | 결론 | 128GB unified에 충분, 262K 컨텍스트 처리 가능 |
 
 ---
@@ -137,11 +137,12 @@ cd ~/spark-vllm-docker
 |----------|------|------|
 | `--port` | 8000 | API 포트 |
 | `--host` | 0.0.0.0 | 외부 접근 허용 |
-| `--gpu-memory-utilization` | 0.7 | GPU 메모리 70% 사용 |
+| `--gpu-memory-utilization` | 0.75 | GPU 메모리 75% 사용 (KV cache 확대) |
 | `--max-model-len` | 262144 | 최대 컨텍스트 길이 |
 | `--kv-cache-dtype` | fp8 | KV cache FP8 양자화 |
 | `--attention-backend` | flashinfer | FlashInfer 어텐션 |
 | `--enable-prefix-caching` | - | 프리픽스 캐싱 활성화 |
+| `--enable-chunked-prefill` | - | 청크 프리필 활성화 (ITL 개선) |
 | `--reasoning-parser` | qwen3 | Thinking 모드 분리 파서 |
 | `--enable-auto-tool-choice` | - | Tool calling 자동 선택 |
 | `--tool-call-parser` | qwen3_coder | Tool call 파서 |
@@ -235,7 +236,7 @@ vLLM의 모델명은 HuggingFace 형식 `Qwen/Qwen3.5-122B-A10B-GPTQ-Int4`이다
 | 항목 | 실측값 | 비고 |
 |------|--------|------|
 | 처리량 (단일) | **~26 tok/s** (non-thinking) | 워밍업 후 안정값 |
-| 처리량 (첫 요청) | ~13 tok/s | torch.compile 워밍업 포함 |
+| 처리량 | ~14 tok/s | gpu_mem 0.75 + chunked prefill, 워밍업 후 |
 | 보안분석 응답 시간 | **19초** (509토큰) | 짧은 입력 기준 |
 | 배치 prompt throughput | **1,500~3,000 tok/s** | 4 reqs 병렬 처리 시 |
 | 배치 generation throughput | **60~113 tok/s** | 4 reqs 병렬 처리 시 |

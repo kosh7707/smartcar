@@ -2,14 +2,17 @@
 
 SDK 폴더 규칙:
   SAST_SDK_ROOT=/home/kosh/sdks   (.env에 설정)
-    └── ti-am335x/                 ← sdkId가 곧 폴더명
-    └── nxp-s32k/                  ← 나중에 추가 시
+    ├── sdk-registry.json          ← SDK 메타데이터 (코드 밖에서 관리)
+    ├── ti-am335x/                 ← sdkId가 곧 폴더명
+    └── nxp-s32k/                  ← 나중에 추가 시 json만 편집
+
   sdkId가 레지스트리에 있으면 → sysroot/compiler 자동 해석
   sdkId가 레지스트리에 없어도 폴더가 있으면 → includePaths로 활용 가능
 """
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -27,16 +30,32 @@ def _get_sdk_root() -> Path:
     return Path.home() / "sdks"
 
 
-# SDK 레지스트리 — sdkId별 내부 구조 정보
-# base 경로는 _get_sdk_root() / sdkId로 자동 결정
-_SDK_REGISTRY: dict[str, dict[str, Any]] = {
-    "ti-am335x": {
-        "sysroot": "linux-devkit/sysroots/x86_64-arago-linux",
-        "compiler_prefix": "arm-none-linux-gnueabihf",
-        "gcc_version": "9.2.1",
-        "environment_setup": "linux-devkit/environment-setup-armv7at2hf-neon-linux-gnueabi",
-    },
-}
+def _load_sdk_registry() -> dict[str, dict[str, Any]]:
+    """$SAST_SDK_ROOT/sdk-registry.json에서 SDK 레지스트리를 로드.
+
+    파일이 없으면 빈 dict 반환. 코드 수정 없이 SDK 추가/변경 가능.
+    """
+    registry_path = _get_sdk_root() / "sdk-registry.json"
+    if not registry_path.exists():
+        logger.warning("SDK registry not found: %s", registry_path)
+        return {}
+    try:
+        return json.loads(registry_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as e:
+        logger.error("Failed to load SDK registry: %s", e)
+        return {}
+
+
+# 레지스트리 캐시 (서버 수명 동안 1회 로드)
+_SDK_REGISTRY: dict[str, dict[str, Any]] | None = None
+
+
+def _get_registry() -> dict[str, dict[str, Any]]:
+    """SDK 레지스트리 캐시 반환. 최초 호출 시 파일에서 로드."""
+    global _SDK_REGISTRY
+    if _SDK_REGISTRY is None:
+        _SDK_REGISTRY = _load_sdk_registry()
+    return _SDK_REGISTRY
 
 
 def _get_sdk_base(sdk_id: str) -> Path:
@@ -53,7 +72,7 @@ def resolve_sdk_paths(profile: BuildProfile) -> list[str]:
     paths: list[str] = []
 
     # 1. SDK 레지스트리에서 자동 해석
-    sdk_info = _SDK_REGISTRY.get(profile.sdk_id)
+    sdk_info = _get_registry().get(profile.sdk_id)
     base = _get_sdk_base(profile.sdk_id)
 
     if sdk_info and base.is_dir():
@@ -75,7 +94,7 @@ def resolve_sdk_paths(profile: BuildProfile) -> list[str]:
 
 def get_sdk_compiler(profile: BuildProfile) -> str | None:
     """SDK의 크로스 컴파일러 경로를 반환."""
-    sdk_info = _SDK_REGISTRY.get(profile.sdk_id)
+    sdk_info = _get_registry().get(profile.sdk_id)
     if not sdk_info:
         return None
 
@@ -91,7 +110,7 @@ def get_sdk_compiler(profile: BuildProfile) -> str | None:
 
 def get_sdk_environment_setup(profile: BuildProfile) -> str | None:
     """SDK의 environment-setup 스크립트 경로를 반환."""
-    sdk_info = _SDK_REGISTRY.get(profile.sdk_id)
+    sdk_info = _get_registry().get(profile.sdk_id)
     if not sdk_info or "environment_setup" not in sdk_info:
         return None
 
@@ -100,6 +119,49 @@ def get_sdk_environment_setup(profile: BuildProfile) -> str | None:
     if setup_path.exists():
         return str(setup_path)
     return None
+
+
+def get_sdk_registry() -> list[dict[str, Any]]:
+    """등록된 SDK 목록을 반환. 빌드 Agent가 SDK 매칭에 사용."""
+    result = []
+    sdk_root = _get_sdk_root()
+
+    for sdk_id, info in _get_registry().items():
+        base = sdk_root / sdk_id
+        compiler_path = get_sdk_compiler_path(base, info)
+        setup_path = base / info.get("environment_setup", "")
+
+        result.append({
+            "sdkId": sdk_id,
+            "compiler": f"{info['compiler_prefix']}-gcc",
+            "compilerVersion": info.get("gcc_version"),
+            "compilerPath": compiler_path,
+            "targetArch": _infer_arch(info["compiler_prefix"]),
+            "sysroot": str(base / info["sysroot"]) if base.is_dir() else None,
+            "setupScript": str(setup_path) if setup_path.exists() else None,
+            "installed": base.is_dir(),
+        })
+
+    return result
+
+
+def get_sdk_compiler_path(base: Path, sdk_info: dict[str, Any]) -> str | None:
+    """SDK 크로스 컴파일러의 절대 경로."""
+    sysroot = sdk_info["sysroot"]
+    prefix = sdk_info["compiler_prefix"]
+    path = base / sysroot / "usr" / "bin" / f"{prefix}-gcc"
+    return str(path) if path.exists() else None
+
+
+def _infer_arch(compiler_prefix: str) -> str:
+    """컴파일러 prefix에서 타겟 아키텍처를 추론."""
+    if "arm" in compiler_prefix:
+        return "arm"
+    if "aarch64" in compiler_prefix:
+        return "aarch64"
+    if "x86_64" in compiler_prefix:
+        return "x86_64"
+    return compiler_prefix.split("-")[0]
 
 
 def _resolve_from_registry(base: Path, sdk_info: dict[str, Any]) -> list[str]:

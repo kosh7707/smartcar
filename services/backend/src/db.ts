@@ -303,6 +303,18 @@ export function initSchema(db: DatabaseType): void {
     );
     CREATE INDEX IF NOT EXISTS idx_build_targets_project ON build_targets(project_id);
   `);
+
+  // 마이그레이션: build_targets — 서브 프로젝트 파이프라인 상태
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN status TEXT NOT NULL DEFAULT 'discovered'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN compile_commands_path TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN build_log TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN sast_scan_id TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN sca_libraries TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN code_graph_status TEXT NOT NULL DEFAULT 'pending'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN code_graph_node_count INTEGER DEFAULT 0`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN last_built_at TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN included_paths TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN source_path TEXT`); } catch { /* 이미 존재 */ }
 }
 
 export type { DatabaseType };

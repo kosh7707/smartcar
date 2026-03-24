@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Upload, GitBranch, FolderArchive, Folder, Play, Search, Crosshair } from "lucide-react";
 import type { SourceFileEntry } from "../../api/client";
 import { uploadSource, cloneSource, fetchSourceFiles, logError } from "../../api/client";
 import { useToast } from "../../contexts/ToastContext";
+import { useUploadProgress } from "../../hooks/useUploadProgress";
 import { Spinner } from "../ui";
 import { formatFileSize } from "../../utils/format";
 import { buildTree, countFiles } from "../../utils/tree";
@@ -22,6 +23,7 @@ interface Props {
 
 export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, onBrowseTree, onDiscoverTargets }) => {
   const toast = useToast();
+  const upload = useUploadProgress();
   const [tab, setTab] = useState<UploadTab>("zip");
   const [uploading, setUploading] = useState(false);
   const [sourceFiles, setSourceFiles] = useState<SourceFileEntry[] | null>(null);
@@ -43,24 +45,37 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
 
   React.useEffect(() => { loadSourceFiles(); }, [loadSourceFiles]);
 
+  // Reload source files when upload completes
+  useEffect(() => {
+    if (upload.phase === "complete") {
+      loadSourceFiles();
+      upload.reset();
+      setUploading(false);
+    } else if (upload.phase === "failed") {
+      toast.error(upload.error ?? "소스코드 업로드에 실패했습니다.");
+      upload.reset();
+      setUploading(false);
+    }
+  }, [upload.phase]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleZipUpload = useCallback(async (file: File) => {
     const ext = file.name.toLowerCase();
-    if (!ext.endsWith(".zip") && !ext.endsWith(".tar.gz") && !ext.endsWith(".tgz")) {
-      toast.error("ZIP 또는 tar.gz 파일만 업로드할 수 있습니다.");
+    if (!ext.endsWith(".zip") && !ext.endsWith(".tar.gz") && !ext.endsWith(".tgz") && !ext.endsWith(".tar.bz2") && !ext.endsWith(".tar")) {
+      toast.error("ZIP, tar.gz, tgz, tar.bz2, tar 파일만 업로드할 수 있습니다.");
       return;
     }
     setUploading(true);
+    upload.setUploading();
     try {
-      const result = await uploadSource(projectId, file);
-      setSourceFiles(result.files);
-      toast.success(`${result.fileCount}개 파일 업로드 완료`);
+      const { uploadId } = await uploadSource(projectId, file);
+      upload.startTracking(uploadId);
     } catch (e) {
       logError("Upload source", e);
       toast.error("소스코드 업로드에 실패했습니다.");
-    } finally {
       setUploading(false);
+      upload.reset();
     }
-  }, [projectId, toast]);
+  }, [projectId, toast, upload]);
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
@@ -218,7 +233,7 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
 
           {uploading ? (
             <div className="card source-loading">
-              <Spinner size={32} label={tab === "zip" ? "업로드 중..." : "클론 중..."} />
+              <Spinner size={32} label={upload.isActive ? upload.message : (tab === "zip" ? "업로드 중..." : "클론 중...")} />
             </div>
           ) : tab === "zip" ? (
             <div
@@ -233,12 +248,12 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
                   <Upload size={36} />
                 </div>
                 <p>프로젝트 소스코드를 드래그하거나 클릭하여 업로드</p>
-                <small>지원 형식: .zip, .tar.gz, .tgz</small>
+                <small>지원 형식: .zip, .tar.gz, .tgz, .tar.bz2, .tar</small>
               </div>
               <input
                 id="source-file-input"
                 type="file"
-                accept=".zip,.tar.gz,.tgz"
+                accept=".zip,.tar.gz,.tgz,.tar.bz2,.tar"
                 style={{ display: "none" }}
                 onChange={handleFileSelect}
               />

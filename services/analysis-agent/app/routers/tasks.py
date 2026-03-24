@@ -198,10 +198,57 @@ async def _handle_deep_analyze(request: TaskRequest) -> TaskSuccessResponse | Ta
     )
 
     try:
-        return await loop.run(session)
+        result = await loop.run(session)
+
+        # 분석 완료 시 프로젝트 메모리에 결과 저장
+        if isinstance(result, TaskSuccessResponse) and project_id and settings.llm_mode == "real":
+            await _save_analysis_memory(project_id, result)
+
+        return result
     finally:
         if settings.llm_mode == "real" and hasattr(llm_caller, 'aclose'):
             await llm_caller.aclose()
+
+
+async def _save_analysis_memory(project_id: str, result: TaskSuccessResponse) -> None:
+    """분석 결과를 S5 프로젝트 메모리에 저장한다."""
+    import httpx
+    from datetime import datetime, timezone
+
+    try:
+        claims_summary = [
+            {
+                "statement": c.statement,
+                "location": c.location,
+                "severity": result.result.suggestedSeverity,
+            }
+            for c in result.result.claims
+        ]
+
+        memory_data = {
+            "type": "analysis_history",
+            "data": {
+                "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                "claimCount": len(result.result.claims),
+                "severity": result.result.suggestedSeverity,
+                "confidence": result.result.confidence,
+                "claims": claims_summary,
+            },
+        }
+
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            headers = {}
+            request_id = get_request_id()
+            if request_id:
+                headers["X-Request-Id"] = request_id
+            await client.post(
+                f"{settings.kb_endpoint}/v1/project-memory/{project_id}",
+                json=memory_data,
+                headers=headers,
+            )
+            logger.info("[memory] 분석 결과 메모리 저장 완료: projectId=%s", project_id)
+    except Exception as e:
+        logger.warning("[memory] 분석 결과 메모리 저장 실패 (무시): %s", e)
 
 
 async def _handle_generate_poc(request: TaskRequest) -> TaskSuccessResponse | TaskFailureResponse:
