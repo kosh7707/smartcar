@@ -1,5 +1,6 @@
 import type {
   ProjectFilesResponse,
+  UploadedFile,
 } from "@aegis/shared";
 import { apiFetch, ApiError, getBaseUrl } from "./core";
 
