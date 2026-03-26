@@ -4,7 +4,7 @@ import time
 from unittest.mock import MagicMock
 
 from app.policy.termination import TerminationPolicy
-from app.schemas.agent import BudgetState
+from agent_shared.schemas.agent import BudgetState
 
 
 def _make_session(budget_overrides: dict | None = None, elapsed_ms: int = 0, turn_count: int = 0):

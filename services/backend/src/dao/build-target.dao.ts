@@ -19,6 +19,7 @@ function rowToBuildTarget(row: any): BuildTarget {
     includedPaths: parseJsonOrDefault<string[]>(row.included_paths, []).length > 0
       ? parseJsonOrDefault<string[]>(row.included_paths, []) : undefined,
     sourcePath: row.source_path ?? undefined,
+    buildCommand: row.build_command ?? undefined,
     status: (row.status ?? "discovered") as BuildTargetStatus,
     compileCommandsPath: row.compile_commands_path ?? undefined,
     buildLog: row.build_log ?? undefined,
@@ -54,7 +55,7 @@ export class BuildTargetDAO implements IBuildTargetDAO {
       `UPDATE build_targets SET name = ?, relative_path = ?, build_profile = ?, build_system = ?, status = ?, updated_at = ? WHERE id = ?`,
     );
     this.updateStatusStmt = db.prepare(
-      `UPDATE build_targets SET status = ?, compile_commands_path = ?, build_log = ?, sast_scan_id = ?, sca_libraries = ?, code_graph_status = ?, code_graph_node_count = ?, last_built_at = ?, updated_at = ? WHERE id = ?`,
+      `UPDATE build_targets SET status = ?, compile_commands_path = ?, build_log = ?, sast_scan_id = ?, sca_libraries = ?, code_graph_status = ?, code_graph_node_count = ?, last_built_at = ?, build_command = ?, updated_at = ? WHERE id = ?`,
     );
     this.deleteStmt = db.prepare(`DELETE FROM build_targets WHERE id = ?`);
     this.deleteByProjectStmt = db.prepare(`DELETE FROM build_targets WHERE project_id = ?`);
@@ -115,6 +116,7 @@ export class BuildTargetDAO implements IBuildTargetDAO {
       codeGraphStatus?: string;
       codeGraphNodeCount?: number;
       lastBuiltAt?: string;
+      buildCommand?: string;
     },
   ): BuildTarget | undefined {
     const existing = this.findById(id);
@@ -130,6 +132,7 @@ export class BuildTargetDAO implements IBuildTargetDAO {
       fields.codeGraphStatus ?? existing.codeGraphStatus ?? "pending",
       fields.codeGraphNodeCount ?? existing.codeGraphNodeCount ?? 0,
       fields.lastBuiltAt ?? existing.lastBuiltAt ?? null,
+      fields.buildCommand ?? existing.buildCommand ?? null,
       updatedAt,
       id,
     );

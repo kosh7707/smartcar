@@ -12,8 +12,12 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 from pathlib import Path
+
+# server.py와 같은 디렉토리의 log_reader를 임포트할 수 있도록 보장
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from mcp.server.fastmcp import FastMCP
 
@@ -33,10 +37,7 @@ from log_reader import (
 # ── 설정 ──
 LOGS_DIR = os.environ.get("LOGS_DIR", str(Path(__file__).resolve().parent.parent.parent / "logs"))
 
-mcp = FastMCP(
-    "AEGIS Log Analyzer",
-    version="0.1.0",
-)
+mcp = FastMCP("AEGIS Log Analyzer")
 
 
 @mcp.tool()

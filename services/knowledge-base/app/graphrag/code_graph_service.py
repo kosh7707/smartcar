@@ -97,6 +97,22 @@ class CodeGraphService:
             )
             return [dict(rec) for rec in result]
 
+    def get_function(self, project_id: str, function_name: str) -> dict | None:
+        """단일 함수 노드 정보를 반환한다."""
+        with self._driver.session() as session:
+            result = session.run(
+                "MATCH (fn:Function {project_id: $pid, name: $name}) "
+                "RETURN fn.name AS name, fn.file AS file, fn.line AS line, "
+                "coalesce(fn.origin, null) AS origin, "
+                "coalesce(fn.original_lib, null) AS original_lib, "
+                "coalesce(fn.original_version, null) AS original_version",
+                pid=project_id, name=function_name,
+            )
+            record = result.single()
+            if record is None:
+                return None
+            return dict(record)
+
     def get_callees(self, project_id: str, function_name: str) -> list[dict]:
         """해당 함수가 호출하는 함수를 반환한다."""
         with self._driver.session() as session:

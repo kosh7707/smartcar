@@ -24,6 +24,8 @@ export interface SastScanRequest {
   compileCommands?: string;
   buildProfile?: BuildProfile;
   rulesets?: string[];
+  /** 포함된 서드파티 라이브러리 경로 (S4가 cross-boundary 필터링에 사용) */
+  thirdPartyPaths?: string[];
   options?: {
     timeoutSeconds?: number;
     maxFindingsPerRule?: number;
@@ -204,6 +206,67 @@ export class SastClient {
       return (await res.json()) as DiscoverTargetsResponse;
     } catch (err) {
       throw new SastUnavailableError("Failed to parse discover-targets response", err);
+    }
+  }
+
+  async registerSdk(
+    sdk: { sdkId: string; description?: string; path: string; sysroot?: string; compilerPrefix?: string; gccVersion?: string; environmentSetup?: string },
+    requestId?: string,
+    signal?: AbortSignal,
+  ): Promise<{ success: boolean; errors?: string[] }> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (requestId) headers["X-Request-Id"] = requestId;
+
+    const res = await this.doFetch(
+      `${this.baseUrl}/v1/sdk-registry`,
+      headers,
+      sdk,
+      requestId,
+      signal,
+    );
+    return (await res.json()) as { success: boolean; errors?: string[] };
+  }
+
+  async deleteSdk(
+    sdkId: string,
+    requestId?: string,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const headers: Record<string, string> = {};
+    if (requestId) headers["X-Request-Id"] = requestId;
+
+    try {
+      await fetch(`${this.baseUrl}/v1/sdk-registry/${encodeURIComponent(sdkId)}`, {
+        method: "DELETE",
+        headers,
+        signal,
+      });
+    } catch (err) {
+      logger.warn({ err, sdkId }, "S4 SDK delete failed");
+    }
+  }
+
+  async identifyLibraries(
+    projectPath: string,
+    requestId?: string,
+    signal?: AbortSignal,
+  ): Promise<Array<{ name: string; version?: string; path: string; modifiedFiles?: string[] }>> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (requestId) headers["X-Request-Id"] = requestId;
+
+    try {
+      const res = await this.doFetch(
+        `${this.baseUrl}/v1/libraries`,
+        headers,
+        { projectPath },
+        requestId,
+        signal,
+      );
+      const data = (await res.json()) as { libraries: Array<{ name: string; version?: string; path: string; modifiedFiles?: string[] }> };
+      return data.libraries ?? [];
+    } catch (err) {
+      logger.warn({ err, projectPath, requestId }, "Library identification failed — continuing without");
+      return [];
     }
   }
 

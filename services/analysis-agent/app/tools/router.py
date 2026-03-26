@@ -6,12 +6,12 @@ import logging
 from typing import TYPE_CHECKING
 
 from app.budget.manager import BudgetManager
-from app.observability import agent_log
+from agent_shared.observability import agent_log
 from app.policy.tool_failure import ToolFailurePolicy
-from app.schemas.agent import ToolCallRequest, ToolCostTier, ToolResult, ToolTraceStep
-from app.tools.executor import ToolExecutor
-from app.tools.implementations.base import ToolImplementation
-from app.tools.registry import ToolRegistry
+from agent_shared.schemas.agent import ToolCallRequest, ToolCostTier, ToolResult, ToolTraceStep
+from agent_shared.tools.executor import ToolExecutor
+from agent_shared.tools.base import ToolImplementation
+from agent_shared.tools.registry import ToolRegistry
 
 if TYPE_CHECKING:
     from app.core.agent_session import AgentSession

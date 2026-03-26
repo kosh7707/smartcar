@@ -34,15 +34,19 @@ const AUTO_DISMISS_MS = 5000;
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const nextId = useRef(0);
+  const timers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
   const dismiss = useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+    const timer = timers.current.get(id);
+    if (timer) { clearTimeout(timer); timers.current.delete(id); }
   }, []);
 
   const show = useCallback((type: ToastType, message: string, action?: ToastAction) => {
     const id = nextId.current++;
     setToasts((prev) => [...prev.slice(-4), { id, type, message, action }]);
-    setTimeout(() => dismiss(id), AUTO_DISMISS_MS);
+    const timer = setTimeout(() => { timers.current.delete(id); dismiss(id); }, AUTO_DISMISS_MS);
+    timers.current.set(id, timer);
   }, [dismiss]);
 
   const api = useMemo<ToastApi>(() => ({
@@ -56,7 +60,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       {children}
       <div className="toast-container">
         {toasts.map((t) => (
-          <div key={t.id} className={`toast toast--${t.type}`}>
+          <div key={t.id} className={`toast toast--${t.type}`} role="alert" aria-live="assertive">
             {ICONS[t.type]}
             <span className="toast__message">{t.message}</span>
             {t.action && (
@@ -64,7 +68,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 {t.action.label}
               </button>
             )}
-            <button className="toast__close" onClick={() => dismiss(t.id)}>
+            <button className="toast__close" onClick={() => dismiss(t.id)} aria-label="알림 닫기">
               <X size={14} />
             </button>
           </div>

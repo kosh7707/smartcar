@@ -18,6 +18,8 @@ http://localhost:8000
 |------|------|------|
 | `X-Request-Id` | 요청/응답 | 분산 추적용 요청 ID. 호출자가 전달하면 S7이 로그에 기록하고 LLM Engine에도 전파. **호출자가 미전달 시 Gateway가 `gw-` 접두사로 자동 생성.** 모든 응답에 포함. |
 | `X-Timeout-Seconds` | 요청 | `/v1/chat` 전용. 호출자가 원하는 read timeout (초). Gateway가 LLM Engine 호출 시 이 값을 적용. 미전달 시 기본 1800초. 상한 1800초. |
+| `X-Model` | 응답 | `/v1/chat` 전용. Gateway가 실제 사용한 모델명 (오버라이드 후). 호출자가 어떤 모델명을 보냈든 실제 적용된 모델을 확인할 수 있다. |
+| `X-Gateway-Latency-Ms` | 응답 | `/v1/chat` 전용. Gateway 측정 지연시간 (밀리초). LLM Engine 호출 + 전후 처리 포함. |
 
 ---
 

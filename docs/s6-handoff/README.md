@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S6(Dynamic Analysis) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-24**
+> **마지막 업데이트: 2026-03-25**
 
 ---
 
@@ -69,6 +69,12 @@ ECU Simulator ──WS──→ Adapter (:4000/ws/ecu)
 - 주입 응답 규칙: 0xFF→crash, 0x7DF→reset, 0x00→malformed, 반복3회→anomaly, 경계값→timeout(2000ms)
 - CLI 옵션: `--adapter`, `--scenario`, `--ecu-name`, `--speed`, `--loop`
 - 구조화 로깅 (pino, `logs/ecu-simulator.jsonl`, service: `s6-ecu`)
+
+### 테스트 (2026-03-25 추가)
+- 프레임워크: Vitest (프로젝트 표준 준수)
+- Adapter: 단위 테스트 (Relay 29건) + 프로토콜 계약 테스트 (11건) + 통합 테스트 (11건, 실제 WS)
+- ECU Simulator: 단위 테스트 (EcuEngine 15건 + TrafficGenerator 8건) + 프로토콜 계약 테스트 (5건)
+- 실행: 각 서비스 디렉토리에서 `npm test`
 
 ### 상세 명세
 - Adapter: `docs/specs/adapter.md`

@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useRef } from "react";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -19,26 +19,60 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onConfirm,
   onCancel,
 }) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      previousFocus.current = document.activeElement as HTMLElement | null;
+      // Focus the first button after render
+      requestAnimationFrame(() => {
+        const firstBtn = dialogRef.current?.querySelector<HTMLButtonElement>("button");
+        firstBtn?.focus();
+      });
+      return () => {
+        previousFocus.current?.focus();
+      };
+    }
+  }, [open]);
+
   const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") { onCancel(); return; }
+      // Focus trap: Tab cycles within dialog
+      if (e.key === "Tab") {
+        const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (!focusable || focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     },
     [onCancel],
   );
 
-  useEffect(() => {
-    if (open) {
-      document.addEventListener("keydown", handleKeyDown);
-      return () => document.removeEventListener("keydown", handleKeyDown);
-    }
-  }, [open, handleKeyDown]);
-
   if (!open) return null;
 
   return (
-    <div className="confirm-overlay" onClick={onCancel}>
-      <div className="confirm-dialog card" onClick={(e) => e.stopPropagation()}>
-        <h3 className="confirm-dialog__title">{title}</h3>
+    <div className="confirm-overlay" onClick={onCancel} role="presentation">
+      <div
+        ref={dialogRef}
+        className="confirm-dialog card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={handleKeyDown}
+      >
+        <h3 id="confirm-dialog-title" className="confirm-dialog__title">{title}</h3>
         <p className="confirm-dialog__message">{message}</p>
         <div className="confirm-dialog__actions">
           <button className="btn btn-secondary btn-sm" onClick={onCancel}>

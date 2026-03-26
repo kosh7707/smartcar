@@ -1,7 +1,8 @@
 import React, { useCallback } from "react";
 import { Upload, FileText, Check } from "lucide-react";
 import type { UploadedFile } from "@aegis/shared";
-import type { LocalFile } from "../../hooks/useStaticAnalysis";
+
+interface LocalFile { file: File; name: string; size: number }
 import { formatFileSize } from "../../utils/format";
 
 interface Props {

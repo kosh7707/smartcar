@@ -20,12 +20,12 @@ class ScanOptions(BaseModel):
 # --- BuildProfile (mirrors docs/api/shared-models.md BuildProfile) ---
 
 class BuildProfile(BaseModel):
-    sdk_id: str = Field(alias="sdkId")
-    compiler: str
+    sdk_id: str | None = Field(default=None, alias="sdkId")
+    compiler: str | None = None
     compiler_version: str | None = Field(default=None, alias="compilerVersion")
-    target_arch: str = Field(alias="targetArch")
-    language_standard: str = Field(alias="languageStandard")
-    header_language: Literal["c", "cpp", "auto"] = Field(alias="headerLanguage")
+    target_arch: str | None = Field(default=None, alias="targetArch")
+    language_standard: str | None = Field(default=None, alias="languageStandard")
+    header_language: Literal["c", "cpp", "auto"] = Field(default="auto", alias="headerLanguage")
     include_paths: list[str] | None = Field(default=None, alias="includePaths")
     defines: dict[str, str] | None = None
     flags: list[str] | None = None
@@ -41,6 +41,7 @@ class ScanRequest(BaseModel):
     compile_commands: str | None = Field(default=None, alias="compileCommands")
     build_profile: BuildProfile | None = Field(default=None, alias="buildProfile")
     rulesets: list[str] | None = None
+    third_party_paths: list[str] | None = Field(default=None, alias="thirdPartyPaths")
     options: ScanOptions = Field(default_factory=ScanOptions)
 
     model_config = {"populate_by_name": True}

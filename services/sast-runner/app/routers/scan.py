@@ -10,8 +10,6 @@ import tempfile
 import time
 import uuid
 from pathlib import Path
-from typing import Any
-
 from fastapi import APIRouter, Request, Response
 
 from app.config import settings
@@ -21,10 +19,9 @@ from app.scanner.ast_dumper import AstDumper
 from app.scanner.build_metadata import BuildMetadataExtractor
 from app.scanner.build_runner import BuildRunner
 from app.scanner.include_resolver import IncludeResolver
-from app.scanner.library_differ import LibraryDiffer
-from app.scanner.library_identifier import LibraryIdentifier
 from app.scanner.orchestrator import ScanOrchestrator
-from app.scanner.sdk_resolver import get_sdk_registry
+from app.scanner.sca_service import analyze_libraries, identify_libraries
+from app.scanner.sdk_resolver import get_sdk_registry, register_sdk, unregister_sdk, validate_sdk
 from app.scanner.ruleset_selector import resolve_rulesets
 from app.schemas.request import BuildProfile, ScanRequest
 from app.schemas.response import (
@@ -41,14 +38,28 @@ orchestrator = ScanOrchestrator()
 ast_dumper = AstDumper()
 include_resolver = IncludeResolver()
 metadata_extractor = BuildMetadataExtractor()
-lib_identifier = LibraryIdentifier()
-lib_differ = LibraryDiffer()
 build_runner = BuildRunner()
 _scan_semaphore = asyncio.Semaphore(settings.max_concurrent_scans)
 
 
+DEFAULT_TIMEOUT_S = 600
+
+
 def _get_request_id(request: Request) -> str:
     return request.headers.get("X-Request-Id") or f"req-{uuid.uuid4()}"
+
+
+def _get_timeout(request: Request, body_timeout: int | None = None) -> int:
+    """타임아웃 해석: X-Timeout-Ms 헤더 > body > 기본값 600초."""
+    header = request.headers.get("X-Timeout-Ms")
+    if header:
+        try:
+            return max(int(header) // 1000, 1)
+        except (ValueError, TypeError):
+            pass
+    if body_timeout and body_timeout != 120:  # 120은 ScanOptions 기본값이므로 명시적 지정만 존중
+        return body_timeout
+    return DEFAULT_TIMEOUT_S
 
 
 def _error_response(
@@ -153,7 +164,7 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
         rulesets = resolve_rulesets(
             body.rulesets, body.build_profile, settings.default_rulesets,
         )
-        timeout = body.options.timeout_seconds
+        timeout = _get_timeout(request, body.options.timeout_seconds)
 
         # 2. 동시성 제어
         async with _scan_semaphore:
@@ -183,6 +194,7 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
                     rulesets=rulesets,
                     compile_commands=body.compile_commands,
                     timeout=timeout,
+                    third_party_paths=body.third_party_paths,
                 )
 
                 # 5. projectPath 모드: codeGraph + SCA
@@ -190,7 +202,7 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
                 sca_result = None
                 if body.project_path:
                     # 라이브러리 식별 먼저 (origin 태깅에 필요)
-                    libs = lib_identifier.identify(scan_dir)
+                    libs = identify_libraries(scan_dir)
 
                     # SCA: 라이브러리 정보 (CVE는 S5 담당)
                     sca_libs = []
@@ -221,7 +233,7 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
                 "requestId": request_id,
                 "scanId": scan_id,
                 "findingsCount": len(findings),
-                "toolsRun": execution.get("toolsRun", []),
+                "toolsRun": execution.tools_run,
                 "hasCodeGraph": code_graph_result is not None,
                 "scaLibraries": len(sca_result["libraries"]) if sca_result else 0,
                 "elapsedMs": elapsed_ms,
@@ -235,7 +247,7 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
             findings=findings,
             stats=ScanStats(
                 filesScanned=len(source_files),
-                rulesRun=len(execution.get("toolsRun", [])),
+                rulesRun=len(execution.tools_run),
                 findingsTotal=len(findings),
                 elapsedMs=elapsed_ms,
             ),
@@ -316,24 +328,7 @@ async def functions(request: Request, body: ScanRequest, response: Response):
         # projectPath 모드: 라이브러리 식별 → origin 태깅
         libs = None
         if body.project_path:
-            libs_raw = lib_identifier.identify(scan_dir)
-            libs = []
-            for lib in libs_raw:
-                entry = dict(lib)
-                lib_path = scan_dir / lib["path"]
-                repo_url = lib.get("repoUrl")
-                version = lib.get("version")
-                commit = lib.get("commit")
-                if repo_url:
-                    try:
-                        if commit:
-                            entry["diff"] = await lib_differ.diff(lib_path, repo_url, version, commit=commit)
-                        elif version:
-                            entry["diff"] = await lib_differ.diff(lib_path, repo_url, version)
-                    except Exception as diff_exc:
-                        logger.warning("lib_differ.diff failed for %s: %s", lib["name"], diff_exc)
-                        entry["diff"] = None
-                libs.append(entry)
+            libs = await analyze_libraries(scan_dir)
 
         result = await ast_dumper.dump_functions(
             scan_dir, source_files, body.build_profile, libraries=libs,
@@ -432,43 +427,7 @@ async def libraries(request: Request, body: ScanRequest, response: Response):
     logger.info("Library analysis started", extra={"requestId": request_id, "projectPath": body.project_path})
 
     try:
-        # 1. 라이브러리 식별
-        libs = lib_identifier.identify(project_dir)
-
-        # 2. 각 라이브러리에 대해 upstream diff
-        results = []
-        for lib in libs:
-            lib_path = project_dir / lib["path"]
-            repo_url = lib.get("repoUrl")
-            version = lib.get("version")
-
-            entry: dict[str, Any] = {
-                "name": lib["name"],
-                "version": version,
-                "path": lib["path"],
-                "source": lib.get("source"),
-                "repoUrl": repo_url,
-            }
-
-            commit = lib.get("commit")
-
-            if repo_url:
-                try:
-                    if commit:
-                        diff_result = await lib_differ.diff(lib_path, repo_url, version, commit=commit)
-                    elif version:
-                        diff_result = await lib_differ.diff(lib_path, repo_url, version)
-                    else:
-                        diff_result = await lib_differ.find_closest_version(lib_path, repo_url)
-                    entry["diff"] = diff_result
-                except Exception as diff_exc:
-                    logger.warning("lib_differ.diff failed for %s: %s", lib["name"], diff_exc)
-                    entry["diff"] = None
-            else:
-                entry["diff"] = None
-                entry["note"] = "Unknown library — no upstream repo to compare"
-
-            results.append(entry)
+        results = await analyze_libraries(project_dir)
 
         elapsed_ms = int((time.perf_counter() - t0) * 1000)
         logger.info(
@@ -554,24 +513,7 @@ async def build_and_analyze(request: Request, response: Response, body: dict):
         func_result = await ast_dumper.dump_functions(scan_dir, source_files, bp)
 
         # libraries
-        libs = lib_identifier.identify(project_dir)
-        lib_results = []
-        for lib in libs:
-            lib_path = project_dir / lib["path"]
-            repo_url = lib.get("repoUrl")
-            commit = lib.get("commit")
-            version = lib.get("version")
-            entry = dict(lib)
-            if repo_url:
-                try:
-                    if commit:
-                        entry["diff"] = await lib_differ.diff(lib_path, repo_url, version, commit=commit)
-                    elif version:
-                        entry["diff"] = await lib_differ.diff(lib_path, repo_url, version)
-                except Exception as diff_exc:
-                    logger.warning("lib_differ.diff failed for %s: %s", lib["name"], diff_exc)
-                    entry["diff"] = None
-            lib_results.append(entry)
+        lib_results = await analyze_libraries(project_dir)
 
         # metadata
         meta = await metadata_extractor.extract(bp)
@@ -594,7 +536,7 @@ async def build_and_analyze(request: Request, response: Response, body: dict):
             "scan": {
                 "findings": [f.model_dump(by_alias=True, exclude_none=True) for f in findings],
                 "findingsCount": len(findings),
-                "execution": execution,
+                "execution": execution.model_dump(by_alias=True),
             },
             "codeGraph": func_result,
             "libraries": lib_results,
@@ -635,14 +577,25 @@ async def build(request: Request, response: Response, body: dict):
         logger.info("Auto-detected build command: %s", build_command)
 
     bp_dict = body.get("buildProfile")
-    bp = BuildProfile(**bp_dict) if bp_dict else None
+    bp = None
+    if bp_dict:
+        try:
+            bp = BuildProfile(**bp_dict)
+        except Exception as e:
+            response.status_code = 400
+            return {"success": False, "error": f"Invalid buildProfile: {e}"}
+    wrap_with_bear = body.get("wrapWithBear", True)
+    build_timeout = _get_timeout(request)
 
     try:
         logger.info(
             "Build started",
-            extra={"requestId": request_id, "projectPath": project_path, "buildCommand": build_command},
+            extra={"requestId": request_id, "projectPath": project_path, "buildCommand": build_command,
+                    "wrapWithBear": wrap_with_bear, "timeoutS": build_timeout},
         )
-        result = await build_runner.build(project_dir, build_command, profile=bp)
+        result = await build_runner.build(project_dir, build_command, profile=bp,
+                                          wrap_with_bear=wrap_with_bear,
+                                          timeout=build_timeout)
 
         if result.get("success"):
             logger.info(
@@ -708,6 +661,60 @@ async def sdk_registry():
     """등록된 SDK 목록을 반환. 빌드 Agent가 SDK 매칭에 사용."""
     sdks = get_sdk_registry()
     return {"sdks": sdks}
+
+
+@router.post("/sdk-registry")
+async def register_sdk_endpoint(request: Request, response: Response, body: dict):
+    """SDK 등록 — 경로 검증 + sdk-registry.json 저장."""
+    request_id = _get_request_id(request)
+    set_request_id(request_id)
+    response.headers["X-Request-Id"] = request_id
+
+    sdk_id = body.get("sdkId")
+    if not sdk_id:
+        response.status_code = 400
+        return {"success": False, "errors": ["sdkId is required"]}
+
+    path = body.get("path")
+    if not path:
+        response.status_code = 400
+        return {"success": False, "errors": ["path is required"]}
+
+    errors = validate_sdk(body)
+    if errors:
+        logger.warning(
+            "SDK validation failed: %s",
+            errors,
+            extra={"requestId": request_id, "sdkId": sdk_id},
+        )
+        response.status_code = 400
+        return {"success": False, "errors": errors}
+
+    register_sdk(sdk_id, body)
+    logger.info(
+        "SDK registered",
+        extra={"requestId": request_id, "sdkId": sdk_id, "path": path},
+    )
+    return {"success": True}
+
+
+@router.delete("/sdk-registry/{sdk_id}")
+async def delete_sdk_endpoint(sdk_id: str, request: Request, response: Response):
+    """SDK 등록 해제."""
+    request_id = _get_request_id(request)
+    set_request_id(request_id)
+    response.headers["X-Request-Id"] = request_id
+
+    removed = unregister_sdk(sdk_id)
+    if not removed:
+        response.status_code = 404
+        return {"success": False, "error": f"SDK not found: {sdk_id}"}
+
+    logger.info(
+        "SDK unregistered",
+        extra={"requestId": request_id, "sdkId": sdk_id},
+    )
+    return {"success": True}
 
 
 @router.get("/health", response_model=HealthResponse)

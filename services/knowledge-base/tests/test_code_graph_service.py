@@ -137,6 +137,36 @@ def test_delete_nonexistent_project():
     assert deleted is False
 
 
+def test_get_function():
+    svc, session = _make_service()
+
+    record = MagicMock()
+    record.__getitem__ = lambda self, key: {
+        "name": "postJson", "file": "http_client.cpp", "line": 8,
+        "origin": None, "original_lib": None, "original_version": None,
+    }[key]
+    record.keys = lambda: ["name", "file", "line", "origin", "original_lib", "original_version"]
+    result = MagicMock()
+    result.single.return_value = record
+    session.run.return_value = result
+
+    func = svc.get_function("test-project", "postJson")
+    assert func is not None
+    assert func["name"] == "postJson"
+    assert func["file"] == "http_client.cpp"
+
+
+def test_get_function_not_found():
+    svc, session = _make_service()
+
+    result = MagicMock()
+    result.single.return_value = None
+    session.run.return_value = result
+
+    func = svc.get_function("test-project", "nonexistent")
+    assert func is None
+
+
 # ── origin 메타데이터 ──
 
 

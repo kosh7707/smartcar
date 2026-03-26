@@ -18,11 +18,39 @@ from app.scanner.scanbuild_runner import ScanbuildRunner
 from app.scanner.sdk_resolver import get_sdk_compiler, resolve_sdk_paths
 from app.scanner.semgrep_runner import SemgrepRunner
 from app.schemas.request import BuildProfile
-from app.schemas.response import SastFinding
+from app.schemas.response import (
+    ExecutionReport,
+    FindingsFilterInfo,
+    SastFinding,
+    SdkResolutionInfo,
+    ToolExecutionResult,
+)
 
 logger = logging.getLogger("aegis-sast-runner")
 
 ALL_TOOLS = ["semgrep", "cppcheck", "flawfinder", "clang-tidy", "scan-build", "gcc-fanalyzer"]
+
+# 최소 권장 버전 — 미만 시 경고 (차단하지 않음)
+MIN_VERSIONS: dict[str, tuple[int, ...]] = {
+    "semgrep": (1, 40),
+    "cppcheck": (2, 13),
+    "flawfinder": (2, 0, 19),
+    "clang-tidy": (16,),
+    "scan-build": (16,),
+    "gcc-fanalyzer": (13,),
+}
+
+
+def _parse_version(ver_str: str | None) -> tuple[int, ...] | None:
+    """버전 문자열에서 숫자 튜플 추출. '2.13.0' → (2, 13, 0)."""
+    if not ver_str:
+        return None
+    parts = []
+    for p in ver_str.split("."):
+        digits = "".join(c for c in p if c.isdigit())
+        if digits:
+            parts.append(int(digits))
+    return tuple(parts) if parts else None
 
 
 class ScanOrchestrator:
@@ -48,10 +76,27 @@ class ScanOrchestrator:
         )
 
         names = ["semgrep", "cppcheck", "flawfinder", "clang-tidy", "scan-build", "gcc-fanalyzer"]
-        return {
+        tool_info = {
             name: {"available": avail, "version": ver}
             for name, (avail, ver) in zip(names, results)
         }
+
+        # 최소 버전 경고
+        for name, info in tool_info.items():
+            if not info["available"]:
+                continue
+            min_ver = MIN_VERSIONS.get(name)
+            if not min_ver:
+                continue
+            parsed = _parse_version(info["version"])
+            if parsed and parsed < min_ver:
+                min_str = ".".join(str(v) for v in min_ver)
+                logger.warning(
+                    "Tool %s version %s is below minimum recommended %s",
+                    name, info["version"], min_str,
+                )
+
+        return tool_info
 
     async def run(
         self,
@@ -62,7 +107,8 @@ class ScanOrchestrator:
         compile_commands: str | None = None,
         tools: list[str] | None = None,
         timeout: int = 120,
-    ) -> tuple[list[SastFinding], dict[str, Any]]:
+        third_party_paths: list[str] | None = None,
+    ) -> tuple[list[SastFinding], ExecutionReport]:
         """도구들을 병렬 실행하고 합산된 findings + 실행 보고서를 반환.
 
         Returns:
@@ -100,7 +146,7 @@ class ScanOrchestrator:
             )
         if "gcc-fanalyzer" in active_tools:
             task_map["gcc-fanalyzer"] = self._run_gcc_analyzer(
-                scan_dir, source_files, profile, timeout,
+                scan_dir, source_files, profile, enriched_profile, timeout,
             )
 
         # 4. 병렬 실행 + 시간 측정
@@ -111,52 +157,61 @@ class ScanOrchestrator:
 
         # 5. 결과 수집
         all_findings: list[SastFinding] = []
-        tool_results: dict[str, dict] = {}
+        tool_results: dict[str, ToolExecutionResult] = {}
+
+        # 도구 버전 정보 취득
+        tool_versions = {
+            name: info.get("version")
+            for name, info in available_tools.items()
+        }
 
         for tool_name, result in zip(task_map.keys(), results):
             elapsed = int((time.perf_counter() - t0) * 1000)
             if isinstance(result, Exception):
                 logger.warning("Tool %s failed: %s", tool_name, str(result))
-                tool_results[tool_name] = {
-                    "findingsCount": 0, "elapsedMs": elapsed,
-                    "status": "failed", "skipReason": str(result),
-                }
+                tool_results[tool_name] = ToolExecutionResult(
+                    status="failed", findings_count=0, elapsed_ms=elapsed,
+                    skip_reason=str(result), version=tool_versions.get(tool_name),
+                )
             else:
                 all_findings.extend(result)
-                tool_results[tool_name] = {
-                    "findingsCount": len(result), "elapsedMs": elapsed,
-                    "status": "ok",
-                }
+                tool_results[tool_name] = ToolExecutionResult(
+                    status="ok", findings_count=len(result), elapsed_ms=elapsed,
+                    version=tool_versions.get(tool_name),
+                )
                 logger.info("Tool %s completed: %d findings", tool_name, len(result))
 
         # 스킵된 도구 기록
         for tool_name, reason in active_tools.get("_skipped", {}).items():
-            tool_results[tool_name] = {
-                "findingsCount": 0, "elapsedMs": 0,
-                "status": "skipped", "skipReason": reason,
-            }
+            tool_results[tool_name] = ToolExecutionResult(
+                status="skipped", findings_count=0, elapsed_ms=0,
+                skip_reason=reason, version=tool_versions.get(tool_name),
+            )
 
-        # 6. 사용자 코드 필터링
+        # 6. 사용자 코드 + 경계면 필터링
         before = len(all_findings)
-        all_findings = _filter_user_code_findings(all_findings, source_files)
+        all_findings, cross_boundary = _filter_user_code_findings(
+            all_findings, source_files, third_party_paths,
+        )
         filtered = before - len(all_findings)
-        if filtered > 0:
+        if filtered > 0 or cross_boundary > 0:
             logger.info(
-                "Filtered %d SDK/external findings (before=%d, after=%d)",
-                filtered, before, len(all_findings),
+                "Findings filter: %d removed, %d cross-boundary kept (before=%d, after=%d)",
+                filtered, cross_boundary, before, len(all_findings),
             )
 
         # 7. 실행 보고서 조립
-        execution = {
-            "toolsRun": list(task_map.keys()),
-            "toolResults": tool_results,
-            "sdk": sdk_info,
-            "filtering": {
-                "beforeFilter": before,
-                "afterFilter": len(all_findings),
-                "sdkNoiseRemoved": filtered,
-            },
-        }
+        execution = ExecutionReport(
+            tools_run=list(task_map.keys()),
+            tool_results=tool_results,
+            sdk=SdkResolutionInfo(**sdk_info),
+            filtering=FindingsFilterInfo(
+                before_filter=before,
+                after_filter=len(all_findings),
+                sdk_noise_removed=filtered,
+                cross_boundary_kept=cross_boundary,
+            ),
+        )
 
         return all_findings, execution
 
@@ -200,17 +255,17 @@ class ScanOrchestrator:
         original: BuildProfile | None,
         enriched: BuildProfile | None,
     ) -> dict[str, Any]:
-        """SDK 해석 정보."""
+        """SDK 해석 정보를 dict로 반환 (SdkResolutionInfo 생성에 사용)."""
         if original is None:
-            return {"resolved": False}
+            return {"resolved": False, "sdk_id": None, "include_paths_added": 0}
 
         original_paths = len(original.include_paths or [])
         enriched_paths = len(enriched.include_paths or []) if enriched else 0
 
         return {
             "resolved": enriched_paths > original_paths,
-            "sdkId": original.sdk_id,
-            "includePathsAdded": enriched_paths - original_paths,
+            "sdk_id": original.sdk_id,
+            "include_paths_added": enriched_paths - original_paths,
         }
 
     def _enrich_profile_with_sdk(
@@ -271,20 +326,81 @@ class ScanOrchestrator:
 
     async def _run_gcc_analyzer(
         self, scan_dir: Path, source_files: list[str],
-        profile: BuildProfile | None, timeout: int,
+        profile: BuildProfile | None, enriched_profile: BuildProfile | None,
+        timeout: int,
     ) -> list[SastFinding]:
-        return await self.gcc_analyzer.run(scan_dir, source_files, profile, timeout)
+        return await self.gcc_analyzer.run(
+            scan_dir, source_files, profile, timeout,
+            enriched_profile=enriched_profile,
+        )
+
+
+def _is_user_path(path: str) -> bool:
+    """상대 경로면 사용자 코드로 간주."""
+    return not path.startswith("/")
+
+
+def _is_third_party(path: str, third_party_paths: list[str]) -> bool:
+    """경로가 서드파티 라이브러리 디렉토리에 속하는지 확인."""
+    for tp in third_party_paths:
+        if path.startswith(tp) or path.startswith(tp.rstrip("/")):
+            return True
+    return False
 
 
 def _filter_user_code_findings(
     findings: list[SastFinding],
     source_files: list[str],
-) -> list[SastFinding]:
-    """사용자가 업로드한 파일에 해당하는 findings만 남긴다."""
-    def is_user_code(finding: SastFinding) -> bool:
-        loc_file = finding.location.file
-        if loc_file.startswith("/"):
-            return False
-        return True  # 상대 경로면 유지
+    third_party_paths: list[str] | None = None,
+) -> tuple[list[SastFinding], int]:
+    """사용자 코드 findings + 경계면 findings를 남긴다.
 
-    return [f for f in findings if is_user_code(f)]
+    분류 기준 (3단계):
+    1. 절대 경로 (SDK/시스템 헤더) → cross-boundary 검사 후 제거/유지
+    2. thirdPartyPaths에 해당 (vendored 서드파티) → cross-boundary 검사 후 제거/유지
+    3. 그 외 상대 경로 → 사용자 코드 (유지)
+
+    Returns:
+        (filtered_findings, cross_boundary_count)
+    """
+    tp_paths = third_party_paths or []
+    result: list[SastFinding] = []
+    cross_boundary_count = 0
+
+    for finding in findings:
+        loc_file = finding.location.file
+
+        # 1. 절대 경로 (SDK/시스템 헤더)
+        if not _is_user_path(loc_file):
+            if _check_cross_boundary(finding):
+                finding = finding.model_copy(update={"origin": "cross-boundary"})
+                result.append(finding)
+                cross_boundary_count += 1
+            continue
+
+        # 2. vendored 서드파티 라이브러리 (상대 경로지만 thirdPartyPaths에 해당)
+        if tp_paths and _is_third_party(loc_file, tp_paths):
+            if _check_cross_boundary(finding, tp_paths):
+                finding = finding.model_copy(update={"origin": "cross-boundary"})
+                result.append(finding)
+                cross_boundary_count += 1
+            continue
+
+        # 3. 사용자 코드 — 유지
+        result.append(finding)
+
+    return result, cross_boundary_count
+
+
+def _check_cross_boundary(
+    finding: SastFinding,
+    third_party_paths: list[str] | None = None,
+) -> bool:
+    """finding의 dataFlow에 사용자 코드 step이 있으면 경계면으로 판정."""
+    if not finding.data_flow:
+        return False
+    tp_paths = third_party_paths or []
+    return any(
+        _is_user_path(step.file) and not _is_third_party(step.file, tp_paths)
+        for step in finding.data_flow
+    )

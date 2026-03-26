@@ -16,13 +16,13 @@ from typing import TYPE_CHECKING
 
 import httpx
 
-from app.context import get_request_id
-from app.observability import agent_log
-from app.schemas.agent import ToolCallRequest
+from agent_shared.context import get_request_id
+from agent_shared.observability import agent_log
+from agent_shared.schemas.agent import ToolCallRequest
 
 if TYPE_CHECKING:
     from app.core.agent_session import AgentSession
-    from app.tools.implementations.base import ToolImplementation
+    from agent_shared.tools.base import ToolImplementation
 
 logger = logging.getLogger(__name__)
 
@@ -66,13 +66,18 @@ class Phase1Executor:
         sca_tool: ToolImplementation | None = None,
         kb_endpoint: str = "http://localhost:8002",
         sast_endpoint: str = "http://localhost:9000",
+        timeout_budget_ms: int = 540_000,
     ) -> None:
         self._sast_tool = sast_tool
         self._codegraph_tool = codegraph_tool
         self._sca_tool = sca_tool
         self._kb_endpoint = kb_endpoint
-        self._kb_client = httpx.AsyncClient(base_url=kb_endpoint, timeout=10.0)
-        self._sast_client = httpx.AsyncClient(base_url=sast_endpoint, timeout=310.0)
+        self._timeout_budget_ms = timeout_budget_ms
+        # httpx client 타임아웃은 예산 기반으로 설정
+        sast_timeout_s = max(120.0, timeout_budget_ms / 1000.0 * 0.8)
+        kb_timeout_s = 100.0  # ingest가 가장 오래 걸림
+        self._kb_client = httpx.AsyncClient(base_url=kb_endpoint, timeout=kb_timeout_s)
+        self._sast_client = httpx.AsyncClient(base_url=sast_endpoint, timeout=sast_timeout_s)
 
     async def execute(self, session: AgentSession) -> Phase1Result:
         """Phase 1: SAST 스캔 + 코드 그래프 + SCA + KB 위협 조회 + 위험 호출자."""
@@ -86,6 +91,7 @@ class Phase1Executor:
         project_id = trusted.get("projectId", session.request.taskId)
         build_profile = trusted.get("buildProfile")
         build_command = trusted.get("buildCommand")
+        third_party_paths = trusted.get("thirdPartyPaths", [])
         request_id = get_request_id() or session.request.taskId
 
         # targetPath가 지정되면 projectPath/targetPath를 분석 루트로 사용
@@ -140,6 +146,7 @@ class Phase1Executor:
             if analysis_path and (build_command or build_profile):
                 ba_result = await self._run_build_and_analyze(
                     result, project_id, analysis_path, build_command, build_profile, request_id,
+                    third_party_paths=third_party_paths,
                 )
                 if ba_result is not None:
                     result = ba_result
@@ -152,11 +159,13 @@ class Phase1Executor:
                     )
                     result = await self._run_individual_tools(
                         result, files, project_id, analysis_path, build_profile, request_id,
+                        third_party_paths=third_party_paths,
                     )
             else:
                 # files 기반 또는 projectPath만 (빌드 정보 없음) — 개별 도구 실행
                 result = await self._run_individual_tools(
                     result, files, project_id, analysis_path, build_profile, request_id,
+                    third_party_paths=third_party_paths,
                 )
 
         # 4. CVE 실시간 조회 — SCA 라이브러리+버전으로 S5 batch-lookup
@@ -185,6 +194,7 @@ class Phase1Executor:
 
     async def _run_build_and_analyze(
         self, result: Phase1Result, project_id, project_path, build_command, build_profile, request_id,
+        *, third_party_paths: list[str] | None = None,
     ) -> Phase1Result | None:
         """S4 build-and-analyze 한 번에 호출. 실패 시 None 반환 (fallback 유도)."""
         agent_log(
@@ -200,9 +210,15 @@ class Phase1Executor:
         if build_command:
             body["buildCommand"] = build_command
         if build_profile:
-            body["buildProfile"] = build_profile
+            # sdkId만 전달 — 나머지는 S4가 sdk-registry에서 해석
+            sdk_id = build_profile.get("sdkId") if isinstance(build_profile, dict) else None
+            if sdk_id:
+                body["buildProfile"] = {"sdkId": sdk_id}
+        if third_party_paths:
+            body["thirdPartyPaths"] = third_party_paths
 
-        headers: dict[str, str] = {}
+        ba_timeout = int(self._timeout_budget_ms * 0.8)
+        headers: dict[str, str] = {"X-Timeout-Ms": str(ba_timeout)}
         if request_id:
             headers["X-Request-Id"] = request_id
 
@@ -255,12 +271,16 @@ class Phase1Executor:
 
     async def _run_individual_tools(
         self, result: Phase1Result, files, project_id, project_path, build_profile, request_id,
+        *, third_party_paths: list[str] | None = None,
     ) -> Phase1Result:
-        """개별 도구 호출 (files 기반 fallback)."""
-        if self._sast_tool and files:
-            result = await self._run_sast(result, files, project_id, build_profile, request_id)
-        if self._codegraph_tool and files:
-            result = await self._run_codegraph(result, files, project_id, build_profile, request_id)
+        """개별 도구 호출 (files 또는 projectPath 기반)."""
+        if self._sast_tool and (files or project_path):
+            result = await self._run_sast(result, files, project_id, build_profile, request_id,
+                                          third_party_paths=third_party_paths,
+                                          project_path=project_path)
+        if self._codegraph_tool and (files or project_path):
+            result = await self._run_codegraph(result, files, project_id, build_profile, request_id,
+                                               project_path=project_path)
         if self._sca_tool and project_path:
             result = await self._run_sca(result, project_id, project_path, request_id)
 
@@ -285,7 +305,7 @@ class Phase1Executor:
             functionCount=len(relevant_functions),
         )
 
-        headers: dict[str, str] = {}
+        headers: dict[str, str] = {"X-Timeout-Ms": "90000"}
         if request_id:
             headers["X-Request-Id"] = request_id
 
@@ -312,21 +332,32 @@ class Phase1Executor:
 
     async def _run_sast(
         self, result: Phase1Result, files, project_id, build_profile, request_id,
+        *, third_party_paths: list[str] | None = None,
+        project_path: str | None = None,
     ) -> Phase1Result:
         """SAST 스캔 실행."""
         agent_log(
             logger, "Phase 1: SAST 스캔",
             component="phase_one", phase="sast_start",
-            fileCount=len(files),
+            fileCount=len(files) if files else 0,
+            projectPath=project_path,
+            thirdPartyPaths=len(third_party_paths) if third_party_paths else 0,
         )
 
-        args = {
+        args: dict = {
             "scanId": f"{request_id}-phase1",
             "projectId": project_id,
-            "files": files,
         }
+        # projectPath만 전달 — files[]는 S4가 자체 탐색
+        if project_path:
+            args["projectPath"] = project_path
+        # buildProfile → sdkId만
         if build_profile:
-            args["buildProfile"] = build_profile
+            sdk_id = build_profile.get("sdkId") if isinstance(build_profile, dict) else None
+            if sdk_id:
+                args["buildProfile"] = {"sdkId": sdk_id}
+        if third_party_paths:
+            args["thirdPartyPaths"] = third_party_paths
 
         start = time.monotonic()
         try:
@@ -362,6 +393,7 @@ class Phase1Executor:
 
     async def _run_codegraph(
         self, result: Phase1Result, files, project_id, build_profile, request_id,
+        *, project_path: str | None = None,
     ) -> Phase1Result:
         """코드 그래프 추출."""
         agent_log(
@@ -369,13 +401,16 @@ class Phase1Executor:
             component="phase_one", phase="codegraph_start",
         )
 
-        args = {
+        args: dict = {
             "scanId": f"{request_id}-phase1-func",
             "projectId": project_id,
-            "files": files,
         }
+        if project_path:
+            args["projectPath"] = project_path
         if build_profile:
-            args["buildProfile"] = build_profile
+            sdk_id = build_profile.get("sdkId") if isinstance(build_profile, dict) else None
+            if sdk_id:
+                args["buildProfile"] = {"sdkId": sdk_id}
 
         start = time.monotonic()
         try:
@@ -480,7 +515,7 @@ class Phase1Executor:
         )
 
         start = time.monotonic()
-        headers: dict[str, str] = {}
+        headers: dict[str, str] = {"X-Timeout-Ms": "30000"}
         request_id = get_request_id()
         if request_id:
             headers["X-Request-Id"] = request_id
@@ -538,13 +573,13 @@ class Phase1Executor:
         )
 
         start = time.monotonic()
-        headers: dict[str, str] = {}
+        headers: dict[str, str] = {"X-Timeout-Ms": "30000"}
         request_id = get_request_id()
         if request_id:
             headers["X-Request-Id"] = request_id
 
         queries = [
-            {"query": cwe_id, "top_k": 3, "min_score": 0.35}
+            {"query": cwe_id}
             for cwe_id in sorted(cwe_ids)[:10]
         ]
 
@@ -553,7 +588,6 @@ class Phase1Executor:
                 "/v1/search/batch",
                 json={"queries": queries},
                 headers=headers,
-                timeout=30.0,
             )
             resp.raise_for_status()
             data = resp.json()
@@ -589,7 +623,7 @@ class Phase1Executor:
         )
 
         start = time.monotonic()
-        headers: dict[str, str] = {}
+        headers: dict[str, str] = {"X-Timeout-Ms": "10000"}
         request_id = get_request_id()
         if request_id:
             headers["X-Request-Id"] = request_id

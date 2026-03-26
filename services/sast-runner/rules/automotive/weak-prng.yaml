@@ -13,6 +13,16 @@ rules:
         - "CWE-338"
       category: security
       confidence: HIGH
+      impact: MEDIUM
+      automotive_rationale: >
+        Weak PRNGs in automotive systems compromise V2X communication security,
+        SecOC message authentication, and cryptographic key generation for OTA
+        updates. Predictable random values enable replay attacks and message
+        forgery on CAN/Ethernet networks.
+      references:
+        - "ISO 26262-6:2018 Table 9 — Software unit verification methods"
+        - "AUTOSAR SecOC — Secure Onboard Communication specification"
+        - "UNECE WP.29 R155 — Cybersecurity requirements for vehicles"
 
   - id: aegis.c.cwe-338-random
     pattern-either:
@@ -28,3 +38,13 @@ rules:
         - "CWE-338"
       category: security
       confidence: HIGH
+      impact: MEDIUM
+      automotive_rationale: >
+        random()/srandom() are not cryptographically secure. In automotive
+        systems, weak randomness undermines TLS session keys for telematics,
+        nonce generation for diagnostic authentication, and challenge-response
+        protocols in immobilizer systems.
+      references:
+        - "ISO 26262-6:2018 Table 9"
+        - "AUTOSAR SecOC specification"
+        - "UNECE WP.29 R155"

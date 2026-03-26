@@ -6,8 +6,8 @@ import time
 
 import httpx
 
-from app.context import get_request_id
-from app.errors import LlmHttpError, LlmInputTooLargeError, LlmTimeoutError, LlmUnavailableError
+from agent_shared.context import get_request_id
+from agent_shared.errors import LlmHttpError, LlmInputTooLargeError, LlmTimeoutError, LlmUnavailableError
 from app.clients.base import LlmClient
 
 logger = logging.getLogger(__name__)

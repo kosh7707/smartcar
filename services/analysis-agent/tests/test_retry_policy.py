@@ -1,7 +1,7 @@
 """RetryPolicy 단위 테스트."""
 
-from app.errors import LlmHttpError, LlmInputTooLargeError, LlmTimeoutError, LlmUnavailableError
-from app.policy.retry import RetryPolicy
+from agent_shared.errors import LlmHttpError, LlmInputTooLargeError, LlmTimeoutError, LlmUnavailableError
+from agent_shared.policy.retry import RetryPolicy
 
 
 def test_retry_on_timeout():

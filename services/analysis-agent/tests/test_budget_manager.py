@@ -1,7 +1,7 @@
 """BudgetManager 단위 테스트."""
 
 from app.budget.manager import BudgetManager
-from app.schemas.agent import BudgetState, ToolCostTier
+from agent_shared.schemas.agent import BudgetState, ToolCostTier
 
 
 def _make_manager(**overrides) -> BudgetManager:

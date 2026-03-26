@@ -1,14 +1,14 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
-import type { AnalysisResult, UploadedFile, Finding } from "@aegis/shared";
+import type { UploadedFile, Finding } from "@aegis/shared";
 import type { RunDetailResponse } from "@aegis/shared";
+// Legacy views kept for RunDetailView prop compat but no longer routed
 import type { SourceFileEntry } from "../api/client";
 import { FileSearch } from "lucide-react";
 import { useStaticDashboard } from "../hooks/useStaticDashboard";
 import { useAnalysisWebSocket } from "../hooks/useAnalysisWebSocket";
 import { useBuildTargets } from "../hooks/useBuildTargets";
 import {
-  fetchAnalysisResult,
   fetchProjectFiles,
   fetchProjectFindings,
   fetchSourceFiles,
@@ -35,8 +35,7 @@ type PageView =
   | "sourceTree"
   | "progress"
   | "runDetail"
-  | "findingDetail"
-  | "legacyResult";
+  | "findingDetail";
 
 export const StaticAnalysisPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -55,12 +54,9 @@ export const StaticAnalysisPage: React.FC = () => {
   const [projectFiles, setProjectFiles] = useState<UploadedFile[]>([]);
   const [sourceFiles, setSourceFiles] = useState<SourceFileEntry[]>([]);
   const [findings, setFindings] = useState<Finding[]>([]);
-  const [viewingResult, setViewingResult] = useState<AnalysisResult | null>(null);
-  const [selectedVuln, setSelectedVuln] = useState<AnalysisResult["vulnerabilities"][0] | null>(null);
   const [runDetail, setRunDetail] = useState<RunDetailResponse["data"] | null>(null);
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const [runDetailLoading, setRunDetailLoading] = useState(false);
-  const [analysisResultData, setAnalysisResultData] = useState<AnalysisResult | null>(null);
   const [showTargetSelect, setShowTargetSelect] = useState(false);
 
   // Navigation guard: block when analysis is running
@@ -92,48 +88,23 @@ export const StaticAnalysisPage: React.FC = () => {
 
   useEffect(() => { loadSourceData(); }, [loadSourceData]);
 
-  // Handle ?analysisId= legacy URL
-  useEffect(() => {
-    const analysisId = searchParams.get("analysisId");
-    if (analysisId) {
-      fetchAnalysisResult(analysisId)
-        .then((result) => {
-          setViewingResult(result);
-          setView("legacyResult");
-        })
-        .catch((e) => {
-          logError("Load analysis", e);
-          toast.error("분석 결과를 불러올 수 없습니다.");
-        });
-    }
-  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Navigation helpers
   const goToDashboard = useCallback(() => {
     setView("dashboard");
     setSearchParams({});
-    setViewingResult(null);
-    setSelectedVuln(null);
     setRunDetail(null);
     setSelectedFindingId(null);
     analysis.reset();
     dashboard.refresh();
-    loadSourceData(); // refresh source files + findings
+    loadSourceData();
   }, [setSearchParams, analysis.reset, dashboard.refresh, loadSourceData]);
 
   const handleViewRun = useCallback(async (runId: string) => {
     setRunDetailLoading(true);
-    setAnalysisResultData(null);
     setView("runDetail");
     try {
       const detail = await fetchRunDetail(runId);
       setRunDetail(detail);
-      // Fetch agent analysis result if available
-      if (detail.run.analysisResultId) {
-        fetchAnalysisResult(detail.run.analysisResultId)
-          .then(setAnalysisResultData)
-          .catch(() => {}); // agent result unavailable is OK
-      }
     } catch (e) {
       logError("Run detail load", e);
       toast.error("Run 상세를 불러올 수 없습니다.");
@@ -198,10 +169,6 @@ export const StaticAnalysisPage: React.FC = () => {
     }
   }, [analysis.isRunning]);
 
-  const handleViewLegacyResult = useCallback((analysisResultId: string) => {
-    setSearchParams({ analysisId: analysisResultId });
-  }, [setSearchParams]);
-
   const handleFileClick = useCallback((filePath: string) => {
     if (filePath === "기타") {
       toast.warning("위치가 특정되지 않은 Finding입니다.");
@@ -220,26 +187,6 @@ export const StaticAnalysisPage: React.FC = () => {
   // ── Render by view ──
 
   if (!projectId) return null;
-
-  // Legacy result view (?analysisId= compat)
-  if (view === "legacyResult" && viewingResult) {
-    if (selectedVuln) {
-      return (
-        <VulnerabilityDetailView
-          vulnerability={selectedVuln}
-          projectId={projectId}
-          onBack={() => setSelectedVuln(null)}
-        />
-      );
-    }
-    return (
-      <AnalysisResultsView
-        result={viewingResult}
-        onSelectVuln={setSelectedVuln}
-        onNewAnalysis={goToDashboard}
-      />
-    );
-  }
 
   // Finding detail
   if (view === "findingDetail" && selectedFindingId) {
@@ -270,11 +217,11 @@ export const StaticAnalysisPage: React.FC = () => {
     return (
       <RunDetailView
         runDetail={runDetail}
-        analysisResult={analysisResultData}
+        analysisResult={null}
         projectId={projectId}
         onBack={goToDashboard}
         onSelectFinding={handleSelectFinding}
-        onViewLegacyResult={handleViewLegacyResult}
+        onViewLegacyResult={() => {}}
       />
     );
   }

@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import type { WsAnalysisMessage } from "@aegis/shared";
 import { runAnalysis, getWsBaseUrl, logError } from "../api/client";
+import { createSeqTracker } from "../utils/wsEnvelope";
 
 export type AnalysisStage =
   | "idle"
@@ -80,9 +81,13 @@ export function useAnalysisWebSocket() {
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
+      const seqTracker = createSeqTracker("analysis");
+
       ws.onmessage = (evt) => {
         try {
-          const msg: WsAnalysisMessage = JSON.parse(evt.data);
+          const parsed = JSON.parse(evt.data);
+          seqTracker.check(parsed.meta);
+          const msg: WsAnalysisMessage = parsed;
           switch (msg.type) {
             case "analysis-progress": {
               const { phase, message: msg2, targetName, targetProgress } = msg.payload;

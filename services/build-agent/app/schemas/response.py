@@ -32,6 +32,26 @@ class TestPlan(BaseModel):
     suggestedRiskLevel: str | None = None
 
 
+class BuildResult(BaseModel):
+    success: bool = False
+    buildCommand: str = ""
+    buildScript: str = ""
+    buildDir: str = "build-aegis"
+    errorLog: str | None = None
+
+
+class SdkProfile(BaseModel):
+    compiler: str = ""
+    compilerPrefix: str = ""
+    gccVersion: str = ""
+    targetArch: str = ""
+    languageStandard: str = ""
+    sysroot: str = ""
+    environmentSetup: str = ""
+    includePaths: list[str] = []
+    defines: dict[str, str] = {}
+
+
 class AssessmentResult(BaseModel):
     summary: str
     claims: list[Claim] = []
@@ -46,6 +66,8 @@ class AssessmentResult(BaseModel):
     recommendedNextSteps: list[str] = []
     policyFlags: list[str] = []
     plan: TestPlan | None = None
+    buildResult: BuildResult | None = None
+    sdkProfile: SdkProfile | None = None
 
 
 class ValidationInfo(BaseModel):

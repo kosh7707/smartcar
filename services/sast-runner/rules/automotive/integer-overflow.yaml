@@ -17,6 +17,15 @@ rules:
       category: security
       confidence: MEDIUM
       impact: MEDIUM
+      automotive_rationale: >
+        Integer overflow in sensor data processing (ADC values, CAN signal
+        scaling) or actuator control (PWM duty cycle computation) can produce
+        incorrect physical outputs. In powertrain or chassis control, this
+        leads to unexpected acceleration, braking force, or steering angle.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d) — No unintended functionality"
+        - "MISRA C:2012 Rule 12.1 — Precedence of operators"
+        - "CERT C INT32-C — Ensure operations on signed integers do not overflow"
 
   - id: aegis.c.cwe-190-strtol-arithmetic
     patterns:
@@ -35,6 +44,13 @@ rules:
       category: security
       confidence: MEDIUM
       impact: MEDIUM
+      automotive_rationale: >
+        strtol() values from configuration files or diagnostic commands used
+        in arithmetic without range validation can overflow, corrupting
+        calibration tables or timer configurations.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d)"
+        - "CERT C INT32-C"
 
   - id: aegis.c.cwe-190-fscanf-arithmetic
     patterns:
@@ -65,6 +81,13 @@ rules:
       category: security
       confidence: MEDIUM
       impact: MEDIUM
+      automotive_rationale: >
+        File-sourced values used in arithmetic without bounds checking can
+        overflow buffer size calculations, leading to heap corruption in
+        systems processing vehicle data logs or map data.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d)"
+        - "MISRA C:2012 Dir 4.14"
 
   - id: aegis.c.cwe-190-atoi-then-arithmetic
     patterns:
@@ -87,6 +110,12 @@ rules:
       category: security
       confidence: MEDIUM
       impact: MEDIUM
+      automotive_rationale: >
+        Indirect overflow through stored atoi() results is common in
+        automotive parameter processing pipelines.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d)"
+        - "CERT C INT32-C"
 
   - id: aegis.c.cwe-190-fgets-atoi-arithmetic
     patterns:
@@ -113,3 +142,11 @@ rules:
       category: security
       confidence: MEDIUM
       impact: MEDIUM
+      automotive_rationale: >
+        User input from serial console or diagnostic interface parsed with
+        fgets/atoi and used in arithmetic operations without validation
+        creates a data injection vector.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d)"
+        - "MISRA C:2012 Dir 4.14"
+        - "CERT C INT32-C"

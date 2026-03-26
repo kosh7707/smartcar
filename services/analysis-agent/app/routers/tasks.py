@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.context import get_request_id, set_request_id
+from agent_shared.context import get_request_id, set_request_id
 from app.pipeline.task_pipeline import TaskPipeline
 from app.registry.model_registry import create_default_registry as create_model_registry
 from app.registry.prompt_registry import create_default_registry as create_prompt_registry
@@ -41,16 +41,16 @@ async def _handle_deep_analyze(request: TaskRequest) -> TaskSuccessResponse | Ta
     from app.core.agent_loop import AgentLoop
     from app.core.agent_session import AgentSession
     from app.core.result_assembler import ResultAssembler
-    from app.llm.caller import LlmCaller
-    from app.llm.message_manager import MessageManager
-    from app.llm.turn_summarizer import TurnSummarizer
-    from app.policy.retry import RetryPolicy
+    from agent_shared.llm.caller import LlmCaller
+    from agent_shared.llm.message_manager import MessageManager
+    from agent_shared.llm.turn_summarizer import TurnSummarizer
+    from agent_shared.policy.retry import RetryPolicy
     from app.policy.termination import TerminationPolicy
     from app.policy.tool_failure import ToolFailurePolicy
-    from app.schemas.agent import BudgetState, ToolCostTier
-    from app.tools.executor import ToolExecutor
+    from agent_shared.schemas.agent import BudgetState, ToolCostTier
+    from agent_shared.tools.executor import ToolExecutor
     from app.tools.implementations.mock_tools import MockKnowledgeTool
-    from app.tools.registry import ToolRegistry, ToolSchema
+    from agent_shared.tools.registry import ToolRegistry, ToolSchema
     from app.tools.router import ToolRouter
 
     # 예산 구성
@@ -78,6 +78,20 @@ async def _handle_deep_analyze(request: TaskRequest) -> TaskSuccessResponse | Ta
                 "depth": {"type": "integer", "description": "탐색 깊이 (기본 2)", "default": 2},
             },
             "required": ["function_name"],
+        },
+        cost_tier=ToolCostTier.MEDIUM,
+    ))
+    registry.register(ToolSchema(
+        name="code_graph.search",
+        description="자연어 쿼리로 코드 함수를 시맨틱 검색한다. 함수명 정확 매칭 + 벡터 유사도 + 호출 그래프 확장을 결합. 예: '시스템 명령을 실행하는 네트워크 핸들러'",
+        parameters={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "자연어 검색 쿼리 또는 함수명 (예: 'popen을 호출하는 네트워크 함수')"},
+                "top_k": {"type": "integer", "description": "최대 반환 건수 (기본 10)", "default": 10},
+                "include_call_chain": {"type": "boolean", "description": "결과에 callers/callees 포함 (기본 true)", "default": True},
+            },
+            "required": ["query"],
         },
         cost_tier=ToolCostTier.MEDIUM,
     ))
@@ -110,19 +124,26 @@ async def _handle_deep_analyze(request: TaskRequest) -> TaskSuccessResponse | Ta
     sca_impl = None
     callers_tool = None
 
+    search_tool = None
+
     if settings.llm_mode == "real":
         from app.tools.implementations.sast_tool import SastScanTool
         from app.tools.implementations.codegraph_phase1_tool import CodeGraphPhase1Tool
         from app.tools.implementations.codegraph_tool import CodeGraphCallersTool
+        from app.tools.implementations.codegraph_search_tool import CodeGraphSearchTool
         from app.tools.implementations.knowledge_tool import KnowledgeTool
         from app.tools.implementations.sca_tool import ScaTool
-        sast_impl = SastScanTool()
+        # 요청 timeoutMs의 절반을 SAST에 할당 (최소 120s)
+        sast_timeout = max(120.0, request.constraints.timeoutMs / 1000.0 * 0.5)
+        sast_impl = SastScanTool(timeout_s=sast_timeout)
         codegraph_impl = CodeGraphPhase1Tool()  # Phase 1: S4 /v1/functions
         sca_impl = ScaTool()
         # Phase 2 도구 등록 (LLM이 호출)
         callers_tool = CodeGraphCallersTool(base_url=settings.kb_endpoint)
+        search_tool = CodeGraphSearchTool(base_url=settings.kb_endpoint)
         router.register_implementation("sast.scan", sast_impl)
         router.register_implementation("code_graph.callers", callers_tool)
+        router.register_implementation("code_graph.search", search_tool)
         router.register_implementation("knowledge.search", KnowledgeTool())
     else:
         router.register_implementation("knowledge.search", MockKnowledgeTool())
@@ -130,12 +151,14 @@ async def _handle_deep_analyze(request: TaskRequest) -> TaskSuccessResponse | Ta
     # ─── Phase 1: 결정론적 도구 실행 (LLM 없이) ───
     from app.core.phase_one import Phase1Executor, build_phase2_prompt
 
+    phase1_budget_ms = int(request.constraints.timeoutMs * 0.6)
     phase1_executor = Phase1Executor(
         sast_tool=sast_impl,
         codegraph_tool=codegraph_impl,
         sca_tool=sca_impl,
         kb_endpoint=settings.kb_endpoint,
         sast_endpoint=settings.sast_endpoint,
+        timeout_budget_ms=phase1_budget_ms,
     )
     phase1_result = await phase1_executor.execute(session)
 
@@ -143,6 +166,8 @@ async def _handle_deep_analyze(request: TaskRequest) -> TaskSuccessResponse | Ta
     project_id = session.request.context.trusted.get("projectId", session.request.taskId)
     if settings.llm_mode == "real" and callers_tool:
         callers_tool.set_project_id(project_id)
+    if settings.llm_mode == "real" and search_tool:
+        search_tool.set_project_id(project_id)
 
     # ─── Phase 2 준비: LLM 프롬프트에 Phase 1 결과 주입 ───
 
@@ -154,12 +179,13 @@ async def _handle_deep_analyze(request: TaskRequest) -> TaskSuccessResponse | Ta
             model=profile.modelName if profile else settings.llm_model,
             api_key=profile.apiKey if profile else settings.llm_api_key,
             default_max_tokens=settings.agent_llm_max_tokens,
+            service_id="s3-agent",
         )
     else:
         # mock 모드: 즉시 content 반환하는 mock caller
         from unittest.mock import AsyncMock, MagicMock
         import json
-        from app.schemas.agent import LlmResponse
+        from agent_shared.schemas.agent import LlmResponse
         llm_caller = MagicMock()
         llm_caller.call = AsyncMock(return_value=LlmResponse(
             content=json.dumps({
@@ -241,12 +267,18 @@ async def _save_analysis_memory(project_id: str, result: TaskSuccessResponse) ->
             request_id = get_request_id()
             if request_id:
                 headers["X-Request-Id"] = request_id
-            await client.post(
+            resp = await client.post(
                 f"{settings.kb_endpoint}/v1/project-memory/{project_id}",
                 json=memory_data,
                 headers=headers,
             )
-            logger.info("[memory] 분석 결과 메모리 저장 완료: projectId=%s", project_id)
+            if resp.status_code == 409:
+                logger.info("[memory] 중복 메모리 (deduplicated): projectId=%s", project_id)
+            elif resp.status_code == 503:
+                logger.warning("[memory] S5 KB 미초기화 (503): projectId=%s", project_id)
+            else:
+                resp.raise_for_status()
+                logger.info("[memory] 분석 결과 메모리 저장 완료: projectId=%s", project_id)
     except Exception as e:
         logger.warning("[memory] 분석 결과 메모리 저장 실패 (무시): %s", e)
 
@@ -261,8 +293,8 @@ async def _handle_generate_poc(request: TaskRequest) -> TaskSuccessResponse | Ta
 
     import httpx
 
-    from app.context import get_request_id
-    from app.observability import agent_log
+    from agent_shared.context import get_request_id
+    from agent_shared.observability import agent_log
     from app.pipeline.confidence import ConfidenceCalculator
     from app.pipeline.response_parser import V1ResponseParser
     from app.schemas.response import (
@@ -410,7 +442,7 @@ async def _handle_generate_poc(request: TaskRequest) -> TaskSuccessResponse | Ta
         user_message += f"- `{ref.refId}` ({ref.artifactType}: {ref.locator.get('file', '?')})\n"
 
     # ─── LLM 호출 (LlmCaller — adaptive timeout + X-Timeout-Seconds 적용) ───
-    from app.llm.caller import LlmCaller
+    from agent_shared.llm.caller import LlmCaller
 
     if settings.llm_mode == "real":
         profile = _model_registry.get_default()
@@ -419,10 +451,11 @@ async def _handle_generate_poc(request: TaskRequest) -> TaskSuccessResponse | Ta
             model=profile.modelName if profile else settings.llm_model,
             api_key=profile.apiKey if profile else settings.llm_api_key,
             default_max_tokens=request.constraints.maxTokens or 8192,
+            service_id="s3-agent",
         )
     else:
         from unittest.mock import AsyncMock, MagicMock
-        from app.schemas.agent import LlmResponse as _LlmResp
+        from agent_shared.schemas.agent import LlmResponse as _LlmResp
         llm = MagicMock()
         llm.call = AsyncMock(return_value=_LlmResp(
             content='{"summary":"Mock PoC","claims":[{"statement":"mock","detail":"mock poc code"}],"caveats":[],"usedEvidenceRefs":[],"needsHumanReview":true,"recommendedNextSteps":[],"policyFlags":[]}',

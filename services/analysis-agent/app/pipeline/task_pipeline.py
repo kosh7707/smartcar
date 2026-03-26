@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from app.config import settings
-from app.errors import LlmHttpError, LlmInputTooLargeError, LlmTimeoutError, LlmUnavailableError
+from agent_shared.errors import LlmHttpError, LlmInputTooLargeError, LlmTimeoutError, LlmUnavailableError
 from app.pipeline.confidence import ConfidenceCalculator
 from app.pipeline.prompt_builder import V1PromptBuilder
 from app.pipeline.response_parser import V1ResponseParser

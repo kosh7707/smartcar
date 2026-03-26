@@ -1,7 +1,7 @@
 """ToolRegistry 단위 테스트."""
 
-from app.schemas.agent import ToolCostTier
-from app.tools.registry import ToolRegistry, ToolSchema
+from agent_shared.schemas.agent import ToolCostTier
+from agent_shared.tools.registry import ToolRegistry, ToolSchema
 
 
 def _make_schema(name: str = "test.tool", tier: ToolCostTier = ToolCostTier.CHEAP) -> ToolSchema:

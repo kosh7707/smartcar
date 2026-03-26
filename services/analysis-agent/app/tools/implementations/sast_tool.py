@@ -7,8 +7,8 @@ import logging
 
 import httpx
 
-from app.context import get_request_id
-from app.schemas.agent import ToolResult
+from agent_shared.context import get_request_id
+from agent_shared.schemas.agent import ToolResult
 
 logger = logging.getLogger(__name__)
 
@@ -16,13 +16,14 @@ logger = logging.getLogger(__name__)
 class SastScanTool:
     """sast.scan tool — S4 SAST Runner /v1/scan 호출."""
 
-    def __init__(self, base_url: str = "http://localhost:9000") -> None:
+    def __init__(self, base_url: str = "http://localhost:9000", timeout_s: float = 450.0) -> None:
         self._base_url = base_url
-        self._client = httpx.AsyncClient(timeout=130.0)  # SAST 타임아웃 120s + 여유
+        self._timeout_s = timeout_s
+        self._client = httpx.AsyncClient(timeout=timeout_s)
 
     async def execute(self, arguments: dict) -> ToolResult:
         try:
-            headers: dict[str, str] = {}
+            headers: dict[str, str] = {"X-Timeout-Ms": str(int(self._timeout_s * 1000))}
             request_id = get_request_id()
             if request_id:
                 headers["X-Request-Id"] = request_id
@@ -31,6 +32,7 @@ class SastScanTool:
                 f"{self._base_url}/v1/scan",
                 json=arguments,
                 headers=headers,
+                timeout=self._timeout_s,
             )
             resp.raise_for_status()
             data = resp.json()

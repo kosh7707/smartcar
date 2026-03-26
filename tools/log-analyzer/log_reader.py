@@ -3,24 +3,84 @@
 Observability v2 규약 기준:
 - 필수 필드: level(숫자), time(epoch ms), service(문자열), msg, requestId
 - 로그 위치: logs/*.jsonl (프로젝트 루트)
+- SQLite 캐시: mtime/size 기반 무효화, 인덱스 검색
 """
 
 from __future__ import annotations
 
 import json
+import os
+import sqlite3
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
+# ── SQLite 캐시 ──
 
-def read_all_logs(logs_dir: str) -> list[dict[str, Any]]:
-    """logs/*.jsonl 전체 읽기 → 시간순 정렬."""
-    entries: list[dict[str, Any]] = []
+_cache_db_path: str | None = None
+_cache_conn: sqlite3.Connection | None = None
+
+
+def _get_cache_db(logs_dir: str) -> sqlite3.Connection:
+    """캐시 DB 연결 반환 (없으면 생성)."""
+    global _cache_db_path, _cache_conn
+
+    db_path = str(Path(logs_dir) / ".log-cache.db")
+    if _cache_conn is not None and _cache_db_path == db_path:
+        return _cache_conn
+
+    _cache_db_path = db_path
+    _cache_conn = sqlite3.connect(db_path)
+    _cache_conn.execute("PRAGMA journal_mode=WAL")
+    _cache_conn.executescript("""
+        CREATE TABLE IF NOT EXISTS log_entries (
+            id INTEGER PRIMARY KEY,
+            file TEXT NOT NULL,
+            time REAL NOT NULL DEFAULT 0,
+            level INTEGER NOT NULL DEFAULT 30,
+            service TEXT NOT NULL DEFAULT '',
+            request_id TEXT NOT NULL DEFAULT '',
+            msg TEXT NOT NULL DEFAULT '',
+            raw TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS file_meta (
+            path TEXT PRIMARY KEY,
+            mtime REAL NOT NULL,
+            size INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_log_request_id ON log_entries(request_id);
+        CREATE INDEX IF NOT EXISTS idx_log_service_time ON log_entries(service, time);
+        CREATE INDEX IF NOT EXISTS idx_log_level_time ON log_entries(level, time);
+        CREATE INDEX IF NOT EXISTS idx_log_time ON log_entries(time);
+    """)
+    return _cache_conn
+
+
+def _ensure_cache(logs_dir: str) -> sqlite3.Connection:
+    """JSONL 파일의 mtime/size를 체크하여 변경분만 캐시에 적재."""
+    conn = _get_cache_db(logs_dir)
     logs_path = Path(logs_dir)
     if not logs_path.exists():
-        return entries
+        return conn
 
+    existing_meta: dict[str, tuple[float, int]] = {}
+    for row in conn.execute("SELECT path, mtime, size FROM file_meta"):
+        existing_meta[row[0]] = (row[1], row[2])
+
+    current_files = set()
     for f in sorted(logs_path.glob("*.jsonl")):
+        fname = str(f)
+        current_files.add(fname)
+        stat = f.stat()
+        cur_mtime, cur_size = stat.st_mtime, stat.st_size
+
+        prev = existing_meta.get(fname)
+        if prev and prev[0] == cur_mtime and prev[1] == cur_size:
+            continue
+
+        # 파일이 변경됨 → 해당 파일의 캐시 제거 후 재적재
+        conn.execute("DELETE FROM log_entries WHERE file = ?", (fname,))
+        rows = []
         try:
             with open(f, "r", encoding="utf-8") as fh:
                 for line in fh:
@@ -29,15 +89,56 @@ def read_all_logs(logs_dir: str) -> list[dict[str, Any]]:
                         continue
                     try:
                         entry = json.loads(line)
-                        entry["_file"] = f.name
-                        entries.append(entry)
+                        rows.append((
+                            fname,
+                            entry.get("time", 0) or 0,
+                            entry.get("level", 30) if isinstance(entry.get("level"), (int, float)) else 30,
+                            entry.get("service") or "",
+                            entry.get("requestId") or "",
+                            entry.get("msg") or "",
+                            line,
+                        ))
                     except json.JSONDecodeError:
                         pass
         except OSError:
             pass
 
-    entries.sort(key=lambda e: e.get("time", 0))
+        if rows:
+            conn.executemany(
+                "INSERT INTO log_entries (file, time, level, service, request_id, msg, raw) VALUES (?,?,?,?,?,?,?)",
+                rows,
+            )
+        conn.execute(
+            "INSERT OR REPLACE INTO file_meta (path, mtime, size) VALUES (?, ?, ?)",
+            (fname, cur_mtime, cur_size),
+        )
+
+    # 삭제된 파일 정리
+    for fname in list(existing_meta.keys()):
+        if fname not in current_files:
+            conn.execute("DELETE FROM log_entries WHERE file = ?", (fname,))
+            conn.execute("DELETE FROM file_meta WHERE path = ?", (fname,))
+
+    conn.commit()
+    return conn
+
+
+def _rows_to_entries(conn: sqlite3.Connection, query: str, params: tuple = ()) -> list[dict[str, Any]]:
+    """SQL 쿼리 결과를 dict 리스트로 변환."""
+    entries: list[dict[str, Any]] = []
+    for (raw,) in conn.execute(query, params):
+        try:
+            entry = json.loads(raw)
+            entries.append(entry)
+        except json.JSONDecodeError:
+            pass
     return entries
+
+
+def read_all_logs(logs_dir: str) -> list[dict[str, Any]]:
+    """logs/*.jsonl 전체 읽기 → 시간순 정렬. SQLite 캐시 사용."""
+    conn = _ensure_cache(logs_dir)
+    return _rows_to_entries(conn, "SELECT raw FROM log_entries ORDER BY time ASC")
 
 
 def filter_by_request_id(logs: list[dict], request_id: str) -> list[dict]:

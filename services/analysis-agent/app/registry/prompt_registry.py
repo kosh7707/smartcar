@@ -73,7 +73,7 @@ _ASSESSMENT_OUTPUT_SCHEMA = """\
 - "이것은 확정 취약점이다" 형태의 최종 판정을 내리지 마라. assessment(평가 제언)만 제공한다.
 - severity는 critical / high / medium / low / info / null 중 하나를 사용한다.
 - policyFlags에는 해당하는 정책 플래그만 포함하라: ISO21434-noncompliant, MISRA-violation, needs-safety-impact-review, UNECE-R155-relevant, crypto-weakness, hardcoded-secret. 해당 없으면 빈 배열.
-- 순수 JSON만 출력하라. ```json 코드 펜스, 인사말, 설명문을 절대 붙이지 마라. 첫 문자는 반드시 {이어야 한다.
+- 순수 JSON만 출력하라. ```json 코드 펜스, 인사말, 설명문을 절대 붙이지 마라. 첫 문자는 반드시 `{`이어야 한다. **경고: ```json 코드 펜스를 사용하면 파서가 실패한다. 절대 사용하지 마라.**
 - claims[].detail에 공격 경로, 영향 범위, 코드 흐름을 상세히 작성하라.
 
 ## 올바른 출력 예시

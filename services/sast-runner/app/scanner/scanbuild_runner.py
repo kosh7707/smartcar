@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from app.errors import ScanTimeoutError
+from app.scanner.path_utils import normalize_path
 from app.schemas.request import BuildProfile
 from app.schemas.response import SastDataFlowStep, SastFinding, SastFindingLocation
 
@@ -152,7 +153,8 @@ class ScanbuildRunner:
         ]
 
         if profile:
-            cmd.append(f"-std={profile.language_standard.lower()}")
+            if profile.language_standard:
+                cmd.append(f"-std={profile.language_standard.lower()}")
             if profile.include_paths:
                 for inc in profile.include_paths:
                     inc_path = Path(inc)
@@ -207,7 +209,7 @@ class ScanbuildRunner:
         if file_idx >= len(files_list) or line == 0:
             return None
 
-        file_path = self._normalize_path(files_list[file_idx], scan_dir)
+        file_path = normalize_path(files_list[file_idx], scan_dir)
 
         # data flow 추출
         data_flow: list[SastDataFlowStep] | None = None
@@ -222,7 +224,7 @@ class ScanbuildRunner:
                     e_msg = entry.get("message", "")
                     if e_idx < len(files_list) and e_line > 0:
                         steps.append(SastDataFlowStep(
-                            file=self._normalize_path(files_list[e_idx], scan_dir),
+                            file=normalize_path(files_list[e_idx], scan_dir),
                             line=e_line,
                             content=e_msg if e_msg else None,
                         ))
@@ -255,13 +257,3 @@ class ScanbuildRunner:
                 return name
         return "clang"
 
-    def _normalize_path(self, path: str, base_dir: Path) -> str:
-        base_str = str(base_dir)
-        if not base_str.endswith("/"):
-            base_str += "/"
-        if path.startswith(base_str):
-            return path[len(base_str):]
-        try:
-            return str(Path(path).relative_to(base_dir))
-        except ValueError:
-            return path

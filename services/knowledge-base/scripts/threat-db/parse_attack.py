@@ -22,15 +22,27 @@ ENTERPRISE_EXCLUDE_PLATFORMS = {
 }
 
 
+def _extract_stix_version(bundle: dict) -> dict:
+    """STIX 번들에서 ATT&CK 버전 메타를 추출한다."""
+    for obj in bundle.get("objects", []):
+        if obj.get("type") == "x-mitre-collection":
+            return {
+                "version": obj.get("x_mitre_version", "unknown"),
+                "modified": obj.get("modified", "unknown"),
+            }
+    return {"version": bundle.get("spec_version", "unknown"), "modified": "unknown"}
+
+
 def _parse_stix_bundle(
     stix_path: str,
     domain: str,
-) -> list[UnifiedThreatRecord]:
+) -> tuple[list[UnifiedThreatRecord], dict]:
     """단일 STIX 2.1 번들 파싱. domain: 'ics' | 'enterprise'"""
 
     with open(stix_path) as f:
         bundle = json.load(f)
 
+    version_meta = _extract_stix_version(bundle)
     objects = bundle.get("objects", [])
 
     # 1단계: attack-pattern (기법) 추출
@@ -125,30 +137,38 @@ def _parse_stix_bundle(
         if mit_text and attack_id and attack_id in techniques:
             techniques[attack_id].mitigations.append(mit_text)
 
-    return list(techniques.values())
+    version_meta["count"] = len(techniques)
+    return list(techniques.values()), version_meta
 
 
-def parse_attack(stix_paths: dict[str, str]) -> list[UnifiedThreatRecord]:
+def parse_attack(stix_paths: dict[str, str]) -> tuple[list[UnifiedThreatRecord], dict]:
     """ATT&CK ICS + Enterprise 듀얼 번들 파싱.
 
     stix_paths: {"ics": "path/ics-attack.json", "enterprise": "path/enterprise-attack.json"}
     ICS/Enterprise 중복 기법은 ICS 우선.
+    반환: (records, version_meta)
     """
     print(f"  [ATT&CK] 파싱 중...")
 
     # ICS 먼저 (우선)
-    ics_records = _parse_stix_bundle(stix_paths["ics"], domain="ics")
+    ics_records, ics_meta = _parse_stix_bundle(stix_paths["ics"], domain="ics")
     ics_ids = {r.id for r in ics_records}
-    print(f"  [ATT&CK] ICS: {len(ics_records)}개 기법")
+    print(f"  [ATT&CK] ICS: {len(ics_records)}개 기법 (v{ics_meta.get('version', '?')})")
 
     # Enterprise (ICS와 중복 제거)
-    ent_records = _parse_stix_bundle(stix_paths["enterprise"], domain="enterprise")
+    ent_records, ent_meta = _parse_stix_bundle(stix_paths["enterprise"], domain="enterprise")
     ent_unique = [r for r in ent_records if r.id not in ics_ids]
-    print(f"  [ATT&CK] Enterprise: {len(ent_records)}개 중 {len(ent_unique)}개 신규")
+    print(f"  [ATT&CK] Enterprise: {len(ent_records)}개 중 {len(ent_unique)}개 신규 (v{ent_meta.get('version', '?')})")
 
     records = ics_records + ent_unique
 
     with_mit = sum(1 for r in records if r.mitigations)
     with_capec = sum(1 for r in records if r.related_capec)
     print(f"  [ATT&CK] 완료: {len(records)}개 기법 (ICS {len(ics_records)} + Enterprise {len(ent_unique)}), Mitigation {with_mit}개, CAPEC {with_capec}개")
-    return records
+
+    version_meta = {
+        "ics": ics_meta,
+        "enterprise": ent_meta,
+        "count": len(records),
+    }
+    return records, version_meta

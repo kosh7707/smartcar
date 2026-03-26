@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from fastapi import APIRouter, Header, HTTPException, Query
 
 from app.context import set_request_id
+from app.timeout import parse_timeout, check_deadline
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -14,11 +16,23 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/code-graph", tags=["code-graph"])
 
 _service = None
+_code_vector_search = None
+_code_assembler = None
 
 
 def set_service(service) -> None:
     global _service
     _service = service
+
+
+def set_code_vector_search(vs) -> None:
+    global _code_vector_search
+    _code_vector_search = vs
+
+
+def set_code_assembler(asm) -> None:
+    global _code_assembler
+    _code_assembler = asm
 
 
 class IngestRequest(BaseModel):
@@ -40,14 +54,37 @@ def _require_service():
         raise HTTPException(503, "Code graph service not initialized")
 
 
+class CodeSearchRequest(BaseModel):
+    query: str = Field(..., description="검색 쿼리 (자연어 또는 함수명)")
+    top_k: int = Field(default=10, ge=1, le=50)
+    min_score: float = Field(default=0.3, ge=0.0, le=1.0)
+    graph_depth: int = Field(default=2, ge=0, le=5)
+    include_call_chain: bool = Field(default=True, description="호출 체인 포함 여부")
+
+
 @router.post("/{project_id}/ingest")
 async def ingest(
     project_id: str, req: IngestRequest,
     x_request_id: str | None = Header(None, alias="X-Request-Id"),
+    x_timeout_ms: int | None = Header(None, alias="X-Timeout-Ms"),
 ) -> dict:
     set_request_id(x_request_id)
+    deadline, _ = parse_timeout(x_timeout_ms)
     _require_service()
+
     result = _service.ingest(project_id, req.functions)
+    check_deadline(deadline, "neo4j-ingest")
+
+    if _code_vector_search is not None:
+        try:
+            vec_count = _code_vector_search.ingest(project_id, req.functions)
+            result["vectorCount"] = vec_count
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.warning("코드 함수 벡터 적재 실패 (Neo4j만 성공): %s", e)
+            result["vectorCount"] = 0
+
     return result
 
 
@@ -79,11 +116,49 @@ async def callees(project_id: str, function_name: str) -> dict:
 async def dangerous_callers(
     project_id: str, req: DangerousCallersRequest,
     x_request_id: str | None = Header(None, alias="X-Request-Id"),
+    x_timeout_ms: int | None = Header(None, alias="X-Timeout-Ms"),
 ) -> dict:
     set_request_id(x_request_id)
+    parse_timeout(x_timeout_ms)
     _require_service()
     results = _service.find_dangerous_callers(project_id, req.dangerous_functions)
     return {"results": results}
+
+
+@router.post("/{project_id}/search")
+async def search(
+    project_id: str,
+    req: CodeSearchRequest,
+    x_request_id: str | None = Header(None, alias="X-Request-Id"),
+    x_timeout_ms: int | None = Header(None, alias="X-Timeout-Ms"),
+) -> dict:
+    set_request_id(x_request_id)
+    parse_timeout(x_timeout_ms)
+    if _code_assembler is None:
+        raise HTTPException(503, "Code graph search not initialized")
+
+    start = time.monotonic()
+    result = _code_assembler.search(
+        project_id,
+        req.query,
+        top_k=req.top_k,
+        min_score=req.min_score,
+        graph_depth=req.graph_depth,
+        include_call_chain=req.include_call_chain,
+    )
+    elapsed_ms = int((time.monotonic() - start) * 1000)
+
+    logger.info(
+        "코드 그래프 검색",
+        extra={"_extra": {
+            "projectId": project_id,
+            "query": req.query,
+            "hits": result["total"],
+            "latencyMs": elapsed_ms,
+        }},
+    )
+
+    return {**result, "latency_ms": elapsed_ms}
 
 
 @router.delete("/{project_id}")
@@ -92,6 +167,13 @@ async def delete_project(project_id: str) -> dict:
     deleted = _service.delete_project(project_id)
     if not deleted:
         raise HTTPException(404, f"Project '{project_id}' not found")
+
+    if _code_vector_search is not None:
+        try:
+            _code_vector_search.delete_project(project_id)
+        except Exception as e:
+            logger.warning("코드 함수 벡터 삭제 실패: %s", e)
+
     return {"deleted": True, "project_id": project_id}
 
 

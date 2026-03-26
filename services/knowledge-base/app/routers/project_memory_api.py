@@ -30,6 +30,10 @@ class CreateMemoryRequest(BaseModel):
         ...,
         description="메모리 데이터 (자유 형식 JSON)",
     )
+    ttl_seconds: int | None = Field(
+        default=None, ge=60,
+        description="선택적 TTL (초). 설정 시 만료 시각 계산. None이면 영구 보존.",
+    )
 
 
 def _require_service():
@@ -57,10 +61,15 @@ async def create_memory(
 ) -> dict:
     set_request_id(x_request_id)
     _require_service()
+    from app.graphrag.project_memory_service import MemoryLimitError
     try:
-        result = _service.create_memory(project_id, req.type, req.data)
+        result = _service.create_memory(
+            project_id, req.type, req.data, ttl_seconds=req.ttl_seconds,
+        )
     except ValueError as e:
         raise HTTPException(422, str(e))
+    except MemoryLimitError as e:
+        raise HTTPException(409, str(e))
     return result
 
 

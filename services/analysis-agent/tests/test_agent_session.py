@@ -3,7 +3,7 @@
 import time
 
 from app.core.agent_session import AgentSession
-from app.schemas.agent import BudgetState, LlmResponse, ToolResult
+from agent_shared.schemas.agent import BudgetState, LlmResponse, ToolResult
 from app.schemas.request import Context, TaskRequest
 from app.types import TaskType
 

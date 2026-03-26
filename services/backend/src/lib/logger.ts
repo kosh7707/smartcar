@@ -1,18 +1,17 @@
 import pino from "pino";
 import crypto from "crypto";
 import path from "path";
-
-const LOG_DIR = process.env.LOG_DIR ?? path.resolve(__dirname, "../../../../logs");
+import { config } from "../config";
 
 const transport = pino.transport({
   targets: [
     { target: "pino/file", options: { destination: 1 } },
-    { target: "pino/file", options: { destination: path.join(LOG_DIR, "s2-backend.jsonl"), mkdir: true } },
+    { target: "pino/file", options: { destination: path.join(config.logDir, "s2-backend.jsonl"), mkdir: true } },
   ],
 });
 
 const rootLogger = pino({
-  level: process.env.LOG_LEVEL ?? "info",
+  level: config.logLevel,
   name: "s2-backend",
 }, transport);
 

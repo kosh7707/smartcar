@@ -4,7 +4,7 @@
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow-sidebar);
-  z-index: 10;
+  z-index: var(--z-sticky);
 }
 
 /* ── Header ── */
@@ -45,7 +45,7 @@
   color: var(--accent);
   flex-shrink: 0;
   margin-top: 1px;
-  filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.3));
+  filter: drop-shadow(var(--glow-accent));
 }
 
 .sidebar-header-text {
@@ -117,4 +117,15 @@
   color: var(--sidebar-text-active);
   border-left-color: var(--accent);
   font-weight: var(--weight-medium);
+}
+
+.sidebar-link--coming-soon {
+  opacity: 0.5;
+}
+
+.sidebar-coming-soon-tag {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-weight: var(--weight-normal);
 }

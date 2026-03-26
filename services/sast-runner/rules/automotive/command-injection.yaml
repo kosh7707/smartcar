@@ -14,6 +14,15 @@ rules:
       category: security
       confidence: HIGH
       impact: HIGH
+      automotive_rationale: >
+        Command injection on an automotive ECU can enable arbitrary code execution
+        on safety-critical control units, potentially compromising braking, steering,
+        or powertrain functions. ISO 26262-6 Table 1 (1b) requires prevention of
+        unintended software execution paths in safety-related systems.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1b) — Prevention of unintended execution"
+        - "MISRA C:2012 Dir 4.14 — Controlling data from external sources"
+        - "AUTOSAR C++14 M18-0-3 — Library function usage restrictions"
 
   - id: aegis.c.cwe-78-popen-with-variable
     patterns:
@@ -29,6 +38,13 @@ rules:
       category: security
       confidence: HIGH
       impact: HIGH
+      automotive_rationale: >
+        popen() with attacker-controlled arguments can execute arbitrary shell
+        commands on ECU Linux systems, bypassing access control and potentially
+        affecting vehicle network communication or diagnostic interfaces.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1b)"
+        - "MISRA C:2012 Dir 4.14"
 
   - id: aegis.c.cwe-78-execl-with-variable
     patterns:
@@ -44,6 +60,13 @@ rules:
       category: security
       confidence: MEDIUM
       impact: HIGH
+      automotive_rationale: >
+        exec-family functions with variable paths allow process replacement attacks.
+        In automotive ECUs, this can be exploited via OTA update channels or
+        diagnostic ports to gain persistent control of the target system.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1b)"
+        - "MISRA C:2012 Rule 21.5 — signal.h functions"
 
   - id: aegis.c.cwe-78-execlp-with-variable
     patterns:
@@ -59,6 +82,13 @@ rules:
       category: security
       confidence: MEDIUM
       impact: HIGH
+      automotive_rationale: >
+        PATH-based command resolution (execlp) is especially dangerous in
+        embedded Linux systems where PATH manipulation can redirect execution
+        to attacker-controlled binaries.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1b)"
+        - "MISRA C:2012 Dir 4.14"
 
   - id: aegis.c.cwe-78-execvp-with-variable
     patterns:
@@ -74,3 +104,9 @@ rules:
       category: security
       confidence: MEDIUM
       impact: HIGH
+      automotive_rationale: >
+        execvp with variable command names enables process replacement attacks
+        through PATH manipulation on embedded Linux-based ECUs.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1b)"
+        - "MISRA C:2012 Dir 4.14"

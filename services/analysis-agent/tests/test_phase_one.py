@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 from app.core.phase_one import Phase1Executor, Phase1Result, build_phase2_prompt
-from app.schemas.agent import ToolResult
+from agent_shared.schemas.agent import ToolResult
 
 
 # ───────────────────────────────────────────────
@@ -313,7 +313,7 @@ class TestTargetPath:
                 }
             },
         })
-        from app.schemas.agent import BudgetState
+        from agent_shared.schemas.agent import BudgetState
         budget = BudgetState(max_steps=1, max_completion_tokens=100)
         session = AgentSession(request, budget)
 
@@ -325,7 +325,7 @@ class TestTargetPath:
         # build-and-analyze를 mock하여 전달된 project_path를 캡처
         captured_path = {}
 
-        async def mock_ba(result, project_id, project_path, build_command, build_profile, request_id):
+        async def mock_ba(result, project_id, project_path, build_command, build_profile, request_id, **kwargs):
             captured_path["path"] = project_path
             return result
 
@@ -354,7 +354,7 @@ class TestTargetPath:
                 }
             },
         })
-        from app.schemas.agent import BudgetState
+        from agent_shared.schemas.agent import BudgetState
         budget = BudgetState(max_steps=1, max_completion_tokens=100)
         session = AgentSession(request, budget)
 
@@ -365,7 +365,7 @@ class TestTargetPath:
 
         captured_path = {}
 
-        async def mock_ba(result, project_id, project_path, build_command, build_profile, request_id):
+        async def mock_ba(result, project_id, project_path, build_command, build_profile, request_id, **kwargs):
             captured_path["path"] = project_path
             return result
 
@@ -395,7 +395,7 @@ class TestTargetPath:
                 }
             },
         })
-        from app.schemas.agent import BudgetState
+        from agent_shared.schemas.agent import BudgetState
         budget = BudgetState(max_steps=1, max_completion_tokens=100)
         session = AgentSession(request, budget)
 
@@ -406,7 +406,7 @@ class TestTargetPath:
 
         captured_path = {}
 
-        async def mock_ba(result, project_id, project_path, build_command, build_profile, request_id):
+        async def mock_ba(result, project_id, project_path, build_command, build_profile, request_id, **kwargs):
             captured_path["path"] = project_path
             return result
 

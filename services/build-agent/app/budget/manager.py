@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 
-from app.observability import agent_log
-from app.schemas.agent import BudgetState, ToolCostTier
+from agent_shared.observability import agent_log
+from agent_shared.schemas.agent import BudgetState, ToolCostTier
 
 logger = logging.getLogger(__name__)
 

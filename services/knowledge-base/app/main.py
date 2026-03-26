@@ -5,13 +5,16 @@ from contextlib import asynccontextmanager
 
 import neo4j
 from fastapi import FastAPI, Request
+from fastapi.exceptions import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
 
 from app.config import settings
 from app.cve.nvd_client import NvdClient
+from app.graphrag.code_graph_assembler import CodeGraphAssembler
 from app.graphrag.code_graph_service import CodeGraphService
+from app.graphrag.code_vector_search import CodeVectorSearch
 from app.graphrag.knowledge_assembler import KnowledgeAssembler, GraphLike
 from app.graphrag.neo4j_graph import Neo4jGraph
 from app.graphrag.vector_search import VectorSearch
@@ -67,7 +70,7 @@ async def lifespan(_app: FastAPI):
 
         neo4j_graph = Neo4jGraph(driver)
         code_graph_svc = CodeGraphService(driver)
-        memory_svc = ProjectMemoryService(driver)
+        memory_svc = ProjectMemoryService(driver, memory_limit=settings.memory_limit_per_project)
 
         logger.info(
             "Neo4j 연결 완료: %d nodes, %d edges",
@@ -99,9 +102,24 @@ async def lifespan(_app: FastAPI):
     except Exception as e:
         logger.warning("NVD 클라이언트 초기화 실패: %s", e)
 
+    # 소스코드 GraphRAG 초기화 (Qdrant + Neo4j 모두 필요)
+    code_vector_search = None
+    code_assembler = None
+    if threat_search and code_graph_svc:
+        try:
+            code_vector_search = CodeVectorSearch(threat_search.client)
+            code_assembler = CodeGraphAssembler(
+                code_graph_svc, code_vector_search, rrf_k=settings.rrf_k,
+            )
+            logger.info("소스코드 GraphRAG 초기화 완료")
+        except Exception as e:
+            logger.warning("소스코드 GraphRAG 초기화 실패: %s", e)
+
     api.set_assembler(assembler)
     api.set_neo4j_graph(neo4j_graph)
     code_graph_api.set_service(code_graph_svc)
+    code_graph_api.set_code_vector_search(code_vector_search)
+    code_graph_api.set_code_assembler(code_assembler)
     cve_api.set_nvd_client(nvd_client)
     project_memory_api.set_service(memory_svc if neo4j_graph else None)
 
@@ -137,6 +155,35 @@ class _RequestIdMiddleware(BaseHTTPMiddleware):
         if request_id:
             response.headers["X-Request-Id"] = request_id
         return response
+
+
+@app.exception_handler(HTTPException)
+async def _http_exception_handler(request: Request, exc: HTTPException):
+    """HTTPException을 observability.md 공통 에러 포맷으로 변환."""
+    _code_map = {
+        400: "BAD_REQUEST",
+        404: "NOT_FOUND",
+        408: "TIMEOUT",
+        409: "CONFLICT",
+        422: "INVALID_INPUT",
+        503: "SERVICE_UNAVAILABLE",
+    }
+    code = _code_map.get(exc.status_code, "INTERNAL_ERROR")
+    detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
+    request_id = request.headers.get("x-request-id")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "error": detail,
+            "errorDetail": {
+                "code": code,
+                "message": detail,
+                "requestId": request_id,
+                "retryable": exc.status_code == 503,
+            },
+        },
+    )
 
 
 app.add_middleware(_RequestIdMiddleware)

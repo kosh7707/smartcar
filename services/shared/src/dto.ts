@@ -108,7 +108,81 @@ export interface DynamicAnalysisSessionResponse {
   error?: string;
 }
 
-// WebSocket 메시지 (S2 → S1 push)
+// ============================================================
+// WebSocket 이벤트 타입 레지스트리 (전 서비스 공유 계약)
+// ============================================================
+
+/**
+ * AEGIS WS 이벤트 타입 — 모든 WS 메시지의 `type` 필드 값을 열거한다.
+ *
+ * 6개 WS 패밀리:
+ * - 동적 분석 (/ws/dynamic-analysis): CAN 메시지 스트리밍 + 알림
+ * - 정적 분석 (/ws/static-analysis): 레거시 룰엔진+LLM 청크 진행률
+ * - 동적 테스트 (/ws/dynamic-test): 퍼징/침투 테스트 진행률
+ * - Quick→Deep 분석 (/ws/analysis): SAST+Agent 2단계 파이프라인
+ * - 업로드 (/ws/upload): 소스코드 업로드 상태머신
+ * - 파이프라인 (/ws/pipeline): 서브 프로젝트 빌드→스캔→코드그래프
+ */
+export type WsEventType =
+  // 동적 분석 (CAN/ECU)
+  | "message" | "alert" | "status" | "injection-result" | "injection-error"
+  // 정적 분석 (레거시)
+  | "static-progress" | "static-warning" | "static-complete" | "static-error"
+  // 동적 테스트
+  | "test-progress" | "test-finding" | "test-complete" | "test-error"
+  // Quick→Deep 분석
+  | "analysis-progress" | "analysis-quick-complete" | "analysis-deep-complete" | "analysis-error"
+  // 업로드
+  | "upload-progress" | "upload-complete" | "upload-error"
+  // 서브 프로젝트 파이프라인
+  | "pipeline-target-status" | "pipeline-complete" | "pipeline-error"
+  // SDK 등록
+  | "sdk-progress" | "sdk-complete" | "sdk-error";
+
+/** WS 채널 식별자 */
+export type WsChannel =
+  | "dynamic-analysis"
+  | "static-analysis"
+  | "dynamic-test"
+  | "analysis"
+  | "upload"
+  | "pipeline"
+  | "sdk";
+
+/**
+ * WS 공통 envelope 메타데이터.
+ * 모든 WS 메시지에 선택적으로 첨부 가능 (하위 호환).
+ * S1은 meta 필드가 없는 메시지도 처리할 수 있어야 한다.
+ */
+export interface WsEnvelopeMeta {
+  /** WS 채널 (e.g. "pipeline") */
+  channel: WsChannel;
+  /** 프로젝트 ID (모든 채널 공통) */
+  projectId?: string;
+  /** epoch ms */
+  timestamp: number;
+  /** 메시지 일련번호 (채널별 단조증가, gap 감지용) */
+  seq?: number;
+}
+
+/**
+ * WS 공통 envelope. 기존 메시지에 meta를 감싸는 형태.
+ * 기존: { type: "pipeline-target-status", payload: {...} }
+ * 새:   { type: "pipeline-target-status", payload: {...}, meta: {...} }
+ */
+export interface WsEnvelope<T extends { type: string }> {
+  /** 기존 메시지 내용 (그대로 유지) */
+  message: T;
+  /** 공통 메타데이터 */
+  meta: WsEnvelopeMeta;
+}
+
+// ============================================================
+// 동적 분석 WS 메시지 (/ws/dynamic-analysis?sessionId=)
+// Progress 의미론: messageCount/alertCount 카운터 기반
+// ============================================================
+
+/** @deprecated WsEventType으로 대체. 하위 호환용 */
 export type WsMessageType = "message" | "alert" | "status" | "injection-result" | "injection-error";
 
 export interface WsCanMessage {
@@ -142,7 +216,8 @@ export interface WsInjectionError {
 export type WsMessage = WsCanMessage | WsAlert | WsStatus | WsInjectionResult | WsInjectionError;
 
 // ============================================================
-// 정적 분석 WS 메시지
+// 정적 분석 WS 메시지 (/ws/static-analysis?analysisId=)
+// Progress 의미론: current/total 청크 단위 + phaseWeights 가중치
 // ============================================================
 
 export interface WsStaticProgress {
@@ -202,7 +277,8 @@ export interface DynamicTestResponse {
 }
 
 // ============================================================
-// 동적 테스트 WS 메시지
+// 동적 테스트 WS 메시지 (/ws/dynamic-test?testId=)
+// Progress 의미론: current/total 입력 단위 + crashes/anomalies 누적
 // ============================================================
 
 export interface WsTestProgress {
@@ -245,7 +321,9 @@ export type WsTestMessage =
   | WsTestError;
 
 // ============================================================
-// Quick → Deep 분석 WebSocket 메시지
+// Quick → Deep 분석 WS 메시지 (/ws/analysis?analysisId=)
+// Progress 의미론: phase 기반 상태 전이 + targetName/targetProgress 멀티 타겟
+// Phase 전이: quick_sast → quick_complete → deep_submitting → deep_analyzing → deep_complete
 // ============================================================
 
 export interface WsAnalysisProgress {
@@ -294,9 +372,12 @@ export type WsAnalysisMessage =
   | WsAnalysisError;
 
 // ============================================================
-// 소스코드 업로드 상태머신
+// 소스코드 업로드 WS 메시지 (/ws/upload?uploadId=)
+// Progress 의미론: phase 기반 상태머신
+// Phase 전이: received → extracting → indexing → complete | failed
 // ============================================================
 
+/** 업로드 상태머신 단계 */
 export type UploadPhase = "received" | "extracting" | "indexing" | "complete" | "failed";
 
 export interface WsUploadProgress {
@@ -330,12 +411,19 @@ export interface WsUploadError {
 export type WsUploadMessage = WsUploadProgress | WsUploadComplete | WsUploadError;
 
 // ============================================================
-// 서브 프로젝트 파이프라인 (빌드 → 스캔 → 코드그래프)
+// 서브 프로젝트 파이프라인 WS 메시지 (/ws/pipeline?projectId=)
+// Progress 의미론: BuildTargetStatus(16상태) → PipelinePhase(3단계) 매핑
+// Phase 매핑: discovered|resolving|configured|resolve_failed → setup, building~graph_failed → build, ready → ready
 // ============================================================
 
 import type { BuildTargetStatus } from "./models";
 
-/** 파이프라인 UI 간소화 3단계 */
+/**
+ * 파이프라인 UI 간소화 3단계.
+ * - setup: 탐색/구성 중 (discovered, resolving, configured, resolve_failed)
+ * - build: 빌드/스캔/코드그래프 진행 중 (building ~ graph_failed)
+ * - ready: 완료
+ */
 export type PipelinePhase = "setup" | "build" | "ready";
 
 export interface WsPipelineTargetStatus {

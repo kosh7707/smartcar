@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.observability import setup_logging
+from agent_shared.observability import setup_logging
 from app.routers import tasks
 
 _SERVICE_NAME = "aegis-analysis-agent"

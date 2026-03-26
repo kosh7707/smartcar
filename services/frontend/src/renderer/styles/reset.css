@@ -32,7 +32,7 @@ button {
 
 ::selection {
   background: var(--accent);
-  color: white;
+  color: var(--text-inverse);
 }
 
 ::-webkit-scrollbar {

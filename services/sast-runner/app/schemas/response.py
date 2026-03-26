@@ -1,8 +1,51 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+
+
+# --- ExecutionReport (typed schema for scan execution metadata) ---
+
+
+class ToolExecutionResult(BaseModel):
+    """개별 도구 실행 결과."""
+    status: Literal["ok", "failed", "skipped"]
+    findings_count: int = Field(alias="findingsCount")
+    elapsed_ms: int = Field(alias="elapsedMs")
+    skip_reason: str | None = Field(default=None, alias="skipReason")
+    version: str | None = None
+
+    model_config = {"populate_by_name": True, "by_alias": True}
+
+
+class SdkResolutionInfo(BaseModel):
+    """SDK 경로 해석 결과."""
+    resolved: bool
+    sdk_id: str | None = Field(default=None, alias="sdkId")
+    include_paths_added: int = Field(default=0, alias="includePathsAdded")
+
+    model_config = {"populate_by_name": True, "by_alias": True}
+
+
+class FindingsFilterInfo(BaseModel):
+    """SDK/외부 노이즈 필터링 결과."""
+    before_filter: int = Field(alias="beforeFilter")
+    after_filter: int = Field(alias="afterFilter")
+    sdk_noise_removed: int = Field(alias="sdkNoiseRemoved")
+    cross_boundary_kept: int = Field(default=0, alias="crossBoundaryKept")
+
+    model_config = {"populate_by_name": True, "by_alias": True}
+
+
+class ExecutionReport(BaseModel):
+    """SAST 스캔 실행 보고서 — 도구별 상태, SDK 해석, 필터링 결과."""
+    tools_run: list[str] = Field(alias="toolsRun")
+    tool_results: dict[str, ToolExecutionResult] = Field(alias="toolResults")
+    sdk: SdkResolutionInfo
+    filtering: FindingsFilterInfo
+
+    model_config = {"populate_by_name": True, "by_alias": True}
 
 
 # --- SastFinding (mirrors docs/api/shared-models.md:253-289 exactly) ---
@@ -32,6 +75,7 @@ class SastFinding(BaseModel):
     message: str
     location: SastFindingLocation
     data_flow: list[SastDataFlowStep] | None = Field(default=None, alias="dataFlow")
+    origin: str | None = None
     metadata: dict[str, Any] | None = None
 
     model_config = {"populate_by_name": True, "by_alias": True}
@@ -63,7 +107,7 @@ class ScanResponse(BaseModel):
     status: str
     findings: list[SastFinding] | None = None
     stats: ScanStats | None = None
-    execution: dict[str, Any] | None = None
+    execution: ExecutionReport | None = None
     code_graph: dict[str, Any] | None = Field(default=None, alias="codeGraph")
     sca: dict[str, Any] | None = None
     error: str | None = None
@@ -75,7 +119,7 @@ class ScanResponse(BaseModel):
 class HealthResponse(BaseModel):
     service: str = "s4-sast"
     status: str = "ok"
-    version: str = "0.4.0"
+    version: str = "0.5.0"
     semgrep: dict[str, Any] = {}
     tools: dict[str, Any] = {}
     default_rulesets: list[str] = Field(default_factory=list, alias="defaultRulesets")

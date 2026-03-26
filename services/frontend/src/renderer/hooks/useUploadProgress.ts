@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { getWsBaseUrl, logError } from "../api/client";
+import { createSeqTracker } from "../utils/wsEnvelope";
 
 export type UploadPhase = "idle" | "uploading" | "received" | "extracting" | "indexing" | "complete" | "failed";
 
@@ -45,9 +46,13 @@ export function useUploadProgress() {
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
+    const seqTracker = createSeqTracker("upload");
+
     ws.onmessage = (evt) => {
       try {
-        const msg = JSON.parse(evt.data);
+        const parsed = JSON.parse(evt.data);
+        seqTracker.check(parsed.meta);
+        const msg = parsed;
         switch (msg.type) {
           case "upload-progress":
             setState((prev) => ({

@@ -10,16 +10,16 @@ from app.budget.token_counter import TokenCounter
 from app.core.agent_loop import AgentLoop
 from app.core.agent_session import AgentSession
 from app.core.result_assembler import ResultAssembler
-from app.llm.message_manager import MessageManager
-from app.llm.turn_summarizer import TurnSummarizer
-from app.policy.retry import RetryPolicy
+from agent_shared.llm.message_manager import MessageManager
+from agent_shared.llm.turn_summarizer import TurnSummarizer
+from agent_shared.policy.retry import RetryPolicy
 from app.policy.termination import TerminationPolicy
 from app.policy.tool_failure import ToolFailurePolicy
-from app.schemas.agent import BudgetState, LlmResponse, ToolCallRequest, ToolCostTier
+from agent_shared.schemas.agent import BudgetState, LlmResponse, ToolCallRequest, ToolCostTier
 from app.schemas.request import Context, EvidenceRef, TaskRequest
-from app.tools.executor import ToolExecutor
+from agent_shared.tools.executor import ToolExecutor
 from app.tools.implementations.mock_tools import MockKnowledgeTool
-from app.tools.registry import ToolRegistry, ToolSchema
+from agent_shared.tools.registry import ToolRegistry, ToolSchema
 from app.tools.router import ToolRouter
 from app.types import TaskType
 
@@ -200,7 +200,7 @@ async def test_token_budget_exhaustion():
 @pytest.mark.asyncio
 async def test_llm_error_returns_failure():
     """LLM 호출이 재시도 후에도 실패하면 MODEL_ERROR 반환."""
-    from app.errors import LlmUnavailableError
+    from agent_shared.errors import LlmUnavailableError
 
     llm_caller = MagicMock()
     llm_caller.call = AsyncMock(side_effect=LlmUnavailableError())

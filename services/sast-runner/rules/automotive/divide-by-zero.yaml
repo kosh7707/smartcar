@@ -13,6 +13,14 @@ rules:
       category: security
       confidence: HIGH
       impact: MEDIUM
+      automotive_rationale: >
+        Division by zero in real-time control loops (engine management, brake
+        control, steering assist) causes undefined behavior that can lead to
+        ECU reset or uncontrolled actuator states. Critical in ASIL-rated
+        safety functions where continuous computation is required.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d) — No unintended functionality"
+        - "MISRA C:2012 Rule 1.3 — No undefined or critical unspecified behavior"
 
   - id: aegis.c.cwe-369-strtol-as-divisor
     patterns:
@@ -28,6 +36,13 @@ rules:
       category: security
       confidence: HIGH
       impact: MEDIUM
+      automotive_rationale: >
+        strtol() parsing configuration or sensor calibration values can return
+        zero on malformed input. Using the result as a divisor in PID controllers
+        or signal processing can crash the control loop.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d)"
+        - "MISRA C:2012 Rule 1.3"
 
   - id: aegis.c.cwe-369-atoi-then-divide
     patterns:
@@ -46,6 +61,13 @@ rules:
       category: security
       confidence: HIGH
       impact: MEDIUM
+      automotive_rationale: >
+        Indirect use of parsed integer as divisor is a common pattern in
+        automotive configuration processing. Zero-check must be performed
+        before any division to prevent ECU fault conditions.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d)"
+        - "MISRA C:2012 Rule 1.3"
 
   - id: aegis.c.cwe-369-atoi-then-modulo
     patterns:
@@ -63,6 +85,12 @@ rules:
       category: security
       confidence: HIGH
       impact: MEDIUM
+      automotive_rationale: >
+        Modulo by zero has the same impact as division by zero — undefined
+        behavior in safety-critical computation paths.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d)"
+        - "MISRA C:2012 Rule 1.3"
 
   - id: aegis.c.cwe-369-scanf-divisor
     patterns:
@@ -80,6 +108,13 @@ rules:
       category: security
       confidence: MEDIUM
       impact: MEDIUM
+      automotive_rationale: >
+        scanf-sourced values from diagnostic ports (UDS/OBD-II) or serial
+        interfaces can contain zero values. Using them directly in arithmetic
+        without validation risks control loop instability.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d)"
+        - "MISRA C:2012 Dir 4.14"
 
   - id: aegis.c.cwe-369-fscanf-divisor
     patterns:
@@ -97,6 +132,12 @@ rules:
       category: security
       confidence: MEDIUM
       impact: MEDIUM
+      automotive_rationale: >
+        File-sourced configuration values (calibration tables, tuning parameters)
+        parsed via fscanf must be validated before use in arithmetic operations.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d)"
+        - "MISRA C:2012 Dir 4.14"
 
   - id: aegis.c.cwe-369-modulo-by-zero
     patterns:
@@ -111,3 +152,9 @@ rules:
       category: security
       confidence: HIGH
       impact: MEDIUM
+      automotive_rationale: >
+        Modulo operations with externally-sourced divisors in scheduling,
+        round-robin, or hash computations must validate against zero.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d)"
+        - "MISRA C:2012 Rule 1.3"

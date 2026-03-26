@@ -57,6 +57,7 @@ export interface IFindingDAO {
   findById(id: string): Finding | undefined;
   findByRunId(runId: string): Finding[];
   findByProjectId(projectId: string, filters?: FindingFilters): Finding[];
+  findByFingerprint(projectId: string, fingerprint: string): Finding | undefined;
   updateStatus(id: string, status: FindingStatus): void;
   summaryByProjectId(projectId: string): { byStatus: Record<string, number>; bySeverity: Record<string, number>; total: number };
   summaryByModule(
@@ -231,6 +232,7 @@ export interface IBuildTargetDAO {
       codeGraphStatus?: string;
       codeGraphNodeCount?: number;
       lastBuiltAt?: string;
+      buildCommand?: string;
     },
   ): BuildTarget | undefined;
   delete(id: string): boolean;

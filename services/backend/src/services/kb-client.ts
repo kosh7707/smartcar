@@ -94,12 +94,24 @@ export class KbClient {
     }
   }
 
+  /** Liveness — S5가 살아있는지 확인 */
   async checkHealth(): Promise<Record<string, unknown> | null> {
     try {
       const res = await fetch(`${this.baseUrl}/v1/health`);
       return (await res.json()) as Record<string, unknown>;
     } catch {
       logger.warn("KB health check failed");
+      return null;
+    }
+  }
+
+  /** Readiness — S5가 완전 초기화(Neo4j, Qdrant 등) 되었는지 확인 */
+  async checkReady(): Promise<Record<string, unknown> | null> {
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/ready`);
+      if (!res.ok) return null;
+      return (await res.json()) as Record<string, unknown>;
+    } catch {
       return null;
     }
   }

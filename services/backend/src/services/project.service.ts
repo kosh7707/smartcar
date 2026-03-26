@@ -6,7 +6,6 @@ import type {
 } from "@aegis/shared";
 import type { ProjectOverviewResponse } from "@aegis/shared";
 import type { IProjectDAO, IAnalysisResultDAO, IFileStore } from "../dao/interfaces";
-import type { RuleService } from "./rule.service";
 import type { AdapterManager } from "./adapter-manager";
 import type { ProjectSettingsService } from "./project-settings.service";
 import type { BuildTargetService } from "./build-target.service";
@@ -16,7 +15,6 @@ export class ProjectService {
     private projectDAO: IProjectDAO,
     private analysisResultDAO: IAnalysisResultDAO,
     private fileStore: IFileStore,
-    private ruleService?: RuleService,
     private adapterManager?: AdapterManager,
     private settingsService?: ProjectSettingsService,
     private buildTargetService?: BuildTargetService,
@@ -32,9 +30,6 @@ export class ProjectService {
       updatedAt: now,
     };
     this.projectDAO.save(project);
-
-    // 기본 룰 시딩
-    this.ruleService?.seedDefaultRules(project.id);
 
     return project;
   }
@@ -52,8 +47,7 @@ export class ProjectService {
   }
 
   delete(id: string): boolean {
-    // cascade: 프로젝트 룰/어댑터/설정 삭제
-    this.ruleService?.deleteByProjectId(id);
+    // cascade: 프로젝트 어댑터/설정 삭제
     this.adapterManager?.deleteByProjectId(id);
     this.settingsService?.deleteByProjectId(id);
     this.buildTargetService?.deleteByProjectId(id);

@@ -53,9 +53,9 @@ export function createPipelineRouter(
     const target = buildTargetDAO.findById(targetId);
     if (!target || target.projectId !== pid) throw new NotFoundError(`Build target not found: ${targetId}`);
 
-    // 실패 상태에서 configured로 리셋
+    // 실패 상태에서 discovered로 리셋 (resolve부터 재실행)
     if (target.status.endsWith("_failed")) {
-      buildTargetDAO.updatePipelineState(targetId, { status: "configured" });
+      buildTargetDAO.updatePipelineState(targetId, { status: "discovered" });
     }
 
     const requestId = req.requestId;
@@ -89,7 +89,7 @@ export function createPipelineRouter(
           id: t.id,
           name: t.name,
           status: t.status,
-          phase: t.status === "discovered" || t.status === "configured" ? "setup"
+          phase: ["discovered", "resolving", "configured", "resolve_failed"].includes(t.status) ? "setup"
             : t.status === "ready" ? "ready" : "build",
           compileCommandsPath: t.compileCommandsPath,
           sastScanId: t.sastScanId,

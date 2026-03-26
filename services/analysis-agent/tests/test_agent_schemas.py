@@ -1,6 +1,6 @@
 """에이전트 DTO 테스트."""
 
-from app.schemas.agent import (
+from agent_shared.schemas.agent import (
     BudgetState,
     LlmResponse,
     ToolCallRequest,

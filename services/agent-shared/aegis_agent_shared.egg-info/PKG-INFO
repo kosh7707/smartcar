@@ -1,0 +1,7 @@
+Metadata-Version: 2.4
+Name: aegis-agent-shared
+Version: 0.1.0
+Summary: AEGIS S3 에이전트 공통 프레임 (LLM 통신, 도구 실행, 스키마)
+Requires-Python: >=3.11
+Requires-Dist: httpx>=0.27.0
+Requires-Dist: pydantic>=2.9.0

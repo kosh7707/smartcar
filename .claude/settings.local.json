@@ -3,5 +3,7 @@
     "allow": [
       "Bash(pip install:*)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": ["log-analyzer"],
+  "enableAllProjectMcpServers": true
 }

@@ -184,6 +184,21 @@
   --source-sast-bg: rgba(16, 185, 129, 0.08);
   --source-sast-border: rgba(16, 185, 129, 0.2);
 
+  /* ── Z-Index Scale ── */
+  --z-base: 1;
+  --z-sticky: 10;
+  --z-dropdown: 50;
+  --z-overlay: 100;
+  --z-modal-backdrop: 1000;
+  --z-modal: 1050;
+  --z-toast: 1100;
+
+  /* ── Glow shadows (semantic) ── */
+  --glow-success: 0 0 6px rgba(22, 163, 74, 0.4);
+  --glow-danger: 0 0 6px rgba(220, 38, 38, 0.4);
+  --glow-warning: 0 0 6px rgba(234, 179, 8, 0.4);
+  --glow-accent: 0 0 6px rgba(59, 130, 246, 0.3);
+
   /* ── Extra semantic ── */
   --danger-hover: #b91c1c;
   --text-2xs: 10px;

@@ -37,12 +37,27 @@ def _get_text_recursive(el) -> str:
     return " ".join(p for p in parts if p)
 
 
-def parse_capec(xml_path: str) -> tuple[list[UnifiedThreatRecord], CapecBridge]:
-    """CAPEC XML을 파싱하여 UnifiedThreatRecord 리스트 + CapecBridge 반환."""
+_cwe_parent_map: dict[str, str] = {}
+
+
+def parse_capec(
+    xml_path: str,
+    cwe_parent_map: dict[str, str] | None = None,
+) -> tuple[list[UnifiedThreatRecord], CapecBridge, dict]:
+    """CAPEC XML을 파싱하여 (UnifiedThreatRecord 리스트, CapecBridge, 버전 메타) 반환."""
+    global _cwe_parent_map
+    if cwe_parent_map:
+        _cwe_parent_map = cwe_parent_map
     print(f"  [CAPEC] 파싱 중...")
 
     tree = ET.parse(xml_path)
     root = tree.getroot()
+
+    # 버전 메타데이터 추출
+    version_meta = {
+        "version": root.get("Version", "unknown"),
+        "date": root.get("Date", "unknown"),
+    }
 
     capec_to_cwe: dict[str, list[str]] = defaultdict(list)
     capec_to_attack: dict[str, list[str]] = defaultdict(list)
@@ -111,11 +126,11 @@ def parse_capec(xml_path: str) -> tuple[list[UnifiedThreatRecord], CapecBridge]:
         attack_surfaces = classify_attack_surfaces(full_text)
         relevance = compute_automotive_relevance(name, description)
 
-        # threat_category: 첫 번째 관련 CWE 기반
+        # threat_category: 첫 번째 관련 CWE 기반 (parent_map으로 계층 탐색)
         related_cwe_ids = capec_to_cwe.get(capec_id, [])
         threat_category = "Attack Pattern"
         for cid in related_cwe_ids:
-            cat = classify_threat_category(cid)
+            cat = classify_threat_category(cid, _cwe_parent_map)
             if cat != "Other":
                 threat_category = cat
                 break
@@ -160,6 +175,7 @@ def parse_capec(xml_path: str) -> tuple[list[UnifiedThreatRecord], CapecBridge]:
                 bridgeable += 1
                 break
     print(f"  [CAPEC] ATT&CK->CWE 브릿지 가능: {bridgeable}개 기법")
-    print(f"  [CAPEC] 노드 생성: {len(records)}개 레코드")
+    print(f"  [CAPEC] 노드 생성: {len(records)}개 레코드 (v{version_meta['version']})")
 
-    return records, bridge
+    version_meta["count"] = len(records)
+    return records, bridge, version_meta

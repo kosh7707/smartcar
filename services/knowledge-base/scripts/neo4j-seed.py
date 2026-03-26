@@ -10,6 +10,7 @@ Usage:
 """
 
 import argparse
+import json
 import os
 import sys
 import time
@@ -77,6 +78,45 @@ def main():
     for node in stats["topConnected"][:5]:
         title = (node.get("title") or "")[:40]
         print(f"    {node['id']}: {title} (degree={node['degree']})")
+
+    # KBMeta 노드 생성 (ontology 버전 추적)
+    meta_path = os.path.join(os.path.dirname(qdrant_path), "kb-meta.json")
+    if os.path.exists(meta_path):
+        with open(meta_path) as f:
+            kb_meta = json.load(f)
+
+        with driver.session() as session:
+            session.run(
+                "CREATE INDEX IF NOT EXISTS FOR (n:KBMeta) ON (n.id)"
+            )
+            # ATT&CK은 ICS/Enterprise 서브키 → 플랫 변환
+            attack_src = kb_meta.get("sources", {}).get("ATT&CK", {})
+            ics_ver = attack_src.get("ics", {}).get("version", "unknown")
+            ent_ver = attack_src.get("enterprise", {}).get("version", "unknown")
+
+            session.run(
+                "MERGE (m:KBMeta {id: 'kb-meta'}) "
+                "SET m.build_timestamp = $build_ts, "
+                "    m.cwe_version = $cwe_ver, "
+                "    m.cwe_date = $cwe_date, "
+                "    m.attack_ics_version = $ics_ver, "
+                "    m.attack_enterprise_version = $ent_ver, "
+                "    m.capec_version = $capec_ver, "
+                "    m.capec_date = $capec_date, "
+                "    m.total_records = $total, "
+                "    m.seed_timestamp = datetime()",
+                build_ts=kb_meta.get("build_timestamp", ""),
+                cwe_ver=kb_meta.get("sources", {}).get("CWE", {}).get("version", "unknown"),
+                cwe_date=kb_meta.get("sources", {}).get("CWE", {}).get("date", "unknown"),
+                ics_ver=ics_ver,
+                ent_ver=ent_ver,
+                capec_ver=kb_meta.get("sources", {}).get("CAPEC", {}).get("version", "unknown"),
+                capec_date=kb_meta.get("sources", {}).get("CAPEC", {}).get("date", "unknown"),
+                total=kb_meta.get("total_records", 0),
+            )
+        print(f"\n  KBMeta 노드 생성 완료 (빌드: {kb_meta.get('build_timestamp', '?')})")
+    else:
+        print(f"\n  kb-meta.json 없음 — KBMeta 노드 생략")
 
     driver.close()
     print("\n  Neo4j 시드 완료.")

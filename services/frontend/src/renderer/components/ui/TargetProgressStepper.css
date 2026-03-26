@@ -43,13 +43,13 @@
 
 /* States */
 .tps__step--done .tps__dot {
-  border-color: #16a34a;
-  background: #16a34a;
-  color: white;
+  border-color: var(--success);
+  background: var(--success);
+  color: var(--text-inverse);
 }
 
 .tps__step--done .tps__label {
-  color: #16a34a;
+  color: var(--success);
 }
 
 .tps__step--active .tps__dot {
@@ -75,7 +75,7 @@
 .tps__step--failed .tps__dot {
   border-color: var(--severity-high);
   background: var(--severity-high);
-  color: white;
+  color: var(--text-inverse);
 }
 
 .tps__step--failed .tps__label {
@@ -96,11 +96,11 @@
 }
 
 .tps__connector--done {
-  background: #16a34a;
+  background: var(--success);
 }
 
 .tps__connector--active {
-  background: linear-gradient(90deg, #16a34a 50%, var(--border-default) 50%);
+  background: linear-gradient(90deg, var(--success) 50%, var(--border-default) 50%);
 }
 
 /* Message below stepper */

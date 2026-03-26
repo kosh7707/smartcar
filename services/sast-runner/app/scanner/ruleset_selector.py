@@ -34,6 +34,8 @@ def detect_language_family(profile: BuildProfile) -> str:
     Returns:
         "c", "cpp", 또는 "mixed"
     """
+    if not profile.language_standard:
+        return "mixed"
     std = profile.language_standard.lower().strip()
 
     if std in _CPP_STANDARDS:

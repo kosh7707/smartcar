@@ -333,6 +333,45 @@ async def test_build_invalid_path(client: AsyncClient) -> None:
     assert data["success"] is False
 
 
+@pytest.mark.asyncio
+async def test_build_with_sdk_only_profile(client: AsyncClient, tmp_path) -> None:
+    """sdkId만 있는 buildProfile → 500이 아닌 정상 처리 (빌드 실패여도 200 + success:false)."""
+    resp = await client.post(
+        "/v1/build",
+        json={
+            "projectPath": str(tmp_path),
+            "buildCommand": "echo hello",
+            "buildProfile": {"sdkId": "ti-am335x"},
+        },
+    )
+    # 500이 아니어야 함 (200 + success:true/false)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "success" in data
+
+
+@pytest.mark.asyncio
+async def test_build_with_full_profile(client: AsyncClient, tmp_path) -> None:
+    """전체 필드를 채운 buildProfile → 정상 처리."""
+    resp = await client.post(
+        "/v1/build",
+        json={
+            "projectPath": str(tmp_path),
+            "buildCommand": "echo hello",
+            "buildProfile": {
+                "sdkId": "ti-am335x",
+                "compiler": "arm-none-linux-gnueabihf-gcc",
+                "targetArch": "arm",
+                "languageStandard": "c11",
+                "headerLanguage": "c",
+            },
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "success" in data
+
+
 # === /v1/includes ===
 
 
@@ -344,6 +383,58 @@ async def test_includes_no_input_returns_error(client: AsyncClient) -> None:
         json={"scanId": "test-inc-001", "projectId": "proj-test", "files": []},
     )
     assert resp.status_code == 400
+
+
+# === /v1/sdk-registry (POST/DELETE) ===
+
+
+@pytest.mark.asyncio
+async def test_register_sdk_no_sdk_id(client: AsyncClient) -> None:
+    """sdkId 없으면 400."""
+    resp = await client.post("/v1/sdk-registry", json={"path": "/tmp"})
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_register_sdk_no_path(client: AsyncClient) -> None:
+    """path 없으면 400."""
+    resp = await client.post("/v1/sdk-registry", json={"sdkId": "test"})
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_register_sdk_invalid_path(client: AsyncClient) -> None:
+    """존재하지 않는 경로면 400 + errors."""
+    resp = await client.post(
+        "/v1/sdk-registry",
+        json={"sdkId": "test-sdk", "path": "/nonexistent/sdk"},
+    )
+    assert resp.status_code == 400
+    data = resp.json()
+    assert data["success"] is False
+    assert len(data["errors"]) > 0
+
+
+@pytest.mark.asyncio
+async def test_register_sdk_valid(client: AsyncClient, tmp_path) -> None:
+    """유효한 경로로 등록 → success."""
+    resp = await client.post(
+        "/v1/sdk-registry",
+        json={"sdkId": "test-sdk-valid", "path": str(tmp_path)},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+
+    # 등록 후 삭제 (클린업)
+    await client.delete("/v1/sdk-registry/test-sdk-valid")
+
+
+@pytest.mark.asyncio
+async def test_delete_sdk_not_found(client: AsyncClient) -> None:
+    """존재하지 않는 SDK 삭제 → 404."""
+    resp = await client.delete("/v1/sdk-registry/nonexistent-sdk")
+    assert resp.status_code == 404
 
 
 # === /v1/libraries ===

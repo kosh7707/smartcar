@@ -11,6 +11,11 @@ const pageNames: Record<string, string> = {
   "analysis-history": "분석 이력",
   report: "보고서",
   settings: "프로젝트 설정",
+  "quality-gate": "Quality Gate",
+  approvals: "Approval Queue",
+  sdk: "SDK 관리",
+  "dynamic-analysis": "동적 분석",
+  "dynamic-test": "동적 테스트",
 };
 
 export const ProjectLayout: React.FC = () => {

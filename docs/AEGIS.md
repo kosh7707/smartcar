@@ -81,6 +81,7 @@
 | `services/{서비스명}/.env` | **해당 서비스 소유자** | 자기 서비스 환경변수. 직접 작성/관리 |
 | `scripts/backend/` | S2 | DB 유틸 (reset-db, db-stats, backup-db) |
 | `scripts/common/` | S2 | 로그 관리 유틸 |
+| `scripts/knowledge-base/` | **S5** | KB ETL 유틸 (etl-build 등) |
 
 #### 규칙
 
@@ -104,6 +105,7 @@
 | `services/llm-gateway/` | **S7** | LLM Gateway (:8000) |
 | `services/analysis-agent/` | S3 | Analysis Agent (:8001) |
 | `services/build-agent/` | S3 | Build Agent (S3 겸임) |
+| `services/agent-shared/` | S3 | Analysis/Build Agent 공통 프레임워크 |
 | `services/sast-runner/` | S4 | |
 | `services/knowledge-base/` | S5 | |
 | `services/ecu-simulator/` | S6 | |

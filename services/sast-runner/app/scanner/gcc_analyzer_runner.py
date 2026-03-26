@@ -9,9 +9,10 @@ from pathlib import Path
 from typing import Any
 
 from app.errors import ScanTimeoutError
+from app.scanner.path_utils import normalize_path
 from app.scanner.sdk_resolver import get_sdk_compiler
 from app.schemas.request import BuildProfile
-from app.schemas.response import SastFinding, SastFindingLocation
+from app.schemas.response import SastDataFlowStep, SastFinding, SastFindingLocation
 
 logger = logging.getLogger("aegis-sast-runner")
 
@@ -72,6 +73,7 @@ class GccAnalyzerRunner:
         source_files: list[str],
         profile: BuildProfile | None,
         timeout: int = 120,
+        enriched_profile: BuildProfile | None = None,
     ) -> list[SastFinding]:
         c_cpp_files = [
             f for f in source_files
@@ -81,12 +83,19 @@ class GccAnalyzerRunner:
             return []
 
         gcc_bin = self._resolve_gcc(profile)
+        # SDK 크로스 컴파일러 사용 시 enriched profile (SDK 헤더 포함 → 경계면 분석)
+        # 호스트 gcc 폴백 시 original profile (ARM 헤더 불일치 방지)
+        actual_profile = profile
+        if gcc_bin != "gcc" and enriched_profile:
+            actual_profile = enriched_profile
+            logger.info("gcc-fanalyzer: using enriched profile (SDK compiler detected)")
+
         logger.info("Running gcc -fanalyzer (%s) on %d files", gcc_bin, len(c_cpp_files))
 
         # 파일별 개별 실행 (동일 심볼 충돌 방지) + 병렬
         per_file_timeout = max(timeout // max(len(c_cpp_files), 1), 15)
         tasks = [
-            self._run_single(gcc_bin, scan_dir, f, profile, per_file_timeout)
+            self._run_single(gcc_bin, scan_dir, f, actual_profile, per_file_timeout)
             for f in c_cpp_files
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -182,7 +191,8 @@ class GccAnalyzerRunner:
         cmd = [gcc_bin, "-fanalyzer", "-c", "-o", "/dev/null"]
 
         if profile:
-            cmd.append(f"-std={profile.language_standard.lower()}")
+            if profile.language_standard:
+                cmd.append(f"-std={profile.language_standard.lower()}")
             if profile.include_paths:
                 for inc in profile.include_paths:
                     inc_path = Path(inc)
@@ -201,31 +211,42 @@ class GccAnalyzerRunner:
     def _parse_output(
         self, output: str, scan_dir: Path,
     ) -> list[SastFinding]:
-        """gcc stderr 출력 → SastFinding[]."""
+        """gcc stderr 출력 → SastFinding[].
+
+        warning/error 뒤에 이어지는 note 라인을 dataFlow로 수집한다.
+        경계면 분석: dataFlow에 사용자 코드와 SDK 경로가 섞이면 cross-boundary.
+        """
         findings: list[SastFinding] = []
         seen: set[tuple[str, int, str]] = set()
 
-        for line in output.splitlines():
+        # 1단계: warning + note 그룹핑
+        lines = output.splitlines()
+        groups: list[tuple[re.Match, list[re.Match]]] = []  # (warning_match, [note_matches])
+
+        for line in lines:
             match = _WARNING_RE.match(line)
             if not match:
-                if line.strip() and not line.startswith("In file included"):
-                    logger.debug("gcc-fanalyzer: unmatched line: %s", line[:120])
                 continue
 
-            file_path = self._normalize_path(match.group("file"), scan_dir)
-            line_num = int(match.group("line"))
-            col = int(match.group("col"))
             severity = match.group("severity")
-            message = match.group("message")
             flag = match.group("flag") or ""
 
-            # -fanalyzer 경고만 수집 (일반 -W 경고는 제외)
+            # -fanalyzer 경고만 수집
             if flag and not flag.startswith("-Wanalyzer"):
                 continue
 
-            # note는 스킵 (이전 warning의 부가 설명)
-            if severity == "note":
-                continue
+            if severity in ("warning", "error"):
+                groups.append((match, []))
+            elif severity == "note" and groups:
+                groups[-1][1].append(match)
+
+        # 2단계: findings 조립
+        for warning_match, note_matches in groups:
+            file_path = normalize_path(warning_match.group("file"), scan_dir)
+            line_num = int(warning_match.group("line"))
+            col = int(warning_match.group("col"))
+            message = warning_match.group("message")
+            flag = warning_match.group("flag") or ""
 
             key = (file_path, line_num, message[:50])
             if key in seen:
@@ -237,8 +258,8 @@ class GccAnalyzerRunner:
             if flag:
                 metadata["gccFlag"] = flag
 
-            # CWE 추출: gcc 출력에서 직접 [CWE-xxx] 캡처 → 매핑 테이블 폴백
-            gcc_cwe = match.group("cwe")
+            # CWE 추출
+            gcc_cwe = warning_match.group("cwe")
             if gcc_cwe:
                 metadata["cwe"] = [gcc_cwe]
             elif flag:
@@ -246,27 +267,28 @@ class GccAnalyzerRunner:
                 if mapped:
                     metadata["cwe"] = mapped
 
+            # note → dataFlow
+            data_flow: list[SastDataFlowStep] | None = None
+            if note_matches:
+                data_flow = [
+                    SastDataFlowStep(
+                        file=normalize_path(n.group("file"), scan_dir),
+                        line=int(n.group("line")),
+                        content=n.group("message"),
+                    )
+                    for n in note_matches
+                ]
+
             findings.append(SastFinding(
                 toolId="gcc-fanalyzer",
                 ruleId=f"gcc-fanalyzer:{rule_id}",
-                severity=severity,
+                severity=warning_match.group("severity"),
                 message=message,
                 location=SastFindingLocation(
                     file=file_path, line=line_num, column=col,
                 ),
-                dataFlow=None,
+                dataFlow=data_flow,
                 metadata=metadata if metadata else None,
             ))
 
         return findings
-
-    def _normalize_path(self, path: str, base_dir: Path) -> str:
-        base_str = str(base_dir)
-        if not base_str.endswith("/"):
-            base_str += "/"
-        if path.startswith(base_str):
-            return path[len(base_str):]
-        try:
-            return str(Path(path).relative_to(base_dir))
-        except ValueError:
-            return path

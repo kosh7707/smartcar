@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import httpx
 
-from app.context import get_request_id
+from agent_shared.context import get_request_id
 
 logger = logging.getLogger(__name__)
 
@@ -51,20 +51,20 @@ class ThreatSearch:
         graph_depth: int = 2,
     ) -> list[ThreatHit]:
         """S5 KB 시맨틱 검색 -> 상위 k건 반환."""
-        headers: dict[str, str] = {}
+        headers: dict[str, str] = {"X-Timeout-Ms": "10000"}
         request_id = get_request_id()
         if request_id:
             headers["X-Request-Id"] = request_id
 
         try:
+            body: dict = {"query": query}
+            if top_k != 5:
+                body["top_k"] = top_k
+            if min_score > 0.0:
+                body["min_score"] = min_score
             resp = await self._client.post(
                 "/v1/search",
-                json={
-                    "query": query,
-                    "top_k": top_k,
-                    "min_score": min_score,
-                    "graph_depth": graph_depth,
-                },
+                json=body,
                 headers=headers,
             )
             resp.raise_for_status()

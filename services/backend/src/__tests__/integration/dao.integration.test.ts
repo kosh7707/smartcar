@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import type { Database as DatabaseType } from "better-sqlite3";
 import { createTestDb } from "../../test/test-db";
 import { ProjectDAO } from "../../dao/project.dao";
-import { RuleDAO } from "../../dao/rule.dao";
 import { RunDAO } from "../../dao/run.dao";
 import { FindingDAO } from "../../dao/finding.dao";
 import { EvidenceRefDAO } from "../../dao/evidence-ref.dao";
@@ -23,7 +22,6 @@ import {
   makeApproval,
   makeAuditLog,
   makeAnalysisResult,
-  makeRule,
   makeStoredFile,
   makeBuildTarget,
 } from "../../test/factories";
@@ -53,26 +51,6 @@ describe("DAO Integration Tests", () => {
       expect(dao.delete("p1")).toBe(true);
       expect(dao.findById("p1")).toBeUndefined();
       expect(dao.delete("p1")).toBe(false);
-    });
-  });
-
-  describe("RuleDAO", () => {
-    it("save → findByProjectId → toggle → update → delete", () => {
-      const dao = new RuleDAO(db);
-      const rule = makeRule({ id: "R1", projectId: "p1", enabled: true });
-
-      dao.save(rule);
-      const found = dao.findByProjectId("p1");
-      expect(found).toHaveLength(1);
-      expect(found[0].enabled).toBe(true);
-
-      dao.toggleEnabled("R1", false);
-      expect(dao.findById("R1")?.enabled).toBe(false);
-
-      const updated = dao.update("R1", { name: "Renamed" });
-      expect(updated?.name).toBe("Renamed");
-
-      expect(dao.delete("R1")).toBe(true);
     });
   });
 

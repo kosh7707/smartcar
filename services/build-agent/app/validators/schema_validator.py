@@ -38,7 +38,7 @@ class SchemaValidator:
             except (TypeError, ValueError):
                 errors.append(f"confidence가 숫자가 아님: {confidence}")
 
-        if task_type == TaskType.TEST_PLAN_PROPOSE:
+        if hasattr(TaskType, "TEST_PLAN_PROPOSE") and task_type == TaskType.TEST_PLAN_PROPOSE:
             plan = parsed.get("plan")
             if plan is None:
                 errors.append("test-plan-propose 응답에 'plan' 필드 누락")

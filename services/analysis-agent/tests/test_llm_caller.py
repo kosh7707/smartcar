@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.errors import LlmHttpError, LlmTimeoutError, LlmUnavailableError
-from app.llm.caller import LlmCaller
+from agent_shared.errors import LlmHttpError, LlmTimeoutError, LlmUnavailableError
+from agent_shared.llm.caller import LlmCaller
 
 
 def _make_httpx_response(data: dict, status_code: int = 200):

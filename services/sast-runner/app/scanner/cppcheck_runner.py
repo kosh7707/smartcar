@@ -9,6 +9,7 @@ from typing import Any
 from xml.etree import ElementTree as ET
 
 from app.errors import ScanTimeoutError
+from app.scanner.path_utils import normalize_path
 from app.schemas.request import BuildProfile
 from app.schemas.response import SastDataFlowStep, SastFinding, SastFindingLocation
 
@@ -103,8 +104,8 @@ class CppcheckRunner:
 
         if profile:
             # languageStandard → --std
-            std = profile.language_standard.lower()
-            if std.startswith("c++") or std.startswith("gnu++"):
+            std = (profile.language_standard or "").lower()
+            if std and (std.startswith("c++") or std.startswith("gnu++")):
                 cmd.append(f"--std={std}")
             elif std.startswith("c") or std.startswith("gnu"):
                 cmd.append(f"--std={std}")
@@ -168,7 +169,7 @@ class CppcheckRunner:
             if not file_path or line == 0:
                 continue
 
-            file_path = self._normalize_path(file_path, base_dir)
+            file_path = normalize_path(file_path, base_dir)
 
             location = SastFindingLocation(
                 file=file_path,
@@ -181,7 +182,7 @@ class CppcheckRunner:
             if len(locations) > 1:
                 data_flow = []
                 for loc in locations:
-                    df_file = self._normalize_path(loc.get("file", ""), base_dir)
+                    df_file = normalize_path(loc.get("file", ""), base_dir)
                     df_line = int(loc.get("line", "0"))
                     info = loc.get("info", "")
                     if df_file and df_line:
@@ -209,13 +210,3 @@ class CppcheckRunner:
 
         return findings
 
-    def _normalize_path(self, path: str, base_dir: Path) -> str:
-        base_str = str(base_dir)
-        if not base_str.endswith("/"):
-            base_str += "/"
-        if path.startswith(base_str):
-            return path[len(base_str):]
-        try:
-            return str(Path(path).relative_to(base_dir))
-        except ValueError:
-            return path

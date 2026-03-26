@@ -145,6 +145,7 @@ export class ProjectSourceService {
 
     const fileCount = this.listFiles(projectId).length;
     logger.info({ projectId, projectDir, fileCount, format }, "Source extracted");
+    this.invalidateCompositionCache(projectId);
     return projectDir;
   }
 
@@ -211,6 +212,7 @@ export class ProjectSourceService {
 
     const fileCount = this.listFiles(projectId).length;
     logger.info({ projectId, gitUrl, branch, fileCount }, "Source cloned");
+    this.invalidateCompositionCache(projectId);
     return projectDir;
   }
 
@@ -348,8 +350,26 @@ export class ProjectSourceService {
     return fs.readFileSync(resolved, "utf-8");
   }
 
-  /** 프로젝트 소스코드 구성 집계 (GitHub Linguist 스타일) */
+  // ── composition 캐시 (프로젝트 디렉토리 mtime 기반 무효화) ──
+  private compositionCache = new Map<string, {
+    result: { composition: Record<string, { count: number; bytes: number }>; totalFiles: number; totalSize: number };
+    mtimeMs: number;
+  }>();
+
+  /** 프로젝트 소스코드 구성 집계 (GitHub Linguist 스타일). mtime 기반 캐싱. */
   computeComposition(projectId: string): { composition: Record<string, { count: number; bytes: number }>; totalFiles: number; totalSize: number } {
+    const projectDir = this.getProjectPath(projectId);
+    if (!projectDir) return { composition: {}, totalFiles: 0, totalSize: 0 };
+
+    // 프로젝트 디렉토리의 mtime으로 캐시 유효성 판별
+    let dirMtime = 0;
+    try { dirMtime = fs.statSync(projectDir).mtimeMs; } catch { /* noop */ }
+
+    const cached = this.compositionCache.get(projectId);
+    if (cached && cached.mtimeMs === dirMtime) {
+      return cached.result;
+    }
+
     const files = this.listFiles(projectId, null);
     const composition: Record<string, { count: number; bytes: number }> = {};
     let totalSize = 0;
@@ -362,7 +382,14 @@ export class ProjectSourceService {
       totalSize += f.size;
     }
 
-    return { composition, totalFiles: files.length, totalSize };
+    const result = { composition, totalFiles: files.length, totalSize };
+    this.compositionCache.set(projectId, { result, mtimeMs: dirMtime });
+    return result;
+  }
+
+  /** 특정 프로젝트의 composition 캐시 무효화 (업로드/삭제 후 호출) */
+  invalidateCompositionCache(projectId: string): void {
+    this.compositionCache.delete(projectId);
   }
 
   private languageToGroup(language: string): string {
@@ -423,6 +450,7 @@ export class ProjectSourceService {
     const projectDir = path.join(this.uploadsDir, projectId);
     if (fs.existsSync(projectDir)) {
       fs.rmSync(projectDir, { recursive: true, force: true });
+      this.invalidateCompositionCache(projectId);
       logger.info({ projectId }, "Source deleted");
     }
   }

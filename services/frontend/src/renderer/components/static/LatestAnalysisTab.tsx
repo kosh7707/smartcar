@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import type { Run, Finding, FindingStatus, FindingSourceType, EvidenceRef, GateResult, Severity } from "@aegis/shared";
-import { FileCode, ShieldAlert, Shield, AlertTriangle, Plus, LayoutList, Layers, CheckSquare } from "lucide-react";
+import { FileCode, ShieldAlert, Shield, AlertTriangle, Plus, LayoutList, Layers, CheckSquare, History } from "lucide-react";
 import { StatCard, EmptyState, Spinner, GateResultCard, SeverityBadge, FindingStatusBadge, SourceBadge } from "../ui";
 import { TopFilesCard } from "./TopFilesCard";
 import { parseLocation } from "../../utils/location";
@@ -319,6 +319,11 @@ const LatestAnalysisContent: React.FC<{
                       <FindingStatusBadge status={finding.status} size="sm" />
                       <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
                       <span className="vuln-title">{finding.title}</span>
+                      {(finding as Record<string, unknown>).fingerprint && (
+                        <span className="fingerprint-badge" title="이전 분석에서도 발견된 취약점">
+                          <History size={11} />
+                        </span>
+                      )}
                       {line && <span className="file-group__line">:{line}</span>}
                     </div>
                   </div>

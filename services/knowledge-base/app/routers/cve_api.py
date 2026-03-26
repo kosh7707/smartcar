@@ -9,6 +9,7 @@ from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from app.context import set_request_id
+from app.timeout import parse_timeout
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +45,10 @@ class BatchLookupRequest(BaseModel):
 async def batch_lookup(
     req: BatchLookupRequest,
     x_request_id: str | None = Header(None, alias="X-Request-Id"),
+    x_timeout_ms: int | None = Header(None, alias="X-Timeout-Ms"),
 ) -> dict:
     set_request_id(x_request_id)
+    parse_timeout(x_timeout_ms)
     start = time.monotonic()
 
     if _nvd_client is None:

@@ -1,26 +1,43 @@
-"""WriteFileTool — build-aegis/ 폴더 안에만 파일 생성."""
+"""WriteFileTool — build-aegis/ 폴더 안에만 파일 생성. FilePolicy 연동."""
 from __future__ import annotations
+
+import json
 import os
-from app.schemas.agent import ToolResult
+from typing import TYPE_CHECKING
+
+from agent_shared.schemas.agent import ToolResult
+
+if TYPE_CHECKING:
+    from app.policy.file_policy import FilePolicy
+
 
 class WriteFileTool:
-    def __init__(self, project_path: str, build_dir: str = "build-aegis") -> None:
-        self._target_dir = os.path.join(project_path, build_dir)
+    def __init__(self, project_path: str, build_dir: str = "build-aegis",
+                 file_policy: "FilePolicy | None" = None) -> None:
+        self._target_dir = os.path.normpath(os.path.join(project_path, build_dir))
         self._build_dir = build_dir
+        self._file_policy = file_policy
 
     async def execute(self, arguments: dict) -> ToolResult:
         rel_path = arguments.get("path", "")
         content = arguments.get("content", "")
-        full_path = os.path.normpath(os.path.join(self._target_dir, rel_path))
-        if not full_path.startswith(self._target_dir):
+        if not rel_path:
             return ToolResult(tool_call_id="", name="", success=False,
-                              content=f'{{"error": "write only allowed in {self._build_dir}/"}}', error="write blocked")
+                              content='{"error": "path is required"}', error="missing path")
+        full_path = os.path.normpath(os.path.join(self._target_dir, rel_path))
+        if not full_path.startswith(self._target_dir + os.sep):
+            return ToolResult(tool_call_id="", name="", success=False,
+                              content=json.dumps({"error": f"write only allowed in {self._build_dir}/"}),
+                              error="write blocked")
         try:
             os.makedirs(os.path.dirname(full_path), exist_ok=True)
             with open(full_path, "w", encoding="utf-8") as f:
                 f.write(content)
+            if self._file_policy:
+                self._file_policy.record_created(rel_path)
+            size = len(content.encode("utf-8"))
             return ToolResult(tool_call_id="", name="", success=True,
-                              content=f'{{"written": "{self._build_dir}/{rel_path}", "bytes": {len(content)}}}')
+                              content=json.dumps({"written": f"{self._build_dir}/{rel_path}", "bytes": size}))
         except Exception as e:
             return ToolResult(tool_call_id="", name="", success=False,
-                              content=f'{{"error": "{e}"}}', error=str(e))
+                              content=json.dumps({"error": str(e)}), error=str(e))

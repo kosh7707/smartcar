@@ -7,9 +7,14 @@ import {
   LayoutDashboard,
   FileSearch,
   Shield,
+  ShieldCheck,
+  ClipboardCheck,
   Files,
   Clock,
   FileText,
+  Activity,
+  Zap,
+  Cpu,
 } from "lucide-react";
 import { useProjects } from "../contexts/ProjectContext";
 import { useAnalysisGuard } from "../contexts/AnalysisGuardContext";
@@ -19,12 +24,17 @@ import "./Sidebar.css";
 const ICON_SIZE = 18;
 
 const projectNavItems = [
-  { sub: "overview", label: "대시보드", icon: LayoutDashboard },
-  { sub: "files", label: "파일 탐색기", icon: Files },
-  { sub: "vulnerabilities", label: "취약점 목록", icon: Shield },
-  { sub: "static-analysis", label: "정적 분석", icon: FileSearch },
-  { sub: "analysis-history", label: "분석 이력", icon: Clock },
-  { sub: "report", label: "보고서", icon: FileText },
+  { sub: "overview", label: "대시보드", icon: LayoutDashboard, comingSoon: false },
+  { sub: "files", label: "파일 탐색기", icon: Files, comingSoon: false },
+  { sub: "vulnerabilities", label: "취약점 목록", icon: Shield, comingSoon: false },
+  { sub: "static-analysis", label: "정적 분석", icon: FileSearch, comingSoon: false },
+  { sub: "dynamic-analysis", label: "동적 분석", icon: Activity, comingSoon: true },
+  { sub: "dynamic-test", label: "동적 테스트", icon: Zap, comingSoon: true },
+  { sub: "quality-gate", label: "Quality Gate", icon: ShieldCheck, comingSoon: false },
+  { sub: "approvals", label: "Approval Queue", icon: ClipboardCheck, comingSoon: false },
+  { sub: "sdk", label: "SDK 관리", icon: Cpu, comingSoon: false },
+  { sub: "analysis-history", label: "분석 이력", icon: Clock, comingSoon: false },
+  { sub: "report", label: "보고서", icon: FileText, comingSoon: false },
 ];
 
 export const Sidebar: React.FC = () => {
@@ -78,11 +88,12 @@ export const Sidebar: React.FC = () => {
               <li key={item.sub}>
                 <NavLink
                   to={`/projects/${projectId}/${item.sub}`}
-                  className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
+                  className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}${item.comingSoon ? " sidebar-link--coming-soon" : ""}`}
                   onClick={(e) => handleNavClick(e, `/projects/${projectId}/${item.sub}`)}
                 >
                   <item.icon size={ICON_SIZE} />
                   {item.label}
+                  {item.comingSoon && <span className="sidebar-coming-soon-tag" aria-label="준비 중 기능">준비 중</span>}
                 </NavLink>
               </li>
             ))}

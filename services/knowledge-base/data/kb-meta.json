@@ -1,0 +1,29 @@
+{
+  "build_timestamp": "2026-03-26T01:08:18.619988+00:00",
+  "sources": {
+    "CWE": {
+      "version": "4.19.1",
+      "date": "2026-01-21",
+      "count": 944
+    },
+    "ATT&CK": {
+      "ics": {
+        "version": "18.1",
+        "modified": "2025-11-13T14:00:00.188Z",
+        "count": 83
+      },
+      "enterprise": {
+        "version": "18.1",
+        "modified": "2025-11-13T14:00:00.188Z",
+        "count": 426
+      },
+      "count": 509
+    },
+    "CAPEC": {
+      "version": "3.9",
+      "date": "2023-01-24",
+      "count": 558
+    }
+  },
+  "total_records": 2011
+}

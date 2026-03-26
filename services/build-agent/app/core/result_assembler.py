@@ -8,14 +8,16 @@ import logging
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from app.observability import agent_log
+from agent_shared.observability import agent_log
 from app.pipeline.confidence import ConfidenceCalculator
 from app.pipeline.response_parser import V1ResponseParser
-from app.schemas.agent import AgentAuditInfo
+from agent_shared.schemas.agent import AgentAuditInfo
 from app.schemas.response import (
     AssessmentResult,
     AuditInfo,
+    BuildResult,
     Claim,
+    SdkProfile,
     TaskFailureResponse,
     TaskSuccessResponse,
     TokenUsage,
@@ -118,6 +120,34 @@ class ResultAssembler:
             for c in parsed.get("claims", [])
         ]
 
+        # buildResult 추출
+        build_result_data = parsed.get("buildResult")
+        build_result = None
+        if isinstance(build_result_data, dict):
+            build_result = BuildResult(
+                success=build_result_data.get("success", False),
+                buildCommand=build_result_data.get("buildCommand", ""),
+                buildScript=build_result_data.get("buildScript", ""),
+                buildDir=build_result_data.get("buildDir", "build-aegis"),
+                errorLog=build_result_data.get("errorLog"),
+            )
+
+        # sdkProfile 추출
+        sdk_profile_data = parsed.get("sdkProfile")
+        sdk_profile = None
+        if isinstance(sdk_profile_data, dict):
+            sdk_profile = SdkProfile(
+                compiler=sdk_profile_data.get("compiler", ""),
+                compilerPrefix=sdk_profile_data.get("compilerPrefix", ""),
+                gccVersion=sdk_profile_data.get("gccVersion", ""),
+                targetArch=sdk_profile_data.get("targetArch", ""),
+                languageStandard=sdk_profile_data.get("languageStandard", ""),
+                sysroot=sdk_profile_data.get("sysroot", ""),
+                environmentSetup=sdk_profile_data.get("environmentSetup", ""),
+                includePaths=sdk_profile_data.get("includePaths", []),
+                defines=sdk_profile_data.get("defines", {}),
+            )
+
         result = AssessmentResult(
             summary=parsed.get("summary", ""),
             claims=claims,
@@ -129,6 +159,8 @@ class ResultAssembler:
             needsHumanReview=parsed.get("needsHumanReview", True),
             recommendedNextSteps=parsed.get("recommendedNextSteps", []),
             policyFlags=parsed.get("policyFlags", []),
+            buildResult=build_result,
+            sdkProfile=sdk_profile,
         )
 
         agent_log(
@@ -151,17 +183,28 @@ class ResultAssembler:
             audit=self._build_audit(session, "content_returned"),
         )
 
+    _TERMINATION_MAP: dict[str, tuple[TaskStatus, FailureCode, bool]] = {
+        "max_steps":           (TaskStatus.BUDGET_EXCEEDED, FailureCode.MAX_STEPS_EXCEEDED,    False),
+        "budget_exhausted":    (TaskStatus.BUDGET_EXCEEDED, FailureCode.TOKEN_BUDGET_EXCEEDED, False),
+        "timeout":             (TaskStatus.TIMEOUT,         FailureCode.TIMEOUT,               True),
+        "no_new_evidence":     (TaskStatus.BUDGET_EXCEEDED, FailureCode.INSUFFICIENT_EVIDENCE, False),
+        "all_tiers_exhausted": (TaskStatus.BUDGET_EXCEEDED, FailureCode.ALL_TOOLS_EXHAUSTED,   False),
+    }
+
     def build_from_exhaustion(
         self,
         session: AgentSession,
     ) -> TaskFailureResponse:
         """정책에 의해 루프가 종료된 경우 실패 응답을 생성한다."""
         reason = session.termination_reason
+        status, code, retryable = self._TERMINATION_MAP.get(
+            reason,
+            (TaskStatus.BUDGET_EXCEEDED, FailureCode.TOKEN_BUDGET_EXCEEDED, False),
+        )
         return self.build_failure(
-            session, TaskStatus.BUDGET_EXCEEDED,
-            FailureCode.TOKEN_BUDGET_EXCEEDED,
+            session, status, code,
             f"에이전트 루프 종료: {reason}",
-            retryable=False,
+            retryable=retryable,
         )
 
     def build_failure(

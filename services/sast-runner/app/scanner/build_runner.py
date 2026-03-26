@@ -124,6 +124,7 @@ class BuildRunner:
         build_command: str,
         timeout: int = 300,
         profile: BuildProfile | None = None,
+        wrap_with_bear: bool = True,
     ) -> dict[str, Any]:
         """빌드 실행 + compile_commands.json 생성.
 
@@ -132,6 +133,8 @@ class BuildRunner:
             build_command: 빌드 명령어 (예: "./scripts/cross_build.sh")
             timeout: 빌드 타임아웃 (초, 기본 5분)
             profile: BuildProfile — sdkId가 있으면 environment-setup 자동 적용
+            wrap_with_bear: True면 bear로 감싸서 compile_commands.json 자동 생성.
+                False면 순수 빌드만 실행 (bear가 빌드를 방해하는 edge case 대비).
 
         Returns:
             {
@@ -161,7 +164,11 @@ class BuildRunner:
                 actual_cmd = f"source {env_setup} && {build_command}"
                 logger.info("SDK environment-setup applied: %s", env_setup)
 
-        cmd = ["bear", "--", "sh", "-c", actual_cmd]
+        if wrap_with_bear:
+            cmd = ["bear", "--", "bash", "-c", actual_cmd]
+        else:
+            cmd = ["bash", "-c", actual_cmd]
+            logger.info("Bear wrapping disabled — raw build execution")
 
         logger.info(
             "Build started: %s in %s",
@@ -217,15 +224,44 @@ class BuildRunner:
                 "elapsedMs": elapsed,
             }
 
+        # CMakeFiles/ 임시 항목 필터링 (TryCompile 등)
+        user_entries = [
+            e for e in entries
+            if "CMakeFiles" not in e.get("file", "")
+        ]
+        user_entry_count = len(user_entries)
+
+        build_failed = proc.returncode != 0
+
+        if build_failed:
+            reason = "build exited with code %d" % proc.returncode
+            if user_entry_count == 0:
+                reason += " — compile_commands.json contains only CMake temporary entries"
+            logger.warning(
+                "Build failed: %s (%d total entries, %d user entries, %dms)",
+                reason, entry_count, user_entry_count, elapsed,
+            )
+            return {
+                "success": False,
+                "error": reason,
+                "compileCommandsPath": str(cc_path),
+                "entries": entry_count,
+                "userEntries": user_entry_count,
+                "exitCode": proc.returncode,
+                "buildOutput": build_output[-1000:],
+                "elapsedMs": elapsed,
+            }
+
         logger.info(
-            "Build completed: %d entries, exit=%d, %dms",
-            entry_count, proc.returncode, elapsed,
+            "Build completed: %d entries (%d user), exit=%d, %dms",
+            entry_count, user_entry_count, proc.returncode, elapsed,
         )
 
         return {
             "success": True,
             "compileCommandsPath": str(cc_path),
             "entries": entry_count,
+            "userEntries": user_entry_count,
             "exitCode": proc.returncode,
             "buildOutput": build_output[-500:],
             "elapsedMs": elapsed,

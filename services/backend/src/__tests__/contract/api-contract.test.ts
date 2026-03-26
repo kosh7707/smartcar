@@ -435,4 +435,46 @@ describe("API Contract Tests", () => {
       expect(res.status).toBe(404);
     });
   });
+
+  // ================================================================
+  // Pipeline API
+  // ================================================================
+
+  describe("Pipeline API", () => {
+    it("GET /pipeline/status returns targets with phase mapping", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-pipe" }));
+      ctx.buildTargetDAO.save(makeBuildTarget({ id: "tp1", projectId: "p-pipe", status: "discovered" }));
+      ctx.buildTargetDAO.save(makeBuildTarget({ id: "tp2", projectId: "p-pipe", status: "ready" }));
+
+      const res = await request(app).get("/api/projects/p-pipe/pipeline/status");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.targets).toHaveLength(2);
+      expect(res.body.data.readyCount).toBe(1);
+
+      const discovered = res.body.data.targets.find((t: any) => t.id === "tp1");
+      expect(discovered.phase).toBe("setup");
+
+      const ready = res.body.data.targets.find((t: any) => t.id === "tp2");
+      expect(ready.phase).toBe("ready");
+    });
+
+    it("GET /pipeline/status returns 404 for unknown project", async () => {
+      const res = await request(app).get("/api/projects/nonexistent/pipeline/status");
+      expect(res.status).toBe(404);
+    });
+
+    it("GET /pipeline/status maps resolving/resolve_failed to setup", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-pipe2" }));
+      ctx.buildTargetDAO.save(makeBuildTarget({ id: "tp3", projectId: "p-pipe2", status: "resolving" as any }));
+      ctx.buildTargetDAO.save(makeBuildTarget({ id: "tp4", projectId: "p-pipe2", status: "resolve_failed" as any }));
+
+      const res = await request(app).get("/api/projects/p-pipe2/pipeline/status");
+      expect(res.status).toBe(200);
+
+      for (const t of res.body.data.targets) {
+        expect(t.phase).toBe("setup");
+      }
+    });
+  });
 });

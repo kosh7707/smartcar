@@ -7,8 +7,8 @@ import logging
 
 import httpx
 
-from app.context import get_request_id
-from app.schemas.agent import ToolResult
+from agent_shared.context import get_request_id
+from agent_shared.schemas.agent import ToolResult
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +35,12 @@ class KnowledgeTool:
             )
 
         try:
-            headers: dict[str, str] = {}
+            headers: dict[str, str] = {"X-Timeout-Ms": "10000"}
             request_id = get_request_id()
             if request_id:
                 headers["X-Request-Id"] = request_id
 
-            body: dict = {"query": query, "top_k": top_k}
+            body: dict = {"query": query}
             if source_filter:
                 body["source_filter"] = source_filter
 

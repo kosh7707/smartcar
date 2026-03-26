@@ -9,6 +9,12 @@ from httpx import ASGITransport, AsyncClient
 
 from app.main import app
 from app.scanner.sarif_parser import parse_sarif
+from app.schemas.response import (
+    ExecutionReport,
+    FindingsFilterInfo,
+    SdkResolutionInfo,
+    ToolExecutionResult,
+)
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -23,19 +29,19 @@ def mock_semgrep_runner(sample_sarif):
     """오케스트레이터를 mock하여 sample SARIF 기반 findings + execution report를 반환."""
     findings, _ = parse_sarif(sample_sarif, Path("/tmp/mock"))
 
-    execution = {
-        "toolsRun": ["semgrep", "cppcheck", "flawfinder", "clang-tidy"],
-        "toolResults": {
-            "semgrep": {"findingsCount": 3, "elapsedMs": 100, "status": "ok"},
-            "cppcheck": {"findingsCount": 0, "elapsedMs": 50, "status": "ok"},
-            "flawfinder": {"findingsCount": 0, "elapsedMs": 10, "status": "ok"},
-            "clang-tidy": {"findingsCount": 0, "elapsedMs": 80, "status": "ok"},
-            "scan-build": {"findingsCount": 0, "elapsedMs": 0, "status": "skipped", "skipReason": "Not installed"},
-            "gcc-fanalyzer": {"findingsCount": 0, "elapsedMs": 0, "status": "skipped", "skipReason": "Not installed"},
+    execution = ExecutionReport(
+        tools_run=["semgrep", "cppcheck", "flawfinder", "clang-tidy"],
+        tool_results={
+            "semgrep": ToolExecutionResult(status="ok", findings_count=3, elapsed_ms=100, version="1.45.0"),
+            "cppcheck": ToolExecutionResult(status="ok", findings_count=0, elapsed_ms=50, version="2.13.0"),
+            "flawfinder": ToolExecutionResult(status="ok", findings_count=0, elapsed_ms=10, version="2.0.19"),
+            "clang-tidy": ToolExecutionResult(status="ok", findings_count=0, elapsed_ms=80, version="18.1.3"),
+            "scan-build": ToolExecutionResult(status="skipped", findings_count=0, elapsed_ms=0, skip_reason="Not installed"),
+            "gcc-fanalyzer": ToolExecutionResult(status="skipped", findings_count=0, elapsed_ms=0, skip_reason="Not installed"),
         },
-        "sdk": {"resolved": False},
-        "filtering": {"beforeFilter": 3, "afterFilter": 3, "sdkNoiseRemoved": 0},
-    }
+        sdk=SdkResolutionInfo(resolved=False),
+        filtering=FindingsFilterInfo(before_filter=3, after_filter=3, sdk_noise_removed=0),
+    )
 
     with patch("app.routers.scan.orchestrator") as mock_orch:
         mock_orch.run = AsyncMock(return_value=(findings, execution))

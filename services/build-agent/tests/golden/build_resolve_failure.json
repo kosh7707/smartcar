@@ -1,0 +1,9 @@
+{
+  "taskId": "__STRING__",
+  "taskType": "__STRING__",
+  "status": "__STRING__",
+  "failureCode": "__STRING__",
+  "failureDetail": "__STRING__",
+  "retryable": "__BOOL__",
+  "audit": "__DICT__"
+}

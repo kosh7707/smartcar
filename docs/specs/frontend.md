@@ -461,8 +461,8 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 | 빌드 타겟 관리 | BuildTargetSection + BuildProfileForm — 타겟 CRUD, SDK 프로파일(12+1), S4 자동 탐색 |
 | 타겟 선택 분석 | TargetSelectDialog — 분석 실행 전 타겟 체크 선택, 전체/개별, 하위 호환 |
 | 정적 분석 전체 흐름 | 소스 업로드→타겟 설정→WS 2단계 진행(Quick SAST→Deep Agent, 타겟별 진행률)→대시보드/결과 |
-| 동적 분석 | **숨김** (2026-03-19) — 코드 유지, 라우트/사이드바 제거 |
-| 동적 테스트 | **숨김** (2026-03-19) — 코드 유지, 라우트/사이드바 제거 |
+| 동적 분석 | **준비 중** (2026-03-25) — 코드 유지, ComingSoonPlaceholder 라우트+사이드바 등록 |
+| 동적 테스트 | **준비 중** (2026-03-25) — 코드 유지, ComingSoonPlaceholder 라우트+사이드바 등록 |
 | 파일 탐색기/상세 | 트리 뷰, 코드 표시, 취약점 하이라이팅 |
 | 취약점 통합 뷰 | 분석 세션별 그룹(모듈 컬러), 심각도/날짜 필터 |
 | 분석 이력 타임라인 | 전 모듈 통합 |
@@ -505,7 +505,7 @@ S1은 백엔드의 policy decision payload를 렌더링한다.
 | 공유 타입 | @aegis/shared (monorepo) |
 | 코드 하이라이팅 | highlight.js (14개 언어, 라이트/다크 테마) |
 | 마크다운 렌더링 | react-markdown + remark-gfm (GFM 완전 지원) |
-| 테스트 | vitest + @testing-library/react + jsdom (195 테스트) |
+| 테스트 | vitest + @testing-library/react + jsdom (248 테스트) |
 
 ---
 
@@ -795,22 +795,21 @@ class ApiError extends Error {
 
 vitest 4.1.0 + @testing-library/react + jsdom. `npm test` 실행.
 
-### 구현 완료 (195 테스트)
+### 구현 완료 (248 테스트)
 
 | 유형 | 파일 수 | 테스트 수 | 대상 |
 |------|---------|----------|------|
 | 유틸 유닛 | 9 | 89 | tree, location, findingOverlay, format, fileMatch, markdown, severity, analysis, cveHighlight |
-| 상수 유닛 | 3 | 26 | finding (상태 전이 canTransitionTo), languages, modules |
+| 상수 유닛 | 4 | 26 | finding (상태 전이), languages, modules, sdkProfiles |
 | API 통합 | 1 | 11 | fetch 모킹 + CRUD/runAnalysis/PoC/source API |
-| 훅 테스트 | 2 | 14 | useElapsedTimer (fake timer), useBuildTargets (API 모킹) |
-| 컴포넌트 | 4 | 39 | TargetSelectDialog, BuildProfileForm, FileTreeNode, ConfirmDialog |
+| 훅 테스트 | 7 | 47 | useElapsedTimer, useBuildTargets, useAnalysisWebSocket (WS 모킹), usePipelineProgress (WS), useUploadProgress (WS), useStaticDashboard (폴링), useAsyncAnalysis, useStaticAnalysis |
+| 컴포넌트 | 8 | 55 | TargetSelectDialog, BuildProfileForm, FileTreeNode, ConfirmDialog, AgentResultPanel, BuildTargetSection, SubprojectCreateDialog, SourceTreeView |
 | 컨텍스트 | 1 | 6 | ToastContext (auto-dismiss, max 5, action) |
 | UI 컴포넌트 | 1 | 7 | SeverityBadge, SourceBadge, Spinner, EmptyState |
 
 ### 추가 예정
-- useStaticDashboard 훅 테스트
-- 추가 컴포넌트 테스트 (AgentResultPanel, SourceTreeView 등)
 - E2E 시나리오 테스트
+- 페이지 레벨 통합 테스트
 
 ---
 

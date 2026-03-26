@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from app.schemas.agent import ToolResult
+from agent_shared.schemas.agent import ToolResult
 
 
 class MockKnowledgeTool:

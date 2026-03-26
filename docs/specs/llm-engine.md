@@ -41,7 +41,7 @@
 | OS | NVIDIA DGX Spark Version 7.4.0 |
 | Docker | 29.1.3 + NVIDIA Container Runtime 1.18.2 |
 | 연결 | ConnectX-7 (100GbE) |
-| IP | `10.126.37.19` |
+| IP | 환경변수 `AEGIS_LLM_ENDPOINT`로 설정 (인수인계서 참조) |
 
 ### 모델 메모리 분석
 
@@ -207,12 +207,12 @@ S7 Gateway의 환경변수로 LLM Engine을 가리킨다:
 
 ```env
 AEGIS_LLM_MODE=real
-AEGIS_LLM_ENDPOINT=http://10.126.37.19:8000
+AEGIS_LLM_ENDPOINT=http://${LLM_ENGINE_HOST}:8000
 AEGIS_LLM_MODEL=Qwen/Qwen3.5-122B-A10B-GPTQ-Int4
 AEGIS_LLM_API_KEY=                              # vLLM: 불필요
 ```
 
-**주의**: S7 Gateway(WSL2)에서 LLM Engine(DGX Spark)으로의 통신이므로 `localhost`가 아닌 DGX Spark의 IP(`10.126.37.19`)를 사용한다.
+**주의**: S7 Gateway(WSL2)에서 LLM Engine(DGX Spark)으로의 통신이므로 `localhost`가 아닌 LLM Engine 호스트의 IP를 사용한다. 실제 IP는 `.env` 파일에서 설정하며, 접속 정보는 인수인계서(`docs/s7-handoff/README.md`)를 참조한다.
 
 ### 모델명 규칙
 
@@ -221,7 +221,7 @@ vLLM의 모델명은 HuggingFace 형식 `Qwen/Qwen3.5-122B-A10B-GPTQ-Int4`이다
 ### 연동 확인 절차
 
 1. DGX Spark에서 vLLM 컨테이너 기동
-2. `curl http://10.126.37.19:8000/v1/models` → 모델 목록 확인
+2. `curl http://${LLM_ENGINE_HOST}:8000/v1/models` → 모델 목록 확인
 3. S7 환경변수 설정 (`AEGIS_LLM_MODE=real`, endpoint/model 변경)
 4. S7 Gateway 기동
 5. S7 `/v1/health` → `modelProfiles` 확인

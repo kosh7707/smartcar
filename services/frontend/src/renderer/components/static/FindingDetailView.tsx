@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import type { Finding, EvidenceRef, AuditLogEntry, FindingStatus } from "@aegis/shared";
-import { MapPin, Copy, Clock, FlaskConical, Timer, Cpu } from "lucide-react";
+import { MapPin, Copy, Clock, FlaskConical, Timer, Cpu, History } from "lucide-react";
 import {
   BackButton,
   Spinner,
@@ -54,7 +54,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
     setPocData(null);
     loadDetail();
     return () => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); };
-  }, [findingId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadDetail]);
 
   const handleStatusChange = async (newStatus: FindingStatus, reason: string) => {
     if (!finding) return;
@@ -129,6 +129,11 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
           <FindingStatusBadge status={finding.status} />
           <ConfidenceBadge confidence={finding.confidence} />
           <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
+          {(finding as Record<string, unknown>).fingerprint && (
+            <span className="fingerprint-badge" title="이전 분석에서도 발견된 취약점 (fingerprint 추적)">
+              <History size={12} /> 재발견
+            </span>
+          )}
           <h2 className="finding-banner__title">
             {finding.title}
           </h2>

@@ -1,0 +1,56 @@
+import type {
+  Project,
+  ProjectCreateRequest,
+  ProjectResponse,
+  ProjectListResponse,
+  ProjectOverviewResponse,
+  ProjectSettings,
+} from "@aegis/shared";
+import { apiFetch } from "./core";
+
+// ── Projects ──
+
+export async function fetchProjects(): Promise<Project[]> {
+  const res = await apiFetch<ProjectListResponse>("/api/projects");
+  return res.data;
+}
+
+export async function fetchProject(id: string): Promise<Project> {
+  const res = await apiFetch<ProjectResponse>(`/api/projects/${id}`);
+  return res.data!;
+}
+
+export async function createProject(req: ProjectCreateRequest): Promise<Project> {
+  const res = await apiFetch<ProjectResponse>("/api/projects", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  return res.data!;
+}
+
+export async function deleteProject(id: string): Promise<void> {
+  await apiFetch(`/api/projects/${id}`, { method: "DELETE" });
+}
+
+// ── Project Settings ──
+
+export async function fetchProjectSettings(projectId: string): Promise<ProjectSettings> {
+  const res = await apiFetch<{ success: boolean; data: ProjectSettings }>(`/api/projects/${projectId}/settings`);
+  return res.data;
+}
+
+export async function updateProjectSettings(projectId: string, settings: Partial<ProjectSettings>): Promise<ProjectSettings> {
+  const res = await apiFetch<{ success: boolean; data: ProjectSettings }>(`/api/projects/${projectId}/settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+  return res.data;
+}
+
+// ── Project Overview ──
+
+export async function fetchProjectOverview(projectId: string): Promise<ProjectOverviewResponse> {
+  return apiFetch<ProjectOverviewResponse>(`/api/projects/${projectId}/overview`);
+}

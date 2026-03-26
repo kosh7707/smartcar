@@ -2,8 +2,8 @@
 
 import json
 
-from app.llm.message_manager import MessageManager
-from app.schemas.agent import ToolCallRequest, ToolResult
+from agent_shared.llm.message_manager import MessageManager
+from agent_shared.schemas.agent import ToolCallRequest, ToolResult
 
 
 def test_initial_messages():

@@ -1,4 +1,4 @@
-# LLM Gateway (S3)
+# LLM Gateway (S7)
 
 자동차 전장부품 사이버보안 검증 프레임워크의 LLM 연동 게이트웨이 서비스.
 
@@ -22,8 +22,8 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 | 변수 | 기본값 | 설명 |
 |------|--------|------|
 | AEGIS_LLM_MODE | mock | `mock` / `real` |
-| AEGIS_LLM_ENDPOINT | http://10.126.37.19:8000 | LLM Engine(S4) 엔드포인트 (vLLM) |
-| AEGIS_LLM_MODEL | Qwen/Qwen3.5-35B-A3B-FP8 | 사용할 모델명 |
+| AEGIS_LLM_ENDPOINT | (`.env.example` 참조) | LLM Engine 엔드포인트 (vLLM) |
+| AEGIS_LLM_MODEL | Qwen/Qwen3.5-122B-A10B-GPTQ-Int4 | 사용할 모델명 |
 | AEGIS_LLM_API_KEY | (빈 문자열) | API 키 (vLLM: 불필요) |
 
 ## API
@@ -42,7 +42,7 @@ app/
 ├── main.py                 # FastAPI 앱 진입점
 ├── config.py               # 설정 (.env → Settings)
 ├── context.py              # 요청 컨텍스트 (requestId)
-├── errors.py               # S3Error 계층
+├── errors.py               # GatewayError 계층
 ├── types.py                # TaskType, TaskStatus, FailureCode
 ├── clients/
 │   ├── base.py             # LlmClient ABC

@@ -1,13 +1,12 @@
 import Database, { type Database as DatabaseType } from "better-sqlite3";
-import path from "path";
 import { createLogger } from "./lib/logger";
+import { config } from "./config";
 
 const logger = createLogger("db");
 
 /** DB 인스턴스 생성 (테스트: ":memory:", 프로덕션: 파일 경로) */
 export function createDatabase(dbPath?: string): DatabaseType {
-  const resolvedPath =
-    dbPath ?? process.env.DB_PATH ?? path.join(__dirname, "..", "aegis.db");
+  const resolvedPath = dbPath ?? config.dbPath;
   const db = new Database(resolvedPath);
   db.pragma("journal_mode = WAL");
   return db;
@@ -45,6 +44,7 @@ export function initSchema(db: DatabaseType): void {
       created_at      TEXT NOT NULL
     );
 
+    -- DEPRECATED: 룰 엔진 제거 예정. 신규 코드에서 참조 금지.
     CREATE TABLE IF NOT EXISTS rules (
       id          TEXT PRIMARY KEY,
       name        TEXT NOT NULL,
@@ -315,6 +315,46 @@ export function initSchema(db: DatabaseType): void {
   try { db.exec(`ALTER TABLE build_targets ADD COLUMN last_built_at TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE build_targets ADD COLUMN included_paths TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE build_targets ADD COLUMN source_path TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN build_command TEXT`); } catch { /* 이미 존재 */ }
+
+  // SDK 레지스트리 (유저 등록)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS sdk_registry (
+      id              TEXT PRIMARY KEY,
+      project_id      TEXT NOT NULL,
+      name            TEXT NOT NULL,
+      description     TEXT,
+      path            TEXT NOT NULL,
+      profile         TEXT NOT NULL DEFAULT '{}',
+      status          TEXT NOT NULL DEFAULT 'uploading',
+      verify_error    TEXT,
+      verified        INTEGER NOT NULL DEFAULT 0,
+      created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_sdk_registry_project ON sdk_registry(project_id);
+  `);
+
+  // 서드파티 라이브러리 (타겟별)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS target_libraries (
+      id              TEXT PRIMARY KEY,
+      target_id       TEXT NOT NULL,
+      project_id      TEXT NOT NULL,
+      name            TEXT NOT NULL,
+      version         TEXT,
+      path            TEXT NOT NULL,
+      included        INTEGER NOT NULL DEFAULT 0,
+      modified_files  TEXT NOT NULL DEFAULT '[]',
+      created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_target_libs_target ON target_libraries(target_id);
+  `);
+
+  // Finding fingerprint (동일성 판별)
+  try { db.exec(`ALTER TABLE findings ADD COLUMN fingerprint TEXT`); } catch { /* 이미 존재 */ }
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_findings_fingerprint ON findings(project_id, fingerprint)`);
 }
 
 export type { DatabaseType };

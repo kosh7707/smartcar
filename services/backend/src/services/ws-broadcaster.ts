@@ -6,12 +6,14 @@
  */
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server } from "http";
+import type { WsChannel, WsEnvelopeMeta } from "@aegis/shared";
 import { createLogger } from "../lib/logger";
 
 const logger = createLogger("ws");
 
 export class WsBroadcaster<T> {
   private clients = new Map<string, Set<WebSocket>>();
+  private seqCounters = new Map<string, number>();
   readonly wss: WebSocketServer;
 
   constructor(
@@ -19,6 +21,8 @@ export class WsBroadcaster<T> {
     readonly path: string,
     /** 쿼리 파라미터 키 (e.g. "sessionId") */
     private paramName: string,
+    /** WS 채널 식별자 (envelope meta 용) */
+    readonly channel?: WsChannel,
   ) {
     this.wss = new WebSocketServer({ noServer: true });
     this.wss.on("connection", (ws, req) => this.handleConnection(ws, req));
@@ -27,7 +31,21 @@ export class WsBroadcaster<T> {
   broadcast(key: string, message: T): void {
     const clients = this.clients.get(key);
     if (!clients) return;
-    const data = JSON.stringify(message);
+
+    // envelope meta 자동 첨부 (channel이 설정된 경우)
+    let payload: unknown = message;
+    if (this.channel) {
+      const seq = (this.seqCounters.get(key) ?? 0) + 1;
+      this.seqCounters.set(key, seq);
+      const meta: WsEnvelopeMeta = {
+        channel: this.channel,
+        projectId: key,
+        timestamp: Date.now(),
+        seq,
+      };
+      payload = { ...(message as object), meta };
+    }
+    const data = JSON.stringify(payload);
     for (const ws of clients) {
       if (ws.readyState === WebSocket.OPEN) {
         try {

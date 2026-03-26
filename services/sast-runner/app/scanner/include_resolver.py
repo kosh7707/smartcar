@@ -61,7 +61,8 @@ class IncludeResolver:
         cmd = [gcc_bin, "-E", "-M", "-MG"]
 
         if profile:
-            cmd.append(f"-std={profile.language_standard.lower()}")
+            if profile.language_standard:
+                cmd.append(f"-std={profile.language_standard.lower()}")
             if profile.include_paths:
                 for inc in profile.include_paths:
                     inc_path = Path(inc)

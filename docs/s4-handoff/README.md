@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S4(SAST Runner) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-24**
+> **마지막 업데이트: 2026-03-25**
 
 ---
 
@@ -45,7 +45,7 @@
 - `docs/api/sast-runner-api.md` API 계약서 소유
 - `docs/specs/sast-runner.md` 명세서 소유
 - `scripts/start-sast-runner.sh` + `services/sast-runner/.env` 소유
-- 10개 엔드포인트 관리: scan, functions, includes, metadata, libraries, build, build-and-analyze, discover-targets, sdk-registry, health
+- 12개 엔드포인트 관리: scan, functions, includes, metadata, libraries, build, build-and-analyze, discover-targets, sdk-registry(GET/POST), sdk-registry/:sdkId(DELETE), health
 - SDK 레지스트리 관리 (`$SAST_SDK_ROOT/sdk-registry.json` 외부 파일)
 
 ### 너는 하지 않는다
@@ -66,7 +66,7 @@
 - **위치**: `services/sast-runner/` (monorepo 내, WSL2 로컬)
 - **스택**: Python 3.12 + FastAPI + Uvicorn
 - **포트**: 9000
-- **버전**: v0.4.0
+- **버전**: v0.5.0
 - **API 계약**: `docs/api/sast-runner-api.md`
 - **명세서**: `docs/specs/sast-runner.md`
 
@@ -97,7 +97,7 @@ orchestrator가 도구에 전달하는 BuildProfile이 다르다:
 ```
 services/sast-runner/
 ├── app/
-│   ├── main.py              — FastAPI v0.4.0, JSON 로깅
+│   ├── main.py              — FastAPI v0.5.0, JSON 로깅
 │   ├── config.py            — pydantic-settings (SAST_ prefix)
 │   ├── context.py           — contextvars requestId 전파
 │   ├── errors.py            — 커스텀 에러 4종
@@ -106,24 +106,26 @@ services/sast-runner/
 │   │   ├── request.py       — ScanRequest, BuildProfile
 │   │   └── response.py      — SastFinding, ScanResponse, HealthResponse
 │   └── scanner/
-│       ├── orchestrator.py   — 6도구 병렬 + 도구별 profile 분리
+│       ├── orchestrator.py   — 6도구 병렬 + 도구별 profile 분리 + 버전 체크
 │       ├── semgrep_runner.py — custom_rules_dir 연결됨
 │       ├── cppcheck_runner.py
 │       ├── clangtidy_runner.py — CWE 매핑 24개
 │       ├── flawfinder_runner.py
 │       ├── scanbuild_runner.py — CWE 매핑 15개, -plist, 파일별 실행
-│       ├── gcc_analyzer_runner.py — CWE 매핑 16개 + gcc 출력 직접 파싱, 파일별 실행, GCC 버전 체크 + 캐시
+│       ├── gcc_analyzer_runner.py — CWE 매핑 16개 + gcc 출력 직접 파싱
 │       ├── sarif_parser.py
 │       ├── ruleset_selector.py
-│       ├── sdk_resolver.py   — SDK 레지스트리 (외부 sdk-registry.json 로드)
-│       ├── ast_dumper.py     — 함수 추출 + origin 태깅 (서드파티 출처 식별)
+│       ├── path_utils.py     — 경로 정규화 (전 runner 공유)
+│       ├── sca_service.py    — SCA 오케스트레이션 (식별 + diff 통합)
+│       ├── sdk_resolver.py   — SDK 레지스트리 (외부 sdk-registry.json)
+│       ├── ast_dumper.py     — 함수 추출 + origin 태깅
 │       ├── include_resolver.py
 │       ├── build_metadata.py
 │       ├── build_runner.py   — 빌드 실행 + 타겟 탐색 + buildCommand 감지
 │       ├── library_identifier.py
 │       ├── library_differ.py
 │       └── library_hasher.py
-├── rules/automotive/        — 커스텀 Semgrep 룰
+├── rules/automotive/        — 커스텀 Semgrep 룰 (automotive 메타데이터 포함)
 │   ├── command-injection.yaml  (CWE-78, 5개 룰)
 │   ├── divide-by-zero.yaml     (CWE-369, 7개 룰)
 │   ├── integer-overflow.yaml   (CWE-190, 5개 룰)
@@ -135,7 +137,9 @@ services/sast-runner/
 │   ├── cwe_matcher.py
 │   ├── metrics.py
 │   └── data/baselines/      — 측정 결과 JSON
-├── tests/                   — 51개 테스트
+├── tests/                   — 163개 테스트 (8개 테스트 파일)
+│   ├── fixtures/            — 테스트 픽스처 (C 프로젝트, 라이브러리 구조)
+│   └── conftest.py
 └── requirements.txt
 ```
 
@@ -218,7 +222,7 @@ cd services/sast-runner
 
 Juliet 위치: `~/Juliet/C/` (프로젝트 외부, 106K 파일)
 
-### 최신 Recall 결과 (v0.4.0, 12 CWE, 361 파일)
+### 최신 Recall 결과 (v0.5.0, 12 CWE, 361 파일)
 
 | Tier | CWE | Recall | 주력 도구 |
 |------|-----|:---:|---|
@@ -255,7 +259,7 @@ Juliet 위치: `~/Juliet/C/` (프로젝트 외부, 106K 파일)
 
 ### 완료
 
-- [x] 6도구 SAST + SCA + 코드 구조 + 빌드 자동화 (v0.4.0)
+- [x] 6도구 SAST + SCA + 코드 구조 + 빌드 자동화 (v0.5.0)
 - [x] CVE 조회 → S5 이관 (`cve_lookup.py` 삭제)
 - [x] SDK 경로 표준화 (`SAST_SDK_ROOT` + sdkId = 폴더명)
 - [x] gcc-fanalyzer/scan-build 버그 수정 + 파일별 실행
@@ -267,7 +271,7 @@ Juliet 위치: `~/Juliet/C/` (프로젝트 외부, 106K 파일)
 - [x] `smartcar` → `AEGIS` 네이밍 → `s4-sast` 로그 표준화 (`s4-sast-runner.jsonl`, level 숫자, service `s4-sast`)
 - [x] 기동 스크립트 수정 (venv PATH, .env 파싱)
 - [x] 통합 테스트 성공 (S3 Agent Phase 1/2 전 구간)
-- [x] 51개 테스트 통과
+- [x] 163개 테스트 통과
 - [x] `/v1/includes`에 `projectPath` 지원 추가
 - [x] SDK environment-setup 자동 적용 (`build_runner.py`)
 - [x] `buildCommand` 자동 감지 (빌드 스크립트 우선 → CMake → Make → configure)
@@ -283,6 +287,26 @@ Juliet 위치: `~/Juliet/C/` (프로젝트 외부, 106K 파일)
 - [x] SDK 레지스트리 외부화 (`sdk-registry.json`, 코드 수정 불필요)
 - [x] 전역 SastRunnerError 예외 핸들러 + 전 엔드포인트 에러 핸들링
 - [x] Observability v2 준수 (service `s4-sast`, level 숫자, X-Request-Id 전파)
+- [x] `/v1/build` success 판정 수정 (2026-03-25): exitCode≠0 → success:false + CMakeFiles/ 임시 항목 필터링 (`userEntries` 필드 추가)
+- [x] `/v1/build` `wrapWithBear` 옵션 추가 (2026-03-25): 기본 true, false면 bear 없이 순수 빌드 실행
+- [x] `/v1/scan` `thirdPartyPaths` 필터링 (2026-03-25): vendored 서드파티 경로 findings 제거 + cross-boundary 유지
+- [x] `/v1/build` buildProfile 500 크래시 수정 (2026-03-26): BuildProfile 필드 전부 optional로 변경, sdkId만으로 호출 가능
+- [x] SDK 관리 API (2026-03-26): `POST /v1/sdk-registry` (검증+등록), `DELETE /v1/sdk-registry/:sdkId` (삭제). 레지스트리 path 필드 지원, 캐시 무효화
+- [x] X-Timeout-Ms 헤더 수용 (2026-03-26): 헤더 > body > 기본값 600초. `/v1/scan`, `/v1/build` 적용
+- [x] BuildProfile None 안전 처리 (2026-03-26): language_standard 등 8곳 `.lower()` NoneType 크래시 수정
+- [x] build_runner sh → bash 변경 (2026-03-26): `source` 명령 호환
+- [x] **경계면 취약점 탐지** (v0.5.0, 2026-03-25):
+  - 필터링 개선: SDK/라이브러리 경로 finding이라도 dataFlow에 사용자 코드 포함 시 유지 (`origin: "cross-boundary"`)
+  - gcc-fanalyzer: SDK 크로스 컴파일러 사용 시 enriched profile 전달 (SDK 헤더 포함 → 경계면 추적)
+  - gcc-fanalyzer: note 라인 → dataFlow 파싱 (경계면 판정 재료)
+  - `SastFinding.origin` 필드 추가, `FindingsFilterInfo.crossBoundaryKept` 필드 추가
+- [x] **외부 리뷰 피드백 반영** (2026-03-25):
+  - 저장소 위생: `.o` 298개 삭제 + `.gitignore` 추가
+  - `ExecutionReport` 타입화: `dict[str, Any]` → 4개 Pydantic 모델 (도구 버전 포함)
+  - 도구 최소 버전 경고 (`check_tools()` + `requirements.txt` 고정)
+  - **단위 테스트 51 → 144개** (+93): 6개 runner 파서, orchestrator(경계면 필터링), build_runner(+build 메서드), library_identifier
+  - Automotive 룰 메타데이터 강화: 21개 룰에 `automotive_rationale` + `references` (ISO 26262, MISRA, AUTOSAR)
+  - Router 책임 분리: `_normalize_path` 6곳 중복 → `path_utils.py` 단일 구현, SCA 로직 → `sca_service.py`
 
 ### 미완료
 
@@ -294,6 +318,9 @@ Juliet 위치: `~/Juliet/C/` (프로젝트 외부, 106K 파일)
 - functions 추출 성능: 782파일 79.8초 → 병렬화 또는 vendored 라이브러리 스킵 검토
 - CWE-369 (22%) / CWE-190 (53%) 추가 개선: 데이터 플로우 추적은 SAST 한계 → S3 LLM에 위임
 - Juliet variant 확장: 현재 variant_01만 → 전체 variant 벤치마크
+- fixture 기반 통합 테스트: 실제 SAST 도구로 fixture C 프로젝트 분석 (CI 환경 구성 필요)
+- benchmark pack 고도화: precision(FP) 추적, per-rule 메트릭, regression 감지
+- code graph 품질 평가 기준 수립 (S5 연동용)
 
 ---
 
@@ -331,3 +358,4 @@ LLM이 49개 findings에서 **CWE-78, CWE-362, CWE-807** 3건만 claim으로 판
 - **scan-build는 `-plist`** (없으면 plist 파일 미생성)
 - **파일별 개별 실행** (gcc-fanalyzer, scan-build — 동일 심볼 충돌 방지)
 - **CWE는 전 도구에서 태깅** — scan-build/gcc-fanalyzer도 매핑 추가 완료
+- **경계면 분석** — SDK/라이브러리 경로 finding이라도 dataFlow에 사용자 코드가 포함되면 유지 (`origin: "cross-boundary"`). 순수 라이브러리 내부 findings만 제거

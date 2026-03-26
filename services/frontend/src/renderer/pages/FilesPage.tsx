@@ -184,6 +184,7 @@ export const FilesPage: React.FC = () => {
       loadFiles();
       upload.reset();
     }
+    // Only react to phase transitions; loadFiles and upload.reset are stable
   }, [upload.phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleUpload = async (fileList: FileList) => {

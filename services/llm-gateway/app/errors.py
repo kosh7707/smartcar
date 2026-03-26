@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-class S3Error(Exception):
+class GatewayError(Exception):
     """LLM Gateway 기본 예외."""
 
     def __init__(self, message: str, *, code: str, retryable: bool = False):
@@ -10,21 +10,21 @@ class S3Error(Exception):
         self.retryable = retryable
 
 
-class LlmTimeoutError(S3Error):
+class LlmTimeoutError(GatewayError):
     """LLM 요청 시간 초과."""
 
     def __init__(self, message: str = "LLM 요청 시간 초과"):
         super().__init__(message, code="LLM_TIMEOUT", retryable=True)
 
 
-class LlmUnavailableError(S3Error):
+class LlmUnavailableError(GatewayError):
     """LLM 서버 연결 불가."""
 
     def __init__(self, message: str = "LLM 서버 연결 불가"):
         super().__init__(message, code="LLM_UNAVAILABLE", retryable=True)
 
 
-class LlmInputTooLargeError(S3Error):
+class LlmInputTooLargeError(GatewayError):
     """프롬프트가 모델 입력 한도를 초과."""
 
     def __init__(self, chars: int, limit: int):
@@ -34,14 +34,14 @@ class LlmInputTooLargeError(S3Error):
         self.limit = limit
 
 
-class LlmCircuitOpenError(S3Error):
+class LlmCircuitOpenError(GatewayError):
     """Circuit Breaker가 OPEN 상태 — LLM Engine 장애로 요청 차단."""
 
     def __init__(self, message: str = "LLM Engine 회로 차단 (연속 장애)"):
         super().__init__(message, code="LLM_CIRCUIT_OPEN", retryable=True)
 
 
-class LlmHttpError(S3Error):
+class LlmHttpError(GatewayError):
     """LLM 서버가 HTTP 오류를 반환."""
 
     def __init__(self, status_code: int, message: str | None = None):

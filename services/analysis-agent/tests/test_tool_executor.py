@@ -4,8 +4,8 @@ import asyncio
 
 import pytest
 
-from app.schemas.agent import ToolCallRequest, ToolResult
-from app.tools.executor import ToolExecutor
+from agent_shared.schemas.agent import ToolCallRequest, ToolResult
+from agent_shared.tools.executor import ToolExecutor
 
 
 class _SlowTool:

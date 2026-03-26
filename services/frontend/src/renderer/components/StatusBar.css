@@ -37,17 +37,17 @@
 
 .status-dot.ok {
   background: var(--success);
-  box-shadow: 0 0 6px rgba(22, 163, 74, 0.4);
+  box-shadow: var(--glow-success);
 }
 
 .status-dot.error {
   background: var(--danger);
-  box-shadow: 0 0 6px rgba(220, 38, 38, 0.4);
+  box-shadow: var(--glow-danger);
 }
 
 .status-dot.warning {
   background: var(--warning);
-  box-shadow: 0 0 6px rgba(234, 179, 8, 0.4);
+  box-shadow: var(--glow-warning);
 }
 
 .status-dot.checking {
@@ -57,4 +57,9 @@
 
 .status-dot.neutral {
   background: var(--text-tertiary);
+}
+
+.statusbar-detail {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
 }

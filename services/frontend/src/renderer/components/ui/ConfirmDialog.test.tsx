@@ -55,7 +55,7 @@ describe("ConfirmDialog", () => {
   it("calls onCancel on Escape key", () => {
     const onCancel = vi.fn();
     render(<ConfirmDialog open={true} title="T" message="M" onConfirm={vi.fn()} onCancel={onCancel} />);
-    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 

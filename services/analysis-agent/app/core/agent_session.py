@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 
-from app.schemas.agent import BudgetState, LlmResponse, ToolResult, ToolTraceStep, TurnRecord
+from agent_shared.schemas.agent import BudgetState, LlmResponse, ToolResult, ToolTraceStep, TurnRecord
 from app.schemas.request import TaskRequest
 
 

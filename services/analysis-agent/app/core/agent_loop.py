@@ -9,15 +9,15 @@ from app.budget.manager import BudgetManager
 from app.budget.token_counter import TokenCounter
 from app.core.agent_session import AgentSession
 from app.core.result_assembler import ResultAssembler
-from app.errors import S3Error
-from app.llm.caller import LlmCaller
-from app.llm.message_manager import MessageManager
-from app.llm.turn_summarizer import TurnSummarizer
-from app.observability import agent_log
-from app.policy.retry import RetryPolicy
+from agent_shared.errors import S3Error
+from agent_shared.llm.caller import LlmCaller
+from agent_shared.llm.message_manager import MessageManager
+from agent_shared.llm.turn_summarizer import TurnSummarizer
+from agent_shared.observability import agent_log
+from agent_shared.policy.retry import RetryPolicy
 from app.policy.termination import TerminationPolicy
 from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
-from app.tools.registry import ToolRegistry
+from agent_shared.tools.registry import ToolRegistry
 from app.tools.router import ToolRouter
 from app.types import FailureCode, TaskStatus
 

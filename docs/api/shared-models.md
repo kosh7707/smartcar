@@ -221,18 +221,20 @@ type SdkProfileId = string;
 
 ### BuildTargetStatus
 
-빌드 타겟(서브 프로젝트) 상태머신. 12가지 상태를 가진다.
+빌드 타겟(서브 프로젝트) 상태머신. 16가지 상태를 가진다.
 
 ```typescript
 type BuildTargetStatus =
-  | "pending"           // 초기 상태
-  | "copying"           // includedPaths 기반 소스 복사 중
-  | "copied"            // 소스 복사 완료
+  | "discovered"        // S4 탐색으로 발견
+  | "resolving"         // S3 Build Agent가 빌드 명령어 탐색 중
+  | "configured"        // 빌드 설정 완료 (자동 또는 수동)
+  | "resolve_failed"    // 빌드 탐색 실패 (비치명적: 기존 profile 있으면 계속)
   | "building"          // S4 빌드 실행 중 (compile_commands.json 생성)
   | "built"             // 빌드 완료
   | "scanning"          // S4 SAST 스캔 실행 중
   | "scanned"           // 스캔 완료
   | "graphing"          // S5 코드그래프 생성 중
+  | "graphed"           // 코드그래프 적재 완료
   | "ready"             // 파이프라인 완료 (빌드+스캔+그래프 모두 완료)
   | "build_failed"      // 빌드 실패
   | "scan_failed"       // 스캔 실패
@@ -251,7 +253,8 @@ type BuildTargetStatus =
 | relativePath | string | 프로젝트 루트 기준 상대 경로 (e.g. "gateway/") |
 | buildProfile | BuildProfile | 타겟별 독립 빌드 설정 |
 | buildSystem | "cmake" \| "make" \| "custom" (optional) | 빌드 시스템 (S4 탐색 결과) |
-| status | BuildTargetStatus | 파이프라인 상태 (기본: "pending") |
+| buildCommand | string (optional) | S3 Build Agent가 결정한 빌드 명령어 |
+| status | BuildTargetStatus | 파이프라인 상태 (기본: "discovered") |
 | includedPaths | string[] (optional) | 물리적으로 복사할 소스 경로 목록 (JSON) |
 | sourcePath | string (optional) | 복사된 소스의 실제 경로 |
 | compileCommandsPath | string (optional) | S4 빌드 결과 compile_commands.json 경로 |
@@ -263,6 +266,114 @@ type BuildTargetStatus =
 | lastBuiltAt | string (optional, ISO 8601) | 마지막 빌드 시각 |
 | createdAt | string (ISO 8601) | 생성 시각 |
 | updatedAt | string (ISO 8601) | 수정 시각 |
+
+### TargetLibrary
+
+서브 프로젝트 내 서드파티 라이브러리. S4가 식별하고, 사용자가 스캔 포함/제외를 선택한다.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | string | 고유 식별자 (`lib-{uuid}`) |
+| targetId | string | 소속 빌드 타겟 ID |
+| projectId | string | 소속 프로젝트 ID |
+| name | string | 라이브러리명 (e.g. "civetweb") |
+| version | string (optional) | 버전 |
+| path | string | 서브프로젝트 내 상대 경로 (e.g. "lib/civetweb/") |
+| included | boolean | 스캔 포함 여부 (기본: false) |
+| modifiedFiles | string[] | upstream 대비 수정된 파일 목록 |
+| createdAt | string (ISO 8601) | 생성 시각 |
+| updatedAt | string (ISO 8601) | 수정 시각 |
+
+#### 라이브러리 API
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/projects/:pid/targets/:tid/libraries` | 타겟의 서드파티 라이브러리 목록 |
+| PATCH | `/api/projects/:pid/targets/:tid/libraries` | 라이브러리 포함/제외 설정 `{ libraries: [{ id, included }] }` |
+
+### SdkRegistryStatus
+
+```typescript
+type SdkRegistryStatus =
+  | "uploading"       // 유저가 SDK 파일 업로드 중
+  | "extracting"      // 압축 해제 중
+  | "analyzing"       // S3 Build Agent가 프로파일 자동 분석 중
+  | "verifying"       // S4가 경로/컴파일러 검증 중
+  | "ready"           // 사용 가능
+  | "verify_failed";  // S4 검증 실패
+```
+
+### SdkAnalyzedProfile
+
+S3 Build Agent가 SDK 경로를 분석하여 자동 채운 프로파일.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| compiler | string (optional) | 컴파일러 전체 이름 (e.g. `arm-none-linux-gnueabihf-gcc`) |
+| compilerPrefix | string (optional) | 크로스 컴파일러 prefix (e.g. `arm-none-linux-gnueabihf`) |
+| gccVersion | string (optional) | GCC 버전 (e.g. `9.2.1`) |
+| targetArch | string (optional) | 타겟 아키텍처 (e.g. `armv7-a`) |
+| languageStandard | string (optional) | 언어 표준 (e.g. `c11`) |
+| sysroot | string (optional) | Sysroot 상대 경로 |
+| environmentSetup | string (optional) | 환경 설정 스크립트 상대 경로 |
+| includePaths | string[] (optional) | 추가 인클루드 경로 |
+| defines | Record<string, string> (optional) | 전처리기 매크로 |
+
+### RegisteredSdk
+
+유저 등록 SDK (DB 저장, 상태머신 보유).
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | string | 고유 식별자 (`sdk-{uuid}`) |
+| projectId | string | 소속 프로젝트 ID |
+| name | string | SDK 이름 |
+| description | string (optional) | 설명 |
+| path | string | SDK 경로 (`/uploads/{pid}/sdk/{id}/` 또는 로컬 경로) |
+| profile | SdkAnalyzedProfile (optional) | S3 Build Agent가 분석한 프로파일 |
+| status | SdkRegistryStatus | 상태: `uploading → extracting → analyzing → verifying → ready \| verify_failed` |
+| verifyError | string (optional) | S4 검증 실패 사유 |
+| verified | boolean | S4 검증 통과 여부 |
+| createdAt | string (ISO 8601) | 생성 시각 |
+| updatedAt | string (ISO 8601) | 수정 시각 |
+
+#### SDK API
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/projects/:pid/sdk` | 내장 + 등록 SDK 합산 목록 |
+| GET | `/api/projects/:pid/sdk/:id` | 등록 SDK 상세 |
+| POST | `/api/projects/:pid/sdk` | SDK 등록 (multipart file 또는 `{ name, localPath }`) → 202 |
+| DELETE | `/api/projects/:pid/sdk/:id` | SDK 삭제 |
+
+**GET /api/projects/:pid/sdk 응답 형식**:
+```json
+{
+  "success": true,
+  "data": {
+    "builtIn": [ SdkProfile, ... ],
+    "registered": [ RegisteredSdk, ... ]
+  }
+}
+```
+
+**POST /api/projects/:pid/sdk 요청 (JSON 모드)**:
+```json
+{ "name": "TI AM335x 08.02", "description": "...", "localPath": "/home/kosh/sdks/ti-am335x" }
+```
+
+**POST /api/projects/:pid/sdk 요청 (multipart 모드)**:
+- `file`: SDK 압축 파일 (tar.gz / zip)
+- `name`: SDK 이름 (필수)
+- `description`: 설명 (선택)
+
+#### WS `/ws/sdk?projectId=`
+
+| 이벤트 | payload |
+|--------|---------|
+| `sdk-progress` | `{ sdkId, phase, message }` |
+| `sdk-complete` | `{ sdkId, profile }` |
+| `sdk-error` | `{ sdkId, error }` |
 
 ### UploadedFile
 
@@ -449,6 +560,7 @@ CAN 메시지 주입 결과.
 | suggestion | string (optional) | 수정 방안 |
 | detail | string (optional) | 상세 분석 — 공격 경로, 영향 범위, 코드 흐름, 악용 시나리오 (Agent claim.detail) |
 | ruleId | string (optional) | 룰 ID |
+| fingerprint | string (optional) | 동일성 지문 — 재분석 시 같은 취약점 식별. `sha256(projectId+location+identifier+sourceType)` 앞 16자 |
 | createdAt | string (ISO 8601) | 생성 시각 |
 | updatedAt | string (ISO 8601) | 수정 시각 |
 
@@ -1155,7 +1267,7 @@ type ApprovalActionType = "gate.override" | "finding.accepted_risk";
 | `"pipeline-complete"` | `{ projectId, completedCount, failedCount }` | 전체 파이프라인 완료 |
 | `"pipeline-error"` | `{ projectId, targetId?, error }` | 파이프라인 에러 |
 
-> **PipelinePhase**: `"copy" | "build" | "scan" | "graph" | "done" | "error"`
+> **PipelinePhase**: `"setup" | "build" | "ready"` — discovered/resolving/configured/resolve_failed → setup, building~graph_failed → build, ready → ready
 
 ### WebSocket 메시지 — 업로드 (S2 → S1, `/ws/upload?uploadId=`)
 

@@ -50,6 +50,11 @@ class ThreatSearch:
             qdrant_path, COLLECTION,
         )
 
+    @property
+    def client(self) -> QdrantClient:
+        """Qdrant 클라이언트를 외부에 노출한다 (코드 그래프 벡터 공유용)."""
+        return self._client
+
     def search(
         self, query: str, top_k: int = 5, min_score: float = 0.0,
         query_filter=None,

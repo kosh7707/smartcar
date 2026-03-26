@@ -122,6 +122,7 @@ export const FileDetailPage: React.FC = () => {
     loadFileData()
       .catch((e) => { logError("Load file detail", e); toast.error("파일 정보를 불러올 수 없습니다."); })
       .finally(() => setLoading(false));
+    // Only re-fetch when route params change; overview/toast are stable or loaded separately
   }, [projectId, fileId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-scroll to highlighted line

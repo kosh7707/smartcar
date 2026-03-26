@@ -7,8 +7,8 @@ import logging
 
 import httpx
 
-from app.context import get_request_id
-from app.schemas.agent import ToolResult
+from agent_shared.context import get_request_id
+from agent_shared.schemas.agent import ToolResult
 
 logger = logging.getLogger(__name__)
 

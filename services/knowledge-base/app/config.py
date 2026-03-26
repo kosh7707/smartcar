@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     kev_ttl: int = 3600
 
     rrf_k: int = 60
+    memory_limit_per_project: int = 1000
 
     model_config = {"env_prefix": "AEGIS_KB_", "env_file": ".env"}
 

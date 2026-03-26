@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S7(LLM Gateway + LLM Engine 관리) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-24**
+> **마지막 업데이트: 2026-03-25**
 
 ---
 
@@ -176,7 +176,7 @@ services/llm-gateway/
 │   ├── main.py                   # FastAPI 앱 진입점, CORS, JSON 로깅(pino 숫자), LLM 교환 로거, Circuit Breaker/TokenTracker 초기화, 워밍업, dump 자동 정리
 │   ├── config.py                 # pydantic-settings 환경변수 → Settings 객체 (.env 자동 로드)
 │   ├── context.py                # contextvars 기반 요청 컨텍스트 (requestId)
-│   ├── errors.py                 # S3Error 계층 (LlmTimeoutError, LlmUnavailableError, LlmHttpError, LlmCircuitOpenError)
+│   ├── errors.py                 # GatewayError 계층 (LlmTimeoutError, LlmUnavailableError, LlmHttpError, LlmCircuitOpenError)
 │   ├── circuit_breaker.py        # CircuitBreaker (CLOSED→OPEN→HALF_OPEN 상태 전이)
 │   ├── types.py                  # TaskType, TaskStatus, FailureCode StrEnum
 │   ├── clients/
@@ -301,6 +301,7 @@ confidence = 0.45×grounding + 0.30×deterministicSupport + 0.15×ragCoverage + 
 | AEGIS_KB_ENDPOINT | `http://localhost:8002` | S5 Knowledge Base 엔드포인트 |
 | AEGIS_RAG_TOP_K | `5` | RAG 검색 결과 상위 k건 |
 | AEGIS_RAG_MIN_SCORE | `0.35` | 이 점수 미만의 RAG 결과 제외. 0이면 필터 비활성화 |
+| AEGIS_CORS_ALLOW_ORIGINS | `http://localhost:5173,http://localhost:3000` | CORS 허용 오리진 (쉼표 구분) |
 | LOG_DIR | `../../logs` (프로젝트 루트 `logs/`) | JSONL 로그 파일 디렉토리 |
 
 ### Observability
@@ -458,6 +459,29 @@ ssh -i ~/.ssh/dgx_spark accslab@10.126.37.19 'docker logs vllm_node --tail 20'
 
 현재 없음.
 
+### 향후 고도화 — LoRA 파인튜닝 (데이터 축적 후)
+
+플랫폼 운영으로 [finding → 전문가 검증 assessment] 데이터가 충분히 쌓이면, LoRA 파인튜닝으로 모델을 자동차 보안 도메인에 특화시킬 수 있다.
+
+**Data Flywheel**: 플랫폼 운영 → 분석가 리뷰 → 학습 데이터 축적 → 파인튜닝 → 모델 품질 향상 → 분석가 부담 감소 → 더 많은 데이터 축적 (선순환)
+
+**인프라 준비 상태**:
+- DGX Spark 3대 클러스터링 가능 (ConnectX-7, 200 Gbps RDMA, QSFP 스위치 필요)
+- 384GB 통합 메모리 → 122B 모델 Full Fine-tune도 이론상 가능
+- NVIDIA 공식 자동 설정 스크립트 제공 (`spark_cluster_setup.py`)
+- 분산 학습 프레임워크: PyTorch Torchrun + NCCL (sm_121 빌드 필요)
+- `llm-exchange.jsonl`에 모든 LLM 호출 전문이 이미 기록 중 (미래 학습 데이터 원본)
+
+**전제 조건** (착수 전 확인):
+1. 전문가 검증된 학습 데이터 500건+ 확보
+2. 평가 벤치마크 테스트셋 구축 (파인튜닝 전후 비교용)
+3. ARM64 + CC 12.1 환경에서 학습 라이브러리 호환 검증 (PEFT, bitsandbytes, NCCL)
+4. 학습 중 서빙 중단 계획 (클러스터 전체를 학습에 투입)
+
+**참고 자료**:
+- [DGX Spark Clustering 공식 문서](https://docs.nvidia.com/dgx/dgx-spark/spark-clustering.html)
+- [NVIDIA DGX Spark Multi-Node Playbooks](https://deepwiki.com/NVIDIA/dgx-spark-playbooks/7-multi-node-setups)
+
 ### 고도화 (2026-03-20)
 
 | 기능 | 설명 |
@@ -481,6 +505,17 @@ ssh -i ~/.ssh/dgx_spark accslab@10.126.37.19 'docker logs vllm_node --tail 20'
 ---
 
 ## 7. 수정 이력
+
+### 외부 리뷰 피드백 개선 (2026-03-25)
+
+- **CORS 제한**: `allow_origins=["*"]` → 환경변수 `AEGIS_CORS_ALLOW_ORIGINS` 기반 (기본 `localhost:5173,3000`)
+- **GatewayError 리네이밍**: 레거시 `S3Error` → `GatewayError` (S7 소유 반영)
+- **`/v1/chat` 응답 메타데이터**: `X-Model`, `X-Gateway-Latency-Ms` 헤더 추가 (성공/실패 전 응답)
+- **`.env.example` 생성**: 전 환경변수 + placeholder IP + 한 줄 설명
+- **내부 운영 정보 분리**: specs/README에서 DGX IP 제거 → `${LLM_ENGINE_HOST}` / 환경변수 참조 (인수인계서는 유지)
+- **명세서 최신화**: §5.2 `/v1/tasks` vs `/v1/chat` 역할 대비 테이블, §14 CB/TT/Prometheus/CORS 반영
+- **API 계약서**: `X-Model`, `X-Gateway-Latency-Ms` 응답 헤더 문서화
+- 178 tests 통과
 
 ### 관측성 고도화 + vLLM 튜닝 + MCP 호환 (2026-03-21~24)
 

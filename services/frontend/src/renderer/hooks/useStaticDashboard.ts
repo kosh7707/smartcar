@@ -8,6 +8,7 @@ import {
   fetchRunDetail,
   logError,
 } from "../api/client";
+import { POLL_ACTIVE_ANALYSIS_MS } from "../constants/defaults";
 
 export function useStaticDashboard(projectId?: string) {
   const [summary, setSummary] = useState<StaticAnalysisDashboardSummary | null>(null);
@@ -82,7 +83,7 @@ export function useStaticDashboard(projectId?: string) {
         pollRef.current = null;
         loadData(periodRef.current);
       }
-    }, 3000);
+    }, POLL_ACTIVE_ANALYSIS_MS);
   }, [checkActive, loadData]);
 
   // Initial load + active check
@@ -98,7 +99,7 @@ export function useStaticDashboard(projectId?: string) {
         pollRef.current = null;
       }
     };
-  }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [projectId, checkActive, startPolling]);
 
   // Period change (also handles initial load)
   useEffect(() => {

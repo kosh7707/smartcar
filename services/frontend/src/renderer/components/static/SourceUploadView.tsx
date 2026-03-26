@@ -56,6 +56,7 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
       upload.reset();
       setUploading(false);
     }
+    // Only react to phase transitions; callbacks (loadSourceFiles, upload.reset) are stable
   }, [upload.phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleZipUpload = useCallback(async (file: File) => {

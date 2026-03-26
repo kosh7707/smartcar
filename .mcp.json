@@ -2,7 +2,7 @@
   "mcpServers": {
     "log-analyzer": {
       "command": "/home/kosh/AEGIS/tools/log-analyzer/.venv/bin/python",
-      "args": ["tools/log-analyzer/server.py"],
+      "args": ["/home/kosh/AEGIS/tools/log-analyzer/server.py"],
       "cwd": "/home/kosh/AEGIS",
       "env": {
         "LOGS_DIR": "/home/kosh/AEGIS/logs"

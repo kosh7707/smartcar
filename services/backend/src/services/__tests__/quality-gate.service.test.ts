@@ -12,6 +12,7 @@ function createMockFindingDAO(): IFindingDAO {
     findById: vi.fn(),
     findByRunId: vi.fn().mockReturnValue([]),
     findByProjectId: vi.fn(),
+    findByFingerprint: vi.fn(),
     updateStatus: vi.fn(),
     summaryByProjectId: vi.fn(),
     summaryByModule: vi.fn(),

@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.llm.turn_summarizer import TurnSummarizer
+from agent_shared.llm.turn_summarizer import TurnSummarizer
 
 
 @pytest.mark.asyncio

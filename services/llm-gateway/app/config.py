@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     circuit_breaker_threshold: int = 3  # 연속 실패 횟수 → OPEN
     circuit_breaker_recovery_seconds: float = 30.0  # OPEN → HALF_OPEN 대기 시간
 
+    # CORS
+    cors_allow_origins: str = "http://localhost:5173,http://localhost:3000"
+
     # RAG (S5 Knowledge Base 연동)
     rag_enabled: bool = True
     kb_endpoint: str = "http://localhost:8002"

@@ -18,6 +18,7 @@ function rowToFinding(row: any): Finding {
     suggestion: row.suggestion ?? undefined,
     detail: row.detail ?? undefined,
     ruleId: row.rule_id ?? undefined,
+    fingerprint: row.fingerprint ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -32,8 +33,8 @@ export class FindingDAO implements IFindingDAO {
 
   constructor(private db: DatabaseType) {
     this.insertStmt = db.prepare(
-      `INSERT INTO findings (id, run_id, project_id, module, status, severity, confidence, source_type, title, description, location, suggestion, detail, rule_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO findings (id, run_id, project_id, module, status, severity, confidence, source_type, title, description, location, suggestion, detail, rule_id, fingerprint, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     this.selectByIdStmt = db.prepare(`SELECT * FROM findings WHERE id = ?`);
     this.selectByRunStmt = db.prepare(
@@ -63,6 +64,7 @@ export class FindingDAO implements IFindingDAO {
       finding.suggestion ?? null,
       finding.detail ?? null,
       finding.ruleId ?? null,
+      finding.fingerprint ?? null,
       finding.createdAt,
       finding.updatedAt
     );
@@ -121,6 +123,13 @@ export class FindingDAO implements IFindingDAO {
 
     const sql = `SELECT * FROM findings WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC`;
     return this.db.prepare(sql).all(...params).map(rowToFinding);
+  }
+
+  findByFingerprint(projectId: string, fingerprint: string): Finding | undefined {
+    const row = this.db.prepare(
+      `SELECT * FROM findings WHERE project_id = ? AND fingerprint = ? ORDER BY created_at DESC LIMIT 1`,
+    ).get(projectId, fingerprint);
+    return row ? rowToFinding(row) : undefined;
   }
 
   updateStatus(id: string, status: FindingStatus): void {

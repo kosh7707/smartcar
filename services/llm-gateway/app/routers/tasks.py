@@ -236,6 +236,7 @@ async def chat_proxy(req: Request) -> Response:
             return JSONResponse(
                 status_code=503,
                 content={"error": "LLM Engine circuit open", "retryable": True},
+                headers={"X-Request-Id": request_id, "X-Model": body.get("model", "")},
             )
 
     try:
@@ -258,7 +259,11 @@ async def chat_proxy(req: Request) -> Response:
         return JSONResponse(
             status_code=503,
             content={"error": "LLM Engine unreachable", "retryable": True},
-            headers={"X-Request-Id": request_id},
+            headers={
+                "X-Request-Id": request_id,
+                "X-Model": body.get("model", ""),
+                "X-Gateway-Latency-Ms": str(elapsed_ms),
+            },
         )
     except httpx.TimeoutException:
         elapsed_ms = int((time.monotonic() - start) * 1000)
@@ -272,7 +277,11 @@ async def chat_proxy(req: Request) -> Response:
         return JSONResponse(
             status_code=504,
             content={"error": "LLM Engine timeout", "retryable": True},
-            headers={"X-Request-Id": request_id},
+            headers={
+                "X-Request-Id": request_id,
+                "X-Model": body.get("model", ""),
+                "X-Gateway-Latency-Ms": str(elapsed_ms),
+            },
         )
 
     elapsed_ms = int((time.monotonic() - start) * 1000)
@@ -332,11 +341,17 @@ async def chat_proxy(req: Request) -> Response:
             resp.status_code, request_id, elapsed_ms,
         )
 
+    resp_headers: dict[str, str] = {}
+    if request_id:
+        resp_headers["X-Request-Id"] = request_id
+    resp_headers["X-Model"] = body.get("model", "")
+    resp_headers["X-Gateway-Latency-Ms"] = str(elapsed_ms)
+
     return Response(
         content=resp.content,
         status_code=resp.status_code,
         media_type="application/json",
-        headers={"X-Request-Id": request_id} if request_id else {},
+        headers=resp_headers,
     )
 
 

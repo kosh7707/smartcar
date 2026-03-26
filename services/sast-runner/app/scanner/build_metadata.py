@@ -146,7 +146,7 @@ class BuildMetadataExtractor:
         return "gcc"
 
     def _lang_flag(self, profile: BuildProfile | None) -> str:
-        if profile:
+        if profile and profile.language_standard:
             std = profile.language_standard.lower()
             if std.startswith("c++") or std.startswith("gnu++"):
                 return "c++"

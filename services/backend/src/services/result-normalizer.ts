@@ -10,6 +10,12 @@ import type {
   Vulnerability,
   Severity,
 } from "@aegis/shared";
+
+/** 동일 취약점 판별을 위한 지문 생성 */
+function computeFingerprint(projectId: string, location: string | undefined, identifier: string, sourceType: string): string {
+  const data = `${projectId}|${location ?? ""}|${identifier}|${sourceType}`;
+  return crypto.createHash("sha256").update(data).digest("hex").slice(0, 16);
+}
 import type { DatabaseType } from "../db";
 import type { IRunDAO, IFindingDAO, IEvidenceRefDAO } from "../dao/interfaces";
 import { createLogger } from "../lib/logger";
@@ -54,13 +60,25 @@ export class ResultNormalizer {
       for (const vuln of result.vulnerabilities) {
         const findingId = `finding-${crypto.randomUUID()}`;
         const { status, confidence, sourceType } = this.classifyVulnerability(vuln, result.module);
+        const fingerprint = computeFingerprint(
+          result.projectId,
+          vuln.location,
+          vuln.ruleId ?? vuln.title,
+          sourceType,
+        );
+
+        // 재분석 시 기존 finding의 사용자 상태 보존
+        const prev = this.findingDAO.findByFingerprint(result.projectId, fingerprint);
+        const preservedStatus = prev && prev.status !== "open" && prev.status !== "sandbox"
+          ? prev.status
+          : status;
 
         findings.push({
           id: findingId,
           runId,
           projectId: result.projectId,
           module: result.module,
-          status,
+          status: preservedStatus,
           severity: vuln.severity,
           confidence,
           sourceType,
@@ -69,6 +87,7 @@ export class ResultNormalizer {
           location: vuln.location,
           suggestion: vuln.suggestion,
           ruleId: vuln.ruleId,
+          fingerprint,
           createdAt: now,
           updatedAt: now,
         });
@@ -279,13 +298,24 @@ export class ResultNormalizer {
 
       for (const claim of assessment.claims) {
         const findingId = `finding-${crypto.randomUUID()}`;
+        const fingerprint = computeFingerprint(
+          result.projectId,
+          claim.location ?? undefined,
+          claim.statement,
+          "agent",
+        );
+
+        const prev = this.findingDAO.findByFingerprint(result.projectId, fingerprint);
+        const preservedStatus = prev && prev.status !== "needs_review" && prev.status !== "sandbox"
+          ? prev.status
+          : ("needs_review" as FindingStatus);
 
         findings.push({
           id: findingId,
           runId,
           projectId: result.projectId,
           module: "deep_analysis",
-          status: "needs_review" as FindingStatus,
+          status: preservedStatus,
           severity,
           confidence,
           sourceType: "agent" as FindingSourceType,
@@ -294,6 +324,7 @@ export class ResultNormalizer {
           location: claim.location ?? undefined,
           suggestion: assessment.recommendedNextSteps?.length ? assessment.recommendedNextSteps.join("\n") : undefined,
           detail: claim.detail ?? undefined,
+          fingerprint,
           createdAt: now,
           updatedAt: now,
         });

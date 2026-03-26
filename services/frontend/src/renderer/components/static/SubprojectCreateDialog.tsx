@@ -65,8 +65,10 @@ const CheckNode: React.FC<{
   const isFolder = !node.data;
   const state = getCheckState(node, checked);
 
-  const handleToggle = (e: React.MouseEvent) => {
+  const handleToggle = (e: React.MouseEvent | React.KeyboardEvent) => {
     e.stopPropagation();
+    if ("key" in e && e.key !== "Enter" && e.key !== " ") return;
+    if ("key" in e) e.preventDefault();
     const paths = collectPaths(node);
     onToggle(paths, state !== "checked");
   };
@@ -82,7 +84,11 @@ const CheckNode: React.FC<{
           <div className="spcd__indent">{guides}</div>
           <div
             className={`spcd__check${state === "checked" ? " spcd__check--checked" : state === "indeterminate" ? " spcd__check--indeterminate" : ""}`}
+            role="checkbox"
+            aria-checked={state === "checked" ? "true" : state === "indeterminate" ? "mixed" : "false"}
+            tabIndex={0}
             onClick={handleToggle}
+            onKeyDown={handleToggle}
           >
             {state === "checked" && <Check size={10} />}
             {state === "indeterminate" && <Minus size={10} />}
@@ -103,7 +109,13 @@ const CheckNode: React.FC<{
   return (
     <div className="spcd__row" onClick={handleToggle}>
       <div className="spcd__indent">{guides}</div>
-      <div className={`spcd__check${isChecked ? " spcd__check--checked" : ""}`}>
+      <div
+        className={`spcd__check${isChecked ? " spcd__check--checked" : ""}`}
+        role="checkbox"
+        aria-checked={isChecked}
+        tabIndex={0}
+        onKeyDown={handleToggle}
+      >
         {isChecked && <Check size={10} />}
       </div>
       <span style={{ width: 12 }} />

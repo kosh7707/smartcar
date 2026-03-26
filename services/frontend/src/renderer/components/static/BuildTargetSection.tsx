@@ -7,6 +7,7 @@ import { useToast } from "../../contexts/ToastContext";
 import { logError } from "../../api/client";
 import { ConfirmDialog, Spinner, TargetStatusBadge, TargetProgressStepper } from "../ui";
 import { BuildProfileForm } from "./BuildProfileForm";
+import { TargetLibraryPanel } from "./TargetLibraryPanel";
 import { getSdkProfile } from "../../constants/sdkProfiles";
 import "./BuildTargetSection.css";
 
@@ -18,8 +19,9 @@ const DEFAULT_PROFILE: BuildProfile = {
   headerLanguage: "auto",
 };
 
-const FAILED_STATUSES = new Set(["build_failed", "scan_failed", "graph_failed"]);
-const RUNNING_STATUSES = new Set(["building", "scanning", "graphing"]);
+const FAILED_STATUSES = new Set(["build_failed", "scan_failed", "graph_failed", "resolve_failed"]);
+const RUNNING_STATUSES = new Set(["building", "scanning", "graphing", "resolving"]);
+const POST_BUILD_STATUSES = new Set(["built", "scanning", "scanned", "scan_failed", "graphing", "graphed", "graph_failed", "ready"]);
 
 interface Props {
   projectId: string;
@@ -245,6 +247,11 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
                   {sdk && <span className="bt-sdk">{sdk.name}</span>}
                   {target.buildSystem && <span className="bt-build-sys">{target.buildSystem}</span>}
                 </div>
+                {(target as Record<string, unknown>).buildCommand && (
+                  <div className="bt-row__build-cmd">
+                    <code>{String((target as Record<string, unknown>).buildCommand)}</code>
+                  </div>
+                )}
                 {status !== "discovered" && (
                   <div className="bt-row__stepper">
                     <TargetProgressStepper
@@ -252,6 +259,13 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
                       message={isFailed && error ? error : isRunning ? message : undefined}
                     />
                   </div>
+                )}
+                {POST_BUILD_STATUSES.has(status) && (
+                  <TargetLibraryPanel
+                    projectId={projectId}
+                    targetId={target.id}
+                    targetName={target.name}
+                  />
                 )}
               </div>
               <div className="bt-row__actions">

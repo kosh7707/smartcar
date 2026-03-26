@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.context import set_request_id
+from app.errors import error_response
+from app.timeout import parse_timeout
 
 logger = logging.getLogger(__name__)
 
@@ -59,13 +61,15 @@ class SearchBatchRequest(BaseModel):
 async def search(
     req: SearchRequest,
     x_request_id: str | None = Header(None, alias="X-Request-Id"),
+    x_timeout_ms: int | None = Header(None, alias="X-Timeout-Ms"),
 ) -> dict:
     set_request_id(x_request_id)
+    parse_timeout(x_timeout_ms)
     start = time.monotonic()
 
     if _assembler is None:
         logger.warning("검색 요청 — Knowledge base 미초기화")
-        return {"error": "Knowledge base not initialized", "hits": [], "total": 0}
+        return error_response(503, "KB_NOT_READY", "Knowledge base not initialized", retryable=True)
 
     result = _assembler.assemble(
         req.query,
@@ -95,12 +99,14 @@ async def search(
 async def search_batch(
     req: SearchBatchRequest,
     x_request_id: str | None = Header(None, alias="X-Request-Id"),
+    x_timeout_ms: int | None = Header(None, alias="X-Timeout-Ms"),
 ) -> dict:
     set_request_id(x_request_id)
+    parse_timeout(x_timeout_ms)
     start = time.monotonic()
 
     if _assembler is None:
-        return {"error": "Knowledge base not initialized", "results": [], "global_stats": {}}
+        return error_response(503, "KB_NOT_READY", "Knowledge base not initialized", retryable=True)
 
     queries = [
         {
@@ -134,7 +140,7 @@ async def graph_stats(
 ) -> dict:
     set_request_id(x_request_id)
     if _neo4j_graph is None:
-        return {"error": "Graph not initialized", "nodeCount": 0, "edgeCount": 0}
+        return error_response(503, "KB_NOT_READY", "Graph not initialized", retryable=True)
     return _neo4j_graph.get_stats()
 
 
@@ -146,7 +152,7 @@ async def graph_neighbors(
 ) -> dict:
     set_request_id(x_request_id)
     if _neo4j_graph is None:
-        return {"error": "Graph not initialized"}
+        return error_response(503, "KB_NOT_READY", "Graph not initialized", retryable=True)
 
     node_info = _neo4j_graph.get_node_info(node_id)
     if node_info is None:
@@ -171,23 +177,52 @@ async def graph_neighbors(
 
 @router.get("/health")
 async def health() -> dict:
-    graph_info = None
-    if _neo4j_graph is not None:
-        try:
-            graph_info = {
-                "backend": "neo4j",
-                "nodeCount": _neo4j_graph.node_count,
-                "edgeCount": _neo4j_graph.edge_count,
-                "connected": True,
-            }
-        except Exception:
-            graph_info = {"backend": "neo4j", "connected": False}
-
+    """Liveness probe — 프로세스가 살아있으면 200."""
     return {
         "service": "aegis-knowledge-base",
         "status": "ok",
         "version": "0.2.0",
-        "qdrantPath": settings.qdrant_path,
-        "initialized": _assembler is not None,
-        "graph": graph_info,
     }
+
+
+@router.get("/ready")
+async def ready(
+    x_request_id: str | None = Header(None, alias="X-Request-Id"),
+):
+    """Readiness probe — Qdrant+Neo4j 준비 시 200, 아니면 503."""
+    set_request_id(x_request_id)
+
+    qdrant_ok = _assembler is not None
+    neo4j_ok = _neo4j_graph is not None
+
+    neo4j_info: dict = {"connected": False}
+    if neo4j_ok:
+        try:
+            neo4j_info = {
+                "connected": True,
+                "nodeCount": _neo4j_graph.node_count,
+                "edgeCount": _neo4j_graph.edge_count,
+            }
+        except Exception:
+            neo4j_ok = False
+
+    # ontology 메타 (Phase 3에서 KBMeta 노드 추가 후 활성화)
+    ontology = None
+    if neo4j_ok and hasattr(_neo4j_graph, "get_kb_meta"):
+        ontology = _neo4j_graph.get_kb_meta()
+
+    body = {
+        "service": "aegis-knowledge-base",
+        "ready": qdrant_ok and neo4j_ok,
+        "components": {
+            "qdrant": {"initialized": qdrant_ok},
+            "neo4j": neo4j_info,
+        },
+    }
+    if ontology:
+        body["ontology"] = ontology
+
+    if not (qdrant_ok and neo4j_ok):
+        return error_response(503, "KB_NOT_READY", "Service not fully initialized", retryable=True)
+
+    return body

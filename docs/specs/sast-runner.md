@@ -1,4 +1,4 @@
-# S4. SAST Runner 기능 명세 (v0.4.0)
+# S4. SAST Runner 기능 명세 (v0.5.0)
 
 > SAST Runner는 C/C++ 프로젝트의 보안 분석에 필요한 **결정론적 전처리**를 담당하는 서비스다.
 > 6개 SAST 도구 병렬 실행, SCA(라이브러리 식별 + upstream diff), 코드 구조 추출,
@@ -53,6 +53,21 @@
 | Flawfinder | 위험 함수 빠른 스캔 | — |
 | scan-build | Clang Static Analyzer 경로 민감 분석 (CWE 매핑 15개) | `-std`, `-I`, `-D`. **enriched profile**. `-plist` 필수. 파일별 개별 실행 |
 | gcc -fanalyzer | GCC 경로 민감 분석 (CWE 매핑 16개 + 출력 직접 파싱) | `-c` 필수. 파일별 개별 실행. **GCC 10+ 필요** → 미지원 시 호스트 gcc 폴백. **original profile** |
+
+### 도구 최소 버전
+
+| 도구 | 최소 버전 | 비고 |
+|------|---------|------|
+| Semgrep | ≥ 1.40 | SARIF 출력 안정성 |
+| Cppcheck | ≥ 2.13 | `--check-level=exhaustive` 지원 |
+| Flawfinder | ≥ 2.0.19 | CSV 출력 형식 호환 |
+| clang-tidy | ≥ 16 | CERT 체커 세트 완성도 |
+| scan-build | ≥ 16 | plist 출력 안정성 |
+| gcc (fanalyzer) | ≥ 13 | `-fanalyzer` 정밀도 개선 (10+에서 동작, 13+ 권장) |
+| bear | ≥ 3.0 | `compile_commands.json` 생성 |
+| clang (AST dump) | ≥ 16 | `-ast-dump=json` 형식 호환 |
+
+서버 시작 시 `check_tools()`가 버전을 확인하고, 최소 버전 미만 시 경고 로그를 기록한다 (차단하지 않음).
 
 ### 도구 자동 선택
 

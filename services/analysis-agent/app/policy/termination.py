@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from app.observability import agent_log
+from agent_shared.observability import agent_log
 
 if TYPE_CHECKING:
     from app.core.agent_session import AgentSession

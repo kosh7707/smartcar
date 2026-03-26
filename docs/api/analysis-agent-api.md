@@ -3,7 +3,7 @@
 > **소유자**: S3 (Analysis Agent)
 > **포트**: 8001
 > **호출자**: S2 (Backend)
-> **최종 업데이트**: 2026-03-24
+> **최종 업데이트**: 2026-03-25
 
 S2(AEGIS Core)가 S3(Analysis Agent)를 호출할 때 참조하는 API 계약서.
 Analysis Agent는 AEGIS의 **증거 기반 보안 심층 분석 에이전트**로, Phase 1(결정론적 도구 실행) + Phase 2(LLM 해석)를 자동 수행한다.
@@ -322,6 +322,9 @@ HTTP `200` + `status: "{failure_status}"`
 | `LLM_OVERLOADED` | `model_error` | `true` | LLM Engine 429/503 과부하 |
 | `INPUT_TOO_LARGE` | `budget_exceeded` | `false` | 프롬프트 문자 수 초과 |
 | `TOKEN_BUDGET_EXCEEDED` | `budget_exceeded` | `false` | 에이전트 토큰/스텝 예산 소진 |
+| `MAX_STEPS_EXCEEDED` | `budget_exceeded` | `false` | 에이전트 스텝/턴 한도 도달 |
+| `INSUFFICIENT_EVIDENCE` | `budget_exceeded` | `false` | 연속 무증거 턴 초과 |
+| `ALL_TOOLS_EXHAUSTED` | `budget_exceeded` | `false` | 모든 도구 티어 예산 소진 |
 | `UNKNOWN_TASK_TYPE` | `validation_failed` | `false` | `deep-analyze` 외 taskType |
 | `UNSAFE_CONTENT` | `unsafe_output` | `false` | (미사용, 예약) |
 

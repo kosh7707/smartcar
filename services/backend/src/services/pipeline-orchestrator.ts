@@ -16,19 +16,22 @@ import type {
 } from "@aegis/shared";
 import type { PipelinePhase } from "@aegis/shared";
 import { createLogger } from "../lib/logger";
-import { NotFoundError } from "../lib/errors";
+import { NotFoundError, BuildAgentUnavailableError, BuildAgentTimeoutError } from "../lib/errors";
 import type { ProjectSourceService } from "./project-source.service";
 import type { SastClient, SastScanResponse } from "./sast-client";
 import type { KbClient } from "./kb-client";
-import type { BuildTargetService } from "./build-target.service";
+import type { BuildAgentClient } from "./build-agent-client";
+import type { TargetLibraryDAO } from "../dao/target-library.dao";
 import type { IBuildTargetDAO, IAnalysisResultDAO } from "../dao/interfaces";
 import type { ResultNormalizer } from "./result-normalizer";
 import type { WsBroadcaster } from "./ws-broadcaster";
 
 const logger = createLogger("pipeline-orchestrator");
 
+const SETUP_STATUSES: readonly string[] = ["discovered", "resolving", "configured", "resolve_failed"];
+
 function statusToPhase(status: BuildTargetStatus): PipelinePhase {
-  if (status === "discovered" || status === "configured") return "setup";
+  if (SETUP_STATUSES.includes(status)) return "setup";
   if (status === "ready") return "ready";
   return "build";
 }
@@ -38,6 +41,8 @@ export class PipelineOrchestrator {
     private sourceService: ProjectSourceService,
     private sastClient: SastClient,
     private kbClient: KbClient,
+    private buildAgentClient: BuildAgentClient,
+    private targetLibraryDAO: TargetLibraryDAO,
     private buildTargetDAO: IBuildTargetDAO,
     private analysisResultDAO: IAnalysisResultDAO,
     private resultNormalizer: ResultNormalizer,
@@ -108,6 +113,87 @@ export class PipelineOrchestrator {
     const scanPath = path.join(projectPath, target.relativePath);
     const kbProjectId = `${projectId}:${target.name}`;
 
+    // ── Step 0: Build Resolve (S3 Build Agent) ──
+    if (target.status === "discovered" || !target.buildCommand) {
+      this.updateStatus(projectId, target, "resolving", "빌드 명령어 자동 탐색 중 (Build Agent)...");
+
+      try {
+        const resolveResp = await this.buildAgentClient.submitTask(
+          {
+            taskType: "build-resolve",
+            taskId: `resolve-${crypto.randomUUID().slice(0, 8)}`,
+            context: {
+              trusted: {
+                projectPath,
+                targetPath: target.relativePath,
+                targetName: target.name,
+                targets: [
+                  {
+                    name: target.name,
+                    path: target.relativePath,
+                    buildSystem: target.buildSystem ?? "cmake",
+                    buildFiles: [],
+                  },
+                ],
+              },
+            },
+            constraints: { timeoutMs: 600_000 },
+          },
+          requestId,
+          signal,
+        );
+
+        if (this.buildAgentClient.isSuccess(resolveResp)) {
+          const br = resolveResp.result.buildResult;
+
+          if (!br.success) {
+            // 에이전트가 빌드 시도했지만 실패
+            this.buildTargetDAO.updatePipelineState(target.id, {
+              status: "resolve_failed",
+              buildLog: br.errorLog ?? undefined,
+            });
+            this.updateStatus(projectId, target, "resolve_failed", `빌드 실패: ${br.errorLog ?? "unknown"}`);
+            if (!target.buildProfile?.compiler) {
+              throw new Error(`Build resolve failed for ${target.name}: ${br.errorLog}`);
+            }
+            logger.warn({ targetId: target.id }, "Build Agent build failed, using existing profile");
+          } else {
+            // 빌드 성공 — buildCommand + buildScript 저장
+            this.buildTargetDAO.updatePipelineState(target.id, {
+              status: "configured",
+              buildCommand: br.buildCommand,
+            });
+            target.buildCommand = br.buildCommand;
+            this.updateStatus(
+              projectId,
+              target,
+              "configured",
+              `빌드 명령어 결정 완료 (confidence: ${resolveResp.result.confidence})`,
+            );
+          }
+        } else {
+          this.buildTargetDAO.updatePipelineState(target.id, { status: "resolve_failed" });
+          this.updateStatus(projectId, target, "resolve_failed", resolveResp.failureDetail);
+          if (!target.buildProfile?.compiler) {
+            throw new Error(`Build resolve failed for ${target.name}: ${resolveResp.failureDetail}`);
+          }
+          logger.warn({ targetId: target.id }, "Build resolve failed, using existing profile");
+        }
+      } catch (err) {
+        if (err instanceof BuildAgentUnavailableError || err instanceof BuildAgentTimeoutError) {
+          logger.warn({ err, targetId: target.id }, "Build Agent unavailable, using existing profile");
+          if (!target.buildProfile?.compiler) {
+            this.buildTargetDAO.updatePipelineState(target.id, { status: "resolve_failed" });
+            throw err;
+          }
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    if (signal?.aborted) return;
+
     // ── Step 1: Build ──
     this.updateStatus(projectId, target, "building", "빌드 중 (bear → compile_commands.json)...");
 
@@ -135,6 +221,21 @@ export class PipelineOrchestrator {
 
     if (signal?.aborted) return;
 
+    // ── Step 1.5: Library Identification (S4) ──
+    let thirdPartyPaths: string[] = [];
+    try {
+      const libs = await this.sastClient.identifyLibraries(scanPath, requestId, signal);
+      if (libs.length > 0) {
+        this.targetLibraryDAO.upsertFromScan(target.id, projectId, libs);
+        thirdPartyPaths = this.targetLibraryDAO.getIncludedPaths(target.id);
+        logger.info({ targetId: target.id, identified: libs.length, included: thirdPartyPaths.length }, "Libraries identified");
+      }
+    } catch (err) {
+      logger.warn({ err, targetId: target.id }, "Library identification failed — continuing without");
+    }
+
+    if (signal?.aborted) return;
+
     // ── Step 2: SAST Scan ──
     this.updateStatus(projectId, target, "scanning", "SAST 스캔 + SCA 진행 중...");
 
@@ -146,6 +247,7 @@ export class PipelineOrchestrator {
         projectPath: scanPath,
         compileCommands: buildResult.compileCommandsPath,
         buildProfile: target.buildProfile,
+        thirdPartyPaths: thirdPartyPaths.length > 0 ? thirdPartyPaths : undefined,
       },
       requestId,
       signal,

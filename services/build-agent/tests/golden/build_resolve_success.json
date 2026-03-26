@@ -1,0 +1,22 @@
+{
+  "taskId": "__STRING__",
+  "taskType": "__STRING__",
+  "status": "__STRING__",
+  "modelProfile": "__STRING__",
+  "promptVersion": "__STRING__",
+  "schemaVersion": "__STRING__",
+  "validation": {"valid": "__BOOL__", "errors": "__LIST__"},
+  "result": {
+    "summary": "__STRING__",
+    "claims": "__LIST__",
+    "caveats": "__LIST__",
+    "usedEvidenceRefs": "__LIST__",
+    "confidence": "__FLOAT_0_1__",
+    "confidenceBreakdown": "__DICT__",
+    "needsHumanReview": "__BOOL__",
+    "recommendedNextSteps": "__LIST__",
+    "policyFlags": "__LIST__",
+    "buildResult": "__DICT_OR_NULL__"
+  },
+  "audit": "__DICT__"
+}

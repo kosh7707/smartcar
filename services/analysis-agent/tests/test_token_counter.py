@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock
 
 from app.budget.token_counter import TokenCounter
-from app.schemas.agent import BudgetState, LlmResponse
+from agent_shared.schemas.agent import BudgetState, LlmResponse
 
 
 def _make_session(budget: BudgetState | None = None):

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from app.errors import SarifParseError
+from app.scanner.path_utils import normalize_path
 from app.schemas.response import SastDataFlowStep, SastFinding, SastFindingLocation
 
 logger = logging.getLogger("aegis-sast-runner")
@@ -101,7 +102,7 @@ def _extract_location(
     if not uri or not region.get("startLine"):
         return None
 
-    file_path = _normalize_path(uri, base_dir)
+    file_path = normalize_path(uri.removeprefix("file://"), base_dir)
 
     return SastFindingLocation(
         file=file_path,
@@ -130,7 +131,7 @@ def _extract_data_flow(
 
                 if uri and region.get("startLine"):
                     steps.append(SastDataFlowStep(
-                        file=_normalize_path(uri, base_dir),
+                        file=normalize_path(uri.removeprefix("file://"), base_dir),
                         line=region["startLine"],
                         content=snippet,
                     ))
@@ -164,26 +165,3 @@ def _extract_metadata(
     return meta
 
 
-def _normalize_path(uri: str, base_dir: Path) -> str:
-    """SARIF URI에서 temp dir prefix를 제거하여 원래 상대 경로를 복원."""
-    # file:// scheme 제거
-    if uri.startswith("file://"):
-        uri = uri[7:]
-
-    # base_dir prefix 제거
-    base_str = str(base_dir)
-    if not base_str.endswith("/"):
-        base_str += "/"
-
-    if uri.startswith(base_str):
-        return uri[len(base_str):]
-
-    # 앞쪽 / 제거 (상대 경로로)
-    if uri.startswith("/"):
-        # base_dir의 각 부분을 시도
-        try:
-            return str(Path(uri).relative_to(base_dir))
-        except ValueError:
-            pass
-
-    return uri

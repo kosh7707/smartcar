@@ -1,6 +1,7 @@
 import type { ProjectSettings, BuildProfile } from "@aegis/shared";
 import type { IProjectSettingsDAO } from "../dao/interfaces";
 import { findSdkProfile } from "./sdk-profiles";
+import { config } from "../config";
 
 const DEFAULT_BUILD_PROFILE: BuildProfile = {
   sdkId: "custom",
@@ -11,7 +12,7 @@ const DEFAULT_BUILD_PROFILE: BuildProfile = {
 };
 
 const SCALAR_DEFAULTS: Omit<ProjectSettings, "buildProfile"> = {
-  llmUrl: process.env.LLM_GATEWAY_URL ?? "http://localhost:8000",
+  llmUrl: config.llmGatewayUrl,
 };
 
 /** KV 스토어에서 JSON 직렬화가 필요한 키 */

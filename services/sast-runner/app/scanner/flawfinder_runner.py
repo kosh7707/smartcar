@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from app.errors import ScanTimeoutError
+from app.scanner.path_utils import normalize_path
 from app.schemas.response import SastFinding, SastFindingLocation
 
 logger = logging.getLogger("aegis-sast-runner")
@@ -103,7 +104,7 @@ class FlawfinderRunner:
                 continue
 
             line = int(line_str)
-            file_path = self._normalize_path(file_path, base_dir)
+            file_path = normalize_path(file_path, base_dir)
 
             severity = _SEVERITY_MAP.get(level, "info")
             column_str = row.get("Column", "0")
@@ -138,14 +139,3 @@ class FlawfinderRunner:
             ))
 
         return findings
-
-    def _normalize_path(self, path: str, base_dir: Path) -> str:
-        base_str = str(base_dir)
-        if not base_str.endswith("/"):
-            base_str += "/"
-        if path.startswith(base_str):
-            return path[len(base_str):]
-        try:
-            return str(Path(path).relative_to(base_dir))
-        except ValueError:
-            return path

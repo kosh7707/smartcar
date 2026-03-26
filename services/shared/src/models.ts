@@ -4,6 +4,11 @@
 
 export type Severity = "critical" | "high" | "medium" | "low" | "info";
 export type AnalysisModule = "static_analysis" | "dynamic_analysis" | "dynamic_testing" | "deep_analysis";
+
+/**
+ * 분석 결과 상태.
+ * 전이: pending → running → completed | failed | aborted
+ */
 export type AnalysisStatus = "pending" | "running" | "completed" | "failed" | "aborted";
 export type VulnerabilitySource = "rule" | "llm";
 
@@ -199,7 +204,44 @@ export interface BuildProfile {
   flags?: string[];
 }
 
-/** 사전 정의 SDK 프로파일 */
+// ── SDK 등록 (유저 관리) ──
+
+export type SdkRegistryStatus =
+  | "uploading" | "extracting" | "analyzing"
+  | "verifying" | "ready" | "verify_failed";
+
+/** S3 Build Agent가 분석한 SDK 프로파일 */
+export interface SdkAnalyzedProfile {
+  compiler?: string;
+  compilerPrefix?: string;
+  gccVersion?: string;
+  targetArch?: string;
+  languageStandard?: string;
+  sysroot?: string;
+  environmentSetup?: string;
+  includePaths?: string[];
+  defines?: Record<string, string>;
+}
+
+/** 유저 등록 SDK (DB 저장, 상태머신: uploading→extracting→analyzing→verifying→ready) */
+export interface RegisteredSdk {
+  id: string;
+  projectId: string;
+  name: string;
+  description?: string;
+  /** SDK 경로 (/uploads/{pid}/sdk/{id}/ 또는 로컬 경로) */
+  path: string;
+  /** S3 Build Agent가 분석한 프로파일 */
+  profile?: SdkAnalyzedProfile;
+  status: SdkRegistryStatus;
+  /** S4 검증 실패 사유 */
+  verifyError?: string;
+  verified: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 사전 정의 SDK 프로파일 (내장, 하드코딩) */
 export interface SdkProfile {
   id: SdkProfileId;
   name: string;
@@ -212,9 +254,25 @@ export interface SdkProfile {
 // 빌드 타겟
 // ============================================================
 
-/** 서브 프로젝트(빌드 타겟) 라이프사이클 상태 */
+/**
+ * 서브 프로젝트(빌드 타겟) 라이프사이클 상태 (16상태 FSM).
+ *
+ * 정상 경로:
+ *   discovered → resolving → configured → building → built → scanning → scanned → graphing → graphed → ready
+ *
+ * 실패 분기:
+ *   resolving → resolve_failed (비치명적: 기존 buildProfile이 있으면 building 진행 가능)
+ *   building → build_failed
+ *   scanning → scan_failed
+ *   graphing → graph_failed (비치명적: ready로 진행 가능)
+ *
+ * PipelinePhase 매핑:
+ *   setup = discovered | resolving | configured | resolve_failed
+ *   build = building ~ graph_failed
+ *   ready = ready
+ */
 export type BuildTargetStatus =
-  | "discovered" | "configured"
+  | "discovered" | "resolving" | "configured" | "resolve_failed"
   | "building" | "built" | "build_failed"
   | "scanning" | "scanned" | "scan_failed"
   | "graphing" | "graphed" | "graph_failed"
@@ -236,6 +294,8 @@ export interface BuildTarget {
   buildProfile: BuildProfile;
   /** 빌드 시스템 (S4 탐색 결과) */
   buildSystem?: "cmake" | "make" | "custom";
+  /** S3 Build Agent가 결정한 빌드 명령어 */
+  buildCommand?: string;
   /** 라이프사이클 상태 */
   status: BuildTargetStatus;
   /** bear 빌드 결과 compile_commands.json 경로 */
@@ -252,6 +312,23 @@ export interface BuildTarget {
   codeGraphNodeCount?: number;
   /** 마지막 빌드 시각 */
   lastBuiltAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 서브 프로젝트 내 서드파티 라이브러리 (S4 식별, 사용자 포함/제외 선택) */
+export interface TargetLibrary {
+  id: string;
+  targetId: string;
+  projectId: string;
+  name: string;
+  version?: string;
+  /** 서브프로젝트 내 상대 경로 */
+  path: string;
+  /** 스캔에 포함 여부 (false=제외, true=포함). 기본 제외. */
+  included: boolean;
+  /** upstream 대비 수정된 파일 목록 */
+  modifiedFiles: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -382,6 +459,18 @@ export interface SastFinding {
 // 코어 도메인: Run / Finding / EvidenceRef
 // ============================================================
 
+/**
+ * Finding 7-상태 라이프사이클.
+ *
+ * 전이 규칙:
+ *   open → needs_review | accepted_risk | false_positive | fixed
+ *   sandbox → needs_review | open | false_positive
+ *   needs_review → accepted_risk | false_positive | fixed | open
+ *   accepted_risk → needs_review | open
+ *   false_positive → needs_review | open
+ *   fixed → needs_revalidation | open
+ *   needs_revalidation → open | fixed | false_positive
+ */
 export type FindingStatus =
   | "open"
   | "needs_review"
@@ -425,6 +514,11 @@ export interface Finding {
   /** 상세 분석 (Agent claim.detail — 공격 경로, 영향 범위, 악용 시나리오 등) */
   detail?: string;
   ruleId?: string;
+  /**
+   * 동일성 지문. 재분석 시 같은 취약점을 식별하는 데 사용.
+   * 생성 규칙: sha256(projectId + location + ruleId|title + sourceType).slice(0,16)
+   */
+  fingerprint?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -59,8 +59,86 @@ def _get_registry() -> dict[str, dict[str, Any]]:
 
 
 def _get_sdk_base(sdk_id: str) -> Path:
-    """sdkId에 해당하는 SDK 설치 경로."""
+    """sdkId에 해당하는 SDK 설치 경로. 레지스트리에 path가 있으면 우선 사용."""
+    sdk_info = _get_registry().get(sdk_id)
+    if sdk_info and "path" in sdk_info:
+        return Path(sdk_info["path"])
     return _get_sdk_root() / sdk_id
+
+
+def _save_registry(registry: dict[str, dict[str, Any]]) -> None:
+    """SDK 레지스트리를 파일에 저장."""
+    registry_path = _get_sdk_root() / "sdk-registry.json"
+    registry_path.parent.mkdir(parents=True, exist_ok=True)
+    registry_path.write_text(
+        json.dumps(registry, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
+def _invalidate_cache() -> None:
+    """레지스트리 캐시를 무효화."""
+    global _SDK_REGISTRY
+    _SDK_REGISTRY = None
+
+
+def validate_sdk(data: dict[str, Any]) -> list[str]:
+    """SDK 등록 데이터를 검증. 실패한 항목의 에러 메시지 리스트를 반환."""
+    errors: list[str] = []
+
+    sdk_path = Path(data.get("path", ""))
+    if not sdk_path.is_dir():
+        errors.append(f"SDK path not found: {sdk_path}")
+        return errors  # 경로가 없으면 나머지 검증 불가
+
+    sysroot = data.get("sysroot")
+    if sysroot:
+        sysroot_path = sdk_path / sysroot
+        if not sysroot_path.is_dir():
+            errors.append(f"Sysroot not found: {sysroot_path}")
+
+    env_setup = data.get("environmentSetup") or data.get("environment_setup")
+    if env_setup:
+        setup_path = sdk_path / env_setup
+        if not setup_path.is_file():
+            errors.append(f"Environment setup script not found: {setup_path}")
+
+    prefix = data.get("compilerPrefix") or data.get("compiler_prefix")
+    if prefix and sysroot:
+        sysroot_path = sdk_path / sysroot
+        compiler = sysroot_path / "usr" / "bin" / f"{prefix}-gcc"
+        if not compiler.exists():
+            errors.append(f"Compiler not found: {compiler}")
+
+    return errors
+
+
+def register_sdk(sdk_id: str, data: dict[str, Any]) -> None:
+    """SDK를 레지스트리에 등록."""
+    registry = _get_registry().copy()
+    registry[sdk_id] = {
+        "description": data.get("description", ""),
+        "path": data["path"],
+        "sysroot": data.get("sysroot", ""),
+        "compiler_prefix": data.get("compilerPrefix") or data.get("compiler_prefix", ""),
+        "gcc_version": data.get("gccVersion") or data.get("gcc_version", ""),
+        "environment_setup": data.get("environmentSetup") or data.get("environment_setup", ""),
+    }
+    _save_registry(registry)
+    _invalidate_cache()
+    logger.info("SDK registered: %s at %s", sdk_id, data["path"])
+
+
+def unregister_sdk(sdk_id: str) -> bool:
+    """SDK를 레지스트리에서 삭제. 존재했으면 True."""
+    registry = _get_registry().copy()
+    if sdk_id not in registry:
+        return False
+    del registry[sdk_id]
+    _save_registry(registry)
+    _invalidate_cache()
+    logger.info("SDK unregistered: %s", sdk_id)
+    return True
 
 
 def resolve_sdk_paths(profile: BuildProfile) -> list[str]:

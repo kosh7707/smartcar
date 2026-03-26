@@ -1,0 +1,33 @@
+name: S2 Backend
+
+on:
+  push:
+    paths:
+      - "services/backend/**"
+      - "services/shared/**"
+  pull_request:
+    paths:
+      - "services/backend/**"
+      - "services/shared/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install root dependencies (workspace links)
+        run: npm ci
+
+      - name: Build shared package
+        run: cd services/shared && npm run build
+
+      - name: Type check
+        run: cd services/backend && npx tsc --noEmit
+
+      - name: Run tests
+        run: cd services/backend && npx vitest run

@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S2(AEGIS Core/Backend) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-24**
+> **마지막 업데이트: 2026-03-25**
 
 ---
 
@@ -160,8 +160,13 @@ services/backend/
 ├── package.json                    # @aegis/backend, Express 5, better-sqlite3, multer, ws, pino
 ├── tsconfig.json
 ├── aegis.db                     # SQLite DB 파일 (자동 생성)
+├── .env.example                   # 환경변수 문서화 (모든 인식 변수 + 기본값)
 └── src/
-    ├── index.ts                    # 앱 진입점 (Express 초기화, DI, 미들웨어, 라우터 마운트, WS attach)
+    ├── index.ts                    # 앱 진입점 (~55줄, 슬림 composition root)
+    ├── config.ts                   # 환경변수 중앙 집중 (AppConfig 인터페이스)
+    ├── composition.ts              # DI 컨테이너 (createAppContext → AppContext)
+    ├── router-setup.ts             # 라우터 마운트 (mountRouters)
+    ├── bootstrap.ts                # 기동 시 초기화 (룰 시딩 등)
     ├── db.ts                       # SQLite 초기화, 테이블 16개 생성, 마이그레이션
     ├── lib/
     │   ├── logger.ts              # pino 루트 로거 + createLogger(component)
@@ -260,6 +265,12 @@ services/backend/
 ### 내부 아키텍처
 
 ```
+index.ts (진입점 ~55줄)
+  → config.ts           (환경변수 중앙 집중, AppConfig)
+  → composition.ts      (createAppContext: DAO 17개 + 서비스 19+ + WS 6개 + 클라이언트 4개)
+  → router-setup.ts     (mountRouters: 라우터 17개 마운트)
+  → bootstrap.ts        (runStartupTasks: 룰 시딩)
+
 Controller → Service → DAO → SQLite
                 ↘ RuleService.buildRuleEngine(projectId) → RuleEngine (1계층: 정적 분석, per-analysis) [Transient]
                 ↘ Chunker (정적 분석 파일 청크 분할) [Transient]
@@ -931,7 +942,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 ### 테스트 인프라: 구현 완료
 
-vitest 기반 테스트 133개. `cd services/backend && npx vitest run`으로 실행.
+vitest 기반 테스트 202개. `cd services/backend && npx vitest run`으로 실행.
 
 ```
 src/
@@ -968,15 +979,78 @@ src/
 
 ### 후순위
 
-- Orchestrator에 `buildCommand` 전달 (사용자가 프로젝트 설정에서 빌드 명령어 지정)
 - `source.get_span` API — 소스 파일 특정 범위 반환 (S3 Agent tool)
 - Overview에 `deep_analysis` 모듈 집계 추가 (project.service.ts)
 - 사용자 인증 (JWT 기반) — Approval 고도화 시 필요
-- WS 이벤트 표준화 (envelope, sequence gap, backpressure)
+
+### 인프라 로드맵 (v1.0.0 이후)
+
+**현재**: WSL2 단일 머신 + DGX Spark. 서비스 7개 직접 실행 (`scripts/start.sh`).
+
+**단기 — Docker화** (v1.0.0 태그 이후 검토):
+- `docker-compose.yml`로 7개 서비스 + Neo4j + Qdrant 일괄 기동
+- 소스코드/SDK는 공유 볼륨(`uploads:`)으로 S2/S3/S4 간 공유
+- config.ts 환경변수가 이미 외부 주입 가능 → localhost를 컨테이너 DNS(`http://sast-runner:9000`)로 교체만 하면 됨
+- 서비스별 `Dockerfile` 추가 필요, 코드 변경 거의 없음
+- SDK 마운트: `-v /home/kosh/sdks:/sdks`
+
+**장기 — Kubernetes** (SaaS화 또는 다중 고객 서비스 시):
+- 서비스별 Pod 스케일링 (SAST Runner 병렬 확장 등)
+- 자동 스케일링, 무중단 배포, 장애 복구
+- 현 시점에서는 오버킬 — docker-compose로 충분
+
+**설계 원칙** (지금부터 유지):
+- S4는 항상 "경로"만 받는 구조 → 저장소가 로컬이든 NFS든 코드 변경 없음
+- S3도 projectPath만 받음 → 동일
+- S2만 StorageProvider 추상화 레이어 추가하면 로컬↔클라우드 전환 가능
+- SDK `.bin` 인스톨러 자동 실행은 VM 환경에서만 (보안상 로컬 실행 금지)
 
 ---
 
 ## 12. 세션 로그
+
+### 2026-03-25 세션 10 (백로그 일괄 처리 — build-resolve + Transient 제거 + 테스트 + MCP)
+- **Transient 코드 제거** (10개 파일 삭제):
+  - `static-analysis.service.ts`, `chunker.ts`, `static-analysis.controller.ts` — AnalysisOrchestrator가 대체
+  - `project-rules.controller.ts`, `rule.dao.ts`, `rule.service.ts`, `rules/*` (4파일) — 룰 엔진 완전 제거
+  - `bootstrap.ts` no-op 전환, `project.service.ts`에서 RuleService 의존 제거
+  - LlmV1Adapter/LlmTaskClient는 유지 (DynamicAnalysis가 아직 사용)
+- **Build Agent 연동** (build-resolve):
+  - `build-agent-client.ts` 신규 — agent-client.ts 패턴, POST :8003/v1/tasks (build-resolve)
+  - `config.ts`에 `buildAgentUrl` 추가 (기본: :8003)
+  - `errors.ts`에 `BuildAgentUnavailableError`, `BuildAgentTimeoutError` 추가
+  - `PipelineOrchestrator`에 Step 0 (resolve) 삽입: discovered→resolving→configured→building...
+  - resolve 실패 시 비치명적 폴백 (기존 buildProfile 있으면 계속 진행)
+  - `health.controller.ts`에 Build Agent 헬스체크 추가
+- **공유 모델 확장**:
+  - `BuildTargetStatus`에 `resolving`, `resolve_failed` 추가 (16상태)
+  - `BuildTarget`에 `buildCommand?: string` 추가
+  - DB `build_targets` 테이블에 `build_command TEXT` 마이그레이션
+- **테스트 26개 추가** (176→202):
+  - BuildAgentClient 계약 테스트 8개 (성공/실패/503 재시도/에러/헬스체크)
+  - PipelineOrchestrator 단위 테스트 11개 (happy path, resolve/build/scan/graph 실패, 다중 타겟, WS)
+  - Pipeline API 계약 테스트 3개 (status/phase 매핑, 404)
+  - copyToSubproject 테스트 4개 (구조 보존, 트래버설 방지, 덮어쓰기)
+- **MCP 로그 도구 고도화**: SQLite 캐시 레이어 추가 (mtime/size 기반 무효화, 인덱스 검색 10ms)
+- **문서 갱신**: shared-models.md (BuildTargetStatus 16상태, buildCommand, PipelinePhase), 백로그 업데이트
+- **상태: TypeScript 0에러, 테스트 202개 통과**
+
+### 2026-03-25 세션 9 (외부 리뷰 피드백 기반 리팩토링)
+- **외부 리뷰 수신**: GPT 교수 전체 서비스 리뷰 (`docs/외부피드백/26.03.25/`)
+- **환경변수 중앙 집중화**: `config.ts` 신규 — 4개 파일에 분산된 `process.env` 읽기를 단일 `AppConfig`로 통합
+- **CORS 하드닝**: `cors()` 무제한 → `cors({ origin: config.allowedOrigins })` (기본: localhost:5173)
+- **Composition Root 분리**: index.ts 252줄 → 55줄 (`composition.ts`, `router-setup.ts`, `bootstrap.ts` 추출)
+- **AppContext 인터페이스**: DAO 17개 + 서비스 19+ + WS 6개 + 클라이언트 4개를 타입 안전하게 묶음
+- **WS 이벤트 레지스트리**: `WsEventType` 유니온 (21개 이벤트) + 6개 패밀리별 JSDoc 문서화
+- **상태 타입 JSDoc**: BuildTargetStatus(14상태 FSM), FindingStatus(7상태 라이프사이클), AnalysisStatus 전이 규칙 문서화
+- **클라이언트 계약 테스트**: AgentClient/SastClient/KbClient fetch 모킹 테스트 24개 추가
+- **.env.example 신규**: 모든 인식 환경변수 + 기본값 + 설명
+- **S5 WR 처리**: KbClient.checkReady() 추가, 헬스체크 종합 판정 (ok/degraded/unhealthy), KB 상태 포함
+- **S3 WR 처리**: AEGIS.md에 `services/agent-shared/` (S3 소유) 추가, FailureCode 3개는 기존 로직 호환
+- **S4 WR 처리**: execution.toolResults.version 필드 — additive, 코드 수정 불필요
+- **MCP log-analyzer 수정**: FastMCP version= 인자 제거, sys.path 수정, .mcp.json 절대경로, local config 충돌 해소
+- **S1에 WR 발송**: 헬스체크 엔드포인트 고도화 (3단계 status + knowledgeBase 추가)
+- **상태: TypeScript 0에러(S2), 테스트 177개 통과 (기존 153 + 신규 24)**
 
 ### 2026-03-24 세션 8 (풀스택 통합 테스트 + 서브 프로젝트 파이프라인)
 - **풀스택 통합 테스트 시작** — S1 프론트엔드와 실 데이터(RE100) 테스트

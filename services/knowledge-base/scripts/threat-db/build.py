@@ -11,7 +11,9 @@ Usage:
     python scripts/threat-db/build.py --qdrant-path data/qdrant
 """
 import argparse
+import datetime
 import functools
+import json as _json
 import os
 import sys
 import time
@@ -70,9 +72,9 @@ def main():
 
     # Phase 2: 개별 파싱
     phase_header(2, "데이터 파싱")
-    cwe_records = parse_cwe(paths["cwe"])
-    attack_records = parse_attack(paths["attack"])
-    capec_records, capec_bridge = parse_capec(paths["capec"])
+    cwe_records, cwe_meta, cwe_parent_map = parse_cwe(paths["cwe"])
+    attack_records, attack_meta = parse_attack(paths["attack"])
+    capec_records, capec_bridge, capec_meta = parse_capec(paths["capec"], cwe_parent_map=cwe_parent_map)
 
     # NVD (레거시 옵션)
     nvd_records = []
@@ -105,6 +107,21 @@ def main():
     phase_header(4, "벡터 DB 적재 (파일 기반)")
     os.makedirs(qdrant_path, exist_ok=True)
     load_qdrant(unified, qdrant_path)
+
+    # kb-meta.json 작성 (ontology 버전 추적)
+    kb_meta = {
+        "build_timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "sources": {
+            "CWE": cwe_meta,
+            "ATT&CK": attack_meta,
+            "CAPEC": capec_meta,
+        },
+        "total_records": len(unified),
+    }
+    meta_path = os.path.join(os.path.dirname(qdrant_path), "kb-meta.json")
+    with open(meta_path, "w") as f:
+        _json.dump(kb_meta, f, indent=2, ensure_ascii=False)
+    print(f"\n  {C.B}KB 메타데이터 저장: {C.W}{meta_path}{C.RST}")
 
     # Phase 5: 통계
     if not args.no_stats:

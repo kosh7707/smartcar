@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from app.errors import ScanTimeoutError
+from app.scanner.path_utils import normalize_path
 from app.schemas.request import BuildProfile
 from app.schemas.response import SastFinding, SastFindingLocation
 
@@ -120,8 +121,8 @@ class ClangTidyRunner:
         cmd.append("--")
 
         if profile:
-            std = profile.language_standard.lower()
-            cmd.append(f"-std={std}")
+            if profile.language_standard:
+                cmd.append(f"-std={profile.language_standard.lower()}")
 
             if profile.include_paths:
                 for inc in profile.include_paths:
@@ -156,7 +157,7 @@ class ClangTidyRunner:
             if not match:
                 continue
 
-            file_path = self._normalize_path(match.group("file"), base_dir)
+            file_path = normalize_path(match.group("file"), base_dir)
             line_num = int(match.group("line"))
             col = int(match.group("col"))
             severity = match.group("severity")
@@ -191,17 +192,6 @@ class ClangTidyRunner:
             ))
 
         return findings
-
-    def _normalize_path(self, path: str, base_dir: Path) -> str:
-        base_str = str(base_dir)
-        if not base_str.endswith("/"):
-            base_str += "/"
-        if path.startswith(base_str):
-            return path[len(base_str):]
-        try:
-            return str(Path(path).relative_to(base_dir))
-        except ValueError:
-            return path
 
 
 # CERT C/C++ 체크 → CWE 매핑 (주요 보안 관련만)

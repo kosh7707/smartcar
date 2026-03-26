@@ -11,6 +11,8 @@ export type ErrorCode =
   | "AGENT_TIMEOUT"
   | "SAST_UNAVAILABLE"
   | "SAST_TIMEOUT"
+  | "BUILD_AGENT_UNAVAILABLE"
+  | "BUILD_AGENT_TIMEOUT"
   | "DB_ERROR"
   | "INTERNAL_ERROR";
 
@@ -108,6 +110,20 @@ export class SastTimeoutError extends AppError {
   constructor(message: string, cause?: unknown) {
     super("SAST_TIMEOUT", 504, message, true, cause);
     this.name = "SastTimeoutError";
+  }
+}
+
+export class BuildAgentUnavailableError extends AppError {
+  constructor(message: string, cause?: unknown) {
+    super("BUILD_AGENT_UNAVAILABLE", 502, message, true, cause);
+    this.name = "BuildAgentUnavailableError";
+  }
+}
+
+export class BuildAgentTimeoutError extends AppError {
+  constructor(message: string, cause?: unknown) {
+    super("BUILD_AGENT_TIMEOUT", 504, message, true, cause);
+    this.name = "BuildAgentTimeoutError";
   }
 }
 

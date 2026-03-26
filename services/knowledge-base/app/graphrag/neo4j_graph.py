@@ -189,6 +189,20 @@ class Neo4jGraph:
             node = record["n"]
             return dict(node)
 
+    def get_kb_meta(self) -> dict | None:
+        """KBMeta 노드에서 ontology 버전 정보를 반환한다."""
+        with self._driver.session() as session:
+            result = session.run(
+                "MATCH (m:KBMeta {id: 'kb-meta'}) RETURN m"
+            )
+            record = result.single()
+            if record is None:
+                return None
+            node = record["m"]
+            meta = dict(node)
+            meta.pop("id", None)
+            return meta
+
     # --- 추가 메서드 (API용) ---
 
     def get_stats(self) -> dict:
