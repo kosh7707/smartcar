@@ -83,21 +83,29 @@ class ScanbuildRunner:
         logger.info("Running scan-build on %d files", len(c_cpp_files))
         bin_name = scan_build_bin or "scan-build"
 
-        # 파일별 개별 실행 (동일 심볼 충돌 방지) + 병렬
+        # 파일별 개별 실행 (동일 심볼 충돌 방지) + Semaphore 동시성 제한
+        _sem = asyncio.Semaphore(8)
         per_file_timeout = max(timeout // max(len(c_cpp_files), 1), 15)
-        tasks = [
-            self._run_single(bin_name, scan_dir, f, profile, per_file_timeout)
-            for f in c_cpp_files
-        ]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        async def _guarded(f: str) -> list[SastFinding]:
+            async with _sem:
+                return await self._run_single(bin_name, scan_dir, f, profile, per_file_timeout)
+
+        results = await asyncio.gather(
+            *[_guarded(f) for f in c_cpp_files], return_exceptions=True,
+        )
 
         all_findings: list[SastFinding] = []
+        timed_out = 0
         for f, result in zip(c_cpp_files, results):
             if isinstance(result, Exception):
                 logger.warning("scan-build failed for %s: %s", f, result)
+            elif result is None:
+                timed_out += 1
             else:
                 all_findings.extend(result)
 
+        self._last_timed_out = timed_out
         return all_findings
 
     async def _run_single(
@@ -129,7 +137,8 @@ class ScanbuildRunner:
             except asyncio.TimeoutError:
                 proc.kill()
                 await proc.communicate()
-                return []  # 개별 파일 타임아웃은 무시하고 진행
+                logger.warning("scan-build timed out for %s (%ds)", source_file, timeout)
+                return None  # sentinel: timeout
 
             return self._parse_plist_results(output_dir, scan_dir)
         finally:
@@ -165,7 +174,8 @@ class ScanbuildRunner:
                 for key, val in profile.defines.items():
                     cmd.append(f"-D{key}={val}" if val else f"-D{key}")
         else:
-            cmd.append("-std=c++17")
+            from app.config import settings
+            cmd.append(f"-std={settings.default_language_standard}")
 
         cmd.extend(targets)
         return cmd

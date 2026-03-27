@@ -1,0 +1,128 @@
+rules:
+  - id: aegis.c.taint-recv-to-strcpy
+    pattern: |
+      recv($SOCK, $BUF, ...);
+      ...
+      strcpy($DST, $BUF);
+    message: >
+      Taint flow: network data from recv() copied via unbounded strcpy().
+      Use strncpy() or snprintf() with explicit size limit.
+    languages: [c]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-120"
+        - "CWE-20"
+      category: security
+      confidence: MEDIUM
+      impact: HIGH
+      automotive_rationale: >
+        Network-received data (V2X, Ethernet, WiFi) copied without bounds
+        checking is a primary attack vector for remote ECU compromise.
+        Automotive Ethernet and V2X interfaces are increasingly exposed
+        to untrusted networks.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1a)"
+        - "MISRA C:2012 Dir 4.14 — Controlling data from external sources"
+        - "UN ECE WP.29 R155 — Cyber security management systems"
+
+  - id: aegis.c.taint-read-to-atoi
+    pattern: |
+      read($FD, $BUF, ...);
+      ...
+      atoi($BUF);
+    message: >
+      Taint flow: file/device data from read() passed to atoi() without validation.
+      atoi() has no error checking — use strtol() with range validation.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-20"
+        - "CWE-190"
+      category: security
+      confidence: MEDIUM
+      impact: MEDIUM
+      automotive_rationale: >
+        Device file reads (sysfs, procfs, sensor drivers) converted to integers
+        without validation can produce unexpected values causing integer overflow
+        in control calculations.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d)"
+        - "MISRA C:2012 Rule 22.8 — errno value"
+        - "CERT C ERR34-C — Detect errors from conversion functions"
+
+  - id: aegis.c.taint-fgets-to-system
+    pattern: |
+      fgets($BUF, ...);
+      ...
+      system($BUF);
+    message: >
+      Taint flow: file input from fgets() passed directly to system().
+      Command injection via file content — validate/sanitize input first.
+    languages: [c]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-78"
+        - "CWE-20"
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      automotive_rationale: >
+        Configuration files or script inputs read via fgets() and executed
+        via system() allow command injection if the file is writable by
+        an attacker (e.g., via OTA update or USB media).
+      references:
+        - "ISO 26262-6:2018 Table 1 (1b)"
+        - "MISRA C:2012 Dir 4.14"
+        - "CERT C ENV33-C — Do not call system()"
+
+  - id: aegis.c.taint-recv-to-memcpy
+    pattern: |
+      recv($SOCK, $BUF, $LEN, ...);
+      ...
+      memcpy($DST, $BUF, $LEN);
+    message: >
+      Taint flow: network data length from recv() used directly as memcpy() size.
+      Validate that $LEN does not exceed $DST buffer size.
+    languages: [c]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-787"
+        - "CWE-20"
+      category: security
+      confidence: MEDIUM
+      impact: HIGH
+      automotive_rationale: >
+        Network packet length used directly as copy size can overflow
+        destination buffers in CAN-to-Ethernet gateways or V2X message
+        parsers, enabling remote code execution on gateway ECUs.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1a)"
+        - "UN ECE WP.29 R155"
+
+  - id: aegis.c.taint-fgets-to-strcpy
+    pattern: |
+      fgets($BUF, ...);
+      ...
+      strcpy($DST, $BUF);
+    message: >
+      Taint flow: file input from fgets() copied via unbounded strcpy().
+      Use strncpy() with sizeof($DST).
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-120"
+        - "CWE-20"
+      category: security
+      confidence: MEDIUM
+      impact: MEDIUM
+      automotive_rationale: >
+        Configuration or calibration file data copied without bounds checking
+        can overflow destination buffers in ECU parameter loading routines.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1a)"
+        - "MISRA C:2012 Dir 4.14"

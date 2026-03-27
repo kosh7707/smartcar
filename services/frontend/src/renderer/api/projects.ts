@@ -54,3 +54,21 @@ export async function updateProjectSettings(projectId: string, settings: Partial
 export async function fetchProjectOverview(projectId: string): Promise<ProjectOverviewResponse> {
   return apiFetch<ProjectOverviewResponse>(`/api/projects/${projectId}/overview`);
 }
+
+// ── Activity Timeline ──
+
+export type ActivityType = "run_completed" | "finding_status_changed" | "approval_decided" | "pipeline_completed" | "source_uploaded";
+
+export interface ActivityEntry {
+  type: ActivityType;
+  timestamp: string;
+  summary: string;
+  metadata: Record<string, unknown>;
+}
+
+export async function fetchProjectActivity(projectId: string, limit: number = 10): Promise<ActivityEntry[]> {
+  const res = await apiFetch<{ success: boolean; data: ActivityEntry[] }>(
+    `/api/projects/${projectId}/activity?limit=${limit}`,
+  );
+  return res.data;
+}

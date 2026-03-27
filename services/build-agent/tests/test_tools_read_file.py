@@ -70,8 +70,8 @@ async def test_path_traversal_absolute(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_read_50kb_limit(tmp_path):
-    # Create a file larger than 50 000 chars
+async def test_read_8kb_limit_with_truncation_notice(tmp_path):
+    """8,000자 초과 파일은 잘리고 절삭 공지가 붙는다."""
     big_content = "A" * 100_000
     _make_file(tmp_path, "big.txt", big_content)
 
@@ -79,7 +79,11 @@ async def test_read_50kb_limit(tmp_path):
     result = await tool.execute({"path": "big.txt"})
 
     assert result.success is True
-    assert len(result.content) == 50_000
+    assert result.content.startswith("A" * 100)
+    assert "8,000자에서 잘림" in result.content
+    assert "100,000바이트" in result.content
+    # 잘린 본문(8000) + 절삭 공지
+    assert len(result.content) < 8_200
 
 
 @pytest.mark.asyncio

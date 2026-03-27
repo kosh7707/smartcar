@@ -110,8 +110,8 @@ class SemgrepRunner:
 
         cmd.extend([
             "--sarif",              # SARIF JSON 출력
-            "--timeout", "5",       # per-rule 타임아웃 (초)
-            "--max-target-bytes", "1000000",  # 1MB 초과 파일 스킵
+            "--timeout", str(settings.semgrep_per_rule_timeout),
+            "--max-target-bytes", str(settings.semgrep_max_target_bytes),
             "--no-git-ignore",      # temp dir에는 .gitignore 없음
             "--metrics", "off",     # 텔레메트리 비활성화
             str(scan_dir),

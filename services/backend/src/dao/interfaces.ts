@@ -49,6 +49,10 @@ export interface FindingFilters {
   runId?: string;
   from?: string;
   to?: string;
+  q?: string;
+  sourceType?: string;
+  sort?: "severity" | "createdAt" | "location";
+  order?: "asc" | "desc";
 }
 
 export interface IFindingDAO {
@@ -57,8 +61,11 @@ export interface IFindingDAO {
   findById(id: string): Finding | undefined;
   findByRunId(runId: string): Finding[];
   findByProjectId(projectId: string, filters?: FindingFilters): Finding[];
+  findByIds(ids: string[]): Finding[];
   findByFingerprint(projectId: string, fingerprint: string): Finding | undefined;
+  findAllByFingerprint(projectId: string, fingerprint: string): Finding[];
   updateStatus(id: string, status: FindingStatus): void;
+  withTransaction<T>(fn: () => T): T;
   summaryByProjectId(projectId: string): { byStatus: Record<string, number>; bySeverity: Record<string, number>; total: number };
   summaryByModule(
     projectId: string,
@@ -111,6 +118,8 @@ export interface IAuditLogDAO {
   save(entry: AuditLogEntry): void;
   findByResourceId(resourceId: string): AuditLogEntry[];
   findByResourceIds(resourceIds: string[], limit?: number): AuditLogEntry[];
+  findFindingStatusChanges(projectId: string, limit: number): AuditLogEntry[];
+  findApprovalDecisions(projectId: string, limit: number): AuditLogEntry[];
 }
 
 // ── Static/Dynamic Analysis ──

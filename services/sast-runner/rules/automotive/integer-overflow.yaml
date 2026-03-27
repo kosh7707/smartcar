@@ -1,4 +1,179 @@
 rules:
+  # ─── Taint mode: 외부 입력 → overflow-prone 산술 ───
+
+  - id: aegis.c.cwe-190-taint-arithmetic-overflow
+    mode: taint
+    pattern-sources:
+      - pattern: atoi(...)
+      - pattern: atof(...)
+      - pattern: strtol(...)
+      - pattern: strtod(...)
+      - pattern: RAND32()
+      - pattern: rand()
+    pattern-sinks:
+      - patterns:
+          - pattern: $SINK + $Y
+          - focus-metavariable: $SINK
+      - patterns:
+          - pattern: $Y + $SINK
+          - focus-metavariable: $SINK
+      - patterns:
+          - pattern: $SINK * $Y
+          - focus-metavariable: $SINK
+      - patterns:
+          - pattern: $Y * $SINK
+          - focus-metavariable: $SINK
+      - patterns:
+          - pattern: $SINK * $SINK
+          - focus-metavariable: $SINK
+      - patterns:
+          - pattern: $SINK++
+          - focus-metavariable: $SINK
+      - patterns:
+          - pattern: ++$SINK
+          - focus-metavariable: $SINK
+    message: >
+      Potential integer overflow: external input used in arithmetic without
+      bounds check. Large values from atoi/rand can overflow on add/multiply/increment.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-190"]
+      category: security
+      confidence: MEDIUM
+      impact: MEDIUM
+      automotive_rationale: >
+        Integer overflow in sensor data processing or actuator control can produce
+        incorrect physical outputs. In powertrain or chassis control, this leads
+        to unexpected acceleration, braking force, or steering angle.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d)"
+        - "CERT C INT32-C — Ensure operations on signed integers do not overflow"
+
+  # ─── fscanf/scanf: 포인터 전달 (taint 추적 불가) → function-level ───
+
+  - id: aegis.c.cwe-190-fscanf-then-arithmetic
+    patterns:
+      - pattern-either:
+          - pattern: $X + $Y
+          - pattern: $X * $Y
+          - pattern: $X * $X
+          - pattern: $X++
+          - pattern: ++$X
+      - pattern-inside: |
+          $RET $FUNC(...) {
+            ...
+            fscanf(..., ..., &$X);
+            ...
+          }
+    message: >
+      Potential integer overflow: fscanf() input used in arithmetic without bounds check.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-190"]
+      category: security
+      confidence: MEDIUM
+      impact: MEDIUM
+      automotive_rationale: >
+        File-sourced values used in arithmetic without bounds checking can
+        overflow in systems processing vehicle data logs or map data.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d)"
+        - "MISRA C:2012 Dir 4.14"
+
+  - id: aegis.c.cwe-190-scanf-then-arithmetic
+    patterns:
+      - pattern-either:
+          - pattern: $X + $Y
+          - pattern: $X * $Y
+          - pattern: $X * $X
+          - pattern: $X++
+          - pattern: ++$X
+      - pattern-inside: |
+          $RET $FUNC(...) {
+            ...
+            scanf(..., &$X);
+            ...
+          }
+    message: >
+      Potential integer overflow: scanf() input used in arithmetic without bounds check.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-190"]
+      category: security
+      confidence: MEDIUM
+      impact: MEDIUM
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d)"
+
+  # ─── MAX 상수 + 산술 (taint source 아님 → function-level) ───
+
+  - id: aegis.c.cwe-190-max-constant-overflow
+    patterns:
+      - pattern-either:
+          - pattern: $X + $Y
+          - pattern: $X * $Y
+          - pattern: $X++
+          - pattern: ++$X
+      - pattern-either:
+          - pattern-inside: |
+              $RET $FUNC(...) {
+                ...
+                $X = INT_MAX;
+                ...
+              }
+          - pattern-inside: |
+              $RET $FUNC(...) {
+                ...
+                $X = CHAR_MAX;
+                ...
+              }
+          - pattern-inside: |
+              $RET $FUNC(...) {
+                ...
+                $X = SHRT_MAX;
+                ...
+              }
+          - pattern-inside: |
+              $RET $FUNC(...) {
+                ...
+                $X = UINT_MAX;
+                ...
+              }
+          - pattern-inside: |
+              $RET $FUNC(...) {
+                ...
+                $X = INT64_MAX;
+                ...
+              }
+          - pattern-inside: |
+              $RET $FUNC(...) {
+                ...
+                $X = LONG_MAX;
+                ...
+              }
+    message: >
+      Integer overflow guaranteed: $X is set to maximum type value then used
+      in arithmetic. Adding to or incrementing a max value always overflows.
+    languages: [c]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-190"]
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      automotive_rationale: >
+        Using maximum type constants in arithmetic is a guaranteed overflow.
+        In ECU software, this can corrupt counter/timer values or buffer size
+        calculations.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d)"
+        - "CERT C INT32-C"
+
+  # ─── 직접 expression 패턴 (taint 보완) ───
+
   - id: aegis.c.cwe-190-atoi-arithmetic
     patterns:
       - pattern-either:
@@ -8,24 +183,16 @@ rules:
           - pattern: $Y * atoi(...)
     message: >
       Potential integer overflow: arithmetic on atoi() result without bounds check.
-      atoi() can return large values from untrusted input.
     languages: [c]
     severity: WARNING
     metadata:
-      cwe:
-        - "CWE-190"
+      cwe: ["CWE-190"]
       category: security
       confidence: MEDIUM
       impact: MEDIUM
-      automotive_rationale: >
-        Integer overflow in sensor data processing (ADC values, CAN signal
-        scaling) or actuator control (PWM duty cycle computation) can produce
-        incorrect physical outputs. In powertrain or chassis control, this
-        leads to unexpected acceleration, braking force, or steering angle.
       references:
-        - "ISO 26262-6:2018 Table 1 (1d) — No unintended functionality"
-        - "MISRA C:2012 Rule 12.1 — Precedence of operators"
-        - "CERT C INT32-C — Ensure operations on signed integers do not overflow"
+        - "ISO 26262-6:2018 Table 1 (1d)"
+        - "CERT C INT32-C"
 
   - id: aegis.c.cwe-190-strtol-arithmetic
     patterns:
@@ -39,114 +206,10 @@ rules:
     languages: [c]
     severity: WARNING
     metadata:
-      cwe:
-        - "CWE-190"
+      cwe: ["CWE-190"]
       category: security
       confidence: MEDIUM
       impact: MEDIUM
-      automotive_rationale: >
-        strtol() values from configuration files or diagnostic commands used
-        in arithmetic without range validation can overflow, corrupting
-        calibration tables or timer configurations.
       references:
         - "ISO 26262-6:2018 Table 1 (1d)"
-        - "CERT C INT32-C"
-
-  - id: aegis.c.cwe-190-fscanf-arithmetic
-    patterns:
-      - pattern-either:
-          - pattern: |
-              fscanf(..., ..., &$X);
-              ...
-              $X + $Y;
-          - pattern: |
-              fscanf(..., ..., &$X);
-              ...
-              $X * $Y;
-          - pattern: |
-              fscanf(..., ..., &$X);
-              ...
-              $Y + $X;
-          - pattern: |
-              fscanf(..., ..., &$X);
-              ...
-              $Y * $X;
-    message: >
-      Potential integer overflow: fscanf() input used in arithmetic without bounds check.
-    languages: [c]
-    severity: WARNING
-    metadata:
-      cwe:
-        - "CWE-190"
-      category: security
-      confidence: MEDIUM
-      impact: MEDIUM
-      automotive_rationale: >
-        File-sourced values used in arithmetic without bounds checking can
-        overflow buffer size calculations, leading to heap corruption in
-        systems processing vehicle data logs or map data.
-      references:
-        - "ISO 26262-6:2018 Table 1 (1d)"
-        - "MISRA C:2012 Dir 4.14"
-
-  - id: aegis.c.cwe-190-atoi-then-arithmetic
-    patterns:
-      - pattern-either:
-          - pattern: |
-              $X = atoi(...);
-              ...
-              $X + $Y;
-          - pattern: |
-              $X = atoi(...);
-              ...
-              $X * $Y;
-    message: >
-      Potential integer overflow: atoi() result used in arithmetic without bounds check.
-    languages: [c]
-    severity: WARNING
-    metadata:
-      cwe:
-        - "CWE-190"
-      category: security
-      confidence: MEDIUM
-      impact: MEDIUM
-      automotive_rationale: >
-        Indirect overflow through stored atoi() results is common in
-        automotive parameter processing pipelines.
-      references:
-        - "ISO 26262-6:2018 Table 1 (1d)"
-        - "CERT C INT32-C"
-
-  - id: aegis.c.cwe-190-fgets-atoi-arithmetic
-    patterns:
-      - pattern-either:
-          - pattern: |
-              fgets(..., ..., ...);
-              ...
-              $X = atoi(...);
-              ...
-              $X + $Y;
-          - pattern: |
-              fgets(..., ..., ...);
-              ...
-              $X = atoi(...);
-              ...
-              $X * $Y;
-    message: >
-      Potential integer overflow: user input via fgets/atoi used in arithmetic.
-    languages: [c]
-    severity: WARNING
-    metadata:
-      cwe:
-        - "CWE-190"
-      category: security
-      confidence: MEDIUM
-      impact: MEDIUM
-      automotive_rationale: >
-        User input from serial console or diagnostic interface parsed with
-        fgets/atoi and used in arithmetic operations without validation
-        creates a data injection vector.
-      references:
-        - "ISO 26262-6:2018 Table 1 (1d)"
-        - "MISRA C:2012 Dir 4.14"
         - "CERT C INT32-C"

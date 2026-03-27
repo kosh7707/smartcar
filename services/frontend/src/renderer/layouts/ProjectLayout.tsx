@@ -13,7 +13,6 @@ const pageNames: Record<string, string> = {
   settings: "프로젝트 설정",
   "quality-gate": "Quality Gate",
   approvals: "Approval Queue",
-  sdk: "SDK 관리",
   "dynamic-analysis": "동적 분석",
   "dynamic-test": "동적 테스트",
 };

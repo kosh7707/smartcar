@@ -2,7 +2,10 @@
 
 import json
 
+import pytest
+
 from agent_shared.llm.message_manager import MessageManager
+from agent_shared.llm.turn_summarizer import TurnSummarizer
 from agent_shared.schemas.agent import ToolCallRequest, ToolResult
 
 
@@ -93,3 +96,30 @@ def test_token_estimate():
     mm = MessageManager("a" * 100, "b" * 200)
     est = mm.get_token_estimate()
     assert est == 75  # (100 + 200) / 4
+
+
+@pytest.mark.asyncio
+async def test_compact_reduces_messages():
+    """compact()가 오래된 메시지를 제거하고 제거 수를 반환하는지 확인."""
+    mm = MessageManager("sys", "usr")
+    # 6개 턴 추가 (assistant + tool 쌍)
+    for i in range(6):
+        mm.add_assistant_tool_calls([
+            ToolCallRequest(id=f"c{i}", name="tool", arguments={"i": i}),
+        ])
+        mm.add_tool_results([
+            ToolResult(tool_call_id=f"c{i}", name="tool", success=True, content=f"r{i}"),
+        ])
+    mm.add_assistant_content("done")
+
+    before = mm.message_count()  # 2 + 12 + 1 = 15
+    assert before == 15
+
+    summarizer = TurnSummarizer()
+    removed = await mm.compact(summarizer, keep_last_n=4)
+
+    assert removed > 0
+    assert mm.message_count() < before
+    # 압축 후에도 마지막 assistant 응답은 유지
+    msgs = mm.get_messages()
+    assert msgs[-1]["content"] == "done"

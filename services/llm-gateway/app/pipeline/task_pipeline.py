@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 from app.config import settings
 from app.errors import LlmHttpError, LlmInputTooLargeError, LlmTimeoutError, LlmUnavailableError
+from app.metrics import prom
 from app.pipeline.confidence import ConfidenceCalculator
 from app.pipeline.prompt_builder import V1PromptBuilder
 from app.pipeline.response_parser import V1ResponseParser
@@ -328,16 +329,20 @@ class TaskPipeline:
                 )
 
             async with _llm_semaphore:
-                content = await client.generate(
-                    messages,
-                    max_tokens=request.constraints.maxTokens,
-                    temperature=0.3,
-                )
-                usage = TokenUsage(
-                    prompt=client.last_prompt_tokens,
-                    completion=client.last_completion_tokens,
-                )
-                return content, usage
+                prom.CONCURRENT_REQUESTS.inc()
+                try:
+                    content = await client.generate(
+                        messages,
+                        max_tokens=request.constraints.maxTokens,
+                        temperature=0.3,
+                    )
+                    usage = TokenUsage(
+                        prompt=client.last_prompt_tokens,
+                        completion=client.last_completion_tokens,
+                    )
+                    return content, usage
+                finally:
+                    prom.CONCURRENT_REQUESTS.dec()
 
         from app.mock.dispatcher import V1MockDispatcher
 

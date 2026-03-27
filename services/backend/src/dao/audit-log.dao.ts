@@ -57,4 +57,22 @@ export class AuditLogDAO implements IAuditLogDAO {
       .all(...resourceIds, limit)
       .map(rowToAuditLogEntry);
   }
+
+  findFindingStatusChanges(projectId: string, limit: number): AuditLogEntry[] {
+    return this.db.prepare(`
+      SELECT a.* FROM audit_log a
+      INNER JOIN findings f ON f.id = a.resource_id
+      WHERE a.action = 'finding.status_change' AND f.project_id = ?
+      ORDER BY a.timestamp DESC LIMIT ?
+    `).all(projectId, limit).map(rowToAuditLogEntry);
+  }
+
+  findApprovalDecisions(projectId: string, limit: number): AuditLogEntry[] {
+    return this.db.prepare(`
+      SELECT a.* FROM audit_log a
+      INNER JOIN approvals ap ON ap.id = a.resource_id
+      WHERE a.action LIKE 'approval.%' AND ap.project_id = ?
+      ORDER BY a.timestamp DESC LIMIT ?
+    `).all(projectId, limit).map(rowToAuditLogEntry);
+  }
 }

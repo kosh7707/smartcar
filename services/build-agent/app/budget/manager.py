@@ -79,6 +79,10 @@ class BudgetManager:
     def register_call_hash(self, args_hash: str) -> None:
         self._budget.duplicate_call_hashes.add(args_hash)
 
+    def clear_duplicate_hashes(self) -> None:
+        """mutating tool 실행 후 호출 — 상태가 바뀌었으므로 재시도를 허용한다."""
+        self._budget.duplicate_call_hashes.clear()
+
     def record_no_evidence_turn(self, *, turn: int | None = None) -> None:
         self._budget.consecutive_no_evidence_turns += 1
 

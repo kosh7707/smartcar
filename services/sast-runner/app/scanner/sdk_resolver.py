@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -46,16 +47,20 @@ def _load_sdk_registry() -> dict[str, dict[str, Any]]:
         return {}
 
 
-# 레지스트리 캐시 (서버 수명 동안 1회 로드)
+# 레지스트리 캐시 (서버 수명 동안 1회 로드, thread-safe)
 _SDK_REGISTRY: dict[str, dict[str, Any]] | None = None
+_SDK_REGISTRY_LOCK = threading.Lock()
 
 
 def _get_registry() -> dict[str, dict[str, Any]]:
-    """SDK 레지스트리 캐시 반환. 최초 호출 시 파일에서 로드."""
+    """SDK 레지스트리 캐시 반환. 최초 호출 시 파일에서 로드 (thread-safe)."""
     global _SDK_REGISTRY
-    if _SDK_REGISTRY is None:
-        _SDK_REGISTRY = _load_sdk_registry()
-    return _SDK_REGISTRY
+    if _SDK_REGISTRY is not None:
+        return _SDK_REGISTRY
+    with _SDK_REGISTRY_LOCK:
+        if _SDK_REGISTRY is None:
+            _SDK_REGISTRY = _load_sdk_registry()
+        return _SDK_REGISTRY
 
 
 def _get_sdk_base(sdk_id: str) -> Path:
@@ -77,9 +82,10 @@ def _save_registry(registry: dict[str, dict[str, Any]]) -> None:
 
 
 def _invalidate_cache() -> None:
-    """레지스트리 캐시를 무효화."""
+    """레지스트리 캐시를 무효화 (thread-safe)."""
     global _SDK_REGISTRY
-    _SDK_REGISTRY = None
+    with _SDK_REGISTRY_LOCK:
+        _SDK_REGISTRY = None
 
 
 def validate_sdk(data: dict[str, Any]) -> list[str]:

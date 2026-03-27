@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import type { Vulnerability, Severity, AnalysisResult } from "@aegis/shared";
-import { Shield, AlertTriangle, AlertCircle, Info, Calendar } from "lucide-react";
+import { Shield, AlertTriangle, AlertCircle, Info, Calendar, Search, ArrowUpDown } from "lucide-react";
 import { fetchProjectOverview, logError } from "../api/client";
 import { useToast } from "../contexts/ToastContext";
 import { VulnerabilityDetailView } from "../components/static/VulnerabilityDetailView";
@@ -29,6 +29,9 @@ export const VulnerabilitiesPage: React.FC = () => {
   const [counts, setCounts] = useState({ total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 });
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"severity" | "createdAt" | "location">("severity");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const toast = useToast();
   const activeSeverity = (searchParams.get("severity") as Severity | "all") || "all";
@@ -67,6 +70,36 @@ export const VulnerabilitiesPage: React.FC = () => {
     });
   }, [analyses, dateFrom, dateTo]);
 
+  // Text search filter
+  const searchFiltered = useMemo(() => {
+    if (!searchQuery.trim()) return dateFiltered;
+    const q = searchQuery.trim().toLowerCase();
+    return dateFiltered.map((a) => ({
+      ...a,
+      vulnerabilities: a.vulnerabilities.filter(
+        (v) => v.title.toLowerCase().includes(q) || (v.location ?? "").toLowerCase().includes(q),
+      ),
+    })).filter((a) => a.vulnerabilities.length > 0);
+  }, [dateFiltered, searchQuery]);
+
+  // Sort within groups
+  const sortedFiltered = useMemo(() => {
+    return searchFiltered.map((a) => ({
+      ...a,
+      vulnerabilities: [...a.vulnerabilities].sort((x, y) => {
+        let cmp = 0;
+        if (sortBy === "severity") {
+          cmp = SEVERITY_ORDER.indexOf(x.severity) - SEVERITY_ORDER.indexOf(y.severity);
+        } else if (sortBy === "createdAt") {
+          cmp = 0; // vulnerabilities don't have createdAt; keep original order
+        } else if (sortBy === "location") {
+          cmp = (x.location ?? "").localeCompare(y.location ?? "");
+        }
+        return sortOrder === "asc" ? cmp : -cmp;
+      }),
+    }));
+  }, [searchFiltered, sortBy, sortOrder]);
+
   if (selectedVuln) {
     return (
       <VulnerabilityDetailView
@@ -89,7 +122,7 @@ export const VulnerabilitiesPage: React.FC = () => {
     );
   }
 
-  const hasFiltered = dateFiltered.some((a) => {
+  const hasFiltered = sortedFiltered.some((a) => {
     const vs = activeSeverity === "all" ? a.vulnerabilities : a.vulnerabilities.filter((v) => v.severity === activeSeverity);
     return vs.length > 0;
   });
@@ -118,6 +151,28 @@ export const VulnerabilitiesPage: React.FC = () => {
             <span className="vuln-filter-count">{counts[sev as keyof typeof counts]}</span>
           </button>
         ))}
+
+        <div className="vuln-search-bar">
+          <Search size={14} />
+          <input
+            type="text"
+            className="form-input vuln-search-input"
+            placeholder="제목 또는 위치 검색..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        <div className="vuln-sort-bar">
+          <ArrowUpDown size={14} />
+          <select className="form-input vuln-sort-select" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
+            <option value="severity">심각도</option>
+            <option value="location">위치</option>
+          </select>
+          <button className="btn-icon" title="정렬 방향" onClick={() => setSortOrder((o) => o === "asc" ? "desc" : "asc")}>
+            {sortOrder === "asc" ? "↑" : "↓"}
+          </button>
+        </div>
 
         <div className="vuln-date-filter">
           <Calendar size={14} className="vuln-date-filter__icon" />
@@ -149,7 +204,7 @@ export const VulnerabilitiesPage: React.FC = () => {
           title={activeSeverity === "all" ? "발견된 취약점이 없습니다" : `${activeSeverity.toUpperCase()} 수준의 취약점이 없습니다`}
         />
       ) : (
-        dateFiltered.map((a) => {
+        sortedFiltered.map((a) => {
           const meta = MODULE_META[a.module] ?? { label: a.module, icon: null, badge: "" };
           const filtered = activeSeverity === "all"
             ? a.vulnerabilities

@@ -56,7 +56,7 @@ export async function discoverBuildTargets(projectId: string): Promise<BuildTarg
     `/api/projects/${projectId}/targets/discover`,
     { method: "POST" },
   );
-  return res.data;
+  return res.data ?? [];
 }
 
 // ── Target Libraries (third-party) ──

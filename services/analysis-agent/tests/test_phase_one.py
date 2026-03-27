@@ -259,20 +259,22 @@ class TestBuildPhase2Prompt:
         assert "버전 매칭 완료" in user
 
     def test_epss_kev_critical_cve_section(self):
-        """EPSS 높거나 KEV인 CVE가 긴급 섹션으로 분류된다."""
+        """risk_score 높은 CVE가 고위험 섹션으로 분류된다."""
         result = Phase1Result(
             cve_lookup=[
                 {"id": "CVE-2021-001", "version_match": True, "_library": "curl", "_version": "7.68",
-                 "title": "critical vuln", "severity": 9.8, "kev": True, "epss_score": 0.92},
+                 "title": "critical vuln", "severity": 9.8, "kev": True, "epss_score": 0.92,
+                 "risk_score": 0.85},
                 {"id": "CVE-2021-002", "version_match": True, "_library": "curl", "_version": "7.68",
-                 "title": "normal vuln", "severity": 5.0, "kev": False, "epss_score": 0.1},
+                 "title": "normal vuln", "severity": 5.0, "kev": False, "epss_score": 0.1,
+                 "risk_score": 0.15},
             ],
         )
         _, user = build_phase2_prompt(result, {"objective": "test"})
 
-        assert "긴급 CVE" in user
+        assert "고위험 CVE" in user
         assert "CISA KEV" in user
-        assert "EPSS 0.92" in user
+        assert "risk=0.85" in user
         assert "일반 CVE" in user
 
     def test_includes_dangerous_callers(self):

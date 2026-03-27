@@ -12,7 +12,7 @@ class FileEntry(BaseModel):
 
 class ScanOptions(BaseModel):
     timeout_seconds: int = Field(default=120, alias="timeoutSeconds")
-    max_findings_per_rule: int = Field(default=50, alias="maxFindingsPerRule")
+    tools: list[str] | None = None
 
     model_config = {"populate_by_name": True}
 

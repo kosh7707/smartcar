@@ -44,7 +44,7 @@ def mock_pipeline():
 def client(mock_pipeline):
     """mock_pipeline이 주입된 TestClient.
 
-    lifespan 이후 라우터의 _pipeline을 교체하여
+    lifespan 이후 app.state.pipeline을 교체하여
     실패 시나리오, 500 에러 등을 제어한다.
     """
     original_mode = settings.llm_mode
@@ -53,13 +53,12 @@ def client(mock_pipeline):
     object.__setattr__(settings, "rag_enabled", False)
 
     from app.main import app
-    from app.routers import tasks
 
     with TestClient(app) as c:
-        original_pipeline = tasks._pipeline
-        tasks._pipeline = mock_pipeline
+        original_pipeline = app.state.pipeline
+        app.state.pipeline = mock_pipeline
         yield c
-        tasks._pipeline = original_pipeline
+        app.state.pipeline = original_pipeline
 
     object.__setattr__(settings, "llm_mode", original_mode)
     object.__setattr__(settings, "rag_enabled", original_rag)

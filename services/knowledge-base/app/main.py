@@ -88,17 +88,22 @@ async def lifespan(_app: FastAPI):
 
     # NVD 실시간 CVE 조회 클라이언트
     try:
+        kb_lookup = threat_search.get_by_id if threat_search else None
         nvd_client = NvdClient(
             api_key=settings.nvd_api_key,
             api_base=settings.nvd_api_base,
             rate_delay=settings.nvd_rate_delay,
             cache_ttl=settings.nvd_cache_ttl,
+            cache_file=settings.nvd_cache_file,
             neo4j_graph=neo4j_graph,
+            kb_lookup=kb_lookup,
             nvd_concurrency=settings.nvd_batch_concurrency,
             epss_enabled=settings.epss_enabled,
             kev_ttl=settings.kev_ttl,
         )
-        logger.info("NVD 클라이언트 초기화 완료 (API 키: %s)", "있음" if settings.nvd_api_key else "없음")
+        logger.info("NVD 클라이언트 초기화 완료 (API 키: %s, KB 보강: %s)",
+                     "있음" if settings.nvd_api_key else "없음",
+                     "활성" if kb_lookup else "비활성")
     except Exception as e:
         logger.warning("NVD 클라이언트 초기화 실패: %s", e)
 

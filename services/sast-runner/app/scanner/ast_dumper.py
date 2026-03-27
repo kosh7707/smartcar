@@ -13,6 +13,9 @@ from app.schemas.request import BuildProfile
 
 logger = logging.getLogger("aegis-sast-runner")
 
+# 동시 clang 프로세스 수 제한 — CPU 코어 수에 맞춰 조절 가능
+_MAX_CONCURRENT_CLANG = 16
+
 
 class AstDumper:
     """clang AST JSON dump를 생성한다."""
@@ -23,28 +26,33 @@ class AstDumper:
         source_files: list[str],
         profile: BuildProfile | None,
         timeout: int = 60,
+        skip_paths: list[str] | None = None,
     ) -> dict[str, Any]:
         """소스 파일들의 AST를 JSON으로 덤프.
 
         Returns:
             { "files": { "src/main.c": { ...ast... }, ... } }
         """
-        result: dict[str, Any] = {}
-
         c_cpp_files = [
             f for f in source_files
             if f.endswith((".c", ".cpp", ".cc", ".cxx", ".h", ".hpp"))
         ]
 
-        for src in c_cpp_files:
+        if skip_paths:
+            c_cpp_files = _filter_skip_paths(c_cpp_files, skip_paths)
+
+        sem = asyncio.Semaphore(_MAX_CONCURRENT_CLANG)
+
+        async def _process(src: str) -> tuple[str, dict | None]:
             full_path = scan_dir / src
             if not full_path.exists():
-                continue
+                return src, None
+            async with sem:
+                ast = await self._dump_single(full_path, scan_dir, profile, timeout)
+            return src, ast
 
-            ast = await self._dump_single(full_path, scan_dir, profile, timeout)
-            if ast is not None:
-                result[src] = ast
-
+        pairs = await asyncio.gather(*[_process(src) for src in c_cpp_files])
+        result = {src: ast for src, ast in pairs if ast is not None}
         return {"files": result}
 
     async def dump_functions(
@@ -54,11 +62,13 @@ class AstDumper:
         profile: BuildProfile | None,
         timeout: int = 60,
         libraries: list[dict[str, Any]] | None = None,
+        skip_paths: list[str] | None = None,
     ) -> dict[str, Any]:
         """소스 파일들에서 함수 목록 + 호출 관계를 추출.
 
         clang AST의 전체 덤프 대신 함수 선언/호출만 추출하여 경량화.
         libraries가 제공되면 함수에 origin 태깅 (서드파티 출처 식별).
+        skip_paths가 제공되면 해당 경로 하위 파일은 clang 실행 없이 스킵.
 
         Returns:
             {
@@ -72,19 +82,34 @@ class AstDumper:
               ]
             }
         """
-        functions: list[dict[str, Any]] = []
-
         c_cpp_files = [
             f for f in source_files
             if f.endswith((".c", ".cpp", ".cc", ".cxx"))
         ]
 
-        for src in c_cpp_files:
+        before_count = len(c_cpp_files)
+        if skip_paths:
+            c_cpp_files = _filter_skip_paths(c_cpp_files, skip_paths)
+        skipped_count = before_count - len(c_cpp_files)
+        if skipped_count > 0:
+            logger.info(
+                "Functions extraction: skipped %d vendored/third-party files",
+                skipped_count,
+                extra={"skippedFiles": skipped_count, "remainingFiles": len(c_cpp_files)},
+            )
+
+        sem = asyncio.Semaphore(_MAX_CONCURRENT_CLANG)
+
+        async def _process(src: str) -> list[dict[str, Any]]:
             full_path = scan_dir / src
             if not full_path.exists():
-                continue
+                return []
+            async with sem:
+                return await self._extract_functions(full_path, scan_dir, profile, timeout)
 
-            funcs = await self._extract_functions(full_path, scan_dir, profile, timeout)
+        results = await asyncio.gather(*[_process(src) for src in c_cpp_files])
+        functions: list[dict[str, Any]] = []
+        for funcs in results:
             functions.extend(funcs)
 
         # origin 태깅: 라이브러리 경로와 함수 파일 경로를 교차 대조
@@ -363,3 +388,20 @@ class AstDumper:
             if _sh.which(name):
                 return name
         return "clang"  # 없으면 에러가 나겠지만, 기본값
+
+
+def _filter_skip_paths(files: list[str], skip_paths: list[str]) -> list[str]:
+    """skip_paths 하위의 파일을 제거한다.
+
+    skip_paths의 각 항목은 상대 경로 prefix (예: "libraries/civetweb/").
+    trailing slash 유무 모두 처리.
+    """
+    normalized = []
+    for sp in skip_paths:
+        p = sp.rstrip("/") + "/"
+        normalized.append(p)
+
+    return [
+        f for f in files
+        if not any(f.startswith(prefix) for prefix in normalized)
+    ]

@@ -139,7 +139,8 @@ class ClangTidyRunner:
                     else:
                         cmd.append(f"-D{key}")
         else:
-            cmd.append("-std=c++17")
+            from app.config import settings
+            cmd.append(f"-std={settings.default_language_standard}")
 
         return cmd
 

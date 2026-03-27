@@ -60,15 +60,27 @@ class TestParseOutput:
         assert findings[0].location.file == "src/main.c"
 
     def test_note_becomes_dataflow(self, runner):
-        """note 라인은 별도 finding이 아니라 이전 warning의 dataFlow가 된다."""
+        """-Wanalyzer note 라인은 이전 warning의 dataFlow가 된다."""
+        # note에 -Wanalyzer flag가 있는 샘플
+        output = """\
+/tmp/scan/src/main.c:12:5: warning: leak of 'p' [CWE-401] [-Wanalyzer-malloc-leak]
+   12 |     free(p);
+      |     ^~~~~~~
+/tmp/scan/src/main.c:8:5: note: allocated here [-Wanalyzer-malloc-leak]
+    8 |     p = malloc(100);
+      |     ^~~~~~~~~~~~~~~
+"""
+        findings = runner._parse_output(output, Path("/tmp/scan"))
+        assert len(findings) == 1
+        assert findings[0].data_flow is not None
+        assert len(findings[0].data_flow) == 1
+
+    def test_non_analyzer_note_ignored(self, runner):
+        """flag 없는 일반 note는 무시된다."""
         findings = runner._parse_output(SAMPLE_OUTPUT, Path("/tmp/scan"))
-        severities = {f.severity for f in findings}
-        assert "note" not in severities
-        # 마지막 finding (malloc-leak)에 note가 dataFlow로 붙음
-        last = findings[-1]
-        assert last.data_flow is not None
-        assert len(last.data_flow) == 1
-        assert last.data_flow[0].file == "src/main.c"
+        # SAMPLE_OUTPUT의 마지막 note는 flag 없음 → 무시 → dataFlow 없음
+        last = findings[-1]  # malloc-leak
+        assert last.data_flow is None or len(last.data_flow) == 0
 
     def test_empty_output(self, runner):
         findings = runner._parse_output("", Path("/tmp/scan"))
@@ -84,8 +96,8 @@ class TestParseOutput:
         output = (
             "/home/kosh/sdks/ti-am335x/include/sdk_api.h:42:5: warning: "
             "buffer overflow [-Wanalyzer-buffer-overflow]\n"
-            "/tmp/scan/src/main.c:10:3: note: 'buf' allocated here\n"
-            "/home/kosh/sdks/ti-am335x/include/sdk_api.h:42:5: note: overflow occurs here\n"
+            "/tmp/scan/src/main.c:10:3: note: 'buf' allocated here [-Wanalyzer-buffer-overflow]\n"
+            "/home/kosh/sdks/ti-am335x/include/sdk_api.h:42:5: note: overflow occurs here [-Wanalyzer-buffer-overflow]\n"
         )
         findings = runner._parse_output(output, Path("/tmp/scan"))
         assert len(findings) == 1

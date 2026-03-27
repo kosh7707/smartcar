@@ -24,6 +24,7 @@ export function createHealthRouter(
   buildAgentClient?: BuildAgentClient,
 ): Router {
   const router = Router();
+  const startedAt = Date.now();
 
   router.get("/", asyncHandler(async (_req, res) => {
     const [llmHealth, agentHealth, sastHealth, kbHealth, buildAgentHealth] = await Promise.all([
@@ -63,6 +64,10 @@ export function createHealthRouter(
       service: "aegis-core-service",
       status,
       version: "0.2.0",
+      detail: {
+        version: "0.2.0",
+        uptime: Math.floor((Date.now() - startedAt) / 1000),
+      },
       ...services,
       adapters: {
         total: adapters.length,

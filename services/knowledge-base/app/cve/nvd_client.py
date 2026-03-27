@@ -1,12 +1,14 @@
-"""NvdClient — NVD API 2.0 실시간 CVE 조회 + 버전 매칭 + 그래프 보강 + EPSS/KEV."""
+"""NvdClient — NVD API 2.0 실시간 CVE 조회 + 버전 매칭 + KB 보강 + EPSS/KEV + 복합 위험 점수."""
 
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import os
 import re
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 import httpx
 
@@ -17,18 +19,31 @@ logger = logging.getLogger(__name__)
 
 _VERSION_STRIP_RE = re.compile(r"[-+].*$")
 _REPO_URL_RE = re.compile(
-    r"(?:github\.com|gitlab\.com|bitbucket\.org)[/:]([^/]+)/([^/.]+)",
+    r"(?:github\.com|gitlab\.com|bitbucket\.org|codeberg\.org|gitea\.com"
+    r"|sr\.ht|savannah\.(?:non)?gnu\.org)"
+    r"[/:]([^/]+)/([^/.]+)",
 )
+# 셀프호스팅 GitLab/Gitea 패턴 (git@ SSH 또는 .git suffix가 있는 경우에만)
+_GIT_SSH_RE = re.compile(r"git@[^:]+:([^/]+)/([^/.]+?)(?:\.git)?$")
+_GIT_SUFFIX_RE = re.compile(r"https?://[^/]+/([^/]+)/([^/]+?)\.git$")
 
 
 def _extract_vendor_from_url(repo_url: str | None) -> str | None:
     """git repo URL에서 vendor(organization)를 추론한다.
 
     예: https://github.com/eclipse/mosquitto.git → "eclipse"
+        https://codeberg.org/dnkl/foot → "dnkl"
+        git@gitlab.internal.com:infra/libfoo.git → "infra"
     """
     if not repo_url:
         return None
     m = _REPO_URL_RE.search(repo_url)
+    if m:
+        return m.group(1).lower()
+    m = _GIT_SSH_RE.search(repo_url)
+    if m:
+        return m.group(1).lower()
+    m = _GIT_SUFFIX_RE.search(repo_url)
     if m:
         return m.group(1).lower()
     return None
@@ -140,14 +155,41 @@ def _extract_cwe_ids(weaknesses: list[dict]) -> list[str]:
     return cwe_ids
 
 
+def _compute_risk_score(
+    severity: float | None,
+    epss_score: float | None,
+    kev: bool,
+    automotive_relevance: float,
+) -> float:
+    """복합 위험 점수 (0.0~1.0).
+
+    가중치:
+      CVSS severity  40% — 취약점 자체 심각도
+      EPSS score     30% — 실제 악용 확률
+      KEV flag       20% — 활성 공격 확인 여부
+      도메인 관련성  10% — 자동차/임베디드 맥락 관련성
+    """
+    score = 0.0
+    if severity is not None:
+        score += 0.4 * min(severity / 10.0, 1.0)
+    if epss_score is not None:
+        score += 0.3 * epss_score
+    if kev:
+        score += 0.2
+    score += 0.1 * automotive_relevance
+    return round(min(1.0, score), 3)
+
+
 class NvdClient:
     """NVD API 2.0 실시간 CVE 조회 클라이언트.
 
     - 라이브러리명+버전으로 CVE 검색
     - CPE 버전 범위와 대조하여 version_match 판정
     - Neo4j 그래프로 CWE → ATT&CK 관계 보강
+    - KB 지식 보강: CWE → threat_category, attack_surfaces, automotive_relevance
+    - 복합 위험 점수 (CVSS + EPSS + KEV + 도메인 관련성)
     - EPSS 악용 확률 + CISA KEV 활성 공격 플래그
-    - 인메모리 캐시 (TTL 기반)
+    - 인메모리 + 파일 영속 캐시
     - asyncio.gather 기반 병렬 배치 조회
     """
 
@@ -157,7 +199,9 @@ class NvdClient:
         api_base: str = "https://services.nvd.nist.gov/rest/json/cves/2.0",
         rate_delay: float = 1.0,
         cache_ttl: int = 86400,
+        cache_file: str = "",
         neo4j_graph: Neo4jGraph | None = None,
+        kb_lookup: Callable[[str], dict | None] | None = None,
         nvd_concurrency: int = 5,
         epss_enabled: bool = True,
         kev_ttl: int = 3600,
@@ -166,7 +210,9 @@ class NvdClient:
         self._api_base = api_base
         self._rate_delay = rate_delay
         self._cache_ttl = cache_ttl
+        self._cache_file = cache_file
         self._graph = neo4j_graph
+        self._kb_lookup = kb_lookup
 
         self._client = httpx.AsyncClient(timeout=30.0)
         self._cache: dict[str, tuple[float, dict]] = {}
@@ -185,7 +231,58 @@ class NvdClient:
         self._kev_last_fetch: float = 0.0
         self._kev_ttl = kev_ttl
 
+        # 캐시 파일에서 복원
+        self._load_cache_file()
+
+    # ── 캐시 영속화 ──
+
+    def _load_cache_file(self) -> None:
+        """파일에서 캐시를 복원한다."""
+        if not self._cache_file or not os.path.exists(self._cache_file):
+            return
+        try:
+            with open(self._cache_file) as f:
+                data = json.load(f)
+            now = time.monotonic()
+            # 파일의 wall-clock timestamp를 monotonic 기준으로 변환
+            wall_now = time.time()
+            loaded = 0
+            for key, entry in data.items():
+                wall_ts = entry.get("wall_ts", 0)
+                age = wall_now - wall_ts
+                if age < self._cache_ttl:
+                    mono_ts = now - age
+                    self._cache[key] = (mono_ts, entry.get("data", {}))
+                    loaded += 1
+            if loaded:
+                logger.info("CVE 캐시 복원: %d/%d건 (TTL 내)", loaded, len(data))
+        except Exception as e:
+            logger.warning("CVE 캐시 파일 로드 실패: %s", e)
+
+    def _save_cache_file(self) -> None:
+        """현재 캐시를 파일에 저장한다."""
+        if not self._cache_file:
+            return
+        try:
+            now = time.monotonic()
+            wall_now = time.time()
+            data = {}
+            for key, (mono_ts, result) in self._cache.items():
+                age = now - mono_ts
+                if age < self._cache_ttl:
+                    data[key] = {
+                        "wall_ts": wall_now - age,
+                        "data": result,
+                    }
+            os.makedirs(os.path.dirname(self._cache_file) or ".", exist_ok=True)
+            with open(self._cache_file, "w") as f:
+                json.dump(data, f, ensure_ascii=False)
+            logger.info("CVE 캐시 저장: %d건", len(data))
+        except Exception as e:
+            logger.warning("CVE 캐시 파일 저장 실패: %s", e)
+
     async def close(self) -> None:
+        self._save_cache_file()
         await self._client.aclose()
 
     # ── OSV.dev ──
@@ -246,6 +343,9 @@ class NvdClient:
             # Neo4j 보강
             related_attack = self._enrich_cwe_to_attack(related_cwe)
 
+            # KB 지식 보강
+            kb_context = self._enrich_from_kb(related_cwe)
+
             cves.append({
                 "id": cve_id,
                 "title": vuln.get("summary", "")[:200],
@@ -256,6 +356,7 @@ class NvdClient:
                 "version_match": True,  # commit 기반이므로 항상 정확 매칭
                 "related_cwe": related_cwe,
                 "related_attack": related_attack,
+                "kb_context": kb_context,
                 "source": "osv",
             })
 
@@ -277,6 +378,45 @@ class NvdClient:
                 except Exception:
                     pass
         return related_attack
+
+    # ── KB 지식 보강 ──
+
+    def _enrich_from_kb(self, related_cwe: list[str]) -> dict:
+        """CWE ID로 KB의 위협 지식(카테고리, 공격 표면, 도메인 관련성)을 보강한다."""
+        context: dict = {
+            "threat_categories": [],
+            "attack_surfaces": [],
+            "max_automotive_relevance": 0.0,
+        }
+        if not self._kb_lookup or not related_cwe:
+            return context
+
+        seen_categories: set[str] = set()
+        seen_surfaces: set[str] = set()
+
+        for cwe_id in related_cwe[:5]:
+            try:
+                record = self._kb_lookup(cwe_id)
+                if not record:
+                    continue
+
+                cat = record.get("threat_category", "")
+                if cat and cat != "Other" and cat not in seen_categories:
+                    seen_categories.add(cat)
+                    context["threat_categories"].append(cat)
+
+                for surface in record.get("attack_surfaces", []):
+                    if surface not in seen_surfaces:
+                        seen_surfaces.add(surface)
+                        context["attack_surfaces"].append(surface)
+
+                rel = record.get("automotive_relevance", 0.0)
+                if rel > context["max_automotive_relevance"]:
+                    context["max_automotive_relevance"] = rel
+            except Exception:
+                pass
+
+        return context
 
     # ── EPSS ──
 
@@ -373,7 +513,7 @@ class NvdClient:
           1. OSV.dev commit 기반 (commit + repo_url 필요) — 가장 정밀
           2. NVD CPE 기반 (repo_url에서 vendor 추론) — 정밀
           3. NVD keywordSearch 폴백 — 넓음
-        + EPSS 악용 확률 + CISA KEV 플래그 보강
+        + KB 지식 보강 + 복합 위험 점수 + EPSS + KEV
         """
         cache_key = f"{name.lower()}:{version}"
         now = time.monotonic()
@@ -408,7 +548,7 @@ class NvdClient:
                 else:
                     data = None  # 폴백
 
-            # 전략 2: keywordSearch 폴백
+            # 전략 3: keywordSearch 폴백
             if data is None:
                 data = await self._nvd_request({
                     "keywordSearch": name,
@@ -472,6 +612,9 @@ class NvdClient:
                 # Neo4j 보강: CWE → ATT&CK 관계
                 related_attack = self._enrich_cwe_to_attack(related_cwe)
 
+                # KB 지식 보강
+                kb_context = self._enrich_from_kb(related_cwe)
+
                 cves.append({
                     "id": cve_id,
                     "title": desc[:200] if desc else "",
@@ -482,6 +625,7 @@ class NvdClient:
                     "version_match": version_match,
                     "related_cwe": related_cwe,
                     "related_attack": related_attack,
+                    "kb_context": kb_context,
                     "source": "nvd",
                 })
 
@@ -514,8 +658,18 @@ class NvdClient:
         for cve_entry in cves:
             cve_entry["kev"] = cve_entry["id"] in kev_set
 
-        # 점수순 정렬
-        cves.sort(key=lambda c: c.get("severity") or 0, reverse=True)
+        # 복합 위험 점수
+        for cve_entry in cves:
+            auto_rel = cve_entry.get("kb_context", {}).get("max_automotive_relevance", 0.0)
+            cve_entry["risk_score"] = _compute_risk_score(
+                severity=cve_entry.get("severity"),
+                epss_score=cve_entry.get("epss_score"),
+                kev=cve_entry.get("kev", False),
+                automotive_relevance=auto_rel,
+            )
+
+        # risk_score 기준 정렬 (→ severity 폴백)
+        cves.sort(key=lambda c: (c.get("risk_score", 0), c.get("severity") or 0), reverse=True)
 
         result = {
             "library": name,

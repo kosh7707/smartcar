@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { NavLink, useMatch, useNavigate } from "react-router-dom";
 import {
   FolderOpen,
@@ -14,11 +14,11 @@ import {
   FileText,
   Activity,
   Zap,
-  Cpu,
 } from "lucide-react";
 import { useProjects } from "../contexts/ProjectContext";
 import { useAnalysisGuard } from "../contexts/AnalysisGuardContext";
 import { ConfirmDialog } from "./ui";
+import { fetchApprovalCount } from "../api/approval";
 import "./Sidebar.css";
 
 const ICON_SIZE = 18;
@@ -32,7 +32,6 @@ const projectNavItems = [
   { sub: "dynamic-test", label: "동적 테스트", icon: Zap, comingSoon: true },
   { sub: "quality-gate", label: "Quality Gate", icon: ShieldCheck, comingSoon: false },
   { sub: "approvals", label: "Approval Queue", icon: ClipboardCheck, comingSoon: false },
-  { sub: "sdk", label: "SDK 관리", icon: Cpu, comingSoon: false },
   { sub: "analysis-history", label: "분석 이력", icon: Clock, comingSoon: false },
   { sub: "report", label: "보고서", icon: FileText, comingSoon: false },
 ];
@@ -45,6 +44,14 @@ export const Sidebar: React.FC = () => {
   const navigate = useNavigate();
   const { isBlocking } = useAnalysisGuard();
   const [pendingNav, setPendingNav] = useState<string | null>(null);
+  const [pendingApprovals, setPendingApprovals] = useState(0);
+
+  useEffect(() => {
+    if (!projectId) return;
+    fetchApprovalCount(projectId)
+      .then((data) => setPendingApprovals(data.pending))
+      .catch(() => setPendingApprovals(0));
+  }, [projectId]);
 
   const handleNavClick = useCallback((e: React.MouseEvent, to: string) => {
     if (isBlocking) {
@@ -93,6 +100,9 @@ export const Sidebar: React.FC = () => {
                 >
                   <item.icon size={ICON_SIZE} />
                   {item.label}
+                  {item.sub === "approvals" && pendingApprovals > 0 && (
+                    <span className="sidebar-badge">{pendingApprovals}</span>
+                  )}
                   {item.comingSoon && <span className="sidebar-coming-soon-tag" aria-label="준비 중 기능">준비 중</span>}
                 </NavLink>
               </li>

@@ -58,7 +58,7 @@ describe("useAnalysisWebSocket", () => {
       await result.current.startAnalysis("p-1");
     });
 
-    expect(runAnalysis).toHaveBeenCalledWith("p-1", undefined);
+    expect(runAnalysis).toHaveBeenCalledWith("p-1", undefined, undefined);
     expect(result.current.analysisId).toBe("a-1");
     expect(result.current.stage).toBe("quick_sast");
     expect(result.current.isRunning).toBe(true);

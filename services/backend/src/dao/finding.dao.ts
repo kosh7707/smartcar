@@ -86,8 +86,21 @@ export class FindingDAO implements IFindingDAO {
     return this.selectByRunStmt.all(runId).map(rowToFinding);
   }
 
+  findByIds(ids: string[]): Finding[] {
+    if (ids.length === 0) return [];
+    const placeholders = ids.map(() => "?").join(",");
+    return this.db
+      .prepare(`SELECT * FROM findings WHERE id IN (${placeholders})`)
+      .all(...ids)
+      .map(rowToFinding);
+  }
+
   findByProjectId(projectId: string, filters?: FindingFilters): Finding[] {
-    if (!filters || (!filters.status && !filters.severity && !filters.module && !filters.runId && !filters.from && !filters.to)) {
+    const hasFilters = filters && (
+      filters.status || filters.severity || filters.module || filters.runId ||
+      filters.from || filters.to || filters.q || filters.sourceType || filters.sort
+    );
+    if (!hasFilters) {
       return this.selectByProjectStmt.all(projectId).map(rowToFinding);
     }
 
@@ -120,8 +133,29 @@ export class FindingDAO implements IFindingDAO {
       conditions.push("created_at <= ?");
       params.push(filters.to);
     }
+    if (filters.sourceType) {
+      conditions.push("source_type = ?");
+      params.push(filters.sourceType);
+    }
+    if (filters.q) {
+      conditions.push("(title LIKE ? OR description LIKE ? OR location LIKE ?)");
+      const pattern = `%${filters.q}%`;
+      params.push(pattern, pattern, pattern);
+    }
 
-    const sql = `SELECT * FROM findings WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC`;
+    let orderClause = "ORDER BY created_at DESC";
+    if (filters.sort) {
+      const columnMap: Record<string, string> = {
+        severity: "CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 WHEN 'low' THEN 4 WHEN 'info' THEN 5 ELSE 6 END",
+        createdAt: "created_at",
+        location: "location",
+      };
+      const column = columnMap[filters.sort];
+      const direction = filters.order === "asc" ? "ASC" : "DESC";
+      orderClause = `ORDER BY ${column} ${direction}`;
+    }
+
+    const sql = `SELECT * FROM findings WHERE ${conditions.join(" AND ")} ${orderClause}`;
     return this.db.prepare(sql).all(...params).map(rowToFinding);
   }
 
@@ -132,8 +166,18 @@ export class FindingDAO implements IFindingDAO {
     return row ? rowToFinding(row) : undefined;
   }
 
+  findAllByFingerprint(projectId: string, fingerprint: string): Finding[] {
+    return this.db.prepare(
+      `SELECT * FROM findings WHERE project_id = ? AND fingerprint = ? ORDER BY created_at DESC`,
+    ).all(projectId, fingerprint).map(rowToFinding);
+  }
+
   updateStatus(id: string, status: FindingStatus): void {
     this.updateStatusStmt.run(status, new Date().toISOString(), id);
+  }
+
+  withTransaction<T>(fn: () => T): T {
+    return this.db.transaction(fn)();
   }
 
   summaryByProjectId(projectId: string): { byStatus: Record<string, number>; bySeverity: Record<string, number>; total: number } {

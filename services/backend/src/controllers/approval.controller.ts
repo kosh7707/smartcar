@@ -8,6 +8,12 @@ import type { ApprovalStatus } from "@aegis/shared";
 export function createApprovalRouter(service: ApprovalService): Router {
   const router = Router({ mergeParams: true });
 
+  // 프로젝트의 승인 대기 카운트
+  router.get("/count", asyncHandler(async (req: Request<{ pid: string }>, res) => {
+    const data = service.getCountByProjectId(req.params.pid);
+    res.json({ success: true, data });
+  }));
+
   // 프로젝트의 승인 요청 목록 (?status=pending)
   router.get("/", asyncHandler(async (req: Request<{ pid: string }>, res) => {
     const status = req.query.status as ApprovalStatus | undefined;

@@ -370,6 +370,203 @@ describe("API Contract Tests", () => {
     });
   });
 
+  // ── Finding Bulk Status ──
+
+  describe("PATCH /api/findings/bulk-status", () => {
+    it("updates multiple findings and returns counts", async () => {
+      ctx.findingDAO.save(makeFinding({ id: "fb1", projectId: "p1", status: "open" }));
+      ctx.findingDAO.save(makeFinding({ id: "fb2", projectId: "p1", status: "open" }));
+
+      const res = await request(app)
+        .patch("/api/findings/bulk-status")
+        .send({ findingIds: ["fb1", "fb2"], status: "needs_review", reason: "batch review", actor: "analyst" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toEqual({ updated: 2, failed: 0 });
+
+      // verify actual status changed
+      const f1 = ctx.findingDAO.findById("fb1");
+      expect(f1?.status).toBe("needs_review");
+    });
+
+    it("returns 400 when findingIds is empty", async () => {
+      const res = await request(app)
+        .patch("/api/findings/bulk-status")
+        .send({ findingIds: [], status: "fixed", reason: "test" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+
+    it("returns 400 when findingIds exceeds 100", async () => {
+      const ids = Array.from({ length: 101 }, (_, i) => `f-${i}`);
+      const res = await request(app)
+        .patch("/api/findings/bulk-status")
+        .send({ findingIds: ids, status: "fixed", reason: "test" });
+
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 400 when status or reason missing", async () => {
+      const res = await request(app)
+        .patch("/api/findings/bulk-status")
+        .send({ findingIds: ["fb1"] });
+
+      expect(res.status).toBe(400);
+    });
+
+    it("counts invalid transitions as failed", async () => {
+      ctx.findingDAO.save(makeFinding({ id: "fb-inv", projectId: "p1", status: "open" }));
+
+      const res = await request(app)
+        .patch("/api/findings/bulk-status")
+        .send({ findingIds: ["fb-inv", "fb-ghost"], status: "sandbox", reason: "bad", actor: "x" });
+
+      expect(res.status).toBe(200);
+      // open→sandbox invalid + fb-ghost not found = both fail
+      expect(res.body.data).toEqual({ updated: 0, failed: 2 });
+    });
+  });
+
+  // ── Finding History ──
+
+  describe("GET /api/findings/:id/history", () => {
+    it("returns fingerprint history", async () => {
+      ctx.findingDAO.save(makeFinding({ id: "fh1", runId: "run-h1", projectId: "p1", fingerprint: "fp-abc", status: "fixed", createdAt: "2026-03-20T00:00:00Z" }));
+      ctx.findingDAO.save(makeFinding({ id: "fh2", runId: "run-h2", projectId: "p1", fingerprint: "fp-abc", status: "open", createdAt: "2026-03-25T00:00:00Z" }));
+
+      const res = await request(app).get("/api/findings/fh2/history");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data).toHaveLength(2);
+      expect(res.body.data[0]).toHaveProperty("findingId");
+      expect(res.body.data[0]).toHaveProperty("runId");
+      expect(res.body.data[0]).toHaveProperty("status");
+      expect(res.body.data[0]).toHaveProperty("createdAt");
+    });
+
+    it("returns empty array when finding has no fingerprint", async () => {
+      ctx.findingDAO.save(makeFinding({ id: "fh-nofp", projectId: "p1" }));
+
+      const res = await request(app).get("/api/findings/fh-nofp/history");
+      expect(res.status).toBe(200);
+      expect(res.body.data).toEqual([]);
+    });
+
+    it("returns 404 for nonexistent finding", async () => {
+      const res = await request(app).get("/api/findings/no-such/history");
+      expect(res.status).toBe(404);
+    });
+  });
+
+  // ── Finding Filters/Sort ──
+
+  describe("GET /api/projects/:pid/findings — extended filters", () => {
+    it("filters by text search (q)", async () => {
+      ctx.findingDAO.save(makeFinding({ id: "fq1", projectId: "p-fq", title: "Buffer overflow in main.c" }));
+      ctx.findingDAO.save(makeFinding({ id: "fq2", projectId: "p-fq", title: "SQL injection" }));
+
+      const res = await request(app).get("/api/projects/p-fq/findings?q=Buffer");
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].id).toBe("fq1");
+    });
+
+    it("filters by sourceType", async () => {
+      ctx.findingDAO.save(makeFinding({ id: "fst1", projectId: "p-fst", sourceType: "agent" }));
+      ctx.findingDAO.save(makeFinding({ id: "fst2", projectId: "p-fst", sourceType: "sast-tool" }));
+
+      const res = await request(app).get("/api/projects/p-fst/findings?sourceType=agent");
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].id).toBe("fst1");
+    });
+
+    it("sorts by severity asc", async () => {
+      ctx.findingDAO.save(makeFinding({ id: "fs1", projectId: "p-fs", severity: "low" }));
+      ctx.findingDAO.save(makeFinding({ id: "fs2", projectId: "p-fs", severity: "critical" }));
+
+      const res = await request(app).get("/api/projects/p-fs/findings?sort=severity&order=asc");
+      expect(res.status).toBe(200);
+      expect(res.body.data[0].severity).toBe("critical");
+      expect(res.body.data[1].severity).toBe("low");
+    });
+  });
+
+  // ── Approval Count ──
+
+  describe("GET /api/projects/:pid/approvals/count", () => {
+    it("returns pending and total counts", async () => {
+      ctx.approvalDAO.save(makeApproval({
+        id: "ac-1", projectId: "p-ac", status: "pending",
+        expiresAt: new Date(Date.now() + 86400000).toISOString(),
+      }));
+      ctx.approvalDAO.save(makeApproval({
+        id: "ac-2", projectId: "p-ac", status: "pending",
+        expiresAt: new Date(Date.now() + 86400000).toISOString(),
+      }));
+
+      const res = await request(app).get("/api/projects/p-ac/approvals/count");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({ pending: 2, total: 2 });
+    });
+
+    it("returns zero counts when no approvals", async () => {
+      const res = await request(app).get("/api/projects/p-empty/approvals/count");
+      expect(res.status).toBe(200);
+      expect(res.body.data).toMatchObject({ pending: 0, total: 0 });
+    });
+  });
+
+  // ── Activity Timeline ──
+
+  describe("GET /api/projects/:pid/activity", () => {
+    it("returns timeline entries sorted by timestamp", async () => {
+      ctx.runDAO.save(makeRun({ id: "ra-1", projectId: "p-act", status: "completed", module: "static_analysis", findingCount: 3, endedAt: "2026-03-26T09:00:00Z" }));
+      ctx.buildTargetDAO.save(makeBuildTarget({ id: "ta-1", projectId: "p-act", name: "gw", status: "ready", updatedAt: "2026-03-26T10:00:00Z" }));
+
+      const res = await request(app).get("/api/projects/p-act/activity?limit=10");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.length).toBeGreaterThanOrEqual(2);
+
+      for (const entry of res.body.data) {
+        expect(entry).toHaveProperty("type");
+        expect(entry).toHaveProperty("timestamp");
+        expect(entry).toHaveProperty("summary");
+        expect(entry).toHaveProperty("metadata");
+      }
+
+      // pipeline event (10:00) should come before run event (09:00)
+      const types = res.body.data.map((e: any) => e.type);
+      const pipeIdx = types.indexOf("pipeline_completed");
+      const runIdx = types.indexOf("run_completed");
+      expect(pipeIdx).toBeLessThan(runIdx);
+    });
+
+    it("respects limit parameter", async () => {
+      for (let i = 0; i < 5; i++) {
+        ctx.runDAO.save(makeRun({ id: `ra-lim-${i}`, projectId: "p-lim", status: "completed", findingCount: 0, endedAt: `2026-03-26T0${i}:00:00Z` }));
+      }
+
+      const res = await request(app).get("/api/projects/p-lim/activity?limit=3");
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(3);
+    });
+
+    it("returns empty array for empty project", async () => {
+      const res = await request(app).get("/api/projects/p-empty/activity");
+      expect(res.status).toBe(200);
+      expect(res.body.data).toEqual([]);
+    });
+  });
+
+  // ── Build Targets ──
+
   describe("Build Targets", () => {
     it("POST /api/projects/:pid/targets creates target", async () => {
       ctx.projectDAO.save(makeProject({ id: "p-bt" }));

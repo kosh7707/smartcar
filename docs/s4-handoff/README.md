@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S4(SAST Runner) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-25**
+> **마지막 업데이트: 2026-03-27**
 
 ---
 
@@ -137,7 +137,7 @@ services/sast-runner/
 │   ├── cwe_matcher.py
 │   ├── metrics.py
 │   └── data/baselines/      — 측정 결과 JSON
-├── tests/                   — 163개 테스트 (8개 테스트 파일)
+├── tests/                   — 313개 테스트 (18개 테스트 파일)
 │   ├── fixtures/            — 테스트 픽스처 (C 프로젝트, 라이브러리 구조)
 │   └── conftest.py
 └── requirements.txt
@@ -222,23 +222,23 @@ cd services/sast-runner
 
 Juliet 위치: `~/Juliet/C/` (프로젝트 외부, 106K 파일)
 
-### 최신 Recall 결과 (v0.5.0, 12 CWE, 361 파일)
+### 최신 Recall 결과 (v0.6.0, 12 CWE, 361 파일)
 
 | Tier | CWE | Recall | 주력 도구 |
 |------|-----|:---:|---|
 | S | CWE-476 NULL deref | **100%** | Cppcheck + clang-tidy + gcc-fanalyzer + scan-build |
 | S | CWE-134 Format String | **100%** | Flawfinder |
-| A | CWE-401 Memory Leak | **95%** | gcc-fanalyzer |
+| S | CWE-401 Memory Leak | **95%** | gcc-fanalyzer |
+| S | CWE-369 Divide by Zero | **94%** | **Semgrep taint** + Cppcheck |
+| A | CWE-190 Int Overflow | **89%** | **Semgrep taint** + clang-tidy + Flawfinder |
+| A | CWE-680 Int→BOF | **83%** | Flawfinder + Semgrep |
 | A | CWE-121 Stack BOF | **82%** | Flawfinder + gcc-fanalyzer |
 | A | CWE-78 Cmd Injection | **80%** | Flawfinder + clang-tidy + Semgrep |
 | A | CWE-122 Heap BOF | **80%** | Flawfinder + gcc-fanalyzer |
 | B | CWE-252 Unchecked Return | **72%** | clang-tidy |
 | B | CWE-416 UAF | **67%** | gcc-fanalyzer + clang-tidy + scan-build |
-| B | CWE-680 Int→BOF | **67%** | Flawfinder + Semgrep |
 | C | CWE-457 Uninitialized | **56%** | gcc-fanalyzer + Cppcheck |
-| C | CWE-190 Int Overflow | **53%** | clang-tidy + Flawfinder + Semgrep |
-| D | CWE-369 Divide by Zero | **22%** | Cppcheck + Semgrep |
-| | **Overall** | **70.9%** | |
+| | **Overall** | **83.7%** | |
 
 ### 초기 대비 개선
 
@@ -271,7 +271,7 @@ Juliet 위치: `~/Juliet/C/` (프로젝트 외부, 106K 파일)
 - [x] `smartcar` → `AEGIS` 네이밍 → `s4-sast` 로그 표준화 (`s4-sast-runner.jsonl`, level 숫자, service `s4-sast`)
 - [x] 기동 스크립트 수정 (venv PATH, .env 파싱)
 - [x] 통합 테스트 성공 (S3 Agent Phase 1/2 전 구간)
-- [x] 163개 테스트 통과
+- [x] 313개 테스트 통과
 - [x] `/v1/includes`에 `projectPath` 지원 추가
 - [x] SDK environment-setup 자동 적용 (`build_runner.py`)
 - [x] `buildCommand` 자동 감지 (빌드 스크립트 우선 → CMake → Make → configure)
@@ -307,20 +307,83 @@ Juliet 위치: `~/Juliet/C/` (프로젝트 외부, 106K 파일)
   - **단위 테스트 51 → 144개** (+93): 6개 runner 파서, orchestrator(경계면 필터링), build_runner(+build 메서드), library_identifier
   - Automotive 룰 메타데이터 강화: 21개 룰에 `automotive_rationale` + `references` (ISO 26262, MISRA, AUTOSAR)
   - Router 책임 분리: `_normalize_path` 6곳 중복 → `path_utils.py` 단일 구현, SCA 로직 → `sca_service.py`
+- [x] **functions 추출 성능 개선** (2026-03-26):
+  - `dump_functions` / `dump_ast` 병렬화: 순차 for 루프 → `asyncio.gather` + `Semaphore(16)` 동시 실행
+  - `skip_paths` 파라미터 추가: vendored/third-party 경로 파일은 clang 실행 전 조기 스킵
+  - 라우터 3개 호출부(`/v1/scan`, `/v1/functions`, `/v1/build-and-analyze`)에서 라이브러리 경로 + `thirdPartyPaths`를 `skip_paths`로 자동 전달
+  - 단위 테스트 13개 추가 (`test_ast_dumper.py`): `_filter_skip_paths`, 병렬 실행, 스킵, origin 태깅
+- [x] **Phase 1 기반 정비** (2026-03-26):
+  - 벤치마크 러너 Pydantic 크래시 수정: `execution.get("toolsRun")` → `execution.tools_run` (2곳)
+  - `check_tools()` 캐싱: TTL 300초, `/v1/health`는 항상 fresh (`force=True`)
+  - 설정 통합: `default_language_standard`, `semgrep_per_rule_timeout`, `semgrep_max_target_bytes` → `config.py`
+  - 4개 runner의 하드코딩 `"-std=c++17"` 제거 → `settings.default_language_standard`
+  - `ScanOptions.tools` 파라미터 추가: API에서 도구 서브셋 선택 가능
+  - `ScanOptions.max_findings_per_rule` 삭제 (사용처 없는 dead field)
+  - `/v1/functions` 성능: `analyze_libraries(include_diff=False)` → diff 없이 식별만 (44초 → ~1초)
+- [x] **벤치마크 인프라 고도화** (2026-03-26):
+  - Precision(FP) + F1 Score 추적: target CWE 미매칭 findings를 noise/FP로 카운트
+  - Per-Rule 메트릭: `RuleMetrics` dataclass, finding의 `rule_id`별 TP/FP 집계
+  - `--tools` 옵션: 도구 서브셋 벤치마크 (개별 기여도 측정)
+  - `--show-rules` 옵션: 마크다운에 rule-level 테이블 출력
+  - `--baseline` 옵션: 실행 후 자동 회귀 감지
+  - `benchmark/compare.py` 신규: baseline vs current 비교, regression/improvement 판정, exit code 1
+  - CLI: `python -m benchmark.compare --baseline X.json --current Y.json --threshold 0.05`
+  - 벤치마크 테스트 20개 추가 (`test_benchmark.py`): metrics, compare, regression 판정
+- [x] **커스텀 Semgrep 룰 확장** (2026-03-26, 21 → 38개 룰, +17):
+  - `buffer-overflow-write.yaml` (4룰): CWE-787 — strcpy/strcat/sprintf/gets 무제한 패턴
+  - `input-validation.yaml` (5룰): CWE-20 — argv/scanf/fscanf/sscanf 무제한 입력
+  - `use-after-free.yaml` (3룰): CWE-416 — free 후 memcpy/send/deref/array 사용
+  - `taint-sources.yaml` (5룰): recv→strcpy, read→atoi, fgets→system, recv→memcpy, fgets→strcpy
+  - 전 룰에 `automotive_rationale` + ISO 26262/MISRA/AUTOSAR/CERT 참조 포함
+- [x] **코드 품질 + 안정성 개선** (2026-03-26):
+  - `library_identifier._parse_git_info()` sync subprocess → `asyncio.to_thread()` 래핑 (`sca_service.py`, `identify_libraries` async 전환)
+  - `gcc_analyzer_runner._analyzer_support_cache` → `threading.Lock` 추가 (thread-safe)
+  - `sdk_resolver._SDK_REGISTRY` 전역 캐시 → `threading.Lock` 추가 (read/write 경쟁 방지)
+- [x] **CWE-369/190 Recall 대폭 개선** (2026-03-26, Overall 70.9% → **83.7%**):
+  - 근본 원인 분석: Semgrep multi-line 패턴의 statement vs expression context 버그 + 소스 패턴 누락
+  - **Taint mode 도입**: `atoi/atof/strtol/RAND32/rand` → `division/modulo/arithmetic` sink 자동 추적
+  - Function-level `pattern-inside`: fscanf/scanf 포인터 전달 패턴 (Semgrep taint가 `&$X` 추적 불가)
+  - MAX 상수 패턴: `INT_MAX/CHAR_MAX/SHRT_MAX` + 산술 = 확정 overflow
+  - increment 패턴: `$X++`, `++$X` 추가
+  - self-multiply 패턴: `$X * $X` (square) 추가
+  - CWE-369: **22% → 94%** (17/18), CWE-190: **53% → 89%** (80/90)
+  - 룰 수: 53개 (divide-by-zero 7→7, integer-overflow 5→7)
+- [x] **테스트 커버리지 대폭 확대** (2026-03-26, 196 → 313개, +117):
+  - 미테스트 8개 모듈 단위 테스트 완료: `semgrep_runner`, `sdk_resolver`, `library_differ`, `library_hasher`, `sca_service`, `build_metadata`, `include_resolver`, `path_utils`
+  - Fixture 기반 통합 테스트 (`test_integration.py`, `@pytest.mark.integration`): 실제 SAST 도구(flawfinder, cppcheck, clang)로 fixture C 프로젝트 분석
+  - fixture `src/main.c`에 CWE-78(cmd injection), CWE-190(int overflow), CWE-787(buffer overflow write) 추가
+- [x] **외부 피드백 P0 반영** (2026-03-27):
+  - P0-1: Precision/F1 단위 혼합 → **Recall + Noise/File로 재정의** (precision/f1 property 제거)
+  - P0-2: scope-early 도입 — `thirdPartyPaths` 파일을 **도구 실행 전에 제외** (orchestrator)
+  - P0-3: gcc-fanalyzer + scan-build에 `Semaphore(8)` 동시성 제한
+  - `_is_third_party()` path segment 경계 수정 (`lib` vs `library` 충돌 방지)
+  - `FindingsFilterInfo` 분리: `sdk_noise_removed` + `third_party_removed` + `files_scoped_out`
+  - `_filter_user_code_findings()` dead parameter `source_files` 제거
+  - 버전 v0.5.0 → v0.7.0 (main.py, response.py)
+- [x] **외부 피드백 P1 반영** (2026-03-27):
+  - P1-1: `toolResults.elapsedMs` → per-tool timing wrapper (각 코루틴 개별 측정)
+  - P1-2: gcc-fanalyzer/scan-build timeout sentinel (`None` 반환) + timed_out 카운트
+  - P1-6: gcc-fanalyzer 파서 strict `-Wanalyzer*` 필터 (일반 compile diagnostics 제외)
+- [x] **CWE-416 taint mode 룰** (2026-03-27): `use-after-free.yaml`에 taint 룰 추가 (cross-function UAF 추적)
+- [x] **Juliet 전체 variant 벤치마크** (2026-03-27): 12 CWE, 8,783파일, Overall Recall **78.7%**
+- [x] **S3 빌드 Agent 연동 WR** 발송 (`s4-to-s3-build-agent-ready.md`)
 
-### 미완료
+### 미완료 — 다음 세션에서 처리
 
-- (현재 없음 — 향후 개선 아이디어는 아래 참조)
+외부 피드백 잔여:
+- P1-4: Semgrep auto-skip 정교화 (file extension 기반, mixed C/C++)
+- P1-5: gcc-fanalyzer check_available에 SDK compiler 반영
+- P2-1: Semgrep taint sanitizer 패턴 추가 (`if (x!=0)` 등)
+- P2-2: 벤치마크 targeted vs portfolio noise 분리
+- P2-3: LibraryDiffer 응답 shape 통일 + clone cache
 
-### 향후 개선 아이디어
-
-- S3 빌드 Agent 연동: S3가 `build-resolve` Agent 구현 중 — `/v1/build` + `/v1/sdk-registry`로 연동 예정
-- functions 추출 성능: 782파일 79.8초 → 병렬화 또는 vendored 라이브러리 스킵 검토
-- CWE-369 (22%) / CWE-190 (53%) 추가 개선: 데이터 플로우 추적은 SAST 한계 → S3 LLM에 위임
-- Juliet variant 확장: 현재 variant_01만 → 전체 variant 벤치마크
-- fixture 기반 통합 테스트: 실제 SAST 도구로 fixture C 프로젝트 분석 (CI 환경 구성 필요)
-- benchmark pack 고도화: precision(FP) 추적, per-rule 메트릭, regression 감지
+잔여 고도화:
+- CWE-457 (56%) 추가 개선 (gcc-fanalyzer 한계, Semgrep 불가)
 - code graph 품질 평가 기준 수립 (S5 연동용)
+
+문서:
+- `docs/specs/sast-runner.md` 전면 갱신 (v0.7.0)
+- `docs/api/sast-runner-api.md` v0.7.0 (FindingsFilterInfo 변경 반영)
 
 ---
 

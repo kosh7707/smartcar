@@ -47,3 +47,10 @@ export async function decideApproval(
   );
   return res.data;
 }
+
+export async function fetchApprovalCount(projectId: string): Promise<{ pending: number; total: number }> {
+  const res = await apiFetch<{ success: boolean; data: { pending: number; total: number } }>(
+    `/api/projects/${projectId}/approvals/count`,
+  );
+  return res.data;
+}

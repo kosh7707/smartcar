@@ -2,36 +2,78 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import type { BuildProfile } from "@aegis/shared";
 import { BuildProfileForm } from "./BuildProfileForm";
-import { getSdkProfile } from "../../constants/sdkProfiles";
+import type { RegisteredSdk } from "../../api/sdk";
 
 const defaultProfile: BuildProfile = {
-  sdkId: "generic-linux",
+  sdkId: "none",
   compiler: "gcc",
   targetArch: "x86_64",
   languageStandard: "c17",
   headerLanguage: "auto",
 };
 
+const mockSdks: RegisteredSdk[] = [
+  {
+    id: "sdk-1",
+    projectId: "p-1",
+    name: "TI AM335x",
+    path: "/sdks/ti",
+    status: "ready",
+    verified: true,
+    createdAt: "2026-01-01",
+    updatedAt: "2026-01-01",
+    profile: {
+      compiler: "arm-none-eabi-gcc",
+      targetArch: "arm",
+      languageStandard: "c11",
+    },
+  },
+  {
+    id: "sdk-2",
+    projectId: "p-1",
+    name: "NXP S32K",
+    path: "/sdks/nxp",
+    status: "analyzing",
+    verified: false,
+    createdAt: "2026-01-01",
+    updatedAt: "2026-01-01",
+  },
+];
+
 describe("BuildProfileForm", () => {
-  it("renders SDK selector with current value", () => {
+  it("renders SDK selector with '사용 안함' as default", () => {
     render(<BuildProfileForm value={defaultProfile} onChange={vi.fn()} />);
     const select = screen.getByLabelText("SDK 프로파일") as HTMLSelectElement;
-    expect(select.value).toBe("generic-linux");
+    expect(select.value).toBe("none");
   });
 
-  it("calls onChange with SDK defaults when SDK changes", () => {
+  it("shows only ready SDKs in selector", () => {
+    render(<BuildProfileForm value={defaultProfile} onChange={vi.fn()} registeredSdks={mockSdks} />);
+    const select = screen.getByLabelText("SDK 프로파일") as HTMLSelectElement;
+    const options = Array.from(select.options).map((o) => o.textContent);
+    expect(options).toContain("사용 안함");
+    expect(options).toContain("TI AM335x");
+    // NXP S32K is status="analyzing", not "ready" → should not appear
+    expect(options).not.toContain("NXP S32K");
+  });
+
+  it("calls onChange with SDK profile when SDK changes", () => {
     const onChange = vi.fn();
-    render(<BuildProfileForm value={defaultProfile} onChange={onChange} />);
+    render(<BuildProfileForm value={defaultProfile} onChange={onChange} registeredSdks={mockSdks} />);
     const select = screen.getByLabelText("SDK 프로파일");
 
-    fireEvent.change(select, { target: { value: "nxp-s32k" } });
+    fireEvent.change(select, { target: { value: "sdk-1" } });
 
     expect(onChange).toHaveBeenCalledTimes(1);
     const newProfile = onChange.mock.calls[0][0];
-    const nxpDefaults = getSdkProfile("nxp-s32k")!.defaults;
-    expect(newProfile.sdkId).toBe("nxp-s32k");
-    expect(newProfile.compiler).toBe(nxpDefaults.compiler);
-    expect(newProfile.targetArch).toBe(nxpDefaults.targetArch);
+    expect(newProfile.sdkId).toBe("sdk-1");
+    expect(newProfile.compiler).toBe("arm-none-eabi-gcc");
+    expect(newProfile.targetArch).toBe("arm");
+  });
+
+  it("shows hint when no SDKs registered", () => {
+    render(<BuildProfileForm value={defaultProfile} onChange={vi.fn()} registeredSdks={[]} />);
+    expect(screen.getByText(/등록된 SDK가 없습니다/)).toBeTruthy();
   });
 
   it("toggles advanced settings", () => {

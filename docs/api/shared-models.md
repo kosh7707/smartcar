@@ -197,7 +197,7 @@ type SdkProfileId = string;
 
 | 필드 | 타입 | 설명 |
 |------|------|------|
-| sdkId | SdkProfileId | SDK 프로파일 ID — 선택하면 나머지 자동 추론 |
+| sdkId | SdkProfileId | SDK 프로파일 ID — 해석 체인: `"none"` → 하드코딩 SDK → 등록 SDK(`sdk-*`) → `"custom"` 폴백. `"none"`은 SDK 미사용(최소 프로파일). |
 | compiler | string | 컴파일러 (SDK에서 추론 또는 사용자 지정) |
 | compilerVersion | string (optional) | 컴파일러 버전 |
 | targetArch | string | 타겟 아키텍처 (SDK에서 추론) |
@@ -831,6 +831,12 @@ type ApprovalActionType = "gate.override" | "finding.accepted_risk";
 | summary.totalVulnerabilities | number | 총 취약점 수 (모듈별 최신 분석 기준) |
 | summary.bySeverity | AnalysisSummary | 심각도별 건수 |
 | summary.byModule | `{ static, dynamic, test }` | 모듈별 건수 |
+| targetSummary | object (optional) | 서브프로젝트 상태 집계. 타겟이 없으면 생략 |
+| targetSummary.total | number | 전체 타겟 수 |
+| targetSummary.ready | number | 완료(ready) 타겟 수 |
+| targetSummary.failed | number | 실패(build_failed/scan_failed/graph_failed/resolve_failed) 타겟 수 |
+| targetSummary.running | number | 진행 중 타겟 수 |
+| targetSummary.discovered | number | 탐색만 완료된 타겟 수 |
 | recentAnalyses | AnalysisResult[] | 최근 분석 이력 |
 
 > **취약점 집계 방식**: 모듈별 가장 최근 완료된 분석 1건의 summary만 합산한다.
@@ -924,6 +930,14 @@ type ApprovalActionType = "gate.override" | "finding.accepted_risk";
 `targetProgress`: `{ current: number, total: number }` (타겟별 분석 시)
 
 #### Analysis 진행 추적 DTO
+
+`POST /api/analysis/run` 요청 body:
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| projectId | string (필수) | 프로젝트 ID |
+| targetIds | string[] (optional) | 분석할 서브프로젝트 타겟 ID 목록 |
+| mode | `"full" \| "subproject"` (optional) | 분석 모드. `"subproject"`: targetIds 필수. `"full"`: targetIds 비허용. 생략 시 targetIds 유무로 추론 (하위 호환) |
 
 `POST /api/analysis/run` → `202 Accepted`:
 
@@ -1114,6 +1128,81 @@ type ApprovalActionType = "gate.override" | "finding.accepted_risk";
 | data.bySeverity | Record<string, number> | 심각도별 카운트 |
 | data.total | number | 전체 Finding 수 |
 
+#### FindingBulkStatusRequest (`PATCH /api/findings/bulk-status`)
+
+여러 Finding의 상태를 한 번에 변경한다. 트랜잭션으로 처리.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| findingIds | string[] | 대상 Finding ID 목록 (최소 1, 최대 100) |
+| status | FindingStatus | 변경할 상태 |
+| reason | string | 변경 사유 |
+| actor | string (optional) | 수행자 (기본: "system") |
+
+**응답**: `{ success: true, data: { updated: number, failed: number } }`
+
+- `updated`: 실제 상태 변경 성공 건수
+- `failed`: 미존재 또는 유효하지 않은 전이로 실패한 건수
+
+#### FindingHistoryEntry (`GET /api/findings/:id/history`)
+
+같은 fingerprint를 가진 이전 Finding 목록. 동일 취약점의 검출 이력 추적용.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| findingId | string | Finding ID |
+| runId | string | 해당 Finding이 속한 Run ID |
+| status | FindingStatus | 당시 상태 |
+| createdAt | string | 생성 시점 (ISO 8601) |
+
+**응답**: `{ success: true, data: FindingHistoryEntry[] }`
+
+- Finding이 존재하지 않으면 404
+- fingerprint가 없으면 빈 배열
+
+#### Finding 목록 확장 쿼리 파라미터 (`GET /api/projects/:pid/findings`)
+
+기존 `status`, `severity`, `module` 외 추가된 쿼리 파라미터:
+
+| 파라미터 | 타입 | 설명 |
+|----------|------|------|
+| q | string | title, description, location 텍스트 검색 (LIKE %q%) |
+| sourceType | string | sourceType 필터 (`"agent"`, `"sast-tool"`, `"rule-engine"`, `"llm-assist"` 등) |
+| sort | `"severity" \| "createdAt" \| "location"` | 정렬 기준 (기본: createdAt DESC) |
+| order | `"asc" \| "desc"` | 정렬 방향 (기본: desc) |
+
+### Activity Timeline
+
+#### ActivityEntry (`GET /api/projects/:pid/activity?limit=10`)
+
+프로젝트 내 최근 활동을 타임라인으로 반환. 4개 소스(Run, Finding 상태 변경, Approval 결정, 파이프라인 완료)를 병합하여 timestamp DESC 정렬.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| type | ActivityType | 활동 유형 |
+| timestamp | string | 발생 시점 (ISO 8601) |
+| summary | string | 한 줄 요약 (한국어) |
+| metadata | Record<string, unknown> | 상세 메타데이터 (type별 상이) |
+
+**ActivityType**: `"run_completed" | "finding_status_changed" | "approval_decided" | "pipeline_completed"`
+
+**쿼리 파라미터**: `limit` (1~50, 기본 10)
+
+**응답**: `{ success: true, data: ActivityEntry[] }`
+
+### Approval Count
+
+#### ApprovalCountResponse (`GET /api/projects/:pid/approvals/count`)
+
+프로젝트의 Approval 카운트. 사이드바 뱃지 표시용.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| pending | number | 대기 중 Approval 수 |
+| total | number | 전체 Approval 수 |
+
+**응답**: `{ success: true, data: { pending, total } }`
+
 ### Quality Gate (후속 과제 — 3단계, 스키마 선확정)
 
 #### GateResultResponse
@@ -1213,14 +1302,17 @@ type ApprovalActionType = "gate.override" | "finding.accepted_risk";
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | service | string | `"aegis-core-service"` |
-| status | `"ok" \| "error"` | 상태 |
+| status | `"ok" \| "degraded" \| "unhealthy"` | 종합 상태. `unhealthy`: 핵심 서비스(SAST+Agent) 모두 불능. `degraded`: 일부 불능. `ok`: 전부 정상 |
 | version | string | 버전 (e.g. `"0.2.0"`) |
-| llmGateway | object \| null | S7(LLM Gateway) `/v1/health` 응답 원본. 미연결 시 `null` |
-| analysisAgent | object \| null | S3(Analysis Agent) `/v1/health` 응답 원본. 미연결 시 `null` |
-| sastRunner | object \| null | S4(SAST Runner) `/v1/health` 응답 원본. 미연결 시 `null` |
-| adapters | `{ total: number, connected: number }` | 어댑터 연결 현황 |
+| detail | `{ version: string, uptime: number }` | 상세 정보 (uptime: 초) |
+| llmGateway | object \| null | S7(LLM Gateway) 상태. S1은 무시 가능 |
+| analysisAgent | object \| null | S3(Analysis Agent) 상태. S1은 무시 가능 |
+| sastRunner | object \| null | S4(SAST Runner) 상태. S1은 무시 가능 |
+| knowledgeBase | object \| null | S5(Knowledge Base) 상태. S1은 무시 가능 |
+| buildAgent | object \| null | S3(Build Agent) 상태. S1은 무시 가능 |
+| adapters | `{ total: number, connected: number }` | 어댑터 연결 현황. S1은 무시 가능 |
 
-> 각 하위 서비스 health는 `Promise.all` + `.catch(() => null)`로 수집. 하나가 실패해도 나머지는 반환.
+> S1은 `status` 필드만 사용하면 충분. 개별 서비스 필드는 진단 목적으로 유지.
 
 ### 분석 진행률
 

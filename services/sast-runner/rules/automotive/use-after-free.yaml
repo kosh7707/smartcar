@@ -1,0 +1,110 @@
+rules:
+  - id: aegis.c.cwe-416-free-then-use
+    patterns:
+      - pattern: |
+          free($PTR);
+          ...
+          $FUNC(..., $PTR, ...);
+      - metavariable-regex:
+          metavariable: $FUNC
+          regex: ^(memcpy|memmove|memset|strcpy|strncpy|strcat|strncat|strcmp|strlen|sprintf|snprintf|fprintf|printf|write|send|sendto|sendmsg)$
+    message: >
+      Use-after-free: $PTR is freed then passed to $FUNC().
+      Access to freed memory causes undefined behavior — potential code execution.
+    languages: [c]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-416"
+      category: security
+      confidence: MEDIUM
+      impact: HIGH
+      automotive_rationale: >
+        Use-after-free in ECU software can corrupt heap metadata, enabling
+        arbitrary write primitives. In automotive systems, this can be exploited
+        to modify CAN routing tables or safety-critical state machines.
+        ISO 26262-6 Table 1 (1c) requires prevention of dangling pointer access.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1c) — Prevention of dangling pointer access"
+        - "MISRA C:2012 Rule 18.6 — Lifetime of objects"
+        - "CERT C MEM30-C — Do not access freed memory"
+
+  - id: aegis.c.cwe-416-free-then-deref
+    pattern: |
+      free($PTR);
+      ...
+      $PTR->$FIELD;
+    message: >
+      Use-after-free: $PTR is freed then dereferenced ($PTR->$FIELD).
+    languages: [c]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-416"
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      automotive_rationale: >
+        Dereferencing freed pointers in safety-critical ECU code can read
+        corrupted heap data, leading to incorrect sensor readings or control
+        signal generation.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1c)"
+        - "CERT C MEM30-C"
+
+  - id: aegis.c.cwe-416-free-then-array-access
+    pattern: |
+      free($PTR);
+      ...
+      $PTR[$IDX];
+    message: >
+      Use-after-free: $PTR is freed then accessed as array ($PTR[$IDX]).
+    languages: [c]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-416"
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      automotive_rationale: >
+        Array access on freed memory in buffer management routines can
+        read/write uncontrolled heap regions in automotive middleware.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1c)"
+        - "CERT C MEM30-C"
+
+  # ─── Taint mode: free() → use 추적 (cross-function 포함) ───
+
+  - id: aegis.c.cwe-416-taint-free-then-use
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern: free($SRC)
+          - focus-metavariable: $SRC
+    pattern-sinks:
+      - patterns:
+          - pattern: $FUNC(..., $SINK, ...)
+          - focus-metavariable: $SINK
+          - metavariable-regex:
+              metavariable: $FUNC
+              regex: ^(memcpy|memmove|memset|strcpy|strncpy|printf|fprintf|send|write|strlen|strcmp)$
+      - pattern: $SINK->$FIELD
+      - pattern: $SINK[$IDX]
+      - pattern: "*$SINK"
+    message: >
+      Use-after-free: pointer freed then used in subsequent operation.
+      Taint tracks cross-block and cross-function UAF patterns.
+    languages: [c]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-416"]
+      category: security
+      confidence: MEDIUM
+      impact: HIGH
+      automotive_rationale: >
+        UAF in ECU software can corrupt heap metadata, enabling arbitrary write.
+        Cross-function UAF is especially dangerous in callback/event-driven architectures.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1c)"
+        - "CERT C MEM30-C"

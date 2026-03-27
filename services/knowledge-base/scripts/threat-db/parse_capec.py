@@ -105,7 +105,8 @@ def parse_capec(
                 if "ATT&CK" in tax_name or "ATTACK" in tax_name.upper():
                     entry_id_el = tm.find("capec:Entry_ID", NS)
                     if entry_id_el is not None and entry_id_el.text:
-                        attack_id = entry_id_el.text.strip()
+                        raw_id = entry_id_el.text.strip()
+                        attack_id = raw_id if raw_id.startswith("T") else f"T{raw_id}"
                         capec_to_attack[capec_id].append(attack_id)
                         attack_to_capec[attack_id].append(capec_id)
             if capec_to_attack[capec_id]:

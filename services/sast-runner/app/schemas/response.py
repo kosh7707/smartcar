@@ -29,11 +29,13 @@ class SdkResolutionInfo(BaseModel):
 
 
 class FindingsFilterInfo(BaseModel):
-    """SDK/외부 노이즈 필터링 결과."""
+    """SDK/외부 노이즈 필터링 + scope-early 결과."""
     before_filter: int = Field(alias="beforeFilter")
     after_filter: int = Field(alias="afterFilter")
-    sdk_noise_removed: int = Field(alias="sdkNoiseRemoved")
+    sdk_noise_removed: int = Field(default=0, alias="sdkNoiseRemoved")
+    third_party_removed: int = Field(default=0, alias="thirdPartyRemoved")
     cross_boundary_kept: int = Field(default=0, alias="crossBoundaryKept")
+    files_scoped_out: int = Field(default=0, alias="filesScopedOut")
 
     model_config = {"populate_by_name": True, "by_alias": True}
 
@@ -119,7 +121,7 @@ class ScanResponse(BaseModel):
 class HealthResponse(BaseModel):
     service: str = "s4-sast"
     status: str = "ok"
-    version: str = "0.5.0"
+    version: str = "0.7.0"
     semgrep: dict[str, Any] = {}
     tools: dict[str, Any] = {}
     default_rulesets: list[str] = Field(default_factory=list, alias="defaultRulesets")

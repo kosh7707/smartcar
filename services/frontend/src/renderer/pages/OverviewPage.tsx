@@ -10,14 +10,21 @@ import {
   LayoutDashboard,
   ChevronRight,
   Shield,
+  HardDrive,
+  Settings,
+  Activity,
 } from "lucide-react";
 import { fetchProjectOverview, fetchProjectFiles, logError } from "../api/client";
+import { fetchProjectActivity } from "../api/projects";
+import type { ActivityEntry } from "../api/projects";
+import { fetchProjectSdks } from "../api/sdk";
+import type { RegisteredSdk } from "../api/sdk";
+import { useBuildTargets } from "../hooks/useBuildTargets";
 import { useToast } from "../contexts/ToastContext";
-import { PageHeader, StatCard, SeveritySummary, SeverityBadge, DonutChart, ListItem, Spinner } from "../components/ui";
-import { extractFiles, extractFileNames } from "../utils/analysis";
+import { PageHeader, StatCard, SeveritySummary, SeverityBadge, DonutChart, Spinner, TargetStatusBadge } from "../components/ui";
 import { SEVERITY_ORDER } from "../utils/severity";
 import { formatFileSize, formatDateTime } from "../utils/format";
-import { MODULE_META, MODULE_LABELS, getModuleRoute } from "../constants/modules";
+import { MODULE_META, MODULE_LABELS } from "../constants/modules";
 import { LANG_COLORS, getLangColor } from "../constants/languages";
 import "./OverviewPage.css";
 
@@ -91,7 +98,10 @@ export const OverviewPage: React.FC = () => {
   const [overview, setOverview] = useState<ProjectOverviewResponse | null>(null);
   const [projectFiles, setProjectFiles] = useState<UploadedFile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [registeredSdks, setRegisteredSdks] = useState<RegisteredSdk[]>([]);
+  const [activities, setActivities] = useState<ActivityEntry[]>([]);
   const toast = useToast();
+  const bt = useBuildTargets(projectId);
 
   const loadData = () => {
     if (!projectId) return;
@@ -110,6 +120,14 @@ export const OverviewPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    if (projectId) {
+      fetchProjectSdks(projectId)
+        .then((data) => setRegisteredSdks(data.registered))
+        .catch(() => setRegisteredSdks([]));
+      fetchProjectActivity(projectId, 8)
+        .then(setActivities)
+        .catch(() => setActivities([]));
+    }
   }, [projectId]);
 
   const recentAnalyses = overview?.recentAnalyses ?? [];
@@ -264,47 +282,82 @@ export const OverviewPage: React.FC = () => {
           )}
         </div>
 
-        {/* Analysis history */}
-        <div className="card overview-history-card">
+        {/* Subprojects */}
+        <div className="card overview-subproject-card">
           <div
-            className="card-title overview-history-header"
-            onClick={() => navigate(`/projects/${projectId}/analysis-history`)}
+            className="card-title overview-subproject-header"
+            onClick={() => navigate(`/projects/${projectId}/files`)}
           >
             <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-              <Clock size={16} />
-              분석 이력
+              <HardDrive size={16} />
+              서브 프로젝트 ({bt.targets.length}개)
             </span>
             <ChevronRight size={16} style={{ color: "var(--text-tertiary)" }} />
           </div>
-          {recentAnalyses.length === 0 ? (
-            <p className="overview-empty-text">아직 분석 이력이 없습니다.</p>
+          {bt.targets.length === 0 ? (
+            <p className="overview-empty-text">등록된 서브 프로젝트가 없습니다.</p>
           ) : (
-            <div className={`overview-history-body${recentAnalyses.length >= 5 ? " has-fade" : ""}`}>
-              {recentAnalyses.slice(0, 8).map((a) => {
-                const fileHint = extractFileNames(a, 3);
-                return (
-                  <ListItem
-                    key={a.id}
-                    onClick={() => navigate(getModuleRoute(a.module, projectId ?? "", a.id))}
-                    trailing={<span className="overview-history-time">{formatDateTime(a.createdAt)}</span>}
-                  >
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                        <span className="overview-history-label">{MODULE_META[a.module]?.label ?? a.module}</span>
-                        <SeveritySummary summary={a.summary} />
-                      </div>
-                      {fileHint && (
-                        <div className="overview-history-files">{fileHint}</div>
-                      )}
-                    </div>
-                  </ListItem>
-                );
-              })}
-              {recentAnalyses.length >= 5 && (
-                <div className="overview-card-fade" onClick={() => navigate(`/projects/${projectId}/analysis-history`)}>
-                  <span>전체 보기 →</span>
+            <div className="overview-subproject-body">
+              {bt.targets.map((t) => (
+                <div key={t.id} className="overview-subproject-row">
+                  <span className="overview-subproject-name">{t.name}</span>
+                  <TargetStatusBadge status={t.status ?? "discovered"} size="sm" />
                 </div>
-              )}
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* SDK */}
+        <div className="card overview-sdk-card">
+          <div
+            className="card-title overview-sdk-header"
+            onClick={() => navigate(`/projects/${projectId}/settings`)}
+          >
+            <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+              <Settings size={16} />
+              SDK ({registeredSdks.length}개)
+            </span>
+            <ChevronRight size={16} style={{ color: "var(--text-tertiary)" }} />
+          </div>
+          {registeredSdks.length === 0 ? (
+            <p className="overview-empty-text">등록된 SDK가 없습니다.</p>
+          ) : (
+            <div className="overview-sdk-body">
+              {registeredSdks.map((sdk) => (
+                <div key={sdk.id} className="overview-sdk-row">
+                  <span className="overview-sdk-name">{sdk.name}</span>
+                  <span className="overview-sdk-status" style={{
+                    color: sdk.status === "ready" ? "var(--success)" : sdk.status === "verify_failed" ? "var(--danger)" : "var(--severity-medium)",
+                    fontSize: "var(--text-xs)",
+                    fontWeight: "var(--weight-medium)",
+                  }}>
+                    {sdk.status === "ready" ? "사용 가능" : sdk.status === "verify_failed" ? "검증 실패" : "진행 중"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Activity Timeline */}
+        <div className="card overview-history-card">
+          <div className="card-title overview-history-header">
+            <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+              <Activity size={16} />
+              최근 활동
+            </span>
+          </div>
+          {activities.length === 0 ? (
+            <p className="overview-empty-text">아직 활동 이력이 없습니다.</p>
+          ) : (
+            <div className={`overview-history-body${activities.length >= 5 ? " has-fade" : ""}`}>
+              {activities.map((a, i) => (
+                <div key={i} className="overview-activity-row">
+                  <span className="overview-activity-summary">{a.summary}</span>
+                  <span className="overview-history-time">{formatDateTime(a.timestamp)}</span>
+                </div>
+              ))}
             </div>
           )}
         </div>

@@ -1,7 +1,7 @@
 # Knowledge Base 명세서
 
 > **소유자**: S5
-> **최종 업데이트**: 2026-03-25
+> **최종 업데이트**: 2026-03-27
 
 ---
 
@@ -145,7 +145,7 @@ CREATE INDEX FOR (n:Memory) ON (n.content_hash);
 | 지표 | 값 |
 |------|-----|
 | 위협 노드 | 2,196 (CWE 944 + ATT&CK 694 + CAPEC 558) |
-| 위협 관계 | 3,542 |
+| 위협 관계 | 9,298 |
 | CVE | ETL에서 제거됨 — `POST /v1/cve/batch-lookup`으로 실시간 조회 |
 
 ---
@@ -219,6 +219,7 @@ ETL에서 11개 공격 표면으로 분류 (`scripts/threat-db/taxonomy.py`):
 | `AEGIS_KB_NEO4J_PASSWORD` | `aegis-kb` | Neo4j 비밀번호 |
 | `AEGIS_KB_NVD_API_KEY` | (없음) | NVD API 키 (실시간 CVE 조회용) |
 | `AEGIS_KB_NVD_CACHE_TTL` | 86400 | CVE 캐시 TTL (초) |
+| `AEGIS_KB_NVD_CACHE_FILE` | `data/cve-cache.json` | CVE 캐시 영속화 파일 경로 |
 | `AEGIS_KB_NVD_BATCH_CONCURRENCY` | 5 | CVE 배치 병렬 조회 동시 실행 수 |
 | `AEGIS_KB_EPSS_ENABLED` | true | EPSS 악용 확률 보강 on/off |
 | `AEGIS_KB_KEV_TTL` | 3600 | CISA KEV 카탈로그 캐시 TTL (초) |
@@ -241,7 +242,7 @@ ETL에서 11개 공격 표면으로 분류 (`scripts/threat-db/taxonomy.py`):
 
 ```bash
 cd services/knowledge-base
-.venv/bin/python -m pytest tests/ -q  # 102 passed (2026-03-25 확인)
+.venv/bin/python -m pytest tests/ -q  # 114 passed (2026-03-27 확인)
 ```
 
 모든 테스트는 Neo4j 드라이버를 mock하여 실행 — Neo4j/Qdrant 미설치 환경에서도 통과.
@@ -253,7 +254,7 @@ cd services/knowledge-base
 | `test_code_vector_search.py` | 10 | CodeVectorSearch (_build_document, ingest, search, delete) |
 | `test_code_graph_assembler.py` | 9 | CodeGraphAssembler (빈 쿼리, name_exact, vector, RRF, call_chain) |
 | `test_knowledge_assembler.py` | 15 | 위협 하이브리드 검색, 중복 제거, 소스 필터링, 배치, RRF |
-| `test_nvd_client.py` | 26 | 버전 매칭, 캐시, CPE 추론, 배치 병렬, EPSS, KEV |
+| `test_nvd_client.py` | 37 | 버전 매칭, 캐시, CPE 추론, 배치 병렬, EPSS, KEV, risk_score, KB 보강, 캐시 영속화 |
 | `test_project_memory_service.py` | 14 | 메모리 CRUD, 타입 검증, JSON 손상 처리, lifecycle |
 | `test_api_error_responses.py` | 9 | 에러 포맷, health/ready, HTTPException 핸들러 |
 

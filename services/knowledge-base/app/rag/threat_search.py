@@ -87,6 +87,23 @@ class ThreatSearch:
             hits = [h for h in hits if h.score >= min_score]
         return hits
 
+    def get_by_id(self, record_id: str) -> dict | None:
+        """ID로 위협 지식 레코드의 메타데이터를 조회한다 (CVE 보강용)."""
+        from qdrant_client.models import FieldCondition, Filter, MatchValue
+
+        results, _ = self._client.scroll(
+            collection_name=COLLECTION,
+            scroll_filter=Filter(must=[
+                FieldCondition(key="id", match=MatchValue(value=record_id)),
+            ]),
+            limit=1,
+            with_payload=True,
+            with_vectors=False,
+        )
+        if results and results[0].payload:
+            return results[0].payload
+        return None
+
     def scroll_all_metadata(self) -> list[dict]:
         """Qdrant 컬렉션의 전체 레코드 메타데이터를 반환한다 (그래프 구축용)."""
         all_records: list[dict] = []

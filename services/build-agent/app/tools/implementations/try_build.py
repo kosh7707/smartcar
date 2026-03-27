@@ -93,6 +93,17 @@ class TryBuildTool:
                     data["_s3_warning"] = warning
                     logger.warning("[try_build] S4 응답 검증: %s", warning)
 
+                # 빌드 실패 시 에러 분류 + 복구 제안 추가
+                if not actual_success:
+                    from app.pipeline.build_error_classifier import classify_build_error
+                    error_output = data.get("stderr", "") + data.get("stdout", "") + data.get("output", "")
+                    classifications = classify_build_error(error_output)
+                    if classifications:
+                        data["_error_classification"] = [
+                            {"category": c.category, "message": c.message, "suggestion": c.suggestion}
+                            for c in classifications
+                        ]
+
                 new_refs = ["eref-build-success"] if actual_success else []
                 return ToolResult(
                     tool_call_id="", name="", success=actual_success,

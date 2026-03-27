@@ -1,12 +1,7 @@
 from __future__ import annotations
 
+from app.config import settings
 from app.schemas.response import ConfidenceBreakdown
-
-# 가중치 (외부 피드백 기반)
-W_GROUNDING = 0.45
-W_DETERMINISTIC = 0.30
-W_RAG_COVERAGE = 0.15
-W_SCHEMA = 0.10
 
 
 class ConfidenceCalculator:
@@ -26,10 +21,10 @@ class ConfidenceCalculator:
         schema_compliance = 1.0 if schema_valid else 0.0
 
         score = (
-            W_GROUNDING * grounding
-            + W_DETERMINISTIC * deterministic
-            + W_RAG_COVERAGE * rag_coverage
-            + W_SCHEMA * schema_compliance
+            settings.confidence_w_grounding * grounding
+            + settings.confidence_w_deterministic * deterministic
+            + settings.confidence_w_rag_coverage * rag_coverage
+            + settings.confidence_w_schema * schema_compliance
         )
         score = round(min(max(score, 0.0), 1.0), 4)
 

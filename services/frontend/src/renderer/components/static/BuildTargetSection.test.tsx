@@ -61,6 +61,10 @@ vi.mock("../../api/client", () => ({
   logError: vi.fn(),
 }));
 
+vi.mock("../../api/sdk", () => ({
+  fetchProjectSdks: vi.fn().mockResolvedValue({ builtIn: [], registered: [] }),
+}));
+
 describe("BuildTargetSection", () => {
   it("renders target name and status", () => {
     render(<BuildTargetSection projectId="p-1" />);
@@ -74,7 +78,7 @@ describe("BuildTargetSection", () => {
 
     fireEvent.click(screen.getByText("타겟 추가"));
 
-    expect(screen.getByPlaceholderText("gateway")).toBeTruthy();
+    expect(screen.getByPlaceholderText("서브프로젝트 이름")).toBeTruthy();
   });
 
   it("has discover button", () => {

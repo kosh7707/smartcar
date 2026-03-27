@@ -16,6 +16,7 @@ import { ProjectDAO } from "../dao/project.dao";
 import { AdapterDAO } from "../dao/adapter.dao";
 import { ProjectSettingsDAO } from "../dao/project-settings.dao";
 import { BuildTargetDAO } from "../dao/build-target.dao";
+import { SdkRegistryDAO } from "../dao/sdk-registry.dao";
 
 // Services
 import { FindingService } from "../services/finding.service";
@@ -28,6 +29,7 @@ import { ProjectSettingsService } from "../services/project-settings.service";
 import { BuildTargetService } from "../services/build-target.service";
 import { ReportService } from "../services/report.service";
 import { ResultNormalizer } from "../services/result-normalizer";
+import { ActivityService } from "../services/activity.service";
 
 // Controllers
 import { createProjectRouter } from "../controllers/project.controller";
@@ -39,6 +41,7 @@ import { createReportRouter } from "../controllers/report.controller";
 import { createFileRouter } from "../controllers/file.controller";
 import { createBuildTargetRouter } from "../controllers/build-target.controller";
 import { createPipelineRouter } from "../controllers/pipeline.controller";
+import { createActivityRouter } from "../controllers/activity.controller";
 
 export interface TestAppContext {
   app: express.Express;
@@ -76,10 +79,11 @@ export function createTestApp(): TestAppContext {
   const adapterDAO = new AdapterDAO(db);
   const projectSettingsDAO = new ProjectSettingsDAO(db);
   const buildTargetDAO = new BuildTargetDAO(db);
+  const sdkRegistryDAO = new SdkRegistryDAO(db);
 
   // Services
   const adapterManager = new AdapterManager(adapterDAO);
-  const settingsService = new ProjectSettingsService(projectSettingsDAO);
+  const settingsService = new ProjectSettingsService(projectSettingsDAO, sdkRegistryDAO);
   const buildTargetService = new BuildTargetService(buildTargetDAO, settingsService);
   const projectService = new ProjectService(projectDAO, analysisResultDAO, fileStore, adapterManager, settingsService, buildTargetService);
   const gateService = new QualityGateService(findingDAO, evidenceRefDAO, gateResultDAO, runDAO);
@@ -87,6 +91,7 @@ export function createTestApp(): TestAppContext {
   const approvalService = new ApprovalService(approvalDAO, auditLogDAO, gateService);
   const findingService = new FindingService(findingDAO, evidenceRefDAO, auditLogDAO);
   const runService = new RunService(runDAO, findingDAO, gateResultDAO, evidenceRefDAO);
+  const activityService = new ActivityService(runDAO, auditLogDAO, buildTargetDAO);
   const reportService = new ReportService(evidenceRefDAO, auditLogDAO, projectService, runService, findingService, gateService, approvalService);
 
   // App
@@ -101,6 +106,7 @@ export function createTestApp(): TestAppContext {
   app.use("/api/projects/:pid/report", createReportRouter(reportService));
   app.use("/api/projects/:pid/targets", createBuildTargetRouter(buildTargetService, projectDAO, null as any, null));
   app.use("/api/projects/:pid/pipeline", createPipelineRouter(null as any, projectDAO, buildTargetDAO));
+  app.use("/api/projects/:pid/activity", createActivityRouter(activityService));
   app.use("/api/projects", createProjectRouter(projectService));
   app.use("/api", createFileRouter(fileStore));
   app.use("/api/runs", createRunDetailRouter(runService));

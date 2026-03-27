@@ -65,7 +65,53 @@ export interface ProjectOverviewResponse {
       test: number;
     };
   };
+  targetSummary?: {
+    total: number;
+    ready: number;
+    failed: number;
+    running: number;
+    discovered: number;
+  };
   recentAnalyses: AnalysisResult[];
+}
+
+// ============================================================
+// Finding 벌크 상태 변경
+// ============================================================
+
+export interface FindingBulkStatusRequest {
+  findingIds: string[];
+  status: FindingStatus;
+  reason: string;
+  actor?: string;
+}
+
+// ============================================================
+// Finding fingerprint 이력
+// ============================================================
+
+export interface FindingHistoryEntry {
+  findingId: string;
+  runId: string;
+  status: FindingStatus;
+  createdAt: string;
+}
+
+// ============================================================
+// 활동 타임라인
+// ============================================================
+
+export type ActivityType =
+  | "run_completed"
+  | "finding_status_changed"
+  | "approval_decided"
+  | "pipeline_completed";
+
+export interface ActivityEntry {
+  type: ActivityType;
+  timestamp: string;
+  summary: string;
+  metadata: Record<string, unknown>;
 }
 
 // ============================================================
@@ -522,10 +568,22 @@ export interface AdapterResponse {
   error?: string;
 }
 
+export interface ServiceHealth {
+  status: "ok" | "unreachable";
+  detail?: Record<string, unknown>;
+}
+
 export interface HealthResponse {
   service: string;
-  status: "ok" | "error";
+  status: "ok" | "degraded" | "unhealthy";
   version: string;
+  detail?: { version: string; uptime: number };
+  llmGateway?: ServiceHealth | null;
+  analysisAgent?: ServiceHealth | null;
+  sastRunner?: ServiceHealth | null;
+  knowledgeBase?: ServiceHealth | null;
+  buildAgent?: ServiceHealth | null;
+  adapters?: { total: number; connected: number };
 }
 
 // ============================================================
@@ -618,6 +676,11 @@ export interface ApprovalDecisionRequest {
   actor?: string;
 }
 
+export interface ApprovalCountResponse {
+  success: boolean;
+  data: { pending: number; total: number };
+}
+
 // ============================================================
 // Report
 // ============================================================
@@ -666,6 +729,13 @@ export interface AnalysisStatusResponse {
 export interface AnalysisStatusListResponse {
   success: boolean;
   data: AnalysisProgress[];
+}
+
+export interface AnalysisRunRequest {
+  projectId: string;
+  targetIds?: string[];
+  /** 분석 모드. 생략 시 targetIds 유무로 추론. */
+  mode?: "full" | "subproject";
 }
 
 export interface AnalysisRunAcceptedResponse {

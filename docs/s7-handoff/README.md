@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S7(LLM Gateway + LLM Engine 관리) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-25**
+> **마지막 업데이트: 2026-03-26**
 
 ---
 
@@ -302,6 +302,10 @@ confidence = 0.45×grounding + 0.30×deterministicSupport + 0.15×ragCoverage + 
 | AEGIS_RAG_TOP_K | `5` | RAG 검색 결과 상위 k건 |
 | AEGIS_RAG_MIN_SCORE | `0.35` | 이 점수 미만의 RAG 결과 제외. 0이면 필터 비활성화 |
 | AEGIS_CORS_ALLOW_ORIGINS | `http://localhost:5173,http://localhost:3000` | CORS 허용 오리진 (쉼표 구분) |
+| AEGIS_CONFIDENCE_W_GROUNDING | `0.45` | Confidence 가중치: evidence grounding |
+| AEGIS_CONFIDENCE_W_DETERMINISTIC | `0.30` | Confidence 가중치: deterministic support |
+| AEGIS_CONFIDENCE_W_RAG_COVERAGE | `0.15` | Confidence 가중치: RAG coverage |
+| AEGIS_CONFIDENCE_W_SCHEMA | `0.10` | Confidence 가중치: schema compliance |
 | LOG_DIR | `../../logs` (프로젝트 루트 `logs/`) | JSONL 로그 파일 디렉토리 |
 
 ### Observability
@@ -505,6 +509,15 @@ ssh -i ~/.ssh/dgx_spark accslab@10.126.37.19 'docker logs vllm_node --tail 20'
 ---
 
 ## 7. 수정 이력
+
+### 코드 품질 고도화 (2026-03-26)
+
+- **Global state → app.state 이전**: `tasks.py`의 모듈 레벨 전역 변수 7개 + setter 함수 5개 제거. 모든 컴포넌트(pipeline, proxy_client, circuit_breaker, token_tracker, registries, semaphore)를 FastAPI `app.state`로 이전. 엔드포인트에서 `req.app.state`로 접근. `main.py` lifespan에서 직접 할당.
+- **TokenTracker async화**: `threading.Lock` → `asyncio.Lock`, `record()`/`snapshot()` async 전환. 전 호출 사이트 `await` 적용 (5개소). async 이벤트 루프에서의 lock 경합 제거.
+- **CONCURRENT_REQUESTS gauge 연결**: `prom.py`에 정의만 되어 있던 `aegis_llm_concurrent_requests` gauge를 실제 세마포어 블록에 연결 (`tasks.py` chat proxy + `task_pipeline.py` LLM 호출). `try/finally`로 정합성 보장.
+- **Confidence 가중치 설정 외부화**: 4개 하드코딩 상수(W_GROUNDING=0.45 등)를 `config.py` Settings로 이전. 환경변수 `AEGIS_CONFIDENCE_W_*`로 튜닝 가능. 기본값은 기존과 동일.
+- **ThreatSearch 에러 로깅 강화**: 단일 `warning` 한 줄 → 3종 예외별 `error` 레벨 구조화 로깅. requestId, error 유형(HTTP_xxx/CONNECT/TIMEOUT), latencyMs, query, HTTP response body 포함.
+- 178 tests 통과
 
 ### 외부 리뷰 피드백 개선 (2026-03-25)
 

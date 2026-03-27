@@ -297,6 +297,88 @@ def summarize_request(entries: list[dict]) -> dict[str, Any]:
     }
 
 
+def search_by_message(logs: list[dict], query: str) -> list[dict]:
+    """메시지(msg) 내용을 텍스트 검색 (case-insensitive)."""
+    q = query.lower()
+    return [e for e in logs if q in (e.get("msg") or "").lower()]
+
+
+def compute_llm_stats(logs: list[dict]) -> dict[str, Any] | None:
+    """llm-exchange.jsonl 전용 통계 — 호출 수, 레이턴시, 토큰, tool_calls 비율."""
+    llm_entries = [e for e in logs if e.get("type") in ("chat_proxy", "llm_call")]
+    if not llm_entries:
+        return None
+
+    latencies = []
+    prompt_tokens = []
+    completion_tokens = []
+    tool_call_count = 0
+    content_count = 0
+
+    for e in llm_entries:
+        lat = e.get("elapsedMs") or e.get("latencyMs")
+        if isinstance(lat, (int, float)):
+            latencies.append(lat)
+
+        usage = e.get("usage") or e.get("tokenUsage") or {}
+        pt = usage.get("prompt", 0) or usage.get("prompt_tokens", 0)
+        ct = usage.get("completion", 0) or usage.get("completion_tokens", 0)
+        if pt:
+            prompt_tokens.append(pt)
+        if ct:
+            completion_tokens.append(ct)
+
+        fr = e.get("finishReason") or ""
+        if "tool" in fr:
+            tool_call_count += 1
+        elif fr:
+            content_count += 1
+
+    total = tool_call_count + content_count
+    return {
+        "totalCalls": len(llm_entries),
+        "avgLatencyMs": round(sum(latencies) / len(latencies), 1) if latencies else 0,
+        "maxLatencyMs": round(max(latencies), 1) if latencies else 0,
+        "maxLatencyEntry": max(llm_entries, key=lambda e: (e.get("elapsedMs") or e.get("latencyMs") or 0)) if llm_entries else None,
+        "avgPromptTokens": round(sum(prompt_tokens) / len(prompt_tokens)) if prompt_tokens else 0,
+        "maxPromptTokens": max(prompt_tokens) if prompt_tokens else 0,
+        "totalPromptTokens": sum(prompt_tokens),
+        "totalCompletionTokens": sum(completion_tokens),
+        "toolCallRate": round(tool_call_count / total * 100, 1) if total > 0 else 0,
+        "contentRate": round(content_count / total * 100, 1) if total > 0 else 0,
+    }
+
+
+def extract_turn_token_growth(logs: list[dict], request_id: str) -> list[dict[str, Any]]:
+    """특정 requestId의 LLM exchange 턴별 프롬프트 토큰 증가 추적."""
+    turns = [
+        e for e in logs
+        if e.get("requestId") == request_id and e.get("type") in ("chat_proxy", "llm_call")
+    ]
+    turns.sort(key=lambda e: e.get("time", 0))
+
+    result = []
+    prev_prompt = 0
+    for i, e in enumerate(turns):
+        usage = e.get("usage") or e.get("tokenUsage") or {}
+        pt = usage.get("prompt", 0) or usage.get("prompt_tokens", 0)
+        ct = usage.get("completion", 0) or usage.get("completion_tokens", 0)
+        lat = e.get("elapsedMs") or e.get("latencyMs") or 0
+        fr = e.get("finishReason") or "?"
+
+        result.append({
+            "turn": i + 1,
+            "promptTokens": pt,
+            "delta": pt - prev_prompt,
+            "completionTokens": ct,
+            "latencyMs": lat,
+            "finishReason": fr,
+        })
+        prev_prompt = pt
+
+    return result
+
+
 def compute_service_stats(logs: list[dict], service: str | None = None) -> list[dict[str, Any]]:
     """서비스별 통계."""
     by_service: dict[str, list[dict]] = {}

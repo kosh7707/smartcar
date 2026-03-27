@@ -49,6 +49,32 @@
   color: var(--text-tertiary);
 }
 
+/* ── Search & Sort ── */
+
+.vuln-search-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-tertiary);
+}
+
+.vuln-search-input {
+  max-width: 200px;
+  font-size: var(--text-sm);
+}
+
+.vuln-sort-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-tertiary);
+}
+
+.vuln-sort-select {
+  max-width: 100px;
+  font-size: var(--text-sm);
+}
+
 /* ── Date Filter ── */
 
 .vuln-date-filter {

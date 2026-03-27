@@ -123,6 +123,22 @@
   opacity: 0.5;
 }
 
+.sidebar-badge {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  color: white;
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+}
+
 .sidebar-coming-soon-tag {
   margin-left: auto;
   font-size: var(--text-xs);

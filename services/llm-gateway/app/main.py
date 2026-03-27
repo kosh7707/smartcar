@@ -1,9 +1,11 @@
+import asyncio
 import logging
 import os
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pythonjsonlogger import jsonlogger
@@ -83,14 +85,21 @@ async def lifespan(_app: FastAPI):
     _app.state.circuit_breaker = circuit_breaker
     _app.state.token_tracker = token_tracker
 
+    # Registry 초기화
+    from app.registry.model_registry import create_default_registry as create_model_registry
+    from app.registry.prompt_registry import create_default_registry as create_prompt_registry
+    _app.state.prompt_registry = create_prompt_registry()
+    _app.state.model_registry = create_model_registry()
+
+    # 동시성 제어 세마포어
+    _app.state.llm_semaphore = asyncio.Semaphore(settings.llm_concurrency)
+
     # real 모드: httpx 클라이언트를 1회 생성하여 connection pooling 활용
     llm_client = None
     if settings.llm_mode == "real":
         from app.clients.real import RealLlmClient
-        from app.registry.model_registry import create_default_registry as create_model_registry
 
-        registry = create_model_registry()
-        profile = registry.get_default()
+        profile = _app.state.model_registry.get_default()
         llm_client = RealLlmClient(
             endpoint=profile.endpoint if profile else settings.llm_endpoint,
             model=profile.modelName if profile else settings.llm_model,
@@ -99,14 +108,27 @@ async def lifespan(_app: FastAPI):
             circuit_breaker=circuit_breaker,
         )
 
-    # RAG enricher + LLM 클라이언트를 주입하여 파이프라인 재구성
-    from app.routers.tasks import _rebuild_pipeline, _init_proxy_client, _set_circuit_breaker, _set_token_tracker
-    _rebuild_pipeline(threat_search, llm_client)
-    _set_circuit_breaker(circuit_breaker)
-    _set_token_tracker(token_tracker)
+    # RAG enricher + LLM 클라이언트를 주입하여 파이프라인 구성
+    from app.pipeline.task_pipeline import TaskPipeline
+    enricher = None
+    if threat_search:
+        from app.rag.context_enricher import ContextEnricher
+        enricher = ContextEnricher(threat_search)
+    _app.state.pipeline = TaskPipeline(
+        _app.state.prompt_registry, _app.state.model_registry,
+        context_enricher=enricher, llm_client=llm_client,
+    )
 
     # LLM Engine 프록시 클라이언트 초기화 (/v1/chat 용)
-    _init_proxy_client()
+    _app.state.proxy_client = httpx.AsyncClient(
+        timeout=httpx.Timeout(
+            connect=settings.llm_connect_timeout,
+            read=settings.llm_read_timeout,
+            write=10.0,
+            pool=10.0,
+        ),
+        limits=httpx.Limits(max_connections=10, max_keepalive_connections=4),
+    )
 
     # real 모드일 때 LLM Engine 워밍업 (torch.compile 캐시 생성)
     if llm_client:
@@ -128,8 +150,7 @@ async def lifespan(_app: FastAPI):
     )
     yield
 
-    from app.routers.tasks import _close_proxy_client
-    await _close_proxy_client()
+    await _app.state.proxy_client.aclose()
     if llm_client:
         await llm_client.aclose()
     if threat_search:

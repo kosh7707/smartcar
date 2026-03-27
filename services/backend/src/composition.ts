@@ -64,6 +64,7 @@ import { BuildTargetService } from "./services/build-target.service";
 import { KbClient } from "./services/kb-client";
 import { BuildAgentClient } from "./services/build-agent-client";
 import { PipelineOrchestrator } from "./services/pipeline-orchestrator";
+import { ActivityService } from "./services/activity.service";
 
 export interface AppContext {
   // DAOs
@@ -102,6 +103,7 @@ export interface AppContext {
   dynamicTestService: DynamicTestService;
   analysisOrchestrator: AnalysisOrchestrator;
   pipelineOrchestrator: PipelineOrchestrator;
+  activityService: ActivityService;
   reportService: ReportService;
   analysisTracker: AnalysisTracker;
 
@@ -155,7 +157,7 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
   const buildAgentClient = new BuildAgentClient(cfg.buildAgentUrl);
 
   const adapterManager = new AdapterManager(adapterDAO);
-  const settingsService = new ProjectSettingsService(projectSettingsDAO);
+  const settingsService = new ProjectSettingsService(projectSettingsDAO, sdkRegistryDAO);
   const projectSourceService = new ProjectSourceService(cfg.uploadsDir);
 
   // ── Tier 2: 복합 서비스 (Tier 1 의존) ──
@@ -194,9 +196,11 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
   const analysisTracker = new AnalysisTracker();
   const analysisOrchestrator = new AnalysisOrchestrator(
     projectSourceService, sastClient, agentClient,
-    analysisResultDAO, settingsService, resultNormalizer, analysisWs, buildTargetService,
+    analysisResultDAO, settingsService, resultNormalizer, analysisWs, buildTargetService, targetLibraryDAO,
   );
   const sdkService = new SdkService(sdkRegistryDAO, sastClient, buildAgentClient, cfg.uploadsDir, sdkWs);
+
+  const activityService = new ActivityService(runDAO, auditLogDAO, buildTargetDAO);
 
   const pipelineOrchestrator = new PipelineOrchestrator(
     projectSourceService, sastClient, kbClient, buildAgentClient, targetLibraryDAO,
@@ -216,7 +220,7 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
     adapterManager, settingsService, projectSourceService, buildTargetService, targetLibraryDAO, sdkRegistryDAO, sdkService,
     projectService, qualityGateService, resultNormalizer, approvalService, findingService,
     runService, dynamicAnalysisService, dynamicTestService,
-    analysisOrchestrator, pipelineOrchestrator, reportService, analysisTracker,
+    analysisOrchestrator, pipelineOrchestrator, activityService, reportService, analysisTracker,
     llmAdapter, sastClient, agentClient, kbClient, buildAgentClient,
     canRuleEngine,
     dynamicAnalysisWs, staticAnalysisWs, dynamicTestWs, analysisWs, uploadWs, pipelineWs, sdkWs,

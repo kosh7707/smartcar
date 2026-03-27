@@ -1,4 +1,4 @@
-"""FilePolicy — 에이전트 생성 파일 추적 + 권한 판정.
+"""FilePolicy — 에이전트 생성 파일 추적 + 권한 판정 + 내용 안전성 검사.
 
 build-aegis/ 하위에 에이전트가 만든 파일만 수정/삭제 가능.
 프로젝트 원본 파일은 read-only.
@@ -6,6 +6,7 @@ build-aegis/ 하위에 에이전트가 만든 파일만 수정/삭제 가능.
 from __future__ import annotations
 
 import os
+import re
 
 
 class FilePolicy:
@@ -68,3 +69,27 @@ class FilePolicy:
         """에이전트가 파일을 삭제했음을 기록한다."""
         full = self._resolve_build(path)
         self._created_files.discard(full)
+
+    # --- 내용 안전성 검사 ---
+
+    _CONTENT_FORBIDDEN = [
+        re.compile(r"\brm\s+-[rf]", re.I),
+        re.compile(r"\bcurl\b", re.I),
+        re.compile(r"\bwget\b", re.I),
+        re.compile(r"\bgit\s+(?:clone|push|pull)\b", re.I),
+        re.compile(r"\bdocker\b", re.I),
+        re.compile(r"\bchmod\b", re.I),
+        re.compile(r"\bchown\b", re.I),
+        re.compile(r"\bsudo\b", re.I),
+        re.compile(r"\bapt-get\b|\byum\b|\bpip\s+install\b", re.I),
+    ]
+
+    @classmethod
+    def scan_content(cls, content: str) -> list[str]:
+        """스크립트 내용에서 금지 패턴을 검색한다. 발견된 패턴 목록을 반환."""
+        warnings: list[str] = []
+        for pattern in cls._CONTENT_FORBIDDEN:
+            match = pattern.search(content)
+            if match:
+                warnings.append(match.group())
+        return warnings

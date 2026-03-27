@@ -31,6 +31,9 @@ from log_reader import (
     build_waterfall,
     summarize_request,
     compute_service_stats,
+    compute_llm_stats,
+    extract_turn_token_growth,
+    search_by_message,
     format_elapsed,
 )
 
@@ -56,12 +59,26 @@ def trace_request(request_id: str) -> str:
     waterfall = build_waterfall(entries)
     services = sorted(set(e.get("service", "?") for e in entries))
 
-    return (
+    result = (
         f"Request: {request_id}\n"
         f"Services: {', '.join(services)}\n"
         f"{'═' * 80}\n"
         f"{waterfall}"
     )
+
+    # 턴별 토큰 증가 추적 (LLM exchange가 있는 경우)
+    turns = extract_turn_token_growth(logs, request_id)
+    if turns:
+        result += f"\n\n{'═' * 80}\nLLM 턴별 토큰 증가:\n{'─' * 60}\n"
+        for t in turns:
+            delta_mark = f"+{t['delta']:,}" if t['delta'] >= 0 else f"{t['delta']:,}"
+            result += (
+                f"Turn {t['turn']:>2}: prompt={t['promptTokens']:>8,}  ({delta_mark:>8})  "
+                f"completion={t['completionTokens']:>6,}  "
+                f"[{format_elapsed(t['latencyMs'])}]  {t['finishReason']}\n"
+            )
+
+    return result
 
 
 @mcp.tool()
@@ -196,6 +213,97 @@ def service_stats(service: str | None = None, since_minutes: int = 60) -> str:
 
     header = f"서비스 통계 (최근 {since_minutes}분):\n{'─' * 100}"
     return f"{header}\n" + "\n".join(lines)
+
+
+@mcp.tool()
+def search_logs(
+    query: str,
+    since_minutes: int = 1440,
+    service: str | None = None,
+    min_level: int = 20,
+    limit: int = 30,
+) -> str:
+    """로그 메시지(msg) 내용을 텍스트 검색한다 (full-text, case-insensitive).
+
+    Args:
+        query: 검색 키워드 (e.g. "OOM", "timeout", "BUILD_FAILED")
+        since_minutes: 최근 N분 이내 (기본 1440분 = 24시간)
+        service: 특정 서비스만 필터
+        min_level: 최소 로그 레벨 (기본 20 = DEBUG 이상 전부)
+        limit: 최대 결과 수 (기본 30)
+    """
+    logs = read_all_logs(LOGS_DIR)
+
+    since_ms = int((time.time() - since_minutes * 60) * 1000)
+    logs = filter_by_time(logs, since_ms)
+
+    if service:
+        logs = filter_by_service(logs, service)
+
+    logs = filter_by_level(logs, min_level)
+    matched = search_by_message(logs, query)
+    matched = matched[-limit:]
+
+    if not matched:
+        svc_info = f" (service={service})" if service else ""
+        return f"'{query}' 검색 결과 없음 (최근 {since_minutes}분, level>={min_level}{svc_info})."
+
+    level_names = {20: "DEBUG", 30: "INFO", 40: "WARN", 50: "ERROR", 60: "FATAL"}
+    lines = []
+    for e in matched:
+        lvl = e.get("level", "?")
+        lvl_name = level_names.get(lvl, str(lvl)) if isinstance(lvl, int) else str(lvl)
+        svc = e.get("service", "?")
+        msg = e.get("msg", "")
+        rid = e.get("requestId", "")
+        line = f"[{lvl_name:>5}] {svc:<14} {msg}"
+        if rid:
+            line += f"  (rid: {rid})"
+        lines.append(line)
+
+    return (
+        f"'{query}' 검색: {len(matched)}건 (최근 {since_minutes}분)\n"
+        f"{'─' * 80}\n" + "\n".join(lines)
+    )
+
+
+@mcp.tool()
+def llm_stats(since_minutes: int = 1440) -> str:
+    """LLM exchange 전용 통계 — 호출 수, 레이턴시, 토큰 사용량, tool_calls 비율.
+
+    Args:
+        since_minutes: 최근 N분 이내 (기본 1440분 = 24시간)
+    """
+    logs = read_all_logs(LOGS_DIR)
+
+    since_ms = int((time.time() - since_minutes * 60) * 1000)
+    logs = filter_by_time(logs, since_ms)
+
+    stats = compute_llm_stats(logs)
+    if not stats:
+        return f"최근 {since_minutes}분 내 LLM exchange 로그 없음."
+
+    max_entry = stats["maxLatencyEntry"]
+    max_lat_detail = ""
+    if max_entry:
+        turn = max_entry.get("turn", "?")
+        usage = max_entry.get("usage") or max_entry.get("tokenUsage") or {}
+        pt = usage.get("prompt", 0) or usage.get("prompt_tokens", 0)
+        max_lat_detail = f" (turn {turn}, prompt={pt:,})"
+
+    return (
+        f"LLM Exchange 통계 (최근 {since_minutes}분):\n"
+        f"{'─' * 60}\n"
+        f"  총 호출: {stats['totalCalls']}회\n"
+        f"  평균 레이턴시: {format_elapsed(stats['avgLatencyMs'])}\n"
+        f"  최대 레이턴시: {format_elapsed(stats['maxLatencyMs'])}{max_lat_detail}\n"
+        f"  평균 prompt 토큰: {stats['avgPromptTokens']:,}\n"
+        f"  최대 prompt 토큰: {stats['maxPromptTokens']:,}\n"
+        f"  총 prompt 토큰: {stats['totalPromptTokens']:,}\n"
+        f"  총 completion 토큰: {stats['totalCompletionTokens']:,}\n"
+        f"  tool_calls 비율: {stats['toolCallRate']}%\n"
+        f"  content 비율: {stats['contentRate']}%"
+    )
 
 
 if __name__ == "__main__":

@@ -1,27 +1,49 @@
 import React, { useState, useCallback } from "react";
 import type { BuildProfile } from "@aegis/shared";
 import { ChevronRight, Settings } from "lucide-react";
-import { SDK_PROFILES, getSdkProfile } from "../../constants/sdkProfiles";
+import type { RegisteredSdk } from "../../api/sdk";
 
 interface Props {
   value: BuildProfile;
   onChange: (bp: BuildProfile) => void;
+  registeredSdks?: RegisteredSdk[];
 }
 
-export const BuildProfileForm: React.FC<Props> = ({ value, onChange }) => {
+const NONE_DEFAULTS: BuildProfile = {
+  sdkId: "none",
+  compiler: "gcc",
+  targetArch: "x86_64",
+  languageStandard: "c17",
+  headerLanguage: "auto",
+};
+
+export const BuildProfileForm: React.FC<Props> = ({ value, onChange, registeredSdks }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const readySdks = (registeredSdks ?? []).filter((s) => s.status === "ready");
 
   const handleSdkChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       const sdkId = e.target.value;
-      const profile = getSdkProfile(sdkId);
-      if (profile) {
-        onChange({ ...profile.defaults, sdkId });
+      if (sdkId === "none") {
+        onChange({ ...NONE_DEFAULTS });
+        return;
+      }
+      const sdk = readySdks.find((s) => s.id === sdkId);
+      if (sdk?.profile) {
+        onChange({
+          sdkId,
+          compiler: sdk.profile.compiler || "gcc",
+          targetArch: sdk.profile.targetArch || "x86_64",
+          languageStandard: sdk.profile.languageStandard || "c17",
+          headerLanguage: "auto",
+          includePaths: sdk.profile.includePaths,
+        });
       } else {
         onChange({ ...value, sdkId });
       }
     },
-    [value, onChange],
+    [value, onChange, readySdks],
   );
 
   const update = useCallback(
@@ -64,7 +86,8 @@ export const BuildProfileForm: React.FC<Props> = ({ value, onChange }) => {
     [value, onChange],
   );
 
-  const currentSdk = getSdkProfile(value.sdkId);
+  // Find current SDK name for hint
+  const currentSdk = readySdks.find((s) => s.id === value.sdkId);
 
   return (
     <div className="bp-form">
@@ -76,15 +99,20 @@ export const BuildProfileForm: React.FC<Props> = ({ value, onChange }) => {
           value={value.sdkId}
           onChange={handleSdkChange}
         >
-          {SDK_PROFILES.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name} {p.vendor !== "-" ? `(${p.vendor})` : ""}
+          <option value="none">사용 안함</option>
+          {readySdks.map((sdk) => (
+            <option key={sdk.id} value={sdk.id}>
+              {sdk.name}
             </option>
           ))}
         </select>
       </label>
 
-      {currentSdk && currentSdk.id !== "custom" && (
+      {value.sdkId === "none" && readySdks.length === 0 && (
+        <div className="bp-sdk-hint">등록된 SDK가 없습니다. 프로젝트 설정에서 SDK를 먼저 등록하세요.</div>
+      )}
+
+      {currentSdk?.description && (
         <div className="bp-sdk-hint">{currentSdk.description}</div>
       )}
 

@@ -61,7 +61,7 @@ export function useBuildTargets(projectId?: string) {
     if (!projectId) return [];
     setDiscovering(true);
     try {
-      const discovered = await discoverBuildTargets(projectId);
+      const discovered = await discoverBuildTargets(projectId) ?? [];
       setTargets(discovered);
       return discovered;
     } catch (e) {

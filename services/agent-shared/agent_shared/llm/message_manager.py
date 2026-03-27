@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import copy
+from typing import TYPE_CHECKING
 
 from agent_shared.schemas.agent import ToolCallRequest, ToolResult
+
+if TYPE_CHECKING:
+    from agent_shared.llm.turn_summarizer import TurnSummarizer
 
 
 class MessageManager:
@@ -19,6 +23,10 @@ class MessageManager:
     def get_messages(self) -> list[dict]:
         """현재 messages 배열의 deep copy를 반환한다."""
         return copy.deepcopy(self._messages)
+
+    def add_user_message(self, content: str) -> None:
+        """user 메시지를 추가한다 (에이전트 루프의 지시 주입 등)."""
+        self._messages.append({"role": "user", "content": content})
 
     def add_assistant_content(self, content: str) -> None:
         """assistant의 텍스트 응답을 추가한다."""
@@ -55,9 +63,22 @@ class MessageManager:
         return len(self._messages)
 
     def get_token_estimate(self) -> int:
-        """대략적 토큰 추정 (4자 = 1토큰)."""
-        total_chars = sum(
-            len(str(m.get("content", "")))
-            for m in self._messages
-        )
+        """대략적 토큰 추정 (4자 = 1토큰). content + tool_calls JSON 포함."""
+        total_chars = 0
+        for m in self._messages:
+            total_chars += len(str(m.get("content", "") or ""))
+            # tool_calls가 있으면 그 JSON 크기도 포함
+            tool_calls = m.get("tool_calls")
+            if tool_calls:
+                total_chars += len(str(tool_calls))
         return total_chars // 4
+
+    async def compact(
+        self,
+        summarizer: TurnSummarizer,
+        keep_last_n: int = 4,
+    ) -> int:
+        """메시지를 압축한다. 제거된 메시지 수를 반환한다."""
+        before = len(self._messages)
+        self._messages = await summarizer.summarize(self._messages, keep_last_n)
+        return before - len(self._messages)

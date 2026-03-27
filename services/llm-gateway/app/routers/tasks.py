@@ -9,9 +9,7 @@ from fastapi.responses import JSONResponse, Response
 
 from app.config import settings
 from app.context import get_request_id, set_request_id
-from app.pipeline.task_pipeline import TaskPipeline
-from app.registry.model_registry import create_default_registry as create_model_registry
-from app.registry.prompt_registry import create_default_registry as create_prompt_registry
+from app.metrics import prom
 from app.schemas.request import TaskRequest
 from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
 
@@ -19,25 +17,6 @@ logger = logging.getLogger(__name__)
 _exchange_logger = logging.getLogger("llm_exchange")
 
 router = APIRouter(prefix="/v1", tags=["v1"])
-
-_prompt_registry = create_prompt_registry()
-_model_registry = create_model_registry()
-
-# LLM Engine 프록시 클라이언트 — lifespan에서 초기화
-_proxy_client: httpx.AsyncClient | None = None
-
-# Circuit Breaker + TokenTracker — lifespan에서 초기화
-from app.circuit_breaker import CircuitBreaker
-from app.metrics.token_tracker import TokenTracker
-_circuit_breaker: CircuitBreaker | None = None
-_token_tracker: TokenTracker | None = None
-
-# 동시성 제어 세마포어 — lifespan에서 초기화
-import asyncio
-_llm_semaphore = asyncio.Semaphore(settings.llm_concurrency)
-
-# 파이프라인은 초기에는 enricher 없이 생성. lifespan에서 갱신.
-_pipeline = TaskPipeline(_prompt_registry, _model_registry)
 
 
 def _json_response(
@@ -51,53 +30,6 @@ def _json_response(
     )
 
 
-def _init_proxy_client() -> None:
-    """lifespan에서 호출 — LLM Engine 프록시 httpx 클라이언트 초기화."""
-    global _proxy_client
-    _proxy_client = httpx.AsyncClient(
-        timeout=httpx.Timeout(
-            connect=settings.llm_connect_timeout,
-            read=settings.llm_read_timeout,
-            write=10.0,
-            pool=10.0,
-        ),
-        limits=httpx.Limits(max_connections=10, max_keepalive_connections=4),
-    )
-
-
-async def _close_proxy_client() -> None:
-    """lifespan에서 호출 — 프록시 클라이언트 종료."""
-    global _proxy_client
-    if _proxy_client:
-        await _proxy_client.aclose()
-        _proxy_client = None
-
-
-def _set_circuit_breaker(cb: CircuitBreaker) -> None:
-    """lifespan에서 호출 — Circuit Breaker 주입."""
-    global _circuit_breaker
-    _circuit_breaker = cb
-
-
-def _set_token_tracker(tt: TokenTracker) -> None:
-    """lifespan에서 호출 — TokenTracker 주입."""
-    global _token_tracker
-    _token_tracker = tt
-
-
-def _rebuild_pipeline(threat_search=None, llm_client=None) -> None:
-    """lifespan에서 RAG/LLM 클라이언트 초기화 후 파이프라인 재구성."""
-    global _pipeline
-    enricher = None
-    if threat_search:
-        from app.rag.context_enricher import ContextEnricher
-        enricher = ContextEnricher(threat_search)
-    _pipeline = TaskPipeline(
-        _prompt_registry, _model_registry,
-        context_enricher=enricher, llm_client=llm_client,
-    )
-
-
 @router.post("/tasks")
 async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
     set_request_id(req.headers.get("x-request-id") or f"gw-{uuid4().hex[:12]}")
@@ -106,14 +38,17 @@ async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
         request.taskId, request.taskType,
     )
 
+    pipeline = req.app.state.pipeline
+    token_tracker = getattr(req.app.state, "token_tracker", None)
+
     task_start = time.monotonic()
     try:
-        result = await _pipeline.execute(request)
+        result = await pipeline.execute(request)
     except Exception:
         logger.error("[v1] Unexpected error", exc_info=True)
         task_duration = time.monotonic() - task_start
-        if _token_tracker:
-            _token_tracker.record(
+        if token_tracker:
+            await token_tracker.record(
                 endpoint="tasks", task_type=request.taskType,
                 success=False, duration_s=task_duration,
                 error_type="INTERNAL_ERROR",
@@ -135,10 +70,10 @@ async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
         )
 
     task_duration = time.monotonic() - task_start
-    if _token_tracker:
+    if token_tracker:
         is_success = hasattr(result, "status") and result.status == "completed"
         token_usage = getattr(getattr(result, "audit", None), "tokenUsage", None)
-        _token_tracker.record(
+        await token_tracker.record(
             endpoint="tasks",
             task_type=request.taskType,
             prompt_tokens=token_usage.prompt if token_usage else 0,
@@ -153,21 +88,24 @@ async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
 
 @router.get("/health")
 async def health(req: Request) -> dict:
+    model_registry = req.app.state.model_registry
+    prompt_registry = req.app.state.prompt_registry
+
     result = {
         "service": "s7-gateway",
         "status": "ok",
         "version": "1.0.0",
         "llmMode": settings.llm_mode,
         "modelProfiles": [
-            p["profileId"] for p in _model_registry.list_all()
+            p["profileId"] for p in model_registry.list_all()
         ],
         "activePromptVersions": {
             p["taskType"]: p["version"]
-            for p in _prompt_registry.list_all()
+            for p in prompt_registry.list_all()
         },
     }
     if settings.llm_mode == "real":
-        result["llmBackend"] = await _check_llm_backend()
+        result["llmBackend"] = await _check_llm_backend(model_registry)
         result["llmConcurrency"] = settings.llm_concurrency
 
     # Circuit Breaker 상태
@@ -199,7 +137,8 @@ async def chat_proxy(req: Request) -> Response:
 
     body = await req.json()
 
-    profile = _model_registry.get_default()
+    model_registry = req.app.state.model_registry
+    profile = model_registry.get_default()
     llm_endpoint = profile.endpoint if profile else settings.llm_endpoint
 
     # 모델명 오버라이드 — 호출자가 어떤 모델명을 보내든 Gateway가 실제 모델로 교체
@@ -226,11 +165,16 @@ async def chat_proxy(req: Request) -> Response:
 
     start = time.monotonic()
 
+    circuit_breaker = getattr(req.app.state, "circuit_breaker", None)
+    token_tracker = getattr(req.app.state, "token_tracker", None)
+    llm_semaphore = req.app.state.llm_semaphore
+    proxy_client = req.app.state.proxy_client
+
     # Circuit Breaker 확인
-    if _circuit_breaker:
+    if circuit_breaker:
         from app.errors import LlmCircuitOpenError
         try:
-            await _circuit_breaker.check()
+            await circuit_breaker.check()
         except LlmCircuitOpenError:
             logger.warning("[chat proxy] Circuit Breaker OPEN — 즉시 실패")
             return JSONResponse(
@@ -240,13 +184,17 @@ async def chat_proxy(req: Request) -> Response:
             )
 
     try:
-        async with _llm_semaphore:
-            resp = await _proxy_client.post(
-                f"{llm_endpoint}/v1/chat/completions",
-                json=body,
-                headers=fwd_headers,
-                timeout=req_timeout,
-            )
+        async with llm_semaphore:
+            prom.CONCURRENT_REQUESTS.inc()
+            try:
+                resp = await proxy_client.post(
+                    f"{llm_endpoint}/v1/chat/completions",
+                    json=body,
+                    headers=fwd_headers,
+                    timeout=req_timeout,
+                )
+            finally:
+                prom.CONCURRENT_REQUESTS.dec()
     except httpx.ConnectError:
         elapsed_ms = int((time.monotonic() - start) * 1000)
         has_tools = bool(body.get("tools"))
@@ -254,8 +202,8 @@ async def chat_proxy(req: Request) -> Response:
             "[chat proxy] 실패 requestId=%s, latencyMs=%d, error=CONNECT, hasTools=%s",
             request_id, elapsed_ms, has_tools,
         )
-        if _circuit_breaker:
-            await _circuit_breaker.record_failure()
+        if circuit_breaker:
+            await circuit_breaker.record_failure()
         return JSONResponse(
             status_code=503,
             content={"error": "LLM Engine unreachable", "retryable": True},
@@ -272,8 +220,8 @@ async def chat_proxy(req: Request) -> Response:
             "[chat proxy] 실패 requestId=%s, latencyMs=%d, error=TIMEOUT, hasTools=%s",
             request_id, elapsed_ms, has_tools,
         )
-        if _circuit_breaker:
-            await _circuit_breaker.record_failure()
+        if circuit_breaker:
+            await circuit_breaker.record_failure()
         return JSONResponse(
             status_code=504,
             content={"error": "LLM Engine timeout", "retryable": True},
@@ -308,11 +256,11 @@ async def chat_proxy(req: Request) -> Response:
     }, ensure_ascii=False))
 
     if resp.status_code == 200:
-        if _circuit_breaker:
-            await _circuit_breaker.record_success()
+        if circuit_breaker:
+            await circuit_breaker.record_success()
         usage = resp_data.get("usage", {}) if resp_data else {}
-        if _token_tracker:
-            _token_tracker.record(
+        if token_tracker:
+            await token_tracker.record(
                 endpoint="chat",
                 prompt_tokens=usage.get("prompt_tokens", 0),
                 completion_tokens=usage.get("completion_tokens", 0),
@@ -330,8 +278,8 @@ async def chat_proxy(req: Request) -> Response:
             extra={"elapsedMs": elapsed_ms},
         )
     else:
-        if _token_tracker:
-            _token_tracker.record(
+        if token_tracker:
+            await token_tracker.record(
                 endpoint="chat", success=False,
                 duration_s=elapsed_ms / 1000,
                 error_type=f"HTTP_{resp.status_code}",
@@ -355,11 +303,11 @@ async def chat_proxy(req: Request) -> Response:
     )
 
 
-async def _check_llm_backend() -> dict:
+async def _check_llm_backend(model_registry) -> dict:
     """vLLM 백엔드 연결 상태를 확인한다. 실패해도 health는 정상 반환."""
     import httpx
 
-    profile = _model_registry.get_default()
+    profile = model_registry.get_default()
     endpoint = profile.endpoint if profile else settings.llm_endpoint
 
     try:
@@ -372,20 +320,21 @@ async def _check_llm_backend() -> dict:
 
 
 @router.get("/usage")
-async def usage() -> dict:
-    if _token_tracker:
-        return _token_tracker.snapshot()
+async def usage(req: Request) -> dict:
+    token_tracker = getattr(req.app.state, "token_tracker", None)
+    if token_tracker:
+        return await token_tracker.snapshot()
     return {"error": "TokenTracker not initialized"}
 
 
 @router.get("/models")
-async def list_models() -> dict:
-    return {"profiles": _model_registry.list_all()}
+async def list_models(req: Request) -> dict:
+    return {"profiles": req.app.state.model_registry.list_all()}
 
 
 @router.get("/prompts")
-async def list_prompts() -> dict:
-    return {"prompts": _prompt_registry.list_all()}
+async def list_prompts(req: Request) -> dict:
+    return {"prompts": req.app.state.prompt_registry.list_all()}
 
 
 # Prometheus 메트릭 — /v1 prefix 밖에 위치

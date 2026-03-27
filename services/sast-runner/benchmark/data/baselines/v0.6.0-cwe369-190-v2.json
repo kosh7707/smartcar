@@ -1,0 +1,415 @@
+{
+  "timestamp": "2026-03-26T09:27:21.899444+00:00",
+  "julietPath": "/home/kosh/Juliet/C",
+  "variantFilter": "01",
+  "targetCWEs": [
+    "CWE-369",
+    "CWE-190"
+  ],
+  "tools": null,
+  "results": {
+    "CWE-190": {
+      "cwe": "CWE-190",
+      "cweName": "Integer_Overflow",
+      "totalFiles": 90,
+      "combined": {
+        "tp": 41,
+        "fn": 49,
+        "fp": 842,
+        "recall": 0.4556,
+        "precision": 0.0464,
+        "f1": 0.0843
+      },
+      "byTool": {
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 8,
+          "fn": 82,
+          "fp": 63,
+          "recall": 0.0889,
+          "precision": 0.1127,
+          "f1": 0.0994
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 15,
+          "fn": 75,
+          "fp": 130,
+          "recall": 0.1667,
+          "precision": 0.1034,
+          "f1": 0.1277
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 31,
+          "fn": 59,
+          "fp": 459,
+          "recall": 0.3444,
+          "precision": 0.0633,
+          "f1": 0.1069
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 0,
+          "fn": 90,
+          "fp": 190,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fn": 90,
+          "fp": 0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        }
+      },
+      "detectedFiles": [
+        "CWE190_Integer_Overflow__char_fscanf_add_01.c",
+        "CWE190_Integer_Overflow__char_fscanf_multiply_01.c",
+        "CWE190_Integer_Overflow__char_fscanf_square_01.c",
+        "CWE190_Integer_Overflow__char_max_add_01.c",
+        "CWE190_Integer_Overflow__char_max_multiply_01.c",
+        "CWE190_Integer_Overflow__char_max_square_01.c",
+        "CWE190_Integer_Overflow__char_rand_add_01.c",
+        "CWE190_Integer_Overflow__char_rand_multiply_01.c",
+        "CWE190_Integer_Overflow__char_rand_square_01.c",
+        "CWE190_Integer_Overflow__int_connect_socket_add_01.c",
+        "CWE190_Integer_Overflow__int_connect_socket_multiply_01.c",
+        "CWE190_Integer_Overflow__int_connect_socket_square_01.c",
+        "CWE190_Integer_Overflow__int_fgets_add_01.c",
+        "CWE190_Integer_Overflow__int_fgets_multiply_01.c",
+        "CWE190_Integer_Overflow__int_fgets_square_01.c",
+        "CWE190_Integer_Overflow__int_fscanf_square_01.c",
+        "CWE190_Integer_Overflow__int_listen_socket_add_01.c",
+        "CWE190_Integer_Overflow__int_listen_socket_multiply_01.c",
+        "CWE190_Integer_Overflow__int_listen_socket_square_01.c",
+        "CWE190_Integer_Overflow__int_max_add_01.c"
+      ],
+      "missedFiles": [
+        "CWE190_Integer_Overflow__int64_t_fscanf_add_01.c",
+        "CWE190_Integer_Overflow__int64_t_fscanf_multiply_01.c",
+        "CWE190_Integer_Overflow__int64_t_fscanf_square_01.c",
+        "CWE190_Integer_Overflow__int64_t_max_add_01.c",
+        "CWE190_Integer_Overflow__int64_t_max_multiply_01.c",
+        "CWE190_Integer_Overflow__int64_t_max_square_01.c",
+        "CWE190_Integer_Overflow__int64_t_rand_add_01.c",
+        "CWE190_Integer_Overflow__int64_t_rand_multiply_01.c",
+        "CWE190_Integer_Overflow__int64_t_rand_square_01.c",
+        "CWE190_Integer_Overflow__int_fscanf_add_01.c",
+        "CWE190_Integer_Overflow__int_fscanf_multiply_01.c",
+        "CWE190_Integer_Overflow__int_rand_add_01.c",
+        "CWE190_Integer_Overflow__int_rand_multiply_01.c",
+        "CWE190_Integer_Overflow__unsigned_int_fscanf_add_01.c",
+        "CWE190_Integer_Overflow__unsigned_int_fscanf_multiply_01.c",
+        "CWE190_Integer_Overflow__unsigned_int_max_add_01.c",
+        "CWE190_Integer_Overflow__unsigned_int_max_multiply_01.c",
+        "CWE190_Integer_Overflow__unsigned_int_rand_add_01.c",
+        "CWE190_Integer_Overflow__unsigned_int_rand_multiply_01.c",
+        "CWE190_Integer_Overflow__char_fscanf_postinc_01.c"
+      ],
+      "byRule": {
+        "clang-tidy:bugprone-narrowing-conversions": {
+          "ruleId": "clang-tidy:bugprone-narrowing-conversions",
+          "tool": "clang-tidy",
+          "tp": 83,
+          "fp": 0
+        },
+        "cppcheck:redundantAssignment": {
+          "ruleId": "cppcheck:redundantAssignment",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 35
+        },
+        "flawfinder:random/srand": {
+          "ruleId": "flawfinder:random/srand",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 90
+        },
+        "clang-tidy:cert-err33-c": {
+          "ruleId": "clang-tidy:cert-err33-c",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 50
+        },
+        "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling": {
+          "ruleId": "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 70
+        },
+        "clang-tidy:clang-analyzer-deadcode.DeadStores": {
+          "ruleId": "clang-tidy:clang-analyzer-deadcode.DeadStores",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 190
+        },
+        "scan-build:deadcode.DeadStores": {
+          "ruleId": "scan-build:deadcode.DeadStores",
+          "tool": "scan-build",
+          "tp": 0,
+          "fp": 190
+        },
+        "cppcheck:knownConditionTrueFalse": {
+          "ruleId": "cppcheck:knownConditionTrueFalse",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 28
+        },
+        "clang-tidy:clang-diagnostic-absolute-value": {
+          "ruleId": "clang-tidy:clang-diagnostic-absolute-value",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 9
+        },
+        "clang-tidy:cert-msc30-c,cert-msc50-cpp": {
+          "ruleId": "clang-tidy:cert-msc30-c,cert-msc50-cpp",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 50
+        },
+        "flawfinder:buffer/fscanf": {
+          "ruleId": "flawfinder:buffer/fscanf",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 10
+        },
+        "clang-tidy:cert-err34-c": {
+          "ruleId": "clang-tidy:cert-err34-c",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 70
+        },
+        "flawfinder:integer/atoi": {
+          "ruleId": "flawfinder:integer/atoi",
+          "tool": "flawfinder",
+          "tp": 30,
+          "fp": 0
+        },
+        "flawfinder:buffer/char": {
+          "ruleId": "flawfinder:buffer/char",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 30
+        },
+        "clang-tidy:bugprone-macro-parentheses": {
+          "ruleId": "clang-tidy:bugprone-macro-parentheses",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 20
+        },
+        "cppcheck:integerOverflowCond": {
+          "ruleId": "cppcheck:integerOverflowCond",
+          "tool": "cppcheck",
+          "tp": 5,
+          "fp": 0
+        },
+        "cppcheck:integerOverflow": {
+          "ruleId": "cppcheck:integerOverflow",
+          "tool": "cppcheck",
+          "tp": 3,
+          "fp": 0
+        }
+      }
+    },
+    "CWE-369": {
+      "cwe": "CWE-369",
+      "cweName": "Divide_by_Zero",
+      "totalFiles": 18,
+      "combined": {
+        "tp": 2,
+        "fn": 16,
+        "fp": 218,
+        "recall": 0.1111,
+        "precision": 0.0091,
+        "f1": 0.0168
+      },
+      "byTool": {
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 2,
+          "fn": 16,
+          "fp": 22,
+          "recall": 0.1111,
+          "precision": 0.0833,
+          "f1": 0.0952
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 0,
+          "fn": 18,
+          "fp": 48,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fn": 18,
+          "fp": 116,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 0,
+          "fn": 18,
+          "fp": 32,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fn": 18,
+          "fp": 0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        }
+      },
+      "detectedFiles": [
+        "CWE369_Divide_by_Zero__int_zero_divide_01.c",
+        "CWE369_Divide_by_Zero__int_zero_modulo_01.c"
+      ],
+      "missedFiles": [
+        "CWE369_Divide_by_Zero__float_connect_socket_01.c",
+        "CWE369_Divide_by_Zero__float_fgets_01.c",
+        "CWE369_Divide_by_Zero__float_fscanf_01.c",
+        "CWE369_Divide_by_Zero__float_listenSocket_01.c",
+        "CWE369_Divide_by_Zero__float_rand_01.c",
+        "CWE369_Divide_by_Zero__float_zero_01.c",
+        "CWE369_Divide_by_Zero__int_connect_socket_divide_01.c",
+        "CWE369_Divide_by_Zero__int_connect_socket_modulo_01.c",
+        "CWE369_Divide_by_Zero__int_fgets_divide_01.c",
+        "CWE369_Divide_by_Zero__int_fgets_modulo_01.c",
+        "CWE369_Divide_by_Zero__int_fscanf_divide_01.c",
+        "CWE369_Divide_by_Zero__int_fscanf_modulo_01.c",
+        "CWE369_Divide_by_Zero__int_listen_socket_divide_01.c",
+        "CWE369_Divide_by_Zero__int_listen_socket_modulo_01.c",
+        "CWE369_Divide_by_Zero__int_rand_divide_01.c",
+        "CWE369_Divide_by_Zero__int_rand_modulo_01.c"
+      ],
+      "byRule": {
+        "flawfinder:random/srand": {
+          "ruleId": "flawfinder:random/srand",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 18
+        },
+        "flawfinder:buffer/char": {
+          "ruleId": "flawfinder:buffer/char",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 18
+        },
+        "clang-tidy:bugprone-macro-parentheses": {
+          "ruleId": "clang-tidy:bugprone-macro-parentheses",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 12
+        },
+        "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling": {
+          "ruleId": "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 18
+        },
+        "clang-tidy:bugprone-narrowing-conversions": {
+          "ruleId": "clang-tidy:bugprone-narrowing-conversions",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 12
+        },
+        "clang-tidy:cert-err34-c": {
+          "ruleId": "clang-tidy:cert-err34-c",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 24
+        },
+        "clang-tidy:clang-analyzer-deadcode.DeadStores": {
+          "ruleId": "clang-tidy:clang-analyzer-deadcode.DeadStores",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 30
+        },
+        "clang-tidy:performance-type-promotion-in-math-fn": {
+          "ruleId": "clang-tidy:performance-type-promotion-in-math-fn",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 6
+        },
+        "scan-build:deadcode.DeadStores": {
+          "ruleId": "scan-build:deadcode.DeadStores",
+          "tool": "scan-build",
+          "tp": 0,
+          "fp": 30
+        },
+        "clang-tidy:cert-err33-c": {
+          "ruleId": "clang-tidy:cert-err33-c",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 6
+        },
+        "clang-tidy:cert-msc30-c,cert-msc50-cpp": {
+          "ruleId": "clang-tidy:cert-msc30-c,cert-msc50-cpp",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 6
+        },
+        "cppcheck:redundantAssignment": {
+          "ruleId": "cppcheck:redundantAssignment",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 20
+        },
+        "flawfinder:integer/atoi": {
+          "ruleId": "flawfinder:integer/atoi",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 12
+        },
+        "cppcheck:zerodiv": {
+          "ruleId": "cppcheck:zerodiv",
+          "tool": "cppcheck",
+          "tp": 2,
+          "fp": 0
+        },
+        "cppcheck:knownConditionTrueFalse": {
+          "ruleId": "cppcheck:knownConditionTrueFalse",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 2
+        },
+        "clang-tidy:clang-analyzer-core.DivideZero": {
+          "ruleId": "clang-tidy:clang-analyzer-core.DivideZero",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 2
+        },
+        "scan-build:core.DivideZero": {
+          "ruleId": "scan-build:core.DivideZero",
+          "tool": "scan-build",
+          "tp": 0,
+          "fp": 2
+        }
+      }
+    }
+  },
+  "summary": {
+    "overallRecall": 0.3981,
+    "overallPrecision": 0.039,
+    "overallF1": 0.071,
+    "totalTP": 43,
+    "totalFN": 65,
+    "totalFP": 1060,
+    "cweCount": 2
+  }
+}

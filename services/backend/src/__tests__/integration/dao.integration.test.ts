@@ -252,6 +252,262 @@ describe("DAO Integration Tests", () => {
     });
   });
 
+  // ================================================================
+  // FindingDAO — 확장 기능 (S1 WR 대응)
+  // ================================================================
+
+  describe("FindingDAO — findByIds", () => {
+    it("returns findings matching given IDs", () => {
+      const findingDao = new FindingDAO(db);
+      const runDao = new RunDAO(db);
+      runDao.save(makeRun({ id: "run-ids", projectId: "p1" }));
+
+      findingDao.save(makeFinding({ id: "f1", runId: "run-ids", projectId: "p1" }));
+      findingDao.save(makeFinding({ id: "f2", runId: "run-ids", projectId: "p1" }));
+      findingDao.save(makeFinding({ id: "f3", runId: "run-ids", projectId: "p1" }));
+
+      const result = findingDao.findByIds(["f1", "f3"]);
+      expect(result).toHaveLength(2);
+      expect(result.map((f) => f.id).sort()).toEqual(["f1", "f3"]);
+    });
+
+    it("returns empty array for empty input", () => {
+      const findingDao = new FindingDAO(db);
+      expect(findingDao.findByIds([])).toEqual([]);
+    });
+
+    it("skips nonexistent IDs", () => {
+      const findingDao = new FindingDAO(db);
+      const runDao = new RunDAO(db);
+      runDao.save(makeRun({ id: "run-skip", projectId: "p1" }));
+      findingDao.save(makeFinding({ id: "f-exist", runId: "run-skip", projectId: "p1" }));
+
+      const result = findingDao.findByIds(["f-exist", "f-ghost"]);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe("f-exist");
+    });
+  });
+
+  describe("FindingDAO — findAllByFingerprint", () => {
+    it("returns all findings with same fingerprint in project", () => {
+      const findingDao = new FindingDAO(db);
+      const runDao = new RunDAO(db);
+      runDao.save(makeRun({ id: "run-fp1", projectId: "p1" }));
+      runDao.save(makeRun({ id: "run-fp2", projectId: "p1" }));
+
+      findingDao.save(makeFinding({ id: "f-a", runId: "run-fp1", projectId: "p1", fingerprint: "fp-same" }));
+      findingDao.save(makeFinding({ id: "f-b", runId: "run-fp2", projectId: "p1", fingerprint: "fp-same" }));
+      findingDao.save(makeFinding({ id: "f-c", runId: "run-fp1", projectId: "p1", fingerprint: "fp-other" }));
+
+      const result = findingDao.findAllByFingerprint("p1", "fp-same");
+      expect(result).toHaveLength(2);
+      expect(result.map((f) => f.id).sort()).toEqual(["f-a", "f-b"]);
+    });
+
+    it("does not return findings from other projects", () => {
+      const findingDao = new FindingDAO(db);
+      const runDao = new RunDAO(db);
+      runDao.save(makeRun({ id: "run-x", projectId: "p1" }));
+      runDao.save(makeRun({ id: "run-y", projectId: "p2" }));
+
+      findingDao.save(makeFinding({ id: "f-p1", runId: "run-x", projectId: "p1", fingerprint: "fp-shared" }));
+      findingDao.save(makeFinding({ id: "f-p2", runId: "run-y", projectId: "p2", fingerprint: "fp-shared" }));
+
+      const result = findingDao.findAllByFingerprint("p1", "fp-shared");
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe("f-p1");
+    });
+  });
+
+  describe("FindingDAO — withTransaction", () => {
+    it("commits on success", () => {
+      const findingDao = new FindingDAO(db);
+      const runDao = new RunDAO(db);
+      runDao.save(makeRun({ id: "run-tx", projectId: "p1" }));
+
+      findingDao.withTransaction(() => {
+        findingDao.save(makeFinding({ id: "f-tx1", runId: "run-tx", projectId: "p1" }));
+        findingDao.save(makeFinding({ id: "f-tx2", runId: "run-tx", projectId: "p1" }));
+      });
+
+      expect(findingDao.findByProjectId("p1")).toHaveLength(2);
+    });
+
+    it("rolls back on error", () => {
+      const findingDao = new FindingDAO(db);
+      const runDao = new RunDAO(db);
+      runDao.save(makeRun({ id: "run-tx2", projectId: "p1" }));
+
+      expect(() => {
+        findingDao.withTransaction(() => {
+          findingDao.save(makeFinding({ id: "f-tx-ok", runId: "run-tx2", projectId: "p1" }));
+          throw new Error("rollback test");
+        });
+      }).toThrow("rollback test");
+
+      expect(findingDao.findByProjectId("p1")).toHaveLength(0);
+    });
+  });
+
+  describe("FindingDAO — extended filters (q, sort, order, sourceType)", () => {
+    it("filters by text search (q)", () => {
+      const findingDao = new FindingDAO(db);
+      const runDao = new RunDAO(db);
+      runDao.save(makeRun({ id: "run-q", projectId: "p1" }));
+
+      findingDao.save(makeFinding({ id: "f-q1", runId: "run-q", projectId: "p1", title: "Buffer overflow in main.c" }));
+      findingDao.save(makeFinding({ id: "f-q2", runId: "run-q", projectId: "p1", title: "SQL injection" }));
+
+      const result = findingDao.findByProjectId("p1", { q: "Buffer" });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe("f-q1");
+    });
+
+    it("filters by sourceType", () => {
+      const findingDao = new FindingDAO(db);
+      const runDao = new RunDAO(db);
+      runDao.save(makeRun({ id: "run-st", projectId: "p1" }));
+
+      findingDao.save(makeFinding({ id: "f-st1", runId: "run-st", projectId: "p1", sourceType: "agent" }));
+      findingDao.save(makeFinding({ id: "f-st2", runId: "run-st", projectId: "p1", sourceType: "sast-tool" }));
+
+      const result = findingDao.findByProjectId("p1", { sourceType: "agent" });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe("f-st1");
+    });
+
+    it("sorts by severity", () => {
+      const findingDao = new FindingDAO(db);
+      const runDao = new RunDAO(db);
+      runDao.save(makeRun({ id: "run-sort", projectId: "p1" }));
+
+      findingDao.save(makeFinding({ id: "f-low", runId: "run-sort", projectId: "p1", severity: "low" }));
+      findingDao.save(makeFinding({ id: "f-crit", runId: "run-sort", projectId: "p1", severity: "critical" }));
+      findingDao.save(makeFinding({ id: "f-med", runId: "run-sort", projectId: "p1", severity: "medium" }));
+
+      const result = findingDao.findByProjectId("p1", { sort: "severity", order: "asc" });
+      expect(result[0].severity).toBe("critical");
+      expect(result[1].severity).toBe("medium");
+      expect(result[2].severity).toBe("low");
+    });
+
+    it("sorts by createdAt desc", () => {
+      const findingDao = new FindingDAO(db);
+      const runDao = new RunDAO(db);
+      runDao.save(makeRun({ id: "run-srt2", projectId: "p1" }));
+
+      findingDao.save(makeFinding({ id: "f-old", runId: "run-srt2", projectId: "p1", createdAt: "2026-03-20T00:00:00Z" }));
+      findingDao.save(makeFinding({ id: "f-new", runId: "run-srt2", projectId: "p1", createdAt: "2026-03-25T00:00:00Z" }));
+
+      const result = findingDao.findByProjectId("p1", { sort: "createdAt", order: "desc" });
+      expect(result[0].id).toBe("f-new");
+      expect(result[1].id).toBe("f-old");
+    });
+
+    it("combines q + sourceType + sort", () => {
+      const findingDao = new FindingDAO(db);
+      const runDao = new RunDAO(db);
+      runDao.save(makeRun({ id: "run-combo", projectId: "p1" }));
+
+      findingDao.save(makeFinding({ id: "f-c1", runId: "run-combo", projectId: "p1", title: "heap overflow", sourceType: "agent", severity: "high" }));
+      findingDao.save(makeFinding({ id: "f-c2", runId: "run-combo", projectId: "p1", title: "heap buffer read", sourceType: "agent", severity: "critical" }));
+      findingDao.save(makeFinding({ id: "f-c3", runId: "run-combo", projectId: "p1", title: "heap spray", sourceType: "sast-tool", severity: "medium" }));
+
+      const result = findingDao.findByProjectId("p1", { q: "heap", sourceType: "agent", sort: "severity", order: "asc" });
+      expect(result).toHaveLength(2);
+      expect(result[0].severity).toBe("critical");
+      expect(result[1].severity).toBe("high");
+    });
+  });
+
+  // ================================================================
+  // AuditLogDAO — 신규 메서드
+  // ================================================================
+
+  describe("AuditLogDAO — findFindingStatusChanges", () => {
+    it("returns status change logs for findings in given project", () => {
+      const auditLogDao = new AuditLogDAO(db);
+      const findingDao = new FindingDAO(db);
+      const runDao = new RunDAO(db);
+
+      runDao.save(makeRun({ id: "run-al", projectId: "p1" }));
+      findingDao.save(makeFinding({ id: "f-al", runId: "run-al", projectId: "p1" }));
+
+      auditLogDao.save(makeAuditLog({
+        id: "al-1", action: "finding.status_change", resource: "finding", resourceId: "f-al",
+        detail: { from: "open", to: "fixed" }, timestamp: "2026-03-26T10:00:00Z",
+      }));
+      auditLogDao.save(makeAuditLog({
+        id: "al-2", action: "other.action", resource: "finding", resourceId: "f-al",
+      }));
+
+      const result = auditLogDao.findFindingStatusChanges("p1", 10);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe("al-1");
+    });
+
+    it("does not return findings from other projects", () => {
+      const auditLogDao = new AuditLogDAO(db);
+      const findingDao = new FindingDAO(db);
+      const runDao = new RunDAO(db);
+
+      runDao.save(makeRun({ id: "run-p2", projectId: "p2" }));
+      findingDao.save(makeFinding({ id: "f-p2", runId: "run-p2", projectId: "p2" }));
+      auditLogDao.save(makeAuditLog({
+        id: "al-p2", action: "finding.status_change", resource: "finding", resourceId: "f-p2",
+      }));
+
+      const result = auditLogDao.findFindingStatusChanges("p1", 10);
+      expect(result).toHaveLength(0);
+    });
+
+    it("respects limit parameter", () => {
+      const auditLogDao = new AuditLogDAO(db);
+      const findingDao = new FindingDAO(db);
+      const runDao = new RunDAO(db);
+
+      runDao.save(makeRun({ id: "run-lim", projectId: "p1" }));
+      findingDao.save(makeFinding({ id: "f-lim", runId: "run-lim", projectId: "p1" }));
+
+      for (let i = 0; i < 5; i++) {
+        auditLogDao.save(makeAuditLog({
+          id: `al-lim-${i}`, action: "finding.status_change", resource: "finding", resourceId: "f-lim",
+        }));
+      }
+
+      expect(auditLogDao.findFindingStatusChanges("p1", 3)).toHaveLength(3);
+    });
+  });
+
+  describe("AuditLogDAO — findApprovalDecisions", () => {
+    it("returns approval logs for given project", () => {
+      const auditLogDao = new AuditLogDAO(db);
+      const approvalDao = new ApprovalDAO(db);
+
+      approvalDao.save(makeApproval({ id: "ap-test", projectId: "p1" }));
+      auditLogDao.save(makeAuditLog({
+        id: "al-ap", action: "approval.approved", resource: "approval", resourceId: "ap-test",
+        detail: { decision: "approved" },
+      }));
+
+      const result = auditLogDao.findApprovalDecisions("p1", 10);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe("al-ap");
+    });
+
+    it("does not return approvals from other projects", () => {
+      const auditLogDao = new AuditLogDAO(db);
+      const approvalDao = new ApprovalDAO(db);
+
+      approvalDao.save(makeApproval({ id: "ap-other", projectId: "p-other" }));
+      auditLogDao.save(makeAuditLog({
+        id: "al-other", action: "approval.rejected", resource: "approval", resourceId: "ap-other",
+      }));
+
+      expect(auditLogDao.findApprovalDecisions("p1", 10)).toHaveLength(0);
+    });
+  });
+
   describe("AnalysisResultDAO — new fields", () => {
     it("persists and retrieves agent metadata", () => {
       const dao = new AnalysisResultDAO(db);

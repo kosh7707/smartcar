@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass, field
 
 import httpx
@@ -56,6 +57,7 @@ class ThreatSearch:
         if request_id:
             headers["X-Request-Id"] = request_id
 
+        start = time.monotonic()
         try:
             resp = await self._client.post(
                 "/v1/search",
@@ -68,8 +70,27 @@ class ThreatSearch:
                 headers=headers,
             )
             resp.raise_for_status()
-        except (httpx.HTTPStatusError, httpx.ConnectError, httpx.TimeoutException) as e:
-            logger.warning("S5 KB 검색 실패 (graceful degradation): %s", e)
+        except httpx.HTTPStatusError as e:
+            latency_ms = int((time.monotonic() - start) * 1000)
+            logger.error(
+                "S5 KB 검색 실패 requestId=%s, error=HTTP_%d, latencyMs=%d, query=%s, body=%s",
+                get_request_id(), e.response.status_code, latency_ms,
+                query[:80], e.response.text[:200] if e.response.text else "",
+            )
+            return []
+        except httpx.ConnectError:
+            latency_ms = int((time.monotonic() - start) * 1000)
+            logger.error(
+                "S5 KB 검색 실패 requestId=%s, error=CONNECT, latencyMs=%d, query=%s",
+                get_request_id(), latency_ms, query[:80],
+            )
+            return []
+        except httpx.TimeoutException:
+            latency_ms = int((time.monotonic() - start) * 1000)
+            logger.error(
+                "S5 KB 검색 실패 requestId=%s, error=TIMEOUT, latencyMs=%d, query=%s",
+                get_request_id(), latency_ms, query[:80],
+            )
             return []
 
         data = resp.json()

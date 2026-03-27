@@ -1,10 +1,24 @@
-import type { ProjectSettings, BuildProfile } from "@aegis/shared";
+import type { ProjectSettings, BuildProfile, RegisteredSdk } from "@aegis/shared";
 import type { IProjectSettingsDAO } from "../dao/interfaces";
 import { findSdkProfile } from "./sdk-profiles";
 import { config } from "../config";
 
+/** SdkRegistryDAO의 조회만 필요 — 전체 인터페이스 의존 회피 */
+export interface ISdkRegistryLookup {
+  findById(id: string): RegisteredSdk | undefined;
+}
+
 const DEFAULT_BUILD_PROFILE: BuildProfile = {
   sdkId: "custom",
+  compiler: "gcc",
+  targetArch: "x86_64",
+  languageStandard: "c11",
+  headerLanguage: "auto",
+};
+
+/** SDK를 사용하지 않는 프로젝트를 위한 최소 프로파일 */
+const NONE_BUILD_PROFILE: BuildProfile = {
+  sdkId: "none",
   compiler: "gcc",
   targetArch: "x86_64",
   languageStandard: "c11",
@@ -25,7 +39,10 @@ const KNOWN_KEYS = new Set<string>([
 ]);
 
 export class ProjectSettingsService {
-  constructor(private projectSettingsDAO: IProjectSettingsDAO) {}
+  constructor(
+    private projectSettingsDAO: IProjectSettingsDAO,
+    private sdkRegistryLookup?: ISdkRegistryLookup,
+  ) {}
 
   getAll(projectId: string): ProjectSettings {
     const overrides = this.projectSettingsDAO.getAll(projectId);
@@ -99,12 +116,12 @@ export class ProjectSettingsService {
 
   /**
    * SDK 프로파일 defaults를 병합하여 완전한 BuildProfile을 반환한다.
+   * 해석 체인: "none" → 하드코딩 SDK → 등록 SDK(sdk-*) → custom 폴백
    * 사용자가 개별 필드를 override하면 그 값이 우선한다.
    */
   resolveBuildProfile(partial: Partial<BuildProfile>): BuildProfile {
     const sdkId = partial.sdkId ?? "custom";
-    const sdkProfile = findSdkProfile(sdkId);
-    const sdkDefaults = sdkProfile?.defaults ?? DEFAULT_BUILD_PROFILE;
+    const sdkDefaults = this.resolveDefaults(sdkId);
 
     return {
       sdkId,
@@ -117,5 +134,32 @@ export class ProjectSettingsService {
       defines: partial.defines ?? sdkDefaults.defines,
       flags: partial.flags ?? sdkDefaults.flags,
     };
+  }
+
+  private resolveDefaults(sdkId: string): Partial<BuildProfile> {
+    // 1. "none" — SDK 미사용, 최소 프로파일
+    if (sdkId === "none") return NONE_BUILD_PROFILE;
+
+    // 2. 하드코딩 SDK 프로파일 (13개)
+    const builtIn = findSdkProfile(sdkId);
+    if (builtIn) return builtIn.defaults;
+
+    // 3. 등록 SDK (sdk-*) — DB에서 조회
+    if (sdkId.startsWith("sdk-") && this.sdkRegistryLookup) {
+      const registered = this.sdkRegistryLookup.findById(sdkId);
+      if (registered?.status === "ready" && registered.profile) {
+        return {
+          compiler: registered.profile.compiler,
+          compilerVersion: registered.profile.gccVersion,
+          targetArch: registered.profile.targetArch,
+          languageStandard: registered.profile.languageStandard,
+          includePaths: registered.profile.includePaths,
+          defines: registered.profile.defines,
+        };
+      }
+    }
+
+    // 4. fallback — custom
+    return DEFAULT_BUILD_PROFILE;
   }
 }

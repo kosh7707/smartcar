@@ -89,8 +89,9 @@ def _build_system_prompt(
     project_path: str,
     target_path: str = "",
     target_name: str = "",
+    phase0: object | None = None,
 ) -> str:
-    """빌드 에이전트 v2 시스템 프롬프트."""
+    """빌드 에이전트 v3 시스템 프롬프트."""
 
     sdk_section = ""
     sdk_dir_hint = ""
@@ -124,6 +125,34 @@ def _build_system_prompt(
     else:
         build_file_section = "## 발견된 빌드 파일\n(없음 — 빌드 스크립트를 처음부터 작성해야 함)\n\n"
 
+    # Phase 0 결정론적 사전 분석 결과
+    phase0_section = ""
+    if phase0 is not None:
+        bs = getattr(phase0, "build_system", "unknown")
+        langs = ", ".join(getattr(phase0, "detected_languages", [])) or "미탐지"
+        tree = getattr(phase0, "project_tree", "")
+        has_script = getattr(phase0, "has_existing_build_script", False)
+        script_path = getattr(phase0, "existing_script_path", "")
+
+        strategy_hint = {
+            "cmake": "CMakeLists.txt를 read_file로 읽고, cmake 기반 빌드 스크립트를 작성하라.",
+            "make": "Makefile를 read_file로 읽고, make 기반 빌드 스크립트를 작성하라.",
+            "autotools": "./configure를 실행한 뒤 make를 호출하는 스크립트를 작성하라.",
+            "shell": f"기존 빌드 스크립트({script_path})를 read_file로 읽고 참고하여 build-aegis/aegis-build.sh를 작성하라.",
+            "unknown": "프로젝트 구조를 list_files로 탐색한 뒤 빌드 방법을 추론하라.",
+        }.get(bs, "")
+
+        phase0_section = (
+            "## 사전 분석 결과 (Phase 0 — 자동 탐지)\n"
+            f"- **빌드 시스템**: {bs}\n"
+            f"- **탐지된 언어**: {langs}\n"
+            f"- **기존 빌드 스크립트**: {'있음 — `' + script_path + '`' if has_script else '없음'}\n"
+        )
+        if tree:
+            phase0_section += f"\n### 프로젝트 구조 (자동 생성)\n```\n{tree}\n```\n"
+        if strategy_hint:
+            phase0_section += f"\n**권장 전략**: {strategy_hint}\n\n"
+
     if target_path:
         build_source = os.path.join(project_path, target_path)
         target_desc = f"`{target_path}` (서브프로젝트)"
@@ -154,25 +183,31 @@ def _build_system_prompt(
         "4. 3회 연속 빌드 실패 시 즉시 진단 보고서를 JSON으로 출력하라.\n"
         "5. **bear, compile_commands.json을 언급하거나 사용하지 마라.** 후속 처리는 S4가 담당한다.\n\n"
         f"{target_section}"
+        f"{phase0_section}"
         f"{sdk_section}"
         f"{build_file_section}"
         "## 빌드 전략\n\n"
-        "### 1단계: 탐색 (read_file 1~3회)\n"
-        "발견된 빌드 파일 목록을 확인하고, 핵심 빌드 파일을 read_file로 읽어라.\n"
+        "### 1단계: 탐색 (list_files → read_file, 최대 2턴)\n"
+        "**첫 번째 동작은 반드시 `list_files`로 프로젝트 구조를 파악하라.** 이후 핵심 빌드 파일 1~2개만 read_file로 읽어라.\n"
         "우선순위: 셸 스크립트(scripts/cross_build.sh, build.sh) > CMakeLists.txt > Makefile\n"
-        "기존 빌드 스크립트가 있으면 **참고**하되, 그대로 실행하지 말고 **네가 직접 빌드 스크립트를 작성**하라.\n\n"
+        "기존 빌드 스크립트가 있으면 **참고**하되, 그대로 실행하지 말고 **네가 직접 빌드 스크립트를 작성**하라.\n"
+        "**3턴째에는 반드시 write_file로 빌드 스크립트를 작성하라. 탐색을 더 하지 마라.**\n\n"
         "### 2단계: 빌드 스크립트 작성 (write_file)\n"
         "`build-aegis/aegis-build.sh`에 빌드 스크립트를 작성하라. 스크립트 요구사항:\n"
         f"- 빌드 출력은 `{build_source}/build-aegis/`에 생성\n"
         "- SDK가 필요하면 스크립트 안에서 `$SDK_DIR` 환경변수를 사용. try_build 호출 시 `SDK_DIR=<경로> bash ...` 형태로 전달.\n"
         "- 소스 코드를 수정하지 말 것\n"
-        "- 첫 줄은 `#!/bin/bash`\n\n"
-        "### 3단계: 빌드 실행 (try_build)\n"
+        "- 첫 줄은 `#!/bin/bash`\n"
+        f"- **중요: 스크립트는 `build-aegis/` 안에 위치한다. 프로젝트 루트는 스크립트의 상위 디렉토리이다.**\n"
+        f"  올바른 경로 설정: `PROJECT_ROOT=\"$(cd \"$(dirname \"$0\")/..\" && pwd)\"`\n"
+        f"  잘못된 예: `ROOT_DIR=\"$(dirname \"$0\")\"` ← 이러면 build-aegis/ 자체를 루트로 잡음\n\n"
+        "### 3단계: 빌드 실행 (try_build) — write_file 직후 즉시 실행\n"
         f"SDK가 있으면: `build_command: \"SDK_DIR=<sdk경로> bash {build_source}/build-aegis/aegis-build.sh\"`\n"
         f"SDK가 없으면: `build_command: \"bash {build_source}/build-aegis/aegis-build.sh\"`\n\n"
         "### 4단계: 실패 복구\n"
-        "에러 메시지를 분석하고 **edit_file**로 스크립트를 수정하여 재시도하라.\n"
-        "같은 명령을 반복하지 마라. 다른 전략을 시도하라.\n\n"
+        "에러 메시지를 분석하고 **edit_file**로 스크립트를 수정하여 즉시 try_build를 재시도하라.\n"
+        "같은 명령을 반복하지 마라. 다른 전략을 시도하라.\n"
+        "**edit_file → try_build를 한 턴 안에서 같이 호출하라. 수정 후 빌드를 분리하지 마라.**\n\n"
         "## 출력 형식\n"
         "**순수 JSON만 출력하라. 코드 펜스(```), 인사말, 설명문을 절대 붙이지 마라. 첫 문자는 반드시 `{`이어야 한다.**\n"
         "```json\n"
@@ -218,6 +253,7 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
     from agent_shared.tools.executor import ToolExecutor
     from agent_shared.tools.registry import ToolRegistry, ToolSchema
     from app.tools.router import ToolRouter
+    from app.tools.implementations.list_files import ListFilesTool
     from app.tools.implementations.read_file import ReadFileTool
     from app.tools.implementations.write_file import WriteFileTool
     from app.tools.implementations.edit_file import EditFileTool
@@ -240,16 +276,18 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
         shutil.rmtree(build_aegis_dir, ignore_errors=True)
         logger.info("[build] 이전 build-aegis/ 캐시 정리: %s", build_aegis_dir)
 
-    # ─── 1. S4 SDK registry 조회 ───
-    sdk_info = await _fetch_sdk_registry(settings.sast_endpoint, request_id)
+    # ─── 1. Phase 0 결정론적 사전 분석 ───
+    from app.core.phase_zero import Phase0Executor
+    phase0 = Phase0Executor(project_path, target_path, settings.sast_endpoint)
+    phase0_result = await phase0.execute(request_id)
 
-    # ─── 2. 빌드 파일 자동 탐색 ───
-    build_files = _discover_build_files(project_path, target_path) if os.path.isdir(project_path) else []
+    sdk_info = phase0_result.sdk_info
+    build_files = phase0_result.build_files
 
-    # ─── 3. 정책 엔진 ───
+    # ─── 2. 정책 엔진 ───
     file_policy = FilePolicy(effective_root)
 
-    # ─── 4. 예산 구성 ───
+    # ─── 3. 예산 구성 ───
     budget = BudgetState(
         max_steps=settings.agent_max_steps,
         max_completion_tokens=settings.agent_max_completion_tokens,
@@ -261,11 +299,23 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
     bm = BudgetManager(budget)
     session = AgentSession(request, budget)
 
-    # ─── 5. Tool 스키마 등록 ───
+    # ─── 4. Tool 스키마 등록 ───
     registry = ToolRegistry()
     registry.register(ToolSchema(
+        name="list_files",
+        description="프로젝트 디렉토리 구조를 트리 형태로 반환한다. 전체 구조를 파악할 때 가장 먼저 사용하라.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "(선택) 특정 하위 디렉토리만 탐색. 기본: 프로젝트 루트"},
+                "max_depth": {"type": "integer", "description": "(선택) 탐색 깊이 제한. 기본: 3"},
+            },
+        },
+        cost_tier=ToolCostTier.CHEAP,
+    ))
+    registry.register(ToolSchema(
         name="read_file",
-        description="프로젝트 내 파일을 읽는다 (읽기 전용, 50KB 제한).",
+        description="프로젝트 내 파일을 읽는다 (읽기 전용, 8KB 제한).",
         parameters={
             "type": "object",
             "properties": {
@@ -327,27 +377,30 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
         cost_tier=ToolCostTier.EXPENSIVE,
     ))
 
-    # ─── 6. Tool 구현체 등록 ───
+    # ─── 5. Tool 구현체 등록 ───
     executor = ToolExecutor(timeout_ms=settings.agent_tool_timeout_ms)
     failure_policy = ToolFailurePolicy()
     tool_router = ToolRouter(registry, executor, bm, failure_policy)
 
-    read_tool = ReadFileTool(project_path)
+    list_tool = ListFilesTool(effective_root)
+    read_tool = ReadFileTool(effective_root)
     write_tool = WriteFileTool(effective_root, file_policy=file_policy)
     edit_tool = EditFileTool(effective_root, file_policy)
     delete_tool = DeleteFileTool(effective_root, file_policy)
-    build_tool = TryBuildTool(settings.sast_endpoint, project_path, request_id)
+    build_tool = TryBuildTool(settings.sast_endpoint, effective_root, request_id)
 
+    tool_router.register_implementation("list_files", list_tool)
     tool_router.register_implementation("read_file", read_tool)
     tool_router.register_implementation("write_file", write_tool)
     tool_router.register_implementation("edit_file", edit_tool)
     tool_router.register_implementation("delete_file", delete_tool)
     tool_router.register_implementation("try_build", build_tool)
 
-    # ─── 7. 시스템 프롬프트 + LLM ───
+    # ─── 6. 시스템 프롬프트 + LLM ───
     system_prompt = _build_system_prompt(
         sdk_info, build_files, project_path,
         target_path=target_path, target_name=target_name,
+        phase0=phase0_result,
     )
     build_source = os.path.join(project_path, target_path) if target_path else project_path
     user_message = (

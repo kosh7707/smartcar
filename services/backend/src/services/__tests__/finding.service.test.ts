@@ -11,8 +11,11 @@ function createMockFindingDAO(): IFindingDAO {
     findById: vi.fn(),
     findByRunId: vi.fn(),
     findByProjectId: vi.fn(),
+    findByIds: vi.fn().mockReturnValue([]),
     findByFingerprint: vi.fn(),
+    findAllByFingerprint: vi.fn().mockReturnValue([]),
     updateStatus: vi.fn(),
+    withTransaction: vi.fn((fn: () => any) => fn()),
     summaryByProjectId: vi.fn(),
     summaryByModule: vi.fn(),
     topFilesByModule: vi.fn(),
@@ -34,6 +37,8 @@ function createMockAuditLogDAO(): IAuditLogDAO {
     save: vi.fn(),
     findByResourceId: vi.fn().mockReturnValue([]),
     findByResourceIds: vi.fn().mockReturnValue([]),
+    findFindingStatusChanges: vi.fn().mockReturnValue([]),
+    findApprovalDecisions: vi.fn().mockReturnValue([]),
   };
 }
 
@@ -157,6 +162,95 @@ describe("FindingService", () => {
         reason: "issue resolved",
       });
       expect(savedEntry.requestId).toBe("req-123");
+    });
+  });
+
+  describe("bulkUpdateStatus", () => {
+    it("updates multiple findings in a transaction", () => {
+      const f1 = makeFinding({ id: "f-1", projectId: "p1", status: "open" });
+      const f2 = makeFinding({ id: "f-2", projectId: "p1", status: "open" });
+      vi.mocked(findingDAO.findByIds).mockReturnValue([f1, f2]);
+
+      const result = service.bulkUpdateStatus(["f-1", "f-2"], "needs_review", "alice", "batch review");
+
+      expect(result).toEqual({ updated: 2, failed: 0 });
+      expect(findingDAO.withTransaction).toHaveBeenCalledTimes(1);
+      expect(findingDAO.updateStatus).toHaveBeenCalledTimes(2);
+      expect(auditLogDAO.save).toHaveBeenCalledTimes(2);
+
+      const audit1 = vi.mocked(auditLogDAO.save).mock.calls[0][0];
+      expect(audit1.action).toBe("finding.status_change");
+      expect(audit1.detail).toMatchObject({ from: "open", to: "needs_review", bulk: true });
+    });
+
+    it("counts not-found findings as failed", () => {
+      const f1 = makeFinding({ id: "f-1", projectId: "p1", status: "open" });
+      vi.mocked(findingDAO.findByIds).mockReturnValue([f1]);
+
+      const result = service.bulkUpdateStatus(["f-1", "f-missing"], "needs_review", "alice", "batch");
+
+      expect(result).toEqual({ updated: 1, failed: 1 });
+    });
+
+    it("counts invalid transitions as failed", () => {
+      const f1 = makeFinding({ id: "f-1", projectId: "p1", status: "open" });
+      vi.mocked(findingDAO.findByIds).mockReturnValue([f1]);
+
+      const result = service.bulkUpdateStatus(["f-1"], "sandbox", "alice", "bad transition");
+
+      expect(result).toEqual({ updated: 0, failed: 1 });
+      expect(findingDAO.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it("handles mixed valid and invalid transitions", () => {
+      const f1 = makeFinding({ id: "f-1", projectId: "p1", status: "open" });
+      const f2 = makeFinding({ id: "f-2", projectId: "p1", status: "sandbox" });
+      vi.mocked(findingDAO.findByIds).mockReturnValue([f1, f2]);
+
+      // open → accepted_risk is valid, sandbox → accepted_risk is NOT valid
+      const result = service.bulkUpdateStatus(["f-1", "f-2"], "accepted_risk", "alice", "accept all");
+
+      expect(result).toEqual({ updated: 1, failed: 1 });
+      expect(findingDAO.updateStatus).toHaveBeenCalledTimes(1);
+      expect(findingDAO.updateStatus).toHaveBeenCalledWith("f-1", "accepted_risk");
+    });
+
+    it("passes requestId to audit log", () => {
+      const f1 = makeFinding({ id: "f-1", projectId: "p1", status: "open" });
+      vi.mocked(findingDAO.findByIds).mockReturnValue([f1]);
+
+      service.bulkUpdateStatus(["f-1"], "fixed", "alice", "done", "req-bulk-1");
+
+      const audit = vi.mocked(auditLogDAO.save).mock.calls[0][0];
+      expect(audit.requestId).toBe("req-bulk-1");
+    });
+  });
+
+  describe("getHistory", () => {
+    it("returns undefined for nonexistent finding", () => {
+      vi.mocked(findingDAO.findById).mockReturnValue(undefined);
+      expect(service.getHistory("no-such")).toBeUndefined();
+    });
+
+    it("returns empty array when finding has no fingerprint", () => {
+      const finding = makeFinding({ id: "f-1", fingerprint: undefined });
+      vi.mocked(findingDAO.findById).mockReturnValue(finding);
+
+      expect(service.getHistory("f-1")).toEqual([]);
+    });
+
+    it("returns siblings with same fingerprint", () => {
+      const finding = makeFinding({ id: "f-1", projectId: "p1", fingerprint: "fp-abc" });
+      const sibling1 = makeFinding({ id: "f-old-1", runId: "run-1", projectId: "p1", fingerprint: "fp-abc", status: "fixed", createdAt: "2026-03-20T00:00:00Z" });
+      const sibling2 = makeFinding({ id: "f-1", runId: "run-2", projectId: "p1", fingerprint: "fp-abc", status: "open", createdAt: "2026-03-25T00:00:00Z" });
+
+      vi.mocked(findingDAO.findById).mockReturnValue(finding);
+      vi.mocked(findingDAO.findAllByFingerprint).mockReturnValue([sibling2, sibling1]);
+
+      const history = service.getHistory("f-1");
+      expect(history).toHaveLength(2);
+      expect(history![0]).toMatchObject({ findingId: "f-1", status: "open" });
+      expect(history![1]).toMatchObject({ findingId: "f-old-1", status: "fixed" });
     });
   });
 

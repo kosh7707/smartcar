@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     rag_top_k: int = 5
     rag_min_score: float = 0.35  # 이 점수 미만의 RAG 결과는 제외
 
+    # Confidence 가중치 (합계 = 1.0)
+    confidence_w_grounding: float = 0.45
+    confidence_w_deterministic: float = 0.30
+    confidence_w_rag_coverage: float = 0.15
+    confidence_w_schema: float = 0.10
+
     model_config = {"env_prefix": "AEGIS_", "env_file": ".env"}
 
 

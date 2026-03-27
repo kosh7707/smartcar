@@ -3,7 +3,7 @@
 > **소유자**: S3 (Analysis Agent)
 > **포트**: 8001
 > **호출자**: S2 (Backend)
-> **최종 업데이트**: 2026-03-25
+> **최종 업데이트**: 2026-03-27
 
 S2(AEGIS Core)가 S3(Analysis Agent)를 호출할 때 참조하는 API 계약서.
 Analysis Agent는 AEGIS의 **증거 기반 보안 심층 분석 에이전트**로, Phase 1(결정론적 도구 실행) + Phase 2(LLM 해석)를 자동 수행한다.
@@ -135,6 +135,8 @@ http://localhost:8001
 | projectId | string | X | 프로젝트 식별자 (코드 그래프 적재용) |
 | sastFindings | array | X | S2가 사전 수행한 SAST findings. **제공 시 Phase 1 SAST 스캔을 스킵**하고 이 결과를 직접 사용 |
 | scaLibraries | array | X | S2가 사전 수행한 SCA 라이브러리 목록. **제공 시 Phase 1 SCA를 스킵**하고 이 결과로 CVE 조회 수행 |
+| thirdPartyPaths | string[] | X | 서드파티 디렉토리 경로 목록. S4 SAST에 전달하여 heavy analyzer(gcc-fanalyzer) 제외 대상 지정. 예: `["libraries/civetweb", "third_party/"]` |
+| sastTools | string[] \| null | X | S4 v0.6.0 도구 서브셋 선택. 허용 값: `semgrep`, `cppcheck`, `flawfinder`, `clang-tidy`, `scan-build`, `gcc-fanalyzer`. 미지정 시 전체 도구 실행. 예: `["flawfinder", "cppcheck"]` |
 
 **입력 모드:**
 

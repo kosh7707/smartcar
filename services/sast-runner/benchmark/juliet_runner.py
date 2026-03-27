@@ -1,4 +1,4 @@
-"""Juliet 벤치마크 러너 — 6도구 CWE별 Recall 측정."""
+"""Juliet 벤치마크 러너 — 6도구 CWE별 Recall/Precision/F1 측정."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from benchmark.juliet_manifest import (
     discover_cwe_suites,
     get_testcasesupport_path,
 )
-from benchmark.metrics import BenchmarkResult, CWEMetrics, ToolMetrics
+from benchmark.metrics import BenchmarkResult, CWEMetrics, RuleMetrics, ToolMetrics
 
 logger = logging.getLogger("benchmark")
 
@@ -41,6 +41,7 @@ async def run_benchmark(
     variant_filter: str | None = "01",
     timeout: int = 300,
     custom_rules: bool = True,
+    tools: list[str] | None = None,
 ) -> BenchmarkResult:
     """Juliet 벤치마크를 실행하고 결과를 반환.
 
@@ -50,6 +51,7 @@ async def run_benchmark(
         variant_filter: "01"이면 _01.c만. None이면 전부
         timeout: 도구 타임아웃 (초)
         custom_rules: False이면 커스텀 Semgrep 룰 비활성화 (delta 측정용)
+        tools: 실행할 도구 목록. None이면 전부
     """
     # 커스텀 룰 비활성화 (delta 측정용)
     from app.config import settings
@@ -68,10 +70,11 @@ async def run_benchmark(
     support_path = get_testcasesupport_path(juliet_root)
 
     logger.info(
-        "Benchmark started: %d CWEs, %d total files, variant=%s",
+        "Benchmark started: %d CWEs, %d total files, variant=%s, tools=%s",
         len(suites),
         sum(s.count for s in suites),
         variant_filter or "all",
+        ",".join(tools) if tools else "all",
     )
 
     orchestrator = ScanOrchestrator()
@@ -82,19 +85,24 @@ async def run_benchmark(
         logger.info("--- %s (%s): %d files ---", cwe_key, suite.cwe_name, suite.count)
 
         cwe_metrics = await _benchmark_cwe(
-            orchestrator, suite, support_path, cwe_key, timeout,
+            orchestrator, suite, support_path, cwe_key, timeout, tools,
         )
         result.cwe_results[cwe_key] = cwe_metrics
 
         logger.info(
-            "%s: combined recall=%.1f%% (%d/%d)",
+            "%s: recall=%.1f%% (%d/%d, noise/file=%.1f)",
             cwe_key,
             cwe_metrics.combined_recall * 100,
             cwe_metrics.combined_tp,
             cwe_metrics.total_files,
+            cwe_metrics.noise_per_file,
         )
 
-    logger.info("=== Overall Recall: %.1f%% ===", result.overall_recall * 100)
+    logger.info(
+        "=== Overall — Recall: %.1f%%  Noise/File: %.1f ===",
+        result.overall_recall * 100,
+        result.overall_noise_per_file,
+    )
 
     # 커스텀 룰 복원
     if not custom_rules:
@@ -109,6 +117,7 @@ async def _benchmark_cwe(
     support_path: Path | None,
     cwe_key: str,
     timeout: int,
+    tools: list[str] | None = None,
 ) -> CWEMetrics:
     """하나의 CWE 스위트를 벤치마크.
 
@@ -142,6 +151,7 @@ async def _benchmark_cwe(
             source_files=all_source_files,
             profile=profile,
             rulesets=["p/c", "p/security-audit"],
+            tools=tools,
             timeout=timeout,
         )
     except Exception as e:
@@ -151,7 +161,7 @@ async def _benchmark_cwe(
 
     logger.info(
         "%s: scan complete — %d findings from %d tools",
-        cwe_key, len(findings), len(execution.get("toolsRun", [])),
+        cwe_key, len(findings), len(execution.tools_run),
     )
 
     # 파일별 findings 인덱스 구축
@@ -160,14 +170,16 @@ async def _benchmark_cwe(
         loc_file = f.location.file
         findings_by_file.setdefault(loc_file, []).append(f)
 
-    # 파일별 TP/FN 판정
+    # 파일별 TP/FN 판정 + FP(noise) 추적
     for tc in suite.test_cases:
         # finding의 location.file은 상대 경로 — tc.relative_path와 매칭
         file_findings = findings_by_file.get(tc.relative_path, [])
 
         # 매칭: 이 파일의 findings 중 target CWE와 매칭되는 게 있는지
         classification = classify_findings(file_findings, cwe_key)
-        is_detected = len(classification["matched"]) > 0
+        matched = classification["matched"]
+        unmatched = classification["unmatched"]
+        is_detected = len(matched) > 0
 
         if is_detected:
             metrics.combined_tp += 1
@@ -176,18 +188,36 @@ async def _benchmark_cwe(
             metrics.combined_fn += 1
             metrics.missed_files.append(tc.file_path.name)
 
-        # 도구별 TP/FN
-        tools_run = execution.get("toolsRun", [])
+        # Noise: target CWE와 매칭되지 않는 findings 수 (finding 단위)
+        metrics.combined_noise += len(unmatched)
+
+        # 도구별 TP/FN/Noise
+        tools_run = execution.tools_run
         for tool in tools_run:
             if tool not in metrics.by_tool:
                 metrics.by_tool[tool] = ToolMetrics(tool_name=tool)
 
             tool_findings = [f for f in file_findings if f.tool_id == tool]
-            tool_matched = any(matches_cwe(f, cwe_key) for f in tool_findings)
+            tool_matched = [f for f in tool_findings if matches_cwe(f, cwe_key)]
+            tool_unmatched = [f for f in tool_findings if not matches_cwe(f, cwe_key)]
+
             if tool_matched:
                 metrics.by_tool[tool].tp += 1
             else:
                 metrics.by_tool[tool].fn += 1
+            metrics.by_tool[tool].noise_findings += len(tool_unmatched)
+
+        # Per-rule 메트릭
+        for f in matched:
+            rid = f.rule_id or f"{f.tool_id}:unknown"
+            if rid not in metrics.by_rule:
+                metrics.by_rule[rid] = RuleMetrics(rule_id=rid, tool=f.tool_id)
+            metrics.by_rule[rid].tp += 1
+        for f in unmatched:
+            rid = f.rule_id or f"{f.tool_id}:unknown"
+            if rid not in metrics.by_rule:
+                metrics.by_rule[rid] = RuleMetrics(rule_id=rid, tool=f.tool_id)
+            metrics.by_rule[rid].noise += 1
 
     return metrics
 
@@ -218,6 +248,18 @@ def main() -> None:
         "--no-custom-rules", action="store_true",
         help="커스텀 Semgrep 룰 비활성화 (delta 측정용)",
     )
+    parser.add_argument(
+        "--tools", type=str, default=None,
+        help="실행할 도구 (쉼표 구분, 예: flawfinder,cppcheck). 기본: 전부",
+    )
+    parser.add_argument(
+        "--baseline", type=Path, default=None,
+        help="비교 baseline JSON 파일. 지정하면 실행 후 회귀 감지",
+    )
+    parser.add_argument(
+        "--show-rules", action="store_true",
+        help="마크다운에 per-rule 메트릭 포함",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -230,6 +272,7 @@ def main() -> None:
         target_cwes = [int(c.strip()) for c in args.cwes.split(",")]
 
     variant = args.variant_filter if args.variant_filter != "all" else None
+    tools = [t.strip() for t in args.tools.split(",")] if args.tools else None
 
     result = asyncio.run(run_benchmark(
         juliet_root=args.juliet_path,
@@ -237,6 +280,7 @@ def main() -> None:
         variant_filter=variant,
         timeout=args.timeout,
         custom_rules=not args.no_custom_rules,
+        tools=tools,
     ))
 
     # JSON 출력
@@ -245,6 +289,7 @@ def main() -> None:
         "julietPath": str(args.juliet_path),
         "variantFilter": args.variant_filter,
         "targetCWEs": [f"CWE-{c}" for c in (target_cwes or PRIORITY_CWES)],
+        "tools": tools,
         **result.to_dict(),
     }
 
@@ -255,12 +300,17 @@ def main() -> None:
 
     # Markdown 출력
     print()
-    print(result.to_markdown())
+    print(result.to_markdown(show_rules=args.show_rules))
 
     # JSON도 stdout에 (output 없을 때)
     if not args.output:
         print()
         print(json.dumps(output_data, indent=2, ensure_ascii=False))
+
+    # 회귀 감지
+    if args.baseline:
+        from benchmark.compare import compare_from_files
+        compare_from_files(args.baseline, args.output or output_data)
 
 
 if __name__ == "__main__":

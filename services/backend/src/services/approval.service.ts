@@ -114,6 +114,12 @@ export class ApprovalService {
     return requests.map((r) => this.applyLazyExpiration(r)).filter((r) => r.status === "pending");
   }
 
+  getCountByProjectId(projectId: string): { pending: number; total: number } {
+    const all = this.getByProjectId(projectId);
+    const pending = all.filter((r) => r.status === "pending").length;
+    return { pending, total: all.length };
+  }
+
   getByProjectId(projectId: string): ApprovalRequest[] {
     return this.approvalDAO.findByProjectId(projectId).map((r) => this.applyLazyExpiration(r));
   }

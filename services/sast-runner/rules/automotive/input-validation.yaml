@@ -1,0 +1,109 @@
+rules:
+  - id: aegis.c.cwe-20-strcpy-from-argv
+    pattern: strcpy($DST, argv[$IDX])
+    message: >
+      Direct strcpy() from argv — command-line input copied without bounds check.
+      Use strncpy() with explicit size limit.
+    languages: [c]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-20"
+        - "CWE-120"
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      automotive_rationale: >
+        Automotive diagnostic tools and OBD-II interfaces may pass arguments to
+        ECU utility processes. Unbounded copy from argv enables stack smashing
+        attacks via diagnostic ports.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1a)"
+        - "MISRA C:2012 Dir 4.14 — Controlling data from external sources"
+
+  - id: aegis.c.cwe-20-sprintf-from-argv
+    pattern: sprintf($BUF, $FMT, ..., argv[$IDX], ...)
+    message: >
+      sprintf() with argv input — format expansion can overflow buffer.
+      Use snprintf() with explicit size.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-20"
+        - "CWE-134"
+      category: security
+      confidence: MEDIUM
+      impact: HIGH
+      automotive_rationale: >
+        Format string operations with external input can overflow stack buffers
+        in diagnostic or configuration utilities running on ECU Linux systems.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1a)"
+        - "MISRA C:2012 Dir 4.14"
+
+  - id: aegis.c.cwe-20-scanf-unbounded-string
+    pattern: scanf("%s", $BUF)
+    message: >
+      scanf("%s") reads input without field width limit — use scanf("%Ns") with
+      explicit width or fgets() instead.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-20"
+        - "CWE-120"
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      automotive_rationale: >
+        Unbounded scanf input in ECU serial console or UART debug interfaces
+        can overflow input buffers, enabling code execution on safety-critical
+        controllers.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1a)"
+        - "MISRA C:2012 Rule 21.6"
+        - "CERT C FIO30-C — Exclude user input from format strings"
+
+  - id: aegis.c.cwe-20-fscanf-unbounded-string
+    pattern: fscanf($FP, "%s", $BUF)
+    message: >
+      fscanf("%s") reads from file without field width limit.
+      Use fscanf("%Ns") or fgets() with explicit bounds.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-20"
+        - "CWE-120"
+      category: security
+      confidence: HIGH
+      impact: MEDIUM
+      automotive_rationale: >
+        Configuration files read by ECU software (calibration data, route tables)
+        may be corrupted or tampered. Unbounded fscanf enables buffer overflow
+        via malicious config files.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1a)"
+        - "MISRA C:2012 Dir 4.14"
+
+  - id: aegis.c.cwe-20-sscanf-unbounded-string
+    pattern: sscanf($SRC, "%s", $BUF)
+    message: >
+      sscanf("%s") parses string without field width limit.
+      Use sscanf("%Ns") with explicit width.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-20"
+        - "CWE-120"
+      category: security
+      confidence: HIGH
+      impact: MEDIUM
+      automotive_rationale: >
+        String parsing from CAN message payloads or diagnostic responses without
+        bounds checking can overflow local buffers in automotive middleware.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1a)"
+        - "MISRA C:2012 Dir 4.14"

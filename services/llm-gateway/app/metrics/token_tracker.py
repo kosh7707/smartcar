@@ -1,7 +1,7 @@
 """누적 토큰/요청 통계 추적기."""
 from __future__ import annotations
 
-import threading
+import asyncio
 from collections import defaultdict
 from datetime import datetime, timezone
 
@@ -15,7 +15,7 @@ class TokenTracker:
     """
 
     def __init__(self) -> None:
-        self._lock = threading.Lock()
+        self._lock = asyncio.Lock()
         self._prompt_tokens = 0
         self._completion_tokens = 0
         self._request_count = 0
@@ -28,7 +28,7 @@ class TokenTracker:
         )
         self._started_at = datetime.now(timezone.utc).isoformat()
 
-    def record(
+    async def record(
         self,
         *,
         endpoint: str,
@@ -39,7 +39,7 @@ class TokenTracker:
         duration_s: float = 0.0,
         error_type: str | None = None,
     ) -> None:
-        with self._lock:
+        async with self._lock:
             self._prompt_tokens += prompt_tokens
             self._completion_tokens += completion_tokens
             self._request_count += 1
@@ -69,8 +69,8 @@ class TokenTracker:
         if not success and error_type:
             prom.ERROR_COUNT.labels(endpoint=endpoint, error_type=error_type).inc()
 
-    def snapshot(self) -> dict:
-        with self._lock:
+    async def snapshot(self) -> dict:
+        async with self._lock:
             return {
                 "startedAt": self._started_at,
                 "totalRequests": self._request_count,

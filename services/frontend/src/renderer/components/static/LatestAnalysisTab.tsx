@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import type { Run, Finding, FindingStatus, FindingSourceType, EvidenceRef, GateResult, Severity } from "@aegis/shared";
-import { FileCode, ShieldAlert, Shield, AlertTriangle, Plus, LayoutList, Layers, CheckSquare, History } from "lucide-react";
+import { FileCode, ShieldAlert, Shield, AlertTriangle, Plus, LayoutList, Layers, CheckSquare, History, Check } from "lucide-react";
 import { StatCard, EmptyState, Spinner, GateResultCard, SeverityBadge, FindingStatusBadge, SourceBadge } from "../ui";
+import { bulkUpdateFindingStatus } from "../../api/analysis";
 import { TopFilesCard } from "./TopFilesCard";
 import { parseLocation } from "../../utils/location";
 import { FINDING_STATUS_LABELS, FINDING_STATUS_ORDER, SOURCE_TYPE_LABELS } from "../../constants/finding";
@@ -17,6 +18,7 @@ interface Props {
   onSelectFinding: (findingId: string) => void;
   onFileClick?: (filePath: string) => void;
   onNewAnalysis: () => void;
+  onBulkStatusDone?: () => void;
 }
 
 interface FindingGroup {
@@ -89,6 +91,7 @@ export const LatestAnalysisTab: React.FC<Props> = ({
   onSelectFinding,
   onFileClick,
   onNewAnalysis,
+  onBulkStatusDone,
 }) => {
   if (loading) {
     return (
@@ -118,6 +121,7 @@ export const LatestAnalysisTab: React.FC<Props> = ({
     runDetail={runDetail}
     onSelectFinding={onSelectFinding}
     onFileClick={onFileClick}
+    onBulkStatusDone={onBulkStatusDone}
   />;
 };
 
@@ -125,11 +129,45 @@ const LatestAnalysisContent: React.FC<{
   runDetail: { run: Run; gate?: GateResult; findings: FindingWithEvidence[] };
   onSelectFinding: (findingId: string) => void;
   onFileClick?: (filePath: string) => void;
-}> = ({ runDetail, onSelectFinding, onFileClick }) => {
+  onBulkStatusDone?: () => void;
+}> = ({ runDetail, onSelectFinding, onFileClick, onBulkStatusDone }) => {
   const { run, gate, findings } = runDetail;
 
   const [severityFilter, setSeverityFilter] = useState<Severity | "all">("all");
   const [groupBy, setGroupBy] = useState<GroupBy>("severity");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (selectedIds.size === findings.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(findings.map((f) => f.finding.id)));
+    }
+  }, [selectedIds.size, findings]);
+
+  const handleBulkStatus = useCallback(async (status: FindingStatus) => {
+    if (selectedIds.size === 0) return;
+    setBulkProcessing(true);
+    try {
+      const result = await bulkUpdateFindingStatus([...selectedIds], status, "벌크 상태 변경");
+      setSelectedIds(new Set());
+      onBulkStatusDone?.();
+    } catch {
+      // error handled by apiFetch
+    } finally {
+      setBulkProcessing(false);
+    }
+  }, [selectedIds, onBulkStatusDone]);
 
   const severityCounts = useMemo(() => {
     const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
@@ -288,6 +326,30 @@ const LatestAnalysisContent: React.FC<{
         </div>
       )}
 
+      {/* Bulk Action Bar */}
+      {findings.length > 0 && (
+        <div className="finding-bulk-bar">
+          <label className="finding-bulk-check">
+            <input type="checkbox" checked={selectedIds.size === findings.length && findings.length > 0} onChange={toggleSelectAll} />
+            {selectedIds.size > 0 ? `${selectedIds.size}건 선택` : "전체 선택"}
+          </label>
+          {selectedIds.size > 0 && (
+            <div className="finding-bulk-actions">
+              <button className="btn btn-sm btn-secondary" onClick={() => handleBulkStatus("false_positive")} disabled={bulkProcessing}>
+                오탐 처리
+              </button>
+              <button className="btn btn-sm btn-secondary" onClick={() => handleBulkStatus("accepted_risk")} disabled={bulkProcessing}>
+                위험 수용
+              </button>
+              <button className="btn btn-sm btn-secondary" onClick={() => handleBulkStatus("fixed")} disabled={bulkProcessing}>
+                수정 완료
+              </button>
+              {bulkProcessing && <Spinner size={14} />}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Finding List by Group */}
       {groups.length === 0 ? (
         <div className="card card--empty">
@@ -315,6 +377,13 @@ const LatestAnalysisContent: React.FC<{
                     onClick={() => onSelectFinding(finding.id)}
                   >
                     <div className="vuln-card-header">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(finding.id)}
+                        onChange={(e) => { e.stopPropagation(); toggleSelect(finding.id); }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="finding-check"
+                      />
                       <SeverityBadge severity={finding.severity} size="sm" />
                       <FindingStatusBadge status={finding.status} size="sm" />
                       <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />

@@ -130,7 +130,7 @@ export const StaticAnalysisPage: React.FC = () => {
   const handleDiscoverTargets = useCallback(async () => {
     try {
       const discovered = await buildTargets.discover();
-      toast.success(`${discovered.length}개 빌드 타겟 발견`);
+      toast.success(`${discovered?.length ?? 0}개 빌드 타겟 발견`);
     } catch {
       toast.error("타겟 탐색에 실패했습니다.");
     }
@@ -138,19 +138,20 @@ export const StaticAnalysisPage: React.FC = () => {
 
   const handleAnalysisStart = useCallback(() => {
     if (!projectId) return;
-    // If build targets exist, show selection dialog first
+    // If build targets exist, show selection dialog first (subproject mode)
     if (buildTargets.targets.length > 0) {
       setShowTargetSelect(true);
       return;
     }
-    analysis.startAnalysis(projectId);
+    // No targets → full mode
+    analysis.startAnalysis(projectId, undefined, "full");
     setView("progress");
   }, [projectId, analysis.startAnalysis, buildTargets.targets.length]);
 
   const handleAnalysisWithTargets = useCallback((selectedTargetIds: string[]) => {
     if (!projectId) return;
     setShowTargetSelect(false);
-    analysis.startAnalysis(projectId, selectedTargetIds);
+    analysis.startAnalysis(projectId, selectedTargetIds, "subproject");
     setView("progress");
   }, [projectId, analysis.startAnalysis]);
 

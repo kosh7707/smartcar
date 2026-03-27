@@ -28,7 +28,8 @@ export interface SastScanRequest {
   thirdPartyPaths?: string[];
   options?: {
     timeoutSeconds?: number;
-    maxFindingsPerRule?: number;
+    /** 실행할 도구 서브셋 (미지정 시 전체). 허용: semgrep, cppcheck, flawfinder, clang-tidy, scan-build, gcc-fanalyzer */
+    tools?: string[];
   };
 }
 
@@ -78,6 +79,10 @@ export interface SastScanResponse {
       beforeFilter: number;
       afterFilter: number;
       sdkNoiseRemoved: number;
+      /** 서드파티 경로 제거 수 (thirdPartyPaths 전달 시) */
+      thirdPartyRemoved?: number;
+      /** scope-early로 도구 실행 전 제외된 파일 수 */
+      filesScopedOut?: number;
     };
   };
   /** 코드 구조 그래프 (projectPath 모드에서만 반환) */

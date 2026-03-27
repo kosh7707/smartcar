@@ -117,6 +117,66 @@
   position: relative;
 }
 
+/* ── Subproject / SDK Cards ── */
+
+.overview-subproject-header,
+.overview-sdk-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.overview-subproject-body,
+.overview-sdk-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.overview-subproject-row,
+.overview-sdk-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  font-size: var(--text-sm);
+}
+
+.overview-subproject-name,
+.overview-sdk-name {
+  font-weight: var(--weight-medium);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Activity Row ── */
+
+.overview-activity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  font-size: var(--text-sm);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.overview-activity-row:last-child {
+  border-bottom: none;
+}
+
+.overview-activity-summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .overview-file-header {
   cursor: pointer;
   padding: var(--space-1) 0;

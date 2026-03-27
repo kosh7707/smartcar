@@ -18,6 +18,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# 상태를 변경하는 도구 — 실행 후 duplicate hash를 초기화하여 재시도 허용
+_MUTATING_TOOLS = frozenset({"write_file", "edit_file", "delete_file"})
+
 
 class ToolRouter:
     """tool_call을 구현체로 라우팅하고 실행한다."""
@@ -126,13 +129,17 @@ class ToolRouter:
         self._budget_manager.record_tool_call(tier, turn=turn)
         self._budget_manager.register_call_hash(call.args_hash)
 
-        # 8. evidence 추적
+        # 8. mutating tool 실행 후 duplicate set 초기화 (빌드 복구 루프 허용)
+        if call.name in _MUTATING_TOOLS and result.success:
+            self._budget_manager.clear_duplicate_hashes()
+
+        # 9. evidence 추적
         if result.success and result.new_evidence_refs:
             self._budget_manager.reset_no_evidence_counter(turn=turn)
         elif result.success:
             self._budget_manager.record_no_evidence_turn(turn=turn)
 
-        # 9. trace 기록
+        # 10. trace 기록
         session.trace.append(ToolTraceStep(
             step_id=f"step_{len(session.trace) + 1:02d}",
             turn_number=session.turn_count,
@@ -145,7 +152,7 @@ class ToolRouter:
             error=result.error,
         ))
 
-        # 10. 완료 로그
+        # 11. 완료 로그
         agent_log(
             logger, "Tool 완료",
             component="tool_router", phase="tool_complete",

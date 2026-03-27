@@ -1,0 +1,2838 @@
+{
+  "timestamp": "2026-03-26T09:37:03.943733+00:00",
+  "julietPath": "/home/kosh/Juliet/C",
+  "variantFilter": "01",
+  "targetCWEs": [
+    "CWE-78",
+    "CWE-121",
+    "CWE-122",
+    "CWE-134",
+    "CWE-190",
+    "CWE-252",
+    "CWE-369",
+    "CWE-401",
+    "CWE-416",
+    "CWE-457",
+    "CWE-476",
+    "CWE-680"
+  ],
+  "tools": null,
+  "results": {
+    "CWE-121": {
+      "cwe": "CWE-121",
+      "cweName": "Stack_Based_Buffer_Overflow",
+      "totalFiles": 72,
+      "combined": {
+        "tp": 59,
+        "fn": 13,
+        "fp": 1037,
+        "recall": 0.8194,
+        "precision": 0.0538,
+        "f1": 0.101
+      },
+      "byTool": {
+        "semgrep": {
+          "tool": "semgrep",
+          "tp": 11,
+          "fn": 61,
+          "fp": 113,
+          "recall": 0.1528,
+          "precision": 0.0887,
+          "f1": 0.1122
+        },
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 0,
+          "fn": 72,
+          "fp": 356,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 55,
+          "fn": 17,
+          "fp": 129,
+          "recall": 0.7639,
+          "precision": 0.2989,
+          "f1": 0.4297
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fn": 72,
+          "fp": 425,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 0,
+          "fn": 72,
+          "fp": 10,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 12,
+          "fn": 60,
+          "fp": 4,
+          "recall": 0.1667,
+          "precision": 0.75,
+          "f1": 0.2727
+        }
+      },
+      "detectedFiles": [
+        "CWE121_Stack_Based_Buffer_Overflow__CWE129_connect_socket_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE129_fgets_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE129_large_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE129_listen_socket_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE131_memcpy_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE135_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_alloca_cpy_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__char_type_overrun_memcpy_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__char_type_overrun_memmove_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_alloca_loop_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_alloca_memcpy_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_alloca_memmove_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_alloca_ncpy_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_declare_cpy_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_declare_loop_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_declare_memcpy_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_declare_memmove_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_declare_ncpy_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_char_alloca_loop_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_char_alloca_memcpy_01.c"
+      ],
+      "missedFiles": [
+        "CWE121_Stack_Based_Buffer_Overflow__CWE129_fscanf_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE129_rand_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE131_loop_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE131_memmove_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_int64_t_alloca_loop_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_int64_t_alloca_memmove_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_int64_t_declare_loop_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_int_alloca_loop_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_int_alloca_memmove_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_int_declare_loop_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_struct_alloca_loop_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_struct_alloca_memmove_01.c",
+        "CWE121_Stack_Based_Buffer_Overflow__CWE805_struct_declare_loop_01.c"
+      ],
+      "byRule": {
+        "flawfinder:buffer/char": {
+          "ruleId": "flawfinder:buffer/char",
+          "tool": "flawfinder",
+          "tp": 160,
+          "fp": 0
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-338-rand": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-338-rand",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 72
+        },
+        "cppcheck:knownConditionTrueFalse": {
+          "ruleId": "cppcheck:knownConditionTrueFalse",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 9
+        },
+        "cppcheck:redundantAssignment": {
+          "ruleId": "cppcheck:redundantAssignment",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 10
+        },
+        "cppcheck:variableScope": {
+          "ruleId": "cppcheck:variableScope",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 36
+        },
+        "flawfinder:random/srand": {
+          "ruleId": "flawfinder:random/srand",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 72
+        },
+        "flawfinder:integer/atoi": {
+          "ruleId": "flawfinder:integer/atoi",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 6
+        },
+        "clang-tidy:bugprone-macro-parentheses": {
+          "ruleId": "clang-tidy:bugprone-macro-parentheses",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 4
+        },
+        "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling": {
+          "ruleId": "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 80
+        },
+        "clang-tidy:bugprone-narrowing-conversions": {
+          "ruleId": "clang-tidy:bugprone-narrowing-conversions",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 4
+        },
+        "clang-tidy:cert-err34-c": {
+          "ruleId": "clang-tidy:cert-err34-c",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 8
+        },
+        "clang-tidy:clang-analyzer-deadcode.DeadStores": {
+          "ruleId": "clang-tidy:clang-analyzer-deadcode.DeadStores",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 10
+        },
+        "scan-build:deadcode.DeadStores": {
+          "ruleId": "scan-build:deadcode.DeadStores",
+          "tool": "scan-build",
+          "tp": 0,
+          "fp": 10
+        },
+        "clang-tidy:cert-err33-c": {
+          "ruleId": "clang-tidy:cert-err33-c",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 10
+        },
+        "gcc-fanalyzer:analyzer-out-of-bounds": {
+          "ruleId": "gcc-fanalyzer:analyzer-out-of-bounds",
+          "tool": "gcc-fanalyzer",
+          "tp": 14,
+          "fp": 0
+        },
+        "cppcheck:arrayIndexOutOfBounds": {
+          "ruleId": "cppcheck:arrayIndexOutOfBounds",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 1
+        },
+        "clang-tidy:cert-msc30-c,cert-msc50-cpp": {
+          "ruleId": "clang-tidy:cert-msc30-c,cert-msc50-cpp",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 2
+        },
+        "cppcheck:allocaCalled": {
+          "ruleId": "cppcheck:allocaCalled",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 113
+        },
+        "cppcheck:constVariable": {
+          "ruleId": "cppcheck:constVariable",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 36
+        },
+        "clang-tidy:clang-diagnostic-int-to-pointer-cast": {
+          "ruleId": "clang-tidy:clang-diagnostic-int-to-pointer-cast",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 110
+        },
+        "clang-tidy:performance-no-int-to-ptr": {
+          "ruleId": "clang-tidy:performance-no-int-to-ptr",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 113
+        },
+        "clang-tidy:clang-diagnostic-implicit-function-declaration": {
+          "ruleId": "clang-tidy:clang-diagnostic-implicit-function-declaration",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 69
+        },
+        "flawfinder:buffer/memcpy": {
+          "ruleId": "flawfinder:buffer/memcpy",
+          "tool": "flawfinder",
+          "tp": 27,
+          "fp": 0
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-787-strcpy-unbounded": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-787-strcpy-unbounded",
+          "tool": "semgrep",
+          "tp": 13,
+          "fp": 0
+        },
+        "flawfinder:buffer/wcscpy": {
+          "ruleId": "flawfinder:buffer/wcscpy",
+          "tool": "flawfinder",
+          "tp": 2,
+          "fp": 0
+        },
+        "flawfinder:buffer/strcpy": {
+          "ruleId": "flawfinder:buffer/strcpy",
+          "tool": "flawfinder",
+          "tp": 13,
+          "fp": 0
+        },
+        "semgrep:c.lang.security.insecure-use-string-copy-fn.insecure-use-string-copy-fn": {
+          "ruleId": "semgrep:c.lang.security.insecure-use-string-copy-fn.insecure-use-string-copy-fn",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 25
+        },
+        "cppcheck:constVariablePointer": {
+          "ruleId": "cppcheck:constVariablePointer",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 47
+        },
+        "flawfinder:buffer/strlen": {
+          "ruleId": "flawfinder:buffer/strlen",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 42
+        },
+        "flawfinder:buffer/wcslen": {
+          "ruleId": "flawfinder:buffer/wcslen",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 1
+        },
+        "clang-tidy:clang-diagnostic-int-to-void-pointer-cast": {
+          "ruleId": "clang-tidy:clang-diagnostic-int-to-void-pointer-cast",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 3
+        },
+        "cppcheck:unreadVariable": {
+          "ruleId": "cppcheck:unreadVariable",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 64
+        },
+        "cppcheck:unusedStructMember": {
+          "ruleId": "cppcheck:unusedStructMember",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 2
+        },
+        "clang-tidy:bugprone-reserved-identifier,cert-dcl37-c,cert-dcl51-cpp": {
+          "ruleId": "clang-tidy:bugprone-reserved-identifier,cert-dcl37-c,cert-dcl51-cpp",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 2
+        },
+        "flawfinder:buffer/strncpy": {
+          "ruleId": "flawfinder:buffer/strncpy",
+          "tool": "flawfinder",
+          "tp": 12,
+          "fp": 0
+        },
+        "cppcheck:unusedVariable": {
+          "ruleId": "cppcheck:unusedVariable",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 38
+        },
+        "clang-tidy:clang-analyzer-security.insecureAPI.strcpy": {
+          "ruleId": "clang-tidy:clang-analyzer-security.insecureAPI.strcpy",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 10
+        },
+        "flawfinder:buffer/strncat": {
+          "ruleId": "flawfinder:buffer/strncat",
+          "tool": "flawfinder",
+          "tp": 8,
+          "fp": 0
+        },
+        "semgrep:c.lang.security.insecure-use-strcat-fn.insecure-use-strcat-fn": {
+          "ruleId": "semgrep:c.lang.security.insecure-use-strcat-fn.insecure-use-strcat-fn",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 16
+        },
+        "flawfinder:format/_snprintf": {
+          "ruleId": "flawfinder:format/_snprintf",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 4
+        },
+        "flawfinder:format/snprintf": {
+          "ruleId": "flawfinder:format/snprintf",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 4
+        },
+        "gcc-fanalyzer:analyzer-use-of-uninitialized-value": {
+          "ruleId": "gcc-fanalyzer:analyzer-use-of-uninitialized-value",
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fp": 4
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-787-strcat-unbounded": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-787-strcat-unbounded",
+          "tool": "semgrep",
+          "tp": 8,
+          "fp": 0
+        },
+        "flawfinder:buffer/strcat": {
+          "ruleId": "flawfinder:buffer/strcat",
+          "tool": "flawfinder",
+          "tp": 8,
+          "fp": 0
+        }
+      }
+    },
+    "CWE-122": {
+      "cwe": "CWE-122",
+      "cweName": "Heap_Based_Buffer_Overflow",
+      "totalFiles": 45,
+      "combined": {
+        "tp": 36,
+        "fn": 9,
+        "fp": 390,
+        "recall": 0.8,
+        "precision": 0.0845,
+        "f1": 0.1529
+      },
+      "byTool": {
+        "semgrep": {
+          "tool": "semgrep",
+          "tp": 6,
+          "fn": 39,
+          "fp": 66,
+          "recall": 0.1333,
+          "precision": 0.0833,
+          "f1": 0.1026
+        },
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 0,
+          "fn": 45,
+          "fp": 77,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 31,
+          "fn": 14,
+          "fp": 78,
+          "recall": 0.6889,
+          "precision": 0.2844,
+          "f1": 0.4026
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fn": 45,
+          "fp": 141,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 0,
+          "fn": 45,
+          "fp": 18,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 13,
+          "fn": 32,
+          "fp": 10,
+          "recall": 0.2889,
+          "precision": 0.5652,
+          "f1": 0.3824
+        }
+      },
+      "detectedFiles": [
+        "CWE122_Heap_Based_Buffer_Overflow__char_type_overrun_memcpy_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__char_type_overrun_memmove_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__CWE131_memcpy_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__CWE131_memmove_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__CWE135_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE129_connect_socket_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE129_fgets_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE129_large_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE129_listen_socket_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE193_char_cpy_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE193_char_loop_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE193_char_memcpy_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE193_char_memmove_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE193_char_ncpy_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_loop_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_memcpy_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_memmove_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_ncat_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_ncpy_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_snprintf_01.c"
+      ],
+      "missedFiles": [
+        "CWE122_Heap_Based_Buffer_Overflow__CWE131_loop_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE129_fscanf_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE129_rand_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_int64_t_loop_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_int_loop_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_struct_loop_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__sizeof_double_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__sizeof_int64_t_01.c",
+        "CWE122_Heap_Based_Buffer_Overflow__sizeof_struct_01.c"
+      ],
+      "byRule": {
+        "flawfinder:buffer/char": {
+          "ruleId": "flawfinder:buffer/char",
+          "tool": "flawfinder",
+          "tp": 50,
+          "fp": 0
+        },
+        "flawfinder:buffer/memcpy": {
+          "ruleId": "flawfinder:buffer/memcpy",
+          "tool": "flawfinder",
+          "tp": 15,
+          "fp": 0
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-338-rand": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-338-rand",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 45
+        },
+        "flawfinder:random/srand": {
+          "ruleId": "flawfinder:random/srand",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 45
+        },
+        "clang-tidy:bugprone-reserved-identifier,cert-dcl37-c,cert-dcl51-cpp": {
+          "ruleId": "clang-tidy:bugprone-reserved-identifier,cert-dcl37-c,cert-dcl51-cpp",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 2
+        },
+        "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling": {
+          "ruleId": "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 85
+        },
+        "cppcheck:memleak": {
+          "ruleId": "cppcheck:memleak",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 2
+        },
+        "clang-tidy:clang-analyzer-unix.Malloc": {
+          "ruleId": "clang-tidy:clang-analyzer-unix.Malloc",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 5
+        },
+        "scan-build:unix.Malloc": {
+          "ruleId": "scan-build:unix.Malloc",
+          "tool": "scan-build",
+          "tp": 0,
+          "fp": 5
+        },
+        "gcc-fanalyzer:analyzer-malloc-leak": {
+          "ruleId": "gcc-fanalyzer:analyzer-malloc-leak",
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fp": 3
+        },
+        "cppcheck:arrayIndexOutOfBounds": {
+          "ruleId": "cppcheck:arrayIndexOutOfBounds",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 9
+        },
+        "cppcheck:constVariable": {
+          "ruleId": "cppcheck:constVariable",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 20
+        },
+        "gcc-fanalyzer:analyzer-allocation-size": {
+          "ruleId": "gcc-fanalyzer:analyzer-allocation-size",
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fp": 3
+        },
+        "gcc-fanalyzer:analyzer-out-of-bounds": {
+          "ruleId": "gcc-fanalyzer:analyzer-out-of-bounds",
+          "tool": "gcc-fanalyzer",
+          "tp": 15,
+          "fp": 0
+        },
+        "cppcheck:bufferAccessOutOfBounds": {
+          "ruleId": "cppcheck:bufferAccessOutOfBounds",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 11
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-787-strcpy-unbounded": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-787-strcpy-unbounded",
+          "tool": "semgrep",
+          "tp": 7,
+          "fp": 0
+        },
+        "flawfinder:buffer/wcscpy": {
+          "ruleId": "flawfinder:buffer/wcscpy",
+          "tool": "flawfinder",
+          "tp": 2,
+          "fp": 0
+        },
+        "flawfinder:buffer/strcpy": {
+          "ruleId": "flawfinder:buffer/strcpy",
+          "tool": "flawfinder",
+          "tp": 7,
+          "fp": 0
+        },
+        "semgrep:c.lang.security.insecure-use-string-copy-fn.insecure-use-string-copy-fn": {
+          "ruleId": "semgrep:c.lang.security.insecure-use-string-copy-fn.insecure-use-string-copy-fn",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 13
+        },
+        "cppcheck:constVariablePointer": {
+          "ruleId": "cppcheck:constVariablePointer",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 3
+        },
+        "flawfinder:buffer/strlen": {
+          "ruleId": "flawfinder:buffer/strlen",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 22
+        },
+        "flawfinder:buffer/wcslen": {
+          "ruleId": "flawfinder:buffer/wcslen",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 1
+        },
+        "clang-tidy:clang-analyzer-security.insecureAPI.strcpy": {
+          "ruleId": "clang-tidy:clang-analyzer-security.insecureAPI.strcpy",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 11
+        },
+        "cppcheck:knownConditionTrueFalse": {
+          "ruleId": "cppcheck:knownConditionTrueFalse",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 9
+        },
+        "cppcheck:redundantAssignment": {
+          "ruleId": "cppcheck:redundantAssignment",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 10
+        },
+        "flawfinder:integer/atoi": {
+          "ruleId": "flawfinder:integer/atoi",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 6
+        },
+        "clang-tidy:bugprone-macro-parentheses": {
+          "ruleId": "clang-tidy:bugprone-macro-parentheses",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 4
+        },
+        "clang-tidy:bugprone-narrowing-conversions": {
+          "ruleId": "clang-tidy:bugprone-narrowing-conversions",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 4
+        },
+        "clang-tidy:cert-err34-c": {
+          "ruleId": "clang-tidy:cert-err34-c",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 8
+        },
+        "clang-tidy:clang-analyzer-deadcode.DeadStores": {
+          "ruleId": "clang-tidy:clang-analyzer-deadcode.DeadStores",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 10
+        },
+        "scan-build:deadcode.DeadStores": {
+          "ruleId": "scan-build:deadcode.DeadStores",
+          "tool": "scan-build",
+          "tp": 0,
+          "fp": 10
+        },
+        "clang-tidy:cert-err33-c": {
+          "ruleId": "clang-tidy:cert-err33-c",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 6
+        },
+        "clang-tidy:cert-msc30-c,cert-msc50-cpp": {
+          "ruleId": "clang-tidy:cert-msc30-c,cert-msc50-cpp",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 2
+        },
+        "flawfinder:buffer/strncpy": {
+          "ruleId": "flawfinder:buffer/strncpy",
+          "tool": "flawfinder",
+          "tp": 6,
+          "fp": 0
+        },
+        "flawfinder:buffer/strncat": {
+          "ruleId": "flawfinder:buffer/strncat",
+          "tool": "flawfinder",
+          "tp": 4,
+          "fp": 0
+        },
+        "semgrep:c.lang.security.insecure-use-strcat-fn.insecure-use-strcat-fn": {
+          "ruleId": "semgrep:c.lang.security.insecure-use-strcat-fn.insecure-use-strcat-fn",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 8
+        },
+        "flawfinder:format/_snprintf": {
+          "ruleId": "flawfinder:format/_snprintf",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 2
+        },
+        "flawfinder:format/snprintf": {
+          "ruleId": "flawfinder:format/snprintf",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 2
+        },
+        "cppcheck:unreadVariable": {
+          "ruleId": "cppcheck:unreadVariable",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 10
+        },
+        "gcc-fanalyzer:analyzer-use-of-uninitialized-value": {
+          "ruleId": "gcc-fanalyzer:analyzer-use-of-uninitialized-value",
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fp": 4
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-787-strcat-unbounded": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-787-strcat-unbounded",
+          "tool": "semgrep",
+          "tp": 4,
+          "fp": 0
+        },
+        "flawfinder:buffer/strcat": {
+          "ruleId": "flawfinder:buffer/strcat",
+          "tool": "flawfinder",
+          "tp": 4,
+          "fp": 0
+        },
+        "cppcheck:pointerSize": {
+          "ruleId": "cppcheck:pointerSize",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 3
+        },
+        "clang-tidy:clang-analyzer-unix.MallocSizeof": {
+          "ruleId": "clang-tidy:clang-analyzer-unix.MallocSizeof",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 3
+        },
+        "scan-build:unix.MallocSizeof": {
+          "ruleId": "scan-build:unix.MallocSizeof",
+          "tool": "scan-build",
+          "tp": 0,
+          "fp": 3
+        },
+        "clang-tidy:bugprone-sizeof-expression": {
+          "ruleId": "clang-tidy:bugprone-sizeof-expression",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 1
+        }
+      }
+    },
+    "CWE-134": {
+      "cwe": "CWE-134",
+      "cweName": "Uncontrolled_Format_String",
+      "totalFiles": 25,
+      "combined": {
+        "tp": 25,
+        "fn": 0,
+        "fp": 565,
+        "recall": 1.0,
+        "precision": 0.0424,
+        "f1": 0.0813
+      },
+      "byTool": {
+        "semgrep": {
+          "tool": "semgrep",
+          "tp": 0,
+          "fn": 25,
+          "fp": 85,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 0,
+          "fn": 25,
+          "fp": 10,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 25,
+          "fn": 0,
+          "fp": 230,
+          "recall": 1.0,
+          "precision": 0.098,
+          "f1": 0.1786
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fn": 25,
+          "fp": 240,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 0,
+          "fn": 25,
+          "fp": 0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fn": 25,
+          "fp": 0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        }
+      },
+      "detectedFiles": [
+        "CWE134_Uncontrolled_Format_String__char_connect_socket_fprintf_01.c",
+        "CWE134_Uncontrolled_Format_String__char_connect_socket_printf_01.c",
+        "CWE134_Uncontrolled_Format_String__char_connect_socket_snprintf_01.c",
+        "CWE134_Uncontrolled_Format_String__char_connect_socket_vfprintf_01.c",
+        "CWE134_Uncontrolled_Format_String__char_connect_socket_vprintf_01.c",
+        "CWE134_Uncontrolled_Format_String__char_console_fprintf_01.c",
+        "CWE134_Uncontrolled_Format_String__char_console_printf_01.c",
+        "CWE134_Uncontrolled_Format_String__char_console_snprintf_01.c",
+        "CWE134_Uncontrolled_Format_String__char_console_vfprintf_01.c",
+        "CWE134_Uncontrolled_Format_String__char_console_vprintf_01.c",
+        "CWE134_Uncontrolled_Format_String__char_environment_fprintf_01.c",
+        "CWE134_Uncontrolled_Format_String__char_environment_printf_01.c",
+        "CWE134_Uncontrolled_Format_String__char_environment_snprintf_01.c",
+        "CWE134_Uncontrolled_Format_String__char_environment_vfprintf_01.c",
+        "CWE134_Uncontrolled_Format_String__char_environment_vprintf_01.c",
+        "CWE134_Uncontrolled_Format_String__char_file_fprintf_01.c",
+        "CWE134_Uncontrolled_Format_String__char_file_printf_01.c",
+        "CWE134_Uncontrolled_Format_String__char_file_snprintf_01.c",
+        "CWE134_Uncontrolled_Format_String__char_file_vfprintf_01.c",
+        "CWE134_Uncontrolled_Format_String__char_file_vprintf_01.c"
+      ],
+      "missedFiles": [],
+      "byRule": {
+        "flawfinder:format/fprintf": {
+          "ruleId": "flawfinder:format/fprintf",
+          "tool": "flawfinder",
+          "tp": 10,
+          "fp": 0
+        },
+        "semgrep:c.lang.security.insecure-use-string-copy-fn.insecure-use-string-copy-fn": {
+          "ruleId": "semgrep:c.lang.security.insecure-use-string-copy-fn.insecure-use-string-copy-fn",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 25
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-787-strcpy-unbounded": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-787-strcpy-unbounded",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 25
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-338-rand": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-338-rand",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 25
+        },
+        "flawfinder:random/srand": {
+          "ruleId": "flawfinder:random/srand",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 25
+        },
+        "flawfinder:buffer/char": {
+          "ruleId": "flawfinder:buffer/char",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 90
+        },
+        "flawfinder:buffer/strcpy": {
+          "ruleId": "flawfinder:buffer/strcpy",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 25
+        },
+        "flawfinder:buffer/strlen": {
+          "ruleId": "flawfinder:buffer/strlen",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 60
+        },
+        "clang-tidy:bugprone-macro-parentheses": {
+          "ruleId": "clang-tidy:bugprone-macro-parentheses",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 20
+        },
+        "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling": {
+          "ruleId": "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 60
+        },
+        "clang-tidy:bugprone-narrowing-conversions": {
+          "ruleId": "clang-tidy:bugprone-narrowing-conversions",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 20
+        },
+        "clang-tidy:cert-err33-c": {
+          "ruleId": "clang-tidy:cert-err33-c",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 55
+        },
+        "clang-tidy:clang-diagnostic-format-security": {
+          "ruleId": "clang-tidy:clang-diagnostic-format-security",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 30
+        },
+        "clang-tidy:clang-analyzer-security.insecureAPI.strcpy": {
+          "ruleId": "clang-tidy:clang-analyzer-security.insecureAPI.strcpy",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 25
+        },
+        "flawfinder:format/printf": {
+          "ruleId": "flawfinder:format/printf",
+          "tool": "flawfinder",
+          "tp": 10,
+          "fp": 0
+        },
+        "flawfinder:format/_snprintf": {
+          "ruleId": "flawfinder:format/_snprintf",
+          "tool": "flawfinder",
+          "tp": 5,
+          "fp": 0
+        },
+        "flawfinder:format/snprintf": {
+          "ruleId": "flawfinder:format/snprintf",
+          "tool": "flawfinder",
+          "tp": 5,
+          "fp": 0
+        },
+        "flawfinder:format/vfprintf": {
+          "ruleId": "flawfinder:format/vfprintf",
+          "tool": "flawfinder",
+          "tp": 10,
+          "fp": 0
+        },
+        "clang-tidy:clang-analyzer-valist.Uninitialized": {
+          "ruleId": "clang-tidy:clang-analyzer-valist.Uninitialized",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 30
+        },
+        "flawfinder:format/vprintf": {
+          "ruleId": "flawfinder:format/vprintf",
+          "tool": "flawfinder",
+          "tp": 10,
+          "fp": 0
+        },
+        "semgrep:c.lang.security.insecure-use-strcat-fn.insecure-use-strcat-fn": {
+          "ruleId": "semgrep:c.lang.security.insecure-use-strcat-fn.insecure-use-strcat-fn",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 10
+        },
+        "cppcheck:constVariablePointer": {
+          "ruleId": "cppcheck:constVariablePointer",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 10
+        },
+        "flawfinder:buffer/getenv": {
+          "ruleId": "flawfinder:buffer/getenv",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 10
+        },
+        "flawfinder:buffer/strncat": {
+          "ruleId": "flawfinder:buffer/strncat",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 10
+        },
+        "flawfinder:misc/fopen": {
+          "ruleId": "flawfinder:misc/fopen",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 10
+        }
+      }
+    },
+    "CWE-190": {
+      "cwe": "CWE-190",
+      "cweName": "Integer_Overflow",
+      "totalFiles": 90,
+      "combined": {
+        "tp": 80,
+        "fn": 10,
+        "fp": 932,
+        "recall": 0.8889,
+        "precision": 0.0791,
+        "f1": 0.1452
+      },
+      "byTool": {
+        "semgrep": {
+          "tool": "semgrep",
+          "tp": 80,
+          "fn": 10,
+          "fp": 90,
+          "recall": 0.8889,
+          "precision": 0.4706,
+          "f1": 0.6154
+        },
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 8,
+          "fn": 82,
+          "fp": 63,
+          "recall": 0.0889,
+          "precision": 0.1127,
+          "f1": 0.0994
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 15,
+          "fn": 75,
+          "fp": 130,
+          "recall": 0.1667,
+          "precision": 0.1034,
+          "f1": 0.1277
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 31,
+          "fn": 59,
+          "fp": 459,
+          "recall": 0.3444,
+          "precision": 0.0633,
+          "f1": 0.1069
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 0,
+          "fn": 90,
+          "fp": 190,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fn": 90,
+          "fp": 0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        }
+      },
+      "detectedFiles": [
+        "CWE190_Integer_Overflow__char_fscanf_add_01.c",
+        "CWE190_Integer_Overflow__char_fscanf_multiply_01.c",
+        "CWE190_Integer_Overflow__char_fscanf_square_01.c",
+        "CWE190_Integer_Overflow__char_max_add_01.c",
+        "CWE190_Integer_Overflow__char_max_multiply_01.c",
+        "CWE190_Integer_Overflow__char_max_square_01.c",
+        "CWE190_Integer_Overflow__char_rand_add_01.c",
+        "CWE190_Integer_Overflow__char_rand_multiply_01.c",
+        "CWE190_Integer_Overflow__char_rand_square_01.c",
+        "CWE190_Integer_Overflow__int64_t_fscanf_add_01.c",
+        "CWE190_Integer_Overflow__int64_t_fscanf_multiply_01.c",
+        "CWE190_Integer_Overflow__int64_t_fscanf_square_01.c",
+        "CWE190_Integer_Overflow__int_connect_socket_add_01.c",
+        "CWE190_Integer_Overflow__int_connect_socket_multiply_01.c",
+        "CWE190_Integer_Overflow__int_connect_socket_square_01.c",
+        "CWE190_Integer_Overflow__int_fgets_add_01.c",
+        "CWE190_Integer_Overflow__int_fgets_multiply_01.c",
+        "CWE190_Integer_Overflow__int_fgets_square_01.c",
+        "CWE190_Integer_Overflow__int_fscanf_add_01.c",
+        "CWE190_Integer_Overflow__int_fscanf_multiply_01.c"
+      ],
+      "missedFiles": [
+        "CWE190_Integer_Overflow__int64_t_max_add_01.c",
+        "CWE190_Integer_Overflow__int64_t_max_multiply_01.c",
+        "CWE190_Integer_Overflow__int64_t_max_square_01.c",
+        "CWE190_Integer_Overflow__int64_t_rand_add_01.c",
+        "CWE190_Integer_Overflow__int64_t_rand_multiply_01.c",
+        "CWE190_Integer_Overflow__int64_t_rand_square_01.c",
+        "CWE190_Integer_Overflow__int64_t_max_postinc_01.c",
+        "CWE190_Integer_Overflow__int64_t_rand_postinc_01.c",
+        "CWE190_Integer_Overflow__int64_t_max_preinc_01.c",
+        "CWE190_Integer_Overflow__int64_t_rand_preinc_01.c"
+      ],
+      "byRule": {
+        "semgrep:rules.automotive.aegis.c.cwe-190-fscanf-then-arithmetic": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-190-fscanf-then-arithmetic",
+          "tool": "semgrep",
+          "tp": 50,
+          "fp": 0
+        },
+        "clang-tidy:bugprone-narrowing-conversions": {
+          "ruleId": "clang-tidy:bugprone-narrowing-conversions",
+          "tool": "clang-tidy",
+          "tp": 83,
+          "fp": 0
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-338-rand": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-338-rand",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 90
+        },
+        "cppcheck:redundantAssignment": {
+          "ruleId": "cppcheck:redundantAssignment",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 35
+        },
+        "flawfinder:random/srand": {
+          "ruleId": "flawfinder:random/srand",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 90
+        },
+        "clang-tidy:cert-err33-c": {
+          "ruleId": "clang-tidy:cert-err33-c",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 50
+        },
+        "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling": {
+          "ruleId": "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 70
+        },
+        "clang-tidy:clang-analyzer-deadcode.DeadStores": {
+          "ruleId": "clang-tidy:clang-analyzer-deadcode.DeadStores",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 190
+        },
+        "scan-build:deadcode.DeadStores": {
+          "ruleId": "scan-build:deadcode.DeadStores",
+          "tool": "scan-build",
+          "tp": 0,
+          "fp": 190
+        },
+        "cppcheck:knownConditionTrueFalse": {
+          "ruleId": "cppcheck:knownConditionTrueFalse",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 28
+        },
+        "clang-tidy:clang-diagnostic-absolute-value": {
+          "ruleId": "clang-tidy:clang-diagnostic-absolute-value",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 9
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-190-max-constant-overflow": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-190-max-constant-overflow",
+          "tool": "semgrep",
+          "tp": 40,
+          "fp": 0
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-190-taint-arithmetic-overflow": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-190-taint-arithmetic-overflow",
+          "tool": "semgrep",
+          "tp": 84,
+          "fp": 0
+        },
+        "clang-tidy:cert-msc30-c,cert-msc50-cpp": {
+          "ruleId": "clang-tidy:cert-msc30-c,cert-msc50-cpp",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 50
+        },
+        "flawfinder:buffer/fscanf": {
+          "ruleId": "flawfinder:buffer/fscanf",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 10
+        },
+        "clang-tidy:cert-err34-c": {
+          "ruleId": "clang-tidy:cert-err34-c",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 70
+        },
+        "flawfinder:integer/atoi": {
+          "ruleId": "flawfinder:integer/atoi",
+          "tool": "flawfinder",
+          "tp": 30,
+          "fp": 0
+        },
+        "flawfinder:buffer/char": {
+          "ruleId": "flawfinder:buffer/char",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 30
+        },
+        "clang-tidy:bugprone-macro-parentheses": {
+          "ruleId": "clang-tidy:bugprone-macro-parentheses",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 20
+        },
+        "cppcheck:integerOverflowCond": {
+          "ruleId": "cppcheck:integerOverflowCond",
+          "tool": "cppcheck",
+          "tp": 5,
+          "fp": 0
+        },
+        "cppcheck:integerOverflow": {
+          "ruleId": "cppcheck:integerOverflow",
+          "tool": "cppcheck",
+          "tp": 3,
+          "fp": 0
+        }
+      }
+    },
+    "CWE-252": {
+      "cwe": "CWE-252",
+      "cweName": "Unchecked_Return_Value",
+      "totalFiles": 18,
+      "combined": {
+        "tp": 13,
+        "fn": 5,
+        "fp": 84,
+        "recall": 0.7222,
+        "precision": 0.134,
+        "f1": 0.2261
+      },
+      "byTool": {
+        "semgrep": {
+          "tool": "semgrep",
+          "tp": 0,
+          "fn": 18,
+          "fp": 20,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 0,
+          "fn": 18,
+          "fp": 2,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 0,
+          "fn": 18,
+          "fp": 43,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 13,
+          "fn": 5,
+          "fp": 19,
+          "recall": 0.7222,
+          "precision": 0.4062,
+          "f1": 0.52
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 0,
+          "fn": 18,
+          "fp": 0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fn": 18,
+          "fp": 0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        }
+      },
+      "detectedFiles": [
+        "CWE252_Unchecked_Return_Value__char_fgets_01.c",
+        "CWE252_Unchecked_Return_Value__char_fprintf_01.c",
+        "CWE252_Unchecked_Return_Value__char_fputc_01.c",
+        "CWE252_Unchecked_Return_Value__char_fputs_01.c",
+        "CWE252_Unchecked_Return_Value__char_fread_01.c",
+        "CWE252_Unchecked_Return_Value__char_fscanf_01.c",
+        "CWE252_Unchecked_Return_Value__char_fwrite_01.c",
+        "CWE252_Unchecked_Return_Value__char_putc_01.c",
+        "CWE252_Unchecked_Return_Value__char_remove_01.c",
+        "CWE252_Unchecked_Return_Value__char_rename_01.c",
+        "CWE252_Unchecked_Return_Value__char_scanf_01.c",
+        "CWE252_Unchecked_Return_Value__char_snprintf_01.c",
+        "CWE252_Unchecked_Return_Value__char_sscanf_01.c"
+      ],
+      "missedFiles": [
+        "CWE252_Unchecked_Return_Value__char_putchar_01.c",
+        "CWE252_Unchecked_Return_Value__char_puts_01.c",
+        "CWE252_Unchecked_Return_Value__char_w32CreateMutex_01.c",
+        "CWE252_Unchecked_Return_Value__char_w32CreateNamedPipe_01.c",
+        "CWE252_Unchecked_Return_Value__w32ImpersonateSelf_01.c"
+      ],
+      "byRule": {
+        "clang-tidy:cert-err33-c": {
+          "ruleId": "clang-tidy:cert-err33-c",
+          "tool": "clang-tidy",
+          "tp": 13,
+          "fp": 0
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-338-rand": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-338-rand",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 18
+        },
+        "flawfinder:random/srand": {
+          "ruleId": "flawfinder:random/srand",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 18
+        },
+        "flawfinder:buffer/char": {
+          "ruleId": "flawfinder:buffer/char",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 12
+        },
+        "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling": {
+          "ruleId": "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 10
+        },
+        "flawfinder:buffer/fscanf": {
+          "ruleId": "flawfinder:buffer/fscanf",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 2
+        },
+        "clang-tidy:clang-diagnostic-format": {
+          "ruleId": "clang-tidy:clang-diagnostic-format",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 6
+        },
+        "flawfinder:buffer/strlen": {
+          "ruleId": "flawfinder:buffer/strlen",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 5
+        },
+        "semgrep:c.lang.security.insecure-use-scanf-fn.insecure-use-scanf-fn": {
+          "ruleId": "semgrep:c.lang.security.insecure-use-scanf-fn.insecure-use-scanf-fn",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 2
+        },
+        "flawfinder:buffer/scanf": {
+          "ruleId": "flawfinder:buffer/scanf",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 2
+        },
+        "flawfinder:format/_snprintf": {
+          "ruleId": "flawfinder:format/_snprintf",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 1
+        },
+        "flawfinder:format/snprintf": {
+          "ruleId": "flawfinder:format/snprintf",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 1
+        },
+        "flawfinder:buffer/sscanf": {
+          "ruleId": "flawfinder:buffer/sscanf",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 2
+        },
+        "clang-tidy:clang-diagnostic-error": {
+          "ruleId": "clang-tidy:clang-diagnostic-error",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 3
+        },
+        "cppcheck:unreadVariable": {
+          "ruleId": "cppcheck:unreadVariable",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 2
+        }
+      }
+    },
+    "CWE-369": {
+      "cwe": "CWE-369",
+      "cweName": "Divide_by_Zero",
+      "totalFiles": 18,
+      "combined": {
+        "tp": 17,
+        "fn": 1,
+        "fp": 236,
+        "recall": 0.9444,
+        "precision": 0.0672,
+        "f1": 0.1255
+      },
+      "byTool": {
+        "semgrep": {
+          "tool": "semgrep",
+          "tp": 15,
+          "fn": 3,
+          "fp": 18,
+          "recall": 0.8333,
+          "precision": 0.4545,
+          "f1": 0.5882
+        },
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 2,
+          "fn": 16,
+          "fp": 22,
+          "recall": 0.1111,
+          "precision": 0.0833,
+          "f1": 0.0952
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 0,
+          "fn": 18,
+          "fp": 48,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fn": 18,
+          "fp": 116,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 0,
+          "fn": 18,
+          "fp": 32,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fn": 18,
+          "fp": 0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        }
+      },
+      "detectedFiles": [
+        "CWE369_Divide_by_Zero__float_connect_socket_01.c",
+        "CWE369_Divide_by_Zero__float_fgets_01.c",
+        "CWE369_Divide_by_Zero__float_fscanf_01.c",
+        "CWE369_Divide_by_Zero__float_listenSocket_01.c",
+        "CWE369_Divide_by_Zero__float_rand_01.c",
+        "CWE369_Divide_by_Zero__int_connect_socket_divide_01.c",
+        "CWE369_Divide_by_Zero__int_connect_socket_modulo_01.c",
+        "CWE369_Divide_by_Zero__int_fgets_divide_01.c",
+        "CWE369_Divide_by_Zero__int_fgets_modulo_01.c",
+        "CWE369_Divide_by_Zero__int_fscanf_divide_01.c",
+        "CWE369_Divide_by_Zero__int_fscanf_modulo_01.c",
+        "CWE369_Divide_by_Zero__int_listen_socket_divide_01.c",
+        "CWE369_Divide_by_Zero__int_listen_socket_modulo_01.c",
+        "CWE369_Divide_by_Zero__int_rand_divide_01.c",
+        "CWE369_Divide_by_Zero__int_rand_modulo_01.c",
+        "CWE369_Divide_by_Zero__int_zero_divide_01.c",
+        "CWE369_Divide_by_Zero__int_zero_modulo_01.c"
+      ],
+      "missedFiles": [
+        "CWE369_Divide_by_Zero__float_zero_01.c"
+      ],
+      "byRule": {
+        "semgrep:rules.automotive.aegis.c.cwe-369-taint-divide-by-zero": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-369-taint-divide-by-zero",
+          "tool": "semgrep",
+          "tp": 24,
+          "fp": 0
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-338-rand": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-338-rand",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 18
+        },
+        "flawfinder:random/srand": {
+          "ruleId": "flawfinder:random/srand",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 18
+        },
+        "flawfinder:buffer/char": {
+          "ruleId": "flawfinder:buffer/char",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 18
+        },
+        "clang-tidy:bugprone-macro-parentheses": {
+          "ruleId": "clang-tidy:bugprone-macro-parentheses",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 12
+        },
+        "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling": {
+          "ruleId": "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 18
+        },
+        "clang-tidy:bugprone-narrowing-conversions": {
+          "ruleId": "clang-tidy:bugprone-narrowing-conversions",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 12
+        },
+        "clang-tidy:cert-err34-c": {
+          "ruleId": "clang-tidy:cert-err34-c",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 24
+        },
+        "clang-tidy:clang-analyzer-deadcode.DeadStores": {
+          "ruleId": "clang-tidy:clang-analyzer-deadcode.DeadStores",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 30
+        },
+        "clang-tidy:performance-type-promotion-in-math-fn": {
+          "ruleId": "clang-tidy:performance-type-promotion-in-math-fn",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 6
+        },
+        "scan-build:deadcode.DeadStores": {
+          "ruleId": "scan-build:deadcode.DeadStores",
+          "tool": "scan-build",
+          "tp": 0,
+          "fp": 30
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-369-fscanf-then-divide": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-369-fscanf-then-divide",
+          "tool": "semgrep",
+          "tp": 6,
+          "fp": 0
+        },
+        "clang-tidy:cert-err33-c": {
+          "ruleId": "clang-tidy:cert-err33-c",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 6
+        },
+        "clang-tidy:cert-msc30-c,cert-msc50-cpp": {
+          "ruleId": "clang-tidy:cert-msc30-c,cert-msc50-cpp",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 6
+        },
+        "cppcheck:redundantAssignment": {
+          "ruleId": "cppcheck:redundantAssignment",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 20
+        },
+        "flawfinder:integer/atoi": {
+          "ruleId": "flawfinder:integer/atoi",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 12
+        },
+        "cppcheck:zerodiv": {
+          "ruleId": "cppcheck:zerodiv",
+          "tool": "cppcheck",
+          "tp": 2,
+          "fp": 0
+        },
+        "cppcheck:knownConditionTrueFalse": {
+          "ruleId": "cppcheck:knownConditionTrueFalse",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 2
+        },
+        "clang-tidy:clang-analyzer-core.DivideZero": {
+          "ruleId": "clang-tidy:clang-analyzer-core.DivideZero",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 2
+        },
+        "scan-build:core.DivideZero": {
+          "ruleId": "scan-build:core.DivideZero",
+          "tool": "scan-build",
+          "tp": 0,
+          "fp": 2
+        }
+      }
+    },
+    "CWE-401": {
+      "cwe": "CWE-401",
+      "cweName": "Memory_Leak",
+      "totalFiles": 21,
+      "combined": {
+        "tp": 20,
+        "fn": 1,
+        "fp": 186,
+        "recall": 0.9524,
+        "precision": 0.0971,
+        "f1": 0.1762
+      },
+      "byTool": {
+        "semgrep": {
+          "tool": "semgrep",
+          "tp": 0,
+          "fn": 21,
+          "fp": 49,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 9,
+          "fn": 12,
+          "fp": 19,
+          "recall": 0.4286,
+          "precision": 0.3214,
+          "f1": 0.3673
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 0,
+          "fn": 21,
+          "fp": 35,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fn": 21,
+          "fp": 78,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 0,
+          "fn": 21,
+          "fp": 5,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 20,
+          "fn": 1,
+          "fp": 0,
+          "recall": 0.9524,
+          "precision": 1.0,
+          "f1": 0.9756
+        }
+      },
+      "detectedFiles": [
+        "CWE401_Memory_Leak__char_calloc_01.c",
+        "CWE401_Memory_Leak__char_malloc_01.c",
+        "CWE401_Memory_Leak__char_realloc_01.c",
+        "CWE401_Memory_Leak__int64_t_calloc_01.c",
+        "CWE401_Memory_Leak__int64_t_malloc_01.c",
+        "CWE401_Memory_Leak__int64_t_realloc_01.c",
+        "CWE401_Memory_Leak__int_calloc_01.c",
+        "CWE401_Memory_Leak__int_malloc_01.c",
+        "CWE401_Memory_Leak__int_realloc_01.c",
+        "CWE401_Memory_Leak__malloc_realloc_char_01.c",
+        "CWE401_Memory_Leak__malloc_realloc_int64_t_01.c",
+        "CWE401_Memory_Leak__malloc_realloc_int_01.c",
+        "CWE401_Memory_Leak__malloc_realloc_struct_twoIntsStruct_01.c",
+        "CWE401_Memory_Leak__malloc_realloc_twoIntsStruct_01.c",
+        "CWE401_Memory_Leak__struct_twoIntsStruct_calloc_01.c",
+        "CWE401_Memory_Leak__struct_twoIntsStruct_malloc_01.c",
+        "CWE401_Memory_Leak__struct_twoIntsStruct_realloc_01.c",
+        "CWE401_Memory_Leak__twoIntsStruct_calloc_01.c",
+        "CWE401_Memory_Leak__twoIntsStruct_malloc_01.c",
+        "CWE401_Memory_Leak__twoIntsStruct_realloc_01.c"
+      ],
+      "missedFiles": [
+        "CWE401_Memory_Leak__strdup_char_01.c"
+      ],
+      "byRule": {
+        "gcc-fanalyzer:analyzer-malloc-leak": {
+          "ruleId": "gcc-fanalyzer:analyzer-malloc-leak",
+          "tool": "gcc-fanalyzer",
+          "tp": 20,
+          "fp": 0
+        },
+        "semgrep:c.lang.security.insecure-use-string-copy-fn.insecure-use-string-copy-fn": {
+          "ruleId": "semgrep:c.lang.security.insecure-use-string-copy-fn.insecure-use-string-copy-fn",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 14
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-787-strcpy-unbounded": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-787-strcpy-unbounded",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 14
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-338-rand": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-338-rand",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 21
+        },
+        "cppcheck:allocaCalled": {
+          "ruleId": "cppcheck:allocaCalled",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 16
+        },
+        "flawfinder:random/srand": {
+          "ruleId": "flawfinder:random/srand",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 21
+        },
+        "flawfinder:buffer/strcpy": {
+          "ruleId": "flawfinder:buffer/strcpy",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 14
+        },
+        "clang-tidy:clang-diagnostic-int-to-pointer-cast": {
+          "ruleId": "clang-tidy:clang-diagnostic-int-to-pointer-cast",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 16
+        },
+        "clang-tidy:performance-no-int-to-ptr": {
+          "ruleId": "clang-tidy:performance-no-int-to-ptr",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 18
+        },
+        "clang-tidy:clang-diagnostic-implicit-function-declaration": {
+          "ruleId": "clang-tidy:clang-diagnostic-implicit-function-declaration",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 18
+        },
+        "clang-tidy:bugprone-suspicious-realloc-usage": {
+          "ruleId": "clang-tidy:bugprone-suspicious-realloc-usage",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 15
+        },
+        "cppcheck:memleak": {
+          "ruleId": "cppcheck:memleak",
+          "tool": "cppcheck",
+          "tp": 4,
+          "fp": 0
+        },
+        "cppcheck:memleakOnRealloc": {
+          "ruleId": "cppcheck:memleakOnRealloc",
+          "tool": "cppcheck",
+          "tp": 5,
+          "fp": 0
+        },
+        "clang-tidy:clang-analyzer-security.insecureAPI.strcpy": {
+          "ruleId": "clang-tidy:clang-analyzer-security.insecureAPI.strcpy",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 4
+        },
+        "clang-tidy:clang-analyzer-unix.Malloc": {
+          "ruleId": "clang-tidy:clang-analyzer-unix.Malloc",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 5
+        },
+        "scan-build:unix.Malloc": {
+          "ruleId": "scan-build:unix.Malloc",
+          "tool": "scan-build",
+          "tp": 0,
+          "fp": 5
+        },
+        "cppcheck:constVariablePointer": {
+          "ruleId": "cppcheck:constVariablePointer",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 1
+        },
+        "cppcheck:constVariable": {
+          "ruleId": "cppcheck:constVariable",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 2
+        },
+        "clang-tidy:clang-diagnostic-int-conversion": {
+          "ruleId": "clang-tidy:clang-diagnostic-int-conversion",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 2
+        }
+      }
+    },
+    "CWE-416": {
+      "cwe": "CWE-416",
+      "cweName": "Use_After_Free",
+      "totalFiles": 6,
+      "combined": {
+        "tp": 4,
+        "fn": 2,
+        "fp": 33,
+        "recall": 0.6667,
+        "precision": 0.1081,
+        "f1": 0.186
+      },
+      "byTool": {
+        "semgrep": {
+          "tool": "semgrep",
+          "tp": 3,
+          "fn": 3,
+          "fp": 6,
+          "recall": 0.5,
+          "precision": 0.3333,
+          "f1": 0.4
+        },
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 0,
+          "fn": 6,
+          "fp": 10,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 0,
+          "fn": 6,
+          "fp": 8,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 1,
+          "fn": 5,
+          "fp": 3,
+          "recall": 0.1667,
+          "precision": 0.25,
+          "f1": 0.2
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 1,
+          "fn": 5,
+          "fp": 0,
+          "recall": 0.1667,
+          "precision": 1.0,
+          "f1": 0.2857
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 3,
+          "fn": 3,
+          "fp": 6,
+          "recall": 0.5,
+          "precision": 0.3333,
+          "f1": 0.4
+        }
+      },
+      "detectedFiles": [
+        "CWE416_Use_After_Free__malloc_free_char_01.c",
+        "CWE416_Use_After_Free__malloc_free_int64_t_01.c",
+        "CWE416_Use_After_Free__malloc_free_int_01.c",
+        "CWE416_Use_After_Free__malloc_free_long_01.c"
+      ],
+      "missedFiles": [
+        "CWE416_Use_After_Free__malloc_free_struct_01.c",
+        "CWE416_Use_After_Free__return_freed_ptr_01.c"
+      ],
+      "byRule": {
+        "clang-tidy:clang-analyzer-unix.Malloc": {
+          "ruleId": "clang-tidy:clang-analyzer-unix.Malloc",
+          "tool": "clang-tidy",
+          "tp": 2,
+          "fp": 0
+        },
+        "scan-build:unix.Malloc": {
+          "ruleId": "scan-build:unix.Malloc",
+          "tool": "scan-build",
+          "tp": 2,
+          "fp": 0
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-338-rand": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-338-rand",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 6
+        },
+        "flawfinder:random/srand": {
+          "ruleId": "flawfinder:random/srand",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 6
+        },
+        "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling": {
+          "ruleId": "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 3
+        },
+        "gcc-fanalyzer:analyzer-malloc-leak": {
+          "ruleId": "gcc-fanalyzer:analyzer-malloc-leak",
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fp": 6
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-416-free-then-array-access": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-416-free-then-array-access",
+          "tool": "semgrep",
+          "tp": 3,
+          "fp": 0
+        },
+        "gcc-fanalyzer:analyzer-use-after-free": {
+          "ruleId": "gcc-fanalyzer:analyzer-use-after-free",
+          "tool": "gcc-fanalyzer",
+          "tp": 3,
+          "fp": 0
+        },
+        "cppcheck:variableScope": {
+          "ruleId": "cppcheck:variableScope",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 4
+        },
+        "cppcheck:constParameterPointer": {
+          "ruleId": "cppcheck:constParameterPointer",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 2
+        },
+        "cppcheck:constVariablePointer": {
+          "ruleId": "cppcheck:constVariablePointer",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 2
+        },
+        "cppcheck:unreadVariable": {
+          "ruleId": "cppcheck:unreadVariable",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 2
+        },
+        "flawfinder:buffer/strlen": {
+          "ruleId": "flawfinder:buffer/strlen",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 2
+        }
+      }
+    },
+    "CWE-457": {
+      "cwe": "CWE-457",
+      "cweName": "Use_of_Uninitialized_Variable",
+      "totalFiles": 27,
+      "combined": {
+        "tp": 15,
+        "fn": 12,
+        "fp": 210,
+        "recall": 0.5556,
+        "precision": 0.0667,
+        "f1": 0.119
+      },
+      "byTool": {
+        "semgrep": {
+          "tool": "semgrep",
+          "tp": 0,
+          "fn": 27,
+          "fp": 27,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 9,
+          "fn": 18,
+          "fp": 39,
+          "recall": 0.3333,
+          "precision": 0.1875,
+          "f1": 0.24
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 0,
+          "fn": 27,
+          "fp": 27,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fn": 27,
+          "fp": 75,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 0,
+          "fn": 27,
+          "fp": 21,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 15,
+          "fn": 12,
+          "fp": 21,
+          "recall": 0.5556,
+          "precision": 0.4167,
+          "f1": 0.4762
+        }
+      },
+      "detectedFiles": [
+        "CWE457_Use_of_Uninitialized_Variable__char_pointer_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__double_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__double_array_declare_no_init_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__double_array_malloc_no_init_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__double_pointer_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__int64_t_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__int_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__int_array_declare_no_init_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__int_array_malloc_no_init_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__int_pointer_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__long_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__struct_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__struct_array_declare_no_init_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__struct_array_malloc_no_init_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__struct_pointer_01.c"
+      ],
+      "missedFiles": [
+        "CWE457_Use_of_Uninitialized_Variable__double_array_alloca_no_init_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__double_array_alloca_partial_init_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__double_array_declare_partial_init_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__double_array_malloc_partial_init_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__int_array_alloca_no_init_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__int_array_alloca_partial_init_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__int_array_declare_partial_init_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__int_array_malloc_partial_init_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__struct_array_alloca_no_init_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__struct_array_alloca_partial_init_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__struct_array_declare_partial_init_01.c",
+        "CWE457_Use_of_Uninitialized_Variable__struct_array_malloc_partial_init_01.c"
+      ],
+      "byRule": {
+        "cppcheck:uninitvar": {
+          "ruleId": "cppcheck:uninitvar",
+          "tool": "cppcheck",
+          "tp": 9,
+          "fp": 0
+        },
+        "gcc-fanalyzer:analyzer-use-of-uninitialized-value": {
+          "ruleId": "gcc-fanalyzer:analyzer-use-of-uninitialized-value",
+          "tool": "gcc-fanalyzer",
+          "tp": 15,
+          "fp": 0
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-338-rand": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-338-rand",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 27
+        },
+        "cppcheck:constVariablePointer": {
+          "ruleId": "cppcheck:constVariablePointer",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 15
+        },
+        "flawfinder:random/srand": {
+          "ruleId": "flawfinder:random/srand",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 27
+        },
+        "clang-tidy:clang-analyzer-core.CallAndMessage": {
+          "ruleId": "clang-tidy:clang-analyzer-core.CallAndMessage",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 12
+        },
+        "scan-build:core.CallAndMessage": {
+          "ruleId": "scan-build:core.CallAndMessage",
+          "tool": "scan-build",
+          "tp": 0,
+          "fp": 12
+        },
+        "cppcheck:allocaCalled": {
+          "ruleId": "cppcheck:allocaCalled",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 18
+        },
+        "clang-tidy:clang-diagnostic-int-to-pointer-cast": {
+          "ruleId": "clang-tidy:clang-diagnostic-int-to-pointer-cast",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 18
+        },
+        "clang-tidy:performance-no-int-to-ptr": {
+          "ruleId": "clang-tidy:performance-no-int-to-ptr",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 18
+        },
+        "clang-tidy:clang-diagnostic-implicit-function-declaration": {
+          "ruleId": "clang-tidy:clang-diagnostic-implicit-function-declaration",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 18
+        },
+        "gcc-fanalyzer:analyzer-malloc-leak": {
+          "ruleId": "gcc-fanalyzer:analyzer-malloc-leak",
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fp": 21
+        },
+        "cppcheck:memleak": {
+          "ruleId": "cppcheck:memleak",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 6
+        },
+        "clang-tidy:clang-analyzer-core.NullDereference": {
+          "ruleId": "clang-tidy:clang-analyzer-core.NullDereference",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 3
+        },
+        "clang-tidy:clang-analyzer-unix.Malloc": {
+          "ruleId": "clang-tidy:clang-analyzer-unix.Malloc",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 6
+        },
+        "scan-build:core.NullDereference": {
+          "ruleId": "scan-build:core.NullDereference",
+          "tool": "scan-build",
+          "tp": 0,
+          "fp": 3
+        },
+        "scan-build:unix.Malloc": {
+          "ruleId": "scan-build:unix.Malloc",
+          "tool": "scan-build",
+          "tp": 0,
+          "fp": 6
+        },
+        "cppcheck:uninitStructMember": {
+          "ruleId": "cppcheck:uninitStructMember",
+          "tool": "cppcheck",
+          "tp": 4,
+          "fp": 0
+        }
+      }
+    },
+    "CWE-476": {
+      "cwe": "CWE-476",
+      "cweName": "NULL_Pointer_Dereference",
+      "totalFiles": 8,
+      "combined": {
+        "tp": 8,
+        "fn": 0,
+        "fp": 55,
+        "recall": 1.0,
+        "precision": 0.127,
+        "f1": 0.2254
+      },
+      "byTool": {
+        "semgrep": {
+          "tool": "semgrep",
+          "tp": 0,
+          "fn": 8,
+          "fp": 8,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 8,
+          "fn": 0,
+          "fp": 31,
+          "recall": 1.0,
+          "precision": 0.2051,
+          "f1": 0.3404
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 0,
+          "fn": 8,
+          "fp": 8,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 7,
+          "fn": 1,
+          "fp": 2,
+          "recall": 0.875,
+          "precision": 0.7778,
+          "f1": 0.8235
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 7,
+          "fn": 1,
+          "fp": 2,
+          "recall": 0.875,
+          "precision": 0.7778,
+          "f1": 0.8235
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 7,
+          "fn": 1,
+          "fp": 4,
+          "recall": 0.875,
+          "precision": 0.6364,
+          "f1": 0.7368
+        }
+      },
+      "detectedFiles": [
+        "CWE476_NULL_Pointer_Dereference__binary_if_01.c",
+        "CWE476_NULL_Pointer_Dereference__char_01.c",
+        "CWE476_NULL_Pointer_Dereference__deref_after_check_01.c",
+        "CWE476_NULL_Pointer_Dereference__int64_t_01.c",
+        "CWE476_NULL_Pointer_Dereference__int_01.c",
+        "CWE476_NULL_Pointer_Dereference__long_01.c",
+        "CWE476_NULL_Pointer_Dereference__null_check_after_deref_01.c",
+        "CWE476_NULL_Pointer_Dereference__struct_01.c"
+      ],
+      "missedFiles": [],
+      "byRule": {
+        "cppcheck:nullPointer": {
+          "ruleId": "cppcheck:nullPointer",
+          "tool": "cppcheck",
+          "tp": 7,
+          "fp": 0
+        },
+        "clang-tidy:clang-analyzer-core.NullDereference": {
+          "ruleId": "clang-tidy:clang-analyzer-core.NullDereference",
+          "tool": "clang-tidy",
+          "tp": 7,
+          "fp": 0
+        },
+        "scan-build:core.NullDereference": {
+          "ruleId": "scan-build:core.NullDereference",
+          "tool": "scan-build",
+          "tp": 7,
+          "fp": 0
+        },
+        "gcc-fanalyzer:analyzer-null-dereference": {
+          "ruleId": "gcc-fanalyzer:analyzer-null-dereference",
+          "tool": "gcc-fanalyzer",
+          "tp": 7,
+          "fp": 0
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-338-rand": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-338-rand",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 8
+        },
+        "cppcheck:knownConditionTrueFalse": {
+          "ruleId": "cppcheck:knownConditionTrueFalse",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 10
+        },
+        "cppcheck:constVariablePointer": {
+          "ruleId": "cppcheck:constVariablePointer",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 19
+        },
+        "flawfinder:random/srand": {
+          "ruleId": "flawfinder:random/srand",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 8
+        },
+        "cppcheck:nullPointerRedundantCheck": {
+          "ruleId": "cppcheck:nullPointerRedundantCheck",
+          "tool": "cppcheck",
+          "tp": 3,
+          "fp": 0
+        },
+        "cppcheck:memleak": {
+          "ruleId": "cppcheck:memleak",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 2
+        },
+        "clang-tidy:clang-analyzer-unix.Malloc": {
+          "ruleId": "clang-tidy:clang-analyzer-unix.Malloc",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 2
+        },
+        "scan-build:unix.Malloc": {
+          "ruleId": "scan-build:unix.Malloc",
+          "tool": "scan-build",
+          "tp": 0,
+          "fp": 2
+        },
+        "gcc-fanalyzer:analyzer-possible-null-dereference": {
+          "ruleId": "gcc-fanalyzer:analyzer-possible-null-dereference",
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fp": 2
+        },
+        "gcc-fanalyzer:analyzer-malloc-leak": {
+          "ruleId": "gcc-fanalyzer:analyzer-malloc-leak",
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fp": 2
+        }
+      }
+    },
+    "CWE-680": {
+      "cwe": "CWE-680",
+      "cweName": "Integer_Overflow_to_Buffer_Overflow",
+      "totalFiles": 6,
+      "combined": {
+        "tp": 5,
+        "fn": 1,
+        "fp": 61,
+        "recall": 0.8333,
+        "precision": 0.0758,
+        "f1": 0.1389
+      },
+      "byTool": {
+        "semgrep": {
+          "tool": "semgrep",
+          "tp": 5,
+          "fn": 1,
+          "fp": 6,
+          "recall": 0.8333,
+          "precision": 0.4545,
+          "f1": 0.5882
+        },
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 0,
+          "fn": 6,
+          "fp": 9,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 3,
+          "fn": 3,
+          "fp": 9,
+          "recall": 0.5,
+          "precision": 0.25,
+          "f1": 0.3333
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 2,
+          "fn": 4,
+          "fp": 25,
+          "recall": 0.3333,
+          "precision": 0.0741,
+          "f1": 0.1212
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 0,
+          "fn": 6,
+          "fp": 12,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fn": 6,
+          "fp": 0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        }
+      },
+      "detectedFiles": [
+        "CWE680_Integer_Overflow_to_Buffer_Overflow__malloc_connect_socket_01.c",
+        "CWE680_Integer_Overflow_to_Buffer_Overflow__malloc_fgets_01.c",
+        "CWE680_Integer_Overflow_to_Buffer_Overflow__malloc_fscanf_01.c",
+        "CWE680_Integer_Overflow_to_Buffer_Overflow__malloc_listen_socket_01.c",
+        "CWE680_Integer_Overflow_to_Buffer_Overflow__malloc_rand_01.c"
+      ],
+      "missedFiles": [
+        "CWE680_Integer_Overflow_to_Buffer_Overflow__malloc_fixed_01.c"
+      ],
+      "byRule": {
+        "semgrep:rules.automotive.aegis.c.cwe-190-taint-arithmetic-overflow": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-190-taint-arithmetic-overflow",
+          "tool": "semgrep",
+          "tp": 4,
+          "fp": 0
+        },
+        "flawfinder:integer/atoi": {
+          "ruleId": "flawfinder:integer/atoi",
+          "tool": "flawfinder",
+          "tp": 3,
+          "fp": 0
+        },
+        "clang-tidy:bugprone-narrowing-conversions": {
+          "ruleId": "clang-tidy:bugprone-narrowing-conversions",
+          "tool": "clang-tidy",
+          "tp": 2,
+          "fp": 0
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-338-rand": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-338-rand",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 6
+        },
+        "cppcheck:redundantAssignment": {
+          "ruleId": "cppcheck:redundantAssignment",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 8
+        },
+        "flawfinder:random/srand": {
+          "ruleId": "flawfinder:random/srand",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 6
+        },
+        "flawfinder:buffer/char": {
+          "ruleId": "flawfinder:buffer/char",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 3
+        },
+        "clang-tidy:bugprone-macro-parentheses": {
+          "ruleId": "clang-tidy:bugprone-macro-parentheses",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 4
+        },
+        "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling": {
+          "ruleId": "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 3
+        },
+        "clang-tidy:cert-err34-c": {
+          "ruleId": "clang-tidy:cert-err34-c",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 4
+        },
+        "clang-tidy:clang-analyzer-core.CallAndMessage": {
+          "ruleId": "clang-tidy:clang-analyzer-core.CallAndMessage",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 4
+        },
+        "clang-tidy:clang-analyzer-deadcode.DeadStores": {
+          "ruleId": "clang-tidy:clang-analyzer-deadcode.DeadStores",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 8
+        },
+        "scan-build:core.CallAndMessage": {
+          "ruleId": "scan-build:core.CallAndMessage",
+          "tool": "scan-build",
+          "tp": 0,
+          "fp": 4
+        },
+        "scan-build:deadcode.DeadStores": {
+          "ruleId": "scan-build:deadcode.DeadStores",
+          "tool": "scan-build",
+          "tp": 0,
+          "fp": 8
+        },
+        "cppcheck:signConversion": {
+          "ruleId": "cppcheck:signConversion",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 1
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-190-fscanf-then-arithmetic": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-190-fscanf-then-arithmetic",
+          "tool": "semgrep",
+          "tp": 1,
+          "fp": 0
+        },
+        "clang-tidy:cert-err33-c": {
+          "ruleId": "clang-tidy:cert-err33-c",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 1
+        },
+        "clang-tidy:cert-msc30-c,cert-msc50-cpp": {
+          "ruleId": "clang-tidy:cert-msc30-c,cert-msc50-cpp",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 1
+        }
+      }
+    },
+    "CWE-78": {
+      "cwe": "CWE-78",
+      "cweName": "OS_Command_Injection",
+      "totalFiles": 25,
+      "combined": {
+        "tp": 20,
+        "fn": 5,
+        "fp": 339,
+        "recall": 0.8,
+        "precision": 0.0557,
+        "f1": 0.1042
+      },
+      "byTool": {
+        "semgrep": {
+          "tool": "semgrep",
+          "tp": 0,
+          "fn": 25,
+          "fp": 80,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 0,
+          "fn": 25,
+          "fp": 5,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 20,
+          "fn": 5,
+          "fp": 150,
+          "recall": 0.8,
+          "precision": 0.1176,
+          "f1": 0.2051
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 10,
+          "fn": 15,
+          "fp": 104,
+          "recall": 0.4,
+          "precision": 0.0877,
+          "f1": 0.1439
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 0,
+          "fn": 25,
+          "fp": 0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fn": 25,
+          "fp": 0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        }
+      },
+      "detectedFiles": [
+        "CWE78_OS_Command_Injection__char_connect_socket_execl_01.c",
+        "CWE78_OS_Command_Injection__char_connect_socket_execlp_01.c",
+        "CWE78_OS_Command_Injection__char_connect_socket_popen_01.c",
+        "CWE78_OS_Command_Injection__char_connect_socket_system_01.c",
+        "CWE78_OS_Command_Injection__char_console_execl_01.c",
+        "CWE78_OS_Command_Injection__char_console_execlp_01.c",
+        "CWE78_OS_Command_Injection__char_console_popen_01.c",
+        "CWE78_OS_Command_Injection__char_console_system_01.c",
+        "CWE78_OS_Command_Injection__char_environment_execl_01.c",
+        "CWE78_OS_Command_Injection__char_environment_execlp_01.c",
+        "CWE78_OS_Command_Injection__char_environment_popen_01.c",
+        "CWE78_OS_Command_Injection__char_environment_system_01.c",
+        "CWE78_OS_Command_Injection__char_file_execl_01.c",
+        "CWE78_OS_Command_Injection__char_file_execlp_01.c",
+        "CWE78_OS_Command_Injection__char_file_popen_01.c",
+        "CWE78_OS_Command_Injection__char_file_system_01.c",
+        "CWE78_OS_Command_Injection__char_listen_socket_execl_01.c",
+        "CWE78_OS_Command_Injection__char_listen_socket_execlp_01.c",
+        "CWE78_OS_Command_Injection__char_listen_socket_popen_01.c",
+        "CWE78_OS_Command_Injection__char_listen_socket_system_01.c"
+      ],
+      "missedFiles": [
+        "CWE78_OS_Command_Injection__char_connect_socket_w32spawnl_01.c",
+        "CWE78_OS_Command_Injection__char_console_w32spawnl_01.c",
+        "CWE78_OS_Command_Injection__char_environment_w32spawnl_01.c",
+        "CWE78_OS_Command_Injection__char_file_w32spawnl_01.c",
+        "CWE78_OS_Command_Injection__char_listen_socket_w32spawnl_01.c"
+      ],
+      "byRule": {
+        "flawfinder:shell/execl": {
+          "ruleId": "flawfinder:shell/execl",
+          "tool": "flawfinder",
+          "tp": 5,
+          "fp": 0
+        },
+        "semgrep:c.lang.security.insecure-use-strcat-fn.insecure-use-strcat-fn": {
+          "ruleId": "semgrep:c.lang.security.insecure-use-strcat-fn.insecure-use-strcat-fn",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 30
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-787-strcat-unbounded": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-787-strcat-unbounded",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 25
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-338-rand": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-338-rand",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 25
+        },
+        "flawfinder:random/srand": {
+          "ruleId": "flawfinder:random/srand",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 25
+        },
+        "flawfinder:buffer/char": {
+          "ruleId": "flawfinder:buffer/char",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 50
+        },
+        "flawfinder:buffer/strcat": {
+          "ruleId": "flawfinder:buffer/strcat",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 25
+        },
+        "flawfinder:buffer/strlen": {
+          "ruleId": "flawfinder:buffer/strlen",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 30
+        },
+        "clang-tidy:bugprone-macro-parentheses": {
+          "ruleId": "clang-tidy:bugprone-macro-parentheses",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 20
+        },
+        "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling": {
+          "ruleId": "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 9
+        },
+        "clang-tidy:bugprone-narrowing-conversions": {
+          "ruleId": "clang-tidy:bugprone-narrowing-conversions",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 10
+        },
+        "clang-tidy:clang-analyzer-security.insecureAPI.strcpy": {
+          "ruleId": "clang-tidy:clang-analyzer-security.insecureAPI.strcpy",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 15
+        },
+        "flawfinder:shell/execlp": {
+          "ruleId": "flawfinder:shell/execlp",
+          "tool": "flawfinder",
+          "tp": 5,
+          "fp": 0
+        },
+        "flawfinder:shell/popen": {
+          "ruleId": "flawfinder:shell/popen",
+          "tool": "flawfinder",
+          "tp": 5,
+          "fp": 0
+        },
+        "clang-tidy:cert-env33-c": {
+          "ruleId": "clang-tidy:cert-env33-c",
+          "tool": "clang-tidy",
+          "tp": 20,
+          "fp": 0
+        },
+        "clang-tidy:clang-diagnostic-int-conversion": {
+          "ruleId": "clang-tidy:clang-diagnostic-int-conversion",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 10
+        },
+        "clang-tidy:clang-diagnostic-implicit-function-declaration": {
+          "ruleId": "clang-tidy:clang-diagnostic-implicit-function-declaration",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 20
+        },
+        "clang-tidy:performance-no-int-to-ptr": {
+          "ruleId": "clang-tidy:performance-no-int-to-ptr",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 10
+        },
+        "flawfinder:shell/system": {
+          "ruleId": "flawfinder:shell/system",
+          "tool": "flawfinder",
+          "tp": 10,
+          "fp": 0
+        },
+        "clang-tidy:clang-diagnostic-error": {
+          "ruleId": "clang-tidy:clang-diagnostic-error",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 5
+        },
+        "cppcheck:constVariablePointer": {
+          "ruleId": "cppcheck:constVariablePointer",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 5
+        },
+        "flawfinder:buffer/getenv": {
+          "ruleId": "flawfinder:buffer/getenv",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 10
+        },
+        "flawfinder:buffer/strncat": {
+          "ruleId": "flawfinder:buffer/strncat",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 5
+        },
+        "flawfinder:misc/fopen": {
+          "ruleId": "flawfinder:misc/fopen",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 5
+        },
+        "clang-tidy:cert-err33-c": {
+          "ruleId": "clang-tidy:cert-err33-c",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 5
+        }
+      }
+    }
+  },
+  "summary": {
+    "overallRecall": 0.8366,
+    "overallPrecision": 0.0682,
+    "overallF1": 0.1261,
+    "totalTP": 302,
+    "totalFN": 59,
+    "totalFP": 4128,
+    "cweCount": 12
+  }
+}

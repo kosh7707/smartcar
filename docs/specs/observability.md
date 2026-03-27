@@ -224,9 +224,78 @@ scripts/common/aegis-trace.sh <requestId> [--errors-only] [--service s3,s7]
 
 ---
 
-## 9. 버전 히스토리
+## 9. MCP 로그 분석 도구 (log-analyzer)
+
+**위치**: `tools/log-analyzer/` (S2 소유)
+**등록**: `.mcp.json` → `log-analyzer` 서버
+**기반**: Python + FastMCP + SQLite 캐시 (mtime/size 기반 무효화)
+
+### 도구 목록 (6개)
+
+#### `trace_request(request_id)`
+전 서비스 파이프라인을 시간순 워터폴로 추적. LLM exchange가 있으면 턴별 프롬프트 토큰 증가도 자동 표시.
+
+```
+trace_request("integ-1774504776-analyze")
+→ 워터폴 + "Turn 1: prompt=2,368 (+2,368) ... Turn 3: prompt=23,818 (+15,088) ← 폭발 지점"
+```
+
+#### `search_errors(since_minutes=60, service=None, request_id=None, min_level=50, limit=20)`
+최근 에러/경고 로그 검색. `min_level=40`으로 WARN까지 포함 가능.
+
+#### `search_logs(query, since_minutes=1440, service=None, min_level=20, limit=30)`
+로그 메시지(msg) full-text 검색 (case-insensitive). 키워드로 특정 이벤트를 빠르게 탐색.
+
+```
+search_logs("OOM", since_minutes=1440)
+search_logs("BUILD_FAILED", service="s3-build")
+```
+
+#### `list_requests(limit=10, service=None)`
+최근 requestId 목록과 요약 (서비스, 소요시간, 에러 여부).
+
+#### `service_stats(service=None, since_minutes=60)`
+서비스별 통계: 요청 수, 에러율, 평균/최대 레이턴시, 토큰 사용량, 도구 호출 빈도.
+
+#### `llm_stats(since_minutes=1440)`
+LLM exchange 전용 통계: 호출 수, 평균/최대 레이턴시, 평균/최대 prompt 토큰, tool_calls vs content 비율.
+
+```
+llm_stats(since_minutes=60)
+→ 총 호출: 90회 / 평균 레이턴시: 10.4s / 최대 prompt 토큰: 41,740 / tool_calls: 95%
+```
+
+### 활용 가이드
+
+| 상황 | 도구 |
+|------|------|
+| 요청 추적 (워터폴) | `trace_request` |
+| 장애 원인 파악 | `search_errors` + `trace_request` |
+| 특정 키워드 검색 (OOM, timeout 등) | `search_logs` |
+| 서비스 건강 점검 | `service_stats` |
+| 에이전트 효율 분석 | `llm_stats` + `trace_request` (턴별 토큰) |
+| 최근 활동 확인 | `list_requests` |
+
+### 로그 파일
+
+| 파일 | 서비스 | 비고 |
+|------|--------|------|
+| `s2-backend.jsonl` | S2 Backend | |
+| `aegis-analysis-agent.jsonl` | S3 Analysis Agent | |
+| `aegis-build-agent.jsonl` | S3 Build Agent | |
+| `s4-sast-runner.jsonl` | S4 SAST Runner | |
+| `aegis-knowledge-base.jsonl` | S5 Knowledge Base | |
+| `adapter.jsonl` | S6 Adapter | |
+| `ecu-simulator.jsonl` | S6 ECU Simulator | |
+| `aegis-llm-gateway.jsonl` | S7 LLM Gateway | |
+| `llm-exchange.jsonl` | LLM 호출 상세 | `llm_stats` 전용 데이터소스 |
+
+---
+
+## 10. 버전 히스토리
 
 | 날짜 | 변경 |
 |------|------|
 | 2026-03-12 | 최초 작성 (에러 응답, 에러 코드, 로그 포맷, Request ID) |
 | 2026-03-23 | 전면 개편: 로그 레벨 숫자 표준 확정, 서비스 식별자 7개 확정, X-Request-Id 전파 규약 강화, HTTP 호출 로그 표준 추가, 로그 파일 위치 현행화, S1 규칙 추가, 에러 코드 확장 (Agent/SAST/Circuit Breaker) |
+| 2026-03-26 | MCP 로그 분석 도구 섹션 추가 (6개 도구 상세 문서화). S3 피드백 반영: 턴별 토큰 추적, full-text 검색, LLM 전용 통계 |

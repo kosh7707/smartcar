@@ -12,8 +12,8 @@ import {
 } from "../ui";
 import { EvidencePanel } from "../finding/EvidencePanel";
 import { EvidenceViewer } from "../finding/EvidenceViewer";
-import { fetchFindingDetail, updateFindingStatus, generatePoc, logError } from "../../api/client";
-import type { PocResponse } from "../../api/client";
+import { fetchFindingDetail, updateFindingStatus, generatePoc, fetchFindingHistory, logError } from "../../api/client";
+import type { PocResponse, FindingHistoryEntry } from "../../api/client";
 import { useToast } from "../../contexts/ToastContext";
 import { formatDateTime } from "../../utils/format";
 import { renderMarkdown } from "../../utils/markdown";
@@ -37,6 +37,9 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
   const [pocData, setPocData] = useState<PocResponse | null>(null);
   const [pocLoading, setPocLoading] = useState(false);
 
+  // Fingerprint history
+  const [history, setHistory] = useState<FindingHistoryEntry[]>([]);
+
   const loadDetail = useCallback(async () => {
     try {
       const data = await fetchFindingDetail(findingId);
@@ -52,9 +55,13 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
   useEffect(() => {
     setLoading(true);
     setPocData(null);
+    setHistory([]);
     loadDetail();
+    fetchFindingHistory(findingId)
+      .then(setHistory)
+      .catch(() => setHistory([]));
     return () => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); };
-  }, [loadDetail]);
+  }, [loadDetail, findingId]);
 
   const handleStatusChange = async (newStatus: FindingStatus, reason: string) => {
     if (!finding) return;
@@ -131,7 +138,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
           <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
           {(finding as Record<string, unknown>).fingerprint && (
             <span className="fingerprint-badge" title="이전 분석에서도 발견된 취약점 (fingerprint 추적)">
-              <History size={12} /> 재발견
+              <History size={12} /> 재발견{history.length > 1 ? ` (${history.length}회)` : ""}
             </span>
           )}
           <h2 className="finding-banner__title">
@@ -231,6 +238,26 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
         evidenceRefs={finding.evidenceRefs}
         onSelectEvidence={setSelectedEvidence}
       />
+
+      {/* Fingerprint History */}
+      {history.length > 1 && (
+        <div className="card">
+          <div className="card-title">
+            <History size={16} />
+            발견 이력 ({history.length}회)
+          </div>
+          <div className="audit-timeline">
+            {history.map((h) => (
+              <div key={h.findingId} className="audit-entry">
+                <span className="audit-entry__time">{formatDateTime(h.createdAt)}</span>
+                <span className="audit-entry__body">
+                  Run {h.runId.slice(0, 8)} — 상태: {h.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Audit Log Timeline */}
       {finding.auditLog.length > 0 && (

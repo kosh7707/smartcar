@@ -31,6 +31,7 @@ import type { ProjectSettingsService } from "./project-settings.service";
 import type { BuildTargetService } from "./build-target.service";
 import type { ResultNormalizer, NormalizerContext } from "./result-normalizer";
 import type { WsBroadcaster } from "./ws-broadcaster";
+import type { TargetLibraryDAO } from "../dao/target-library.dao";
 
 const logger = createLogger("analysis-orchestrator");
 
@@ -44,6 +45,7 @@ export class AnalysisOrchestrator {
     private resultNormalizer: ResultNormalizer,
     private ws?: WsBroadcaster<WsAnalysisMessage>,
     private buildTargetService?: BuildTargetService,
+    private targetLibraryDAO?: TargetLibraryDAO,
   ) {}
 
   async runAnalysis(
@@ -89,6 +91,9 @@ export class AnalysisOrchestrator {
       const scanPath = path.join(projectPath, target.relativePath);
       const targetProgress = { current: i + 1, total: targets.length };
 
+      // 서드파티 라이브러리 경로 조회 (S4가 cross-boundary 필터링에 사용)
+      const thirdPartyPaths = this.targetLibraryDAO?.getIncludedPaths(target.id) ?? [];
+
       await this.runSingleAnalysis(
         projectId,
         `${analysisId}-${target.name}`,
@@ -97,6 +102,7 @@ export class AnalysisOrchestrator {
         { name: target.name, relativePath: target.relativePath, progress: targetProgress },
         requestId,
         signal,
+        thirdPartyPaths.length > 0 ? thirdPartyPaths : undefined,
       );
     }
   }
@@ -110,6 +116,7 @@ export class AnalysisOrchestrator {
     targetInfo?: { name: string; relativePath: string; progress?: { current: number; total: number } },
     requestId?: string,
     signal?: AbortSignal,
+    thirdPartyPaths?: string[],
   ): Promise<void> {
     const prefix = targetInfo ? `[${targetInfo.name}] ` : "";
     const files = this.sourceService.listFiles(projectId);
@@ -133,7 +140,7 @@ export class AnalysisOrchestrator {
     try {
       const scanId = `scan-${crypto.randomUUID().slice(0, 8)}`;
       const sastResponse = await this.sastClient.scan(
-        { scanId, projectId, projectPath: scanPath, buildProfile },
+        { scanId, projectId, projectPath: scanPath, buildProfile, thirdPartyPaths },
         requestId,
         signal,
       );
@@ -201,6 +208,7 @@ export class AnalysisOrchestrator {
             sastFindings,
             codeGraphSummary,
             scaLibraries,
+            thirdPartyPaths,
           },
         },
         evidenceRefs,

@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
 import type { BuildTarget } from "@aegis/shared";
 import { Check, Play } from "lucide-react";
-import { getSdkProfile } from "../../constants/sdkProfiles";
 import "./TargetSelectDialog.css";
 
 interface Props {
@@ -70,7 +69,7 @@ export const TargetSelectDialog: React.FC<Props> = ({ open, targets, onConfirm, 
           {/* Target list */}
           {targets.map((t) => {
             const isSelected = selected.has(t.id);
-            const sdk = getSdkProfile(t.buildProfile.sdkId);
+            const sdkLabel = t.buildProfile.sdkId === "none" ? null : t.buildProfile.sdkId;
             return (
               <div
                 key={t.id}
@@ -88,7 +87,7 @@ export const TargetSelectDialog: React.FC<Props> = ({ open, targets, onConfirm, 
                   <div className="tsd__name">{t.name}</div>
                   <div className="tsd__path">{t.relativePath}</div>
                 </div>
-                {sdk && <span className="tsd__sdk">{sdk.name}</span>}
+                {sdkLabel && <span className="tsd__sdk">{sdkLabel}</span>}
               </div>
             );
           })}

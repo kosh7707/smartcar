@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
+from app.main import app
 from tests.conftest import ALL_TASK_TYPES
 
 
@@ -167,7 +168,7 @@ class TestChatProxy:
         }
         mock_resp = httpx.Response(200, json=mock_llm_response)
 
-        with patch("app.routers.tasks._proxy_client") as mock_client:
+        with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(return_value=mock_resp)
 
             resp = client_live.post("/v1/chat", json={
@@ -190,7 +191,7 @@ class TestChatProxy:
         }
         mock_resp = httpx.Response(200, json=mock_llm_response)
 
-        with patch("app.routers.tasks._proxy_client") as mock_client:
+        with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(return_value=mock_resp)
 
             resp = client_live.post("/v1/chat", json={
@@ -211,7 +212,7 @@ class TestChatProxy:
         }
         mock_resp = httpx.Response(200, json=mock_llm_response)
 
-        with patch("app.routers.tasks._proxy_client") as mock_client:
+        with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(return_value=mock_resp)
 
             resp = client_live.post(
@@ -229,7 +230,7 @@ class TestChatProxy:
 
     def test_chat_proxy_503_on_connect_error(self, client_live):
         """LLM Engine 연결 실패 시 503 반환."""
-        with patch("app.routers.tasks._proxy_client") as mock_client:
+        with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(side_effect=httpx.ConnectError("refused"))
 
             resp = client_live.post("/v1/chat", json={
@@ -242,7 +243,7 @@ class TestChatProxy:
 
     def test_chat_proxy_504_on_timeout(self, client_live):
         """LLM Engine 타임아웃 시 504 반환."""
-        with patch("app.routers.tasks._proxy_client") as mock_client:
+        with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("timeout"))
 
             resp = client_live.post("/v1/chat", json={
@@ -271,7 +272,7 @@ class TestChatProxy:
         }
         mock_resp = httpx.Response(200, json=mock_llm_response)
 
-        with patch("app.routers.tasks._proxy_client") as mock_client:
+        with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(return_value=mock_resp)
 
             resp = client_live.post("/v1/chat", json={

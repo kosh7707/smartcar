@@ -1,0 +1,233 @@
+{
+  "timestamp": "2026-03-26T09:29:22.180810+00:00",
+  "julietPath": "/home/kosh/Juliet/C",
+  "variantFilter": "01",
+  "targetCWEs": [
+    "CWE-369"
+  ],
+  "tools": null,
+  "results": {
+    "CWE-369": {
+      "cwe": "CWE-369",
+      "cweName": "Divide_by_Zero",
+      "totalFiles": 18,
+      "combined": {
+        "tp": 17,
+        "fn": 1,
+        "fp": 236,
+        "recall": 0.9444,
+        "precision": 0.0672,
+        "f1": 0.1255
+      },
+      "byTool": {
+        "semgrep": {
+          "tool": "semgrep",
+          "tp": 15,
+          "fn": 3,
+          "fp": 18,
+          "recall": 0.8333,
+          "precision": 0.4545,
+          "f1": 0.5882
+        },
+        "cppcheck": {
+          "tool": "cppcheck",
+          "tp": 2,
+          "fn": 16,
+          "fp": 22,
+          "recall": 0.1111,
+          "precision": 0.0833,
+          "f1": 0.0952
+        },
+        "flawfinder": {
+          "tool": "flawfinder",
+          "tp": 0,
+          "fn": 18,
+          "fp": 48,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "clang-tidy": {
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fn": 18,
+          "fp": 116,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "scan-build": {
+          "tool": "scan-build",
+          "tp": 0,
+          "fn": 18,
+          "fp": 32,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "gcc-fanalyzer": {
+          "tool": "gcc-fanalyzer",
+          "tp": 0,
+          "fn": 18,
+          "fp": 0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        }
+      },
+      "detectedFiles": [
+        "CWE369_Divide_by_Zero__float_connect_socket_01.c",
+        "CWE369_Divide_by_Zero__float_fgets_01.c",
+        "CWE369_Divide_by_Zero__float_fscanf_01.c",
+        "CWE369_Divide_by_Zero__float_listenSocket_01.c",
+        "CWE369_Divide_by_Zero__float_rand_01.c",
+        "CWE369_Divide_by_Zero__int_connect_socket_divide_01.c",
+        "CWE369_Divide_by_Zero__int_connect_socket_modulo_01.c",
+        "CWE369_Divide_by_Zero__int_fgets_divide_01.c",
+        "CWE369_Divide_by_Zero__int_fgets_modulo_01.c",
+        "CWE369_Divide_by_Zero__int_fscanf_divide_01.c",
+        "CWE369_Divide_by_Zero__int_fscanf_modulo_01.c",
+        "CWE369_Divide_by_Zero__int_listen_socket_divide_01.c",
+        "CWE369_Divide_by_Zero__int_listen_socket_modulo_01.c",
+        "CWE369_Divide_by_Zero__int_rand_divide_01.c",
+        "CWE369_Divide_by_Zero__int_rand_modulo_01.c",
+        "CWE369_Divide_by_Zero__int_zero_divide_01.c",
+        "CWE369_Divide_by_Zero__int_zero_modulo_01.c"
+      ],
+      "missedFiles": [
+        "CWE369_Divide_by_Zero__float_zero_01.c"
+      ],
+      "byRule": {
+        "semgrep:rules.automotive.aegis.c.cwe-369-taint-divide-by-zero": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-369-taint-divide-by-zero",
+          "tool": "semgrep",
+          "tp": 24,
+          "fp": 0
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-338-rand": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-338-rand",
+          "tool": "semgrep",
+          "tp": 0,
+          "fp": 18
+        },
+        "flawfinder:random/srand": {
+          "ruleId": "flawfinder:random/srand",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 18
+        },
+        "flawfinder:buffer/char": {
+          "ruleId": "flawfinder:buffer/char",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 18
+        },
+        "clang-tidy:bugprone-macro-parentheses": {
+          "ruleId": "clang-tidy:bugprone-macro-parentheses",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 12
+        },
+        "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling": {
+          "ruleId": "clang-tidy:clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 18
+        },
+        "clang-tidy:bugprone-narrowing-conversions": {
+          "ruleId": "clang-tidy:bugprone-narrowing-conversions",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 12
+        },
+        "clang-tidy:cert-err34-c": {
+          "ruleId": "clang-tidy:cert-err34-c",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 24
+        },
+        "clang-tidy:clang-analyzer-deadcode.DeadStores": {
+          "ruleId": "clang-tidy:clang-analyzer-deadcode.DeadStores",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 30
+        },
+        "clang-tidy:performance-type-promotion-in-math-fn": {
+          "ruleId": "clang-tidy:performance-type-promotion-in-math-fn",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 6
+        },
+        "scan-build:deadcode.DeadStores": {
+          "ruleId": "scan-build:deadcode.DeadStores",
+          "tool": "scan-build",
+          "tp": 0,
+          "fp": 30
+        },
+        "semgrep:rules.automotive.aegis.c.cwe-369-fscanf-then-divide": {
+          "ruleId": "semgrep:rules.automotive.aegis.c.cwe-369-fscanf-then-divide",
+          "tool": "semgrep",
+          "tp": 6,
+          "fp": 0
+        },
+        "clang-tidy:cert-err33-c": {
+          "ruleId": "clang-tidy:cert-err33-c",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 6
+        },
+        "clang-tidy:cert-msc30-c,cert-msc50-cpp": {
+          "ruleId": "clang-tidy:cert-msc30-c,cert-msc50-cpp",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 6
+        },
+        "cppcheck:redundantAssignment": {
+          "ruleId": "cppcheck:redundantAssignment",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 20
+        },
+        "flawfinder:integer/atoi": {
+          "ruleId": "flawfinder:integer/atoi",
+          "tool": "flawfinder",
+          "tp": 0,
+          "fp": 12
+        },
+        "cppcheck:zerodiv": {
+          "ruleId": "cppcheck:zerodiv",
+          "tool": "cppcheck",
+          "tp": 2,
+          "fp": 0
+        },
+        "cppcheck:knownConditionTrueFalse": {
+          "ruleId": "cppcheck:knownConditionTrueFalse",
+          "tool": "cppcheck",
+          "tp": 0,
+          "fp": 2
+        },
+        "clang-tidy:clang-analyzer-core.DivideZero": {
+          "ruleId": "clang-tidy:clang-analyzer-core.DivideZero",
+          "tool": "clang-tidy",
+          "tp": 0,
+          "fp": 2
+        },
+        "scan-build:core.DivideZero": {
+          "ruleId": "scan-build:core.DivideZero",
+          "tool": "scan-build",
+          "tp": 0,
+          "fp": 2
+        }
+      }
+    }
+  },
+  "summary": {
+    "overallRecall": 0.9444,
+    "overallPrecision": 0.0672,
+    "overallF1": 0.1255,
+    "totalTP": 17,
+    "totalFN": 1,
+    "totalFP": 236,
+    "cweCount": 1
+  }
+}

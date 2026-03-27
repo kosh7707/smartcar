@@ -19,7 +19,6 @@ import { AnalysisHistoryPage } from "./pages/AnalysisHistoryPage";
 import { ReportPage } from "./pages/ReportPage";
 import { QualityGatePage } from "./pages/QualityGatePage";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
-import { SdkManagementPage } from "./pages/SdkManagementPage";
 import { ComingSoonPlaceholder } from "./components/ui";
 
 export const App: React.FC = () => {
@@ -47,7 +46,6 @@ export const App: React.FC = () => {
                     <Route path="report" element={<ReportPage />} />
                     <Route path="quality-gate" element={<QualityGatePage />} />
                     <Route path="approvals" element={<ApprovalsPage />} />
-                    <Route path="sdk" element={<SdkManagementPage />} />
                     <Route path="dynamic-analysis" element={<ComingSoonPlaceholder title="동적 분석" />} />
                     <Route path="dynamic-test" element={<ComingSoonPlaceholder title="동적 테스트" />} />
                     <Route path="settings" element={<ProjectSettingsPage />} />

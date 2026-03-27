@@ -92,15 +92,16 @@ class Phase1Executor:
         build_profile = trusted.get("buildProfile")
         build_command = trusted.get("buildCommand")
         third_party_paths = trusted.get("thirdPartyPaths", [])
+        sast_tools = trusted.get("sastTools")  # S4 v0.6.0: 도구 서브셋 선택 (None이면 전체)
         request_id = get_request_id() or session.request.taskId
 
         # targetPath가 지정되면 projectPath/targetPath를 분석 루트로 사용
         analysis_path = project_path
         if project_path and target_path:
-            combined = os.path.normpath(f"{project_path}/{target_path}")
-            # directory traversal 차단: projectPath 밖으로 나가면 무시
-            if combined.startswith(project_path.rstrip("/")):
-                analysis_path = combined
+            from agent_shared.path_util import resolve_scoped_path
+            scoped = resolve_scoped_path(project_path, target_path)
+            if scoped is not None:
+                analysis_path = scoped
             else:
                 agent_log(
                     logger, "targetPath directory traversal 차단",
@@ -160,6 +161,7 @@ class Phase1Executor:
                     result = await self._run_individual_tools(
                         result, files, project_id, analysis_path, build_profile, request_id,
                         third_party_paths=third_party_paths,
+                        sast_tools=sast_tools,
                     )
             else:
                 # files 기반 또는 projectPath만 (빌드 정보 없음) — 개별 도구 실행
@@ -272,12 +274,14 @@ class Phase1Executor:
     async def _run_individual_tools(
         self, result: Phase1Result, files, project_id, project_path, build_profile, request_id,
         *, third_party_paths: list[str] | None = None,
+        sast_tools: list[str] | None = None,
     ) -> Phase1Result:
         """개별 도구 호출 (files 또는 projectPath 기반)."""
         if self._sast_tool and (files or project_path):
             result = await self._run_sast(result, files, project_id, build_profile, request_id,
                                           third_party_paths=third_party_paths,
-                                          project_path=project_path)
+                                          project_path=project_path,
+                                          sast_tools=sast_tools)
         if self._codegraph_tool and (files or project_path):
             result = await self._run_codegraph(result, files, project_id, build_profile, request_id,
                                                project_path=project_path)
@@ -334,6 +338,7 @@ class Phase1Executor:
         self, result: Phase1Result, files, project_id, build_profile, request_id,
         *, third_party_paths: list[str] | None = None,
         project_path: str | None = None,
+        sast_tools: list[str] | None = None,
     ) -> Phase1Result:
         """SAST 스캔 실행."""
         agent_log(
@@ -342,6 +347,7 @@ class Phase1Executor:
             fileCount=len(files) if files else 0,
             projectPath=project_path,
             thirdPartyPaths=len(third_party_paths) if third_party_paths else 0,
+            tools=sast_tools,
         )
 
         args: dict = {
@@ -358,6 +364,9 @@ class Phase1Executor:
                 args["buildProfile"] = {"sdkId": sdk_id}
         if third_party_paths:
             args["thirdPartyPaths"] = third_party_paths
+        # S4 v0.6.0: 도구 서브셋 선택 (미지정 시 전체)
+        if sast_tools:
+            args.setdefault("options", {})["tools"] = sast_tools
 
         start = time.monotonic()
         try:
@@ -731,10 +740,12 @@ def _format_origin_label(func: dict) -> str:
 
 
 def _format_cve_line(cve: dict) -> str:
-    """CVE 한 줄 포맷 (EPSS/KEV 포함)."""
+    """CVE 한 줄 포맷 (risk_score/EPSS/KEV/kb_context 포함)."""
     line = f"- **{cve.get('id', '?')}** ({cve.get('_library', '?')} {cve.get('_version', '')})"
     if cve.get("title"):
         line += f" — {cve['title']}"
+    if cve.get("risk_score") is not None:
+        line += f" | risk={cve['risk_score']:.2f}"
     if cve.get("severity") is not None:
         line += f" | CVSS {cve['severity']}"
     if cve.get("kev") is True:
@@ -745,6 +756,18 @@ def _format_cve_line(cve: dict) -> str:
         line += f" | 영향 범위: {cve['affected_versions']}"
     if cve.get("related_cwe"):
         line += f" | {', '.join(cve['related_cwe'][:3])}"
+    # S5 kb_context: 위협 카테고리 + 공격 표면
+    kb_ctx = cve.get("kb_context")
+    if kb_ctx:
+        cats = kb_ctx.get("threat_categories", [])
+        surfaces = kb_ctx.get("attack_surfaces", [])
+        if cats or surfaces:
+            ctx_parts = []
+            if cats:
+                ctx_parts.append("/".join(cats[:2]))
+            if surfaces:
+                ctx_parts.append("/".join(surfaces[:2]))
+            line += f" | 도메인: {', '.join(ctx_parts)}"
     return line
 
 
@@ -924,12 +947,20 @@ def build_phase2_prompt(
         unmatched_cves = [c for c in phase1.cve_lookup if c.get("version_match") is False]
 
         if matched_cves:
-            # EPSS/KEV 기반 critical CVE 분류
-            critical_cves = [
-                c for c in matched_cves
-                if c.get("kev") is True or (c.get("epss_score") or 0) > 0.5
-            ]
-            normal_cves = [c for c in matched_cves if c not in critical_cves]
+            # risk_score 기반 정렬 (S5 v2: CVSS+EPSS+KEV+도메인 복합 점수)
+            # risk_score 없으면 EPSS/KEV fallback
+            def _cve_risk(c: dict) -> float:
+                if c.get("risk_score") is not None:
+                    return c["risk_score"]
+                score = 0.0
+                if c.get("kev") is True:
+                    score += 0.5
+                score += (c.get("epss_score") or 0) * 0.5
+                return score
+
+            matched_cves.sort(key=_cve_risk, reverse=True)
+            critical_cves = [c for c in matched_cves if _cve_risk(c) >= 0.3]
+            normal_cves = [c for c in matched_cves if _cve_risk(c) < 0.3]
 
             cve_lines = [
                 f"## 라이브러리 CVE (실시간 조회, 버전 매칭 완료 — {len(matched_cves)}건)",
@@ -938,7 +969,7 @@ def build_phase2_prompt(
             ]
 
             if critical_cves:
-                cve_lines.append(f"### 🔴 긴급 CVE ({len(critical_cves)}건 — 실제 악용 확인 또는 악용 확률 높음)")
+                cve_lines.append(f"### 🔴 고위험 CVE ({len(critical_cves)}건 — risk_score ≥ 0.3)")
                 for cve in critical_cves[:10]:
                     cve_lines.append(_format_cve_line(cve))
                 cve_lines.append("")

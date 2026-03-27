@@ -201,6 +201,10 @@ class Neo4jGraph:
             node = record["m"]
             meta = dict(node)
             meta.pop("id", None)
+            # Neo4j DateTime → ISO 문자열 변환
+            for key, val in meta.items():
+                if hasattr(val, "iso_format"):
+                    meta[key] = val.iso_format()
             return meta
 
     # --- 추가 메서드 (API용) ---

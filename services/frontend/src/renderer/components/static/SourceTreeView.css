@@ -56,7 +56,8 @@
   display: grid;
   grid-template-columns: 360px 1fr;
   gap: var(--space-4);
-  min-height: 500px;
+  height: calc(100vh - 280px);
+  min-height: 400px;
 }
 
 @media (max-width: 900px) {

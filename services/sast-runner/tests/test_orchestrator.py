@@ -112,24 +112,24 @@ class TestFilterUserCodeFindings:
             _make_finding("src/main.c"),
             _make_finding("lib/util.c"),
         ]
-        result, cross = _filter_user_code_findings(findings, ["src/main.c", "lib/util.c"])
+        result, stats = _filter_user_code_findings(findings, [])
         assert len(result) == 2
-        assert cross == 0
+        assert stats["cross_boundary"] == 0
 
     def test_removes_absolute_paths(self):
         findings = [
             _make_finding("src/main.c"),
             _make_finding("/usr/include/stdio.h"),
         ]
-        result, cross = _filter_user_code_findings(findings, ["src/main.c"])
+        result, stats = _filter_user_code_findings(findings, [])
         assert len(result) == 1
         assert result[0].location.file == "src/main.c"
-        assert cross == 0
+        assert stats["cross_boundary"] == 0
 
     def test_empty_findings(self):
-        result, cross = _filter_user_code_findings([], [])
+        result, stats = _filter_user_code_findings([], [])
         assert result == []
-        assert cross == 0
+        assert stats["cross_boundary"] == 0
 
     def test_cross_boundary_kept(self):
         """SDK 경로 finding이지만 dataFlow에 사용자 코드 포함 → 유지 + origin 태깅."""
@@ -146,9 +146,9 @@ class TestFilterUserCodeFindings:
                 ],
             ),
         ]
-        result, cross = _filter_user_code_findings(findings, ["src/main.c"])
+        result, stats = _filter_user_code_findings(findings, [])
         assert len(result) == 1
-        assert cross == 1
+        assert stats["cross_boundary"] == 1
         assert result[0].origin == "cross-boundary"
 
     def test_pure_sdk_finding_removed(self):
@@ -163,18 +163,18 @@ class TestFilterUserCodeFindings:
                 ],
             ),
         ]
-        result, cross = _filter_user_code_findings(findings, ["src/main.c"])
+        result, stats = _filter_user_code_findings(findings, [])
         assert len(result) == 0
-        assert cross == 0
+        assert stats["cross_boundary"] == 0
 
     def test_sdk_finding_no_dataflow_removed(self):
         """SDK 경로 finding + dataFlow 없음 → 제거."""
         findings = [
             _make_finding("/usr/include/stdlib.h", tool="cppcheck"),
         ]
-        result, cross = _filter_user_code_findings(findings, ["src/main.c"])
+        result, stats = _filter_user_code_findings(findings, [])
         assert len(result) == 0
-        assert cross == 0
+        assert stats["cross_boundary"] == 0
 
     def test_mixed_findings(self):
         """사용자 + 경계면 + 순수 SDK 혼합 → 올바르게 분류."""
@@ -193,9 +193,9 @@ class TestFilterUserCodeFindings:
             # 순수 SDK
             _make_finding("/usr/include/string.h"),
         ]
-        result, cross = _filter_user_code_findings(findings, ["src/main.c", "src/caller.c"])
+        result, stats = _filter_user_code_findings(findings, [])
         assert len(result) == 2  # 사용자 1 + 경계면 1
-        assert cross == 1
+        assert stats["cross_boundary"] == 1
         # 사용자 코드 finding은 origin 없음
         assert result[0].origin is None
         # 경계면 finding은 origin 태깅
@@ -224,11 +224,11 @@ class TestThirdPartyFiltering:
         findings = [
             _make_finding("lib/civetweb/civetweb.c"),
         ]
-        result, cross = _filter_user_code_findings(
-            findings, ["src/main.c"], third_party_paths=["lib/civetweb/"],
+        result, stats = _filter_user_code_findings(
+            findings, ["lib/civetweb/"],
         )
         assert len(result) == 0
-        assert cross == 0
+        assert stats["cross_boundary"] == 0
 
     def test_user_code_kept_with_third_party(self):
         """thirdPartyPaths가 있어도 사용자 코드 finding은 유지."""
@@ -236,9 +236,8 @@ class TestThirdPartyFiltering:
             _make_finding("src/main.c"),
             _make_finding("lib/civetweb/civetweb.c"),
         ]
-        result, cross = _filter_user_code_findings(
-            findings, ["src/main.c", "lib/civetweb/civetweb.c"],
-            third_party_paths=["lib/civetweb/"],
+        result, stats = _filter_user_code_findings(
+            findings, ["lib/civetweb/"],
         )
         assert len(result) == 1
         assert result[0].location.file == "src/main.c"
@@ -255,12 +254,11 @@ class TestThirdPartyFiltering:
                 ],
             ),
         ]
-        result, cross = _filter_user_code_findings(
-            findings, ["src/main.c", "lib/civetweb/civetweb.c"],
-            third_party_paths=["lib/civetweb/"],
+        result, stats = _filter_user_code_findings(
+            findings, ["lib/civetweb/"],
         )
         assert len(result) == 1
-        assert cross == 1
+        assert stats["cross_boundary"] == 1
         assert result[0].origin == "cross-boundary"
 
     def test_third_party_internal_dataflow_removed(self):
@@ -275,12 +273,11 @@ class TestThirdPartyFiltering:
                 ],
             ),
         ]
-        result, cross = _filter_user_code_findings(
-            findings, ["src/main.c", "lib/civetweb/civetweb.c"],
-            third_party_paths=["lib/civetweb/"],
+        result, stats = _filter_user_code_findings(
+            findings, ["lib/civetweb/"],
         )
         assert len(result) == 0
-        assert cross == 0
+        assert stats["cross_boundary"] == 0
 
     def test_no_third_party_paths_keeps_all_relative(self):
         """thirdPartyPaths 미지정 → 기존 동작 (상대 경로 전부 유지)."""
@@ -288,9 +285,9 @@ class TestThirdPartyFiltering:
             _make_finding("src/main.c"),
             _make_finding("lib/civetweb/civetweb.c"),
         ]
-        result, cross = _filter_user_code_findings(findings, ["src/main.c"])
+        result, stats = _filter_user_code_findings(findings, [])
         assert len(result) == 2
-        assert cross == 0
+        assert stats["cross_boundary"] == 0
 
     def test_multiple_third_party_dirs(self):
         """여러 서드파티 디렉토리 필터링."""
@@ -300,9 +297,8 @@ class TestThirdPartyFiltering:
             _make_finding("vendor/tinydtls/dtls.c"),
             _make_finding("deps/mbedtls/ssl.c"),
         ]
-        result, cross = _filter_user_code_findings(
-            findings, ["src/main.c"],
-            third_party_paths=["lib/civetweb/", "vendor/tinydtls/", "deps/mbedtls/"],
+        result, stats = _filter_user_code_findings(
+            findings, ["lib/civetweb/", "vendor/tinydtls/", "deps/mbedtls/"],
         )
         assert len(result) == 1
         assert result[0].location.file == "src/main.c"

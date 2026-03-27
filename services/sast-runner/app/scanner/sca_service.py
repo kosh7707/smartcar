@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 from typing import Any
@@ -32,7 +33,7 @@ async def analyze_libraries(
     Returns:
         라이브러리 목록 (각각 diff 결과 포함)
     """
-    libs_raw = _identifier.identify(project_dir)
+    libs_raw = await asyncio.to_thread(_identifier.identify, project_dir)
     results: list[dict[str, Any]] = []
 
     for lib in libs_raw:
@@ -71,6 +72,6 @@ async def analyze_libraries(
     return results
 
 
-def identify_libraries(project_dir: Path) -> list[dict[str, Any]]:
-    """라이브러리 식별만 수행 (diff 없음). origin 태깅용."""
-    return _identifier.identify(project_dir)
+async def identify_libraries(project_dir: Path) -> list[dict[str, Any]]:
+    """라이브러리 식별만 수행 (diff 없음). origin 태깅용. 이벤트루프 블로킹 방지."""
+    return await asyncio.to_thread(_identifier.identify, project_dir)

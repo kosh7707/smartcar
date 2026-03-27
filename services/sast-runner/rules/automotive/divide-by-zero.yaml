@@ -1,160 +1,153 @@
 rules:
-  - id: aegis.c.cwe-369-atoi-as-divisor
-    patterns:
-      - pattern: $X / atoi(...)
+  # ─── Taint mode: 외부 입력 → division/modulo sink ───
+  # cross-block 데이터 플로우를 자동 추적 (Juliet 중첩 블록 대응)
+
+  - id: aegis.c.cwe-369-taint-divide-by-zero
+    mode: taint
+    pattern-sources:
+      - pattern: atoi(...)
+      - pattern: atof(...)
+      - pattern: strtol(...)
+      - pattern: strtod(...)
+      - pattern: strtof(...)
+      - pattern: RAND32()
+      - pattern: rand()
+    pattern-sinks:
+      - patterns:
+          - pattern: $X / $SINK
+          - focus-metavariable: $SINK
+      - patterns:
+          - pattern: $X % $SINK
+          - focus-metavariable: $SINK
     message: >
-      Potential divide by zero: atoi() result used as divisor without zero check.
-      atoi() returns 0 on invalid input, leading to division by zero.
+      Potential divide/modulo by zero: external input ($SINK) used as divisor
+      without zero check. atoi/atof/rand can return 0.
     languages: [c]
     severity: WARNING
     metadata:
-      cwe:
-        - "CWE-369"
+      cwe: ["CWE-369"]
       category: security
       confidence: HIGH
       impact: MEDIUM
       automotive_rationale: >
         Division by zero in real-time control loops (engine management, brake
         control, steering assist) causes undefined behavior that can lead to
-        ECU reset or uncontrolled actuator states. Critical in ASIL-rated
-        safety functions where continuous computation is required.
+        ECU reset or uncontrolled actuator states.
       references:
         - "ISO 26262-6:2018 Table 1 (1d) — No unintended functionality"
         - "MISRA C:2012 Rule 1.3 — No undefined or critical unspecified behavior"
 
+  # ─── fscanf/scanf: 포인터 전달 패턴 (taint가 &$X 추적 불가) ───
+  # function-level pattern-inside로 cross-block 매칭
+
+  - id: aegis.c.cwe-369-fscanf-then-divide
+    patterns:
+      - pattern-either:
+          - pattern: $X / $Y
+          - pattern: $X % $Y
+      - pattern-inside: |
+          $RET $FUNC(...) {
+            ...
+            fscanf(..., ..., &$Y);
+            ...
+          }
+    message: >
+      Potential divide/modulo by zero: fscanf() input used as divisor.
+      fscanf reads user/file input that may be zero.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-369"]
+      category: security
+      confidence: MEDIUM
+      impact: MEDIUM
+      automotive_rationale: >
+        File-sourced configuration values parsed via fscanf must be validated
+        before use in arithmetic operations.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d)"
+        - "MISRA C:2012 Dir 4.14"
+
+  - id: aegis.c.cwe-369-scanf-then-divide
+    patterns:
+      - pattern-either:
+          - pattern: $X / $Y
+          - pattern: $X % $Y
+      - pattern-inside: |
+          $RET $FUNC(...) {
+            ...
+            scanf(..., &$Y);
+            ...
+          }
+    message: >
+      Potential divide/modulo by zero: scanf() input used as divisor.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-369"]
+      category: security
+      confidence: MEDIUM
+      impact: MEDIUM
+      automotive_rationale: >
+        scanf-sourced values from diagnostic ports can contain zero values.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d)"
+        - "MISRA C:2012 Dir 4.14"
+
+  # ─── 직접 expression 패턴 (어디서든 매칭, taint 보완) ───
+
+  - id: aegis.c.cwe-369-atoi-as-divisor
+    patterns:
+      - pattern-either:
+          - pattern: $X / atoi(...)
+          - pattern: $X % atoi(...)
+    message: >
+      Potential divide by zero: atoi() result used directly as divisor.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-369"]
+      category: security
+      confidence: HIGH
+      impact: MEDIUM
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d)"
+        - "MISRA C:2012 Rule 1.3"
+
+  - id: aegis.c.cwe-369-atof-as-divisor
+    patterns:
+      - pattern-either:
+          - pattern: $X / atof(...)
+          - pattern: $X % atof(...)
+    message: >
+      Potential divide by zero: atof() returns 0.0 on invalid input.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-369"]
+      category: security
+      confidence: HIGH
+      impact: MEDIUM
+      automotive_rationale: >
+        Float division by zero produces INF/NAN in IEEE 754, which propagates
+        silently through PID control calculations.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1d)"
+
   - id: aegis.c.cwe-369-strtol-as-divisor
     patterns:
-      - pattern: $X / strtol(...)
+      - pattern-either:
+          - pattern: $X / strtol(...)
+          - pattern: $X % strtol(...)
     message: >
-      Potential divide by zero: strtol() result used as divisor without zero check.
-      strtol() returns 0 on invalid input, leading to division by zero.
+      Potential divide by zero: strtol() returns 0 on invalid input.
     languages: [c]
     severity: WARNING
     metadata:
-      cwe:
-        - "CWE-369"
+      cwe: ["CWE-369"]
       category: security
       confidence: HIGH
       impact: MEDIUM
-      automotive_rationale: >
-        strtol() parsing configuration or sensor calibration values can return
-        zero on malformed input. Using the result as a divisor in PID controllers
-        or signal processing can crash the control loop.
-      references:
-        - "ISO 26262-6:2018 Table 1 (1d)"
-        - "MISRA C:2012 Rule 1.3"
-
-  - id: aegis.c.cwe-369-atoi-then-divide
-    patterns:
-      - pattern: |
-          $Y = atoi(...);
-          ...
-          $X / $Y;
-    message: >
-      Potential divide by zero: atoi() result stored in variable then used as divisor.
-      atoi() returns 0 on invalid input.
-    languages: [c]
-    severity: WARNING
-    metadata:
-      cwe:
-        - "CWE-369"
-      category: security
-      confidence: HIGH
-      impact: MEDIUM
-      automotive_rationale: >
-        Indirect use of parsed integer as divisor is a common pattern in
-        automotive configuration processing. Zero-check must be performed
-        before any division to prevent ECU fault conditions.
-      references:
-        - "ISO 26262-6:2018 Table 1 (1d)"
-        - "MISRA C:2012 Rule 1.3"
-
-  - id: aegis.c.cwe-369-atoi-then-modulo
-    patterns:
-      - pattern: |
-          $Y = atoi(...);
-          ...
-          $X % $Y;
-    message: >
-      Potential modulo by zero: atoi() result stored in variable then used as divisor.
-    languages: [c]
-    severity: WARNING
-    metadata:
-      cwe:
-        - "CWE-369"
-      category: security
-      confidence: HIGH
-      impact: MEDIUM
-      automotive_rationale: >
-        Modulo by zero has the same impact as division by zero — undefined
-        behavior in safety-critical computation paths.
-      references:
-        - "ISO 26262-6:2018 Table 1 (1d)"
-        - "MISRA C:2012 Rule 1.3"
-
-  - id: aegis.c.cwe-369-scanf-divisor
-    patterns:
-      - pattern: |
-          scanf(..., &$Y);
-          ...
-          $X / $Y;
-    message: >
-      Potential divide by zero: scanf() input used as divisor without zero check.
-    languages: [c]
-    severity: WARNING
-    metadata:
-      cwe:
-        - "CWE-369"
-      category: security
-      confidence: MEDIUM
-      impact: MEDIUM
-      automotive_rationale: >
-        scanf-sourced values from diagnostic ports (UDS/OBD-II) or serial
-        interfaces can contain zero values. Using them directly in arithmetic
-        without validation risks control loop instability.
-      references:
-        - "ISO 26262-6:2018 Table 1 (1d)"
-        - "MISRA C:2012 Dir 4.14"
-
-  - id: aegis.c.cwe-369-fscanf-divisor
-    patterns:
-      - pattern: |
-          fscanf(..., ..., &$Y);
-          ...
-          $X / $Y;
-    message: >
-      Potential divide by zero: fscanf() input used as divisor without zero check.
-    languages: [c]
-    severity: WARNING
-    metadata:
-      cwe:
-        - "CWE-369"
-      category: security
-      confidence: MEDIUM
-      impact: MEDIUM
-      automotive_rationale: >
-        File-sourced configuration values (calibration tables, tuning parameters)
-        parsed via fscanf must be validated before use in arithmetic operations.
-      references:
-        - "ISO 26262-6:2018 Table 1 (1d)"
-        - "MISRA C:2012 Dir 4.14"
-
-  - id: aegis.c.cwe-369-modulo-by-zero
-    patterns:
-      - pattern: $X % atoi(...)
-    message: >
-      Potential modulo by zero: atoi() result used in modulo without zero check.
-    languages: [c]
-    severity: WARNING
-    metadata:
-      cwe:
-        - "CWE-369"
-      category: security
-      confidence: HIGH
-      impact: MEDIUM
-      automotive_rationale: >
-        Modulo operations with externally-sourced divisors in scheduling,
-        round-robin, or hash computations must validate against zero.
       references:
         - "ISO 26262-6:2018 Table 1 (1d)"
         - "MISRA C:2012 Rule 1.3"

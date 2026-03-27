@@ -22,6 +22,7 @@ import { createBuildTargetRouter } from "./controllers/build-target.controller";
 import { createPipelineRouter } from "./controllers/pipeline.controller";
 import { createTargetLibraryRouter } from "./controllers/target-library.controller";
 import { createSdkRouter } from "./controllers/sdk.controller";
+import { createActivityRouter } from "./controllers/activity.controller";
 
 export function mountRouters(app: Express, ctx: AppContext): void {
   // 프로젝트 스코프 라우터
@@ -32,6 +33,7 @@ export function mountRouters(app: Express, ctx: AppContext): void {
   app.use("/api/projects/:pid/gates", createQualityGateRouter(ctx.qualityGateService));
   app.use("/api/projects/:pid/approvals", createApprovalRouter(ctx.approvalService));
   app.use("/api/projects/:pid/report", createReportRouter(ctx.reportService));
+  app.use("/api/projects/:pid/activity", createActivityRouter(ctx.activityService));
 
   // 글로벌 라우터
   app.use("/api/sdk-profiles", createSdkProfileRouter());

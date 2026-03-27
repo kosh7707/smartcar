@@ -25,8 +25,25 @@ export function createAnalysisRouter(
 
   // POST /api/analysis/run — Quick → Deep 분석 실행
   router.post("/run", asyncHandler(async (req, res) => {
-    const { projectId, targetIds } = req.body as { projectId?: string; targetIds?: string[] };
+    const { projectId, targetIds, mode } = req.body as {
+      projectId?: string;
+      targetIds?: string[];
+      mode?: string;
+    };
     if (!projectId) throw new InvalidInputError("projectId is required");
+
+    // mode 검증 (생략 시 기존 동작 유지)
+    if (mode !== undefined) {
+      if (mode !== "full" && mode !== "subproject") {
+        throw new InvalidInputError('mode must be "full" or "subproject"');
+      }
+      if (mode === "subproject" && (!targetIds || targetIds.length === 0)) {
+        throw new InvalidInputError("targetIds is required when mode is 'subproject'");
+      }
+      if (mode === "full" && targetIds && targetIds.length > 0) {
+        throw new InvalidInputError("targetIds must be empty when mode is 'full'");
+      }
+    }
 
     const analysisId = `analysis-${crypto.randomUUID().slice(0, 8)}`;
     const requestId = req.requestId;

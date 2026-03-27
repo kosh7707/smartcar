@@ -53,6 +53,9 @@ def _parse_version(ver_str: str | None) -> tuple[int, ...] | None:
     return tuple(parts) if parts else None
 
 
+_TOOL_CACHE_TTL = 300  # 도구 가용성 캐시 유효 시간 (초)
+
+
 class ScanOrchestrator:
     """6개 SAST 도구를 병렬로 실행하고 결과를 합산한다."""
 
@@ -63,9 +66,15 @@ class ScanOrchestrator:
         self.clangtidy = ClangTidyRunner()
         self.scanbuild = ScanbuildRunner()
         self.gcc_analyzer = GccAnalyzerRunner()
+        self._tool_cache: dict[str, dict] | None = None
+        self._tool_cache_time: float = 0.0
 
-    async def check_tools(self) -> dict[str, dict]:
-        """모든 도구의 가용 여부를 확인."""
+    async def check_tools(self, *, force: bool = False) -> dict[str, dict]:
+        """모든 도구의 가용 여부를 확인. 결과를 TTL 동안 캐시."""
+        now = time.perf_counter()
+        if not force and self._tool_cache and (now - self._tool_cache_time) < _TOOL_CACHE_TTL:
+            return self._tool_cache
+
         results = await asyncio.gather(
             self.semgrep.check_available(),
             self.cppcheck.check_available(),
@@ -96,6 +105,8 @@ class ScanOrchestrator:
                     name, info["version"], min_str,
                 )
 
+        self._tool_cache = tool_info
+        self._tool_cache_time = now
         return tool_info
 
     async def run(
@@ -124,11 +135,24 @@ class ScanOrchestrator:
         enriched_profile = self._enrich_profile_with_sdk(profile)
         sdk_info = self._build_sdk_info(profile, enriched_profile)
 
-        # 3. 도구별 태스크 생성
-        # - clang-tidy, scan-build: enriched (SDK 헤더 필요 — 컴파일 기반 분석)
-        # - cppcheck: original (SDK 헤더 -I 시 전부 파싱하여 타임아웃)
-        # - gcc-fanalyzer: original (호스트 gcc 폴백 시 ARM 헤더 불필요)
-        # - semgrep, flawfinder: profile 불필요 (텍스트/패턴 기반)
+        # 3. scope-early: 서드파티 파일을 도구 실행 전에 제외 (OOM 방지)
+        tp_paths = third_party_paths or []
+        if tp_paths:
+            scoped_files = _scope_user_files(source_files, tp_paths)
+            files_scoped_out = len(source_files) - len(scoped_files)
+            if files_scoped_out > 0:
+                logger.info(
+                    "Scope-early: %d third-party files excluded from heavy analyzers",
+                    files_scoped_out,
+                )
+        else:
+            scoped_files = source_files
+            files_scoped_out = 0
+
+        # 4. 도구별 태스크 생성
+        # - clang-tidy, scan-build, gcc-fanalyzer: scoped_files (서드파티 제외)
+        # - cppcheck: original profile, scan_dir 전체
+        # - semgrep, flawfinder: scan_dir 전체 (텍스트/패턴 기반)
         task_map = {}
         if "semgrep" in active_tools:
             task_map["semgrep"] = self._run_semgrep(scan_dir, rulesets, timeout)
@@ -138,48 +162,52 @@ class ScanOrchestrator:
             task_map["flawfinder"] = self._run_flawfinder(scan_dir, timeout)
         if "clang-tidy" in active_tools:
             task_map["clang-tidy"] = self._run_clangtidy(
-                scan_dir, source_files, enriched_profile, timeout, compile_commands,
+                scan_dir, scoped_files, enriched_profile, timeout, compile_commands,
             )
         if "scan-build" in active_tools:
             task_map["scan-build"] = self._run_scanbuild(
-                scan_dir, source_files, enriched_profile, timeout,
+                scan_dir, scoped_files, enriched_profile, timeout,
             )
         if "gcc-fanalyzer" in active_tools:
             task_map["gcc-fanalyzer"] = self._run_gcc_analyzer(
-                scan_dir, source_files, profile, enriched_profile, timeout,
+                scan_dir, scoped_files, profile, enriched_profile, timeout,
             )
 
-        # 4. 병렬 실행 + 시간 측정
-        t0 = time.perf_counter()
+        # 5. 병렬 실행 (per-tool timing wrapper)
+        async def _timed(coro):
+            t = time.perf_counter()
+            r = await coro
+            return r, int((time.perf_counter() - t) * 1000)
+
         results = await asyncio.gather(
-            *task_map.values(), return_exceptions=True,
+            *[_timed(coro) for coro in task_map.values()],
+            return_exceptions=True,
         )
 
-        # 5. 결과 수집
+        # 결과 수집
         all_findings: list[SastFinding] = []
         tool_results: dict[str, ToolExecutionResult] = {}
 
-        # 도구 버전 정보 취득
         tool_versions = {
             name: info.get("version")
             for name, info in available_tools.items()
         }
 
         for tool_name, result in zip(task_map.keys(), results):
-            elapsed = int((time.perf_counter() - t0) * 1000)
             if isinstance(result, Exception):
                 logger.warning("Tool %s failed: %s", tool_name, str(result))
                 tool_results[tool_name] = ToolExecutionResult(
-                    status="failed", findings_count=0, elapsed_ms=elapsed,
+                    status="failed", findings_count=0, elapsed_ms=0,
                     skip_reason=str(result), version=tool_versions.get(tool_name),
                 )
             else:
-                all_findings.extend(result)
+                findings_list, elapsed = result
+                all_findings.extend(findings_list)
                 tool_results[tool_name] = ToolExecutionResult(
-                    status="ok", findings_count=len(result), elapsed_ms=elapsed,
+                    status="ok", findings_count=len(findings_list), elapsed_ms=elapsed,
                     version=tool_versions.get(tool_name),
                 )
-                logger.info("Tool %s completed: %d findings", tool_name, len(result))
+                logger.info("Tool %s completed: %d findings in %dms", tool_name, len(findings_list), elapsed)
 
         # 스킵된 도구 기록
         for tool_name, reason in active_tools.get("_skipped", {}).items():
@@ -190,15 +218,14 @@ class ScanOrchestrator:
 
         # 6. 사용자 코드 + 경계면 필터링
         before = len(all_findings)
-        all_findings, cross_boundary = _filter_user_code_findings(
-            all_findings, source_files, third_party_paths,
+        all_findings, filter_stats = _filter_user_code_findings(
+            all_findings, tp_paths,
         )
-        filtered = before - len(all_findings)
-        if filtered > 0 or cross_boundary > 0:
-            logger.info(
-                "Findings filter: %d removed, %d cross-boundary kept (before=%d, after=%d)",
-                filtered, cross_boundary, before, len(all_findings),
-            )
+        logger.info(
+            "Findings filter: sdk=%d, thirdParty=%d removed, %d cross-boundary kept (before=%d, after=%d)",
+            filter_stats["sdk_removed"], filter_stats["third_party_removed"],
+            filter_stats["cross_boundary"], before, len(all_findings),
+        )
 
         # 7. 실행 보고서 조립
         execution = ExecutionReport(
@@ -208,8 +235,10 @@ class ScanOrchestrator:
             filtering=FindingsFilterInfo(
                 before_filter=before,
                 after_filter=len(all_findings),
-                sdk_noise_removed=filtered,
-                cross_boundary_kept=cross_boundary,
+                sdk_noise_removed=filter_stats["sdk_removed"],
+                third_party_removed=filter_stats["third_party_removed"],
+                cross_boundary_kept=filter_stats["cross_boundary"],
+                files_scoped_out=files_scoped_out,
             ),
         )
 
@@ -341,18 +370,25 @@ def _is_user_path(path: str) -> bool:
 
 
 def _is_third_party(path: str, third_party_paths: list[str]) -> bool:
-    """경로가 서드파티 라이브러리 디렉토리에 속하는지 확인."""
+    """경로가 서드파티 라이브러리 디렉토리에 속하는지 확인 (path segment 경계)."""
     for tp in third_party_paths:
-        if path.startswith(tp) or path.startswith(tp.rstrip("/")):
+        prefix = tp.rstrip("/") + "/"
+        if path.startswith(prefix) or path == tp.rstrip("/"):
             return True
     return False
 
 
+def _scope_user_files(
+    source_files: list[str], third_party_paths: list[str],
+) -> list[str]:
+    """source_files에서 서드파티 경로 파일을 제거 (scope-early)."""
+    return [f for f in source_files if not _is_third_party(f, third_party_paths)]
+
+
 def _filter_user_code_findings(
     findings: list[SastFinding],
-    source_files: list[str],
-    third_party_paths: list[str] | None = None,
-) -> tuple[list[SastFinding], int]:
+    third_party_paths: list[str],
+) -> tuple[list[SastFinding], dict[str, int]]:
     """사용자 코드 findings + 경계면 findings를 남긴다.
 
     분류 기준 (3단계):
@@ -361,11 +397,12 @@ def _filter_user_code_findings(
     3. 그 외 상대 경로 → 사용자 코드 (유지)
 
     Returns:
-        (filtered_findings, cross_boundary_count)
+        (filtered_findings, {"sdk_removed": N, "third_party_removed": N, "cross_boundary": N})
     """
-    tp_paths = third_party_paths or []
     result: list[SastFinding] = []
-    cross_boundary_count = 0
+    sdk_removed = 0
+    tp_removed = 0
+    cross_boundary = 0
 
     for finding in findings:
         loc_file = finding.location.file
@@ -375,21 +412,29 @@ def _filter_user_code_findings(
             if _check_cross_boundary(finding):
                 finding = finding.model_copy(update={"origin": "cross-boundary"})
                 result.append(finding)
-                cross_boundary_count += 1
+                cross_boundary += 1
+            else:
+                sdk_removed += 1
             continue
 
         # 2. vendored 서드파티 라이브러리 (상대 경로지만 thirdPartyPaths에 해당)
-        if tp_paths and _is_third_party(loc_file, tp_paths):
-            if _check_cross_boundary(finding, tp_paths):
+        if third_party_paths and _is_third_party(loc_file, third_party_paths):
+            if _check_cross_boundary(finding, third_party_paths):
                 finding = finding.model_copy(update={"origin": "cross-boundary"})
                 result.append(finding)
-                cross_boundary_count += 1
+                cross_boundary += 1
+            else:
+                tp_removed += 1
             continue
 
         # 3. 사용자 코드 — 유지
         result.append(finding)
 
-    return result, cross_boundary_count
+    return result, {
+        "sdk_removed": sdk_removed,
+        "third_party_removed": tp_removed,
+        "cross_boundary": cross_boundary,
+    }
 
 
 def _check_cross_boundary(

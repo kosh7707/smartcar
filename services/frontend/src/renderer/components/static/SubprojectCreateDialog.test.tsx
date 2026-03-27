@@ -24,6 +24,14 @@ vi.mock("../../contexts/ToastContext", () => ({
   }),
 }));
 
+vi.mock("../../api/client", () => ({
+  logError: vi.fn(),
+}));
+
+vi.mock("../../api/sdk", () => ({
+  fetchProjectSdks: vi.fn().mockResolvedValue({ builtIn: [], registered: [] }),
+}));
+
 const mockFiles: SourceFileEntry[] = [
   { relativePath: "src/main.c", size: 1024, language: "C" },
   { relativePath: "src/utils.c", size: 512, language: "C" },
@@ -50,7 +58,7 @@ describe("SubprojectCreateDialog", () => {
     render(<SubprojectCreateDialog {...defaultProps} />);
 
     expect(screen.getAllByText("서브 프로젝트 생성").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByPlaceholderText("gateway-webserver")).toBeTruthy();
+    expect(screen.getByPlaceholderText("예: gateway-module")).toBeTruthy();
     expect(screen.getByText("포함할 파일/폴더 선택")).toBeTruthy();
     // File tree should show folder names
     expect(screen.getByText("src")).toBeTruthy();

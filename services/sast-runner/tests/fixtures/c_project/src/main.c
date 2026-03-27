@@ -19,5 +19,12 @@ int main(int argc, char *argv[]) {
     int val = atoi(argv[1]);
     int result = 100 / val;  /* CWE-369: Divide by Zero */
 
-    return result;
+    system(argv[2]);  /* CWE-78: Command Injection */
+
+    int big = 2147483647;
+    int overflow = big + val;  /* CWE-190: Integer Overflow */
+
+    strcpy(buf, argv[1]);  /* CWE-787: Buffer Overflow Write */
+
+    return result + overflow;
 }

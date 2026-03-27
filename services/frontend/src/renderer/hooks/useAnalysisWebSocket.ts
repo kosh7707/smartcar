@@ -63,7 +63,7 @@ export function useAnalysisWebSocket() {
 
   useEffect(() => cleanup, [cleanup]);
 
-  const startAnalysis = useCallback(async (projectId: string, targetIds?: string[]) => {
+  const startAnalysis = useCallback(async (projectId: string, targetIds?: string[], mode?: "full" | "subproject") => {
     cleanup();
     setState({
       ...INITIAL_STATE,
@@ -72,7 +72,7 @@ export function useAnalysisWebSocket() {
     });
 
     try {
-      const { analysisId } = await runAnalysis(projectId, targetIds);
+      const { analysisId } = await runAnalysis(projectId, targetIds, mode);
 
       setState((prev) => ({ ...prev, analysisId }));
 

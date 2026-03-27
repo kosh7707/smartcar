@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -92,21 +93,39 @@ class GccAnalyzerRunner:
 
         logger.info("Running gcc -fanalyzer (%s) on %d files", gcc_bin, len(c_cpp_files))
 
-        # 파일별 개별 실행 (동일 심볼 충돌 방지) + 병렬
+        # 파일별 개별 실행 (동일 심볼 충돌 방지) + Semaphore 동시성 제한
+        _sem = asyncio.Semaphore(8)
         per_file_timeout = max(timeout // max(len(c_cpp_files), 1), 15)
-        tasks = [
-            self._run_single(gcc_bin, scan_dir, f, actual_profile, per_file_timeout)
-            for f in c_cpp_files
-        ]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        async def _guarded(f: str) -> list[SastFinding]:
+            async with _sem:
+                return await self._run_single(gcc_bin, scan_dir, f, actual_profile, per_file_timeout)
+
+        results = await asyncio.gather(
+            *[_guarded(f) for f in c_cpp_files], return_exceptions=True,
+        )
 
         all_findings: list[SastFinding] = []
+        timed_out = 0
+        failed = 0
         for f, result in zip(c_cpp_files, results):
             if isinstance(result, Exception):
                 logger.warning("gcc -fanalyzer failed for %s: %s", f, result)
+                failed += 1
+            elif result is None:
+                timed_out += 1
             else:
                 all_findings.extend(result)
 
+        if timed_out > 0 or failed > 0:
+            logger.info(
+                "gcc -fanalyzer: %d files OK, %d timed out, %d failed",
+                len(c_cpp_files) - timed_out - failed, timed_out, failed,
+            )
+
+        # orchestrator가 partial 판정에 사용할 수 있도록 메타데이터 첨부
+        self._last_timed_out = timed_out
+        self._last_failed = failed
         return all_findings
 
     async def _run_single(
@@ -116,8 +135,8 @@ class GccAnalyzerRunner:
         source_file: str,
         profile: BuildProfile | None,
         timeout: int,
-    ) -> list[SastFinding]:
-        """단일 파일에 대해 gcc -fanalyzer를 실행."""
+    ) -> list[SastFinding] | None:
+        """단일 파일에 대해 gcc -fanalyzer를 실행. timeout 시 None 반환."""
         target = str(scan_dir / source_file)
         cmd = self._build_command(gcc_bin, [target], profile, scan_dir)
 
@@ -134,7 +153,8 @@ class GccAnalyzerRunner:
         except asyncio.TimeoutError:
             proc.kill()
             await proc.communicate()
-            return []  # 개별 파일 타임아웃은 무시하고 진행
+            logger.warning("gcc -fanalyzer timed out for %s (%ds)", source_file, timeout)
+            return None  # sentinel: timeout
 
         output = stderr.decode()
         if not output.strip():
@@ -159,12 +179,14 @@ class GccAnalyzerRunner:
         return "gcc"
 
     _analyzer_support_cache: dict[str, bool] = {}
+    _analyzer_cache_lock = threading.Lock()
 
     @classmethod
     def _gcc_supports_analyzer(cls, gcc_path: str) -> bool:
-        """GCC가 -fanalyzer를 지원하는지 (10+) 확인. 결과 캐시."""
-        if gcc_path in cls._analyzer_support_cache:
-            return cls._analyzer_support_cache[gcc_path]
+        """GCC가 -fanalyzer를 지원하는지 (10+) 확인. 결과 캐시 (thread-safe)."""
+        with cls._analyzer_cache_lock:
+            if gcc_path in cls._analyzer_support_cache:
+                return cls._analyzer_support_cache[gcc_path]
 
         import subprocess
         supported = False
@@ -178,7 +200,8 @@ class GccAnalyzerRunner:
         except Exception:
             pass
 
-        cls._analyzer_support_cache[gcc_path] = supported
+        with cls._analyzer_cache_lock:
+            cls._analyzer_support_cache[gcc_path] = supported
         return supported
 
     def _build_command(
@@ -203,7 +226,8 @@ class GccAnalyzerRunner:
                 for key, val in profile.defines.items():
                     cmd.append(f"-D{key}={val}" if val else f"-D{key}")
         else:
-            cmd.append("-std=c++17")
+            from app.config import settings
+            cmd.append(f"-std={settings.default_language_standard}")
 
         cmd.extend(targets)
         return cmd
@@ -231,8 +255,8 @@ class GccAnalyzerRunner:
             severity = match.group("severity")
             flag = match.group("flag") or ""
 
-            # -fanalyzer 경고만 수집
-            if flag and not flag.startswith("-Wanalyzer"):
+            # -fanalyzer 경고만 수집 (strict: flag 없는 일반 diagnostics 제외)
+            if not flag.startswith("-Wanalyzer"):
                 continue
 
             if severity in ("warning", "error"):

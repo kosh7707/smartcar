@@ -9,6 +9,7 @@ import pytest
 from app.cve.nvd_client import (
     NvdClient,
     _check_version_in_range,
+    _compute_risk_score,
     _extract_vendor_from_url,
     _parse_version,
 )
@@ -46,6 +47,18 @@ def test_extract_vendor_none():
 
 def test_extract_vendor_unknown_host():
     assert _extract_vendor_from_url("https://example.com/foo/bar") is None
+
+
+def test_extract_vendor_codeberg():
+    assert _extract_vendor_from_url("https://codeberg.org/dnkl/foot") == "dnkl"
+
+
+def test_extract_vendor_self_hosted_gitlab():
+    assert _extract_vendor_from_url("https://gitlab.internal.com/infra/libfoo.git") == "infra"
+
+
+def test_extract_vendor_git_ssh():
+    assert _extract_vendor_from_url("git@github.com:curl/curl.git") == "curl"
 
 
 # ── 버전 범위 매칭 ──
@@ -429,3 +442,98 @@ async def test_kev_flag_set_on_cve():
     assert "CVE-2024-9999" not in kev_set
 
     await client.close()
+
+
+# ── 복합 위험 점수 ──
+
+
+def test_risk_score_full():
+    """모든 신호가 최대일 때 → 1.0."""
+    score = _compute_risk_score(severity=10.0, epss_score=1.0, kev=True, automotive_relevance=1.0)
+    assert score == 1.0
+
+
+def test_risk_score_severity_only():
+    """CVSS만 있을 때 → 40% 가중치."""
+    score = _compute_risk_score(severity=10.0, epss_score=None, kev=False, automotive_relevance=0.0)
+    assert score == 0.4
+
+
+def test_risk_score_kev_boost():
+    """KEV 활성 공격 → 20% 부스트."""
+    without_kev = _compute_risk_score(severity=5.0, epss_score=None, kev=False, automotive_relevance=0.0)
+    with_kev = _compute_risk_score(severity=5.0, epss_score=None, kev=True, automotive_relevance=0.0)
+    assert with_kev - without_kev == pytest.approx(0.2, abs=0.001)
+
+
+def test_risk_score_none_inputs():
+    """severity/epss가 None이면 해당 가중치 0."""
+    score = _compute_risk_score(severity=None, epss_score=None, kev=False, automotive_relevance=0.5)
+    assert score == pytest.approx(0.05, abs=0.001)
+
+
+# ── KB 지식 보강 ──
+
+
+def test_enrich_from_kb_with_lookup():
+    """kb_lookup이 주입되면 threat_categories/attack_surfaces 반환."""
+    def mock_kb_lookup(cwe_id: str) -> dict | None:
+        if cwe_id == "CWE-787":
+            return {
+                "threat_category": "Memory Corruption",
+                "attack_surfaces": ["ECU/게이트웨이", "임베디드/RTOS"],
+                "automotive_relevance": 0.85,
+            }
+        return None
+
+    client = NvdClient(api_key="test", kb_lookup=mock_kb_lookup)
+    context = client._enrich_from_kb(["CWE-787", "CWE-999"])
+
+    assert "Memory Corruption" in context["threat_categories"]
+    assert "ECU/게이트웨이" in context["attack_surfaces"]
+    assert context["max_automotive_relevance"] == 0.85
+
+
+def test_enrich_from_kb_without_lookup():
+    """kb_lookup이 None이면 빈 context 반환."""
+    client = NvdClient(api_key="test", kb_lookup=None)
+    context = client._enrich_from_kb(["CWE-787"])
+
+    assert context["threat_categories"] == []
+    assert context["attack_surfaces"] == []
+    assert context["max_automotive_relevance"] == 0.0
+
+
+# ── 캐시 영속화 ──
+
+
+def test_cache_persistence(tmp_path):
+    """캐시 저장 → 복원 라운드트립."""
+    cache_file = str(tmp_path / "cache.json")
+
+    client1 = NvdClient(api_key="test", cache_file=cache_file, cache_ttl=3600)
+    client1._cache["testlib:1.0"] = (
+        time.monotonic(),
+        {"library": "testlib", "version": "1.0", "cves": [{"id": "CVE-2024-0001"}], "total": 1, "cached": False},
+    )
+    client1._save_cache_file()
+
+    client2 = NvdClient(api_key="test", cache_file=cache_file, cache_ttl=3600)
+    assert "testlib:1.0" in client2._cache
+    _, data = client2._cache["testlib:1.0"]
+    assert data["total"] == 1
+    assert data["cves"][0]["id"] == "CVE-2024-0001"
+
+
+def test_cache_persistence_expired(tmp_path):
+    """TTL 초과 캐시는 복원하지 않는다."""
+    import json as _json
+
+    cache_file = str(tmp_path / "cache.json")
+    with open(cache_file, "w") as f:
+        _json.dump({
+            "old:1.0": {"wall_ts": time.time() - 999999, "data": {"cves": [], "total": 0}},
+        }, f)
+
+    client = NvdClient(api_key="test", cache_file=cache_file, cache_ttl=3600)
+    assert "old:1.0" not in client._cache

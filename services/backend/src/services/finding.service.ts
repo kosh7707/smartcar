@@ -43,14 +43,7 @@ export class FindingService {
 
   findByProjectId(
     projectId: string,
-    filters?: {
-      status?: FindingStatus | FindingStatus[];
-      severity?: Severity | Severity[];
-      module?: AnalysisModule;
-      runId?: string;
-      from?: string;
-      to?: string;
-    },
+    filters?: import("../dao/interfaces").FindingFilters,
   ): Finding[] {
     return this.findingDAO.findByProjectId(projectId, filters);
   }
@@ -104,6 +97,60 @@ export class FindingService {
     }, "Finding status updated");
 
     return { ...finding, status: newStatus, updatedAt: new Date().toISOString() };
+  }
+
+  bulkUpdateStatus(
+    findingIds: string[],
+    newStatus: FindingStatus,
+    actor: string,
+    reason: string,
+    requestId?: string,
+  ): { updated: number; failed: number } {
+    let updated = 0;
+    let failed = 0;
+
+    this.findingDAO.withTransaction(() => {
+      const findings = this.findingDAO.findByIds(findingIds);
+      const findingMap = new Map(findings.map((f) => [f.id, f]));
+
+      for (const id of findingIds) {
+        const finding = findingMap.get(id);
+        if (!finding) { failed++; continue; }
+
+        const allowed = VALID_TRANSITIONS[finding.status];
+        if (!allowed || !allowed.includes(newStatus)) { failed++; continue; }
+
+        this.findingDAO.updateStatus(id, newStatus);
+        this.auditLogDAO.save({
+          id: `audit-${crypto.randomUUID()}`,
+          timestamp: new Date().toISOString(),
+          actor,
+          action: "finding.status_change",
+          resource: "finding",
+          resourceId: id,
+          detail: { from: finding.status, to: newStatus, reason, bulk: true },
+          requestId,
+        });
+        updated++;
+      }
+    });
+
+    logger.info({ updated, failed, newStatus, actor, requestId }, "Bulk status update completed");
+    return { updated, failed };
+  }
+
+  getHistory(findingId: string): Array<{ findingId: string; runId: string; status: FindingStatus; createdAt: string }> | undefined {
+    const finding = this.findingDAO.findById(findingId);
+    if (!finding) return undefined;
+    if (!finding.fingerprint) return [];
+
+    const siblings = this.findingDAO.findAllByFingerprint(finding.projectId, finding.fingerprint);
+    return siblings.map((f) => ({
+      findingId: f.id,
+      runId: f.runId,
+      status: f.status,
+      createdAt: f.createdAt,
+    }));
   }
 
   getSummary(projectId: string): { byStatus: Record<string, number>; bySeverity: Record<string, number>; total: number } {

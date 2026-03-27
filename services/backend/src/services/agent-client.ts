@@ -43,6 +43,10 @@ export interface AgentTaskRequest {
       codeGraphSummary?: unknown;
       /** Phase 1 캐싱: SCA 라이브러리 목록 (S4 /v1/scan 응답에서 추출) */
       scaLibraries?: unknown;
+      /** 서드파티 라이브러리 경로 — S3가 S4에 전달하여 heavy analyzer 제외 */
+      thirdPartyPaths?: string[];
+      /** S4 도구 서브셋 선택 (미지정 시 전체). e.g. ["flawfinder", "cppcheck"] */
+      sastTools?: string[] | null;
       /** PoC 생성 시 대상 클레임 */
       claim?: {
         statement: string;

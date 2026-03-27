@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S5(Knowledge Base) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-25 (소스코드 GraphRAG: 코드 함수 벡터 검색 + 하이브리드 search 엔드포인트)**
+> **마지막 업데이트: 2026-03-27 (CVE 고도화: KB 보강 + risk_score + 캐시 영속화 + ATT&CK 브릿지 수정)**
 
 ---
 
@@ -73,10 +73,13 @@ NvdClient 3단계 전략:
 3. **NVD keywordSearch 폴백** — 넓은 검색
 
 보강:
+- **KB 지식 보강**: CWE → KB의 threat_category, attack_surfaces, automotive_relevance 자동 매핑 (`kb_context`)
+- **복합 위험 점수**: CVSS 40% + EPSS 30% + KEV 20% + 도메인 관련성 10% 가중 합산 (`risk_score`, 0.0~1.0)
 - **EPSS**: FIRST.org API로 CVE별 30일 내 악용 확률 (`epss_score`, `epss_percentile`)
 - **KEV**: CISA 카탈로그로 실제 악용 확인 CVE 플래그 (`kev: true/false`)
 - **병렬 조회**: `asyncio.gather` + 세마포어(5) — 배치 20개 기준 ~4~7초
-- 인메모리 캐시 (TTL 24시간, 최대 1,000건)
+- **캐시**: 인메모리 + 파일 영속화 (`data/cve-cache.json`). TTL 24시간, 최대 1,000건. 서비스 재시작 시 복원
+- **vendor 추론 확장**: github/gitlab/bitbucket + codeberg/gitea/sr.ht + self-hosted(git@ SSH, .git suffix)
 
 ---
 
@@ -133,8 +136,9 @@ NvdClient 3단계 전략:
 
 | 지표 | 값 |
 |------|-----|
-| 위협 노드 | 2,196 (CWE 944 + ATT&CK 694 + CAPEC 558) |
-| 위협 관계 | 3,542 |
+| 위협 노드 | 2,071 (CWE 944 + ATT&CK 569 + CAPEC 558) |
+| 위협 관계 | 9,298 |
+| ATT&CK→CWE 교차 참조 | 118건/509건 (23%) — CAPEC 브릿지 T-prefix 수정으로 복구 |
 | CVE | ETL에서 제거됨 — 실시간 조회로 전환 |
 
 ### 노드 레이블
@@ -176,7 +180,7 @@ services/knowledge-base/
 │   ├── context.py                 # requestId ContextVar
 │   ├── observability.py           # JSON structured logging
 │   ├── cve/
-│   │   └── nvd_client.py          # NvdClient — NVD API 실시간 조회 + CPE 매칭 + 캐시
+│   │   └── nvd_client.py          # NvdClient — NVD API 실시간 조회 + KB 보강 + risk_score + 캐시 영속화
 │   ├── graphrag/
 │   │   ├── knowledge_assembler.py    # KnowledgeAssembler — 위협 하이브리드 검색 + RRF + 배치
 │   │   ├── neo4j_graph.py            # Neo4jGraph — 위협 지식 관계 그래프
@@ -186,7 +190,7 @@ services/knowledge-base/
 │   │   ├── project_memory_service.py # ProjectMemoryService — 프로젝트별 에이전트 메모리
 │   │   └── vector_search.py          # VectorSearch — 위협 Qdrant 래퍼 + source_filter
 │   ├── rag/
-│   │   └── threat_search.py       # ThreatSearch — Qdrant 클라이언트
+│   │   └── threat_search.py       # ThreatSearch — Qdrant 클라이언트 + get_by_id()
 │   └── routers/
 │       ├── api.py                    # /v1/search, /v1/search/batch, /v1/graph/*, /v1/health, /v1/ready
 │       ├── cve_api.py                # /v1/cve/batch-lookup
@@ -211,13 +215,13 @@ services/knowledge-base/
 │   └── threat-db-raw/             # ETL 다운로드 캐시
 ├── requirements.txt               # fastapi, uvicorn, pydantic, neo4j, qdrant-client, fastembed, httpx
 ├── .env                           # Neo4j + Qdrant + NVD API 키
-└── tests/                              # 102 tests
+└── tests/                              # 114 tests
     ├── test_neo4j_graph.py             # 6 tests
     ├── test_code_graph_service.py      # 12 tests (origin, get_function 포함)
     ├── test_code_vector_search.py      # 10 tests (_build_document, ingest, search, delete)
     ├── test_code_graph_assembler.py    # 9 tests (name_exact, vector, RRF, call_chain)
     ├── test_knowledge_assembler.py     # 15 tests (소스 필터, 배치, RRF)
-    ├── test_nvd_client.py              # 26 tests (병렬, EPSS, KEV)
+    ├── test_nvd_client.py              # 37 tests (병렬, EPSS, KEV, risk_score, KB 보강, 캐시 영속화, vendor 추론)
     ├── test_project_memory_service.py  # 14 tests (CRUD, 타입 검증, JSON 손상 처리, lifecycle)
     └── test_api_error_responses.py     # 9 tests (에러 포맷, health/ready, HTTPException 핸들러)
 ```
@@ -267,6 +271,7 @@ AEGIS_KB_NEO4J_USER=neo4j
 AEGIS_KB_NEO4J_PASSWORD=aegis-kb
 AEGIS_KB_NVD_API_KEY=<NVD API 키>
 AEGIS_KB_NVD_CACHE_TTL=86400
+AEGIS_KB_NVD_CACHE_FILE=data/cve-cache.json
 NVD_API_KEY=<NVD API 키 (ETL용)>
 ```
 
@@ -277,17 +282,17 @@ NVD_API_KEY=<NVD API 키 (ETL용)>
 ### ETL (CWE + ATT&CK + CAPEC)
 
 ```bash
-cd services/knowledge-base
-.venv/bin/python scripts/threat-db/build.py --qdrant-path data/qdrant
+# 기본 (Qdrant 적재만)
+./scripts/knowledge-base/etl-build.sh
+
+# Qdrant + Neo4j 시드
+./scripts/knowledge-base/etl-build.sh --seed
+
+# 캐시 삭제 후 전체 재빌드
+./scripts/knowledge-base/etl-build.sh --fresh --seed
 ```
 
 CVE/NVD는 ETL에서 제외됨 — 프로젝트 분석 시 `POST /v1/cve/batch-lookup`으로 실시간 조회.
-
-### Neo4j 시드
-
-```bash
-.venv/bin/python scripts/neo4j-seed.py --qdrant-path data/qdrant --clear
-```
 
 ---
 
@@ -311,7 +316,7 @@ curl http://localhost:8002/v1/health
 ## 10. 테스트
 
 ```bash
-.venv/bin/python -m pytest tests/ -q  # 102 passed
+.venv/bin/python -m pytest tests/ -q  # 114 passed
 ```
 
 | 테스트 파일 | 건수 | 대상 |
@@ -321,13 +326,27 @@ curl http://localhost:8002/v1/health
 | test_code_vector_search.py | 10 | CodeVectorSearch (_build_document, ingest, search, delete) |
 | test_code_graph_assembler.py | 9 | CodeGraphAssembler (name_exact, vector, RRF, call_chain) |
 | test_knowledge_assembler.py | 15 | 위협 하이브리드 검색, 중복 제거, 소스 필터, 배치, RRF |
-| test_nvd_client.py | 26 | 버전 매칭, 캐시, CPE 추론, 배치 병렬, EPSS, KEV |
+| test_nvd_client.py | 37 | 버전 매칭, 캐시, CPE 추론, 배치 병렬, EPSS, KEV, risk_score, KB 보강, 캐시 영속화 |
 | test_project_memory_service.py | 14 | 메모리 CRUD, 타입 검증, JSON 손상 처리, lifecycle |
 | test_api_error_responses.py | 9 | 에러 포맷, health/ready, HTTPException 핸들러 |
 
 ---
 
 ## 11. 변경 이력
+
+### 2026-03-27 (CVE 고도화 + ATT&CK 브릿지 수정 + 버그 수정)
+
+| 변경 | 상세 |
+|------|------|
+| CVE KB 지식 보강 | CVE 결과에 `kb_context` 추가 — CWE→KB의 threat_category, attack_surfaces, automotive_relevance 자동 매핑 |
+| 복합 위험 점수 | `risk_score` 필드 추가 — CVSS 40% + EPSS 30% + KEV 20% + 도메인 관련성 10% 가중 합산 (0.0~1.0) |
+| CVE 캐시 영속화 | 인메모리 → `data/cve-cache.json` 파일 영속화. 서비스 재시작 시 NVD 재조회 방지 |
+| vendor 추론 확장 | codeberg.org, gitea.com, sr.ht, savannah.gnu.org + git@ SSH + .git suffix 범용 패턴 |
+| ATT&CK→CWE 브릿지 수정 | `parse_capec.py`에서 ATT&CK ID T-prefix 정규화. 교차 참조 0%→23%(118/509) 복구 |
+| `/v1/ready` seed_timestamp 직렬화 | Neo4j DateTime → ISO 문자열 변환 (`neo4j_graph.py` `get_kb_meta`) |
+| stats CVE 잔재 제거 | `stats.py`에서 CVE 행/심각도 분포 섹션 제거 (ETL 범위 외) |
+| ETL 스크립트 개선 | `etl-build.sh` — `--fresh` 캐시 초기화, `--include-nvd` 제거, 인자 분리, 소요 시간 표시 |
+| 테스트 102→114 | NVD client +11 (risk_score 4, KB 보강 2, 캐시 영속화 2, vendor 추론 3) |
 
 ### 2026-03-26 (ETL 분류 개선 + 기동 스크립트)
 

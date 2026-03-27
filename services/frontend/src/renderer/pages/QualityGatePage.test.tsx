@@ -96,11 +96,12 @@ describe("QualityGatePage", () => {
     fireEvent.click(screen.getByRole("button", { name: "오버라이드" }));
     const input = await waitFor(() => screen.getByPlaceholderText("오버라이드 사유를 입력하세요"));
     fireEvent.change(input, { target: { value: "테스트 사유" } });
-    await waitFor(() => {
-      const confirmBtn = screen.getByRole("button", { name: "확인" });
-      expect(confirmBtn).not.toBeDisabled();
+    const confirmBtn = await waitFor(() => {
+      const btn = screen.getByRole("button", { name: "확인" });
+      expect(btn).not.toBeDisabled();
+      return btn;
     });
-    fireEvent.click(screen.getByRole("button", { name: "확인" }));
+    fireEvent.click(confirmBtn);
     await waitFor(() => expect(mockOverrideGate).toHaveBeenCalledWith("g-2", "테스트 사유"));
   });
 

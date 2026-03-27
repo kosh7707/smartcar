@@ -1,0 +1,90 @@
+rules:
+  - id: aegis.c.cwe-787-strcpy-unbounded
+    pattern: strcpy($DST, $SRC)
+    message: >
+      Unbounded strcpy() — no size limit on copy. Use strncpy() or snprintf() instead.
+      If $SRC exceeds $DST buffer size, a heap or stack buffer overflow occurs.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-787"
+        - "CWE-120"
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      automotive_rationale: >
+        Buffer overflow writes on ECU memory can corrupt adjacent safety-critical data
+        structures (e.g., CAN message buffers, sensor calibration tables), leading to
+        unintended vehicle behavior. ISO 26262-6 Table 1 (1a) requires prevention of
+        buffer overflows in safety-related software.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1a) — Prevention of buffer overflows"
+        - "MISRA C:2012 Rule 21.17 — String handling functions"
+        - "AUTOSAR C++14 A21-8-1 — Bounded string operations"
+
+  - id: aegis.c.cwe-787-strcat-unbounded
+    pattern: strcat($DST, $SRC)
+    message: >
+      Unbounded strcat() — concatenation without size limit. Use strncat() instead.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-787"
+        - "CWE-120"
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      automotive_rationale: >
+        Unbounded string concatenation can overflow destination buffers, especially
+        when accumulating diagnostic messages or CAN frame payloads in gateway ECUs.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1a)"
+        - "MISRA C:2012 Rule 21.17"
+
+  - id: aegis.c.cwe-787-sprintf-unbounded
+    patterns:
+      - pattern: sprintf($BUF, ...)
+    message: >
+      sprintf() has no buffer size limit — use snprintf() instead.
+      Format string expansion can exceed $BUF allocation.
+    languages: [c]
+    severity: WARNING
+    metadata:
+      cwe:
+        - "CWE-787"
+        - "CWE-134"
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      automotive_rationale: >
+        sprintf overflow is a common vulnerability in embedded C codebases.
+        In automotive ECUs, formatted diagnostic strings or log messages built
+        with sprintf can overflow stack buffers, corrupting return addresses.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1a)"
+        - "MISRA C:2012 Rule 21.6 — Standard library I/O functions"
+
+  - id: aegis.c.cwe-787-gets-always-dangerous
+    pattern: gets($BUF)
+    message: >
+      gets() is always dangerous — no buffer size limit. Use fgets() instead.
+      Removed from C11 standard due to inherent unsafety.
+    languages: [c]
+    severity: ERROR
+    metadata:
+      cwe:
+        - "CWE-787"
+        - "CWE-120"
+        - "CWE-242"
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      automotive_rationale: >
+        gets() allows unbounded input from stdin, guaranteed buffer overflow vector.
+        Any use in safety-related or security-sensitive ECU software is a critical defect.
+      references:
+        - "ISO 26262-6:2018 Table 1 (1a)"
+        - "MISRA C:2012 Rule 21.6"
+        - "CERT C STR31-C — Guarantee sufficient storage for strings"

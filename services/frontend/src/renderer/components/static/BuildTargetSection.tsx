@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import type { BuildProfile, BuildTarget } from "@aegis/shared";
 import { Crosshair, Plus, Pencil, Trash2, Play, RotateCcw, Bot } from "lucide-react";
 import { useBuildTargets } from "../../hooks/useBuildTargets";
@@ -8,11 +8,12 @@ import { logError } from "../../api/client";
 import { ConfirmDialog, Spinner, TargetStatusBadge, TargetProgressStepper } from "../ui";
 import { BuildProfileForm } from "./BuildProfileForm";
 import { TargetLibraryPanel } from "./TargetLibraryPanel";
-import { getSdkProfile } from "../../constants/sdkProfiles";
+import { fetchProjectSdks } from "../../api/sdk";
+import type { RegisteredSdk } from "../../api/sdk";
 import "./BuildTargetSection.css";
 
 const DEFAULT_PROFILE: BuildProfile = {
-  sdkId: "generic-linux",
+  sdkId: "none",
   compiler: "gcc",
   targetArch: "x86_64",
   languageStandard: "c17",
@@ -32,6 +33,16 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
   const toast = useToast();
   const bt = useBuildTargets(projectId);
   const pipeline = usePipelineProgress();
+  const [registeredSdks, setRegisteredSdks] = useState<RegisteredSdk[]>([]);
+
+  // Load registered SDKs
+  useEffect(() => {
+    if (projectId) {
+      fetchProjectSdks(projectId)
+        .then((data) => setRegisteredSdks(data.registered))
+        .catch(() => setRegisteredSdks([]));
+    }
+  }, [projectId]);
 
   // Form state
   const [formMode, setFormMode] = useState<"add" | "edit" | null>(null);
@@ -180,14 +191,14 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
           <div className="bt-form__grid">
             <label className="form-field">
               <span className="form-label">타겟 이름</span>
-              <input className="form-input" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="gateway" autoFocus />
+              <input className="form-input" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="서브프로젝트 이름" autoFocus />
             </label>
             <label className="form-field">
               <span className="form-label">상대 경로</span>
-              <input className="form-input font-mono" value={formPath} onChange={(e) => setFormPath(e.target.value)} placeholder="gateway/" spellCheck={false} />
+              <input className="form-input font-mono" value={formPath} onChange={(e) => setFormPath(e.target.value)} placeholder="src/module-dir/" spellCheck={false} />
             </label>
           </div>
-          <BuildProfileForm value={formProfile} onChange={setFormProfile} />
+          <BuildProfileForm value={formProfile} onChange={setFormProfile} registeredSdks={registeredSdks} />
           <div className="bt-form__actions">
             <button className="btn btn-secondary btn-sm" onClick={closeForm}>취소</button>
             <button className="btn btn-sm" onClick={handleSave} disabled={saving}>{saving ? "저장 중..." : "추가"}</button>
@@ -207,7 +218,7 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
           const status = getTargetStatus(target);
           const message = getTargetMessage(target);
           const error = getTargetError(target);
-          const sdk = getSdkProfile(target.buildProfile.sdkId);
+          const sdk = registeredSdks.find((s) => s.id === target.buildProfile.sdkId);
           const isFailed = FAILED_STATUSES.has(status);
           const isRunning = RUNNING_STATUSES.has(status);
           const isReady = status === "ready";
@@ -226,7 +237,7 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
                     <input className="form-input font-mono" value={formPath} disabled spellCheck={false} />
                   </label>
                 </div>
-                <BuildProfileForm value={formProfile} onChange={setFormProfile} />
+                <BuildProfileForm value={formProfile} onChange={setFormProfile} registeredSdks={registeredSdks} />
                 <div className="bt-form__actions">
                   <button className="btn btn-secondary btn-sm" onClick={closeForm}>취소</button>
                   <button className="btn btn-sm" onClick={handleSave} disabled={saving}>{saving ? "저장 중..." : "저장"}</button>

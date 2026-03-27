@@ -90,6 +90,24 @@ export class ProjectService {
 
     const recentAnalyses = analyses.slice(0, 10);
 
+    // 서브프로젝트 상태 집계
+    let targetSummary: { total: number; ready: number; failed: number; running: number; discovered: number } | undefined;
+    if (this.buildTargetService) {
+      const targets = this.buildTargetService.findByProjectId(projectId);
+      if (targets.length > 0) {
+        const failedStatuses = new Set(["build_failed", "scan_failed", "graph_failed", "resolve_failed"]);
+        const runningStatuses = new Set(["building", "scanning", "graphing", "resolving", "configured", "built", "scanned", "graphed"]);
+        targetSummary = { total: targets.length, ready: 0, failed: 0, running: 0, discovered: 0 };
+        for (const t of targets) {
+          if (t.status === "ready") targetSummary.ready++;
+          else if (failedStatuses.has(t.status)) targetSummary.failed++;
+          else if (t.status === "discovered") targetSummary.discovered++;
+          else if (runningStatuses.has(t.status)) targetSummary.running++;
+          else targetSummary.running++;
+        }
+      }
+    }
+
     return {
       project,
       fileCount,
@@ -98,6 +116,7 @@ export class ProjectService {
         bySeverity,
         byModule,
       },
+      targetSummary,
       recentAnalyses,
     };
   }

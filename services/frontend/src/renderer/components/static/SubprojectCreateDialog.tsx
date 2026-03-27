@@ -7,13 +7,15 @@ import type { TreeNode } from "../../utils/tree";
 import { useBuildTargets } from "../../hooks/useBuildTargets";
 import { useToast } from "../../contexts/ToastContext";
 import { logError } from "../../api/client";
+import { fetchProjectSdks } from "../../api/sdk";
+import type { RegisteredSdk } from "../../api/sdk";
 import { BuildProfileForm } from "./BuildProfileForm";
 import { formatFileSize } from "../../utils/format";
 import { Spinner } from "../ui";
 import "./SubprojectCreateDialog.css";
 
 const DEFAULT_PROFILE: BuildProfile = {
-  sdkId: "generic-linux",
+  sdkId: "none",
   compiler: "gcc",
   targetArch: "x86_64",
   languageStandard: "c17",
@@ -133,17 +135,23 @@ export const SubprojectCreateDialog: React.FC<Props> = ({ open, projectId, sourc
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [profile, setProfile] = useState<BuildProfile>(DEFAULT_PROFILE);
   const [creating, setCreating] = useState(false);
+  const [registeredSdks, setRegisteredSdks] = useState<RegisteredSdk[]>([]);
 
   const tree = useMemo(() => buildTree(sourceFiles, (sf) => sf.relativePath), [sourceFiles]);
 
-  // Reset on open
+  // Reset on open + load SDKs
   useEffect(() => {
     if (open) {
       setName("");
       setChecked(new Set());
       setProfile(DEFAULT_PROFILE);
+      if (projectId) {
+        fetchProjectSdks(projectId)
+          .then((data) => setRegisteredSdks(data.registered))
+          .catch(() => setRegisteredSdks([]));
+      }
     }
-  }, [open]);
+  }, [open, projectId]);
 
   const handleToggle = useCallback((paths: string[], add: boolean) => {
     setChecked((prev) => {
@@ -198,7 +206,7 @@ export const SubprojectCreateDialog: React.FC<Props> = ({ open, projectId, sourc
               className="form-input"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="gateway-webserver"
+              placeholder="예: gateway-module"
               autoFocus
             />
           </label>
@@ -217,7 +225,7 @@ export const SubprojectCreateDialog: React.FC<Props> = ({ open, projectId, sourc
             {selectedSize > 0 && <> · {formatFileSize(selectedSize)}</>}
           </div>
 
-          <BuildProfileForm value={profile} onChange={setProfile} />
+          <BuildProfileForm value={profile} onChange={setProfile} registeredSdks={registeredSdks} />
         </div>
 
         <div className="spcd__actions">

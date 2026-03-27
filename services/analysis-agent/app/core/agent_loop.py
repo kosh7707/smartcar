@@ -23,6 +23,10 @@ from app.types import FailureCode, TaskStatus
 
 logger = logging.getLogger(__name__)
 
+# 메시지 토큰 추정치가 이 값을 초과하면 컨텍스트 압축 실행
+_COMPACT_TOKEN_THRESHOLD = 16_000
+_COMPACT_KEEP_LAST_N = 4
+
 
 def _budget_snapshot(session: AgentSession) -> dict:
     b = session.budget
@@ -170,6 +174,22 @@ class AgentLoop:
 
     async def _call_with_retry(self, session, tools_schema):
         """LLM 호출 + 재시도."""
+        # 컨텍스트 압축: 토큰 추정치 초과 시 오래된 턴 제거
+        token_est = self._message_manager.get_token_estimate()
+        if token_est > _COMPACT_TOKEN_THRESHOLD:
+            removed = await self._message_manager.compact(
+                self._turn_summarizer, keep_last_n=_COMPACT_KEEP_LAST_N,
+            )
+            if removed > 0:
+                agent_log(
+                    logger, "컨텍스트 압축",
+                    component="agent_loop", phase="context_compact",
+                    turn=session.turn_count + 1,
+                    tokensBefore=token_est,
+                    tokensAfter=self._message_manager.get_token_estimate(),
+                    messagesRemoved=removed,
+                )
+
         messages = self._message_manager.get_messages()
         turn = session.turn_count + 1
         last_error = None

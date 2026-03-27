@@ -138,6 +138,7 @@
 | `sast-runner.md` | S4 |
 | `knowledge-base.md` | **S5** |
 | `analysis-agent.md` | S3 |
+| `build-agent.md` | S3 |
 | `llm-gateway.md` | **S7** |
 | `llm-engine.md` | **S7** (LLM Engine 관리 포함) |
 
@@ -226,6 +227,23 @@
 6. **X-Request-Id 전파**: 모든 서비스 간 HTTP 호출 시 `X-Request-Id` 헤더를 전파한다. 없으면 생성. 응답에도 포함.
 7. **로그 파일 위치**: 프로젝트 루트 `logs/` 디렉토리 (git-ignored, 자동 생성).
 
+### 개발 도구 (MCP)
+
+AEGIS는 개발·디버깅용 MCP 도구를 제공한다. **모든 역할이 적극 활용할 것.** 특히 장애 추적, 성능 분석, 에이전트 효율 점검 시 수동 로그 파싱 대신 이 도구들을 사용한다.
+
+| 도구 | 설명 |
+|------|------|
+| `trace_request(request_id)` | 전 서비스 파이프라인 시간순 워터폴 추적 + LLM 턴별 토큰 증가 |
+| `search_errors(since_minutes, service, min_level, limit)` | 최근 에러/경고 로그 검색 |
+| `search_logs(query, since_minutes, service, min_level, limit)` | 로그 메시지 full-text 검색 |
+| `list_requests(limit, service)` | 최근 requestId 목록 + 요약 |
+| `service_stats(service, since_minutes)` | 서비스별 통계 (요청 수, 지연, 에러율, 토큰) |
+| `llm_stats(since_minutes)` | LLM exchange 전용 통계 (호출 수, 레이턴시, 토큰, tool_calls 비율) |
+
+- **위치**: `tools/log-analyzer/` (S2 소유)
+- **등록**: `.mcp.json`에 `log-analyzer` 서버로 등록
+- **상세 사용법**: `docs/specs/observability.md` 참조
+
 ---
 
 ## 8. 개발 환경
@@ -265,6 +283,7 @@ docs/
 │   ├── technical-overview.md     # 전체 아키텍처 (S2 주도)
 │   ├── backend.md                # S2
 │   ├── frontend.md               # S1
+│   ├── build-agent.md             # S3
 │   ├── adapter.md                # S6
 │   ├── ecu-simulator.md          # S6
 │   ├── sast-runner.md            # S4
@@ -303,3 +322,4 @@ docs/
 | 2026-03-19 | S7(LLM Gateway + LLM Engine) 신설. S3에서 분리. 7인 체제. LLM 접근 원칙 추가. |
 | 2026-03-23 | S5/S6/S7 인수인계서 (신규) 태그 제거. Observability 규약 강화 (로그 레벨 숫자 표준, 서비스 식별자, X-Request-Id 규약). |
 | 2026-03-24 | Build Agent(:8003) 신설 (S3 겸임). 서브 프로젝트 파이프라인 아키텍처. 풀스택 통합 테스트. |
+| 2026-03-26 | MCP 개발 도구 섹션 추가 (log-analyzer 6개 도구). 전 역할 적극 활용 권장. |

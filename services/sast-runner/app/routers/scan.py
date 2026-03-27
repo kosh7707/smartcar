@@ -193,6 +193,7 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
                     profile=bp,
                     rulesets=rulesets,
                     compile_commands=body.compile_commands,
+                    tools=body.options.tools,
                     timeout=timeout,
                     third_party_paths=body.third_party_paths,
                 )
@@ -202,7 +203,7 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
                 sca_result = None
                 if body.project_path:
                     # 라이브러리 식별 먼저 (origin 태깅에 필요)
-                    libs = identify_libraries(scan_dir)
+                    libs = await identify_libraries(scan_dir)
 
                     # SCA: 라이브러리 정보 (CVE는 S5 담당)
                     sca_libs = []
@@ -215,9 +216,12 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
                         })
                     sca_result = {"libraries": sca_libs}
 
-                    # 코드그래프: 라이브러리 정보로 origin 태깅
+                    # 코드그래프: 라이브러리 경로 스킵 + origin 태깅
+                    lib_skip = [lib["path"] for lib in libs if lib.get("path")]
+                    func_skip = list(set((body.third_party_paths or []) + lib_skip))
                     code_graph_result = await ast_dumper.dump_functions(
                         scan_dir, source_files, bp, libraries=libs,
+                        skip_paths=func_skip if func_skip else None,
                     )
 
             finally:
@@ -325,13 +329,19 @@ async def functions(request: Request, body: ScanRequest, response: Response):
     )
 
     try:
-        # projectPath 모드: 라이브러리 식별 → origin 태깅
+        # projectPath 모드: 라이브러리 식별 → origin 태깅 + 스킵 경로
+        # include_diff=False: diff 없이 식별만 수행 (성능 — 44초 → ~1초)
         libs = None
+        func_skip = None
         if body.project_path:
-            libs = await analyze_libraries(scan_dir)
+            libs = await analyze_libraries(scan_dir, include_diff=False)
+            lib_skip = [lib["path"] for lib in (libs or []) if lib.get("path")]
+            func_skip_list = list(set((body.third_party_paths or []) + lib_skip))
+            func_skip = func_skip_list if func_skip_list else None
 
         result = await ast_dumper.dump_functions(
             scan_dir, source_files, body.build_profile, libraries=libs,
+            skip_paths=func_skip,
         )
 
         elapsed_ms = int((time.perf_counter() - t0) * 1000)
@@ -509,11 +519,15 @@ async def build_and_analyze(request: Request, response: Response, body: dict):
             compile_commands=cc_path, timeout=120,
         )
 
-        # functions
-        func_result = await ast_dumper.dump_functions(scan_dir, source_files, bp)
-
-        # libraries
+        # libraries (functions보다 먼저 — 스킵 경로 확보)
         lib_results = await analyze_libraries(project_dir)
+
+        # functions (라이브러리 경로 스킵)
+        lib_skip = [lib["path"] for lib in (lib_results or []) if lib.get("path")]
+        func_result = await ast_dumper.dump_functions(
+            scan_dir, source_files, bp,
+            skip_paths=lib_skip if lib_skip else None,
+        )
 
         # metadata
         meta = await metadata_extractor.extract(bp)
@@ -720,7 +734,7 @@ async def delete_sdk_endpoint(sdk_id: str, request: Request, response: Response)
 @router.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
     """서비스 상태 및 도구 가용성 확인."""
-    tools = await orchestrator.check_tools()
+    tools = await orchestrator.check_tools(force=True)
 
     return HealthResponse(
         semgrep=tools.get("semgrep", {}),
