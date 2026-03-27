@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S7(LLM Gateway + LLM Engine 관리) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-26**
+> **마지막 업데이트: 2026-03-27**
 
 ---
 
@@ -223,7 +223,7 @@ services/llm-gateway/
 │       └── requirements.txt      # ETL 전용 의존성
 ├── data/
 │   └── qdrant/                   # Qdrant 파일 기반 벡터 DB (ETL 빌드 산출물, git 추적 제외)
-├── tests/                        # 178 tests total
+├── tests/                        # 179 tests total
 │   ├── conftest.py               # 공통 fixture: TestClient(client_live, client+mock_pipeline), 요청 빌더
 │   ├── test_response_parser.py   # 11 tests
 │   ├── test_evidence_validator.py # 5 tests
@@ -234,7 +234,7 @@ services/llm-gateway/
 │   ├── test_registry.py          # 12 tests
 │   ├── test_threat_search.py     # 6 tests (min_score 필터 포함)
 │   ├── test_context_enricher.py  # 11 tests (ruleMatches fallback, min_score 전달 포함)
-│   ├── test_pipeline_retry.py   # 11 tests (재시도 성공/소진/HTTP에러/토큰누적)
+│   ├── test_pipeline_retry.py   # 12 tests (재시도 성공/소진/HTTP에러/토큰누적/CB OPEN)
 │   ├── test_circuit_breaker.py        # 10 tests (상태 전이, 복구, snapshot)
 │   ├── test_token_tracker.py         # 7 tests (누적 집계, endpoint별, taskType별)
 │   ├── test_contract_endpoints.py      # 15 tests (GET /v1/health, /models, /prompts, /usage, /metrics, chat proxy)
@@ -509,6 +509,13 @@ ssh -i ~/.ssh/dgx_spark accslab@10.126.37.19 'docker logs vllm_node --tail 20'
 ---
 
 ## 7. 수정 이력
+
+### Circuit Breaker OPEN 실패 경로 수정 (2026-03-27)
+
+- **버그 수정**: `LlmCircuitOpenError`가 `/v1/tasks` 파이프라인에서 잡히지 않아, CB OPEN 시 계약 위반 500 에러가 반환되던 문제 수정
+- **`FailureCode.LLM_CIRCUIT_OPEN` 추가**: `app/types.py`에 enum 값 추가. API 계약서에는 이미 문서화되어 있었으나 코드에 누락되어 있었음
+- **`task_pipeline.py` 예외 처리**: `LlmCircuitOpenError` → `MODEL_ERROR` + `LLM_CIRCUIT_OPEN` + `retryable: true` 정상 실패 응답 반환
+- 179 tests 통과 (신규 1: `test_circuit_open_returns_llm_circuit_open`)
 
 ### 코드 품질 고도화 (2026-03-26)
 

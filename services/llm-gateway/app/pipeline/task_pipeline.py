@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from app.config import settings
-from app.errors import LlmHttpError, LlmInputTooLargeError, LlmTimeoutError, LlmUnavailableError
+from app.errors import LlmCircuitOpenError, LlmHttpError, LlmInputTooLargeError, LlmTimeoutError, LlmUnavailableError
 from app.metrics import prom
 from app.pipeline.confidence import ConfidenceCalculator
 from app.pipeline.prompt_builder import V1PromptBuilder
@@ -159,8 +159,14 @@ class TaskPipeline:
                 attempt_result = await self._attempt_llm_and_validate(
                     request, messages,
                 )
-            except (LlmTimeoutError, LlmInputTooLargeError, LlmUnavailableError, LlmHttpError) as e:
-                # HTTP 에러는 즉시 실패 (재시도 비대상)
+            except (LlmCircuitOpenError, LlmTimeoutError, LlmInputTooLargeError, LlmUnavailableError, LlmHttpError) as e:
+                # LLM 인프라 에러는 즉시 실패 (재시도 비대상)
+                if isinstance(e, LlmCircuitOpenError):
+                    return self._failure(
+                        request, start,
+                        TaskStatus.MODEL_ERROR, FailureCode.LLM_CIRCUIT_OPEN,
+                        str(e), retryable=True,
+                    )
                 if isinstance(e, LlmTimeoutError):
                     return self._failure(
                         request, start,

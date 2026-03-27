@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.errors import LlmHttpError, LlmTimeoutError, LlmUnavailableError
+from app.errors import LlmCircuitOpenError, LlmHttpError, LlmTimeoutError, LlmUnavailableError
 from app.pipeline.task_pipeline import TaskPipeline
 from app.schemas.request import (
     Constraints,
@@ -276,6 +276,29 @@ async def test_unavailable_returns_model_unavailable_retryable(mock_settings):
     assert result.status == TaskStatus.MODEL_ERROR
     assert result.failureCode == FailureCode.MODEL_UNAVAILABLE
     assert result.retryable is True
+
+
+@pytest.mark.asyncio
+@patch("app.pipeline.task_pipeline.settings")
+async def test_circuit_open_returns_llm_circuit_open(mock_settings):
+    """LlmCircuitOpenError → LLM_CIRCUIT_OPEN, retryable=True, 재시도 없음."""
+    mock_settings.llm_mode = "mock"
+    mock_settings.llm_max_retries = 2
+    mock_settings.llm_max_input_chars = 800_000
+    mock_settings.rag_top_k = 5
+    mock_settings.llm_concurrency = 4
+
+    pipeline = _build_pipeline()
+    pipeline._prompt_builder.build = MagicMock(return_value=[{"role": "user", "content": "test"}])
+    pipeline._call_llm = AsyncMock(side_effect=LlmCircuitOpenError())
+
+    request = _make_request()
+    result = await pipeline.execute(request)
+
+    assert result.status == TaskStatus.MODEL_ERROR
+    assert result.failureCode == FailureCode.LLM_CIRCUIT_OPEN
+    assert result.retryable is True
+    assert pipeline._call_llm.call_count == 1
 
 
 @pytest.mark.asyncio
