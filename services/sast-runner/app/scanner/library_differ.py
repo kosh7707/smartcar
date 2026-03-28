@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import shutil
 import tempfile
+import time as _time
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -14,8 +17,126 @@ from app.scanner.library_hasher import compare_hashes, hash_source_files
 logger = logging.getLogger("aegis-sast-runner")
 
 
+@dataclass
+class DiffResult:
+    """라이브러리 diff 결과 — 성공/에러 모두 동일한 shape."""
+
+    matched_version: str | None = None
+    repo_url: str = ""
+    match_ratio: float | None = None
+    identical_files: int = 0
+    modified_files: int = 0
+    added_files: int = 0
+    deleted_files: int = 0
+    modifications: list[dict[str, Any]] = field(default_factory=list)
+    added_files_list: list[str] = field(default_factory=list)
+    searched_tags: int | None = None
+    error: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """API 응답 shape으로 직렬화."""
+        d: dict[str, Any] = {
+            "matchedVersion": self.matched_version,
+            "repoUrl": self.repo_url,
+            "matchRatio": self.match_ratio,
+            "identicalFiles": self.identical_files,
+            "modifiedFiles": self.modified_files,
+            "addedFiles": self.added_files,
+            "deletedFiles": self.deleted_files,
+            "modifications": self.modifications,
+            "error": self.error,
+        }
+        if self.added_files_list:
+            d["addedFilesList"] = self.added_files_list
+        if self.searched_tags is not None:
+            d["searchedTags"] = self.searched_tags
+        return d
+
+
+class CloneCache:
+    """TTL 기반 git clone 캐시."""
+
+    def __init__(
+        self, base_dir: str | None = None, ttl_seconds: int = 3600,
+    ) -> None:
+        self._base = Path(base_dir or "/tmp/aegis-lib-cache")
+        self._ttl = ttl_seconds
+        self._lock = asyncio.Lock()
+
+    def _key(self, repo_url: str) -> str:
+        return hashlib.sha256(repo_url.encode()).hexdigest()[:16]
+
+    def _cache_path(self, repo_url: str) -> Path:
+        return self._base / self._key(repo_url)
+
+    async def get_or_clone(self, repo_url: str, timeout: int) -> Path | None:
+        """캐시 HIT → fetch, MISS → full clone. 실패 시 None."""
+        async with self._lock:
+            cache_dir = self._cache_path(repo_url)
+
+            if cache_dir.is_dir() and (cache_dir / ".git").is_dir():
+                age = _time.time() - cache_dir.stat().st_mtime
+                if age < self._ttl:
+                    fetch_ok = await self._git_fetch(cache_dir, timeout)
+                    if fetch_ok:
+                        logger.debug("Clone cache HIT for %s (age=%.0fs)", repo_url, age)
+                        return cache_dir
+                # stale or fetch failed
+                shutil.rmtree(cache_dir, ignore_errors=True)
+
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            ok = await self._git_clone(repo_url, cache_dir, timeout)
+            if ok:
+                logger.debug("Clone cache MISS for %s — cloned fresh", repo_url)
+                return cache_dir
+
+            shutil.rmtree(cache_dir, ignore_errors=True)
+            return None
+
+    async def checkout(self, cache_dir: Path, ref: str) -> bool:
+        """캐시된 clone에서 특정 ref로 checkout."""
+        proc = await asyncio.create_subprocess_exec(
+            "git", "-C", str(cache_dir), "checkout", ref,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        await proc.communicate()
+        return proc.returncode == 0
+
+    async def _git_fetch(self, repo_dir: Path, timeout: int) -> bool:
+        proc = await asyncio.create_subprocess_exec(
+            "git", "-C", str(repo_dir), "fetch", "--all", "--tags",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            await asyncio.wait_for(proc.communicate(), timeout=timeout)
+            return proc.returncode == 0
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.communicate()
+            return False
+
+    async def _git_clone(self, url: str, dest: Path, timeout: int) -> bool:
+        proc = await asyncio.create_subprocess_exec(
+            "git", "clone", url, str(dest),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            await asyncio.wait_for(proc.communicate(), timeout=timeout)
+            return proc.returncode == 0
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.communicate()
+            return False
+
+
 class LibraryDiffer:
     """vendored 라이브러리를 upstream과 비교하여 수정분을 추출한다."""
+
+    def __init__(self, cache: CloneCache | None = None) -> None:
+        self._cache = cache
 
     async def diff(
         self,
@@ -52,7 +173,7 @@ class LibraryDiffer:
                     repo_url, version, clone_dir, timeout,
                 )
             if tag is None:
-                return {"error": "Failed to clone upstream", "repoUrl": repo_url}
+                return DiffResult(error="Failed to clone upstream", repo_url=repo_url).to_dict()
 
             # 2. 해시 기반 비교 (패키징 차이에 면역)
             local_hashes = hash_source_files(lib_path)
@@ -72,17 +193,17 @@ class LibraryDiffer:
                         "deletions": dels,
                     })
 
-            return {
-                "matchedVersion": tag,
-                "repoUrl": repo_url,
-                "matchRatio": hash_result["matchRatio"],
-                "identicalFiles": hash_result["identicalCount"],
-                "modifiedFiles": hash_result["modifiedCount"],
-                "addedFiles": hash_result["addedCount"],
-                "deletedFiles": hash_result["deletedCount"],
-                "modifications": modifications,
-                "addedFilesList": hash_result["added"][:20],
-            }
+            return DiffResult(
+                matched_version=tag,
+                repo_url=repo_url,
+                match_ratio=hash_result["matchRatio"],
+                identical_files=hash_result["identicalCount"],
+                modified_files=hash_result["modifiedCount"],
+                added_files=hash_result["addedCount"],
+                deleted_files=hash_result["deletedCount"],
+                modifications=modifications,
+                added_files_list=hash_result["added"][:20],
+            ).to_dict()
 
         finally:
             shutil.rmtree(clone_dir, ignore_errors=True)
@@ -102,12 +223,12 @@ class LibraryDiffer:
             # 1. clone (전체)
             ok = await self._git_clone(repo_url, clone_dir, timeout)
             if not ok:
-                return {"error": "Failed to clone", "repoUrl": repo_url}
+                return DiffResult(error="Failed to clone", repo_url=repo_url).to_dict()
 
             # 2. 태그 목록
             tags = await self._get_tags(clone_dir)
             if not tags:
-                return {"error": "No tags found", "repoUrl": repo_url}
+                return DiffResult(error="No tags found", repo_url=repo_url).to_dict()
 
             # 3. 각 태그에 대해 diff 크기 비교 (최대 20개)
             candidates = tags[-20:]  # 최근 20개 태그
@@ -129,7 +250,7 @@ class LibraryDiffer:
                 result["searchedTags"] = len(candidates)
                 return result
 
-            return {"error": "No matching version found", "repoUrl": repo_url}
+            return DiffResult(error="No matching version found", repo_url=repo_url).to_dict()
 
         finally:
             shutil.rmtree(clone_dir, ignore_errors=True)

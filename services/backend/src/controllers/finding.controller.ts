@@ -4,6 +4,11 @@ import type { FindingService } from "../services/finding.service";
 import type { FindingFilters } from "../dao/interfaces";
 import { InvalidInputError } from "../lib/errors";
 
+const VALID_STATUSES = new Set<string>(["open","needs_review","accepted_risk","false_positive","fixed","needs_revalidation","sandbox"]);
+const VALID_SEVERITIES = new Set<string>(["critical","high","medium","low","info"]);
+const VALID_SORT_FIELDS = new Set<string>(["severity","createdAt","location"]);
+const VALID_ORDERS = new Set<string>(["asc","desc"]);
+
 export function createFindingRouter(findingService: FindingService): Router {
   const router = Router({ mergeParams: true });
 
@@ -11,13 +16,29 @@ export function createFindingRouter(findingService: FindingService): Router {
   router.get("/", (req: Request<{ pid: string }>, res) => {
     const pid = req.params.pid;
     const filters: FindingFilters = {};
-    if (req.query.status) filters.status = req.query.status as FindingStatus;
-    if (req.query.severity) filters.severity = req.query.severity as Severity;
+    if (req.query.status) {
+      const s = req.query.status as string;
+      if (!VALID_STATUSES.has(s)) throw new InvalidInputError(`Invalid status: ${s}`);
+      filters.status = s as FindingStatus;
+    }
+    if (req.query.severity) {
+      const s = req.query.severity as string;
+      if (!VALID_SEVERITIES.has(s)) throw new InvalidInputError(`Invalid severity: ${s}`);
+      filters.severity = s as Severity;
+    }
     if (req.query.module) filters.module = req.query.module as AnalysisModule;
     if (req.query.sourceType) filters.sourceType = req.query.sourceType as string;
     if (req.query.q) filters.q = req.query.q as string;
-    if (req.query.sort) filters.sort = req.query.sort as FindingFilters["sort"];
-    if (req.query.order) filters.order = req.query.order as FindingFilters["order"];
+    if (req.query.sort) {
+      const s = req.query.sort as string;
+      if (!VALID_SORT_FIELDS.has(s)) throw new InvalidInputError(`Invalid sort field: ${s}`);
+      filters.sort = s as FindingFilters["sort"];
+    }
+    if (req.query.order) {
+      const s = req.query.order as string;
+      if (!VALID_ORDERS.has(s)) throw new InvalidInputError(`Invalid order: ${s}`);
+      filters.order = s as FindingFilters["order"];
+    }
 
     const findings = findingService.findByProjectId(pid, filters);
     res.json({ success: true, data: findings });

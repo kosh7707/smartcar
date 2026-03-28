@@ -1,7 +1,7 @@
 # S3. Analysis Agent 기능 명세
 
 > **소유자**: S3
-> **최종 업데이트**: 2026-03-24
+> **최종 업데이트**: 2026-03-28
 
 > Analysis Agent는 자동차 임베디드 소프트웨어의 **증거 기반 보안 심층 분석**을 수행하는 서비스다.
 > 결정론적 도구 실행(Phase 1)과 LLM 해석(Phase 2)을 분리하여,
@@ -57,7 +57,7 @@ POST /v1/tasks (taskType: "deep-analyze")
   │
   ├── Phase 2: LLM 해석 (~34초)
   │   ├── Phase 1 결과를 프롬프트에 주입 (출력 스키마 명시)
-  │   ├── LLM이 추가 tool 호출 가능: knowledge.search, code_graph.callers
+  │   ├── LLM이 추가 tool 호출 가능: knowledge.search, code_graph.callers (불확실성 기반, 최대 2회)
   │   ├── LLM 호출은 S7 Gateway 경유 (POST /v1/chat)
   │   └── Qwen 122B GPTQ-Int4 → 구조화 JSON (claims + evidence refs)
   │
@@ -104,9 +104,20 @@ POST /v1/tasks (taskType: "deep-analyze")
 
 ### 5.6 위험 함수 호출자
 
-- SAST findings의 메시지에서 위험 함수명 매칭 (popen, system, getenv 등 14종)
+- SAST findings의 메시지에서 위험 함수명을 **word boundary regex** (`\b` 패턴)로 매칭 (popen, system, getenv 등 14종). substring 방식 대비 false positive 제거 (예: "system-wide" → "system" 매치 안 됨)
 - S5 `POST /v1/code-graph/{project_id}/dangerous-callers` 호출
 - 위험 함수를 호출하는 사용자 코드 함수를 Phase 2 프롬프트에 주입
+
+### 5.7 코드 그래프 적재
+
+- S5 `POST /v1/code-graph/{project_id}/ingest`에 함수 목록 전송
+- 필터: `_CODEGRAPH_EXCLUDE_DIRS` (test, vendor, external 등) 제외 기반. `origin` 필드가 있으면 무조건 포함 (서드파티)
+- `revisionHint` 필드를 ingest 요청에 포함 (additive, S5가 지원 시 코드 그래프 버전 관리)
+
+### 5.8 Phase 1 truncation 정책
+
+- CVE 배치 조회: `settings.phase1_max_cve_libraries` (기본 20) 개까지. 초과 시 잘림 로그
+- 위협 쿼리: `settings.phase1_max_threat_cwes` (기본 10) 개까지. 초과 시 잘림 로그
 
 ### Phase 1 결과
 

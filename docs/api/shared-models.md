@@ -97,6 +97,8 @@ SCA(Software Composition Analysis)로 탐지된 라이브러리 정보.
 | turnCount | number (optional) | 에이전트 루프 턴 수 |
 | toolCallCount | number (optional) | 도구 호출 횟수 |
 | terminationReason | string (optional) | 종료 사유 (e.g. "content_returned") |
+| modelName | string (optional) | S7에서 실제 사용된 LLM 모델 식별자 (S3 Agent가 전달) |
+| promptVersion | string (optional) | Agent 시스템 프롬프트 버전 (S3 관리) |
 
 ### AnalysisSummary
 
@@ -639,7 +641,7 @@ Finding과 증적(artifact) 간의 참조 연결.
 
 ### ModuleReport
 
-모듈별 보고서. (후속 과제)
+모듈별 보고서. (구현 완료)
 
 | 필드 | 타입 | 설명 |
 |------|------|------|
@@ -651,7 +653,7 @@ Finding과 증적(artifact) 간의 참조 연결.
 
 ### ProjectReport
 
-프로젝트 전체 보고서. (후속 과제)
+프로젝트 전체 보고서. (구현 완료)
 
 | 필드 | 타입 | 설명 |
 |------|------|------|
@@ -665,7 +667,7 @@ Finding과 증적(artifact) 간의 참조 연결.
 
 ### GateStatus
 
-Quality Gate 상태 타입. (후속 과제 — 3단계, 스키마 선확정)
+Quality Gate 상태 타입. (구현 완료)
 
 ```typescript
 type GateStatus = "pass" | "fail" | "warning";
@@ -673,7 +675,7 @@ type GateStatus = "pass" | "fail" | "warning";
 
 ### GateRuleId
 
-Quality Gate 규칙 식별자. (후속 과제 — 3단계, 스키마 선확정)
+Quality Gate 규칙 식별자. (구현 완료)
 
 ```typescript
 type GateRuleId = "no-critical" | "high-threshold" | "evidence-coverage" | "sandbox-unreviewed";
@@ -681,7 +683,7 @@ type GateRuleId = "no-critical" | "high-threshold" | "evidence-coverage" | "sand
 
 ### GateRuleResult
 
-Quality Gate 개별 규칙 평가 결과. (후속 과제 — 3단계, 스키마 선확정)
+Quality Gate 개별 규칙 평가 결과. (구현 완료)
 
 | 필드 | 타입 | 설명 |
 |------|------|------|
@@ -692,7 +694,7 @@ Quality Gate 개별 규칙 평가 결과. (후속 과제 — 3단계, 스키마 
 
 ### GateResult
 
-Quality Gate 평가 결과. (후속 과제 — 3단계, 스키마 선확정)
+Quality Gate 평가 결과. (구현 완료)
 
 | 필드 | 타입 | 설명 |
 |------|------|------|
@@ -707,7 +709,7 @@ Quality Gate 평가 결과. (후속 과제 — 3단계, 스키마 선확정)
 
 ### ApprovalStatus
 
-승인 상태 타입. (후속 과제 — 3단계)
+승인 상태 타입. (구현 완료)
 
 ```typescript
 type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
@@ -715,7 +717,7 @@ type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
 
 ### ApprovalActionType
 
-승인 대상 액션 타입. (후속 과제 — 3단계)
+승인 대상 액션 타입. (구현 완료)
 
 ```typescript
 type ApprovalActionType = "gate.override" | "finding.accepted_risk";
@@ -723,7 +725,7 @@ type ApprovalActionType = "gate.override" | "finding.accepted_risk";
 
 ### ApprovalRequest
 
-승인 요청. (후속 과제 — 3단계)
+승인 요청. (구현 완료)
 
 | 필드 | 타입 | 설명 |
 |------|------|------|
@@ -1090,7 +1092,7 @@ type ApprovalActionType = "gate.override" | "finding.accepted_risk";
 |------|------|------|
 | success | boolean | 성공 여부 |
 | data.run | Run | Run 정보 |
-| data.gate | GateResult (optional) | Quality Gate 결과 (후속 과제 — 3단계) |
+| data.gate | GateResult (optional) | Quality Gate 결과 (구현 완료) |
 | data.findings | Array<{ finding: Finding; evidenceRefs: EvidenceRef[] }> | Finding + 증적 목록 |
 | error | string (optional) | 에러 메시지 |
 
@@ -1203,7 +1205,7 @@ type ApprovalActionType = "gate.override" | "finding.accepted_risk";
 
 **응답**: `{ success: true, data: { pending, total } }`
 
-### Quality Gate (후속 과제 — 3단계, 스키마 선확정)
+### Quality Gate (구현 완료)
 
 #### GateResultResponse
 
@@ -1227,7 +1229,7 @@ type ApprovalActionType = "gate.override" | "finding.accepted_risk";
 | reason | string | 오버라이드 사유 |
 | actor | string (optional) | 수행자 |
 
-### Approval (후속 과제 — 3단계)
+### Approval (구현 완료)
 
 #### ApprovalListResponse
 
@@ -1252,7 +1254,7 @@ type ApprovalActionType = "gate.override" | "finding.accepted_risk";
 | comment | string (optional) | 코멘트 |
 | actor | string (optional) | 수행자 |
 
-### Report (후속 과제)
+### Report (구현 완료)
 
 #### ModuleReportResponse
 

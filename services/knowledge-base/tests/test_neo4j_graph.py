@@ -101,6 +101,38 @@ def test_get_related():
     assert "CAPEC-88" in related["capec"]
 
 
+def test_get_stats_includes_edge_types():
+    driver = _mock_driver()
+    session = MagicMock()
+    driver.session.return_value.__enter__ = MagicMock(return_value=session)
+    driver.session.return_value.__exit__ = MagicMock(return_value=False)
+
+    session.run.side_effect = _make_session_run_results({
+        "MATCH (n) WHERE": {"cnt": 100},
+        "RETURN count(r) AS cnt": {"cnt": 250},
+        "MATCH (n:CWE)": {"cnt": 50},
+        "MATCH (n:CVE)": {"cnt": 0},
+        "MATCH (n:Attack)": {"cnt": 30},
+        "MATCH (n:CAPEC)": {"cnt": 20},
+        "type(r) AS rel_type": [
+            {"rel_type": "RELATED_CAPEC", "cnt": 120},
+            {"rel_type": "RELATED_ATTACK", "cnt": 80},
+            {"rel_type": "RELATED_CWE", "cnt": 50},
+        ],
+        "ORDER BY degree": [],
+    })
+
+    graph = Neo4jGraph(driver)
+    stats = graph.get_stats()
+
+    assert "edgeTypes" in stats
+    assert stats["edgeTypes"]["RELATED_CAPEC"] == 120
+    assert stats["edgeTypes"]["RELATED_ATTACK"] == 80
+    assert stats["edgeTypes"]["RELATED_CWE"] == 50
+    assert stats["nodeCount"] == 100
+    assert stats["edgeCount"] == 250
+
+
 def test_get_node_info_found():
     driver = _mock_driver()
     session = MagicMock()

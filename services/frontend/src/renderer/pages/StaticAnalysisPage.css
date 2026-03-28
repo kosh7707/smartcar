@@ -454,6 +454,93 @@
   color: var(--accent-hover);
 }
 
+/* ── Finding Search / Sort Bar ── */
+
+.finding-search-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.finding-search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 0 220px;
+}
+
+.finding-search-icon {
+  position: absolute;
+  left: var(--space-2);
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.finding-search-input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3) var(--space-2) calc(var(--space-2) + 20px);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-0);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  transition: border-color var(--transition-fast);
+}
+
+.finding-search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.finding-search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.finding-filter-tab--sm {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+}
+
+.finding-sort-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.finding-sort-select {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-0);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.finding-sort-dir {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-0);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.finding-sort-dir:hover {
+  background: var(--surface-1);
+  border-color: var(--accent);
+}
+
 /* ── Finding Filter Bar ── */
 
 .finding-filter-bar {
@@ -550,6 +637,19 @@
   .static-dashboard__rankings {
     grid-template-columns: 1fr;
     gap: var(--space-3);
+  }
+
+  .finding-search-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .finding-search-input-wrap {
+    flex: 1 1 auto;
+  }
+
+  .finding-sort-controls {
+    margin-left: 0;
   }
 
   .finding-filter-bar {

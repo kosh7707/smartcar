@@ -9,6 +9,7 @@ import httpx
 
 from agent_shared.context import get_request_id
 from agent_shared.schemas.agent import ToolResult
+from agent_shared.schemas.upstream import CodeFunction
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +36,8 @@ class CodeGraphPhase1Tool:
             resp.raise_for_status()
             data = resp.json()
 
-            functions = data.get("functions", [])
-            new_refs = [f"eref-func-{f['name']}" for f in functions[:10]]
+            functions = [CodeFunction.model_validate(f) for f in data.get("functions", [])[:10]]
+            new_refs = [f"eref-func-{f.name}" for f in functions if f.name]
 
             return ToolResult(
                 tool_call_id="",

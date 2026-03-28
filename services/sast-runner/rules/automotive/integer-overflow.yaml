@@ -32,6 +32,23 @@ rules:
       - patterns:
           - pattern: ++$SINK
           - focus-metavariable: $SINK
+    pattern-sanitizers:
+      - patterns:
+          - pattern-inside: |
+              if ($SINK < $LIMIT) { ... }
+          - focus-metavariable: $SINK
+      - patterns:
+          - pattern-inside: |
+              if ($SINK <= $LIMIT) { ... }
+          - focus-metavariable: $SINK
+      - patterns:
+          - pattern-inside: |
+              if ($SINK > $MIN && $SINK < $MAX) { ... }
+          - focus-metavariable: $SINK
+      - patterns:
+          - pattern-inside: |
+              if ($SINK >= $MIN && $SINK <= $MAX) { ... }
+          - focus-metavariable: $SINK
     message: >
       Potential integer overflow: external input used in arithmetic without
       bounds check. Large values from atoi/rand can overflow on add/multiply/increment.

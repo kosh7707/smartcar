@@ -40,6 +40,7 @@ export function createProjectSourceRouter(
   sourceService: ProjectSourceService,
   projectDAO: IProjectDAO,
   uploadWs?: WsBroadcaster<WsUploadMessage>,
+  buildTargetDAO?: import("../dao/interfaces").IBuildTargetDAO,
 ): Router {
   const router = Router({ mergeParams: true });
 
@@ -107,7 +108,26 @@ export function createProjectSourceRouter(
       ? sourceService.listFiles(pid)          // C/C++ 기본 필터
       : sourceService.listFiles(pid, null);   // 전체 파일
     const { composition, totalFiles, totalSize } = sourceService.computeComposition(pid);
-    res.json({ success: true, data: files, composition, totalFiles, totalSize });
+
+    // 파일→타겟 매핑: 각 파일이 어느 BuildTarget에 속하는지 표시
+    let targetMapping: Record<string, { targetId: string; targetName: string }> | undefined;
+    if (buildTargetDAO) {
+      const targets = buildTargetDAO.findByProjectId(pid);
+      if (targets.length > 0) {
+        targetMapping = {};
+        for (const file of files) {
+          const relativePath = (file as any).relativePath ?? (file as any).path ?? "";
+          for (const t of targets) {
+            if (relativePath.startsWith(t.relativePath)) {
+              targetMapping[relativePath] = { targetId: t.id, targetName: t.name };
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    res.json({ success: true, data: files, composition, totalFiles, totalSize, targetMapping });
   }));
 
   // GET /api/projects/:pid/source/file — 파일 내용 읽기

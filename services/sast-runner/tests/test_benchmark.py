@@ -17,17 +17,21 @@ class TestToolMetrics:
         assert tm.recall == pytest.approx(0.8)
 
     def test_noise_tracking(self):
-        tm = ToolMetrics(tool_name="cppcheck", tp=8, fn=2, noise_findings=15)
+        tm = ToolMetrics(tool_name="cppcheck", tp=8, fn=2, targeted_noise=10, portfolio_noise=5)
         assert tm.noise_findings == 15
+        assert tm.targeted_noise == 10
+        assert tm.portfolio_noise == 5
 
     def test_zero_division(self):
         tm = ToolMetrics(tool_name="x")
         assert tm.recall == 0.0
 
     def test_to_dict(self):
-        d = ToolMetrics(tool_name="t", tp=5, fn=5, noise_findings=10).to_dict()
+        d = ToolMetrics(tool_name="t", tp=5, fn=5, targeted_noise=7, portfolio_noise=3).to_dict()
         assert d["recall"] == 0.5
         assert d["noise"] == 10
+        assert d["targetedNoise"] == 7
+        assert d["portfolioNoise"] == 3
         assert "tp" in d
 
 
@@ -37,22 +41,36 @@ class TestToolMetrics:
 class TestCWEMetrics:
     def test_combined_recall(self):
         m = CWEMetrics(cwe="CWE-78", cwe_name="Cmd", total_files=10,
-                       combined_tp=8, combined_fn=2, combined_noise=30)
+                       combined_tp=8, combined_fn=2, targeted_noise=20, portfolio_noise=10)
         assert m.combined_recall == pytest.approx(0.8)
 
     def test_noise_per_file(self):
-        m = CWEMetrics(cwe="CWE-78", cwe_name="test", total_files=10, combined_noise=50)
+        m = CWEMetrics(cwe="CWE-78", cwe_name="test", total_files=10,
+                       targeted_noise=30, portfolio_noise=20)
         assert m.noise_per_file == pytest.approx(5.0)
 
     def test_noise_per_file_zero_files(self):
-        m = CWEMetrics(cwe="CWE-78", cwe_name="test", total_files=0, combined_noise=5)
+        m = CWEMetrics(cwe="CWE-78", cwe_name="test", total_files=0, targeted_noise=5)
         assert m.noise_per_file == 0.0
 
     def test_to_dict_includes_noise(self):
-        m = CWEMetrics(cwe="CWE-78", cwe_name="test", total_files=10, combined_noise=50)
+        m = CWEMetrics(cwe="CWE-78", cwe_name="test", total_files=10,
+                       targeted_noise=30, portfolio_noise=20)
         d = m.to_dict()
         assert d["combined"]["noise"] == 50
+        assert d["combined"]["targetedNoise"] == 30
+        assert d["combined"]["portfolioNoise"] == 20
         assert d["combined"]["noisePerFile"] == 5.0
+        assert d["combined"]["targetedNoisePerFile"] == 3.0
+
+    def test_backward_compat_combined_noise(self):
+        m = CWEMetrics(cwe="CWE-78", cwe_name="test", targeted_noise=15, portfolio_noise=5)
+        assert m.combined_noise == 20
+
+    def test_targeted_noise_per_file(self):
+        m = CWEMetrics(cwe="CWE-78", cwe_name="test", total_files=10,
+                       targeted_noise=30, portfolio_noise=20)
+        assert m.targeted_noise_per_file == pytest.approx(3.0)
 
     def test_by_rule_in_dict(self):
         m = CWEMetrics(cwe="CWE-78", cwe_name="test")
@@ -70,11 +88,11 @@ class TestBenchmarkResult:
         r = BenchmarkResult()
         r.cwe_results["CWE-78"] = CWEMetrics(
             cwe="CWE-78", cwe_name="Cmd", total_files=10,
-            combined_tp=8, combined_fn=2, combined_noise=30,
+            combined_tp=8, combined_fn=2, targeted_noise=20, portfolio_noise=10,
         )
         r.cwe_results["CWE-476"] = CWEMetrics(
             cwe="CWE-476", cwe_name="Null", total_files=5,
-            combined_tp=5, combined_fn=0, combined_noise=10,
+            combined_tp=5, combined_fn=0, targeted_noise=7, portfolio_noise=3,
         )
         return r
 
@@ -92,6 +110,8 @@ class TestBenchmarkResult:
         assert s["totalTP"] == 13
         assert s["totalFN"] == 2
         assert s["totalNoise"] == 40
+        assert s["totalTargetedNoise"] == 27
+        assert s["totalPortfolioNoise"] == 13
         assert "overallNoisePerFile" in s
 
     def test_to_markdown(self):

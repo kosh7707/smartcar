@@ -9,6 +9,7 @@ import httpx
 
 from agent_shared.context import get_request_id
 from agent_shared.schemas.agent import ToolResult
+from agent_shared.schemas.upstream import SastFinding
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +38,8 @@ class SastScanTool:
             resp.raise_for_status()
             data = resp.json()
 
-            findings = data.get("findings", [])
-            new_refs = [f"eref-sast-{f['ruleId']}" for f in findings[:10]]
+            findings = [SastFinding.model_validate(f) for f in data.get("findings", [])[:10]]
+            new_refs = [f"eref-sast-{f.ruleId}" for f in findings if f.ruleId]
 
             return ToolResult(
                 tool_call_id="",

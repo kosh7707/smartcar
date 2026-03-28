@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 import httpx
 
 from agent_shared.context import get_request_id
+from app.config import settings
 from agent_shared.observability import agent_log
 from agent_shared.schemas.agent import ToolCallRequest
 
@@ -54,6 +55,14 @@ _DANGEROUS_FUNCS = {
     "strcpy", "strcat", "sprintf", "gets", "scanf",
     "memcpy", "memmove", "alloca",
 }
+_DANGEROUS_FUNC_PATTERNS: dict[str, re.Pattern] = {
+    func: re.compile(rf"\b{re.escape(func)}\b")
+    for func in _DANGEROUS_FUNCS
+}
+_CODEGRAPH_EXCLUDE_DIRS = frozenset({
+    "test", "tests", "third_party", "vendor", "external",
+    "deps", "node_modules", ".git",
+})
 
 
 class Phase1Executor:
@@ -89,6 +98,7 @@ class Phase1Executor:
         project_path = trusted.get("projectPath")
         target_path = trusted.get("targetPath")
         project_id = trusted.get("projectId", session.request.taskId)
+        revision_hint = trusted.get("revisionHint") or trusted.get("commitSha")
         build_profile = trusted.get("buildProfile")
         build_command = trusted.get("buildCommand")
         third_party_paths = trusted.get("thirdPartyPaths", [])
@@ -112,7 +122,9 @@ class Phase1Executor:
 
         # 프로젝트 메모리 조회 (이전 분석 이력, false positive, 사용자 선호)
         if project_id:
-            result.project_memory = await self._fetch_project_memory(project_id, request_id)
+            result.project_memory = await self._fetch_project_memory(
+                project_id, request_id, revision_hint,
+            )
 
         # Pre-computed Phase 1 결과가 있으면 SAST/코드그래프/SCA 스킵
         pre_findings = trusted.get("sastFindings")
@@ -290,15 +302,21 @@ class Phase1Executor:
 
         # 코드 그래프를 S5 KB에 적재 (dangerous_callers 조회에 필요)
         if result.code_functions and project_id:
-            await self._ingest_code_graph(result, project_id, request_id)
+            await self._ingest_code_graph(result, project_id, request_id, revision_hint)
 
         return result
 
-    async def _ingest_code_graph(self, result: Phase1Result, project_id: str, request_id: str) -> None:
-        """코드 그래프를 S5 KB에 적재한다. 사용자 코드(src/) + 서드파티(origin) 포함."""
+    async def _ingest_code_graph(
+        self, result: Phase1Result, project_id: str, request_id: str,
+        revision_hint: str | None = None,
+    ) -> None:
+        """코드 그래프를 S5 KB에 적재한다. 노이즈 디렉토리만 제외."""
         relevant_functions = [
             f for f in result.code_functions
-            if f.get("file", "").startswith("src/") or f.get("origin")
+            if f.get("origin") or not any(
+                part in _CODEGRAPH_EXCLUDE_DIRS
+                for part in f.get("file", "").split("/")
+            )
         ]
         if not relevant_functions:
             return
@@ -314,9 +332,12 @@ class Phase1Executor:
             headers["X-Request-Id"] = request_id
 
         try:
+            body: dict = {"functions": relevant_functions}
+            if revision_hint:
+                body["revisionHint"] = revision_hint
             resp = await self._kb_client.post(
                 f"/v1/code-graph/{project_id}/ingest",
-                json={"functions": relevant_functions},
+                json=body,
                 headers=headers,
             )
             resp.raise_for_status()
@@ -529,7 +550,14 @@ class Phase1Executor:
         if request_id:
             headers["X-Request-Id"] = request_id
 
-        request_body = {"libraries": libraries[:20]}
+        limit = settings.phase1_max_cve_libraries
+        if len(libraries) > limit:
+            agent_log(
+                logger, "Phase 1: CVE 라이브러리 목록 잘림",
+                component="phase_one", phase="cve_truncated",
+                total=len(libraries), limit=limit,
+            )
+        request_body = {"libraries": libraries[:limit]}
         try:
             resp = await self._kb_client.post(
                 "/v1/cve/batch-lookup",
@@ -587,9 +615,17 @@ class Phase1Executor:
         if request_id:
             headers["X-Request-Id"] = request_id
 
+        cwe_limit = settings.phase1_max_threat_cwes
+        sorted_cwes = sorted(cwe_ids)
+        if len(sorted_cwes) > cwe_limit:
+            agent_log(
+                logger, "Phase 1: 위협 쿼리 CWE 목록 잘림",
+                component="phase_one", phase="threat_truncated",
+                total=len(sorted_cwes), limit=cwe_limit,
+            )
         queries = [
             {"query": cwe_id}
-            for cwe_id in sorted(cwe_ids)[:10]
+            for cwe_id in sorted_cwes[:cwe_limit]
         ]
 
         try:
@@ -662,16 +698,24 @@ class Phase1Executor:
         )
         return result
 
-    async def _fetch_project_memory(self, project_id: str, request_id: str) -> list[dict]:
+    async def _fetch_project_memory(
+        self, project_id: str, request_id: str,
+        revision_hint: str | None = None,
+    ) -> list[dict]:
         """S5 KB에서 프로젝트 메모리를 조회한다."""
         headers: dict[str, str] = {}
         if request_id:
             headers["X-Request-Id"] = request_id
 
+        params: dict[str, str] = {}
+        if revision_hint:
+            params["revision"] = revision_hint
+
         try:
             resp = await self._kb_client.get(
                 f"/v1/project-memory/{project_id}",
                 headers=headers,
+                params=params if params else None,
             )
             resp.raise_for_status()
             data = resp.json()
@@ -709,12 +753,12 @@ class Phase1Executor:
 
     @staticmethod
     def _extract_dangerous_funcs(findings: list[dict]) -> set[str]:
-        """findings에서 위험 함수명을 결정론적으로 추출한다."""
+        """findings에서 위험 함수명을 word boundary regex로 추출한다."""
         found: set[str] = set()
         for f in findings:
             msg = f.get("message", "").lower()
-            for func in _DANGEROUS_FUNCS:
-                if func in msg:
+            for func, pattern in _DANGEROUS_FUNC_PATTERNS.items():
+                if pattern.search(msg):
                     found.add(func)
         return found
 
@@ -808,11 +852,12 @@ def build_phase2_prompt(
         "- 수정된 서드파티 코드(modified-third-party)가 위험 함수를 호출하면, 수정이 원본 보안 패치를 무력화했을 가능성을 caveat에 언급하라.\n"
         "- `code_graph.callers` 도구 응답의 `origin` 필드로 호출자가 서드파티인지 확인할 수 있다.\n\n"
         "## 도구 사용 지침\n"
-        "- 분석 근거를 강화하기 위해 **최소 1회 이상 도구를 호출하라**.\n"
-        "- 특히 위험 함수(popen, system, getenv 등)의 호출자 체인은 `code_graph.callers`로 반드시 확인하라.\n"
+        "- Phase 1에서 수집한 증거가 충분하지 않을 때만 도구를 호출하라.\n"
+        "- 최대 2회의 추가 도구 호출이 허용된다.\n"
+        "- 위험 함수(popen, system, getenv 등)의 호출자 체인이 Phase 1에 없거나 불충분하면 `code_graph.callers`로 확인하라.\n"
         "- 위협 지식이 부족하면 `knowledge.search`로 CWE/CVE/ATT&CK 정보를 보강하라.\n"
         "- 도구 호출이 실패하면 재시도하지 말고, 현재까지 수집된 정보로 보고서를 작성하라.\n"
-        "- 도구를 호출한 후에는 반드시 보고서를 작성하라. 도구 결과를 확인하기 위해 또 다른 도구를 호출하지 마라.\n\n"
+        "- 모든 도구 호출이 완료되면 보고서를 작성하라.\n\n"
         "## 프로젝트 메모리 활용 지침\n"
         "- 아래에 `[프로젝트 분석 기억]` 섹션이 있으면, 이전 분석 결과와 비교하여 변화를 보고하라.\n"
         "- `[False Positive]`로 표시된 패턴은 claims에 포함하지 말고, 필요 시 caveat으로만 언급하라.\n"

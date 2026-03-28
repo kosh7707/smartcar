@@ -16,7 +16,7 @@ import type {
 } from "@aegis/shared";
 import type { PipelinePhase } from "@aegis/shared";
 import { createLogger } from "../lib/logger";
-import { NotFoundError, BuildAgentUnavailableError, BuildAgentTimeoutError } from "../lib/errors";
+import { NotFoundError, BuildAgentUnavailableError, BuildAgentTimeoutError, PipelineStepError } from "../lib/errors";
 import type { ProjectSourceService } from "./project-source.service";
 import type { SastClient, SastScanResponse } from "./sast-client";
 import type { KbClient } from "./kb-client";
@@ -154,7 +154,7 @@ export class PipelineOrchestrator {
             });
             this.updateStatus(projectId, target, "resolve_failed", `빌드 실패: ${br.errorLog ?? "unknown"}`);
             if (!target.buildProfile?.compiler) {
-              throw new Error(`Build resolve failed for ${target.name}: ${br.errorLog}`);
+              throw new PipelineStepError(`Build resolve failed for ${target.name}: ${br.errorLog}`);
             }
             logger.warn({ targetId: target.id }, "Build Agent build failed, using existing profile");
           } else {
@@ -175,7 +175,7 @@ export class PipelineOrchestrator {
           this.buildTargetDAO.updatePipelineState(target.id, { status: "resolve_failed" });
           this.updateStatus(projectId, target, "resolve_failed", resolveResp.failureDetail);
           if (!target.buildProfile?.compiler) {
-            throw new Error(`Build resolve failed for ${target.name}: ${resolveResp.failureDetail}`);
+            throw new PipelineStepError(`Build resolve failed for ${target.name}: ${resolveResp.failureDetail}`);
           }
           logger.warn({ targetId: target.id }, "Build resolve failed, using existing profile");
         }
@@ -209,7 +209,7 @@ export class PipelineOrchestrator {
         buildLog: buildResult.buildLog ?? buildResult.error,
       });
       this.updateStatus(projectId, target, "build_failed", `빌드 실패: ${buildResult.error}`);
-      throw new Error(`Build failed for ${target.name}: ${buildResult.error}`);
+      throw new PipelineStepError(`Build failed for ${target.name}: ${buildResult.error}`);
     }
 
     this.buildTargetDAO.updatePipelineState(target.id, {
@@ -256,7 +256,7 @@ export class PipelineOrchestrator {
     if (sastResponse.status !== "completed") {
       this.buildTargetDAO.updatePipelineState(target.id, { status: "scan_failed" });
       this.updateStatus(projectId, target, "scan_failed", `스캔 실패: ${sastResponse.error}`);
-      throw new Error(`Scan failed for ${target.name}: ${sastResponse.error}`);
+      throw new PipelineStepError(`Scan failed for ${target.name}: ${sastResponse.error}`);
     }
 
     // Quick 결과 저장

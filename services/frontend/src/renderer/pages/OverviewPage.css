@@ -127,6 +127,30 @@
   cursor: pointer;
 }
 
+/* ── Target Summary ── */
+
+.overview-target-summary {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-default);
+  margin-bottom: var(--space-2);
+}
+
+.overview-target-summary__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+}
+
+.overview-target-summary__item--ready { color: var(--success); }
+.overview-target-summary__item--running { color: var(--severity-medium); }
+.overview-target-summary__item--failed { color: var(--severity-high); }
+.overview-target-summary__item--discovered { color: var(--text-tertiary); }
+
 .overview-subproject-body,
 .overview-sdk-body {
   display: flex;

@@ -1,7 +1,7 @@
 """ScanOrchestrator 단위 테스트 — 도구 선택, profile enrichment, 필터링."""
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -58,44 +58,80 @@ class TestSelectTools:
             "gcc-fanalyzer": {"available": True, "version": "13.3.0"},
         }
 
-    def test_all_tools_selected_no_profile(self, orchestrator):
+    @pytest.mark.asyncio
+    async def test_all_tools_selected_no_profile(self, orchestrator):
         available = self._available_all()
-        active = orchestrator._select_tools(None, None, available)
+        active = await orchestrator._select_tools(None, None, available)
         # All 6 should be active (not in _skipped)
         assert all(available[t]["available"] for t in ["semgrep", "cppcheck", "flawfinder"])
 
-    def test_semgrep_skipped_for_cpp(self, orchestrator):
+    @pytest.mark.asyncio
+    async def test_semgrep_not_skipped_for_cpp(self, orchestrator):
+        """C++ 프로젝트에서도 Semgrep은 스킵되지 않음 (확장자 필터로 대체)."""
         available = self._available_all()
         profile = BuildProfile(
             sdkId="custom", compiler="g++",
             targetArch="x86_64", languageStandard="c++17",
             headerLanguage="cpp",
         )
-        active = orchestrator._select_tools(None, profile, available)
-        assert "semgrep" in active.get("_skipped", {})
+        active = await orchestrator._select_tools(None, profile, available)
+        assert "semgrep" not in active.get("_skipped", {})
+        assert active.get("semgrep") is True
 
-    def test_semgrep_not_skipped_for_c(self, orchestrator):
+    @pytest.mark.asyncio
+    async def test_semgrep_not_skipped_for_c(self, orchestrator):
         available = self._available_all()
         profile = BuildProfile(
             sdkId="custom", compiler="gcc",
             targetArch="x86_64", languageStandard="c99",
             headerLanguage="c",
         )
-        active = orchestrator._select_tools(None, profile, available)
+        active = await orchestrator._select_tools(None, profile, available)
         assert "semgrep" not in active.get("_skipped", {})
 
-    def test_unavailable_tool_skipped(self, orchestrator):
+    @pytest.mark.asyncio
+    async def test_unavailable_tool_skipped(self, orchestrator):
         available = self._available_all()
         available["scan-build"]["available"] = False
-        active = orchestrator._select_tools(None, None, available)
+        active = await orchestrator._select_tools(None, None, available)
         assert "scan-build" in active.get("_skipped", {})
 
-    def test_explicit_tool_list(self, orchestrator):
+    @pytest.mark.asyncio
+    async def test_explicit_tool_list(self, orchestrator):
         available = self._available_all()
-        active = orchestrator._select_tools(["cppcheck", "flawfinder"], None, available)
+        active = await orchestrator._select_tools(["cppcheck", "flawfinder"], None, available)
         assert "cppcheck" in active
         assert "flawfinder" in active
         assert "semgrep" not in active or "semgrep" in active.get("_skipped", {})
+
+    @pytest.mark.asyncio
+    async def test_gcc_fanalyzer_sdk_recheck(self, orchestrator):
+        """호스트 gcc unavailable이지만 SDK 컴파일러로 재확인 → 활성화."""
+        available = self._available_all()
+        available["gcc-fanalyzer"]["available"] = False
+        profile = BuildProfile(
+            sdkId="ti-am335x", compiler="arm-gcc",
+            targetArch="arm", languageStandard="c99",
+            headerLanguage="c",
+        )
+        orchestrator.gcc_analyzer.check_available = AsyncMock(return_value=(True, "13.3.0"))
+        active = await orchestrator._select_tools(None, profile, available)
+        assert "gcc-fanalyzer" not in active.get("_skipped", {})
+        assert active.get("gcc-fanalyzer") is True
+
+    @pytest.mark.asyncio
+    async def test_gcc_fanalyzer_sdk_recheck_still_fails(self, orchestrator):
+        """호스트 gcc unavailable + SDK 컴파일러도 old → 여전히 스킵."""
+        available = self._available_all()
+        available["gcc-fanalyzer"]["available"] = False
+        profile = BuildProfile(
+            sdkId="ti-am335x", compiler="arm-gcc",
+            targetArch="arm", languageStandard="c99",
+            headerLanguage="c",
+        )
+        orchestrator.gcc_analyzer.check_available = AsyncMock(return_value=(False, None))
+        active = await orchestrator._select_tools(None, profile, available)
+        assert "gcc-fanalyzer" in active.get("_skipped", {})
 
 
 class TestIsUserPath:

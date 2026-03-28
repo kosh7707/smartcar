@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { healthCheck } from "../api/client";
 import { useToast } from "../contexts/ToastContext";
 import { POLL_HEALTH_MS } from "../constants/defaults";
+import { formatUptime } from "../utils/format";
 import "./StatusBar.css";
 
 type HealthStatus = "ok" | "degraded" | "unhealthy" | "disconnected" | "checking";
@@ -17,6 +18,7 @@ const STATUS_LABELS: Record<HealthStatus, string> = {
 export const StatusBar: React.FC = () => {
   const toast = useToast();
   const [status, setStatus] = useState<HealthStatus>("checking");
+  const [detail, setDetail] = useState<{ version: string; uptime: number } | null>(null);
   const prevStatus = useRef<HealthStatus>("checking");
 
   useEffect(() => {
@@ -24,6 +26,7 @@ export const StatusBar: React.FC = () => {
       try {
         const data = await healthCheck();
         const s = data?.status as string;
+        if (data?.detail) setDetail(data.detail as { version: string; uptime: number });
 
         if (s === "ok" || s === "degraded" || s === "unhealthy") {
           const newStatus = s as HealthStatus;
@@ -71,7 +74,10 @@ export const StatusBar: React.FC = () => {
   return (
     <div className="statusbar">
       <div className="statusbar-item">
-        <span>AEGIS v0.2.0</span>
+        <span>AEGIS {detail ? `v${detail.version}` : "v0.2.0"}</span>
+        {detail?.uptime != null && (
+          <span className="statusbar-detail">· {formatUptime(detail.uptime)}</span>
+        )}
       </div>
       <div className="statusbar-item" role="status" aria-live="polite" title={STATUS_LABELS[status]}>
         <span className={`status-dot ${dotClass}`} aria-hidden="true" />

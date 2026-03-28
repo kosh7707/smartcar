@@ -8,6 +8,7 @@ from app.scanner.ruleset_selector import (
     detect_language_family,
     resolve_header_language,
     resolve_rulesets,
+    semgrep_include_extensions,
 )
 from app.schemas.request import BuildProfile
 
@@ -110,3 +111,27 @@ class TestResolveHeaderLanguage:
     def test_auto_infers_from_cpp_standard(self) -> None:
         p = _make_profile(headerLanguage="auto", languageStandard="c++17")
         assert resolve_header_language(p) == "cpp"
+
+
+class TestSemgrepIncludeExtensions:
+
+    def test_none_profile(self) -> None:
+        """profile 없으면 None (전체 스캔)."""
+        assert semgrep_include_extensions(None) is None
+
+    def test_c_project(self) -> None:
+        """C 프로젝트 → None (전체 스캔)."""
+        p = _make_profile(languageStandard="c99")
+        assert semgrep_include_extensions(p) is None
+
+    def test_cpp_project(self) -> None:
+        """C++ 프로젝트 → [".c", ".h"] (C 파일만)."""
+        p = _make_profile(languageStandard="c++17")
+        result = semgrep_include_extensions(p)
+        assert result == [".c", ".h"]
+
+    def test_mixed_project(self) -> None:
+        """mixed 프로젝트 → [".c", ".h"]."""
+        p = _make_profile(languageStandard="rust2024")  # mixed fallback
+        result = semgrep_include_extensions(p)
+        assert result == [".c", ".h"]

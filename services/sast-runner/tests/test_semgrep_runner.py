@@ -104,6 +104,34 @@ class TestBuildCommand:
         metrics_idx = cmd.index("--metrics")
         assert cmd[metrics_idx + 1] == "off"
 
+    def test_include_extensions(self, runner, tmp_path):
+        """include_extensions가 지정되면 --include 플래그가 추가된다."""
+        with patch("app.config.settings") as mock_settings:
+            mock_settings.custom_rules_dir = None
+            mock_settings.semgrep_per_rule_timeout = 5
+            mock_settings.semgrep_max_target_bytes = 1_000_000
+
+            cmd = runner._build_command(tmp_path, ["p/c"], include_extensions=[".c", ".h"])
+
+        assert "--include" in cmd
+        include_indices = [i for i, v in enumerate(cmd) if v == "--include"]
+        include_values = [cmd[i + 1] for i in include_indices]
+        assert "*.c" in include_values
+        assert "*.h" in include_values
+        # scan_dir should still be the last argument
+        assert cmd[-1] == str(tmp_path)
+
+    def test_no_include_extensions(self, runner, tmp_path):
+        """include_extensions가 None이면 --include 플래그가 없다."""
+        with patch("app.config.settings") as mock_settings:
+            mock_settings.custom_rules_dir = None
+            mock_settings.semgrep_per_rule_timeout = 5
+            mock_settings.semgrep_max_target_bytes = 1_000_000
+
+            cmd = runner._build_command(tmp_path, ["p/c"], include_extensions=None)
+
+        assert "--include" not in cmd
+
 
 # ---------------------------------------------------------------------------
 # check_available

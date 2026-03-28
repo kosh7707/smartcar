@@ -86,6 +86,8 @@ class BudgetState(BaseModel):
 
     total_completion_tokens: int = 0
     max_completion_tokens: int = 2000
+    total_prompt_tokens: int = 0
+    max_prompt_tokens: int = 100_000
     total_steps: int = 0
     max_steps: int = 6
     cheap_calls: int = 0
@@ -112,3 +114,5 @@ class AgentAuditInfo(BaseModel):
     turns: list[TurnRecord] = Field(default_factory=list)
     termination_reason: str = ""
     created_at: str = ""
+    model_name: str = ""          # S7에서 사용된 LLM 모델 식별자
+    prompt_version: str = ""      # 에이전트 시스템 프롬프트 버전

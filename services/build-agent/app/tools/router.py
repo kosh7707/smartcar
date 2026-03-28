@@ -10,16 +10,13 @@ from agent_shared.observability import agent_log
 from agent_shared.schemas.agent import ToolCallRequest, ToolCostTier, ToolResult, ToolTraceStep
 from agent_shared.tools.base import ToolImplementation
 from agent_shared.tools.executor import ToolExecutor
-from agent_shared.tools.registry import ToolRegistry
+from agent_shared.tools.registry import ToolRegistry, ToolSideEffect
 from app.policy.tool_failure import ToolFailurePolicy
 
 if TYPE_CHECKING:
     from app.core.agent_session import AgentSession
 
 logger = logging.getLogger(__name__)
-
-# 상태를 변경하는 도구 — 실행 후 duplicate hash를 초기화하여 재시도 허용
-_MUTATING_TOOLS = frozenset({"write_file", "edit_file", "delete_file"})
 
 
 class ToolRouter:
@@ -129,8 +126,8 @@ class ToolRouter:
         self._budget_manager.record_tool_call(tier, turn=turn)
         self._budget_manager.register_call_hash(call.args_hash)
 
-        # 8. mutating tool 실행 후 duplicate set 초기화 (빌드 복구 루프 허용)
-        if call.name in _MUTATING_TOOLS and result.success:
+        # 8. 쓰기 도구 실행 후 duplicate set 초기화 (빌드 복구 루프 허용)
+        if schema.side_effect == ToolSideEffect.WRITE and result.success:
             self._budget_manager.clear_duplicate_hashes()
 
         # 9. evidence 추적
@@ -142,7 +139,7 @@ class ToolRouter:
         # 10. trace 기록
         session.trace.append(ToolTraceStep(
             step_id=f"step_{len(session.trace) + 1:02d}",
-            turn_number=session.turn_count,
+            turn_number=turn,
             tool=call.name,
             args_hash=call.args_hash,
             cost_tier=tier,

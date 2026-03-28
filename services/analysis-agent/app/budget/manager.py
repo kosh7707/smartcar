@@ -26,6 +26,7 @@ class BudgetManager:
         return {
             "steps": b.total_steps,
             "tokens": b.total_completion_tokens,
+            "prompt_tokens": b.total_prompt_tokens,
             "cheap": b.cheap_calls,
             "medium": b.medium_calls,
             "expensive": b.expensive_calls,
@@ -65,6 +66,17 @@ class BudgetManager:
 
     def record_tokens(self, prompt: int, completion: int, *, turn: int | None = None) -> None:
         self._budget.total_completion_tokens += completion
+        self._budget.total_prompt_tokens += prompt
+
+        if (self._budget.total_prompt_tokens
+                > self._budget.max_prompt_tokens * 0.8):
+            agent_log(
+                logger, "prompt 토큰 예산 80% 초과",
+                component="budget", phase="budget_warning",
+                turn=turn, prompt_tokens=self._budget.total_prompt_tokens,
+                max_prompt_tokens=self._budget.max_prompt_tokens,
+                level=logging.WARNING,
+            )
 
         agent_log(
             logger, "예산 갱신",

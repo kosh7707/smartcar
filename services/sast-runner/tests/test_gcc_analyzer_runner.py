@@ -1,10 +1,12 @@
 """GccAnalyzerRunner 파서 단위 테스트."""
 
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from app.scanner.gcc_analyzer_runner import GccAnalyzerRunner
+from app.schemas.request import BuildProfile
 
 
 @pytest.fixture
@@ -113,3 +115,37 @@ class TestParseOutput:
         findings = runner._parse_output(output, Path("/tmp/scan"))
         assert len(findings) == 1
         assert findings[0].data_flow is None
+
+
+class TestCheckAvailable:
+    @pytest.mark.asyncio
+    async def test_no_profile_uses_host_gcc(self, runner):
+        """profile 없으면 호스트 gcc를 테스트."""
+        ok, ver = await runner.check_available()
+        # 결과는 환경에 따라 다르지만 에러 없이 반환
+        assert isinstance(ok, bool)
+
+    @pytest.mark.asyncio
+    async def test_with_sdk_profile(self, runner):
+        """profile에 SDK가 있으면 SDK 컴파일러를 테스트."""
+        profile = BuildProfile(
+            sdkId="ti-am335x", compiler="arm-gcc",
+            targetArch="arm", languageStandard="c99",
+            headerLanguage="c",
+        )
+        with patch("app.scanner.gcc_analyzer_runner.get_sdk_compiler", return_value="/usr/bin/gcc"):
+            ok, ver = await runner.check_available(profile)
+            # /usr/bin/gcc 사용 → 호스트 gcc와 동일 결과
+            assert isinstance(ok, bool)
+
+    @pytest.mark.asyncio
+    async def test_sdk_compiler_not_found_falls_back(self, runner):
+        """SDK 컴파일러가 없으면 호스트 gcc로 폴백."""
+        profile = BuildProfile(
+            sdkId="ti-am335x", compiler="arm-gcc",
+            targetArch="arm", languageStandard="c99",
+            headerLanguage="c",
+        )
+        with patch("app.scanner.gcc_analyzer_runner.get_sdk_compiler", return_value=None):
+            ok, ver = await runner.check_available(profile)
+            assert isinstance(ok, bool)

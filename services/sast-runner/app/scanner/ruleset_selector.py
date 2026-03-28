@@ -100,6 +100,22 @@ def resolve_header_language(profile: BuildProfile | None) -> str:
     return "cpp" if lang == "cpp" else "c"
 
 
+def semgrep_include_extensions(profile: BuildProfile | None) -> list[str] | None:
+    """C++ 프로젝트에서 Semgrep이 스캔할 파일 확장자 필터를 결정한다.
+
+    Returns:
+        None: 전체 스캔 (C 프로젝트 또는 profile 없음)
+        [".c", ".h"]: C 파일만 (C++ 또는 mixed 프로젝트)
+    """
+    if profile is None:
+        return None
+    lang = detect_language_family(profile)
+    if lang == "c":
+        return None  # C 프로젝트 → 전체 스캔
+    # cpp 또는 mixed → C 파일만 스캔 (Semgrep C 룰은 .c/.h에만 유효)
+    return [".c", ".h"]
+
+
 def _rulesets_for_language(lang: str) -> list[str]:
     """언어 계열에 맞는 룰셋 조합."""
     if lang == "cpp":

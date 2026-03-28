@@ -1,43 +1,12 @@
 # S4. SAST Runner 인수인계서
 
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
-> 이 문서는 S4(SAST Runner) 개발을 이어받는 다음 세션을 위한 인수인계서다.
-> 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-27**
+> 이 문서는 S4(SAST Runner) 개발을 이어받는 다음 세션을 위한 진입점이다.
+> **마지막 업데이트: 2026-03-28**
 
 ---
 
-## 1. AEGIS 전체 그림
-
-### 7인 체제 (2026-03-19 확정)
-
-```
-                     S1 (Frontend :5173)
-                          │
-                     S2 (AEGIS Core :3000)
-                    ╱     │     ╲      ╲
-                 S3       S4     S5      S6
-               Agent    SAST     KB    동적분석
-              :8001    :9000   :8002    :4000
-                │
-              S7 (LLM Gateway :8000)
-                │
-           LLM Engine (DGX Spark)
-```
-
-| 역할 | 담당 | 포트 |
-|------|------|------|
-| S1 | Frontend + QA | :5173 |
-| S2 | AEGIS Core (Backend) — 플랫폼 오케스트레이터 | :3000 |
-| S3 | Analysis Agent — 보안 분석 자율 에이전트 | :8001 |
-| **S4** | **SAST Runner (정적 분석 전담)** | **:9000** |
-| S5 | Knowledge Base (Neo4j + Qdrant) | :8002 |
-| S6 | Dynamic Analysis (ECU Sim + Adapter) | :4000 |
-| S7 | LLM Gateway + LLM Engine 관리 | :8000, DGX |
-
----
-
-## 2. 너의 역할과 경계
+## 1. 역할과 경계
 
 ### 너는
 
@@ -50,109 +19,84 @@
 
 ### 너는 하지 않는다
 
-- DGX Spark / LLM Engine 관리 → **S7**
-- CVE 조회 → **S5** (`POST /v1/cve/batch-lookup`으로 이관 완료, 2026-03-19)
-- 프롬프트 작성, LLM 응답 파싱 → S3
-- 지식 그래프, 벡터 검색 → S5
-- UI → S1
-- `scripts/start.sh` / `scripts/stop.sh` 직접 수정 금지 → S2에 work-request
+- DGX Spark / LLM Engine 관리 -> **S7**
+- CVE 조회 -> **S5** (`POST /v1/cve/batch-lookup`으로 이관 완료)
+- 프롬프트 작성, LLM 응답 파싱 -> S3
+- 지식 그래프, 벡터 검색 -> S5
+- UI -> S1
+- `scripts/start.sh` / `scripts/stop.sh` 직접 수정 금지 -> S2에 work-request
 
 ---
 
-## 3. SAST Runner 서비스
+## 2. 서비스 현황
 
-### 개요
-
-- **위치**: `services/sast-runner/` (monorepo 내, WSL2 로컬)
-- **스택**: Python 3.12 + FastAPI + Uvicorn
-- **포트**: 9000
-- **버전**: v0.5.0
-- **API 계약**: `docs/api/sast-runner-api.md`
-- **명세서**: `docs/specs/sast-runner.md`
+| 항목 | 값 |
+|------|-----|
+| 위치 | `services/sast-runner/` (monorepo 내, WSL2 로컬) |
+| 스택 | Python 3.12 + FastAPI + Uvicorn |
+| 포트 | 9000 |
+| 버전 | **v0.7.0** |
+| 테스트 | **333개** (22개 파일) |
+| 벤치마크 | Juliet 12 CWE, Overall Recall **83.7%** |
 
 ### 6개 SAST 도구
 
-| 도구 | 역할 | CWE 태깅 | 비고 |
-|------|------|:---:|------|
-| Semgrep | 패턴 매칭 | O (SARIF) | C++ 자동 스킵. 커스텀 룰 `rules/` 포함 |
-| Cppcheck | 코드 품질 + CTU | O (XML) | SDK 헤더 제외 (original profile) |
-| clang-tidy | CERT 코딩 표준 + 버그 | O (매핑 24개) | enriched profile (SDK 헤더 포함) |
-| Flawfinder | 위험 함수 빠른 스캔 | O (regex) | |
-| scan-build | Clang Static Analyzer | O (매핑 15개) | `-plist` 필수. 파일별 개별 실행 |
-| gcc -fanalyzer | GCC 경로 민감 분석 | O (출력 직접 + 매핑 16개) | `-c` 필수 (`-fsyntax-only` 안됨). 파일별 개별 실행. GCC 10+ 필요 → 미지원 시 호스트 gcc 폴백 |
-
-### 도구별 profile 분리 (중요)
-
-orchestrator가 도구에 전달하는 BuildProfile이 다르다:
-
-| 도구 | 전달되는 profile | 이유 |
+| 도구 | profile | 핵심 특성 |
 |------|:---:|------|
-| clang-tidy, scan-build | **enriched** (SDK 헤더 포함) | 컴파일 기반 — 헤더가 있어야 분석 가능 |
-| Cppcheck | **original** (사용자 경로만) | SDK 헤더 -I 시 전부 파싱하여 타임아웃 |
-| gcc-fanalyzer | **original** (사용자 경로만) | 호스트 gcc 폴백 시 ARM 헤더 불일치 방지 |
-| Semgrep, Flawfinder | 없음 | 텍스트/패턴 기반 |
+| Semgrep | -- | taint mode + sanitizer. C++에서 확장자 필터 (`--include *.c *.h`) |
+| Cppcheck | **original** | `--check-level=exhaustive`. SDK 헤더 제외 |
+| clang-tidy | **enriched** | CWE 매핑 24개. SDK 헤더 포함 |
+| Flawfinder | -- | 텍스트 기반 |
+| scan-build | **enriched** | CWE 매핑 15개. `-plist` 필수. 파일별 실행. `Semaphore(8)` |
+| gcc-fanalyzer | **original** | CWE 매핑 16개. `-c` 필수. 파일별 실행. `Semaphore(8)`. GCC 10+ |
 
 ### 코드 구조
 
 ```
 services/sast-runner/
 ├── app/
-│   ├── main.py              — FastAPI v0.5.0, JSON 로깅
+│   ├── main.py              — FastAPI v0.7.0, JSON 로깅
 │   ├── config.py            — pydantic-settings (SAST_ prefix)
 │   ├── context.py           — contextvars requestId 전파
 │   ├── errors.py            — 커스텀 에러 4종
-│   ├── routers/scan.py      — 10개 엔드포인트
+│   ├── routers/scan.py      — 12개 엔드포인트
 │   ├── schemas/
-│   │   ├── request.py       — ScanRequest, BuildProfile
-│   │   └── response.py      — SastFinding, ScanResponse, HealthResponse
+│   │   ├── request.py       — ScanRequest, BuildProfile (전 필드 optional)
+│   │   └── response.py      — SastFinding, ScanResponse, ExecutionReport
 │   └── scanner/
-│       ├── orchestrator.py   — 6도구 병렬 + 도구별 profile 분리 + 버전 체크
-│       ├── semgrep_runner.py — custom_rules_dir 연결됨
+│       ├── orchestrator.py   — 6도구 병렬 + scope-early + 경계면 필터링
+│       ├── semgrep_runner.py — taint + sanitizer, include_extensions 필터
 │       ├── cppcheck_runner.py
 │       ├── clangtidy_runner.py — CWE 매핑 24개
 │       ├── flawfinder_runner.py
-│       ├── scanbuild_runner.py — CWE 매핑 15개, -plist, 파일별 실행
-│       ├── gcc_analyzer_runner.py — CWE 매핑 16개 + gcc 출력 직접 파싱
+│       ├── scanbuild_runner.py — CWE 매핑 15개, Semaphore(8)
+│       ├── gcc_analyzer_runner.py — CWE 매핑 16개, check_available(profile)
 │       ├── sarif_parser.py
-│       ├── ruleset_selector.py
-│       ├── path_utils.py     — 경로 정규화 (전 runner 공유)
-│       ├── sca_service.py    — SCA 오케스트레이션 (식별 + diff 통합)
+│       ├── ruleset_selector.py — semgrep_include_extensions()
+│       ├── path_utils.py
+│       ├── sca_service.py    — SCA 오케스트레이션 + CloneCache
 │       ├── sdk_resolver.py   — SDK 레지스트리 (외부 sdk-registry.json)
-│       ├── ast_dumper.py     — 함수 추출 + origin 태깅
+│       ├── ast_dumper.py     — 함수 추출 + origin 태깅 + Semaphore(16)
 │       ├── include_resolver.py
 │       ├── build_metadata.py
-│       ├── build_runner.py   — 빌드 실행 + 타겟 탐색 + buildCommand 감지
+│       ├── build_runner.py   — 빌드 실행 + 타겟 탐색
 │       ├── library_identifier.py
-│       ├── library_differ.py
+│       ├── library_differ.py — DiffResult 통일 shape + CloneCache
 │       └── library_hasher.py
-├── rules/automotive/        — 커스텀 Semgrep 룰 (automotive 메타데이터 포함)
-│   ├── command-injection.yaml  (CWE-78, 5개 룰)
-│   ├── divide-by-zero.yaml     (CWE-369, 7개 룰)
-│   ├── integer-overflow.yaml   (CWE-190, 5개 룰)
-│   ├── hardcoded-credentials.yaml (CWE-798, 2개 룰)
-│   └── weak-prng.yaml         (CWE-338, 2개 룰)
-├── benchmark/               — Juliet 벤치마크 러너
-│   ├── juliet_runner.py
-│   ├── juliet_manifest.py
-│   ├── cwe_matcher.py
-│   ├── metrics.py
-│   └── data/baselines/      — 측정 결과 JSON
-├── tests/                   — 313개 테스트 (18개 테스트 파일)
-│   ├── fixtures/            — 테스트 픽스처 (C 프로젝트, 라이브러리 구조)
-│   └── conftest.py
+├── rules/automotive/        — 커스텀 Semgrep 룰 53개 (9 YAML)
+├── benchmark/               — Juliet 벤치마크 러너 (targeted/portfolio noise)
+├── tests/                   — 333개 테스트 (22개 파일)
 └── requirements.txt
 ```
 
-### 기동 방법
+### 기동 / 환경
 
 ```bash
 ./scripts/start-sast-runner.sh
+tail -20 logs/s4-sast-runner.jsonl
 ```
 
-스크립트 내부: `.env` 로드 → `PATH`에 `.venv/bin` 추가 → `.venv/bin/python -m uvicorn`
-
-### .env
-
+`.env`:
 ```env
 SAST_PORT=9000
 SAST_SCAN_TIMEOUT=120
@@ -162,263 +106,58 @@ SAST_SDK_ROOT=/home/kosh/sdks
 
 **주의**: `list[str]` 타입 필드를 `.env`에 쓰면 pydantic-settings JSON 파싱 실패. `str` 타입 + `@property`로 우회 (config.py 참조).
 
-### 로그
-
-```bash
-tail -20 logs/s4-sast-runner.jsonl
-```
-
 ### Observability
 
-`docs/specs/observability.md` 준수. 로그 레벨 숫자 표준, 서비스 식별자, X-Request-Id 전파 규칙은 해당 문서 참조.
+`docs/specs/observability.md` 준수.
 - service 식별자: `s4-sast`
 - 로그 파일: `logs/s4-sast-runner.jsonl`
+- JSON structured, `time` epoch ms, `level` 숫자 (pino 표준)
+- `X-Request-Id` 전파
+
+---
+
+## 3. 핵심 설계 원칙
+
+- **결정론적 처리 최대화, LLM 결정 표면 최소화**
+- **도구별 profile 분리** — 컴파일 기반 도구만 SDK enriched, 나머지는 original
+- **scope-early** — `thirdPartyPaths` 파일을 도구 실행 전에 제외 (OOM 방지)
+- **경계면 분석** — SDK/라이브러리 경로 finding이라도 dataFlow에 사용자 코드 포함 시 유지 (`origin: "cross-boundary"`)
+- **gcc-fanalyzer는 `-c`** (`-fsyntax-only`에서는 analyzer가 실행 안 됨)
+- **scan-build는 `-plist`** (없으면 plist 파일 미생성)
+- **파일별 개별 실행** (gcc-fanalyzer, scan-build — 동일 심볼 충돌 방지)
+- **CWE는 전 도구에서 태깅** — scan-build/gcc-fanalyzer도 매핑 추가 완료
+- **Semgrep taint + sanitizer** — source/sink 자동 추적 + 가드 패턴 제외
 
 ---
 
 ## 4. SDK 레지스트리
 
 ```
-$SAST_SDK_ROOT/              ← .env: SAST_SDK_ROOT=/home/kosh/sdks
-  ├── sdk-registry.json       ← SDK 메타데이터 (외부 설정, 코드 밖)
-  └── ti-am335x/              ← sdkId = 폴더명 (현재 ~/ti-sdk 심링크)
+$SAST_SDK_ROOT/              <- .env: SAST_SDK_ROOT=/home/kosh/sdks
+  ├── sdk-registry.json       <- SDK 메타데이터 (외부 설정, 코드 밖)
+  └── ti-am335x/              <- sdkId = 폴더명
 ```
 
-`sdk-registry.json` 예시:
-```json
-{
-  "ti-am335x": {
-    "description": "TI Processor SDK Linux AM335x 08.02.00.24",
-    "sysroot": "linux-devkit/sysroots/x86_64-arago-linux",
-    "compiler_prefix": "arm-none-linux-gnueabihf",
-    "gcc_version": "9.2.1",
-    "environment_setup": "linux-devkit/environment-setup-armv7at2hf-neon-linux-gnueabi"
-  }
-}
-```
+| sdkId | SDK | GCC 버전 | 비고 |
+|-------|-----|:---:|------|
+| `ti-am335x` | TI AM335x 08.02.00.24 | 9.2.1 | `-fanalyzer` 미지원 -> 호스트 gcc 폴백 또는 SDK gcc 재확인 |
 
-| sdkId | SDK | 크로스 컴파일러 | 헤더 | env-setup | GCC 버전 |
-|-------|-----|----------------|:---:|:---:|:---:|
-| `ti-am335x` | TI AM335x 08.02.00.24 | `arm-none-linux-gnueabihf-gcc` | 7개 | O | 9.2.1 (**-fanalyzer 미지원** → 호스트 폴백) |
-
-새 SDK 추가: `$SAST_SDK_ROOT/` 하위에 폴더 설치 → `sdk-registry.json`에 항목 추가. 코드 수정 불필요.
+API: `GET/POST/DELETE /v1/sdk-registry`
 
 ---
 
-## 5. Juliet 벤치마크
-
-### 개요
-
-NIST Juliet Test Suite C/C++ v1.3으로 CWE별 Recall을 측정하는 인프라.
-
-```bash
-cd services/sast-runner
-.venv/bin/python -m benchmark.juliet_runner \
-    --juliet-path ~/Juliet/C \
-    --cwes 78,121,122,190,416,476 \
-    --variant-filter 01 \
-    --output benchmark/data/baselines/result.json
-```
-
-Juliet 위치: `~/Juliet/C/` (프로젝트 외부, 106K 파일)
-
-### 최신 Recall 결과 (v0.6.0, 12 CWE, 361 파일)
-
-| Tier | CWE | Recall | 주력 도구 |
-|------|-----|:---:|---|
-| S | CWE-476 NULL deref | **100%** | Cppcheck + clang-tidy + gcc-fanalyzer + scan-build |
-| S | CWE-134 Format String | **100%** | Flawfinder |
-| S | CWE-401 Memory Leak | **95%** | gcc-fanalyzer |
-| S | CWE-369 Divide by Zero | **94%** | **Semgrep taint** + Cppcheck |
-| A | CWE-190 Int Overflow | **89%** | **Semgrep taint** + clang-tidy + Flawfinder |
-| A | CWE-680 Int→BOF | **83%** | Flawfinder + Semgrep |
-| A | CWE-121 Stack BOF | **82%** | Flawfinder + gcc-fanalyzer |
-| A | CWE-78 Cmd Injection | **80%** | Flawfinder + clang-tidy + Semgrep |
-| A | CWE-122 Heap BOF | **80%** | Flawfinder + gcc-fanalyzer |
-| B | CWE-252 Unchecked Return | **72%** | clang-tidy |
-| B | CWE-416 UAF | **67%** | gcc-fanalyzer + clang-tidy + scan-build |
-| C | CWE-457 Uninitialized | **56%** | gcc-fanalyzer + Cppcheck |
-| | **Overall** | **83.7%** | |
-
-### 초기 대비 개선
-
-| 수정 | 효과 |
-|------|------|
-| gcc-fanalyzer `-fsyntax-only` → `-c` | 도구 부활 (0% → 동작) |
-| gcc-fanalyzer/scan-build 파일별 개별 실행 | 심볼 충돌 해결 |
-| scan-build `-plist` 추가 | plist 출력 활성화 (0% → 동작) |
-| CWE 매핑 추가 (3개 runner) | CWE 태깅 → 벤치마크 매칭 |
-| clang-tidy `narrowing-conversions` → CWE-190 | CWE-190 22%→46% |
-| 커스텀 Semgrep 룰 (CWE-369, 190) | CWE-369 11%→22%, CWE-190 46%→53% |
-| Cppcheck `--check-level=exhaustive` | 정밀 분석 활성화 |
-| **Overall** | **54.5% → 70.9% (+16.4%)** |
-
----
-
-## 6. 현재 상태
-
-### 완료
-
-- [x] 6도구 SAST + SCA + 코드 구조 + 빌드 자동화 (v0.5.0)
-- [x] CVE 조회 → S5 이관 (`cve_lookup.py` 삭제)
-- [x] SDK 경로 표준화 (`SAST_SDK_ROOT` + sdkId = 폴더명)
-- [x] gcc-fanalyzer/scan-build 버그 수정 + 파일별 실행
-- [x] CWE Enrichment (scan-build 15개, gcc-fanalyzer 16개 + 출력 직접 파싱, clang-tidy 24개)
-- [x] 커스텀 Semgrep 룰 3종 (CWE-78, 798, 338) + custom_rules_dir 연결
-- [x] Juliet 벤치마크 인프라 (12 CWE, 361파일, 4분 측정)
-- [x] orchestrator 도구별 profile 분리 (Cppcheck/gcc-fanalyzer 타임아웃 해결)
-- [x] gcc-fanalyzer GCC 버전 체크 + 호스트 폴백 (GCC 9.x SDK 대응)
-- [x] `smartcar` → `AEGIS` 네이밍 → `s4-sast` 로그 표준화 (`s4-sast-runner.jsonl`, level 숫자, service `s4-sast`)
-- [x] 기동 스크립트 수정 (venv PATH, .env 파싱)
-- [x] 통합 테스트 성공 (S3 Agent Phase 1/2 전 구간)
-- [x] 313개 테스트 통과
-- [x] `/v1/includes`에 `projectPath` 지원 추가
-- [x] SDK environment-setup 자동 적용 (`build_runner.py`)
-- [x] `buildCommand` 자동 감지 (빌드 스크립트 우선 → CMake → Make → configure)
-- [x] 커스텀 Semgrep 룰 추가: CWE-369 (7룰), CWE-190 (5룰)
-- [x] Cppcheck `--check-level=exhaustive` 활성화
-- [x] 벤치마크 `--no-custom-rules` delta 측정 기능
-- [x] Juliet Recall 54.5% → **70.9%** (+16.4%)
-- [x] `/v1/scan` 응답에 `codeGraph` + `sca` 통합 (projectPath 모드)
-- [x] `/v1/functions` origin 태깅 (third-party / modified-third-party 식별)
-- [x] `/v1/build` 엔드포인트 신규 (빌드 전용, 파이프라인 단계별 제어)
-- [x] `/v1/discover-targets` 엔드포인트 신규 (빌드 타겟 자동 탐색)
-- [x] `/v1/sdk-registry` 엔드포인트 신규 (등록된 SDK 목록, 빌드 Agent 연동)
-- [x] SDK 레지스트리 외부화 (`sdk-registry.json`, 코드 수정 불필요)
-- [x] 전역 SastRunnerError 예외 핸들러 + 전 엔드포인트 에러 핸들링
-- [x] Observability v2 준수 (service `s4-sast`, level 숫자, X-Request-Id 전파)
-- [x] `/v1/build` success 판정 수정 (2026-03-25): exitCode≠0 → success:false + CMakeFiles/ 임시 항목 필터링 (`userEntries` 필드 추가)
-- [x] `/v1/build` `wrapWithBear` 옵션 추가 (2026-03-25): 기본 true, false면 bear 없이 순수 빌드 실행
-- [x] `/v1/scan` `thirdPartyPaths` 필터링 (2026-03-25): vendored 서드파티 경로 findings 제거 + cross-boundary 유지
-- [x] `/v1/build` buildProfile 500 크래시 수정 (2026-03-26): BuildProfile 필드 전부 optional로 변경, sdkId만으로 호출 가능
-- [x] SDK 관리 API (2026-03-26): `POST /v1/sdk-registry` (검증+등록), `DELETE /v1/sdk-registry/:sdkId` (삭제). 레지스트리 path 필드 지원, 캐시 무효화
-- [x] X-Timeout-Ms 헤더 수용 (2026-03-26): 헤더 > body > 기본값 600초. `/v1/scan`, `/v1/build` 적용
-- [x] BuildProfile None 안전 처리 (2026-03-26): language_standard 등 8곳 `.lower()` NoneType 크래시 수정
-- [x] build_runner sh → bash 변경 (2026-03-26): `source` 명령 호환
-- [x] **경계면 취약점 탐지** (v0.5.0, 2026-03-25):
-  - 필터링 개선: SDK/라이브러리 경로 finding이라도 dataFlow에 사용자 코드 포함 시 유지 (`origin: "cross-boundary"`)
-  - gcc-fanalyzer: SDK 크로스 컴파일러 사용 시 enriched profile 전달 (SDK 헤더 포함 → 경계면 추적)
-  - gcc-fanalyzer: note 라인 → dataFlow 파싱 (경계면 판정 재료)
-  - `SastFinding.origin` 필드 추가, `FindingsFilterInfo.crossBoundaryKept` 필드 추가
-- [x] **외부 리뷰 피드백 반영** (2026-03-25):
-  - 저장소 위생: `.o` 298개 삭제 + `.gitignore` 추가
-  - `ExecutionReport` 타입화: `dict[str, Any]` → 4개 Pydantic 모델 (도구 버전 포함)
-  - 도구 최소 버전 경고 (`check_tools()` + `requirements.txt` 고정)
-  - **단위 테스트 51 → 144개** (+93): 6개 runner 파서, orchestrator(경계면 필터링), build_runner(+build 메서드), library_identifier
-  - Automotive 룰 메타데이터 강화: 21개 룰에 `automotive_rationale` + `references` (ISO 26262, MISRA, AUTOSAR)
-  - Router 책임 분리: `_normalize_path` 6곳 중복 → `path_utils.py` 단일 구현, SCA 로직 → `sca_service.py`
-- [x] **functions 추출 성능 개선** (2026-03-26):
-  - `dump_functions` / `dump_ast` 병렬화: 순차 for 루프 → `asyncio.gather` + `Semaphore(16)` 동시 실행
-  - `skip_paths` 파라미터 추가: vendored/third-party 경로 파일은 clang 실행 전 조기 스킵
-  - 라우터 3개 호출부(`/v1/scan`, `/v1/functions`, `/v1/build-and-analyze`)에서 라이브러리 경로 + `thirdPartyPaths`를 `skip_paths`로 자동 전달
-  - 단위 테스트 13개 추가 (`test_ast_dumper.py`): `_filter_skip_paths`, 병렬 실행, 스킵, origin 태깅
-- [x] **Phase 1 기반 정비** (2026-03-26):
-  - 벤치마크 러너 Pydantic 크래시 수정: `execution.get("toolsRun")` → `execution.tools_run` (2곳)
-  - `check_tools()` 캐싱: TTL 300초, `/v1/health`는 항상 fresh (`force=True`)
-  - 설정 통합: `default_language_standard`, `semgrep_per_rule_timeout`, `semgrep_max_target_bytes` → `config.py`
-  - 4개 runner의 하드코딩 `"-std=c++17"` 제거 → `settings.default_language_standard`
-  - `ScanOptions.tools` 파라미터 추가: API에서 도구 서브셋 선택 가능
-  - `ScanOptions.max_findings_per_rule` 삭제 (사용처 없는 dead field)
-  - `/v1/functions` 성능: `analyze_libraries(include_diff=False)` → diff 없이 식별만 (44초 → ~1초)
-- [x] **벤치마크 인프라 고도화** (2026-03-26):
-  - Precision(FP) + F1 Score 추적: target CWE 미매칭 findings를 noise/FP로 카운트
-  - Per-Rule 메트릭: `RuleMetrics` dataclass, finding의 `rule_id`별 TP/FP 집계
-  - `--tools` 옵션: 도구 서브셋 벤치마크 (개별 기여도 측정)
-  - `--show-rules` 옵션: 마크다운에 rule-level 테이블 출력
-  - `--baseline` 옵션: 실행 후 자동 회귀 감지
-  - `benchmark/compare.py` 신규: baseline vs current 비교, regression/improvement 판정, exit code 1
-  - CLI: `python -m benchmark.compare --baseline X.json --current Y.json --threshold 0.05`
-  - 벤치마크 테스트 20개 추가 (`test_benchmark.py`): metrics, compare, regression 판정
-- [x] **커스텀 Semgrep 룰 확장** (2026-03-26, 21 → 38개 룰, +17):
-  - `buffer-overflow-write.yaml` (4룰): CWE-787 — strcpy/strcat/sprintf/gets 무제한 패턴
-  - `input-validation.yaml` (5룰): CWE-20 — argv/scanf/fscanf/sscanf 무제한 입력
-  - `use-after-free.yaml` (3룰): CWE-416 — free 후 memcpy/send/deref/array 사용
-  - `taint-sources.yaml` (5룰): recv→strcpy, read→atoi, fgets→system, recv→memcpy, fgets→strcpy
-  - 전 룰에 `automotive_rationale` + ISO 26262/MISRA/AUTOSAR/CERT 참조 포함
-- [x] **코드 품질 + 안정성 개선** (2026-03-26):
-  - `library_identifier._parse_git_info()` sync subprocess → `asyncio.to_thread()` 래핑 (`sca_service.py`, `identify_libraries` async 전환)
-  - `gcc_analyzer_runner._analyzer_support_cache` → `threading.Lock` 추가 (thread-safe)
-  - `sdk_resolver._SDK_REGISTRY` 전역 캐시 → `threading.Lock` 추가 (read/write 경쟁 방지)
-- [x] **CWE-369/190 Recall 대폭 개선** (2026-03-26, Overall 70.9% → **83.7%**):
-  - 근본 원인 분석: Semgrep multi-line 패턴의 statement vs expression context 버그 + 소스 패턴 누락
-  - **Taint mode 도입**: `atoi/atof/strtol/RAND32/rand` → `division/modulo/arithmetic` sink 자동 추적
-  - Function-level `pattern-inside`: fscanf/scanf 포인터 전달 패턴 (Semgrep taint가 `&$X` 추적 불가)
-  - MAX 상수 패턴: `INT_MAX/CHAR_MAX/SHRT_MAX` + 산술 = 확정 overflow
-  - increment 패턴: `$X++`, `++$X` 추가
-  - self-multiply 패턴: `$X * $X` (square) 추가
-  - CWE-369: **22% → 94%** (17/18), CWE-190: **53% → 89%** (80/90)
-  - 룰 수: 53개 (divide-by-zero 7→7, integer-overflow 5→7)
-- [x] **테스트 커버리지 대폭 확대** (2026-03-26, 196 → 313개, +117):
-  - 미테스트 8개 모듈 단위 테스트 완료: `semgrep_runner`, `sdk_resolver`, `library_differ`, `library_hasher`, `sca_service`, `build_metadata`, `include_resolver`, `path_utils`
-  - Fixture 기반 통합 테스트 (`test_integration.py`, `@pytest.mark.integration`): 실제 SAST 도구(flawfinder, cppcheck, clang)로 fixture C 프로젝트 분석
-  - fixture `src/main.c`에 CWE-78(cmd injection), CWE-190(int overflow), CWE-787(buffer overflow write) 추가
-- [x] **외부 피드백 P0 반영** (2026-03-27):
-  - P0-1: Precision/F1 단위 혼합 → **Recall + Noise/File로 재정의** (precision/f1 property 제거)
-  - P0-2: scope-early 도입 — `thirdPartyPaths` 파일을 **도구 실행 전에 제외** (orchestrator)
-  - P0-3: gcc-fanalyzer + scan-build에 `Semaphore(8)` 동시성 제한
-  - `_is_third_party()` path segment 경계 수정 (`lib` vs `library` 충돌 방지)
-  - `FindingsFilterInfo` 분리: `sdk_noise_removed` + `third_party_removed` + `files_scoped_out`
-  - `_filter_user_code_findings()` dead parameter `source_files` 제거
-  - 버전 v0.5.0 → v0.7.0 (main.py, response.py)
-- [x] **외부 피드백 P1 반영** (2026-03-27):
-  - P1-1: `toolResults.elapsedMs` → per-tool timing wrapper (각 코루틴 개별 측정)
-  - P1-2: gcc-fanalyzer/scan-build timeout sentinel (`None` 반환) + timed_out 카운트
-  - P1-6: gcc-fanalyzer 파서 strict `-Wanalyzer*` 필터 (일반 compile diagnostics 제외)
-- [x] **CWE-416 taint mode 룰** (2026-03-27): `use-after-free.yaml`에 taint 룰 추가 (cross-function UAF 추적)
-- [x] **Juliet 전체 variant 벤치마크** (2026-03-27): 12 CWE, 8,783파일, Overall Recall **78.7%**
-- [x] **S3 빌드 Agent 연동 WR** 발송 (`s4-to-s3-build-agent-ready.md`)
-
-### 미완료 — 다음 세션에서 처리
-
-외부 피드백 잔여:
-- P1-4: Semgrep auto-skip 정교화 (file extension 기반, mixed C/C++)
-- P1-5: gcc-fanalyzer check_available에 SDK compiler 반영
-- P2-1: Semgrep taint sanitizer 패턴 추가 (`if (x!=0)` 등)
-- P2-2: 벤치마크 targeted vs portfolio noise 분리
-- P2-3: LibraryDiffer 응답 shape 통일 + clone cache
-
-잔여 고도화:
-- CWE-457 (56%) 추가 개선 (gcc-fanalyzer 한계, Semgrep 불가)
-- code graph 품질 평가 기준 수립 (S5 연동용)
-
-문서:
-- `docs/specs/sast-runner.md` 전면 갱신 (v0.7.0)
-- `docs/api/sast-runner-api.md` v0.7.0 (FindingsFilterInfo 변경 반영)
-
----
-
-## 7. 관리하는 문서
+## 5. 관리하는 문서
 
 | 문서 | 경로 |
 |------|------|
 | API 계약서 | `docs/api/sast-runner-api.md` |
 | 기능 명세서 | `docs/specs/sast-runner.md` |
 | 이 인수인계서 | `docs/s4-handoff/README.md` |
+| 로드맵 | `docs/s4-handoff/roadmap.md` |
+| 세션 로그 | `docs/s4-handoff/session-*.md` |
 
 ---
 
-## 8. 통합 테스트 결과 (2026-03-20)
+## 6. 다음 작업
 
-S3 Agent가 S4를 호출한 전체 흐름:
-
-```
-Phase 1: S3 → S4 /v1/scan        → 49 findings (6도구, 11초)
-         S3 → S4 /v1/functions    → 1,329 함수 (75초)
-         S3 → S4 /v1/libraries    → 6 라이브러리 (44초)
-         S3 → S5 /v1/cve/batch-lookup → CVE 실시간 조회
-Phase 2: S3 → S7 → LLM           → 3 claims (핵심 취약점만 정제)
-```
-
-LLM이 49개 findings에서 **CWE-78, CWE-362, CWE-807** 3건만 claim으로 판정. 나머지는 caveats로 분류. "결정론적 Phase 1 + 자율적 Phase 2" 시너지 확인.
-
----
-
-## 9. 핵심 설계 원칙
-
-- **결정론적 처리 최대화, LLM 결정 표면 최소화**
-- **도구별 profile 분리** — 컴파일 기반 도구만 SDK enriched, 나머지는 original
-- **gcc-fanalyzer는 `-c`** (`-fsyntax-only`에서는 analyzer가 실행 안 됨)
-- **scan-build는 `-plist`** (없으면 plist 파일 미생성)
-- **파일별 개별 실행** (gcc-fanalyzer, scan-build — 동일 심볼 충돌 방지)
-- **CWE는 전 도구에서 태깅** — scan-build/gcc-fanalyzer도 매핑 추가 완료
-- **경계면 분석** — SDK/라이브러리 경로 finding이라도 dataFlow에 사용자 코드가 포함되면 유지 (`origin: "cross-boundary"`). 순수 라이브러리 내부 findings만 제거
+`roadmap.md` 참조.

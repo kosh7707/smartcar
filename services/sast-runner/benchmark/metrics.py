@@ -12,7 +12,13 @@ class ToolMetrics:
     tool_name: str
     tp: int = 0
     fn: int = 0
-    noise_findings: int = 0  # target CWE와 무관한 findings 수 (finding 단위)
+    targeted_noise: int = 0   # target 파일 내 wrong-CWE findings
+    portfolio_noise: int = 0  # non-target 파일 findings
+
+    @property
+    def noise_findings(self) -> int:
+        """하위호환: targeted + portfolio 합산."""
+        return self.targeted_noise + self.portfolio_noise
 
     @property
     def recall(self) -> float:
@@ -25,6 +31,8 @@ class ToolMetrics:
             "tp": self.tp,
             "fn": self.fn,
             "noise": self.noise_findings,
+            "targetedNoise": self.targeted_noise,
+            "portfolioNoise": self.portfolio_noise,
             "recall": round(self.recall, 4),
         }
 
@@ -54,11 +62,17 @@ class CWEMetrics:
     total_files: int = 0
     combined_tp: int = 0       # 파일 단위 TP
     combined_fn: int = 0       # 파일 단위 FN
-    combined_noise: int = 0    # finding 단위 noise (target CWE 미매칭)
+    targeted_noise: int = 0    # target 파일 내 wrong-CWE findings
+    portfolio_noise: int = 0   # non-target 파일 findings (지원 파일 등)
     by_tool: dict[str, ToolMetrics] = field(default_factory=dict)
     by_rule: dict[str, RuleMetrics] = field(default_factory=dict)
     detected_files: list[str] = field(default_factory=list)
     missed_files: list[str] = field(default_factory=list)
+
+    @property
+    def combined_noise(self) -> int:
+        """하위호환: targeted + portfolio 합산."""
+        return self.targeted_noise + self.portfolio_noise
 
     @property
     def combined_recall(self) -> float:
@@ -67,8 +81,13 @@ class CWEMetrics:
 
     @property
     def noise_per_file(self) -> float:
-        """파일당 평균 noise findings 수."""
+        """파일당 평균 noise findings 수 (전체)."""
         return self.combined_noise / self.total_files if self.total_files > 0 else 0.0
+
+    @property
+    def targeted_noise_per_file(self) -> float:
+        """파일당 평균 targeted noise findings 수."""
+        return self.targeted_noise / self.total_files if self.total_files > 0 else 0.0
 
     def to_dict(self) -> dict[str, Any]:
         result: dict[str, Any] = {
@@ -80,7 +99,10 @@ class CWEMetrics:
                 "fn": self.combined_fn,
                 "recall": round(self.combined_recall, 4),
                 "noise": self.combined_noise,
+                "targetedNoise": self.targeted_noise,
+                "portfolioNoise": self.portfolio_noise,
                 "noisePerFile": round(self.noise_per_file, 2),
+                "targetedNoisePerFile": round(self.targeted_noise_per_file, 2),
             },
             "byTool": {
                 name: tm.to_dict() for name, tm in self.by_tool.items()
@@ -124,6 +146,8 @@ class BenchmarkResult:
                 "totalTP": sum(m.combined_tp for m in self.cwe_results.values()),
                 "totalFN": sum(m.combined_fn for m in self.cwe_results.values()),
                 "totalNoise": sum(m.combined_noise for m in self.cwe_results.values()),
+                "totalTargetedNoise": sum(m.targeted_noise for m in self.cwe_results.values()),
+                "totalPortfolioNoise": sum(m.portfolio_noise for m in self.cwe_results.values()),
                 "cweCount": len(self.cwe_results),
             },
         }

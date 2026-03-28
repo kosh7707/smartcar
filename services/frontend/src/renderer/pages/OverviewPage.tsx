@@ -13,6 +13,10 @@ import {
   HardDrive,
   Settings,
   Activity,
+  CheckCircle2,
+  Loader,
+  XCircle,
+  Search,
 } from "lucide-react";
 import { fetchProjectOverview, fetchProjectFiles, logError } from "../api/client";
 import { fetchProjectActivity } from "../api/projects";
@@ -294,6 +298,22 @@ export const OverviewPage: React.FC = () => {
             </span>
             <ChevronRight size={16} style={{ color: "var(--text-tertiary)" }} />
           </div>
+          {overview.targetSummary && (
+            <div className="overview-target-summary">
+              <span className="overview-target-summary__item overview-target-summary__item--ready">
+                <CheckCircle2 size={12} /> 준비 {overview.targetSummary.ready}
+              </span>
+              <span className="overview-target-summary__item overview-target-summary__item--running">
+                <Loader size={12} /> 진행 {overview.targetSummary.running}
+              </span>
+              <span className="overview-target-summary__item overview-target-summary__item--failed">
+                <XCircle size={12} /> 실패 {overview.targetSummary.failed}
+              </span>
+              <span className="overview-target-summary__item overview-target-summary__item--discovered">
+                <Search size={12} /> 감지 {overview.targetSummary.discovered}
+              </span>
+            </div>
+          )}
           {bt.targets.length === 0 ? (
             <p className="overview-empty-text">등록된 서브 프로젝트가 없습니다.</p>
           ) : (

@@ -62,3 +62,15 @@ class AgentSession:
 
     def total_tool_calls(self) -> int:
         return sum(len(t.tool_steps) for t in self.turns)
+
+    def build_state_summary(self) -> dict:
+        """compaction 시 LLM에게 전달할 구조화 상태 요약."""
+        build_attempts = [s for s in self.trace if s.tool == "try_build"]
+        files_written = [s for s in self.trace if s.tool in ("write_file", "edit_file")]
+        return {
+            "files_read_count": sum(1 for s in self.trace if s.tool == "read_file"),
+            "files_written": [s.args_hash[:8] for s in files_written],
+            "build_attempts": len(build_attempts),
+            "last_build_success": build_attempts[-1].success if build_attempts else None,
+            "tools_attempted": sorted({s.tool for s in self.trace}),
+        }

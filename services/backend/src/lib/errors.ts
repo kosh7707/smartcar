@@ -13,6 +13,9 @@ export type ErrorCode =
   | "SAST_TIMEOUT"
   | "BUILD_AGENT_UNAVAILABLE"
   | "BUILD_AGENT_TIMEOUT"
+  | "KB_UNAVAILABLE"
+  | "KB_HTTP_ERROR"
+  | "PIPELINE_STEP_FAILED"
   | "DB_ERROR"
   | "INTERNAL_ERROR";
 
@@ -124,6 +127,27 @@ export class BuildAgentTimeoutError extends AppError {
   constructor(message: string, cause?: unknown) {
     super("BUILD_AGENT_TIMEOUT", 504, message, true, cause);
     this.name = "BuildAgentTimeoutError";
+  }
+}
+
+export class KbUnavailableError extends AppError {
+  constructor(message: string, cause?: unknown) {
+    super("KB_UNAVAILABLE", 502, message, true, cause);
+    this.name = "KbUnavailableError";
+  }
+}
+
+export class KbHttpError extends AppError {
+  constructor(message: string, cause?: unknown) {
+    super("KB_HTTP_ERROR", 502, message, false, cause);
+    this.name = "KbHttpError";
+  }
+}
+
+export class PipelineStepError extends AppError {
+  constructor(message: string, cause?: unknown) {
+    super("PIPELINE_STEP_FAILED", 502, message, true, cause);
+    this.name = "PipelineStepError";
   }
 }
 

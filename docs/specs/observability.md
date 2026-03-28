@@ -3,7 +3,7 @@
 > **S2(AEGIS Core)가 관리하는 전 서비스 공통 규약.**
 > 모든 서비스(S1~S7)는 이 문서를 준수해야 한다.
 > 변경 제안은 S2에게 work-request로.
-> **마지막 업데이트: 2026-03-23**
+> **마지막 업데이트: 2026-03-28**
 
 ---
 
@@ -43,6 +43,11 @@
 | `AGENT_TIMEOUT` | 504 | Y | S3 Agent 응답 시간 초과 |
 | `SAST_UNAVAILABLE` | 502 | Y | S4 SAST Runner 네트워크 불가 |
 | `SAST_TIMEOUT` | 504 | Y | S4 SAST Runner 시간 초과 |
+| `BUILD_AGENT_UNAVAILABLE` | 502 | Y | S3 Build Agent 네트워크 불가 |
+| `BUILD_AGENT_TIMEOUT` | 504 | Y | S3 Build Agent 응답 시간 초과 |
+| `KB_UNAVAILABLE` | 502 | Y | S5 Knowledge Base 네트워크 불가 |
+| `KB_HTTP_ERROR` | 502 | N | S5 Knowledge Base가 4xx/5xx 반환 |
+| `PIPELINE_STEP_FAILED` | 502 | Y | 서브 프로젝트 파이프라인 단계 실패 (빌드/스캔) |
 | `DB_ERROR` | 500 | N | 데이터베이스 오류 |
 | `INTERNAL_ERROR` | 500 | N | catch-all |
 
@@ -299,3 +304,4 @@ llm_stats(since_minutes=60)
 | 2026-03-12 | 최초 작성 (에러 응답, 에러 코드, 로그 포맷, Request ID) |
 | 2026-03-23 | 전면 개편: 로그 레벨 숫자 표준 확정, 서비스 식별자 7개 확정, X-Request-Id 전파 규약 강화, HTTP 호출 로그 표준 추가, 로그 파일 위치 현행화, S1 규칙 추가, 에러 코드 확장 (Agent/SAST/Circuit Breaker) |
 | 2026-03-26 | MCP 로그 분석 도구 섹션 추가 (6개 도구 상세 문서화). S3 피드백 반영: 턴별 토큰 추적, full-text 검색, LLM 전용 통계 |
+| 2026-03-28 | 에러 코드 확장: BUILD_AGENT_UNAVAILABLE/TIMEOUT, KB_UNAVAILABLE/HTTP_ERROR, PIPELINE_STEP_FAILED 추가 |

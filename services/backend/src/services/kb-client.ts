@@ -8,6 +8,7 @@
  * GET  /v1/health                        — 서비스 상태
  */
 import { createLogger } from "../lib/logger";
+import { KbUnavailableError, KbHttpError } from "../lib/errors";
 import type { SastCodeGraph } from "./sast-client";
 
 const logger = createLogger("kb-client");
@@ -53,7 +54,7 @@ export class KbClient {
     try {
       return (await res.json()) as CodeGraphIngestResponse;
     } catch (err) {
-      throw new Error(`Failed to parse KB ingest response: ${err}`);
+      throw new KbHttpError(`Failed to parse KB ingest response: ${err}`, err);
     }
   }
 
@@ -131,7 +132,7 @@ export class KbClient {
         res = await fetch(url, { method: "POST", headers, body: bodyStr, signal });
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") throw err;
-        throw new Error(`KB unreachable: ${err instanceof Error ? err.message : "Network error"}`);
+        throw new KbUnavailableError(`KB unreachable: ${err instanceof Error ? err.message : "Network error"}`, err);
       }
 
       if (res.status === 503 && attempt < KbClient.MAX_RETRIES) {
@@ -143,7 +144,7 @@ export class KbClient {
 
       if (!res.ok) {
         const text = await res.text().catch(() => "");
-        throw new Error(`KB returned HTTP ${res.status}: ${text.slice(0, 200)}`);
+        throw new KbHttpError(`KB returned HTTP ${res.status}: ${text.slice(0, 200)}`);
       }
 
       return res;

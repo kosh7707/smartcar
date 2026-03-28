@@ -12,7 +12,7 @@ from app.scanner.clangtidy_runner import ClangTidyRunner
 from app.scanner.cppcheck_runner import CppcheckRunner
 from app.scanner.flawfinder_runner import FlawfinderRunner
 from app.scanner.gcc_analyzer_runner import GccAnalyzerRunner
-from app.scanner.ruleset_selector import detect_language_family
+from app.scanner.ruleset_selector import detect_language_family, semgrep_include_extensions
 from app.scanner.sarif_parser import parse_sarif
 from app.scanner.scanbuild_runner import ScanbuildRunner
 from app.scanner.sdk_resolver import get_sdk_compiler, resolve_sdk_paths
@@ -127,7 +127,7 @@ class ScanOrchestrator:
         """
         # 1. 도구 자동 선택
         available_tools = await self.check_tools()
-        active_tools = self._select_tools(
+        active_tools = await self._select_tools(
             tools, profile, available_tools,
         )
 
@@ -155,7 +155,7 @@ class ScanOrchestrator:
         # - semgrep, flawfinder: scan_dir 전체 (텍스트/패턴 기반)
         task_map = {}
         if "semgrep" in active_tools:
-            task_map["semgrep"] = self._run_semgrep(scan_dir, rulesets, timeout)
+            task_map["semgrep"] = self._run_semgrep(scan_dir, rulesets, timeout, profile)
         if "cppcheck" in active_tools:
             task_map["cppcheck"] = self._run_cppcheck(scan_dir, profile, timeout, compile_commands)
         if "flawfinder" in active_tools:
@@ -244,7 +244,7 @@ class ScanOrchestrator:
 
         return all_findings, execution
 
-    def _select_tools(
+    async def _select_tools(
         self,
         requested: list[str] | None,
         profile: BuildProfile | None,
@@ -257,24 +257,31 @@ class ScanOrchestrator:
         for tool in list(candidates):
             # 가용성 체크
             if not available.get(tool, {}).get("available", False):
-                active["_skipped"][tool] = f"Not installed"
+                active["_skipped"][tool] = "Not installed"
                 candidates.discard(tool)
                 continue
 
-            # BuildProfile 기반 자동 스킵
-            if profile and tool == "semgrep":
-                lang = detect_language_family(profile)
-                if lang == "cpp":
-                    active["_skipped"][tool] = "C++ project — Semgrep pattern rules ineffective"
-                    candidates.discard(tool)
-                    logger.info("Auto-skip %s: C++ project", tool)
-                    continue
-
+            # BuildProfile 기반 자동 스킵 (Semgrep은 확장자 필터로 대체)
             if tool == "gcc-fanalyzer" and profile:
                 sdk_gcc = get_sdk_compiler(profile)
                 if not sdk_gcc and profile.sdk_id != "custom":
                     # SDK가 지정됐는데 크로스 컴파일러가 없으면 호스트 gcc 사용
                     pass  # 호스트 gcc로 폴백
+
+        # gcc-fanalyzer: 호스트 gcc가 unavailable이지만 SDK 컴파일러가 지원할 수 있음
+        if (
+            "gcc-fanalyzer" in active["_skipped"]
+            and active["_skipped"]["gcc-fanalyzer"] == "Not installed"
+            and profile
+            and profile.sdk_id
+        ):
+            sdk_ok, sdk_ver = await self.gcc_analyzer.check_available(profile)
+            if sdk_ok:
+                del active["_skipped"]["gcc-fanalyzer"]
+                candidates.add("gcc-fanalyzer")
+                logger.info(
+                    "gcc-fanalyzer available via SDK compiler (v%s)", sdk_ver,
+                )
 
         active.update({t: True for t in candidates})
         return active
@@ -321,8 +328,12 @@ class ScanOrchestrator:
 
     async def _run_semgrep(
         self, scan_dir: Path, rulesets: list[str], timeout: int,
+        profile: BuildProfile | None = None,
     ) -> list[SastFinding]:
-        sarif = await self.semgrep.run(scan_dir, rulesets, timeout)
+        include_exts = semgrep_include_extensions(profile)
+        if include_exts:
+            logger.info("Semgrep: filtering to extensions %s", include_exts)
+        sarif = await self.semgrep.run(scan_dir, rulesets, timeout, include_extensions=include_exts)
         findings, _ = parse_sarif(sarif, scan_dir)
         return findings
 

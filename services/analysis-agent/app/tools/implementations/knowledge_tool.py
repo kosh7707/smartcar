@@ -9,6 +9,7 @@ import httpx
 
 from agent_shared.context import get_request_id
 from agent_shared.schemas.agent import ToolResult
+from agent_shared.schemas.upstream import KbSearchHit
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,8 @@ class KnowledgeTool:
             resp.raise_for_status()
             data = resp.json()
 
-            new_refs = [f"eref-knowledge-{h['id']}" for h in data.get("hits", [])]
+            hits = [KbSearchHit.model_validate(h) for h in data.get("hits", [])]
+            new_refs = [f"eref-knowledge-{h.id}" for h in hits if h.id]
             return ToolResult(
                 tool_call_id="",
                 name="",

@@ -3,18 +3,29 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import StrEnum
 
 from agent_shared.schemas.agent import ToolCostTier
 
 
+class ToolSideEffect(StrEnum):
+    """도구의 부수 효과 수준."""
+
+    PURE = "pure"         # 부수 효과 없음 (list_files 등)
+    READ = "read"         # 외부 상태 읽기 (sast.scan, knowledge.search)
+    WRITE = "write"       # 파일시스템 쓰기 (write_file, edit_file, delete_file)
+    EXECUTE = "execute"   # 프로세스 실행 (try_build)
+
+
 @dataclass
 class ToolSchema:
-    """OpenAI function calling 스키마 + 비용 등급."""
+    """OpenAI function calling 스키마 + 비용 등급 + 부수 효과 메타데이터."""
 
     name: str
     description: str
     parameters: dict = field(default_factory=dict)
     cost_tier: ToolCostTier = ToolCostTier.CHEAP
+    side_effect: ToolSideEffect = ToolSideEffect.PURE
 
 
 class ToolRegistry:

@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     semgrep_per_rule_timeout: int = 5
     semgrep_max_target_bytes: int = 1_000_000
 
+    # LibraryDiffer clone cache
+    lib_cache_dir: str | None = None
+    lib_cache_ttl: int = 3600
+
     @property
     def default_rulesets(self) -> list[str]:
         return [s.strip() for s in self.default_rulesets_csv.split(",") if s.strip()]

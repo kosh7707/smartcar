@@ -218,7 +218,10 @@ async def _handle_deep_analyze(request: TaskRequest) -> TaskSuccessResponse | Ta
         termination_policy=TerminationPolicy(timeout_ms=request.constraints.timeoutMs),
         budget_manager=bm,
         token_counter=TokenCounter(),
-        result_assembler=ResultAssembler(),
+        result_assembler=ResultAssembler(
+            model_name=settings.llm_model,
+            prompt_version="agent-v1",
+        ),
         turn_summarizer=TurnSummarizer(),
         retry_policy=RetryPolicy(max_retries=settings.agent_llm_retry_max),
     )

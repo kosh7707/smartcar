@@ -90,6 +90,7 @@ def _build_system_prompt(
     target_path: str = "",
     target_name: str = "",
     phase0: object | None = None,
+    build_subdir: str = "build-aegis",
 ) -> str:
     """빌드 에이전트 v3 시스템 프롬프트."""
 
@@ -113,7 +114,7 @@ def _build_system_prompt(
             sdk_section += (
                 f"SDK 경로: `{sdk_dir_hint}`\n"
                 f"try_build 호출 시 buildCommand 앞에 `SDK_DIR={sdk_dir_hint}`를 붙여라.\n"
-                f"예: `SDK_DIR={sdk_dir_hint} bash build-aegis/aegis-build.sh`\n\n"
+                f"예: `SDK_DIR={sdk_dir_hint} bash {build_subdir}/aegis-build.sh`\n\n"
             )
         else:
             sdk_section += "\n"
@@ -138,7 +139,7 @@ def _build_system_prompt(
             "cmake": "CMakeLists.txt를 read_file로 읽고, cmake 기반 빌드 스크립트를 작성하라.",
             "make": "Makefile를 read_file로 읽고, make 기반 빌드 스크립트를 작성하라.",
             "autotools": "./configure를 실행한 뒤 make를 호출하는 스크립트를 작성하라.",
-            "shell": f"기존 빌드 스크립트({script_path})를 read_file로 읽고 참고하여 build-aegis/aegis-build.sh를 작성하라.",
+            "shell": f"기존 빌드 스크립트({script_path})를 read_file로 읽고 참고하여 {build_subdir}/aegis-build.sh를 작성하라.",
             "unknown": "프로젝트 구조를 list_files로 탐색한 뒤 빌드 방법을 추론하라.",
         }.get(bs, "")
 
@@ -174,11 +175,11 @@ def _build_system_prompt(
         "당신은 AEGIS Build Agent입니다.\n"
         "주어진 자동차 임베디드 C/C++ 프로젝트를 빌드하는 스크립트를 작성하는 것이 유일한 목표입니다.\n\n"
         "## 최종 산출물\n"
-        f"1. `build-aegis/aegis-build.sh` — 프로젝트를 빌드하는 완전한 셸 스크립트\n"
-        f"2. `buildCommand` — 해당 스크립트를 실행하는 명령어 (예: `bash {build_source}/build-aegis/aegis-build.sh`)\n\n"
+        f"1. `{build_subdir}/aegis-build.sh` — 프로젝트를 빌드하는 완전한 셸 스크립트\n"
+        f"2. `buildCommand` — 해당 스크립트를 실행하는 명령어 (예: `bash {build_source}/{build_subdir}/aegis-build.sh`)\n\n"
         "## 절대 규칙\n"
         "1. **소스 코드를 절대 수정하지 마라.** read_file로 읽기만 허용된다.\n"
-        "2. **write_file/edit_file/delete_file은 `build-aegis/` 하위만 허용된다.** edit/delete는 네가 생성한 파일만 가능.\n"
+        f"2. **write_file/edit_file/delete_file은 `{build_subdir}/` 하위만 허용된다.** edit/delete는 네가 생성한 파일만 가능.\n"
         "3. try_build가 성공하면 즉시 최종 보고서를 JSON으로 출력하라.\n"
         "4. 3회 연속 빌드 실패 시 즉시 진단 보고서를 JSON으로 출력하라.\n"
         "5. **bear, compile_commands.json을 언급하거나 사용하지 마라.** 후속 처리는 S4가 담당한다.\n\n"
@@ -193,17 +194,17 @@ def _build_system_prompt(
         "기존 빌드 스크립트가 있으면 **참고**하되, 그대로 실행하지 말고 **네가 직접 빌드 스크립트를 작성**하라.\n"
         "**3턴째에는 반드시 write_file로 빌드 스크립트를 작성하라. 탐색을 더 하지 마라.**\n\n"
         "### 2단계: 빌드 스크립트 작성 (write_file)\n"
-        "`build-aegis/aegis-build.sh`에 빌드 스크립트를 작성하라. 스크립트 요구사항:\n"
-        f"- 빌드 출력은 `{build_source}/build-aegis/`에 생성\n"
+        f"`{build_subdir}/aegis-build.sh`에 빌드 스크립트를 작성하라. 스크립트 요구사항:\n"
+        f"- 빌드 출력은 `{build_source}/{build_subdir}/`에 생성\n"
         "- SDK가 필요하면 스크립트 안에서 `$SDK_DIR` 환경변수를 사용. try_build 호출 시 `SDK_DIR=<경로> bash ...` 형태로 전달.\n"
         "- 소스 코드를 수정하지 말 것\n"
         "- 첫 줄은 `#!/bin/bash`\n"
-        f"- **중요: 스크립트는 `build-aegis/` 안에 위치한다. 프로젝트 루트는 스크립트의 상위 디렉토리이다.**\n"
+        f"- **중요: 스크립트는 `{build_subdir}/` 안에 위치한다. 프로젝트 루트는 스크립트의 상위 디렉토리이다.**\n"
         f"  올바른 경로 설정: `PROJECT_ROOT=\"$(cd \"$(dirname \"$0\")/..\" && pwd)\"`\n"
-        f"  잘못된 예: `ROOT_DIR=\"$(dirname \"$0\")\"` ← 이러면 build-aegis/ 자체를 루트로 잡음\n\n"
+        f"  잘못된 예: `ROOT_DIR=\"$(dirname \"$0\")\"` ← 이러면 {build_subdir}/ 자체를 루트로 잡음\n\n"
         "### 3단계: 빌드 실행 (try_build) — write_file 직후 즉시 실행\n"
-        f"SDK가 있으면: `build_command: \"SDK_DIR=<sdk경로> bash {build_source}/build-aegis/aegis-build.sh\"`\n"
-        f"SDK가 없으면: `build_command: \"bash {build_source}/build-aegis/aegis-build.sh\"`\n\n"
+        f"SDK가 있으면: `build_command: \"SDK_DIR=<sdk경로> bash {build_source}/{build_subdir}/aegis-build.sh\"`\n"
+        f"SDK가 없으면: `build_command: \"bash {build_source}/{build_subdir}/aegis-build.sh\"`\n\n"
         "### 4단계: 실패 복구\n"
         "에러 메시지를 분석하고 **edit_file**로 스크립트를 수정하여 즉시 try_build를 재시도하라.\n"
         "같은 명령을 반복하지 마라. 다른 전략을 시도하라.\n"
@@ -216,8 +217,8 @@ def _build_system_prompt(
         '  "buildResult": {\n'
         '    "success": true,\n'
         '    "buildCommand": "실제 사용한 빌드 명령어",\n'
-        '    "buildScript": "build-aegis/aegis-build.sh",\n'
-        '    "buildDir": "build-aegis",\n'
+        f'    "buildScript": "{build_subdir}/aegis-build.sh",\n'
+        f'    "buildDir": "{build_subdir}",\n'
         '    "errorLog": null\n'
         "  },\n"
         '  "claims": [{"statement": "빌드 성공/실패 요약", "supportingEvidenceRefs": []}],\n'
@@ -251,7 +252,7 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
     from app.policy.tool_failure import ToolFailurePolicy
     from agent_shared.schemas.agent import BudgetState, ToolCostTier
     from agent_shared.tools.executor import ToolExecutor
-    from agent_shared.tools.registry import ToolRegistry, ToolSchema
+    from agent_shared.tools.registry import ToolRegistry, ToolSchema, ToolSideEffect
     from app.tools.router import ToolRouter
     from app.tools.implementations.list_files import ListFilesTool
     from app.tools.implementations.read_file import ReadFileTool
@@ -269,12 +270,14 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
     # 서브프로젝트 스코핑: build-aegis/는 targetPath 기준
     effective_root = os.path.join(project_path, target_path) if target_path else project_path
 
-    # ─── 0. 이전 빌드 캐시 정리 (클린 빌드 보장) ───
+    # ─── 0. Request-scoped 빌드 워크스페이스 (동시 요청 격리) ───
     import shutil
-    build_aegis_dir = os.path.join(effective_root, "build-aegis")
+    short_id = request_id[:8] if request_id else "default"
+    build_subdir = f"build-aegis-{short_id}"
+    build_aegis_dir = os.path.join(effective_root, build_subdir)
     if os.path.isdir(build_aegis_dir):
         shutil.rmtree(build_aegis_dir, ignore_errors=True)
-        logger.info("[build] 이전 build-aegis/ 캐시 정리: %s", build_aegis_dir)
+        logger.info("[build] 이전 빌드 캐시 정리: %s", build_aegis_dir)
 
     # ─── 1. Phase 0 결정론적 사전 분석 ───
     from app.core.phase_zero import Phase0Executor
@@ -284,8 +287,8 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
     sdk_info = phase0_result.sdk_info
     build_files = phase0_result.build_files
 
-    # ─── 2. 정책 엔진 ───
-    file_policy = FilePolicy(effective_root)
+    # ─── 2. 정책 엔진 (request-scoped build dir) ───
+    file_policy = FilePolicy(effective_root, build_dir=build_subdir)
 
     # ─── 3. 예산 구성 ───
     budget = BudgetState(
@@ -312,6 +315,7 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
             },
         },
         cost_tier=ToolCostTier.CHEAP,
+        side_effect=ToolSideEffect.PURE,
     ))
     registry.register(ToolSchema(
         name="read_file",
@@ -324,44 +328,48 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
             "required": ["path"],
         },
         cost_tier=ToolCostTier.CHEAP,
+        side_effect=ToolSideEffect.READ,
     ))
     registry.register(ToolSchema(
         name="write_file",
-        description="build-aegis/ 폴더 안에 파일을 생성한다 (빌드 스크립트, toolchain 파일 등).",
+        description=f"{build_subdir}/ 폴더 안에 파일을 생성한다 (빌드 스크립트, toolchain 파일 등).",
         parameters={
             "type": "object",
             "properties": {
-                "path": {"type": "string", "description": "build-aegis/ 기준 상대 경로 (예: 'aegis-build.sh')"},
+                "path": {"type": "string", "description": f"{build_subdir}/ 기준 상대 경로 (예: 'aegis-build.sh')"},
                 "content": {"type": "string", "description": "파일 내용"},
             },
             "required": ["path", "content"],
         },
         cost_tier=ToolCostTier.CHEAP,
+        side_effect=ToolSideEffect.WRITE,
     ))
     registry.register(ToolSchema(
         name="edit_file",
-        description="build-aegis/ 내 에이전트가 생성한 파일을 수정한다 (전체 덮어쓰기).",
+        description=f"{build_subdir}/ 내 에이전트가 생성한 파일을 수정한다 (전체 덮어쓰기).",
         parameters={
             "type": "object",
             "properties": {
-                "path": {"type": "string", "description": "build-aegis/ 기준 상대 경로"},
+                "path": {"type": "string", "description": f"{build_subdir}/ 기준 상대 경로"},
                 "content": {"type": "string", "description": "새 파일 내용 (전체 교체)"},
             },
             "required": ["path", "content"],
         },
         cost_tier=ToolCostTier.CHEAP,
+        side_effect=ToolSideEffect.WRITE,
     ))
     registry.register(ToolSchema(
         name="delete_file",
-        description="build-aegis/ 내 에이전트가 생성한 파일을 삭제한다.",
+        description=f"{build_subdir}/ 내 에이전트가 생성한 파일을 삭제한다.",
         parameters={
             "type": "object",
             "properties": {
-                "path": {"type": "string", "description": "build-aegis/ 기준 상대 경로"},
+                "path": {"type": "string", "description": f"{build_subdir}/ 기준 상대 경로"},
             },
             "required": ["path"],
         },
         cost_tier=ToolCostTier.CHEAP,
+        side_effect=ToolSideEffect.WRITE,
     ))
     registry.register(ToolSchema(
         name="try_build",
@@ -369,12 +377,13 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
         parameters={
             "type": "object",
             "properties": {
-                "build_command": {"type": "string", "description": "빌드 명령어 (예: 'bash build-aegis/aegis-build.sh')"},
+                "build_command": {"type": "string", "description": f"빌드 명령어 (예: 'bash {build_subdir}/aegis-build.sh')"},
                 "sdk_id": {"type": "string", "description": "(선택) SDK ID — S4가 자동으로 SDK 환경을 설정한다"},
             },
             "required": ["build_command"],
         },
         cost_tier=ToolCostTier.EXPENSIVE,
+        side_effect=ToolSideEffect.EXECUTE,
     ))
 
     # ─── 5. Tool 구현체 등록 ───
@@ -384,9 +393,9 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
 
     list_tool = ListFilesTool(effective_root)
     read_tool = ReadFileTool(effective_root)
-    write_tool = WriteFileTool(effective_root, file_policy=file_policy)
-    edit_tool = EditFileTool(effective_root, file_policy)
-    delete_tool = DeleteFileTool(effective_root, file_policy)
+    write_tool = WriteFileTool(effective_root, build_dir=build_subdir, file_policy=file_policy)
+    edit_tool = EditFileTool(effective_root, file_policy, build_dir=build_subdir)
+    delete_tool = DeleteFileTool(effective_root, file_policy, build_dir=build_subdir)
     build_tool = TryBuildTool(settings.sast_endpoint, effective_root, request_id)
 
     tool_router.register_implementation("list_files", list_tool)
@@ -401,6 +410,7 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
         sdk_info, build_files, project_path,
         target_path=target_path, target_name=target_name,
         phase0=phase0_result,
+        build_subdir=build_subdir,
     )
     build_source = os.path.join(project_path, target_path) if target_path else project_path
     user_message = (
@@ -427,9 +437,9 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
             "summary": "[Mock] 빌드 에이전트 mock 응답",
             "buildResult": {
                 "success": True,
-                "buildCommand": "bash build-aegis/aegis-build.sh",
-                "buildScript": "build-aegis/aegis-build.sh",
-                "buildDir": "build-aegis",
+                "buildCommand": f"bash {build_subdir}/aegis-build.sh",
+                "buildScript": f"{build_subdir}/aegis-build.sh",
+                "buildDir": build_subdir,
                 "errorLog": None,
             },
             "claims": [{"statement": "Mock 빌드 완료", "supportingEvidenceRefs": []}],
@@ -457,7 +467,7 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
         termination_policy=TerminationPolicy(timeout_ms=request.constraints.timeoutMs),
         budget_manager=bm,
         token_counter=TokenCounter(),
-        result_assembler=ResultAssembler(),
+        result_assembler=ResultAssembler(model_name=settings.llm_model, prompt_version="build-v3"),
         turn_summarizer=TurnSummarizer(),
         retry_policy=RetryPolicy(max_retries=settings.agent_llm_retry_max),
     )
@@ -535,7 +545,7 @@ async def _handle_sdk_analyze(request: TaskRequest) -> TaskSuccessResponse | Tas
     from app.policy.tool_failure import ToolFailurePolicy
     from agent_shared.schemas.agent import BudgetState, ToolCostTier
     from agent_shared.tools.executor import ToolExecutor
-    from agent_shared.tools.registry import ToolRegistry, ToolSchema
+    from agent_shared.tools.registry import ToolRegistry, ToolSchema, ToolSideEffect
     from app.tools.router import ToolRouter
     from app.tools.implementations.read_file import ReadFileTool
     from app.tools.implementations.try_build import TryBuildTool
@@ -642,7 +652,7 @@ async def _handle_sdk_analyze(request: TaskRequest) -> TaskSuccessResponse | Tas
         termination_policy=TerminationPolicy(timeout_ms=request.constraints.timeoutMs),
         budget_manager=bm,
         token_counter=TokenCounter(),
-        result_assembler=ResultAssembler(),
+        result_assembler=ResultAssembler(model_name=settings.llm_model, prompt_version="build-v3"),
         turn_summarizer=TurnSummarizer(),
         retry_policy=RetryPolicy(max_retries=settings.agent_llm_retry_max),
     )

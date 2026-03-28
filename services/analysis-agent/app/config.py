@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     agent_llm_max_tokens: int = 16384
     agent_llm_retry_max: int = 1
     agent_graph_depth: int = 2
+    agent_max_prompt_tokens: int = 100_000
+
+    # --- Phase 1 truncation 상한 ---
+    phase1_max_cve_libraries: int = 20
+    phase1_max_threat_cwes: int = 10
 
     model_config = {"env_prefix": "AEGIS_", "env_file": ".env"}
 

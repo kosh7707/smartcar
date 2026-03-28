@@ -3,7 +3,7 @@
 > 이 문서는 AEGIS 시스템 전체 구조, 서비스 구성, 통신 방식, 데이터 흐름을 정의한다.
 > 서비스별 상세 명세는 개별 문서로 분리한다.
 > **이 문서의 소유자는 S2(AEGIS Core)이다.** 변경 제안은 work-request로.
-> **마지막 업데이트: 2026-03-24**
+> **마지막 업데이트: 2026-03-28**
 
 ---
 
@@ -413,14 +413,16 @@ ECU Simulator → [S6 Adapter] → WS → [S2]
 - [x] **Quick→Deep 파이프라인** — AgentClient, SastClient, AnalysisOrchestrator, ProjectSourceService 구현
 - [x] **소스코드 업로드** — ZIP/Git → `uploads/{projectId}/` 파일시스템 관리
 - [x] **프론트엔드 개편** — 동적 분석 UI 숨김, 소스 업로드 UI, Quick→Deep 진행률
+- [x] **BuildTarget + 서브 프로젝트 파이프라인** — 16-state FSM, 물리적 복사 격리, 빌드→스캔→코드그래프 순차 실행
+- [x] **Build Agent 연동** — S3(Build Agent :8003) build-resolve 파이프라인 통합
+- [x] **S1 요청 API 10건** — 벌크 상태, Finding 이력, 활동 타임라인, Approval 카운트, Finding 검색/정렬 확장
+- [x] **코드 고도화** — AppError 타입화(KB/Pipeline), 쿼리 검증, silent catch 로깅
 - [ ] **E2E 통합 테스트** — 전체 파이프라인 (업로드→Quick→Deep→Finding) 검증
-- [ ] **BuildTarget 엔티티** — 프로젝트 내 다중 빌드 단위 지원 (설계 중)
 
 ### v1 — 완전 자동화
 
-- [ ] BuildTarget 기반 다중 서비스 분석
 - [ ] QEMU user-mode 동적 분석 (ARM cross-compiled 바이너리)
-- [ ] Transient 코드 제거 (룰 엔진, chunker, LlmV1Adapter)
+- [ ] Transient 코드 제거 (LlmV1Adapter, LlmTaskClient — 동적분석이 아직 사용 중)
 - [ ] 사용자 인증 (JWT)
 
 ### v2+ — 확장

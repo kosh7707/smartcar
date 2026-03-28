@@ -77,8 +77,11 @@ class MessageManager:
         self,
         summarizer: TurnSummarizer,
         keep_last_n: int = 4,
+        state_summary: dict | None = None,
     ) -> int:
         """메시지를 압축한다. 제거된 메시지 수를 반환한다."""
         before = len(self._messages)
-        self._messages = await summarizer.summarize(self._messages, keep_last_n)
+        self._messages = await summarizer.summarize(
+            self._messages, keep_last_n, state_summary=state_summary,
+        )
         return before - len(self._messages)

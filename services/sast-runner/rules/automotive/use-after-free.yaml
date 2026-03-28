@@ -92,6 +92,11 @@ rules:
       - pattern: $SINK->$FIELD
       - pattern: $SINK[$IDX]
       - pattern: "*$SINK"
+    pattern-sanitizers:
+      - pattern: $SINK = NULL
+      - pattern: $SINK = malloc(...)
+      - pattern: $SINK = calloc(...)
+      - pattern: $SINK = realloc(...)
     message: >
       Use-after-free: pointer freed then used in subsequent operation.
       Taint tracks cross-block and cross-function UAF patterns.

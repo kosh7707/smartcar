@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.scanner.library_differ import LibraryDiffer
+from app.scanner.library_differ import CloneCache, DiffResult, LibraryDiffer
 
 
 @pytest.fixture
@@ -196,3 +196,72 @@ class TestFindClosestVersion:
 
         assert result["matchedVersion"] == "v2.0"  # smaller diff
         assert result["searchedTags"] == 2
+
+
+# ──────────────────── DiffResult ────────────────────
+
+
+class TestDiffResult:
+    def test_success_to_dict(self):
+        r = DiffResult(
+            matched_version="v1.0", repo_url="https://repo",
+            match_ratio=0.95, identical_files=10, modified_files=2,
+            added_files=1, deleted_files=0,
+            modifications=[{"file": "a.c", "insertions": 5, "deletions": 2}],
+        )
+        d = r.to_dict()
+        assert d["matchedVersion"] == "v1.0"
+        assert d["matchRatio"] == 0.95
+        assert d["error"] is None
+        assert d["modifiedFiles"] == 2
+
+    def test_error_to_dict(self):
+        """에러 응답도 동일한 shape (nullable 필드는 None)."""
+        r = DiffResult(error="Failed to clone", repo_url="https://repo")
+        d = r.to_dict()
+        assert d["error"] == "Failed to clone"
+        assert d["matchedVersion"] is None
+        assert d["matchRatio"] is None
+        assert d["modifiedFiles"] == 0
+        assert d["repoUrl"] == "https://repo"
+
+    def test_diff_clone_fail_has_unified_shape(self):
+        """diff() 실패 시에도 matchedVersion, matchRatio 등 모든 키 존재."""
+        r = DiffResult(error="Failed to clone upstream", repo_url="https://repo")
+        d = r.to_dict()
+        expected_keys = {"matchedVersion", "repoUrl", "matchRatio", "identicalFiles",
+                         "modifiedFiles", "addedFiles", "deletedFiles", "modifications", "error"}
+        assert expected_keys.issubset(set(d.keys()))
+
+
+# ──────────────────── CloneCache ────────────────────
+
+
+class TestCloneCache:
+    @pytest.mark.asyncio
+    async def test_miss_clones_fresh(self, tmp_path):
+        """캐시 미스 → full clone."""
+        cache = CloneCache(base_dir=str(tmp_path / "cache"), ttl_seconds=3600)
+        with patch.object(cache, "_git_clone", new_callable=AsyncMock, return_value=True):
+            result = await cache.get_or_clone("https://example.com/repo.git", timeout=30)
+        assert result is not None
+        assert result.is_dir()
+
+    @pytest.mark.asyncio
+    async def test_clone_failure_returns_none(self, tmp_path):
+        """clone 실패 → None."""
+        cache = CloneCache(base_dir=str(tmp_path / "cache"), ttl_seconds=3600)
+        with patch.object(cache, "_git_clone", new_callable=AsyncMock, return_value=False):
+            result = await cache.get_or_clone("https://fail.com/repo.git", timeout=30)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_cache_key_deterministic(self, tmp_path):
+        """동일 URL → 동일 캐시 키."""
+        cache = CloneCache(base_dir=str(tmp_path / "cache"))
+        key1 = cache._key("https://github.com/foo/bar.git")
+        key2 = cache._key("https://github.com/foo/bar.git")
+        assert key1 == key2
+        # 다른 URL → 다른 키
+        key3 = cache._key("https://github.com/baz/qux.git")
+        assert key1 != key3

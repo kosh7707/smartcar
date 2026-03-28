@@ -248,6 +248,18 @@ export const AgentResultPanel: React.FC<Props> = ({ analysisResult }) => {
                   <span className="agent-audit-item__value">{agentAudit.terminationReason}</span>
                 </div>
               )}
+              {agentAudit.modelName && (
+                <div className="agent-audit-item">
+                  <span className="agent-audit-item__label">LLM 모델</span>
+                  <span className="agent-audit-item__value font-mono">{agentAudit.modelName}</span>
+                </div>
+              )}
+              {agentAudit.promptVersion && (
+                <div className="agent-audit-item">
+                  <span className="agent-audit-item__label">프롬프트 버전</span>
+                  <span className="agent-audit-item__value font-mono">{agentAudit.promptVersion}</span>
+                </div>
+              )}
             </div>
           )}
         </div>

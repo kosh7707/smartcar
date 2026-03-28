@@ -135,7 +135,7 @@ class ToolRouter:
         # 9. trace 기록
         session.trace.append(ToolTraceStep(
             step_id=f"step_{len(session.trace) + 1:02d}",
-            turn_number=session.turn_count,
+            turn_number=turn,
             tool=call.name,
             args_hash=call.args_hash,
             cost_tier=tier,

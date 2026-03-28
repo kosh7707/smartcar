@@ -34,11 +34,13 @@ logger = logging.getLogger(__name__)
 class ResultAssembler:
     """에이전트 루프의 최종 결과를 API 응답 형식으로 조립한다."""
 
-    def __init__(self) -> None:
+    def __init__(self, model_name: str = "", prompt_version: str = "agent-v1") -> None:
         self._parser = V1ResponseParser()
         self._schema_validator = SchemaValidator()
         self._evidence_validator = EvidenceValidator()
         self._confidence_calculator = ConfidenceCalculator()
+        self._model_name = model_name
+        self._prompt_version = prompt_version
 
     def build(
         self,
@@ -67,8 +69,10 @@ class ResultAssembler:
                 "policyFlags": ["unstructured_response"],
             }
 
-        # 검증
+        # 검증: 입력 제공 refs + 도구가 생성한 refs 합집합
         allowed_refs = {ref.refId for ref in session.request.evidenceRefs}
+        for step in session.trace:
+            allowed_refs.update(step.new_evidence_refs)
         schema_result = self._schema_validator.validate(parsed, session.request.taskType)
         evidence_valid, evidence_errors = self._evidence_validator.validate(parsed, allowed_refs)
         validation = ValidationInfo(
@@ -208,6 +212,8 @@ class ResultAssembler:
             turns=session.turns,
             termination_reason=termination_reason,
             created_at=datetime.now(timezone.utc).isoformat(),
+            model_name=self._model_name,
+            prompt_version=self._prompt_version,
         )
 
         return AuditInfo(

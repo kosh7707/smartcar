@@ -2,6 +2,9 @@ import type { ProjectSettings, BuildProfile, RegisteredSdk } from "@aegis/shared
 import type { IProjectSettingsDAO } from "../dao/interfaces";
 import { findSdkProfile } from "./sdk-profiles";
 import { config } from "../config";
+import { createLogger } from "../lib/logger";
+
+const logger = createLogger("project-settings");
 
 /** SdkRegistryDAO의 조회만 필요 — 전체 인터페이스 의존 회피 */
 export interface ISdkRegistryLookup {
@@ -53,8 +56,8 @@ export class ProjectSettingsService {
       if (JSON_KEYS.has(key)) {
         try {
           (result as any)[key] = JSON.parse(value);
-        } catch {
-          // 파싱 실패 시 무시
+        } catch (err) {
+          logger.warn({ projectId, key, err }, "JSON setting parse failed");
         }
       } else {
         (result as any)[key] = value;
@@ -78,7 +81,8 @@ export class ProjectSettingsService {
     if (JSON_KEYS.has(key as string)) {
       try {
         return JSON.parse(val) as ProjectSettings[K];
-      } catch {
+      } catch (err) {
+        logger.warn({ projectId, key, err }, "JSON setting parse failed");
         if (key === "buildProfile") return { ...DEFAULT_BUILD_PROFILE } as ProjectSettings[K];
         return (SCALAR_DEFAULTS as any)[key] as ProjectSettings[K];
       }
@@ -125,11 +129,11 @@ export class ProjectSettingsService {
 
     return {
       sdkId,
-      compiler: partial.compiler ?? sdkDefaults.compiler,
+      compiler: partial.compiler ?? sdkDefaults.compiler ?? DEFAULT_BUILD_PROFILE.compiler,
       compilerVersion: partial.compilerVersion ?? sdkDefaults.compilerVersion,
-      targetArch: partial.targetArch ?? sdkDefaults.targetArch,
-      languageStandard: partial.languageStandard ?? sdkDefaults.languageStandard,
-      headerLanguage: partial.headerLanguage ?? sdkDefaults.headerLanguage,
+      targetArch: partial.targetArch ?? sdkDefaults.targetArch ?? DEFAULT_BUILD_PROFILE.targetArch,
+      languageStandard: partial.languageStandard ?? sdkDefaults.languageStandard ?? DEFAULT_BUILD_PROFILE.languageStandard,
+      headerLanguage: partial.headerLanguage ?? sdkDefaults.headerLanguage ?? DEFAULT_BUILD_PROFILE.headerLanguage,
       includePaths: partial.includePaths ?? sdkDefaults.includePaths,
       defines: partial.defines ?? sdkDefaults.defines,
       flags: partial.flags ?? sdkDefaults.flags,

@@ -147,7 +147,21 @@ class AgentLoop:
                     completionTokens=response.completion_tokens,
                 )
 
-                result = self._result_assembler.build(response.content or "", session)
+                final_content = response.content or ""
+                if not final_content.strip():
+                    agent_log(
+                        logger, "LLM이 빈 응답 반환 — failure 처리",
+                        component="agent_loop", phase="empty_response",
+                        turn=turn, level=logging.WARNING,
+                    )
+                    return self._result_assembler.build_failure(
+                        session, TaskStatus.MODEL_ERROR,
+                        FailureCode.MODEL_UNAVAILABLE,
+                        "LLM이 유효한 tool_calls도 content도 반환하지 않음",
+                        retryable=True,
+                    )
+
+                result = self._result_assembler.build(final_content, session)
 
                 agent_log(
                     logger, "세션 종료",

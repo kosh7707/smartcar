@@ -13,13 +13,13 @@ import {
   ChevronRight,
 } from "lucide-react";
 import {
-  fetchSourceFiles,
+  fetchSourceFilesWithComposition,
   fetchSourceFileContent,
   fetchProjectFindings,
   uploadSource,
   logError,
 } from "../api/client";
-import type { SourceFileEntry } from "../api/client";
+import type { SourceFileEntry, TargetMappingEntry } from "../api/client";
 import {
   EmptyState,
   PageHeader,
@@ -78,6 +78,7 @@ export const FilesPage: React.FC = () => {
   const bt = useBuildTargets(projectId);
 
   const [sourceFiles, setSourceFiles] = useState<SourceFileEntry[]>([]);
+  const [targetMapping, setTargetMapping] = useState<Record<string, TargetMappingEntry>>({});
   const [findings, setFindings] = useState<Finding[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -101,11 +102,12 @@ export const FilesPage: React.FC = () => {
     if (!projectId) return;
     setLoading(true);
     Promise.all([
-      fetchSourceFiles(projectId).catch(() => [] as SourceFileEntry[]),
+      fetchSourceFilesWithComposition(projectId).catch(() => ({ success: true, data: [] as SourceFileEntry[] })),
       fetchProjectFindings(projectId).catch(() => [] as Finding[]),
     ])
-      .then(([files, f]) => {
-        setSourceFiles(files);
+      .then(([filesRes, f]) => {
+        setSourceFiles(filesRes.data);
+        setTargetMapping(filesRes.targetMapping ?? {});
         setFindings(f);
       })
       .catch((e) => {
@@ -231,13 +233,21 @@ export const FilesPage: React.FC = () => {
   );
 
   const renderFileMeta = useCallback(
-    (data: SourceFileEntry) => (
-      <>
-        {data.language && <span className="ftree-meta ftree-lang">{data.language}</span>}
-        <span className="ftree-meta ftree-size">{formatFileSize(data.size)}</span>
-      </>
-    ),
-    [],
+    (data: SourceFileEntry) => {
+      const mapping = targetMapping[data.relativePath];
+      return (
+        <>
+          {mapping && (
+            <span className="ftree-meta ftree-target" title={`서브프로젝트: ${mapping.targetName}`}>
+              <HardDrive size={10} /> {mapping.targetName}
+            </span>
+          )}
+          {data.language && <span className="ftree-meta ftree-lang">{data.language}</span>}
+          <span className="ftree-meta ftree-size">{formatFileSize(data.size)}</span>
+        </>
+      );
+    },
+    [targetMapping],
   );
 
   const renderFolderBadge = useCallback(

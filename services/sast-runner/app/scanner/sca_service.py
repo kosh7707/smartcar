@@ -7,14 +7,19 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from app.scanner.library_differ import LibraryDiffer
+from app.config import settings
+from app.scanner.library_differ import CloneCache, LibraryDiffer
 from app.scanner.library_identifier import LibraryIdentifier
 
 logger = logging.getLogger("aegis-sast-runner")
 
 # 모듈 수준 싱글톤 (router에서 공유)
 _identifier = LibraryIdentifier()
-_differ = LibraryDiffer()
+_cache = CloneCache(
+    base_dir=settings.lib_cache_dir,
+    ttl_seconds=settings.lib_cache_ttl,
+)
+_differ = LibraryDiffer(cache=_cache)
 
 
 async def analyze_libraries(

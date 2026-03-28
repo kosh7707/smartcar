@@ -188,8 +188,8 @@ async def _benchmark_cwe(
             metrics.combined_fn += 1
             metrics.missed_files.append(tc.file_path.name)
 
-        # Noise: target CWE와 매칭되지 않는 findings 수 (finding 단위)
-        metrics.combined_noise += len(unmatched)
+        # Targeted noise: target 파일 내 wrong-CWE findings
+        metrics.targeted_noise += len(unmatched)
 
         # 도구별 TP/FN/Noise
         tools_run = execution.tools_run
@@ -205,7 +205,7 @@ async def _benchmark_cwe(
                 metrics.by_tool[tool].tp += 1
             else:
                 metrics.by_tool[tool].fn += 1
-            metrics.by_tool[tool].noise_findings += len(tool_unmatched)
+            metrics.by_tool[tool].targeted_noise += len(tool_unmatched)
 
         # Per-rule 메트릭
         for f in matched:
@@ -218,6 +218,16 @@ async def _benchmark_cwe(
             if rid not in metrics.by_rule:
                 metrics.by_rule[rid] = RuleMetrics(rule_id=rid, tool=f.tool_id)
             metrics.by_rule[rid].noise += 1
+
+    # Portfolio noise: non-target 파일(지원 파일 등)의 findings
+    target_files = {tc.relative_path for tc in suite.test_cases}
+    for file_path, file_findings in findings_by_file.items():
+        if file_path not in target_files:
+            metrics.portfolio_noise += len(file_findings)
+            for f in file_findings:
+                tool = f.tool_id
+                if tool in metrics.by_tool:
+                    metrics.by_tool[tool].portfolio_noise += 1
 
     return metrics
 

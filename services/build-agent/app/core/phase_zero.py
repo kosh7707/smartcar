@@ -57,6 +57,7 @@ class Phase0Executor:
             else project_path
         )
         self._sast_endpoint = sast_endpoint
+        self._result: Phase0Result | None = None
 
     async def execute(self, request_id: str | None = None) -> Phase0Result:
         t0 = time.monotonic()
@@ -80,6 +81,8 @@ class Phase0Executor:
             detected_languages=languages,
             duration_ms=int((time.monotonic() - t0) * 1000),
         )
+
+        self._result = result
 
         agent_log(
             logger, "Phase 0 완료",
@@ -220,3 +223,49 @@ class Phase0Executor:
             if os.path.isfile(full):
                 return True, c
         return False, ""
+
+    def generate_initial_script(self, sdk_info: dict | None = None) -> str | None:
+        """감지된 빌드 시스템에 맞는 초기 빌드 스크립트를 결정론적으로 생성한다.
+
+        unknown/shell인 경우 None (LLM이 자유 생성).
+        """
+        build_system = self._result.build_system if self._result else "unknown"
+        if build_system in ("unknown", "shell"):
+            return None
+
+        sdk_setup = ""
+        if sdk_info:
+            setup_script = sdk_info.get("setupScript")
+            if setup_script:
+                sdk_setup = f'source "{setup_script}"\n'
+
+        templates = {
+            "cmake": (
+                "#!/bin/bash\n"
+                "set -e\n"
+                f'{sdk_setup}'
+                'PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"\n'
+                'cd "$PROJECT_ROOT"\n'
+                'mkdir -p build && cd build\n'
+                'cmake .. -DCMAKE_BUILD_TYPE=Release\n'
+                'make -j"$(nproc)"\n'
+            ),
+            "make": (
+                "#!/bin/bash\n"
+                "set -e\n"
+                f'{sdk_setup}'
+                'PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"\n'
+                'cd "$PROJECT_ROOT"\n'
+                'make -j"$(nproc)"\n'
+            ),
+            "autotools": (
+                "#!/bin/bash\n"
+                "set -e\n"
+                f'{sdk_setup}'
+                'PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"\n'
+                'cd "$PROJECT_ROOT"\n'
+                './configure\n'
+                'make -j"$(nproc)"\n'
+            ),
+        }
+        return templates.get(build_system)

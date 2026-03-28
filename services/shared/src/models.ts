@@ -117,6 +117,10 @@ export interface AgentAuditSummary {
   turnCount?: number;
   toolCallCount?: number;
   terminationReason?: string;
+  /** S7에서 실제 사용된 LLM 모델 식별자 (S3 Agent가 전달) */
+  modelName?: string;
+  /** Agent 시스템 프롬프트 버전 (S3 관리) */
+  promptVersion?: string;
 }
 
 export interface UploadedFile {

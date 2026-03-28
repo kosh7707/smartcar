@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 
 class TurnSummarizer:
     """긴 대화를 압축한다. tool_call/tool 쌍을 보존하면서 truncation."""
@@ -10,12 +12,13 @@ class TurnSummarizer:
         self,
         messages: list[dict],
         keep_last_n: int = 4,
+        state_summary: dict | None = None,
     ) -> list[dict]:
         """system prompt + 마지막 N개 메시지를 유지한다.
 
         tool_call/tool 쌍이 깨지지 않도록, 절단점이 'tool' 메시지에
         걸리면 해당 assistant 메시지까지 포함하여 보존한다.
-        Phase 2에서 LLM 기반 요약으로 업그레이드 예정.
+        state_summary가 주어지면 생략 메시지에 구조화 상태를 포함한다.
         """
         if len(messages) <= keep_last_n + 1:
             return messages
@@ -36,12 +39,18 @@ class TurnSummarizer:
         tail = messages[cut_idx:]
         omitted = cut_idx - prefix_len
 
+        summary_text = f"[이전 {omitted}개 메시지 생략]"
+        if state_summary:
+            summary_text += "\n[상태 요약]\n" + json.dumps(
+                state_summary, ensure_ascii=False, indent=2,
+            )
+
         result = []
         if system:
             result.append(system)
         result.append({
             "role": "system",
-            "content": f"[이전 {omitted}개 메시지 생략]",
+            "content": summary_text,
         })
         result.extend(tail)
         return result

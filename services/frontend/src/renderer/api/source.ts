@@ -27,12 +27,18 @@ export interface SourceUploadResponse {
   mode?: "archive" | "files";
 }
 
+export interface TargetMappingEntry {
+  targetId: string;
+  targetName: string;
+}
+
 export interface SourceFilesResponse {
   success: boolean;
   data: SourceFileEntry[];
   composition?: Record<string, { count: number; bytes: number }>;
   totalFiles?: number;
   totalSize?: number;
+  targetMapping?: Record<string, TargetMappingEntry>;
 }
 
 export interface SourceFileContentResponse {

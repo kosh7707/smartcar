@@ -71,6 +71,7 @@ app/
 ├── config.py                     # Settings (env_prefix: AEGIS_KB_)
 ├── context.py                    # X-Request-Id ContextVar
 ├── observability.py              # JSON structured logging
+├── timeout.py                    # X-Timeout-Ms 헤더 파싱 + 데드라인 체크
 ├── graphrag/
 │   ├── knowledge_assembler.py    # 위협 하이브리드 검색 + RRF + 배치
 │   ├── neo4j_graph.py            # Neo4j 위협 지식 그래프
@@ -82,7 +83,7 @@ app/
 ├── rag/
 │   └── threat_search.py          # Qdrant 클라이언트 (search + scroll)
 └── routers/
-    ├── api.py                    # /v1/search, /v1/search/batch, /v1/graph/*, /v1/health
+    ├── api.py                    # /v1/search, /v1/search/batch, /v1/graph/*, /v1/health, /v1/ready
     ├── cve_api.py                # /v1/cve/batch-lookup
     ├── code_graph_api.py         # /v1/code-graph/*
     └── project_memory_api.py     # /v1/project-memory/*
@@ -147,6 +148,8 @@ CREATE INDEX FOR (n:Memory) ON (n.content_hash);
 | 위협 노드 | 2,196 (CWE 944 + ATT&CK 694 + CAPEC 558) |
 | 위협 관계 | 9,298 |
 | CVE | ETL에서 제거됨 — `POST /v1/cve/batch-lookup`으로 실시간 조회 |
+
+> **참고**: Neo4j 위협 노드(2,196)와 Qdrant 레코드(2,011)의 차이는 Neo4j 시드 시 교차 참조 대상이 추가 노드로 생성되기 때문이다. Qdrant의 2,011건이 ETL 원본(`kb-meta.json`) 기준.
 
 ---
 
@@ -242,21 +245,21 @@ ETL에서 11개 공격 표면으로 분류 (`scripts/threat-db/taxonomy.py`):
 
 ```bash
 cd services/knowledge-base
-.venv/bin/python -m pytest tests/ -q  # 114 passed (2026-03-27 확인)
+.venv/bin/python -m pytest tests/ -q  # 115 passed (2026-03-27 확인)
 ```
 
 모든 테스트는 Neo4j 드라이버를 mock하여 실행 — Neo4j/Qdrant 미설치 환경에서도 통과.
 
 | 테스트 파일 | 건수 | 대상 |
 |------------|------|------|
-| `test_neo4j_graph.py` | 6 | Neo4jGraph (노드/엣지 카운트, 이웃, 관계, 노드 조회) |
+| `test_neo4j_graph.py` | 7 | Neo4jGraph (노드/엣지 카운트, 이웃, 관계, 노드 조회, edgeTypes) |
 | `test_code_graph_service.py` | 12 | CodeGraphService (적재, 호출자/피호출, 위험함수, 프로젝트 관리, origin, get_function) |
-| `test_code_vector_search.py` | 10 | CodeVectorSearch (_build_document, ingest, search, delete) |
+| `test_code_vector_search.py` | 11 | CodeVectorSearch (_build_document, ingest, search, delete) |
 | `test_code_graph_assembler.py` | 9 | CodeGraphAssembler (빈 쿼리, name_exact, vector, RRF, call_chain) |
 | `test_knowledge_assembler.py` | 15 | 위협 하이브리드 검색, 중복 제거, 소스 필터링, 배치, RRF |
 | `test_nvd_client.py` | 37 | 버전 매칭, 캐시, CPE 추론, 배치 병렬, EPSS, KEV, risk_score, KB 보강, 캐시 영속화 |
 | `test_project_memory_service.py` | 14 | 메모리 CRUD, 타입 검증, JSON 손상 처리, lifecycle |
-| `test_api_error_responses.py` | 9 | 에러 포맷, health/ready, HTTPException 핸들러 |
+| `test_api_error_responses.py` | 10 | 에러 포맷, health/ready, HTTPException 핸들러 |
 
 ---
 

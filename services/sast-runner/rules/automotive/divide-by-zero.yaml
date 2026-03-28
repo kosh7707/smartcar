@@ -19,6 +19,27 @@ rules:
       - patterns:
           - pattern: $X % $SINK
           - focus-metavariable: $SINK
+    pattern-sanitizers:
+      - patterns:
+          - pattern-inside: |
+              if ($SINK != 0) { ... }
+          - focus-metavariable: $SINK
+      - patterns:
+          - pattern-inside: |
+              if (0 != $SINK) { ... }
+          - focus-metavariable: $SINK
+      - patterns:
+          - pattern-inside: |
+              if ($SINK > 0) { ... }
+          - focus-metavariable: $SINK
+      - patterns:
+          - pattern-inside: |
+              if ($SINK < 0) { ... }
+          - focus-metavariable: $SINK
+      - patterns:
+          - pattern-inside: |
+              if ($SINK >= 1) { ... }
+          - focus-metavariable: $SINK
     message: >
       Potential divide/modulo by zero: external input ($SINK) used as divisor
       without zero check. atoi/atof/rand can return 0.

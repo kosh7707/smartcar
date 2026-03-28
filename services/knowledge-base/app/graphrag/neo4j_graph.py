@@ -210,13 +210,21 @@ class Neo4jGraph:
     # --- 추가 메서드 (API용) ---
 
     def get_stats(self) -> dict:
-        """그래프 통계: 노드/엣지 수, 소스별 분포, 상위 연결 노드."""
+        """그래프 통계: 노드/엣지 수, 소스별 분포, 관계 타입별 분포, 상위 연결 노드."""
         with self._driver.session() as session:
             # 소스별 카운트
             sources = {}
             for label in ["CWE", "CVE", "Attack", "CAPEC"]:
                 result = session.run(f"MATCH (n:{label}) RETURN count(n) AS cnt")
                 sources[label] = result.single()["cnt"]
+
+            # 관계 타입별 카운트
+            result = session.run(
+                "MATCH ()-[r]->() "
+                "RETURN type(r) AS rel_type, count(r) AS cnt "
+                "ORDER BY cnt DESC"
+            )
+            edge_types = {rec["rel_type"]: rec["cnt"] for rec in result}
 
             # 상위 연결 노드 (degree 기준)
             result = session.run(
@@ -240,5 +248,6 @@ class Neo4jGraph:
             "nodeCount": self.node_count,
             "edgeCount": self.edge_count,
             "sources": sources,
+            "edgeTypes": edge_types,
             "topConnected": top_connected,
         }

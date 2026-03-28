@@ -47,11 +47,23 @@ _WARNING_RE = re.compile(
 class GccAnalyzerRunner:
     """gcc -fanalyzer를 asyncio subprocess로 실행한다."""
 
-    async def check_available(self) -> tuple[bool, str | None]:
-        """gcc -fanalyzer가 사용 가능한지 확인."""
+    async def check_available(
+        self, profile: BuildProfile | None = None,
+    ) -> tuple[bool, str | None]:
+        """gcc -fanalyzer가 사용 가능한지 확인.
+
+        profile이 있으면 SDK 크로스 컴파일러를 먼저 확인.
+        profile이 없으면 (startup check) 호스트 gcc만 확인.
+        """
+        gcc_bin = "gcc"
+        if profile:
+            sdk_gcc = get_sdk_compiler(profile)
+            if sdk_gcc:
+                gcc_bin = sdk_gcc
+
         try:
             proc = await asyncio.create_subprocess_exec(
-                "gcc", "--version",
+                gcc_bin, "--version",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )

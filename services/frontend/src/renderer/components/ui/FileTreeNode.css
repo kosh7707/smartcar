@@ -125,6 +125,18 @@
   font-family: var(--font-mono);
 }
 
+.ftree-target {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--text-xs);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-bg, rgba(59, 130, 246, 0.1));
+  color: var(--accent);
+  white-space: nowrap;
+}
+
 /* Actions (hover-visible) */
 .ftree-actions {
   display: flex;

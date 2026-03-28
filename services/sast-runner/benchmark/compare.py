@@ -22,6 +22,8 @@ class CWEDelta:
     recall_delta: float
     baseline_noise_per_file: float = 0.0
     current_noise_per_file: float = 0.0
+    baseline_targeted_noise_pf: float = 0.0
+    current_targeted_noise_pf: float = 0.0
 
     @property
     def is_regression(self) -> bool:
@@ -136,6 +138,8 @@ def compare(
         c_recall = c_combined.get("recall", 0.0)
         b_noise = b_combined.get("noisePerFile", 0.0)
         c_noise = c_combined.get("noisePerFile", 0.0)
+        b_targeted = b_combined.get("targetedNoisePerFile", b_noise)
+        c_targeted = c_combined.get("targetedNoisePerFile", c_noise)
 
         report.cwe_deltas.append(CWEDelta(
             cwe=cwe,
@@ -144,6 +148,8 @@ def compare(
             recall_delta=c_recall - b_recall,
             baseline_noise_per_file=b_noise,
             current_noise_per_file=c_noise,
+            baseline_targeted_noise_pf=b_targeted,
+            current_targeted_noise_pf=c_targeted,
         ))
 
     return report

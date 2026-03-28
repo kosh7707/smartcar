@@ -37,8 +37,13 @@ class SemgrepRunner:
         scan_dir: Path,
         rulesets: list[str],
         timeout: int = 120,
+        include_extensions: list[str] | None = None,
     ) -> dict[str, Any]:
         """Semgrep을 실행하고 SARIF JSON을 반환한다.
+
+        Args:
+            include_extensions: 파일 확장자 필터 (예: [".c", ".h"]).
+                지정하면 --include 플래그로 해당 확장자만 스캔.
 
         Raises:
             SemgrepNotAvailableError: semgrep이 없을 때.
@@ -48,7 +53,7 @@ class SemgrepRunner:
         if not available:
             raise SemgrepNotAvailableError("Semgrep binary not found in PATH")
 
-        cmd = self._build_command(scan_dir, rulesets)
+        cmd = self._build_command(scan_dir, rulesets, include_extensions)
         logger.info("Running Semgrep: %s", " ".join(cmd))
 
         proc = await asyncio.create_subprocess_exec(
@@ -91,6 +96,7 @@ class SemgrepRunner:
         self,
         scan_dir: Path,
         rulesets: list[str],
+        include_extensions: list[str] | None = None,
     ) -> list[str]:
         """Semgrep CLI 명령 조립."""
         from app.config import settings
@@ -114,7 +120,13 @@ class SemgrepRunner:
             "--max-target-bytes", str(settings.semgrep_max_target_bytes),
             "--no-git-ignore",      # temp dir에는 .gitignore 없음
             "--metrics", "off",     # 텔레메트리 비활성화
-            str(scan_dir),
         ])
+
+        # 파일 확장자 필터 (C++ 프로젝트에서 C 파일만 스캔)
+        if include_extensions:
+            for ext in include_extensions:
+                cmd.extend(["--include", f"*{ext}"])
+
+        cmd.append(str(scan_dir))
 
         return cmd

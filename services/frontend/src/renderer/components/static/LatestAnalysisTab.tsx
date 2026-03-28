@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from "react";
 import type { Run, Finding, FindingStatus, FindingSourceType, EvidenceRef, GateResult, Severity } from "@aegis/shared";
-import { FileCode, ShieldAlert, Shield, AlertTriangle, Plus, LayoutList, Layers, CheckSquare, History, Check } from "lucide-react";
+import { FileCode, ShieldAlert, Shield, AlertTriangle, Plus, LayoutList, Layers, CheckSquare, History, Check, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { StatCard, EmptyState, Spinner, GateResultCard, SeverityBadge, FindingStatusBadge, SourceBadge } from "../ui";
 import { bulkUpdateFindingStatus } from "../../api/analysis";
 import { TopFilesCard } from "./TopFilesCard";
@@ -137,6 +137,10 @@ const LatestAnalysisContent: React.FC<{
   const [groupBy, setGroupBy] = useState<GroupBy>("severity");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sourceTypeFilter, setSourceTypeFilter] = useState<FindingSourceType | "all">("all");
+  const [sortKey, setSortKey] = useState<"severity" | "createdAt" | "location">("severity");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -221,9 +225,33 @@ const LatestAnalysisContent: React.FC<{
   }, [findings]);
 
   const filteredFindings = useMemo(() => {
-    if (severityFilter === "all") return findings;
-    return findings.filter((f) => f.finding.severity === severityFilter);
-  }, [findings, severityFilter]);
+    let result = findings;
+    if (severityFilter !== "all") {
+      result = result.filter((f) => f.finding.severity === severityFilter);
+    }
+    if (sourceTypeFilter !== "all") {
+      result = result.filter((f) => f.finding.sourceType === sourceTypeFilter);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      result = result.filter((f) =>
+        f.finding.title.toLowerCase().includes(q) ||
+        (f.finding.location?.toLowerCase().includes(q) ?? false),
+      );
+    }
+    result = [...result].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === "severity") {
+        cmp = SEVERITY_ORDER.indexOf(a.finding.severity) - SEVERITY_ORDER.indexOf(b.finding.severity);
+      } else if (sortKey === "createdAt") {
+        cmp = new Date(a.finding.createdAt).getTime() - new Date(b.finding.createdAt).getTime();
+      } else {
+        cmp = (a.finding.location ?? "").localeCompare(b.finding.location ?? "");
+      }
+      return sortOrder === "asc" ? cmp : -cmp;
+    });
+    return result;
+  }, [findings, severityFilter, sourceTypeFilter, searchQuery, sortKey, sortOrder]);
 
   const groups = useMemo(() => GROUP_FNS[groupBy](filteredFindings), [filteredFindings, groupBy]);
 
@@ -278,7 +306,60 @@ const LatestAnalysisContent: React.FC<{
         </div>
       )}
 
-      {/* Filter Bar */}
+      {/* Search + Source Type + Sort Bar */}
+      {findings.length > 0 && (
+        <div className="finding-search-bar">
+          <div className="finding-search-input-wrap">
+            <Search size={14} className="finding-search-icon" />
+            <input
+              type="text"
+              className="finding-search-input"
+              placeholder="Finding 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="finding-filter-tabs">
+            <button
+              className={`finding-filter-tab finding-filter-tab--sm${sourceTypeFilter === "all" ? " finding-filter-tab--active" : ""}`}
+              onClick={() => setSourceTypeFilter("all")}
+            >
+              전체
+            </button>
+            {(Object.entries(SOURCE_TYPE_LABELS) as [FindingSourceType, string][])
+              .filter(([key]) => sourceCounts[key])
+              .map(([key, label]) => (
+                <button
+                  key={key}
+                  className={`finding-filter-tab finding-filter-tab--sm${sourceTypeFilter === key ? " finding-filter-tab--active" : ""}`}
+                  onClick={() => setSourceTypeFilter(key)}
+                >
+                  {label}
+                </button>
+              ))}
+          </div>
+          <div className="finding-sort-controls">
+            <select
+              className="finding-sort-select"
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value as "severity" | "createdAt" | "location")}
+            >
+              <option value="severity">심각도</option>
+              <option value="createdAt">생성일</option>
+              <option value="location">위치</option>
+            </select>
+            <button
+              className="finding-sort-dir"
+              onClick={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
+              title={sortOrder === "asc" ? "오름차순" : "내림차순"}
+            >
+              {sortOrder === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Severity Filter Bar */}
       {findings.length > 0 && (
         <div className="finding-filter-bar">
           <div className="finding-filter-tabs">

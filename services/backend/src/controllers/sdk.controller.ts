@@ -21,8 +21,9 @@ export function createSdkRouter(
 
   // GET /api/projects/:pid/sdk/:id — 등록 SDK 상세
   router.get("/:id", asyncHandler(async (req, res) => {
-    const sdk = sdkService.findById(req.params.id);
-    if (!sdk) throw new NotFoundError(`SDK not found: ${req.params.id}`);
+    const id = req.params.id as string;
+    const sdk = sdkService.findById(id);
+    if (!sdk) throw new NotFoundError(`SDK not found: ${id}`);
     res.json({ success: true, data: sdk });
   }));
 
@@ -58,7 +59,8 @@ export function createSdkRouter(
 
   // DELETE /api/projects/:pid/sdk/:id — SDK 삭제
   router.delete("/:id", asyncHandler(async (req, res) => {
-    await sdkService.remove(req.params.id, (req as any).requestId);
+    const id = req.params.id as string;
+    await sdkService.remove(id, (req as any).requestId);
     res.json({ success: true });
   }));
 

@@ -21,6 +21,8 @@ function createMockAuditLogDAO(): IAuditLogDAO {
     save: vi.fn(),
     findByResourceId: vi.fn().mockReturnValue([]),
     findByResourceIds: vi.fn().mockReturnValue([]),
+    findFindingStatusChanges: vi.fn().mockReturnValue([]),
+    findApprovalDecisions: vi.fn().mockReturnValue([]),
   };
 }
 
