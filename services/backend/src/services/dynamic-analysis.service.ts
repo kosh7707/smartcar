@@ -14,7 +14,7 @@ import type {
 } from "@aegis/shared";
 import { CanRuleEngine } from "../can-rules/can-rule-engine";
 import type { CanRuleMatch } from "../can-rules/types";
-import type { LlmV1Adapter } from "./llm-v1-adapter";
+import type { LlmTaskClient, TaskRequest, TaskResponseSuccess } from "./llm-task-client";
 import { validateLlmSeverity } from "../lib/vulnerability-utils";
 import type { WsBroadcaster } from "./ws-broadcaster";
 import type { AdapterManager } from "./adapter-manager";
@@ -57,7 +57,7 @@ export class DynamicAnalysisService {
     private dynamicMessageDAO: IDynamicMessageDAO,
     private analysisResultDAO: IAnalysisResultDAO,
     private canRuleEngine: CanRuleEngine,
-    private llmClient: LlmV1Adapter,
+    private llmClient: LlmTaskClient,
     private ws: WsBroadcaster<import("@aegis/shared").WsMessage>,
     private adapterManager: AdapterManager,
     private settingsService: ProjectSettingsService,
@@ -243,22 +243,20 @@ export class DynamicAnalysisService {
     const contextMessages = active.recentMessages.slice(-CONTEXT_WINDOW * 2);
     const canLog = this.messagesToLog(contextMessages);
     const alerts = this.dynamicAlertDAO.findBySessionId(active.id);
-    const ruleResults = alerts.slice(-ALERT_LLM_THRESHOLD).map((a) => ({
+    const ruleMatches = alerts.slice(-ALERT_LLM_THRESHOLD).map((a) => ({
       ruleId: a.id,
       title: a.title,
       severity: a.severity,
       location: "CAN bus",
     }));
 
-    const res = await this.llmClient.analyze({
-      module: "dynamic_analysis",
-      canLog,
-      ruleResults,
-    }, llmUrl, requestId);
+    const taskRequest = this.buildTaskRequest("dynamic-annotate", { canLog, ruleMatches });
+    const res = await this.llmClient.submitTask(taskRequest, requestId, { baseUrl: llmUrl ?? undefined });
 
-    if (res.success && res.vulnerabilities.length > 0) {
-      const llmText = res.vulnerabilities
-        .map((v) => `[${v.severity}] ${v.title}: ${v.description}`)
+    if (res.status === "completed") {
+      const success = res as TaskResponseSuccess;
+      const llmText = success.result.claims
+        .map((c) => `[${success.result.suggestedSeverity ?? "medium"}] ${c.statement}`)
         .join("\n");
 
       this.dynamicAlertDAO.updateLlmAnalysis(triggerAlert.id, llmText);
@@ -278,23 +276,20 @@ export class DynamicAnalysisService {
     const llmUrl = this.settingsService.get(projectId, "llmUrl");
 
     const canLog = this.messagesToLog(allMessages);
-    const ruleResults = alerts.map((a) => ({
+    const ruleMatches = alerts.map((a) => ({
       ruleId: a.id,
       title: a.title,
       severity: a.severity,
       location: "CAN bus",
     }));
 
-    let res;
+    let llmSuccess: TaskResponseSuccess | null = null;
     try {
-      res = await this.llmClient.analyze({
-        module: "dynamic_analysis",
-        canLog,
-        ruleResults,
-      }, llmUrl, requestId);
+      const taskRequest = this.buildTaskRequest("dynamic-annotate", { canLog, ruleMatches });
+      const res = await this.llmClient.submitTask(taskRequest, requestId, { baseUrl: llmUrl ?? undefined });
+      if (res.status === "completed") llmSuccess = res as TaskResponseSuccess;
     } catch (err) {
       logger.warn({ err, sessionId }, "Final LLM analysis failed — saving rule-only results");
-      res = { success: false, vulnerabilities: [] };
     }
 
     // alerts -> Vulnerability 변환
@@ -309,17 +304,16 @@ export class DynamicAnalysisService {
     }));
 
     // LLM 결과 추가
-    if (res.success) {
-      for (const v of res.vulnerabilities) {
+    if (llmSuccess) {
+      for (const claim of llmSuccess.result.claims) {
         vulns.push({
           id: `VULN-DYN-LLM-${crypto.randomUUID().slice(0, 8)}`,
-          severity: validateLlmSeverity(v.severity) as Severity,
-          title: v.title,
-          description: v.description,
-          location: v.location ?? "CAN bus",
+          severity: validateLlmSeverity(llmSuccess.result.suggestedSeverity ?? "medium") as Severity,
+          title: claim.statement,
+          description: claim.statement,
+          location: claim.location ?? "CAN bus",
           source: "llm" as const,
-          suggestion: v.suggestion ?? undefined,
-          fixCode: v.fixCode ?? undefined,
+          suggestion: llmSuccess.result.recommendedNextSteps[0] ?? undefined,
         });
       }
     }
@@ -431,6 +425,36 @@ export class DynamicAnalysisService {
   }
 
   // --- 유틸 ---
+
+  private buildTaskRequest(
+    taskType: "dynamic-annotate",
+    data: { canLog: string; ruleMatches: Array<{ ruleId: string; title: string; severity: string; location: string }> },
+  ): TaskRequest {
+    return {
+      taskType,
+      taskId: crypto.randomUUID(),
+      context: {
+        trusted: { ruleMatches: data.ruleMatches },
+        untrusted: { rawCanLog: data.canLog },
+      },
+      evidenceRefs: [
+        {
+          refId: crypto.randomUUID(),
+          artifactId: crypto.randomUUID(),
+          artifactType: "raw-can-window",
+          locatorType: "frameWindow",
+          locator: {},
+        },
+        ...data.ruleMatches.map((r) => ({
+          refId: crypto.randomUUID(),
+          artifactId: crypto.randomUUID(),
+          artifactType: "rule-match",
+          locatorType: "jsonPointer",
+          locator: { ruleId: r.ruleId },
+        })),
+      ],
+    };
+  }
 
   private messagesToLog(messages: CanMessage[]): string {
     return messages

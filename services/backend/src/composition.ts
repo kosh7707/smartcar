@@ -40,7 +40,6 @@ import { SdkService } from "./services/sdk.service";
 import { ProjectSettingsService } from "./services/project-settings.service";
 import { ProjectService } from "./services/project.service";
 import { LlmTaskClient } from "./services/llm-task-client";
-import { LlmV1Adapter } from "./services/llm-v1-adapter";
 import { CanRuleEngine } from "./can-rules/can-rule-engine";
 import { FrequencyRule } from "./can-rules/frequency-rule";
 import { UnauthorizedIdRule } from "./can-rules/unauthorized-id-rule";
@@ -108,7 +107,7 @@ export interface AppContext {
   analysisTracker: AnalysisTracker;
 
   // External clients
-  llmAdapter: LlmV1Adapter;
+  llmTaskClient: LlmTaskClient;
   sastClient: SastClient;
   agentClient: AgentClient;
   kbClient: KbClient;
@@ -149,8 +148,7 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
   const sdkRegistryDAO = new SdkRegistryDAO(db);
 
   // ── Tier 1: 기본 서비스 + 외부 클라이언트 ──
-  const llmTaskClient = new LlmTaskClient(cfg.llmGatewayUrl);
-  const llmAdapter = new LlmV1Adapter(llmTaskClient, cfg.llmConcurrency);
+  const llmTaskClient = new LlmTaskClient(cfg.llmGatewayUrl, cfg.llmConcurrency);
   const sastClient = new SastClient(cfg.sastRunnerUrl);
   const agentClient = new AgentClient(cfg.analysisAgentUrl);
   const kbClient = new KbClient(cfg.kbUrl);
@@ -187,11 +185,11 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
   // ── Tier 3: 파이프라인 서비스 (Tier 1+2 + WS 의존) ──
   const dynamicAnalysisService = new DynamicAnalysisService(
     dynamicSessionDAO, dynamicAlertDAO, dynamicMessageDAO, analysisResultDAO,
-    canRuleEngine, llmAdapter, dynamicAnalysisWs, adapterManager, settingsService, resultNormalizer,
+    canRuleEngine, llmTaskClient, dynamicAnalysisWs, adapterManager, settingsService, resultNormalizer,
   );
   const dynamicTestService = new DynamicTestService(
     dynamicTestResultDAO, analysisResultDAO,
-    llmAdapter, adapterManager, settingsService, dynamicTestWs, resultNormalizer,
+    llmTaskClient, adapterManager, settingsService, dynamicTestWs, resultNormalizer,
   );
   const analysisTracker = new AnalysisTracker();
   const analysisOrchestrator = new AnalysisOrchestrator(
@@ -221,7 +219,7 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
     projectService, qualityGateService, resultNormalizer, approvalService, findingService,
     runService, dynamicAnalysisService, dynamicTestService,
     analysisOrchestrator, pipelineOrchestrator, activityService, reportService, analysisTracker,
-    llmAdapter, sastClient, agentClient, kbClient, buildAgentClient,
+    llmTaskClient, sastClient, agentClient, kbClient, buildAgentClient,
     canRuleEngine,
     dynamicAnalysisWs, staticAnalysisWs, dynamicTestWs, analysisWs, uploadWs, pipelineWs, sdkWs,
   };

@@ -7,7 +7,7 @@ import pytest
 
 from app.scanner.orchestrator import ScanOrchestrator, _filter_user_code_findings, _is_third_party, _is_user_path, _parse_version
 from app.schemas.request import BuildProfile
-from app.schemas.response import SastDataFlowStep, SastFinding, SastFindingLocation
+from app.schemas.response import SastDataFlowStep, SastFinding, SastFindingLocation, ToolExecutionResult
 
 
 @pytest.fixture
@@ -358,3 +358,21 @@ class TestBuildSdkInfo:
         info = orchestrator._build_sdk_info(original, enriched)
         assert info["resolved"] is True
         assert info["include_paths_added"] == 2
+
+
+class TestPartialStatus:
+    """ToolExecutionResult의 partial 상태 + timedOutFiles 필드 테스트."""
+
+    def test_partial_status_accepted(self):
+        result = ToolExecutionResult(
+            status="partial", findings_count=5, elapsed_ms=3000,
+            timed_out_files=3, version="13.2.0",
+        )
+        assert result.status == "partial"
+        assert result.timed_out_files == 3
+
+    def test_timed_out_files_defaults_none(self):
+        result = ToolExecutionResult(
+            status="ok", findings_count=0, elapsed_ms=1000,
+        )
+        assert result.timed_out_files is None

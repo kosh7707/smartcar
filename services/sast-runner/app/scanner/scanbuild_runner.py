@@ -84,8 +84,15 @@ class ScanbuildRunner:
         bin_name = scan_build_bin or "scan-build"
 
         # 파일별 개별 실행 (동일 심볼 충돌 방지) + Semaphore 동시성 제한
-        _sem = asyncio.Semaphore(8)
-        per_file_timeout = max(timeout // max(len(c_cpp_files), 1), 15)
+        _concurrency = 8
+        _sem = asyncio.Semaphore(_concurrency)
+        _batches = -(-len(c_cpp_files) // _concurrency)  # ceil division
+        per_file_timeout = max(timeout // max(_batches, 1), 10)
+        if per_file_timeout * _batches > timeout:
+            logger.warning(
+                "Per-file timeout floor (%ds) may exceed budget (%ds for %d batches)",
+                per_file_timeout, timeout, _batches,
+            )
 
         async def _guarded(f: str) -> list[SastFinding]:
             async with _sem:
@@ -115,8 +122,8 @@ class ScanbuildRunner:
         source_file: str,
         profile: BuildProfile | None,
         timeout: int,
-    ) -> list[SastFinding]:
-        """단일 파일에 대해 scan-build를 실행."""
+    ) -> list[SastFinding] | None:
+        """단일 파일에 대해 scan-build를 실행. timeout 시 None 반환."""
         target = str(scan_dir / source_file)
         output_dir = Path(tempfile.mkdtemp(prefix="scan-build-"))
         try:
@@ -190,7 +197,8 @@ class ScanbuildRunner:
             try:
                 with open(plist_file, "rb") as f:
                     data = plistlib.load(f)
-            except Exception:
+            except Exception as exc:
+                logger.warning("Failed to parse plist %s: %s", plist_file.name, exc)
                 continue
 
             files_list = data.get("files", [])
@@ -216,7 +224,7 @@ class ScanbuildRunner:
         line = loc.get("line", 0)
         col = loc.get("col", 0)
 
-        if file_idx >= len(files_list) or line == 0:
+        if file_idx < 0 or file_idx >= len(files_list) or line == 0:
             return None
 
         file_path = normalize_path(files_list[file_idx], scan_dir)
@@ -232,7 +240,7 @@ class ScanbuildRunner:
                     e_idx = e_loc.get("file", 0)
                     e_line = e_loc.get("line", 0)
                     e_msg = entry.get("message", "")
-                    if e_idx < len(files_list) and e_line > 0:
+                    if 0 <= e_idx < len(files_list) and e_line > 0:
                         steps.append(SastDataFlowStep(
                             file=normalize_path(files_list[e_idx], scan_dir),
                             line=e_line,

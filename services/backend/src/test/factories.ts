@@ -8,7 +8,6 @@ import type {
   ApprovalRequest,
   AuditLogEntry,
   AnalysisResult,
-  Rule,
   BuildTarget,
   DynamicAnalysisSession,
   DynamicAlert,
@@ -130,20 +129,6 @@ export function makeAnalysisResult(overrides?: Partial<AnalysisResult>): Analysi
   };
 }
 
-export function makeRule(overrides?: Partial<Rule>): Rule {
-  return {
-    id: `RULE-TEST-${uuid().slice(0, 8)}`,
-    name: "Test Rule",
-    severity: "medium",
-    description: "Test rule description",
-    suggestion: "Test suggestion",
-    pattern: "test_pattern",
-    enabled: true,
-    projectId: `proj-${uuid()}`,
-    createdAt: now(),
-    ...overrides,
-  };
-}
 
 export function makeStoredFile(overrides?: Partial<StoredFile>): StoredFile {
   return {

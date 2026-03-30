@@ -14,7 +14,8 @@ export function createDatabase(dbPath?: string): DatabaseType {
 
 /** 전체 스키마 + 마이그레이션 실행 */
 export function initSchema(db: DatabaseType): void {
-  // 테이블 생성
+  // ── 테이블 생성 (최종 스키마) ──
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS projects (
       id          TEXT PRIMARY KEY,
@@ -31,40 +32,32 @@ export function initSchema(db: DatabaseType): void {
       size        INTEGER NOT NULL,
       language    TEXT,
       content     TEXT NOT NULL,
+      path        TEXT NOT NULL DEFAULT '',
       created_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS analysis_results (
-      id              TEXT PRIMARY KEY,
-      project_id      TEXT NOT NULL DEFAULT '',
-      module          TEXT NOT NULL,
-      status          TEXT NOT NULL,
-      vulnerabilities TEXT NOT NULL,   -- JSON
-      summary         TEXT NOT NULL,   -- JSON
-      created_at      TEXT NOT NULL
-    );
-
-    -- DEPRECATED: 룰 엔진 제거 예정. 신규 코드에서 참조 금지.
-    CREATE TABLE IF NOT EXISTS rules (
-      id          TEXT PRIMARY KEY,
-      name        TEXT NOT NULL,
-      severity    TEXT NOT NULL DEFAULT 'medium',
-      description TEXT NOT NULL DEFAULT '',
-      suggestion  TEXT NOT NULL DEFAULT '',
-      pattern     TEXT NOT NULL DEFAULT '',
-      fix_code    TEXT,
-      enabled     INTEGER NOT NULL DEFAULT 1,
-      built_in    INTEGER NOT NULL DEFAULT 0,
-      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      id                     TEXT PRIMARY KEY,
+      project_id             TEXT NOT NULL DEFAULT '',
+      module                 TEXT NOT NULL,
+      status                 TEXT NOT NULL,
+      vulnerabilities        TEXT NOT NULL,            -- JSON
+      summary                TEXT NOT NULL,            -- JSON
+      warnings               TEXT NOT NULL DEFAULT '[]',
+      analyzed_file_ids      TEXT NOT NULL DEFAULT '[]',
+      file_coverage          TEXT NOT NULL DEFAULT '[]',
+      caveats                TEXT NOT NULL DEFAULT '[]',
+      confidence_score       REAL,
+      confidence_breakdown   TEXT,
+      needs_human_review     INTEGER,
+      recommended_next_steps TEXT NOT NULL DEFAULT '[]',
+      policy_flags           TEXT NOT NULL DEFAULT '[]',
+      sca_libraries          TEXT NOT NULL DEFAULT '[]',
+      agent_audit            TEXT,
+      created_at             TEXT NOT NULL
     );
   `);
 
-  // 기존 DB 마이그레이션
-  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN project_id TEXT NOT NULL DEFAULT ''`); } catch (err) { logger.debug({ err }, "Migration skipped: analysis_results.project_id"); }
-  try { db.exec(`ALTER TABLE uploaded_files ADD COLUMN project_id TEXT NOT NULL DEFAULT ''`); } catch (err) { logger.debug({ err }, "Migration skipped: uploaded_files.project_id"); }
-  try { db.exec(`ALTER TABLE uploaded_files ADD COLUMN path TEXT NOT NULL DEFAULT ''`); } catch (err) { logger.debug({ err }, "Migration skipped: uploaded_files.path"); }
-
-  // 인덱스 (마이그레이션 이후)
   db.exec(`CREATE INDEX IF NOT EXISTS idx_uploaded_files_project ON uploaded_files(project_id)`);
 
   // 동적 분석 테이블
@@ -98,7 +91,8 @@ export function initSchema(db: DatabaseType): void {
       can_id      TEXT NOT NULL,
       dlc         INTEGER NOT NULL,
       data        TEXT NOT NULL,
-      flagged     INTEGER NOT NULL DEFAULT 0
+      flagged     INTEGER NOT NULL DEFAULT 0,
+      injected    INTEGER NOT NULL DEFAULT 0
     );
   `);
 
@@ -107,19 +101,6 @@ export function initSchema(db: DatabaseType): void {
     CREATE INDEX IF NOT EXISTS idx_dyn_alerts_session ON dynamic_analysis_alerts(session_id);
     CREATE INDEX IF NOT EXISTS idx_dyn_messages_session ON dynamic_analysis_messages(session_id);
   `);
-
-  // 동적 분석 세션 마이그레이션
-  try { db.exec(`ALTER TABLE dynamic_analysis_sessions ADD COLUMN source TEXT NOT NULL DEFAULT '{}'`); } catch (err) { logger.debug({ err }, "Migration skipped: dynamic_analysis_sessions.source"); }
-
-  // 동적 분석 메시지 injected 컬럼 마이그레이션
-  try { db.exec(`ALTER TABLE dynamic_analysis_messages ADD COLUMN injected INTEGER NOT NULL DEFAULT 0`); } catch (err) { logger.debug({ err }, "Migration skipped: dynamic_analysis_messages.injected"); }
-
-  // 정적 분석 warnings 마이그레이션
-  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN warnings TEXT NOT NULL DEFAULT '[]'`); } catch (err) { logger.debug({ err }, "Migration skipped: analysis_results.warnings"); }
-  // 분석 대상 파일 ID 목록
-  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN analyzed_file_ids TEXT NOT NULL DEFAULT '[]'`); } catch (err) { logger.debug({ err }, "Migration skipped: analysis_results.analyzed_file_ids"); }
-  // 파일 커버리지
-  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN file_coverage TEXT NOT NULL DEFAULT '[]'`); } catch (err) { logger.debug({ err }, "Migration skipped: analysis_results.file_coverage"); }
 
   // 동적 테스트 테이블
   db.exec(`
@@ -144,25 +125,11 @@ export function initSchema(db: DatabaseType): void {
       id          TEXT PRIMARY KEY,
       name        TEXT NOT NULL,
       url         TEXT NOT NULL,
+      project_id  TEXT NOT NULL DEFAULT '',
       created_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
 
-  // ── 프로젝트 스코프 마이그레이션 ──
-
-  // rules: project_id 추가 + 기존 글로벌 데이터 삭제
-  try {
-    db.exec(`ALTER TABLE rules ADD COLUMN project_id TEXT NOT NULL DEFAULT ''`);
-    db.exec(`DELETE FROM rules WHERE project_id = ''`);
-  } catch (err) { logger.debug({ err }, "Migration skipped: rules.project_id"); }
-
-  // adapters: project_id 추가 + 기존 글로벌 데이터 삭제
-  try {
-    db.exec(`ALTER TABLE adapters ADD COLUMN project_id TEXT NOT NULL DEFAULT ''`);
-    db.exec(`DELETE FROM adapters WHERE project_id = ''`);
-  } catch (err) { logger.debug({ err }, "Migration skipped: adapters.project_id"); }
-
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_rules_project ON rules(project_id)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_adapters_project ON adapters(project_id)`);
 
   // 프로젝트 설정 테이블
@@ -222,6 +189,8 @@ export function initSchema(db: DatabaseType): void {
       location    TEXT,
       suggestion  TEXT,
       rule_id     TEXT,
+      detail      TEXT,
+      fingerprint TEXT,
       created_at  TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -229,22 +198,8 @@ export function initSchema(db: DatabaseType): void {
     CREATE INDEX IF NOT EXISTS idx_findings_run ON findings(run_id);
     CREATE INDEX IF NOT EXISTS idx_findings_project ON findings(project_id);
     CREATE INDEX IF NOT EXISTS idx_findings_status ON findings(status);
-  `);
+    CREATE INDEX IF NOT EXISTS idx_findings_fingerprint ON findings(project_id, fingerprint);
 
-  // 마이그레이션: findings.detail 컬럼 추가
-  try { db.exec(`ALTER TABLE findings ADD COLUMN detail TEXT`); } catch { /* 이미 존재 */ }
-
-  // 마이그레이션: analysis_results — Agent 응답 메타데이터 보존
-  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN caveats TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
-  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN confidence_score REAL`); } catch { /* 이미 존재 */ }
-  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN confidence_breakdown TEXT`); } catch { /* 이미 존재 */ }
-  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN needs_human_review INTEGER`); } catch { /* 이미 존재 */ }
-  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN recommended_next_steps TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
-  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN policy_flags TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
-  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN sca_libraries TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
-  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN agent_audit TEXT`); } catch { /* 이미 존재 */ }
-
-  db.exec(`
     CREATE TABLE IF NOT EXISTS evidence_refs (
       id            TEXT PRIMARY KEY,
       finding_id    TEXT NOT NULL,
@@ -258,7 +213,7 @@ export function initSchema(db: DatabaseType): void {
     CREATE INDEX IF NOT EXISTS idx_evidence_refs_finding ON evidence_refs(finding_id);
   `);
 
-  // Quality Gate + Approval 테이블
+  // Quality Gate + Approval + BuildTarget 테이블
   db.exec(`
     CREATE TABLE IF NOT EXISTS gate_results (
       id           TEXT PRIMARY KEY,
@@ -292,30 +247,28 @@ export function initSchema(db: DatabaseType): void {
     CREATE INDEX IF NOT EXISTS idx_approvals_target ON approvals(target_id);
 
     CREATE TABLE IF NOT EXISTS build_targets (
-      id            TEXT PRIMARY KEY,
-      project_id    TEXT NOT NULL,
-      name          TEXT NOT NULL,
-      relative_path TEXT NOT NULL,
-      build_profile TEXT NOT NULL DEFAULT '{}',
-      build_system  TEXT,
-      created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+      id                    TEXT PRIMARY KEY,
+      project_id            TEXT NOT NULL,
+      name                  TEXT NOT NULL,
+      relative_path         TEXT NOT NULL,
+      build_profile         TEXT NOT NULL DEFAULT '{}',
+      build_system          TEXT,
+      status                TEXT NOT NULL DEFAULT 'discovered',
+      compile_commands_path TEXT,
+      build_log             TEXT,
+      sast_scan_id          TEXT,
+      sca_libraries         TEXT NOT NULL DEFAULT '[]',
+      code_graph_status     TEXT NOT NULL DEFAULT 'pending',
+      code_graph_node_count INTEGER DEFAULT 0,
+      last_built_at         TEXT,
+      included_paths        TEXT NOT NULL DEFAULT '[]',
+      source_path           TEXT,
+      build_command         TEXT,
+      created_at            TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_build_targets_project ON build_targets(project_id);
   `);
-
-  // 마이그레이션: build_targets — 서브 프로젝트 파이프라인 상태
-  try { db.exec(`ALTER TABLE build_targets ADD COLUMN status TEXT NOT NULL DEFAULT 'discovered'`); } catch { /* 이미 존재 */ }
-  try { db.exec(`ALTER TABLE build_targets ADD COLUMN compile_commands_path TEXT`); } catch { /* 이미 존재 */ }
-  try { db.exec(`ALTER TABLE build_targets ADD COLUMN build_log TEXT`); } catch { /* 이미 존재 */ }
-  try { db.exec(`ALTER TABLE build_targets ADD COLUMN sast_scan_id TEXT`); } catch { /* 이미 존재 */ }
-  try { db.exec(`ALTER TABLE build_targets ADD COLUMN sca_libraries TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
-  try { db.exec(`ALTER TABLE build_targets ADD COLUMN code_graph_status TEXT NOT NULL DEFAULT 'pending'`); } catch { /* 이미 존재 */ }
-  try { db.exec(`ALTER TABLE build_targets ADD COLUMN code_graph_node_count INTEGER DEFAULT 0`); } catch { /* 이미 존재 */ }
-  try { db.exec(`ALTER TABLE build_targets ADD COLUMN last_built_at TEXT`); } catch { /* 이미 존재 */ }
-  try { db.exec(`ALTER TABLE build_targets ADD COLUMN included_paths TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
-  try { db.exec(`ALTER TABLE build_targets ADD COLUMN source_path TEXT`); } catch { /* 이미 존재 */ }
-  try { db.exec(`ALTER TABLE build_targets ADD COLUMN build_command TEXT`); } catch { /* 이미 존재 */ }
 
   // SDK 레지스트리 (유저 등록)
   db.exec(`
@@ -352,9 +305,44 @@ export function initSchema(db: DatabaseType): void {
     CREATE INDEX IF NOT EXISTS idx_target_libs_target ON target_libraries(target_id);
   `);
 
-  // Finding fingerprint (동일성 판별)
+  // ── 레거시 DB 호환 마이그레이션 (기존 DB에서만 실행됨) ──
+
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN project_id TEXT NOT NULL DEFAULT ''`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE uploaded_files ADD COLUMN project_id TEXT NOT NULL DEFAULT ''`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE uploaded_files ADD COLUMN path TEXT NOT NULL DEFAULT ''`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE dynamic_analysis_sessions ADD COLUMN source TEXT NOT NULL DEFAULT '{}'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE dynamic_analysis_messages ADD COLUMN injected INTEGER NOT NULL DEFAULT 0`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN warnings TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN analyzed_file_ids TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN file_coverage TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN caveats TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN confidence_score REAL`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN confidence_breakdown TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN needs_human_review INTEGER`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN recommended_next_steps TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN policy_flags TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN sca_libraries TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN agent_audit TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE findings ADD COLUMN detail TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE findings ADD COLUMN fingerprint TEXT`); } catch { /* 이미 존재 */ }
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_findings_fingerprint ON findings(project_id, fingerprint)`);
+  try {
+    db.exec(`ALTER TABLE adapters ADD COLUMN project_id TEXT NOT NULL DEFAULT ''`);
+    db.exec(`DELETE FROM adapters WHERE project_id = ''`);
+  } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN status TEXT NOT NULL DEFAULT 'discovered'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN compile_commands_path TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN build_log TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN sast_scan_id TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN sca_libraries TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN code_graph_status TEXT NOT NULL DEFAULT 'pending'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN code_graph_node_count INTEGER DEFAULT 0`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN last_built_at TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN included_paths TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN source_path TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN build_command TEXT`); } catch { /* 이미 존재 */ }
+
+  // 레거시: rules 테이블이 남아있는 기존 DB에서 DROP
+  try { db.exec(`DROP TABLE IF EXISTS rules`); } catch { /* 이미 제거됨 */ }
 }
 
 export type { DatabaseType };

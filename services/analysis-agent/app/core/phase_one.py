@@ -39,6 +39,8 @@ class Phase1Result:
     dangerous_callers: list[dict] = field(default_factory=list)
     cve_lookup: list[dict] = field(default_factory=list)
     project_memory: list[dict] = field(default_factory=list)
+    sast_partial_tools: list[str] = field(default_factory=list)
+    sast_timed_out_files: int = 0
     sast_duration_ms: int = 0
     code_graph_duration_ms: int = 0
     sca_duration_ms: int = 0
@@ -174,12 +176,14 @@ class Phase1Executor:
                         result, files, project_id, analysis_path, build_profile, request_id,
                         third_party_paths=third_party_paths,
                         sast_tools=sast_tools,
+                        revision_hint=revision_hint,
                     )
             else:
                 # files 기반 또는 projectPath만 (빌드 정보 없음) — 개별 도구 실행
                 result = await self._run_individual_tools(
                     result, files, project_id, analysis_path, build_profile, request_id,
                     third_party_paths=third_party_paths,
+                    revision_hint=revision_hint,
                 )
 
         # 4. CVE 실시간 조회 — SCA 라이브러리+버전으로 S5 batch-lookup
@@ -263,6 +267,12 @@ class Phase1Executor:
         result.sast_stats = scan_data.get("stats", {})
         result.sast_duration_ms = scan_data.get("execution", {}).get("elapsedMs", 0)
 
+        # S4 v0.7.0+: partial 상태 도구 + timeout 파일 수 추출
+        for tr in scan_data.get("execution", {}).get("toolResults", []):
+            if tr.get("status") == "partial":
+                result.sast_partial_tools.append(tr.get("toolId", "unknown"))
+                result.sast_timed_out_files += tr.get("timedOutFiles", 0)
+
         code_graph = data.get("codeGraph", {})
         result.code_functions = code_graph.get("functions", [])
         result.code_graph_duration_ms = 0  # build-and-analyze에서 개별 시간 미제공
@@ -287,6 +297,7 @@ class Phase1Executor:
         self, result: Phase1Result, files, project_id, project_path, build_profile, request_id,
         *, third_party_paths: list[str] | None = None,
         sast_tools: list[str] | None = None,
+        revision_hint: str | None = None,
     ) -> Phase1Result:
         """개별 도구 호출 (files 또는 projectPath 기반)."""
         if self._sast_tool and (files or project_path):
@@ -398,10 +409,19 @@ class Phase1Executor:
                 data = json.loads(tool_result.content)
                 result.sast_findings = data.get("findings", [])
                 result.sast_stats = data.get("stats", {})
+
+                # S4 v0.7.0+: partial 상태 도구 + timeout 파일 수 추출
+                for tr in data.get("execution", {}).get("toolResults", []):
+                    if tr.get("status") == "partial":
+                        result.sast_partial_tools.append(tr.get("toolId", "unknown"))
+                        result.sast_timed_out_files += tr.get("timedOutFiles", 0)
+
                 agent_log(
                     logger, "Phase 1: SAST 완료",
                     component="phase_one", phase="sast_end",
                     findings=len(result.sast_findings),
+                    partialTools=result.sast_partial_tools or None,
+                    timedOutFiles=result.sast_timed_out_files or None,
                     durationMs=result.sast_duration_ms,
                 )
             else:
@@ -904,7 +924,14 @@ def build_phase2_prompt(
 
     # Phase 1 SAST 결과
     if phase1.sast_findings:
-        sections.append(f"## SAST 스캔 결과 ({len(phase1.sast_findings)}개 findings)")
+        sast_header = f"## SAST 스캔 결과 ({len(phase1.sast_findings)}개 findings)"
+        if phase1.sast_partial_tools:
+            sast_header += (
+                f"\n**주의**: 일부 도구({', '.join(phase1.sast_partial_tools)})가 "
+                f"{phase1.sast_timed_out_files}개 파일에서 timeout 발생. "
+                "해당 파일의 분석 결과가 불완전할 수 있으므로 caveats에 언급하라."
+            )
+        sections.append(sast_header)
         # 심각도별 정리
         by_severity: dict[str, list] = {}
         for f in phase1.sast_findings:

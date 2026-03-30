@@ -383,3 +383,14 @@ class TestGetSdkCompiler:
             compiler = get_sdk_compiler(profile)
 
         assert compiler is None
+
+    def test_malformed_registry_entry(self, tmp_path):
+        """레지스트리 항목에 sysroot/compiler_prefix 누락 시 KeyError 없이 None."""
+        _write_registry(tmp_path, {"broken": {"description": "malformed entry"}})
+
+        profile = BuildProfile(sdkId="broken")
+
+        with patch.object(sdk_resolver, "_get_sdk_root", return_value=tmp_path):
+            compiler = get_sdk_compiler(profile)
+
+        assert compiler is None

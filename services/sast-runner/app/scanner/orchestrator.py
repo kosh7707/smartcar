@@ -209,11 +209,29 @@ class ScanOrchestrator:
                 )
                 logger.info("Tool %s completed: %d findings in %dms", tool_name, len(findings_list), elapsed)
 
+        # partial 상태: 파일별 실행 도구 중 timeout 발생 시
+        for tool_name in ("scan-build", "gcc-fanalyzer"):
+            if tool_name in tool_results and tool_results[tool_name].status == "ok":
+                runner = self.scanbuild if tool_name == "scan-build" else self.gcc_analyzer
+                timed_out = getattr(runner, "_last_timed_out", 0)
+                if timed_out > 0:
+                    tool_results[tool_name] = tool_results[tool_name].model_copy(
+                        update={"status": "partial", "timed_out_files": timed_out},
+                    )
+
         # 스킵된 도구 기록
         for tool_name, reason in active_tools.get("_skipped", {}).items():
             tool_results[tool_name] = ToolExecutionResult(
                 status="skipped", findings_count=0, elapsed_ms=0,
                 skip_reason=reason, version=tool_versions.get(tool_name),
+            )
+
+        # 전 도구 실패 시 경고
+        attempted = [n for n in task_map if n in tool_results]
+        if attempted and all(tool_results[n].status == "failed" for n in attempted):
+            logger.warning(
+                "All %d attempted tools failed: %s",
+                len(attempted), ", ".join(attempted),
             )
 
         # 6. 사용자 코드 + 경계면 필터링

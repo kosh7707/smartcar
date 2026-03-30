@@ -148,48 +148,6 @@
   font-size: var(--text-base);
 }
 
-/* ── Rule / Adapter Forms (shared) ── */
-
-.settings-rule-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--space-4);
-}
-
-.settings-rule-form {
-  background: var(--surface-0);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
-  border: 1px solid var(--border-default);
-  animation: fadeInScale 200ms ease both;
-}
-
-.settings-rule-form__title {
-  font-weight: var(--weight-semibold);
-  margin-bottom: var(--space-3);
-}
-
-.settings-rule-form__grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
-}
-
-.settings-rule-form__actions {
-  display: flex;
-  gap: var(--space-2);
-  justify-content: flex-end;
-  margin-top: var(--space-4);
-}
-
-.settings-rule-form__error {
-  color: var(--danger);
-  font-size: var(--text-base);
-  margin-bottom: var(--space-2);
-}
-
 .settings-section-label {
   font-size: var(--text-base);
   color: var(--text-tertiary);
@@ -202,70 +160,6 @@
 
 .settings-section-label--custom {
   margin-top: var(--space-4);
-}
-
-/* ── Rule Rows ── */
-
-.rule-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.rule-row__toggle {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  color: var(--text-tertiary);
-  transition: color var(--transition-fast);
-}
-
-.rule-row__toggle--enabled {
-  color: var(--success);
-}
-
-.rule-row__body {
-  flex: 1;
-  min-width: 0;
-  transition: opacity var(--transition-fast);
-}
-
-.rule-row__body--disabled {
-  opacity: 0.5;
-}
-
-.rule-row__name {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.rule-row__name-text {
-  font-size: var(--text-md);
-  font-weight: var(--weight-medium);
-}
-
-.rule-row__desc {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  margin-top: 2px;
-}
-
-.rule-row__pattern {
-  margin-left: var(--space-2);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  background: var(--surface-2);
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
-}
-
-.rule-row__actions {
-  display: flex;
-  gap: var(--space-1);
 }
 
 /* ══════════════════════════════════════════════

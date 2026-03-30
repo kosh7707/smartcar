@@ -183,8 +183,10 @@ def get_sdk_compiler(profile: BuildProfile) -> str | None:
         return None
 
     base = _get_sdk_base(profile.sdk_id)
-    sysroot = sdk_info["sysroot"]
-    prefix = sdk_info["compiler_prefix"]
+    sysroot = sdk_info.get("sysroot", "")
+    prefix = sdk_info.get("compiler_prefix", "")
+    if not sysroot or not prefix:
+        return None
 
     compiler_path = base / sysroot / "usr" / "bin" / f"{prefix}-gcc"
     if compiler_path.exists():
@@ -213,15 +215,17 @@ def get_sdk_registry() -> list[dict[str, Any]]:
     for sdk_id, info in _get_registry().items():
         base = sdk_root / sdk_id
         compiler_path = get_sdk_compiler_path(base, info)
+        prefix = info.get("compiler_prefix", "")
+        sysroot_val = info.get("sysroot", "")
         setup_path = base / info.get("environment_setup", "")
 
         result.append({
             "sdkId": sdk_id,
-            "compiler": f"{info['compiler_prefix']}-gcc",
+            "compiler": f"{prefix}-gcc" if prefix else None,
             "compilerVersion": info.get("gcc_version"),
             "compilerPath": compiler_path,
-            "targetArch": _infer_arch(info["compiler_prefix"]),
-            "sysroot": str(base / info["sysroot"]) if base.is_dir() else None,
+            "targetArch": _infer_arch(prefix) if prefix else None,
+            "sysroot": str(base / sysroot_val) if sysroot_val and base.is_dir() else None,
             "setupScript": str(setup_path) if setup_path.exists() else None,
             "installed": base.is_dir(),
         })
@@ -231,8 +235,10 @@ def get_sdk_registry() -> list[dict[str, Any]]:
 
 def get_sdk_compiler_path(base: Path, sdk_info: dict[str, Any]) -> str | None:
     """SDK 크로스 컴파일러의 절대 경로."""
-    sysroot = sdk_info["sysroot"]
-    prefix = sdk_info["compiler_prefix"]
+    sysroot = sdk_info.get("sysroot", "")
+    prefix = sdk_info.get("compiler_prefix", "")
+    if not sysroot or not prefix:
+        return None
     path = base / sysroot / "usr" / "bin" / f"{prefix}-gcc"
     return str(path) if path.exists() else None
 
@@ -250,9 +256,11 @@ def _infer_arch(compiler_prefix: str) -> str:
 
 def _resolve_from_registry(base: Path, sdk_info: dict[str, Any]) -> list[str]:
     """레지스트리 정보에서 인클루드 경로 목록을 생성."""
-    sysroot = sdk_info["sysroot"]
-    prefix = sdk_info["compiler_prefix"]
-    gcc_ver = sdk_info["gcc_version"]
+    sysroot = sdk_info.get("sysroot", "")
+    prefix = sdk_info.get("compiler_prefix", "")
+    gcc_ver = sdk_info.get("gcc_version", "")
+    if not sysroot or not prefix or not gcc_ver:
+        return []
 
     sysroot_dir = base / sysroot
     if not sysroot_dir.exists():

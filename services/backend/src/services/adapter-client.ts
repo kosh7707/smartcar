@@ -1,7 +1,25 @@
 import WebSocket from "ws";
 import crypto from "crypto";
-import type { IEcuAdapter, EcuInput, EcuResponse } from "./mock-ecu";
 import { createLogger, generateRequestId } from "../lib/logger";
+
+// ── ECU 어댑터 인터페이스 ──
+
+export interface EcuInput {
+  canId: string;
+  dlc: number;
+  data: string; // hex string, e.g. "FF FF FF FF FF FF FF FF"
+}
+
+export interface EcuResponse {
+  success: boolean;
+  data?: string;
+  error?: "no_response" | "malformed" | "reset" | "delayed";
+  delayMs?: number;
+}
+
+export interface IEcuAdapter {
+  sendAndReceive(input: EcuInput): Promise<EcuResponse>;
+}
 
 const logger = createLogger("adapter-client");
 

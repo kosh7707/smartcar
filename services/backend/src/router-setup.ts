@@ -37,7 +37,7 @@ export function mountRouters(app: Express, ctx: AppContext): void {
 
   // 글로벌 라우터
   app.use("/api/sdk-profiles", createSdkProfileRouter());
-  app.use("/health", createHealthRouter(ctx.llmAdapter, ctx.adapterManager, ctx.agentClient, ctx.sastClient, ctx.kbClient, ctx.buildAgentClient));
+  app.use("/health", createHealthRouter(ctx.llmTaskClient, ctx.adapterManager, ctx.agentClient, ctx.sastClient, ctx.kbClient, ctx.buildAgentClient));
   app.use("/api/projects", createProjectRouter(ctx.projectService));
   app.use("/api", createFileRouter(ctx.fileStore));
   app.use("/api/dynamic-analysis", createDynamicAnalysisRouter(ctx.dynamicAnalysisService));

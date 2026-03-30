@@ -7,27 +7,19 @@
 
 ## 10. 알려진 이슈 / 로드맵 / 세션 로그
 
-### 대기 중인 작업 요청 (2026-03-18 기준)
+### 대기 중인 작업 요청 (2026-03-28 기준)
 
-`docs/work-requests/`: 비어있음 (.gitkeep만 존재). 밀린 작업 없음.
+`docs/work-requests/`: `s2-to-s1-rule-engine-removal.md` — Rule 엔진 완전 제거 공지 (S1이 처리 후 삭제).
 
-**처리 완료 사항**:
-- S1 WR 3건 처리 완료 (AI location fix, audit log clarification, phaseWeights)
-- S4 SAST Runner 통합 완료 (start.sh/stop.sh)
-- S4 에이전트 아키텍처 제안에 대한 S2 응답 완료. S3 응답 대기 중.
+### 세션 13 완료 사항 (2026-03-28)
 
-### 미커밋 코드 (2026-03-17 세션 3)
-
-아래 변경사항은 모두 **UNCOMMITTED** 상태다. SAST Runner 호출 코드 완성 후 일괄 커밋 예정.
-- C/C++ only 확장자 변경
-- `detectLanguage()` 업데이트
-- BuildProfile / SdkProfile 타입 (shared models)
-- SDK 프로파일 12개 + API
-- ProjectSettingsService buildProfile 처리
-- LLM context에 buildProfile 포함
-- AI Finding location fallback (멀티파일 청크)
-- WS phaseWeights
-- start.sh / stop.sh SAST Runner 추가
+- DB `rules` 테이블 + 마이그레이션 + 인덱스 완전 제거 (19→18 테이블)
+- CREATE TABLE에 최종 컬럼 통합 (가독성 향상, ALTER TABLE은 레거시 호환용 유지)
+- 공유 패키지: `Rule`, `RuleCreateRequest/UpdateRequest/Response/ListResponse` 타입 제거
+- `LlmV1Adapter` 제거 → `LlmTaskClient`에 concurrency queue 통합, Dynamic 서비스 직접 사용
+- `MockEcu` 제거 → 인터페이스를 `adapter-client.ts`로 인라인
+- `IRuleDAO`, `makeRule()`, 빈 `rules/` 디렉토리, stale dist 산출물 제거
+- `db-stats.sh` 전면 갱신 (9→18 테이블 조회)
 
 ### DB hot-reload 함정
 
@@ -75,16 +67,13 @@ src/
 │   ├── finding.service.test.ts              # Finding 라이프사이클 테스트
 │   └── ... (서비스별 단위 테스트)
 ├── dao/__tests__/                            # DAO 단위 테스트
-├── lib/__tests__/
-│   └── vulnerability-utils.test.ts          # mergeAndDedup 등 유틸 테스트
-└── rules/__tests__/                          # 룰 엔진 테스트
+└── lib/__tests__/
+    └── vulnerability-utils.test.ts          # mergeAndDedup 등 유틸 테스트
 ```
 
 ### 즉시 다음 작업 (Next S2 Session)
 
 1. **E2E 풀스택 통합 테스트** — 전체 파이프라인 (업로드→서브프로젝트→빌드→스캔→Deep) 검증
-
-2. **Transient 코드 제거** — LlmV1Adapter, LlmTaskClient (DynamicAnalysis가 아직 사용 중 — 리팩토링 선행 필요)
 
 ### 후순위
 

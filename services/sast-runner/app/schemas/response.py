@@ -10,10 +10,11 @@ from pydantic import BaseModel, Field
 
 class ToolExecutionResult(BaseModel):
     """개별 도구 실행 결과."""
-    status: Literal["ok", "failed", "skipped"]
+    status: Literal["ok", "partial", "failed", "skipped"]
     findings_count: int = Field(alias="findingsCount")
     elapsed_ms: int = Field(alias="elapsedMs")
     skip_reason: str | None = Field(default=None, alias="skipReason")
+    timed_out_files: int | None = Field(default=None, alias="timedOutFiles")
     version: str | None = None
 
     model_config = {"populate_by_name": True, "by_alias": True}

@@ -106,8 +106,15 @@ class GccAnalyzerRunner:
         logger.info("Running gcc -fanalyzer (%s) on %d files", gcc_bin, len(c_cpp_files))
 
         # 파일별 개별 실행 (동일 심볼 충돌 방지) + Semaphore 동시성 제한
-        _sem = asyncio.Semaphore(8)
-        per_file_timeout = max(timeout // max(len(c_cpp_files), 1), 15)
+        _concurrency = 8
+        _sem = asyncio.Semaphore(_concurrency)
+        _batches = -(-len(c_cpp_files) // _concurrency)  # ceil division
+        per_file_timeout = max(timeout // max(_batches, 1), 10)
+        if per_file_timeout * _batches > timeout:
+            logger.warning(
+                "Per-file timeout floor (%ds) may exceed budget (%ds for %d batches)",
+                per_file_timeout, timeout, _batches,
+            )
 
         async def _guarded(f: str) -> list[SastFinding]:
             async with _sem:

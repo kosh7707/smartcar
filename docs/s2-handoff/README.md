@@ -77,10 +77,10 @@
 |------|---|
 | TypeScript 에러 | **0개** |
 | 테스트 | **267개 통과** (vitest) |
-| DB 테이블 | 19개 (SQLite, WAL) |
+| DB 테이블 | 18개 (SQLite, WAL) |
 | API 엔드포인트 | 60개+ REST + 5 WebSocket |
 | 에러 클래스 | 18개 (AppError 계층, 21개 에러코드) |
-| 외부 클라이언트 | SastClient(S4), AgentClient(S3), BuildAgentClient(S3:8003), KbClient(S5), AdapterClient(S6) |
+| 외부 클라이언트 | SastClient(S4), AgentClient(S3), BuildAgentClient(S3:8003), KbClient(S5), AdapterClient(S6), LlmTaskClient(S7) |
 
 ### Durable (투자, 유지)
 
@@ -93,12 +93,11 @@
 | 코어 도메인 | Run, Finding(7-state), EvidenceRef, QG, Approval, Report |
 | ResultNormalizer | `normalizeAnalysisResult()` + `normalizeAgentResult()` |
 
-### Transient (제거 예정, 투자 금지)
+### 세션 13에서 제거 완료된 레거시
 
-| 영역 | 비고 |
-|------|------|
-| `LlmV1Adapter`, `LlmTaskClient` | DynamicAnalysis가 아직 사용 중. 리팩토링 후 제거 |
-| `rules/` 디렉토리 | Transient이나 파일은 이미 삭제됨 (코드 잔존) |
+- `rules` DB 테이블 + `IRuleDAO` 인터페이스 + `Rule` 공유 타입 — 룰 엔진 완전 제거
+- `LlmV1Adapter` (v0→v1 호환 레이어) — `LlmTaskClient`에 concurrency 통합, 서비스 직접 사용
+- `MockEcu` — 인터페이스를 `adapter-client.ts`로 이동, 클래스 삭제
 
 ---
 

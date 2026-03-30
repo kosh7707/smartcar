@@ -6,7 +6,7 @@ import type {
   AnalysisResult,
   Vulnerability,
 } from "@aegis/shared";
-import type { LlmV1Adapter } from "./llm-v1-adapter";
+import type { LlmTaskClient, TaskResponseSuccess } from "./llm-task-client";
 import type { WsBroadcaster } from "./ws-broadcaster";
 import type { AdapterManager } from "./adapter-manager";
 import type { ProjectSettingsService } from "./project-settings.service";
@@ -31,7 +31,7 @@ export class DynamicTestService {
   constructor(
     private dynamicTestResultDAO: IDynamicTestResultDAO,
     private analysisResultDAO: IAnalysisResultDAO,
-    private llmClient: LlmV1Adapter,
+    private llmClient: LlmTaskClient,
     private adapterManager: AdapterManager,
     private settingsService: ProjectSettingsService,
     private ws?: WsBroadcaster<import("@aegis/shared").WsTestMessage>,
@@ -224,24 +224,48 @@ export class DynamicTestService {
     try {
       const llmUrl = this.settingsService.get(projectId, "llmUrl");
       const testResults = this.findingsToTestResults(findings, config);
-      const llmRes = await this.llmClient.analyze({
-        module: "dynamic_testing",
-        testResults,
-        ruleResults: findings.map((f) => ({
-          ruleId: `TEST-${f.type.toUpperCase()}`,
-          title: f.description,
-          severity: f.severity,
-          location: `${config.targetEcu} (${config.targetId})`,
-        })),
-      }, llmUrl, requestId);
+      const ruleMatches = findings.map((f) => ({
+        ruleId: `TEST-${f.type.toUpperCase()}`,
+        title: f.description,
+        severity: f.severity,
+        location: `${config.targetEcu} (${config.targetId})`,
+      }));
 
-      if (llmRes.success && llmRes.vulnerabilities.length > 0) {
+      const taskRequest = {
+        taskType: "test-plan-propose" as const,
+        taskId: crypto.randomUUID(),
+        context: {
+          trusted: { ruleMatches },
+          untrusted: { testResults },
+        },
+        evidenceRefs: [
+          {
+            refId: crypto.randomUUID(),
+            artifactId: crypto.randomUUID(),
+            artifactType: "test-result",
+            locatorType: "requestResponsePair",
+            locator: {},
+          },
+          ...ruleMatches.map((r) => ({
+            refId: crypto.randomUUID(),
+            artifactId: crypto.randomUUID(),
+            artifactType: "rule-match",
+            locatorType: "jsonPointer",
+            locator: { ruleId: r.ruleId },
+          })),
+        ],
+      };
+
+      const res = await this.llmClient.submitTask(taskRequest, requestId, { baseUrl: llmUrl ?? undefined });
+
+      if (res.status === "completed") {
+        const success = res as TaskResponseSuccess;
         // LLM 분석 결과를 각 finding에 매핑
-        for (let i = 0; i < findings.length && i < llmRes.vulnerabilities.length; i++) {
-          const llmVuln = llmRes.vulnerabilities[i];
-          findings[i].llmAnalysis = llmVuln.description;
-          if (llmVuln.suggestion) {
-            findings[i].llmAnalysis += `\n\n권장 조치: ${llmVuln.suggestion}`;
+        for (let i = 0; i < findings.length && i < success.result.claims.length; i++) {
+          const claim = success.result.claims[i];
+          findings[i].llmAnalysis = claim.statement;
+          if (success.result.recommendedNextSteps[0]) {
+            findings[i].llmAnalysis += `\n\n권장 조치: ${success.result.recommendedNextSteps[0]}`;
           }
         }
       }

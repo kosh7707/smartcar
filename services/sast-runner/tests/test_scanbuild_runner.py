@@ -79,6 +79,19 @@ class TestConvertDiagnostic:
         finding = runner._convert_diagnostic(diag, files_list, Path("/tmp/scan"))
         assert finding is None
 
+    def test_negative_file_index(self, runner):
+        """음수 file_idx는 files_list[-1]이 아닌 None 반환."""
+        files_list = ["src/main.c"]
+        diag = {
+            "description": "Some error",
+            "category": "Logic error",
+            "check_name": "core.Something",
+            "location": {"file": -1, "line": 10, "col": 1},
+            "path": [],
+        }
+        finding = runner._convert_diagnostic(diag, files_list, Path("/tmp/scan"))
+        assert finding is None
+
     def test_missing_line(self, runner):
         files_list = ["src/main.c"]
         diag = {

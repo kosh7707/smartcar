@@ -197,6 +197,24 @@ class TestFindClosestVersion:
         assert result["matchedVersion"] == "v2.0"  # smaller diff
         assert result["searchedTags"] == 2
 
+    @pytest.mark.asyncio
+    async def test_perfect_match_short_circuits(self, differ, tmp_path):
+        """diff_size == 0 (완벽 매치) 시 나머지 태그를 검사하지 않는다."""
+        lib_dir = tmp_path / "lib"
+        lib_dir.mkdir()
+
+        diff_mock = AsyncMock(side_effect=[0, 999])
+
+        with patch.object(differ, "_git_clone", new_callable=AsyncMock, return_value=True), \
+             patch.object(differ, "_get_tags", new_callable=AsyncMock, return_value=["v1.0", "v2.0"]), \
+             patch.object(differ, "_git_checkout", new_callable=AsyncMock, return_value=True), \
+             patch.object(differ, "_quick_diff_size", diff_mock), \
+             patch.object(differ, "_compute_diff", new_callable=AsyncMock, return_value={"modifiedFiles": 0}):
+            result = await differ.find_closest_version(lib_dir, "https://repo")
+
+        assert result["matchedVersion"] == "v1.0"
+        assert diff_mock.call_count == 1  # 두 번째 태그 미호출 (조기 종료)
+
 
 # ──────────────────── DiffResult ────────────────────
 

@@ -200,7 +200,7 @@ POST /v1/tasks (taskType: "deep-analyze")
 
 | 문서 | 내용 |
 |------|------|
-| [`session-log.md`](session-log.md) | 세션별 수정 이력 (세션 5~13) |
+| [`session-{N}.md`](.) | 세션별 수정 이력 (1세션 = 1파일, 세션 5~13) |
 | [`roadmap.md`](roadmap.md) | 다음 작업 + v2 장기 계획 |
 
 ---
@@ -210,7 +210,7 @@ POST /v1/tasks (taskType: "deep-analyze")
 | 문서 | 경로 | 용도 |
 |------|------|------|
 | 이 인수인계서 | `docs/s3-handoff/README.md` | 진입점 |
-| 세션 로그 | `docs/s3-handoff/session-log.md` | 수정 이력 |
+| 세션 로그 | `docs/s3-handoff/session-{N}.md` | 수정 이력 (1세션 = 1파일) |
 | 로드맵 | `docs/s3-handoff/roadmap.md` | 다음 작업 + 장기 계획 |
 | Analysis Agent 명세 | `docs/specs/analysis-agent.md` | 아키텍처, 원칙 |
 | Build Agent 명세 | `docs/specs/build-agent.md` | 아키텍처, 원칙 |

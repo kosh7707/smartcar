@@ -167,6 +167,7 @@ class TestFailureCodeStatusMapping:
         (FailureCode.UNSAFE_CONTENT, TaskStatus.UNSAFE_OUTPUT),
         (FailureCode.EMPTY_RESPONSE, TaskStatus.EMPTY_RESULT),
         (FailureCode.LLM_OVERLOADED, TaskStatus.MODEL_ERROR),
+        (FailureCode.LLM_CIRCUIT_OPEN, TaskStatus.MODEL_ERROR),
         (FailureCode.INPUT_TOO_LARGE, TaskStatus.BUDGET_EXCEEDED),
         (FailureCode.UNKNOWN_TASK_TYPE, TaskStatus.VALIDATION_FAILED),
     ])

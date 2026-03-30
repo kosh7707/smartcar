@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { LlmV1Adapter } from "../services/llm-v1-adapter";
+import type { LlmTaskClient } from "../services/llm-task-client";
 import type { AdapterManager } from "../services/adapter-manager";
 import type { AgentClient } from "../services/agent-client";
 import type { SastClient } from "../services/sast-client";
@@ -16,7 +16,7 @@ interface ServiceHealth {
 }
 
 export function createHealthRouter(
-  llmClient: LlmV1Adapter,
+  llmClient: LlmTaskClient,
   adapterManager: AdapterManager,
   agentClient?: AgentClient,
   sastClient?: SastClient,

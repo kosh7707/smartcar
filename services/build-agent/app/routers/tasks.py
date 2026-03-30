@@ -91,6 +91,7 @@ def _build_system_prompt(
     target_name: str = "",
     phase0: object | None = None,
     build_subdir: str = "build-aegis",
+    initial_script_hint: str = "",
 ) -> str:
     """빌드 에이전트 v3 시스템 프롬프트."""
 
@@ -153,6 +154,8 @@ def _build_system_prompt(
             phase0_section += f"\n### 프로젝트 구조 (자동 생성)\n```\n{tree}\n```\n"
         if strategy_hint:
             phase0_section += f"\n**권장 전략**: {strategy_hint}\n\n"
+        if initial_script_hint:
+            phase0_section += initial_script_hint + "\n\n"
 
     if target_path:
         build_source = os.path.join(project_path, target_path)
@@ -287,6 +290,21 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
     sdk_info = phase0_result.sdk_info
     build_files = phase0_result.build_files
 
+    # ─── 1b. 초기 빌드 스크립트 결정론적 생성 (cmake/make/autotools 템플릿) ───
+    initial_script = phase0.generate_initial_script(sdk_info)
+    initial_script_hint = ""
+    if initial_script:
+        os.makedirs(os.path.join(effective_root, build_subdir), exist_ok=True)
+        script_path = os.path.join(effective_root, build_subdir, "aegis-build.sh")
+        with open(script_path, "w") as f:
+            f.write(initial_script)
+        initial_script_hint = (
+            f"\n\n[Phase 0 자동 생성] {build_subdir}/aegis-build.sh에 "
+            f"{phase0_result.build_system} 템플릿 스크립트가 생성되었다. "
+            "이 스크립트를 기반으로 수정하거나, 필요 시 새로 작성하라."
+        )
+        logger.info("[build] 초기 스크립트 생성: %s (%s)", script_path, phase0_result.build_system)
+
     # ─── 2. 정책 엔진 (request-scoped build dir) ───
     file_policy = FilePolicy(effective_root, build_dir=build_subdir)
 
@@ -411,6 +429,7 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
         target_path=target_path, target_name=target_name,
         phase0=phase0_result,
         build_subdir=build_subdir,
+        initial_script_hint=initial_script_hint,
     )
     build_source = os.path.join(project_path, target_path) if target_path else project_path
     user_message = (

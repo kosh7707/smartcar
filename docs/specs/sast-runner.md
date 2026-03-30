@@ -328,13 +328,17 @@ pattern-sanitizers:              # <- FP 감소
 
 ```json
 {
-  "status": "ok | failed | skipped",
+  "status": "ok | partial | failed | skipped",
   "findingsCount": 25,
   "elapsedMs": 1200,
   "skipReason": null,
+  "timedOutFiles": null,
   "version": "2.13.0"
 }
 ```
+
+- `"partial"`: 파일별 실행 도구(gcc-fanalyzer, scan-build)에서 일부 파일이 timeout되었으나 나머지는 정상 완료
+- `timedOutFiles`: `"partial"` 상태일 때 timeout된 파일 수 (그 외 상태에서는 `null`)
 
 ---
 

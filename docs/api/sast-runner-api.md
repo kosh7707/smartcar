@@ -269,13 +269,15 @@ S2/S3는 SDK 설치 경로를 몰라도 되고, `sdkId`만 지정하면 된다.
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | toolsRun | string[] | 실제 실행된 도구 목록 |
-| toolResults | dict | 도구별 {findingsCount, elapsedMs, status, skipReason?, **version?**} |
+| toolResults | dict | 도구별 {findingsCount, elapsedMs, status, skipReason?, **version?**, **timedOutFiles?**} |
 | sdk | object | {resolved, sdkId?, includePathsAdded} |
 | filtering | object | {beforeFilter, afterFilter, sdkNoiseRemoved, **thirdPartyRemoved**, **crossBoundaryKept**, **filesScopedOut**} |
 
 `toolResults[*].status` 값: `"ok"`, `"partial"`, `"skipped"`, `"failed"`. `"partial"`은 일부 파일이 timeout되었으나 나머지는 정상 완료된 경우
 
 `toolResults[*].version`: 해당 도구의 설치 버전 (예: `"2.17.1"`). 스캔 재현성 추적용.
+
+`toolResults[*].timedOutFiles`: `"partial"` 상태일 때, timeout된 파일 수. gcc-fanalyzer/scan-build 전용.
 
 #### Findings 필터링 기준
 

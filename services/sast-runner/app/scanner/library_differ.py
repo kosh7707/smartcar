@@ -241,6 +241,8 @@ class LibraryDiffer:
                 if diff_size < best_diff_size:
                     best_diff_size = diff_size
                     best_tag = tag
+                    if diff_size == 0:
+                        break  # 완벽 매치 — 나머지 태그 검사 불필요
 
             if best_tag:
                 await self._git_checkout(clone_dir, best_tag)

@@ -18,7 +18,7 @@ fi
 
 echo ""
 echo "============================================"
-echo "  Backend DB 현황"
+echo "  Backend DB 현황 (18 테이블)"
 echo "============================================"
 echo ""
 
@@ -33,9 +33,27 @@ UNION ALL SELECT
 UNION ALL SELECT
   'analysis_results', COUNT(*) FROM analysis_results
 UNION ALL SELECT
-  'rules', COUNT(*) FROM rules
+  'runs', COUNT(*) FROM runs
+UNION ALL SELECT
+  'findings', COUNT(*) FROM findings
+UNION ALL SELECT
+  'evidence_refs', COUNT(*) FROM evidence_refs
+UNION ALL SELECT
+  'gate_results', COUNT(*) FROM gate_results
+UNION ALL SELECT
+  'approvals', COUNT(*) FROM approvals
+UNION ALL SELECT
+  'audit_log', COUNT(*) FROM audit_log
 UNION ALL SELECT
   'adapters', COUNT(*) FROM adapters
+UNION ALL SELECT
+  'project_settings', COUNT(*) FROM project_settings
+UNION ALL SELECT
+  'build_targets', COUNT(*) FROM build_targets
+UNION ALL SELECT
+  'sdk_registry', COUNT(*) FROM sdk_registry
+UNION ALL SELECT
+  'target_libraries', COUNT(*) FROM target_libraries
 UNION ALL SELECT
   'dynamic_sessions', COUNT(*) FROM dynamic_analysis_sessions
 UNION ALL SELECT

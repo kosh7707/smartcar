@@ -176,11 +176,16 @@ async def chat_proxy(req: Request) -> Response:
         try:
             await circuit_breaker.check()
         except LlmCircuitOpenError:
+            elapsed_ms = int((time.monotonic() - start) * 1000)
             logger.warning("[chat proxy] Circuit Breaker OPEN — 즉시 실패")
             return JSONResponse(
                 status_code=503,
                 content={"error": "LLM Engine circuit open", "retryable": True},
-                headers={"X-Request-Id": request_id, "X-Model": body.get("model", "")},
+                headers={
+                    "X-Request-Id": request_id,
+                    "X-Model": body.get("model", ""),
+                    "X-Gateway-Latency-Ms": str(elapsed_ms),
+                },
             )
 
     try:

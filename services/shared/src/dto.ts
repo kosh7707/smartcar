@@ -1,6 +1,5 @@
 import {
   Project,
-  Rule,
   Adapter,
   AnalysisResult,
   AnalysisSummary,
@@ -506,40 +505,6 @@ export interface WsPipelineError {
 }
 
 export type WsPipelineMessage = WsPipelineTargetStatus | WsPipelineComplete | WsPipelineError;
-
-// ============================================================
-// 룰
-// ============================================================
-
-export interface RuleCreateRequest {
-  name: string;
-  pattern: string;
-  severity?: string;
-  description?: string;
-  suggestion?: string;
-  fixCode?: string;
-}
-
-export interface RuleUpdateRequest {
-  name?: string;
-  pattern?: string;
-  severity?: string;
-  description?: string;
-  suggestion?: string;
-  fixCode?: string;
-  enabled?: boolean;
-}
-
-export interface RuleResponse {
-  success: boolean;
-  data?: Rule;
-  error?: string;
-}
-
-export interface RuleListResponse {
-  success: boolean;
-  data: Rule[];
-}
 
 // ============================================================
 // 공통

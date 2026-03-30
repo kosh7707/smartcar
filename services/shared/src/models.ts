@@ -134,23 +134,6 @@ export interface UploadedFile {
 }
 
 // ============================================================
-// 룰 관련
-// ============================================================
-
-export interface Rule {
-  id: string;
-  name: string;
-  severity: Severity;
-  description: string;
-  suggestion: string;
-  pattern: string;
-  fixCode?: string;
-  enabled: boolean;
-  projectId: string;
-  createdAt: string;
-}
-
-// ============================================================
 // 어댑터
 // ============================================================
 

@@ -11,7 +11,6 @@ import type {
   ApprovalStatus,
   AuditLogEntry,
   AnalysisResult,
-  Rule,
   Adapter,
   DynamicAnalysisSession,
   DynamicAlert,
@@ -191,17 +190,6 @@ export interface IProjectDAO {
   findAll(): Project[];
   update(id: string, fields: { name?: string; description?: string }): Project | undefined;
   delete(id: string): boolean;
-}
-
-export interface IRuleDAO {
-  save(rule: Rule): void;
-  findAll(): Rule[];
-  findByProjectId(projectId: string): Rule[];
-  findById(id: string): Rule | undefined;
-  update(id: string, fields: Partial<Omit<Rule, "id" | "projectId" | "createdAt">>): Rule | undefined;
-  toggleEnabled(id: string, enabled: boolean): boolean;
-  delete(id: string): boolean;
-  deleteByProjectId(projectId: string): number;
 }
 
 export interface IAdapterDAO {

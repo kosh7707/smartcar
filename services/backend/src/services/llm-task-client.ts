@@ -1,8 +1,7 @@
 /**
- * S3 v1 Task API 클라이언트
+ * S7 LLM Gateway v1 Task API 클라이언트
  *
- * v0 LlmClient는 2026-03-13에 제거됨. LlmV1Adapter가 이 클라이언트를 래핑하여
- * 기존 서비스(정적/동적/테스트)에 v0 호환 시그니처를 제공한다.
+ * 동시성 제어(concurrency queue) 내장. 모든 LLM 호출은 이 클라이언트를 통해 수행.
  * API 계약: docs/api/llm-gateway-api.md
  */
 import { createLogger } from "../lib/logger";
@@ -126,9 +125,43 @@ export class LlmTaskClient {
   private static readonly MAX_RETRIES = 3;
   private static readonly RETRY_BASE_MS = 1000;
 
-  constructor(private baseUrl: string) {}
+  private queue: Array<{ run: () => void }> = [];
+  private running = 0;
+
+  constructor(private baseUrl: string, private concurrency = 1) {}
+
+  private enqueue<T>(fn: () => Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const run = () => {
+        this.running++;
+        fn().then(resolve, reject).finally(() => {
+          this.running--;
+          const next = this.queue.shift();
+          if (next) next.run();
+        });
+      };
+      if (this.running < this.concurrency) {
+        run();
+      } else {
+        this.queue.push({ run });
+        logger.info(
+          { queueSize: this.queue.length },
+          "LLM request queued (concurrency=%d)",
+          this.concurrency,
+        );
+      }
+    });
+  }
 
   async submitTask(
+    request: TaskRequest,
+    requestId?: string,
+    options?: { signal?: AbortSignal; baseUrl?: string },
+  ): Promise<TaskResponse> {
+    return this.enqueue(() => this.doSubmitTask(request, requestId, options));
+  }
+
+  private async doSubmitTask(
     request: TaskRequest,
     requestId?: string,
     options?: { signal?: AbortSignal; baseUrl?: string },

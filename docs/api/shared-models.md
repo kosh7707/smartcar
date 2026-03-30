@@ -135,23 +135,6 @@ SCA(Software Composition Analysis)로 탐지된 라이브러리 정보.
 | skipReason | string (optional) | 스킵 사유 (`"FILE_TOO_LARGE"` 등) |
 | findingCount | number | 해당 파일의 Finding 수 |
 
-### Rule
-
-패턴 매칭 룰 정보. 프로젝트에 종속되며, 프로젝트 생성 시 22개 기본 룰이 시딩된다 (모두 수정·삭제 가능).
-
-| 필드 | 타입 | 설명 |
-|------|------|------|
-| id | string | 고유 식별자 |
-| name | string | 룰 이름 |
-| severity | Severity | 심각도 |
-| description | string | 룰 설명 |
-| suggestion | string | 수정 제안 |
-| pattern | string | 정규식 패턴 |
-| fixCode | string (optional) | 수정 코드 예시 |
-| enabled | boolean | 활성화 여부 |
-| projectId | string | 소속 프로젝트 ID |
-| createdAt | string (ISO 8601) | 생성 시각 |
-
 ### EcuMeta
 
 ECU 메타데이터. 어댑터 연결 시 ECU 시뮬레이터가 전송한다.
@@ -1036,46 +1019,6 @@ type ApprovalActionType = "gate.override" | "finding.accepted_risk";
 |------|------|------|
 | llmUrl | string (optional) | LLM Gateway URL |
 | buildProfile | BuildProfile (optional) | 빌드 환경 설정 |
-
-### 룰
-
-#### RuleCreateRequest
-
-| 필드 | 타입 | 설명 |
-|------|------|------|
-| name | string | 룰 이름 |
-| pattern | string | 정규식 패턴 |
-| severity | string (optional) | 심각도 (기본: medium) |
-| description | string (optional) | 설명 |
-| suggestion | string (optional) | 수정 제안 |
-| fixCode | string (optional) | 수정 코드 예시 |
-
-#### RuleUpdateRequest
-
-| 필드 | 타입 | 설명 |
-|------|------|------|
-| name | string (optional) | 룰 이름 |
-| pattern | string (optional) | 정규식 패턴 |
-| severity | string (optional) | 심각도 |
-| description | string (optional) | 설명 |
-| suggestion | string (optional) | 수정 제안 |
-| fixCode | string (optional) | 수정 코드 예시 |
-| enabled | boolean (optional) | 활성화 여부 |
-
-#### RuleResponse
-
-| 필드 | 타입 | 설명 |
-|------|------|------|
-| success | boolean | 성공 여부 |
-| data | Rule (optional) | 룰 정보 |
-| error | string (optional) | 에러 메시지 |
-
-#### RuleListResponse
-
-| 필드 | 타입 | 설명 |
-|------|------|------|
-| success | boolean | 성공 여부 |
-| data | Rule[] | 룰 목록 |
 
 ### Run
 
