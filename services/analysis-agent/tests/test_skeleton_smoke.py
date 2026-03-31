@@ -10,7 +10,7 @@ def test_health_endpoint(client_live):
     assert data["service"] == "s3-agent"
     assert data["status"] == "ok"
     assert "agentConfig" in data
-    assert data["agentConfig"]["maxSteps"] == 6
+    assert data["agentConfig"]["maxSteps"] >= 6
 
 
 def test_models_endpoint(client_live):

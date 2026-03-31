@@ -32,14 +32,23 @@ _BEAR_PREFIX_RE = re.compile(r"\bbear\s+--\s*")
 
 
 def _validate_build_result(data: dict) -> tuple[bool, str | None]:
-    """S4 빌드 응답의 exitCode 기반 성공 판정."""
+    """S4 빌드 응답의 exitCode 기반 성공 판정. 부분 빌드(userEntries>0) 감지."""
     exit_code = data.get("exitCode", -1)
-    s4_success = data.get("success", False)
 
-    if exit_code != 0:
-        return False, f"빌드 exit code={exit_code} (실패). S4 success={s4_success}."
+    if exit_code == 0:
+        return True, None
 
-    return True, None
+    # 부분 빌드: 실패했지만 일부 compile_commands 사용 가능
+    user_entries = data.get("userEntries", 0)
+    s4_warning = data.get("warning", "")
+    if user_entries > 0:
+        return False, (
+            f"빌드 exit code={exit_code} (실패). "
+            f"단, 부분 compile_commands 사용 가능 ({user_entries}개 유저 엔트리). "
+            f"{s4_warning}"
+        )
+
+    return False, f"빌드 exit code={exit_code} (실패)."
 
 
 class TryBuildTool:

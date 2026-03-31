@@ -8,6 +8,7 @@ import pytest
 from app.graphrag.project_memory_service import (
     MemoryLimitError,
     ProjectMemoryService,
+    _NO_EXPIRY,
 )
 
 
@@ -16,7 +17,15 @@ def _make_service(*, memory_limit=1000):
     session = MagicMock()
     driver.session.return_value.__enter__ = MagicMock(return_value=session)
     driver.session.return_value.__exit__ = MagicMock(return_value=False)
-    return ProjectMemoryService(driver, memory_limit=memory_limit), session
+
+    # _ensure_indexes: 3 index + 1 migration (.single()["cnt"] → int 필요)
+    _migration_mock = MagicMock()
+    _migration_mock.single.return_value = {"cnt": 0}
+    session.run.side_effect = [MagicMock(), MagicMock(), MagicMock(), _migration_mock]
+
+    svc = ProjectMemoryService(driver, memory_limit=memory_limit)
+    session.run.side_effect = None  # 테스트에서 재설정 가능하도록 초기화
+    return svc, session
 
 
 def _mock_list_result(records):
@@ -179,8 +188,8 @@ def test_create_memory_dedup():
 
     assert result["id"] == "mem-existing"
     assert result["deduplicated"] is True
-    # _ensure_indexes(3) + dedup check(1) = 4
-    assert session.run.call_count == 4
+    # _ensure_indexes(4: 3 indexes + 1 migration) + dedup check(1) = 5
+    assert session.run.call_count == 5
 
 
 def test_create_memory_different_data_no_dedup():
@@ -267,6 +276,95 @@ def test_create_memory_limit_with_expired_not_counted():
     result = svc.create_memory("re100", "preference", {"key": "value"})
     assert result["id"].startswith("mem-")
 
-    # count 쿼리에 expire 필터 확인 (_ensure_indexes 3 + dedup 1 + count = index 4)
-    count_query = session.run.call_args_list[4][0][0]
+    # count 쿼리에 expire 필터 확인 (_ensure_indexes 4 + dedup 1 + count = index 5)
+    count_query = session.run.call_args_list[5][0][0]
     assert "expiresAt" in count_query and "$now" in count_query
+
+
+# ── 센티넬 값 + 마이그레이션 테스트 ──
+
+
+def test_ensure_indexes_migrates_existing_nodes():
+    """기동 시 expiresAt 없는 기존 Memory 노드에 센티넬 값을 설정한다."""
+    driver = MagicMock()
+    session = MagicMock()
+    driver.session.return_value.__enter__ = MagicMock(return_value=session)
+    driver.session.return_value.__exit__ = MagicMock(return_value=False)
+
+    # _ensure_indexes: 3 indexes + migration query
+    migration_result = MagicMock()
+    migration_result.single.return_value = {"cnt": 7}
+
+    session.run.side_effect = [
+        MagicMock(),  # index 1
+        MagicMock(),  # index 2
+        MagicMock(),  # index 3
+        migration_result,  # migration
+    ]
+
+    ProjectMemoryService(driver)
+
+    # 4번째 호출이 마이그레이션 쿼리
+    migration_call = session.run.call_args_list[3]
+    assert "m.expiresAt IS NULL" in migration_call[0][0]
+    assert "SET m.expiresAt" in migration_call[0][0]
+    assert migration_call.kwargs["sentinel"] == _NO_EXPIRY
+
+
+def test_create_memory_without_ttl_uses_sentinel():
+    """TTL 미지정 시 CREATE 쿼리에 _NO_EXPIRY 센티넬 값이 전달된다."""
+    svc, session = _make_service()
+
+    session.run.side_effect = [
+        _mock_single(None),       # dedup: 없음
+        _mock_single({"cnt": 0}), # count: 0
+        MagicMock(),              # create
+    ]
+
+    svc.create_memory("re100", "analysis_history", {"test": True})
+
+    # _ensure_indexes(4) + dedup(1) + count(1) + create(1) = index 6
+    create_call = session.run.call_args_list[6]
+    assert create_call.kwargs["expiresAt"] == _NO_EXPIRY
+
+
+def test_create_memory_without_ttl_hides_sentinel():
+    """TTL 미지정 시 응답에 expiresAt가 포함되지 않는다."""
+    svc, session = _make_service()
+
+    session.run.side_effect = [
+        _mock_single(None),
+        _mock_single({"cnt": 0}),
+        MagicMock(),
+    ]
+
+    result = svc.create_memory("re100", "preference", {"key": "value"})
+    assert "expiresAt" not in result
+
+
+def test_list_memories_hides_sentinel_expiry():
+    """센티넬 expiresAt를 가진 메모리는 응답에서 expiresAt가 제외된다."""
+    svc, session = _make_service()
+
+    mock_records = [
+        {
+            "id": "mem-sentinel",
+            "type": "analysis_history",
+            "data": json.dumps({"count": 1}),
+            "createdAt": "2026-03-30T10:00:00Z",
+            "expiresAt": _NO_EXPIRY,
+        },
+        {
+            "id": "mem-ttl",
+            "type": "resolved",
+            "data": json.dumps({"cve": "CVE-2025-1234"}),
+            "createdAt": "2026-03-30T11:00:00Z",
+            "expiresAt": "2026-04-01T11:00:00+00:00",
+        },
+    ]
+    session.run.return_value = _mock_list_result(mock_records)
+
+    memories = svc.list_memories("re100")
+    assert len(memories) == 2
+    assert "expiresAt" not in memories[0]  # 센티넬 → 미포함
+    assert memories[1]["expiresAt"] == "2026-04-01T11:00:00+00:00"  # 실제 TTL → 포함

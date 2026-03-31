@@ -303,6 +303,50 @@ def search_by_message(logs: list[dict], query: str) -> list[dict]:
     return [e for e in logs if q in (e.get("msg") or "").lower()]
 
 
+def truncate_msg(msg: str, max_len: int = 120) -> str:
+    """긴 메시지를 잘라서 반환. JSON 객체 내부를 축약한다."""
+    if len(msg) <= max_len:
+        return msg
+    # GqlStatusObject 등 중첩 JSON 패턴 축약
+    import re
+    msg = re.sub(r'\{[^{}]{200,}\}', '{...}', msg)
+    msg = re.sub(r'\[[^\[\]]{200,}\]', '[...]', msg)
+    if len(msg) <= max_len:
+        return msg
+    return msg[:max_len - 3] + "..."
+
+
+def dedup_messages(entries: list[dict], msg_key: str = "msg") -> list[tuple[dict, int]]:
+    """연속/동일 패턴 메시지를 그룹핑하여 (대표 entry, count) 리스트 반환."""
+    import re
+
+    def _normalize(msg: str) -> str:
+        """requestId, 타임스탬프, UUID, 세션 ID 등을 제거하여 패턴 키 생성."""
+        s = re.sub(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', '<ID>', msg)
+        s = re.sub(r'\d{13,}', '<TS>', s)  # epoch ms
+        s = re.sub(r'requestId[=: ]+\S+', 'requestId=<RID>', s)
+        # 일반적인 식별자 패턴 (e2e-xxx, session-xxx, req-xxx 등)
+        s = re.sub(r'(?<=[=:\s/])[a-zA-Z0-9_-]{6,40}(?=[\s,;)\]}]|$)', '<VAR>', s)
+        # 중첩 JSON 객체 축약
+        s = re.sub(r'\{[^{}]{80,}\}', '{...}', s)
+        return s
+
+    if not entries:
+        return []
+
+    groups: list[tuple[dict, int]] = []
+    prev_key = ""
+    for e in entries:
+        key = _normalize(e.get(msg_key, "")) + "|" + e.get("service", "")
+        if key == prev_key and groups:
+            groups[-1] = (groups[-1][0], groups[-1][1] + 1)
+        else:
+            groups.append((e, 1))
+            prev_key = key
+
+    return groups
+
+
 def compute_llm_stats(logs: list[dict]) -> dict[str, Any] | None:
     """llm-exchange.jsonl 전용 통계 — 호출 수, 레이턴시, 토큰, tool_calls 비율."""
     llm_entries = [e for e in logs if e.get("type") in ("chat_proxy", "llm_call")]

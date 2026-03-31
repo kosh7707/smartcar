@@ -13,6 +13,7 @@ import neo4j
 logger = logging.getLogger(__name__)
 
 _VALID_TYPES = {"analysis_history", "false_positive", "resolved", "preference"}
+_NO_EXPIRY = "9999-12-31T23:59:59+00:00"
 
 
 class ProjectMemoryService:
@@ -27,7 +28,7 @@ class ProjectMemoryService:
         self._ensure_indexes()
 
     def _ensure_indexes(self) -> None:
-        """Memory 노드 인덱스 생성."""
+        """Memory 노드 인덱스 생성 + 기존 노드 expiresAt 마이그레이션."""
         with self._driver.session() as session:
             session.run(
                 "CREATE INDEX IF NOT EXISTS FOR (n:Project) ON (n.id)"
@@ -38,6 +39,16 @@ class ProjectMemoryService:
             session.run(
                 "CREATE INDEX IF NOT EXISTS FOR (n:Memory) ON (n.content_hash)"
             )
+            # expiresAt 속성이 없는 기존 Memory 노드에 센티넬 값 설정
+            result = session.run(
+                "MATCH (m:Memory) WHERE m.expiresAt IS NULL "
+                "SET m.expiresAt = $sentinel "
+                "RETURN count(m) AS cnt",
+                sentinel=_NO_EXPIRY,
+            ).single()
+            migrated = result["cnt"] if result else 0
+            if migrated > 0:
+                logger.info("expiresAt 마이그레이션: %d개 Memory 노드에 센티넬 값 설정", migrated)
 
     @staticmethod
     def _compute_hash(project_id: str, memory_type: str, data: dict) -> str:
@@ -80,7 +91,7 @@ class ProjectMemoryService:
                     "data": data,
                     "createdAt": rec["createdAt"],
                 }
-                if rec["expiresAt"]:
+                if rec["expiresAt"] and rec["expiresAt"] != _NO_EXPIRY:
                     entry["expiresAt"] = rec["expiresAt"]
                 memories.append(entry)
             return memories
@@ -140,11 +151,12 @@ class ProjectMemoryService:
             memory_id = f"mem-{uuid.uuid4().hex[:8]}"
             created_at = now
             data_json = json.dumps(data, ensure_ascii=False)
-            expires_at = None
             if ttl_seconds is not None:
                 expires_at = (
                     datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
                 ).isoformat()
+            else:
+                expires_at = _NO_EXPIRY
 
             session.run(
                 "MERGE (p:Project {id: $pid}) "
@@ -164,7 +176,7 @@ class ProjectMemoryService:
             project_id, memory_type, memory_id,
         )
         result = {"id": memory_id, "type": memory_type, "createdAt": created_at}
-        if expires_at:
+        if expires_at and expires_at != _NO_EXPIRY:
             result["expiresAt"] = expires_at
         return result
 

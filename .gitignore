@@ -17,3 +17,8 @@ scripts/.pids/
 scripts/.logs/
 uploads/
 *.o
+
+# Playwright
+**/test-results/
+**/playwright-report/
+**/blob-report/

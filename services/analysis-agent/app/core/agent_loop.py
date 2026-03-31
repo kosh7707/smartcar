@@ -79,14 +79,48 @@ class AgentLoop:
                     "max_tokens": session.budget.max_completion_tokens},
         )
 
+        _FORCE_REPORT_AFTER_TOOLS = 6  # 도구 6회 호출 후 보고서 강제
+        _WARN_BEFORE_FORCE = 4        # 도구 4회 도달 시 사전 경고
+        force_report = False
+        warned_approaching_limit = False
+
         while not self._termination_policy.should_stop(session):
             turn = session.turn_count + 1
 
-            # 도구 예산 소진 시 tools를 제거하여 LLM이 content만 반환하도록 유도
-            if self._budget_manager.no_callable_tools_remaining():
+            # 도구 예산: 예산 남은 tier의 도구만 제공, force_report 시 전부 제거
+            if force_report:
                 current_tools = None
             else:
-                current_tools = tools_schema
+                current_tools = self._tool_registry.get_available_schemas(self._budget_manager)
+
+            # 도구 4회 도달 → 사전 경고 (자발적 전환 유도)
+            if (not warned_approaching_limit
+                    and not force_report
+                    and session.total_tool_calls() >= _WARN_BEFORE_FORCE):
+                warned_approaching_limit = True
+                remaining = _FORCE_REPORT_AFTER_TOOLS - session.total_tool_calls()
+                self._message_manager.add_user_message(
+                    f"[시스템] 도구 호출 잔여 횟수: {remaining}회. "
+                    "충분한 증거가 모였으면 JSON 보고서를 작성하라."
+                )
+                agent_log(
+                    logger, "도구 예산 사전 경고",
+                    component="agent_loop", phase="tool_budget_warn",
+                    turn=turn, remaining=remaining,
+                )
+
+            # 도구 호출 횟수 상한 도달 → 보고서 강제 지시
+            if not force_report and session.total_tool_calls() >= _FORCE_REPORT_AFTER_TOOLS:
+                force_report = True
+                self._message_manager.add_user_message(
+                    "[시스템] 도구 호출 한도 도달. "
+                    "추가 도구 호출 없이 즉시 JSON 보고서를 출력하십시오."
+                )
+                agent_log(
+                    logger, "보고서 작성 지시 메시지 주입",
+                    component="agent_loop", phase="force_report",
+                    turn=turn, totalToolCalls=session.total_tool_calls(),
+                )
 
             agent_log(
                 logger, "턴 시작",

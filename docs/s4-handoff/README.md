@@ -2,7 +2,7 @@
 
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S4(SAST Runner) 개발을 이어받는 다음 세션을 위한 진입점이다.
-> **마지막 업데이트: 2026-03-28**
+> **마지막 업데이트: 2026-03-31**
 
 ---
 
@@ -38,6 +38,7 @@
 | 버전 | **v0.7.0** |
 | 테스트 | **338개** (22개 파일) |
 | 벤치마크 | Juliet 12 CWE, Overall Recall **83.7%** |
+| 통합테스트 | **통과** (e2e-1774920375, S4 에러 0건) |
 
 ### 6개 SAST 도구
 
@@ -85,7 +86,7 @@ services/sast-runner/
 │       └── library_hasher.py
 ├── rules/automotive/        — 커스텀 Semgrep 룰 53개 (9 YAML)
 ├── benchmark/               — Juliet 벤치마크 러너 (targeted/portfolio noise)
-├── tests/                   — 333개 테스트 (22개 파일)
+├── tests/                   — 338개 테스트 (22개 파일)
 └── requirements.txt
 ```
 

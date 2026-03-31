@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S2(AEGIS Core/Backend) 개발을 이어받는 다음 세션을 위한 진입점이다.
 > 상세 정보는 같은 디렉토리의 분할 문서를 참조한다.
-> **마지막 업데이트: 2026-03-28**
+> **마지막 업데이트: 2026-03-31**
 
 ---
 
@@ -15,7 +15,7 @@
 | [architecture.md](architecture.md) | 구현 현황, DB 스키마, 핵심 로직, 의존성, 실행 방법, Observability |
 | [api-endpoints.md](api-endpoints.md) | API 엔드포인트 전체 목록 (60개+ REST + 5 WS) |
 | [roadmap.md](roadmap.md) | 다음 작업, 후순위, 인프라 계획 |
-| session-{N}.md | 세션별 작업 로그 (session-1.md ~ session-12.md) |
+| session-{N}.md | 세션별 작업 로그 (session-1.md ~ session-13.md) |
 
 ---
 
@@ -71,7 +71,7 @@
 
 ---
 
-## 3. 현재 상태 (2026-03-28)
+## 3. 현재 상태 (2026-03-31)
 
 | 항목 | 값 |
 |------|---|

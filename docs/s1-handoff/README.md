@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S1(Frontend + QA) 개발을 이어받는 다음 세션을 위한 진입점이다.
 > 상세 정보는 같은 디렉토리의 분할 문서를 참조한다.
-> **마지막 업데이트: 2026-03-28**
+> **마지막 업데이트: 2026-03-31**
 
 ---
 
@@ -14,7 +14,8 @@
 | **이 파일 (README.md)** | 역할, 경계, 현재 상태, 기술 스택, 라우팅, 구현 현황 |
 | [architecture.md](architecture.md) | 파일 구조, 설계 결정, 에러 핸들링, 버그 이력, UI 컨벤션, 실행 방법 |
 | [roadmap.md](roadmap.md) | 다음 작업, 후순위, S2 대기 항목 |
-| session-{1~12}.md | 세션별 작업 로그 (session-1.md ~ session-12.md) |
+| [qa-guide.md](qa-guide.md) | QA 전용 세션 가이드 (Playwright, 체크리스트, 이슈 보고) |
+| session-{1~13}.md | 세션별 작업 로그 (session-1.md ~ session-13.md) |
 
 ---
 
@@ -54,11 +55,12 @@
 
 ---
 
-## 3. 현재 상태 (2026-03-28)
+## 3. 현재 상태 (2026-03-31)
 
 | 항목 | 값 |
 |------|---|
-| 테스트 | **347개 통과** (vitest + @testing-library/react + jsdom) |
+| 유닛 테스트 | **347개 통과** (vitest + @testing-library/react + jsdom) |
+| E2E 테스트 | **88개 통과** (Playwright + Chromium) |
 | 페이지 | 14개 (프로젝트 스코프 12 + 글로벌 2) |
 | API 모듈 | 10개 (core, projects, source, analysis, pipeline, gate, approval, sdk, report, dynamic) |
 | 컴포넌트 | ui 24개 + static 23개 + finding 3개 |
@@ -83,7 +85,8 @@
 | 공유 타입 | @aegis/shared (monorepo) |
 | 코드 하이라이팅 | highlight.js (14개 언어) |
 | 마크다운 | react-markdown + remark-gfm |
-| 테스트 | vitest + @testing-library/react + jsdom |
+| 유닛 테스트 | vitest + @testing-library/react + jsdom |
+| E2E 테스트 | Playwright + Chromium (모킹 기반, 백엔드 불필요) |
 
 ---
 

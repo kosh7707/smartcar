@@ -143,7 +143,7 @@ def _validate_path(file_path: str) -> None:
         raise NoFilesError(f"Path traversal not allowed: {file_path}")
 
 
-@router.post("/scan", response_model=ScanResponse)
+@router.post("/scan", response_model=ScanResponse, response_model_exclude_none=True)
 async def scan(request: Request, body: ScanRequest, response: Response) -> ScanResponse:
     """소스 파일을 받아 멀티 도구 SAST 분석을 수행하고 SastFinding[]을 반환."""
     request_id = _get_request_id(request)
@@ -610,18 +610,6 @@ async def build(request: Request, response: Response, body: dict):
         result = await build_runner.build(project_dir, build_command, profile=bp,
                                           wrap_with_bear=wrap_with_bear,
                                           timeout=build_timeout)
-
-        if result.get("success"):
-            logger.info(
-                "Build completed",
-                extra={"requestId": request_id, "entries": result.get("entries"), "elapsedMs": result.get("elapsedMs")},
-            )
-        else:
-            logger.warning(
-                "Build failed: %s",
-                result.get("error"),
-                extra={"requestId": request_id},
-            )
 
         return result
 

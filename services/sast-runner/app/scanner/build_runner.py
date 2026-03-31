@@ -233,9 +233,10 @@ class BuildRunner:
 
         build_failed = proc.returncode != 0
 
-        if build_failed:
+        if build_failed and user_entry_count == 0:
+            # 완전 실패: compile_commands에 유효 항목 없음
             reason = "build exited with code %d" % proc.returncode
-            if user_entry_count == 0:
+            if entry_count > 0:
                 reason += " — compile_commands.json contains only CMake temporary entries"
             logger.warning(
                 "Build failed: %s (%d total entries, %d user entries, %dms)",
@@ -244,6 +245,25 @@ class BuildRunner:
             return {
                 "success": False,
                 "error": reason,
+                "compileCommandsPath": str(cc_path),
+                "entries": entry_count,
+                "userEntries": user_entry_count,
+                "exitCode": proc.returncode,
+                "buildOutput": build_output[-1000:],
+                "elapsedMs": elapsed,
+            }
+
+        if build_failed and user_entry_count > 0:
+            # 부분 실패: 빌드는 실패했지만 compile_commands에 유효 항목 있음 → S3가 활용 가능
+            reason = "build exited with code %d" % proc.returncode
+            logger.warning(
+                "Build failed (partial compile_commands available): %s (%d total entries, %d user entries, %dms)",
+                reason, entry_count, user_entry_count, elapsed,
+            )
+            return {
+                "success": False,
+                "error": reason,
+                "warning": "partial compile_commands available — %d user entries usable for SAST" % user_entry_count,
                 "compileCommandsPath": str(cc_path),
                 "entries": entry_count,
                 "userEntries": user_entry_count,

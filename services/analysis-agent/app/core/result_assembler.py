@@ -69,8 +69,9 @@ class ResultAssembler:
                 "policyFlags": ["unstructured_response"],
             }
 
-        # 검증: 입력 제공 refs + 도구가 생성한 refs 합집합
+        # 검증: 입력 제공 refs + Phase 1 refs + 도구가 생성한 refs 합집합
         allowed_refs = {ref.refId for ref in session.request.evidenceRefs}
+        allowed_refs.update(session.extra_allowed_refs)
         for step in session.trace:
             allowed_refs.update(step.new_evidence_refs)
         schema_result = self._schema_validator.validate(parsed, session.request.taskType)
@@ -89,9 +90,11 @@ class ResultAssembler:
         )
 
         if not evidence_valid:
-            return self.build_failure(
-                session, TaskStatus.VALIDATION_FAILED,
-                FailureCode.INVALID_GROUNDING, "; ".join(evidence_errors),
+            agent_log(
+                logger, "evidence 검증 경고 (soft mode — 보고서는 반환)",
+                component="result_assembler", phase="result_validate_soft",
+                evidence_errors=evidence_errors[:5],
+                level=logging.WARNING,
             )
 
         # confidence

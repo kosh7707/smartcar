@@ -20,6 +20,8 @@
 - `MockEcu` 제거 → 인터페이스를 `adapter-client.ts`로 인라인
 - `IRuleDAO`, `makeRule()`, 빈 `rules/` 디렉토리, stale dist 산출물 제거
 - `db-stats.sh` 전면 갱신 (9→18 테이블 조회)
+- S3 통합 테스트 완료 대응: 파이프라인 격리 경로(`target.sourcePath`) 사용, Build Agent 경로 수정, 부분 빌드 처리, PoC에 `projectPath` 추가
+- log-analyzer 토큰 절감 (메시지 축약, 중복 그룹핑, max_lines)
 
 ### DB hot-reload 함정
 

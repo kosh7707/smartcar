@@ -47,6 +47,27 @@
   font-weight: var(--weight-medium);
 }
 
+.history-item-duration {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  background: var(--surface-2);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.history-item-id {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+
+.history-item-findings {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
 .history-item-files {
   font-size: var(--text-sm);
   color: var(--text-tertiary);

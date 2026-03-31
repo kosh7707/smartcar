@@ -110,7 +110,9 @@ export class PipelineOrchestrator {
     requestId?: string,
     signal?: AbortSignal,
   ): Promise<void> {
-    const scanPath = path.join(projectPath, target.relativePath);
+    // 격리된 서브프로젝트 경로 우선 사용 (없으면 원본 프로젝트 내 상대경로)
+    const scanPath = target.sourcePath ?? path.join(projectPath, target.relativePath);
+    const isIsolated = !!target.sourcePath;
     const kbProjectId = `${projectId}:${target.name}`;
 
     // ── Step 0: Build Resolve (S3 Build Agent) ──
@@ -124,13 +126,13 @@ export class PipelineOrchestrator {
             taskId: `resolve-${crypto.randomUUID().slice(0, 8)}`,
             context: {
               trusted: {
-                projectPath,
-                targetPath: target.relativePath,
+                projectPath: scanPath,
+                targetPath: isIsolated ? "." : target.relativePath,
                 targetName: target.name,
                 targets: [
                   {
                     name: target.name,
-                    path: target.relativePath,
+                    path: isIsolated ? "." : target.relativePath,
                     buildSystem: target.buildSystem ?? "cmake",
                     buildFiles: [],
                   },
@@ -204,20 +206,36 @@ export class PipelineOrchestrator {
     );
 
     if (!buildResult.success) {
+      if (buildResult.entries && buildResult.entries > 0 && buildResult.compileCommandsPath) {
+        // 부분 빌드 — compile_commands는 있으므로 SAST 진행 가능
+        logger.warn(
+          { targetId: target.id, entries: buildResult.entries, requestId },
+          "Partial build — continuing with partial compile_commands",
+        );
+        this.buildTargetDAO.updatePipelineState(target.id, {
+          status: "built",
+          compileCommandsPath: buildResult.compileCommandsPath,
+          buildLog: buildResult.buildLog ?? buildResult.error,
+          lastBuiltAt: new Date().toISOString(),
+        });
+        this.updateStatus(projectId, target, "built", `부분 빌드 (${buildResult.entries} entries) — SAST 진행`);
+      } else {
+        // 완전 실패
+        this.buildTargetDAO.updatePipelineState(target.id, {
+          status: "build_failed",
+          buildLog: buildResult.buildLog ?? buildResult.error,
+        });
+        this.updateStatus(projectId, target, "build_failed", `빌드 실패: ${buildResult.error}`);
+        throw new PipelineStepError(`Build failed for ${target.name}: ${buildResult.error}`);
+      }
+    } else {
       this.buildTargetDAO.updatePipelineState(target.id, {
-        status: "build_failed",
-        buildLog: buildResult.buildLog ?? buildResult.error,
+        status: "built",
+        compileCommandsPath: buildResult.compileCommandsPath,
+        lastBuiltAt: new Date().toISOString(),
       });
-      this.updateStatus(projectId, target, "build_failed", `빌드 실패: ${buildResult.error}`);
-      throw new PipelineStepError(`Build failed for ${target.name}: ${buildResult.error}`);
+      this.updateStatus(projectId, target, "built", `빌드 완료 (${buildResult.entries ?? 0} entries)`);
     }
-
-    this.buildTargetDAO.updatePipelineState(target.id, {
-      status: "built",
-      compileCommandsPath: buildResult.compileCommandsPath,
-      lastBuiltAt: new Date().toISOString(),
-    });
-    this.updateStatus(projectId, target, "built", `빌드 완료 (${buildResult.entries ?? 0} entries)`);
 
     if (signal?.aborted) return;
 

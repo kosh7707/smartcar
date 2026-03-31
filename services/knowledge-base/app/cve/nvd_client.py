@@ -630,7 +630,10 @@ class NvdClient:
                 })
 
         except httpx.HTTPStatusError as e:
-            logger.error("NVD API 오류: %s", e)
+            if e.response.status_code == 404:
+                logger.warning("NVD 검색 결과 없음: %s %s", name, version or "")
+            else:
+                logger.error("NVD API 오류 (%d): %s", e.response.status_code, e)
             return {"library": name, "version": version, "cves": [], "total": 0, "error": str(e)}
         except Exception as e:
             logger.error("NVD 조회 실패: %s", e)
@@ -705,7 +708,7 @@ class NvdClient:
         final = []
         for lib, result in zip(libraries, results):
             if isinstance(result, Exception):
-                logger.error("batch_lookup 실패: %s — %s", lib["name"], result)
+                logger.warning("batch_lookup 개별 실패: %s — %s", lib["name"], result)
                 final.append({
                     "library": lib["name"],
                     "version": lib["version"],

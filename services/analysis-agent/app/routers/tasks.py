@@ -200,10 +200,24 @@ async def _handle_deep_analyze(request: TaskRequest) -> TaskSuccessResponse | Ta
             prompt_tokens=100, completion_tokens=50,
         ))
 
+    # Phase 1에서 생성한 evidence refs (SAST findings 기반)
+    phase1_refs = []
+    for i, f in enumerate(phase1_result.sast_findings[:20]):
+        loc = f.get("location", {}) if isinstance(f, dict) else {}
+        rule = f.get("ruleId", f"finding-{i}") if isinstance(f, dict) else f"finding-{i}"
+        phase1_refs.append({
+            "refId": f"eref-sast-{rule}",
+            "artifactType": "sast-finding",
+            "locator": {"file": loc.get("file", ""), "line": loc.get("line", 0)},
+        })
+
+    all_evidence_refs = [ref.model_dump(mode="json") for ref in request.evidenceRefs] + phase1_refs
+    session.extra_allowed_refs = {r["refId"] for r in phase1_refs}
+
     # 프롬프트 조립 — Phase 1 결과를 포함
     system_prompt, user_message = build_phase2_prompt(
         phase1_result, request.context.trusted,
-        evidence_refs=[ref.model_dump(mode="json") for ref in request.evidenceRefs],
+        evidence_refs=all_evidence_refs,
     )
     mm = MessageManager(
         system_prompt=system_prompt,
@@ -329,7 +343,9 @@ async def _handle_generate_poc(request: TaskRequest) -> TaskSuccessResponse | Ta
     kb_context_lines = []
 
     async with httpx.AsyncClient(base_url=settings.kb_endpoint, timeout=10.0) as kb:
-        headers = {"X-Request-Id": request_id} if request_id else {}
+        headers: dict[str, str] = {"X-Timeout-Ms": "10000"}
+        if request_id:
+            headers["X-Request-Id"] = request_id
 
         # 1. 호출자 체인 조회 (claim.location에서 함수명 추출)
         target_func = _extract_function_from_claim(claim)
@@ -365,20 +381,24 @@ async def _handle_generate_poc(request: TaskRequest) -> TaskSuccessResponse | Ta
             try:
                 resp = await kb.post(
                     "/v1/search",
-                    json={"query": cwe_id, "top_k": 3, "source_filter": ["CWE", "CAPEC"]},
+                    json={"query": cwe_id, "source_filter": ["CWE", "CAPEC"]},
                     headers=headers,
                 )
-                resp.raise_for_status()
-                hits = resp.json().get("hits", [])
-                if hits:
-                    kb_context_lines.append(f"## 위협 지식 ({cwe_id})")
-                    for h in hits:
-                        kb_context_lines.append(
-                            f"- [{h.get('source', '?')}/{h.get('id', '?')}] {h.get('title', '?')}"
-                        )
-                    kb_context_lines.append("")
+                if resp.status_code != 200:
+                    detail = resp.text[:200] if resp.text else str(resp.status_code)
+                    agent_log(logger, f"PoC KB search 실패: {resp.status_code} — {detail}",
+                              component="generate_poc", phase="kb_error", level=logging.WARNING)
+                else:
+                    hits = resp.json().get("hits", [])
+                    if hits:
+                        kb_context_lines.append(f"## 위협 지식 ({cwe_id})")
+                        for h in hits:
+                            kb_context_lines.append(
+                                f"- [{h.get('source', '?')}/{h.get('id', '?')}] {h.get('title', '?')}"
+                            )
+                        kb_context_lines.append("")
             except Exception as e:
-                agent_log(logger, f"PoC KB search 실패: {e}",
+                agent_log(logger, f"PoC KB search 예외: {e}",
                           component="generate_poc", phase="kb_error", level=logging.WARNING)
 
     kb_context = "\n".join(kb_context_lines) if kb_context_lines else "(KB 컨텍스트 없음)"

@@ -239,7 +239,9 @@ clang AST 기반 함수+호출 관계:
 
 - `wrapWithBear`: 기본 true. false면 bear 없이 순수 빌드 실행
 - `userEntries` 필드: CMakeFiles/ 임시 항목 자동 필터링
-- exitCode != 0 -> `success: false`
+- `exitCode != 0` → 항상 `success: false`
+- `exitCode != 0` + `userEntries > 0` → `success: false` + `warning` 필드 (부분 compile_commands 활용 가능)
+- `/v1/scan` 응답: `response_model_exclude_none` — null 필드는 JSON에서 생략
 
 ### SDK environment-setup
 

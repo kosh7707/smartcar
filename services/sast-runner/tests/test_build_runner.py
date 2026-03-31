@@ -116,8 +116,8 @@ class TestBuild:
         assert result["userEntries"] == 1
 
     @pytest.mark.asyncio
-    async def test_failure_when_exit_nonzero(self, runner, tmp_path):
-        """exitCode=1 + entries > 0 → success: false (핵심 버그 수정)."""
+    async def test_failure_with_partial_entries(self, runner, tmp_path):
+        """exitCode=1 + user entries > 0 → success: false + warning (부분 compile_commands)."""
         cc = [{"file": "src/main.c", "command": "gcc -c src/main.c", "directory": str(tmp_path)}]
         (tmp_path / "compile_commands.json").write_text(json.dumps(cc))
 
@@ -129,6 +129,8 @@ class TestBuild:
         assert result["exitCode"] == 1
         assert result["entries"] == 1
         assert result["userEntries"] == 1
+        assert "warning" in result
+        assert "partial" in result["warning"]
         assert "compileCommandsPath" in result
 
     @pytest.mark.asyncio

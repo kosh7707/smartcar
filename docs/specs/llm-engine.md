@@ -89,6 +89,21 @@
 | 양자화 | — | FP8 (네이티브) | **GPTQ-Int4 (Expert=INT4, Attention=BF16)** |
 | Thinking 제어 | `/api/chat`에서만 | OpenAI API | **OpenAI API** |
 
+### 모델 행동 특성 (통합 테스트 관측, 2026-03-30)
+
+**tool_calls 선호 경향**
+
+- `tools`가 제공되고 `tool_choice="auto"`일 때, **73.9% 확률**로 `finish_reason=tool_calls` 반환 (46회 호출 중 34회)
+- 자발적 content 전환(보고서 작성)은 비결정적이며 낮은 확률
+- `tools`가 없는 요청은 100% `finish_reason=stop` (content) 반환
+- **대응**: 호출자가 적절한 시점에 `tools` 제거 또는 `tool_choice="none"` 설정으로 content 전환을 강제해야 한다
+
+**evidence ref 환각**
+
+- 프롬프트에 제공된 예시 ref(`eref-sast-00` 등)를 실제 도구 반환 ref 대신 복사하는 경향
+- 실제 도구 반환값의 ref를 무시하고 텍스트에서 임의 ref를 생성하는 경우 있음
+- **대응**: 호출자 측 evidence ref 검증 필수 (soft/hard 모드)
+
 ---
 
 ## 4. 추론 서버: vLLM (spark-vllm-docker)

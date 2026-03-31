@@ -222,6 +222,7 @@ export function createAnalysisRouter(
     const requestId = req.requestId;
     const taskId = `poc-${crypto.randomUUID().slice(0, 8)}`;
 
+    const projectPath = sourceService.getProjectPath(projectId) ?? undefined;
     const agentResponse = await agentClient.submitTask(
       {
         taskType: "generate-poc",
@@ -230,6 +231,7 @@ export function createAnalysisRouter(
           trusted: {
             objective: `${finding.title} PoC 생성`,
             projectId,
+            projectPath,
             claim: {
               statement: finding.description,
               detail: finding.detail,

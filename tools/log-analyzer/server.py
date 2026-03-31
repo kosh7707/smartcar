@@ -35,6 +35,8 @@ from log_reader import (
     extract_turn_token_growth,
     search_by_message,
     format_elapsed,
+    truncate_msg,
+    dedup_messages,
 )
 
 # ── 설정 ──
@@ -44,11 +46,13 @@ mcp = FastMCP("AEGIS Log Analyzer")
 
 
 @mcp.tool()
-def trace_request(request_id: str) -> str:
+def trace_request(request_id: str, max_lines: int = 60) -> str:
     """특정 requestId의 전 서비스 파이프라인을 시간순 워터폴로 추적한다.
+    응답이 긴 경우 자동 축약 (메시지 잘림, 중복 축약, max_lines 제한).
 
     Args:
         request_id: 추적할 X-Request-Id 값 (e.g. "req-abc123")
+        max_lines: 최대 워터폴 라인 수 (기본 60). 0이면 제한 없음.
     """
     logs = read_all_logs(LOGS_DIR)
     entries = filter_by_request_id(logs, request_id)
@@ -56,7 +60,26 @@ def trace_request(request_id: str) -> str:
     if not entries:
         return f"requestId '{request_id}'에 대한 로그를 찾지 못했습니다.\n검색 대상: {LOGS_DIR}"
 
-    waterfall = build_waterfall(entries)
+    total_count = len(entries)
+
+    # 중복 메시지 축약
+    deduped = dedup_messages(entries)
+    compact_entries = []
+    for entry, count in deduped:
+        e = dict(entry)
+        if count > 1:
+            e["msg"] = f"(x{count}) {truncate_msg(e.get('msg', ''), 100)}"
+        else:
+            e["msg"] = truncate_msg(e.get("msg", ""), 120)
+        compact_entries.append(e)
+
+    # max_lines 적용
+    truncated = False
+    if max_lines > 0 and len(compact_entries) > max_lines:
+        compact_entries = compact_entries[:max_lines]
+        truncated = True
+
+    waterfall = build_waterfall(compact_entries)
     services = sorted(set(e.get("service", "?") for e in entries))
 
     result = (
@@ -65,6 +88,9 @@ def trace_request(request_id: str) -> str:
         f"{'═' * 80}\n"
         f"{waterfall}"
     )
+
+    if truncated:
+        result += f"\n... (전체 {total_count}건 중 상위 {max_lines}건 표시)"
 
     # 턴별 토큰 증가 추적 (LLM exchange가 있는 경우)
     turns = extract_turn_token_growth(logs, request_id)
@@ -116,21 +142,27 @@ def search_errors(
         svc_info = f" (service={service})" if service else ""
         return f"최근 {since_minutes}분 내 level>={min_level} 로그 없음{svc_info}."
 
-    lines = []
+    total_count = len(errors)
     level_names = {20: "DEBUG", 30: "INFO", 40: "WARN", 50: "ERROR", 60: "FATAL"}
-    for e in errors:
+
+    # 중복 그룹핑
+    deduped = dedup_messages(errors)
+
+    lines = []
+    for e, count in deduped:
         lvl = e.get("level", "?")
         lvl_name = level_names.get(lvl, str(lvl)) if isinstance(lvl, int) else str(lvl)
-        ts = e.get("time", 0)
         svc = e.get("service", "?")
-        msg = e.get("msg", "")
+        msg = truncate_msg(e.get("msg", ""), 150)
         rid = e.get("requestId", "")
 
-        lines.append(f"[{lvl_name:>5}] {svc:<14} {msg}")
+        count_mark = f" (x{count})" if count > 1 else ""
+        line = f"[{lvl_name:>5}] {svc:<14} {msg}{count_mark}"
         if rid:
-            lines[-1] += f"  (requestId: {rid})"
+            line += f"  (requestId: {rid})"
+        lines.append(line)
 
-    return f"최근 {since_minutes}분, level>={min_level}: {len(errors)}건\n{'─' * 80}\n" + "\n".join(lines)
+    return f"최근 {since_minutes}분, level>={min_level}: {total_count}건 ({len(deduped)}개 패턴)\n{'─' * 80}\n" + "\n".join(lines)
 
 
 @mcp.tool()
@@ -248,21 +280,27 @@ def search_logs(
         svc_info = f" (service={service})" if service else ""
         return f"'{query}' 검색 결과 없음 (최근 {since_minutes}분, level>={min_level}{svc_info})."
 
+    total_count = len(matched)
     level_names = {20: "DEBUG", 30: "INFO", 40: "WARN", 50: "ERROR", 60: "FATAL"}
+
+    # 중복 그룹핑
+    deduped = dedup_messages(matched)
+
     lines = []
-    for e in matched:
+    for e, count in deduped:
         lvl = e.get("level", "?")
         lvl_name = level_names.get(lvl, str(lvl)) if isinstance(lvl, int) else str(lvl)
         svc = e.get("service", "?")
-        msg = e.get("msg", "")
+        msg = truncate_msg(e.get("msg", ""), 150)
         rid = e.get("requestId", "")
-        line = f"[{lvl_name:>5}] {svc:<14} {msg}"
+        count_mark = f" (x{count})" if count > 1 else ""
+        line = f"[{lvl_name:>5}] {svc:<14} {msg}{count_mark}"
         if rid:
             line += f"  (rid: {rid})"
         lines.append(line)
 
     return (
-        f"'{query}' 검색: {len(matched)}건 (최근 {since_minutes}분)\n"
+        f"'{query}' 검색: {total_count}건 → {len(deduped)}개 패턴 (최근 {since_minutes}분)\n"
         f"{'─' * 80}\n" + "\n".join(lines)
     )
 

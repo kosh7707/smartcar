@@ -237,19 +237,25 @@ scripts/common/aegis-trace.sh <requestId> [--errors-only] [--service s3,s7]
 
 ### 도구 목록 (6개)
 
-#### `trace_request(request_id)`
+#### `trace_request(request_id, max_lines=60)`
 전 서비스 파이프라인을 시간순 워터폴로 추적. LLM exchange가 있으면 턴별 프롬프트 토큰 증가도 자동 표시.
+**토큰 절감**: 메시지 자동 축약 (120자), 동일 패턴 중복 `(xN)` 축약, `max_lines` 초과 시 자동 잘림.
 
 ```
 trace_request("integ-1774504776-analyze")
 → 워터폴 + "Turn 1: prompt=2,368 (+2,368) ... Turn 3: prompt=23,818 (+15,088) ← 폭발 지점"
+
+trace_request("e2e-build-test", max_lines=30)
+→ 상위 30건만 표시 + "전체 158건 중 상위 30건 표시"
 ```
 
 #### `search_errors(since_minutes=60, service=None, request_id=None, min_level=50, limit=20)`
 최근 에러/경고 로그 검색. `min_level=40`으로 WARN까지 포함 가능.
+**토큰 절감**: 동일 패턴 자동 그룹핑 (`"expiresAt 경고 5건" → 1줄 (x5)`), 메시지 150자 잘림.
 
 #### `search_logs(query, since_minutes=1440, service=None, min_level=20, limit=30)`
 로그 메시지(msg) full-text 검색 (case-insensitive). 키워드로 특정 이벤트를 빠르게 탐색.
+**토큰 절감**: 동일 패턴 그룹핑 + 메시지 150자 잘림. 헤더에 "N건 → M개 패턴" 표시.
 
 ```
 search_logs("OOM", since_minutes=1440)

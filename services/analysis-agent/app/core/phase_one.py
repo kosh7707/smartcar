@@ -268,7 +268,7 @@ class Phase1Executor:
         result.sast_duration_ms = scan_data.get("execution", {}).get("elapsedMs", 0)
 
         # S4 v0.7.0+: partial 상태 도구 + timeout 파일 수 추출
-        for tr in scan_data.get("execution", {}).get("toolResults", []):
+        for tr in scan_data.get("execution", {}).get("toolResults", {}).values():
             if tr.get("status") == "partial":
                 result.sast_partial_tools.append(tr.get("toolId", "unknown"))
                 result.sast_timed_out_files += tr.get("timedOutFiles", 0)
@@ -411,7 +411,7 @@ class Phase1Executor:
                 result.sast_stats = data.get("stats", {})
 
                 # S4 v0.7.0+: partial 상태 도구 + timeout 파일 수 추출
-                for tr in data.get("execution", {}).get("toolResults", []):
+                for tr in data.get("execution", {}).get("toolResults", {}).values():
                     if tr.get("status") == "partial":
                         result.sast_partial_tools.append(tr.get("toolId", "unknown"))
                         result.sast_timed_out_files += tr.get("timedOutFiles", 0)
@@ -891,12 +891,12 @@ def build_phase2_prompt(
         '    {\n'
         '      "statement": "취약점 요약 (1문장)",\n'
         '      "detail": "상세 분석: 공격 경로, 영향 범위, 코드 흐름, 악용 시나리오를 포함한 깊이 있는 설명",\n'
-        '      "supportingEvidenceRefs": ["eref-file-00"],\n'
+        '      "supportingEvidenceRefs": ["(도구가 반환한 실제 refId)"],\n'
         '      "location": "src/파일.cpp:줄번호"\n'
         "    }\n"
         "  ],\n"
         '  "caveats": ["분석의 한계, 불확실성, 수동 확인이 필요한 사항"],\n'
-        '  "usedEvidenceRefs": ["eref-file-00", "eref-sast-00"],\n'
+        '  "usedEvidenceRefs": ["(도구가 반환한 실제 refId들)"],\n'
         '  "suggestedSeverity": "critical|high|medium|low|info",\n'
         '  "needsHumanReview": true,\n'
         '  "recommendedNextSteps": ["후속 조치"],\n'
@@ -905,7 +905,10 @@ def build_phase2_prompt(
         "```\n\n"
         "## 규칙\n"
         "- summary, claims, caveats, usedEvidenceRefs는 **필수**이다.\n"
-        "- claims[].supportingEvidenceRefs에는 [사용 가능한 Evidence Refs]에 나열된 refId만 사용하라.\n"
+        "- claims[].supportingEvidenceRefs와 usedEvidenceRefs에는 **도구가 반환한 refId만** 사용하라.\n"
+        "  - 도구 호출 결과의 `new_evidence_refs` 목록에 있는 refId를 사용하라 (예: `eref-caller-main`, `eref-knowledge-CWE-78`, `eref-sast-cmd-injection`).\n"
+        "  - 아래 [사용 가능한 Evidence Refs]에 나열된 refId도 사용 가능하다.\n"
+        "  - **존재하지 않는 refId를 임의로 만들지 마라.** `eref-code-graph-00` 같은 패턴은 유효하지 않다.\n"
         "- 라이브러리 CVE는 claims가 아닌 caveats 또는 recommendedNextSteps에 언급하라.\n"
         "- **순수 JSON만 출력하라. ```json 코드 펜스, 인사말, 설명문을 절대 붙이지 마라. 첫 문자는 반드시 `{`이어야 한다.**\n"
     )

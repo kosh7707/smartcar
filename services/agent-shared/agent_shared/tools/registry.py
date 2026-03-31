@@ -60,3 +60,18 @@ class ToolRegistry:
 
     def list_names(self) -> list[str]:
         return list(self._schemas.keys())
+
+    def get_available_schemas(self, budget_manager) -> list[dict] | None:
+        """예산이 남은 tier의 도구만 OpenAI tools 형식으로 반환. 전부 소진 시 None."""
+        available = []
+        for s in self._schemas.values():
+            if budget_manager.can_make_call(s.cost_tier):
+                available.append({
+                    "type": "function",
+                    "function": {
+                        "name": s.name,
+                        "description": s.description,
+                        "parameters": s.parameters,
+                    },
+                })
+        return available if available else None

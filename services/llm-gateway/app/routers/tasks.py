@@ -246,6 +246,10 @@ async def chat_proxy(req: Request) -> Response:
     except Exception:
         pass
 
+    # finish_reason 추출 (교환 로그 + 성공 로그 공용)
+    _choices = resp_data.get("choices", [{}]) if resp_data else [{}]
+    _finish_reason = _choices[0].get("finish_reason", "?") if _choices else "?"
+
     _exchange_logger.info(json.dumps({
         "service": "s7-gateway",
         "level": 30,
@@ -258,6 +262,9 @@ async def chat_proxy(req: Request) -> Response:
         "status": "ok" if resp.status_code == 200 else f"HTTP_{resp.status_code}",
         "model": body.get("model", ""),
         "usage": resp_data.get("usage") if resp_data else None,
+        "finishReason": _finish_reason,
+        "toolChoice": body.get("tool_choice", "none"),
+        "toolCount": len(body.get("tools", [])),
     }, ensure_ascii=False))
 
     if resp.status_code == 200:
@@ -272,14 +279,14 @@ async def chat_proxy(req: Request) -> Response:
                 success=True,
                 duration_s=elapsed_ms / 1000,
             )
-        choices = resp_data.get("choices", [{}]) if resp_data else [{}]
-        finish_reason = choices[0].get("finish_reason", "?") if choices else "?"
         logger.info(
             "[chat proxy] 완료 requestId=%s, latencyMs=%d, model=%s, "
-            "promptTokens=%d, completionTokens=%d, finishReason=%s, hasTools=%s",
+            "promptTokens=%d, completionTokens=%d, finishReason=%s, "
+            "hasTools=%s, toolChoice=%s, toolCount=%d",
             request_id, elapsed_ms, body.get("model", ""),
             usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0),
-            finish_reason, bool(body.get("tools")),
+            _finish_reason, bool(body.get("tools")),
+            body.get("tool_choice", "none"), len(body.get("tools", [])),
             extra={"elapsedMs": elapsed_ms},
         )
     else:

@@ -1,7 +1,7 @@
 # Knowledge Base 명세서
 
 > **소유자**: S5
-> **최종 업데이트**: 2026-03-27
+> **최종 업데이트**: 2026-03-31
 
 ---
 
@@ -245,7 +245,7 @@ ETL에서 11개 공격 표면으로 분류 (`scripts/threat-db/taxonomy.py`):
 
 ```bash
 cd services/knowledge-base
-.venv/bin/python -m pytest tests/ -q  # 115 passed (2026-03-27 확인)
+.venv/bin/python -m pytest tests/ -q  # 119 passed (2026-03-31 확인)
 ```
 
 모든 테스트는 Neo4j 드라이버를 mock하여 실행 — Neo4j/Qdrant 미설치 환경에서도 통과.
@@ -258,7 +258,7 @@ cd services/knowledge-base
 | `test_code_graph_assembler.py` | 9 | CodeGraphAssembler (빈 쿼리, name_exact, vector, RRF, call_chain) |
 | `test_knowledge_assembler.py` | 15 | 위협 하이브리드 검색, 중복 제거, 소스 필터링, 배치, RRF |
 | `test_nvd_client.py` | 37 | 버전 매칭, 캐시, CPE 추론, 배치 병렬, EPSS, KEV, risk_score, KB 보강, 캐시 영속화 |
-| `test_project_memory_service.py` | 14 | 메모리 CRUD, 타입 검증, JSON 손상 처리, lifecycle |
+| `test_project_memory_service.py` | 18 | 메모리 CRUD, 타입 검증, JSON 손상 처리, lifecycle, 센티넬, 마이그레이션 |
 | `test_api_error_responses.py` | 10 | 에러 포맷, health/ready, HTTPException 핸들러 |
 
 ---

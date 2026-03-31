@@ -195,7 +195,7 @@ Phase 0 완료 후 `generate_initial_script()`가 빌드 시스템 유형에 따
 | `write_file` | CHEAP | `build-aegis/` 안에 파일 생성 | `build-aegis/` 하위만 허용, 내용 안전성 검사 |
 | `edit_file` | CHEAP | `build-aegis/` 내 에이전트가 생성한 파일 수정 | 전체 덮어쓰기, 에이전트 생성 파일만, 내용 안전성 검사 |
 | `delete_file` | CHEAP | `build-aegis/` 내 에이전트가 생성한 파일 삭제 | 에이전트 생성 파일만 |
-| `try_build` | EXPENSIVE | S4에 빌드 명령어 전송하여 실행 | 금지 명령어 검사, bear 자동 제거, 실패 시 에러 분류 |
+| `try_build` | EXPENSIVE | S4에 빌드 명령어 전송하여 실행 | 금지 명령어 검사, bear 자동 제거, 실패 시 에러 분류, 부분 빌드 감지 (`userEntries > 0`) |
 
 > `list_files`를 도구로 제공하여 과도한 `read_file` 사용을 방지한다. LLM은 프로젝트 전체 구조를 한 번의 호출로 파악할 수 있다.
 

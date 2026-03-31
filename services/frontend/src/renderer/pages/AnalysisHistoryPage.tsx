@@ -5,7 +5,7 @@ import { Clock } from "lucide-react";
 import { fetchProjectRuns, logError } from "../api/client";
 import { useToast } from "../contexts/ToastContext";
 import { PageHeader, EmptyState, ListItem, Spinner } from "../components/ui";
-import { formatDateTime } from "../utils/format";
+import { formatDateTime, formatUptime } from "../utils/format";
 import { MODULE_META } from "../constants/modules";
 import "./AnalysisHistoryPage.css";
 
@@ -81,6 +81,9 @@ export const AnalysisHistoryPage: React.FC = () => {
         ) : (
           filtered.map((r) => {
             const meta = MODULE_META[r.module] ?? { label: r.module, icon: null };
+            const durationSec = r.startedAt && r.endedAt
+              ? (new Date(r.endedAt).getTime() - new Date(r.startedAt).getTime()) / 1000
+              : 0;
             return (
               <ListItem
                 key={r.id}
@@ -99,7 +102,11 @@ export const AnalysisHistoryPage: React.FC = () => {
                     {r.findingCount > 0 && (
                       <span className="history-item-findings">Finding {r.findingCount}건</span>
                     )}
+                    {durationSec > 0 && (
+                      <span className="history-item-duration">{formatUptime(durationSec)}</span>
+                    )}
                   </div>
+                  <div className="history-item-id">{r.id}</div>
                 </div>
               </ListItem>
             );

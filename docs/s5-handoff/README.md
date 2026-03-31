@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S5(Knowledge Base) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-28 (인수인계서 분할 구조 전환)**
+> **마지막 업데이트: 2026-03-31 (통합 테스트 완료 + expiresAt 수정 + 로그 레벨 보정)**
 
 ---
 
@@ -162,7 +162,7 @@ curl http://localhost:8002/v1/health
 ## 7. 테스트
 
 ```bash
-.venv/bin/python -m pytest tests/ -q  # 115 passed
+.venv/bin/python -m pytest tests/ -q  # 119 passed
 ```
 
 | 테스트 파일 | 건수 | 대상 |
@@ -173,7 +173,7 @@ curl http://localhost:8002/v1/health
 | test_code_graph_assembler.py | 9 | CodeGraphAssembler |
 | test_knowledge_assembler.py | 15 | 위협 하이브리드 검색 + RRF |
 | test_nvd_client.py | 37 | CVE 조회 + EPSS/KEV/risk_score |
-| test_project_memory_service.py | 14 | 메모리 CRUD + lifecycle |
+| test_project_memory_service.py | 18 | 메모리 CRUD + lifecycle + 센티넬 + 마이그레이션 |
 | test_api_error_responses.py | 10 | 에러 포맷 + health/ready |
 
 ---
@@ -187,4 +187,4 @@ curl http://localhost:8002/v1/health
 | KB 명세서 | `docs/specs/knowledge-base.md` |
 | **아키텍처 상세** | `docs/s5-handoff/architecture.md` |
 | **로드맵** | `docs/s5-handoff/roadmap.md` |
-| **세션 로그** | `docs/s5-handoff/session-{1~12}.md` |
+| **세션 로그** | `docs/s5-handoff/session-{1~13}.md` |

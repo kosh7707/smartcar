@@ -16,6 +16,7 @@ class AgentSession:
         self.budget = budget
         self.turns: list[TurnRecord] = []
         self.trace: list[ToolTraceStep] = []
+        self.extra_allowed_refs: set[str] = set()  # Phase 1 생성 refs 등
         self._start_time = time.monotonic()
         self._termination_reason = ""
 

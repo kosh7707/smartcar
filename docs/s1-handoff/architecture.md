@@ -135,21 +135,59 @@ Finding 상세 표시 순서: 현재 객체 → 상태 → 결과 → 근거(evi
 
 ---
 
-## 4. 실행 방법
+## 4. Playwright E2E 테스트
+
+### 구조
+
+```
+services/frontend/
+├── playwright.config.ts               Playwright 설정 (Chromium, webServer :5173)
+├── e2e/
+│   ├── tsconfig.json                  E2E 전용 TypeScript 설정
+│   ├── fixtures/
+│   │   ├── base.ts                   mockApi 자동 주입 test fixture
+│   │   └── mock-data.ts             한국어 모킹 데이터 (프로젝트, Finding, Gate, Approval 등)
+│   ├── helpers/
+│   │   ├── api-mocker.ts            page.route() 기반 백엔드 API 가로채기
+│   │   └── navigation.ts            HashRouter 네비게이션 헬퍼
+│   ├── specs/
+│   │   ├── navigation.spec.ts        라우팅/사이드바/페이지 전환 (13개)
+│   │   ├── visual-qa.spec.ts         12개 페이지 라이트 스크린샷 (12개)
+│   │   ├── interactions.spec.ts      폼/필터/다이얼로그 동작 (14개)
+│   │   ├── theme.spec.ts             테마 전환/유지 (4개)
+│   │   ├── responsive.spec.ts        반응형 레이아웃 (5개)
+│   │   ├── visual-qa-dark.spec.ts    다크 테마 스크린샷 (6개)
+│   │   └── qa-finding-detail.spec.ts Finding 상세 회귀 (1개)
+│   ├── __screenshots__/              스크린샷 베이스라인 (git 커밋 대상)
+│   └── qa-captures/                  QA 세션 캡처 (임시)
+```
+
+### 핵심 설계
+
+- **백엔드 없이 동작**: `page.route()`로 `localhost:3000` 요청만 가로챔. Vite 소스 파일(`/src/renderer/api/...`)은 통과.
+- **Pattern A vs B**: `fetchProjectOverview` 등은 raw JSON 반환 (래퍼 없음), `fetchProjectRuns` 등은 `.data` 추출. 모킹 시 구분 필수.
+- **QA 세션 분리**: `qa-guide.md` 참조. 코드를 읽지 않고 Playwright로 시각/UX QA 수행.
+
+---
+
+## 5. 실행 방법
 
 > **서버를 직접 실행하지 마라.** 기동/종료는 사용자에게 요청할 것.
 
 ```bash
-./scripts/start.sh                    # 전체 기동
-cd services/frontend && npm run dev:renderer  # 프론트만 (:5173)
-cd services/frontend && npm test      # 테스트 (347건)
+./scripts/start.sh                              # 전체 기동
+cd services/frontend && npm run dev:renderer    # 프론트만 (:5173)
+cd services/frontend && npm test                # vitest (347건)
+cd services/frontend && npm run test:e2e        # Playwright (88건, Vite 자동 기동)
+cd services/frontend && npm run test:e2e:headed # 브라우저 띄워서 실행
+cd services/frontend && npm run test:e2e:update-snapshots  # 스크린샷 기준선 갱신
 ```
 
 환경변수: `services/frontend/.env` → `VITE_BACKEND_URL`
 
 ---
 
-## 5. UI 컨벤션
+## 6. UI 컨벤션
 
 | 항목 | 규칙 |
 |------|------|

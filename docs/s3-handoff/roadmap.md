@@ -4,98 +4,20 @@
 
 ---
 
-## 다음 세션 목표: 에이전트 통합 테스트
+## 다음 세션 목표
 
-**목표**: 전 서비스 기동 → Build Agent 빌드 → Analysis Agent 정적 분석 → PoC 생성까지 E2E 검증.
-
-### 사전 준비
-
-1. **서비스 기동 확인**: S7(:8000) → S4(:9000) → S5(:8002, Neo4j 포함) → S3 Analysis(:8001) + Build(:8003)
-2. **테스트 대상 프로젝트**: RE100 (`~/projects/re100-gateway/`) — 12개 C 소스, CMake 빌드
-
-### 통합 테스트 시나리오
-
-#### 1. Build Agent E2E
-
-```bash
-# build-resolve: RE100 프로젝트 빌드 자동화
-curl -X POST http://localhost:8003/v1/tasks -H 'Content-Type: application/json' -d '{
-  "taskType": "build-resolve",
-  "taskId": "integ-build-01",
-  "context": {
-    "trusted": {
-      "projectPath": "/home/kosh/projects/re100-gateway",
-      "targetPath": ""
-    }
-  }
-}'
-```
-
-**검증 포인트**:
-- Phase 0 빌드 시스템 탐지 (cmake 예상)
-- `build-aegis-{shortId}/aegis-build.sh` 생성 확인
-- `generate_initial_script()` cmake 템플릿 활용 여부
-- try_build 성공 (exitCode=0)
-- 응답: `buildResult.success == true`, `audit.agentAudit.model_name` 포함
-
-#### 2. Analysis Agent E2E (deep-analyze)
-
-```bash
-# deep-analyze: RE100 전반 보안 분석
-curl -X POST http://localhost:8001/v1/tasks -H 'Content-Type: application/json' -d '{
-  "taskType": "deep-analyze",
-  "taskId": "integ-analyze-01",
-  "context": {
-    "trusted": {
-      "projectPath": "/home/kosh/projects/re100-gateway"
-    }
-  }
-}'
-```
-
-**검증 포인트**:
-- Phase 1: SAST findings + 코드 그래프(src/ 외 디렉토리 포함) + SCA + CVE + 위협 조회 + 위험 호출자
-- Phase 2: LLM claims 4건 이상, confidence > 0.5
-- evidence refs 검증: tool-generated refs(`eref-sast-*`, `eref-func-*`)가 allowed_refs에 포함
-- 위험 함수 추출: word boundary regex 동작 확인 (false positive 없음)
-- `audit.agentAudit.model_name` + `prompt_version` 포함
-- revisionHint 전달 (additive, S5 로그에서 확인)
-
-#### 3. PoC 생성 (generate-poc)
-
-```bash
-# deep-analyze 결과의 첫 번째 claim에 대해 PoC 생성
-curl -X POST http://localhost:8001/v1/tasks -H 'Content-Type: application/json' -d '{
-  "taskType": "generate-poc",
-  "taskId": "integ-poc-01",
-  "context": {
-    "trusted": {
-      "projectPath": "/home/kosh/projects/re100-gateway",
-      "targetClaim": { ... }
-    }
-  }
-}'
-```
-
-**검증 포인트**:
-- PoC 코드 생성 (Python/C)
-- KB 위협 지식 참조
-
-### 이번 세션 미완료 백로그 (통합 테스트와 함께 처리)
+### 백로그
 
 1. **API 계약서 갱신**: `docs/api/analysis-agent-api.md`에 `audit.agentAudit.model_name`/`prompt_version` 필드 추가
-2. **Build Agent 초기 스크립트 라우터 연동**: Phase 0 `generate_initial_script()` 결과를 `build-aegis-{shortId}/aegis-build.sh`에 기록 + 프롬프트에 "템플릿 스크립트 생성됨" 안내. 코드는 `phase_zero.py`에 구현 완료, `tasks.py` 연동만 남음
-3. **MCP 로그 도구 활용**: 통합 테스트 후 `trace_request`, `llm_stats`, `search_errors`로 파이프라인 건강성 검증
+2. **S4 부분 빌드 활용 고도화**: `userEntries > 0`일 때 부분 compile_commands로 SAST 스캔 연계
+3. **대규모 프로젝트 분석 최적화**: 463 소스급 프로젝트에서 Phase 1 데이터 크기 제어 (현재 100K+ 토큰 → MAX_STEPS 초과)
+4. **evidence ref 환각 추가 개선**: soft mode 경고 0건 달성 (Phase 1 refs 주입으로 v3→v4에서 confidence 0.57→0.76 개선, 경고 1건 잔존)
 
-### 관측 도구
+### E2E 테스트 도구
 
-```bash
-# 통합 테스트 후 MCP 도구로 검증
-trace_request(request_id)      # 전 서비스 워터폴 추적
-search_errors(since_minutes=30) # 최근 에러 확인
-llm_stats(since_minutes=30)     # LLM 호출 통계
-service_stats("s3-agent")       # Agent 서비스 통계
-```
+- `scripts/e2e.sh` — 6개 모드 (build, analyze, poc, build-analyze, analyze-poc, all)
+- 대상: S2가 `uploads/{projectId}/{subprojectId}/`에 격리한 서브프로젝트 경로
+- 서브프로젝트는 **독립 빌드 가능**해야 함 (의존 헤더/라이브러리 포함 필수)
 
 ---
 
@@ -112,11 +34,13 @@ service_stats("s3-agent")       # Agent 서비스 통계
 
 - static-explain, dynamic-annotate, report-draft (레거시 → S7 담당으로 이관됨)
 
-### 3단계: Provenance / Audit / Trust — 부분 완료
+### 3단계: Provenance / Audit / Trust — 완료
 
-- provenance metadata (model_name, prompt_version 추가 완료)
-- budget / timeout / cache (구현 완료)
-- input trust labeling, confidence 산출 (구현 완료)
+- provenance metadata (model_name, prompt_version)
+- budget / timeout / cache
+- input trust labeling, confidence 산출
+- Phase 1 evidence refs 프롬프트 주입 + allowed_refs 연동
+- evidence 검증 soft mode
 
 ### 4단계: Planner + Safety — 미착수
 

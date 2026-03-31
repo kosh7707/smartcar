@@ -116,7 +116,10 @@ check_services() {
     esac
     for s in "${svcs[@]}"; do
         local n="${s%%:*}" u="${s#*:}"
-        if curl -sf "$u/v1/health" >/dev/null 2>&1; then
+        # KB는 /v1/ready로 Qdrant+Neo4j 준비 상태까지 확인
+        local endpoint="/v1/health"
+        [[ "$n" == "KB" ]] && endpoint="/v1/ready"
+        if curl -sf "$u$endpoint" >/dev/null 2>&1; then
             printf "  ${G}+${N} %s\n" "$n"
         else
             printf "  ${R}-${N} %s\n" "$n"; ok=false

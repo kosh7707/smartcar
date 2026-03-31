@@ -206,12 +206,12 @@ Phase 1 완료 후 `build_phase2_prompt()`가 결과를 시스템 프롬프트 +
 
 ```python
 BudgetState:
-    max_steps: 6              # 총 턴 수
-    max_completion_tokens: 2000  # LLM 생성 토큰 한도
-    max_cheap_calls: 3        # knowledge.search 등
-    max_medium_calls: 2       # code_graph.callers
+    max_steps: 12             # 총 턴 수
+    max_completion_tokens: 20000  # LLM 생성 토큰 한도
+    max_cheap_calls: 6        # knowledge.search 등
+    max_medium_calls: 4       # code_graph.callers
     max_expensive_calls: 1    # 향후 고비용 도구
-    max_consecutive_no_evidence: 2  # 증거 없는 턴 연속 한도
+    max_consecutive_no_evidence: 4  # 증거 없는 턴 연속 한도
 ```
 
 ### 종료 조건 (TerminationPolicy)
@@ -222,6 +222,19 @@ BudgetState:
 | `budget_exhausted` | 토큰 한도 도달 |
 | `timeout` | 전체 시간 초과 |
 | `no_evidence` | 연속 N턴 새 증거 없음 |
+| `all_tiers_exhausted` | 모든 도구 예산 소진 |
+
+### force_report 메커니즘
+
+- 도구 4회 도달 시 사전 경고: "잔여 N회" 메시지 주입
+- 도구 6회 도달 시 tools 제거 + 보고서 작성 강제
+- tier별 도구 필터링: 소진된 tier의 도구만 제거, 나머지는 유지 (`get_available_schemas`)
+
+### Evidence 검증
+
+- Phase 1 SAST findings에서 `eref-sast-{ruleId}` 생성 → 프롬프트 + allowed_refs 포함
+- Phase 2 도구 호출 시 `new_evidence_refs` 추가 → allowed_refs 합집합
+- **soft mode**: LLM이 허용되지 않은 ref를 사용해도 경고만 (보고서는 반환, `validation.evidenceValid=false`)
 | `all_tiers_exhausted` | 모든 tier의 도구 호출 한도 소진 |
 
 ### 중복 차단
