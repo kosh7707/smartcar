@@ -12,6 +12,24 @@ import {
 import { highlightCVEs } from "../../utils/cveHighlight";
 import "./AgentResultPanel.css";
 
+const TERMINATION_LABELS: Record<string, string> = {
+  content_returned: "정상 완료",
+  max_steps: "최대 스텝 도달",
+  budget_exhausted: "토큰 예산 소진",
+  timeout: "시간 초과",
+  no_new_evidence: "추가 증거 없음",
+  all_tiers_exhausted: "모든 도구 소진",
+  error: "오류",
+};
+
+function formatTerminationReason(reason: string): string {
+  if (reason.startsWith("llm_failure_partial:")) {
+    const code = reason.split(":").slice(1).join(":");
+    return `LLM 부분 실패 (${code})`;
+  }
+  return TERMINATION_LABELS[reason] ?? reason;
+}
+
 interface Props {
   analysisResult: AnalysisResult;
 }
@@ -245,7 +263,7 @@ export const AgentResultPanel: React.FC<Props> = ({ analysisResult }) => {
               {agentAudit.terminationReason && (
                 <div className="agent-audit-item">
                   <span className="agent-audit-item__label">종료 사유</span>
-                  <span className="agent-audit-item__value">{agentAudit.terminationReason}</span>
+                  <span className="agent-audit-item__value">{formatTerminationReason(agentAudit.terminationReason)}</span>
                 </div>
               )}
               {agentAudit.modelName && (

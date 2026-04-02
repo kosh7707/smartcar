@@ -225,7 +225,22 @@ export class AnalysisOrchestrator {
         },
       });
 
-      const agentResponse = await this.agentClient.submitTask(agentRequest, requestId, signal);
+      let agentResponse = await this.agentClient.submitTask(agentRequest, requestId, signal);
+
+      // 재시도: retryable 실패 시 1회 자동 재시도
+      if (!this.agentClient.isSuccess(agentResponse) && agentResponse.retryable && !signal?.aborted) {
+        logger.info({
+          analysisId, failureCode: agentResponse.failureCode,
+          target: targetInfo?.name, requestId,
+        }, "Retryable failure, attempting retry (1/1)");
+
+        this.broadcast(analysisId, {
+          type: "analysis-progress",
+          payload: { analysisId, phase: "deep_retrying", message: `${prefix}재시도 중...`, targetName: targetInfo?.name },
+        });
+
+        agentResponse = await this.agentClient.submitTask(agentRequest, requestId, signal);
+      }
 
       if (this.agentClient.isSuccess(agentResponse)) {
         const deepResult = this.buildDeepResult(`deep-${analysisId}`, projectId, agentResponse, startedAt, scaLibraries);
@@ -245,6 +260,7 @@ export class AnalysisOrchestrator {
           target: targetInfo?.name, requestId,
         }, "Deep phase completed");
       } else {
+        const isPartialFailure = agentResponse.failureCode?.startsWith("llm_failure_partial");
         const failedResult: AnalysisResult = {
           id: `deep-${analysisId}`,
           projectId,
@@ -252,7 +268,10 @@ export class AnalysisOrchestrator {
           status: "failed",
           vulnerabilities: [],
           summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 },
-          warnings: [{ code: agentResponse.failureCode, message: agentResponse.failureDetail }],
+          warnings: [
+            { code: agentResponse.failureCode, message: agentResponse.failureDetail },
+            ...(isPartialFailure ? [{ code: "PARTIAL_FAILURE", message: "LLM 실패로 부분 결과만 생성됨 (도구 결과 기반)" }] : []),
+          ],
           createdAt: startedAt,
         };
         this.analysisResultDAO.save(failedResult);
@@ -263,11 +282,13 @@ export class AnalysisOrchestrator {
             analysisId, phase: "deep",
             error: `[${agentResponse.failureCode}] ${agentResponse.failureDetail}`,
             retryable: agentResponse.retryable ?? false,
+            partial: isPartialFailure,
           },
         });
 
         logger.warn({
           analysisId, failureCode: agentResponse.failureCode,
+          partial: isPartialFailure,
           target: targetInfo?.name, requestId,
         }, "Deep phase failed: %s", agentResponse.failureDetail);
       }

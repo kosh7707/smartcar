@@ -120,7 +120,7 @@ export class PipelineOrchestrator {
       this.updateStatus(projectId, target, "resolving", "빌드 명령어 자동 탐색 중 (Build Agent)...");
 
       try {
-        const resolveResp = await this.buildAgentClient.submitTask(
+        let resolveResp = await this.buildAgentClient.submitTask(
           {
             taskType: "build-resolve",
             taskId: `resolve-${crypto.randomUUID().slice(0, 8)}`,
@@ -144,6 +144,17 @@ export class PipelineOrchestrator {
           requestId,
           signal,
         );
+
+        // 재시도: retryable 실패 시 1회 자동 재시도
+        if (!this.buildAgentClient.isSuccess(resolveResp) && resolveResp.retryable && !signal?.aborted) {
+          logger.info({ targetId: target.id, failureCode: resolveResp.failureCode }, "Retryable build failure, attempting retry (1/1)");
+          this.updateStatus(projectId, target, "resolving", "빌드 재시도 중...");
+          resolveResp = await this.buildAgentClient.submitTask(
+            { taskType: "build-resolve", taskId: `resolve-retry-${crypto.randomUUID().slice(0, 8)}`,
+              context: { trusted: { projectPath: scanPath, targetPath: isIsolated ? "." : target.relativePath, targetName: target.name,
+                targets: [{ name: target.name, path: isIsolated ? "." : target.relativePath, buildSystem: target.buildSystem ?? "cmake", buildFiles: [] }] } },
+              constraints: { timeoutMs: 600_000 } }, requestId, signal);
+        }
 
         if (this.buildAgentClient.isSuccess(resolveResp)) {
           const br = resolveResp.result.buildResult;

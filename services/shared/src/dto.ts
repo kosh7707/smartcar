@@ -390,7 +390,7 @@ export interface WsAnalysisProgress {
   type: "analysis-progress";
   payload: {
     analysisId: string;
-    phase: "quick_sast" | "quick_complete" | "deep_submitting" | "deep_analyzing" | "deep_complete";
+    phase: "quick_sast" | "quick_complete" | "deep_submitting" | "deep_analyzing" | "deep_retrying" | "deep_complete";
     message: string;
     /** 현재 처리 중인 빌드 타겟 이름 */
     targetName?: string;
@@ -422,6 +422,8 @@ export interface WsAnalysisError {
     phase: "quick" | "deep";
     error: string;
     retryable: boolean;
+    /** LLM 부분 실패 여부 (도구 결과는 존재하나 LLM 합성 실패) */
+    partial?: boolean;
   };
 }
 
