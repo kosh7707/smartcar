@@ -10,6 +10,8 @@ import os
 import time
 from datetime import datetime, timezone
 
+from agent_shared.llm.prompt_builder import SystemPromptBuilder
+
 import httpx
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
@@ -174,27 +176,48 @@ def _build_system_prompt(
             "- **이 타겟만 빌드하라.** 다른 디렉토리의 빌드는 시도하지 마라.\n\n"
         )
 
-    return (
+    builder = SystemPromptBuilder()
+
+    builder.add_section("역할",
         "당신은 AEGIS Build Agent입니다.\n"
-        "주어진 자동차 임베디드 C/C++ 프로젝트를 빌드하는 스크립트를 작성하는 것이 유일한 목표입니다.\n\n"
-        "## 최종 산출물\n"
+        "주어진 자동차 임베디드 C/C++ 프로젝트를 빌드하는 스크립트를 작성하는 것이 유일한 목표입니다."
+    )
+
+    builder.add_section("최종 산출물",
         f"1. `{build_subdir}/aegis-build.sh` — 프로젝트를 빌드하는 완전한 셸 스크립트\n"
-        f"2. `buildCommand` — 해당 스크립트를 실행하는 명령어 (예: `bash {build_source}/{build_subdir}/aegis-build.sh`)\n\n"
-        "## 절대 규칙\n"
+        f"2. `buildCommand` — 해당 스크립트를 실행하는 명령어 (예: `bash {build_source}/{build_subdir}/aegis-build.sh`)"
+    )
+
+    builder.add_section("절대 규칙",
         "1. **소스 코드를 절대 수정하지 마라.** read_file로 읽기만 허용된다.\n"
         f"2. **write_file/edit_file/delete_file은 `{build_subdir}/` 하위만 허용된다.** edit/delete는 네가 생성한 파일만 가능.\n"
         "3. try_build가 성공하면 즉시 최종 보고서를 JSON으로 출력하라.\n"
         "4. 3회 연속 빌드 실패 시 즉시 진단 보고서를 JSON으로 출력하라.\n"
-        "5. **bear, compile_commands.json을 언급하거나 사용하지 마라.** 후속 처리는 S4가 담당한다.\n\n"
-        f"{target_section}"
-        f"{phase0_section}"
-        f"{sdk_section}"
-        f"{build_file_section}"
-        "## 빌드 전략\n\n"
+        "5. **bear, compile_commands.json을 언급하거나 사용하지 마라.** 후속 처리는 S4가 담당한다."
+    )
+
+    # 동적 섹션 — 조건부 추가
+    if target_section:
+        builder.add_section("빌드 대상", target_section)
+    if phase0_section:
+        builder.add_section("사전 분석", phase0_section)
+    if sdk_section:
+        builder.add_section("SDK 정보", sdk_section)
+    if build_file_section:
+        builder.add_section("빌드 파일", build_file_section)
+
+    builder.mark_dynamic_boundary("절대 규칙")
+
+    builder.add_section("빌드 전략",
         "### 1단계: 탐색 (list_files → read_file, 최대 2턴)\n"
         "**첫 번째 동작은 반드시 `list_files`로 프로젝트 구조를 파악하라.** 이후 핵심 빌드 파일 1~2개만 read_file로 읽어라.\n"
         "우선순위: 셸 스크립트(scripts/cross_build.sh, build.sh) > CMakeLists.txt > Makefile\n"
         "기존 빌드 스크립트가 있으면 **참고**하되, 그대로 실행하지 말고 **네가 직접 빌드 스크립트를 작성**하라.\n"
+        "탐색 시 반드시 확인하라:\n"
+        "1. SDK/toolchain 필요 여부 (CC 변수, CMAKE_C_COMPILER 확인)\n"
+        "2. 외부 의존성 (find_package, pkg-config, -l 플래그 확인)\n"
+        "3. 특수 빌드 요구사항 (autoconf, cmake 최소 버전 등)\n"
+        "**read_file 없이 write_file을 호출하지 마라.** 최소 1개의 빌드 관련 파일을 read_file로 읽은 후에만 스크립트를 작성할 수 있다.\n"
         "**3턴째에는 반드시 write_file로 빌드 스크립트를 작성하라. 탐색을 더 하지 마라.**\n\n"
         "### 2단계: 빌드 스크립트 작성 (write_file)\n"
         f"`{build_subdir}/aegis-build.sh`에 빌드 스크립트를 작성하라. 스크립트 요구사항:\n"
@@ -209,10 +232,18 @@ def _build_system_prompt(
         f"SDK가 있으면: `build_command: \"SDK_DIR=<sdk경로> bash {build_source}/{build_subdir}/aegis-build.sh\"`\n"
         f"SDK가 없으면: `build_command: \"bash {build_source}/{build_subdir}/aegis-build.sh\"`\n\n"
         "### 4단계: 실패 복구\n"
-        "에러 메시지를 분석하고 **edit_file**로 스크립트를 수정하여 즉시 try_build를 재시도하라.\n"
-        "같은 명령을 반복하지 마라. 다른 전략을 시도하라.\n"
-        "**edit_file → try_build를 한 턴 안에서 같이 호출하라. 수정 후 빌드를 분리하지 마라.**\n\n"
-        "## 출력 형식\n"
+        "에러 유형에 따라 복구 전략을 선택하라:\n"
+        "- **누락 헤더** (*.h not found): `-I` 플래그를 추가하거나, SDK sysroot 내에서 헤더 경로를 찾아라.\n"
+        "- **미정의 심볼** (undefined reference): `-l` 링커 플래그를 추가하거나, `-L`로 라이브러리 경로를 지정하라.\n"
+        "- **툴체인 미발견** (gcc not found): SDK 환경 스크립트 source 경로가 올바른지 확인하라.\n"
+        "- **CMake 오류**: CMakeLists.txt를 read_file로 다시 읽고, 누락 패키지나 경로 오류를 확인하라.\n"
+        "- **소스 코드 오류**: 빌드 스크립트 오류인지 소스 코드 오류인지 구분하라. 소스 코드 오류면 caveats에 기록.\n"
+        "edit_file로 스크립트를 수정한 후 즉시 try_build를 재시도하라. **같은 수정을 반복하지 마라.**\n"
+        "try_build 실패 후 read_file로 스크립트를 확인하여, 수정이 올바르게 적용되었는지 검증하라.\n"
+        "**edit_file → try_build를 한 턴 안에서 같이 호출하라. 수정 후 빌드를 분리하지 마라.**"
+    )
+
+    builder.add_section("출력 형식",
         "**순수 JSON만 출력하라. 코드 펜스(```), 인사말, 설명문을 절대 붙이지 마라. 첫 문자는 반드시 `{`이어야 한다.**\n"
         "```json\n"
         "{\n"
@@ -231,8 +262,11 @@ def _build_system_prompt(
         '  "recommendedNextSteps": ["다음 단계 제안"],\n'
         '  "policyFlags": []\n'
         "}\n"
-        "```\n"
+        "```"
     )
+
+    builder.set_suffix("/no_think")
+    return builder.build()
 
 
 # ---------------------------------------------------------------------------

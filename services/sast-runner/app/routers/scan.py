@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json as _json
 import logging
 import os
 import shutil
@@ -11,6 +12,7 @@ import time
 import uuid
 from pathlib import Path
 from fastapi import APIRouter, Request, Response
+from fastapi.responses import StreamingResponse
 
 from app.config import settings
 from app.context import set_request_id
@@ -43,6 +45,14 @@ _scan_semaphore = asyncio.Semaphore(settings.max_concurrent_scans)
 
 
 DEFAULT_TIMEOUT_S = 600
+
+_NDJSON_MEDIA = "application/x-ndjson"
+
+
+def _wants_ndjson(request: Request) -> bool:
+    """Accept 헤더에 application/x-ndjson이 있으면 스트리밍 모드."""
+    accept = request.headers.get("accept", "")
+    return _NDJSON_MEDIA in accept
 
 
 def _get_request_id(request: Request) -> str:
@@ -143,21 +153,297 @@ def _validate_path(file_path: str) -> None:
         raise NoFilesError(f"Path traversal not allowed: {file_path}")
 
 
+def _now_ms() -> int:
+    return int(time.time() * 1000)
+
+
+async def _run_scan_core(
+    request_id: str,
+    body: ScanRequest,
+    rulesets: list[str],
+    timeout: int,
+    on_progress=None,
+    on_started=None,
+    on_file_progress=None,
+) -> ScanResponse:
+    """scan 핵심 로직 — 동기/스트리밍 양쪽에서 공유.
+
+    세마포어 획득, 디렉토리 준비, 도구 실행, codeGraph, SCA, 정리, ScanResponse 조립.
+    실패 시 SastRunnerError 또는 Exception을 raise한다.
+    """
+    scan_id = body.scan_id
+    t0 = time.perf_counter()
+
+    async with _scan_semaphore:
+        if on_started:
+            await on_started()
+        scan_dir, source_files, should_cleanup = _prepare_scan_dir(body)
+        try:
+            bp = body.build_profile
+            logger.info(
+                "Scan started",
+                extra={
+                    "requestId": request_id,
+                    "scanId": scan_id,
+                    "filesCount": len(source_files),
+                    "rulesets": rulesets,
+                    "projectPath": body.project_path,
+                    "sdkId": bp.sdk_id if bp else None,
+                    "languageStandard": bp.language_standard if bp else None,
+                    "targetArch": bp.target_arch if bp else None,
+                },
+            )
+
+            # 1. 멀티 도구 병렬 실행
+            findings, execution = await orchestrator.run(
+                scan_dir=scan_dir,
+                source_files=source_files,
+                profile=bp,
+                rulesets=rulesets,
+                compile_commands=body.compile_commands,
+                tools=body.options.tools,
+                timeout=timeout,
+                third_party_paths=body.third_party_paths,
+                on_progress=on_progress,
+                on_file_progress=on_file_progress,
+            )
+
+            # 2. projectPath 모드: codeGraph + SCA
+            code_graph_result = None
+            sca_result = None
+            if body.project_path:
+                libs = await identify_libraries(scan_dir)
+
+                sca_libs = []
+                for lib in libs:
+                    sca_libs.append({
+                        "name": lib["name"],
+                        "version": lib.get("version"),
+                        "path": lib["path"],
+                        "repoUrl": lib.get("repoUrl"),
+                    })
+                sca_result = {"libraries": sca_libs}
+
+                lib_skip = [lib["path"] for lib in libs if lib.get("path")]
+                func_skip = list(set((body.third_party_paths or []) + lib_skip))
+                code_graph_result = await ast_dumper.dump_functions(
+                    scan_dir, source_files, bp, libraries=libs,
+                    skip_paths=func_skip if func_skip else None,
+                )
+
+        finally:
+            if should_cleanup:
+                shutil.rmtree(scan_dir, ignore_errors=True)
+
+    elapsed_ms = int((time.perf_counter() - t0) * 1000)
+
+    logger.info(
+        "Scan completed",
+        extra={
+            "requestId": request_id,
+            "scanId": scan_id,
+            "findingsCount": len(findings),
+            "toolsRun": execution.tools_run,
+            "hasCodeGraph": code_graph_result is not None,
+            "scaLibraries": len(sca_result["libraries"]) if sca_result else 0,
+            "elapsedMs": elapsed_ms,
+        },
+    )
+
+    return ScanResponse(
+        success=True,
+        scanId=scan_id,
+        status="completed",
+        findings=findings,
+        stats=ScanStats(
+            filesScanned=len(source_files),
+            rulesRun=len(execution.tools_run),
+            findingsTotal=len(findings),
+            elapsedMs=elapsed_ms,
+        ),
+        execution=execution,
+        codeGraph=code_graph_result,
+        sca=sca_result,
+    )
+
+
+_HEARTBEAT_INTERVAL_S = 25
+
+
+def _scan_streaming(
+    request_id: str,
+    body: ScanRequest,
+    rulesets: list[str],
+    timeout: int,
+) -> StreamingResponse:
+    """NDJSON 스트리밍 스캔 — 도구 진행 이벤트 + 주기적 heartbeat + 최종 결과.
+
+    이벤트 타입:
+      progress — 도구 시작/완료/실패 시
+      heartbeat — 25초 간격 keepalive (status + progress 필드 포함)
+      result — 최종 ScanResponse (동기 모드와 동일 스키마)
+      error — 중간 실패 시
+    """
+
+    async def _generate():
+        queue: asyncio.Queue = asyncio.Queue()
+
+        # 공유 진행 상태
+        state: dict = {
+            "status": "queued",
+            "activeTools": [],
+            "completedTools": [],
+            "findingsCount": 0,
+            "filesCompleted": 0,
+            "filesTotal": 0,
+            "currentFile": None,
+        }
+        file_progress_by_tool: dict = {}
+
+        async def _on_started():
+            state["status"] = "running"
+
+        async def _on_progress(tool: str, status: str, count: int, elapsed: int):
+            if status == "started":
+                state["activeTools"].append(tool)
+            elif status in ("completed", "failed"):
+                if tool in state["activeTools"]:
+                    state["activeTools"].remove(tool)
+                state["completedTools"].append(tool)
+                if status == "completed":
+                    state["findingsCount"] += count
+            await queue.put({
+                "type": "progress",
+                "tool": tool,
+                "status": status,
+                "findingsCount": count,
+                "elapsedMs": elapsed,
+                "timestamp": _now_ms(),
+            })
+
+        async def _on_file_progress(tool: str, file: str, done: int, total: int):
+            file_progress_by_tool[tool] = {"done": done, "total": total}
+            state["filesCompleted"] = sum(t["done"] for t in file_progress_by_tool.values())
+            state["filesTotal"] = sum(t["total"] for t in file_progress_by_tool.values())
+            state["currentFile"] = file
+
+        async def _heartbeat_loop():
+            try:
+                while True:
+                    await asyncio.sleep(_HEARTBEAT_INTERVAL_S)
+                    event: dict = {
+                        "type": "heartbeat",
+                        "timestamp": _now_ms(),
+                        "status": state["status"],
+                    }
+                    if state["status"] == "running":
+                        event["progress"] = {
+                            "activeTools": list(state["activeTools"]),
+                            "completedTools": list(state["completedTools"]),
+                            "findingsCount": state["findingsCount"],
+                            "filesCompleted": state["filesCompleted"],
+                            "filesTotal": state["filesTotal"],
+                            "currentFile": state["currentFile"],
+                        }
+                    await queue.put(event)
+            except asyncio.CancelledError:
+                pass
+
+        scan_task = asyncio.create_task(
+            _run_scan_core(
+                request_id, body, rulesets, timeout,
+                on_progress=_on_progress,
+                on_started=_on_started,
+                on_file_progress=_on_file_progress,
+            ),
+        )
+        heartbeat_task = asyncio.create_task(_heartbeat_loop())
+
+        try:
+            while not scan_task.done():
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=1.0)
+                    yield _json.dumps(event, ensure_ascii=False) + "\n"
+                except asyncio.TimeoutError:
+                    continue
+
+            # 큐에 남은 이벤트 drain
+            while not queue.empty():
+                event = queue.get_nowait()
+                yield _json.dumps(event, ensure_ascii=False) + "\n"
+
+            # 최종 결과
+            result = scan_task.result()
+            yield _json.dumps({
+                "type": "result",
+                "data": result.model_dump(by_alias=True, exclude_none=True),
+            }, ensure_ascii=False) + "\n"
+
+        except SastRunnerError as exc:
+            yield _json.dumps({
+                "type": "error",
+                "code": exc.code,
+                "message": exc.message,
+                "retryable": exc.retryable,
+                "requestId": request_id,
+                "timestamp": _now_ms(),
+            }, ensure_ascii=False) + "\n"
+
+        except Exception as exc:
+            yield _json.dumps({
+                "type": "error",
+                "code": "INTERNAL_ERROR",
+                "message": str(exc),
+                "retryable": False,
+                "requestId": request_id,
+                "timestamp": _now_ms(),
+            }, ensure_ascii=False) + "\n"
+
+        finally:
+            heartbeat_task.cancel()
+            if not scan_task.done():
+                scan_task.cancel()
+            for t in (heartbeat_task, scan_task):
+                try:
+                    await t
+                except (asyncio.CancelledError, Exception):
+                    pass
+
+    return StreamingResponse(
+        _generate(),
+        media_type=_NDJSON_MEDIA,
+        headers={"X-Request-Id": request_id},
+    )
+
+
 @router.post("/scan", response_model=ScanResponse, response_model_exclude_none=True)
-async def scan(request: Request, body: ScanRequest, response: Response) -> ScanResponse:
-    """소스 파일을 받아 멀티 도구 SAST 분석을 수행하고 SastFinding[]을 반환."""
+async def scan(request: Request, body: ScanRequest, response: Response) -> ScanResponse | StreamingResponse:
+    """소스 파일을 받아 멀티 도구 SAST 분석을 수행하고 SastFinding[]을 반환.
+
+    Accept: application/x-ndjson 헤더가 있으면 하트비트 기반 NDJSON 스트리밍 모드로 동작.
+    """
     request_id = _get_request_id(request)
     set_request_id(request_id)
     response.headers["X-Request-Id"] = request_id
 
-    scan_id = body.scan_id
+    # NDJSON 스트리밍 모드 — 입력 검증 후 분기 (실패 시 일반 HTTP 에러)
+    if _wants_ndjson(request):
+        if not body.files and not body.project_path:
+            raise NoFilesError("No files or projectPath provided for scanning")
+        for f in body.files:
+            _validate_path(f.path)
+        rulesets = resolve_rulesets(
+            body.rulesets, body.build_profile, settings.default_rulesets,
+        )
+        timeout = _get_timeout(request, body.options.timeout_seconds)
+        return _scan_streaming(request_id, body, rulesets, timeout)
+
+    # 동기 모드 (기존 동작)
     t0 = time.perf_counter()
 
     try:
-        # 1. 입력 검증
         if not body.files and not body.project_path:
             raise NoFilesError("No files or projectPath provided for scanning")
-
         for f in body.files:
             _validate_path(f.path)
 
@@ -166,111 +452,18 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
         )
         timeout = _get_timeout(request, body.options.timeout_seconds)
 
-        # 2. 동시성 제어
-        async with _scan_semaphore:
-            # 3. 스캔 디렉토리 준비
-            scan_dir, source_files, should_cleanup = _prepare_scan_dir(body)
-            try:
-                bp = body.build_profile
-                logger.info(
-                    "Scan started",
-                    extra={
-                        "requestId": request_id,
-                        "scanId": scan_id,
-                        "filesCount": len(source_files),
-                        "rulesets": rulesets,
-                        "projectPath": body.project_path,
-                        "sdkId": bp.sdk_id if bp else None,
-                        "languageStandard": bp.language_standard if bp else None,
-                        "targetArch": bp.target_arch if bp else None,
-                    },
-                )
-
-                # 4. 멀티 도구 병렬 실행
-                findings, execution = await orchestrator.run(
-                    scan_dir=scan_dir,
-                    source_files=source_files,
-                    profile=bp,
-                    rulesets=rulesets,
-                    compile_commands=body.compile_commands,
-                    tools=body.options.tools,
-                    timeout=timeout,
-                    third_party_paths=body.third_party_paths,
-                )
-
-                # 5. projectPath 모드: codeGraph + SCA
-                code_graph_result = None
-                sca_result = None
-                if body.project_path:
-                    # 라이브러리 식별 먼저 (origin 태깅에 필요)
-                    libs = await identify_libraries(scan_dir)
-
-                    # SCA: 라이브러리 정보 (CVE는 S5 담당)
-                    sca_libs = []
-                    for lib in libs:
-                        sca_libs.append({
-                            "name": lib["name"],
-                            "version": lib.get("version"),
-                            "path": lib["path"],
-                            "repoUrl": lib.get("repoUrl"),
-                        })
-                    sca_result = {"libraries": sca_libs}
-
-                    # 코드그래프: 라이브러리 경로 스킵 + origin 태깅
-                    lib_skip = [lib["path"] for lib in libs if lib.get("path")]
-                    func_skip = list(set((body.third_party_paths or []) + lib_skip))
-                    code_graph_result = await ast_dumper.dump_functions(
-                        scan_dir, source_files, bp, libraries=libs,
-                        skip_paths=func_skip if func_skip else None,
-                    )
-
-            finally:
-                # 6. temp dir 정리 (projectPath 모드에서는 실제 디렉토리이므로 삭제 안 함)
-                if should_cleanup:
-                    shutil.rmtree(scan_dir, ignore_errors=True)
-
-        elapsed_ms = int((time.perf_counter() - t0) * 1000)
-
-        logger.info(
-            "Scan completed",
-            extra={
-                "requestId": request_id,
-                "scanId": scan_id,
-                "findingsCount": len(findings),
-                "toolsRun": execution.tools_run,
-                "hasCodeGraph": code_graph_result is not None,
-                "scaLibraries": len(sca_result["libraries"]) if sca_result else 0,
-                "elapsedMs": elapsed_ms,
-            },
-        )
-
-        return ScanResponse(
-            success=True,
-            scanId=scan_id,
-            status="completed",
-            findings=findings,
-            stats=ScanStats(
-                filesScanned=len(source_files),
-                rulesRun=len(execution.tools_run),
-                findingsTotal=len(findings),
-                elapsedMs=elapsed_ms,
-            ),
-            execution=execution,
-            codeGraph=code_graph_result,
-            sca=sca_result,
-        )
+        return await _run_scan_core(request_id, body, rulesets, timeout)
 
     except SastRunnerError as exc:
-        elapsed_ms = int((time.perf_counter() - t0) * 1000)
         logger.error(
             "Scan failed: %s",
             exc.message,
-            extra={"requestId": request_id, "scanId": scan_id, "code": exc.code},
+            extra={"requestId": request_id, "scanId": body.scan_id, "code": exc.code},
         )
         response.status_code = exc.status_code
         return ScanResponse(
             success=False,
-            scanId=scan_id,
+            scanId=body.scan_id,
             status="failed",
             error=exc.message,
             errorDetail=ErrorDetail(
@@ -282,17 +475,16 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
         )
 
     except Exception as exc:
-        elapsed_ms = int((time.perf_counter() - t0) * 1000)
         logger.error(
             "Unexpected error: %s",
             str(exc),
-            extra={"requestId": request_id, "scanId": scan_id},
+            extra={"requestId": request_id, "scanId": body.scan_id},
             exc_info=True,
         )
         response.status_code = 500
         return ScanResponse(
             success=False,
-            scanId=scan_id,
+            scanId=body.scan_id,
             status="failed",
             error=str(exc),
             errorDetail=ErrorDetail(

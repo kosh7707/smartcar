@@ -7,7 +7,20 @@ function parseJsonOrDefault<T>(raw: string | null | undefined, fallback: T): T {
   try { return JSON.parse(raw) as T; } catch { return fallback; }
 }
 
-function rowToLib(row: any): TargetLibrary {
+interface TargetLibraryRow {
+  id: string;
+  target_id: string;
+  project_id: string;
+  name: string;
+  version: string | null;
+  path: string;
+  included: number;
+  modified_files: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+function rowToLib(row: TargetLibraryRow): TargetLibrary {
   return {
     id: row.id,
     targetId: row.target_id,
@@ -78,7 +91,7 @@ export class TargetLibraryDAO {
   }
 
   findByTargetId(targetId: string): TargetLibrary[] {
-    return this.selectByTargetStmt.all(targetId).map(rowToLib);
+    return (this.selectByTargetStmt.all(targetId) as TargetLibraryRow[]).map(rowToLib);
   }
 
   updateIncluded(id: string, included: boolean): void {

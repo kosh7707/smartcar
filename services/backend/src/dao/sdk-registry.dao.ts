@@ -6,7 +6,21 @@ function parseJson<T>(raw: string | null | undefined, fallback: T): T {
   try { return JSON.parse(raw) as T; } catch { return fallback; }
 }
 
-function rowToSdk(row: any): RegisteredSdk {
+interface SdkRegistryRow {
+  id: string;
+  project_id: string;
+  name: string;
+  description: string | null;
+  path: string;
+  profile: string | null;
+  status: SdkRegistryStatus;
+  verify_error: string | null;
+  verified: number;
+  created_at: string;
+  updated_at: string;
+}
+
+function rowToSdk(row: SdkRegistryRow): RegisteredSdk {
   return {
     id: row.id,
     projectId: row.project_id,
@@ -62,11 +76,11 @@ export class SdkRegistryDAO {
   }
 
   findByProjectId(projectId: string): RegisteredSdk[] {
-    return this.selectByProjectStmt.all(projectId).map(rowToSdk);
+    return (this.selectByProjectStmt.all(projectId) as SdkRegistryRow[]).map(rowToSdk);
   }
 
   findById(id: string): RegisteredSdk | undefined {
-    const row = this.selectByIdStmt.get(id);
+    const row = this.selectByIdStmt.get(id) as SdkRegistryRow | undefined;
     return row ? rowToSdk(row) : undefined;
   }
 

@@ -1,6 +1,7 @@
 import { Router, type Request } from "express";
 import type { ProjectSettingsService } from "../services/project-settings.service";
 import { SDK_PROFILES, findSdkProfile } from "../services/sdk-profiles";
+import { GATE_PROFILES, findGateProfile } from "../services/gate-profiles";
 
 export function createProjectSettingsRouter(settingsService: ProjectSettingsService): Router {
   const router = Router({ mergeParams: true });
@@ -34,6 +35,25 @@ export function createSdkProfileRouter(): Router {
     const profile = findSdkProfile(req.params.id);
     if (!profile) {
       res.status(404).json({ success: false, error: "SDK profile not found" });
+      return;
+    }
+    res.json({ success: true, data: profile });
+  });
+
+  return router;
+}
+
+export function createGateProfileRouter(): Router {
+  const router = Router();
+
+  router.get("/", (_req, res) => {
+    res.json({ success: true, data: GATE_PROFILES });
+  });
+
+  router.get("/:id", (req, res) => {
+    const profile = findGateProfile(req.params.id);
+    if (!profile) {
+      res.status(404).json({ success: false, error: "Gate profile not found" });
       return;
     }
     res.json({ success: true, data: profile });

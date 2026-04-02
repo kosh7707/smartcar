@@ -23,6 +23,8 @@ export interface MockApi {
   setupProjectsList(): Promise<void>;
   /** Set up full project mocks (overview, files, findings, etc.) */
   setupProject(projectId?: string): Promise<void>;
+  /** Set up auth-related mocks (login, me, users, logout). */
+  setupAuth(): Promise<void>;
 }
 
 export async function createMockApi(page: Page): Promise<MockApi> {
@@ -112,12 +114,57 @@ export async function createMockApi(page: Page): Promise<MockApi> {
       await api.on("GET", "/api/analysis/summary", data.DASHBOARD_SUMMARY);
 
       // Individual finding detail (fetchFindingDetail uses /api/findings/:id)
+      // Enriched with evidence refs and audit log (MOCK-32)
       for (const f of data.FINDINGS) {
+        const evidenceRefs = data.EVIDENCE_REFS.filter((e) => e.findingId === f.id);
+        const auditLog = data.AUDIT_LOG_ENTRIES.filter((a) => a.resourceId === f.id);
         await api.on("GET", `/api/findings/${f.id}`, {
           success: true,
-          data: { ...f, evidenceRefs: [], auditLog: [] },
+          data: { ...f, evidenceRefs, auditLog },
         });
       }
+
+      // Build log
+      await api.on("GET", `/api/projects/${pid}/targets/t-1/build-log`, {
+        success: true, data: { buildLog: data.BUILD_LOG, status: "ready", updatedAt: "2026-03-25T09:56:05Z" },
+      });
+      await api.on("GET", `/api/projects/${pid}/targets/t-2/build-log`, {
+        success: true, data: { buildLog: null, status: "building", updatedAt: "2026-03-27T09:00:00Z" },
+      });
+
+      // Gate profiles
+      await api.on("GET", "/api/gate-profiles", { success: true, data: data.GATE_PROFILES });
+      for (const gp of data.GATE_PROFILES) {
+        await api.on("GET", `/api/gate-profiles/${gp.id}`, { success: true, data: gp });
+      }
+
+      // Finding groups
+      await api.on("GET", `/api/projects/${pid}/findings/groups`, { success: true, data: data.FINDING_GROUPS });
+
+      // Custom report
+      await api.on("POST", `/api/projects/${pid}/report/custom`, { success: true, data: data.CUSTOM_REPORT_RESPONSE });
+
+      // Notifications
+      await api.on("GET", `/api/projects/${pid}/notifications`, { success: true, data: data.NOTIFICATIONS });
+      await api.on("GET", `/api/projects/${pid}/notifications/count`, data.NOTIFICATION_COUNT);
+      await api.on("PATCH", "/api/notifications/", { success: true });
+      await api.on("PATCH", `/api/projects/${pid}/notifications/read-all`, { success: true });
+
+      // File content (MOCK-33)
+      await api.on("GET", `/api/projects/${pid}/source/content`, data.FILE_CONTENT_RESPONSE);
+
+      // Settings with gate profile
+      await api.on("PUT", `/api/projects/${pid}/settings`, { success: true, data: { llmUrl: "http://localhost:8080", gateProfileId: "gp-default" } });
+
+      // Auth (also set up auth routes when setting up project)
+      await api.setupAuth();
+    },
+
+    async setupAuth() {
+      await api.on("POST", "/api/auth/login", data.LOGIN_RESPONSE);
+      await api.on("GET", "/api/auth/me", data.AUTH_ME_RESPONSE);
+      await api.on("POST", "/api/auth/logout", { success: true });
+      await api.on("GET", "/api/auth/users", { success: true, data: [data.AUTH_USER] });
     },
   };
 

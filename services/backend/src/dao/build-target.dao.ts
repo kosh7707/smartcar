@@ -1,23 +1,41 @@
 import type { BuildTarget, BuildProfile, BuildTargetStatus, ScaLibrary } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IBuildTargetDAO } from "./interfaces";
+import { safeJsonParse } from "../lib/utils";
 
-function parseJsonOrDefault<T>(raw: string | null | undefined, fallback: T): T {
-  if (!raw) return fallback;
-  try { return JSON.parse(raw) as T; } catch { return fallback; }
+interface BuildTargetRow {
+  id: string;
+  project_id: string;
+  name: string;
+  relative_path: string;
+  build_profile: string | null;
+  build_system: "cmake" | "make" | "custom" | null;
+  included_paths: string | null;
+  source_path: string | null;
+  build_command: string | null;
+  status: BuildTargetStatus | null;
+  compile_commands_path: string | null;
+  build_log: string | null;
+  sast_scan_id: string | null;
+  sca_libraries: string | null;
+  code_graph_status: "pending" | "ingested" | "failed" | null;
+  code_graph_node_count: number | null;
+  last_built_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-function rowToBuildTarget(row: any): BuildTarget {
-  const scaLibraries = parseJsonOrDefault<ScaLibrary[]>(row.sca_libraries, []);
+function rowToBuildTarget(row: BuildTargetRow): BuildTarget {
+  const scaLibraries = safeJsonParse<ScaLibrary[]>(row.sca_libraries, []);
   return {
     id: row.id,
     projectId: row.project_id,
     name: row.name,
     relativePath: row.relative_path,
-    buildProfile: JSON.parse(row.build_profile ?? "{}"),
+    buildProfile: safeJsonParse(row.build_profile, {} as BuildProfile),
     buildSystem: row.build_system ?? undefined,
-    includedPaths: parseJsonOrDefault<string[]>(row.included_paths, []).length > 0
-      ? parseJsonOrDefault<string[]>(row.included_paths, []) : undefined,
+    includedPaths: safeJsonParse<string[]>(row.included_paths, []).length > 0
+      ? safeJsonParse<string[]>(row.included_paths, []) : undefined,
     sourcePath: row.source_path ?? undefined,
     buildCommand: row.build_command ?? undefined,
     status: (row.status ?? "discovered") as BuildTargetStatus,
@@ -78,12 +96,12 @@ export class BuildTargetDAO implements IBuildTargetDAO {
   }
 
   findById(id: string): BuildTarget | undefined {
-    const row = this.selectByIdStmt.get(id);
+    const row = this.selectByIdStmt.get(id) as BuildTargetRow | undefined;
     return row ? rowToBuildTarget(row) : undefined;
   }
 
   findByProjectId(projectId: string): BuildTarget[] {
-    return this.selectByProjectStmt.all(projectId).map(rowToBuildTarget);
+    return (this.selectByProjectStmt.all(projectId) as BuildTargetRow[]).map(rowToBuildTarget);
   }
 
   update(

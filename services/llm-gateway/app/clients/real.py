@@ -84,7 +84,7 @@ class RealLlmClient(LlmClient):
             "[LLM 호출 시작] requestId=%s, model=%s, maxTokens=%d",
             request_id, self.model, max_tokens,
         )
-        start = time.time()
+        start = time.monotonic()
 
         if self._circuit_breaker:
             await self._circuit_breaker.check()
@@ -101,7 +101,7 @@ class RealLlmClient(LlmClient):
             self.last_prompt_tokens = usage.get("prompt_tokens", 0)
             self.last_completion_tokens = usage.get("completion_tokens", 0)
 
-            latency_ms = int((time.time() - start) * 1000)
+            latency_ms = int((time.monotonic() - start) * 1000)
             logger.info(
                 "[LLM 호출 완료] requestId=%s, latencyMs=%d, promptTokens=%d, completionTokens=%d",
                 request_id, latency_ms,
@@ -124,7 +124,7 @@ class RealLlmClient(LlmClient):
                 await self._circuit_breaker.record_success()
             return data["choices"][0]["message"]["content"]
         except httpx.TimeoutException as e:
-            latency_ms = int((time.time() - start) * 1000)
+            latency_ms = int((time.monotonic() - start) * 1000)
             logger.error(
                 "[LLM 호출 실패] requestId=%s, error=TIMEOUT, latencyMs=%d",
                 request_id, latency_ms,
@@ -146,7 +146,7 @@ class RealLlmClient(LlmClient):
                 await self._circuit_breaker.record_failure()
             raise LlmTimeoutError() from e
         except httpx.ConnectError as e:
-            latency_ms = int((time.time() - start) * 1000)
+            latency_ms = int((time.monotonic() - start) * 1000)
             logger.error(
                 "[LLM 호출 실패] requestId=%s, error=UNAVAILABLE, latencyMs=%d",
                 request_id, latency_ms,
@@ -168,7 +168,7 @@ class RealLlmClient(LlmClient):
                 await self._circuit_breaker.record_failure()
             raise LlmUnavailableError() from e
         except httpx.HTTPStatusError as e:
-            latency_ms = int((time.time() - start) * 1000)
+            latency_ms = int((time.monotonic() - start) * 1000)
             status = e.response.status_code
             resp_text = e.response.text[:2000] if e.response.text else ""
             logger.error(
@@ -194,7 +194,7 @@ class RealLlmClient(LlmClient):
                 raise LlmInputTooLargeError(prompt_chars, 0) from e
             raise LlmHttpError(status) from e
         except (KeyError, IndexError) as e:
-            latency_ms = int((time.time() - start) * 1000)
+            latency_ms = int((time.monotonic() - start) * 1000)
             logger.error(
                 "[LLM 호출 실패] requestId=%s, error=RESPONSE_MISMATCH, latencyMs=%d",
                 request_id, latency_ms,

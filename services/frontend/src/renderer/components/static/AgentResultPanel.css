@@ -9,7 +9,7 @@
 /* Confidence section */
 .agent-confidence {
   display: flex;
-  gap: var(--space-6);
+  gap: var(--space-4);
   align-items: flex-start;
 }
 
@@ -24,6 +24,7 @@
 .agent-confidence__value {
   font-size: var(--text-2xl);
   font-weight: var(--weight-bold);
+  font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
 }
@@ -258,6 +259,7 @@
 .agent-audit-item__value {
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
+  font-family: var(--font-data);
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }

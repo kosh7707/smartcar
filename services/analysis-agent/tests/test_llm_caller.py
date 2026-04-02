@@ -210,24 +210,24 @@ class TestAdaptiveTimeout:
         caller = LlmCaller("http://fake:8000", "qwen")
         messages = [{"role": "user", "content": "x" * 3000}]  # ~1500 토큰 (÷2)
         timeout = caller._estimate_timeout(messages, max_tokens=8192, has_tools=True)
-        # overhead 60s + prefill + generation → *2.0, min 120s
-        assert 120 <= timeout <= 400
+        # 병렬 부하 반영: 7 tok/s, prefill 15s/1K → 더 큰 값, min 120s
+        assert 120 <= timeout <= 600
 
     def test_large_prompt_tool_call_gets_more_time(self):
         """큰 프롬프트의 도구 호출은 prefill 반영으로 더 긴 타임아웃."""
         caller = LlmCaller("http://fake:8000", "qwen")
         messages = [{"role": "user", "content": "x" * 13000}]  # ~6500 토큰 (÷2)
         timeout = caller._estimate_timeout(messages, max_tokens=16384, has_tools=True)
-        # overhead 60s + prefill ~65s + generation ~100s → *2.0 ≈ 450s
-        assert 300 <= timeout <= 600
+        # 병렬 부하 반영: prefill ~97s + generation ~143s + overhead 60s → *2.0 ≈ 600s
+        assert 400 <= timeout <= 900
 
     def test_final_report_long_timeout(self):
         """최종 보고서 턴은 긴 타임아웃 (max_tokens 전체 생성 기대)."""
         caller = LlmCaller("http://fake:8000", "qwen")
         messages = [{"role": "user", "content": "x" * 18000}]  # ~9000 토큰 (÷2)
         timeout = caller._estimate_timeout(messages, max_tokens=16384, has_tools=False)
-        # capped at 600s
-        assert timeout == 600.0
+        # 병렬 부하 반영: capped at 900s
+        assert timeout == 900.0
 
     def test_small_request_gets_minimum(self):
         """작은 요청도 최소 120초는 보장된다."""

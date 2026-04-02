@@ -149,3 +149,33 @@ class TestCheckAvailable:
         with patch("app.scanner.gcc_analyzer_runner.get_sdk_compiler", return_value=None):
             ok, ver = await runner.check_available(profile)
             assert isinstance(ok, bool)
+
+
+class TestFileProgressCallback:
+    @pytest.mark.asyncio
+    async def test_on_file_progress_called(self, runner):
+        """파일 완료 시 on_file_progress 콜백이 호출되고 done/total이 정확한지 확인."""
+        progress_calls = []
+
+        async def on_file_progress(file: str, done: int, total: int):
+            progress_calls.append((file, done, total))
+
+        # _run_single을 mock하여 빈 결과 반환
+        async def _mock_single(gcc_bin, scan_dir, f, profile, timeout):
+            return []
+
+        with patch.object(runner, "_run_single", side_effect=_mock_single):
+            await runner.run(
+                scan_dir=Path("/tmp/scan"),
+                source_files=["src/a.c", "src/b.c", "src/c.c"],
+                profile=None,
+                timeout=60,
+                on_file_progress=on_file_progress,
+            )
+
+        assert len(progress_calls) == 3
+        files = [f for f, _, _ in progress_calls]
+        assert set(files) == {"src/a.c", "src/b.c", "src/c.c"}
+        # 마지막 콜백의 done == total
+        last = max(progress_calls, key=lambda x: x[1])
+        assert last[1] == last[2] == 3

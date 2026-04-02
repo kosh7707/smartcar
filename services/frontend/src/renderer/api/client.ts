@@ -14,3 +14,5 @@ export * from "./approval";
 export * from "./sdk";
 export * from "./report";
 export * from "./dynamic";
+export * from "./auth";
+export * from "./notifications";

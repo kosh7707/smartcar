@@ -11,6 +11,7 @@ import {
   Code,
   Plus,
   ChevronRight,
+  ScrollText,
 } from "lucide-react";
 import {
   fetchSourceFilesWithComposition,
@@ -36,6 +37,7 @@ import { LANG_GROUPS, getLangColorByName } from "../constants/languages";
 import { useUploadProgress } from "../hooks/useUploadProgress";
 import { useBuildTargets } from "../hooks/useBuildTargets";
 import { SubprojectCreateDialog } from "../components/static/SubprojectCreateDialog";
+import { BuildLogViewer } from "../components/static/BuildLogViewer";
 import { computeFindingOverlay, getFindingCount } from "../utils/findingOverlay";
 import type { DirFindingCount } from "../utils/findingOverlay";
 import { parseLocation } from "../utils/location";
@@ -50,7 +52,8 @@ const HighlightedCode: React.FC<{
   language?: string;
   highlightLineNos?: Set<number>;
 }> = React.memo(({ code, language, highlightLineNos }) => {
-  const lines = useMemo(() => hlLines(code, language), [code, language]);
+  const lines = useMemo(() => (code ? hlLines(code, language) : []), [code, language]);
+  if (!code) return <div className="source-tree__code"><p className="text-tertiary" style={{ padding: "var(--space-4)" }}>파일을 선택하면 내용을 볼 수 있습니다.</p></div>;
   return (
     <div className="source-tree__code">
       {lines.map((html, i) => {
@@ -84,6 +87,7 @@ export const FilesPage: React.FC = () => {
   const [search, setSearch] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [showSubprojectDialog, setShowSubprojectDialog] = useState(false);
+  const [logTarget, setLogTarget] = useState<{ id: string; name: string } | null>(null);
 
   // Tree view state
   const [treeKey, setTreeKey] = useState(0);
@@ -376,6 +380,16 @@ export const FilesPage: React.FC = () => {
                     <span className="fpage-subproject-meta">
                       {target.relativePath}
                     </span>
+                    {target.status && target.status !== "discovered" && (
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setLogTarget({ id: target.id, name: target.name })}
+                        title="빌드 로그"
+                      >
+                        <ScrollText size={14} />
+                        빌드 로그
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -515,6 +529,15 @@ export const FilesPage: React.FC = () => {
         onCreated={() => { setShowSubprojectDialog(false); bt.load(); }}
         onCancel={() => setShowSubprojectDialog(false)}
       />
+
+      {logTarget && projectId && (
+        <BuildLogViewer
+          projectId={projectId}
+          targetId={logTarget.id}
+          targetName={logTarget.name}
+          onClose={() => setLogTarget(null)}
+        />
+      )}
     </div>
   );
 };

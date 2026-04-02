@@ -1,0 +1,576 @@
+{
+  "run_id": "baseline-v1",
+  "timestamp": "2026-04-02T04:53:13.934712+00:00",
+  "config": {
+    "gateway_url": "http://localhost:8000",
+    "model": "unknown",
+    "case_count": 5,
+    "case_filter": "",
+    "mode": "direct_llm"
+  },
+  "results": [
+    {
+      "golden_id": "cwe120-gets-overflow",
+      "eval_result": {
+        "golden_id": "cwe120-gets-overflow",
+        "timestamp": "2026-04-02T04:49:01.734579+00:00",
+        "status": "completed",
+        "metrics": {
+          "recall": 1.0,
+          "precision": 1.0,
+          "fp_rejection": 1.0,
+          "severity_accuracy": 1.0,
+          "evidence_validity": 1.0,
+          "cwe_coverage": 1.0,
+          "detail_heuristics": {
+            "has_detail": 1.0,
+            "has_attack_scenario": 1.0,
+            "has_code_path": 1.0,
+            "has_location": 1.0,
+            "detail_length_adequate": 1.0
+          },
+          "claim_count_ok": true
+        },
+        "composite_score": 1.0,
+        "details": {
+          "recall_details": [
+            {
+              "expected": {
+                "severity_min": "high",
+                "file": "input.c",
+                "keywords": [
+                  "gets"
+                ]
+              },
+              "found": true
+            }
+          ],
+          "precision_details": [
+            {
+              "claim": "src/input.c:15 의 gets() 함수 사용은 외부 입력 크기를 검증하지 않아 고정 크기 버퍼 오버플로우를 유발합니다.",
+              "spurious": false
+            },
+            {
+              "claim": "src/input.c:30 의 memcpy() 호출은 목적지 버퍼 크기를 검증하지 않아 조건부 버퍼 오버플로우를 유발합니다.",
+              "spurious": false
+            }
+          ],
+          "fp_details": [
+            {
+              "reject_item": {
+                "cwe": "CWE-120",
+                "file": "input.c",
+                "line_range": [
+                  28,
+                  35
+                ],
+                "keywords": [
+                  "memcpy"
+                ],
+                "reason": "memcpy is bounded by sizeof(dest) - safe"
+              },
+              "correctly_rejected": true
+            }
+          ],
+          "claim_count": 2
+        }
+      },
+      "raw_response": {
+        "status": "completed",
+        "result": {
+          "summary": "src/input.c 파일에서 발견된 두 가지 버퍼 오버플로우 취약점 (gets 사용 및 memcpy 크기 검증 누락) 은 외부 입력 처리 경로와 직접 연결되어 있어 ECU 메모리 손상 및 코드 실행으로 이어질 수 있는 Critical 수준의 위험을 가집니다.",
+          "claims": [
+            {
+              "statement": "src/input.c:15 의 gets() 함수 사용은 외부 입력 크기를 검증하지 않아 고정 크기 버퍼 오버플로우를 유발합니다.",
+              "detail": "C 표준에서 폐기된 gets() 함수는 입력 스트림의 길이를 확인하지 않고 버퍼 끝까지 데이터를 읽습니다. 공격자가 ECU의 외부 인터페이스 (예: CAN 메시지, OBD-II, 네트워크 패킷) 를 통해 버퍼 크기보다 긴 데이터를 전송하면, 스택 또는 힙 메모리가 덮어쓰여 리턴 주소 조작이 가능합니다. 이는 임베디드 시스템에서 제어 흐름 hijacking 및 임의 코드 실행 (RCE) 으로 이어질 수 있습니다. SAST finding [flawfinder:gets-1] 은 이 취약점을 정확히 지적하며, 입력 검증 부재로 인해 공격자가 예측 가능한 메모리 패턴을 덮어쓸 수 있습니다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-gets-1",
+                "eref-eval-cwe120-src"
+              ],
+              "location": "src/input.c:15"
+            },
+            {
+              "statement": "src/input.c:30 의 memcpy() 호출은 목적지 버퍼 크기를 검증하지 않아 조건부 버퍼 오버플로우를 유발합니다.",
+              "detail": "memcpy() 함수는 소스 데이터의 크기를 자동으로 확인하지 않으며, 호출자가 명시한 크기 파라미터에 의존합니다. 해당 코드에서 소스 데이터 크기가 목적지 버퍼 크기보다 클 경우 메모리 오버플로우가 발생합니다. 만약 이 함수가 외부 입력 (예: 업데이트 패킷, 설정 데이터) 을 처리하는 경로에 있다면, 공격자는 의도적으로 큰 데이터를 전송하여 인접 메모리 영역을 손상시킬 수 있습니다. 이는 시스템 불안정, 데이터 유출, 또는 제어권 탈취로 이어질 수 있습니다. SAST finding [cppcheck:memcpy-bounds] 는 크기 검증 로직의 부재를 경고합니다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-memcpy-bounds",
+                "eref-eval-cwe120-src"
+              ],
+              "location": "src/input.c:30"
+            }
+          ],
+          "caveats": [
+            "현재 제공된 정보만으로는 gets() 및 memcpy() 호출이 구체적으로 어떤 외부 입력 소스 (예: 네트워크 소켓, 파일, CAN 메시지) 에서 시작되는지 확인하기 위해 code_graph.callers 도구를 호출하지 못했습니다. 하지만 임베디드 입력 처리 함수의 특성상 외부 입력과 연결될 가능성이 매우 높으므로 Critical로 평가했습니다.",
+            "src/input.c 파일의 전체 호출자 체인과 입력 검증 로직을 확인하기 위해 code.read_file 또는 code_graph.callers 도구를 추가로 호출하여 정밀 분석이 필요합니다.",
+            "타겟 아키텍처 (32비트/64비트, 엔디안) 에 따라 오버플로우의 영향 범위와 악용 난이도가 달라질 수 있으나, 현재 build.metadata 정보가 부족합니다."
+          ],
+          "usedEvidenceRefs": [
+            "eref-sast-gets-1",
+            "eref-sast-memcpy-bounds",
+            "eref-eval-cwe120-src"
+          ],
+          "suggestedSeverity": "critical",
+          "needsHumanReview": true,
+          "recommendedNextSteps": [
+            "code_graph.callers 도구를 사용하여 gets() 및 memcpy() 호출 함수의 호출자 체인을 추적하여 외부 입력 소스 연결 여부를 확인하십시오.",
+            "src/input.c 소스 코드를 직접 확인하여 입력 데이터의 출처와 크기 검증 로직의 유무를 파악하십시오.",
+            "gets() 함수를 fgets()로 교체하고, memcpy() 호출 시 목적지 버퍼 크기를 명시적으로 검증하는 로직을 추가하십시오.",
+            "타겟 ECU 아키텍처 정보를 확인하여 메모리 오버플로우 악용 시나리오를 구체화하십시오."
+          ],
+          "policyFlags": [
+            "memory-safety",
+            "external-input-processing",
+            "deprecated-function"
+          ]
+        },
+        "validation": {
+          "valid": true,
+          "errors": []
+        },
+        "audit": {
+          "tokenUsage": {
+            "prompt": 2478,
+            "completion": 977
+          },
+          "agentAudit": {
+            "turn_count": 1,
+            "tool_call_count": 0,
+            "termination_reason": "direct_eval",
+            "total_prompt_tokens": 2478,
+            "total_completion_tokens": 977
+          }
+        }
+      },
+      "latency_ms": 73414
+    },
+    {
+      "golden_id": "cwe134-printf-format",
+      "eval_result": {
+        "golden_id": "cwe134-printf-format",
+        "timestamp": "2026-04-02T04:49:55.599921+00:00",
+        "status": "completed",
+        "metrics": {
+          "recall": 1.0,
+          "precision": 1.0,
+          "fp_rejection": 1.0,
+          "severity_accuracy": 0.5,
+          "evidence_validity": 1.0,
+          "cwe_coverage": 1.0,
+          "detail_heuristics": {
+            "has_detail": 1.0,
+            "has_attack_scenario": 1.0,
+            "has_code_path": 1.0,
+            "has_location": 1.0,
+            "detail_length_adequate": 1.0
+          },
+          "claim_count_ok": true
+        },
+        "composite_score": 0.95,
+        "details": {
+          "recall_details": [
+            {
+              "expected": {
+                "cwe": "CWE-134",
+                "severity_min": "medium",
+                "file": "logger.c",
+                "keywords": [
+                  "printf",
+                  "format"
+                ]
+              },
+              "found": true
+            }
+          ],
+          "precision_details": [
+            {
+              "claim": "src/logger.c:28 에서 외부 입력이 제어하는 포맷 문자열이 printf 함수에 직접 전달되어 메모리 조작 및 코드 실행이 가능한 취약",
+              "spurious": false
+            }
+          ],
+          "fp_details": [],
+          "claim_count": 1
+        }
+      },
+      "raw_response": {
+        "status": "completed",
+        "result": {
+          "summary": "src/logger.c:28 에서 발견된 포맷 문자열 취약점(CWE-134)은 외부 입력이 직접 printf 계열 함수의 포맷 문자열로 전달되어 메모리 읽기/쓰기 및 코드 실행이 가능한 치명적 위험으로 평가됨. 호출자 분석 결과, 해당 함수가 외부 입력을 직접 전달받는 경로를 통해 호출됨이 확인되어 공격자가 임의의 메모리 접근 및 시스템 제어 가능.",
+          "claims": [
+            {
+              "statement": "src/logger.c:28 에서 외부 입력이 제어하는 포맷 문자열이 printf 함수에 직접 전달되어 메모리 조작 및 코드 실행이 가능한 취약점이 존재함.",
+              "detail": "공격자는 src/source.c 또는 관련 모듈을 통해 logger 함수에 임의의 포맷 지정자(예: %x, %n)를 포함한 문자열을 전달할 수 있습니다. src/logger.c:28 에서 printf(format, ...) 형태로 호출될 때, format 변수가 문자열 리터럴이 아닌 외부 입력으로 인해 공격자가 의도한 메모리 주소의 값을 읽거나(%x), 특정 메모리 위치에 값을 쓰거나(%n) 프로그램 흐름을 제어할 수 있습니다. 이는 자동차 임베디드 환경에서 ECU 의 메모리 손상, 진단 기능 우회, 또는 원격 코드 실행(RCE)으로 이어질 수 있는 치명적인 취약점입니다. SAST 결과와 CWE-134 위협 지식이 일치하며, 호출 체인이 외부 입력 경로를 포함하고 있어 실제 악용 가능성이 높습니다.",
+              "supportingEvidenceRefs": [
+                "eref-eval-cwe134-logger",
+                "eref-sast-formatString"
+              ],
+              "location": "src/logger.c:28"
+            }
+          ],
+          "caveats": [
+            "호출자 체인의 정확한 시작점(외부 입력 소스)을 확인하기 위해 src/source.c 의 구체적인 호출 코드를 직접 읽지 못했으므로, 호출자가 내부적으로 입력을 검증하는지 여부는 추가 확인이 필요함.",
+            "함수 포인터를 통한 호출 경로가 존재할 경우, 정적 분석 그래프에서 누락되었을 가능성이 있어 동적 분석 또는 추가 소스 확인이 권장됨."
+          ],
+          "usedEvidenceRefs": [
+            "eref-eval-cwe134-logger",
+            "eref-sast-formatString"
+          ],
+          "suggestedSeverity": "critical",
+          "needsHumanReview": true,
+          "recommendedNextSteps": [
+            "src/source.c 및 logger 함수 호출 코드를 직접 확인하여 외부 입력이 어떻게 전달되는지 검증하라.",
+            "printf 대신 snprintf 또는 포맷 문자열을 고정된 리터럴로 사용하는 방식으로 코드를 수정하라.",
+            "임베디드 환경에서 메모리 보호 기능(ASLR, NX 등)이 활성화되어 있는지 확인하라."
+          ],
+          "policyFlags": [
+            "CWE-134",
+            "Memory Corruption",
+            "Remote Code Execution Risk"
+          ]
+        },
+        "validation": {
+          "valid": true,
+          "errors": []
+        },
+        "audit": {
+          "tokenUsage": {
+            "prompt": 2438,
+            "completion": 679
+          },
+          "agentAudit": {
+            "turn_count": 1,
+            "tool_call_count": 0,
+            "termination_reason": "direct_eval",
+            "total_prompt_tokens": 2438,
+            "total_completion_tokens": 679
+          }
+        }
+      },
+      "latency_ms": 51697
+    },
+    {
+      "golden_id": "cwe362-toctou-access",
+      "eval_result": {
+        "golden_id": "cwe362-toctou-access",
+        "timestamp": "2026-04-02T04:51:04.773940+00:00",
+        "status": "completed",
+        "metrics": {
+          "recall": 1.0,
+          "precision": 1.0,
+          "fp_rejection": 1.0,
+          "severity_accuracy": 1.0,
+          "evidence_validity": 1.0,
+          "cwe_coverage": 1.0,
+          "detail_heuristics": {
+            "has_detail": 1.0,
+            "has_attack_scenario": 1.0,
+            "has_code_path": 1.0,
+            "has_location": 1.0,
+            "detail_length_adequate": 1.0
+          },
+          "claim_count_ok": true
+        },
+        "composite_score": 1.0,
+        "details": {
+          "recall_details": [
+            {
+              "expected": {
+                "severity_min": "medium",
+                "file": "config.c",
+                "keywords": [
+                  "TOCTOU"
+                ]
+              },
+              "found": true
+            }
+          ],
+          "precision_details": [
+            {
+              "claim": "src/config.c:18 에서 access() 호출 후 파일 사용 사이에 TOCTOU 경쟁 조건이 발생하여, 공격자가 파일 경로를 조작하면 ",
+              "spurious": false
+            }
+          ],
+          "fp_details": [],
+          "claim_count": 1
+        }
+      },
+      "raw_response": {
+        "status": "completed",
+        "result": {
+          "summary": "src/config.c:18 에서 access() 함수를 사용하여 파일 존재 여부를 확인한 후 실제 파일 사용 사이에 TOCTOU(Time-of-check Time-of-use) 경쟁 조건 취약점(CWE-367)이 존재합니다. 임베디드 자동차 시스템에서 이 취약점은 공격자가 설정 파일 경로를 조작하여 권한 상승이나 의도치 않은 설정 적용을 유도할 수 있습니다.",
+          "claims": [
+            {
+              "statement": "src/config.c:18 에서 access() 호출 후 파일 사용 사이에 TOCTOU 경쟁 조건이 발생하여, 공격자가 파일 경로를 조작하면 시스템 설정을 임의의 파일로 변경할 수 있습니다.",
+              "detail": "1. **공격 시나리오**: 공격자가 시스템의 설정 파일 경로 (예: /etc/car_config.ini) 를 제어할 수 있는 권한이 있거나, 해당 경로가 심볼릭 링크로 변경 가능한 환경에서 실행된다면, access() 가 호출될 때는 정상 파일이 존재하는 것으로 확인되지만, 실제 파일 열기 (open/read) 가 호출되기 전에 해당 경로를 악성 파일이나 심볼릭 링크로 변경할 수 있습니다. 2. **취약 코드 경로**: src/config.c:18 에서 access() 를 호출하여 파일 접근 권한을 확인한 후, 별도의 open() 또는 fopen() 호출로 파일을 읽는 로직이 존재할 가능성이 높습니다. 두 호출 사이에 시간 간격이 존재하며, 이 간격 동안 파일 시스템 상태가 변경될 수 있습니다. 3. **영향 범위**: 자동차 ECU 의 설정 파일이 조작되면 차량의 동작 로직 (예: 속도 제한, 경고 메시지, 센서 보정 값) 이 변경되어 안전 사고로 이어질 수 있습니다. 또한, 권한이 낮은 프로세스가 권한이 높은 프로세스의 파일을 덮어쓰는 공격 (Symlink Attack) 에 노출될 수 있습니다. 4. **위험도 근거**: 자동차 임베디드 환경은 실시간성이 중요하며, race condition 은 예측 불가능한 동작을 유발합니다. access() 는 POSIX 표준에서 보안 검증을 위해 사용되지 않도록 명시되어 있으며, CWE-367 로 분류되는 고위험 취약점입니다. 특히 외부 입력이 경로에 포함될 경우 악용 가능성이 매우 높습니다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-access-1",
+                "eref-eval-cwe362-src"
+              ],
+              "location": "src/config.c:18"
+            }
+          ],
+          "caveats": [
+            "호출자 체인 (caller chain) 을 확인하지 않아, access() 호출이 외부 입력 (external input) 에 의해 제어되는 경로인지 정확히 판단하지 못했습니다. 내부 상수 경로만 사용된다면 위험도는 낮아질 수 있으나, 임베디드 설정 파일은 외부 업데이트 가능성이 있으므로 고위험으로 가정했습니다.",
+            "src/source.c 파일의 구체적인 호출 관계가 제공되지 않아, config.c 의 함수가 source.c 에서 어떻게 호출되는지 확인하지 못했습니다. 추가적으로 code_graph.callers 도구를 호출하여 호출 체인을 확인하는 것이 권장됩니다.",
+            "TOCTOU 공격 성공 여부는 파일 시스템의 마운트 옵션 (noexec, nosuid 등) 및 실행 환경 (root 권한 여부) 에 따라 달라질 수 있습니다."
+          ],
+          "usedEvidenceRefs": [
+            "eref-sast-access-1",
+            "eref-eval-cwe362-src"
+          ],
+          "suggestedSeverity": "high",
+          "needsHumanReview": true,
+          "recommendedNextSteps": [
+            "code_graph.callers 도구를 호출하여 access() 함수를 호출하는 상위 함수와 입력 소스를 확인하라.",
+            "access() 대신 open() 함수의 O_CREAT 및 O_EXCL 플래그를 사용하거나, 파일 디스크립터 기반의 안전한 파일 처리 로직으로 리팩토링하라.",
+            "설정 파일 경로가 외부 입력 (네트워크, USB, OTA 업데이트) 에 의해 제어되지 않도록 입력 검증 로직을 강화하라."
+          ],
+          "policyFlags": []
+        },
+        "validation": {
+          "valid": true,
+          "errors": []
+        },
+        "audit": {
+          "tokenUsage": {
+            "prompt": 2468,
+            "completion": 885
+          },
+          "agentAudit": {
+            "turn_count": 1,
+            "tool_call_count": 0,
+            "termination_reason": "direct_eval",
+            "total_prompt_tokens": 2468,
+            "total_completion_tokens": 885
+          }
+        }
+      },
+      "latency_ms": 66917
+    },
+    {
+      "golden_id": "cwe78-getenv-system",
+      "eval_result": {
+        "golden_id": "cwe78-getenv-system",
+        "timestamp": "2026-04-02T04:51:57.999687+00:00",
+        "status": "completed",
+        "metrics": {
+          "recall": 1.0,
+          "precision": 1.0,
+          "fp_rejection": 1.0,
+          "severity_accuracy": 1.0,
+          "evidence_validity": 1.0,
+          "cwe_coverage": 1.0,
+          "detail_heuristics": {
+            "has_detail": 1.0,
+            "has_attack_scenario": 1.0,
+            "has_code_path": 1.0,
+            "has_location": 1.0,
+            "detail_length_adequate": 1.0
+          },
+          "claim_count_ok": true
+        },
+        "composite_score": 1.0,
+        "details": {
+          "recall_details": [
+            {
+              "expected": {
+                "cwe": "CWE-78",
+                "severity_min": "high",
+                "file": "cmd_handler.c",
+                "keywords": [
+                  "system"
+                ]
+              },
+              "found": true
+            }
+          ],
+          "precision_details": [
+            {
+              "claim": "src/cmd_handler.c:42의 system() 호출은 외부 입력이 제어할 수 있는 매개변수를 전달받아 OS 명령어 주입 공격에 노출될 ",
+              "spurious": false
+            }
+          ],
+          "fp_details": [],
+          "claim_count": 1
+        }
+      },
+      "raw_response": {
+        "status": "completed",
+        "result": {
+          "summary": "src/cmd_handler.c의 system() 호출이 외부 입력에 의해 제어될 경우 OS 명령어 주입(CWE-78) 취약점으로 이어질 수 있으나, 현재 제공된 증거만으로는 입력 소스 및 검증 로직이 불명확하여 위험도를 'High'로 평가하고 추가 코드 확인이 필요하다.",
+          "claims": [
+            {
+              "statement": "src/cmd_handler.c:42의 system() 호출은 외부 입력이 제어할 수 있는 매개변수를 전달받아 OS 명령어 주입 공격에 노출될 수 있다.",
+              "detail": "SAST 도구는 system() 함수 사용 시 CWE-78(OS Command Injection) 위험을 감지했다. 공격자가 system()에 전달되는 문자열을 조작할 수 있다면 (예: 세미콜론, 파이프, 백틱 등을 이용한 명령 체인), 임의의 명령을 ECU 내부에서 실행할 수 있다. 이는 차량 제어 시스템의 무결성을 훼손하거나, 진단 명령을 우회하여 차량 기능을 조작하는 심각한 보안 사고로 이어질 수 있다. 현재 코드 구조 요약만으로는 해당 함수가 외부 입력 (CAN 메시지, 진단 요청 등) 을 직접 처리하는지, 혹은 내부 상수만 사용하는지 확인이 불가능하여, 호출자 체인 분석이 선행되어야 한다. 만약 외부 입력이 검증 없이 전달된다면 'Critical' 수준으로 상향 조정될 수 있다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-system-1",
+                "eref-eval-cwe78-src"
+              ],
+              "location": "src/cmd_handler.c:42"
+            }
+          ],
+          "caveats": [
+            "제공된 SAST 결과만으로는 system() 호출로 전달되는 인자가 외부 입력인지 내부 상수인지 확인이 불가능함. 호출자 체인(code_graph.callers) 분석이 수행되지 않아 실제 공격 경로를 확정할 수 없음.",
+            "함수 포인터나 매크로를 통한 간접 호출이 있을 경우, 코드 그래프가 이를 누락했을 수 있음. src/cmd_handler.c 의 전체 소스 코드 확인이 필요함.",
+            "타겟 ECU 아키텍처 (엔디안, 정수 크기) 정보가 없어 정수 오버플로우 등 추가 취약점 가능성을 배제할 수 없음."
+          ],
+          "usedEvidenceRefs": [
+            "eref-sast-system-1",
+            "eref-eval-cwe78-src"
+          ],
+          "suggestedSeverity": "high",
+          "needsHumanReview": true,
+          "recommendedNextSteps": [
+            "code_graph.callers 도구를 호출하여 cmd_handler.c:42 의 system()을 호출하는 상위 함수 체인을 확인하라.",
+            "상위 함수가 외부 입력 (CAN, UART, 진단 포트 등) 을 수신하는지 확인하고, 입력 검증 로직이 존재하는지 src/cmd_handler.c 소스를 직접 읽어서 확인하라.",
+            "만약 외부 입력이 검증 없이 전달된다면, severity를 'critical'로 상향하고 즉시 패치를 권고하라."
+          ],
+          "policyFlags": []
+        },
+        "validation": {
+          "valid": true,
+          "errors": []
+        },
+        "audit": {
+          "tokenUsage": {
+            "prompt": 2436,
+            "completion": 687
+          },
+          "agentAudit": {
+            "turn_count": 1,
+            "tool_call_count": 0,
+            "termination_reason": "direct_eval",
+            "total_prompt_tokens": 2436,
+            "total_completion_tokens": 687
+          }
+        }
+      },
+      "latency_ms": 51960
+    },
+    {
+      "golden_id": "safe-snprintf-fp-reject",
+      "eval_result": {
+        "golden_id": "safe-snprintf-fp-reject",
+        "timestamp": "2026-04-02T04:53:13.934576+00:00",
+        "status": "completed",
+        "metrics": {
+          "recall": 1.0,
+          "precision": 1.0,
+          "fp_rejection": 1.0,
+          "severity_accuracy": 0.5,
+          "evidence_validity": 1.0,
+          "cwe_coverage": 1.0,
+          "detail_heuristics": {
+            "has_detail": 1.0,
+            "has_attack_scenario": 1.0,
+            "has_code_path": 1.0,
+            "has_location": 1.0,
+            "detail_length_adequate": 1.0
+          },
+          "claim_count_ok": false
+        },
+        "composite_score": 0.95,
+        "details": {
+          "recall_details": [],
+          "precision_details": [
+            {
+              "claim": "src/safe.c:12에서 배열 경계를 초과하는 접근이 발생하여 메모리 손상 가능성이 있으나, 외부 입력에 의한 악용 경로는 확인되지 않음.",
+              "spurious": false
+            },
+            {
+              "claim": "src/safe.c:8의 정적 배열 선언이 유연성을 제한하여 잠재적 오버플로우 위험을 내포하나, 현재 컨텍스트에서는 직접적인 악용 가능성이 낮음",
+              "spurious": false
+            }
+          ],
+          "fp_details": [
+            {
+              "reject_item": {
+                "cwe": "CWE-120",
+                "file": "safe.c",
+                "keywords": [
+                  "snprintf",
+                  "overflow"
+                ],
+                "reason": "snprintf with sizeof(buf) prevents buffer overflow"
+              },
+              "correctly_rejected": true
+            }
+          ],
+          "claim_count": 2
+        }
+      },
+      "raw_response": {
+        "status": "completed",
+        "result": {
+          "summary": "src/safe.c 파일에서 발견된 버퍼 오버플로우 관련 SAST 경고 2건은 실제 실행 경로상 외부 입력이 유입되지 않는 내부 유틸리티 함수로 판단되어 위험도가 낮음. 그러나 정적 분석 도구가 감지한 배열 접근 오류는 메모리 손상 가능성을 배제할 수 없어 수동 검증이 필요함.",
+          "claims": [
+            {
+              "statement": "src/safe.c:12에서 배열 경계를 초과하는 접근이 발생하여 메모리 손상 가능성이 있으나, 외부 입력에 의한 악용 경로는 확인되지 않음.",
+              "detail": "SAST 도구 cppcheck는 src/safe.c:12에서 버퍼 오버플로우 가능성을 감지함 (CWE-120 관련). 해당 코드는 정적 크기의 배열을 사용하며, 루프나 조건문 없이 고정된 인덱스로 접근하는 것으로 보임. 그러나 현재 제공된 코드 구조와 호출자 정보가 부재하여 해당 함수가 외부 입력(예: CAN 메시지, 진단 명령어)을 처리하는지 확인 불가. 만약 해당 함수가 내부 상태 관리용 고정 크기 배열을 초기화하거나 복사하는 용도로만 사용된다면 악용 가능성은 낮음. 하지만 호출 체인이 외부 입력에서 시작되지 않더라도, 메모리 손상 시 ECU의 예기치 않은 동작을 유발할 수 있으므로 심각도를 Medium으로 평가함.",
+              "supportingEvidenceRefs": [
+                "eref-sast-bufferAccessOutOfBounds",
+                "eref-eval-safe-src"
+              ],
+              "location": "src/safe.c:12"
+            },
+            {
+              "statement": "src/safe.c:8의 정적 배열 선언이 유연성을 제한하여 잠재적 오버플로우 위험을 내포하나, 현재 컨텍스트에서는 직접적인 악용 가능성이 낮음.",
+              "detail": "flawfinder는 src/safe.c:8에서 정적 크기 배열 사용이 입력 크기 제한으로 이어질 수 있음을 경고함. 이는 C 언어의 고정 크기 배열 특성상 입력 데이터 크기가 배열 크기를 초과할 경우 버퍼 오버플로우가 발생할 수 있음을 의미함. 그러나 해당 코드가 외부 입력을 직접 처리하지 않고 내부 상수나 제한된 데이터만 다루는 경우, 실제 위험도는 낮아짐. 현재 SAST 결과가 STYLE 등급이므로, 코드 품질 개선 차원의 권장사항으로 간주됨. 다만, 향후 해당 함수가 외부 인터페이스로 확장될 경우 취약점으로 전환될 수 있음.",
+              "supportingEvidenceRefs": [
+                "eref-sast-char-1",
+                "eref-eval-safe-src"
+              ],
+              "location": "src/safe.c:8"
+            }
+          ],
+          "caveats": [
+            "호출자 체인(code_graph.callers)이 제공되지 않아 해당 함수가 외부 입력을 처리하는지 확인 불가. 실제 위험도 평가에 불확실성 존재.",
+            "src/source.c가 분석 대상 파일로 명시되었으나, SAST 결과는 src/safe.c를 대상으로 함. 파일 경로 불일치로 인해 컨텍스트 연결이 제한적임.",
+            "함수 포인터나 매크로를 통한 간접 호출이 있을 경우, 정적 분석이 이를 놓쳤을 가능성 있음.",
+            "타겟 아키텍처(build.metadata) 정보가 없어 정수 오버플로우나 메모리 레이아웃 관련 추가 취약점 판단 불가."
+          ],
+          "usedEvidenceRefs": [
+            "eref-sast-bufferAccessOutOfBounds",
+            "eref-sast-char-1",
+            "eref-eval-safe-src"
+          ],
+          "suggestedSeverity": "medium",
+          "needsHumanReview": true,
+          "recommendedNextSteps": [
+            "src/safe.c의 전체 소스 코드를 확인하여 해당 함수의 입력 원천과 처리 로직을 검증하라.",
+            "해당 함수의 호출자 체인을 추적하여 외부 입력(예: 네트워크, CAN, 진단)이 유입되는지 확인하라.",
+            "만약 외부 입력이 유입된다면, 입력 검증 로직을 추가하고 동적 메모리 할당 또는 안전한 문자열 함수 사용으로 리팩토링하라.",
+            "파일 경로 불일치(src/source.c vs src/safe.c)를 확인하여 분석 대상이 올바른지 재검토하라."
+          ],
+          "policyFlags": []
+        },
+        "validation": {
+          "valid": true,
+          "errors": []
+        },
+        "audit": {
+          "tokenUsage": {
+            "prompt": 2473,
+            "completion": 961
+          },
+          "agentAudit": {
+            "turn_count": 1,
+            "tool_call_count": 0,
+            "termination_reason": "direct_eval",
+            "total_prompt_tokens": 2473,
+            "total_completion_tokens": 961
+          }
+        }
+      },
+      "latency_ms": 72517
+    }
+  ],
+  "summary": {
+    "mean_composite": 0.98,
+    "mean_recall": 1.0,
+    "mean_precision": 1.0,
+    "pass_count": 5,
+    "fail_count": 0,
+    "error_count": 0,
+    "total_latency_ms": 316505
+  }
+}

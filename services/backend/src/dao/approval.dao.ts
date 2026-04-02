@@ -1,8 +1,21 @@
-import type { ApprovalRequest, ApprovalStatus } from "@aegis/shared";
+import type { ApprovalRequest, ApprovalStatus, ApprovalActionType } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IApprovalDAO } from "./interfaces";
 
-function rowToApproval(row: any): ApprovalRequest {
+interface ApprovalRow {
+  id: string;
+  action_type: ApprovalActionType;
+  requested_by: string;
+  target_id: string;
+  project_id: string;
+  reason: string;
+  status: ApprovalStatus;
+  decision: string | null;
+  expires_at: string;
+  created_at: string;
+}
+
+function rowToApproval(row: ApprovalRow): ApprovalRequest {
   return {
     id: row.id,
     actionType: row.action_type,
@@ -65,23 +78,23 @@ export class ApprovalDAO implements IApprovalDAO {
   }
 
   findById(id: string): ApprovalRequest | undefined {
-    const row = this.selectByIdStmt.get(id);
+    const row = this.selectByIdStmt.get(id) as ApprovalRow | undefined;
     return row ? rowToApproval(row) : undefined;
   }
 
   findByTargetId(targetId: string): ApprovalRequest[] {
-    return this.selectByTargetStmt.all(targetId).map(rowToApproval);
+    return (this.selectByTargetStmt.all(targetId) as ApprovalRow[]).map(rowToApproval);
   }
 
   findByProjectId(projectId: string, status?: ApprovalStatus): ApprovalRequest[] {
     if (status) {
-      return this.selectByProjectAndStatusStmt.all(projectId, status).map(rowToApproval);
+      return (this.selectByProjectAndStatusStmt.all(projectId, status) as ApprovalRow[]).map(rowToApproval);
     }
-    return this.selectByProjectStmt.all(projectId).map(rowToApproval);
+    return (this.selectByProjectStmt.all(projectId) as ApprovalRow[]).map(rowToApproval);
   }
 
   findPending(): ApprovalRequest[] {
-    return this.selectPendingStmt.all().map(rowToApproval);
+    return (this.selectPendingStmt.all() as ApprovalRow[]).map(rowToApproval);
   }
 
   updateStatus(id: string, status: ApprovalStatus, decision?: ApprovalRequest["decision"]): void {

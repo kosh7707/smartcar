@@ -31,17 +31,17 @@ describe("SourceBadge", () => {
 
   it("shows ruleId for rule-engine when provided", () => {
     render(<SourceBadge sourceType="rule-engine" ruleId="CWE-78" />);
-    expect(screen.getByText("룰: CWE-78")).toBeInTheDocument();
+    expect(screen.getByText("룰 엔진: CWE-78")).toBeInTheDocument();
   });
 
   it("renders label for agent", () => {
     render(<SourceBadge sourceType="agent" />);
-    expect(screen.getByText("에이전트")).toBeInTheDocument();
+    expect(screen.getByText("심층 에이전트")).toBeInTheDocument();
   });
 
   it("renders label for sast-tool", () => {
     render(<SourceBadge sourceType="sast-tool" />);
-    expect(screen.getByText("SAST")).toBeInTheDocument();
+    expect(screen.getByText("SAST 도구")).toBeInTheDocument();
   });
 
   it("has title attribute with description", () => {

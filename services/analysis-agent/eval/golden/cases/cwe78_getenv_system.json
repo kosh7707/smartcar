@@ -1,0 +1,75 @@
+{
+  "id": "cwe78-getenv-system",
+  "description": "OS command injection via getenv() + system() without input sanitization",
+  "category": "true_positive",
+  "difficulty": "basic",
+  "input": {
+    "task_type": "deep-analyze",
+    "objective": "보안 취약점 심층 분석",
+    "sast_findings": [
+      {
+        "toolId": "flawfinder",
+        "ruleId": "system-1",
+        "severity": "error",
+        "location": {
+          "file": "src/cmd_handler.c",
+          "line": 42
+        },
+        "message": "system(): This causes a new program to execute and is difficult to use safely. Try using a library call that implements the same functionality if available."
+      }
+    ],
+    "code_functions": [
+      {
+        "name": "handle_command",
+        "file": "src/cmd_handler.c",
+        "line": 30
+      },
+      {
+        "name": "main",
+        "file": "src/main.c",
+        "line": 10
+      }
+    ],
+    "threat_context": [
+      {
+        "id": "CWE-78",
+        "source": "cwe",
+        "title": "Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')",
+        "threat_category": "injection"
+      }
+    ],
+    "source_code": "/* src/cmd_handler.c */\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nvoid handle_command(void) {\n    char buf[256];\n    const char *cmd = getenv(\"USER_CMD\");\n    if (cmd == NULL) {\n        return;\n    }\n    /* vulnerable: no sanitization of environment variable */\n    snprintf(buf, sizeof(buf), \"/bin/sh -c '%s'\", cmd);\n    system(buf);  /* line 42: CWE-78 OS command injection */\n}\n\n/* src/main.c */\n#include <stdio.h>\nextern void handle_command(void);\n\nint main(int argc, char *argv[]) {\n    printf(\"Processing command...\\n\");\n    handle_command();\n    return 0;\n}\n",
+    "evidence_refs": [
+      {
+        "refId": "eref-eval-cwe78-src",
+        "artifactType": "raw-source",
+        "locator": {
+          "file": "src/cmd_handler.c"
+        },
+        "artifactId": "eref-eval-cwe78-src",
+        "locatorType": "file"
+      }
+    ]
+  },
+  "expected": {
+    "must_find": [
+      {
+        "severity_min": "high",
+        "file": "cmd_handler.c",
+        "keywords": [
+          "system"
+        ]
+      }
+    ],
+    "must_reject": [],
+    "severity_range": [
+      "high",
+      "critical"
+    ],
+    "min_total_claims": 1,
+    "max_total_claims": 3,
+    "required_cwe_mentions": [
+      "CWE-78"
+    ]
+  }
+}

@@ -76,7 +76,7 @@ export function createFindingDetailRouter(findingService: FindingService): Route
       throw new InvalidInputError("status and reason are required");
     }
 
-    const requestId = (req as any).requestId;
+    const requestId = req.requestId;
     const result = findingService.bulkUpdateStatus(findingIds, status, actor ?? "system", reason, requestId);
     res.json({ success: true, data: result });
   });
@@ -114,7 +114,7 @@ export function createFindingDetailRouter(findingService: FindingService): Route
       return;
     }
 
-    const requestId = (req as any).requestId;
+    const requestId = req.requestId;
     const updated = findingService.updateStatus(
       req.params.id,
       status,

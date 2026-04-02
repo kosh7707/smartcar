@@ -82,6 +82,18 @@ async def _handle_deep_analyze(request: TaskRequest) -> TaskSuccessResponse | Ta
         cost_tier=ToolCostTier.MEDIUM,
     ))
     registry.register(ToolSchema(
+        name="code_graph.callees",
+        description="특정 함수가 호출하는 함수 목록을 조회한다. 취약 함수 호출 전 입력 검증 여부, 위험 함수 호출 여부 확인에 사용.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "function_name": {"type": "string", "description": "조회할 함수명 (예: 'handleRequest', 'postJson')"},
+            },
+            "required": ["function_name"],
+        },
+        cost_tier=ToolCostTier.CHEAP,
+    ))
+    registry.register(ToolSchema(
         name="code_graph.search",
         description="자연어 쿼리로 코드 함수를 시맨틱 검색한다. 함수명 정확 매칭 + 벡터 유사도 + 호출 그래프 확장을 결합. 예: '시스템 명령을 실행하는 네트워크 핸들러'",
         parameters={
@@ -97,7 +109,7 @@ async def _handle_deep_analyze(request: TaskRequest) -> TaskSuccessResponse | Ta
     ))
     registry.register(ToolSchema(
         name="knowledge.search",
-        description="위협 지식 DB에서 공격 시나리오/CWE/CAPEC/CVE를 검색한다",
+        description="위협 지식 DB에서 공격 시나리오/CWE/CAPEC/CVE를 검색한다. 이전 결과가 부적절하면 exclude_ids로 제외하고 재검색 가능.",
         parameters={
             "type": "object",
             "properties": {
@@ -108,8 +120,34 @@ async def _handle_deep_analyze(request: TaskRequest) -> TaskSuccessResponse | Ta
                     "items": {"type": "string"},
                     "description": "검색 소스 필터 (예: ['CWE'], ['ATT&CK'], ['CWE', 'CVE']). 미지정 시 전체 검색",
                 },
+                "exclude_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "결과에서 제외할 노드 ID 목록 (예: ['CWE-78', 'CAPEC-88']). 이전 검색에서 부적절한 결과를 제외하고 다른 결과를 받을 때 사용",
+                },
             },
             "required": ["query"],
+        },
+        cost_tier=ToolCostTier.CHEAP,
+    ))
+    registry.register(ToolSchema(
+        name="code.read_file",
+        description="프로젝트 소스 파일을 읽는다. 코드 그래프에서 호출 체인이 끊기거나 함수 포인터/매크로 경유가 의심될 때 소스를 직접 확인하라. 최대 8,000자.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "프로젝트 루트 기준 상대 경로 (예: 'src/main.c', 'include/config.h')"},
+            },
+            "required": ["path"],
+        },
+        cost_tier=ToolCostTier.CHEAP,
+    ))
+    registry.register(ToolSchema(
+        name="build.metadata",
+        description="타겟 빌드 환경의 매크로와 아키텍처 정보를 조회한다. 포인터 크기(__SIZEOF_POINTER__), 엔디안(__BYTE_ORDER__), 정수 크기(__SIZEOF_LONG__) 등 취약점 심각도 판단에 사용.",
+        parameters={
+            "type": "object",
+            "properties": {},
         },
         cost_tier=ToolCostTier.CHEAP,
     ))
@@ -130,21 +168,36 @@ async def _handle_deep_analyze(request: TaskRequest) -> TaskSuccessResponse | Ta
         from app.tools.implementations.sast_tool import SastScanTool
         from app.tools.implementations.codegraph_phase1_tool import CodeGraphPhase1Tool
         from app.tools.implementations.codegraph_tool import CodeGraphCallersTool
+        from app.tools.implementations.codegraph_callees_tool import CodeGraphCalleesTool
         from app.tools.implementations.codegraph_search_tool import CodeGraphSearchTool
         from app.tools.implementations.knowledge_tool import KnowledgeTool
+        from app.tools.implementations.metadata_tool import MetadataTool
+        from app.tools.implementations.read_file_tool import ReadFileTool
         from app.tools.implementations.sca_tool import ScaTool
-        # 요청 timeoutMs의 절반을 SAST에 할당 (최소 120s)
-        sast_timeout = max(120.0, request.constraints.timeoutMs / 1000.0 * 0.5)
-        sast_impl = SastScanTool(timeout_s=sast_timeout)
+        # NDJSON 스트리밍 모드: inactivity timeout(60s)으로 제어.
+        # X-Timeout-Ms는 S4 내부 도구별 예산으로 전달 (전체 데드라인 아님).
+        sast_tool_budget_s = max(120.0, request.constraints.timeoutMs / 1000.0 * 0.5)
+        sast_impl = SastScanTool(timeout_s=sast_tool_budget_s)
         codegraph_impl = CodeGraphPhase1Tool()  # Phase 1: S4 /v1/functions
         sca_impl = ScaTool()
         # Phase 2 도구 등록 (LLM이 호출)
         callers_tool = CodeGraphCallersTool(base_url=settings.kb_endpoint)
+        callees_tool = CodeGraphCalleesTool(base_url=settings.kb_endpoint)
         search_tool = CodeGraphSearchTool(base_url=settings.kb_endpoint)
+        project_path = request.context.trusted.get("projectPath", "")
+        build_profile = request.context.trusted.get("buildProfile", {})
         router.register_implementation("sast.scan", sast_impl)
         router.register_implementation("code_graph.callers", callers_tool)
+        router.register_implementation("code_graph.callees", callees_tool)
         router.register_implementation("code_graph.search", search_tool)
         router.register_implementation("knowledge.search", KnowledgeTool())
+        if project_path:
+            router.register_implementation("code.read_file", ReadFileTool(project_path))
+            router.register_implementation("build.metadata", MetadataTool(
+                sast_endpoint=settings.sast_endpoint,
+                project_path=project_path,
+                build_profile=build_profile,
+            ))
     else:
         router.register_implementation("knowledge.search", MockKnowledgeTool())
 
@@ -166,6 +219,8 @@ async def _handle_deep_analyze(request: TaskRequest) -> TaskSuccessResponse | Ta
     project_id = session.request.context.trusted.get("projectId", session.request.taskId)
     if settings.llm_mode == "real" and callers_tool:
         callers_tool.set_project_id(project_id)
+    if settings.llm_mode == "real" and callees_tool:
+        callees_tool.set_project_id(project_id)
     if settings.llm_mode == "real" and search_tool:
         search_tool.set_project_id(project_id)
 
@@ -218,6 +273,7 @@ async def _handle_deep_analyze(request: TaskRequest) -> TaskSuccessResponse | Ta
     system_prompt, user_message = build_phase2_prompt(
         phase1_result, request.context.trusted,
         evidence_refs=all_evidence_refs,
+        budget=session.budget,
     )
     mm = MessageManager(
         system_prompt=system_prompt,
@@ -534,6 +590,17 @@ async def _handle_generate_poc(request: TaskRequest) -> TaskSuccessResponse | Ta
         }
 
     allowed_refs = {ref.refId for ref in request.evidenceRefs}
+
+    # 환각 refId 교정/제거
+    from app.validators.evidence_sanitizer import EvidenceRefSanitizer
+    sanitizer = EvidenceRefSanitizer()
+    parsed, sanitize_corrections = sanitizer.sanitize(parsed, allowed_refs)
+    if sanitize_corrections:
+        from agent_shared.observability import agent_log as _agent_log
+        _agent_log(logger, "generate-poc evidence ref 교정",
+                   component="generate_poc", phase="poc_sanitize",
+                   corrections=sanitize_corrections[:10])
+
     schema_validator = SchemaValidator()
     evidence_validator = EvidenceValidator()
     schema_result = schema_validator.validate(parsed, request.taskType)

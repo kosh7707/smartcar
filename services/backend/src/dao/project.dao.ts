@@ -2,7 +2,15 @@ import type { Project } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IProjectDAO } from "./interfaces";
 
-function rowToProject(row: any): Project {
+interface ProjectRow {
+  id: string;
+  name: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+}
+
+function rowToProject(row: ProjectRow): Project {
   return {
     id: row.id,
     name: row.name,
@@ -45,12 +53,12 @@ export class ProjectDAO implements IProjectDAO {
   }
 
   findById(id: string): Project | undefined {
-    const row = this.selectByIdStmt.get(id);
+    const row = this.selectByIdStmt.get(id) as ProjectRow | undefined;
     return row ? rowToProject(row) : undefined;
   }
 
   findAll(): Project[] {
-    return this.selectAllStmt.all().map(rowToProject);
+    return (this.selectAllStmt.all() as ProjectRow[]).map(rowToProject);
   }
 
   update(id: string, fields: { name?: string; description?: string }): Project | undefined {

@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S5(Knowledge Base) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-31 (통합 테스트 완료 + expiresAt 수정 + 로그 레벨 보정)**
+> **마지막 업데이트: 2026-04-02 (degraded mode + Qdrant 서버 모드 + 벤치마크 프레임워크)**
 
 ---
 
@@ -162,7 +162,7 @@ curl http://localhost:8002/v1/health
 ## 7. 테스트
 
 ```bash
-.venv/bin/python -m pytest tests/ -q  # 119 passed
+.venv/bin/python -m pytest tests/ -q  # 142 passed
 ```
 
 | 테스트 파일 | 건수 | 대상 |
@@ -174,7 +174,9 @@ curl http://localhost:8002/v1/health
 | test_knowledge_assembler.py | 15 | 위협 하이브리드 검색 + RRF |
 | test_nvd_client.py | 37 | CVE 조회 + EPSS/KEV/risk_score |
 | test_project_memory_service.py | 18 | 메모리 CRUD + lifecycle + 센티넬 + 마이그레이션 |
-| test_api_error_responses.py | 10 | 에러 포맷 + health/ready |
+| test_api_error_responses.py | 13 | 에러 포맷 + health/ready + degraded mode |
+| test_qdrant_modes.py | 5 | Qdrant file/server 듀얼 모드 초기화 |
+| test_benchmark_metrics.py | 15 | 벤치마크 메트릭 (P@k, R@k, NDCG, MRR) |
 
 ---
 

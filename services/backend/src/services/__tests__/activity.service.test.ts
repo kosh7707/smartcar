@@ -11,6 +11,7 @@ function createMockRunDAO(): IRunDAO {
     findByAnalysisResultId: vi.fn(),
     updateFindingCount: vi.fn(),
     trendByModule: vi.fn(),
+    findLatestCompletedRuns: vi.fn().mockReturnValue([]),
   };
 }
 

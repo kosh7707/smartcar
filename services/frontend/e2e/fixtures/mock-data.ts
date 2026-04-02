@@ -12,6 +12,10 @@ export const PROJECTS = [
     description: "차량용 게이트웨이 ECU 보안 분석 프로젝트",
     createdAt: "2026-03-01T09:00:00Z",
     updatedAt: "2026-03-27T14:30:00Z",
+    lastAnalysisAt: "2026-03-25T10:02:30Z",
+    severitySummary: { critical: 1, high: 2, medium: 1, low: 1 },
+    gateStatus: "fail" as const,
+    unresolvedDelta: 2,
   },
   {
     id: "p-2",
@@ -19,6 +23,10 @@ export const PROJECTS = [
     description: "BCM 펌웨어 보안 검증",
     createdAt: "2026-03-10T09:00:00Z",
     updatedAt: "2026-03-25T11:00:00Z",
+    lastAnalysisAt: "2026-03-22T15:00:00Z",
+    severitySummary: { critical: 0, high: 1, medium: 2, low: 0 },
+    gateStatus: "pass" as const,
+    unresolvedDelta: -1,
   },
 ];
 
@@ -42,6 +50,8 @@ export const FINDINGS = [
     description: "CAN 메시지 파싱 시 입력 길이를 검증하지 않아 스택 버퍼 오버플로우 발생 가능",
     location: "src/can_handler.c:142", suggestion: "입력 길이 검증 추가",
     fingerprint: "a1b2c3d4e5f60001",
+    cweId: "CWE-120", cveIds: ["CVE-2026-0001"], confidenceScore: 0.92,
+    detail: "CAN 프레임 수신 시 DLC 필드를 검증하지 않고 memcpy를 수행합니다. 공격자가 조작된 CAN 프레임(DLC > 8)을 전송하면 스택 버퍼가 오버플로우되어 제어 흐름을 탈취할 수 있습니다.",
     createdAt: "2026-03-25T10:00:00Z", updatedAt: "2026-03-25T10:00:00Z",
   },
   {
@@ -51,6 +61,7 @@ export const FINDINGS = [
     description: "소스 코드에 인증키가 하드코딩되어 있습니다",
     location: "src/auth.c:55", ruleId: "CWE-798", suggestion: "환경 변수 또는 키 저장소 사용",
     fingerprint: "a1b2c3d4e5f60002",
+    cweId: "CWE-798", confidenceScore: 0.78,
     createdAt: "2026-03-25T10:01:00Z", updatedAt: "2026-03-25T10:01:00Z",
   },
   {
@@ -60,6 +71,7 @@ export const FINDINGS = [
     description: "malloc 반환값 검증 없이 사용",
     location: "src/gateway.c:88", ruleId: "CWE-252",
     fingerprint: "a1b2c3d4e5f60003",
+    cweId: "CWE-252", confidenceScore: 0.95,
     createdAt: "2026-03-25T10:02:00Z", updatedAt: "2026-03-25T10:02:00Z",
   },
   {
@@ -69,6 +81,7 @@ export const FINDINGS = [
     description: "인터럽트 핸들러에서 공유 변수를 비원자적으로 접근",
     location: "src/main.c:203",
     fingerprint: "a1b2c3d4e5f60004",
+    confidenceScore: 0.45,
     createdAt: "2026-03-26T09:00:00Z", updatedAt: "2026-03-26T09:00:00Z",
   },
   {
@@ -78,6 +91,7 @@ export const FINDINGS = [
     description: "선언된 변수가 사용되지 않습니다",
     location: "src/crypto_utils.c:22", ruleId: "CWE-561",
     fingerprint: "a1b2c3d4e5f60005",
+    cweId: "CWE-561", confidenceScore: 0.99,
     createdAt: "2026-03-24T08:00:00Z", updatedAt: "2026-03-26T12:00:00Z",
   },
 ];
@@ -174,6 +188,7 @@ export function projectOverview(projectId: string) {
     },
     targetSummary: { total: 2, ready: 1, failed: 0, running: 1, discovered: 0 },
     recentAnalyses: ANALYSIS_RESULTS,
+    trend: { newFindings: 2, resolvedFindings: 1, unresolvedTotal: 4 },
   };
 }
 
@@ -296,3 +311,177 @@ export const ANALYSIS_STATUS_EMPTY = { success: true, data: [] };
 // ── Approvals Count ──
 
 export const APPROVAL_COUNT = { success: true, data: { pending: 1, total: 2 } };
+
+// ── Gate Profiles ──
+
+export const GATE_PROFILES = [
+  {
+    id: "gp-default", name: "기본", description: "표준 게이트 프로파일",
+    rules: [
+      { ruleId: "no-critical", enabled: true },
+      { ruleId: "high-threshold", enabled: true, params: { threshold: 5 } },
+      { ruleId: "evidence-coverage", enabled: true, params: { minPercent: 80 } },
+      { ruleId: "sandbox-unreviewed", enabled: true },
+    ],
+  },
+  {
+    id: "gp-strict", name: "엄격", description: "릴리스 전 엄격 검사",
+    rules: [
+      { ruleId: "no-critical", enabled: true },
+      { ruleId: "high-threshold", enabled: true, params: { threshold: 0 } },
+      { ruleId: "evidence-coverage", enabled: true, params: { minPercent: 95 } },
+      { ruleId: "sandbox-unreviewed", enabled: true },
+    ],
+  },
+  {
+    id: "gp-relaxed", name: "완화", description: "초기 개발 단계용",
+    rules: [
+      { ruleId: "no-critical", enabled: true },
+      { ruleId: "high-threshold", enabled: false },
+      { ruleId: "evidence-coverage", enabled: false },
+      { ruleId: "sandbox-unreviewed", enabled: false },
+    ],
+  },
+];
+
+// ── Build Log ──
+
+export const BUILD_LOG = `[2026-03-25T09:56:00Z] === Build Start: gateway-main ===
+[2026-03-25T09:56:01Z] arm-none-eabi-gcc -c -std=c11 -Wall -Wextra src/main.c -o obj/main.o
+[2026-03-25T09:56:02Z] arm-none-eabi-gcc -c -std=c11 -Wall -Wextra src/gateway.c -o obj/gateway.o
+[2026-03-25T09:56:03Z] arm-none-eabi-gcc -c -std=c11 -Wall -Wextra src/can_handler.c -o obj/can_handler.o
+[2026-03-25T09:56:04Z] arm-none-eabi-ld obj/main.o obj/gateway.o obj/can_handler.o -o gateway.elf
+[2026-03-25T09:56:05Z] === Build Complete: 0 errors, 0 warnings ===`;
+
+// ── Finding Groups ──
+
+export const FINDING_GROUPS = {
+  groups: [
+    { key: "CWE-120", count: 1, topSeverity: "critical", findingIds: ["find-1"] },
+    { key: "CWE-798", count: 1, topSeverity: "high", findingIds: ["find-2"] },
+    { key: "CWE-252", count: 1, topSeverity: "medium", findingIds: ["find-3"] },
+    { key: "CWE-561", count: 1, topSeverity: "low", findingIds: ["find-5"] },
+  ],
+};
+
+// ── Notifications ──
+
+export const NOTIFICATIONS = [
+  {
+    id: "notif-1", projectId: "p-1", type: "critical_finding" as const,
+    title: "Critical 취약점 발견", body: "버퍼 오버플로우 - CAN 메시지 처리",
+    severity: "critical" as const, resourceId: "find-1", read: false,
+    createdAt: "2026-03-25T10:03:00Z",
+  },
+  {
+    id: "notif-2", projectId: "p-1", type: "analysis_complete" as const,
+    title: "정적 분석 완료", body: "Finding 4건 발견",
+    resourceId: "run-1", read: false,
+    createdAt: "2026-03-25T10:02:30Z",
+  },
+  {
+    id: "notif-3", projectId: "p-1", type: "gate_failed" as const,
+    title: "Quality Gate 실패", body: "Critical 취약점 존재로 Gate 실패",
+    severity: "high" as const, resourceId: "gate-1", read: true,
+    createdAt: "2026-03-25T10:03:00Z",
+  },
+  {
+    id: "notif-4", projectId: "p-1", type: "approval_pending" as const,
+    title: "승인 요청 대기", body: "Quality Gate 오버라이드 승인 요청",
+    resourceId: "appr-1", read: false,
+    createdAt: "2026-03-25T11:00:00Z",
+  },
+];
+
+export const NOTIFICATION_COUNT = { unread: 3 };
+
+// ── Auth ──
+
+export const AUTH_USER = {
+  id: "user-1", username: "analyst", displayName: "김분석",
+  role: "analyst" as const,
+  createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-03-01T00:00:00Z",
+};
+
+export const LOGIN_RESPONSE = {
+  success: true,
+  data: { token: "mock-jwt-token-abc123", user: AUTH_USER },
+};
+
+export const AUTH_ME_RESPONSE = {
+  success: true,
+  data: AUTH_USER,
+};
+
+// ── Custom Report ──
+
+export const CUSTOM_REPORT_RESPONSE = {
+  reportId: "report-custom-1",
+};
+
+// ── Evidence Refs (for Finding detail mock enrichment) ──
+
+export const EVIDENCE_REFS = [
+  {
+    id: "evr-1", findingId: "find-1", artifactId: "ar-1",
+    artifactType: "sast-finding" as const,
+    locatorType: "line-range" as const,
+    locator: { file: "src/can_handler.c", startLine: 140, endLine: 145 },
+    createdAt: "2026-03-25T10:02:00Z",
+  },
+  {
+    id: "evr-2", findingId: "find-1", artifactId: "ar-1",
+    artifactType: "agent-assessment" as const,
+    locatorType: "line-range" as const,
+    locator: { file: "src/can_handler.c", startLine: 138, endLine: 150 },
+    createdAt: "2026-03-25T10:02:00Z",
+  },
+  {
+    id: "evr-3", findingId: "find-2", artifactId: "ar-1",
+    artifactType: "sast-finding" as const,
+    locatorType: "line-range" as const,
+    locator: { file: "src/auth.c", startLine: 53, endLine: 57 },
+    createdAt: "2026-03-25T10:02:00Z",
+  },
+];
+
+// ── Audit Log Entries ──
+
+export const AUDIT_LOG_ENTRIES = [
+  {
+    id: "audit-1", timestamp: "2026-03-25T10:02:30Z", actor: "system",
+    action: "finding.created", resource: "finding", resourceId: "find-1",
+    detail: { status: "open", severity: "critical" },
+  },
+  {
+    id: "audit-2", timestamp: "2026-03-26T12:00:00Z", actor: "analyst",
+    action: "finding.status_change", resource: "finding", resourceId: "find-5",
+    detail: { from: "open", to: "fixed", reason: "수정 완료" },
+  },
+];
+
+// ── File Content (for file preview mock - MOCK-33) ──
+
+export const FILE_CONTENT_RESPONSE = {
+  success: true,
+  data: {
+    content: `#include <string.h>
+#include <stdlib.h>
+#include "can_handler.h"
+
+#define CAN_BUF_SIZE 8
+
+static uint8_t can_rx_buf[CAN_BUF_SIZE];
+
+void can_process_message(const can_frame_t *frame) {
+    // WARNING: No length validation before memcpy
+    memcpy(can_rx_buf, frame->data, frame->dlc);
+
+    if (can_rx_buf[0] == CMD_DIAGNOSTIC) {
+        handle_diagnostic(can_rx_buf, frame->dlc);
+    }
+}`,
+    language: "c",
+    path: "src/can_handler.c",
+  },
+};

@@ -116,7 +116,7 @@ export function createProjectSourceRouter(
       if (targets.length > 0) {
         targetMapping = {};
         for (const file of files) {
-          const relativePath = (file as any).relativePath ?? (file as any).path ?? "";
+          const relativePath = file.relativePath;
           for (const t of targets) {
             if (relativePath.startsWith(t.relativePath)) {
               targetMapping[relativePath] = { targetId: t.id, targetName: t.name };

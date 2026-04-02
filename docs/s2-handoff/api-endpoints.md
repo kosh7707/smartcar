@@ -108,8 +108,21 @@
 | WebSocket | `/ws/pipeline?projectId=` | 파이프라인 진행률 push |
 | WebSocket | `/ws/upload?uploadId=` | 업로드 진행률 push |
 
-### 미구현
+### 세션 14 추가 (2026-04-01)
 
-| 메서드 | 경로 | 우선순위 |
-|--------|------|---------|
-| POST | `/api/auth/*` | P2 |
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/gate-profiles` | Gate 프로필 목록 (3개) |
+| GET | `/api/gate-profiles/:id` | Gate 프로필 상세 |
+| GET | `/api/projects/:pid/notifications` | 프로젝트 알림 목록 (?unread=true) |
+| GET | `/api/projects/:pid/notifications/count` | 미읽음 카운트 |
+| PATCH | `/api/projects/:pid/notifications/read-all` | 전체 읽음 처리 |
+| PATCH | `/api/notifications/:id/read` | 개별 읽음 처리 |
+| POST | `/api/auth/login` | 로그인 (세션 토큰 발급) |
+| POST | `/api/auth/logout` | 로그아웃 |
+| GET | `/api/auth/me` | 현재 사용자 정보 |
+| GET | `/api/auth/users` | 사용자 목록 |
+| GET | `/api/projects/:pid/findings/groups` | Finding 그루핑 (?groupBy=) |
+| POST | `/api/projects/:pid/report/custom` | 커스터마이징 보고서 |
+| GET | `/api/projects/:pid/targets/:id/build-log` | 빌드 로그 조회 |
+| WebSocket | `/ws/notifications?projectId=` | 알림 실시간 push |

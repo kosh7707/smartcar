@@ -1,0 +1,96 @@
+{
+  "id": "hard-uaf-callback",
+  "description": "Use-After-Free via callback function pointer. Timer handler frees struct, but callback still references it. Complex control flow with error paths.",
+  "category": "true_positive",
+  "difficulty": "hard",
+  "input": {
+    "task_type": "deep-analyze",
+    "objective": "보안 취약점 심층 분석",
+    "sast_findings": [
+      {
+        "toolId": "cppcheck",
+        "ruleId": "doubleFree",
+        "severity": "error",
+        "location": {"file": "src/timer_mgr.c", "line": 58},
+        "message": "Memory pointed to by 'ctx' is freed twice."
+      },
+      {
+        "toolId": "flawfinder",
+        "ruleId": "free-1",
+        "severity": "warning",
+        "location": {"file": "src/timer_mgr.c", "line": 45},
+        "message": "free(): Ensure that the pointer is not used after being freed."
+      },
+      {
+        "toolId": "cppcheck",
+        "ruleId": "memleak",
+        "severity": "warning",
+        "location": {"file": "src/timer_mgr.c", "line": 25},
+        "message": "Memory leak: ctx is allocated but not freed on error path."
+      },
+      {
+        "toolId": "flawfinder",
+        "ruleId": "malloc-1",
+        "severity": "style",
+        "location": {"file": "src/timer_mgr.c", "line": 20},
+        "message": "malloc(): Check return value for NULL."
+      }
+    ],
+    "code_functions": [
+      {"name": "timer_create_ctx", "file": "src/timer_mgr.c", "line": 15},
+      {"name": "timer_expire_handler", "file": "src/timer_mgr.c", "line": 35},
+      {"name": "timer_cleanup", "file": "src/timer_mgr.c", "line": 50}
+    ],
+    "threat_context": [
+      {
+        "id": "CWE-416",
+        "source": "cwe",
+        "title": "Use After Free",
+        "threat_category": "memory-safety"
+      },
+      {
+        "id": "CWE-415",
+        "source": "cwe",
+        "title": "Double Free",
+        "threat_category": "memory-safety"
+      },
+      {
+        "id": "CWE-401",
+        "source": "cwe",
+        "title": "Missing Release of Memory after Effective Lifetime",
+        "threat_category": "memory-safety"
+      }
+    ],
+    "source_code": "/* src/timer_mgr.c */\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef struct {\n    int timer_id;\n    void (*callback)(void *data);\n    void *user_data;\n    int active;\n    int expired;\n} TimerContext;\n\nTimerContext *timer_create_ctx(int id, void (*cb)(void*), void *data) {\n    TimerContext *ctx = (TimerContext *)malloc(sizeof(TimerContext));  /* line 20 */\n    if (!ctx) return NULL;  /* malloc return check - OK */\n\n    ctx->timer_id = id;\n    ctx->callback = cb;\n    ctx->user_data = data;\n    ctx->active = 1;    /* line 25: memleak FP - ctx IS returned on success */\n    ctx->expired = 0;\n    return ctx;\n}\n\n/* Called when timer expires - runs in interrupt/signal context */\nvoid timer_expire_handler(TimerContext *ctx) {\n    if (!ctx || !ctx->active) return;\n\n    ctx->expired = 1;\n    ctx->active = 0;\n\n    /* Execute the callback */\n    if (ctx->callback) {\n        ctx->callback(ctx->user_data);\n    }\n\n    /* line 45: FREE the context after callback execution */\n    free(ctx);\n}\n\n/* Called from main loop - may race with timer_expire_handler */\nvoid timer_cleanup(TimerContext *ctx) {\n    if (!ctx) return;\n\n    /* BUG: If timer_expire_handler already freed ctx, this is USE-AFTER-FREE */\n    if (ctx->expired) {  /* line 55: UAF - reading freed memory */\n        printf(\"Timer %d already expired\\n\", ctx->timer_id);  /* UAF */\n    }\n\n    /* line 58: DOUBLE-FREE if timer_expire_handler already freed */\n    free(ctx);\n}\n\n/* Example callback */\nvoid on_timeout(void *data) {\n    printf(\"Timeout for: %s\\n\", (const char *)data);\n}\n\nint main(void) {\n    TimerContext *t = timer_create_ctx(1, on_timeout, \"watchdog\");\n    if (!t) return 1;\n\n    /* Simulate: timer expires in background */\n    timer_expire_handler(t);  /* frees t */\n\n    /* Main loop: tries to clean up - but t is already freed! */\n    timer_cleanup(t);  /* UAF + double-free */\n\n    return 0;\n}\n",
+    "evidence_refs": [
+      {"refId": "eref-eval-hard-uaf-src", "artifactId": "eref-eval-hard-uaf-src", "artifactType": "raw-source", "locatorType": "file", "locator": {"file": "src/timer_mgr.c"}}
+    ]
+  },
+  "expected": {
+    "must_find": [
+      {
+        "severity_min": "high",
+        "file": "timer_mgr.c",
+        "keywords": ["free"]
+      }
+    ],
+    "must_reject": [
+      {
+        "file": "timer_mgr.c",
+        "line_range": [18, 22],
+        "keywords": ["malloc", "null"],
+        "reason": "malloc return is checked on line 21"
+      },
+      {
+        "file": "timer_mgr.c",
+        "line_range": [23, 27],
+        "keywords": ["leak"],
+        "reason": "ctx is returned on success - no leak on normal path"
+      }
+    ],
+    "severity_range": ["high", "critical"],
+    "min_total_claims": 1,
+    "max_total_claims": 4,
+    "required_cwe_mentions": ["CWE-416", "CWE-415"]
+  }
+}

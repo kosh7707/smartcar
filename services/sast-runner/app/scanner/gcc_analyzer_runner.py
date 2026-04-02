@@ -87,6 +87,7 @@ class GccAnalyzerRunner:
         profile: BuildProfile | None,
         timeout: int = 120,
         enriched_profile: BuildProfile | None = None,
+        on_file_progress=None,
     ) -> list[SastFinding]:
         c_cpp_files = [
             f for f in source_files
@@ -116,9 +117,17 @@ class GccAnalyzerRunner:
                 per_file_timeout, timeout, _batches,
             )
 
+        files_done = 0
+        total_files = len(c_cpp_files)
+
         async def _guarded(f: str) -> list[SastFinding]:
+            nonlocal files_done
             async with _sem:
-                return await self._run_single(gcc_bin, scan_dir, f, actual_profile, per_file_timeout)
+                result = await self._run_single(gcc_bin, scan_dir, f, actual_profile, per_file_timeout)
+            files_done += 1
+            if on_file_progress:
+                await on_file_progress(f, files_done, total_files)
+            return result
 
         results = await asyncio.gather(
             *[_guarded(f) for f in c_cpp_files], return_exceptions=True,
@@ -305,10 +314,12 @@ class GccAnalyzerRunner:
             gcc_cwe = warning_match.group("cwe")
             if gcc_cwe:
                 metadata["cwe"] = [gcc_cwe]
+                metadata["cweId"] = gcc_cwe
             elif flag:
                 mapped = _GCC_ANALYZER_CWE_MAP.get(flag)
                 if mapped:
                     metadata["cwe"] = mapped
+                    metadata["cweId"] = mapped[0]
 
             # note → dataFlow
             data_flow: list[SastDataFlowStep] | None = None

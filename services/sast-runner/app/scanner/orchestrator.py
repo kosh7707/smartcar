@@ -5,8 +5,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
+
+# Progress 콜백 타입: (tool_name, status, findings_count, elapsed_ms) -> None
+ProgressCallback = Callable[[str, str, int, int], Awaitable[None]]
+# File progress 콜백 타입: (tool_name, current_file, files_done, files_total) -> None
+FileProgressCallback = Callable[[str, str, int, int], Awaitable[None]]
 
 from app.scanner.clangtidy_runner import ClangTidyRunner
 from app.scanner.cppcheck_runner import CppcheckRunner
@@ -119,6 +125,8 @@ class ScanOrchestrator:
         tools: list[str] | None = None,
         timeout: int = 120,
         third_party_paths: list[str] | None = None,
+        on_progress: ProgressCallback | None = None,
+        on_file_progress: FileProgressCallback | None = None,
     ) -> tuple[list[SastFinding], ExecutionReport]:
         """도구들을 병렬 실행하고 합산된 findings + 실행 보고서를 반환.
 
@@ -167,20 +175,34 @@ class ScanOrchestrator:
         if "scan-build" in active_tools:
             task_map["scan-build"] = self._run_scanbuild(
                 scan_dir, scoped_files, enriched_profile, timeout,
+                on_file_progress=on_file_progress,
             )
         if "gcc-fanalyzer" in active_tools:
             task_map["gcc-fanalyzer"] = self._run_gcc_analyzer(
                 scan_dir, scoped_files, profile, enriched_profile, timeout,
+                on_file_progress=on_file_progress,
             )
 
-        # 5. 병렬 실행 (per-tool timing wrapper)
-        async def _timed(coro):
+        # 5. 병렬 실행 (per-tool timing wrapper + progress callback)
+        async def _timed(tool_name: str, coro):
+            if on_progress:
+                await on_progress(tool_name, "started", 0, 0)
             t = time.perf_counter()
-            r = await coro
-            return r, int((time.perf_counter() - t) * 1000)
+            try:
+                r = await coro
+                elapsed = int((time.perf_counter() - t) * 1000)
+                count = len(r) if isinstance(r, list) else 0
+                if on_progress:
+                    await on_progress(tool_name, "completed", count, elapsed)
+                return r, elapsed
+            except Exception as exc:
+                elapsed = int((time.perf_counter() - t) * 1000)
+                if on_progress:
+                    await on_progress(tool_name, "failed", 0, elapsed)
+                raise
 
         results = await asyncio.gather(
-            *[_timed(coro) for coro in task_map.values()],
+            *[_timed(name, coro) for name, coro in task_map.items()],
             return_exceptions=True,
         )
 
@@ -379,17 +401,29 @@ class ScanOrchestrator:
     async def _run_scanbuild(
         self, scan_dir: Path, source_files: list[str],
         profile: BuildProfile | None, timeout: int,
+        on_file_progress: FileProgressCallback | None = None,
     ) -> list[SastFinding]:
-        return await self.scanbuild.run(scan_dir, source_files, profile, timeout)
+        async def _file_cb(file: str, done: int, total: int):
+            if on_file_progress:
+                await on_file_progress("scan-build", file, done, total)
+        return await self.scanbuild.run(
+            scan_dir, source_files, profile, timeout,
+            on_file_progress=_file_cb if on_file_progress else None,
+        )
 
     async def _run_gcc_analyzer(
         self, scan_dir: Path, source_files: list[str],
         profile: BuildProfile | None, enriched_profile: BuildProfile | None,
         timeout: int,
+        on_file_progress: FileProgressCallback | None = None,
     ) -> list[SastFinding]:
+        async def _file_cb(file: str, done: int, total: int):
+            if on_file_progress:
+                await on_file_progress("gcc-fanalyzer", file, done, total)
         return await self.gcc_analyzer.run(
             scan_dir, source_files, profile, timeout,
             enriched_profile=enriched_profile,
+            on_file_progress=_file_cb if on_file_progress else None,
         )
 
 

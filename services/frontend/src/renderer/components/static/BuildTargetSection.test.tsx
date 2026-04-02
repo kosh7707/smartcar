@@ -70,7 +70,7 @@ describe("BuildTargetSection", () => {
     render(<BuildTargetSection projectId="p-1" />);
 
     expect(screen.getByText("gateway")).toBeTruthy();
-    expect(screen.getByText("준비 완료")).toBeTruthy();
+    expect(screen.getByText("분석 가능")).toBeTruthy();
   });
 
   it("opens add form on button click", () => {

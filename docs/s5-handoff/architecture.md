@@ -99,6 +99,8 @@ services/knowledge-base/
 
 ```bash
 AEGIS_KB_QDRANT_PATH=/home/kosh/AEGIS/services/knowledge-base/data/qdrant
+# AEGIS_KB_QDRANT_URL=http://localhost:6333    # 서버 모드 시 설정 (qdrant_path 대신 사용)
+# AEGIS_KB_QDRANT_API_KEY=                     # 서버 인증 시 설정
 AEGIS_KB_RAG_TOP_K=5
 AEGIS_KB_RAG_MIN_SCORE=0.35
 AEGIS_KB_GRAPH_DEPTH=2
@@ -110,6 +112,23 @@ AEGIS_KB_NVD_CACHE_TTL=86400
 AEGIS_KB_NVD_CACHE_FILE=data/cve-cache.json
 NVD_API_KEY=<NVD API 키 (ETL용)>
 ```
+
+### Qdrant 연결 모드
+
+| 모드 | 설정 | 용도 | 제약 |
+|------|------|------|------|
+| **file** (기본) | `AEGIS_KB_QDRANT_PATH` | 개발/단일 프로세스 | 단일 프로세스만 접근 가능. ETL `--fresh` 시 서비스 중지 필요 |
+| **server** | `AEGIS_KB_QDRANT_URL` | 운영/다중 프로세스 | Qdrant 서버 별도 기동 필요. 무중단 ETL 가능 |
+
+`AEGIS_KB_QDRANT_URL`이 설정되면 서버 모드 우선. 미설정 시 `AEGIS_KB_QDRANT_PATH` (파일 모드).
+
+### Degraded Mode
+
+Neo4j 미연결 + Qdrant 정상 시 **degraded mode**로 동작:
+- 벡터 검색은 정상 작동 (Qdrant)
+- 그래프 보강(이웃 확장, 관계 조회)은 비활성
+- 검색 응답에 `"degraded": true` 포함 → 호출자가 결과 품질 저하를 인식
+- `/v1/ready`는 여전히 503 반환 (완전한 readiness가 아님)
 
 ---
 

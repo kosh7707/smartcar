@@ -3,7 +3,7 @@
 > **소유자**: S3 (Analysis Agent)
 > **포트**: 8001
 > **호출자**: S2 (Backend)
-> **최종 업데이트**: 2026-03-27
+> **최종 업데이트**: 2026-04-02
 
 S2(AEGIS Core)가 S3(Analysis Agent)를 호출할 때 참조하는 API 계약서.
 Analysis Agent는 AEGIS의 **증거 기반 보안 심층 분석 에이전트**로, Phase 1(결정론적 도구 실행) + Phase 2(LLM 해석)를 자동 수행한다.
@@ -226,10 +226,23 @@ HTTP `200` + `status: "completed"`
     "ragHits": 0,
     "createdAt": "2026-03-19T02:20:06Z",
     "agentAudit": {
-      "turn_count": 1,
-      "tool_call_count": 0,
+      "turn_count": 2,
+      "tool_call_count": 3,
       "termination_reason": "content_returned",
-      "trace": []
+      "model_name": "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4",
+      "prompt_version": "agent-v1",
+      "total_prompt_tokens": 15000,
+      "total_completion_tokens": 3500,
+      "trace": [
+        {
+          "step_id": 1,
+          "tool": "knowledge.search",
+          "cost_tier": "cheap",
+          "duration_ms": 234,
+          "success": true,
+          "new_evidence_refs": ["eref-kb-001"]
+        }
+      ]
     }
   }
 }
@@ -277,7 +290,20 @@ confidence = 0.45×grounding + 0.30×deterministicSupport + 0.15×ragCoverage + 
 | retryCount | int | LLM 출력 품질 재시도 횟수 (0이면 첫 시도 성공) |
 | ragHits | int | 위협 지식 DB 검색 히트 수 |
 | createdAt | string | ISO 8601 UTC |
-| agentAudit | object | 에이전트 루프 상세 (`turn_count`, `tool_call_count`, `termination_reason`, `trace`) |
+| agentAudit | object | 에이전트 루프 상세 (아래 참조) |
+
+#### agentAudit 필드
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| turn_count | int | 총 LLM 턴 수 |
+| tool_call_count | int | 총 도구 호출 수 |
+| termination_reason | string | 종료 사유 (`content_returned`, `max_steps`, `budget_exhausted`, `timeout`, `no_evidence`, `all_tiers_exhausted`) |
+| model_name | string | LLM 모델 식별자 (예: `Qwen/Qwen3.5-122B-A10B-GPTQ-Int4`) |
+| prompt_version | string | 프롬프트 버전 (예: `agent-v1`) |
+| total_prompt_tokens | int | 전체 루프에서 소비한 프롬프트 토큰 합계 |
+| total_completion_tokens | int | 전체 루프에서 생성한 완성 토큰 합계 |
+| trace | array | 도구 실행 기록 (아래 참조) |
 
 #### agentAudit.trace[]
 
@@ -374,9 +400,9 @@ Pydantic 검증 실패 시 `422 Unprocessable Entity`:
   "modelProfiles": ["Qwen/Qwen3.5-122B-A10B-GPTQ-Int4-default"],
   "activePromptVersions": {"deep-analyze": "agent-v1", "generate-poc": "v1"},
   "agentConfig": {
-    "maxSteps": 6,
+    "maxSteps": 12,
     "maxCompletionTokens": 20000,
-    "toolBudget": {"cheap": 3, "medium": 2, "expensive": 1}
+    "toolBudget": {"cheap": 6, "medium": 4, "expensive": 1}
   },
   "rag": {
     "enabled": false,

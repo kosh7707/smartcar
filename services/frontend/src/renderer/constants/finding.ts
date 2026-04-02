@@ -43,11 +43,11 @@ export function canTransitionTo(
 }
 
 export const SOURCE_TYPE_LABELS: Record<FindingSourceType, string> = {
-  "rule-engine": "룰",
-  "llm-assist": "AI",
-  both: "룰 + AI",
-  agent: "에이전트",
-  "sast-tool": "SAST",
+  "rule-engine": "룰 엔진",
+  "llm-assist": "AI 보조",
+  both: "룰 + AI 복합",
+  agent: "심층 에이전트",
+  "sast-tool": "SAST 도구",
 };
 
 export const CONFIDENCE_LABELS: Record<Confidence, string> = {

@@ -68,6 +68,7 @@ class ScanbuildRunner:
         source_files: list[str],
         profile: BuildProfile | None,
         timeout: int = 120,
+        on_file_progress=None,
     ) -> list[SastFinding]:
         available, scan_build_bin = await self.check_available()
         if not available:
@@ -94,9 +95,17 @@ class ScanbuildRunner:
                 per_file_timeout, timeout, _batches,
             )
 
+        files_done = 0
+        total_files = len(c_cpp_files)
+
         async def _guarded(f: str) -> list[SastFinding]:
+            nonlocal files_done
             async with _sem:
-                return await self._run_single(bin_name, scan_dir, f, profile, per_file_timeout)
+                result = await self._run_single(bin_name, scan_dir, f, profile, per_file_timeout)
+            files_done += 1
+            if on_file_progress:
+                await on_file_progress(f, files_done, total_files)
+            return result
 
         results = await asyncio.gather(
             *[_guarded(f) for f in c_cpp_files], return_exceptions=True,
@@ -255,6 +264,7 @@ class ScanbuildRunner:
             cwe = _SCANBUILD_CWE_MAP.get(check_name)
             if cwe:
                 metadata["cwe"] = cwe
+                metadata["cweId"] = cwe[0]
 
         return SastFinding(
             toolId="scan-build",

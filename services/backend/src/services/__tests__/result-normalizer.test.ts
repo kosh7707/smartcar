@@ -22,6 +22,7 @@ function createMockRunDAO(): IRunDAO {
     findByAnalysisResultId: vi.fn().mockReturnValue(undefined),
     updateFindingCount: vi.fn(),
     trendByModule: vi.fn(),
+    findLatestCompletedRuns: vi.fn().mockReturnValue([]),
   };
 }
 
@@ -41,6 +42,9 @@ function createMockFindingDAO(): IFindingDAO {
     summaryByModule: vi.fn(),
     topFilesByModule: vi.fn(),
     topRulesByModule: vi.fn(),
+    unresolvedCountByProjectId: vi.fn().mockReturnValue(0),
+    severitySummaryByProjectId: vi.fn().mockReturnValue({ critical: 0, high: 0, medium: 0, low: 0 }),
+    resolvedCountSince: vi.fn().mockReturnValue(0),
   };
 }
 

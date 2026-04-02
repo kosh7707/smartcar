@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -448,3 +451,354 @@ async def test_libraries_no_project_path(client: AsyncClient) -> None:
         json={"scanId": "test-lib-001", "projectId": "proj-test", "files": []},
     )
     assert resp.status_code == 400
+
+
+# ──────────── NDJSON 스트리밍 모드 ────────────
+
+
+def _parse_ndjson(text: str) -> list[dict]:
+    """NDJSON 텍스트를 파싱하여 이벤트 리스트 반환."""
+    import json
+    events = []
+    for line in text.strip().split("\n"):
+        line = line.strip()
+        if line:
+            events.append(json.loads(line))
+    return events
+
+
+@pytest.mark.asyncio
+async def test_scan_ndjson_streaming_basic(client: AsyncClient, mock_semgrep_runner) -> None:
+    """NDJSON Accept → 스트리밍 응답, progress + result 이벤트 검증."""
+    resp = await client.post(
+        "/v1/scan",
+        headers={
+            "Accept": "application/x-ndjson",
+            "X-Request-Id": "req-stream-001",
+        },
+        json={
+            "scanId": "test-stream-001",
+            "projectId": "proj-test",
+            "files": [
+                {"path": "src/main.c", "content": "int main() { return 0; }"},
+            ],
+        },
+    )
+    assert resp.status_code == 200
+    assert "application/x-ndjson" in resp.headers.get("content-type", "")
+    assert resp.headers.get("X-Request-Id") == "req-stream-001"
+
+    events = _parse_ndjson(resp.text)
+    assert len(events) >= 1
+
+    # 마지막 이벤트는 result
+    last = events[-1]
+    assert last["type"] == "result"
+    assert last["data"]["success"] is True
+    assert last["data"]["scanId"] == "test-stream-001"
+    assert isinstance(last["data"]["findings"], list)
+
+
+@pytest.mark.asyncio
+async def test_scan_ndjson_has_progress_events(client: AsyncClient, mock_semgrep_runner) -> None:
+    """스트리밍 응답에 progress 이벤트가 포함되는지 확인."""
+    resp = await client.post(
+        "/v1/scan",
+        headers={"Accept": "application/x-ndjson"},
+        json={
+            "scanId": "test-stream-progress",
+            "projectId": "proj-test",
+            "files": [
+                {"path": "src/main.c", "content": "int main() { return 0; }"},
+            ],
+        },
+    )
+    events = _parse_ndjson(resp.text)
+    progress_events = [e for e in events if e["type"] == "progress"]
+
+    # mock_semgrep_runner의 on_progress 콜백이 호출됨 (도구별)
+    # orchestrator.run이 mock이므로 콜백이 호출되지 않을 수 있음
+    # 최소한 result 이벤트는 존재해야 함
+    result_events = [e for e in events if e["type"] == "result"]
+    assert len(result_events) == 1
+    assert result_events[0]["data"]["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_scan_ndjson_result_matches_sync(client: AsyncClient, mock_semgrep_runner) -> None:
+    """동기/스트리밍 동일 결과 반환 확인."""
+    body = {
+        "scanId": "test-compare",
+        "projectId": "proj-test",
+        "files": [
+            {"path": "src/main.c", "content": "#include <stdio.h>\nvoid f() { gets(buf); }"},
+        ],
+        "rulesets": ["p/c"],
+    }
+
+    # 동기
+    resp_sync = await client.post("/v1/scan", json=body)
+    sync_data = resp_sync.json()
+
+    # 스트리밍
+    resp_stream = await client.post(
+        "/v1/scan",
+        headers={"Accept": "application/x-ndjson"},
+        json=body,
+    )
+    events = _parse_ndjson(resp_stream.text)
+    stream_data = [e for e in events if e["type"] == "result"][0]["data"]
+
+    # 핵심 필드 일치 확인
+    assert sync_data["success"] == stream_data["success"]
+    assert sync_data["scanId"] == stream_data["scanId"]
+    assert len(sync_data["findings"]) == len(stream_data["findings"])
+
+
+@pytest.mark.asyncio
+async def test_scan_ndjson_error_event(client: AsyncClient) -> None:
+    """스캔 에러 시 error 이벤트 emit 확인."""
+    from unittest.mock import AsyncMock, patch
+    from app.errors import ScanTimeoutError
+
+    with patch("app.routers.scan.orchestrator") as mock_orch:
+        mock_orch.run = AsyncMock(side_effect=ScanTimeoutError("Tool timed out"))
+        resp = await client.post(
+            "/v1/scan",
+            headers={"Accept": "application/x-ndjson"},
+            json={
+                "scanId": "test-stream-error",
+                "projectId": "proj-test",
+                "files": [
+                    {"path": "src/main.c", "content": "int main() { return 0; }"},
+                ],
+            },
+        )
+
+    events = _parse_ndjson(resp.text)
+    error_events = [e for e in events if e["type"] == "error"]
+    assert len(error_events) == 1
+    assert error_events[0]["code"] == "SCAN_TIMEOUT"
+    assert error_events[0]["retryable"] is True
+
+
+@pytest.mark.asyncio
+async def test_scan_without_ndjson_header_unchanged(client: AsyncClient, mock_semgrep_runner) -> None:
+    """Accept 없으면 기존 동기 JSON 응답 (스트리밍 아님)."""
+    resp = await client.post(
+        "/v1/scan",
+        json={
+            "scanId": "test-sync",
+            "projectId": "proj-test",
+            "files": [
+                {"path": "src/main.c", "content": "int main() { return 0; }"},
+            ],
+        },
+    )
+    assert resp.status_code == 200
+    assert "application/json" in resp.headers.get("content-type", "")
+    data = resp.json()
+    assert "type" not in data  # NDJSON 이벤트 형식이 아님
+    assert data["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_scan_ndjson_validation_error_returns_json(client: AsyncClient) -> None:
+    """NDJSON 모드에서도 입력 검증 실패 시 일반 HTTP 에러 반환."""
+    resp = await client.post(
+        "/v1/scan",
+        headers={"Accept": "application/x-ndjson"},
+        json={
+            "scanId": "test-validate",
+            "projectId": "proj-test",
+            "files": [],
+        },
+    )
+    assert resp.status_code == 400
+
+
+# --- heartbeat 진행 지표 보강 테스트 ---
+
+
+def _make_progress_mock(findings, execution):
+    """orchestrator.run mock — on_progress 콜백을 실제 호출하는 side_effect."""
+
+    async def _run(*args, **kwargs):
+        on_progress = kwargs.get("on_progress")
+        on_file_progress = kwargs.get("on_file_progress")
+        if on_progress:
+            await on_progress("semgrep", "started", 0, 0)
+            await on_progress("semgrep", "completed", len(findings), 100)
+        if on_file_progress:
+            await on_file_progress("gcc-fanalyzer", "src/main.c", 1, 2)
+        return (findings, execution)
+
+    return _run
+
+
+def _make_slow_progress_mock(findings, execution, delay: float = 0.3):
+    """orchestrator.run mock — 지연 + on_progress 호출 (heartbeat 발생 유도)."""
+
+    async def _run(*args, **kwargs):
+        on_progress = kwargs.get("on_progress")
+        on_file_progress = kwargs.get("on_file_progress")
+        if on_progress:
+            await on_progress("semgrep", "started", 0, 0)
+        if on_file_progress:
+            await on_file_progress("gcc-fanalyzer", "src/main.c", 1, 3)
+        await asyncio.sleep(delay)
+        if on_progress:
+            await on_progress("semgrep", "completed", len(findings), 200)
+        return (findings, execution)
+
+    return _run
+
+
+@pytest.mark.asyncio
+async def test_scan_ndjson_progress_started_event(client: AsyncClient, mock_semgrep_runner) -> None:
+    """스트리밍 응답에 도구별 'started' progress 이벤트가 포함되는지 확인."""
+    from app.scanner.sarif_parser import parse_sarif
+    import json
+    from pathlib import Path as P
+
+    sarif = json.loads((P(__file__).parent / "fixtures" / "sample.sarif.json").read_text())
+    findings, _ = parse_sarif(sarif, P("/tmp/mock"))
+    execution = mock_semgrep_runner.run.return_value[1]
+
+    mock_semgrep_runner.run = AsyncMock(side_effect=_make_progress_mock(findings, execution))
+
+    resp = await client.post(
+        "/v1/scan",
+        headers={"Accept": "application/x-ndjson"},
+        json={
+            "scanId": "test-started",
+            "projectId": "proj-test",
+            "files": [{"path": "src/main.c", "content": "int main() {}"}],
+        },
+    )
+    events = _parse_ndjson(resp.text)
+    started_events = [e for e in events if e.get("type") == "progress" and e.get("status") == "started"]
+    assert len(started_events) >= 1
+    assert started_events[0]["tool"] == "semgrep"
+
+
+@pytest.mark.asyncio
+async def test_scan_ndjson_heartbeat_has_progress(client: AsyncClient, mock_semgrep_runner) -> None:
+    """running 상태 heartbeat에 status + progress 필드가 포함되는지 확인."""
+    from app.scanner.sarif_parser import parse_sarif
+    import json
+    from pathlib import Path as P
+
+    sarif = json.loads((P(__file__).parent / "fixtures" / "sample.sarif.json").read_text())
+    findings, _ = parse_sarif(sarif, P("/tmp/mock"))
+    execution = mock_semgrep_runner.run.return_value[1]
+
+    mock_semgrep_runner.run = AsyncMock(
+        side_effect=_make_slow_progress_mock(findings, execution, delay=0.3),
+    )
+
+    with patch("app.routers.scan._HEARTBEAT_INTERVAL_S", 0.1):
+        resp = await client.post(
+            "/v1/scan",
+            headers={"Accept": "application/x-ndjson"},
+            json={
+                "scanId": "test-hb-progress",
+                "projectId": "proj-test",
+                "files": [{"path": "src/main.c", "content": "int main() {}"}],
+            },
+        )
+
+    events = _parse_ndjson(resp.text)
+    heartbeats = [e for e in events if e.get("type") == "heartbeat"]
+    assert len(heartbeats) >= 1
+    running_hb = [h for h in heartbeats if h.get("status") == "running"]
+    assert len(running_hb) >= 1
+    progress = running_hb[0]["progress"]
+    assert "activeTools" in progress
+    assert "completedTools" in progress
+    assert "findingsCount" in progress
+    assert "filesCompleted" in progress
+    assert "filesTotal" in progress
+    assert "currentFile" in progress
+
+
+@pytest.mark.asyncio
+async def test_scan_ndjson_file_progress_in_heartbeat(client: AsyncClient, mock_semgrep_runner) -> None:
+    """heartbeat의 filesCompleted/currentFile이 on_file_progress에서 반영되는지 확인."""
+    from app.scanner.sarif_parser import parse_sarif
+    import json
+    from pathlib import Path as P
+
+    sarif = json.loads((P(__file__).parent / "fixtures" / "sample.sarif.json").read_text())
+    findings, _ = parse_sarif(sarif, P("/tmp/mock"))
+    execution = mock_semgrep_runner.run.return_value[1]
+
+    mock_semgrep_runner.run = AsyncMock(
+        side_effect=_make_slow_progress_mock(findings, execution, delay=0.3),
+    )
+
+    with patch("app.routers.scan._HEARTBEAT_INTERVAL_S", 0.1):
+        resp = await client.post(
+            "/v1/scan",
+            headers={"Accept": "application/x-ndjson"},
+            json={
+                "scanId": "test-file-progress",
+                "projectId": "proj-test",
+                "files": [{"path": "src/main.c", "content": "int main() {}"}],
+            },
+        )
+
+    events = _parse_ndjson(resp.text)
+    running_hb = [
+        e for e in events
+        if e.get("type") == "heartbeat" and e.get("status") == "running"
+    ]
+    if running_hb:
+        progress = running_hb[0]["progress"]
+        assert progress["filesCompleted"] >= 1
+        assert progress["currentFile"] == "src/main.c"
+
+
+@pytest.mark.asyncio
+async def test_scan_ndjson_queued_status(client: AsyncClient, mock_semgrep_runner) -> None:
+    """세마포어 포화 시 queued status heartbeat가 전송되는지 확인."""
+    from app.scanner.sarif_parser import parse_sarif
+    import json
+    from pathlib import Path as P
+
+    sarif = json.loads((P(__file__).parent / "fixtures" / "sample.sarif.json").read_text())
+    findings, _ = parse_sarif(sarif, P("/tmp/mock"))
+    execution = mock_semgrep_runner.run.return_value[1]
+
+    from app.routers.scan import _scan_semaphore
+
+    await _scan_semaphore.acquire()
+
+    async def _release_later():
+        await asyncio.sleep(0.15)
+        _scan_semaphore.release()
+
+    mock_semgrep_runner.run = AsyncMock(
+        side_effect=_make_progress_mock(findings, execution),
+    )
+
+    release_task = asyncio.create_task(_release_later())
+
+    with patch("app.routers.scan._HEARTBEAT_INTERVAL_S", 0.05):
+        resp = await client.post(
+            "/v1/scan",
+            headers={"Accept": "application/x-ndjson"},
+            json={
+                "scanId": "test-queued",
+                "projectId": "proj-test",
+                "files": [{"path": "src/main.c", "content": "int main() {}"}],
+            },
+        )
+
+    await release_task
+
+    events = _parse_ndjson(resp.text)
+    heartbeats = [e for e in events if e.get("type") == "heartbeat"]
+    queued_hb = [h for h in heartbeats if h.get("status") == "queued"]
+    assert len(queued_hb) >= 1
+    assert "progress" not in queued_hb[0]

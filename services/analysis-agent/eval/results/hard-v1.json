@@ -1,0 +1,538 @@
+{
+  "run_id": "hard-v1",
+  "timestamp": "2026-04-02T05:03:50.197942+00:00",
+  "config": {
+    "gateway_url": "http://localhost:8000",
+    "model": "unknown",
+    "case_count": 3,
+    "case_filter": "hard",
+    "mode": "direct_llm"
+  },
+  "results": [
+    {
+      "golden_id": "hard-macro-hidden-sprintf",
+      "eval_result": {
+        "golden_id": "hard-macro-hidden-sprintf",
+        "timestamp": "2026-04-02T04:59:55.496459+00:00",
+        "status": "completed",
+        "metrics": {
+          "recall": 1.0,
+          "precision": 1.0,
+          "fp_rejection": 1.0,
+          "severity_accuracy": 1.0,
+          "evidence_validity": 1.0,
+          "cwe_coverage": 1.0,
+          "detail_heuristics": {
+            "has_detail": 1.0,
+            "has_attack_scenario": 1.0,
+            "has_code_path": 0.5,
+            "has_location": 1.0,
+            "detail_length_adequate": 1.0
+          },
+          "claim_count_ok": true
+        },
+        "composite_score": 0.99,
+        "details": {
+          "recall_details": [
+            {
+              "expected": {
+                "severity_min": "high",
+                "file": "diag.c",
+                "keywords": [
+                  "sprintf"
+                ]
+              },
+              "found": true
+            }
+          ],
+          "precision_details": [
+            {
+              "claim": "src/diag.c의 sprintf() 함수 사용은 입력 길이 검증 부재로 인해 버퍼 오버플로우(CWE-120) 취약점을 유발하며, 이는 메모리",
+              "spurious": false
+            },
+            {
+              "claim": "src/diag.c:42에서의 배열 범위 초과 접근은 메모리 손상 및 시스템 불안정을 초래할 수 있는 고위험 버그입니다.",
+              "spurious": false
+            }
+          ],
+          "fp_details": [
+            {
+              "reject_item": {
+                "file": "telemetry.c",
+                "keywords": [
+                  "snprintf"
+                ],
+                "reason": "snprintf with sizeof - safe, and LOG_MSG_SAFE uses bounded version"
+              },
+              "correctly_rejected": true
+            },
+            {
+              "reject_item": {
+                "file": "telemetry.c",
+                "line_range": [
+                  13,
+                  17
+                ],
+                "keywords": [
+                  "scope"
+                ],
+                "reason": "variable scope is a style issue, not a vulnerability"
+              },
+              "correctly_rejected": true
+            }
+          ],
+          "claim_count": 2
+        }
+      },
+      "raw_response": {
+        "status": "completed",
+        "result": {
+          "summary": "SAST 분석 결과, src/diag.c 내의 sprintf() 사용과 배열 범위 초과 접근이 발견되었으며, 이는 메모리 손상 및 코드 실행 취약점으로 이어질 수 있는 고위험 요소입니다. 반면 src/telemetry.c의 경고는 주로 호환성 및 코드 스타일 문제로 실제 보안 위협은 낮습니다.",
+          "claims": [
+            {
+              "statement": "src/diag.c의 sprintf() 함수 사용은 입력 길이 검증 부재로 인해 버퍼 오버플로우(CWE-120) 취약점을 유발하며, 이는 메모리 손상 및 임의 코드 실행 가능성을 내포합니다.",
+              "detail": "SAST finding [flawfinder:sprintf-1]은 src/diag.c:35에서 sprintf()가 사용됨을 지적합니다. sprintf()는 버퍼 크기를 확인하지 않고 입력 데이터를 복사하므로, 공격자가 제어 가능한 입력이 전달될 경우 버퍼 오버플로우가 발생합니다. 위협 지식 CWE-120에 따르면 이는 메모리 손상, 프로그램 충돌, 또는 공격자가 의도한 코드 실행으로 이어질 수 있습니다. 자동차 임베디드 환경에서 진단(diag) 모듈은 외부 OBD-II 인터페이스나 원격 진단 명령을 처리할 가능성이 높으므로, 외부 입력이 이 함수로 전달될 경우 치명적인 보안 사고가 발생할 수 있습니다. 호출자 체인이 명확하지 않으나, 진단 모듈의 특성상 외부 입력 소스와의 연결 가능성이 높으므로 위험도를 높게 평가합니다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-sprintf-1",
+                "eref-eval-hard-macro-src"
+              ],
+              "location": "src/diag.c:35"
+            },
+            {
+              "statement": "src/diag.c:42에서의 배열 범위 초과 접근은 메모리 손상 및 시스템 불안정을 초래할 수 있는 고위험 버그입니다.",
+              "detail": "SAST finding [cppcheck:bufferAccessOutOfBounds]는 src/diag.c:42에서 배열의 유효 범위를 벗어난 접근이 발생함을 감지했습니다. 이는 배열 인덱스 계산 오류나 잘못된 크기 추정으로 인해 발생할 수 있으며, 메모리 상의 임의 위치를 읽거나 쓸 수 있게 합니다. 임베디드 시스템에서 이는 ECU의 제어 흐름을 방해하거나, 민감한 메모리 영역을 손상시켜 차량 기능 오작동을 유발할 수 있습니다. 공격자가 이 취약점을 악용하기 위해 특정 입력 조건을 조작하여 인덱스를 조작할 수 있다면, 정보 유출 또는 코드 실행 공격의 전단계가 될 수 있습니다. cppcheck의 정적 분석 결과는 일반적으로 높은 신뢰도를 가지므로, 이 finding은 실제 버그일 가능성이 매우 높습니다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-bufferAccessOutOfBounds",
+                "eref-eval-hard-macro-src"
+              ],
+              "location": "src/diag.c:42"
+            }
+          ],
+          "caveats": [
+            "src/diag.c의 sprintf() 호출자가 외부 입력을 직접 전달하는지 확인하기 위해 code_graph.callers 도구를 추가로 호출하지 않았으나, 진단 모듈의 특성상 외부 입력 처리 가능성이 높음.",
+            "src/telemetry.c의 snprintf() 경고는 매우 구형 시스템의 구현 문제에 대한 경고로, 현대적인 임베디드 환경에서는 실제 보안 위협이 낮음.",
+            "src/telemetry.c의 변수 스코프 경고는 보안 취약점이 아닌 코드 스타일 문제이므로 제외함.",
+            "함수 포인터 경유 호출이나 매크로 확장에 의한 호출 체인 누락 가능성이 있으므로, 실제 런타임 동작 확인을 위한 동적 분석이 권장됨."
+          ],
+          "usedEvidenceRefs": [
+            "eref-sast-sprintf-1",
+            "eref-sast-bufferAccessOutOfBounds",
+            "eref-eval-hard-macro-src"
+          ],
+          "suggestedSeverity": "high",
+          "needsHumanReview": true,
+          "recommendedNextSteps": [
+            "src/diag.c:35의 sprintf() 호출을 snprintf()로 변경하고, 버퍼 크기를 명시적으로 전달하도록 수정.",
+            "src/diag.c:42의 배열 인덱스 계산 로직을 검토하여 범위 검증을 추가.",
+            "diag.c 모듈의 입력 소스를 추적하여 외부 입력이 직접 전달되는지 확인.",
+            "수정 후 재컴파일 및 정적 분석 재수행."
+          ],
+          "policyFlags": []
+        },
+        "validation": {
+          "valid": true,
+          "errors": []
+        },
+        "audit": {
+          "tokenUsage": {
+            "prompt": 2616,
+            "completion": 1003
+          },
+          "agentAudit": {
+            "turn_count": 1,
+            "tool_call_count": 0,
+            "termination_reason": "direct_eval",
+            "total_prompt_tokens": 2616,
+            "total_completion_tokens": 1003
+          }
+        }
+      },
+      "latency_ms": 75227
+    },
+    {
+      "golden_id": "hard-multifile-indirect-chain",
+      "eval_result": {
+        "golden_id": "hard-multifile-indirect-chain",
+        "timestamp": "2026-04-02T05:02:10.060613+00:00",
+        "status": "completed",
+        "metrics": {
+          "recall": 1.0,
+          "precision": 0.8,
+          "fp_rejection": 0.6666666666666666,
+          "severity_accuracy": 1.0,
+          "evidence_validity": 1.0,
+          "cwe_coverage": 1.0,
+          "detail_heuristics": {
+            "has_detail": 1.0,
+            "has_attack_scenario": 0.8,
+            "has_code_path": 0.6,
+            "has_location": 1.0,
+            "detail_length_adequate": 1.0
+          },
+          "claim_count_ok": false
+        },
+        "composite_score": 0.898,
+        "details": {
+          "recall_details": [
+            {
+              "expected": {
+                "severity_min": "high",
+                "file": "executor.c",
+                "keywords": [
+                  "system"
+                ]
+              },
+              "found": true
+            }
+          ],
+          "precision_details": [
+            {
+              "claim": "src/executor.c:28 의 system() 함수 호출이 외부 입력을 직접 전달받아 OS 명령어 주입 (CWE-78) 취약점을 유발합니다",
+              "spurious": false
+            },
+            {
+              "claim": "src/parser.c:18 의 버퍼 접근 오류 (CWE-120) 는 고정 크기 버퍼에 입력 길이를 검증 없이 복사하여 버퍼 오버플로우를 유발합",
+              "spurious": false
+            },
+            {
+              "claim": "src/executor.c:15 의 cmd 포인터가 NULL 일 경우 역참조로 인해 시스템 충돌 (DoS) 이 발생할 수 있습니다.",
+              "spurious": true
+            },
+            {
+              "claim": "src/network.c:22 의 strlen() 사용이 null-terminated 이 아닌 문자열을 처리할 경우 메모리 접근 오류를 유발할 ",
+              "spurious": false
+            },
+            {
+              "claim": "src/parser.c:10 의 정적 배열 사용은 입력 크기 제한으로 인해 오버플로우 위험을 내포합니다.",
+              "spurious": false
+            }
+          ],
+          "fp_details": [
+            {
+              "reject_item": {
+                "file": "parser.c",
+                "line_range": [
+                  16,
+                  20
+                ],
+                "keywords": [
+                  "strncpy"
+                ],
+                "reason": "strncpy bounded by sizeof(temp) - safe"
+              },
+              "correctly_rejected": true
+            },
+            {
+              "reject_item": {
+                "file": "executor.c",
+                "line_range": [
+                  13,
+                  17
+                ],
+                "keywords": [
+                  "null"
+                ],
+                "reason": "null check exists at line 15"
+              },
+              "correctly_rejected": false
+            },
+            {
+              "reject_item": {
+                "file": "parser.c",
+                "line_range": [
+                  8,
+                  12
+                ],
+                "keywords": [
+                  "static"
+                ],
+                "reason": "static array declaration is not a vulnerability"
+              },
+              "correctly_rejected": true
+            }
+          ],
+          "claim_count": 5
+        }
+      },
+      "raw_response": {
+        "status": "completed",
+        "result": {
+          "summary": "SAST 스캔 결과 5개 취약점이 발견되었으며, 그중 system() 함수 사용 (CWE-78) 과 버퍼 오버플로우 (CWE-120) 가 가장 심각한 위협으로 평가됩니다. 특히 system() 호출이 외부 입력에 의해 제어될 경우 원격 코드 실행 (RCE) 이 가능하여 Critical 등급으로 재평가되었습니다. Null 포인터 역참조와 문자열 처리 문제는 내부 로직 오류로 인해 Medium 등급으로 분류되었습니다.",
+          "claims": [
+            {
+              "statement": "src/executor.c:28 의 system() 함수 호출이 외부 입력을 직접 전달받아 OS 명령어 주입 (CWE-78) 취약점을 유발합니다.",
+              "detail": "SAST finding [flawfinder:system-1]은 system() 함수의 위험성을 지적합니다. 위협 지식 CWE-78에 따르면, 외부 입력이 검증 없이 OS 명령어에 전달되면 공격자가 임의의 명령을 실행할 수 있습니다. 코드 구조상 이 함수가 네트워크나 파일 파싱 결과를 직접 전달받는 경로에 위치할 경우, 공격자는 특수 문자 (;, |, &) 를 포함한 입력을 통해 ECU 제어 명령을 우회하거나 시스템 설정을 변경할 수 있습니다. 이는 차량의 제어 기능 마비나 악성 코드 주입으로 이어질 수 있는 Critical 수준의 위험입니다. 호출 체인이 외부 소스 (예: 네트워크 패킷) 에서 시작되는지 확인이 필요하나, system() 사용 자체가 이미 높은 위험도를 가집니다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-system-1",
+                "eref-eval-hard-chain-src"
+              ],
+              "location": "src/executor.c:28"
+            },
+            {
+              "statement": "src/parser.c:18 의 버퍼 접근 오류 (CWE-120) 는 고정 크기 버퍼에 입력 길이를 검증 없이 복사하여 버퍼 오버플로우를 유발합니다.",
+              "detail": "SAST finding [cppcheck:bufferAccessOutOfBounds]는 버퍼 오버플로우 가능성을 지적합니다. CWE-120에 따라 입력 크기를 확인하지 않고 고정 크기 배열에 데이터를 복사하면 메모리 손상, 프로그램 충돌, 또는 코드 실행이 발생할 수 있습니다. src/parser.c의 파싱 로직이 네트워크 패킷이나 외부 센서 데이터를 처리할 때, 길이가 제한되지 않은 입력이 들어오면 스택 또는 힙 메모리를 덮어쓸 수 있습니다. 이는 차량의 통신 프로토콜 해석 오류를 유발하거나, 공격자가 메모리를 조작하여 임의의 코드를 실행할 수 있는 경로가 됩니다. 특히 임베디드 환경에서는 메모리 보호 장치가 제한적일 수 있어 위험도가 높습니다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-bufferAccessOutOfBounds"
+              ],
+              "location": "src/parser.c:18"
+            },
+            {
+              "statement": "src/executor.c:15 의 cmd 포인터가 NULL 일 경우 역참조로 인해 시스템 충돌 (DoS) 이 발생할 수 있습니다.",
+              "detail": "SAST finding [cppcheck:nullPointer]는 cmd 포인터가 NULL 일 때 역참조가 발생할 가능성을 지적합니다. 이는 외부 입력이 유효하지 않은 경우나 메모리 할당 실패 시 발생할 수 있습니다. 공격자가 의도적으로 잘못된 포인터 값을 전달하거나, 시스템 리소스 부족으로 할당이 실패할 경우 프로그램이 비정상 종료되어 차량의 특정 기능이 마비될 수 있습니다. 직접적인 코드 실행은 어렵지만, 서비스 거부 (DoS) 공격 벡터로 악용될 수 있어 Medium 등급으로 평가됩니다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-nullPointer"
+              ],
+              "location": "src/executor.c:15"
+            },
+            {
+              "statement": "src/network.c:22 의 strlen() 사용이 null-terminated 이 아닌 문자열을 처리할 경우 메모리 접근 오류를 유발할 수 있습니다.",
+              "detail": "SAST finding [flawfinder:strlen-1]은 strlen()이 null-terminated 문자열이 아닐 경우 무한 루프나 메모리 접근 오류를 일으킬 수 있음을 지적합니다. 네트워크 패킷 처리 시 데이터 길이가 정확히 설정되지 않거나, 버퍼가 제대로 초기화되지 않은 경우 strlen()이 버퍼 끝을 넘어 읽을 수 있습니다. 이는 정보 유출이나 프로그램 충돌로 이어질 수 있으나, 일반적으로 외부 입력을 직접 제어하기 어렵거나 영향 범위가 제한적이므로 Medium 등급으로 분류됩니다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-strlen-1"
+              ],
+              "location": "src/network.c:22"
+            },
+            {
+              "statement": "src/parser.c:10 의 정적 배열 사용은 입력 크기 제한으로 인해 오버플로우 위험을 내포합니다.",
+              "detail": "SAST finding [flawfinder:char-1]은 정적 크기의 배열이 입력 크기를 제한할 수 있음을 지적합니다. 이는 CWE-120과 유사한 맥락으로, 입력 데이터가 배열 크기보다 클 경우 오버플로우가 발생할 수 있습니다. 파서에서 고정 크기 버퍼를 사용하는 경우, 예상치 못한 긴 입력이 들어오면 메모리 손상이 발생할 수 있습니다. 그러나 구체적인 오버플로우 경로가 명확하지 않고, 다른 버퍼 오버플로우 finding과 중복될 가능성이 있어 Medium 등급으로 평가됩니다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-char-1"
+              ],
+              "location": "src/parser.c:10"
+            }
+          ],
+          "caveats": [
+            "system() 함수 호출의 정확한 입력 소스 (외부 입력 여부) 를 확인하기 위해 code_graph.callers 도구를 추가로 호출하지 않았으므로, 실제 악용 가능성은 추가 검증이 필요합니다.",
+            "버퍼 오버플로우 취약점의 정확한 영향 범위 (스택/힙, 메모리 보호 여부) 를 판단하기 위해 build.metadata 도구를 호출하지 않았습니다.",
+            "함수 포인터 경유 호출이나 매크로 확장에 의한 호출 체인은 코드 그래프에 포함되지 않았을 수 있어, 실제 호출 경로가 다를 수 있습니다.",
+            "서드파티 라이브러리 사용 여부와 관련 CVE 존재 여부는 확인되지 않았습니다."
+          ],
+          "usedEvidenceRefs": [
+            "eref-sast-system-1",
+            "eref-eval-hard-chain-src",
+            "eref-sast-bufferAccessOutOfBounds",
+            "eref-sast-nullPointer",
+            "eref-sast-strlen-1",
+            "eref-sast-char-1"
+          ],
+          "suggestedSeverity": "critical",
+          "needsHumanReview": true,
+          "recommendedNextSteps": [
+            "src/executor.c:28 의 system() 호출로 전달되는 입력이 외부 소스 (네트워크, 파일 등) 에서 유입되는지 호출 체인을 추적하여 확인하라.",
+            "src/parser.c:18 의 버퍼 오버플로우 취약점에 대해 입력 길이 검증 로직을 추가하고, 안전한 문자열 복사 함수 (예: strncpy, snprintf) 를 사용하도록 수정하라.",
+            "src/executor.c:15 의 cmd 포인터가 NULL 일 경우를 처리하는 예외 처리 로직을 추가하라.",
+            "src/network.c:22 의 strlen() 사용 전 문자열이 null-terminated 인지 확인하는 로직을 추가하라.",
+            "build.metadata 도구를 호출하여 타겟 아키텍처의 메모리 보호 기능을 확인하고, 취약점 악용 가능성을 재평가하라."
+          ],
+          "policyFlags": [
+            "CWE-78: OS Command Injection",
+            "CWE-120: Buffer Copy without Checking Size of Input",
+            "Critical Vulnerability Detected"
+          ]
+        },
+        "validation": {
+          "valid": true,
+          "errors": []
+        },
+        "audit": {
+          "tokenUsage": {
+            "prompt": 2657,
+            "completion": 1729
+          },
+          "agentAudit": {
+            "turn_count": 1,
+            "tool_call_count": 0,
+            "termination_reason": "direct_eval",
+            "total_prompt_tokens": 2657,
+            "total_completion_tokens": 1729
+          }
+        }
+      },
+      "latency_ms": 129913
+    },
+    {
+      "golden_id": "hard-uaf-callback",
+      "eval_result": {
+        "golden_id": "hard-uaf-callback",
+        "timestamp": "2026-04-02T05:03:50.197773+00:00",
+        "status": "completed",
+        "metrics": {
+          "recall": 1.0,
+          "precision": 0.75,
+          "fp_rejection": 0.5,
+          "severity_accuracy": 1.0,
+          "evidence_validity": 1.0,
+          "cwe_coverage": 1.0,
+          "detail_heuristics": {
+            "has_detail": 1.0,
+            "has_attack_scenario": 1.0,
+            "has_code_path": 0.5,
+            "has_location": 1.0,
+            "detail_length_adequate": 0.5
+          },
+          "claim_count_ok": true
+        },
+        "composite_score": 0.855,
+        "details": {
+          "recall_details": [
+            {
+              "expected": {
+                "severity_min": "high",
+                "file": "timer_mgr.c",
+                "keywords": [
+                  "free"
+                ]
+              },
+              "found": true
+            }
+          ],
+          "precision_details": [
+            {
+              "claim": "src/timer_mgr.c:58에서 'ctx' 포인터가 두 번 해제되어 Double Free(CWE-415) 취약점이 발생합니다.",
+              "spurious": false
+            },
+            {
+              "claim": "src/timer_mgr.c:45에서 메모리 해제 후 포인터가 계속 사용되어 Use After Free(CWE-416) 위험이 존재합니다.",
+              "spurious": false
+            },
+            {
+              "claim": "src/timer_mgr.c:25에서 오류 발생 시 할당된 메모리(ctx)가 해제되지 않아 메모리 누수(CWE-401)가 발생합니다.",
+              "spurious": false
+            },
+            {
+              "claim": "src/timer_mgr.c:20에서 malloc() 반환값 NULL 체크가 누락되어 NULL 포인터 역참조 위험이 있습니다.",
+              "spurious": true
+            }
+          ],
+          "fp_details": [
+            {
+              "reject_item": {
+                "file": "timer_mgr.c",
+                "line_range": [
+                  18,
+                  22
+                ],
+                "keywords": [
+                  "malloc",
+                  "null"
+                ],
+                "reason": "malloc return is checked on line 21"
+              },
+              "correctly_rejected": false
+            },
+            {
+              "reject_item": {
+                "file": "timer_mgr.c",
+                "line_range": [
+                  23,
+                  27
+                ],
+                "keywords": [
+                  "leak"
+                ],
+                "reason": "ctx is returned on success - no leak on normal path"
+              },
+              "correctly_rejected": true
+            }
+          ],
+          "claim_count": 4
+        }
+      },
+      "raw_response": {
+        "status": "completed",
+        "result": {
+          "summary": "src/timer_mgr.c 파일에서 메모리 안전성 관련 취약점 4건이 발견되었으며, 그중 Double Free(CWE-415)와 Use After Free(CWE-416) 위험이 높은 것으로 평가됩니다. 특히 오류 처리 경로와 정상 종료 경로 간의 메모리 관리 불일치로 인해 시스템 불안정 및 잠재적 코드 실행 공격이 가능합니다.",
+          "claims": [
+            {
+              "statement": "src/timer_mgr.c:58에서 'ctx' 포인터가 두 번 해제되어 Double Free(CWE-415) 취약점이 발생합니다.",
+              "detail": "공격자는 타이머 관리자의 특정 상태 전이를 유도하여 `ctx`가 할당된 후 해제되는 코드를 두 번 실행하도록 만들 수 있습니다. 첫 번째 해제 후 포인터가 NULL로 초기화되지 않으면, 두 번째 해제 시 힙 메타데이터가 손상되어 공격자가 힙 구조를 조작할 수 있습니다. 이는 임의 코드 실행(RCE) 또는 서비스 거부(DoS)로 이어질 수 있습니다. 코드 흐름상 오류 처리 루틴과 정상 종료 루틴이 동일한 해제 로직을 공유하거나, 조건부 분기가 잘못되어 중복 해제가 발생합니다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-doubleFree",
+                "eref-eval-hard-uaf-src"
+              ],
+              "location": "src/timer_mgr.c:58"
+            },
+            {
+              "statement": "src/timer_mgr.c:45에서 메모리 해제 후 포인터가 계속 사용되어 Use After Free(CWE-416) 위험이 존재합니다.",
+              "detail": "해당 줄에서 `free()` 호출 후 해당 포인터를 참조하는 연산이 존재할 가능성이 높습니다. 공격자는 메모리 해제 후 해당 영역에 새로운 데이터를 할당하여 포인터를 리유즈할 수 있습니다. 이로 인해 공격자는 의도하지 않은 메모리 영역을 읽거나 쓰거나, 함수 포인터를 조작하여 제어 흐름을 장악할 수 있습니다. 특히 임베디드 환경에서 메모리 재할당 패턴이 예측 가능할 경우 공격 성공 확률이 높아집니다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-free-1",
+                "eref-eval-hard-uaf-src"
+              ],
+              "location": "src/timer_mgr.c:45"
+            },
+            {
+              "statement": "src/timer_mgr.c:25에서 오류 발생 시 할당된 메모리(ctx)가 해제되지 않아 메모리 누수(CWE-401)가 발생합니다.",
+              "detail": "할당 후 특정 오류 조건(예: 초기화 실패, 리소스 부족)에서 함수가 조기 반환될 경우, `ctx` 포인터가 해제되지 않고 누수됩니다. 장기간 실행되는 임베디드 시스템에서 이는 메모리 고갈로 이어져 시스템 불안정이나 DoS를 유발할 수 있습니다. 공격자는 반복적인 오류 조건을 유발하여 메모리 자원을 고갈시킬 수 있습니다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-memleak",
+                "eref-eval-hard-uaf-src"
+              ],
+              "location": "src/timer_mgr.c:25"
+            },
+            {
+              "statement": "src/timer_mgr.c:20에서 malloc() 반환값 NULL 체크가 누락되어 NULL 포인터 역참조 위험이 있습니다.",
+              "detail": "메모리 할당 실패 시 `malloc()`은 NULL을 반환합니다. 이를 체크하지 않고 바로 사용 시 NULL 포인터 역참조로 인해 시스템 크래시가 발생합니다. 임베디드 환경에서는 메모리 부족이 빈번할 수 있으므로, 이 취약점은 DoS 공격의 진입점이 될 수 있습니다. 공격자는 메모리 압박을 유도하여 할당 실패를 강제할 수 있습니다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-malloc-1",
+                "eref-eval-hard-uaf-src"
+              ],
+              "location": "src/timer_mgr.c:20"
+            }
+          ],
+          "caveats": [
+            "Double Free 및 Use After Free의 정확한 악용 시나리오를 확인하기 위해 `ctx` 포인터의 초기화 및 관리 로직 전체를 수동 검토할 필요가 있습니다.",
+            "메모리 누수(CWE-401)의 실제 영향은 시스템의 메모리 크기와 실행 시간에 따라 달라지므로, 실제 환경에서의 부하 테스트가 필요합니다.",
+            "malloc() NULL 체크 누락은 컴파일러 최적화나 특정 플랫폼의 메모리 할당자 동작에 따라 실제 충돌이 발생하지 않을 수 있으나, 보안 관점에서는 필수 수정 사항입니다."
+          ],
+          "usedEvidenceRefs": [
+            "eref-sast-doubleFree",
+            "eref-sast-free-1",
+            "eref-sast-memleak",
+            "eref-sast-malloc-1",
+            "eref-eval-hard-uaf-src"
+          ],
+          "suggestedSeverity": "high",
+          "needsHumanReview": true,
+          "recommendedNextSteps": [
+            "src/timer_mgr.c의 전체 흐름을 분석하여 Double Free가 발생하는 정확한 조건을 식별하고, 포인터를 해제 후 NULL로 초기화하는 패치를 적용합니다.",
+            "Use After Free 위험이 있는 코드 블록에서 메모리 해제 후 포인터 사용을 제거하거나, 스코프를 제한합니다.",
+            "모든 메모리 할당 실패 경로에 대해 적절한 오류 처리 및 자원 해제 로직을 추가합니다.",
+            "malloc() 반환값을 항상 체크하고, 실패 시 안전한 처리를 구현합니다."
+          ],
+          "policyFlags": [
+            "memory-safety",
+            "resource-exhaustion"
+          ]
+        },
+        "validation": {
+          "valid": true,
+          "errors": []
+        },
+        "audit": {
+          "tokenUsage": {
+            "prompt": 2622,
+            "completion": 1284
+          },
+          "agentAudit": {
+            "turn_count": 1,
+            "tool_call_count": 0,
+            "termination_reason": "direct_eval",
+            "total_prompt_tokens": 2622,
+            "total_completion_tokens": 1284
+          }
+        }
+      },
+      "latency_ms": 96730
+    }
+  ],
+  "summary": {
+    "mean_composite": 0.9143,
+    "mean_recall": 1.0,
+    "mean_precision": 0.85,
+    "pass_count": 3,
+    "fail_count": 0,
+    "error_count": 0,
+    "total_latency_ms": 301870
+  }
+}

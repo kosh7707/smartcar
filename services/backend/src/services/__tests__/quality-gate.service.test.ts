@@ -4,6 +4,7 @@ import type { IFindingDAO, IEvidenceRefDAO, IGateResultDAO, IRunDAO } from "../.
 import { makeFinding, makeRun, makeGateResult } from "../../test/factories";
 import { NotFoundError } from "../../lib/errors";
 import type { Finding, GateResult } from "@aegis/shared";
+import type { ProjectSettingsService } from "../project-settings.service";
 
 function createMockFindingDAO(): IFindingDAO {
   return {
@@ -21,6 +22,9 @@ function createMockFindingDAO(): IFindingDAO {
     summaryByModule: vi.fn(),
     topFilesByModule: vi.fn(),
     topRulesByModule: vi.fn(),
+    unresolvedCountByProjectId: vi.fn().mockReturnValue(0),
+    severitySummaryByProjectId: vi.fn().mockReturnValue({ critical: 0, high: 0, medium: 0, low: 0 }),
+    resolvedCountSince: vi.fn().mockReturnValue(0),
   };
 }
 
@@ -41,6 +45,7 @@ function createMockGateResultDAO(): IGateResultDAO {
     findByProjectId: vi.fn().mockReturnValue([]),
     updateOverride: vi.fn(),
     statsByProject: vi.fn(),
+    latestByProjectId: vi.fn().mockReturnValue(undefined),
   };
 }
 
@@ -52,6 +57,7 @@ function createMockRunDAO(): IRunDAO {
     findByAnalysisResultId: vi.fn(),
     updateFindingCount: vi.fn(),
     trendByModule: vi.fn(),
+    findLatestCompletedRuns: vi.fn().mockReturnValue([]),
   };
 }
 
@@ -249,6 +255,71 @@ describe("QualityGateService", () => {
       expect(() =>
         service.applyOverride("no-such", "admin", "reason", "approval-1")
       ).toThrow(NotFoundError);
+    });
+  });
+
+  describe("Gate Profile variants", () => {
+    function createMockSettingsService(gateProfileId?: string): ProjectSettingsService {
+      return {
+        getAll: vi.fn().mockReturnValue({ gateProfileId }),
+      } as any;
+    }
+
+    it("uses default profile when settingsService is absent", () => {
+      // service was created without settingsService in beforeEach
+      const run = makeRun({ id: "run-p1", projectId: "proj-1" });
+      vi.mocked(runDAO.findById).mockReturnValue(run);
+      vi.mocked(findingDAO.findByRunId).mockReturnValue([]);
+
+      const result = service.evaluateRun("run-p1");
+      expect(result.rules).toHaveLength(4);
+    });
+
+    it("strict profile uses threshold 3 for high findings", () => {
+      const settingsSvc = createMockSettingsService("strict");
+      const profileService = new QualityGateService(findingDAO, evidenceRefDAO, gateResultDAO, runDAO, settingsSvc);
+
+      const run = makeRun({ id: "run-p2", projectId: "proj-1" });
+      const highFindings = Array.from({ length: 3 }, () =>
+        makeFinding({ severity: "high", status: "open" }),
+      );
+      vi.mocked(runDAO.findById).mockReturnValue(run);
+      vi.mocked(findingDAO.findByRunId).mockReturnValue(highFindings);
+
+      const result = profileService.evaluateRun("run-p2");
+      const highRule = result.rules.find(r => r.ruleId === "high-threshold");
+      expect(highRule?.result).toBe("warning");
+      expect(highRule?.linkedFindingIds).toHaveLength(3);
+    });
+
+    it("relaxed profile only evaluates no-critical rule", () => {
+      const settingsSvc = createMockSettingsService("relaxed");
+      const profileService = new QualityGateService(findingDAO, evidenceRefDAO, gateResultDAO, runDAO, settingsSvc);
+
+      const run = makeRun({ id: "run-p3", projectId: "proj-1" });
+      const highFindings = Array.from({ length: 10 }, () =>
+        makeFinding({ severity: "high", status: "open" }),
+      );
+      vi.mocked(runDAO.findById).mockReturnValue(run);
+      vi.mocked(findingDAO.findByRunId).mockReturnValue(highFindings);
+
+      const result = profileService.evaluateRun("run-p3");
+      // relaxed: only no-critical enabled
+      expect(result.rules).toHaveLength(1);
+      expect(result.rules[0].ruleId).toBe("no-critical");
+      expect(result.status).toBe("pass"); // no critical findings
+    });
+
+    it("falls back to default for unknown profileId", () => {
+      const settingsSvc = createMockSettingsService("nonexistent-profile");
+      const profileService = new QualityGateService(findingDAO, evidenceRefDAO, gateResultDAO, runDAO, settingsSvc);
+
+      const run = makeRun({ id: "run-p4", projectId: "proj-1" });
+      vi.mocked(runDAO.findById).mockReturnValue(run);
+      vi.mocked(findingDAO.findByRunId).mockReturnValue([]);
+
+      const result = profileService.evaluateRun("run-p4");
+      expect(result.rules).toHaveLength(4); // default has 4 rules
     });
   });
 });

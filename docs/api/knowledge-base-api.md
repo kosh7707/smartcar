@@ -147,7 +147,8 @@ http://localhost:8002/v1
   "extracted_ids": ["CWE-78"],
   "related_cwe": ["CWE-77", "CWE-78"],
   "related_cve": ["CVE-2021-28372"],
-  "related_attack": ["T0807"]
+  "related_attack": ["T0807"],
+  "degraded": false
 }
 ```
 
@@ -171,6 +172,7 @@ http://localhost:8002/v1
 | `match_type_counts.id_exact` | int | ID 정확 매칭 건수 |
 | `match_type_counts.graph_neighbor` | int | 그래프 이웃 건수 |
 | `match_type_counts.vector_semantic` | int | 벡터 시맨틱 건수 |
+| `degraded` | bool | `true`: Neo4j 미연결로 그래프 보강 없이 벡터 전용 검색. `false`: 정상 |
 
 #### 에러
 
@@ -227,7 +229,8 @@ http://localhost:8002/v1
     "total_hits": 12,
     "unique_ids": 12
   },
-  "latency_ms": 2500
+  "latency_ms": 2500,
+  "degraded": false
 }
 ```
 
@@ -238,6 +241,7 @@ http://localhost:8002/v1
 | `global_stats.total_hits` | int | 전체 hit 수 (중복 제거 후) |
 | `global_stats.unique_ids` | int | 유니크 노드 ID 수 |
 | `latency_ms` | int | 총 소요 시간 (ms) |
+| `degraded` | bool | `true`: Neo4j 미연결로 그래프 보강 없이 벡터 전용 검색. `false`: 정상 |
 
 **중복 제거**: 이전 쿼리에서 반환된 노드 ID는 이후 쿼리 결과에서 자동 제외됨.
 
@@ -916,6 +920,7 @@ Readiness 체크. 모든 하위 컴포넌트 상태를 포함한다.
 {
   "service": "aegis-knowledge-base",
   "ready": true,
+  "degraded": false,
   "components": {
     "qdrant": {"initialized": true},
     "neo4j": {"connected": true, "nodeCount": 2196, "edgeCount": 9298}
@@ -953,6 +958,7 @@ Qdrant 또는 Neo4j 미초기화 시 observability 에러 포맷 반환:
 |------|------|------|
 | `service` | string | 항상 `"aegis-knowledge-base"` |
 | `ready` | bool | `true` (모든 컴포넌트 정상). 503 시에는 위 에러 포맷 반환 |
+| `degraded` | bool | `true`: Qdrant는 정상이나 Neo4j 미연결 (벡터 전용 검색 가능). `false`: 정상 |
 | `components` | object | 하위 컴포넌트 상태 |
 | `components.qdrant` | object | Qdrant 상태 |
 | `components.qdrant.initialized` | bool | Qdrant 초기화 여부 |

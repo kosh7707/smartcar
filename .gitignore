@@ -22,3 +22,13 @@ uploads/
 **/test-results/
 **/playwright-report/
 **/blob-report/
+
+# Tool / IDE state
+.claude/
+.omc/
+.playwright-mcp/
+*.orig
+
+# Root-level generated artifacts
+/e2e/
+/reports/

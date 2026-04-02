@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S3(Analysis Agent) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-03-31**
+> **마지막 업데이트: 2026-04-02**
 
 ---
 
@@ -142,7 +142,7 @@
 POST /v1/tasks (taskType: "deep-analyze")
   │
   ├── Phase 1: 결정론적 (LLM 없이)
-  │   ├── sast.scan        → S4 SAST Runner → findings
+  │   ├── sast.scan        → S4 SAST Runner (NDJSON 스트리밍) → findings
   │   ├── code.functions   → S4 SAST Runner → 함수+호출 관계
   │   ├── sca.libraries    → S4 SAST Runner → 라이브러리 + 버전
   │   ├── cve.batch-lookup → S5 KB → 버전 매칭된 CVE (NEW)
@@ -152,7 +152,9 @@ POST /v1/tasks (taskType: "deep-analyze")
   ├── Phase 2: LLM 해석
   │   ├── Phase 1 결과(SAST+코드+SCA+CVE+위협+호출자)를 프롬프트에 주입
   │   ├── 시스템 프롬프트: 임무 중심 4단계 (평가→연결→도구→보고서)
-  │   ├── LLM이 추가 tool 호출 가능: knowledge.search, code_graph.callers
+  │   ├── LLM이 추가 tool 호출 가능 (6종):
+  │   │     knowledge.search, code_graph.callers, code_graph.callees,
+  │   │     code_graph.search, code.read_file, build.metadata
   │   ├── LLM 호출은 S7 Gateway 경유 (POST /v1/chat)
   │   └── Qwen 122B GPTQ-Int4 → 구조화 JSON (claims + evidence refs)
   │
@@ -166,6 +168,23 @@ POST /v1/tasks (taskType: "deep-analyze")
 - **증거 기반** — 모든 claim은 eref(Evidence Reference)로 근거 연결 필수
 - **SCA CVE는 참고 정보** — 라이브러리 코드는 미분석이므로 claims가 아닌 caveats에 포함
 - **LLM 접근은 S7 경유** — 모든 LLM 호출은 S7 Gateway(`POST /v1/chat`)를 통해 수행
+
+### 주요 컴포넌트 (세션 15 추가)
+
+**Evidence Sanitizer** (`app/validators/evidence_sanitizer.py`):
+- LLM 환각 refId를 fuzzy match(threshold 0.6)로 교정 또는 제거
+- `ResultAssembler.build()` + `generate-poc` 모두 validation 전 실행
+- allowed_refs가 비어있으면 모든 refs 제거
+
+**SAST NDJSON 스트리밍** (`app/tools/implementations/sast_tool.py`):
+- `httpx.AsyncClient.stream()` + `Accept: application/x-ndjson` 헤더
+- 이벤트: progress, heartbeat, result, error
+- 60초 inactivity timeout (`asyncio.wait_for` per line)
+- 동기 fallback 유지 (Content-Type이 ndjson이 아니면)
+
+**RE100 전체 테스트** (`scripts/re100-full-test.sh`):
+- 4개 프로젝트 병렬 Build → Analyze → PoC + 마크다운 보고서
+- 보고서: `reports/re100-YYYYMMDD-HHMMSS/`
 
 ### 파일 구조 (요약)
 
@@ -200,7 +219,7 @@ POST /v1/tasks (taskType: "deep-analyze")
 
 | 문서 | 내용 |
 |------|------|
-| [`session-{N}.md`](.) | 세션별 수정 이력 (1세션 = 1파일, 세션 5~14) |
+| [`session-{N}.md`](.) | 세션별 수정 이력 (1세션 = 1파일, 세션 5~17) |
 | [`roadmap.md`](roadmap.md) | 다음 작업 + v2 장기 계획 |
 
 ---
@@ -210,7 +229,7 @@ POST /v1/tasks (taskType: "deep-analyze")
 | 문서 | 경로 | 용도 |
 |------|------|------|
 | 이 인수인계서 | `docs/s3-handoff/README.md` | 진입점 |
-| 세션 로그 | `docs/s3-handoff/session-{N}.md` | 수정 이력 (1세션 = 1파일, 5~14) |
+| 세션 로그 | `docs/s3-handoff/session-{N}.md` | 수정 이력 (1세션 = 1파일, 5~16) |
 | 로드맵 | `docs/s3-handoff/roadmap.md` | 다음 작업 + 장기 계획 |
 | Analysis Agent 명세 | `docs/specs/analysis-agent.md` | 아키텍처, 원칙 |
 | Build Agent 명세 | `docs/specs/build-agent.md` | 아키텍처, 원칙 |

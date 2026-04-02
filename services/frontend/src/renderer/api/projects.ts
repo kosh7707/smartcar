@@ -1,5 +1,6 @@
 import type {
   Project,
+  ProjectListItem,
   ProjectCreateRequest,
   ProjectResponse,
   ProjectListResponse,
@@ -10,7 +11,7 @@ import { apiFetch } from "./core";
 
 // ── Projects ──
 
-export async function fetchProjects(): Promise<Project[]> {
+export async function fetchProjects(): Promise<ProjectListItem[]> {
   const res = await apiFetch<ProjectListResponse>("/api/projects");
   return res.data;
 }

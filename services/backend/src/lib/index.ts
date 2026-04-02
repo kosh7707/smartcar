@@ -13,3 +13,4 @@ export {
 } from "./errors";
 export type { ErrorCode } from "./errors";
 export { SEVERITY_ORDER, computeSummary, sortBySeverity, validateLlmSeverity } from "./vulnerability-utils";
+export { safeJsonParse } from "./utils";

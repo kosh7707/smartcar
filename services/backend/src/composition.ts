@@ -13,6 +13,7 @@ import type {
   WsAnalysisMessage,
   WsUploadMessage,
   WsPipelineMessage,
+  WsNotificationMessage,
 } from "@aegis/shared";
 
 // DAO classes
@@ -34,6 +35,8 @@ import { ProjectSettingsDAO } from "./dao/project-settings.dao";
 import { BuildTargetDAO } from "./dao/build-target.dao";
 import { TargetLibraryDAO } from "./dao/target-library.dao";
 import { SdkRegistryDAO } from "./dao/sdk-registry.dao";
+import { NotificationDAO } from "./dao/notification.dao";
+import { UserDAO, SessionDAO } from "./dao/user.dao";
 import { SdkService } from "./services/sdk.service";
 
 // Service classes
@@ -64,6 +67,8 @@ import { KbClient } from "./services/kb-client";
 import { BuildAgentClient } from "./services/build-agent-client";
 import { PipelineOrchestrator } from "./services/pipeline-orchestrator";
 import { ActivityService } from "./services/activity.service";
+import { NotificationService } from "./services/notification.service";
+import { UserService } from "./services/user.service";
 
 export interface AppContext {
   // DAOs
@@ -103,6 +108,8 @@ export interface AppContext {
   analysisOrchestrator: AnalysisOrchestrator;
   pipelineOrchestrator: PipelineOrchestrator;
   activityService: ActivityService;
+  notificationService: NotificationService;
+  userService: UserService;
   reportService: ReportService;
   analysisTracker: AnalysisTracker;
 
@@ -123,6 +130,7 @@ export interface AppContext {
   analysisWs: WsBroadcaster<WsAnalysisMessage>;
   uploadWs: WsBroadcaster<WsUploadMessage>;
   pipelineWs: WsBroadcaster<WsPipelineMessage>;
+  notificationWs: WsBroadcaster<WsNotificationMessage>;
   sdkWs: WsBroadcaster<any>;
 }
 
@@ -146,6 +154,9 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
   const buildTargetDAO = new BuildTargetDAO(db);
   const targetLibraryDAO = new TargetLibraryDAO(db);
   const sdkRegistryDAO = new SdkRegistryDAO(db);
+  const notificationDAO = new NotificationDAO(db);
+  const userDAO = new UserDAO(db);
+  const sessionDAO = new SessionDAO(db);
 
   // ── Tier 1: 기본 서비스 + 외부 클라이언트 ──
   const llmTaskClient = new LlmTaskClient(cfg.llmGatewayUrl, cfg.llmConcurrency);
@@ -158,12 +169,17 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
   const settingsService = new ProjectSettingsService(projectSettingsDAO, sdkRegistryDAO);
   const projectSourceService = new ProjectSourceService(cfg.uploadsDir);
 
+  // ── Tier 1.5: 알림 + 사용자 서비스 (순환 의존 방지를 위해 QualityGateService보다 먼저 생성) ──
+  const notificationWs = new WsBroadcaster<WsNotificationMessage>("/ws/notifications", "projectId", "notification");
+  const notificationService = new NotificationService(notificationDAO, notificationWs);
+  const userService = new UserService(userDAO, sessionDAO);
+
   // ── Tier 2: 복합 서비스 (Tier 1 의존) ──
   const buildTargetService = new BuildTargetService(buildTargetDAO, settingsService, projectSourceService);
-  const projectService = new ProjectService(projectDAO, analysisResultDAO, fileStore, adapterManager, settingsService, buildTargetService);
-  const qualityGateService = new QualityGateService(findingDAO, evidenceRefDAO, gateResultDAO, runDAO);
-  const resultNormalizer = new ResultNormalizer(db, runDAO, findingDAO, evidenceRefDAO, qualityGateService);
-  const approvalService = new ApprovalService(approvalDAO, auditLogDAO, qualityGateService);
+  const projectService = new ProjectService(projectDAO, analysisResultDAO, fileStore, adapterManager, settingsService, buildTargetService, findingDAO, runDAO, gateResultDAO);
+  const qualityGateService = new QualityGateService(findingDAO, evidenceRefDAO, gateResultDAO, runDAO, settingsService, notificationService);
+  const resultNormalizer = new ResultNormalizer(db, runDAO, findingDAO, evidenceRefDAO, qualityGateService, notificationService);
+  const approvalService = new ApprovalService(approvalDAO, auditLogDAO, qualityGateService, notificationService);
   const findingService = new FindingService(findingDAO, evidenceRefDAO, auditLogDAO);
   const runService = new RunService(runDAO, findingDAO, gateResultDAO, evidenceRefDAO);
 
@@ -218,9 +234,9 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
     adapterManager, settingsService, projectSourceService, buildTargetService, targetLibraryDAO, sdkRegistryDAO, sdkService,
     projectService, qualityGateService, resultNormalizer, approvalService, findingService,
     runService, dynamicAnalysisService, dynamicTestService,
-    analysisOrchestrator, pipelineOrchestrator, activityService, reportService, analysisTracker,
+    analysisOrchestrator, pipelineOrchestrator, activityService, notificationService, userService, reportService, analysisTracker,
     llmTaskClient, sastClient, agentClient, kbClient, buildAgentClient,
     canRuleEngine,
-    dynamicAnalysisWs, staticAnalysisWs, dynamicTestWs, analysisWs, uploadWs, pipelineWs, sdkWs,
+    dynamicAnalysisWs, staticAnalysisWs, dynamicTestWs, analysisWs, uploadWs, pipelineWs, notificationWs, sdkWs,
   };
 }

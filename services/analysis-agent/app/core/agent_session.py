@@ -63,3 +63,14 @@ class AgentSession:
 
     def total_tool_calls(self) -> int:
         return sum(len(t.tool_steps) for t in self.turns)
+
+    def analysis_state_summary(self) -> dict:
+        """compaction 시 LLM에게 전달할 분석 상태 요약."""
+        return {
+            "tools_used": sorted({s.tool for s in self.trace}),
+            "total_tool_calls": len(self.trace),
+            "evidence_refs_collected": sorted({
+                ref for s in self.trace for ref in s.new_evidence_refs
+            }),
+            "failed_tools": [s.tool for s in self.trace if not s.success],
+        }

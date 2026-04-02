@@ -9,7 +9,7 @@ import { createProjectRouter } from "./controllers/project.controller";
 import { createFileRouter } from "./controllers/file.controller";
 import { createDynamicAnalysisRouter } from "./controllers/dynamic-analysis.controller";
 import { createProjectAdaptersRouter } from "./controllers/project-adapters.controller";
-import { createProjectSettingsRouter, createSdkProfileRouter } from "./controllers/project-settings.controller";
+import { createProjectSettingsRouter, createSdkProfileRouter, createGateProfileRouter } from "./controllers/project-settings.controller";
 import { createDynamicTestRouter } from "./controllers/dynamic-test.controller";
 import { createRunRouter, createRunDetailRouter } from "./controllers/run.controller";
 import { createFindingRouter, createFindingDetailRouter } from "./controllers/finding.controller";
@@ -23,6 +23,8 @@ import { createPipelineRouter } from "./controllers/pipeline.controller";
 import { createTargetLibraryRouter } from "./controllers/target-library.controller";
 import { createSdkRouter } from "./controllers/sdk.controller";
 import { createActivityRouter } from "./controllers/activity.controller";
+import { createNotificationRouter, createNotificationDetailRouter } from "./controllers/notification.controller";
+import { createAuthRouter } from "./controllers/auth.controller";
 
 export function mountRouters(app: Express, ctx: AppContext): void {
   // 프로젝트 스코프 라우터
@@ -34,9 +36,11 @@ export function mountRouters(app: Express, ctx: AppContext): void {
   app.use("/api/projects/:pid/approvals", createApprovalRouter(ctx.approvalService));
   app.use("/api/projects/:pid/report", createReportRouter(ctx.reportService));
   app.use("/api/projects/:pid/activity", createActivityRouter(ctx.activityService));
+  app.use("/api/projects/:pid/notifications", createNotificationRouter(ctx.notificationService));
 
   // 글로벌 라우터
   app.use("/api/sdk-profiles", createSdkProfileRouter());
+  app.use("/api/gate-profiles", createGateProfileRouter());
   app.use("/health", createHealthRouter(ctx.llmTaskClient, ctx.adapterManager, ctx.agentClient, ctx.sastClient, ctx.kbClient, ctx.buildAgentClient));
   app.use("/api/projects", createProjectRouter(ctx.projectService));
   app.use("/api", createFileRouter(ctx.fileStore));
@@ -55,4 +59,6 @@ export function mountRouters(app: Express, ctx: AppContext): void {
   app.use("/api/findings", createFindingDetailRouter(ctx.findingService));
   app.use("/api/gates", createQualityGateDetailRouter(ctx.qualityGateService, ctx.approvalService));
   app.use("/api/approvals", createApprovalDetailRouter(ctx.approvalService));
+  app.use("/api/notifications", createNotificationDetailRouter(ctx.notificationService));
+  app.use("/api/auth", createAuthRouter(ctx.userService));
 }

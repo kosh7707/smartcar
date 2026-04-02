@@ -1,62 +1,215 @@
-"""SastScanTool — sast.scan tool 구현체. S4 SAST Runner에 HTTP 위임."""
+"""SastScanTool — sast.scan tool 구현체. S4 SAST Runner에 NDJSON 스트리밍으로 위임."""
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import time
 
 import httpx
 
 from agent_shared.context import get_request_id
+from agent_shared.observability import agent_log
 from agent_shared.schemas.agent import ToolResult
 from agent_shared.schemas.upstream import SastFinding
 
 logger = logging.getLogger(__name__)
 
+_INACTIVITY_TIMEOUT_S = 60.0  # 60초간 이벤트 없으면 S4 hang 판정
+_STALL_CONSECUTIVE = 3  # filesCompleted가 연속 N회 동일 → stall
+
 
 class SastScanTool:
-    """sast.scan tool — S4 SAST Runner /v1/scan 호출."""
+    """sast.scan tool — S4 SAST Runner /v1/scan NDJSON 스트리밍 호출."""
 
     def __init__(self, base_url: str = "http://localhost:9000", timeout_s: float = 450.0) -> None:
         self._base_url = base_url
         self._timeout_s = timeout_s
-        self._client = httpx.AsyncClient(timeout=timeout_s)
+        self._client = httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=10.0, read=_INACTIVITY_TIMEOUT_S + 10.0, write=10.0, pool=10.0),
+        )
 
     async def execute(self, arguments: dict) -> ToolResult:
+        headers: dict[str, str] = {
+            "Accept": "application/x-ndjson",
+            "X-Timeout-Ms": str(int(self._timeout_s * 1000)),
+        }
+        request_id = get_request_id()
+        if request_id:
+            headers["X-Request-Id"] = request_id
+
         try:
-            headers: dict[str, str] = {"X-Timeout-Ms": str(int(self._timeout_s * 1000))}
-            request_id = get_request_id()
-            if request_id:
-                headers["X-Request-Id"] = request_id
-
-            resp = await self._client.post(
-                f"{self._base_url}/v1/scan",
-                json=arguments,
-                headers=headers,
-                timeout=self._timeout_s,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-
-            findings = [SastFinding.model_validate(f) for f in data.get("findings", [])[:10]]
-            new_refs = [f"eref-sast-{f.ruleId}" for f in findings if f.ruleId]
-
-            return ToolResult(
-                tool_call_id="",
-                name="",
-                success=True,
-                content=json.dumps(data, ensure_ascii=False),
-                new_evidence_refs=new_refs,
-            )
+            return await self._stream_scan(arguments, headers)
         except Exception as e:
             logger.warning("SAST Runner 호출 실패: %s", e)
             return ToolResult(
-                tool_call_id="",
-                name="",
-                success=False,
+                tool_call_id="", name="", success=False,
                 content=json.dumps({"error": f"SAST Runner unavailable: {e}"}),
                 error=str(e),
             )
+
+    async def _stream_scan(self, arguments: dict, headers: dict) -> ToolResult:
+        """NDJSON 스트리밍으로 S4 스캔 결과를 수신한다."""
+        async with self._client.stream(
+            "POST",
+            f"{self._base_url}/v1/scan",
+            json=arguments,
+            headers=headers,
+        ) as response:
+            response.raise_for_status()
+
+            content_type = response.headers.get("content-type", "")
+
+            # S4가 NDJSON을 지원하지 않으면 동기 fallback
+            if "ndjson" not in content_type:
+                body = await response.aread()
+                data = json.loads(body)
+                return self._build_result(data)
+
+            # NDJSON 스트리밍 소비
+            result_data = None
+            error_event = None
+            stall_detected = False
+
+            # stall 감지 상태
+            prev_files_completed: int | None = None
+            stall_count = 0
+            is_running = False  # queued → running 전환 추적
+
+            async for line in self._iter_lines_with_timeout(response):
+                line = line.strip()
+                if not line:
+                    continue
+
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                event_type = event.get("type", "")
+
+                if event_type == "progress":
+                    agent_log(
+                        logger, "SAST 도구 진행",
+                        component="sast_tool", phase="sast_progress",
+                        tool=event.get("tool"),
+                        status=event.get("status"),
+                        findingsCount=event.get("findingsCount"),
+                        elapsedMs=event.get("elapsedMs"),
+                    )
+                elif event_type == "heartbeat":
+                    hb_status = event.get("status", "running")
+
+                    if hb_status == "queued":
+                        # 세마포어 대기 중 — stall 감지 비활성화
+                        is_running = False
+                        agent_log(
+                            logger, "SAST 큐 대기 중",
+                            component="sast_tool", phase="sast_queued",
+                        )
+                    elif hb_status == "running":
+                        is_running = True
+                        progress = event.get("progress", {})
+                        files_completed = progress.get("filesCompleted", 0)
+
+                        if prev_files_completed is not None and files_completed == prev_files_completed:
+                            stall_count += 1
+                        else:
+                            stall_count = 0
+
+                        prev_files_completed = files_completed
+
+                        if stall_count >= _STALL_CONSECUTIVE:
+                            active_tools = progress.get("activeTools", [])
+                            current_file = progress.get("currentFile", "unknown")
+                            agent_log(
+                                logger, "SAST stall 감지",
+                                component="sast_tool", phase="sast_stall",
+                                level=logging.WARNING,
+                                activeTools=active_tools,
+                                currentFile=current_file,
+                                filesCompleted=files_completed,
+                                stallCount=stall_count,
+                            )
+                            stall_detected = True
+                            # stall 감지해도 연결 유지 — S4가 per-tool timeout으로 자체 해결
+                            # S3는 로깅만 수행
+
+                        agent_log(
+                            logger, "SAST 하트비트",
+                            component="sast_tool", phase="sast_heartbeat",
+                            activeTools=progress.get("activeTools"),
+                            completedTools=progress.get("completedTools"),
+                            findingsCount=progress.get("findingsCount"),
+                            filesCompleted=files_completed,
+                            filesTotal=progress.get("filesTotal"),
+                        )
+                elif event_type == "result":
+                    result_data = event.get("data", {})
+                elif event_type == "error":
+                    error_event = event
+
+            if error_event:
+                return ToolResult(
+                    tool_call_id="", name="", success=False,
+                    content=json.dumps(error_event, ensure_ascii=False),
+                    error=error_event.get("message", "SAST scan error"),
+                )
+
+            if result_data:
+                return self._build_result(result_data, stall_detected=stall_detected)
+
+            return ToolResult(
+                tool_call_id="", name="", success=False,
+                content='{"error": "SAST stream ended without result"}',
+                error="no_result",
+            )
+
+    @staticmethod
+    async def _iter_lines_with_timeout(response: httpx.Response):
+        """줄 단위로 읽되, _INACTIVITY_TIMEOUT_S 초과 시 중단."""
+        aiter = response.aiter_lines()
+        while True:
+            try:
+                line = await asyncio.wait_for(
+                    aiter.__anext__(),
+                    timeout=_INACTIVITY_TIMEOUT_S,
+                )
+                yield line
+            except asyncio.TimeoutError:
+                logger.warning("SAST 스트리밍 inactivity timeout (%.0fs)", _INACTIVITY_TIMEOUT_S)
+                break
+            except StopAsyncIteration:
+                break
+
+    @staticmethod
+    def _build_result(data: dict, *, stall_detected: bool = False) -> ToolResult:
+        """동기/스트리밍 공통 — ScanResponse를 ToolResult로 변환."""
+        findings = [SastFinding.model_validate(f) for f in data.get("findings", [])[:10]]
+        new_refs = [f"eref-sast-{f.ruleId}" for f in findings if f.ruleId]
+
+        # failed/partial 도구 감지 → 결과에 caveats 메타데이터 추가
+        execution = data.get("execution", {})
+        tool_results = execution.get("toolResults", {})
+        incomplete_tools: list[str] = []
+        for tool_name, tr in tool_results.items():
+            status = tr.get("status", "ok")
+            if status in ("failed", "partial"):
+                reason = tr.get("skipReason", "") or tr.get("timedOutFiles", "")
+                incomplete_tools.append(f"{tool_name}({status}: {reason})" if reason else f"{tool_name}({status})")
+
+        if incomplete_tools or stall_detected:
+            data["_sast_caveats"] = {
+                "incompleteTools": incomplete_tools,
+                "stallDetected": stall_detected,
+            }
+
+        return ToolResult(
+            tool_call_id="", name="", success=True,
+            content=json.dumps(data, ensure_ascii=False),
+            new_evidence_refs=new_refs,
+        )
 
     async def aclose(self) -> None:
         await self._client.aclose()

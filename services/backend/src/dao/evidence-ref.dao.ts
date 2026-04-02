@@ -1,15 +1,26 @@
-import type { EvidenceRef } from "@aegis/shared";
+import type { EvidenceRef, ArtifactType, LocatorType } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IEvidenceRefDAO } from "./interfaces";
+import { safeJsonParse } from "../lib/utils";
 
-function rowToEvidenceRef(row: any): EvidenceRef {
+interface EvidenceRefRow {
+  id: string;
+  finding_id: string;
+  artifact_id: string;
+  artifact_type: ArtifactType;
+  locator_type: LocatorType;
+  locator: string;
+  created_at: string;
+}
+
+function rowToEvidenceRef(row: EvidenceRefRow): EvidenceRef {
   return {
     id: row.id,
     findingId: row.finding_id,
     artifactId: row.artifact_id,
     artifactType: row.artifact_type,
     locatorType: row.locator_type,
-    locator: JSON.parse(row.locator || "{}"),
+    locator: safeJsonParse(row.locator, {}),
     createdAt: row.created_at,
   };
 }
@@ -48,7 +59,7 @@ export class EvidenceRefDAO implements IEvidenceRefDAO {
   }
 
   findByFindingId(findingId: string): EvidenceRef[] {
-    return this.selectByFindingStmt.all(findingId).map(rowToEvidenceRef);
+    return (this.selectByFindingStmt.all(findingId) as EvidenceRefRow[]).map(rowToEvidenceRef);
   }
 
   findByFindingIds(findingIds: string[]): Map<string, EvidenceRef[]> {
@@ -60,7 +71,7 @@ export class EvidenceRefDAO implements IEvidenceRefDAO {
       .prepare(
         `SELECT * FROM evidence_refs WHERE finding_id IN (${placeholders}) ORDER BY created_at`,
       )
-      .all(...findingIds);
+      .all(...findingIds) as EvidenceRefRow[];
 
     for (const row of rows) {
       const ref = rowToEvidenceRef(row);

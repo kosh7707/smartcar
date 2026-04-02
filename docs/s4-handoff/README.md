@@ -2,7 +2,7 @@
 
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S4(SAST Runner) 개발을 이어받는 다음 세션을 위한 진입점이다.
-> **마지막 업데이트: 2026-03-31**
+> **마지막 업데이트: 2026-04-02**
 
 ---
 
@@ -14,8 +14,9 @@
 - `docs/api/sast-runner-api.md` API 계약서 소유
 - `docs/specs/sast-runner.md` 명세서 소유
 - `scripts/start-sast-runner.sh` + `services/sast-runner/.env` 소유
-- 12개 엔드포인트 관리: scan, functions, includes, metadata, libraries, build, build-and-analyze, discover-targets, sdk-registry(GET/POST), sdk-registry/:sdkId(DELETE), health
+- 12개 엔드포인트 관리: scan (동기+NDJSON 스트리밍), functions, includes, metadata, libraries, build, build-and-analyze, discover-targets, sdk-registry(GET/POST), sdk-registry/:sdkId(DELETE), health
 - SDK 레지스트리 관리 (`$SAST_SDK_ROOT/sdk-registry.json` 외부 파일)
+- `metadata.cweId` 표준화 — 전 도구에서 CWE 식별자를 `cweId` 필드로 제공 (S2 Finding 매핑용)
 
 ### 너는 하지 않는다
 
@@ -35,8 +36,8 @@
 | 위치 | `services/sast-runner/` (monorepo 내, WSL2 로컬) |
 | 스택 | Python 3.12 + FastAPI + Uvicorn |
 | 포트 | 9000 |
-| 버전 | **v0.7.0** |
-| 테스트 | **338개** (22개 파일) |
+| 버전 | **v0.9.0** |
+| 테스트 | **368개** (23개 파일) |
 | 벤치마크 | Juliet 12 CWE, Overall Recall **83.7%** |
 | 통합테스트 | **통과** (e2e-1774920375, S4 에러 0건) |
 
@@ -85,8 +86,8 @@ services/sast-runner/
 │       ├── library_differ.py — DiffResult 통일 shape + CloneCache
 │       └── library_hasher.py
 ├── rules/automotive/        — 커스텀 Semgrep 룰 53개 (9 YAML)
-├── benchmark/               — Juliet 벤치마크 러너 (targeted/portfolio noise)
-├── tests/                   — 338개 테스트 (22개 파일)
+├── benchmark/               — Juliet 벤치마크 러너 + 코드그래프 품질 평가
+├── tests/                   — 351개 테스트 (23개 파일)
 └── requirements.txt
 ```
 

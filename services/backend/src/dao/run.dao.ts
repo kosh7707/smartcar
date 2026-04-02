@@ -1,8 +1,20 @@
-import type { Run } from "@aegis/shared";
+import type { Run, AnalysisModule, RunStatus } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IRunDAO } from "./interfaces";
 
-function rowToRun(row: any): Run {
+interface RunRow {
+  id: string;
+  project_id: string;
+  module: AnalysisModule;
+  status: RunStatus;
+  analysis_result_id: string;
+  finding_count: number;
+  started_at: string | null;
+  ended_at: string | null;
+  created_at: string;
+}
+
+function rowToRun(row: RunRow): Run {
   return {
     id: row.id,
     projectId: row.project_id,
@@ -55,16 +67,16 @@ export class RunDAO implements IRunDAO {
   }
 
   findById(id: string): Run | undefined {
-    const row = this.selectByIdStmt.get(id);
+    const row = this.selectByIdStmt.get(id) as RunRow | undefined;
     return row ? rowToRun(row) : undefined;
   }
 
   findByProjectId(projectId: string): Run[] {
-    return this.selectByProjectStmt.all(projectId).map(rowToRun);
+    return (this.selectByProjectStmt.all(projectId) as RunRow[]).map(rowToRun);
   }
 
   findByAnalysisResultId(analysisResultId: string): Run | undefined {
-    const row = this.selectByAnalysisResultStmt.get(analysisResultId);
+    const row = this.selectByAnalysisResultStmt.get(analysisResultId) as RunRow | undefined;
     return row ? rowToRun(row) : undefined;
   }
 
@@ -78,7 +90,7 @@ export class RunDAO implements IRunDAO {
     since?: string
   ): Array<{ date: string; runCount: number; findingCount: number; gatePassCount: number }> {
     const conditions = ["r.project_id = ?", "r.module = ?"];
-    const params: any[] = [projectId, module];
+    const params: (string | number | null)[] = [projectId, module];
     if (since) {
       conditions.push("r.created_at >= ?");
       params.push(since);
@@ -110,5 +122,12 @@ export class RunDAO implements IRunDAO {
       findingCount: row.finding_count,
       gatePassCount: row.gate_pass_count,
     }));
+  }
+
+  findLatestCompletedRuns(projectId: string, limit: number): Run[] {
+    const rows = this.db.prepare(
+      `SELECT * FROM runs WHERE project_id = ? AND status = 'completed' ORDER BY created_at DESC LIMIT ?`,
+    ).all(projectId, limit) as RunRow[];
+    return rows.map(rowToRun);
   }
 }

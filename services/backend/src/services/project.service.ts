@@ -5,10 +5,11 @@ import type {
   AnalysisModule,
 } from "@aegis/shared";
 import type { ProjectOverviewResponse } from "@aegis/shared";
-import type { IProjectDAO, IAnalysisResultDAO, IFileStore } from "../dao/interfaces";
+import type { IProjectDAO, IAnalysisResultDAO, IFileStore, IFindingDAO, IRunDAO, IGateResultDAO } from "../dao/interfaces";
 import type { AdapterManager } from "./adapter-manager";
 import type { ProjectSettingsService } from "./project-settings.service";
 import type { BuildTargetService } from "./build-target.service";
+import type { ProjectListItem } from "@aegis/shared";
 
 export class ProjectService {
   constructor(
@@ -18,6 +19,9 @@ export class ProjectService {
     private adapterManager?: AdapterManager,
     private settingsService?: ProjectSettingsService,
     private buildTargetService?: BuildTargetService,
+    private findingDAO?: IFindingDAO,
+    private runDAO?: IRunDAO,
+    private gateResultDAO?: IGateResultDAO,
   ) {}
 
   create(name: string, description?: string): Project {
@@ -40,6 +44,36 @@ export class ProjectService {
 
   findAll(): Project[] {
     return this.projectDAO.findAll();
+  }
+
+  findAllWithSummary(): ProjectListItem[] {
+    const projects = this.projectDAO.findAll();
+    if (!this.findingDAO || !this.runDAO || !this.gateResultDAO) {
+      return projects;
+    }
+    return projects.map((p) => {
+      const runs = this.runDAO!.findLatestCompletedRuns(p.id, 2);
+      const latestRun = runs[0];
+      const lastAnalysisAt = latestRun?.endedAt ?? latestRun?.createdAt;
+      const severitySummary = this.findingDAO!.severitySummaryByProjectId(p.id);
+      const latestGate = this.gateResultDAO!.latestByProjectId(p.id);
+
+      let unresolvedDelta: number | undefined;
+      if (runs.length >= 2) {
+        const current = this.findingDAO!.unresolvedCountByProjectId(p.id);
+        const prevCutoff = runs[1].endedAt ?? runs[1].createdAt;
+        const previous = this.findingDAO!.unresolvedCountByProjectId(p.id, { createdBefore: prevCutoff });
+        unresolvedDelta = current - previous;
+      }
+
+      return {
+        ...p,
+        lastAnalysisAt,
+        severitySummary,
+        gateStatus: latestGate?.status,
+        unresolvedDelta,
+      };
+    });
   }
 
   update(id: string, fields: { name?: string; description?: string }): Project | undefined {
@@ -108,6 +142,21 @@ export class ProjectService {
       }
     }
 
+    // trend 계산
+    let trend: { newFindings: number; resolvedFindings: number; unresolvedTotal: number } | undefined;
+    if (this.findingDAO && this.runDAO) {
+      const unresolvedTotal = this.findingDAO.unresolvedCountByProjectId(projectId);
+      const latestRuns = this.runDAO.findLatestCompletedRuns(projectId, 1);
+      const latestRun = latestRuns[0];
+      const newFindings = latestRun?.findingCount ?? 0;
+      let resolvedFindings = 0;
+      if (latestRun) {
+        const since = latestRun.startedAt ?? latestRun.createdAt;
+        resolvedFindings = this.findingDAO.resolvedCountSince(projectId, since);
+      }
+      trend = { newFindings, resolvedFindings, unresolvedTotal };
+    }
+
     return {
       project,
       fileCount,
@@ -118,6 +167,7 @@ export class ProjectService {
       },
       targetSummary,
       recentAnalyses,
+      trend,
     };
   }
 }

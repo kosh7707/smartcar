@@ -25,6 +25,16 @@
   border-color: var(--accent-border);
 }
 
+/* ── Security Posture Group (donut + modules + stats) ── */
+
+.overview-posture-group {
+  background: var(--surface-inset);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
 /* ── Security Overview Card ── */
 
 .overview-security-card {
@@ -70,6 +80,7 @@
 .overview-module-row__time {
   margin-left: auto;
   font-size: var(--text-xs);
+  font-family: var(--font-data);
   color: var(--text-tertiary);
   white-space: nowrap;
 }
@@ -79,17 +90,55 @@
   color: var(--text-tertiary);
 }
 
+/* ── Trend Card ── */
+
+.overview-trend-card {
+  margin-bottom: var(--space-3);
+}
+
+.overview-trend-row {
+  display: flex;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.overview-trend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-inset);
+  flex: 1;
+}
+
+.overview-trend-value {
+  font-family: var(--font-data);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+}
+
+.overview-trend-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.overview-trend-item--new { color: var(--severity-critical); }
+.overview-trend-item--resolved { color: var(--success); }
+.overview-trend-item--total { color: var(--text-primary); }
+
 /* ── Bottom Grid (Files + History) ── */
 
 .overview-bottom-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
 .overview-bottom-grid > .card {
   margin-bottom: 0;
   min-width: 0;
+  background: var(--surface-inset);
 }
 
 @media (max-width: 1024px) {
@@ -308,7 +357,8 @@
 }
 
 .overview-file-size {
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
+  font-family: var(--font-data);
   color: var(--text-tertiary);
 }
 
@@ -393,9 +443,70 @@
 }
 
 .overview-history-time {
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
+  font-family: var(--font-data);
   color: var(--text-tertiary);
   white-space: nowrap;
+}
+
+/* ── Gate Card ── */
+
+.overview-gate-header,
+.overview-approval-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.overview-gate-summary {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.overview-gate-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.overview-gate-item--pass { color: var(--success); }
+.overview-gate-item--fail { color: var(--danger); }
+.overview-gate-item--warning { color: var(--severity-medium); }
+
+/* ── Approval Card ── */
+
+.overview-approval-body {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.overview-approval-pending {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.overview-approval-pending__count {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  color: var(--danger);
+}
+
+.overview-approval-pending__label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.overview-approval-total {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-left: auto;
 }
 
 /* ── Empty Text ── */

@@ -91,19 +91,18 @@ export const Sidebar: React.FC = () => {
           </div>
 
           <ul className="sidebar-nav">
-            {projectNavItems.map((item) => (
+            {projectNavItems.filter((item) => !item.comingSoon).map((item) => (
               <li key={item.sub}>
                 <NavLink
                   to={`/projects/${projectId}/${item.sub}`}
-                  className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}${item.comingSoon ? " sidebar-link--coming-soon" : ""}`}
+                  className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
                   onClick={(e) => handleNavClick(e, `/projects/${projectId}/${item.sub}`)}
                 >
                   <item.icon size={ICON_SIZE} />
-                  {item.label}
+                  <span className="sidebar-link__label">{item.label}</span>
                   {item.sub === "approvals" && pendingApprovals > 0 && (
                     <span className="sidebar-badge">{pendingApprovals}</span>
                   )}
-                  {item.comingSoon && <span className="sidebar-coming-soon-tag" aria-label="준비 중 기능">준비 중</span>}
                 </NavLink>
               </li>
             ))}
@@ -118,7 +117,7 @@ export const Sidebar: React.FC = () => {
                 onClick={(e) => handleNavClick(e, `/projects/${projectId}/settings`)}
               >
                 <Settings size={ICON_SIZE} />
-                설정
+                <span className="sidebar-link__label">설정</span>
               </NavLink>
             </li>
           </ul>
@@ -143,7 +142,7 @@ export const Sidebar: React.FC = () => {
                 className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
               >
                 <FolderOpen size={ICON_SIZE} />
-                프로젝트
+                <span className="sidebar-link__label">프로젝트</span>
               </NavLink>
             </li>
           </ul>
@@ -156,7 +155,7 @@ export const Sidebar: React.FC = () => {
                 className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
               >
                 <Settings size={ICON_SIZE} />
-                설정
+                <span className="sidebar-link__label">설정</span>
               </NavLink>
             </li>
           </ul>

@@ -15,11 +15,11 @@ const STATUS_CONFIG: Record<string, { icon: React.ReactNode; label: string; clas
   warning: { icon: <ShieldAlert size={16} />, label: "경고", className: "gate-status--warning" },
 };
 
-const RULE_LABELS: Record<string, string> = {
-  "no-critical": "Critical 취약점 없음",
-  "high-threshold": "High 취약점 임계치",
-  "evidence-coverage": "증거 충분성",
-  "sandbox-unreviewed": "미검토 항목 없음",
+const RULE_INFO: Record<string, { label: string; description: string }> = {
+  "no-critical": { label: "Critical 취약점 없음", description: "Critical 수준 취약점이 0건이어야 합니다" },
+  "high-threshold": { label: "High 취약점 임계치", description: "High 수준 취약점이 설정된 임계값 이하여야 합니다" },
+  "evidence-coverage": { label: "증거 충분성", description: "모든 Finding에 1개 이상의 증적이 연결되어 있어야 합니다" },
+  "sandbox-unreviewed": { label: "미검토 항목 없음", description: "Sandbox 상태의 미검토 Finding이 0건이어야 합니다" },
 };
 
 function RuleResultRow({ rule }: { rule: GateRuleResult }) {
@@ -31,11 +31,18 @@ function RuleResultRow({ rule }: { rule: GateRuleResult }) {
 
   return (
     <div className={`gate-rule gate-rule--${rule.result}`}>
-      {icon}
-      <span className="gate-rule__name">{RULE_LABELS[rule.ruleId] ?? rule.ruleId}</span>
-      <span className="gate-rule__message">{rule.message}</span>
-      {rule.linkedFindingIds.length > 0 && (
-        <span className="gate-rule__findings">Finding {rule.linkedFindingIds.length}건</span>
+      <div className="gate-rule__main">
+        {icon}
+        <span className="gate-rule__name">{RULE_INFO[rule.ruleId]?.label ?? rule.ruleId}</span>
+        <span className="gate-rule__message">{rule.message}</span>
+        {rule.linkedFindingIds.length > 0 && (
+          <span className="gate-rule__findings">Finding {rule.linkedFindingIds.length}건</span>
+        )}
+      </div>
+      {RULE_INFO[rule.ruleId]?.description && (
+        <div className="gate-rule__description" style={{ color: "var(--text-tertiary)", fontSize: "var(--text-xs)" }}>
+          {RULE_INFO[rule.ruleId].description}
+        </div>
       )}
     </div>
   );
@@ -114,7 +121,10 @@ export const QualityGatePage: React.FC = () => {
                 </div>
 
                 <div className="gate-card__rules">
-                  {gate.rules.map((rule) => (
+                  {[...gate.rules].sort((a, b) => {
+                    const order: Record<string, number> = { failed: 0, warning: 1, passed: 2 };
+                    return (order[a.result] ?? 9) - (order[b.result] ?? 9);
+                  }).map((rule) => (
                     <RuleResultRow key={rule.ruleId} rule={rule} />
                   ))}
                 </div>
@@ -131,20 +141,36 @@ export const QualityGatePage: React.FC = () => {
                   <div className="gate-card__actions">
                     {overrideTarget === gate.id ? (
                       <div className="gate-override-form">
-                        <input
-                          type="text"
-                          className="input input-sm"
-                          placeholder="오버라이드 사유를 입력하세요"
-                          value={overrideReason}
-                          onChange={(e) => setOverrideReason(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && handleOverride()}
-                        />
-                        <button className="btn btn-sm" onClick={handleOverride} disabled={overriding || !overrideReason.trim()}>
-                          {overriding ? "처리 중..." : "확인"}
-                        </button>
-                        <button className="btn btn-secondary btn-sm" onClick={() => { setOverrideTarget(null); setOverrideReason(""); }}>
-                          취소
-                        </button>
+                        {(() => {
+                          const failedCount = gate.rules.filter(r => r.result === "failed").length;
+                          return failedCount > 0 ? (
+                            <div className="gate-override-form__warning">
+                              <AlertTriangle size={14} />
+                              이 오버라이드로 {failedCount}건의 실패 규칙이 무시됩니다
+                            </div>
+                          ) : null;
+                        })()}
+                        <div className="gate-override-form__controls">
+                          <input
+                            type="text"
+                            className="input input-sm"
+                            placeholder="오버라이드 사유를 입력하세요 (최소 10자)"
+                            value={overrideReason}
+                            onChange={(e) => setOverrideReason(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && overrideReason.trim().length >= 10 && handleOverride()}
+                          />
+                          <button
+                            className="btn btn-sm confirm-dialog__btn--danger"
+                            style={{ background: 'var(--danger)', color: 'var(--text-inverse)' }}
+                            onClick={handleOverride}
+                            disabled={overriding || overrideReason.trim().length < 10}
+                          >
+                            {overriding ? "처리 중..." : "오버라이드 확인"}
+                          </button>
+                          <button className="btn btn-secondary btn-sm" onClick={() => { setOverrideTarget(null); setOverrideReason(""); }}>
+                            취소
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <button className="btn btn-secondary btn-sm" onClick={() => setOverrideTarget(gate.id)}>

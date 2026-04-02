@@ -1,0 +1,96 @@
+{
+  "id": "cwe120-gets-overflow",
+  "description": "Buffer overflow via gets() + false positive rejection for safe memcpy",
+  "category": "mixed",
+  "difficulty": "basic",
+  "input": {
+    "task_type": "deep-analyze",
+    "objective": "보안 취약점 심층 분석",
+    "sast_findings": [
+      {
+        "toolId": "flawfinder",
+        "ruleId": "gets-1",
+        "severity": "error",
+        "location": {
+          "file": "src/input.c",
+          "line": 15
+        },
+        "message": "gets(): Does not check for buffer overflows. Use fgets() instead."
+      },
+      {
+        "toolId": "cppcheck",
+        "ruleId": "memcpy-bounds",
+        "severity": "warning",
+        "location": {
+          "file": "src/input.c",
+          "line": 30
+        },
+        "message": "Possible buffer overflow with memcpy. Ensure destination buffer is large enough."
+      }
+    ],
+    "code_functions": [
+      {
+        "name": "read_user_input",
+        "file": "src/input.c",
+        "line": 10
+      },
+      {
+        "name": "copy_safe",
+        "file": "src/input.c",
+        "line": 25
+      }
+    ],
+    "threat_context": [
+      {
+        "id": "CWE-120",
+        "source": "cwe",
+        "title": "Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')",
+        "threat_category": "memory-safety"
+      }
+    ],
+    "source_code": "/* src/input.c */\n#include <stdio.h>\n#include <string.h>\n\n#define BUF_SIZE 64\n\nchar global_buf[BUF_SIZE];\n\nvoid read_user_input(void) {\n    char local_buf[BUF_SIZE];\n    printf(\"Enter command: \");\n    gets(local_buf);  /* line 15: CWE-120 buffer overflow - no bounds check */\n    strncpy(global_buf, local_buf, BUF_SIZE - 1);\n    global_buf[BUF_SIZE - 1] = '\\0';\n}\n\nvoid copy_safe(const char *src, size_t src_len) {\n    char dest[128];\n    /* line 30: SAFE - memcpy bounded by sizeof(dest) and src_len */\n    size_t copy_len = (src_len < sizeof(dest)) ? src_len : sizeof(dest) - 1;\n    memcpy(dest, src, copy_len);\n    dest[copy_len] = '\\0';\n}\n",
+    "evidence_refs": [
+      {
+        "refId": "eref-eval-cwe120-src",
+        "artifactType": "raw-source",
+        "locator": {
+          "file": "src/input.c"
+        },
+        "artifactId": "eref-eval-cwe120-src",
+        "locatorType": "file"
+      }
+    ]
+  },
+  "expected": {
+    "must_find": [
+      {
+        "severity_min": "high",
+        "file": "input.c",
+        "keywords": [
+          "gets"
+        ]
+      }
+    ],
+    "must_reject": [
+      {
+        "cwe": "CWE-120",
+        "file": "input.c",
+        "line_range": [
+          28,
+          35
+        ],
+        "keywords": [
+          "memcpy"
+        ],
+        "reason": "memcpy is bounded by sizeof(dest) - safe"
+      }
+    ],
+    "severity_range": [
+      "high",
+      "critical"
+    ],
+    "min_total_claims": 1,
+    "max_total_claims": 3,
+    "required_cwe_mentions": []
+  }
+}

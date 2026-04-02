@@ -40,6 +40,10 @@ export interface Vulnerability {
   fixCode?: string;
   /** 상세 분석 (공격 경로, 영향 범위, 코드 흐름 등) */
   detail?: string;
+  /** CWE 식별자 (e.g. "CWE-120") */
+  cweId?: string;
+  /** CVE 식별자 목록 (e.g. ["CVE-2025-1234"]) */
+  cveIds?: string[];
 }
 
 export interface AnalysisSummary {
@@ -160,6 +164,11 @@ export interface Adapter {
 export interface ProjectSettings {
   llmUrl: string;
   buildProfile?: BuildProfile;
+  gateProfileId?: string;
+  analysisPolicy?: {
+    tools?: string[];
+    rulesets?: string[];
+  };
 }
 
 // ============================================================
@@ -501,6 +510,12 @@ export interface Finding {
   /** 상세 분석 (Agent claim.detail — 공격 경로, 영향 범위, 악용 시나리오 등) */
   detail?: string;
   ruleId?: string;
+  /** CWE 식별자 (e.g. "CWE-120") */
+  cweId?: string;
+  /** CVE 식별자 목록 (e.g. ["CVE-2025-1234"]) */
+  cveIds?: string[];
+  /** 수치 확신도 (0.0~1.0). 기존 confidence 텍스트와 병존 */
+  confidenceScore?: number;
   /**
    * 동일성 지문. 재분석 시 같은 취약점을 식별하는 데 사용.
    * 생성 규칙: sha256(projectId + location + ruleId|title + sourceType).slice(0,16)
@@ -611,6 +626,13 @@ export interface ProjectReport {
   totalSummary: ReportSummary;
   approvals: ApprovalRequest[];
   auditTrail: AuditLogEntry[];
+  customization?: {
+    executiveSummary?: string;
+    companyName?: string;
+    logoUrl?: string;
+    language?: string;
+    reportTitle?: string;
+  };
 }
 
 // ============================================================
@@ -624,6 +646,19 @@ export type GateRuleId =
   | "high-threshold"
   | "evidence-coverage"
   | "sandbox-unreviewed";
+
+export interface GateProfileRule {
+  ruleId: GateRuleId;
+  enabled: boolean;
+  params?: Record<string, unknown>;
+}
+
+export interface GateProfile {
+  id: string;
+  name: string;
+  description: string;
+  rules: GateProfileRule[];
+}
 
 export interface GateRuleResult {
   ruleId: GateRuleId;
@@ -673,4 +708,37 @@ export interface ApprovalRequest {
   };
   expiresAt: string;
   createdAt: string;
+}
+
+// ============================================================
+// Notification
+// ============================================================
+
+export type NotificationType = "analysis_complete" | "critical_finding" | "approval_pending" | "gate_failed";
+
+export interface Notification {
+  id: string;
+  projectId: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  severity?: Severity;
+  resourceId?: string;
+  read: boolean;
+  createdAt: string;
+}
+
+// ============================================================
+// User
+// ============================================================
+
+export type UserRole = "viewer" | "analyst" | "admin";
+
+export interface User {
+  id: string;
+  username: string;
+  displayName: string;
+  role: UserRole;
+  createdAt: string;
+  updatedAt: string;
 }

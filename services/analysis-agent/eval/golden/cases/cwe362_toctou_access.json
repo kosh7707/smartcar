@@ -1,0 +1,82 @@
+{
+  "id": "cwe362-toctou-access",
+  "description": "TOCTOU race condition via access() + fopen() without locking",
+  "category": "true_positive",
+  "difficulty": "moderate",
+  "input": {
+    "task_type": "deep-analyze",
+    "objective": "보안 취약점 심층 분석",
+    "sast_findings": [
+      {
+        "toolId": "flawfinder",
+        "ruleId": "access-1",
+        "severity": "warning",
+        "location": {
+          "file": "src/config.c",
+          "line": 18
+        },
+        "message": "access(): This usually indicates a security flaw. If an attacker can change anything along the path between the call to access() and the file's actual use, the attacker can exploit the race condition (CWE-362/CWE-367)."
+      }
+    ],
+    "code_functions": [
+      {
+        "name": "load_config",
+        "file": "src/config.c",
+        "line": 12
+      },
+      {
+        "name": "main",
+        "file": "src/main.c",
+        "line": 5
+      }
+    ],
+    "threat_context": [
+      {
+        "id": "CWE-362",
+        "source": "cwe",
+        "title": "Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition')",
+        "threat_category": "concurrency"
+      },
+      {
+        "id": "CWE-367",
+        "source": "cwe",
+        "title": "Time-of-check Time-of-use (TOCTOU) Race Condition",
+        "threat_category": "concurrency"
+      }
+    ],
+    "source_code": "/* src/config.c */\n#include <stdio.h>\n#include <unistd.h>\n#include <stdlib.h>\n\n#define CONFIG_PATH \"/etc/ecu/settings.conf\"\n\nint load_config(void) {\n    /* line 18: CWE-362/367 TOCTOU - gap between check and use */\n    if (access(CONFIG_PATH, R_OK) != 0) {\n        fprintf(stderr, \"Config not readable\\n\");\n        return -1;\n    }\n    /* Attacker can replace file between access() and fopen() */\n    FILE *fp = fopen(CONFIG_PATH, \"r\");\n    if (!fp) {\n        return -1;\n    }\n    char line[256];\n    while (fgets(line, sizeof(line), fp)) {\n        /* parse config... */\n    }\n    fclose(fp);\n    return 0;\n}\n",
+    "evidence_refs": [
+      {
+        "refId": "eref-eval-cwe362-src",
+        "artifactType": "raw-source",
+        "locator": {
+          "file": "src/config.c"
+        },
+        "artifactId": "eref-eval-cwe362-src",
+        "locatorType": "file"
+      }
+    ]
+  },
+  "expected": {
+    "must_find": [
+      {
+        "severity_min": "medium",
+        "file": "config.c",
+        "keywords": [
+          "TOCTOU"
+        ]
+      }
+    ],
+    "must_reject": [],
+    "severity_range": [
+      "medium",
+      "high"
+    ],
+    "min_total_claims": 1,
+    "max_total_claims": 3,
+    "required_cwe_mentions": [
+      "CWE-362",
+      "CWE-367"
+    ]
+  }
+}

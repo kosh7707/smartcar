@@ -38,6 +38,8 @@
 | suggestion | string (optional) | 수정 방안 |
 | fixCode | string (optional) | 수정 코드 예시 |
 | detail | string (optional) | 상세 분석 — 공격 경로, 영향 범위, 코드 흐름, 악용 시나리오 |
+| cweId | string (optional) | CWE 식별자 (e.g. "CWE-120") |
+| cveIds | string[] (optional) | CVE 식별자 목록 (e.g. ["CVE-2025-1234"]) |
 
 ### AnalysisResult
 
@@ -167,6 +169,8 @@ ECU 어댑터 정보. 프로젝트에 종속된다.
 |------|------|------|
 | llmUrl | string | LLM Gateway URL (프로젝트별 오버라이드) |
 | buildProfile | BuildProfile (optional) | 빌드 환경 설정 (SDK, 컴파일러, 타겟 아키텍처 등) |
+| gateProfileId | string (optional) | Gate 프로필 ID (default/strict/relaxed). 미설정 시 "default" |
+| analysisPolicy | object (optional) | 분석 정책 `{ tools?: string[], rulesets?: string[] }` |
 
 ### SdkProfileId
 
@@ -546,6 +550,9 @@ CAN 메시지 주입 결과.
 | detail | string (optional) | 상세 분석 — 공격 경로, 영향 범위, 코드 흐름, 악용 시나리오 (Agent claim.detail) |
 | ruleId | string (optional) | 룰 ID |
 | fingerprint | string (optional) | 동일성 지문 — 재분석 시 같은 취약점 식별. `sha256(projectId+location+identifier+sourceType)` 앞 16자 |
+| cweId | string (optional) | CWE 식별자 (e.g. "CWE-120") |
+| cveIds | string[] (optional) | CVE 식별자 목록 |
+| confidenceScore | number (optional) | 수치 확신도 (0.0~1.0). 기존 confidence 텍스트와 병존 |
 | createdAt | string (ISO 8601) | 생성 시각 |
 | updatedAt | string (ISO 8601) | 수정 시각 |
 
@@ -647,6 +654,7 @@ Finding과 증적(artifact) 간의 참조 연결.
 | totalSummary | ReportSummary | 전체 집계 |
 | approvals | ApprovalRequest[] | 승인 요청 목록 |
 | auditTrail | AuditLogEntry[] | 감사 로그 |
+| customization | object (optional) | 보고서 커스터마이징 `{ executiveSummary?, companyName?, logoUrl?, language?, reportTitle? }` |
 
 ### GateStatus
 
@@ -722,6 +730,68 @@ type ApprovalActionType = "gate.override" | "finding.accepted_risk";
 | decision | object (optional) | 결정 정보 (`{ decidedBy, decidedAt, comment? }`) |
 | expiresAt | string (ISO 8601) | 만료 시각 |
 | createdAt | string (ISO 8601) | 생성 시각 |
+
+### GateProfileRule
+
+Gate 프로필 규칙 항목.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| ruleId | GateRuleId | 규칙 식별자 |
+| enabled | boolean | 활성화 여부 |
+| params | Record<string, unknown> (optional) | 규칙 파라미터 (e.g. `{ threshold: 5 }`) |
+
+### GateProfile
+
+Gate 프로필. 프로젝트별로 선택하여 Quality Gate 평가 규칙을 조정한다. 3개 프리셋 제공.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | string | 프로필 식별자 (default, strict, relaxed) |
+| name | string | 프로필 이름 |
+| description | string | 설명 |
+| rules | GateProfileRule[] | 규칙 목록 |
+
+### NotificationType
+
+```typescript
+type NotificationType = "analysis_complete" | "critical_finding" | "approval_pending" | "gate_failed";
+```
+
+### Notification
+
+프로젝트 스코프 알림.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | string | 고유 식별자 (`notif-{uuid}`) |
+| projectId | string | 소속 프로젝트 ID |
+| type | NotificationType | 알림 유형 |
+| title | string | 제목 |
+| body | string | 본문 |
+| severity | Severity (optional) | 심각도 |
+| resourceId | string (optional) | 관련 리소스 ID |
+| read | boolean | 읽음 여부 |
+| createdAt | string (ISO 8601) | 생성 시각 |
+
+### UserRole
+
+```typescript
+type UserRole = "viewer" | "analyst" | "admin";
+```
+
+### User
+
+사용자 정보. DB의 password_hash는 API에 노출되지 않는다.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | string | 고유 식별자 (`user-{short-uuid}`) |
+| username | string | 로그인 아이디 (unique) |
+| displayName | string | 표시 이름 |
+| role | UserRole | 역할 |
+| createdAt | string (ISO 8601) | 생성 시각 |
+| updatedAt | string (ISO 8601) | 수정 시각 |
 
 ### DynamicTestConfig
 
@@ -801,7 +871,19 @@ type ApprovalActionType = "gate.override" | "finding.accepted_risk";
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | success | boolean | 성공 여부 |
-| data | Project[] | 프로젝트 목록 |
+| data | ProjectListItem[] | 프로젝트 목록 (보안 요약 포함) |
+
+#### ProjectListItem
+
+프로젝트 목록 응답의 개별 항목. Project를 확장한다.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| (Project 전체 필드) | | |
+| lastAnalysisAt | string (optional, ISO 8601) | 최근 분석 시각 |
+| severitySummary | object (optional) | 미해결 심각도별 건수 `{ critical, high, medium, low }` |
+| gateStatus | GateStatus (optional) | 최근 Gate 상태 |
+| unresolvedDelta | number (optional) | 미해결 변화량 (이전 Run 대비) |
 
 ### 프로젝트 Overview
 
@@ -1336,6 +1418,74 @@ type ApprovalActionType = "gate.override" | "finding.accepted_risk";
 | status | `"received"` | 초기 상태 |
 
 진행률은 WebSocket `/ws/upload?uploadId=`로 push된다. 상태머신: `received → extracting → indexing → complete`.
+
+### Gate Profile API
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/gate-profiles` | Gate 프로필 목록 (3개: default, strict, relaxed) |
+| GET | `/api/gate-profiles/:id` | Gate 프로필 상세. 미존재 시 404 |
+
+### Notification API
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/projects/:pid/notifications` | 알림 목록 (`?unread=true` 필터) |
+| GET | `/api/projects/:pid/notifications/count` | 미읽음 카운트 → `{ unread: number }` |
+| PATCH | `/api/projects/:pid/notifications/read-all` | 전체 읽음 처리 |
+| PATCH | `/api/notifications/:id/read` | 개별 읽음 처리 |
+
+#### WebSocket 메시지 — 알림 (S2 → S1, `/ws/notifications?projectId=`)
+
+| type | payload | 설명 |
+|------|---------|------|
+| `"notification"` | Notification | 신규 알림 |
+
+### Auth API
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| POST | `/api/auth/login` | 로그인 `{ username, password }` → `{ token, user }` |
+| POST | `/api/auth/logout` | 로그아웃 (Authorization: Bearer 헤더) |
+| GET | `/api/auth/me` | 현재 사용자 정보 |
+| GET | `/api/auth/users` | 사용자 목록 |
+
+#### LoginRequest
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| username | string | 로그인 아이디 |
+| password | string | 비밀번호 |
+
+#### LoginResponse
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| success | boolean | 성공 여부 |
+| data | `{ token: string, user: User }` (optional) | 인증 정보 |
+| error | string (optional) | 에러 메시지 |
+
+### Finding Groups API
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/projects/:pid/findings/groups` | Finding 그루핑 (`?groupBy=ruleId\|location`) |
+
+응답: `{ success: true, data: Array<{ key, count, topSeverity, findingIds }> }`
+
+### Custom Report API
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| POST | `/api/projects/:pid/report/custom` | 커스터마이징 보고서 |
+
+Body: `{ filters?, findingIds?, includeSections?, customization? }`
+
+### Build Log API
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/projects/:pid/targets/:id/build-log` | 빌드 로그 조회 → `{ buildLog, status, updatedAt }` |
 
 ---
 

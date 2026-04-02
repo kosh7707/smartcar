@@ -132,6 +132,16 @@ class AgentLoop:
                 response = await self._call_with_retry(session, current_tools)
             except S3Error as e:
                 logger.error("LLM 호출 실패 (재시도 소진): %s", e)
+                # 도구 결과가 이미 축적되어 있으면 부분 결과 시도
+                if session.total_tool_calls() > 0:
+                    agent_log(
+                        logger, "LLM 실패 — 부분 결과로 대체 시도",
+                        component="agent_loop", phase="partial_result_fallback",
+                        turn=turn, toolCallsSoFar=session.total_tool_calls(),
+                        errorCode=e.code,
+                    )
+                    session.set_termination_reason(f"llm_failure_partial:{e.code}")
+                    return self._result_assembler.build_from_exhaustion(session)
                 return self._result_assembler.build_failure(
                     session,
                     TaskStatus.MODEL_ERROR,
@@ -171,6 +181,21 @@ class AgentLoop:
                             break
                         elif not r.success:
                             consecutive_build_failures += 1
+                            # 빌드 에러 분류 결과를 LLM에 주입 (결정론적 힌트)
+                            try:
+                                from app.pipeline.build_error_classifier import classify_build_error
+                                classifications = classify_build_error(r.content)
+                                if classifications:
+                                    hints = "\n".join(
+                                        f"- [{c.category}] {c.suggestion}"
+                                        for c in classifications
+                                    )
+                                    self._message_manager.add_user_message(
+                                        f"[시스템 에러 분류]\n{hints}\n"
+                                        "위 분류를 참고하여 빌드 스크립트를 수정하라."
+                                    )
+                            except Exception:
+                                pass  # 분류 실패 시 무시 — LLM이 직접 에러 해석
                             if consecutive_build_failures >= max_build_failures:
                                 force_report = True
                                 agent_log(

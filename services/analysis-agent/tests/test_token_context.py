@@ -36,14 +36,14 @@ class TestTurnSummarizer:
             {"role": "assistant", "content": "a3"},
         ]
         result = await ts.summarize(messages, keep_last_n=2)
-        # 생략 메시지에 '상태 요약' 없어야 함
+        # 압축 메시지에 '세션 상태' 없어야 함
         for msg in result:
-            if "생략" in msg.get("content", ""):
-                assert "상태 요약" not in msg["content"]
+            if "컨텍스트 압축" in msg.get("content", ""):
+                assert "세션 상태" not in msg["content"]
 
     @pytest.mark.asyncio
     async def test_with_state_summary(self):
-        """state_summary 있으면 생략 메시지에 포함."""
+        """state_summary 있으면 압축 메시지에 포함."""
         ts = TurnSummarizer()
         messages = [
             {"role": "system", "content": "sys"},
@@ -56,5 +56,5 @@ class TestTurnSummarizer:
         ]
         state = {"files_read_count": 5}
         result = await ts.summarize(messages, keep_last_n=2, state_summary=state)
-        found = any("상태 요약" in m.get("content", "") for m in result)
+        found = any("세션 상태" in m.get("content", "") for m in result)
         assert found

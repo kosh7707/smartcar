@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { Settings, Plus, Trash2, Upload, FolderOpen, CheckCircle, XCircle, Loader, ChevronDown, ChevronRight } from "lucide-react";
+import { Settings, Plus, Trash2, Upload, FolderOpen, CheckCircle, XCircle, Loader, ChevronDown, ChevronRight, ShieldCheck } from "lucide-react";
+import type { GateProfile } from "@aegis/shared";
+import { fetchGateProfiles } from "../api/gate";
+import { fetchProjectSettings, updateProjectSettings } from "../api/projects";
 import type { RegisteredSdk, SdkRegistryStatus, SdkAnalyzedProfile } from "../api/sdk";
 import { fetchProjectSdks, registerSdkByPath, registerSdkByUpload, deleteSdk, getSdkWsUrl } from "../api/sdk";
 import { logError } from "../api/core";
@@ -114,6 +117,9 @@ export const ProjectSettingsPage: React.FC = () => {
   const [registering, setRegistering] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<RegisteredSdk | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const [gateProfiles, setGateProfiles] = useState<GateProfile[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState<string>("");
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -130,6 +136,16 @@ export const ProjectSettingsPage: React.FC = () => {
   }, [projectId, toast]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    fetchGateProfiles()
+      .then(setGateProfiles)
+      .catch((e) => logError("GateProfiles.load", e));
+    fetchProjectSettings(projectId)
+      .then((s) => { if (s.gateProfileId) setSelectedProfileId(s.gateProfileId); })
+      .catch((e) => logError("Settings.load", e));
+  }, [projectId]);
 
   // WS for real-time SDK progress
   useEffect(() => {
@@ -224,6 +240,21 @@ export const ProjectSettingsPage: React.FC = () => {
     setDeleteTarget(null);
   }, [projectId, toast]);
 
+  const handleProfileChange = async (profileId: string) => {
+    if (!projectId) return;
+    setSavingProfile(true);
+    try {
+      await updateProjectSettings(projectId, { gateProfileId: profileId });
+      setSelectedProfileId(profileId);
+      toast.success("Gate 프로파일이 변경되었습니다.");
+    } catch (e) {
+      logError("GateProfile.save", e);
+      toast.error("프로파일 변경에 실패했습니다.");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   if (loading) {
     return <div className="page-enter centered-loader"><Spinner size={36} label="설정 로딩 중..." /></div>;
   }
@@ -231,6 +262,56 @@ export const ProjectSettingsPage: React.FC = () => {
   return (
     <div className="page-enter">
       <PageHeader title="프로젝트 설정" icon={<Settings size={20} />} />
+
+      {/* Quality Gate Profile Section */}
+      <div className="card" style={{ marginBottom: "var(--space-4)" }}>
+        <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+          <ShieldCheck size={16} />
+          Quality Gate 프로파일
+        </div>
+        <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", marginBottom: "var(--space-3)" }}>
+          프로젝트에 적용할 Quality Gate 규칙 세트를 선택합니다.
+        </p>
+        {gateProfiles.length === 0 ? (
+          <p style={{ color: "var(--text-tertiary)" }}>프로파일을 불러오는 중...</p>
+        ) : (
+          <>
+            <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+              {gateProfiles.map((gp) => (
+                <button
+                  key={gp.id}
+                  className={`btn ${selectedProfileId === gp.id ? "" : "btn-secondary"}`}
+                  onClick={() => handleProfileChange(gp.id)}
+                  disabled={savingProfile}
+                  title={gp.description}
+                  style={{ minWidth: 100 }}
+                >
+                  {gp.name}
+                </button>
+              ))}
+            </div>
+            {selectedProfileId && (() => {
+              const profile = gateProfiles.find((gp) => gp.id === selectedProfileId);
+              if (!profile) return null;
+              return (
+                <div style={{ marginTop: "var(--space-3)", padding: "var(--space-3)", background: "var(--surface-inset)", borderRadius: "var(--radius-md)" }}>
+                  <div style={{ fontWeight: "var(--weight-semibold)", marginBottom: "var(--space-2)" }}>{profile.name} — {profile.description}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-1)" }}>
+                    {profile.rules.map((r) => (
+                      <div key={r.ruleId} style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", fontSize: "var(--text-sm)" }}>
+                        <span style={{ color: r.enabled ? "var(--success)" : "var(--text-tertiary)" }}>
+                          {r.enabled ? "\u2713" : "\u2014"}
+                        </span>
+                        <span>{r.ruleId}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </>
+        )}
+      </div>
 
       {/* SDK Management Section */}
       <div className="card gs-card">

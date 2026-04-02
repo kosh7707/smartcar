@@ -9,6 +9,15 @@ export function formatDate(iso: string): string {
 }
 
 export function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${d.getFullYear()}.${mm}.${dd} ${hh}:${mi}`;
+}
+
+export function formatDateTimeFull(iso: string): string {
   return new Date(iso).toLocaleString("ko-KR");
 }
 

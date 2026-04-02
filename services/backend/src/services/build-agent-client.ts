@@ -23,7 +23,7 @@ export interface BuildResolveTarget {
 }
 
 export interface BuildResolveRequest {
-  taskType: "build-resolve";
+  taskType: "build-resolve" | "sdk-analyze";
   taskId: string;
   context: {
     trusted: {

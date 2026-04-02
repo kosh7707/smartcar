@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { useParams } from "react-router-dom";
-import { ClipboardCheck, Clock, CheckCircle, XCircle, AlertCircle, Timer } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
+import { ClipboardCheck, Clock, CheckCircle, XCircle, AlertCircle, Timer, ExternalLink } from "lucide-react";
 import type { ApprovalRequest } from "../api/approval";
 import { fetchProjectApprovals, decideApproval } from "../api/approval";
 import { logError } from "../api/core";
@@ -11,7 +11,7 @@ import "./ApprovalsPage.css";
 
 const STATUS_CONFIG: Record<string, { icon: React.ReactNode; label: string; className: string }> = {
   pending: { icon: <Clock size={14} />, label: "대기", className: "approval-status--pending" },
-  approved: { icon: <CheckCircle size={14} />, label: "승인", className: "approval-status--approved" },
+  approved: { icon: <CheckCircle size={14} />, label: "승인됨", className: "approval-status--approved" },
   rejected: { icon: <XCircle size={14} />, label: "거부", className: "approval-status--rejected" },
   expired: { icon: <Timer size={14} />, label: "만료", className: "approval-status--expired" },
 };
@@ -25,6 +25,7 @@ type FilterStatus = "all" | "pending" | "approved" | "rejected" | "expired";
 
 export const ApprovalsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
   const toast = useToast();
   const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,10 +78,7 @@ export const ApprovalsPage: React.FC = () => {
 
   return (
     <div className="page-enter">
-      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
-        <PageHeader title="Approval Queue" icon={<ClipboardCheck size={20} />} />
-        {pendingCount > 0 && <span className="approval-pending-badge">{pendingCount}건 대기</span>}
-      </div>
+      <PageHeader title="Approval Queue" icon={<ClipboardCheck size={20} />} subtitle={pendingCount > 0 ? `${pendingCount}건 대기` : undefined} />
 
       <div className="approval-filters">
         {(["all", "pending", "approved", "rejected", "expired"] as FilterStatus[]).map((f) => (
@@ -104,6 +102,7 @@ export const ApprovalsPage: React.FC = () => {
           {filtered.map((approval) => {
             const config = STATUS_CONFIG[approval.status] ?? STATUS_CONFIG.pending;
             const isExpired = new Date(approval.expiresAt) < new Date();
+            const isImminent = new Date(approval.expiresAt).getTime() - Date.now() < 24 * 60 * 60 * 1000;
             return (
               <div key={approval.id} className="approval-card card">
                 <div className="approval-card__header">
@@ -120,11 +119,24 @@ export const ApprovalsPage: React.FC = () => {
                     <AlertCircle size={12} />
                     <span>{approval.reason}</span>
                   </div>
+                  <button
+                    className="approval-card__target"
+                    onClick={() => {
+                      if (approval.actionType === "gate.override") {
+                        navigate(`/projects/${projectId}/quality-gate`);
+                      } else {
+                        navigate(`/projects/${projectId}/vulnerabilities`);
+                      }
+                    }}
+                  >
+                    <ExternalLink size={11} />
+                    {approval.actionType === "gate.override" ? "Gate 보기" : "Finding 보기"}
+                  </button>
                   <div className="approval-card__meta">
                     <span>요청자: {approval.requestedBy}</span>
                     <span>{formatDateTime(approval.createdAt)}</span>
                     {!isExpired && approval.status === "pending" && (
-                      <span className="approval-card__expires">
+                      <span className={`approval-card__expires${isImminent ? " approval-card__expires--imminent" : ""}`}>
                         만료: {formatDateTime(approval.expiresAt)}
                       </span>
                     )}
@@ -141,13 +153,13 @@ export const ApprovalsPage: React.FC = () => {
                 {approval.status === "pending" && !isExpired && (
                   <div className="approval-card__actions">
                     <button
-                      className="btn btn-sm"
+                      className="btn btn-sm approval-btn--approve"
                       onClick={() => { setDecidingId(approval.id); setDecidingAction("approved"); }}
                     >
                       승인
                     </button>
                     <button
-                      className="btn btn-secondary btn-sm"
+                      className="btn btn-sm approval-btn--reject"
                       onClick={() => { setDecidingId(approval.id); setDecidingAction("rejected"); }}
                     >
                       거부

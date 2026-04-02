@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import type { ProjectReport, AnalysisModule } from "@aegis/shared";
-import { FileText, Download, Filter, Calendar, X } from "lucide-react";
+import { FileText, Download, Filter, Calendar, X, Paperclip, Settings2 } from "lucide-react";
 import { fetchProjectReport, ApiError, logError } from "../api/client";
 import type { ReportFilters } from "../api/client";
+import { CustomReportModal } from "../components/CustomReportModal";
 import { useToast } from "../contexts/ToastContext";
 import { MODULE_META } from "../constants/modules";
 import { FINDING_STATUS_LABELS } from "../constants/finding";
@@ -45,6 +46,7 @@ export const ReportPage: React.FC = () => {
   const [loadError, setLoadError] = useState(false);
   const [activeTab, setActiveTab] = useState<ModuleTab>("all");
   const [showFilters, setShowFilters] = useState(false);
+  const [showCustomReport, setShowCustomReport] = useState(false);
   const [filters, setFilters] = useState<ReportFilters>({});
   const [pendingFilters, setPendingFilters] = useState<ReportFilters>({});
 
@@ -139,6 +141,10 @@ export const ReportPage: React.FC = () => {
               <Filter size={14} />
               필터{hasActiveFilters ? " (적용됨)" : ""}
             </button>
+            <button className="btn btn-secondary btn-sm print-hide" onClick={() => setShowCustomReport(true)}>
+              <Settings2 size={14} />
+              커스텀 보고서
+            </button>
             <button className="btn btn-sm print-hide" onClick={handlePrint}>
               <Download size={14} />
               PDF 내보내기
@@ -227,17 +233,17 @@ export const ReportPage: React.FC = () => {
         <div className="report-summary__grid">
           <div className="report-summary__stat">
             <span className="report-summary__stat-value">{summary.totalFindings}</span>
-            <span className="report-summary__stat-label">총 Finding</span>
+            <span className="report-summary__stat-label">미해결 Finding</span>
           </div>
           <div className="report-summary__stat">
             <span className="report-summary__stat-value">{allRuns.length}</span>
-            <span className="report-summary__stat-label">Run</span>
+            <span className="report-summary__stat-label">분석 실행</span>
           </div>
           <div className="report-summary__stat">
             <span className="report-summary__stat-value">
               {allRuns.filter((r) => r.gate?.status === "pass").length}/{allRuns.length}
             </span>
-            <span className="report-summary__stat-label">Gate 통과</span>
+            <span className="report-summary__stat-label">Gate 통과율</span>
           </div>
         </div>
 
@@ -280,7 +286,7 @@ export const ReportPage: React.FC = () => {
               <span className="report-findings__col--title">제목</span>
               <span className="report-findings__col--source">출처</span>
               <span className="report-findings__col--module">모듈</span>
-              <span className="report-findings__col--evidence">증적</span>
+              <span className="report-findings__col--evidence"><Paperclip size={10} /> 증적</span>
             </div>
             {allFindings.map(({ finding, evidenceRefs }) => (
               <div key={finding.id} className="report-findings__row">
@@ -303,7 +309,13 @@ export const ReportPage: React.FC = () => {
                   {MODULE_META[finding.module]?.label ?? finding.module}
                 </span>
                 <span className="report-findings__col--evidence">
-                  {evidenceRefs.length}
+                  {evidenceRefs.length > 0 ? (
+                    <span className="report-findings__evidence-count report-findings__evidence-count--has">
+                      <Paperclip size={10} /> {evidenceRefs.length}
+                    </span>
+                  ) : (
+                    <span className="report-findings__evidence-count">&mdash;</span>
+                  )}
                 </span>
               </div>
             ))}
@@ -376,6 +388,10 @@ export const ReportPage: React.FC = () => {
             ))}
           </div>
         </div>
+      )}
+
+      {showCustomReport && projectId && (
+        <CustomReportModal projectId={projectId} onClose={() => setShowCustomReport(false)} />
       )}
     </div>
   );

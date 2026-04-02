@@ -1,0 +1,84 @@
+{
+  "id": "cwe134-printf-format",
+  "description": "Format string vulnerability via printf with network-sourced input",
+  "category": "true_positive",
+  "difficulty": "moderate",
+  "input": {
+    "task_type": "deep-analyze",
+    "objective": "보안 취약점 심층 분석",
+    "sast_findings": [
+      {
+        "toolId": "cppcheck",
+        "ruleId": "formatString",
+        "severity": "error",
+        "location": {
+          "file": "src/logger.c",
+          "line": 28
+        },
+        "message": "printf format string is not a string literal. This can be exploited by an attacker."
+      }
+    ],
+    "code_functions": [
+      {
+        "name": "log_message",
+        "file": "src/logger.c",
+        "line": 20
+      },
+      {
+        "name": "recv_diagnostic",
+        "file": "src/diag_handler.c",
+        "line": 45
+      }
+    ],
+    "threat_context": [
+      {
+        "id": "CWE-134",
+        "source": "cwe",
+        "title": "Use of Externally-Controlled Format String",
+        "threat_category": "injection"
+      }
+    ],
+    "source_code": "/* src/logger.c */\n#include <stdio.h>\n#include <string.h>\n\n/* Receives message from UDS diagnostic session */\nvoid log_message(const char *msg) {\n    /* line 28: CWE-134 format string - msg comes from network */\n    printf(msg);\n    /* Should be: printf(\"%s\", msg); */\n}\n\n/* src/diag_handler.c */\n#include <string.h>\nextern void log_message(const char *msg);\n\nvoid recv_diagnostic(int sock_fd) {\n    char buf[512];\n    int n = recv(sock_fd, buf, sizeof(buf) - 1, 0);\n    if (n > 0) {\n        buf[n] = '\\0';\n        log_message(buf);  /* network input flows to printf */\n    }\n}\n",
+    "evidence_refs": [
+      {
+        "refId": "eref-eval-cwe134-logger",
+        "artifactType": "raw-source",
+        "locator": {
+          "file": "src/logger.c"
+        },
+        "artifactId": "eref-eval-cwe134-logger",
+        "locatorType": "file"
+      },
+      {
+        "refId": "eref-eval-cwe134-diag",
+        "artifactType": "raw-source",
+        "locator": {
+          "file": "src/diag_handler.c"
+        },
+        "artifactId": "eref-eval-cwe134-diag",
+        "locatorType": "file"
+      }
+    ]
+  },
+  "expected": {
+    "must_find": [
+      {
+        "severity_min": "medium",
+        "file": "logger.c",
+        "keywords": [
+          "printf"
+        ]
+      }
+    ],
+    "must_reject": [],
+    "severity_range": [
+      "medium",
+      "high"
+    ],
+    "min_total_claims": 1,
+    "max_total_claims": 3,
+    "required_cwe_mentions": [
+      "CWE-134"
+    ]
+  }
+}

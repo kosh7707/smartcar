@@ -35,3 +35,28 @@ export async function fetchModuleReport(projectId: string, module: "static" | "d
   const res = await apiFetch<ModuleReportResponse>(`/api/projects/${projectId}/report/${module}${buildReportQuery(filters)}`);
   return res.data!;
 }
+
+// ── Custom Report ──
+
+export interface CustomReportOptions {
+  reportTitle?: string;
+  executiveSummary?: string;
+  companyName?: string;
+  logoUrl?: string;
+  language?: string;
+}
+
+export async function generateCustomReport(
+  projectId: string,
+  customization: CustomReportOptions,
+): Promise<{ reportId: string }> {
+  const res = await apiFetch<{ success: boolean; data: { reportId: string } }>(
+    `/api/projects/${projectId}/report/custom`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(customization),
+    },
+  );
+  return res.data;
+}

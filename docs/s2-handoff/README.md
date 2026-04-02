@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S2(AEGIS Core/Backend) 개발을 이어받는 다음 세션을 위한 진입점이다.
 > 상세 정보는 같은 디렉토리의 분할 문서를 참조한다.
-> **마지막 업데이트: 2026-03-31**
+> **마지막 업데이트: 2026-04-02**
 
 ---
 
@@ -15,7 +15,7 @@
 | [architecture.md](architecture.md) | 구현 현황, DB 스키마, 핵심 로직, 의존성, 실행 방법, Observability |
 | [api-endpoints.md](api-endpoints.md) | API 엔드포인트 전체 목록 (60개+ REST + 5 WS) |
 | [roadmap.md](roadmap.md) | 다음 작업, 후순위, 인프라 계획 |
-| session-{N}.md | 세션별 작업 로그 (session-1.md ~ session-13.md) |
+| session-{N}.md | 세션별 작업 로그 (session-1.md ~ session-14.md) |
 
 ---
 
@@ -71,14 +71,14 @@
 
 ---
 
-## 3. 현재 상태 (2026-03-31)
+## 3. 현재 상태 (2026-04-02)
 
 | 항목 | 값 |
 |------|---|
 | TypeScript 에러 | **0개** |
-| 테스트 | **267개 통과** (vitest) |
-| DB 테이블 | 18개 (SQLite, WAL) |
-| API 엔드포인트 | 60개+ REST + 5 WebSocket |
+| 테스트 | **322개 통과** (vitest) |
+| DB 테이블 | 21개 (SQLite, WAL) — 세션 14에서 notifications, users, sessions 추가 |
+| API 엔드포인트 | 75개+ REST + 6 WebSocket |
 | 에러 클래스 | 18개 (AppError 계층, 21개 에러코드) |
 | 외부 클라이언트 | SastClient(S4), AgentClient(S3), BuildAgentClient(S3:8003), KbClient(S5), AdapterClient(S6), LlmTaskClient(S7) |
 
@@ -92,6 +92,9 @@
 | 빌드 타겟 관리 | `build-target.service.ts`, `build-target.controller.ts` |
 | 코어 도메인 | Run, Finding(7-state), EvidenceRef, QG, Approval, Report |
 | ResultNormalizer | `normalizeAnalysisResult()` + `normalizeAgentResult()` |
+| 알림 시스템 | notification.dao.ts, notification.service.ts, notification.controller.ts |
+| 사용자/인증 | user.dao.ts, user.service.ts, auth.middleware.ts, auth.controller.ts |
+| Gate 프로필 | gate-profiles.ts (3 프리셋: default/strict/relaxed) |
 
 ### 세션 13에서 제거 완료된 레거시
 

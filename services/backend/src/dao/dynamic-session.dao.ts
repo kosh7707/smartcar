@@ -1,10 +1,22 @@
 import type { DynamicAnalysisSession, DynamicSource } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IDynamicSessionDAO } from "./interfaces";
+import { safeJsonParse } from "../lib/utils";
 
-function rowToSession(row: any): DynamicAnalysisSession {
-  let source: DynamicSource = { type: "adapter", adapterId: "", adapterName: "" };
-  try { source = JSON.parse(row.source); } catch {}
+interface DynamicSessionRow {
+  id: string;
+  project_id: string;
+  status: "connected" | "monitoring" | "stopped";
+  source: string;
+  message_count: number;
+  alert_count: number;
+  started_at: string;
+  ended_at: string | null;
+}
+
+function rowToSession(row: DynamicSessionRow): DynamicAnalysisSession {
+  const fallbackSource: DynamicSource = { type: "adapter", adapterId: "", adapterName: "" };
+  const source: DynamicSource = safeJsonParse(row.source, fallbackSource);
   return {
     id: row.id,
     projectId: row.project_id,
@@ -56,16 +68,16 @@ export class DynamicSessionDAO implements IDynamicSessionDAO {
   }
 
   findById(id: string): DynamicAnalysisSession | undefined {
-    const row = this.selectByIdStmt.get(id);
+    const row = this.selectByIdStmt.get(id) as DynamicSessionRow | undefined;
     return row ? rowToSession(row) : undefined;
   }
 
   findAll(): DynamicAnalysisSession[] {
-    return this.selectAllStmt.all().map(rowToSession);
+    return (this.selectAllStmt.all() as DynamicSessionRow[]).map(rowToSession);
   }
 
   findByProjectId(projectId: string): DynamicAnalysisSession[] {
-    return this.selectByProjectStmt.all(projectId).map(rowToSession);
+    return (this.selectByProjectStmt.all(projectId) as DynamicSessionRow[]).map(rowToSession);
   }
 
   updateStatus(id: string, status: string): void {

@@ -138,3 +138,21 @@ export async function fetchPipelineStatus(projectId: string): Promise<PipelineSt
   );
   return res.data;
 }
+
+// ── Build Log ──
+
+export interface BuildLogResponse {
+  buildLog: string | null;
+  status: string;
+  updatedAt: string;
+}
+
+export async function fetchBuildLog(
+  projectId: string,
+  targetId: string,
+): Promise<BuildLogResponse> {
+  const res = await apiFetch<{ success: boolean; data: BuildLogResponse }>(
+    `/api/projects/${projectId}/targets/${targetId}/build-log`,
+  );
+  return res.data;
+}

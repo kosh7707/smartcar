@@ -1,20 +1,31 @@
 # S4 SAST Runner — 로드맵
 
 > 다음 작업 + 후순위 계획. README.md에서 분리.
-> **마지막 업데이트: 2026-03-31**
+> **마지막 업데이트: 2026-04-02**
 
 ---
 
 ## 즉시 다음
 
-없음. 통합테스트 완료 (e2e-1774920375). S4 에러 0건. S3 WR 2건 처리 완료.
+현재 밀린 WR 없음.
+
+---
+
+## 최근 완료
+
+- ~~S3 WR: heartbeat 진행 지표 보강~~ — **완료** (2026-04-02, session-6). progress/status 필드, per-file progress, queued/running 상태, 동시성 기본값 2
+- ~~S2 WR: cweId 메타데이터 표준화~~ — **완료** (2026-04-02, session-6). 전 도구 `metadata.cweId` 추가
+- ~~code graph 품질 평가 기준 수립~~ — **완료** (2026-03-31, session-4)
+- ~~스트리밍 per-file 진행 이벤트~~ — **완료** (2026-04-02, session-6). gcc-fanalyzer/scan-build에서 파일별 progress 보고
 
 ---
 
 ## 잔여 고도화 (후순위)
 
 - CWE-457 (56%) 추가 개선 — gcc-fanalyzer 한계, Semgrep 불가. 도구 자체 한계로 당장 개선 여지 적음
-- code graph 품질 평가 기준 수립 — S5(KB) 연동 후 의미 있음
+  - 6개 메트릭 정의 (Function Recall/Precision, Call Recall/Precision, Origin Accuracy, Parse Rate)
+  - ground truth fixture + 평가 엔진 + 13개 통합 테스트
+  - 현재 결과: 전 메트릭 100% (10함수, 20호출 edge, 5파일)
 
 ---
 

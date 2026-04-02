@@ -1,3 +1,4 @@
+import type { GateProfile } from "@aegis/shared";
 import { apiFetch } from "./core";
 
 /* ── Types ── */
@@ -54,4 +55,20 @@ export async function overrideGate(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ reason, actor }),
   });
+}
+
+// ── Gate Profiles ──
+
+export async function fetchGateProfiles(): Promise<GateProfile[]> {
+  const res = await apiFetch<{ success: boolean; data: GateProfile[] }>(
+    "/api/gate-profiles",
+  );
+  return res.data;
+}
+
+export async function fetchGateProfile(profileId: string): Promise<GateProfile> {
+  const res = await apiFetch<{ success: boolean; data: GateProfile }>(
+    `/api/gate-profiles/${profileId}`,
+  );
+  return res.data;
 }

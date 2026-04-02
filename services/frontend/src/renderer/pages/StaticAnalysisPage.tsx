@@ -26,7 +26,8 @@ import { TwoStageProgressView } from "../components/static/TwoStageProgressView"
 import { RunDetailView } from "../components/static/RunDetailView";
 import { FindingDetailView } from "../components/static/FindingDetailView";
 import { TargetSelectDialog } from "../components/static/TargetSelectDialog";
-import { PageHeader, BackButton, Spinner } from "../components/ui";
+import { PageHeader, BackButton, Spinner, EmptyState } from "../components/ui";
+import { Upload } from "lucide-react";
 import "./StaticAnalysisPage.css";
 
 type PageView =
@@ -296,12 +297,16 @@ export const StaticAnalysisPage: React.FC = () => {
     return (
       <div className="page-enter">
         <PageHeader title="정적 분석" icon={<FileSearch size={20} />} />
-        <div className="card card--empty">
-          <p className="text-tertiary">대시보드 데이터를 불러올 수 없습니다.</p>
-          <button className="btn btn-secondary" onClick={dashboard.refresh}>
-            다시 시도
-          </button>
-        </div>
+        <EmptyState
+          icon={<Upload size={28} />}
+          title="아직 분석 데이터가 없습니다"
+          description="소스 코드를 업로드하고 정적 분석을 시작하세요"
+          action={
+            <button className="btn" onClick={() => setView("sourceUpload")}>
+              소스 코드 업로드
+            </button>
+          }
+        />
       </div>
     );
   }

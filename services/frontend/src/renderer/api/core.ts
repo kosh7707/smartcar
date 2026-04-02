@@ -67,6 +67,10 @@ export function logError(context: string, e: unknown): void {
 
 /** Health check with X-Request-Id. Returns ok status without throwing. */
 export async function healthFetch(url: string): Promise<{ ok: boolean; data?: Record<string, unknown> }> {
+  if (import.meta.env.VITE_MOCK === "true") {
+    return { ok: true, data: { service: "aegis-backend", status: "ok", version: "0.7.0-mock", detail: { version: "0.7.0-mock", uptime: 9999 } } };
+  }
+
   const trimmed = url?.trim().replace(/\/+$/, "");
   if (!trimmed) return { ok: false };
 
@@ -87,16 +91,28 @@ export async function apiFetch<T = unknown>(
   path: string,
   options?: RequestInit,
 ): Promise<T> {
+  // Mock mode: bypass real fetch, use mock-handler
+  if (import.meta.env.VITE_MOCK === "true") {
+    const { mockApiFetch } = await import("./mock-handler");
+    return mockApiFetch<T>(path, options);
+  }
+
   const requestId = crypto.randomUUID();
+
+  const headers: Record<string, string> = {
+    ...options?.headers as Record<string, string>,
+    "X-Request-Id": requestId,
+  };
+  const token = localStorage.getItem("aegis:authToken");
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
 
   let res: Response;
   try {
     res = await fetch(`${getBaseUrl()}${path}`, {
       ...options,
-      headers: {
-        ...options?.headers,
-        "X-Request-Id": requestId,
-      },
+      headers,
     });
   } catch {
     throw new ApiError(

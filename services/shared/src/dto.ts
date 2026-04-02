@@ -43,9 +43,16 @@ export interface ProjectResponse {
   error?: string;
 }
 
+export interface ProjectListItem extends Project {
+  lastAnalysisAt?: string;
+  severitySummary?: { critical: number; high: number; medium: number; low: number };
+  gateStatus?: "pass" | "fail" | "warning";
+  unresolvedDelta?: number;
+}
+
 export interface ProjectListResponse {
   success: boolean;
-  data: Project[];
+  data: ProjectListItem[];
 }
 
 // ============================================================
@@ -72,6 +79,11 @@ export interface ProjectOverviewResponse {
     discovered: number;
   };
   recentAnalyses: AnalysisResult[];
+  trend?: {
+    newFindings: number;
+    resolvedFindings: number;
+    unresolvedTotal: number;
+  };
 }
 
 // ============================================================
@@ -182,7 +194,9 @@ export type WsEventType =
   // 서브 프로젝트 파이프라인
   | "pipeline-target-status" | "pipeline-complete" | "pipeline-error"
   // SDK 등록
-  | "sdk-progress" | "sdk-complete" | "sdk-error";
+  | "sdk-progress" | "sdk-complete" | "sdk-error"
+  // 알림
+  | "notification";
 
 /** WS 채널 식별자 */
 export type WsChannel =
@@ -192,7 +206,8 @@ export type WsChannel =
   | "analysis"
   | "upload"
   | "pipeline"
-  | "sdk";
+  | "sdk"
+  | "notification";
 
 /**
  * WS 공통 envelope 메타데이터.
@@ -737,5 +752,37 @@ export interface StaticAnalysisDashboardSummary {
 export interface StaticDashboardResponse {
   success: boolean;
   data?: StaticAnalysisDashboardSummary;
+  error?: string;
+}
+
+// ============================================================
+// 알림 WS 메시지 (/ws/notifications?projectId=)
+// ============================================================
+
+export interface WsNotification {
+  type: "notification";
+  payload: import("./models").Notification;
+}
+
+export type WsNotificationMessage = WsNotification;
+
+// ============================================================
+// Auth
+// ============================================================
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  data?: { token: string; user: import("./models").User };
+  error?: string;
+}
+
+export interface UserResponse {
+  success: boolean;
+  data?: import("./models").User;
   error?: string;
 }

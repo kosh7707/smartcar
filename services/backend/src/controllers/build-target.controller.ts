@@ -85,6 +85,26 @@ export function createBuildTargetRouter(
     res.json({ success: true });
   }));
 
+  // GET /api/projects/:pid/targets/:id/build-log — 빌드 로그 조회
+  router.get("/:id/build-log", asyncHandler(async (req, res) => {
+    const pid = req.params.pid as string;
+    const id = req.params.id as string;
+    validateProjectId(pid);
+
+    const existing = buildTargetService.findById(id);
+    if (!existing) throw new NotFoundError(`Build target not found: ${id}`);
+    if (existing.projectId !== pid) throw new NotFoundError(`Build target not found: ${id}`);
+
+    res.json({
+      success: true,
+      data: {
+        buildLog: existing.buildLog ?? null,
+        status: existing.status,
+        updatedAt: existing.updatedAt,
+      },
+    });
+  }));
+
   // POST /api/projects/:pid/targets/discover — 타겟 자동 탐색 (S4 호출)
   router.post("/discover", asyncHandler(async (req, res) => {
     const pid = req.params.pid as string;

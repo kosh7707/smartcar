@@ -51,10 +51,9 @@ def test_delay_503_is_30s(policy: RetryPolicy) -> None:
 
 
 def test_delay_timeout_exponential_backoff(policy: RetryPolicy) -> None:
-    """Timeout 에러는 지수 백오프: 1s, 2s, 4s, max 8s."""
+    """Timeout 에러는 지수 백오프: 2s, 4s, 8s max."""
     err = LlmTimeoutError()
-    assert policy.get_delay_seconds(err, attempt=0) == 1.0
-    assert policy.get_delay_seconds(err, attempt=1) == 2.0
-    assert policy.get_delay_seconds(err, attempt=2) == 4.0
-    assert policy.get_delay_seconds(err, attempt=3) == 8.0
-    assert policy.get_delay_seconds(err, attempt=4) == 8.0  # capped
+    assert policy.get_delay_seconds(err, attempt=0) == 2.0
+    assert policy.get_delay_seconds(err, attempt=1) == 4.0
+    assert policy.get_delay_seconds(err, attempt=2) == 8.0
+    assert policy.get_delay_seconds(err, attempt=3) == 8.0  # capped

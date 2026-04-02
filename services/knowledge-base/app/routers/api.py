@@ -18,6 +18,7 @@ router = APIRouter(prefix="/v1", tags=["v1"])
 # 런타임에 lifespan에서 주입
 _assembler = None
 _neo4j_graph = None
+_graph_degraded: bool = False
 
 
 def set_assembler(assembler) -> None:
@@ -28,6 +29,11 @@ def set_assembler(assembler) -> None:
 def set_neo4j_graph(graph) -> None:
     global _neo4j_graph
     _neo4j_graph = graph
+
+
+def set_graph_degraded(degraded: bool) -> None:
+    global _graph_degraded
+    _graph_degraded = degraded
 
 
 class SearchRequest(BaseModel):
@@ -80,6 +86,8 @@ async def search(
         source_filter=req.source_filter,
     )
 
+    result["degraded"] = _graph_degraded
+
     elapsed_ms = int((time.monotonic() - start) * 1000)
     hits = result.get("hits", [])
     logger.info(
@@ -89,6 +97,7 @@ async def search(
             "top_k": req.top_k,
             "hits": len(hits),
             "latencyMs": elapsed_ms,
+            "degraded": _graph_degraded,
         }},
     )
 
@@ -131,7 +140,7 @@ async def search_batch(
         }},
     )
 
-    return {**result, "latency_ms": elapsed_ms}
+    return {**result, "latency_ms": elapsed_ms, "degraded": _graph_degraded}
 
 
 @router.get("/graph/stats")
@@ -214,6 +223,7 @@ async def ready(
     body = {
         "service": "aegis-knowledge-base",
         "ready": qdrant_ok and neo4j_ok,
+        "degraded": _graph_degraded,
         "components": {
             "qdrant": {"initialized": qdrant_ok},
             "neo4j": neo4j_info,

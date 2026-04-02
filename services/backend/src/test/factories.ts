@@ -13,6 +13,8 @@ import type {
   DynamicAlert,
   CanMessage,
   DynamicTestResult,
+  Notification,
+  User,
 } from "@aegis/shared";
 import type { StoredFile } from "../dao/file-store";
 
@@ -216,6 +218,31 @@ export function makeDynamicTestResult(overrides?: Partial<DynamicTestResult>): D
     anomalies: 0,
     findings: [],
     createdAt: now(),
+    ...overrides,
+  };
+}
+
+export function makeNotification(overrides?: Partial<Notification>): Notification {
+  return {
+    id: `notif-${uuid()}`,
+    projectId: `proj-${uuid()}`,
+    type: "analysis_complete",
+    title: "Test Notification",
+    body: "Test notification body",
+    read: false,
+    createdAt: now(),
+    ...overrides,
+  };
+}
+
+export function makeUser(overrides?: Partial<User>): User {
+  return {
+    id: `user-${uuid().slice(0, 8)}`,
+    username: `testuser-${uuid().slice(0, 6)}`,
+    displayName: "Test User",
+    role: "analyst",
+    createdAt: now(),
+    updatedAt: now(),
     ...overrides,
   };
 }

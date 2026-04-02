@@ -87,22 +87,22 @@ describe("QualityGatePage", () => {
     renderPage();
     await waitFor(() => screen.getByRole("button", { name: "오버라이드" }));
     fireEvent.click(screen.getByRole("button", { name: "오버라이드" }));
-    await waitFor(() => expect(screen.getByPlaceholderText("오버라이드 사유를 입력하세요")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByPlaceholderText("오버라이드 사유를 입력하세요 (최소 10자)")).toBeInTheDocument());
   });
 
   it("calls overrideGate on submit", async () => {
     renderPage();
     await waitFor(() => screen.getByRole("button", { name: "오버라이드" }));
     fireEvent.click(screen.getByRole("button", { name: "오버라이드" }));
-    const input = await waitFor(() => screen.getByPlaceholderText("오버라이드 사유를 입력하세요"));
-    fireEvent.change(input, { target: { value: "테스트 사유" } });
+    const input = await waitFor(() => screen.getByPlaceholderText("오버라이드 사유를 입력하세요 (최소 10자)"));
+    fireEvent.change(input, { target: { value: "테스트 오버라이드 사유입니다" } });
     const confirmBtn = await waitFor(() => {
-      const btn = screen.getByRole("button", { name: "확인" });
+      const btn = screen.getByRole("button", { name: /오버라이드 확인/ });
       expect(btn).not.toBeDisabled();
       return btn;
     });
     fireEvent.click(confirmBtn);
-    await waitFor(() => expect(mockOverrideGate).toHaveBeenCalledWith("g-2", "테스트 사유"));
+    await waitFor(() => expect(mockOverrideGate).toHaveBeenCalledWith("g-2", "테스트 오버라이드 사유입니다"));
   });
 
   it("shows empty state when no gates", async () => {

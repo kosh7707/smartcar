@@ -101,7 +101,10 @@ class AgentLoop:
                 remaining = _FORCE_REPORT_AFTER_TOOLS - session.total_tool_calls()
                 self._message_manager.add_user_message(
                     f"[시스템] 도구 호출 잔여 횟수: {remaining}회. "
-                    "충분한 증거가 모였으면 JSON 보고서를 작성하라."
+                    "충분한 증거가 모였으면 JSON 보고서를 작성하라. "
+                    "리마인더: 존재하지 않는 refId를 만들지 마라. "
+                    "코드를 확인하지 않은 경로에 claim을 작성하지 마라. "
+                    "비밀 정보는 마스킹하라. 순수 JSON만 출력하라."
                 )
                 agent_log(
                     logger, "도구 예산 사전 경고",
@@ -134,6 +137,16 @@ class AgentLoop:
                 response = await self._call_with_retry(session, current_tools)
             except S3Error as e:
                 logger.error("LLM 호출 실패 (재시도 소진): %s", e)
+                # 도구 결과가 이미 축적되어 있으면 부분 결과 시도
+                if session.total_tool_calls() > 0:
+                    agent_log(
+                        logger, "LLM 실패 — 부분 결과로 대체 시도",
+                        component="agent_loop", phase="partial_result_fallback",
+                        turn=turn, toolCallsSoFar=session.total_tool_calls(),
+                        errorCode=e.code,
+                    )
+                    session.set_termination_reason(f"llm_failure_partial:{e.code}")
+                    return self._result_assembler.build_from_exhaustion(session)
                 return self._result_assembler.build_failure(
                     session,
                     TaskStatus.MODEL_ERROR,
@@ -155,8 +168,20 @@ class AgentLoop:
                 )
                 self._message_manager.add_assistant_tool_calls(response.tool_calls)
                 results = await self._tool_router.execute(response.tool_calls, session)
+                # 도구가 생성한 evidence ref ID를 tool result에 주입 → LLM이 정확한 refId를 볼 수 있게 함
+                for r in results:
+                    if r.success and r.new_evidence_refs:
+                        ref_list = ", ".join(f"`{ref}`" for ref in r.new_evidence_refs)
+                        r.content += f"\n\n[Evidence Refs: {ref_list}]"
                 self._message_manager.add_tool_results(results)
                 session.record_tool_turn(response, results)
+
+                # Plan-before-act 넛지: 첫 턴에서 계획 없이 도구부터 호출 시 다음 턴에 계획 요청
+                if session.turn_count == 1:
+                    self._message_manager.add_user_message(
+                        "[시스템] 다음 도구 호출 전에 남은 findings 분석 계획을 우선순위와 함께 기술하라. "
+                        "어떤 finding을 어떤 도구로 분석할 것인지 명시하라."
+                    )
 
                 agent_log(
                     logger, "턴 종료",
@@ -227,6 +252,7 @@ class AgentLoop:
         if token_est > _COMPACT_TOKEN_THRESHOLD:
             removed = await self._message_manager.compact(
                 self._turn_summarizer, keep_last_n=_COMPACT_KEEP_LAST_N,
+                state_summary=session.analysis_state_summary(),
             )
             if removed > 0:
                 agent_log(

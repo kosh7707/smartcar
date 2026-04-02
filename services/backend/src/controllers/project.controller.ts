@@ -18,9 +18,9 @@ export function createProjectRouter(service: ProjectService): Router {
     res.status(201).json({ success: true, data: project });
   });
 
-  // P1-8: 프로젝트 목록
+  // P1-8: 프로젝트 목록 (보안 요약 포함)
   router.get("/", (_req, res) => {
-    const projects = service.findAll();
+    const projects = service.findAllWithSummary();
     res.json({ success: true, data: projects });
   });
 

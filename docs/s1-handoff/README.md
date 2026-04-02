@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S1(Frontend + QA) 개발을 이어받는 다음 세션을 위한 진입점이다.
 > 상세 정보는 같은 디렉토리의 분할 문서를 참조한다.
-> **마지막 업데이트: 2026-03-31**
+> **마지막 업데이트: 2026-04-02**
 
 ---
 
@@ -55,17 +55,19 @@
 
 ---
 
-## 3. 현재 상태 (2026-03-31)
+## 3. 현재 상태 (2026-04-02)
 
 | 항목 | 값 |
 |------|---|
 | 유닛 테스트 | **347개 통과** (vitest + @testing-library/react + jsdom) |
-| E2E 테스트 | **88개 통과** (Playwright + Chromium) |
-| 페이지 | 14개 (프로젝트 스코프 12 + 글로벌 2) |
-| API 모듈 | 10개 (core, projects, source, analysis, pipeline, gate, approval, sdk, report, dynamic) |
-| 컴포넌트 | ui 24개 + static 23개 + finding 3개 |
-| 커스텀 훅 | 8개 (WS 3 + 상태 3 + 타이머 1 + 어댑터 1) |
+| E2E 테스트 | 180개+ (Playwright + Chromium) |
+| 페이지 | 15개 (프로젝트 스코프 12 + 글로벌 2 + 로그인 1) |
+| API 모듈 | 12개 (core, projects, source, analysis, pipeline, gate, approval, sdk, report, dynamic, **auth**, **notifications**) |
+| 컴포넌트 | ui 24개 + static 25개 + finding 3개 + root 5개 (NotificationDropdown, CustomReportModal 신규) |
+| 커스텀 훅 | 9개 (WS 3 + 상태 3 + 타이머 1 + 어댑터 1 + **키보드 단축키 1**) |
+| 컨텍스트 | 5개 (Project, Toast, AnalysisGuard, **Auth**, **Notification**) |
 | 유틸리티 | 12개 (.ts 10 + .tsx 2) |
+| 디자인 시스템 | IBM Plex Sans, #0EA5E9 "Security Command Center" |
 
 ---
 

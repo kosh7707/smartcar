@@ -1,0 +1,118 @@
+{
+  "description": "Code graph quality ground truth — multi-file C server project",
+  "version": "1.0.0",
+  "thresholds": {
+    "function_recall": 0.90,
+    "function_precision": 0.90,
+    "call_recall": 0.80,
+    "call_precision": 0.85,
+    "origin_accuracy": 1.0,
+    "parse_rate": 1.0
+  },
+  "functions": [
+    {
+      "name": "main",
+      "file": "src/main.c",
+      "line": 7,
+      "calls": ["atoi", "handle_client", "init_server", "log_message"]
+    },
+    {
+      "name": "init_server",
+      "file": "src/server.c",
+      "line": 8,
+      "calls": ["printf"]
+    },
+    {
+      "name": "handle_client",
+      "file": "src/server.c",
+      "line": 13,
+      "calls": ["memset", "process_request"]
+    },
+    {
+      "name": "process_request",
+      "file": "src/handler.c",
+      "line": 6,
+      "calls": ["execute_action", "free", "parse_input"]
+    },
+    {
+      "name": "execute_action",
+      "file": "src/handler.c",
+      "line": 14,
+      "calls": ["log_message", "system"]
+    },
+    {
+      "name": "parse_input",
+      "file": "src/handler.c",
+      "line": 19,
+      "calls": ["malloc", "strcpy", "strlen"]
+    },
+    {
+      "name": "log_message",
+      "file": "src/logger.c",
+      "line": 5,
+      "calls": ["fprintf"]
+    },
+    {
+      "name": "log_error",
+      "file": "src/logger.c",
+      "line": 9,
+      "calls": ["log_message", "snprintf"]
+    },
+    {
+      "name": "json_parse",
+      "file": "third-party/minijson/minijson.c",
+      "line": 4,
+      "calls": ["malloc", "strlen"]
+    },
+    {
+      "name": "json_get_string",
+      "file": "third-party/minijson/minijson.c",
+      "line": 10,
+      "calls": []
+    }
+  ],
+  "origin_tests": [
+    {
+      "description": "unmodified third-party → origin: third-party",
+      "libraries": [
+        {
+          "name": "minijson",
+          "version": "1.0.0",
+          "path": "third-party/minijson",
+          "diff": {"matchRatio": 100}
+        }
+      ],
+      "expected": [
+        {"name": "json_parse", "origin": "third-party", "originalLib": "minijson"},
+        {"name": "json_get_string", "origin": "third-party", "originalLib": "minijson"}
+      ]
+    },
+    {
+      "description": "modified third-party → origin: modified-third-party",
+      "libraries": [
+        {
+          "name": "minijson",
+          "version": "1.0.0",
+          "path": "third-party/minijson",
+          "diff": {"matchRatio": 85}
+        }
+      ],
+      "expected": [
+        {"name": "json_parse", "origin": "modified-third-party", "originalLib": "minijson"},
+        {"name": "json_get_string", "origin": "modified-third-party", "originalLib": "minijson"}
+      ]
+    }
+  ],
+  "skip_paths_test": {
+    "skip_paths": ["third-party/minijson"],
+    "expected_excluded": ["json_parse", "json_get_string"],
+    "expected_remaining_count": 8
+  },
+  "header_filter_test": {
+    "description": "System header functions (printf, malloc, etc.) must NOT appear as extracted functions",
+    "forbidden_function_files": [
+      "/usr/include/",
+      "/usr/lib/"
+    ]
+  }
+}

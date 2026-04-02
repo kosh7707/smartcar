@@ -48,6 +48,9 @@ export const AnalysisHistoryPage: React.FC = () => {
     ? runs
     : runs.filter((r) => r.module === filter);
 
+  const completedCount = runs.filter((r) => r.status === "completed").length;
+  const failedCount = runs.filter((r) => r.status === "failed").length;
+
   if (loading) {
     return (
       <div className="page-enter centered-loader">
@@ -70,6 +73,21 @@ export const AnalysisHistoryPage: React.FC = () => {
             {f.label}
           </button>
         ))}
+      </div>
+
+      <div className="history-kpi-strip">
+        <div className="history-kpi">
+          <span className="history-kpi__value">{runs.length}</span>
+          <span className="history-kpi__label">전체</span>
+        </div>
+        <div className="history-kpi">
+          <span className="history-kpi__value history-kpi__value--success">{completedCount}</span>
+          <span className="history-kpi__label">완료</span>
+        </div>
+        <div className="history-kpi">
+          <span className="history-kpi__value history-kpi__value--danger">{failedCount}</span>
+          <span className="history-kpi__label">실패</span>
+        </div>
       </div>
 
       <div className="card">
@@ -96,7 +114,7 @@ export const AnalysisHistoryPage: React.FC = () => {
                   <div className="history-item-header">
                     <span className="history-item-icon">{meta.icon}</span>
                     <span className="history-item-label">{meta.label}</span>
-                    <span className={`badge badge-sm badge-${r.status === "completed" ? "low" : r.status === "failed" ? "high" : "info"}`}>
+                    <span className={`badge badge-sm badge-${r.status === "completed" ? "completed" : r.status === "failed" ? "high" : "info"}`}>
                       {STATUS_LABELS[r.status] ?? r.status}
                     </span>
                     {r.findingCount > 0 && (

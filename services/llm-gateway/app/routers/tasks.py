@@ -105,7 +105,7 @@ async def health(req: Request) -> dict:
         },
     }
     if settings.llm_mode == "real":
-        result["llmBackend"] = await _check_llm_backend(model_registry)
+        result["llmBackend"] = await _check_llm_backend(model_registry, req.app.state.proxy_client)
         result["llmConcurrency"] = settings.llm_concurrency
 
     # Circuit Breaker 상태
@@ -152,10 +152,13 @@ async def chat_proxy(req: Request) -> Response:
 
     # 호출자 타임아웃: X-Timeout-Seconds 헤더로 전달, 미전달 시 기본 1800초
     _MAX_TIMEOUT = 1800.0
-    caller_timeout = min(
-        float(req.headers.get("x-timeout-seconds", _MAX_TIMEOUT)),
-        _MAX_TIMEOUT,
-    )
+    try:
+        caller_timeout = min(
+            float(req.headers.get("x-timeout-seconds", _MAX_TIMEOUT)),
+            _MAX_TIMEOUT,
+        )
+    except (ValueError, TypeError):
+        caller_timeout = _MAX_TIMEOUT
     req_timeout = httpx.Timeout(
         connect=settings.llm_connect_timeout,
         read=caller_timeout,
@@ -290,6 +293,8 @@ async def chat_proxy(req: Request) -> Response:
             extra={"elapsedMs": elapsed_ms},
         )
     else:
+        if circuit_breaker and resp.status_code >= 500:
+            await circuit_breaker.record_failure()
         if token_tracker:
             await token_tracker.record(
                 endpoint="chat", success=False,
@@ -315,18 +320,15 @@ async def chat_proxy(req: Request) -> Response:
     )
 
 
-async def _check_llm_backend(model_registry) -> dict:
+async def _check_llm_backend(model_registry, proxy_client: httpx.AsyncClient) -> dict:
     """vLLM 백엔드 연결 상태를 확인한다. 실패해도 health는 정상 반환."""
-    import httpx
-
     profile = model_registry.get_default()
     endpoint = profile.endpoint if profile else settings.llm_endpoint
 
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(f"{endpoint}/health")
-            resp.raise_for_status()
-            return {"status": "ok", "endpoint": endpoint}
+        resp = await proxy_client.get(f"{endpoint}/health", timeout=5.0)
+        resp.raise_for_status()
+        return {"status": "ok", "endpoint": endpoint}
     except Exception as e:
         return {"status": "unreachable", "endpoint": endpoint, "error": str(e)}
 

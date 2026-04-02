@@ -299,6 +299,7 @@ export class AnalysisOrchestrator {
       location: `${f.location.file}:${f.location.line}`,
       source: "rule" as const,
       ruleId: f.ruleId,
+      cweId: (f.metadata?.cweId as string) ?? undefined,
     }));
 
     const summary = this.computeSummary(vulns);
@@ -335,6 +336,7 @@ export class AnalysisOrchestrator {
       source: "llm" as const,
       suggestion: assessment.recommendedNextSteps?.join("\n"),
       detail: claim.detail ?? undefined,
+      cweId: assessment.policyFlags?.find((f: string) => /^CWE-\d+$/.test(f)) ?? undefined,
     }));
 
     const summary = this.computeSummary(vulns);

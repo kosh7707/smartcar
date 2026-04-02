@@ -23,6 +23,7 @@ import type {
   BuildProfile,
   BuildTargetStatus,
   ScaLibrary,
+  Notification,
 } from "@aegis/shared";
 import type { StoredFile } from "./file-store";
 
@@ -39,6 +40,7 @@ export interface IRunDAO {
     module: string,
     since?: string,
   ): Array<{ date: string; runCount: number; findingCount: number; gatePassCount: number }>;
+  findLatestCompletedRuns(projectId: string, limit: number): Run[];
 }
 
 export interface FindingFilters {
@@ -83,6 +85,9 @@ export interface IFindingDAO {
     limit?: number,
     since?: string,
   ): Array<{ ruleId: string; hitCount: number }>;
+  unresolvedCountByProjectId(projectId: string, opts?: { createdBefore?: string }): number;
+  severitySummaryByProjectId(projectId: string): { critical: number; high: number; medium: number; low: number };
+  resolvedCountSince(projectId: string, since: string): number;
 }
 
 export interface IEvidenceRefDAO {
@@ -102,6 +107,7 @@ export interface IGateResultDAO {
     projectId: string,
     since?: string,
   ): { total: number; passed: number; failed: number; rate: number };
+  latestByProjectId(projectId: string): GateResult | undefined;
 }
 
 export interface IApprovalDAO {
@@ -234,4 +240,12 @@ export interface IBuildTargetDAO {
   ): BuildTarget | undefined;
   delete(id: string): boolean;
   deleteByProjectId(projectId: string): number;
+}
+
+export interface INotificationDAO {
+  save(notification: { id: string; projectId: string; type: string; title: string; body: string; severity?: string; resourceId?: string; createdAt: string }): void;
+  findByProjectId(projectId: string, unreadOnly?: boolean, limit?: number): Notification[];
+  unreadCount(projectId: string): number;
+  markAsRead(id: string): void;
+  markAllAsRead(projectId: string): void;
 }

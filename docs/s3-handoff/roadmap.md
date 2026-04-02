@@ -4,14 +4,27 @@
 
 ---
 
-## 다음 세션 목표
+## 세션 16 완료 (2026-04-02)
+
+1. ~~**인수인계서(`README.md`) 갱신**~~ ✅ Phase 2 도구 6종, NDJSON 스트리밍, Evidence Sanitizer 반영
+2. ~~**API 계약서 갱신**~~ ✅ `agentAudit.model_name`/`prompt_version`/`total_*_tokens` 필드 추가, health 예시 예산값 수정
+3. ~~**기능 명세 갱신**~~ ✅ 도구 6종, 구현체 테이블, NDJSON, Sanitizer 섹션 추가
+4. ~~**S4 하트비트 WR 처리**~~ ✅ S4 v0.9.0 구현 완료 → S3 stall 감지 + queued 처리 + failed 도구 caveats 구현
+5. ~~**테스트 추가**~~ ✅ sast_tool 4개 신규 (queued, stall, progress, failed). 총 198 passed
+
+## 다음 세션 목표 (세션 17)
+
+### 즉시 처리
+
+1. **RE100 재테스트** — 하트비트 고도화 + stall 감지 적용 후 4개 프로젝트 재실행. SAST 실패 3개(gateway, gateway-webserver, gateway-test) 성공 확인
+2. **커밋 요청** — 세션 15 + 세션 16 전체 변경사항 (S2에 요청)
 
 ### 백로그
 
-1. **API 계약서 갱신**: `docs/api/analysis-agent-api.md`에 `audit.agentAudit.model_name`/`prompt_version` 필드 추가
-2. **S4 부분 빌드 활용 고도화**: `userEntries > 0`일 때 부분 compile_commands로 SAST 스캔 연계
-3. **대규모 프로젝트 분석 최적화**: 463 소스급 프로젝트에서 Phase 1 데이터 크기 제어 (현재 100K+ 토큰 → MAX_STEPS 초과)
-4. **evidence ref 환각 추가 개선**: soft mode 경고 0건 달성 (Phase 1 refs 주입으로 v3→v4에서 confidence 0.57→0.76 개선, 경고 1건 잔존)
+1. **S4 부분 빌드 활용 고도화**: `userEntries > 0`일 때 부분 compile_commands로 SAST 스캔 연계
+2. **대규모 프로젝트 분석 최적화**: 463 소스급 프로젝트에서 Phase 1 데이터 크기 제어 (현재 100K+ 토큰 → MAX_STEPS 초과)
+3. ~~**API 계약서 agentAudit 갱신**~~ ✅ **완료 (2026-04-02)**
+4. ~~**evidence ref 환각 추가 개선**~~ ✅ **완료 (2026-03-31)**
 
 ### E2E 테스트 도구
 

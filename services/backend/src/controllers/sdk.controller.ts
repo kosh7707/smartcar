@@ -41,7 +41,7 @@ export function createSdkRouter(
     if (!name) throw new InvalidInputError("name is required");
 
     // multipart file은 미들웨어에서 처리 (multer 등)
-    const file = (req as any).file?.buffer as Buffer | undefined;
+    const file = req.file?.buffer;
 
     if (!localPath && !file) {
       throw new InvalidInputError("SDK file upload or localPath is required");
@@ -51,7 +51,7 @@ export function createSdkRouter(
       pid,
       { name, description, localPath },
       file,
-      (req as any).requestId,
+      req.requestId,
     );
 
     res.status(202).json({ success: true, data: sdk });
@@ -60,7 +60,7 @@ export function createSdkRouter(
   // DELETE /api/projects/:pid/sdk/:id — SDK 삭제
   router.delete("/:id", asyncHandler(async (req, res) => {
     const id = req.params.id as string;
-    await sdkService.remove(id, (req as any).requestId);
+    await sdkService.remove(id, req.requestId);
     res.json({ success: true });
   }));
 

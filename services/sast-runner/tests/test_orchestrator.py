@@ -376,3 +376,174 @@ class TestPartialStatus:
             status="ok", findings_count=0, elapsed_ms=1000,
         )
         assert result.timed_out_files is None
+
+
+# ──────────── on_progress 콜백 ────────────
+
+
+class TestProgressCallback:
+    """orchestrator.run()의 on_progress 콜백 호출 검증."""
+
+    @pytest.mark.asyncio
+    async def test_progress_callback_called_per_tool(self, orchestrator):
+        """도구별로 progress 콜백이 호출되는지 확인."""
+        progress_calls = []
+
+        async def on_progress(tool: str, status: str, count: int, elapsed: int):
+            progress_calls.append((tool, status, count))
+
+        with (
+            patch.object(orchestrator, "_run_semgrep", return_value=[]),
+            patch.object(orchestrator, "_run_flawfinder", return_value=[]),
+            patch.object(orchestrator, "check_tools", return_value={
+                "semgrep": {"available": True, "version": "1.45.0"},
+                "cppcheck": {"available": False, "version": None},
+                "flawfinder": {"available": True, "version": "2.0.19"},
+                "clang-tidy": {"available": False, "version": None},
+                "scan-build": {"available": False, "version": None},
+                "gcc-fanalyzer": {"available": False, "version": None},
+            }),
+        ):
+            await orchestrator.run(
+                scan_dir=Path("/tmp/test"),
+                source_files=["main.c"],
+                profile=None,
+                rulesets=["p/c"],
+                on_progress=on_progress,
+            )
+
+        tools_called = {t for t, s, c in progress_calls}
+        assert "semgrep" in tools_called
+        assert "flawfinder" in tools_called
+        # 각 도구는 "started" → "completed" 순서로 콜백
+        completed = [(t, s) for t, s, _ in progress_calls if s == "completed"]
+        started = [(t, s) for t, s, _ in progress_calls if s == "started"]
+        assert len(completed) == 2
+        assert len(started) == 2
+
+    @pytest.mark.asyncio
+    async def test_progress_callback_on_failure(self, orchestrator):
+        """도구 실패 시 status='failed'로 콜백 호출."""
+        progress_calls = []
+
+        async def on_progress(tool: str, status: str, count: int, elapsed: int):
+            progress_calls.append((tool, status))
+
+        async def _failing_semgrep(*args, **kwargs):
+            raise RuntimeError("semgrep crashed")
+
+        with (
+            patch.object(orchestrator, "_run_semgrep", side_effect=_failing_semgrep),
+            patch.object(orchestrator, "_run_flawfinder", return_value=[]),
+            patch.object(orchestrator, "check_tools", return_value={
+                "semgrep": {"available": True, "version": "1.45.0"},
+                "cppcheck": {"available": False, "version": None},
+                "flawfinder": {"available": True, "version": "2.0.19"},
+                "clang-tidy": {"available": False, "version": None},
+                "scan-build": {"available": False, "version": None},
+                "gcc-fanalyzer": {"available": False, "version": None},
+            }),
+        ):
+            await orchestrator.run(
+                scan_dir=Path("/tmp/test"),
+                source_files=["main.c"],
+                profile=None,
+                rulesets=["p/c"],
+                on_progress=on_progress,
+            )
+
+        semgrep_calls = [(t, s) for t, s in progress_calls if t == "semgrep"]
+        assert len(semgrep_calls) == 2  # "started" → "failed"
+        assert semgrep_calls[0][1] == "started"
+        assert semgrep_calls[1][1] == "failed"
+
+    @pytest.mark.asyncio
+    async def test_no_callback_no_error(self, orchestrator):
+        """on_progress=None일 때 에러 없이 정상 동작."""
+        with (
+            patch.object(orchestrator, "_run_flawfinder", return_value=[]),
+            patch.object(orchestrator, "check_tools", return_value={
+                "semgrep": {"available": False, "version": None},
+                "cppcheck": {"available": False, "version": None},
+                "flawfinder": {"available": True, "version": "2.0.19"},
+                "clang-tidy": {"available": False, "version": None},
+                "scan-build": {"available": False, "version": None},
+                "gcc-fanalyzer": {"available": False, "version": None},
+            }),
+        ):
+            findings, execution = await orchestrator.run(
+                scan_dir=Path("/tmp/test"),
+                source_files=["main.c"],
+                profile=None,
+                rulesets=["p/c"],
+                on_progress=None,
+            )
+        assert execution.tools_run == ["flawfinder"]
+
+    @pytest.mark.asyncio
+    async def test_progress_callback_started_event(self, orchestrator):
+        """각 도구 시작 시 status='started' 콜백이 먼저 호출되는지 확인."""
+        progress_calls = []
+
+        async def on_progress(tool: str, status: str, count: int, elapsed: int):
+            progress_calls.append((tool, status))
+
+        with (
+            patch.object(orchestrator, "_run_semgrep", return_value=[]),
+            patch.object(orchestrator, "check_tools", return_value={
+                "semgrep": {"available": True, "version": "1.45.0"},
+                "cppcheck": {"available": False, "version": None},
+                "flawfinder": {"available": False, "version": None},
+                "clang-tidy": {"available": False, "version": None},
+                "scan-build": {"available": False, "version": None},
+                "gcc-fanalyzer": {"available": False, "version": None},
+            }),
+        ):
+            await orchestrator.run(
+                scan_dir=Path("/tmp/test"),
+                source_files=["main.c"],
+                profile=None,
+                rulesets=["p/c"],
+                on_progress=on_progress,
+            )
+
+        semgrep_calls = [s for t, s in progress_calls if t == "semgrep"]
+        assert semgrep_calls == ["started", "completed"]
+
+    @pytest.mark.asyncio
+    async def test_file_progress_callback_forwarded(self, orchestrator):
+        """on_file_progress가 per-file 도구 runner에 전달되는지 확인."""
+        file_progress_calls = []
+
+        async def on_file_progress(tool: str, file: str, done: int, total: int):
+            file_progress_calls.append((tool, file, done, total))
+
+        # gcc-fanalyzer runner.run을 mock하여 on_file_progress 콜백을 직접 호출
+        async def _mock_gcc_run(scan_dir, source_files, profile, timeout,
+                                enriched_profile=None, on_file_progress=None):
+            if on_file_progress:
+                await on_file_progress("main.c", 1, 1)
+            return []
+
+        with (
+            patch.object(orchestrator.gcc_analyzer, "run", side_effect=_mock_gcc_run),
+            patch.object(orchestrator.gcc_analyzer, "check_available", return_value=(True, "13.3.0")),
+            patch.object(orchestrator, "check_tools", return_value={
+                "semgrep": {"available": False, "version": None},
+                "cppcheck": {"available": False, "version": None},
+                "flawfinder": {"available": False, "version": None},
+                "clang-tidy": {"available": False, "version": None},
+                "scan-build": {"available": False, "version": None},
+                "gcc-fanalyzer": {"available": True, "version": "13.3.0"},
+            }),
+        ):
+            await orchestrator.run(
+                scan_dir=Path("/tmp/test"),
+                source_files=["main.c"],
+                profile=None,
+                rulesets=["p/c"],
+                on_file_progress=on_file_progress,
+            )
+
+        assert len(file_progress_calls) == 1
+        assert file_progress_calls[0] == ("gcc-fanalyzer", "main.c", 1, 1)

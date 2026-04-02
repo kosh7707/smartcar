@@ -196,6 +196,7 @@ class CppcheckRunner:
             metadata: dict[str, Any] = {"cppcheckId": error_id}
             if cwe:
                 metadata["cwe"] = [f"CWE-{cwe}"]
+                metadata["cweId"] = f"CWE-{cwe}"
             if verbose and verbose != message:
                 metadata["verbose"] = verbose
 

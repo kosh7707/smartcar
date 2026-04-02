@@ -14,6 +14,7 @@ export class ApprovalService {
     private approvalDAO: IApprovalDAO,
     private auditLogDAO: IAuditLogDAO,
     private gateService: QualityGateService,
+    private notificationService?: import("./notification.service").NotificationService,
   ) {}
 
   /** 승인 요청 생성 */
@@ -41,6 +42,18 @@ export class ApprovalService {
 
     this.approvalDAO.save(request);
     logger.info({ approvalId: request.id, actionType, targetId }, "Approval requested");
+
+    if (this.notificationService) {
+      try {
+        this.notificationService.emit({
+          projectId,
+          type: "approval_pending",
+          title: `승인 요청: ${actionType} — ${reason.slice(0, 50)}`,
+          resourceId: request.id,
+        });
+      } catch { /* 알림 실패는 승인 요청에 영향 없음 */ }
+    }
+
     return request;
   }
 

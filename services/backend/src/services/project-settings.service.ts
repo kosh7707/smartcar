@@ -49,18 +49,18 @@ export class ProjectSettingsService {
 
   getAll(projectId: string): ProjectSettings {
     const overrides = this.projectSettingsDAO.getAll(projectId);
-    const result: ProjectSettings = { ...SCALAR_DEFAULTS };
+    const result = { ...SCALAR_DEFAULTS } as Record<string, unknown> & Partial<ProjectSettings>;
 
     for (const [key, value] of Object.entries(overrides)) {
       if (!KNOWN_KEYS.has(key)) continue;
       if (JSON_KEYS.has(key)) {
         try {
-          (result as any)[key] = JSON.parse(value);
+          result[key] = JSON.parse(value);
         } catch (err) {
           logger.warn({ projectId, key, err }, "JSON setting parse failed");
         }
       } else {
-        (result as any)[key] = value;
+        result[key] = value;
       }
     }
 
@@ -69,14 +69,15 @@ export class ProjectSettingsService {
       result.buildProfile = { ...DEFAULT_BUILD_PROFILE };
     }
 
-    return result;
+    return result as ProjectSettings;
   }
 
   get<K extends keyof ProjectSettings>(projectId: string, key: K): ProjectSettings[K] {
+    const defaults: Record<string, unknown> = { ...SCALAR_DEFAULTS };
     const val = this.projectSettingsDAO.get(projectId, key as string);
     if (val === undefined) {
       if (key === "buildProfile") return { ...DEFAULT_BUILD_PROFILE } as ProjectSettings[K];
-      return (SCALAR_DEFAULTS as any)[key] as ProjectSettings[K];
+      return defaults[key as string] as ProjectSettings[K];
     }
     if (JSON_KEYS.has(key as string)) {
       try {
@@ -84,7 +85,7 @@ export class ProjectSettingsService {
       } catch (err) {
         logger.warn({ projectId, key, err }, "JSON setting parse failed");
         if (key === "buildProfile") return { ...DEFAULT_BUILD_PROFILE } as ProjectSettings[K];
-        return (SCALAR_DEFAULTS as any)[key] as ProjectSettings[K];
+        return defaults[key as string] as ProjectSettings[K];
       }
     }
     return val as ProjectSettings[K];

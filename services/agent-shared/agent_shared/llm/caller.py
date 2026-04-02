@@ -10,7 +10,10 @@ from typing import Any
 import httpx
 
 from agent_shared.context import get_request_id
-from agent_shared.errors import LlmHttpError, LlmInputTooLargeError, LlmTimeoutError, LlmUnavailableError
+from agent_shared.errors import (
+    LlmHttpError, LlmInputTooLargeError, LlmPoolExhaustedError,
+    LlmTimeoutError, LlmUnavailableError,
+)
 from agent_shared.observability import agent_log, get_log_dir
 from agent_shared.schemas.agent import LlmResponse, ToolCallRequest
 
@@ -21,13 +24,15 @@ _exchange_logger = logging.getLogger("llm_exchange")
 class LlmCaller:
     """S7 Gateway 경유 LLM 호출. tool_calls 파싱을 지원한다."""
 
-    # Adaptive timeout 파라미터 (122B GPTQ 기준, 느슨하게)
-    _TOKENS_PER_SECOND = 10.0       # 보수적 생성 속도 (부하 시 감속 대비)
-    _PREFILL_PER_1K_TOKENS = 10.0   # 입력 1000토큰당 prefill 시간 (초)
+    # Adaptive timeout 파라미터 (122B GPTQ 기준)
+    # S7 WR(2026-03-31): 병렬 4요청 시 개별 generation 속도 ~7-9 tok/s로 감소.
+    # 보고서 턴(2K+ tokens) 병렬 시 400-500초 소요 가능.
+    _TOKENS_PER_SECOND = 7.0        # 병렬 부하 시 보수적 생성 속도
+    _PREFILL_PER_1K_TOKENS = 15.0   # 병렬 시 prefill도 경합 → 여유 확보
     _OVERHEAD_SECONDS = 60.0        # 네트워크 + 스케줄링 + torch + 큐 대기
-    _SAFETY_FACTOR = 2.0            # 안전 배수 (넉넉하게)
-    _MIN_TIMEOUT = 120.0            # 최소 타임아웃 — 아무리 짧아도 2분
-    _MAX_TIMEOUT = 600.0            # 최대 타임아웃 (S7 Gateway read timeout과 맞춤)
+    _SAFETY_FACTOR = 2.0            # 안전 배수
+    _MIN_TIMEOUT = 120.0            # 최소 타임아웃
+    _MAX_TIMEOUT = 900.0            # 병렬 부하 시 보고서 턴 대비 (S7 상한 1800초)
 
     def __init__(
         self,
@@ -46,7 +51,7 @@ class LlmCaller:
         self._default_max_tokens = default_max_tokens
         self._service_id = service_id
         self._client = httpx.AsyncClient(
-            timeout=httpx.Timeout(connect=10.0, read=self._MAX_TIMEOUT, write=10.0, pool=10.0),
+            timeout=httpx.Timeout(connect=10.0, read=self._MAX_TIMEOUT + 30.0, write=10.0, pool=10.0),
             limits=httpx.Limits(max_connections=10, max_keepalive_connections=4),
         )
 
@@ -134,6 +139,19 @@ class LlmCaller:
                 url, json=body, headers=headers,
                 timeout=httpx.Timeout(connect=10.0, read=req_timeout, write=10.0, pool=10.0),
             )
+        except httpx.PoolTimeout:
+            elapsed_ms = int((time.monotonic() - start) * 1000)
+            agent_log(
+                logger, "LLM 에러",
+                component="llm_caller", phase="llm_error",
+                turn=turn, errorCode="POOL_EXHAUSTED", retryable=True,
+                latencyMs=elapsed_ms, level=logging.WARNING,
+            )
+            self._write_exchange_and_dump(
+                request_id, turn, elapsed_ms, "error",
+                error_code="POOL_EXHAUSTED", body=body, data=None,
+            )
+            raise LlmPoolExhaustedError()
         except httpx.TimeoutException:
             elapsed_ms = int((time.monotonic() - start) * 1000)
             agent_log(
@@ -180,7 +198,15 @@ class LlmCaller:
             )
             if resp.status_code == 400 and "too large" in text.lower():
                 raise LlmInputTooLargeError(chars=0, limit=0)
-            raise LlmHttpError(resp.status_code, text)
+            # Retry-After 헤더 파싱 (429/503 시 S7이 전달할 수 있음)
+            retry_after: float | None = None
+            raw_retry = resp.headers.get("Retry-After")
+            if raw_retry:
+                try:
+                    retry_after = float(raw_retry)
+                except (ValueError, TypeError):
+                    pass
+            raise LlmHttpError(resp.status_code, text, retry_after=retry_after)
 
         try:
             data = resp.json()

@@ -123,6 +123,7 @@ class FlawfinderRunner:
             cwe_matches = re.findall(r"CWE-\d+", warning)
             if cwe_matches:
                 metadata["cwe"] = cwe_matches
+                metadata["cweId"] = cwe_matches[0]
 
             findings.append(SastFinding(
                 toolId="flawfinder",

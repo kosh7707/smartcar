@@ -7,7 +7,7 @@ import type { KbClient } from "../services/kb-client";
 import type { BuildAgentClient } from "../services/build-agent-client";
 import { asyncHandler } from "../middleware/async-handler";
 
-type ServiceStatus = "ok" | "unreachable";
+type ServiceStatus = "ok" | "degraded" | "unreachable";
 type OverallStatus = "ok" | "degraded" | "unhealthy";
 
 interface ServiceHealth {
@@ -81,5 +81,6 @@ export function createHealthRouter(
 
 function toServiceHealth(data: Record<string, unknown> | null): ServiceHealth {
   if (!data) return { status: "unreachable" };
+  if (data.degraded === true) return { status: "degraded", detail: data };
   return { status: "ok", detail: data };
 }

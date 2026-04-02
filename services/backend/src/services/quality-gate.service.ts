@@ -8,6 +8,9 @@ import type {
   EvidenceRef,
 } from "@aegis/shared";
 import type { IFindingDAO, IEvidenceRefDAO, IGateResultDAO, IRunDAO } from "../dao/interfaces";
+import type { ProjectSettingsService } from "./project-settings.service";
+import { findGateProfile, DEFAULT_GATE_PROFILE_ID } from "./gate-profiles";
+import type { GateProfile } from "@aegis/shared";
 import { createLogger } from "../lib/logger";
 import { NotFoundError } from "../lib/errors";
 
@@ -24,6 +27,8 @@ export class QualityGateService {
     private evidenceRefDAO: IEvidenceRefDAO,
     private gateResultDAO: IGateResultDAO,
     private runDAO: IRunDAO,
+    private settingsService?: ProjectSettingsService,
+    private notificationService?: import("./notification.service").NotificationService,
   ) {}
 
   /**
@@ -40,8 +45,18 @@ export class QualityGateService {
     const run = this.runDAO.findById(runId);
     if (!run) throw new NotFoundError(`Run not found: ${runId}`);
 
+    // Gate 프로필 해석
+    let profile: GateProfile | undefined;
+    if (this.settingsService) {
+      const settings = this.settingsService.getAll(run.projectId);
+      if (settings.gateProfileId) {
+        profile = findGateProfile(settings.gateProfileId);
+      }
+    }
+    if (!profile) profile = findGateProfile(DEFAULT_GATE_PROFILE_ID)!;
+
     const findings = this.findingDAO.findByRunId(runId);
-    const rules = this.evaluateRules(findings);
+    const rules = this.evaluateRules(findings, profile);
     const status = this.deriveStatus(rules);
     const now = new Date().toISOString();
 
@@ -57,6 +72,19 @@ export class QualityGateService {
 
     this.gateResultDAO.save(result);
     logger.info({ gateId: result.id, runId, status, ruleCount: rules.length }, "Gate evaluated");
+
+    if (this.notificationService && status === "fail") {
+      try {
+        const failedRules = rules.filter(r => r.result === "failed").map(r => r.ruleId).join(", ");
+        this.notificationService.emit({
+          projectId: run.projectId,
+          type: "gate_failed",
+          title: `Quality Gate 실패: ${failedRules}`,
+          resourceId: result.id,
+        });
+      } catch { /* 알림 실패는 Gate 결과에 영향 없음 */ }
+    }
+
     return result;
   }
 
@@ -92,13 +120,28 @@ export class QualityGateService {
 
   // ── 내부 규칙 평가 ──
 
-  private evaluateRules(findings: Finding[]): GateRuleResult[] {
-    return [
-      this.noCritical(findings),
-      this.highThreshold(findings),
-      this.evidenceCoverage(findings),
-      this.sandboxUnreviewed(findings),
-    ];
+  private evaluateRules(findings: Finding[], profile: GateProfile): GateRuleResult[] {
+    const results: GateRuleResult[] = [];
+    for (const pr of profile.rules) {
+      if (!pr.enabled) continue;
+      switch (pr.ruleId) {
+        case "no-critical":
+          results.push(this.noCritical(findings));
+          break;
+        case "high-threshold": {
+          const threshold = (pr.params?.threshold as number) ?? HIGH_THRESHOLD;
+          results.push(this.highThreshold(findings, threshold));
+          break;
+        }
+        case "evidence-coverage":
+          results.push(this.evidenceCoverage(findings));
+          break;
+        case "sandbox-unreviewed":
+          results.push(this.sandboxUnreviewed(findings));
+          break;
+      }
+    }
+    return results;
   }
 
   private deriveStatus(rules: GateRuleResult[]): GateStatus {
@@ -123,19 +166,19 @@ export class QualityGateService {
     };
   }
 
-  /** severity=high AND 활성 상태 finding ≥ HIGH_THRESHOLD → warning */
-  private highThreshold(findings: Finding[]): GateRuleResult {
+  /** severity=high AND 활성 상태 finding ≥ threshold → warning */
+  private highThreshold(findings: Finding[], threshold = HIGH_THRESHOLD): GateRuleResult {
     const matched = findings.filter(
       (f) => f.severity === "high" && !EXCLUDED_STATUSES.has(f.status)
     );
     return {
       ruleId: "high-threshold" as GateRuleId,
-      result: matched.length >= HIGH_THRESHOLD ? "warning" : "passed",
+      result: matched.length >= threshold ? "warning" : "passed",
       message:
-        matched.length >= HIGH_THRESHOLD
-          ? `활성 high finding ${matched.length}건 (임계치: ${HIGH_THRESHOLD})`
+        matched.length >= threshold
+          ? `활성 high finding ${matched.length}건 (임계치: ${threshold})`
           : `활성 high finding ${matched.length}건 — 임계치 이내`,
-      linkedFindingIds: matched.length >= HIGH_THRESHOLD ? matched.map((f) => f.id) : [],
+      linkedFindingIds: matched.length >= threshold ? matched.map((f) => f.id) : [],
     };
   }
 

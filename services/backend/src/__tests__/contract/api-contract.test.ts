@@ -13,6 +13,7 @@ import {
   makeAnalysisResult,
   makeStoredFile,
   makeBuildTarget,
+  makeNotification,
 } from "../../test/factories";
 
 describe("API Contract Tests", () => {
@@ -672,6 +673,165 @@ describe("API Contract Tests", () => {
       for (const t of res.body.data.targets) {
         expect(t.phase).toBe("setup");
       }
+    });
+  });
+
+  // ── Gate Profiles ──
+
+  describe("Gate Profile API", () => {
+    it("GET /api/gate-profiles returns 3 profiles", async () => {
+      const res = await request(app).get("/api/gate-profiles");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveLength(3);
+      expect(res.body.data.map((p: any) => p.id).sort()).toEqual(["default", "relaxed", "strict"]);
+    });
+
+    it("GET /api/gate-profiles/:id returns single profile", async () => {
+      const res = await request(app).get("/api/gate-profiles/strict");
+      expect(res.status).toBe(200);
+      expect(res.body.data.id).toBe("strict");
+      expect(res.body.data.rules).toBeDefined();
+    });
+
+    it("GET /api/gate-profiles/:id returns 404 for unknown", async () => {
+      const res = await request(app).get("/api/gate-profiles/nonexistent");
+      expect(res.status).toBe(404);
+    });
+  });
+
+  // ── Notifications ──
+
+  describe("Notification API", () => {
+    it("GET /api/projects/:pid/notifications returns list", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-notif" }));
+      ctx.notificationService.emit({ projectId: "p-notif", type: "analysis_complete", title: "Test" });
+
+      const res = await request(app).get("/api/projects/p-notif/notifications");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0]).toHaveProperty("type", "analysis_complete");
+    });
+
+    it("GET /api/projects/:pid/notifications/count returns unread count", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-notif-c" }));
+      ctx.notificationService.emit({ projectId: "p-notif-c", type: "gate_failed", title: "Fail" });
+      ctx.notificationService.emit({ projectId: "p-notif-c", type: "critical_finding", title: "Crit" });
+
+      const res = await request(app).get("/api/projects/p-notif-c/notifications/count");
+      expect(res.status).toBe(200);
+      expect(res.body.data.unread).toBe(2);
+    });
+
+    it("PATCH /api/projects/:pid/notifications/read-all marks all read", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-notif-r" }));
+      ctx.notificationService.emit({ projectId: "p-notif-r", type: "analysis_complete", title: "A" });
+      ctx.notificationService.emit({ projectId: "p-notif-r", type: "gate_failed", title: "B" });
+
+      const res = await request(app).patch("/api/projects/p-notif-r/notifications/read-all");
+      expect(res.status).toBe(200);
+
+      const countRes = await request(app).get("/api/projects/p-notif-r/notifications/count");
+      expect(countRes.body.data.unread).toBe(0);
+    });
+
+    it("PATCH /api/notifications/:id/read marks single read", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-notif-s" }));
+      const notif = ctx.notificationService.emit({ projectId: "p-notif-s", type: "analysis_complete", title: "X" });
+
+      const res = await request(app).patch(`/api/notifications/${notif.id}/read`);
+      expect(res.status).toBe(200);
+    });
+  });
+
+  // ── Auth ──
+
+  describe("Auth API", () => {
+    it("POST /api/auth/login with valid credentials", async () => {
+      ctx.userService.createUser("testuser", "pass1234", "Test User");
+      const res = await request(app).post("/api/auth/login").send({ username: "testuser", password: "pass1234" });
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.token).toBeDefined();
+      expect(res.body.data.user.username).toBe("testuser");
+    });
+
+    it("POST /api/auth/login with invalid credentials", async () => {
+      ctx.userService.createUser("testuser2", "pass1234", "Test User 2");
+      const res = await request(app).post("/api/auth/login").send({ username: "testuser2", password: "wrong" });
+      expect(res.status).toBe(400);
+    });
+
+    it("GET /api/auth/users returns user list", async () => {
+      ctx.userService.createUser("user1", "pass1234", "User 1");
+      const res = await request(app).get("/api/auth/users");
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("GET /api/auth/me without token returns 401 or empty", async () => {
+      const res = await request(app).get("/api/auth/me");
+      // Soft auth: no token → no user → 401
+      expect([200, 401]).toContain(res.status);
+    });
+  });
+
+  // ── Finding Groups ──
+
+  describe("Finding Groups API", () => {
+    it("GET /findings/groups?groupBy=ruleId", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-fg" }));
+      ctx.runDAO.save(makeRun({ id: "r-fg", projectId: "p-fg" }));
+      ctx.findingDAO.save(makeFinding({ id: "f-fg1", runId: "r-fg", projectId: "p-fg", ruleId: "rule-X" }));
+      ctx.findingDAO.save(makeFinding({ id: "f-fg2", runId: "r-fg", projectId: "p-fg", ruleId: "rule-X" }));
+
+      const res = await request(app).get("/api/projects/p-fg/findings/groups?groupBy=ruleId");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("GET /findings/groups?groupBy=location", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-fg2" }));
+      ctx.runDAO.save(makeRun({ id: "r-fg2", projectId: "p-fg2" }));
+      ctx.findingDAO.save(makeFinding({ id: "f-fg3", runId: "r-fg2", projectId: "p-fg2", location: "src/a.c:1" }));
+
+      const res = await request(app).get("/api/projects/p-fg2/findings/groups?groupBy=location");
+      expect(res.status).toBe(200);
+    });
+  });
+
+  // ── Build Log ──
+
+  describe("Build Log API", () => {
+    it("GET /targets/:id/build-log returns log", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-bl" }));
+      ctx.buildTargetDAO.save(makeBuildTarget({ id: "t-bl", projectId: "p-bl", buildLog: "make: ok" } as any));
+
+      const res = await request(app).get("/api/projects/p-bl/targets/t-bl/build-log");
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveProperty("buildLog");
+    });
+
+    it("GET /targets/:id/build-log returns 404 for unknown target", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-bl2" }));
+      const res = await request(app).get("/api/projects/p-bl2/targets/nonexistent/build-log");
+      expect(res.status).toBe(404);
+    });
+  });
+
+  // ── Custom Report ──
+
+  describe("Custom Report API", () => {
+    it("POST /report/custom returns filtered report", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-cr" }));
+
+      const res = await request(app)
+        .post("/api/projects/p-cr/report/custom")
+        .send({ customization: { reportTitle: "Custom" } });
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
     });
   });
 });

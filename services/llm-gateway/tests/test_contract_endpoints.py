@@ -284,3 +284,61 @@ class TestChatProxy:
         assert resp.status_code == 200
         data = resp.json()
         assert data["choices"][0]["message"]["tool_calls"][0]["function"]["name"] == "knowledge.search"
+
+    def test_chat_proxy_records_cb_failure_on_500(self, client_live):
+        """LLM Engine 500 응답 시 circuit breaker에 failure 기록."""
+        mock_resp = httpx.Response(500, json={"error": "internal"})
+
+        cb = app.state.circuit_breaker
+        before = cb.consecutive_failures
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            resp = client_live.post("/v1/chat", json={
+                "model": "test-model",
+                "messages": [{"role": "user", "content": "hello"}],
+            })
+
+        assert resp.status_code == 500
+        assert cb.consecutive_failures == before + 1
+
+    def test_chat_proxy_no_cb_failure_on_400(self, client_live):
+        """LLM Engine 400 응답 시 circuit breaker에 failure 미기록."""
+        mock_resp = httpx.Response(400, json={"error": "bad request"})
+
+        cb = app.state.circuit_breaker
+        before = cb.consecutive_failures
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            resp = client_live.post("/v1/chat", json={
+                "model": "test-model",
+                "messages": [{"role": "user", "content": "hello"}],
+            })
+
+        assert resp.status_code == 400
+        assert cb.consecutive_failures == before
+
+    def test_chat_proxy_invalid_timeout_header_uses_default(self, client_live):
+        """비숫자 X-Timeout-Seconds 헤더는 기본값(1800초)으로 대체된다."""
+        mock_llm_response = {
+            "choices": [{"message": {"content": '{"ok": true}'}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 5, "completion_tokens": 3},
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            resp = client_live.post(
+                "/v1/chat",
+                json={"model": "test", "messages": [{"role": "user", "content": "x"}]},
+                headers={"X-Timeout-Seconds": "not-a-number"},
+            )
+
+        assert resp.status_code == 200
+        call_kwargs = mock_client.post.call_args
+        req_timeout = call_kwargs.kwargs.get("timeout") or call_kwargs[1].get("timeout")
+        assert req_timeout.read == 1800.0

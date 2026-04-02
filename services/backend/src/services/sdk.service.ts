@@ -165,7 +165,7 @@ export class SdkService {
     try {
       const resp = await this.buildAgentClient.submitTask(
         {
-          taskType: "sdk-analyze" as any,
+          taskType: "sdk-analyze",
           taskId: `sdk-${sdkId}`,
           context: { trusted: { projectPath: sdkPath } },
           constraints: { timeoutMs: 300_000 },
@@ -174,7 +174,8 @@ export class SdkService {
       );
 
       if (this.buildAgentClient.isSuccess(resp)) {
-        profile = (resp.result as any).sdkProfile ?? {};
+        const sdkResult = resp.result as { sdkProfile?: SdkAnalyzedProfile };
+        profile = sdkResult.sdkProfile ?? {};
         this.dao.updateProfile(sdkId, profile);
         logger.info({ sdkId, profile }, "SDK profile analyzed");
       } else {

@@ -1,12 +1,13 @@
 import React, { useState, useCallback, useEffect } from "react";
 import type { BuildProfile, BuildTarget } from "@aegis/shared";
-import { Crosshair, Plus, Pencil, Trash2, Play, RotateCcw, Bot } from "lucide-react";
+import { Crosshair, Plus, Pencil, Trash2, Play, RotateCcw, Bot, FileText } from "lucide-react";
 import { useBuildTargets } from "../../hooks/useBuildTargets";
 import { usePipelineProgress } from "../../hooks/usePipelineProgress";
 import { useToast } from "../../contexts/ToastContext";
 import { logError } from "../../api/client";
 import { ConfirmDialog, Spinner, TargetStatusBadge, TargetProgressStepper } from "../ui";
 import { BuildProfileForm } from "./BuildProfileForm";
+import { BuildLogViewer } from "./BuildLogViewer";
 import { TargetLibraryPanel } from "./TargetLibraryPanel";
 import { fetchProjectSdks } from "../../api/sdk";
 import type { RegisteredSdk } from "../../api/sdk";
@@ -52,6 +53,7 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
   const [formProfile, setFormProfile] = useState<BuildProfile>(DEFAULT_PROFILE);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<BuildTarget | null>(null);
+  const [logTarget, setLogTarget] = useState<{id: string, name: string} | null>(null);
 
   const openAddForm = useCallback(() => {
     setFormMode("add");
@@ -258,9 +260,9 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
                   {sdk && <span className="bt-sdk">{sdk.name}</span>}
                   {target.buildSystem && <span className="bt-build-sys">{target.buildSystem}</span>}
                 </div>
-                {(target as Record<string, unknown>).buildCommand && (
+                {target.buildCommand && (
                   <div className="bt-row__build-cmd">
-                    <code>{String((target as Record<string, unknown>).buildCommand)}</code>
+                    <code>{target.buildCommand}</code>
                   </div>
                 )}
                 {status !== "discovered" && (
@@ -280,6 +282,11 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
                 )}
               </div>
               <div className="bt-row__actions">
+                {status !== "discovered" && status !== "resolving" && (
+                  <button className="btn btn-secondary btn-sm" onClick={() => setLogTarget({ id: target.id, name: target.name })} title="빌드 로그">
+                    <FileText size={14} />
+                  </button>
+                )}
                 {isReady && onStartDeepAnalysis && (
                   <button className="btn btn-sm" onClick={() => handleDeepAnalysis(target.id)} title="심층 분석">
                     <Bot size={14} />
@@ -346,6 +353,15 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
         onConfirm={() => deleteTarget && handleDelete(deleteTarget)}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      {logTarget && (
+        <BuildLogViewer
+          projectId={projectId}
+          targetId={logTarget.id}
+          targetName={logTarget.name}
+          onClose={() => setLogTarget(null)}
+        />
+      )}
     </div>
   );
 };

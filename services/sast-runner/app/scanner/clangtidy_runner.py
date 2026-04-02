@@ -177,6 +177,7 @@ class ClangTidyRunner:
             cwe = _CERT_TO_CWE.get(check)
             if cwe:
                 metadata["cwe"] = [cwe]
+                metadata["cweId"] = cwe
 
             findings.append(SastFinding(
                 toolId="clang-tidy",

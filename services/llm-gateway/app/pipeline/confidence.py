@@ -5,7 +5,7 @@ from app.schemas.response import ConfidenceBreakdown
 
 
 class ConfidenceCalculator:
-    """S3가 직접 계산하는 confidence 점수. LLM self-score에 맡기지 않는다."""
+    """S7이 직접 계산하는 confidence 점수. LLM self-score에 맡기지 않는다."""
 
     def calculate(
         self,

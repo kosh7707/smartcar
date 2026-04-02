@@ -1,3 +1,8 @@
+/* ═══════════════════════════════════════════════════════════════
+   Animations — Tactical Operations Console
+   Instrument-grade: crisp, purposeful, no whimsy.
+   ═══════════════════════════════════════════════════════════════ */
+
 /* ── Keyframes ── */
 
 @keyframes fadeIn {
@@ -6,22 +11,22 @@
 }
 
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fadeInScale {
-  from { opacity: 0; transform: scale(0.96); }
+  from { opacity: 0; transform: scale(0.97); }
   to { opacity: 1; transform: scale(1); }
 }
 
 @keyframes slideInRight {
-  from { opacity: 0; transform: translateX(12px); }
+  from { opacity: 0; transform: translateX(10px); }
   to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes slideInLeft {
-  from { opacity: 0; transform: translateX(-12px); }
+  from { opacity: 0; transform: translateX(-10px); }
   to { opacity: 1; transform: translateX(0); }
 }
 
@@ -41,8 +46,26 @@
 }
 
 @keyframes countUp {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 4px currentColor; }
+  50% { box-shadow: 0 0 10px currentColor; }
+}
+
+/* Tactical scanner line — data processing indicator */
+@keyframes scanline {
+  0% { background-position: -100% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Data tick — for stat value changes */
+@keyframes dataTick {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
 }
 
 /* ── Utility Classes ── */
@@ -71,16 +94,16 @@
   animation: spin 1s linear infinite;
 }
 
-/* ── Page entrance ── */
+/* ── Page entrance (slightly tighter) ── */
 
 .page-enter {
-  animation: fadeInUp 250ms ease both;
+  animation: fadeInUp 200ms ease both;
 }
 
-/* ── Stagger children ── */
+/* ── Stagger children (faster, tighter) ── */
 
 .stagger > * {
-  animation: fadeInUp 300ms ease both;
+  animation: fadeInUp 220ms ease both;
 }
 
 .stagger > :nth-child(1) { animation-delay: 0ms; }
@@ -91,6 +114,10 @@
 .stagger > :nth-child(6) { animation-delay: 250ms; }
 .stagger > :nth-child(7) { animation-delay: 300ms; }
 .stagger > :nth-child(8) { animation-delay: 350ms; }
+.stagger > :nth-child(9) { animation-delay: 400ms; }
+.stagger > :nth-child(10) { animation-delay: 450ms; }
+.stagger > :nth-child(11) { animation-delay: 500ms; }
+.stagger > :nth-child(12) { animation-delay: 550ms; }
 
 /* ── Skeleton loading ── */
 

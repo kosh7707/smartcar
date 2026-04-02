@@ -151,6 +151,71 @@ export class ReportService {
     return { totalFindings: findings.length, bySeverity, byStatus, bySource };
   }
 
+  generateCustomReport(
+    projectId: string,
+    options: {
+      filters?: ReportFilters;
+      findingIds?: string[];
+      includeSections?: { executiveSummary?: boolean; static?: boolean; dynamic?: boolean; test?: boolean; deep?: boolean; approvals?: boolean; auditTrail?: boolean };
+      customization?: { executiveSummary?: string; companyName?: string; logoUrl?: string; language?: string; reportTitle?: string };
+    },
+  ): ProjectReport | undefined {
+    const project = this.projectService.findById(projectId);
+    if (!project) return undefined;
+
+    const { filters, findingIds, includeSections, customization } = options;
+    const include = includeSections ?? {};
+    const modules: ProjectReport["modules"] = {};
+    const allSummaries: ReportSummary[] = [];
+
+    const moduleEntries: Array<{ key: "static" | "dynamic" | "test" | "deep"; mod: AnalysisModule }> = [
+      { key: "static", mod: "static_analysis" },
+      { key: "dynamic", mod: "dynamic_analysis" },
+      { key: "test", mod: "dynamic_testing" },
+      { key: "deep", mod: "deep_analysis" },
+    ];
+
+    for (const { key, mod } of moduleEntries) {
+      if (include[key] === false) continue;
+      const report = this.generateModuleReport(projectId, mod, filters);
+      if (!report) continue;
+
+      // findingIds 필터링
+      if (findingIds) {
+        const idSet = new Set(findingIds);
+        report.findings = report.findings.filter((f) => idSet.has(f.finding.id));
+        const filteredSummary = this.buildSummary(report.findings.map((f) => f.finding));
+        (report as any).summary = filteredSummary;
+      }
+
+      if (report.findings.length > 0) {
+        modules[key] = report;
+        allSummaries.push(report.summary);
+      }
+    }
+
+    const totalSummary = this.mergeSummaries(allSummaries);
+    const approvals = include.approvals !== false ? this.approvalService.getByProjectId(projectId) : [];
+    let auditTrail: import("@aegis/shared").AuditLogEntry[] = [];
+    if (include.auditTrail !== false) {
+      const ids = Object.values(modules)
+        .filter((m): m is ModuleReport => m != null)
+        .flatMap((m) => m.findings.map((f) => f.finding.id));
+      auditTrail = this.auditLogDAO.findByResourceIds([...ids, ...approvals.map((a) => a.id)], 100);
+    }
+
+    return {
+      generatedAt: new Date().toISOString(),
+      projectId,
+      projectName: project.name,
+      modules,
+      totalSummary,
+      approvals,
+      auditTrail,
+      customization,
+    };
+  }
+
   private mergeSummaries(summaries: ReportSummary[]): ReportSummary {
     const merged: ReportSummary = {
       totalFindings: 0,

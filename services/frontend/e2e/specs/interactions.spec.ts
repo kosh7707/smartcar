@@ -168,7 +168,7 @@ test.describe("Quality Gate Override", () => {
 
     await page.getByText("오버라이드", { exact: true }).click();
     await expect(page.locator(".gate-override-form")).toBeVisible();
-    await expect(page.getByPlaceholder("오버라이드 사유를 입력하세요")).toBeVisible();
+    await expect(page.getByPlaceholder(/오버라이드 사유를 입력하세요/)).toBeVisible();
 
     await page.getByText("취소", { exact: true }).click();
     await expect(page.locator(".gate-override-form")).not.toBeVisible();
@@ -181,15 +181,15 @@ test.describe("Quality Gate Override", () => {
     await waitForContent(page);
 
     await page.getByText("오버라이드", { exact: true }).click();
-    await page.getByPlaceholder("오버라이드 사유를 입력하세요").fill("긴급 대응");
+    await page.getByPlaceholder(/오버라이드 사유를 입력하세요/).fill("긴급 대응으로 인한 오버라이드입니다");
 
     const [request] = await Promise.all([
       page.waitForRequest((req) => req.url().includes("/api/gates/gate-1/override") && req.method() === "POST"),
-      page.getByText("확인", { exact: true }).click(),
+      page.getByText(/오버라이드 확인/).click(),
     ]);
 
     const body = request.postDataJSON();
-    expect(body.reason).toBe("긴급 대응");
+    expect(body.reason).toBe("긴급 대응으로 인한 오버라이드입니다");
   });
 });
 

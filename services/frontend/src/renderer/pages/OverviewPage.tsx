@@ -17,12 +17,20 @@ import {
   Loader,
   XCircle,
   Search,
+  ShieldCheck,
+  ClipboardCheck,
+  TrendingUp,
+  TrendingDown,
+  Minus,
 } from "lucide-react";
 import { fetchProjectOverview, fetchProjectFiles, logError } from "../api/client";
 import { fetchProjectActivity } from "../api/projects";
 import type { ActivityEntry } from "../api/projects";
 import { fetchProjectSdks } from "../api/sdk";
 import type { RegisteredSdk } from "../api/sdk";
+import { fetchProjectGates } from "../api/gate";
+import type { GateResult } from "../api/gate";
+import { fetchApprovalCount } from "../api/approval";
 import { useBuildTargets } from "../hooks/useBuildTargets";
 import { useToast } from "../contexts/ToastContext";
 import { PageHeader, StatCard, SeveritySummary, SeverityBadge, DonutChart, Spinner, TargetStatusBadge } from "../components/ui";
@@ -104,6 +112,8 @@ export const OverviewPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [registeredSdks, setRegisteredSdks] = useState<RegisteredSdk[]>([]);
   const [activities, setActivities] = useState<ActivityEntry[]>([]);
+  const [gates, setGates] = useState<GateResult[]>([]);
+  const [approvalCount, setApprovalCount] = useState<{ pending: number; total: number }>({ pending: 0, total: 0 });
   const toast = useToast();
   const bt = useBuildTargets(projectId);
 
@@ -131,12 +141,23 @@ export const OverviewPage: React.FC = () => {
       fetchProjectActivity(projectId, 8)
         .then(setActivities)
         .catch(() => setActivities([]));
+      fetchProjectGates(projectId)
+        .then(setGates)
+        .catch(() => setGates([]));
+      fetchApprovalCount(projectId)
+        .then(setApprovalCount)
+        .catch(() => setApprovalCount({ pending: 0, total: 0 }));
     }
   }, [projectId]);
 
   const recentAnalyses = overview?.recentAnalyses ?? [];
   const latestMap = useMemo(() => getLatestPerModule(recentAnalyses), [recentAnalyses]);
   const topVulns = useMemo(() => getTopVulnerabilities(recentAnalyses, 8), [recentAnalyses]);
+  const gateCounts = useMemo(() => {
+    const c = { pass: 0, fail: 0, warning: 0 };
+    for (const g of gates) c[g.status]++;
+    return c;
+  }, [gates]);
 
   if (loading) {
     return (
@@ -151,7 +172,7 @@ export const OverviewPage: React.FC = () => {
   }
 
   const { project, summary } = overview;
-  const sev = summary.bySeverity;
+  const sev = summary?.bySeverity ?? { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
 
   return (
     <div className="page-enter">
@@ -161,46 +182,75 @@ export const OverviewPage: React.FC = () => {
         subtitle={project.description || undefined}
       />
 
-      {/* Security overview: Donut + module rows */}
-      <div className="card">
-        <div className="overview-security-card">
-          <DonutChart summary={sev} size={140} showLegend={false} />
-          <div className="overview-module-rows">
-            {Object.entries(MODULE_META).map(([key, meta]) => {
-              const latest = latestMap.get(key);
-              return (
-                <div
-                  key={key}
-                  className="overview-module-row"
-                  onClick={() => navigate(`/projects/${projectId}/${meta.path}`)}
-                >
-                  <span className="overview-module-row__icon">{meta.icon}</span>
-                  <span className="overview-module-row__name">{meta.label}</span>
-                  {latest ? (
-                    <>
-                      <SeveritySummary summary={latest.summary} />
-                      <span className="overview-module-row__time">
-                        {formatDateTime(latest.createdAt)}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="overview-module-row__empty">미실행</span>
-                  )}
-                </div>
-              );
-            })}
+      {/* Security posture group: Donut + modules + stats */}
+      <div className="overview-posture-group">
+        <div className="card" style={{ marginBottom: "var(--space-3)" }}>
+          <div className="overview-security-card">
+            <DonutChart summary={sev} size={140} showLegend={false} centerLabel="전체 Finding" />
+            <div className="overview-module-rows">
+              {Object.entries(MODULE_META).map(([key, meta]) => {
+                const latest = latestMap.get(key);
+                return (
+                  <div
+                    key={key}
+                    className="overview-module-row"
+                    onClick={() => navigate(`/projects/${projectId}/${meta.path}`)}
+                  >
+                    <span className="overview-module-row__icon">{meta.icon}</span>
+                    <span className="overview-module-row__name">{meta.label}</span>
+                    {latest ? (
+                      <>
+                        <SeveritySummary summary={latest.summary} />
+                        <span className="overview-module-row__time">
+                          {formatDateTime(latest.createdAt)}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="overview-module-row__empty">미실행</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Stat cards */}
-      <div className="stat-cards stagger">
+        {/* Stat cards */}
+        <div className="stat-cards stagger">
         <StatCard icon={<FileText size={16} />} label="파일 수" value={overview.fileCount ?? projectFiles.length} accent detail={getLangBreakdown(projectFiles)} onClick={() => navigate(`/projects/${projectId}/files`)} />
         <StatCard icon={<AlertTriangle size={16} />} label="Critical" value={sev.critical} color="var(--severity-critical)" detail={getModuleBreakdown(latestMap, "critical")} onClick={() => navigate(`/projects/${projectId}/vulnerabilities?severity=critical`)} />
         <StatCard icon={<AlertTriangle size={16} />} label="High" value={sev.high} color="var(--severity-high)" detail={getModuleBreakdown(latestMap, "high")} onClick={() => navigate(`/projects/${projectId}/vulnerabilities?severity=high`)} />
         <StatCard icon={<AlertCircle size={16} />} label="Medium" value={sev.medium} color="var(--severity-medium)" detail={getModuleBreakdown(latestMap, "medium")} onClick={() => navigate(`/projects/${projectId}/vulnerabilities?severity=medium`)} />
         <StatCard icon={<Info size={16} />} label="Low" value={sev.low} color="var(--severity-low)" detail={getModuleBreakdown(latestMap, "low")} onClick={() => navigate(`/projects/${projectId}/vulnerabilities?severity=low`)} />
+        </div>
       </div>
+
+      {/* Trend card */}
+      {overview.trend && (
+        <div className="card overview-trend-card">
+          <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+            <Activity size={16} />
+            이전 분석 대비 변화
+          </div>
+          <div className="overview-trend-row">
+            <div className="overview-trend-item overview-trend-item--new">
+              <TrendingUp size={16} />
+              <span className="overview-trend-value">+{overview.trend.newFindings}</span>
+              <span className="overview-trend-label">신규 발견</span>
+            </div>
+            <div className="overview-trend-item overview-trend-item--resolved">
+              <TrendingDown size={16} />
+              <span className="overview-trend-value">-{overview.trend.resolvedFindings}</span>
+              <span className="overview-trend-label">해결됨</span>
+            </div>
+            <div className="overview-trend-item overview-trend-item--total">
+              <Minus size={16} />
+              <span className="overview-trend-value">{overview.trend.unresolvedTotal}</span>
+              <span className="overview-trend-label">미해결 총계</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom grid: Files + History */}
       <div className="overview-bottom-grid">
@@ -326,6 +376,62 @@ export const OverviewPage: React.FC = () => {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Quality Gate */}
+        <div className="card overview-gate-card">
+          <div
+            className="card-title overview-gate-header"
+            onClick={() => navigate(`/projects/${projectId}/quality-gate`)}
+          >
+            <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+              <ShieldCheck size={16} />
+              Quality Gate ({gates.length}개)
+            </span>
+            <ChevronRight size={16} style={{ color: "var(--text-tertiary)" }} />
+          </div>
+          {gates.length === 0 ? (
+            <p className="overview-empty-text">평가된 Gate가 없습니다.</p>
+          ) : (
+            <div className="overview-gate-summary">
+              <span className="overview-gate-item overview-gate-item--pass">
+                <CheckCircle2 size={12} /> 통과 {gateCounts.pass}
+              </span>
+              <span className="overview-gate-item overview-gate-item--fail">
+                <XCircle size={12} /> 실패 {gateCounts.fail}
+              </span>
+              <span className="overview-gate-item overview-gate-item--warning">
+                <AlertTriangle size={12} /> 경고 {gateCounts.warning}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Approval */}
+        <div className="card overview-approval-card">
+          <div
+            className="card-title overview-approval-header"
+            onClick={() => navigate(`/projects/${projectId}/approvals`)}
+          >
+            <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+              <ClipboardCheck size={16} />
+              승인 요청
+            </span>
+            <ChevronRight size={16} style={{ color: "var(--text-tertiary)" }} />
+          </div>
+          <div className="overview-approval-body">
+            {approvalCount.pending > 0 ? (
+              <div className="overview-approval-pending">
+                <span className="overview-approval-pending__count">{approvalCount.pending}</span>
+                <span className="overview-approval-pending__label">건 대기 중</span>
+              </div>
+            ) : (
+              <p className="overview-empty-text">대기 중인 승인 요청이 없습니다.</p>
+            )}
+            {approvalCount.total > 0 && (
+              <span className="overview-approval-total">총 {approvalCount.total}건</span>
+            )}
+          </div>
         </div>
 
         {/* SDK */}

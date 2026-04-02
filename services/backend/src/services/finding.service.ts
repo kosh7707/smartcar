@@ -156,4 +156,15 @@ export class FindingService {
   getSummary(projectId: string): { byStatus: Record<string, number>; bySeverity: Record<string, number>; total: number } {
     return this.findingDAO.summaryByProjectId(projectId);
   }
+
+  getGroups(projectId: string, groupBy: "ruleId" | "location"): Array<{ key: string; count: number; topSeverity: string; findingIds: string[] }> {
+    const dao = this.findingDAO as any;
+    if (groupBy === "ruleId" && typeof dao.groupByRuleId === "function") {
+      return dao.groupByRuleId(projectId);
+    }
+    if (groupBy === "location" && typeof dao.groupByLocation === "function") {
+      return dao.groupByLocation(projectId);
+    }
+    return [];
+  }
 }

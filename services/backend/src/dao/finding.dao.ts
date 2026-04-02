@@ -1,8 +1,31 @@
-import type { Finding, FindingStatus, Severity, AnalysisModule } from "@aegis/shared";
+import type { Finding, FindingStatus, Severity, AnalysisModule, Confidence, FindingSourceType } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IFindingDAO, FindingFilters } from "./interfaces";
 
-function rowToFinding(row: any): Finding {
+interface FindingRow {
+  id: string;
+  run_id: string;
+  project_id: string;
+  module: AnalysisModule;
+  status: FindingStatus;
+  severity: Severity;
+  confidence: Confidence;
+  source_type: FindingSourceType;
+  title: string;
+  description: string;
+  location: string | null;
+  suggestion: string | null;
+  detail: string | null;
+  rule_id: string | null;
+  cwe_id: string | null;
+  cve_ids: string | null;
+  confidence_score: number | null;
+  fingerprint: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+function rowToFinding(row: FindingRow): Finding {
   return {
     id: row.id,
     runId: row.run_id,
@@ -18,6 +41,9 @@ function rowToFinding(row: any): Finding {
     suggestion: row.suggestion ?? undefined,
     detail: row.detail ?? undefined,
     ruleId: row.rule_id ?? undefined,
+    cweId: row.cwe_id ?? undefined,
+    cveIds: row.cve_ids && row.cve_ids !== "[]" ? JSON.parse(row.cve_ids) : undefined,
+    confidenceScore: row.confidence_score ?? undefined,
     fingerprint: row.fingerprint ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -33,8 +59,8 @@ export class FindingDAO implements IFindingDAO {
 
   constructor(private db: DatabaseType) {
     this.insertStmt = db.prepare(
-      `INSERT INTO findings (id, run_id, project_id, module, status, severity, confidence, source_type, title, description, location, suggestion, detail, rule_id, fingerprint, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO findings (id, run_id, project_id, module, status, severity, confidence, source_type, title, description, location, suggestion, detail, rule_id, cwe_id, cve_ids, confidence_score, fingerprint, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     this.selectByIdStmt = db.prepare(`SELECT * FROM findings WHERE id = ?`);
     this.selectByRunStmt = db.prepare(
@@ -64,6 +90,9 @@ export class FindingDAO implements IFindingDAO {
       finding.suggestion ?? null,
       finding.detail ?? null,
       finding.ruleId ?? null,
+      finding.cweId ?? null,
+      JSON.stringify(finding.cveIds ?? []),
+      finding.confidenceScore ?? null,
       finding.fingerprint ?? null,
       finding.createdAt,
       finding.updatedAt
@@ -78,21 +107,20 @@ export class FindingDAO implements IFindingDAO {
   }
 
   findById(id: string): Finding | undefined {
-    const row = this.selectByIdStmt.get(id);
+    const row = this.selectByIdStmt.get(id) as FindingRow | undefined;
     return row ? rowToFinding(row) : undefined;
   }
 
   findByRunId(runId: string): Finding[] {
-    return this.selectByRunStmt.all(runId).map(rowToFinding);
+    return (this.selectByRunStmt.all(runId) as FindingRow[]).map(rowToFinding);
   }
 
   findByIds(ids: string[]): Finding[] {
     if (ids.length === 0) return [];
     const placeholders = ids.map(() => "?").join(",");
-    return this.db
+    return (this.db
       .prepare(`SELECT * FROM findings WHERE id IN (${placeholders})`)
-      .all(...ids)
-      .map(rowToFinding);
+      .all(...ids) as FindingRow[]).map(rowToFinding);
   }
 
   findByProjectId(projectId: string, filters?: FindingFilters): Finding[] {
@@ -101,11 +129,11 @@ export class FindingDAO implements IFindingDAO {
       filters.from || filters.to || filters.q || filters.sourceType || filters.sort
     );
     if (!hasFilters) {
-      return this.selectByProjectStmt.all(projectId).map(rowToFinding);
+      return (this.selectByProjectStmt.all(projectId) as FindingRow[]).map(rowToFinding);
     }
 
     const conditions = ["project_id = ?"];
-    const params: any[] = [projectId];
+    const params: (string | number | null)[] = [projectId];
 
     if (filters.status) {
       const arr = Array.isArray(filters.status) ? filters.status : [filters.status];
@@ -156,20 +184,20 @@ export class FindingDAO implements IFindingDAO {
     }
 
     const sql = `SELECT * FROM findings WHERE ${conditions.join(" AND ")} ${orderClause}`;
-    return this.db.prepare(sql).all(...params).map(rowToFinding);
+    return (this.db.prepare(sql).all(...params) as FindingRow[]).map(rowToFinding);
   }
 
   findByFingerprint(projectId: string, fingerprint: string): Finding | undefined {
     const row = this.db.prepare(
       `SELECT * FROM findings WHERE project_id = ? AND fingerprint = ? ORDER BY created_at DESC LIMIT 1`,
-    ).get(projectId, fingerprint);
+    ).get(projectId, fingerprint) as FindingRow | undefined;
     return row ? rowToFinding(row) : undefined;
   }
 
   findAllByFingerprint(projectId: string, fingerprint: string): Finding[] {
-    return this.db.prepare(
+    return (this.db.prepare(
       `SELECT * FROM findings WHERE project_id = ? AND fingerprint = ? ORDER BY created_at DESC`,
-    ).all(projectId, fingerprint).map(rowToFinding);
+    ).all(projectId, fingerprint) as FindingRow[]).map(rowToFinding);
   }
 
   updateStatus(id: string, status: FindingStatus): void {
@@ -181,7 +209,7 @@ export class FindingDAO implements IFindingDAO {
   }
 
   summaryByProjectId(projectId: string): { byStatus: Record<string, number>; bySeverity: Record<string, number>; total: number } {
-    const rows = this.selectByProjectStmt.all(projectId).map(rowToFinding);
+    const rows = (this.selectByProjectStmt.all(projectId) as FindingRow[]).map(rowToFinding);
     const byStatus: Record<string, number> = {};
     const bySeverity: Record<string, number> = {};
 
@@ -199,7 +227,7 @@ export class FindingDAO implements IFindingDAO {
     since?: string
   ): { bySeverity: Record<string, number>; byStatus: Record<string, number>; bySource: Record<string, number>; total: number } {
     const conditions = ["project_id = ?", "module = ?"];
-    const params: any[] = [projectId, module];
+    const params: (string | number | null)[] = [projectId, module];
     if (since) {
       conditions.push("created_at >= ?");
       params.push(since);
@@ -228,7 +256,7 @@ export class FindingDAO implements IFindingDAO {
     since?: string
   ): Array<{ filePath: string; findingCount: number; topSeverity: string }> {
     const conditions = ["project_id = ?", "module = ?", "location IS NOT NULL"];
-    const params: any[] = [projectId, module];
+    const params: (string | number | null)[] = [projectId, module];
     if (since) {
       conditions.push("created_at >= ?");
       params.push(since);
@@ -268,7 +296,7 @@ export class FindingDAO implements IFindingDAO {
     since?: string
   ): Array<{ ruleId: string; hitCount: number }> {
     const conditions = ["project_id = ?", "module = ?", "rule_id IS NOT NULL"];
-    const params: any[] = [projectId, module];
+    const params: (string | number | null)[] = [projectId, module];
     if (since) {
       conditions.push("created_at >= ?");
       params.push(since);
@@ -286,5 +314,80 @@ export class FindingDAO implements IFindingDAO {
 
     const rows = this.db.prepare(sql).all(...params) as Array<{ rule_id: string; cnt: number }>;
     return rows.map((row) => ({ ruleId: row.rule_id, hitCount: row.cnt }));
+  }
+
+  /** 미해결 Finding 건수 */
+  unresolvedCountByProjectId(projectId: string, opts?: { createdBefore?: string }): number {
+    const unresolved = "('open','needs_review','needs_revalidation','sandbox')";
+    if (opts?.createdBefore) {
+      const row = this.db.prepare(
+        `SELECT COUNT(*) as cnt FROM findings WHERE project_id = ? AND status IN ${unresolved} AND created_at <= ?`,
+      ).get(projectId, opts.createdBefore) as { cnt: number };
+      return row.cnt;
+    }
+    const row = this.db.prepare(
+      `SELECT COUNT(*) as cnt FROM findings WHERE project_id = ? AND status IN ${unresolved}`,
+    ).get(projectId) as { cnt: number };
+    return row.cnt;
+  }
+
+  /** 미해결 Finding의 심각도별 분포 */
+  severitySummaryByProjectId(projectId: string): { critical: number; high: number; medium: number; low: number } {
+    const unresolved = "('open','needs_review','needs_revalidation','sandbox')";
+    const row = this.db.prepare(`
+      SELECT
+        COUNT(CASE WHEN severity = 'critical' THEN 1 END) as critical,
+        COUNT(CASE WHEN severity = 'high' THEN 1 END) as high,
+        COUNT(CASE WHEN severity = 'medium' THEN 1 END) as medium,
+        COUNT(CASE WHEN severity = 'low' THEN 1 END) as low
+      FROM findings WHERE project_id = ? AND status IN ${unresolved}
+    `).get(projectId) as { critical: number; high: number; medium: number; low: number };
+    return row;
+  }
+
+  /** 특정 시점 이후 해결된 Finding 건수 */
+  resolvedCountSince(projectId: string, since: string): number {
+    const row = this.db.prepare(
+      `SELECT COUNT(*) as cnt FROM findings WHERE project_id = ? AND status IN ('fixed','false_positive','accepted_risk') AND updated_at >= ?`,
+    ).get(projectId, since) as { cnt: number };
+    return row.cnt;
+  }
+
+  /** ruleId 기준 그루핑 */
+  groupByRuleId(projectId: string): Array<{ key: string; count: number; topSeverity: string; findingIds: string[] }> {
+    const sevMap = ["critical", "high", "medium", "low", "info"];
+    const rows = this.db.prepare(`
+      SELECT rule_id, COUNT(*) as cnt,
+        MIN(CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 WHEN 'low' THEN 4 ELSE 5 END) as top_sev,
+        GROUP_CONCAT(id) as ids
+      FROM findings WHERE project_id = ? AND rule_id IS NOT NULL
+      GROUP BY rule_id ORDER BY cnt DESC
+    `).all(projectId) as Array<{ rule_id: string; cnt: number; top_sev: number; ids: string }>;
+    return rows.map((r) => ({
+      key: r.rule_id,
+      count: r.cnt,
+      topSeverity: sevMap[r.top_sev - 1] ?? "info",
+      findingIds: r.ids.split(","),
+    }));
+  }
+
+  /** location(파일 경로) 기준 그루핑 */
+  groupByLocation(projectId: string): Array<{ key: string; count: number; topSeverity: string; findingIds: string[] }> {
+    const sevMap = ["critical", "high", "medium", "low", "info"];
+    const rows = this.db.prepare(`
+      SELECT
+        CASE WHEN INSTR(location, ':') > 0 THEN SUBSTR(location, 1, INSTR(location, ':') - 1) ELSE location END as file_path,
+        COUNT(*) as cnt,
+        MIN(CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 WHEN 'low' THEN 4 ELSE 5 END) as top_sev,
+        GROUP_CONCAT(id) as ids
+      FROM findings WHERE project_id = ? AND location IS NOT NULL
+      GROUP BY file_path ORDER BY cnt DESC
+    `).all(projectId) as Array<{ file_path: string; cnt: number; top_sev: number; ids: string }>;
+    return rows.map((r) => ({
+      key: r.file_path,
+      count: r.cnt,
+      topSeverity: sevMap[r.top_sev - 1] ?? "info",
+      findingIds: r.ids.split(","),
+    }));
   }
 }

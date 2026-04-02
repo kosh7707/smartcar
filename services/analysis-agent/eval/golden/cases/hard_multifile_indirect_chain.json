@@ -1,0 +1,104 @@
+{
+  "id": "hard-multifile-indirect-chain",
+  "description": "Multi-file indirect call chain: network input flows through 3 files to reach system(). Mixed TP/FP findings.",
+  "category": "mixed",
+  "difficulty": "hard",
+  "input": {
+    "task_type": "deep-analyze",
+    "objective": "보안 취약점 심층 분석",
+    "sast_findings": [
+      {
+        "toolId": "flawfinder",
+        "ruleId": "system-1",
+        "severity": "error",
+        "location": {"file": "src/executor.c", "line": 28},
+        "message": "system(): This causes a new program to execute and is difficult to use safely."
+      },
+      {
+        "toolId": "cppcheck",
+        "ruleId": "bufferAccessOutOfBounds",
+        "severity": "warning",
+        "location": {"file": "src/parser.c", "line": 18},
+        "message": "Buffer is accessed out of bounds. Possible buffer overflow."
+      },
+      {
+        "toolId": "flawfinder",
+        "ruleId": "strlen-1",
+        "severity": "style",
+        "location": {"file": "src/network.c", "line": 22},
+        "message": "strlen(): Does not handle unterminated strings. Ensure string is null-terminated."
+      },
+      {
+        "toolId": "cppcheck",
+        "ruleId": "nullPointer",
+        "severity": "warning",
+        "location": {"file": "src/executor.c", "line": 15},
+        "message": "Possible null pointer dereference: cmd"
+      },
+      {
+        "toolId": "flawfinder",
+        "ruleId": "char-1",
+        "severity": "style",
+        "location": {"file": "src/parser.c", "line": 10},
+        "message": "Statically-sized arrays can be improperly restricted, leading to potential overflows."
+      }
+    ],
+    "code_functions": [
+      {"name": "recv_command", "file": "src/network.c", "line": 8},
+      {"name": "parse_command", "file": "src/parser.c", "line": 8},
+      {"name": "execute_action", "file": "src/executor.c", "line": 10},
+      {"name": "main", "file": "src/main.c", "line": 5}
+    ],
+    "threat_context": [
+      {
+        "id": "CWE-78",
+        "source": "cwe",
+        "title": "Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')",
+        "threat_category": "injection"
+      },
+      {
+        "id": "CWE-120",
+        "source": "cwe",
+        "title": "Buffer Copy without Checking Size of Input",
+        "threat_category": "memory-safety"
+      }
+    ],
+    "source_code": "/* src/network.c */\n#include <stdio.h>\n#include <string.h>\n#include <sys/socket.h>\n\nextern int parse_command(const char *raw, char *out, size_t out_sz);\n\nint recv_command(int sock_fd, char *cmd_buf, size_t buf_sz) {\n    char raw[512];\n    int n = recv(sock_fd, raw, sizeof(raw) - 1, 0);\n    if (n <= 0) return -1;\n    raw[n] = '\\0';\n\n    /* line 18: safe - bounded by buf_sz */\n    return parse_command(raw, cmd_buf, buf_sz);\n}\n\n/* strlen on line 22 is safe - raw is null-terminated above */\n\n/* src/parser.c */\n#include <stdio.h>\n#include <string.h>\n\nint parse_command(const char *raw, char *out, size_t out_sz) {\n    char temp[256];  /* line 10: static array - not inherently unsafe */\n\n    /* Extract command after 'CMD:' prefix */\n    const char *prefix = strstr(raw, \"CMD:\");\n    if (!prefix) return -1;\n    prefix += 4;\n\n    /* line 18: SAFE - strncpy bounded by sizeof(temp) */\n    strncpy(temp, prefix, sizeof(temp) - 1);\n    temp[sizeof(temp) - 1] = '\\0';\n\n    /* Copy to output - bounded by out_sz */\n    strncpy(out, temp, out_sz - 1);\n    out[out_sz - 1] = '\\0';\n    return 0;\n}\n\n/* src/executor.c */\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nvoid execute_action(const char *cmd) {\n    if (cmd == NULL) {  /* line 15: null check exists - FP */\n        fprintf(stderr, \"No command\\n\");\n        return;\n    }\n\n    char shell_cmd[512];\n    /* VULNERABLE: network input flows here via recv_command → parse_command → execute_action */\n    snprintf(shell_cmd, sizeof(shell_cmd), \"/bin/sh -c '%s'\", cmd);\n    system(shell_cmd);  /* line 28: CWE-78 - attacker-controlled command */\n}\n\n/* src/main.c */\n#include <stdio.h>\nextern int recv_command(int sock_fd, char *cmd_buf, size_t buf_sz);\nextern void execute_action(const char *cmd);\n\nint main(void) {\n    int sock = 4;  /* assume open socket */\n    char cmd[256];\n    if (recv_command(sock, cmd, sizeof(cmd)) == 0) {\n        execute_action(cmd);  /* network input → system() */\n    }\n    return 0;\n}\n",
+    "evidence_refs": [
+      {"refId": "eref-eval-hard-chain-src", "artifactId": "eref-eval-hard-chain-src", "artifactType": "raw-source", "locatorType": "file", "locator": {"file": "src/executor.c"}}
+    ]
+  },
+  "expected": {
+    "must_find": [
+      {
+        "severity_min": "high",
+        "file": "executor.c",
+        "keywords": ["system"]
+      }
+    ],
+    "must_reject": [
+      {
+        "file": "parser.c",
+        "line_range": [16, 20],
+        "keywords": ["strncpy"],
+        "reason": "strncpy bounded by sizeof(temp) - safe"
+      },
+      {
+        "file": "executor.c",
+        "line_range": [13, 17],
+        "keywords": ["null"],
+        "reason": "null check exists at line 15"
+      },
+      {
+        "file": "parser.c",
+        "line_range": [8, 12],
+        "keywords": ["static"],
+        "reason": "static array declaration is not a vulnerability"
+      }
+    ],
+    "severity_range": ["high", "critical"],
+    "min_total_claims": 1,
+    "max_total_claims": 3,
+    "required_cwe_mentions": ["CWE-78"]
+  }
+}

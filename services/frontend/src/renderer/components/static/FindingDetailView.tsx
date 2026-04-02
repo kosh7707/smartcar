@@ -42,8 +42,8 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
 
   const loadDetail = useCallback(async () => {
     try {
-      const data = await fetchFindingDetail(findingId);
-      setFinding(data);
+      const raw = await fetchFindingDetail(findingId);
+      setFinding({ ...raw, evidenceRefs: raw.evidenceRefs ?? [], auditLog: raw.auditLog ?? [] });
     } catch (e) {
       logError("Finding load", e);
       toast.error("Finding 정보를 불러올 수 없습니다.");
@@ -134,9 +134,34 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
         <div className="finding-banner__badges">
           <SeverityBadge severity={finding.severity} />
           <FindingStatusBadge status={finding.status} />
-          <ConfidenceBadge confidence={finding.confidence} />
+          <ConfidenceBadge confidence={finding.confidence} sourceType={finding.sourceType} confidenceScore={finding.confidenceScore} />
           <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
-          {(finding as Record<string, unknown>).fingerprint && (
+          {finding.cweId && (
+            <a
+              className="badge badge-cwe"
+              href={`https://cwe.mitre.org/data/definitions/${finding.cweId.replace("CWE-", "")}.html`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`MITRE ${finding.cweId} 상세`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {finding.cweId}
+            </a>
+          )}
+          {finding.cveIds && finding.cveIds.length > 0 && finding.cveIds.map((cve) => (
+            <a
+              key={cve}
+              className="badge badge-cve"
+              href={`https://nvd.nist.gov/vuln/detail/${cve}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`NVD ${cve} 상세`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {cve}
+            </a>
+          ))}
+          {finding.fingerprint && (
             <span className="fingerprint-badge" title="이전 분석에서도 발견된 취약점 (fingerprint 추적)">
               <History size={12} /> 재발견{history.length > 1 ? ` (${history.length}회)` : ""}
             </span>

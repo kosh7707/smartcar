@@ -13,6 +13,8 @@ import { FileStore } from "../../dao/file-store";
 import { AdapterDAO } from "../../dao/adapter.dao";
 import { ProjectSettingsDAO } from "../../dao/project-settings.dao";
 import { BuildTargetDAO } from "../../dao/build-target.dao";
+import { NotificationDAO } from "../../dao/notification.dao";
+import { UserDAO, SessionDAO } from "../../dao/user.dao";
 import {
   makeProject,
   makeRun,
@@ -24,6 +26,7 @@ import {
   makeAnalysisResult,
   makeStoredFile,
   makeBuildTarget,
+  makeNotification,
 } from "../../test/factories";
 
 describe("DAO Integration Tests", () => {
@@ -549,6 +552,180 @@ describe("DAO Integration Tests", () => {
       expect(loaded.caveats).toBeUndefined();
       expect(loaded.confidenceScore).toBeUndefined();
       expect(loaded.agentAudit).toBeUndefined();
+    });
+  });
+
+  describe("NotificationDAO", () => {
+    it("save → findByProjectId → unreadCount → markAsRead → markAllAsRead", () => {
+      const dao = new NotificationDAO(db);
+      const pid = "proj-notif-1";
+
+      // save 3 notifications
+      dao.save({ id: "n1", projectId: pid, type: "analysis_complete", title: "Done", body: "ok", createdAt: new Date().toISOString() });
+      dao.save({ id: "n2", projectId: pid, type: "gate_failed", title: "Fail", body: "bad", severity: "critical", createdAt: new Date().toISOString() });
+      dao.save({ id: "n3", projectId: pid, type: "critical_finding", title: "Crit", body: "crit", createdAt: new Date().toISOString() });
+
+      // findByProjectId
+      expect(dao.findByProjectId(pid)).toHaveLength(3);
+      expect(dao.findByProjectId(pid, true)).toHaveLength(3); // all unread
+      expect(dao.findByProjectId(pid, false, 2)).toHaveLength(2); // limit
+
+      // unreadCount
+      expect(dao.unreadCount(pid)).toBe(3);
+
+      // markAsRead
+      dao.markAsRead("n1");
+      expect(dao.unreadCount(pid)).toBe(2);
+      expect(dao.findByProjectId(pid, true)).toHaveLength(2);
+
+      // markAllAsRead
+      dao.markAllAsRead(pid);
+      expect(dao.unreadCount(pid)).toBe(0);
+      expect(dao.findByProjectId(pid, true)).toHaveLength(0);
+      expect(dao.findByProjectId(pid)).toHaveLength(3); // all still exist
+    });
+
+    it("isolates by projectId", () => {
+      const dao = new NotificationDAO(db);
+      dao.save({ id: "na", projectId: "pA", type: "analysis_complete", title: "A", body: "", createdAt: new Date().toISOString() });
+      dao.save({ id: "nb", projectId: "pB", type: "analysis_complete", title: "B", body: "", createdAt: new Date().toISOString() });
+
+      expect(dao.findByProjectId("pA")).toHaveLength(1);
+      expect(dao.findByProjectId("pB")).toHaveLength(1);
+      expect(dao.unreadCount("pA")).toBe(1);
+    });
+  });
+
+  describe("UserDAO + SessionDAO", () => {
+    it("UserDAO: save → findById → findByUsername → findAll → count", () => {
+      const dao = new UserDAO(db);
+
+      dao.save({ id: "u1", username: "alice", displayName: "Alice", passwordHash: "salt:hash1", role: "analyst" });
+      dao.save({ id: "u2", username: "bob", displayName: "Bob", passwordHash: "salt:hash2", role: "admin" });
+
+      expect(dao.findById("u1")?.username).toBe("alice");
+      expect(dao.findById("u1")?.role).toBe("analyst");
+      expect(dao.findByUsername("bob")?.displayName).toBe("Bob");
+      expect(dao.findByUsername("bob")?.passwordHash).toBe("salt:hash2");
+      expect(dao.findByUsername("nobody")).toBeUndefined();
+      expect(dao.findAll()).toHaveLength(2);
+      expect(dao.count()).toBe(2);
+    });
+
+    it("SessionDAO: create → findByToken → deleteByToken", () => {
+      const userDao = new UserDAO(db);
+      const sessionDao = new SessionDAO(db);
+
+      userDao.save({ id: "u1", username: "alice", displayName: "Alice", passwordHash: "h", role: "analyst" });
+
+      const expires = new Date(Date.now() + 3600000).toISOString();
+      sessionDao.create("tok-1", "u1", expires);
+
+      const session = sessionDao.findByToken("tok-1");
+      expect(session).toBeDefined();
+      expect(session!.userId).toBe("u1");
+
+      expect(sessionDao.findByToken("nonexistent")).toBeUndefined();
+
+      sessionDao.deleteByToken("tok-1");
+      expect(sessionDao.findByToken("tok-1")).toBeUndefined();
+    });
+  });
+
+  describe("FindingDAO — CWE/CVE/confidenceScore round-trip", () => {
+    it("saves and loads cweId, cveIds, confidenceScore", () => {
+      const runDao = new RunDAO(db);
+      const findingDao = new FindingDAO(db);
+      const projectDao = new ProjectDAO(db);
+
+      projectDao.save(makeProject({ id: "p-cwe" }));
+      runDao.save(makeRun({ id: "r-cwe", projectId: "p-cwe" }));
+
+      const finding = makeFinding({
+        id: "f-cwe",
+        runId: "r-cwe",
+        projectId: "p-cwe",
+        cweId: "CWE-120",
+        cveIds: ["CVE-2025-0001", "CVE-2025-0002"],
+        confidenceScore: 0.85,
+      });
+      findingDao.save(finding);
+
+      const loaded = findingDao.findById("f-cwe")!;
+      expect(loaded.cweId).toBe("CWE-120");
+      expect(loaded.cveIds).toEqual(["CVE-2025-0001", "CVE-2025-0002"]);
+      expect(loaded.confidenceScore).toBe(0.85);
+    });
+
+    it("handles missing CWE/CVE gracefully", () => {
+      const runDao = new RunDAO(db);
+      const findingDao = new FindingDAO(db);
+      const projectDao = new ProjectDAO(db);
+
+      projectDao.save(makeProject({ id: "p-no-cwe" }));
+      runDao.save(makeRun({ id: "r-no-cwe", projectId: "p-no-cwe" }));
+
+      const finding = makeFinding({ id: "f-no-cwe", runId: "r-no-cwe", projectId: "p-no-cwe" });
+      findingDao.save(finding);
+
+      const loaded = findingDao.findById("f-no-cwe")!;
+      expect(loaded.cweId).toBeUndefined();
+      expect(loaded.cveIds).toBeUndefined();
+      expect(loaded.confidenceScore).toBeUndefined();
+    });
+  });
+
+  describe("FindingDAO — grouping and aggregation", () => {
+    let findingDao: FindingDAO;
+    let runDao: RunDAO;
+
+    beforeEach(() => {
+      findingDao = new FindingDAO(db);
+      runDao = new RunDAO(db);
+      const projectDao = new ProjectDAO(db);
+      projectDao.save(makeProject({ id: "p-grp" }));
+      runDao.save(makeRun({ id: "r-grp", projectId: "p-grp" }));
+    });
+
+    it("severitySummaryByProjectId counts unresolved by severity", () => {
+      findingDao.save(makeFinding({ id: "f1", runId: "r-grp", projectId: "p-grp", severity: "critical", status: "open" }));
+      findingDao.save(makeFinding({ id: "f2", runId: "r-grp", projectId: "p-grp", severity: "high", status: "needs_review" }));
+      findingDao.save(makeFinding({ id: "f3", runId: "r-grp", projectId: "p-grp", severity: "high", status: "open" }));
+      findingDao.save(makeFinding({ id: "f4", runId: "r-grp", projectId: "p-grp", severity: "critical", status: "fixed" })); // excluded
+
+      const summary = findingDao.severitySummaryByProjectId("p-grp");
+      expect(summary.critical).toBe(1);
+      expect(summary.high).toBe(2);
+      expect(summary.medium).toBe(0);
+    });
+
+    it("unresolvedCountByProjectId counts only unresolved statuses", () => {
+      findingDao.save(makeFinding({ id: "uf1", runId: "r-grp", projectId: "p-grp", status: "open" }));
+      findingDao.save(makeFinding({ id: "uf2", runId: "r-grp", projectId: "p-grp", status: "needs_review" }));
+      findingDao.save(makeFinding({ id: "uf3", runId: "r-grp", projectId: "p-grp", status: "fixed" }));
+      findingDao.save(makeFinding({ id: "uf4", runId: "r-grp", projectId: "p-grp", status: "false_positive" }));
+
+      expect(findingDao.unresolvedCountByProjectId("p-grp")).toBe(2);
+    });
+
+    it("groupByRuleId groups findings by ruleId", () => {
+      findingDao.save(makeFinding({ id: "gr1", runId: "r-grp", projectId: "p-grp", ruleId: "rule-A", severity: "high" }));
+      findingDao.save(makeFinding({ id: "gr2", runId: "r-grp", projectId: "p-grp", ruleId: "rule-A", severity: "critical" }));
+      findingDao.save(makeFinding({ id: "gr3", runId: "r-grp", projectId: "p-grp", ruleId: "rule-B", severity: "low" }));
+
+      const groups = findingDao.groupByRuleId("p-grp");
+      expect(groups.length).toBeGreaterThanOrEqual(2);
+      const ruleA = groups.find((g: any) => g.key === "rule-A");
+      expect(ruleA?.count).toBe(2);
+    });
+
+    it("groupByLocation groups findings by file path", () => {
+      findingDao.save(makeFinding({ id: "gl1", runId: "r-grp", projectId: "p-grp", location: "src/main.c:10", severity: "high" }));
+      findingDao.save(makeFinding({ id: "gl2", runId: "r-grp", projectId: "p-grp", location: "src/main.c:20", severity: "medium" }));
+      findingDao.save(makeFinding({ id: "gl3", runId: "r-grp", projectId: "p-grp", location: "src/util.c:5", severity: "low" }));
+
+      const groups = findingDao.groupByLocation("p-grp");
+      expect(groups.length).toBeGreaterThanOrEqual(2);
     });
   });
 });

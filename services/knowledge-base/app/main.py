@@ -50,9 +50,15 @@ async def lifespan(_app: FastAPI):
 
     # Qdrant 벡터 검색 초기화
     try:
-        threat_search = ThreatSearch(settings.qdrant_path)
+        threat_search = ThreatSearch(
+            qdrant_path=settings.qdrant_path if not settings.qdrant_url else None,
+            qdrant_url=settings.qdrant_url,
+            qdrant_api_key=settings.qdrant_api_key,
+        )
         vector_search = VectorSearch(threat_search)
-        logger.info("Qdrant 초기화 완료: path=%s", settings.qdrant_path)
+        logger.info("Qdrant 초기화 완료: mode=%s, target=%s",
+                     threat_search.mode,
+                     settings.qdrant_url or settings.qdrant_path)
     except Exception as e:
         logger.warning("Qdrant 초기화 실패 (데이터 미적재 시 정상): %s", e)
 
@@ -122,6 +128,7 @@ async def lifespan(_app: FastAPI):
 
     api.set_assembler(assembler)
     api.set_neo4j_graph(neo4j_graph)
+    api.set_graph_degraded(bool(vector_search) and not bool(neo4j_graph))
     code_graph_api.set_service(code_graph_svc)
     code_graph_api.set_code_vector_search(code_vector_search)
     code_graph_api.set_code_assembler(code_assembler)

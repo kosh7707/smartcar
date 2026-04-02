@@ -1,6 +1,7 @@
 """ScanbuildRunner 파서 단위 테스트."""
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -111,3 +112,34 @@ class TestNormalizePath:
 
     def test_already_relative(self):
         assert normalize_path("src/main.c", Path("/tmp/scan")) == "src/main.c"
+
+
+class TestFileProgressCallback:
+    @pytest.mark.asyncio
+    async def test_on_file_progress_called(self, runner):
+        """파일 완료 시 on_file_progress 콜백이 호출되고 done/total이 정확한지 확인."""
+        progress_calls = []
+
+        async def on_file_progress(file: str, done: int, total: int):
+            progress_calls.append((file, done, total))
+
+        async def _mock_single(bin_name, scan_dir, f, profile, timeout):
+            return []
+
+        with (
+            patch.object(runner, "_run_single", side_effect=_mock_single),
+            patch.object(runner, "check_available", return_value=(True, "scan-build-18")),
+        ):
+            await runner.run(
+                scan_dir=Path("/tmp/scan"),
+                source_files=["src/a.c", "src/b.c"],
+                profile=None,
+                timeout=60,
+                on_file_progress=on_file_progress,
+            )
+
+        assert len(progress_calls) == 2
+        files = [f for f, _, _ in progress_calls]
+        assert set(files) == {"src/a.c", "src/b.c"}
+        last = max(progress_calls, key=lambda x: x[1])
+        assert last[1] == last[2] == 2

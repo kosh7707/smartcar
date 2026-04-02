@@ -16,11 +16,11 @@ from app.routers import tasks
 
 
 class _JsonFormatter(jsonlogger.JsonFormatter):
+    _LEVEL_MAP = {"DEBUG": 20, "INFO": 30, "WARNING": 40, "ERROR": 50, "CRITICAL": 60}
+
     def add_fields(self, log_record, record, message_dict):
         super().add_fields(log_record, record, message_dict)
-        # pino 숫자 표준: 10=debug, 20=info(→30), 30=warning(→40), 40=error(→50)
-        _LEVEL_MAP = {"DEBUG": 20, "INFO": 30, "WARNING": 40, "ERROR": 50, "CRITICAL": 60}
-        log_record["level"] = _LEVEL_MAP.get(record.levelname, 30)
+        log_record["level"] = self._LEVEL_MAP.get(record.levelname, 30)
         log_record["time"] = int(record.created * 1000)
         log_record["service"] = "s7-gateway"
         log_record["msg"] = log_record.pop("message", "")
@@ -117,6 +117,7 @@ async def lifespan(_app: FastAPI):
     _app.state.pipeline = TaskPipeline(
         _app.state.prompt_registry, _app.state.model_registry,
         context_enricher=enricher, llm_client=llm_client,
+        semaphore=_app.state.llm_semaphore,
     )
 
     # LLM Engine 프록시 클라이언트 초기화 (/v1/chat 용)

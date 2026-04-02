@@ -26,6 +26,9 @@ export const EvidencePanel: React.FC<Props> = ({ evidenceRefs, onSelectEvidence 
         <FileCheck size={16} />
         증적 ({evidenceRefs.length})
       </div>
+      <p style={{ fontSize: "var(--text-xs)", color: "var(--text-tertiary)", margin: "0 0 var(--space-2)" }}>
+        Finding과 연결된 코드 위치 및 분석 근거
+      </p>
 
       {evidenceRefs.length === 0 ? (
         <EmptyState compact title="연결된 증적이 없습니다" />

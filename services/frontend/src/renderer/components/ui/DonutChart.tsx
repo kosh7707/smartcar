@@ -6,6 +6,7 @@ interface Props {
   size?: number;
   strokeWidth?: number;
   showLegend?: boolean;
+  centerLabel?: string;
 }
 
 const SEGMENTS = [
@@ -16,7 +17,7 @@ const SEGMENTS = [
   { key: "info" as const, label: "Info", color: "var(--severity-info)" },
 ];
 
-export const DonutChart: React.FC<Props> = ({ summary, size = 120, strokeWidth = 14, showLegend = true }) => {
+export const DonutChart: React.FC<Props> = ({ summary, size = 120, strokeWidth = 14, showLegend = true, centerLabel = "Finding" }) => {
   const total = summary.critical + summary.high + summary.medium + summary.low + (summary.info ?? 0);
 
   const cx = 60;
@@ -77,7 +78,7 @@ export const DonutChart: React.FC<Props> = ({ summary, size = 120, strokeWidth =
           {total}
         </text>
         <text x={cx} y={cy + 14} textAnchor="middle" dominantBaseline="central" fontSize="10" fill="var(--text-tertiary)">
-          Finding
+          {centerLabel}
         </text>
       </svg>
       {showLegend && (

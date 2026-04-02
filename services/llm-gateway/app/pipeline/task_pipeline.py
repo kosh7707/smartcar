@@ -49,11 +49,6 @@ class _LlmAttemptFailure:
     token_usage: TokenUsage
 
 
-# vLLM continuous batching 활용 — 동시 요청 수 제어.
-# AEGIS_LLM_CONCURRENCY 환경변수로 조정 가능 (기본 4).
-_llm_semaphore = asyncio.Semaphore(settings.llm_concurrency)
-
-
 class TaskPipeline:
     """v1 Task 처리 오케스트레이터.
 
@@ -67,6 +62,7 @@ class TaskPipeline:
         model_registry: ModelProfileRegistry,
         context_enricher: "ContextEnricher | None" = None,
         llm_client: "RealLlmClient | None" = None,
+        semaphore: "asyncio.Semaphore | None" = None,
     ) -> None:
         self._prompt_registry = prompt_registry
         self._model_registry = model_registry
@@ -77,12 +73,13 @@ class TaskPipeline:
         self._confidence_calculator = ConfidenceCalculator()
         self._context_enricher = context_enricher
         self._llm_client = llm_client
+        self._semaphore = semaphore or asyncio.Semaphore(settings.llm_concurrency)
 
     async def execute(
         self,
         request: TaskRequest,
     ) -> TaskSuccessResponse | TaskFailureResponse:
-        start = time.time()
+        start = time.monotonic()
 
         # 1. Prompt 조회
         prompt_entry = self._prompt_registry.get(request.taskType)
@@ -206,7 +203,7 @@ class TaskPipeline:
                     continue
                 # 모든 시도 소진 → 최종 실패
                 retry_count = attempt - 1
-                elapsed_ms = int((time.time() - start) * 1000)
+                elapsed_ms = int((time.monotonic() - start) * 1000)
                 logger.warning(
                     "[%s] 재시도 소진 (%d회 시도): %s",
                     request.taskType, max_attempts, last_failure.code,
@@ -291,7 +288,7 @@ class TaskPipeline:
             plan=test_plan,
         )
 
-        elapsed_ms = int((time.time() - start) * 1000)
+        elapsed_ms = int((time.monotonic() - start) * 1000)
         audit = self._build_audit(
             request, elapsed_ms, token_usage, rag_hits_count,
             retry_count=retry_count,
@@ -334,7 +331,7 @@ class TaskPipeline:
                     enable_thinking=False, json_mode=True,
                 )
 
-            async with _llm_semaphore:
+            async with self._semaphore:
                 prom.CONCURRENT_REQUESTS.inc()
                 try:
                     content = await client.generate(
@@ -365,7 +362,7 @@ class TaskPipeline:
         detail: str,
         retryable: bool = False,
     ) -> TaskFailureResponse:
-        elapsed_ms = int((time.time() - start) * 1000)
+        elapsed_ms = int((time.monotonic() - start) * 1000)
         logger.warning(
             "[%s] Task failed (%s): %s",
             request.taskType, code, detail,

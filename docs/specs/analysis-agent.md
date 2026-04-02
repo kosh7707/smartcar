@@ -1,7 +1,7 @@
 # S3. Analysis Agent 기능 명세
 
 > **소유자**: S3
-> **최종 업데이트**: 2026-03-28
+> **최종 업데이트**: 2026-04-02
 
 > Analysis Agent는 자동차 임베디드 소프트웨어의 **증거 기반 보안 심층 분석**을 수행하는 서비스다.
 > 결정론적 도구 실행(Phase 1)과 LLM 해석(Phase 2)을 분리하여,
@@ -57,7 +57,9 @@ POST /v1/tasks (taskType: "deep-analyze")
   │
   ├── Phase 2: LLM 해석 (~34초)
   │   ├── Phase 1 결과를 프롬프트에 주입 (출력 스키마 명시)
-  │   ├── LLM이 추가 tool 호출 가능: knowledge.search, code_graph.callers (불확실성 기반, 최대 2회)
+  │   ├── LLM이 추가 tool 호출 가능 (6종):
+  │   │     knowledge.search, code_graph.callers, code_graph.callees,
+  │   │     code_graph.search, code.read_file, build.metadata
   │   ├── LLM 호출은 S7 Gateway 경유 (POST /v1/chat)
   │   └── Qwen 122B GPTQ-Int4 → 구조화 JSON (claims + evidence refs)
   │
@@ -74,6 +76,10 @@ POST /v1/tasks (taskType: "deep-analyze")
 
 - S4 `POST /v1/scan` 호출
 - 6개 SAST 도구(Semgrep, Cppcheck, clang-tidy, Flawfinder, scan-build, gcc -fanalyzer) 병렬 실행
+- **NDJSON 스트리밍** (S4 v0.8.0+): `Accept: application/x-ndjson` 헤더
+  - 이벤트: `progress` (도구별 완료), `heartbeat` (25초 생존), `result` (최종), `error`
+  - 60초 inactivity timeout (per-line `asyncio.wait_for`)
+  - 동기 fallback: Content-Type이 ndjson이 아니면 기존 JSON 방식
 - SDK 노이즈 자동 필터링
 
 ### 5.2 코드 그래프 추출
@@ -172,8 +178,12 @@ Phase 1 완료 후 `build_phase2_prompt()`가 결과를 시스템 프롬프트 +
 
 | 도구 | cost tier | 대상 | 용도 |
 |------|-----------|------|------|
-| `knowledge.search` | CHEAP | S5 KB `POST /v1/search` | CWE/CVE/ATT&CK 위협 지식 검색 |
+| `knowledge.search` | CHEAP | S5 KB `POST /v1/search` | CWE/CVE/ATT&CK 위협 지식 검색. `exclude_ids`로 중복 제외 |
 | `code_graph.callers` | MEDIUM | S5 KB `GET /v1/code-graph/{pid}/callers/{fn}` | 특정 함수의 호출자 체인 조회 |
+| `code_graph.callees` | CHEAP | S5 KB `GET /v1/code-graph/{pid}/callees/{fn}` | 특정 함수가 호출하는 함수 목록 |
+| `code_graph.search` | MEDIUM | S5 KB `POST /v1/code-graph/{pid}/search` | 자연어 쿼리 시맨틱 코드 검색 |
+| `code.read_file` | CHEAP | 로컬 파일시스템 | 소스 파일 읽기 (최대 8,000자, 경로 탈출 차단) |
+| `build.metadata` | CHEAP | S4 `POST /v1/metadata` | 타겟 빌드 환경 매크로/아키텍처 조회 |
 
 > `sast.scan`과 `sca.libraries`는 Phase 1에서 이미 실행되므로 Phase 2 도구에 포함되지 않는다.
 
@@ -192,10 +202,14 @@ Phase 1 완료 후 `build_phase2_prompt()`가 결과를 시스템 프롬프트 +
 
 | 파일 | 도구명 | 호출 대상 |
 |------|--------|-----------|
-| `sast_tool.py` | `sast.scan` | S4 `/v1/scan` |
-| `codegraph_tool.py` | `code_graph.callers` | S5 KB `/v1/code-graph/callers/` |
+| `sast_tool.py` | `sast.scan` | S4 `/v1/scan` (NDJSON 스트리밍) |
+| `codegraph_callers_tool.py` | `code_graph.callers` | S5 KB `/v1/code-graph/callers/` |
+| `codegraph_callees_tool.py` | `code_graph.callees` | S5 KB `/v1/code-graph/callees/` |
+| `codegraph_search_tool.py` | `code_graph.search` | S5 KB `/v1/code-graph/search/` |
 | `codegraph_phase1_tool.py` | (Phase 1 전용) | S4 `/v1/functions` |
 | `knowledge_tool.py` | `knowledge.search` | S5 `/v1/search` |
+| `read_file_tool.py` | `code.read_file` | 로컬 파일시스템 (프로젝트 디렉토리 내) |
+| `metadata_tool.py` | `build.metadata` | S4 `/v1/metadata` |
 | `sca_tool.py` | `sca.libraries` | S4 `/v1/libraries` |
 
 ---
@@ -241,6 +255,22 @@ BudgetState:
 
 `ToolRouter`가 `args_hash`로 동일 인자 도구 호출을 차단한다.
 
+### Evidence Sanitizer
+
+`EvidenceRefSanitizer` — LLM 응답의 환각 refId를 후처리하는 교정기.
+
+| 단계 | 동작 |
+|------|------|
+| 1 | LLM 응답의 모든 refId를 `allowed_refs`와 대조 |
+| 2 | 유효 ref → 유지 |
+| 3 | 환각 ref → `difflib.SequenceMatcher` (threshold 0.6)로 최유사 ref 교정 |
+| 4 | 매칭 실패 → 제거 |
+| 5 | `allowed_refs`가 비어있으면 모든 refs 제거 |
+
+- 실행 시점: `ResultAssembler.build()` — validation 전 (INVALID_GROUNDING 방지)
+- `generate-poc`에도 동일 적용
+- 파일: `app/validators/evidence_sanitizer.py`
+
 ---
 
 ## 9. 출력 구조
@@ -263,7 +293,8 @@ TaskSuccessResponse:
         policyFlags: list[str]       # ISO21434-noncompliant, MISRA-violation 등
     audit: AuditInfo
         inputHash, latencyMs, tokenUsage, createdAt
-        agentAudit: {turn_count, tool_call_count, termination_reason, trace}
+        agentAudit: {turn_count, tool_call_count, termination_reason, trace,
+                     model_name, prompt_version, total_prompt_tokens, total_completion_tokens}
 ```
 
 ### TaskFailureResponse

@@ -46,14 +46,14 @@ class TestCompactionWithStateSummary:
         removed = await mm.compact(summarizer, keep_last_n=4, state_summary=state)
 
         assert removed > 0
-        # 상태 요약이 포함된 system 메시지가 있는지 확인
+        # 세션 상태가 포함된 system 메시지가 있는지 확인
         found = False
         for msg in mm._messages:
-            if msg.get("role") == "system" and "상태 요약" in msg.get("content", ""):
+            if msg.get("role") == "system" and "세션 상태" in msg.get("content", ""):
                 found = True
                 assert "files_read_count" in msg["content"]
                 assert "build_attempts" in msg["content"]
-        assert found, "compaction 후 상태 요약 메시지가 없음"
+        assert found, "compaction 후 세션 상태 메시지가 없음"
 
 
 class TestPromptTokenTracking:

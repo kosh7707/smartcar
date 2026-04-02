@@ -1,6 +1,9 @@
 """RetryPolicy 단위 테스트."""
 
-from agent_shared.errors import LlmHttpError, LlmInputTooLargeError, LlmTimeoutError, LlmUnavailableError
+from agent_shared.errors import (
+    LlmHttpError, LlmInputTooLargeError, LlmPoolExhaustedError,
+    LlmTimeoutError, LlmUnavailableError,
+)
 from agent_shared.policy.retry import RetryPolicy
 
 
@@ -38,11 +41,10 @@ def test_no_retry_on_generic_exception():
 
 def test_delay_exponential_backoff():
     policy = RetryPolicy()
-    assert policy.get_delay_seconds(LlmTimeoutError(), 0) == 1.0
-    assert policy.get_delay_seconds(LlmTimeoutError(), 1) == 2.0
-    assert policy.get_delay_seconds(LlmTimeoutError(), 2) == 4.0
-    assert policy.get_delay_seconds(LlmTimeoutError(), 3) == 8.0
-    assert policy.get_delay_seconds(LlmTimeoutError(), 4) == 8.0  # capped
+    assert policy.get_delay_seconds(LlmTimeoutError(), 0) == 2.0
+    assert policy.get_delay_seconds(LlmTimeoutError(), 1) == 4.0
+    assert policy.get_delay_seconds(LlmTimeoutError(), 2) == 8.0
+    assert policy.get_delay_seconds(LlmTimeoutError(), 3) == 8.0  # capped
 
 
 def test_delay_circuit_breaker_503():
@@ -56,3 +58,32 @@ def test_delay_circuit_breaker_503():
 def test_retry_on_503():
     policy = RetryPolicy(max_retries=1)
     assert policy.should_retry(LlmHttpError(503), attempt=0) is True
+
+
+def test_retry_on_pool_exhausted():
+    """Pool 소진 에러도 재시도 대상."""
+    policy = RetryPolicy(max_retries=2)
+    assert policy.should_retry(LlmPoolExhaustedError(), attempt=0) is True
+    assert policy.get_delay_seconds(LlmPoolExhaustedError(), 0) == 5.0
+
+
+def test_429_retry_after_header():
+    """429 + Retry-After 헤더가 있으면 해당 값 사용."""
+    policy = RetryPolicy()
+    error = LlmHttpError(429, "Too Many Requests", retry_after=10.0)
+    assert policy.get_delay_seconds(error, 0) == 10.0
+
+
+def test_429_retry_after_capped():
+    """Retry-After가 60초 초과면 60초로 cap."""
+    policy = RetryPolicy()
+    error = LlmHttpError(429, "Too Many Requests", retry_after=120.0)
+    assert policy.get_delay_seconds(error, 0) == 60.0
+
+
+def test_429_no_retry_after_uses_backoff():
+    """429에 Retry-After 없으면 지수 백오프."""
+    policy = RetryPolicy()
+    error = LlmHttpError(429, "Too Many Requests")
+    assert policy.get_delay_seconds(error, 0) == 2.0
+    assert policy.get_delay_seconds(error, 1) == 4.0

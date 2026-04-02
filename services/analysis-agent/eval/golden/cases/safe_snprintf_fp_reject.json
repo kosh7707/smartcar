@@ -1,0 +1,80 @@
+{
+  "id": "safe-snprintf-fp-reject",
+  "description": "False positive rejection test - snprintf with sizeof is safe, agent should NOT report vulnerability",
+  "category": "false_positive_rejection",
+  "difficulty": "basic",
+  "input": {
+    "task_type": "deep-analyze",
+    "objective": "보안 취약점 심층 분석",
+    "sast_findings": [
+      {
+        "toolId": "cppcheck",
+        "ruleId": "bufferAccessOutOfBounds",
+        "severity": "warning",
+        "location": {
+          "file": "src/safe.c",
+          "line": 12
+        },
+        "message": "Buffer is accessed out of bounds. Possible buffer overflow."
+      },
+      {
+        "toolId": "flawfinder",
+        "ruleId": "char-1",
+        "severity": "style",
+        "location": {
+          "file": "src/safe.c",
+          "line": 8
+        },
+        "message": "Statically-sized arrays can be improperly restricted, leading to potential overflows."
+      }
+    ],
+    "code_functions": [
+      {
+        "name": "format_message",
+        "file": "src/safe.c",
+        "line": 7
+      }
+    ],
+    "threat_context": [
+      {
+        "id": "CWE-120",
+        "source": "cwe",
+        "title": "Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')",
+        "threat_category": "memory-safety"
+      }
+    ],
+    "source_code": "/* src/safe.c */\n#include <stdio.h>\n#include <string.h>\n\n#define MSG_BUF_SIZE 128\n\nvoid format_message(const char *user_input, int code) {\n    char buf[MSG_BUF_SIZE];  /* line 8: static array - not inherently unsafe */\n    \n    /* line 12: SAFE - snprintf with sizeof prevents overflow */\n    snprintf(buf, sizeof(buf), \"[%d] %s\", code, user_input);\n    \n    /* Additional safe operations */\n    size_t len = strlen(buf);\n    if (len > 0) {\n        buf[len - 1] = '\\n';\n    }\n    \n    fputs(buf, stdout);\n}\n",
+    "evidence_refs": [
+      {
+        "refId": "eref-eval-safe-src",
+        "artifactType": "raw-source",
+        "locator": {
+          "file": "src/safe.c"
+        },
+        "artifactId": "eref-eval-safe-src",
+        "locatorType": "file"
+      }
+    ]
+  },
+  "expected": {
+    "must_find": [],
+    "must_reject": [
+      {
+        "cwe": "CWE-120",
+        "file": "safe.c",
+        "keywords": [
+          "snprintf",
+          "overflow"
+        ],
+        "reason": "snprintf with sizeof(buf) prevents buffer overflow"
+      }
+    ],
+    "severity_range": [
+      "info",
+      "low"
+    ],
+    "min_total_claims": 0,
+    "max_total_claims": 1,
+    "required_cwe_mentions": []
+  }
+}

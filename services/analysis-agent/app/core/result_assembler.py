@@ -22,6 +22,7 @@ from app.schemas.response import (
     ValidationInfo,
 )
 from app.types import FailureCode, TaskStatus
+from app.validators.evidence_sanitizer import EvidenceRefSanitizer
 from app.validators.evidence_validator import EvidenceValidator
 from app.validators.schema_validator import SchemaValidator
 
@@ -37,6 +38,7 @@ class ResultAssembler:
     def __init__(self, model_name: str = "", prompt_version: str = "agent-v1") -> None:
         self._parser = V1ResponseParser()
         self._schema_validator = SchemaValidator()
+        self._evidence_sanitizer = EvidenceRefSanitizer()
         self._evidence_validator = EvidenceValidator()
         self._confidence_calculator = ConfidenceCalculator()
         self._model_name = model_name
@@ -74,6 +76,17 @@ class ResultAssembler:
         allowed_refs.update(session.extra_allowed_refs)
         for step in session.trace:
             allowed_refs.update(step.new_evidence_refs)
+
+        # 환각 refId 교정/제거 (validation 전에 실행)
+        parsed, sanitize_corrections = self._evidence_sanitizer.sanitize(parsed, allowed_refs)
+        if sanitize_corrections:
+            agent_log(
+                logger, "evidence ref 교정",
+                component="result_assembler", phase="result_sanitize",
+                correctionCount=len(sanitize_corrections),
+                corrections=sanitize_corrections[:10],
+            )
+
         schema_result = self._schema_validator.validate(parsed, session.request.taskType)
         evidence_valid, evidence_errors = self._evidence_validator.validate(parsed, allowed_refs)
         validation = ValidationInfo(

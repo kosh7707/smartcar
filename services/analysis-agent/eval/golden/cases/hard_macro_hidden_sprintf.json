@@ -1,0 +1,88 @@
+{
+  "id": "hard-macro-hidden-sprintf",
+  "description": "Vulnerability hidden inside a macro expansion. sprintf without bounds check wrapped in LOG_MSG macro. Mixed with safe snprintf findings.",
+  "category": "mixed",
+  "difficulty": "hard",
+  "input": {
+    "task_type": "deep-analyze",
+    "objective": "보안 취약점 심층 분석",
+    "sast_findings": [
+      {
+        "toolId": "flawfinder",
+        "ruleId": "sprintf-1",
+        "severity": "error",
+        "location": {"file": "src/diag.c", "line": 35},
+        "message": "sprintf(): Does not check for buffer overflows. Use snprintf() instead."
+      },
+      {
+        "toolId": "cppcheck",
+        "ruleId": "bufferAccessOutOfBounds",
+        "severity": "warning",
+        "location": {"file": "src/diag.c", "line": 42},
+        "message": "Buffer is accessed out of bounds."
+      },
+      {
+        "toolId": "flawfinder",
+        "ruleId": "snprintf-1",
+        "severity": "style",
+        "location": {"file": "src/telemetry.c", "line": 20},
+        "message": "snprintf(): On some very old systems, snprintf is incorrectly implemented."
+      },
+      {
+        "toolId": "cppcheck",
+        "ruleId": "variableScope",
+        "severity": "style",
+        "location": {"file": "src/telemetry.c", "line": 15},
+        "message": "The scope of the variable 'buf' can be reduced."
+      }
+    ],
+    "code_functions": [
+      {"name": "handle_uds_request", "file": "src/diag.c", "line": 20},
+      {"name": "send_telemetry", "file": "src/telemetry.c", "line": 12}
+    ],
+    "threat_context": [
+      {
+        "id": "CWE-120",
+        "source": "cwe",
+        "title": "Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')",
+        "threat_category": "memory-safety"
+      },
+      {
+        "id": "CWE-134",
+        "source": "cwe",
+        "title": "Use of Externally-Controlled Format String",
+        "threat_category": "injection"
+      }
+    ],
+    "source_code": "/* src/logging.h */\n#ifndef LOGGING_H\n#define LOGGING_H\n#include <stdio.h>\n#include <string.h>\n\n/* DANGER: This macro uses sprintf without bounds checking! */\n/* The vulnerability is hidden inside the macro expansion */\n#define LOG_MSG(buf, fmt, ...) do { \\\n    sprintf(buf, \"[ECU] \" fmt, ##__VA_ARGS__); \\\n} while(0)\n\n/* Safe version for comparison */\n#define LOG_MSG_SAFE(buf, sz, fmt, ...) do { \\\n    snprintf(buf, sz, \"[ECU] \" fmt, ##__VA_ARGS__); \\\n} while(0)\n\n#endif\n\n/* src/diag.c */\n#include <stdio.h>\n#include <string.h>\n#include \"logging.h\"\n\n/* UDS diagnostic handler - processes requests from external tool */\nvoid handle_uds_request(const char *service_id, const char *data, size_t data_len) {\n    char log_buf[64];    /* small buffer! */\n    char response[256];\n\n    /* line 35: VULNERABLE - LOG_MSG expands to sprintf(log_buf, ...) */\n    /* If data contains long string, overflows 64-byte log_buf */\n    LOG_MSG(log_buf, \"UDS[%s]: %s\", service_id, data);\n\n    /* Process the request */\n    if (strcmp(service_id, \"0x22\") == 0) {\n        /* ReadDataByIdentifier */\n        snprintf(response, sizeof(response), \"OK: %.*s\", (int)data_len, data);\n    }\n\n    /* line 42: VULNERABLE - log_buf may already be corrupted from overflow above */\n    printf(\"%s\\n\", log_buf);\n}\n\n/* src/telemetry.c */\n#include <stdio.h>\n#include <string.h>\n#include \"logging.h\"\n\nvoid send_telemetry(int channel_id, float value) {\n    char buf[128];  /* line 15: variable scope - not a vulnerability */\n\n    /* line 20: SAFE - uses LOG_MSG_SAFE with sizeof(buf) */\n    LOG_MSG_SAFE(buf, sizeof(buf), \"CH%d=%.2f\", channel_id, value);\n\n    /* send buf to telemetry server... */\n    printf(\"%s\\n\", buf);\n}\n",
+    "evidence_refs": [
+      {"refId": "eref-eval-hard-macro-src", "artifactId": "eref-eval-hard-macro-src", "artifactType": "raw-source", "locatorType": "file", "locator": {"file": "src/diag.c"}}
+    ]
+  },
+  "expected": {
+    "must_find": [
+      {
+        "severity_min": "high",
+        "file": "diag.c",
+        "keywords": ["sprintf"]
+      }
+    ],
+    "must_reject": [
+      {
+        "file": "telemetry.c",
+        "keywords": ["snprintf"],
+        "reason": "snprintf with sizeof - safe, and LOG_MSG_SAFE uses bounded version"
+      },
+      {
+        "file": "telemetry.c",
+        "line_range": [13, 17],
+        "keywords": ["scope"],
+        "reason": "variable scope is a style issue, not a vulnerability"
+      }
+    ],
+    "severity_range": ["high", "critical"],
+    "min_total_claims": 1,
+    "max_total_claims": 3,
+    "required_cwe_mentions": ["CWE-120"]
+  }
+}

@@ -2,7 +2,18 @@ import type { CanMessage } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IDynamicMessageDAO } from "./interfaces";
 
-function rowToCanMessage(row: any): CanMessage {
+interface CanMessageRow {
+  id: number;
+  session_id: string;
+  timestamp: string;
+  can_id: string;
+  dlc: number;
+  data: string;
+  flagged: number;
+  injected: number;
+}
+
+function rowToCanMessage(row: CanMessageRow): CanMessage {
   return {
     timestamp: row.timestamp,
     id: row.can_id,
@@ -40,14 +51,14 @@ export class DynamicMessageDAO implements IDynamicMessageDAO {
   }
 
   findBySessionId(sessionId: string): CanMessage[] {
-    return this.selectBySessionStmt.all(sessionId).map(rowToCanMessage);
+    return (this.selectBySessionStmt.all(sessionId) as CanMessageRow[]).map(rowToCanMessage);
   }
 
   findRecent(sessionId: string, limit: number): CanMessage[] {
-    return this.selectRecentStmt.all(sessionId, limit).map(rowToCanMessage).reverse();
+    return (this.selectRecentStmt.all(sessionId, limit) as CanMessageRow[]).map(rowToCanMessage).reverse();
   }
 
   countBySessionId(sessionId: string): number {
-    return (this.countBySessionStmt.get(sessionId) as any).cnt;
+    return (this.countBySessionStmt.get(sessionId) as { cnt: number }).cnt;
   }
 }

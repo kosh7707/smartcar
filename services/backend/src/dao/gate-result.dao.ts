@@ -1,16 +1,28 @@
-import type { GateResult } from "@aegis/shared";
+import type { GateResult, GateStatus } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IGateResultDAO } from "./interfaces";
+import { safeJsonParse } from "../lib/utils";
 
-function rowToGateResult(row: any): GateResult {
+interface GateResultRow {
+  id: string;
+  run_id: string;
+  project_id: string;
+  status: GateStatus;
+  rules: string;
+  evaluated_at: string;
+  override: string | null;
+  created_at: string;
+}
+
+function rowToGateResult(row: GateResultRow): GateResult {
   return {
     id: row.id,
     runId: row.run_id,
     projectId: row.project_id,
     status: row.status,
-    rules: JSON.parse(row.rules),
+    rules: safeJsonParse(row.rules, []),
     evaluatedAt: row.evaluated_at,
-    override: row.override ? JSON.parse(row.override) : undefined,
+    override: row.override ? safeJsonParse(row.override, undefined) : undefined,
     createdAt: row.created_at,
   };
 }
@@ -51,17 +63,17 @@ export class GateResultDAO implements IGateResultDAO {
   }
 
   findById(id: string): GateResult | undefined {
-    const row = this.selectByIdStmt.get(id);
+    const row = this.selectByIdStmt.get(id) as GateResultRow | undefined;
     return row ? rowToGateResult(row) : undefined;
   }
 
   findByRunId(runId: string): GateResult | undefined {
-    const row = this.selectByRunStmt.get(runId);
+    const row = this.selectByRunStmt.get(runId) as GateResultRow | undefined;
     return row ? rowToGateResult(row) : undefined;
   }
 
   findByProjectId(projectId: string): GateResult[] {
-    return this.selectByProjectStmt.all(projectId).map(rowToGateResult);
+    return (this.selectByProjectStmt.all(projectId) as GateResultRow[]).map(rowToGateResult);
   }
 
   updateOverride(id: string, override: GateResult["override"]): void {
@@ -73,7 +85,7 @@ export class GateResultDAO implements IGateResultDAO {
     since?: string
   ): { total: number; passed: number; failed: number; rate: number } {
     const conditions = ["project_id = ?"];
-    const params: any[] = [projectId];
+    const params: (string | number | null)[] = [projectId];
     if (since) {
       conditions.push("created_at >= ?");
       params.push(since);
@@ -95,5 +107,12 @@ export class GateResultDAO implements IGateResultDAO {
       failed: row.failed,
       rate: row.total > 0 ? Number((row.passed / row.total).toFixed(4)) : 0,
     };
+  }
+
+  latestByProjectId(projectId: string): GateResult | undefined {
+    const row = this.db.prepare(
+      `SELECT * FROM gate_results WHERE project_id = ? ORDER BY created_at DESC LIMIT 1`,
+    ).get(projectId) as GateResultRow | undefined;
+    return row ? rowToGateResult(row) : undefined;
   }
 }

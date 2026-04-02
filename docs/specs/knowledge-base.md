@@ -213,7 +213,9 @@ ETL에서 11개 공격 표면으로 분류 (`scripts/threat-db/taxonomy.py`):
 
 | 변수 | 기본값 | 설명 |
 |------|--------|------|
-| `AEGIS_KB_QDRANT_PATH` | `data/qdrant` | Qdrant 파일 스토리지 경로 |
+| `AEGIS_KB_QDRANT_PATH` | `data/qdrant` | Qdrant 파일 스토리지 경로 (file 모드) |
+| `AEGIS_KB_QDRANT_URL` | (없음) | Qdrant 서버 URL (server 모드). 설정 시 path 대신 사용 |
+| `AEGIS_KB_QDRANT_API_KEY` | (없음) | Qdrant 서버 인증 키 (server 모드) |
 | `AEGIS_KB_RAG_TOP_K` | 5 | 검색 기본 반환 건수 |
 | `AEGIS_KB_RAG_MIN_SCORE` | 0.35 | 벡터 검색 최소 유사도 |
 | `AEGIS_KB_GRAPH_DEPTH` | 2 | 그래프 이웃 탐색 기본 깊이 |
@@ -245,7 +247,7 @@ ETL에서 11개 공격 표면으로 분류 (`scripts/threat-db/taxonomy.py`):
 
 ```bash
 cd services/knowledge-base
-.venv/bin/python -m pytest tests/ -q  # 119 passed (2026-03-31 확인)
+.venv/bin/python -m pytest tests/ -q  # 142 passed (2026-04-02 확인)
 ```
 
 모든 테스트는 Neo4j 드라이버를 mock하여 실행 — Neo4j/Qdrant 미설치 환경에서도 통과.
@@ -259,7 +261,9 @@ cd services/knowledge-base
 | `test_knowledge_assembler.py` | 15 | 위협 하이브리드 검색, 중복 제거, 소스 필터링, 배치, RRF |
 | `test_nvd_client.py` | 37 | 버전 매칭, 캐시, CPE 추론, 배치 병렬, EPSS, KEV, risk_score, KB 보강, 캐시 영속화 |
 | `test_project_memory_service.py` | 18 | 메모리 CRUD, 타입 검증, JSON 손상 처리, lifecycle, 센티넬, 마이그레이션 |
-| `test_api_error_responses.py` | 10 | 에러 포맷, health/ready, HTTPException 핸들러 |
+| `test_api_error_responses.py` | 13 | 에러 포맷, health/ready, HTTPException 핸들러, degraded mode |
+| `test_qdrant_modes.py` | 5 | Qdrant file/server 듀얼 모드 초기화 |
+| `test_benchmark_metrics.py` | 15 | 벤치마크 메트릭 (P@k, R@k, NDCG, MRR, hit rate) |
 
 ---
 
@@ -267,6 +271,6 @@ cd services/knowledge-base
 
 | 제약 | 영향 | 비고 |
 |------|------|------|
-| Qdrant 파일 기반 동시 접근 불가 | KB 독점, 다른 서비스는 REST API 경유 | 서버 모드 전환으로 해결 가능 |
+| Qdrant 파일 기반 동시 접근 불가 | KB 독점, 다른 서비스는 REST API 경유 | `AEGIS_KB_QDRANT_URL` 설정으로 서버 모드 전환 가능 |
 | Neo4j Community (클러스터 불가) | 단일 인스턴스, HA 불가 | 현재 개발 환경에서는 문제 없음 |
 | 코드 그래프 대규모 적재 미검증 | RE100(390노드, origin 포함)은 정상, 대규모 프로젝트 미테스트 | |

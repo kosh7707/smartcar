@@ -1,3 +1,8 @@
+/* ═══════════════════════════════════════════════════════════════
+   StatusBar — Instrument Status Strip
+   Terminal-like data readout. Monospaced. Compact.
+   ═══════════════════════════════════════════════════════════════ */
+
 .statusbar {
   height: var(--statusbar-height);
   background: var(--surface-1);
@@ -6,8 +11,12 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 var(--space-4);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
+  font-family: var(--font-data);
   color: var(--text-tertiary);
+  letter-spacing: 0.02em;
+  position: relative;
+  gap: var(--space-3);
 }
 
 .statusbar-item {
@@ -29,15 +38,15 @@
 }
 
 .status-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: var(--radius-full);
   transition: background var(--transition-fast), box-shadow var(--transition-base);
 }
 
 .status-dot.ok {
-  background: var(--success);
-  box-shadow: var(--glow-success);
+  background: var(--accent);
+  box-shadow: var(--glow-accent);
 }
 
 .status-dot.error {
@@ -62,4 +71,56 @@
 .statusbar-detail {
   color: var(--text-tertiary);
   font-size: var(--text-xs);
+}
+
+/* ── Notification Bell ── */
+
+.statusbar__notifications {
+  display: flex;
+  align-items: center;
+}
+
+.statusbar__bell {
+  position: relative;
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 3px 5px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.statusbar__bell:hover {
+  color: var(--text-secondary);
+  background: var(--surface-2);
+}
+
+.statusbar__bell-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: var(--radius-full);
+  background: var(--danger);
+  color: #fff;
+  font-size: 9px;
+  font-weight: var(--weight-bold);
+  line-height: 14px;
+  text-align: center;
+}
+
+/* ── User Display ── */
+
+.statusbar__user {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  padding: 0 var(--space-1);
 }

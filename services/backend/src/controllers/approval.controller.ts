@@ -48,7 +48,7 @@ export function createApprovalDetailRouter(service: ApprovalService): Router {
       return;
     }
 
-    const requestId = (req as any).requestId as string | undefined;
+    const requestId = req.requestId;
     const result = service.decide(
       req.params.id,
       decision,

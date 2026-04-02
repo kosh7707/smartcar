@@ -168,3 +168,22 @@ export async function fetchFindingHistory(findingId: string): Promise<FindingHis
   );
   return res.data;
 }
+
+// ── Finding Groups ──
+
+export interface FindingGroup {
+  key: string;
+  count: number;
+  topSeverity: string;
+  findingIds: string[];
+}
+
+export async function fetchFindingGroups(
+  projectId: string,
+  groupBy: "ruleId" | "location" = "ruleId",
+): Promise<{ groups: FindingGroup[] }> {
+  const res = await apiFetch<{ success: boolean; data: { groups: FindingGroup[] } }>(
+    `/api/projects/${projectId}/findings/groups?groupBy=${groupBy}`,
+  );
+  return res.data;
+}

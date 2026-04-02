@@ -152,6 +152,7 @@ def _extract_metadata(
         cwe_tags = [t for t in props["tags"] if t.startswith("CWE-")]
         if cwe_tags:
             meta["cwe"] = cwe_tags
+            meta["cweId"] = cwe_tags[0]
 
     if "references" in props:
         meta["references"] = props["references"]

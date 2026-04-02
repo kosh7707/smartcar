@@ -5,6 +5,7 @@
   "main": "dist/main/index.js",
   "scripts": {
     "dev:renderer": "vite",
+    "dev:mock": "VITE_MOCK=true vite",
     "dev:main": "tsc -p tsconfig.json && NODE_ENV=development electron .",
     "dev": "npm run dev:renderer & sleep 2 && npm run dev:main",
     "build:renderer": "vite build",

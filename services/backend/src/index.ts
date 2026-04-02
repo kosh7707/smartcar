@@ -10,6 +10,7 @@ import { createAppContext } from "./composition";
 import { mountRouters } from "./router-setup";
 import { runStartupTasks } from "./bootstrap";
 import { attachWsServers } from "./services/ws-broadcaster";
+import { createAuthMiddleware } from "./middleware/auth.middleware";
 
 // --- 프로세스 레벨 에러 핸들러 ---
 process.on("uncaughtException", (err) => {
@@ -36,6 +37,10 @@ const ctx = createAppContext(config, db);
 // ── 기동 작업 ──
 runStartupTasks(ctx);
 
+// ── 인증 미들웨어 (soft auth: AUTH_REQUIRED=false가 기본) ──
+const authRequired = process.env.AUTH_REQUIRED === "true";
+app.use(createAuthMiddleware(ctx.userService, authRequired));
+
 // ── 라우터 마운트 ──
 mountRouters(app, ctx);
 app.use(errorHandlerMiddleware);
@@ -55,5 +60,5 @@ const server = app.listen(config.port, () => {
 
 attachWsServers(server, [
   ctx.dynamicAnalysisWs, ctx.staticAnalysisWs, ctx.dynamicTestWs,
-  ctx.analysisWs, ctx.uploadWs, ctx.pipelineWs, ctx.sdkWs,
+  ctx.analysisWs, ctx.uploadWs, ctx.pipelineWs, ctx.notificationWs, ctx.sdkWs,
 ]);

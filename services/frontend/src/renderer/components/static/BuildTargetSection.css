@@ -188,7 +188,7 @@
 }
 
 .bt-row--ready {
-  border-color: #16a34a;
+  border-color: var(--success);
 }
 
 /* Build command */
@@ -240,6 +240,6 @@
   padding: var(--space-3) var(--space-4);
   border-top: 1px solid var(--border-subtle);
   font-size: var(--text-sm);
-  color: #16a34a;
+  color: var(--success);
   font-weight: var(--weight-medium);
 }

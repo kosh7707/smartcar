@@ -1,15 +1,27 @@
-import type { DynamicAlert } from "@aegis/shared";
+import type { DynamicAlert, Severity } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IDynamicAlertDAO } from "./interfaces";
+import { safeJsonParse } from "../lib/utils";
 
-function rowToAlert(row: any): DynamicAlert {
+interface DynamicAlertRow {
+  id: string;
+  session_id: string;
+  severity: Severity;
+  title: string;
+  description: string;
+  llm_analysis: string | null;
+  related_messages: string;
+  detected_at: string;
+}
+
+function rowToAlert(row: DynamicAlertRow): DynamicAlert {
   return {
     id: row.id,
     severity: row.severity,
     title: row.title,
     description: row.description,
     llmAnalysis: row.llm_analysis ?? undefined,
-    relatedMessages: JSON.parse(row.related_messages),
+    relatedMessages: safeJsonParse(row.related_messages, []),
     detectedAt: row.detected_at,
   };
 }
@@ -46,7 +58,7 @@ export class DynamicAlertDAO implements IDynamicAlertDAO {
   }
 
   findBySessionId(sessionId: string): DynamicAlert[] {
-    return this.selectBySessionStmt.all(sessionId).map(rowToAlert);
+    return (this.selectBySessionStmt.all(sessionId) as DynamicAlertRow[]).map(rowToAlert);
   }
 
   updateLlmAnalysis(alertId: string, llmAnalysis: string): void {

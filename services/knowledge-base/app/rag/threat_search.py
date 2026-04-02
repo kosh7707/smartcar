@@ -30,12 +30,27 @@ class ThreatHit:
 class ThreatSearch:
     """위협 지식 DB 벡터 검색 클라이언트.
 
-    Qdrant 파일 기반 스토리지에서 시맨틱 검색을 수행한다.
-    ETL(build.py)이 사전에 실행되어 data/qdrant에 컬렉션이 존재해야 한다.
+    파일 모드(path) 또는 서버 모드(url) 중 하나로 Qdrant에 연결한다.
+    ETL(build.py)이 사전에 실행되어 threat_knowledge 컬렉션이 존재해야 한다.
     """
 
-    def __init__(self, qdrant_path: str) -> None:
-        self._client = QdrantClient(path=qdrant_path)
+    def __init__(
+        self,
+        qdrant_path: str | None = None,
+        qdrant_url: str | None = None,
+        qdrant_api_key: str | None = None,
+    ) -> None:
+        if qdrant_url:
+            self._client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+            self._mode = "server"
+            logger.info("ThreatSearch 초기화: server mode, url=%s", qdrant_url)
+        elif qdrant_path:
+            self._client = QdrantClient(path=qdrant_path)
+            self._mode = "file"
+            logger.info("ThreatSearch 초기화: file mode, path=%s", qdrant_path)
+        else:
+            raise ValueError("qdrant_path 또는 qdrant_url 중 하나를 지정해야 합니다")
+
         self._client.set_model(EMBEDDING_MODEL)
 
         # 컬렉션 존재 확인
@@ -46,9 +61,14 @@ class ThreatSearch:
                 f"ETL을 먼저 실행하세요: python scripts/threat-db/build.py"
             )
         logger.info(
-            "ThreatSearch 초기화 완료: path=%s, collection=%s",
-            qdrant_path, COLLECTION,
+            "ThreatSearch 초기화 완료: mode=%s, collection=%s",
+            self._mode, COLLECTION,
         )
+
+    @property
+    def mode(self) -> str:
+        """연결 모드: ``"file"`` 또는 ``"server"``."""
+        return self._mode
 
     @property
     def client(self) -> QdrantClient:

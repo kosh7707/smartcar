@@ -73,5 +73,21 @@ export function createReportRouter(service: ReportService): Router {
     });
   }
 
+  // POST /custom — 커스터마이징 보고서
+  router.post("/custom", (req: Request<{ pid: string }>, res, next) => {
+    try {
+      const pid = req.params.pid;
+      const { filters, findingIds, includeSections, customization } = req.body;
+      const report = service.generateCustomReport(pid, { filters, findingIds, includeSections, customization });
+      if (!report) {
+        res.status(404).json({ success: false, error: "Project not found" });
+        return;
+      }
+      res.json({ success: true, data: report });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   return router;
 }

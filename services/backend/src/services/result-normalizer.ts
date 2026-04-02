@@ -20,9 +20,16 @@ import type { DatabaseType } from "../db";
 import type { IRunDAO, IFindingDAO, IEvidenceRefDAO } from "../dao/interfaces";
 import { createLogger } from "../lib/logger";
 import type { QualityGateService } from "./quality-gate.service";
+import type { NotificationService } from "./notification.service";
 import type { AgentResponseSuccess, AgentEvidenceRef } from "./agent-client";
 
 const logger = createLogger("result-normalizer");
+
+/** policyFlags 배열에서 CWE-NNN 패턴의 첫 번째 매치를 추출 */
+function extractCweFromPolicyFlags(flags?: string[]): string | undefined {
+  if (!flags) return undefined;
+  return flags.find(f => /^CWE-\d+$/.test(f)) ?? undefined;
+}
 
 export interface NormalizerContext {
   analyzedFileIds?: string[];
@@ -40,6 +47,7 @@ export class ResultNormalizer {
     private findingDAO: IFindingDAO,
     private evidenceRefDAO: IEvidenceRefDAO,
     private gateService?: QualityGateService,
+    private notificationService?: NotificationService,
   ) {}
 
   normalizeAnalysisResult(result: AnalysisResult, context?: NormalizerContext): Run | undefined {
@@ -87,6 +95,9 @@ export class ResultNormalizer {
           location: vuln.location,
           suggestion: vuln.suggestion,
           ruleId: vuln.ruleId,
+          cweId: vuln.cweId,
+          cveIds: vuln.cveIds,
+          confidenceScore: sourceType === "rule-engine" || sourceType === "sast-tool" ? 1.0 : 0.5,
           fingerprint,
           createdAt: now,
           updatedAt: now,
@@ -135,6 +146,29 @@ export class ResultNormalizer {
         } catch (err) {
           logger.warn({ err, runId }, "Gate evaluation failed — skipped");
         }
+      }
+
+      // 알림: 분석 완료 + Critical Finding 감지
+      if (this.notificationService) {
+        try {
+          this.notificationService.emit({
+            projectId: result.projectId,
+            type: "analysis_complete",
+            title: `분석 완료: ${result.module} (${findings.length} findings)`,
+            resourceId: runId,
+          });
+          for (const f of findings) {
+            if (f.severity === "critical") {
+              this.notificationService.emit({
+                projectId: result.projectId,
+                type: "critical_finding",
+                title: `Critical 취약점 발견: ${f.title}`,
+                severity: "critical",
+                resourceId: f.id,
+              });
+            }
+          }
+        } catch { /* 알림 실패는 정규화에 영향 없음 */ }
       }
 
       return run;
@@ -324,6 +358,8 @@ export class ResultNormalizer {
           location: claim.location ?? undefined,
           suggestion: assessment.recommendedNextSteps?.length ? assessment.recommendedNextSteps.join("\n") : undefined,
           detail: claim.detail ?? undefined,
+          cweId: extractCweFromPolicyFlags(assessment.policyFlags),
+          confidenceScore: assessment.confidence,
           fingerprint,
           createdAt: now,
           updatedAt: now,

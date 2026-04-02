@@ -3,6 +3,8 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     qdrant_path: str = "data/qdrant"
+    qdrant_url: str | None = None
+    qdrant_api_key: str | None = None
     rag_top_k: int = 5
     rag_min_score: float = 0.35
     graph_depth: int = 2

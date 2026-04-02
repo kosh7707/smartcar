@@ -13,7 +13,28 @@ export interface StoredFile {
   createdAt?: string;
 }
 
-function rowToStored(row: any): StoredFile {
+interface StoredFileRow {
+  id: string;
+  project_id: string;
+  name: string;
+  path: string | null;
+  size: number;
+  language: string | null;
+  content: string | null;
+  created_at: string;
+}
+
+interface UploadedFileRow {
+  id: string;
+  project_id: string;
+  name: string;
+  path: string | null;
+  size: number;
+  language: string | null;
+  created_at: string;
+}
+
+function rowToStored(row: StoredFileRow): StoredFile {
   return {
     id: row.id,
     projectId: row.project_id,
@@ -26,7 +47,7 @@ function rowToStored(row: any): StoredFile {
   };
 }
 
-function rowToUploaded(row: any): UploadedFile {
+function rowToUploaded(row: UploadedFileRow): UploadedFile {
   return {
     id: row.id,
     name: row.name,
@@ -70,7 +91,7 @@ export class FileStore implements IFileStore {
   }
 
   findById(id: string): StoredFile | undefined {
-    const row = this.selectByIdStmt.get(id);
+    const row = this.selectByIdStmt.get(id) as StoredFileRow | undefined;
     return row ? rowToStored(row) : undefined;
   }
 
@@ -79,15 +100,15 @@ export class FileStore implements IFileStore {
     const stmt = this.db.prepare(
       `SELECT id, project_id, name, path, size, language, content, created_at FROM uploaded_files WHERE id IN (${placeholders})`
     );
-    return stmt.all(...ids).map(rowToStored);
+    return (stmt.all(...ids) as StoredFileRow[]).map(rowToStored);
   }
 
   findByProjectId(projectId: string): UploadedFile[] {
-    return this.selectByProjectStmt.all(projectId).map(rowToUploaded);
+    return (this.selectByProjectStmt.all(projectId) as UploadedFileRow[]).map(rowToUploaded);
   }
 
   countByProjectId(projectId: string): number {
-    return (this.countByProjectStmt.get(projectId) as any).cnt;
+    return (this.countByProjectStmt.get(projectId) as { cnt: number }).cnt;
   }
 
   delete(id: string): void {

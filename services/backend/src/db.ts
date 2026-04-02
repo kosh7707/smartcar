@@ -191,6 +191,9 @@ export function initSchema(db: DatabaseType): void {
       rule_id     TEXT,
       detail      TEXT,
       fingerprint TEXT,
+      cwe_id      TEXT,
+      cve_ids     TEXT NOT NULL DEFAULT '[]',
+      confidence_score REAL,
       created_at  TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -270,6 +273,44 @@ export function initSchema(db: DatabaseType): void {
     CREATE INDEX IF NOT EXISTS idx_build_targets_project ON build_targets(project_id);
   `);
 
+  // 알림 테이블
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id          TEXT PRIMARY KEY,
+      project_id  TEXT NOT NULL,
+      type        TEXT NOT NULL,
+      title       TEXT NOT NULL,
+      body        TEXT NOT NULL DEFAULT '',
+      severity    TEXT,
+      resource_id TEXT,
+      read        INTEGER NOT NULL DEFAULT 0,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_notifications_project ON notifications(project_id);
+    CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(project_id, read);
+  `);
+
+  // 사용자/세션
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id            TEXT PRIMARY KEY,
+      username      TEXT NOT NULL UNIQUE,
+      display_name  TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      role          TEXT NOT NULL DEFAULT 'analyst',
+      created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      token      TEXT PRIMARY KEY,
+      user_id    TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+  `);
+
   // SDK 레지스트리 (유저 등록)
   db.exec(`
     CREATE TABLE IF NOT EXISTS sdk_registry (
@@ -325,6 +366,9 @@ export function initSchema(db: DatabaseType): void {
   try { db.exec(`ALTER TABLE analysis_results ADD COLUMN agent_audit TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE findings ADD COLUMN detail TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE findings ADD COLUMN fingerprint TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE findings ADD COLUMN cwe_id TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE findings ADD COLUMN cve_ids TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE findings ADD COLUMN confidence_score REAL`); } catch { /* 이미 존재 */ }
   try {
     db.exec(`ALTER TABLE adapters ADD COLUMN project_id TEXT NOT NULL DEFAULT ''`);
     db.exec(`DELETE FROM adapters WHERE project_id = ''`);

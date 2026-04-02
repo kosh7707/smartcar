@@ -1,17 +1,30 @@
 import type { DynamicTestResult, DynamicTestFinding, AnalysisStatus } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IDynamicTestResultDAO } from "./interfaces";
+import { safeJsonParse } from "../lib/utils";
 
-function rowToResult(row: any): DynamicTestResult {
+interface DynamicTestResultRow {
+  id: string;
+  project_id: string;
+  config: string;
+  status: AnalysisStatus;
+  total_runs: number;
+  crashes: number;
+  anomalies: number;
+  findings: string;
+  created_at: string;
+}
+
+function rowToResult(row: DynamicTestResultRow): DynamicTestResult {
   return {
     id: row.id,
     projectId: row.project_id,
-    config: JSON.parse(row.config),
+    config: safeJsonParse(row.config, {} as DynamicTestResult["config"]),
     status: row.status,
     totalRuns: row.total_runs,
     crashes: row.crashes,
     anomalies: row.anomalies,
-    findings: JSON.parse(row.findings),
+    findings: safeJsonParse(row.findings, []),
     createdAt: row.created_at,
   };
 }
@@ -57,12 +70,12 @@ export class DynamicTestResultDAO implements IDynamicTestResultDAO {
   }
 
   findById(id: string): DynamicTestResult | undefined {
-    const row = this.selectByIdStmt.get(id);
+    const row = this.selectByIdStmt.get(id) as DynamicTestResultRow | undefined;
     return row ? rowToResult(row) : undefined;
   }
 
   findByProjectId(projectId: string): DynamicTestResult[] {
-    return this.selectByProjectStmt.all(projectId).map(rowToResult);
+    return (this.selectByProjectStmt.all(projectId) as DynamicTestResultRow[]).map(rowToResult);
   }
 
   updateResult(

@@ -219,3 +219,13 @@
   color: var(--text-tertiary);
 }
 
+/* ── Responsive: reduce empty preview area ── */
+
+@media (max-width: 768px) {
+  .fpage-tree-card__body:empty,
+  .fpage-summary:empty {
+    min-height: 0;
+    max-height: 80px;
+  }
+}
+

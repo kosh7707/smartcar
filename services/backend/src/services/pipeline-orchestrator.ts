@@ -293,6 +293,16 @@ export class PipelineOrchestrator {
 
     // ── Step 3: Code Graph Ingest ──
     if (sastResponse.codeGraph) {
+      // KB degraded 체크 — Neo4j 미연결 시 그래프 적재 스킵
+      const kbReady = await this.kbClient.checkReady().catch(() => null);
+      if (kbReady?.degraded === true) {
+        logger.warn({ targetId: target.id, requestId }, "KB degraded (Neo4j unavailable), skipping code graph ingest");
+        this.buildTargetDAO.updatePipelineState(target.id, {
+          status: "graphed",
+          codeGraphStatus: "skipped_degraded",
+        });
+        this.updateStatus(projectId, target, "graphed", "코드그래프 스킵 (KB degraded — Neo4j 미연결)");
+      } else {
       this.updateStatus(projectId, target, "graphing", "코드그래프 KB 적재 중...");
 
       try {
@@ -317,6 +327,7 @@ export class PipelineOrchestrator {
           codeGraphStatus: "failed",
         });
       }
+      } // end else (not degraded)
     } else {
       this.buildTargetDAO.updatePipelineState(target.id, {
         status: "graphed",

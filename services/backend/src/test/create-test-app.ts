@@ -17,6 +17,8 @@ import { AdapterDAO } from "../dao/adapter.dao";
 import { ProjectSettingsDAO } from "../dao/project-settings.dao";
 import { BuildTargetDAO } from "../dao/build-target.dao";
 import { SdkRegistryDAO } from "../dao/sdk-registry.dao";
+import { NotificationDAO } from "../dao/notification.dao";
+import { UserDAO, SessionDAO } from "../dao/user.dao";
 
 // Services
 import { FindingService } from "../services/finding.service";
@@ -30,6 +32,8 @@ import { BuildTargetService } from "../services/build-target.service";
 import { ReportService } from "../services/report.service";
 import { ResultNormalizer } from "../services/result-normalizer";
 import { ActivityService } from "../services/activity.service";
+import { NotificationService } from "../services/notification.service";
+import { UserService } from "../services/user.service";
 
 // Controllers
 import { createProjectRouter } from "../controllers/project.controller";
@@ -42,6 +46,9 @@ import { createFileRouter } from "../controllers/file.controller";
 import { createBuildTargetRouter } from "../controllers/build-target.controller";
 import { createPipelineRouter } from "../controllers/pipeline.controller";
 import { createActivityRouter } from "../controllers/activity.controller";
+import { createNotificationRouter, createNotificationDetailRouter } from "../controllers/notification.controller";
+import { createAuthRouter } from "../controllers/auth.controller";
+import { createGateProfileRouter } from "../controllers/project-settings.controller";
 
 export interface TestAppContext {
   app: express.Express;
@@ -57,16 +64,22 @@ export interface TestAppContext {
   analysisResultDAO: AnalysisResultDAO;
   fileStore: FileStore;
   buildTargetDAO: BuildTargetDAO;
+  notificationDAO: NotificationDAO;
+  userDAO: UserDAO;
+  sessionDAO: SessionDAO;
   // Services exposed for seeding
   gateService: QualityGateService;
   normalizer: ResultNormalizer;
   buildTargetService: BuildTargetService;
+  notificationService: NotificationService;
+  userService: UserService;
+  settingsService: ProjectSettingsService;
 }
 
 export function createTestApp(): TestAppContext {
   const db = createTestDb();
 
-  // DAOs
+  // ── Tier 0: DAOs ──
   const runDAO = new RunDAO(db);
   const findingDAO = new FindingDAO(db);
   const evidenceRefDAO = new EvidenceRefDAO(db);
@@ -80,15 +93,24 @@ export function createTestApp(): TestAppContext {
   const projectSettingsDAO = new ProjectSettingsDAO(db);
   const buildTargetDAO = new BuildTargetDAO(db);
   const sdkRegistryDAO = new SdkRegistryDAO(db);
+  const notificationDAO = new NotificationDAO(db);
+  const userDAO = new UserDAO(db);
+  const sessionDAO = new SessionDAO(db);
 
-  // Services
+  // ── Tier 1: 기본 서비스 ──
   const adapterManager = new AdapterManager(adapterDAO);
   const settingsService = new ProjectSettingsService(projectSettingsDAO, sdkRegistryDAO);
   const buildTargetService = new BuildTargetService(buildTargetDAO, settingsService);
-  const projectService = new ProjectService(projectDAO, analysisResultDAO, fileStore, adapterManager, settingsService, buildTargetService);
-  const gateService = new QualityGateService(findingDAO, evidenceRefDAO, gateResultDAO, runDAO);
-  const normalizer = new ResultNormalizer(db, runDAO, findingDAO, evidenceRefDAO, gateService);
-  const approvalService = new ApprovalService(approvalDAO, auditLogDAO, gateService);
+
+  // ── Tier 1.5: 알림 + 사용자 서비스 ──
+  const notificationService = new NotificationService(notificationDAO);
+  const userService = new UserService(userDAO, sessionDAO);
+
+  // ── Tier 2: 복합 서비스 ──
+  const projectService = new ProjectService(projectDAO, analysisResultDAO, fileStore, adapterManager, settingsService, buildTargetService, findingDAO, runDAO, gateResultDAO);
+  const gateService = new QualityGateService(findingDAO, evidenceRefDAO, gateResultDAO, runDAO, settingsService, notificationService);
+  const normalizer = new ResultNormalizer(db, runDAO, findingDAO, evidenceRefDAO, gateService, notificationService);
+  const approvalService = new ApprovalService(approvalDAO, auditLogDAO, gateService, notificationService);
   const findingService = new FindingService(findingDAO, evidenceRefDAO, auditLogDAO);
   const runService = new RunService(runDAO, findingDAO, gateResultDAO, evidenceRefDAO);
   const activityService = new ActivityService(runDAO, auditLogDAO, buildTargetDAO);
@@ -107,12 +129,16 @@ export function createTestApp(): TestAppContext {
   app.use("/api/projects/:pid/targets", createBuildTargetRouter(buildTargetService, projectDAO, null as any, null));
   app.use("/api/projects/:pid/pipeline", createPipelineRouter(null as any, projectDAO, buildTargetDAO));
   app.use("/api/projects/:pid/activity", createActivityRouter(activityService));
+  app.use("/api/projects/:pid/notifications", createNotificationRouter(notificationService));
   app.use("/api/projects", createProjectRouter(projectService));
   app.use("/api", createFileRouter(fileStore));
   app.use("/api/runs", createRunDetailRouter(runService));
   app.use("/api/findings", createFindingDetailRouter(findingService));
   app.use("/api/gates", createQualityGateDetailRouter(gateService, approvalService));
   app.use("/api/approvals", createApprovalDetailRouter(approvalService));
+  app.use("/api/notifications", createNotificationDetailRouter(notificationService));
+  app.use("/api/auth", createAuthRouter(userService));
+  app.use("/api/gate-profiles", createGateProfileRouter());
 
   app.use(errorHandlerMiddleware);
 
@@ -120,7 +146,8 @@ export function createTestApp(): TestAppContext {
     app, db,
     projectDAO, runDAO, findingDAO, evidenceRefDAO, gateResultDAO,
     approvalDAO, auditLogDAO, analysisResultDAO, fileStore,
-    buildTargetDAO,
+    buildTargetDAO, notificationDAO, userDAO, sessionDAO,
     gateService, normalizer, buildTargetService,
+    notificationService, userService, settingsService,
   };
 }

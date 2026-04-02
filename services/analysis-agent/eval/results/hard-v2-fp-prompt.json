@@ -1,0 +1,489 @@
+{
+  "run_id": "hard-v2-fp-prompt",
+  "timestamp": "2026-04-02T05:10:13.268840+00:00",
+  "config": {
+    "gateway_url": "http://localhost:8000",
+    "model": "unknown",
+    "case_count": 3,
+    "case_filter": "hard",
+    "mode": "direct_llm"
+  },
+  "results": [
+    {
+      "golden_id": "hard-macro-hidden-sprintf",
+      "eval_result": {
+        "golden_id": "hard-macro-hidden-sprintf",
+        "timestamp": "2026-04-02T05:07:14.515057+00:00",
+        "status": "completed",
+        "metrics": {
+          "recall": 1.0,
+          "precision": 1.0,
+          "fp_rejection": 1.0,
+          "severity_accuracy": 1.0,
+          "evidence_validity": 1.0,
+          "cwe_coverage": 1.0,
+          "detail_heuristics": {
+            "has_detail": 1.0,
+            "has_attack_scenario": 1.0,
+            "has_code_path": 0.5,
+            "has_location": 1.0,
+            "detail_length_adequate": 1.0
+          },
+          "claim_count_ok": true
+        },
+        "composite_score": 0.99,
+        "details": {
+          "recall_details": [
+            {
+              "expected": {
+                "severity_min": "high",
+                "file": "diag.c",
+                "keywords": [
+                  "sprintf"
+                ]
+              },
+              "found": true
+            }
+          ],
+          "precision_details": [
+            {
+              "claim": "src/diag.c:35의 sprintf 함수 사용으로 인해 버퍼 오버플로우 취약점(CWE-120)이 존재한다.",
+              "spurious": false
+            },
+            {
+              "claim": "src/diag.c:42에서 배열 경계 초과 접근으로 인한 메모리 손상 취약점(CWE-120)이 존재한다.",
+              "spurious": false
+            }
+          ],
+          "fp_details": [
+            {
+              "reject_item": {
+                "file": "telemetry.c",
+                "keywords": [
+                  "snprintf"
+                ],
+                "reason": "snprintf with sizeof - safe, and LOG_MSG_SAFE uses bounded version"
+              },
+              "correctly_rejected": true
+            },
+            {
+              "reject_item": {
+                "file": "telemetry.c",
+                "line_range": [
+                  13,
+                  17
+                ],
+                "keywords": [
+                  "scope"
+                ],
+                "reason": "variable scope is a style issue, not a vulnerability"
+              },
+              "correctly_rejected": true
+            }
+          ],
+          "claim_count": 2
+        }
+      },
+      "raw_response": {
+        "status": "completed",
+        "result": {
+          "summary": "SAST 스캔 결과 4개 중 2개는 보안 취약점으로 판단되며, 특히 src/diag.c의 sprintf 사용과 배열 경계 초과 접근이 주요 위험 요소이다. 나머지 2개는 코드 스타일 이슈로 보안 취약점이 아니므로 제외하였다.",
+          "claims": [
+            {
+              "statement": "src/diag.c:35의 sprintf 함수 사용으로 인해 버퍼 오버플로우 취약점(CWE-120)이 존재한다.",
+              "detail": "sprintf 함수는 입력 데이터의 크기를 확인하지 않고 버퍼에 데이터를 복사하므로, 공격자가 제어 가능한 입력이 전달될 경우 버퍼 오버플로우가 발생할 수 있다. 이 취약점은 메모리 손상, 코드 실행, 시스템 불안정을 초래할 수 있다. src/diag.c:35에서 sprintf가 사용되며, 입력 검증이 이루어지지 않는 것으로 보인다. 공격자는 oversized 입력을 통해 스택 오버플로우를 유발하거나 반환 주소를 조작하여 임의 코드를 실행할 수 있다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-sprintf-1",
+                "eref-eval-hard-macro-src"
+              ],
+              "location": "src/diag.c:35"
+            },
+            {
+              "statement": "src/diag.c:42에서 배열 경계 초과 접근으로 인한 메모리 손상 취약점(CWE-120)이 존재한다.",
+              "detail": "cppcheck가 보고한 bufferAccessOutOfBounds는 배열의 유효 범위를 벗어난 메모리 접근이 발생하고 있음을 의미한다. 이는 메모리 손상, 정보 유출, 또는 시스템 충돌을 초래할 수 있다. src/diag.c:42에서 배열 인덱스가 유효 범위를 초과하는 값으로 접근되고 있으며, 이는 입력 검증 부재 또는 논리 오류로 인해 발생할 수 있다. 공격자는 특정 조건에서 배열 경계를 벗어난 메모리를 읽거나 쓸 수 있어 시스템 무결성을 훼손할 수 있다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-bufferAccessOutOfBounds",
+                "eref-eval-hard-macro-src"
+              ],
+              "location": "src/diag.c:42"
+            }
+          ],
+          "caveats": [
+            "SAST FP로 판단: src/telemetry.c:20의 snprintf 경고는 매우 오래된 시스템에서의 구현 문제이며, 현대 임베디드 시스템에서는 해당되지 않을 수 있다.",
+            "SAST FP로 판단: src/telemetry.c:15의 variableScope 경고는 코드 스타일 이슈이며 보안 취약점이 아니다.",
+            "함수 포인터 경유 호출이나 매크로 확장 호출로 인해 호출 체인이 불완전할 수 있으므로, 추가적인 소스 코드 검토가 필요하다.",
+            "입력 검증 로직이 존재하는지 확인하기 위해 src/diag.c의 전체 함수 호출 체인을 분석할 필요가 있다."
+          ],
+          "usedEvidenceRefs": [
+            "eref-sast-sprintf-1",
+            "eref-sast-bufferAccessOutOfBounds",
+            "eref-eval-hard-macro-src"
+          ],
+          "suggestedSeverity": "high",
+          "needsHumanReview": true,
+          "recommendedNextSteps": [
+            "src/diag.c의 sprintf 사용 위치에서 입력 데이터의 크기를 확인하는 로직을 추가하거나 snprintf로 교체한다.",
+            "src/diag.c:42의 배열 접근 로직을 검토하여 인덱스 범위를 검증하는 코드를 추가한다.",
+            "함수 포인터나 매크로 경유 호출이 있는지 확인하기 위해 src/diag.c의 전체 소스 코드를 검토한다.",
+            "임베디드 시스템의 메모리 보호 메커니즘(예: ASLR, Stack Canaries)이 활성화되어 있는지 확인한다."
+          ],
+          "policyFlags": []
+        },
+        "validation": {
+          "valid": true,
+          "errors": []
+        },
+        "audit": {
+          "tokenUsage": {
+            "prompt": 2794,
+            "completion": 872
+          },
+          "agentAudit": {
+            "turn_count": 1,
+            "tool_call_count": 0,
+            "termination_reason": "direct_eval",
+            "total_prompt_tokens": 2794,
+            "total_completion_tokens": 872
+          }
+        }
+      },
+      "latency_ms": 67920
+    },
+    {
+      "golden_id": "hard-multifile-indirect-chain",
+      "eval_result": {
+        "golden_id": "hard-multifile-indirect-chain",
+        "timestamp": "2026-04-02T05:08:41.300614+00:00",
+        "status": "completed",
+        "metrics": {
+          "recall": 1.0,
+          "precision": 1.0,
+          "fp_rejection": 1.0,
+          "severity_accuracy": 1.0,
+          "evidence_validity": 1.0,
+          "cwe_coverage": 1.0,
+          "detail_heuristics": {
+            "has_detail": 1.0,
+            "has_attack_scenario": 1.0,
+            "has_code_path": 0.5,
+            "has_location": 1.0,
+            "detail_length_adequate": 1.0
+          },
+          "claim_count_ok": true
+        },
+        "composite_score": 0.99,
+        "details": {
+          "recall_details": [
+            {
+              "expected": {
+                "severity_min": "high",
+                "file": "executor.c",
+                "keywords": [
+                  "system"
+                ]
+              },
+              "found": true
+            }
+          ],
+          "precision_details": [
+            {
+              "claim": "src/executor.c:28의 system() 호출 시 외부 입력이 직접 전달되어 OS 명령어 주입(CWE-78) 취약점이 존재합니다.",
+              "spurious": false
+            },
+            {
+              "claim": "src/parser.c:18의 버퍼 접근 오류(CWE-120)로 인해 메모리 손상 및 코드 실행 가능성이 있습니다.",
+              "spurious": false
+            }
+          ],
+          "fp_details": [
+            {
+              "reject_item": {
+                "file": "parser.c",
+                "line_range": [
+                  16,
+                  20
+                ],
+                "keywords": [
+                  "strncpy"
+                ],
+                "reason": "strncpy bounded by sizeof(temp) - safe"
+              },
+              "correctly_rejected": true
+            },
+            {
+              "reject_item": {
+                "file": "executor.c",
+                "line_range": [
+                  13,
+                  17
+                ],
+                "keywords": [
+                  "null"
+                ],
+                "reason": "null check exists at line 15"
+              },
+              "correctly_rejected": true
+            },
+            {
+              "reject_item": {
+                "file": "parser.c",
+                "line_range": [
+                  8,
+                  12
+                ],
+                "keywords": [
+                  "static"
+                ],
+                "reason": "static array declaration is not a vulnerability"
+              },
+              "correctly_rejected": true
+            }
+          ],
+          "claim_count": 2
+        }
+      },
+      "raw_response": {
+        "status": "completed",
+        "result": {
+          "summary": "SAST 스캔 결과 5개 중 2개(CWE-78 OS Command Injection, CWE-120 Buffer Overflow)는 실제 악용 가능한 고위험 취약점으로 판명되었으며, 나머지 3개는 오탐(FP) 또는 코드 스타일 이슈로 제외되었습니다. 특히 system() 함수 호출 시 사용자 입력이 직접 전달되어 명령어 주입 공격에 노출되어 있으며, 버퍼 오버플로우도 경계 검사 부재로 인해 메모리 손상 가능성이 확인되었습니다.",
+          "claims": [
+            {
+              "statement": "src/executor.c:28의 system() 호출 시 외부 입력이 직접 전달되어 OS 명령어 주입(CWE-78) 취약점이 존재합니다.",
+              "detail": "src/executor.c의 28행에서 system() 함수가 호출되고 있으며, 이 함수는 운영체제 명령어를 실행합니다. 위협 지식(CWE-78)에 따르면, 사용자 입력이나 외부 데이터가 적절히 필터링되지 않고 system()에 전달될 경우 공격자가 임의의 명령어를 실행할 수 있습니다. 코드 구조 분석 결과, 이 함수는 외부 네트워크 패킷이나 설정 파일에서 파싱된 데이터를 직접 인자로 전달받는 경로로 연결되어 있습니다. 공격자가 특수한 문자(예: ';', '|', '&')를 포함한 입력을 제공하면, 의도하지 않은 시스템 명령어가 실행되어 ECU 제어권 상실, 데이터 유출, 또는 시스템 마비 등 심각한 피해를 초래할 수 있습니다. SAST finding이 지적한 'difficult to use safely'는 바로 이러한 입력 검증 부재의 위험을 의미합니다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-system-1",
+                "eref-eval-hard-chain-src"
+              ],
+              "location": "src/executor.c:28"
+            },
+            {
+              "statement": "src/parser.c:18의 버퍼 접근 오류(CWE-120)로 인해 메모리 손상 및 코드 실행 가능성이 있습니다.",
+              "detail": "src/parser.c의 18행에서 배열 인덱스가 버퍼 크기를 초과하여 접근하는 코드가 발견되었습니다. 이는 CWE-120 (Buffer Copy without Checking Size of Input)에 해당하는 메모리 안전성 취약점입니다. 분석 결과, 해당 버퍼는 외부 데이터(예: CAN 메시지 페이로드)를 수신하여 복사하는 과정에서 크기를 확인하지 않고 직접 복사되는 로직이 포함되어 있습니다. 공격자가 버퍼 크기보다 긴 데이터를 전송할 경우, 인접한 메모리 영역을 덮어쓰게 되어 프로그램의 제어 흐름을 조작하거나, 임의의 코드를 실행할 수 있습니다. 자동차 임베디드 환경에서는 메모리 보호 장치가 제한적일 수 있어, 이 취약점은 시스템 크래시나 악성 코드 주입으로 이어질 수 있는 고위험 요소입니다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-bufferAccessOutOfBounds"
+              ],
+              "location": "src/parser.c:18"
+            }
+          ],
+          "caveats": [
+            "SAST FP로 판단: src/executor.c:15의 null pointer dereference는 해당 함수 호출 전 cmd 변수가 NULL 체크를 거치는 로직이 존재하거나, 호출 주체가 항상 유효한 포인터를 전달하도록 설계되어 있어 실제 위험도가 낮음.",
+            "SAST FP로 판단: src/network.c:22의 strlen() 사용은 해당 문자열이 항상 null-terminated으로 보장되는 내부 프로토콜 데이터만 처리하므로 실제 위험 없음.",
+            "SAST FP로 판단: src/parser.c:10의 정적 배열 경고는 해당 배열이 고정된 프로토콜 구조체 매핑에 사용되며, 인덱스 접근 시 경계 검사가 수행되어 오버플로우 발생 가능성이 없음.",
+            "함수 포인터 경유 호출 또는 매크로 확장에 의한 간접 호출이 있을 경우, 정적 분석 그래프가 이를 완전히 포착하지 못했을 수 있음. 추가 동적 분석 권장."
+          ],
+          "usedEvidenceRefs": [
+            "eref-sast-system-1",
+            "eref-eval-hard-chain-src",
+            "eref-sast-bufferAccessOutOfBounds",
+            "eref-sast-nullPointer",
+            "eref-sast-strlen-1",
+            "eref-sast-char-1"
+          ],
+          "suggestedSeverity": "critical",
+          "needsHumanReview": true,
+          "recommendedNextSteps": [
+            "src/executor.c:28의 system() 호출 인자에 대해 입력 검증 및 화이트리스트 기반 필터링 구현",
+            "src/parser.c:18의 버퍼 복사 로직에 대해 크기 확인 및 안전한 복사 함수(strncpy, memcpy with size check)로 교체",
+            "취약점 수정 후 재스캔 및 동적 테스트(펜테스트) 수행"
+          ],
+          "policyFlags": [
+            "CWE-78",
+            "CWE-120",
+            "OS Command Injection",
+            "Buffer Overflow"
+          ]
+        },
+        "validation": {
+          "valid": true,
+          "errors": []
+        },
+        "audit": {
+          "tokenUsage": {
+            "prompt": 2835,
+            "completion": 1118
+          },
+          "agentAudit": {
+            "turn_count": 1,
+            "tool_call_count": 0,
+            "termination_reason": "direct_eval",
+            "total_prompt_tokens": 2835,
+            "total_completion_tokens": 1118
+          }
+        }
+      },
+      "latency_ms": 84446
+    },
+    {
+      "golden_id": "hard-uaf-callback",
+      "eval_result": {
+        "golden_id": "hard-uaf-callback",
+        "timestamp": "2026-04-02T05:10:13.268729+00:00",
+        "status": "completed",
+        "metrics": {
+          "recall": 1.0,
+          "precision": 1.0,
+          "fp_rejection": 1.0,
+          "severity_accuracy": 1.0,
+          "evidence_validity": 1.0,
+          "cwe_coverage": 1.0,
+          "detail_heuristics": {
+            "has_detail": 1.0,
+            "has_attack_scenario": 0.3333333333333333,
+            "has_code_path": 1.0,
+            "has_location": 1.0,
+            "detail_length_adequate": 1.0
+          },
+          "claim_count_ok": true
+        },
+        "composite_score": 0.9867,
+        "details": {
+          "recall_details": [
+            {
+              "expected": {
+                "severity_min": "high",
+                "file": "timer_mgr.c",
+                "keywords": [
+                  "free"
+                ]
+              },
+              "found": true
+            }
+          ],
+          "precision_details": [
+            {
+              "claim": "src/timer_mgr.c:58에서 'ctx' 포인터가 두 번 해제되어 Double Free(CWE-415) 취약점이 발생합니다.",
+              "spurious": false
+            },
+            {
+              "claim": "src/timer_mgr.c:45에서 free() 호출 후 포인터가 계속 사용될 수 있는 Use After Free(CWE-416) 위험이 있습",
+              "spurious": false
+            },
+            {
+              "claim": "src/timer_mgr.c:25에서 오류 발생 경로에서 할당된 메모리(ctx)가 해제되지 않아 메모리 누수(CWE-401)가 발생합니다.",
+              "spurious": false
+            }
+          ],
+          "fp_details": [
+            {
+              "reject_item": {
+                "file": "timer_mgr.c",
+                "line_range": [
+                  18,
+                  22
+                ],
+                "keywords": [
+                  "malloc",
+                  "null"
+                ],
+                "reason": "malloc return is checked on line 21"
+              },
+              "correctly_rejected": true
+            },
+            {
+              "reject_item": {
+                "file": "timer_mgr.c",
+                "line_range": [
+                  23,
+                  27
+                ],
+                "keywords": [
+                  "leak"
+                ],
+                "reason": "ctx is returned on success - no leak on normal path"
+              },
+              "correctly_rejected": true
+            }
+          ],
+          "claim_count": 3
+        }
+      },
+      "raw_response": {
+        "status": "completed",
+        "result": {
+          "summary": "src/timer_mgr.c 파일에서 메모리 안전성 위반이 확인되었으며, 특히 double free(CWE-415)와 use-after-free(CWE-416) 위험이 존재합니다. 메모리 누수(CWE-401)와 NULL 포인터 검사 누락도 발견되었으나, double free가 시스템 충돌 및 잠재적 코드 실행의 가장 심각한 위협입니다.",
+          "claims": [
+            {
+              "statement": "src/timer_mgr.c:58에서 'ctx' 포인터가 두 번 해제되어 Double Free(CWE-415) 취약점이 발생합니다.",
+              "detail": "SAST 분석 결과, 'ctx' 포인터가 58 줄에서 두 번 해제되는 것으로 감지되었습니다. 이는 메모리 관리 로직의 결함으로, 첫 번째 free() 호출 후 포인터가 NULL로 초기화되지 않아 두 번째 free() 호출 시 메모리 할당 관리 구조체(Heap Metadata)가 손상됩니다. 공격자가 이 타이밍을 조작하거나 특정 조건에서 함수를 반복 호출하면 힙 오버플로우를 유발하여 프로그램 충돌(Denial of Service)을 일으키거나, 더 나아가 힙 메타데이터 조작을 통해 임의 코드 실행(RCE)으로 이어질 수 있습니다. 이는 임베디드 시스템의 실시간성 및 안정성을 직접적으로 위협합니다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-doubleFree",
+                "eref-eval-hard-uaf-src"
+              ],
+              "location": "src/timer_mgr.c:58"
+            },
+            {
+              "statement": "src/timer_mgr.c:45에서 free() 호출 후 포인터가 계속 사용될 수 있는 Use After Free(CWE-416) 위험이 있습니다.",
+              "detail": "45 줄에서 free()가 호출된 후 해당 포인터가 즉시 NULL로 초기화되지 않아, 이후 코드 흐름에서 해당 메모리 영역이 접근될 위험이 있습니다. 만약 free() 이후 해당 포인터를 통해 데이터 읽기/쓰기가 발생하면, 이미 해제된 메모리에 다른 데이터가 할당된 경우 예상치 못한 동작을 유발하거나 민감한 정보를 유출할 수 있습니다. 이는 메모리 안전성 위반으로 이어져 시스템 불안정을 초래합니다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-free-1",
+                "eref-eval-hard-uaf-src"
+              ],
+              "location": "src/timer_mgr.c:45"
+            },
+            {
+              "statement": "src/timer_mgr.c:25에서 오류 발생 경로에서 할당된 메모리(ctx)가 해제되지 않아 메모리 누수(CWE-401)가 발생합니다.",
+              "detail": "25 줄에서 메모리가 할당된 후, 특정 오류 조건(예: 초기화 실패, 자원 부족 등)에서 함수가 조기 종료되는 경우 해당 메모리가 해제되지 않고 누수됩니다. 임베디드 시스템은 제한된 메모리 자원을 가지므로, 이러한 누수가 반복되면 시스템 메모리가 고갈되어 서비스 거부(DoS) 상태에 이를 수 있습니다. 특히 장시간 구동되는 타이머 매니저의 경우 누적 누수가 치명적입니다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-memleak",
+                "eref-eval-hard-uaf-src"
+              ],
+              "location": "src/timer_mgr.c:25"
+            }
+          ],
+          "caveats": [
+            "SAST finding인 'malloc(): Check return value for NULL' (src/timer_mgr.c:20)은 style 등급이며, malloc() 실패 시 프로그램이 즉시 종료되거나 에러 처리 루틴으로 이동하는지 확인이 필요하나, 현재 분석 범위 내에서는 NULL 체크 누락이 직접적인 보안 취약점으로 이어질 확률이 상대적으로 낮아 claim에서 제외하였습니다.",
+            "Double Free 및 Use After Free 취약점의 실제 악용 가능성은 해당 함수의 호출자 체인과 입력 데이터의 제어 가능성에 따라 달라지므로, 추가적인 호출자 분석(code_graph.callers)이 권장됩니다.",
+            "src/source.c 파일이 분석 대상 목록에 언급되었으나, SAST findings는 모두 src/timer_mgr.c에 집중되어 있어 source.c는 현재 분석에 직접적인 영향을 미치지 않습니다."
+          ],
+          "usedEvidenceRefs": [
+            "eref-sast-doubleFree",
+            "eref-sast-free-1",
+            "eref-sast-memleak",
+            "eref-eval-hard-uaf-src"
+          ],
+          "suggestedSeverity": "critical",
+          "needsHumanReview": true,
+          "recommendedNextSteps": [
+            "src/timer_mgr.c:58의 double free 발생 경로 확인 및 free() 호출 후 포인터 즉시 NULL 초기화 구현",
+            "src/timer_mgr.c:45의 free() 이후 포인터 사용 여부 확인 및 사용 방지 로직 추가",
+            "src/timer_mgr.c:25의 모든 오류 반환 경로에서 할당된 메모리 해제 로직 추가",
+            "해당 함수의 호출자 체인 분석을 통해 외부 입력에 의해 트리거될 수 있는지 확인"
+          ],
+          "policyFlags": [
+            "memory-safety",
+            "double-free",
+            "use-after-free",
+            "memory-leak"
+          ]
+        },
+        "validation": {
+          "valid": true,
+          "errors": []
+        },
+        "audit": {
+          "tokenUsage": {
+            "prompt": 2800,
+            "completion": 1172
+          },
+          "agentAudit": {
+            "turn_count": 1,
+            "tool_call_count": 0,
+            "termination_reason": "direct_eval",
+            "total_prompt_tokens": 2800,
+            "total_completion_tokens": 1172
+          }
+        }
+      },
+      "latency_ms": 88441
+    }
+  ],
+  "summary": {
+    "mean_composite": 0.9889,
+    "mean_recall": 1.0,
+    "mean_precision": 1.0,
+    "pass_count": 3,
+    "fail_count": 0,
+    "error_count": 0,
+    "total_latency_ms": 240807
+  }
+}

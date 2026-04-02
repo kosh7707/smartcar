@@ -37,9 +37,23 @@ class LlmInputTooLargeError(S3Error):
 class LlmHttpError(S3Error):
     """S4 LLM 서버가 HTTP 오류를 반환."""
 
-    def __init__(self, status_code: int, message: str | None = None):
+    def __init__(
+        self,
+        status_code: int,
+        message: str | None = None,
+        *,
+        retry_after: float | None = None,
+    ):
         msg = message or f"LLM 서버 HTTP {status_code} 오류"
         retryable = status_code in (429, 503)
         code = "LLM_OVERLOADED" if retryable else "LLM_HTTP_ERROR"
         super().__init__(msg, code=code, retryable=retryable)
         self.upstream_status = status_code
+        self.retry_after = retry_after  # S7이 보내는 Retry-After 값 (초)
+
+
+class LlmPoolExhaustedError(S3Error):
+    """HTTP 연결 풀 소진 — 동시 요청 과다."""
+
+    def __init__(self, message: str = "HTTP 연결 풀 소진 (동시 요청 과다)"):
+        super().__init__(message, code="POOL_EXHAUSTED", retryable=True)

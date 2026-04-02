@@ -72,6 +72,7 @@ function createMocks() {
   };
   const kbClient = {
     ingestCodeGraph: vi.fn().mockResolvedValue({ nodes_created: 20, edges_created: 5 }),
+    checkReady: vi.fn().mockResolvedValue({ status: "ready", degraded: false }),
   };
   const buildAgentClient = {
     submitTask: vi.fn().mockResolvedValue(resolveSuccess),

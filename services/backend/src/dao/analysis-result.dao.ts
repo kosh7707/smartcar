@@ -1,30 +1,47 @@
-import type { AnalysisResult } from "@aegis/shared";
+import type { AnalysisResult, AnalysisModule, AnalysisStatus } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IAnalysisResultDAO } from "./interfaces";
+import { safeJsonParse } from "../lib/utils";
 
-function parseJsonOrDefault<T>(raw: string | null | undefined, fallback: T): T {
-  if (!raw) return fallback;
-  try { return JSON.parse(raw) as T; } catch { return fallback; }
+interface AnalysisResultRow {
+  id: string;
+  project_id: string;
+  module: AnalysisModule;
+  status: AnalysisStatus;
+  vulnerabilities: string;
+  summary: string;
+  warnings: string | null;
+  analyzed_file_ids: string | null;
+  file_coverage: string | null;
+  caveats: string | null;
+  confidence_score: number | null;
+  confidence_breakdown: string | null;
+  needs_human_review: number | null;
+  recommended_next_steps: string | null;
+  policy_flags: string | null;
+  sca_libraries: string | null;
+  agent_audit: string | null;
+  created_at: string;
 }
 
-function rowToResult(row: any): AnalysisResult {
-  const warnings = parseJsonOrDefault(row.warnings, []);
-  const analyzedFileIds = parseJsonOrDefault(row.analyzed_file_ids, []);
-  const fileCoverage = parseJsonOrDefault(row.file_coverage, []);
-  const caveats = parseJsonOrDefault(row.caveats, []);
-  const confidenceBreakdown = parseJsonOrDefault(row.confidence_breakdown, undefined);
-  const recommendedNextSteps = parseJsonOrDefault(row.recommended_next_steps, []);
-  const policyFlags = parseJsonOrDefault(row.policy_flags, []);
-  const scaLibraries = parseJsonOrDefault(row.sca_libraries, []);
-  const agentAudit = parseJsonOrDefault(row.agent_audit, undefined);
+function rowToResult(row: AnalysisResultRow): AnalysisResult {
+  const warnings = safeJsonParse(row.warnings, []);
+  const analyzedFileIds = safeJsonParse(row.analyzed_file_ids, []);
+  const fileCoverage = safeJsonParse(row.file_coverage, []);
+  const caveats = safeJsonParse(row.caveats, []);
+  const confidenceBreakdown = safeJsonParse(row.confidence_breakdown, undefined);
+  const recommendedNextSteps = safeJsonParse(row.recommended_next_steps, []);
+  const policyFlags = safeJsonParse(row.policy_flags, []);
+  const scaLibraries = safeJsonParse(row.sca_libraries, []);
+  const agentAudit = safeJsonParse(row.agent_audit, undefined);
 
   return {
     id: row.id,
     projectId: row.project_id,
     module: row.module,
     status: row.status,
-    vulnerabilities: JSON.parse(row.vulnerabilities),
-    summary: JSON.parse(row.summary),
+    vulnerabilities: safeJsonParse(row.vulnerabilities, []),
+    summary: safeJsonParse(row.summary, { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 }),
     ...(warnings.length > 0 ? { warnings } : {}),
     ...(analyzedFileIds.length > 0 ? { analyzedFileIds } : {}),
     ...(fileCoverage.length > 0 ? { fileCoverage } : {}),
@@ -94,20 +111,20 @@ export class AnalysisResultDAO implements IAnalysisResultDAO {
   }
 
   findById(id: string): AnalysisResult | undefined {
-    const row = this.selectByIdStmt.get(id);
+    const row = this.selectByIdStmt.get(id) as AnalysisResultRow | undefined;
     return row ? rowToResult(row) : undefined;
   }
 
   findAll(): AnalysisResult[] {
-    return this.selectAllStmt.all().map(rowToResult);
+    return (this.selectAllStmt.all() as AnalysisResultRow[]).map(rowToResult);
   }
 
   findByModule(module: string): AnalysisResult[] {
-    return this.selectByModuleStmt.all(module).map(rowToResult);
+    return (this.selectByModuleStmt.all(module) as AnalysisResultRow[]).map(rowToResult);
   }
 
   findByProjectId(projectId: string): AnalysisResult[] {
-    return this.selectByProjectStmt.all(projectId).map(rowToResult);
+    return (this.selectByProjectStmt.all(projectId) as AnalysisResultRow[]).map(rowToResult);
   }
 
   deleteById(id: string): boolean {

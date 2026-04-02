@@ -1,17 +1,25 @@
 .projects-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .project-card {
-  transition: box-shadow var(--transition-base), border-color var(--transition-base), transform var(--transition-base);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
+  transition: background var(--transition-base), border-color var(--transition-base);
 }
 
 .project-card:hover {
-  box-shadow: var(--shadow-card-hover);
+  box-shadow: none;
   border-color: var(--accent-border);
-  transform: translateY(-1px);
+  background: var(--surface-inset);
+  transform: none;
 }
 
 .project-card__inner {
@@ -57,14 +65,74 @@
   align-items: center;
   gap: var(--space-1);
   justify-content: flex-end;
+  font-family: var(--font-data);
+  font-size: var(--text-xs);
 }
 
 .project-card__date--updated {
   opacity: 0.7;
 }
 
+/* ── Security summary indicators ── */
+
+.project-card__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.project-card__severity {
+  width: 100px;
+}
+
+.project-card__severity .severity-bar {
+  height: 6px;
+  border-radius: 3px;
+}
+
+.project-card__indicators {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.project-card__gate {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.project-card__gate-label {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+}
+
+.project-card__gate--pass { color: var(--success); }
+.project-card__gate--fail { color: var(--severity-critical); }
+.project-card__gate--warning { color: var(--severity-medium); }
+
+.project-card__delta {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--font-data);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.project-card__delta--up { color: var(--severity-critical); }
+.project-card__delta--down { color: var(--success); }
+
+.project-card__date--muted {
+  color: var(--text-tertiary);
+  font-style: italic;
+  font-size: var(--text-xs);
+}
+
 .projects-create-form {
   animation: fadeInUp 200ms ease both;
+  max-width: 480px;
 }
 
 .projects-create-form__actions {

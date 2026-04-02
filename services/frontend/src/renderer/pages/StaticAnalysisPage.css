@@ -53,6 +53,7 @@
 
 .file-coverage__stat {
   font-size: var(--text-sm);
+  font-family: var(--font-data);
   color: var(--text-secondary);
   margin-left: auto;
 }
@@ -111,9 +112,9 @@
 
 .static-result-filter {
   display: flex;
-  gap: var(--space-4);
+  gap: var(--space-1);
   align-items: center;
-  padding: var(--space-3) var(--space-5);
+  padding: var(--space-1) var(--space-3);
   flex-wrap: wrap;
 }
 
@@ -153,6 +154,7 @@
   color: var(--text-tertiary);
   white-space: nowrap;
   margin-left: auto;
+  font-family: var(--font-data);
 }
 
 .file-group__body .vuln-card {
@@ -171,7 +173,7 @@
 }
 
 .file-group__line {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--text-xs);
   color: var(--text-tertiary);
   white-space: nowrap;
@@ -183,12 +185,12 @@
   display: flex;
   gap: 0;
   border-bottom: 1px solid var(--border-default);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-3);
 }
 
 .static-dashboard-tabs__item {
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--text-sm);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   color: var(--text-secondary);
   border-bottom: 2px solid transparent;
@@ -284,8 +286,10 @@
   justify-content: center;
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
+  font-family: var(--font-data);
   color: var(--text-secondary);
   flex-shrink: 0;
+  opacity: 0.5;
 }
 
 .ranking-table__name {
@@ -301,6 +305,7 @@
 .ranking-table__value {
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
+  font-family: var(--font-data);
   color: var(--text-secondary);
   white-space: nowrap;
   text-align: right;
@@ -459,8 +464,8 @@
 .finding-search-bar {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
   flex-wrap: wrap;
 }
 
@@ -546,13 +551,13 @@
 .finding-filter-bar {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
 }
 
 .finding-filter-tabs {
   display: flex;
-  gap: var(--space-2);
+  gap: 2px;
   flex-wrap: wrap;
   flex: 1;
 }
@@ -560,13 +565,13 @@
 .finding-filter-tab {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   background: var(--surface-0);
   color: var(--text-secondary);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   cursor: pointer;
   transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
@@ -589,6 +594,7 @@
 
 .finding-filter-count {
   font-size: var(--text-xs);
+  font-family: var(--font-data);
   opacity: 0.8;
 }
 
@@ -700,6 +706,8 @@
 
 .source-dist__label {
   min-width: 80px;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 .source-dist__bar-track {
@@ -822,6 +830,7 @@
 .audit-timeline__time {
   white-space: nowrap;
   min-width: 120px;
+  font-family: var(--font-data);
 }
 
 /* ── Gate Card ── */

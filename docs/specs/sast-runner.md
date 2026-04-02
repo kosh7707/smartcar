@@ -1,4 +1,4 @@
-# S4. SAST Runner 기능 명세 (v0.7.0)
+# S4. SAST Runner 기능 명세 (v0.9.0)
 
 > SAST Runner는 C/C++ 프로젝트의 보안 분석에 필요한 **결정론적 전처리**를 담당하는 서비스다.
 > 6개 SAST 도구 병렬 실행, SCA(라이브러리 식별 + upstream diff), 코드 구조 추출,
@@ -25,7 +25,7 @@
 | 포트 | 9000 |
 | 버전 | v0.7.0 |
 | API 계약 | `docs/api/sast-runner-api.md` |
-| 테스트 | 333개 (22개 파일) |
+| 테스트 | 368개 (23개 파일) |
 
 ---
 
@@ -33,7 +33,7 @@
 
 | 엔드포인트 | 용도 |
 |-----------|------|
-| `POST /v1/scan` | 6개 SAST 도구 병렬 + 실행 보고서 + SDK 해석 + scope-early + 노이즈 필터링 |
+| `POST /v1/scan` | 6개 SAST 도구 병렬 + 실행 보고서 + SDK 해석 + scope-early + 노이즈 필터링. **NDJSON 스트리밍 모드 지원** (`Accept: application/x-ndjson`) |
 | `POST /v1/functions` | clang AST -> 함수+호출 관계 + origin 태깅 |
 | `POST /v1/includes` | gcc -E -M -> 인클루드 트리 |
 | `POST /v1/metadata` | gcc -E -dM -> 타겟 매크로/아키텍처 |
@@ -221,6 +221,54 @@ clang AST 기반 함수+호출 관계:
 - 필드 없음 -> 프로젝트 코드
 - `originalLib`, `originalVersion` 포함 (S5 코드 그래프 + S3 LLM 분석에 활용)
 
+### 코드그래프 품질 평가 기준
+
+S4가 생성하는 코드그래프는 S5(KB)에 ingest되어 호출 체인 분석, 위험 함수 역추적, 시맨틱 검색에 사용된다. 그래프 품질이 S3 Agent의 분석 정확도에 직접 영향을 주므로, 아래 6개 메트릭으로 품질을 관리한다.
+
+#### 메트릭 정의
+
+| 메트릭 | 정의 | 임계값 | 의미 |
+|--------|------|:---:|------|
+| **Function Recall** | `추출_매칭 / 기대_함수수` | >= 90% | 사용자 코드 함수를 빠짐없이 추출하는가 |
+| **Function Precision** | `추출_매칭 / 실제_추출수` | >= 90% | 시스템/헤더 함수가 혼입되지 않는가 |
+| **Call Recall** | `매칭_호출 / 기대_호출수` | >= 80% | 함수 간 호출 관계를 빠짐없이 캡처하는가 |
+| **Call Precision** | `매칭_호출 / 실제_호출수` | >= 85% | 존재하지 않는 호출이 생성되지 않는가 |
+| **Origin Accuracy** | `정확_태깅 / 전체_태깅` | 100% | 서드파티 출처 분류가 정확한가 |
+| **Parse Rate** | `파싱_성공_파일 / 전체_소스_파일` | 100% | clang이 모든 소스를 정상 파싱하는가 |
+
+#### 알려진 한계
+
+| 패턴 | 캡처 여부 | 이유 |
+|------|:---:|------|
+| 직접 함수 호출 `foo()` | O | `CallExpr` → `DeclRefExpr` |
+| 멤버 함수 호출 `obj.method()` | O | `MemberExpr` |
+| 함수 포인터 `ptr()` | **X** | `DeclRefExpr` 없음. 호출 대상 미확정 |
+| 매크로 확장 호출 | 부분 | 확장 결과에 `CallExpr`가 있으면 O |
+| C++ virtual call | 부분 | 정적 타입 기준 `MemberExpr`로 캡처 |
+| `__attribute__` 함수 | X | `__` prefix 필터링 |
+
+#### 평가 인프라
+
+- **Ground truth fixture**: `tests/fixtures/codegraph_project/` — 5개 .c 파일, 10개 함수, 크로스 파일 호출, 서드파티 라이브러리
+- **Ground truth JSON**: `tests/fixtures/codegraph_project/expected_codegraph.json` — 기대 함수, 호출, origin 태깅, 임계값
+- **평가 엔진**: `benchmark/codegraph_evaluator.py` — `evaluate_codegraph()`, `evaluate_origin()`
+- **테스트**: `tests/test_codegraph_quality.py` — 13개 테스트 (`pytest -m integration -k codegraph`)
+  - 기본 품질 메트릭 (recall, precision, parse rate, 임계값 일괄)
+  - 헤더 필터링 (시스템 함수, builtin 함수 미혼입)
+  - Origin 태깅 (unmodified, modified, user code)
+  - Skip paths (서드파티 제외)
+  - 그래프 연결성 (크로스 파일 호출, 위험 함수, edge density)
+
+#### 그래프 연결성 지표
+
+S5 ingest 후 유용성을 결정하는 보조 지표:
+
+| 지표 | 설명 | 기대 범위 |
+|------|------|----------|
+| 크로스 파일 호출 | 서로 다른 파일 간 호출 edge 존재 | 1개 이상 |
+| 위험 함수 도달성 | `system`, `strcpy` 등 호출이 그래프에 포함 | S5 `dangerous-callers` 동작 전제 |
+| Edge density | 함수당 평균 호출 수 | 1.0 ~ 10.0 |
+
 ---
 
 ## 10. 빌드 자동 실행
@@ -310,6 +358,31 @@ pattern-sanitizers:              # <- FP 감소
 ```
 
 전 룰에 `automotive_rationale` + ISO 26262/MISRA/AUTOSAR/CERT 참조 포함.
+
+---
+
+## 12-1. NDJSON 스트리밍 진행 지표 (v0.9.0)
+
+`POST /v1/scan`의 NDJSON 스트리밍 모드에서 heartbeat에 진행 상태를 포함한다.
+
+### heartbeat 포맷
+
+```json
+{"type":"heartbeat","timestamp":...,"status":"running","progress":{"activeTools":["gcc-fanalyzer"],"completedTools":["semgrep"],"findingsCount":12,"filesCompleted":5,"filesTotal":20,"currentFile":"src/main.c"}}
+```
+
+- `status`: `"queued"` (세마포어 대기) | `"running"` (분석 중)
+- `progress`: `running` 상태에서만 포함
+- `filesCompleted/filesTotal`: per-file 도구(gcc-fanalyzer, scan-build)의 합산
+- `activeTools`: subprocess 생존 증거 (False Alive 방지)
+
+### 동시성 세마포어
+
+`SAST_MAX_CONCURRENT_SCANS` 환경변수 (기본 2). 초과 요청은 내부 큐 대기 + `queued` heartbeat 전송.
+
+### metadata.cweId (v0.9.0)
+
+`SastFinding.metadata.cweId`에 대표 CWE 식별자(단일 string)를 포함한다. 기존 `metadata.cwe`(배열)의 첫 번째 원소. 전 도구에서 CWE가 있을 때 자동 설정. S2가 Finding에 cweId를 매핑하는 데 사용.
 
 ---
 

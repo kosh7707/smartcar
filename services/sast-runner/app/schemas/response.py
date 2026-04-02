@@ -122,7 +122,7 @@ class ScanResponse(BaseModel):
 class HealthResponse(BaseModel):
     service: str = "s4-sast"
     status: str = "ok"
-    version: str = "0.7.0"
+    version: str = "0.8.0"
     semgrep: dict[str, Any] = {}
     tools: dict[str, Any] = {}
     default_rulesets: list[str] = Field(default_factory=list, alias="defaultRulesets")

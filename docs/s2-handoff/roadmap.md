@@ -7,9 +7,10 @@
 
 ## 10. 알려진 이슈 / 로드맵 / 세션 로그
 
-### 대기 중인 작업 요청 (2026-03-28 기준)
+### 대기 중인 작업 요청 (2026-04-02 기준)
 
-`docs/work-requests/`: `s2-to-s1-rule-engine-removal.md` — Rule 엔진 완전 제거 공지 (S1이 처리 후 삭제).
+- `s2-to-s1-model-api-extension.md` — 공유 모델 변경 통보 (S1이 처리 후 삭제)
+- `s2-to-s4-cwe-metadata.md` — SastFinding.metadata.cweId 표준화 요청 (S4가 처리 후 삭제)
 
 ### 세션 13 완료 사항 (2026-03-28)
 
@@ -22,6 +23,21 @@
 - `db-stats.sh` 전면 갱신 (9→18 테이블 조회)
 - S3 통합 테스트 완료 대응: 파이프라인 격리 경로(`target.sourcePath`) 사용, Build Agent 경로 수정, 부분 빌드 처리, PoC에 `projectPath` 추가
 - log-analyzer 토큰 절감 (메시지 축약, 중복 그룹핑, max_lines)
+
+### 세션 14 완료 사항 (2026-04-01)
+
+S1-QA 보안 분석가 UX 리뷰 WR 전면 처리 (11 Phase):
+- Finding CWE/CVE 매핑 + confidenceScore 수치 추가
+- 빌드 로그 조회 API (GET /targets/:id/build-log)
+- 프로젝트 목록 보안 요약 (ProjectListItem + severity/gate/delta)
+- Overview 트렌드/델타 (newFindings, resolvedFindings, unresolvedTotal)
+- Gate 프로필 시스템 (3 프리셋: default/strict/relaxed)
+- 프로젝트 설정 확장 (gateProfileId, analysisPolicy)
+- Finding 그루핑 API (ruleId/location 기준)
+- 보고서 커스터마이징 (POST /report/custom)
+- 알림 시스템 (4개 REST + WS + 4개 트리거)
+- 사용자/역할 시스템 (soft auth, admin 시딩)
+- DB 18→21 테이블, 테스트 267→322개
 
 ### DB hot-reload 함정
 
@@ -81,7 +97,7 @@ src/
 
 - `source.get_span` API — 소스 파일 특정 범위 반환 (S3 Agent tool)
 - Overview에 `deep_analysis` 모듈 집계 추가 (project.service.ts)
-- 사용자 인증 (JWT 기반) — Approval 고도화 시 필요
+- 사용자 인증 강화: AUTH_REQUIRED=true 모드 + RBAC 적용 (soft auth 구현 완료, S1 로그인 UI 대기)
 
 ### 인프라 로드맵 (v1.0.0 이후)
 

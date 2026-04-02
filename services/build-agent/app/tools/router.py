@@ -10,6 +10,7 @@ from agent_shared.observability import agent_log
 from agent_shared.schemas.agent import ToolCallRequest, ToolCostTier, ToolResult, ToolTraceStep
 from agent_shared.tools.base import ToolImplementation
 from agent_shared.tools.executor import ToolExecutor
+from agent_shared.tools.hooks import HookRunner, merge_hook_feedback, truncate_tool_result
 from agent_shared.tools.registry import ToolRegistry, ToolSideEffect
 from app.policy.tool_failure import ToolFailurePolicy
 
@@ -28,12 +29,14 @@ class ToolRouter:
         executor: ToolExecutor,
         budget_manager: BudgetManager,
         tool_failure_policy: ToolFailurePolicy,
+        hook_runner: HookRunner | None = None,
     ) -> None:
         self._registry = registry
         self._executor = executor
         self._budget_manager = budget_manager
         self._failure_policy = tool_failure_policy
         self._implementations: dict[str, ToolImplementation] = {}
+        self._hook_runner = hook_runner or HookRunner()
 
     def register_implementation(self, name: str, impl: ToolImplementation) -> None:
         self._implementations[name] = impl
@@ -111,7 +114,24 @@ class ToolRouter:
                 error=f"{tier.value}_budget_exhausted",
             )
 
-        # 5. 디스패치
+        # 5. PreToolUse 훅 (claw-code conversation.rs 패턴)
+        pre_result = self._hook_runner.run_pre_hooks(call.name, call.arguments)
+        if pre_result.is_denied():
+            deny_msg = merge_hook_feedback(pre_result.messages, "", True)
+            agent_log(
+                logger, "PreToolUse 훅 거부",
+                component="tool_router", phase="tool_hook_denied",
+                turn=turn, tool=call.name,
+            )
+            return ToolResult(
+                tool_call_id=call.id,
+                name=call.name,
+                success=False,
+                content=deny_msg or f'{{"error": "PreToolUse hook denied tool {call.name}"}}',
+                error="hook_denied",
+            )
+
+        # 6. 디스패치
         agent_log(
             logger, "Tool 디스패치",
             component="tool_router", phase="tool_dispatch",
@@ -119,10 +139,25 @@ class ToolRouter:
             argsHash=call.args_hash,
         )
 
-        # 6. 실행
+        # 7. 실행
         result = await self._executor.execute(impl, call, turn=turn)
 
-        # 7. 예산 기록
+        # 7.5 도구 결과 truncation (claw-code truncate_summary 패턴)
+        result.content = truncate_tool_result(result.content)
+
+        # 8. PostToolUse 훅
+        post_result = self._hook_runner.run_post_hooks(
+            call.name, call.arguments, result.content, not result.success,
+        )
+        if post_result.messages:
+            result.content = merge_hook_feedback(
+                post_result.messages, result.content, post_result.is_denied(),
+            )
+        if post_result.is_denied():
+            result.success = False
+            result.error = result.error or "hook_denied_post"
+
+        # 9. 예산 기록
         self._budget_manager.record_tool_call(tier, turn=turn)
         self._budget_manager.register_call_hash(call.args_hash)
 

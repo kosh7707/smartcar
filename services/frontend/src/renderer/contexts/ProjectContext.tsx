@@ -1,21 +1,21 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
-import type { Project } from "@aegis/shared";
+import type { Project, ProjectListItem } from "@aegis/shared";
 import * as api from "../api/client";
 import { ApiError, logError } from "../api/client";
 import { useToast } from "./ToastContext";
 
 interface ProjectContextValue {
-  projects: Project[];
+  projects: ProjectListItem[];
   loading: boolean;
   refreshProjects: () => Promise<void>;
   createProject: (name: string, description: string) => Promise<Project>;
-  getProject: (id: string) => Project | null;
+  getProject: (id: string) => ProjectListItem | null;
 }
 
 const ProjectContext = createContext<ProjectContextValue | null>(null);
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
 
