@@ -51,6 +51,17 @@ export function createFindingRouter(findingService: FindingService): Router {
     res.json({ success: true, data: summary });
   });
 
+  // GET /api/projects/:pid/findings/groups?groupBy=ruleId|location
+  router.get("/groups", (req: Request<{ pid: string }>, res) => {
+    const pid = req.params.pid;
+    const groupBy = req.query.groupBy as string | undefined;
+    if (groupBy !== "ruleId" && groupBy !== "location") {
+      throw new InvalidInputError("groupBy must be 'ruleId' or 'location'");
+    }
+    const groups = findingService.getGroups(pid, groupBy);
+    res.json({ success: true, data: groups });
+  });
+
   return router;
 }
 
