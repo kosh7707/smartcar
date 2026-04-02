@@ -15,7 +15,7 @@
 | [architecture.md](architecture.md) | 파일 구조, 설계 결정, 에러 핸들링, 버그 이력, UI 컨벤션, 실행 방법 |
 | [roadmap.md](roadmap.md) | 다음 작업, 후순위, S2 대기 항목 |
 | [qa-guide.md](qa-guide.md) | QA 전용 세션 가이드 (Playwright, 체크리스트, 이슈 보고) |
-| session-{1~13}.md | 세션별 작업 로그 (session-1.md ~ session-13.md) |
+| session-{1~15}.md | 세션별 작업 로그 (session-1.md ~ session-15.md) |
 
 ---
 
@@ -61,13 +61,15 @@
 |------|---|
 | 유닛 테스트 | **347개 통과** (vitest + @testing-library/react + jsdom) |
 | E2E 테스트 | 180개+ (Playwright + Chromium) |
-| 페이지 | 15개 (프로젝트 스코프 12 + 글로벌 2 + 로그인 1) |
-| API 모듈 | 12개 (core, projects, source, analysis, pipeline, gate, approval, sdk, report, dynamic, **auth**, **notifications**) |
-| 컴포넌트 | ui 24개 + static 25개 + finding 3개 + root 5개 (NotificationDropdown, CustomReportModal 신규) |
-| 커스텀 훅 | 9개 (WS 3 + 상태 3 + 타이머 1 + 어댑터 1 + **키보드 단축키 1**) |
-| 컨텍스트 | 5개 (Project, Toast, AnalysisGuard, **Auth**, **Notification**) |
-| 유틸리티 | 12개 (.ts 10 + .tsx 2) |
-| 디자인 시스템 | IBM Plex Sans, #0EA5E9 "Security Command Center" |
+| 페이지 | 17개 (프로젝트 스코프 12 + 글로벌 2 + 로그인 1 + 설정 1 + 파일 상세 1) |
+| API 모듈 | 14개 (core, projects, source, analysis, pipeline, gate, approval, sdk, report, dynamic, auth, notifications, mock-handler, client) |
+| 컴포넌트 | ui 31개 + static 31개 + finding 3개 + root 7개 = **72개** |
+| 커스텀 훅 | 10개 (WS 3 + 상태 3 + 타이머 1 + 어댑터 1 + 키보드 단축키 1 + 동적 테스트 1) |
+| 컨텍스트 | 5개 (Project, Toast, AnalysisGuard, Auth, Notification) |
+| 유틸리티 | 24개 |
+| 디자인 시스템 | DM Sans + Instrument Sans, #22D3A7 "Tactical Operations Console" |
+| Dev Mock Mode | `npm run dev:mock` — 백엔드 없이 mock 데이터로 전 페이지 렌더링 |
+| QA 검증 | 세션 15 — 33 PASS / 0 FAIL / 1 DEFERRED (FRICTION-5: 빈 상태 mock 미지원) |
 
 ---
 

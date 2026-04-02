@@ -1,9 +1,9 @@
-# Build Agent API 명세 (v0.3.0)
+# Build Agent API 명세 (v0.4.0)
 
 > **소유자**: S3 (Analysis Agent 겸 Build Agent)
 > **포트**: 8003
 > **호출자**: S2 (Backend)
-> **최종 업데이트**: 2026-03-27
+> **최종 업데이트**: 2026-04-02
 
 S2(AEGIS Core)가 S3(Build Agent)를 호출할 때 참조하는 API 계약서.
 Build Agent는 AEGIS의 **LLM 기반 빌드 자동화 에이전트**로, 프로젝트 소스를 탐색하여 빌드 스크립트(`build-aegis/aegis-build.sh`)를 작성하고 빌드를 성공시킨다. compile_commands.json 추출은 S4의 영역.

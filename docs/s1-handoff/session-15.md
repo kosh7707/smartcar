@@ -57,13 +57,6 @@ S2 API/모델 확장 완료 통보(A/B/C 전부) + QA 분석가 UX 리뷰 S1 독
 - 유닛: 347개 전부 통과 (SOURCE_TYPE_LABELS, TargetStatusBadge 테스트 수정)
 - E2E: 미실행 (다음 세션에서 검증)
 
-## WR 처리
-
-- 삭제: s1qa-to-s1-design-audit.md (처리 완료)
-- 삭제: s1-to-s1-session14-backlog.md (정독 완료)
-- 삭제: s2-to-s1-model-api-extension.md (S1 구현 완료)
-- 유지: s1qa-to-s1-analyst-ux-review.md (14건 전수 처리 완료, QA 확인 후 삭제)
-
 ## 신규 파일 (12개)
 
 - src/renderer/api/auth.ts
@@ -93,3 +86,31 @@ S2 API/모델 확장 완료 통보(A/B/C 전부) + QA 분석가 UX 리뷰 S1 독
 - 토큰 전면 재설계 (tokens.css)
 - 전 페이지/컴포넌트 CSS 폴리시 (20+ 파일)
 - 하드코딩 색상/--primary 참조 전면 정리 (10건)
+
+### QA 버그픽스 (초회 검증 후 수정)
+- BUG-1: 알림 벨 렌더링 실패 → `App.tsx`에 `NotificationBridge` 추가
+- BUG-2: 빌드 로그 버튼 미구현 → `FilesPage` 서브프로젝트 행에 추가
+- PARTIAL-1: 파일 프리뷰 코드 미로드 → `mock-handler.ts` 라우트 수정 (`/source/file`)
+- PARTIAL-2: 로그인 h1 폰트 → `LoginPage.css`에 `font-family: var(--font-display)` 추가
+- JR-1~JR-8: 주니어 UX 개선 8건 전수 처리 (severity tooltip, delta 라벨, Gate 텍스트, 뱃지 색상, CWE tooltip, 단축키 힌트, 증적 설명, Gate 프로필 설명)
+
+## QA 검증 결과
+
+### 초회 검증
+- 29 PASS / 2 FAIL / 2 PARTIAL / 1 DEFERRED
+
+### 재검증 (BUG 4건 + JR 8건 수정 후)
+- **33 PASS / 0 FAIL / 1 DEFERRED** (FRICTION-5: 빈 상태 mock 미지원)
+- 콘솔 에러: 0건
+- 증거: `e2e/qa-captures/session15-reqa/`
+
+## WR 처리 (최종)
+- 삭제: s1qa-to-s1-design-audit.md (처리 완료)
+- 삭제: s1-to-s1-session14-backlog.md (정독 완료)
+- 삭제: s2-to-s1-model-api-extension.md (S1 구현 완료)
+- 삭제: s1qa-to-s1-analyst-ux-review.md (14건 전수 처리 + QA 확인)
+- 삭제: s1-to-s1qa-session15-review.md (초회 검증 요청 완료)
+- 삭제: s1-to-s1qa-session15-bugfix.md (수정 완료 통보)
+- 삭제: s1qa-to-s1-session15-verdict.md (초회 판정)
+- 삭제: s1qa-to-s1-session15-reqa-verdict.md (재검증 전건 통과)
+- 삭제: s1qa-to-s1-playwright-plugin-mock.md (Dev Mock Mode 구현 완료)

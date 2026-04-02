@@ -157,13 +157,18 @@ Phase 1 완료 후 `build_phase2_prompt()`가 결과를 시스템 프롬프트 +
 ### 6.1 루프 흐름
 
 ```
-1. Phase 1 결과 → 프롬프트 조립 (system + user)
+1. Phase 1 결과 → SystemPromptBuilder로 프롬프트 조립 (system + user)
 2. while not should_stop():
-   a. S7 Gateway POST /v1/chat 호출 (messages + tools)
-   b. 응답 분기:
-      - tool_calls → ToolRouter로 실행 → 결과를 메시지에 추가 → 다음 턴
+   a. 컨텍스트 압축 체크 (토큰 추정 > 16K → TurnSummarizer compact)
+   b. S7 Gateway POST /v1/chat 호출 (messages + tools)
+   c. 응답 분기:
+      - tool_calls → PreToolUse 훅 → ToolRouter 실행 → PostToolUse 훅 → 결과를 메시지에 추가 → 다음 턴
       - content → ResultAssembler로 파싱 → 응답 반환
-3. 예산 초과 시 TaskFailureResponse(budget_exceeded) 반환
+      - 빈 응답 → TaskFailureResponse(model_error, retryable)
+   d. 첫 턴 후 plan-before-act 넛지 주입
+   e. 예산 4회째 경고 + 핵심 규칙 리마인더
+3. 예산 초과 시 build_from_exhaustion() → TaskFailureResponse 반환
+4. LLM 호출 실패 시 도구 결과가 있으면 부분 결과 fallback
 ```
 
 ### 6.2 LLM 호출
@@ -174,7 +179,24 @@ Phase 1 완료 후 `build_phase2_prompt()`가 결과를 시스템 프롬프트 +
 - 토큰 추적: prompt_tokens, completion_tokens → `TokenCounter`
 - 교환 로그: `logs/llm-exchange.jsonl` + `logs/llm-dumps/{requestId}_turn-{nn}_{ts}.json`
 
-### 6.3 Phase 2 도구
+### 6.3 컨텍스트 압축 (TurnSummarizer)
+
+멀티턴 대화가 길어지면 `TurnSummarizer`가 구조화 압축을 실행한다.
+
+- **트리거**: 메시지 토큰 추정 > 16,000 (4자 = 1토큰 휴리스틱)
+- **보존**: system prompt + 최근 4개 메시지 (tool_call/tool 쌍 경계 보존)
+- **구조화 요약 생성** (claw-code compact.rs 패턴):
+  - 도구 호출 이력 (이름, 인자 요약, 성공/실패, evidence ref)
+  - 수집된 Evidence Refs (eref-* 패턴)
+  - 참조 파일 경로 (파일 확장자 필터링, 최대 8개)
+  - 미완료 작업 추론 (TODO/next/pending 키워드)
+  - 최근 사용자 요청 (최대 3개, 160자 truncation)
+  - 시스템 지시 메시지
+  - 세션 상태 (tools_used, evidence_refs_collected 등)
+- **Continuation Preamble**: "요약을 반복하지 마라. 바로 이어서 작업하라"
+- **재압축 병합**: 이전 요약에서 highlights를 추출하여 크기 폭발 방지 (O(n) 유지)
+
+### 6.4 Phase 2 도구
 
 | 도구 | cost tier | 대상 | 용도 |
 |------|-----------|------|------|
@@ -194,9 +216,24 @@ Phase 1 완료 후 `build_phase2_prompt()`가 결과를 시스템 프롬프트 +
 | 컴포넌트 | 역할 |
 |----------|------|
 | `ToolRegistry` | ToolSchema 등록, OpenAI function calling 포맷 생성 |
-| `ToolRouter` | tool_call 디스패치, 예산 차감, 중복 차단 (args_hash) |
+| `ToolRouter` | tool_call 디스패치, 예산 차감, 중복 차단 (args_hash), Pre/Post 훅 실행 |
 | `ToolExecutor` | 단건 실행 + `asyncio.wait_for` 타임아웃 |
 | `ToolImplementation` (Protocol) | 각 도구의 `execute(arguments) → ToolResult` |
+| `HookRunner` | Pre/Post ToolUse 훅 순차 실행 (deny 시 도구 실행 건너뜀) |
+| `AuditLogHook` | 기본 훅 — 모든 도구 호출을 agent_log로 감사 기록 |
+| `truncate_tool_result()` | 도구 결과 8,000자 초과 시 truncation + 안내 메시지 |
+| `SystemPromptBuilder` | 빌더 패턴 시스템 프롬프트 조립 (섹션 분리, 예산 주입, 동적 경계) |
+
+### Pre/Post ToolUse 훅 (claw-code 패턴)
+
+```
+PreToolUse → 도구 실행 전 검증. deny 반환 시 도구 실행 건너뜀.
+PostToolUse → 도구 실행 후 감사/검증. 피드백 메시지를 도구 결과에 병합.
+HookRunner → 등록된 훅을 순차 실행. 하나라도 deny면 즉시 중단.
+```
+
+- `agent_shared/tools/hooks.py`에 프로토콜 + 기본 구현
+- Analysis Agent, Build Agent 양쪽 ToolRouter에 통합
 
 ### 구현체
 

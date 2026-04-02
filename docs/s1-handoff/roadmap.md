@@ -16,35 +16,12 @@
 2. **워크플로우 네비게이션** [Low] — 사이드바를 기능 목록 → 워크플로우 단계로 재설계 (QA FRICTION-29)
 3. **1440px 와이드 레이아웃 최적화** [Low] — 정보 밀도 개선 (QA CSS-3)
 
-## 세션 15 완료 항목
+## 세션 15 QA 검증 최종 결과
 
-### S2 API 연동 (A/B/C)
-- [x] A-1: Finding CWE/CVE 표시 (VulnerabilitiesPage, FindingDetailView)
-- [x] A-2: Finding confidenceScore 수치 표시 (ConfidenceBadge 확장)
-- [x] B-1: 프로젝트 목록 보안 요약 (severitySummary, gateStatus, unresolvedDelta)
-- [x] B-2: Overview 트렌드 카드 (newFindings, resolvedFindings, unresolvedTotal)
-- [x] B-3: 빌드 로그 조회 (BuildLogViewer 모달)
-- [x] B-4/B-5: Gate 프로필 선택 (ProjectSettingsPage)
-- [x] C-1: Finding 그루핑 (아코디언 UI, ruleId/location 기준)
-- [x] C-2: 커스텀 보고서 (CustomReportModal)
-- [x] C-3: 인증 UI (LoginPage, AuthContext, soft-auth)
-- [x] C-4: 알림 시스템 (NotificationDropdown, NotificationContext, WS)
-
-### QA 분석가 UX 리뷰 독립 14건
-- [x] CONFUSING-3: 프로젝트 설명 placeholder 도메인 힌트
-- [x] CONFUSING-7: 서브프로젝트 상태 설명 (TargetStatusBadge title)
-- [x] CONFUSING-10: SOURCE_TYPE_LABELS 개선 (룰 엔진, AI 보조, 심층 에이전트, SAST 도구)
-- [x] CONFUSING-14: ConfidenceBadge sourceType+score 통합 표시
-- [x] CONFUSING-18: ReportPage stat 라벨 명확화
-- [x] CONFUSING-21: Gate 규칙 한 줄 설명 (RULE_INFO)
-- [x] CONFUSING-24: DonutChart centerLabel prop
-- [x] CONFUSING-31: "준비 중" 메뉴 제거
-- [x] FRICTION-5: 빈 정적 분석 → EmptyState CTA
-- [x] FRICTION-15: 활성 필터 요약 칩
-- [x] MISSING-17: PoC 가능 뱃지
-- [x] MISSING-26: Overview 서브프로젝트 확인 (이미 구현됨)
-- [x] MISSING-30: 키보드 단축키 (j/k/o/Enter/Esc/?)
-- [x] MOCK-32/33: Finding 상세 + 파일 프리뷰 mock 보강
+- **33 PASS / 0 FAIL / 1 DEFERRED** (FRICTION-5: 빈 상태 mock 미지원)
+- 초회 검증 → BUG 4건 + JR 8건 수정 → 재검증 전건 통과
+- 증거: `e2e/qa-captures/session15-reqa/`
+- WR 4건 처리 완료 삭제
 
 ## 미구현 (선택)
 
