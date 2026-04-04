@@ -53,8 +53,9 @@ def _make_session(
 
 def _strict_metadata(expected_artifacts: list[str] | None = None) -> dict:
     metadata = {
-        "contractVersion": "compile-first-v1",
+        "contractVersion": "build-resolve-v1",
         "strictMode": True,
+        "buildMode": "native",
     }
     if expected_artifacts is not None:
         metadata["expectedArtifacts"] = expected_artifacts
@@ -111,11 +112,14 @@ def test_build_success_from_valid_json() -> None:
 
     assert isinstance(resp, TaskSuccessResponse)
     assert resp.status == TaskStatus.COMPLETED
+    assert resp.contractVersion == "build-resolve-v1"
+    assert resp.strictMode is True
     assert resp.promptVersion == "build-v3"
     assert resp.result.summary == "Build failure resolved"
     assert len(resp.result.claims) == 1
     assert resp.result.buildResult is not None
     assert resp.result.buildResult.success is True
+    assert resp.result.buildResult.declaredMode == "native"
 
 
 def test_build_fallback_on_invalid_json_becomes_strict_failure() -> None:
@@ -127,6 +131,7 @@ def test_build_fallback_on_invalid_json_becomes_strict_failure() -> None:
 
     assert isinstance(resp, TaskFailureResponse)
     assert resp.status == TaskStatus.VALIDATION_FAILED
+    assert resp.contractVersion == "build-resolve-v1"
     assert resp.failureCode == FailureCode.BUILD_SCRIPT_SYNTHESIS_FAILED
     assert resp.failureContext is not None
     assert resp.failureContext.strictMode is True

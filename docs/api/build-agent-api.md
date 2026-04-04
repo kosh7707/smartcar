@@ -61,7 +61,7 @@ http://localhost:8003
 - `contractVersion: "build-resolve-v1"` + `strictMode: true` 조합이 **compile-first v1 정식 계약**이다.
 - `strictMode`가 `false` 이거나 누락되면 레거시 호환 경로로 간주할 수 있으나, 이는 **deprecated** 이며 strict 의미를 보장하지 않는다.
 - 새 호출자는 반드시 strict v1 필드를 모두 채워야 한다.
-- 레거시 `targetPath`, `targetName` 필드는 migration alias일 뿐이며 **strict v1에서는 사용하지 않는다**.
+- 레거시 `targetPath`, `targetName`, flat `buildMode`/`sdkId`, `contractVersion: "compile-first-v1"` 는 migration alias일 뿐이며 **strict v1의 canonical surface는 아니다**.
 
 ### 요청 예시
 
@@ -175,24 +175,24 @@ Build Agent가 LLM repair 루프 안에서 사용하는 도구:
 |------|-----------|------|
 | `list_files` | CHEAP | 서브프로젝트 기준 디렉토리 구조를 트리 형태로 반환 |
 | `read_file` | CHEAP | 프로젝트 내 파일 읽기 (읽기 전용, 8KB 제한) |
-| `write_file` | CHEAP | `build-aegis/` 안에 파일 생성 |
-| `edit_file` | CHEAP | `build-aegis/` 내 에이전트 생성 파일 수정 |
-| `delete_file` | CHEAP | `build-aegis/` 내 에이전트 생성 파일 삭제 |
+| `write_file` | CHEAP | request-scoped `build-aegis-<requestIdPrefix>/` 안에 파일 생성 |
+| `edit_file` | CHEAP | request-scoped `build-aegis-<requestIdPrefix>/` 내 에이전트 생성 파일 수정 |
+| `delete_file` | CHEAP | request-scoped `build-aegis-<requestIdPrefix>/` 내 에이전트 생성 파일 삭제 |
 | `try_build` | EXPENSIVE | S4에 빌드 명령을 전송하여 실제 빌드 수행 |
 
 `try_build`는 호출자가 선언한 `build.mode`를 따른다. SDK가 선언되지 않았으면 SDK source를 추론해서 붙이지 않으며, `sdk` 모드에서는 선언된 SDK 정보 없이는 성공을 반환하지 않는다.
 
 ---
 
-## 고정 산출물 경로
+## request-scoped 산출물 경로
 
-빌드 스크립트는 항상 서브프로젝트 루트 아래 고정 경로에 생성된다.
+빌드 스크립트는 항상 서브프로젝트 루트 아래 **request-scoped 워크스페이스**에 생성된다.
 
 ```text
-{projectPath}/{subprojectPath}/build-aegis/aegis-build.sh
+{projectPath}/{subprojectPath}/build-aegis-{requestIdPrefix}/aegis-build.sh
 ```
 
-S4는 이후 해당 스크립트를 사용해 `bear -- bash build-aegis/aegis-build.sh` 방식으로 `compile_commands.json`을 추출한다.
+정확한 경로는 응답의 `buildResult.buildScript` / `buildResult.buildDir`를 기준으로 소비해야 한다. S4는 이후 해당 request-scoped 스크립트를 사용해 `compile_commands.json`을 추출한다.
 
 ---
 
@@ -208,7 +208,7 @@ HTTP `200` + `status: "completed"`
   "strictMode": true,
   "status": "completed",
   "modelProfile": "agent-loop",
-  "promptVersion": "build-v4",
+  "promptVersion": "build-v3",
   "schemaVersion": "agent-v1",
   "validation": {
     "valid": true,
@@ -231,9 +231,9 @@ HTTP `200` + `status: "completed"`
       "success": true,
       "declaredMode": "sdk",
       "sdkId": "ti-am335x-sdk",
-      "buildCommand": "bash build-aegis/aegis-build.sh",
-      "buildScript": "build-aegis/aegis-build.sh",
-      "buildDir": "build-aegis",
+      "buildCommand": "bash build-aegis-req1234/aegis-build.sh",
+      "buildScript": "build-aegis-req1234/aegis-build.sh",
+      "buildDir": "build-aegis-req1234",
       "producedArtifacts": [
         {
           "kind": "executable",
@@ -241,8 +241,8 @@ HTTP `200` + `status: "completed"`
           "exists": true
         }
       ],
-      "artifactValidation": {
-        "valid": true,
+      "artifactVerification": {
+        "matched": true,
         "missing": []
       },
       "errorLog": null
@@ -272,10 +272,10 @@ HTTP `200` + `status: "completed"`
 | `declaredMode` | string | O | 호출자가 선언한 `native` 또는 `sdk` |
 | `sdkId` | string | X | `sdk` 모드일 때 사용된 SDK 식별자 |
 | `buildCommand` | string | O | 실제 재사용 가능한 빌드 명령 |
-| `buildScript` | string | O | 생성된 스크립트 경로 (`build-aegis/aegis-build.sh`) |
-| `buildDir` | string | O | 빌드 출력 디렉토리 (`build-aegis`) |
+| `buildScript` | string | O | 생성된 request-scoped 스크립트 경로 (`build-aegis-<requestIdPrefix>/aegis-build.sh`) |
+| `buildDir` | string | O | request-scoped 빌드 출력 디렉토리 (`build-aegis-<requestIdPrefix>`) |
 | `producedArtifacts` | array | O | 실제 확인된 산출물 목록 |
-| `artifactValidation` | object | O | 선언된 산출물 충족 여부 |
+| `artifactVerification` | object | O | 선언된 산출물 충족 여부 |
 | `errorLog` | string | X | 실패 시 에러 로그 |
 
 성공 응답은 **declared mode + reusable build command + required artifact 존재**를 모두 증명해야 한다.
@@ -294,8 +294,8 @@ HTTP `200` + `status: "{failure_status}"`
   "taskType": "build-resolve",
   "contractVersion": "build-resolve-v1",
   "strictMode": true,
-  "status": "failed",
-  "failureCode": "EXPECTED_ARTIFACT_MISMATCH",
+  "status": "validation_failed",
+  "failureCode": "EXPECTED_ARTIFACTS_MISMATCH",
   "failureDetail": "빌드는 종료되었지만 required artifact 'gateway-webserver'가 생성되지 않았다.",
   "retryable": false,
   "audit": {"...": "..."}
@@ -306,13 +306,12 @@ HTTP `200` + `status: "{failure_status}"`
 
 | failureCode | status | retryable | 설명 |
 |-------------|--------|-----------|------|
-| `INVALID_CONTRACT` | `validation_failed` | `false` | `contractVersion`, `strictMode`, `subprojectPath`, `build.mode`, `expectedArtifacts` 등 strict 필수 입력 누락/오류 |
-| `SDK_REQUIRED` | `validation_failed` | `false` | `sdk` 모드인데 `sdkId` 등 필수 정보가 없음 |
-| `MISSING_BUILD_MATERIALS` | `failed` | `false` | 필요한 소스/스크립트/헤더/라이브러리 등 입력 재료 부족 |
-| `SDK_NOT_USABLE` | `failed` | `true` | 선언된 SDK가 없거나 초기화 불가 |
-| `COMPILE_FAILED` | `failed` | `true` | 선언된 조건으로 빌드가 실제 실패 |
-| `EXPECTED_ARTIFACT_MISMATCH` | `failed` | `false` | required artifact가 생성되지 않음 |
-| `THIRD_PARTY_EXCLUSION_REQUIRED` | `failed` | `false` | 의존성 문제를 해결하려면 기능 비활성화가 필요하지만 strict 계약상 허용되지 않음 |
+| `INVALID_SCHEMA` | `validation_failed` | `false` | `contractVersion`, `strictMode`, `subprojectPath`, `build.mode`, `expectedArtifacts` 등 strict 필수 입력 누락/오류 |
+| `SDK_MISMATCH` | `validation_failed` 또는 `failed` | `false` 또는 `true` | strict preflight의 sdk-registry 검증 실패 또는 실행 단계의 SDK/툴체인 불일치 |
+| `MISSING_BUILD_MATERIALS` | `validation_failed` 또는 `failed` | `false` | 필요한 소스/스크립트/헤더/라이브러리 등 입력 재료 부족 |
+| `BUILD_SCRIPT_SYNTHESIS_FAILED` | `validation_failed` 또는 `failed` | `false` | 재사용 가능한 build script / command를 만들지 못함 |
+| `COMPILE_FAILED` | `validation_failed` 또는 `failed` | `false` 또는 `true` | 선언된 조건으로 빌드가 실제 실패 |
+| `EXPECTED_ARTIFACTS_MISMATCH` | `validation_failed` 또는 `failed` | `false` | required artifact가 생성되지 않음 |
 | `TIMEOUT` | `timeout` | `true` | 전체 타임아웃 |
 | `MODEL_UNAVAILABLE` | `model_error` | `true` | S7 Gateway 또는 LLM Engine 연결 불가 |
 | `TOKEN_BUDGET_EXCEEDED` | `budget_exceeded` | `false` | 토큰 예산 소진 |

@@ -11,25 +11,31 @@
 
 
 
+## 세션 22 완료 (2026-04-04)
+
+1. ~~**strict compile-first canonical surface 정리**~~ ✅ `subprojectPath/subprojectName`, `build-resolve-v1`, nested `build.mode`/`build.sdkId` 기준으로 docs/runtime/tests를 재정렬
+2. ~~**result semantics 노출 보강**~~ ✅ `contractVersion`, `strictMode`, `declaredMode`, `sdkId`가 response/result에서 일관되게 드러나도록 보강
+3. ~~**S3-owned harness/docs drift 제거**~~ ✅ build/analyze harness 예시와 API/spec failure terminology를 현재 런타임 기준으로 정렬
+
+## 다음 세션 목표 (세션 23)
+
+### 즉시 처리
+
+1. **strict compile-first 전체 Ralph 검증** — 이번 canonical surface 변경 포함 전체 회귀 + architect sign-off
+2. **analysis boundary 문서화 여부 결정** — analysis-agent API/spec에 Build Snapshot reference-first 경계를 지금 반영할지 판단
+3. **RE100 gateway 재검증 준비** — canonical strict payload로 live stress path를 재개할 준비 정리
+
+### 백로그
+
+1. **Build Agent 프로세스 격리** — bash 실행 namespace 격리
+2. **gateway / gateway-webserver 재검증** — strict contract 기준 live build stress test
+3. **Build Snapshot public surface / shared model 승격 시점 결정**
+
 ## 세션 21 완료 (2026-04-04)
 
 1. ~~**S2 재질의 검토**~~ ✅ stable identity / reference-first / schema+lineage / failure semantics 기준으로 쟁점 재구성
 2. ~~**S3 authoritative reply 작성**~~ ✅ `s3-to-s2-build-snapshot-clarification-reply.md` 작성
 3. ~~**BuildSnapshot semantics 고정**~~ ✅ `buildUnitId`, `buildSnapshotId`, BuildAttempt/BuildSnapshot 분리, reference-first 방향 명시
-
-## 다음 세션 목표 (세션 22)
-
-### 즉시 처리
-
-1. **S2 회신 대기/반영** — `buildUnitId`, `buildSnapshotId`, BuildAttempt 분리 수용 여부 확인
-2. **analysis boundary 정리** — analysis-agent docs/API에 Build Snapshot reference-first 경계 반영 여부 결정
-3. **strict compile-first Ralph 통합 검증** — 이번 WR/문서까지 포함한 전체 회귀 검증
-
-### 백로그
-
-1. **Build Agent 프로세스 격리** — bash 실행 namespace 격리
-2. **gateway / gateway-webserver 재검증** — strict contract 기준 live stress test
-3. **Build Snapshot public surface / shared model 승격 시점 결정**
 
 ## 세션 20 완료 (2026-04-04)
 

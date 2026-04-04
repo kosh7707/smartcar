@@ -14,7 +14,7 @@
 2. **호출자 의도는 명시적이어야 한다** — 서브프로젝트, 빌드 모드, SDK 선택, 기대 산출물은 호출자가 선언한다.
 3. **No fake success** — compile database, 부분 compile entry, undeclared native fallback, silent feature drop은 성공이 아니다.
 4. **Shell + gcc는 1급 경로** — hand-written shell build, cross gcc 스크립트를 CMake/Make와 동등하게 다룬다.
-5. **프로젝트 원본 불변** — 원본 소스 수정 금지. 모든 쓰기는 `build-aegis/` 하위에 한정한다.
+5. **프로젝트 원본 불변** — 원본 소스 수정 금지. 모든 쓰기는 request-scoped `build-aegis-<requestIdPrefix>/` 하위에 한정한다.
 6. **LLM은 bounded repair만 담당** — 탐색기처럼 행동하지 않고, preflight/Phase 0 이후 빌드 스크립트 작성과 복구에 집중한다.
 7. **실패는 actionable 해야 한다** — strict 계약 위반, SDK 문제, 재료 부족, compile 실패, artifact mismatch를 구분해 보고한다.
 
@@ -58,7 +58,7 @@ strict v1 요청은 다음을 반드시 포함한다.
 
 - strict v1이 정식 계약이다.
 - `strictMode=false` 또는 미지정 호출은 임시 레거시 호환 경로일 수 있으나 deprecated다.
-- 레거시 `targetPath`, `targetName`은 migration alias이며 strict 문서에서는 사용하지 않는다.
+- 레거시 `targetPath`, `targetName`, flat `buildMode`/`sdkId`, `contractVersion: "compile-first-v1"` 는 migration alias이며 strict 문서의 canonical surface는 아니다.
 
 ---
 
@@ -80,7 +80,7 @@ POST /v1/tasks (taskType: "build-resolve")
   │   └── SDK registry 조회 (필요 시)
   │
   ├── 2. Agent repair loop (제한적 LLM)
-  │   ├── build-aegis/aegis-build.sh 작성
+  │   ├── request-scoped build script (`build-aegis-<requestIdPrefix>/aegis-build.sh`) 작성
   │   ├── try_build 실행
   │   └── edit_file → try_build 복구 반복
   │
@@ -113,9 +113,9 @@ POST /v1/tasks (taskType: "build-resolve")
 
 | 상황 | failureCode | status |
 |------|-------------|--------|
-| strict 필수 필드 누락/형식 오류 | `INVALID_CONTRACT` | `validation_failed` |
-| sdk 모드인데 SDK 식별 정보 누락 | `SDK_REQUIRED` | `validation_failed` |
-| 빌드 루트 scope 위반 | `INVALID_CONTRACT` | `validation_failed` |
+| strict 필수 필드 누락/형식 오류 | `INVALID_SCHEMA` | `validation_failed` |
+| sdk 모드인데 SDK 식별 정보 누락/registry 불일치 | `INVALID_SCHEMA` | `validation_failed` |
+| 빌드 루트 scope 위반 | `INVALID_SCHEMA` | `validation_failed` |
 
 ---
 
@@ -161,7 +161,7 @@ class Phase0Result:
 LLM은 아래만 수행한다.
 
 1. 필요한 빌드 파일 1~2개 읽기
-2. `build-aegis/aegis-build.sh` 작성
+2. request-scoped `build-aegis-<requestIdPrefix>/aegis-build.sh` 작성
 3. `try_build` 결과를 기반으로 스크립트 수정
 4. 최종 보고서 초안 작성
 
@@ -176,7 +176,7 @@ LLM은 아래를 수행하지 않는다.
 
 ```text
 1. list_files -> read_file (짧게)
-2. write_file(build-aegis/aegis-build.sh)
+2. write_file(request-scoped build script)
 3. try_build
 4. 실패 시 edit_file -> try_build
 5. 성공 또는 임계 실패 시 force_report
@@ -184,7 +184,7 @@ LLM은 아래를 수행하지 않는다.
 
 ### 7.3 종료 조건
 
-- build 성공 + artifact validation 통과
+- build 성공 + artifact verification 통과
 - 연속 빌드 실패 임계값 도달
 - max steps / token budget / evidence budget 소진
 - timeout / model error
@@ -199,7 +199,7 @@ LLM은 아래를 수행하지 않는다.
 |------|-----------|------|-----------|
 | `list_files` | CHEAP | 구조 탐색 | scope 내부만 |
 | `read_file` | CHEAP | 파일 읽기 | 8KB 제한 |
-| `write_file` | CHEAP | 새 스크립트 작성 | `build-aegis/` 하위만 |
+| `write_file` | CHEAP | 새 스크립트 작성 | request-scoped `build-aegis-<requestIdPrefix>/` 하위만 |
 | `edit_file` | CHEAP | 스크립트 수정 | 에이전트 생성 파일만 |
 | `delete_file` | CHEAP | 임시 파일 삭제 | 에이전트 생성 파일만 |
 | `try_build` | EXPENSIVE | S4 `POST /v1/build` 실행 | 선언된 모드만 사용 |
@@ -220,9 +220,9 @@ LLM은 아래를 수행하지 않는다.
 | 대상 | 권한 |
 |------|------|
 | 프로젝트 원본 파일 | read-only |
-| `build-aegis/` 내 에이전트 생성 파일 | read/write/edit/delete |
-| `build-aegis/` 내 미생성 파일 | read-only |
-| `build-aegis/` 외부 | 쓰기 금지 |
+| request-scoped `build-aegis-<requestIdPrefix>/` 내 에이전트 생성 파일 | read/write/edit/delete |
+| request-scoped `build-aegis-<requestIdPrefix>/` 내 미생성 파일 | read-only |
+| request-scoped 빌드 디렉토리 외부 | 쓰기 금지 |
 
 ### 9.2 스크립트 내용 안전성
 
@@ -303,7 +303,7 @@ TaskSuccessResponse:
         buildScript: str
         buildDir: str
         producedArtifacts: list[dict]
-        artifactValidation: dict
+        artifactVerification: dict
         errorLog: str | None
 ```
 
@@ -315,7 +315,7 @@ TaskFailureResponse:
     taskType
     contractVersion
     strictMode
-    status: validation_failed | failed | timeout | model_error | budget_exceeded | empty_result
+    status: validation_failed | timeout | model_error | budget_exceeded | empty_result
     failureCode: str
     failureDetail: str
     retryable: bool
@@ -339,7 +339,7 @@ TaskFailureResponse:
 - selected SDK ID (있다면)
 - build command
 - expected artifact validation 결과
-- 실패 분류 (`INVALID_CONTRACT`, `SDK_NOT_USABLE`, `EXPECTED_ARTIFACT_MISMATCH` 등)
+- 실패 분류 (`INVALID_SCHEMA`, `SDK_MISMATCH`, `EXPECTED_ARTIFACTS_MISMATCH` 등)
 
 ---
 

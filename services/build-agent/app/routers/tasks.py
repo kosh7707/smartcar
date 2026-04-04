@@ -60,9 +60,12 @@ def _build_invalid_contract_failure(
     input_hash = f"sha256:{hashlib.sha256(input_str.encode()).hexdigest()[:16]}"
     request_id = get_request_id() or request.taskId
 
+    trusted = request.context.trusted if isinstance(request.context.trusted, dict) else {}
     return TaskFailureResponse(
         taskId=request.taskId,
         taskType=request.taskType,
+        contractVersion=trusted.get("contractVersion"),
+        strictMode=trusted.get("strictMode"),
         status=TaskStatus.VALIDATION_FAILED,
         failureCode=FailureCode.INVALID_SCHEMA,
         failureDetail="Invalid build-resolve contract: " + " | ".join(errors),
@@ -102,11 +105,11 @@ async def _run_build_request_preflight(
         }
         if not registered_ids:
             errors.append(
-                "strict compile-first v1 could not verify context.trusted.sdkId against the S4 sdk-registry",
+                "strict compile-first v1 could not verify context.trusted.build.sdkId against the S4 sdk-registry",
             )
         elif declared_sdk not in registered_ids:
             errors.append(
-                f"context.trusted.sdkId '{declared_sdk}' is not present in the S4 sdk-registry",
+                f"context.trusted.build.sdkId '{declared_sdk}' is not present in the S4 sdk-registry",
             )
 
     if errors:
@@ -261,8 +264,8 @@ def _build_system_prompt(
             "## 호출자 선언 계약\n"
             f"- **contractVersion**: {normalize_contract_version(contract)}\n"
             f"- **strictMode**: {strict_mode}\n"
-            f"- **declared buildMode**: {build_mode}\n"
-            f"- **declared sdkId**: {contract.sdkId or '(none)'}\n"
+            f"- **declared build.mode**: {build_mode}\n"
+            f"- **declared build.sdkId**: {contract.sdkId or '(none)'}\n"
             f"- **expectedArtifacts**: {expected_artifacts}\n"
         )
         if contract.strictMode:
@@ -407,7 +410,7 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
     target_name = preflight.target_name
     request_id = get_request_id() or request.taskId
 
-    # 서브프로젝트 스코핑: build-aegis/는 targetPath 기준
+    # 서브프로젝트 스코핑: build-aegis/는 canonical subprojectPath 기준
     effective_root = os.path.join(project_path, target_path) if target_path else project_path
 
     # ─── 0. Request-scoped 빌드 워크스페이스 (동시 요청 격리) ───
@@ -588,7 +591,7 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
     if preflight.contract.strictMode:
         user_message += (
             f"## 호출자 선언 contractVersion\n{normalize_contract_version(preflight.contract)}\n"
-            f"## 호출자 선언 buildMode\n{preflight.contract.buildMode.value if preflight.contract.buildMode else 'unspecified'}\n"
+            f"## 호출자 선언 build.mode\n{preflight.contract.buildMode.value if preflight.contract.buildMode else 'unspecified'}\n"
         )
 
     if settings.llm_mode == "real":

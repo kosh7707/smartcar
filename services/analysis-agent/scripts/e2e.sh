@@ -25,8 +25,8 @@
 #   ./e2e.sh analyze-poc -p /path/to/proj -t gateway/ -i my-gw
 #
 # Strict compile-first examples:
-#   BUILD_CONTRACT_VERSION=compile-first-v1 STRICT_MODE=true BUILD_MODE=native \
-#     EXPECTED_ARTIFACT_KIND=executable EXPECTED_ARTIFACT_PATH=build-aegis/gateway \
+#   BUILD_CONTRACT_VERSION=build-resolve-v1 STRICT_MODE=true BUILD_MODE=native \
+#     EXPECTED_ARTIFACT_KIND=executable EXPECTED_ARTIFACT_PATH=gateway \
 #     ./e2e.sh build -p /path/to/proj -t gateway/
 #   BUILD_MODE=sdk SDK_ID=ti-am335x ./e2e.sh build -p /path/to/proj -t gateway/
 #
@@ -146,7 +146,7 @@ check_services() {
 step_build() {
     hdr "BUILD (build-resolve)"
     printf "  project: %s\n" "$PROJECT"
-    [[ -n "$TARGET" ]] && printf "  target:  %s\n" "$TARGET"
+    [[ -n "$TARGET" ]] && printf "  subproject: %s\n" "$TARGET"
     [[ -n "$BUILD_CONTRACT_VERSION" ]] && printf "  contract:%s%s\n" " " "$BUILD_CONTRACT_VERSION"
     [[ -n "$STRICT_MODE" ]] && printf "  strict:  %s\n" "$STRICT_MODE"
     [[ -n "$BUILD_MODE" ]] && printf "  mode:    %s%s\n" "$BUILD_MODE" "${SDK_ID:+ (sdkId=$SDK_ID)}"
@@ -158,16 +158,16 @@ import json
 trusted = {"projectPath":"${PROJECT}"}
 t = "${TARGET}"
 if t:
-    trusted["targetPath"] = t
-    trusted["targetName"] = t.rstrip("/").split("/")[-1]
+    trusted["subprojectPath"] = t
+    trusted["subprojectName"] = t.rstrip("/").split("/")[-1]
 if "${BUILD_CONTRACT_VERSION}":
     trusted["contractVersion"] = "${BUILD_CONTRACT_VERSION}"
 if "${STRICT_MODE}":
     trusted["strictMode"] = "${STRICT_MODE}".lower() in ("1", "true", "yes", "on")
 if "${BUILD_MODE}":
-    trusted["buildMode"] = "${BUILD_MODE}"
+    trusted["build"] = {"mode": "${BUILD_MODE}"}
 if "${SDK_ID}":
-    trusted["sdkId"] = "${SDK_ID}"
+    trusted.setdefault("build", {})["sdkId"] = "${SDK_ID}"
 if "${EXPECTED_ARTIFACT_KIND}" or "${EXPECTED_ARTIFACT_PATH}":
     trusted["expectedArtifacts"] = [{
         "kind": "${EXPECTED_ARTIFACT_KIND}" or "artifact",

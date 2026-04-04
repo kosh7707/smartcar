@@ -49,6 +49,8 @@ class ArtifactVerification(BaseModel):
 
 class BuildResult(BaseModel):
     success: bool = False
+    declaredMode: str | None = None
+    sdkId: str | None = None
     buildCommand: str = ""
     buildScript: str = ""
     buildDir: str = "build-aegis"
@@ -121,6 +123,8 @@ class FailureContext(BaseModel):
 class TaskSuccessResponse(BaseModel):
     taskId: str
     taskType: TaskType
+    contractVersion: str | None = None
+    strictMode: bool | None = None
     status: TaskStatus = TaskStatus.COMPLETED
     modelProfile: str
     promptVersion: str
@@ -133,6 +137,8 @@ class TaskSuccessResponse(BaseModel):
 class TaskFailureResponse(BaseModel):
     taskId: str
     taskType: TaskType
+    contractVersion: str | None = None
+    strictMode: bool | None = None
     status: TaskStatus
     failureCode: FailureCode
     failureDetail: str

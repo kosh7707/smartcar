@@ -41,32 +41,32 @@ class BuildRequestContractValidator:
                 "strict compile-first v1 requires context.trusted.projectPath to exist and be a directory",
             )
 
-        target_path = self._normalize_target_path(contract.targetPath)
-        if contract.targetPath is not None:
+        target_path = self._normalize_target_path(contract.subprojectPath or contract.targetPath)
+        if contract.subprojectPath is not None or contract.targetPath is not None:
             scoped_target = resolve_scoped_path(project_path, target_path or ".")
             if scoped_target is None:
-                errors.append("context.trusted.targetPath must stay within projectPath")
+                errors.append("context.trusted.subprojectPath must stay within projectPath")
 
         if strict_mode:
-            if contract.targetPath is None:
+            if contract.subprojectPath is None:
                 errors.append(
-                    "strict compile-first v1 requires context.trusted.targetPath "
+                    "strict compile-first v1 requires context.trusted.subprojectPath "
                     "(use '.' when the project root itself is the declared target)",
                 )
-            if not contract.targetName:
-                errors.append("strict compile-first v1 requires context.trusted.targetName")
+            if not contract.subprojectName:
+                errors.append("strict compile-first v1 requires context.trusted.subprojectName")
             if contract.buildMode is None:
-                errors.append("strict compile-first v1 requires context.trusted.buildMode")
+                errors.append("strict compile-first v1 requires context.trusted.build.mode")
             if not contract.expectedArtifacts:
                 errors.append("strict compile-first v1 requires context.trusted.expectedArtifacts")
 
         if contract.buildMode == BuildMode.SDK and contract.sdkId is None:
-            errors.append("context.trusted.sdkId is required when buildMode is 'sdk'")
+            errors.append("context.trusted.build.sdkId is required when build.mode is 'sdk'")
 
         if errors:
             return None, errors
 
-        target_name = contract.targetName or self._derive_target_name(project_path, target_path)
+        target_name = contract.subprojectName or contract.targetName or self._derive_target_name(project_path, target_path)
         return BuildRequestPreflight(
             contract=contract,
             project_path=project_path,
@@ -98,6 +98,6 @@ class BuildRequestContractValidator:
 
 
 def normalize_contract_version(contract: BuildResolveContract) -> str:
-    if contract.contractVersion == ContractVersion.COMPILE_FIRST_V1:
-        return ContractVersion.COMPILE_FIRST_V1.value
+    if contract.contractVersion == ContractVersion.BUILD_RESOLVE_V1:
+        return ContractVersion.BUILD_RESOLVE_V1.value
     return ContractVersion.LEGACY.value

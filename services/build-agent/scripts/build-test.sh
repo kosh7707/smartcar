@@ -9,11 +9,11 @@
 #   ./scripts/build-test.sh /path/to/project gateway/          # 커스텀
 #
 # strict compile-first 예시:
-#   BUILD_CONTRACT_VERSION=compile-first-v1 \
+#   BUILD_CONTRACT_VERSION=build-resolve-v1 \
 #   STRICT_MODE=true \
 #   BUILD_MODE=native \
 #   EXPECTED_ARTIFACT_KIND=executable \
-#   EXPECTED_ARTIFACT_PATH=build-aegis/gateway-webserver \
+#   EXPECTED_ARTIFACT_PATH=gateway-webserver \
 #   ./scripts/build-test.sh /path/to/project gateway-webserver/
 #
 # shell+gcc 예시:
@@ -26,8 +26,8 @@ SAST_URL="http://localhost:9000"
 GW_URL="http://localhost:8000"
 
 PROJECT_PATH="${1:-/home/kosh/AEGIS/uploads/proj-60bf5eb4-bc1f-4275-b7d5-15db1f939935}"
-TARGET_PATH="${2:-gateway-webserver/}"
-TARGET_NAME="${TARGET_PATH%/}"
+SUBPROJECT_PATH="${2:-gateway-webserver/}"
+SUBPROJECT_NAME="${SUBPROJECT_PATH%/}"
 REQUEST_ID="build-test-$(date +%s)"
 BUILD_CONTRACT_VERSION="${BUILD_CONTRACT_VERSION:-}"
 STRICT_MODE="${STRICT_MODE:-}"
@@ -47,7 +47,7 @@ echo "║              AEGIS Build Agent 통합 테스트                  ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 echo "  프로젝트: ${PROJECT_PATH}"
-echo "  타겟:     ${TARGET_PATH}"
+echo "  타겟:     ${SUBPROJECT_PATH}"
 [[ -n "$BUILD_CONTRACT_VERSION" ]] && echo "  contract: ${BUILD_CONTRACT_VERSION} (strict=${STRICT_MODE:-unset})"
 [[ -n "$BUILD_MODE" ]] && echo "  mode:     ${BUILD_MODE}${SDK_ID:+ (sdkId=${SDK_ID})}"
 [[ -n "$EXPECTED_ARTIFACT_KIND" || -n "$EXPECTED_ARTIFACT_PATH" ]] && \
@@ -75,17 +75,17 @@ RESULT=$(curl -s -X POST "${BUILD_URL}/v1/tasks" \
 import json
 trusted = {
     'projectPath': '${PROJECT_PATH}',
-    'targetPath': '${TARGET_PATH}',
-    'targetName': '${TARGET_NAME}',
+    'subprojectPath': '${SUBPROJECT_PATH}',
+    'subprojectName': '${SUBPROJECT_NAME}',
 }
 if '${BUILD_CONTRACT_VERSION}':
     trusted['contractVersion'] = '${BUILD_CONTRACT_VERSION}'
 if '${STRICT_MODE}':
     trusted['strictMode'] = '${STRICT_MODE}'.lower() in ('1', 'true', 'yes', 'on')
 if '${BUILD_MODE}':
-    trusted['buildMode'] = '${BUILD_MODE}'
+    trusted['build'] = {'mode': '${BUILD_MODE}'}
 if '${SDK_ID}':
-    trusted['sdkId'] = '${SDK_ID}'
+    trusted.setdefault('build', {})['sdkId'] = '${SDK_ID}'
 if '${EXPECTED_ARTIFACT_KIND}' or '${EXPECTED_ARTIFACT_PATH}':
     trusted['expectedArtifacts'] = [{
         'kind': '${EXPECTED_ARTIFACT_KIND}' or 'artifact',
@@ -120,7 +120,9 @@ else:
     print(f'  detail:   {d.get(\"failureDetail\", \"?\")[:200]}')
 
 # 스크립트 존재 확인
-script = '${PROJECT_PATH}/${TARGET_PATH}/build-aegis/aegis-build.sh'.replace('//', '/')
+build_script = br.get('buildScript') or ''
+script = '${PROJECT_PATH}/${SUBPROJECT_PATH}/' + build_script if build_script else ''
+script = script.replace('//', '/')
 print(f'  script exists: {os.path.isfile(script)}')
 
 # trace

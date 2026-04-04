@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.types import TaskType
 
@@ -33,20 +33,26 @@ class BuildMode(StrEnum):
 
 class ContractVersion(StrEnum):
     LEGACY = "legacy"
-    COMPILE_FIRST_V1 = "compile-first-v1"
+    BUILD_RESOLVE_V1 = "build-resolve-v1"
 
 
 class ExpectedArtifactType(StrEnum):
     EXECUTABLE = "executable"
     SHARED_LIBRARY = "shared-library"
     STATIC_LIBRARY = "static-library"
+    DIRECTORY = "directory"
+    FILE_SET = "file-set"
     NAMED_OUTPUT_SET = "named-output-set"
 
 
 class ExpectedArtifact(BaseModel):
-    artifactType: ExpectedArtifactType
+    artifactType: ExpectedArtifactType = Field(
+        validation_alias=AliasChoices("artifactType", "kind", "type"),
+    )
     path: str | None = None
     name: str | None = None
+    required: bool = True
+    notes: str | None = None
 
     @field_validator("path", "name")
     @classmethod
@@ -67,6 +73,8 @@ class BuildResolveContract(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     projectPath: str = Field(min_length=1)
+    subprojectPath: str | None = None
+    subprojectName: str | None = None
     targetPath: str | None = None
     targetName: str | None = None
     buildMode: BuildMode | None = None
@@ -75,7 +83,53 @@ class BuildResolveContract(BaseModel):
     contractVersion: ContractVersion | None = None
     strictMode: bool | None = None
 
-    @field_validator("projectPath", "targetPath", "targetName", "sdkId", mode="before")
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_input_payload(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+
+        normalized = dict(value)
+        build_blob = normalized.get("build")
+        if not isinstance(build_blob, dict):
+            build_blob = {}
+
+        if normalized.get("subprojectPath") is None and normalized.get("targetPath") is not None:
+            normalized["subprojectPath"] = normalized.get("targetPath")
+        if normalized.get("subprojectName") is None and normalized.get("targetName") is not None:
+            normalized["subprojectName"] = normalized.get("targetName")
+
+        if normalized.get("buildMode") is None and build_blob.get("mode") is not None:
+            normalized["buildMode"] = build_blob.get("mode")
+        if normalized.get("sdkId") is None and build_blob.get("sdkId") is not None:
+            normalized["sdkId"] = build_blob.get("sdkId")
+
+        expected = normalized.get("expectedArtifacts")
+        if isinstance(expected, list):
+            normalized_items: list[Any] = []
+            for item in expected:
+                if isinstance(item, dict) and "artifactType" not in item:
+                    candidate = dict(item)
+                    if "kind" in candidate:
+                        candidate["artifactType"] = candidate["kind"]
+                    elif "type" in candidate:
+                        candidate["artifactType"] = candidate["type"]
+                    normalized_items.append(candidate)
+                else:
+                    normalized_items.append(item)
+            normalized["expectedArtifacts"] = normalized_items
+
+        return normalized
+
+    @field_validator(
+        "projectPath",
+        "subprojectPath",
+        "subprojectName",
+        "targetPath",
+        "targetName",
+        "sdkId",
+        mode="before",
+    )
     @classmethod
     def _strip_text(cls, value: Any) -> Any:
         if isinstance(value, str):
@@ -105,14 +159,15 @@ class BuildResolveContract(BaseModel):
             "legacy": ContractVersion.LEGACY,
             "v0": ContractVersion.LEGACY,
             "v0-legacy": ContractVersion.LEGACY,
-            "compile-first-v1": ContractVersion.COMPILE_FIRST_V1,
-            "v1": ContractVersion.COMPILE_FIRST_V1,
-            "strict-v1": ContractVersion.COMPILE_FIRST_V1,
+            "build-resolve-v1": ContractVersion.BUILD_RESOLVE_V1,
+            "compile-first-v1": ContractVersion.BUILD_RESOLVE_V1,
+            "v1": ContractVersion.BUILD_RESOLVE_V1,
+            "strict-v1": ContractVersion.BUILD_RESOLVE_V1,
         }
         contract_version = aliases.get(normalized)
         if contract_version is None:
             raise ValueError(
-                "contractVersion must be one of legacy, v0, compile-first-v1, v1, or strict-v1",
+                "contractVersion must be one of legacy, v0, build-resolve-v1, compile-first-v1, v1, or strict-v1",
             )
         return contract_version
 
@@ -135,16 +190,25 @@ class BuildResolveContract(BaseModel):
     @model_validator(mode="after")
     def _normalize_contract(self) -> "BuildResolveContract":
         if self.strictMode is True and self.contractVersion in (None, ContractVersion.LEGACY):
-            self.contractVersion = ContractVersion.COMPILE_FIRST_V1
-        elif self.strictMode is False and self.contractVersion == ContractVersion.COMPILE_FIRST_V1:
-            raise ValueError("strictMode=false conflicts with contractVersion=compile-first-v1")
+            self.contractVersion = ContractVersion.BUILD_RESOLVE_V1
+        elif self.strictMode is False and self.contractVersion == ContractVersion.BUILD_RESOLVE_V1:
+            raise ValueError("strictMode=false conflicts with contractVersion=build-resolve-v1")
         elif self.strictMode is None:
-            self.strictMode = self.contractVersion == ContractVersion.COMPILE_FIRST_V1
+            self.strictMode = self.contractVersion == ContractVersion.BUILD_RESOLVE_V1
 
         if self.contractVersion is None:
             self.contractVersion = (
-                ContractVersion.COMPILE_FIRST_V1 if self.strictMode else ContractVersion.LEGACY
+                ContractVersion.BUILD_RESOLVE_V1 if self.strictMode else ContractVersion.LEGACY
             )
+
+        if self.subprojectPath is None and self.targetPath is not None:
+            self.subprojectPath = self.targetPath
+        if self.subprojectName is None and self.targetName is not None:
+            self.subprojectName = self.targetName
+        if self.targetPath is None and self.subprojectPath is not None:
+            self.targetPath = self.subprojectPath
+        if self.targetName is None and self.subprojectName is not None:
+            self.targetName = self.subprojectName
 
         if self.buildMode == BuildMode.SDK and not self.sdkId:
             raise ValueError("sdkId is required when buildMode is 'sdk'")

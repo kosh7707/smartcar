@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S2(AEGIS Core/Backend) 개발을 이어받는 다음 세션을 위한 진입점이다.
 > 상세 정보는 같은 디렉토리의 분할 문서를 참조한다.
-> **마지막 업데이트: 2026-04-03**
+> **마지막 업데이트: 2026-04-04**
 
 ---
 
@@ -98,6 +98,16 @@
 | API 엔드포인트 | `api-endpoints.md`에 현행 라우터 기준 목록 정리 |
 | 에러 클래스 | 18개 (AppError 계층, 21개 에러코드) |
 | 외부 클라이언트 | SastClient(S4), AgentClient(S3), BuildAgentClient(S3:8003), KbClient(S5), AdapterClient(S6), LlmTaskClient(S7) |
+
+### 3-1. 최근 계약 회귀 잠금 메모 (2026-04-04)
+
+- S1↔S2 canonical contract 재작성 후, S2 backend 테스트 하네스는 다음 semantics를 **회귀 테스트로 고정**했다.
+  - `POST /api/projects/:pid/targets/discover` → `data: { discovered, created, targets, elapsedMs }`
+  - `POST /api/projects/:pid/pipeline/run/:targetId` → `data: { targetId, status: "running" }`
+  - `GET /api/projects/:pid/pipeline/status` → canonical `PipelineStatus`
+  - `GET/POST /api/projects/:pid/sdk` → `RegisteredSdk` / `{ builtIn, registered }`
+- build-target update는 현재도 `includedPaths` 변경을 지원하지 않으며, backend는 이를 **명시적 에러**로 거부한다.
+- SDK analyzed profile 연동에서 canonical 필드명은 `environmentSetup`이며, S4 SDK 등록 payload forwarding도 해당 이름으로 잠근다.
 
 ### Durable (투자, 유지)
 

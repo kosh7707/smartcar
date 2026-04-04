@@ -31,6 +31,35 @@ def test_build_resolve_strict_contract_payload_example(client):
             "context": {
                 "trusted": {
                     "projectPath": "/tmp/test",
+                    "subprojectPath": "gateway/",
+                    "subprojectName": "gateway",
+                    "contractVersion": "build-resolve-v1",
+                    "strictMode": True,
+                    "build": {"mode": "native"},
+                    "expectedArtifacts": [
+                        {"kind": "executable", "path": "build-aegis/gateway"},
+                    ],
+                },
+            },
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.headers["X-Request-Id"] == request_id
+    data = resp.json()
+    assert data["taskId"] == "test-build-strict-001"
+    assert data["taskType"] == "build-resolve"
+
+
+def test_build_resolve_legacy_aliases_still_parse(client):
+    """legacy alias payload도 migration shim으로 계속 수용된다."""
+    resp = client.post(
+        "/v1/tasks",
+        json={
+            "taskType": "build-resolve",
+            "taskId": "test-build-legacy-alias-001",
+            "context": {
+                "trusted": {
+                    "projectPath": "/tmp/test",
                     "targetPath": "gateway/",
                     "targetName": "gateway",
                     "contractVersion": "compile-first-v1",
@@ -43,10 +72,10 @@ def test_build_resolve_strict_contract_payload_example(client):
             },
         },
     )
+
     assert resp.status_code == 200
-    assert resp.headers["X-Request-Id"] == request_id
     data = resp.json()
-    assert data["taskId"] == "test-build-strict-001"
+    assert data["taskId"] == "test-build-legacy-alias-001"
     assert data["taskType"] == "build-resolve"
 
 

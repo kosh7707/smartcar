@@ -71,6 +71,8 @@ _SYNTHESIS_KEYWORDS = (
 class _StrictContract:
     contract_version: str | None
     strict_mode: bool
+    build_mode: str | None
+    sdk_id: str | None
     expected_artifacts: list[str]
 
 
@@ -174,6 +176,11 @@ class ResultAssembler:
         build_result = self._parse_build_result(parsed)
         sdk_profile = self._parse_sdk_profile(parsed)
         contract = self._extract_contract(session)
+        if build_result is not None:
+            if build_result.declaredMode is None:
+                build_result.declaredMode = contract.build_mode
+            if build_result.sdkId is None:
+                build_result.sdkId = contract.sdk_id
 
         contract_failure = self._validate_compile_first_contract(
             session=session,
@@ -212,6 +219,8 @@ class ResultAssembler:
         return TaskSuccessResponse(
             taskId=session.request.taskId,
             taskType=session.request.taskType,
+            contractVersion=contract.contract_version,
+            strictMode=contract.strict_mode,
             status=TaskStatus.COMPLETED,
             modelProfile="agent-loop",
             promptVersion=self._prompt_version,
@@ -292,9 +301,12 @@ class ResultAssembler:
         retryable: bool = False,
         failure_context: FailureContext | None = None,
     ) -> TaskFailureResponse:
+        contract = self._extract_contract(session)
         return TaskFailureResponse(
             taskId=session.request.taskId,
             taskType=session.request.taskType,
+            contractVersion=contract.contract_version,
+            strictMode=contract.strict_mode,
             status=status,
             failureCode=code,
             failureDetail=detail,
@@ -347,6 +359,8 @@ class ResultAssembler:
         )
         return BuildResult(
             success=bool(build_result_data.get("success", False)),
+            declaredMode=build_result_data.get("declaredMode"),
+            sdkId=build_result_data.get("sdkId"),
             buildCommand=build_result_data.get("buildCommand", "") or "",
             buildScript=build_result_data.get("buildScript", "") or "",
             buildDir=build_result_data.get("buildDir", "build-aegis") or "build-aegis",
@@ -498,12 +512,28 @@ class ResultAssembler:
         contract_blob = metadata.get("buildContract") if isinstance(metadata.get("buildContract"), dict) else {}
         if not contract_blob and isinstance(trusted.get("buildContract"), dict):
             contract_blob = trusted["buildContract"]
+        build_blob = trusted.get("build") if isinstance(trusted.get("build"), dict) else {}
 
         contract_version = self._pick_first_non_empty(
             getattr(request, "contractVersion", None),
             metadata.get("contractVersion"),
             contract_blob.get("contractVersion"),
             trusted.get("contractVersion"),
+        )
+        build_mode = self._pick_first_non_empty(
+            getattr(request, "buildMode", None),
+            metadata.get("buildMode"),
+            contract_blob.get("buildMode"),
+            contract_blob.get("mode"),
+            build_blob.get("mode"),
+            trusted.get("buildMode"),
+        )
+        sdk_id = self._pick_first_non_empty(
+            getattr(request, "sdkId", None),
+            metadata.get("sdkId"),
+            contract_blob.get("sdkId"),
+            build_blob.get("sdkId"),
+            trusted.get("sdkId"),
         )
         strict_flag = self._pick_first_defined(
             getattr(request, "strictMode", None),
@@ -522,6 +552,8 @@ class ResultAssembler:
         return _StrictContract(
             contract_version=contract_version,
             strict_mode=strict_mode,
+            build_mode=build_mode,
+            sdk_id=sdk_id,
             expected_artifacts=expected_artifacts,
         )
 
