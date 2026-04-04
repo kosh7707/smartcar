@@ -31,7 +31,7 @@
 | 서비스 | 포트/위치 | 역할 |
 |--------|-----------|------|
 | **Analysis Agent** | :8001 | `deep-analyze`, `generate-poc` taskType. Phase 1(SAST+코드그래프+SCA) → Phase 2(LLM 해석) |
-| **Build Agent** | :8003 | `build-resolve`, `sdk-analyze` taskType. LLM이 소스 탐색 → 빌드 스크립트(`build-aegis/aegis-build.sh`) 작성 → 빌드 성공까지 반복하거나, SDK 프로파일을 추출한다. v0.2.0 |
+| **Build Agent** | :8003 | `build-resolve`, `sdk-analyze` taskType. strict compile-first 계약으로 선언된 서브프로젝트/빌드 모드/expectedArtifacts를 기준으로 빌드를 수행하거나 SDK 프로파일을 추출한다. |
 | **agent-shared** | 라이브러리 | 두 에이전트 공통 프레임 (LLM 통신, 도구 실행, 스키마, 정책). `pip install -e ../agent-shared` |
 
 ### S3가 호출하는 서비스 (소유 X)
