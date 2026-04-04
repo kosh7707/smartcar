@@ -9,6 +9,48 @@
 1. ~~**Residual alignment 1차 정리**~~ ✅ Analysis Agent legacy taskType router 차단, Build Agent `promptVersion` 정렬, `sdk-analyze` 문서 반영
 2. ~~**공용 `.omx` 메모 규칙 반영**~~ ✅ `docs/AEGIS.md` / `s2-to-all` WR 확인 후 S3 handoff에 lane 전용 메모 분리 원칙 반영
 
+
+
+## 세션 21 완료 (2026-04-04)
+
+1. ~~**S2 재질의 검토**~~ ✅ stable identity / reference-first / schema+lineage / failure semantics 기준으로 쟁점 재구성
+2. ~~**S3 authoritative reply 작성**~~ ✅ `s3-to-s2-build-snapshot-clarification-reply.md` 작성
+3. ~~**BuildSnapshot semantics 고정**~~ ✅ `buildUnitId`, `buildSnapshotId`, BuildAttempt/BuildSnapshot 분리, reference-first 방향 명시
+
+## 다음 세션 목표 (세션 22)
+
+### 즉시 처리
+
+1. **S2 회신 대기/반영** — `buildUnitId`, `buildSnapshotId`, BuildAttempt 분리 수용 여부 확인
+2. **analysis boundary 정리** — analysis-agent docs/API에 Build Snapshot reference-first 경계 반영 여부 결정
+3. **strict compile-first Ralph 통합 검증** — 이번 WR/문서까지 포함한 전체 회귀 검증
+
+### 백로그
+
+1. **Build Agent 프로세스 격리** — bash 실행 namespace 격리
+2. **gateway / gateway-webserver 재검증** — strict contract 기준 live stress test
+3. **Build Snapshot public surface / shared model 승격 시점 결정**
+
+## 세션 20 완료 (2026-04-04)
+
+1. ~~**strict compile-first team execution**~~ ✅ build contract/request/result/tests lanes 병렬 정리 후 종료
+2. ~~**S2 handoff planning**~~ ✅ build user flow + persistent Build Snapshot 방향으로 consensus planning 완료
+3. ~~**S2용 WR 초안 작성**~~ ✅ `s3-to-s2-build-snapshot-contract-handoff.md` 작성
+
+## 다음 세션 목표 (세션 21)
+
+### 즉시 처리
+
+1. **S2 회신 대기/반영** — Build Snapshot을 coordination artifact로 둘지, 즉시 persistence object로 둘지 확인
+2. **S3 docs 2차 정리** — analysis-agent 쪽에도 Build Snapshot boundary를 반영할지 결정
+3. **Ralph 통합 검증** — strict compile-first 변경분 전체 회귀 검증 + architect sign-off
+
+### 백로그
+
+1. **Build Agent 프로세스 격리** — bash 실행 namespace 격리
+2. **gateway / gateway-webserver 재검증** — 새 계약 기준 live build stress test
+3. **Build Snapshot public surface화 여부 결정**
+
 ## 세션 19 완료 (2026-04-04)
 
 1. ~~**S3 agent integration live 검증**~~ ✅ `build-resolve`, `deep-analyze`, `generate-poc`, `sdk-analyze` 실제 기동 상태 점검

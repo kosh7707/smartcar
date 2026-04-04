@@ -8,6 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from scripts.benchmark import run_benchmark
 from scripts.benchmark import sweep
 
 
@@ -98,3 +99,126 @@ def test_sweep_run_and_summary(monkeypatch):
     assert result["failed_combinations"] == 0
     assert summary["best"]["ndcg_5"] >= summary["top_results"][1]["ndcg_5"]
     assert len(summary["top_results"]) == 2
+
+
+def test_build_compare_summary_sorts_uplift_and_regression():
+    baseline = {
+        "query_count": 2,
+        "total_ms": 100,
+        "metrics": {
+            "precision_1": {"mean": 0.2},
+            "precision_5": {"mean": 0.3},
+            "recall_5": {"mean": 0.4},
+            "f1_5": {"mean": 0.35},
+            "ndcg_5": {"mean": 0.45},
+            "mrr": {"mean": 0.5},
+            "hit_rate": {"mean": 0.6},
+        },
+        "per_query": [
+            {
+                "id": "q1",
+                "query": "first query",
+                "retrieved_ids": ["A", "B"],
+                "ndcg_5": 0.1,
+                "mrr": 0.0,
+                "hit_rate": 0.0,
+                "top1_correct": False,
+            },
+            {
+                "id": "q2",
+                "query": "second query",
+                "retrieved_ids": ["X", "Y"],
+                "ndcg_5": 0.9,
+                "mrr": 1.0,
+                "hit_rate": 1.0,
+                "top1_correct": True,
+            },
+        ],
+    }
+    candidate = {
+        "query_count": 2,
+        "total_ms": 250,
+        "metrics": {
+            "precision_1": {"mean": 0.6},
+            "precision_5": {"mean": 0.5},
+            "recall_5": {"mean": 0.7},
+            "f1_5": {"mean": 0.58},
+            "ndcg_5": {"mean": 0.7},
+            "mrr": {"mean": 0.75},
+            "hit_rate": {"mean": 0.8},
+        },
+        "per_query": [
+            {
+                "id": "q1",
+                "query": "first query",
+                "retrieved_ids": ["R", "A"],
+                "ndcg_5": 0.95,
+                "mrr": 1.0,
+                "hit_rate": 1.0,
+                "top1_correct": True,
+            },
+            {
+                "id": "q2",
+                "query": "second query",
+                "retrieved_ids": ["Z", "X"],
+                "ndcg_5": 0.5,
+                "mrr": 0.5,
+                "hit_rate": 1.0,
+                "top1_correct": False,
+            },
+        ],
+    }
+
+    summary = run_benchmark.build_compare_summary(baseline, candidate, top_n=2)
+
+    assert summary["metrics"]["delta"]["ndcg_5"] == 0.25
+    assert summary["latency_ms"]["delta"] == 150
+    assert summary["latency_ms"]["ratio"] == 2.5
+    assert summary["query_delta_counts"] == {
+        "improved": 1,
+        "unchanged": 0,
+        "regressed": 1,
+    }
+    assert summary["top_uplift_queries"][0]["id"] == "q1"
+    assert summary["top_uplift_queries"][0]["delta"]["ndcg_5"] == 0.85
+    assert summary["top_regression_queries"][0]["id"] == "q2"
+    assert summary["top_regression_queries"][0]["delta"]["ndcg_5"] == -0.4
+
+
+def test_run_compare_executes_sequential_profiles(monkeypatch):
+    calls: list[bool] = []
+
+    def fake_run(*, use_neo4j: bool, **kwargs):
+        calls.append(use_neo4j)
+        value = 0.6 if use_neo4j else 0.4
+        return {
+            "query_count": 1,
+            "total_ms": 300 if use_neo4j else 100,
+            "metrics": {
+                "precision_1": {"mean": value},
+                "precision_5": {"mean": value},
+                "recall_5": {"mean": value},
+                "f1_5": {"mean": value},
+                "ndcg_5": {"mean": value},
+                "mrr": {"mean": value},
+                "hit_rate": {"mean": value},
+            },
+            "per_query": [
+                {
+                    "id": "q1",
+                    "query": "query",
+                    "retrieved_ids": ["A"],
+                    "ndcg_5": value,
+                    "mrr": value,
+                    "hit_rate": value,
+                }
+            ],
+        }
+
+    monkeypatch.setattr(run_benchmark, "run", fake_run)
+
+    summary = run_benchmark.run_compare(compare_top_n=1)
+
+    assert calls == [False, True]
+    assert summary["comparison"]["metrics"]["delta"]["ndcg_5"] == 0.2
+    assert summary["comparison"]["top_uplift_queries"][0]["id"] == "q1"

@@ -33,7 +33,7 @@ services/llm-gateway/
 │   │   └── evidence_validator.py # refId whitelist 기반 hallucination 감지
 │   ├── pipeline/
 │   │   ├── prompt_builder.py     # V1PromptBuilder (3계층 trust 분리, delimiter, threat_context 지원)
-│   │   ├── response_parser.py    # V1ResponseParser (JSON + 코드블록 추출, <think> 태그 방어)
+│   │   ├── response_parser.py    # V1ResponseParser (JSON/코드블록/commentary-wrapped JSON 추출, <think> 태그 방어)
 │   │   ├── confidence.py         # ConfidenceCalculator (4항목 가중합, S3 자체 산출)
 │   │   └── task_pipeline.py      # TaskPipeline 오케스트레이터 (전체 흐름 제어, Semaphore(N) 동시성, RAG 증강)
 │   ├── rag/                      # 위협 지식 DB (RAG) 모듈

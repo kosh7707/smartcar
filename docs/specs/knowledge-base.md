@@ -1,7 +1,7 @@
 # Knowledge Base 명세서
 
 > **소유자**: S5
-> **최종 업데이트**: 2026-03-31
+> **최종 업데이트**: 2026-04-04
 
 ---
 
@@ -247,7 +247,7 @@ ETL에서 11개 공격 표면으로 분류 (`scripts/threat-db/taxonomy.py`):
 
 ```bash
 cd services/knowledge-base
-.venv/bin/python -m pytest tests/ -q  # 145 passed (2026-04-03 확인)
+.venv/bin/python -m pytest tests/ -q  # 147 passed (2026-04-04 확인)
 ```
 
 모든 테스트는 Neo4j 드라이버를 mock하여 실행 — Neo4j/Qdrant 미설치 환경에서도 통과.
@@ -264,7 +264,19 @@ cd services/knowledge-base
 | `test_api_error_responses.py` | 13 | 에러 포맷, health/ready, HTTPException 핸들러, degraded mode |
 | `test_qdrant_modes.py` | 5 | Qdrant file/server 듀얼 모드 초기화 |
 | `test_benchmark_metrics.py` | 15 | 벤치마크 메트릭 (P@k, R@k, NDCG, MRR, hit rate) |
-| `test_benchmark_artifacts.py` | 3 | validation set shape/coverage + sweep summary |
+| `test_benchmark_artifacts.py` | 5 | validation set shape/coverage + sweep summary + compare summary |
+
+### 벤치마크 비교 명령
+
+```bash
+cd services/knowledge-base
+.venv/bin/python scripts/benchmark/run_benchmark.py --qdrant-path data/qdrant --compare-neo4j --output /tmp/s5-graph-compare.json
+```
+
+2026-04-04 기준 비교 결과:
+- Qdrant-only: `ndcg_5=0.4048`, `mrr=0.4636`, `hit_rate=0.7442`
+- Neo4j-enabled: `ndcg_5=0.6111`, `mrr=0.7399`, `hit_rate=0.9070`
+- `ndcg_5` 기준 uplift가 확인된 query: **14 / 43**
 
 ---
 

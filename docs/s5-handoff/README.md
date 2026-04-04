@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S5(Knowledge Base) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-04-04 (공용 `.omx` 메모 운영 규칙 반영 + benchmark validation set 확장 + sweep 출력 보강)**
+> **마지막 업데이트: 2026-04-04 (graph-aware benchmark compare 추가 + 공용 `.omx` 메모 운영 규칙 반영 + benchmark validation set 확장)**
 
 ---
 
@@ -181,7 +181,7 @@ curl http://localhost:8002/v1/health
 ## 7. 테스트
 
 ```bash
-.venv/bin/python -m pytest tests/ -q  # 145 passed
+.venv/bin/python -m pytest tests/ -q  # 147 passed
 ```
 
 | 테스트 파일 | 건수 | 대상 |
@@ -196,9 +196,12 @@ curl http://localhost:8002/v1/health
 | test_api_error_responses.py | 13 | 에러 포맷 + health/ready + degraded mode |
 | test_qdrant_modes.py | 5 | Qdrant file/server 듀얼 모드 초기화 |
 | test_benchmark_metrics.py | 15 | 벤치마크 메트릭 (P@k, R@k, NDCG, MRR) |
-| test_benchmark_artifacts.py | 3 | validation set shape/coverage + sweep summary |
+| test_benchmark_artifacts.py | 5 | validation set shape/coverage + sweep summary + graph compare summary |
 
-벤치마크 validation set은 현재 **45 queries**이며, `scripts/benchmark/sweep.py`는 CSV와 JSON 요약 출력을 모두 지원한다.
+벤치마크 validation set은 현재 **45 queries**이며:
+- `scripts/benchmark/sweep.py`는 CSV와 JSON 요약 출력을 지원한다.
+- `scripts/benchmark/run_benchmark.py --compare-neo4j`는 **Qdrant-only vs Neo4j-enabled** 비교와 query uplift 요약을 지원한다.
+- 2026-04-04 비교 실행 기준, **Qdrant-only → Neo4j-enabled**에서 `ndcg_5` **0.4048 → 0.6111**, `mrr` **0.4636 → 0.7399**, `hit_rate` **0.7442 → 0.9070**로 상승했고, `ndcg_5` 기준 개선된 쿼리는 **14/43개**였다.
 
 ---
 
@@ -211,4 +214,4 @@ curl http://localhost:8002/v1/health
 | KB 명세서 | `docs/specs/knowledge-base.md` |
 | **아키텍처 상세** | `docs/s5-handoff/architecture.md` |
 | **로드맵** | `docs/s5-handoff/roadmap.md` |
-| **세션 로그** | `docs/s5-handoff/session-{1~13}.md` |
+| **세션 로그** | `docs/s5-handoff/session-{1~15}.md` |

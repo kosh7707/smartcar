@@ -7,7 +7,7 @@
 | # | 작업 | 우선순위 |
 |---|------|---------|
 | 1 | 통합 테스트 결과 기반 후속 조치 (S3 WR 응답 대기) | 높음 |
-| 2 | flat한 Qdrant-only sweep 원인 분석 + graph-aware benchmark/validation 강화 | 중간 |
+| 2 | Neo4j-enabled parameter tuning + graph hit를 더 직접 검증하는 validation query 강화 | 중간 |
 
 ---
 
@@ -28,6 +28,15 @@
 | 1 | **벤치마크 validation set 확장** | validation set 35→45 쿼리. automotive/authorization/configuration/concurrency/attack/capec coverage 보강 |
 | 2 | **Sweep 결과 출력 보강 + 실제 실행** | `scripts/benchmark/sweep.py` — 범위 축소 실행 옵션 + CSV/JSON 요약 출력 지원. Qdrant-only 36조합 sweep 실행 결과 NDCG@5/MRR이 전 구간 동일(0.4048/0.4636) |
 | 3 | **벤치마크 회귀 테스트 추가** | `test_benchmark_artifacts.py` 신설 — fixture shape/coverage + sweep summary 회귀 검증 |
+
+---
+
+## 최근 완료 (2026-04-04)
+
+| # | 작업 | 결과 |
+|---|------|------|
+| 1 | **Graph-aware benchmark compare** | `run_benchmark.py --compare-neo4j` 추가. Qdrant-only 대비 Neo4j-enabled에서 `ndcg_5 0.4048 → 0.6111`, `mrr 0.4636 → 0.7399`, `hit_rate 0.7442 → 0.9070` 확인 |
+| 2 | **Compare 회귀 테스트 추가** | compare summary 집계/정렬과 sequential profile 실행을 테스트로 고정 |
 
 ---
 
