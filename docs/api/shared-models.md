@@ -493,7 +493,7 @@ Notes:
 |---|---|---|---|---|
 | GET | `/api/projects/:pid/targets` | - | `200 { success, data: BuildTarget[] }` | `200`, `404` |
 | POST | `/api/projects/:pid/targets` | `{ name, relativePath, buildProfile, buildSystem?, includedPaths? }` | `201 { success, data: BuildTarget }` | `201`, `400`, `404` |
-| PUT | `/api/projects/:pid/targets/:id` | `{ name?, relativePath?, buildProfile?, buildSystem? }` | `200 { success, data: BuildTarget }` | `200`, `404` |
+| PUT | `/api/projects/:pid/targets/:id` | `{ name?, relativePath?, buildProfile?, buildSystem? }` | `200 { success, data: BuildTarget }` | `200`, `400`, `404` |
 | DELETE | `/api/projects/:pid/targets/:id` | - | `200 { success: true }` | `200`, `404` |
 | GET | `/api/projects/:pid/targets/:id/build-log` | - | `200 { success, data: { buildLog: string \| null, status: BuildTargetStatus, updatedAt: string } }` | `200`, `404` |
 | POST | `/api/projects/:pid/targets/discover` | empty body | `200 { success, data: { discovered, created, targets, elapsedMs } }` | `200`, `400`, `404` |
@@ -503,6 +503,7 @@ Validation enforced today:
 - `relativePath` is required on create and must not contain `..`.
 - `includedPaths` entries must not contain `..`.
 - target update does **not** currently accept `includedPaths` changes.
+- if `includedPaths` is sent to `PUT /api/projects/:pid/targets/:id`, the mounted backend now returns `400 InvalidInput` with `errorDetail.code = "INVALID_INPUT"` instead of silently ignoring the field.
 
 ## 3.5 Target-library surface
 

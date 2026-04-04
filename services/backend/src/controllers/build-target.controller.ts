@@ -66,7 +66,10 @@ export function createBuildTargetRouter(
     if (!existing) throw new NotFoundError(`Build target not found: ${id}`);
     if (existing.projectId !== pid) throw new NotFoundError(`Build target not found: ${id}`);
 
-    const { name, relativePath, buildProfile, buildSystem } = req.body;
+    const { name, relativePath, buildProfile, buildSystem, includedPaths } = req.body;
+    if (includedPaths !== undefined) {
+      throw new InvalidInputError("includedPaths updates are not supported");
+    }
     const updated = buildTargetService.update(id, { name, relativePath, buildProfile, buildSystem });
     res.json({ success: true, data: updated });
   }));
