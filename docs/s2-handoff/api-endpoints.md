@@ -70,7 +70,7 @@
 | GET | `/api/projects/:pid/source/upload-status/:uploadId` | 업로드 상태 폴링 폴백 |
 | POST | `/api/projects/:pid/source/clone` | Git URL 클론 |
 | GET | `/api/projects/:pid/source/files` | 소스 파일 트리 |
-| GET | `/api/projects/:pid/source/file?path=` | 파일 내용 읽기 |
+| GET | `/api/projects/:pid/source/file` | 파일 내용 읽기 (`?path=` 필수) |
 | DELETE | `/api/projects/:pid/source` | 소스 삭제 |
 | GET | `/api/projects/:pid/targets` | 빌드 타겟 목록 |
 | POST | `/api/projects/:pid/targets` | 빌드 타겟 생성 `{ name, relativePath, buildProfile? }` |
@@ -88,7 +88,7 @@
 | GET | `/api/analysis/results` | 결과 목록 (`?projectId=` 지원) |
 | GET | `/api/analysis/results/:analysisId` | 결과 상세 |
 | DELETE | `/api/analysis/results/:analysisId` | 결과 삭제 |
-| GET | `/api/analysis/summary?projectId=&period=` | 대시보드 요약 (static+deep 합산) |
+| GET | `/api/analysis/summary` | 대시보드 요약 (static+deep 합산, `?projectId=` 필수, `&period=` 선택) |
 | POST | `/api/analysis/poc` | PoC 생성 `{ projectId, findingId }` → S3 generate-poc |
 
 ### 동적 분석 / 동적 테스트
