@@ -1,8 +1,10 @@
 from enum import StrEnum
 
+
 class TaskType(StrEnum):
     BUILD_RESOLVE = "build-resolve"
     SDK_ANALYZE = "sdk-analyze"
+
 
 class TaskStatus(StrEnum):
     COMPLETED = "completed"
@@ -12,6 +14,7 @@ class TaskStatus(StrEnum):
     BUDGET_EXCEEDED = "budget_exceeded"
     UNSAFE_OUTPUT = "unsafe_output"
     EMPTY_RESULT = "empty_result"
+
 
 class FailureCode(StrEnum):
     INVALID_SCHEMA = "INVALID_SCHEMA"
@@ -27,3 +30,8 @@ class FailureCode(StrEnum):
     LLM_OVERLOADED = "LLM_OVERLOADED"
     INPUT_TOO_LARGE = "INPUT_TOO_LARGE"
     UNKNOWN_TASK_TYPE = "UNKNOWN_TASK_TYPE"
+    MISSING_BUILD_MATERIALS = "MISSING_BUILD_MATERIALS"
+    SDK_MISMATCH = "SDK_MISMATCH"
+    BUILD_SCRIPT_SYNTHESIS_FAILED = "BUILD_SCRIPT_SYNTHESIS_FAILED"
+    COMPILE_FAILED = "COMPILE_FAILED"
+    EXPECTED_ARTIFACTS_MISMATCH = "EXPECTED_ARTIFACTS_MISMATCH"
