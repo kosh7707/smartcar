@@ -124,6 +124,17 @@ def test_list_memories_with_type_filter():
     assert "m.type = $type" in call_args[0][0]
 
 
+def test_list_memories_with_provenance_filter():
+    svc, session = _make_service()
+    session.run.return_value = _mock_list_result([])
+
+    svc.list_memories("re100", provenance_filters={"buildSnapshotId": "snap-1"})
+
+    query = session.run.call_args[0][0]
+    assert "m.build_snapshot_id = $build_snapshot_id" in query
+    assert session.run.call_args.kwargs["build_snapshot_id"] == "snap-1"
+
+
 def test_list_memories_empty():
     svc, session = _make_service()
     session.run.return_value = _mock_list_result([])
@@ -192,6 +203,28 @@ def test_create_memory_dedup():
     assert session.run.call_count == 5
 
 
+def test_create_memory_expired_duplicate_is_not_deduped():
+    """만료된 동일 해시는 dedup 대상으로 보지 않는다."""
+    svc, session = _make_service()
+
+    session.run.side_effect = [
+        _mock_single(None),       # dedup: 만료되어 제외
+        _mock_single({"cnt": 0}), # count
+        MagicMock(),              # create
+    ]
+
+    result = svc.create_memory(
+        "re100",
+        "false_positive",
+        {"cve": "CVE-2025-1234"},
+        ttl_seconds=3600,
+    )
+
+    assert "deduplicated" not in result
+    dedup_query = session.run.call_args_list[4][0][0]
+    assert "m.expiresAt > $now" in dedup_query
+
+
 def test_create_memory_different_data_no_dedup():
     """다른 data → 별도 메모리 생성."""
     svc, session = _make_service()
@@ -221,6 +254,38 @@ def test_create_memory_different_data_no_dedup():
     assert result1["id"] != result2["id"]
 
 
+def test_create_memory_same_data_different_provenance_not_deduped():
+    svc, session = _make_service()
+
+    session.run.side_effect = [
+        _mock_single(None),
+        _mock_single({"cnt": 0}),
+        MagicMock(),
+    ]
+    first = svc.create_memory(
+        "re100",
+        "analysis_history",
+        {"claimCount": 3},
+        provenance={"buildSnapshotId": "snap-1"},
+    )
+
+    session.run.side_effect = [
+        _mock_single(None),
+        _mock_single({"cnt": 1}),
+        MagicMock(),
+    ]
+    second = svc.create_memory(
+        "re100",
+        "analysis_history",
+        {"claimCount": 3},
+        provenance={"buildSnapshotId": "snap-2"},
+    )
+
+    assert first["id"] != second["id"]
+    assert first["provenance"]["buildSnapshotId"] == "snap-1"
+    assert second["provenance"]["buildSnapshotId"] == "snap-2"
+
+
 def test_create_memory_with_ttl():
     """TTL 설정 시 expiresAt이 포함된다."""
     svc, session = _make_service()
@@ -237,6 +302,29 @@ def test_create_memory_with_ttl():
     )
 
     assert "expiresAt" in result
+
+
+def test_create_memory_with_provenance_returns_projection():
+    svc, session = _make_service()
+
+    session.run.side_effect = [
+        _mock_single(None),
+        _mock_single({"cnt": 0}),
+        MagicMock(),
+    ]
+
+    result = svc.create_memory(
+        "re100",
+        "analysis_history",
+        {"test": True},
+        provenance={"buildSnapshotId": "snap-1", "buildUnitId": "unit-1"},
+    )
+
+    assert result["provenance"] == {
+        "buildSnapshotId": "snap-1",
+        "buildUnitId": "unit-1",
+        "sourceBuildAttemptId": None,
+    }
 
 
 def test_list_memories_excludes_expired():

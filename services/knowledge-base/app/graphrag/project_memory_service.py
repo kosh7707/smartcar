@@ -51,28 +51,68 @@ class ProjectMemoryService:
                 logger.info("expiresAt 마이그레이션: %d개 Memory 노드에 센티넬 값 설정", migrated)
 
     @staticmethod
-    def _compute_hash(project_id: str, memory_type: str, data: dict) -> str:
+    def _normalize_provenance(provenance: dict | None) -> dict[str, str | None]:
+        source = provenance or {}
+        return {
+            "build_snapshot_id": source.get("build_snapshot_id") or source.get("buildSnapshotId"),
+            "build_unit_id": source.get("build_unit_id") or source.get("buildUnitId"),
+            "source_build_attempt_id": (
+                source.get("source_build_attempt_id") or source.get("sourceBuildAttemptId")
+            ),
+        }
+
+    @classmethod
+    def _compute_hash(
+        cls,
+        project_id: str,
+        memory_type: str,
+        data: dict,
+        provenance: dict | None = None,
+    ) -> str:
         """content-based dedup 해시를 계산한다."""
-        payload = f"{project_id}:{memory_type}:{json.dumps(data, sort_keys=True, ensure_ascii=False)}"
+        normalized_provenance = cls._normalize_provenance(provenance)
+        payload = (
+            f"{project_id}:{memory_type}:"
+            f"{json.dumps(data, sort_keys=True, ensure_ascii=False)}:"
+            f"{json.dumps(normalized_provenance, sort_keys=True, ensure_ascii=False)}"
+        )
         return hashlib.sha256(payload.encode()).hexdigest()[:16]
 
     def list_memories(
-        self, project_id: str, memory_type: str | None = None,
+        self,
+        project_id: str,
+        memory_type: str | None = None,
+        provenance_filters: dict | None = None,
     ) -> list[dict]:
         """프로젝트의 메모리 목록을 반환한다 (만료된 메모리 제외)."""
         now = datetime.now(timezone.utc).isoformat()
+        normalized_provenance = self._normalize_provenance(provenance_filters)
 
         type_clause = "AND m.type = $type " if memory_type else ""
+        provenance_clause = (
+            "AND ($build_snapshot_id IS NULL OR m.build_snapshot_id = $build_snapshot_id) "
+            "AND ($build_unit_id IS NULL OR m.build_unit_id = $build_unit_id) "
+            "AND ($source_build_attempt_id IS NULL OR m.source_build_attempt_id = $source_build_attempt_id) "
+        )
         expire_clause = "AND (m.expiresAt IS NULL OR m.expiresAt > $now) "
 
         query = (
             "MATCH (p:Project {id: $pid})-[:HAS_MEMORY]->(m:Memory) "
-            f"WHERE true {type_clause}{expire_clause}"
+            f"WHERE true {type_clause}{provenance_clause}{expire_clause}"
             "RETURN m.id AS id, m.type AS type, m.data AS data, "
-            "m.createdAt AS createdAt, m.expiresAt AS expiresAt "
+            "m.createdAt AS createdAt, m.expiresAt AS expiresAt, "
+            "m.build_snapshot_id AS build_snapshot_id, "
+            "m.build_unit_id AS build_unit_id, "
+            "m.source_build_attempt_id AS source_build_attempt_id "
             "ORDER BY m.createdAt DESC"
         )
-        params: dict = {"pid": project_id, "now": now}
+        params: dict = {
+            "pid": project_id,
+            "now": now,
+            "build_snapshot_id": normalized_provenance.get("build_snapshot_id"),
+            "build_unit_id": normalized_provenance.get("build_unit_id"),
+            "source_build_attempt_id": normalized_provenance.get("source_build_attempt_id"),
+        }
         if memory_type:
             params["type"] = memory_type
 
@@ -93,6 +133,13 @@ class ProjectMemoryService:
                 }
                 if rec["expiresAt"] and rec["expiresAt"] != _NO_EXPIRY:
                     entry["expiresAt"] = rec["expiresAt"]
+                provenance = {
+                    "buildSnapshotId": rec.get("build_snapshot_id"),
+                    "buildUnitId": rec.get("build_unit_id"),
+                    "sourceBuildAttemptId": rec.get("source_build_attempt_id"),
+                }
+                if any(value is not None for value in provenance.values()):
+                    entry["provenance"] = provenance
                 memories.append(entry)
             return memories
 
@@ -103,6 +150,7 @@ class ProjectMemoryService:
         data: dict,
         *,
         ttl_seconds: int | None = None,
+        provenance: dict | None = None,
     ) -> dict:
         """프로젝트 메모리를 생성한다.
 
@@ -113,15 +161,20 @@ class ProjectMemoryService:
         if memory_type not in _VALID_TYPES:
             raise ValueError(f"Invalid memory type: {memory_type}. Must be one of {_VALID_TYPES}")
 
-        content_hash = self._compute_hash(project_id, memory_type, data)
+        normalized_provenance = self._normalize_provenance(provenance)
+        content_hash = self._compute_hash(project_id, memory_type, data, normalized_provenance)
 
         with self._driver.session() as session:
             # 1) 중복 체크
             dup = session.run(
                 "MATCH (p:Project {id: $pid})-[:HAS_MEMORY]->(m:Memory) "
                 "WHERE m.content_hash = $hash "
-                "RETURN m.id AS id, m.type AS type, m.createdAt AS createdAt",
-                pid=project_id, hash=content_hash,
+                "AND (m.expiresAt IS NULL OR m.expiresAt > $now) "
+                "RETURN m.id AS id, m.type AS type, m.createdAt AS createdAt, "
+                "m.build_snapshot_id AS build_snapshot_id, "
+                "m.build_unit_id AS build_unit_id, "
+                "m.source_build_attempt_id AS source_build_attempt_id",
+                pid=project_id, hash=content_hash, now=datetime.now(timezone.utc).isoformat(),
             ).single()
 
             if dup is not None:
@@ -132,6 +185,23 @@ class ProjectMemoryService:
                 return {
                     "id": dup["id"], "type": dup["type"],
                     "createdAt": dup["createdAt"], "deduplicated": True,
+                    **(
+                        {
+                            "provenance": {
+                                "buildSnapshotId": dup.get("build_snapshot_id"),
+                                "buildUnitId": dup.get("build_unit_id"),
+                                "sourceBuildAttemptId": dup.get("source_build_attempt_id"),
+                            }
+                        }
+                        if any(
+                            dup.get(key) is not None
+                            for key in (
+                                "build_snapshot_id",
+                                "build_unit_id",
+                                "source_build_attempt_id",
+                            )
+                        ) else {}
+                    ),
                 }
 
             # 2) 한도 체크
@@ -163,12 +233,18 @@ class ProjectMemoryService:
                 "CREATE (m:Memory {"
                 "  id: $mid, type: $type, data: $data,"
                 "  createdAt: $createdAt, content_hash: $hash,"
-                "  expiresAt: $expiresAt"
+                "  expiresAt: $expiresAt, "
+                "  build_snapshot_id: $build_snapshot_id, "
+                "  build_unit_id: $build_unit_id, "
+                "  source_build_attempt_id: $source_build_attempt_id"
                 "}) "
                 "CREATE (p)-[:HAS_MEMORY]->(m)",
                 pid=project_id, mid=memory_id, type=memory_type,
                 data=data_json, createdAt=created_at,
                 hash=content_hash, expiresAt=expires_at,
+                build_snapshot_id=normalized_provenance.get("build_snapshot_id"),
+                build_unit_id=normalized_provenance.get("build_unit_id"),
+                source_build_attempt_id=normalized_provenance.get("source_build_attempt_id"),
             )
 
         logger.info(
@@ -178,6 +254,12 @@ class ProjectMemoryService:
         result = {"id": memory_id, "type": memory_type, "createdAt": created_at}
         if expires_at and expires_at != _NO_EXPIRY:
             result["expiresAt"] = expires_at
+        if any(normalized_provenance.values()):
+            result["provenance"] = {
+                "buildSnapshotId": normalized_provenance.get("build_snapshot_id"),
+                "buildUnitId": normalized_provenance.get("build_unit_id"),
+                "sourceBuildAttemptId": normalized_provenance.get("source_build_attempt_id"),
+            }
         return result
 
 

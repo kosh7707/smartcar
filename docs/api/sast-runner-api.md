@@ -717,6 +717,11 @@ S2 → S4: POST /v1/scan { projectPath, compileCommands: compileCommandsPath }
 
 빌드 자동 실행 + 전체 분석 파이프라인 한 번에.
 
+> **주의 (설계 방향):**
+> snapshot-first orchestration이 열리면 `/v1/build-and-analyze`는
+> canonical build boundary API보다는 **transitional / convenience surface** 로 취급한다.
+> canonical path는 `POST /v1/build` → upstream snapshot persist → `POST /v1/scan`/기타 개별 호출이다.
+
 ### 요청
 
 ```json
@@ -790,6 +795,8 @@ S2 → S4: POST /v1/scan { projectPath, compileCommands: compileCommandsPath }
 }
 ```
 
+---
+
 | 필드 | 타입 | 필수 | 설명 |
 |------|------|------|------|
 | projectPath | string | O | 프로젝트 디렉토리 절대 경로 |
@@ -838,6 +845,68 @@ S2 → S4: POST /v1/scan { projectPath, compileCommands: compileCommandsPath }
 ### 크로스컴파일 주의
 
 자동 감지된 `detectedBuildCommand`는 **참고용**. 크로스컴파일(SDK) 프로젝트에서는 사용자가 UI에서 정확한 빌드 명령어를 직접 지정해야 합니다. 빌드 스크립트(`cross_build.sh` 등)가 감지되면 우선 제안하지만, 없으면 네이티브 빌드 명령어(`cmake .. && make`)를 제안하므로 SDK 프로젝트에서는 부정확할 수 있습니다.
+
+---
+
+## Build Snapshot consumer seam (planned, not yet implemented)
+
+> 이 절은 **향후 migration seam** 을 설명한다.
+> 아래 필드는 현재 public API에 구현되어 있지 않을 수 있으며,
+> current contract를 즉시 breaking change 하려는 목적이 아니다.
+
+### S4의 현재 입장
+
+- S4는 snapshot persistence owner가 아니다.
+- S4는 direct snapshot lookup consumer도 아니다.
+- 따라서 현 단계에서 `buildSnapshotId`만 받아서는 실행할 수 없다.
+
+### migration-safe 최소 seam
+
+향후 S2/S3가 snapshot-first 흐름을 연결할 때, S4는 아래 조합을 권장한다.
+
+#### canonical reference
+- `buildSnapshotId`
+- `buildUnitId`
+- `snapshotSchemaVersion`
+
+#### concrete execution evidence
+- `projectPath`
+- `compileCommands` 또는 동등 build evidence ref
+- 필요 시 `buildCommand`
+- 필요 시 `buildProfile.sdkId`
+- 필요 시 `thirdPartyPaths`
+
+권장 전달 형식은 flat field보다 **nested `provenance` object** 가 더 안전하다.
+
+예시:
+
+```json
+{
+  "provenance": {
+    "buildSnapshotId": "bsnap-123",
+    "buildUnitId": "bunit-456",
+    "snapshotSchemaVersion": "build-snapshot-v1"
+  }
+}
+```
+
+즉, 현 단계 권장안은:
+
+> **reference-only가 아니라 reference + concrete evidence 혼합형**
+
+이다.
+
+### provenance echo 원칙
+
+향후 구현 시 S4는 upstream이 제공한 snapshot provenance를
+**pass-through / echo** 하는 쪽을 권장한다.
+
+단, 아래는 S4가 임의 생성하지 않는다.
+- `buildSnapshotId`
+- `buildUnitId`
+- `snapshotSchemaVersion`
+
+S4가 authoritative한 것은 여전히 build/scan execution evidence다.
 
 ---
 

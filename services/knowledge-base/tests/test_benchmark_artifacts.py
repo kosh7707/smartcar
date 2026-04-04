@@ -36,6 +36,12 @@ def test_validation_set_shape_and_uniqueness():
         assert query["tags"]
         if query.get("expected_top1") is not None:
             assert query["expected_top1"] in query["expected_ids"]
+        if query.get("required_match_types"):
+            assert set(query["required_match_types"]) <= {
+                "id_exact",
+                "graph_neighbor",
+                "vector_semantic",
+            }
 
 
 def test_validation_set_coverage_floors():
@@ -68,6 +74,14 @@ def test_validation_set_coverage_floors():
     ]:
         minimum = 2 if required in {"authorization", "configuration", "concurrency"} else 1
         assert category_counts.get(required, 0) >= minimum
+
+
+def test_validation_set_graph_oracle_floor():
+    queries = _load_queries()
+    oracle_queries = [q for q in queries if q.get("required_match_types")]
+
+    assert len(oracle_queries) >= 4
+    assert any("graph_neighbor" in q["required_match_types"] for q in oracle_queries)
 
 
 def test_sweep_run_and_summary(monkeypatch):
@@ -222,3 +236,62 @@ def test_run_compare_executes_sequential_profiles(monkeypatch):
     assert calls == [False, True]
     assert summary["comparison"]["metrics"]["delta"]["ndcg_5"] == 0.2
     assert summary["comparison"]["top_uplift_queries"][0]["id"] == "q1"
+
+
+def test_run_aggregates_graph_oracle(monkeypatch):
+    def fake_load_validation_set(_path=None):
+        return {
+            "queries": [
+                {
+                    "id": "q1",
+                    "query": "CWE-78",
+                    "expected_ids": ["CWE-78"],
+                    "required_match_types": ["id_exact", "graph_neighbor"],
+                },
+                {
+                    "id": "q2",
+                    "query": "semantic query",
+                    "expected_ids": ["CWE-20"],
+                    "required_match_types": ["vector_semantic"],
+                },
+            ]
+        }
+
+    class FakeAssembler:
+        def assemble(self, query, **kwargs):
+            if query == "CWE-78":
+                return {
+                    "hits": [
+                        {"id": "CWE-78", "match_type": "id_exact"},
+                        {"id": "CAPEC-88", "match_type": "graph_neighbor"},
+                    ]
+                }
+            return {
+                "hits": [
+                    {"id": "CWE-20", "match_type": "graph_neighbor"},
+                ]
+            }
+
+    class FakeTs:
+        def close(self):
+            return None
+
+    monkeypatch.setattr(run_benchmark, "_load_validation_set", fake_load_validation_set)
+    monkeypatch.setattr(
+        run_benchmark,
+        "_build_assembler",
+        lambda *args, **kwargs: (FakeAssembler(), FakeTs()),
+    )
+
+    summary = run_benchmark.run(qdrant_path="data/qdrant")
+
+    assert summary["oracle"] == {
+        "query_count": 2,
+        "full_pass_count": 1,
+        "full_pass_rate": 0.5,
+        "mean_pass_rate": 0.5,
+        "passed_checks": 2,
+        "total_checks": 3,
+    }
+    assert summary["per_query"][0]["oracle"]["all_passed"] is True
+    assert summary["per_query"][1]["oracle"]["all_passed"] is False

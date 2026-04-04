@@ -1,6 +1,6 @@
 {
-  "version": "1.1",
-  "description": "S5 KB 검색 정확도 validation set — CWE/ATT&CK/CAPEC 하이브리드 검색 벤치마크 (45 queries)",
+  "version": "1.2",
+  "description": "S5 KB 검색 정확도 validation set — CWE/ATT&CK/CAPEC 하이브리드 검색 벤치마크 (45 queries, graph-aware oracle 포함)",
   "queries": [
     {
       "id": "q001",
@@ -11,6 +11,10 @@
         "CAPEC-88"
       ],
       "expected_top1": "CWE-78",
+      "required_match_types": [
+        "id_exact",
+        "graph_neighbor"
+      ],
       "tags": [
         "id_exact",
         "injection"
@@ -91,6 +95,9 @@
         "T0866"
       ],
       "expected_top1": "T0866",
+      "required_match_types": [
+        "id_exact"
+      ],
       "tags": [
         "id_exact",
         "attack"
@@ -104,6 +111,10 @@
         "CWE-78"
       ],
       "expected_top1": "CAPEC-88",
+      "required_match_types": [
+        "id_exact",
+        "graph_neighbor"
+      ],
       "tags": [
         "id_exact",
         "injection"
@@ -333,6 +344,9 @@
         "T0807"
       ],
       "expected_top1": "T0807",
+      "required_match_types": [
+        "id_exact"
+      ],
       "tags": [
         "id_exact",
         "attack"

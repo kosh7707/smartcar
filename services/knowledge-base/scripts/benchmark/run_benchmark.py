@@ -40,6 +40,7 @@ _METRIC_KEYS = (
     "mrr",
     "hit_rate",
 )
+_MATCH_TYPE_KEYS = ("id_exact", "graph_neighbor", "vector_semantic")
 
 
 def _load_validation_set(path: str | None = None) -> dict:
@@ -123,6 +124,9 @@ def run(
             "hit_rate": hit_rate(retrieved, expected),
             "latency_ms": elapsed_ms,
         }
+        oracle = _evaluate_oracle(q, result)
+        if oracle is not None:
+            entry["oracle"] = oracle
 
         # expected_top1 체크
         if q.get("expected_top1") and retrieved:
@@ -167,6 +171,22 @@ def run(
         "per_query": results,
     }
 
+    oracle_entries = [row["oracle"] for row in results if "oracle" in row]
+    if oracle_entries:
+        total_checks = sum(item["total"] for item in oracle_entries)
+        passed_checks = sum(item["passed"] for item in oracle_entries)
+        full_pass_count = sum(1 for item in oracle_entries if item["all_passed"])
+        summary["oracle"] = {
+            "query_count": len(oracle_entries),
+            "full_pass_count": full_pass_count,
+            "full_pass_rate": round(full_pass_count / len(oracle_entries), 4),
+            "mean_pass_rate": round(
+                statistics.mean(item["pass_rate"] for item in oracle_entries), 4,
+            ),
+            "passed_checks": passed_checks,
+            "total_checks": total_checks,
+        }
+
     return summary
 
 
@@ -174,6 +194,32 @@ def _metric_means(summary: dict) -> dict[str, float]:
     return {
         key: round(summary["metrics"][key]["mean"], 4)
         for key in _METRIC_KEYS
+    }
+
+
+def _evaluate_oracle(query_spec: dict, result: dict) -> dict[str, Any] | None:
+    """validation set의 graph-aware oracle을 평가한다."""
+    required_match_types = query_spec.get("required_match_types", [])
+    if not required_match_types:
+        return None
+
+    present_match_types = {
+        hit.get("match_type")
+        for hit in result.get("hits", [])
+        if hit.get("match_type")
+    }
+    checks = {
+        f"match_type:{match_type}": match_type in present_match_types
+        for match_type in required_match_types
+    }
+    passed = sum(1 for ok in checks.values() if ok)
+    total = len(checks)
+    return {
+        "checks": checks,
+        "passed": passed,
+        "total": total,
+        "pass_rate": round(passed / total, 4) if total else 0.0,
+        "all_passed": passed == total,
     }
 
 
@@ -344,6 +390,15 @@ def _print_table(summary: dict) -> None:
     print(f"  min_score={params['min_score']}, neighbor_score={params['neighbor_score']}, "
           f"rrf_k={params['rrf_k']}, top_k={params['top_k']}, neo4j={params['neo4j']}")
     print(f"  Queries: {summary['query_count']}, Total: {summary['total_ms']}ms")
+    if "oracle" in summary:
+        oracle = summary["oracle"]
+        print(
+            "  "
+            f"Oracle: queries={oracle['query_count']}, "
+            f"full_pass={oracle['full_pass_rate']:.4f}, "
+            f"mean_pass={oracle['mean_pass_rate']:.4f}, "
+            f"checks={oracle['passed_checks']}/{oracle['total_checks']}"
+        )
     print("-" * 62)
     print(f"  {'Metric':<15} {'Mean':>8} {'Std':>8} {'Min':>8} {'Max':>8}")
     print("-" * 62)

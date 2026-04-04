@@ -46,6 +46,7 @@ class CodeGraphAssembler:
         query: str,
         seen: set[str],
         top_k: int,
+        build_snapshot_id: str | None,
     ) -> list[dict]:
         """경로 1: 쿼리에서 함수명 후보를 추출하고 Neo4j에서 정확 매칭."""
         hits: list[dict] = []
@@ -55,11 +56,15 @@ class CodeGraphAssembler:
             if name.lower() in _SKIP_WORDS or name in seen:
                 continue
 
-            func_info = self._graph.get_function(project_id, name)
+            func_info = self._graph.get_function(
+                project_id, name, build_snapshot_id=build_snapshot_id,
+            )
             if func_info is None:
                 continue
 
-            callees = self._graph.get_callees(project_id, name)
+            callees = self._graph.get_callees(
+                project_id, name, build_snapshot_id=build_snapshot_id,
+            )
             func_info["calls"] = [c["name"] for c in callees]
             func_info["score"] = 1.0
             func_info["match_type"] = "name_exact"
@@ -78,10 +83,15 @@ class CodeGraphAssembler:
         seen: set[str],
         top_k: int,
         min_score: float,
+        build_snapshot_id: str | None,
     ) -> list[dict]:
         """경로 2: Qdrant 벡터 시맨틱 검색."""
         vector_hits = self._vector.search(
-            query, project_id=project_id, top_k=top_k * 2, min_score=min_score,
+            query,
+            project_id=project_id,
+            top_k=top_k * 2,
+            min_score=min_score,
+            build_snapshot_id=build_snapshot_id,
         )
 
         hits: list[dict] = []
@@ -91,7 +101,7 @@ class CodeGraphAssembler:
             if len(hits) >= top_k:
                 break
 
-            hits.append({
+            item = {
                 "name": h.name,
                 "file": h.file,
                 "line": h.line,
@@ -101,7 +111,18 @@ class CodeGraphAssembler:
                 "original_version": h.original_version,
                 "score": h.score,
                 "match_type": "vector_semantic",
-            })
+            }
+            if any([
+                h.build_snapshot_id,
+                h.build_unit_id,
+                h.source_build_attempt_id,
+            ]):
+                item["provenance"] = {
+                    "buildSnapshotId": h.build_snapshot_id,
+                    "buildUnitId": h.build_unit_id,
+                    "sourceBuildAttemptId": h.source_build_attempt_id,
+                }
+            hits.append(item)
             seen.add(h.name)
 
         return hits
@@ -112,14 +133,19 @@ class CodeGraphAssembler:
         hits: list[dict],
         graph_depth: int,
         seen: set[str],
+        build_snapshot_id: str | None,
     ) -> list[dict]:
         """매칭된 함수의 callers/callees 체인을 보강하고 neighbor hit을 반환한다."""
         neighbor_hits: list[dict] = []
 
         for hit in hits:
             func_name = hit["name"]
-            callers = self._graph.get_callers(project_id, func_name, depth=graph_depth)
-            callees = self._graph.get_callees(project_id, func_name)
+            callers = self._graph.get_callers(
+                project_id, func_name, depth=graph_depth, build_snapshot_id=build_snapshot_id,
+            )
+            callees = self._graph.get_callees(
+                project_id, func_name, build_snapshot_id=build_snapshot_id,
+            )
 
             hit["call_chain"] = {
                 "callers": callers[:10],
@@ -170,6 +196,7 @@ class CodeGraphAssembler:
         min_score: float = 0.3,
         graph_depth: int = 2,
         include_call_chain: bool = True,
+        build_snapshot_id: str | None = None,
     ) -> dict:
         """하이브리드 코드 그래프 검색."""
         if not query or not query.strip():
@@ -184,9 +211,11 @@ class CodeGraphAssembler:
 
         seen: set[str] = set()
 
-        exact_hits = self._path_name_exact(project_id, query, seen, top_k)
+        exact_hits = self._path_name_exact(
+            project_id, query, seen, top_k, build_snapshot_id,
+        )
         vector_hits = self._path_vector_semantic(
-            project_id, query, seen, top_k, min_score,
+            project_id, query, seen, top_k, min_score, build_snapshot_id,
         )
 
         if self._rrf_k > 0:
@@ -199,12 +228,12 @@ class CodeGraphAssembler:
 
         if include_call_chain and all_hits:
             neighbor_hits = self._enrich_with_call_chain(
-                project_id, all_hits, graph_depth, seen,
+                project_id, all_hits, graph_depth, seen, build_snapshot_id,
             )
             remaining = max(0, top_k - len(all_hits))
             all_hits.extend(neighbor_hits[:remaining])
 
-        return {
+        result = {
             "query": query,
             "hits": all_hits,
             "total": len(all_hits),
@@ -220,3 +249,6 @@ class CodeGraphAssembler:
                 ),
             },
         }
+        if build_snapshot_id is not None:
+            result["provenance"] = {"buildSnapshotId": build_snapshot_id}
+        return result

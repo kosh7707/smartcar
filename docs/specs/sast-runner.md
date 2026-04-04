@@ -477,6 +477,47 @@ Phase 2 (LLM 해석):
   S3 -> S7 Gateway (:8000) -> LLM Engine -> 판단/분류
 ```
 
+## 16-1. Build Snapshot consumer seam (planned)
+
+S2/S3가 Build Snapshot reference-first seam을 열더라도,
+S4의 역할은 여전히 **결정론적 build/scan execution authority** 다.
+
+### S4가 authoritative한 것
+- 실제 실행된 build/scan evidence
+- `compileCommandsPath`
+- build `exitCode`, `buildOutput`, `entries`, `userEntries`
+- scan `execution.toolResults`, filtering, timed-out 정보
+
+### S4가 pass-through 하는 것이 맞는 것
+- `buildSnapshotId`
+- `buildUnitId`
+- `snapshotSchemaVersion`
+- lineage 계열 provenance
+
+### migration-safe 입력 원칙
+
+현 단계에서 S4는 `buildSnapshotId`만으로는 실행할 수 없다.
+직접 snapshot lookup을 하지 않기 때문이다.
+
+따라서 가장 안전한 seam은:
+- snapshot reference
+- concrete execution evidence (`projectPath`, `compileCommands`, `buildCommand`, `buildProfile`, `thirdPartyPaths`)
+
+를 함께 전달하는 방식이다.
+
+전달 shape는 flat field보다 nested `provenance` object가 더 안전하다.
+
+### `/v1/build-and-analyze`의 위치
+
+snapshot-first architecture에서는 `/v1/build-and-analyze`를
+**canonical orchestration path** 가 아니라
+**convenience / transitional surface** 로 본다.
+
+장기 권장 path:
+1. `/v1/build`
+2. upstream snapshot persist
+3. `/v1/scan`, `/v1/functions`, `/v1/libraries`, `/v1/metadata`
+
 ---
 
 ## 관련 문서

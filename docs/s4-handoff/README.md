@@ -173,6 +173,7 @@ API: `GET/POST/DELETE /v1/sdk-registry`
 | 기능 명세서 | `docs/specs/sast-runner.md` |
 | 이 인수인계서 | `docs/s4-handoff/README.md` |
 | 로드맵 | `docs/s4-handoff/roadmap.md` |
+| Build Snapshot consumer seam 설계 메모 | `docs/s4-handoff/build-snapshot-consumer-seam.md` |
 | 세션 로그 | `docs/s4-handoff/session-*.md` |
 
 ---

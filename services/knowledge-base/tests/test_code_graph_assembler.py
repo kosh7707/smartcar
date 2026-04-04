@@ -100,7 +100,7 @@ def test_hybrid_rrf_dedup():
         "name": "postJson", "file": "src/http_client.cpp", "line": 8,
         "origin": None, "original_lib": None, "original_version": None,
     }
-    graph_svc.get_callees.side_effect = lambda pid, name: (
+    graph_svc.get_callees.side_effect = lambda pid, name, **kwargs: (
         [{"name": "popen"}] if name == "postJson" else []
     )
     graph_svc.get_callers.return_value = []
@@ -174,3 +174,19 @@ def test_apply_rrf():
     # "b"가 양쪽에 나타나므로 RRF 점수가 가장 높아야 함
     assert names[0] == "b"
     assert len(merged) == 3
+
+
+def test_search_passes_build_snapshot_filter():
+    asm, graph_svc, vector_search = _make_assembler()
+    graph_svc.get_function.return_value = None
+    vector_search.search.return_value = []
+
+    asm.search(
+        "proj-1",
+        "postJson",
+        include_call_chain=False,
+        build_snapshot_id="snap-1",
+    )
+
+    assert graph_svc.get_function.call_args.kwargs["build_snapshot_id"] == "snap-1"
+    assert vector_search.search.call_args.kwargs["build_snapshot_id"] == "snap-1"

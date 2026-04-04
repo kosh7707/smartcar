@@ -32,6 +32,9 @@ class CodeFunctionHit:
     origin: str | None = None
     original_lib: str | None = None
     original_version: str | None = None
+    build_snapshot_id: str | None = None
+    build_unit_id: str | None = None
+    source_build_attempt_id: str | None = None
     score: float = 0.0
 
 
@@ -40,6 +43,17 @@ class CodeVectorSearch:
 
     def __init__(self, client: QdrantClient) -> None:
         self._client = client
+
+    @staticmethod
+    def _normalize_provenance(source: dict | None) -> dict[str, str | None]:
+        src = source or {}
+        return {
+            "build_snapshot_id": src.get("build_snapshot_id") or src.get("buildSnapshotId"),
+            "build_unit_id": src.get("build_unit_id") or src.get("buildUnitId"),
+            "source_build_attempt_id": (
+                src.get("source_build_attempt_id") or src.get("sourceBuildAttemptId")
+            ),
+        }
 
     @staticmethod
     def _build_document(func: dict) -> str:
@@ -72,8 +86,9 @@ class CodeVectorSearch:
 
         return "\n".join(parts)
 
-    def ingest(self, project_id: str, functions: list[dict]) -> int:
+    def ingest(self, project_id: str, functions: list[dict], *, provenance: dict | None = None) -> int:
         """함수 목록을 Qdrant에 벡터로 적재한다. 기존 project_id 데이터는 먼저 삭제."""
+        normalized_provenance = self._normalize_provenance(provenance)
         self.delete_project(project_id)
 
         if not functions:
@@ -83,6 +98,7 @@ class CodeVectorSearch:
         metadata_list = []
 
         for func in functions:
+            item_provenance = self._normalize_provenance(func.get("provenance"))
             documents.append(self._build_document(func))
             metadata_list.append({
                 "project_id": project_id,
@@ -93,6 +109,12 @@ class CodeVectorSearch:
                 "origin": func.get("origin"),
                 "original_lib": func.get("original_lib") or func.get("originalLib"),
                 "original_version": func.get("original_version") or func.get("originalVersion"),
+                "build_snapshot_id": item_provenance.get("build_snapshot_id") or normalized_provenance.get("build_snapshot_id"),
+                "build_unit_id": item_provenance.get("build_unit_id") or normalized_provenance.get("build_unit_id"),
+                "source_build_attempt_id": (
+                    item_provenance.get("source_build_attempt_id")
+                    or normalized_provenance.get("source_build_attempt_id")
+                ),
             })
 
         batch_size = 100
@@ -116,14 +138,21 @@ class CodeVectorSearch:
         project_id: str,
         top_k: int = 10,
         min_score: float = 0.3,
+        build_snapshot_id: str | None = None,
     ) -> list[CodeFunctionHit]:
         """project_id 필터링 + 시맨틱 검색."""
         if not self._collection_exists():
             return []
 
-        query_filter = Filter(
-            must=[FieldCondition(key="project_id", match=MatchValue(value=project_id))]
-        )
+        must = [FieldCondition(key="project_id", match=MatchValue(value=project_id))]
+        if build_snapshot_id is not None:
+            must.append(
+                FieldCondition(
+                    key="build_snapshot_id",
+                    match=MatchValue(value=build_snapshot_id),
+                )
+            )
+        query_filter = Filter(must=must)
 
         results = self._client.query(
             collection_name=COLLECTION,
@@ -145,6 +174,9 @@ class CodeVectorSearch:
                 origin=meta.get("origin"),
                 original_lib=meta.get("original_lib"),
                 original_version=meta.get("original_version"),
+                build_snapshot_id=meta.get("build_snapshot_id"),
+                build_unit_id=meta.get("build_unit_id"),
+                source_build_attempt_id=meta.get("source_build_attempt_id"),
                 score=r.score,
             ))
         return hits
