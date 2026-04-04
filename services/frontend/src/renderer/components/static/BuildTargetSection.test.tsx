@@ -104,21 +104,24 @@ describe("BuildTargetSection", () => {
     expect(screen.getByText(/빌드 & 분석 실행/)).toBeTruthy();
   });
 
-  it("opens edit dialog and saves includedPaths through update", async () => {
+  it("guards includedPaths edits and only saves supported fields", async () => {
     render(<BuildTargetSection projectId="p-1" />);
 
     fireEvent.click(screen.getByTitle("편집"));
 
     await waitFor(() => expect(screen.getAllByText("서브 프로젝트 수정").length).toBeGreaterThanOrEqual(1));
     await waitFor(() => expect(screen.getByText(/2개 파일/)).toBeTruthy());
+    expect(screen.getByRole("note").textContent).toContain("includedPaths는 수정 API에서 지원되지 않습니다");
     fireEvent.click(screen.getByText("저장"));
 
-    await waitFor(() => expect(mockUpdate).toHaveBeenCalledWith(
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+    expect(mockUpdate).toHaveBeenCalledWith(
       "t-1",
       expect.objectContaining({
         name: "gateway",
-        includedPaths: expect.arrayContaining(["gateway/src/main.c", "gateway/include/utils.h"]),
+        buildProfile: expect.objectContaining({ sdkId: "generic-linux" }),
       }),
-    ));
+    );
+    expect(mockUpdate.mock.calls[0]?.[1]).not.toHaveProperty("includedPaths");
   });
 });

@@ -19,6 +19,7 @@ import {
   createBuildTarget,
   deleteBuildTarget,
   discoverBuildTargets,
+  runPipelineTarget,
   runAnalysis,
   generatePoc,
   fetchSourceFiles,
@@ -86,13 +87,29 @@ describe("deleteBuildTarget", () => {
 describe("discoverBuildTargets", () => {
   it("sends POST to discover endpoint", async () => {
     const discovered = [{ id: "t-3", name: "gateway" }];
-    mockResponse({ success: true, data: discovered });
+    mockResponse({
+      success: true,
+      data: { discovered: 1, created: 1, targets: discovered, elapsedMs: 12 },
+    });
 
     const result = await discoverBuildTargets("proj-1");
     expect(result).toEqual(discovered);
 
     const [url, opts] = mockFetch.mock.calls[0];
     expect(url).toContain("/api/projects/proj-1/targets/discover");
+    expect(opts.method).toBe("POST");
+  });
+});
+
+describe("runPipelineTarget", () => {
+  it("uses the canonical targetId/status retry payload", async () => {
+    mockResponse({ success: true, data: { targetId: "t-7", status: "running" } });
+
+    const result = await runPipelineTarget("proj-1", "t-7");
+    expect(result).toEqual({ targetId: "t-7", status: "running" });
+
+    const [url, opts] = mockFetch.mock.calls[0];
+    expect(url).toContain("/api/projects/proj-1/pipeline/run/t-7");
     expect(opts.method).toBe("POST");
   });
 });

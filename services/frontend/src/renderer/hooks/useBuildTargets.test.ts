@@ -81,7 +81,7 @@ describe("useBuildTargets", () => {
     });
 
     expect(result.current.targets[0].name).toBe("gw-renamed");
-    expect(mockUpdateBuildTarget).toHaveBeenCalledWith("p-1", "t-1", { name: "gw-renamed", includedPaths: ["src/", "include/"] });
+    expect(mockUpdateBuildTarget).toHaveBeenCalledWith("p-1", "t-1", { name: "gw-renamed" });
   });
 
   it("remove filters target from list", async () => {

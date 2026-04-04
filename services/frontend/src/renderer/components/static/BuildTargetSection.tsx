@@ -15,6 +15,8 @@ import { fetchProjectSdks } from "../../api/sdk";
 import type { RegisteredSdk } from "../../api/sdk";
 import "./BuildTargetSection.css";
 
+const INCLUDED_PATHS_EDIT_GUARD_TEXT = "현재 백엔드 계약상 includedPaths는 수정 API에서 지원되지 않습니다. 이름과 빌드 프로필만 변경할 수 있으며, 파일 구성을 바꾸려면 새 서브 프로젝트를 생성해야 합니다.";
+
 const DEFAULT_PROFILE: BuildProfile = {
   sdkId: "none",
   compiler: "gcc",
@@ -345,13 +347,14 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
           initialName={editingTarget.name}
           initialProfile={editingTarget.buildProfile}
           initialIncludedPaths={editingTarget.includedPaths ?? [editingTarget.relativePath]}
-          onSubmit={async ({ name, profile, includedPaths }) => {
+          includedPathsEditable={false}
+          includedPathsHelpText={INCLUDED_PATHS_EDIT_GUARD_TEXT}
+          onSubmit={async ({ name, profile }) => {
             setSaving(true);
             try {
               await bt.update(editingTarget.id, {
                 name,
                 buildProfile: profile,
-                includedPaths,
               });
               toast.success(`타겟 "${name}" 수정됨`);
               setEditingTarget(null);

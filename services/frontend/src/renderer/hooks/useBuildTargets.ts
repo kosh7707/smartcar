@@ -43,10 +43,11 @@ export function useBuildTargets(projectId?: string) {
 
   const update = useCallback(async (
     targetId: string,
-    body: { name?: string; buildProfile?: BuildProfile; includedPaths?: string[] },
+    body: { name?: string; relativePath?: string; buildProfile?: BuildProfile; includedPaths?: string[] },
   ) => {
     if (!projectId) return;
-    const updated = await updateBuildTarget(projectId, targetId, body);
+    const { includedPaths: _ignoredIncludedPaths, ...supportedBody } = body;
+    const updated = await updateBuildTarget(projectId, targetId, supportedBody);
     setTargets((prev) => prev.map((t) => (t.id === targetId ? updated : t)));
     return updated;
   }, [projectId]);

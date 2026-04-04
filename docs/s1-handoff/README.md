@@ -4,7 +4,7 @@
 > 이 문서는 **S1(Frontend 개발)** 세션을 이어받는 다음 세션을 위한 진입점이다.
 > **S1-QA는 별도 lane**이며, 진입점은 [qa-guide.md](qa-guide.md)이다.
 > 상세 정보는 같은 디렉토리의 분할 문서를 참조한다.
-> **마지막 업데이트: 2026-04-03**
+> **마지막 업데이트: 2026-04-04**
 
 ---
 
@@ -79,6 +79,15 @@
 | QA 검증 | 세션 15 — 33 PASS / 0 FAIL / 1 DEFERRED (FRICTION-5: 빈 상태 mock 미지원) |
 | 레거시 Playwright 자산 | `services/frontend/playwright.config.ts`, `services/frontend/e2e/specs/*`, `services/frontend/e2e/qa-captures/*` — repo에 남아 있으나 **현행성 검증 후 재사용** |
 | Codex QA 표준 | 공식 Codex Playwright skill(`$playwright` 계열) 우선, 없으면 Playwright MCP/CLI 폴백 |
+
+---
+
+### 3-1. 최근 계약 정렬 메모 (2026-04-04)
+
+- S2 canonical contract(`docs/api/shared-models.md`) 기준으로 **build-target update는 `includedPaths` 변경을 지원하지 않음**.
+- 이에 따라 S1 edit dialog는 **이름 + 빌드 프로필만 수정 가능**하도록 가드되며, 기존 선택 파일 목록은 읽기 전용으로 보여준다.
+- 파일 구성 변경이 필요하면 **새 서브 프로젝트를 생성한 뒤 기존 타겟을 삭제**하는 흐름으로 안내한다.
+- backend가 update에서 `includedPaths`를 지원하게 되면 그 시점에만 edit UX를 다시 열어야 한다.
 
 ---
 
@@ -178,7 +187,7 @@
 | 기능 | 비고 |
 |------|------|
 | 독립 Run/Finding 페이지 | 대시보드 내 뷰로 존재. 선택 사항 |
-| `includedPaths` 편집 | S1 독립 작업 가능 |
+| `includedPaths` 편집(update) | 현재 backend 미지원. S1은 edit UX를 가드하고 재생성 흐름으로 안내 |
 | 동적 분석 콘솔 고도화 | S2 WS + S6 필요 |
 
 ---
