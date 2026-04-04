@@ -1,506 +1,361 @@
 # S3. Build Agent 기능 명세
 
 > **소유자**: S3
-> **최종 업데이트**: 2026-03-28
+> **최종 업데이트**: 2026-04-04
 
-> Build Agent는 자동차 임베디드 C/C++ 프로젝트의 **결정론적 빌드 생성 + 제한된 repair loop**를 수행하는 서비스다.
-> Phase 0(결정론적 사전 분석)과 LLM 에이전트 루프(빌드 스크립트 작성 + 복구)를 분리하여,
-> 재현 가능하고 안전한 빌드 자동화를 제공한다.
+> Build Agent는 업로드된 C/C++ 프로젝트를 위한 **compile-first control plane** 이다.
+> 호출자가 선언한 서브프로젝트/빌드 모드/기대 산출물을 기준으로 preflight → build synthesis/repair → artifact validation을 수행한다.
 
 ---
 
 ## 1. 핵심 설계 원칙
 
-1. **결정론적 빌드 생성기 + 제한된 repair loop** — Build Agent는 자유로운 탐색기가 아니다. Phase 0에서 결정론적으로 프로젝트 구조를 파악하고, LLM은 빌드 스크립트 작성과 실패 복구만 담당한다.
-2. **Phase 0 결정론적 우선** — 빌드 시스템 탐지, SDK 조회, 언어 탐지, 프로젝트 트리 생성은 LLM 없이 실행. LLM에게 정제된 컨텍스트를 제공한다.
-3. **LLM은 repair만** — LLM의 역할은 `edit_file -> try_build` 복구 루프에 한정된다. `list_files`로 과도한 `read_file` 사용을 방지한다.
-4. **프로젝트 원본 불변** — 소스 코드 수정 금지. 모든 쓰기는 `build-aegis-{shortId}/` 하위로 제한된다.
-5. **LLM 접근은 S7 경유** — 모든 LLM 호출은 S7 Gateway(`POST /v1/chat`)를 통해 수행. LLM Engine 직접 호출 금지.
-6. **Request-scoped 격리** — 빌드 워크스페이스(`build-aegis-{requestId[:8]}/`)는 요청별 격리. 동시 요청 충돌 방지.
-7. **경로 스코프 강제** — 모든 도구가 `resolve_scoped_path()`로 경로 검증. prefix confusion 방지.
+1. **Compile-first가 우선** — Build Agent의 1차 책임은 “선언된 조건에서 실제 컴파일이 성립하는가”를 판정하는 것이다.
+2. **호출자 의도는 명시적이어야 한다** — 서브프로젝트, 빌드 모드, SDK 선택, 기대 산출물은 호출자가 선언한다.
+3. **No fake success** — compile database, 부분 compile entry, undeclared native fallback, silent feature drop은 성공이 아니다.
+4. **Shell + gcc는 1급 경로** — hand-written shell build, cross gcc 스크립트를 CMake/Make와 동등하게 다룬다.
+5. **프로젝트 원본 불변** — 원본 소스 수정 금지. 모든 쓰기는 `build-aegis/` 하위에 한정한다.
+6. **LLM은 bounded repair만 담당** — 탐색기처럼 행동하지 않고, preflight/Phase 0 이후 빌드 스크립트 작성과 복구에 집중한다.
+7. **실패는 actionable 해야 한다** — strict 계약 위반, SDK 문제, 재료 부족, compile 실패, artifact mismatch를 구분해 보고한다.
 
 ---
 
-## 2. 기술 스택
-
-| 항목 | 기술 | 버전 |
-|------|------|------|
-| 언어 | Python | 3.12 |
-| 프레임워크 | FastAPI | 0.115.0 |
-| ASGI 서버 | uvicorn | 0.30.0 |
-| HTTP 클라이언트 | httpx | 0.27.0 |
-| 데이터 검증 | pydantic | 2.9.0 |
-| 설정 | pydantic-settings | 2.5.0 |
-| 로깅 | python-json-logger | 2.0.7 |
-
----
-
-## 3. 엔드포인트
+## 2. 엔드포인트
 
 | 메서드 | 경로 | 용도 |
 |--------|------|------|
-| POST | `/v1/tasks` | `build-resolve` taskType — Phase 0 + 에이전트 루프 자동 실행 |
-| POST | `/v1/tasks` | `sdk-analyze` taskType — SDK 디렉토리 분석 + `sdkProfile` 추출 |
-| GET | `/v1/health` | 서비스 상태 + 에이전트 설정 + S7 Gateway 연결 상태 |
+| POST | `/v1/tasks` | `build-resolve` strict compile-first 실행 |
+| POST | `/v1/tasks` | `sdk-analyze` SDK/툴체인 분석 |
+| GET | `/v1/health` | 서비스 상태 + 에이전트 설정 |
 
 ---
 
-## 4. Phase 0 아키텍처
+## 3. 공개 계약 요약
 
-`Phase0Executor`가 LLM 개입 없이 프로젝트를 결정론적으로 분석한다. 모든 탐지는 파일 시스템 탐색과 S4 API 호출로만 수행된다.
+### 3.1 `build-resolve` strict v1
 
-```
+strict v1 요청은 다음을 반드시 포함한다.
+
+- `contractVersion: "build-resolve-v1"`
+- `strictMode: true`
+- `context.trusted.projectPath`
+- `context.trusted.subprojectPath`
+- `context.trusted.subprojectName`
+- `context.trusted.build.mode` (`native` | `sdk`)
+- `context.trusted.expectedArtifacts[]`
+- `build.mode == "sdk"` 이면 `build.sdkId`
+
+### 3.2 strict 불변조건
+
+1. `subprojectPath` 누락 시 요청 자체가 invalid contract이다.
+2. `native`는 fallback이 아니라 **선언된 모드**다.
+3. SDK 모드에서 SDK 정보가 없으면 repair loop 전에 실패한다.
+4. `expectedArtifacts`가 충족되지 않으면 성공을 반환하지 않는다.
+5. third-party / optional component disable이 필요하면 strict 계약에서는 실패로 보고한다.
+6. `compile_commands.json` 생성 가능성만으로 성공 처리하지 않는다.
+
+### 3.3 마이그레이션 의미
+
+- strict v1이 정식 계약이다.
+- `strictMode=false` 또는 미지정 호출은 임시 레거시 호환 경로일 수 있으나 deprecated다.
+- 레거시 `targetPath`, `targetName`은 migration alias이며 strict 문서에서는 사용하지 않는다.
+
+---
+
+## 4. 실행 아키텍처
+
+```text
 POST /v1/tasks (taskType: "build-resolve")
   │
-  ├── Phase 0: 결정론적 (LLM 없이)
-  │   ├── 빌드 시스템 탐지  → 파일 존재 여부 기반
-  │   ├── 빌드 파일 탐색    → glob 패턴 매칭 (depth 4 이내)
-  │   ├── 프로젝트 트리 생성 → os.walk (depth 2)
-  │   ├── SDK 레지스트리 조회 → S4 GET /v1/sdk-registry
-  │   ├── 언어 탐지         → 파일 확장자 기반
-  │   └── 기존 빌드 스크립트 탐지 → 후보 경로 순회
+  ├── 0. Preflight (결정론적)
+  │   ├── strict 계약 필수 필드 검증
+  │   ├── build.mode / sdkId / expectedArtifacts 검증
+  │   └── subproject path scope 검증
   │
-  ├── 에이전트 루프: LLM 빌드 + 복구
-  │   ├── Phase 0 결과를 시스템 프롬프트에 주입
-  │   ├── 도구: list_files, read_file, write_file, edit_file, delete_file, try_build
-  │   ├── LLM 호출은 S7 Gateway 경유 (POST /v1/chat)
-  │   └── 빌드 성공 또는 3회 연속 실패 시 보고서 출력
+  ├── 1. Phase 0 (결정론적)
+  │   ├── 빌드 시스템 탐지
+  │   ├── 빌드 파일/스크립트 탐색
+  │   ├── 프로젝트 트리 요약
+  │   ├── 언어 탐지
+  │   └── SDK registry 조회 (필요 시)
   │
-  └── 응답: TaskSuccessResponse (API 계약 준수)
+  ├── 2. Agent repair loop (제한적 LLM)
+  │   ├── build-aegis/aegis-build.sh 작성
+  │   ├── try_build 실행
+  │   └── edit_file → try_build 복구 반복
+  │
+  ├── 3. Artifact validation (결정론적)
+  │   ├── expectedArtifacts 존재 여부 검증
+  │   └── declared mode / build command 재사용성 검증
+  │
+  └── 4. 응답 조립
+      ├── completed
+      └── validation_failed / failed / timeout / model_error / budget_exceeded
 ```
 
-### 4.1 빌드 시스템 탐지
+`build-resolve`는 preflight를 통과하기 전에는 LLM 루프를 시작하지 않는다.
 
-파일 존재 여부로 빌드 시스템 유형을 결정론적으로 판별한다.
+---
 
-| 우선순위 | 탐지 조건 | 분류 |
-|---------|----------|------|
-| 1 | `CMakeLists.txt` 존재 | `cmake` |
-| 2 | `Makefile` / `GNUmakefile` / `makefile` 존재 | `make` |
-| 3 | `configure` / `configure.ac` / `configure.in` 존재 | `autotools` |
-| 4 | `*.sh`에 `build` 포함 (루트 또는 `scripts/`) | `shell` |
-| 5 | 하위 1레벨 디렉토리에서 1~2 재탐색 | `cmake` / `make` |
-| 6 | 없음 | `unknown` |
+## 5. Preflight
 
-### 4.2 빌드 파일 탐색
+### 5.1 검증 항목
 
-- 패턴: `**/CMakeLists.txt`, `**/Makefile`, `**/*.sh`, `**/*.cmake`
-- 제한: depth 4 이내, 노이즈 디렉토리 제외, 최대 20개
-- 노이즈 디렉토리: `build`, `build-wsl`, `build-aegis`, `CMakeFiles`, `.git`, `__pycache__`, `test`, `tests`, `doc`, `docs`, `third_party`, `vendor`, `external`, `deps` 등
+- `contractVersion == "build-resolve-v1"`
+- `strictMode == true`
+- `projectPath`, `subprojectPath`, `subprojectName` 존재
+- `build.mode ∈ {native, sdk}`
+- `sdk` 모드면 `sdkId` 존재
+- `expectedArtifacts` 비어있지 않음
+- `subprojectPath`가 `projectPath` 경계 안에 있음
 
-### 4.3 SDK 레지스트리 조회
+### 5.2 실패 분류
 
-- S4 `GET /v1/sdk-registry` 호출
-- SDK 경로 자동 추출 (`setupScript`에서 `/linux-devkit/` 기준 분리)
-- 실패 시 무시 (빌드는 SDK 없이도 시도 가능)
+| 상황 | failureCode | status |
+|------|-------------|--------|
+| strict 필수 필드 누락/형식 오류 | `INVALID_CONTRACT` | `validation_failed` |
+| sdk 모드인데 SDK 식별 정보 누락 | `SDK_REQUIRED` | `validation_failed` |
+| 빌드 루트 scope 위반 | `INVALID_CONTRACT` | `validation_failed` |
 
-### 4.4 언어 탐지
+---
 
-- 파일 확장자 기반: `.c`, `.h` -> `c` / `.cpp`, `.cc`, `.cxx`, `.hpp` -> `cpp`
-- depth 3 이내 탐색, 노이즈 디렉토리 제외
+## 6. Phase 0
 
-### 4.5 기존 빌드 스크립트 탐지
+`Phase0Executor`가 LLM 개입 없이 프로젝트를 요약한다.
 
-후보 경로를 순서대로 탐색하여 기존 빌드 스크립트를 찾는다.
+### 6.1 탐지 항목
 
-```
-scripts/cross_build.sh → scripts/build.sh → build.sh →
-scripts/compile.sh → compile.sh → Makefile
-```
+| 항목 | 방식 |
+|------|------|
+| 빌드 시스템 | `CMakeLists.txt`, `Makefile`, `configure`, `*.sh` 존재 여부 |
+| 빌드 파일 | glob 매칭 (`CMakeLists.txt`, `Makefile`, `*.sh`, `*.cmake`) |
+| 프로젝트 트리 | depth 제한 컴팩트 트리 |
+| 언어 | `.c`, `.cpp`, `.h`, `.hpp` 등 확장자 기반 |
+| SDK registry | S4 `GET /v1/sdk-registry` |
+| 기존 빌드 스크립트 | `scripts/cross_build.sh`, `build.sh`, `compile.sh` 등 |
 
-### Phase 0 결과
+### 6.2 shell / gcc 우선성
+
+Phase 0는 `scripts/cross_build.sh`, hand-written gcc shell 빌드를 “fallback용 희귀 사례”가 아니라 **우선 고려할 빌드 입력**으로 취급한다.
+
+### 6.3 Phase0 결과 예시
 
 ```python
 @dataclass
 class Phase0Result:
-    build_system: str        # "cmake", "make", "autotools", "shell", "unknown"
-    build_files: list[str]   # 발견된 빌드 관련 파일 (최대 20개)
-    project_tree: str        # 컴팩트 트리 (depth 2, 최대 80 항목)
-    sdk_info: dict           # S4 sdk-registry 응답
-    sdk_dir: str             # SDK 루트 경로
-    has_existing_build_script: bool
-    existing_script_path: str
-    detected_languages: list[str]  # ["c", "cpp"] 등
+    build_system: str                # cmake | make | autotools | shell | unknown
+    build_files: list[str]
+    project_tree: str
+    detected_languages: list[str]
+    sdk_registry: dict
+    existing_script_path: str | None
     duration_ms: int
 ```
 
-Phase 0 완료 후 `generate_initial_script()`가 빌드 시스템 유형에 따라 **초기 빌드 스크립트를 결정론적으로 생성**한다 (cmake/make/autotools → 템플릿, unknown/shell → None). 생성된 스크립트는 `build-aegis-{shortId}/aegis-build.sh`에 기록되며, LLM은 이 스크립트를 검토·수정하는 repair 역할만 담당한다.
+---
 
-`_build_system_prompt()`가 Phase 0 결과를 시스템 프롬프트에 주입한다. 빌드 시스템 유형별 **권장 전략 힌트**도 자동 생성된다.
+## 7. Agent repair loop
 
-| 빌드 시스템 | 권장 전략 |
-|------------|----------|
-| `cmake` | CMakeLists.txt를 read_file로 읽고, cmake 기반 빌드 스크립트 작성 |
-| `make` | Makefile를 read_file로 읽고, make 기반 빌드 스크립트 작성 |
-| `autotools` | ./configure 실행 후 make 호출 스크립트 작성 |
-| `shell` | 기존 빌드 스크립트를 참고하여 build-aegis/aegis-build.sh 작성 |
-| `unknown` | list_files로 프로젝트 구조를 탐색 후 빌드 방법 추론 |
+### 7.1 역할 경계
+
+LLM은 아래만 수행한다.
+
+1. 필요한 빌드 파일 1~2개 읽기
+2. `build-aegis/aegis-build.sh` 작성
+3. `try_build` 결과를 기반으로 스크립트 수정
+4. 최종 보고서 초안 작성
+
+LLM은 아래를 수행하지 않는다.
+
+- 호출자가 선언하지 않은 `native`/`sdk` 전환
+- third-party exclusion을 성공처럼 포장
+- 원본 프로젝트 파일 수정
+- compile database-only 결과를 성공으로 선언
+
+### 7.2 루프 전략
+
+```text
+1. list_files -> read_file (짧게)
+2. write_file(build-aegis/aegis-build.sh)
+3. try_build
+4. 실패 시 edit_file -> try_build
+5. 성공 또는 임계 실패 시 force_report
+```
+
+### 7.3 종료 조건
+
+- build 성공 + artifact validation 통과
+- 연속 빌드 실패 임계값 도달
+- max steps / token budget / evidence budget 소진
+- timeout / model error
 
 ---
 
-## 5. 에이전트 루프
+## 8. 도구 시스템
 
-`AgentLoop`이 멀티턴 LLM 루프를 실행한다.
+### 8.1 도구 목록
 
-### 5.1 루프 흐름
+| 도구 | cost tier | 용도 | 핵심 제약 |
+|------|-----------|------|-----------|
+| `list_files` | CHEAP | 구조 탐색 | scope 내부만 |
+| `read_file` | CHEAP | 파일 읽기 | 8KB 제한 |
+| `write_file` | CHEAP | 새 스크립트 작성 | `build-aegis/` 하위만 |
+| `edit_file` | CHEAP | 스크립트 수정 | 에이전트 생성 파일만 |
+| `delete_file` | CHEAP | 임시 파일 삭제 | 에이전트 생성 파일만 |
+| `try_build` | EXPENSIVE | S4 `POST /v1/build` 실행 | 선언된 모드만 사용 |
 
-```
-1. Phase 0 결과 → 프롬프트 조립 (system + user)
-2. while not should_stop():
-   a. S7 Gateway POST /v1/chat 호출 (messages + tools)
-   b. 응답 분기:
-      - tool_calls → ToolRouter로 실행 → 결과를 메시지에 추가 → 다음 턴
-      - content → ResultAssembler로 파싱 → 응답 반환
-      - content가 빈 문자열 → TaskFailureResponse(MODEL_UNAVAILABLE, retryable=true)
-   c. 컨텍스트 압축: 토큰 추정 초과 시 TurnSummarizer + build_state_summary() 주입
-3. 예산 초과 시 TaskFailureResponse 반환
-```
+### 8.2 `try_build` strict semantics
 
-`ResultAssembler`는 `allowed_refs`에 입력 제공 refs + **도구 생성 refs** (`session.trace[].new_evidence_refs`) 합집합을 사용한다.
-
-### 5.2 force_report 메커니즘
-
-빌드 결과에 따라 도구를 제거하고 LLM에게 최종 보고서 작성을 강제한다.
-
-| 트리거 | 동작 |
-|--------|------|
-| `try_build` 성공 (`eref-build-success`) | `force_report=True`, 도구 제거, 성공 보고서 지시 메시지 주입 |
-| `try_build` 3회 연속 실패 | `force_report=True`, 도구 제거, 진단 보고서 지시 메시지 주입 |
-| 모든 tier 예산 소진 | 도구 제거, 예산 소진 응답 반환 |
-
-### 5.3 연속 빌드 실패 추적
-
-- `consecutive_build_failures` 카운터가 `try_build` 실패마다 증가
-- `try_build` 성공 시 0으로 리셋
-- 임계값(`max_build_failures=3`) 도달 시 보고서 작성 강제
-- 진단 보고서에는 실패 원인과 필요 조치(누락 라이브러리, SDK 문제 등)를 명시
-
-### 5.4 LLM 호출
-
-- `LlmCaller`가 S7 Gateway `POST /v1/chat`을 호출
-- OpenAI chat completion 포맷 (messages, model, tools, tool_choice)
-- 재시도: `RetryPolicy` 기반 (`agent_llm_retry_max=1`)
-- 컨텍스트 압축: 토큰 추정치가 16,000을 초과하면 `TurnSummarizer`로 오래된 턴 제거 (최근 4턴 유지)
-- 교환 로그: `logs/llm-exchange.jsonl` + `logs/llm-dumps/{requestId}_turn-{nn}_{ts}.json`
+- `build.mode == "native"` 이면 native 조건으로만 실행한다.
+- `build.mode == "sdk"` 이면 선언된 SDK 조건으로만 실행한다.
+- SDK가 실패했다고 native로 재시도하지 않는다.
+- 부분 compile entry, compile database 생성 가능성, 일부 타깃만 통과한 결과는 success 조건이 아니다.
 
 ---
 
-## 6. 도구 시스템
+## 9. 정책 엔진
 
-### 6.1 도구 목록
+### 9.1 파일 접근 정책
 
-| 도구 | cost tier | 용도 | 제한 |
-|------|-----------|------|------|
-| `list_files` | CHEAP | 프로젝트 디렉토리 구조를 트리 형태로 반환 | depth 최대 5, 항목 최대 500, 노이즈 디렉토리 제외 |
-| `read_file` | CHEAP | 프로젝트 내 파일 읽기 (읽기 전용) | 8,000자 제한, path traversal 차단 |
-| `write_file` | CHEAP | `build-aegis/` 안에 파일 생성 | `build-aegis/` 하위만 허용, 내용 안전성 검사 |
-| `edit_file` | CHEAP | `build-aegis/` 내 에이전트가 생성한 파일 수정 | 전체 덮어쓰기, 에이전트 생성 파일만, 내용 안전성 검사 |
-| `delete_file` | CHEAP | `build-aegis/` 내 에이전트가 생성한 파일 삭제 | 에이전트 생성 파일만 |
-| `try_build` | EXPENSIVE | S4에 빌드 명령어 전송하여 실행 | 금지 명령어 검사, bear 자동 제거, 실패 시 에러 분류, 부분 빌드 감지 (`userEntries > 0`) |
+| 대상 | 권한 |
+|------|------|
+| 프로젝트 원본 파일 | read-only |
+| `build-aegis/` 내 에이전트 생성 파일 | read/write/edit/delete |
+| `build-aegis/` 내 미생성 파일 | read-only |
+| `build-aegis/` 외부 | 쓰기 금지 |
 
-> `list_files`를 도구로 제공하여 과도한 `read_file` 사용을 방지한다. LLM은 프로젝트 전체 구조를 한 번의 호출로 파악할 수 있다.
+### 9.2 스크립트 내용 안전성
 
-### 6.2 도구 프레임워크
+`write_file` / `edit_file` 시 위험 명령(`rm -rf`, `curl`, `wget`, `docker`, `sudo`, `apt-get`, `pip install` 등)을 경고한다.
 
-| 컴포넌트 | 역할 |
-|----------|------|
-| `ToolRegistry` | ToolSchema 등록 (name, description, cost_tier, **side_effect**), OpenAI function calling 포맷 생성 |
-| `ToolRouter` | tool_call 디스패치, 예산 차감, 중복 차단 (args_hash), `side_effect==WRITE` 시 hash 무효화 |
-| `ToolExecutor` | 단건 실행 + `asyncio.wait_for` 타임아웃 (180초) |
-| `ToolImplementation` (Protocol) | 각 도구의 `execute(arguments) -> ToolResult` |
-| `ToolFailurePolicy` | 실행 실패 시 LLM에게 에러를 알리는 ToolResult 생성 |
+### 9.3 빌드 명령 금지 패턴
 
-### 6.3 구현체
-
-| 파일 | 도구명 | 호출 대상 |
-|------|--------|-----------|
-| `list_files.py` | `list_files` | 로컬 파일 시스템 (os.walk) |
-| `read_file.py` | `read_file` | 로컬 파일 시스템 (파일 읽기) |
-| `write_file.py` | `write_file` | 로컬 파일 시스템 (build-aegis/ 쓰기) |
-| `edit_file.py` | `edit_file` | 로컬 파일 시스템 (build-aegis/ 수정) |
-| `delete_file.py` | `delete_file` | 로컬 파일 시스템 (build-aegis/ 삭제) |
-| `try_build.py` | `try_build` | S4 `POST /v1/build` |
-
-### 6.4 빌드 전략 (프롬프트 지시)
-
-LLM에게 4단계 전략을 시스템 프롬프트로 지시한다:
-
-```
-1단계: 탐색 (list_files -> read_file, 최대 2턴)
-  - 첫 동작은 반드시 list_files
-  - 핵심 빌드 파일 1~2개만 read_file
-
-2단계: 빌드 스크립트 작성 (write_file)
-  - 3턴째에는 반드시 write_file 실행
-  - build-aegis/aegis-build.sh에 완전한 셸 스크립트 작성
-
-3단계: 빌드 실행 (try_build)
-  - write_file 직후 즉시 try_build 실행
-
-4단계: 실패 복구 (edit_file -> try_build)
-  - 에러 분석 후 edit_file로 스크립트 수정
-  - edit_file + try_build를 한 턴에 동시 호출
-  - 같은 명령 반복 금지, 다른 전략 시도
-```
+`try_build`는 `rm`, `dd`, `curl`, `wget`, `git`, `docker`, `chmod`, `chown`, `patch`, `sed -i` 등 destructive / mutation 명령을 차단한다.
 
 ---
 
-## 7. 정책 엔진
+## 10. 실패 분류와 복구 방향
 
-### 7.1 FilePolicy (경로 접근 정책)
+### 10.1 빌드 실패 분류
 
-능력 기반 파일 접근 정책으로, 프로젝트 원본을 보호한다.
+| category | 예시 | 기본 복구 방향 |
+|----------|------|----------------|
+| `missing_header` | `fatal error: foo.h: No such file` | include path / sysroot 확인 |
+| `toolchain_not_found` | `arm-linux-gnueabihf-gcc: not found` | 선언된 SDK setup 검증 |
+| `undefined_symbol` | `undefined reference to 'foo'` | 링크 플래그 점검 |
+| `missing_library` | `cannot find -lfoo` | 라이브러리 경로/재료 부족 보고 |
+| `cmake_config_error` | `CMake Error at ...` | CMake 입력 변수/패키지 확인 |
+| `permission_denied` | `Permission denied` | 스크립트 실행 방식 수정 |
+| `syntax_error` | `syntax error` | 스크립트 문법 수정 |
+| `file_not_found` | `No such file or directory` | 경로/산출물 기준 재검토 |
 
-| 대상 | 권한 | 판정 메서드 |
-|------|------|-----------|
-| 프로젝트 내 모든 파일 | read-only | `can_read(path)` |
-| `build-aegis/` 하위 | write | `can_write(path)` |
-| `build-aegis/` 내 에이전트 생성 파일 | edit/delete | `can_edit(path)` / `can_delete(path)` |
-| `build-aegis/` 외부 | 쓰기 금지 | - |
-| `build-aegis/` 내 에이전트 미생성 파일 | read-only | `can_edit()` -> False |
+### 10.2 strict 계약에서 허용되지 않는 복구
 
-- `record_created(path)`: 에이전트가 파일 생성 시 추적 세트에 등록
-- `record_deleted(path)`: 삭제 시 추적 세트에서 제거
-- 세션 단위로 추적 (서로 다른 요청 간 격리)
+- SDK 실패 후 undeclared native fallback
+- missing library를 해결하기 위한 silent feature disable
+- compile database만 남기고 성공 처리
 
-### 7.2 스크립트 내용 안전성 검사
-
-`write_file`과 `edit_file` 실행 시 `FilePolicy.scan_content()`가 금지 패턴을 검사한다.
-
-| 금지 패턴 | 이유 |
-|----------|------|
-| `rm -rf` / `rm -f` | 파일 삭제 방지 |
-| `curl` / `wget` | 네트워크 다운로드 방지 |
-| `git clone` / `git push` / `git pull` | Git 조작 방지 |
-| `docker` | 컨테이너 실행 방지 |
-| `chmod` / `chown` | 권한 변경 방지 |
-| `sudo` | 권한 상승 방지 |
-| `apt-get` / `yum` / `pip install` | 패키지 설치 방지 |
-
-> 금지 패턴이 발견되면 `_content_warnings` 필드로 LLM에 경고를 반환한다. 쓰기 자체는 차단하지 않는다 (경고만).
-
-### 7.3 빌드 명령어 금지 패턴
-
-`try_build` 실행 시 `build_command`에 대해 정규식 워드 바운더리 기반 검사를 수행한다.
-
-| 금지 패턴 | 비고 |
-|----------|------|
-| `\brm\b` | 파일 삭제 |
-| `\bdd\b` | 디스크 쓰기 |
-| `\bcurl\b` / `\bwget\b` | 네트워크 접근 |
-| `\bgit\b` | Git 조작 |
-| `\bdocker\b` | 컨테이너 |
-| `\bchmod\b` / `\bchown\b` | 권한 변경 |
-| `\bpatch\b` | 소스 패치 |
-| `\bsed -i\b` | 파일 인플레이스 수정 |
-
-> 금지 패턴 매칭 시 도구 실행이 **차단**된다 (경고가 아닌 실패 반환).
-> `arm-linux-gnueabihf-gcc` 등 크로스 컴파일 접두사의 오탐을 워드 바운더리(`\b`)로 방지한다.
-
-### 7.4 bear 자동 제거
-
-LLM이 `build_command`에 `bear --`를 포함시킬 경우 자동 제거한다. S4가 후속 처리에서 자동으로 `bear`를 감싸므로 이중 적용을 방지한다.
+이 경우에는 복구가 아니라 **명시적 실패**로 반환해야 한다.
 
 ---
 
-## 8. BuildErrorClassifier
+## 11. 성공 / 실패 의미
 
-빌드 실패 시 에러 출력을 **결정론적으로 분류**하고 복구 제안을 생성한다. LLM 없이 정규식으로 동작한다.
+### 11.1 성공 조건
 
-### 8.1 에러 카테고리
+성공은 아래를 모두 만족해야 한다.
 
-| 카테고리 | 매칭 패턴 예시 | 복구 제안 |
-|----------|--------------|----------|
-| `missing_header` | `fatal error: foo.h: No such file` | `-I<include_path>` 추가 |
-| `toolchain_not_found` | `arm-none-linux-gnueabihf-gcc: not found` | SDK 환경 설정(`source environment-setup-*`) 추가 |
-| `undefined_symbol` | `undefined reference to 'foo'` | 링커 플래그 `-l<library>` 추가 |
-| `missing_library` | `cannot find -lfoo` | `-L<library_path>` 추가 또는 해당 기능 비활성화 |
-| `cmake_config_error` | `CMake Error at ...` | CMakeLists.txt의 누락 패키지/경로 수정 |
-| `permission_denied` | `Permission denied` | `bash script.sh` 형태로 실행 |
-| `syntax_error` | `syntax error` / `parse error` | 스크립트 문법 확인 |
-| `file_not_found` | `foo: No such file or directory` | 경로 확인, `PROJECT_ROOT` 설정 점검 |
+1. 선언된 `subprojectPath`를 기준으로 빌드가 수행되었다.
+2. 선언된 `build.mode`로 실행되었다.
+3. `buildCommand`가 재사용 가능하다.
+4. `expectedArtifacts`의 required 항목이 실제로 존재한다.
+5. 응답이 S4 handoff에 필요한 경로/명령을 포함한다.
 
-### 8.2 분류 로직
+### 11.2 실패 조건
 
-```python
-def classify_build_error(output: str) -> list[BuildErrorClassification]:
-    """빌드 출력을 분석하여 에러를 분류한다. 순수 함수, LLM 없음."""
-```
+아래 중 하나라도 해당하면 성공이 아니다.
 
-- `try_build` 실패 시 자동 호출 (`stderr` + `stdout` + `output` 결합)
-- 카테고리별 중복 방지 (같은 카테고리는 첫 매치만)
-- 정규식 캡처 그룹으로 suggestion 내 `{0}`, `{1}` 등을 동적 치환
-- 분류 결과는 `_error_classification` 필드로 LLM에 제공 → LLM이 구조화된 복구 제안을 받아 `edit_file`로 수정
+- strict 계약 필드 누락
+- SDK 모드인데 SDK를 사용할 수 없음
+- 입력 재료 부족
+- compile 실패
+- expected artifact 미생성
+- third-party exclusion 없이는 통과할 수 없음
 
 ---
 
-## 9. 예산 시스템
+## 12. 출력 구조
 
-3-tier 예산으로 LLM 루프의 무한 실행을 방지한다.
-
-```python
-BudgetState:
-    max_steps: 10              # 총 턴 수
-    max_completion_tokens: 20000  # LLM 생성 토큰 한도
-    max_prompt_tokens: 100000  # prompt 토큰 한도 (80% 초과 시 경고 로그)
-    max_cheap_calls: 20        # list_files, read_file, write_file, edit_file, delete_file
-    max_medium_calls: 0        # (미사용)
-    max_expensive_calls: 5     # try_build
-    max_consecutive_no_evidence: 6  # 증거 없는 턴 연속 한도
-```
-
-### 종료 조건 (TerminationPolicy)
-
-5가지 종료 조건을 검사하여 루프 중단 여부를 결정한다.
-
-| 조건 | 설명 | status | failureCode |
-|------|------|--------|-------------|
-| `max_steps` | 총 턴 수 초과 | `budget_exceeded` | `MAX_STEPS_EXCEEDED` |
-| `budget_exhausted` | 토큰 한도 도달 | `budget_exceeded` | `TOKEN_BUDGET_EXCEEDED` |
-| `timeout` | 전체 시간 초과 | `timeout` | `TIMEOUT` |
-| `no_new_evidence` | 연속 N턴 새 증거 없음 | `budget_exceeded` | `INSUFFICIENT_EVIDENCE` |
-| `all_tiers_exhausted` | 모든 tier의 도구 호출 한도 소진 | `budget_exceeded` | `ALL_TOOLS_EXHAUSTED` |
-
-### 중복 호출 차단 + mutation 무효화
-
-`ToolRouter`가 `args_hash`로 동일 인자 도구 호출을 차단한다.
-
-단, `side_effect == ToolSideEffect.WRITE`인 도구 (`write_file`, `edit_file`, `delete_file`)가 성공하면 duplicate hash 세트를 전체 초기화한다. 이는 상태가 변경되었으므로 동일 인자의 `try_build` 재시도가 의미 있기 때문이다. (기존 `_MUTATING_TOOLS` 하드코딩 → ToolSchema 메타데이터 기반으로 전환)
-
-```
-1. write_file("aegis-build.sh", content_v1) → 성공 → duplicate hashes 초기화
-2. try_build("bash aegis-build.sh") → 실패 → hash 등록
-3. edit_file("aegis-build.sh", content_v2) → 성공 → duplicate hashes 초기화
-4. try_build("bash aegis-build.sh") → 허용됨 (hash가 초기화되어 중복 아님)
-```
-
----
-
-## 10. 출력 구조
-
-### TaskSuccessResponse
+### 12.1 성공 응답 핵심 필드
 
 ```python
 TaskSuccessResponse:
-    taskId, taskType, status="completed"
-    modelProfile: "agent-loop"
-    promptVersion: "build-v3"
-    schemaVersion: "agent-v1"
-    validation: ValidationInfo
-    result: AssessmentResult
-        summary: str
-        claims: list[Claim]            # statement + supportingEvidenceRefs + location
-        caveats: list[str]
-        usedEvidenceRefs: list[str]
-        confidence: float [0.0-1.0]
-        confidenceBreakdown: dict
-        needsHumanReview: bool
-        recommendedNextSteps: list[str]
-        policyFlags: list[str]
-        buildResult: BuildResult       # 빌드 에이전트 전용
-            success: bool
-            buildCommand: str           # 실제 사용한 빌드 명령어
-            buildScript: str            # "build-aegis/aegis-build.sh"
-            buildDir: str               # "build-aegis"
-            errorLog: str | None
-        sdkProfile: SdkProfile | None  # SDK 분석 결과 (sdk-analyze 전용)
-    audit: AuditInfo
-        inputHash, latencyMs, tokenUsage, createdAt
-        agentAudit: {turn_count, tool_call_count, termination_reason, trace}
+    taskId
+    taskType
+    contractVersion
+    strictMode
+    status = "completed"
+    result.buildResult:
+        success: bool
+        declaredMode: str
+        sdkId: str | None
+        buildCommand: str
+        buildScript: str
+        buildDir: str
+        producedArtifacts: list[dict]
+        artifactValidation: dict
+        errorLog: str | None
 ```
 
-### TaskFailureResponse
+### 12.2 실패 응답 핵심 필드
 
 ```python
 TaskFailureResponse:
-    taskId, taskType
-    status: validation_failed | timeout | model_error | budget_exceeded | unsafe_output | empty_result
-    failureCode: INVALID_SCHEMA | INVALID_GROUNDING | TIMEOUT | MODEL_UNAVAILABLE | ...
+    taskId
+    taskType
+    contractVersion
+    strictMode
+    status: validation_failed | failed | timeout | model_error | budget_exceeded | empty_result
+    failureCode: str
     failureDetail: str
     retryable: bool
-    audit: AuditInfo
 ```
-
-### 고정 산출물 경로
-
-빌드 성공 시 스크립트는 항상 고정 경로에 생성된다:
-
-```
-targetPath 있음: {projectPath}/{targetPath}/build-aegis/aegis-build.sh
-targetPath 없음: {projectPath}/build-aegis/aegis-build.sh
-```
-
-S4가 이후 `bear -- bash build-aegis/aegis-build.sh`로 `compile_commands.json`을 추출한다.
 
 ---
 
-## 11. Observability
+## 13. Observability
 
 | 항목 | 값 |
 |------|-----|
 | 로그 파일 | `logs/s3-build-agent.jsonl` |
-| 교환 로그 | `logs/llm-exchange.jsonl` (LLM 호출 요약) |
-| LLM 전문 덤프 | `logs/llm-dumps/{requestId}_turn-{nn}_{ts}.json` |
-| 형식 | JSON structured, `time` epoch ms |
-| 요청 추적 | `contextvars` 기반 `requestId` + `X-Request-Id` 전파 |
-| 컴포넌트 태깅 | `agent_log()` helper — component, phase, turn 필드 |
+| 교환 로그 | `logs/llm-exchange.jsonl` |
+| LLM dump | `logs/llm-dumps/{requestId}_turn-{nn}_{ts}.json` |
+| 요청 추적 | `X-Request-Id` 전파 |
 
-### 주요 로그 이벤트
+### 필수 로그 의미
 
-| phase | 설명 |
-|-------|------|
-| `phase0_done` | Phase 0 결정론적 분석 완료 |
-| `session_start` | 에이전트 세션 시작 (도구 수, 예산 설정) |
-| `turn_start` / `turn_end` | 턴 시작/종료 (예산 스냅샷) |
-| `turn_branch` | 분기 판단 (tool_calls / content) |
-| `force_report` | 보고서 작성 지시 메시지 주입 |
-| `build_success_detected` | try_build 성공 감지 |
-| `build_failure_threshold` | 연속 빌드 실패 임계값 도달 |
-| `tool_dispatch` / `tool_complete` | 도구 실행 시작/완료 |
-| `tool_blocked_duplicate` | 중복 호출 차단 |
-| `tool_blocked_budget` | tier 예산 소진 차단 |
-| `budget_update` | 예산 갱신 |
-| `policy_triggered` | 종료 정책 트리거 |
-| `context_compact` | 컨텍스트 압축 실행 |
-| `session_end` | 세션 종료 (총 턴, 토큰, 종료 사유) |
-
-### 교차 서비스 추적
-
-```bash
-grep '{request-id}' logs/*.jsonl  # Agent + SAST + Gateway 한번에 추적
-```
+- strict contract validation 결과
+- declared build mode (`native` / `sdk`)
+- selected SDK ID (있다면)
+- build command
+- expected artifact validation 결과
+- 실패 분류 (`INVALID_CONTRACT`, `SDK_NOT_USABLE`, `EXPECTED_ARTIFACT_MISMATCH` 등)
 
 ---
 
-## 12. 서비스 의존
+## 14. 서비스 의존
 
-```
+```text
 Build Agent (:8003)
-  ├── S7 Gateway (:8000)       POST /v1/chat              에이전트 루프 LLM
-  └── S4 SAST Runner (:9000)   GET  /v1/sdk-registry      Phase 0 SDK 조회
-                               POST /v1/build             try_build 실행
+  ├── S7 Gateway (:8000)       POST /v1/chat         제한적 repair loop LLM
+  └── S4 SAST Runner (:9000)   GET  /v1/sdk-registry SDK 조회
+                               POST /v1/build        실제 빌드 실행
 ```
 
 ---
 
-## 13. 환경변수
+## 15. 운영 메모
 
-`pydantic-settings` 기반. 환경변수 접두사 `AEGIS_`.
-
-| 환경변수 | 기본값 | 설명 |
-|----------|--------|------|
-| `AEGIS_LLM_MODE` | `mock` | LLM 모드 (`mock` / `real`) |
-| `AEGIS_LLM_ENDPOINT` | `http://localhost:8000` | S7 Gateway 주소 |
-| `AEGIS_LLM_MODEL` | `qwen-14b` | LLM 모델명 |
-| `AEGIS_LLM_API_KEY` | `""` | API 키 |
-| `AEGIS_LLM_CONCURRENCY` | `4` | 동시 LLM 호출 수 |
-| `AEGIS_SAST_ENDPOINT` | `http://localhost:9000` | S4 SAST Runner 주소 |
-| `AEGIS_AGENT_MAX_STEPS` | `10` | 최대 턴 수 |
-| `AEGIS_AGENT_MAX_COMPLETION_TOKENS` | `20000` | LLM 생성 토큰 한도 |
-| `AEGIS_AGENT_MAX_CHEAP_CALLS` | `20` | CHEAP tier 호출 한도 |
-| `AEGIS_AGENT_MAX_MEDIUM_CALLS` | `0` | MEDIUM tier 호출 한도 (미사용) |
-| `AEGIS_AGENT_MAX_EXPENSIVE_CALLS` | `5` | EXPENSIVE tier 호출 한도 |
-| `AEGIS_AGENT_NO_EVIDENCE_THRESHOLD` | `6` | 연속 무증거 턴 한도 |
-| `AEGIS_AGENT_TOOL_TIMEOUT_MS` | `180000` | 도구 실행 타임아웃 (ms) |
-| `AEGIS_AGENT_LLM_MAX_TOKENS` | `16384` | LLM 응답 최대 토큰 |
-| `AEGIS_AGENT_LLM_RETRY_MAX` | `1` | LLM 호출 재시도 횟수 |
+- S2/S4와의 의미 정렬은 코드 열람이 아니라 API 계약 / WR로 수행한다.
+- strict 계약을 강화할수록 docs/api와 docs/specs를 함께 갱신해야 한다.
+- runtime/Docker/QEMU/debug/payload orchestration은 이 문서의 범위 밖이다.
