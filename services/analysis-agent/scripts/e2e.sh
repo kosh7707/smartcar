@@ -24,6 +24,12 @@
 #   ./e2e.sh build -p /home/kosh/projects/re100-gateway
 #   ./e2e.sh analyze-poc -p /path/to/proj -t gateway/ -i my-gw
 #
+# Strict compile-first examples:
+#   BUILD_CONTRACT_VERSION=compile-first-v1 STRICT_MODE=true BUILD_MODE=native \
+#     EXPECTED_ARTIFACT_KIND=executable EXPECTED_ARTIFACT_PATH=build-aegis/gateway \
+#     ./e2e.sh build -p /path/to/proj -t gateway/
+#   BUILD_MODE=sdk SDK_ID=ti-am335x ./e2e.sh build -p /path/to/proj -t gateway/
+#
 # Prerequisites:
 #   build:   Build Agent(:8003), SAST Runner(:9000), LLM Gateway(:8000)
 #   analyze: Analysis Agent(:8001), SAST Runner(:9000), KB(:8002), LLM Gateway(:8000)
@@ -47,6 +53,12 @@ TARGET=""
 PROJECT_ID=""
 REQUEST_ID="e2e-$(date +%s)"
 TMP="/tmp/aegis-e2e"
+BUILD_CONTRACT_VERSION="${BUILD_CONTRACT_VERSION:-}"
+STRICT_MODE="${STRICT_MODE:-}"
+BUILD_MODE="${BUILD_MODE:-}"
+SDK_ID="${SDK_ID:-}"
+EXPECTED_ARTIFACT_KIND="${EXPECTED_ARTIFACT_KIND:-}"
+EXPECTED_ARTIFACT_PATH="${EXPECTED_ARTIFACT_PATH:-}"
 
 # ─── State ───
 BUILD_STATUS="skip"
@@ -135,16 +147,35 @@ step_build() {
     hdr "BUILD (build-resolve)"
     printf "  project: %s\n" "$PROJECT"
     [[ -n "$TARGET" ]] && printf "  target:  %s\n" "$TARGET"
+    [[ -n "$BUILD_CONTRACT_VERSION" ]] && printf "  contract:%s%s\n" " " "$BUILD_CONTRACT_VERSION"
+    [[ -n "$STRICT_MODE" ]] && printf "  strict:  %s\n" "$STRICT_MODE"
+    [[ -n "$BUILD_MODE" ]] && printf "  mode:    %s%s\n" "$BUILD_MODE" "${SDK_ID:+ (sdkId=$SDK_ID)}"
+    [[ -n "$EXPECTED_ARTIFACT_KIND" || -n "$EXPECTED_ARTIFACT_PATH" ]] && \
+        printf "  expect:  %s%s\n" "${EXPECTED_ARTIFACT_KIND:-artifact}" "${EXPECTED_ARTIFACT_PATH:+ @ $EXPECTED_ARTIFACT_PATH}"
 
     python3 << PYEOF > "$TMP/build-req.json"
 import json
-req = {"taskType":"build-resolve","taskId":"${REQUEST_ID}-build",
-       "context":{"trusted":{"projectPath":"${PROJECT}"}},
-       "constraints":{"maxTokens":8192,"timeoutMs":600000}}
+trusted = {"projectPath":"${PROJECT}"}
 t = "${TARGET}"
 if t:
-    req["context"]["trusted"]["targetPath"] = t
-    req["context"]["trusted"]["targetName"] = t.rstrip("/").split("/")[-1]
+    trusted["targetPath"] = t
+    trusted["targetName"] = t.rstrip("/").split("/")[-1]
+if "${BUILD_CONTRACT_VERSION}":
+    trusted["contractVersion"] = "${BUILD_CONTRACT_VERSION}"
+if "${STRICT_MODE}":
+    trusted["strictMode"] = "${STRICT_MODE}".lower() in ("1", "true", "yes", "on")
+if "${BUILD_MODE}":
+    trusted["buildMode"] = "${BUILD_MODE}"
+if "${SDK_ID}":
+    trusted["sdkId"] = "${SDK_ID}"
+if "${EXPECTED_ARTIFACT_KIND}" or "${EXPECTED_ARTIFACT_PATH}":
+    trusted["expectedArtifacts"] = [{
+        "kind": "${EXPECTED_ARTIFACT_KIND}" or "artifact",
+        "path": "${EXPECTED_ARTIFACT_PATH}",
+    }]
+req = {"taskType":"build-resolve","taskId":"${REQUEST_ID}-build",
+       "context":{"trusted":trusted},
+       "constraints":{"maxTokens":8192,"timeoutMs":600000}}
 print(json.dumps(req))
 PYEOF
 

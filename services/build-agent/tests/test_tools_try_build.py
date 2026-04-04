@@ -1,15 +1,12 @@
 """Safety tests for TryBuildTool — forbidden commands, S4 interaction, result validation, sdk_id."""
 
 from __future__ import annotations
-
-import json
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
 
 from app.tools.implementations.try_build import TryBuildTool, _validate_build_result
-from agent_shared.schemas.agent import ToolResult
 
 
 # ---------------------------------------------------------------------------
@@ -198,6 +195,22 @@ def test_validate_exit_code_nonzero():
     assert "exit code=1" in warn
 
 
+def test_validate_partial_compile_commands_warning_uses_user_entries():
+    """부분 compile_commands는 실패로 남기되 userEntries 경고를 노출한다."""
+    ok, warn = _validate_build_result({
+        "success": True,
+        "exitCode": 1,
+        "userEntries": 4,
+        "warning": "partial compile database available",
+    })
+
+    assert ok is False
+    assert warn is not None
+    assert "부분 compile_commands 사용 가능" in warn
+    assert "4개 유저 엔트리" in warn
+    assert "partial compile database available" in warn
+
+
 def test_validate_s4_reports_failure():
     ok, warn = _validate_build_result({"success": False, "exitCode": 2, "entries": 0})
     assert ok is False
@@ -263,6 +276,31 @@ async def test_bear_auto_stripped(monkeypatch):
     payload = call_args.kwargs.get("json") or call_args[1].get("json")
     assert "bear" not in payload["buildCommand"]
     assert payload["buildCommand"] == "bash build-aegis/aegis-build.sh"
+
+
+@pytest.mark.asyncio
+async def test_shell_gcc_command_preserved_and_request_id_forwarded(monkeypatch):
+    """shell+gcc 경로도 그대로 전달되고 request id가 헤더에 전파된다."""
+    mock_client = _make_mock_client({"success": True, "exitCode": 0, "entries": 2})
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: mock_client)
+
+    tool = TryBuildTool(
+        sast_endpoint="http://localhost:9000",
+        project_path="/tmp/test",
+        request_id="req-shell-gcc-001",
+    )
+    result = await tool.execute({
+        "build_command": "./build.sh && arm-none-linux-gnueabihf-gcc -o app src/main.c",
+    })
+
+    assert result.success is True
+
+    call_args = mock_client.post.call_args
+    payload = call_args.kwargs.get("json") or call_args[1].get("json")
+    headers = call_args.kwargs.get("headers") or call_args[1].get("headers")
+    assert payload["buildCommand"] == "./build.sh && arm-none-linux-gnueabihf-gcc -o app src/main.c"
+    assert "buildProfile" not in payload
+    assert headers["X-Request-Id"] == "req-shell-gcc-001"
 
 
 @pytest.mark.asyncio
