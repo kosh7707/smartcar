@@ -7,6 +7,17 @@
 # 사용법:
 #   ./scripts/build-test.sh                                    # 기본: gateway-webserver
 #   ./scripts/build-test.sh /path/to/project gateway/          # 커스텀
+#
+# strict compile-first 예시:
+#   BUILD_CONTRACT_VERSION=compile-first-v1 \
+#   STRICT_MODE=true \
+#   BUILD_MODE=native \
+#   EXPECTED_ARTIFACT_KIND=executable \
+#   EXPECTED_ARTIFACT_PATH=build-aegis/gateway-webserver \
+#   ./scripts/build-test.sh /path/to/project gateway-webserver/
+#
+# shell+gcc 예시:
+#   BUILD_MODE=sdk SDK_ID=ti-am335x ./scripts/build-test.sh /path/to/project gateway/
 
 set -euo pipefail
 
@@ -18,6 +29,12 @@ PROJECT_PATH="${1:-/home/kosh/AEGIS/uploads/proj-60bf5eb4-bc1f-4275-b7d5-15db1f9
 TARGET_PATH="${2:-gateway-webserver/}"
 TARGET_NAME="${TARGET_PATH%/}"
 REQUEST_ID="build-test-$(date +%s)"
+BUILD_CONTRACT_VERSION="${BUILD_CONTRACT_VERSION:-}"
+STRICT_MODE="${STRICT_MODE:-}"
+BUILD_MODE="${BUILD_MODE:-}"
+SDK_ID="${SDK_ID:-}"
+EXPECTED_ARTIFACT_KIND="${EXPECTED_ARTIFACT_KIND:-}"
+EXPECTED_ARTIFACT_PATH="${EXPECTED_ARTIFACT_PATH:-}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -31,6 +48,10 @@ echo "╚═══════════════════════�
 echo ""
 echo "  프로젝트: ${PROJECT_PATH}"
 echo "  타겟:     ${TARGET_PATH}"
+[[ -n "$BUILD_CONTRACT_VERSION" ]] && echo "  contract: ${BUILD_CONTRACT_VERSION} (strict=${STRICT_MODE:-unset})"
+[[ -n "$BUILD_MODE" ]] && echo "  mode:     ${BUILD_MODE}${SDK_ID:+ (sdkId=${SDK_ID})}"
+[[ -n "$EXPECTED_ARTIFACT_KIND" || -n "$EXPECTED_ARTIFACT_PATH" ]] && \
+    echo "  expect:   ${EXPECTED_ARTIFACT_KIND:-artifact}${EXPECTED_ARTIFACT_PATH:+ @ ${EXPECTED_ARTIFACT_PATH}}"
 echo ""
 
 # 서비스 확인
@@ -52,16 +73,29 @@ RESULT=$(curl -s -X POST "${BUILD_URL}/v1/tasks" \
     -H "X-Request-Id: ${REQUEST_ID}" \
     -d "$(python3 -c "
 import json
+trusted = {
+    'projectPath': '${PROJECT_PATH}',
+    'targetPath': '${TARGET_PATH}',
+    'targetName': '${TARGET_NAME}',
+}
+if '${BUILD_CONTRACT_VERSION}':
+    trusted['contractVersion'] = '${BUILD_CONTRACT_VERSION}'
+if '${STRICT_MODE}':
+    trusted['strictMode'] = '${STRICT_MODE}'.lower() in ('1', 'true', 'yes', 'on')
+if '${BUILD_MODE}':
+    trusted['buildMode'] = '${BUILD_MODE}'
+if '${SDK_ID}':
+    trusted['sdkId'] = '${SDK_ID}'
+if '${EXPECTED_ARTIFACT_KIND}' or '${EXPECTED_ARTIFACT_PATH}':
+    trusted['expectedArtifacts'] = [{
+        'kind': '${EXPECTED_ARTIFACT_KIND}' or 'artifact',
+        'path': '${EXPECTED_ARTIFACT_PATH}',
+    }]
+
 print(json.dumps({
     'taskType': 'build-resolve',
     'taskId': '${REQUEST_ID}',
-    'context': {
-        'trusted': {
-            'projectPath': '${PROJECT_PATH}',
-            'targetPath': '${TARGET_PATH}',
-            'targetName': '${TARGET_NAME}'
-        }
-    },
+    'context': {'trusted': trusted},
     'constraints': {'maxTokens': 8192, 'timeoutMs': 600000}
 }))
 ")")
