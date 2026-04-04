@@ -75,6 +75,14 @@ class ResultAssembler:
         allowed_refs = {ref.refId for ref in session.request.evidenceRefs}
         for step in session.trace:
             allowed_refs.update(step.new_evidence_refs)
+        corrections = self._sanitize_evidence_refs(parsed, allowed_refs)
+        if corrections:
+            agent_log(
+                logger, "결과 근거 교정",
+                component="result_assembler", phase="result_sanitize",
+                correctionCount=len(corrections),
+                corrections=corrections[:20],
+            )
         schema_result = self._schema_validator.validate(parsed, session.request.taskType)
         evidence_valid, evidence_errors = self._evidence_validator.validate(parsed, allowed_refs)
         validation = ValidationInfo(
@@ -186,6 +194,42 @@ class ResultAssembler:
             result=result,
             audit=self._build_audit(session, "content_returned"),
         )
+
+    @staticmethod
+    def _sanitize_evidence_refs(parsed: dict, allowed_ref_ids: set[str]) -> list[str]:
+        """허용되지 않은 evidence ref를 제거한다."""
+        corrections: list[str] = []
+
+        def _sanitize(refs: list, location: str) -> list[str]:
+            sanitized: list[str] = []
+            seen: set[str] = set()
+            for ref_id in refs:
+                if not isinstance(ref_id, str):
+                    continue
+                if ref_id in allowed_ref_ids:
+                    if ref_id not in seen:
+                        sanitized.append(ref_id)
+                        seen.add(ref_id)
+                    continue
+                corrections.append(f"{location}: '{ref_id}' 제거")
+            return sanitized
+
+        used_refs = parsed.get("usedEvidenceRefs", [])
+        if isinstance(used_refs, list):
+            parsed["usedEvidenceRefs"] = _sanitize(used_refs, "usedEvidenceRefs")
+
+        claims = parsed.get("claims", [])
+        if isinstance(claims, list):
+            for i, claim in enumerate(claims):
+                if not isinstance(claim, dict):
+                    continue
+                supporting = claim.get("supportingEvidenceRefs", [])
+                if isinstance(supporting, list):
+                    claim["supportingEvidenceRefs"] = _sanitize(
+                        supporting, f"claims[{i}].supportingEvidenceRefs",
+                    )
+
+        return corrections
 
     _TERMINATION_MAP: dict[str, tuple[TaskStatus, FailureCode, bool]] = {
         "max_steps":           (TaskStatus.BUDGET_EXCEEDED, FailureCode.MAX_STEPS_EXCEEDED,    False),

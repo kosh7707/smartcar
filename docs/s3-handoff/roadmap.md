@@ -9,21 +9,26 @@
 1. ~~**Residual alignment 1차 정리**~~ ✅ Analysis Agent legacy taskType router 차단, Build Agent `promptVersion` 정렬, `sdk-analyze` 문서 반영
 2. ~~**공용 `.omx` 메모 규칙 반영**~~ ✅ `docs/AEGIS.md` / `s2-to-all` WR 확인 후 S3 handoff에 lane 전용 메모 분리 원칙 반영
 
-## 다음 세션 목표 (세션 19)
+## 세션 19 완료 (2026-04-04)
+
+1. ~~**S3 agent integration live 검증**~~ ✅ `build-resolve`, `deep-analyze`, `generate-poc`, `sdk-analyze` 실제 기동 상태 점검
+2. ~~**sdk-analyze live 안정화**~~ ✅ deterministic shortcut + prompt/tool 개선으로 `sdk-live-20260404-7` completed
+3. ~~**S4 경고 분리**~~ ✅ `exitCode=127` / 대형 스캔 stall 이슈를 WR로 분리
+
+## 다음 세션 목표 (세션 20)
 
 ### 즉시 처리
 
-1. **`_pipeline` 잔재 제거 여부 결정** — `services/analysis-agent/app/routers/tasks.py`와 legacy plumbing 제거/축소
-2. **RE100 재테스트** — 하트비트 고도화 + stall 감지 적용 후 4개 프로젝트 재실행
-3. **공용 `.omx` S3 기록 점검** — 전역 가치가 낮은 S3 lane 기록은 handoff/session state로 추가 이동 검토
+1. **S4 WR 응답 추적** — SDK build `exitCode=127`, large scan stall 대응 여부 확인
+2. **certificate-maker 기준 재스모크** — S4 회신 전후로 build/analyze/poc 최소 경로 재검증
+3. **sdk-analyze 품질 보강 여부 판단** — `gccVersion`/`sysroot` 정확도 추가 개선이 필요한지 결정
 
 ### 백로그
 
-1. **Build Agent 프로세스 격리** — bash 실행 namespace 격리
-2. **골든셋 확장** — Juliet Test Suite 기반 고난도 케이스 추가
-3. **세션 영속화** — agent session 저장/복원
-
----
+1. **`_pipeline` 잔재 제거 여부 결정** — `services/analysis-agent/app/routers/tasks.py` legacy plumbing 축소
+2. **Build Agent 프로세스 격리** — bash 실행 namespace 격리
+3. **골든셋 확장** — Juliet Test Suite 기반 고난도 케이스 추가
+4. **세션 영속화** — agent session 저장/복원
 
 ## 세션 16 완료 (2026-04-02)
 

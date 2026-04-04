@@ -1,6 +1,9 @@
 """에이전트 DTO 테스트."""
 
+import warnings
+
 from agent_shared.schemas.agent import (
+    AgentAuditInfo,
     BudgetState,
     LlmResponse,
     ToolCallRequest,
@@ -84,3 +87,12 @@ def test_turn_record_with_steps():
     )
     assert len(turn.tool_steps) == 1
     assert turn.tool_steps[0].cost_tier == ToolCostTier.CHEAP
+
+
+def test_agent_audit_info_no_protected_namespace_warning():
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        audit = AgentAuditInfo(input_hash="sha256:test", model_name="demo-model")
+
+    assert audit.model_name == "demo-model"
+    assert all("protected namespace" not in str(w.message) for w in caught)

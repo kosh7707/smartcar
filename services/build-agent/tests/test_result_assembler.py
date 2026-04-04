@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from agent_shared.schemas.agent import BudgetState
+from agent_shared.schemas.agent import BudgetState, ToolTraceStep
 from app.core.agent_session import AgentSession
 from app.core.result_assembler import ResultAssembler
 from app.schemas.request import Context, EvidenceRef, TaskRequest
@@ -20,6 +20,7 @@ from app.types import FailureCode, TaskStatus, TaskType
 def _make_session(
     budget: BudgetState | None = None,
     evidence_refs: list[EvidenceRef] | None = None,
+    task_type: TaskType = TaskType.BUILD_RESOLVE,
     termination_reason: str = "",
 ) -> AgentSession:
     refs = evidence_refs or [
@@ -32,7 +33,7 @@ def _make_session(
         ),
     ]
     req = TaskRequest(
-        taskType=TaskType.BUILD_RESOLVE,
+        taskType=task_type,
         taskId="test-assemble-001",
         context=Context(trusted={"finding": {"id": "CVE-2025-0001"}}),
         evidenceRefs=refs,
@@ -95,6 +96,60 @@ def test_build_fallback_on_invalid_json() -> None:
     resp = assembler.build("This is plain text, not JSON.", session)
     assert isinstance(resp, TaskSuccessResponse)
     assert "unstructured_response" in resp.result.policyFlags
+
+
+def test_build_sanitizes_invalid_evidence_refs() -> None:
+    """환각 evidence ref는 제거하고 유효한 ref만 유지한다."""
+    assembler = ResultAssembler()
+    session = _make_session(evidence_refs=[], task_type=TaskType.SDK_ANALYZE)
+    session.trace.append(ToolTraceStep(
+        step_id="step_sdk_01",
+        turn_number=1,
+        tool="try_build",
+        args_hash="hash-sdk-01",
+        cost_tier="expensive",
+        duration_ms=10,
+        success=True,
+        new_evidence_refs=["eref-build-success"],
+    ))
+    content = json.dumps({
+        "summary": "SDK 분석 완료",
+        "claims": [
+            {
+                "statement": "SDK 환경을 확인했다",
+                "supportingEvidenceRefs": [
+                    "ls -la /home/kosh/sdks/ti-am335x",
+                    "eref-build-success",
+                ],
+            }
+        ],
+        "caveats": [],
+        "usedEvidenceRefs": [
+            "ls -la /home/kosh/sdks/ti-am335x",
+            "eref-build-success",
+        ],
+        "sdkProfile": {
+            "compiler": "/home/kosh/sdks/ti-am335x/bin/arm-none-linux-gnueabihf-gcc",
+            "compilerPrefix": "arm-none-linux-gnueabihf",
+            "gccVersion": "9.2.1",
+            "targetArch": "armv7-a",
+            "languageStandard": "c11",
+            "sysroot": "/home/kosh/sdks/ti-am335x/sysroot",
+            "environmentSetup": "linux-devkit/environment-setup-armv7at2hf-neon-linux-gnueabi",
+            "includePaths": [],
+            "defines": {},
+        },
+        "needsHumanReview": False,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    resp = assembler.build(content, session)
+
+    assert isinstance(resp, TaskSuccessResponse)
+    assert resp.status == TaskStatus.COMPLETED
+    assert resp.result.usedEvidenceRefs == ["eref-build-success"]
+    assert resp.result.claims[0].supportingEvidenceRefs == ["eref-build-success"]
 
 
 # ── build_from_exhaustion: _TERMINATION_MAP ────────────
