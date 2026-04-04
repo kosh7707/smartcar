@@ -175,6 +175,16 @@ S2는 아래 클라이언트만 통해 하위 서비스를 호출한다.
 5. S5 code-graph ingest
 6. 타겟 라이브러리 및 SDK 레지스트리 반영
 
+계약 잠금 메모 (2026-04-04):
+- `build-target.controller.ts`
+  - `PUT /targets/:id` 에 `includedPaths` 가 오면 silent ignore 대신 `InvalidInputError`
+- `sdk.controller.ts`
+  - mounted canonical 등록 경로는 JSON `{ name, description?, localPath? }`
+- `pipeline.controller.ts`
+  - `POST /pipeline/run/:targetId` 는 `{ targetId, status: "running" }`
+- `test/create-test-app.ts`
+  - contract test 용으로 discover/sdk/rerun 경로를 실제 mount + test double로 유지
+
 #### 3) 동적 분석 / 동적 테스트
 
 - `dynamic-analysis.service.ts`

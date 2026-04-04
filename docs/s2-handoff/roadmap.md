@@ -7,10 +7,24 @@
 
 ## 10. 알려진 이슈 / 로드맵 / 세션 로그
 
-### 대기 중인 작업 요청 (2026-04-03 워크트리 기준)
+### 대기 중인 작업 요청 (2026-04-04 종료 시점 기준)
 
-- `docs/work-requests/`에 현재 남아 있는 파일은 `s3-to-s3-prompt-enhancement-backlog.md` 1건뿐이다.
-- 이는 **S3 내부 백로그**이며, S2 outbound / cross-service 대기 WR로 확인된 항목은 현재 워크트리 기준 없음.
+- 현재 WR 폴더에는 **Build Snapshot / BuildAttempt 계약 협의 묶음**이 S2의 다음 판단 재료로 남아 있다.
+  - inbound:
+    - `s3-to-s2-build-snapshot-contract-handoff.md`
+    - `s3-to-s2-build-snapshot-implementation-kickoff.md`
+    - `s3-to-s2-build-snapshot-clarification-reply.md`
+    - `s3-to-s2-build-snapshot-usecase-variants.md`
+  - outbound:
+    - `s2-to-s3-build-snapshot-contract-clarification.md`
+    - `s2-to-s3-build-snapshot-variant-feedback.md`
+    - `s2-to-s3-build-snapshot-implementation-gating-response.md`
+- S1 관련 계약 WR:
+  - `s2-to-s1-backend-contract-alignment.md`
+  - `s2-to-s1-contract-lockdown-fyi.md`
+- 전역 운영 WR:
+  - `s2-to-all-omx-memory-discipline.md`
+- `s3-to-s3-prompt-enhancement-backlog.md` 는 여전히 **S3 내부 백로그**이며 S2 직접 액션 대상은 아니다.
 
 ### 세션 13 완료 사항 (2026-03-28)
 
@@ -38,6 +52,35 @@ S1-QA 보안 분석가 UX 리뷰 WR 전면 처리 (11 Phase):
 - 알림 시스템 (4개 REST + WS + 4개 트리거)
 - 사용자/역할 시스템 (soft auth, admin 시딩)
 - DB 18→21 테이블, 테스트 267→322개
+
+### 세션 15 완료 사항 (2026-04-04)
+
+S1↔S2 계약 drift를 backend-side에서 회귀 고정:
+- `PUT /api/projects/:pid/targets/:id` 의 `includedPaths` silent ignore 제거
+  - 현재 semantics: `400` + `errorDetail.code = "INVALID_INPUT"`
+- backend contract test 확장:
+  - `POST /api/projects/:pid/targets/discover`
+  - `GET /api/projects/:pid/sdk`
+  - `GET /api/projects/:pid/sdk/:id`
+  - `POST /api/projects/:pid/sdk`
+  - `POST /api/projects/:pid/pipeline/run/:targetId`
+  - `GET /api/projects/:pid/pipeline/status` optional field assertions
+- contract test harness 보강:
+  - `/api/projects/:pid/sdk` mount
+  - discover용 `sourceService` / `sastClient` test double
+  - rerun용 `pipelineOrchestrator` test double
+- canonical docs 정렬:
+  - `docs/api/shared-models.md`
+  - `docs/specs/backend.md`
+- S1 FYI WR 발행:
+  - `s2-to-s1-contract-lockdown-fyi.md`
+- 검증:
+  - contract suite `73 passed`
+  - full backend suite `330 passed`
+  - backend/shared typecheck 통과
+- 관련 커밋:
+  - `ca11063` — implicit contract drift 방지
+  - `c12aeac` — backend spec에 locked semantics 반영
 
 ### DB hot-reload 함정
 
@@ -67,7 +110,7 @@ S1-QA 보안 분석가 UX 리뷰 WR 전면 처리 (11 Phase):
 
 ### 테스트 인프라: 구현 완료
 
-vitest 기반 테스트 322개. `cd services/backend && npx vitest run`으로 실행.
+vitest 기반 테스트 330개. `cd services/backend && npx vitest run`으로 실행.
 
 ```
 src/
@@ -91,13 +134,22 @@ src/
 
 ### 즉시 다음 작업 (Next S2 Session)
 
-1. **E2E 풀스택 통합 테스트** — 전체 파이프라인 (업로드→서브프로젝트→빌드→스캔→Deep) 검증
+1. **Build Snapshot / BuildAttempt 협의 상태 재평가**
+   - `docs/work-requests/s3-to-s2-build-snapshot-*.md`
+   - `docs/work-requests/s2-to-s3-build-snapshot-*.md`
+   - 현재 기준 S2 입장은 “kickoff 수용, 실제 구현 착수는 게이트 이후”
+2. **E2E 풀스택 통합 테스트**
+   - 전체 파이프라인 (업로드→서브프로젝트→빌드→스캔→Deep) 검증
+   - 단, 사용자 허가 없는 start script 실행 금지 원칙 유지
 
 ### 후순위
 
 - `source.get_span` API — 소스 파일 특정 범위 반환 (S3 Agent tool)
 - Overview에 `deep_analysis` 모듈 집계 추가 (project.service.ts)
 - 사용자 인증 강화: AUTH_REQUIRED=true 모드 + RBAC 적용 (soft auth 구현 완료, S1 로그인 UI 대기)
+- Build Snapshot / BuildAttempt persistence seam
+  - `BuildTarget` provenance → snapshot/attempt canonical object로의 migration plan 수립
+  - 게이트 전에는 설계/메모 수준으로만 유지
 
 ### 인프라 로드맵 (v1.0.0 이후)
 

@@ -15,7 +15,7 @@
 | [architecture.md](architecture.md) | 구현 현황, DB 스키마, 핵심 로직, 의존성, 실행 방법, Observability |
 | [api-endpoints.md](api-endpoints.md) | API 엔드포인트 전체 목록 (현재 라우터 구현 반영) |
 | [roadmap.md](roadmap.md) | 다음 작업, 후순위, 인프라 계획 |
-| session-{N}.md | 세션별 작업 로그 (session-1.md ~ session-14.md) |
+| session-{N}.md | 세션별 작업 로그 (session-1.md ~ session-15.md) |
 
 ---
 
@@ -69,7 +69,12 @@
 
 - **경로**: `docs/work-requests/`
 - 세션 시작 시 이 폴더를 확인하여 밀린 요청이 있는지 체크
-- 현재 워크트리 기준 남아 있는 파일은 `s3-to-s3-prompt-enhancement-backlog.md` 1건뿐이며, 이는 **S3 내부 백로그**다. S2 outbound / cross-service 대기 WR은 별도 증거가 없으면 없다고 보고 시작한다.
+- **2026-04-04 종료 시점 기준 메모**
+  - `s2-to-all-omx-memory-discipline.md` — 전 lane 공용 `.omx` 운영 규칙 공지
+  - `s2-to-s1-backend-contract-alignment.md`, `s2-to-s1-contract-lockdown-fyi.md` — S1 계약 정렬/closure 통보
+  - `s3-to-s2-build-snapshot-*.md`, `s2-to-s3-build-snapshot-*.md` — Build Snapshot / BuildAttempt 계약 협의 및 구현 착수 게이트 회신 묶음
+  - `s3-to-s3-prompt-enhancement-backlog.md` — S3 내부 백로그 (S2 액션 아님)
+- 즉, 더 이상 “`.gitkeep` + S3 내부 백로그 1건만 남음” 상태가 아니므로, 다음 세션은 **WR 폴더를 실제 기준으로 재확인**해야 한다.
 
 ### Codex / OMX 운영 메모
 
@@ -88,12 +93,12 @@
 
 ---
 
-## 3. 현재 상태 (2026-04-03)
+## 3. 현재 상태 (2026-04-04)
 
 | 항목 | 값 |
 |------|---|
 | TypeScript 에러 | **0개** |
-| 테스트 | **322개 통과** (vitest) |
+| 테스트 | **330개 통과** (vitest, 2026-04-04 전체 재검증) |
 | DB 테이블 | 21개 (SQLite, WAL) — 세션 14에서 notifications, users, sessions 추가 |
 | API 엔드포인트 | `api-endpoints.md`에 현행 라우터 기준 목록 정리 |
 | 에러 클래스 | 18개 (AppError 계층, 21개 에러코드) |
@@ -108,6 +113,24 @@
   - `GET/POST /api/projects/:pid/sdk` → `RegisteredSdk` / `{ builtIn, registered }`
 - build-target update는 현재도 `includedPaths` 변경을 지원하지 않으며, backend는 이를 **명시적 에러**로 거부한다.
 - SDK analyzed profile 연동에서 canonical 필드명은 `environmentSetup`이며, S4 SDK 등록 payload forwarding도 해당 이름으로 잠근다.
+
+### 3-2. 테스트/문서 동기화 메모 (2026-04-04)
+
+- backend contract test harness (`services/backend/src/test/create-test-app.ts`) 는 이제 다음 surface를 직접 검증 가능하게 맞춰져 있다.
+  - `/api/projects/:pid/targets/discover`
+  - `/api/projects/:pid/sdk`
+  - `/api/projects/:pid/pipeline/run/:targetId`
+- contract lockdown 관련 S2 기준 검증 결과:
+  - `src/__tests__/contract/api-contract.test.ts` → **73 passed**
+  - `cd services/backend && npx vitest run` → **18 files / 330 tests passed**
+  - `services/backend` / `services/shared` `tsc --noEmit` 통과
+- 문서 동기화 완료 범위:
+  - `docs/api/shared-models.md`
+  - `docs/specs/backend.md`
+  - `docs/s2-handoff/README.md`
+  - `docs/s2-handoff/roadmap.md`
+  - `docs/s2-handoff/architecture.md`
+  - `docs/s2-handoff/session-15.md`
 
 ### Durable (투자, 유지)
 
