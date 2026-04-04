@@ -4,6 +4,7 @@ S4 sdk-registry 조회 → 빌드 파일 자동 탐색 → AgentLoop(read/write/
 목표: 빌드 스크립트(build-aegis/aegis-build.sh) 작성 + 빌드 성공.
 """
 import glob
+import hashlib
 import json
 import logging
 import os
@@ -19,7 +20,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from agent_shared.context import get_request_id, set_request_id
-from app.schemas.request import TaskRequest
+from app.schemas.request import BuildMode, TaskRequest
 from app.schemas.response import (
     AssessmentResult,
     AuditInfo,
@@ -30,6 +31,11 @@ from app.schemas.response import (
     ValidationInfo,
 )
 from app.types import FailureCode, TaskStatus, TaskType
+from app.validators.build_request_contract import (
+    BuildRequestContractValidator,
+    BuildRequestPreflight,
+    normalize_contract_version,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +50,68 @@ def _json_response(data: TaskSuccessResponse | TaskFailureResponse) -> JSONRespo
     request_id = get_request_id()
     headers = {"X-Request-Id": request_id} if request_id else {}
     return JSONResponse(content=data.model_dump(mode="json"), headers=headers)
+
+
+def _build_invalid_contract_failure(
+    request: TaskRequest,
+    errors: list[str],
+) -> TaskFailureResponse:
+    input_str = json.dumps(request.model_dump(mode="json"), sort_keys=True)
+    input_hash = f"sha256:{hashlib.sha256(input_str.encode()).hexdigest()[:16]}"
+    request_id = get_request_id() or request.taskId
+
+    return TaskFailureResponse(
+        taskId=request.taskId,
+        taskType=request.taskType,
+        status=TaskStatus.VALIDATION_FAILED,
+        failureCode=FailureCode.INVALID_SCHEMA,
+        failureDetail="Invalid build-resolve contract: " + " | ".join(errors),
+        retryable=False,
+        audit=AuditInfo(
+            inputHash=input_hash,
+            latencyMs=0,
+            tokenUsage=TokenUsage(),
+            retryCount=0,
+            ragHits=0,
+            createdAt=datetime.now(timezone.utc).isoformat(),
+            agentAudit={
+                "requestId": request_id,
+                "preflight": "build-request-contract",
+                "errors": errors,
+            },
+        ),
+    )
+
+
+async def _run_build_request_preflight(
+    request: TaskRequest,
+) -> tuple[BuildRequestPreflight | None, TaskFailureResponse | None]:
+    validator = BuildRequestContractValidator()
+    preflight, errors = validator.validate(request)
+    if preflight is None:
+        return None, _build_invalid_contract_failure(request, errors)
+
+    contract = preflight.contract
+    if contract.strictMode and contract.buildMode == BuildMode.SDK and contract.sdkId:
+        sdk_registry = await _fetch_sdk_registry(settings.sast_endpoint, get_request_id() or request.taskId)
+        declared_sdk = contract.sdkId
+        registered_ids = {
+            sdk.get("sdkId")
+            for sdk in sdk_registry.get("sdks", [])
+            if isinstance(sdk, dict) and sdk.get("sdkId")
+        }
+        if not registered_ids:
+            errors.append(
+                "strict compile-first v1 could not verify context.trusted.sdkId against the S4 sdk-registry",
+            )
+        elif declared_sdk not in registered_ids:
+            errors.append(
+                f"context.trusted.sdkId '{declared_sdk}' is not present in the S4 sdk-registry",
+            )
+
+    if errors:
+        return None, _build_invalid_contract_failure(request, errors)
+    return preflight, None
 
 
 async def _fetch_sdk_registry(sast_endpoint: str, request_id: str | None) -> dict:
@@ -95,6 +163,7 @@ def _build_system_prompt(
     phase0: object | None = None,
     build_subdir: str = "build-aegis",
     initial_script_hint: str = "",
+    build_contract: BuildRequestPreflight | None = None,
 ) -> str:
     """빌드 에이전트 v3 시스템 프롬프트."""
 
@@ -177,6 +246,33 @@ def _build_system_prompt(
             "- **이 타겟만 빌드하라.** 다른 디렉토리의 빌드는 시도하지 마라.\n\n"
         )
 
+    contract_section = ""
+    if build_contract is not None:
+        contract = build_contract.contract
+        expected_artifacts = ", ".join(
+            artifact.path
+            or artifact.name
+            or artifact.artifactType.value
+            for artifact in contract.expectedArtifacts
+        ) or "(legacy caller — unspecified)"
+        build_mode = contract.buildMode.value if contract.buildMode else "(legacy caller — unspecified)"
+        strict_mode = "true" if contract.strictMode else "false"
+        contract_section = (
+            "## 호출자 선언 계약\n"
+            f"- **contractVersion**: {normalize_contract_version(contract)}\n"
+            f"- **strictMode**: {strict_mode}\n"
+            f"- **declared buildMode**: {build_mode}\n"
+            f"- **declared sdkId**: {contract.sdkId or '(none)'}\n"
+            f"- **expectedArtifacts**: {expected_artifacts}\n"
+        )
+        if contract.strictMode:
+            contract_section += (
+                "- **선언되지 않은 SDK/native fallback을 하지 마라.**\n"
+                "- **호출자가 선언한 expectedArtifacts를 기준으로 성공을 판단하라.**\n\n"
+            )
+        else:
+            contract_section += "\n"
+
     builder = SystemPromptBuilder()
 
     builder.add_section("역할",
@@ -200,6 +296,8 @@ def _build_system_prompt(
     # 동적 섹션 — 조건부 추가
     if target_section:
         builder.add_section("빌드 대상", target_section)
+    if contract_section:
+        builder.add_section("호출자 선언 계약", contract_section)
     if phase0_section:
         builder.add_section("사전 분석", phase0_section)
     if sdk_section:
@@ -299,10 +397,14 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
     from app.tools.implementations.delete_file import DeleteFileTool
     from app.tools.implementations.try_build import TryBuildTool
 
-    trusted = request.context.trusted
-    project_path = trusted.get("projectPath", "/tmp/unknown")
-    target_path = trusted.get("targetPath", "")
-    target_name = trusted.get("targetName", "")
+    preflight, failure = await _run_build_request_preflight(request)
+    if failure is not None:
+        return failure
+    assert preflight is not None
+
+    project_path = preflight.project_path
+    target_path = preflight.target_path
+    target_name = preflight.target_name
     request_id = get_request_id() or request.taskId
 
     # 서브프로젝트 스코핑: build-aegis/는 targetPath 기준
@@ -323,6 +425,14 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
     phase0_result = await phase0.execute(request_id)
 
     sdk_info = phase0_result.sdk_info
+    if preflight.contract.buildMode == BuildMode.NATIVE:
+        sdk_info = {}
+    elif preflight.contract.sdkId:
+        matching_sdks = [
+            sdk for sdk in sdk_info.get("sdks", [])
+            if isinstance(sdk, dict) and sdk.get("sdkId") == preflight.contract.sdkId
+        ]
+        sdk_info = {"sdks": matching_sdks} if matching_sdks else {}
     build_files = phase0_result.build_files
 
     # ─── 1b. 초기 빌드 스크립트 결정론적 생성 (cmake/make/autotools 템플릿) ───
@@ -465,6 +575,7 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
         phase0=phase0_result,
         build_subdir=build_subdir,
         initial_script_hint=initial_script_hint,
+        build_contract=preflight,
     )
     build_source = os.path.join(project_path, target_path) if target_path else project_path
     user_message = (
@@ -474,6 +585,11 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
     )
     if target_path:
         user_message += f"## 빌드 대상 서브프로젝트\n{target_path}\n"
+    if preflight.contract.strictMode:
+        user_message += (
+            f"## 호출자 선언 contractVersion\n{normalize_contract_version(preflight.contract)}\n"
+            f"## 호출자 선언 buildMode\n{preflight.contract.buildMode.value if preflight.contract.buildMode else 'unspecified'}\n"
+        )
 
     if settings.llm_mode == "real":
         llm_caller = LlmCaller(
