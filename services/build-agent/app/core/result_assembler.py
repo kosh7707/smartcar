@@ -5,25 +5,30 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
+from pathlib import PurePosixPath
+from typing import TYPE_CHECKING, Any
 
 from agent_shared.observability import agent_log
+from agent_shared.schemas.agent import AgentAuditInfo
 from app.pipeline.confidence import ConfidenceCalculator
 from app.pipeline.response_parser import V1ResponseParser
-from agent_shared.schemas.agent import AgentAuditInfo
 from app.schemas.response import (
+    ArtifactVerification,
     AssessmentResult,
     AuditInfo,
+    BuildArtifact,
     BuildResult,
     Claim,
+    FailureContext,
     SdkProfile,
     TaskFailureResponse,
     TaskSuccessResponse,
     TokenUsage,
     ValidationInfo,
 )
-from app.types import FailureCode, TaskStatus
+from app.types import FailureCode, TaskStatus, TaskType
 from app.validators.evidence_validator import EvidenceValidator
 from app.validators.schema_validator import SchemaValidator
 
@@ -31,6 +36,42 @@ if TYPE_CHECKING:
     from app.core.agent_session import AgentSession
 
 logger = logging.getLogger(__name__)
+
+_BUILD_SUCCESS_REF = "eref-build-success"
+_SDK_MISMATCH_KEYWORDS = (
+    "sdk",
+    "sysroot",
+    "toolchain",
+    "cross compiler",
+    "compiler not found",
+    "arm-none",
+    "aarch64",
+    "gnueabi",
+)
+_MISSING_MATERIALS_KEYWORDS = (
+    "no such file or directory",
+    "cannot find",
+    "missing",
+    "not found",
+    "no rule to make target",
+    "undefined reference",
+    "fatal error:",
+)
+_SYNTHESIS_KEYWORDS = (
+    "syntax error",
+    "unexpected token",
+    "build command is required",
+    "failed to generate",
+    "unable to write",
+    "permission denied",
+)
+
+
+@dataclass(slots=True)
+class _StrictContract:
+    contract_version: str | None
+    strict_mode: bool
+    expected_artifacts: list[str]
 
 
 class ResultAssembler:
@@ -50,7 +91,6 @@ class ResultAssembler:
         session: AgentSession,
     ) -> TaskSuccessResponse | TaskFailureResponse:
         """LLM이 반환한 최종 content를 파싱하여 응답을 구성한다."""
-        # 파싱
         parsed = self._parser.parse(final_content)
         fallback = parsed is None
 
@@ -71,7 +111,6 @@ class ResultAssembler:
                 "policyFlags": ["unstructured_response"],
             }
 
-        # 검증: 입력 제공 refs + 도구가 생성한 refs 합집합
         allowed_refs = {ref.refId for ref in session.request.evidenceRefs}
         for step in session.trace:
             allowed_refs.update(step.new_evidence_refs)
@@ -100,11 +139,12 @@ class ResultAssembler:
 
         if not evidence_valid:
             return self.build_failure(
-                session, TaskStatus.VALIDATION_FAILED,
-                FailureCode.INVALID_GROUNDING, "; ".join(evidence_errors),
+                session,
+                TaskStatus.VALIDATION_FAILED,
+                FailureCode.INVALID_GROUNDING,
+                "; ".join(evidence_errors),
             )
 
-        # confidence
         finding = session.request.context.trusted.get("finding")
         rule_matches = session.request.context.trusted.get("ruleMatches", [])
         confidence, breakdown = self._confidence_calculator.calculate(
@@ -121,7 +161,6 @@ class ResultAssembler:
             confidence=confidence, breakdown=breakdown,
         )
 
-        # AssessmentResult 조립
         claims = [
             Claim(
                 statement=c.get("statement", ""),
@@ -132,33 +171,18 @@ class ResultAssembler:
             for c in parsed.get("claims", [])
         ]
 
-        # buildResult 추출
-        build_result_data = parsed.get("buildResult")
-        build_result = None
-        if isinstance(build_result_data, dict):
-            build_result = BuildResult(
-                success=build_result_data.get("success", False),
-                buildCommand=build_result_data.get("buildCommand", ""),
-                buildScript=build_result_data.get("buildScript", ""),
-                buildDir=build_result_data.get("buildDir", "build-aegis"),
-                errorLog=build_result_data.get("errorLog"),
-            )
+        build_result = self._parse_build_result(parsed)
+        sdk_profile = self._parse_sdk_profile(parsed)
+        contract = self._extract_contract(session)
 
-        # sdkProfile 추출
-        sdk_profile_data = parsed.get("sdkProfile")
-        sdk_profile = None
-        if isinstance(sdk_profile_data, dict):
-            sdk_profile = SdkProfile(
-                compiler=sdk_profile_data.get("compiler", ""),
-                compilerPrefix=sdk_profile_data.get("compilerPrefix", ""),
-                gccVersion=sdk_profile_data.get("gccVersion", ""),
-                targetArch=sdk_profile_data.get("targetArch", ""),
-                languageStandard=sdk_profile_data.get("languageStandard", ""),
-                sysroot=sdk_profile_data.get("sysroot", ""),
-                environmentSetup=sdk_profile_data.get("environmentSetup", ""),
-                includePaths=sdk_profile_data.get("includePaths", []),
-                defines=sdk_profile_data.get("defines", {}),
-            )
+        contract_failure = self._validate_compile_first_contract(
+            session=session,
+            parsed=parsed,
+            build_result=build_result,
+            contract=contract,
+        )
+        if contract_failure is not None:
+            return contract_failure
 
         result = AssessmentResult(
             summary=parsed.get("summary", ""),
@@ -181,6 +205,8 @@ class ResultAssembler:
             status="completed",
             claimCount=len(claims),
             severity=parsed.get("suggestedSeverity"),
+            strictMode=contract.strict_mode,
+            contractVersion=contract.contract_version,
         )
 
         return TaskSuccessResponse(
@@ -232,11 +258,11 @@ class ResultAssembler:
         return corrections
 
     _TERMINATION_MAP: dict[str, tuple[TaskStatus, FailureCode, bool]] = {
-        "max_steps":           (TaskStatus.BUDGET_EXCEEDED, FailureCode.MAX_STEPS_EXCEEDED,    False),
-        "budget_exhausted":    (TaskStatus.BUDGET_EXCEEDED, FailureCode.TOKEN_BUDGET_EXCEEDED, False),
-        "timeout":             (TaskStatus.TIMEOUT,         FailureCode.TIMEOUT,               True),
-        "no_new_evidence":     (TaskStatus.BUDGET_EXCEEDED, FailureCode.INSUFFICIENT_EVIDENCE, False),
-        "all_tiers_exhausted": (TaskStatus.BUDGET_EXCEEDED, FailureCode.ALL_TOOLS_EXHAUSTED,   False),
+        "max_steps": (TaskStatus.BUDGET_EXCEEDED, FailureCode.MAX_STEPS_EXCEEDED, False),
+        "budget_exhausted": (TaskStatus.BUDGET_EXCEEDED, FailureCode.TOKEN_BUDGET_EXCEEDED, False),
+        "timeout": (TaskStatus.TIMEOUT, FailureCode.TIMEOUT, True),
+        "no_new_evidence": (TaskStatus.BUDGET_EXCEEDED, FailureCode.INSUFFICIENT_EVIDENCE, False),
+        "all_tiers_exhausted": (TaskStatus.BUDGET_EXCEEDED, FailureCode.ALL_TOOLS_EXHAUSTED, False),
     }
 
     def build_from_exhaustion(
@@ -250,7 +276,9 @@ class ResultAssembler:
             (TaskStatus.BUDGET_EXCEEDED, FailureCode.TOKEN_BUDGET_EXCEEDED, False),
         )
         return self.build_failure(
-            session, status, code,
+            session,
+            status,
+            code,
             f"에이전트 루프 종료: {reason}",
             retryable=retryable,
         )
@@ -262,6 +290,7 @@ class ResultAssembler:
         code: FailureCode,
         detail: str,
         retryable: bool = False,
+        failure_context: FailureContext | None = None,
     ) -> TaskFailureResponse:
         return TaskFailureResponse(
             taskId=session.request.taskId,
@@ -270,6 +299,7 @@ class ResultAssembler:
             failureCode=code,
             failureDetail=detail,
             retryable=retryable,
+            failureContext=failure_context,
             audit=self._build_audit(session, session.termination_reason or "error"),
         )
 
@@ -304,3 +334,285 @@ class ResultAssembler:
             createdAt=datetime.now(timezone.utc).isoformat(),
             agentAudit=agent_audit.model_dump(mode="json"),
         )
+
+    def _parse_build_result(self, parsed: dict[str, Any]) -> BuildResult | None:
+        build_result_data = parsed.get("buildResult")
+        if not isinstance(build_result_data, dict):
+            return None
+
+        produced_artifacts = self._parse_build_artifacts(
+            build_result_data.get("producedArtifacts")
+            or build_result_data.get("artifacts")
+            or parsed.get("producedArtifacts")
+        )
+        return BuildResult(
+            success=bool(build_result_data.get("success", False)),
+            buildCommand=build_result_data.get("buildCommand", "") or "",
+            buildScript=build_result_data.get("buildScript", "") or "",
+            buildDir=build_result_data.get("buildDir", "build-aegis") or "build-aegis",
+            errorLog=build_result_data.get("errorLog"),
+            producedArtifacts=produced_artifacts,
+        )
+
+    def _parse_sdk_profile(self, parsed: dict[str, Any]) -> SdkProfile | None:
+        sdk_profile_data = parsed.get("sdkProfile")
+        if not isinstance(sdk_profile_data, dict):
+            return None
+        return SdkProfile(
+            compiler=sdk_profile_data.get("compiler", ""),
+            compilerPrefix=sdk_profile_data.get("compilerPrefix", ""),
+            gccVersion=sdk_profile_data.get("gccVersion", ""),
+            targetArch=sdk_profile_data.get("targetArch", ""),
+            languageStandard=sdk_profile_data.get("languageStandard", ""),
+            sysroot=sdk_profile_data.get("sysroot", ""),
+            environmentSetup=sdk_profile_data.get("environmentSetup", ""),
+            includePaths=sdk_profile_data.get("includePaths", []),
+            defines=sdk_profile_data.get("defines", {}),
+        )
+
+    def _parse_build_artifacts(self, raw: Any) -> list[BuildArtifact]:
+        if not isinstance(raw, list):
+            return []
+
+        artifacts: list[BuildArtifact] = []
+        for item in raw:
+            if isinstance(item, str):
+                artifacts.append(BuildArtifact(path=item))
+                continue
+            if not isinstance(item, dict):
+                continue
+            artifacts.append(BuildArtifact(
+                path=item.get("path") or item.get("artifactPath") or item.get("name") or "",
+                kind=item.get("kind") or item.get("type") or "",
+                exists=item.get("exists"),
+                notes=item.get("notes") or item.get("detail"),
+            ))
+        return artifacts
+
+    def _validate_compile_first_contract(
+        self,
+        *,
+        session: AgentSession,
+        parsed: dict[str, Any],
+        build_result: BuildResult | None,
+        contract: _StrictContract,
+    ) -> TaskFailureResponse | None:
+        if session.request.taskType != TaskType.BUILD_RESOLVE:
+            return None
+        if not contract.strict_mode:
+            return None
+
+        if build_result is None:
+            return self.build_failure(
+                session,
+                TaskStatus.VALIDATION_FAILED,
+                FailureCode.BUILD_SCRIPT_SYNTHESIS_FAILED,
+                "strict compile contract에서는 buildResult가 필수다.",
+                failure_context=self._build_failure_context(
+                    build_result=None,
+                    contract=contract,
+                    missing_artifacts=contract.expected_artifacts,
+                ),
+            )
+
+        if not build_result.buildCommand.strip() or not build_result.buildScript.strip():
+            return self.build_failure(
+                session,
+                TaskStatus.VALIDATION_FAILED,
+                FailureCode.BUILD_SCRIPT_SYNTHESIS_FAILED,
+                "strict compile contract에서는 재사용 가능한 buildCommand/buildScript가 필수다.",
+                failure_context=self._build_failure_context(build_result, contract),
+            )
+
+        if not build_result.success:
+            code, detail = self._classify_build_failure(build_result, parsed)
+            return self.build_failure(
+                session,
+                TaskStatus.VALIDATION_FAILED,
+                code,
+                detail,
+                failure_context=self._build_failure_context(build_result, contract),
+            )
+
+        if not self._has_build_success_evidence(session):
+            return self.build_failure(
+                session,
+                TaskStatus.VALIDATION_FAILED,
+                FailureCode.INVALID_GROUNDING,
+                "strict compile contract에서는 try_build 성공 evidence가 없는 success 응답을 허용하지 않는다.",
+                failure_context=self._build_failure_context(build_result, contract),
+            )
+
+        verification = self._verify_expected_artifacts(build_result, contract)
+        if verification is not None:
+            build_result.artifactVerification = verification
+            if not verification.matched:
+                return self.build_failure(
+                    session,
+                    TaskStatus.VALIDATION_FAILED,
+                    FailureCode.EXPECTED_ARTIFACTS_MISMATCH,
+                    "declared expectedArtifacts가 producedArtifacts와 일치하지 않는다.",
+                    failure_context=self._build_failure_context(
+                        build_result,
+                        contract,
+                        missing_artifacts=verification.missing,
+                    ),
+                )
+
+        return None
+
+    def _classify_build_failure(
+        self,
+        build_result: BuildResult,
+        parsed: dict[str, Any],
+    ) -> tuple[FailureCode, str]:
+        detail_parts = [
+            build_result.errorLog or "",
+            parsed.get("summary", "") or "",
+            *[item for item in parsed.get("caveats", []) if isinstance(item, str)],
+            *[item for item in parsed.get("policyFlags", []) if isinstance(item, str)],
+        ]
+        detail_blob = "\n".join(part for part in detail_parts if part).strip()
+        lowered = detail_blob.lower()
+
+        if not build_result.buildCommand.strip() or not build_result.buildScript.strip():
+            return (
+                FailureCode.BUILD_SCRIPT_SYNTHESIS_FAILED,
+                detail_blob or "빌드 명령/스크립트를 합성하지 못했다.",
+            )
+        if any(keyword in lowered for keyword in _SDK_MISMATCH_KEYWORDS):
+            return (FailureCode.SDK_MISMATCH, detail_blob or "선언된 SDK/툴체인과 실제 환경이 일치하지 않는다.")
+        if any(keyword in lowered for keyword in _SYNTHESIS_KEYWORDS):
+            return (
+                FailureCode.BUILD_SCRIPT_SYNTHESIS_FAILED,
+                detail_blob or "빌드 스크립트/명령 생성 또는 실행 준비에 실패했다.",
+            )
+        if any(keyword in lowered for keyword in _MISSING_MATERIALS_KEYWORDS):
+            return (FailureCode.MISSING_BUILD_MATERIALS, detail_blob or "빌드에 필요한 파일/의존성이 누락되었다.")
+        return (FailureCode.COMPILE_FAILED, detail_blob or "완전한 재료는 있었지만 compile/link 단계에서 실패했다.")
+
+    def _extract_contract(self, session: AgentSession) -> _StrictContract:
+        request = session.request
+        metadata = request.metadata if isinstance(request.metadata, dict) else {}
+        trusted = request.context.trusted if isinstance(request.context.trusted, dict) else {}
+        contract_blob = metadata.get("buildContract") if isinstance(metadata.get("buildContract"), dict) else {}
+        if not contract_blob and isinstance(trusted.get("buildContract"), dict):
+            contract_blob = trusted["buildContract"]
+
+        contract_version = self._pick_first_non_empty(
+            getattr(request, "contractVersion", None),
+            metadata.get("contractVersion"),
+            contract_blob.get("contractVersion"),
+            trusted.get("contractVersion"),
+        )
+        strict_flag = self._pick_first_defined(
+            getattr(request, "strictMode", None),
+            metadata.get("strictMode"),
+            contract_blob.get("strictMode"),
+            trusted.get("strictMode"),
+        )
+        expected_raw = self._pick_first_defined(
+            getattr(request, "expectedArtifacts", None),
+            metadata.get("expectedArtifacts"),
+            contract_blob.get("expectedArtifacts"),
+            trusted.get("expectedArtifacts"),
+        )
+        expected_artifacts = self._normalize_artifact_list(expected_raw)
+        strict_mode = bool(strict_flag) or bool(contract_version)
+        return _StrictContract(
+            contract_version=contract_version,
+            strict_mode=strict_mode,
+            expected_artifacts=expected_artifacts,
+        )
+
+    @staticmethod
+    def _pick_first_non_empty(*values: Any) -> str | None:
+        for value in values:
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return None
+
+    @staticmethod
+    def _pick_first_defined(*values: Any) -> Any:
+        for value in values:
+            if value is not None:
+                return value
+        return None
+
+    def _normalize_artifact_list(self, raw: Any) -> list[str]:
+        if not isinstance(raw, list):
+            return []
+        normalized: list[str] = []
+        for item in raw:
+            identity = self._artifact_identity(item)
+            if identity and identity not in normalized:
+                normalized.append(identity)
+        return normalized
+
+    def _verify_expected_artifacts(
+        self,
+        build_result: BuildResult,
+        contract: _StrictContract,
+    ) -> ArtifactVerification | None:
+        if not contract.expected_artifacts:
+            return None
+        produced = [
+            identity
+            for artifact in build_result.producedArtifacts
+            if (identity := self._artifact_identity({"path": artifact.path, "kind": artifact.kind}))
+        ]
+        produced_unique = list(dict.fromkeys(produced))
+        missing = [expected for expected in contract.expected_artifacts if expected not in produced_unique]
+        return ArtifactVerification(
+            strict=True,
+            expected=contract.expected_artifacts,
+            produced=produced_unique,
+            matched=not missing,
+            missing=missing,
+        )
+
+    def _build_failure_context(
+        self,
+        build_result: BuildResult | None,
+        contract: _StrictContract,
+        missing_artifacts: list[str] | None = None,
+    ) -> FailureContext:
+        produced_artifacts = [artifact.path or artifact.kind for artifact in build_result.producedArtifacts] if build_result else []
+        return FailureContext(
+            buildCommand=build_result.buildCommand if build_result else None,
+            buildScript=build_result.buildScript if build_result else None,
+            buildDir=build_result.buildDir if build_result else None,
+            expectedArtifacts=contract.expected_artifacts,
+            producedArtifacts=[item for item in produced_artifacts if item],
+            missingArtifacts=missing_artifacts or [],
+            strictMode=contract.strict_mode,
+            contractVersion=contract.contract_version,
+        )
+
+    @staticmethod
+    def _has_build_success_evidence(session: AgentSession) -> bool:
+        return any(_BUILD_SUCCESS_REF in step.new_evidence_refs for step in session.trace)
+
+    def _artifact_identity(self, item: Any) -> str | None:
+        if isinstance(item, str):
+            return self._normalize_artifact_string(item)
+        if not isinstance(item, dict):
+            return None
+        for key in ("path", "artifactPath", "name", "output", "file"):
+            value = item.get(key)
+            if isinstance(value, str) and value.strip():
+                return self._normalize_artifact_string(value)
+        kind = item.get("kind") or item.get("type")
+        if isinstance(kind, str) and kind.strip():
+            return kind.strip().lower()
+        return None
+
+    @staticmethod
+    def _normalize_artifact_string(value: str) -> str:
+        text = value.strip().lower()
+        if not text:
+            return ""
+        path = PurePosixPath(text)
+        if path.name and path.name != ".":
+            return path.name
+        return text
