@@ -63,23 +63,23 @@ services/llm-gateway/
 │       └── requirements.txt      # ETL 전용 의존성
 ├── data/
 │   └── qdrant/                   # Qdrant 파일 기반 벡터 DB (ETL 빌드 산출물, git 추적 제외)
-├── tests/                        # 179 tests total
+├── tests/                        # 185 tests total (2026-04-03 기준)
 │   ├── conftest.py               # 공통 fixture: TestClient(client_live, client+mock_pipeline), 요청 빌더
-│   ├── test_response_parser.py   # 11 tests
+│   ├── test_response_parser.py   # 12 tests
 │   ├── test_evidence_validator.py # 5 tests
 │   ├── test_confidence.py        # 10 tests (RAG 분화 테스트 포함)
 │   ├── test_schema_validator.py  # 7 tests
 │   ├── test_mock_dispatcher.py   # 10 tests
-│   ├── test_prompt_builder.py    # 9 tests
+│   ├── test_prompt_builder.py    # 12 tests
 │   ├── test_registry.py          # 12 tests
 │   ├── test_threat_search.py     # 6 tests (min_score 필터 포함)
 │   ├── test_context_enricher.py  # 11 tests (ruleMatches fallback, min_score 전달 포함)
-│   ├── test_pipeline_retry.py   # 12 tests (재시도 성공/소진/HTTP에러/토큰누적/CB OPEN)
+│   ├── test_pipeline_retry.py   # 13 tests (재시도 성공/소진/HTTP에러/토큰누적/CB OPEN)
 │   ├── test_circuit_breaker.py        # 10 tests (상태 전이, 복구, snapshot)
 │   ├── test_token_tracker.py         # 7 tests (누적 집계, endpoint별, taskType별)
-│   ├── test_contract_endpoints.py      # 15 tests (GET /v1/health, /models, /prompts, /usage, /metrics, chat proxy)
+│   ├── test_contract_endpoints.py      # 25 tests (GET /v1/health, /models, /prompts, /usage, /metrics, chat proxy)
 │   ├── test_contract_task_success.py   # 17 tests (POST /v1/tasks 성공 응답 JSON 계약 검증)
-│   ├── test_contract_task_failure.py   # 21 tests (실패 응답 구조, retryable, 500 형식, failureCode*status)
+│   ├── test_contract_task_failure.py   # 22 tests (실패 응답 구조, retryable, 500 형식, failureCode*status)
 │   └── test_contract_input_validation.py # 6 tests (422 입력 검증: taskType/필드 누락/maxTokens 범위)
 ```
 

@@ -66,7 +66,7 @@ def client(mock_pipeline):
 # ---------------------------------------------------------------------------
 
 def make_task_body(
-    task_type: str = "static-explain",
+    task_type: str = "deep-analyze",
     task_id: str = "test-001",
     *,
     trusted: dict | None = None,
@@ -117,5 +117,9 @@ def make_test_plan_body(task_id: str = "test-tp-001") -> dict:
 
 ALL_TASK_TYPES = [t.value for t in TaskType]
 
-# deep-analyze를 제외한 레거시 task types
-LEGACY_TASK_TYPES = [t.value for t in TaskType if t != TaskType.DEEP_ANALYZE]
+# Analysis Agent가 더 이상 직접 처리하지 않는 레거시 task types
+LEGACY_TASK_TYPES = [
+    t.value
+    for t in TaskType
+    if t not in (TaskType.DEEP_ANALYZE, TaskType.GENERATE_POC)
+]

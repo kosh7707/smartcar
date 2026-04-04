@@ -30,6 +30,13 @@ def test_parse_invalid_json():
     assert parser.parse("not json at all") is None
 
 
+def test_parse_commentary_wrapped_json():
+    raw = '분석 결과는 다음과 같습니다.\n{"summary": "wrapped", "claims": []}\n검토 부탁드립니다.'
+    result = parser.parse(raw)
+    assert result is not None
+    assert result["summary"] == "wrapped"
+
+
 def test_parse_empty_string():
     assert parser.parse("") is None
 

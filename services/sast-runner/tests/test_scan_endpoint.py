@@ -26,6 +26,7 @@ async def test_health_endpoint(client: AsyncClient) -> None:
     data = resp.json()
     assert data["service"] == "s4-sast"
     assert data["status"] == "ok"
+    assert data["version"] == "0.9.0"
     assert "semgrep" in data
     assert "defaultRulesets" in data
 
@@ -762,6 +763,7 @@ async def test_scan_ndjson_file_progress_in_heartbeat(client: AsyncClient, mock_
 @pytest.mark.asyncio
 async def test_scan_ndjson_queued_status(client: AsyncClient, mock_semgrep_runner) -> None:
     """세마포어 포화 시 queued status heartbeat가 전송되는지 확인."""
+    from app.config import settings
     from app.scanner.sarif_parser import parse_sarif
     import json
     from pathlib import Path as P
@@ -772,7 +774,8 @@ async def test_scan_ndjson_queued_status(client: AsyncClient, mock_semgrep_runne
 
     from app.routers.scan import _scan_semaphore
 
-    await _scan_semaphore.acquire()
+    for _ in range(settings.max_concurrent_scans):
+        await _scan_semaphore.acquire()
 
     async def _release_later():
         await asyncio.sleep(0.15)

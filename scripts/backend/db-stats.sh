@@ -18,7 +18,7 @@ fi
 
 echo ""
 echo "============================================"
-echo "  Backend DB 현황 (18 테이블)"
+echo "  Backend DB 현황 (21 테이블)"
 echo "============================================"
 echo ""
 
@@ -51,17 +51,23 @@ UNION ALL SELECT
 UNION ALL SELECT
   'build_targets', COUNT(*) FROM build_targets
 UNION ALL SELECT
+  'notifications', COUNT(*) FROM notifications
+UNION ALL SELECT
+  'users', COUNT(*) FROM users
+UNION ALL SELECT
+  'sessions', COUNT(*) FROM sessions
+UNION ALL SELECT
   'sdk_registry', COUNT(*) FROM sdk_registry
 UNION ALL SELECT
   'target_libraries', COUNT(*) FROM target_libraries
 UNION ALL SELECT
-  'dynamic_sessions', COUNT(*) FROM dynamic_analysis_sessions
+  'dynamic_analysis_sessions', COUNT(*) FROM dynamic_analysis_sessions
 UNION ALL SELECT
-  'dynamic_alerts', COUNT(*) FROM dynamic_analysis_alerts
+  'dynamic_analysis_alerts', COUNT(*) FROM dynamic_analysis_alerts
 UNION ALL SELECT
-  'dynamic_messages', COUNT(*) FROM dynamic_analysis_messages
+  'dynamic_analysis_messages', COUNT(*) FROM dynamic_analysis_messages
 UNION ALL SELECT
-  'dynamic_tests', COUNT(*) FROM dynamic_test_results;
+  'dynamic_test_results', COUNT(*) FROM dynamic_test_results;
 SQL
 
 echo ""

@@ -80,6 +80,7 @@ def test_build_success_from_valid_json() -> None:
     resp = assembler.build(_valid_json_content(), session)
     assert isinstance(resp, TaskSuccessResponse)
     assert resp.status == TaskStatus.COMPLETED
+    assert resp.promptVersion == "build-v3"
     assert resp.result.summary == "Build failure resolved"
     assert len(resp.result.claims) == 1
 

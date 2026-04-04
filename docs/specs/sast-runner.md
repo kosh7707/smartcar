@@ -23,7 +23,7 @@
 | 위치 | `services/sast-runner/` |
 | 스택 | Python 3.12 + FastAPI + Uvicorn |
 | 포트 | 9000 |
-| 버전 | v0.7.0 |
+| 버전 | v0.9.0 |
 | API 계약 | `docs/api/sast-runner-api.md` |
 | 테스트 | 368개 (23개 파일) |
 

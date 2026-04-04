@@ -247,7 +247,7 @@ ETL에서 11개 공격 표면으로 분류 (`scripts/threat-db/taxonomy.py`):
 
 ```bash
 cd services/knowledge-base
-.venv/bin/python -m pytest tests/ -q  # 142 passed (2026-04-02 확인)
+.venv/bin/python -m pytest tests/ -q  # 145 passed (2026-04-03 확인)
 ```
 
 모든 테스트는 Neo4j 드라이버를 mock하여 실행 — Neo4j/Qdrant 미설치 환경에서도 통과.
@@ -264,6 +264,7 @@ cd services/knowledge-base
 | `test_api_error_responses.py` | 13 | 에러 포맷, health/ready, HTTPException 핸들러, degraded mode |
 | `test_qdrant_modes.py` | 5 | Qdrant file/server 듀얼 모드 초기화 |
 | `test_benchmark_metrics.py` | 15 | 벤치마크 메트릭 (P@k, R@k, NDCG, MRR, hit rate) |
+| `test_benchmark_artifacts.py` | 3 | validation set shape/coverage + sweep summary |
 
 ---
 

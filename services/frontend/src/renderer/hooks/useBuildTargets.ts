@@ -43,7 +43,7 @@ export function useBuildTargets(projectId?: string) {
 
   const update = useCallback(async (
     targetId: string,
-    body: { name?: string; buildProfile?: BuildProfile },
+    body: { name?: string; buildProfile?: BuildProfile; includedPaths?: string[] },
   ) => {
     if (!projectId) return;
     const updated = await updateBuildTarget(projectId, targetId, body);

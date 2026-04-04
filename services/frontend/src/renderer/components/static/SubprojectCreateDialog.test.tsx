@@ -75,4 +75,28 @@ describe("SubprojectCreateDialog", () => {
     fireEvent.click(screen.getByText("main.c"));
     expect(screen.getByText(/1개 파일/)).toBeTruthy();
   });
+
+  it("preloads includedPaths in edit mode and submits updated payload", () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    render(
+      <SubprojectCreateDialog
+        {...defaultProps}
+        title="서브 프로젝트 수정"
+        submitLabel="저장"
+        initialName="gateway"
+        initialIncludedPaths={["src/"]}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    expect(screen.getByText(/2개 파일/)).toBeTruthy();
+
+    fireEvent.click(screen.getByText("utils.h"));
+    fireEvent.click(screen.getByText("저장"));
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      name: "gateway",
+      includedPaths: expect.arrayContaining(["src/main.c", "src/utils.c", "include/utils.h"]),
+    }));
+  });
 });

@@ -35,7 +35,7 @@ class _EpochMsFormatter(JsonFormatter):
 
 from fastapi.responses import JSONResponse
 
-from app.config import settings
+from app.config import SERVICE_VERSION, settings
 from app.context import RequestIdFilter, get_request_id
 from app.errors import SastRunnerError
 from app.routers.scan import router as scan_router
@@ -93,7 +93,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="AEGIS SAST Runner",
-    version="0.9.0",
+    version=SERVICE_VERSION,
     lifespan=lifespan,
 )
 

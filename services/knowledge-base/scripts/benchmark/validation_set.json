@@ -1,254 +1,591 @@
 {
-  "version": "1.0",
-  "description": "S5 KB 검색 정확도 validation set — CWE/ATT&CK/CAPEC 하이브리드 검색 벤치마크",
+  "version": "1.1",
+  "description": "S5 KB 검색 정확도 validation set — CWE/ATT&CK/CAPEC 하이브리드 검색 벤치마크 (45 queries)",
   "queries": [
     {
       "id": "q001",
       "query": "CWE-78 command injection",
-      "expected_ids": ["CWE-78", "CWE-77", "CAPEC-88"],
+      "expected_ids": [
+        "CWE-78",
+        "CWE-77",
+        "CAPEC-88"
+      ],
       "expected_top1": "CWE-78",
-      "tags": ["id_exact", "injection"]
+      "tags": [
+        "id_exact",
+        "injection"
+      ]
     },
     {
       "id": "q002",
       "query": "buffer overflow memory corruption stack heap",
-      "expected_ids": ["CWE-119", "CWE-120", "CWE-787", "CWE-121", "CWE-122"],
+      "expected_ids": [
+        "CWE-119",
+        "CWE-120",
+        "CWE-787",
+        "CWE-121",
+        "CWE-122"
+      ],
       "expected_top1": "CWE-787",
-      "tags": ["vector_semantic", "memory"]
+      "tags": [
+        "vector_semantic",
+        "memory"
+      ]
     },
     {
       "id": "q003",
       "query": "CWE-416 use after free",
-      "expected_ids": ["CWE-416", "CWE-415"],
+      "expected_ids": [
+        "CWE-416",
+        "CWE-415"
+      ],
       "expected_top1": "CWE-416",
-      "tags": ["id_exact", "memory"]
+      "tags": [
+        "id_exact",
+        "memory"
+      ]
     },
     {
       "id": "q004",
       "query": "SQL injection database query",
-      "expected_ids": ["CWE-89", "CWE-74"],
+      "expected_ids": [
+        "CWE-89",
+        "CWE-74"
+      ],
       "expected_top1": "CWE-89",
-      "tags": ["vector_semantic", "injection"]
+      "tags": [
+        "vector_semantic",
+        "injection"
+      ]
     },
     {
       "id": "q005",
       "query": "CWE-798 hardcoded credentials",
-      "expected_ids": ["CWE-798", "CWE-259"],
+      "expected_ids": [
+        "CWE-798",
+        "CWE-259"
+      ],
       "expected_top1": "CWE-798",
-      "tags": ["id_exact", "authentication"]
+      "tags": [
+        "id_exact",
+        "authentication"
+      ]
     },
     {
       "id": "q006",
       "query": "integer overflow wraparound",
-      "expected_ids": ["CWE-190", "CWE-191"],
+      "expected_ids": [
+        "CWE-190",
+        "CWE-191"
+      ],
       "expected_top1": "CWE-190",
-      "tags": ["vector_semantic", "memory"]
+      "tags": [
+        "vector_semantic",
+        "memory"
+      ]
     },
     {
       "id": "q007",
       "query": "T0866",
-      "expected_ids": ["T0866"],
+      "expected_ids": [
+        "T0866"
+      ],
       "expected_top1": "T0866",
-      "tags": ["id_exact", "attack"]
+      "tags": [
+        "id_exact",
+        "attack"
+      ]
     },
     {
       "id": "q008",
       "query": "CAPEC-88 OS command injection",
-      "expected_ids": ["CAPEC-88", "CWE-78"],
+      "expected_ids": [
+        "CAPEC-88",
+        "CWE-78"
+      ],
       "expected_top1": "CAPEC-88",
-      "tags": ["id_exact", "injection"]
+      "tags": [
+        "id_exact",
+        "injection"
+      ]
     },
     {
       "id": "q009",
       "query": "format string vulnerability printf",
-      "expected_ids": ["CWE-134"],
+      "expected_ids": [
+        "CWE-134"
+      ],
       "expected_top1": "CWE-134",
-      "tags": ["vector_semantic", "memory"]
+      "tags": [
+        "vector_semantic",
+        "memory"
+      ]
     },
     {
       "id": "q010",
       "query": "CWE-22 path traversal directory",
-      "expected_ids": ["CWE-22", "CWE-23"],
+      "expected_ids": [
+        "CWE-22",
+        "CWE-23"
+      ],
       "expected_top1": "CWE-22",
-      "tags": ["id_exact", "input_validation"]
+      "tags": [
+        "id_exact",
+        "input_validation"
+      ]
     },
     {
       "id": "q011",
       "query": "race condition time of check time of use TOCTOU",
-      "expected_ids": ["CWE-362", "CWE-367"],
+      "expected_ids": [
+        "CWE-362",
+        "CWE-367"
+      ],
       "expected_top1": "CWE-362",
-      "tags": ["vector_semantic", "concurrency"]
+      "tags": [
+        "vector_semantic",
+        "concurrency"
+      ]
     },
     {
       "id": "q012",
       "query": "CWE-327 weak cryptographic algorithm",
-      "expected_ids": ["CWE-327", "CWE-326", "CWE-328"],
+      "expected_ids": [
+        "CWE-327",
+        "CWE-326",
+        "CWE-328"
+      ],
       "expected_top1": "CWE-327",
-      "tags": ["id_exact", "cryptography"]
+      "tags": [
+        "id_exact",
+        "cryptography"
+      ]
     },
     {
       "id": "q013",
       "query": "null pointer dereference crash",
-      "expected_ids": ["CWE-476"],
+      "expected_ids": [
+        "CWE-476"
+      ],
       "expected_top1": "CWE-476",
-      "tags": ["vector_semantic", "memory"]
+      "tags": [
+        "vector_semantic",
+        "memory"
+      ]
     },
     {
       "id": "q014",
       "query": "CWE-352 cross-site request forgery CSRF",
-      "expected_ids": ["CWE-352"],
+      "expected_ids": [
+        "CWE-352"
+      ],
       "expected_top1": "CWE-352",
-      "tags": ["id_exact", "input_validation"]
+      "tags": [
+        "id_exact",
+        "input_validation"
+      ]
     },
     {
       "id": "q015",
       "query": "improper input validation",
-      "expected_ids": ["CWE-20"],
+      "expected_ids": [
+        "CWE-20"
+      ],
       "expected_top1": "CWE-20",
-      "tags": ["vector_semantic", "input_validation"]
+      "tags": [
+        "vector_semantic",
+        "input_validation"
+      ]
     },
     {
       "id": "q016",
       "query": "CWE-287 authentication bypass",
-      "expected_ids": ["CWE-287", "CWE-306"],
+      "expected_ids": [
+        "CWE-287",
+        "CWE-306"
+      ],
       "expected_top1": "CWE-287",
-      "tags": ["id_exact", "authentication"]
+      "tags": [
+        "id_exact",
+        "authentication"
+      ]
     },
     {
       "id": "q017",
       "query": "memory leak resource exhaustion denial of service",
-      "expected_ids": ["CWE-401", "CWE-400", "CWE-772"],
+      "expected_ids": [
+        "CWE-401",
+        "CWE-400",
+        "CWE-772"
+      ],
       "expected_top1": "CWE-401",
-      "tags": ["vector_semantic", "resource"]
+      "tags": [
+        "vector_semantic",
+        "resource"
+      ]
     },
     {
       "id": "q018",
       "query": "CWE-79 cross-site scripting XSS",
-      "expected_ids": ["CWE-79", "CWE-80"],
+      "expected_ids": [
+        "CWE-79",
+        "CWE-80"
+      ],
       "expected_top1": "CWE-79",
-      "tags": ["id_exact", "injection"]
+      "tags": [
+        "id_exact",
+        "injection"
+      ]
     },
     {
       "id": "q019",
       "query": "double free heap corruption",
-      "expected_ids": ["CWE-415", "CWE-416"],
+      "expected_ids": [
+        "CWE-415",
+        "CWE-416"
+      ],
       "expected_top1": "CWE-415",
-      "tags": ["vector_semantic", "memory"]
+      "tags": [
+        "vector_semantic",
+        "memory"
+      ]
     },
     {
       "id": "q020",
       "query": "CWE-862 missing authorization",
-      "expected_ids": ["CWE-862", "CWE-863"],
+      "expected_ids": [
+        "CWE-862",
+        "CWE-863"
+      ],
       "expected_top1": "CWE-862",
-      "tags": ["id_exact", "authentication"]
+      "tags": [
+        "id_exact",
+        "authentication"
+      ]
     },
     {
       "id": "q021",
       "query": "CAN bus vehicle network attack automotive",
       "expected_ids": [],
       "expected_top1": null,
-      "tags": ["vector_semantic", "automotive"],
+      "tags": [
+        "vector_semantic",
+        "automotive"
+      ],
       "notes": "자동차 도메인 쿼리 — 관련 위협이 있으면 bonus"
     },
     {
       "id": "q022",
       "query": "CAPEC-148 content spoofing",
-      "expected_ids": ["CAPEC-148"],
+      "expected_ids": [
+        "CAPEC-148"
+      ],
       "expected_top1": "CAPEC-148",
-      "tags": ["id_exact", "capec"]
+      "tags": [
+        "id_exact",
+        "capec"
+      ]
     },
     {
       "id": "q023",
       "query": "insecure deserialization object injection",
-      "expected_ids": ["CWE-502"],
+      "expected_ids": [
+        "CWE-502"
+      ],
       "expected_top1": "CWE-502",
-      "tags": ["vector_semantic", "injection"]
+      "tags": [
+        "vector_semantic",
+        "injection"
+      ]
     },
     {
       "id": "q024",
       "query": "CWE-119 CWE-120 buffer overflow",
-      "expected_ids": ["CWE-119", "CWE-120", "CWE-787"],
+      "expected_ids": [
+        "CWE-119",
+        "CWE-120",
+        "CWE-787"
+      ],
       "expected_top1": "CWE-119",
-      "tags": ["id_exact", "memory"],
+      "tags": [
+        "id_exact",
+        "memory"
+      ],
       "notes": "복수 ID + 자연어 혼합 쿼리"
     },
     {
       "id": "q025",
       "query": "privilege escalation local root",
-      "expected_ids": ["CWE-269", "CWE-250"],
+      "expected_ids": [
+        "CWE-269",
+        "CWE-250"
+      ],
       "expected_top1": "CWE-269",
-      "tags": ["vector_semantic", "authorization"]
+      "tags": [
+        "vector_semantic",
+        "authorization"
+      ]
     },
     {
       "id": "q026",
       "query": "T0807 command-line interface",
-      "expected_ids": ["T0807"],
+      "expected_ids": [
+        "T0807"
+      ],
       "expected_top1": "T0807",
-      "tags": ["id_exact", "attack"]
+      "tags": [
+        "id_exact",
+        "attack"
+      ]
     },
     {
       "id": "q027",
       "query": "uncontrolled resource consumption CPU memory",
-      "expected_ids": ["CWE-400", "CWE-770"],
+      "expected_ids": [
+        "CWE-400",
+        "CWE-770"
+      ],
       "expected_top1": "CWE-400",
-      "tags": ["vector_semantic", "resource"]
+      "tags": [
+        "vector_semantic",
+        "resource"
+      ]
     },
     {
       "id": "q028",
       "query": "out of bounds read write array index",
-      "expected_ids": ["CWE-125", "CWE-787"],
+      "expected_ids": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "expected_top1": "CWE-125",
-      "tags": ["vector_semantic", "memory"]
+      "tags": [
+        "vector_semantic",
+        "memory"
+      ]
     },
     {
       "id": "q029",
       "query": "CWE-311 missing encryption sensitive data",
-      "expected_ids": ["CWE-311", "CWE-312", "CWE-319"],
+      "expected_ids": [
+        "CWE-311",
+        "CWE-312",
+        "CWE-319"
+      ],
       "expected_top1": "CWE-311",
-      "tags": ["id_exact", "cryptography"]
+      "tags": [
+        "id_exact",
+        "cryptography"
+      ]
     },
     {
       "id": "q030",
       "query": "firmware update verification secure boot bypass",
       "expected_ids": [],
       "expected_top1": null,
-      "tags": ["vector_semantic", "automotive"],
+      "tags": [
+        "vector_semantic",
+        "automotive"
+      ],
       "notes": "OTA/보안부트 도메인 쿼리"
     },
     {
       "id": "q031",
       "query": "strcpy memcpy dangerous function unsafe C",
-      "expected_ids": ["CWE-120", "CWE-676"],
+      "expected_ids": [
+        "CWE-120",
+        "CWE-676"
+      ],
       "expected_top1": "CWE-676",
-      "tags": ["vector_semantic", "memory"]
+      "tags": [
+        "vector_semantic",
+        "memory"
+      ]
     },
     {
       "id": "q032",
       "query": "CWE-94 code injection eval",
-      "expected_ids": ["CWE-94", "CWE-95"],
+      "expected_ids": [
+        "CWE-94",
+        "CWE-95"
+      ],
       "expected_top1": "CWE-94",
-      "tags": ["id_exact", "injection"]
+      "tags": [
+        "id_exact",
+        "injection"
+      ]
     },
     {
       "id": "q033",
       "query": "improper certificate validation TLS SSL",
-      "expected_ids": ["CWE-295"],
+      "expected_ids": [
+        "CWE-295"
+      ],
       "expected_top1": "CWE-295",
-      "tags": ["vector_semantic", "cryptography"]
+      "tags": [
+        "vector_semantic",
+        "cryptography"
+      ]
     },
     {
       "id": "q034",
       "query": "CWE-732 incorrect permission assignment",
-      "expected_ids": ["CWE-732", "CWE-276"],
+      "expected_ids": [
+        "CWE-732",
+        "CWE-276"
+      ],
       "expected_top1": "CWE-732",
-      "tags": ["id_exact", "configuration"]
+      "tags": [
+        "id_exact",
+        "configuration"
+      ]
     },
     {
       "id": "q035",
       "query": "session fixation hijacking management",
-      "expected_ids": ["CWE-384"],
+      "expected_ids": [
+        "CWE-384"
+      ],
       "expected_top1": "CWE-384",
-      "tags": ["vector_semantic", "authentication"]
+      "tags": [
+        "vector_semantic",
+        "authentication"
+      ]
+    },
+    {
+      "id": "q036",
+      "query": "OTA firmware update package signature verification bypass",
+      "expected_ids": [
+        "CWE-347",
+        "CWE-494"
+      ],
+      "expected_top1": "CWE-347",
+      "tags": [
+        "vector_semantic",
+        "automotive",
+        "cryptography"
+      ]
+    },
+    {
+      "id": "q037",
+      "query": "CAN bus replay attack keyless authentication capture replay",
+      "expected_ids": [
+        "CWE-294",
+        "CWE-287"
+      ],
+      "expected_top1": "CWE-294",
+      "tags": [
+        "vector_semantic",
+        "automotive",
+        "authentication"
+      ]
+    },
+    {
+      "id": "q038",
+      "query": "ADAS sensor spoofing authenticity validation failure",
+      "expected_ids": [
+        "CWE-345",
+        "CWE-20"
+      ],
+      "expected_top1": "CWE-345",
+      "tags": [
+        "vector_semantic",
+        "automotive",
+        "input_validation"
+      ]
+    },
+    {
+      "id": "q039",
+      "query": "access control policy bypass due to missing permission check",
+      "expected_ids": [
+        "CWE-862",
+        "CWE-863"
+      ],
+      "expected_top1": "CWE-862",
+      "tags": [
+        "vector_semantic",
+        "authorization"
+      ]
+    },
+    {
+      "id": "q040",
+      "query": "unsafe default file permissions world writable configuration",
+      "expected_ids": [
+        "CWE-732",
+        "CWE-276"
+      ],
+      "expected_top1": "CWE-732",
+      "tags": [
+        "vector_semantic",
+        "configuration"
+      ]
+    },
+    {
+      "id": "q041",
+      "query": "content spoofing deceptive message presentation",
+      "expected_ids": [
+        "CAPEC-148",
+        "CWE-345"
+      ],
+      "expected_top1": "CAPEC-148",
+      "tags": [
+        "vector_semantic",
+        "capec"
+      ]
+    },
+    {
+      "id": "q042",
+      "query": "command line interface execution through shell utility",
+      "expected_ids": [
+        "T0807",
+        "CWE-78"
+      ],
+      "expected_top1": "T0807",
+      "tags": [
+        "vector_semantic",
+        "attack"
+      ]
+    },
+    {
+      "id": "q043",
+      "query": "CWE-347 secure boot signature verification",
+      "expected_ids": [
+        "CWE-347",
+        "CWE-494"
+      ],
+      "expected_top1": "CWE-347",
+      "tags": [
+        "id_exact",
+        "automotive",
+        "cryptography"
+      ]
+    },
+    {
+      "id": "q044",
+      "query": "concurrent shared state race in multithreaded handler",
+      "expected_ids": [
+        "CWE-362",
+        "CWE-366"
+      ],
+      "expected_top1": "CWE-362",
+      "tags": [
+        "vector_semantic",
+        "concurrency"
+      ]
+    },
+    {
+      "id": "q045",
+      "query": "certificate trust chain validation failure in telematics TLS",
+      "expected_ids": [
+        "CWE-295",
+        "CWE-296"
+      ],
+      "expected_top1": "CWE-295",
+      "tags": [
+        "vector_semantic",
+        "automotive",
+        "cryptography"
+      ]
     }
   ]
 }

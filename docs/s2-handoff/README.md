@@ -13,7 +13,7 @@
 |------|------|
 | **이 파일 (README.md)** | 역할, 경계, 현재 상태, 관리 문서, 참조 |
 | [architecture.md](architecture.md) | 구현 현황, DB 스키마, 핵심 로직, 의존성, 실행 방법, Observability |
-| [api-endpoints.md](api-endpoints.md) | API 엔드포인트 전체 목록 (60개+ REST + 5 WS) |
+| [api-endpoints.md](api-endpoints.md) | API 엔드포인트 전체 목록 (현재 라우터 구현 반영) |
 | [roadmap.md](roadmap.md) | 다음 작업, 후순위, 인프라 계획 |
 | session-{N}.md | 세션별 작업 로그 (session-1.md ~ session-14.md) |
 
@@ -57,7 +57,7 @@
 - `services/backend/` 하위 코드를 소유
 - `services/shared/` 공유 타입 패키지를 **단독 소유**
 - `scripts/start.sh`, `scripts/stop.sh` 통합 기동/종료 스크립트 소유
-- S1에게 API를 제공하고, S3/S4/S5/S6를 호출하는 전체 오케스트레이터
+- S1에게 API를 제공하고, S3/S4/S5/S6/S7를 호출하는 전체 오케스트레이터
 
 ### API 계약 소통 원칙 (필수)
 
@@ -69,6 +69,7 @@
 
 - **경로**: `docs/work-requests/`
 - 세션 시작 시 이 폴더를 확인하여 밀린 요청이 있는지 체크
+- 현재 워크트리 기준 남아 있는 파일은 `s3-to-s3-prompt-enhancement-backlog.md` 1건뿐이며, 이는 **S3 내부 백로그**다. S2 outbound / cross-service 대기 WR은 별도 증거가 없으면 없다고 보고 시작한다.
 
 ### Codex / OMX 운영 메모
 
@@ -87,14 +88,14 @@
 
 ---
 
-## 3. 현재 상태 (2026-04-02)
+## 3. 현재 상태 (2026-04-03)
 
 | 항목 | 값 |
 |------|---|
 | TypeScript 에러 | **0개** |
 | 테스트 | **322개 통과** (vitest) |
 | DB 테이블 | 21개 (SQLite, WAL) — 세션 14에서 notifications, users, sessions 추가 |
-| API 엔드포인트 | 75개+ REST + 6 WebSocket |
+| API 엔드포인트 | `api-endpoints.md`에 현행 라우터 기준 목록 정리 |
 | 에러 클래스 | 18개 (AppError 계층, 21개 에러코드) |
 | 외부 클라이언트 | SastClient(S4), AgentClient(S3), BuildAgentClient(S3:8003), KbClient(S5), AdapterClient(S6), LlmTaskClient(S7) |
 

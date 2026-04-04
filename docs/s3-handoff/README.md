@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S3(Analysis Agent) 개발을 이어받는 다음 세션을 위한 인수인계서다.
 > 이것만 읽으면 현재 상태를 파악하고 바로 작업을 이어갈 수 있어야 한다.
-> **마지막 업데이트: 2026-04-03**
+> **마지막 업데이트: 2026-04-04**
 
 ---
 
@@ -31,7 +31,7 @@
 | 서비스 | 포트/위치 | 역할 |
 |--------|-----------|------|
 | **Analysis Agent** | :8001 | `deep-analyze`, `generate-poc` taskType. Phase 1(SAST+코드그래프+SCA) → Phase 2(LLM 해석) |
-| **Build Agent** | :8003 | `build-resolve` taskType. LLM이 소스 탐색 → 빌드 스크립트(`build-aegis/aegis-build.sh`) 작성 → 빌드 성공까지 반복. v0.2.0 |
+| **Build Agent** | :8003 | `build-resolve`, `sdk-analyze` taskType. LLM이 소스 탐색 → 빌드 스크립트(`build-aegis/aegis-build.sh`) 작성 → 빌드 성공까지 반복하거나, SDK 프로파일을 추출한다. v0.2.0 |
 | **agent-shared** | 라이브러리 | 두 에이전트 공통 프레임 (LLM 통신, 도구 실행, 스키마, 정책). `pip install -e ../agent-shared` |
 
 ### S3가 호출하는 서비스 (소유 X)
@@ -110,7 +110,10 @@
   - **커밋은 하지 않는다**. 커밋은 S2 세션만 한다.
   - `scripts/start*.sh`, `scripts/stop*.sh`, 서비스 기동 명령은 **사용자 허락 없이 실행하지 않는다**.
   - 로그/장애 분석은 `log-analyzer` MCP를 우선 사용한다.
-- 장기 S3 작업 메모와 후속 세션 인계는 `$note`와 `.omx` 메모리를 사용한다.
+- 장기 S3 작업 메모와 후속 세션 인계는 기본적으로 `docs/s3-handoff/`와 세션 state를 우선 사용한다.
+  - 공용 `.omx/notepad.md`, `.omx/project-memory.json`에는 **전역 durable 정보 / 공통 운영 규칙 / cross-lane에 실제로 필요한 사실**만 남긴다.
+  - S3 lane 전용 작업 메모, 중간 추론, 세부 TODO, 세션 한정 기록은 `docs/s3-handoff/session-{N}.md`, `docs/work-requests/`, `.omx/state/sessions/{session-id}/...`로 분리한다.
+  - 2026-04-04 `docs/work-requests/s2-to-all-omx-memory-discipline.md`와 `docs/AEGIS.md` 갱신 규칙을 따른다.
 - **`$ralph`**: Analysis Agent 또는 Build Agent 한 축을 끝까지 설계→수정→검증해야 할 때 우선 사용한다.
 - **`$team`**: S3가 S4(SAST), S5(KB), S7(Gateway), S2(호출자)와 병렬 맥락을 맞춰야 할 때 우선 사용한다.
 - **`$trace`**: 이전 Codex/OMX 세션의 reasoning/turn 흐름 복기가 필요할 때 사용한다.
@@ -234,7 +237,7 @@ POST /v1/tasks (taskType: "deep-analyze")
 
 | 문서 | 내용 |
 |------|------|
-| [`session-{N}.md`](.) | 세션별 수정 이력 (1세션 = 1파일, 세션 5~17) |
+| [`session-{N}.md`](.) | 세션별 수정 이력 (1세션 = 1파일, 세션 5~18) |
 | [`roadmap.md`](roadmap.md) | 다음 작업 + v2 장기 계획 |
 
 ---
@@ -244,7 +247,7 @@ POST /v1/tasks (taskType: "deep-analyze")
 | 문서 | 경로 | 용도 |
 |------|------|------|
 | 이 인수인계서 | `docs/s3-handoff/README.md` | 진입점 |
-| 세션 로그 | `docs/s3-handoff/session-{N}.md` | 수정 이력 (1세션 = 1파일, 5~16) |
+| 세션 로그 | `docs/s3-handoff/session-{N}.md` | 수정 이력 (1세션 = 1파일, 5~18) |
 | 로드맵 | `docs/s3-handoff/roadmap.md` | 다음 작업 + 장기 계획 |
 | Analysis Agent 명세 | `docs/specs/analysis-agent.md` | 아키텍처, 원칙 |
 | Build Agent 명세 | `docs/specs/build-agent.md` | 아키텍처, 원칙 |

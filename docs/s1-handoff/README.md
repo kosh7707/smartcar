@@ -92,7 +92,9 @@
   - `scripts/start*.sh`, `scripts/stop*.sh`, 서비스 실행 명령은 **사용자 허락 없이 실행하지 않는다**.
   - 로그/장애 분석은 `log-analyzer` MCP를 우선 사용한다.
 - 세션 시작 순서: `docs/AEGIS.md` → 이 README → `docs/work-requests/`
-- 장기 작업 메모/후속 세션 인계는 `$note`와 OMX notepad/project-memory(`.omx/`)를 사용한다.
+- 장기 작업 메모/후속 세션 인계는 `$note`와 OMX 메모를 사용하되, **공용** `.omx/notepad.md`·`.omx/project-memory.json`에는 전역 durable 정보만 남긴다.
+  - lane 전용 작업 메모, 세부 TODO, 중간 추론, 세션 한정 기록은 `docs/s1-handoff/`, `docs/work-requests/`, `.omx/state/sessions/{session-id}/...`처럼 더 좁은 범위에 남긴다.
+  - 공용 `.omx`에 기록할 때는 가능하면 날짜 + `S1` + 메모 성격(전역 규칙/장기 사실/검증 결과)을 함께 적는다.
 - 화면 수정이 길어지거나 한 세션이 끝까지 몰아쳐야 하는 작업은 `$ralph`를 우선 고려한다.
 - S1과 S1-QA를 묶은 병렬 진행, 또는 여러 문서/검증 축을 동시에 돌릴 때는 `$team`을 고려한다.
 - 시각 QA나 참조 이미지 비교가 필요하면 `$visual-verdict`를 사용한다.
@@ -105,10 +107,10 @@
 
 | 항목 | 선택 |
 |------|------|
-| 프레임워크 | Electron + React 18 |
+| 프레임워크 | Electron + React 19.2.4 |
 | 언어 | TypeScript |
 | 빌드 | Vite |
-| 라우팅 | react-router-dom v6 (HashRouter) |
+| 라우팅 | react-router-dom 7.13.1 (HashRouter) |
 | 상태관리 | React Context + useState |
 | 아이콘 | lucide-react |
 | 스타일 | CSS (라이트/다크/시스템 3-way 테마, CSS 변수 토큰) |

@@ -22,12 +22,20 @@ const DEFAULT_PROFILE: BuildProfile = {
   headerLanguage: "auto",
 };
 
+const EMPTY_INCLUDED_PATHS: string[] = [];
+
 interface Props {
   open: boolean;
   projectId: string;
   sourceFiles: SourceFileEntry[];
-  onCreated: () => void;
   onCancel: () => void;
+  onCreated?: () => void;
+  onSubmit?: (payload: { name: string; profile: BuildProfile; includedPaths: string[] }) => Promise<void>;
+  title?: string;
+  submitLabel?: string;
+  initialName?: string;
+  initialProfile?: BuildProfile;
+  initialIncludedPaths?: string[];
 }
 
 // Collect all descendant file paths from a tree node
@@ -128,7 +136,19 @@ const CheckNode: React.FC<{
   );
 };
 
-export const SubprojectCreateDialog: React.FC<Props> = ({ open, projectId, sourceFiles, onCreated, onCancel }) => {
+export const SubprojectCreateDialog: React.FC<Props> = ({
+  open,
+  projectId,
+  sourceFiles,
+  onCreated,
+  onCancel,
+  onSubmit,
+  title = "서브 프로젝트 생성",
+  submitLabel = "서브 프로젝트 생성",
+  initialName = "",
+  initialProfile = DEFAULT_PROFILE,
+  initialIncludedPaths = EMPTY_INCLUDED_PATHS,
+}) => {
   const toast = useToast();
   const bt = useBuildTargets(projectId);
   const [name, setName] = useState("");
@@ -142,16 +162,19 @@ export const SubprojectCreateDialog: React.FC<Props> = ({ open, projectId, sourc
   // Reset on open + load SDKs
   useEffect(() => {
     if (open) {
-      setName("");
-      setChecked(new Set());
-      setProfile(DEFAULT_PROFILE);
+      setName(initialName);
+      setProfile(initialProfile);
+      const selected = sourceFiles
+        .filter((sf) => initialIncludedPaths.some((path) => sf.relativePath === path || sf.relativePath.startsWith(path)))
+        .map((sf) => sf.relativePath);
+      setChecked(new Set(selected));
       if (projectId) {
         fetchProjectSdks(projectId)
           .then((data) => setRegisteredSdks(data.registered))
           .catch(() => setRegisteredSdks([]));
       }
     }
-  }, [open, projectId]);
+  }, [open, projectId, initialIncludedPaths, initialName, initialProfile, sourceFiles]);
 
   const handleToggle = useCallback((paths: string[], add: boolean) => {
     setChecked((prev) => {
@@ -181,23 +204,27 @@ export const SubprojectCreateDialog: React.FC<Props> = ({ open, projectId, sourc
     if (selectedCount === 0) { toast.error("파일을 1개 이상 선택해주세요."); return; }
     setCreating(true);
     try {
-      await bt.add(name.trim(), name.trim() + "/", profile, includedPaths);
-      toast.success(`서브 프로젝트 "${name.trim()}" 생성 완료 (${selectedCount}개 파일)`);
-      onCreated();
+      if (onSubmit) {
+        await onSubmit({ name: name.trim(), profile, includedPaths });
+      } else {
+        await bt.add(name.trim(), name.trim() + "/", profile, includedPaths);
+        onCreated?.();
+      }
+      toast.success(`서브 프로젝트 "${name.trim()}" ${onSubmit ? "수정" : "생성"} 완료 (${selectedCount}개 파일)`);
     } catch (e) {
-      logError("Create subproject", e);
-      toast.error("서브 프로젝트 생성에 실패했습니다.");
+      logError(onSubmit ? "Update subproject" : "Create subproject", e);
+      toast.error(`서브 프로젝트 ${onSubmit ? "수정" : "생성"}에 실패했습니다.`);
     } finally {
       setCreating(false);
     }
-  }, [name, selectedCount, profile, includedPaths, bt, toast, onCreated]);
+  }, [name, selectedCount, profile, includedPaths, bt, toast, onCreated, onSubmit]);
 
   if (!open) return null;
 
   return (
     <div className="confirm-overlay" onClick={onCancel}>
       <div className="card spcd" onClick={(e) => e.stopPropagation()}>
-        <h3 className="confirm-dialog__title">서브 프로젝트 생성</h3>
+        <h3 className="confirm-dialog__title">{title}</h3>
 
         <div className="spcd__body">
           <label className="form-field">
@@ -232,7 +259,7 @@ export const SubprojectCreateDialog: React.FC<Props> = ({ open, projectId, sourc
           <button className="btn btn-secondary" onClick={onCancel}>취소</button>
           <button className="btn" onClick={handleCreate} disabled={creating || selectedCount === 0}>
             {creating ? <Spinner size={14} /> : null}
-            서브 프로젝트 생성
+            {submitLabel}
           </button>
         </div>
       </div>

@@ -82,15 +82,18 @@ services/knowledge-base/
 │   └── threat-db-raw/             # ETL 다운로드 캐시
 ├── requirements.txt               # fastapi, uvicorn, pydantic, neo4j, qdrant-client, fastembed, httpx
 ├── .env                           # Neo4j + Qdrant + NVD API 키
-└── tests/                              # 115 tests
+└── tests/                              # 145 tests
     ├── test_neo4j_graph.py             # 7 tests
     ├── test_code_graph_service.py      # 12 tests
     ├── test_code_vector_search.py      # 11 tests
     ├── test_code_graph_assembler.py    # 9 tests
     ├── test_knowledge_assembler.py     # 15 tests
     ├── test_nvd_client.py              # 37 tests
-    ├── test_project_memory_service.py  # 14 tests
-    └── test_api_error_responses.py     # 10 tests
+    ├── test_project_memory_service.py  # 18 tests
+    ├── test_api_error_responses.py     # 13 tests
+    ├── test_qdrant_modes.py            # 5 tests
+    ├── test_benchmark_metrics.py       # 15 tests
+    └── test_benchmark_artifacts.py     # 3 tests (validation set + sweep)
 ```
 
 ---

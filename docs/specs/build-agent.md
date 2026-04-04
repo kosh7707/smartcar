@@ -40,6 +40,7 @@
 | 메서드 | 경로 | 용도 |
 |--------|------|------|
 | POST | `/v1/tasks` | `build-resolve` taskType — Phase 0 + 에이전트 루프 자동 실행 |
+| POST | `/v1/tasks` | `sdk-analyze` taskType — SDK 디렉토리 분석 + `sdkProfile` 추출 |
 | GET | `/v1/health` | 서비스 상태 + 에이전트 설정 + S7 Gateway 연결 상태 |
 
 ---
@@ -383,7 +384,7 @@ BudgetState:
 TaskSuccessResponse:
     taskId, taskType, status="completed"
     modelProfile: "agent-loop"
-    promptVersion: "agent-v1"
+    promptVersion: "build-v3"
     schemaVersion: "agent-v1"
     validation: ValidationInfo
     result: AssessmentResult

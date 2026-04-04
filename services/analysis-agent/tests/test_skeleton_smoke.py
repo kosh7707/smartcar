@@ -1,4 +1,4 @@
-"""Phase 0 스켈레톤 검증 — 서비스 기동 + 레거시 task type 동작 확인."""
+"""스켈레톤 검증 — 서비스 기동 + 현재 공개 surface 확인."""
 
 from tests.conftest import LEGACY_TASK_TYPES, make_task_body, make_test_plan_body
 
@@ -25,18 +25,18 @@ def test_prompts_endpoint(client_live):
     assert "prompts" in resp.json()
 
 
-def test_legacy_task_types_succeed(client_live):
-    """기존 5개 task type이 mock 모드에서 정상 동작하는지 확인."""
+def test_legacy_task_types_are_rejected(client_live):
+    """레거시 task type은 S7 소유이므로 Analysis Agent가 직접 처리하지 않는다."""
     for task_type in LEGACY_TASK_TYPES:
         if task_type == "test-plan-propose":
             body = make_test_plan_body()
         else:
             body = make_task_body(task_type=task_type)
         resp = client_live.post("/v1/tasks", json=body)
-        assert resp.status_code == 200, f"{task_type} failed: {resp.text}"
+        assert resp.status_code == 400, f"{task_type} failed: {resp.text}"
         data = resp.json()
-        assert data["status"] == "completed", f"{task_type}: {data}"
-        assert data["taskType"] == task_type
+        assert data["errorDetail"]["code"] == "UNKNOWN_TASK_TYPE", f"{task_type}: {data}"
+        assert "S7 LLM Gateway" in data["errorDetail"]["message"]
 
 
 def test_deep_analyze_returns_completed(client_live):

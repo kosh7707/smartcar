@@ -16,12 +16,24 @@ class V1ResponseParser:
         if match:
             text = match.group(1).strip()
 
+        data = self._load_dict(text)
+        if data is not None:
+            return data
+
+        decoder = json.JSONDecoder()
+        for match in re.finditer(r"\{", text):
+            try:
+                candidate, _ = decoder.raw_decode(text[match.start():])
+            except json.JSONDecodeError:
+                continue
+            if isinstance(candidate, dict):
+                return candidate
+
+        return None
+
+    def _load_dict(self, text: str) -> dict | None:
         try:
             data = json.loads(text)
         except json.JSONDecodeError:
             return None
-
-        if not isinstance(data, dict):
-            return None
-
-        return data
+        return data if isinstance(data, dict) else None

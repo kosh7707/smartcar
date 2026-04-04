@@ -286,6 +286,10 @@ AEGIS는 Codex + oh-my-codex(OMX)를 기준으로 세션 메모리와 QA 보조 
   6. 로그/장애 분석은 `log-analyzer` MCP를 1순위로 사용한다.
 - **세션 시작 순서**: `docs/AEGIS.md` → 자신의 lane 진입 문서 (`S1-QA`는 `docs/s1-handoff/qa-guide.md`, 그 외는 `docs/{sN}-handoff/README.md`) → `docs/work-requests/`
 - **메모리 유지**: `$note` 또는 OMX notepad/project-memory(`.omx/notepad.md`, `.omx/project-memory.json`)를 사용해 다음 세션으로 맥락을 넘긴다.
+  - 단, `.omx/notepad.md`와 `.omx/project-memory.json`은 **공용 저장소**로 간주한다. 여러 lane/세션이 동시에 접근할 수 있으므로, 여기에 적는 내용은 **전역 durable 정보, 공통 운영 규칙, cross-lane에 실제로 필요한 사실**로 제한한다.
+  - **lane 전용 작업 메모, 중간 추론, 세부 TODO, 세션 한정 상황 기록**은 공용 `.omx`에 길게 적지 말고 `docs/{sN}-handoff/`, `docs/work-requests/`, `.omx/state/sessions/{session-id}/...` 등 더 좁은 범위로 남긴다.
+  - 공용 `.omx`에 기록할 때는 가능하면 **날짜 + lane/서비스 + 성격(전역 규칙/장기 사실/검증 결과)**를 명시해 혼재를 줄인다.
+  - **다른 lane이 남긴 공용 `.omx` 기록을 임의로 대량 삭제하지 않는다.** 정리가 필요하면 S2가 `to-all` WR로 공지하고, 각 소유자가 자기 lane 관련 항목을 이동·축약·정리한다.
 - **단일 lane 완주 모드**: 한 세션이 계획→수정→검증까지 끈질기게 완료해야 하는 작업은 `$ralph`를 기본으로 고려한다.
 - **병렬 협업 모드**: 여러 lane을 동시에 물어야 하거나, dev/QA처럼 분업된 검증이 필요한 작업은 `$team`을 기본으로 고려한다.
 - **skill 사용이 소유권을 덮어쓰지 않는다**: `$team`/`$ralph`를 쓰더라도 코드 소유권, API 계약, work-request 규칙은 그대로 유지한다.
@@ -378,3 +382,4 @@ docs/
 | 2026-03-28 | Git 커밋 권한 S2 전담 명시. log-analyzer 필수 사용 규칙 강화. 인수인계서 분할 구조 규칙 신설 (README+roadmap+session-{N}). |
 | 2026-03-31 | log-analyzer 토큰 절감 (메시지 축약, 중복 그룹핑, max_lines). 레거시 전면 제거 (Rule 엔진, LlmV1Adapter, MockEcu). |
 | 2026-04-03 | 8세션 체계(S1-QA 분리) 명시. Codex/OMX 운영 메모와 Playwright skill/MCP/CLI 우선순위 추가. |
+| 2026-04-04 | 공용 `.omx` 메모 운영 규칙 추가: `.omx/notepad.md`·`.omx/project-memory.json`은 전역 durable 정보만 기록하고, lane/세션 전용 메모는 handoff·WR·session state로 분리하도록 명시. |

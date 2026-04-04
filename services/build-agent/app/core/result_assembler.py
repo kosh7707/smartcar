@@ -180,7 +180,7 @@ class ResultAssembler:
             taskType=session.request.taskType,
             status=TaskStatus.COMPLETED,
             modelProfile="agent-loop",
-            promptVersion="agent-v1",
+            promptVersion=self._prompt_version,
             schemaVersion="agent-v1",
             validation=validation,
             result=result,

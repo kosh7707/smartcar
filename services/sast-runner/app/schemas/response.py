@@ -4,6 +4,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.config import SERVICE_VERSION
+
 
 # --- ExecutionReport (typed schema for scan execution metadata) ---
 
@@ -122,7 +124,7 @@ class ScanResponse(BaseModel):
 class HealthResponse(BaseModel):
     service: str = "s4-sast"
     status: str = "ok"
-    version: str = "0.8.0"
+    version: str = SERVICE_VERSION
     semgrep: dict[str, Any] = {}
     tools: dict[str, Any] = {}
     default_rulesets: list[str] = Field(default_factory=list, alias="defaultRulesets")

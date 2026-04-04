@@ -70,17 +70,18 @@ describe("useBuildTargets", () => {
   });
 
   it("update replaces target in list", async () => {
-    const updated = { ...mockTargets[0], name: "gw-renamed" };
+    const updated = { ...mockTargets[0], name: "gw-renamed", includedPaths: ["src/", "include/"] };
     mockUpdateBuildTarget.mockResolvedValue(updated);
 
     const { result } = renderHook(() => useBuildTargets("p-1"));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.update("t-1", { name: "gw-renamed" });
+      await result.current.update("t-1", { name: "gw-renamed", includedPaths: ["src/", "include/"] });
     });
 
     expect(result.current.targets[0].name).toBe("gw-renamed");
+    expect(mockUpdateBuildTarget).toHaveBeenCalledWith("p-1", "t-1", { name: "gw-renamed", includedPaths: ["src/", "include/"] });
   });
 
   it("remove filters target from list", async () => {

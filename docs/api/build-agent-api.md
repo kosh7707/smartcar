@@ -29,6 +29,7 @@ http://localhost:8003
 | 메서드 | 경로 | 용도 |
 |--------|------|------|
 | POST | `/v1/tasks` | `build-resolve` — 빌드 스크립트 작성 + 빌드 성공 |
+| POST | `/v1/tasks` | `sdk-analyze` — SDK 디렉토리 분석 + `sdkProfile` 추출 |
 | GET | `/v1/health` | 서비스 상태 + 에이전트 설정 |
 
 ---
@@ -42,6 +43,7 @@ http://localhost:8003
 | Task Type | 용도 |
 |-----------|------|
 | `build-resolve` | 빌드 스크립트 작성 + 빌드 성공. 산출물: `build-aegis/aegis-build.sh` + `buildCommand` |
+| `sdk-analyze` | SDK/툴체인 디렉토리를 분석하여 `sdkProfile`을 추출 |
 
 ### 요청
 
@@ -152,7 +154,7 @@ HTTP `200` + `status: "completed"`
   "taskType": "build-resolve",
   "status": "completed",
   "modelProfile": "agent-loop",
-  "promptVersion": "agent-v1",
+  "promptVersion": "build-v3",
   "schemaVersion": "agent-v1",
   "validation": {
     "valid": true,
@@ -204,6 +206,24 @@ HTTP `200` + `status: "completed"`
 | buildScript | string | O | 에이전트가 작성한 빌드 스크립트 경로 (`build-aegis/aegis-build.sh`) |
 | buildDir | string | O | 빌드 출력 디렉토리 (`build-aegis`) |
 | errorLog | string | X | 실패 시 에러 로그 |
+
+### `sdk-analyze`
+
+SDK 또는 툴체인 디렉토리를 읽고 `sdkProfile`을 반환하는 보조 taskType이다. 소스 코드를 수정하지 않으며, `read_file` + 제한적 `try_build(--version)`만 사용한다.
+
+```json
+{
+  "taskType": "sdk-analyze",
+  "taskId": "sdk-001",
+  "context": {
+    "trusted": {
+      "projectPath": "/home/kosh/sdks/ti-am335x"
+    }
+  }
+}
+```
+
+성공 시 `result.sdkProfile`에는 `compiler`, `compilerPrefix`, `gccVersion`, `targetArch`, `languageStandard`, `sysroot`, `environmentSetup`, `includePaths`, `defines`가 채워진다.
 
 ---
 

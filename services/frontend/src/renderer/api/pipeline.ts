@@ -31,7 +31,7 @@ export async function createBuildTarget(
 export async function updateBuildTarget(
   projectId: string,
   targetId: string,
-  body: { name?: string; buildProfile?: BuildProfile },
+  body: { name?: string; buildProfile?: BuildProfile; includedPaths?: string[] },
 ): Promise<BuildTarget> {
   const res = await apiFetch<{ success: boolean; data: BuildTarget }>(
     `/api/projects/${projectId}/targets/${targetId}`,

@@ -4,10 +4,12 @@ import { Crosshair, Plus, Pencil, Trash2, Play, RotateCcw, Bot, FileText } from 
 import { useBuildTargets } from "../../hooks/useBuildTargets";
 import { usePipelineProgress } from "../../hooks/usePipelineProgress";
 import { useToast } from "../../contexts/ToastContext";
-import { logError } from "../../api/client";
+import { fetchSourceFiles, logError } from "../../api/client";
+import type { SourceFileEntry } from "../../api/client";
 import { ConfirmDialog, Spinner, TargetStatusBadge, TargetProgressStepper } from "../ui";
 import { BuildProfileForm } from "./BuildProfileForm";
 import { BuildLogViewer } from "./BuildLogViewer";
+import { SubprojectCreateDialog } from "./SubprojectCreateDialog";
 import { TargetLibraryPanel } from "./TargetLibraryPanel";
 import { fetchProjectSdks } from "../../api/sdk";
 import type { RegisteredSdk } from "../../api/sdk";
@@ -35,6 +37,7 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
   const bt = useBuildTargets(projectId);
   const pipeline = usePipelineProgress();
   const [registeredSdks, setRegisteredSdks] = useState<RegisteredSdk[]>([]);
+  const [sourceFiles, setSourceFiles] = useState<SourceFileEntry[]>([]);
 
   // Load registered SDKs
   useEffect(() => {
@@ -42,38 +45,32 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
       fetchProjectSdks(projectId)
         .then((data) => setRegisteredSdks(data.registered))
         .catch(() => setRegisteredSdks([]));
+      fetchSourceFiles(projectId)
+        .then(setSourceFiles)
+        .catch(() => setSourceFiles([]));
     }
   }, [projectId]);
 
   // Form state
-  const [formMode, setFormMode] = useState<"add" | "edit" | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formMode, setFormMode] = useState<"add" | null>(null);
   const [formName, setFormName] = useState("");
   const [formPath, setFormPath] = useState("");
   const [formProfile, setFormProfile] = useState<BuildProfile>(DEFAULT_PROFILE);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<BuildTarget | null>(null);
   const [logTarget, setLogTarget] = useState<{id: string, name: string} | null>(null);
+  const [editingTarget, setEditingTarget] = useState<BuildTarget | null>(null);
 
   const openAddForm = useCallback(() => {
+    setEditingTarget(null);
     setFormMode("add");
-    setEditingId(null);
     setFormName("");
     setFormPath("");
     setFormProfile(DEFAULT_PROFILE);
   }, []);
 
-  const openEditForm = useCallback((target: BuildTarget) => {
-    setFormMode("edit");
-    setEditingId(target.id);
-    setFormName(target.name);
-    setFormPath(target.relativePath);
-    setFormProfile(target.buildProfile);
-  }, []);
-
   const closeForm = useCallback(() => {
     setFormMode(null);
-    setEditingId(null);
   }, []);
 
   const handleSave = useCallback(async () => {
@@ -84,9 +81,6 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
       if (formMode === "add") {
         await bt.add(formName.trim(), formPath.trim(), formProfile);
         toast.success(`타겟 "${formName.trim()}" 추가됨`);
-      } else if (formMode === "edit" && editingId) {
-        await bt.update(editingId, { name: formName.trim(), buildProfile: formProfile });
-        toast.success(`타겟 "${formName.trim()}" 수정됨`);
       }
       closeForm();
     } catch (e) {
@@ -95,7 +89,7 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
     } finally {
       setSaving(false);
     }
-  }, [formMode, formName, formPath, formProfile, editingId, bt, toast, closeForm]);
+  }, [formMode, formName, formPath, formProfile, bt, toast, closeForm]);
 
   const handleDelete = useCallback(async (target: BuildTarget) => {
     try {
@@ -171,7 +165,7 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
           {bt.discovering ? <Spinner size={14} /> : <Crosshair size={14} />}
           타겟 탐색
         </button>
-        <button className="btn btn-secondary btn-sm" onClick={openAddForm} disabled={formMode !== null || pipeline.isRunning}>
+        <button className="btn btn-secondary btn-sm" onClick={openAddForm} disabled={formMode !== null || editingTarget !== null || pipeline.isRunning}>
           <Plus size={14} />
           타겟 추가
         </button>
@@ -225,29 +219,6 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
           const isRunning = RUNNING_STATUSES.has(status);
           const isReady = status === "ready";
 
-          // Inline edit form
-          if (formMode === "edit" && editingId === target.id) {
-            return (
-              <div key={target.id} className="bt-form">
-                <div className="bt-form__grid">
-                  <label className="form-field">
-                    <span className="form-label">타겟 이름</span>
-                    <input className="form-input" value={formName} onChange={(e) => setFormName(e.target.value)} autoFocus />
-                  </label>
-                  <label className="form-field">
-                    <span className="form-label">상대 경로</span>
-                    <input className="form-input font-mono" value={formPath} disabled spellCheck={false} />
-                  </label>
-                </div>
-                <BuildProfileForm value={formProfile} onChange={setFormProfile} registeredSdks={registeredSdks} />
-                <div className="bt-form__actions">
-                  <button className="btn btn-secondary btn-sm" onClick={closeForm}>취소</button>
-                  <button className="btn btn-sm" onClick={handleSave} disabled={saving}>{saving ? "저장 중..." : "저장"}</button>
-                </div>
-              </div>
-            );
-          }
-
           return (
             <div key={target.id} className={`bt-row${isFailed ? " bt-row--failed" : isReady ? " bt-row--ready" : ""}`}>
               <div className="bt-row__body">
@@ -300,8 +271,8 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
                 <button
                   className="btn-icon"
                   title="편집"
-                  onClick={() => openEditForm(target)}
-                  disabled={formMode !== null || pipeline.isRunning}
+                  onClick={() => setEditingTarget(target)}
+                  disabled={formMode !== null || editingTarget !== null || pipeline.isRunning}
                 >
                   <Pencil size={14} />
                 </button>
@@ -360,6 +331,37 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
           targetId={logTarget.id}
           targetName={logTarget.name}
           onClose={() => setLogTarget(null)}
+        />
+      )}
+
+      {editingTarget && (
+        <SubprojectCreateDialog
+          open
+          projectId={projectId}
+          sourceFiles={sourceFiles}
+          onCancel={() => setEditingTarget(null)}
+          title="서브 프로젝트 수정"
+          submitLabel="저장"
+          initialName={editingTarget.name}
+          initialProfile={editingTarget.buildProfile}
+          initialIncludedPaths={editingTarget.includedPaths ?? [editingTarget.relativePath]}
+          onSubmit={async ({ name, profile, includedPaths }) => {
+            setSaving(true);
+            try {
+              await bt.update(editingTarget.id, {
+                name,
+                buildProfile: profile,
+                includedPaths,
+              });
+              toast.success(`타겟 "${name}" 수정됨`);
+              setEditingTarget(null);
+            } catch (e) {
+              logError("Save build target", e);
+              toast.error("타겟 저장에 실패했습니다.");
+            } finally {
+              setSaving(false);
+            }
+          }}
         />
       )}
     </div>

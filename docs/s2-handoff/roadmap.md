@@ -7,10 +7,10 @@
 
 ## 10. 알려진 이슈 / 로드맵 / 세션 로그
 
-### 대기 중인 작업 요청 (2026-04-02 기준)
+### 대기 중인 작업 요청 (2026-04-03 워크트리 기준)
 
-- `s2-to-s1-model-api-extension.md` — 공유 모델 변경 통보 (S1이 처리 후 삭제)
-- `s2-to-s4-cwe-metadata.md` — SastFinding.metadata.cweId 표준화 요청 (S4가 처리 후 삭제)
+- `docs/work-requests/`에 현재 남아 있는 파일은 `s3-to-s3-prompt-enhancement-backlog.md` 1건뿐이다.
+- 이는 **S3 내부 백로그**이며, S2 outbound / cross-service 대기 WR로 확인된 항목은 현재 워크트리 기준 없음.
 
 ### 세션 13 완료 사항 (2026-03-28)
 
@@ -20,7 +20,7 @@
 - `LlmV1Adapter` 제거 → `LlmTaskClient`에 concurrency queue 통합, Dynamic 서비스 직접 사용
 - `MockEcu` 제거 → 인터페이스를 `adapter-client.ts`로 인라인
 - `IRuleDAO`, `makeRule()`, 빈 `rules/` 디렉토리, stale dist 산출물 제거
-- `db-stats.sh` 전면 갱신 (9→18 테이블 조회)
+- `db-stats.sh` 전면 갱신 (9→18 테이블 조회) — 현재는 세션 14 이후 21테이블 체계로 다시 동기화 완료
 - S3 통합 테스트 완료 대응: 파이프라인 격리 경로(`target.sourcePath`) 사용, Build Agent 경로 수정, 부분 빌드 처리, PoC에 `projectPath` 추가
 - log-analyzer 토큰 절감 (메시지 축약, 중복 그룹핑, max_lines)
 
@@ -57,7 +57,7 @@ S1-QA 보안 분석가 UX 리뷰 WR 전면 처리 (11 Phase):
 
 ### 기존 파이프라인: 구현 완료
 
-정적 분석, 동적 분석, 동적 테스트(퍼징/침투), 프로젝트 CRUD/Overview, 프로젝트 스코프 어댑터/룰/설정 CRUD, BuildProfile/SDK 프로파일 모두 완료.
+정적 분석, 동적 분석, 동적 테스트(퍼징/침투), 프로젝트 CRUD/Overview, 프로젝트 스코프 어댑터/설정 CRUD, BuildProfile/SDK 프로파일 모두 완료.
 
 ### 코어 도메인 (1~3단계): 구현 완료
 
@@ -67,7 +67,7 @@ S1-QA 보안 분석가 UX 리뷰 WR 전면 처리 (11 Phase):
 
 ### 테스트 인프라: 구현 완료
 
-vitest 기반 테스트 267개. `cd services/backend && npx vitest run`으로 실행.
+vitest 기반 테스트 322개. `cd services/backend && npx vitest run`으로 실행.
 
 ```
 src/

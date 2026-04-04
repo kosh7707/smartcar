@@ -416,6 +416,13 @@ class TaskPipeline:
 
         # 8. Schema 검증
         validation = self._schema_validator.validate(parsed, request.taskType)
+        if not validation.valid:
+            return _LlmAttemptFailure(
+                status=TaskStatus.VALIDATION_FAILED,
+                code=FailureCode.INVALID_SCHEMA,
+                detail="; ".join(validation.errors),
+                token_usage=token_usage,
+            )
 
         # 9. Evidence 검증
         allowed_refs = {ref.refId for ref in request.evidenceRefs}
