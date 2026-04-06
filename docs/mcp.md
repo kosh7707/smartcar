@@ -50,6 +50,12 @@ Relevant tools include:
 - `register_wr`
 - `complete_wr`
 
+### WR runtime boundary
+
+- **Runtime WRs**: canonical new-format WR pages in `wiki/canon/work-requests/**`
+- **Archived WRs**: `docs/work-requests/**` in the AEGIS repo
+- Archived WRs are reference/archive material only and are **out of scope** for WR MCP runtime behavior
+
 ### 2. `log-analyzer`
 
 Operational/log debugging surface for AEGIS runtime logs.
@@ -81,4 +87,6 @@ From `~/AEGIS`:
 ## Rule of thumb
 
 - **Docs / handoff / WR / policy** → `aegis-static-wiki`
+- **WR runtime operations** → canonical wiki WR model only
+- **Archived WR markdown** → reference only, not MCP input
 - **Runtime logs / request tracing / failures** → `log-analyzer`

@@ -14,7 +14,8 @@
 3. Enter the canonical wiki at `/home/kosh/aegis-static-wiki/wiki/system/index.md`.
 4. Continue to `/home/kosh/aegis-static-wiki/wiki/canon/charter/aegis.md`.
 5. If a lane is explicitly declared, continue to `/home/kosh/aegis-static-wiki/wiki/canon/handoff/{lane}/readme.md`.
-6. Use `/home/kosh/aegis-static-wiki/wiki/canon/work-requests/` for canonical WR handling.
+6. Use `/home/kosh/aegis-static-wiki/wiki/canon/work-requests/` for new canonical WR handling.
+7. Legacy WRs under `/home/kosh/AEGIS/docs/work-requests/` are archive-only and out-of-scope for WR MCP runtime behavior.
 
 ## Lane bootstrap contract
 
@@ -162,6 +163,12 @@ That file is the authoritative old-path → wiki-path ledger for the cutover.
 Work requests are now read and maintained through the canonical wiki surface:
 
 - `/home/kosh/aegis-static-wiki/wiki/canon/work-requests/`
+
+Legacy archived WR markdown may exist under:
+
+- `docs/work-requests/`
+
+Those archived docs WRs are reference-only and out of scope for WR MCP runtime behavior.
 
 ## Cutover note
 
