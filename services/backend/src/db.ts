@@ -273,6 +273,24 @@ export function initSchema(db: DatabaseType): void {
     CREATE INDEX IF NOT EXISTS idx_build_targets_project ON build_targets(project_id);
   `);
 
+  // 프로젝트별 SDK 업로드/등록 surface (현재 runtime + contract test 호환)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS sdk_registry (
+      id           TEXT PRIMARY KEY,
+      project_id   TEXT NOT NULL,
+      name         TEXT NOT NULL,
+      description  TEXT,
+      path         TEXT NOT NULL,
+      profile      TEXT,
+      status       TEXT NOT NULL DEFAULT 'uploading',
+      verify_error TEXT,
+      verified     INTEGER NOT NULL DEFAULT 0,
+      created_at   TEXT NOT NULL,
+      updated_at   TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_sdk_registry_project ON sdk_registry(project_id, created_at DESC);
+  `);
+
   // S2 canonical build persistence + S3 read projections
   db.exec(`
     CREATE TABLE IF NOT EXISTS project_source_assets (
