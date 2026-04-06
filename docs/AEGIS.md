@@ -3,6 +3,16 @@
 > 이 문서는 AEGIS 프로젝트의 **공통 제약 사항**을 정의한다.
 > 모든 역할(S1, S1-QA, S2~S7)은 이 문서를 준수해야 한다.
 > **이 문서의 수정 권한은 S2(AEGIS Core)에게 있다.** 변경 제안은 work-request로.
+>
+> **문서 표면 전환 공지 (2026-04-06)**  
+> AEGIS의 canonical agent-facing 문서는 이제 **`/home/kosh/aegis-static-wiki`** 에 있다.  
+> 이 파일과 `docs/**`는 migration/compatibility surface로 유지되며, 세션 시작과 문서 조회는 아래 wiki 경로를 우선 사용한다.
+>
+> - Charter: `/home/kosh/aegis-static-wiki/wiki/canon/charter/aegis.md`
+> - Index: `/home/kosh/aegis-static-wiki/wiki/system/index.md`
+> - Lane handoff: `/home/kosh/aegis-static-wiki/wiki/canon/handoff/{lane}/readme.md`
+> - Roadmap: `/home/kosh/aegis-static-wiki/wiki/canon/roadmap/*.md`
+> - Work requests: `/home/kosh/aegis-static-wiki/wiki/canon/work-requests/*.md`
 
 ---
 
@@ -125,6 +135,13 @@
 ---
 
 ## 4. 문서 소유권
+
+### canonical 문서 표면
+
+- **세션 운영 기준 문서 표면은 `aegis-static-wiki` 이다.**
+- 이 저장소의 `docs/**`는 migration/compatibility copy로 본다.
+- 신규 durable 문서 변경은 **wiki canon 경로를 먼저 갱신**하고, 필요 시에만 `docs/**`를 동기화한다.
+- `docs/**`와 wiki canon이 충돌하면 **wiki canon이 우선**한다.
 
 ### 규칙
 
@@ -284,10 +301,10 @@ AEGIS는 Codex + oh-my-codex(OMX)를 기준으로 세션 메모리와 QA 보조 
   4. Git 커밋은 S2 세션만 수행한다.
   5. `scripts/start.sh`, `scripts/stop.sh`, `scripts/start-*.sh` 등 서비스 기동/종료 스크립트 실행은 반드시 사용자 허락을 받은 뒤에만 한다.
   6. 로그/장애 분석은 `log-analyzer` MCP를 1순위로 사용한다.
-- **세션 시작 순서**: `docs/AEGIS.md` → 자신의 lane 진입 문서 (`S1-QA`는 `docs/s1-handoff/qa-guide.md`, 그 외는 `docs/{sN}-handoff/README.md`) → `docs/work-requests/`
+- **세션 시작 순서**: `/home/kosh/aegis-static-wiki/wiki/canon/charter/aegis.md` → 자신의 lane 진입 문서 (`S1-QA`는 `/home/kosh/aegis-static-wiki/wiki/canon/handoff/s1/qa-guide.md`, 그 외는 `/home/kosh/aegis-static-wiki/wiki/canon/handoff/{sN}/readme.md`) → `/home/kosh/aegis-static-wiki/wiki/canon/work-requests/`
 - **메모리 유지**: `$note` 또는 OMX notepad/project-memory(`.omx/notepad.md`, `.omx/project-memory.json`)를 사용해 다음 세션으로 맥락을 넘긴다.
   - 단, `.omx/notepad.md`와 `.omx/project-memory.json`은 **공용 저장소**로 간주한다. 여러 lane/세션이 동시에 접근할 수 있으므로, 여기에 적는 내용은 **전역 durable 정보, 공통 운영 규칙, cross-lane에 실제로 필요한 사실**로 제한한다.
-  - **lane 전용 작업 메모, 중간 추론, 세부 TODO, 세션 한정 상황 기록**은 공용 `.omx`에 길게 적지 말고 `docs/{sN}-handoff/`, `docs/work-requests/`, `.omx/state/sessions/{session-id}/...` 등 더 좁은 범위로 남긴다.
+  - **lane 전용 작업 메모, 중간 추론, 세부 TODO, 세션 한정 상황 기록**은 공용 `.omx`에 길게 적지 말고 `/home/kosh/aegis-static-wiki/wiki/canon/handoff/{sN}/`, `/home/kosh/aegis-static-wiki/wiki/canon/work-requests/`, `.omx/state/sessions/{session-id}/...` 등 더 좁은 범위로 남긴다.
   - 공용 `.omx`에 기록할 때는 가능하면 **날짜 + lane/서비스 + 성격(전역 규칙/장기 사실/검증 결과)**를 명시해 혼재를 줄인다.
   - **다른 lane이 남긴 공용 `.omx` 기록을 임의로 대량 삭제하지 않는다.** 정리가 필요하면 S2가 `to-all` WR로 공지하고, 각 소유자가 자기 lane 관련 항목을 이동·축약·정리한다.
 - **단일 lane 완주 모드**: 한 세션이 계획→수정→검증까지 끈질기게 완료해야 하는 작업은 `$ralph`를 기본으로 고려한다.

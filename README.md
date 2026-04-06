@@ -2,6 +2,12 @@
 
 자동차 임베디드 소프트웨어 보안 취약점 종합 검증 플랫폼.
 
+## Documentation
+
+- Canonical agent-facing wiki: `/home/kosh/aegis-static-wiki`
+- Start at: `/home/kosh/aegis-static-wiki/wiki/system/index.md`
+- Local `docs/**` in this repo is now a migration/compatibility surface, not the primary documentation source.
+
 ## Prerequisites
 
 | 도구 | 용도 |
