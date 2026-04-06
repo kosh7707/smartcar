@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(pip install:*)"
-    ]
-  },
-  "enabledMcpjsonServers": ["log-analyzer", "aegis-static-wiki"],
-  "enableAllProjectMcpServers": true
-}

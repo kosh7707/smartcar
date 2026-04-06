@@ -25,6 +25,8 @@ uploads/
 
 # Tool / IDE state
 .claude/
+.omx/
+.github/
 .omc/
 .playwright-mcp/
 *.orig
