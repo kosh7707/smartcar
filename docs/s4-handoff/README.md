@@ -14,8 +14,8 @@
 - `docs/api/sast-runner-api.md` API 계약서 소유
 - `docs/specs/sast-runner.md` 명세서 소유
 - `scripts/start-sast-runner.sh` + `services/sast-runner/.env` 소유
-- 12개 엔드포인트 관리: scan (동기+NDJSON 스트리밍), functions, includes, metadata, libraries, build, build-and-analyze, discover-targets, sdk-registry(GET/POST), sdk-registry/:sdkId(DELETE), health
-- SDK 레지스트리 관리 (`$SAST_SDK_ROOT/sdk-registry.json` 외부 파일)
+- 9개 엔드포인트 관리: scan (동기+NDJSON 스트리밍), functions, includes, metadata, libraries, build, build-and-analyze, discover-targets, health
+- build path는 execution-only. SDK/toolchain/build-command 해석은 하지 않음
 - `metadata.cweId` 표준화 — 전 도구에서 CWE 식별자를 `cweId` 필드로 제공 (S2 Finding 매핑용)
 
 ### 너는 하지 않는다
@@ -52,10 +52,16 @@
 | 위치 | `services/sast-runner/` (monorepo 내, WSL2 로컬) |
 | 스택 | Python 3.12 + FastAPI + Uvicorn |
 | 포트 | 9000 |
-| 버전 | **v0.9.0** |
-| 테스트 | **368개** (23개 파일) |
+| 버전 | **v0.11.0** |
+| 테스트 | **369개** (23개 파일) |
 | 벤치마크 | Juliet 12 CWE, Overall Recall **83.7%** |
 | 통합테스트 | **통과** (e2e-1774920375, S4 에러 0건) |
+
+현재 `/v1` 계약의 핵심:
+- build / scan / build-and-analyze가 nested `provenance` 입력을 받음
+- `/v1/build`는 structured `buildEvidence` + `failureDetail` 반환
+- `/v1/scan` NDJSON heartbeat와 final execution은 degraded-aware metadata를 포함
+- `/v1/build-and-analyze`는 convenience / transitional surface로 유지
 
 ### 6개 SAST 도구
 
@@ -73,14 +79,14 @@
 ```
 services/sast-runner/
 ├── app/
-│   ├── main.py              — FastAPI v0.9.0, JSON 로깅
+│   ├── main.py              — FastAPI v0.11.0, JSON 로깅
 │   ├── config.py            — pydantic-settings (SAST_ prefix)
 │   ├── context.py           — contextvars requestId 전파
 │   ├── errors.py            — 커스텀 에러 4종
-│   ├── routers/scan.py      — 12개 엔드포인트
+│   ├── routers/scan.py      — 9개 엔드포인트
 │   ├── schemas/
-│   │   ├── request.py       — ScanRequest, BuildProfile (전 필드 optional)
-│   │   └── response.py      — SastFinding, ScanResponse, ExecutionReport
+│   │   ├── request.py       — provenance 포함 `ScanRequest` / `BuildRequest` / `BuildAndAnalyzeRequest`
+│   │   └── response.py      — `BuildResponse`, `ScanResponse`, `ExecutionReport` 등 `/v1` 계약 스키마
 │   └── scanner/
 │       ├── orchestrator.py   — 6도구 병렬 + scope-early + 경계면 필터링
 │       ├── semgrep_runner.py — taint + sanitizer, include_extensions 필터
@@ -93,17 +99,17 @@ services/sast-runner/
 │       ├── ruleset_selector.py — semgrep_include_extensions()
 │       ├── path_utils.py
 │       ├── sca_service.py    — SCA 오케스트레이션 + CloneCache
-│       ├── sdk_resolver.py   — SDK 레지스트리 (외부 sdk-registry.json)
+│       ├── sdk_resolver.py   — analysis path용 내부 SDK 해석 유틸
 │       ├── ast_dumper.py     — 함수 추출 + origin 태깅 + Semaphore(16)
 │       ├── include_resolver.py
 │       ├── build_metadata.py
-│       ├── build_runner.py   — 빌드 실행 + 타겟 탐색
+│       ├── build_runner.py   — caller-materialized build 실행 + 타겟 탐색
 │       ├── library_identifier.py
 │       ├── library_differ.py — DiffResult 통일 shape + CloneCache
 │       └── library_hasher.py
 ├── rules/automotive/        — 커스텀 Semgrep 룰 53개 (9 YAML)
 ├── benchmark/               — Juliet 벤치마크 러너 + 코드그래프 품질 평가
-├── tests/                   — 351개 테스트 (23개 파일)
+├── tests/                   — 369개 테스트 (23개 파일)
 └── requirements.txt
 ```
 
@@ -149,7 +155,7 @@ SAST_SDK_ROOT=/home/kosh/sdks
 
 ---
 
-## 4. SDK 레지스트리
+## 4. 내부 SDK 해석 데이터 (analysis path only)
 
 ```
 $SAST_SDK_ROOT/              <- .env: SAST_SDK_ROOT=/home/kosh/sdks
@@ -161,7 +167,8 @@ $SAST_SDK_ROOT/              <- .env: SAST_SDK_ROOT=/home/kosh/sdks
 |-------|-----|:---:|------|
 | `ti-am335x` | TI AM335x 08.02.00.24 | 9.2.1 | `-fanalyzer` 미지원 -> 호스트 gcc 폴백 또는 SDK gcc 재확인 |
 
-API: `GET/POST/DELETE /v1/sdk-registry`
+**중요**: `/v1/sdk-registry` public API는 제거되었다.
+이 데이터는 현재 analysis path 내부 해석에만 남아 있으며, build path는 더 이상 `sdkId`를 받지 않는다.
 
 ---
 

@@ -2,7 +2,7 @@
 
 > S7은 AEGIS 플랫폼의 **LLM 단일 관문(Gateway)** 이자 **LLM Engine 운영자**이다.
 > 모든 LLM 호출은 S7(Gateway)을 경유한다. LLM Engine을 직접 호출하지 않는다.
-> **마지막 업데이트: 2026-03-31**
+> **마지막 업데이트: 2026-04-04**
 
 ---
 
@@ -469,6 +469,10 @@ ${threat_knowledge_context}
 - task별 output schema 정의
 - validation result를 응답에 포함
 - invalid output → 재시도 또는 graceful failure
+- `INVALID_SCHEMA`, `INVALID_GROUNDING`, `EMPTY_RESPONSE`는
+  `1 + AEGIS_LLM_MAX_RETRIES` 범위에서 자동 재시도 대상이다
+- parser는 pure JSON, fenced JSON, `<think>` 제거 후의 top-level JSON object,
+  그리고 경량 commentary로 감싼 top-level JSON object 복구를 지원한다
 
 ### 9.2 Semantic Guard
 

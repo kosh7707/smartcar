@@ -1,30 +1,27 @@
 # S4 Build Snapshot Consumer Seam 설계 메모
 
-> 상태: **정렬 완료 / 구현 전**
+> 상태: **구현 완료 / `/v1` 계약 반영**
 > 마지막 업데이트: **2026-04-04**
 >
 > 이 문서는 S3/S2가 Build Snapshot reference-first seam을 도입할 때,
 > S4가 어떤 입력/출력/provenance 경계를 가져가야 하는지 S4 관점에서 정리한 설계 메모다.
-> **현재 API 계약을 즉시 바꾸는 문서가 아니다.**
+> 현재는 `docs/api/sast-runner-api.md`와 함께 **실제 반영된 `/v1` 계약**을 설명한다.
 
 ---
 
 ## 1. 현재 상태
 
-현재 S4의 build/scan consumer surface는 ad-hoc execution payload를 직접 소비한다.
+현재 S4의 build/scan consumer surface는 **`provenance` + concrete execution evidence** 조합을 직접 소비한다.
 
 핵심 입력:
-- `projectPath`
-- `buildCommand`
-- `compileCommands`
-- `buildProfile.sdkId`
-- `thirdPartyPaths`
+- build path: `projectPath`, `buildCommand`, `buildEnvironment`, `provenance`
+- analysis path: `compileCommands`, `buildProfile`, `thirdPartyPaths`
 
 핵심 출력:
-- `/v1/build`: `compileCommandsPath`, `entries`, `userEntries`, `exitCode`, `buildOutput`, `elapsedMs`
+- `/v1/build`: `buildEvidence`, `failureDetail`
 - `/v1/scan`: findings + `execution`
 - `/v1/build-and-analyze`: build 결과 + scan/codeGraph/libraries/metadata
-- `/v1/discover-targets`: `relativePath`, `buildSystem`, `buildFile`, `detectedBuildCommand`
+- `/v1/discover-targets`: `relativePath`, `buildSystem`, `buildFile`
 
 즉, S4는 현재 **snapshot identity consumer** 가 아니라
 **concrete build evidence / execution payload consumer + producer** 이다.
@@ -39,7 +36,7 @@ Build Snapshot 도입 후에도 S4의 핵심 역할은 바뀌지 않는다.
 - 결정론적 build/scan 실행
 - compile/build evidence 검증
 - SAST / code graph / SCA / metadata 생성
-- SDK 해석과 tool execution authority
+- analysis path에서의 SDK 해석 + tool execution authority
 
 ### 바뀌는 점
 - upstream build provenance의 canonical source가 ad-hoc payload가 아니라
@@ -66,7 +63,7 @@ S4가 authoritative하지 않은 것:
 ### S4 execution authority
 
 S4가 직접 생산/검증하는 evidence:
-- 실제 실행된 `buildCommand` (또는 auto-detected command)
+- caller가 제공한 `buildCommand` 그대로 실행한 증거
 - 실제 build 작업 디렉토리
 - `compileCommandsPath`
 - build `exitCode`
@@ -86,8 +83,8 @@ S4가 직접 생산/검증하는 evidence:
 
 | surface | snapshot-first 영향 | S4 권장 방향 |
 |---|---|---|
-| `/v1/build` | build 결과를 snapshot으로 persist하기 위한 producer evidence 제공 필요 | optional provenance echo + build evidence 명확화 |
-| `/v1/scan` | persisted snapshot을 기준으로 분석 시작 가능 | optional snapshot reference 수용 + execution/provenance echo |
+| `/v1/build` | build 결과를 snapshot으로 persist하기 위한 producer evidence 제공 | provenance echo + structured build evidence / failure detail |
+| `/v1/scan` | persisted snapshot을 기준으로 분석 시작 가능 | provenance echo + degraded-aware execution / heartbeat |
 | `/v1/build-and-analyze` | build와 analysis를 한 번에 묶는 convenience surface | canonical orchestration에서는 축소, transitional/manual helper로 유지 |
 | `/v1/discover-targets` | stable target identity 필요 | S4는 deterministic locator 제공, durable `buildUnitId` mint는 S2가 담당 |
 
@@ -106,7 +103,7 @@ S4는 현재 S2 persistence를 직접 조회하지 않는다.
 - S4에는 snapshot lookup API가 없다
 - 실제 도구 실행에는 concrete evidence가 필요하다
 
-### 권장 최소 seam
+### 실제 `/v1` seam
 
 상위 호출자는 아래를 함께 보내는 것이 안전하다.
 
@@ -119,10 +116,10 @@ S4는 현재 S2 persistence를 직접 조회하지 않는다.
 - `projectPath`
 - `compileCommands` 또는 동등 evidence ref
 - 필요 시 `buildCommand`
-- 필요 시 `buildProfile.sdkId`
+- build path라면 필요 시 `buildEnvironment`
 - 필요 시 `thirdPartyPaths`
 
-권장 shape는 flat field보다 **nested `provenance` object** 다.
+실제 contract는 flat field가 아니라 **nested `provenance` object** 다.
 
 예:
 
@@ -136,7 +133,7 @@ S4는 현재 S2 persistence를 직접 조회하지 않는다.
 }
 ```
 
-즉, 현 단계 S4 권장안은:
+즉, 현재 S4 `/v1` contract는:
 
 > **`buildSnapshotId + buildUnitId + snapshotSchemaVersion + resolved evidence fields`**
 
@@ -152,9 +149,10 @@ S4는 현재 S2 persistence를 직접 조회하지 않는다.
 S4는 consumer 관점에서 받은 snapshot provenance를
 **수정 없이 echo/pass-through** 하는 것이 적절하다.
 
-권장 echo 위치:
+실제 echo 위치:
 - `/v1/build` 응답의 별도 `provenance` 블록
-- `/v1/scan` 응답의 `execution.provenance`
+- `/v1/scan` 응답의 최상위 `provenance`
+- `/v1/build-and-analyze` 응답의 최상위 `provenance` + nested build/scan 응답
 - 향후 `/v1/functions`, `/v1/libraries`, `/v1/metadata`에도 필요 시 동일 패턴 적용
 
 단, 아래는 S4가 임의 생성하면 안 된다.
@@ -196,7 +194,6 @@ S4는 파일시스템 기반으로 deterministic target locator를 제공할 수
 - `relativePath`
 - `buildSystem`
 - `buildFile`
-- `detectedBuildCommand`
 
 S4 판단:
 - durable `buildUnitId`를 **S4가 mint하는 것은 적절하지 않다**
@@ -211,16 +208,16 @@ S4 판단:
 
 ## 9. 관련 runtime issue와 seam 연계
 
-### SDK env `exitCode=127`
+### Build path inversion 이후 failure semantics
 
 의미:
-- snapshot seam과 별개로,
-  S4 build evidence가 지금보다 더 명시적으로 실패 원인을 드러내야 한다
+- build path는 더 이상 SDK intent를 해석하지 않는다
+- 잘못된 build material은 caller fault를 포함한 explicit execution failure로 남긴다
 
-후속 runtime 작업:
-- env-setup 실패 분류
-- host dependency / shared library load 오류 메시지 개선
-- build evidence 블록에 env-setup provenance 보강
+이번 구현에서 build path는 다시 단순화된다:
+- `sdkId` 제거
+- env-setup 자동 주입 제거
+- caller supplied `buildEnvironment`만 실행
 
 ### 대형 프로젝트 stall / timeout-floor
 
@@ -228,10 +225,10 @@ S4 판단:
 - snapshot seam과 별개로,
   상위 호출자가 long-running degraded scan과 실제 hang를 구분할 수 있어야 한다
 
-후속 runtime 작업:
-- heavy analyzer vendor policy 재검토
-- timedOutFiles / degraded 상태 / budget 경고 가시화
-- heartbeat/실행 보고서 보강
+이번 구현에서 반영된 것:
+- heavy analyzer timeout-floor / timedOutFiles / failedFiles / batch metadata 노출
+- heartbeat progress에 degraded / toolStates 가시화
+- 최종 execution 보고서에 degraded 정보 보강
 
 ---
 

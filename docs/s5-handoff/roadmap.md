@@ -6,16 +6,15 @@
 
 | # | 작업 | 우선순위 |
 |---|------|---------|
-| 1 | 통합 테스트 결과 기반 후속 조치 (S3 WR 응답 대기) | 높음 |
-| 2 | code graph multi-snapshot coexistence 설계 + provenance seam 고도화 | 중간 |
-
----
+| 1 | S3가 `s5-to-s3-search-readiness-and-provenance-update.md`에 회신하거나 후속 WR을 보낼 때까지 계약 변화 모니터링 | 높음 |
+| 2 | code graph multi-snapshot coexistence 설계 (`project당 활성 그래프 1개` → snapshot-aware 모델) | 중간 |
+| 3 | graph-aware benchmark oracle 확장 (`relation-family`, `top1 exact-hit`, `match_type_counts` 활용 강화) | 중간 |
 
 ## 최근 완료 (2026-04-02)
 
 | # | 작업 | 결과 |
 |---|------|------|
-| 1 | **Degraded mode 시그널링** (구 로드맵 #6) | 검색/배치/ready 응답에 `degraded` 필드 추가. 테스트 3개 |
+| 1 | **Degraded mode 시그널링** (구 로드맵 #6) | 2026-04-02 시점 구현. 이후 2026-04-04 readiness hardening으로 threat search 성공 payload의 `degraded`는 제거되어 현재는 **historical context**만 남음 |
 | 2 | **Qdrant 서버 모드 지원** (구 로드맵 #3) | `qdrant_url` 설정으로 file/server 듀얼 모드. 테스트 5개 |
 | 3 | **벤치마크 프레임워크** (구 로드맵 #2) | `scripts/benchmark/` — validation set 35쿼리 + metrics + runner + sweep. 테스트 15개 |
 
@@ -40,6 +39,7 @@
 | 3 | **Neo4j-enabled 36조합 sweep 실행** | `min_score 0.25~0.4 × neighbor_score 0.7~0.9 × rrf_k 30/60/100` 전 구간에서 `ndcg_5=0.6111`, `mrr=0.7399`로 동일. 현재 benchmark는 graph-aware 상태에서도 파라미터 감도가 낮음 |
 | 4 | **Graph-aware oracle 추가** | validation set의 일부 exact query에 `required_match_types`를 추가하고 benchmark runner가 oracle full-pass/mean-pass를 집계하도록 확장. compare 기준 Qdrant-only `0/6` vs Neo4j-enabled `6/6` |
 | 5 | **Threat search readiness hardening + provenance seam** | Qdrant-only degraded fallback 제거. threat search는 Neo4j 필수로 정렬. code graph / project memory는 optional `buildSnapshotId` / `buildUnitId` / `sourceBuildAttemptId` seam 추가 |
+| 6 | **S3 회신 + architect 승인 + closeout sync** | `docs/work-requests/s5-to-s3-search-readiness-and-provenance-update.md` 작성, Boyle architect 승인 확보, handoff/spec/API 문서 최신 상태로 동기화 |
 
 ---
 

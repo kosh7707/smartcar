@@ -7,48 +7,27 @@
 
 ## 즉시 다음
 
-### 1. S3 WR: Build Snapshot consumer seam 정렬
+현재 미처리 WR 없음.
 
-- 대상 WR:
-  - `docs/work-requests/s3-to-s4-build-snapshot-consumer-alignment.md`
-- 목표:
-  - S4가 snapshot-first world에서 어떤 입력 provenance를 수용할지 정리
-  - `/v1/build`, `/v1/scan`, `/v1/build-and-analyze`, `/v1/discover-targets`의 역할 재정의
-  - S4 authoritative evidence vs upstream snapshot identity/pass-through 경계를 문서화
-- 현재 산출물:
-  - `docs/s4-handoff/build-snapshot-consumer-seam.md`
-  - `docs/work-requests/s4-to-s3-build-snapshot-consumer-alignment-response.md`
-
-### 2. S3 WR: SDK env 적용 빌드 `exitCode=127` 원인 정리
-
-- 대상 WR:
-  - `docs/work-requests/s3-to-s4-sdk-build-exit127-certificate-maker.md`
-  - `docs/work-requests/s3-to-s4-sdk-env-build-fallback.md`
-- 현재 판단:
-  - `environment-setup` source 이후 host dependency / shared library load 실패 가능성이 큼
-  - S4는 현재 `exitCode` + `buildOutput`만 노출하고 있어 원인 가시성이 낮음
-- 다음 runtime 작업 후보:
-  - env-setup 실패 분류/메시지 개선
-  - `buildOutput` / 실행 보고서에 SDK setup provenance 보강
-  - fallback 자체는 S4가 묵시적으로 수행하지 않고 caller(S3/S2)가 명시적으로 판단하도록 유지
-
-### 3. S3 WR: 대형 프로젝트 `/v1/scan` degraded 상태 명확화
-
-- 대상 WR:
-  - `docs/work-requests/s3-to-s4-large-scan-stall-gateway-webserver.md`
-  - `docs/work-requests/s3-to-s4-large-project-sast-timeout-floor.md`
-- 현재 판단:
-  - `gateway-webserver`는 hard hang보다는 heavy analyzer 장기 실행 + vendor 파일 timeout이 겹친 degraded 동작에 가깝다
-  - 상위 호출자(S3)가 이를 stall과 구분하기 어려운 신호 공백이 있다
-- 다음 runtime 작업 후보:
-  - heavy analyzer(vendor/third_party) 완화 정책 검토
-  - timeout-floor / timedOutFiles / degraded 상태를 더 직접적으로 노출
-  - heartbeat/진행 신호를 호출자 입장에서 stall-safe 하게 재설계
+후속 후보:
+- downstream(S2/S3) build-path adaptation feedback 수신 시 contract drift 보정
+- analysis path inversion 필요 여부는 별도 논의
+- `discover-targets` identity-hint를 upstream durable `buildUnitId` 매핑으로 연결할지 재검토
+- heavy analyzer vendor policy 자체 완화 여부(현재는 signaling/evidence만 강화됨)
 
 ---
 
 ## 최근 완료
 
+- ~~build path boundary inversion~~ — **완료** (2026-04-04, session-9)
+  - build path에서 `sdkId` 제거
+  - `buildCommand` 자동 감지 제거
+  - `/v1/sdk-registry` public API 제거
+  - build path를 caller-materialized execution-only로 재정의
+- ~~S3 WR: Build Snapshot consumer seam + SDK exit127 + large scan degraded behavior~~ — **완료** (2026-04-04, session-8)
+  - `/v1` contract rewrite 완료 (`provenance`, structured `buildEvidence`/`failureDetail`, degraded-aware heartbeat/execution metadata)
+  - `/v1/build-and-analyze`는 convenience/transitional surface로 재정의
+  - S4→S3 WR 응답 작성 완료
 - ~~S3 WR: heartbeat 진행 지표 보강~~ — **완료** (2026-04-02, session-6). progress/status 필드, per-file progress, queued/running 상태, 동시성 기본값 2
 - ~~S2 WR: cweId 메타데이터 표준화~~ — **완료** (2026-04-02, session-6). 전 도구 `metadata.cweId` 추가
 - ~~version hygiene 정리~~ — **완료** (2026-04-03, session-7). `/v1/health` 버전 상수화, 활성 문서 버전 정렬
@@ -63,7 +42,6 @@
   - 6개 메트릭 정의 (Function Recall/Precision, Call Recall/Precision, Origin Accuracy, Parse Rate)
   - ground truth fixture + 평가 엔진 + 13개 통합 테스트
   - 현재 결과: 전 메트릭 100% (10함수, 20호출 edge, 5파일)
-- Build Snapshot seam이 실제로 열리면 optional provenance field / execution echo runtime 반영
 - `/v1/build-and-analyze`를 canonical orchestration surface에서 convenience surface로 단계적 축소
 
 ---
@@ -74,8 +52,8 @@
 - wakaama 버전: 하위 tinydtls의 configure.ac를 잡아서 오탐
 - clang-tidy + compile_commands.json: `-p` 연동 불안정
 - `build-and-analyze`: 빌드 환경(SDK, 컴파일러)이 서버에 설치되어 있어야 함
-- SDK env-setup 적용 시 host shared library / toolchain mismatch로 `exitCode=127` 재현 가능
-- 대형 프로젝트에서 heavy analyzer timeout-floor warning과 vendor timeout이 상위 호출자 stall로 보일 수 있음
+- caller가 잘못된 build command / build environment를 주면 build path에서 그대로 실패하며, `failureDetail`로 가시화됨
+- 대형 프로젝트 heavy analyzer timeout-floor / vendor timeout은 여전히 발생 가능하지만, 이제 heartbeat/execution metadata로 degraded 상태가 노출됨
 
 ---
 
@@ -103,4 +81,4 @@ Analyze Phase (4m19s):
 
 - `certificate-maker` SDK 적용 빌드 첫 시도에서 `exitCode=127`, SDK 제거 재시도 시 성공
 - `gateway-webserver` 대형 scan에서 timeout-floor warning + `gcc -fanalyzer` vendor timeout 다수
-- 위 2건 모두 S3 WR로 접수됐고, 현재는 docs/contract 정렬을 먼저 진행 중
+- 위 2건 모두 S3 WR로 접수됐고, session-8에서 `/v1` runtime contract rewrite로 가시성/신호를 보강했다

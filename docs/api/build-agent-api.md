@@ -49,12 +49,13 @@ http://localhost:8003
 
 ### 핵심 의미
 
-`build-resolve`는 더 이상 “가능하면 빌드해보는” 느슨한 자동화가 아니다. 호출자는 아래 네 가지를 반드시 명시해야 한다.
+`build-resolve`는 더 이상 “가능하면 빌드해보는” 느슨한 자동화가 아니다. 호출자는 아래 다섯 가지를 반드시 명시해야 한다.
 
 1. **어느 서브프로젝트를 빌드할지** (`subprojectPath`, `subprojectName`)
 2. **어떤 빌드 모드로 빌드할지** (`build.mode`) — `native` 또는 `sdk`
-3. **SDK를 쓸 경우 어떤 SDK인지** (`build.sdkId` 등)
-4. **무엇이 성공 산출물인지** (`expectedArtifacts`)
+3. **SDK build라면 어떤 선언적 SDK identity와 materialization source를 쓸지** (`build.sdkId`, `build.setupScript`, `build.environment`, `build.scriptHintText` 중 해당 항목)
+4. **caller가 주는 build script hint가 있다면 텍스트로만** 전달할 것 (`build.scriptHintText`)
+5. **무엇이 성공 산출물인지** (`expectedArtifacts`)
 
 ### 계약 버전 / 마이그레이션
 
@@ -130,9 +131,11 @@ http://localhost:8003
 | 필드 | 타입 | 필수 | 설명 |
 |------|------|------|------|
 | `mode` | string | O | `native` 또는 `sdk` |
-| `sdkId` | string | O (`mode == "sdk"`) | 호출자가 선택한 SDK 식별자 |
-| `setupScript` | string | X | 호출자가 알고 있는 SDK environment setup 경로 |
+| `sdkId` | string | O (`mode == "sdk"`) | 호출자가 선택한 SDK 식별자 (declaration) |
+| `setupScript` | string | X | caller가 알고 있는 SDK environment setup 경로. S3가 build script/source materialization에 사용 |
+| `environment` | object | X | caller가 알고 있는 명시적 환경변수 맵 (`KEY -> value`). 값은 문자열이어야 함 |
 | `toolchainTriplet` | string | X | 예: `arm-linux-gnueabihf` |
+| `scriptHintText` | string | X | caller가 제공하는 **text-only / reference-only** build script hint. 직접 실행 금지 |
 
 ### `expectedArtifacts[]` 필드
 
@@ -148,10 +151,12 @@ http://localhost:8003
 1. **명시적 서브프로젝트 필수** — `subprojectPath` 누락 시 요청은 유효하지 않다.
 2. **명시적 모드 필수** — Build Agent가 `native` 와 `sdk` 사이를 추측하지 않는다.
 3. **native도 선언된 모드** — “SDK가 안 되면 native로 fallback”은 허용되지 않는다.
-4. **`expectedArtifacts` 기반 성공 판정** — 빌드 exit code만으로 성공 처리하지 않는다.
-5. **compile database-only 성공 금지** — `compile_commands.json` 또는 부분 `userEntries`는 성공으로 간주하지 않는다.
-6. **silent third-party exclusion 금지** — 의존성 문제를 숨기기 위해 기능/라이브러리를 조용히 끄고 성공 처리하지 않는다.
-7. **shell + gcc 경로 우선 지원** — `scripts/cross_build.sh`, hand-written gcc shell 빌드도 1급 경로로 다룬다.
+4. **sdk 모드는 materialization source가 필요** — strict caller는 `build.setupScript`, `build.environment`, `build.scriptHintText` 중 최소 하나를 제공해야 한다.
+5. **caller build script hint는 참고용 텍스트일 뿐** — 직접 실행 입력이 아니다.
+6. **`expectedArtifacts` 기반 성공 판정** — 빌드 exit code만으로 성공 처리하지 않는다.
+7. **compile database-only 성공 금지** — `compile_commands.json` 또는 부분 `userEntries`는 성공으로 간주하지 않는다.
+8. **silent third-party exclusion 금지** — 의존성 문제를 숨기기 위해 기능/라이브러리를 조용히 끄고 성공 처리하지 않는다.
+9. **shell + gcc 경로 우선 지원** — `scripts/cross_build.sh`, hand-written gcc shell 빌드도 1급 경로로 다룬다.
 
 ### 사전 검증 (Preflight)
 
@@ -160,6 +165,7 @@ LLM 루프 전에 아래를 결정론적으로 검증한다.
 - strict 필수 필드 존재 여부
 - `build.mode` 값 유효성
 - `sdk` 모드일 때 `sdkId` 존재 여부
+- `sdk` 모드일 때 caller materialization source(`build.setupScript`, `build.environment`, `build.scriptHintText`) 존재 여부
 - `expectedArtifacts` 구조 유효성
 - `subprojectPath`가 `projectPath` 하위인지 여부
 
@@ -180,7 +186,7 @@ Build Agent가 LLM repair 루프 안에서 사용하는 도구:
 | `delete_file` | CHEAP | request-scoped `build-aegis-<requestIdPrefix>/` 내 에이전트 생성 파일 삭제 |
 | `try_build` | EXPENSIVE | S4에 빌드 명령을 전송하여 실제 빌드 수행 |
 
-`try_build`는 호출자가 선언한 `build.mode`를 따른다. SDK가 선언되지 않았으면 SDK source를 추론해서 붙이지 않으며, `sdk` 모드에서는 선언된 SDK 정보 없이는 성공을 반환하지 않는다.
+`try_build`는 호출자가 선언한 `build.mode`를 따른다. build path에서 S4는 더 이상 `sdkId`를 해석하지 않으므로, S3는 caller가 제공한 `setupScript` / `environment` / synthesized script를 바탕으로 **명시적 buildCommand와 buildEnvironment**를 materialize해서 넘겨야 한다. caller build script hint는 텍스트 참고 자료로만 사용한다.
 
 ---
 
@@ -307,7 +313,7 @@ HTTP `200` + `status: "{failure_status}"`
 | failureCode | status | retryable | 설명 |
 |-------------|--------|-----------|------|
 | `INVALID_SCHEMA` | `validation_failed` | `false` | `contractVersion`, `strictMode`, `subprojectPath`, `build.mode`, `expectedArtifacts` 등 strict 필수 입력 누락/오류 |
-| `SDK_MISMATCH` | `validation_failed` 또는 `failed` | `false` 또는 `true` | strict preflight의 sdk-registry 검증 실패 또는 실행 단계의 SDK/툴체인 불일치 |
+| `SDK_MISMATCH` | `validation_failed` 또는 `failed` | `false` 또는 `true` | caller가 제공한 SDK materialization source(setupScript/environment/hint)와 실제 build execution이 맞지 않음 |
 | `MISSING_BUILD_MATERIALS` | `validation_failed` 또는 `failed` | `false` | 필요한 소스/스크립트/헤더/라이브러리 등 입력 재료 부족 |
 | `BUILD_SCRIPT_SYNTHESIS_FAILED` | `validation_failed` 또는 `failed` | `false` | 재사용 가능한 build script / command를 만들지 못함 |
 | `COMPILE_FAILED` | `validation_failed` 또는 `failed` | `false` 또는 `true` | 선언된 조건으로 빌드가 실제 실패 |

@@ -3,7 +3,7 @@
 > **소유자**: S5 (Knowledge Base)
 > **포트**: 8002
 > **호출자**: S2 (Backend), S3 (Analysis Agent)
-> **최종 업데이트**: 2026-04-04 (threat search readiness hardening + code graph/project memory provenance seam)
+> **최종 업데이트**: 2026-04-04 (threat search readiness hardening + code graph/project memory provenance seam + closeout sync)
 
 ---
 
@@ -35,6 +35,11 @@ http://localhost:8002/v1
 ### 인증
 
 없음. 내부 서비스 간 통신 전용.
+
+### 2026-04-04 마이그레이션 노트
+
+- threat search는 더 이상 Neo4j 없는 degraded vector-only 경로를 지원하지 않는다. `POST /v1/search`, `POST /v1/search/batch`, `GET /v1/ready`는 모두 Neo4j availability와 정렬된다.
+- code graph / project memory provenance 필드(`buildSnapshotId`, `buildUnitId`, `sourceBuildAttemptId`)는 **additive seam**이다. 기존 caller는 그대로 동작하고, provenance-aware caller만 선택적으로 사용하면 된다.
 
 ### 에러 응답
 

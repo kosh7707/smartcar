@@ -136,6 +136,7 @@ threat search는 이제 **Qdrant + Neo4j 둘 다 필요**하다:
 - code graph ingest/search/read surface는 선택적으로 `buildSnapshotId`, `buildUnitId`, `sourceBuildAttemptId`를 수용/반환한다.
 - project memory create/list도 같은 provenance 메타데이터를 수용/반환한다.
 - 현재 단계는 **프로젝트당 활성 code graph 1개**를 유지하며, provenance는 future snapshot-aware 확장을 위한 **metadata/filter seam**이다.
+- 외부 lane 통지는 `docs/work-requests/s5-to-s3-search-readiness-and-provenance-update.md`에 정리되어 있다.
 
 ---
 

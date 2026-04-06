@@ -14,8 +14,9 @@
    - `s3-to-s4-large-scan-stall-gateway-webserver.md`
    - `s3-to-s4-large-project-sast-timeout-floor.md`
 
-동시에 S3가 live integration test / hot-reload 민감 구간에 있는 것으로 보였기 때문에,
-이번 세션은 **runtime code 변경보다 docs/contract/handoff 정렬을 우선**했다.
+동시에 S3가 live integration test / hot-reload 민감 구간에 있는 것으로 보여,
+세션 초반에는 **docs/contract/handoff 정렬을 우선**했고,
+이후 테스트 공백 구간에 실제 runtime contract rewrite까지 마무리했다.
 
 ## 이번 세션에서 한 일
 
@@ -57,6 +58,31 @@
 - `docs/work-requests/s4-to-s3-build-snapshot-consumer-alignment-response.md`
 - `docs/work-requests/s4-to-s3-build-and-scan-degraded-behavior-response.md`
 
+### 5. `/deep-interview -> ralplan -> ralph` 실행 후 runtime 구현
+
+세션 후반부에 아래가 추가로 완료되었다.
+
+- `/v1` breaking contract rewrite (`/v2` 미도입, compatibility shim 없음)
+- `Build Snapshot provenance` 입력/echo
+- `/v1/build` structured `buildEvidence` + `failureDetail`
+- `/v1/scan` degraded-aware heartbeat / execution metadata
+- `/v1/build-and-analyze` contract 정렬 (convenience / transitional surface 유지)
+
+핵심 구현 파일:
+- `services/sast-runner/app/config.py`
+- `services/sast-runner/app/schemas/request.py`
+- `services/sast-runner/app/schemas/response.py`
+- `services/sast-runner/app/routers/scan.py`
+- `services/sast-runner/app/scanner/build_runner.py`
+- `services/sast-runner/app/scanner/orchestrator.py`
+- `services/sast-runner/app/scanner/gcc_analyzer_runner.py`
+- `services/sast-runner/app/scanner/scanbuild_runner.py`
+
+핵심 테스트 파일:
+- `services/sast-runner/tests/test_build_runner.py`
+- `services/sast-runner/tests/test_scan_endpoint.py`
+- `services/sast-runner/tests/test_orchestrator.py`
+
 ## 현재 판단
 
 ### Build Snapshot alignment
@@ -79,15 +105,17 @@
   heavy analyzer 장기 실행 + vendor timeout이 겹친 degraded behavior에 가까움
 - 상위 호출자(S3)가 이를 stall과 구분하기 어려운 현재 신호 공백이 존재
 
-## 미완료 / 다음 세션
+## 검증
 
-runtime code 변경은 이번 세션에서 일부러 미뤘다.
+- `pytest services/sast-runner/tests/test_build_runner.py services/sast-runner/tests/test_scan_endpoint.py services/sast-runner/tests/test_orchestrator.py`
+  - **102 passed**
+- `python -m py_compile`
+  - request/response/router/build/orchestrator/heavy-analyzer runner 통과
+- `pytest --collect-only`
+  - **375 tests collected**
 
-우선순위:
-1. WR 응답 문서 최종 정리/발송
-2. 필요 시 API/spec에 “planned / not-yet-implemented seam” 명시
-3. S3 live test 구간이 끝나면
-   - SDK env failure 가시화
-   - degraded execution metadata
-   - heartbeat/timeout-floor 개선
-   를 S4 코드에 반영
+## 다음 세션
+
+1. S2/S3의 downstream adaptation feedback 수신 시 contract drift 보정
+2. 필요하면 `discover-targets` identity-hint → upstream durable identity 매핑 전략 논의
+3. heavy analyzer vendor policy 자체 완화는 별도 판단
