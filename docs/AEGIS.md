@@ -143,6 +143,7 @@ Do **not** use this file as a deep knowledge base for specs, APIs, handoff histo
 Only these paths remain local after the cutover:
 
 - `docs/AEGIS.md`
+- `docs/mcp.md`
 
 Everything else under the previous `docs/**` tree is canonicalized in the wiki.
 
