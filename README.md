@@ -8,7 +8,6 @@
 - Start at: `/home/kosh/aegis-static-wiki/wiki/system/index.md`
 - Local repo docs are intentionally reduced to:
   - `docs/AEGIS.md`
-  - `docs/work-requests/**`
 - Use `/home/kosh/aegis-static-wiki/wiki/system/migration-map.md` to resolve legacy `docs/**` references that still appear in comments or historical notes.
 
 ## Prerequisites

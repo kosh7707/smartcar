@@ -1,7 +1,7 @@
 # AEGIS local bootstrap router
 
 > Canonical agent-facing documentation now lives in **`/home/kosh/aegis-static-wiki`**.
-> This repository keeps only the minimum local bootstrap surface required to enter the wiki and to exchange local work requests.
+> This repository keeps only the minimum local bootstrap surface required to enter the wiki from `~/AEGIS`.
 
 ## Start here
 
@@ -126,7 +126,6 @@ The JSON map below is **authoritative**. The following human-readable table is a
 Only these paths remain local after the cutover:
 
 - `docs/AEGIS.md`
-- `docs/work-requests/**`
 
 Everything else under the previous `docs/**` tree is canonicalized in the wiki.
 
@@ -142,8 +141,9 @@ That file is the authoritative old-path → wiki-path ledger for the cutover.
 
 ## Work-request rule
 
-Local coordination requests may still be exchanged through `docs/work-requests/**` when a repo-local handoff is needed.
-Canonical copies also exist in the wiki. If the two surfaces diverge, the wiki copy wins.
+Work requests are now read and maintained through the canonical wiki surface:
+
+- `/home/kosh/aegis-static-wiki/wiki/canon/work-requests/`
 
 ## Cutover note
 
