@@ -29,6 +29,8 @@ Routing rules:
 
 ### Machine-readable lane map
 
+The JSON map below is **authoritative**. The following human-readable table is an intentional mirror for quick inspection.
+
 <!-- LANE_BOOTSTRAP_MAP:START -->
 ```json
 {

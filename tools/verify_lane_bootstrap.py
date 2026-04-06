@@ -18,8 +18,7 @@ def fail(message: str) -> None:
     sys.exit(1)
 
 
-def extract_map() -> dict:
-    text = BOOTSTRAP_DOC.read_text(encoding="utf-8")
+def extract_map(text: str) -> dict:
     pattern = re.compile(
         re.escape(START_MARKER) + r"\s*```json\s*(\{.*?\})\s*```\s*" + re.escape(END_MARKER),
         re.S,
@@ -37,7 +36,8 @@ def main() -> None:
     if not BOOTSTRAP_DOC.exists():
         fail("docs/AEGIS.md missing")
 
-    data = extract_map()
+    text = BOOTSTRAP_DOC.read_text(encoding="utf-8")
+    data = extract_map(text)
     if data.get("precedence_rule") != "last-token-wins":
         fail("precedence_rule must be last-token-wins")
     if data.get("idempotent_on_same_lane") is not True:
@@ -62,8 +62,6 @@ def main() -> None:
         for owned_path in owned:
             if not Path(owned_path).exists():
                 fail(f"{lane} owned code path does not exist: {owned_path}")
-
-    text = BOOTSTRAP_DOC.read_text(encoding="utf-8")
     for needle in [
         "Read this file first.",
         "the last explicit lane token wins",
