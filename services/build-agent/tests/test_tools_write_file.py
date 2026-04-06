@@ -144,3 +144,12 @@ async def test_write_unicode_byte_count(tmp_path):
     assert result.success is True
     data = json.loads(result.content)
     assert data["bytes"] == len(korean.encode("utf-8"))
+
+
+@pytest.mark.asyncio
+async def test_write_blocks_forbidden_content(tmp_path):
+    tool = WriteFileTool(project_path=str(tmp_path))
+    result = await tool.execute({"path": "script.sh", "content": "apt-get update -qq"})
+
+    assert result.success is False
+    assert "forbidden content" in (result.error or "")

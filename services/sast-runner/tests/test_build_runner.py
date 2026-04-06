@@ -1,4 +1,4 @@
-"""BuildRunner 단위 테스트 — detect_build_command, discover_targets, build."""
+"""BuildRunner 단위 테스트 — explicit build execution, discover_targets."""
 
 import json
 from pathlib import Path
@@ -14,56 +14,13 @@ def runner():
     return BuildRunner()
 
 
-class TestDetectBuildCommand:
-    def test_makefile(self, runner, tmp_path):
-        (tmp_path / "Makefile").write_text("all:\n\tgcc -o main main.c\n")
-        cmd = runner.detect_build_command(tmp_path)
-        assert cmd == "make"
-
-    def test_cmake(self, runner, tmp_path):
-        (tmp_path / "CMakeLists.txt").write_text("project(test)\n")
-        cmd = runner.detect_build_command(tmp_path)
-        assert "cmake" in cmd
-
-    def test_configure(self, runner, tmp_path):
-        (tmp_path / "configure").write_text("#!/bin/sh\n")
-        (tmp_path / "configure").chmod(0o755)
-        cmd = runner.detect_build_command(tmp_path)
-        assert "configure" in cmd
-
-    def test_build_script_priority(self, runner, tmp_path):
-        """빌드 스크립트가 Makefile보다 우선."""
-        (tmp_path / "Makefile").write_text("all:\n")
-        scripts = tmp_path / "scripts"
-        scripts.mkdir()
-        (scripts / "build.sh").write_text("#!/bin/sh\nmake\n")
-        (scripts / "build.sh").chmod(0o755)
-        cmd = runner.detect_build_command(tmp_path)
-        assert "build.sh" in cmd
-
-    def test_no_build_system(self, runner, tmp_path):
-        cmd = runner.detect_build_command(tmp_path)
-        assert cmd is None
-
-    def test_cross_build_script_highest_priority(self, runner, tmp_path):
-        """cross_build.sh가 최우선."""
-        (tmp_path / "Makefile").write_text("all:\n")
-        scripts = tmp_path / "scripts"
-        scripts.mkdir()
-        (scripts / "cross_build.sh").write_text("#!/bin/sh\n")
-        (scripts / "cross_build.sh").chmod(0o755)
-        (scripts / "build.sh").write_text("#!/bin/sh\n")
-        (scripts / "build.sh").chmod(0o755)
-        cmd = runner.detect_build_command(tmp_path)
-        assert "cross_build" in cmd
-
-
 class TestDiscoverTargets:
     def test_single_makefile(self, runner, tmp_path):
         (tmp_path / "Makefile").write_text("all:\n")
         targets = runner.discover_targets(tmp_path)
         assert len(targets) == 1
         assert targets[0]["buildSystem"] == "make"
+        assert "detectedBuildCommand" not in targets[0]
 
     def test_nested_cmake(self, runner, tmp_path):
         (tmp_path / "CMakeLists.txt").write_text("project(root)\n")
@@ -71,7 +28,6 @@ class TestDiscoverTargets:
         sub.mkdir()
         (sub / "CMakeLists.txt").write_text("project(sub)\n")
         targets = runner.discover_targets(tmp_path)
-        # 루트 + 하위 모두 발견될 수 있음 (nested dedup은 동일 빌드 시스템 내 부모-자식 관계)
         assert len(targets) >= 1
 
     def test_multiple_independent_targets(self, runner, tmp_path):
@@ -90,7 +46,6 @@ class TestDiscoverTargets:
 
 
 def _make_proc_mock(returncode: int, stdout: bytes = b"", stderr: bytes = b""):
-    """asyncio.create_subprocess_exec 결과를 모킹."""
     proc = AsyncMock()
     proc.returncode = returncode
     proc.communicate = AsyncMock(return_value=(stdout, stderr))
@@ -98,11 +53,8 @@ def _make_proc_mock(returncode: int, stdout: bytes = b"", stderr: bytes = b""):
 
 
 class TestBuild:
-    """BuildRunner.build() 단위 테스트 — success 판정 로직."""
-
     @pytest.mark.asyncio
     async def test_success_when_exit_zero(self, runner, tmp_path):
-        """exitCode=0 + entries > 0 → success: true."""
         cc = [{"file": "src/main.c", "command": "gcc -c src/main.c", "directory": str(tmp_path)}]
         (tmp_path / "compile_commands.json").write_text(json.dumps(cc))
 
@@ -111,13 +63,31 @@ class TestBuild:
             result = await runner.build(tmp_path, "make")
 
         assert result["success"] is True
-        assert result["exitCode"] == 0
-        assert result["entries"] == 1
-        assert result["userEntries"] == 1
+        assert result["buildEvidence"]["exitCode"] == 0
+        assert result["buildEvidence"]["entries"] == 1
+        assert result["buildEvidence"]["userEntries"] == 1
+        assert result["failureDetail"] is None
+
+    @pytest.mark.asyncio
+    async def test_environment_keys_echoed_without_mutation(self, runner, tmp_path):
+        cc = [{"file": "src/main.c", "command": "gcc -c src/main.c", "directory": str(tmp_path)}]
+        (tmp_path / "compile_commands.json").write_text(json.dumps(cc))
+
+        proc = _make_proc_mock(0, b"OK\n")
+        with patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec:
+            result = await runner.build(
+                tmp_path,
+                "./toolchains/build.sh",
+                environment={"SDK_ROOT": "/uploads/sdk", "CC": "/uploads/sdk/bin/gcc"},
+            )
+
+        assert result["success"] is True
+        assert result["buildEvidence"]["effectiveBuildCommand"] == "./toolchains/build.sh"
+        assert result["buildEvidence"]["environmentKeys"] == ["CC", "SDK_ROOT"]
+        assert mock_exec.call_args.kwargs["env"]["SDK_ROOT"] == "/uploads/sdk"
 
     @pytest.mark.asyncio
     async def test_failure_with_partial_entries(self, runner, tmp_path):
-        """exitCode=1 + user entries > 0 → success: false + warning (부분 compile_commands)."""
         cc = [{"file": "src/main.c", "command": "gcc -c src/main.c", "directory": str(tmp_path)}]
         (tmp_path / "compile_commands.json").write_text(json.dumps(cc))
 
@@ -126,20 +96,16 @@ class TestBuild:
             result = await runner.build(tmp_path, "make")
 
         assert result["success"] is False
-        assert result["exitCode"] == 1
-        assert result["entries"] == 1
-        assert result["userEntries"] == 1
-        assert "warning" in result
-        assert "partial" in result["warning"]
-        assert "compileCommandsPath" in result
+        assert result["buildEvidence"]["exitCode"] == 1
+        assert result["buildEvidence"]["entries"] == 1
+        assert result["buildEvidence"]["userEntries"] == 1
+        assert result["failureDetail"]["category"] == "build-process"
 
     @pytest.mark.asyncio
     async def test_failure_cmake_temp_only(self, runner, tmp_path):
-        """exitCode=1 + CMakeFiles 임시 항목만 → success: false + userEntries=0."""
         cc = [
             {"file": "/tmp/build/CMakeFiles/CMakeCCompilerId.c", "command": "gcc -c CMakeCCompilerId.c", "directory": "/tmp"},
             {"file": "/tmp/build/CMakeFiles/CMakeCXXCompilerId.cpp", "command": "g++ -c CMakeCXXCompilerId.cpp", "directory": "/tmp"},
-            {"file": "/tmp/build/CMakeFiles/CMakeCCompilerABI.c", "command": "gcc -c CMakeCCompilerABI.c", "directory": "/tmp"},
         ]
         (tmp_path / "compile_commands.json").write_text(json.dumps(cc))
 
@@ -148,24 +114,20 @@ class TestBuild:
             result = await runner.build(tmp_path, "cmake -S . -B build && cmake --build build")
 
         assert result["success"] is False
-        assert result["exitCode"] == 1
-        assert result["entries"] == 3
-        assert result["userEntries"] == 0
-        assert "CMake temporary" in result["error"]
+        assert result["buildEvidence"]["userEntries"] == 0
+        assert "CMake temporary" in result["failureDetail"]["summary"]
 
     @pytest.mark.asyncio
     async def test_failure_no_compile_commands(self, runner, tmp_path):
-        """compile_commands.json 미생성 → success: false."""
         proc = _make_proc_mock(2, b"", b"bear: error\n")
         with patch("asyncio.create_subprocess_exec", return_value=proc):
             result = await runner.build(tmp_path, "make")
 
         assert result["success"] is False
-        assert "bear did not generate" in result["error"]
+        assert result["failureDetail"]["category"] == "compile-commands-missing"
 
     @pytest.mark.asyncio
     async def test_failure_empty_compile_commands(self, runner, tmp_path):
-        """빈 compile_commands.json → success: false."""
         (tmp_path / "compile_commands.json").write_text("[]")
 
         proc = _make_proc_mock(0)
@@ -173,21 +135,17 @@ class TestBuild:
             result = await runner.build(tmp_path, "make")
 
         assert result["success"] is False
-        assert "empty" in result["error"]
+        assert result["failureDetail"]["category"] == "compile-commands-empty"
 
     @pytest.mark.asyncio
     async def test_timeout(self, runner, tmp_path):
-        """빌드 타임아웃 → success: false."""
         import asyncio
 
         proc = AsyncMock()
         proc.returncode = -9
-        proc.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
         proc.kill = AsyncMock()
 
-        # kill 후 communicate 재호출 모킹
         call_count = 0
-        original = proc.communicate
 
         async def side_effect_fn():
             nonlocal call_count
@@ -202,11 +160,39 @@ class TestBuild:
             result = await runner.build(tmp_path, "make", timeout=1)
 
         assert result["success"] is False
-        assert "timed out" in result["error"]
+        assert result["failureDetail"]["category"] == "timeout"
+
+    @pytest.mark.asyncio
+    async def test_shared_library_load_classified_generically(self, runner, tmp_path):
+        cc = [{"file": "src/main.c", "command": "gcc -c src/main.c", "directory": str(tmp_path)}]
+        (tmp_path / "compile_commands.json").write_text(json.dumps(cc))
+
+        proc = _make_proc_mock(
+            127,
+            b"",
+            b"error while loading shared libraries: libfoo.so: cannot open shared object file\n",
+        )
+        with patch("asyncio.create_subprocess_exec", return_value=proc):
+            result = await runner.build(tmp_path, "./build.sh", environment={"LD_LIBRARY_PATH": "/uploads/sdk"})
+
+        assert result["success"] is False
+        assert result["failureDetail"]["category"] == "shared-library-load"
+        assert result["buildEvidence"]["environmentKeys"] == ["LD_LIBRARY_PATH"]
+
+    @pytest.mark.asyncio
+    async def test_exit127_classified_as_command_not_found(self, runner, tmp_path):
+        cc = [{"file": "src/main.c", "command": "gcc -c src/main.c", "directory": str(tmp_path)}]
+        (tmp_path / "compile_commands.json").write_text(json.dumps(cc))
+
+        proc = _make_proc_mock(127, b"", b"bash: missing-tool: command not found\n")
+        with patch("asyncio.create_subprocess_exec", return_value=proc):
+            result = await runner.build(tmp_path, "missing-tool")
+
+        assert result["success"] is False
+        assert result["failureDetail"]["category"] == "command-not-found"
 
     @pytest.mark.asyncio
     async def test_wrap_with_bear_true(self, runner, tmp_path):
-        """wrapWithBear=True(기본값) → bear로 감싸서 실행."""
         cc = [{"file": "src/main.c", "command": "gcc -c src/main.c", "directory": str(tmp_path)}]
         (tmp_path / "compile_commands.json").write_text(json.dumps(cc))
 
@@ -220,7 +206,6 @@ class TestBuild:
 
     @pytest.mark.asyncio
     async def test_wrap_with_bear_false(self, runner, tmp_path):
-        """wrapWithBear=False → bear 없이 순수 실행."""
         cc = [{"file": "src/main.c", "command": "gcc -c src/main.c", "directory": str(tmp_path)}]
         (tmp_path / "compile_commands.json").write_text(json.dumps(cc))
 

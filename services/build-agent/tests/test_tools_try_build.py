@@ -183,7 +183,7 @@ async def test_s4_network_error(monkeypatch):
 
 
 def test_validate_success():
-    ok, warn = _validate_build_result({"success": True, "exitCode": 0, "entries": 7})
+    ok, warn = _validate_build_result({"success": True, "buildEvidence": {"exitCode": 0, "entries": 7}})
     assert ok is True
     assert warn is None
 
@@ -212,7 +212,7 @@ def test_validate_partial_compile_commands_warning_uses_user_entries():
 
 
 def test_validate_s4_reports_failure():
-    ok, warn = _validate_build_result({"success": False, "exitCode": 2, "entries": 0})
+    ok, warn = _validate_build_result({"success": False, "buildEvidence": {"exitCode": 2, "entries": 0}})
     assert ok is False
 
 
@@ -229,30 +229,33 @@ async def test_exit_code_nonzero_overrides_s4_success(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# SDK + bear + regex tests (v2)
+# explicit buildEnvironment / provenance + bear + regex tests
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_sdk_id_sends_build_profile(monkeypatch):
-    """sdk_id 전달 시 buildProfile이 S4 요청에 포함된다."""
-    mock_client = _make_mock_client({"success": True, "exitCode": 0, "entries": 5})
+async def test_default_build_environment_is_sent(monkeypatch):
+    """default buildEnvironment가 S4 요청에 포함된다."""
+    mock_client = _make_mock_client({"success": True, "buildEvidence": {"exitCode": 0, "entries": 5}})
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: mock_client)
 
-    tool = TryBuildTool(sast_endpoint="http://localhost:9000", project_path="/tmp/test")
-    result = await tool.execute({"build_command": "bash build-aegis/aegis-build.sh", "sdk_id": "ti-am335x"})
+    tool = TryBuildTool(
+        sast_endpoint="http://localhost:9000",
+        project_path="/tmp/test",
+        default_build_environment={"CC": "/opt/toolchains/arm-gcc"},
+    )
+    result = await tool.execute({"build_command": "bash build-aegis/aegis-build.sh"})
 
     assert result.success is True
-    # S4에 보낸 payload 확인
     call_args = mock_client.post.call_args
     payload = call_args.kwargs.get("json") or call_args[1].get("json")
-    assert payload["buildProfile"] == {"sdkId": "ti-am335x"}
+    assert payload["buildEnvironment"] == {"CC": "/opt/toolchains/arm-gcc"}
 
 
 @pytest.mark.asyncio
-async def test_no_sdk_id_no_build_profile(monkeypatch):
-    """sdk_id 미전달 시 buildProfile이 없다."""
-    mock_client = _make_mock_client({"success": True, "exitCode": 0, "entries": 5})
+async def test_no_build_environment_when_absent(monkeypatch):
+    """buildEnvironment가 없으면 payload에 포함하지 않는다."""
+    mock_client = _make_mock_client({"success": True, "buildEvidence": {"exitCode": 0, "entries": 5}})
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: mock_client)
 
     tool = TryBuildTool(sast_endpoint="http://localhost:9000", project_path="/tmp/test")
@@ -260,13 +263,56 @@ async def test_no_sdk_id_no_build_profile(monkeypatch):
 
     call_args = mock_client.post.call_args
     payload = call_args.kwargs.get("json") or call_args[1].get("json")
-    assert "buildProfile" not in payload
+    assert "buildEnvironment" not in payload
+
+
+@pytest.mark.asyncio
+async def test_execute_merges_override_build_environment(monkeypatch):
+    mock_client = _make_mock_client({"success": True, "buildEvidence": {"exitCode": 0, "entries": 5}})
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: mock_client)
+
+    tool = TryBuildTool(
+        sast_endpoint="http://localhost:9000",
+        project_path="/tmp/test",
+        default_build_environment={"CC": "/opt/toolchains/arm-gcc", "SYSROOT": "/opt/sysroot"},
+    )
+    await tool.execute(
+        {
+            "build_command": "make -j4",
+            "build_environment": {"SYSROOT": "/custom/sysroot", "CXX": "/opt/toolchains/arm-g++"},
+        }
+    )
+
+    call_args = mock_client.post.call_args
+    payload = call_args.kwargs.get("json") or call_args[1].get("json")
+    assert payload["buildEnvironment"] == {
+        "CC": "/opt/toolchains/arm-gcc",
+        "SYSROOT": "/custom/sysroot",
+        "CXX": "/opt/toolchains/arm-g++",
+    }
+
+
+@pytest.mark.asyncio
+async def test_execute_includes_provenance(monkeypatch):
+    mock_client = _make_mock_client({"success": True, "buildEvidence": {"exitCode": 0, "entries": 5}})
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: mock_client)
+
+    tool = TryBuildTool(
+        sast_endpoint="http://localhost:9000",
+        project_path="/tmp/test",
+        provenance={"buildSnapshotId": "bsnap-1", "buildUnitId": "bunit-1"},
+    )
+    await tool.execute({"build_command": "make -j4"})
+
+    call_args = mock_client.post.call_args
+    payload = call_args.kwargs.get("json") or call_args[1].get("json")
+    assert payload["provenance"] == {"buildSnapshotId": "bsnap-1", "buildUnitId": "bunit-1"}
 
 
 @pytest.mark.asyncio
 async def test_bear_auto_stripped(monkeypatch):
     """LLM이 bear --를 넣어도 자동 제거된다."""
-    mock_client = _make_mock_client({"success": True, "exitCode": 0, "entries": 5})
+    mock_client = _make_mock_client({"success": True, "buildEvidence": {"exitCode": 0, "entries": 5}})
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: mock_client)
 
     tool = TryBuildTool(sast_endpoint="http://localhost:9000", project_path="/tmp/test")
@@ -281,7 +327,7 @@ async def test_bear_auto_stripped(monkeypatch):
 @pytest.mark.asyncio
 async def test_shell_gcc_command_preserved_and_request_id_forwarded(monkeypatch):
     """shell+gcc 경로도 그대로 전달되고 request id가 헤더에 전파된다."""
-    mock_client = _make_mock_client({"success": True, "exitCode": 0, "entries": 2})
+    mock_client = _make_mock_client({"success": True, "buildEvidence": {"exitCode": 0, "entries": 2}})
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: mock_client)
 
     tool = TryBuildTool(
@@ -299,8 +345,9 @@ async def test_shell_gcc_command_preserved_and_request_id_forwarded(monkeypatch)
     payload = call_args.kwargs.get("json") or call_args[1].get("json")
     headers = call_args.kwargs.get("headers") or call_args[1].get("headers")
     assert payload["buildCommand"] == "./build.sh && arm-none-linux-gnueabihf-gcc -o app src/main.c"
-    assert "buildProfile" not in payload
+    assert "buildEnvironment" not in payload
     assert headers["X-Request-Id"] == "req-shell-gcc-001"
+    assert headers["X-Timeout-Ms"] == "120000"
 
 
 @pytest.mark.asyncio
@@ -312,3 +359,25 @@ async def test_arm_compiler_not_blocked():
     # 네트워크 에러가 나는 것은 OK (금지 명령어 통과 증명)
     result = await tool.execute({"build_command": "arm-none-linux-gnueabihf-gcc -c main.c"})
     assert "forbidden" not in (result.error or "")
+
+
+@pytest.mark.asyncio
+async def test_failure_detail_is_included_in_warning(monkeypatch):
+    _patch_httpx(
+        monkeypatch,
+        {
+            "success": False,
+            "buildEvidence": {"exitCode": 127, "userEntries": 0},
+            "failureDetail": {
+                "category": "command-not-found",
+                "summary": "The supplied build command referenced an unavailable executable.",
+                "hint": "Caller must provide a valid build command.",
+            },
+        },
+    )
+
+    tool = TryBuildTool(sast_endpoint="http://localhost:9000", project_path="/tmp/test")
+    result = await tool.execute({"build_command": "bash missing.sh"})
+
+    assert result.success is False
+    assert "Caller must provide a valid build command." in result.content

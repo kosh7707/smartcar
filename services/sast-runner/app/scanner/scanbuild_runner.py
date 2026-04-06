@@ -69,6 +69,7 @@ class ScanbuildRunner:
         profile: BuildProfile | None,
         timeout: int = 120,
         on_file_progress=None,
+        on_runtime_state=None,
     ) -> list[SastFinding]:
         available, scan_build_bin = await self.check_available()
         if not available:
@@ -89,7 +90,8 @@ class ScanbuildRunner:
         _sem = asyncio.Semaphore(_concurrency)
         _batches = -(-len(c_cpp_files) // _concurrency)  # ceil division
         per_file_timeout = max(timeout // max(_batches, 1), 10)
-        if per_file_timeout * _batches > timeout:
+        budget_warning = per_file_timeout * _batches > timeout
+        if budget_warning:
             logger.warning(
                 "Per-file timeout floor (%ds) may exceed budget (%ds for %d batches)",
                 per_file_timeout, timeout, _batches,
@@ -97,31 +99,74 @@ class ScanbuildRunner:
 
         files_done = 0
         total_files = len(c_cpp_files)
+        timed_out = 0
+        failed = 0
+
+        async def _emit_runtime_state() -> None:
+            reasons = []
+            if budget_warning:
+                reasons.append("timeout-floor")
+            if timed_out > 0:
+                reasons.append("timed-out-files")
+            if failed > 0:
+                reasons.append("failed-files")
+            if on_runtime_state:
+                await on_runtime_state(
+                    {
+                        "filesCompleted": files_done,
+                        "filesAttempted": total_files,
+                        "timedOutFiles": timed_out,
+                        "failedFiles": failed,
+                        "batchCount": _batches,
+                        "timeoutBudgetSeconds": timeout,
+                        "perFileTimeoutSeconds": per_file_timeout,
+                        "budgetWarning": budget_warning,
+                        "degraded": bool(reasons),
+                        "degradeReasons": reasons,
+                    },
+                )
 
         async def _guarded(f: str) -> list[SastFinding]:
-            nonlocal files_done
+            nonlocal files_done, timed_out, failed
             async with _sem:
-                result = await self._run_single(bin_name, scan_dir, f, profile, per_file_timeout)
-            files_done += 1
-            if on_file_progress:
-                await on_file_progress(f, files_done, total_files)
-            return result
+                try:
+                    result = await self._run_single(bin_name, scan_dir, f, profile, per_file_timeout)
+                    if result is None:
+                        timed_out += 1
+                    return result
+                except Exception:
+                    failed += 1
+                    raise
+                finally:
+                    files_done += 1
+                    if on_file_progress:
+                        await on_file_progress(f, files_done, total_files)
+                    await _emit_runtime_state()
+
+        await _emit_runtime_state()
 
         results = await asyncio.gather(
             *[_guarded(f) for f in c_cpp_files], return_exceptions=True,
         )
 
         all_findings: list[SastFinding] = []
-        timed_out = 0
         for f, result in zip(c_cpp_files, results):
             if isinstance(result, Exception):
                 logger.warning("scan-build failed for %s: %s", f, result)
-            elif result is None:
-                timed_out += 1
             else:
-                all_findings.extend(result)
+                all_findings.extend(result or [])
 
         self._last_timed_out = timed_out
+        self._last_failed = failed
+        self._last_run_stats = {
+            "files_attempted": total_files,
+            "timed_out_files": timed_out,
+            "failed_files": failed,
+            "batch_count": _batches,
+            "timeout_budget_seconds": timeout,
+            "per_file_timeout_seconds": per_file_timeout,
+            "budget_warning": budget_warning,
+        }
         return all_findings
 
     async def _run_single(
@@ -284,4 +329,3 @@ class ScanbuildRunner:
             if _sh.which(name):
                 return name
         return "clang"
-

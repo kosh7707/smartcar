@@ -13,6 +13,16 @@ logger = logging.getLogger(__name__)
 _TIMEOUT = 10.0  # S5 API 계약: 10초
 
 
+def _is_kb_not_ready(response: httpx.Response | None) -> bool:
+    if response is None or response.status_code != 503:
+        return False
+    try:
+        data = response.json()
+    except Exception:
+        return False
+    return data.get("errorDetail", {}).get("code") == "KB_NOT_READY"
+
+
 @dataclass
 class ThreatHit:
     """벡터 검색 결과 단건."""
@@ -68,8 +78,14 @@ class ThreatSearch:
                 headers=headers,
             )
             resp.raise_for_status()
-        except (httpx.HTTPStatusError, httpx.ConnectError, httpx.TimeoutException) as e:
-            logger.warning("S5 KB 검색 실패 (graceful degradation): %s", e)
+        except httpx.HTTPStatusError as e:
+            if _is_kb_not_ready(e.response):
+                logger.warning("S5 KB not ready: %s", e)
+            else:
+                logger.warning("S5 KB 검색 실패: %s", e)
+            return []
+        except (httpx.ConnectError, httpx.TimeoutException) as e:
+            logger.warning("S5 KB 검색 실패: %s", e)
             return []
 
         data = resp.json()

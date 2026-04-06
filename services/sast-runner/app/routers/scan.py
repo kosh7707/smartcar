@@ -23,10 +23,19 @@ from app.scanner.build_runner import BuildRunner
 from app.scanner.include_resolver import IncludeResolver
 from app.scanner.orchestrator import ScanOrchestrator
 from app.scanner.sca_service import analyze_libraries, identify_libraries
-from app.scanner.sdk_resolver import get_sdk_registry, register_sdk, unregister_sdk, validate_sdk
 from app.scanner.ruleset_selector import resolve_rulesets
-from app.schemas.request import BuildProfile, ScanRequest
+from app.schemas.request import (
+    BuildAndAnalyzeRequest,
+    BuildRequest,
+    DiscoverTargetsRequest,
+    ScanRequest,
+    SnapshotProvenance,
+)
 from app.schemas.response import (
+    BuildAndAnalyzeResponse,
+    BuildEvidence,
+    BuildFailureDetail,
+    BuildResponse,
     ErrorDetail,
     HealthResponse,
     ScanResponse,
@@ -157,6 +166,22 @@ def _now_ms() -> int:
     return int(time.time() * 1000)
 
 
+def _to_build_response(
+    result: dict,
+    provenance: SnapshotProvenance | None,
+) -> BuildResponse:
+    return BuildResponse(
+        success=result["success"],
+        provenance=provenance,
+        buildEvidence=BuildEvidence(**result["buildEvidence"]),
+        failureDetail=(
+            BuildFailureDetail(**result["failureDetail"])
+            if result.get("failureDetail")
+            else None
+        ),
+    )
+
+
 async def _run_scan_core(
     request_id: str,
     body: ScanRequest,
@@ -165,6 +190,7 @@ async def _run_scan_core(
     on_progress=None,
     on_started=None,
     on_file_progress=None,
+    on_runtime_state=None,
 ) -> ScanResponse:
     """scan 핵심 로직 — 동기/스트리밍 양쪽에서 공유.
 
@@ -206,6 +232,7 @@ async def _run_scan_core(
                 third_party_paths=body.third_party_paths,
                 on_progress=on_progress,
                 on_file_progress=on_file_progress,
+                on_runtime_state=on_runtime_state,
             )
 
             # 2. projectPath 모드: codeGraph + SCA
@@ -254,6 +281,7 @@ async def _run_scan_core(
         success=True,
         scanId=scan_id,
         status="completed",
+        provenance=body.provenance,
         findings=findings,
         stats=ScanStats(
             filesScanned=len(source_files),
@@ -297,6 +325,9 @@ def _scan_streaming(
             "filesCompleted": 0,
             "filesTotal": 0,
             "currentFile": None,
+            "degraded": False,
+            "degradeReasons": [],
+            "toolStates": {},
         }
         file_progress_by_tool: dict = {}
 
@@ -326,6 +357,24 @@ def _scan_streaming(
             state["filesCompleted"] = sum(t["done"] for t in file_progress_by_tool.values())
             state["filesTotal"] = sum(t["total"] for t in file_progress_by_tool.values())
             state["currentFile"] = file
+            state["toolStates"].setdefault(tool, {}).update(
+                {
+                    "filesCompleted": done,
+                    "filesAttempted": total,
+                },
+            )
+
+        async def _on_runtime_state(tool: str, tool_state: dict):
+            state["toolStates"].setdefault(tool, {}).update(tool_state)
+            reasons = sorted(
+                {
+                    reason
+                    for runtime_state in state["toolStates"].values()
+                    for reason in runtime_state.get("degradeReasons", [])
+                },
+            )
+            state["degraded"] = bool(reasons)
+            state["degradeReasons"] = reasons
 
         async def _heartbeat_loop():
             try:
@@ -344,6 +393,9 @@ def _scan_streaming(
                             "filesCompleted": state["filesCompleted"],
                             "filesTotal": state["filesTotal"],
                             "currentFile": state["currentFile"],
+                            "degraded": state["degraded"],
+                            "degradeReasons": state["degradeReasons"],
+                            "toolStates": state["toolStates"],
                         }
                     await queue.put(event)
             except asyncio.CancelledError:
@@ -355,6 +407,7 @@ def _scan_streaming(
                 on_progress=_on_progress,
                 on_started=_on_started,
                 on_file_progress=_on_file_progress,
+                on_runtime_state=_on_runtime_state,
             ),
         )
         heartbeat_task = asyncio.create_task(_heartbeat_loop())
@@ -465,6 +518,7 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
             success=False,
             scanId=body.scan_id,
             status="failed",
+            provenance=body.provenance,
             error=exc.message,
             errorDetail=ErrorDetail(
                 code=exc.code,
@@ -486,6 +540,7 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
             success=False,
             scanId=body.scan_id,
             status="failed",
+            provenance=body.provenance,
             error=str(exc),
             errorDetail=ErrorDetail(
                 code="INTERNAL_ERROR",
@@ -644,7 +699,11 @@ async def libraries(request: Request, body: ScanRequest, response: Response):
 
 
 @router.post("/build-and-analyze")
-async def build_and_analyze(request: Request, response: Response, body: dict):
+async def build_and_analyze(
+    request: Request,
+    response: Response,
+    body: BuildAndAnalyzeRequest,
+) -> BuildAndAnalyzeResponse | dict:
     """빌드 실행 + 전체 분석 파이프라인 한 번에.
 
     사용자가 projectPath + buildCommand만 주면:
@@ -659,8 +718,8 @@ async def build_and_analyze(request: Request, response: Response, body: dict):
     set_request_id(request_id)
     response.headers["X-Request-Id"] = request_id
 
-    project_path = body.get("projectPath")
-    build_command = body.get("buildCommand")
+    project_path = body.project_path
+    build_command = body.build_command
 
     if not project_path:
         response.status_code = 400
@@ -671,58 +730,49 @@ async def build_and_analyze(request: Request, response: Response, body: dict):
         response.status_code = 400
         return {"error": f"projectPath not found: {project_path}"}
 
-    # buildCommand 자동 감지
     if not build_command:
-        build_command = build_runner.detect_build_command(project_dir)
-        if not build_command:
-            response.status_code = 400
-            return {"error": "buildCommand not provided and could not be auto-detected (no Makefile, CMakeLists.txt, or configure found)"}
-        logger.info("Auto-detected build command: %s", build_command)
+        response.status_code = 400
+        return {"error": "buildCommand is required"}
 
-    # buildProfile → SDK environment-setup 적용
-    bp_dict = body.get("buildProfile")
-    bp = BuildProfile(**bp_dict) if bp_dict else None
+    scan_profile = body.scan_profile
 
     t0 = time.perf_counter()
 
     try:
         # 1. 빌드 (bear)
         logger.info("Build-and-analyze started", extra={"requestId": request_id, "projectPath": project_path})
-        build_result = await build_runner.build(project_dir, build_command, profile=bp)
+        build_result = await build_runner.build(
+            project_dir,
+            build_command,
+            environment=body.build_environment,
+        )
+        build_response = _to_build_response(build_result, body.provenance)
         if not build_result.get("success"):
-            return {"build": build_result, "error": "Build failed"}
+            return BuildAndAnalyzeResponse(
+                success=False,
+                provenance=body.provenance,
+                build=build_response,
+                error="Build failed",
+            )
 
-        cc_path = build_result.get("compileCommandsPath")
+        cc_path = build_result["buildEvidence"]["compileCommandsPath"]
 
-        # 2. 병렬 실행: scan + functions + libraries + metadata
+        # 2. 스캔 + 메타데이터
         scan_req = ScanRequest(
             scanId=f"build-analyze-{request_id}",
-            projectId=body.get("projectId", "auto"),
+            projectId=body.project_id,
             projectPath=project_path,
             compileCommands=cc_path,
+            buildProfile=scan_profile,
+            provenance=body.provenance,
+            rulesets=body.rulesets,
+            thirdPartyPaths=body.third_party_paths,
+            options=body.options,
         )
-
-        # scan
-        scan_dir, source_files, should_cleanup = _prepare_scan_dir(scan_req)
-        rulesets = resolve_rulesets(None, bp, settings.default_rulesets)
-        findings, execution = await orchestrator.run(
-            scan_dir=scan_dir, source_files=source_files,
-            profile=bp, rulesets=rulesets,
-            compile_commands=cc_path, timeout=120,
-        )
-
-        # libraries (functions보다 먼저 — 스킵 경로 확보)
-        lib_results = await analyze_libraries(project_dir)
-
-        # functions (라이브러리 경로 스킵)
-        lib_skip = [lib["path"] for lib in (lib_results or []) if lib.get("path")]
-        func_result = await ast_dumper.dump_functions(
-            scan_dir, source_files, bp,
-            skip_paths=lib_skip if lib_skip else None,
-        )
-
-        # metadata
-        meta = await metadata_extractor.extract(bp)
+        rulesets = resolve_rulesets(body.rulesets, scan_profile, settings.default_rulesets)
+        timeout = _get_timeout(request, body.options.timeout_seconds)
+        scan_result = await _run_scan_core(request_id, scan_req, rulesets, timeout)
+        meta = await metadata_extractor.extract(scan_profile)
 
         elapsed_ms = int((time.perf_counter() - t0) * 1000)
 
@@ -730,32 +780,34 @@ async def build_and_analyze(request: Request, response: Response, body: dict):
             "Build-and-analyze completed",
             extra={
                 "requestId": request_id,
-                "findingsCount": len(findings),
-                "functionsCount": len(func_result.get("functions", [])),
-                "libraryCount": len(lib_results),
+                "findingsCount": len(scan_result.findings or []),
+                "functionsCount": len((scan_result.code_graph or {}).get("functions", [])),
+                "libraryCount": len((scan_result.sca or {}).get("libraries", [])),
                 "elapsedMs": elapsed_ms,
             },
         )
 
-        return {
-            "build": build_result,
-            "scan": {
-                "findings": [f.model_dump(by_alias=True, exclude_none=True) for f in findings],
-                "findingsCount": len(findings),
-                "execution": execution.model_dump(by_alias=True),
-            },
-            "codeGraph": func_result,
-            "libraries": lib_results,
-            "metadata": meta,
-            "elapsedMs": elapsed_ms,
-        }
+        return BuildAndAnalyzeResponse(
+            success=True,
+            provenance=body.provenance,
+            build=build_response,
+            scan=scan_result,
+            codeGraph=scan_result.code_graph,
+            libraries=(scan_result.sca or {}).get("libraries"),
+            metadata=meta,
+            elapsedMs=elapsed_ms,
+        )
 
     except Exception as exc:
         return _error_response(request_id, exc, response)
 
 
 @router.post("/build")
-async def build(request: Request, response: Response, body: dict):
+async def build(
+    request: Request,
+    response: Response,
+    body: BuildRequest,
+) -> BuildResponse | dict:
     """빌드만 수행 — bear → compile_commands.json 생성.
 
     스캔/SCA/코드그래프는 별도 호출. 서브 프로젝트 파이프라인의 빌드 단계용.
@@ -764,7 +816,7 @@ async def build(request: Request, response: Response, body: dict):
     set_request_id(request_id)
     response.headers["X-Request-Id"] = request_id
 
-    project_path = body.get("projectPath")
+    project_path = body.project_path
     if not project_path:
         response.status_code = 400
         return {"success": False, "error": "projectPath is required"}
@@ -774,23 +826,12 @@ async def build(request: Request, response: Response, body: dict):
         response.status_code = 400
         return {"success": False, "error": f"projectPath not found: {project_path}"}
 
-    build_command = body.get("buildCommand")
+    build_command = body.build_command
     if not build_command:
-        build_command = build_runner.detect_build_command(project_dir)
-        if not build_command:
-            response.status_code = 400
-            return {"success": False, "error": "buildCommand not provided and could not be auto-detected"}
-        logger.info("Auto-detected build command: %s", build_command)
+        response.status_code = 400
+        return {"success": False, "error": "buildCommand is required"}
 
-    bp_dict = body.get("buildProfile")
-    bp = None
-    if bp_dict:
-        try:
-            bp = BuildProfile(**bp_dict)
-        except Exception as e:
-            response.status_code = 400
-            return {"success": False, "error": f"Invalid buildProfile: {e}"}
-    wrap_with_bear = body.get("wrapWithBear", True)
+    wrap_with_bear = body.wrap_with_bear
     build_timeout = _get_timeout(request)
 
     try:
@@ -799,18 +840,26 @@ async def build(request: Request, response: Response, body: dict):
             extra={"requestId": request_id, "projectPath": project_path, "buildCommand": build_command,
                     "wrapWithBear": wrap_with_bear, "timeoutS": build_timeout},
         )
-        result = await build_runner.build(project_dir, build_command, profile=bp,
-                                          wrap_with_bear=wrap_with_bear,
-                                          timeout=build_timeout)
+        result = await build_runner.build(
+            project_dir,
+            build_command,
+            environment=body.build_environment,
+            wrap_with_bear=wrap_with_bear,
+            timeout=build_timeout,
+        )
 
-        return result
+        return _to_build_response(result, body.provenance)
 
     except Exception as exc:
         return _error_response(request_id, exc, response)
 
 
 @router.post("/discover-targets")
-async def discover_targets(request: Request, response: Response, body: dict):
+async def discover_targets(
+    request: Request,
+    response: Response,
+    body: DiscoverTargetsRequest,
+):
     """프로젝트 내 빌드 타겟(독립 빌드 단위)을 자동 탐색.
 
     빌드 파일(CMakeLists.txt, Makefile, meson.build 등)을 재귀 탐색하여
@@ -820,7 +869,7 @@ async def discover_targets(request: Request, response: Response, body: dict):
     set_request_id(request_id)
     response.headers["X-Request-Id"] = request_id
 
-    project_path = body.get("projectPath")
+    project_path = body.project_path
     if not project_path:
         response.status_code = 400
         return {"error": "projectPath is required"}
@@ -848,68 +897,6 @@ async def discover_targets(request: Request, response: Response, body: dict):
     )
 
     return {"targets": targets, "elapsedMs": elapsed_ms}
-
-
-@router.get("/sdk-registry")
-async def sdk_registry():
-    """등록된 SDK 목록을 반환. 빌드 Agent가 SDK 매칭에 사용."""
-    sdks = get_sdk_registry()
-    return {"sdks": sdks}
-
-
-@router.post("/sdk-registry")
-async def register_sdk_endpoint(request: Request, response: Response, body: dict):
-    """SDK 등록 — 경로 검증 + sdk-registry.json 저장."""
-    request_id = _get_request_id(request)
-    set_request_id(request_id)
-    response.headers["X-Request-Id"] = request_id
-
-    sdk_id = body.get("sdkId")
-    if not sdk_id:
-        response.status_code = 400
-        return {"success": False, "errors": ["sdkId is required"]}
-
-    path = body.get("path")
-    if not path:
-        response.status_code = 400
-        return {"success": False, "errors": ["path is required"]}
-
-    errors = validate_sdk(body)
-    if errors:
-        logger.warning(
-            "SDK validation failed: %s",
-            errors,
-            extra={"requestId": request_id, "sdkId": sdk_id},
-        )
-        response.status_code = 400
-        return {"success": False, "errors": errors}
-
-    register_sdk(sdk_id, body)
-    logger.info(
-        "SDK registered",
-        extra={"requestId": request_id, "sdkId": sdk_id, "path": path},
-    )
-    return {"success": True}
-
-
-@router.delete("/sdk-registry/{sdk_id}")
-async def delete_sdk_endpoint(sdk_id: str, request: Request, response: Response):
-    """SDK 등록 해제."""
-    request_id = _get_request_id(request)
-    set_request_id(request_id)
-    response.headers["X-Request-Id"] = request_id
-
-    removed = unregister_sdk(sdk_id)
-    if not removed:
-        response.status_code = 404
-        return {"success": False, "error": f"SDK not found: {sdk_id}"}
-
-    logger.info(
-        "SDK unregistered",
-        extra={"requestId": request_id, "sdkId": sdk_id},
-    )
-    return {"success": True}
-
 
 @router.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:

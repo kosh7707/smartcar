@@ -33,6 +33,20 @@ class WriteFileTool:
             # 스크립트 내용 안전성 검사
             from app.policy.file_policy import FilePolicy
             content_warnings = FilePolicy.scan_content(content)
+            if content_warnings:
+                return ToolResult(
+                    tool_call_id="",
+                    name="",
+                    success=False,
+                    content=json.dumps(
+                        {
+                            "error": "forbidden content in generated file",
+                            "blockedPatterns": content_warnings,
+                        },
+                        ensure_ascii=False,
+                    ),
+                    error="forbidden content",
+                )
 
             os.makedirs(os.path.dirname(full_path), exist_ok=True)
             with open(full_path, "w", encoding="utf-8") as f:
@@ -41,8 +55,6 @@ class WriteFileTool:
                 self._file_policy.record_created(rel_path)
             size = len(content.encode("utf-8"))
             result_data: dict = {"written": f"{self._build_dir}/{rel_path}", "bytes": size}
-            if content_warnings:
-                result_data["_content_warnings"] = content_warnings
             return ToolResult(tool_call_id="", name="", success=True,
                               content=json.dumps(result_data, ensure_ascii=False))
         except Exception as e:

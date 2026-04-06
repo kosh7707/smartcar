@@ -1,8 +1,16 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
+
+
+class SnapshotProvenance(BaseModel):
+    build_snapshot_id: str | None = Field(default=None, alias="buildSnapshotId")
+    build_unit_id: str | None = Field(default=None, alias="buildUnitId")
+    snapshot_schema_version: str | None = Field(default=None, alias="snapshotSchemaVersion")
+
+    model_config = {"populate_by_name": True}
 
 
 class FileEntry(BaseModel):
@@ -40,8 +48,39 @@ class ScanRequest(BaseModel):
     project_path: str | None = Field(default=None, alias="projectPath")
     compile_commands: str | None = Field(default=None, alias="compileCommands")
     build_profile: BuildProfile | None = Field(default=None, alias="buildProfile")
+    provenance: SnapshotProvenance | None = None
     rulesets: list[str] | None = None
     third_party_paths: list[str] | None = Field(default=None, alias="thirdPartyPaths")
     options: ScanOptions = Field(default_factory=ScanOptions)
+
+    model_config = {"populate_by_name": True}
+
+
+class BuildRequest(BaseModel):
+    project_path: str | None = Field(default=None, alias="projectPath")
+    build_command: str | None = Field(default=None, alias="buildCommand")
+    build_environment: dict[str, str] | None = Field(default=None, alias="buildEnvironment")
+    provenance: SnapshotProvenance | None = None
+    wrap_with_bear: bool = Field(default=True, alias="wrapWithBear")
+
+    model_config = {"populate_by_name": True, "extra": "forbid"}
+
+
+class BuildAndAnalyzeRequest(BaseModel):
+    project_path: str | None = Field(default=None, alias="projectPath")
+    build_command: str | None = Field(default=None, alias="buildCommand")
+    project_id: str = Field(default="auto", alias="projectId")
+    build_environment: dict[str, str] | None = Field(default=None, alias="buildEnvironment")
+    scan_profile: BuildProfile | None = Field(default=None, alias="scanProfile")
+    provenance: SnapshotProvenance | None = None
+    rulesets: list[str] | None = None
+    third_party_paths: list[str] | None = Field(default=None, alias="thirdPartyPaths")
+    options: ScanOptions = Field(default_factory=ScanOptions)
+
+    model_config = {"populate_by_name": True, "extra": "forbid"}
+
+
+class DiscoverTargetsRequest(BaseModel):
+    project_path: str | None = Field(default=None, alias="projectPath")
 
     model_config = {"populate_by_name": True}

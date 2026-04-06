@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import PurePosixPath
@@ -74,6 +75,7 @@ class _StrictContract:
     build_mode: str | None
     sdk_id: str | None
     expected_artifacts: list[str]
+    expected_artifact_paths: list[str]
 
 
 class ResultAssembler:
@@ -181,6 +183,7 @@ class ResultAssembler:
                 build_result.declaredMode = contract.build_mode
             if build_result.sdkId is None:
                 build_result.sdkId = contract.sdk_id
+            self._augment_produced_artifacts_from_filesystem(session, build_result, contract)
 
         contract_failure = self._validate_compile_first_contract(
             session=session,
@@ -548,6 +551,7 @@ class ResultAssembler:
             trusted.get("expectedArtifacts"),
         )
         expected_artifacts = self._normalize_artifact_list(expected_raw)
+        expected_artifact_paths = self._extract_expected_artifact_paths(expected_raw)
         strict_mode = bool(strict_flag) or bool(contract_version)
         return _StrictContract(
             contract_version=contract_version,
@@ -555,6 +559,7 @@ class ResultAssembler:
             build_mode=build_mode,
             sdk_id=sdk_id,
             expected_artifacts=expected_artifacts,
+            expected_artifact_paths=expected_artifact_paths,
         )
 
     @staticmethod
@@ -580,6 +585,95 @@ class ResultAssembler:
             if identity and identity not in normalized:
                 normalized.append(identity)
         return normalized
+
+    def _extract_expected_artifact_paths(self, raw: Any) -> list[str]:
+        if not isinstance(raw, list):
+            return []
+        paths: list[str] = []
+        for item in raw:
+            if isinstance(item, str):
+                value = item.strip()
+            elif isinstance(item, dict):
+                value = (
+                    item.get("path")
+                    or item.get("name")
+                    or item.get("artifactPath")
+                    or item.get("file")
+                    or ""
+                )
+                value = value.strip() if isinstance(value, str) else ""
+            else:
+                value = ""
+            if value and value not in paths:
+                paths.append(value)
+        return paths
+
+    def _augment_produced_artifacts_from_filesystem(
+        self,
+        session: AgentSession,
+        build_result: BuildResult,
+        contract: _StrictContract,
+    ) -> None:
+        trusted = session.request.context.trusted if isinstance(session.request.context.trusted, dict) else {}
+        project_path = trusted.get("projectPath")
+        subproject_path = trusted.get("subprojectPath") or trusted.get("targetPath") or ""
+        if not isinstance(project_path, str) or not project_path.strip():
+            return
+
+        build_root = os.path.join(project_path, subproject_path) if subproject_path else project_path
+        build_root = os.path.normpath(build_root)
+        build_dir = build_result.buildDir.strip() if build_result.buildDir else ""
+        build_script_dir = ""
+        if build_result.buildScript:
+            script_path = PurePosixPath(build_result.buildScript.strip())
+            if script_path.parent and str(script_path.parent) != ".":
+                build_script_dir = str(script_path.parent)
+        build_command_dir = ""
+        if build_result.buildCommand:
+            for token in build_result.buildCommand.split():
+                if not token.endswith(".sh"):
+                    continue
+                script_token = PurePosixPath(token.strip().strip('"').strip("'"))
+                if script_token.parent and str(script_token.parent) != ".":
+                    build_command_dir = str(script_token.parent)
+                    break
+
+        existing_identities = {
+            identity
+            for artifact in build_result.producedArtifacts
+            if (identity := self._artifact_identity({"path": artifact.path, "kind": artifact.kind}))
+        }
+
+        for raw_path in contract.expected_artifact_paths:
+            candidates: list[str] = [os.path.join(build_root, raw_path)]
+            if build_dir:
+                candidates.append(os.path.join(build_root, build_dir, raw_path))
+            if build_script_dir and build_script_dir != build_dir:
+                candidates.append(os.path.join(build_root, build_script_dir, raw_path))
+            if build_command_dir and build_command_dir not in {build_dir, build_script_dir}:
+                candidates.append(os.path.join(build_root, build_command_dir, raw_path))
+            try:
+                for entry in os.listdir(build_root):
+                    if not entry.startswith("build-aegis-"):
+                        continue
+                    candidates.append(os.path.join(build_root, entry, raw_path))
+            except OSError:
+                pass
+
+            for candidate in candidates:
+                normalized_candidate = os.path.normpath(candidate)
+                if not os.path.exists(normalized_candidate):
+                    continue
+                rel_path = os.path.relpath(normalized_candidate, build_root)
+                identity = self._artifact_identity({"path": rel_path})
+                if not identity or identity in existing_identities:
+                    continue
+                kind = "directory" if os.path.isdir(normalized_candidate) else "file"
+                build_result.producedArtifacts.append(
+                    BuildArtifact(path=rel_path, kind=kind, exists=True, notes="filesystem-inferred"),
+                )
+                existing_identities.add(identity)
+                break
 
     def _verify_expected_artifacts(
         self,

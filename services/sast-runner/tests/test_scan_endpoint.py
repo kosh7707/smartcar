@@ -26,7 +26,7 @@ async def test_health_endpoint(client: AsyncClient) -> None:
     data = resp.json()
     assert data["service"] == "s4-sast"
     assert data["status"] == "ok"
-    assert data["version"] == "0.9.0"
+    assert data["version"] == "0.11.0"
     assert "semgrep" in data
     assert "defaultRulesets" in data
 
@@ -173,6 +173,28 @@ async def test_scan_with_build_profile(client: AsyncClient, mock_semgrep_runner)
     assert resp.status_code == 200
     data = resp.json()
     assert data["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_scan_echoes_provenance(client: AsyncClient, mock_semgrep_runner) -> None:
+    resp = await client.post(
+        "/v1/scan",
+        json={
+            "scanId": "test-prov-001",
+            "projectId": "proj-test",
+            "provenance": {
+                "buildSnapshotId": "bsnap-123",
+                "buildUnitId": "bunit-123",
+                "snapshotSchemaVersion": "build-snapshot-v1",
+            },
+            "files": [
+                {"path": "src/main.c", "content": "int main() { return 0; }"},
+            ],
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["provenance"]["buildSnapshotId"] == "bsnap-123"
 
 
 @pytest.mark.asyncio
@@ -338,8 +360,39 @@ async def test_build_invalid_path(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_build_with_sdk_only_profile(client: AsyncClient, tmp_path) -> None:
-    """sdkId만 있는 buildProfile → 500이 아닌 정상 처리 (빌드 실패여도 200 + success:false)."""
+async def test_build_requires_build_command(client: AsyncClient, tmp_path) -> None:
+    """buildCommand는 필수."""
+    resp = await client.post(
+        "/v1/build",
+        json={
+            "projectPath": str(tmp_path),
+        },
+    )
+    assert resp.status_code == 400
+    data = resp.json()
+    assert "buildCommand is required" in data["error"]
+
+
+@pytest.mark.asyncio
+async def test_build_accepts_explicit_environment(client: AsyncClient, tmp_path) -> None:
+    """buildEnvironment는 그대로 전달 가능."""
+    resp = await client.post(
+        "/v1/build",
+        json={
+            "projectPath": str(tmp_path),
+            "buildCommand": "echo hello",
+            "buildEnvironment": {"SDK_ROOT": "/uploads/sdk", "CC": "/uploads/sdk/bin/gcc"},
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "success" in data
+    assert "buildEvidence" in data
+    assert "environmentKeys" in data["buildEvidence"]
+
+
+@pytest.mark.asyncio
+async def test_build_rejects_legacy_build_profile(client: AsyncClient, tmp_path) -> None:
     resp = await client.post(
         "/v1/build",
         json={
@@ -348,32 +401,53 @@ async def test_build_with_sdk_only_profile(client: AsyncClient, tmp_path) -> Non
             "buildProfile": {"sdkId": "ti-am335x"},
         },
     )
-    # 500이 아니어야 함 (200 + success:true/false)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert "success" in data
+    assert resp.status_code == 422
+
 
 
 @pytest.mark.asyncio
-async def test_build_with_full_profile(client: AsyncClient, tmp_path) -> None:
-    """전체 필드를 채운 buildProfile → 정상 처리."""
-    resp = await client.post(
-        "/v1/build",
-        json={
-            "projectPath": str(tmp_path),
-            "buildCommand": "echo hello",
-            "buildProfile": {
-                "sdkId": "ti-am335x",
-                "compiler": "arm-none-linux-gnueabihf-gcc",
-                "targetArch": "arm",
-                "languageStandard": "c11",
-                "headerLanguage": "c",
-            },
+async def test_build_echoes_provenance_and_structured_evidence(client: AsyncClient) -> None:
+    mocked = {
+        "success": True,
+        "buildEvidence": {
+            "requestedBuildCommand": "make",
+            "effectiveBuildCommand": "make",
+            "buildDir": "/tmp/project",
+            "compileCommandsPath": "/tmp/project/compile_commands.json",
+            "entries": 2,
+            "userEntries": 2,
+            "exitCode": 0,
+            "buildOutput": "ok",
+            "wrapWithBear": True,
+            "timeoutSeconds": 600,
+            "environmentKeys": ["CC", "SDK_ROOT"],
+            "elapsedMs": 123,
         },
-    )
-    assert resp.status_code == 200
+        "failureDetail": None,
+    }
+
+    with (
+        patch("pathlib.Path.is_dir", return_value=True),
+        patch("app.routers.scan.build_runner.build", AsyncMock(return_value=mocked)),
+    ):
+        resp = await client.post(
+            "/v1/build",
+            json={
+                "projectPath": "/tmp/project",
+                "buildCommand": "make",
+                "provenance": {
+                    "buildSnapshotId": "bsnap-1",
+                    "buildUnitId": "bunit-1",
+                    "snapshotSchemaVersion": "build-snapshot-v1",
+                },
+            },
+        )
+
     data = resp.json()
-    assert "success" in data
+    assert data["success"] is True
+    assert data["provenance"]["buildSnapshotId"] == "bsnap-1"
+    assert data["buildEvidence"]["effectiveBuildCommand"] == "make"
+    assert data["buildEvidence"]["environmentKeys"] == ["CC", "SDK_ROOT"]
 
 
 # === /v1/includes ===
@@ -389,56 +463,14 @@ async def test_includes_no_input_returns_error(client: AsyncClient) -> None:
     assert resp.status_code == 400
 
 
-# === /v1/sdk-registry (POST/DELETE) ===
+# === /v1/sdk-registry removed ===
 
 
 @pytest.mark.asyncio
-async def test_register_sdk_no_sdk_id(client: AsyncClient) -> None:
-    """sdkId 없으면 400."""
-    resp = await client.post("/v1/sdk-registry", json={"path": "/tmp"})
-    assert resp.status_code == 400
-
-
-@pytest.mark.asyncio
-async def test_register_sdk_no_path(client: AsyncClient) -> None:
-    """path 없으면 400."""
-    resp = await client.post("/v1/sdk-registry", json={"sdkId": "test"})
-    assert resp.status_code == 400
-
-
-@pytest.mark.asyncio
-async def test_register_sdk_invalid_path(client: AsyncClient) -> None:
-    """존재하지 않는 경로면 400 + errors."""
-    resp = await client.post(
-        "/v1/sdk-registry",
-        json={"sdkId": "test-sdk", "path": "/nonexistent/sdk"},
-    )
-    assert resp.status_code == 400
-    data = resp.json()
-    assert data["success"] is False
-    assert len(data["errors"]) > 0
-
-
-@pytest.mark.asyncio
-async def test_register_sdk_valid(client: AsyncClient, tmp_path) -> None:
-    """유효한 경로로 등록 → success."""
-    resp = await client.post(
-        "/v1/sdk-registry",
-        json={"sdkId": "test-sdk-valid", "path": str(tmp_path)},
-    )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["success"] is True
-
-    # 등록 후 삭제 (클린업)
-    await client.delete("/v1/sdk-registry/test-sdk-valid")
-
-
-@pytest.mark.asyncio
-async def test_delete_sdk_not_found(client: AsyncClient) -> None:
-    """존재하지 않는 SDK 삭제 → 404."""
-    resp = await client.delete("/v1/sdk-registry/nonexistent-sdk")
-    assert resp.status_code == 404
+async def test_sdk_registry_routes_removed(client: AsyncClient) -> None:
+    assert (await client.get("/v1/sdk-registry")).status_code == 404
+    assert (await client.post("/v1/sdk-registry", json={})).status_code == 404
+    assert (await client.delete("/v1/sdk-registry/test-sdk")).status_code == 404
 
 
 # === /v1/libraries ===
@@ -627,9 +659,26 @@ def _make_progress_mock(findings, execution):
     async def _run(*args, **kwargs):
         on_progress = kwargs.get("on_progress")
         on_file_progress = kwargs.get("on_file_progress")
+        on_runtime_state = kwargs.get("on_runtime_state")
         if on_progress:
             await on_progress("semgrep", "started", 0, 0)
             await on_progress("semgrep", "completed", len(findings), 100)
+        if on_runtime_state:
+            await on_runtime_state(
+                "gcc-fanalyzer",
+                {
+                    "filesAttempted": 2,
+                    "filesCompleted": 1,
+                    "timedOutFiles": 0,
+                    "failedFiles": 0,
+                    "batchCount": 1,
+                    "timeoutBudgetSeconds": 120,
+                    "perFileTimeoutSeconds": 60,
+                    "budgetWarning": False,
+                    "degraded": False,
+                    "degradeReasons": [],
+                },
+            )
         if on_file_progress:
             await on_file_progress("gcc-fanalyzer", "src/main.c", 1, 2)
         return (findings, execution)
@@ -643,8 +692,25 @@ def _make_slow_progress_mock(findings, execution, delay: float = 0.3):
     async def _run(*args, **kwargs):
         on_progress = kwargs.get("on_progress")
         on_file_progress = kwargs.get("on_file_progress")
+        on_runtime_state = kwargs.get("on_runtime_state")
         if on_progress:
             await on_progress("semgrep", "started", 0, 0)
+        if on_runtime_state:
+            await on_runtime_state(
+                "gcc-fanalyzer",
+                {
+                    "filesAttempted": 3,
+                    "filesCompleted": 1,
+                    "timedOutFiles": 1,
+                    "failedFiles": 0,
+                    "batchCount": 2,
+                    "timeoutBudgetSeconds": 20,
+                    "perFileTimeoutSeconds": 10,
+                    "budgetWarning": True,
+                    "degraded": True,
+                    "degradeReasons": ["timeout-floor", "timed-out-files"],
+                },
+            )
         if on_file_progress:
             await on_file_progress("gcc-fanalyzer", "src/main.c", 1, 3)
         await asyncio.sleep(delay)
@@ -721,6 +787,9 @@ async def test_scan_ndjson_heartbeat_has_progress(client: AsyncClient, mock_semg
     assert "filesCompleted" in progress
     assert "filesTotal" in progress
     assert "currentFile" in progress
+    assert "degraded" in progress
+    assert "degradeReasons" in progress
+    assert "toolStates" in progress
 
 
 @pytest.mark.asyncio
@@ -758,6 +827,7 @@ async def test_scan_ndjson_file_progress_in_heartbeat(client: AsyncClient, mock_
         progress = running_hb[0]["progress"]
         assert progress["filesCompleted"] >= 1
         assert progress["currentFile"] == "src/main.c"
+        assert progress["toolStates"]["gcc-fanalyzer"]["timedOutFiles"] == 1
 
 
 @pytest.mark.asyncio
@@ -805,3 +875,99 @@ async def test_scan_ndjson_queued_status(client: AsyncClient, mock_semgrep_runne
     queued_hb = [h for h in heartbeats if h.get("status") == "queued"]
     assert len(queued_hb) >= 1
     assert "progress" not in queued_hb[0]
+
+
+@pytest.mark.asyncio
+async def test_build_and_analyze_accepts_provenance(client: AsyncClient) -> None:
+    from app.schemas.response import BuildEvidence, BuildResponse, ScanResponse, ScanStats
+    from app.schemas.request import SnapshotProvenance
+    from app.schemas.response import ExecutionReport, FindingsFilterInfo, SdkResolutionInfo
+
+    provenance = SnapshotProvenance(
+        buildSnapshotId="bsnap-9",
+        buildUnitId="bunit-9",
+        snapshotSchemaVersion="build-snapshot-v1",
+    )
+    build_response = BuildResponse(
+        success=True,
+        provenance=provenance,
+        buildEvidence=BuildEvidence(
+            requestedBuildCommand="make",
+            effectiveBuildCommand="make",
+            buildDir="/tmp/project",
+            compileCommandsPath="/tmp/project/compile_commands.json",
+            entries=1,
+            userEntries=1,
+            exitCode=0,
+            buildOutput="ok",
+            wrapWithBear=True,
+            timeoutSeconds=600,
+            environmentKeys=["CC"],
+            elapsedMs=10,
+        ),
+    )
+    scan_response = ScanResponse(
+        success=True,
+        scanId="build-analyze-req-1",
+        status="completed",
+        provenance=provenance,
+        findings=[],
+        stats=ScanStats(filesScanned=1, rulesRun=1, findingsTotal=0, elapsedMs=20),
+        execution=ExecutionReport(
+            toolsRun=["semgrep"],
+            toolResults={},
+            sdk=SdkResolutionInfo(resolved=False),
+            filtering=FindingsFilterInfo(beforeFilter=0, afterFilter=0),
+            degraded=False,
+            degradeReasons=[],
+        ),
+        codeGraph={"functions": []},
+        sca={"libraries": []},
+    )
+
+    with (
+        patch("pathlib.Path.is_dir", return_value=True),
+        patch("app.routers.scan.build_runner.build", AsyncMock(return_value=build_response.model_dump(by_alias=True, exclude_none=True))),
+        patch("app.routers.scan._run_scan_core", AsyncMock(return_value=scan_response)),
+        patch("app.routers.scan.metadata_extractor.extract", AsyncMock(return_value={"compiler": "gcc"})),
+    ):
+        resp = await client.post(
+            "/v1/build-and-analyze",
+            json={
+                "projectPath": "/tmp/project",
+                "buildCommand": "make",
+                "projectId": "proj-test",
+                "buildEnvironment": {"CC": "/uploads/toolchain/gcc"},
+                "provenance": provenance.model_dump(by_alias=True, exclude_none=True),
+            },
+        )
+
+    data = resp.json()
+    assert data["success"] is True
+    assert data["provenance"]["buildSnapshotId"] == "bsnap-9"
+    assert data["build"]["buildEvidence"]["compileCommandsPath"].endswith("compile_commands.json")
+
+
+@pytest.mark.asyncio
+async def test_build_and_analyze_requires_build_command(client: AsyncClient) -> None:
+    with patch("pathlib.Path.is_dir", return_value=True):
+        resp = await client.post(
+            "/v1/build-and-analyze",
+            json={"projectPath": "/tmp/project"},
+        )
+    assert resp.status_code == 400
+    assert "buildCommand is required" in resp.json()["error"]
+
+
+@pytest.mark.asyncio
+async def test_build_and_analyze_rejects_legacy_build_profile(client: AsyncClient) -> None:
+    with patch("pathlib.Path.is_dir", return_value=True):
+        resp = await client.post(
+            "/v1/build-and-analyze",
+            json={
+                "projectPath": "/tmp/project",
+                "buildCommand": "make",
+                "buildProfile": {"sdkId": "ti-am335x"},
+            },
+        )
+    assert resp.status_code == 422

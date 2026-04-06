@@ -42,6 +42,7 @@ class Phase1Result:
     cve_lookup: list[dict] = field(default_factory=list)
     project_memory: list[dict] = field(default_factory=list)
     kb_degraded: bool = False  # S5 Neo4j 미연결 시 True — 그래프 보강 없이 벡터 전용 검색
+    kb_not_ready: bool = False  # S5 Neo4j/Qdrant 미준비 시 True — 위협 검색 불가
     sast_partial_tools: list[str] = field(default_factory=list)
     sast_timed_out_files: int = 0
     sast_duration_ms: int = 0
@@ -68,6 +69,19 @@ _CODEGRAPH_EXCLUDE_DIRS = frozenset({
     "test", "tests", "third_party", "vendor", "external",
     "deps", "node_modules", ".git",
 })
+
+
+def _is_kb_not_ready_error(exc: Exception) -> bool:
+    if not isinstance(exc, httpx.HTTPStatusError):
+        return False
+    response = exc.response
+    if response is None or response.status_code != 503:
+        return False
+    try:
+        data = response.json()
+    except Exception:
+        return False
+    return data.get("errorDetail", {}).get("code") == "KB_NOT_READY"
 
 
 class Phase1Executor:
@@ -106,9 +120,11 @@ class Phase1Executor:
         revision_hint = trusted.get("revisionHint") or trusted.get("commitSha")
         build_profile = trusted.get("buildProfile")
         build_command = trusted.get("buildCommand")
+        build_environment = trusted.get("buildEnvironment")
         third_party_paths = trusted.get("thirdPartyPaths", [])
         sast_tools = trusted.get("sastTools")  # S4 v0.6.0: 도구 서브셋 선택 (None이면 전체)
         request_id = get_request_id() or session.request.taskId
+        provenance = trusted.get("provenance") if isinstance(trusted.get("provenance"), dict) else None
 
         # targetPath가 지정되면 projectPath/targetPath를 분석 루트로 사용
         analysis_path = project_path
@@ -128,7 +144,7 @@ class Phase1Executor:
         # 프로젝트 메모리 조회 (이전 분석 이력, false positive, 사용자 선호)
         if project_id:
             result.project_memory = await self._fetch_project_memory(
-                project_id, request_id, revision_hint,
+                project_id, request_id, revision_hint, provenance=provenance,
             )
 
         # Pre-computed Phase 1 결과가 있으면 SAST/코드그래프/SCA 스킵
@@ -160,10 +176,12 @@ class Phase1Executor:
                 hasBuildCommand=bool(build_command),
             )
 
-            # projectPath + (buildCommand 또는 buildProfile) → build-and-analyze 시도
-            if analysis_path and (build_command or build_profile):
+            # build-and-analyze는 explicit buildCommand가 있을 때만 사용한다.
+            if analysis_path and build_command:
                 ba_result = await self._run_build_and_analyze(
                     result, project_id, analysis_path, build_command, build_profile, request_id,
+                    build_environment=build_environment,
+                    provenance=provenance,
                     third_party_paths=third_party_paths,
                 )
                 if ba_result is not None:
@@ -175,18 +193,21 @@ class Phase1Executor:
                         component="phase_one", phase="ba_fallback",
                         level=logging.WARNING,
                     )
-                    result = await self._run_individual_tools(
-                        result, files, project_id, analysis_path, build_profile, request_id,
-                        third_party_paths=third_party_paths,
-                        sast_tools=sast_tools,
-                        revision_hint=revision_hint,
-                    )
+                result = await self._run_individual_tools(
+                    result, files, project_id, analysis_path, build_profile, request_id,
+                    third_party_paths=third_party_paths,
+                    sast_tools=sast_tools,
+                    revision_hint=revision_hint,
+                    provenance=provenance,
+                )
             else:
                 # files 기반 또는 projectPath만 (빌드 정보 없음) — 개별 도구 실행
                 result = await self._run_individual_tools(
                     result, files, project_id, analysis_path, build_profile, request_id,
                     third_party_paths=third_party_paths,
+                    sast_tools=sast_tools,
                     revision_hint=revision_hint,
+                    provenance=provenance,
                 )
 
         # 4. CVE 실시간 조회 — SCA 라이브러리+버전으로 S5 batch-lookup
@@ -199,7 +220,7 @@ class Phase1Executor:
 
         # 6. 위험 함수 호출자 — SAST findings의 위험 함수로 S5 코드 그래프 조회
         if result.sast_findings and project_id:
-            result = await self._run_dangerous_callers(result, project_id)
+            result = await self._run_dangerous_callers(result, project_id, provenance=provenance)
 
         result.total_duration_ms = int((time.monotonic() - start) * 1000)
 
@@ -215,7 +236,9 @@ class Phase1Executor:
 
     async def _run_build_and_analyze(
         self, result: Phase1Result, project_id, project_path, build_command, build_profile, request_id,
-        *, third_party_paths: list[str] | None = None,
+        *, build_environment: dict | None = None,
+        provenance: dict | None = None,
+        third_party_paths: list[str] | None = None,
     ) -> Phase1Result | None:
         """S4 build-and-analyze 한 번에 호출. 실패 시 None 반환 (fallback 유도)."""
         agent_log(
@@ -230,11 +253,12 @@ class Phase1Executor:
         }
         if build_command:
             body["buildCommand"] = build_command
+        if isinstance(build_environment, dict) and build_environment:
+            body["buildEnvironment"] = build_environment
         if build_profile:
-            # sdkId만 전달 — 나머지는 S4가 sdk-registry에서 해석
-            sdk_id = build_profile.get("sdkId") if isinstance(build_profile, dict) else None
-            if sdk_id:
-                body["buildProfile"] = {"sdkId": sdk_id}
+            body["scanProfile"] = build_profile
+        if isinstance(provenance, dict) and provenance:
+            body["provenance"] = provenance
         if third_party_paths:
             body["thirdPartyPaths"] = third_party_paths
 
@@ -302,6 +326,7 @@ class Phase1Executor:
         *, third_party_paths: list[str] | None = None,
         sast_tools: list[str] | None = None,
         revision_hint: str | None = None,
+        provenance: dict | None = None,
     ) -> Phase1Result:
         """개별 도구 호출 (files 또는 projectPath 기반)."""
         if self._sast_tool and (files or project_path):
@@ -317,13 +342,14 @@ class Phase1Executor:
 
         # 코드 그래프를 S5 KB에 적재 (dangerous_callers 조회에 필요)
         if result.code_functions and project_id:
-            await self._ingest_code_graph(result, project_id, request_id, revision_hint)
+            await self._ingest_code_graph(result, project_id, request_id, revision_hint, provenance=provenance)
 
         return result
 
     async def _ingest_code_graph(
         self, result: Phase1Result, project_id: str, request_id: str,
         revision_hint: str | None = None,
+        provenance: dict | None = None,
     ) -> None:
         """코드 그래프를 S5 KB에 적재한다. 노이즈 디렉토리만 제외."""
         relevant_functions = [
@@ -350,6 +376,8 @@ class Phase1Executor:
             body: dict = {"functions": relevant_functions}
             if revision_hint:
                 body["revisionHint"] = revision_hint
+            if isinstance(provenance, dict) and provenance:
+                body["provenance"] = provenance
             resp = await self._kb_client.post(
                 f"/v1/code-graph/{project_id}/ingest",
                 json=body,
@@ -663,7 +691,7 @@ class Phase1Executor:
             data = resp.json()
             for query_result in data.get("results", []):
                 result.threat_context.extend(query_result.get("hits", []))
-            # S5 v2: degraded 필드 — Neo4j 미연결 시 그래프 보강 없는 벡터 전용 검색
+            # backward compatibility: old degraded semantics
             if data.get("degraded", False):
                 result.kb_degraded = True
                 agent_log(
@@ -672,11 +700,19 @@ class Phase1Executor:
                     level=logging.WARNING,
                 )
         except Exception as e:
-            agent_log(
-                logger, "Phase 1: KB 위협 배치 조회 실패",
-                component="phase_one", phase="threat_query_error",
-                error=str(e), level=logging.WARNING,
-            )
+            if _is_kb_not_ready_error(e):
+                result.kb_not_ready = True
+                agent_log(
+                    logger, "Phase 1: KB not ready",
+                    component="phase_one", phase="kb_not_ready",
+                    level=logging.WARNING,
+                )
+            else:
+                agent_log(
+                    logger, "Phase 1: KB 위협 배치 조회 실패",
+                    component="phase_one", phase="threat_query_error",
+                    error=str(e), level=logging.WARNING,
+                )
 
         result.threat_query_duration_ms = int((time.monotonic() - start) * 1000)
 
@@ -685,11 +721,18 @@ class Phase1Executor:
             component="phase_one", phase="threat_query_end",
             hits=len(result.threat_context),
             degraded=result.kb_degraded,
+            notReady=result.kb_not_ready,
             durationMs=result.threat_query_duration_ms,
         )
         return result
 
-    async def _run_dangerous_callers(self, result: Phase1Result, project_id: str) -> Phase1Result:
+    async def _run_dangerous_callers(
+        self,
+        result: Phase1Result,
+        project_id: str,
+        *,
+        provenance: dict | None = None,
+    ) -> Phase1Result:
         """위험 함수(popen, system, getenv 등) 호출자 식별."""
         dangerous_funcs = self._extract_dangerous_funcs(result.sast_findings)
         if not dangerous_funcs:
@@ -708,9 +751,13 @@ class Phase1Executor:
             headers["X-Request-Id"] = request_id
 
         try:
+            body: dict = {"dangerous_functions": list(dangerous_funcs)}
+            build_snapshot_id = provenance.get("buildSnapshotId") if isinstance(provenance, dict) else None
+            if build_snapshot_id:
+                body["buildSnapshotId"] = build_snapshot_id
             resp = await self._kb_client.post(
                 f"/v1/code-graph/{project_id}/dangerous-callers",
-                json={"dangerous_functions": list(dangerous_funcs)},
+                json=body,
                 headers=headers,
             )
             resp.raise_for_status()
@@ -735,6 +782,7 @@ class Phase1Executor:
     async def _fetch_project_memory(
         self, project_id: str, request_id: str,
         revision_hint: str | None = None,
+        provenance: dict | None = None,
     ) -> list[dict]:
         """S5 KB에서 프로젝트 메모리를 조회한다."""
         headers: dict[str, str] = {}
@@ -744,6 +792,11 @@ class Phase1Executor:
         params: dict[str, str] = {}
         if revision_hint:
             params["revision"] = revision_hint
+        if isinstance(provenance, dict):
+            for key in ("buildSnapshotId", "buildUnitId", "sourceBuildAttemptId"):
+                value = provenance.get(key)
+                if value:
+                    params[key] = value
 
         try:
             resp = await self._kb_client.get(
@@ -1155,6 +1208,11 @@ def build_phase2_prompt(
     # KB 위협 지식 (Phase 1에서 결정론적 조회)
     if phase1.threat_context:
         threat_lines = ["## 위협 지식 (자동 조회 결과)"]
+        if phase1.kb_not_ready:
+            threat_lines.append(
+                "**⚠ KB not ready**: Neo4j 또는 KB readiness 부족으로 위협 지식 조회가 수행되지 않았습니다. "
+                "이번 분석에서는 위협 그래프 보강이 빠졌을 수 있으므로 caveats에 이 한계를 명시하라."
+            )
         if phase1.kb_degraded:
             threat_lines.append(
                 "**⚠ KB degraded 모드**: Neo4j 미연결로 그래프 보강 없이 벡터 전용 검색 결과입니다. "
@@ -1178,6 +1236,12 @@ def build_phase2_prompt(
                 line += f" (관련: {', '.join(xrefs)})"
             threat_lines.append(line)
         sections.append("\n".join(threat_lines))
+    elif phase1.kb_not_ready:
+        sections.append(
+            "## 위협 지식 (자동 조회 결과)\n"
+            "**⚠ KB not ready**: Neo4j 또는 KB readiness 부족으로 위협 지식 조회를 건너뛰었습니다. "
+            "위협 그래프 보강이 빠졌음을 caveats에 반영하라."
+        )
 
     # 위험 함수 호출자 (Phase 1에서 결정론적 조회)
     if phase1.dangerous_callers:
