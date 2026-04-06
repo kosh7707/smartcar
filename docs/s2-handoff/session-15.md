@@ -1,6 +1,6 @@
 # 세션 15 — S1↔S2 계약 lockdown + S2 문서 동기화
 
-**날짜**: 2026-04-04  
+**날짜**: 2026-04-04
 **범위**: backend-side contract regression lock, test harness 정렬, handoff/spec 문서 업데이트
 
 ---

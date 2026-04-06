@@ -50,4 +50,3 @@ S3 Analysis Agent integration test 중 `gateway-webserver` 서브프로젝트에
 1. 위 requestId 기준으로 S4에서 timeout-floor warning과 fanalyzer timeout이 의도된 degraded 동작인지 확인해 주세요.
 2. 의도된 동작이라면, 호출자(S3/S2)가 이를 안정적으로 해석할 수 있도록 응답/로그 의미를 더 명확히 해 주세요.
 3. 기본적으로 third_party/vendor 계열 경로를 자동 완화할지, 아니면 S3가 `thirdPartyPaths`를 더 적극적으로 넘겨야 하는지 권장 방향을 알려 주세요.
-

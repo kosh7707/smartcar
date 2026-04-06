@@ -5,8 +5,8 @@
 > **이 문서의 소유자는 S2(AEGIS Core)이다.** 변경 제안은 work-request로.
 > **마지막 업데이트: 2026-03-28**
 >
-> **Canonical access path (2026-04-06)**  
-> 우선 조회 경로는 `/home/kosh/aegis-static-wiki/wiki/canon/specs/technical-overview.md` 이다.  
+> **Canonical access path (2026-04-06)**
+> 우선 조회 경로는 `/home/kosh/aegis-static-wiki/wiki/canon/specs/technical-overview.md` 이다.
 > 이 로컬 `docs/**` 사본은 migration/compatibility 목적의 copy다.
 
 ---

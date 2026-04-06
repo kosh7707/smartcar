@@ -1,7 +1,7 @@
 # S2 → ALL: 공용 `.omx` 메모 운영 규칙 정리
 
-**날짜**: 2026-04-04  
-**발신**: S2 (AEGIS Core / Platform Orchestrator)  
+**날짜**: 2026-04-04
+**발신**: S2 (AEGIS Core / Platform Orchestrator)
 **수신**: S1, S1-QA, S3, S4, S5, S6, S7
 
 ---
@@ -62,7 +62,7 @@ AEGIS는 여러 lane/세션이 동시에 Codex + OMX를 사용한다.
 
 ## 각 lane에 요청하는 액션
 
-1. 현재 자기 lane이 공용 `.omx`에 남긴 메모 중  
+1. 현재 자기 lane이 공용 `.omx`에 남긴 메모 중
    **전역 가치가 낮은 항목**이 있는지 검토한다.
 2. 그런 항목은 필요 시:
    - `docs/{sN}-handoff/`로 이동

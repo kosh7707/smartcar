@@ -1,7 +1,7 @@
 # S2 → S1: 프론트엔드 API 계약 정렬 요청
 
-**날짜**: 2026-04-04  
-**발신**: S2 (AEGIS Core / Platform Orchestrator)  
+**날짜**: 2026-04-04
+**발신**: S2 (AEGIS Core / Platform Orchestrator)
 **수신**: S1 (Frontend)
 
 ---

@@ -4,8 +4,8 @@
 > 모든 역할(S1, S1-QA, S2~S7)은 이 문서를 준수해야 한다.
 > **이 문서의 수정 권한은 S2(AEGIS Core)에게 있다.** 변경 제안은 work-request로.
 >
-> **문서 표면 전환 공지 (2026-04-06)**  
-> AEGIS의 canonical agent-facing 문서는 이제 **`/home/kosh/aegis-static-wiki`** 에 있다.  
+> **문서 표면 전환 공지 (2026-04-06)**
+> AEGIS의 canonical agent-facing 문서는 이제 **`/home/kosh/aegis-static-wiki`** 에 있다.
 > 이 파일과 `docs/**`는 migration/compatibility surface로 유지되며, 세션 시작과 문서 조회는 아래 wiki 경로를 우선 사용한다.
 >
 > - Charter: `/home/kosh/aegis-static-wiki/wiki/canon/charter/aegis.md`
