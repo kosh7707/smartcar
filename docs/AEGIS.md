@@ -15,6 +15,8 @@
 - Wiki index: `/home/kosh/aegis-static-wiki/wiki/system/index.md`
 - Platform charter: `/home/kosh/aegis-static-wiki/wiki/canon/charter/aegis.md`
 - Migration map: `/home/kosh/aegis-static-wiki/wiki/system/migration-map.md`
+- Session history policy: `/home/kosh/aegis-static-wiki/wiki/system/session-history-policy.md`
+- Test evidence policy: `/home/kosh/aegis-static-wiki/wiki/system/test-evidence-policy.md`
 - Lane handoff: `/home/kosh/aegis-static-wiki/wiki/canon/handoff/{lane}/readme.md`
 - Lane roadmap: `/home/kosh/aegis-static-wiki/wiki/canon/roadmap/{lane}-roadmap.md`
 - API contracts: `/home/kosh/aegis-static-wiki/wiki/canon/api/*.md`
@@ -49,4 +51,5 @@ Canonical copies also exist in the wiki. If the two surfaces diverge, the wiki c
 ## Cutover note
 
 - Durable documentation maintenance now happens in the wiki first.
+- Sessions launched from `~/AEGIS` should use the local `aegis-static-wiki` MCP server defined in `.mcp.json`.
 - This file exists only to give a deterministic bootstrap path from `~/AEGIS` into the wiki-managed surface.

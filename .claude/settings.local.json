@@ -4,6 +4,6 @@
       "Bash(pip install:*)"
     ]
   },
-  "enabledMcpjsonServers": ["log-analyzer"],
+  "enabledMcpjsonServers": ["log-analyzer", "aegis-static-wiki"],
   "enableAllProjectMcpServers": true
 }
