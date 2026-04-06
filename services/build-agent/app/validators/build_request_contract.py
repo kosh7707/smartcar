@@ -62,6 +62,14 @@ class BuildRequestContractValidator:
 
         if contract.buildMode == BuildMode.SDK and contract.sdkId is None:
             errors.append("context.trusted.build.sdkId is required when build.mode is 'sdk'")
+        if strict_mode and contract.buildMode == BuildMode.SDK and not (
+            contract.setupScript or contract.buildEnvironment or contract.buildScriptHintText
+        ):
+            errors.append(
+                "strict compile-first v1 sdk builds require at least one materialization source: "
+                "context.trusted.build.setupScript, context.trusted.build.environment, "
+                "or context.trusted.build.scriptHintText",
+            )
 
         if errors:
             return None, errors

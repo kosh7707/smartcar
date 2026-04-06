@@ -377,6 +377,24 @@ class TestPartialStatus:
         )
         assert result.timed_out_files is None
 
+    def test_extended_degraded_fields_supported(self):
+        result = ToolExecutionResult(
+            status="partial",
+            findings_count=2,
+            elapsed_ms=1500,
+            timed_out_files=1,
+            failed_files=0,
+            files_attempted=10,
+            batch_count=2,
+            timeout_budget_seconds=20,
+            per_file_timeout_seconds=10,
+            budget_warning=True,
+            degraded=True,
+            degrade_reasons=["timeout-floor", "timed-out-files"],
+        )
+        assert result.degraded is True
+        assert result.degrade_reasons == ["timeout-floor", "timed-out-files"]
+
 
 # ──────────── on_progress 콜백 ────────────
 
@@ -520,9 +538,11 @@ class TestProgressCallback:
 
         # gcc-fanalyzer runner.run을 mock하여 on_file_progress 콜백을 직접 호출
         async def _mock_gcc_run(scan_dir, source_files, profile, timeout,
-                                enriched_profile=None, on_file_progress=None):
+                                enriched_profile=None, on_file_progress=None, on_runtime_state=None):
             if on_file_progress:
                 await on_file_progress("main.c", 1, 1)
+            if on_runtime_state:
+                await on_runtime_state({"degraded": False, "degradeReasons": []})
             return []
 
         with (
@@ -547,3 +567,64 @@ class TestProgressCallback:
 
         assert len(file_progress_calls) == 1
         assert file_progress_calls[0] == ("gcc-fanalyzer", "main.c", 1, 1)
+
+    @pytest.mark.asyncio
+    async def test_degraded_runtime_metadata_propagated(self, orchestrator):
+        """heavy analyzer runtime metadata가 execution.toolResults에 반영되는지 확인."""
+
+        async def _mock_gcc_run(scan_dir, source_files, profile, timeout,
+                                enriched_profile=None, on_file_progress=None, on_runtime_state=None):
+            orchestrator.gcc_analyzer._last_timed_out = 2
+            orchestrator.gcc_analyzer._last_run_stats = {
+                "files_attempted": 6,
+                "timed_out_files": 2,
+                "failed_files": 1,
+                "batch_count": 3,
+                "timeout_budget_seconds": 30,
+                "per_file_timeout_seconds": 10,
+                "budget_warning": True,
+            }
+            if on_runtime_state:
+                await on_runtime_state({
+                    "filesAttempted": 6,
+                    "timedOutFiles": 2,
+                    "failedFiles": 1,
+                    "batchCount": 3,
+                    "timeoutBudgetSeconds": 30,
+                    "perFileTimeoutSeconds": 10,
+                    "budgetWarning": True,
+                    "degraded": True,
+                    "degradeReasons": ["timeout-floor", "timed-out-files", "failed-files"],
+                })
+            return []
+
+        with (
+            patch.object(orchestrator.gcc_analyzer, "run", side_effect=_mock_gcc_run),
+            patch.object(orchestrator.gcc_analyzer, "check_available", return_value=(True, "13.3.0")),
+            patch.object(orchestrator, "check_tools", return_value={
+                "semgrep": {"available": False, "version": None},
+                "cppcheck": {"available": False, "version": None},
+                "flawfinder": {"available": False, "version": None},
+                "clang-tidy": {"available": False, "version": None},
+                "scan-build": {"available": False, "version": None},
+                "gcc-fanalyzer": {"available": True, "version": "13.3.0"},
+            }),
+        ):
+            _, execution = await orchestrator.run(
+                scan_dir=Path("/tmp/test"),
+                source_files=["main.c"],
+                profile=None,
+                rulesets=["p/c"],
+            )
+
+        tool = execution.tool_results["gcc-fanalyzer"]
+        assert tool.status == "partial"
+        assert tool.timed_out_files == 2
+        assert tool.failed_files == 1
+        assert tool.files_attempted == 6
+        assert tool.batch_count == 3
+        assert tool.timeout_budget_seconds == 30
+        assert tool.per_file_timeout_seconds == 10
+        assert tool.budget_warning is True
+        assert tool.degraded is True
+        assert execution.degraded is True

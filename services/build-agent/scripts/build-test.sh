@@ -17,7 +17,10 @@
 #   ./scripts/build-test.sh /path/to/project gateway-webserver/
 #
 # shell+gcc 예시:
-#   BUILD_MODE=sdk SDK_ID=ti-am335x ./scripts/build-test.sh /path/to/project gateway/
+#   BUILD_MODE=sdk SDK_ID=ti-am335x \
+#   BUILD_SETUP_SCRIPT=/opt/sdk/environment-setup-armv7at2hf-neon-linux-gnueabi \
+#   BUILD_SCRIPT_HINT_FILE=./scripts/cross_build.sh \
+#   ./scripts/build-test.sh /path/to/project gateway/
 
 set -euo pipefail
 
@@ -33,8 +36,16 @@ BUILD_CONTRACT_VERSION="${BUILD_CONTRACT_VERSION:-}"
 STRICT_MODE="${STRICT_MODE:-}"
 BUILD_MODE="${BUILD_MODE:-}"
 SDK_ID="${SDK_ID:-}"
+BUILD_SETUP_SCRIPT="${BUILD_SETUP_SCRIPT:-}"
+BUILD_ENV_JSON="${BUILD_ENV_JSON:-}"
+BUILD_SCRIPT_HINT_TEXT="${BUILD_SCRIPT_HINT_TEXT:-}"
+BUILD_SCRIPT_HINT_FILE="${BUILD_SCRIPT_HINT_FILE:-}"
 EXPECTED_ARTIFACT_KIND="${EXPECTED_ARTIFACT_KIND:-}"
 EXPECTED_ARTIFACT_PATH="${EXPECTED_ARTIFACT_PATH:-}"
+
+if [[ -z "$BUILD_SCRIPT_HINT_TEXT" && -n "$BUILD_SCRIPT_HINT_FILE" && -f "$BUILD_SCRIPT_HINT_FILE" ]]; then
+    BUILD_SCRIPT_HINT_TEXT="$(cat "$BUILD_SCRIPT_HINT_FILE")"
+fi
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -50,6 +61,9 @@ echo "  프로젝트: ${PROJECT_PATH}"
 echo "  타겟:     ${SUBPROJECT_PATH}"
 [[ -n "$BUILD_CONTRACT_VERSION" ]] && echo "  contract: ${BUILD_CONTRACT_VERSION} (strict=${STRICT_MODE:-unset})"
 [[ -n "$BUILD_MODE" ]] && echo "  mode:     ${BUILD_MODE}${SDK_ID:+ (sdkId=${SDK_ID})}"
+[[ -n "$BUILD_SETUP_SCRIPT" ]] && echo "  setup:    ${BUILD_SETUP_SCRIPT}"
+[[ -n "$BUILD_ENV_JSON" ]] && echo "  env:      provided via BUILD_ENV_JSON"
+[[ -n "$BUILD_SCRIPT_HINT_TEXT" ]] && echo "  hint:     build script text provided"
 [[ -n "$EXPECTED_ARTIFACT_KIND" || -n "$EXPECTED_ARTIFACT_PATH" ]] && \
     echo "  expect:   ${EXPECTED_ARTIFACT_KIND:-artifact}${EXPECTED_ARTIFACT_PATH:+ @ ${EXPECTED_ARTIFACT_PATH}}"
 echo ""
@@ -72,7 +86,7 @@ RESULT=$(curl -s -X POST "${BUILD_URL}/v1/tasks" \
     -H "Content-Type: application/json" \
     -H "X-Request-Id: ${REQUEST_ID}" \
     -d "$(python3 -c "
-import json
+import json, os
 trusted = {
     'projectPath': '${PROJECT_PATH}',
     'subprojectPath': '${SUBPROJECT_PATH}',
@@ -86,6 +100,12 @@ if '${BUILD_MODE}':
     trusted['build'] = {'mode': '${BUILD_MODE}'}
 if '${SDK_ID}':
     trusted.setdefault('build', {})['sdkId'] = '${SDK_ID}'
+if os.environ.get('BUILD_SETUP_SCRIPT'):
+    trusted.setdefault('build', {})['setupScript'] = os.environ['BUILD_SETUP_SCRIPT']
+if os.environ.get('BUILD_ENV_JSON'):
+    trusted.setdefault('build', {})['environment'] = json.loads(os.environ['BUILD_ENV_JSON'])
+if os.environ.get('BUILD_SCRIPT_HINT_TEXT'):
+    trusted.setdefault('build', {})['scriptHintText'] = os.environ['BUILD_SCRIPT_HINT_TEXT']
 if '${EXPECTED_ARTIFACT_KIND}' or '${EXPECTED_ARTIFACT_PATH}':
     trusted['expectedArtifacts'] = [{
         'kind': '${EXPECTED_ARTIFACT_KIND}' or 'artifact',

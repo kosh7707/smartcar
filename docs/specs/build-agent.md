@@ -44,13 +44,15 @@ strict v1 요청은 다음을 반드시 포함한다.
 - `context.trusted.build.mode` (`native` | `sdk`)
 - `context.trusted.expectedArtifacts[]`
 - `build.mode == "sdk"` 이면 `build.sdkId`
+- strict sdk build면 `build.setupScript`, `build.environment`, `build.scriptHintText` 중 최소 하나
 
 ### 3.2 strict 불변조건
 
 1. `subprojectPath` 누락 시 요청 자체가 invalid contract이다.
 2. `native`는 fallback이 아니라 **선언된 모드**다.
-3. SDK 모드에서 SDK 정보가 없으면 repair loop 전에 실패한다.
-4. `expectedArtifacts`가 충족되지 않으면 성공을 반환하지 않는다.
+3. SDK 모드에서 declaration만 있고 materialization source가 없으면 repair loop 전에 실패한다.
+4. caller-supplied build script hint는 text-only / reference-only다 (직접 실행 금지).
+5. `expectedArtifacts`가 충족되지 않으면 성공을 반환하지 않는다.
 5. third-party / optional component disable이 필요하면 strict 계약에서는 실패로 보고한다.
 6. `compile_commands.json` 생성 가능성만으로 성공 처리하지 않는다.
 
@@ -69,7 +71,7 @@ POST /v1/tasks (taskType: "build-resolve")
   │
   ├── 0. Preflight (결정론적)
   │   ├── strict 계약 필수 필드 검증
-  │   ├── build.mode / sdkId / expectedArtifacts 검증
+  │   ├── build.mode / sdkId / materialization source / expectedArtifacts 검증
   │   └── subproject path scope 검증
   │
   ├── 1. Phase 0 (결정론적)
@@ -106,6 +108,7 @@ POST /v1/tasks (taskType: "build-resolve")
 - `projectPath`, `subprojectPath`, `subprojectName` 존재
 - `build.mode ∈ {native, sdk}`
 - `sdk` 모드면 `sdkId` 존재
+- strict sdk build면 `setupScript`, `buildEnvironment`, `buildScriptHintText` 중 하나 이상 존재
 - `expectedArtifacts` 비어있지 않음
 - `subprojectPath`가 `projectPath` 경계 안에 있음
 
@@ -114,7 +117,7 @@ POST /v1/tasks (taskType: "build-resolve")
 | 상황 | failureCode | status |
 |------|-------------|--------|
 | strict 필수 필드 누락/형식 오류 | `INVALID_SCHEMA` | `validation_failed` |
-| sdk 모드인데 SDK 식별 정보 누락/registry 불일치 | `INVALID_SCHEMA` | `validation_failed` |
+| sdk 모드인데 SDK 식별 정보 또는 materialization source 부족 | `INVALID_SCHEMA` | `validation_failed` |
 | 빌드 루트 scope 위반 | `INVALID_SCHEMA` | `validation_failed` |
 
 ---
@@ -131,7 +134,7 @@ POST /v1/tasks (taskType: "build-resolve")
 | 빌드 파일 | glob 매칭 (`CMakeLists.txt`, `Makefile`, `*.sh`, `*.cmake`) |
 | 프로젝트 트리 | depth 제한 컴팩트 트리 |
 | 언어 | `.c`, `.cpp`, `.h`, `.hpp` 등 확장자 기반 |
-| SDK registry | S4 `GET /v1/sdk-registry` |
+| caller build material | `build.setupScript`, `build.environment`, `build.scriptHintText` |
 | 기존 빌드 스크립트 | `scripts/cross_build.sh`, `build.sh`, `compile.sh` 등 |
 
 ### 6.2 shell / gcc 우선성
@@ -147,7 +150,7 @@ class Phase0Result:
     build_files: list[str]
     project_tree: str
     detected_languages: list[str]
-    sdk_registry: dict
+    # caller-supplied build material is handled separately from Phase 0
     existing_script_path: str | None
     duration_ms: int
 ```
@@ -348,8 +351,7 @@ TaskFailureResponse:
 ```text
 Build Agent (:8003)
   ├── S7 Gateway (:8000)       POST /v1/chat         제한적 repair loop LLM
-  └── S4 SAST Runner (:9000)   GET  /v1/sdk-registry SDK 조회
-                               POST /v1/build        실제 빌드 실행
+  └── S4 SAST Runner (:9000)   POST /v1/build        explicit build command/environment 실행
 ```
 
 ---

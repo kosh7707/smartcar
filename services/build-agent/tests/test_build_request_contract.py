@@ -20,7 +20,7 @@ def test_canonical_strict_contract_fields_parse() -> None:
             "subprojectName": "gateway",
             "contractVersion": "build-resolve-v1",
             "strictMode": True,
-            "build": {"mode": "native"},
+            "build": {"mode": "native", "scriptHintText": "make -j4\n"},
             "expectedArtifacts": [{"kind": "executable", "path": "build-aegis/gateway"}],
         }
     )
@@ -33,6 +33,7 @@ def test_canonical_strict_contract_fields_parse() -> None:
     assert contract.contractVersion == ContractVersion.BUILD_RESOLVE_V1
     assert normalize_contract_version(contract) == "build-resolve-v1"
     assert contract.expectedArtifacts[0].artifactType.value == "executable"
+    assert contract.buildScriptHintText == "make -j4"
 
 
 
@@ -46,6 +47,7 @@ def test_legacy_aliases_normalize_to_canonical_contract() -> None:
             "strictMode": True,
             "buildMode": "sdk",
             "sdkId": "sdk-1",
+            "buildEnvironment": {"CC": "arm-linux-gnueabihf-gcc"},
             "expectedArtifacts": [{"artifactType": "executable", "path": "gateway"}],
         }
     )
@@ -54,6 +56,7 @@ def test_legacy_aliases_normalize_to_canonical_contract() -> None:
     assert contract.subprojectName == "gateway"
     assert contract.buildMode == BuildMode.SDK
     assert contract.sdkId == "sdk-1"
+    assert contract.buildEnvironment == {"CC": "arm-linux-gnueabihf-gcc"}
     assert contract.contractVersion == ContractVersion.BUILD_RESOLVE_V1
     assert normalize_contract_version(contract) == "build-resolve-v1"
 
@@ -76,3 +79,23 @@ def test_preflight_requires_canonical_subproject_fields_in_strict_mode() -> None
     assert preflight is None
     assert any("subprojectPath" in error for error in errors)
     assert any("subprojectName" in error for error in errors)
+
+
+def test_strict_sdk_requires_materialization_source() -> None:
+    validator = BuildRequestContractValidator()
+    preflight, errors = validator.validate(
+        _request(
+            {
+                "projectPath": "/tmp/project",
+                "subprojectPath": "gateway",
+                "subprojectName": "gateway",
+                "contractVersion": "build-resolve-v1",
+                "strictMode": True,
+                "build": {"mode": "sdk", "sdkId": "sdk-1"},
+                "expectedArtifacts": [{"kind": "executable", "path": "gateway"}],
+            }
+        )
+    )
+
+    assert preflight is None
+    assert any("materialization source" in error for error in errors)

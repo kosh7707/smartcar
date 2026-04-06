@@ -1,6 +1,7 @@
 """Build Agent v2 — build-resolve 태스크 라우터.
 
-S4 sdk-registry 조회 → 빌드 파일 자동 탐색 → AgentLoop(read/write/edit/delete/try_build) 실행.
+호출자가 선언한 build material을 바탕으로 빌드 파일 자동 탐색 →
+AgentLoop(read/write/edit/delete/try_build) 실행.
 목표: 빌드 스크립트(build-aegis/aegis-build.sh) 작성 + 빌드 성공.
 """
 import glob
@@ -13,8 +14,6 @@ import time
 from datetime import datetime, timezone
 
 from agent_shared.llm.prompt_builder import SystemPromptBuilder
-
-import httpx
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
@@ -93,41 +92,7 @@ async def _run_build_request_preflight(
     preflight, errors = validator.validate(request)
     if preflight is None:
         return None, _build_invalid_contract_failure(request, errors)
-
-    contract = preflight.contract
-    if contract.strictMode and contract.buildMode == BuildMode.SDK and contract.sdkId:
-        sdk_registry = await _fetch_sdk_registry(settings.sast_endpoint, get_request_id() or request.taskId)
-        declared_sdk = contract.sdkId
-        registered_ids = {
-            sdk.get("sdkId")
-            for sdk in sdk_registry.get("sdks", [])
-            if isinstance(sdk, dict) and sdk.get("sdkId")
-        }
-        if not registered_ids:
-            errors.append(
-                "strict compile-first v1 could not verify context.trusted.build.sdkId against the S4 sdk-registry",
-            )
-        elif declared_sdk not in registered_ids:
-            errors.append(
-                f"context.trusted.build.sdkId '{declared_sdk}' is not present in the S4 sdk-registry",
-            )
-
-    if errors:
-        return None, _build_invalid_contract_failure(request, errors)
     return preflight, None
-
-
-async def _fetch_sdk_registry(sast_endpoint: str, request_id: str | None) -> dict:
-    """S4 GET /v1/sdk-registry 로 SDK/툴체인 정보를 가져온다."""
-    try:
-        headers = {"X-Request-Id": request_id} if request_id else {}
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(f"{sast_endpoint}/v1/sdk-registry", headers=headers)
-            resp.raise_for_status()
-            return resp.json()
-    except Exception as e:
-        logger.warning("[build] S4 sdk-registry 조회 실패 (무시): %s", e)
-        return {}
 
 
 def _discover_build_files(project_path: str, target_path: str = "") -> list[str]:
@@ -158,7 +123,7 @@ def _discover_build_files(project_path: str, target_path: str = "") -> list[str]
 
 
 def _build_system_prompt(
-    sdk_info: dict,
+    build_material: dict,
     build_files: list[str],
     project_path: str,
     target_path: str = "",
@@ -170,30 +135,37 @@ def _build_system_prompt(
 ) -> str:
     """빌드 에이전트 v3 시스템 프롬프트."""
 
-    sdk_section = ""
-    sdk_dir_hint = ""
-    if sdk_info:
-        # SDK 경로 추출 (setupScript에서 상위 디렉토리)
-        sdks = sdk_info.get("sdks", [])
-        if sdks:
-            setup = sdks[0].get("setupScript", "")
-            if setup:
-                # e.g. /home/kosh/sdks/ti-am335x/linux-devkit/environment-setup-... → /home/kosh/sdks/ti-am335x
-                parts = setup.split("/linux-devkit/")
-                if len(parts) >= 2:
-                    sdk_dir_hint = parts[0]
-        sdk_section = (
-            "## SDK / 툴체인 정보 (S4 sdk-registry)\n"
-            f"```json\n{json.dumps(sdk_info, indent=2, ensure_ascii=False)}\n```\n"
-        )
-        if sdk_dir_hint:
-            sdk_section += (
-                f"SDK 경로: `{sdk_dir_hint}`\n"
-                f"try_build 호출 시 buildCommand 앞에 `SDK_DIR={sdk_dir_hint}`를 붙여라.\n"
-                f"예: `SDK_DIR={sdk_dir_hint} bash {build_subdir}/aegis-build.sh`\n\n"
+    build_material_section = ""
+    script_hint_section = ""
+    if build_material:
+        material_lines: list[str] = []
+        setup_script = build_material.get("setupScript", "")
+        toolchain_triplet = build_material.get("toolchainTriplet", "")
+        build_environment = build_material.get("buildEnvironment", {})
+        script_hint_text = build_material.get("buildScriptHintText", "")
+
+        if setup_script:
+            material_lines.append(f"- **setupScript**: `{setup_script}`")
+        if toolchain_triplet:
+            material_lines.append(f"- **toolchainTriplet**: `{toolchain_triplet}`")
+        if isinstance(build_environment, dict) and build_environment:
+            env_keys = ", ".join(sorted(build_environment.keys()))
+            material_lines.append(f"- **buildEnvironment keys**: {env_keys}")
+
+        if material_lines:
+            build_material_section = "## 호출자 제공 build material\n" + "\n".join(material_lines) + "\n\n"
+
+        if script_hint_text:
+            truncated = script_hint_text[:8000]
+            truncation_note = "\n# ... (caller hint truncated for prompt budget)" if len(script_hint_text) > len(truncated) else ""
+            script_hint_section = (
+                "## 호출자 제공 build script hint (reference only)\n"
+                "아래 스크립트 텍스트는 **참고용**이다. 그대로 실행하지 말고, "
+                f"`{build_subdir}/aegis-build.sh`를 작성할 때만 참고하라.\n"
+                "```bash\n"
+                f"{truncated}{truncation_note}\n"
+                "```\n\n"
             )
-        else:
-            sdk_section += "\n"
 
     build_file_section = ""
     if build_files:
@@ -268,6 +240,8 @@ def _build_system_prompt(
             f"- **declared build.sdkId**: {contract.sdkId or '(none)'}\n"
             f"- **expectedArtifacts**: {expected_artifacts}\n"
         )
+        if contract.buildScriptHintText:
+            contract_section += "- **caller build script hint**: provided (text-only, reference-only)\n"
         if contract.strictMode:
             contract_section += (
                 "- **선언되지 않은 SDK/native fallback을 하지 마라.**\n"
@@ -293,7 +267,9 @@ def _build_system_prompt(
         f"2. **write_file/edit_file/delete_file은 `{build_subdir}/` 하위만 허용된다.** edit/delete는 네가 생성한 파일만 가능.\n"
         "3. try_build가 성공하면 즉시 최종 보고서를 JSON으로 출력하라.\n"
         "4. 3회 연속 빌드 실패 시 즉시 진단 보고서를 JSON으로 출력하라.\n"
-        "5. **bear, compile_commands.json을 언급하거나 사용하지 마라.** 후속 처리는 S4가 담당한다."
+        "5. **bear, compile_commands.json을 언급하거나 사용하지 마라.** 후속 처리는 S4가 담당한다.\n"
+        "6. **apt-get, yum, pip install, sudo, curl, wget, git clone 같은 환경 변경/패키지 설치를 스크립트에 넣지 마라.** "
+        "이런 명령은 write_file/edit_file 단계에서 차단된다."
     )
 
     # 동적 섹션 — 조건부 추가
@@ -303,8 +279,10 @@ def _build_system_prompt(
         builder.add_section("호출자 선언 계약", contract_section)
     if phase0_section:
         builder.add_section("사전 분석", phase0_section)
-    if sdk_section:
-        builder.add_section("SDK 정보", sdk_section)
+    if build_material_section:
+        builder.add_section("호출자 제공 build material", build_material_section)
+    if script_hint_section:
+        builder.add_section("호출자 제공 build script hint", script_hint_section)
     if build_file_section:
         builder.add_section("빌드 파일", build_file_section)
 
@@ -315,6 +293,9 @@ def _build_system_prompt(
         "**첫 번째 동작은 반드시 `list_files`로 프로젝트 구조를 파악하라.** 이후 핵심 빌드 파일 1~2개만 read_file로 읽어라.\n"
         "우선순위: 셸 스크립트(scripts/cross_build.sh, build.sh) > CMakeLists.txt > Makefile\n"
         "기존 빌드 스크립트가 있으면 **참고**하되, 그대로 실행하지 말고 **네가 직접 빌드 스크립트를 작성**하라.\n"
+        "호출자가 build script hint를 제공했다면, **텍스트 참고 자료**로만 사용하라. 그대로 실행하거나 복붙하지 마라.\n"
+        "기존 프로젝트의 build/dist 산출물이나 cache가 이미 의미가 있으면 불필요하게 삭제하지 마라. "
+        "clean step은 반드시 필요한 경우에만 최소 범위로 수행하라.\n"
         "탐색 시 반드시 확인하라:\n"
         "1. SDK/toolchain 필요 여부 (CC 변수, CMAKE_C_COMPILER 확인)\n"
         "2. 외부 의존성 (find_package, pkg-config, -l 플래그 확인)\n"
@@ -324,15 +305,17 @@ def _build_system_prompt(
         "### 2단계: 빌드 스크립트 작성 (write_file)\n"
         f"`{build_subdir}/aegis-build.sh`에 빌드 스크립트를 작성하라. 스크립트 요구사항:\n"
         f"- 빌드 출력은 `{build_source}/{build_subdir}/`에 생성\n"
-        "- SDK가 필요하면 스크립트 안에서 `$SDK_DIR` 환경변수를 사용. try_build 호출 시 `SDK_DIR=<경로> bash ...` 형태로 전달.\n"
+        "- SDK build material이 setupScript로 선언되었으면, 스크립트 안에서 해당 setupScript를 source하라.\n"
+        "- caller buildEnvironment가 선언되었으면 try_build의 `build_environment` 인자로 전달하거나, 스크립트 안에서 필요한 env를 명시적으로 소비하라.\n"
         "- 소스 코드를 수정하지 말 것\n"
         "- 첫 줄은 `#!/bin/bash`\n"
         f"- **중요: 스크립트는 `{build_subdir}/` 안에 위치한다. 프로젝트 루트는 스크립트의 상위 디렉토리이다.**\n"
         f"  올바른 경로 설정: `PROJECT_ROOT=\"$(cd \"$(dirname \"$0\")/..\" && pwd)\"`\n"
         f"  잘못된 예: `ROOT_DIR=\"$(dirname \"$0\")\"` ← 이러면 {build_subdir}/ 자체를 루트로 잡음\n\n"
         "### 3단계: 빌드 실행 (try_build) — write_file 직후 즉시 실행\n"
-        f"SDK가 있으면: `build_command: \"SDK_DIR=<sdk경로> bash {build_source}/{build_subdir}/aegis-build.sh\"`\n"
-        f"SDK가 없으면: `build_command: \"bash {build_source}/{build_subdir}/aegis-build.sh\"`\n\n"
+        f"기본 예: `build_command: \"bash {build_source}/{build_subdir}/aegis-build.sh\"`\n"
+        "caller buildEnvironment가 있으면 `build_environment`에 key/value를 명시하라.\n"
+        "직접 실행해야 할 외부 스크립트를 `build_command`로 넘기지 말고, 네가 생성한 `aegis-build.sh`만 실행하라.\n\n"
         "### 4단계: 실패 복구\n"
         "에러 유형에 따라 복구 전략을 선택하라:\n"
         "- **누락 헤더** (*.h not found): `-I` 플래그를 추가하거나, SDK sysroot 내에서 헤더 경로를 찾아라.\n"
@@ -424,22 +407,29 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
 
     # ─── 1. Phase 0 결정론적 사전 분석 ───
     from app.core.phase_zero import Phase0Executor
-    phase0 = Phase0Executor(project_path, target_path, settings.sast_endpoint)
+    phase0 = Phase0Executor(project_path, target_path)
     phase0_result = await phase0.execute(request_id)
-
-    sdk_info = phase0_result.sdk_info
-    if preflight.contract.buildMode == BuildMode.NATIVE:
-        sdk_info = {}
-    elif preflight.contract.sdkId:
-        matching_sdks = [
-            sdk for sdk in sdk_info.get("sdks", [])
-            if isinstance(sdk, dict) and sdk.get("sdkId") == preflight.contract.sdkId
-        ]
-        sdk_info = {"sdks": matching_sdks} if matching_sdks else {}
+    if preflight.contract.buildScriptHintText:
+        phase0_result.build_system = "shell"
+    build_material = {
+        "setupScript": preflight.contract.setupScript or "",
+        "toolchainTriplet": preflight.contract.toolchainTriplet or "",
+        "buildEnvironment": preflight.contract.buildEnvironment,
+        "buildScriptHintText": preflight.contract.buildScriptHintText or "",
+    }
     build_files = phase0_result.build_files
 
     # ─── 1b. 초기 빌드 스크립트 결정론적 생성 (cmake/make/autotools 템플릿) ───
-    initial_script = phase0.generate_initial_script(sdk_info)
+    initial_script = phase0.generate_initial_script(preflight.contract.setupScript)
+    hint_preseeded = False
+    if not initial_script and preflight.contract.buildScriptHintText:
+        from app.policy.file_policy import FilePolicy
+        hint_warnings = FilePolicy.scan_content(preflight.contract.buildScriptHintText)
+        if not hint_warnings:
+            initial_script = preflight.contract.buildScriptHintText
+            hint_preseeded = True
+        else:
+            logger.warning("[build] caller build script hint ignored due to forbidden content: %s", hint_warnings)
     initial_script_hint = ""
     if initial_script:
         os.makedirs(os.path.join(effective_root, build_subdir), exist_ok=True)
@@ -544,7 +534,11 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
             "type": "object",
             "properties": {
                 "build_command": {"type": "string", "description": f"빌드 명령어 (예: 'bash {build_subdir}/aegis-build.sh')"},
-                "sdk_id": {"type": "string", "description": "(선택) SDK ID — S4가 자동으로 SDK 환경을 설정한다"},
+                "build_environment": {
+                    "type": "object",
+                    "description": "(선택) caller가 제공한 명시적 환경변수 주입. 값은 문자열이어야 한다.",
+                    "additionalProperties": {"type": "string"},
+                },
             },
             "required": ["build_command"],
         },
@@ -562,7 +556,16 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
     write_tool = WriteFileTool(effective_root, build_dir=build_subdir, file_policy=file_policy)
     edit_tool = EditFileTool(effective_root, file_policy, build_dir=build_subdir)
     delete_tool = DeleteFileTool(effective_root, file_policy, build_dir=build_subdir)
-    build_tool = TryBuildTool(settings.sast_endpoint, effective_root, request_id)
+    provenance = request.context.trusted.get("provenance", {}) if isinstance(request.context.trusted, dict) else {}
+    if not isinstance(provenance, dict):
+        provenance = {}
+    build_tool = TryBuildTool(
+        settings.sast_endpoint,
+        effective_root,
+        request_id,
+        default_build_environment=preflight.contract.buildEnvironment,
+        provenance=provenance,
+    )
 
     tool_router.register_implementation("list_files", list_tool)
     tool_router.register_implementation("read_file", read_tool)
@@ -573,7 +576,7 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
 
     # ─── 6. 시스템 프롬프트 + LLM ───
     system_prompt = _build_system_prompt(
-        sdk_info, build_files, project_path,
+        build_material, build_files, project_path,
         target_path=target_path, target_name=target_name,
         phase0=phase0_result,
         build_subdir=build_subdir,
@@ -593,6 +596,8 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
             f"## 호출자 선언 contractVersion\n{normalize_contract_version(preflight.contract)}\n"
             f"## 호출자 선언 build.mode\n{preflight.contract.buildMode.value if preflight.contract.buildMode else 'unspecified'}\n"
         )
+    if preflight.contract.buildScriptHintText:
+        user_message += "## caller build script hint\nprovided (text-only, reference-only)\n"
 
     if settings.llm_mode == "real":
         llm_caller = LlmCaller(
@@ -646,6 +651,59 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
     )
 
     try:
+        if hint_preseeded:
+            from agent_shared.schemas.agent import ToolTraceStep
+
+            direct_command = f"bash {os.path.join(effective_root, build_subdir, 'aegis-build.sh')}"
+            direct_result = await build_tool.execute({"build_command": direct_command})
+            session.trace.append(
+                ToolTraceStep(
+                    step_id="step_hint_seed_01",
+                    turn_number=0,
+                    tool="try_build",
+                    args_hash=hashlib.sha256(direct_command.encode()).hexdigest()[:16],
+                    cost_tier="expensive",
+                    duration_ms=0,
+                    success=direct_result.success,
+                    new_evidence_refs=direct_result.new_evidence_refs,
+                    error=direct_result.error,
+                )
+            )
+            if direct_result.success:
+                direct_data = json.loads(direct_result.content)
+                build_evidence = direct_data.get("buildEvidence", {})
+                direct_content = json.dumps(
+                    {
+                        "summary": "caller build script hint를 참고해 생성한 build 스크립트로 빌드에 성공했다.",
+                        "claims": [
+                            {
+                                "statement": "caller hint 기반 초기 build script가 성공적으로 실행되었다.",
+                                "supportingEvidenceRefs": [],
+                            }
+                        ],
+                        "caveats": [],
+                        "usedEvidenceRefs": [],
+                        "needsHumanReview": False,
+                        "recommendedNextSteps": [],
+                        "policyFlags": [],
+                        "buildResult": {
+                            "success": True,
+                            "buildCommand": direct_command,
+                            "buildScript": f"{build_subdir}/aegis-build.sh",
+                            "buildDir": build_subdir,
+                            "errorLog": None,
+                            "producedArtifacts": [],
+                            "declaredMode": preflight.contract.buildMode.value if preflight.contract.buildMode else None,
+                            "sdkId": preflight.contract.sdkId,
+                        },
+                    },
+                    ensure_ascii=False,
+                )
+                return ResultAssembler(model_name=settings.llm_model, prompt_version="build-v3").build(
+                    direct_content,
+                    session,
+                )
+
         result = await loop.run(session)
         return result
     finally:

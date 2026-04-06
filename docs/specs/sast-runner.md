@@ -1,4 +1,4 @@
-# S4. SAST Runner 기능 명세 (v0.9.0)
+# S4. SAST Runner 기능 명세 (v0.11.0)
 
 > SAST Runner는 C/C++ 프로젝트의 보안 분석에 필요한 **결정론적 전처리**를 담당하는 서비스다.
 > 6개 SAST 도구 병렬 실행, SCA(라이브러리 식별 + upstream diff), 코드 구조 추출,
@@ -23,27 +23,24 @@
 | 위치 | `services/sast-runner/` |
 | 스택 | Python 3.12 + FastAPI + Uvicorn |
 | 포트 | 9000 |
-| 버전 | v0.9.0 |
+| 버전 | v0.11.0 |
 | API 계약 | `docs/api/sast-runner-api.md` |
-| 테스트 | 368개 (23개 파일) |
+| 테스트 | 369개 (23개 파일) |
 
 ---
 
-## 3. 엔드포인트 (12개)
+## 3. 엔드포인트 (9개)
 
 | 엔드포인트 | 용도 |
 |-----------|------|
-| `POST /v1/scan` | 6개 SAST 도구 병렬 + 실행 보고서 + SDK 해석 + scope-early + 노이즈 필터링. **NDJSON 스트리밍 모드 지원** (`Accept: application/x-ndjson`) |
+| `POST /v1/scan` | 6개 SAST 도구 병렬 + 실행 보고서 + SDK 해석 + scope-early + 노이즈 필터링. **Build Snapshot provenance 입력/echo + degraded-aware NDJSON 스트리밍** 지원 |
 | `POST /v1/functions` | clang AST -> 함수+호출 관계 + origin 태깅 |
 | `POST /v1/includes` | gcc -E -M -> 인클루드 트리 |
 | `POST /v1/metadata` | gcc -E -dM -> 타겟 매크로/아키텍처 |
 | `POST /v1/libraries` | 라이브러리 식별 + upstream diff (CVE는 S5로 이관) |
-| `POST /v1/build` | 빌드만 수행 (bear -> compile_commands.json). 파이프라인 단계별 제어용 |
-| `POST /v1/build-and-analyze` | bear 빌드 -> 위 전부 한 번에. buildCommand 자동 감지 + SDK env-setup |
+| `POST /v1/build` | caller가 완전히 materialize한 build command/environment를 그대로 실행. **structured `buildEvidence` + `failureDetail`** 반환 |
+| `POST /v1/build-and-analyze` | explicit build command/environment로 빌드 후 나머지 분석 수행. **convenience surface** |
 | `POST /v1/discover-targets` | 프로젝트 내 빌드 타겟 자동 탐색 (파일시스템 스캔) |
-| `GET /v1/sdk-registry` | 등록된 SDK 목록 조회 |
-| `POST /v1/sdk-registry` | SDK 검증 + 등록 |
-| `DELETE /v1/sdk-registry/:sdkId` | SDK 삭제 |
 | `GET /v1/health` | 6개 도구 상태 + 버전 |
 
 ---
@@ -58,7 +55,7 @@
 
 ### 주요 입력 파라미터
 
-- `buildProfile`: 전 필드 optional. `sdkId`만 보내면 sdk-registry에서 나머지 자동 해석
+- analysis path에서는 `buildProfile`을 계속 사용한다. build path는 더 이상 `sdkId`를 받지 않는다
 - `options.tools`: 도구 서브셋 선택 (예: `["cppcheck", "flawfinder"]`). 미지정 시 6개 전부
 - `thirdPartyPaths`: vendored 서드파티 경로 목록. scope-early 필터링에 사용
 - `X-Timeout-Ms` 헤더: 타임아웃 우선순위 — 헤더 > body `options.timeoutSeconds` > 기본값 600초
@@ -275,32 +272,21 @@ S5 ingest 후 유용성을 결정하는 보조 지표:
 
 `bear -- buildCommand` -> `compile_commands.json` 자동 생성.
 
-### buildCommand 자동 감지
-
-`buildCommand` 미지정 시 프로젝트 디렉토리에서 자동 감지 (우선순위 순):
-1. 빌드 스크립트: `scripts/cross_build.sh`, `scripts/build.sh`, `cross_build.sh`, `build.sh`
-2. `CMakeLists.txt` -> `mkdir -p build && cd build && cmake .. && make`
-3. `Makefile` -> `make`
-4. `configure` -> `./configure && make`
+### build path 실행 원칙
 
 ### `/v1/build` 옵션
 
+- `buildCommand`: **필수**. S4는 자동 감지하지 않음
+- `buildEnvironment`: caller가 제공하는 명시적 환경변수
 - `wrapWithBear`: 기본 true. false면 bear 없이 순수 빌드 실행
 - `userEntries` 필드: CMakeFiles/ 임시 항목 자동 필터링
 - `exitCode != 0` → 항상 `success: false`
-- `exitCode != 0` + `userEntries > 0` → `success: false` + `warning` 필드 (부분 compile_commands 활용 가능)
+- caller input이 잘못되면 S4는 추론/보정하지 않고 그대로 실패를 반환
 - `/v1/scan` 응답: `response_model_exclude_none` — null 필드는 JSON에서 생략
-
-### SDK environment-setup
-
-`buildProfile.sdkId`가 지정되면 SDK의 environment-setup 스크립트를 자동 source:
-```
-source $SDK_ROOT/$sdkId/.../environment-setup-* && buildCommand
-```
 
 ---
 
-## 11. SDK 레지스트리
+## 11. 내부 SDK 해석 데이터 (analysis path only)
 
 외부 파일(`$SAST_SDK_ROOT/sdk-registry.json`)로 SDK 메타데이터를 관리한다.
 
@@ -310,15 +296,11 @@ $SAST_SDK_ROOT/               <- .env: SAST_SDK_ROOT=/home/kosh/sdks
   +- ti-am335x/                <- sdkId = 폴더명
 ```
 
-### API
+### 의미
 
-| 엔드포인트 | 용도 |
-|-----------|------|
-| `GET /v1/sdk-registry` | 등록된 SDK 목록 |
-| `POST /v1/sdk-registry` | SDK 등록 (경로 검증 + 컴파일러 존재 확인) |
-| `DELETE /v1/sdk-registry/:sdkId` | SDK 삭제 + 캐시 무효화 |
-
-새 SDK 추가: `$SAST_SDK_ROOT/` 하위에 폴더 설치 -> `POST /v1/sdk-registry`로 등록 또는 `sdk-registry.json` 직접 편집. 코드 수정 불필요.
+- 이 데이터는 **analysis path 내부 해석용**으로만 남아 있다.
+- `/v1/sdk-registry` public API는 제거되었다.
+- build path는 더 이상 `sdkId`를 받지 않으므로 이 레지스트리에 의존하지 않는다.
 
 ---
 
@@ -361,7 +343,7 @@ pattern-sanitizers:              # <- FP 감소
 
 ---
 
-## 12-1. NDJSON 스트리밍 진행 지표 (v0.9.0)
+## 12-1. NDJSON 스트리밍 진행 지표 (v0.11.0)
 
 `POST /v1/scan`의 NDJSON 스트리밍 모드에서 heartbeat에 진행 상태를 포함한다.
 
@@ -477,9 +459,9 @@ Phase 2 (LLM 해석):
   S3 -> S7 Gateway (:8000) -> LLM Engine -> 판단/분류
 ```
 
-## 16-1. Build Snapshot consumer seam (planned)
+## 16-1. Build Snapshot consumer seam (implemented in v0.11.0)
 
-S2/S3가 Build Snapshot reference-first seam을 열더라도,
+S2/S3가 Build Snapshot reference-first seam을 열면,
 S4의 역할은 여전히 **결정론적 build/scan execution authority** 다.
 
 ### S4가 authoritative한 것
@@ -494,18 +476,18 @@ S4의 역할은 여전히 **결정론적 build/scan execution authority** 다.
 - `snapshotSchemaVersion`
 - lineage 계열 provenance
 
-### migration-safe 입력 원칙
+### 입력 원칙
 
-현 단계에서 S4는 `buildSnapshotId`만으로는 실행할 수 없다.
+S4는 `buildSnapshotId`만 단독으로 받아 실행하지 않는다.
 직접 snapshot lookup을 하지 않기 때문이다.
 
-따라서 가장 안전한 seam은:
+따라서 실제 `/v1` contract는:
 - snapshot reference
-- concrete execution evidence (`projectPath`, `compileCommands`, `buildCommand`, `buildProfile`, `thirdPartyPaths`)
+- concrete execution evidence (`projectPath`, `compileCommands`, `buildCommand`, `thirdPartyPaths`)
 
 를 함께 전달하는 방식이다.
 
-전달 shape는 flat field보다 nested `provenance` object가 더 안전하다.
+전달 shape는 flat field보다 nested `provenance` object를 사용한다.
 
 ### `/v1/build-and-analyze`의 위치
 
@@ -517,6 +499,13 @@ snapshot-first architecture에서는 `/v1/build-and-analyze`를
 1. `/v1/build`
 2. upstream snapshot persist
 3. `/v1/scan`, `/v1/functions`, `/v1/libraries`, `/v1/metadata`
+
+### 실제 `/v1` contract 핵심
+
+- build/scan/build-and-analyze 요청은 nested `provenance` object를 수용한다
+- `/v1/build`는 `buildEvidence`와 `failureDetail`을 구조화해서 반환한다
+- `/v1/build`는 `sdkId`를 받지 않고 `buildCommand` 자동 감지도 하지 않는다
+- `/v1/scan` heartbeat/final execution은 degraded long-run을 구분할 수 있는 필드를 포함한다
 
 ---
 

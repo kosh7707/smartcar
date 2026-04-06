@@ -94,6 +94,13 @@ POST /v1/tasks (taskType: "deep-analyze")
 - vendored 라이브러리 식별, upstream diff, CVE 조회
 - SCA 결과는 claims가 아닌 caveats에 포함 (라이브러리 코드는 미분석)
 
+### 5.3.1 build-and-analyze 진입 조건 (S4 v0.11)
+
+- Analysis Agent는 S4 `build-and-analyze`를 **`buildCommand`가 있을 때만** 사용한다.
+- `buildProfile`만 있는 경우에는 build path를 열지 않고, 개별 `scan/functions/libraries` 호출로 fallback한다.
+- `buildEnvironment`가 있으면 S4 build path에 명시적으로 전달한다.
+- `buildProfile`은 build path intent가 아니라 **scanProfile 보강용**으로 취급한다.
+
 ### 5.4 CVE 실시간 조회
 
 - SCA 결과의 라이브러리명+버전으로 S5 `POST /v1/cve/batch-lookup` 호출
@@ -107,6 +114,7 @@ POST /v1/tasks (taskType: "deep-analyze")
 - 고유 CWE별로 S5 `POST /v1/search` 호출 (최대 10개)
 - CWE/CVE/ATT&CK 위협 지식을 Phase 2 프롬프트에 주입
 - 결정론적: LLM 판단 불필요
+- **S5 Neo4j readiness가 없으면 `KB_NOT_READY`로 처리**하며, 더 이상 degraded vector-only fallback을 기대하지 않는다
 
 ### 5.6 위험 함수 호출자
 
@@ -119,6 +127,7 @@ POST /v1/tasks (taskType: "deep-analyze")
 - S5 `POST /v1/code-graph/{project_id}/ingest`에 함수 목록 전송
 - 필터: `_CODEGRAPH_EXCLUDE_DIRS` (test, vendor, external 등) 제외 기반. `origin` 필드가 있으면 무조건 포함 (서드파티)
 - `revisionHint` 필드를 ingest 요청에 포함 (additive, S5가 지원 시 코드 그래프 버전 관리)
+- caller가 `provenance`를 제공하면 `buildSnapshotId`, `buildUnitId`, `sourceBuildAttemptId`를 S5 seam에 함께 전달한다
 
 ### 5.8 Phase 1 truncation 정책
 

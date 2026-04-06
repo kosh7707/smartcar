@@ -1,199 +1,212 @@
-# S1 Frontend — Architecture
+# S1 Frontend Architecture Snapshot
 
-> 파일 구조, 설계 결정, 에러 핸들링, 버그 이력, UI 컨벤션 등 상세 정보.
+> `services/frontend/`의 실제 코드 구조와 라우팅/모듈/테스트 자산을 2026-04-04 기준으로 정리한 문서.
 
 ---
 
-## 1. 파일 구조
+## 1. 최상위 구조
 
-```
+```text
 services/frontend/
 ├── package.json
-├── vite.config.ts
 ├── tsconfig.json
-├── src/
-│   ├── main/                          Electron main process
-│   │   ├── index.ts                   BrowserWindow 생성
-│   │   └── preload.ts                 contextBridge (window.api)
-│   └── renderer/                      React 앱
-│       ├── index.html
-│       ├── main.tsx                   ReactDOM.createRoot
-│       ├── App.tsx                    라우팅 + ProjectProvider
-│       ├── api/
-│       │   ├── client.ts             barrel re-export (하위 호환)
-│       │   ├── core.ts               공통 인프라 (apiFetch, ApiError, getBackendUrl, logError)
-│       │   ├── projects.ts           프로젝트 CRUD + 설정 + Overview + Activity
-│       │   ├── source.ts             소스 관리 + 프로젝트 파일
-│       │   ├── analysis.ts           Runs/Findings + bulk-status + history
-│       │   ├── pipeline.ts           빌드 타겟 + 파이프라인 + 라이브러리
-│       │   ├── gate.ts               Quality Gate 조회/오버라이드
-│       │   ├── approval.ts           Approval Queue 조회/결정/카운트
-│       │   ├── sdk.ts                SDK 등록/조회/삭제 + WS URL
-│       │   ├── report.ts             보고서
-│       │   └── dynamic.ts            동적 세션/CAN/어댑터/테스트 (숨김 기능)
-│       ├── contexts/
-│       │   ├── ProjectContext.tsx     프로젝트 목록 공유 상태
-│       │   ├── ToastContext.tsx       전역 toast 알림 (에러/경고/성공, 액션 버튼)
-│       │   └── AnalysisGuardContext.tsx 분석 진행 중 네비게이션 가드
-│       ├── hooks/
-│       │   ├── useElapsedTimer.ts     경과 시간 타이머 공통 훅
-│       │   ├── useAnalysisWebSocket.ts WS 기반 Quick+Deep 2단계 분석 훅 (타겟 진행률, mode 지원)
-│       │   ├── useBuildTargets.ts     빌드 타겟 CRUD + 자동 탐색 + includedPaths 지원
-│       │   ├── usePipelineProgress.ts 서브 프로젝트 빌드→스캔 파이프라인 WS 훅
-│       │   ├── useUploadProgress.ts   업로드 WS 진행률 (received→extracting→indexing→complete)
-│       │   ├── useStaticDashboard.ts  대시보드 데이터 + 최신 Run 상세 + 활성 분석 폴링
-│       │   ├── useDynamicTest.ts      동적 테스트 흐름 (숨김 — 코드 유지)
-│       │   └── useAdapters.ts         어댑터 상태 (숨김 — 코드 유지)
-│       ├── layouts/
-│       │   └── ProjectLayout.tsx      breadcrumb + Outlet
-│       ├── components/
-│       │   ├── Sidebar.tsx            2-tier 사이드바
-│       │   ├── StatusBar.tsx          하단 상태바 (3단계 헬스, 30초 폴링, 서버 버전+가동시간)
-│       │   ├── ErrorBoundary.tsx      렌더링 크래시 방어 (class component)
-│       │   ├── ui/                    공통 UI 24개
-│       │   ├── static/               정적 분석 23개
-│       │   ├── dynamic/              동적 분석 (숨김 — 코드 유지)
-│       │   └── finding/              Finding/Evidence (EvidencePanel, EvidenceViewer)
-│       ├── constants/                  공유 상수 (모듈, 언어, 동적, Finding, Evidence, defaults, sdkProfiles)
-│       ├── types/                     타입 선언 (window.d.ts, react-html.d.ts)
-│       ├── pages/                     14개 페이지 + CSS
-│       ├── styles/                    토큰, 리셋, 전역 등 CSS 9개
-│       └── utils/                     format, severity, fileMatch, location, tree, findingOverlay, markdown, cveHighlight, highlight, analysis, theme, wsEnvelope
-```
-
----
-
-## 2. 핵심 설계 결정
-
-### 에러 핸들링 (5계층)
-
-1. **앱 안정성**: `ErrorBoundary` (렌더링 크래시 → fallback UI)
-2. **사용자 알림**: `ToastContext` (에러/경고/성공, 5초 자동 닫기, 최대 5개 스택, 액션 버튼)
-3. **API 에러 분류**: `apiFetch` → `ApiError` (`code`, `retryable`, `requestId`)
-4. **MSA 연동**: `X-Request-Id` 자동 부착, `errorDetail` 파싱, `retryable` 시 "다시 시도" 버튼
-5. **로깅**: `logError(context, e)`, `healthFetch(url)`. `console.error` 대신 `logError` 사용
-
-에러 코드: `INVALID_INPUT`, `NOT_FOUND`, `CONFLICT`, `LLM_UNAVAILABLE`, `LLM_HTTP_ERROR`, `LLM_PARSE_ERROR`, `LLM_TIMEOUT`, `DB_ERROR`, `INTERNAL_ERROR` 등 → 한국어 메시지
-
-### Electron vs 브라우저
-
-- Electron: `window.api` (preload contextBridge)
-- 브라우저 (Vite dev): `fetch` 직접 호출
-- `getBackendUrl()` 자동 분기
-
-### 타입 공유
-
-- 프론트에서 로컬 타입 정의 금지. 모든 타입은 `@aegis/shared`에서 import
-
-### Finding 상태 머신
-
-7-state: Open, Needs Review, Accepted Risk, False Positive, Fixed, Needs Revalidation, Sandbox.
-상세 전이 규칙: `docs/specs/frontend.md` 4.2장 참조.
-
-### Evidence-first UI
-
-Finding 상세 표시 순서: 현재 객체 → 상태 → 결과 → 근거(evidence) → 누가/무엇이/어떤 버전으로
-
-### LLM 결과 표시
-
-- AI 출력은 명확히 라벨링 (`AI 요약`, `AI 가설`)
-- deterministic 결과와 시각적 구분
-- LLM-only finding은 `Sandbox` 상태로 시작
-- provenance: modelName, promptVersion (AgentResultPanel에서 표시)
-
-### Observability
-
-`docs/specs/observability.md` 준수.
-- service 식별자: `s1-frontend`
-- X-Request-Id: `apiFetch`에서 `crypto.randomUUID()` 자동 생성
-- 에러 시 `requestId`를 `ApiError`에 포함하여 콘솔 출력
-
-### React hooks 규칙
-
-- 모든 `useState`/`useEffect`는 조건부 return 이전에 선언 필수
-
----
-
-## 3. 버그 수정 이력
-
-| 이슈 | 원인 | 수정 |
-|------|------|------|
-| 브라우저에서 백엔드 통신 불가 | `window.api` undefined | `client.ts` fetch fallback |
-| "Rendered fewer hooks" | useState가 조건부 return 뒤 | useState 상단 이동 |
-| 취약점 중복 카운트 | 모든 분석 합산 | 최신 분석 기준 집계 |
-| 취약점 상세 코드가 가짜 | mock 하드코딩 | downloadFile() 실제 fetch |
-| Overview 하단 수평 스크롤 | grid 자식 min-width: auto | min-width: 0 추가 |
-| VulnerabilitiesPage hooks 에러 | useMemo가 조건부 return 뒤 | useMemo를 early return 위로 이동 |
-| 코드 위치 파싱 불일치 | `getFilename()` 콜론 포함 경로 실패 | `parseLocation()` 기반 통일 |
-| Finding 제목 잘림 | S2 `slice(0,100)` | CSS line-clamp 2줄 방어 |
-| 파일 네비게이션 오류 | 상대 경로 해석 | 절대 경로 전환 |
-| `toast.info` 크래시 | API에 `info` 없음 | `toast.warning` 전환 |
-| 브레드크럼 불일치 | `pageNames` 누락 | 한국어 라벨 추가 |
-| 보고서 에러/빈 상태 혼동 | 동일 EmptyState | `loadError` 상태 분리 |
-| Finding 수 불일치 | `findingCount` vs `findings.length` | `findings.length` 기준 |
-| 소요 시간 0초 | 타임스탬프 버그 | `durationSec > 0` 방어 |
-
----
-
-## 4. Playwright E2E 테스트
-
-### 구조
-
-```
-services/frontend/
-├── playwright.config.ts               Playwright 설정 (Chromium, webServer :5173)
+├── vite.config.ts
+├── playwright.config.ts
 ├── e2e/
-│   ├── tsconfig.json                  E2E 전용 TypeScript 설정
 │   ├── fixtures/
-│   │   ├── base.ts                   mockApi 자동 주입 test fixture
-│   │   └── mock-data.ts             한국어 모킹 데이터 (프로젝트, Finding, Gate, Approval 등)
 │   ├── helpers/
-│   │   ├── api-mocker.ts            page.route() 기반 백엔드 API 가로채기
-│   │   └── navigation.ts            HashRouter 네비게이션 헬퍼
 │   ├── specs/
-│   │   ├── navigation.spec.ts        라우팅/사이드바/페이지 전환 (13개)
-│   │   ├── visual-qa.spec.ts         12개 페이지 라이트 스크린샷 (12개)
-│   │   ├── interactions.spec.ts      폼/필터/다이얼로그 동작 (14개)
-│   │   ├── theme.spec.ts             테마 전환/유지 (4개)
-│   │   ├── responsive.spec.ts        반응형 레이아웃 (5개)
-│   │   ├── visual-qa-dark.spec.ts    다크 테마 스크린샷 (6개)
-│   │   └── qa-finding-detail.spec.ts Finding 상세 회귀 (1개)
-│   ├── __screenshots__/              스크린샷 베이스라인 (git 커밋 대상)
-│   └── qa-captures/                  QA 세션 캡처 (임시)
+│   ├── __screenshots__/
+│   ├── qa-captures/
+│   └── test-results/
+└── src/
+    ├── main/
+    │   ├── index.ts
+    │   └── preload.ts
+    └── renderer/
+        ├── App.tsx
+        ├── main.tsx
+        ├── api/                14 modules
+        ├── components/         58 components total
+        ├── constants/
+        ├── contexts/           5 providers
+        ├── hooks/              9 custom hooks
+        ├── layouts/
+        ├── pages/              15 page components on disk
+        ├── styles/
+        ├── types/
+        └── utils/              10 utility modules
 ```
-
-### 핵심 설계
-
-- **백엔드 없이 동작**: `page.route()`로 `localhost:3000` 요청만 가로챔. Vite 소스 파일(`/src/renderer/api/...`)은 통과.
-- **Pattern A vs B**: `fetchProjectOverview` 등은 raw JSON 반환 (래퍼 없음), `fetchProjectRuns` 등은 `.data` 추출. 모킹 시 구분 필수.
-- **QA 세션 분리**: `qa-guide.md` 참조. 코드를 읽지 않고 Playwright로 시각/UX QA 수행.
 
 ---
 
-## 5. 실행 방법
+## 2. 실제 런타임 라우트 (`src/renderer/App.tsx` 기준)
 
-> **서버를 직접 실행하지 마라.** 기동/종료는 사용자에게 요청할 것.
+| 경로 | 실제 element | 상태 | 검증 근거 |
+|------|--------------|------|-----------|
+| `/` | `Navigate -> /projects` | 운영 중 | `navigation.spec.ts` PASS |
+| `/login` | `LoginPage` | 운영 중 | App 라우트 정의 |
+| `/projects` | `ProjectsPage` | 운영 중 | `navigation.spec.ts` PASS |
+| `/settings` | `SettingsPage` | 운영 중 | `navigation.spec.ts` PASS |
+| `/projects/:projectId/overview` | `OverviewPage` | 운영 중 | `navigation.spec.ts` PASS |
+| `/projects/:projectId/static-analysis` | `StaticAnalysisPage` | 운영 중 | `navigation.spec.ts` PASS |
+| `/projects/:projectId/files` | `FilesPage` | 운영 중 | `navigation.spec.ts` PASS |
+| `/projects/:projectId/files/:fileId` | `FileDetailPage` | 운영 중 | file click flows in E2E suites |
+| `/projects/:projectId/vulnerabilities` | `VulnerabilitiesPage` | 운영 중 | `navigation.spec.ts` PASS |
+| `/projects/:projectId/analysis-history` | `AnalysisHistoryPage` | 운영 중 | `navigation.spec.ts` PASS |
+| `/projects/:projectId/report` | `ReportPage` | 운영 중 | full E2E route/snapshot coverage |
+| `/projects/:projectId/quality-gate` | `QualityGatePage` | 운영 중 | `navigation.spec.ts` PASS |
+| `/projects/:projectId/approvals` | `ApprovalsPage` | 운영 중 | `navigation.spec.ts` PASS, approval interaction regressions 존재 |
+| `/projects/:projectId/settings` | `ProjectSettingsPage` | 운영 중 | `navigation.spec.ts` PASS |
+| `/projects/:projectId/dynamic-analysis` | `ComingSoonPlaceholder` | placeholder | `qa-design-audit.spec.ts` pass in full suite run |
+| `/projects/:projectId/dynamic-test` | `ComingSoonPlaceholder` | placeholder | `qa-design-audit.spec.ts` pass in full suite run |
 
-```bash
-./scripts/start.sh                              # 전체 기동
-cd services/frontend && npm run dev:renderer    # 프론트만 (:5173)
-cd services/frontend && npm test                # vitest (347건)
-cd services/frontend && npm run test:e2e        # Playwright (88건, Vite 자동 기동)
-cd services/frontend && npm run test:e2e:headed # 브라우저 띄워서 실행
-cd services/frontend && npm run test:e2e:update-snapshots  # 스크린샷 기준선 갱신
-```
+### 중요한 차이: 파일은 있지만 현재 미마운트인 자산
 
-환경변수: `services/frontend/.env` → `VITE_BACKEND_URL`
+다음 자산은 repo에는 있지만 `App.tsx`에서 직접 사용되지 않는다.
+
+- `src/renderer/pages/DynamicAnalysisPage.tsx`
+- `src/renderer/pages/DynamicTestPage.tsx`
+- `src/renderer/components/dynamic/*`
+- `src/renderer/hooks/useAdapters.ts`
+- `src/renderer/hooks/useDynamicTest.ts`
+- `src/renderer/api/dynamic.ts`
+
+또한 `Sidebar.tsx`는 `comingSoon` 항목을 렌더링하지 않으므로 dynamic placeholder 경로는 **라우트는 존재하지만 네비게이션에는 숨겨져 있다.**
 
 ---
 
-## 6. UI 컨벤션
+## 3. 페이지/모듈 인벤토리
 
-| 항목 | 규칙 |
+### 3-1. 페이지 컴포넌트 (`src/renderer/pages`)
+
+| 구분 | 파일 |
 |------|------|
-| 아이콘 | lucide-react |
-| severity 컬러 | `--severity-critical/high/medium/low` |
-| 테마 | 라이트/다크/시스템 3-way (`theme.ts`, `tokens.css`) |
-| 빈 상태 | `EmptyState` 컴포넌트 |
-| 로딩 | `Spinner`, `.centered-loader` |
-| 포커스 | `:focus-visible` 아웃라인 |
+| 마운트됨 | `LoginPage`, `ProjectsPage`, `OverviewPage`, `StaticAnalysisPage`, `FilesPage`, `FileDetailPage`, `VulnerabilitiesPage`, `AnalysisHistoryPage`, `ReportPage`, `QualityGatePage`, `ApprovalsPage`, `ProjectSettingsPage`, `SettingsPage` |
+| 미마운트 보관 자산 | `DynamicAnalysisPage`, `DynamicTestPage` |
+
+### 3-2. API 모듈 (`src/renderer/api`)
+
+| 모듈 | 역할 |
+|------|------|
+| `core.ts` | `apiFetch`, `ApiError`, backend URL, logging/health helpers |
+| `client.ts` | 호환성 barrel re-export |
+| `projects.ts` | 프로젝트/개요/활동/설정 |
+| `source.ts` | 소스 업로드/클론/파일 조회 |
+| `analysis.ts` | runs/findings/상태 변경/PoC/summary |
+| `pipeline.ts` | 빌드 타겟/파이프라인 |
+| `gate.ts` | quality gate 조회/오버라이드 |
+| `approval.ts` | approval queue/decision/count |
+| `sdk.ts` | SDK 등록/삭제/WS URL |
+| `report.ts` | 프로젝트/모듈 보고서 |
+| `auth.ts` | 인증 관련 호출 |
+| `notifications.ts` | 알림 목록/상태 |
+| `dynamic.ts` | 동적 분석/동적 테스트/adapter 관련 보관 API |
+| `mock-handler.ts` | mock mode 지원 |
+
+### 3-3. Context (`src/renderer/contexts`)
+
+- `AuthContext`
+- `ProjectContext`
+- `ToastContext`
+- `AnalysisGuardContext`
+- `NotificationContext`
+
+### 3-4. Hooks (`src/renderer/hooks`)
+
+- `useAnalysisWebSocket`
+- `useBuildTargets`
+- `useElapsedTimer`
+- `usePipelineProgress`
+- `useUploadProgress`
+- `useStaticDashboard`
+- `useKeyboardShortcuts`
+- `useAdapters` *(보관 자산)*
+- `useDynamicTest` *(보관 자산)*
+
+### 3-5. 컴포넌트 개수
+
+| 영역 | 수량 |
+|------|------|
+| `components/ui` | 24 |
+| `components/static` | 24 |
+| `components/finding` | 3 |
+| `components/dynamic` | 2 |
+| 루트 `components/*.tsx` | 5 |
+| **합계** | **58** |
+
+---
+
+## 4. 테스트 자산
+
+### 렌더러 단위 테스트
+
+- `47` test files
+- `356` tests PASS (`npm test`)
+- 주요 범위: API core/client, contexts, hooks, pages, static/ui components, utils
+
+### Playwright E2E
+
+- spec files: `11`
+- total tests: `180`
+- 전체 실행 결과: `154 passed / 26 failed`
+- 라우트 스모크: `navigation.spec.ts` 단독 실행 시 `13 passed`
+
+### 현행 실패 범주
+
+| 범주 | 수량 | 비고 |
+|------|------|------|
+| approval interaction | 2 | 승인 버튼 locator/클릭 단계 실패 |
+| visual snapshot drift | 24 | responsive/theme/visual QA baseline mismatch |
+
+### 테스트 파일 구성 (`e2e/specs`)
+
+- `navigation.spec.ts`
+- `interactions.spec.ts`
+- `responsive.spec.ts`
+- `theme.spec.ts`
+- `visual-qa.spec.ts`
+- `visual-qa-dark.spec.ts`
+- `qa-design-audit.spec.ts`
+- `qa-expert-review.spec.ts`
+- `qa-finding-detail.spec.ts`
+- `qa-redesign-review.spec.ts`
+- `qa-verify-s1-response.spec.ts`
+
+---
+
+## 5. 빌드/타입/도구 메모
+
+### package.json 기준 스택
+
+- Electron `^40.8.0`
+- React / React DOM `^19.2.4`
+- React Router DOM `^7.13.1`
+- Vite `^7.3.1`
+- Vitest `^4.1.0`
+- Playwright `^1.58.2`
+
+### 현재 검증 시 주의점
+
+- `npm run build`는 renderer를 `vite build`로, main process를 `tsc -p tsconfig.json`으로 검증한다.
+- `services/frontend/tsconfig.json`의 `include`는 `src/main`만 잡고 있으므로, renderer 안정성은 실질적으로 `vite build`, `vitest`, `playwright` 결과에 더 의존한다.
+- repo에는 ESLint/Prettier 설정이 없다. 즉 **lint는 현재 공식 품질 게이트가 아니다.**
+
+---
+
+## 6. 현재 아키텍처적으로 중요한 사실
+
+1. `HashRouter` 기반이다.
+2. 전역 Provider 순서는 `Auth -> Toast -> AnalysisGuard -> Project -> NotificationBridge` 흐름이다.
+3. `ProjectLayout`이 breadcrumb + `Outlet`를 담당한다.
+4. `Sidebar`는 프로젝트 문맥일 때만 project sub-nav를 보여주고, comingSoon 항목은 숨긴다.
+5. 동적 화면은 “삭제”가 아니라 “보관 후 placeholder 전환” 상태다.
+6. Approval/visual baseline은 현재 회귀가 있으므로 QA 기준 문서와 함께 보아야 한다.
+
+---
+
+## 7. 다음 변경 시 체크리스트
+
+- 라우트를 바꾸면 `App.tsx`, `Sidebar.tsx`, `ProjectLayout.tsx`, `docs/specs/frontend.md`, `docs/s1-handoff/README.md`, `docs/s1-handoff/qa-guide.md`를 같이 갱신할 것.
+- dynamic 화면을 다시 노출할 때는 **placeholder 제거 + 사이드바 공개 + QA baseline 재생성**을 한 세트로 처리할 것.
+- approval CTA 구조를 바꾸면 `interactions.spec.ts`, `qa-design-audit.spec.ts`, `qa-expert-review.spec.ts`를 함께 확인할 것.

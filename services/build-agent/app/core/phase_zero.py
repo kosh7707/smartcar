@@ -1,4 +1,4 @@
-"""Phase 0 — 결정론적 사전 분석. LLM 없이 빌드 시스템/SDK/프로젝트 구조를 탐지한다."""
+"""Phase 0 — 결정론적 사전 분석. LLM 없이 빌드 시스템/프로젝트 구조를 탐지한다."""
 from __future__ import annotations
 
 import glob
@@ -6,8 +6,6 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-
-import httpx
 
 from agent_shared.observability import agent_log
 
@@ -32,8 +30,6 @@ class Phase0Result:
     build_system: str  # "cmake", "make", "autotools", "shell", "unknown"
     build_files: list[str] = field(default_factory=list)
     project_tree: str = ""
-    sdk_info: dict = field(default_factory=dict)
-    sdk_dir: str = ""
     has_existing_build_script: bool = False
     existing_script_path: str = ""
     detected_languages: list[str] = field(default_factory=list)
@@ -47,7 +43,6 @@ class Phase0Executor:
         self,
         project_path: str,
         target_path: str = "",
-        sast_endpoint: str = "",
     ) -> None:
         self._project_path = project_path
         self._target_path = target_path
@@ -56,7 +51,6 @@ class Phase0Executor:
             if target_path and os.path.isdir(os.path.join(project_path, target_path))
             else project_path
         )
-        self._sast_endpoint = sast_endpoint
         self._result: Phase0Result | None = None
 
     async def execute(self, request_id: str | None = None) -> Phase0Result:
@@ -65,8 +59,6 @@ class Phase0Executor:
         build_system = self._detect_build_system()
         build_files = self._discover_build_files()
         project_tree = self._generate_tree()
-        sdk_info = await self._fetch_sdk_registry(request_id)
-        sdk_dir = self._extract_sdk_dir(sdk_info)
         languages = self._detect_languages()
         has_script, script_path = self._find_existing_build_script()
 
@@ -74,8 +66,6 @@ class Phase0Executor:
             build_system=build_system,
             build_files=build_files,
             project_tree=project_tree,
-            sdk_info=sdk_info,
-            sdk_dir=sdk_dir,
             has_existing_build_script=has_script,
             existing_script_path=script_path,
             detected_languages=languages,
@@ -170,32 +160,6 @@ class Phase0Executor:
                 break
         return "\n".join(lines) if lines else "(empty)"
 
-    async def _fetch_sdk_registry(self, request_id: str | None = None) -> dict:
-        """S4 GET /v1/sdk-registry 로 SDK 정보를 가져온다."""
-        if not self._sast_endpoint:
-            return {}
-        try:
-            headers = {"X-Request-Id": request_id} if request_id else {}
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(f"{self._sast_endpoint}/v1/sdk-registry", headers=headers)
-                resp.raise_for_status()
-                return resp.json()
-        except Exception as e:
-            logger.warning("[build] S4 sdk-registry 조회 실패 (무시): %s", e)
-            return {}
-
-    @staticmethod
-    def _extract_sdk_dir(sdk_info: dict) -> str:
-        """SDK 정보에서 SDK 경로를 추출한다."""
-        sdks = sdk_info.get("sdks", [])
-        if not sdks:
-            return ""
-        setup = sdks[0].get("setupScript", "")
-        if not setup:
-            return ""
-        parts = setup.split("/linux-devkit/")
-        return parts[0] if len(parts) >= 2 else ""
-
     def _detect_languages(self) -> list[str]:
         """파일 확장자로 프로그래밍 언어를 탐지한다."""
         ext_map = {".c": "c", ".cpp": "cpp", ".cc": "cpp", ".cxx": "cpp", ".h": "c", ".hpp": "cpp"}
@@ -216,6 +180,8 @@ class Phase0Executor:
         """기존 빌드 스크립트를 탐지한다."""
         candidates = [
             "scripts/cross_build.sh", "scripts/build.sh", "build.sh",
+            "scripts/build_all.sh", "scripts/build/build_all.sh",
+            "scripts/build/cross_build.sh",
             "scripts/compile.sh", "compile.sh", "Makefile",
         ]
         for c in candidates:
@@ -224,7 +190,7 @@ class Phase0Executor:
                 return True, c
         return False, ""
 
-    def generate_initial_script(self, sdk_info: dict | None = None) -> str | None:
+    def generate_initial_script(self, setup_script: str | None = None) -> str | None:
         """감지된 빌드 시스템에 맞는 초기 빌드 스크립트를 결정론적으로 생성한다.
 
         unknown/shell인 경우 None (LLM이 자유 생성).
@@ -234,10 +200,8 @@ class Phase0Executor:
             return None
 
         sdk_setup = ""
-        if sdk_info:
-            setup_script = sdk_info.get("setupScript")
-            if setup_script:
-                sdk_setup = f'source "{setup_script}"\n'
+        if setup_script:
+            sdk_setup = f'source "{setup_script}"\n'
 
         templates = {
             "cmake": (

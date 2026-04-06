@@ -180,12 +180,16 @@ vLLM의 `--reasoning-parser qwen3` 옵션으로 OpenAI-compatible API에서 thin
 
 S7은 `choices[0].message.content`를 추출하여:
 
-1. JSON 파싱 시도 (코드블록 감싸기 대응 포함)
+1. JSON 파싱 시도 (코드블록 감싸기, `<think>` 제거, commentary-wrapped top-level JSON object 복구 포함)
 2. Assessment 스키마 검증
 3. Evidence ref hallucination 검사
 4. Confidence 산출
 
-파싱 실패 또는 검증 실패 시 S7이 자체적으로 실패 응답을 생성한다 (LLM Engine에 재요청하지 않음).
+파싱 실패 또는 검증 실패 시 S7은 다음 정책을 따른다:
+
+- `INVALID_SCHEMA`, `INVALID_GROUNDING`, `EMPTY_RESPONSE` → 자동 재시도
+  - 최대 시도 횟수: `1 + AEGIS_LLM_MAX_RETRIES` (기본 3회)
+- 그 외 인프라/HTTP 계열 실패 → 즉시 실패 응답 생성
 
 #### 토큰 사용량 매핑
 

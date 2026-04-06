@@ -12,6 +12,17 @@
 # 사용법:
 #   ./scripts/build-and-analyze.sh                           # 기본: gateway-webserver
 #   ./scripts/build-and-analyze.sh /path/to/project gateway/ # 커스텀 프로젝트+타겟
+#
+# 선택 환경변수:
+#   BUILD_CONTRACT_VERSION=build-resolve-v1
+#   STRICT_MODE=true
+#   BUILD_MODE=sdk
+#   SDK_ID=ti-am335x
+#   BUILD_SETUP_SCRIPT=/opt/sdk/environment-setup-armv7at2hf-neon-linux-gnueabi
+#   BUILD_ENV_JSON='{"CC":"/opt/toolchains/arm-gcc","SYSROOT":"/opt/sysroot"}'
+#   BUILD_SCRIPT_HINT_TEXT='#!/bin/bash ...'
+#   BUILD_SCRIPT_HINT_FILE=./scripts/cross_build.sh
+#   BUILD_PROFILE_SDK_ID=ti-am335x
 
 set -euo pipefail
 
@@ -27,6 +38,21 @@ TARGET_PATH="${2:-gateway-webserver/}"
 TARGET_NAME="${TARGET_PATH%/}"
 PROJECT_ID="${3:-re100-${TARGET_NAME}}"
 REQUEST_ID="integ-$(date +%s)"
+BUILD_CONTRACT_VERSION="${BUILD_CONTRACT_VERSION:-}"
+STRICT_MODE="${STRICT_MODE:-}"
+BUILD_MODE="${BUILD_MODE:-}"
+SDK_ID="${SDK_ID:-}"
+BUILD_SETUP_SCRIPT="${BUILD_SETUP_SCRIPT:-}"
+BUILD_ENV_JSON="${BUILD_ENV_JSON:-}"
+BUILD_SCRIPT_HINT_TEXT="${BUILD_SCRIPT_HINT_TEXT:-}"
+BUILD_SCRIPT_HINT_FILE="${BUILD_SCRIPT_HINT_FILE:-}"
+BUILD_PROFILE_SDK_ID="${BUILD_PROFILE_SDK_ID:-}"
+EXPECTED_ARTIFACT_KIND="${EXPECTED_ARTIFACT_KIND:-}"
+EXPECTED_ARTIFACT_PATH="${EXPECTED_ARTIFACT_PATH:-}"
+
+if [[ -z "$BUILD_SCRIPT_HINT_TEXT" && -n "$BUILD_SCRIPT_HINT_FILE" && -f "$BUILD_SCRIPT_HINT_FILE" ]]; then
+    BUILD_SCRIPT_HINT_TEXT="$(cat "$BUILD_SCRIPT_HINT_FILE")"
+fi
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -42,6 +68,12 @@ echo ""
 echo "  프로젝트: ${PROJECT_PATH}"
 echo "  타겟:     ${TARGET_PATH}"
 echo "  요청 ID:  ${REQUEST_ID}"
+[[ -n "$BUILD_CONTRACT_VERSION" ]] && echo "  build contract: ${BUILD_CONTRACT_VERSION} (strict=${STRICT_MODE:-unset})"
+[[ -n "$BUILD_MODE" ]] && echo "  build mode: ${BUILD_MODE}${SDK_ID:+ (sdkId=${SDK_ID})}"
+[[ -n "$BUILD_SETUP_SCRIPT" ]] && echo "  build setup: ${BUILD_SETUP_SCRIPT}"
+[[ -n "$BUILD_ENV_JSON" ]] && echo "  build env: provided"
+[[ -n "$BUILD_SCRIPT_HINT_TEXT" ]] && echo "  build hint: text provided"
+[[ -n "$EXPECTED_ARTIFACT_KIND" || -n "$EXPECTED_ARTIFACT_PATH" ]] && echo "  build expect: ${EXPECTED_ARTIFACT_KIND:-artifact}${EXPECTED_ARTIFACT_PATH:+ @ ${EXPECTED_ARTIFACT_PATH}}"
 echo ""
 
 # ─── Phase 0: 서비스 상태 확인 ───
@@ -70,24 +102,6 @@ if [ "$ALL_OK" != "true" ]; then
 fi
 echo ""
 
-# ─── Phase 0.5: SDK 자동 감지 ───
-echo "[Phase 0.5] SDK 자동 감지"
-SDK_RESPONSE=$(curl -sf "${SAST_URL}/v1/sdk-registry" 2>/dev/null || echo '{}')
-SDK_ID=$(echo "$SDK_RESPONSE" | python3 -c "
-import sys, json
-d = json.load(sys.stdin)
-sdks = d.get('sdks', [])
-if sdks:
-    print(sdks[0].get('sdkId', ''))
-" 2>/dev/null || echo "")
-
-if [ -n "$SDK_ID" ]; then
-    printf "  SDK 감지: ${CYAN}%s${NC}\n" "$SDK_ID"
-else
-    printf "  ${YELLOW}SDK 없음 — 네이티브 빌드${NC}\n"
-fi
-echo ""
-
 # ─── Phase 1: 빌드 에이전트 ───
 echo "[Phase 1] Build Agent — 빌드 스크립트 생성"
 echo "  POST ${BUILD_URL}/v1/tasks (build-resolve)"
@@ -97,16 +111,36 @@ BUILD_RESULT=$(curl -s -X POST "${BUILD_URL}/v1/tasks" \
     -H "X-Request-Id: ${REQUEST_ID}-build" \
     -d "$(python3 -c "
 import json
+import os
+trusted = {
+    'projectPath': '${PROJECT_PATH}',
+    'subprojectPath': '${TARGET_PATH}',
+    'subprojectName': '${TARGET_NAME}'
+}
+if os.environ.get('BUILD_CONTRACT_VERSION'):
+    trusted['contractVersion'] = os.environ['BUILD_CONTRACT_VERSION']
+if os.environ.get('STRICT_MODE'):
+    trusted['strictMode'] = os.environ['STRICT_MODE'].lower() in ('1', 'true', 'yes', 'on')
+if os.environ.get('BUILD_MODE'):
+    trusted['build'] = {'mode': os.environ['BUILD_MODE']}
+if os.environ.get('SDK_ID'):
+    trusted.setdefault('build', {})['sdkId'] = os.environ['SDK_ID']
+if os.environ.get('BUILD_SETUP_SCRIPT'):
+    trusted.setdefault('build', {})['setupScript'] = os.environ['BUILD_SETUP_SCRIPT']
+if os.environ.get('BUILD_ENV_JSON'):
+    trusted.setdefault('build', {})['environment'] = json.loads(os.environ['BUILD_ENV_JSON'])
+if os.environ.get('BUILD_SCRIPT_HINT_TEXT'):
+    trusted.setdefault('build', {})['scriptHintText'] = os.environ['BUILD_SCRIPT_HINT_TEXT']
+if os.environ.get('EXPECTED_ARTIFACT_KIND') or os.environ.get('EXPECTED_ARTIFACT_PATH'):
+    trusted['expectedArtifacts'] = [{
+        'kind': os.environ.get('EXPECTED_ARTIFACT_KIND') or 'artifact',
+        'path': os.environ.get('EXPECTED_ARTIFACT_PATH') or '',
+    }]
+
 print(json.dumps({
     'taskType': 'build-resolve',
     'taskId': '${REQUEST_ID}-build',
-    'context': {
-        'trusted': {
-            'projectPath': '${PROJECT_PATH}',
-            'targetPath': '${TARGET_PATH}',
-            'targetName': '${TARGET_NAME}'
-        }
-    },
+    'context': {'trusted': trusted},
     'constraints': {'maxTokens': 8192, 'timeoutMs': 600000}
 }))
 ")")
@@ -131,25 +165,22 @@ echo ""
 echo "[Phase 2] Analysis Agent — deep-analyze"
 echo "  POST ${AGENT_URL}/v1/tasks (deep-analyze)"
 
-# SDK가 있으면 buildProfile 포함
-if [ -n "$SDK_ID" ]; then
-    BUILD_PROFILE_JSON="\"buildProfile\": {\"sdkId\": \"${SDK_ID}\"},"
-else
-    BUILD_PROFILE_JSON=""
-fi
-
 ANALYZE_RESULT=$(curl -s -X POST "${AGENT_URL}/v1/tasks" \
     -H "Content-Type: application/json" \
     -H "X-Request-Id: ${REQUEST_ID}-analyze" \
     -d "$(python3 -c "
-import json
+import json, os
 trusted = {
     'projectPath': '${PROJECT_PATH}/${TARGET_PATH}'.rstrip('/'),
     'projectId': '${PROJECT_ID}'
 }
-sdk_id = '${SDK_ID}'
-if sdk_id:
-    trusted['buildProfile'] = {'sdkId': sdk_id}
+build_command = '''${BUILD_CMD}'''.strip()
+if build_command:
+    trusted['buildCommand'] = build_command
+if os.environ.get('BUILD_ENV_JSON'):
+    trusted['buildEnvironment'] = json.loads(os.environ['BUILD_ENV_JSON'])
+if os.environ.get('BUILD_PROFILE_SDK_ID'):
+    trusted['buildProfile'] = {'sdkId': os.environ['BUILD_PROFILE_SDK_ID']}
 print(json.dumps({
     'taskType': 'deep-analyze',
     'taskId': '${REQUEST_ID}-analyze',

@@ -18,6 +18,7 @@ def _make_session(
     task_type: TaskType = TaskType.BUILD_RESOLVE,
     termination_reason: str = "",
     metadata: dict | None = None,
+    trusted: dict | None = None,
 ) -> AgentSession:
     refs = evidence_refs or [
         EvidenceRef(
@@ -31,7 +32,7 @@ def _make_session(
     req = TaskRequest(
         taskType=task_type,
         taskId="test-assemble-001",
-        context=Context(trusted={"finding": {"id": "CVE-2025-0001"}}),
+        context=Context(trusted=trusted or {"finding": {"id": "CVE-2025-0001"}}),
         evidenceRefs=refs,
         metadata=metadata,
     )
@@ -254,6 +255,76 @@ def test_strict_build_records_artifact_verification_on_success() -> None:
     assert resp.result.buildResult.artifactVerification is not None
     assert resp.result.buildResult.artifactVerification.matched is True
     assert resp.result.buildResult.artifactVerification.expected == ["gateway"]
+
+
+def test_strict_build_infers_expected_artifact_from_filesystem(tmp_path) -> None:
+    project_root = tmp_path / "project"
+    build_dir = project_root / "build-aegis"
+    build_dir.mkdir(parents=True)
+    (build_dir / "certificate-maker").write_text("binary")
+
+    assembler = ResultAssembler()
+    session = _make_session(
+        metadata=_strict_metadata(expected_artifacts=["certificate-maker"]),
+        trusted={
+            "projectPath": str(project_root),
+            "subprojectPath": ".",
+            "subprojectName": "certificate-maker",
+        },
+    )
+    _record_build_success(session)
+
+    resp = assembler.build(_valid_build_json(produced_artifacts=[]), session)
+
+    assert isinstance(resp, TaskSuccessResponse)
+    assert resp.result.buildResult is not None
+    produced_paths = [artifact.path for artifact in resp.result.buildResult.producedArtifacts]
+    assert "build-aegis/certificate-maker" in produced_paths
+    assert resp.result.buildResult.artifactVerification is not None
+    assert resp.result.buildResult.artifactVerification.matched is True
+
+
+def test_strict_build_infers_artifact_from_build_script_directory(tmp_path) -> None:
+    project_root = tmp_path / "project"
+    build_dir = project_root / "build-aegis-custom"
+    build_dir.mkdir(parents=True)
+    (build_dir / "certificate-maker").write_text("binary")
+
+    assembler = ResultAssembler()
+    session = _make_session(
+        metadata=_strict_metadata(expected_artifacts=["certificate-maker"]),
+        trusted={
+            "projectPath": str(project_root),
+            "subprojectPath": ".",
+            "subprojectName": "certificate-maker",
+        },
+    )
+    _record_build_success(session)
+    content = json.dumps({
+        "summary": "Build complete",
+        "claims": [],
+        "usedEvidenceRefs": ["ref-001"],
+        "needsHumanReview": False,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+        "buildResult": {
+            "success": True,
+            "buildCommand": "bash build-aegis-custom/aegis-build.sh",
+            "buildScript": "build-aegis-custom/aegis-build.sh",
+            "buildDir": "build-aegis",
+            "errorLog": None,
+            "producedArtifacts": [],
+        },
+    })
+
+    resp = assembler.build(content, session)
+
+    assert isinstance(resp, TaskSuccessResponse)
+    assert resp.result.buildResult is not None
+    produced_paths = [artifact.path for artifact in resp.result.buildResult.producedArtifacts]
+    assert "build-aegis-custom/certificate-maker" in produced_paths
+    assert resp.result.buildResult.artifactVerification is not None
+    assert resp.result.buildResult.artifactVerification.matched is True
 
 
 def test_exhaustion_max_steps() -> None:

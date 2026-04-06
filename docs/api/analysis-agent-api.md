@@ -130,8 +130,10 @@ http://localhost:8001
 | projectPath | string | △ | 프로젝트 절대 경로. 있으면 `build-and-analyze` 한 번에 실행 (SAST+코드그래프+SCA). **`files`와 `projectPath` 중 최소 1개 필수** |
 | targetPath | string | X | `projectPath` 기준 상대 경로 (예: `"gateway/"`). 지정 시 `${projectPath}/${targetPath}`를 분석 루트로 사용. 미지정 시 `projectPath` 전체 분석 |
 | files | array | △ | `[{path, content}]` — 분석 대상 소스 파일. `projectPath` 없을 때 사용. **`files`와 `projectPath` 중 최소 1개 필수** |
-| buildCommand | string | X | 빌드 명령어 (예: `make`, `./scripts/cross_build.sh`). `projectPath`와 함께 사용. 없으면 빌드 없이 SAST 실행 |
-| buildProfile | object | X | 빌드 환경. `sdkId`가 있으면 SDK 환경을 자동 설정하여 빌드 정확도 향상. `includePaths`로 공유 라이브러리 경로 지정 가능 |
+| buildCommand | string | X | 빌드 명령어. 있으면 S4 `build-and-analyze` 경로를 시도한다. 없으면 빌드 없이 개별 도구/SAST 경로로 fallback |
+| buildEnvironment | object | X | S4 build path에 전달할 명시적 환경변수 맵. `buildCommand`와 함께 사용 |
+| buildProfile | object | X | scan/functions 등 분석 단계용 profile. `sdkId`가 있으면 개별 scan path에서 사용되며, `build-and-analyze`를 열려면 `buildCommand`가 함께 있어야 한다 |
+| provenance | object | X | 선택적 provenance (`buildSnapshotId`, `buildUnitId`, `sourceBuildAttemptId`) — S5 code-graph/project-memory seam에 전달 가능 |
 | projectId | string | X | 프로젝트 식별자 (코드 그래프 적재용) |
 | sastFindings | array | X | S2가 사전 수행한 SAST findings. **제공 시 Phase 1 SAST 스캔을 스킵**하고 이 결과를 직접 사용 |
 | scaLibraries | array | X | S2가 사전 수행한 SCA 라이브러리 목록. **제공 시 Phase 1 SCA를 스킵**하고 이 결과로 CVE 조회 수행 |
@@ -143,7 +145,7 @@ http://localhost:8001
 | 모드 | 입력 | Phase 1 동작 |
 |------|------|-------------|
 | **Pre-computed (권장)** | `sastFindings` + `scaLibraries` + `projectId` | SAST/SCA 스킵. CVE 조회 + 위협 지식 + 위험 호출자만 실행. **S2가 Quick 분석 결과를 DB에서 꺼내 전달하는 모드** |
-| projectPath 모드 | `projectPath` + (선택) `targetPath` + `buildCommand` 또는 `buildProfile` | S4 `build-and-analyze` 한 방 실행. `targetPath` 지정 시 해당 하위 경로만 분석. `buildCommand`와 `buildProfile` 모두 없으면 개별 도구 fallback |
+| projectPath 모드 | `projectPath` + (선택) `targetPath` + (선택) `buildCommand`, `buildEnvironment`, `buildProfile` | `buildCommand`가 있으면 S4 `build-and-analyze`를 시도한다. `buildCommand`가 없으면 개별 도구 fallback. `buildProfile`은 scan/profile 보강용 |
 | files 모드 (fallback) | `files[]` + (선택) `projectPath` | 개별 도구 호출 (scan, functions, libraries) |
 | 둘 다 없음 | — | Phase 1 스킵 → 분석 불가 |
 

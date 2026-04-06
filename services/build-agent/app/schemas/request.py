@@ -79,6 +79,10 @@ class BuildResolveContract(BaseModel):
     targetName: str | None = None
     buildMode: BuildMode | None = None
     sdkId: str | None = None
+    setupScript: str | None = None
+    toolchainTriplet: str | None = None
+    buildEnvironment: dict[str, str] = Field(default_factory=dict)
+    buildScriptHintText: str | None = Field(default=None, max_length=20000)
     expectedArtifacts: list[ExpectedArtifact] = Field(default_factory=list)
     contractVersion: ContractVersion | None = None
     strictMode: bool | None = None
@@ -103,6 +107,20 @@ class BuildResolveContract(BaseModel):
             normalized["buildMode"] = build_blob.get("mode")
         if normalized.get("sdkId") is None and build_blob.get("sdkId") is not None:
             normalized["sdkId"] = build_blob.get("sdkId")
+        if normalized.get("setupScript") is None and build_blob.get("setupScript") is not None:
+            normalized["setupScript"] = build_blob.get("setupScript")
+        if normalized.get("toolchainTriplet") is None and build_blob.get("toolchainTriplet") is not None:
+            normalized["toolchainTriplet"] = build_blob.get("toolchainTriplet")
+        if normalized.get("buildEnvironment") in (None, {}) and build_blob.get("environment") is not None:
+            normalized["buildEnvironment"] = build_blob.get("environment")
+        if normalized.get("buildScriptHintText") is None:
+            hint_value = build_blob.get("scriptHintText")
+            if hint_value is None:
+                hint_value = build_blob.get("scriptHint")
+            if hint_value is None:
+                hint_value = normalized.get("buildScriptHint")
+            if hint_value is not None:
+                normalized["buildScriptHintText"] = hint_value
 
         expected = normalized.get("expectedArtifacts")
         if isinstance(expected, list):
@@ -128,6 +146,9 @@ class BuildResolveContract(BaseModel):
         "targetPath",
         "targetName",
         "sdkId",
+        "setupScript",
+        "toolchainTriplet",
+        "buildScriptHintText",
         mode="before",
     )
     @classmethod
@@ -187,6 +208,26 @@ class BuildResolveContract(BaseModel):
                 normalized.append(item)
         return normalized
 
+    @field_validator("buildEnvironment", mode="before")
+    @classmethod
+    def _normalize_build_environment(cls, value: Any) -> dict[str, str]:
+        if value is None:
+            return {}
+        if not isinstance(value, dict):
+            raise ValueError("buildEnvironment must be an object mapping environment keys to strings")
+
+        normalized: dict[str, str] = {}
+        for raw_key, raw_val in value.items():
+            if not isinstance(raw_key, str):
+                raise ValueError("buildEnvironment keys must be strings")
+            key = raw_key.strip()
+            if not key:
+                raise ValueError("buildEnvironment keys must not be empty")
+            if not isinstance(raw_val, str):
+                raise ValueError(f"buildEnvironment['{key}'] must be a string")
+            normalized[key] = raw_val
+        return normalized
+
     @model_validator(mode="after")
     def _normalize_contract(self) -> "BuildResolveContract":
         if self.strictMode is True and self.contractVersion in (None, ContractVersion.LEGACY):
@@ -212,6 +253,13 @@ class BuildResolveContract(BaseModel):
 
         if self.buildMode == BuildMode.SDK and not self.sdkId:
             raise ValueError("sdkId is required when buildMode is 'sdk'")
+        if self.buildMode == BuildMode.SDK and not (
+            self.setupScript or self.buildEnvironment or self.buildScriptHintText
+        ):
+            raise ValueError(
+                "sdk builds require at least one materialization source: "
+                "setupScript, buildEnvironment, or buildScriptHintText",
+            )
         if self.buildMode == BuildMode.NATIVE and self.sdkId:
             raise ValueError("sdkId must be omitted when buildMode is 'native'")
 

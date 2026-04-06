@@ -1,6 +1,7 @@
 """TryBuildTool — S4 POST /v1/build 호출 + 금지 명령어 검사 + 결과 검증.
 
-v2: 정규식 금지 명령어, sdk_id/buildProfile 전송, bear 자동 제거, exitCode 기반 성공 판정.
+v3: explicit buildCommand/buildEnvironment/provenance 전송, bear 자동 제거,
+S4 v0.11 buildEvidence/failureDetail 응답과 legacy exitCode 응답을 모두 수용.
 """
 from __future__ import annotations
 
@@ -32,34 +33,51 @@ _BEAR_PREFIX_RE = re.compile(r"\bbear\s+--\s*")
 
 
 def _validate_build_result(data: dict) -> tuple[bool, str | None]:
-    """S4 빌드 응답의 exitCode 기반 성공 판정. 부분 빌드(userEntries>0) 감지."""
-    exit_code = data.get("exitCode", -1)
+    """S4 빌드 응답의 성공 판정. v0.11 buildEvidence와 legacy exitCode 모두 수용."""
+    build_evidence = data.get("buildEvidence", {}) if isinstance(data.get("buildEvidence"), dict) else {}
+    exit_code = build_evidence.get("exitCode", data.get("exitCode", -1))
 
     if exit_code == 0:
         return True, None
 
     # 부분 빌드: 실패했지만 일부 compile_commands 사용 가능
-    user_entries = data.get("userEntries", 0)
+    user_entries = build_evidence.get("userEntries", data.get("userEntries", 0))
+    failure_detail = data.get("failureDetail", {}) if isinstance(data.get("failureDetail"), dict) else {}
+    failure_summary = failure_detail.get("summary", "")
+    failure_hint = failure_detail.get("hint", "")
     s4_warning = data.get("warning", "")
     if user_entries > 0:
         return False, (
             f"빌드 exit code={exit_code} (실패). "
             f"단, 부분 compile_commands 사용 가능 ({user_entries}개 유저 엔트리). "
-            f"{s4_warning}"
+            f"{failure_summary or s4_warning}".strip()
         )
 
+    extra = " ".join(part for part in (failure_summary, failure_hint, s4_warning) if part).strip()
+    if extra:
+        return False, f"빌드 exit code={exit_code} (실패). {extra}"
     return False, f"빌드 exit code={exit_code} (실패)."
 
 
 class TryBuildTool:
-    def __init__(self, sast_endpoint: str, project_path: str, request_id: str = "") -> None:
+    def __init__(
+        self,
+        sast_endpoint: str,
+        project_path: str,
+        request_id: str = "",
+        *,
+        default_build_environment: dict[str, str] | None = None,
+        provenance: dict[str, str] | None = None,
+    ) -> None:
         self._sast_endpoint = sast_endpoint
         self._project_path = project_path
         self._request_id = request_id
+        self._default_build_environment = dict(default_build_environment or {})
+        self._provenance = dict(provenance or {})
 
     async def execute(self, arguments: dict) -> ToolResult:
         build_cmd = arguments.get("build_command", "")
-        sdk_id = arguments.get("sdk_id", "")
+        build_environment = arguments.get("build_environment") or {}
 
         if not build_cmd:
             return ToolResult(tool_call_id="", name="", success=False,
@@ -79,14 +97,19 @@ class TryBuildTool:
         build_cmd = _BEAR_PREFIX_RE.sub("", build_cmd).strip()
 
         try:
-            headers = {"X-Request-Id": self._request_id} if self._request_id else {}
+            headers = {"X-Request-Id": self._request_id, "X-Timeout-Ms": "120000"} if self._request_id else {"X-Timeout-Ms": "120000"}
+            merged_environment = dict(self._default_build_environment)
+            if build_environment:
+                merged_environment.update(build_environment)
             payload: dict = {
                 "projectPath": self._project_path,
                 "buildCommand": build_cmd,
-                "timeout": 120,
+                "wrapWithBear": True,
             }
-            if sdk_id:
-                payload["buildProfile"] = {"sdkId": sdk_id}
+            if merged_environment:
+                payload["buildEnvironment"] = merged_environment
+            if self._provenance:
+                payload["provenance"] = self._provenance
 
             async with httpx.AsyncClient(timeout=180.0) as client:
                 resp = await client.post(
@@ -105,7 +128,15 @@ class TryBuildTool:
                 # 빌드 실패 시 에러 분류 + 복구 제안 추가
                 if not actual_success:
                     from app.pipeline.build_error_classifier import classify_build_error
-                    error_output = data.get("stderr", "") + data.get("stdout", "") + data.get("output", "")
+                    build_evidence = data.get("buildEvidence", {}) if isinstance(data.get("buildEvidence"), dict) else {}
+                    failure_detail = data.get("failureDetail", {}) if isinstance(data.get("failureDetail"), dict) else {}
+                    error_output = (
+                        build_evidence.get("buildOutput", "")
+                        + data.get("stderr", "")
+                        + data.get("stdout", "")
+                        + data.get("output", "")
+                        + failure_detail.get("summary", "")
+                    )
                     classifications = classify_build_error(error_output)
                     if classifications:
                         data["_error_classification"] = [

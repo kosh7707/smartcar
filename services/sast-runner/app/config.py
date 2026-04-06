@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic_settings import BaseSettings
 
-SERVICE_VERSION = "0.9.0"
+SERVICE_VERSION = "0.11.0"
 
 
 class Settings(BaseSettings):

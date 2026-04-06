@@ -97,3 +97,15 @@ async def test_edit_returns_byte_count(setup):
     result = await tool.execute({"path": "a.sh", "content": "hello"})
     assert result.success is True
     assert '"bytes": 5' in result.content
+
+
+@pytest.mark.asyncio
+async def test_edit_blocks_forbidden_content(setup):
+    tool, policy, build = setup
+    (build / "script.sh").write_text("#!/bin/bash\necho ok")
+    policy.record_created("script.sh")
+
+    result = await tool.execute({"path": "script.sh", "content": "sudo make install"})
+
+    assert result.success is False
+    assert "forbidden content" in (result.error or "")

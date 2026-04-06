@@ -13,6 +13,8 @@ from typing import Any
 ProgressCallback = Callable[[str, str, int, int], Awaitable[None]]
 # File progress 콜백 타입: (tool_name, current_file, files_done, files_total) -> None
 FileProgressCallback = Callable[[str, str, int, int], Awaitable[None]]
+# Runtime 상태 콜백 타입: (tool_name, state_dict) -> None
+RuntimeStateCallback = Callable[[str, dict[str, Any]], Awaitable[None]]
 
 from app.scanner.clangtidy_runner import ClangTidyRunner
 from app.scanner.cppcheck_runner import CppcheckRunner
@@ -127,6 +129,7 @@ class ScanOrchestrator:
         third_party_paths: list[str] | None = None,
         on_progress: ProgressCallback | None = None,
         on_file_progress: FileProgressCallback | None = None,
+        on_runtime_state: RuntimeStateCallback | None = None,
     ) -> tuple[list[SastFinding], ExecutionReport]:
         """도구들을 병렬 실행하고 합산된 findings + 실행 보고서를 반환.
 
@@ -176,11 +179,13 @@ class ScanOrchestrator:
             task_map["scan-build"] = self._run_scanbuild(
                 scan_dir, scoped_files, enriched_profile, timeout,
                 on_file_progress=on_file_progress,
+                on_runtime_state=on_runtime_state,
             )
         if "gcc-fanalyzer" in active_tools:
             task_map["gcc-fanalyzer"] = self._run_gcc_analyzer(
                 scan_dir, scoped_files, profile, enriched_profile, timeout,
                 on_file_progress=on_file_progress,
+                on_runtime_state=on_runtime_state,
             )
 
         # 5. 병렬 실행 (per-tool timing wrapper + progress callback)
@@ -231,6 +236,30 @@ class ScanOrchestrator:
                 )
                 logger.info("Tool %s completed: %d findings in %dms", tool_name, len(findings_list), elapsed)
 
+            if tool_name in ("scan-build", "gcc-fanalyzer"):
+                runner = self.scanbuild if tool_name == "scan-build" else self.gcc_analyzer
+                runner_stats = getattr(runner, "_last_run_stats", None)
+                if runner_stats:
+                    degrade_reasons = []
+                    if runner_stats.get("budget_warning"):
+                        degrade_reasons.append("timeout-floor")
+                    if runner_stats.get("timed_out_files", 0) > 0:
+                        degrade_reasons.append("timed-out-files")
+                    if runner_stats.get("failed_files", 0) > 0:
+                        degrade_reasons.append("failed-files")
+                    tool_results[tool_name] = tool_results[tool_name].model_copy(
+                        update={
+                            "failed_files": runner_stats.get("failed_files"),
+                            "files_attempted": runner_stats.get("files_attempted"),
+                            "batch_count": runner_stats.get("batch_count"),
+                            "timeout_budget_seconds": runner_stats.get("timeout_budget_seconds"),
+                            "per_file_timeout_seconds": runner_stats.get("per_file_timeout_seconds"),
+                            "budget_warning": runner_stats.get("budget_warning"),
+                            "degraded": bool(degrade_reasons),
+                            "degrade_reasons": degrade_reasons or None,
+                        },
+                    )
+
         # partial 상태: 파일별 실행 도구 중 timeout 발생 시
         for tool_name in ("scan-build", "gcc-fanalyzer"):
             if tool_name in tool_results and tool_results[tool_name].status == "ok":
@@ -279,6 +308,14 @@ class ScanOrchestrator:
                 third_party_removed=filter_stats["third_party_removed"],
                 cross_boundary_kept=filter_stats["cross_boundary"],
                 files_scoped_out=files_scoped_out,
+            ),
+            degraded=any(result.degraded for result in tool_results.values() if result.degraded is not None),
+            degrade_reasons=sorted(
+                {
+                    reason
+                    for result in tool_results.values()
+                    for reason in (result.degrade_reasons or [])
+                },
             ),
         )
 
@@ -402,13 +439,22 @@ class ScanOrchestrator:
         self, scan_dir: Path, source_files: list[str],
         profile: BuildProfile | None, timeout: int,
         on_file_progress: FileProgressCallback | None = None,
+        on_runtime_state: RuntimeStateCallback | None = None,
     ) -> list[SastFinding]:
         async def _file_cb(file: str, done: int, total: int):
             if on_file_progress:
                 await on_file_progress("scan-build", file, done, total)
+        async def _runtime_cb(state: dict[str, Any]):
+            if on_runtime_state:
+                await on_runtime_state("scan-build", state)
+        kwargs: dict[str, Any] = {}
+        if on_file_progress:
+            kwargs["on_file_progress"] = _file_cb
+        if on_runtime_state:
+            kwargs["on_runtime_state"] = _runtime_cb
         return await self.scanbuild.run(
             scan_dir, source_files, profile, timeout,
-            on_file_progress=_file_cb if on_file_progress else None,
+            **kwargs,
         )
 
     async def _run_gcc_analyzer(
@@ -416,14 +462,22 @@ class ScanOrchestrator:
         profile: BuildProfile | None, enriched_profile: BuildProfile | None,
         timeout: int,
         on_file_progress: FileProgressCallback | None = None,
+        on_runtime_state: RuntimeStateCallback | None = None,
     ) -> list[SastFinding]:
         async def _file_cb(file: str, done: int, total: int):
             if on_file_progress:
                 await on_file_progress("gcc-fanalyzer", file, done, total)
+        async def _runtime_cb(state: dict[str, Any]):
+            if on_runtime_state:
+                await on_runtime_state("gcc-fanalyzer", state)
+        kwargs: dict[str, Any] = {"enriched_profile": enriched_profile}
+        if on_file_progress:
+            kwargs["on_file_progress"] = _file_cb
+        if on_runtime_state:
+            kwargs["on_runtime_state"] = _runtime_cb
         return await self.gcc_analyzer.run(
             scan_dir, source_files, profile, timeout,
-            enriched_profile=enriched_profile,
-            on_file_progress=_file_cb if on_file_progress else None,
+            **kwargs,
         )
 
 

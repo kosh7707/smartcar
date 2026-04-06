@@ -120,6 +120,26 @@ class TestRunThreatQuery:
         assert result.threat_context == []
         await executor.aclose()
 
+    @pytest.mark.asyncio
+    async def test_kb_not_ready_flagged(self):
+        executor = Phase1Executor(kb_endpoint="http://localhost:8002")
+        result = Phase1Result(
+            sast_findings=[{"ruleId": "CWE-78", "message": "injection"}],
+        )
+
+        mock_response = MagicMock()
+        mock_response.status_code = 503
+        mock_response.json.return_value = {"errorDetail": {"code": "KB_NOT_READY"}}
+        executor._kb_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError("kb not ready", request=MagicMock(), response=mock_response)
+        )
+
+        result = await executor._run_threat_query(result)
+
+        assert result.threat_context == []
+        assert result.kb_not_ready is True
+        await executor.aclose()
+
 
 # ───────────────────────────────────────────────
 # _run_cve_lookup
@@ -311,6 +331,7 @@ class TestTargetPath:
                     "projectPath": "/uploads/project",
                     "targetPath": "gateway/",
                     "projectId": "proj-1",
+                    "buildCommand": "bash build.sh",
                     "buildProfile": {"sdkId": "nxp-s32g2"},
                 }
             },
@@ -352,6 +373,7 @@ class TestTargetPath:
                     "objective": "test",
                     "projectPath": "/uploads/project",
                     "projectId": "proj-1",
+                    "buildCommand": "bash build.sh",
                     "buildProfile": {"sdkId": "nxp-s32g2"},
                 }
             },
@@ -393,6 +415,7 @@ class TestTargetPath:
                     "projectPath": "/uploads/project",
                     "targetPath": "../../etc/",
                     "projectId": "proj-1",
+                    "buildCommand": "bash build.sh",
                     "buildProfile": {"sdkId": "nxp-s32g2"},
                 }
             },

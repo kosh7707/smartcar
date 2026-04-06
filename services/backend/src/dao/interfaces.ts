@@ -24,8 +24,159 @@ import type {
   BuildTargetStatus,
   ScaLibrary,
   Notification,
+  ProjectSourceAsset,
+  SdkAsset,
 } from "@aegis/shared";
 import type { StoredFile } from "./file-store";
+
+export type BuildUnitStatus = "active" | "superseded" | "archived";
+export type BuildRequestType = "build-only" | "retry" | "reanalyze";
+export type BuildRequestStatus =
+  | "submitted"
+  | "accepted"
+  | "attempting"
+  | "snapshot_created"
+  | "failed"
+  | "cancelled";
+export type BuildAttemptProjectionStatus = "created" | "running" | "failed" | "succeeded";
+
+export interface BuildSelectionManifestExclusion {
+  path: string;
+  reason: string;
+}
+
+export interface BuildSelectionManifest {
+  files: string[];
+  excluded: BuildSelectionManifestExclusion[];
+}
+
+export type BuildMaterialRef = string | {
+  id?: string;
+  path?: string;
+  uri?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export interface DeclaredBuildSpec {
+  mode: string;
+  sdkId?: string;
+  setupScriptRef?: BuildMaterialRef;
+  toolchainTriplet?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface BuildArtifactRecord {
+  kind: string;
+  path: string;
+  required?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+export interface BuildExecutionMaterialRecord {
+  projectPath?: string;
+  buildScriptRef?: BuildMaterialRef;
+  buildDirRef?: BuildMaterialRef;
+  buildCommand?: string;
+  buildEnvironment?: Record<string, string>;
+  compileCommandsRef?: BuildMaterialRef;
+  metadata?: Record<string, unknown>;
+}
+
+export interface BuildUnitRecord {
+  id: string;
+  projectId: string;
+  name: string;
+  relativePath: string;
+  status: BuildUnitStatus;
+  latestRevisionId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BuildUnitRevisionRecord {
+  id: string;
+  buildUnitId: string;
+  projectId?: string;
+  sourceAssetId: string;
+  subprojectAssetId: string;
+  sdkAssetId?: string;
+  revisionNumber: number;
+  includedPaths: string[];
+  selectionManifest: BuildSelectionManifest;
+  declaredBuild: DeclaredBuildSpec;
+  expectedArtifacts: BuildArtifactRecord[];
+  frozenAt: string;
+  supersedesRevisionId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BuildRequestRecord {
+  id: string;
+  projectId: string;
+  buildUnitId: string;
+  buildUnitRevisionId: string;
+  requestType: BuildRequestType;
+  requestedBy: string;
+  requestedSnapshotId?: string;
+  requestedAttemptId?: string;
+  buildScriptRef?: BuildMaterialRef;
+  status: BuildRequestStatus;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface BuildAttemptProjectionRecord {
+  id: string;
+  projectId?: string;
+  buildRequestId: string;
+  buildUnitId: string;
+  buildUnitRevisionId: string;
+  attemptNumber: number;
+  status: BuildAttemptProjectionStatus;
+  failureCategory?: string;
+  failureDetail?: string;
+  executionMaterial: BuildExecutionMaterialRecord;
+  producedArtifacts: BuildArtifactRecord[];
+  startedAt?: string;
+  completedAt?: string;
+  retryOfAttemptId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BuildSnapshotProjectionRecord {
+  id: string;
+  projectId?: string;
+  snapshotSchemaVersion: string;
+  buildUnitId: string;
+  buildUnitRevisionId: string;
+  sourceBuildAttemptId: string;
+  declaredBuild: DeclaredBuildSpec;
+  executionMaterial: BuildExecutionMaterialRecord;
+  producedArtifacts: BuildArtifactRecord[];
+  thirdPartyInventoryRef?: string;
+  successMetadata?: Record<string, unknown>;
+  parentSnapshotId?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface SubprojectAssetRecord {
+  id: string;
+  projectId: string;
+  buildUnitId: string;
+  buildUnitRevisionId: string;
+  sourceAssetId: string;
+  rootPath?: string;
+  relativePath?: string;
+  assetPath?: string;
+  selectionManifest: BuildSelectionManifest;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// TODO(S2): add a dedicated source-assets DAO/table only after the project-source contract is frozen.
 
 // ── Core Domain ──
 
@@ -216,6 +367,49 @@ export interface IProjectSettingsDAO {
   deleteByProjectId(projectId: string): void;
 }
 
+export interface IBuildUnitDAO {
+  save(unit: BuildUnitRecord): void;
+  findById(id: string): BuildUnitRecord | undefined;
+  findByProjectId(projectId: string): BuildUnitRecord[];
+  findByRelativePath(projectId: string, relativePath: string): BuildUnitRecord | undefined;
+}
+
+export interface IBuildUnitRevisionDAO {
+  save(revision: BuildUnitRevisionRecord): void;
+  findById(id: string): BuildUnitRevisionRecord | undefined;
+  findByBuildUnitId(buildUnitId: string): BuildUnitRevisionRecord[];
+  findLatestByBuildUnitId(buildUnitId: string): BuildUnitRevisionRecord | undefined;
+}
+
+export interface IBuildRequestDAO {
+  save(request: BuildRequestRecord): void;
+  findById(id: string): BuildRequestRecord | undefined;
+  findByProjectId(projectId: string): BuildRequestRecord[];
+  findByBuildUnitId(buildUnitId: string): BuildRequestRecord[];
+}
+
+export interface IBuildAttemptProjectionDAO {
+  save(attempt: BuildAttemptProjectionRecord): void;
+  findById(id: string): BuildAttemptProjectionRecord | undefined;
+  findByBuildRequestId(buildRequestId: string): BuildAttemptProjectionRecord[];
+  findLatestByBuildRequestId(buildRequestId: string): BuildAttemptProjectionRecord | undefined;
+}
+
+export interface IBuildSnapshotProjectionDAO {
+  save(snapshot: BuildSnapshotProjectionRecord): void;
+  findById(id: string): BuildSnapshotProjectionRecord | undefined;
+  findByBuildUnitId(buildUnitId: string): BuildSnapshotProjectionRecord[];
+  findLatestByBuildUnitId(buildUnitId: string): BuildSnapshotProjectionRecord | undefined;
+  findBySourceBuildAttemptId(buildAttemptId: string): BuildSnapshotProjectionRecord[];
+}
+
+export interface ISubprojectAssetDAO {
+  save(asset: SubprojectAssetRecord): void;
+  findById(id: string): SubprojectAssetRecord | undefined;
+  findByBuildUnitRevisionId(buildUnitRevisionId: string): SubprojectAssetRecord | undefined;
+  findByBuildUnitId(buildUnitId: string): SubprojectAssetRecord[];
+}
+
 export interface IBuildTargetDAO {
   save(target: BuildTarget): void;
   findById(id: string): BuildTarget | undefined;
@@ -240,6 +434,20 @@ export interface IBuildTargetDAO {
   ): BuildTarget | undefined;
   delete(id: string): boolean;
   deleteByProjectId(projectId: string): number;
+}
+
+export interface IProjectSourceAssetDAO {
+  save(asset: ProjectSourceAsset): void;
+  findById(id: string): ProjectSourceAsset | undefined;
+  findLatestByProjectId(projectId: string): ProjectSourceAsset | undefined;
+}
+
+export interface ISdkAssetDAO {
+  save(asset: SdkAsset): void;
+  findById(id: string): SdkAsset | undefined;
+  findByProjectId(projectId: string): SdkAsset[];
+  update(assetId: string, fields: Partial<Omit<SdkAsset, "id" | "projectId" | "createdAt">>): SdkAsset | undefined;
+  delete(id: string): boolean;
 }
 
 export interface INotificationDAO {

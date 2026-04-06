@@ -5,6 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from app.config import SERVICE_VERSION
+from app.schemas.request import SnapshotProvenance
 
 
 # --- ExecutionReport (typed schema for scan execution metadata) ---
@@ -17,6 +18,14 @@ class ToolExecutionResult(BaseModel):
     elapsed_ms: int = Field(alias="elapsedMs")
     skip_reason: str | None = Field(default=None, alias="skipReason")
     timed_out_files: int | None = Field(default=None, alias="timedOutFiles")
+    failed_files: int | None = Field(default=None, alias="failedFiles")
+    files_attempted: int | None = Field(default=None, alias="filesAttempted")
+    batch_count: int | None = Field(default=None, alias="batchCount")
+    timeout_budget_seconds: int | None = Field(default=None, alias="timeoutBudgetSeconds")
+    per_file_timeout_seconds: int | None = Field(default=None, alias="perFileTimeoutSeconds")
+    budget_warning: bool | None = Field(default=None, alias="budgetWarning")
+    degraded: bool | None = None
+    degrade_reasons: list[str] | None = Field(default=None, alias="degradeReasons")
     version: str | None = None
 
     model_config = {"populate_by_name": True, "by_alias": True}
@@ -49,6 +58,8 @@ class ExecutionReport(BaseModel):
     tool_results: dict[str, ToolExecutionResult] = Field(alias="toolResults")
     sdk: SdkResolutionInfo
     filtering: FindingsFilterInfo
+    degraded: bool = False
+    degrade_reasons: list[str] = Field(default_factory=list, alias="degradeReasons")
 
     model_config = {"populate_by_name": True, "by_alias": True}
 
@@ -110,11 +121,63 @@ class ScanResponse(BaseModel):
     success: bool
     scan_id: str = Field(alias="scanId")
     status: str
+    provenance: SnapshotProvenance | None = None
     findings: list[SastFinding] | None = None
     stats: ScanStats | None = None
     execution: ExecutionReport | None = None
     code_graph: dict[str, Any] | None = Field(default=None, alias="codeGraph")
     sca: dict[str, Any] | None = None
+    error: str | None = None
+    error_detail: ErrorDetail | None = Field(default=None, alias="errorDetail")
+
+    model_config = {"populate_by_name": True, "by_alias": True}
+
+
+class BuildFailureDetail(BaseModel):
+    category: str
+    summary: str
+    matched_excerpt: str | None = Field(default=None, alias="matchedExcerpt")
+    hint: str | None = None
+    retryable: bool = False
+
+    model_config = {"populate_by_name": True, "by_alias": True}
+
+
+class BuildEvidence(BaseModel):
+    requested_build_command: str = Field(alias="requestedBuildCommand")
+    effective_build_command: str = Field(alias="effectiveBuildCommand")
+    build_dir: str = Field(alias="buildDir")
+    compile_commands_path: str | None = Field(default=None, alias="compileCommandsPath")
+    entries: int | None = None
+    user_entries: int | None = Field(default=None, alias="userEntries")
+    exit_code: int | None = Field(default=None, alias="exitCode")
+    build_output: str | None = Field(default=None, alias="buildOutput")
+    wrap_with_bear: bool = Field(alias="wrapWithBear")
+    timeout_seconds: int = Field(alias="timeoutSeconds")
+    environment_keys: list[str] | None = Field(default=None, alias="environmentKeys")
+    elapsed_ms: int = Field(alias="elapsedMs")
+
+    model_config = {"populate_by_name": True, "by_alias": True}
+
+
+class BuildResponse(BaseModel):
+    success: bool
+    provenance: SnapshotProvenance | None = None
+    build_evidence: BuildEvidence = Field(alias="buildEvidence")
+    failure_detail: BuildFailureDetail | None = Field(default=None, alias="failureDetail")
+
+    model_config = {"populate_by_name": True, "by_alias": True}
+
+
+class BuildAndAnalyzeResponse(BaseModel):
+    success: bool
+    provenance: SnapshotProvenance | None = None
+    build: BuildResponse
+    scan: ScanResponse | None = None
+    code_graph: dict[str, Any] | None = Field(default=None, alias="codeGraph")
+    libraries: list[dict[str, Any]] | None = None
+    metadata: dict[str, Any] | None = None
+    elapsed_ms: int | None = Field(default=None, alias="elapsedMs")
     error: str | None = None
     error_detail: ErrorDetail | None = Field(default=None, alias="errorDetail")
 
