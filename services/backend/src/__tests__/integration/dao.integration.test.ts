@@ -13,6 +13,14 @@ import { FileStore } from "../../dao/file-store";
 import { AdapterDAO } from "../../dao/adapter.dao";
 import { ProjectSettingsDAO } from "../../dao/project-settings.dao";
 import { BuildTargetDAO } from "../../dao/build-target.dao";
+import { BuildUnitDAO } from "../../dao/build-unit.dao";
+import { BuildUnitRevisionDAO } from "../../dao/build-unit-revision.dao";
+import { SubprojectAssetDAO } from "../../dao/subproject-asset.dao";
+import { BuildRequestDAO } from "../../dao/build-request.dao";
+import { BuildAttemptProjectionDAO } from "../../dao/build-attempt-projection.dao";
+import { BuildSnapshotProjectionDAO } from "../../dao/build-snapshot-projection.dao";
+import { ProjectSourceAssetDAO } from "../../dao/project-source-asset.dao";
+import { SdkAssetDAO } from "../../dao/sdk-asset.dao";
 import { NotificationDAO } from "../../dao/notification.dao";
 import { UserDAO, SessionDAO } from "../../dao/user.dao";
 import {
@@ -252,6 +260,140 @@ describe("DAO Integration Tests", () => {
       expect(dao.deleteByProjectId("p1")).toBe(2);
       expect(dao.findByProjectId("p1")).toHaveLength(0);
       expect(dao.findByProjectId("p2")).toHaveLength(1);
+    });
+  });
+
+  describe("Snapshot-first build DAOs", () => {
+    it("persists source/sdk assets, build units, revisions, requests, and projections", () => {
+      const sourceAssetDao = new ProjectSourceAssetDAO(db);
+      const sdkAssetDao = new SdkAssetDAO(db);
+      const buildUnitDao = new BuildUnitDAO(db);
+      const subprojectAssetDao = new SubprojectAssetDAO(db);
+      const revisionDao = new BuildUnitRevisionDAO(db);
+      const requestDao = new BuildRequestDAO(db);
+      const attemptDao = new BuildAttemptProjectionDAO(db);
+      const snapshotDao = new BuildSnapshotProjectionDAO(db);
+
+      const now = new Date().toISOString();
+
+      sourceAssetDao.save({
+        id: "src-1",
+        projectId: "p1",
+        rootPath: "/uploads/p1",
+        sourceType: "upload",
+        createdAt: now,
+        updatedAt: now,
+      });
+      expect(sourceAssetDao.findLatestByProjectId("p1")).toMatchObject({ id: "src-1" });
+
+      sdkAssetDao.save({
+        id: "sdk-1",
+        projectId: "p1",
+        name: "SDK",
+        storagePath: "/uploads/p1/sdk/sdk-1",
+        status: "ready",
+        verified: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+      expect(sdkAssetDao.findByProjectId("p1")).toHaveLength(1);
+
+      buildUnitDao.save({
+        id: "bunit-1",
+        projectId: "p1",
+        name: "gateway",
+        relativePath: "gateway-webserver/",
+        status: "active",
+        latestRevisionId: "brev-1",
+        createdAt: now,
+        updatedAt: now,
+      });
+      expect(buildUnitDao.findByRelativePath("p1", "gateway-webserver/")?.id).toBe("bunit-1");
+
+      subprojectAssetDao.save({
+        id: "subasset-1",
+        projectId: "p1",
+        buildUnitId: "bunit-1",
+        buildUnitRevisionId: "brev-1",
+        sourceAssetId: "src-1",
+        rootPath: "/uploads/p1/bunit-1/brev-1",
+        selectionManifest: {
+          files: ["gateway-webserver/main.c"],
+          excluded: [{ path: "gateway-webserver/node_modules", reason: "dependency-cache" }],
+        },
+        createdAt: now,
+        updatedAt: now,
+      });
+      expect(subprojectAssetDao.findByBuildUnitRevisionId("brev-1")).toMatchObject({ id: "subasset-1" });
+
+      revisionDao.save({
+        id: "brev-1",
+        projectId: "p1",
+        buildUnitId: "bunit-1",
+        sourceAssetId: "src-1",
+        subprojectAssetId: "subasset-1",
+        sdkAssetId: "sdk-1",
+        revisionNumber: 1,
+        includedPaths: ["gateway-webserver"],
+        selectionManifest: {
+          files: ["gateway-webserver/main.c"],
+          excluded: [{ path: "gateway-webserver/node_modules", reason: "dependency-cache" }],
+        },
+        declaredBuild: { mode: "sdk", sdkId: "sdk-1" },
+        expectedArtifacts: [{ kind: "executable", path: "gateway-webserver", required: true }],
+        frozenAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+      expect(revisionDao.findLatestByBuildUnitId("bunit-1")).toMatchObject({ id: "brev-1" });
+
+      requestDao.save({
+        id: "breq-1",
+        projectId: "p1",
+        buildUnitId: "bunit-1",
+        buildUnitRevisionId: "brev-1",
+        requestType: "build-only",
+        requestedBy: "tester",
+        buildScriptRef: { path: "gateway-webserver/scripts/generated-build.sh" },
+        status: "submitted",
+        createdAt: now,
+        updatedAt: now,
+      });
+      expect(requestDao.findByProjectId("p1")).toHaveLength(1);
+
+      attemptDao.save({
+        id: "bat-1",
+        projectId: "p1",
+        buildRequestId: "breq-1",
+        buildUnitId: "bunit-1",
+        buildUnitRevisionId: "brev-1",
+        attemptNumber: 1,
+        status: "running",
+        executionMaterial: { projectPath: "/derived/builds/bat-1" },
+        producedArtifacts: [],
+        createdAt: now,
+        updatedAt: now,
+      });
+      expect(attemptDao.findLatestByBuildRequestId("breq-1")).toMatchObject({ id: "bat-1", status: "running" });
+
+      snapshotDao.save({
+        id: "bsnap-1",
+        projectId: "p1",
+        snapshotSchemaVersion: "build-snapshot-v1",
+        buildUnitId: "bunit-1",
+        buildUnitRevisionId: "brev-1",
+        sourceBuildAttemptId: "bat-1",
+        declaredBuild: { mode: "sdk", sdkId: "sdk-1" },
+        executionMaterial: {
+          projectPath: "/derived/builds/bat-1",
+          compileCommandsRef: "file:///derived/builds/bat-1/compile_commands.json",
+        },
+        producedArtifacts: [{ kind: "executable", path: "gateway-webserver" }],
+        createdAt: now,
+        updatedAt: now,
+      });
+      expect(snapshotDao.findBySourceBuildAttemptId("bat-1")).toHaveLength(1);
+      expect(snapshotDao.findLatestByBuildUnitId("bunit-1")).toMatchObject({ id: "bsnap-1" });
     });
   });
 

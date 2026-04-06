@@ -247,7 +247,177 @@ export interface SdkProfile {
 }
 
 // ============================================================
-// 빌드 타겟
+// Snapshot-first build domain
+// ============================================================
+
+export interface ProjectSourceAsset {
+  id: string;
+  projectId: string;
+  rootPath: string;
+  sourceType: "upload" | "clone";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SdkAsset {
+  id: string;
+  projectId: string;
+  name: string;
+  description?: string;
+  storagePath: string;
+  profile?: SdkAnalyzedProfile;
+  status: SdkRegistryStatus;
+  verifyError?: string;
+  verified: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BuildScriptRef {
+  id: string;
+  path: string;
+}
+
+export interface SelectionManifestExcludedEntry {
+  path: string;
+  reason: string;
+}
+
+export interface SelectionManifest {
+  files: string[];
+  excluded: SelectionManifestExcludedEntry[];
+}
+
+export interface DeclaredBuildArtifact {
+  kind: "executable" | "library" | "archive" | "directory" | "other";
+  path: string;
+  required: boolean;
+}
+
+export interface DeclaredBuildIntent {
+  mode: "native" | "sdk" | "custom";
+  sdkId?: string;
+  setupScriptRef?: BuildScriptRef;
+  toolchainTriplet?: string;
+}
+
+export interface SubprojectAsset {
+  id: string;
+  projectId: string;
+  buildUnitId: string;
+  buildUnitRevisionId: string;
+  rootPath: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BuildUnit {
+  id: string;
+  projectId: string;
+  name: string;
+  relativePath: string;
+  status: "active" | "superseded" | "archived";
+  latestRevisionId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BuildUnitRevision {
+  id: string;
+  buildUnitId: string;
+  projectId: string;
+  sourceAssetId: string;
+  subprojectAssetId: string;
+  sdkAssetId?: string;
+  revisionNumber: number;
+  includedPaths: string[];
+  selectionManifest: SelectionManifest;
+  declaredBuild: DeclaredBuildIntent;
+  expectedArtifacts: DeclaredBuildArtifact[];
+  frozenAt: string;
+  supersedesRevisionId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type BuildRequestType = "build-only" | "retry" | "reanalyze";
+export type BuildRequestStatus =
+  | "submitted"
+  | "accepted"
+  | "attempting"
+  | "snapshot_created"
+  | "failed"
+  | "cancelled";
+
+export interface BuildRequest {
+  id: string;
+  projectId: string;
+  buildUnitId: string;
+  buildUnitRevisionId: string;
+  requestType: BuildRequestType;
+  requestedBy?: string;
+  requestedSnapshotId?: string;
+  requestedAttemptId?: string;
+  buildScriptRef?: BuildScriptRef;
+  status: BuildRequestStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type BuildAttemptProjectionStatus = "created" | "running" | "failed" | "succeeded";
+
+export interface BuildExecutionMaterial {
+  projectPath?: string;
+  buildScriptRef?: BuildScriptRef;
+  buildDirRef?: string;
+  buildCommand?: string;
+  buildEnvironment?: Record<string, string>;
+  compileCommandsRef?: string;
+}
+
+export interface BuildProducedArtifact {
+  kind: string;
+  path: string;
+}
+
+export interface BuildAttemptProjection {
+  id: string;
+  projectId: string;
+  buildRequestId: string;
+  buildUnitId: string;
+  buildUnitRevisionId: string;
+  attemptNumber: number;
+  status: BuildAttemptProjectionStatus;
+  failureCategory?: string;
+  failureDetail?: string;
+  executionMaterial?: BuildExecutionMaterial;
+  producedArtifacts?: BuildProducedArtifact[];
+  startedAt?: string;
+  completedAt?: string;
+  retryOfAttemptId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BuildSnapshotProjection {
+  id: string;
+  projectId: string;
+  snapshotSchemaVersion: string;
+  buildUnitId: string;
+  buildUnitRevisionId: string;
+  sourceBuildAttemptId: string;
+  declaredBuild?: DeclaredBuildIntent;
+  executionMaterial?: BuildExecutionMaterial;
+  producedArtifacts?: BuildProducedArtifact[];
+  thirdPartyInventoryRef?: string;
+  successMetadata?: Record<string, unknown>;
+  parentSnapshotId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================================================
+// 레거시 빌드 타겟
 // ============================================================
 
 /**

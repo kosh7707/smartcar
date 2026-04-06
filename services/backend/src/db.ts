@@ -273,6 +273,142 @@ export function initSchema(db: DatabaseType): void {
     CREATE INDEX IF NOT EXISTS idx_build_targets_project ON build_targets(project_id);
   `);
 
+  // S2 canonical build persistence + S3 read projections
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS project_source_assets (
+      id                 TEXT PRIMARY KEY,
+      project_id         TEXT NOT NULL,
+      root_path          TEXT NOT NULL,
+      source_type        TEXT NOT NULL,
+      created_at         TEXT NOT NULL,
+      updated_at         TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_project_source_assets_project ON project_source_assets(project_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS sdk_assets (
+      id                 TEXT PRIMARY KEY,
+      project_id         TEXT NOT NULL,
+      name               TEXT NOT NULL,
+      description        TEXT,
+      storage_path       TEXT NOT NULL,
+      profile            TEXT NOT NULL DEFAULT '{}',
+      status             TEXT NOT NULL DEFAULT 'uploading',
+      verify_error       TEXT,
+      verified           INTEGER NOT NULL DEFAULT 0,
+      created_at         TEXT NOT NULL,
+      updated_at         TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_sdk_assets_project ON sdk_assets(project_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS build_units (
+      id                 TEXT PRIMARY KEY,
+      project_id         TEXT NOT NULL,
+      name               TEXT NOT NULL,
+      relative_path      TEXT NOT NULL,
+      status             TEXT NOT NULL DEFAULT 'active',
+      latest_revision_id TEXT,
+      created_at         TEXT NOT NULL,
+      updated_at         TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_build_units_project ON build_units(project_id);
+    CREATE INDEX IF NOT EXISTS idx_build_units_project_path ON build_units(project_id, relative_path);
+
+    CREATE TABLE IF NOT EXISTS build_unit_revisions (
+      id                     TEXT PRIMARY KEY,
+      build_unit_id          TEXT NOT NULL,
+      project_id             TEXT NOT NULL,
+      source_asset_id        TEXT NOT NULL,
+      subproject_asset_id    TEXT NOT NULL,
+      sdk_asset_id           TEXT,
+      revision_number        INTEGER NOT NULL,
+      included_paths         TEXT NOT NULL DEFAULT '[]',
+      selection_manifest     TEXT NOT NULL DEFAULT '{"files":[],"excluded":[]}',
+      declared_build         TEXT NOT NULL DEFAULT '{}',
+      expected_artifacts     TEXT NOT NULL DEFAULT '[]',
+      frozen_at              TEXT NOT NULL,
+      supersedes_revision_id TEXT,
+      created_at             TEXT NOT NULL,
+      updated_at             TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_build_unit_revisions_unit ON build_unit_revisions(build_unit_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_build_unit_revisions_unit_revnum ON build_unit_revisions(build_unit_id, revision_number);
+
+    CREATE TABLE IF NOT EXISTS build_requests (
+      id                     TEXT PRIMARY KEY,
+      project_id             TEXT NOT NULL,
+      build_unit_id          TEXT NOT NULL,
+      build_unit_revision_id TEXT NOT NULL,
+      request_type           TEXT NOT NULL,
+      requested_by           TEXT NOT NULL,
+      requested_snapshot_id  TEXT,
+      requested_attempt_id   TEXT,
+      build_script_ref       TEXT,
+      status                 TEXT NOT NULL DEFAULT 'submitted',
+      created_at             TEXT NOT NULL,
+      updated_at             TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_build_requests_project ON build_requests(project_id);
+    CREATE INDEX IF NOT EXISTS idx_build_requests_unit ON build_requests(build_unit_id);
+    CREATE INDEX IF NOT EXISTS idx_build_requests_revision ON build_requests(build_unit_revision_id);
+
+    CREATE TABLE IF NOT EXISTS build_attempt_projections (
+      id                     TEXT PRIMARY KEY,
+      project_id             TEXT NOT NULL,
+      build_request_id       TEXT NOT NULL,
+      build_unit_id          TEXT NOT NULL,
+      build_unit_revision_id TEXT NOT NULL,
+      attempt_number         INTEGER NOT NULL,
+      status                 TEXT NOT NULL,
+      failure_category       TEXT,
+      failure_detail         TEXT,
+      execution_material     TEXT NOT NULL DEFAULT '{}',
+      produced_artifacts     TEXT NOT NULL DEFAULT '[]',
+      started_at             TEXT,
+      completed_at           TEXT,
+      retry_of_attempt_id    TEXT,
+      created_at             TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at             TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_build_attempt_projections_request ON build_attempt_projections(build_request_id);
+    CREATE INDEX IF NOT EXISTS idx_build_attempt_projections_unit ON build_attempt_projections(build_unit_id);
+    CREATE INDEX IF NOT EXISTS idx_build_attempt_projections_revision ON build_attempt_projections(build_unit_revision_id);
+
+    CREATE TABLE IF NOT EXISTS build_snapshot_projections (
+      id                      TEXT PRIMARY KEY,
+      project_id              TEXT NOT NULL,
+      snapshot_schema_version TEXT NOT NULL,
+      build_unit_id           TEXT NOT NULL,
+      build_unit_revision_id  TEXT NOT NULL,
+      source_build_attempt_id TEXT NOT NULL,
+      declared_build          TEXT NOT NULL DEFAULT '{}',
+      execution_material      TEXT NOT NULL DEFAULT '{}',
+      produced_artifacts      TEXT NOT NULL DEFAULT '[]',
+      third_party_inventory_ref TEXT,
+      success_metadata        TEXT,
+      parent_snapshot_id      TEXT,
+      created_at              TEXT NOT NULL,
+      updated_at              TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_build_snapshot_projections_unit ON build_snapshot_projections(build_unit_id);
+    CREATE INDEX IF NOT EXISTS idx_build_snapshot_projections_revision ON build_snapshot_projections(build_unit_revision_id);
+    CREATE INDEX IF NOT EXISTS idx_build_snapshot_projections_attempt ON build_snapshot_projections(source_build_attempt_id);
+
+    CREATE TABLE IF NOT EXISTS subproject_assets (
+      id                     TEXT PRIMARY KEY,
+      project_id             TEXT NOT NULL,
+      build_unit_id          TEXT NOT NULL,
+      build_unit_revision_id TEXT NOT NULL,
+      source_asset_id        TEXT NOT NULL,
+      root_path              TEXT NOT NULL,
+      selection_manifest     TEXT NOT NULL DEFAULT '{"files":[],"excluded":[]}',
+      created_at             TEXT NOT NULL,
+      updated_at             TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_subproject_assets_project ON subproject_assets(project_id);
+    CREATE INDEX IF NOT EXISTS idx_subproject_assets_unit ON subproject_assets(build_unit_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_subproject_assets_revision ON subproject_assets(build_unit_revision_id);
+  `);
+
   // 알림 테이블
   db.exec(`
     CREATE TABLE IF NOT EXISTS notifications (
@@ -309,24 +445,6 @@ export function initSchema(db: DatabaseType): void {
       expires_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
-  `);
-
-  // SDK 레지스트리 (유저 등록)
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS sdk_registry (
-      id              TEXT PRIMARY KEY,
-      project_id      TEXT NOT NULL,
-      name            TEXT NOT NULL,
-      description     TEXT,
-      path            TEXT NOT NULL,
-      profile         TEXT NOT NULL DEFAULT '{}',
-      status          TEXT NOT NULL DEFAULT 'uploading',
-      verify_error    TEXT,
-      verified        INTEGER NOT NULL DEFAULT 0,
-      created_at      TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_sdk_registry_project ON sdk_registry(project_id);
   `);
 
   // 서드파티 라이브러리 (타겟별)
