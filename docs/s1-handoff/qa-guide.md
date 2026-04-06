@@ -1,8 +1,9 @@
-# S1 QA 세션 가이드
+# S1-QA 세션 가이드
 
 > **역할 부여**: "너는 S1에서 QA를 담당해."
 > **목적**: 프론트엔드 개발자(S1 개발 세션)가 만든 UI를 **코드를 보지 않고** 사용자 관점에서 검증한다.
-> **마지막 업데이트: 2026-03-31**
+> **목적**: Codex에서는 공식 Playwright skill, Playwright MCP, CLI를 조합해 QA를 수행한다.
+> **마지막 업데이트: 2026-04-03**
 
 ---
 
@@ -12,12 +13,21 @@
 - **코드를 읽지 않는다** — `src/renderer/`는 열람 금지
 - 판단 근거: 화면 명세(`docs/specs/frontend.md`), API 계약서(`docs/api/shared-models.md`), 이 가이드
 - 발견한 이슈는 `docs/work-requests/s1qa-to-s1-{주제}.md`로 보고
+- 기본 도구 우선순위: **공식 Codex Playwright skill → Playwright MCP → Playwright CLI**
+- 하드 가드레일:
+  - S1-QA는 **S1 외 다른 서비스 코드도 읽지 않는다**.
+  - 다른 서비스와의 소통은 **WR로만** 한다.
+  - 계약이 불명확하면 추측하지 말고 API 계약서를 보고, 부족하면 담당자에게 WR을 보낸다.
+  - **커밋은 하지 않는다**. 커밋은 S2 세션만 한다.
+  - `scripts/start*.sh`, `scripts/stop*.sh`, 서비스 기동 명령은 **사용자 허락 없이는 실행하지 않는다**.
+  - 로그/콘솔/장애 분석은 `log-analyzer` MCP를 우선 사용한다.
 
 ### 읽어야 하는 문서
 
 | 문서 | 이유 |
 |------|------|
 | `docs/AEGIS.md` | 프로젝트 공통 제약 |
+| `docs/s1-handoff/README.md` | 현재 프론트 상태, 라우트, Codex/OMX 운영 메모 |
 | `docs/specs/frontend.md` | 화면 명세 — **이것이 정답지** |
 | `docs/api/shared-models.md` | 데이터 구조 (Finding, Run, Gate 등) |
 | 이 파일 (`qa-guide.md`) | QA 도구 사용법 |
@@ -27,20 +37,50 @@
 - `src/renderer/**` (컴포넌트, 훅, 유틸 소스코드)
 - `e2e/fixtures/mock-data.ts` (모킹 데이터 — 개발자 편향 오염 방지)
 
+> `services/frontend/e2e/specs/*`, `playwright.config.ts`, `qa-captures/*`는 **레거시 자산일 수 있다.**
+> 참고는 가능하지만, 최근 운영이 Claude Code Playwright 플러그인 중심이었을 수 있으므로 **무조건 최신 정답으로 간주하지 않는다.**
+
 ---
 
-## 2. 도구: Playwright
+## 2. 도구: Playwright / Codex
 
-### 설치 확인
+### 우선순위 (Codex 기준)
+
+1. **공식 Codex Playwright skill** (`$playwright` 계열)
+   - 실 브라우저를 열어 사용자 흐름, 레이아웃, 인터랙션을 즉시 검증할 때 최우선
+2. **Playwright MCP**
+   - skill이 없거나, 도구 레벨 브라우저 제어만 필요할 때 사용
+3. **Playwright CLI**
+   - 반복 검증, 기존 spec 재실행, 스냅샷 갱신이 필요할 때 사용
+
+### 공식 skill / MCP 준비
+
+- 공식 Playwright skill이 없으면 `$skill-installer`로 설치하고 **Codex를 재시작**한다.
+- Playwright MCP가 없으면 아래 명령으로 등록한다.
+
+```bash
+codex mcp add playwright npx "@playwright/mcp@latest"
+```
+
+### CLI 폴백 설치 확인
 
 ```bash
 cd services/frontend
-npx playwright --version     # 설치 확인
+npx playwright --version
 ```
 
-### 핵심 명령어
+### 권장 QA 실행 순서
+
+1. 가능하면 **공식 Playwright skill** 또는 **Playwright MCP**로 브라우저를 직접 띄운다.
+2. 재현 가능한 환경이 필요하면 `services/frontend`에서 `npm run dev:mock` 또는 기존 Playwright spec 기반 흐름을 사용한다.
+3. 회귀 테스트가 필요할 때만 기존 `e2e/specs/qa-*.spec.ts`를 재사용하거나 새 spec을 추가한다.
+4. 결과는 스크린샷/명령/viewport/theme와 함께 work-request로 남긴다.
+
+### CLI 폴백 핵심 명령어
 
 ```bash
+cd services/frontend
+
 # 브라우저 띄워서 테스트 실행 (눈으로 확인)
 npm run test:e2e:headed
 
@@ -52,9 +92,18 @@ npx playwright test visual-qa.spec.ts --update-snapshots
 
 # 전체 E2E 테스트 (자동)
 npm run test:e2e
+
+# 백엔드 없이 mock 데이터로 수동 확인
+npm run dev:mock
 ```
 
-### 직접 스크린샷 촬영
+### 기존 Playwright 자산 취급 규칙
+
+- `services/frontend/playwright.config.ts`는 현재도 실행 가능한 CLI 진입점이다.
+- `services/frontend/e2e/specs/*`와 `services/frontend/e2e/qa-captures/*`는 **과거 QA 흔적 + 보조 자료**로 본다.
+- 기존 spec/캡처를 그대로 정답으로 믿지 말고, **현재 handoff/화면/명세와 일치하는지 확인한 뒤** 재사용한다.
+
+### 반복 재현이 필요할 때만: QA spec 추가
 
 `e2e/specs/` 아래에 자체 테스트를 작성할 수 있다:
 
@@ -73,7 +122,7 @@ test("QA: 개요 페이지 확인", async ({ page, mockApi }) => {
 });
 ```
 
-### mockApi 사용법 (필수)
+### spec 기반 QA에서 mockApi 사용법 (필수)
 
 > **경고**: `mockApi`를 사용하지 않으면 모든 API 호출이 실패하여 대부분의 페이지가 에러 상태로 표시된다.
 > 반드시 `test` 함수에서 `mockApi`를 destructure하여 사용할 것.
@@ -109,6 +158,14 @@ await page.addInitScript(() => {
   // localStorage.setItem("aegis-theme", "dark");  ❌ 대시 — 작동 안 함
 });
 ```
+
+### Codex / OMX 보조 스킬
+
+- `$ralph`: 한 QA 세션이 여러 화면/이슈를 끝까지 검증하고 증거를 모아 마무리해야 할 때 사용한다.
+- `$team`: S1 개발 세션과 S1-QA의 병렬 왕복, 또는 여러 QA 관점을 동시에 돌려야 할 때 사용한다.
+- `$visual-verdict`: 참조 이미지와 현재 스크린샷을 비교해 시각적 차이를 구조화한다.
+- `$note`: 장기 QA 세션의 핵심 관찰사항을 `.omx/notepad.md`에 남긴다.
+- `$trace`: 이전 Codex/OMX 세션 흐름을 복기해야 할 때 사용한다.
 
 ---
 
@@ -159,6 +216,9 @@ await page.addInitScript(() => {
 **수신**: S1
 **날짜**: YYYY-MM-DD
 **유형**: UI 버그 | UX 개선 | 스타일 이슈
+**도구**: Codex Playwright skill | Playwright MCP | Playwright CLI
+**실행**: {사용한 spec 이름 또는 명령어}
+**환경**: {viewport, theme, mock 여부}
 
 ## 현상
 {스크린샷 경로 + 설명}
@@ -184,4 +244,4 @@ await page.addInitScript(() => {
 | Playwright responsive | 5개 | 반응형 레이아웃 |
 | Playwright dark-theme | 6개 | 다크 테마 스크린샷 |
 
-QA 세션은 `e2e/specs/qa-*.spec.ts` 네이밍으로 자체 테스트를 추가할 수 있다.
+QA 세션은 `e2e/specs/qa-*.spec.ts` 네이밍으로 자체 테스트를 추가할 수 있다. 단, 기존 Playwright 자산은 **현행성 검증 후** 재사용한다.

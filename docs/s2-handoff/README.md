@@ -3,7 +3,7 @@
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S2(AEGIS Core/Backend) 개발을 이어받는 다음 세션을 위한 진입점이다.
 > 상세 정보는 같은 디렉토리의 분할 문서를 참조한다.
-> **마지막 업데이트: 2026-04-02**
+> **마지막 업데이트: 2026-04-04**
 
 ---
 
@@ -13,16 +13,16 @@
 |------|------|
 | **이 파일 (README.md)** | 역할, 경계, 현재 상태, 관리 문서, 참조 |
 | [architecture.md](architecture.md) | 구현 현황, DB 스키마, 핵심 로직, 의존성, 실행 방법, Observability |
-| [api-endpoints.md](api-endpoints.md) | API 엔드포인트 전체 목록 (60개+ REST + 5 WS) |
+| [api-endpoints.md](api-endpoints.md) | API 엔드포인트 전체 목록 (현재 라우터 구현 반영) |
 | [roadmap.md](roadmap.md) | 다음 작업, 후순위, 인프라 계획 |
-| session-{N}.md | 세션별 작업 로그 (session-1.md ~ session-14.md) |
+| session-{N}.md | 세션별 작업 로그 (session-1.md ~ session-15.md) |
 
 ---
 
 ## 1. 프로젝트 전체 그림
 
 ```
-                     S1 (Frontend :5173)
+                  S1 / S1-QA (Frontend :5173)
                           │
                      S2 (AEGIS Core :3000)  ← 플랫폼 오케스트레이터
                     ╱     │     ╲      ╲
@@ -37,6 +37,7 @@
 ```
 
 **S2가 전체 오케스트레이터.** S1에게 API를 제공하고, S3/S4/S5/S6/S7를 호출하는 중추.
+- 운영 상으로는 **S1-QA가 S1과 별도 세션**으로 프론트엔드 QA를 담당한다. 서비스 토폴로지는 동일하고, S2 입장에서는 QA 이슈/피드백의 별도 발신자라고 보면 된다.
 
 ### 보안 검증 구조
 
@@ -56,7 +57,7 @@
 - `services/backend/` 하위 코드를 소유
 - `services/shared/` 공유 타입 패키지를 **단독 소유**
 - `scripts/start.sh`, `scripts/stop.sh` 통합 기동/종료 스크립트 소유
-- S1에게 API를 제공하고, S3/S4/S5/S6를 호출하는 전체 오케스트레이터
+- S1에게 API를 제공하고, S3/S4/S5/S6/S7를 호출하는 전체 오케스트레이터
 
 ### API 계약 소통 원칙 (필수)
 
@@ -68,19 +69,68 @@
 
 - **경로**: `docs/work-requests/`
 - 세션 시작 시 이 폴더를 확인하여 밀린 요청이 있는지 체크
+- **2026-04-04 종료 시점 기준 메모**
+  - `s2-to-all-omx-memory-discipline.md` — 전 lane 공용 `.omx` 운영 규칙 공지
+  - `s2-to-s1-backend-contract-alignment.md`, `s2-to-s1-contract-lockdown-fyi.md` — S1 계약 정렬/closure 통보
+  - `s3-to-s2-build-snapshot-*.md`, `s2-to-s3-build-snapshot-*.md` — Build Snapshot / BuildAttempt 계약 협의 및 구현 착수 게이트 회신 묶음
+  - `s3-to-s3-prompt-enhancement-backlog.md` — S3 내부 백로그 (S2 액션 아님)
+- 즉, 더 이상 “`.gitkeep` + S3 내부 백로그 1건만 남음” 상태가 아니므로, 다음 세션은 **WR 폴더를 실제 기준으로 재확인**해야 한다.
+
+### Codex / OMX 운영 메모
+
+- 하드 가드레일 재확인:
+  - S2도 **다른 서비스 코드를 읽지 않는다**. 연동은 API 계약서만 본다.
+  - 다른 서비스와의 소통은 **WR로만** 한다.
+  - 계약이 비어 있거나 낡았으면 추측하지 말고 담당자에게 WR을 보낸다.
+  - **커밋은 S2 세션만** 한다. 다른 lane 대신 커밋해주는 통합자 역할도 S2가 맡는다.
+  - `scripts/start.sh`, `scripts/stop.sh`, `scripts/start-*.sh` 등 서비스 기동/종료 스크립트는 **사용자 허락 없이 실행하지 않는다**.
+  - 로그/장애 분석은 `log-analyzer` MCP를 우선 사용한다.
+- 장기 S2 작업 메모와 후속 세션 인계는 `$note`와 `.omx` 메모리를 사용한다.
+- **`$ralph`**: 한 세션이 백엔드/공유타입/문서/테스트까지 끈질기게 몰아쳐야 하는 단일 lane 작업에 우선 사용한다.
+- **`$team`**: S2가 S1/S1-QA/S3/S4/S5/S6/S7과 병렬 협업을 조직해야 할 때 우선 사용한다.
+- **`$trace`**: 이전 Codex/OMX 세션의 판단 흐름과 작업 이력을 복기할 때 사용한다.
+- skill을 써도 **소유권과 API 계약 규칙은 그대로** 유지한다.
 
 ---
 
-## 3. 현재 상태 (2026-04-02)
+## 3. 현재 상태 (2026-04-04)
 
 | 항목 | 값 |
 |------|---|
 | TypeScript 에러 | **0개** |
-| 테스트 | **322개 통과** (vitest) |
+| 테스트 | **330개 통과** (vitest, 2026-04-04 전체 재검증) |
 | DB 테이블 | 21개 (SQLite, WAL) — 세션 14에서 notifications, users, sessions 추가 |
-| API 엔드포인트 | 75개+ REST + 6 WebSocket |
+| API 엔드포인트 | `api-endpoints.md`에 현행 라우터 기준 목록 정리 |
 | 에러 클래스 | 18개 (AppError 계층, 21개 에러코드) |
 | 외부 클라이언트 | SastClient(S4), AgentClient(S3), BuildAgentClient(S3:8003), KbClient(S5), AdapterClient(S6), LlmTaskClient(S7) |
+
+### 3-1. 최근 계약 회귀 잠금 메모 (2026-04-04)
+
+- S1↔S2 canonical contract 재작성 후, S2 backend 테스트 하네스는 다음 semantics를 **회귀 테스트로 고정**했다.
+  - `POST /api/projects/:pid/targets/discover` → `data: { discovered, created, targets, elapsedMs }`
+  - `POST /api/projects/:pid/pipeline/run/:targetId` → `data: { targetId, status: "running" }`
+  - `GET /api/projects/:pid/pipeline/status` → canonical `PipelineStatus`
+  - `GET/POST /api/projects/:pid/sdk` → `RegisteredSdk` / `{ builtIn, registered }`
+- build-target update는 현재도 `includedPaths` 변경을 지원하지 않으며, backend는 이를 **명시적 에러**로 거부한다.
+- SDK analyzed profile 연동에서 canonical 필드명은 `environmentSetup`이며, S4 SDK 등록 payload forwarding도 해당 이름으로 잠근다.
+
+### 3-2. 테스트/문서 동기화 메모 (2026-04-04)
+
+- backend contract test harness (`services/backend/src/test/create-test-app.ts`) 는 이제 다음 surface를 직접 검증 가능하게 맞춰져 있다.
+  - `/api/projects/:pid/targets/discover`
+  - `/api/projects/:pid/sdk`
+  - `/api/projects/:pid/pipeline/run/:targetId`
+- contract lockdown 관련 S2 기준 검증 결과:
+  - `src/__tests__/contract/api-contract.test.ts` → **73 passed**
+  - `cd services/backend && npx vitest run` → **18 files / 330 tests passed**
+  - `services/backend` / `services/shared` `tsc --noEmit` 통과
+- 문서 동기화 완료 범위:
+  - `docs/api/shared-models.md`
+  - `docs/specs/backend.md`
+  - `docs/s2-handoff/README.md`
+  - `docs/s2-handoff/roadmap.md`
+  - `docs/s2-handoff/architecture.md`
+  - `docs/s2-handoff/session-15.md`
 
 ### Durable (투자, 유지)
 

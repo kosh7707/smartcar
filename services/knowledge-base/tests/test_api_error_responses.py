@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.routers import api
+from app.routers import api, code_graph_api, project_memory_api
 
 
 @pytest.fixture(autouse=True)
@@ -12,14 +12,23 @@ def _reset_state():
     """테스트 전후 글로벌 상태 초기화."""
     old_assembler = api._assembler
     old_graph = api._neo4j_graph
-    old_degraded = api._graph_degraded
+    old_qdrant_ready = api._qdrant_ready
+    old_code_service = code_graph_api._service
+    old_code_vector = code_graph_api._code_vector_search
+    old_memory_service = project_memory_api._service
     api.set_assembler(None)
     api.set_neo4j_graph(None)
-    api.set_graph_degraded(False)
+    api.set_qdrant_ready(False)
+    code_graph_api.set_service(None)
+    code_graph_api.set_code_vector_search(None)
+    project_memory_api.set_service(None)
     yield
     api.set_assembler(old_assembler)
     api.set_neo4j_graph(old_graph)
-    api.set_graph_degraded(old_degraded)
+    api.set_qdrant_ready(old_qdrant_ready)
+    code_graph_api.set_service(old_code_service)
+    code_graph_api.set_code_vector_search(old_code_vector)
+    project_memory_api.set_service(old_memory_service)
 
 
 client = TestClient(app, raise_server_exceptions=False)
@@ -110,6 +119,7 @@ def test_ready_returns_200_when_initialized():
 
     api.set_assembler(FakeAssembler())
     api.set_neo4j_graph(FakeGraph())
+    api.set_qdrant_ready(True)
 
     resp = client.get("/v1/ready")
     assert resp.status_code == 200
@@ -123,11 +133,11 @@ def test_ready_returns_200_when_initialized():
 # ── 전역 HTTPException 핸들러 ──
 
 
-# ── Degraded Mode ──
+# ── Search readiness semantics ──
 
 
-class _DegradedAssembler:
-    """degraded 테스트용 — 최소한의 assemble/batch_assemble 구현."""
+class _ReadyAssembler:
+    """search 성공 응답 테스트용 — 최소한의 assemble/batch_assemble 구현."""
 
     def assemble(self, query, **kwargs):
         return {
@@ -142,38 +152,73 @@ class _DegradedAssembler:
         return {"results": results, "global_stats": {"total_queries": len(queries), "total_hits": 0, "unique_ids": 0}}
 
 
-def test_search_degraded_flag_when_neo4j_down():
-    """Neo4j 미연결 → 검색 응답에 degraded=true."""
-    api.set_assembler(_DegradedAssembler())
-    api.set_graph_degraded(True)
+def test_search_returns_503_when_neo4j_down_even_if_qdrant_ready():
+    api.set_assembler(_ReadyAssembler())
+    api.set_qdrant_ready(True)
 
     resp = client.post("/v1/search", json={"query": "CWE-78"}, headers=_TIMEOUT_HEADER)
-    assert resp.status_code == 200
-    assert resp.json()["degraded"] is True
+    _assert_503_format(resp)
 
 
-def test_search_not_degraded_when_normal():
-    """정상 상태 → 검색 응답에 degraded=false."""
-    api.set_assembler(_DegradedAssembler())
-    api.set_graph_degraded(False)
-
-    resp = client.post("/v1/search", json={"query": "test"}, headers=_TIMEOUT_HEADER)
-    assert resp.status_code == 200
-    assert resp.json()["degraded"] is False
-
-
-def test_batch_search_degraded_flag():
-    """배치 검색에서도 degraded 필드 포함."""
-    api.set_assembler(_DegradedAssembler())
-    api.set_graph_degraded(True)
+def test_batch_search_returns_503_when_neo4j_down_even_if_qdrant_ready():
+    api.set_assembler(_ReadyAssembler())
+    api.set_qdrant_ready(True)
 
     resp = client.post(
         "/v1/search/batch",
         json={"queries": [{"query": "test"}]},
         headers=_TIMEOUT_HEADER,
     )
+    _assert_503_format(resp)
+
+
+def test_search_success_payload_has_no_degraded_key():
+    class FakeGraph:
+        node_count = 10
+        edge_count = 5
+
+    api.set_assembler(_ReadyAssembler())
+    api.set_neo4j_graph(FakeGraph())
+    api.set_qdrant_ready(True)
+
+    resp = client.post("/v1/search", json={"query": "test"}, headers=_TIMEOUT_HEADER)
     assert resp.status_code == 200
-    assert resp.json()["degraded"] is True
+    assert "degraded" not in resp.json()
+
+
+def test_project_memory_limit_error_uses_specific_code():
+    from app.graphrag.project_memory_service import MemoryLimitError
+
+    class FakeMemoryService:
+        def create_memory(self, *args, **kwargs):
+            raise MemoryLimitError("limit reached")
+
+    project_memory_api.set_service(FakeMemoryService())
+
+    resp = client.post(
+        "/v1/project-memory/re100",
+        json={"type": "preference", "data": {"key": "value"}},
+    )
+    assert resp.status_code == 409
+    body = resp.json()
+    assert body["errorDetail"]["code"] == "MEMORY_LIMIT_EXCEEDED"
+
+
+def test_code_graph_ingest_defaults_vector_count_to_zero_when_vector_unavailable():
+    class FakeCodeGraphService:
+        def ingest(self, project_id, functions, provenance=None):
+            return {"project_id": project_id, "nodeCount": 1, "edgeCount": 0, "files": ["main.cpp"]}
+
+    code_graph_api.set_service(FakeCodeGraphService())
+    code_graph_api.set_code_vector_search(None)
+
+    resp = client.post(
+        "/v1/code-graph/re100/ingest",
+        json={"functions": [{"name": "main", "file": "main.cpp", "line": 1, "calls": []}]},
+        headers=_TIMEOUT_HEADER,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["vectorCount"] == 0
 
 
 # ── 전역 HTTPException 핸들러 ──

@@ -1,6 +1,8 @@
 import type {
   BuildTarget,
   BuildProfile,
+  BuildTargetStatus,
+  PipelinePhase,
 } from "@aegis/shared";
 import { apiFetch } from "./core";
 
@@ -31,14 +33,21 @@ export async function createBuildTarget(
 export async function updateBuildTarget(
   projectId: string,
   targetId: string,
-  body: { name?: string; buildProfile?: BuildProfile },
+  body: {
+    name?: string;
+    relativePath?: string;
+    buildProfile?: BuildProfile;
+    buildSystem?: BuildTarget["buildSystem"];
+    includedPaths?: string[];
+  },
 ): Promise<BuildTarget> {
+  const { name, relativePath, buildProfile, buildSystem } = body;
   const res = await apiFetch<{ success: boolean; data: BuildTarget }>(
     `/api/projects/${projectId}/targets/${targetId}`,
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ name, relativePath, buildProfile, buildSystem }),
     },
   );
   return res.data;
@@ -52,11 +61,19 @@ export async function deleteBuildTarget(
 }
 
 export async function discoverBuildTargets(projectId: string): Promise<BuildTarget[]> {
-  const res = await apiFetch<{ success: boolean; data: BuildTarget[] }>(
+  const res = await apiFetch<{
+    success: boolean;
+    data?: {
+      discovered?: number;
+      created?: number;
+      targets?: BuildTarget[];
+      elapsedMs?: number;
+    };
+  }>(
     `/api/projects/${projectId}/targets/discover`,
     { method: "POST" },
   );
-  return res.data ?? [];
+  return res.data?.targets ?? [];
 }
 
 // ── Target Libraries (third-party) ──
@@ -117,8 +134,8 @@ export async function runPipeline(
 export async function runPipelineTarget(
   projectId: string,
   targetId: string,
-): Promise<{ pipelineId: string }> {
-  const res = await apiFetch<{ success: boolean; data: { pipelineId: string } }>(
+): Promise<{ targetId: string; status: string }> {
+  const res = await apiFetch<{ success: boolean; data: { targetId: string; status: string } }>(
     `/api/projects/${projectId}/pipeline/run/${targetId}`,
     { method: "POST" },
   );
@@ -126,7 +143,16 @@ export async function runPipelineTarget(
 }
 
 export interface PipelineStatusResponse {
-  targets: Array<{ id: string; name: string; status: string; phase: string; message: string }>;
+  targets: Array<{
+    id: string;
+    name: string;
+    status: BuildTargetStatus;
+    phase: PipelinePhase;
+    compileCommandsPath?: string;
+    sastScanId?: string;
+    codeGraphNodeCount?: number;
+    lastBuiltAt?: string;
+  }>;
   readyCount: number;
   failedCount: number;
   totalCount: number;

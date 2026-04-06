@@ -6,7 +6,23 @@
 
 ## 즉시 다음 작업
 
-현재 미완료 항목 없음. 통합 테스트 2회 완료 (2026-03-31), S7 에러 0건.
+현재 코드/문서 기준 미완료 항목 없음.
+
+### 최신 확인 상태
+
+- 2026-04-03 안정화 패치 반영:
+  - schema-invalid 응답이 성공 처리되던 버그 수정
+  - commentary-wrapped JSON object 파싱 보강
+- 검증 상태:
+  - 타깃 회귀 테스트 25 passed
+  - 전체 S7 테스트 185 passed (`PYTHONPATH=. .venv/bin/python3 -m pytest -q`)
+- 운영 메모:
+  - 2026-04-04부터 공용 `.omx`에는 cross-lane durable 정보만 남기고,
+    S7 전용 장문 메모/세부 TODO는 `docs/s7-handoff/` 또는 session state에 기록
+
+### 관측된 운영 이슈/개선 기회
+
+- 2026-03-31 기준 통합 테스트 2회 로그 분석에서는 S7 에러 0건
 
 ### 관측된 모델 한계 (개선 기회)
 

@@ -18,7 +18,7 @@ router = APIRouter(prefix="/v1", tags=["v1"])
 # 런타임에 lifespan에서 주입
 _assembler = None
 _neo4j_graph = None
-_graph_degraded: bool = False
+_qdrant_ready: bool = False
 
 
 def set_assembler(assembler) -> None:
@@ -31,9 +31,9 @@ def set_neo4j_graph(graph) -> None:
     _neo4j_graph = graph
 
 
-def set_graph_degraded(degraded: bool) -> None:
-    global _graph_degraded
-    _graph_degraded = degraded
+def set_qdrant_ready(ready: bool) -> None:
+    global _qdrant_ready
+    _qdrant_ready = ready
 
 
 class SearchRequest(BaseModel):
@@ -73,7 +73,7 @@ async def search(
     parse_timeout(x_timeout_ms)
     start = time.monotonic()
 
-    if _assembler is None:
+    if _assembler is None or _neo4j_graph is None:
         logger.warning("검색 요청 — Knowledge base 미초기화")
         return error_response(503, "KB_NOT_READY", "Knowledge base not initialized", retryable=True)
 
@@ -86,8 +86,6 @@ async def search(
         source_filter=req.source_filter,
     )
 
-    result["degraded"] = _graph_degraded
-
     elapsed_ms = int((time.monotonic() - start) * 1000)
     hits = result.get("hits", [])
     logger.info(
@@ -97,7 +95,6 @@ async def search(
             "top_k": req.top_k,
             "hits": len(hits),
             "latencyMs": elapsed_ms,
-            "degraded": _graph_degraded,
         }},
     )
 
@@ -114,7 +111,7 @@ async def search_batch(
     parse_timeout(x_timeout_ms)
     start = time.monotonic()
 
-    if _assembler is None:
+    if _assembler is None or _neo4j_graph is None:
         return error_response(503, "KB_NOT_READY", "Knowledge base not initialized", retryable=True)
 
     queries = [
@@ -140,7 +137,7 @@ async def search_batch(
         }},
     )
 
-    return {**result, "latency_ms": elapsed_ms, "degraded": _graph_degraded}
+    return {**result, "latency_ms": elapsed_ms}
 
 
 @router.get("/graph/stats")
@@ -201,7 +198,7 @@ async def ready(
     """Readiness probe — Qdrant+Neo4j 준비 시 200, 아니면 503."""
     set_request_id(x_request_id)
 
-    qdrant_ok = _assembler is not None
+    qdrant_ok = _qdrant_ready
     neo4j_ok = _neo4j_graph is not None
 
     neo4j_info: dict = {"connected": False}
@@ -223,7 +220,6 @@ async def ready(
     body = {
         "service": "aegis-knowledge-base",
         "ready": qdrant_ok and neo4j_ok,
-        "degraded": _graph_degraded,
         "components": {
             "qdrant": {"initialized": qdrant_ok},
             "neo4j": neo4j_info,

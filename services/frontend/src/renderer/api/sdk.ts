@@ -17,7 +17,7 @@ export interface SdkAnalyzedProfile {
   targetArch?: string;
   languageStandard?: string;
   sysroot?: string;
-  envSetupScript?: string;
+  environmentSetup?: string;
   includePaths?: string[];
   defines?: Record<string, string>;
 }
@@ -77,8 +77,8 @@ export async function registerSdkByPath(
   name: string,
   localPath: string,
   description?: string,
-): Promise<{ sdkId: string }> {
-  const res = await apiFetch<{ success: boolean; data: { sdkId: string } }>(
+): Promise<RegisteredSdk> {
+  const res = await apiFetch<{ success: boolean; data: RegisteredSdk }>(
     `/api/projects/${projectId}/sdk`,
     {
       method: "POST",
@@ -94,12 +94,12 @@ export async function registerSdkByUpload(
   name: string,
   file: File,
   description?: string,
-): Promise<{ sdkId: string }> {
+): Promise<RegisteredSdk> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("name", name);
   if (description) formData.append("description", description);
-  const res = await apiFetch<{ success: boolean; data: { sdkId: string } }>(
+  const res = await apiFetch<{ success: boolean; data: RegisteredSdk }>(
     `/api/projects/${projectId}/sdk`,
     { method: "POST", body: formData },
   );

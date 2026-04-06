@@ -8,6 +8,7 @@ from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.context import set_request_id
+from app.errors import error_response
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,14 @@ _service = None
 def set_service(service) -> None:
     global _service
     _service = service
+
+
+class ProvenanceRequest(BaseModel):
+    build_snapshot_id: str | None = Field(default=None, alias="buildSnapshotId")
+    build_unit_id: str | None = Field(default=None, alias="buildUnitId")
+    source_build_attempt_id: str | None = Field(default=None, alias="sourceBuildAttemptId")
+
+    model_config = {"populate_by_name": True}
 
 
 class CreateMemoryRequest(BaseModel):
@@ -34,6 +43,10 @@ class CreateMemoryRequest(BaseModel):
         default=None, ge=60,
         description="선택적 TTL (초). 설정 시 만료 시각 계산. None이면 영구 보존.",
     )
+    provenance: ProvenanceRequest | None = Field(
+        default=None,
+        description="선택적 build snapshot provenance",
+    )
 
 
 def _require_service():
@@ -45,11 +58,22 @@ def _require_service():
 async def list_memories(
     project_id: str,
     type: str | None = Query(default=None, description="메모리 타입 필터"),
+    build_snapshot_id: str | None = Query(default=None, alias="buildSnapshotId"),
+    build_unit_id: str | None = Query(default=None, alias="buildUnitId"),
+    source_build_attempt_id: str | None = Query(default=None, alias="sourceBuildAttemptId"),
     x_request_id: str | None = Header(None, alias="X-Request-Id"),
 ) -> dict:
     set_request_id(x_request_id)
     _require_service()
-    memories = _service.list_memories(project_id, memory_type=type)
+    memories = _service.list_memories(
+        project_id,
+        memory_type=type,
+        provenance_filters={
+            "build_snapshot_id": build_snapshot_id,
+            "build_unit_id": build_unit_id,
+            "source_build_attempt_id": source_build_attempt_id,
+        },
+    )
     return {"projectId": project_id, "memories": memories}
 
 
@@ -64,12 +88,19 @@ async def create_memory(
     from app.graphrag.project_memory_service import MemoryLimitError
     try:
         result = _service.create_memory(
-            project_id, req.type, req.data, ttl_seconds=req.ttl_seconds,
+            project_id,
+            req.type,
+            req.data,
+            ttl_seconds=req.ttl_seconds,
+            provenance=(
+                req.provenance.model_dump(exclude_none=True)
+                if req.provenance is not None else None
+            ),
         )
     except ValueError as e:
         raise HTTPException(422, str(e))
     except MemoryLimitError as e:
-        raise HTTPException(409, str(e))
+        return error_response(409, "MEMORY_LIMIT_EXCEEDED", str(e), retryable=False)
     return result
 
 

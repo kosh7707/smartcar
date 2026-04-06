@@ -710,7 +710,25 @@ async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
         elif request.taskType == TaskType.GENERATE_POC:
             result = await _handle_generate_poc(request)
         else:
-            result = await _pipeline.execute(request)
+            request_id = get_request_id()
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "success": False,
+                    "error": f"Unsupported taskType: {request.taskType}",
+                    "errorDetail": {
+                        "code": "UNKNOWN_TASK_TYPE",
+                        "message": (
+                            "Analysis Agent supports only 'deep-analyze' and "
+                            "'generate-poc'. Legacy task types are handled by "
+                            "S7 LLM Gateway."
+                        ),
+                        "requestId": request_id,
+                        "retryable": False,
+                    },
+                },
+                headers={"X-Request-Id": request_id} if request_id else {},
+            )
     except Exception:
         logger.error("[v1] Unexpected error", exc_info=True)
         request_id = get_request_id()

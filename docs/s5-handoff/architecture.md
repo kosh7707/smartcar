@@ -12,12 +12,12 @@
 (:CWE {id, title, source, threat_category, severity, attack_surfaces, automotive_relevance})
 (:Attack {id, title, source, threat_category, kill_chain_phase, automotive_relevance})
 (:CAPEC {id, title, source, threat_category, severity, automotive_relevance})
-(:Function {name, file, line, project_id, origin?, original_lib?, original_version?})
+(:Function {name, file, line, project_id, origin?, original_lib?, original_version?, build_snapshot_id?, build_unit_id?, source_build_attempt_id?})
 ```
 
 ```
 (:Project {id})
-(:Memory {id, type, data, createdAt, content_hash, expiresAt?})
+(:Memory {id, type, data, createdAt, content_hash, expiresAt?, build_snapshot_id?, build_unit_id?, source_build_attempt_id?})
 (:KBMeta {id, build_timestamp, cwe_version, attack_ics_version, ...})
 ```
 
@@ -39,7 +39,7 @@
 ```
 services/knowledge-base/
 ├── app/
-│   ├── main.py                    # FastAPI 앱. Qdrant + Neo4j + NvdClient 초기화 + NullGraph 폴백 + global HTTPException handler
+│   ├── main.py                    # FastAPI 앱. Qdrant + Neo4j + NvdClient 초기화 + threat-search readiness 정렬 + global HTTPException handler
 │   ├── errors.py                  # observability.md 에러 포맷 헬퍼
 │   ├── config.py                  # Settings (neo4j, qdrant, nvd 설정)
 │   ├── context.py                 # requestId ContextVar
@@ -82,15 +82,18 @@ services/knowledge-base/
 │   └── threat-db-raw/             # ETL 다운로드 캐시
 ├── requirements.txt               # fastapi, uvicorn, pydantic, neo4j, qdrant-client, fastembed, httpx
 ├── .env                           # Neo4j + Qdrant + NVD API 키
-└── tests/                              # 115 tests
+└── tests/                              # 161 tests
     ├── test_neo4j_graph.py             # 7 tests
-    ├── test_code_graph_service.py      # 12 tests
-    ├── test_code_vector_search.py      # 11 tests
-    ├── test_code_graph_assembler.py    # 9 tests
+    ├── test_code_graph_service.py      # 16 tests
+    ├── test_code_vector_search.py      # 12 tests
+    ├── test_code_graph_assembler.py    # 10 tests
     ├── test_knowledge_assembler.py     # 15 tests
     ├── test_nvd_client.py              # 37 tests
-    ├── test_project_memory_service.py  # 14 tests
-    └── test_api_error_responses.py     # 10 tests
+    ├── test_project_memory_service.py  # 22 tests
+    ├── test_api_error_responses.py     # 15 tests
+    ├── test_qdrant_modes.py            # 5 tests
+    ├── test_benchmark_metrics.py       # 15 tests
+    └── test_benchmark_artifacts.py     # 7 tests (validation set + sweep + compare + oracle)
 ```
 
 ---
@@ -122,13 +125,17 @@ NVD_API_KEY=<NVD API 키 (ETL용)>
 
 `AEGIS_KB_QDRANT_URL`이 설정되면 서버 모드 우선. 미설정 시 `AEGIS_KB_QDRANT_PATH` (파일 모드).
 
-### Degraded Mode
+### Threat Search Readiness
 
-Neo4j 미연결 + Qdrant 정상 시 **degraded mode**로 동작:
-- 벡터 검색은 정상 작동 (Qdrant)
-- 그래프 보강(이웃 확장, 관계 조회)은 비활성
-- 검색 응답에 `"degraded": true` 포함 → 호출자가 결과 품질 저하를 인식
-- `/v1/ready`는 여전히 503 반환 (완전한 readiness가 아님)
+threat search는 이제 **Qdrant + Neo4j 둘 다 필요**하다:
+- Neo4j 미연결 시 `/v1/search`, `/v1/search/batch`, `/v1/ready` 모두 `503 KB_NOT_READY`
+- 기존 Qdrant-only degraded fallback은 제거됨
+
+### Provenance Seam
+
+- code graph ingest/search/read surface는 선택적으로 `buildSnapshotId`, `buildUnitId`, `sourceBuildAttemptId`를 수용/반환한다.
+- project memory create/list도 같은 provenance 메타데이터를 수용/반환한다.
+- 현재 단계는 **프로젝트당 활성 code graph 1개**를 유지하며, provenance는 future snapshot-aware 확장을 위한 **metadata/filter seam**이다.
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
 > 이 문서는 S4(SAST Runner) 개발을 이어받는 다음 세션을 위한 진입점이다.
-> **마지막 업데이트: 2026-04-02**
+> **마지막 업데이트: 2026-04-04**
 
 ---
 
@@ -26,6 +26,22 @@
 - 지식 그래프, 벡터 검색 -> S5
 - UI -> S1
 - `scripts/start.sh` / `scripts/stop.sh` 직접 수정 금지 -> S2에 work-request
+
+### Codex / OMX 운영 메모
+
+- 하드 가드레일 재확인:
+  - S4는 **다른 서비스 코드를 읽지 않는다**.
+  - 다른 서비스와의 소통은 **WR로만** 한다.
+  - 연동 판단은 `docs/api/` 계약서만 보고, 부족하면 담당자에게 WR을 보낸다.
+  - **커밋은 하지 않는다**. 커밋은 S2 세션만 한다.
+  - `scripts/start*.sh`, `scripts/stop*.sh`, 서비스 기동 명령은 **사용자 허락 없이 실행하지 않는다**.
+  - 로그/장애 분석은 `log-analyzer` MCP를 우선 사용한다.
+- lane 전용 작업 메모와 후속 세션 인계는 `docs/s4-handoff/`와 `.omx/state/sessions/{session-id}/...`를 우선 사용한다.
+- 공용 `.omx/notepad.md`, `.omx/project-memory.json`에는 전역 durable 정보·공통 운영 규칙·cross-lane에 실제 필요한 사실만 짧게 남긴다.
+- **`$ralph`**: 스캐너 안정화, 빌드 파이프라인 복구, 벤치마크 개선처럼 한 lane이 끝까지 파고들어야 하는 작업에 우선 사용한다.
+- **`$team`**: S2 계약 조정, S5 CVE/KB 연동, S7 모델/프롬프트 영향 점검처럼 여러 lane이 동시에 얽히는 작업에 우선 사용한다.
+- **`$trace`**: 이전 Codex/OMX 세션의 검증 흐름, 실패 원인, 반복 실험을 복기할 때 사용한다.
+- skill을 써도 **소유권, API 계약, work-request 규칙은 변하지 않는다**.
 
 ---
 
@@ -57,7 +73,7 @@
 ```
 services/sast-runner/
 ├── app/
-│   ├── main.py              — FastAPI v0.7.0, JSON 로깅
+│   ├── main.py              — FastAPI v0.9.0, JSON 로깅
 │   ├── config.py            — pydantic-settings (SAST_ prefix)
 │   ├── context.py           — contextvars requestId 전파
 │   ├── errors.py            — 커스텀 에러 4종
@@ -94,6 +110,7 @@ services/sast-runner/
 ### 기동 / 환경
 
 ```bash
+# 사용자 허락 없이 실행하지 말 것
 ./scripts/start-sast-runner.sh
 tail -20 logs/s4-sast-runner.jsonl
 ```
@@ -156,6 +173,7 @@ API: `GET/POST/DELETE /v1/sdk-registry`
 | 기능 명세서 | `docs/specs/sast-runner.md` |
 | 이 인수인계서 | `docs/s4-handoff/README.md` |
 | 로드맵 | `docs/s4-handoff/roadmap.md` |
+| Build Snapshot consumer seam 설계 메모 | `docs/s4-handoff/build-snapshot-consumer-seam.md` |
 | 세션 로그 | `docs/s4-handoff/session-*.md` |
 
 ---

@@ -9,6 +9,53 @@ function delay<T>(value: T): Promise<T> {
   return new Promise((r) => setTimeout(() => r(value), 50));
 }
 
+const MOCK_REGISTERED_SDK = {
+  id: "sdk-registered-1",
+  projectId: "p-1",
+  name: "GNU Arm Embedded 13",
+  description: "로컬 SDK 마운트",
+  path: "/opt/toolchains/gcc-arm-none-eabi",
+  profile: {
+    compiler: "arm-none-eabi-gcc",
+    compilerPrefix: "arm-none-eabi-",
+    gccVersion: "13.3.1",
+    targetArch: "arm",
+    languageStandard: "c11",
+    sysroot: "/opt/toolchains/gcc-arm-none-eabi/sysroot",
+    environmentSetup: "source /opt/toolchains/gcc-arm-none-eabi/env.sh",
+    includePaths: ["/opt/toolchains/gcc-arm-none-eabi/include"],
+    defines: { TARGET_MCU: "stm32" },
+  },
+  status: "ready",
+  verified: true,
+  createdAt: "2026-03-26T09:00:00Z",
+  updatedAt: "2026-03-26T09:10:00Z",
+};
+
+const MOCK_PIPELINE_STATUS = {
+  targets: [
+    {
+      id: "t-1",
+      name: "gateway-main",
+      status: "ready",
+      phase: "ready",
+      compileCommandsPath: "/workspace/p-1/targets/t-1/compile_commands.json",
+      sastScanId: "scan-1",
+      codeGraphNodeCount: 1024,
+      lastBuiltAt: "2026-03-25T10:00:00Z",
+    },
+    {
+      id: "t-2",
+      name: "crypto-lib",
+      status: "building",
+      phase: "build",
+    },
+  ],
+  readyCount: 1,
+  failedCount: 0,
+  totalCount: 2,
+};
+
 export async function mockApiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const method = options?.method?.toUpperCase() ?? "GET";
   const url = new URL(path, "http://localhost:3000");
@@ -111,7 +158,17 @@ export async function mockApiFetch<T>(path: string, options?: RequestInit): Prom
 
     // Targets
     if (sub === "/targets" && method === "GET") return delay({ success: true, data: data.TARGETS } as T);
-    if (sub === "/targets/discover" && method === "POST") return delay({ success: true, data: data.TARGETS } as T);
+    if (sub === "/targets/discover" && method === "POST") {
+      return delay({
+        success: true,
+        data: {
+          discovered: data.TARGETS.length,
+          created: 0,
+          targets: data.TARGETS,
+          elapsedMs: 128,
+        },
+      } as T);
+    }
 
     // Build log (per target)
     if (sub === "/targets/t-1/build-log") {
@@ -142,7 +199,21 @@ export async function mockApiFetch<T>(path: string, options?: RequestInit): Prom
     if (sub.startsWith("/activity")) return delay({ success: true, data: data.ACTIVITIES } as T);
 
     // SDK
-    if (sub === "/sdk" && method === "GET") return delay({ success: true, data: { registered: [], available: [] } } as T);
+    if (sub === "/sdk" && method === "GET") {
+      return delay({ success: true, data: { builtIn: [], registered: [MOCK_REGISTERED_SDK] } } as T);
+    }
+    if (sub === "/sdk" && method === "POST") {
+      return delay({
+        success: true,
+        data: {
+          ...MOCK_REGISTERED_SDK,
+          id: "sdk-uploading-1",
+          status: "uploading",
+          verified: false,
+          updatedAt: "2026-03-26T09:12:00Z",
+        },
+      } as T);
+    }
 
     // Settings
     if (sub === "/settings" && method === "GET") {
@@ -158,10 +229,13 @@ export async function mockApiFetch<T>(path: string, options?: RequestInit): Prom
 
     // Pipeline
     if (sub === "/pipeline/status") {
-      return delay({ success: true, data: { targets: data.TARGETS, readyCount: 1, failedCount: 0, totalCount: 2 } } as T);
+      return delay({ success: true, data: MOCK_PIPELINE_STATUS } as T);
     }
-    if (sub.startsWith("/pipeline/run") && method === "POST") {
+    if (sub === "/pipeline/run" && method === "POST") {
       return delay({ success: true, data: { pipelineId: "mock-pipeline-1", status: "running" } } as T);
+    }
+    if (sub.startsWith("/pipeline/run/") && method === "POST") {
+      return delay({ success: true, data: { targetId: sub.slice("/pipeline/run/".length), status: "running" } } as T);
     }
 
     // Notifications

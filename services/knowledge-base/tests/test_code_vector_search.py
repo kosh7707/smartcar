@@ -58,7 +58,11 @@ def test_ingest():
         {"name": "postJson", "file": "src/http_client.cpp", "line": 8, "calls": ["popen"]},
         {"name": "main", "file": "src/main.cpp", "line": 1, "calls": ["postJson"]},
     ]
-    count = vs.ingest("proj-1", functions)
+    count = vs.ingest(
+        "proj-1",
+        functions,
+        provenance={"buildSnapshotId": "snap-1", "buildUnitId": "unit-1"},
+    )
 
     assert count == 2
     client.add.assert_called_once()
@@ -67,6 +71,8 @@ def test_ingest():
     metadata = call_kwargs.kwargs["metadata"]
     assert metadata[0]["project_id"] == "proj-1"
     assert metadata[0]["name"] == "postJson"
+    assert metadata[0]["build_snapshot_id"] == "snap-1"
+    assert metadata[0]["build_unit_id"] == "unit-1"
 
 
 def test_ingest_empty():
@@ -88,6 +94,7 @@ def test_search():
     hit.metadata = {
         "name": "postJson", "file": "src/http_client.cpp", "line": 8,
         "calls": ["popen"], "origin": None, "original_lib": None, "original_version": None,
+        "build_snapshot_id": "snap-1", "build_unit_id": "unit-1", "source_build_attempt_id": None,
     }
     client.query.return_value = [hit]
 
@@ -95,9 +102,21 @@ def test_search():
     assert len(results) == 1
     assert results[0].name == "postJson"
     assert results[0].score == 0.85
+    assert results[0].build_snapshot_id == "snap-1"
 
     call_kwargs = client.query.call_args.kwargs
     assert call_kwargs["collection_name"] == COLLECTION
+
+
+def test_search_with_build_snapshot_filter():
+    client = _make_client()
+    vs = CodeVectorSearch(client)
+    client.query.return_value = []
+
+    vs.search("network handler", project_id="proj-1", build_snapshot_id="snap-1")
+
+    query_filter = client.query.call_args.kwargs["query_filter"]
+    assert len(query_filter.must) == 2
 
 
 def test_search_min_score_filter():

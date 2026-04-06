@@ -205,6 +205,24 @@ def test_normalize_functions_no_origin():
     assert normalized[0]["original_lib"] is None
 
 
+def test_normalize_functions_with_route_provenance():
+    from app.graphrag.code_graph_service import CodeGraphService
+
+    functions = [{"name": "main", "file": "src/main.cpp", "line": 1}]
+    normalized = CodeGraphService._normalize_functions(
+        functions,
+        provenance={
+            "buildSnapshotId": "snap-1",
+            "buildUnitId": "unit-1",
+            "sourceBuildAttemptId": "attempt-1",
+        },
+    )
+
+    assert normalized[0]["build_snapshot_id"] == "snap-1"
+    assert normalized[0]["build_unit_id"] == "unit-1"
+    assert normalized[0]["source_build_attempt_id"] == "attempt-1"
+
+
 def test_ingest_with_origin():
     """origin 포함 함수 적재 시 Neo4j SET 쿼리에 origin 필드 포함 확인."""
     svc, session = _make_service()
@@ -242,3 +260,86 @@ def test_ingest_with_origin():
         if "UNWIND" in str(call) and "origin" in str(call)
     ]
     assert len(unwind_calls) >= 1
+
+
+def test_ingest_returns_provenance():
+    svc, session = _make_service()
+
+    def run_side_effect(query, **kwargs):
+        result = MagicMock()
+        if "count(n)" in query:
+            result.single.return_value = {"cnt": 1}
+        elif "count(r)" in query:
+            result.single.return_value = {"cnt": 0}
+        elif "DISTINCT n.file" in query:
+            result.__iter__ = MagicMock(return_value=iter([{"file": "main.cpp"}]))
+        return result
+
+    session.run.side_effect = run_side_effect
+
+    result = svc.ingest(
+        "test-project",
+        [{"name": "main", "file": "main.cpp", "line": 1, "calls": ["popen"]}],
+        provenance={"buildSnapshotId": "snap-1", "buildUnitId": "unit-1"},
+    )
+
+    assert result["provenance"] == {
+        "buildSnapshotId": "snap-1",
+        "buildUnitId": "unit-1",
+        "sourceBuildAttemptId": None,
+    }
+
+    edge_calls = [
+        call for call in session.run.call_args_list
+        if "MERGE (caller)-[:CALLS]->(callee)" in str(call)
+    ]
+    assert edge_calls
+    assert edge_calls[0].kwargs["build_snapshot_id"] == "snap-1"
+
+
+def test_get_function_with_provenance_filter():
+    svc, session = _make_service()
+
+    result = MagicMock()
+    result.single.return_value = {
+        "name": "postJson",
+        "file": "http_client.cpp",
+        "line": 8,
+        "origin": None,
+        "original_lib": None,
+        "original_version": None,
+        "build_snapshot_id": "snap-1",
+        "build_unit_id": "unit-1",
+        "source_build_attempt_id": "attempt-1",
+    }
+    session.run.return_value = result
+
+    func = svc.get_function("test-project", "postJson", build_snapshot_id="snap-1")
+
+    assert func["provenance"] == {
+        "buildSnapshotId": "snap-1",
+        "buildUnitId": "unit-1",
+        "sourceBuildAttemptId": "attempt-1",
+    }
+    assert session.run.call_args.kwargs["build_snapshot_id"] == "snap-1"
+
+
+def test_get_stats_with_snapshot_filter_counts_both_edge_ends():
+    svc, session = _make_service()
+
+    def run_side_effect(query, **kwargs):
+        result = MagicMock()
+        if "count(n)" in query:
+            result.single.return_value = {"cnt": 2}
+        elif "count(r)" in query:
+            result.single.return_value = {"cnt": 1}
+        elif "DISTINCT n.file" in query:
+            result.__iter__ = MagicMock(return_value=iter([{"file": "main.cpp"}]))
+        return result
+
+    session.run.side_effect = run_side_effect
+
+    svc.get_stats("test-project", build_snapshot_id="snap-1")
+
+    edge_query = session.run.call_args_list[1][0][0]
+    assert "endNode(r).build_snapshot_id" in edge_query

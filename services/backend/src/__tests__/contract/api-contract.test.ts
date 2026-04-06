@@ -632,6 +632,105 @@ describe("API Contract Tests", () => {
       const res = await request(app).put("/api/projects/p-bt7/targets/t6").send({ name: "x" });
       expect(res.status).toBe(404);
     });
+
+    it("POST /api/projects/:pid/targets/discover returns discovery payload", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-bt-discover" }));
+
+      const res = await request(app).post("/api/projects/p-bt-discover/targets/discover");
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
+        discovered: 1,
+        created: 1,
+        elapsedMs: 123,
+      });
+      expect(res.body.data.targets).toHaveLength(1);
+      expect(res.body.data.targets[0]).toMatchObject({
+        projectId: "p-bt-discover",
+        name: "auto-discovered",
+        relativePath: "auto-discovered/",
+        buildSystem: "cmake",
+      });
+    });
+
+    it("PUT /api/projects/:pid/targets/:id rejects includedPaths updates explicitly", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-bt8" }));
+      ctx.buildTargetDAO.save(makeBuildTarget({ id: "t8", projectId: "p-bt8" }));
+
+      const res = await request(app)
+        .put("/api/projects/p-bt8/targets/t8")
+        .send({ includedPaths: ["src/"] });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain("includedPaths updates are not supported");
+      expect(res.body.errorDetail.code).toBe("INVALID_INPUT");
+      expect(res.body.errorDetail.retryable).toBe(false);
+    });
+  });
+
+  // ── SDK API ──
+
+  describe("SDK API", () => {
+    it("GET /api/projects/:pid/sdk returns builtIn and registered arrays", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-sdk" }));
+
+      const createRes = await request(app)
+        .post("/api/projects/p-sdk/sdk")
+        .send({ name: "TI SDK", localPath: "/opt/sdk-one", description: "Cross toolchain" });
+      expect(createRes.status).toBe(202);
+
+      const res = await request(app).get("/api/projects/p-sdk/sdk");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data.builtIn)).toBe(true);
+      expect(Array.isArray(res.body.data.registered)).toBe(true);
+      expect(res.body.data.registered).toHaveLength(1);
+      expect(res.body.data.registered[0].id).toBe(createRes.body.data.id);
+    });
+
+    it("GET /api/projects/:pid/sdk/:id returns RegisteredSdk detail", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-sdk2" }));
+
+      const createRes = await request(app)
+        .post("/api/projects/p-sdk2/sdk")
+        .send({ name: "Yocto SDK", localPath: "/opt/sdk-two" });
+
+      const res = await request(app).get(`/api/projects/p-sdk2/sdk/${createRes.body.data.id}`);
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
+        id: createRes.body.data.id,
+        projectId: "p-sdk2",
+        name: "Yocto SDK",
+        path: "/opt/sdk-two",
+        status: "uploading",
+        verified: false,
+      });
+    });
+
+    it("POST /api/projects/:pid/sdk returns 202 with a full RegisteredSdk payload", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-sdk3" }));
+
+      const res = await request(app)
+        .post("/api/projects/p-sdk3/sdk")
+        .send({ name: "SDK Upload", localPath: "/opt/sdk-three", description: "ARM toolchain" });
+
+      expect(res.status).toBe(202);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
+        projectId: "p-sdk3",
+        name: "SDK Upload",
+        description: "ARM toolchain",
+        path: "/opt/sdk-three",
+        status: "uploading",
+        verified: false,
+      });
+      expect(res.body.data.id).toMatch(/^sdk-test-/);
+      expect(res.body.data.createdAt).toBeTypeOf("string");
+      expect(res.body.data.updatedAt).toBeTypeOf("string");
+    });
   });
 
   // ================================================================
@@ -673,6 +772,49 @@ describe("API Contract Tests", () => {
       for (const t of res.body.data.targets) {
         expect(t.phase).toBe("setup");
       }
+    });
+
+    it("POST /pipeline/run/:targetId returns rerun payload and resets failed targets", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-rerun" }));
+      ctx.buildTargetDAO.save(makeBuildTarget({ id: "tp-rerun", projectId: "p-rerun", status: "build_failed" as any }));
+
+      const res = await request(app).post("/api/projects/p-rerun/pipeline/run/tp-rerun");
+
+      expect(res.status).toBe(202);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toEqual({ targetId: "tp-rerun", status: "running" });
+      expect(ctx.buildTargetDAO.findById("tp-rerun")?.status).toBe("discovered");
+      expect(ctx.pipelineRunCalls[ctx.pipelineRunCalls.length - 1]).toMatchObject({
+        projectId: "p-rerun",
+        targetIds: ["tp-rerun"],
+      });
+    });
+
+    it("GET /pipeline/status includes optional artifact fields when present", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-pipe3" }));
+      ctx.buildTargetDAO.save(makeBuildTarget({
+        id: "tp-opt",
+        projectId: "p-pipe3",
+        status: "built",
+      }));
+      ctx.buildTargetDAO.updatePipelineState("tp-opt", {
+        status: "built",
+        compileCommandsPath: "/tmp/compile_commands.json",
+        sastScanId: "scan-123",
+        codeGraphNodeCount: 42,
+        lastBuiltAt: "2026-04-04T05:00:00.000Z",
+      });
+
+      const res = await request(app).get("/api/projects/p-pipe3/pipeline/status");
+      expect(res.status).toBe(200);
+
+      expect(res.body.data.targets[0]).toMatchObject({
+        id: "tp-opt",
+        compileCommandsPath: "/tmp/compile_commands.json",
+        sastScanId: "scan-123",
+        codeGraphNodeCount: 42,
+        lastBuiltAt: "2026-04-04T05:00:00.000Z",
+      });
     });
   });
 

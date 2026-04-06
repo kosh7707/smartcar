@@ -1,6 +1,6 @@
 import React from "react";
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { BuildTargetSection } from "./BuildTargetSection";
 import type { BuildTarget } from "@aegis/shared";
 
@@ -23,6 +23,8 @@ const mockTargets: BuildTarget[] = [
   } as BuildTarget,
 ];
 
+const mockUpdate = vi.fn();
+
 vi.mock("../../hooks/useBuildTargets", () => ({
   useBuildTargets: () => ({
     targets: mockTargets,
@@ -30,7 +32,7 @@ vi.mock("../../hooks/useBuildTargets", () => ({
     discovering: false,
     add: vi.fn(),
     remove: vi.fn(),
-    update: vi.fn(),
+    update: mockUpdate,
     discover: vi.fn().mockResolvedValue([]),
   }),
 }));
@@ -59,6 +61,10 @@ vi.mock("../../contexts/ToastContext", () => ({
 
 vi.mock("../../api/client", () => ({
   logError: vi.fn(),
+  fetchSourceFiles: vi.fn().mockResolvedValue([
+    { relativePath: "gateway/src/main.c", size: 1024, language: "C" },
+    { relativePath: "gateway/include/utils.h", size: 256, language: "C" },
+  ]),
 }));
 
 vi.mock("../../api/sdk", () => ({
@@ -66,6 +72,11 @@ vi.mock("../../api/sdk", () => ({
 }));
 
 describe("BuildTargetSection", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUpdate.mockResolvedValue(mockTargets[0]);
+  });
+
   it("renders target name and status", () => {
     render(<BuildTargetSection projectId="p-1" />);
 
@@ -91,5 +102,26 @@ describe("BuildTargetSection", () => {
     render(<BuildTargetSection projectId="p-1" />);
 
     expect(screen.getByText(/빌드 & 분석 실행/)).toBeTruthy();
+  });
+
+  it("guards includedPaths edits and only saves supported fields", async () => {
+    render(<BuildTargetSection projectId="p-1" />);
+
+    fireEvent.click(screen.getByTitle("편집"));
+
+    await waitFor(() => expect(screen.getAllByText("서브 프로젝트 수정").length).toBeGreaterThanOrEqual(1));
+    await waitFor(() => expect(screen.getByText(/2개 파일/)).toBeTruthy());
+    expect(screen.getByRole("note").textContent).toContain("includedPaths는 수정 API에서 지원되지 않습니다");
+    fireEvent.click(screen.getByText("저장"));
+
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+    expect(mockUpdate).toHaveBeenCalledWith(
+      "t-1",
+      expect.objectContaining({
+        name: "gateway",
+        buildProfile: expect.objectContaining({ sdkId: "generic-linux" }),
+      }),
+    );
+    expect(mockUpdate.mock.calls[0]?.[1]).not.toHaveProperty("includedPaths");
   });
 });

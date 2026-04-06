@@ -6,7 +6,7 @@ import hashlib
 import json
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ToolCostTier(StrEnum):
@@ -103,6 +103,8 @@ class BudgetState(BaseModel):
 
 class AgentAuditInfo(BaseModel):
     """deep-analyze 확장 감사 정보."""
+
+    model_config = ConfigDict(protected_namespaces=())
 
     input_hash: str
     latency_ms: int = 0

@@ -1,9 +1,10 @@
-# S1. Frontend + QA 인수인계서
+# S1. Frontend 개발 인수인계서
 
 > **반드시 `docs/AEGIS.md`를 먼저 읽을 것.** 프로젝트 공통 제약 사항, 역할 정의, 소유권이 그 문서에 있다.
-> 이 문서는 S1(Frontend + QA) 개발을 이어받는 다음 세션을 위한 진입점이다.
+> 이 문서는 **S1(Frontend 개발)** 세션을 이어받는 다음 세션을 위한 진입점이다.
+> **S1-QA는 별도 lane**이며, 진입점은 [qa-guide.md](qa-guide.md)이다.
 > 상세 정보는 같은 디렉토리의 분할 문서를 참조한다.
-> **마지막 업데이트: 2026-04-02**
+> **마지막 업데이트: 2026-04-04**
 
 ---
 
@@ -14,7 +15,7 @@
 | **이 파일 (README.md)** | 역할, 경계, 현재 상태, 기술 스택, 라우팅, 구현 현황 |
 | [architecture.md](architecture.md) | 파일 구조, 설계 결정, 에러 핸들링, 버그 이력, UI 컨벤션, 실행 방법 |
 | [roadmap.md](roadmap.md) | 다음 작업, 후순위, S2 대기 항목 |
-| [qa-guide.md](qa-guide.md) | QA 전용 세션 가이드 (Playwright, 체크리스트, 이슈 보고) |
+| [qa-guide.md](qa-guide.md) | **S1-QA 전용** 가이드 (Codex Playwright skill/MCP/CLI, 체크리스트, 이슈 보고) |
 | session-{1~15}.md | 세션별 작업 로그 (session-1.md ~ session-15.md) |
 
 ---
@@ -46,12 +47,18 @@
 
 ## 2. 너의 역할과 경계
 
-- S1 Frontend + QA 개발자
+- S1 프론트엔드 **개발** lane
 - `services/frontend/` 하위 코드를 소유
 - `services/shared/` (`@aegis/shared`) — **S2 단독 소유**. S1은 참조만
 - **다른 서비스의 코드를 절대 읽지 않는다** — API 계약서(`docs/api/`)로만 소통
 - 작업 요청: `docs/work-requests/` — 세션 시작 시 확인
 - 설계 원칙: Evidence-first UI, Analyst-first, LLM은 보조 정보, 프론트는 표현 계층
+
+### S1-QA와의 분업
+
+- **S1-QA는 S1과 별도 세션**이다. 브라우저/Playwright로만 UI, UX, 반응형, 콘솔 오류를 검증한다.
+- S1-QA는 `services/frontend/src/**`를 읽지 않으며, 이슈는 `docs/work-requests/s1qa-to-s1-{주제}.md`로 전달한다.
+- S1은 QA 증거(스크린샷, viewport, theme, 재현 단계)를 기준으로 수정하고, 수정 후 다시 S1-QA에 검증을 요청한다.
 
 ---
 
@@ -70,17 +77,49 @@
 | 디자인 시스템 | DM Sans + Instrument Sans, #22D3A7 "Tactical Operations Console" |
 | Dev Mock Mode | `npm run dev:mock` — 백엔드 없이 mock 데이터로 전 페이지 렌더링 |
 | QA 검증 | 세션 15 — 33 PASS / 0 FAIL / 1 DEFERRED (FRICTION-5: 빈 상태 mock 미지원) |
+| 레거시 Playwright 자산 | `services/frontend/playwright.config.ts`, `services/frontend/e2e/specs/*`, `services/frontend/e2e/qa-captures/*` — repo에 남아 있으나 **현행성 검증 후 재사용** |
+| Codex QA 표준 | 공식 Codex Playwright skill(`$playwright` 계열) 우선, 없으면 Playwright MCP/CLI 폴백 |
 
 ---
 
-## 4. 기술 스택
+### 3-1. 최근 계약 정렬 메모 (2026-04-04)
+
+- S2 canonical contract(`docs/api/shared-models.md`) 기준으로 **build-target update는 `includedPaths` 변경을 지원하지 않음**.
+- 이에 따라 S1 edit dialog는 **이름 + 빌드 프로필만 수정 가능**하도록 가드되며, 기존 선택 파일 목록은 읽기 전용으로 보여준다.
+- 파일 구성 변경이 필요하면 **새 서브 프로젝트를 생성한 뒤 기존 타겟을 삭제**하는 흐름으로 안내한다.
+- backend가 update에서 `includedPaths`를 지원하게 되면 그 시점에만 edit UX를 다시 열어야 한다.
+
+---
+
+## 4. Codex / OMX 운영 메모
+
+- 하드 가드레일 재확인:
+  - S1은 **다른 서비스 코드를 읽지 않는다**.
+  - S2/S3/S4/S5/S6/S7과의 소통은 **WR로만** 한다.
+  - 연동 판단은 API 계약서만 보고, 계약서가 비었거나 낡았으면 담당자에게 WR을 보낸다.
+  - **커밋은 S2만** 한다. S1은 커밋하지 않는다.
+  - `scripts/start*.sh`, `scripts/stop*.sh`, 서비스 실행 명령은 **사용자 허락 없이 실행하지 않는다**.
+  - 로그/장애 분석은 `log-analyzer` MCP를 우선 사용한다.
+- 세션 시작 순서: `docs/AEGIS.md` → 이 README → `docs/work-requests/`
+- 장기 작업 메모/후속 세션 인계는 `$note`와 OMX 메모를 사용하되, **공용** `.omx/notepad.md`·`.omx/project-memory.json`에는 전역 durable 정보만 남긴다.
+  - lane 전용 작업 메모, 세부 TODO, 중간 추론, 세션 한정 기록은 `docs/s1-handoff/`, `docs/work-requests/`, `.omx/state/sessions/{session-id}/...`처럼 더 좁은 범위에 남긴다.
+  - 공용 `.omx`에 기록할 때는 가능하면 날짜 + `S1` + 메모 성격(전역 규칙/장기 사실/검증 결과)을 함께 적는다.
+- 화면 수정이 길어지거나 한 세션이 끝까지 몰아쳐야 하는 작업은 `$ralph`를 우선 고려한다.
+- S1과 S1-QA를 묶은 병렬 진행, 또는 여러 문서/검증 축을 동시에 돌릴 때는 `$team`을 고려한다.
+- 시각 QA나 참조 이미지 비교가 필요하면 `$visual-verdict`를 사용한다.
+- 공식 Playwright skill이 없으면 `$skill-installer`로 설치하고, 설치가 어렵거나 즉시 필요하면 Playwright MCP 또는 CLI로 진행한다.
+- repo 내 기존 Playwright spec/캡처는 **참고 자료**로 보고, 현재 UI와 handoff 기준으로 다시 검증한 뒤 활용한다.
+
+---
+
+## 5. 기술 스택
 
 | 항목 | 선택 |
 |------|------|
-| 프레임워크 | Electron + React 18 |
+| 프레임워크 | Electron + React 19.2.4 |
 | 언어 | TypeScript |
 | 빌드 | Vite |
-| 라우팅 | react-router-dom v6 (HashRouter) |
+| 라우팅 | react-router-dom 7.13.1 (HashRouter) |
 | 상태관리 | React Context + useState |
 | 아이콘 | lucide-react |
 | 스타일 | CSS (라이트/다크/시스템 3-way 테마, CSS 변수 토큰) |
@@ -94,7 +133,7 @@
 
 ---
 
-## 5. 라우팅 구조
+## 6. 라우팅 구조
 
 ```
 /                                → redirect /projects
@@ -117,7 +156,7 @@
 
 ---
 
-## 6. 구현 현황
+## 7. 구현 현황
 
 ### 완료 (동작 중)
 
@@ -148,23 +187,24 @@
 | 기능 | 비고 |
 |------|------|
 | 독립 Run/Finding 페이지 | 대시보드 내 뷰로 존재. 선택 사항 |
-| `includedPaths` 편집 | S1 독립 작업 가능 |
+| `includedPaths` 편집(update) | 현재 backend 미지원. S1은 edit UX를 가드하고 재생성 흐름으로 안내 |
 | 동적 분석 콘솔 고도화 | S2 WS + S6 필요 |
 
 ---
 
-## 7. 관리하는 문서
+## 8. 관리하는 문서
 
 | 문서 | 경로 | 용도 |
 |------|------|------|
 | AEGIS 공통 제약 | `docs/AEGIS.md` | **세션 시작 시 필독** (S2 관리) |
 | 프론트 기능 명세 | `docs/specs/frontend.md` | 화면 명세, Finding 상태 머신 |
+| QA 세션 가이드 | `docs/s1-handoff/qa-guide.md` | S1-QA의 Codex/Playwright 운영 기준 |
 | 공유 모델 명세 | `docs/api/shared-models.md` | S1-S2 공유 타입 계약서 |
 | 외부 피드백 | `docs/외부피드백/S1_frontend_working_guide.md` | 설계 기준 원본 |
 
 ---
 
-## 8. shared 패키지
+## 9. shared 패키지
 
 ```bash
 cd services/shared && npm run build

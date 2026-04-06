@@ -29,6 +29,15 @@ const INITIAL: PipelineState = {
   pipelineId: null,
 };
 
+function toFailedStatus(
+  phase: PipelinePhase,
+  existingStatus?: BuildTargetStatus,
+): BuildTargetStatus {
+  if (existingStatus?.endsWith("_failed")) return existingStatus;
+  if (phase === "setup") return "resolve_failed";
+  return "build_failed";
+}
+
 export function usePipelineProgress() {
   const [state, setState] = useState<PipelineState>(INITIAL);
   const wsRef = useRef<WebSocket | null>(null);
@@ -83,12 +92,12 @@ export function usePipelineProgress() {
               const next = new Map(prev.targets);
               const existing = next.get(msg.payload.targetId);
               next.set(msg.payload.targetId, {
+                ...existing,
                 name: msg.payload.targetName,
-                status: `${msg.payload.phase}_failed` as BuildTargetStatus,
+                status: toFailedStatus(msg.payload.phase as PipelinePhase, existing?.status),
                 phase: msg.payload.phase as PipelinePhase,
                 message: "",
                 error: msg.payload.error,
-                ...existing,
               });
               return { ...prev, targets: next };
             });

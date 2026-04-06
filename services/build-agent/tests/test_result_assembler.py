@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
-from agent_shared.schemas.agent import BudgetState
+from agent_shared.schemas.agent import BudgetState, ToolTraceStep
 from app.core.agent_session import AgentSession
 from app.core.result_assembler import ResultAssembler
 from app.schemas.request import Context, EvidenceRef, TaskRequest
@@ -14,13 +12,12 @@ from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
 from app.types import FailureCode, TaskStatus, TaskType
 
 
-# ── 헬퍼 ──────────────────────────────────────────────────
-
-
 def _make_session(
     budget: BudgetState | None = None,
     evidence_refs: list[EvidenceRef] | None = None,
+    task_type: TaskType = TaskType.BUILD_RESOLVE,
     termination_reason: str = "",
+    metadata: dict | None = None,
 ) -> AgentSession:
     refs = evidence_refs or [
         EvidenceRef(
@@ -32,10 +29,11 @@ def _make_session(
         ),
     ]
     req = TaskRequest(
-        taskType=TaskType.BUILD_RESOLVE,
+        taskType=task_type,
         taskId="test-assemble-001",
         context=Context(trusted={"finding": {"id": "CVE-2025-0001"}}),
         evidenceRefs=refs,
+        metadata=metadata,
     )
     session = AgentSession(
         request=req,
@@ -53,54 +51,212 @@ def _make_session(
     return session
 
 
-def _valid_json_content() -> str:
+def _strict_metadata(expected_artifacts: list[str] | None = None) -> dict:
+    metadata = {
+        "contractVersion": "build-resolve-v1",
+        "strictMode": True,
+        "buildMode": "native",
+    }
+    if expected_artifacts is not None:
+        metadata["expectedArtifacts"] = expected_artifacts
+    return metadata
+
+
+def _record_build_success(session: AgentSession, refs: list[str] | None = None) -> None:
+    session.trace.append(ToolTraceStep(
+        step_id="step_build_01",
+        turn_number=1,
+        tool="try_build",
+        args_hash="hash-build-01",
+        cost_tier="expensive",
+        duration_ms=10,
+        success=True,
+        new_evidence_refs=refs or ["eref-build-success"],
+    ))
+
+
+def _valid_build_json(*, produced_artifacts: list[object] | None = None) -> str:
+    build_result: dict[str, object] = {
+        "success": True,
+        "buildCommand": "bash build-aegis/aegis-build.sh",
+        "buildScript": "build-aegis/aegis-build.sh",
+        "buildDir": "build-aegis",
+        "errorLog": None,
+    }
+    if produced_artifacts is not None:
+        build_result["producedArtifacts"] = produced_artifacts
     return json.dumps({
         "summary": "Build failure resolved",
         "claims": [
             {
                 "statement": "Missing dependency found",
                 "supportingEvidenceRefs": ["ref-001"],
-            }
+            },
         ],
         "caveats": [],
         "usedEvidenceRefs": ["ref-001"],
         "needsHumanReview": False,
         "recommendedNextSteps": [],
         "policyFlags": [],
+        "buildResult": build_result,
     })
 
 
-# ── build: 정상 JSON 파싱 ──────────────────────────────
-
-
 def test_build_success_from_valid_json() -> None:
-    """유효한 JSON 응답 → TaskSuccessResponse."""
+    """strict compile contract + build evidence → TaskSuccessResponse."""
     assembler = ResultAssembler()
-    session = _make_session()
-    resp = assembler.build(_valid_json_content(), session)
+    session = _make_session(metadata=_strict_metadata())
+    _record_build_success(session)
+
+    resp = assembler.build(_valid_build_json(), session)
+
     assert isinstance(resp, TaskSuccessResponse)
     assert resp.status == TaskStatus.COMPLETED
+    assert resp.contractVersion == "build-resolve-v1"
+    assert resp.strictMode is True
+    assert resp.promptVersion == "build-v3"
     assert resp.result.summary == "Build failure resolved"
     assert len(resp.result.claims) == 1
+    assert resp.result.buildResult is not None
+    assert resp.result.buildResult.success is True
+    assert resp.result.buildResult.declaredMode == "native"
 
 
-# ── build: 비JSON fallback ─────────────────────────────
-
-
-def test_build_fallback_on_invalid_json() -> None:
-    """비JSON 응답 → fallback, policyFlags에 'unstructured_response' 포함."""
+def test_build_fallback_on_invalid_json_becomes_strict_failure() -> None:
+    """strict compile contract에서는 비JSON fallback을 성공으로 처리하지 않는다."""
     assembler = ResultAssembler()
-    session = _make_session()
+    session = _make_session(metadata=_strict_metadata())
+
     resp = assembler.build("This is plain text, not JSON.", session)
+
+    assert isinstance(resp, TaskFailureResponse)
+    assert resp.status == TaskStatus.VALIDATION_FAILED
+    assert resp.contractVersion == "build-resolve-v1"
+    assert resp.failureCode == FailureCode.BUILD_SCRIPT_SYNTHESIS_FAILED
+    assert resp.failureContext is not None
+    assert resp.failureContext.strictMode is True
+
+
+def test_build_sanitizes_invalid_evidence_refs() -> None:
+    """환각 evidence ref는 제거하고 유효한 ref만 유지한다."""
+    assembler = ResultAssembler()
+    session = _make_session(evidence_refs=[], task_type=TaskType.SDK_ANALYZE)
+    _record_build_success(session)
+    content = json.dumps({
+        "summary": "SDK 분석 완료",
+        "claims": [
+            {
+                "statement": "SDK 환경을 확인했다",
+                "supportingEvidenceRefs": [
+                    "ls -la /home/kosh/sdks/ti-am335x",
+                    "eref-build-success",
+                ],
+            },
+        ],
+        "caveats": [],
+        "usedEvidenceRefs": [
+            "ls -la /home/kosh/sdks/ti-am335x",
+            "eref-build-success",
+        ],
+        "sdkProfile": {
+            "compiler": "/home/kosh/sdks/ti-am335x/bin/arm-none-linux-gnueabihf-gcc",
+            "compilerPrefix": "arm-none-linux-gnueabihf",
+            "gccVersion": "9.2.1",
+            "targetArch": "armv7-a",
+            "languageStandard": "c11",
+            "sysroot": "/home/kosh/sdks/ti-am335x/sysroot",
+            "environmentSetup": "linux-devkit/environment-setup-armv7at2hf-neon-linux-gnueabi",
+            "includePaths": [],
+            "defines": {},
+        },
+        "needsHumanReview": False,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    resp = assembler.build(content, session)
+
     assert isinstance(resp, TaskSuccessResponse)
-    assert "unstructured_response" in resp.result.policyFlags
+    assert resp.status == TaskStatus.COMPLETED
+    assert resp.result.usedEvidenceRefs == ["eref-build-success"]
+    assert resp.result.claims[0].supportingEvidenceRefs == ["eref-build-success"]
 
 
-# ── build_from_exhaustion: _TERMINATION_MAP ────────────
+def test_strict_build_requires_success_evidence() -> None:
+    assembler = ResultAssembler()
+    session = _make_session(metadata=_strict_metadata())
+
+    resp = assembler.build(_valid_build_json(), session)
+
+    assert isinstance(resp, TaskFailureResponse)
+    assert resp.failureCode == FailureCode.INVALID_GROUNDING
+    assert resp.failureContext is not None
+    assert resp.failureContext.buildCommand == "bash build-aegis/aegis-build.sh"
+
+
+def test_strict_build_classifies_sdk_mismatch() -> None:
+    assembler = ResultAssembler()
+    session = _make_session(metadata=_strict_metadata())
+    content = json.dumps({
+        "summary": "SDK 설정 실패",
+        "claims": [],
+        "caveats": ["arm-none-linux-gnueabihf-gcc: command not found"],
+        "usedEvidenceRefs": ["ref-001"],
+        "needsHumanReview": True,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+        "buildResult": {
+            "success": False,
+            "buildCommand": "bash build-aegis/aegis-build.sh",
+            "buildScript": "build-aegis/aegis-build.sh",
+            "buildDir": "build-aegis",
+            "errorLog": "toolchain lookup failed: arm-none-linux-gnueabihf-gcc: command not found",
+        },
+    })
+
+    resp = assembler.build(content, session)
+
+    assert isinstance(resp, TaskFailureResponse)
+    assert resp.failureCode == FailureCode.SDK_MISMATCH
+    assert resp.failureContext is not None
+    assert resp.failureContext.strictMode is True
+
+
+def test_strict_build_detects_expected_artifact_mismatch() -> None:
+    assembler = ResultAssembler()
+    session = _make_session(metadata=_strict_metadata(expected_artifacts=["gateway"]))
+    _record_build_success(session)
+
+    resp = assembler.build(
+        _valid_build_json(produced_artifacts=[{"path": "build/bin/helper"}]),
+        session,
+    )
+
+    assert isinstance(resp, TaskFailureResponse)
+    assert resp.failureCode == FailureCode.EXPECTED_ARTIFACTS_MISMATCH
+    assert resp.failureContext is not None
+    assert resp.failureContext.expectedArtifacts == ["gateway"]
+    assert resp.failureContext.missingArtifacts == ["gateway"]
+
+
+def test_strict_build_records_artifact_verification_on_success() -> None:
+    assembler = ResultAssembler()
+    session = _make_session(metadata=_strict_metadata(expected_artifacts=["gateway"]))
+    _record_build_success(session)
+
+    resp = assembler.build(
+        _valid_build_json(produced_artifacts=[{"path": "build/bin/gateway"}]),
+        session,
+    )
+
+    assert isinstance(resp, TaskSuccessResponse)
+    assert resp.result.buildResult is not None
+    assert resp.result.buildResult.artifactVerification is not None
+    assert resp.result.buildResult.artifactVerification.matched is True
+    assert resp.result.buildResult.artifactVerification.expected == ["gateway"]
 
 
 def test_exhaustion_max_steps() -> None:
-    """reason='max_steps' → MAX_STEPS_EXCEEDED."""
     assembler = ResultAssembler()
     session = _make_session(termination_reason="max_steps")
     resp = assembler.build_from_exhaustion(session)
@@ -111,7 +267,6 @@ def test_exhaustion_max_steps() -> None:
 
 
 def test_exhaustion_budget() -> None:
-    """reason='budget_exhausted' → TOKEN_BUDGET_EXCEEDED."""
     assembler = ResultAssembler()
     session = _make_session(termination_reason="budget_exhausted")
     resp = assembler.build_from_exhaustion(session)
@@ -121,7 +276,6 @@ def test_exhaustion_budget() -> None:
 
 
 def test_exhaustion_timeout() -> None:
-    """reason='timeout' → TIMEOUT, retryable=True."""
     assembler = ResultAssembler()
     session = _make_session(termination_reason="timeout")
     resp = assembler.build_from_exhaustion(session)
@@ -132,7 +286,6 @@ def test_exhaustion_timeout() -> None:
 
 
 def test_exhaustion_no_evidence() -> None:
-    """reason='no_new_evidence' → INSUFFICIENT_EVIDENCE."""
     assembler = ResultAssembler()
     session = _make_session(termination_reason="no_new_evidence")
     resp = assembler.build_from_exhaustion(session)
@@ -141,7 +294,6 @@ def test_exhaustion_no_evidence() -> None:
 
 
 def test_exhaustion_all_tiers() -> None:
-    """reason='all_tiers_exhausted' → ALL_TOOLS_EXHAUSTED."""
     assembler = ResultAssembler()
     session = _make_session(termination_reason="all_tiers_exhausted")
     resp = assembler.build_from_exhaustion(session)
@@ -150,7 +302,6 @@ def test_exhaustion_all_tiers() -> None:
 
 
 def test_exhaustion_unknown_reason() -> None:
-    """알 수 없는 reason → fallback TOKEN_BUDGET_EXCEEDED."""
     assembler = ResultAssembler()
     session = _make_session(termination_reason="????")
     resp = assembler.build_from_exhaustion(session)

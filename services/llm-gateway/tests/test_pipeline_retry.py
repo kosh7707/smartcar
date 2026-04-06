@@ -108,6 +108,38 @@ async def test_retry_on_invalid_schema_then_success(mock_settings):
 
 @pytest.mark.asyncio
 @patch("app.pipeline.task_pipeline.settings")
+async def test_retry_on_schema_validation_error_then_success(mock_settings):
+    """파싱은 되지만 필수 필드 누락 시 INVALID_SCHEMA로 재시도한다."""
+    mock_settings.llm_mode = "mock"
+    mock_settings.llm_max_retries = 2
+    mock_settings.llm_max_input_chars = 800_000
+    mock_settings.rag_top_k = 5
+    mock_settings.llm_concurrency = 4
+
+    bad_schema_response = json.dumps({
+        "summary": "Test",
+        "claims": [{"statement": "s", "supportingEvidenceRefs": ["eref-001"]}],
+        # caveats / usedEvidenceRefs intentionally missing
+    })
+
+    pipeline = _build_pipeline()
+    pipeline._prompt_builder.build = MagicMock(return_value=[{"role": "user", "content": "test"}])
+    pipeline._call_llm = AsyncMock(side_effect=[
+        (bad_schema_response, TokenUsage(prompt=100, completion=50)),
+        (_GOOD_LLM_RESPONSE, TokenUsage(prompt=100, completion=50)),
+    ])
+
+    request = _make_request()
+    result = await pipeline.execute(request)
+
+    assert result.status == TaskStatus.COMPLETED
+    assert result.audit.retryCount == 1
+    assert result.audit.tokenUsage.prompt == 200
+    assert result.audit.tokenUsage.completion == 100
+
+
+@pytest.mark.asyncio
+@patch("app.pipeline.task_pipeline.settings")
 async def test_retry_on_invalid_grounding_then_success(mock_settings):
     """1차 hallucinated refId → 2차 성공."""
     mock_settings.llm_mode = "mock"

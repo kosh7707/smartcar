@@ -75,4 +75,56 @@ describe("SubprojectCreateDialog", () => {
     fireEvent.click(screen.getByText("main.c"));
     expect(screen.getByText(/1개 파일/)).toBeTruthy();
   });
+
+  it("preloads includedPaths in edit mode and submits updated payload", () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    render(
+      <SubprojectCreateDialog
+        {...defaultProps}
+        title="서브 프로젝트 수정"
+        submitLabel="저장"
+        initialName="gateway"
+        initialIncludedPaths={["src/"]}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    expect(screen.getByText(/2개 파일/)).toBeTruthy();
+
+    fireEvent.click(screen.getByText("utils.h"));
+    fireEvent.click(screen.getByText("저장"));
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      name: "gateway",
+      includedPaths: expect.arrayContaining(["src/main.c", "src/utils.c", "include/utils.h"]),
+    }));
+  });
+
+  it("locks includedPaths selection when edit support is disabled", () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    render(
+      <SubprojectCreateDialog
+        {...defaultProps}
+        title="서브 프로젝트 수정"
+        submitLabel="저장"
+        initialName="gateway"
+        initialIncludedPaths={["src/"]}
+        includedPathsEditable={false}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    expect(screen.getByRole("note").textContent).toContain("includedPaths는 수정 API에서 갱신되지 않습니다");
+    expect(screen.getByText(/2개 파일/)).toBeTruthy();
+
+    fireEvent.click(screen.getByText("utils.h"));
+    expect(screen.getByText(/2개 파일/)).toBeTruthy();
+
+    fireEvent.click(screen.getByText("저장"));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      name: "gateway",
+      includedPaths: expect.arrayContaining(["src/main.c", "src/utils.c"]),
+    }));
+    expect(onSubmit.mock.calls[0]?.[0].includedPaths).not.toContain("include/utils.h");
+  });
 });

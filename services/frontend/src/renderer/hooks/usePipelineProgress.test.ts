@@ -38,7 +38,7 @@ beforeEach(() => {
   MockWebSocket.instances = [];
   vi.stubGlobal("WebSocket", MockWebSocket);
   vi.mocked(runPipeline).mockResolvedValue({ pipelineId: "pipe-1", status: "running" });
-  vi.mocked(runPipelineTarget).mockResolvedValue({ pipelineId: "pipe-1" });
+  vi.mocked(runPipelineTarget).mockResolvedValue({ targetId: "t-2", status: "running" });
 });
 
 afterEach(() => {
@@ -126,6 +126,51 @@ describe("usePipelineProgress", () => {
 
     const target = result.current.targets.get("t-2");
     expect(target?.status).toBe("build_failed");
+    expect(target?.error).toBe("컴파일 실패");
+  });
+
+  it("maps setup phase errors to resolve_failed", async () => {
+    const { result } = renderHook(() => usePipelineProgress());
+
+    await act(async () => {
+      await result.current.startPipeline("p-1");
+    });
+
+    const ws = MockWebSocket.instances[0];
+    act(() => {
+      ws.simulateMessage({
+        type: "pipeline-error",
+        payload: { targetId: "t-3", targetName: "resolver", phase: "setup", error: "의존성 해석 실패" },
+      });
+    });
+
+    const target = result.current.targets.get("t-3");
+    expect(target?.status).toBe("resolve_failed");
+    expect(target?.error).toBe("의존성 해석 실패");
+  });
+
+  it("overwrites an existing target with failed status and error details", async () => {
+    const { result } = renderHook(() => usePipelineProgress());
+
+    await act(async () => {
+      await result.current.startPipeline("p-1");
+    });
+
+    const ws = MockWebSocket.instances[0];
+    act(() => {
+      ws.simulateMessage({
+        type: "pipeline-target-status",
+        payload: { targetId: "t-2", targetName: "shared-lib", status: "building", phase: "build", message: "빌드 중" },
+      });
+      ws.simulateMessage({
+        type: "pipeline-error",
+        payload: { targetId: "t-2", targetName: "shared-lib", phase: "build", error: "컴파일 실패" },
+      });
+    });
+
+    const target = result.current.targets.get("t-2");
+    expect(target?.status).toBe("build_failed");
+    expect(target?.message).toBe("");
     expect(target?.error).toBe("컴파일 실패");
   });
 

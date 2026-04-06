@@ -35,10 +35,22 @@ def set_code_assembler(asm) -> None:
     _code_assembler = asm
 
 
+class ProvenanceRequest(BaseModel):
+    build_snapshot_id: str | None = Field(default=None, alias="buildSnapshotId")
+    build_unit_id: str | None = Field(default=None, alias="buildUnitId")
+    source_build_attempt_id: str | None = Field(default=None, alias="sourceBuildAttemptId")
+
+    model_config = {"populate_by_name": True}
+
+
 class IngestRequest(BaseModel):
     functions: list[dict] = Field(
         ...,
         description="함수 목록: [{name, file, line, calls: [str]}]",
+    )
+    provenance: ProvenanceRequest | None = Field(
+        default=None,
+        description="선택적 build snapshot provenance",
     )
 
 
@@ -47,6 +59,9 @@ class DangerousCallersRequest(BaseModel):
         ...,
         description="위험 함수 이름 목록",
     )
+    build_snapshot_id: str | None = Field(default=None, alias="buildSnapshotId")
+
+    model_config = {"populate_by_name": True}
 
 
 def _require_service():
@@ -60,6 +75,9 @@ class CodeSearchRequest(BaseModel):
     min_score: float = Field(default=0.3, ge=0.0, le=1.0)
     graph_depth: int = Field(default=2, ge=0, le=5)
     include_call_chain: bool = Field(default=True, description="호출 체인 포함 여부")
+    build_snapshot_id: str | None = Field(default=None, alias="buildSnapshotId")
+
+    model_config = {"populate_by_name": True}
 
 
 @router.post("/{project_id}/ingest")
@@ -72,12 +90,17 @@ async def ingest(
     deadline, _ = parse_timeout(x_timeout_ms)
     _require_service()
 
-    result = _service.ingest(project_id, req.functions)
+    provenance = (
+        req.provenance.model_dump(exclude_none=True)
+        if req.provenance is not None else None
+    )
+    result = _service.ingest(project_id, req.functions, provenance=provenance)
+    result["vectorCount"] = 0
     check_deadline(deadline, "neo4j-ingest")
 
     if _code_vector_search is not None:
         try:
-            vec_count = _code_vector_search.ingest(project_id, req.functions)
+            vec_count = _code_vector_search.ingest(project_id, req.functions, provenance=provenance)
             result["vectorCount"] = vec_count
         except HTTPException:
             raise
@@ -89,9 +112,12 @@ async def ingest(
 
 
 @router.get("/{project_id}/stats")
-async def stats(project_id: str) -> dict:
+async def stats(
+    project_id: str,
+    build_snapshot_id: str | None = Query(default=None, alias="buildSnapshotId"),
+) -> dict:
     _require_service()
-    return _service.get_stats(project_id)
+    return _service.get_stats(project_id, build_snapshot_id=build_snapshot_id)
 
 
 @router.get("/{project_id}/callers/{function_name}")
@@ -99,16 +125,25 @@ async def callers(
     project_id: str,
     function_name: str,
     depth: int = Query(default=2, ge=1, le=10),
+    build_snapshot_id: str | None = Query(default=None, alias="buildSnapshotId"),
 ) -> dict:
     _require_service()
-    results = _service.get_callers(project_id, function_name, depth=depth)
+    results = _service.get_callers(
+        project_id, function_name, depth=depth, build_snapshot_id=build_snapshot_id,
+    )
     return {"function": function_name, "depth": depth, "callers": results}
 
 
 @router.get("/{project_id}/callees/{function_name}")
-async def callees(project_id: str, function_name: str) -> dict:
+async def callees(
+    project_id: str,
+    function_name: str,
+    build_snapshot_id: str | None = Query(default=None, alias="buildSnapshotId"),
+) -> dict:
     _require_service()
-    results = _service.get_callees(project_id, function_name)
+    results = _service.get_callees(
+        project_id, function_name, build_snapshot_id=build_snapshot_id,
+    )
     return {"function": function_name, "callees": results}
 
 
@@ -121,7 +156,11 @@ async def dangerous_callers(
     set_request_id(x_request_id)
     parse_timeout(x_timeout_ms)
     _require_service()
-    results = _service.find_dangerous_callers(project_id, req.dangerous_functions)
+    results = _service.find_dangerous_callers(
+        project_id,
+        req.dangerous_functions,
+        build_snapshot_id=req.build_snapshot_id,
+    )
     return {"results": results}
 
 
@@ -145,6 +184,7 @@ async def search(
         min_score=req.min_score,
         graph_depth=req.graph_depth,
         include_call_chain=req.include_call_chain,
+        build_snapshot_id=req.build_snapshot_id,
     )
     elapsed_ms = int((time.monotonic() - start) * 1000)
 

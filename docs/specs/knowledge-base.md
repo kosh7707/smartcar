@@ -1,7 +1,7 @@
 # Knowledge Base 명세서
 
 > **소유자**: S5
-> **최종 업데이트**: 2026-03-31
+> **최종 업데이트**: 2026-04-04
 
 ---
 
@@ -102,9 +102,9 @@ app/
 | `:CWE` | id, title, source, threat_category, severity, attack_surfaces, automotive_relevance | CWE 취약점 |
 | `:Attack` | id, title, source, threat_category, kill_chain_phase, automotive_relevance | ATT&CK 기법 (ICS + Enterprise) |
 | `:CAPEC` | id, title, source, threat_category, severity, automotive_relevance | CAPEC 공격 패턴 (풀 노드) |
-| `:Function` | name, file, line, project_id, origin?, original_lib?, original_version? | 코드 함수 (프로젝트별, origin=서드파티 출처) |
+| `:Function` | name, file, line, project_id, origin?, original_lib?, original_version?, build_snapshot_id?, build_unit_id?, source_build_attempt_id? | 코드 함수 (프로젝트별, provenance seam 포함) |
 | `:Project` | id | 프로젝트 (메모리 루트) |
-| `:Memory` | id, type, data, createdAt, content_hash, expiresAt? | 에이전트 메모리 (analysis_history, false_positive, resolved, preference) |
+| `:Memory` | id, type, data, createdAt, content_hash, expiresAt?, build_snapshot_id?, build_unit_id?, source_build_attempt_id? | 에이전트 메모리 (analysis_history, false_positive, resolved, preference + provenance seam) |
 | `:KBMeta` | id, build_timestamp, cwe_version, attack_ics_version, attack_enterprise_version, capec_version, total_records, seed_timestamp | Ontology 버전 추적 |
 
 **관계 타입:**
@@ -247,7 +247,7 @@ ETL에서 11개 공격 표면으로 분류 (`scripts/threat-db/taxonomy.py`):
 
 ```bash
 cd services/knowledge-base
-.venv/bin/python -m pytest tests/ -q  # 142 passed (2026-04-02 확인)
+.venv/bin/python -m pytest tests/ -q  # 161 passed (2026-04-04 확인)
 ```
 
 모든 테스트는 Neo4j 드라이버를 mock하여 실행 — Neo4j/Qdrant 미설치 환경에서도 통과.
@@ -255,15 +255,35 @@ cd services/knowledge-base
 | 테스트 파일 | 건수 | 대상 |
 |------------|------|------|
 | `test_neo4j_graph.py` | 7 | Neo4jGraph (노드/엣지 카운트, 이웃, 관계, 노드 조회, edgeTypes) |
-| `test_code_graph_service.py` | 12 | CodeGraphService (적재, 호출자/피호출, 위험함수, 프로젝트 관리, origin, get_function) |
-| `test_code_vector_search.py` | 11 | CodeVectorSearch (_build_document, ingest, search, delete) |
-| `test_code_graph_assembler.py` | 9 | CodeGraphAssembler (빈 쿼리, name_exact, vector, RRF, call_chain) |
+| `test_code_graph_service.py` | 16 | CodeGraphService (적재, 호출자/피호출, 위험함수, 프로젝트 관리, origin, get_function, provenance seam) |
+| `test_code_vector_search.py` | 12 | CodeVectorSearch (_build_document, ingest, search, delete, provenance metadata/filter) |
+| `test_code_graph_assembler.py` | 10 | CodeGraphAssembler (빈 쿼리, name_exact, vector, RRF, call_chain, buildSnapshotId filter) |
 | `test_knowledge_assembler.py` | 15 | 위협 하이브리드 검색, 중복 제거, 소스 필터링, 배치, RRF |
 | `test_nvd_client.py` | 37 | 버전 매칭, 캐시, CPE 추론, 배치 병렬, EPSS, KEV, risk_score, KB 보강, 캐시 영속화 |
-| `test_project_memory_service.py` | 18 | 메모리 CRUD, 타입 검증, JSON 손상 처리, lifecycle, 센티넬, 마이그레이션 |
-| `test_api_error_responses.py` | 13 | 에러 포맷, health/ready, HTTPException 핸들러, degraded mode |
+| `test_project_memory_service.py` | 22 | 메모리 CRUD, 타입 검증, JSON 손상 처리, lifecycle, 센티넬, 마이그레이션, provenance seam |
+| `test_api_error_responses.py` | 15 | 에러 포맷, health/ready, threat-search readiness hardening |
 | `test_qdrant_modes.py` | 5 | Qdrant file/server 듀얼 모드 초기화 |
 | `test_benchmark_metrics.py` | 15 | 벤치마크 메트릭 (P@k, R@k, NDCG, MRR, hit rate) |
+| `test_benchmark_artifacts.py` | 7 | validation set shape/coverage + sweep summary + compare/oracle summary |
+
+### 벤치마크 비교 명령
+
+```bash
+cd services/knowledge-base
+.venv/bin/python scripts/benchmark/run_benchmark.py --qdrant-path data/qdrant --compare-neo4j --output /tmp/s5-graph-compare.json
+```
+
+2026-04-04 기준 비교 결과:
+- Qdrant-only: `ndcg_5=0.4048`, `mrr=0.4636`, `hit_rate=0.7442`
+- Neo4j-enabled: `ndcg_5=0.6111`, `mrr=0.7399`, `hit_rate=0.9070`
+- `ndcg_5` 기준 uplift가 확인된 query: **14 / 43**
+- graph-aware oracle(`required_match_types`) 기준 full-pass는 **Qdrant-only 0/6** vs **Neo4j-enabled 6/6**
+
+### readiness / provenance 메모
+
+- threat search는 이제 **Qdrant + Neo4j 모두 필요**하다. Neo4j 없으면 `/v1/search`, `/v1/search/batch`, `/v1/ready`는 `503 KB_NOT_READY`.
+- code graph / project memory는 선택적으로 `buildSnapshotId`, `buildUnitId`, `sourceBuildAttemptId`를 수용한다.
+- 현재 code graph는 **프로젝트당 활성 그래프 1개**를 유지하며, provenance는 multi-snapshot 동시 보존이 아니라 future 확장을 위한 seam이다.
 
 ---
 

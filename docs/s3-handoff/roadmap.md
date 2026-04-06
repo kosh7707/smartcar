@@ -4,6 +4,86 @@
 
 ---
 
+## 세션 18 완료 (2026-04-04)
+
+1. ~~**Residual alignment 1차 정리**~~ ✅ Analysis Agent legacy taskType router 차단, Build Agent `promptVersion` 정렬, `sdk-analyze` 문서 반영
+2. ~~**공용 `.omx` 메모 규칙 반영**~~ ✅ `docs/AEGIS.md` / `s2-to-all` WR 확인 후 S3 handoff에 lane 전용 메모 분리 원칙 반영
+
+
+
+## 세션 23 완료 (2026-04-04)
+
+1. ~~**downstream WR completion**~~ ✅ S2 구현 착수 요청, S4 consumer alignment 요청, S5 provenance alignment 요청 발행
+2. ~~**S3-first coordination backlog 정리**~~ ✅ Build Snapshot / BuildAttempt 후속 액션을 recipient별 ownership으로 분리
+3. ~~**handoff 업데이트**~~ ✅ 세션 23 로그 + 로드맵에 outbound WR 상태 반영
+
+## 다음 세션 목표 (세션 24)
+
+### 즉시 처리
+
+1. **S2/S4/S5 회신 추적** — 구현 착수 ACK, consumer/provenance seam 제안 수신 여부 확인
+2. **analysis boundary 문서화 여부 결정** — analysis-agent API/spec에 Build Snapshot reference-first 경계를 지금 반영할지 판단
+3. **RE100 gateway 재검증 재개** — canonical strict payload로 live stress path 재시작
+
+### 백로그
+
+1. **Build Agent 프로세스 격리** — bash 실행 namespace 격리
+2. **gateway / gateway-webserver 재검증** — strict contract 기준 live build stress test
+3. **Build Snapshot public surface / shared model 승격 시점 결정**
+
+## 세션 22 완료 (2026-04-04)
+
+1. ~~**strict compile-first canonical surface 정리**~~ ✅ `subprojectPath/subprojectName`, `build-resolve-v1`, nested `build.mode`/`build.sdkId` 기준으로 docs/runtime/tests를 재정렬
+2. ~~**result semantics 노출 보강**~~ ✅ `contractVersion`, `strictMode`, `declaredMode`, `sdkId`가 response/result에서 일관되게 드러나도록 보강
+3. ~~**S3-owned harness/docs drift 제거**~~ ✅ build/analyze harness 예시와 API/spec failure terminology를 현재 런타임 기준으로 정렬
+
+## 세션 21 완료 (2026-04-04)
+
+1. ~~**S2 재질의 검토**~~ ✅ stable identity / reference-first / schema+lineage / failure semantics 기준으로 쟁점 재구성
+2. ~~**S3 authoritative reply 작성**~~ ✅ `s3-to-s2-build-snapshot-clarification-reply.md` 작성
+3. ~~**BuildSnapshot semantics 고정**~~ ✅ `buildUnitId`, `buildSnapshotId`, BuildAttempt/BuildSnapshot 분리, reference-first 방향 명시
+
+## 세션 20 완료 (2026-04-04)
+
+1. ~~**strict compile-first team execution**~~ ✅ build contract/request/result/tests lanes 병렬 정리 후 종료
+2. ~~**S2 handoff planning**~~ ✅ build user flow + persistent Build Snapshot 방향으로 consensus planning 완료
+3. ~~**S2용 WR 초안 작성**~~ ✅ `s3-to-s2-build-snapshot-contract-handoff.md` 작성
+
+## 다음 세션 목표 (세션 21)
+
+### 즉시 처리
+
+1. **S2 회신 대기/반영** — Build Snapshot을 coordination artifact로 둘지, 즉시 persistence object로 둘지 확인
+2. **S3 docs 2차 정리** — analysis-agent 쪽에도 Build Snapshot boundary를 반영할지 결정
+3. **Ralph 통합 검증** — strict compile-first 변경분 전체 회귀 검증 + architect sign-off
+
+### 백로그
+
+1. **Build Agent 프로세스 격리** — bash 실행 namespace 격리
+2. **gateway / gateway-webserver 재검증** — 새 계약 기준 live build stress test
+3. **Build Snapshot public surface화 여부 결정**
+
+## 세션 19 완료 (2026-04-04)
+
+1. ~~**S3 agent integration live 검증**~~ ✅ `build-resolve`, `deep-analyze`, `generate-poc`, `sdk-analyze` 실제 기동 상태 점검
+2. ~~**sdk-analyze live 안정화**~~ ✅ deterministic shortcut + prompt/tool 개선으로 `sdk-live-20260404-7` completed
+3. ~~**S4 경고 분리**~~ ✅ `exitCode=127` / 대형 스캔 stall 이슈를 WR로 분리
+
+## 다음 세션 목표 (세션 20)
+
+### 즉시 처리
+
+1. **S4 WR 응답 추적** — SDK build `exitCode=127`, large scan stall 대응 여부 확인
+2. **certificate-maker 기준 재스모크** — S4 회신 전후로 build/analyze/poc 최소 경로 재검증
+3. **sdk-analyze 품질 보강 여부 판단** — `gccVersion`/`sysroot` 정확도 추가 개선이 필요한지 결정
+
+### 백로그
+
+1. **`_pipeline` 잔재 제거 여부 결정** — `services/analysis-agent/app/routers/tasks.py` legacy plumbing 축소
+2. **Build Agent 프로세스 격리** — bash 실행 namespace 격리
+3. **골든셋 확장** — Juliet Test Suite 기반 고난도 케이스 추가
+4. **세션 영속화** — agent session 저장/복원
+
 ## 세션 16 완료 (2026-04-02)
 
 1. ~~**인수인계서(`README.md`) 갱신**~~ ✅ Phase 2 도구 6종, NDJSON 스트리밍, Evidence Sanitizer 반영

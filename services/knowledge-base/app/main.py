@@ -15,7 +15,7 @@ from app.cve.nvd_client import NvdClient
 from app.graphrag.code_graph_assembler import CodeGraphAssembler
 from app.graphrag.code_graph_service import CodeGraphService
 from app.graphrag.code_vector_search import CodeVectorSearch
-from app.graphrag.knowledge_assembler import KnowledgeAssembler, GraphLike
+from app.graphrag.knowledge_assembler import KnowledgeAssembler
 from app.graphrag.neo4j_graph import Neo4jGraph
 from app.graphrag.vector_search import VectorSearch
 from app.observability import setup_logging
@@ -25,20 +25,6 @@ from app.routers import api, code_graph_api, cve_api, project_memory_api
 
 setup_logging("s5-kb", log_file_name="aegis-knowledge-base")
 logger = logging.getLogger(__name__)
-
-
-class _NullGraph:
-    """Neo4j 미연결 시 빈 결과를 반환하는 폴백 그래프."""
-
-    def get_related(self, node_id: str) -> dict[str, list[str]]:
-        return {}
-
-    def get_node_info(self, node_id: str) -> dict | None:
-        return None
-
-    def neighbors(self, node_id: str, depth: int = 2) -> list[str]:
-        return []
-
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -86,11 +72,10 @@ async def lifespan(_app: FastAPI):
         logger.warning("Neo4j 연결 실패 (미설치 시 정상): %s", e)
 
     # KnowledgeAssembler 조립 (벡터 + 그래프)
-    if vector_search:
-        graph: GraphLike = neo4j_graph if neo4j_graph else _NullGraph()
-        assembler = KnowledgeAssembler(vector_search, graph, rrf_k=settings.rrf_k)
-        if not neo4j_graph:
-            logger.warning("Neo4j 미연결 — 벡터 검색만 사용 (그래프 보강 없음)")
+    if vector_search and neo4j_graph:
+        assembler = KnowledgeAssembler(vector_search, neo4j_graph, rrf_k=settings.rrf_k)
+    elif vector_search and not neo4j_graph:
+        logger.warning("Neo4j 미연결 — threat search 비활성 (ready/search 모두 미준비)")
 
     # NVD 실시간 CVE 조회 클라이언트
     try:
@@ -128,7 +113,7 @@ async def lifespan(_app: FastAPI):
 
     api.set_assembler(assembler)
     api.set_neo4j_graph(neo4j_graph)
-    api.set_graph_degraded(bool(vector_search) and not bool(neo4j_graph))
+    api.set_qdrant_ready(bool(vector_search))
     code_graph_api.set_service(code_graph_svc)
     code_graph_api.set_code_vector_search(code_vector_search)
     code_graph_api.set_code_assembler(code_assembler)

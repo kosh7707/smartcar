@@ -22,12 +22,23 @@ const DEFAULT_PROFILE: BuildProfile = {
   headerLanguage: "auto",
 };
 
+const EMPTY_INCLUDED_PATHS: string[] = [];
+const INCLUDED_PATHS_EDIT_UNSUPPORTED_TEXT = "현재 백엔드 계약상 includedPaths는 수정 API에서 갱신되지 않습니다. 파일 구성 변경이 필요하면 서브 프로젝트를 새로 만들고 기존 항목을 삭제하세요.";
+
 interface Props {
   open: boolean;
   projectId: string;
   sourceFiles: SourceFileEntry[];
-  onCreated: () => void;
   onCancel: () => void;
+  onCreated?: () => void;
+  onSubmit?: (payload: { name: string; profile: BuildProfile; includedPaths: string[] }) => Promise<void>;
+  title?: string;
+  submitLabel?: string;
+  initialName?: string;
+  initialProfile?: BuildProfile;
+  initialIncludedPaths?: string[];
+  includedPathsEditable?: boolean;
+  includedPathsHelpText?: string;
 }
 
 // Collect all descendant file paths from a tree node
@@ -62,12 +73,14 @@ const CheckNode: React.FC<{
   depth: number;
   checked: Set<string>;
   onToggle: (paths: string[], add: boolean) => void;
-}> = ({ node, depth, checked, onToggle }) => {
+  disabled?: boolean;
+}> = ({ node, depth, checked, onToggle, disabled = false }) => {
   const [open, setOpen] = useState(depth < 1);
   const isFolder = !node.data;
   const state = getCheckState(node, checked);
 
   const handleToggle = (e: React.MouseEvent | React.KeyboardEvent) => {
+    if (disabled) return;
     e.stopPropagation();
     if ("key" in e && e.key !== "Enter" && e.key !== " ") return;
     if ("key" in e) e.preventDefault();
@@ -82,13 +95,18 @@ const CheckNode: React.FC<{
     const fileCount = countFiles(node);
     return (
       <>
-        <div className="spcd__row spcd__row--folder" onClick={() => setOpen(!open)}>
+        <div
+          className={`spcd__row spcd__row--folder${disabled ? " spcd__row--disabled" : ""}`}
+          onClick={() => setOpen(!open)}
+          style={disabled ? { opacity: 0.72 } : undefined}
+        >
           <div className="spcd__indent">{guides}</div>
           <div
             className={`spcd__check${state === "checked" ? " spcd__check--checked" : state === "indeterminate" ? " spcd__check--indeterminate" : ""}`}
             role="checkbox"
             aria-checked={state === "checked" ? "true" : state === "indeterminate" ? "mixed" : "false"}
-            tabIndex={0}
+            aria-disabled={disabled}
+            tabIndex={disabled ? -1 : 0}
             onClick={handleToggle}
             onKeyDown={handleToggle}
           >
@@ -101,7 +119,7 @@ const CheckNode: React.FC<{
           <span className="spcd__meta">{fileCount}개</span>
         </div>
         {open && node.children.map((child) => (
-          <CheckNode key={child.path} node={child} depth={depth + 1} checked={checked} onToggle={onToggle} />
+          <CheckNode key={child.path} node={child} depth={depth + 1} checked={checked} onToggle={onToggle} disabled={disabled} />
         ))}
       </>
     );
@@ -109,13 +127,18 @@ const CheckNode: React.FC<{
 
   const isChecked = checked.has(node.path);
   return (
-    <div className="spcd__row" onClick={handleToggle}>
+    <div
+      className={`spcd__row${disabled ? " spcd__row--disabled" : ""}`}
+      onClick={handleToggle}
+      style={disabled ? { opacity: 0.72, cursor: "default" } : undefined}
+    >
       <div className="spcd__indent">{guides}</div>
       <div
         className={`spcd__check${isChecked ? " spcd__check--checked" : ""}`}
         role="checkbox"
         aria-checked={isChecked}
-        tabIndex={0}
+        aria-disabled={disabled}
+        tabIndex={disabled ? -1 : 0}
         onKeyDown={handleToggle}
       >
         {isChecked && <Check size={10} />}
@@ -128,7 +151,21 @@ const CheckNode: React.FC<{
   );
 };
 
-export const SubprojectCreateDialog: React.FC<Props> = ({ open, projectId, sourceFiles, onCreated, onCancel }) => {
+export const SubprojectCreateDialog: React.FC<Props> = ({
+  open,
+  projectId,
+  sourceFiles,
+  onCreated,
+  onCancel,
+  onSubmit,
+  title = "서브 프로젝트 생성",
+  submitLabel = "서브 프로젝트 생성",
+  initialName = "",
+  initialProfile = DEFAULT_PROFILE,
+  initialIncludedPaths = EMPTY_INCLUDED_PATHS,
+  includedPathsEditable = true,
+  includedPathsHelpText = !includedPathsEditable ? INCLUDED_PATHS_EDIT_UNSUPPORTED_TEXT : undefined,
+}) => {
   const toast = useToast();
   const bt = useBuildTargets(projectId);
   const [name, setName] = useState("");
@@ -142,16 +179,19 @@ export const SubprojectCreateDialog: React.FC<Props> = ({ open, projectId, sourc
   // Reset on open + load SDKs
   useEffect(() => {
     if (open) {
-      setName("");
-      setChecked(new Set());
-      setProfile(DEFAULT_PROFILE);
+      setName(initialName);
+      setProfile(initialProfile);
+      const selected = sourceFiles
+        .filter((sf) => initialIncludedPaths.some((path) => sf.relativePath === path || sf.relativePath.startsWith(path)))
+        .map((sf) => sf.relativePath);
+      setChecked(new Set(selected));
       if (projectId) {
         fetchProjectSdks(projectId)
           .then((data) => setRegisteredSdks(data.registered))
           .catch(() => setRegisteredSdks([]));
       }
     }
-  }, [open, projectId]);
+  }, [open, projectId, initialIncludedPaths, initialName, initialProfile, sourceFiles]);
 
   const handleToggle = useCallback((paths: string[], add: boolean) => {
     setChecked((prev) => {
@@ -181,23 +221,27 @@ export const SubprojectCreateDialog: React.FC<Props> = ({ open, projectId, sourc
     if (selectedCount === 0) { toast.error("파일을 1개 이상 선택해주세요."); return; }
     setCreating(true);
     try {
-      await bt.add(name.trim(), name.trim() + "/", profile, includedPaths);
-      toast.success(`서브 프로젝트 "${name.trim()}" 생성 완료 (${selectedCount}개 파일)`);
-      onCreated();
+      if (onSubmit) {
+        await onSubmit({ name: name.trim(), profile, includedPaths });
+      } else {
+        await bt.add(name.trim(), name.trim() + "/", profile, includedPaths);
+        onCreated?.();
+      }
+      toast.success(`서브 프로젝트 "${name.trim()}" ${onSubmit ? "수정" : "생성"} 완료 (${selectedCount}개 파일)`);
     } catch (e) {
-      logError("Create subproject", e);
-      toast.error("서브 프로젝트 생성에 실패했습니다.");
+      logError(onSubmit ? "Update subproject" : "Create subproject", e);
+      toast.error(`서브 프로젝트 ${onSubmit ? "수정" : "생성"}에 실패했습니다.`);
     } finally {
       setCreating(false);
     }
-  }, [name, selectedCount, profile, includedPaths, bt, toast, onCreated]);
+  }, [name, selectedCount, profile, includedPaths, bt, toast, onCreated, onSubmit]);
 
   if (!open) return null;
 
   return (
     <div className="confirm-overlay" onClick={onCancel}>
       <div className="card spcd" onClick={(e) => e.stopPropagation()}>
-        <h3 className="confirm-dialog__title">서브 프로젝트 생성</h3>
+        <h3 className="confirm-dialog__title">{title}</h3>
 
         <div className="spcd__body">
           <label className="form-field">
@@ -213,9 +257,31 @@ export const SubprojectCreateDialog: React.FC<Props> = ({ open, projectId, sourc
 
           <div>
             <span className="form-label">포함할 파일/폴더 선택</span>
+            {includedPathsHelpText && (
+              <div
+                className="spcd__hint"
+                role="note"
+                style={{
+                  marginTop: "var(--space-1)",
+                  marginBottom: "var(--space-2)",
+                  color: "var(--text-tertiary)",
+                  fontSize: "var(--text-xs)",
+                  lineHeight: 1.5,
+                }}
+              >
+                {includedPathsHelpText}
+              </div>
+            )}
             <div className="spcd__tree-wrap">
               {tree.children.map((child) => (
-                <CheckNode key={child.path} node={child} depth={0} checked={checked} onToggle={handleToggle} />
+                <CheckNode
+                  key={child.path}
+                  node={child}
+                  depth={0}
+                  checked={checked}
+                  onToggle={handleToggle}
+                  disabled={!includedPathsEditable}
+                />
               ))}
             </div>
           </div>
@@ -232,7 +298,7 @@ export const SubprojectCreateDialog: React.FC<Props> = ({ open, projectId, sourc
           <button className="btn btn-secondary" onClick={onCancel}>취소</button>
           <button className="btn" onClick={handleCreate} disabled={creating || selectedCount === 0}>
             {creating ? <Spinner size={14} /> : null}
-            서브 프로젝트 생성
+            {submitLabel}
           </button>
         </div>
       </div>

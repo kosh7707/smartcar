@@ -4,9 +4,11 @@ S4 sdk-registry 조회 → 빌드 파일 자동 탐색 → AgentLoop(read/write/
 목표: 빌드 스크립트(build-aegis/aegis-build.sh) 작성 + 빌드 성공.
 """
 import glob
+import hashlib
 import json
 import logging
 import os
+import re
 import time
 from datetime import datetime, timezone
 
@@ -18,7 +20,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from agent_shared.context import get_request_id, set_request_id
-from app.schemas.request import TaskRequest
+from app.schemas.request import BuildMode, TaskRequest
 from app.schemas.response import (
     AssessmentResult,
     AuditInfo,
@@ -29,6 +31,11 @@ from app.schemas.response import (
     ValidationInfo,
 )
 from app.types import FailureCode, TaskStatus, TaskType
+from app.validators.build_request_contract import (
+    BuildRequestContractValidator,
+    BuildRequestPreflight,
+    normalize_contract_version,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +50,71 @@ def _json_response(data: TaskSuccessResponse | TaskFailureResponse) -> JSONRespo
     request_id = get_request_id()
     headers = {"X-Request-Id": request_id} if request_id else {}
     return JSONResponse(content=data.model_dump(mode="json"), headers=headers)
+
+
+def _build_invalid_contract_failure(
+    request: TaskRequest,
+    errors: list[str],
+) -> TaskFailureResponse:
+    input_str = json.dumps(request.model_dump(mode="json"), sort_keys=True)
+    input_hash = f"sha256:{hashlib.sha256(input_str.encode()).hexdigest()[:16]}"
+    request_id = get_request_id() or request.taskId
+
+    trusted = request.context.trusted if isinstance(request.context.trusted, dict) else {}
+    return TaskFailureResponse(
+        taskId=request.taskId,
+        taskType=request.taskType,
+        contractVersion=trusted.get("contractVersion"),
+        strictMode=trusted.get("strictMode"),
+        status=TaskStatus.VALIDATION_FAILED,
+        failureCode=FailureCode.INVALID_SCHEMA,
+        failureDetail="Invalid build-resolve contract: " + " | ".join(errors),
+        retryable=False,
+        audit=AuditInfo(
+            inputHash=input_hash,
+            latencyMs=0,
+            tokenUsage=TokenUsage(),
+            retryCount=0,
+            ragHits=0,
+            createdAt=datetime.now(timezone.utc).isoformat(),
+            agentAudit={
+                "requestId": request_id,
+                "preflight": "build-request-contract",
+                "errors": errors,
+            },
+        ),
+    )
+
+
+async def _run_build_request_preflight(
+    request: TaskRequest,
+) -> tuple[BuildRequestPreflight | None, TaskFailureResponse | None]:
+    validator = BuildRequestContractValidator()
+    preflight, errors = validator.validate(request)
+    if preflight is None:
+        return None, _build_invalid_contract_failure(request, errors)
+
+    contract = preflight.contract
+    if contract.strictMode and contract.buildMode == BuildMode.SDK and contract.sdkId:
+        sdk_registry = await _fetch_sdk_registry(settings.sast_endpoint, get_request_id() or request.taskId)
+        declared_sdk = contract.sdkId
+        registered_ids = {
+            sdk.get("sdkId")
+            for sdk in sdk_registry.get("sdks", [])
+            if isinstance(sdk, dict) and sdk.get("sdkId")
+        }
+        if not registered_ids:
+            errors.append(
+                "strict compile-first v1 could not verify context.trusted.build.sdkId against the S4 sdk-registry",
+            )
+        elif declared_sdk not in registered_ids:
+            errors.append(
+                f"context.trusted.build.sdkId '{declared_sdk}' is not present in the S4 sdk-registry",
+            )
+
+    if errors:
+        return None, _build_invalid_contract_failure(request, errors)
+    return preflight, None
 
 
 async def _fetch_sdk_registry(sast_endpoint: str, request_id: str | None) -> dict:
@@ -94,6 +166,7 @@ def _build_system_prompt(
     phase0: object | None = None,
     build_subdir: str = "build-aegis",
     initial_script_hint: str = "",
+    build_contract: BuildRequestPreflight | None = None,
 ) -> str:
     """빌드 에이전트 v3 시스템 프롬프트."""
 
@@ -176,6 +249,33 @@ def _build_system_prompt(
             "- **이 타겟만 빌드하라.** 다른 디렉토리의 빌드는 시도하지 마라.\n\n"
         )
 
+    contract_section = ""
+    if build_contract is not None:
+        contract = build_contract.contract
+        expected_artifacts = ", ".join(
+            artifact.path
+            or artifact.name
+            or artifact.artifactType.value
+            for artifact in contract.expectedArtifacts
+        ) or "(legacy caller — unspecified)"
+        build_mode = contract.buildMode.value if contract.buildMode else "(legacy caller — unspecified)"
+        strict_mode = "true" if contract.strictMode else "false"
+        contract_section = (
+            "## 호출자 선언 계약\n"
+            f"- **contractVersion**: {normalize_contract_version(contract)}\n"
+            f"- **strictMode**: {strict_mode}\n"
+            f"- **declared build.mode**: {build_mode}\n"
+            f"- **declared build.sdkId**: {contract.sdkId or '(none)'}\n"
+            f"- **expectedArtifacts**: {expected_artifacts}\n"
+        )
+        if contract.strictMode:
+            contract_section += (
+                "- **선언되지 않은 SDK/native fallback을 하지 마라.**\n"
+                "- **호출자가 선언한 expectedArtifacts를 기준으로 성공을 판단하라.**\n\n"
+            )
+        else:
+            contract_section += "\n"
+
     builder = SystemPromptBuilder()
 
     builder.add_section("역할",
@@ -199,6 +299,8 @@ def _build_system_prompt(
     # 동적 섹션 — 조건부 추가
     if target_section:
         builder.add_section("빌드 대상", target_section)
+    if contract_section:
+        builder.add_section("호출자 선언 계약", contract_section)
     if phase0_section:
         builder.add_section("사전 분석", phase0_section)
     if sdk_section:
@@ -298,13 +400,17 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
     from app.tools.implementations.delete_file import DeleteFileTool
     from app.tools.implementations.try_build import TryBuildTool
 
-    trusted = request.context.trusted
-    project_path = trusted.get("projectPath", "/tmp/unknown")
-    target_path = trusted.get("targetPath", "")
-    target_name = trusted.get("targetName", "")
+    preflight, failure = await _run_build_request_preflight(request)
+    if failure is not None:
+        return failure
+    assert preflight is not None
+
+    project_path = preflight.project_path
+    target_path = preflight.target_path
+    target_name = preflight.target_name
     request_id = get_request_id() or request.taskId
 
-    # 서브프로젝트 스코핑: build-aegis/는 targetPath 기준
+    # 서브프로젝트 스코핑: build-aegis/는 canonical subprojectPath 기준
     effective_root = os.path.join(project_path, target_path) if target_path else project_path
 
     # ─── 0. Request-scoped 빌드 워크스페이스 (동시 요청 격리) ───
@@ -322,6 +428,14 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
     phase0_result = await phase0.execute(request_id)
 
     sdk_info = phase0_result.sdk_info
+    if preflight.contract.buildMode == BuildMode.NATIVE:
+        sdk_info = {}
+    elif preflight.contract.sdkId:
+        matching_sdks = [
+            sdk for sdk in sdk_info.get("sdks", [])
+            if isinstance(sdk, dict) and sdk.get("sdkId") == preflight.contract.sdkId
+        ]
+        sdk_info = {"sdks": matching_sdks} if matching_sdks else {}
     build_files = phase0_result.build_files
 
     # ─── 1b. 초기 빌드 스크립트 결정론적 생성 (cmake/make/autotools 템플릿) ───
@@ -464,6 +578,7 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
         phase0=phase0_result,
         build_subdir=build_subdir,
         initial_script_hint=initial_script_hint,
+        build_contract=preflight,
     )
     build_source = os.path.join(project_path, target_path) if target_path else project_path
     user_message = (
@@ -473,6 +588,11 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
     )
     if target_path:
         user_message += f"## 빌드 대상 서브프로젝트\n{target_path}\n"
+    if preflight.contract.strictMode:
+        user_message += (
+            f"## 호출자 선언 contractVersion\n{normalize_contract_version(preflight.contract)}\n"
+            f"## 호출자 선언 build.mode\n{preflight.contract.buildMode.value if preflight.contract.buildMode else 'unspecified'}\n"
+        )
 
     if settings.llm_mode == "real":
         llm_caller = LlmCaller(
@@ -537,6 +657,148 @@ async def _handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | T
 # sdk-analyze handler
 # ---------------------------------------------------------------------------
 
+_EXPORT_RE = re.compile(r"^\s*export\s+([A-Z0-9_]+)=(.*)$")
+
+
+def _parse_export_lines(text: str) -> dict[str, str]:
+    exports: dict[str, str] = {}
+    for line in text.splitlines():
+        match = _EXPORT_RE.match(line.strip())
+        if not match:
+            continue
+        key, raw_value = match.groups()
+        value = raw_value.strip().strip('"').strip("'")
+        exports[key] = value
+    return exports
+
+
+def _tokenize_flags(value: str) -> list[str]:
+    return [token for token in value.split() if token]
+
+
+def _walk_matching_files(
+    root: str,
+    predicate,
+    *,
+    max_depth: int,
+    limit: int,
+) -> list[str]:
+    matches: list[str] = []
+    root = os.path.abspath(root)
+    root_depth = root.count(os.sep)
+
+    for current_root, dirs, files in os.walk(root):
+        current_depth = current_root.count(os.sep) - root_depth
+        if current_depth >= max_depth:
+            dirs[:] = []
+
+        for name in files:
+            path = os.path.join(current_root, name)
+            if predicate(path):
+                matches.append(path)
+                if len(matches) >= limit:
+                    return sorted(matches)
+
+    return sorted(matches)
+
+
+def _infer_target_arch(environment_setup: str, compiler_prefix: str) -> str:
+    hint = f"{environment_setup} {compiler_prefix}".lower()
+    if "armv7" in hint:
+        return "armv7-a"
+    if "aarch64" in hint or "arm64" in hint:
+        return "arm64"
+    if "arm" in hint:
+        return "arm"
+    if "x86_64" in hint:
+        return "x86_64"
+    return ""
+
+
+def _discover_sdk_profile(sdk_path: str) -> dict | None:
+    env_scripts = _walk_matching_files(
+        sdk_path,
+        lambda path: os.path.basename(path).startswith("environment-setup-"),
+        max_depth=4,
+        limit=10,
+    )
+    compiler_candidates = _walk_matching_files(
+        sdk_path,
+        lambda path: os.access(path, os.X_OK) and os.path.basename(path).endswith("gcc"),
+        max_depth=8,
+        limit=20,
+    )
+
+    if not env_scripts and not compiler_candidates:
+        return None
+
+    exports: dict[str, str] = {}
+    env_script = env_scripts[0] if env_scripts else ""
+    if env_script:
+        with open(env_script, encoding="utf-8", errors="ignore") as fh:
+            exports = _parse_export_lines(fh.read())
+
+    compiler_from_cc = ""
+    cc_value = exports.get("CC", "")
+    if cc_value:
+        compiler_from_cc = _tokenize_flags(cc_value)[0]
+
+    compiler_path = ""
+    if compiler_from_cc and os.path.isabs(compiler_from_cc):
+        compiler_path = compiler_from_cc
+    elif compiler_from_cc:
+        compiler_path = next(
+            (
+                candidate for candidate in compiler_candidates
+                if os.path.basename(candidate) == compiler_from_cc
+            ),
+            "",
+        )
+    elif compiler_candidates:
+        compiler_path = compiler_candidates[0]
+
+    compiler_prefix = ""
+    if compiler_path:
+        compiler_name = os.path.basename(compiler_path)
+        if compiler_name.endswith("-gcc"):
+            compiler_prefix = compiler_name[:-4]
+        else:
+            compiler_prefix = compiler_name
+
+    cflags = " ".join(filter(None, [exports.get("CFLAGS", ""), exports.get("CPPFLAGS", "")]))
+    tokens = _tokenize_flags(cflags)
+    include_paths = [token[2:] for token in tokens if token.startswith("-I") and len(token) > 2]
+    defines = {}
+    for token in tokens:
+        if token.startswith("-D") and len(token) > 2:
+            key_value = token[2:].split("=", 1)
+            key = key_value[0]
+            value = key_value[1] if len(key_value) == 2 else "1"
+            defines[key] = value
+
+    language_standard = ""
+    for token in tokens:
+        if token.startswith("-std="):
+            language_standard = token[5:]
+            break
+    if not language_standard:
+        language_standard = "c11"
+
+    sysroot = exports.get("SDKTARGETSYSROOT") or exports.get("OECORE_TARGET_SYSROOT", "")
+
+    return {
+        "compiler": compiler_path,
+        "compilerPrefix": compiler_prefix,
+        "gccVersion": "",
+        "targetArch": _infer_target_arch(os.path.basename(env_script), compiler_prefix),
+        "languageStandard": language_standard,
+        "sysroot": sysroot,
+        "environmentSetup": os.path.relpath(env_script, sdk_path) if env_script else "",
+        "includePaths": include_paths,
+        "defines": defines,
+    }
+
+
 def _build_sdk_analyze_prompt(sdk_path: str) -> str:
     """sdk-analyze 시스템 프롬프트."""
     return (
@@ -545,17 +807,22 @@ def _build_sdk_analyze_prompt(sdk_path: str) -> str:
         "## 분석 대상\n"
         f"SDK 경로: `{sdk_path}`\n\n"
         "## 분석 전략\n\n"
-        "### 1단계: SDK 구조 탐색 (read_file)\n"
-        "1. `environment-setup-*` 스크립트를 찾아 읽어라 → compilerPrefix, sysroot, CFLAGS, defines 추출\n"
-        "2. `*/bin/*-gcc` 경로를 확인 → compiler 경로\n"
-        "3. SDK 루트의 README, Makefile, setup.sh 등을 읽어 → 벤더/제품명 파악\n\n"
+        "### 1단계: SDK 구조 탐색 (list_files → read_file)\n"
+        "1. **반드시 첫 동작은 `list_files`** 로 SDK 루트 구조를 확인하라.\n"
+        "2. `environment-setup-*`, `README*`, `Makefile`, `setup.sh`, `bin/*gcc*` 후보를 찾은 뒤에만 `read_file`을 호출하라.\n"
+        "3. `read_file`에는 반드시 실제 파일 경로만 넣어라. 디렉토리를 읽으려고 하지 마라.\n"
+        "4. `environment-setup-*` 스크립트에서 compilerPrefix, sysroot, CFLAGS, defines를 추출하라.\n"
+        "5. `bin/*gcc*` 경로를 확인해 compiler 절대 경로를 식별하라.\n"
+        "6. SDK 루트의 README/Makefile/setup 스크립트에서 벤더/제품명을 보강하라.\n\n"
         "### 2단계: 컴파일러 확인 (try_build, 선택)\n"
-        "컴파일러 버전을 확인하려면 try_build로 `{compiler} --version` 실행 가능.\n\n"
+        "컴파일러 버전을 확인하려면 try_build로 `{compiler} --version` 실행 가능.\n"
+        "디렉토리 탐색을 위해 `try_build`로 `ls` 같은 셸 명령을 실행하지 마라.\n\n"
         "### 3단계: 보고서 작성\n"
         "탐색 결과를 아래 JSON 스키마로 출력하라.\n\n"
         "## 절대 규칙\n"
         "1. SDK 파일을 수정하지 마라. read_file로 읽기만.\n"
-        "2. write_file/edit_file/delete_file은 사용하지 마라 (SDK 분석에 파일 생성 불필요).\n\n"
+        "2. write_file/edit_file/delete_file은 사용하지 마라 (SDK 분석에 파일 생성 불필요).\n"
+        "3. `usedEvidenceRefs`와 `claims[].supportingEvidenceRefs`에는 **도구가 반환한 refId만** 넣어라. 명령어 문자열, 파일 경로, 자연어 설명을 ref처럼 쓰지 마라.\n\n"
         "## 출력 형식\n"
         "**순수 JSON만 출력. 코드 펜스, 인사말 금지. 첫 문자는 `{`.**\n"
         "```json\n"
@@ -600,6 +867,7 @@ async def _handle_sdk_analyze(request: TaskRequest) -> TaskSuccessResponse | Tas
     from agent_shared.tools.executor import ToolExecutor
     from agent_shared.tools.registry import ToolRegistry, ToolSchema, ToolSideEffect
     from app.tools.router import ToolRouter
+    from app.tools.implementations.list_files import ListFilesTool
     from app.tools.implementations.read_file import ReadFileTool
     from app.tools.implementations.try_build import TryBuildTool
 
@@ -607,7 +875,7 @@ async def _handle_sdk_analyze(request: TaskRequest) -> TaskSuccessResponse | Tas
     sdk_path = trusted.get("projectPath", "/tmp/unknown")
     request_id = get_request_id() or request.taskId
 
-    # sdk-analyze는 read_file + try_build(컴파일러 버전 확인용)만 사용
+    # sdk-analyze는 list_files + read_file + try_build(컴파일러 버전 확인용)만 사용
     budget = BudgetState(
         max_steps=settings.agent_max_steps,
         max_completion_tokens=settings.agent_max_completion_tokens,
@@ -618,8 +886,43 @@ async def _handle_sdk_analyze(request: TaskRequest) -> TaskSuccessResponse | Tas
     )
     bm = BudgetManager(budget)
     session = AgentSession(request, budget)
+    result_assembler = ResultAssembler(model_name=settings.llm_model, prompt_version="build-v3")
+
+    deterministic_profile = _discover_sdk_profile(sdk_path)
+    if deterministic_profile:
+        deterministic_payload = {
+            "summary": "SDK 디렉토리에서 environment-setup 및 compiler 경로를 결정론적으로 추출했습니다.",
+            "sdkProfile": deterministic_profile,
+            "claims": [
+                {
+                    "statement": "SDK 프로파일을 environment-setup 및 compiler 경로에서 추출했습니다.",
+                    "supportingEvidenceRefs": [],
+                }
+            ],
+            "caveats": [
+                "gccVersion은 별도 실행 확인 없이 비워 둘 수 있습니다.",
+            ],
+            "usedEvidenceRefs": [],
+            "needsHumanReview": False,
+            "recommendedNextSteps": [],
+            "policyFlags": ["deterministic_sdk_scan"],
+        }
+        return result_assembler.build(json.dumps(deterministic_payload, ensure_ascii=False), session)
 
     registry = ToolRegistry()
+    registry.register(ToolSchema(
+        name="list_files",
+        description="SDK 디렉토리 구조를 트리 형태로 반환한다. 분석 시작 시 가장 먼저 사용하라.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "(선택) SDK 루트 기준 하위 디렉토리"},
+                "max_depth": {"type": "integer", "description": "(선택) 탐색 깊이 제한. 기본 3"},
+            },
+        },
+        cost_tier=ToolCostTier.CHEAP,
+        side_effect=ToolSideEffect.PURE,
+    ))
     registry.register(ToolSchema(
         name="read_file",
         description="SDK 내 파일을 읽는다 (읽기 전용, 50KB 제한).",
@@ -649,8 +952,10 @@ async def _handle_sdk_analyze(request: TaskRequest) -> TaskSuccessResponse | Tas
     failure_policy = ToolFailurePolicy()
     tool_router = ToolRouter(registry, executor, bm, failure_policy)
 
+    list_tool = ListFilesTool(sdk_path)
     read_tool = ReadFileTool(sdk_path)
     build_tool = TryBuildTool(settings.sast_endpoint, sdk_path, request_id)
+    tool_router.register_implementation("list_files", list_tool)
     tool_router.register_implementation("read_file", read_tool)
     tool_router.register_implementation("try_build", build_tool)
 
@@ -705,7 +1010,7 @@ async def _handle_sdk_analyze(request: TaskRequest) -> TaskSuccessResponse | Tas
         termination_policy=TerminationPolicy(timeout_ms=request.constraints.timeoutMs),
         budget_manager=bm,
         token_counter=TokenCounter(),
-        result_assembler=ResultAssembler(model_name=settings.llm_model, prompt_version="build-v3"),
+        result_assembler=result_assembler,
         turn_summarizer=TurnSummarizer(),
         retry_policy=RetryPolicy(max_retries=settings.agent_llm_retry_max),
     )

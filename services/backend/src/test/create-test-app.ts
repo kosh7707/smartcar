@@ -1,5 +1,6 @@
 import express from "express";
 import type { Database as DatabaseType } from "better-sqlite3";
+import type { RegisteredSdk } from "@aegis/shared";
 import { createTestDb } from "./test-db";
 import { errorHandlerMiddleware } from "../middleware/error-handler.middleware";
 
@@ -44,11 +45,13 @@ import { createApprovalRouter, createApprovalDetailRouter } from "../controllers
 import { createReportRouter } from "../controllers/report.controller";
 import { createFileRouter } from "../controllers/file.controller";
 import { createBuildTargetRouter } from "../controllers/build-target.controller";
+import { createSdkRouter } from "../controllers/sdk.controller";
 import { createPipelineRouter } from "../controllers/pipeline.controller";
 import { createActivityRouter } from "../controllers/activity.controller";
 import { createNotificationRouter, createNotificationDetailRouter } from "../controllers/notification.controller";
 import { createAuthRouter } from "../controllers/auth.controller";
 import { createGateProfileRouter } from "../controllers/project-settings.controller";
+import { SDK_PROFILES } from "../services/sdk-profiles";
 
 export interface TestAppContext {
   app: express.Express;
@@ -64,6 +67,7 @@ export interface TestAppContext {
   analysisResultDAO: AnalysisResultDAO;
   fileStore: FileStore;
   buildTargetDAO: BuildTargetDAO;
+  sdkRegistryDAO: SdkRegistryDAO;
   notificationDAO: NotificationDAO;
   userDAO: UserDAO;
   sessionDAO: SessionDAO;
@@ -74,6 +78,7 @@ export interface TestAppContext {
   notificationService: NotificationService;
   userService: UserService;
   settingsService: ProjectSettingsService;
+  pipelineRunCalls: Array<{ projectId: string; targetIds?: string[]; requestId?: string }>;
 }
 
 export function createTestApp(): TestAppContext {
@@ -105,6 +110,70 @@ export function createTestApp(): TestAppContext {
   // ── Tier 1.5: 알림 + 사용자 서비스 ──
   const notificationService = new NotificationService(notificationDAO);
   const userService = new UserService(userDAO, sessionDAO);
+  const sdkStore = new Map<string, RegisteredSdk[]>();
+  const sdkService = {
+    listAll(projectId: string) {
+      return {
+        builtIn: SDK_PROFILES,
+        registered: sdkStore.get(projectId) ?? [],
+      };
+    },
+    findById(id: string) {
+      return [...sdkStore.values()].flat().find((sdk) => sdk.id === id);
+    },
+    async register(
+      projectId: string,
+      input: { name: string; description?: string; localPath?: string },
+    ) {
+      const now = new Date().toISOString();
+      const sdk: RegisteredSdk = {
+        id: `sdk-test-${sdkStore.size + 1}`,
+        projectId,
+        name: input.name,
+        description: input.description,
+        path: input.localPath ?? `/tmp/${projectId}/sdk-upload`,
+        status: "uploading",
+        verified: false,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const existing = sdkStore.get(projectId) ?? [];
+      sdkStore.set(projectId, [...existing, sdk]);
+      return sdk;
+    },
+    async remove(id: string) {
+      for (const [projectId, items] of sdkStore.entries()) {
+        const filtered = items.filter((sdk) => sdk.id !== id);
+        if (filtered.length !== items.length) {
+          sdkStore.set(projectId, filtered);
+        }
+      }
+    },
+  };
+  const testSourceService = {
+    getProjectPath(projectId: string) {
+      return `/tmp/${projectId}`;
+    },
+    copyToSubproject(projectId: string, targetId: string) {
+      return `/tmp/${projectId}/${targetId}`;
+    },
+  };
+  const testSastClient = {
+    async discoverTargets() {
+      return {
+        targets: [
+          { name: "auto-discovered", relativePath: "auto-discovered/", buildSystem: "cmake" },
+        ],
+        elapsedMs: 123,
+      };
+    },
+  };
+  const pipelineRunCalls: Array<{ projectId: string; targetIds?: string[]; requestId?: string }> = [];
+  const pipelineOrchestrator = {
+    async runPipeline(projectId: string, targetIds?: string[], requestId?: string) {
+      pipelineRunCalls.push({ projectId, targetIds, requestId });
+    },
+  };
 
   // ── Tier 2: 복합 서비스 ──
   const projectService = new ProjectService(projectDAO, analysisResultDAO, fileStore, adapterManager, settingsService, buildTargetService, findingDAO, runDAO, gateResultDAO);
@@ -126,8 +195,9 @@ export function createTestApp(): TestAppContext {
   app.use("/api/projects/:pid/gates", createQualityGateRouter(gateService));
   app.use("/api/projects/:pid/approvals", createApprovalRouter(approvalService));
   app.use("/api/projects/:pid/report", createReportRouter(reportService));
-  app.use("/api/projects/:pid/targets", createBuildTargetRouter(buildTargetService, projectDAO, null as any, null));
-  app.use("/api/projects/:pid/pipeline", createPipelineRouter(null as any, projectDAO, buildTargetDAO));
+  app.use("/api/projects/:pid/targets", createBuildTargetRouter(buildTargetService, projectDAO, testSourceService as any, testSastClient as any));
+  app.use("/api/projects/:pid/sdk", createSdkRouter(sdkService as any, projectDAO));
+  app.use("/api/projects/:pid/pipeline", createPipelineRouter(pipelineOrchestrator as any, projectDAO, buildTargetDAO));
   app.use("/api/projects/:pid/activity", createActivityRouter(activityService));
   app.use("/api/projects/:pid/notifications", createNotificationRouter(notificationService));
   app.use("/api/projects", createProjectRouter(projectService));
@@ -146,8 +216,8 @@ export function createTestApp(): TestAppContext {
     app, db,
     projectDAO, runDAO, findingDAO, evidenceRefDAO, gateResultDAO,
     approvalDAO, auditLogDAO, analysisResultDAO, fileStore,
-    buildTargetDAO, notificationDAO, userDAO, sessionDAO,
+    buildTargetDAO, sdkRegistryDAO, notificationDAO, userDAO, sessionDAO,
     gateService, normalizer, buildTargetService,
-    notificationService, userService, settingsService,
+    notificationService, userService, settingsService, pipelineRunCalls,
   };
 }

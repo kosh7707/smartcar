@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { Settings, Plus, Trash2, Upload, FolderOpen, CheckCircle, XCircle, Loader, ChevronDown, ChevronRight, ShieldCheck } from "lucide-react";
+import { Settings, Plus, Trash2, FolderOpen, CheckCircle, XCircle, Loader, ChevronDown, ChevronRight, ShieldCheck } from "lucide-react";
 import type { GateProfile } from "@aegis/shared";
 import { fetchGateProfiles } from "../api/gate";
 import { fetchProjectSettings, updateProjectSettings } from "../api/projects";
 import type { RegisteredSdk, SdkRegistryStatus, SdkAnalyzedProfile } from "../api/sdk";
-import { fetchProjectSdks, registerSdkByPath, registerSdkByUpload, deleteSdk, getSdkWsUrl } from "../api/sdk";
+import { fetchProjectSdks, registerSdkByPath, deleteSdk, getSdkWsUrl } from "../api/sdk";
 import { logError } from "../api/core";
 import { useToast } from "../contexts/ToastContext";
 import { createSeqTracker } from "../utils/wsEnvelope";
@@ -91,7 +91,7 @@ function ProfileDetail({ profile }: { profile: SdkAnalyzedProfile }) {
           {profile.targetArch && <div><strong>아키텍처:</strong> {profile.targetArch}</div>}
           {profile.languageStandard && <div><strong>언어 표준:</strong> {profile.languageStandard}</div>}
           {profile.sysroot && <div><strong>Sysroot:</strong> <code>{profile.sysroot}</code></div>}
-          {profile.envSetupScript && <div><strong>환경 스크립트:</strong> <code>{profile.envSetupScript}</code></div>}
+          {profile.environmentSetup && <div><strong>환경 스크립트:</strong> <code>{profile.environmentSetup}</code></div>}
           {profile.includePaths && profile.includePaths.length > 0 && (
             <div><strong>Include paths:</strong> {profile.includePaths.map((p) => <code key={p}>{p}</code>)}</div>
           )}
@@ -101,19 +101,15 @@ function ProfileDetail({ profile }: { profile: SdkAnalyzedProfile }) {
   );
 }
 
-type RegisterMode = "upload" | "path";
-
 export const ProjectSettingsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const toast = useToast();
   const [registered, setRegistered] = useState<RegisteredSdk[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [mode, setMode] = useState<RegisterMode>("path");
   const [formName, setFormName] = useState("");
   const [formDesc, setFormDesc] = useState("");
   const [formPath, setFormPath] = useState("");
-  const [formFile, setFormFile] = useState<File | null>(null);
   const [registering, setRegistering] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<RegisteredSdk | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -201,31 +197,24 @@ export const ProjectSettingsPage: React.FC = () => {
     if (!projectId || !formName.trim()) { toast.error("SDK 이름을 입력해주세요."); return; }
     setRegistering(true);
     try {
-      if (mode === "path") {
-        if (!formPath.trim()) { toast.error("경로를 입력해주세요."); setRegistering(false); return; }
-        const { sdkId } = await registerSdkByPath(projectId, formName.trim(), formPath.trim(), formDesc.trim() || undefined);
-        setRegistered((prev) => [...prev, {
-          id: sdkId, projectId, name: formName.trim(), description: formDesc.trim() || undefined,
-          path: formPath.trim(), status: "uploading", verified: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-        }]);
-      } else {
-        if (!formFile) { toast.error("파일을 선택해주세요."); setRegistering(false); return; }
-        const { sdkId } = await registerSdkByUpload(projectId, formName.trim(), formFile, formDesc.trim() || undefined);
-        setRegistered((prev) => [...prev, {
-          id: sdkId, projectId, name: formName.trim(), description: formDesc.trim() || undefined,
-          path: "", status: "uploading", verified: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-        }]);
-      }
+      if (!formPath.trim()) { toast.error("경로를 입력해주세요."); setRegistering(false); return; }
+      const sdk = await registerSdkByPath(
+        projectId,
+        formName.trim(),
+        formPath.trim(),
+        formDesc.trim() || undefined,
+      );
+      setRegistered((prev) => [...prev, sdk]);
       toast.success("SDK 등록 요청 완료 — 진행률을 확인하세요.");
       setShowForm(false);
-      setFormName(""); setFormDesc(""); setFormPath(""); setFormFile(null);
+      setFormName(""); setFormDesc(""); setFormPath("");
     } catch (e) {
       logError("Register SDK", e);
       toast.error("SDK 등록에 실패했습니다.");
     } finally {
       setRegistering(false);
     }
-  }, [projectId, formName, formDesc, formPath, formFile, mode, toast]);
+  }, [projectId, formName, formDesc, formPath, toast]);
 
   const handleDelete = useCallback(async (sdk: RegisteredSdk) => {
     if (!projectId) return;
@@ -333,13 +322,13 @@ export const ProjectSettingsPage: React.FC = () => {
         {showForm && (
           <div className="card sdk-register-form">
             <div className="sdk-register-form__modes">
-              <button className={`sdk-mode-btn${mode === "path" ? " active" : ""}`} onClick={() => setMode("path")}>
+              <button className="sdk-mode-btn active" type="button">
                 <FolderOpen size={14} /> 로컬 경로
               </button>
-              <button className={`sdk-mode-btn${mode === "upload" ? " active" : ""}`} onClick={() => setMode("upload")}>
-                <Upload size={14} /> 파일 업로드
-              </button>
             </div>
+            <p className="sdk-register-form__hint">
+              현재 백엔드 계약상 SDK 등록은 <code>localPath</code> 입력만 보장됩니다.
+            </p>
             <div className="sdk-register-form__fields">
               <label className="form-field">
                 <span className="form-label">SDK 이름</span>
@@ -349,17 +338,10 @@ export const ProjectSettingsPage: React.FC = () => {
                 <span className="form-label">설명 (선택)</span>
                 <input className="form-input" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} placeholder="SDK에 대한 간략한 설명" />
               </label>
-              {mode === "path" ? (
-                <label className="form-field">
-                  <span className="form-label">로컬 경로</span>
-                  <input className="form-input font-mono" value={formPath} onChange={(e) => setFormPath(e.target.value)} placeholder="/path/to/sdk" spellCheck={false} />
-                </label>
-              ) : (
-                <label className="form-field">
-                  <span className="form-label">SDK 파일 (.tar.gz / .zip)</span>
-                  <input type="file" accept=".tar.gz,.tgz,.zip" onChange={(e) => setFormFile(e.target.files?.[0] ?? null)} />
-                </label>
-              )}
+              <label className="form-field">
+                <span className="form-label">로컬 경로</span>
+                <input className="form-input font-mono" value={formPath} onChange={(e) => setFormPath(e.target.value)} placeholder="/path/to/sdk" spellCheck={false} />
+              </label>
             </div>
             <div className="sdk-register-form__actions">
               <button className="btn btn-secondary btn-sm" onClick={() => setShowForm(false)}>취소</button>
