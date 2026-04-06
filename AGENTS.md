@@ -9,20 +9,28 @@
 - Treat this repository’s local `docs/**` tree as a **migration/compatibility surface**, not the primary source of truth.
 
 ## Required behavior
-1. When you need project guidance, specs, API contracts, handoff notes, roadmaps, or work requests, **read the wiki first**.
-2. When you update documentation, **update the wiki canon page first**.
-3. Only update `docs/**` in this repo when doing one of the following:
+1. From `~/AEGIS`, begin local bootstrap with:
+   - `docs/AEGIS.md` for routing
+   - `docs/mcp.md` for MCP availability and usage
+2. When you need project guidance, specs, API contracts, handoff notes, roadmaps, or work requests, **read the wiki first** after that bootstrap step.
+3. Use the locally exposed MCPs according to the bootstrap docs:
+   - `aegis-static-wiki` for canonical docs / WRs / session evidence
+   - `log-analyzer` for runtime log diagnosis
+4. When you update documentation, **update the wiki canon page first**.
+5. Only update `docs/**` in this repo when doing one of the following:
    - maintaining compatibility redirects/notices
    - performing migration sync into the wiki
    - preserving a temporary local mirror during cutover
-4. Do not introduce new durable process guidance that exists only under `docs/**`.
+6. Do not introduce new durable process guidance that exists only under `docs/**`.
 
 ## Lane bootstrap router
 - Treat `docs/AEGIS.md` as the **local bootstrap source of truth** for lane routing from `~/AEGIS`.
+- Treat `docs/mcp.md` as the **local bootstrap source of truth** for MCP availability and first-use guidance.
 - When the user explicitly declares a lane in the prompt (`S1`, `S1-QA`, `S2`, `S3`, `S4`, `S5`, `S6`, `S7`), immediately:
   1. read `docs/AEGIS.md`,
-  2. resolve the lane's canonical wiki handoff entrypoint,
-  3. restrict initial repository exploration to that lane's owned code paths.
+  2. read `docs/mcp.md`,
+  3. resolve the lane's canonical wiki handoff entrypoint,
+  4. restrict initial repository exploration to that lane's owned code paths.
 - Trigger only on **explicit** lane declarations; do not infer a lane from vague intent.
 - If multiple lane tokens appear in the same prompt, **the last explicit lane token wins**.
 - If the same lane is declared again in the same session, treat the bootstrap as idempotent unless the lane changes.

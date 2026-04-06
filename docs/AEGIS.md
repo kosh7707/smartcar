@@ -2,13 +2,19 @@
 
 > Canonical agent-facing documentation now lives in **`/home/kosh/aegis-static-wiki`**.
 > This repository keeps only the minimum local bootstrap surface required to enter the wiki from `~/AEGIS`.
+>
+> **Local bootstrap set**
+> 1. `docs/AEGIS.md` — route from `~/AEGIS` into the right wiki surface
+> 2. `docs/mcp.md` — explain the local MCPs available at startup
 
 ## Start here
 
-1. `/home/kosh/aegis-static-wiki/wiki/system/index.md`
-2. `/home/kosh/aegis-static-wiki/wiki/canon/charter/aegis.md`
-3. `/home/kosh/aegis-static-wiki/wiki/canon/handoff/{lane}/readme.md`
-4. `/home/kosh/aegis-static-wiki/wiki/canon/work-requests/`
+1. Read **this file** for local bootstrap routing.
+2. Read `docs/mcp.md` for the locally available MCP surfaces.
+3. Enter the canonical wiki at `/home/kosh/aegis-static-wiki/wiki/system/index.md`.
+4. Continue to `/home/kosh/aegis-static-wiki/wiki/canon/charter/aegis.md`.
+5. If a lane is explicitly declared, continue to `/home/kosh/aegis-static-wiki/wiki/canon/handoff/{lane}/readme.md`.
+6. Use `/home/kosh/aegis-static-wiki/wiki/canon/work-requests/` for canonical WR handling.
 
 ## Lane bootstrap contract
 
@@ -121,6 +127,17 @@ The JSON map below is **authoritative**. The following human-readable table is a
 - Feedback archive: `/home/kosh/aegis-static-wiki/wiki/canon/feedback/**`
 - Work requests: `/home/kosh/aegis-static-wiki/wiki/canon/work-requests/*.md`
 
+## What this file is for
+
+Use `docs/AEGIS.md` when you need to answer:
+
+- what should I read first from `~/AEGIS`?
+- where is the canonical wiki?
+- how do I map a lane declaration to the right handoff page?
+- what code surface belongs to that lane?
+
+Do **not** use this file as a deep knowledge base for specs, APIs, handoff history, or policy detail. Those remain in the wiki.
+
 ## Local residual surface in `AEGIS/docs/**`
 
 Only these paths remain local after the cutover:
@@ -149,4 +166,5 @@ Work requests are now read and maintained through the canonical wiki surface:
 
 - Durable documentation maintenance now happens in the wiki first.
 - Sessions launched from `~/AEGIS` should use the local `aegis-static-wiki` MCP server defined in `.mcp.json`.
+- Tool availability and MCP usage guidance live in `docs/mcp.md`.
 - This file exists only to give a deterministic bootstrap path from `~/AEGIS` into the wiki-managed surface.
