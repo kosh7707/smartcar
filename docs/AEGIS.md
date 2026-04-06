@@ -10,6 +10,101 @@
 3. `/home/kosh/aegis-static-wiki/wiki/canon/handoff/{lane}/readme.md`
 4. `/home/kosh/aegis-static-wiki/wiki/canon/work-requests/`
 
+## Lane bootstrap contract
+
+Use this file as the deterministic router when the user explicitly declares a lane, for example:
+
+- `너는 S1이야`
+- `너는 S2야`
+- `이번엔 S4로 진행해`
+
+Routing rules:
+
+1. Read this file first.
+2. Match only explicit lane tokens: `S1`, `S1-QA`, `S2`, `S3`, `S4`, `S5`, `S6`, `S7`.
+3. If multiple lane tokens appear in one prompt, **the last explicit lane token wins**.
+4. If the same lane is declared repeatedly, suppress duplicate bootstrap work.
+5. If the lane changes, reroute cleanly to the new lane.
+6. If no lane is declared, do not force a lane bootstrap.
+
+### Machine-readable lane map
+
+<!-- LANE_BOOTSTRAP_MAP:START -->
+```json
+{
+  "precedence_rule": "last-token-wins",
+  "idempotent_on_same_lane": true,
+  "lanes": {
+    "S1": {
+      "wiki_handoff": "/home/kosh/aegis-static-wiki/wiki/canon/handoff/s1/readme.md",
+      "owned_code_paths": [
+        "/home/kosh/AEGIS/services/frontend"
+      ]
+    },
+    "S1-QA": {
+      "wiki_handoff": "/home/kosh/aegis-static-wiki/wiki/canon/handoff/s1/qa-guide.md",
+      "owned_code_paths": [],
+      "notes": "Do not read frontend source for QA bootstrap; use browser/Playwright verification only."
+    },
+    "S2": {
+      "wiki_handoff": "/home/kosh/aegis-static-wiki/wiki/canon/handoff/s2/readme.md",
+      "owned_code_paths": [
+        "/home/kosh/AEGIS/services/backend",
+        "/home/kosh/AEGIS/services/shared",
+        "/home/kosh/AEGIS/scripts"
+      ]
+    },
+    "S3": {
+      "wiki_handoff": "/home/kosh/aegis-static-wiki/wiki/canon/handoff/s3/readme.md",
+      "owned_code_paths": [
+        "/home/kosh/AEGIS/services/analysis-agent",
+        "/home/kosh/AEGIS/services/build-agent",
+        "/home/kosh/AEGIS/services/agent-shared"
+      ]
+    },
+    "S4": {
+      "wiki_handoff": "/home/kosh/aegis-static-wiki/wiki/canon/handoff/s4/readme.md",
+      "owned_code_paths": [
+        "/home/kosh/AEGIS/services/sast-runner"
+      ]
+    },
+    "S5": {
+      "wiki_handoff": "/home/kosh/aegis-static-wiki/wiki/canon/handoff/s5/readme.md",
+      "owned_code_paths": [
+        "/home/kosh/AEGIS/services/knowledge-base"
+      ]
+    },
+    "S6": {
+      "wiki_handoff": "/home/kosh/aegis-static-wiki/wiki/canon/handoff/s6/readme.md",
+      "owned_code_paths": [
+        "/home/kosh/AEGIS/services/adapter",
+        "/home/kosh/AEGIS/services/ecu-simulator"
+      ]
+    },
+    "S7": {
+      "wiki_handoff": "/home/kosh/aegis-static-wiki/wiki/canon/handoff/s7/readme.md",
+      "owned_code_paths": [
+        "/home/kosh/AEGIS/services/llm-gateway"
+      ]
+    }
+  }
+}
+```
+<!-- LANE_BOOTSTRAP_MAP:END -->
+
+### Human-readable lane map
+
+| Lane | Wiki handoff | Owned code paths |
+|---|---|---|
+| `S1` | `/home/kosh/aegis-static-wiki/wiki/canon/handoff/s1/readme.md` | `services/frontend` |
+| `S1-QA` | `/home/kosh/aegis-static-wiki/wiki/canon/handoff/s1/qa-guide.md` | none — browser/Playwright verification only |
+| `S2` | `/home/kosh/aegis-static-wiki/wiki/canon/handoff/s2/readme.md` | `services/backend`, `services/shared`, `scripts` |
+| `S3` | `/home/kosh/aegis-static-wiki/wiki/canon/handoff/s3/readme.md` | `services/analysis-agent`, `services/build-agent`, `services/agent-shared` |
+| `S4` | `/home/kosh/aegis-static-wiki/wiki/canon/handoff/s4/readme.md` | `services/sast-runner` |
+| `S5` | `/home/kosh/aegis-static-wiki/wiki/canon/handoff/s5/readme.md` | `services/knowledge-base` |
+| `S6` | `/home/kosh/aegis-static-wiki/wiki/canon/handoff/s6/readme.md` | `services/adapter`, `services/ecu-simulator` |
+| `S7` | `/home/kosh/aegis-static-wiki/wiki/canon/handoff/s7/readme.md` | `services/llm-gateway` |
+
 ## Canonical paths
 
 - Wiki index: `/home/kosh/aegis-static-wiki/wiki/system/index.md`
