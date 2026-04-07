@@ -193,13 +193,13 @@ class Phase1Executor:
                         component="phase_one", phase="ba_fallback",
                         level=logging.WARNING,
                     )
-                result = await self._run_individual_tools(
-                    result, files, project_id, analysis_path, build_profile, request_id,
-                    third_party_paths=third_party_paths,
-                    sast_tools=sast_tools,
-                    revision_hint=revision_hint,
-                    provenance=provenance,
-                )
+                    result = await self._run_individual_tools(
+                        result, files, project_id, analysis_path, build_profile, request_id,
+                        third_party_paths=third_party_paths,
+                        sast_tools=sast_tools,
+                        revision_hint=revision_hint,
+                        provenance=provenance,
+                    )
             else:
                 # files 기반 또는 projectPath만 (빌드 정보 없음) — 개별 도구 실행
                 result = await self._run_individual_tools(
@@ -288,8 +288,26 @@ class Phase1Executor:
 
         elapsed = int((time.monotonic() - start) * 1000)
 
+        if not data.get("success", True):
+            agent_log(
+                logger, "Phase 1: build-and-analyze 비성공 응답",
+                component="phase_one", phase="build_and_analyze_unsuccessful",
+                error=data.get("error"),
+                latencyMs=elapsed,
+                level=logging.WARNING,
+            )
+            return None
+
         # 응답에서 각 결과 추출
-        scan_data = data.get("scan", {})
+        scan_data = data.get("scan")
+        if not isinstance(scan_data, dict):
+            agent_log(
+                logger, "Phase 1: build-and-analyze scan 누락",
+                component="phase_one", phase="build_and_analyze_missing_scan",
+                latencyMs=elapsed,
+                level=logging.WARNING,
+            )
+            return None
         result.sast_findings = scan_data.get("findings", [])
         result.sast_stats = scan_data.get("stats", {})
         result.sast_duration_ms = scan_data.get("execution", {}).get("elapsedMs", 0)
@@ -302,13 +320,18 @@ class Phase1Executor:
                 result.sast_timed_out_files += tr.get("timedOutFiles", 0)
 
         code_graph = data.get("codeGraph", {})
+        if not isinstance(code_graph, dict):
+            code_graph = {}
         result.code_functions = code_graph.get("functions", [])
         result.code_graph_duration_ms = 0  # build-and-analyze에서 개별 시간 미제공
 
-        result.sca_libraries = data.get("libraries", [])
+        libraries = data.get("libraries", [])
+        result.sca_libraries = libraries if isinstance(libraries, list) else []
         result.sca_duration_ms = 0
 
         build_info = data.get("build", {})
+        if not isinstance(build_info, dict):
+            build_info = {}
 
         agent_log(
             logger, "Phase 1: build-and-analyze 완료",
@@ -940,6 +963,8 @@ def build_phase2_prompt(
         "### Phase A: 우선순위 수립 (첫 턴)\n"
         "SAST findings를 심각도 순으로 정렬하고, 각 finding에 대해 어떤 도구로 무엇을 확인할지 한 줄로 선언하라.\n"
         "도구 예산을 고위험 finding에 우선 배분하라.\n\n"
+        "**중요: Phase A 계획은 내부 분석 메모이며 최종 답변이 아니다. 계획만 쓰고 종료하지 마라.**\n"
+        "**도구 호출이 더 필요 없더라도 마지막 응답은 반드시 [보고서 스키마]의 순수 JSON이어야 한다.**\n\n"
         "### Phase B: 증거 수집 (도구 호출)\n"
         "계획에 따라 도구를 호출하라. 각 호출 전 의도를 한 문장으로 설명하라.\n"
         "도구 결과를 받으면 반드시 다음을 확인하라:\n"
@@ -957,8 +982,17 @@ def build_phase2_prompt(
         "- 정적 배열 선언 자체만으로 \"overflow\" finding이 나온 경우 (실제 경계 초과 접근이 없으면 FP)\n"
         "- severity가 style/info인 finding은 보안 취약점이 아니라 코드 품질 이슈이다. claim으로 보고하지 마라.\n"
         "FP로 판단한 finding은 caveats에 \"SAST FP로 판단: [이유]\" 형식으로 기록하라.\n\n"
+        "- exploitability가 완전히 닫히지 않았더라도 실제 위험 코드 경로와 sink가 확인되면 caveat-only로 내리지 마라.\n"
+        "- 이런 경우 **low-confidence claim**으로 유지하라. low-confidence claim은 다음 규칙을 모두 만족해야 한다:\n"
+        "  - `claims[]` 안의 일반 claim 형태를 유지한다.\n"
+        "  - `detail`에 `Exploitability is plausible but not fully confirmed from the available evidence.` 문장을 포함한다.\n"
+        "  - `caveats`에 같은 이슈가 low-confidence임을 설명하는 note를 남긴다.\n"
+        "  - `recommendedNextSteps`에 후속 분석/검증 action을 최소 1개 넣는다.\n"
+        "  - `policyFlags`에 `low_confidence_claim_present`를 포함한다.\n\n"
         "### Phase D: 보고서 작성\n"
         "모든 증거 수집 완료 후 JSON 보고서를 출력하라.\n\n"
+        "- 고위험 finding을 claim으로 올리지 않기로 결정했다면, caveats에 어떤 finding을 왜 dismiss했는지 구체적으로 기록하라.\n"
+        "- `claims`를 빈 배열로 둘 수는 있지만, 그 경우 주요 위험 신호의 dismiss 근거를 summary/caveats만으로 명확히 설명해야 한다.\n\n"
         "## 상세 분석 지침\n"
         "- 각 claim의 detail 필드에 **깊이 있는 분석**을 작성하라. 다음을 포함해야 한다:\n"
         "  - 공격자 관점의 악용 시나리오 (어떻게 악용하는가)\n"
@@ -985,6 +1019,8 @@ def build_phase2_prompt(
         "- 호출 체인이 끊기거나 함수 포인터/매크로 경유가 의심되면 `code.read_file`로 소스를 직접 확인하라.\n"
         "- 정수 오버플로우, 포인터 연산, 엔디안 관련 취약점은 `build.metadata`로 타겟 아키텍처를 확인하라.\n"
         "- 위협 지식이 부족하면 `knowledge.search`로 CWE/CVE/ATT&CK 정보를 보강하라.\n\n"
+        "- CWE/CVE 또는 exploitability grounding이 약한데도 보안상 plausibly risky하면, 최종 JSON 전에 `knowledge.search`, `code_graph.callers`, `code_graph.callees`, `code_graph.search`, `code.read_file` 중 하나로 한 번 더 근거를 보강하라.\n"
+        "- 이 약한 grounding 보강 경로에서는 `build.metadata`를 사용하지 마라. `build.metadata`는 아키텍처 의존 취약점 판단에만 사용하라.\n\n"
         # ── 신규: 도구 실패 대응 ──
         "## 도구 실패 대응\n"
         "1. 동일 도구를 같은 인자로 재시도하지 마라 (중복 호출은 시스템이 차단한다).\n"

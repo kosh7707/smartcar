@@ -79,6 +79,18 @@ describe("API Contract Tests", () => {
     });
   });
 
+  describe("GET /api/projects/:id/overview", () => {
+    it("returns raw ProjectOverviewResponse without the success envelope", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-overview", name: "Overview" }));
+
+      const res = await request(app).get("/api/projects/p-overview/overview");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBeUndefined();
+      expect(res.body).toHaveProperty("project");
+      expect(res.body.project.id).toBe("p-overview");
+    });
+  });
+
   // ── Files ──
 
   describe("GET /api/projects/:pid/files", () => {
@@ -733,11 +745,68 @@ describe("API Contract Tests", () => {
     });
   });
 
+  describe("Source API", () => {
+    it("GET /api/projects/:pid/source/files returns data plus composition metadata and targetMapping", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-src" }));
+      ctx.buildTargetDAO.save(makeBuildTarget({ id: "t-src", projectId: "p-src", relativePath: "src/" }));
+
+      const res = await request(app).get("/api/projects/p-src/source/files?filter=source");
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body).toMatchObject({
+        composition: { source: 1, doc: 1 },
+        totalFiles: 2,
+        totalSize: 192,
+      });
+      expect(res.body.targetMapping).toMatchObject({
+        "src/main.c": { targetId: "t-src", targetName: expect.any(String) },
+      });
+    });
+
+    it("GET /api/projects/:pid/source/file returns content with file metadata", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-src-file" }));
+
+      const res = await request(app).get("/api/projects/p-src-file/source/file?path=src/main.c");
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
+        path: "src/main.c",
+        content: "contents:src/main.c",
+        size: 128,
+        language: "c",
+        fileType: "source",
+        previewable: true,
+        lineCount: 3,
+      });
+    });
+  });
+
   // ================================================================
   // Pipeline API
   // ================================================================
 
   describe("Pipeline API", () => {
+    it("POST /pipeline/run returns accepted pipeline payload", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-pipe-run" }));
+
+      const res = await request(app)
+        .post("/api/projects/p-pipe-run/pipeline/run")
+        .send({ targetIds: ["t-a", "t-b"] });
+
+      expect(res.status).toBe(202);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.pipelineId).toMatch(/^pipe-/);
+      expect(res.body.data.status).toBe("running");
+      expect(ctx.pipelineRunCalls[ctx.pipelineRunCalls.length - 1]).toMatchObject({
+        projectId: "p-pipe-run",
+        targetIds: ["t-a", "t-b"],
+      });
+    });
+
     it("GET /pipeline/status returns targets with phase mapping", async () => {
       ctx.projectDAO.save(makeProject({ id: "p-pipe" }));
       ctx.buildTargetDAO.save(makeBuildTarget({ id: "tp1", projectId: "p-pipe", status: "discovered" }));
@@ -815,6 +884,43 @@ describe("API Contract Tests", () => {
         codeGraphNodeCount: 42,
         lastBuiltAt: "2026-04-04T05:00:00.000Z",
       });
+    });
+  });
+
+  describe("Analysis API", () => {
+    it("POST /api/analysis/run returns 202 accepted payload and dispatches async run", async () => {
+      const res = await request(app)
+        .post("/api/analysis/run")
+        .send({ projectId: "p-analysis", mode: "subproject", targetIds: ["t-1"] });
+
+      expect(res.status).toBe(202);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.analysisId).toMatch(/^analysis-/);
+      expect(res.body.data.status).toBe("running");
+      expect(ctx.analysisRunCalls[ctx.analysisRunCalls.length - 1]).toMatchObject({
+        projectId: "p-analysis",
+        targetIds: ["t-1"],
+      });
+    });
+
+    it("POST /api/analysis/run enforces mode validation rules", async () => {
+      const invalidMode = await request(app)
+        .post("/api/analysis/run")
+        .send({ projectId: "p-analysis", mode: "weird" });
+      expect(invalidMode.status).toBe(400);
+      expect(invalidMode.body.error).toContain('mode must be "full" or "subproject"');
+
+      const missingTargets = await request(app)
+        .post("/api/analysis/run")
+        .send({ projectId: "p-analysis", mode: "subproject" });
+      expect(missingTargets.status).toBe(400);
+      expect(missingTargets.body.error).toContain("targetIds is required");
+
+      const fullWithTargets = await request(app)
+        .post("/api/analysis/run")
+        .send({ projectId: "p-analysis", mode: "full", targetIds: ["t-1"] });
+      expect(fullWithTargets.status).toBe(400);
+      expect(fullWithTargets.body.error).toContain("targetIds must be empty");
     });
   });
 

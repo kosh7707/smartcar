@@ -4,6 +4,8 @@ import { ApprovalsPage } from "./ApprovalsPage";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import React from "react";
 
+const futureDate = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
+
 const mockApprovals = [
   {
     id: "a-1",
@@ -13,7 +15,7 @@ const mockApprovals = [
     projectId: "p-1",
     reason: "긴급 릴리즈 필요",
     status: "pending",
-    expiresAt: "2099-12-31T23:59:59Z",
+    expiresAt: futureDate(365),
     createdAt: "2026-03-25T10:00:00Z",
   },
   {

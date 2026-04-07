@@ -9,6 +9,7 @@ from app.budget.manager import BudgetManager
 from app.budget.token_counter import TokenCounter
 from app.core.agent_session import AgentSession
 from app.core.result_assembler import ResultAssembler
+from app.pipeline.response_parser import V1ResponseParser
 from agent_shared.errors import S3Error
 from agent_shared.llm.caller import LlmCaller
 from agent_shared.llm.message_manager import MessageManager
@@ -26,6 +27,26 @@ logger = logging.getLogger(__name__)
 # 메시지 토큰 추정치가 이 값을 초과하면 컨텍스트 압축 실행
 _COMPACT_TOKEN_THRESHOLD = 16_000
 _COMPACT_KEEP_LAST_N = 4
+_RETRIEVAL_REF_PREFIXES = (
+    "eref-knowledge-",
+    "eref-caller-",
+    "eref-callee-",
+    "eref-file-",
+    "eref-codesearch-",
+    "eref-metadata-",
+    "eref-mock-",
+)
+_GROUNDING_UNCERTAINTY_MARKERS = (
+    "exploitability is plausible but not fully confirmed",
+    "low-confidence",
+    "low_confidence_claim_present",
+    "추가 확인",
+    "추가 검증",
+    "불확실",
+    "가능성",
+    "plausible",
+    "not fully confirmed",
+)
 
 
 def _budget_snapshot(session: AgentSession) -> dict:
@@ -37,6 +58,62 @@ def _budget_snapshot(session: AgentSession) -> dict:
         "medium": b.medium_calls,
         "expensive": b.expensive_calls,
     }
+
+
+def _collect_response_refs(parsed: dict) -> set[str]:
+    refs = set(parsed.get("usedEvidenceRefs", []) or [])
+    for claim in parsed.get("claims", []) or []:
+        if isinstance(claim, dict):
+            refs.update(claim.get("supportingEvidenceRefs", []) or [])
+    return {ref for ref in refs if isinstance(ref, str)}
+
+
+def _collect_trace_retrieval_refs(session: AgentSession) -> set[str]:
+    refs: set[str] = set()
+    for step in session.trace:
+        for ref in step.new_evidence_refs:
+            if isinstance(ref, str) and ref.startswith(_RETRIEVAL_REF_PREFIXES):
+                refs.add(ref)
+    return refs
+
+
+def _content_has_uncertainty_markers(final_content: str, parsed: dict) -> bool:
+    haystack = " ".join([
+        final_content,
+        parsed.get("summary", ""),
+        " ".join(parsed.get("caveats", []) or []),
+        " ".join(parsed.get("policyFlags", []) or []),
+        " ".join(
+            str(claim.get("detail", ""))
+            for claim in parsed.get("claims", []) or []
+            if isinstance(claim, dict)
+        ),
+    ]).lower()
+    return any(marker in haystack for marker in _GROUNDING_UNCERTAINTY_MARKERS)
+
+
+def _should_request_extra_grounding_lookup(
+    *,
+    final_content: str,
+    parsed: dict | None,
+    session: AgentSession,
+    current_tools_available: bool,
+    force_report: bool,
+    grounding_nudge_used: bool,
+) -> bool:
+    if grounding_nudge_used or force_report or not current_tools_available:
+        return False
+    if session.total_tool_calls() == 0 or parsed is None:
+        return False
+
+    response_refs = _collect_response_refs(parsed)
+    if not response_refs:
+        return False
+
+    trace_retrieval_refs = _collect_trace_retrieval_refs(session)
+    no_new_retrieval_refs = not bool(response_refs & trace_retrieval_refs)
+    has_uncertainty_markers = _content_has_uncertainty_markers(final_content, parsed)
+    return has_uncertainty_markers or no_new_retrieval_refs
 
 
 class AgentLoop:
@@ -83,6 +160,9 @@ class AgentLoop:
         _WARN_BEFORE_FORCE = 4        # 도구 4회 도달 시 사전 경고
         force_report = False
         warned_approaching_limit = False
+        structured_retry_used = False
+        grounding_nudge_used = False
+        response_parser = V1ResponseParser()
 
         while not self._termination_policy.should_stop(session):
             turn = session.turn_count + 1
@@ -219,6 +299,49 @@ class AgentLoop:
                         "LLM이 유효한 tool_calls도 content도 반환하지 않음",
                         retryable=True,
                     )
+
+                parsed_content = response_parser.parse(final_content)
+
+                if parsed_content is None and not structured_retry_used:
+                    structured_retry_used = True
+                    self._message_manager.add_assistant_content(final_content)
+                    self._message_manager.add_user_message(
+                        "[시스템] 방금 응답은 최종 Assessment JSON이 아니었습니다. "
+                        "이전 분석 내용을 유지하되, 이제 반드시 최종 보고서 JSON만 출력하십시오. "
+                        "계획/메모/설명문 없이 첫 문자가 `{`인 순수 JSON 객체로만 응답하십시오. "
+                        "만약 claims를 빈 배열로 둘 경우, 주요 고위험 finding을 왜 dismiss했는지 caveats에 구체적으로 설명하십시오."
+                    )
+                    agent_log(
+                        logger, "구조화 출력 재시도 요청",
+                        component="agent_loop", phase="structured_retry",
+                        turn=turn, level=logging.WARNING,
+                    )
+                    continue
+
+                if _should_request_extra_grounding_lookup(
+                    final_content=final_content,
+                    parsed=parsed_content,
+                    session=session,
+                    current_tools_available=current_tools is not None,
+                    force_report=force_report,
+                    grounding_nudge_used=grounding_nudge_used,
+                ):
+                    grounding_nudge_used = True
+                    self._message_manager.add_assistant_content(final_content)
+                    self._message_manager.add_user_message(
+                        "[시스템] 방금 최종 보고서는 CWE/CVE 또는 exploitability grounding이 아직 약해 보입니다. "
+                        "도구가 아직 사용 가능하므로 최종 JSON을 확정하기 전에 "
+                        "`knowledge.search`, `code_graph.callers`, `code_graph.callees`, `code_graph.search`, `code.read_file` 중 하나로 "
+                        "한 번 더 근거를 보강하십시오. "
+                        "`build.metadata`는 이 grounding 보강 경로에 사용하지 마십시오. "
+                        "추가 조회 후 최종 보고서 JSON만 다시 출력하십시오."
+                    )
+                    agent_log(
+                        logger, "grounding 보강용 one-shot nudge 주입",
+                        component="agent_loop", phase="grounding_nudge",
+                        turn=turn, level=logging.WARNING,
+                    )
+                    continue
 
                 result = self._result_assembler.build(final_content, session)
 

@@ -145,6 +145,11 @@ export const GATES = [
   },
 ];
 
+// ── Helpers ──
+
+/** Generate an ISO date string `days` into the future. Avoids hardcoded date time-bombs in mock data. */
+export const futureDate = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
+
 // ── Approvals ──
 
 export const APPROVALS = [
@@ -152,7 +157,7 @@ export const APPROVALS = [
     id: "appr-1", actionType: "gate.override", requestedBy: "analyst",
     targetId: "gate-1", projectId: "p-1",
     reason: "긴급 릴리스 대응 — Critical 취약점은 핫픽스 예정",
-    status: "pending", expiresAt: "2026-04-01T00:00:00Z",
+    status: "pending", expiresAt: futureDate(365),
     createdAt: "2026-03-25T11:00:00Z",
   },
   {
@@ -161,7 +166,7 @@ export const APPROVALS = [
     reason: "테스트 환경 전용 키 — 프로덕션에서는 별도 키 관리 시스템 사용",
     status: "approved",
     decision: { decidedBy: "lead", decidedAt: "2026-03-26T09:00:00Z", comment: "확인 완료" },
-    expiresAt: "2026-04-01T00:00:00Z",
+    expiresAt: futureDate(365),
     createdAt: "2026-03-25T12:00:00Z",
   },
 ];
@@ -483,5 +488,7 @@ void can_process_message(const can_frame_t *frame) {
 }`,
     language: "c",
     path: "src/can_handler.c",
+    size: 4200,
+    lineCount: 16,
   },
 };

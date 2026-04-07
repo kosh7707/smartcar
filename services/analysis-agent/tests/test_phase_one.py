@@ -250,6 +250,14 @@ class TestBuildPhase2Prompt:
         mission_pos = system.index("당신의 임무")
         schema_pos = system.index("보고서 스키마")
         assert mission_pos < schema_pos
+        assert "계획만 쓰고 종료하지 마라" in system
+        assert "caveats에 어떤 finding을 왜 dismiss했는지" in system
+        assert "빈 배열로 둘 수는 있지만" in system
+        assert "low-confidence claim" in system
+        assert "Exploitability is plausible but not fully confirmed from the available evidence." in system
+        assert "low_confidence_claim_present" in system
+        assert "CWE/CVE 또는 exploitability grounding이 약한데도" in system
+        assert "이 약한 grounding 보강 경로에서는 `build.metadata`를 사용하지 마라" in system
 
     def test_includes_threat_context(self):
         """위협 지식이 프롬프트에 포함된다."""
@@ -309,6 +317,15 @@ class TestBuildPhase2Prompt:
         assert "위험 함수 호출자" in user
         assert "postJson" in user
         assert "popen" in user
+
+    def test_phase_a_is_not_accepted_as_final_output(self):
+        """Phase A 계획만 출력하고 종료하면 안 된다는 규칙이 포함된다."""
+        result = Phase1Result()
+        system, _ = build_phase2_prompt(result, {"objective": "test"})
+
+        assert "계획만 쓰고 종료하지 마라" in system
+        assert "최종 JSON" in system
+        assert "caveats에 어떤 finding을 왜 dismiss했는지" in system
 
 
 # ───────────────────────────────────────────────

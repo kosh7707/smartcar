@@ -537,7 +537,7 @@ async def _handle_generate_poc(request: TaskRequest) -> TaskSuccessResponse | Ta
         from agent_shared.schemas.agent import LlmResponse as _LlmResp
         llm = MagicMock()
         llm.call = AsyncMock(return_value=_LlmResp(
-            content='{"summary":"Mock PoC","claims":[{"statement":"mock","detail":"mock poc code"}],"caveats":[],"usedEvidenceRefs":[],"needsHumanReview":true,"recommendedNextSteps":[],"policyFlags":[]}',
+            content='{"summary":"Mock PoC","claims":[{"statement":"mock","detail":"mock poc code","supportingEvidenceRefs":["eref-file-00"],"location":"clients/http_client.cpp:62"}],"caveats":[],"usedEvidenceRefs":["eref-file-00"],"needsHumanReview":true,"recommendedNextSteps":[],"policyFlags":[]}',
             prompt_tokens=100, completion_tokens=50,
         ))
         llm.aclose = AsyncMock()
@@ -579,15 +579,23 @@ async def _handle_generate_poc(request: TaskRequest) -> TaskSuccessResponse | Ta
     parser = V1ResponseParser()
     parsed = parser.parse(raw)
     if parsed is None:
-        parsed = {
-            "summary": raw[:2000],
-            "claims": [],
-            "caveats": ["LLM이 구조화된 JSON 대신 자연어로 응답함"],
-            "usedEvidenceRefs": [],
-            "needsHumanReview": True,
-            "recommendedNextSteps": [],
-            "policyFlags": [],
-        }
+        elapsed = int((time.monotonic() - start) * 1000)
+        return TaskFailureResponse(
+            taskId=request.taskId,
+            taskType=request.taskType,
+            status=TaskStatus.VALIDATION_FAILED,
+            failureCode=FailureCode.INVALID_SCHEMA,
+            failureDetail="generate-poc가 구조화된 JSON 대신 자연어/비JSON 응답을 반환함",
+            retryable=False,
+            audit=AuditInfo(
+                inputHash="",
+                latencyMs=elapsed,
+                tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
+                retryCount=0,
+                ragHits=len(kb_context_lines),
+                createdAt=datetime.now(timezone.utc).isoformat(),
+            ),
+        )
 
     allowed_refs = {ref.refId for ref in request.evidenceRefs}
 
@@ -627,6 +635,27 @@ async def _handle_generate_poc(request: TaskRequest) -> TaskSuccessResponse | Ta
     elapsed = int((time.monotonic() - start) * 1000)
     input_str = json.dumps(request.model_dump(mode="json"), sort_keys=True)
     input_hash = f"sha256:{hashlib.sha256(input_str.encode()).hexdigest()[:16]}"
+
+    if not schema_result.valid or not evidence_valid or not claims:
+        errors = schema_result.errors + evidence_errors
+        if not claims:
+            errors.append("generate-poc는 최소 1개 이상의 구조화된 claim을 반환해야 함")
+        return TaskFailureResponse(
+            taskId=request.taskId,
+            taskType=request.taskType,
+            status=TaskStatus.VALIDATION_FAILED,
+            failureCode=FailureCode.INVALID_SCHEMA,
+            failureDetail="; ".join(errors),
+            retryable=False,
+            audit=AuditInfo(
+                inputHash=input_hash,
+                latencyMs=elapsed,
+                tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
+                retryCount=0,
+                ragHits=len(kb_context_lines),
+                createdAt=datetime.now(timezone.utc).isoformat(),
+            ),
+        )
 
     agent_log(
         logger, "generate-poc 완료",

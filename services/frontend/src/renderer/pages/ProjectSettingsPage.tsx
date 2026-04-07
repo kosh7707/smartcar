@@ -8,7 +8,7 @@ import type { RegisteredSdk, SdkRegistryStatus, SdkAnalyzedProfile } from "../ap
 import { fetchProjectSdks, registerSdkByPath, deleteSdk, getSdkWsUrl } from "../api/sdk";
 import { logError } from "../api/core";
 import { useToast } from "../contexts/ToastContext";
-import { createSeqTracker } from "../utils/wsEnvelope";
+import { createSeqTracker, parseWsMessage } from "../utils/wsEnvelope";
 import { PageHeader, Spinner, EmptyState, ConfirmDialog } from "../components/ui";
 import "./SdkManagementPage.css";
 import "./SettingsPage.css";
@@ -154,7 +154,7 @@ export const ProjectSettingsPage: React.FC = () => {
     ws.onmessage = (evt) => {
       if (cancelled) return;
       try {
-        const parsed = JSON.parse(evt.data);
+        const parsed = parseWsMessage(evt.data);
         seqTracker.check(parsed.meta);
         const { type, payload } = parsed;
         if (type === "sdk-progress") {

@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { getWsBaseUrl, logError } from "../api/client";
-import { createSeqTracker } from "../utils/wsEnvelope";
+import { createSeqTracker, parseWsMessage } from "../utils/wsEnvelope";
 
 export type UploadPhase = "idle" | "uploading" | "received" | "extracting" | "indexing" | "complete" | "failed";
 
@@ -50,9 +50,8 @@ export function useUploadProgress() {
 
     ws.onmessage = (evt) => {
       try {
-        const parsed = JSON.parse(evt.data);
-        seqTracker.check(parsed.meta);
-        const msg = parsed;
+        const msg = parseWsMessage(evt.data);
+        seqTracker.check(msg.meta);
         switch (msg.type) {
           case "upload-progress":
             setState((prev) => ({

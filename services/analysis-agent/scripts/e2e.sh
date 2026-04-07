@@ -50,15 +50,22 @@ G='\033[32m' R='\033[31m' Y='\033[33m' C='\033[36m' B='\033[1m' N='\033[0m'
 # ─── Defaults ───
 PROJECT="$HOME/projects/re100-gateway"
 TARGET=""
+ANALYZE_TARGET="${ANALYZE_TARGET:-}"
 PROJECT_ID=""
 REQUEST_ID="e2e-$(date +%s)"
-TMP="/tmp/aegis-e2e"
+TMP="${TMP:-/tmp/aegis-e2e}"
 BUILD_CONTRACT_VERSION="${BUILD_CONTRACT_VERSION:-}"
 STRICT_MODE="${STRICT_MODE:-}"
 BUILD_MODE="${BUILD_MODE:-}"
 SDK_ID="${SDK_ID:-}"
+BUILD_SETUP_SCRIPT="${BUILD_SETUP_SCRIPT:-}"
+BUILD_ENV_JSON="${BUILD_ENV_JSON:-}"
+BUILD_SCRIPT_HINT_TEXT="${BUILD_SCRIPT_HINT_TEXT:-}"
+BUILD_SCRIPT_HINT_FILE="${BUILD_SCRIPT_HINT_FILE:-}"
+BUILD_PROFILE_SDK_ID="${BUILD_PROFILE_SDK_ID:-}"
 EXPECTED_ARTIFACT_KIND="${EXPECTED_ARTIFACT_KIND:-}"
 EXPECTED_ARTIFACT_PATH="${EXPECTED_ARTIFACT_PATH:-}"
+E2E_SUMMARY_PATH="${E2E_SUMMARY_PATH:-}"
 
 # ─── State ───
 BUILD_STATUS="skip"
@@ -106,6 +113,10 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+if [[ -z "$BUILD_SCRIPT_HINT_TEXT" && -n "$BUILD_SCRIPT_HINT_FILE" && -f "$BUILD_SCRIPT_HINT_FILE" ]]; then
+    BUILD_SCRIPT_HINT_TEXT="$(cat "$BUILD_SCRIPT_HINT_FILE")"
+fi
+
 [[ -z "$PROJECT_ID" ]] && PROJECT_ID=$(basename "${TARGET:-$PROJECT}" | tr -d '/')
 mkdir -p "$TMP"
 
@@ -150,11 +161,15 @@ step_build() {
     [[ -n "$BUILD_CONTRACT_VERSION" ]] && printf "  contract:%s%s\n" " " "$BUILD_CONTRACT_VERSION"
     [[ -n "$STRICT_MODE" ]] && printf "  strict:  %s\n" "$STRICT_MODE"
     [[ -n "$BUILD_MODE" ]] && printf "  mode:    %s%s\n" "$BUILD_MODE" "${SDK_ID:+ (sdkId=$SDK_ID)}"
+    [[ -n "$BUILD_SETUP_SCRIPT" ]] && printf "  setup:   %s\n" "$BUILD_SETUP_SCRIPT"
+    [[ -n "$BUILD_ENV_JSON" ]] && printf "  env:     provided via BUILD_ENV_JSON\n"
+    [[ -n "$BUILD_SCRIPT_HINT_TEXT" ]] && printf "  hint:    build script text provided\n"
     [[ -n "$EXPECTED_ARTIFACT_KIND" || -n "$EXPECTED_ARTIFACT_PATH" ]] && \
         printf "  expect:  %s%s\n" "${EXPECTED_ARTIFACT_KIND:-artifact}" "${EXPECTED_ARTIFACT_PATH:+ @ $EXPECTED_ARTIFACT_PATH}"
 
     python3 << PYEOF > "$TMP/build-req.json"
 import json
+import os
 trusted = {"projectPath":"${PROJECT}"}
 t = "${TARGET}"
 if t:
@@ -176,6 +191,16 @@ if "${EXPECTED_ARTIFACT_KIND}" or "${EXPECTED_ARTIFACT_PATH}":
 req = {"taskType":"build-resolve","taskId":"${REQUEST_ID}-build",
        "context":{"trusted":trusted},
        "constraints":{"maxTokens":8192,"timeoutMs":600000}}
+if os.environ.get("BUILD_SETUP_SCRIPT"):
+    trusted.setdefault("build", {})["setupScript"] = os.environ["BUILD_SETUP_SCRIPT"]
+if os.environ.get("BUILD_ENV_JSON"):
+    trusted.setdefault("build", {})["environment"] = json.loads(os.environ["BUILD_ENV_JSON"])
+if os.environ.get("BUILD_SCRIPT_HINT_TEXT"):
+    trusted.setdefault("build", {})["scriptHintText"] = os.environ["BUILD_SCRIPT_HINT_TEXT"]
+if os.environ.get("BUILD_CONTRACT_VERSION"):
+    req["contractVersion"] = os.environ["BUILD_CONTRACT_VERSION"]
+if os.environ.get("STRICT_MODE"):
+    req["strictMode"] = os.environ["STRICT_MODE"].lower() in ("1", "true", "yes", "on")
 print(json.dumps(req))
 PYEOF
 
@@ -224,15 +249,31 @@ print('ok' if d.get('status')=='completed' and br.get('success') else 'fail')
 step_analyze() {
     hdr "ANALYZE (deep-analyze)"
 
+    local selected_target="${ANALYZE_TARGET:-$TARGET}"
     local analysis_path="$PROJECT"
-    [[ -n "$TARGET" ]] && analysis_path="${PROJECT}/${TARGET}"
+    [[ -n "$selected_target" ]] && analysis_path="${PROJECT}/${selected_target}"
     analysis_path="${analysis_path%/}"
     printf "  path: %s\n" "$analysis_path"
 
     python3 << PYEOF > "$TMP/analyze-req.json"
 import json
+import os
+trusted = {"projectPath":"${analysis_path}","projectId":"${PROJECT_ID}"}
+try:
+    build = json.load(open("$TMP/build.json"))
+    build_result = build.get("result", {}).get("buildResult", {})
+    build_command = build_result.get("buildCommand", "").strip()
+    if build_command:
+        trusted["buildCommand"] = build_command
+except Exception:
+    pass
+if os.environ.get("BUILD_ENV_JSON"):
+    trusted["buildEnvironment"] = json.loads(os.environ["BUILD_ENV_JSON"])
+profile_sdk = os.environ.get("BUILD_PROFILE_SDK_ID") or os.environ.get("SDK_ID") or ""
+if profile_sdk:
+    trusted["buildProfile"] = {"sdkId": profile_sdk}
 req = {"taskType":"deep-analyze","taskId":"${REQUEST_ID}-analyze",
-       "context":{"trusted":{"projectPath":"${analysis_path}","projectId":"${PROJECT_ID}"}},
+       "context":{"trusted":trusted},
        "constraints":{"maxTokens":16384,"timeoutMs":900000}}
 print(json.dumps(req))
 PYEOF
@@ -304,8 +345,9 @@ import json; print(len(json.load(open('$TMP/analyze.json')).get('result',{}).get
 
     printf "  %d claims to process\n\n" "$POC_TOTAL"
 
+    local selected_target="${ANALYZE_TARGET:-$TARGET}"
     local analysis_path="$PROJECT"
-    [[ -n "$TARGET" ]] && analysis_path="${PROJECT}/${TARGET}"
+    [[ -n "$selected_target" ]] && analysis_path="${PROJECT}/${selected_target}"
     analysis_path="${analysis_path%/}"
 
     # Generate per-claim request files
@@ -393,6 +435,73 @@ print_summary() {
     echo ""
     printf "  results: %s/\n" "$TMP"
     printf "  trace:   mcp__log-analyzer__trace_request %s\n" "$REQUEST_ID"
+
+    if [[ -n "$E2E_SUMMARY_PATH" ]]; then
+        python3 << PYEOF > "$E2E_SUMMARY_PATH"
+import glob, json, os
+project = os.path.abspath("${PROJECT}")
+target = "${TARGET}"
+analyze_target = "${ANALYZE_TARGET}"
+build_root = os.path.abspath(os.path.join(project, target)).rstrip("/") if target else project.rstrip("/")
+analysis_target = analyze_target or target
+analysis_path = os.path.abspath(os.path.join(project, analysis_target)).rstrip("/") if analysis_target else project.rstrip("/")
+build = {}
+analyze = {}
+try:
+    build = json.load(open("$TMP/build.json"))
+except Exception:
+    pass
+try:
+    analyze = json.load(open("$TMP/analyze.json"))
+except Exception:
+    pass
+br = build.get("result", {}).get("buildResult", {}) if isinstance(build, dict) else {}
+claims = analyze.get("result", {}).get("claims", []) if isinstance(analyze, dict) else []
+build_script = br.get("buildScript", "")
+search_roots = []
+if build_root:
+    search_roots.append(build_root)
+if build_script:
+    script_abs = os.path.abspath(os.path.join(build_root, build_script))
+    search_roots.append(os.path.dirname(script_abs))
+for pattern in ("build-aegis*", "build*"):
+    search_roots.extend(glob.glob(os.path.join(build_root, pattern)))
+seen = set()
+compile_paths = []
+for root in search_roots:
+    if not root or root in seen:
+        continue
+    seen.add(root)
+    candidate = os.path.join(root, "compile_commands.json")
+    if os.path.isfile(candidate):
+        compile_paths.append(os.path.abspath(candidate))
+summary = {
+    "mode": "${MODE}",
+    "project": project,
+    "target": target,
+    "analyzeTarget": analyze_target,
+    "buildRoot": build_root,
+    "analysisPath": analysis_path,
+    "requestId": "${REQUEST_ID}",
+    "elapsedSeconds": ${t_total},
+    "buildStatus": "${BUILD_STATUS}",
+    "analyzeStatus": "${ANALYZE_STATUS}",
+    "claimCount": len(claims),
+    "pocTotal": int("${POC_TOTAL}" or 0),
+    "pocOk": int("${POC_OK}" or 0),
+    "buildCommand": br.get("buildCommand", ""),
+    "buildScript": build_script,
+    "buildDir": br.get("buildDir", ""),
+    "producedArtifacts": br.get("producedArtifacts", []),
+    "compileCommandsPaths": compile_paths,
+    "resultsDir": os.path.abspath("$TMP"),
+    "buildJson": os.path.abspath("$TMP/build.json"),
+    "analyzeJson": os.path.abspath("$TMP/analyze.json"),
+    "pocJsons": sorted(os.path.abspath(p) for p in glob.glob(os.path.join("$TMP", "poc-*.json"))),
+}
+print(json.dumps(summary, ensure_ascii=False, indent=2))
+PYEOF
+    fi
 
     # Cleanup request files only
     rm -f "$TMP"/*-req*.json

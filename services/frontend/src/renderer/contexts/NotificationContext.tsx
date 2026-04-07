@@ -8,6 +8,7 @@ import {
   getNotificationWsUrl,
 } from "../api/notifications";
 import { logError } from "../api/core";
+import { parseWsMessage } from "../utils/wsEnvelope";
 
 interface NotificationContextValue {
   notifications: Notification[];
@@ -62,8 +63,8 @@ export function NotificationProvider({
 
     ws.onmessage = (event) => {
       try {
-        const msg = JSON.parse(event.data);
-        const payload = msg.message ?? msg;
+        const msg = parseWsMessage(event.data);
+        const payload = msg;
         if (payload.type === "notification" && payload.payload) {
           const notif = payload.payload as Notification;
           setNotifications((prev) => [notif, ...prev]);

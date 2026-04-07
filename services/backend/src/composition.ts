@@ -8,7 +8,6 @@ import type { Database as DatabaseType } from "better-sqlite3";
 import type { AppConfig } from "./config";
 import type {
   WsMessage,
-  WsStaticMessage,
   WsTestMessage,
   WsAnalysisMessage,
   WsUploadMessage,
@@ -125,7 +124,6 @@ export interface AppContext {
 
   // WebSocket broadcasters
   dynamicAnalysisWs: WsBroadcaster<WsMessage>;
-  staticAnalysisWs: WsBroadcaster<WsStaticMessage>;
   dynamicTestWs: WsBroadcaster<WsTestMessage>;
   analysisWs: WsBroadcaster<WsAnalysisMessage>;
   uploadWs: WsBroadcaster<WsUploadMessage>;
@@ -185,7 +183,6 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
 
   // ── WebSocket broadcasters ──
   const dynamicAnalysisWs = new WsBroadcaster<WsMessage>("/ws/dynamic-analysis", "sessionId", "dynamic-analysis");
-  const staticAnalysisWs = new WsBroadcaster<WsStaticMessage>("/ws/static-analysis", "analysisId", "static-analysis");
   const dynamicTestWs = new WsBroadcaster<WsTestMessage>("/ws/dynamic-test", "testId", "dynamic-test");
   const analysisWs = new WsBroadcaster<WsAnalysisMessage>("/ws/analysis", "analysisId", "analysis");
   const uploadWs = new WsBroadcaster<WsUploadMessage>("/ws/upload", "uploadId", "upload");
@@ -237,6 +234,6 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
     analysisOrchestrator, pipelineOrchestrator, activityService, notificationService, userService, reportService, analysisTracker,
     llmTaskClient, sastClient, agentClient, kbClient, buildAgentClient,
     canRuleEngine,
-    dynamicAnalysisWs, staticAnalysisWs, dynamicTestWs, analysisWs, uploadWs, pipelineWs, notificationWs, sdkWs,
+    dynamicAnalysisWs, dynamicTestWs, analysisWs, uploadWs, pipelineWs, notificationWs, sdkWs,
   };
 }

@@ -61,15 +61,14 @@ class ResultAssembler:
         )
 
         if parsed is None:
-            parsed = {
-                "summary": final_content[:2000],
-                "claims": [],
-                "caveats": ["LLM이 구조화된 JSON 대신 자연어로 응답함. 수동 검토 필요."],
-                "usedEvidenceRefs": [],
-                "needsHumanReview": True,
-                "recommendedNextSteps": [],
-                "policyFlags": ["unstructured_response"],
-            }
+            session.set_termination_reason("invalid_final_output")
+            return self.build_failure(
+                session,
+                TaskStatus.VALIDATION_FAILED,
+                FailureCode.INVALID_SCHEMA,
+                "LLM이 구조화된 Assessment JSON 대신 자연어/비JSON 응답을 반환함",
+                retryable=False,
+            )
 
         # 검증: 입력 제공 refs + Phase 1 refs + 도구가 생성한 refs 합집합
         allowed_refs = {ref.refId for ref in session.request.evidenceRefs}
@@ -102,6 +101,16 @@ class ResultAssembler:
             errorCount=len(schema_result.errors) + len(evidence_errors),
         )
 
+        if not schema_result.valid:
+            session.set_termination_reason("invalid_final_output")
+            return self.build_failure(
+                session,
+                TaskStatus.VALIDATION_FAILED,
+                FailureCode.INVALID_SCHEMA,
+                "; ".join(schema_result.errors),
+                retryable=False,
+            )
+
         if not evidence_valid:
             agent_log(
                 logger, "evidence 검증 경고 (soft mode — 보고서는 반환)",
@@ -124,7 +133,8 @@ class ResultAssembler:
         agent_log(
             logger, "결과 신뢰도",
             component="result_assembler", phase="result_confidence",
-            confidence=confidence, breakdown=breakdown,
+            confidence=confidence,
+            breakdown=breakdown.model_dump() if hasattr(breakdown, "model_dump") else breakdown,
         )
 
         # AssessmentResult 조립

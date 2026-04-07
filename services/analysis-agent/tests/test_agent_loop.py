@@ -41,19 +41,85 @@ def _make_request(**overrides) -> TaskRequest:
     return TaskRequest(**defaults)
 
 
-def _final_assessment_json() -> str:
+def _final_assessment_json(*, include_retrieval_ref: bool = False) -> str:
+    used_refs = ["eref-001"]
+    if include_retrieval_ref:
+        used_refs.append("eref-mock-CWE-78")
     return json.dumps({
         "summary": "CWE-78 OS Command Injection detected",
         "claims": [{
             "statement": "User input flows to popen()",
-            "supportingEvidenceRefs": ["eref-001"],
+            "supportingEvidenceRefs": used_refs,
         }],
         "caveats": ["Requires runtime verification"],
-        "usedEvidenceRefs": ["eref-001"],
+        "usedEvidenceRefs": used_refs,
         "suggestedSeverity": "critical",
         "needsHumanReview": True,
         "recommendedNextSteps": ["Replace popen with execve"],
         "policyFlags": [],
+    })
+
+
+def _structured_zero_claim_json() -> str:
+    return json.dumps({
+        "summary": "검토 결과 actionable claim은 확인되지 않았습니다.",
+        "claims": [],
+        "caveats": ["style/info finding은 claim으로 승격하지 않았습니다."],
+        "usedEvidenceRefs": ["eref-001"],
+        "suggestedSeverity": "info",
+        "needsHumanReview": True,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+
+def _gateway_webserver_plan_text() -> str:
+    return (
+        "## Phase A: 우선순위 수립\n"
+        "1. popen 사용 (clients/http_client.cpp:62) - CWE-78 Command Injection 가능성\n"
+        "확인 전략: code_graph.callers 와 code.read_file로 검증\n"
+    )
+
+
+def _gateway_webserver_claim_json() -> str:
+    return json.dumps({
+        "summary": "gateway-webserver의 외부 입력이 popen으로 이어져 RCE 가능성이 있습니다.",
+        "claims": [{
+            "statement": "외부 입력이 run_curl/popen 경로로 전달되어 원격 명령 실행(RCE)이 가능합니다.",
+            "detail": "clients/http_client.cpp:62의 popen 호출은 외부 URL/escape 입력이 run_curl 경로를 통해 명령 문자열에 반영될 수 있어 command injection과 RCE로 이어질 수 있습니다.",
+            "supportingEvidenceRefs": ["eref-001"],
+            "location": "clients/http_client.cpp:62",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": ["eref-001"],
+        "suggestedSeverity": "high",
+        "needsHumanReview": True,
+        "recommendedNextSteps": ["popen 기반 실행 경로를 제거하고 안전한 API로 대체"],
+        "policyFlags": [],
+    })
+
+
+def _gateway_webserver_low_confidence_json(*, include_retrieval_ref: bool) -> str:
+    used_refs = ["eref-001"]
+    if include_retrieval_ref:
+        used_refs.append("eref-mock-CWE-36")
+    return json.dumps({
+        "summary": "readlink 경로는 추가 검증이 필요하지만 보안상 무시하기엔 이릅니다.",
+        "claims": [{
+            "statement": "utils/fs.cpp:22의 readlink 사용은 TOCTOU 가능성이 있으나 exploitability closure가 완전히 닫히지 않았습니다.",
+            "detail": (
+                "Exploitability is plausible but not fully confirmed from the available evidence. "
+                "현재 코드 경로는 race-condition 가능성을 보여주지만 실제 공격 전제와 가드 부재는 추가 확인이 필요합니다."
+            ),
+            "supportingEvidenceRefs": used_refs,
+            "location": "utils/fs.cpp:22",
+        }],
+        "caveats": ["low-confidence claim: guard/validation 및 실제 공격 전제를 추가 검증해야 합니다."],
+        "usedEvidenceRefs": used_refs,
+        "suggestedSeverity": "medium",
+        "needsHumanReview": True,
+        "recommendedNextSteps": ["knowledge.search로 CWE/CVE 연결 근거를 보강", "코드 경로를 추가 확인"],
+        "policyFlags": ["low_confidence_claim_present"],
     })
 
 
@@ -106,7 +172,7 @@ async def test_single_turn_content_only():
     responses = [
         LlmResponse(content=_final_assessment_json(), prompt_tokens=100, completion_tokens=50),
     ]
-    loop, session = _build_agent_loop(responses)
+    loop, session = _build_agent_loop(responses, {"max_steps": 10, "max_cheap_calls": 6})
     result = await loop.run(session)
 
     assert result.status == "completed"
@@ -126,11 +192,11 @@ async def test_two_turn_tool_then_content():
         ),
         # Turn 2: final content
         LlmResponse(
-            content=_final_assessment_json(),
+            content=_final_assessment_json(include_retrieval_ref=True),
             prompt_tokens=200, completion_tokens=80,
         ),
     ]
-    loop, session = _build_agent_loop(responses)
+    loop, session = _build_agent_loop(responses, {"max_steps": 10, "max_cheap_calls": 6})
     result = await loop.run(session)
 
     assert result.status == "completed"
@@ -150,9 +216,9 @@ async def test_three_turn_scenario():
             tool_calls=[ToolCallRequest(id="c2", name="knowledge.search", arguments={"query": "CAPEC-88"})],
             finish_reason="tool_calls", prompt_tokens=200, completion_tokens=25,
         ),
-        LlmResponse(content=_final_assessment_json(), prompt_tokens=300, completion_tokens=100),
+        LlmResponse(content=_final_assessment_json(include_retrieval_ref=True), prompt_tokens=300, completion_tokens=100),
     ]
-    loop, session = _build_agent_loop(responses)
+    loop, session = _build_agent_loop(responses, {"max_steps": 10, "max_cheap_calls": 6})
     result = await loop.run(session)
 
     assert result.status == "completed"
@@ -241,3 +307,109 @@ async def test_audit_info_populated():
     agent_audit = result.audit.agentAudit
     assert agent_audit["turn_count"] == 1
     assert agent_audit["termination_reason"] == "content_returned"
+
+
+@pytest.mark.asyncio
+async def test_structured_zero_claim_control_case_still_completes():
+    """정당한 0-claim structured JSON은 여전히 completed가 가능하다."""
+    responses = [
+        LlmResponse(content=_structured_zero_claim_json(), prompt_tokens=100, completion_tokens=40),
+    ]
+    loop, session = _build_agent_loop(responses)
+    result = await loop.run(session)
+
+    assert result.status == "completed"
+    assert result.result.claims == []
+    assert result.result.usedEvidenceRefs == ["eref-001"]
+
+
+@pytest.mark.asyncio
+async def test_unstructured_content_retries_and_promotes_gateway_webserver_claim():
+    responses = [
+        LlmResponse(content=_gateway_webserver_plan_text(), prompt_tokens=100, completion_tokens=40),
+        LlmResponse(content=_gateway_webserver_claim_json(), prompt_tokens=140, completion_tokens=90),
+    ]
+    loop, session = _build_agent_loop(responses)
+    result = await loop.run(session)
+
+    assert result.status == "completed"
+    assert session.turn_count == 2
+    assert len(result.result.claims) == 1
+    assert result.result.claims[0].location == "clients/http_client.cpp:62"
+    assert result.result.suggestedSeverity == "high"
+
+
+@pytest.mark.asyncio
+async def test_unstructured_content_twice_returns_validation_failure():
+    responses = [
+        LlmResponse(content=_gateway_webserver_plan_text(), prompt_tokens=100, completion_tokens=40),
+        LlmResponse(content=_gateway_webserver_plan_text(), prompt_tokens=120, completion_tokens=35),
+    ]
+    loop, session = _build_agent_loop(responses)
+    result = await loop.run(session)
+
+    assert result.status == "validation_failed"
+    assert result.failureCode == "INVALID_SCHEMA"
+    assert session.turn_count == 2
+
+
+@pytest.mark.asyncio
+async def test_low_confidence_claim_triggers_one_shot_grounding_nudge():
+    responses = [
+        LlmResponse(
+            tool_calls=[ToolCallRequest(id="c1", name="knowledge.search", arguments={"query": "CWE-362"})],
+            finish_reason="tool_calls",
+            prompt_tokens=100,
+            completion_tokens=20,
+        ),
+        LlmResponse(
+            content=_gateway_webserver_low_confidence_json(include_retrieval_ref=False),
+            prompt_tokens=180,
+            completion_tokens=90,
+        ),
+        LlmResponse(
+            tool_calls=[ToolCallRequest(id="c2", name="knowledge.search", arguments={"query": "CWE-36"})],
+            finish_reason="tool_calls",
+            prompt_tokens=220,
+            completion_tokens=25,
+        ),
+        LlmResponse(
+            content=_gateway_webserver_low_confidence_json(include_retrieval_ref=True),
+            prompt_tokens=260,
+            completion_tokens=110,
+        ),
+    ]
+    loop, session = _build_agent_loop(responses)
+    result = await loop.run(session)
+
+    assert result.status == "completed"
+    assert session.turn_count == 4
+    assert result.result.policyFlags == ["low_confidence_claim_present"]
+    assert "Exploitability is plausible but not fully confirmed" in result.result.claims[0].detail
+    assert "eref-mock-CWE-36" in result.result.usedEvidenceRefs
+
+
+@pytest.mark.asyncio
+async def test_grounding_nudge_does_not_fire_after_force_report_disables_tools():
+    responses = [
+        LlmResponse(
+            tool_calls=[ToolCallRequest(id=f"c{i}", name="knowledge.search", arguments={"query": f"CWE-{i}"})],
+            finish_reason="tool_calls",
+            prompt_tokens=100 + i,
+            completion_tokens=20,
+        )
+        for i in range(6)
+    ]
+    responses.append(
+        LlmResponse(
+            content=_gateway_webserver_low_confidence_json(include_retrieval_ref=False),
+            prompt_tokens=300,
+            completion_tokens=120,
+        )
+    )
+    loop, session = _build_agent_loop(responses, {"max_steps": 10, "max_cheap_calls": 6})
+    result = await loop.run(session)
+
+    assert result.status == "completed"
+    assert session.turn_count == 7
+    assert result.result.policyFlags == ["low_confidence_claim_present"]

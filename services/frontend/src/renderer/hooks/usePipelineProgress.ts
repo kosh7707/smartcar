@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { BuildTargetStatus, PipelinePhase, WsPipelineMessage } from "@aegis/shared";
 import { runPipeline, runPipelineTarget, getWsBaseUrl, logError } from "../api/client";
-import { createSeqTracker } from "../utils/wsEnvelope";
+import { createSeqTracker, parseWsMessage } from "../utils/wsEnvelope";
 
 export interface PipelineTargetState {
   name: string;
@@ -61,9 +61,9 @@ export function usePipelineProgress() {
 
     ws.onmessage = (evt) => {
       try {
-        const parsed = JSON.parse(evt.data);
+        const parsed = parseWsMessage(evt.data);
         seqTracker.check(parsed.meta);
-        const msg: WsPipelineMessage = parsed;
+        const msg = parsed as unknown as WsPipelineMessage;
         switch (msg.type) {
           case "pipeline-target-status":
             setState((prev) => {

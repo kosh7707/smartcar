@@ -103,6 +103,7 @@ export class AnalysisOrchestrator {
         requestId,
         signal,
         thirdPartyPaths.length > 0 ? thirdPartyPaths : undefined,
+        analysisId,
       );
     }
   }
@@ -117,16 +118,17 @@ export class AnalysisOrchestrator {
     requestId?: string,
     signal?: AbortSignal,
     thirdPartyPaths?: string[],
+    wsAnalysisId: string = analysisId,
   ): Promise<void> {
     const prefix = targetInfo ? `[${targetInfo.name}] ` : "";
     const files = this.sourceService.listFiles(projectId);
     const startedAt = new Date().toISOString();
 
     // ── Phase Quick: S4 SAST ──
-    this.broadcast(analysisId, {
+    this.broadcast(wsAnalysisId, {
       type: "analysis-progress",
       payload: {
-        analysisId, phase: "quick_sast",
+        analysisId: wsAnalysisId, phase: "quick_sast",
         message: `${prefix}SAST 스캔 시작`,
         targetName: targetInfo?.name,
         targetProgress: targetInfo?.progress,
@@ -152,9 +154,9 @@ export class AnalysisOrchestrator {
       this.analysisResultDAO.save(quickResult);
       this.resultNormalizer.normalizeAnalysisResult(quickResult, { startedAt });
 
-      this.broadcast(analysisId, {
+      this.broadcast(wsAnalysisId, {
         type: "analysis-quick-complete",
-        payload: { analysisId, findingCount: sastResponse.stats.findingsTotal },
+        payload: { analysisId: wsAnalysisId, findingCount: sastResponse.stats.findingsTotal },
       });
 
       logger.info({
@@ -163,10 +165,10 @@ export class AnalysisOrchestrator {
       }, "Quick phase completed");
     } catch (err) {
       logger.error({ err, analysisId, target: targetInfo?.name, requestId }, "Quick phase failed");
-      this.broadcast(analysisId, {
+      this.broadcast(wsAnalysisId, {
         type: "analysis-error",
         payload: {
-          analysisId, phase: "quick",
+          analysisId: wsAnalysisId, phase: "quick",
           error: err instanceof Error ? err.message : "SAST scan failed",
           retryable: true,
         },
@@ -176,10 +178,10 @@ export class AnalysisOrchestrator {
     if (signal?.aborted) return;
 
     // ── Phase Deep: S3 Agent ──
-    this.broadcast(analysisId, {
+    this.broadcast(wsAnalysisId, {
       type: "analysis-progress",
       payload: {
-        analysisId, phase: "deep_submitting",
+        analysisId: wsAnalysisId, phase: "deep_submitting",
         message: `${prefix}심층 분석 에이전트 호출 중...`,
         targetName: targetInfo?.name,
         targetProgress: targetInfo?.progress,
@@ -215,10 +217,10 @@ export class AnalysisOrchestrator {
         constraints: { maxTokens: 4096, timeoutMs: 300000 },
       };
 
-      this.broadcast(analysisId, {
+      this.broadcast(wsAnalysisId, {
         type: "analysis-progress",
         payload: {
-          analysisId, phase: "deep_analyzing",
+          analysisId: wsAnalysisId, phase: "deep_analyzing",
           message: `${prefix}에이전트가 분석 중... (SAST + 코드그래프 + SCA + LLM)`,
           targetName: targetInfo?.name,
           targetProgress: targetInfo?.progress,
@@ -234,9 +236,9 @@ export class AnalysisOrchestrator {
           target: targetInfo?.name, requestId,
         }, "Retryable failure, attempting retry (1/1)");
 
-        this.broadcast(analysisId, {
+        this.broadcast(wsAnalysisId, {
           type: "analysis-progress",
-          payload: { analysisId, phase: "deep_retrying", message: `${prefix}재시도 중...`, targetName: targetInfo?.name },
+          payload: { analysisId: wsAnalysisId, phase: "deep_retrying", message: `${prefix}재시도 중...`, targetName: targetInfo?.name },
         });
 
         agentResponse = await this.agentClient.submitTask(agentRequest, requestId, signal);
@@ -249,9 +251,9 @@ export class AnalysisOrchestrator {
         const ctx: NormalizerContext = { startedAt, agentEvidenceRefs: evidenceRefs };
         this.resultNormalizer.normalizeAgentResult(deepResult, agentResponse, ctx);
 
-        this.broadcast(analysisId, {
+        this.broadcast(wsAnalysisId, {
           type: "analysis-deep-complete",
-          payload: { analysisId, findingCount: agentResponse.result.claims.length },
+          payload: { analysisId: wsAnalysisId, findingCount: agentResponse.result.claims.length },
         });
 
         logger.info({
@@ -276,10 +278,10 @@ export class AnalysisOrchestrator {
         };
         this.analysisResultDAO.save(failedResult);
 
-        this.broadcast(analysisId, {
+        this.broadcast(wsAnalysisId, {
           type: "analysis-error",
           payload: {
-            analysisId, phase: "deep",
+            analysisId: wsAnalysisId, phase: "deep",
             error: `[${agentResponse.failureCode}] ${agentResponse.failureDetail}`,
             retryable: agentResponse.retryable ?? false,
             partial: isPartialFailure,
@@ -294,10 +296,10 @@ export class AnalysisOrchestrator {
       }
     } catch (err) {
       logger.error({ err, analysisId, target: targetInfo?.name, requestId }, "Deep phase error");
-      this.broadcast(analysisId, {
+      this.broadcast(wsAnalysisId, {
         type: "analysis-error",
         payload: {
-          analysisId, phase: "deep",
+          analysisId: wsAnalysisId, phase: "deep",
           error: err instanceof Error ? err.message : "Agent call failed",
           retryable: true,
         },

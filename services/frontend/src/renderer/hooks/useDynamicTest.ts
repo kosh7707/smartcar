@@ -6,6 +6,7 @@ import type {
   WsTestMessage,
 } from "@aegis/shared";
 import { runDynamicTest, getWsBaseUrl } from "../api/client";
+import { parseWsMessage } from "../utils/wsEnvelope";
 
 export type TestView = "config" | "running" | "results";
 
@@ -51,7 +52,7 @@ export function useDynamicTest(projectId?: string) {
 
     ws.onmessage = (evt) => {
       try {
-        const msg: WsTestMessage = JSON.parse(evt.data);
+        const msg = parseWsMessage(evt.data) as unknown as WsTestMessage;
         switch (msg.type) {
           case "test-progress":
             setProgress({

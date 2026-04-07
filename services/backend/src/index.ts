@@ -59,6 +59,6 @@ const server = app.listen(config.port, () => {
 });
 
 attachWsServers(server, [
-  ctx.dynamicAnalysisWs, ctx.staticAnalysisWs, ctx.dynamicTestWs,
+  ctx.dynamicAnalysisWs, ctx.dynamicTestWs,
   ctx.analysisWs, ctx.uploadWs, ctx.pipelineWs, ctx.notificationWs, ctx.sdkWs,
 ]);

@@ -135,7 +135,7 @@ export const SettingsPage: React.FC = () => {
         <div className="gs-info-table">
           <div className="gs-info-row">
             <span className="gs-info-label">버전</span>
-            <span className="gs-info-value"><code>v0.1.0</code></span>
+            <span className="gs-info-value"><code>v{__APP_VERSION__}</code></span>
           </div>
           <div className="gs-info-row">
             <span className="gs-info-label">프레임워크</span>

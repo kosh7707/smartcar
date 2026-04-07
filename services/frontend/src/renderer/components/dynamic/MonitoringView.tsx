@@ -18,6 +18,7 @@ import {
   fetchInjections,
   logError,
 } from "../../api/client";
+import { parseWsMessage } from "../../utils/wsEnvelope";
 import { BackButton, SeverityBadge, Spinner } from "../ui";
 import { useToast } from "../../contexts/ToastContext";
 import { formatTime } from "../../utils/format";
@@ -76,7 +77,7 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
 
     ws.onmessage = (event) => {
       try {
-        const msg: WsMessage = JSON.parse(event.data);
+        const msg = parseWsMessage(event.data) as unknown as WsMessage;
         switch (msg.type) {
           case "message":
             if (pausedRef.current) {

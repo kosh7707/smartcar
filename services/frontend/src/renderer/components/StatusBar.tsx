@@ -129,7 +129,7 @@ export const StatusBar: React.FC = () => {
   return (
     <div className="statusbar">
       <div className="statusbar-item">
-        <span>AEGIS {detail ? `v${detail.version}` : "v0.2.0"}</span>
+        <span>AEGIS {detail ? `v${detail.version}` : `v${__APP_VERSION__}`}</span>
         {detail?.uptime != null && (
           <span className="statusbar-detail">· {formatUptime(detail.uptime)}</span>
         )}

@@ -172,19 +172,18 @@ export interface DynamicAnalysisSessionResponse {
 /**
  * AEGIS WS 이벤트 타입 — 모든 WS 메시지의 `type` 필드 값을 열거한다.
  *
- * 6개 WS 패밀리:
+ * 7개 WS 패밀리:
  * - 동적 분석 (/ws/dynamic-analysis): CAN 메시지 스트리밍 + 알림
- * - 정적 분석 (/ws/static-analysis): 레거시 룰엔진+LLM 청크 진행률
  * - 동적 테스트 (/ws/dynamic-test): 퍼징/침투 테스트 진행률
  * - Quick→Deep 분석 (/ws/analysis): SAST+Agent 2단계 파이프라인
  * - 업로드 (/ws/upload): 소스코드 업로드 상태머신
  * - 파이프라인 (/ws/pipeline): 서브 프로젝트 빌드→스캔→코드그래프
+ * - SDK (/ws/sdk): SDK 등록/검증 파이프라인
+ * - 알림 (/ws/notifications): 프로젝트 알림 push
  */
 export type WsEventType =
   // 동적 분석 (CAN/ECU)
   | "message" | "alert" | "status" | "injection-result" | "injection-error"
-  // 정적 분석 (레거시)
-  | "static-progress" | "static-warning" | "static-complete" | "static-error"
   // 동적 테스트
   | "test-progress" | "test-finding" | "test-complete" | "test-error"
   // Quick→Deep 분석
@@ -201,7 +200,6 @@ export type WsEventType =
 /** WS 채널 식별자 */
 export type WsChannel =
   | "dynamic-analysis"
-  | "static-analysis"
   | "dynamic-test"
   | "analysis"
   | "upload"
@@ -217,7 +215,7 @@ export type WsChannel =
 export interface WsEnvelopeMeta {
   /** WS 채널 (e.g. "pipeline") */
   channel: WsChannel;
-  /** 프로젝트 ID (모든 채널 공통) */
+  /** 현재 runtime에서는 broadcaster subscription key. project-scoped 채널에서는 real projectId와 동일하다. */
   projectId?: string;
   /** epoch ms */
   timestamp: number;
@@ -226,16 +224,14 @@ export interface WsEnvelopeMeta {
 }
 
 /**
- * WS 공통 envelope. 기존 메시지에 meta를 감싸는 형태.
+ * WS 공통 envelope. runtime은 기존 메시지 객체에 `meta`를 평탄하게 덧붙인다.
  * 기존: { type: "pipeline-target-status", payload: {...} }
  * 새:   { type: "pipeline-target-status", payload: {...}, meta: {...} }
  */
-export interface WsEnvelope<T extends { type: string }> {
-  /** 기존 메시지 내용 (그대로 유지) */
-  message: T;
+export type WsEnvelope<T extends { type: string }> = T & {
   /** 공통 메타데이터 */
   meta: WsEnvelopeMeta;
-}
+};
 
 // ============================================================
 // 동적 분석 WS 메시지 (/ws/dynamic-analysis?sessionId=)
@@ -274,51 +270,6 @@ export interface WsInjectionError {
 }
 
 export type WsMessage = WsCanMessage | WsAlert | WsStatus | WsInjectionResult | WsInjectionError;
-
-// ============================================================
-// 정적 분석 WS 메시지 (/ws/static-analysis?analysisId=)
-// Progress 의미론: current/total 청크 단위 + phaseWeights 가중치
-// ============================================================
-
-export interface WsStaticProgress {
-  type: "static-progress";
-  payload: {
-    analysisId: string;
-    phase: "queued" | "rule_engine" | "llm_chunk" | "merging" | "complete";
-    current: number;
-    total: number;
-    message: string;
-    phaseWeights?: Record<string, number>;
-  };
-}
-
-export interface WsStaticWarning {
-  type: "static-warning";
-  payload: {
-    analysisId: string;
-    code: string;
-    message: string;
-  };
-}
-
-export interface WsStaticComplete {
-  type: "static-complete";
-  payload: { analysisId: string };
-}
-
-export interface WsStaticError {
-  type: "static-error";
-  payload: {
-    analysisId: string;
-    error: string;
-  };
-}
-
-export type WsStaticMessage =
-  | WsStaticProgress
-  | WsStaticWarning
-  | WsStaticComplete
-  | WsStaticError;
 
 // ============================================================
 // 동적 테스트
@@ -683,7 +634,18 @@ export interface ProjectReportResponse {
 // 분석 진행률 (Part A: 비동기 분석)
 // ============================================================
 
-export type AnalysisPhase = "queued" | "rule_engine" | "llm_chunk" | "merging" | "complete" | "quick_sast" | "deep_submitting" | "deep_analyzing" | "deep_complete";
+export type AnalysisPhase =
+  | "queued"
+  | "rule_engine"
+  | "llm_chunk"
+  | "merging"
+  | "complete"
+  | "quick_sast"
+  | "quick_complete"
+  | "deep_submitting"
+  | "deep_analyzing"
+  | "deep_retrying"
+  | "deep_complete";
 export type AnalysisTrackerStatus = "running" | "completed" | "failed" | "aborted";
 
 export interface AnalysisProgress {

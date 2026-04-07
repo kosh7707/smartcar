@@ -105,7 +105,7 @@ export async function createMockApi(page: Page): Promise<MockApi> {
       await api.on("GET", `/api/projects/${pid}/approvals`, { success: true, data: data.APPROVALS });
       await api.on("GET", `/api/projects/${pid}/approvals/count`, data.APPROVAL_COUNT);
       await api.on("GET", `/api/projects/${pid}/activity`, { success: true, data: data.ACTIVITIES });
-      await api.on("GET", `/api/projects/${pid}/sdk`, { success: true, data: { registered: [], available: [] } });
+      await api.on("GET", `/api/projects/${pid}/sdk`, { success: true, data: { builtIn: [], registered: [] } });
       await api.on("GET", `/api/projects/${pid}/settings`, { success: true, data: { llmUrl: "http://localhost:8080" } });
       await api.on("GET", `/api/projects/${pid}/report`, data.PROJECT_REPORT);
       await api.on("GET", `/api/projects/${pid}/pipeline/status`, {
@@ -152,6 +152,7 @@ export async function createMockApi(page: Page): Promise<MockApi> {
 
       // File content (MOCK-33)
       await api.on("GET", `/api/projects/${pid}/source/content`, data.FILE_CONTENT_RESPONSE);
+      await api.on("GET", `/api/projects/${pid}/source/file`, data.FILE_CONTENT_RESPONSE);
 
       // Settings with gate profile
       await api.on("PUT", `/api/projects/${pid}/settings`, { success: true, data: { llmUrl: "http://localhost:8080", gateProfileId: "gp-default" } });

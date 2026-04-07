@@ -1,10 +1,13 @@
 /**
  * WS Envelope meta handling — seq gap detection and server timestamp extraction.
  *
- * Every WS message from S2 now includes an optional `meta` field:
- *   { type, payload, meta?: { channel, projectId?, timestamp, seq? } }
+ * S2 backend sends WS messages in **flattened** shape:
+ *   { type, ...fields, meta?: { channel, projectId?, timestamp, seq? } }
  *
- * This utility tracks per-channel sequence numbers and warns on gaps.
+ * parseWsMessage normalizes flattened → internal nested shape:
+ *   { type, payload: { ...fields }, meta? }
+ *
+ * This allows hook code to use the consistent msg.payload.X access pattern.
  */
 
 export interface WsEnvelopeMeta {
@@ -50,8 +53,17 @@ export function createSeqTracker(channelLabel: string) {
 
 /**
  * Parse WS message data with envelope support.
- * Returns typed message with optional meta.
+ * Normalizes S2's flattened shape { type, ...fields, meta } into
+ * internal nested shape { type, payload: { ...fields }, meta }.
+ * Also handles legacy nested shape for backward compatibility.
  */
 export function parseWsMessage<T = unknown>(data: string): WsMessage<T> {
-  return JSON.parse(data) as WsMessage<T>;
+  const raw = JSON.parse(data);
+  // Already in nested shape (has payload field) — pass through
+  if (raw.payload !== undefined) {
+    return raw as WsMessage<T>;
+  }
+  // Flattened shape from S2: { type, ...fields, meta } → { type, payload, meta }
+  const { type, meta, ...rest } = raw;
+  return { type, payload: rest as T, meta };
 }

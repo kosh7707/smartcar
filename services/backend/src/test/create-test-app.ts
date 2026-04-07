@@ -47,11 +47,14 @@ import { createFileRouter } from "../controllers/file.controller";
 import { createBuildTargetRouter } from "../controllers/build-target.controller";
 import { createSdkRouter } from "../controllers/sdk.controller";
 import { createPipelineRouter } from "../controllers/pipeline.controller";
+import { createProjectSourceRouter } from "../controllers/project-source.controller";
+import { createAnalysisRouter } from "../controllers/analysis.controller";
 import { createActivityRouter } from "../controllers/activity.controller";
 import { createNotificationRouter, createNotificationDetailRouter } from "../controllers/notification.controller";
 import { createAuthRouter } from "../controllers/auth.controller";
 import { createGateProfileRouter } from "../controllers/project-settings.controller";
 import { SDK_PROFILES } from "../services/sdk-profiles";
+import { AnalysisTracker } from "../services/analysis-tracker";
 
 export interface TestAppContext {
   app: express.Express;
@@ -79,6 +82,7 @@ export interface TestAppContext {
   userService: UserService;
   settingsService: ProjectSettingsService;
   pipelineRunCalls: Array<{ projectId: string; targetIds?: string[]; requestId?: string }>;
+  analysisRunCalls: Array<{ projectId: string; analysisId: string; targetIds?: string[]; requestId?: string }>;
 }
 
 export function createTestApp(): TestAppContext {
@@ -154,6 +158,40 @@ export function createTestApp(): TestAppContext {
     getProjectPath(projectId: string) {
       return `/tmp/${projectId}`;
     },
+    async cloneGit(projectId: string) {
+      return `/tmp/${projectId}/cloned`;
+    },
+    listFiles(_projectId: string, filter?: string | null) {
+      const all = [
+        { relativePath: "src/main.c", size: 128, language: "c", fileType: "source", previewable: true },
+        { relativePath: "README.md", size: 64, language: "markdown", fileType: "doc", previewable: true },
+      ];
+      return filter === null ? all : all.filter((entry) => entry.fileType === "source");
+    },
+    computeComposition() {
+      return {
+        composition: { source: 1, doc: 1 },
+        totalFiles: 2,
+        totalSize: 192,
+      };
+    },
+    readFile(_projectId: string, filePath: string) {
+      return `contents:${filePath}`;
+    },
+    getFileMetadata(_projectId: string, filePath: string) {
+      return {
+        size: filePath.endsWith(".md") ? 64 : 128,
+        language: filePath.endsWith(".md") ? "markdown" : "c",
+        fileType: filePath.endsWith(".md") ? "doc" : "source",
+        previewable: true,
+        lineCount: 3,
+      };
+    },
+    deleteSource() {},
+    async extractArchive(projectId: string) {
+      return `/tmp/${projectId}/archive`;
+    },
+    async saveFiles() {},
     copyToSubproject(projectId: string, targetId: string) {
       return `/tmp/${projectId}/${targetId}`;
     },
@@ -172,6 +210,26 @@ export function createTestApp(): TestAppContext {
   const pipelineOrchestrator = {
     async runPipeline(projectId: string, targetIds?: string[], requestId?: string) {
       pipelineRunCalls.push({ projectId, targetIds, requestId });
+    },
+  };
+  const analysisRunCalls: Array<{ projectId: string; analysisId: string; targetIds?: string[]; requestId?: string }> = [];
+  const analysisTracker = new AnalysisTracker();
+  const analysisOrchestrator = {
+    async runAnalysis(projectId: string, analysisId: string, targetIds?: string[], requestId?: string) {
+      analysisRunCalls.push({ projectId, analysisId, targetIds, requestId });
+    },
+  };
+  const agentClient = {
+    async submitTask() {
+      return {
+        result: {
+          claims: [{ statement: "demo poc", detail: "demo detail" }],
+        },
+        audit: { latencyMs: 1 },
+      };
+    },
+    isSuccess() {
+      return true;
     },
   };
 
@@ -198,10 +256,21 @@ export function createTestApp(): TestAppContext {
   app.use("/api/projects/:pid/targets", createBuildTargetRouter(buildTargetService, projectDAO, testSourceService as any, testSastClient as any));
   app.use("/api/projects/:pid/sdk", createSdkRouter(sdkService as any, projectDAO));
   app.use("/api/projects/:pid/pipeline", createPipelineRouter(pipelineOrchestrator as any, projectDAO, buildTargetDAO));
+  app.use("/api/projects/:pid/source", createProjectSourceRouter(testSourceService as any, projectDAO, undefined, buildTargetDAO));
   app.use("/api/projects/:pid/activity", createActivityRouter(activityService));
   app.use("/api/projects/:pid/notifications", createNotificationRouter(notificationService));
   app.use("/api/projects", createProjectRouter(projectService));
   app.use("/api", createFileRouter(fileStore));
+  app.use("/api/analysis", createAnalysisRouter(
+    analysisOrchestrator as any,
+    analysisResultDAO,
+    analysisTracker,
+    findingDAO,
+    runDAO,
+    gateResultDAO,
+    agentClient as any,
+    testSourceService as any,
+  ));
   app.use("/api/runs", createRunDetailRouter(runService));
   app.use("/api/findings", createFindingDetailRouter(findingService));
   app.use("/api/gates", createQualityGateDetailRouter(gateService, approvalService));
@@ -218,6 +287,6 @@ export function createTestApp(): TestAppContext {
     approvalDAO, auditLogDAO, analysisResultDAO, fileStore,
     buildTargetDAO, sdkRegistryDAO, notificationDAO, userDAO, sessionDAO,
     gateService, normalizer, buildTargetService,
-    notificationService, userService, settingsService, pipelineRunCalls,
+    notificationService, userService, settingsService, pipelineRunCalls, analysisRunCalls,
   };
 }
