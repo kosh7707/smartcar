@@ -21,9 +21,9 @@ export const TrendChart: React.FC<Props> = ({ data, height = 200 }) => {
 
   if (data.length < 2) {
     return (
-      <div className="trend-chart" style={{ textAlign: "center", padding: "var(--space-6)", color: "var(--text-tertiary)" }}>
-        <BarChart3 size={24} style={{ marginBottom: "var(--space-2)", opacity: 0.5 }} />
-        <p style={{ fontSize: "var(--text-sm)", margin: 0 }}>
+      <div className="trend-chart" style={{ textAlign: "center", padding: "var(--cds-spacing-06)", color: "var(--cds-text-placeholder)" }}>
+        <BarChart3 size={24} style={{ marginBottom: "var(--cds-spacing-03)", opacity: 0.5 }} />
+        <p style={{ fontSize: "var(--cds-type-sm)", margin: 0 }}>
           트렌드를 보려면 2회 이상 분석이 필요합니다. 현재 {data.length}회 완료.
         </p>
       </div>
@@ -58,11 +58,11 @@ export const TrendChart: React.FC<Props> = ({ data, height = 200 }) => {
     <div className="trend-chart">
       <div className="trend-chart__legend">
         <span className="trend-chart__legend-item">
-          <span className="trend-chart__dot" style={{ background: "var(--accent)" }} />
+          <span className="trend-chart__dot" style={{ background: "var(--cds-interactive)" }} />
           Finding 수
         </span>
         <span className="trend-chart__legend-item">
-          <span className="trend-chart__dot trend-chart__dot--line" style={{ background: "var(--success)" }} />
+          <span className="trend-chart__dot trend-chart__dot--line" style={{ background: "var(--cds-support-success)" }} />
           Gate 통과
         </span>
       </div>
@@ -72,8 +72,8 @@ export const TrendChart: React.FC<Props> = ({ data, height = 200 }) => {
           const y = pad.top + innerH - frac * innerH;
           return (
             <g key={frac}>
-              <line x1={pad.left} y1={y} x2={w - pad.right} y2={y} stroke="var(--border-subtle)" strokeWidth={0.5} />
-              <text x={pad.left - 6} y={y + 3} textAnchor="end" fontSize={9} fill="var(--text-tertiary)">
+              <line x1={pad.left} y1={y} x2={w - pad.right} y2={y} stroke="var(--cds-border-subtle)" strokeWidth={0.5} />
+              <text x={pad.left - 6} y={y + 3} textAnchor="end" fontSize={9} fill="var(--cds-text-placeholder)">
                 {Math.round(frac * maxY)}
               </text>
             </g>
@@ -92,7 +92,7 @@ export const TrendChart: React.FC<Props> = ({ data, height = 200 }) => {
               width={barWidth}
               height={barH}
               rx={2}
-              fill="var(--accent)"
+              fill="var(--cds-interactive)"
               opacity={0.7}
             />
           );
@@ -103,7 +103,7 @@ export const TrendChart: React.FC<Props> = ({ data, height = 200 }) => {
           <polyline
             points={linePoints}
             fill="none"
-            stroke="var(--success)"
+            stroke="var(--cds-support-success)"
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -114,7 +114,7 @@ export const TrendChart: React.FC<Props> = ({ data, height = 200 }) => {
         {data.map((d, i) => {
           const x = pad.left + i * gap + gap / 2;
           const y = pad.top + innerH - (d.gatePassCount / maxY) * innerH;
-          return <circle key={`dot-${i}`} cx={x} cy={y} r={3} fill="var(--success)" />;
+          return <circle key={`dot-${i}`} cx={x} cy={y} r={3} fill="var(--cds-support-success)" />;
         })}
 
         {/* X-axis labels */}
@@ -123,7 +123,7 @@ export const TrendChart: React.FC<Props> = ({ data, height = 200 }) => {
           const x = pad.left + i * gap + gap / 2;
           const label = d.date.slice(5); // "MM-DD"
           return (
-            <text key={`label-${i}`} x={x} y={h - 6} textAnchor="middle" fontSize={9} fill="var(--text-tertiary)">
+            <text key={`label-${i}`} x={x} y={h - 6} textAnchor="middle" fontSize={9} fill="var(--cds-text-placeholder)">
               {label}
             </text>
           );

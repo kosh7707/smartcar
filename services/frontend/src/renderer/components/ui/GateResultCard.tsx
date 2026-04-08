@@ -9,9 +9,9 @@ interface Props {
 }
 
 const STATUS_CONFIG = {
-  pass: { icon: ShieldCheck, color: "var(--success)", label: "통과", cls: "gate-badge--pass" },
-  fail: { icon: ShieldAlert, color: "var(--severity-critical)", label: "실패", cls: "gate-badge--fail" },
-  warning: { icon: AlertTriangle, color: "var(--severity-medium)", label: "경고", cls: "gate-badge--warning" },
+  pass: { icon: ShieldCheck, color: "var(--cds-support-success)", label: "통과", cls: "gate-badge--pass" },
+  fail: { icon: ShieldAlert, color: "var(--aegis-severity-critical)", label: "실패", cls: "gate-badge--fail" },
+  warning: { icon: AlertTriangle, color: "var(--aegis-severity-medium)", label: "경고", cls: "gate-badge--cds-support-warning" },
 } as const;
 
 export const GateResultCard: React.FC<Props> = ({ gate, compact }) => {
@@ -39,7 +39,7 @@ export const GateResultCard: React.FC<Props> = ({ gate, compact }) => {
       <div className="gate-card__rules">
         {gate.rules.map((r) => (
           <div key={r.ruleId} className="gate-card__rule-row">
-            <span className={`badge badge-xs ${r.result === "passed" ? "gate-badge--pass" : r.result === "failed" ? "gate-badge--fail" : "gate-badge--warning"}`}>
+            <span className={`badge badge-xs ${r.result === "passed" ? "gate-badge--pass" : r.result === "failed" ? "gate-badge--fail" : "gate-badge--cds-support-warning"}`}>
               {r.result === "passed" ? "PASS" : r.result === "failed" ? "FAIL" : "WARN"}
             </span>
             <span>{r.message}</span>

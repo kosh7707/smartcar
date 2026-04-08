@@ -71,19 +71,19 @@
 /* ── Utility Classes ── */
 
 .animate-fade-in {
-  animation: fadeIn var(--transition-base) both;
+  animation: fadeIn var(--cds-transition-base) both;
 }
 
 .animate-fade-in-up {
-  animation: fadeInUp var(--transition-slow) both;
+  animation: fadeInUp var(--cds-transition-slow) both;
 }
 
 .animate-fade-in-scale {
-  animation: fadeInScale var(--transition-slow) both;
+  animation: fadeInScale var(--cds-transition-slow) both;
 }
 
 .animate-slide-in-right {
-  animation: slideInRight var(--transition-slow) both;
+  animation: slideInRight var(--cds-transition-slow) both;
 }
 
 .animate-pulse {
@@ -122,8 +122,8 @@
 /* ── Skeleton loading ── */
 
 .skeleton {
-  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
+  background: linear-gradient(90deg, var(--cds-layer-02) 25%, var(--cds-layer-03) 50%, var(--cds-layer-02) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
-  border-radius: var(--radius-md);
+  border-radius: var(--cds-radius);
 }

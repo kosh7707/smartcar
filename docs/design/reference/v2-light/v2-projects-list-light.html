@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Projects</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container": "#eeeeee",
+                        "on-primary-container": "#ecefff",
+                        "primary-container": "#0969da",
+                        "secondary-fixed": "#dbe3ef",
+                        "surface-dim": "#dadada",
+                        "on-primary-fixed": "#001a41",
+                        "surface": "#f9f9f9",
+                        "inverse-on-surface": "#f0f1f1",
+                        "on-secondary-container": "#5b636e",
+                        "primary": "#0051ae",
+                        "outline": "#727785",
+                        "surface-container-highest": "#e2e2e2",
+                        "primary-fixed": "#d8e2ff",
+                        "outline-variant": "#c2c6d6",
+                        "on-tertiary-container": "#c0ffc2",
+                        "error-container": "#ffdad6",
+                        "surface-bright": "#f9f9f9",
+                        "secondary-container": "#d8e0ed",
+                        "on-error": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "surface-tint": "#005bc0",
+                        "background": "#f9f9f9",
+                        "surface-container-high": "#e8e8e8",
+                        "on-primary": "#ffffff",
+                        "on-secondary-fixed": "#141c25",
+                        "on-tertiary-fixed": "#002108",
+                        "secondary-fixed-dim": "#bfc7d3",
+                        "inverse-primary": "#adc6ff",
+                        "tertiary-fixed": "#88fb99",
+                        "on-background": "#1a1c1c",
+                        "tertiary": "#006226",
+                        "error": "#ba1a1a",
+                        "surface-variant": "#e2e2e2",
+                        "surface-container-low": "#f3f3f4",
+                        "on-primary-fixed-variant": "#004493",
+                        "on-tertiary-fixed-variant": "#00531f",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary": "#575f69",
+                        "on-secondary": "#ffffff",
+                        "on-surface": "#1a1c1c",
+                        "primary-fixed-dim": "#adc6ff",
+                        "on-secondary-fixed-variant": "#3f4751",
+                        "tertiary-fixed-dim": "#6bde80",
+                        "inverse-surface": "#2f3131",
+                        "on-surface-variant": "#424753",
+                        "tertiary-container": "#007e33",
+                        "on-error-container": "#93000a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #f9f9f9; color: #1a1c1c; }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .material-symbols-outlined { font-size: 20px; vertical-align: middle; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface">
+<!-- TopNavBar Strategy: Executed from JSON -->
+<header class="bg-[#f9f9f9] border-b border-surface-container-high sticky top-0 z-50">
+<div class="flex justify-between items-center w-full px-6 py-3 max-w-[1440px] mx-auto">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-2">
+<span class="text-xl font-bold tracking-tighter text-[#1a1c1c] font-headline">AEGIS</span>
+<div class="h-4 w-[1px] bg-outline-variant mx-2"></div>
+<div class="flex items-center gap-1 group cursor-pointer">
+<span class="text-xs font-label uppercase tracking-widest text-secondary">Automotive Division</span>
+<span class="material-symbols-outlined text-secondary scale-75">unfold_more</span>
+</div>
+</div>
+<div class="hidden md:flex items-center gap-1">
+<div class="relative group">
+<span class="absolute inset-y-0 left-3 flex items-center text-outline">
+<span class="material-symbols-outlined scale-90">search</span>
+</span>
+<input class="bg-surface-container-low border-none focus:ring-1 focus:ring-primary py-1.5 pl-10 pr-4 text-sm rounded-lg w-64 font-body transition-all" placeholder="Global Search..." type="text"/>
+</div>
+</div>
+</div>
+<nav class="hidden lg:flex items-center gap-1">
+<a class="px-4 py-2 text-sm font-medium transition-colors text-[#5b636e] hover:text-[#0969da] hover:bg-[#f3f3f4]" href="#">Dashboard</a>
+<a class="px-4 py-2 text-sm font-medium transition-colors text-[#0969da] border-b-2 border-[#0969da] pb-1" href="#">Projects</a>
+<a class="px-4 py-2 text-sm font-medium transition-colors text-[#5b636e] hover:text-[#0969da] hover:bg-[#f3f3f4]" href="#">Assets</a>
+<a class="px-4 py-2 text-sm font-medium transition-colors text-[#5b636e] hover:text-[#0969da] hover:bg-[#f3f3f4]" href="#">Logs</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="relative p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-4 h-4 bg-error text-[10px] text-white flex items-center justify-center rounded-full font-bold">3</span>
+</button>
+<div class="flex items-center gap-3 pl-4 border-l border-surface-container-high">
+<div class="text-right hidden sm:block">
+<div class="text-xs font-bold leading-none text-on-surface">Kosh / Admin</div>
+<div class="text-[10px] text-outline font-label uppercase tracking-tighter">Security Lead</div>
+</div>
+<img alt="User profile" class="w-8 h-8 rounded-lg object-cover ring-1 ring-outline-variant" data-alt="Close up portrait of a professional man in a tech office setting with soft natural lighting and neutral background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8O1UTR7e8ppU9a3mzp-NY5dohDVgGZ0xeZVG348cPnS2-kKocYZvEjN0X-DNaDZXVB9af11Vuz-N6t-87WHZJzH8uzBDK4HBMfrGlD8Kxgaen2xA1_bE09Yzd-oN8f5AGl3v_Wlnyr-8a2JUwD03ebSPnYDeDwkFx-gOIyXAued90aqSQsgjr-r9VkCBRyxEhQhMuFubWC0hH7OlTZjvcxW_3h2neJSy_5_YQKP8PrQfq9SEGzN6OvmpT6Cmhq5eHGBR92d0QhqLn"/>
+</div>
+</div>
+</div>
+</header>
+<main class="max-w-[1440px] mx-auto px-6 py-10">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+<div>
+<h1 class="text-5xl font-headline font-bold tracking-tight text-on-surface mb-2">Projects</h1>
+<p class="text-secondary font-body max-w-xl">
+                    High-precision analysis tracking for Automotive firmware assets. Active security scanning and delta reporting for mission-critical components.
+                </p>
+</div>
+<button class="bg-gradient-to-br from-primary to-primary-container text-white px-6 py-3 rounded-lg font-label font-bold uppercase tracking-widest text-xs flex items-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-primary/10">
+<span class="material-symbols-outlined">add</span>
+                New Project
+            </button>
+</div>
+<!-- Project Grid (Data Monolith Style) -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+<!-- Card 1 -->
+<div class="group bg-surface-container-lowest border-l-4 border-primary p-6 hover:shadow-2xl hover:shadow-on-surface/5 transition-all duration-300 relative overflow-hidden">
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="flex items-center gap-3 mb-1">
+<h3 class="text-xl font-headline font-bold text-on-surface">ECU-PowerTrain-v2.1</h3>
+<span class="px-2 py-0.5 bg-tertiary/10 text-tertiary font-label text-[10px] font-bold uppercase tracking-wider rounded">Gate PASS</span>
+</div>
+<p class="text-sm font-body text-on-surface-variant">파워트레인 ECU 펌웨어 — CAN/LIN 통신, 모터 제어, 진단(UDS)</p>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors cursor-pointer">more_vert</span>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8 pt-6 border-t border-surface-container-low">
+<div class="flex flex-col">
+<span class="text-[10px] font-label text-outline uppercase tracking-widest mb-1">Last Analysis</span>
+<span class="text-xs font-body font-medium">2시간 전</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] font-label text-outline uppercase tracking-widest mb-1">Risk Profile</span>
+<div class="flex gap-1.5 text-[10px] font-bold">
+<span class="text-error">C:0</span>
+<span class="text-orange-500">H:3</span>
+<span class="text-yellow-600">M:12</span>
+<span class="text-secondary">L:28</span>
+</div>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] font-label text-outline uppercase tracking-widest mb-1">Targets</span>
+<span class="text-xs font-body font-medium truncate">Cortex-M4, RV32</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="text-[10px] font-label text-outline uppercase tracking-widest mb-1">Delta</span>
+<span class="text-xs font-bold text-error">+3 Issues</span>
+</div>
+</div>
+<div class="absolute bottom-0 left-0 w-full h-1 bg-primary/10">
+<div class="h-full bg-primary w-2/3"></div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="group bg-surface-container-lowest border-l-4 border-error p-6 hover:shadow-2xl hover:shadow-on-surface/5 transition-all duration-300 relative overflow-hidden">
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="flex items-center gap-3 mb-1">
+<h3 class="text-xl font-headline font-bold text-on-surface">ADAS-Camera-Module</h3>
+<span class="px-2 py-0.5 bg-error/10 text-error font-label text-[10px] font-bold uppercase tracking-wider rounded">Gate FAIL</span>
+</div>
+<p class="text-sm font-body text-on-surface-variant">ADAS 전방 카메라 모듈 — 객체 인식, 차선 감지 펌웨어</p>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors cursor-pointer">more_vert</span>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8 pt-6 border-t border-surface-container-low">
+<div class="flex flex-col">
+<span class="text-[10px] font-label text-outline uppercase tracking-widest mb-1">Last Analysis</span>
+<span class="text-xs font-body font-medium">2026-04-06</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] font-label text-outline uppercase tracking-widest mb-1">Risk Profile</span>
+<div class="flex gap-1.5 text-[10px] font-bold">
+<span class="text-error">C:2</span>
+<span class="text-orange-500">H:8</span>
+<span class="text-yellow-600">M:15</span>
+<span class="text-secondary">L:31</span>
+</div>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] font-label text-outline uppercase tracking-widest mb-1">Targets</span>
+<span class="text-xs font-body font-medium truncate">Cortex-A53</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="text-[10px] font-label text-outline uppercase tracking-widest mb-1">Delta</span>
+<span class="text-xs font-bold text-error">+12 Issues</span>
+</div>
+</div>
+<div class="absolute bottom-0 left-0 w-full h-1 bg-error/10">
+<div class="h-full bg-error w-full"></div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="group bg-surface-container-lowest border-l-4 border-tertiary p-6 hover:shadow-2xl hover:shadow-on-surface/5 transition-all duration-300 relative overflow-hidden">
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="flex items-center gap-3 mb-1">
+<h3 class="text-xl font-headline font-bold text-on-surface">BMS-CellMonitor</h3>
+<span class="px-2 py-0.5 bg-tertiary/10 text-tertiary font-label text-[10px] font-bold uppercase tracking-wider rounded">Gate PASS</span>
+</div>
+<p class="text-sm font-body text-on-surface-variant">배터리 셀 모니터링 — SOC/SOH 추정, 셀 밸런싱</p>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors cursor-pointer">more_vert</span>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8 pt-6 border-t border-surface-container-low">
+<div class="flex flex-col">
+<span class="text-[10px] font-label text-outline uppercase tracking-widest mb-1">Last Analysis</span>
+<span class="text-xs font-body font-medium">어제 14:30</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] font-label text-outline uppercase tracking-widest mb-1">Risk Profile</span>
+<div class="flex gap-1.5 text-[10px] font-bold">
+<span class="text-error">C:0</span>
+<span class="text-orange-500">H:1</span>
+<span class="text-yellow-600">M:5</span>
+<span class="text-secondary">L:9</span>
+</div>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] font-label text-outline uppercase tracking-widest mb-1">Targets</span>
+<span class="text-xs font-body font-medium truncate">Cortex-M0+</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="text-[10px] font-label text-outline uppercase tracking-widest mb-1">Delta</span>
+<span class="text-xs font-bold text-tertiary">Stable (0)</span>
+</div>
+</div>
+<div class="absolute bottom-0 left-0 w-full h-1 bg-tertiary/10">
+<div class="h-full bg-tertiary w-1/4"></div>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="group bg-surface-container-lowest border-l-4 border-yellow-500 p-6 hover:shadow-2xl hover:shadow-on-surface/5 transition-all duration-300 relative overflow-hidden">
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="flex items-center gap-3 mb-1">
+<h3 class="text-xl font-headline font-bold text-on-surface">TCU-Telematics-Gateway</h3>
+<span class="px-2 py-0.5 bg-yellow-500/10 text-yellow-700 font-label text-[10px] font-bold uppercase tracking-wider rounded">Gate WARNING</span>
+</div>
+<p class="text-sm font-body text-on-surface-variant">텔레매틱스 게이트웨이 — OTA 업데이트, V2X 통신</p>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors cursor-pointer">more_vert</span>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8 pt-6 border-t border-surface-container-low">
+<div class="flex flex-col">
+<span class="text-[10px] font-label text-outline uppercase tracking-widest mb-1">Last Analysis</span>
+<span class="text-xs font-body font-medium">3일 전</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] font-label text-outline uppercase tracking-widest mb-1">Risk Profile</span>
+<div class="flex gap-1.5 text-[10px] font-bold">
+<span class="text-error">C:1</span>
+<span class="text-orange-500">H:4</span>
+<span class="text-yellow-600">M:22</span>
+<span class="text-secondary">L:47</span>
+</div>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] font-label text-outline uppercase tracking-widest mb-1">Targets</span>
+<span class="text-xs font-body font-medium truncate">M4, e200</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="text-[10px] font-label text-outline uppercase tracking-widest mb-1">Delta</span>
+<span class="text-xs font-bold text-orange-500">+5 Issues</span>
+</div>
+</div>
+<div class="absolute bottom-0 left-0 w-full h-1 bg-yellow-500/10">
+<div class="h-full bg-yellow-500 w-1/2"></div>
+</div>
+</div>
+</div>
+<!-- System Stats Footer / Asymmetric Element -->
+<div class="mt-20 flex flex-col md:flex-row items-center justify-between border-t border-surface-container-high pt-8">
+<div class="flex gap-12">
+<div class="flex flex-col">
+<span class="text-[10px] font-label text-outline uppercase tracking-widest">Global Scan Health</span>
+<span class="text-2xl font-headline font-bold text-tertiary">94.2%</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] font-label text-outline uppercase tracking-widest">Total Monitored Lines</span>
+<span class="text-2xl font-headline font-bold text-on-surface">2.4M</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] font-label text-outline uppercase tracking-widest">Active Watchdogs</span>
+<span class="text-2xl font-headline font-bold text-primary">12</span>
+</div>
+</div>
+<div class="mt-8 md:mt-0 flex items-center gap-4 text-xs font-body text-secondary">
+<div class="flex -space-x-2">
+<img alt="Avatar" class="w-6 h-6 rounded-full ring-2 ring-surface" data-alt="Close up of a person smiling for a professional profile picture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSdJiA-SNmr1G-w7zpVjHHv1eQW0UE1JbJssRKqJS_apq_X8pSgKrprPMsoUyn9JrDA4vAUMZPFUuHvy-Mr5w6zcroiNdQysDlffYW2wzJr775ai3XCICF7aTn0332kiTeKSXBXnP-GbJdhGjzcdY5StLKmEgp2KHeDiSvhFgO2WTZ2C2Ezv8Wg7xYPjLgT8gaJW2gZWvflY6yz-D9QkQAvXnIytbATayPf-cPCwkc7dmzzWV9Pth5pRMKTkFBD7q1YjTaSbnJjmAO"/>
+<img alt="Avatar" class="w-6 h-6 rounded-full ring-2 ring-surface" data-alt="Close up of a professional woman in a modern tech office" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC6-fuovcJ7t_vqQUITLXm1FZdlEeHuSNED_0nofYHfQL2TWBcsedOncs9LV0SY91cJn8fLMnyMw_Kb9iihj9azeTSuRRYGB97r5Zwux2Ba3GWSFbd_yTjXEf8ZSykZshx-0Il0aeAKPziesIU5TjjIqp6Ey0kDm9tcUZkpcp0kv8UHqkzYWUeztc7IKGa4ACoUdK2uzRsXEvT5ohKYAbIWILNDH_NDXtXqbvh1djLZyJRHELGfVTrVPBX4sBJYRj02BcSHxACGSkX2"/>
+<img alt="Avatar" class="w-6 h-6 rounded-full ring-2 ring-surface" data-alt="Portrait of a male developer in creative workspace" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOVYBwVPqZ97WdKMYfMT5g1E7r8gFRuqxljR0MkD4-66tO6qQX3l7w5nl3gJYsUFM-mfgeGfp7meDCBS6vJbQ0g2CABfs32CEFkFb2_mTao-TMevGZOOze7kJnMWC2MosMrpjUv32LtZUzEC8dFZFeo5r3UMZ_3-jciLyj39lf0h0RNtjjPQuzpirJICVB_lH7wCI0TQlCZwdEecGfiDy_DMNQJcDyoeSazZVpw0VmJKJIhpvuc8lvuMxtdTr-j6oa6GfJKfg3WapV"/>
+</div>
+<span>4 members online</span>
+</div>
+</div>
+</main>
+</body></html>

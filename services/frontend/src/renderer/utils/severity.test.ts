@@ -11,7 +11,7 @@ describe("SEVERITY_COLORS", () => {
   it("has a color for each severity", () => {
     for (const sev of SEVERITY_ORDER) {
       expect(SEVERITY_COLORS[sev]).toBeTruthy();
-      expect(SEVERITY_COLORS[sev]).toMatch(/^var\(--severity-/);
+      expect(SEVERITY_COLORS[sev]).toMatch(/^var\(--aegis-severity-/);
     }
   });
 });
@@ -26,12 +26,12 @@ describe("SEVERITY_LABELS", () => {
 
 describe("getSeverityColor", () => {
   it("returns color for known severity", () => {
-    expect(getSeverityColor("critical")).toBe("var(--severity-critical)");
-    expect(getSeverityColor("low")).toBe("var(--severity-low)");
+    expect(getSeverityColor("critical")).toBe("var(--aegis-severity-critical)");
+    expect(getSeverityColor("low")).toBe("var(--aegis-severity-low)");
   });
 
   it("falls back to info color for unknown severity", () => {
-    expect(getSeverityColor("unknown")).toBe("var(--severity-info)");
-    expect(getSeverityColor("")).toBe("var(--severity-info)");
+    expect(getSeverityColor("unknown")).toBe("var(--aegis-severity-info)");
+    expect(getSeverityColor("")).toBe("var(--aegis-severity-info)");
   });
 });

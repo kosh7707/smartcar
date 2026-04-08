@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | ECU-PowerTrain-v2.1 Approvals</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-error": "#ffffff",
+                    "on-secondary-container": "#5b636e",
+                    "surface-dim": "#dadada",
+                    "on-secondary-fixed-variant": "#3f4751",
+                    "on-secondary-fixed": "#141c25",
+                    "surface-variant": "#e2e2e2",
+                    "on-tertiary": "#ffffff",
+                    "tertiary-container": "#007e33",
+                    "secondary": "#575f69",
+                    "on-secondary": "#ffffff",
+                    "error-container": "#ffdad6",
+                    "on-primary-container": "#ecefff",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-container": "#0969da",
+                    "surface-container-low": "#f3f3f4",
+                    "tertiary-fixed-dim": "#6bde80",
+                    "inverse-on-surface": "#f0f1f1",
+                    "inverse-primary": "#adc6ff",
+                    "tertiary": "#006226",
+                    "surface-container": "#eeeeee",
+                    "surface-bright": "#f9f9f9",
+                    "on-surface-variant": "#424753",
+                    "inverse-surface": "#2f3131",
+                    "surface-tint": "#005bc0",
+                    "outline-variant": "#c2c6d6",
+                    "secondary-container": "#d8e0ed",
+                    "on-tertiary-fixed": "#002108",
+                    "on-tertiary-container": "#c0ffc2",
+                    "on-primary": "#ffffff",
+                    "on-surface": "#1a1c1c",
+                    "tertiary-fixed": "#88fb99",
+                    "surface": "#f9f9f9",
+                    "secondary-fixed": "#dbe3ef",
+                    "secondary-fixed-dim": "#bfc7d3",
+                    "primary": "#0051ae",
+                    "on-primary-fixed-variant": "#004493",
+                    "surface-container-highest": "#e2e2e2",
+                    "on-tertiary-fixed-variant": "#00531f",
+                    "on-error-container": "#93000a",
+                    "surface-container-high": "#e8e8e8",
+                    "primary-fixed": "#d8e2ff",
+                    "error": "#ba1a1a",
+                    "primary-fixed-dim": "#adc6ff",
+                    "background": "#f9f9f9",
+                    "outline": "#727785",
+                    "on-background": "#1a1c1c",
+                    "on-primary-fixed": "#001a41"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Space Grotesk"],
+                    "body": ["Inter"],
+                    "label": ["Space Grotesk"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, .font-headline { font-family: 'Space Grotesk', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- TopNavBar -->
+<header class="bg-slate-50 dark:bg-slate-900 w-full h-16 flex items-center border-b border-slate-200/20 px-6 fixed top-0 z-50">
+<div class="flex justify-between items-center w-full">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-slate-900 dark:text-white font-['Space_Grotesk']">AEGIS</span>
+<div class="relative hidden md:flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-slate-400 text-lg">search</span>
+<input class="bg-surface-container-low border-none focus:ring-1 focus:ring-primary rounded-lg pl-10 pr-4 py-1.5 text-sm w-80 font-body" placeholder="Global Search" type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-slate-500 hover:bg-slate-200/50 transition-colors rounded-lg">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-slate-500 hover:bg-slate-200/50 transition-colors rounded-lg">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="h-8 w-8 rounded-full overflow-hidden ml-2 ring-1 ring-outline-variant/30">
+<img alt="User profile" data-alt="Close-up portrait of a professional male software engineer with glasses, soft studio lighting, technical background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB2zyz4uHHujXkGL1UstcD1xqZJ78Jtdad09v1lblEB8KSzCUd3o2O6sdgNuqvqoUxIJr62LVQNLNf89GgR0zIQaIx8jttaB43zijn5IYg0dz1LidNn7TsrfdIjS9Vhws9eF302eR5TZ5CYmF71QP9oRE5JaimSGcARKt6tfNprFqTG8-fFMYcUjzmDwiEimVeqczR0RbdfWe1Hgi606cn-eHjfKZxF233QVck7pzc0TBhHv5NIL3jqGKDQM0k4qQiwLxAhsrfz5nAV"/>
+</div>
+</div>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="h-screen w-64 fixed left-0 top-0 bg-slate-100 dark:bg-slate-950 flex flex-col py-8 pt-24 border-r border-slate-200/20">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-primary rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-sm" style="font-variation-settings: 'FILL' 1;">shield</span>
+</div>
+<div>
+<h2 class="font-['Space_Grotesk'] font-bold text-lg text-on-surface">AEGIS Tactical</h2>
+<p class="text-[10px] uppercase tracking-widest text-on-surface-variant font-medium">Clinical Architect v1.0</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-3 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-all rounded text-sm font-['Inter']" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-blue-700 dark:text-blue-400 border-l-2 border-blue-700 dark:border-blue-400 bg-white dark:bg-slate-900 text-sm font-semibold font-['Inter']" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+                Approvals
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-all rounded text-sm font-['Inter']" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+                Inventory
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-all rounded text-sm font-['Inter']" href="#">
+<span class="material-symbols-outlined">precision_manufacturing</span>
+                Tactical
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-all rounded text-sm font-['Inter']" href="#">
+<span class="material-symbols-outlined">terminal</span>
+                Logs
+            </a>
+</nav>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-16 min-h-screen bg-white">
+<!-- Content Header -->
+<div class="px-8 pt-8 pb-4">
+<nav class="flex items-center text-xs font-label uppercase tracking-wider text-on-surface-variant mb-2">
+<span class="hover:text-primary cursor-pointer">Projects</span>
+<span class="mx-2 text-outline-variant">/</span>
+<span class="font-bold text-on-surface tracking-normal lowercase font-body">ECU-PowerTrain-v2.1</span>
+</nav>
+<div class="flex justify-between items-center mb-6">
+<h1 class="text-3xl font-headline font-bold tracking-tight">Approvals</h1>
+<button class="bg-[linear-gradient(135deg,#0051ae,#0969da)] text-white px-4 py-2 rounded text-sm font-medium hover:opacity-90 transition-opacity">
+                    New Request
+                </button>
+</div>
+<!-- Approval Tabs -->
+<div class="flex items-center gap-6 border-b border-surface-container-highest">
+<button class="flex items-center gap-2 pb-3 border-b-2 border-primary text-primary font-medium text-sm">
+<span class="material-symbols-outlined text-lg">radio_button_checked</span>
+                    Open <span class="bg-primary-fixed text-on-primary-fixed px-2 py-0.5 rounded-full text-[10px]">1</span>
+</button>
+<button class="flex items-center gap-2 pb-3 text-on-surface-variant hover:text-on-surface font-medium text-sm transition-colors">
+<span class="material-symbols-outlined text-lg">check_circle</span>
+                    Closed <span class="bg-surface-container-high px-2 py-0.5 rounded-full text-[10px]">4</span>
+</button>
+</div>
+</div>
+<div class="flex gap-0 h-full">
+<!-- Left Column: The PR Thread -->
+<div class="flex-1 px-8 py-6 border-r border-surface-container-low">
+<div class="mb-8">
+<h2 class="text-2xl font-headline font-semibold mb-2">
+                        Gate Override Request — analysis-20260406-001 <span class="text-on-surface-variant font-light">#1042</span>
+</h2>
+<div class="flex items-center gap-3 mb-6">
+<span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold font-label flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm">pending</span>
+                            PENDING REVIEW
+                        </span>
+<p class="text-sm text-on-surface-variant">
+<span class="font-semibold text-on-surface">Kosh</span> opened this request on Apr 6 • 3 comments
+                        </p>
+</div>
+<!-- PR Navigation -->
+<div class="flex items-center gap-4 mb-8 bg-surface-container-low p-1 rounded-lg w-fit">
+<button class="bg-white px-4 py-1.5 rounded shadow-sm text-sm font-medium text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">chat_bubble</span>
+                            Conversation
+                        </button>
+<button class="px-4 py-1.5 rounded text-sm font-medium text-on-surface-variant hover:text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">draft</span>
+                            Files changed <span class="text-[10px] opacity-60">12</span>
+</button>
+</div>
+<!-- Conversation Flow -->
+<div class="space-y-8 relative">
+<!-- Connecting Line -->
+<div class="absolute left-5 top-0 bottom-0 w-[1px] bg-surface-container-highest -z-10"></div>
+<!-- Comment 1 -->
+<div class="flex gap-4">
+<div class="w-10 h-10 rounded-full flex-shrink-0 bg-surface-container-high overflow-hidden ring-2 ring-white">
+<img alt="Kosh avatar" data-alt="Headshot of a senior engineer with short dark hair, wearing a navy polo shirt, bright clean office background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDnJJ5e7ltZBIyun12GytxC32xx_0cnqR3ODXbCxxloz6klG43xt48lEK-zxqLByDzj9qjVUZi8z4bzxkrt33woVM2dEg35rHjtfJuvYsLNfecb4LummZL9IHhOdpJUrevCJGHX_94a5ZLK9Ny12CMa1dFe8Vjvtn3jJuMJUcC6FsvJUNUwlsGruuleNoDF_amu4hdnAoSwyjNRt8lJNz8lPZTaqtlpbCEJl0v0FnvPC016FwN8D5B6_SQBdRkEpmP7N6c7E9P-tu2_"/>
+</div>
+<div class="flex-1 bg-surface-container-lowest border border-outline-variant/20 rounded-lg overflow-hidden">
+<div class="bg-surface-container-low px-4 py-2 border-b border-outline-variant/20 flex justify-between items-center">
+<p class="text-xs font-body"><span class="font-bold">Kosh</span> commented on Apr 6</p>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer text-sm">more_horiz</span>
+</div>
+<div class="p-4 text-sm leading-relaxed text-on-surface">
+<p>ADAS-Camera-Module 긴급 릴리스 필요. Critical 2건은 하드웨어 의존 오탐으로 판단됨.</p>
+</div>
+</div>
+</div>
+<!-- Automated Result Block -->
+<div class="flex gap-4">
+<div class="w-10 h-10 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-error" style="font-variation-settings: 'FILL' 1;">error</span>
+</div>
+<div class="flex-1 border-l-4 border-error bg-red-50/50 p-4 rounded-r-lg">
+<div class="flex items-center gap-2 mb-1">
+<span class="font-bold text-sm text-error font-headline">Gate Result: FAIL</span>
+</div>
+<p class="text-sm text-error-container bg-error px-2 py-0.5 rounded inline-block font-label text-[10px] mb-2">SECURITY SCAN</p>
+<p class="text-sm text-on-surface">2 new critical findings in security static analysis.</p>
+</div>
+</div>
+<!-- Action Section: Review Box -->
+<div class="flex gap-4">
+<div class="w-10 h-10 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant">rule</span>
+</div>
+<div class="flex-1 bg-surface-container-high/40 p-6 rounded-lg border border-outline-variant/20">
+<h3 class="font-headline font-bold text-lg mb-4">Finish Review</h3>
+<div class="flex gap-3">
+<button class="bg-tertiary text-white px-5 py-2 rounded font-medium text-sm flex items-center gap-2 hover:bg-tertiary-container transition-colors">
+<span class="material-symbols-outlined text-sm">verified</span>
+                                        Approve
+                                    </button>
+<button class="border-2 border-outline-variant text-on-surface px-5 py-2 rounded font-medium text-sm flex items-center gap-2 hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-sm">rate_review</span>
+                                        Request Changes
+                                    </button>
+</div>
+</div>
+</div>
+<!-- Comment Editor -->
+<div class="flex gap-4">
+<div class="w-10 h-10 rounded-full flex-shrink-0 bg-surface-container-high overflow-hidden ring-2 ring-white">
+<img alt="Current user" data-alt="User profile thumbnail for professional engineer" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDgL_J9yJSbCAu8shzabXPd7tdScU1-BkHHDeVgvQY0-J21OXhrk6viPp21bmZMPHpmCr9eByhJNYzwHOJ44MdNerOtYQAh7-4a2YPbDyspTRiGYa7BxOqIAHs7p8Qmt3ZeRp0SUfr-l6wK2F3nJnruMsveT9a1FB4CKrE6wynoiunQkVmAPqjwlSq9YoNes6dHUcwEaH8SK0zq6BstIqW3r7P154Zp1SI60nDZZKBhTiiFxVKuRUxCxthwWMMaOPbDSAfLvmBn4a89"/>
+</div>
+<div class="flex-1 bg-white border border-outline-variant/30 rounded-lg overflow-hidden shadow-sm">
+<div class="flex border-b border-outline-variant/20 px-2 pt-1 bg-surface-container-low">
+<button class="px-4 py-2 text-xs font-semibold text-on-surface border-x border-t border-outline-variant/20 bg-white -mb-[1px] rounded-t">Write</button>
+<button class="px-4 py-2 text-xs font-medium text-on-surface-variant hover:text-on-surface transition-colors">Preview</button>
+</div>
+<div class="p-3">
+<textarea class="w-full h-24 border-none focus:ring-0 text-sm font-body p-2" placeholder="Leave a comment"></textarea>
+</div>
+<div class="bg-surface-container-low px-4 py-2 border-t border-outline-variant/20 flex justify-between items-center">
+<p class="text-[10px] text-on-surface-variant italic">Markdown supported</p>
+<button class="bg-primary text-white px-4 py-1.5 rounded text-xs font-medium">Comment</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Sidebar Meta -->
+<aside class="w-80 p-8 space-y-10">
+<!-- Reviewers -->
+<div>
+<h4 class="text-[10px] font-label font-bold text-on-surface-variant uppercase tracking-widest mb-4">Reviewers</h4>
+<div class="space-y-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-container-highest overflow-hidden">
+<img alt="Sarah J" data-alt="Professional woman portrait, tech lead aesthetic, clean neutral lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKR38ssz9dAkGsjKCxZ3sJgJU3ZoPe5bwELGG2L7X8cSkV1gI6mdGvCtdUJDIuotVLjqAiNoG5H9DDEDla1NDN9pu3nv5P5wRP77hed1ag3guNQxXVnSbjptDg0Ee5xz18ZZT2VxS_PqILcMufsY-Ua_bJtnyK06-qgI91iQB_R32T6xWCfov_xcKhsCRws4MeusvCIyo5E7JD2Juw18bzjwhWTpNMEdXXK8l68v_1LI4RmsDxA8eJvTuxIu_uSwiliJNwqLMQnAUA"/>
+</div>
+<span class="text-sm font-medium">Sarah J.</span>
+</div>
+<span class="material-symbols-outlined text-tertiary text-lg" title="Approved">check_circle</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-container-highest overflow-hidden">
+<img alt="Marcus V" data-alt="Professional male portrait, software architect look, soft office lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC0u5yDlJb5K2qy_Ew2RhNx_fAE2XlVFQ5V3SeUDWOtghEZuYSG_YXTSH-dVOesW-6PNsta9WQvokd_SEXpPUyiLryMg_GfwPtfOO24djk3vmFcRHb25n0nvxCl5I10R7Y1f9whcqCpKhWfcIJysryoT0B75lGIvIHttS-OxrmzDG6PX3nvCCPuaLHZB0aEYWqrqURG2vM9AyDxINo1Q5uLAvaWUZHQvFBERf8drhmrqS10zbGtaTZWwF2OB8SgPIFddY36uHl01dFS"/>
+</div>
+<span class="text-sm font-medium">Marcus V.</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant text-lg">circle</span>
+</div>
+</div>
+</div>
+<!-- Labels -->
+<div>
+<h4 class="text-[10px] font-label font-bold text-on-surface-variant uppercase tracking-widest mb-4">Labels</h4>
+<div class="flex flex-wrap gap-2">
+<span class="bg-error/10 text-error px-2 py-1 rounded text-[10px] font-bold font-label border border-error/20">CRITICAL OVERRIDE</span>
+<span class="bg-secondary-container text-on-secondary-container px-2 py-1 rounded text-[10px] font-bold font-label">HARDWARE DEPENDENCY</span>
+</div>
+</div>
+<!-- Milestone -->
+<div>
+<h4 class="text-[10px] font-label font-bold text-on-surface-variant uppercase tracking-widest mb-4">Milestone</h4>
+<div class="flex items-center gap-2">
+<div class="flex-1">
+<p class="text-sm font-semibold mb-1">Release Candidate v2.1.4</p>
+<div class="h-2 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 82%;"></div>
+</div>
+<p class="text-[10px] mt-1 text-on-surface-variant">82% complete</p>
+</div>
+</div>
+</div>
+<!-- Technical Specs (Data Monolith) -->
+<div class="p-4 bg-surface-container-high rounded-lg border-l-4 border-primary">
+<h4 class="text-[10px] font-label font-bold text-primary uppercase tracking-widest mb-3">System Context</h4>
+<dl class="space-y-2">
+<div class="flex justify-between text-[11px]">
+<dt class="text-on-surface-variant">Artifact</dt>
+<dd class="font-mono font-bold">PT-CORE-v2</dd>
+</div>
+<div class="flex justify-between text-[11px]">
+<dt class="text-on-surface-variant">Branch</dt>
+<dd class="font-mono font-bold">hotfix/iso-26262</dd>
+</div>
+<div class="flex justify-between text-[11px]">
+<dt class="text-on-surface-variant">Security Level</dt>
+<dd class="font-mono font-bold">ASIL-D</dd>
+</div>
+</dl>
+</div>
+</aside>
+</div>
+</main>
+</body></html>

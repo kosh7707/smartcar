@@ -1,5 +1,6 @@
 import React from "react";
 import type { ConnectionState } from "../../utils/wsEnvelope";
+import "./ConnectionStatusBanner.css";
 
 interface Props {
   connectionState: ConnectionState;
@@ -14,20 +15,11 @@ export const ConnectionStatusBanner: React.FC<Props> = ({ connectionState, retry
   return (
     <div
       role="status"
+      className="connection-status-banner"
       style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 50,
-        padding: "8px 16px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        fontSize: 13,
-        fontWeight: 500,
-        background: isFailed ? "var(--danger-bg, #fde8e8)" : "var(--warning-bg, #fef3cd)",
-        color: isFailed ? "var(--danger, #dc3545)" : "var(--warning-text, #856404)",
-        borderBottom: `1px solid ${isFailed ? "var(--danger-border, #f5c6cb)" : "var(--warning-border, #ffc107)"}`,
+        background: isFailed ? "var(--cds-support-error-bg, #fde8e8)" : "var(--cds-support-warning-bg, #fef3cd)",
+        color: isFailed ? "var(--cds-support-error, #dc3545)" : "var(--cds-support-warning-text, #856404)",
+        borderBottom: `1px solid ${isFailed ? "var(--cds-support-error-border, #f5c6cb)" : "var(--cds-support-warning-border, #ffc107)"}`,
       }}
     >
       <span>
@@ -38,16 +30,7 @@ export const ConnectionStatusBanner: React.FC<Props> = ({ connectionState, retry
       {isFailed && (
         <button
           onClick={() => window.location.reload()}
-          style={{
-            marginLeft: 8,
-            padding: "2px 10px",
-            fontSize: 12,
-            border: "1px solid currentColor",
-            borderRadius: 4,
-            background: "transparent",
-            color: "inherit",
-            cursor: "pointer",
-          }}
+          className="connection-status-banner__reload-btn"
         >
           새로고침
         </button>

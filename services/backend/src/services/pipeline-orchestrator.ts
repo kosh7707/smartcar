@@ -130,9 +130,13 @@ export class PipelineOrchestrator {
           {
             taskType: "build-resolve",
             taskId: `resolve-${crypto.randomUUID().slice(0, 8)}`,
+            contractVersion: "build-resolve-v1",
+            strictMode: true,
             context: {
               trusted: {
                 projectPath: scanPath,
+                subprojectPath: isIsolated ? "." : target.relativePath,
+                subprojectName: target.name,
                 targetPath: isIsolated ? "." : target.relativePath,
                 targetName: target.name,
                 targets: [
@@ -156,10 +160,31 @@ export class PipelineOrchestrator {
           logger.info({ targetId: target.id, failureCode: resolveResp.failureCode }, "Retryable build failure, attempting retry (1/1)");
           this.updateStatus(projectId, pipelineId, target, "resolving", "빌드 재시도 중...");
           resolveResp = await this.buildAgentClient.submitTask(
-            { taskType: "build-resolve", taskId: `resolve-retry-${crypto.randomUUID().slice(0, 8)}`,
-              context: { trusted: { projectPath: scanPath, targetPath: isIsolated ? "." : target.relativePath, targetName: target.name,
-                targets: [{ name: target.name, path: isIsolated ? "." : target.relativePath, buildSystem: target.buildSystem ?? "cmake", buildFiles: [] }] } },
-              constraints: { timeoutMs: 600_000 } }, requestId, signal);
+            {
+              taskType: "build-resolve",
+              taskId: `resolve-retry-${crypto.randomUUID().slice(0, 8)}`,
+              contractVersion: "build-resolve-v1",
+              strictMode: true,
+              context: {
+                trusted: {
+                  projectPath: scanPath,
+                  subprojectPath: isIsolated ? "." : target.relativePath,
+                  subprojectName: target.name,
+                  targetPath: isIsolated ? "." : target.relativePath,
+                  targetName: target.name,
+                  targets: [{
+                    name: target.name,
+                    path: isIsolated ? "." : target.relativePath,
+                    buildSystem: target.buildSystem ?? "cmake",
+                    buildFiles: [],
+                  }],
+                },
+              },
+              constraints: { timeoutMs: 600_000 },
+            },
+            requestId,
+            signal,
+          );
         }
 
         if (this.buildAgentClient.isSuccess(resolveResp)) {

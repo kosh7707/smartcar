@@ -1136,7 +1136,7 @@ async def health() -> dict:
     return {
         "service": "s3-build",
         "status": "ok",
-        "version": "0.2.0",
+        "version": "1.0.0",
         "llmMode": settings.llm_mode,
         "agentConfig": {
             "maxSteps": settings.agent_max_steps,

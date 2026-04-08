@@ -131,7 +131,7 @@ export const StatusBar: React.FC = () => {
       <div className="statusbar-item">
         <span>AEGIS {detail ? `v${detail.version}` : `v${__APP_VERSION__}`}</span>
       </div>
-      <div className="statusbar-item" style={{ gap: "var(--space-3)" }}>
+      <div className="statusbar-item" style={{ gap: "var(--cds-spacing-04)" }}>
         <NotificationBell />
         <UserStatus />
         <div className="statusbar-item" role="status" aria-live="polite" title={STATUS_LABELS[status]}>

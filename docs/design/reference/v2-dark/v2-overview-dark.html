@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | ECU-PowerTrain-v2.1</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Space+Grotesk:wght@500;700&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary": "#989ea7",
+                        "on-tertiary-fixed": "#004a14",
+                        "on-primary": "#00436b",
+                        "on-secondary-fixed-variant": "#565c64",
+                        "surface": "#0a0e14",
+                        "surface-variant": "#1a2637",
+                        "error-container": "#7f2927",
+                        "surface-dim": "#0a0e14",
+                        "primary-dim": "#78bffe",
+                        "surface-container-high": "#16202e",
+                        "surface-container-low": "#0e141c",
+                        "on-surface-variant": "#9facc1",
+                        "on-primary-container": "#aad5ff",
+                        "secondary-container": "#363c43",
+                        "tertiary-fixed-dim": "#75ed7d",
+                        "outline-variant": "#3c495b",
+                        "on-surface": "#d9e6fd",
+                        "on-error-container": "#ff9993",
+                        "on-error": "#490106",
+                        "surface-tint": "#96ccff",
+                        "secondary-fixed": "#dde3ec",
+                        "background": "#0a0e14",
+                        "surface-container": "#121a25",
+                        "primary-fixed-dim": "#b3d8ff",
+                        "on-secondary-fixed": "#3a4047",
+                        "tertiary-fixed": "#83fc89",
+                        "on-secondary": "#1b2127",
+                        "surface-container-highest": "#1a2637",
+                        "primary-fixed": "#cee5ff",
+                        "on-secondary-container": "#bac0c8",
+                        "on-tertiary": "#00691f",
+                        "secondary-dim": "#989ea7",
+                        "on-tertiary-fixed-variant": "#006b20",
+                        "tertiary-dim": "#75ed7d",
+                        "inverse-primary": "#00649b",
+                        "inverse-on-surface": "#51555c",
+                        "primary": "#96ccff",
+                        "on-primary-fixed-variant": "#006096",
+                        "surface-container-lowest": "#000000",
+                        "on-primary-fixed": "#00436a",
+                        "primary-container": "#004a76",
+                        "on-background": "#d9e6fd",
+                        "on-tertiary-container": "#005f1c",
+                        "surface-bright": "#1e2d41",
+                        "error-dim": "#bb5551",
+                        "tertiary-container": "#83fc89",
+                        "secondary-fixed-dim": "#cfd5de",
+                        "tertiary": "#c7ffc2",
+                        "error": "#ee7d77",
+                        "outline": "#6a768a",
+                        "inverse-surface": "#f8f9ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-space { font-family: 'Space Grotesk', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-panel { backdrop-filter: blur(20px); background: rgba(18, 26, 37, 0.7); }
+    </style>
+</head>
+<body class="bg-surface text-on-surface overflow-hidden">
+<!-- TopNavBar -->
+<header class="flex justify-between items-center px-6 py-3 w-full bg-[#0a0e14] text-[#96ccff] font-['Space_Grotesk'] tracking-tight border-b border-[#3c495b]/15 shadow-[0_0_48px_0_rgba(150,204,255,0.08)] z-50 sticky top-0">
+<div class="flex items-center gap-6">
+<span class="text-xl font-bold text-[#96ccff]">AEGIS</span>
+<div class="flex items-center bg-surface-container-low px-3 py-1.5 rounded-lg border border-outline-variant/20 hover:bg-surface-container-high transition-colors cursor-pointer group">
+<span class="material-symbols-outlined text-sm mr-2" data-icon="account_tree">account_tree</span>
+<span class="text-on-surface font-medium mr-2">ECU-PowerTrain-v2.1</span>
+<span class="material-symbols-outlined text-sm opacity-50 group-hover:opacity-100" data-icon="expand_more">expand_more</span>
+</div>
+<nav class="hidden md:flex gap-6 items-center">
+<a class="text-[#96ccff] border-b-2 border-[#96ccff] pb-1 hover:text-[#96ccff] transition-colors duration-200" href="#">Explore</a>
+<a class="text-[#d9e6fd] opacity-70 hover:text-[#96ccff] transition-colors duration-200" href="#">Marketplace</a>
+<a class="text-[#d9e6fd] opacity-70 hover:text-[#96ccff] transition-colors duration-200" href="#">Issues</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined cursor-pointer hover:text-primary transition-colors" data-icon="notifications">notifications</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-primary transition-colors" data-icon="add_circle">add_circle</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-primary transition-colors" data-icon="help_outline">help_outline</span>
+</div>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-primary/30">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="close-up portrait of a professional software engineer with a focused expression, soft studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSmoS9SeKtCzh9s-ZXpoTsAb1ktn09KfjhhSmTJhVJMyqq8Gcnld40c5rWnZ44_MgFXPPhx453gy9jFuroHj17a1Oynn-cutYfn8a_n_qsJBioFpC9wO2a89qqJkRNdkfuOlNJnYDxni6Zwv9I5glAR-x3fVGigoRInJZLEbQlECZdP1lK30Fo9ymylfboc0TE4QdFK-QN4QbZo8-L0yDiDp2cPMe1C4YD5oE-z6uj54nM7MXnoY2l3AloWPAmnH65asRYImVYwjuw"/>
+</div>
+</div>
+</header>
+<div class="flex h-[calc(100vh-57px)]">
+<!-- SideNavBar -->
+<aside class="flex flex-col h-full py-6 px-4 bg-[#0e141c] text-[#96ccff] font-['Inter'] text-sm font-medium h-screen w-64 fixed left-0 top-0 border-r border-[#3c495b]/15 hidden md:flex" style="margin-top: 57px;">
+<div class="mb-8">
+<div class="flex items-center gap-3 mb-4">
+<div class="w-10 h-10 bg-primary-container rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="memory">memory</span>
+</div>
+<div>
+<h2 class="text-lg font-['Space_Grotesk'] font-bold text-[#d9e6fd]">Project AEGIS</h2>
+<p class="text-xs opacity-50">v2.4.0-stable</p>
+</div>
+</div>
+<div class="bg-surface-container-lowest/50 p-3 rounded-lg border border-outline-variant/10">
+<div class="flex items-center justify-between text-xs mb-1">
+<span class="text-on-surface-variant uppercase tracking-wider font-bold">Branch</span>
+<span class="text-primary">release/2.1</span>
+</div>
+</div>
+</div>
+<div class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 bg-[#1e2d41] text-[#96ccff] border-l-4 border-[#96ccff] rounded-r-md transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+                    Overview
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#d9e6fd]/60 hover:bg-[#121a25] hover:text-[#d9e6fd] transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+                    Analysis
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#d9e6fd]/60 hover:bg-[#121a25] hover:text-[#d9e6fd] transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="code">code</span>
+                    Code
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#d9e6fd]/60 hover:bg-[#121a25] hover:text-[#d9e6fd] transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="security">security</span>
+                    Findings
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#d9e6fd]/60 hover:bg-[#121a25] hover:text-[#d9e6fd] transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+                    History
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#d9e6fd]/60 hover:bg-[#121a25] hover:text-[#d9e6fd] transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="assignment">assignment</span>
+                    Report
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#d9e6fd]/60 hover:bg-[#121a25] hover:text-[#d9e6fd] transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="door_front">door_front</span>
+                    Gate
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#d9e6fd]/60 hover:bg-[#121a25] hover:text-[#d9e6fd] transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="verified">verified</span>
+                    Approvals
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#d9e6fd]/60 hover:bg-[#121a25] hover:text-[#d9e6fd] transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+                    Settings
+                </a>
+</div>
+<div class="mt-auto space-y-4 pt-6 border-t border-outline-variant/15">
+<button class="w-full py-2 bg-primary text-on-primary rounded-md font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="bolt">bolt</span>
+                    New Analysis
+                </button>
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-[#d9e6fd]/60 hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+                        Documentation
+                    </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#d9e6fd]/60 hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="contact_support">contact_support</span>
+                        Support
+                    </a>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 ml-0 md:ml-64 overflow-y-auto bg-surface-dim">
+<div class="max-w-[1400px] mx-auto p-8 grid grid-cols-1 xl:grid-cols-10 gap-8">
+<!-- Left/Center Column (70%) -->
+<div class="xl:col-span-7 space-y-8">
+<!-- 1. About Card -->
+<section class="bg-surface-container rounded-xl p-6 border border-outline-variant/10 shadow-xl overflow-hidden relative">
+<div class="absolute top-0 right-0 p-4">
+<span class="px-3 py-1 bg-tertiary-container text-on-tertiary-container rounded-full text-xs font-bold flex items-center gap-1.5">
+<span class="material-symbols-outlined text-xs" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                                GATE: PASS
+                            </span>
+</div>
+<div class="flex items-start gap-4">
+<div class="p-3 bg-primary/10 rounded-lg">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="settings_input_component">settings_input_component</span>
+</div>
+<div class="flex-1">
+<h1 class="text-2xl font-headline font-bold text-on-surface mb-2">ECU-PowerTrain-v2.1</h1>
+<p class="text-on-surface-variant mb-6 text-lg leading-relaxed">
+                                    파워트레인 ECU 펌웨어 v2.1 — CAN/LIN 통신, 모터 제어, 진단(UDS) 모듈 포함
+                                </p>
+<div class="flex flex-wrap gap-2 mb-6">
+<span class="px-3 py-1 bg-surface-container-highest border border-outline-variant/20 rounded-md text-xs font-mono text-primary-dim">C</span>
+<span class="px-3 py-1 bg-surface-container-highest border border-outline-variant/20 rounded-md text-xs font-mono text-primary-dim">ARM Cortex-M4</span>
+<span class="px-3 py-1 bg-surface-container-highest border border-outline-variant/20 rounded-md text-xs font-mono text-primary-dim">MISRA C:2012</span>
+<span class="px-3 py-1 bg-surface-container-highest border border-outline-variant/20 rounded-md text-xs font-mono text-primary-dim">ISO 26262</span>
+<span class="px-3 py-1 bg-surface-container-highest border border-outline-variant/20 rounded-md text-xs font-mono text-primary-dim">AUTOSAR</span>
+</div>
+<div class="flex items-center text-xs text-on-surface-variant font-medium">
+<span class="material-symbols-outlined text-xs mr-1" data-icon="calendar_today">calendar_today</span>
+                                    Created: 2026-03-15
+                                    <span class="mx-3 opacity-20">|</span>
+<span class="material-symbols-outlined text-xs mr-1" data-icon="history">history</span>
+                                    Last scan: 2 hours ago
+                                </div>
+</div>
+</div>
+</section>
+<!-- 2. Security Overview -->
+<section class="bg-surface-container rounded-xl p-6 border border-outline-variant/10 shadow-xl">
+<div class="flex items-center justify-between mb-8">
+<h2 class="text-xl font-headline font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-error" data-icon="security" style="font-variation-settings: 'FILL' 1;">security</span>
+                                Security Overview
+                            </h2>
+<div class="text-right">
+<span class="text-3xl font-headline font-bold text-on-surface">43</span>
+<span class="text-xs text-on-surface-variant block uppercase tracking-tighter">Total Vulnerabilities</span>
+</div>
+</div>
+<!-- Severity Bar -->
+<div class="mb-10">
+<div class="flex justify-between text-xs font-bold mb-2 uppercase tracking-widest text-on-surface-variant">
+<span>Severity Distribution</span>
+<span>Risk Level: High</span>
+</div>
+<div class="h-4 w-full bg-surface-variant rounded-full flex overflow-hidden">
+<div class="h-full bg-error-dim flex items-center justify-center" style="width: 0%"></div> <!-- Critical 0 -->
+<div class="h-full bg-error flex items-center justify-center shadow-[0_0_10px_rgba(238,125,119,0.5)]" style="width: 15%"></div> <!-- High 3 -->
+<div class="h-full bg-secondary-fixed flex items-center justify-center opacity-70" style="width: 35%"></div> <!-- Medium 12 -->
+<div class="h-full bg-primary flex items-center justify-center opacity-40" style="width: 50%"></div> <!-- Low 28 -->
+</div>
+<div class="grid grid-cols-4 mt-3 gap-2">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-error-dim"></div>
+<span class="text-xs text-on-surface-variant">Critical: 0</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-error"></div>
+<span class="text-xs text-on-surface-variant">High: 3</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-secondary-fixed"></div>
+<span class="text-xs text-on-surface-variant">Medium: 12</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary/40"></div>
+<span class="text-xs text-on-surface-variant">Low: 28</span>
+</div>
+</div>
+</div>
+<!-- Trend Chart -->
+<div>
+<h3 class="text-sm font-bold uppercase tracking-widest text-on-surface-variant mb-4">30-Day Vulnerability Trend</h3>
+<div class="flex items-end justify-between h-40 px-2 border-b border-l border-outline-variant/20 pt-4 relative">
+<!-- Grid Lines -->
+<div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-5">
+<div class="border-t border-on-surface w-full"></div>
+<div class="border-t border-on-surface w-full"></div>
+<div class="border-t border-on-surface w-full"></div>
+<div class="border-t border-on-surface w-full"></div>
+</div>
+<!-- Week 1 -->
+<div class="flex flex-col items-center flex-1">
+<div class="flex items-end gap-1 mb-2">
+<div class="w-4 bg-primary-container rounded-t-sm" style="height: 60px;"></div>
+<div class="w-4 bg-tertiary-container/60 rounded-t-sm" style="height: 40px;"></div>
+</div>
+<span class="text-[10px] text-on-surface-variant font-mono">W1</span>
+</div>
+<!-- Week 2 -->
+<div class="flex flex-col items-center flex-1">
+<div class="flex items-end gap-1 mb-2">
+<div class="w-4 bg-primary-container rounded-t-sm" style="height: 45px;"></div>
+<div class="w-4 bg-tertiary-container/60 rounded-t-sm" style="height: 55px;"></div>
+</div>
+<span class="text-[10px] text-on-surface-variant font-mono">W2</span>
+</div>
+<!-- Week 3 -->
+<div class="flex flex-col items-center flex-1">
+<div class="flex items-end gap-1 mb-2">
+<div class="w-4 bg-primary-container rounded-t-sm" style="height: 80px;"></div>
+<div class="w-4 bg-tertiary-container/60 rounded-t-sm" style="height: 30px;"></div>
+</div>
+<span class="text-[10px] text-on-surface-variant font-mono">W3</span>
+</div>
+<!-- Week 4 -->
+<div class="flex flex-col items-center flex-1">
+<div class="flex items-end gap-1 mb-2">
+<div class="w-4 bg-primary-container rounded-t-sm shadow-[0_0_12px_rgba(150,204,255,0.2)]" style="height: 35px;"></div>
+<div class="w-4 bg-tertiary-container/60 rounded-t-sm shadow-[0_0_12px_rgba(131,252,137,0.2)]" style="height: 90px;"></div>
+</div>
+<span class="text-[10px] text-on-surface-variant font-mono">W4</span>
+</div>
+</div>
+<div class="flex justify-center gap-6 mt-4">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 bg-primary-container rounded-sm"></div>
+<span class="text-[10px] uppercase font-bold text-on-surface-variant">New Issues</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 bg-tertiary-container/60 rounded-sm"></div>
+<span class="text-[10px] uppercase font-bold text-on-surface-variant">Resolved</span>
+</div>
+</div>
+</div>
+</section>
+<!-- 3. Recent Activity -->
+<section class="bg-surface-container rounded-xl p-6 border border-outline-variant/10 shadow-xl">
+<h2 class="text-xl font-headline font-bold mb-8 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="tide" style="font-variation-settings: 'FILL' 1;">waves</span>
+                            Recent Activity
+                        </h2>
+<div class="relative ml-4 pl-8 border-l-2 border-outline-variant/10 space-y-10">
+<!-- Timeline Item 1 -->
+<div class="relative">
+<div class="absolute -left-[41px] top-0 w-4 h-4 bg-tertiary rounded-full shadow-[0_0_12px_#c7ffc2]"></div>
+<div class="flex items-center justify-between mb-1">
+<h4 class="font-bold text-on-surface">SDK Verification Successful</h4>
+<span class="text-xs font-mono text-on-surface-variant">12m ago</span>
+</div>
+<p class="text-sm text-on-surface-variant">Toolchain <span class="text-primary-dim font-mono">arm-none-eabi-gcc 12.3</span> successfully verified for production deployment.</p>
+</div>
+<!-- Timeline Item 2 -->
+<div class="relative">
+<div class="absolute -left-[41px] top-0 w-4 h-4 bg-tertiary rounded-full shadow-[0_0_12px_#c7ffc2]"></div>
+<div class="flex items-center justify-between mb-1">
+<h4 class="font-bold text-on-surface">Gate Evaluation Passed</h4>
+<span class="text-xs font-mono text-on-surface-variant">1h ago</span>
+</div>
+<p class="text-sm text-on-surface-variant">Security gate criteria for <span class="font-bold">release/2.1</span> met. No critical blockers detected.</p>
+</div>
+<!-- Timeline Item 3 -->
+<div class="relative">
+<div class="absolute -left-[41px] top-0 w-4 h-4 bg-primary rounded-full shadow-[0_0_12px_#96ccff]"></div>
+<div class="flex items-center justify-between mb-1">
+<h4 class="font-bold text-on-surface">Deep Analysis Completed</h4>
+<span class="text-xs font-mono text-on-surface-variant">3h ago</span>
+</div>
+<p class="text-sm text-on-surface-variant">Extended heuristic analysis for memory safety in <span class="font-mono">motor_control.c</span> finished.</p>
+</div>
+<!-- Timeline Item 4 -->
+<div class="relative">
+<div class="absolute -left-[41px] top-0 w-4 h-4 bg-primary rounded-full shadow-[0_0_12px_#96ccff]"></div>
+<div class="flex items-center justify-between mb-1">
+<h4 class="font-bold text-on-surface">SAST Scan Completed</h4>
+<span class="text-xs font-mono text-on-surface-variant">Yesterday</span>
+</div>
+<p class="text-sm text-on-surface-variant">Static analysis identified 12 minor MISRA violations. No security threats found.</p>
+</div>
+</div>
+</section>
+</div>
+<!-- Right Sidebar (30%) -->
+<div class="xl:col-span-3 space-y-6">
+<!-- Build Targets -->
+<div class="bg-surface-container rounded-xl p-5 border border-outline-variant/10">
+<h3 class="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center justify-between">
+                            Build Targets
+                            <span class="material-symbols-outlined text-sm" data-icon="settings">settings</span>
+</h3>
+<div class="space-y-3">
+<div class="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-outline-variant/5">
+<span class="text-sm font-mono text-on-surface">arm-cortex-m4-main</span>
+<span class="text-[10px] font-bold text-tertiary-fixed bg-on-tertiary-fixed/30 px-2 py-0.5 rounded">Ready</span>
+</div>
+<div class="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-outline-variant/5">
+<span class="text-sm font-mono text-on-surface">arm-cortex-m4-boot</span>
+<span class="text-[10px] font-bold text-tertiary-fixed bg-on-tertiary-fixed/30 px-2 py-0.5 rounded">Ready</span>
+</div>
+<div class="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-outline-variant/5">
+<span class="text-sm font-mono text-on-surface">riscv-rv32-diag</span>
+<span class="text-[10px] font-bold text-secondary-fixed bg-on-secondary-fixed/30 px-2 py-0.5 rounded">Configured</span>
+</div>
+</div>
+</div>
+<!-- Languages -->
+<div class="bg-surface-container rounded-xl p-5 border border-outline-variant/10">
+<h3 class="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-4">Composition</h3>
+<div class="h-2 w-full rounded-full flex overflow-hidden mb-3">
+<div class="h-full bg-primary" style="width: 82%"></div>
+<div class="h-full bg-primary-fixed-dim" style="width: 11%"></div>
+<div class="h-full bg-secondary-fixed" style="width: 4%"></div>
+<div class="h-full bg-outline" style="width: 3%"></div>
+</div>
+<div class="space-y-2">
+<div class="flex items-center justify-between text-xs">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<span class="font-bold text-on-surface">C</span>
+</div>
+<span class="text-on-surface-variant">82%</span>
+</div>
+<div class="flex items-center justify-between text-xs">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary-fixed-dim"></div>
+<span class="font-bold text-on-surface">C++</span>
+</div>
+<span class="text-on-surface-variant">11%</span>
+</div>
+<div class="flex items-center justify-between text-xs">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-secondary-fixed"></div>
+<span class="font-bold text-on-surface">ASM</span>
+</div>
+<span class="text-on-surface-variant">4%</span>
+</div>
+</div>
+<div class="mt-4 pt-4 border-t border-outline-variant/10 flex justify-between items-center text-xs font-mono text-on-surface-variant">
+<span>127 files</span>
+<span>2.4 MB</span>
+</div>
+</div>
+<!-- SDKs -->
+<div class="bg-surface-container rounded-xl p-5 border border-outline-variant/10">
+<h3 class="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-4">SDK Verification</h3>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between items-center mb-2">
+<span class="text-[11px] font-mono text-on-surface">arm-none-eabi-gcc 12.3</span>
+<span class="text-[10px] text-tertiary">Ready</span>
+</div>
+<div class="h-1 w-full bg-surface-variant rounded-full">
+<div class="h-full bg-tertiary w-full rounded-full"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between items-center mb-2">
+<span class="text-[11px] font-mono text-on-surface">riscv32-unknown-elf 13.1</span>
+<span class="text-[10px] text-primary">Verifying 78%</span>
+</div>
+<div class="h-1 w-full bg-surface-variant rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[78%] rounded-full shadow-[0_0_8px_#96ccff]"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Summary Grid -->
+<div class="bg-surface-container rounded-xl p-5 border border-outline-variant/10">
+<h3 class="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-4">Status Matrix</h3>
+<div class="grid grid-cols-2 gap-3">
+<div class="p-3 bg-surface-container-low rounded-lg border border-outline-variant/10 text-center">
+<div class="text-2xl font-headline font-bold text-tertiary">2</div>
+<div class="text-[10px] uppercase font-bold text-on-surface-variant">Ready</div>
+</div>
+<div class="p-3 bg-surface-container-low rounded-lg border border-outline-variant/10 text-center">
+<div class="text-2xl font-headline font-bold text-primary">0</div>
+<div class="text-[10px] uppercase font-bold text-on-surface-variant">Running</div>
+</div>
+<div class="p-3 bg-surface-container-low rounded-lg border border-outline-variant/10 text-center">
+<div class="text-2xl font-headline font-bold text-error">0</div>
+<div class="text-[10px] uppercase font-bold text-on-surface-variant">Failed</div>
+</div>
+<div class="p-3 bg-surface-container-low rounded-lg border border-outline-variant/10 text-center">
+<div class="text-2xl font-headline font-bold text-secondary-fixed">1</div>
+<div class="text-[10px] uppercase font-bold text-on-surface-variant">Discovery</div>
+</div>
+</div>
+</div>
+<!-- Decorative Branding Image -->
+<div class="rounded-xl overflow-hidden h-32 border border-outline-variant/20 relative group">
+<img alt="Technical ECU Illustration" class="w-full h-full object-cover grayscale opacity-40 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" data-alt="abstract close-up of a high-tech printed circuit board with glowing cyan traces and microchips, futuristic industrial aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAhznkx_56K9NZQ4u9OGTzh9_133bM2rOy-Lq1i7Io6o4k2ofaalyWogxNM73vJoL83DceG_9hbYI-r8--QDQ-npnx3yAnTq1o0stbOA1sjR-uKb8AtfGLdhCa1dTgkmdiXpOkOIEr0RkKDdfvXnWZPvjLwP022aYJ6OZ-fvLpq3Zl673cTHb8ilUgSO4HWCVq2c_xscdat-e2BGLKEhYK3lNPqW7dMnQP4c1Fvwk0RjfGUPoDVTMlke74JvE5paLAuDIe3yKGOUP6K"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest to-transparent opacity-80"></div>
+<div class="absolute bottom-0 left-0 p-3">
+<span class="text-[10px] font-bold uppercase tracking-widest text-primary">Sentinel Deep Scan™</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

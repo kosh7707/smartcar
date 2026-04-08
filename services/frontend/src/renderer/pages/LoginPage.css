@@ -9,90 +9,90 @@
 .login-card {
   width: 100%;
   max-width: 400px;
-  background: var(--surface-1);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  padding: var(--space-6);
-  box-shadow: var(--shadow-lg);
+  background: var(--cds-layer-01);
+  border: 1px solid var(--cds-border-subtle);
+  border-radius: var(--cds-radius);
+  padding: var(--cds-spacing-06);
+  box-shadow: var(--cds-shadow-dropdown);
 }
 
 .login-card__header {
   text-align: center;
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--cds-spacing-06);
 }
 
 .login-card__icon {
-  color: var(--accent);
-  margin-bottom: var(--space-2);
+  color: var(--cds-interactive);
+  margin-bottom: var(--cds-spacing-03);
 }
 
 .login-card__title {
-  font-family: var(--font-display);
-  font-size: var(--text-xl);
-  font-weight: var(--weight-bold);
-  color: var(--text-primary);
-  margin: 0 0 var(--space-1);
+  font-family: var(--cds-font-sans);
+  font-size: var(--cds-type-xl);
+  font-weight: var(--cds-weight-semibold);
+  color: var(--cds-text-primary);
+  margin: 0 0 var(--cds-spacing-02);
   letter-spacing: 0.04em;
 }
 
 .login-card__subtitle {
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-placeholder);
   margin: 0;
 }
 
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--cds-spacing-05);
 }
 
 .login-field {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--cds-spacing-02);
 }
 
 .login-field label {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  color: var(--text-secondary);
+  font-size: var(--cds-type-sm);
+  font-weight: var(--cds-weight-semibold);
+  color: var(--cds-text-secondary);
 }
 
 .login-field input {
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--surface-inset);
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-  transition: border-color var(--transition-fast);
+  padding: var(--cds-spacing-03) var(--cds-spacing-04);
+  border: 1px solid var(--cds-border-subtle);
+  border-radius: var(--cds-radius);
+  background: var(--cds-surface-inset);
+  color: var(--cds-text-primary);
+  font-size: var(--cds-type-sm);
+  transition: border-color var(--cds-transition-fast);
 }
 
 .login-field input:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--cds-interactive);
 }
 
 .login-error {
-  background: var(--danger-subtle, rgba(239, 68, 68, 0.1));
-  color: var(--danger);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
+  background: var(--cds-support-error-subtle, rgba(239, 68, 68, 0.1));
+  color: var(--cds-support-error);
+  padding: var(--cds-spacing-03) var(--cds-spacing-04);
+  border-radius: var(--cds-radius);
+  font-size: var(--cds-type-sm);
   text-align: center;
 }
 
 .login-submit {
-  padding: var(--space-2) var(--space-4);
-  background: var(--accent);
-  color: var(--text-inverse);
+  padding: var(--cds-spacing-03) var(--cds-spacing-05);
+  background: var(--cds-interactive);
+  color: var(--cds-text-inverse);
   border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  border-radius: var(--cds-radius);
+  font-size: var(--cds-type-sm);
+  font-weight: var(--cds-weight-semibold);
   cursor: pointer;
-  transition: opacity var(--transition-fast);
+  transition: opacity var(--cds-transition-fast);
 }
 
 .login-submit:hover {

@@ -27,10 +27,10 @@ import { formatTime } from "../../utils/format";
 const MAX_MESSAGES = 500;
 
 const CLASSIFICATION_COLOR: Record<InjectionClassification, string> = {
-  normal: "var(--success)",
-  crash: "var(--danger)",
-  anomaly: "var(--severity-medium)",
-  timeout: "var(--severity-low)",
+  normal: "var(--cds-support-success)",
+  crash: "var(--cds-support-error)",
+  anomaly: "var(--aegis-severity-medium)",
+  timeout: "var(--aegis-severity-low)",
 };
 
 type PanelTab = "alerts" | "inject" | "history";
@@ -276,7 +276,7 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
         {/* CAN Messages */}
         <div className="monitor-messages">
           <div className="card">
-            <div className="card-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="card-title flex-between">
               CAN 메시지
               <button
                 className={`btn-secondary btn-sm monitor-pause-btn${paused ? " monitor-pause-btn--active" : ""}`}
@@ -390,7 +390,7 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
             {activeTab === "alerts" && (
               <>
                 {alerts.length === 0 ? (
-                  <p className="text-tertiary" style={{ padding: "var(--space-4) 0", textAlign: "center", fontSize: "var(--text-sm)" }}>
+                  <p className="text-tertiary" style={{ padding: "var(--cds-spacing-05) 0", textAlign: "center", fontSize: "var(--cds-type-sm)" }}>
                     아직 탐지된 이상이 없습니다
                   </p>
                 ) : (
@@ -404,7 +404,7 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
                         <p className="alert-card__desc">{alert.description}</p>
                         {alert.llmAnalysis && (
                           <div className="alert-card__llm">
-                            <span className="badge badge-info" style={{ fontSize: "var(--text-xs)" }}>LLM</span>
+                            <span className="badge badge-info" style={{ fontSize: "var(--cds-type-xs)" }}>LLM</span>
                             <p>{alert.llmAnalysis}</p>
                           </div>
                         )}
@@ -483,7 +483,7 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
                 <div className="inject-scenarios">
                   <div className="inject-scenarios__title">공격 시나리오</div>
                   {scenarios.length === 0 ? (
-                    <p className="text-tertiary" style={{ fontSize: "var(--text-sm)", textAlign: "center", padding: "var(--space-3) 0" }}>
+                    <p className="text-tertiary" style={{ fontSize: "var(--cds-type-sm)", textAlign: "center", padding: "var(--cds-spacing-04) 0" }}>
                       로딩 중...
                     </p>
                   ) : (
@@ -516,7 +516,7 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
             {activeTab === "history" && (
               <div className="inject-history">
                 {injections.length === 0 ? (
-                  <p className="text-tertiary" style={{ padding: "var(--space-4) 0", textAlign: "center", fontSize: "var(--text-sm)" }}>
+                  <p className="text-tertiary" style={{ padding: "var(--cds-spacing-05) 0", textAlign: "center", fontSize: "var(--cds-type-sm)" }}>
                     아직 주입 이력이 없습니다
                   </p>
                 ) : (

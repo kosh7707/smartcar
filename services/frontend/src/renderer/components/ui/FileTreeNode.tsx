@@ -125,7 +125,7 @@ function FileTreeNodeInner<T>({
       {node.data && renderFileIcon ? (
         renderFileIcon(node.data)
       ) : (
-        <FileText size={16} style={{ color: "var(--text-tertiary)", flexShrink: 0 }} />
+        <FileText size={16} style={{ color: "var(--cds-text-placeholder)", flexShrink: 0 }} />
       )}
       <span className="ftree-name">{node.name}</span>
       {node.data && renderFileMeta?.(node.data)}

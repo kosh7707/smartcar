@@ -8,7 +8,7 @@ interface Props {
 
 export const BackButton: React.FC<Props> = ({ onClick, label = "뒤로" }) => {
   return (
-    <button className="btn btn-secondary btn-sm" onClick={onClick} style={{ marginBottom: "var(--space-4)" }}>
+    <button className="btn btn-secondary btn-sm" onClick={onClick} style={{ marginBottom: "var(--cds-spacing-05)" }}>
       <ArrowLeft size={14} />
       {label}
     </button>

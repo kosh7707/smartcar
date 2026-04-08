@@ -74,7 +74,7 @@ function getLangBreakdown(files: UploadedFile[]): React.ReactNode {
         <React.Fragment key={lang}>
           {i > 0 && <span className="stat-card__sep" />}
           <span className="stat-card__module stat-card__module--active">
-            <span className="stat-card__lang-dot" style={{ background: LANG_COLORS[lang] || "var(--text-tertiary)" }} />
+            <span className="stat-card__lang-dot" style={{ background: LANG_COLORS[lang] || "var(--cds-text-placeholder)" }} />
             {lang} <span className="stat-card__module-count">{count}</span>
           </span>
         </React.Fragment>
@@ -208,7 +208,7 @@ export const OverviewPage: React.FC = () => {
 
       {/* Security posture group: Donut + modules + stats */}
       {!isEmpty && <div className="overview-posture-group">
-        <div className="card" style={{ marginBottom: "var(--space-3)" }}>
+        <div className="card" style={{ marginBottom: "var(--cds-spacing-04)" }}>
           <div className="overview-security-card">
             <DonutChart summary={sev} size={140} showLegend={false} centerLabel="전체 Finding" />
             <div className="overview-module-rows">
@@ -242,17 +242,17 @@ export const OverviewPage: React.FC = () => {
         {/* Stat cards */}
         <div className="stat-cards stagger">
         <StatCard icon={<FileText size={16} />} label="파일 수" value={overview.fileCount ?? projectFiles.length} accent detail={getLangBreakdown(projectFiles)} onClick={() => navigate(`/projects/${projectId}/files`)} />
-        <StatCard icon={<AlertTriangle size={16} />} label="Critical" value={sev.critical} color="var(--severity-critical)" detail={getModuleBreakdown(latestMap, "critical")} onClick={() => navigate(`/projects/${projectId}/vulnerabilities?severity=critical`)} />
-        <StatCard icon={<AlertTriangle size={16} />} label="High" value={sev.high} color="var(--severity-high)" detail={getModuleBreakdown(latestMap, "high")} onClick={() => navigate(`/projects/${projectId}/vulnerabilities?severity=high`)} />
-        <StatCard icon={<AlertCircle size={16} />} label="Medium" value={sev.medium} color="var(--severity-medium)" detail={getModuleBreakdown(latestMap, "medium")} onClick={() => navigate(`/projects/${projectId}/vulnerabilities?severity=medium`)} />
-        <StatCard icon={<Info size={16} />} label="Low" value={sev.low} color="var(--severity-low)" detail={getModuleBreakdown(latestMap, "low")} onClick={() => navigate(`/projects/${projectId}/vulnerabilities?severity=low`)} />
+        <StatCard icon={<AlertTriangle size={16} />} label="Critical" value={sev.critical} color="var(--aegis-severity-critical)" detail={getModuleBreakdown(latestMap, "critical")} onClick={() => navigate(`/projects/${projectId}/vulnerabilities?severity=critical`)} />
+        <StatCard icon={<AlertTriangle size={16} />} label="High" value={sev.high} color="var(--aegis-severity-high)" detail={getModuleBreakdown(latestMap, "high")} onClick={() => navigate(`/projects/${projectId}/vulnerabilities?severity=high`)} />
+        <StatCard icon={<AlertCircle size={16} />} label="Medium" value={sev.medium} color="var(--aegis-severity-medium)" detail={getModuleBreakdown(latestMap, "medium")} onClick={() => navigate(`/projects/${projectId}/vulnerabilities?severity=medium`)} />
+        <StatCard icon={<Info size={16} />} label="Low" value={sev.low} color="var(--aegis-severity-low)" detail={getModuleBreakdown(latestMap, "low")} onClick={() => navigate(`/projects/${projectId}/vulnerabilities?severity=low`)} />
         </div>
       </div>}
 
       {/* Trend card — hide when all values are zero */}
       {overview.trend && (overview.trend.newFindings > 0 || overview.trend.resolvedFindings > 0 || overview.trend.unresolvedTotal > 0) && (
         <div className="card overview-trend-card">
-          <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+          <div className="card-title flex-center flex-gap-2">
             <Activity size={16} />
             이전 분석 대비 변화
           </div>
@@ -284,11 +284,11 @@ export const OverviewPage: React.FC = () => {
             className="card-title overview-file-header"
             onClick={() => navigate(`/projects/${projectId}/files`)}
           >
-            <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+            <span className="flex-center flex-gap-2">
               <FileText size={16} />
               업로드된 파일 ({projectFiles.length}){projectFiles.length > 0 && <span className="overview-file-total-size">· {formatFileSize(projectFiles.reduce((sum, f) => sum + (f.size || 0), 0))}</span>}
             </span>
-            <ChevronRight size={16} style={{ color: "var(--text-tertiary)" }} />
+            <ChevronRight size={16} style={{ color: "var(--cds-text-placeholder)" }} />
           </div>
           {projectFiles.length === 0 ? (
             <p className="overview-empty-text">아직 업로드된 파일이 없습니다.</p>
@@ -326,11 +326,11 @@ export const OverviewPage: React.FC = () => {
             className="card-title overview-vuln-header"
             onClick={() => navigate(`/projects/${projectId}/vulnerabilities`)}
           >
-            <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+            <span className="flex-center flex-gap-2">
               <Shield size={16} />
               주요 취약점
             </span>
-            <ChevronRight size={16} style={{ color: "var(--text-tertiary)" }} />
+            <ChevronRight size={16} style={{ color: "var(--cds-text-placeholder)" }} />
           </div>
           {topVulns.length === 0 ? (
             <p className="overview-empty-text">발견된 취약점이 없습니다.</p>
@@ -366,11 +366,11 @@ export const OverviewPage: React.FC = () => {
             className="card-title overview-subproject-header"
             onClick={() => navigate(`/projects/${projectId}/files`)}
           >
-            <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+            <span className="flex-center flex-gap-2">
               <HardDrive size={16} />
               서브 프로젝트 ({bt.targets.length}개)
             </span>
-            <ChevronRight size={16} style={{ color: "var(--text-tertiary)" }} />
+            <ChevronRight size={16} style={{ color: "var(--cds-text-placeholder)" }} />
           </div>
           {overview.targetSummary && (
             <div className="overview-target-summary">
@@ -408,11 +408,11 @@ export const OverviewPage: React.FC = () => {
             className="card-title overview-gate-header"
             onClick={() => navigate(`/projects/${projectId}/quality-gate`)}
           >
-            <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+            <span className="flex-center flex-gap-2">
               <ShieldCheck size={16} />
               Quality Gate ({gates.length}개)
             </span>
-            <ChevronRight size={16} style={{ color: "var(--text-tertiary)" }} />
+            <ChevronRight size={16} style={{ color: "var(--cds-text-placeholder)" }} />
           </div>
           {gates.length === 0 ? (
             <p className="overview-empty-text">평가된 Gate가 없습니다.</p>
@@ -424,7 +424,7 @@ export const OverviewPage: React.FC = () => {
               <span className="overview-gate-item overview-gate-item--fail">
                 <XCircle size={12} /> 실패 {gateCounts.fail}
               </span>
-              <span className="overview-gate-item overview-gate-item--warning">
+              <span className="overview-gate-item overview-gate-item--cds-support-warning">
                 <AlertTriangle size={12} /> 경고 {gateCounts.warning}
               </span>
             </div>
@@ -437,11 +437,11 @@ export const OverviewPage: React.FC = () => {
             className="card-title overview-approval-header"
             onClick={() => navigate(`/projects/${projectId}/approvals`)}
           >
-            <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+            <span className="flex-center flex-gap-2">
               <ClipboardCheck size={16} />
               승인 요청
             </span>
-            <ChevronRight size={16} style={{ color: "var(--text-tertiary)" }} />
+            <ChevronRight size={16} style={{ color: "var(--cds-text-placeholder)" }} />
           </div>
           <div className="overview-approval-body">
             {approvalCount.pending > 0 ? (
@@ -464,11 +464,11 @@ export const OverviewPage: React.FC = () => {
             className="card-title overview-sdk-header"
             onClick={() => navigate(`/projects/${projectId}/settings`)}
           >
-            <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+            <span className="flex-center flex-gap-2">
               <Settings size={16} />
               SDK ({registeredSdks.length}개)
             </span>
-            <ChevronRight size={16} style={{ color: "var(--text-tertiary)" }} />
+            <ChevronRight size={16} style={{ color: "var(--cds-text-placeholder)" }} />
           </div>
           {registeredSdks.length === 0 ? (
             <p className="overview-empty-text">등록된 SDK가 없습니다.</p>
@@ -478,9 +478,9 @@ export const OverviewPage: React.FC = () => {
                 <div key={sdk.id} className="overview-sdk-row">
                   <span className="overview-sdk-name">{sdk.name}</span>
                   <span className="overview-sdk-status" style={{
-                    color: sdk.status === "ready" ? "var(--success)" : sdk.status.endsWith("_failed") ? "var(--danger)" : "var(--severity-medium)",
-                    fontSize: "var(--text-xs)",
-                    fontWeight: "var(--weight-medium)",
+                    color: sdk.status === "ready" ? "var(--cds-support-success)" : sdk.status.endsWith("_failed") ? "var(--cds-support-error)" : "var(--aegis-severity-medium)",
+                    fontSize: "var(--cds-type-xs)",
+                    fontWeight: "var(--cds-weight-medium)",
                   }}>
                     {sdk.status === "ready" ? "사용 가능" : sdk.status.endsWith("_failed") ? "실패" : "진행 중"}
                   </span>
@@ -493,7 +493,7 @@ export const OverviewPage: React.FC = () => {
         {/* Activity Timeline */}
         <div className="card overview-history-card">
           <div className="card-title overview-history-header">
-            <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+            <span className="flex-center flex-gap-2">
               <Activity size={16} />
               최근 활동
             </span>

@@ -34,7 +34,7 @@ describe("getLangColor", () => {
   });
 
   it("returns fallback for unknown language/extension", () => {
-    expect(getLangColor(makeFile("test.xyz"))).toBe("var(--text-tertiary)");
+    expect(getLangColor(makeFile("test.xyz"))).toBe("var(--cds-text-placeholder)");
   });
 });
 
@@ -44,7 +44,7 @@ describe("getLangColorByName", () => {
   });
 
   it("returns fallback for unknown language", () => {
-    expect(getLangColorByName("rust")).toBe("var(--text-tertiary)");
-    expect(getLangColorByName("")).toBe("var(--text-tertiary)");
+    expect(getLangColorByName("rust")).toBe("var(--cds-text-placeholder)");
+    expect(getLangColorByName("")).toBe("var(--cds-text-placeholder)");
   });
 });

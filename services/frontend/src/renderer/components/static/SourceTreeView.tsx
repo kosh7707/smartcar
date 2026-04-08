@@ -116,7 +116,7 @@ export const SourceTreeView: React.FC<Props> = ({
       const lang = f.language || "기타";
       const info = LANG_GROUPS[lang];
       const group = info?.group ?? "기타";
-      const color = info?.color ?? "var(--text-tertiary)";
+      const color = info?.color ?? "var(--cds-text-placeholder)";
       if (!grouped[group]) grouped[group] = { count: 0, color };
       grouped[group].count += 1;
     }

@@ -268,10 +268,17 @@ class BuildResolveContract(BaseModel):
 class TaskRequest(BaseModel):
     taskType: TaskType
     taskId: str
+    contractVersion: ContractVersion | None = None
+    strictMode: bool | None = None
     context: Context
     evidenceRefs: list[EvidenceRef] = Field(default_factory=list)
     constraints: Constraints = Field(default_factory=Constraints)
     metadata: dict | None = None
 
     def build_resolve_contract(self) -> BuildResolveContract:
-        return BuildResolveContract.model_validate(self.context.trusted)
+        trusted = dict(self.context.trusted)
+        if self.contractVersion is not None and trusted.get("contractVersion") is None:
+            trusted["contractVersion"] = self.contractVersion
+        if self.strictMode is not None and trusted.get("strictMode") is None:
+            trusted["strictMode"] = self.strictMode
+        return BuildResolveContract.model_validate(trusted)

@@ -1,12 +1,12 @@
 .async-progress {
   text-align: center;
-  padding: var(--space-12) var(--space-10);
+  padding: var(--cds-spacing-09) var(--cds-spacing-08);
 }
 
 .async-progress__title {
-  margin: var(--space-4) 0 var(--space-6);
-  font-weight: var(--weight-semibold);
-  font-size: var(--text-lg);
+  margin: var(--cds-spacing-05) 0 var(--cds-spacing-06);
+  font-weight: var(--cds-weight-semibold);
+  font-size: var(--cds-type-lg);
 }
 
 /* ── 5-Step Stepper ── */
@@ -16,81 +16,81 @@
   align-items: flex-start;
   justify-content: center;
   gap: 0;
-  margin-bottom: var(--space-8);
+  margin-bottom: var(--cds-spacing-07);
 }
 
 .async-stepper__step {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--cds-spacing-02);
   min-width: 64px;
 }
 
 .async-stepper__circle {
   width: 28px;
   height: 28px;
-  border-radius: var(--radius-full);
-  border: 2px solid var(--border-default);
+  border-radius: var(--cds-radius-circle);
+  border: 2px solid var(--cds-border-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  color: var(--text-tertiary);
-  background: var(--surface-0);
-  transition: all var(--transition-fast);
+  font-size: var(--cds-type-xs);
+  font-weight: var(--cds-weight-semibold);
+  color: var(--cds-text-placeholder);
+  background: var(--cds-background);
+  transition: all var(--cds-transition-fast);
 }
 
 .async-stepper__step--active .async-stepper__circle {
-  border-color: var(--accent);
-  color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-subtle);
+  border-color: var(--cds-interactive);
+  color: var(--cds-interactive);
+  box-shadow: 0 0 0 3px var(--cds-interactive-subtle);
 }
 
 .async-stepper__step--done .async-stepper__circle {
-  border-color: var(--success);
-  background: var(--success);
-  color: var(--text-inverse);
+  border-color: var(--cds-support-success);
+  background: var(--cds-support-success);
+  color: var(--cds-text-inverse);
 }
 
 .async-stepper__step--failed .async-stepper__circle {
-  border-color: var(--severity-critical);
-  background: var(--severity-critical);
-  color: var(--text-inverse);
+  border-color: var(--aegis-severity-critical);
+  background: var(--aegis-severity-critical);
+  color: var(--cds-text-inverse);
 }
 
 .async-stepper__label {
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
   white-space: nowrap;
 }
 
 .async-stepper__step--active .async-stepper__label {
-  color: var(--text-primary);
-  font-weight: var(--weight-medium);
+  color: var(--cds-text-primary);
+  font-weight: var(--cds-weight-medium);
 }
 
 .async-stepper__step--done .async-stepper__label {
-  color: var(--success);
+  color: var(--cds-support-success);
 }
 
 .async-stepper__step--failed .async-stepper__label {
-  color: var(--severity-critical);
+  color: var(--aegis-severity-critical);
 }
 
 .async-stepper__line {
   width: 36px;
   height: 2px;
-  background: var(--border-default);
+  background: var(--cds-border-subtle);
   margin-top: 14px;
   flex-shrink: 0;
   border-radius: 1px;
-  transition: background var(--transition-fast);
+  transition: background var(--cds-transition-fast);
 }
 
 .async-stepper__line--done {
-  background: var(--success);
+  background: var(--cds-support-success);
 }
 
 /* ── Progress bar ── */
@@ -98,34 +98,34 @@
 .async-progress__bar-wrap {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--cds-spacing-04);
   max-width: min(400px, 100%);
-  margin: 0 auto var(--space-3);
+  margin: 0 auto var(--cds-spacing-04);
 }
 
 .async-progress__bar-track {
   flex: 1;
   height: 8px;
-  background: var(--surface-2);
-  border-radius: var(--radius-full);
+  background: var(--cds-layer-02);
+  border-radius: var(--cds-radius-circle);
   overflow: hidden;
 }
 
 .async-progress__bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
-  border-radius: var(--radius-full);
-  transition: width var(--transition-slow);
+  background: linear-gradient(90deg, var(--cds-interactive), var(--cds-interactive-hover));
+  border-radius: var(--cds-radius-circle);
+  transition: width var(--cds-transition-slow);
 }
 
 .async-progress__bar-fill--error {
-  background: var(--severity-critical);
+  background: var(--aegis-severity-critical);
 }
 
 .async-progress__percent {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  color: var(--accent);
+  font-size: var(--cds-type-sm);
+  font-weight: var(--cds-weight-semibold);
+  color: var(--cds-interactive);
   min-width: 36px;
   text-align: right;
 }
@@ -133,37 +133,37 @@
 /* ── Text ── */
 
 .async-progress__chunk {
-  font-size: var(--text-sm);
-  color: var(--accent);
-  font-weight: var(--weight-medium);
-  margin: 0 0 var(--space-4);
+  font-size: var(--cds-type-sm);
+  color: var(--cds-interactive);
+  font-weight: var(--cds-weight-medium);
+  margin: 0 0 var(--cds-spacing-05);
 }
 
 .async-progress__message {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  margin: 0 0 var(--space-2);
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-secondary);
+  margin: 0 0 var(--cds-spacing-03);
 }
 
 .async-progress__elapsed {
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
-  margin: 0 0 var(--space-4);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
+  margin: 0 0 var(--cds-spacing-05);
 }
 
 .async-progress__error {
-  font-size: var(--text-sm);
-  color: var(--severity-critical);
-  background: var(--severity-critical-bg);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  margin: 0 auto var(--space-4);
+  font-size: var(--cds-type-sm);
+  color: var(--aegis-severity-critical);
+  background: var(--aegis-severity-critical-bg);
+  padding: var(--cds-spacing-04) var(--cds-spacing-05);
+  border-radius: var(--cds-radius);
+  margin: 0 auto var(--cds-spacing-05);
   max-width: 400px;
 }
 
 .async-progress__actions {
   display: flex;
   justify-content: center;
-  gap: var(--space-3);
-  margin-top: var(--space-2);
+  gap: var(--cds-spacing-04);
+  margin-top: var(--cds-spacing-03);
 }

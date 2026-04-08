@@ -162,7 +162,8 @@ class ResultAssembler:
         agent_log(
             logger, "결과 신뢰도",
             component="result_assembler", phase="result_confidence",
-            confidence=confidence, breakdown=breakdown,
+            confidence=confidence,
+            breakdown=breakdown.model_dump() if hasattr(breakdown, "model_dump") else breakdown,
         )
 
         claims = [

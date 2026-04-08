@@ -22,5 +22,5 @@ async def lifespan(app: FastAPI):
     yield
     logger.info("Build Agent stopped")
 
-app = FastAPI(title="AEGIS Build Agent", lifespan=lifespan)
+app = FastAPI(title="AEGIS Build Agent", version="1.0.0", lifespan=lifespan)
 app.include_router(tasks.router)

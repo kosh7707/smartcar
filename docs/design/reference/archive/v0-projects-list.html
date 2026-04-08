@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AEGIS — Project List Reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+/* =============================================
+   DARK THEME (default)
+   ============================================= */
+[data-theme="dark"] {
+  --canvas:            #101010;
+  --surface-0:         #161616;
+  --surface-1:         #1e1e1e;
+  --surface-2:         #252525;
+  --surface-3:         #2e2e2e;
+  --surface-hover:     rgba(255,255,255,0.04);
+  --surface-active:    rgba(255,255,255,0.07);
+
+  --sidebar-bg:        #0c0c0c;
+  --sidebar-border:    rgba(255,255,255,0.06);
+
+  --text-0:            #f0f0f0;
+  --text-1:            #b8b8b8;
+  --text-2:            #787878;
+  --text-3:            #484848;
+
+  --border-0:          rgba(255,255,255,0.05);
+  --border-1:          rgba(255,255,255,0.08);
+  --border-2:          rgba(255,255,255,0.14);
+
+  --accent:            #4c8dff;
+  --accent-hover:      #6ba1ff;
+  --accent-muted:      rgba(76,141,255,0.10);
+  --accent-muted-border: rgba(76,141,255,0.25);
+
+  --sev-critical:      #f04848;
+  --sev-critical-bg:   rgba(240,72,72,0.10);
+  --sev-high:          #ef8c3a;
+  --sev-high-bg:       rgba(239,140,58,0.10);
+  --sev-medium:        #e8c63a;
+  --sev-medium-bg:     rgba(232,198,58,0.08);
+  --sev-low:           #3dba63;
+  --sev-low-bg:        rgba(61,186,99,0.08);
+
+  --status-ok:         #3dba63;
+  --status-ok-bg:      rgba(61,186,99,0.10);
+  --status-fail:       #f04848;
+  --status-fail-bg:    rgba(240,72,72,0.10);
+  --status-run:        #4c8dff;
+  --status-run-bg:     rgba(76,141,255,0.10);
+  --status-wait:       #787878;
+  --status-wait-bg:    rgba(120,120,120,0.08);
+
+  --shadow-card:       0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px var(--border-0);
+  --shadow-card-hover: 0 4px 16px rgba(0,0,0,0.5), 0 0 0 1px var(--border-1);
+  --shadow-btn:        0 1px 2px rgba(0,0,0,0.3);
+
+  --theme-toggle-bg:   var(--surface-2);
+  color-scheme: dark;
+}
+
+/* =============================================
+   LIGHT THEME
+   ============================================= */
+[data-theme="light"] {
+  --canvas:            #f6f6f6;
+  --surface-0:         #ffffff;
+  --surface-1:         #f9f9f9;
+  --surface-2:         #f2f2f2;
+  --surface-3:         #e8e8e8;
+  --surface-hover:     rgba(0,0,0,0.03);
+  --surface-active:    rgba(0,0,0,0.05);
+
+  --sidebar-bg:        #fafafa;
+  --sidebar-border:    #e8e8e8;
+
+  --text-0:            #1a1a1a;
+  --text-1:            #555555;
+  --text-2:            #888888;
+  --text-3:            #bbbbbb;
+
+  --border-0:          rgba(0,0,0,0.06);
+  --border-1:          rgba(0,0,0,0.10);
+  --border-2:          rgba(0,0,0,0.18);
+
+  --accent:            #2563eb;
+  --accent-hover:      #3b76f6;
+  --accent-muted:      rgba(37,99,235,0.06);
+  --accent-muted-border: rgba(37,99,235,0.20);
+
+  --sev-critical:      #dc2626;
+  --sev-critical-bg:   rgba(220,38,38,0.07);
+  --sev-high:          #d97706;
+  --sev-high-bg:       rgba(217,119,6,0.07);
+  --sev-medium:        #ca8a04;
+  --sev-medium-bg:     rgba(202,138,4,0.06);
+  --sev-low:           #16a34a;
+  --sev-low-bg:        rgba(22,163,74,0.06);
+
+  --status-ok:         #16a34a;
+  --status-ok-bg:      rgba(22,163,74,0.07);
+  --status-fail:       #dc2626;
+  --status-fail-bg:    rgba(220,38,38,0.07);
+  --status-run:        #2563eb;
+  --status-run-bg:     rgba(37,99,235,0.07);
+  --status-wait:       #888888;
+  --status-wait-bg:    rgba(136,136,136,0.07);
+
+  --shadow-card:       0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px var(--border-0);
+  --shadow-card-hover: 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px var(--border-1);
+  --shadow-btn:        0 1px 2px rgba(0,0,0,0.06);
+
+  --theme-toggle-bg:   var(--surface-3);
+  color-scheme: light;
+}
+
+/* =============================================
+   BASE
+   ============================================= */
+html, body {
+  height: 100%;
+  font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-0);
+  background: var(--canvas);
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+/* ---- LAYOUT ---- */
+.app { display: flex; height: 100vh; overflow: hidden; }
+
+/* =============================================
+   SIDEBAR
+   ============================================= */
+.sidebar {
+  width: 232px; min-width: 232px;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+  transition: background 0.25s ease;
+}
+
+.sidebar-header {
+  padding: 22px 18px 18px;
+  display: flex; align-items: center; gap: 11px;
+}
+
+.sidebar-logo {
+  width: 30px; height: 30px;
+  background: var(--accent);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px; color: #fff;
+  letter-spacing: -0.3px;
+  box-shadow: 0 2px 8px rgba(76,141,255,0.25);
+}
+
+.sidebar-brand-name {
+  font-size: 16px; font-weight: 700;
+  color: var(--text-0); letter-spacing: 1.5px;
+}
+.sidebar-brand-sub {
+  font-size: 10px; font-weight: 500;
+  color: var(--text-2); letter-spacing: 1.8px;
+  text-transform: uppercase; margin-top: -1px;
+}
+
+.sidebar-section { padding: 4px 10px; }
+
+.sidebar-label {
+  padding: 12px 10px 5px;
+  font-size: 10.5px; font-weight: 600;
+  color: var(--text-3); text-transform: uppercase;
+  letter-spacing: 1.2px;
+}
+
+.sidebar-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; border-radius: 6px;
+  color: var(--text-1); cursor: pointer;
+  transition: all 0.1s ease;
+  font-size: 13.5px; font-weight: 400;
+  position: relative; text-decoration: none;
+}
+.sidebar-item:hover {
+  background: var(--surface-hover);
+  color: var(--text-0);
+}
+.sidebar-item.active {
+  background: var(--accent-muted);
+  color: var(--accent);
+  font-weight: 500;
+}
+.sidebar-item.active::before {
+  content: ''; position: absolute;
+  left: -10px; top: 7px; bottom: 7px; width: 3px;
+  background: var(--accent); border-radius: 0 3px 3px 0;
+}
+
+.sidebar-icon { width: 17px; height: 17px; opacity: 0.5; flex-shrink: 0; }
+.sidebar-item:hover .sidebar-icon { opacity: 0.8; }
+.sidebar-item.active .sidebar-icon { opacity: 1; }
+
+.sidebar-count {
+  margin-left: auto;
+  font-size: 11px; font-weight: 600;
+  padding: 0 6px; min-width: 18px; text-align: center;
+  border-radius: 9px; line-height: 18px;
+}
+.sidebar-count.red   { background: var(--sev-critical); color: #fff; }
+.sidebar-count.amber { background: var(--sev-high);     color: #fff; }
+
+.sidebar-hr { height: 1px; background: var(--border-0); margin: 6px 18px; }
+
+.sidebar-bottom {
+  margin-top: auto; padding: 10px 10px;
+  border-top: 1px solid var(--border-0);
+}
+.sidebar-user {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; border-radius: 6px;
+  cursor: pointer; transition: background 0.1s;
+}
+.sidebar-user:hover { background: var(--surface-hover); }
+
+.sidebar-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600;
+}
+.sidebar-uname { font-size: 13px; font-weight: 500; color: var(--text-0); }
+.sidebar-urole { font-size: 11px; color: var(--text-2); }
+
+/* =============================================
+   MAIN
+   ============================================= */
+.main {
+  flex: 1; display: flex; flex-direction: column;
+  overflow: hidden; background: var(--canvas);
+  transition: background 0.25s ease;
+}
+
+/* ---- TOPBAR ---- */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px; height: 48px; flex-shrink: 0;
+  border-bottom: 1px solid var(--border-0);
+  background: var(--surface-0);
+  transition: background 0.25s ease;
+}
+.topbar-left {
+  font-size: 13px; color: var(--text-2); font-weight: 400;
+}
+.topbar-left strong { color: var(--text-0); font-weight: 600; }
+
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+
+.search-box {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 10px; min-width: 180px;
+  background: var(--surface-1); border: 1px solid var(--border-1);
+  border-radius: 6px; font-size: 12.5px; color: var(--text-2);
+  cursor: text; transition: border-color 0.15s;
+}
+.search-box:hover { border-color: var(--border-2); }
+.search-box kbd {
+  margin-left: auto; font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 10px; color: var(--text-3);
+  background: var(--surface-3); padding: 1px 5px; border-radius: 3px;
+  line-height: 16px;
+}
+
+.btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 13px; font-size: 12.5px; font-weight: 500;
+  border: none; border-radius: 6px; cursor: pointer;
+  font-family: inherit; transition: all 0.12s;
+}
+.btn-primary {
+  background: var(--accent); color: #fff;
+  box-shadow: var(--shadow-btn);
+}
+.btn-primary:hover { background: var(--accent-hover); }
+
+.btn-ghost {
+  background: transparent; color: var(--text-1);
+  border: 1px solid var(--border-1);
+}
+.btn-ghost:hover { background: var(--surface-hover); border-color: var(--border-2); }
+
+/* Theme toggle */
+.theme-toggle {
+  width: 32px; height: 32px; border-radius: 6px;
+  background: var(--theme-toggle-bg);
+  border: 1px solid var(--border-1);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.15s; color: var(--text-1);
+}
+.theme-toggle:hover { background: var(--surface-active); color: var(--text-0); }
+.theme-toggle svg { width: 16px; height: 16px; }
+
+/* ---- CONTENT ---- */
+.content-wrap {
+  flex: 1; overflow-y: auto; padding: 24px 28px 80px;
+}
+
+.content-header {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.content-title {
+  font-size: 22px; font-weight: 600; letter-spacing: -0.5px;
+  color: var(--text-0);
+}
+.content-meta {
+  font-size: 12.5px; color: var(--text-2); margin-top: 3px;
+}
+.content-meta span { color: var(--status-ok); font-weight: 500; }
+
+.filters { display: flex; gap: 6px; }
+.filter {
+  padding: 5px 13px; font-size: 12px; font-weight: 500;
+  border-radius: 9999px; border: 1px solid var(--border-1);
+  background: transparent; color: var(--text-1);
+  cursor: pointer; font-family: inherit; transition: all 0.1s;
+}
+.filter:hover { background: var(--surface-hover); color: var(--text-0); }
+.filter.on {
+  background: var(--accent-muted); color: var(--accent);
+  border-color: var(--accent-muted-border);
+}
+
+/* =============================================
+   TABLE
+   ============================================= */
+.table {
+  background: var(--surface-0);
+  border: 1px solid var(--border-0);
+  border-radius: 10px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+
+.thead {
+  display: grid;
+  grid-template-columns: minmax(220px,2.5fr) 90px minmax(180px,1.8fr) 110px 130px 70px;
+  gap: 8px; padding: 0 20px; height: 38px; align-items: center;
+  border-bottom: 1px solid var(--border-0);
+  font-size: 11px; font-weight: 600; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.7px;
+}
+
+.trow {
+  display: grid;
+  grid-template-columns: minmax(220px,2.5fr) 90px minmax(180px,1.8fr) 110px 130px 70px;
+  gap: 8px; padding: 0 20px; min-height: 60px; align-items: center;
+  border-bottom: 1px solid var(--border-0);
+  transition: background 0.1s; cursor: pointer;
+  position: relative;
+}
+.trow:last-child { border-bottom: none; }
+.trow:hover { background: var(--surface-hover); }
+
+/* severity left stripe on hover */
+.trow::after {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: transparent; transition: background 0.15s;
+}
+.trow:hover::after { background: var(--accent); opacity: 0.5; }
+.trow.has-critical:hover::after { background: var(--sev-critical); opacity: 0.7; }
+
+/* ---- Cells ---- */
+.cell-project { display: flex; align-items: center; gap: 11px; }
+
+.p-icon {
+  width: 34px; height: 34px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700; flex-shrink: 0;
+  border: 1px solid var(--border-0);
+}
+.p-icon.c-orange { background: var(--sev-high-bg); color: var(--sev-high); border-color: rgba(239,140,58,0.15); }
+.p-icon.c-blue   { background: var(--accent-muted); color: var(--accent); border-color: var(--accent-muted-border); }
+.p-icon.c-red    { background: var(--sev-critical-bg); color: var(--sev-critical); border-color: rgba(240,72,72,0.15); }
+.p-icon.c-green  { background: var(--sev-low-bg); color: var(--sev-low); border-color: rgba(61,186,99,0.12); }
+
+.p-name { font-size: 13.5px; font-weight: 500; color: var(--text-0); }
+.p-desc { font-size: 11.5px; color: var(--text-2); margin-top: 1px; }
+
+/* Status */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11.5px; font-weight: 500;
+  padding: 3px 9px; border-radius: 9999px;
+}
+.badge .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.badge-ok   { background: var(--status-ok-bg);   color: var(--status-ok); }
+.badge-fail { background: var(--status-fail-bg); color: var(--status-fail); }
+.badge-run  { background: var(--status-run-bg);  color: var(--status-run); }
+.badge-wait { background: var(--status-wait-bg); color: var(--status-wait); }
+
+/* Severity distribution */
+.sev-group { display: flex; flex-direction: column; gap: 5px; padding-right: 8px; }
+
+.sev-bar {
+  display: flex; height: 5px; border-radius: 3px;
+  overflow: hidden; background: var(--surface-3);
+}
+.sev-bar .s { height: 100%; min-width: 2px; }
+.sev-bar .s.cr { background: var(--sev-critical); }
+.sev-bar .s.hi { background: var(--sev-high); }
+.sev-bar .s.me { background: var(--sev-medium); }
+.sev-bar .s.lo { background: var(--sev-low); }
+
+.sev-nums {
+  display: flex; gap: 7px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px; color: var(--text-2);
+}
+.sev-nums i {
+  font-style: normal;
+  display: inline-flex; align-items: center; gap: 3px;
+}
+.sev-nums i::before {
+  content: ''; width: 6px; height: 6px; border-radius: 1.5px;
+}
+.sev-nums .cr::before { background: var(--sev-critical); }
+.sev-nums .hi::before { background: var(--sev-high); }
+.sev-nums .me::before { background: var(--sev-medium); }
+.sev-nums .lo::before { background: var(--sev-low); }
+
+.sev-empty { font-size: 12px; color: var(--text-3); }
+
+/* Gate */
+.gate {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11.5px; font-weight: 500;
+  padding: 3px 9px; border-radius: 9999px;
+}
+.gate-ok   { background: var(--status-ok-bg);   color: var(--status-ok); }
+.gate-fail { background: var(--status-fail-bg); color: var(--status-fail); }
+.gate svg  { width: 11px; height: 11px; }
+.gate-na   { color: var(--text-3); font-size: 12px; padding: 0; }
+
+/* Date / file */
+.cell-date {
+  font-size: 12px; color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.cell-files {
+  font-size: 13px; font-weight: 500; color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- FOOTER ---- */
+.footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 28px; flex-shrink: 0;
+  border-top: 1px solid var(--border-0);
+  background: var(--surface-0);
+  font-size: 11.5px; color: var(--text-3);
+  transition: background 0.25s ease;
+}
+.footer-left { display: flex; align-items: center; gap: 7px; }
+.footer-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--status-ok);
+}
+.footer-right { display: flex; gap: 14px; }
+.footer-right a {
+  color: var(--text-3); text-decoration: none;
+  transition: color 0.1s;
+}
+.footer-right a:hover { color: var(--text-1); }
+
+/* ---- SCROLLBAR ---- */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--text-3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-2); }
+
+/* ---- ANIMATION ---- */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.trow { animation: fadeUp 0.3s ease both; }
+.trow:nth-child(2) { animation-delay: 0.04s; }
+.trow:nth-child(3) { animation-delay: 0.08s; }
+.trow:nth-child(4) { animation-delay: 0.12s; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">A</div>
+      <div>
+        <div class="sidebar-brand-name">AEGIS</div>
+        <div class="sidebar-brand-sub">Security Platform</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">General</div>
+      <a class="sidebar-item active" href="#">
+        <svg class="sidebar-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="6" height="6" rx="1.5"/><rect x="10" y="2" width="6" height="6" rx="1.5"/><rect x="2" y="10" width="6" height="6" rx="1.5"/><rect x="10" y="10" width="6" height="6" rx="1.5"/></svg>
+        <span>프로젝트</span>
+      </a>
+      <a class="sidebar-item" href="#">
+        <svg class="sidebar-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="6.5"/><path d="M9 5.5v3.5l2.5 1.5"/></svg>
+        <span>분석 이력</span>
+      </a>
+      <a class="sidebar-item" href="#">
+        <svg class="sidebar-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,13 6,8 10,11 16,4"/></svg>
+        <span>트렌드</span>
+      </a>
+    </div>
+
+    <div class="sidebar-hr"></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Alerts</div>
+      <a class="sidebar-item" href="#">
+        <svg class="sidebar-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 6.5a4.5 4.5 0 0 0-9 0c0 4.5-2 6.5-2 6.5h13s-2-2-2-6.5"/><path d="M7.5 15a1.5 1.5 0 0 0 3 0"/></svg>
+        <span>알림</span>
+        <span class="sidebar-count red">3</span>
+      </a>
+      <a class="sidebar-item" href="#">
+        <svg class="sidebar-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 8.5v5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 3 13.5v-5"/><path d="M9 3l6 5.5H3L9 3z"/></svg>
+        <span>승인 대기</span>
+        <span class="sidebar-count amber">2</span>
+      </a>
+    </div>
+
+    <div class="sidebar-hr"></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">System</div>
+      <a class="sidebar-item" href="#">
+        <svg class="sidebar-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="2.5"/><path d="M14.5 9a5.5 5.5 0 0 1-.5 2.2l1.3 1.3-1.5 1.5-1.3-1.3a5.5 5.5 0 0 1-2.2.5v1.8H8.5v-1.8a5.5 5.5 0 0 1-2.2-.5l-1.3 1.3-1.5-1.5 1.3-1.3A5.5 5.5 0 0 1 4.3 9H2.5V7.2h1.8a5.5 5.5 0 0 1 .5-2.2L3.5 3.7 5 2.2l1.3 1.3A5.5 5.5 0 0 1 8.5 3V1.2h1.8V3a5.5 5.5 0 0 1 2.2.5L13.8 2.2l1.5 1.5-1.3 1.3a5.5 5.5 0 0 1 .5 2.2h1.8V9z"/></svg>
+        <span>설정</span>
+      </a>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div class="sidebar-user">
+        <div class="sidebar-avatar">K</div>
+        <div>
+          <div class="sidebar-uname">kosh</div>
+          <div class="sidebar-urole">Admin</div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <div class="topbar">
+      <div class="topbar-left"><strong>프로젝트</strong></div>
+      <div class="topbar-right">
+        <div class="search-box">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3"/></svg>
+          검색...
+          <kbd>Ctrl K</kbd>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()" title="테마 전환" id="themeBtn">
+          <svg id="iconMoon" viewBox="0 0 20 20" fill="currentColor"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
+          <svg id="iconSun" viewBox="0 0 20 20" fill="currentColor" style="display:none"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/></svg>
+        </button>
+        <button class="btn btn-primary">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 3v10M3 8h10"/></svg>
+          새 프로젝트
+        </button>
+      </div>
+    </div>
+
+    <div class="content-wrap">
+      <div class="content-header">
+        <div>
+          <div class="content-title">프로젝트</div>
+          <div class="content-meta">3개 프로젝트 &middot; 서버 <span>연결됨</span> &middot; 마지막 동기화 2분 전</div>
+        </div>
+        <div class="filters">
+          <button class="filter on">전체</button>
+          <button class="filter">활성</button>
+          <button class="filter">대기</button>
+          <button class="filter">아카이브</button>
+        </div>
+      </div>
+
+      <div class="table">
+        <div class="thead">
+          <span>프로젝트</span>
+          <span>상태</span>
+          <span>취약점 분포</span>
+          <span>Quality Gate</span>
+          <span>마지막 분석</span>
+          <span>파일</span>
+        </div>
+
+        <!-- RE100 -->
+        <div class="trow has-critical">
+          <div class="cell-project">
+            <div class="p-icon c-orange">R</div>
+            <div><div class="p-name">RE100</div><div class="p-desc">재생에너지 인증 시스템</div></div>
+          </div>
+          <div><span class="badge badge-ok"><span class="dot"></span>활성</span></div>
+          <div class="sev-group">
+            <div class="sev-bar">
+              <div class="s cr" style="width:10%"></div>
+              <div class="s hi" style="width:50%"></div>
+              <div class="s me" style="width:30%"></div>
+              <div class="s lo" style="width:10%"></div>
+            </div>
+            <div class="sev-nums">
+              <i class="cr">1</i><i class="hi">5</i><i class="me">3</i><i class="lo">1</i>
+            </div>
+          </div>
+          <div><span class="gate gate-ok"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 8.5l3.5 3.5 6.5-8"/></svg>통과</span></div>
+          <div class="cell-date">2026.04.02</div>
+          <div class="cell-files">147</div>
+        </div>
+
+        <!-- RE100_test -->
+        <div class="trow">
+          <div class="cell-project">
+            <div class="p-icon c-blue">R</div>
+            <div><div class="p-name">RE100_test</div><div class="p-desc">설명 없음</div></div>
+          </div>
+          <div><span class="badge badge-wait"><span class="dot"></span>대기</span></div>
+          <div><span class="sev-empty">&mdash;</span></div>
+          <div><span class="gate-na">&mdash;</span></div>
+          <div class="cell-date">&mdash;</div>
+          <div class="cell-files">0</div>
+        </div>
+
+        <!-- AEGIS-Core -->
+        <div class="trow has-critical">
+          <div class="cell-project">
+            <div class="p-icon c-red">A</div>
+            <div><div class="p-name">AEGIS-Core</div><div class="p-desc">코어 보안 엔진</div></div>
+          </div>
+          <div><span class="badge badge-run"><span class="dot"></span>분석 중</span></div>
+          <div class="sev-group">
+            <div class="sev-bar">
+              <div class="s cr" style="width:28%"></div>
+              <div class="s hi" style="width:42%"></div>
+              <div class="s me" style="width:20%"></div>
+              <div class="s lo" style="width:10%"></div>
+            </div>
+            <div class="sev-nums">
+              <i class="cr">12</i><i class="hi">18</i><i class="me">9</i><i class="lo">4</i>
+            </div>
+          </div>
+          <div><span class="gate gate-fail"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg>실패</span></div>
+          <div class="cell-date">2026.04.08</div>
+          <div class="cell-files">892</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="footer-left">
+        <span class="footer-dot"></span>
+        서버 연결됨 &middot; AEGIS v0.2.0
+      </div>
+      <div class="footer-right">
+        <a href="#">문서</a><a href="#">API</a><a href="#">설정</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  document.getElementById('iconMoon').style.display = isDark ? 'none' : '';
+  document.getElementById('iconSun').style.display = isDark ? '' : 'none';
+}
+</script>
+</body>
+</html>

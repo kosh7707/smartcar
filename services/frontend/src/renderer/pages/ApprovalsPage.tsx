@@ -185,14 +185,14 @@ export const ApprovalsPage: React.FC = () => {
               placeholder="코멘트 (선택)"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              style={{ width: "100%", marginBottom: "var(--space-3)" }}
+              style={{ width: "100%", marginBottom: "var(--cds-spacing-04)" }}
             />
             <div className="confirm-dialog__actions">
               <button className="btn btn-secondary btn-sm" onClick={() => { setDecidingId(null); setDecidingAction(null); setComment(""); }}>
                 취소
               </button>
               <button
-                className={`btn btn-sm${decidingAction === "rejected" ? " confirm-dialog__btn--danger" : ""}`}
+                className={`btn btn-sm${decidingAction === "rejected" ? " confirm-dialog__btn--cds-support-error" : ""}`}
                 onClick={handleDecide}
                 disabled={processing}
               >

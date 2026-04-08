@@ -2,70 +2,70 @@
 
 .history-filter {
   display: flex;
-  gap: var(--space-1);
-  margin-bottom: var(--space-3);
+  gap: var(--cds-spacing-02);
+  margin-bottom: var(--cds-spacing-04);
 }
 
 .history-filter__btn {
   padding: 4px 12px;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--border-default);
-  background: var(--surface-1);
-  color: var(--text-secondary);
-  font-size: var(--text-xs);
+  border-radius: var(--cds-radius-circle);
+  border: 1px solid var(--cds-border-subtle);
+  background: var(--cds-layer-01);
+  color: var(--cds-text-secondary);
+  font-size: var(--cds-type-xs);
   font-family: inherit;
   cursor: pointer;
-  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  transition: background var(--cds-transition-fast), border-color var(--cds-transition-fast), color var(--cds-transition-fast);
 }
 
 .history-filter__btn:hover {
-  background: var(--surface-2);
-  border-color: var(--accent-border);
+  background: var(--cds-layer-02);
+  border-color: var(--cds-interactive-border);
 }
 
 .history-filter__btn.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--text-inverse);
+  background: var(--cds-interactive);
+  border-color: var(--cds-interactive);
+  color: var(--cds-text-inverse);
 }
 
 /* ── KPI Strip ── */
 
 .history-kpi-strip {
   display: flex;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
+  gap: var(--cds-spacing-04);
+  margin-bottom: var(--cds-spacing-04);
 }
 
 .history-kpi {
   display: flex;
   align-items: baseline;
-  gap: var(--space-1);
-  padding: var(--space-2) var(--space-4);
-  background: var(--surface-1);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  gap: var(--cds-spacing-02);
+  padding: var(--cds-spacing-03) var(--cds-spacing-05);
+  background: var(--cds-layer-01);
+  border: 1px solid var(--cds-border-subtle);
+  border-radius: var(--cds-radius);
 }
 
 .history-kpi__value {
-  font-size: var(--text-lg);
-  font-weight: var(--weight-bold);
-  font-family: var(--font-data);
-  color: var(--text-primary);
+  font-size: var(--cds-type-lg);
+  font-weight: var(--cds-weight-semibold);
+  font-family: var(--cds-font-mono);
+  color: var(--cds-text-primary);
 }
 
-.history-kpi__value--success {
-  color: var(--success);
+.history-kpi__value--cds-support-success {
+  color: var(--cds-support-success);
 }
 
-.history-kpi__value--danger {
-  color: var(--danger);
+.history-kpi__value--cds-support-error {
+  color: var(--cds-support-error);
 }
 
 .history-kpi__label {
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
-  font-weight: var(--weight-medium);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
+  font-weight: var(--cds-weight-medium);
 }
 
 /* ── List Items ── */
@@ -73,45 +73,45 @@
 .history-item-header {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--cds-spacing-03);
 }
 
 .history-item-icon {
   display: flex;
-  color: var(--text-tertiary);
+  color: var(--cds-text-placeholder);
 }
 
 .history-item-label {
-  font-size: var(--text-base);
-  font-weight: var(--weight-medium);
-  font-family: var(--font-display);
+  font-size: var(--cds-type-base);
+  font-weight: var(--cds-weight-medium);
+  font-family: var(--cds-font-sans);
   letter-spacing: -0.02em;
 }
 
 .history-item-duration {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  font-family: var(--font-data);
-  background: var(--surface-2);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-secondary);
+  font-family: var(--cds-font-mono);
+  background: var(--cds-layer-02);
   padding: 1px 6px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--cds-radius);
 }
 
 .history-item-id {
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
-  font-family: var(--font-data);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
+  font-family: var(--cds-font-mono);
   margin-top: 2px;
 }
 
 .history-item-findings {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-secondary);
 }
 
 .history-item-files {
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-placeholder);
   margin-top: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -122,19 +122,19 @@
 .history-item-trailing {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--cds-spacing-03);
 }
 
 .history-item-time {
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
   white-space: nowrap;
-  font-family: var(--font-data);
+  font-family: var(--cds-font-mono);
 }
 
 .history-item-delete {
   opacity: 0;
-  transition: opacity var(--transition-fast);
+  transition: opacity var(--cds-transition-fast);
 }
 
 .list-item:hover .history-item-delete {
@@ -144,8 +144,8 @@
 /* ── Empty ── */
 
 .history-empty-text {
-  color: var(--text-tertiary);
-  font-size: var(--text-sm);
-  padding: var(--space-3) 0;
+  color: var(--cds-text-placeholder);
+  font-size: var(--cds-type-sm);
+  padding: var(--cds-spacing-04) 0;
   text-align: center;
 }

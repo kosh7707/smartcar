@@ -119,6 +119,24 @@ describe("PipelineOrchestrator", () => {
 
     // resolve 호출됨
     expect(buildAgentClient.submitTask).toHaveBeenCalledOnce();
+    expect(buildAgentClient.submitTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskType: "build-resolve",
+        contractVersion: "build-resolve-v1",
+        strictMode: true,
+        context: {
+          trusted: expect.objectContaining({
+            projectPath: "/uploads/p1/gateway/",
+            subprojectPath: "gateway/",
+            subprojectName: "gateway",
+            targetPath: "gateway/",
+            targetName: "gateway",
+          }),
+        },
+      }),
+      undefined,
+      undefined,
+    );
     expect(buildTargetDAO.updatePipelineState).toHaveBeenCalledWith("t1", expect.objectContaining({ status: "configured" }));
 
     // build 호출됨

@@ -3,18 +3,18 @@
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border-radius: var(--radius-full);
+  border-radius: var(--cds-radius-circle);
   border: 1px solid;
-  font-weight: var(--weight-medium);
+  font-weight: var(--cds-weight-medium);
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 .target-status-badge--md {
-  font-size: var(--text-xs);
+  font-size: var(--cds-type-xs);
 }
 
 .target-status-badge--sm {
-  font-size: var(--text-2xs);
+  font-size: var(--cds-type-2xs);
   padding: 1px 6px;
 }

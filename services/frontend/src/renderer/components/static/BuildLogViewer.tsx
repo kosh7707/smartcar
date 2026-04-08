@@ -60,7 +60,7 @@ export const BuildLogViewer: React.FC<Props> = ({ projectId, targetId, targetNam
         <div className="build-log-header">
           <div className="build-log-header__title">
             <span>{targetName} - 빌드 로그</span>
-            {status && <span style={{ fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontWeight: "normal" }}>({status})</span>}
+            {status && <span style={{ fontSize: "var(--cds-type-xs)", color: "var(--cds-text-placeholder)", fontWeight: "normal" }}>({status})</span>}
           </div>
           <div className="build-log-actions">
             {buildLog && (

@@ -9,11 +9,11 @@
   bottom: calc(100% + 12px);
   width: 380px;
   max-height: 440px;
-  background: var(--surface-2);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xl), 0 0 0 1px rgba(0, 0, 0, 0.2);
-  z-index: var(--z-dropdown);
+  background: var(--cds-layer-01);
+  border: 1px solid var(--cds-border-subtle);
+  border-radius: var(--cds-radius);
+  box-shadow: var(--cds-shadow-dropdown);
+  z-index: var(--cds-z-dropdown);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -39,9 +39,9 @@
   right: 16px;
   width: 12px;
   height: 12px;
-  background: var(--surface-2);
-  border-right: 1px solid var(--border-strong);
-  border-bottom: 1px solid var(--border-strong);
+  background: var(--cds-layer-01);
+  border-right: 1px solid var(--cds-border-subtle);
+  border-bottom: 1px solid var(--cds-border-subtle);
   transform: rotate(45deg);
   z-index: 1;
 }
@@ -52,59 +52,59 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--border-default);
+  padding: var(--cds-spacing-04) var(--cds-spacing-05);
+  border-bottom: 1px solid var(--cds-border-subtle);
   flex-shrink: 0;
 }
 
 .notification-dropdown__header h4 {
   margin: 0;
-  font-size: var(--text-md);
-  font-weight: var(--weight-bold);
-  font-family: var(--font-display);
-  color: var(--text-primary);
+  font-size: var(--cds-type-md);
+  font-weight: var(--cds-weight-semibold);
+  font-family: var(--cds-font-sans);
+  color: var(--cds-text-primary);
   letter-spacing: -0.01em;
 }
 
 .notification-dropdown__header-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--cds-spacing-03);
 }
 
 .notification-dropdown__mark-all {
   background: none;
   border: none;
-  color: var(--accent);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
+  color: var(--cds-interactive);
+  font-size: var(--cds-type-xs);
+  font-weight: var(--cds-weight-medium);
   cursor: pointer;
   padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  transition: background var(--transition-fast), color var(--transition-fast);
+  border-radius: var(--cds-radius);
+  transition: background var(--cds-transition-fast), color var(--cds-transition-fast);
 }
 
 .notification-dropdown__mark-all:hover {
-  background: var(--accent-subtle);
-  color: var(--accent-hover);
+  background: var(--cds-interactive-subtle);
+  color: var(--cds-interactive-hover);
 }
 
 .notification-dropdown__close {
   background: none;
   border: none;
-  color: var(--text-tertiary);
+  color: var(--cds-text-placeholder);
   cursor: pointer;
   padding: 4px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--cds-radius);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition: background var(--cds-transition-fast), color var(--cds-transition-fast);
 }
 
 .notification-dropdown__close:hover {
-  background: var(--surface-3);
-  color: var(--text-primary);
+  background: var(--cds-layer-03);
+  color: var(--cds-text-primary);
 }
 
 /* ── List ── */
@@ -119,12 +119,12 @@
 
 .notification-item {
   display: flex;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  gap: var(--cds-spacing-04);
+  padding: var(--cds-spacing-04) var(--cds-spacing-05);
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: background var(--cds-transition-fast);
   border-left: 3px solid transparent;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--cds-border-subtle);
 }
 
 .notification-item:last-child {
@@ -132,16 +132,16 @@
 }
 
 .notification-item:hover {
-  background: var(--surface-3);
+  background: var(--cds-layer-03);
 }
 
 .notification-item--unread {
-  background: var(--accent-surface);
-  border-left-color: var(--accent);
+  background: var(--cds-interactive-surface);
+  border-left-color: var(--cds-interactive);
 }
 
 .notification-item--unread:hover {
-  background: var(--accent-subtle);
+  background: var(--cds-interactive-subtle);
 }
 
 /* ── Icon ── */
@@ -153,8 +153,8 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: var(--radius-md);
-  background: var(--surface-inset);
+  border-radius: var(--cds-radius);
+  background: var(--cds-surface-inset);
   margin-top: 1px;
 }
 
@@ -169,27 +169,27 @@
 }
 
 .notification-item__title {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  color: var(--text-primary);
+  font-size: var(--cds-type-sm);
+  font-weight: var(--cds-weight-semibold);
+  color: var(--cds-text-primary);
   margin: 0;
-  line-height: var(--leading-tight);
+  line-height: var(--cds-leading-tight);
 }
 
 .notification-item__text {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   margin: 0;
-  line-height: var(--leading-normal);
+  line-height: var(--cds-leading-normal);
 }
 
 .notification-item__time {
   font-size: 10px;
-  color: var(--text-tertiary);
-  font-family: var(--font-data);
+  color: var(--cds-text-placeholder);
+  font-family: var(--cds-font-mono);
   margin-top: 2px;
   letter-spacing: 0.02em;
 }
@@ -201,25 +201,25 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: var(--space-8) var(--space-6);
-  gap: var(--space-2);
+  padding: var(--cds-spacing-07) var(--cds-spacing-06);
+  gap: var(--cds-spacing-03);
 }
 
 .notification-dropdown__empty-icon {
-  color: var(--text-tertiary);
+  color: var(--cds-text-placeholder);
   opacity: 0.4;
-  margin-bottom: var(--space-1);
+  margin-bottom: var(--cds-spacing-02);
 }
 
 .notification-dropdown__empty-title {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  color: var(--text-secondary);
+  font-size: var(--cds-type-sm);
+  font-weight: var(--cds-weight-medium);
+  color: var(--cds-text-secondary);
 }
 
 .notification-dropdown__empty-desc {
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
-  line-height: var(--leading-relaxed);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
+  line-height: var(--cds-leading-relaxed);
   max-width: 240px;
 }

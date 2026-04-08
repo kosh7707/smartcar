@@ -10,11 +10,11 @@ interface Props {
 }
 
 const SEGMENTS = [
-  { key: "critical" as const, label: "Critical", color: "var(--severity-critical)" },
-  { key: "high" as const, label: "High", color: "var(--severity-high)" },
-  { key: "medium" as const, label: "Medium", color: "var(--severity-medium)" },
-  { key: "low" as const, label: "Low", color: "var(--severity-low)" },
-  { key: "info" as const, label: "Info", color: "var(--severity-info)" },
+  { key: "critical" as const, label: "Critical", color: "var(--aegis-severity-critical)" },
+  { key: "high" as const, label: "High", color: "var(--aegis-severity-high)" },
+  { key: "medium" as const, label: "Medium", color: "var(--aegis-severity-medium)" },
+  { key: "low" as const, label: "Low", color: "var(--aegis-severity-low)" },
+  { key: "info" as const, label: "Info", color: "var(--aegis-severity-info)" },
 ];
 
 export const DonutChart: React.FC<Props> = ({ summary, size = 120, strokeWidth = 14, showLegend = true, centerLabel = "Finding" }) => {
@@ -40,7 +40,7 @@ export const DonutChart: React.FC<Props> = ({ summary, size = 120, strokeWidth =
           cy={cy}
           r={radius}
           fill="none"
-          stroke="var(--surface-2)"
+          stroke="var(--cds-layer-02)"
           strokeWidth={strokeWidth}
         />
         {/* Segments */}
@@ -74,10 +74,10 @@ export const DonutChart: React.FC<Props> = ({ summary, size = 120, strokeWidth =
           </g>
         )}
         {/* Center text */}
-        <text x={cx} y={cy - 4} textAnchor="middle" dominantBaseline="central" fontSize="22" fontWeight="700" fill="var(--text-primary)">
+        <text x={cx} y={cy - 4} textAnchor="middle" dominantBaseline="central" fontSize="22" fontWeight="700" fill="var(--cds-text-primary)">
           {total}
         </text>
-        <text x={cx} y={cy + 14} textAnchor="middle" dominantBaseline="central" fontSize="10" fill="var(--text-tertiary)">
+        <text x={cx} y={cy + 14} textAnchor="middle" dominantBaseline="central" fontSize="10" fill="var(--cds-text-placeholder)">
           {centerLabel}
         </text>
       </svg>

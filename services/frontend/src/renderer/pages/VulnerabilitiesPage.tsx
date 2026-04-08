@@ -363,7 +363,7 @@ export const VulnerabilitiesPage: React.FC = () => {
       {/* Shortcut help overlay */}
       {showShortcutHelp && (
         <div className="vuln-shortcut-help card">
-          <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+          <div className="card-title flex-center flex-gap-2">
             <Keyboard size={14} /> 키보드 단축키
           </div>
           <div className="vuln-shortcut-list">

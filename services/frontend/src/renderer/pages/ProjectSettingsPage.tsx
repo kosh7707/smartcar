@@ -43,7 +43,7 @@ function SdkStatusBadge({ status }: { status: SdkRegistryStatus }) {
   const icon = config.icon === "spin" ? <Loader size={12} className="animate-spin" />
     : config.icon === "check" ? <CheckCircle size={12} />
     : <XCircle size={12} />;
-  const color = config.icon === "check" ? "var(--success)" : config.icon === "fail" ? "var(--danger)" : "var(--severity-medium)";
+  const color = config.icon === "check" ? "var(--cds-support-success)" : config.icon === "fail" ? "var(--cds-support-error)" : "var(--aegis-severity-medium)";
   return (
     <span className="sdk-status-badge" style={{ color }}>
       {icon} {config.label}
@@ -215,19 +215,19 @@ export const ProjectSettingsPage: React.FC = () => {
       <PageHeader title="프로젝트 설정" icon={<Settings size={20} />} />
 
       {/* Quality Gate Profile Section */}
-      <div className="card" style={{ marginBottom: "var(--space-4)" }}>
-        <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+      <div className="card" style={{ marginBottom: "var(--cds-spacing-05)" }}>
+        <div className="card-title flex-center flex-gap-2">
           <ShieldCheck size={16} />
           Quality Gate 프로파일
         </div>
-        <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", marginBottom: "var(--space-3)" }}>
+        <p style={{ color: "var(--cds-text-secondary)", fontSize: "var(--cds-type-sm)", marginBottom: "var(--cds-spacing-04)" }}>
           프로젝트에 적용할 Quality Gate 규칙 세트를 선택합니다.
         </p>
         {gateProfiles.length === 0 ? (
-          <p style={{ color: "var(--text-tertiary)" }}>프로파일을 불러오는 중...</p>
+          <p style={{ color: "var(--cds-text-placeholder)" }}>프로파일을 불러오는 중...</p>
         ) : (
           <>
-            <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: "var(--cds-spacing-03)", flexWrap: "wrap" }}>
               {gateProfiles.map((gp) => (
                 <button
                   key={gp.id}
@@ -245,12 +245,12 @@ export const ProjectSettingsPage: React.FC = () => {
               const profile = gateProfiles.find((gp) => gp.id === selectedProfileId);
               if (!profile) return null;
               return (
-                <div style={{ marginTop: "var(--space-3)", padding: "var(--space-3)", background: "var(--surface-inset)", borderRadius: "var(--radius-md)" }}>
-                  <div style={{ fontWeight: "var(--weight-semibold)", marginBottom: "var(--space-2)" }}>{profile.name} — {profile.description}</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-1)" }}>
+                <div style={{ marginTop: "var(--cds-spacing-04)", padding: "var(--cds-spacing-04)", background: "var(--cds-surface-inset)", borderRadius: "var(--cds-radius)" }}>
+                  <div style={{ fontWeight: "var(--cds-weight-semibold)", marginBottom: "var(--cds-spacing-03)" }}>{profile.name} — {profile.description}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--cds-spacing-02)" }}>
                     {profile.rules.map((r) => (
-                      <div key={r.ruleId} style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", fontSize: "var(--text-sm)" }}>
-                        <span style={{ color: r.enabled ? "var(--success)" : "var(--text-tertiary)" }}>
+                      <div key={r.ruleId} style={{ display: "flex", alignItems: "center", gap: "var(--cds-spacing-03)", fontSize: "var(--cds-type-sm)" }}>
+                        <span style={{ color: r.enabled ? "var(--cds-support-success)" : "var(--cds-text-placeholder)" }}>
                           {r.enabled ? "\u2713" : "\u2014"}
                         </span>
                         <span>{r.ruleId}</span>

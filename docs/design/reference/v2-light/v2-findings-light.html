@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Findings - ECU-PowerTrain-v2.1</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary": "#ffffff",
+                        "surface-container": "#eeeeee",
+                        "surface-tint": "#005bc0",
+                        "surface-bright": "#f9f9f9",
+                        "on-secondary-container": "#5b636e",
+                        "inverse-surface": "#2f3131",
+                        "tertiary-container": "#007e33",
+                        "primary": "#0051ae",
+                        "surface-container-low": "#f3f3f4",
+                        "on-surface-variant": "#424753",
+                        "on-background": "#1a1c1c",
+                        "on-error-container": "#93000a",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-tertiary-fixed": "#002108",
+                        "tertiary-fixed-dim": "#6bde80",
+                        "primary-fixed": "#d8e2ff",
+                        "on-tertiary-fixed-variant": "#00531f",
+                        "on-secondary-fixed-variant": "#3f4751",
+                        "primary-fixed-dim": "#adc6ff",
+                        "secondary": "#575f69",
+                        "primary-container": "#0969da",
+                        "on-tertiary-container": "#c0ffc2",
+                        "on-secondary-fixed": "#141c25",
+                        "on-primary-container": "#ecefff",
+                        "outline-variant": "#c2c6d6",
+                        "inverse-on-surface": "#f0f1f1",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#006226",
+                        "surface-container-high": "#e8e8e8",
+                        "secondary-fixed-dim": "#bfc7d3",
+                        "tertiary-fixed": "#88fb99",
+                        "outline": "#727785",
+                        "on-primary": "#ffffff",
+                        "secondary-fixed": "#dbe3ef",
+                        "on-secondary": "#ffffff",
+                        "surface": "#f9f9f9",
+                        "on-error": "#ffffff",
+                        "surface-variant": "#e2e2e2",
+                        "inverse-primary": "#adc6ff",
+                        "secondary-container": "#d8e0ed",
+                        "background": "#f9f9f9",
+                        "on-primary-fixed-variant": "#004493",
+                        "on-primary-fixed": "#001a41",
+                        "error": "#ba1a1a",
+                        "surface-dim": "#dadada",
+                        "on-surface": "#1a1c1c"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"],
+                        "mono": ["JetBrains Mono"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c2c6d6; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- TopNavBar (JSON execution) -->
+<header class="fixed top-0 z-50 flex justify-between items-center w-full px-6 py-2 border-b border-transparent bg-[#f3f3f4] dark:bg-slate-900">
+<div class="flex items-center gap-8">
+<span class="font-['Space_Grotesk'] text-lg font-bold tracking-tighter text-slate-900 dark:text-white">Aegis</span>
+<nav class="hidden md:flex gap-4">
+<a class="font-['Inter'] text-sm tracking-tight font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 px-2 py-1 transition-colors duration-150" href="#">Dashboard</a>
+<a class="font-['Inter'] text-sm tracking-tight font-semibold text-[#0969da] dark:text-blue-400 px-2 py-1" href="#">Findings</a>
+<a class="font-['Inter'] text-sm tracking-tight font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 px-2 py-1 transition-colors duration-150" href="#">Assets</a>
+<a class="font-['Inter'] text-sm tracking-tight font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 px-2 py-1 transition-colors duration-150" href="#">Compliance</a>
+</nav>
+</div>
+<div class="flex items-center gap-3">
+<div class="relative group">
+<span class="material-symbols-outlined text-slate-500 p-2 hover:bg-[#e8e8e8] rounded cursor-pointer">notifications</span>
+</div>
+<span class="material-symbols-outlined text-slate-500 p-2 hover:bg-[#e8e8e8] rounded cursor-pointer">help</span>
+<span class="material-symbols-outlined text-slate-500 p-2 hover:bg-[#e8e8e8] rounded cursor-pointer">settings</span>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/30 ml-2">
+<img alt="Engineer profile" data-alt="Close-up headshot of a technical engineer with short hair, wearing glasses, soft neutral studio lighting, professional tech aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBc-SmTz6JXR2awgL1k5E4j6GfapkFhXWIXwrn2gIfJbEEPiUwmYajtOlbIc2DJ1ARgpYZcUC5yrm7Y4FNhw2LZ_XcNt-g1PYAzQK5r10Lv_BG8UBPsCFTjTL19XsmaiXJ58i4auQ0L6AwU0OjDyRxjaJx1dGsfHg86-SE4RFGlrQ_4tlvZ3BLvy3CPZq2ZgudJoirTYH69ROSlf_nDZfFmWjDFd881Aoo6ll79ONcQLZUr3N6MGTHbgOAvyy2BITAAJAc22NT-Vd5s"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar (JSON execution) -->
+<aside class="fixed left-0 top-0 h-full w-64 bg-[#f9f9f9] dark:bg-slate-950 flex flex-col pt-16 border-r border-transparent">
+<div class="px-6 py-6 border-b border-[#f3f3f4]">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-primary rounded flex items-center justify-center text-white font-bold">T</div>
+<div>
+<div class="text-xs font-headline font-bold text-on-surface">Tactical Unit</div>
+<div class="text-[10px] text-on-surface-variant uppercase tracking-wider">Vulnerability Research</div>
+</div>
+</div>
+</div>
+<nav class="flex-grow pt-4">
+<a class="flex items-center px-6 py-3 text-slate-600 dark:text-slate-400 hover:bg-[#f3f3f4] font-label text-xs uppercase tracking-widest font-medium transition-all duration-200" href="#">
+<span class="material-symbols-outlined mr-3 text-lg">dashboard</span>
+                Overview
+            </a>
+<a class="flex items-center px-6 py-3 bg-white dark:bg-slate-900 border-l-4 border-[#0969da] text-[#0969da] font-bold shadow-sm font-label text-xs uppercase tracking-widest transition-all duration-200" href="#">
+<span class="material-symbols-outlined mr-3 text-lg" data-weight="fill" style="font-variation-settings: 'FILL' 1;">clinical_notes</span>
+                Findings
+            </a>
+<a class="flex items-center px-6 py-3 text-slate-600 dark:text-slate-400 hover:bg-[#f3f3f4] font-label text-xs uppercase tracking-widest font-medium transition-all duration-200" href="#">
+<span class="material-symbols-outlined mr-3 text-lg">handyman</span>
+                Remediation
+            </a>
+<a class="flex items-center px-6 py-3 text-slate-600 dark:text-slate-400 hover:bg-[#f3f3f4] font-label text-xs uppercase tracking-widest font-medium transition-all duration-200" href="#">
+<span class="material-symbols-outlined mr-3 text-lg">gavel</span>
+                Policies
+            </a>
+<a class="flex items-center px-6 py-3 text-slate-600 dark:text-slate-400 hover:bg-[#f3f3f4] font-label text-xs uppercase tracking-widest font-medium transition-all duration-200" href="#">
+<span class="material-symbols-outlined mr-3 text-lg">inventory_2</span>
+                Archive
+            </a>
+</nav>
+<div class="p-6">
+<button class="w-full bg-gradient-to-br from-primary to-primary-container text-white py-2 rounded-lg font-headline text-xs font-bold uppercase tracking-wider shadow-lg shadow-primary/10 hover:scale-[0.98] transition-transform">
+                New Finding
+            </button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 pt-16 min-h-screen">
+<div class="max-w-6xl mx-auto px-8 py-10">
+<!-- Repository Header -->
+<div class="mb-8">
+<div class="flex items-center gap-2 text-on-surface-variant mb-2">
+<span class="material-symbols-outlined text-sm">terminal</span>
+<span class="text-xs font-mono tracking-tight">aegis-core / engine / firmware</span>
+</div>
+<h1 class="text-3xl font-headline font-bold tracking-tight">ECU-PowerTrain-v2.1</h1>
+</div>
+<!-- Tabs Navigation -->
+<div class="flex items-center gap-4 mb-4 border-b border-surface-container-highest">
+<button class="flex items-center gap-2 px-4 py-3 border-b-2 border-primary text-on-surface font-semibold text-sm">
+<span class="material-symbols-outlined text-sm">radio_button_checked</span>
+                    Open
+                    <span class="bg-surface-container-highest px-2 py-0.5 rounded-full text-[10px] font-bold">32</span>
+</button>
+<button class="flex items-center gap-2 px-4 py-3 text-on-surface-variant hover:text-on-surface text-sm transition-colors">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+                    Closed
+                    <span class="bg-surface-container-highest/50 px-2 py-0.5 rounded-full text-[10px] font-bold">11</span>
+</button>
+</div>
+<!-- Filter Bar -->
+<div class="bg-surface-container-low border border-outline-variant/30 rounded-t-lg p-4 flex flex-wrap items-center gap-4">
+<div class="flex-grow min-w-[300px] relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="w-full bg-surface-container-lowest border-none ring-1 ring-outline-variant/20 focus:ring-primary rounded-lg pl-10 text-sm font-mono placeholder:font-sans" placeholder="is:open is:finding label:high-severity" type="text"/>
+</div>
+<div class="flex items-center gap-2 overflow-x-auto pb-1">
+<button class="flex items-center gap-1 px-3 py-1.5 bg-surface-container-lowest border border-outline-variant/20 rounded-lg text-xs font-medium hover:bg-surface-container-high transition-colors">
+                        Severity <span class="material-symbols-outlined text-xs">expand_more</span>
+</button>
+<button class="flex items-center gap-1 px-3 py-1.5 bg-surface-container-lowest border border-outline-variant/20 rounded-lg text-xs font-medium hover:bg-surface-container-high transition-colors">
+                        CWE/Rule <span class="material-symbols-outlined text-xs">expand_more</span>
+</button>
+<button class="flex items-center gap-1 px-3 py-1.5 bg-surface-container-lowest border border-outline-variant/20 rounded-lg text-xs font-medium hover:bg-surface-container-high transition-colors">
+                        Source <span class="material-symbols-outlined text-xs">expand_more</span>
+</button>
+<button class="flex items-center gap-1 px-3 py-1.5 bg-surface-container-lowest border border-outline-variant/20 rounded-lg text-xs font-medium hover:bg-surface-container-high transition-colors">
+                        Target <span class="material-symbols-outlined text-xs">expand_more</span>
+</button>
+</div>
+</div>
+<!-- Table Header (Bulk Actions) -->
+<div class="bg-surface-container-lowest border-x border-b border-outline-variant/30 p-3 flex items-center justify-between">
+<div class="flex items-center gap-4 px-2">
+<input class="rounded border-outline-variant/50 text-primary focus:ring-primary h-4 w-4" type="checkbox"/>
+<button class="text-xs font-medium text-on-surface-variant hover:text-primary transition-colors flex items-center gap-1">
+                        Select All
+                    </button>
+</div>
+<div class="flex items-center gap-2">
+<button class="px-3 py-1 bg-surface-container-high text-on-surface text-xs font-bold rounded hover:bg-outline-variant/30 transition-colors">
+                        Actions
+                    </button>
+</div>
+</div>
+<!-- Findings List -->
+<div class="bg-surface-container-lowest border-x border-b border-outline-variant/30 rounded-b-lg overflow-hidden">
+<!-- Row 1 -->
+<div class="group border-b last:border-b-0 border-outline-variant/20 hover:bg-surface-container-low/50 transition-colors px-5 py-4 flex gap-4">
+<div class="pt-1">
+<input class="rounded border-outline-variant/50 text-primary focus:ring-primary h-4 w-4" type="checkbox"/>
+</div>
+<div class="pt-1">
+<span class="material-symbols-outlined text-error text-xl" style="font-variation-settings: 'FILL' 1;">error</span>
+</div>
+<div class="flex-grow">
+<div class="flex items-start justify-between mb-1">
+<div class="flex items-center gap-2">
+<a class="font-semibold text-base hover:text-primary transition-colors" href="#">Buffer overflow in CAN receive handler</a>
+<span class="bg-error/10 text-error px-2 py-0.5 rounded text-[10px] font-bold tracking-wider font-headline border border-error/20">HIGH</span>
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-[10px] font-mono border border-outline-variant/20">CWE-119</span>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">chat_bubble_outline</span>
+<span class="text-xs">4</span>
+</div>
+<div class="flex -space-x-1.5">
+<img alt="User 1" class="w-5 h-5 rounded-full border border-surface-container-lowest" data-alt="Small round avatar of a man with blonde hair and a smile." src="https://lh3.googleusercontent.com/aida-public/AB6AXuASntaznxSJzci4CaiMAOx6hLmpLHufIPHErGpc7td5Vwr6IwDtRWHOJSRw6Rg6kC_GG9yHMXZwdCqStrAOu2E0Gq2BNAUYq93VQJNleAAN17g7R1DIBvmre_KJactPioN1Asat8PzodxwqbHk2eNcNAYze2bBS97n2AAQvhy3vqEyCBWhmAIRd_zdHxpbizX9VXMOAyq9Bl5l7bWd8LCg6D-vSQr1ryRMu7VJNWp2hIPAzPVqNLMB0tnIxWupyAFK-2g5glje64ZKC"/>
+<img alt="User 2" class="w-5 h-5 rounded-full border border-surface-container-lowest" data-alt="Small round avatar of a woman with dark curly hair." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCt350xFws9CsjK233U8GDX4aeZU6gCZ8IMGdRVFVt1d23Ht7hKJ30Vxh6FSn9Fd90KmLZbpicPyZ8N6bosX61x4awkRBYiTuF6u9wLlnAziyU9AtHXnDjnD6vBLC5DbKs9iAdGnkRhlwLbTWyQbrQqKZaWl8hRk7792gNncOi8kEb-XEKBElHzKpWCKNeZgyLLoPNSyNZ122o1HNLw9W0JayWyVP4ofTCYe-Jl4f8PFtpFnA92pkk-xcacImGYy5a4RKxqCali9IiY"/>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant font-mono">
+<span class="bg-surface-container-high px-1.5 rounded">src/drivers/can_driver.c:247</span>
+<span>#824 opened Apr 2 by <span class="font-semibold text-on-surface">System (SCA-1)</span></span>
+<span class="bg-primary/5 text-primary-container px-2 py-0.5 rounded font-headline text-[9px] uppercase border border-primary/10">Deep Analysis</span>
+</div>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="group border-b last:border-b-0 border-outline-variant/20 hover:bg-surface-container-low/50 transition-colors px-5 py-4 flex gap-4">
+<div class="pt-1">
+<input class="rounded border-outline-variant/50 text-primary focus:ring-primary h-4 w-4" type="checkbox"/>
+</div>
+<div class="pt-1">
+<span class="material-symbols-outlined text-error text-xl" style="font-variation-settings: 'FILL' 1;">error</span>
+</div>
+<div class="flex-grow">
+<div class="flex items-start justify-between mb-1">
+<div class="flex items-center gap-2">
+<a class="font-semibold text-base hover:text-primary transition-colors" href="#">Integer overflow in power delivery calculation</a>
+<span class="bg-error/10 text-error px-2 py-0.5 rounded text-[10px] font-bold tracking-wider font-headline border border-error/20">HIGH</span>
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-[10px] font-mono border border-outline-variant/20">CWE-190</span>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">chat_bubble_outline</span>
+<span class="text-xs">2</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant font-mono">
+<span class="bg-surface-container-high px-1.5 rounded">src/power/regulation.c:120</span>
+<span>#823 opened Mar 31 by <span class="font-semibold text-on-surface">System (SCA-1)</span></span>
+<span class="bg-primary/5 text-primary-container px-2 py-0.5 rounded font-headline text-[9px] uppercase border border-primary/10">Rule Engine</span>
+</div>
+</div>
+</div>
+<!-- Row 3 -->
+<div class="group border-b last:border-b-0 border-outline-variant/20 hover:bg-surface-container-low/50 transition-colors px-5 py-4 flex gap-4">
+<div class="pt-1">
+<input class="rounded border-outline-variant/50 text-primary focus:ring-primary h-4 w-4" type="checkbox"/>
+</div>
+<div class="pt-1">
+<span class="material-symbols-outlined text-orange-500 text-xl" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<div class="flex-grow">
+<div class="flex items-start justify-between mb-1">
+<div class="flex items-center gap-2">
+<a class="font-semibold text-base hover:text-primary transition-colors" href="#">Unchecked return value from flash_read()</a>
+<span class="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[10px] font-bold tracking-wider font-headline border border-orange-200">MEDIUM</span>
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-[10px] font-mono border border-outline-variant/20">CWE-252</span>
+</div>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant font-mono">
+<span class="bg-surface-container-high px-1.5 rounded">src/hal/storage.c:56</span>
+<span>#822 opened Mar 30 by <span class="font-semibold text-on-surface">j.doe_lead</span></span>
+<span class="bg-primary/5 text-primary-container px-2 py-0.5 rounded font-headline text-[9px] uppercase border border-primary/10">Deep Analysis</span>
+</div>
+</div>
+</div>
+<!-- Row 4 -->
+<div class="group border-b last:border-b-0 border-outline-variant/20 hover:bg-surface-container-low/50 transition-colors px-5 py-4 flex gap-4">
+<div class="pt-1">
+<input class="rounded border-outline-variant/50 text-primary focus:ring-primary h-4 w-4" type="checkbox"/>
+</div>
+<div class="pt-1">
+<span class="material-symbols-outlined text-primary text-xl" style="font-variation-settings: 'FILL' 1;">info</span>
+</div>
+<div class="flex-grow">
+<div class="flex items-start justify-between mb-1">
+<div class="flex items-center gap-2">
+<a class="font-semibold text-base hover:text-primary transition-colors" href="#">Potential memory leak in diagnostic logging</a>
+<span class="bg-primary/10 text-primary px-2 py-0.5 rounded text-[10px] font-bold tracking-wider font-headline border border-primary/20">LOW</span>
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-[10px] font-mono border border-outline-variant/20">CWE-401</span>
+</div>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant font-mono">
+<span class="bg-surface-container-high px-1.5 rounded">src/diag/logger.c:412</span>
+<span>#821 opened Mar 28 by <span class="font-semibold text-on-surface">System (SCA-2)</span></span>
+<span class="bg-primary/5 text-primary-container px-2 py-0.5 rounded font-headline text-[9px] uppercase border border-primary/10">Rule Engine</span>
+</div>
+</div>
+</div>
+<!-- Row 5 -->
+<div class="group border-b last:border-b-0 border-outline-variant/20 hover:bg-surface-container-low/50 transition-colors px-5 py-4 flex gap-4">
+<div class="pt-1">
+<input class="rounded border-outline-variant/50 text-primary focus:ring-primary h-4 w-4" type="checkbox"/>
+</div>
+<div class="pt-1">
+<span class="material-symbols-outlined text-error text-xl" style="font-variation-settings: 'FILL' 1;">error</span>
+</div>
+<div class="flex-grow">
+<div class="flex items-start justify-between mb-1">
+<div class="flex items-center gap-2">
+<a class="font-semibold text-base hover:text-primary transition-colors" href="#">Null pointer dereference in boot sequence</a>
+<span class="bg-error/10 text-error px-2 py-0.5 rounded text-[10px] font-bold tracking-wider font-headline border border-error/20">HIGH</span>
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-[10px] font-mono border border-outline-variant/20">CWE-476</span>
+</div>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant font-mono">
+<span class="bg-surface-container-high px-1.5 rounded">src/boot/entry.c:12</span>
+<span>#820 opened Mar 27 by <span class="font-semibold text-on-surface">System (SCA-1)</span></span>
+<span class="bg-primary/5 text-primary-container px-2 py-0.5 rounded font-headline text-[9px] uppercase border border-primary/10">Rule Engine</span>
+</div>
+</div>
+</div>
+<!-- Row 6 -->
+<div class="group border-b last:border-b-0 border-outline-variant/20 hover:bg-surface-container-low/50 transition-colors px-5 py-4 flex gap-4">
+<div class="pt-1">
+<input class="rounded border-outline-variant/50 text-primary focus:ring-primary h-4 w-4" type="checkbox"/>
+</div>
+<div class="pt-1">
+<span class="material-symbols-outlined text-orange-500 text-xl" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<div class="flex-grow">
+<div class="flex items-start justify-between mb-1">
+<div class="flex items-center gap-2">
+<a class="font-semibold text-base hover:text-primary transition-colors" href="#">Usage of deprecated rand() in crypto seed</a>
+<span class="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[10px] font-bold tracking-wider font-headline border border-orange-200">MEDIUM</span>
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-[10px] font-mono border border-outline-variant/20">CWE-338</span>
+</div>
+<div class="flex items-center gap-1 text-on-surface-variant">
+<span class="material-symbols-outlined text-sm">chat_bubble_outline</span>
+<span class="text-xs">1</span>
+</div>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant font-mono">
+<span class="bg-surface-container-high px-1.5 rounded">src/security/rng.c:88</span>
+<span>#819 opened Mar 26 by <span class="font-semibold text-on-surface">a.security_bot</span></span>
+<span class="bg-primary/5 text-primary-container px-2 py-0.5 rounded font-headline text-[9px] uppercase border border-primary/10">Deep Analysis</span>
+</div>
+</div>
+</div>
+<!-- Row 7 -->
+<div class="group border-b last:border-b-0 border-outline-variant/20 hover:bg-surface-container-low/50 transition-colors px-5 py-4 flex gap-4">
+<div class="pt-1">
+<input class="rounded border-outline-variant/50 text-primary focus:ring-primary h-4 w-4" type="checkbox"/>
+</div>
+<div class="pt-1">
+<span class="material-symbols-outlined text-orange-500 text-xl" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<div class="flex-grow">
+<div class="flex items-start justify-between mb-1">
+<div class="flex items-center gap-2">
+<a class="font-semibold text-base hover:text-primary transition-colors" href="#">Missing salt in Hashing function</a>
+<span class="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[10px] font-bold tracking-wider font-headline border border-orange-200">MEDIUM</span>
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-[10px] font-mono border border-outline-variant/20">CWE-759</span>
+</div>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant font-mono">
+<span class="bg-surface-container-high px-1.5 rounded">src/auth/session.c:204</span>
+<span>#818 opened Mar 25 by <span class="font-semibold text-on-surface">System (SCA-2)</span></span>
+<span class="bg-primary/5 text-primary-container px-2 py-0.5 rounded font-headline text-[9px] uppercase border border-primary/10">Rule Engine</span>
+</div>
+</div>
+</div>
+<!-- Row 8 -->
+<div class="group border-b last:border-b-0 border-outline-variant/20 hover:bg-surface-container-low/50 transition-colors px-5 py-4 flex gap-4">
+<div class="pt-1">
+<input class="rounded border-outline-variant/50 text-primary focus:ring-primary h-4 w-4" type="checkbox"/>
+</div>
+<div class="pt-1">
+<span class="material-symbols-outlined text-error text-xl" style="font-variation-settings: 'FILL' 1;">error</span>
+</div>
+<div class="flex-grow">
+<div class="flex items-start justify-between mb-1">
+<div class="flex items-center gap-2">
+<a class="font-semibold text-base hover:text-primary transition-colors" href="#">Heap corruption via task scheduler re-entry</a>
+<span class="bg-error/10 text-error px-2 py-0.5 rounded text-[10px] font-bold tracking-wider font-headline border border-error/20">HIGH</span>
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-[10px] font-mono border border-outline-variant/20">CWE-122</span>
+</div>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant font-mono">
+<span class="bg-surface-container-high px-1.5 rounded">src/kernel/sched.c:1052</span>
+<span>#817 opened Mar 22 by <span class="font-semibold text-on-surface">System (SCA-1)</span></span>
+<span class="bg-primary/5 text-primary-container px-2 py-0.5 rounded font-headline text-[9px] uppercase border border-primary/10">Deep Analysis</span>
+</div>
+</div>
+</div>
+<!-- Row 9 -->
+<div class="group border-b last:border-b-0 border-outline-variant/20 hover:bg-surface-container-low/50 transition-colors px-5 py-4 flex gap-4">
+<div class="pt-1">
+<input class="rounded border-outline-variant/50 text-primary focus:ring-primary h-4 w-4" type="checkbox"/>
+</div>
+<div class="pt-1">
+<span class="material-symbols-outlined text-primary text-xl" style="font-variation-settings: 'FILL' 1;">info</span>
+</div>
+<div class="flex-grow">
+<div class="flex items-start justify-between mb-1">
+<div class="flex items-center gap-2">
+<a class="font-semibold text-base hover:text-primary transition-colors" href="#">Hardcoded debug credentials in test harness</a>
+<span class="bg-primary/10 text-primary px-2 py-0.5 rounded text-[10px] font-bold tracking-wider font-headline border border-primary/20">LOW</span>
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-[10px] font-mono border border-outline-variant/20">CWE-798</span>
+</div>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant font-mono">
+<span class="bg-surface-container-high px-1.5 rounded">tests/integration/harness.c:88</span>
+<span>#816 opened Mar 20 by <span class="font-semibold text-on-surface">j.doe_lead</span></span>
+<span class="bg-primary/5 text-primary-container px-2 py-0.5 rounded font-headline text-[9px] uppercase border border-primary/10">Rule Engine</span>
+</div>
+</div>
+</div>
+<!-- Row 10 -->
+<div class="group border-b last:border-b-0 border-outline-variant/20 hover:bg-surface-container-low/50 transition-colors px-5 py-4 flex gap-4">
+<div class="pt-1">
+<input class="rounded border-outline-variant/50 text-primary focus:ring-primary h-4 w-4" type="checkbox"/>
+</div>
+<div class="pt-1">
+<span class="material-symbols-outlined text-error text-xl" style="font-variation-settings: 'FILL' 1;">error</span>
+</div>
+<div class="flex-grow">
+<div class="flex items-start justify-between mb-1">
+<div class="flex items-center gap-2">
+<a class="font-semibold text-base hover:text-primary transition-colors" href="#">Stack-based overflow in JSON parser</a>
+<span class="bg-error/10 text-error px-2 py-0.5 rounded text-[10px] font-bold tracking-wider font-headline border border-error/20">HIGH</span>
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-[10px] font-mono border border-outline-variant/20">CWE-121</span>
+</div>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant font-mono">
+<span class="bg-surface-container-high px-1.5 rounded">src/utils/json.c:29</span>
+<span>#815 opened Mar 18 by <span class="font-semibold text-on-surface">System (SCA-1)</span></span>
+<span class="bg-primary/5 text-primary-container px-2 py-0.5 rounded font-headline text-[9px] uppercase border border-primary/10">Deep Analysis</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Pagination -->
+<div class="mt-6 flex justify-center items-center gap-1">
+<button class="px-3 py-1 text-on-surface-variant hover:bg-surface-container-high rounded text-sm transition-colors cursor-not-allowed opacity-50">Previous</button>
+<button class="px-3 py-1 bg-primary text-white rounded text-sm font-semibold">1</button>
+<button class="px-3 py-1 text-on-surface-variant hover:bg-surface-container-high rounded text-sm transition-colors">2</button>
+<button class="px-3 py-1 text-on-surface-variant hover:bg-surface-container-high rounded text-sm transition-colors">3</button>
+<span class="px-2 text-on-surface-variant">...</span>
+<button class="px-3 py-1 text-on-surface-variant hover:bg-surface-container-high rounded text-sm transition-colors">Next</button>
+</div>
+</div>
+</main>
+</body></html>

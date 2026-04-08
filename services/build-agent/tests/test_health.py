@@ -4,6 +4,7 @@ def test_health(client):
     data = resp.json()
     assert data["service"] == "s3-build"
     assert data["status"] == "ok"
+    assert data["version"] == "1.0.0"
 
 def test_build_resolve_mock(client):
     """build-resolve 요청이 200을 반환하고 유효한 응답 구조를 갖는지 확인."""
@@ -48,6 +49,36 @@ def test_build_resolve_strict_contract_payload_example(client):
     data = resp.json()
     assert data["taskId"] == "test-build-strict-001"
     assert data["taskType"] == "build-resolve"
+
+
+def test_build_resolve_accepts_top_level_strict_contract_fields(client):
+    resp = client.post(
+        "/v1/tasks",
+        json={
+            "taskType": "build-resolve",
+            "taskId": "test-build-top-level-strict-001",
+            "contractVersion": "build-resolve-v1",
+            "strictMode": True,
+            "context": {
+                "trusted": {
+                    "projectPath": "/tmp/test",
+                    "subprojectPath": "gateway/",
+                    "subprojectName": "gateway",
+                    "build": {"mode": "native"},
+                    "expectedArtifacts": [
+                        {"kind": "executable", "path": "build-aegis/gateway"},
+                    ],
+                },
+            },
+        },
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["taskId"] == "test-build-top-level-strict-001"
+    assert data["taskType"] == "build-resolve"
+    assert data["contractVersion"] == "build-resolve-v1"
+    assert data["strictMode"] is True
 
 
 def test_build_resolve_legacy_aliases_still_parse(client):

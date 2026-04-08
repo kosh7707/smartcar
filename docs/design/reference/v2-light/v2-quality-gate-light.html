@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS - Quality Gate ECU-PowerTrain-v2.1</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-primary": "#adc6ff",
+                        "background": "#f9f9f9",
+                        "inverse-surface": "#2f3131",
+                        "surface": "#f9f9f9",
+                        "surface-container-low": "#f3f3f4",
+                        "inverse-on-surface": "#f0f1f1",
+                        "secondary-container": "#d8e0ed",
+                        "on-secondary": "#ffffff",
+                        "tertiary-container": "#007e33",
+                        "on-secondary-fixed-variant": "#3f4751",
+                        "on-primary": "#ffffff",
+                        "secondary-fixed": "#dbe3ef",
+                        "on-secondary-container": "#5b636e",
+                        "tertiary": "#006226",
+                        "primary": "#0051ae",
+                        "surface-container-high": "#e8e8e8",
+                        "on-primary-container": "#ecefff",
+                        "surface-container-highest": "#e2e2e2",
+                        "surface-variant": "#e2e2e2",
+                        "on-tertiary-fixed-variant": "#00531f",
+                        "tertiary-fixed": "#88fb99",
+                        "primary-container": "#0969da",
+                        "on-tertiary": "#ffffff",
+                        "on-surface-variant": "#424753",
+                        "on-tertiary-container": "#c0ffc2",
+                        "on-surface": "#1a1c1c",
+                        "surface-tint": "#005bc0",
+                        "primary-fixed-dim": "#adc6ff",
+                        "primary-fixed": "#d8e2ff",
+                        "surface-dim": "#dadada",
+                        "on-background": "#1a1c1c",
+                        "secondary-fixed-dim": "#bfc7d3",
+                        "on-primary-fixed-variant": "#004493",
+                        "surface-bright": "#f9f9f9",
+                        "error": "#ba1a1a",
+                        "outline-variant": "#c2c6d6",
+                        "on-primary-fixed": "#001a41",
+                        "surface-container": "#eeeeee",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed": "#002108",
+                        "on-secondary-fixed": "#141c25",
+                        "outline": "#727785",
+                        "on-error-container": "#93000a",
+                        "on-error": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "secondary": "#575f69",
+                        "tertiary-fixed-dim": "#6bde80"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        .font-space { font-family: 'Space Grotesk', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface flex min-h-screen">
+<!-- SideNavBar -->
+<aside class="hidden md:flex flex-col h-screen w-64 left-0 border-r-0 bg-gray-100 dark:bg-slate-900 py-6 px-4 gap-2 fixed z-20">
+<div class="mb-8 px-2">
+<h1 class="font-['Space_Grotesk'] font-bold text-gray-900 dark:text-white text-2xl tracking-tighter">AEGIS</h1>
+<p class="font-['Inter'] text-sm text-on-surface-variant opacity-70">Quality Gate</p>
+</div>
+<nav class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 text-gray-600 dark:text-slate-400 hover:bg-gray-200/50 transition-all font-['Inter'] text-sm" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Dashboard</span>
+</a>
+<!-- ACTIVE TAB: Gate -->
+<a class="flex items-center gap-3 px-3 py-2 bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 border-l-2 border-blue-700 font-semibold font-['Inter'] text-sm transition-transform active:scale-95" href="#">
+<span class="material-symbols-outlined" data-icon="verified">verified</span>
+<span>Gate</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-gray-600 dark:text-slate-400 hover:bg-gray-200/50 transition-all font-['Inter'] text-sm" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span>Analysis</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-gray-600 dark:text-slate-400 hover:bg-gray-200/50 transition-all font-['Inter'] text-sm" href="#">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+<span>Logs</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-gray-600 dark:text-slate-400 hover:bg-gray-200/50 transition-all font-['Inter'] text-sm" href="#">
+<span class="material-symbols-outlined" data-icon="shield">shield</span>
+<span>Security</span>
+</a>
+</nav>
+<div class="mt-auto pt-6 px-2">
+<div class="p-4 bg-surface-container-low rounded-lg border border-outline-variant border-opacity-10">
+<p class="text-[10px] font-space font-medium uppercase tracking-widest text-on-surface-variant mb-2">System Health</p>
+<div class="h-1 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-primary w-full"></div>
+</div>
+<p class="text-[10px] mt-2 font-space text-on-surface opacity-60">PROJECT: ECU-v2.1</p>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<div class="flex-1 md:ml-64 flex flex-col">
+<!-- TopNavBar -->
+<header class="flex justify-between items-center px-6 py-3 w-full h-14 bg-gray-50 dark:bg-slate-900 sticky top-0 z-10">
+<div class="flex items-center gap-4">
+<div class="md:hidden">
+<span class="material-symbols-outlined text-gray-900">menu</span>
+</div>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-sm text-outline">search</span>
+<input class="pl-8 pr-4 py-1.5 text-sm bg-surface-container-low border-none rounded focus:ring-1 focus:ring-primary w-64 font-body" placeholder="Search gate criteria..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 hover:bg-gray-200/50 transition-colors rounded">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="settings">settings</span>
+</button>
+<button class="p-2 hover:bg-gray-200/50 transition-colors rounded relative">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-1.5 h-1.5 bg-error rounded-full"></span>
+</button>
+<button class="flex items-center gap-2 pl-2 hover:bg-gray-200/50 transition-colors rounded">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="account_circle">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Content Canvas -->
+<main class="p-8 max-w-7xl mx-auto w-full space-y-10">
+<!-- Page Header -->
+<section class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div>
+<h2 class="text-[3.5rem] font-space font-bold leading-tight tracking-tighter text-on-surface mb-2">
+                        Quality Gate Status
+                    </h2>
+<p class="text-on-surface-variant font-body max-w-xl">
+                        Execution analysis for project <span class="font-mono text-primary bg-primary/5 px-1">ECU-PowerTrain-v2.1</span>. All critical compliance metrics have been verified against the safety-critical baseline.
+                    </p>
+</div>
+<div class="flex gap-3 h-fit">
+<button class="bg-surface-container-highest text-on-surface px-6 py-2.5 text-sm font-space font-medium transition-all hover:bg-surface-dim active:scale-95">
+                        EXPORT REPORT
+                    </button>
+<button class="bg-gradient-to-br from-primary to-primary-container text-white px-6 py-2.5 text-sm font-space font-medium transition-all hover:opacity-90 active:scale-95">
+                        REQUEST OVERRIDE
+                    </button>
+</div>
+</section>
+<!-- Status Banner (Pass) -->
+<section class="bg-surface-container-lowest p-10 relative overflow-hidden flex flex-col md:flex-row items-center gap-12 border-l-4 border-tertiary">
+<div class="relative z-10 flex-1">
+<div class="flex items-center gap-3 mb-4">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span class="text-[0.6875rem] font-space font-bold uppercase tracking-widest text-tertiary">Deployment Readiness: Confirmed</span>
+</div>
+<h3 class="text-7xl font-space font-bold text-on-surface tracking-tighter mb-4">PASS</h3>
+<p class="text-lg text-on-surface-variant font-body leading-relaxed max-w-2xl">
+                        The current build satisfies all <span class="font-bold text-on-surface">Tier-1 Safety Gates</span>. 
+                        Gate Integrity at 100% based on <span class="underline decoration-tertiary/30">Release Candidate 2.1.4</span>.
+                    </p>
+</div>
+<div class="relative z-10 text-right md:min-w-[200px]">
+<div class="text-[0.6875rem] font-space font-bold uppercase tracking-widest text-on-surface-variant mb-1">Gate Integrity</div>
+<div class="text-6xl font-space font-bold text-tertiary">100<span class="text-2xl">%</span></div>
+<div class="mt-4 flex justify-end">
+<div class="px-3 py-1 bg-tertiary-container/10 border border-tertiary/20 text-tertiary text-[0.6875rem] font-space font-bold uppercase tracking-widest">
+                            No Deviations
+                        </div>
+</div>
+</div>
+<!-- Subtle background decoration -->
+<div class="absolute top-0 right-0 opacity-[0.03] pointer-events-none">
+<span class="material-symbols-outlined text-[240px]" style="font-variation-settings: 'FILL' 1">verified</span>
+</div>
+</section>
+<!-- Criteria Matrix -->
+<section class="space-y-6">
+<h4 class="text-[0.6875rem] font-space font-bold uppercase tracking-[0.2em] text-on-surface-variant">Evaluation Criteria Matrix</h4>
+<div class="bg-surface-container-low overflow-hidden">
+<div class="grid grid-cols-1 divide-y divide-outline-variant/10">
+<!-- Criteria Row 1 -->
+<div class="group flex flex-col md:flex-row md:items-center justify-between p-6 bg-surface-container-low transition-colors hover:bg-surface-container-lowest border-l-2 border-transparent hover:border-primary">
+<div class="flex items-center gap-6">
+<span class="text-on-surface-variant text-sm font-mono opacity-50">01</span>
+<div>
+<p class="font-space font-medium text-on-surface">New Critical Findings</p>
+<p class="text-[11px] text-on-surface-variant opacity-60">Static analysis scan (Clang-Tidy, Coverity)</p>
+</div>
+</div>
+<div class="flex items-center gap-12 mt-4 md:mt-0">
+<div class="text-right">
+<p class="text-[10px] font-space uppercase text-on-surface-variant">Threshold</p>
+<p class="text-sm font-mono">Count: 0</p>
+</div>
+<div class="text-right w-24">
+<p class="text-[10px] font-space uppercase text-on-surface-variant">Result</p>
+<p class="text-sm font-mono font-bold">0</p>
+</div>
+<span class="bg-secondary-container px-3 py-1 text-[0.6875rem] font-space font-medium uppercase tracking-widest text-on-secondary-container">PASS</span>
+</div>
+</div>
+<!-- Criteria Row 2 -->
+<div class="group flex flex-col md:flex-row md:items-center justify-between p-6 bg-surface-container-low transition-colors hover:bg-surface-container-lowest border-l-2 border-transparent hover:border-primary">
+<div class="flex items-center gap-6">
+<span class="text-on-surface-variant text-sm font-mono opacity-50">02</span>
+<div>
+<p class="font-space font-medium text-on-surface">New High Findings</p>
+<p class="text-[11px] text-on-surface-variant opacity-60">Medium-to-High risk behavioral anomalies</p>
+</div>
+</div>
+<div class="flex items-center gap-12 mt-4 md:mt-0">
+<div class="text-right">
+<p class="text-[10px] font-space uppercase text-on-surface-variant">Threshold</p>
+<p class="text-sm font-mono">&lt; 3</p>
+</div>
+<div class="text-right w-24">
+<p class="text-[10px] font-space uppercase text-on-surface-variant">Result</p>
+<p class="text-sm font-mono font-bold text-primary">0</p>
+</div>
+<span class="bg-secondary-container px-3 py-1 text-[0.6875rem] font-space font-medium uppercase tracking-widest text-on-secondary-container">PASS</span>
+</div>
+</div>
+<!-- Criteria Row 3 -->
+<div class="group flex flex-col md:flex-row md:items-center justify-between p-6 bg-surface-container-low transition-colors hover:bg-surface-container-lowest border-l-2 border-transparent hover:border-primary">
+<div class="flex items-center gap-6">
+<span class="text-on-surface-variant text-sm font-mono opacity-50">03</span>
+<div>
+<p class="font-space font-medium text-on-surface">Unresolved Critical</p>
+<p class="text-[11px] text-on-surface-variant opacity-60">Legacy issues in legacy modules</p>
+</div>
+</div>
+<div class="flex items-center gap-12 mt-4 md:mt-0">
+<div class="text-right">
+<p class="text-[10px] font-space uppercase text-on-surface-variant">Threshold</p>
+<p class="text-sm font-mono">Must Be 0</p>
+</div>
+<div class="text-right w-24">
+<p class="text-[10px] font-space uppercase text-on-surface-variant">Result</p>
+<p class="text-sm font-mono font-bold text-primary">0</p>
+</div>
+<span class="bg-secondary-container px-3 py-1 text-[0.6875rem] font-space font-medium uppercase tracking-widest text-on-secondary-container">PASS</span>
+</div>
+</div>
+<!-- Criteria Row 4 -->
+<div class="group flex flex-col md:flex-row md:items-center justify-between p-6 bg-surface-container-low transition-colors hover:bg-surface-container-lowest border-l-2 border-transparent hover:border-primary">
+<div class="flex items-center gap-6">
+<span class="text-on-surface-variant text-sm font-mono opacity-50">04</span>
+<div>
+<p class="font-space font-medium text-on-surface">Unresolved High</p>
+<p class="text-[11px] text-on-surface-variant opacity-60">Carried forward technical debt items</p>
+</div>
+</div>
+<div class="flex items-center gap-12 mt-4 md:mt-0">
+<div class="text-right">
+<p class="text-[10px] font-space uppercase text-on-surface-variant">Threshold</p>
+<p class="text-sm font-mono">&lt; 10</p>
+</div>
+<div class="text-right w-24">
+<p class="text-[10px] font-space uppercase text-on-surface-variant">Result</p>
+<p class="text-sm font-mono font-bold text-primary">4</p>
+</div>
+<span class="bg-secondary-container px-3 py-1 text-[0.6875rem] font-space font-medium uppercase tracking-widest text-on-secondary-container">PASS</span>
+</div>
+</div>
+<!-- Criteria Row 5 -->
+<div class="group flex flex-col md:flex-row md:items-center justify-between p-6 bg-surface-container-low transition-colors hover:bg-surface-container-lowest border-l-2 border-transparent hover:border-primary">
+<div class="flex items-center gap-6">
+<span class="text-on-surface-variant text-sm font-mono opacity-50">05</span>
+<div>
+<p class="font-space font-medium text-on-surface">MISRA Compliance</p>
+<p class="text-[11px] text-on-surface-variant opacity-60">MISRA C:2012 / C++:2023 Guidelines</p>
+</div>
+</div>
+<div class="flex items-center gap-12 mt-4 md:mt-0">
+<div class="text-right">
+<p class="text-[10px] font-space uppercase text-on-surface-variant">Threshold</p>
+<p class="text-sm font-mono">Mandatory</p>
+</div>
+<div class="text-right w-24">
+<p class="text-[10px] font-space uppercase text-on-surface-variant">Result</p>
+<p class="text-sm font-mono font-bold text-primary">Compliant</p>
+</div>
+<span class="bg-secondary-container px-3 py-1 text-[0.6875rem] font-space font-medium uppercase tracking-widest text-on-secondary-container">PASS</span>
+</div>
+</div>
+<!-- Criteria Row 6 -->
+<div class="group flex flex-col md:flex-row md:items-center justify-between p-6 bg-surface-container-low transition-colors hover:bg-surface-container-lowest border-l-2 border-transparent hover:border-primary">
+<div class="flex items-center gap-6">
+<span class="text-on-surface-variant text-sm font-mono opacity-50">06</span>
+<div>
+<p class="font-space font-medium text-on-surface">Code Coverage</p>
+<p class="text-[11px] text-on-surface-variant opacity-60">LCOV Branch and Statement coverage</p>
+</div>
+</div>
+<div class="flex items-center gap-12 mt-4 md:mt-0">
+<div class="text-right">
+<p class="text-[10px] font-space uppercase text-on-surface-variant">Threshold</p>
+<p class="text-sm font-mono">&gt; 92.5%</p>
+</div>
+<div class="text-right w-24">
+<p class="text-[10px] font-space uppercase text-on-surface-variant">Result</p>
+<p class="text-sm font-mono font-bold text-primary">94.8%</p>
+</div>
+<span class="bg-secondary-container px-3 py-1 text-[0.6875rem] font-space font-medium uppercase tracking-widest text-on-secondary-container">PASS</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Historical Gates -->
+<section class="space-y-6 pb-12">
+<div class="flex items-center justify-between">
+<h4 class="text-[0.6875rem] font-space font-bold uppercase tracking-[0.2em] text-on-surface-variant">Audit History &amp; Previous Gates</h4>
+<button class="text-primary text-[0.6875rem] font-space font-bold uppercase hover:underline">View All History</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+<!-- History Card 1 -->
+<div class="bg-surface-container-lowest p-5 border border-outline-variant border-opacity-20 shadow-[0_8px_32px_rgba(26,28,28,0.04)]">
+<div class="flex items-center justify-between mb-4">
+<span class="text-[10px] font-mono text-on-surface-variant">2023-10-24</span>
+<span class="bg-secondary-container px-2 py-0.5 text-[10px] font-space font-bold text-on-secondary-container uppercase">PASS</span>
+</div>
+<p class="text-xs font-space font-bold text-on-surface mb-2">Build RC-2.1.3</p>
+<p class="text-[11px] text-on-surface-variant leading-relaxed">Minor code smell cleanup. Stable for internal integration testing.</p>
+</div>
+<!-- History Card 2 (Override) -->
+<div class="bg-surface-container-lowest p-5 border-l-2 border-primary shadow-[0_8px_32px_rgba(26,28,28,0.04)]">
+<div class="flex items-center justify-between mb-4">
+<span class="text-[10px] font-mono text-on-surface-variant">2023-10-18</span>
+<span class="bg-primary/10 px-2 py-0.5 text-[10px] font-space font-bold text-primary uppercase">OVERRIDE</span>
+</div>
+<p class="text-xs font-space font-bold text-on-surface mb-2">Build RC-2.1.2-beta</p>
+<p class="text-[11px] text-on-surface-variant leading-relaxed">Manual override by Lead Architect for legacy CAN bus timing check.</p>
+</div>
+<!-- History Card 3 (Fail) -->
+<div class="bg-surface-container-lowest p-5 border-l-2 border-error shadow-[0_8px_32px_rgba(26,28,28,0.04)]">
+<div class="flex items-center justify-between mb-4">
+<span class="text-[10px] font-mono text-on-surface-variant">2023-10-12</span>
+<span class="bg-error/10 px-2 py-0.5 text-[10px] font-space font-bold text-error uppercase">FAIL</span>
+</div>
+<p class="text-xs font-space font-bold text-on-surface mb-2">Build DEV-2.1.0</p>
+<p class="text-[11px] text-on-surface-variant leading-relaxed">Failed coverage threshold in safety-critical core module core_pwm.c.</p>
+</div>
+<!-- History Card 4 -->
+<div class="bg-surface-container-lowest p-5 border border-outline-variant border-opacity-20 shadow-[0_8px_32px_rgba(26,28,28,0.04)]">
+<div class="flex items-center justify-between mb-4">
+<span class="text-[10px] font-mono text-on-surface-variant">2023-09-30</span>
+<span class="bg-secondary-container px-2 py-0.5 text-[10px] font-space font-bold text-on-secondary-container uppercase">PASS</span>
+</div>
+<p class="text-xs font-space font-bold text-on-surface mb-2">Build RC-2.0.8</p>
+<p class="text-[11px] text-on-surface-variant leading-relaxed">End-of-sprint baseline. All metrics nominal.</p>
+</div>
+</div>
+</section>
+</main>
+</div>
+<!-- Floating Data Monolith (Indicator) -->
+<div class="fixed bottom-8 right-8 bg-surface-container-high p-4 rounded shadow-2xl border-l-4 border-primary z-30 max-w-[200px]">
+<div class="flex items-center gap-2 mb-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+<span class="text-[10px] font-space font-bold tracking-widest text-on-surface uppercase">Live Sync</span>
+</div>
+<p class="text-[11px] font-body text-on-surface-variant">System scanning local buffers for ECU-PowerTrain-v2.1 hotfixes.</p>
+</div>
+</body></html>

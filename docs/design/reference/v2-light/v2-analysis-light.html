@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Analysis History</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary": "#ffffff",
+                        "surface-tint": "#005bc0",
+                        "on-tertiary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "surface-container-high": "#e8e8e8",
+                        "background": "#f9f9f9",
+                        "on-tertiary-fixed": "#002108",
+                        "secondary-fixed-dim": "#bfc7d3",
+                        "on-secondary-fixed": "#141c25",
+                        "surface-container-low": "#f3f3f4",
+                        "on-tertiary-fixed-variant": "#00531f",
+                        "on-primary-fixed-variant": "#004493",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary-fixed": "#88fb99",
+                        "inverse-primary": "#adc6ff",
+                        "on-background": "#1a1c1c",
+                        "tertiary": "#006226",
+                        "surface-variant": "#e2e2e2",
+                        "error": "#ba1a1a",
+                        "inverse-surface": "#2f3131",
+                        "on-surface-variant": "#424753",
+                        "tertiary-container": "#007e33",
+                        "on-error-container": "#93000a",
+                        "secondary": "#575f69",
+                        "primary-fixed-dim": "#adc6ff",
+                        "on-surface": "#1a1c1c",
+                        "on-secondary-fixed-variant": "#3f4751",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed-dim": "#6bde80",
+                        "surface-container": "#eeeeee",
+                        "surface-dim": "#dadada",
+                        "secondary-fixed": "#dbe3ef",
+                        "surface": "#f9f9f9",
+                        "on-primary-fixed": "#001a41",
+                        "on-primary-container": "#ecefff",
+                        "primary-container": "#0969da",
+                        "surface-container-highest": "#e2e2e2",
+                        "inverse-on-surface": "#f0f1f1",
+                        "primary": "#0051ae",
+                        "on-secondary-container": "#5b636e",
+                        "outline": "#727785",
+                        "error-container": "#ffdad6",
+                        "surface-bright": "#f9f9f9",
+                        "secondary-container": "#d8e0ed",
+                        "primary-fixed": "#d8e2ff",
+                        "outline-variant": "#c2c6d6",
+                        "on-tertiary-container": "#c0ffc2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+        }
+        .step-line::before {
+            content: '';
+            position: absolute;
+            left: 7px;
+            top: 24px;
+            bottom: -8px;
+            width: 2px;
+            background-color: #e2e2e2;
+        }
+        .step-line:last-child::before {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- TopNavBar -->
+<header class="fixed top-0 z-50 w-full flex justify-between items-center px-6 py-3 border-b border-[#e2e2e2] bg-[#f9f9f9] docked full-width">
+<div class="flex items-center gap-8">
+<span class="font-['Space_Grotesk'] text-xl font-bold tracking-tighter text-[#1a1c1c]">AEGIS</span>
+<nav class="hidden md:flex gap-6 items-center">
+<a class="font-['Space_Grotesk'] uppercase tracking-wider text-[11px] font-bold text-[#5b636e] hover:text-[#1a1c1c] transition-colors" href="#">Dashboard</a>
+<a class="font-['Space_Grotesk'] uppercase tracking-wider text-[11px] font-bold text-[#5b636e] hover:text-[#1a1c1c] transition-colors" href="#">Projects</a>
+<a class="font-['Space_Grotesk'] uppercase tracking-wider text-[11px] font-bold text-[#0969da] border-b-2 border-[#0969da] pb-1" href="#">Analysis</a>
+<a class="font-['Space_Grotesk'] uppercase tracking-wider text-[11px] font-bold text-[#5b636e] hover:text-[#1a1c1c] transition-colors" href="#">Settings</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="bg-primary text-on-primary px-4 py-1.5 rounded-lg text-xs font-bold font-headline uppercase tracking-wide hover:opacity-90 transition-all active:scale-[0.98]">Run Analysis</button>
+<div class="flex items-center gap-2">
+<button class="p-2 text-secondary hover:bg-[#f3f3f4] rounded-[4px] transition-all duration-200">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 text-secondary hover:bg-[#f3f3f4] rounded-[4px] transition-all duration-200">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+</button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant ml-2">
+<img alt="User profile" data-alt="Close-up portrait of a professional male engineer in high-key lighting with a clean white studio background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCURl-6TXOu55RsgGYGzJ4znS2J8y-Bt-QUzc_uwVtj-zVyVFOyGsMy4yvQIuRCpEj_wRYSj_HX9xqG8uSzFspZbefcWmn3EQoVtRWdC0n30jEBSRpKH9st2BsX0KoiUPgN7NNkeGtE_DUVL9uRMF4vnhJL6FoXUplFqnonTRjGBxFVqrlu3xUTbUwaN2RiuozYHWCJDcHugnTs7IHfuZjehZ0wfFWkSg66a_eTJKj_7uMrZCFM6PYyZHxX1VF9vdLJPFcgZU2s7CCu"/>
+</div>
+</div>
+</div>
+</header>
+<div class="flex min-h-screen pt-[57px]">
+<!-- SideNavBar -->
+<aside class="fixed left-0 w-64 h-full bg-[#f3f3f4] border-r border-[#e2e2e2] hidden md:block">
+<div class="flex flex-col gap-1 p-4 h-full">
+<div class="mb-6 px-2">
+<h2 class="font-['Space_Grotesk'] font-bold text-[#1a1c1c] text-lg leading-tight">Analysis</h2>
+<p class="text-[10px] font-mono text-secondary tracking-widest uppercase opacity-70">V2.4.0-STABLE</p>
+</div>
+<nav class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-[#5b636e] hover:bg-[#e8e8e8] transition-all rounded-[4px] font-medium text-sm" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="insights">insights</span>
+                        Overview
+                    </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#5b636e] hover:bg-[#e8e8e8] transition-all rounded-[4px] font-medium text-sm" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="terminal">terminal</span>
+                        Live Logs
+                    </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#5b636e] hover:bg-[#e8e8e8] transition-all rounded-[4px] font-medium text-sm" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="speed">speed</span>
+                        Performance
+                    </a>
+<a class="flex items-center gap-3 px-3 py-2 bg-[#ffffff] text-[#0969da] border-l-2 border-[#0969da] shadow-sm font-medium text-sm" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="shield">shield</span>
+                        Security
+                    </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#5b636e] hover:bg-[#e8e8e8] transition-all rounded-[4px] font-medium text-sm" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="inventory_2">inventory_2</span>
+                        Artifacts
+                    </a>
+</nav>
+<div class="mt-auto pb-4">
+<button class="w-full flex items-center justify-center gap-2 px-4 py-2 border border-outline-variant text-on-surface text-xs font-bold font-headline uppercase tracking-wider hover:bg-surface-container transition-colors rounded-lg">
+<span class="material-symbols-outlined text-sm" data-icon="download">download</span>
+                        Export Report
+                    </button>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 md:ml-64 p-8">
+<!-- Header Section -->
+<div class="mb-8">
+<nav class="flex text-[11px] font-headline uppercase tracking-widest text-secondary mb-2 gap-2 items-center">
+<a class="hover:text-primary transition-colors" href="#">Project</a>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface font-bold">ECU-PowerTrain-v2.1</span>
+</nav>
+<div class="flex justify-between items-end">
+<h1 class="text-3xl font-headline font-bold tracking-tight text-on-surface">Analysis History</h1>
+<div class="flex items-center gap-3">
+<div class="flex items-center bg-surface-container-low border-b-2 border-outline-variant px-3 py-1.5 gap-2">
+<span class="material-symbols-outlined text-lg text-secondary" data-icon="filter_list">filter_list</span>
+<div class="flex gap-2">
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-[2px] text-[10px] font-headline font-medium uppercase">Status: All</span>
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-[2px] text-[10px] font-headline font-medium uppercase">Type: All</span>
+<span class="bg-primary-fixed text-on-primary-fixed-variant px-2 py-0.5 rounded-[2px] text-[10px] font-headline font-medium uppercase border border-primary/20">Target: arm-cortex-m4</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Run List -->
+<div class="space-y-4">
+<!-- Card #1: EXPANDED -->
+<div class="bg-surface-container-lowest shadow-sm rounded-lg border-l-[4px] border-tertiary-container overflow-hidden">
+<div class="p-5 flex items-start justify-between">
+<div class="flex gap-4">
+<div class="mt-1">
+<span class="material-symbols-outlined text-tertiary-container" data-icon="check_circle">check_circle</span>
+</div>
+<div>
+<div class="flex items-center gap-3 mb-1">
+<h3 class="font-bold text-on-surface text-lg">Quick SAST</h3>
+<span class="text-xs font-mono text-secondary bg-surface-container px-1.5 py-0.5 rounded">analysis-20260408-001</span>
+</div>
+<div class="flex items-center gap-4 text-xs text-on-surface-variant font-medium">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" data-icon="account_tree">account_tree</span>
+                                        arm-cortex-m4-main
+                                    </div>
+<div class="flex items-center gap-2">
+<span class="text-tertiary font-bold">+3 new</span>
+<span class="text-outline">0 resolved</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" data-icon="schedule">schedule</span>
+                                        47s
+                                    </div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" data-icon="history">history</span>
+                                        2h ago
+                                    </div>
+</div>
+</div>
+</div>
+<div class="flex gap-2">
+<span class="bg-tertiary-fixed text-on-tertiary-fixed px-3 py-1 rounded-[2px] text-[11px] font-headline font-bold uppercase tracking-wider flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-tertiary rounded-full"></span>
+                                Pass
+                            </span>
+</div>
+</div>
+<!-- Expanded Content -->
+<div class="bg-surface-container-low/50 border-t border-outline-variant/10 p-6 flex gap-12">
+<!-- Timeline -->
+<div class="flex-1 max-w-md">
+<h4 class="text-[10px] font-headline font-bold text-secondary uppercase tracking-[0.2em] mb-4">Job Execution Steps</h4>
+<div class="space-y-0">
+<div class="relative flex items-start gap-4 pb-4 step-line">
+<span class="material-symbols-outlined text-tertiary text-lg z-10 bg-[#f3f3f4]" data-icon="check_circle" data-weight="fill">check_circle</span>
+<div class="flex flex-1 justify-between items-center -mt-0.5">
+<span class="text-sm font-medium text-on-surface">Setup Build Environment</span>
+<a class="text-[10px] font-headline font-bold text-primary uppercase tracking-wider hover:underline" href="#">View Log</a>
+</div>
+</div>
+<div class="relative flex items-start gap-4 pb-4 step-line">
+<span class="material-symbols-outlined text-tertiary text-lg z-10 bg-[#f3f3f4]" data-icon="check_circle" data-weight="fill">check_circle</span>
+<div class="flex flex-1 justify-between items-center -mt-0.5">
+<span class="text-sm font-medium text-on-surface">Rule Engine Static Scan</span>
+<a class="text-[10px] font-headline font-bold text-primary uppercase tracking-wider hover:underline" href="#">View Log</a>
+</div>
+</div>
+<div class="relative flex items-start gap-4 pb-4 step-line">
+<span class="material-symbols-outlined text-tertiary text-lg z-10 bg-[#f3f3f4]" data-icon="check_circle" data-weight="fill">check_circle</span>
+<div class="flex flex-1 justify-between items-center -mt-0.5">
+<span class="text-sm font-medium text-on-surface">MISRA C:2012 Compliance Check</span>
+<a class="text-[10px] font-headline font-bold text-primary uppercase tracking-wider hover:underline" href="#">View Log</a>
+</div>
+</div>
+<div class="relative flex items-start gap-4 pb-4 step-line">
+<span class="material-symbols-outlined text-tertiary text-lg z-10 bg-[#f3f3f4]" data-icon="check_circle" data-weight="fill">check_circle</span>
+<div class="flex flex-1 justify-between items-center -mt-0.5">
+<span class="text-sm font-medium text-on-surface">Merge Analysis Results</span>
+<a class="text-[10px] font-headline font-bold text-primary uppercase tracking-wider hover:underline" href="#">View Log</a>
+</div>
+</div>
+<div class="relative flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary text-lg z-10 bg-[#f3f3f4]" data-icon="check_circle" data-weight="fill">check_circle</span>
+<div class="flex flex-1 justify-between items-center -mt-0.5">
+<span class="text-sm font-medium text-on-surface">Security Gate Evaluation</span>
+<a class="text-[10px] font-headline font-bold text-primary uppercase tracking-wider hover:underline" href="#">View Log</a>
+</div>
+</div>
+</div>
+</div>
+<!-- Summary Box -->
+<div class="flex-1 bg-white border border-outline-variant/30 rounded p-5 flex flex-col justify-between">
+<div>
+<h4 class="text-[10px] font-headline font-bold text-secondary uppercase tracking-[0.2em] mb-3">Run Summary</h4>
+<p class="text-sm text-on-surface-variant leading-relaxed">
+                                    System scanned <span class="text-on-surface font-semibold">127 files</span> across 14 modules. Found <span class="text-tertiary font-bold">3 new findings</span> related to buffer overflow risks. Overall Security Gate Result: <span class="text-tertiary font-bold">PASS</span>.
+                                </p>
+</div>
+<div class="flex gap-2 pt-4">
+<button class="bg-primary text-white text-[10px] font-headline font-bold uppercase tracking-wider px-4 py-2 rounded-[2px] flex items-center gap-2">
+                                    View Findings
+                                </button>
+<button class="border border-outline-variant text-on-surface text-[10px] font-headline font-bold uppercase tracking-wider px-4 py-2 rounded-[2px] flex items-center gap-2 hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="refresh">refresh</span>
+                                    Re-run
+                                </button>
+<button class="text-primary text-[10px] font-headline font-bold uppercase tracking-wider px-4 py-2 flex items-center gap-2 hover:bg-primary-container/10 transition-colors">
+                                    Run Deep Analysis
+                                </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Card #2 -->
+<div class="bg-surface-container-lowest shadow-sm rounded-lg border-l-[4px] border-tertiary p-4 flex items-center justify-between group cursor-pointer hover:bg-surface-container-lowest transition-all border border-transparent hover:border-outline-variant/20">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-tertiary" data-icon="check_circle">check_circle</span>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-bold text-on-surface">Deep Analysis</span>
+<span class="text-[10px] font-mono text-secondary">analysis-20260407-002</span>
+</div>
+<div class="flex items-center gap-4 text-[11px] text-secondary font-medium">
+<span>arm-cortex-m4-main</span>
+<span>3m 22s</span>
+<span>1d ago</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="bg-tertiary-fixed text-on-tertiary-fixed px-2 py-0.5 rounded-[2px] text-[10px] font-headline font-bold uppercase tracking-wider">Pass</span>
+<span class="material-symbols-outlined text-secondary opacity-0 group-hover:opacity-100 transition-opacity" data-icon="chevron_right">chevron_right</span>
+</div>
+</div>
+<!-- Card #3 -->
+<div class="bg-surface-container-lowest shadow-sm rounded-lg border-l-[4px] border-error p-4 flex items-center justify-between group cursor-pointer hover:border-outline-variant/20">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-error" data-icon="cancel">cancel</span>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-bold text-on-surface">Quick SAST</span>
+<span class="text-[10px] font-mono text-secondary">analysis-20260406-001</span>
+</div>
+<div class="flex items-center gap-4 text-[11px] text-secondary font-medium">
+<span>arm-cortex-m4-main</span>
+<span>51s</span>
+<span>2d ago</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="bg-error-container text-on-error-container px-2 py-0.5 rounded-[2px] text-[10px] font-headline font-bold uppercase tracking-wider">Fail</span>
+<span class="material-symbols-outlined text-secondary opacity-0 group-hover:opacity-100 transition-opacity" data-icon="chevron_right">chevron_right</span>
+</div>
+</div>
+<!-- Card #4 -->
+<div class="bg-surface-container-lowest shadow-sm rounded-lg border-l-[4px] border-outline p-4 flex items-center justify-between group cursor-pointer hover:border-outline-variant/20">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-outline" data-icon="timer_off">timer_off</span>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-bold text-on-surface">Quick SAST</span>
+<span class="text-[10px] font-mono text-secondary">analysis-20260405-003</span>
+</div>
+<div class="flex items-center gap-4 text-[11px] text-secondary font-medium">
+<span>arm-cortex-m4-main</span>
+<span>--</span>
+<span>3d ago</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="bg-surface-container-highest text-on-surface-variant px-2 py-0.5 rounded-[2px] text-[10px] font-headline font-bold uppercase tracking-wider">Timeout</span>
+<span class="material-symbols-outlined text-secondary opacity-0 group-hover:opacity-100 transition-opacity" data-icon="chevron_right">chevron_right</span>
+</div>
+</div>
+<!-- Card #5 -->
+<div class="bg-surface-container-lowest shadow-sm rounded-lg border-l-[4px] border-tertiary p-4 flex items-center justify-between group cursor-pointer hover:border-outline-variant/20">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-tertiary" data-icon="check_circle">check_circle</span>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-bold text-on-surface">Quick SAST</span>
+<span class="text-[10px] font-mono text-secondary">analysis-20260405-002</span>
+</div>
+<div class="flex items-center gap-4 text-[11px] text-secondary font-medium">
+<span>riscv-rv32-diag</span>
+<span>38s</span>
+<span>3d ago</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="bg-tertiary-fixed text-on-tertiary-fixed px-2 py-0.5 rounded-[2px] text-[10px] font-headline font-bold uppercase tracking-wider">Pass</span>
+<span class="material-symbols-outlined text-secondary opacity-0 group-hover:opacity-100 transition-opacity" data-icon="chevron_right">chevron_right</span>
+</div>
+</div>
+<!-- Card #6 -->
+<div class="bg-surface-container-lowest shadow-sm rounded-lg border-l-[4px] border-tertiary p-4 flex items-center justify-between group cursor-pointer hover:border-outline-variant/20">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-tertiary" data-icon="check_circle">check_circle</span>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-bold text-on-surface">Quick SAST</span>
+<span class="text-[10px] font-mono text-secondary">analysis-20260405-001</span>
+</div>
+<div class="flex items-center gap-4 text-[11px] text-secondary font-medium">
+<span>arm-cortex-m4-bootloader</span>
+<span>29s</span>
+<span>3d ago</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="bg-tertiary-fixed text-on-tertiary-fixed px-2 py-0.5 rounded-[2px] text-[10px] font-headline font-bold uppercase tracking-wider">Pass</span>
+<span class="material-symbols-outlined text-secondary opacity-0 group-hover:opacity-100 transition-opacity" data-icon="chevron_right">chevron_right</span>
+</div>
+</div>
+</div>
+<!-- Footer Pagination Aesthetic -->
+<div class="mt-8 flex justify-center">
+<button class="text-[10px] font-headline font-bold text-primary uppercase tracking-[0.2em] px-8 py-3 border border-outline-variant rounded hover:bg-surface-container-low transition-all">
+                    Load Older Analyses
+                </button>
+</div>
+</main>
+</div>
+</body></html>

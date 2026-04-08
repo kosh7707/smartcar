@@ -26,7 +26,7 @@ export const EvidencePanel: React.FC<Props> = ({ evidenceRefs, onSelectEvidence 
         <FileCheck size={16} />
         증적 ({evidenceRefs.length})
       </div>
-      <p style={{ fontSize: "var(--text-xs)", color: "var(--text-tertiary)", margin: "0 0 var(--space-2)" }}>
+      <p style={{ fontSize: "var(--cds-type-xs)", color: "var(--cds-text-placeholder)", margin: "0 0 var(--cds-spacing-03)" }}>
         Finding과 연결된 코드 위치 및 분석 근거
       </p>
 

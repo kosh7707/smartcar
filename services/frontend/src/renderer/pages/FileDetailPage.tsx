@@ -17,15 +17,15 @@ import "./FileDetailPage.css";
 const FileDetailIcon: React.FC<{ language?: string }> = ({ language }) => {
   const size = 28;
   const lang = language?.toLowerCase() ?? "";
-  const color = getLangColorByName(lang) || "var(--text-tertiary)";
+  const color = getLangColorByName(lang) || "var(--cds-text-placeholder)";
   if (["c", "cpp", "cc", "cxx", "h", "hpp", "hh", "hxx", "java", "python", "py", "javascript", "js", "typescript", "ts"].includes(lang)) {
     return <FileCode size={size} style={{ color, flexShrink: 0 }} />;
   }
   if (["shell", "sh", "bash", "powershell"].includes(lang)) return <Terminal size={size} style={{ color, flexShrink: 0 }} />;
   if (["cmake", "make"].includes(lang)) return <Wrench size={size} style={{ color: "#064f8c", flexShrink: 0 }} />;
-  if (["json", "yaml", "yml", "toml", "xml", "config"].includes(lang)) return <Settings size={size} style={{ color: "var(--text-tertiary)", flexShrink: 0 }} />;
-  if (["markdown", "md", "text", "txt"].includes(lang)) return <BookOpen size={size} style={{ color: "var(--text-tertiary)", flexShrink: 0 }} />;
-  if (["linker-script"].includes(lang)) return <Link2 size={size} style={{ color: "var(--text-tertiary)", flexShrink: 0 }} />;
+  if (["json", "yaml", "yml", "toml", "xml", "config"].includes(lang)) return <Settings size={size} style={{ color: "var(--cds-text-placeholder)", flexShrink: 0 }} />;
+  if (["markdown", "md", "text", "txt"].includes(lang)) return <BookOpen size={size} style={{ color: "var(--cds-text-placeholder)", flexShrink: 0 }} />;
+  if (["linker-script"].includes(lang)) return <Link2 size={size} style={{ color: "var(--cds-text-placeholder)", flexShrink: 0 }} />;
   return <FileText size={size} style={{ color, flexShrink: 0 }} />;
 };
 
@@ -360,7 +360,7 @@ export const FileDetailPage: React.FC = () => {
                 onClick={() => navigate(`/projects/${projectId}/static-analysis?analysisId=${a.id}`)}
                 trailing={<span className="text-sm text-tertiary">{formatDateTime(a.createdAt)}</span>}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--cds-spacing-03)" }}>
                   <span className="font-medium">취약점 {a.summary.total}건</span>
                   <SeveritySummary summary={a.summary} />
                 </div>

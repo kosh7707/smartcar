@@ -61,6 +61,32 @@ def test_legacy_aliases_normalize_to_canonical_contract() -> None:
     assert normalize_contract_version(contract) == "build-resolve-v1"
 
 
+def test_task_request_accepts_top_level_strict_contract_fields() -> None:
+    request = TaskRequest.model_validate(
+        {
+            "taskType": "build-resolve",
+            "taskId": "build-contract-top-level-001",
+            "contractVersion": "build-resolve-v1",
+            "strictMode": True,
+            "context": {
+                "trusted": {
+                    "projectPath": "/tmp/project",
+                    "subprojectPath": "gateway",
+                    "subprojectName": "gateway",
+                    "build": {"mode": "native"},
+                    "expectedArtifacts": [{"kind": "executable", "path": "gateway"}],
+                },
+            },
+        }
+    )
+
+    contract = request.build_resolve_contract()
+    assert contract.contractVersion == ContractVersion.BUILD_RESOLVE_V1
+    assert contract.strictMode is True
+    assert contract.subprojectPath == "gateway"
+    assert contract.subprojectName == "gateway"
+
+
 
 def test_preflight_requires_canonical_subproject_fields_in_strict_mode() -> None:
     validator = BuildRequestContractValidator()

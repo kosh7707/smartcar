@@ -113,8 +113,8 @@ const CheckNode: React.FC<{
             {state === "checked" && <Check size={10} />}
             {state === "indeterminate" && <Minus size={10} />}
           </div>
-          <ChevronRight size={12} style={{ transform: open ? "rotate(90deg)" : "none", transition: "transform 0.15s", color: "var(--text-tertiary)" }} />
-          {open ? <FolderOpen size={14} style={{ color: "var(--warning)" }} /> : <Folder size={14} style={{ color: "var(--warning)" }} />}
+          <ChevronRight size={12} style={{ transform: open ? "rotate(90deg)" : "none", transition: "transform 0.15s", color: "var(--cds-text-placeholder)" }} />
+          {open ? <FolderOpen size={14} style={{ color: "var(--cds-support-warning)" }} /> : <Folder size={14} style={{ color: "var(--cds-support-warning)" }} />}
           <span className="spcd__name">{node.name}</span>
           <span className="spcd__meta">{fileCount}개</span>
         </div>
@@ -144,7 +144,7 @@ const CheckNode: React.FC<{
         {isChecked && <Check size={10} />}
       </div>
       <span style={{ width: 12 }} />
-      <FileText size={14} style={{ color: "var(--text-tertiary)", flexShrink: 0 }} />
+      <FileText size={14} style={{ color: "var(--cds-text-placeholder)", flexShrink: 0 }} />
       <span className="spcd__name">{node.name}</span>
       {node.data && node.data.size > 0 && <span className="spcd__meta">{formatFileSize(node.data.size)}</span>}
     </div>
@@ -259,13 +259,11 @@ export const SubprojectCreateDialog: React.FC<Props> = ({
             <span className="form-label">포함할 파일/폴더 선택</span>
             {includedPathsHelpText && (
               <div
-                className="spcd__hint"
+                className="spcd__hint text-xs-muted"
                 role="note"
                 style={{
-                  marginTop: "var(--space-1)",
-                  marginBottom: "var(--space-2)",
-                  color: "var(--text-tertiary)",
-                  fontSize: "var(--text-xs)",
+                  marginTop: "var(--cds-spacing-02)",
+                  marginBottom: "var(--cds-spacing-03)",
                   lineHeight: 1.5,
                 }}
               >

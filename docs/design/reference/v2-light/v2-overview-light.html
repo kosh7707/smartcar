@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-container": "#0969da",
+                        "primary": "#0051ae",
+                        "on-primary-fixed": "#001a41",
+                        "on-primary-container": "#ecefff",
+                        "outline": "#727785",
+                        "on-background": "#1a1c1c",
+                        "on-surface": "#1a1c1c",
+                        "surface-bright": "#f9f9f9",
+                        "on-tertiary-fixed-variant": "#00531f",
+                        "surface-variant": "#e2e2e2",
+                        "surface-dim": "#dadada",
+                        "inverse-primary": "#adc6ff",
+                        "error-container": "#ffdad6",
+                        "surface-container": "#eeeeee",
+                        "tertiary": "#006226",
+                        "on-secondary-fixed-variant": "#3f4751",
+                        "secondary-fixed": "#dbe3ef",
+                        "on-surface-variant": "#424753",
+                        "primary-fixed": "#d8e2ff",
+                        "on-error-container": "#93000a",
+                        "on-error": "#ffffff",
+                        "on-primary-fixed-variant": "#004493",
+                        "background": "#f9f9f9",
+                        "tertiary-fixed-dim": "#6bde80",
+                        "on-tertiary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "inverse-on-surface": "#f0f1f1",
+                        "inverse-surface": "#2f3131",
+                        "primary-fixed-dim": "#adc6ff",
+                        "surface": "#f9f9f9",
+                        "tertiary-container": "#007e33",
+                        "on-secondary-container": "#5b636e",
+                        "surface-container-high": "#e8e8e8",
+                        "outline-variant": "#c2c6d6",
+                        "secondary-container": "#d8e0ed",
+                        "tertiary-fixed": "#88fb99",
+                        "secondary": "#575f69",
+                        "surface-tint": "#005bc0",
+                        "error": "#ba1a1a",
+                        "surface-container-low": "#f3f3f4",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-container": "#c0ffc2",
+                        "on-secondary": "#ffffff",
+                        "surface-container-highest": "#e2e2e2",
+                        "secondary-fixed-dim": "#bfc7d3",
+                        "on-secondary-fixed": "#141c25",
+                        "on-tertiary-fixed": "#002108"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-panel { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(16px); }
+        body { font-family: 'Inter', sans-serif; background-color: #f9f9f9; color: #1a1c1c; }
+        .headline { font-family: 'Space Grotesk', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface">
+<!-- TopNavBar -->
+<header class="fixed top-0 z-50 w-full bg-[#f9f9f9] flex justify-between items-center px-6 py-3 border-b border-[#e2e2e2] font-['Space_Grotesk'] tracking-tight">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-[#1a1c1c]">AEGIS</span>
+<nav class="hidden md:flex gap-6 text-sm">
+<a class="text-[#1a1c1c] border-b-2 border-[#0051ae] font-medium" href="#">Projects</a>
+<a class="text-[#5b636e] hover:text-[#1a1c1c] transition-colors duration-200" href="#">Activity</a>
+<a class="text-[#5b636e] hover:text-[#1a1c1c] transition-colors duration-200" href="#">Teams</a>
+<a class="text-[#5b636e] hover:text-[#1a1c1c] transition-colors duration-200" href="#">Deployments</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 hover:bg-[#f3f3f4] rounded transition-colors duration-200">
+<span class="material-symbols-outlined text-[#5b636e]">notifications</span>
+</button>
+<button class="p-2 hover:bg-[#f3f3f4] rounded transition-colors duration-200">
+<span class="material-symbols-outlined text-[#5b636e]">settings</span>
+</button>
+<div class="w-8 h-8 rounded bg-surface-container-highest overflow-hidden">
+<img alt="User profile avatar" class="w-full h-full object-cover" data-alt="portrait of a professional system administrator in a clean office setting, soft natural lighting, high resolution" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBcS3uuVa8ZTHLIXEFgcBNK4MwIrYoJ8z3asUhSYJVUdESgSRWPR26_Ifn_fjuQ-4m6js7FxR9sx71HcOQgq0eUQCyGXjXnokaTNbZZv3zJeWdP83N9-A6TMXFbM1tDt5FkAfnJxe6dnvl_4WuhcIugazF9Z9h0ajMovBJMeEshba-wp6x-0zHEqouXhEq9UonFA1l43YUECFV6C8tzAJN_5Ildqyatg24BjViHdsVHD7GHtJ3l-WSIsnVavu9h2HsUWh4MHus1SdOD"/>
+</div>
+</div>
+</header>
+<div class="flex pt-14 h-screen overflow-hidden">
+<!-- SideNavBar -->
+<aside class="w-64 bg-[#f3f3f4] border-r border-[#c2c6d6]/20 flex flex-col py-6 px-4 space-y-2 font-['Inter'] text-sm">
+<div class="mb-8 px-2">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary rounded flex items-center justify-center text-white font-bold">A</div>
+<div>
+<h2 class="font-['Space_Grotesk'] font-bold text-lg leading-tight">AEGIS System</h2>
+<p class="text-[10px] text-secondary font-medium tracking-wider uppercase">Clinical Architect v2.4</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 bg-[#ffffff] text-[#1a1c1c] border-l-2 border-[#0051ae] font-semibold transition-all translate-x-1" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span>Overview</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-[#5b636e] hover:bg-[#e8e8e8] transition-all" href="#">
+<span class="material-symbols-outlined">terminal</span>
+<span>Repositories</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-[#5b636e] hover:bg-[#e8e8e8] transition-all" href="#">
+<span class="material-symbols-outlined">layers</span>
+<span>Infrastructure</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-[#5b636e] hover:bg-[#e8e8e8] transition-all" href="#">
+<span class="material-symbols-outlined">shield</span>
+<span>Security</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-[#5b636e] hover:bg-[#e8e8e8] transition-all" href="#">
+<span class="material-symbols-outlined">list_alt</span>
+<span>Logs</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-[#5b636e] hover:bg-[#e8e8e8] transition-all" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+</nav>
+<button class="mt-auto w-full py-2.5 bg-primary text-white rounded font-['Space_Grotesk'] font-semibold text-xs uppercase tracking-widest hover:opacity-90 transition-opacity">
+                Deploy New Node
+            </button>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 overflow-y-auto bg-surface p-8 scroll-smooth">
+<div class="max-w-7xl mx-auto flex flex-col md:flex-row gap-8">
+<!-- Main Content (70%) -->
+<div class="w-full md:w-[70%] space-y-8">
+<!-- Header/About -->
+<section class="space-y-4">
+<div class="flex items-start justify-between">
+<div class="space-y-1">
+<h1 class="headline text-4xl font-bold tracking-tight text-on-surface">ECU-PowerTrain-v2.1</h1>
+<p class="text-secondary text-lg font-light max-w-2xl">
+                                    파워트레인 ECU 펌웨어 v2.1 — CAN/LIN 통신, 모터 제어, 진단(UDS) 모듈 포함
+                                </p>
+</div>
+<div class="flex flex-col items-end gap-2">
+<span class="bg-tertiary-container text-on-tertiary-container px-3 py-1 rounded text-[10px] font-bold headline tracking-widest">GATE: PASS</span>
+<div class="text-[11px] text-secondary font-medium uppercase tracking-tighter">
+                                    Last scan: 2 hours ago
+                                </div>
+</div>
+</div>
+<div class="flex flex-wrap gap-2 pt-2">
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-[11px] headline font-medium tracking-tight">C</span>
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-[11px] headline font-medium tracking-tight">ARM Cortex-M4</span>
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-[11px] headline font-medium tracking-tight">MISRA C:2012</span>
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-[11px] headline font-medium tracking-tight">ISO 26262</span>
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-[11px] headline font-medium tracking-tight">AUTOSAR</span>
+</div>
+<div class="text-xs text-outline font-medium">Created: 2026-03-15</div>
+</section>
+<!-- Security Overview Card -->
+<div class="bg-surface-container-lowest p-6 rounded shadow-[0_8px_32px_rgba(26,28,28,0.04)] border-l-4 border-primary">
+<div class="flex justify-between items-baseline mb-6">
+<h3 class="headline text-sm font-bold uppercase tracking-widest text-on-surface">Security Overview</h3>
+<div class="text-3xl font-light headline">43 <span class="text-xs font-normal text-secondary uppercase tracking-widest">Total Vulnerabilities</span></div>
+</div>
+<!-- Severity Distribution -->
+<div class="space-y-6">
+<div class="h-2 w-full flex rounded overflow-hidden bg-surface-container-high">
+<div class="h-full bg-error" style="width: 0%"></div>
+<div class="h-full bg-[#f97316]" style="width: 7%"></div>
+<div class="h-full bg-[#eab308]" style="width: 28%"></div>
+<div class="h-full bg-primary" style="width: 65%"></div>
+</div>
+<div class="grid grid-cols-4 gap-4">
+<div class="border-l-2 border-error pl-3">
+<div class="text-xl font-bold headline">0</div>
+<div class="text-[10px] text-secondary font-bold uppercase headline">Critical</div>
+</div>
+<div class="border-l-2 border-[#f97316] pl-3">
+<div class="text-xl font-bold headline">3</div>
+<div class="text-[10px] text-secondary font-bold uppercase headline">High</div>
+</div>
+<div class="border-l-2 border-[#eab308] pl-3">
+<div class="text-xl font-bold headline">12</div>
+<div class="text-[10px] text-secondary font-bold uppercase headline">Medium</div>
+</div>
+<div class="border-l-2 border-primary pl-3">
+<div class="text-xl font-bold headline">28</div>
+<div class="text-[10px] text-secondary font-bold uppercase headline">Low</div>
+</div>
+</div>
+</div>
+<!-- 30-Day Trend Visual Placeholder -->
+<div class="mt-8 pt-8 border-t border-surface-container">
+<div class="flex justify-between items-center mb-4">
+<h4 class="headline text-[11px] font-bold uppercase tracking-widest text-outline">30-Day Vulnerability Trend</h4>
+<div class="flex gap-4 text-[10px] font-bold headline uppercase">
+<div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-primary"></span> Resolved</div>
+<div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-error"></span> New Issues</div>
+</div>
+</div>
+<div class="h-32 w-full flex items-end gap-2 px-2">
+<!-- Mock Chart Bars -->
+<div class="flex-1 bg-surface-container-high h-[40%] rounded-t-sm relative group">
+<div class="absolute bottom-0 left-0 w-full bg-primary h-[80%] opacity-20"></div>
+</div>
+<div class="flex-1 bg-surface-container-high h-[60%] rounded-t-sm relative">
+<div class="absolute bottom-0 left-0 w-full bg-primary h-[90%] opacity-20"></div>
+</div>
+<div class="flex-1 bg-surface-container-high h-[30%] rounded-t-sm relative">
+<div class="absolute bottom-0 left-0 w-full bg-error h-[10%]"></div>
+<div class="absolute bottom-0 left-0 w-full bg-primary h-[40%] opacity-20"></div>
+</div>
+<div class="flex-1 bg-surface-container-high h-[50%] rounded-t-sm relative">
+<div class="absolute bottom-0 left-0 w-full bg-primary h-[100%] opacity-20"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Recent Activity Card -->
+<div class="bg-surface-container-lowest p-6 rounded shadow-[0_8px_32px_rgba(26,28,28,0.04)]">
+<h3 class="headline text-sm font-bold uppercase tracking-widest text-on-surface mb-8">Recent Activity</h3>
+<div class="relative space-y-10 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[1px] before:bg-surface-container-highest">
+<!-- Activity Item -->
+<div class="relative pl-10">
+<div class="absolute left-0 top-1.5 w-6 h-6 rounded-full bg-white border-2 border-tertiary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-tertiary">check_circle</span>
+</div>
+<div class="flex justify-between items-start">
+<div>
+<h4 class="text-sm font-bold text-on-surface">SDK Verification Successful</h4>
+<p class="text-xs text-secondary mt-1">Toolchain arm-none-eabi-gcc 12.3 successfully verified.</p>
+</div>
+<span class="text-[10px] font-bold headline text-outline uppercase">12m ago</span>
+</div>
+</div>
+<!-- Activity Item -->
+<div class="relative pl-10">
+<div class="absolute left-0 top-1.5 w-6 h-6 rounded-full bg-white border-2 border-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-primary">analytics</span>
+</div>
+<div class="flex justify-between items-start">
+<div>
+<h4 class="text-sm font-bold text-on-surface">Deep Analysis Completed</h4>
+<p class="text-xs text-secondary mt-1">0 new critical issues found in release/2.1 branch.</p>
+</div>
+<span class="text-[10px] font-bold headline text-outline uppercase">2h ago</span>
+</div>
+</div>
+<!-- Activity Item -->
+<div class="relative pl-10">
+<div class="absolute left-0 top-1.5 w-6 h-6 rounded-full bg-white border-2 border-[#f97316] flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-[#f97316]">assignment_late</span>
+</div>
+<div class="flex justify-between items-start">
+<div>
+<h4 class="text-sm font-bold text-on-surface">Gate Override Requested</h4>
+<p class="text-xs text-secondary mt-1">Requested by User kosh-admin for ADAS-Camera-Module dependency.</p>
+</div>
+<span class="text-[10px] font-bold headline text-outline uppercase">5h ago</span>
+</div>
+</div>
+<!-- Activity Item -->
+<div class="relative pl-10">
+<div class="absolute left-0 top-1.5 w-6 h-6 rounded-full bg-white border-2 border-error flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-error">timer_off</span>
+</div>
+<div class="flex justify-between items-start">
+<div>
+<h4 class="text-sm font-bold text-on-surface">SAST Analysis Timeout</h4>
+<p class="text-xs text-secondary mt-1">Module powertrain-can-gateway timed out after 30 mins.</p>
+</div>
+<span class="text-[10px] font-bold headline text-outline uppercase">Yesterday</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Meta Sidebar (30%) -->
+<div class="w-full md:w-[30%] space-y-6">
+<!-- Build Targets -->
+<div class="bg-surface-container-low p-5 rounded">
+<h4 class="headline text-[10px] font-bold uppercase tracking-widest text-outline mb-4">Build Targets</h4>
+<ul class="space-y-3">
+<li class="flex items-center justify-between">
+<span class="text-xs font-medium font-mono text-on-surface">arm-cortex-m4-main</span>
+<span class="text-[9px] font-bold headline bg-tertiary-container/10 text-tertiary px-1.5 py-0.5 rounded">READY</span>
+</li>
+<li class="flex items-center justify-between">
+<span class="text-xs font-medium font-mono text-on-surface">arm-cortex-m4-boot</span>
+<span class="text-[9px] font-bold headline bg-tertiary-container/10 text-tertiary px-1.5 py-0.5 rounded">READY</span>
+</li>
+<li class="flex items-center justify-between">
+<span class="text-xs font-medium font-mono text-on-surface">riscv-rv32-diag</span>
+<span class="text-[9px] font-bold headline bg-primary-container/10 text-primary px-1.5 py-0.5 rounded">CONFIGURED</span>
+</li>
+</ul>
+</div>
+<!-- Composition/Languages -->
+<div class="bg-surface-container-low p-5 rounded">
+<div class="flex justify-between items-baseline mb-4">
+<h4 class="headline text-[10px] font-bold uppercase tracking-widest text-outline">Composition</h4>
+<span class="text-[10px] font-bold text-on-surface">127 files • 2.4 MB</span>
+</div>
+<div class="h-1.5 w-full flex rounded-full overflow-hidden bg-surface-container-highest mb-4">
+<div class="h-full bg-primary" style="width: 82%"></div>
+<div class="h-full bg-primary-container" style="width: 11%"></div>
+<div class="h-full bg-outline" style="width: 4%"></div>
+<div class="h-full bg-surface-dim" style="width: 3%"></div>
+</div>
+<div class="grid grid-cols-2 gap-y-2">
+<div class="flex items-center gap-2 text-[10px] font-bold headline">
+<span class="w-2 h-2 rounded-full bg-primary"></span> C (82%)
+                            </div>
+<div class="flex items-center gap-2 text-[10px] font-bold headline">
+<span class="w-2 h-2 rounded-full bg-primary-container"></span> C++ (11%)
+                            </div>
+<div class="flex items-center gap-2 text-[10px] font-bold headline">
+<span class="w-2 h-2 rounded-full bg-outline"></span> ASM (4%)
+                            </div>
+<div class="flex items-center gap-2 text-[10px] font-bold headline">
+<span class="w-2 h-2 rounded-full bg-surface-dim"></span> Other (3%)
+                            </div>
+</div>
+</div>
+<!-- SDK Verification -->
+<div class="bg-surface-container-low p-5 rounded">
+<h4 class="headline text-[10px] font-bold uppercase tracking-widest text-outline mb-4">SDK Verification</h4>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-xs mb-1">
+<span class="font-mono text-on-surface">arm-none-eabi-gcc 12.3</span>
+<span class="text-tertiary font-bold headline text-[10px]">READY</span>
+</div>
+<div class="h-1 w-full bg-tertiary-container rounded-full"></div>
+</div>
+<div>
+<div class="flex justify-between text-xs mb-1">
+<span class="font-mono text-on-surface">riscv32-unknown-elf 13.1</span>
+<span class="text-primary font-bold headline text-[10px]">VERIFYING 78%</span>
+</div>
+<div class="h-1 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 78%"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Status Matrix -->
+<div class="grid grid-cols-2 gap-3">
+<div class="bg-surface-container-low p-4 rounded text-center">
+<div class="text-2xl font-light headline text-on-surface">2</div>
+<div class="text-[9px] font-bold headline text-outline uppercase tracking-widest">Ready</div>
+</div>
+<div class="bg-surface-container-low p-4 rounded text-center">
+<div class="text-2xl font-light headline text-on-surface">0</div>
+<div class="text-[9px] font-bold headline text-outline uppercase tracking-widest">Running</div>
+</div>
+<div class="bg-surface-container-low p-4 rounded text-center">
+<div class="text-2xl font-light headline text-on-surface">0</div>
+<div class="text-[9px] font-bold headline text-outline uppercase tracking-widest">Failed</div>
+</div>
+<div class="bg-surface-container-low p-4 rounded text-center">
+<div class="text-2xl font-light headline text-on-surface">1</div>
+<div class="text-[9px] font-bold headline text-outline uppercase tracking-widest">Discovery</div>
+</div>
+</div>
+<!-- Decorative Background Card -->
+<div class="relative h-48 rounded overflow-hidden">
+<img alt="Technical architecture visualization" class="w-full h-full object-cover grayscale opacity-30" data-alt="close-up of complex circuit board with neon blue indicators and depth of field, high-tech industrial aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAy9z1at_qUm1IXpWMNxFsq8R-xFG_BlZpbkHdOhPzwQTV-SIUoDg3nzcgalasNvZy_CJy_oJNuIMxHQFJjTHmfg1ivXmOlPsIoAcxdYk9B1v11BY1Cut4dRt6nVhA9MzUxntDk2i3-UurZ-Ww_mhCIuFh1pHQ_IBM9u-Qwom_IbSwmFT2xd-19kZlKx3N6ge9jUMVybbblVHewAc_yoUykawDlgNmuaGtwG0eOnE8EBX444ujEUj5YAboVrzN19RAoq7SJjmHSP3Ra"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface to-transparent"></div>
+<div class="absolute bottom-4 left-4 right-4">
+<p class="text-[10px] font-bold headline uppercase tracking-widest text-outline">System Integrity</p>
+<p class="text-xs text-on-surface font-medium">Core verification nodes active across 12 distributed clusters.</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

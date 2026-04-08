@@ -11,6 +11,9 @@ def test_health_endpoint(client_live):
     assert data["status"] == "ok"
     assert "agentConfig" in data
     assert data["agentConfig"]["maxSteps"] >= 6
+    assert data["activePromptVersions"]["deep-analyze"] == "agent-v1"
+    assert data["activePromptVersions"]["generate-poc"] == "v1"
+    assert set(data["activePromptVersions"]) == {"deep-analyze", "generate-poc"}
 
 
 def test_models_endpoint(client_live):

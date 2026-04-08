@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Static Analysis - ECU-PowerTrain-v2.1</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800;900&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-fixed-dim": "#d6d4d4",
+                        "secondary": "#9e9e9d",
+                        "on-tertiary": "#4a0004",
+                        "on-secondary-container": "#c0bfbf",
+                        "primary-container": "#003da9",
+                        "tertiary": "#ff7169",
+                        "on-secondary-fixed": "#3f3f3f",
+                        "secondary-container": "#3b3b3b",
+                        "error-container": "#7f2927",
+                        "on-secondary-fixed-variant": "#5b5b5b",
+                        "on-background": "#e7e5e5",
+                        "tertiary-dim": "#e2252c",
+                        "on-primary": "#00379b",
+                        "on-error-container": "#ff9993",
+                        "on-primary-container": "#c2cfff",
+                        "primary-dim": "#a0b6ff",
+                        "primary-fixed-dim": "#c8d3ff",
+                        "surface-container-high": "#1f2020",
+                        "surface-container-highest": "#252626",
+                        "background": "#0e0e0e",
+                        "on-tertiary-fixed-variant": "#150000",
+                        "on-tertiary-fixed": "#000000",
+                        "on-tertiary-container": "#000000",
+                        "surface-container-lowest": "#000000",
+                        "surface-container": "#191a1a",
+                        "primary-fixed": "#dbe1ff",
+                        "primary": "#b4c5ff",
+                        "on-primary-fixed-variant": "#0050d6",
+                        "surface-container-low": "#131313",
+                        "tertiary-fixed": "#f83739",
+                        "inverse-primary": "#0053de",
+                        "outline-variant": "#484848",
+                        "on-secondary": "#202020",
+                        "surface-dim": "#0e0e0e",
+                        "surface-tint": "#b4c5ff",
+                        "inverse-surface": "#fcf9f8",
+                        "surface-variant": "#252626",
+                        "on-surface": "#e7e5e5",
+                        "inverse-on-surface": "#565555",
+                        "tertiary-fixed-dim": "#e5282f",
+                        "error": "#ee7d77",
+                        "on-error": "#490106",
+                        "tertiary-container": "#f83739",
+                        "on-surface-variant": "#acabab",
+                        "error-dim": "#bb5551",
+                        "aegis-critical": "#da1e28",
+                        "aegis-high": "#ff832b",
+                        "aegis-medium": "#f1c21b",
+                        "aegis-low": "#0f62fe",
+                        "aegis-info": "#8d8d8d",
+                        "aegis-success": "#24a148"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Public Sans", "sans-serif"],
+                        "body": ["Public Sans", "sans-serif"],
+                        "label": ["Public Sans", "sans-serif"],
+                        "mono": ["IBM Plex Mono", "monospace"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body {
+            background-color: #161616;
+            color: #f4f4f4;
+            font-family: 'Public Sans', sans-serif;
+        }
+        .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+        .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-scroll::-webkit-scrollbar-thumb { background: #393939; }
+    </style>
+</head>
+<body class="flex min-h-screen overflow-x-hidden">
+<!-- SIDEBAR -->
+<aside class="bg-[#161616] text-[#f4f4f4] h-screen w-64 fixed left-0 top-0 border-r border-[#393939] flex flex-col py-6 z-50">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-2 mb-4">
+<span class="text-xl font-black tracking-tight text-[#f4f4f4]">AEGIS</span>
+<span class="text-[10px] bg-primary-container px-1.5 py-0.5 rounded font-bold uppercase">Pro</span>
+</div>
+<div class="bg-[#262626] p-3 rounded-lg">
+<p class="text-xs text-[#c6c6c6] font-medium mb-1">Project</p>
+<h2 class="text-sm font-bold truncate">ECU-PowerTrain-v2.1</h2>
+<p class="text-[10px] text-[#0f62fe] font-mono mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">account_tree</span> release/2.1
+                </p>
+<div class="mt-2 flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-error animate-pulse"></span>
+<span class="text-[10px] font-semibold text-[#f4f4f4]">Status: FAIL</span>
+</div>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto sidebar-scroll px-2 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-[#c6c6c6] hover:bg-[#262626] hover:text-[#f4f4f4] transition-colors duration-150 rounded cursor-pointer" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-sm">Overview</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 border-l-4 border-[#0f62fe] bg-[#262626] text-[#f4f4f4] font-semibold rounded-r cursor-pointer" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span class="text-sm">Static Analysis</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#c6c6c6] hover:bg-[#262626] hover:text-[#f4f4f4] transition-colors duration-150 rounded cursor-pointer" href="#">
+<span class="material-symbols-outlined">folder_open</span>
+<span class="text-sm">Files</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#c6c6c6] hover:bg-[#262626] hover:text-[#f4f4f4] transition-colors duration-150 rounded cursor-pointer" href="#">
+<span class="material-symbols-outlined">security</span>
+<span class="text-sm">Vulnerabilities</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#c6c6c6] hover:bg-[#262626] hover:text-[#f4f4f4] transition-colors duration-150 rounded cursor-pointer" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="text-sm">Analysis History</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#c6c6c6] hover:bg-[#262626] hover:text-[#f4f4f4] transition-colors duration-150 rounded cursor-pointer" href="#">
+<span class="material-symbols-outlined">description</span>
+<span class="text-sm">Report</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#c6c6c6] hover:bg-[#262626] hover:text-[#f4f4f4] transition-colors duration-150 rounded cursor-pointer" href="#">
+<span class="material-symbols-outlined">verified_user</span>
+<span class="text-sm">Quality Gate</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#c6c6c6] hover:bg-[#262626] hover:text-[#f4f4f4] transition-colors duration-150 rounded cursor-pointer" href="#">
+<span class="material-symbols-outlined">fact_check</span>
+<span class="text-sm">Approvals</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#c6c6c6] hover:bg-[#262626] hover:text-[#f4f4f4] transition-colors duration-150 rounded cursor-pointer" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-sm">Settings</span>
+</a>
+</nav>
+<div class="px-4 mt-auto">
+<button class="w-full bg-[#0f62fe] text-white py-3 px-4 rounded font-bold text-sm hover:bg-[#0050d6] transition-all active:scale-95 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm">rocket_launch</span>
+                Run Deep Analysis
+            </button>
+</div>
+</aside>
+<!-- MAIN WRAPPER -->
+<main class="ml-64 flex-1 flex flex-col min-h-screen">
+<!-- HEADER / TOP APP BAR -->
+<header class="bg-[#161616] border-b border-[#393939] sticky top-0 z-40 px-6 h-16 flex items-center justify-between">
+<nav class="flex text-xs font-medium text-[#c6c6c6]">
+<span class="hover:text-primary transition-colors cursor-pointer">프로젝트</span>
+<span class="mx-2 text-[#393939]">/</span>
+<span class="hover:text-primary transition-colors cursor-pointer">ECU-PowerTrain-v2.1</span>
+<span class="mx-2 text-[#393939]">/</span>
+<span class="text-[#f4f4f4]">정적 분석</span>
+</nav>
+<div class="flex items-center gap-4">
+<div class="relative hidden lg:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#c6c6c6] text-lg">search</span>
+<input class="bg-[#262626] border-none text-xs rounded pl-10 pr-4 py-2 w-64 focus:ring-1 focus:ring-[#0f62fe] text-[#f4f4f4]" placeholder="Search Findings..." type="text"/>
+</div>
+<div class="flex items-center gap-3">
+<button class="p-2 text-[#c6c6c6] hover:text-[#f4f4f4] transition-colors"><span class="material-symbols-outlined">notifications</span></button>
+<button class="p-2 text-[#c6c6c6] hover:text-[#f4f4f4] transition-colors"><span class="material-symbols-outlined">help_outline</span></button>
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center border border-[#393939]">
+<span class="material-symbols-outlined text-xl">account_circle</span>
+</div>
+</div>
+</div>
+</header>
+<!-- CONTENT -->
+<div class="p-8 max-w-7xl mx-auto w-full space-y-8">
+<!-- SECTION 1: LATEST ANALYSIS -->
+<section>
+<div class="flex items-end justify-between mb-4">
+<h3 class="text-xl font-bold tracking-tight">최신 분석</h3>
+<span class="text-xs text-[#c6c6c6] font-mono">analysis-20260408-001</span>
+</div>
+<div class="bg-[#262626] rounded-xl p-6 border border-[#393939] grid grid-cols-1 md:grid-cols-12 gap-6 relative overflow-hidden">
+<!-- Subtle Background Decoration -->
+<div class="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32"></div>
+<!-- Left: Status & Main Info -->
+<div class="md:col-span-4 border-r border-[#393939] pr-6">
+<div class="flex items-center gap-3 mb-4">
+<span class="px-3 py-1 bg-aegis-success/20 text-aegis-success text-xs font-bold rounded-full border border-aegis-success/30 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-aegis-success"></span> 완료
+                            </span>
+<span class="px-3 py-1 bg-primary-container/20 text-primary-dim text-xs font-bold rounded-full border border-primary-container/30">Quick SAST</span>
+</div>
+<h4 class="text-lg font-bold mb-1">Rule Engine + Pattern Matching</h4>
+<p class="text-xs text-[#c6c6c6] leading-relaxed mb-6">고속 시맨틱 분석 엔진을 사용한 임베디드 취약점 스캔이 완료되었습니다. MISRA 규격 준수 여부를 포함합니다.</p>
+<div class="flex gap-3">
+<button class="bg-[#0f62fe] text-white px-4 py-2 rounded text-xs font-bold hover:bg-[#0050d6] transition-all">Deep Analysis 실행</button>
+<a class="text-xs font-bold text-[#78a9ff] hover:underline flex items-center gap-1 px-4 py-2 transition-all" href="#">
+                                결과 상세 <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Middle: Stats -->
+<div class="md:col-span-5 grid grid-cols-2 gap-4">
+<div class="bg-[#161616] p-4 rounded-lg border border-[#393939]/50">
+<p class="text-[10px] text-[#c6c6c6] font-medium uppercase tracking-wider mb-2">Build Target</p>
+<p class="text-sm font-mono text-[#f4f4f4]">arm-cortex-m4-main</p>
+</div>
+<div class="bg-[#161616] p-4 rounded-lg border border-[#393939]/50">
+<p class="text-[10px] text-[#c6c6c6] font-medium uppercase tracking-wider mb-2">Findings</p>
+<div class="flex items-baseline gap-2">
+<span class="text-lg font-bold text-aegis-high">3 <span class="text-[10px] font-normal text-[#c6c6c6]">new</span></span>
+<span class="text-xs text-[#c6c6c6]">/ 0 resolved</span>
+</div>
+</div>
+<div class="bg-[#161616] p-4 rounded-lg border border-[#393939]/50">
+<p class="text-[10px] text-[#c6c6c6] font-medium uppercase tracking-wider mb-2">Files Scanned</p>
+<p class="text-lg font-bold">127 <span class="text-[10px] font-normal text-[#c6c6c6]">units</span></p>
+</div>
+<div class="bg-[#161616] p-4 rounded-lg border border-[#393939]/50">
+<p class="text-[10px] text-[#c6c6c6] font-medium uppercase tracking-wider mb-2">Duration</p>
+<p class="text-lg font-bold">47<span class="text-[10px] font-normal text-[#c6c6c6]">s</span></p>
+</div>
+</div>
+<!-- Right: Time Log -->
+<div class="md:col-span-3 bg-[#393939]/20 p-4 rounded-lg space-y-4">
+<div class="relative pl-6 before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-0 before:w-px before:bg-[#393939]">
+<div class="relative mb-6">
+<span class="absolute -left-[22px] top-1 w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-[#161616]"></span>
+<p class="text-[10px] text-[#c6c6c6] uppercase font-bold">Started</p>
+<p class="text-xs font-mono">2026-04-08 10:23:15</p>
+</div>
+<div class="relative">
+<span class="absolute -left-[22px] top-1 w-2.5 h-2.5 rounded-full bg-aegis-success ring-4 ring-[#161616]"></span>
+<p class="text-[10px] text-[#c6c6c6] uppercase font-bold">Completed</p>
+<p class="text-xs font-mono">2026-04-08 10:24:02</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 2: OVERALL STATUS -->
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- Severity Distribution (Donut) -->
+<div class="bg-[#262626] rounded-xl p-6 border border-[#393939] lg:col-span-1">
+<h3 class="text-sm font-bold mb-6 text-[#c6c6c6] flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">pie_chart</span> Severity Distribution
+                    </h3>
+<div class="flex flex-col items-center justify-center relative py-4">
+<!-- Custom SVG Donut -->
+<svg class="w-40 h-40 transform -rotate-90">
+<circle cx="80" cy="80" fill="transparent" r="70" stroke="#393939" stroke-width="12"></circle>
+<!-- High (3/43 = ~7%) -->
+<circle cx="80" cy="80" fill="transparent" r="70" stroke="#ff832b" stroke-dasharray="30 440" stroke-dashoffset="0" stroke-width="12"></circle>
+<!-- Medium (12/43 = ~28%) -->
+<circle cx="80" cy="80" fill="transparent" r="70" stroke="#f1c21b" stroke-dasharray="123 440" stroke-dashoffset="-30" stroke-width="12"></circle>
+<!-- Low (28/43 = ~65%) -->
+<circle cx="80" cy="80" fill="transparent" r="70" stroke="#0f62fe" stroke-dasharray="287 440" stroke-dashoffset="-153" stroke-width="12"></circle>
+</svg>
+<div class="absolute flex flex-col items-center">
+<span class="text-3xl font-black">43</span>
+<span class="text-[10px] text-[#c6c6c6] uppercase font-bold">Total</span>
+</div>
+</div>
+<div class="mt-8 grid grid-cols-3 gap-2">
+<div class="text-center p-2 bg-[#161616] rounded border-b-2 border-aegis-high">
+<p class="text-[10px] text-[#c6c6c6]">High</p>
+<p class="text-lg font-bold text-aegis-high">3</p>
+</div>
+<div class="text-center p-2 bg-[#161616] rounded border-b-2 border-aegis-medium">
+<p class="text-[10px] text-[#c6c6c6]">Med</p>
+<p class="text-lg font-bold text-aegis-medium">12</p>
+</div>
+<div class="text-center p-2 bg-[#161616] rounded border-b-2 border-aegis-low">
+<p class="text-[10px] text-[#c6c6c6]">Low</p>
+<p class="text-lg font-bold text-aegis-low">28</p>
+</div>
+</div>
+</div>
+<!-- Finding Sources (Bar Chart) -->
+<div class="bg-[#262626] rounded-xl p-6 border border-[#393939] lg:col-span-2">
+<h3 class="text-sm font-bold mb-8 text-[#c6c6c6] flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">bar_chart</span> Finding Sources
+                    </h3>
+<div class="space-y-8">
+<div>
+<div class="flex justify-between items-center mb-2">
+<span class="text-xs font-bold">Rule Engine</span>
+<span class="text-xs font-mono text-[#c6c6c6]">31 (72%)</span>
+</div>
+<div class="h-2 bg-[#161616] rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 72%"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between items-center mb-2">
+<span class="text-xs font-bold">LLM Deep Analysis</span>
+<span class="text-xs font-mono text-[#c6c6c6]">8 (19%)</span>
+</div>
+<div class="h-2 bg-[#161616] rounded-full overflow-hidden">
+<div class="h-full bg-[#78a9ff]" style="width: 19%"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between items-center mb-2">
+<span class="text-xs font-bold">MISRA Checker</span>
+<span class="text-xs font-mono text-[#c6c6c6]">4 (9%)</span>
+</div>
+<div class="h-2 bg-[#161616] rounded-full overflow-hidden">
+<div class="h-full bg-[#c2cfff]" style="width: 9%"></div>
+</div>
+</div>
+</div>
+<div class="mt-10 p-4 bg-[#393939]/20 rounded border border-[#393939]/50 flex items-start gap-3">
+<span class="material-symbols-outlined text-aegis-info">info</span>
+<p class="text-xs text-[#c6c6c6] italic leading-relaxed">Most findings originate from the Rule Engine. Running Deep Analysis (LLM) is recommended for complex memory safety patterns.</p>
+</div>
+</div>
+</section>
+<!-- SECTION 3: FINDINGS TABLE -->
+<section class="bg-[#262626] rounded-xl border border-[#393939] overflow-hidden">
+<!-- Filter Bar -->
+<div class="p-4 border-b border-[#393939] flex flex-wrap items-center gap-4 bg-[#191a1a]">
+<div class="flex items-center gap-2 px-3 py-1.5 bg-[#161616] rounded border border-[#393939]">
+<span class="text-[10px] font-bold text-[#c6c6c6] uppercase">Severity</span>
+<select class="bg-transparent border-none text-xs focus:ring-0 py-0 cursor-pointer">
+<option>All</option>
+<option>High</option>
+<option>Medium</option>
+<option>Low</option>
+</select>
+</div>
+<div class="flex items-center gap-2 px-3 py-1.5 bg-[#161616] rounded border border-[#393939]">
+<span class="text-[10px] font-bold text-[#c6c6c6] uppercase">Status</span>
+<select class="bg-transparent border-none text-xs focus:ring-0 py-0 cursor-pointer">
+<option>All</option>
+<option>Open</option>
+<option>Confirmed</option>
+<option>False Positive</option>
+</select>
+</div>
+<div class="flex items-center gap-2 px-3 py-1.5 bg-[#161616] rounded border border-[#393939]">
+<span class="text-[10px] font-bold text-[#c6c6c6] uppercase">Source</span>
+<select class="bg-transparent border-none text-xs focus:ring-0 py-0 cursor-pointer">
+<option>All Sources</option>
+<option>Rule Engine</option>
+<option>Deep Analysis</option>
+<option>MISRA</option>
+</select>
+</div>
+<div class="flex-1 min-w-[200px] relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#c6c6c6] text-sm">filter_list</span>
+<input class="w-full bg-[#161616] border border-[#393939] text-xs rounded pl-9 py-1.5 focus:ring-1 focus:ring-[#0f62fe]" placeholder="Search by description or CWE ID..." type="text"/>
+</div>
+</div>
+<!-- Table -->
+<div class="overflow-x-auto">
+<table class="w-full text-left text-sm">
+<thead>
+<tr class="bg-[#161616] text-[#c6c6c6] border-b border-[#393939]">
+<th class="px-6 py-4 font-bold uppercase tracking-wider text-[10px]">Severity</th>
+<th class="px-6 py-4 font-bold uppercase tracking-wider text-[10px]">ID</th>
+<th class="px-6 py-4 font-bold uppercase tracking-wider text-[10px]">Rule/CWE</th>
+<th class="px-6 py-4 font-bold uppercase tracking-wider text-[10px]">Description</th>
+<th class="px-6 py-4 font-bold uppercase tracking-wider text-[10px]">File</th>
+<th class="px-6 py-4 font-bold uppercase tracking-wider text-[10px]">Line</th>
+<th class="px-6 py-4 font-bold uppercase tracking-wider text-[10px]">Status</th>
+<th class="px-6 py-4 font-bold uppercase tracking-wider text-[10px]">Source</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-[#393939]">
+<!-- F-2024-001 -->
+<tr class="hover:bg-[#393939]/20 transition-colors cursor-pointer group">
+<td class="px-6 py-4"><span class="px-2 py-0.5 bg-aegis-high text-white text-[10px] font-bold rounded">HIGH</span></td>
+<td class="px-6 py-4 font-mono text-xs text-primary-dim">F-2024-001</td>
+<td class="px-6 py-4 font-mono text-xs">CWE-119</td>
+<td class="px-6 py-4 max-w-xs truncate">Stack-based Buffer Overflow detected in CAN rx</td>
+<td class="px-6 py-4 font-mono text-xs text-[#c6c6c6]">src/drivers/can_driver.c</td>
+<td class="px-6 py-4 font-mono text-xs">247</td>
+<td class="px-6 py-4"><span class="text-aegis-high flex items-center gap-1 text-[11px] font-bold"><span class="material-symbols-outlined text-sm">error</span> Open</span></td>
+<td class="px-6 py-4 text-xs text-[#c6c6c6]">Rule Engine</td>
+</tr>
+<!-- F-2024-002 -->
+<tr class="bg-[#191a1a] hover:bg-[#393939]/20 transition-colors cursor-pointer group">
+<td class="px-6 py-4"><span class="px-2 py-0.5 bg-aegis-high text-white text-[10px] font-bold rounded">HIGH</span></td>
+<td class="px-6 py-4 font-mono text-xs text-primary-dim">F-2024-002</td>
+<td class="px-6 py-4 font-mono text-xs">CWE-476</td>
+<td class="px-6 py-4 max-w-xs truncate">NULL Pointer Dereference in init sequence</td>
+<td class="px-6 py-4 font-mono text-xs text-[#c6c6c6]">src/core/ecu_init.c</td>
+<td class="px-6 py-4 font-mono text-xs">89</td>
+<td class="px-6 py-4"><span class="text-aegis-high flex items-center gap-1 text-[11px] font-bold"><span class="material-symbols-outlined text-sm">error</span> Open</span></td>
+<td class="px-6 py-4 text-xs text-[#78a9ff] italic">Deep Analysis</td>
+</tr>
+<!-- F-2024-003 -->
+<tr class="hover:bg-[#393939]/20 transition-colors cursor-pointer group">
+<td class="px-6 py-4"><span class="px-2 py-0.5 bg-aegis-high text-white text-[10px] font-bold rounded">HIGH</span></td>
+<td class="px-6 py-4 font-mono text-xs text-primary-dim">F-2024-003</td>
+<td class="px-6 py-4 font-mono text-xs">MISRA 11.3</td>
+<td class="px-6 py-4 max-w-xs truncate">Cast between pointer to object and different type</td>
+<td class="px-6 py-4 font-mono text-xs text-[#c6c6c6]">src/hal/gpio_config.c</td>
+<td class="px-6 py-4 font-mono text-xs">156</td>
+<td class="px-6 py-4"><span class="text-aegis-success flex items-center gap-1 text-[11px] font-bold"><span class="material-symbols-outlined text-sm">check_circle</span> Confirmed</span></td>
+<td class="px-6 py-4 text-xs text-[#c6c6c6]">MISRA Checker</td>
+</tr>
+<!-- F-2024-004 -->
+<tr class="bg-[#191a1a] hover:bg-[#393939]/20 transition-colors cursor-pointer group">
+<td class="px-6 py-4"><span class="px-2 py-0.5 bg-aegis-medium text-on-tertiary-fixed text-[10px] font-bold rounded">MEDIUM</span></td>
+<td class="px-6 py-4 font-mono text-xs text-primary-dim">F-2024-004</td>
+<td class="px-6 py-4 font-mono text-xs">CWE-787</td>
+<td class="px-6 py-4 max-w-xs truncate">Out-of-bounds Write in DMA configuration</td>
+<td class="px-6 py-4 font-mono text-xs text-[#c6c6c6]">src/drivers/dma_ctrl.c</td>
+<td class="px-6 py-4 font-mono text-xs">312</td>
+<td class="px-6 py-4"><span class="text-aegis-medium flex items-center gap-1 text-[11px] font-bold"><span class="material-symbols-outlined text-sm">warning</span> Open</span></td>
+<td class="px-6 py-4 text-xs text-[#c6c6c6]">Rule Engine</td>
+</tr>
+<!-- F-2024-005 -->
+<tr class="hover:bg-[#393939]/20 transition-colors cursor-pointer group">
+<td class="px-6 py-4"><span class="px-2 py-0.5 bg-aegis-medium text-on-tertiary-fixed text-[10px] font-bold rounded">MEDIUM</span></td>
+<td class="px-6 py-4 font-mono text-xs text-primary-dim">F-2024-005</td>
+<td class="px-6 py-4 font-mono text-xs">MISRA 17.7</td>
+<td class="px-6 py-4 max-w-xs truncate">Value returned by function not used</td>
+<td class="px-6 py-4 font-mono text-xs text-[#c6c6c6]">src/comm/can_protocol.c</td>
+<td class="px-6 py-4 font-mono text-xs">78</td>
+<td class="px-6 py-4"><span class="text-aegis-medium flex items-center gap-1 text-[11px] font-bold"><span class="material-symbols-outlined text-sm">warning</span> Open</span></td>
+<td class="px-6 py-4 text-xs text-[#c6c6c6]">MISRA Checker</td>
+</tr>
+<!-- F-2024-006 -->
+<tr class="bg-[#191a1a] hover:bg-[#393939]/20 transition-colors cursor-pointer group">
+<td class="px-6 py-4"><span class="px-2 py-0.5 bg-aegis-medium text-on-tertiary-fixed text-[10px] font-bold rounded">MEDIUM</span></td>
+<td class="px-6 py-4 font-mono text-xs text-primary-dim">F-2024-006</td>
+<td class="px-6 py-4 font-mono text-xs">CWE-190</td>
+<td class="px-6 py-4 max-w-xs truncate">Integer Overflow or Wraparound in timer.c</td>
+<td class="px-6 py-4 font-mono text-xs text-[#c6c6c6]">src/hal/timer.c</td>
+<td class="px-6 py-4 font-mono text-xs">45</td>
+<td class="px-6 py-4"><span class="text-aegis-info flex items-center gap-1 text-[11px] font-bold line-through opacity-60"><span class="material-symbols-outlined text-sm">cancel</span> False Positive</span></td>
+<td class="px-6 py-4 text-xs text-[#c6c6c6]">Rule Engine</td>
+</tr>
+<!-- F-2024-007 -->
+<tr class="hover:bg-[#393939]/20 transition-colors cursor-pointer group">
+<td class="px-6 py-4"><span class="px-2 py-0.5 bg-aegis-low text-white text-[10px] font-bold rounded">LOW</span></td>
+<td class="px-6 py-4 font-mono text-xs text-primary-dim">F-2024-007</td>
+<td class="px-6 py-4 font-mono text-xs">MISRA 8.4</td>
+<td class="px-6 py-4 max-w-xs truncate">Compatible declaration missing for global</td>
+<td class="px-6 py-4 font-mono text-xs text-[#c6c6c6]">src/core/config.h</td>
+<td class="px-6 py-4 font-mono text-xs">23</td>
+<td class="px-6 py-4"><span class="text-aegis-low flex items-center gap-1 text-[11px] font-bold"><span class="material-symbols-outlined text-sm">info</span> Open</span></td>
+<td class="px-6 py-4 text-xs text-[#c6c6c6]">MISRA Checker</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div class="px-6 py-4 bg-[#161616] border-t border-[#393939] flex items-center justify-between">
+<span class="text-xs text-[#c6c6c6]">Showing <span class="text-[#f4f4f4] font-bold">1 - 7</span> of 43 findings</span>
+<div class="flex gap-1">
+<button class="w-8 h-8 flex items-center justify-center rounded bg-[#262626] border border-[#393939] text-[#c6c6c6] hover:text-[#f4f4f4]"><span class="material-symbols-outlined text-sm">chevron_left</span></button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-[#0f62fe] text-white text-xs font-bold">1</button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-[#262626] border border-[#393939] text-[#c6c6c6] hover:bg-[#393939] text-xs font-bold">2</button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-[#262626] border border-[#393939] text-[#c6c6c6] hover:bg-[#393939] text-xs font-bold">3</button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-[#262626] border border-[#393939] text-[#c6c6c6] hover:text-[#f4f4f4]"><span class="material-symbols-outlined text-sm">chevron_right</span></button>
+</div>
+</div>
+</section>
+</div>
+<!-- FOOTER -->
+<footer class="mt-auto py-6 px-8 border-t border-[#393939] flex justify-between items-center bg-[#161616]">
+<p class="text-[10px] text-[#c6c6c6] uppercase tracking-widest font-bold">© 2026 AEGIS Automotive Security Console</p>
+<div class="flex gap-6">
+<a class="text-[10px] text-[#c6c6c6] hover:text-[#f4f4f4] font-bold uppercase" href="#">Privacy Policy</a>
+<a class="text-[10px] text-[#c6c6c6] hover:text-[#f4f4f4] font-bold uppercase" href="#">Documentation</a>
+<a class="text-[10px] text-[#c6c6c6] hover:text-[#f4f4f4] font-bold uppercase" href="#">Support</a>
+</div>
+</footer>
+</main>
+<!-- FLOATING ACTION BUTTON (Restricted visibility) -->
+<!-- Not rendered on Details page as per UX guidelines -->
+</body></html>

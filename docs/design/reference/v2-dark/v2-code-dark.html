@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Sentinel | ECU-PowerTrain-v2.1</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0e14;
+            color: #d9e6fd;
+        }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0e14; }
+        ::-webkit-scrollbar-thumb { background: #3c495b; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #96ccff; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary-container": "#83fc89",
+                      "secondary": "#989ea7",
+                      "on-secondary-fixed-variant": "#565c64",
+                      "primary-container": "#004a76",
+                      "on-tertiary-fixed-variant": "#006b20",
+                      "surface-variant": "#1a2637",
+                      "inverse-on-surface": "#51555c",
+                      "tertiary-dim": "#75ed7d",
+                      "on-primary-fixed": "#00436a",
+                      "on-secondary-container": "#bac0c8",
+                      "surface-container-highest": "#1a2637",
+                      "on-tertiary-container": "#005f1c",
+                      "secondary-fixed": "#dde3ec",
+                      "tertiary-fixed-dim": "#75ed7d",
+                      "outline-variant": "#3c495b",
+                      "surface-tint": "#96ccff",
+                      "tertiary": "#c7ffc2",
+                      "on-primary": "#00436b",
+                      "on-secondary": "#1b2127",
+                      "surface-container-high": "#16202e",
+                      "inverse-surface": "#f8f9ff",
+                      "on-primary-fixed-variant": "#006096",
+                      "on-tertiary": "#00691f",
+                      "secondary-container": "#363c43",
+                      "tertiary-fixed": "#83fc89",
+                      "on-secondary-fixed": "#3a4047",
+                      "surface-container-lowest": "#000000",
+                      "surface-container-low": "#0e141c",
+                      "surface-dim": "#0a0e14",
+                      "on-error-container": "#ff9993",
+                      "secondary-dim": "#989ea7",
+                      "error": "#ee7d77",
+                      "on-tertiary-fixed": "#004a14",
+                      "on-surface-variant": "#9facc1",
+                      "primary": "#96ccff",
+                      "primary-fixed": "#cee5ff",
+                      "surface": "#0a0e14",
+                      "inverse-primary": "#00649b",
+                      "background": "#0a0e14",
+                      "outline": "#6a768a",
+                      "on-error": "#490106",
+                      "error-container": "#7f2927",
+                      "surface-bright": "#1e2d41",
+                      "on-surface": "#d9e6fd",
+                      "primary-fixed-dim": "#b3d8ff",
+                      "primary-dim": "#78bffe",
+                      "error-dim": "#bb5551",
+                      "surface-container": "#121a25",
+                      "secondary-fixed-dim": "#cfd5de",
+                      "on-primary-container": "#aad5ff",
+                      "on-background": "#d9e6fd"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              }
+            },
+          },
+        }
+      </script>
+</head>
+<body class="bg-surface text-on-surface">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 bg-[#0a0e14] flex justify-between items-center px-6 h-16 w-full shadow-[0_48px_48px_rgba(150,204,255,0.08)]">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold text-[#96ccff] tracking-tighter font-['Space_Grotesk']">The Sentinel</span>
+<nav class="hidden md:flex gap-6 items-center h-full">
+<a class="text-[#d9e6fd] opacity-70 font-['Space_Grotesk'] tracking-tight hover:bg-[#1e2d41] transition-colors px-3 py-1 rounded" href="#">Projects</a>
+<a class="text-[#d9e6fd] opacity-70 font-['Space_Grotesk'] tracking-tight hover:bg-[#1e2d41] transition-colors px-3 py-1 rounded" href="#">Analytics</a>
+<a class="text-[#d9e6fd] opacity-70 font-['Space_Grotesk'] tracking-tight hover:bg-[#1e2d41] transition-colors px-3 py-1 rounded" href="#">System</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">notifications</span>
+<input class="bg-surface-container-lowest border-none rounded-lg pl-10 pr-4 py-1.5 text-sm focus:ring-1 focus:ring-primary w-64" placeholder="Search resources..." type="text"/>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-surface-bright p-2 rounded transition-colors">notifications</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-surface-bright p-2 rounded transition-colors">settings</button>
+<button class="bg-primary-container text-on-primary-container px-4 py-1.5 rounded-lg font-medium text-sm active:scale-95 duration-150 transition-transform">Deploy</button>
+<div class="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden border border-outline-variant/30">
+<img alt="User profile" data-alt="Professional headshot of a technical system administrator in a dark studio setting with soft cyan backlight" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB-uvvCdG82kppHnqJMT20sXKl002fOvOVZcaTz1TI_fdQmJe2iTbUXDg37-Xl9ydVGoWtxkmAz2noB0BgJwIdsw_8KwJFhOOu33NJva4G4XcJnn6E9LYbQNRoXWXjkvprtH2C-nj0uX3LgeRtjmsAs_T5U9ESv9ZikZCYvXhGAZT6OxqwiSKCbmce7JRLTsDCBqNX_NiezlH4uo7XrQojQzXmk0yDdGlEefutFpTyjXr3WZZ62Aj-8OwF3oPzrZPZphTMSK0SV91v4"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-[#0e141c] border-r border-[#3c495b]/15 flex flex-col py-4 font-['Inter'] text-sm">
+<div class="px-6 mb-8">
+<div class="font-['JetBrains_Mono'] text-[#96ccff] text-xs font-bold tracking-widest mb-1">SENTINEL_v1.0</div>
+<div class="text-[10px] text-on-surface-variant uppercase tracking-tighter">Firmware Project Alpha</div>
+</div>
+<nav class="flex-1 space-y-1 px-3">
+<a class="flex items-center gap-3 px-3 py-2 text-[#d9e6fd]/60 hover:text-[#d9e6fd] hover:bg-[#1a2637] transition-all group active:translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined text-lg">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 bg-[#1e2d41] text-[#96ccff] border-l-4 border-[#96ccff] font-bold transition-all active:translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined text-lg">code</span>
+<span>Code</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#d9e6fd]/60 hover:text-[#d9e6fd] hover:bg-[#1a2637] transition-all group active:translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined text-lg">security</span>
+<span>Security</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#d9e6fd]/60 hover:text-[#d9e6fd] hover:bg-[#1a2637] transition-all group active:translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined text-lg">terminal</span>
+<span>Logs</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#d9e6fd]/60 hover:text-[#d9e6fd] hover:bg-[#1a2637] transition-all group active:translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined text-lg">developer_board</span>
+<span>Hardware</span>
+</a>
+</nav>
+<div class="px-3 border-t border-outline-variant/10 pt-4 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-[#d9e6fd]/60 hover:text-[#d9e6fd] hover:bg-[#1a2637] transition-all group" href="#">
+<span class="material-symbols-outlined text-lg">help</span>
+<span>Help</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#d9e6fd]/60 hover:text-[#d9e6fd] hover:bg-[#1a2637] transition-all group" href="#">
+<span class="material-symbols-outlined text-lg">logout</span>
+<span>Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-64 mt-16 p-8 min-h-screen max-w-[1600px]">
+<!-- Header Section -->
+<div class="mb-8 flex justify-between items-end">
+<div>
+<nav class="flex items-center gap-2 text-on-surface-variant text-xs font-mono mb-2">
+<span class="hover:text-primary cursor-pointer">PROJECTS</span>
+<span class="material-symbols-outlined text-[10px]">chevron_right</span>
+<span class="text-on-surface font-bold">ECU-POWERTRAIN-V2.1</span>
+</nav>
+<h1 class="text-4xl font-headline font-bold tracking-tight text-on-surface">Source Browser</h1>
+</div>
+<div class="flex gap-3">
+<div class="text-right">
+<div class="text-2xl font-headline font-bold text-primary">127 files</div>
+<div class="text-[10px] font-mono text-on-surface-variant uppercase tracking-widest">Repository Volume</div>
+</div>
+<div class="w-[1px] bg-outline-variant/30 h-10 mx-2"></div>
+<div class="text-right">
+<div class="text-2xl font-headline font-bold text-tertiary">2.4 MB</div>
+<div class="text-[10px] font-mono text-on-surface-variant uppercase tracking-widest">Total Weight</div>
+</div>
+</div>
+</div>
+<!-- Language Stats Bar -->
+<div class="bg-surface-container-low p-6 rounded-xl border border-outline-variant/10 mb-8">
+<div class="flex justify-between mb-3 items-end">
+<span class="text-[10px] font-mono uppercase tracking-widest text-on-surface-variant">Composition Analysis</span>
+<div class="flex gap-4 text-[10px] font-mono">
+<div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#96ccff]"></span> C (82%)</div>
+<div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#b39ddb]"></span> C++ (11%)</div>
+<div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#ffab91]"></span> ASM (4%)</div>
+<div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#9e9e9e]"></span> Other (3%)</div>
+</div>
+</div>
+<div class="h-2 w-full flex rounded-full overflow-hidden bg-surface-container-highest">
+<div class="h-full bg-[#96ccff]" style="width: 82%"></div>
+<div class="h-full bg-[#b39ddb]" style="width: 11%"></div>
+<div class="h-full bg-[#ffab91]" style="width: 4%"></div>
+<div class="h-full bg-[#9e9e9e]" style="width: 3%"></div>
+</div>
+</div>
+<!-- Filter Chips -->
+<div class="flex gap-2 mb-6 overflow-x-auto pb-2">
+<button class="px-4 py-1.5 rounded-full bg-primary text-on-primary text-xs font-medium tracking-tight">All</button>
+<button class="px-4 py-1.5 rounded-full bg-surface-container-high border border-outline-variant/20 text-xs text-on-surface-variant hover:border-primary transition-colors flex items-center gap-2">Source <span class="bg-surface-container-highest px-1.5 rounded text-[10px]">89</span></button>
+<button class="px-4 py-1.5 rounded-full bg-surface-container-high border border-outline-variant/20 text-xs text-on-surface-variant hover:border-primary transition-colors flex items-center gap-2">Header <span class="bg-surface-container-highest px-1.5 rounded text-[10px]">23</span></button>
+<button class="px-4 py-1.5 rounded-full bg-surface-container-high border border-outline-variant/20 text-xs text-on-surface-variant hover:border-primary transition-colors flex items-center gap-2">Config <span class="bg-surface-container-highest px-1.5 rounded text-[10px]">6</span></button>
+<button class="px-4 py-1.5 rounded-full bg-surface-container-high border border-outline-variant/20 text-xs text-on-surface-variant hover:border-primary transition-colors flex items-center gap-2">Build <span class="bg-surface-container-highest px-1.5 rounded text-[10px]">5</span></button>
+<button class="px-4 py-1.5 rounded-full bg-surface-container-high border border-outline-variant/20 text-xs text-on-surface-variant hover:border-primary transition-colors flex items-center gap-2">Linker <span class="bg-surface-container-highest px-1.5 rounded text-[10px]">2</span></button>
+</div>
+<!-- File Browser Container -->
+<div class="bg-surface-container border border-outline-variant/15 rounded-xl overflow-hidden shadow-2xl shadow-black/40">
+<!-- Search & Actions Bar -->
+<div class="px-6 py-4 border-b border-outline-variant/15 flex items-center justify-between bg-surface-container-high/50">
+<div class="relative flex-1 max-w-md">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none text-on-surface" placeholder="Search files..." type="text"/>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant">
+<button class="material-symbols-outlined hover:text-primary transition-colors">refresh</button>
+<button class="material-symbols-outlined hover:text-primary transition-colors">download</button>
+<button class="material-symbols-outlined hover:text-primary transition-colors">more_vert</button>
+</div>
+</div>
+<!-- Table Header -->
+<div class="grid grid-cols-12 px-6 py-3 border-b border-outline-variant/10 text-[10px] font-mono uppercase tracking-widest text-on-surface-variant/60 bg-surface-container-low">
+<div class="col-span-5">Filename</div>
+<div class="col-span-1 text-right">Size</div>
+<div class="col-span-2 text-center">Language</div>
+<div class="col-span-2 text-center">Status</div>
+<div class="col-span-2 text-right">Build Target</div>
+</div>
+<!-- File List -->
+<div class="divide-y divide-outline-variant/5">
+<!-- src/ Folder (Expanded) -->
+<div class="group">
+<div class="grid grid-cols-12 px-6 py-4 items-center hover:bg-surface-bright transition-colors cursor-pointer border-l-4 border-transparent hover:border-primary">
+<div class="col-span-5 flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">expand_more</span>
+<span class="material-symbols-outlined text-primary/80" style="font-variation-settings: 'FILL' 1;">folder_open</span>
+<span class="font-medium">src</span>
+</div>
+</div>
+<!-- nested core/ -->
+<div class="grid grid-cols-12 px-6 py-3 items-center bg-surface-container-low/30 hover:bg-surface-bright transition-colors cursor-pointer ml-4">
+<div class="col-span-5 flex items-center gap-3 pl-8">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">expand_more</span>
+<span class="material-symbols-outlined text-amber-500/80" style="font-variation-settings: 'FILL' 1;">folder</span>
+<span class="font-medium text-sm">core</span>
+</div>
+</div>
+<!-- core files -->
+<div class="space-y-px pl-12 bg-surface-container-low/10">
+<!-- main.c -->
+<div class="grid grid-cols-12 px-6 py-3 items-center hover:bg-surface-bright transition-all group/row">
+<div class="col-span-5 flex items-center gap-3 pl-8">
+<span class="material-symbols-outlined text-blue-400 text-lg">description</span>
+<span class="text-sm">main.c</span>
+</div>
+<div class="col-span-1 text-right text-xs font-mono text-on-surface-variant">12KB</div>
+<div class="col-span-2 flex justify-center">
+<span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-bold border border-blue-500/20">C</span>
+</div>
+<div class="col-span-2 flex justify-center">-</div>
+<div class="col-span-2 text-right font-mono text-[10px] text-on-surface-variant">arm-cortex-m4</div>
+</div>
+<!-- ecu_init.c -->
+<div class="grid grid-cols-12 px-6 py-3 items-center hover:bg-surface-bright transition-all">
+<div class="col-span-5 flex items-center gap-3 pl-8">
+<span class="material-symbols-outlined text-blue-400 text-lg">description</span>
+<span class="text-sm">ecu_init.c</span>
+</div>
+<div class="col-span-1 text-right text-xs font-mono text-on-surface-variant">8KB</div>
+<div class="col-span-2 flex justify-center">
+<span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-bold border border-blue-500/20">C</span>
+</div>
+<div class="col-span-2 flex justify-center">
+<span class="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold border border-amber-500/20">
+<span class="material-symbols-outlined text-[12px]">warning</span> 2 findings
+                                </span>
+</div>
+<div class="col-span-2 text-right font-mono text-[10px] text-on-surface-variant">arm-cortex-m4</div>
+</div>
+<!-- config.h -->
+<div class="grid grid-cols-12 px-6 py-3 items-center hover:bg-surface-bright transition-all">
+<div class="col-span-5 flex items-center gap-3 pl-8">
+<span class="material-symbols-outlined text-purple-400 text-lg">settings_applications</span>
+<span class="text-sm">config.h</span>
+</div>
+<div class="col-span-1 text-right text-xs font-mono text-on-surface-variant">3KB</div>
+<div class="col-span-2 flex justify-center">
+<span class="px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 text-[10px] font-bold border border-purple-500/20">H</span>
+</div>
+<div class="col-span-2 flex justify-center">-</div>
+<div class="col-span-2 text-right font-mono text-[10px] text-on-surface-variant">arm-cortex-m4</div>
+</div>
+</div>
+<!-- nested drivers/ -->
+<div class="grid grid-cols-12 px-6 py-3 items-center bg-surface-container-low/30 hover:bg-surface-bright transition-colors cursor-pointer ml-4">
+<div class="col-span-5 flex items-center gap-3 pl-8">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">expand_more</span>
+<span class="material-symbols-outlined text-amber-500/80" style="font-variation-settings: 'FILL' 1;">folder</span>
+<span class="font-medium text-sm">drivers</span>
+</div>
+</div>
+<!-- drivers files -->
+<div class="space-y-px pl-12 bg-surface-container-low/10">
+<!-- can_driver.c -->
+<div class="grid grid-cols-12 px-6 py-3 items-center hover:bg-surface-bright transition-all">
+<div class="col-span-5 flex items-center gap-3 pl-8">
+<span class="material-symbols-outlined text-blue-400 text-lg">description</span>
+<span class="text-sm">can_driver.c</span>
+</div>
+<div class="col-span-1 text-right text-xs font-mono text-on-surface-variant">15KB</div>
+<div class="col-span-2 flex justify-center">
+<span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-bold border border-blue-500/20">C</span>
+</div>
+<div class="col-span-2 flex justify-center">
+<span class="flex items-center gap-1 px-2 py-0.5 rounded bg-error/10 text-error text-[10px] font-bold border border-error/20 uppercase tracking-tighter">
+<span class="material-symbols-outlined text-[12px]" style="font-variation-settings: 'FILL' 1;">error</span> 3 findings
+                                </span>
+</div>
+<div class="col-span-2 text-right font-mono text-[10px] text-on-surface-variant">arm-cortex-m4</div>
+</div>
+<!-- dma_ctrl.c -->
+<div class="grid grid-cols-12 px-6 py-3 items-center hover:bg-surface-bright transition-all">
+<div class="col-span-5 flex items-center gap-3 pl-8">
+<span class="material-symbols-outlined text-blue-400 text-lg">description</span>
+<span class="text-sm">dma_ctrl.c</span>
+</div>
+<div class="col-span-1 text-right text-xs font-mono text-on-surface-variant">11KB</div>
+<div class="col-span-2 flex justify-center">
+<span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-bold border border-blue-500/20">C</span>
+</div>
+<div class="col-span-2 flex justify-center">
+<span class="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold border border-amber-500/20">
+<span class="material-symbols-outlined text-[12px]">warning</span> 1 finding
+                                </span>
+</div>
+<div class="col-span-2 text-right font-mono text-[10px] text-on-surface-variant">arm-cortex-m4</div>
+</div>
+</div>
+</div>
+<!-- hal/ Folder (Collapsed) -->
+<div class="grid grid-cols-12 px-6 py-4 items-center hover:bg-surface-bright transition-colors cursor-pointer border-l-4 border-transparent">
+<div class="col-span-5 flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+<span class="material-symbols-outlined text-on-surface-variant/60" style="font-variation-settings: 'FILL' 1;">folder</span>
+<span class="font-medium">hal</span>
+</div>
+</div>
+<!-- boot/ Folder -->
+<div class="group">
+<div class="grid grid-cols-12 px-6 py-4 items-center hover:bg-surface-bright transition-colors cursor-pointer border-l-4 border-transparent">
+<div class="col-span-5 flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">expand_more</span>
+<span class="material-symbols-outlined text-primary/80" style="font-variation-settings: 'FILL' 1;">folder_open</span>
+<span class="font-medium">boot</span>
+</div>
+</div>
+<div class="grid grid-cols-12 px-6 py-3 items-center hover:bg-surface-bright transition-all pl-12">
+<div class="col-span-5 flex items-center gap-3 pl-4">
+<span class="material-symbols-outlined text-orange-400 text-lg">memory</span>
+<span class="text-sm">startup.s</span>
+</div>
+<div class="col-span-1 text-right text-xs font-mono text-on-surface-variant">4KB</div>
+<div class="col-span-2 flex justify-center">
+<span class="px-2 py-0.5 rounded bg-orange-500/10 text-orange-400 text-[10px] font-bold border border-orange-500/20">ASM</span>
+</div>
+<div class="col-span-2 flex justify-center">-</div>
+<div class="col-span-2 text-right font-mono text-[10px] text-on-surface-variant">arm-cortex-m4</div>
+</div>
+</div>
+<!-- Root Files -->
+<div class="grid grid-cols-12 px-6 py-3 items-center hover:bg-surface-bright transition-all">
+<div class="col-span-5 flex items-center gap-3">
+<span class="w-6"></span>
+<span class="material-symbols-outlined text-on-surface-variant text-lg">build</span>
+<span class="text-sm">Makefile</span>
+</div>
+<div class="col-span-1 text-right text-xs font-mono text-on-surface-variant">1.8KB</div>
+<div class="col-span-2 flex justify-center">
+<span class="px-2 py-0.5 rounded bg-secondary-container text-secondary text-[10px] font-bold">MAKE</span>
+</div>
+<div class="col-span-2 flex justify-center">-</div>
+<div class="col-span-2 text-right font-mono text-[10px] text-on-surface-variant">Global</div>
+</div>
+<div class="grid grid-cols-12 px-6 py-3 items-center hover:bg-surface-bright transition-all">
+<div class="col-span-5 flex items-center gap-3">
+<span class="w-6"></span>
+<span class="material-symbols-outlined text-on-surface-variant text-lg">history_edu</span>
+<span class="text-sm">linker.ld</span>
+</div>
+<div class="col-span-1 text-right text-xs font-mono text-on-surface-variant">1.1KB</div>
+<div class="col-span-2 flex justify-center">
+<span class="px-2 py-0.5 rounded bg-secondary-container text-secondary text-[10px] font-bold">LD</span>
+</div>
+<div class="col-span-2 flex justify-center">-</div>
+<div class="col-span-2 text-right font-mono text-[10px] text-on-surface-variant">Global</div>
+</div>
+</div>
+</div>
+<!-- System Status Footer -->
+<div class="mt-8 grid grid-cols-4 gap-4">
+<div class="bg-surface-container-low p-4 rounded-lg border border-outline-variant/10 flex items-center gap-4">
+<div class="p-2 rounded-lg bg-tertiary/10 text-tertiary">
+<span class="material-symbols-outlined">verified</span>
+</div>
+<div>
+<div class="text-[10px] font-mono uppercase tracking-widest text-on-surface-variant">Integrity</div>
+<div class="text-sm font-bold">99.8% Nominal</div>
+</div>
+</div>
+<div class="bg-surface-container-low p-4 rounded-lg border border-outline-variant/10 flex items-center gap-4">
+<div class="p-2 rounded-lg bg-primary/10 text-primary">
+<span class="material-symbols-outlined">sync</span>
+</div>
+<div>
+<div class="text-[10px] font-mono uppercase tracking-widest text-on-surface-variant">Sync State</div>
+<div class="text-sm font-bold">Linked to Main</div>
+</div>
+</div>
+<div class="bg-surface-container-low p-4 rounded-lg border border-outline-variant/10 flex items-center gap-4">
+<div class="p-2 rounded-lg bg-error/10 text-error">
+<span class="material-symbols-outlined">radar</span>
+</div>
+<div>
+<div class="text-[10px] font-mono uppercase tracking-widest text-on-surface-variant">Critical Vulnerabilities</div>
+<div class="text-sm font-bold">3 Detected</div>
+</div>
+</div>
+<div class="bg-surface-container-low p-4 rounded-lg border border-outline-variant/10 flex items-center gap-4">
+<div class="p-2 rounded-lg bg-on-surface-variant/10 text-on-surface-variant">
+<span class="material-symbols-outlined">terminal</span>
+</div>
+<div>
+<div class="text-[10px] font-mono uppercase tracking-widest text-on-surface-variant">Last Build</div>
+<div class="text-sm font-bold">14m ago</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Background Decoration -->
+<div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+<div class="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-primary/5 blur-[120px]"></div>
+<div class="absolute bottom-[0%] right-[0%] w-[40%] h-[40%] rounded-full bg-tertiary/5 blur-[120px]"></div>
+</div>
+</body></html>

@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+                  "outline": "#6a768a",
+                  "primary-dim": "#78bffe",
+                  "on-secondary-fixed": "#3a4047",
+                  "on-primary-fixed": "#00436a",
+                  "on-primary-container": "#aad5ff",
+                  "secondary-fixed-dim": "#cfd5de",
+                  "primary-fixed": "#cee5ff",
+                  "surface-container-high": "#16202e",
+                  "surface-tint": "#96ccff",
+                  "primary-container": "#004a76",
+                  "surface-container": "#121a25",
+                  "tertiary": "#c7ffc2",
+                  "error-container": "#7f2927",
+                  "on-secondary-container": "#bac0c8",
+                  "error-dim": "#bb5551",
+                  "on-error-container": "#ff9993",
+                  "secondary-dim": "#989ea7",
+                  "surface-dim": "#0a0e14",
+                  "background": "#0a0e14",
+                  "on-tertiary-container": "#005f1c",
+                  "surface-container-lowest": "#000000",
+                  "primary-fixed-dim": "#b3d8ff",
+                  "on-secondary-fixed-variant": "#565c64",
+                  "on-primary-fixed-variant": "#006096",
+                  "inverse-surface": "#f8f9ff",
+                  "error": "#ee7d77",
+                  "surface-container-highest": "#1a2637",
+                  "on-secondary": "#1b2127",
+                  "on-tertiary-fixed": "#004a14",
+                  "on-surface": "#d9e6fd",
+                  "surface-variant": "#1a2637",
+                  "tertiary-dim": "#75ed7d",
+                  "tertiary-fixed": "#83fc89",
+                  "surface-bright": "#1e2d41",
+                  "tertiary-fixed-dim": "#75ed7d",
+                  "on-surface-variant": "#9facc1",
+                  "outline-variant": "#3c495b",
+                  "inverse-on-surface": "#51555c",
+                  "on-tertiary-fixed-variant": "#006b20",
+                  "secondary": "#989ea7",
+                  "secondary-fixed": "#dde3ec",
+                  "on-background": "#d9e6fd",
+                  "primary": "#96ccff",
+                  "surface": "#0a0e14",
+                  "tertiary-container": "#83fc89",
+                  "on-error": "#490106",
+                  "inverse-primary": "#00649b",
+                  "on-primary": "#00436b",
+                  "surface-container-low": "#0e141c",
+                  "secondary-container": "#363c43",
+                  "on-tertiary": "#00691f"
+          },
+          "borderRadius": {
+                  "DEFAULT": "0.125rem",
+                  "lg": "0.25rem",
+                  "xl": "0.5rem",
+                  "full": "0.75rem"
+          },
+          "fontFamily": {
+                  "headline": ["Space Grotesk"],
+                  "body": ["Inter"],
+                  "label": ["Inter"],
+                  "mono": ["JetBrains Mono"]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #3c495b; border-radius: 2px; }
+  </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary/30">
+<!-- TopNavBar Implementation -->
+<header class="fixed top-0 z-50 w-full border-b border-outline-variant/15 bg-[#0a0e14] shadow-[0_0_48px_rgba(150,204,255,0.08)] flex justify-between items-center px-6 h-16">
+<div class="flex items-center gap-8">
+<div class="text-xl font-bold tracking-tighter text-[#96ccff] font-headline uppercase">AEGIS</div>
+<div class="hidden md:flex items-center gap-6 font-headline text-sm tracking-tight h-full">
+<a class="text-[#d9e6fd]/60 hover:bg-[#1e2d41] px-3 py-1 transition-colors duration-200" href="#">Network</a>
+<a class="text-[#96ccff] border-b-2 border-[#96ccff] pb-1" href="#">Reports</a>
+<a class="text-[#d9e6fd]/60 hover:bg-[#1e2d41] px-3 py-1 transition-colors duration-200" href="#">Policies</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group">
+<span class="material-symbols-outlined text-[#d9e6fd]/60 p-2 hover:bg-[#1e2d41] rounded transition-all cursor-pointer">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</div>
+<span class="material-symbols-outlined text-[#d9e6fd]/60 p-2 hover:bg-[#1e2d41] rounded transition-all cursor-pointer">settings</span>
+<div class="h-8 w-8 rounded-full bg-surface-container-highest border border-outline-variant/30 flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Security Analyst profile photo, professional headshot with neutral lighting and dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDwpy5dRwUhwtiw6uRguaVyT2UCJQhAJXgsQ8D--qQXLwFjCglPzkDWdvrPezXnGaoa_Y9pRmqaN2MN08kXG32h4WfHHuTWGQeH6okG9-8iaeU9rb65bByNpPEoTI5NwrSzdKKFz6HpEzBrb7sbvAJ0W_SyZP--Ll3_c9g8rnE2krGn0diSNF5OYn4Gab8wOpuC4_E19FyTe_A76jgaPy4X-GbIkz9W1VmRFYJpbMQHiezKqrO6SNgBXLVNX9kVCP3DrQPbYfxunlJI"/>
+</div>
+</div>
+</header>
+<div class="flex pt-16 h-screen overflow-hidden">
+<!-- SideNavBar Implementation -->
+<aside class="hidden md:flex flex-col h-full w-64 border-r border-[#3c495b]/15 bg-[#0e141c] py-8">
+<div class="px-6 mb-8">
+<div class="font-headline text-xs font-medium uppercase tracking-widest text-[#96ccff]">ECU-PowerTrain-v2.1</div>
+<div class="text-[10px] text-on-surface-variant flex items-center gap-1.5 mt-1">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary-fixed shadow-[0_0_8px_#83fc89]"></span>
+          Active Session: Sentinel
+        </div>
+</div>
+<nav class="flex flex-col flex-1">
+<a class="flex items-center gap-3 text-[#d9e6fd]/50 py-3 px-4 hover:bg-[#1a2637] hover:text-[#d9e6fd] active:translate-x-1 transition-all font-label text-xs font-medium uppercase tracking-widest" href="#">
+<span class="material-symbols-outlined">dashboard</span> Dashboard
+        </a>
+<a class="flex items-center gap-3 text-[#d9e6fd]/50 py-3 px-4 hover:bg-[#1a2637] hover:text-[#d9e6fd] active:translate-x-1 transition-all font-label text-xs font-medium uppercase tracking-widest" href="#">
+<span class="material-symbols-outlined">security</span> Threat Intelligence
+        </a>
+<a class="flex items-center gap-3 bg-[#1e2d41] text-[#96ccff] border-l-4 border-[#96ccff] py-3 px-4 transition-all font-label text-xs font-medium uppercase tracking-widest" href="#">
+<span class="material-symbols-outlined">analytics</span> Report
+        </a>
+<a class="flex items-center gap-3 text-[#d9e6fd]/50 py-3 px-4 hover:bg-[#1a2637] hover:text-[#d9e6fd] active:translate-x-1 transition-all font-label text-xs font-medium uppercase tracking-widest" href="#">
+<span class="material-symbols-outlined">bug_report</span> Vulnerabilities
+        </a>
+<a class="flex items-center gap-3 text-[#d9e6fd]/50 py-3 px-4 hover:bg-[#1a2637] hover:text-[#d9e6fd] active:translate-x-1 transition-all font-label text-xs font-medium uppercase tracking-widest" href="#">
+<span class="material-symbols-outlined">terminal</span> System Logs
+        </a>
+</nav>
+<div class="px-6 mt-auto">
+<div class="p-4 bg-surface-container rounded-lg border border-outline-variant/10">
+<div class="text-[10px] uppercase font-bold text-on-surface-variant mb-2">Node Stability</div>
+<div class="h-1 w-full bg-surface-variant overflow-hidden">
+<div class="h-full bg-primary w-4/5"></div>
+</div>
+<div class="flex justify-between mt-1.5 font-mono text-[9px] text-[#96ccff]">
+<span>L0-ALPHA</span>
+<span>80.4%</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 overflow-y-auto custom-scrollbar bg-surface text-on-surface">
+<div class="max-w-7xl mx-auto px-8 py-10">
+<!-- Report Header -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12">
+<div>
+<div class="flex items-center gap-3 mb-2">
+<span class="px-2 py-0.5 bg-primary-container text-on-primary-container text-[10px] font-bold font-mono tracking-tighter">SEC_AUDIT</span>
+<h1 class="text-4xl font-headline font-bold text-on-surface tracking-tight">Security Audit Report</h1>
+</div>
+<div class="flex items-center gap-6 text-on-surface-variant font-mono text-xs">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">calendar_today</span>
+                2026-04-08
+              </div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">fingerprint</span>
+                RPT-20260408-001
+              </div>
+</div>
+</div>
+<button class="flex items-center gap-2 bg-gradient-to-br from-primary to-primary-dim text-on-primary font-bold px-6 py-2.5 rounded-md hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary/10">
+<span class="material-symbols-outlined text-[20px]">download</span>
+            Download PDF
+          </button>
+</div>
+<!-- Executive Summary Section (Bento Grid) -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12">
+<!-- Vulnerability Card -->
+<div class="col-span-1 md:col-span-2 bg-surface-container border border-outline-variant/15 p-6 rounded-lg relative overflow-hidden">
+<div class="flex justify-between items-start mb-8">
+<div>
+<p class="text-[10px] uppercase font-bold tracking-widest text-on-surface-variant mb-1">Total Vulnerabilities</p>
+<div class="text-5xl font-headline font-bold text-on-surface">43</div>
+</div>
+<div class="p-2 bg-surface-container-highest rounded-lg">
+<span class="material-symbols-outlined text-primary">visibility</span>
+</div>
+</div>
+<div class="grid grid-cols-4 gap-2">
+<div class="flex flex-col">
+<div class="h-1 bg-error-container mb-2 w-full"></div>
+<span class="text-[10px] text-on-surface-variant font-medium">Critical</span>
+<span class="text-sm font-mono font-bold text-error">0</span>
+</div>
+<div class="flex flex-col">
+<div class="h-1 bg-orange-900/50 mb-2 w-full">
+<div class="h-full bg-orange-500 w-full"></div>
+</div>
+<span class="text-[10px] text-on-surface-variant font-medium">High</span>
+<span class="text-sm font-mono font-bold text-orange-500">3</span>
+</div>
+<div class="flex flex-col">
+<div class="h-1 bg-yellow-900/50 mb-2 w-full">
+<div class="h-full bg-yellow-500 w-full"></div>
+</div>
+<span class="text-[10px] text-on-surface-variant font-medium">Medium</span>
+<span class="text-sm font-mono font-bold text-yellow-500">12</span>
+</div>
+<div class="flex flex-col">
+<div class="h-1 bg-surface-variant mb-2 w-full">
+<div class="h-full bg-on-surface-variant w-full"></div>
+</div>
+<span class="text-[10px] text-on-surface-variant font-medium">Low</span>
+<span class="text-sm font-mono font-bold text-on-surface-variant">28</span>
+</div>
+</div>
+</div>
+<!-- Compliance Card -->
+<div class="bg-surface-container border border-outline-variant/15 p-6 rounded-lg">
+<p class="text-[10px] uppercase font-bold tracking-widest text-on-surface-variant mb-4">MISRA Compliance</p>
+<div class="flex items-center justify-center relative aspect-square">
+<svg class="w-full h-full transform -rotate-90">
+<circle class="text-surface-variant" cx="50%" cy="50%" fill="transparent" r="40%" stroke="currentColor" stroke-width="4"></circle>
+<circle class="text-tertiary" cx="50%" cy="50%" fill="transparent" r="40%" stroke="currentColor" stroke-dasharray="251.2" stroke-dashoffset="7" stroke-width="6"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="text-3xl font-headline font-bold">97.2<span class="text-sm">%</span></span>
+</div>
+</div>
+</div>
+<!-- Security Gate Card -->
+<div class="bg-tertiary-container/10 border border-tertiary/20 p-6 rounded-lg flex flex-col justify-between overflow-hidden relative">
+<div class="absolute -right-4 -top-4 opacity-5 pointer-events-none">
+<span class="material-symbols-outlined text-9xl">verified_user</span>
+</div>
+<p class="text-[10px] uppercase font-bold tracking-widest text-tertiary mb-1">Security Gate Status</p>
+<div class="flex flex-col items-center justify-center flex-1 py-4">
+<div class="text-6xl font-headline font-extrabold text-tertiary tracking-tighter mb-2">PASS</div>
+<div class="flex items-center gap-1.5 px-3 py-1 bg-tertiary/10 rounded-full border border-tertiary/20">
+<span class="material-symbols-outlined text-xs text-tertiary" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="text-[10px] font-bold text-tertiary uppercase">Automated Clearance</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Module Navigation -->
+<div class="mb-12">
+<div class="flex border-b border-outline-variant/10 gap-8">
+<button class="pb-4 text-xs font-bold uppercase tracking-widest text-primary border-b-2 border-primary">Static Analysis</button>
+<button class="pb-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors">Dynamic Analysis</button>
+<button class="pb-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors">Unit Testing</button>
+<button class="pb-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors">Deep Analysis</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+<div class="bg-surface-container-low border border-outline-variant/10 p-5 rounded">
+<h4 class="text-sm font-bold mb-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-lg">code</span>
+                Control Flow Map
+              </h4>
+<div class="h-40 bg-surface-container-lowest rounded flex items-center justify-center overflow-hidden">
+<img class="opacity-50 hover:opacity-80 transition-opacity" data-alt="Technical data visualization showing complex network nodes and interconnected lines on a dark interface" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBW0O_eMReqq33iX4yavEnFGOgKwzb9Q3OR1uXcak9UjmuSdd3S26Q1j4oMjkrc2L7avDvK4K6futWc_mUCMMavR2DGzCQXuNzuXZzjXWitQDPlsHjAyGvsERdgWAxlT-nrczWydYulWV1MSuqeOMw_7Ou3xKWg0x9mV0BUkAQ6stqm3rtJkBfokc5NuM6RJodFZb9c3HRbcK3EIOA49AsbjtzAF0Pi5KLy7GVk5CK2zXW6UyhZLoeJ6ObdQTpDP3xe96aS2IEzeq6x"/>
+</div>
+</div>
+<div class="bg-surface-container-low border border-outline-variant/10 p-5 rounded">
+<h4 class="text-sm font-bold mb-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-lg">memory</span>
+                Memory Corruption Risk
+              </h4>
+<div class="h-40 bg-surface-container-lowest rounded p-4 font-mono text-[10px] text-on-surface-variant leading-relaxed overflow-hidden">
+<div class="text-error mb-1">ERR_ADDR: 0x4F2A11BC8</div>
+<div class="text-on-surface-variant/40">BUFFER_OVERFLOW: 104 bytes overflow detected in ECU_CTRL_BUS</div>
+<div class="mt-2 h-1 w-full bg-surface-variant">
+<div class="h-full bg-error w-3/4"></div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-low border border-outline-variant/10 p-5 rounded">
+<h4 class="text-sm font-bold mb-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-lg">rule</span>
+                Policy Enforcement
+              </h4>
+<div class="space-y-3">
+<div class="flex justify-between items-center text-[11px]">
+<span>MISRA C:2012 Rule 1.1</span>
+<span class="text-tertiary">COMPLIANT</span>
+</div>
+<div class="flex justify-between items-center text-[11px]">
+<span>AUTOSAR RS_Main_00010</span>
+<span class="text-tertiary">COMPLIANT</span>
+</div>
+<div class="flex justify-between items-center text-[11px]">
+<span>ISO 26262 ASIL-D</span>
+<span class="text-orange-500">WARNING</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Audit Trail Section -->
+<div>
+<div class="flex items-center justify-between mb-6">
+<h3 class="text-xl font-headline font-bold">Audit Trail</h3>
+<button class="text-[10px] uppercase font-bold tracking-widest text-primary flex items-center gap-1 hover:underline">
+              View History <span class="material-symbols-outlined text-xs">arrow_forward</span>
+</button>
+</div>
+<div class="bg-surface-container rounded-lg overflow-hidden border border-outline-variant/15">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-high border-b border-outline-variant/15 font-headline text-[10px] uppercase tracking-widest text-on-surface-variant">
+<th class="px-6 py-4 font-bold">Timestamp</th>
+<th class="px-6 py-4 font-bold">Identity</th>
+<th class="px-6 py-4 font-bold">Action</th>
+<th class="px-6 py-4 font-bold">Status</th>
+<th class="px-6 py-4 font-bold">Hash</th>
+</tr>
+</thead>
+<tbody class="text-xs font-mono">
+<tr class="border-b border-outline-variant/5 hover:bg-surface-bright transition-colors group">
+<td class="px-6 py-4 text-on-surface-variant">2026-04-08 09:12:45</td>
+<td class="px-6 py-4 font-bold">admin_sentinel</td>
+<td class="px-6 py-4 text-on-surface">Scan Initiated</td>
+<td class="px-6 py-4">
+<span class="px-2 py-0.5 bg-surface-variant rounded text-[10px] text-tertiary font-bold">COMPLETED</span>
+</td>
+<td class="px-6 py-4 text-[10px] text-outline">f8a2...3e12</td>
+</tr>
+<tr class="border-b border-outline-variant/5 hover:bg-surface-bright transition-colors">
+<td class="px-6 py-4 text-on-surface-variant">2026-04-08 08:45:12</td>
+<td class="px-6 py-4 font-bold">system_root</td>
+<td class="px-6 py-4 text-on-surface">Gate Manual Override</td>
+<td class="px-6 py-4">
+<span class="px-2 py-0.5 bg-surface-variant rounded text-[10px] text-orange-500 font-bold">LOGGED</span>
+</td>
+<td class="px-6 py-4 text-[10px] text-outline">99c1...df88</td>
+</tr>
+<tr class="border-b border-outline-variant/5 hover:bg-surface-bright transition-colors">
+<td class="px-6 py-4 text-on-surface-variant">2026-04-08 08:30:00</td>
+<td class="px-6 py-4 font-bold">analyst_v2</td>
+<td class="px-6 py-4 text-on-surface">Findings Validated</td>
+<td class="px-6 py-4">
+<span class="px-2 py-0.5 bg-surface-variant rounded text-[10px] text-tertiary font-bold">VERIFIED</span>
+</td>
+<td class="px-6 py-4 text-[10px] text-outline">2e44...a9c0</td>
+</tr>
+<tr class="border-b border-outline-variant/5 hover:bg-surface-bright transition-colors">
+<td class="px-6 py-4 text-on-surface-variant">2026-04-08 07:15:33</td>
+<td class="px-6 py-4 font-bold">kernel_pipe</td>
+<td class="px-6 py-4 text-on-surface">Policy Update Applied</td>
+<td class="px-6 py-4">
+<span class="px-2 py-0.5 bg-surface-variant rounded text-[10px] text-tertiary font-bold">SYNCED</span>
+</td>
+<td class="px-6 py-4 text-[10px] text-outline">b443...1122</td>
+</tr>
+<tr class="border-b border-outline-variant/5 hover:bg-surface-bright transition-colors">
+<td class="px-6 py-4 text-on-surface-variant">2026-04-08 06:44:10</td>
+<td class="px-6 py-4 font-bold">admin_sentinel</td>
+<td class="px-6 py-4 text-on-surface">Module Re-scan</td>
+<td class="px-6 py-4">
+<span class="px-2 py-0.5 bg-surface-variant rounded text-[10px] text-tertiary font-bold">COMPLETED</span>
+</td>
+<td class="px-6 py-4 text-[10px] text-outline">d012...ff9a</td>
+</tr>
+<tr class="hover:bg-surface-bright transition-colors">
+<td class="px-6 py-4 text-on-surface-variant">2026-04-08 06:01:05</td>
+<td class="px-6 py-4 font-bold">system_daemon</td>
+<td class="px-6 py-4 text-on-surface">Auto-fix Executed</td>
+<td class="px-6 py-4">
+<span class="px-2 py-0.5 bg-surface-variant rounded text-[10px] text-tertiary font-bold">PATCHED</span>
+</td>
+<td class="px-6 py-4 text-[10px] text-outline">ac78...0092</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Floating Status Bar (Mobile Bottom Nav Suppression logic: This page is focused) -->
+<div class="fixed bottom-6 right-6 flex items-center gap-4">
+<div class="bg-surface-container-highest border border-primary/20 backdrop-blur-xl px-4 py-2 rounded-full shadow-2xl flex items-center gap-3">
+<span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
+<span class="text-[10px] font-headline font-bold tracking-widest text-on-surface">NETWORK STABLE</span>
+<div class="w-px h-4 bg-outline-variant/30 mx-1"></div>
+<span class="text-[10px] font-mono text-primary">v2.1.0-STABLE</span>
+</div>
+</div>
+</body></html>

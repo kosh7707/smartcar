@@ -6,14 +6,14 @@
 .state-dialog__field {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  margin-bottom: var(--space-4);
+  gap: var(--cds-spacing-02);
+  margin-bottom: var(--cds-spacing-05);
 }
 
 .state-dialog__label {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  color: var(--text-secondary);
+  font-size: var(--cds-type-sm);
+  font-weight: var(--cds-weight-medium);
+  color: var(--cds-text-secondary);
 }
 
 .state-dialog__select {
@@ -24,5 +24,5 @@
   width: 100%;
   resize: vertical;
   min-height: 72px;
-  font-family: var(--font-family);
+  font-family: var(--cds-font-sans);
 }

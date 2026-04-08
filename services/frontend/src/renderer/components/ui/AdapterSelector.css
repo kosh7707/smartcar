@@ -1,32 +1,32 @@
 .adapter-selector {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--cds-spacing-03);
 }
 
 .adapter-selector__item {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--surface-0);
+  gap: var(--cds-spacing-03);
+  padding: var(--cds-spacing-03) var(--cds-spacing-04);
+  border: 1px solid var(--cds-border-subtle);
+  border-radius: var(--cds-radius);
+  background: var(--cds-background);
   cursor: pointer;
-  font-size: var(--text-sm);
+  font-size: var(--cds-type-sm);
   font-family: inherit;
-  color: var(--text-primary);
-  transition: border-color var(--transition-fast), background var(--transition-fast);
+  color: var(--cds-text-primary);
+  transition: border-color var(--cds-transition-fast), background var(--cds-transition-fast);
 }
 
 .adapter-selector__item:hover {
-  border-color: var(--accent);
-  background: var(--accent-subtle);
+  border-color: var(--cds-interactive);
+  background: var(--cds-interactive-subtle);
 }
 
 .adapter-selector__item--selected {
-  border-color: var(--accent);
-  background: var(--accent-subtle);
+  border-color: var(--cds-interactive);
+  background: var(--cds-interactive-subtle);
 }
 
 .adapter-selector__item:disabled {
@@ -35,18 +35,18 @@
 }
 
 .adapter-selector__name {
-  font-weight: var(--weight-medium);
+  font-weight: var(--cds-weight-medium);
 }
 
 .adapter-selector__ecu {
-  font-size: var(--text-xs);
-  color: var(--success);
-  font-weight: var(--weight-medium);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-support-success);
+  font-weight: var(--cds-weight-medium);
 }
 
 .adapter-selector__url {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
+  font-family: var(--cds-font-mono);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
   margin-left: auto;
 }

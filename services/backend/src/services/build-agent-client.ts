@@ -25,9 +25,13 @@ export interface BuildResolveTarget {
 export interface BuildResolveRequest {
   taskType: "build-resolve" | "sdk-analyze";
   taskId: string;
+  contractVersion?: "build-resolve-v1";
+  strictMode?: boolean;
   context: {
     trusted: {
       projectPath: string;
+      subprojectPath?: string;
+      subprojectName?: string;
       targetPath?: string;
       targetName?: string;
       targets?: BuildResolveTarget[];

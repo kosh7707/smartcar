@@ -1,164 +1,164 @@
 /* ── Approvals Page ── */
 
 .approval-pending-badge {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  color: var(--text-inverse);
-  background: var(--danger);
+  font-size: var(--cds-type-xs);
+  font-weight: var(--cds-weight-semibold);
+  color: var(--cds-text-inverse);
+  background: var(--cds-support-error);
   padding: 2px 8px;
-  border-radius: var(--radius-full);
+  border-radius: var(--cds-radius-circle);
 }
 
 .approval-filters {
   display: flex;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
+  gap: var(--cds-spacing-03);
+  margin-bottom: var(--cds-spacing-05);
 }
 
 .approval-filter__btn {
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-full);
-  border: 1px solid var(--border-default);
+  padding: var(--cds-spacing-02) var(--cds-spacing-04);
+  border-radius: var(--cds-radius-circle);
+  border: 1px solid var(--cds-border-subtle);
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--cds-text-secondary);
   cursor: pointer;
-  font-size: var(--text-sm);
-  transition: all var(--transition-fast);
+  font-size: var(--cds-type-sm);
+  transition: all var(--cds-transition-fast);
 }
 
 .approval-filter__btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--cds-interactive);
+  color: var(--cds-interactive);
 }
 
 .approval-filter__btn.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--text-inverse);
+  background: var(--cds-interactive);
+  border-color: var(--cds-interactive);
+  color: var(--cds-text-inverse);
 }
 
 .approval-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--cds-spacing-04);
 }
 
 .approval-card__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--cds-spacing-03);
 }
 
 .approval-card__action {
-  font-weight: var(--weight-semibold);
-  font-size: var(--text-sm);
+  font-weight: var(--cds-weight-semibold);
+  font-size: var(--cds-type-sm);
 }
 
 .approval-card__status {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
+  font-size: var(--cds-type-sm);
+  font-weight: var(--cds-weight-medium);
 }
 
-.approval-status--pending { color: var(--warning); }
-.approval-status--approved { color: var(--success); }
-.approval-status--rejected { color: var(--danger); }
-.approval-status--expired { color: var(--text-tertiary); }
+.approval-status--pending { color: var(--cds-support-warning); }
+.approval-status--approved { color: var(--cds-support-success); }
+.approval-status--rejected { color: var(--cds-support-error); }
+.approval-status--expired { color: var(--cds-text-placeholder); }
 
 .approval-card__body {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--cds-spacing-03);
 }
 
 .approval-card__reason {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-2);
-  font-size: var(--text-sm);
-  color: var(--text-primary);
+  gap: var(--cds-spacing-03);
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-primary);
 }
 
 .approval-card__meta {
   display: flex;
-  gap: var(--space-4);
-  font-size: var(--text-xs);
-  font-family: var(--font-data);
-  color: var(--text-tertiary);
-  padding: var(--space-2) var(--space-3);
-  background: var(--surface-2);
-  border-radius: var(--radius-sm);
+  gap: var(--cds-spacing-05);
+  font-size: var(--cds-type-xs);
+  font-family: var(--cds-font-mono);
+  color: var(--cds-text-placeholder);
+  padding: var(--cds-spacing-03) var(--cds-spacing-04);
+  background: var(--cds-layer-02);
+  border-radius: var(--cds-radius);
 }
 
 .approval-card__expires {
-  color: var(--text-tertiary);
+  color: var(--cds-text-placeholder);
 }
 
 .approval-card__expires--imminent {
-  color: var(--warning);
+  color: var(--cds-support-warning);
 }
 
 .approval-card__decision {
-  margin-top: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background: var(--surface-2);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
+  margin-top: var(--cds-spacing-03);
+  padding: var(--cds-spacing-03) var(--cds-spacing-04);
+  background: var(--cds-layer-02);
+  border-radius: var(--cds-radius);
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-secondary);
 }
 
 .approval-card__comment {
   display: block;
   margin-top: 4px;
   font-style: italic;
-  color: var(--text-tertiary);
+  color: var(--cds-text-placeholder);
 }
 
 .approval-card__target {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
-  font-size: var(--text-xs);
-  color: var(--accent);
+  gap: var(--cds-spacing-02);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-interactive);
   cursor: pointer;
   background: none;
   border: none;
   padding: 2px 0;
   font-family: inherit;
-  transition: color var(--transition-fast);
+  transition: color var(--cds-transition-fast);
 }
 
 .approval-card__target:hover {
-  color: var(--accent-hover);
+  color: var(--cds-interactive-hover);
   text-decoration: underline;
 }
 
 .approval-card__actions {
   display: flex;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--border-default);
+  gap: var(--cds-spacing-03);
+  margin-top: var(--cds-spacing-04);
+  padding-top: var(--cds-spacing-03);
+  border-top: 1px solid var(--cds-border-subtle);
 }
 
 /* IX-1: Approve / Reject button color differentiation */
 .approval-btn--approve {
-  background: var(--success);
-  border-color: var(--success);
-  color: var(--text-inverse);
+  background: var(--cds-support-success);
+  border-color: var(--cds-support-success);
+  color: var(--cds-text-inverse);
 }
 
 .approval-btn--reject {
-  background: var(--danger);
-  border-color: var(--danger);
-  color: var(--text-inverse);
+  background: var(--cds-support-error);
+  border-color: var(--cds-support-error);
+  color: var(--cds-text-inverse);
 }
 
 /* DARK-1: Card border visible in dark theme */
 .approval-card {
-  border-bottom: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--cds-border-subtle);
 }
 

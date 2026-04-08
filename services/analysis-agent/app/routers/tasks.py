@@ -781,6 +781,13 @@ async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
 
 @router.get("/health")
 async def health(req: Request) -> dict:
+    prompt_versions = {
+        "deep-analyze": "agent-v1",
+        "generate-poc": next(
+            (p["version"] for p in _prompt_registry.list_all() if p["taskType"] == "generate-poc"),
+            "v1",
+        ),
+    }
     result = {
         "service": "s3-agent",
         "status": "ok",
@@ -789,10 +796,7 @@ async def health(req: Request) -> dict:
         "modelProfiles": [
             p["profileId"] for p in _model_registry.list_all()
         ],
-        "activePromptVersions": {
-            p["taskType"]: p["version"]
-            for p in _prompt_registry.list_all()
-        },
+        "activePromptVersions": prompt_versions,
         "agentConfig": {
             "maxSteps": settings.agent_max_steps,
             "maxCompletionTokens": settings.agent_max_completion_tokens,

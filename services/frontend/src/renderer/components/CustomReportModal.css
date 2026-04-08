@@ -1,7 +1,7 @@
 .custom-report-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--cds-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -12,37 +12,37 @@
   width: 100%;
   max-width: 520px;
   max-height: 85vh;
-  background: var(--surface-1);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-default);
+  background: var(--cds-layer-01);
+  border-radius: var(--cds-radius);
+  border: 1px solid var(--cds-border-subtle);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--cds-shadow-dropdown);
 }
 
 .custom-report-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-2) var(--space-4);
-  border-bottom: 1px solid var(--border-subtle);
+  padding: var(--cds-spacing-03) var(--cds-spacing-05);
+  border-bottom: 1px solid var(--cds-border-subtle);
 }
 
 .custom-report-header__title {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  font-weight: var(--weight-semibold);
+  gap: var(--cds-spacing-03);
+  font-weight: var(--cds-weight-semibold);
 }
 
 .custom-report-body {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-4);
+  padding: var(--cds-spacing-05);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--cds-spacing-04);
 }
 
 .custom-report-textarea {
@@ -53,7 +53,7 @@
 .custom-report-footer {
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--border-subtle);
+  gap: var(--cds-spacing-03);
+  padding: var(--cds-spacing-04) var(--cds-spacing-05);
+  border-top: 1px solid var(--cds-border-subtle);
 }

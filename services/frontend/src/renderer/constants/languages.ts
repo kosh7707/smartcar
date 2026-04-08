@@ -77,12 +77,12 @@ export const LANG_GROUPS: Record<string, { group: string; color: string }> = {
 export function getLangColor(file: UploadedFile): string {
   if (file.language && LANG_COLORS[file.language]) return LANG_COLORS[file.language];
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  return LANG_COLORS[ext] ?? "var(--text-tertiary)";
+  return LANG_COLORS[ext] ?? "var(--cds-text-placeholder)";
 }
 
 /** Get color by language name string (for SourceFileEntry etc.) */
 export function getLangColorByName(language: string): string {
-  return LANG_COLORS[language] ?? "var(--text-tertiary)";
+  return LANG_COLORS[language] ?? "var(--cds-text-placeholder)";
 }
 
 /** Infer language from filename when S2 doesn't provide one. */

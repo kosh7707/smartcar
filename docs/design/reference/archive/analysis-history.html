@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Analysis History</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface": "#0e0e0e",
+                        "inverse-primary": "#0053de",
+                        "primary-fixed": "#dbe1ff",
+                        "primary": "#b4c5ff",
+                        "on-tertiary-fixed": "#000000",
+                        "on-surface-variant": "#acabab",
+                        "error": "#ee7d77",
+                        "secondary-dim": "#9e9e9d",
+                        "on-error-container": "#ff9993",
+                        "surface-container-lowest": "#000000",
+                        "surface-container-low": "#131313",
+                        "surface-dim": "#0e0e0e",
+                        "tertiary-fixed": "#f83739",
+                        "on-secondary-fixed": "#3f3f3f",
+                        "on-tertiary": "#4a0004",
+                        "secondary-container": "#3b3b3b",
+                        "on-primary-container": "#c2cfff",
+                        "on-background": "#e7e5e5",
+                        "surface-container": "#191a1a",
+                        "secondary-fixed-dim": "#d6d4d4",
+                        "error-dim": "#bb5551",
+                        "primary-fixed-dim": "#c8d3ff",
+                        "primary-dim": "#a0b6ff",
+                        "on-surface": "#e7e5e5",
+                        "surface-bright": "#2b2c2c",
+                        "error-container": "#7f2927",
+                        "outline": "#757575",
+                        "on-error": "#490106",
+                        "background": "#0e0e0e",
+                        "surface-container-highest": "#252626",
+                        "on-tertiary-container": "#000000",
+                        "on-secondary-container": "#c0bfbf",
+                        "on-primary-fixed": "#003799",
+                        "tertiary-dim": "#e2252c",
+                        "inverse-on-surface": "#565555",
+                        "surface-variant": "#252626",
+                        "primary-container": "#003da9",
+                        "on-tertiary-fixed-variant": "#150000",
+                        "tertiary-container": "#f83739",
+                        "secondary": "#9e9e9d",
+                        "on-secondary-fixed-variant": "#5b5b5b",
+                        "on-primary-fixed-variant": "#0050d6",
+                        "inverse-surface": "#fcf9f8",
+                        "surface-container-high": "#1f2020",
+                        "on-secondary": "#202020",
+                        "tertiary": "#ff7169",
+                        "on-primary": "#00379b",
+                        "surface-tint": "#b4c5ff",
+                        "outline-variant": "#484848",
+                        "tertiary-fixed-dim": "#e5282f",
+                        "secondary-fixed": "#e4e2e2"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Public Sans"],
+                        "body": ["Public Sans"],
+                        "label": ["Public Sans"],
+                        "mono": ["IBM Plex Mono"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #161616;
+            color: #f4f4f4;
+            font-family: 'Public Sans', sans-serif;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #161616;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #393939;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #0f62fe;
+        }
+    </style>
+</head>
+<body class="antialiased overflow-hidden flex h-screen">
+<!-- SideNavBar (Authority: Shared Components JSON) -->
+<aside class="bg-[#161616] font-['Public_Sans'] text-sm docked h-full left-0 w-64 border-r border-[#393939] flat no shadows flex flex-col h-full fixed left-0 top-0 pt-12 z-50">
+<div class="px-6 pb-8">
+<div class="flex items-center gap-3 mb-6">
+<div class="w-8 h-8 bg-[#0f62fe] flex items-center justify-center rounded">
+<span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1;">security</span>
+</div>
+<div>
+<h2 class="font-mono text-[#f4f4f4] text-xs leading-tight">ECU-PowerTrain-v2.1</h2>
+<p class="text-[#c6c6c6] text-[10px] uppercase tracking-wider">branch: release/2.1</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto custom-scrollbar">
+<ul class="space-y-1">
+<!-- Nav labels from JSON, Analysis History ACTIVE -->
+<li>
+<a class="flex items-center px-6 py-3 text-[#c6c6c6] hover:bg-[#262626] hover:text-[#f4f4f4] transition-all duration-150 ease-in-out cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined mr-4" data-icon="dashboard">dashboard</span>
+                        Overview
+                    </a>
+</li>
+<li>
+<a class="flex items-center px-6 py-3 text-[#c6c6c6] hover:bg-[#262626] hover:text-[#f4f4f4] transition-all duration-150 ease-in-out cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined mr-4" data-icon="analytics">analytics</span>
+                        Static Analysis
+                    </a>
+</li>
+<li>
+<a class="flex items-center px-6 py-3 text-[#c6c6c6] hover:bg-[#262626] hover:text-[#f4f4f4] transition-all duration-150 ease-in-out cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined mr-4" data-icon="folder_open">folder_open</span>
+                        Files
+                    </a>
+</li>
+<li>
+<a class="flex items-center px-6 py-3 text-[#c6c6c6] hover:bg-[#262626] hover:text-[#f4f4f4] transition-all duration-150 ease-in-out cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined mr-4" data-icon="security">security</span>
+                        Vulnerabilities
+                    </a>
+</li>
+<li>
+<!-- Active State: Analysis History -->
+<a class="flex items-center px-6 py-3 border-l-4 border-[#0f62fe] bg-[#262626] text-[#f4f4f4] font-medium transition-all duration-150 ease-in-out cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined mr-4 text-[#0f62fe]" data-icon="history">history</span>
+                        Analysis History
+                    </a>
+</li>
+<li>
+<a class="flex items-center px-6 py-3 text-[#c6c6c6] hover:bg-[#262626] hover:text-[#f4f4f4] transition-all duration-150 ease-in-out cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined mr-4" data-icon="description">description</span>
+                        Report
+                    </a>
+</li>
+<li>
+<a class="flex items-center px-6 py-3 text-[#c6c6c6] hover:bg-[#262626] hover:text-[#f4f4f4] transition-all duration-150 ease-in-out cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined mr-4" data-icon="verified_user">verified_user</span>
+                        Quality Gate
+                    </a>
+</li>
+<li>
+<a class="flex items-center px-6 py-3 text-[#c6c6c6] hover:bg-[#262626] hover:text-[#f4f4f4] transition-all duration-150 ease-in-out cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined mr-4" data-icon="fact_check">fact_check</span>
+                        Approvals
+                    </a>
+</li>
+<li>
+<a class="flex items-center px-6 py-3 text-[#c6c6c6] hover:bg-[#262626] hover:text-[#f4f4f4] transition-all duration-150 ease-in-out cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined mr-4" data-icon="settings">settings</span>
+                        Settings
+                    </a>
+</li>
+</ul>
+</nav>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 ml-64 flex flex-col h-full bg-[#161616]">
+<!-- TopAppBar (Authority: Shared Components JSON) -->
+<header class="bg-[#161616] font-['Public_Sans'] text-[#f4f4f4] docked full-width top-0 border-b border-[#393939] flat no shadows flex justify-between items-center w-full px-6 h-12 z-40">
+<div class="flex items-center gap-4">
+<span class="text-xl font-bold text-[#f4f4f4] tracking-tighter">AEGIS</span>
+<div class="h-4 w-px bg-[#393939]"></div>
+<nav class="flex items-center gap-2 text-xs text-[#c6c6c6]">
+<span class="hover:text-white cursor-pointer transition-colors">프로젝트</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="hover:text-white cursor-pointer transition-colors">ECU-PowerTrain-v2.1</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-[#f4f4f4] font-medium">분석 이력</span>
+</nav>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative group">
+<span class="material-symbols-outlined text-[#c6c6c6] hover:bg-[#262626] p-1 rounded transition-colors cursor-pointer" data-icon="search">search</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[#c6c6c6] hover:bg-[#262626] p-1 rounded transition-colors cursor-pointer" data-icon="notifications">notifications</span>
+<span class="material-symbols-outlined text-[#c6c6c6] hover:bg-[#262626] p-1 rounded transition-colors cursor-pointer" data-icon="help">help</span>
+<div class="flex items-center gap-2 hover:bg-[#262626] p-1 rounded transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-[#0f62fe]" data-icon="account_circle">account_circle</span>
+<span class="text-xs font-medium">Admin User</span>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Scrollable Canvas -->
+<div class="flex-1 overflow-y-auto custom-scrollbar p-6">
+<!-- Summary Stats Row -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+<div class="bg-[#262626] p-5 border-l-2 border-[#0f62fe]">
+<p class="text-[#c6c6c6] text-xs font-medium mb-2 uppercase tracking-wide">총 실행</p>
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-bold text-[#f4f4f4]">12회</span>
+<span class="text-[#c6c6c6] text-xs">이번 달: 8회</span>
+</div>
+</div>
+<div class="bg-[#262626] p-5 border-l-2 border-[#0f62fe]">
+<p class="text-[#c6c6c6] text-xs font-medium mb-2 uppercase tracking-wide">성공률</p>
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-bold text-[#f4f4f4]">83.3%</span>
+<span class="text-[#c6c6c6] text-xs">10/12 completed</span>
+</div>
+</div>
+<div class="bg-[#262626] p-5 border-l-2 border-[#0f62fe]">
+<p class="text-[#c6c6c6] text-xs font-medium mb-2 uppercase tracking-wide">평균 소요</p>
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-bold text-[#f4f4f4]">52초</span>
+<span class="text-[#c6c6c6] text-xs">Quick SAST 기준</span>
+</div>
+</div>
+<div class="bg-[#262626] p-5 border-l-2 border-[#0f62fe]">
+<p class="text-[#c6c6c6] text-xs font-medium mb-2 uppercase tracking-wide">총 발견</p>
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-bold text-[#f4f4f4]">43건</span>
+<span class="text-[#c6c6c6] text-xs">해결: 4건</span>
+</div>
+</div>
+</div>
+<!-- Filter Bar -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+<div class="flex items-center gap-3">
+<button class="bg-[#0f62fe] text-white px-5 py-2 text-sm font-medium flex items-center gap-2 hover:bg-[#0053de] transition-colors">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                        새 분석 실행
+                    </button>
+<div class="flex items-center bg-[#262626] border border-[#393939] px-3 py-2 gap-2">
+<span class="material-symbols-outlined text-[18px] text-[#c6c6c6]">filter_list</span>
+<select class="bg-transparent border-none text-xs text-[#f4f4f4] focus:ring-0 p-0 cursor-pointer">
+<option>Type: All</option>
+<option>Quick SAST</option>
+<option>Deep Analysis</option>
+</select>
+<div class="w-px h-3 bg-[#393939] mx-1"></div>
+<select class="bg-transparent border-none text-xs text-[#f4f4f4] focus:ring-0 p-0 cursor-pointer">
+<option>Status: All</option>
+<option>Completed</option>
+<option>Failed</option>
+</select>
+<div class="w-px h-3 bg-[#393939] mx-1"></div>
+<select class="bg-transparent border-none text-xs text-[#f4f4f4] focus:ring-0 p-0 cursor-pointer">
+<option>Target: All Targets</option>
+<option>arm-cortex-m4-main</option>
+<option>riscv-rv32-diag</option>
+</select>
+</div>
+</div>
+<div class="text-[#c6c6c6] text-xs flex items-center gap-4 bg-[#262626] px-4 py-2">
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#da1e28]"></span> Critical</span>
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#ff832b]"></span> High</span>
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#f1c21b]"></span> Medium</span>
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#0f62fe]"></span> Low</span>
+</div>
+</div>
+<!-- Analysis Run Table -->
+<div class="bg-[#262626] overflow-hidden">
+<div class="overflow-x-auto custom-scrollbar">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-[#393939] text-[#c6c6c6] text-[11px] uppercase tracking-wider">
+<th class="px-4 py-3 font-medium">Analysis ID</th>
+<th class="px-4 py-3 font-medium">Type</th>
+<th class="px-4 py-3 font-medium text-center">Status</th>
+<th class="px-4 py-3 font-medium">Phase</th>
+<th class="px-4 py-3 font-medium">Target</th>
+<th class="px-4 py-3 font-medium">Findings</th>
+<th class="px-4 py-3 font-medium text-center">Gate</th>
+<th class="px-4 py-3 font-medium">Duration</th>
+<th class="px-4 py-3 font-medium">Started</th>
+<th class="px-4 py-3 font-medium">Completed</th>
+</tr>
+</thead>
+<tbody class="text-sm font-['Public_Sans']">
+<!-- Row 1 -->
+<tr class="bg-[#161616] hover:bg-[#262626] transition-colors border-b border-[#262626]">
+<td class="px-4 py-3 font-mono text-[12px]">analysis-20260408-001</td>
+<td class="px-4 py-3"><span class="bg-[#393939] text-[#f4f4f4] px-2 py-0.5 text-[10px] rounded">Quick SAST</span></td>
+<td class="px-4 py-3 text-center"><span class="text-[#42be65]">✅ 완료</span></td>
+<td class="px-4 py-3 text-[#c6c6c6] text-xs">complete</td>
+<td class="px-4 py-3 font-mono text-[12px] text-[#0f62fe]">arm-cortex-m4-main</td>
+<td class="px-4 py-3 text-xs"><span class="text-[#ff832b] font-semibold">+3</span> / 0 resolved</td>
+<td class="px-4 py-3 text-center"><span class="border border-[#42be65] text-[#42be65] px-2 py-0.5 text-[10px] font-bold">PASS ✅</span></td>
+<td class="px-4 py-3 text-[#c6c6c6]">47s</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">2026-04-08 10:23</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">10:24</td>
+</tr>
+<!-- Row 2 -->
+<tr class="bg-[#262626] hover:bg-[#393939] transition-colors border-b border-[#161616]">
+<td class="px-4 py-3 font-mono text-[12px]">analysis-20260407-002</td>
+<td class="px-4 py-3"><span class="bg-[#0f62fe] bg-opacity-20 text-[#78a9ff] border border-[#0f62fe] px-2 py-0.5 text-[10px] rounded">Deep Analysis</span></td>
+<td class="px-4 py-3 text-center"><span class="text-[#42be65]">✅ 완료</span></td>
+<td class="px-4 py-3 text-[#c6c6c6] text-xs">deep_complete</td>
+<td class="px-4 py-3 font-mono text-[12px] text-[#0f62fe]">arm-cortex-m4-main</td>
+<td class="px-4 py-3 text-xs">+0 / 0</td>
+<td class="px-4 py-3 text-center"><span class="border border-[#42be65] text-[#42be65] px-2 py-0.5 text-[10px] font-bold">PASS ✅</span></td>
+<td class="px-4 py-3 text-[#c6c6c6]">3m 22s</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">2026-04-07 13:57</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">14:00</td>
+</tr>
+<!-- Row 3 -->
+<tr class="bg-[#161616] hover:bg-[#262626] transition-colors border-b border-[#262626]">
+<td class="px-4 py-3 font-mono text-[12px]">analysis-20260406-001</td>
+<td class="px-4 py-3"><span class="bg-[#393939] text-[#f4f4f4] px-2 py-0.5 text-[10px] rounded">Quick SAST</span></td>
+<td class="px-4 py-3 text-center"><span class="text-[#42be65]">✅ 완료</span></td>
+<td class="px-4 py-3 text-[#c6c6c6] text-xs">complete</td>
+<td class="px-4 py-3 font-mono text-[12px] text-[#0f62fe]">arm-cortex-m4-main</td>
+<td class="px-4 py-3 text-xs"><span class="text-[#da1e28] font-semibold">+7</span> / 2 resolved</td>
+<td class="px-4 py-3 text-center"><span class="bg-[#da1e28] text-white px-2 py-0.5 text-[10px] font-bold">FAIL ❌</span></td>
+<td class="px-4 py-3 text-[#c6c6c6]">51s</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">2026-04-06 11:14</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">11:15</td>
+</tr>
+<!-- Row 4 -->
+<tr class="bg-[#262626] hover:bg-[#393939] transition-colors border-b border-[#161616]">
+<td class="px-4 py-3 font-mono text-[12px]">analysis-20260405-003</td>
+<td class="px-4 py-3"><span class="bg-[#393939] text-[#f4f4f4] px-2 py-0.5 text-[10px] rounded">Quick SAST</span></td>
+<td class="px-4 py-3 text-center"><span class="text-[#da1e28]">❌ 실패</span></td>
+<td class="px-4 py-3 text-[#da1e28] text-xs">rule_engine</td>
+<td class="px-4 py-3 font-mono text-[12px] text-[#0f62fe]">arm-cortex-m4-main</td>
+<td class="px-4 py-3 text-[#393939]">—</td>
+<td class="px-4 py-3 text-center text-[#393939]">—</td>
+<td class="px-4 py-3 text-[#393939]">—</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">2026-04-05 16:40</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#da1e28]">timeout</td>
+</tr>
+<!-- Row 5 -->
+<tr class="bg-[#161616] hover:bg-[#262626] transition-colors border-b border-[#262626]">
+<td class="px-4 py-3 font-mono text-[12px]">analysis-20260405-002</td>
+<td class="px-4 py-3"><span class="bg-[#393939] text-[#f4f4f4] px-2 py-0.5 text-[10px] rounded">Quick SAST</span></td>
+<td class="px-4 py-3 text-center"><span class="text-[#42be65]">✅ 완료</span></td>
+<td class="px-4 py-3 text-[#c6c6c6] text-xs">complete</td>
+<td class="px-4 py-3 font-mono text-[12px] text-[#0f62fe]">riscv-rv32-diag</td>
+<td class="px-4 py-3 text-xs"><span class="text-[#f1c21b] font-semibold">+2</span> / 0</td>
+<td class="px-4 py-3 text-center"><span class="border border-[#42be65] text-[#42be65] px-2 py-0.5 text-[10px] font-bold">PASS ✅</span></td>
+<td class="px-4 py-3 text-[#c6c6c6]">38s</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">2026-04-05 14:20</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">14:21</td>
+</tr>
+<!-- Row 6 -->
+<tr class="bg-[#262626] hover:bg-[#393939] transition-colors border-b border-[#161616]">
+<td class="px-4 py-3 font-mono text-[12px]">analysis-20260405-001</td>
+<td class="px-4 py-3"><span class="bg-[#393939] text-[#f4f4f4] px-2 py-0.5 text-[10px] rounded">Quick SAST</span></td>
+<td class="px-4 py-3 text-center"><span class="text-[#42be65]">✅ 완료</span></td>
+<td class="px-4 py-3 text-[#c6c6c6] text-xs">complete</td>
+<td class="px-4 py-3 font-mono text-[12px] text-[#0f62fe]">arm-m4-bootloader</td>
+<td class="px-4 py-3 text-xs"><span class="text-[#0f62fe] font-semibold">+1</span> / 0</td>
+<td class="px-4 py-3 text-center"><span class="border border-[#42be65] text-[#42be65] px-2 py-0.5 text-[10px] font-bold">PASS ✅</span></td>
+<td class="px-4 py-3 text-[#c6c6c6]">29s</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">2026-04-05 10:00</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">10:01</td>
+</tr>
+<!-- Row 7 -->
+<tr class="bg-[#161616] hover:bg-[#262626] transition-colors border-b border-[#262626]">
+<td class="px-4 py-3 font-mono text-[12px]">analysis-20260404-001</td>
+<td class="px-4 py-3"><span class="bg-[#0f62fe] bg-opacity-20 text-[#78a9ff] border border-[#0f62fe] px-2 py-0.5 text-[10px] rounded">Deep Analysis</span></td>
+<td class="px-4 py-3 text-center"><span class="text-[#42be65]">✅ 완료</span></td>
+<td class="px-4 py-3 text-[#c6c6c6] text-xs">deep_complete</td>
+<td class="px-4 py-3 font-mono text-[12px] text-[#0f62fe]">arm-cortex-m4-main</td>
+<td class="px-4 py-3 text-xs"><span class="text-[#ff832b] font-semibold">+5</span> / 1 resolved</td>
+<td class="px-4 py-3 text-center"><span class="border border-[#42be65] text-[#42be65] px-2 py-0.5 text-[10px] font-bold">PASS ✅</span></td>
+<td class="px-4 py-3 text-[#c6c6c6]">4m 15s</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">2026-04-04 09:00</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">09:04</td>
+</tr>
+<!-- Row 8 -->
+<tr class="bg-[#262626] hover:bg-[#393939] transition-colors border-b border-[#161616]">
+<td class="px-4 py-3 font-mono text-[12px]">analysis-20260403-001</td>
+<td class="px-4 py-3"><span class="bg-[#393939] text-[#f4f4f4] px-2 py-0.5 text-[10px] rounded">Quick SAST</span></td>
+<td class="px-4 py-3 text-center"><span class="text-[#42be65]">✅ 완료</span></td>
+<td class="px-4 py-3 text-[#c6c6c6] text-xs">complete</td>
+<td class="px-4 py-3 font-mono text-[12px] text-[#0f62fe]">arm-cortex-m4-main</td>
+<td class="px-4 py-3 text-xs"><span class="text-[#ff832b] font-semibold">+8</span> / 0</td>
+<td class="px-4 py-3 text-center"><span class="border border-[#42be65] text-[#42be65] px-2 py-0.5 text-[10px] font-bold">PASS ✅</span></td>
+<td class="px-4 py-3 text-[#c6c6c6]">45s</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">2026-04-03 16:30</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">16:31</td>
+</tr>
+<!-- Row 9 -->
+<tr class="bg-[#161616] hover:bg-[#262626] transition-colors border-b border-[#262626]">
+<td class="px-4 py-3 font-mono text-[12px]">analysis-20260402-001</td>
+<td class="px-4 py-3"><span class="bg-[#393939] text-[#f4f4f4] px-2 py-0.5 text-[10px] rounded">Quick SAST</span></td>
+<td class="px-4 py-3 text-center"><span class="text-[#42be65]">✅ 완료</span></td>
+<td class="px-4 py-3 text-[#c6c6c6] text-xs">complete</td>
+<td class="px-4 py-3 font-mono text-[12px] text-[#0f62fe]">arm-cortex-m4-main</td>
+<td class="px-4 py-3 text-xs"><span class="text-[#da1e28] font-semibold">+12</span> / 0</td>
+<td class="px-4 py-3 text-center"><span class="bg-[#f1c21b] text-black px-2 py-0.5 text-[10px] font-bold">WARNING ⚠️</span></td>
+<td class="px-4 py-3 text-[#c6c6c6]">55s</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">2026-04-02 11:00</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">11:01</td>
+</tr>
+<!-- Row 10 -->
+<tr class="bg-[#262626] hover:bg-[#393939] transition-colors border-b border-[#161616]">
+<td class="px-4 py-3 font-mono text-[12px]">analysis-20260331-001</td>
+<td class="px-4 py-3"><span class="bg-[#393939] text-[#f4f4f4] px-2 py-0.5 text-[10px] rounded">Quick SAST</span></td>
+<td class="px-4 py-3 text-center"><span class="text-[#42be65]">✅ 완료</span></td>
+<td class="px-4 py-3 text-[#c6c6c6] text-xs">complete</td>
+<td class="px-4 py-3 font-mono text-[12px] text-[#0f62fe]">arm-cortex-m4-main</td>
+<td class="px-4 py-3 text-xs"><span class="text-[#ff832b] font-semibold">+3</span> / 1 resolved</td>
+<td class="px-4 py-3 text-center"><span class="border border-[#42be65] text-[#42be65] px-2 py-0.5 text-[10px] font-bold">PASS ✅</span></td>
+<td class="px-4 py-3 text-[#c6c6c6]">42s</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">2026-03-31 14:00</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">14:01</td>
+</tr>
+<!-- Row 11 -->
+<tr class="bg-[#161616] hover:bg-[#262626] transition-colors border-b border-[#262626]">
+<td class="px-4 py-3 font-mono text-[12px]">analysis-20260328-001</td>
+<td class="px-4 py-3"><span class="bg-[#393939] text-[#f4f4f4] px-2 py-0.5 text-[10px] rounded">Quick SAST</span></td>
+<td class="px-4 py-3 text-center"><span class="text-[#42be65]">✅ 완료</span></td>
+<td class="px-4 py-3 text-[#c6c6c6] text-xs">complete</td>
+<td class="px-4 py-3 font-mono text-[12px] text-[#0f62fe]">arm-cortex-m4-main</td>
+<td class="px-4 py-3 text-xs"><span class="text-[#ff832b] font-semibold">+5</span> / 0</td>
+<td class="px-4 py-3 text-center"><span class="border border-[#42be65] text-[#42be65] px-2 py-0.5 text-[10px] font-bold">PASS ✅</span></td>
+<td class="px-4 py-3 text-[#c6c6c6]">48s</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">2026-03-28 10:00</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">10:01</td>
+</tr>
+<!-- Row 12 -->
+<tr class="bg-[#262626] hover:bg-[#393939] transition-colors">
+<td class="px-4 py-3 font-mono text-[12px]">analysis-20260401-001</td>
+<td class="px-4 py-3"><span class="bg-[#393939] text-[#f4f4f4] px-2 py-0.5 text-[10px] rounded">Quick SAST</span></td>
+<td class="px-4 py-3 text-center"><span class="text-[#da1e28]">❌ 실패</span></td>
+<td class="px-4 py-3 text-[#da1e28] text-xs">llm_chunk</td>
+<td class="px-4 py-3 font-mono text-[12px] text-[#0f62fe]">arm-cortex-m4-main</td>
+<td class="px-4 py-3 text-[#393939]">—</td>
+<td class="px-4 py-3 text-center text-[#393939]">—</td>
+<td class="px-4 py-3 text-[#393939]">—</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#c6c6c6]">2026-04-01 09:30</td>
+<td class="px-4 py-3 font-mono text-[11px] text-[#da1e28]">error</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination / Footer -->
+<div class="px-4 py-3 border-t border-[#393939] flex justify-between items-center bg-[#161616]">
+<span class="text-[11px] text-[#c6c6c6]">Showing 1-12 of 12 analyses</span>
+<div class="flex gap-1">
+<button class="w-8 h-8 flex items-center justify-center bg-[#262626] text-[#c6c6c6] hover:text-white transition-colors"><span class="material-symbols-outlined text-[18px]">chevron_left</span></button>
+<button class="w-8 h-8 flex items-center justify-center bg-[#0f62fe] text-white transition-colors">1</button>
+<button class="w-8 h-8 flex items-center justify-center bg-[#262626] text-[#c6c6c6] hover:text-white transition-colors"><span class="material-symbols-outlined text-[18px]">chevron_right</span></button>
+</div>
+</div>
+</div>
+<!-- Bottom Floating Action Button (FAB) Suppressed as per context rules: Analysis History/Details focused page -->
+</div>
+</main>
+<!-- Overlay/Toast (Mock) -->
+<div class="fixed bottom-6 right-6 flex flex-col gap-3 pointer-events-none">
+<!-- Decoration or notification would go here -->
+</div>
+</body></html>

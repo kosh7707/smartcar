@@ -5,6 +5,10 @@
       "args": ["/home/kosh/aegis-static-wiki/tools/wiki/mcpServer.js"],
       "cwd": "/home/kosh/aegis-static-wiki"
     },
+    "stitch": {
+      "command": "stitch-mcp",
+      "args": ["proxy"]
+    },
     "log-analyzer": {
       "command": "/home/kosh/AEGIS/tools/log-analyzer/.venv/bin/python",
       "args": ["/home/kosh/AEGIS/tools/log-analyzer/server.py"],

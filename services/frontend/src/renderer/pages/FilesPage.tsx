@@ -53,7 +53,7 @@ const HighlightedCode: React.FC<{
   highlightLineNos?: Set<number>;
 }> = React.memo(({ code, language, highlightLineNos }) => {
   const lines = useMemo(() => (code ? hlLines(code, language) : []), [code, language]);
-  if (!code) return <div className="source-tree__code"><p className="text-tertiary" style={{ padding: "var(--space-4)" }}>파일을 선택하면 내용을 볼 수 있습니다.</p></div>;
+  if (!code) return <div className="source-tree__code"><p className="text-tertiary" style={{ padding: "var(--cds-spacing-05)" }}>파일을 선택하면 내용을 볼 수 있습니다.</p></div>;
   return (
     <div className="source-tree__code">
       {lines.map((html, i) => {
@@ -170,7 +170,7 @@ export const FilesPage: React.FC = () => {
       const lang = f.language || "기타";
       const info = LANG_GROUPS[lang];
       const group = info?.group ?? "기타";
-      const color = info?.color ?? "var(--text-tertiary)";
+      const color = info?.color ?? "var(--cds-text-placeholder)";
       if (!grouped[group]) grouped[group] = { count: 0, color };
       grouped[group].count += 1;
     }
@@ -326,7 +326,7 @@ export const FilesPage: React.FC = () => {
 
       {/* Upload progress banner */}
       {upload.isActive && (
-        <div className="card" style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", padding: "var(--space-3) var(--space-4)" }}>
+        <div className="card flex-center flex-gap-3" style={{ padding: "var(--cds-spacing-04) var(--cds-spacing-05)" }}>
           <Spinner size={18} />
           <span>{upload.message}</span>
         </div>
@@ -368,7 +368,7 @@ export const FilesPage: React.FC = () => {
           {/* Subproject list panel */}
           {bt.targets.length > 0 && (
             <div className="card fpage-subproject-card">
-              <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+              <div className="card-title flex-center flex-gap-2">
                 <HardDrive size={16} />
                 서브 프로젝트 ({bt.targets.length}개)
               </div>

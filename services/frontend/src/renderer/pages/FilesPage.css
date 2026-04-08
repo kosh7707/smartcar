@@ -5,9 +5,9 @@
 }
 
 .fpage--dragover {
-  outline: 2px dashed var(--accent);
+  outline: 2px dashed var(--cds-interactive);
   outline-offset: -2px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--cds-radius);
 }
 
 .fpage-hidden-input {
@@ -16,7 +16,7 @@
 
 .fpage-header-actions {
   display: flex;
-  gap: var(--space-1);
+  gap: var(--cds-spacing-02);
 }
 
 .fpage-action-btn {
@@ -27,16 +27,16 @@
   width: 36px;
   height: 36px;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--cds-radius);
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--cds-text-secondary);
   cursor: pointer;
-  transition: color var(--transition-fast), background var(--transition-fast);
+  transition: color var(--cds-transition-fast), background var(--cds-transition-fast);
 }
 
 .fpage-action-btn:hover {
-  color: var(--accent);
-  background: var(--accent-subtle);
+  color: var(--cds-interactive);
+  background: var(--cds-interactive-subtle);
 }
 
 .fpage-action-btn:disabled {
@@ -45,7 +45,7 @@
 }
 
 .fpage-action-btn:disabled:hover {
-  color: var(--text-secondary);
+  color: var(--cds-text-secondary);
   background: transparent;
 }
 
@@ -59,13 +59,13 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-3);
-  z-index: var(--z-dropdown);
+  gap: var(--cds-spacing-04);
+  z-index: var(--cds-z-dropdown);
   pointer-events: none;
-  font-size: var(--text-lg);
-  font-weight: var(--weight-medium);
-  color: var(--accent);
-  animation: fadeIn var(--transition-fast) ease-out;
+  font-size: var(--cds-type-lg);
+  font-weight: var(--cds-weight-medium);
+  color: var(--cds-interactive);
+  animation: fadeIn var(--cds-transition-fast) ease-out;
 }
 
 /* ── Summary Card ── */
@@ -77,53 +77,53 @@
 .fpage-langbar {
   display: flex;
   height: 8px;
-  border-radius: var(--radius-full);
+  border-radius: var(--cds-radius-circle);
   overflow: hidden;
-  background: var(--surface-2);
+  background: var(--cds-layer-02);
 }
 
 .fpage-langbar__segment {
-  transition: width var(--transition-slow);
+  transition: width var(--cds-transition-slow);
   min-width: 2px;
 }
 
 .fpage-langbar__legend {
   display: flex;
-  gap: var(--space-4);
-  margin-top: var(--space-3);
+  gap: var(--cds-spacing-05);
+  margin-top: var(--cds-spacing-04);
   flex-wrap: wrap;
 }
 
 .fpage-langbar__legend-item {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--cds-spacing-02);
 }
 
 .fpage-langbar__dot {
   width: 8px;
   height: 8px;
-  border-radius: var(--radius-full);
+  border-radius: var(--cds-radius-circle);
   flex-shrink: 0;
 }
 
 .fpage-langbar__legend-label {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-secondary);
 }
 
 .fpage-langbar__legend-value {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  color: var(--text-primary);
+  font-size: var(--cds-type-sm);
+  font-weight: var(--cds-weight-semibold);
+  color: var(--cds-text-primary);
 }
 
 .fpage-summary__footer {
-  margin-top: var(--space-3);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border-subtle);
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
+  margin-top: var(--cds-spacing-04);
+  padding-top: var(--cds-spacing-04);
+  border-top: 1px solid var(--cds-border-subtle);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
 }
 
 /* ── Tree Card ── */
@@ -135,9 +135,9 @@
 .fpage-tree-card__header {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  border-bottom: 1px solid var(--border-default);
+  gap: var(--cds-spacing-03);
+  padding: var(--cds-spacing-03) var(--cds-spacing-05);
+  border-bottom: 1px solid var(--cds-border-subtle);
 }
 
 .fpage-tree-card__search-area {
@@ -151,17 +151,17 @@
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-tertiary);
+  color: var(--cds-text-placeholder);
   pointer-events: none;
 }
 
 .fpage-tree-card__search {
   width: 100%;
-  padding: var(--space-1) var(--space-3) var(--space-1) 22px;
+  padding: var(--cds-spacing-02) var(--cds-spacing-04) var(--cds-spacing-02) 22px;
   border: none;
   background: transparent;
-  font-size: var(--text-base);
-  color: var(--text-primary);
+  font-size: var(--cds-type-base);
+  color: var(--cds-text-primary);
   outline: none;
   font-family: inherit;
 }
@@ -173,11 +173,11 @@
 }
 
 .fpage-tree-card__search::placeholder {
-  color: var(--text-tertiary);
+  color: var(--cds-text-placeholder);
 }
 
 .fpage-tree-card__body {
-  padding: var(--space-1) 0;
+  padding: var(--cds-spacing-02) 0;
 }
 
 /* Tree styles imported from components/ui/FileTreeNode.css */
@@ -197,26 +197,26 @@
 .fpage-subproject-row {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  transition: background var(--transition-fast);
+  gap: var(--cds-spacing-03);
+  padding: var(--cds-spacing-03) var(--cds-spacing-04);
+  border-radius: var(--cds-radius);
+  transition: background var(--cds-transition-fast);
 }
 
 .fpage-subproject-row:hover {
-  background: var(--surface-2);
+  background: var(--cds-layer-02);
 }
 
 .fpage-subproject-name {
-  font-weight: var(--weight-medium);
-  font-size: var(--text-sm);
+  font-weight: var(--cds-weight-medium);
+  font-size: var(--cds-type-sm);
 }
 
 .fpage-subproject-meta {
   margin-left: auto;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
+  font-family: var(--cds-font-mono);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
 }
 
 /* ── Responsive: reduce empty preview area ── */

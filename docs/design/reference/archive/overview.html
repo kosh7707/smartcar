@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS - ECU-PowerTrain-v2.1 Overview</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800;900&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "outline": "#757575",
+                        "inverse-on-surface": "#565555",
+                        "surface-container-lowest": "#000000",
+                        "inverse-surface": "#fcf9f8",
+                        "surface-container-low": "#131313",
+                        "on-primary-fixed-variant": "#0050d6",
+                        "on-secondary": "#202020",
+                        "primary": "#b4c5ff",
+                        "tertiary-fixed-dim": "#e5282f",
+                        "on-tertiary": "#4a0004",
+                        "secondary": "#9e9e9d",
+                        "on-primary": "#00379b",
+                        "primary-fixed-dim": "#c8d3ff",
+                        "on-secondary-fixed-variant": "#5b5b5b",
+                        "surface-container": "#191a1a",
+                        "surface-variant": "#252626",
+                        "tertiary-fixed": "#f83739",
+                        "on-primary-container": "#c2cfff",
+                        "tertiary-dim": "#e2252c",
+                        "tertiary-container": "#f83739",
+                        "surface-dim": "#0e0e0e",
+                        "surface-container-high": "#1f2020",
+                        "on-surface-variant": "#acabab",
+                        "secondary-fixed": "#e4e2e2",
+                        "on-tertiary-fixed": "#000000",
+                        "on-secondary-fixed": "#3f3f3f",
+                        "primary-fixed": "#dbe1ff",
+                        "tertiary": "#ff7169",
+                        "surface-container-highest": "#252626",
+                        "secondary-dim": "#9e9e9d",
+                        "background": "#0e0e0e",
+                        "surface-tint": "#b4c5ff",
+                        "error-dim": "#bb5551",
+                        "error": "#ee7d77",
+                        "on-surface": "#e7e5e5",
+                        "on-secondary-container": "#c0bfbf",
+                        "on-error-container": "#ff9993",
+                        "error-container": "#7f2927",
+                        "surface": "#0e0e0e",
+                        "on-background": "#e7e5e5",
+                        "on-tertiary-container": "#000000",
+                        "on-tertiary-fixed-variant": "#150000",
+                        "secondary-container": "#3b3b3b",
+                        "on-primary-fixed": "#003799",
+                        "outline-variant": "#484848",
+                        "surface-bright": "#2b2c2c",
+                        "primary-dim": "#a0b6ff",
+                        "on-error": "#490106",
+                        "secondary-fixed-dim": "#d6d4d4",
+                        "inverse-primary": "#0053de",
+                        "primary-container": "#003da9",
+                        "aegis-critical": "#da1e28",
+                        "aegis-high": "#ff832b",
+                        "aegis-medium": "#f1c21b",
+                        "aegis-low": "#0f62fe",
+                        "aegis-info": "#8d8d8d",
+                        "aegis-pass": "#24a148"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Public Sans"],
+                        "body": ["Public Sans"],
+                        "label": ["Public Sans"],
+                        "mono": ["IBM Plex Mono"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #0e0e0e;
+            color: #e7e5e5;
+            font-family: 'Public Sans', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .mono-text { font-family: 'IBM Plex Mono', monospace; }
+        .sidebar-active { border-left: 4px solid #0f62fe; background-color: #262626; color: #f4f4f4; }
+        .sidebar-inactive { color: #c6c6c6; transition: background-color 0.2s; }
+        .sidebar-inactive:hover { background-color: #393939; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #393939; border-radius: 2px; }
+    </style>
+</head>
+<body class="overflow-hidden">
+<!-- Fixed SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-64 flex flex-col bg-[#161616] border-r-0 z-50">
+<div class="p-6">
+<div class="flex items-center gap-3 mb-8">
+<span class="text-xl font-black text-[#f4f4f4]">AEGIS</span>
+</div>
+<div class="space-y-1 mb-10">
+<div class="flex items-center gap-2">
+<span class="text-lg font-bold text-[#f4f4f4]">ECU-PowerTrain-v2.1</span>
+</div>
+<div class="inline-block px-2 py-0.5 text-[10px] bg-[#393939] text-[#c6c6c6] font-mono tracking-wider rounded">release/2.1</div>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto custom-scrollbar">
+<div class="space-y-1">
+<a class="sidebar-active flex items-center gap-4 px-6 py-3 text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="dashboard">dashboard</span> Overview
+                </a>
+<a class="sidebar-inactive flex items-center gap-4 px-6 py-3 text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="security">security</span> Static Analysis
+                </a>
+<a class="sidebar-inactive flex items-center gap-4 px-6 py-3 text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="folder_open">folder_open</span> Files
+                </a>
+<a class="sidebar-inactive flex items-center gap-4 px-6 py-3 text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="bug_report">bug_report</span> Vulnerabilities
+                </a>
+<a class="sidebar-inactive flex items-center gap-4 px-6 py-3 text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="history">history</span> Analysis History
+                </a>
+<a class="sidebar-inactive flex items-center gap-4 px-6 py-3 text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="description">description</span> Report
+                </a>
+<a class="sidebar-inactive flex items-center gap-4 px-6 py-3 text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="verified_user">verified_user</span> Quality Gate
+                </a>
+<a class="sidebar-inactive flex items-center gap-4 px-6 py-3 text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="assignment_turned_in">assignment_turned_in</span> Approvals
+                </a>
+<a class="sidebar-inactive flex items-center gap-4 px-6 py-3 text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="settings">settings</span> Settings
+                </a>
+</div>
+</nav>
+<div class="p-6 mt-auto">
+<a class="flex items-center gap-2 text-xs font-medium text-[#c6c6c6] hover:text-[#f4f4f4] transition-colors" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="arrow_back">arrow_back</span>
+                Back to Projects
+            </a>
+</div>
+</aside>
+<!-- Header & Main Content -->
+<main class="ml-64 min-h-screen flex flex-col bg-[#0e0e0e]">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center w-full h-12 px-6 bg-[#161616] border-b border-[#393939] sticky top-0 z-40">
+<div class="flex items-center gap-3 text-sm font-['Public_Sans']">
+<span class="text-[#c6c6c6]">프로젝트</span>
+<span class="text-[#c6c6c6]"><span class="material-symbols-outlined text-xs align-middle" data-icon="chevron_right">chevron_right</span></span>
+<span class="text-[#c6c6c6]">ECU-PowerTrain-v2.1</span>
+<span class="text-[#c6c6c6]"><span class="material-symbols-outlined text-xs align-middle" data-icon="chevron_right">chevron_right</span></span>
+<span class="text-[#f4f4f4] font-semibold">개요</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative">
+<span class="material-symbols-outlined text-[#c6c6c6] absolute left-2 top-1/2 -translate-y-1/2 text-lg" data-icon="search">search</span>
+<input class="bg-[#262626] border-none rounded-none text-xs pl-8 pr-4 py-1.5 w-64 focus:ring-1 focus:ring-[#0f62fe] text-[#f4f4f4]" placeholder="Search..." type="text"/>
+</div>
+<div class="flex items-center gap-3 ml-4 border-l border-[#393939] pl-4">
+<span class="material-symbols-outlined text-[#c6c6c6] cursor-pointer hover:text-[#78a9ff]" data-icon="notifications">notifications</span>
+<span class="material-symbols-outlined text-[#c6c6c6] cursor-pointer hover:text-[#78a9ff]" data-icon="help_outline">help_outline</span>
+<div class="h-6 w-6 rounded-full bg-[#393939] flex items-center justify-center cursor-pointer overflow-hidden border border-[#5b5b5b]">
+<img alt="User" class="w-full h-full object-cover" data-alt="close-up portrait of a professional security analyst with minimalist glasses in a soft lit studio environment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnnGOsV697oQStV4_tNaWleg1P_rtdPfZqMKdKZktudPuHbLZhXj4hV7fNbh1n4zCDFnvDpJVGt2dqhhnR0v4VIaRbjGjG11MWZNqaMnEnhYO5AdbAG7xaH-edEhtSausQVG-OWwcgfkM05bxab5T8X08QnPqOmQk1YbF6ef2i2cCyR9mjdcb-ZOo1MIv7_V5Zv3OqSbm1dbtBtrRZ5otWuZWMGdAG1_TxInxBADahsJE60QnaqKO65nP1z0K7Rh4Kvsif0HEUr-M"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Dashboard Canvas -->
+<div class="p-6 flex-1 space-y-6 max-w-[1600px] mx-auto w-full overflow-y-auto">
+<!-- ROW 1: Summary Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+<!-- Quality Gate -->
+<div class="bg-[#262626] p-5 border-l-2 border-aegis-pass flex flex-col justify-between">
+<span class="text-xs text-[#c6c6c6] uppercase tracking-wider mb-2">Quality Gate</span>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl font-black text-aegis-pass">PASS</span>
+<span class="material-symbols-outlined text-aegis-pass" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<span class="text-xs text-[#8d8d8d] mt-2">모든 게이트 기준 충족</span>
+</div>
+<!-- Total Vulnerabilities -->
+<div class="bg-[#262626] p-5 border-l-2 border-aegis-high flex flex-col justify-between">
+<span class="text-xs text-[#c6c6c6] uppercase tracking-wider mb-2">총 취약점</span>
+<div class="flex items-baseline gap-4">
+<span class="text-4xl font-black text-[#f4f4f4]">43</span>
+<div class="flex gap-2 text-[10px] font-mono">
+<span class="text-aegis-critical">CR 0</span>
+<span class="text-aegis-high">HI 3</span>
+<span class="text-aegis-medium">ME 12</span>
+<span class="text-aegis-low">LO 28</span>
+</div>
+</div>
+<div class="w-full h-1 bg-[#161616] mt-3 flex rounded-full overflow-hidden">
+<div class="h-full bg-aegis-high" style="width: 7%"></div>
+<div class="h-full bg-aegis-medium" style="width: 28%"></div>
+<div class="h-full bg-aegis-low" style="width: 65%"></div>
+</div>
+</div>
+<!-- Build Targets -->
+<div class="bg-[#262626] p-5 flex flex-col">
+<div class="flex justify-between items-start mb-2">
+<span class="text-xs text-[#c6c6c6] uppercase tracking-wider">빌드 타겟</span>
+<span class="text-lg font-bold text-[#f4f4f4]">3</span>
+</div>
+<div class="space-y-1.5">
+<div class="flex justify-between items-center text-[11px] mono-text">
+<span class="text-[#c6c6c6]">arm-cortex-m4-main</span>
+<span class="text-aegis-pass px-1 bg-[#1a3a24]">READY</span>
+</div>
+<div class="flex justify-between items-center text-[11px] mono-text">
+<span class="text-[#c6c6c6]">arm-cortex-m4-boot...</span>
+<span class="text-aegis-low px-1 bg-[#051c44] animate-pulse">RUNNING</span>
+</div>
+<div class="flex justify-between items-center text-[11px] mono-text">
+<span class="text-[#c6c6c6]">riscv-rv32-diag</span>
+<span class="text-aegis-pass px-1 bg-[#1a3a24]">READY</span>
+</div>
+</div>
+</div>
+<!-- Technical Debt -->
+<div class="bg-[#262626] p-5 flex flex-col justify-between">
+<span class="text-xs text-[#c6c6c6] uppercase tracking-wider mb-2">기술 부채</span>
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-black text-[#f4f4f4]">14일 2시간</span>
+</div>
+<div class="flex items-center gap-1 text-[10px] text-aegis-critical mt-2">
+<span class="material-symbols-outlined text-xs" data-icon="trending_up">trending_up</span>
+<span>+5h since last build</span>
+</div>
+</div>
+</div>
+<!-- ROW 2: Panels -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- LEFT: Security Trend (2/3) -->
+<div class="lg:col-span-2 bg-[#262626] p-6 rounded-sm">
+<div class="flex justify-between items-center mb-8">
+<h3 class="text-sm font-bold text-[#f4f4f4]">보안 트렌드 (Last 30 Days)</h3>
+<div class="flex gap-4 text-[10px]">
+<div class="flex items-center gap-1"><span class="w-2 h-2 bg-aegis-low"></span> New</div>
+<div class="flex items-center gap-1"><span class="w-2 h-2 border border-aegis-pass"></span> Resolved</div>
+</div>
+</div>
+<div class="h-64 flex items-end justify-between gap-8 px-4 border-b border-[#393939] pb-2">
+<!-- Week 1 -->
+<div class="flex-1 flex flex-col items-center gap-1">
+<div class="w-full flex flex-col items-center justify-end h-48 gap-0.5">
+<div class="w-full bg-aegis-low opacity-80 h-[30%]"></div>
+<div class="w-full border border-aegis-pass h-[15%]"></div>
+</div>
+<span class="text-[10px] text-[#8d8d8d]">Week 1</span>
+</div>
+<!-- Week 2 -->
+<div class="flex-1 flex flex-col items-center gap-1">
+<div class="w-full flex flex-col items-center justify-end h-48 gap-0.5">
+<div class="w-full bg-aegis-low opacity-80 h-[20%]"></div>
+<div class="w-full border border-aegis-pass h-[30%]"></div>
+</div>
+<span class="text-[10px] text-[#8d8d8d]">Week 2</span>
+</div>
+<!-- Week 3 (Spike) -->
+<div class="flex-1 flex flex-col items-center gap-1 relative">
+<div class="absolute -top-12 left-1/2 -translate-x-1/2 w-32 bg-[#393939] p-2 text-[9px] text-[#f4f4f4] z-10 border-l-2 border-aegis-medium">
+                                Spike: new MISRA rules added
+                            </div>
+<div class="w-full flex flex-col items-center justify-end h-48 gap-0.5">
+<div class="w-full bg-aegis-low opacity-80 h-[45%]"></div>
+<div class="w-full border border-aegis-pass h-[15%]"></div>
+</div>
+<span class="text-[10px] text-[#f4f4f4] font-bold">Week 3</span>
+</div>
+<!-- Week 4 -->
+<div class="flex-1 flex flex-col items-center gap-1">
+<div class="w-full flex flex-col items-center justify-end h-48 gap-0.5">
+<div class="w-full bg-aegis-low opacity-80 h-[10%]"></div>
+<div class="w-full border border-aegis-pass h-[35%]"></div>
+</div>
+<span class="text-[10px] text-[#8d8d8d]">Week 4</span>
+</div>
+</div>
+</div>
+<!-- RIGHT: Recent Analysis Timeline (1/3) -->
+<div class="bg-[#262626] p-6 rounded-sm">
+<h3 class="text-sm font-bold text-[#f4f4f4] mb-6">최근 분석</h3>
+<div class="space-y-6 relative before:content-[''] before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[1px] before:bg-[#393939]">
+<!-- Analysis 1 -->
+<div class="relative pl-8 group">
+<div class="absolute left-0 top-1.5 w-[24px] h-[24px] rounded-full bg-[#262626] border-2 border-aegis-pass z-10 flex items-center justify-center">
+<span class="material-symbols-outlined text-xs text-aegis-pass" data-icon="check">check</span>
+</div>
+<div class="flex flex-col">
+<div class="flex justify-between items-start">
+<span class="text-[11px] mono-text text-[#f4f4f4]">analysis-20260408-001</span>
+<span class="text-[10px] text-[#8d8d8d]">2시간 전</span>
+</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="text-[10px] text-[#c6c6c6] bg-[#393939] px-1.5 py-0.5">Quick SAST</span>
+<span class="text-[10px] text-aegis-high font-mono">3 findings</span>
+</div>
+</div>
+</div>
+<!-- Analysis 2 -->
+<div class="relative pl-8 group">
+<div class="absolute left-0 top-1.5 w-[24px] h-[24px] rounded-full bg-[#262626] border-2 border-aegis-pass z-10 flex items-center justify-center">
+<span class="material-symbols-outlined text-xs text-aegis-pass" data-icon="auto_awesome" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+</div>
+<div class="flex flex-col">
+<div class="flex justify-between items-start">
+<span class="text-[11px] mono-text text-[#f4f4f4]">analysis-20260407-002</span>
+<span class="text-[10px] text-[#8d8d8d]">어제</span>
+</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="text-[10px] text-[#c6c6c6] bg-[#393939] px-1.5 py-0.5">Deep Analysis</span>
+<span class="text-[10px] text-aegis-pass font-mono">0 findings (clean)</span>
+</div>
+</div>
+</div>
+<!-- Analysis 3 -->
+<div class="relative pl-8 group">
+<div class="absolute left-0 top-1.5 w-[24px] h-[24px] rounded-full bg-[#262626] border-2 border-aegis-pass z-10 flex items-center justify-center">
+<span class="material-symbols-outlined text-xs text-aegis-pass" data-icon="check">check</span>
+</div>
+<div class="flex flex-col">
+<div class="flex justify-between items-start">
+<span class="text-[11px] mono-text text-[#f4f4f4]">analysis-20260406-001</span>
+<span class="text-[10px] text-[#8d8d8d]">2일 전</span>
+</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="text-[10px] text-[#c6c6c6] bg-[#393939] px-1.5 py-0.5">Quick SAST</span>
+<span class="text-[10px] text-aegis-high font-mono">7 findings</span>
+</div>
+</div>
+</div>
+<!-- Analysis 4 (Failed) -->
+<div class="relative pl-8 group">
+<div class="absolute left-0 top-1.5 w-[24px] h-[24px] rounded-full bg-[#262626] border-2 border-aegis-critical z-10 flex items-center justify-center">
+<span class="material-symbols-outlined text-xs text-aegis-critical" data-icon="close">close</span>
+</div>
+<div class="flex flex-col">
+<div class="flex justify-between items-start">
+<span class="text-[11px] mono-text text-[#f4f4f4]">analysis-20260405-003</span>
+<span class="text-[10px] text-[#8d8d8d]">3일 전</span>
+</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="text-[10px] text-[#c6c6c6] bg-[#393939] px-1.5 py-0.5">Quick SAST</span>
+<span class="text-[10px] text-aegis-critical font-mono">error: timeout</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- ROW 3: Vulnerability Summary -->
+<div class="bg-[#262626] rounded-sm overflow-hidden">
+<div class="px-6 py-4 border-b border-[#393939] flex justify-between items-center">
+<h3 class="text-sm font-bold text-[#f4f4f4]">취약점 요약</h3>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-3">
+<div class="h-2 w-48 bg-[#161616] rounded-full flex overflow-hidden">
+<div class="h-full bg-aegis-high" style="width: 7%"></div>
+<div class="h-full bg-aegis-medium" style="width: 28%"></div>
+<div class="h-full bg-aegis-low" style="width: 65%"></div>
+</div>
+<div class="flex gap-3 text-[10px] font-mono text-[#c6c6c6]">
+<span>CR: <span class="text-[#f4f4f4]">0</span></span>
+<span>HI: <span class="text-aegis-high">3</span></span>
+<span>ME: <span class="text-aegis-medium">12</span></span>
+<span>LO: <span class="text-aegis-low">28</span></span>
+</div>
+</div>
+<button class="text-xs text-[#0f62fe] hover:underline font-medium">모두 보기</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-[#161616] text-[10px] text-[#8d8d8d] uppercase tracking-widest">
+<th class="px-6 py-3 font-medium">Severity</th>
+<th class="px-6 py-3 font-medium">ID / Rule</th>
+<th class="px-6 py-3 font-medium">Description</th>
+<th class="px-6 py-3 font-medium">Location</th>
+<th class="px-6 py-3 font-medium text-right">Action</th>
+</tr>
+</thead>
+<tbody class="text-xs mono-text">
+<!-- Finding 1 -->
+<tr class="hover:bg-[#393939] transition-colors border-b border-[#161616]">
+<td class="px-6 py-4">
+<span class="bg-aegis-high text-[#000] px-2 py-0.5 rounded-sm font-bold text-[10px]">HIGH</span>
+</td>
+<td class="px-6 py-4 text-[#78a9ff]">CWE-119</td>
+<td class="px-6 py-4 text-[#f4f4f4]">Buffer overflow in can_rx_handler()</td>
+<td class="px-6 py-4 text-[#c6c6c6]">src/drivers/can_driver.c:247</td>
+<td class="px-6 py-4 text-right">
+<span class="material-symbols-outlined text-[#8d8d8d] cursor-pointer hover:text-[#f4f4f4]" data-icon="more_vert">more_vert</span>
+</td>
+</tr>
+<!-- Finding 2 -->
+<tr class="hover:bg-[#393939] transition-colors border-b border-[#161616]">
+<td class="px-6 py-4">
+<span class="bg-aegis-high text-[#000] px-2 py-0.5 rounded-sm font-bold text-[10px]">HIGH</span>
+</td>
+<td class="px-6 py-4 text-[#78a9ff]">CWE-476</td>
+<td class="px-6 py-4 text-[#f4f4f4]">NULL pointer dereference in ecu_init()</td>
+<td class="px-6 py-4 text-[#c6c6c6]">src/core/ecu_init.c:89</td>
+<td class="px-6 py-4 text-right">
+<span class="material-symbols-outlined text-[#8d8d8d] cursor-pointer hover:text-[#f4f4f4]" data-icon="more_vert">more_vert</span>
+</td>
+</tr>
+<!-- Finding 3 -->
+<tr class="hover:bg-[#393939] transition-colors">
+<td class="px-6 py-4">
+<span class="bg-aegis-high text-[#000] px-2 py-0.5 rounded-sm font-bold text-[10px]">HIGH</span>
+</td>
+<td class="px-6 py-4 text-[#78a9ff]">MISRA C:2012 Rule 11.3</td>
+<td class="px-6 py-4 text-[#f4f4f4]">Unsafe cast from void*</td>
+<td class="px-6 py-4 text-[#c6c6c6]">src/hal/gpio_config.c:156</td>
+<td class="px-6 py-4 text-right">
+<span class="material-symbols-outlined text-[#8d8d8d] cursor-pointer hover:text-[#f4f4f4]" data-icon="more_vert">more_vert</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+</body></html>

@@ -162,7 +162,7 @@ export const DynamicTestPage: React.FC = () => {
           <div className="dtest-config__section">
             <label className="dtest-config__label">어댑터</label>
             {connected.length === 0 ? (
-              <p className="dtest-config__hint" style={{ color: "var(--danger)" }}>연결된 어댑터가 없습니다</p>
+              <p className="dtest-config__hint" style={{ color: "var(--cds-support-error)" }}>연결된 어댑터가 없습니다</p>
             ) : (
               <AdapterSelector
                 adapters={connected}
@@ -369,7 +369,7 @@ export const DynamicTestPage: React.FC = () => {
                   </span>
                   <span className="analysis-item__label">{STRATEGY_LABELS[r.config.strategy]}</span>
                   <span className="analysis-item__stat">{r.totalRuns}회</span>
-                  {r.crashes > 0 && <span className="analysis-item__stat analysis-item__stat--danger">Crash {r.crashes}</span>}
+                  {r.crashes > 0 && <span className="analysis-item__stat analysis-item__stat--cds-support-error">Crash {r.crashes}</span>}
                   {r.anomalies > 0 && <span className="analysis-item__stat analysis-item__stat--warn">Anomaly {r.anomalies}</span>}
                 </div>
                 <div className="analysis-item__sub">
@@ -446,37 +446,37 @@ const PerformanceChart: React.FC<{ snapshots: ChartSnapshot[]; total: number }> 
     <svg viewBox={`0 0 ${W} ${H}`} className="dtest-chart">
       {/* Grid */}
       {yTicks.map((v) => (
-        <line key={v} x1={PAD.left} x2={W - PAD.right} y1={y(v)} y2={y(v)} stroke="var(--border-subtle)" strokeWidth={0.5} />
+        <line key={v} x1={PAD.left} x2={W - PAD.right} y1={y(v)} y2={y(v)} stroke="var(--cds-border-subtle)" strokeWidth={0.5} />
       ))}
       {/* Y labels */}
       {yTicks.map((v) => (
-        <text key={`yl-${v}`} x={PAD.left - 6} y={y(v)} textAnchor="end" dominantBaseline="middle" fontSize="10" fill="var(--text-tertiary)">
+        <text key={`yl-${v}`} x={PAD.left - 6} y={y(v)} textAnchor="end" dominantBaseline="middle" fontSize="10" fill="var(--cds-text-placeholder)">
           {v}
         </text>
       ))}
       {/* X labels */}
-      <text x={PAD.left} y={H - 6} fontSize="10" fill="var(--text-tertiary)">0</text>
-      <text x={W - PAD.right} y={H - 6} textAnchor="end" fontSize="10" fill="var(--text-tertiary)">{total}</text>
-      <text x={PAD.left + plotW / 2} y={H - 6} textAnchor="middle" fontSize="10" fill="var(--text-tertiary)">테스트 진행 (iterations)</text>
+      <text x={PAD.left} y={H - 6} fontSize="10" fill="var(--cds-text-placeholder)">0</text>
+      <text x={W - PAD.right} y={H - 6} textAnchor="end" fontSize="10" fill="var(--cds-text-placeholder)">{total}</text>
+      <text x={PAD.left + plotW / 2} y={H - 6} textAnchor="middle" fontSize="10" fill="var(--cds-text-placeholder)">테스트 진행 (iterations)</text>
       {/* Area fills */}
-      <path d={toArea("anomalies")} fill="var(--severity-medium)" opacity={0.08} />
-      <path d={toArea("crashes")} fill="var(--danger)" opacity={0.1} />
+      <path d={toArea("anomalies")} fill="var(--aegis-severity-medium)" opacity={0.08} />
+      <path d={toArea("crashes")} fill="var(--cds-support-error)" opacity={0.1} />
       {/* Lines */}
-      <polyline points={toPolyline("anomalies")} fill="none" stroke="var(--severity-medium)" strokeWidth={2} strokeLinejoin="round" />
-      <polyline points={toPolyline("crashes")} fill="none" stroke="var(--danger)" strokeWidth={2} strokeLinejoin="round" />
+      <polyline points={toPolyline("anomalies")} fill="none" stroke="var(--aegis-severity-medium)" strokeWidth={2} strokeLinejoin="round" />
+      <polyline points={toPolyline("crashes")} fill="none" stroke="var(--cds-support-error)" strokeWidth={2} strokeLinejoin="round" />
       {/* Current dots */}
-      <circle cx={x(last.step)} cy={y(last.crashes)} r={3.5} fill="var(--danger)">
+      <circle cx={x(last.step)} cy={y(last.crashes)} r={3.5} fill="var(--cds-support-error)">
         <animate attributeName="r" values="3;5;3" dur="1.5s" repeatCount="indefinite" />
       </circle>
-      <circle cx={x(last.step)} cy={y(last.anomalies)} r={3.5} fill="var(--severity-medium)">
+      <circle cx={x(last.step)} cy={y(last.anomalies)} r={3.5} fill="var(--aegis-severity-medium)">
         <animate attributeName="r" values="3;5;3" dur="1.5s" repeatCount="indefinite" />
       </circle>
       {/* Legend */}
-      <rect x={W - PAD.right - 140} y={4} width={136} height={18} rx={4} fill="var(--surface-0)" stroke="var(--border-subtle)" strokeWidth={0.5} />
-      <circle cx={W - PAD.right - 128} cy={13} r={3} fill="var(--danger)" />
-      <text x={W - PAD.right - 122} y={13} dominantBaseline="middle" fontSize="10" fill="var(--text-secondary)">Crashes</text>
-      <circle cx={W - PAD.right - 68} cy={13} r={3} fill="var(--severity-medium)" />
-      <text x={W - PAD.right - 62} y={13} dominantBaseline="middle" fontSize="10" fill="var(--text-secondary)">Anomalies</text>
+      <rect x={W - PAD.right - 140} y={4} width={136} height={18} rx={4} fill="var(--cds-background)" stroke="var(--cds-border-subtle)" strokeWidth={0.5} />
+      <circle cx={W - PAD.right - 128} cy={13} r={3} fill="var(--cds-support-error)" />
+      <text x={W - PAD.right - 122} y={13} dominantBaseline="middle" fontSize="10" fill="var(--cds-text-secondary)">Crashes</text>
+      <circle cx={W - PAD.right - 68} cy={13} r={3} fill="var(--aegis-severity-medium)" />
+      <text x={W - PAD.right - 62} y={13} dominantBaseline="middle" fontSize="10" fill="var(--cds-text-secondary)">Anomalies</text>
     </svg>
   );
 };
@@ -512,8 +512,8 @@ const RunningView: React.FC<RunningViewProps> = ({ progress, findings }) => {
       {/* Stat cards */}
       <div className="stat-cards stagger">
         <StatCard icon={<Play size={16} />} label="진행" value={`${progress.current} / ${progress.total}`} accent />
-        <StatCard icon={<Bug size={16} />} label="Crashes" value={progress.crashes} color="var(--danger)" />
-        <StatCard icon={<AlertTriangle size={16} />} label="Anomalies" value={progress.anomalies} color="var(--severity-medium)" />
+        <StatCard icon={<Bug size={16} />} label="Crashes" value={progress.crashes} color="var(--cds-support-error)" />
+        <StatCard icon={<AlertTriangle size={16} />} label="Anomalies" value={progress.anomalies} color="var(--aegis-severity-medium)" />
         <StatCard icon={<Clock size={16} />} label="Findings" value={findings.length} accent />
       </div>
 
@@ -578,8 +578,8 @@ const ResultsView: React.FC<ResultsViewProps> = ({ result, onNewTest }) => {
       {/* Summary */}
       <div className="stat-cards stagger">
         <StatCard icon={<Play size={16} />} label="총 실행" value={result.totalRuns} accent />
-        <StatCard icon={<Bug size={16} />} label="Crashes" value={result.crashes} color="var(--danger)" />
-        <StatCard icon={<AlertTriangle size={16} />} label="Anomalies" value={result.anomalies} color="var(--severity-medium)" />
+        <StatCard icon={<Bug size={16} />} label="Crashes" value={result.crashes} color="var(--cds-support-error)" />
+        <StatCard icon={<AlertTriangle size={16} />} label="Anomalies" value={result.anomalies} color="var(--aegis-severity-medium)" />
         <StatCard icon={<Clock size={16} />} label="Findings" value={result.findings.length} accent />
       </div>
 

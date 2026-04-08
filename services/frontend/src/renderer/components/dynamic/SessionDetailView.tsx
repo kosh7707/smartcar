@@ -104,7 +104,7 @@ export const SessionDetailView: React.FC<Props> = ({ sessionId, onBack }) => {
                 <p className="alert-card__desc">{alert.description}</p>
                 {alert.llmAnalysis && (
                   <div className="alert-card__llm">
-                    <span className="badge badge-info" style={{ fontSize: "var(--text-xs)" }}>LLM</span>
+                    <span className="badge badge-info" style={{ fontSize: "var(--cds-type-xs)" }}>LLM</span>
                     <p>{alert.llmAnalysis}</p>
                   </div>
                 )}

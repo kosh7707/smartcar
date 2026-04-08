@@ -51,7 +51,7 @@ export const StaticDashboard: React.FC<Props> = ({
         title="정적 분석"
         icon={<FileSearch size={20} />}
         action={
-          <div style={{ display: "flex", gap: "var(--space-2)" }}>
+          <div style={{ display: "flex", gap: "var(--cds-spacing-03)" }}>
             {onBrowseTree && (
               <button className="btn btn-secondary" onClick={onBrowseTree}>
                 <Code size={16} />

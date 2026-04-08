@@ -62,6 +62,37 @@ describe("API Contract Tests", () => {
     });
   });
 
+  describe("PUT /api/projects/:id", () => {
+    it("updates project metadata and returns Project", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-update", name: "Old", description: "before" }));
+
+      const res = await request(app)
+        .put("/api/projects/p-update")
+        .send({ name: "New", description: "after" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
+        id: "p-update",
+        name: "New",
+        description: "after",
+      });
+    });
+  });
+
+  describe("DELETE /api/projects/:id", () => {
+    it("deletes the project and returns { success: true }", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-delete", name: "Delete Me" }));
+
+      const res = await request(app).delete("/api/projects/p-delete");
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ success: true });
+
+      const missing = await request(app).get("/api/projects/p-delete");
+      expect(missing.status).toBe(404);
+    });
+  });
+
   describe("GET /api/projects/:id", () => {
     it("returns { success, data: Project }", async () => {
       ctx.projectDAO.save(makeProject({ id: "p1", name: "Test" }));
@@ -105,6 +136,62 @@ describe("API Contract Tests", () => {
       expect(res.body.data[0]).toHaveProperty("id");
       expect(res.body.data[0]).toHaveProperty("name");
       expect(res.body.data[0]).toHaveProperty("size");
+    });
+  });
+
+  describe("GET /api/files/:fileId/content", () => {
+    it("returns JSON file content payload", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-file-content" }));
+      ctx.fileStore.save(makeStoredFile({
+        id: "f-content",
+        projectId: "p-file-content",
+        name: "main.c",
+        path: "src/main.c",
+        language: "c",
+        content: "int main(void) { return 0; }",
+      }));
+
+      const res = await request(app).get("/api/files/f-content/content");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
+        id: "f-content",
+        name: "main.c",
+        path: "src/main.c",
+        language: "c",
+        content: "int main(void) { return 0; }",
+      });
+    });
+  });
+
+  describe("GET /api/files/:fileId/download", () => {
+    it("returns raw text/plain file content", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-file-download" }));
+      ctx.fileStore.save(makeStoredFile({
+        id: "f-download",
+        projectId: "p-file-download",
+        name: "README.md",
+        content: "hello download",
+      }));
+
+      const res = await request(app).get("/api/files/f-download/download");
+      expect(res.status).toBe(200);
+      expect(res.headers["content-type"]).toContain("text/plain");
+      expect(res.text).toBe("hello download");
+    });
+  });
+
+  describe("DELETE /api/projects/:projectId/files/:fileId", () => {
+    it("deletes the project file and returns { success: true }", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-file-delete" }));
+      ctx.fileStore.save(makeStoredFile({ id: "f-delete", projectId: "p-file-delete", name: "old.c" }));
+
+      const res = await request(app).delete("/api/projects/p-file-delete/files/f-delete");
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ success: true });
+
+      const missing = await request(app).get("/api/files/f-delete/content");
+      expect(missing.status).toBe(404);
     });
   });
 
@@ -578,6 +665,126 @@ describe("API Contract Tests", () => {
     });
   });
 
+  describe("Health API", () => {
+    it("GET /health returns raw health response without success envelope", async () => {
+      const res = await request(app).get("/health");
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBeUndefined();
+      expect(res.body).toMatchObject({
+        service: "aegis-core-service",
+        status: "ok",
+      });
+      expect(res.body.adapters).toMatchObject({ total: 0, connected: 0 });
+    });
+  });
+
+  describe("Project Adapters API", () => {
+    it("creates and lists project adapters", async () => {
+      const createRes = await request(app)
+        .post("/api/projects/p-adapter/adapters")
+        .send({ name: "Bench ECU", url: "ws://adapter.local" });
+
+      expect(createRes.status).toBe(201);
+      expect(createRes.body.success).toBe(true);
+      expect(createRes.body.data).toMatchObject({
+        projectId: "p-adapter",
+        name: "Bench ECU",
+        url: "ws://adapter.local",
+        connected: false,
+      });
+
+      const listRes = await request(app).get("/api/projects/p-adapter/adapters");
+      expect(listRes.status).toBe(200);
+      expect(listRes.body.data).toHaveLength(1);
+      expect(listRes.body.data[0].id).toBe(createRes.body.data.id);
+    });
+
+    it("updates adapter metadata", async () => {
+      const createRes = await request(app)
+        .post("/api/projects/p-adapter-update/adapters")
+        .send({ name: "Bench ECU", url: "ws://adapter.local" });
+
+      const res = await request(app)
+        .put(`/api/projects/p-adapter-update/adapters/${createRes.body.data.id}`)
+        .send({ name: "Cabin ECU", url: "wss://adapter.example" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toMatchObject({
+        id: createRes.body.data.id,
+        name: "Cabin ECU",
+        url: "wss://adapter.example",
+      });
+    });
+
+    it("connects and disconnects an adapter", async () => {
+      const createRes = await request(app)
+        .post("/api/projects/p-adapter-connect/adapters")
+        .send({ name: "Bench ECU", url: "ws://adapter.local" });
+      const adapterId = createRes.body.data.id as string;
+
+      const connectRes = await request(app).post(`/api/projects/p-adapter-connect/adapters/${adapterId}/connect`);
+      expect(connectRes.status).toBe(200);
+      expect(connectRes.body.data.connected).toBe(true);
+
+      const disconnectRes = await request(app).post(`/api/projects/p-adapter-connect/adapters/${adapterId}/disconnect`);
+      expect(disconnectRes.status).toBe(200);
+      expect(disconnectRes.body.data.connected).toBe(false);
+    });
+
+    it("deletes an adapter within the project scope", async () => {
+      const createRes = await request(app)
+        .post("/api/projects/p-adapter-delete/adapters")
+        .send({ name: "Bench ECU", url: "ws://adapter.local" });
+      const adapterId = createRes.body.data.id as string;
+
+      const deleteRes = await request(app).delete(`/api/projects/p-adapter-delete/adapters/${adapterId}`);
+      expect(deleteRes.status).toBe(200);
+      expect(deleteRes.body).toEqual({ success: true });
+
+      const listRes = await request(app).get("/api/projects/p-adapter-delete/adapters");
+      expect(listRes.body.data).toEqual([]);
+    });
+  });
+
+  describe("Project Settings API", () => {
+    it("returns default project settings", async () => {
+      const res = await request(app).get("/api/projects/p-settings/settings");
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty("llmUrl");
+      expect(res.body.data.buildProfile).toMatchObject({
+        sdkId: "custom",
+        compiler: "gcc",
+      });
+    });
+
+    it("updates project settings and returns merged build profile", async () => {
+      const res = await request(app)
+        .put("/api/projects/p-settings-update/settings")
+        .send({
+          llmUrl: "http://localhost:9999",
+          buildProfile: {
+            sdkId: "none",
+            compiler: "clang",
+            targetArch: "arm64",
+          },
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
+        llmUrl: "http://localhost:9999",
+      });
+      expect(res.body.data.buildProfile).toMatchObject({
+        sdkId: "none",
+        compiler: "clang",
+        targetArch: "arm64",
+      });
+    });
+  });
+
   // ── Build Targets ──
 
   describe("Build Targets", () => {
@@ -797,6 +1004,46 @@ describe("API Contract Tests", () => {
         status: "uploaded",
       });
     });
+
+    it("DELETE /api/projects/:pid/sdk/:id removes a registered SDK", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-sdk-delete" }));
+
+      const createRes = await request(app)
+        .post("/api/projects/p-sdk-delete/sdk")
+        .field("name", "Delete SDK")
+        .attach("file", Buffer.from("archive-content"), "delete-sdk.tar.gz");
+      const sdkId = createRes.body.data.id as string;
+
+      const deleteRes = await request(app).delete(`/api/projects/p-sdk-delete/sdk/${sdkId}`);
+      expect(deleteRes.status).toBe(200);
+      expect(deleteRes.body).toEqual({ success: true });
+
+      const listRes = await request(app).get("/api/projects/p-sdk-delete/sdk");
+      expect(listRes.body.data.registered).toEqual([]);
+    });
+  });
+
+  describe("SDK Profile API", () => {
+    it("GET /api/sdk-profiles returns built-in profile list", async () => {
+      const res = await request(app).get("/api/sdk-profiles");
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.length).toBeGreaterThan(0);
+    });
+
+    it("GET /api/sdk-profiles/:id returns detail or 404 for unknown ids", async () => {
+      const listRes = await request(app).get("/api/sdk-profiles");
+      const profileId = listRes.body.data[0].id as string;
+
+      const detailRes = await request(app).get(`/api/sdk-profiles/${profileId}`);
+      expect(detailRes.status).toBe(200);
+      expect(detailRes.body.data.id).toBe(profileId);
+
+      const missingRes = await request(app).get("/api/sdk-profiles/nonexistent");
+      expect(missingRes.status).toBe(404);
+    });
   });
 
   describe("Source API", () => {
@@ -870,6 +1117,30 @@ describe("API Contract Tests", () => {
           }),
         ]),
       );
+    });
+
+    it("POST /api/projects/:pid/source/clone returns clone result payload", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-clone" }));
+
+      const res = await request(app)
+        .post("/api/projects/p-clone/source/clone")
+        .send({ gitUrl: "https://example.com/repo.git", branch: "main" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
+        projectPath: "/tmp/p-clone/cloned",
+        fileCount: 1,
+      });
+      expect(Array.isArray(res.body.data.files)).toBe(true);
+    });
+
+    it("DELETE /api/projects/:pid/source returns { success: true }", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-source-delete" }));
+
+      const res = await request(app).delete("/api/projects/p-source-delete/source");
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ success: true });
     });
   });
 
@@ -1013,6 +1284,245 @@ describe("API Contract Tests", () => {
       expect(fullWithTargets.status).toBe(400);
       expect(fullWithTargets.body.error).toContain("targetIds must be empty");
     });
+
+    it("GET /api/analysis/status returns running analyses", async () => {
+      ctx.analysisTracker.start("analysis-running", "p-analysis-status");
+
+      const res = await request(app).get("/api/analysis/status");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            analysisId: "analysis-running",
+            projectId: "p-analysis-status",
+            status: "running",
+          }),
+        ]),
+      );
+    });
+
+    it("GET /api/analysis/status/:analysisId and abort flow return tracker payloads", async () => {
+      ctx.analysisTracker.start("analysis-abort", "p-analysis-abort");
+
+      const detailRes = await request(app).get("/api/analysis/status/analysis-abort");
+      expect(detailRes.status).toBe(200);
+      expect(detailRes.body.data).toMatchObject({
+        analysisId: "analysis-abort",
+        projectId: "p-analysis-abort",
+        status: "running",
+      });
+
+      const abortRes = await request(app).post("/api/analysis/abort/analysis-abort");
+      expect(abortRes.status).toBe(200);
+      expect(abortRes.body.data).toEqual({ analysisId: "analysis-abort", status: "aborted" });
+    });
+
+    it("GET /api/analysis/results, detail, and delete follow the documented contract", async () => {
+      ctx.analysisResultDAO.save(makeAnalysisResult({
+        id: "analysis-result-1",
+        projectId: "p-analysis-results",
+        module: "static_analysis",
+        summary: { total: 1, critical: 0, high: 1, medium: 0, low: 0, info: 0 },
+      }));
+
+      const listRes = await request(app).get("/api/analysis/results?projectId=p-analysis-results");
+      expect(listRes.status).toBe(200);
+      expect(listRes.body.data).toHaveLength(1);
+
+      const detailRes = await request(app).get("/api/analysis/results/analysis-result-1");
+      expect(detailRes.status).toBe(200);
+      expect(detailRes.body.data.id).toBe("analysis-result-1");
+
+      const deleteRes = await request(app).delete("/api/analysis/results/analysis-result-1");
+      expect(deleteRes.status).toBe(200);
+      expect(deleteRes.body).toEqual({ success: true });
+    });
+
+    it("GET /api/analysis/summary returns aggregated dashboard shape", async () => {
+      ctx.runDAO.save(makeRun({ id: "run-static", projectId: "p-analysis-summary", module: "static_analysis", status: "completed" }));
+      ctx.runDAO.save(makeRun({ id: "run-deep", projectId: "p-analysis-summary", module: "deep_analysis", status: "completed" }));
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-static",
+        runId: "run-static",
+        projectId: "p-analysis-summary",
+        module: "static_analysis",
+        severity: "high",
+        status: "open",
+        sourceType: "rule-engine",
+        ruleId: "RULE-1",
+        location: "src/main.c:10",
+      }));
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-deep",
+        runId: "run-deep",
+        projectId: "p-analysis-summary",
+        module: "deep_analysis",
+        severity: "medium",
+        status: "needs_review",
+        sourceType: "agent",
+        location: "src/secondary.c:20",
+      }));
+
+      const res = await request(app).get("/api/analysis/summary?projectId=p-analysis-summary&period=30d");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.bySeverity).toMatchObject({ high: 1, medium: 1 });
+      expect(res.body.data.unresolvedCount).toMatchObject({ open: 1, needsReview: 1 });
+      expect(Array.isArray(res.body.data.topFiles)).toBe(true);
+      expect(Array.isArray(res.body.data.trend)).toBe(true);
+    });
+
+    it("POST /api/analysis/poc returns generated PoC payload", async () => {
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-poc",
+        projectId: "p-analysis-poc",
+        title: "Buffer overflow",
+        description: "Potential overflow in parser",
+        detail: "PoC requested",
+        location: "src/main.c:42",
+      }));
+
+      const res = await request(app)
+        .post("/api/analysis/poc")
+        .send({ projectId: "p-analysis-poc", findingId: "finding-poc" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
+        findingId: "finding-poc",
+        poc: {
+          statement: "demo poc",
+          detail: "demo detail",
+        },
+      });
+    });
+  });
+
+  describe("Dynamic Analysis API", () => {
+    it("creates sessions, lists them, and returns predefined scenarios", async () => {
+      const createRes = await request(app)
+        .post("/api/dynamic-analysis/sessions")
+        .send({ projectId: "p-dyn", adapterId: "adapter-1" });
+
+      expect(createRes.status).toBe(201);
+      expect(createRes.body.data).toMatchObject({
+        projectId: "p-dyn",
+        status: "connected",
+      });
+
+      const listRes = await request(app).get("/api/dynamic-analysis/sessions?projectId=p-dyn");
+      expect(listRes.status).toBe(200);
+      expect(listRes.body.data).toHaveLength(1);
+
+      const scenariosRes = await request(app).get("/api/dynamic-analysis/scenarios");
+      expect(scenariosRes.status).toBe(200);
+      expect(Array.isArray(scenariosRes.body.data)).toBe(true);
+      expect(scenariosRes.body.data.length).toBeGreaterThan(0);
+    });
+
+    it("starts a session, injects traffic, and exposes injection history", async () => {
+      const createRes = await request(app)
+        .post("/api/dynamic-analysis/sessions")
+        .send({ projectId: "p-dyn-flow", adapterId: "adapter-2" });
+      const sessionId = createRes.body.data.id as string;
+
+      const startRes = await request(app).post(`/api/dynamic-analysis/sessions/${sessionId}/start`);
+      expect(startRes.status).toBe(200);
+      expect(startRes.body.data.status).toBe("monitoring");
+
+      const injectRes = await request(app)
+        .post(`/api/dynamic-analysis/sessions/${sessionId}/inject`)
+        .send({ canId: "0x7E0", dlc: 8, data: "02 10 03 00 00 00 00 00", label: "single-shot" });
+      expect(injectRes.status).toBe(200);
+      expect(injectRes.body.data).toMatchObject({
+        request: { canId: "0x7E0", dlc: 8 },
+        classification: "normal",
+      });
+
+      const scenarioRes = await request(app)
+        .post(`/api/dynamic-analysis/sessions/${sessionId}/inject-scenario`)
+        .send({ scenarioId: "diagnostic-abuse" });
+      expect(scenarioRes.status).toBe(200);
+      expect(Array.isArray(scenarioRes.body.data)).toBe(true);
+
+      const historyRes = await request(app).get(`/api/dynamic-analysis/sessions/${sessionId}/injections`);
+      expect(historyRes.status).toBe(200);
+      expect(historyRes.body.data.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("GET /api/dynamic-analysis/sessions/:id returns composite session detail payload (current drift surface)", async () => {
+      const createRes = await request(app)
+        .post("/api/dynamic-analysis/sessions")
+        .send({ projectId: "p-dyn-detail", adapterId: "adapter-3" });
+      const sessionId = createRes.body.data.id as string;
+
+      const res = await request(app).get(`/api/dynamic-analysis/sessions/${sessionId}`);
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
+        session: expect.objectContaining({
+          id: sessionId,
+          projectId: "p-dyn-detail",
+        }),
+        alerts: [],
+        recentMessages: [],
+      });
+    });
+
+    it("DELETE /api/dynamic-analysis/sessions/:id stops the session", async () => {
+      const createRes = await request(app)
+        .post("/api/dynamic-analysis/sessions")
+        .send({ projectId: "p-dyn-stop", adapterId: "adapter-4" });
+      const sessionId = createRes.body.data.id as string;
+
+      const res = await request(app).delete(`/api/dynamic-analysis/sessions/${sessionId}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toMatchObject({
+        id: sessionId,
+        status: "stopped",
+      });
+    });
+  });
+
+  describe("Dynamic Test API", () => {
+    it("runs a dynamic test and returns collection/detail/delete contracts", async () => {
+      const runRes = await request(app)
+        .post("/api/dynamic-test/run")
+        .send({
+          projectId: "p-dtest",
+          adapterId: "adapter-1",
+          config: {
+            testType: "fuzzing",
+            strategy: "random",
+            targetEcu: "ECM",
+            protocol: "UDS",
+            targetId: "0x7E0",
+            count: 5,
+          },
+        });
+
+      expect(runRes.status).toBe(200);
+      expect(runRes.body.success).toBe(true);
+      expect(runRes.body.data).toMatchObject({
+        projectId: "p-dtest",
+        status: "completed",
+        totalRuns: 5,
+      });
+
+      const testId = runRes.body.data.id as string;
+      const listRes = await request(app).get("/api/dynamic-test/results?projectId=p-dtest");
+      expect(listRes.status).toBe(200);
+      expect(listRes.body.data).toHaveLength(1);
+
+      const detailRes = await request(app).get(`/api/dynamic-test/results/${testId}`);
+      expect(detailRes.status).toBe(200);
+      expect(detailRes.body.data.id).toBe(testId);
+
+      const deleteRes = await request(app).delete(`/api/dynamic-test/results/${testId}`);
+      expect(deleteRes.status).toBe(200);
+      expect(deleteRes.body).toEqual({ success: true });
+    });
   });
 
   // ── Gate Profiles ──
@@ -1126,6 +1636,12 @@ describe("API Contract Tests", () => {
       // Soft auth: no token → no user → 401
       expect([200, 401]).toContain(res.status);
     });
+
+    it("POST /api/auth/logout returns { success: true }", async () => {
+      const res = await request(app).post("/api/auth/logout");
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ success: true });
+    });
   });
 
   // ── Finding Groups ──
@@ -1153,6 +1669,67 @@ describe("API Contract Tests", () => {
     });
   });
 
+  describe("Finding Summary API", () => {
+    it("GET /api/projects/:pid/findings/summary returns aggregate counts", async () => {
+      ctx.findingDAO.save(makeFinding({ id: "fsum-1", projectId: "p-fsum", severity: "critical", status: "open" }));
+      ctx.findingDAO.save(makeFinding({ id: "fsum-2", projectId: "p-fsum", severity: "high", status: "fixed" }));
+
+      const res = await request(app).get("/api/projects/p-fsum/findings/summary");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
+        total: 2,
+        bySeverity: {
+          critical: 1,
+          high: 1,
+        },
+      });
+    });
+  });
+
+  describe("Gate detail APIs", () => {
+    it("GET /api/projects/:pid/gates/runs/:runId returns the gate result for a run", async () => {
+      ctx.gateResultDAO.save(makeGateResult({ id: "gate-run-detail", projectId: "p-gate-run", runId: "run-gate-detail", status: "fail" }));
+
+      const res = await request(app).get("/api/projects/p-gate-run/gates/runs/run-gate-detail");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.id).toBe("gate-run-detail");
+    });
+
+    it("POST /api/gates/:id/override creates an approval request", async () => {
+      ctx.gateResultDAO.save(makeGateResult({ id: "gate-override", projectId: "p-gate-override", runId: "run-gate-override", status: "fail" }));
+
+      const res = await request(app)
+        .post("/api/gates/gate-override/override")
+        .send({ reason: "accepted operational risk", actor: "admin" });
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
+        actionType: "gate.override",
+        targetId: "gate-override",
+        projectId: "p-gate-override",
+        status: "pending",
+      });
+    });
+  });
+
+  describe("Approval detail API", () => {
+    it("GET /api/approvals/:id returns approval detail", async () => {
+      ctx.approvalDAO.save(makeApproval({ id: "approval-detail", projectId: "p-approval-detail", targetId: "gate-1" }));
+
+      const res = await request(app).get("/api/approvals/approval-detail");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
+        id: "approval-detail",
+        projectId: "p-approval-detail",
+        targetId: "gate-1",
+      });
+    });
+  });
+
   // ── Build Log ──
 
   describe("Build Log API", () => {
@@ -1172,6 +1749,34 @@ describe("API Contract Tests", () => {
     });
   });
 
+  describe("Target Library API", () => {
+    it("GET and PATCH /api/projects/:pid/targets/:tid/libraries follow the documented contract", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-lib" }));
+      ctx.buildTargetDAO.save(makeBuildTarget({ id: "t-lib", projectId: "p-lib" }));
+      ctx.targetLibraryDAO.upsertFromScan("t-lib", "p-lib", [
+        { name: "openssl", version: "3.0.0", path: "third_party/openssl", modifiedFiles: ["src/main.c"] },
+        { name: "zlib", version: "1.2.13", path: "third_party/zlib", modifiedFiles: [] },
+      ]);
+
+      const listRes = await request(app).get("/api/projects/p-lib/targets/t-lib/libraries");
+      expect(listRes.status).toBe(200);
+      expect(listRes.body.success).toBe(true);
+      expect(listRes.body.data).toHaveLength(2);
+
+      const firstId = listRes.body.data[0].id as string;
+      const patchRes = await request(app)
+        .patch("/api/projects/p-lib/targets/t-lib/libraries")
+        .send({ libraries: [{ id: firstId, included: true }] });
+
+      expect(patchRes.status).toBe(200);
+      expect(patchRes.body.data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: firstId, included: true }),
+        ]),
+      );
+    });
+  });
+
   // ── Custom Report ──
 
   describe("Custom Report API", () => {
@@ -1183,6 +1788,30 @@ describe("API Contract Tests", () => {
         .send({ customization: { reportTitle: "Custom" } });
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
+    });
+  });
+
+  describe("Module Report APIs", () => {
+    it("GET /api/projects/:pid/report/dynamic returns dynamic-analysis module report", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-report-dynamic", name: "Dynamic Report" }));
+      ctx.runDAO.save(makeRun({ id: "run-report-dynamic", projectId: "p-report-dynamic", module: "dynamic_analysis" }));
+      ctx.findingDAO.save(makeFinding({ id: "finding-report-dynamic", runId: "run-report-dynamic", projectId: "p-report-dynamic", module: "dynamic_analysis" }));
+
+      const res = await request(app).get("/api/projects/p-report-dynamic/report/dynamic");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.meta.module).toBe("dynamic_analysis");
+    });
+
+    it("GET /api/projects/:pid/report/test returns dynamic-testing module report", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-report-test", name: "Test Report" }));
+      ctx.runDAO.save(makeRun({ id: "run-report-test", projectId: "p-report-test", module: "dynamic_testing" }));
+      ctx.findingDAO.save(makeFinding({ id: "finding-report-test", runId: "run-report-test", projectId: "p-report-test", module: "dynamic_testing" }));
+
+      const res = await request(app).get("/api/projects/p-report-test/report/test");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.meta.module).toBe("dynamic_testing");
     });
   });
 });

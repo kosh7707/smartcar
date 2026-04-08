@@ -38,7 +38,7 @@ export const ProjectsPage: React.FC = () => {
       {showCreate && (
         <div className="card projects-create-form">
           <div className="card-title">새 프로젝트 생성</div>
-          <label className="form-field" style={{ marginBottom: "var(--space-3)" }}>
+          <label className="form-field" style={{ marginBottom: "var(--cds-spacing-04)" }}>
             <span className="form-label">프로젝트명</span>
             <input
               className="form-input"
@@ -48,7 +48,7 @@ export const ProjectsPage: React.FC = () => {
               autoFocus
             />
           </label>
-          <label className="form-field" style={{ marginBottom: "var(--space-4)" }}>
+          <label className="form-field" style={{ marginBottom: "var(--cds-spacing-05)" }}>
             <span className="form-label">설명</span>
             <input
               className="form-input"
@@ -118,7 +118,7 @@ export const ProjectsPage: React.FC = () => {
                     ) : (
                       <span className="project-card__date project-card__date--muted">분석 없음</span>
                     )}
-                    <span className="project-card__date project-card__date--updated" style={{ fontFamily: 'var(--font-data)' }}>
+                    <span className="project-card__date project-card__date--updated" style={{ fontFamily: 'var(--cds-font-mono)' }}>
                       <Pencil size={10} /> {formatDate(p.updatedAt)}
                     </span>
                   </div>

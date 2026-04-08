@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | ECU-PowerTrain-v2.1 Quality Gate</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;900&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-surface": "#e7e5e5",
+                        "on-secondary": "#202020",
+                        "secondary-dim": "#9e9e9d",
+                        "on-secondary-fixed-variant": "#5b5b5b",
+                        "on-tertiary-fixed-variant": "#150000",
+                        "surface-tint": "#b4c5ff",
+                        "surface-container-low": "#131313",
+                        "error": "#ee7d77",
+                        "on-surface-variant": "#acabab",
+                        "background": "#0e0e0e",
+                        "secondary-fixed": "#e4e2e2",
+                        "outline-variant": "#484848",
+                        "on-primary": "#00379b",
+                        "primary": "#b4c5ff",
+                        "primary-fixed": "#dbe1ff",
+                        "surface-dim": "#0e0e0e",
+                        "on-tertiary-container": "#000000",
+                        "inverse-primary": "#0053de",
+                        "surface-container-lowest": "#000000",
+                        "on-secondary-fixed": "#3f3f3f",
+                        "on-error": "#490106",
+                        "surface-variant": "#252626",
+                        "tertiary-fixed-dim": "#e5282f",
+                        "surface": "#0e0e0e",
+                        "secondary-container": "#3b3b3b",
+                        "tertiary-dim": "#e2252c",
+                        "on-error-container": "#ff9993",
+                        "surface-bright": "#2b2c2c",
+                        "surface-container-high": "#1f2020",
+                        "inverse-surface": "#fcf9f8",
+                        "secondary-fixed-dim": "#d6d4d4",
+                        "on-background": "#e7e5e5",
+                        "on-primary-container": "#c2cfff",
+                        "surface-container": "#191a1a",
+                        "on-primary-fixed-variant": "#0050d6",
+                        "tertiary": "#ff7169",
+                        "inverse-on-surface": "#565555",
+                        "primary-fixed-dim": "#c8d3ff",
+                        "tertiary-fixed": "#f83739",
+                        "error-container": "#7f2927",
+                        "secondary": "#9e9e9d",
+                        "error-dim": "#bb5551",
+                        "surface-container-highest": "#252626",
+                        "on-primary-fixed": "#003799",
+                        "primary-container": "#003da9",
+                        "tertiary-container": "#f83739",
+                        "outline": "#757575",
+                        "primary-dim": "#a0b6ff",
+                        "on-tertiary": "#4a0004",
+                        "on-tertiary-fixed": "#000000",
+                        "on-secondary-container": "#c0bfbf",
+                        "carbon-gray-100": "#161616",
+                        "carbon-gray-90": "#262626",
+                        "carbon-gray-80": "#393939",
+                        "carbon-blue-60": "#0f62fe",
+                        "carbon-red-60": "#da1e28",
+                        "carbon-green-60": "#24a148"
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        mono: ["IBM Plex Mono", "monospace"],
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .mono-id { font-family: 'IBM Plex Mono', monospace; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #161616; }
+        ::-webkit-scrollbar-thumb { background: #393939; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #484848; }
+    </style>
+</head>
+<body class="bg-carbon-gray-100 text-on-surface font-body selection:bg-primary selection:text-on-primary">
+<div class="flex min-h-screen">
+<!-- SideNavBar -->
+<aside class="fixed inset-y-0 left-0 w-64 bg-[#161616] flex flex-col h-full py-4 z-50 transition-all duration-150 ease-in-out">
+<div class="px-4 mb-8 flex items-center gap-3">
+<div class="w-8 h-8 bg-carbon-blue-60 flex items-center justify-center rounded-sm">
+<span class="material-symbols-outlined text-white text-lg">shield</span>
+</div>
+<div>
+<h1 class="text-xl font-black text-[#f4f4f4] tracking-tighter leading-none">AEGIS</h1>
+<span class="text-[10px] text-carbon-blue-60 font-bold tracking-widest uppercase">Embedded Security</span>
+</div>
+</div>
+<div class="px-4 mb-6">
+<div class="p-3 bg-[#262626] rounded-sm">
+<p class="text-[10px] text-secondary-dim font-bold uppercase tracking-wider mb-1">Active Context</p>
+<h2 class="text-xs font-bold text-[#f4f4f4] truncate">ECU-PowerTrain-v2.1</h2>
+<div class="flex items-center gap-1.5 mt-2">
+<span class="w-1.5 h-1.5 rounded-full bg-carbon-green-60"></span>
+<span class="text-[10px] text-on-surface-variant font-medium">branch 'release/2.1'</span>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-0.5">
+<a class="flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-[#c6c6c6] hover:bg-[#393939] hover:text-[#f4f4f4] transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="dashboard">dashboard</span> Overview
+                </a>
+<a class="flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-[#c6c6c6] hover:bg-[#393939] hover:text-[#f4f4f4] transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="analytics">analytics</span> Static Analysis
+                </a>
+<a class="flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-[#c6c6c6] hover:bg-[#393939] hover:text-[#f4f4f4] transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="folder_open">folder_open</span> Files
+                </a>
+<a class="flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-[#c6c6c6] hover:bg-[#393939] hover:text-[#f4f4f4] transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="security">security</span> Vulnerabilities
+                </a>
+<a class="flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-[#c6c6c6] hover:bg-[#393939] hover:text-[#f4f4f4] transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="history">history</span> Analysis History
+                </a>
+<a class="flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-[#c6c6c6] hover:bg-[#393939] hover:text-[#f4f4f4] transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="assessment">assessment</span> Report
+                </a>
+<!-- ACTIVE NAV ITEM -->
+<a class="flex items-center gap-3 px-4 py-2.5 text-xs font-medium border-l-4 border-[#0f62fe] bg-[#262626] text-[#f4f4f4] transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="verified_user">verified_user</span> Quality Gate
+                </a>
+<a class="flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-[#c6c6c6] hover:bg-[#393939] hover:text-[#f4f4f4] transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="fact_check">fact_check</span> Approvals
+                </a>
+<a class="flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-[#c6c6c6] hover:bg-[#393939] hover:text-[#f4f4f4] transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="settings">settings</span> Settings
+                </a>
+</nav>
+<div class="mt-auto px-4 py-4 border-t border-[#393939]">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-carbon-gray-80 flex items-center justify-center overflow-hidden border border-[#484848]">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="close-up portrait of a professional software engineer avatar in a clean graphic style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDVv5_v2VPGTI-LrMKvQu37ofGa4VVgQt6-z0nwaOC_1tij57j2v65zlE8B2Awntqd0RxwJYg2QZy1oa8YWrhcuE0gYuMAhVNK2e3hiUSuEvGJoPVZgEJuXcsTrym2BNonxWnfmif1Viir-mlxT59w2KIAH_C4Wq0r5KKQZrl8dW45nwP6cp2C6SlBaoMHjSkQxQWCp2bg4de8DRJ_GIp6FKQUOtGPmsCmn44KeV0lUckb2dlWyEMRHirgmLkx1vkELJnjvIgOWyZ0"/>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-xs font-bold text-[#f4f4f4] truncate">K. Park</p>
+<p class="text-[10px] text-secondary-dim">Lead Security Lead</p>
+</div>
+<span class="material-symbols-outlined text-secondary-dim cursor-pointer" data-icon="logout">logout</span>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 ml-64 min-w-0 bg-[#0e0e0e]">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center w-full h-12 px-6 z-50 bg-[#161616] border-b border-[#393939] sticky top-0">
+<nav class="flex items-center text-[11px] font-['Public_Sans'] tracking-tight gap-2">
+<span class="text-[#c6c6c6]">프로젝트</span>
+<span class="text-[#393939]">/</span>
+<span class="text-[#c6c6c6]">ECU-PowerTrain-v2.1</span>
+<span class="text-[#393939]">/</span>
+<span class="text-[#f4f4f4] font-semibold">품질 게이트</span>
+</nav>
+<div class="flex items-center gap-4">
+<div class="relative group">
+<span class="material-symbols-outlined text-[#c6c6c6] hover:bg-[#262626] p-1.5 rounded transition-colors cursor-pointer" data-icon="search">search</span>
+</div>
+<span class="material-symbols-outlined text-[#c6c6c6] hover:bg-[#262626] p-1.5 rounded transition-colors cursor-pointer" data-icon="notifications">notifications</span>
+<span class="material-symbols-outlined text-[#c6c6c6] hover:bg-[#262626] p-1.5 rounded transition-colors cursor-pointer" data-icon="help">help</span>
+</div>
+</header>
+<div class="p-8 max-w-7xl mx-auto space-y-12">
+<!-- SECTION A: QUALITY GATE -->
+<section class="space-y-6" id="quality-gate">
+<!-- Main Gate Banner -->
+<div class="bg-carbon-gray-90 border-l-8 border-carbon-green-60 p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-2xl relative overflow-hidden">
+<div class="absolute right-0 top-0 opacity-10 pointer-events-none">
+<span class="material-symbols-outlined text-[160px]" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+</div>
+<div class="relative z-10">
+<div class="flex items-center gap-4 mb-2">
+<span class="material-symbols-outlined text-carbon-green-60 text-5xl" style="font-variation-settings: 'wght' 700;">check_circle</span>
+<h2 class="text-6xl font-black tracking-tighter text-carbon-green-60">PASS</h2>
+</div>
+<p class="text-on-surface-variant font-medium ml-1">
+<span class="mono-id text-carbon-blue-60 hover:underline cursor-pointer">analysis-20260408-001</span> 기준 — 모든 게이트 기준 충족
+                            </p>
+</div>
+<div class="flex flex-col gap-2 relative z-10 w-full md:w-auto">
+<button class="bg-carbon-blue-60 hover:bg-[#0050d6] text-white px-6 py-2.5 font-bold text-sm transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="description">description</span> 리포트 다운로드
+                            </button>
+<button class="border border-outline hover:bg-carbon-gray-80 text-on-surface px-6 py-2.5 font-bold text-sm transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="published_with_changes">published_with_changes</span> 게이트 기준 Override 요청
+                            </button>
+</div>
+</div>
+<!-- Criteria Grid Layout -->
+<div class="grid grid-cols-1 gap-4">
+<div class="bg-carbon-gray-90 overflow-hidden shadow-lg">
+<table class="w-full text-left text-sm border-collapse">
+<thead>
+<tr class="bg-carbon-gray-100 text-secondary-dim text-[10px] uppercase tracking-widest font-bold">
+<th class="px-6 py-4">검사 항목 (CRITERIA)</th>
+<th class="px-6 py-4">임계치 (THRESHOLD)</th>
+<th class="px-6 py-4">측정값 (VALUE)</th>
+<th class="px-6 py-4 text-right">결과 (STATUS)</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-carbon-gray-100">
+<tr class="hover:bg-carbon-gray-80 transition-colors">
+<td class="px-6 py-5 font-semibold text-[#f4f4f4]">신규 Critical 취약점</td>
+<td class="px-6 py-5 text-secondary-dim">0개 이하</td>
+<td class="px-6 py-5 text-carbon-green-60 font-bold">0개</td>
+<td class="px-6 py-5 text-right"><span class="inline-flex items-center gap-1.5 px-3 py-1 bg-carbon-green-60/10 text-carbon-green-60 rounded-full text-[10px] font-bold">✅ PASS</span></td>
+</tr>
+<tr class="hover:bg-carbon-gray-80 transition-colors">
+<td class="px-6 py-5 font-semibold text-[#f4f4f4]">신규 High 취약점</td>
+<td class="px-6 py-5 text-secondary-dim">3개 이하</td>
+<td class="px-6 py-5 text-carbon-green-60 font-bold">0개</td>
+<td class="px-6 py-5 text-right"><span class="inline-flex items-center gap-1.5 px-3 py-1 bg-carbon-green-60/10 text-carbon-green-60 rounded-full text-[10px] font-bold">✅ PASS</span></td>
+</tr>
+<tr class="hover:bg-carbon-gray-80 transition-colors">
+<td class="px-6 py-5 font-semibold text-[#f4f4f4]">전체 미해결 Critical</td>
+<td class="px-6 py-5 text-secondary-dim">0개</td>
+<td class="px-6 py-5 text-carbon-green-60 font-bold">0개</td>
+<td class="px-6 py-5 text-right"><span class="inline-flex items-center gap-1.5 px-3 py-1 bg-carbon-green-60/10 text-carbon-green-60 rounded-full text-[10px] font-bold">✅ PASS</span></td>
+</tr>
+<tr class="hover:bg-carbon-gray-80 transition-colors">
+<td class="px-6 py-5 font-semibold text-[#f4f4f4]">전체 미해결 High</td>
+<td class="px-6 py-5 text-secondary-dim">5개 이하</td>
+<td class="px-6 py-5 text-primary font-bold">3개</td>
+<td class="px-6 py-5 text-right"><span class="inline-flex items-center gap-1.5 px-3 py-1 bg-carbon-green-60/10 text-carbon-green-60 rounded-full text-[10px] font-bold">✅ PASS</span></td>
+</tr>
+<tr class="hover:bg-carbon-gray-80 transition-colors">
+<td class="px-6 py-5 font-semibold text-[#f4f4f4]">MISRA 준수율</td>
+<td class="px-6 py-5 text-secondary-dim">95% 이상</td>
+<td class="px-6 py-5 text-carbon-green-60 font-bold">97.2%</td>
+<td class="px-6 py-5 text-right"><span class="inline-flex items-center gap-1.5 px-3 py-1 bg-carbon-green-60/10 text-carbon-green-60 rounded-full text-[10px] font-bold">✅ PASS</span></td>
+</tr>
+<tr class="hover:bg-carbon-gray-80 transition-colors">
+<td class="px-6 py-5 font-semibold text-[#f4f4f4]">코드 커버리지</td>
+<td class="px-6 py-5 text-secondary-dim">80% 이상</td>
+<td class="px-6 py-5 text-carbon-green-60 font-bold">84.3%</td>
+<td class="px-6 py-5 text-right"><span class="inline-flex items-center gap-1.5 px-3 py-1 bg-carbon-green-60/10 text-carbon-green-60 rounded-full text-[10px] font-bold">✅ PASS</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Historical Gates -->
+<div class="space-y-4">
+<h3 class="text-xs font-bold text-secondary-dim uppercase tracking-widest flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="history">history</span> 최근 게이트 실행 이력 (Last 5)
+                        </h3>
+<div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+<!-- Run 1 -->
+<div class="bg-carbon-gray-90 p-4 border-t-2 border-carbon-green-60">
+<div class="flex justify-between items-start mb-2">
+<span class="mono-id text-[10px] text-secondary-dim">#001</span>
+<span class="text-[10px] font-bold text-carbon-green-60">PASS</span>
+</div>
+<p class="text-[11px] font-medium truncate mb-1 text-on-surface">Criteria Met</p>
+<p class="text-[9px] text-on-surface-variant">2026-04-08 14:22</p>
+</div>
+<!-- Run 2 -->
+<div class="bg-carbon-gray-90 p-4 border-t-2 border-carbon-red-60">
+<div class="flex justify-between items-start mb-2">
+<span class="mono-id text-[10px] text-secondary-dim">#234</span>
+<span class="text-[10px] font-bold text-carbon-red-60">FAIL</span>
+</div>
+<p class="text-[11px] font-medium truncate mb-1 text-on-surface">Critical Finding (1)</p>
+<p class="text-[9px] text-on-surface-variant">2026-04-07 09:15</p>
+</div>
+<!-- Run 3 -->
+<div class="bg-carbon-gray-90 p-4 border-t-2 border-carbon-red-60">
+<div class="flex justify-between items-start mb-2">
+<span class="mono-id text-[10px] text-secondary-dim">#233</span>
+<span class="text-[10px] font-bold text-carbon-red-60">FAIL</span>
+</div>
+<p class="text-[11px] font-medium truncate mb-1 text-on-surface">Coverage &lt; 80%</p>
+<p class="text-[9px] text-on-surface-variant">2026-04-06 18:40</p>
+</div>
+<!-- Run 4 -->
+<div class="bg-carbon-gray-90 p-4 border-t-2 border-carbon-green-60">
+<div class="flex justify-between items-start mb-2">
+<span class="mono-id text-[10px] text-secondary-dim">#232</span>
+<span class="text-[10px] font-bold text-carbon-green-60">PASS</span>
+</div>
+<p class="text-[11px] font-medium truncate mb-1 text-on-surface">Manual Override</p>
+<p class="text-[9px] text-on-surface-variant">2026-04-05 11:30</p>
+</div>
+<!-- Run 5 -->
+<div class="bg-carbon-gray-90 p-4 border-t-2 border-carbon-gray-80">
+<div class="flex justify-between items-start mb-2">
+<span class="mono-id text-[10px] text-secondary-dim">#231</span>
+<span class="text-[10px] font-bold text-secondary-dim">SKIP</span>
+</div>
+<p class="text-[11px] font-medium truncate mb-1 text-on-surface">Aborted by User</p>
+<p class="text-[9px] text-on-surface-variant">2026-04-04 15:55</p>
+</div>
+</div>
+</div>
+</section>
+<hr class="border-[#393939]"/>
+<!-- SECTION B: APPROVALS -->
+<section class="space-y-6" id="approvals">
+<div class="flex items-end justify-between">
+<div>
+<h2 class="text-2xl font-black text-[#f4f4f4] tracking-tight">승인 대기열</h2>
+<div class="flex items-center gap-4 mt-1">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-[#f1c21b]"></span>
+<span class="text-xs text-secondary-dim">1 대기 중</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-carbon-green-60"></span>
+<span class="text-xs text-secondary-dim">3 승인됨</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-carbon-red-60"></span>
+<span class="text-xs text-secondary-dim">1 거부됨</span>
+</div>
+</div>
+</div>
+<button class="text-xs text-carbon-blue-60 font-bold hover:underline">기록 전체 보기</button>
+</div>
+<div class="space-y-4">
+<!-- PENDING Card -->
+<div class="bg-carbon-gray-90 border-l-4 border-[#f1c21b] p-6 shadow-xl relative group transition-all">
+<div class="flex flex-col md:flex-row justify-between gap-6">
+<div class="flex-1">
+<div class="flex items-center gap-3 mb-3">
+<span class="bg-[#f1c21b]/20 text-[#f1c21b] text-[10px] font-black px-2 py-0.5 rounded-sm uppercase tracking-widest">Pending Approval</span>
+<span class="mono-id text-xs text-carbon-blue-60">analysis-20260406-001</span>
+</div>
+<h3 class="text-lg font-bold text-[#f4f4f4] mb-2">게이트 Override 요청 — ECU PowerTrain Emergency Patch</h3>
+<div class="flex items-start gap-3 bg-carbon-gray-100 p-4 rounded-sm border border-carbon-gray-80">
+<img class="w-10 h-10 rounded-sm border border-carbon-gray-80" data-alt="close-up avatar of Kosh, a technical lead engineer" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCKoWm7K3Ref-5upAKavIZxgtRcNbQ3vj50DiD7L0LBSAWaKsowxvHbBYoI_5p6IyNIFK5mZzF7d8Sq5C1TUO4azTyNjEyNKtLLWWsPHs6Of-SJGmCkcpPlGXyTT2i9_D7-fcqA9k09EtUbDM9I8fNuoBTGetqyBmjozS2bp8Y1w5fIvALdao6CLbDbJGlsfs1KMWBiN7SbFzwCQPbyRvRfGPTX3golduEB82kPHcdVRJlKk4k9Zgu_67oW1Zc4-xGK3HIgqIFQo6o"/>
+<div class="flex-1">
+<div class="flex justify-between items-center mb-1">
+<p class="text-xs font-bold text-[#f4f4f4]">Kosh <span class="font-normal text-secondary-dim mx-2">|</span> Senior Developer</p>
+<span class="text-[10px] text-secondary-dim">2시간 전</span>
+</div>
+<p class="text-xs text-on-surface-variant leading-relaxed">
+                                                "ADAS-Camera-Module 긴급 릴리스 필요 및 필드 테스트 일정 준수를 위해 일시적 게이트 오버라이드를 요청합니다. High 취약점 1건은 차주 Hotfix 릴리스에 포함될 예정입니다."
+                                            </p>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-2 w-full md:w-48 justify-center">
+<button class="bg-carbon-blue-60 hover:bg-[#0050d6] text-white py-2.5 rounded-sm font-bold text-sm transition-all shadow-lg shadow-carbon-blue-60/20 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="check">check</span> 승인
+                                    </button>
+<button class="border border-carbon-red-60 text-carbon-red-60 hover:bg-carbon-red-60/10 py-2.5 rounded-sm font-bold text-sm transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="close">close</span> 거부
+                                    </button>
+<button class="text-secondary-dim text-[11px] font-medium text-center hover:text-on-surface transition-colors mt-2">상세 정보 검토</button>
+</div>
+</div>
+</div>
+<!-- APPROVED Card -->
+<div class="bg-carbon-gray-90 border-l-4 border-carbon-green-60 p-5 opacity-80 hover:opacity-100 transition-opacity">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 bg-carbon-green-60/10 text-carbon-green-60 flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="task_alt">task_alt</span>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<h4 class="text-sm font-bold text-[#f4f4f4]">analysis-20260320-005</h4>
+<span class="bg-carbon-green-60/20 text-carbon-green-60 text-[9px] font-bold px-2 py-0.5 rounded-sm">승인됨</span>
+</div>
+<p class="text-[11px] text-secondary-dim">Requested by A. Smith • Approved by Security Lead (K. Park)</p>
+</div>
+</div>
+<div class="text-right">
+<p class="text-[10px] text-secondary-dim">2026-03-21 10:44</p>
+<button class="text-[10px] text-carbon-blue-60 hover:underline mt-1 font-bold">결과 리포트</button>
+</div>
+</div>
+</div>
+<!-- REJECTED Card -->
+<div class="bg-carbon-gray-90 border-l-4 border-carbon-red-60 p-5 opacity-80 hover:opacity-100 transition-opacity">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 bg-carbon-red-60/10 text-carbon-red-60 flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="cancel">cancel</span>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<h4 class="text-sm font-bold text-[#f4f4f4]">analysis-20260315-002</h4>
+<span class="bg-carbon-red-60/20 text-carbon-red-60 text-[9px] font-bold px-2 py-0.5 rounded-sm">거부됨</span>
+</div>
+<p class="text-[11px] text-secondary-dim">Critical 취약점 미해결로 인한 반려 • Decision by Auto-Gate</p>
+</div>
+</div>
+<div class="text-right">
+<p class="text-[10px] text-secondary-dim">2026-03-15 16:20</p>
+<button class="text-[10px] text-carbon-blue-60 hover:underline mt-1 font-bold">로그 확인</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- System Info Footer -->
+<footer class="pt-12 pb-6 flex flex-col md:flex-row justify-between items-center border-t border-[#262626] gap-4">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2">
+<span class="text-[10px] text-secondary-dim font-bold uppercase tracking-widest">Engine Status</span>
+<span class="flex items-center gap-1 text-[10px] text-carbon-green-60 font-bold bg-carbon-green-60/5 px-2 py-0.5 rounded-full">
+<span class="w-1.5 h-1.5 rounded-full bg-carbon-green-60"></span>
+                                OPTIMIZED
+                            </span>
+</div>
+<div class="flex items-center gap-2 text-[10px] text-secondary-dim font-medium">
+<span class="material-symbols-outlined text-[14px]" data-icon="dns">dns</span> Node: AEGIS-CLUSTER-04
+                        </div>
+</div>
+<div class="text-[10px] text-on-secondary-fixed-variant font-mono">
+                        Build v2.4.12-PROD | ISO 21434 COMPLIANT
+                    </div>
+</footer>
+</div>
+</main>
+</div>
+</body></html>

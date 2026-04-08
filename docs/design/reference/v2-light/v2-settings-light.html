@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS - Project Settings</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-tint": "#005bc0",
+                        "tertiary-fixed": "#88fb99",
+                        "surface-dim": "#dadada",
+                        "on-primary-container": "#ecefff",
+                        "tertiary-container": "#007e33",
+                        "error": "#ba1a1a",
+                        "secondary-fixed": "#dbe3ef",
+                        "on-background": "#1a1c1c",
+                        "surface-container-highest": "#e2e2e2",
+                        "secondary-container": "#d8e0ed",
+                        "on-surface": "#1a1c1c",
+                        "inverse-surface": "#2f3131",
+                        "outline-variant": "#c2c6d6",
+                        "surface-variant": "#e2e2e2",
+                        "on-tertiary": "#ffffff",
+                        "on-tertiary-fixed": "#002108",
+                        "on-surface-variant": "#424753",
+                        "on-secondary-fixed": "#141c25",
+                        "tertiary-fixed-dim": "#6bde80",
+                        "on-error-container": "#93000a",
+                        "secondary-fixed-dim": "#bfc7d3",
+                        "on-primary": "#ffffff",
+                        "primary-fixed-dim": "#adc6ff",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary": "#575f69",
+                        "on-tertiary-container": "#c0ffc2",
+                        "on-primary-fixed": "#001a41",
+                        "tertiary": "#006226",
+                        "surface-container-low": "#f3f3f4",
+                        "primary-container": "#0969da",
+                        "background": "#f9f9f9",
+                        "primary": "#0051ae",
+                        "surface-container-high": "#e8e8e8",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#3f4751",
+                        "inverse-primary": "#adc6ff",
+                        "inverse-on-surface": "#f0f1f1",
+                        "primary-fixed": "#d8e2ff",
+                        "surface": "#f9f9f9",
+                        "on-primary-fixed-variant": "#004493",
+                        "on-tertiary-fixed-variant": "#00531f",
+                        "surface-container": "#eeeeee",
+                        "on-secondary": "#ffffff",
+                        "surface-bright": "#f9f9f9",
+                        "outline": "#727785",
+                        "on-secondary-container": "#5b636e",
+                        "on-error": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .font-label { font-family: 'Space Grotesk', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface flex flex-col min-h-screen">
+<!-- TopNavBar -->
+<header class="bg-[#f9f9f9] dark:bg-[#1a1c1c] flex justify-between items-center w-full px-6 py-3 h-16 fixed top-0 z-50 transition-colors">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-[#1a1c1c] dark:text-white font-headline">AEGIS</span>
+<div class="relative hidden md:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm" data-icon="search">search</span>
+<input class="bg-surface-container-low border-none rounded-lg pl-10 pr-4 py-1.5 text-sm w-64 focus:ring-1 focus:ring-primary-container" placeholder="Search architecture..." type="text"/>
+</div>
+</div>
+<nav class="flex items-center gap-6">
+<div class="flex items-center gap-4">
+<button class="p-2 hover:bg-[#e2e2e2] dark:hover:bg-[#2a2d2d] transition-all rounded-lg scale-95 transition-transform duration-150 ease-in-out">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 hover:bg-[#e2e2e2] dark:hover:bg-[#2a2d2d] transition-all rounded-lg scale-95 transition-transform duration-150 ease-in-out">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="terminal">terminal</span>
+</button>
+<button class="p-2 hover:bg-[#e2e2e2] dark:hover:bg-[#2a2d2d] transition-all rounded-lg scale-95 transition-transform duration-150 ease-in-out">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="help">help</span>
+</button>
+</div>
+<div class="h-8 w-8 rounded-full overflow-hidden border border-outline-variant/20">
+<img alt="User Profile Avatar" data-alt="Close-up portrait of a professional male software architect with focused expression, neutral lighting, minimalist background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBxYNVw_JSOzwvQ5RtOIOdTP-KPAgknzc286AYknMwlXddfLiyZD9EKJxu7wUN-6gZuYav5FAmdlqc7qQPjFwprw5nw8tILB8jUhsyxrYAEw08jNfW8ZvrBIuBVekFp-EuXWJgmxsBj_G6OKSrjlRNvq3vTIkGcY6DEvczmF_fNxBXELS5JnGQB0jV5sYj0WnkJ6lDKY9CmWBlGVDl1XMHnZ8Ew1DcUN3IRQEk9pFQyz4yc5H5o87lvGfWYfigNfxpLSrSNXfwMJ3z5"/>
+</div>
+</nav>
+</header>
+<div class="flex flex-1 pt-16">
+<!-- SideNavBar -->
+<aside class="bg-[#f3f3f4] dark:bg-[#121212] flex flex-col h-[calc(100vh-64px)] w-64 fixed left-0 top-16 transition-colors duration-200">
+<div class="px-6 py-6 border-b border-outline-variant/10">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-primary-container flex items-center justify-center rounded">
+<span class="material-symbols-outlined text-white text-lg" data-icon="precision_manufacturing">precision_manufacturing</span>
+</div>
+<div>
+<h3 class="text-on-surface font-bold text-sm leading-tight">Project Alpha</h3>
+<p class="text-[10px] text-on-surface-variant font-label uppercase tracking-widest">Automotive Firmware</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 py-4">
+<a class="flex items-center gap-3 px-6 py-3 text-[#5b636e] hover:text-[#1a1c1c] hover:bg-[#e8e8e8] dark:hover:bg-[#ffffff05] transition-colors duration-200" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="dashboard">dashboard</span>
+<span class="text-[11px] tracking-widest font-medium font-label uppercase">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-[#5b636e] hover:text-[#1a1c1c] hover:bg-[#e8e8e8] dark:hover:bg-[#ffffff05] transition-colors duration-200" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="directions_car">directions_car</span>
+<span class="text-[11px] tracking-widest font-medium font-label uppercase">Assets</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-[#5b636e] hover:text-[#1a1c1c] hover:bg-[#e8e8e8] dark:hover:bg-[#ffffff05] transition-colors duration-200" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="security">security</span>
+<span class="text-[11px] tracking-widest font-medium font-label uppercase">Security Logs</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-[#5b636e] hover:text-[#1a1c1c] hover:bg-[#e8e8e8] dark:hover:bg-[#ffffff05] transition-colors duration-200" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="analytics">analytics</span>
+<span class="text-[11px] tracking-widest font-medium font-label uppercase">Analysis</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 bg-white dark:bg-[#ffffff0a] text-[#1a1c1c] border-l-2 border-[#0969da] font-semibold transition-colors duration-200" href="#">
+<span class="material-symbols-outlined text-xl text-[#0969da]" data-icon="settings">settings</span>
+<span class="text-[11px] tracking-widest font-medium font-label uppercase">Settings</span>
+</a>
+</nav>
+<footer class="py-4 border-t border-outline-variant/10">
+<a class="flex items-center gap-3 px-6 py-2 text-[#5b636e] hover:text-[#1a1c1c] hover:bg-[#e8e8e8] transition-colors duration-200" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="description">description</span>
+<span class="text-[11px] tracking-widest font-medium font-label uppercase">Documentation</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-2 text-[#5b636e] hover:text-[#1a1c1c] hover:bg-[#e8e8e8] transition-colors duration-200" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="contact_support">contact_support</span>
+<span class="text-[11px] tracking-widest font-medium font-label uppercase">Support</span>
+</a>
+</footer>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 ml-64 p-8 bg-surface">
+<!-- Header Section -->
+<div class="mb-8">
+<div class="flex items-center gap-2 text-on-surface-variant mb-2">
+<span class="text-[10px] font-label tracking-widest uppercase">Projects</span>
+<span class="material-symbols-outlined text-xs" data-icon="chevron_right">chevron_right</span>
+<span class="text-[10px] font-label tracking-widest uppercase text-primary">ECU-PowerTrain-v2.1</span>
+</div>
+<h1 class="text-3xl font-bold font-headline tracking-tight text-on-surface">Project Settings</h1>
+</div>
+<!-- Tab Navigation -->
+<div class="flex gap-8 mb-8 border-b border-surface-container-highest">
+<button class="pb-3 border-b-2 border-primary text-primary font-label text-[11px] tracking-widest uppercase font-semibold">General</button>
+<button class="pb-3 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface font-label text-[11px] tracking-widest uppercase transition-colors">SDK Management</button>
+<button class="pb-3 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface font-label text-[11px] tracking-widest uppercase transition-colors">Build Targets</button>
+<button class="pb-3 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface font-label text-[11px] tracking-widest uppercase transition-colors">Adapters</button>
+</div>
+<div class="grid grid-cols-12 gap-8">
+<!-- Left Column: General & SDK -->
+<div class="col-span-12 lg:col-span-7 space-y-8">
+<!-- General Section -->
+<section class="bg-surface-container-lowest p-6 rounded shadow-sm">
+<div class="flex items-center justify-between mb-6">
+<h2 class="text-lg font-bold font-headline flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="info">info</span>
+                                General Configuration
+                            </h2>
+<button class="text-[10px] font-label font-bold text-primary px-3 py-1 bg-primary-fixed/30 rounded-full uppercase tracking-tighter">Edit Mode</button>
+</div>
+<div class="space-y-6">
+<div>
+<label class="block text-[10px] font-label tracking-widest uppercase text-on-surface-variant mb-1">Project Name</label>
+<div class="bg-surface-container-low px-4 py-3 border-b-2 border-surface-container-highest">
+<span class="text-sm font-medium">ECU-PowerTrain-v2.1</span>
+</div>
+</div>
+<div>
+<label class="block text-[10px] font-label tracking-widest uppercase text-on-surface-variant mb-1">Description</label>
+<div class="bg-surface-container-low px-4 py-3 border-b-2 border-surface-container-highest">
+<p class="text-sm">High-precision powertrain control firmware analysis project.</p>
+</div>
+</div>
+<div>
+<label class="block text-[10px] font-label tracking-widest uppercase text-on-surface-variant mb-1">Internal Reference ID</label>
+<div class="bg-surface-container-low px-4 py-3 border-b-2 border-surface-container-highest font-mono text-sm">
+                                    PRJ-99281-X
+                                </div>
+</div>
+</div>
+</section>
+<!-- SDK Management Section -->
+<section class="space-y-4">
+<h2 class="text-[11px] font-label tracking-widest uppercase text-on-surface-variant font-bold px-1">SDK Management</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Toolchain Card 1 -->
+<div class="bg-surface-container-lowest p-4 rounded border-l-2 border-tertiary shadow-sm flex flex-col justify-between">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="text-xs font-bold font-headline uppercase tracking-tight">arm-none-eabi-gcc</h4>
+<p class="text-[10px] text-on-surface-variant">Version 12.3 Rel. 1</p>
+</div>
+<span class="bg-tertiary-container/10 text-tertiary text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-widest font-label">Ready</span>
+</div>
+<div class="mt-4 flex items-center justify-between">
+<span class="text-[10px] text-on-surface-variant font-mono">MD5: a9f2...3e1d</span>
+<button class="material-symbols-outlined text-sm text-primary" data-icon="refresh">refresh</button>
+</div>
+</div>
+<!-- Toolchain Card 2 -->
+<div class="bg-surface-container-lowest p-4 rounded border-l-2 border-primary shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h4 class="text-xs font-bold font-headline uppercase tracking-tight">riscv32-unknown-elf-gcc</h4>
+<p class="text-[10px] text-on-surface-variant">Version 13.2 Stable</p>
+</div>
+<span class="text-primary text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-widest font-label animate-pulse">Verifying</span>
+</div>
+<div class="w-full bg-surface-container-high h-1 mb-1">
+<div class="bg-primary h-full" style="width: 78%"></div>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-[9px] text-on-surface-variant font-label uppercase">Environment check</span>
+<span class="text-[9px] font-bold font-mono">78%</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Build Target Manifest -->
+<section class="bg-surface-container-lowest rounded shadow-sm overflow-hidden">
+<div class="p-4 border-b border-surface-container-high flex justify-between items-center">
+<h2 class="text-[11px] font-label tracking-widest uppercase text-on-surface font-bold">Build Target Manifest</h2>
+<button class="material-symbols-outlined text-on-surface-variant" data-icon="filter_list">filter_list</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left text-xs">
+<thead>
+<tr class="bg-surface-container-low border-b border-surface-container-high text-on-surface-variant">
+<th class="px-4 py-3 font-label font-medium uppercase tracking-tighter">Target Name</th>
+<th class="px-4 py-3 font-label font-medium uppercase tracking-tighter">SHA-256 Hash</th>
+<th class="px-4 py-3 font-label font-medium uppercase tracking-tighter">Optimization</th>
+<th class="px-4 py-3 font-label font-medium uppercase tracking-tighter">Security</th>
+<th class="px-4 py-3 font-label font-medium uppercase tracking-tighter text-right">Size</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-low">
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-4 py-4 font-semibold text-primary">arm-cortex-m4-main</td>
+<td class="px-4 py-4 font-mono text-[10px] text-on-surface-variant">88a2...fb91</td>
+<td class="px-4 py-4"><span class="px-2 py-1 bg-surface-container-high rounded text-[10px]">Level 3 (Speed)</span></td>
+<td class="px-4 py-4">
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full bg-tertiary"></div>
+<div class="w-2 h-2 rounded-full bg-tertiary"></div>
+<div class="w-2 h-2 rounded-full bg-surface-container-highest"></div>
+</div>
+</td>
+<td class="px-4 py-4 text-right font-mono">512 KB</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-4 py-4 font-semibold text-primary">arm-cortex-m4-bootloader</td>
+<td class="px-4 py-4 font-mono text-[10px] text-on-surface-variant">0c14...e22a</td>
+<td class="px-4 py-4"><span class="px-2 py-1 bg-surface-container-high rounded text-[10px]">Level S (Size)</span></td>
+<td class="px-4 py-4">
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full bg-tertiary"></div>
+<div class="w-2 h-2 rounded-full bg-tertiary"></div>
+<div class="w-2 h-2 rounded-full bg-tertiary"></div>
+</div>
+</td>
+<td class="px-4 py-4 text-right font-mono">64 KB</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-4 py-4 font-semibold text-primary">riscv-rv32-diag</td>
+<td class="px-4 py-4 font-mono text-[10px] text-on-surface-variant">d5e9...11c4</td>
+<td class="px-4 py-4"><span class="px-2 py-1 bg-surface-container-high rounded text-[10px]">Debug (None)</span></td>
+<td class="px-4 py-4">
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full bg-error"></div>
+<div class="w-2 h-2 rounded-full bg-surface-container-highest"></div>
+<div class="w-2 h-2 rounded-full bg-surface-container-highest"></div>
+</div>
+</td>
+<td class="px-4 py-4 text-right font-mono">1.2 MB</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+<!-- Right Column: Hardware Adapters & Summary -->
+<div class="col-span-12 lg:col-span-5 space-y-8">
+<!-- Hardware Adapters -->
+<section class="space-y-4">
+<div class="flex justify-between items-center px-1">
+<h2 class="text-[11px] font-label tracking-widest uppercase text-on-surface-variant font-bold">Hardware Adapters</h2>
+<button class="material-symbols-outlined text-sm text-primary" data-icon="add_circle">add_circle</button>
+</div>
+<div class="space-y-3">
+<!-- Adapter 1 -->
+<div class="bg-surface-container-high p-4 rounded flex items-center gap-4 transition-transform hover:scale-[1.01] duration-150">
+<div class="w-10 h-10 bg-surface-container-lowest flex items-center justify-center rounded">
+<span class="material-symbols-outlined text-tertiary" data-icon="cable">cable</span>
+</div>
+<div class="flex-1">
+<h4 class="text-xs font-bold uppercase tracking-tight">ECU-HIL-Adapter</h4>
+<p class="text-[9px] text-on-surface-variant font-mono">UUID: 899-X01-AF</p>
+</div>
+<div class="text-right">
+<span class="block text-[9px] font-bold text-tertiary uppercase tracking-widest font-label">Connected</span>
+<span class="text-[8px] text-on-surface-variant">Latency: 2ms</span>
+</div>
+</div>
+<!-- Adapter 2 -->
+<div class="bg-surface-container-high p-4 rounded flex items-center gap-4 transition-transform hover:scale-[1.01] duration-150 relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-error"></div>
+<div class="w-10 h-10 bg-surface-container-lowest flex items-center justify-center rounded">
+<span class="material-symbols-outlined text-error" data-icon="router">router</span>
+</div>
+<div class="flex-1">
+<h4 class="text-xs font-bold uppercase tracking-tight">CAN-Bus-Simulator</h4>
+<p class="text-[9px] text-on-surface-variant font-mono">UUID: 221-M54-BB</p>
+</div>
+<div class="text-right">
+<span class="block text-[9px] font-bold text-error uppercase tracking-widest font-label">Disconnected</span>
+<span class="text-[8px] text-error font-medium">Auth Failure</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Technical Overview (Data Monolith) -->
+<section class="bg-surface-container-high p-6 rounded relative">
+<div class="absolute -z-10 inset-0 bg-primary/5 blur-xl rounded"></div>
+<h2 class="text-[11px] font-label tracking-widest uppercase text-primary font-bold mb-6">Build Environment Health</h2>
+<div class="grid grid-cols-2 gap-6">
+<div>
+<p class="text-[9px] font-label uppercase tracking-widest text-on-surface-variant mb-1">Compute Load</p>
+<div class="flex items-end gap-2">
+<span class="text-2xl font-headline font-bold">42%</span>
+<span class="text-[10px] text-tertiary font-bold mb-1">STABLE</span>
+</div>
+</div>
+<div>
+<p class="text-[9px] font-label uppercase tracking-widest text-on-surface-variant mb-1">Vulnerability Scans</p>
+<div class="flex items-end gap-2">
+<span class="text-2xl font-headline font-bold">100%</span>
+<span class="text-[10px] text-tertiary font-bold mb-1">PASSED</span>
+</div>
+</div>
+<div class="col-span-2">
+<p class="text-[9px] font-label uppercase tracking-widest text-on-surface-variant mb-2">Memory Allocation (Reserved)</p>
+<div class="flex gap-1 h-2">
+<div class="bg-primary w-2/3 rounded-sm"></div>
+<div class="bg-primary-fixed-dim w-1/6 rounded-sm"></div>
+<div class="bg-surface-container-highest w-1/6 rounded-sm"></div>
+</div>
+<div class="mt-2 flex justify-between text-[8px] font-mono uppercase text-on-surface-variant">
+<span>Core: 4GB</span>
+<span>Buffer: 1GB</span>
+<span>Idle: 1GB</span>
+</div>
+</div>
+</div>
+<div class="mt-8 pt-6 border-t border-outline-variant/20 flex gap-4">
+<button class="flex-1 bg-gradient-to-br from-primary to-primary-container text-white text-[10px] font-label font-bold uppercase tracking-widest py-3 rounded hover:opacity-90 transition-opacity">Deploy Manifest</button>
+<button class="px-4 bg-surface-container-lowest text-on-surface text-sm flex items-center justify-center rounded">
+<span class="material-symbols-outlined" data-icon="file_download">file_download</span>
+</button>
+</div>
+</section>
+<!-- Visual Project Identity -->
+<div class="rounded-lg overflow-hidden h-48 group relative shadow-md">
+<img alt="Hardware Circuit Board" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="High-detail macro shot of a sophisticated automotive PCB with gold tracers and black processors, clean clinical lighting, shallow depth of field." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSO9ngGid8YLB9mm8hubgGt-04H13r9qnr1JPlHcWVevqbNfiLt9tvm1EEVTKvP7R_Zb7h-JtECQ3ny-ywKw_5t12NaVvg5uTm_Y07GoJcq1YSgNHHJPwFYpdltDQfRfFm6rw2VcTCOapD6nkDaGjznkgD9LQ33Uu1eaAYeQqcNc4KQzEJ7cmAZNnV80G_G0W-PgfP9Dm3T0kFpJMfyFqILdJeVIPn0_sDGdzwe5DWwqZAJJFkR_lmZ0qmpNdqe7Og2aJi_zdWsWxa"/>
+<div class="absolute inset-0 bg-gradient-to-t from-on-surface/80 to-transparent p-6 flex flex-col justify-end">
+<span class="text-white/60 text-[9px] font-label tracking-widest uppercase">Hardware Revision</span>
+<h3 class="text-white font-headline text-lg font-bold">ECU-REV-04-ALPHA</h3>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Floating Action Button -->
+<!-- Suppressed on Settings page per shell visibility guidelines -->
+</body></html>

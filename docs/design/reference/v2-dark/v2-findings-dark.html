@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | ECU-PowerTrain-v2.1 Findings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0e14; }
+        ::-webkit-scrollbar-thumb { background: #3c495b; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #96ccff; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-surface-variant": "#9facc1",
+                      "on-secondary": "#1b2127",
+                      "surface-container-lowest": "#000000",
+                      "tertiary": "#c7ffc2",
+                      "error": "#ee7d77",
+                      "on-primary": "#00436b",
+                      "on-tertiary": "#00691f",
+                      "on-error": "#490106",
+                      "surface-container-high": "#16202e",
+                      "background": "#0a0e14",
+                      "secondary-container": "#363c43",
+                      "outline-variant": "#3c495b",
+                      "primary": "#96ccff",
+                      "on-secondary-container": "#bac0c8",
+                      "outline": "#6a768a",
+                      "surface": "#0a0e14",
+                      "on-primary-fixed": "#00436a",
+                      "on-primary-container": "#aad5ff",
+                      "primary-dim": "#78bffe",
+                      "error-dim": "#bb5551",
+                      "inverse-surface": "#f8f9ff",
+                      "tertiary-container": "#83fc89",
+                      "on-error-container": "#ff9993",
+                      "secondary": "#989ea7",
+                      "primary-fixed-dim": "#b3d8ff",
+                      "on-surface": "#d9e6fd",
+                      "on-secondary-fixed-variant": "#565c64",
+                      "tertiary-fixed-dim": "#75ed7d",
+                      "tertiary-dim": "#75ed7d",
+                      "surface-container-low": "#0e141c",
+                      "on-tertiary-fixed-variant": "#006b20",
+                      "on-primary-fixed-variant": "#006096",
+                      "tertiary-fixed": "#83fc89",
+                      "inverse-primary": "#00649b",
+                      "on-background": "#d9e6fd",
+                      "surface-variant": "#1a2637",
+                      "on-tertiary-fixed": "#004a14",
+                      "secondary-fixed-dim": "#cfd5de",
+                      "on-secondary-fixed": "#3a4047",
+                      "surface-tint": "#96ccff",
+                      "error-container": "#7f2927",
+                      "surface-bright": "#1e2d41",
+                      "primary-fixed": "#cee5ff",
+                      "on-tertiary-container": "#005f1c",
+                      "surface-container-highest": "#1a2637",
+                      "inverse-on-surface": "#51555c",
+                      "surface-dim": "#0a0e14",
+                      "secondary-fixed": "#dde3ec",
+                      "secondary-dim": "#989ea7",
+                      "primary-container": "#004a76",
+                      "surface-container": "#121a25"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "fontFamily": {
+                      "headline": ["Space Grotesk"],
+                      "body": ["Inter"],
+                      "label": ["Inter"]
+              }
+            },
+          },
+        }
+      </script>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary/30">
+<!-- TopNavBar -->
+<nav class="w-full top-0 z-50 flex items-center justify-between px-6 h-16 w-full bg-[#0a0e14] shadow-[0_8px_30px_rgb(150,204,255,0.08)]">
+<div class="flex items-center gap-8">
+<div class="text-xl font-bold tracking-tighter text-[#96ccff] font-headline">AEGIS</div>
+<div class="hidden md:flex items-center gap-6">
+<div class="h-6 w-px bg-outline-variant/30"></div>
+<div class="flex items-center gap-2 px-3 py-1 bg-surface-container rounded-lg border border-outline-variant/20">
+<span class="material-symbols-outlined text-sm text-primary">terminal</span>
+<span class="font-headline text-sm font-bold tracking-tight text-on-surface">ECU-PowerTrain-v2.1</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden md:flex items-center bg-surface-container-low px-3 py-1.5 rounded-lg border border-outline-variant/20 gap-2 w-64">
+<span class="material-symbols-outlined text-on-surface-variant text-lg">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-full placeholder:text-on-surface-variant/50" placeholder="Jump to..." type="text"/>
+<kbd class="text-[10px] bg-surface-variant px-1.5 py-0.5 rounded text-on-surface-variant border border-outline-variant/40">S</kbd>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 text-[#d9e6fd]/60 hover:bg-[#1a2637] hover:text-[#96ccff] transition-colors rounded-lg active:scale-95 duration-150">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-[#d9e6fd]/60 hover:bg-[#1a2637] hover:text-[#96ccff] transition-colors rounded-lg active:scale-95 duration-150">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<img alt="User Profile" class="w-8 h-8 rounded-full border border-primary/20" data-alt="Close-up portrait of a professional male software engineer in a dark tech environment with soft blue rim lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDChuO_6XQDTEo8n_gs_vLMIetuWsDBURxjOw3C7lYRXM-5a0MiyS1fhfTRR6GXojOAhYnIYJlRJaOOLiYheGaj_YFLyEh737WOJxG2o5I-LdeU7JM4x0JTMjXdwWAzYDnn3gBdA_RDcN0g-rcy1C6MPoROpu1Nak-FUscEB_rNHWgr1fNuYwMcftG0_HC0lhYhZOCNrGD8ES5Dij20PB1tpbGwvYJFbGmrNmekmbas3k_0IHaaVlH9T19Y1DrK--hIU4Va882tddy7"/>
+</div>
+</div>
+</nav>
+<div class="flex">
+<!-- SideNavBar -->
+<aside class="h-screen w-64 left-0 top-0 flex flex-col fixed border-r border-[#3c495b]/15 bg-[#0a0e14] z-40 pt-16">
+<div class="p-6">
+<div class="flex items-center gap-3 mb-8">
+<div class="w-10 h-10 bg-primary-container rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-weight="fill">shield</span>
+</div>
+<div>
+<div class="text-lg font-black text-[#96ccff] font-headline">The Sentinel</div>
+<div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold">Command Center</div>
+</div>
+</div>
+<nav class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded text-[#d9e6fd]/40 hover:bg-[#121a25] hover:text-[#96ccff] transition-all duration-200" href="#">
+<span class="material-symbols-outlined">grid_view</span>
+<span class="font-inter text-sm font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded bg-[#1e2d41] text-[#96ccff] border-l-4 border-[#96ccff] transition-all duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">shield</span>
+<span class="font-inter text-sm font-medium">Findings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded text-[#d9e6fd]/40 hover:bg-[#121a25] hover:text-[#96ccff] transition-all duration-200" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span class="font-inter text-sm font-medium">Assets</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded text-[#d9e6fd]/40 hover:bg-[#121a25] hover:text-[#96ccff] transition-all duration-200" href="#">
+<span class="material-symbols-outlined">gavel</span>
+<span class="font-inter text-sm font-medium">Policies</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded text-[#d9e6fd]/40 hover:bg-[#121a25] hover:text-[#96ccff] transition-all duration-200" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-inter text-sm font-medium">Team</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded text-[#d9e6fd]/40 hover:bg-[#121a25] hover:text-[#96ccff] transition-all duration-200" href="#">
+<span class="material-symbols-outlined">extension</span>
+<span class="font-inter text-sm font-medium">Integrations</span>
+</a>
+</nav>
+</div>
+<div class="mt-auto p-6 border-t border-outline-variant/10">
+<a class="flex items-center gap-3 px-3 py-2 rounded text-[#d9e6fd]/40 hover:text-[#96ccff] transition-colors mb-2" href="#">
+<span class="material-symbols-outlined text-lg">description</span>
+<span class="text-sm">Documentation</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-[#d9e6fd]/40 hover:text-[#96ccff] transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">contact_support</span>
+<span class="text-sm">Support</span>
+</a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-64 flex-1 min-h-screen bg-surface p-8 pt-24">
+<header class="mb-8">
+<div class="flex items-end justify-between">
+<div>
+<h1 class="font-headline text-3xl font-bold tracking-tight text-on-surface mb-2">Findings</h1>
+<p class="text-on-surface-variant text-sm">Security analysis for <span class="text-primary mono">ECU-PowerTrain-v2.1</span> branch <span class="mono text-on-surface">main</span></p>
+</div>
+<div class="flex gap-3">
+<button class="px-4 py-2 bg-surface-container-high border border-outline-variant/30 rounded-lg text-sm font-medium text-on-surface hover:bg-surface-bright transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">download</span>
+                            Export Report
+                        </button>
+<button class="px-4 py-2 bg-gradient-to-br from-primary to-primary-dim text-on-primary rounded-lg text-sm font-bold hover:shadow-[0_0_20px_rgba(150,204,255,0.2)] transition-all flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">play_arrow</span>
+                            Run Scan
+                        </button>
+</div>
+</div>
+</header>
+<!-- Findings Container -->
+<div class="bg-surface-container-low rounded-xl border border-outline-variant/20 overflow-hidden shadow-2xl">
+<!-- TOP TAB BAR -->
+<div class="flex border-b border-outline-variant/20 bg-surface-container-low px-4">
+<button class="flex items-center gap-2 px-4 py-4 text-sm font-bold border-b-2 border-primary text-primary transition-all">
+<span class="material-symbols-outlined text-lg">radio_button_checked</span>
+                        Open 32
+                    </button>
+<button class="flex items-center gap-2 px-4 py-4 text-sm font-medium text-on-surface-variant hover:text-on-surface transition-all">
+<span class="material-symbols-outlined text-lg">check_circle</span>
+                        Closed 11
+                    </button>
+</div>
+<!-- FILTER ROW -->
+<div class="p-4 bg-surface-container flex flex-wrap items-center gap-3">
+<div class="flex items-center gap-2 bg-surface-container-lowest px-3 py-2 rounded-lg border border-outline-variant/20 min-w-[320px] flex-1">
+<span class="material-symbols-outlined text-on-surface-variant">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-full placeholder:text-on-surface-variant/40" placeholder="Search all findings" type="text"/>
+</div>
+<div class="flex items-center gap-2">
+<button class="px-3 py-2 bg-surface-container-high border border-outline-variant/20 rounded-lg text-xs font-medium text-on-surface hover:bg-surface-bright flex items-center gap-2">
+                            Severity
+                            <span class="material-symbols-outlined text-sm">arrow_drop_down</span>
+</button>
+<button class="px-3 py-2 bg-surface-container-high border border-outline-variant/20 rounded-lg text-xs font-medium text-on-surface hover:bg-surface-bright flex items-center gap-2">
+                            CWE/Rule
+                            <span class="material-symbols-outlined text-sm">arrow_drop_down</span>
+</button>
+<button class="px-3 py-2 bg-surface-container-high border border-outline-variant/20 rounded-lg text-xs font-medium text-on-surface hover:bg-surface-bright flex items-center gap-2">
+                            Source
+                            <span class="material-symbols-outlined text-sm">arrow_drop_down</span>
+</button>
+<button class="px-3 py-2 bg-surface-container-high border border-outline-variant/20 rounded-lg text-xs font-medium text-on-surface hover:bg-surface-bright flex items-center gap-2">
+                            Build Target
+                            <span class="material-symbols-outlined text-sm">arrow_drop_down</span>
+</button>
+</div>
+<div class="h-6 w-px bg-outline-variant/20 mx-1"></div>
+<button class="px-3 py-2 bg-surface-container-high border border-outline-variant/20 rounded-lg text-xs font-medium text-on-surface hover:bg-surface-bright flex items-center gap-2">
+                        Bulk Action
+                        <span class="material-symbols-outlined text-sm">arrow_drop_down</span>
+</button>
+</div>
+<!-- LIST CONTENT -->
+<div class="divide-y divide-outline-variant/10">
+<!-- Finding 1 -->
+<div class="flex items-start p-4 hover:bg-surface-bright group transition-colors gap-4">
+<div class="pt-1 flex items-center gap-3">
+<input class="rounded-sm bg-surface-container-lowest border-outline-variant/40 text-primary focus:ring-primary/20 focus:ring-offset-0" type="checkbox"/>
+<span class="material-symbols-outlined text-error" data-weight="fill">report</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-3 mb-1">
+<span class="px-2 py-0.5 rounded bg-error/10 text-error text-[10px] font-bold tracking-wider uppercase border border-error/20">HIGH</span>
+<h3 class="text-sm font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">Buffer overflow in CAN receive handler</h3>
+<span class="px-2 py-0.5 rounded-full bg-surface-variant border border-outline-variant/30 text-on-surface-variant text-[10px] font-medium tracking-tight">CWE-119</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-container/30 text-primary-dim text-[10px] font-medium tracking-tight">Rule Engine</span>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant/70">
+<span class="mono bg-surface-container-highest/50 px-1.5 py-0.5 rounded border border-outline-variant/10">src/drivers/can_driver.c:247</span>
+<span>•</span>
+<span>Opened Apr 2 by <span class="text-on-surface font-medium">System</span></span>
+</div>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant/60">
+<div class="flex items-center gap-1 hover:text-on-surface cursor-pointer">
+<span class="material-symbols-outlined text-sm">mode_comment</span>
+<span class="text-xs font-medium">2</span>
+</div>
+<img alt="Assignee" class="w-5 h-5 rounded-full ring-1 ring-outline-variant/20" data-alt="Portrait of a young male developer in a black hoodie with a minimalist dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKlcDXfiKujKMZBC8p5Cbe1nTjz-akhNOisQXKHmNuZNXSNlny4wsLjeduuHHHuRW8fJqkjKo7o4m76tFapa14YSCk1wiHe4Hl6qT_wEcYgGrAq1BxyZvEOxFA5K7bi-eAAA4ja7D-suuDPTJ2Jp3uLac1Mcsmrq7VDVPdohdgQrpIMqcN6xA7z7EwmOVEp2qPw0di0UNCgzDl8lQPfx-dLjdpvuN92kTzmyl39TTqTUXM2vqocGSKbStutcYVVliB8KGkyWZndDRp"/>
+</div>
+</div>
+<!-- Finding 2 -->
+<div class="flex items-start p-4 hover:bg-surface-bright group transition-colors gap-4">
+<div class="pt-1 flex items-center gap-3">
+<input class="rounded-sm bg-surface-container-lowest border-outline-variant/40 text-primary" type="checkbox"/>
+<span class="material-symbols-outlined text-error" data-weight="fill">report</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-3 mb-1">
+<span class="px-2 py-0.5 rounded bg-error/10 text-error text-[10px] font-bold tracking-wider uppercase border border-error/20">HIGH</span>
+<h3 class="text-sm font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">NULL pointer dereference in ecu_init()</h3>
+<span class="px-2 py-0.5 rounded-full bg-surface-variant border border-outline-variant/30 text-on-surface-variant text-[10px] font-medium tracking-tight">CWE-476</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-container/30 text-primary-dim text-[10px] font-medium tracking-tight">Deep Analysis</span>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant/70">
+<span class="mono bg-surface-container-highest/50 px-1.5 py-0.5 rounded border border-outline-variant/10">src/core/ecu_init.c:89</span>
+<span>•</span>
+<span>Opened Apr 5 by <span class="text-on-surface font-medium">DeepScan</span></span>
+</div>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant/60">
+<div class="flex items-center gap-1 hover:text-on-surface cursor-pointer">
+<span class="material-symbols-outlined text-sm">mode_comment</span>
+<span class="text-xs font-medium">1</span>
+</div>
+<img alt="Assignee" class="w-5 h-5 rounded-full ring-1 ring-outline-variant/20" data-alt="Portrait of a female security researcher wearing glasses and a blazer in a clean dark modern office" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwv00Qazpoj919bs9Zyj7biJ7EzaepPUpnKDcbqkrXfRfEr9UQK52ZXB0a9vxJV6j9GV64RxrPMftx2kmbxys4mBASiXB5oeaMpuk8RdauNA9gPVtdj-JzOgzmYAzTsInxfzRXb8rsyTKyrRwa6IcLcZSCxRidtJpQAC_YJmxB-HIiFJlqGZ0nF0A6ycwLvMuGxngdnp8VHPTn2ghhvNXW5IiINBG-FenVNi2UmNpwX_0WOBTsLYrM1w93XmZDYpKpX-_fTZuWxs5z"/>
+</div>
+</div>
+<!-- Finding 3 -->
+<div class="flex items-start p-4 hover:bg-surface-bright group transition-colors gap-4">
+<div class="pt-1 flex items-center gap-3">
+<input class="rounded-sm bg-surface-container-lowest border-outline-variant/40 text-primary" type="checkbox"/>
+<span class="material-symbols-outlined text-error" data-weight="fill">report</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-3 mb-1">
+<span class="px-2 py-0.5 rounded bg-error/10 text-error text-[10px] font-bold tracking-wider uppercase border border-error/20">HIGH</span>
+<h3 class="text-sm font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">Unsafe pointer cast without alignment</h3>
+<span class="px-2 py-0.5 rounded-full bg-surface-variant border border-outline-variant/30 text-on-surface-variant text-[10px] font-medium tracking-tight">MISRA 11.3</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-container/30 text-primary-dim text-[10px] font-medium tracking-tight">MISRA</span>
+<span class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-tertiary-container/20 text-tertiary-dim text-[9px] font-bold uppercase border border-tertiary-dim/20">
+<span class="material-symbols-outlined text-[10px]">verified</span>
+                                    Confirmed
+                                </span>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant/70">
+<span class="mono bg-surface-container-highest/50 px-1.5 py-0.5 rounded border border-outline-variant/10">src/hal/gpio_config.c:156</span>
+<span>•</span>
+<span>Opened Mar 28 by <span class="text-on-surface font-medium">Compliance-Bot</span></span>
+</div>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant/60">
+<div class="w-5 h-5 rounded-full bg-surface-container-highest border border-outline-variant/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-[10px]">person_off</span>
+</div>
+</div>
+</div>
+<!-- Finding 4 -->
+<div class="flex items-start p-4 hover:bg-surface-bright group transition-colors gap-4">
+<div class="pt-1 flex items-center gap-3">
+<input class="rounded-sm bg-surface-container-lowest border-outline-variant/40 text-primary" type="checkbox"/>
+<span class="material-symbols-outlined text-secondary" data-weight="fill">warning</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-3 mb-1">
+<span class="px-2 py-0.5 rounded bg-secondary-container/30 text-secondary-fixed text-[10px] font-bold tracking-wider uppercase border border-secondary-fixed/20">MEDIUM</span>
+<h3 class="text-sm font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">Out-of-bounds write in DMA buffer</h3>
+<span class="px-2 py-0.5 rounded-full bg-surface-variant border border-outline-variant/30 text-on-surface-variant text-[10px] font-medium tracking-tight">CWE-787</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-container/30 text-primary-dim text-[10px] font-medium tracking-tight">Rule Engine</span>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant/70">
+<span class="mono bg-surface-container-highest/50 px-1.5 py-0.5 rounded border border-outline-variant/10">src/drivers/dma_ctrl.c:312</span>
+<span>•</span>
+<span>Opened Apr 2 by <span class="text-on-surface font-medium">System</span></span>
+</div>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant/60">
+<img alt="Assignee" class="w-5 h-5 rounded-full ring-1 ring-outline-variant/20" data-alt="Portrait of a middle-aged male senior software architect with short hair and a beard, neutral expression" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDEq5HGGH2mRLaRJcuZI1IRFJQJ--hlKqqXa8ExSyO1aP3FBwbStuPSdmVJwAqzS4hnLAbfCw7_dxgsk-w7uksvTNzI96IzzSEDA0bhkLlTaFul8A2CwzXGTnTaaYSKgzFF3hQCkWXVzZieZJjYL3whuujGqZ4F7_UbqQbSWfBwRGgC2h3Wi-Q0H_PNbxhiIAtjyGe-VvAyfdI5MTHLshdECzaqDy_h3ffXnv5sbPb9BQleLcUzaZlQ1-ignci1wxtZIT314uoWPlqi"/>
+</div>
+</div>
+<!-- Finding 5 -->
+<div class="flex items-start p-4 hover:bg-surface-bright group transition-colors gap-4">
+<div class="pt-1 flex items-center gap-3">
+<input class="rounded-sm bg-surface-container-lowest border-outline-variant/40 text-primary" type="checkbox"/>
+<span class="material-symbols-outlined text-secondary" data-weight="fill">warning</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-3 mb-1">
+<span class="px-2 py-0.5 rounded bg-secondary-container/30 text-secondary-fixed text-[10px] font-bold tracking-wider uppercase border border-secondary-fixed/20">MEDIUM</span>
+<h3 class="text-sm font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">Return value of can_send() discarded</h3>
+<span class="px-2 py-0.5 rounded-full bg-surface-variant border border-outline-variant/30 text-on-surface-variant text-[10px] font-medium tracking-tight">MISRA 17.7</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-container/30 text-primary-dim text-[10px] font-medium tracking-tight">MISRA</span>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant/70">
+<span class="mono bg-surface-container-highest/50 px-1.5 py-0.5 rounded border border-outline-variant/10">src/comm/can_protocol.c:78</span>
+<span>•</span>
+<span>Opened Mar 28 by <span class="text-on-surface font-medium">Compliance-Bot</span></span>
+</div>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant/60">
+<img alt="Assignee" class="w-5 h-5 rounded-full ring-1 ring-outline-variant/20" data-alt="Portrait of a professional female engineer looking directly at the camera with a subtle smile" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDnDVOTm0nPDpWKyUODOqOcbV_gWnsDafL7k9_VHVgHcS4kyeCvg3h_OZNksk9uXtUnTepG0lUdTrHyKO7awJj5qQx5uDl2DG-QOlBsuDvsJWTnke_pjwp0V3VEybkRN3frhs1NDbT7ft56BfLhMVCZI5W94T86sMhltT1qT6L4DZT3oWSLjtX4yLAbp8ghjAKlIn17we1ifeuxIO4wFs3lFhVMEZwJZWZMH3CPjV6jpFWb5potVE11rAZWIealKgzBCxZ9Rc4Be7Wo"/>
+</div>
+</div>
+<!-- Finding 6 -->
+<div class="flex items-start p-4 hover:bg-surface-bright group transition-colors gap-4">
+<div class="pt-1 flex items-center gap-3">
+<input class="rounded-sm bg-surface-container-lowest border-outline-variant/40 text-primary" type="checkbox"/>
+<span class="material-symbols-outlined text-secondary" data-weight="fill">warning</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-3 mb-1">
+<span class="px-2 py-0.5 rounded bg-secondary-container/30 text-secondary-fixed text-[10px] font-bold tracking-wider uppercase border border-secondary-fixed/20">MEDIUM</span>
+<h3 class="text-sm font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">Integer overflow in timer calculation</h3>
+<span class="px-2 py-0.5 rounded-full bg-surface-variant border border-outline-variant/30 text-on-surface-variant text-[10px] font-medium tracking-tight">CWE-190</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-container/30 text-primary-dim text-[10px] font-medium tracking-tight">Rule Engine</span>
+<span class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-outline-variant/10 text-on-surface-variant text-[9px] font-bold uppercase border border-outline-variant/20">
+<span class="material-symbols-outlined text-[10px]">visibility_off</span>
+                                    False Positive
+                                </span>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant/70">
+<span class="mono bg-surface-container-highest/50 px-1.5 py-0.5 rounded border border-outline-variant/10">src/hal/timer.c:45</span>
+<span>•</span>
+<span>Opened Apr 2 by <span class="text-on-surface font-medium">System</span></span>
+</div>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant/60">
+<img alt="Assignee" class="w-5 h-5 rounded-full ring-1 ring-outline-variant/20" data-alt="Close up face of a male tech team lead with a short beard against a dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBlpq9vrOjXOgGlVyKzRkvpew2I7DXDUgAGlmqVVBALaBFIlQfRo9sOn_X7g2ZflPpDOmKc9PT-49xAabHtfIIDrrnAtctiyMqkpOY5NdkAug3YqbkrDiC7lloI_QmHFZk7hX3qx6HaeTnqRkh2e4cFgzqtfTxM5l4DazdL4ds56CUznBFUDglrAmaznghulUv7Xy4WphvD1X0OTmiy2h8-UvW3Q1nB0j3lsWFAAenaNdlw7BA5R7zJSAEN3GYW7LkNJ3Id7l1NeWn5"/>
+</div>
+</div>
+<!-- Finding 7 -->
+<div class="flex items-start p-4 hover:bg-surface-bright group transition-colors gap-4">
+<div class="pt-1 flex items-center gap-3">
+<input class="rounded-sm bg-surface-container-lowest border-outline-variant/40 text-primary" type="checkbox"/>
+<span class="material-symbols-outlined text-secondary" data-weight="fill">warning</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-3 mb-1">
+<span class="px-2 py-0.5 rounded bg-secondary-container/30 text-secondary-fixed text-[10px] font-bold tracking-wider uppercase border border-secondary-fixed/20">MEDIUM</span>
+<h3 class="text-sm font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">Memory leak in calibration init</h3>
+<span class="px-2 py-0.5 rounded-full bg-surface-variant border border-outline-variant/30 text-on-surface-variant text-[10px] font-medium tracking-tight">CWE-401</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-container/30 text-primary-dim text-[10px] font-medium tracking-tight">Deep Analysis</span>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant/70">
+<span class="mono bg-surface-container-highest/50 px-1.5 py-0.5 rounded border border-outline-variant/10">src/core/calibration.c:134</span>
+<span>•</span>
+<span>Opened Apr 5 by <span class="text-on-surface font-medium">DeepScan</span></span>
+</div>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant/60">
+<img alt="Assignee" class="w-5 h-5 rounded-full ring-1 ring-outline-variant/20" data-alt="Portrait of a black professional female engineer in high-key lighting with a minimalist tech background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDHRXpDlg8LTTOwWRAUhVLEL9yyKXR93--Ib8X4VCk5KPckLC2a3q_65emlOMNFSg5vfMYFlJVnFN65hY3V6rG55rkALU2sM0Ad-1ckz06vjxBiNsYAEKywGJRTbsYSrzn-qu-wZjwYmeXCyC-hyLvBFOW3Ms8Wf46CyomanIt3yozymp5AbpKP87gQahis1FLCICGq6eaXVRRkTolNMY5Rq9ou9edSYUyoToVVXoSJozXOCfrlNrWLEeHLoQ_1_UCuvxlj1MUzDZ8m"/>
+</div>
+</div>
+<!-- Finding 8 -->
+<div class="flex items-start p-4 hover:bg-surface-bright group transition-colors gap-4">
+<div class="pt-1 flex items-center gap-3">
+<input class="rounded-sm bg-surface-container-lowest border-outline-variant/40 text-primary" type="checkbox"/>
+<span class="material-symbols-outlined text-secondary" data-weight="fill">warning</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-3 mb-1">
+<span class="px-2 py-0.5 rounded bg-secondary-container/30 text-secondary-fixed text-[10px] font-bold tracking-wider uppercase border border-secondary-fixed/20">MEDIUM</span>
+<h3 class="text-sm font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">Missing else in power state chain</h3>
+<span class="px-2 py-0.5 rounded-full bg-surface-variant border border-outline-variant/30 text-on-surface-variant text-[10px] font-medium tracking-tight">MISRA 15.7</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-container/30 text-primary-dim text-[10px] font-medium tracking-tight">MISRA</span>
+<span class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-tertiary-container/20 text-tertiary-dim text-[9px] font-bold uppercase border border-tertiary-dim/20">
+<span class="material-symbols-outlined text-[10px]">verified</span>
+                                    Confirmed
+                                </span>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant/70">
+<span class="mono bg-surface-container-highest/50 px-1.5 py-0.5 rounded border border-outline-variant/10">src/core/power_mgmt.c:201</span>
+<span>•</span>
+<span>Opened Mar 28 by <span class="text-on-surface font-medium">Compliance-Bot</span></span>
+</div>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant/60">
+<img alt="Assignee" class="w-5 h-5 rounded-full ring-1 ring-outline-variant/20" data-alt="Portrait of a young executive man in a business casual outfit looking smart against a grey backdrop" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCVa0BOcgX3oIjmVl3Vbl1aAS9uHOUMb3iYBt5iCm4E5GndWyJflOkqZ0KS5jkY0O9BsRqo6_3d0x9OEJYToBpycxJ-odnDkLvZPCvQxaRQ4DEHiRF189UzF0f8Ix8KkyqxQdSHI3cVTjas1vMHYkPo1W50y1ILqGVYRovkW4QNzjzYuRVEHbEJDjIvmCtcrVC3yCHWntjh6OiYfdguHQizzLlOBtCnXxzYKewy09Z9rJtRkAVlZ0uhQHH712yjvLcGVt3dmR4l4pxM"/>
+</div>
+</div>
+<!-- Finding 9 -->
+<div class="flex items-start p-4 hover:bg-surface-bright group transition-colors gap-4">
+<div class="pt-1 flex items-center gap-3">
+<input class="rounded-sm bg-surface-container-lowest border-outline-variant/40 text-primary" type="checkbox"/>
+<span class="material-symbols-outlined text-primary" data-weight="fill">info</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-3 mb-1">
+<span class="px-2 py-0.5 rounded bg-primary-container/20 text-primary-fixed-dim text-[10px] font-bold tracking-wider uppercase border border-primary-fixed-dim/20">LOW</span>
+<h3 class="text-sm font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">Missing extern declaration</h3>
+<span class="px-2 py-0.5 rounded-full bg-surface-variant border border-outline-variant/30 text-on-surface-variant text-[10px] font-medium tracking-tight">MISRA 8.4</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-container/30 text-primary-dim text-[10px] font-medium tracking-tight">MISRA</span>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant/70">
+<span class="mono bg-surface-container-highest/50 px-1.5 py-0.5 rounded border border-outline-variant/10">src/core/config.h:23</span>
+<span>•</span>
+<span>Opened Mar 28 by <span class="text-on-surface font-medium">Compliance-Bot</span></span>
+</div>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant/60">
+<img alt="Assignee" class="w-5 h-5 rounded-full ring-1 ring-outline-variant/20" data-alt="Portrait of a woman with a confident gaze in a minimalist studio setting with dramatic lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC5iFfYApCEOgYULK0IYpmEOPWmM72tjP15AfueuCrmJHD7d3HCeYxYkxfTYOUfZgDbNjm_LZjrZpD_1nZKLHV_tYBLhpgUvWU0qKESkSUTJpAh-aQ2SW-KeVEDHxdL2DGD481RGZtOu-citSiFxSuwMlzoxugLk_XE-F6_gXoQc0MtK-tfH47Bjb9jhv5atE7k79IEjEhnx-9vuul9em6A-OSqR55R9w5xFLrFCDWYsjktpRF95HSZ1tn2F6PM9Rf8xC-LxD7TGr76"/>
+</div>
+</div>
+<!-- Finding 10 -->
+<div class="flex items-start p-4 hover:bg-surface-bright group transition-colors gap-4">
+<div class="pt-1 flex items-center gap-3">
+<input class="rounded-sm bg-surface-container-lowest border-outline-variant/40 text-primary" type="checkbox"/>
+<span class="material-symbols-outlined text-primary" data-weight="fill">info</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-3 mb-1">
+<span class="px-2 py-0.5 rounded bg-primary-container/20 text-primary-fixed-dim text-[10px] font-bold tracking-wider uppercase border border-primary-fixed-dim/20">LOW</span>
+<h3 class="text-sm font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">Dead code after infinite loop</h3>
+<span class="px-2 py-0.5 rounded-full bg-surface-variant border border-outline-variant/30 text-on-surface-variant text-[10px] font-medium tracking-tight">MISRA 2.2</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-container/30 text-primary-dim text-[10px] font-medium tracking-tight">MISRA</span>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant/70">
+<span class="mono bg-surface-container-highest/50 px-1.5 py-0.5 rounded border border-outline-variant/10">src/hal/wdt.c:67</span>
+<span>•</span>
+<span>Opened Mar 28 by <span class="text-on-surface font-medium">Compliance-Bot</span></span>
+</div>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant/60">
+<div class="w-5 h-5 rounded-full bg-surface-container-highest border border-outline-variant/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-[10px]">person_off</span>
+</div>
+</div>
+</div>
+</div>
+<!-- PAGINATION -->
+<div class="px-6 py-4 bg-surface-container-low border-t border-outline-variant/20 flex items-center justify-between">
+<span class="text-xs text-on-surface-variant/60">Showing <span class="text-on-surface font-semibold">1-10</span> of <span class="text-on-surface font-semibold">32</span> open findings</span>
+<div class="flex items-center gap-1">
+<button class="px-3 py-1.5 bg-surface-container border border-outline-variant/20 rounded-lg text-xs font-medium text-on-surface-variant cursor-not-allowed opacity-50 flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">chevron_left</span>
+                            Previous
+                        </button>
+<button class="px-3 py-1.5 bg-surface-container border border-outline-variant/20 rounded-lg text-xs font-medium text-on-surface hover:bg-surface-bright hover:text-primary transition-all flex items-center gap-1">
+                            Next
+                            <span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Footer Stats (Additional Bento Flair) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+<div class="bg-surface-container-low p-5 rounded-xl border border-outline-variant/10">
+<div class="text-xs font-bold text-on-surface-variant/60 uppercase tracking-widest mb-4">Fix Velocity</div>
+<div class="flex items-end gap-3">
+<div class="text-3xl font-headline font-bold text-on-surface tracking-tighter">4.2<span class="text-sm font-normal text-on-surface-variant">/day</span></div>
+<div class="mb-1 text-tertiary text-xs flex items-center font-bold">
+<span class="material-symbols-outlined text-sm">trending_up</span>
+                            12%
+                        </div>
+</div>
+<div class="mt-4 w-full bg-surface-variant h-1 rounded-full overflow-hidden">
+<div class="bg-primary h-full" style="width: 65%"></div>
+</div>
+</div>
+<div class="bg-surface-container-low p-5 rounded-xl border border-outline-variant/10">
+<div class="text-xs font-bold text-on-surface-variant/60 uppercase tracking-widest mb-4">Compliance Score</div>
+<div class="flex items-end gap-3">
+<div class="text-3xl font-headline font-bold text-on-surface tracking-tighter">88.4%</div>
+<div class="mb-1 text-error text-xs flex items-center font-bold">
+<span class="material-symbols-outlined text-sm">trending_down</span>
+                            1.4%
+                        </div>
+</div>
+<div class="mt-4 w-full bg-surface-variant h-1 rounded-full overflow-hidden">
+<div class="bg-tertiary h-full" style="width: 88%"></div>
+</div>
+</div>
+<div class="bg-surface-container-low p-5 rounded-xl border border-outline-variant/10">
+<div class="text-xs font-bold text-on-surface-variant/60 uppercase tracking-widest mb-4">Critical Density</div>
+<div class="flex items-end gap-3">
+<div class="text-3xl font-headline font-bold text-on-surface tracking-tighter">1.2</div>
+<div class="text-xs text-on-surface-variant mb-1">per KLOC</div>
+</div>
+<div class="mt-4 w-full bg-surface-variant h-1 rounded-full overflow-hidden">
+<div class="bg-error h-full" style="width: 20%"></div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

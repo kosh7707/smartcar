@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS Files Browser | ECU-PowerTrain-v2.1</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline-variant": "#484848",
+                        "inverse-on-surface": "#565555",
+                        "on-primary-container": "#c2cfff",
+                        "secondary-fixed": "#e4e2e2",
+                        "on-primary": "#00379b",
+                        "surface-container-high": "#1f2020",
+                        "tertiary-fixed": "#f83739",
+                        "outline": "#757575",
+                        "secondary-fixed-dim": "#d6d4d4",
+                        "on-primary-fixed-variant": "#0050d6",
+                        "on-primary-fixed": "#003799",
+                        "surface-dim": "#0e0e0e",
+                        "surface": "#0e0e0e",
+                        "secondary-container": "#3b3b3b",
+                        "secondary-dim": "#9e9e9d",
+                        "on-surface": "#e7e5e5",
+                        "primary-dim": "#a0b6ff",
+                        "surface-container": "#191a1a",
+                        "surface-container-low": "#131313",
+                        "inverse-surface": "#fcf9f8",
+                        "surface-container-lowest": "#000000",
+                        "on-background": "#e7e5e5",
+                        "primary-fixed": "#dbe1ff",
+                        "on-tertiary-fixed-variant": "#150000",
+                        "on-secondary-fixed-variant": "#5b5b5b",
+                        "on-tertiary-fixed": "#000000",
+                        "error-container": "#7f2927",
+                        "primary-container": "#003da9",
+                        "on-tertiary-container": "#000000",
+                        "on-secondary-fixed": "#3f3f3f",
+                        "on-secondary": "#202020",
+                        "tertiary": "#ff7169",
+                        "error": "#ee7d77",
+                        "on-error": "#490106",
+                        "error-dim": "#bb5551",
+                        "background": "#0e0e0e",
+                        "surface-variant": "#252626",
+                        "inverse-primary": "#0053de",
+                        "tertiary-dim": "#e2252c",
+                        "surface-bright": "#2b2c2c",
+                        "surface-tint": "#b4c5ff",
+                        "on-tertiary": "#4a0004",
+                        "primary": "#b4c5ff",
+                        "on-secondary-container": "#c0bfbf",
+                        "tertiary-container": "#f83739",
+                        "on-surface-variant": "#acabab",
+                        "on-error-container": "#ff9993",
+                        "tertiary-fixed-dim": "#e5282f",
+                        "secondary": "#9e9e9d",
+                        "primary-fixed-dim": "#c8d3ff",
+                        "surface-container-highest": "#252626"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Public Sans"],
+                        "body": ["Public Sans"],
+                        "label": ["Public Sans"],
+                        "mono": ["IBM Plex Mono"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: #161616; font-family: 'Public Sans', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #393939; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #484848; }
+    </style>
+</head>
+<body class="text-on-background antialiased selection:bg-primary-container selection:text-white">
+<!-- SIDEBAR: SideNavBar -->
+<aside class="h-screen w-64 fixed left-0 top-0 bg-[#161616] border-r border-[#393939] flex flex-col py-4 font-sans text-sm tracking-tight transition-all duration-150 ease-in-out z-[60]">
+<!-- Brand & Project Info -->
+<div class="px-6 mb-8">
+<div class="flex items-center gap-2 mb-4">
+<div class="bg-primary p-1.5 rounded-sm">
+<span class="material-symbols-outlined text-[#161616] text-xl" style="font-variation-settings: 'FILL' 1;">security</span>
+</div>
+<span class="font-mono text-lg font-bold text-gray-100">AEGIS</span>
+</div>
+<div class="space-y-1">
+<h2 class="text-gray-100 font-semibold truncate leading-tight">ECU-PowerTrain-v2.1</h2>
+<div class="flex items-center gap-2">
+<span class="text-[10px] font-bold text-blue-400 bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-600/30">release/2.1</span>
+<span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">ACTIVE ANALYSIS</span>
+</div>
+</div>
+</div>
+<!-- Navigation -->
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-6 py-2.5 text-gray-400 hover:bg-[#393939] transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg">dashboard</span>
+<span>Overview</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-2.5 text-gray-400 hover:bg-[#393939] transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg">analytics</span>
+<span>Static Analysis</span>
+</a>
+<!-- Active Navigation -->
+<a class="flex items-center gap-3 px-6 py-2.5 border-l-4 border-blue-600 bg-[#262626] text-gray-100 font-semibold group" href="#">
+<span class="material-symbols-outlined text-lg text-blue-500" style="font-variation-settings: 'FILL' 1;">folder_open</span>
+<span>Files</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-2.5 text-gray-400 hover:bg-[#393939] transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg">gpp_maybe</span>
+<span>Vulnerabilities</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-2.5 text-gray-400 hover:bg-[#393939] transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg">history</span>
+<span>Analysis History</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-2.5 text-gray-400 hover:bg-[#393939] transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg">assessment</span>
+<span>Report</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-2.5 text-gray-400 hover:bg-[#393939] transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg">fact_check</span>
+<span>Quality Gate</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-2.5 text-gray-400 hover:bg-[#393939] transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg">verified_user</span>
+<span>Approvals</span>
+</a>
+<div class="mt-auto pt-4">
+<a class="flex items-center gap-3 px-6 py-2.5 text-gray-400 hover:bg-[#393939] transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg">settings</span>
+<span>Settings</span>
+</a>
+</div>
+</nav>
+</aside>
+<!-- HEADER: TopAppBar -->
+<header class="h-12 w-full ml-64 sticky top-0 z-50 bg-[#161616]/95 backdrop-blur-md border-b border-[#393939] flex items-center justify-between px-6">
+<div class="flex items-center gap-4 text-xs font-sans uppercase tracking-widest">
+<span class="text-gray-400">프로젝트</span>
+<span class="text-gray-600 material-symbols-outlined scale-75">chevron_right</span>
+<span class="text-gray-400">ECU-PowerTrain-v2.1</span>
+<span class="text-gray-600 material-symbols-outlined scale-75">chevron_right</span>
+<span class="text-blue-400 font-bold border-b-2 border-blue-600">파일</span>
+</div>
+<div class="flex items-center gap-6 flex-1 justify-end max-w-2xl">
+<div class="relative w-full max-w-sm group">
+<span class="absolute inset-y-0 left-3 flex items-center text-gray-500">
+<span class="material-symbols-outlined text-lg">search</span>
+</span>
+<input class="w-full h-8 pl-10 pr-16 bg-[#262626] border-none text-xs text-gray-100 focus:ring-1 focus:ring-blue-600 transition-all placeholder:text-gray-600" placeholder="파일 검색..." type="text"/>
+<span class="absolute inset-y-0 right-3 flex items-center text-[10px] text-gray-500 font-mono">path/to/*</span>
+</div>
+<div class="flex items-center gap-4 text-gray-400">
+<button class="hover:text-white transition-colors relative">
+<span class="material-symbols-outlined text-lg">notifications</span>
+<span class="absolute top-0 right-0 block h-1.5 w-1.5 rounded-full bg-blue-600 ring-2 ring-[#161616]"></span>
+</button>
+<button class="hover:text-white transition-colors">
+<span class="material-symbols-outlined text-lg">help_outline</span>
+</button>
+<button class="hover:text-white transition-colors">
+<span class="material-symbols-outlined text-lg">account_circle</span>
+</button>
+</div>
+</div>
+</header>
+<!-- MAIN CONTENT -->
+<main class="ml-64 p-8">
+<div class="max-w-7xl mx-auto space-y-8">
+<!-- SECTION 1: File Statistics Bar -->
+<section class="bg-[#262626] p-6 rounded-lg shadow-sm border border-[#393939]/30">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-4">
+<h3 class="text-sm font-bold text-gray-100 uppercase tracking-wider">Storage Overview</h3>
+<div class="h-4 w-[1px] bg-[#393939]"></div>
+<p class="text-sm text-gray-400"><span class="text-gray-100 font-mono">127</span> Files | <span class="text-gray-100 font-mono">2.4 MB</span></p>
+</div>
+</div>
+<div class="space-y-4">
+<!-- Progress Bar -->
+<div class="h-3 w-full bg-[#161616] rounded-full overflow-hidden flex">
+<div class="h-full bg-blue-600" style="width: 82%" title="C: 82%"></div>
+<div class="h-full bg-orange-500" style="width: 11%" title="C++: 11%"></div>
+<div class="h-full bg-yellow-500" style="width: 4%" title="Assembly: 4%"></div>
+<div class="h-full bg-gray-500" style="width: 3%" title="Other: 3%"></div>
+</div>
+<!-- Legend -->
+<div class="flex flex-wrap gap-6 items-center">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-blue-600"></span>
+<span class="text-xs text-gray-400">C <span class="text-gray-100 font-mono ml-1">82% (104 files)</span></span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-orange-500"></span>
+<span class="text-xs text-gray-400">C++ <span class="text-gray-100 font-mono ml-1">11% (14 files)</span></span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-yellow-500"></span>
+<span class="text-xs text-gray-400">Assembly <span class="text-gray-100 font-mono ml-1">4% (5 files)</span></span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-gray-500"></span>
+<span class="text-xs text-gray-400">Other <span class="text-gray-100 font-mono ml-1">3% (4 files)</span></span>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 2: File Type Filter Chips -->
+<section class="flex items-center gap-2 custom-scrollbar overflow-x-auto pb-2">
+<button class="px-4 py-1.5 rounded-full text-xs font-medium bg-[#393939] text-gray-400 hover:text-white transition-colors">All</button>
+<button class="px-4 py-1.5 rounded-full text-xs font-semibold bg-blue-600 text-white flex items-center gap-2">
+                    Source
+                    <span class="bg-blue-800/50 px-1.5 py-0.5 rounded text-[10px]">89</span>
+</button>
+<button class="px-4 py-1.5 rounded-full text-xs font-medium bg-[#262626] text-gray-400 border border-[#393939] hover:bg-[#393939] hover:text-white transition-colors flex items-center gap-2">
+                    Header
+                    <span class="text-[10px] text-gray-500">23</span>
+</button>
+<button class="px-4 py-1.5 rounded-full text-xs font-medium bg-[#262626] text-gray-400 border border-[#393939] hover:bg-[#393939] hover:text-white transition-colors flex items-center gap-2">
+                    Config
+                    <span class="text-[10px] text-gray-500">6</span>
+</button>
+<button class="px-4 py-1.5 rounded-full text-xs font-medium bg-[#262626] text-gray-400 border border-[#393939] hover:bg-[#393939] hover:text-white transition-colors flex items-center gap-2">
+                    Build
+                    <span class="text-[10px] text-gray-500">5</span>
+</button>
+<button class="px-4 py-1.5 rounded-full text-xs font-medium bg-[#262626] text-gray-400 border border-[#393939] hover:bg-[#393939] hover:text-white transition-colors flex items-center gap-2">
+                    Linker
+                    <span class="text-[10px] text-gray-500">2</span>
+</button>
+<button class="px-4 py-1.5 rounded-full text-xs font-medium bg-[#262626] text-gray-400 border border-[#393939] hover:bg-[#393939] hover:text-white transition-colors flex items-center gap-2">
+                    Script
+                    <span class="text-[10px] text-gray-500">2</span>
+</button>
+</section>
+<!-- SECTION 3: Source File Tree Table -->
+<section class="bg-[#262626] rounded-lg overflow-hidden shadow-2xl border border-[#393939]/40">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-[#161616] text-[11px] uppercase tracking-widest text-gray-500 border-b border-[#393939]">
+<tr>
+<th class="px-6 py-4 font-semibold">File Path</th>
+<th class="px-4 py-4 font-semibold">Size</th>
+<th class="px-4 py-4 font-semibold">Language</th>
+<th class="px-4 py-4 font-semibold">Type</th>
+<th class="px-4 py-4 font-semibold">Findings</th>
+<th class="px-6 py-4 font-semibold">Target</th>
+</tr>
+</thead>
+<tbody class="text-sm font-mono divide-y divide-transparent">
+<!-- src/ (Expanded) -->
+<tr class="bg-[#262626] hover:bg-[#333333] transition-colors group">
+<td class="px-6 py-3 flex items-center gap-2 text-gray-100">
+<span class="material-symbols-outlined text-lg text-blue-400">expand_more</span>
+<span class="material-symbols-outlined text-lg text-gray-500" style="font-variation-settings: 'FILL' 1;">folder</span>
+<span>src/</span>
+</td>
+<td class="px-4 py-3 text-gray-500">—</td>
+<td class="px-4 py-3 text-gray-500">—</td>
+<td class="px-4 py-3 text-gray-500">directory</td>
+<td class="px-4 py-3 text-gray-500">5 total</td>
+<td class="px-6 py-3 text-gray-500">—</td>
+</tr>
+<!-- src/core/ (Expanded) -->
+<tr class="bg-[#262626] hover:bg-[#333333] transition-colors group">
+<td class="px-6 py-3 flex items-center gap-2 text-gray-100 pl-12">
+<span class="material-symbols-outlined text-lg text-blue-400">expand_more</span>
+<span class="material-symbols-outlined text-lg text-gray-500" style="font-variation-settings: 'FILL' 1;">folder</span>
+<span>core/</span>
+</td>
+<td class="px-4 py-3 text-gray-500">—</td>
+<td class="px-4 py-3 text-gray-500">—</td>
+<td class="px-4 py-3 text-gray-500">directory</td>
+<td class="px-4 py-3 text-gray-500">3 total</td>
+<td class="px-6 py-3 text-gray-500">—</td>
+</tr>
+<!-- main.c -->
+<tr class="bg-[#262626] hover:bg-[#393939] transition-colors">
+<td class="px-6 py-2.5 flex items-center gap-3 text-gray-300 pl-[4.5rem]">
+<span class="material-symbols-outlined text-lg text-blue-400">description</span>
+<span>main.c</span>
+</td>
+<td class="px-4 py-2.5 text-gray-400">12.4 KB</td>
+<td class="px-4 py-2.5 text-gray-400">C</td>
+<td class="px-4 py-2.5 text-gray-500 text-xs">source</td>
+<td class="px-4 py-2.5"><span class="text-gray-500">0</span></td>
+<td class="px-6 py-2.5 text-xs text-gray-500">arm-cortex-m4-main</td>
+</tr>
+<!-- ecu_init.c -->
+<tr class="bg-[#191a1a] hover:bg-[#393939] transition-colors">
+<td class="px-6 py-2.5 flex items-center gap-3 text-gray-300 pl-[4.5rem]">
+<span class="material-symbols-outlined text-lg text-blue-400">description</span>
+<span>ecu_init.c</span>
+</td>
+<td class="px-4 py-2.5 text-gray-400">8.7 KB</td>
+<td class="px-4 py-2.5 text-gray-400">C</td>
+<td class="px-4 py-2.5 text-gray-500 text-xs">source</td>
+<td class="px-4 py-2.5">
+<span class="inline-flex items-center gap-1 bg-yellow-500/10 text-yellow-500 px-2 py-0.5 rounded text-[10px] font-bold border border-yellow-500/20">
+<span class="material-symbols-outlined text-xs">warning</span> 2
+                                    </span>
+</td>
+<td class="px-6 py-2.5 text-xs text-gray-500">arm-cortex-m4-main</td>
+</tr>
+<!-- config.h -->
+<tr class="bg-[#262626] hover:bg-[#393939] transition-colors">
+<td class="px-6 py-2.5 flex items-center gap-3 text-gray-300 pl-[4.5rem]">
+<span class="material-symbols-outlined text-lg text-gray-600">settings_applications</span>
+<span>config.h</span>
+</td>
+<td class="px-4 py-2.5 text-gray-400">3.1 KB</td>
+<td class="px-4 py-2.5 text-gray-400">C</td>
+<td class="px-4 py-2.5 text-gray-500 text-xs">header</td>
+<td class="px-4 py-2.5"><span class="text-gray-500">1</span></td>
+<td class="px-6 py-2.5 text-xs text-gray-500">arm-cortex-m4-main</td>
+</tr>
+<!-- drivers/ (Expanded) -->
+<tr class="bg-[#262626] hover:bg-[#333333] transition-colors group">
+<td class="px-6 py-3 flex items-center gap-2 text-gray-100 pl-12">
+<span class="material-symbols-outlined text-lg text-blue-400">expand_more</span>
+<span class="material-symbols-outlined text-lg text-gray-500" style="font-variation-settings: 'FILL' 1;">folder</span>
+<span>drivers/</span>
+</td>
+<td class="px-4 py-3 text-gray-500">—</td>
+<td class="px-4 py-3 text-gray-500">—</td>
+<td class="px-4 py-3 text-gray-500">directory</td>
+<td class="px-4 py-3 text-gray-500">4 total</td>
+<td class="px-6 py-3 text-gray-500">—</td>
+</tr>
+<!-- can_driver.c -->
+<tr class="bg-[#191a1a] hover:bg-[#393939] transition-colors">
+<td class="px-6 py-2.5 flex items-center gap-3 text-gray-300 pl-[4.5rem]">
+<span class="material-symbols-outlined text-lg text-blue-400">description</span>
+<span>can_driver.c</span>
+</td>
+<td class="px-4 py-2.5 text-gray-400">15.3 KB</td>
+<td class="px-4 py-2.5 text-gray-400">C</td>
+<td class="px-4 py-2.5 text-gray-500 text-xs">source</td>
+<td class="px-4 py-2.5">
+<span class="inline-flex items-center gap-1 bg-red-600 text-white px-2 py-0.5 rounded text-[10px] font-bold">
+<span class="material-symbols-outlined text-xs">error</span> 3
+                                    </span>
+</td>
+<td class="px-6 py-2.5 text-xs text-gray-500">arm-cortex-m4-main</td>
+</tr>
+<!-- dma_ctrl.c -->
+<tr class="bg-[#191a1a] hover:bg-[#393939] transition-colors">
+<td class="px-6 py-2.5 flex items-center gap-3 text-gray-300 pl-[4.5rem]">
+<span class="material-symbols-outlined text-lg text-blue-400">description</span>
+<span>dma_ctrl.c</span>
+</td>
+<td class="px-4 py-2.5 text-gray-400">11.6 KB</td>
+<td class="px-4 py-2.5 text-gray-400">C</td>
+<td class="px-4 py-2.5 text-gray-500 text-xs">source</td>
+<td class="px-4 py-2.5">
+<span class="inline-flex items-center gap-1 bg-yellow-500/10 text-yellow-500 px-2 py-0.5 rounded text-[10px] font-bold border border-yellow-500/20">
+<span class="material-symbols-outlined text-xs">warning</span> 1
+                                    </span>
+</td>
+<td class="px-6 py-2.5 text-xs text-gray-500">arm-cortex-m4-main</td>
+</tr>
+<!-- boot/ (Collapsed) -->
+<tr class="bg-[#262626] hover:bg-[#333333] transition-colors group border-t border-[#393939]/20">
+<td class="px-6 py-3 flex items-center gap-2 text-gray-400">
+<span class="material-symbols-outlined text-lg text-gray-600">chevron_right</span>
+<span class="material-symbols-outlined text-lg text-gray-600" style="font-variation-settings: 'FILL' 1;">folder</span>
+<span>boot/</span>
+</td>
+<td class="px-4 py-3 text-gray-600">—</td>
+<td class="px-4 py-3 text-gray-600">—</td>
+<td class="px-4 py-3 text-gray-600">directory</td>
+<td class="px-4 py-3 text-gray-600">1 file</td>
+<td class="px-6 py-3 text-gray-600">—</td>
+</tr>
+<!-- Makefile -->
+<tr class="bg-[#191a1a] hover:bg-[#393939] transition-colors">
+<td class="px-6 py-2.5 flex items-center gap-3 text-gray-300">
+<span class="material-symbols-outlined text-lg text-gray-500">terminal</span>
+<span>Makefile</span>
+</td>
+<td class="px-4 py-2.5 text-gray-400">1.8 KB</td>
+<td class="px-4 py-2.5 text-gray-400">Make</td>
+<td class="px-4 py-2.5 text-gray-500 text-xs">build</td>
+<td class="px-4 py-2.5 text-gray-500">0</td>
+<td class="px-6 py-2.5 text-xs text-gray-500">—</td>
+</tr>
+<!-- linker.ld -->
+<tr class="bg-[#262626] hover:bg-[#393939] transition-colors">
+<td class="px-6 py-2.5 flex items-center gap-3 text-gray-300">
+<span class="material-symbols-outlined text-lg text-gray-500">rebase_edit</span>
+<span>linker.ld</span>
+</td>
+<td class="px-4 py-2.5 text-gray-400">1.1 KB</td>
+<td class="px-4 py-2.5 text-gray-400">—</td>
+<td class="px-4 py-2.5 text-gray-500 text-xs">linker</td>
+<td class="px-4 py-2.5 text-gray-500">0</td>
+<td class="px-6 py-2.5 text-xs text-gray-500">arm-cortex-m4-main</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination/Status Footer -->
+<div class="px-6 py-4 bg-[#161616] border-t border-[#393939] flex items-center justify-between text-[11px] text-gray-500 font-sans uppercase tracking-widest">
+<div class="flex items-center gap-4">
+<span>Showing 12 of 127 items</span>
+<div class="flex items-center gap-1">
+<span>Rows per page:</span>
+<select class="bg-transparent border-none focus:ring-0 text-[11px] text-gray-300 cursor-pointer p-0">
+<option>25</option>
+<option>50</option>
+<option>100</option>
+</select>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-1 hover:text-white transition-colors disabled:opacity-30" disabled="">
+<span class="material-symbols-outlined text-sm">first_page</span>
+</button>
+<button class="p-1 hover:text-white transition-colors disabled:opacity-30" disabled="">
+<span class="material-symbols-outlined text-sm">chevron_left</span>
+</button>
+<span class="px-2">Page 1 of 6</span>
+<button class="p-1 hover:text-white transition-colors">
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+<button class="p-1 hover:text-white transition-colors">
+<span class="material-symbols-outlined text-sm">last_page</span>
+</button>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Floating Detail Overlay (Preview) -->
+<div class="fixed bottom-8 right-8 w-80 bg-surface-container-high rounded-xl shadow-2xl border border-outline-variant p-5 z-[100] transform transition-transform hover:translate-y-[-4px]">
+<div class="flex items-start justify-between mb-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-red-600 bg-red-600/10 p-2 rounded">error</span>
+<div>
+<h4 class="text-xs font-bold text-gray-100 uppercase tracking-wider">Critical Warning</h4>
+<p class="text-[11px] text-gray-500 font-mono">can_driver.c:142</p>
+</div>
+</div>
+<button class="text-gray-600 hover:text-white">
+<span class="material-symbols-outlined text-sm">close</span>
+</button>
+</div>
+<div class="space-y-3">
+<p class="text-xs text-gray-300 leading-relaxed">CWE-119: Improper Restriction of Operations within the Bounds of a Memory Buffer detected in ISR.</p>
+<div class="bg-[#161616] p-3 rounded font-mono text-[10px] text-gray-400 overflow-x-auto">
+<span class="text-blue-400">memcpy</span>(rx_buf, can_packet-&gt;data, len);
+            </div>
+<button class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 rounded transition-colors uppercase tracking-widest">
+                Go to Evidence
+            </button>
+</div>
+</div>
+</body></html>

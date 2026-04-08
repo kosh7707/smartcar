@@ -124,7 +124,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
   return (
     <div className="page-enter">
       <BackButton onClick={onBack} label="뒤로" />
-      <p className="text-sm text-tertiary" style={{ margin: "0 0 var(--space-3) 0" }}>정적 분석 › Finding 상세</p>
+      <p className="text-sm text-tertiary" style={{ margin: "0 0 var(--cds-spacing-04) 0" }}>정적 분석 › Finding 상세</p>
 
       {/* Header: severity banner */}
       <div
@@ -237,7 +237,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
       {pocData && (
         <div className="card poc-section">
           <div className="poc-header">
-            <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+            <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "var(--cds-spacing-03)" }}>
               <FlaskConical size={16} />
               PoC — {pocData.poc.statement}
             </div>

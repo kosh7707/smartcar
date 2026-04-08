@@ -151,7 +151,7 @@ export const DynamicAnalysisPage: React.FC = () => {
           <div className="dyn-config__section">
             <label className="dyn-config__label">어댑터</label>
             {connected.length === 0 ? (
-              <p className="dyn-config__hint" style={{ color: "var(--danger)" }}>
+              <p className="dyn-config__hint" style={{ color: "var(--cds-support-error)" }}>
                 연결된 어댑터가 없습니다.{" "}
                 <a href={`#/projects/${projectId}/settings`}>프로젝트 설정</a>에서 연결해주세요.
               </p>

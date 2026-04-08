@@ -1,57 +1,57 @@
 .vuln-filter-bar {
   display: flex;
-  gap: var(--space-1);
-  margin-bottom: var(--space-3);
+  gap: var(--cds-spacing-02);
+  margin-bottom: var(--cds-spacing-04);
   flex-wrap: wrap;
   align-items: center;
-  padding: var(--space-2) var(--space-3);
-  background: var(--surface-1);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-panel);
+  padding: var(--cds-spacing-03) var(--cds-spacing-04);
+  background: var(--cds-layer-01);
+  border: 1px solid var(--cds-border-subtle);
+  border-radius: var(--cds-radius);
 }
 
 .vuln-filter-tab {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
+  gap: var(--cds-spacing-02);
+  padding: var(--cds-spacing-02) var(--cds-spacing-03);
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--cds-radius);
   background: transparent;
-  color: var(--text-tertiary);
-  font-size: var(--text-xs);
-  font-family: var(--font-data);
-  font-weight: var(--weight-medium);
+  color: var(--cds-text-placeholder);
+  font-size: var(--cds-type-xs);
+  font-family: var(--cds-font-mono);
+  font-weight: var(--cds-weight-medium);
   cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition: background var(--cds-transition-fast), color var(--cds-transition-fast);
 }
 
 .vuln-filter-tab:hover {
-  background: var(--surface-2);
-  color: var(--text-secondary);
+  background: var(--cds-layer-02);
+  color: var(--cds-text-secondary);
 }
 
 .vuln-filter-tab--active {
-  background: var(--accent-subtle);
-  color: var(--accent);
+  background: var(--cds-interactive-subtle);
+  color: var(--cds-interactive);
 }
 
 .vuln-filter-tab--active:hover {
-  background: var(--accent-subtle);
+  background: var(--cds-interactive-subtle);
 }
 
 .vuln-filter-count {
-  font-size: var(--text-xs);
+  font-size: var(--cds-type-xs);
   opacity: 0.7;
 }
 
 .vuln-module-tag {
   margin-left: auto;
-  font-size: var(--text-xs);
+  font-size: var(--cds-type-xs);
   padding: 1px 6px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  color: var(--text-tertiary);
+  border-radius: var(--cds-radius);
+  background: var(--cds-layer-02);
+  color: var(--cds-text-placeholder);
 }
 
 /* ── Search & Sort ── */
@@ -59,25 +59,25 @@
 .vuln-search-bar {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  color: var(--text-tertiary);
+  gap: var(--cds-spacing-03);
+  color: var(--cds-text-placeholder);
 }
 
 .vuln-search-input {
   max-width: 200px;
-  font-size: var(--text-sm);
+  font-size: var(--cds-type-sm);
 }
 
 .vuln-sort-bar {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  color: var(--text-tertiary);
+  gap: var(--cds-spacing-02);
+  color: var(--cds-text-placeholder);
 }
 
 .vuln-sort-select {
   max-width: 100px;
-  font-size: var(--text-sm);
+  font-size: var(--cds-type-sm);
 }
 
 /* ── Date Filter ── */
@@ -85,23 +85,23 @@
 .vuln-date-filter {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--cds-spacing-03);
   margin-left: auto;
 }
 
 .vuln-date-filter__icon {
-  color: var(--text-tertiary);
+  color: var(--cds-text-placeholder);
   flex-shrink: 0;
 }
 
 .vuln-date-filter__input {
   max-width: 160px;
-  font-size: var(--text-sm);
+  font-size: var(--cds-type-sm);
 }
 
 .vuln-date-filter__sep {
-  color: var(--text-tertiary);
-  font-size: var(--text-sm);
+  color: var(--cds-text-placeholder);
+  font-size: var(--cds-type-sm);
 }
 
 /* ── Empty state ── */
@@ -111,7 +111,7 @@
 }
 
 .vuln-empty-card {
-  padding: var(--space-8);
+  padding: var(--cds-spacing-07);
   text-align: center;
 }
 
@@ -122,50 +122,50 @@
   overflow: hidden;
 }
 
-.vuln-group--static  { border-left: 3px solid var(--module-static); }
-.vuln-group--dynamic { border-left: 3px solid var(--success); }
-.vuln-group--test    { border-left: 3px solid var(--accent); }
+.vuln-group--static  { border-left: 3px solid var(--aegis-module-static); }
+.vuln-group--dynamic { border-left: 3px solid var(--cds-support-success); }
+.vuln-group--test    { border-left: 3px solid var(--cds-interactive); }
 
 .vuln-group__header {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-5);
-  background: var(--surface-0);
-  border-bottom: 1px solid var(--border-default);
+  gap: var(--cds-spacing-03);
+  padding: var(--cds-spacing-04) var(--aegis-spacing-05);
+  background: var(--cds-background);
+  border-bottom: 1px solid var(--cds-border-subtle);
 }
 
-.vuln-group--static  .vuln-group__header { background: var(--module-static-bg); }
-.vuln-group--dynamic .vuln-group__header { background: var(--module-dynamic-bg); }
-.vuln-group--test    .vuln-group__header { background: var(--module-test-bg); }
+.vuln-group--static  .vuln-group__header { background: var(--aegis-module-static-bg); }
+.vuln-group--dynamic .vuln-group__header { background: var(--aegis-module-dynamic-bg); }
+.vuln-group--test    .vuln-group__header { background: var(--aegis-module-test-bg); }
 
 .vuln-group__header-top {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--cds-spacing-03);
 }
 
 .vuln-group__sep {
-  color: var(--text-tertiary);
-  font-size: var(--text-sm);
+  color: var(--cds-text-placeholder);
+  font-size: var(--cds-type-sm);
 }
 
 .vuln-group__time {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-secondary);
   white-space: nowrap;
 }
 
 .vuln-group__vcount {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  color: var(--text-secondary);
+  font-size: var(--cds-type-sm);
+  font-weight: var(--cds-weight-medium);
+  color: var(--cds-text-secondary);
   white-space: nowrap;
 }
 
 .vuln-group__body .vuln-card {
-  padding: var(--space-3) var(--space-5);
-  border-bottom: 1px solid var(--border-subtle);
+  padding: var(--cds-spacing-04) var(--aegis-spacing-05);
+  border-bottom: 1px solid var(--cds-border-subtle);
 }
 
 .vuln-group__body .vuln-card:last-child {
@@ -173,7 +173,7 @@
 }
 
 .vuln-group__body .vuln-card:hover {
-  background: var(--surface-2);
+  background: var(--cds-layer-02);
   box-shadow: none;
 }
 
@@ -181,7 +181,7 @@
 
 .vuln-extra-select {
   max-width: 130px;
-  font-size: var(--text-sm);
+  font-size: var(--cds-type-sm);
 }
 
 /* ── Bulk Action Bar ── */
@@ -189,15 +189,15 @@
 .vuln-bulk-bar {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3) !important;
-  margin-bottom: var(--space-3);
+  gap: var(--cds-spacing-03);
+  padding: var(--cds-spacing-03) var(--cds-spacing-04) !important;
+  margin-bottom: var(--cds-spacing-04);
 }
 
 .vuln-bulk-bar__count {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  color: var(--accent);
+  font-size: var(--cds-type-sm);
+  font-weight: var(--cds-weight-semibold);
+  color: var(--cds-interactive);
   white-space: nowrap;
 }
 
@@ -217,26 +217,26 @@
 .vuln-finding-row {
   display: grid;
   grid-template-columns: 36px 80px 90px 1fr 80px 100px 70px 100px;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  gap: var(--cds-spacing-03);
+  padding: var(--cds-spacing-03) var(--cds-spacing-04);
   align-items: center;
 }
 
 .vuln-finding-header {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  color: var(--text-tertiary);
+  font-size: var(--cds-type-xs);
+  font-weight: var(--cds-weight-semibold);
+  color: var(--cds-text-placeholder);
   text-transform: uppercase;
   letter-spacing: 0.3px;
-  border-bottom: 1px solid var(--border-default);
-  background: var(--surface-0);
+  border-bottom: 1px solid var(--cds-border-subtle);
+  background: var(--cds-background);
 }
 
 .vuln-finding-row {
-  border-bottom: 1px solid var(--border-subtle);
-  font-size: var(--text-sm);
+  border-bottom: 1px solid var(--cds-border-subtle);
+  font-size: var(--cds-type-sm);
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: background var(--cds-transition-fast);
 }
 
 .vuln-finding-row:last-child {
@@ -244,11 +244,11 @@
 }
 
 .vuln-finding-row:hover {
-  background: var(--surface-2);
+  background: var(--cds-layer-02);
 }
 
 .vuln-finding-row--selected {
-  background: var(--surface-2);
+  background: var(--cds-layer-02);
 }
 
 .vuln-finding-col--check {
@@ -263,7 +263,7 @@
 
 .vuln-finding-title {
   display: block;
-  font-weight: var(--weight-medium);
+  font-weight: var(--cds-weight-medium);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -271,18 +271,18 @@
 
 .vuln-finding-location {
   display: block;
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
-  font-family: var(--font-data);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
+  font-family: var(--cds-font-mono);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .vuln-finding-col--date {
-  font-size: var(--text-xs);
-  font-family: var(--font-data);
-  color: var(--text-tertiary);
+  font-size: var(--cds-type-xs);
+  font-family: var(--cds-font-mono);
+  color: var(--cds-text-placeholder);
   white-space: nowrap;
 }
 
@@ -291,18 +291,18 @@
 .vuln-active-filters {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  margin-bottom: var(--space-2);
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
+  gap: var(--cds-spacing-03);
+  padding: var(--cds-spacing-03) var(--cds-spacing-04);
+  margin-bottom: var(--cds-spacing-03);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-secondary);
   flex-wrap: wrap;
 }
 
 .vuln-active-filters__label {
-  font-family: var(--font-data);
-  color: var(--text-tertiary);
-  margin-right: var(--space-1);
+  font-family: var(--cds-font-mono);
+  color: var(--cds-text-placeholder);
+  margin-right: var(--cds-spacing-02);
 }
 
 .vuln-filter-chip {
@@ -310,10 +310,10 @@
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  background: var(--accent-subtle);
-  color: var(--accent);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
+  background: var(--cds-interactive-subtle);
+  color: var(--cds-interactive);
+  border-radius: var(--cds-radius);
+  font-size: var(--cds-type-xs);
 }
 
 .vuln-filter-chip__x {
@@ -331,25 +331,25 @@
 /* ── Keyboard shortcut help ── */
 
 .vuln-shortcut-help {
-  margin-bottom: var(--space-3);
-  padding: var(--space-3);
+  margin-bottom: var(--cds-spacing-04);
+  padding: var(--cds-spacing-04);
 }
 
 .vuln-shortcut-list {
   display: flex;
-  gap: var(--space-4);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
+  gap: var(--cds-spacing-05);
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-secondary);
   flex-wrap: wrap;
 }
 
 .vuln-shortcut-list kbd {
   display: inline-block;
   padding: 1px 5px;
-  font-family: var(--font-data);
-  font-size: var(--text-xs);
-  background: var(--surface-2);
-  border: 1px solid var(--border-default);
+  font-family: var(--cds-font-mono);
+  font-size: var(--cds-type-xs);
+  background: var(--cds-layer-02);
+  border: 1px solid var(--cds-border-subtle);
   border-radius: 3px;
   margin-right: 2px;
 }
@@ -359,104 +359,104 @@
 .vuln-keyboard-hint {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--cds-spacing-02);
   justify-content: center;
-  padding: var(--space-2) 0;
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
+  padding: var(--cds-spacing-03) 0;
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
   opacity: 0.6;
 }
 
 .vuln-keyboard-hint kbd {
   display: inline-block;
   padding: 0 4px;
-  font-family: var(--font-data);
-  font-size: var(--text-2xs);
-  background: var(--surface-2);
-  border: 1px solid var(--border-default);
+  font-family: var(--cds-font-mono);
+  font-size: var(--cds-type-2xs);
+  background: var(--cds-layer-02);
+  border: 1px solid var(--cds-border-subtle);
   border-radius: 3px;
 }
 
 /* ── Finding row highlight ── */
 
 .vuln-finding-row--highlight {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--cds-interactive);
   outline-offset: -2px;
-  background: var(--accent-subtle) !important;
+  background: var(--cds-interactive-subtle) !important;
 }
 
 /* ── Finding Groups (accordion) ── */
 
 .vuln-groups {
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--cds-spacing-04);
 }
 
 .vuln-group {
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--cds-border-subtle);
 }
 
 .vuln-group__header {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3);
+  gap: var(--cds-spacing-03);
+  padding: var(--cds-spacing-04);
   cursor: pointer;
-  font-weight: var(--weight-semibold);
-  transition: background var(--transition-fast);
+  font-weight: var(--cds-weight-semibold);
+  transition: background var(--cds-transition-fast);
 }
 
 .vuln-group__header:hover {
-  background: var(--surface-2);
+  background: var(--cds-layer-02);
 }
 
 .vuln-group__arrow {
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
   width: 16px;
   text-align: center;
 }
 
 .vuln-group__key {
-  font-family: var(--font-data);
+  font-family: var(--cds-font-mono);
 }
 
 .vuln-group__count {
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
   margin-left: auto;
 }
 
 .vuln-group__body {
-  padding-left: var(--space-6);
-  border-top: 1px solid var(--border-subtle);
+  padding-left: var(--cds-spacing-06);
+  border-top: 1px solid var(--cds-border-subtle);
 }
 
 .vuln-group__item {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  gap: var(--cds-spacing-03);
+  padding: var(--cds-spacing-03) var(--cds-spacing-04);
   cursor: pointer;
-  font-size: var(--text-sm);
-  transition: background var(--transition-fast);
+  font-size: var(--cds-type-sm);
+  transition: background var(--cds-transition-fast);
 }
 
 .vuln-group__item:hover {
-  background: var(--surface-inset);
+  background: var(--cds-layer-02);
 }
 
 /* ── CWE column ── */
 
 .vuln-finding-col--cwe {
-  font-family: var(--font-data);
-  font-size: var(--text-xs);
+  font-family: var(--cds-font-mono);
+  font-size: var(--cds-type-xs);
 }
 
 .vuln-cwe-link {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  color: var(--accent);
+  color: var(--cds-interactive);
   cursor: pointer;
   text-decoration: none;
 }
@@ -466,7 +466,7 @@
 }
 
 .vuln-cwe-empty {
-  color: var(--text-tertiary);
+  color: var(--cds-text-placeholder);
 }
 
 /* ── PoC badge ── */
@@ -475,13 +475,13 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  font-size: var(--text-xs);
-  font-family: var(--font-data);
-  color: var(--accent);
-  background: var(--accent-subtle);
+  font-size: var(--cds-type-xs);
+  font-family: var(--cds-font-mono);
+  color: var(--cds-interactive);
+  background: var(--cds-interactive-subtle);
   padding: 1px 5px;
-  border-radius: var(--radius-sm);
-  margin-left: var(--space-2);
+  border-radius: var(--cds-radius);
+  margin-left: var(--cds-spacing-03);
   white-space: nowrap;
 }
 

@@ -1,5 +1,9 @@
+from pathlib import Path
 from typing import Literal
 from pydantic_settings import BaseSettings
+
+
+_ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 
 class Settings(BaseSettings):
     llm_mode: Literal["mock", "real"] = "mock"
@@ -20,6 +24,10 @@ class Settings(BaseSettings):
     agent_llm_max_tokens: int = 16384
     agent_llm_retry_max: int = 1
 
-    model_config = {"env_prefix": "AEGIS_", "env_file": ".env"}
+    model_config = {
+        "env_prefix": "AEGIS_",
+        "env_file": str(_ENV_FILE),
+        "extra": "ignore",
+    }
 
 settings = Settings()

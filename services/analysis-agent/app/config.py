@@ -1,6 +1,10 @@
+from pathlib import Path
 from typing import Literal
 
 from pydantic_settings import BaseSettings
+
+
+_ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 
 
 class Settings(BaseSettings):
@@ -39,7 +43,11 @@ class Settings(BaseSettings):
     phase1_max_cve_libraries: int = 20
     phase1_max_threat_cwes: int = 10
 
-    model_config = {"env_prefix": "AEGIS_", "env_file": ".env"}
+    model_config = {
+        "env_prefix": "AEGIS_",
+        "env_file": str(_ENV_FILE),
+        "extra": "ignore",
+    }
 
 
 settings = Settings()

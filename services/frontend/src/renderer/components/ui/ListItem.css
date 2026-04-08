@@ -2,14 +2,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-3) var(--space-2);
-  border-radius: var(--radius-md);
-  transition: background var(--transition-fast);
-  gap: var(--space-3);
+  padding: var(--cds-spacing-04) var(--cds-spacing-03);
+  border-radius: var(--cds-radius);
+  transition: background var(--cds-transition-fast);
+  gap: var(--cds-spacing-04);
 }
 
 .list-item--divider {
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--cds-border-subtle);
 }
 
 .list-item--clickable {
@@ -17,11 +17,11 @@
 }
 
 .list-item--clickable:hover {
-  background: var(--surface-2);
+  background: var(--cds-layer-02);
 }
 
 .list-item--clickable:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--cds-interactive);
   outline-offset: -2px;
 }
 
@@ -33,16 +33,16 @@
 .list-item__trailing {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--cds-spacing-03);
   flex-shrink: 0;
 }
 
 .list-item__chevron {
-  color: var(--text-tertiary);
-  transition: transform var(--transition-fast);
+  color: var(--cds-text-placeholder);
+  transition: transform var(--cds-transition-fast);
 }
 
 .list-item--clickable:hover .list-item__chevron {
   transform: translateX(2px);
-  color: var(--text-secondary);
+  color: var(--cds-text-secondary);
 }

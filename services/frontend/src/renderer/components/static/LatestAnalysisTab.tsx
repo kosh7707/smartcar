@@ -261,7 +261,7 @@ const LatestAnalysisContent: React.FC<{
       {gate ? (
         <GateResultCard gate={gate} />
       ) : (
-        <p className="text-tertiary text-sm" style={{ marginBottom: "var(--space-4)" }}>
+        <p className="text-tertiary text-sm" style={{ marginBottom: "var(--cds-spacing-05)" }}>
           Quality Gate가 설정되지 않았습니다.
         </p>
       )}
@@ -273,9 +273,9 @@ const LatestAnalysisContent: React.FC<{
           icon={<AlertTriangle size={16} />}
           label="Critical + High"
           value={critHighCount}
-          color={critHighCount > 0 ? "var(--severity-high)" : undefined}
+          color={critHighCount > 0 ? "var(--aegis-severity-high)" : undefined}
         />
-        <StatCard icon={<ShieldAlert size={16} />} label="미해결" value={unresolvedCount} color={unresolvedCount > 0 ? "var(--severity-high)" : undefined} />
+        <StatCard icon={<ShieldAlert size={16} />} label="미해결" value={unresolvedCount} color={unresolvedCount > 0 ? "var(--aegis-severity-high)" : undefined} />
       </div>
 
       {/* Source Distribution + Top Files */}

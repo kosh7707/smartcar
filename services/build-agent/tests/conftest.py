@@ -6,8 +6,15 @@ from agent_shared.schemas.agent import BudgetState
 
 @pytest.fixture
 def client():
+    from app.config import settings
+
+    original_mode = settings.llm_mode
+    object.__setattr__(settings, "llm_mode", "mock")
     from app.main import app
-    return TestClient(app)
+    try:
+        yield TestClient(app)
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
 
 
 @pytest.fixture

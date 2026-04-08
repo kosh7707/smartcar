@@ -1,11 +1,11 @@
 import type { Severity } from "@aegis/shared";
 
 export const SEVERITY_COLORS: Record<string, string> = {
-  critical: "var(--severity-critical)",
-  high: "var(--severity-high)",
-  medium: "var(--severity-medium)",
-  low: "var(--severity-low)",
-  info: "var(--severity-info)",
+  critical: "var(--aegis-severity-critical)",
+  high: "var(--aegis-severity-high)",
+  medium: "var(--aegis-severity-medium)",
+  low: "var(--aegis-severity-low)",
+  info: "var(--aegis-severity-info)",
 };
 
 export const SEVERITY_ORDER: Severity[] = ["critical", "high", "medium", "low", "info"];

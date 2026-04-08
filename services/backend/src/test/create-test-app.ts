@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import express from "express";
 import fs from "fs";
 import os from "os";
@@ -6,7 +7,7 @@ import type { Database as DatabaseType } from "better-sqlite3";
 import type { RegisteredSdk } from "@aegis/shared";
 import { createTestDb } from "./test-db";
 import { errorHandlerMiddleware } from "../middleware/error-handler.middleware";
-import { InvalidInputError } from "../lib/errors";
+import { InvalidInputError, NotFoundError } from "../lib/errors";
 
 // DAOs
 import { RunDAO } from "../dao/run.dao";
@@ -23,6 +24,7 @@ import { ProjectSettingsDAO } from "../dao/project-settings.dao";
 import { BuildTargetDAO } from "../dao/build-target.dao";
 import { SdkRegistryDAO } from "../dao/sdk-registry.dao";
 import { NotificationDAO } from "../dao/notification.dao";
+import { TargetLibraryDAO } from "../dao/target-library.dao";
 import { UserDAO, SessionDAO } from "../dao/user.dao";
 
 // Services
@@ -42,6 +44,7 @@ import { UserService } from "../services/user.service";
 
 // Controllers
 import { createProjectRouter } from "../controllers/project.controller";
+import { createHealthRouter } from "../controllers/health.controller";
 import { createFindingRouter, createFindingDetailRouter } from "../controllers/finding.controller";
 import { createRunRouter, createRunDetailRouter } from "../controllers/run.controller";
 import { createQualityGateRouter, createQualityGateDetailRouter } from "../controllers/quality-gate.controller";
@@ -56,7 +59,11 @@ import { createAnalysisRouter } from "../controllers/analysis.controller";
 import { createActivityRouter } from "../controllers/activity.controller";
 import { createNotificationRouter, createNotificationDetailRouter } from "../controllers/notification.controller";
 import { createAuthRouter } from "../controllers/auth.controller";
-import { createGateProfileRouter } from "../controllers/project-settings.controller";
+import { createProjectAdaptersRouter } from "../controllers/project-adapters.controller";
+import { createTargetLibraryRouter } from "../controllers/target-library.controller";
+import { createDynamicAnalysisRouter } from "../controllers/dynamic-analysis.controller";
+import { createDynamicTestRouter } from "../controllers/dynamic-test.controller";
+import { createGateProfileRouter, createProjectSettingsRouter, createSdkProfileRouter } from "../controllers/project-settings.controller";
 import { SDK_PROFILES } from "../services/sdk-profiles";
 import { AnalysisTracker } from "../services/analysis-tracker";
 
@@ -74,6 +81,7 @@ export interface TestAppContext {
   analysisResultDAO: AnalysisResultDAO;
   fileStore: FileStore;
   buildTargetDAO: BuildTargetDAO;
+  targetLibraryDAO: TargetLibraryDAO;
   sdkRegistryDAO: SdkRegistryDAO;
   notificationDAO: NotificationDAO;
   userDAO: UserDAO;
@@ -85,6 +93,7 @@ export interface TestAppContext {
   notificationService: NotificationService;
   userService: UserService;
   settingsService: ProjectSettingsService;
+  analysisTracker: AnalysisTracker;
   pipelineRunCalls: Array<{ projectId: string; targetIds?: string[]; requestId?: string; pipelineId?: string }>;
   analysisRunCalls: Array<{ projectId: string; analysisId: string; targetIds?: string[]; requestId?: string }>;
 }
@@ -106,6 +115,7 @@ export function createTestApp(): TestAppContext {
   const adapterDAO = new AdapterDAO(db);
   const projectSettingsDAO = new ProjectSettingsDAO(db);
   const buildTargetDAO = new BuildTargetDAO(db);
+  const targetLibraryDAO = new TargetLibraryDAO(db as any);
   const sdkRegistryDAO = new SdkRegistryDAO(db);
   const notificationDAO = new NotificationDAO(db);
   const userDAO = new UserDAO(db);
@@ -113,6 +123,28 @@ export function createTestApp(): TestAppContext {
 
   // ── Tier 1: 기본 서비스 ──
   const adapterManager = new AdapterManager(adapterDAO);
+  const adapterClients = (adapterManager as any).clients as Map<string, {
+    isConnected: () => boolean;
+    isEcuConnected: () => boolean;
+    getEcuMeta: () => undefined;
+    disconnect: () => void;
+  }>;
+  adapterManager.connect = async (id: string) => {
+    const row = adapterDAO.findById(id);
+    if (!row) throw new NotFoundError("Adapter not found");
+    adapterClients.set(id, {
+      isConnected: () => true,
+      isEcuConnected: () => false,
+      getEcuMeta: () => undefined,
+      disconnect: () => undefined,
+    });
+    return adapterManager.findById(id)!;
+  };
+  adapterManager.disconnect = (id: string) => {
+    adapterClients.get(id)?.disconnect();
+    adapterClients.delete(id);
+    return adapterManager.findById(id);
+  };
   const settingsService = new ProjectSettingsService(projectSettingsDAO, sdkRegistryDAO);
   const buildTargetService = new BuildTargetService(buildTargetDAO, settingsService);
 
@@ -251,6 +283,105 @@ export function createTestApp(): TestAppContext {
       return true;
     },
   };
+  const dynamicSessions = new Map<string, any>();
+  const dynamicInjectionHistory = new Map<string, any[]>();
+  const dynamicAnalysisService = {
+    createSession(projectId: string, adapterId: string) {
+      const session = {
+        id: `dyn-${crypto.randomUUID().slice(0, 8)}`,
+        projectId,
+        status: "connected",
+        source: { type: "adapter", adapterId, adapterName: "Test Adapter" },
+        messageCount: 0,
+        alertCount: 0,
+        startedAt: new Date().toISOString(),
+      };
+      dynamicSessions.set(session.id, session);
+      dynamicInjectionHistory.set(session.id, []);
+      return session;
+    },
+    findAllSessions(projectId?: string) {
+      return [...dynamicSessions.values()].filter((session) => !projectId || session.projectId === projectId);
+    },
+    findSession(sessionId: string) {
+      const session = dynamicSessions.get(sessionId);
+      if (!session) return undefined;
+      return { session, alerts: [], recentMessages: [] };
+    },
+    startSession(sessionId: string) {
+      const session = dynamicSessions.get(sessionId);
+      if (!session || session.status !== "connected") return undefined;
+      const updated = { ...session, status: "monitoring" };
+      dynamicSessions.set(sessionId, updated);
+      return updated;
+    },
+    async stopSession(sessionId: string) {
+      const session = dynamicSessions.get(sessionId);
+      if (!session) return undefined;
+      const updated = { ...session, status: "stopped", endedAt: new Date().toISOString() };
+      dynamicSessions.set(sessionId, updated);
+      return updated;
+    },
+    async injectMessage(sessionId: string, request: { canId: string; dlc: number; data: string; label?: string }) {
+      const result = {
+        id: `inj-${crypto.randomUUID().slice(0, 8)}`,
+        request,
+        ecuResponse: { success: true, data: "62 F1 90" },
+        classification: "normal",
+        injectedAt: new Date().toISOString(),
+      };
+      const history = dynamicInjectionHistory.get(sessionId) ?? [];
+      history.push(result);
+      dynamicInjectionHistory.set(sessionId, history);
+      return result;
+    },
+    async injectScenario(sessionId: string, scenarioId: string) {
+      const results = [
+        {
+          id: `inj-${crypto.randomUUID().slice(0, 8)}`,
+          request: { canId: "0x7E0", dlc: 8, data: "02 10 03 00 00 00 00 00", label: scenarioId },
+          ecuResponse: { success: true, data: "50 03" },
+          classification: "normal",
+          injectedAt: new Date().toISOString(),
+        },
+      ];
+      const history = dynamicInjectionHistory.get(sessionId) ?? [];
+      history.push(...results);
+      dynamicInjectionHistory.set(sessionId, history);
+      return results;
+    },
+    getInjectionHistory(sessionId: string) {
+      return dynamicInjectionHistory.get(sessionId) ?? [];
+    },
+  };
+  const dynamicTestResults = new Map<string, any>();
+  const dynamicTestService = {
+    async runTest(projectId: string, config: any, adapterId: string, testId?: string) {
+      const result = {
+        id: testId ?? `test-${crypto.randomUUID().slice(0, 8)}`,
+        projectId,
+        config,
+        status: "completed",
+        totalRuns: config.count ?? 1,
+        crashes: 0,
+        anomalies: 0,
+        findings: [],
+        adapterId,
+        createdAt: new Date().toISOString(),
+      };
+      dynamicTestResults.set(result.id, result);
+      return result;
+    },
+    findByProjectId(projectId: string) {
+      return [...dynamicTestResults.values()].filter((result) => result.projectId === projectId);
+    },
+    findById(testId: string) {
+      return dynamicTestResults.get(testId);
+    },
+    deleteById(testId: string) {
+      return dynamicTestResults.delete(testId);
+    },
+  };
 
   // ── Tier 2: 복합 서비스 ──
   const projectService = new ProjectService(projectDAO, analysisResultDAO, fileStore, adapterManager, settingsService, buildTargetService, findingDAO, runDAO, gateResultDAO);
@@ -267,19 +398,33 @@ export function createTestApp(): TestAppContext {
   app.use(express.json());
 
   // Mount routes matching index.ts
+  app.use("/api/projects/:pid/adapters", createProjectAdaptersRouter(adapterManager));
+  app.use("/api/projects/:pid/settings", createProjectSettingsRouter(settingsService));
   app.use("/api/projects/:pid/runs", createRunRouter(runService));
   app.use("/api/projects/:pid/findings", createFindingRouter(findingService));
   app.use("/api/projects/:pid/gates", createQualityGateRouter(gateService));
   app.use("/api/projects/:pid/approvals", createApprovalRouter(approvalService));
   app.use("/api/projects/:pid/report", createReportRouter(reportService));
   app.use("/api/projects/:pid/targets", createBuildTargetRouter(buildTargetService, projectDAO, testSourceService as any, testSastClient as any));
+  app.use("/api/projects/:pid/targets/:tid/libraries", createTargetLibraryRouter(targetLibraryDAO as any, buildTargetDAO, projectDAO));
   app.use("/api/projects/:pid/sdk", createSdkRouter(sdkService as any, projectDAO, undefined, notificationService, sdkUploadRoot));
   app.use("/api/projects/:pid/pipeline", createPipelineRouter(pipelineOrchestrator as any, projectDAO, buildTargetDAO));
   app.use("/api/projects/:pid/source", createProjectSourceRouter(testSourceService as any, projectDAO, undefined, buildTargetDAO, notificationService));
   app.use("/api/projects/:pid/activity", createActivityRouter(activityService));
   app.use("/api/projects/:pid/notifications", createNotificationRouter(notificationService));
+  app.use("/api/sdk-profiles", createSdkProfileRouter());
+  app.use("/health", createHealthRouter(
+    { checkHealth: async () => ({ status: "ok" }) } as any,
+    adapterManager,
+    { checkHealth: async () => ({ status: "ok" }) } as any,
+    { checkHealth: async () => ({ status: "ok" }) } as any,
+    { checkHealth: async () => ({ status: "ok" }) } as any,
+    { checkHealth: async () => ({ status: "ok" }) } as any,
+  ));
   app.use("/api/projects", createProjectRouter(projectService));
   app.use("/api", createFileRouter(fileStore));
+  app.use("/api/dynamic-analysis", createDynamicAnalysisRouter(dynamicAnalysisService as any));
+  app.use("/api/dynamic-test", createDynamicTestRouter(dynamicTestService as any));
   app.use("/api/analysis", createAnalysisRouter(
     analysisOrchestrator as any,
     analysisResultDAO,
@@ -304,8 +449,8 @@ export function createTestApp(): TestAppContext {
     app, db,
     projectDAO, runDAO, findingDAO, evidenceRefDAO, gateResultDAO,
     approvalDAO, auditLogDAO, analysisResultDAO, fileStore,
-    buildTargetDAO, sdkRegistryDAO, notificationDAO, userDAO, sessionDAO,
+    buildTargetDAO, targetLibraryDAO, sdkRegistryDAO, notificationDAO, userDAO, sessionDAO,
     gateService, normalizer, buildTargetService,
-    notificationService, userService, settingsService, pipelineRunCalls, analysisRunCalls,
+    notificationService, userService, settingsService, analysisTracker, pipelineRunCalls, analysisRunCalls,
   };
 }

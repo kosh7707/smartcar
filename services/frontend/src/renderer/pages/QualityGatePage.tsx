@@ -12,7 +12,7 @@ import "./QualityGatePage.css";
 const STATUS_CONFIG: Record<string, { icon: React.ReactNode; label: string; className: string }> = {
   pass: { icon: <ShieldCheck size={16} />, label: "통과", className: "gate-status--pass" },
   fail: { icon: <ShieldX size={16} />, label: "실패", className: "gate-status--fail" },
-  warning: { icon: <ShieldAlert size={16} />, label: "경고", className: "gate-status--warning" },
+  warning: { icon: <ShieldAlert size={16} />, label: "경고", className: "gate-status--cds-support-warning" },
 };
 
 const RULE_INFO: Record<string, { label: string; description: string }> = {
@@ -27,7 +27,7 @@ function RuleResultRow({ rule }: { rule: GateRuleResult }) {
     ? <CheckCircle size={14} className="rule-icon--passed" />
     : rule.result === "failed"
     ? <XCircle size={14} className="rule-icon--failed" />
-    : <AlertTriangle size={14} className="rule-icon--warning" />;
+    : <AlertTriangle size={14} className="rule-icon--cds-support-warning" />;
 
   return (
     <div className={`gate-rule gate-rule--${rule.result}`}>
@@ -40,7 +40,7 @@ function RuleResultRow({ rule }: { rule: GateRuleResult }) {
         )}
       </div>
       {RULE_INFO[rule.ruleId]?.description && (
-        <div className="gate-rule__description" style={{ color: "var(--text-tertiary)", fontSize: "var(--text-xs)" }}>
+        <div className="gate-rule__description" style={{ color: "var(--cds-text-placeholder)", fontSize: "var(--cds-type-xs)" }}>
           {RULE_INFO[rule.ruleId].description}
         </div>
       )}
@@ -160,8 +160,8 @@ export const QualityGatePage: React.FC = () => {
                             onKeyDown={(e) => e.key === "Enter" && overrideReason.trim().length >= 10 && handleOverride()}
                           />
                           <button
-                            className="btn btn-sm confirm-dialog__btn--danger"
-                            style={{ background: 'var(--danger)', color: 'var(--text-inverse)' }}
+                            className="btn btn-sm confirm-dialog__btn--cds-support-error"
+                            style={{ background: 'var(--cds-support-error)', color: 'var(--cds-text-inverse)' }}
                             onClick={handleOverride}
                             disabled={overriding || overrideReason.trim().length < 10}
                           >

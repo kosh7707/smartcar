@@ -57,7 +57,7 @@ export const OverallStatusTab: React.FC<Props> = ({
           icon={<AlertTriangle size={16} />}
           label="미해결"
           value={unresolvedTotal}
-          color="var(--severity-high)"
+          color="var(--aegis-severity-high)"
           detail={<span className="text-xs text-tertiary">해결률 {totalFindings > 0 ? Math.round(((totalFindings - unresolvedTotal) / totalFindings) * 100) : 0}%</span>}
         />
         <StatCard

@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AEGIS — Project List Reference v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+/* =============================================
+   v1 — Architect + Critic feedback applied
+   - WCAG AA contrast on all text
+   - 4px spacing grid
+   - 6-step type scale (10/12/13/14/16/20)
+   - 4-step radius (4/6/8/9999)
+   - Always-dark sidebar
+   - Severity bar 8px + persistent critical stripe
+   - Subtle cool tint (not pure neutral)
+   - Focus + active states everywhere
+   - prefers-reduced-motion / prefers-color-scheme
+   ============================================= */
+
+/* =============================================
+   DARK THEME (default)
+   ============================================= */
+[data-theme="dark"] {
+  /* Surface — subtle cool-blue tint, not pure gray */
+  --canvas:         #0e1014;
+  --surface-0:      #141519;
+  --surface-1:      #1a1b21;
+  --surface-2:      #22232a;
+  --surface-3:      #2b2d35;
+  --surface-hover:  rgba(140,160,255,0.04);
+  --surface-active: rgba(140,160,255,0.07);
+
+  /* Text — high contrast hierarchy */
+  --text-0: #ecedf0;
+  --text-1: #a0a4b0;
+  --text-2: #6e7280;
+  --text-3: #505460;
+
+  /* Border */
+  --border-0: rgba(160,180,255,0.06);
+  --border-1: rgba(160,180,255,0.10);
+  --border-2: rgba(160,180,255,0.16);
+
+  /* Accent */
+  --accent:       #5b93ff;
+  --accent-hover: #7aabff;
+  --accent-muted: rgba(91,147,255,0.10);
+  --accent-border:rgba(91,147,255,0.25);
+
+  /* Severity */
+  --sev-cr:    #f04848;
+  --sev-cr-bg: rgba(240,72,72,0.10);
+  --sev-hi:    #ef8c3a;
+  --sev-hi-bg: rgba(239,140,58,0.10);
+  --sev-me:    #e8c63a;
+  --sev-me-bg: rgba(232,198,58,0.08);
+  --sev-lo:    #4a9fd4;
+  --sev-lo-bg: rgba(74,159,212,0.08);
+
+  /* Status */
+  --st-ok:      #3dba63;
+  --st-ok-bg:   rgba(61,186,99,0.10);
+  --st-fail:    #f04848;
+  --st-fail-bg: rgba(240,72,72,0.10);
+  --st-run:     #5b93ff;
+  --st-run-bg:  rgba(91,147,255,0.10);
+  --st-wait:    #6e7280;
+  --st-wait-bg: rgba(110,114,128,0.10);
+
+  /* Depth */
+  --shadow-table: 0 0 0 1px var(--border-0);
+  --shadow-hover: 0 0 0 1px var(--border-1);
+  --shadow-btn:   0 1px 2px rgba(0,0,0,0.3);
+
+  --toggle-bg: var(--surface-2);
+  color-scheme: dark;
+}
+
+/* =============================================
+   LIGHT THEME
+   ============================================= */
+[data-theme="light"] {
+  --canvas:         #f4f5f7;
+  --surface-0:      #ffffff;
+  --surface-1:      #f9fafb;
+  --surface-2:      #f0f1f4;
+  --surface-3:      #e4e6eb;
+  --surface-hover:  rgba(0,20,80,0.03);
+  --surface-active: rgba(0,20,80,0.05);
+
+  --text-0: #1a1c24;
+  --text-1: #4a4d5a;
+  --text-2: #6b6f7e;
+  --text-3: #8a8e9c;
+
+  --border-0: rgba(0,20,80,0.07);
+  --border-1: rgba(0,20,80,0.12);
+  --border-2: rgba(0,20,80,0.20);
+
+  --accent:       #2c5fdb;
+  --accent-hover: #3d72ef;
+  --accent-muted: rgba(44,95,219,0.07);
+  --accent-border:rgba(44,95,219,0.20);
+
+  /* Severity — darkened for WCAG AA on white */
+  --sev-cr:    #c42020;
+  --sev-cr-bg: rgba(196,32,32,0.07);
+  --sev-hi:    #9a5200;
+  --sev-hi-bg: rgba(154,82,0,0.07);
+  --sev-me:    #7a6000;
+  --sev-me-bg: rgba(122,96,0,0.06);
+  --sev-lo:    #1a6e96;
+  --sev-lo-bg: rgba(26,110,150,0.06);
+
+  --st-ok:      #0d7a35;
+  --st-ok-bg:   rgba(13,122,53,0.07);
+  --st-fail:    #c42020;
+  --st-fail-bg: rgba(196,32,32,0.07);
+  --st-run:     #2c5fdb;
+  --st-run-bg:  rgba(44,95,219,0.07);
+  --st-wait:    #6b6f7e;
+  --st-wait-bg: rgba(107,111,126,0.07);
+
+  --shadow-table: 0 1px 3px rgba(0,20,80,0.06), 0 0 0 1px var(--border-0);
+  --shadow-hover: 0 2px 8px rgba(0,20,80,0.08), 0 0 0 1px var(--border-1);
+  --shadow-btn:   0 1px 2px rgba(0,20,80,0.06);
+
+  --toggle-bg: var(--surface-3);
+  color-scheme: light;
+}
+
+/* Sidebar — ALWAYS dark (both themes) */
+:root {
+  --sb-bg:      #0a0b10;
+  --sb-surface: #12131a;
+  --sb-border:  rgba(140,160,255,0.06);
+  --sb-text-0:  #d8dae0;
+  --sb-text-1:  #8a8ea0;
+  --sb-text-2:  #5c6070;
+  --sb-hover:   rgba(140,160,255,0.06);
+  --sb-active:  rgba(91,147,255,0.12);
+  --sb-accent:  #5b93ff;
+  --sb-w:       228px;
+
+  --font: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+}
+
+/* =============================================
+   BASE
+   ============================================= */
+html, body {
+  height: 100%;
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-0);
+  background: var(--canvas);
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.2s, color 0.2s;
+}
+
+/* Global focus */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.app { display: flex; height: 100vh; overflow: hidden; }
+
+/* =============================================
+   SIDEBAR (always dark)
+   ============================================= */
+.sb {
+  width: var(--sb-w); min-width: var(--sb-w);
+  background: var(--sb-bg);
+  border-right: 1px solid var(--sb-border);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sb-text-2) transparent;
+}
+
+.sb-head {
+  padding: 20px 16px 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+.sb-logo {
+  width: 28px; height: 28px;
+  background: var(--sb-accent);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 13px; color: #fff;
+  flex-shrink: 0;
+}
+.sb-name { font-size: 16px; font-weight: 700; color: var(--sb-text-0); letter-spacing: 1.2px; }
+.sb-sub  { font-size: 10px; font-weight: 500; color: var(--sb-text-2); letter-spacing: 1.2px; text-transform: uppercase; }
+
+.sb-sec { padding: 4px 8px; }
+.sb-lbl {
+  padding: 12px 12px 4px;
+  font-size: 10px; font-weight: 600;
+  color: var(--sb-text-2); text-transform: uppercase; letter-spacing: 1px;
+}
+
+.sb-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-radius: 6px;
+  color: var(--sb-text-1); cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  font-size: 13px; font-weight: 400;
+  position: relative; text-decoration: none;
+}
+.sb-item:hover { background: var(--sb-hover); color: var(--sb-text-0); }
+.sb-item:focus-visible { outline-color: var(--sb-accent); }
+.sb-item.on {
+  background: var(--sb-active);
+  color: var(--sb-accent); font-weight: 500;
+}
+.sb-item.on::before {
+  content: ''; position: absolute;
+  left: -8px; top: 8px; bottom: 8px; width: 3px;
+  background: var(--sb-accent); border-radius: 0 2px 2px 0;
+}
+.sb-ico { width: 16px; height: 16px; opacity: 0.5; flex-shrink: 0; }
+.sb-item:hover .sb-ico { opacity: 0.7; }
+.sb-item.on .sb-ico { opacity: 1; }
+
+.sb-cnt {
+  margin-left: auto;
+  font-size: 10px; font-weight: 600;
+  padding: 0 6px; min-width: 16px; text-align: center;
+  border-radius: 8px; line-height: 16px; color: #fff;
+}
+.sb-cnt.red { background: #f04848; }
+.sb-cnt.amb { background: #ef8c3a; }
+
+.sb-hr { height: 1px; background: var(--sb-border); margin: 8px 16px; }
+
+.sb-foot {
+  margin-top: auto; padding: 8px 8px;
+  border-top: 1px solid var(--sb-border);
+}
+.sb-user {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-radius: 6px;
+  cursor: pointer; transition: background 0.1s;
+}
+.sb-user:hover { background: var(--sb-hover); }
+.sb-ava {
+  width: 24px; height: 24px; border-radius: 4px;
+  background: var(--sb-accent); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 600;
+}
+.sb-uname { font-size: 13px; font-weight: 500; color: var(--sb-text-0); }
+.sb-urole { font-size: 10px; color: var(--sb-text-2); }
+
+/* =============================================
+   MAIN
+   ============================================= */
+.main {
+  flex: 1; display: flex; flex-direction: column;
+  overflow: hidden; background: var(--canvas);
+  transition: background 0.2s;
+}
+
+/* TOPBAR */
+.top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; height: 48px; flex-shrink: 0;
+  border-bottom: 1px solid var(--border-0);
+  background: var(--surface-0); transition: background 0.2s;
+}
+.top-crumb {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--text-2);
+}
+.top-crumb b { color: var(--text-0); font-weight: 500; }
+.top-crumb svg { width: 12px; height: 12px; opacity: 0.4; }
+
+.top-r { display: flex; align-items: center; gap: 8px; }
+
+.search {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 12px; height: 32px; min-width: 180px;
+  background: var(--surface-1); border: 1px solid var(--border-1);
+  border-radius: 6px; font-size: 12px; color: var(--text-2);
+  cursor: text; transition: border-color 0.12s;
+}
+.search:hover { border-color: var(--border-2); }
+.search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-muted); }
+.search kbd {
+  margin-left: auto; font-family: var(--font);
+  font-size: 10px; color: var(--text-3);
+  background: var(--surface-3); padding: 0 4px; border-radius: 4px; line-height: 16px;
+}
+
+.btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 0 12px; height: 32px;
+  font-size: 12px; font-weight: 500;
+  border: none; border-radius: 6px; cursor: pointer;
+  font-family: var(--font); transition: all 0.1s;
+}
+.btn:active { transform: scale(0.97); }
+.btn-p { background: var(--accent); color: #fff; box-shadow: var(--shadow-btn); }
+.btn-p:hover { background: var(--accent-hover); }
+.btn-g { background: transparent; color: var(--text-1); border: 1px solid var(--border-1); }
+.btn-g:hover { background: var(--surface-hover); }
+
+.toggle {
+  width: 32px; height: 32px; border-radius: 6px;
+  background: var(--toggle-bg); border: 1px solid var(--border-1);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.12s; color: var(--text-1);
+}
+.toggle:hover { background: var(--surface-active); color: var(--text-0); }
+.toggle:active { transform: scale(0.95); }
+.toggle svg { width: 14px; height: 14px; }
+
+/* CONTENT */
+.wrap {
+  flex: 1; overflow-y: auto; padding: 24px 24px 64px;
+  scrollbar-width: thin; scrollbar-color: var(--text-3) transparent;
+}
+
+.hdr {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.hdr-title { font-size: 20px; font-weight: 600; letter-spacing: -0.4px; line-height: 1.2; }
+.hdr-meta  { font-size: 12px; color: var(--text-2); margin-top: 4px; }
+.hdr-meta em { font-style: normal; color: var(--st-ok); font-weight: 500; }
+
+.chips { display: flex; gap: 4px; }
+.chip {
+  padding: 0 12px; height: 28px;
+  display: inline-flex; align-items: center;
+  font-size: 12px; font-weight: 500;
+  border-radius: 9999px; border: 1px solid var(--border-1);
+  background: transparent; color: var(--text-1);
+  cursor: pointer; font-family: var(--font); transition: all 0.1s;
+}
+.chip:hover { background: var(--surface-hover); color: var(--text-0); }
+.chip:active { transform: scale(0.97); }
+.chip.on {
+  background: var(--accent-muted); color: var(--accent);
+  border-color: var(--accent-border);
+}
+
+/* =============================================
+   TABLE
+   ============================================= */
+.tbl {
+  background: var(--surface-0);
+  border: 1px solid var(--border-0);
+  border-radius: 8px;
+  box-shadow: var(--shadow-table);
+  overflow-x: auto;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.th {
+  display: grid;
+  grid-template-columns: minmax(200px,2.5fr) 84px minmax(160px,1.8fr) 100px 100px 64px;
+  gap: 8px; padding: 0 20px; min-height: 36px; align-items: center;
+  border-bottom: 1px solid var(--border-0);
+  font-size: 10px; font-weight: 600; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.8px;
+}
+
+.tr {
+  display: grid;
+  grid-template-columns: minmax(200px,2.5fr) 84px minmax(160px,1.8fr) 100px 100px 64px;
+  gap: 8px; padding: 12px 20px; align-items: center;
+  border-bottom: 1px solid var(--border-0);
+  transition: background 0.1s; cursor: pointer;
+  position: relative;
+}
+.tr:last-child { border-bottom: none; }
+.tr:hover { background: var(--surface-hover); }
+.tr:focus-visible { outline: none; background: var(--surface-hover); box-shadow: inset 3px 0 0 var(--accent); }
+
+/* Persistent critical stripe */
+.tr.crit::before {
+  content: ''; position: absolute;
+  left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--sev-cr); opacity: 0.6;
+  border-radius: 0;
+}
+
+/* PROJECT CELL */
+.c-proj { display: flex; align-items: center; gap: 12px; }
+
+.p-ico {
+  width: 32px; height: 32px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; flex-shrink: 0;
+  border: 1px solid var(--border-0);
+}
+.p-ico.or { background: var(--sev-hi-bg); color: var(--sev-hi); }
+.p-ico.bl { background: var(--accent-muted); color: var(--accent); }
+.p-ico.rd { background: var(--sev-cr-bg); color: var(--sev-cr); }
+
+.p-name { font-size: 13px; font-weight: 500; color: var(--text-0); }
+.p-desc { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+
+/* STATUS */
+.st {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; font-weight: 500;
+  padding: 2px 8px; border-radius: 9999px;
+}
+.st .d { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.st-ok   { background: var(--st-ok-bg);   color: var(--st-ok); }
+.st-fail { background: var(--st-fail-bg); color: var(--st-fail); }
+.st-run  { background: var(--st-run-bg);  color: var(--st-run); }
+.st-wait { background: var(--st-wait-bg); color: var(--st-wait); }
+
+/* SEVERITY BAR */
+.sev { display: flex; flex-direction: column; gap: 4px; padding-right: 4px; }
+.sev-bar {
+  display: flex; gap: 1px; height: 8px; border-radius: 4px;
+  overflow: hidden; background: var(--surface-3);
+}
+.sev-bar .s { height: 100%; min-width: 3px; }
+.sev-bar .cr { background: var(--sev-cr); }
+.sev-bar .hi { background: var(--sev-hi); }
+.sev-bar .me { background: var(--sev-me); }
+.sev-bar .lo { background: var(--sev-lo); }
+
+.sev-n {
+  display: flex; gap: 8px;
+  font-family: var(--mono); font-size: 10px; color: var(--text-2);
+}
+.sev-n i {
+  font-style: normal; display: inline-flex; align-items: center; gap: 2px;
+}
+.sev-n i::before { content: ''; width: 6px; height: 6px; border-radius: 2px; }
+.sev-n .cr::before { background: var(--sev-cr); }
+.sev-n .hi::before { background: var(--sev-hi); }
+.sev-n .me::before { background: var(--sev-me); }
+.sev-n .lo::before { background: var(--sev-lo); }
+/* Critical count highlighted */
+.sev-n .cr { color: var(--sev-cr); font-weight: 500; }
+
+.sev-nil { font-size: 12px; color: var(--text-3); }
+
+/* GATE */
+.gt {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; font-weight: 500;
+  padding: 2px 8px; border-radius: 9999px;
+}
+.gt svg { width: 12px; height: 12px; }
+.gt-ok   { background: var(--st-ok-bg);   color: var(--st-ok); }
+.gt-fail { background: var(--st-fail-bg); color: var(--st-fail); }
+.gt-na   { color: var(--text-3); font-size: 12px; padding: 0; }
+
+/* DATE / FILES — mono for tabular alignment */
+.c-date  { font-family: var(--mono); font-size: 12px; color: var(--text-2); }
+.c-files { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--text-1); }
+
+/* =============================================
+   FOOTER
+   ============================================= */
+.ft {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 24px; flex-shrink: 0;
+  border-top: 1px solid var(--border-0);
+  background: var(--surface-0);
+  font-size: 12px; color: var(--text-3);
+  transition: background 0.2s;
+}
+.ft-l { display: flex; align-items: center; gap: 8px; }
+.ft-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--st-ok); }
+.ft-r { display: flex; gap: 16px; }
+.ft-r a { color: var(--text-3); text-decoration: none; transition: color 0.1s; }
+.ft-r a:hover { color: var(--text-1); }
+
+/* =============================================
+   SCROLLBAR (webkit)
+   ============================================= */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--text-3); border-radius: 4px; }
+
+/* =============================================
+   ANIMATION
+   ============================================= */
+@keyframes up { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+.tr { animation: up 0.25s ease both; }
+.tr:nth-child(2) { animation-delay: 40ms; }
+.tr:nth-child(3) { animation-delay: 80ms; }
+.tr:nth-child(4) { animation-delay: 120ms; }
+
+/* System preference */
+@media (prefers-color-scheme: light) {
+  html:not([data-theme]) { /* auto-light if no explicit theme */ }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <nav class="sb">
+    <div class="sb-head">
+      <div class="sb-logo">A</div>
+      <div>
+        <div class="sb-name">AEGIS</div>
+        <div class="sb-sub">Security Platform</div>
+      </div>
+    </div>
+
+    <div class="sb-sec">
+      <div class="sb-lbl">General</div>
+      <a class="sb-item on" href="#">
+        <svg class="sb-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1"/><rect x="9" y="9" width="5.5" height="5.5" rx="1"/></svg>
+        <span>프로젝트</span>
+      </a>
+      <a class="sb-item" href="#">
+        <svg class="sb-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><path d="M8 4.5v3.5l2.5 1.5"/></svg>
+        <span>분석 이력</span>
+      </a>
+      <a class="sb-item" href="#">
+        <svg class="sb-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><polyline points="1.5,12 5,7 8.5,10 14.5,3.5"/></svg>
+        <span>트렌드</span>
+      </a>
+    </div>
+
+    <div class="sb-hr"></div>
+
+    <div class="sb-sec">
+      <div class="sb-lbl">Alerts</div>
+      <a class="sb-item" href="#">
+        <svg class="sb-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 5.5a4 4 0 0 0-8 0c0 4-1.5 5.5-1.5 5.5h11S12 9.5 12 5.5"/><path d="M6.5 13a1.5 1.5 0 0 0 3 0"/></svg>
+        <span>알림</span>
+        <span class="sb-cnt red">3</span>
+      </a>
+      <a class="sb-item" href="#">
+        <svg class="sb-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M14 7v5.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5V7"/><path d="M8 2l5.5 5H2.5L8 2z"/></svg>
+        <span>승인 대기</span>
+        <span class="sb-cnt amb">2</span>
+      </a>
+    </div>
+
+    <div class="sb-hr"></div>
+
+    <div class="sb-sec">
+      <div class="sb-lbl">System</div>
+      <a class="sb-item" href="#">
+        <svg class="sb-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2.5"/><path d="M13 8a5 5 0 0 1-.5 2l1 1-1.2 1.2-1-1a5 5 0 0 1-2 .5v1.3H7.5v-1.3a5 5 0 0 1-2-.5l-1 1L3.3 11l1-1A5 5 0 0 1 3.8 8H2.5V6.2h1.3a5 5 0 0 1 .5-2l-1-1L4.5 2l1 1a5 5 0 0 1 2-.5V1.2h1.8v1.3a5 5 0 0 1 2 .5l1-1L13.5 3.2l-1 1a5 5 0 0 1 .5 2h1.3V8z"/></svg>
+        <span>설정</span>
+      </a>
+    </div>
+
+    <div class="sb-foot">
+      <div class="sb-user">
+        <div class="sb-ava">K</div>
+        <div>
+          <div class="sb-uname">Kosh</div>
+          <div class="sb-urole">Admin</div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="top">
+      <div class="top-crumb">
+        AEGIS
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+        <b>프로젝트</b>
+      </div>
+      <div class="top-r">
+        <div class="search">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l4 4"/></svg>
+          검색...
+          <kbd>Ctrl K</kbd>
+        </div>
+        <button class="toggle" onclick="toggleTheme()" title="테마 전환" id="tBtn">
+          <svg id="iMoon" viewBox="0 0 16 16" fill="currentColor"><path d="M13.4 10.6A6.5 6.5 0 015.4 2.6a6.5 6.5 0 108 8z"/></svg>
+          <svg id="iSun" viewBox="0 0 16 16" fill="currentColor" style="display:none"><circle cx="8" cy="8" r="3"/><path d="M8 1v2m0 10v2M1 8h2m10 0h2m-2.1-4.9L11.5 4.5M4.5 11.5l-1.4 1.4m0-9.8L4.5 4.5m7 7l1.4 1.4" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>
+        </button>
+        <button class="btn btn-p">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 3v10M3 8h10"/></svg>
+          새 프로젝트
+        </button>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <div class="hdr">
+        <div>
+          <div class="hdr-title">프로젝트</div>
+          <div class="hdr-meta">3개 프로젝트 &middot; 서버 <em>연결됨</em> &middot; 동기화 2분 전</div>
+        </div>
+        <div class="chips">
+          <button class="chip on">전체</button>
+          <button class="chip">활성</button>
+          <button class="chip">대기</button>
+          <button class="chip">아카이브</button>
+        </div>
+      </div>
+
+      <div class="tbl">
+        <div class="th">
+          <span>프로젝트</span>
+          <span>상태</span>
+          <span>취약점</span>
+          <span>Gate</span>
+          <span>분석일</span>
+          <span>파일</span>
+        </div>
+
+        <!-- RE100 — has critical -->
+        <div class="tr crit" tabindex="0">
+          <div class="c-proj">
+            <div class="p-ico or">R</div>
+            <div><div class="p-name">RE100</div><div class="p-desc">재생에너지 인증 시스템</div></div>
+          </div>
+          <div><span class="st st-ok"><span class="d"></span>활성</span></div>
+          <div class="sev">
+            <div class="sev-bar">
+              <div class="s cr" style="width:10%"></div>
+              <div class="s hi" style="width:50%"></div>
+              <div class="s me" style="width:30%"></div>
+              <div class="s lo" style="width:10%"></div>
+            </div>
+            <div class="sev-n">
+              <i class="cr">1</i><i class="hi">5</i><i class="me">3</i><i class="lo">1</i>
+            </div>
+          </div>
+          <div><span class="gt gt-ok"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5l3.5 3.5L13 5"/></svg>통과</span></div>
+          <div class="c-date">2026.04.02</div>
+          <div class="c-files">147</div>
+        </div>
+
+        <!-- RE100_test — pending -->
+        <div class="tr" tabindex="0">
+          <div class="c-proj">
+            <div class="p-ico bl">R</div>
+            <div><div class="p-name">RE100_test</div><div class="p-desc">설명 없음</div></div>
+          </div>
+          <div><span class="st st-wait"><span class="d"></span>대기</span></div>
+          <div><span class="sev-nil">&mdash;</span></div>
+          <div><span class="gt-na">&mdash;</span></div>
+          <div class="c-date">&mdash;</div>
+          <div class="c-files">0</div>
+        </div>
+
+        <!-- AEGIS-Core — critical, failing -->
+        <div class="tr crit" tabindex="0">
+          <div class="c-proj">
+            <div class="p-ico rd">A</div>
+            <div><div class="p-name">AEGIS-Core</div><div class="p-desc">코어 보안 엔진</div></div>
+          </div>
+          <div><span class="st st-run"><span class="d"></span>분석 중</span></div>
+          <div class="sev">
+            <div class="sev-bar">
+              <div class="s cr" style="width:28%"></div>
+              <div class="s hi" style="width:42%"></div>
+              <div class="s me" style="width:20%"></div>
+              <div class="s lo" style="width:10%"></div>
+            </div>
+            <div class="sev-n">
+              <i class="cr">12</i><i class="hi">18</i><i class="me">9</i><i class="lo">4</i>
+            </div>
+          </div>
+          <div><span class="gt gt-fail"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>실패</span></div>
+          <div class="c-date">2026.04.08</div>
+          <div class="c-files">892</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ft">
+      <div class="ft-l"><span class="ft-dot"></span> 서버 연결됨 &middot; AEGIS v0.2.0</div>
+      <div class="ft-r"><a href="#">문서</a><a href="#">API</a><a href="#">설정</a></div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleTheme() {
+  const h = document.documentElement;
+  const dark = h.getAttribute('data-theme') === 'dark';
+  h.setAttribute('data-theme', dark ? 'light' : 'dark');
+  document.getElementById('iMoon').style.display = dark ? 'none' : '';
+  document.getElementById('iSun').style.display = dark ? '' : 'none';
+}
+// Auto-detect OS preference
+if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+  if (!document.documentElement.getAttribute('data-theme')) toggleTheme();
+}
+</script>
+</body>
+</html>
