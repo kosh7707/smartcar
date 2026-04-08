@@ -95,6 +95,50 @@ async def test_ndjson_error_event():
 
 
 @pytest.mark.asyncio
+async def test_ndjson_http_503_error_event_preserved():
+    """NDJSON 응답이 HTTP 503이어도 final error 이벤트를 소비한다."""
+    events = [
+        {
+            "type": "error",
+            "code": "DISALLOWED_TOOL_OMISSION",
+            "message": "tool omission policy violation",
+            "retryable": False,
+            "execution": {"toolResults": {"semgrep": {"status": "skipped", "skipReason": "environment-drift"}}},
+        },
+    ]
+    mock_resp = _MockStreamResponse([json.dumps(e) for e in events], status_code=503)
+
+    tool = SastScanTool()
+    tool._client = MagicMock()
+    tool._client.stream = MagicMock(return_value=mock_resp)
+
+    result = await tool.execute({"scanId": "test", "projectId": "p1"})
+    assert result.success is False
+    assert "DISALLOWED_TOOL_OMISSION" in result.content
+
+
+@pytest.mark.asyncio
+async def test_sync_503_json_error_preserved():
+    """동기 JSON 503도 generic unavailable이 아니라 S4 payload를 보존한다."""
+    payload = {
+        "success": False,
+        "status": "failed",
+        "error": "policy violation",
+        "errorDetail": {"code": "DISALLOWED_TOOL_OMISSION", "message": "tool omission policy violation"},
+    }
+    mock_resp = _MockStreamResponse([json.dumps(payload)], content_type="application/json", status_code=503)
+
+    tool = SastScanTool()
+    tool._client = MagicMock()
+    tool._client.stream = MagicMock(return_value=mock_resp)
+
+    result = await tool.execute({"scanId": "test", "projectId": "p1"})
+    assert result.success is False
+    assert "DISALLOWED_TOOL_OMISSION" in result.content
+    assert "tool omission policy violation" in (result.error or "")
+
+
+@pytest.mark.asyncio
 async def test_sync_fallback():
     """Content-Type이 ndjson이 아니면 동기 fallback."""
     data = {

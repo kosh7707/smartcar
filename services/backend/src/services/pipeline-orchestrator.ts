@@ -25,6 +25,7 @@ import type { TargetLibraryDAO } from "../dao/target-library.dao";
 import type { IBuildTargetDAO, IAnalysisResultDAO } from "../dao/interfaces";
 import type { ResultNormalizer } from "./result-normalizer";
 import type { WsBroadcaster } from "./ws-broadcaster";
+import type { NotificationService } from "./notification.service";
 
 const logger = createLogger("pipeline-orchestrator");
 
@@ -47,6 +48,7 @@ export class PipelineOrchestrator {
     private analysisResultDAO: IAnalysisResultDAO,
     private resultNormalizer: ResultNormalizer,
     private ws?: WsBroadcaster<WsPipelineMessage>,
+    private notificationService?: NotificationService,
   ) {}
 
   async runPipeline(
@@ -54,6 +56,7 @@ export class PipelineOrchestrator {
     targetIds?: string[],
     requestId?: string,
     signal?: AbortSignal,
+    pipelineId: string = `pipe-${crypto.randomUUID().slice(0, 8)}`,
   ): Promise<void> {
     const projectPath = this.sourceService.getProjectPath(projectId);
     if (!projectPath) {
@@ -75,7 +78,7 @@ export class PipelineOrchestrator {
       if (signal?.aborted) break;
 
       try {
-        await this.processTarget(projectId, projectPath, target, requestId, signal);
+        await this.processTarget(projectId, pipelineId, projectPath, target, requestId, signal);
         readyCount++;
       } catch (err) {
         failedCount++;
@@ -85,6 +88,7 @@ export class PipelineOrchestrator {
         this.broadcast(projectId, {
           type: "pipeline-error",
           payload: {
+            pipelineId,
             projectId,
             targetId: target.id,
             targetName: target.name,
@@ -97,14 +101,16 @@ export class PipelineOrchestrator {
 
     this.broadcast(projectId, {
       type: "pipeline-complete",
-      payload: { projectId, readyCount, failedCount, totalCount: targets.length },
+      payload: { pipelineId, projectId, readyCount, failedCount, totalCount: targets.length },
     });
+    this.emitTerminalNotification(projectId, pipelineId, readyCount, failedCount, targets.length);
 
-    logger.info({ projectId, readyCount, failedCount, total: targets.length, requestId }, "Pipeline completed");
+    logger.info({ pipelineId, projectId, readyCount, failedCount, total: targets.length, requestId }, "Pipeline completed");
   }
 
   private async processTarget(
     projectId: string,
+    pipelineId: string,
     projectPath: string,
     target: BuildTarget,
     requestId?: string,
@@ -117,7 +123,7 @@ export class PipelineOrchestrator {
 
     // ── Step 0: Build Resolve (S3 Build Agent) ──
     if (target.status === "discovered" || !target.buildCommand) {
-      this.updateStatus(projectId, target, "resolving", "빌드 명령어 자동 탐색 중 (Build Agent)...");
+      this.updateStatus(projectId, pipelineId, target, "resolving", "빌드 명령어 자동 탐색 중 (Build Agent)...");
 
       try {
         let resolveResp = await this.buildAgentClient.submitTask(
@@ -148,7 +154,7 @@ export class PipelineOrchestrator {
         // 재시도: retryable 실패 시 1회 자동 재시도
         if (!this.buildAgentClient.isSuccess(resolveResp) && resolveResp.retryable && !signal?.aborted) {
           logger.info({ targetId: target.id, failureCode: resolveResp.failureCode }, "Retryable build failure, attempting retry (1/1)");
-          this.updateStatus(projectId, target, "resolving", "빌드 재시도 중...");
+          this.updateStatus(projectId, pipelineId, target, "resolving", "빌드 재시도 중...");
           resolveResp = await this.buildAgentClient.submitTask(
             { taskType: "build-resolve", taskId: `resolve-retry-${crypto.randomUUID().slice(0, 8)}`,
               context: { trusted: { projectPath: scanPath, targetPath: isIsolated ? "." : target.relativePath, targetName: target.name,
@@ -165,7 +171,7 @@ export class PipelineOrchestrator {
               status: "resolve_failed",
               buildLog: br.errorLog ?? undefined,
             });
-            this.updateStatus(projectId, target, "resolve_failed", `빌드 실패: ${br.errorLog ?? "unknown"}`);
+            this.updateStatus(projectId, pipelineId, target, "resolve_failed", `빌드 실패: ${br.errorLog ?? "unknown"}`);
             if (!target.buildProfile?.compiler) {
               throw new PipelineStepError(`Build resolve failed for ${target.name}: ${br.errorLog}`);
             }
@@ -179,6 +185,7 @@ export class PipelineOrchestrator {
             target.buildCommand = br.buildCommand;
             this.updateStatus(
               projectId,
+              pipelineId,
               target,
               "configured",
               `빌드 명령어 결정 완료 (confidence: ${resolveResp.result.confidence})`,
@@ -186,7 +193,7 @@ export class PipelineOrchestrator {
           }
         } else {
           this.buildTargetDAO.updatePipelineState(target.id, { status: "resolve_failed" });
-          this.updateStatus(projectId, target, "resolve_failed", resolveResp.failureDetail);
+          this.updateStatus(projectId, pipelineId, target, "resolve_failed", resolveResp.failureDetail);
           if (!target.buildProfile?.compiler) {
             throw new PipelineStepError(`Build resolve failed for ${target.name}: ${resolveResp.failureDetail}`);
           }
@@ -207,11 +214,17 @@ export class PipelineOrchestrator {
 
     if (signal?.aborted) return;
 
+    if (!target.buildCommand) {
+      this.buildTargetDAO.updatePipelineState(target.id, { status: "resolve_failed" });
+      this.updateStatus(projectId, pipelineId, target, "resolve_failed", "빌드 명령어 없음 — caller-materialized buildCommand 필요");
+      throw new PipelineStepError(`Build command missing for ${target.name}`);
+    }
+
     // ── Step 1: Build ──
-    this.updateStatus(projectId, target, "building", "빌드 중 (bear → compile_commands.json)...");
+    this.updateStatus(projectId, pipelineId, target, "building", "빌드 중 (bear → compile_commands.json)...");
 
     const buildResult = await this.sastClient.build(
-      { projectPath: scanPath, buildProfile: target.buildProfile },
+      { projectPath: scanPath, buildCommand: target.buildCommand },
       requestId,
       signal,
     );
@@ -229,14 +242,14 @@ export class PipelineOrchestrator {
           buildLog: buildResult.buildLog ?? buildResult.error,
           lastBuiltAt: new Date().toISOString(),
         });
-        this.updateStatus(projectId, target, "built", `부분 빌드 (${buildResult.entries} entries) — SAST 진행`);
+        this.updateStatus(projectId, pipelineId, target, "built", `부분 빌드 (${buildResult.entries} entries) — SAST 진행`);
       } else {
         // 완전 실패
         this.buildTargetDAO.updatePipelineState(target.id, {
           status: "build_failed",
           buildLog: buildResult.buildLog ?? buildResult.error,
         });
-        this.updateStatus(projectId, target, "build_failed", `빌드 실패: ${buildResult.error}`);
+        this.updateStatus(projectId, pipelineId, target, "build_failed", `빌드 실패: ${buildResult.error}`);
         throw new PipelineStepError(`Build failed for ${target.name}: ${buildResult.error}`);
       }
     } else {
@@ -245,7 +258,7 @@ export class PipelineOrchestrator {
         compileCommandsPath: buildResult.compileCommandsPath,
         lastBuiltAt: new Date().toISOString(),
       });
-      this.updateStatus(projectId, target, "built", `빌드 완료 (${buildResult.entries ?? 0} entries)`);
+      this.updateStatus(projectId, pipelineId, target, "built", `빌드 완료 (${buildResult.entries ?? 0} entries)`);
     }
 
     if (signal?.aborted) return;
@@ -266,7 +279,7 @@ export class PipelineOrchestrator {
     if (signal?.aborted) return;
 
     // ── Step 2: SAST Scan ──
-    this.updateStatus(projectId, target, "scanning", "SAST 스캔 + SCA 진행 중...");
+    this.updateStatus(projectId, pipelineId, target, "scanning", "SAST 스캔 + SCA 진행 중...");
 
     const scanId = `scan-${crypto.randomUUID().slice(0, 8)}`;
     const sastResponse = await this.sastClient.scan(
@@ -284,7 +297,7 @@ export class PipelineOrchestrator {
 
     if (sastResponse.status !== "completed") {
       this.buildTargetDAO.updatePipelineState(target.id, { status: "scan_failed" });
-      this.updateStatus(projectId, target, "scan_failed", `스캔 실패: ${sastResponse.error}`);
+      this.updateStatus(projectId, pipelineId, target, "scan_failed", `스캔 실패: ${sastResponse.error}`);
       throw new PipelineStepError(`Scan failed for ${target.name}: ${sastResponse.error}`);
     }
 
@@ -298,7 +311,7 @@ export class PipelineOrchestrator {
       sastScanId: scanId,
       scaLibraries: sastResponse.sca?.libraries,
     });
-    this.updateStatus(projectId, target, "scanned", `스캔 완료 (${sastResponse.stats.findingsTotal} findings)`);
+    this.updateStatus(projectId, pipelineId, target, "scanned", `스캔 완료 (${sastResponse.stats.findingsTotal} findings)`);
 
     if (signal?.aborted) return;
 
@@ -312,9 +325,9 @@ export class PipelineOrchestrator {
           status: "graphed",
           codeGraphStatus: "skipped_degraded",
         });
-        this.updateStatus(projectId, target, "graphed", "코드그래프 스킵 (KB degraded — Neo4j 미연결)");
+        this.updateStatus(projectId, pipelineId, target, "graphed", "코드그래프 스킵 (KB degraded — Neo4j 미연결)");
       } else {
-      this.updateStatus(projectId, target, "graphing", "코드그래프 KB 적재 중...");
+      this.updateStatus(projectId, pipelineId, target, "graphing", "코드그래프 KB 적재 중...");
 
       try {
         const ingestResult = await this.kbClient.ingestCodeGraph(
@@ -329,7 +342,7 @@ export class PipelineOrchestrator {
           codeGraphStatus: "ingested",
           codeGraphNodeCount: ingestResult.nodes_created,
         });
-        this.updateStatus(projectId, target, "graphed", `코드그래프 적재 완료 (${ingestResult.nodes_created} nodes)`);
+        this.updateStatus(projectId, pipelineId, target, "graphed", `코드그래프 적재 완료 (${ingestResult.nodes_created} nodes)`);
       } catch (err) {
         // 코드그래프 실패는 치명적이지 않음 — 경고 후 계속
         logger.warn({ err, targetId: target.id, requestId }, "Code graph ingest failed, continuing");
@@ -348,7 +361,7 @@ export class PipelineOrchestrator {
 
     // ── Step 4: Ready ──
     this.buildTargetDAO.updatePipelineState(target.id, { status: "ready" });
-    this.updateStatus(projectId, target, "ready", "분석 준비 완료");
+    this.updateStatus(projectId, pipelineId, target, "ready", "분석 준비 완료");
   }
 
   private buildQuickResult(
@@ -393,6 +406,7 @@ export class PipelineOrchestrator {
 
   private updateStatus(
     projectId: string,
+    pipelineId: string,
     target: BuildTarget,
     status: BuildTargetStatus,
     message: string,
@@ -400,6 +414,7 @@ export class PipelineOrchestrator {
     this.broadcast(projectId, {
       type: "pipeline-target-status",
       payload: {
+        pipelineId,
         projectId,
         targetId: target.id,
         targetName: target.name,
@@ -412,5 +427,28 @@ export class PipelineOrchestrator {
 
   private broadcast(projectId: string, msg: WsPipelineMessage): void {
     this.ws?.broadcast(projectId, msg);
+  }
+
+  private emitTerminalNotification(
+    projectId: string,
+    pipelineId: string,
+    readyCount: number,
+    failedCount: number,
+    totalCount: number,
+  ): void {
+    try {
+      this.notificationService?.emit({
+        projectId,
+        type: failedCount > 0 ? "gate_failed" : "analysis_complete",
+        title: failedCount > 0 ? "파이프라인 완료 (일부 실패)" : "파이프라인 완료",
+        body: `ready ${readyCount}/${totalCount}, failed ${failedCount}`,
+        jobKind: "pipeline",
+        resourceId: pipelineId,
+        correlationId: pipelineId,
+        severity: failedCount > 0 ? "medium" : "low",
+      });
+    } catch {
+      // notification failure must not affect pipeline completion
+    }
   }
 }

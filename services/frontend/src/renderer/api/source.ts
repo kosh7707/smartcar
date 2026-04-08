@@ -136,3 +136,20 @@ export async function fetchFileContent(fileId: string): Promise<FileContentRespo
 export async function deleteProjectFile(projectId: string, fileId: string): Promise<void> {
   await apiFetch(`/api/projects/${projectId}/files/${fileId}`, { method: "DELETE" });
 }
+
+// ── Upload Status Recovery ──
+
+export interface UploadStatusSnapshot {
+  phase: string;
+  fileCount?: number;
+}
+
+export async function fetchUploadStatus(
+  projectId: string,
+  uploadId: string,
+): Promise<UploadStatusSnapshot> {
+  const res = await apiFetch<{ success: boolean; data: UploadStatusSnapshot }>(
+    `/api/projects/${projectId}/source/upload-status/${uploadId}`,
+  );
+  return res.data;
+}

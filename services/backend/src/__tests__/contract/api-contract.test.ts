@@ -690,7 +690,9 @@ describe("API Contract Tests", () => {
 
       const createRes = await request(app)
         .post("/api/projects/p-sdk/sdk")
-        .send({ name: "TI SDK", localPath: "/opt/sdk-one", description: "Cross toolchain" });
+        .field("name", "TI SDK")
+        .field("description", "Cross toolchain")
+        .attach("file", Buffer.from("archive-content"), "ti-sdk-am335x-08.02.00.24.tar.gz");
       expect(createRes.status).toBe(202);
 
       const res = await request(app).get("/api/projects/p-sdk/sdk");
@@ -707,7 +709,8 @@ describe("API Contract Tests", () => {
 
       const createRes = await request(app)
         .post("/api/projects/p-sdk2/sdk")
-        .send({ name: "Yocto SDK", localPath: "/opt/sdk-two" });
+        .field("name", "Yocto SDK")
+        .attach("file", Buffer.from("installer"), "yocto-sdk-08.02.00.24.bin");
 
       const res = await request(app).get(`/api/projects/p-sdk2/sdk/${createRes.body.data.id}`);
       expect(res.status).toBe(200);
@@ -716,8 +719,11 @@ describe("API Contract Tests", () => {
         id: createRes.body.data.id,
         projectId: "p-sdk2",
         name: "Yocto SDK",
-        path: "/opt/sdk-two",
-        status: "uploading",
+        path: `/tmp/p-sdk2/sdk/${createRes.body.data.id}/installed`,
+        artifactKind: "bin",
+        sdkVersion: "08.02.00.24",
+        targetSystem: "am335x-evm",
+        status: "uploaded",
         verified: false,
       });
     });
@@ -727,7 +733,9 @@ describe("API Contract Tests", () => {
 
       const res = await request(app)
         .post("/api/projects/p-sdk3/sdk")
-        .send({ name: "SDK Upload", localPath: "/opt/sdk-three", description: "ARM toolchain" });
+        .field("name", "SDK Upload")
+        .field("description", "ARM toolchain")
+        .attach("file", Buffer.from("archive-content"), "custom-sdk-1.0.0.tar.gz");
 
       expect(res.status).toBe(202);
       expect(res.body.success).toBe(true);
@@ -735,13 +743,59 @@ describe("API Contract Tests", () => {
         projectId: "p-sdk3",
         name: "SDK Upload",
         description: "ARM toolchain",
-        path: "/opt/sdk-three",
-        status: "uploading",
+        path: expect.stringContaining("/tmp/p-sdk3/sdk/"),
+        artifactKind: "archive",
+        sdkVersion: "1.0.0",
+        targetSystem: "archive-target",
+        status: "uploaded",
         verified: false,
       });
-      expect(res.body.data.id).toMatch(/^sdk-test-/);
+      expect(res.body.data.id).toMatch(/^sdk-/);
       expect(res.body.data.createdAt).toBeTypeOf("string");
       expect(res.body.data.updatedAt).toBeTypeOf("string");
+    });
+
+    it("POST /api/projects/:pid/sdk accepts folder uploads and preserves project-scoped metadata", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-sdk4" }));
+
+      const res = await request(app)
+        .post("/api/projects/p-sdk4/sdk")
+        .field("name", "Folder SDK")
+        .attach("file", Buffer.from("one"), "folder/one.txt")
+        .attach("file", Buffer.from("two"), "folder/two.txt");
+
+      expect(res.status).toBe(202);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
+        projectId: "p-sdk4",
+        name: "Folder SDK",
+        artifactKind: "folder",
+        sdkVersion: "folder-virtual",
+        targetSystem: "folder-target",
+        status: "uploaded",
+        verified: false,
+      });
+    });
+
+    it("POST /api/projects/:pid/sdk accepts explicit relativePath[] metadata for folder uploads", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-sdk5" }));
+
+      const res = await request(app)
+        .post("/api/projects/p-sdk5/sdk")
+        .field("name", "Folder SDK Relative")
+        .field("relativePath", "dir/one.txt")
+        .field("relativePath", "dir/sub/two.txt")
+        .attach("file", Buffer.from("one"), "one.txt")
+        .attach("file", Buffer.from("two"), "two.txt");
+
+      expect(res.status).toBe(202);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
+        projectId: "p-sdk5",
+        name: "Folder SDK Relative",
+        artifactKind: "folder",
+        status: "uploaded",
+      });
     });
   });
 
@@ -783,6 +837,40 @@ describe("API Contract Tests", () => {
         lineCount: 3,
       });
     });
+
+    it("POST /api/projects/:pid/source/upload exposes upload-status fallback and completion notification", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-upload" }));
+
+      const createRes = await request(app)
+        .post("/api/projects/p-upload/source/upload")
+        .attach("file", Buffer.from("int main(void) { return 0; }"), "main.c");
+
+      expect(createRes.status).toBe(202);
+      const uploadId = createRes.body.data.uploadId as string;
+      expect(uploadId).toMatch(/^upload-/);
+
+      let statusRes = await request(app).get(`/api/projects/p-upload/source/upload-status/${uploadId}`);
+      for (let i = 0; i < 10 && statusRes.body?.data?.phase !== "complete"; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        statusRes = await request(app).get(`/api/projects/p-upload/source/upload-status/${uploadId}`);
+      }
+
+      expect(statusRes.status).toBe(200);
+      expect(statusRes.body.data.phase).toBe("complete");
+
+      const notifRes = await request(app).get("/api/projects/p-upload/notifications");
+      expect(notifRes.status).toBe(200);
+      expect(notifRes.body.data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: "upload_complete",
+            jobKind: "upload",
+            resourceId: uploadId,
+            correlationId: uploadId,
+          }),
+        ]),
+      );
+    });
   });
 
   // ================================================================
@@ -804,6 +892,7 @@ describe("API Contract Tests", () => {
       expect(ctx.pipelineRunCalls[ctx.pipelineRunCalls.length - 1]).toMatchObject({
         projectId: "p-pipe-run",
         targetIds: ["t-a", "t-b"],
+        pipelineId: res.body.data.pipelineId,
       });
     });
 
@@ -851,11 +940,13 @@ describe("API Contract Tests", () => {
 
       expect(res.status).toBe(202);
       expect(res.body.success).toBe(true);
-      expect(res.body.data).toEqual({ targetId: "tp-rerun", status: "running" });
+      expect(res.body.data).toMatchObject({ targetId: "tp-rerun", status: "running" });
+      expect(res.body.data.pipelineId).toMatch(/^pipe-/);
       expect(ctx.buildTargetDAO.findById("tp-rerun")?.status).toBe("discovered");
       expect(ctx.pipelineRunCalls[ctx.pipelineRunCalls.length - 1]).toMatchObject({
         projectId: "p-rerun",
         targetIds: ["tp-rerun"],
+        pipelineId: res.body.data.pipelineId,
       });
     });
 
@@ -953,13 +1044,25 @@ describe("API Contract Tests", () => {
   describe("Notification API", () => {
     it("GET /api/projects/:pid/notifications returns list", async () => {
       ctx.projectDAO.save(makeProject({ id: "p-notif" }));
-      ctx.notificationService.emit({ projectId: "p-notif", type: "analysis_complete", title: "Test" });
+      ctx.notificationService.emit({
+        projectId: "p-notif",
+        type: "analysis_complete",
+        title: "Test",
+        jobKind: "analysis",
+        resourceId: "run-1",
+        correlationId: "analysis-1",
+      });
 
       const res = await request(app).get("/api/projects/p-notif/notifications");
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data).toHaveLength(1);
-      expect(res.body.data[0]).toHaveProperty("type", "analysis_complete");
+      expect(res.body.data[0]).toMatchObject({
+        type: "analysis_complete",
+        jobKind: "analysis",
+        resourceId: "run-1",
+        correlationId: "analysis-1",
+      });
     });
 
     it("GET /api/projects/:pid/notifications/count returns unread count", async () => {

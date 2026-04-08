@@ -21,6 +21,7 @@ import {
   ModuleReport,
   ProjectReport,
   AnalysisModule,
+  SdkAnalyzedProfile,
 } from "./models";
 
 // ============================================================
@@ -423,6 +424,30 @@ export interface WsUploadError {
 
 export type WsUploadMessage = WsUploadProgress | WsUploadComplete | WsUploadError;
 
+export interface UploadStatus {
+  uploadId: string;
+  phase: UploadPhase;
+  message: string;
+  fileCount?: number;
+  projectPath?: string;
+  error?: string;
+}
+
+export interface UploadAcceptedResponse {
+  success: boolean;
+  data?: {
+    uploadId: string;
+    status: "received";
+  };
+  error?: string;
+}
+
+export interface UploadStatusResponse {
+  success: boolean;
+  data?: UploadStatus;
+  error?: string;
+}
+
 // ============================================================
 // 서브 프로젝트 파이프라인 WS 메시지 (/ws/pipeline?projectId=)
 // Progress 의미론: BuildTargetStatus(16상태) → PipelinePhase(3단계) 매핑
@@ -442,6 +467,7 @@ export type PipelinePhase = "setup" | "build" | "ready";
 export interface WsPipelineTargetStatus {
   type: "pipeline-target-status";
   payload: {
+    pipelineId: string;
     projectId: string;
     targetId: string;
     targetName: string;
@@ -454,6 +480,7 @@ export interface WsPipelineTargetStatus {
 export interface WsPipelineComplete {
   type: "pipeline-complete";
   payload: {
+    pipelineId: string;
     projectId: string;
     readyCount: number;
     failedCount: number;
@@ -464,6 +491,7 @@ export interface WsPipelineComplete {
 export interface WsPipelineError {
   type: "pipeline-error";
   payload: {
+    pipelineId: string;
     projectId: string;
     targetId: string;
     targetName: string;
@@ -473,6 +501,86 @@ export interface WsPipelineError {
 }
 
 export type WsPipelineMessage = WsPipelineTargetStatus | WsPipelineComplete | WsPipelineError;
+
+export interface PipelineTargetStatusSnapshot {
+  id: string;
+  name: string;
+  status: BuildTargetStatus;
+  phase: PipelinePhase;
+  compileCommandsPath?: string;
+  sastScanId?: string;
+  codeGraphNodeCount?: number;
+  lastBuiltAt?: string;
+}
+
+export interface PipelineStatusResponse {
+  success: boolean;
+  data?: {
+    targets: PipelineTargetStatusSnapshot[];
+    readyCount: number;
+    failedCount: number;
+    totalCount: number;
+  };
+  error?: string;
+}
+
+// ============================================================
+// SDK 등록/검증 WS 메시지 (/ws/sdk?projectId=)
+// Progress 의미론: phase 기반 상태머신
+// 대표 Phase 전이:
+// uploading → uploaded → extracting|installing → extracted|installed → analyzing → verifying → ready
+// 실패: upload_failed | extract_failed | install_failed | verify_failed
+// ============================================================
+
+export type SdkProgressPhase =
+  | "uploading"
+  | "uploaded"
+  | "extracting"
+  | "extracted"
+  | "installing"
+  | "installed"
+  | "analyzing"
+  | "verifying"
+  | "ready";
+export type SdkErrorPhase =
+  | "upload_failed"
+  | "extract_failed"
+  | "install_failed"
+  | "verify_failed";
+
+export interface WsSdkProgress {
+  type: "sdk-progress";
+  payload: {
+    sdkId: string;
+    phase: SdkProgressPhase;
+    message: string;
+    percent?: number;
+    uploadedBytes?: number;
+    totalBytes?: number;
+    fileName?: string;
+  };
+}
+
+export interface WsSdkComplete {
+  type: "sdk-complete";
+  payload: {
+    sdkId: string;
+    profile: SdkAnalyzedProfile;
+    path?: string;
+  };
+}
+
+export interface WsSdkError {
+  type: "sdk-error";
+  payload: {
+    sdkId: string;
+    phase: SdkErrorPhase;
+    error: string;
+    logPath?: string;
+  };
+}
+
+export type WsSdkMessage = WsSdkProgress | WsSdkComplete | WsSdkError;
 
 // ============================================================
 // 공통

@@ -81,8 +81,8 @@
   --space-16: 64px;
 
   /* ── Typography ── */
-  --font-family: 'DM Sans', 'Noto Sans KR', -apple-system, system-ui, sans-serif;
-  --font-display: 'Instrument Sans', 'DM Sans', sans-serif;
+  --font-family: 'Plus Jakarta Sans', 'Pretendard', -apple-system, system-ui, sans-serif;
+  --font-display: 'Sora', 'Plus Jakarta Sans', 'Pretendard', sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
   --font-data: var(--font-mono);
 
@@ -231,12 +231,12 @@
    ═══════════════════════════════════════════════════════════════ */
 
 [data-theme="dark"] {
-  /* ── Surface (dark-first, layered depth) ── */
-  --surface-0: #0b0f19;
+  /* ── Surface (dark-first, layered depth — widened gaps for clarity) ── */
+  --surface-0: #080c14;
   --surface-1: #111827;
-  --surface-2: #1a2234;
-  --surface-3: #273044;
-  --surface-raised: #1a2234;
+  --surface-2: #1d2a3e;
+  --surface-3: #2a3754;
+  --surface-raised: #1d2a3e;
 
   /* ── Sidebar ── */
   --sidebar-bg: #060a12;

@@ -131,7 +131,7 @@ describe("useUploadProgress", () => {
     expect(result.current.isActive).toBe(false);
   });
 
-  it("handles unexpected WS close during active phase", () => {
+  it("handles unexpected WS close during active phase by reconnecting", () => {
     const { result } = renderHook(() => useUploadProgress());
 
     act(() => {
@@ -147,12 +147,13 @@ describe("useUploadProgress", () => {
       });
     });
 
-    // Simulate unexpected close
+    // Simulate unexpected close — should trigger reconnection, not immediate failure
     act(() => {
       ws.onclose?.();
     });
 
-    expect(result.current.phase).toBe("failed");
-    expect(result.current.error).toBe("업로드 연결이 끊어졌습니다.");
+    // With reconnecting WS, phase stays as-is (reconnection in progress)
+    expect(result.current.phase).toBe("extracting");
+    expect(result.current.connectionState).toBe("reconnecting");
   });
 });

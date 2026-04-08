@@ -26,7 +26,7 @@ import { TwoStageProgressView } from "../components/static/TwoStageProgressView"
 import { RunDetailView } from "../components/static/RunDetailView";
 import { FindingDetailView } from "../components/static/FindingDetailView";
 import { TargetSelectDialog } from "../components/static/TargetSelectDialog";
-import { PageHeader, BackButton, Spinner, EmptyState } from "../components/ui";
+import { PageHeader, BackButton, Spinner, EmptyState, ConnectionStatusBanner } from "../components/ui";
 import { Upload } from "lucide-react";
 import "./StaticAnalysisPage.css";
 
@@ -313,6 +313,7 @@ export const StaticAnalysisPage: React.FC = () => {
 
   return (
     <>
+    <ConnectionStatusBanner connectionState={analysis.connectionState} />
     <StaticDashboard
       projectId={projectId}
       summary={dashboard.summary}

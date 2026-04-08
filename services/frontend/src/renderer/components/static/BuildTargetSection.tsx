@@ -6,7 +6,7 @@ import { usePipelineProgress } from "../../hooks/usePipelineProgress";
 import { useToast } from "../../contexts/ToastContext";
 import { fetchSourceFiles, logError } from "../../api/client";
 import type { SourceFileEntry } from "../../api/client";
-import { ConfirmDialog, Spinner, TargetStatusBadge, TargetProgressStepper } from "../ui";
+import { ConfirmDialog, Spinner, TargetStatusBadge, TargetProgressStepper, ConnectionStatusBanner } from "../ui";
 import { BuildProfileForm } from "./BuildProfileForm";
 import { BuildLogViewer } from "./BuildLogViewer";
 import { SubprojectCreateDialog } from "./SubprojectCreateDialog";
@@ -151,6 +151,7 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
 
   return (
     <div className="card gs-card">
+      <ConnectionStatusBanner connectionState={pipeline.connectionState} />
       <div className="gs-card__header">
         <div className="gs-card__icon"><Crosshair size={18} /></div>
         <div>

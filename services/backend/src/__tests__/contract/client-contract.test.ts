@@ -247,9 +247,14 @@ describe("SastClient contract", () => {
 
   const buildResponse = {
     success: true,
-    compileCommandsPath: "/tmp/compile_commands.json",
-    entries: 42,
-    elapsedMs: 3000,
+    buildEvidence: {
+      compileCommandsPath: "/tmp/compile_commands.json",
+      entries: 42,
+      userEntries: 42,
+      elapsedMs: 3000,
+      buildOutput: "build ok",
+      environmentKeys: ["CC"],
+    },
   };
 
   const discoverResponse = {
@@ -295,22 +300,50 @@ describe("SastClient contract", () => {
   it("POST /v1/build sends correct request shape", async () => {
     globalThis.fetch = mockFetch(buildResponse);
 
-    await client.build({ projectPath: "/tmp/project" }, "req-build");
+    await client.build({ projectPath: "/tmp/project", buildCommand: "make all" }, "req-build");
 
     const [url, opts] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(url).toBe("http://localhost:9000/v1/build");
     expect(opts.method).toBe("POST");
     const body = JSON.parse(opts.body);
     expect(body.projectPath).toBe("/tmp/project");
+    expect(body.buildCommand).toBe("make all");
   });
 
   it("parses BuildResponse correctly", async () => {
     globalThis.fetch = mockFetch(buildResponse);
-    const result = await client.build({ projectPath: "/tmp/project" });
+    const result = await client.build({ projectPath: "/tmp/project", buildCommand: "make all" });
 
     expect(result.success).toBe(true);
     expect(result.compileCommandsPath).toBe("/tmp/compile_commands.json");
     expect(result.entries).toBe(42);
+    expect(result.buildLog).toBe("build ok");
+    expect(result.environmentKeys).toEqual(["CC"]);
+  });
+
+  it("parses structured failed build responses with failureDetail", async () => {
+    globalThis.fetch = mockFetch({
+      success: false,
+      buildEvidence: {
+        compileCommandsPath: "/tmp/compile_commands.json",
+        entries: 3,
+        userEntries: 1,
+        elapsedMs: 1234,
+        buildOutput: "bash: missing: command not found",
+      },
+      failureDetail: {
+        category: "command-not-found",
+        summary: "The supplied build command referenced an unavailable executable or script.",
+      },
+    });
+
+    const result = await client.build({ projectPath: "/tmp/project", buildCommand: "missing" });
+
+    expect(result.success).toBe(false);
+    expect(result.compileCommandsPath).toBe("/tmp/compile_commands.json");
+    expect(result.entries).toBe(1);
+    expect(result.failureCategory).toBe("command-not-found");
+    expect(result.error).toContain("unavailable executable");
   });
 
   it("POST /v1/discover-targets sends projectPath", async () => {
@@ -345,6 +378,32 @@ describe("SastClient contract", () => {
 
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
     expect(result.success).toBe(true);
+  });
+
+  it("treats omission-policy 503 as authoritative failed scan without retry", async () => {
+    const failureResponse = {
+      success: false,
+      scanId: "scan-omission",
+      status: "failed",
+      error: "Disallowed tool omission",
+      errorDetail: {
+        code: "DISALLOWED_TOOL_OMISSION",
+        message: "runtime-tool-missing",
+        retryable: false,
+      },
+    };
+    globalThis.fetch = mockFetch(failureResponse, 503);
+
+    const result = await client.scan({
+      scanId: "scan-omission",
+      projectId: "p-1",
+      projectPath: "/tmp/project",
+    });
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(result.status).toBe("failed");
+    expect(result.errorDetail?.code).toBe("DISALLOWED_TOOL_OMISSION");
+    expect(result.stats.findingsTotal).toBe(0);
   });
 
   it("throws SastUnavailableError on network failure", async () => {

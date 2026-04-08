@@ -67,3 +67,231 @@ export function parseWsMessage<T = unknown>(data: string): WsMessage<T> {
   const { type, meta, ...rest } = raw;
   return { type, payload: rest as T, meta };
 }
+
+// ── Reconnection & Heartbeat Utilities ──
+
+export type ConnectionState = "connected" | "disconnected" | "reconnecting" | "failed";
+
+/** Interface that all reconnectable hooks must satisfy for connectionState exposure */
+export interface ReconnectableHookResult {
+  connectionState: ConnectionState;
+}
+
+export interface ReconnectOptions {
+  maxRetries?: number;
+  initialDelay?: number;
+  maxDelay?: number;
+  backoffFactor?: number;
+  jitterFactor?: number;
+  onStateChange?: (state: ConnectionState) => void;
+  onDisconnect?: () => void;
+  onReconnect?: () => void;
+  onGiveUp?: () => void;
+  /** Override WebSocket constructor (for testing) */
+  WebSocketCtor?: typeof WebSocket;
+}
+
+export interface HeartbeatOptions {
+  interval?: number;
+  timeout?: number;
+}
+
+interface ReconnectingWs {
+  getWs(): WebSocket | null;
+  connectionState: ConnectionState;
+  close(): void;
+  resetRetries(): void;
+}
+
+const RECONNECT_DEFAULTS = {
+  maxRetries: 10,
+  initialDelay: 500,
+  maxDelay: 30_000,
+  backoffFactor: 2,
+  jitterFactor: 0.2,
+} as const;
+
+function applyJitter(delay: number, factor: number): number {
+  const jitter = delay * factor * (2 * Math.random() - 1);
+  return Math.max(0, delay + jitter);
+}
+
+/**
+ * Creates a reconnecting WebSocket wrapper with exponential backoff + jitter.
+ *
+ * Each hook wires `onStateChange` to a `useState<ConnectionState>` setter
+ * for React re-renders. `close()` cancels all pending timers — safe for
+ * React cleanup effects.
+ */
+export function createReconnectingWs(
+  urlFactory: () => string,
+  options?: ReconnectOptions,
+): ReconnectingWs {
+  const { WebSocketCtor = WebSocket, ...restOpts } = { ...RECONNECT_DEFAULTS, ...options };
+  const opts = restOpts;
+  let ws: WebSocket | null = null;
+  let state: ConnectionState = "disconnected";
+  let retryCount = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  let closed = false;
+
+  function setState(next: ConnectionState) {
+    if (state === next) return;
+    state = next;
+    opts.onStateChange?.(next);
+  }
+
+  function clearTimer() {
+    if (retryTimer !== null) {
+      clearTimeout(retryTimer);
+      retryTimer = null;
+    }
+  }
+
+  function connect() {
+    if (closed) return;
+    try {
+      ws = new WebSocketCtor(urlFactory());
+    } catch {
+      scheduleRetry();
+      return;
+    }
+
+    ws.onopen = () => {
+      retryCount = 0;
+      const wasReconnecting = state === "reconnecting";
+      setState("connected");
+      if (wasReconnecting) opts.onReconnect?.();
+    };
+
+    ws.onclose = () => {
+      if (closed) return;
+      ws = null;
+      opts.onDisconnect?.();
+      scheduleRetry();
+    };
+
+    ws.onerror = () => {
+      // onclose will fire after onerror — reconnect is handled there
+    };
+  }
+
+  function scheduleRetry() {
+    if (closed) return;
+    if (retryCount >= opts.maxRetries) {
+      setState("failed");
+      opts.onGiveUp?.();
+      return;
+    }
+    setState("reconnecting");
+    const baseDelay = Math.min(
+      opts.initialDelay * Math.pow(opts.backoffFactor, retryCount),
+      opts.maxDelay,
+    );
+    const delay = applyJitter(baseDelay, opts.jitterFactor);
+    retryCount++;
+    retryTimer = setTimeout(connect, delay);
+  }
+
+  connect();
+
+  return {
+    getWs: () => ws,
+    get connectionState() {
+      return state;
+    },
+    close() {
+      closed = true;
+      clearTimer();
+      if (ws) {
+        const sock = ws;
+        ws = null;
+        sock.onclose = null;
+        sock.onerror = null;
+        // readyState: 0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED
+        if (sock.readyState === 1 || sock.readyState === 2) {
+          sock.close();
+        } else if (sock.readyState === 0) {
+          // WS hasn't connected yet — close once handshake completes to avoid
+          // browser warning "WebSocket is closed before the connection is established"
+          sock.onopen = () => sock.close();
+        }
+      }
+    },
+    resetRetries() {
+      retryCount = 0;
+    },
+  };
+}
+
+interface Heartbeat {
+  start(ws: WebSocket): void;
+  stop(): void;
+}
+
+const HEARTBEAT_DEFAULTS = {
+  interval: 30_000,
+  timeout: 10_000,
+} as const;
+
+/**
+ * Monitors connection liveness via periodic pings.
+ * If no pong arrives within timeout, force-closes the WS to trigger reconnect.
+ */
+export function createHeartbeat(options?: HeartbeatOptions): Heartbeat {
+  const opts = { ...HEARTBEAT_DEFAULTS, ...options };
+  let intervalId: ReturnType<typeof setInterval> | null = null;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let currentWs: WebSocket | null = null;
+  let awaitingPong = false;
+
+  function onMessage(event: MessageEvent) {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.type === "pong") {
+        awaitingPong = false;
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+      }
+    } catch {
+      // not a JSON message — ignore
+    }
+  }
+
+  return {
+    start(ws: WebSocket) {
+      this.stop();
+      currentWs = ws;
+      ws.addEventListener("message", onMessage);
+
+      intervalId = setInterval(() => {
+        if (!currentWs || currentWs.readyState !== WebSocket.OPEN) return;
+        if (awaitingPong) return; // still waiting for previous pong
+        awaitingPong = true;
+        currentWs.send(JSON.stringify({ type: "ping" }));
+        timeoutId = setTimeout(() => {
+          if (awaitingPong && currentWs) {
+            currentWs.close(); // triggers reconnect via createReconnectingWs
+          }
+        }, opts.timeout);
+      }, opts.interval);
+    },
+    stop() {
+      if (intervalId !== null) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      if (currentWs) {
+        currentWs.removeEventListener("message", onMessage);
+        currentWs = null;
+      }
+      awaitingPong = false;
+    },
+  };
+}

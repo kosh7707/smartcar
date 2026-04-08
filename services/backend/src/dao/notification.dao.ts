@@ -1,6 +1,7 @@
 import type { Notification, NotificationType, Severity } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { INotificationDAO } from "./interfaces";
+import type { NotificationJobKind } from "@aegis/shared";
 
 interface NotificationRow {
   id: string;
@@ -9,7 +10,9 @@ interface NotificationRow {
   title: string;
   body: string;
   severity: Severity | null;
+  job_kind: NotificationJobKind | null;
   resource_id: string | null;
+  correlation_id: string | null;
   read: number;
   created_at: string;
 }
@@ -22,7 +25,9 @@ function rowToNotification(row: NotificationRow): Notification {
     title: row.title,
     body: row.body,
     severity: row.severity ?? undefined,
+    jobKind: row.job_kind ?? undefined,
     resourceId: row.resource_id ?? undefined,
+    correlationId: row.correlation_id ?? undefined,
     read: row.read === 1,
     createdAt: row.created_at,
   };
@@ -40,8 +45,8 @@ export class NotificationDAO implements INotificationDAO {
 
   constructor(private db: DatabaseType) {
     this.insertStmt = db.prepare(
-      `INSERT INTO notifications (id, project_id, type, title, body, severity, resource_id, read, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)`
+      `INSERT INTO notifications (id, project_id, type, title, body, severity, job_kind, resource_id, correlation_id, read, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`
     );
     this.selectByProjectStmt = db.prepare(
       `SELECT * FROM notifications WHERE project_id = ? ORDER BY created_at DESC`
@@ -66,7 +71,18 @@ export class NotificationDAO implements INotificationDAO {
     );
   }
 
-  save(notification: { id: string; projectId: string; type: string; title: string; body: string; severity?: string; resourceId?: string; createdAt: string }): void {
+  save(notification: {
+    id: string;
+    projectId: string;
+    type: string;
+    title: string;
+    body: string;
+    severity?: string;
+    jobKind?: string;
+    resourceId?: string;
+    correlationId?: string;
+    createdAt: string;
+  }): void {
     this.insertStmt.run(
       notification.id,
       notification.projectId,
@@ -74,7 +90,9 @@ export class NotificationDAO implements INotificationDAO {
       notification.title,
       notification.body,
       notification.severity ?? null,
+      notification.jobKind ?? null,
       notification.resourceId ?? null,
+      notification.correlationId ?? null,
       notification.createdAt,
     );
   }

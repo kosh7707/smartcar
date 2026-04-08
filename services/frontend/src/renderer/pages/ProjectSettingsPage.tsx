@@ -1,29 +1,42 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { Settings, Plus, Trash2, FolderOpen, CheckCircle, XCircle, Loader, ChevronDown, ChevronRight, ShieldCheck } from "lucide-react";
+import { Settings, Plus, Trash2, CheckCircle, XCircle, Loader, ChevronDown, ChevronRight, ShieldCheck, Archive, Binary, FolderOpen } from "lucide-react";
 import type { GateProfile } from "@aegis/shared";
 import { fetchGateProfiles } from "../api/gate";
 import { fetchProjectSettings, updateProjectSettings } from "../api/projects";
 import type { RegisteredSdk, SdkRegistryStatus, SdkAnalyzedProfile } from "../api/sdk";
-import { fetchProjectSdks, registerSdkByPath, deleteSdk, getSdkWsUrl } from "../api/sdk";
+import { fetchProjectSdks, deleteSdk } from "../api/sdk";
 import { logError } from "../api/core";
 import { useToast } from "../contexts/ToastContext";
-import { createSeqTracker, parseWsMessage } from "../utils/wsEnvelope";
-import { PageHeader, Spinner, EmptyState, ConfirmDialog } from "../components/ui";
+import { useSdkProgress } from "../hooks/useSdkProgress";
+import { PageHeader, Spinner, EmptyState, ConfirmDialog, ConnectionStatusBanner } from "../components/ui";
+import { SdkUploadForm } from "../components/SdkUploadForm";
 import "./SdkManagementPage.css";
 import "./SettingsPage.css";
 
 const STATUS_CONFIG: Record<SdkRegistryStatus, { label: string; icon: "spin" | "check" | "fail" }> = {
   uploading: { label: "업로드 중", icon: "spin" },
+  uploaded: { label: "업로드 완료", icon: "spin" },
   extracting: { label: "압축 해제 중", icon: "spin" },
+  extracted: { label: "압축 해제 완료", icon: "spin" },
+  installing: { label: "설치 중", icon: "spin" },
+  installed: { label: "설치 완료", icon: "spin" },
   analyzing: { label: "AI 분석 중", icon: "spin" },
   verifying: { label: "검증 중", icon: "spin" },
   ready: { label: "사용 가능", icon: "check" },
+  upload_failed: { label: "업로드 실패", icon: "fail" },
+  extract_failed: { label: "압축해제 실패", icon: "fail" },
+  install_failed: { label: "설치 실패", icon: "fail" },
   verify_failed: { label: "검증 실패", icon: "fail" },
 };
 
-const STEPS: SdkRegistryStatus[] = ["uploading", "extracting", "analyzing", "verifying", "ready"];
-const STEP_LABELS = ["업로드", "압축해제", "AI 분석", "검증", "완료"];
+const PHASE_GROUPS: { label: string; phases: SdkRegistryStatus[]; failPhases: SdkRegistryStatus[] }[] = [
+  { label: "업로드", phases: ["uploading", "uploaded"], failPhases: ["upload_failed"] },
+  { label: "설치/압축해제", phases: ["extracting", "extracted", "installing", "installed"], failPhases: ["extract_failed", "install_failed"] },
+  { label: "AI 분석", phases: ["analyzing"], failPhases: [] },
+  { label: "검증", phases: ["verifying"], failPhases: ["verify_failed"] },
+  { label: "완료", phases: ["ready"], failPhases: [] },
+];
 
 function SdkStatusBadge({ status }: { status: SdkRegistryStatus }) {
   const config = STATUS_CONFIG[status];
@@ -39,36 +52,28 @@ function SdkStatusBadge({ status }: { status: SdkRegistryStatus }) {
 }
 
 function SdkStepper({ status }: { status: SdkRegistryStatus }) {
-  const currentIdx = STEPS.indexOf(status);
-  if (status === "verify_failed") {
-    return (
-      <div className="sdk-stepper">
-        {STEP_LABELS.map((label, i) => {
-          const done = i < 3;
-          const failed = i === 3;
-          return (
-            <React.Fragment key={label}>
-              {i > 0 && <span className={`sdk-stepper__line${done ? " sdk-stepper__line--done" : ""}`} />}
-              <span className={`sdk-stepper__step${done ? " sdk-stepper__step--done" : failed ? " sdk-stepper__step--failed" : ""}`}>
-                {label}
-              </span>
-            </React.Fragment>
-          );
-        })}
-      </div>
-    );
+  // Find which group the current status belongs to
+  let activeGroupIdx = -1;
+  let failedGroupIdx = -1;
+  for (let g = 0; g < PHASE_GROUPS.length; g++) {
+    if (PHASE_GROUPS[g].phases.includes(status)) activeGroupIdx = g;
+    if (PHASE_GROUPS[g].failPhases.includes(status)) failedGroupIdx = g;
   }
+
   return (
     <div className="sdk-stepper">
-      {STEP_LABELS.map((label, i) => {
-        const done = i < currentIdx;
-        const active = i === currentIdx;
+      {PHASE_GROUPS.map((group, i) => {
+        const failed = failedGroupIdx === i;
+        const done = failedGroupIdx >= 0 ? i < failedGroupIdx : activeGroupIdx >= 0 ? i < activeGroupIdx : false;
+        const active = !failed && activeGroupIdx === i;
+        const cls = failed ? " sdk-stepper__step--failed"
+          : done ? " sdk-stepper__step--done"
+          : active ? " sdk-stepper__step--active"
+          : "";
         return (
-          <React.Fragment key={label}>
+          <React.Fragment key={group.label}>
             {i > 0 && <span className={`sdk-stepper__line${done ? " sdk-stepper__line--done" : ""}`} />}
-            <span className={`sdk-stepper__step${done ? " sdk-stepper__step--done" : active ? " sdk-stepper__step--active" : ""}`}>
-              {label}
-            </span>
+            <span className={`sdk-stepper__step${cls}`}>{group.label}</span>
           </React.Fragment>
         );
       })}
@@ -107,12 +112,34 @@ export const ProjectSettingsPage: React.FC = () => {
   const [registered, setRegistered] = useState<RegisteredSdk[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [formName, setFormName] = useState("");
-  const [formDesc, setFormDesc] = useState("");
-  const [formPath, setFormPath] = useState("");
-  const [registering, setRegistering] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<RegisteredSdk | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
+  const { connectionState: sdkConnectionState } = useSdkProgress({
+    projectId,
+    onProgress: useCallback((sdkId: string, phase: SdkRegistryStatus) => {
+      setRegistered((prev) => prev.map((sdk) =>
+        sdk.id === sdkId ? { ...sdk, status: phase } : sdk,
+      ));
+    }, []),
+    onComplete: useCallback((sdkId: string, profile: RegisteredSdk["profile"]) => {
+      setRegistered((prev) => prev.map((sdk) =>
+        sdk.id === sdkId ? { ...sdk, status: "ready" as SdkRegistryStatus, profile } : sdk,
+      ));
+      toast.success("SDK 등록 완료");
+    }, [toast]),
+    onError: useCallback((sdkId: string, error: string, phase?: string, logPath?: string) => {
+      const errorStatus = (phase || "verify_failed") as SdkRegistryStatus;
+      const ERROR_LABELS: Record<string, string> = {
+        upload_failed: "업로드 실패",
+        extract_failed: "압축해제 실패",
+        install_failed: "설치 실패",
+        verify_failed: "검증 실패",
+      };
+      setRegistered((prev) => prev.map((sdk) =>
+        sdk.id === sdkId ? { ...sdk, status: errorStatus, verifyError: error, installLogPath: logPath } : sdk,
+      ));
+      toast.error(`SDK ${ERROR_LABELS[errorStatus] ?? "등록 실패"}: ${error}`);
+    }, [toast]),
+  });
   const [gateProfiles, setGateProfiles] = useState<GateProfile[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string>("");
   const [savingProfile, setSavingProfile] = useState(false);
@@ -143,78 +170,12 @@ export const ProjectSettingsPage: React.FC = () => {
       .catch((e) => logError("Settings.load", e));
   }, [projectId]);
 
-  // WS for real-time SDK progress
-  useEffect(() => {
-    if (!projectId) return;
-    let cancelled = false;
-    const ws = new WebSocket(getSdkWsUrl(projectId));
-    wsRef.current = ws;
-    const seqTracker = createSeqTracker("sdk");
+  // SDK WS progress is now handled by useSdkProgress hook above
 
-    ws.onmessage = (evt) => {
-      if (cancelled) return;
-      try {
-        const parsed = parseWsMessage(evt.data);
-        seqTracker.check(parsed.meta);
-        const { type, payload } = parsed;
-        if (type === "sdk-progress") {
-          setRegistered((prev) => prev.map((sdk) =>
-            sdk.id === payload.sdkId ? { ...sdk, status: payload.phase as SdkRegistryStatus } : sdk,
-          ));
-        } else if (type === "sdk-complete") {
-          setRegistered((prev) => prev.map((sdk) =>
-            sdk.id === payload.sdkId ? { ...sdk, status: "ready" as SdkRegistryStatus, profile: payload.profile } : sdk,
-          ));
-          toast.success("SDK 등록 완료");
-        } else if (type === "sdk-error") {
-          setRegistered((prev) => prev.map((sdk) =>
-            sdk.id === payload.sdkId ? { ...sdk, status: "verify_failed" as SdkRegistryStatus, verifyError: payload.error } : sdk,
-          ));
-          toast.error(`SDK 등록 실패: ${payload.error}`);
-        }
-      } catch (e) {
-        console.warn("[WS:sdk] malformed message:", e);
-      }
-    };
-    ws.onerror = () => {
-      if (cancelled) return;
-      console.warn("[WS:sdk] connection error");
-    };
-    ws.onclose = () => {
-      if (!cancelled && wsRef.current === ws) wsRef.current = null;
-    };
-
-    return () => {
-      cancelled = true;
-      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-        ws.close();
-      }
-      if (wsRef.current === ws) wsRef.current = null;
-    };
-  }, [projectId, toast]);
-
-  const handleRegister = useCallback(async () => {
-    if (!projectId || !formName.trim()) { toast.error("SDK 이름을 입력해주세요."); return; }
-    setRegistering(true);
-    try {
-      if (!formPath.trim()) { toast.error("경로를 입력해주세요."); setRegistering(false); return; }
-      const sdk = await registerSdkByPath(
-        projectId,
-        formName.trim(),
-        formPath.trim(),
-        formDesc.trim() || undefined,
-      );
-      setRegistered((prev) => [...prev, sdk]);
-      toast.success("SDK 등록 요청 완료 — 진행률을 확인하세요.");
-      setShowForm(false);
-      setFormName(""); setFormDesc(""); setFormPath("");
-    } catch (e) {
-      logError("Register SDK", e);
-      toast.error("SDK 등록에 실패했습니다.");
-    } finally {
-      setRegistering(false);
-    }
-  }, [projectId, formName, formDesc, formPath, toast]);
+  const handleRegistered = useCallback((sdk: RegisteredSdk) => {
+    setRegistered((prev) => [...prev, sdk]);
+    setShowForm(false);
+  }, []);
 
   const handleDelete = useCallback(async (sdk: RegisteredSdk) => {
     if (!projectId) return;
@@ -250,6 +211,7 @@ export const ProjectSettingsPage: React.FC = () => {
 
   return (
     <div className="page-enter">
+      <ConnectionStatusBanner connectionState={sdkConnectionState} />
       <PageHeader title="프로젝트 설정" icon={<Settings size={20} />} />
 
       {/* Quality Gate Profile Section */}
@@ -319,37 +281,12 @@ export const ProjectSettingsPage: React.FC = () => {
         </div>
 
         {/* Register form */}
-        {showForm && (
-          <div className="card sdk-register-form">
-            <div className="sdk-register-form__modes">
-              <button className="sdk-mode-btn active" type="button">
-                <FolderOpen size={14} /> 로컬 경로
-              </button>
-            </div>
-            <p className="sdk-register-form__hint">
-              현재 백엔드 계약상 SDK 등록은 <code>localPath</code> 입력만 보장됩니다.
-            </p>
-            <div className="sdk-register-form__fields">
-              <label className="form-field">
-                <span className="form-label">SDK 이름</span>
-                <input className="form-input" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="예: TI AM335x SDK" autoFocus />
-              </label>
-              <label className="form-field">
-                <span className="form-label">설명 (선택)</span>
-                <input className="form-input" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} placeholder="SDK에 대한 간략한 설명" />
-              </label>
-              <label className="form-field">
-                <span className="form-label">로컬 경로</span>
-                <input className="form-input font-mono" value={formPath} onChange={(e) => setFormPath(e.target.value)} placeholder="/path/to/sdk" spellCheck={false} />
-              </label>
-            </div>
-            <div className="sdk-register-form__actions">
-              <button className="btn btn-secondary btn-sm" onClick={() => setShowForm(false)}>취소</button>
-              <button className="btn btn-sm" onClick={handleRegister} disabled={registering}>
-                {registering ? "등록 중..." : "등록"}
-              </button>
-            </div>
-          </div>
+        {showForm && projectId && (
+          <SdkUploadForm
+            projectId={projectId}
+            onRegistered={handleRegistered}
+            onCancel={() => setShowForm(false)}
+          />
         )}
 
         {/* Registered SDKs */}
@@ -358,18 +295,33 @@ export const ProjectSettingsPage: React.FC = () => {
         ) : (
           <div className="sdk-list">
             {registered.map((sdk) => (
-              <div key={sdk.id} className={`card sdk-card sdk-card--registered${sdk.status === "verify_failed" ? " sdk-card--failed" : sdk.status === "ready" ? " sdk-card--ready" : ""}`}>
+              <div key={sdk.id} className={`card sdk-card sdk-card--registered${sdk.status.endsWith("_failed") ? " sdk-card--failed" : sdk.status === "ready" ? " sdk-card--ready" : ""}`}>
                 <div className="sdk-card__header">
                   <span className="sdk-card__name">{sdk.name}</span>
+                  {sdk.artifactKind && (
+                    <span className="sdk-card__kind">
+                      {sdk.artifactKind === "archive" ? <Archive size={12} /> : sdk.artifactKind === "bin" ? <Binary size={12} /> : <FolderOpen size={12} />}
+                      {sdk.artifactKind === "archive" ? "아카이브" : sdk.artifactKind === "bin" ? "바이너리" : "폴더"}
+                    </span>
+                  )}
                   <SdkStatusBadge status={sdk.status} />
                   <button className="btn-icon btn-danger" title="삭제" onClick={() => setDeleteTarget(sdk)}>
                     <Trash2 size={14} />
                   </button>
                 </div>
                 {sdk.description && <p className="sdk-card__desc">{sdk.description}</p>}
+                {(sdk.sdkVersion || sdk.targetSystem) && (
+                  <div className="sdk-card__meta">
+                    {sdk.sdkVersion && <span>버전: <code>{sdk.sdkVersion}</code></span>}
+                    {sdk.targetSystem && <span>타겟: <code>{sdk.targetSystem}</code></span>}
+                  </div>
+                )}
                 {sdk.path && <div className="sdk-card__path"><code>{sdk.path}</code></div>}
-                {sdk.status !== "ready" && sdk.status !== "verify_failed" && <SdkStepper status={sdk.status} />}
+                {sdk.status !== "ready" && !sdk.status.endsWith("_failed") && <SdkStepper status={sdk.status} />}
                 {sdk.verifyError && <div className="sdk-card__error">{sdk.verifyError}</div>}
+                {sdk.status.endsWith("_failed") && sdk.installLogPath && (
+                  <div className="sdk-card__logpath"><strong>로그 경로:</strong> <code>{sdk.installLogPath}</code></div>
+                )}
                 {sdk.profile && <ProfileDetail profile={sdk.profile} />}
               </div>
             ))}

@@ -73,12 +73,31 @@ async def lifespan(app: FastAPI):
     logger = logging.getLogger("aegis-sast-runner")
 
     orch = ScanOrchestrator()
-    tools = await orch.check_tools()
+    tools = await orch.check_tools(force=True)
     for name, info in tools.items():
         if info["available"]:
             logger.info("Tool %s available: v%s", name, info["version"])
         else:
-            logger.warning("Tool %s not found", name)
+            logger.warning(
+                "Tool %s not found",
+                name,
+                extra={
+                    "probeReason": info.get("probeReason"),
+                    "expectedExecutablePath": info.get("expectedExecutablePath"),
+                },
+            )
+
+    policy = orch.build_health_policy(tools)
+    if policy["policyStatus"] != "ok":
+        logger.warning(
+            "Tool availability degraded",
+            extra={
+                "policyStatus": policy["policyStatus"],
+                "policyReasons": policy["policyReasons"],
+                "unavailableTools": policy["unavailableTools"],
+                "allowedSkipReasons": policy["allowedSkipReasons"],
+            },
+        )
 
     logger.info(
         "SAST Runner started on port %d (rulesets: %s)",

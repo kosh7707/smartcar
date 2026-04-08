@@ -10,6 +10,7 @@ from typing import Any
 
 from app.errors import ScanTimeoutError
 from app.scanner.path_utils import normalize_path
+from app.scanner.tool_probe import probe_command, service_toolchain_executable
 from app.schemas.request import BuildProfile
 from app.schemas.response import SastFinding, SastFindingLocation
 
@@ -34,22 +35,17 @@ class ClangTidyRunner:
     """clang-tidy를 asyncio subprocess로 실행한다."""
 
     async def check_available(self) -> tuple[bool, str | None]:
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                "clang-tidy", "--version",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10)
-            if proc.returncode == 0:
-                output = stdout.decode()
-                # "LLVM version 18.1.3" 추출
-                match = re.search(r"version (\S+)", output)
-                version = match.group(1) if match else output.strip().split("\n")[0]
-                return True, version
-            return False, None
-        except (FileNotFoundError, asyncio.TimeoutError):
-            return False, None
+        def _parse(output: str) -> str:
+            match = re.search(r"version (\S+)", output)
+            return match.group(1) if match else output.strip().split("\n")[0]
+
+        probe = await probe_command(
+            ["clang-tidy", "--version"],
+            version_parser=_parse,
+            expected_executable_path=service_toolchain_executable("clang-tidy"),
+        )
+        self._last_probe = probe
+        return bool(probe["available"]), probe["version"] if isinstance(probe["version"], str) else None
 
     async def run(
         self,

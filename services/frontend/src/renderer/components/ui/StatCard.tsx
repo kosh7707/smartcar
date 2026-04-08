@@ -14,6 +14,7 @@ export const StatCard: React.FC<Props> = ({ icon, label, value, color, accent, o
   return (
     <div
       className={`stat-card${accent ? " stat-card--accent" : ""}${onClick ? " stat-card--clickable" : ""}`}
+      style={color ? { "--stat-accent": color } as React.CSSProperties : undefined}
       onClick={onClick}
     >
       <div className="stat-card__header">

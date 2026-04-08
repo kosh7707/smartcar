@@ -53,11 +53,11 @@ export function createHealthRouter(
     const coreServices = [services.sastRunner, services.analysisAgent];
     const allServices = Object.values(services);
     const coreDown = coreServices.every((s) => s.status === "unreachable");
-    const anyDown = allServices.some((s) => s.status === "unreachable");
+    const anyIssue = allServices.some((s) => s.status !== "ok");
 
     let status: OverallStatus;
     if (coreDown) status = "unhealthy";
-    else if (anyDown) status = "degraded";
+    else if (anyIssue) status = "degraded";
     else status = "ok";
 
     res.json({
@@ -81,6 +81,14 @@ export function createHealthRouter(
 
 function toServiceHealth(data: Record<string, unknown> | null): ServiceHealth {
   if (!data) return { status: "unreachable" };
-  if (data.degraded === true) return { status: "degraded", detail: data };
+  const childStatus = typeof data.status === "string" ? data.status : null;
+  const policyStatus = typeof data.policyStatus === "string" ? data.policyStatus : null;
+  if (
+    data.degraded === true ||
+    (childStatus !== null && childStatus !== "ok") ||
+    (policyStatus !== null && policyStatus !== "ok")
+  ) {
+    return { status: "degraded", detail: data };
+  }
   return { status: "ok", detail: data };
 }

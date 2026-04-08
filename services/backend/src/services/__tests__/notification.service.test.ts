@@ -59,11 +59,23 @@ describe("NotificationService", () => {
         type: "critical_finding",
         title: "Critical found",
         severity: "critical",
+        jobKind: "finding",
+        resourceId: "finding-1",
+        correlationId: "analysis-1",
       });
+      expect(dao.save).toHaveBeenCalledWith(expect.objectContaining({
+        projectId: "proj-1",
+        type: "critical_finding",
+        severity: "critical",
+        jobKind: "finding",
+        resourceId: "finding-1",
+        correlationId: "analysis-1",
+      }));
       expect(ws.broadcast).toHaveBeenCalledWith("proj-1", {
         type: "notification",
         payload: result,
       });
+      expect(result.read).toBe(false);
     });
 
     it("does not fail when WS is undefined", () => {

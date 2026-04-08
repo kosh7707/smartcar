@@ -16,7 +16,7 @@ from fastapi.responses import StreamingResponse
 
 from app.config import settings
 from app.context import set_request_id
-from app.errors import NoFilesError, SastRunnerError
+from app.errors import NoFilesError, PolicyViolationError, SastRunnerError
 from app.scanner.ast_dumper import AstDumper
 from app.scanner.build_metadata import BuildMetadataExtractor
 from app.scanner.build_runner import BuildRunner
@@ -264,20 +264,7 @@ async def _run_scan_core(
 
     elapsed_ms = int((time.perf_counter() - t0) * 1000)
 
-    logger.info(
-        "Scan completed",
-        extra={
-            "requestId": request_id,
-            "scanId": scan_id,
-            "findingsCount": len(findings),
-            "toolsRun": execution.tools_run,
-            "hasCodeGraph": code_graph_result is not None,
-            "scaLibraries": len(sca_result["libraries"]) if sca_result else 0,
-            "elapsedMs": elapsed_ms,
-        },
-    )
-
-    return ScanResponse(
+    scan_response = ScanResponse(
         success=True,
         scanId=scan_id,
         status="completed",
@@ -293,6 +280,52 @@ async def _run_scan_core(
         codeGraph=code_graph_result,
         sca=sca_result,
     )
+
+    policy_violation = orchestrator.evaluate_policy(execution)
+    if policy_violation:
+        failed_response = scan_response.model_copy(
+            update={
+                "success": False,
+                "status": "failed",
+                "error": policy_violation["message"],
+                "error_detail": ErrorDetail(
+                    code=policy_violation["code"],
+                    message=policy_violation["message"],
+                    request_id=request_id,
+                    retryable=False,
+                ),
+            },
+        )
+        logger.warning(
+            "Policy violation: %s",
+            policy_violation["message"],
+            extra={
+                "requestId": request_id,
+                "scanId": scan_id,
+                "omittedTools": policy_violation["omittedTools"],
+                "policyReasons": policy_violation["policyReasons"],
+            },
+        )
+        raise PolicyViolationError(
+            policy_violation["message"],
+            scan_response=failed_response,
+            code=policy_violation["code"],
+        )
+
+    logger.info(
+        "Scan completed",
+        extra={
+            "requestId": request_id,
+            "scanId": scan_id,
+            "findingsCount": len(findings),
+            "toolsRun": execution.tools_run,
+            "hasCodeGraph": code_graph_result is not None,
+            "scaLibraries": len(sca_result["libraries"]) if sca_result else 0,
+            "elapsedMs": elapsed_ms,
+        },
+    )
+
+    return scan_response
 
 
 _HEARTBEAT_INTERVAL_S = 25
@@ -432,6 +465,24 @@ def _scan_streaming(
                 "data": result.model_dump(by_alias=True, exclude_none=True),
             }, ensure_ascii=False) + "\n"
 
+        except PolicyViolationError as exc:
+            execution_payload = None
+            if exc.scan_response.execution is not None:
+                execution_payload = exc.scan_response.execution.model_dump(
+                    by_alias=True,
+                    exclude_none=True,
+                )
+            yield _json.dumps({
+                "type": "error",
+                "code": exc.code,
+                "message": exc.message,
+                "retryable": exc.retryable,
+                "requestId": request_id,
+                "scanId": exc.scan_response.scan_id,
+                "execution": execution_payload,
+                "timestamp": _now_ms(),
+            }, ensure_ascii=False) + "\n"
+
         except SastRunnerError as exc:
             yield _json.dumps({
                 "type": "error",
@@ -506,6 +557,10 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
         timeout = _get_timeout(request, body.options.timeout_seconds)
 
         return await _run_scan_core(request_id, body, rulesets, timeout)
+
+    except PolicyViolationError as exc:
+        response.status_code = exc.status_code
+        return exc.scan_response
 
     except SastRunnerError as exc:
         logger.error(
@@ -737,6 +792,7 @@ async def build_and_analyze(
     scan_profile = body.scan_profile
 
     t0 = time.perf_counter()
+    build_response: BuildResponse | None = None
 
     try:
         # 1. 빌드 (bear)
@@ -796,6 +852,22 @@ async def build_and_analyze(
             libraries=(scan_result.sca or {}).get("libraries"),
             metadata=meta,
             elapsedMs=elapsed_ms,
+        )
+
+    except PolicyViolationError as exc:
+        response.status_code = exc.status_code
+        if build_response is None:
+            return _error_response(request_id, exc, response)
+        scan_result = exc.scan_response
+        return BuildAndAnalyzeResponse(
+            success=False,
+            provenance=body.provenance,
+            build=build_response,
+            scan=scan_result,
+            codeGraph=scan_result.code_graph,
+            libraries=(scan_result.sca or {}).get("libraries"),
+            error=exc.message,
+            errorDetail=scan_result.error_detail,
         )
 
     except Exception as exc:
@@ -902,9 +974,14 @@ async def discover_targets(
 async def health() -> HealthResponse:
     """서비스 상태 및 도구 가용성 확인."""
     tools = await orchestrator.check_tools(force=True)
+    policy = orchestrator.build_health_policy(tools)
 
     return HealthResponse(
         semgrep=tools.get("semgrep", {}),
         tools=tools,
         defaultRulesets=settings.default_rulesets,
+        policyStatus=policy["policyStatus"],
+        policyReasons=policy["policyReasons"],
+        unavailableTools=policy["unavailableTools"],
+        allowedSkipReasons=policy["allowedSkipReasons"],
     )

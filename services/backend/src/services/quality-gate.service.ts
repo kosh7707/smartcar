@@ -80,6 +80,7 @@ export class QualityGateService {
           projectId: run.projectId,
           type: "gate_failed",
           title: `Quality Gate 실패: ${failedRules}`,
+          jobKind: "gate",
           resourceId: result.id,
         });
       } catch { /* 알림 실패는 Gate 결과에 영향 없음 */ }

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -36,8 +36,8 @@ def mock_semgrep_runner(sample_sarif):
             "cppcheck": ToolExecutionResult(status="ok", findings_count=0, elapsed_ms=50, version="2.13.0"),
             "flawfinder": ToolExecutionResult(status="ok", findings_count=0, elapsed_ms=10, version="2.0.19"),
             "clang-tidy": ToolExecutionResult(status="ok", findings_count=0, elapsed_ms=80, version="18.1.3"),
-            "scan-build": ToolExecutionResult(status="skipped", findings_count=0, elapsed_ms=0, skip_reason="Not installed"),
-            "gcc-fanalyzer": ToolExecutionResult(status="skipped", findings_count=0, elapsed_ms=0, skip_reason="Not installed"),
+            "scan-build": ToolExecutionResult(status="skipped", findings_count=0, elapsed_ms=0, skip_reason="profile-not-applicable"),
+            "gcc-fanalyzer": ToolExecutionResult(status="skipped", findings_count=0, elapsed_ms=0, skip_reason="profile-not-applicable"),
         },
         sdk=SdkResolutionInfo(resolved=False),
         filtering=FindingsFilterInfo(before_filter=3, after_filter=3, sdk_noise_removed=0),
@@ -45,13 +45,14 @@ def mock_semgrep_runner(sample_sarif):
 
     with patch("app.routers.scan.orchestrator") as mock_orch:
         mock_orch.run = AsyncMock(return_value=(findings, execution))
+        mock_orch.evaluate_policy = MagicMock(return_value=None)
         mock_orch.check_tools = AsyncMock(return_value={
-            "semgrep": {"available": True, "version": "1.45.0"},
-            "cppcheck": {"available": True, "version": "2.13.0"},
-            "flawfinder": {"available": True, "version": "2.0.19"},
-            "clang-tidy": {"available": True, "version": "18.1.3"},
-            "scan-build": {"available": False, "version": None},
-            "gcc-fanalyzer": {"available": True, "version": "13.3.0"},
+            "semgrep": {"available": True, "version": "1.45.0", "probeReason": None},
+            "cppcheck": {"available": True, "version": "2.13.0", "probeReason": None},
+            "flawfinder": {"available": True, "version": "2.0.19", "probeReason": None},
+            "clang-tidy": {"available": True, "version": "18.1.3", "probeReason": None},
+            "scan-build": {"available": False, "version": None, "probeReason": "runtime-tool-missing"},
+            "gcc-fanalyzer": {"available": True, "version": "13.3.0", "probeReason": None},
         })
         yield mock_orch
 

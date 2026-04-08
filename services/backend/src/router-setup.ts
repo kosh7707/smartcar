@@ -50,10 +50,10 @@ export function mountRouters(app: Express, ctx: AppContext): void {
     ctx.analysisOrchestrator, ctx.analysisResultDAO, ctx.analysisTracker,
     ctx.findingDAO, ctx.runDAO, ctx.gateResultDAO, ctx.agentClient, ctx.projectSourceService,
   ));
-  app.use("/api/projects/:pid/source", createProjectSourceRouter(ctx.projectSourceService, ctx.projectDAO, ctx.uploadWs, ctx.buildTargetDAO));
+  app.use("/api/projects/:pid/source", createProjectSourceRouter(ctx.projectSourceService, ctx.projectDAO, ctx.uploadWs, ctx.buildTargetDAO, ctx.notificationService));
   app.use("/api/projects/:pid/targets", createBuildTargetRouter(ctx.buildTargetService, ctx.projectDAO, ctx.projectSourceService, ctx.sastClient));
   app.use("/api/projects/:pid/targets/:tid/libraries", createTargetLibraryRouter(ctx.targetLibraryDAO, ctx.buildTargetDAO, ctx.projectDAO));
-  app.use("/api/projects/:pid/sdk", createSdkRouter(ctx.sdkService, ctx.projectDAO));
+  app.use("/api/projects/:pid/sdk", createSdkRouter(ctx.sdkService, ctx.projectDAO, ctx.sdkWs, ctx.notificationService));
   app.use("/api/projects/:pid/pipeline", createPipelineRouter(ctx.pipelineOrchestrator, ctx.projectDAO, ctx.buildTargetDAO));
   app.use("/api/runs", createRunDetailRouter(ctx.runService));
   app.use("/api/findings", createFindingDetailRouter(ctx.findingService));

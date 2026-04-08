@@ -10,6 +10,7 @@ from xml.etree import ElementTree as ET
 
 from app.errors import ScanTimeoutError
 from app.scanner.path_utils import normalize_path
+from app.scanner.tool_probe import probe_command, service_toolchain_executable
 from app.schemas.request import BuildProfile
 from app.schemas.response import SastDataFlowStep, SastFinding, SastFindingLocation
 
@@ -30,20 +31,13 @@ class CppcheckRunner:
     """Cppcheck을 asyncio subprocess로 실행한다."""
 
     async def check_available(self) -> tuple[bool, str | None]:
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                "cppcheck", "--version",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10)
-            if proc.returncode == 0:
-                # "Cppcheck 2.13.0" → "2.13.0"
-                version = stdout.decode().strip().replace("Cppcheck ", "")
-                return True, version
-            return False, None
-        except (FileNotFoundError, asyncio.TimeoutError):
-            return False, None
+        probe = await probe_command(
+            ["cppcheck", "--version"],
+            version_parser=lambda output: output.strip().replace("Cppcheck ", ""),
+            expected_executable_path=service_toolchain_executable("cppcheck"),
+        )
+        self._last_probe = probe
+        return bool(probe["available"]), probe["version"] if isinstance(probe["version"], str) else None
 
     async def run(
         self,
@@ -211,4 +205,3 @@ class CppcheckRunner:
             ))
 
         return findings
-

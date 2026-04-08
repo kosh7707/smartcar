@@ -322,6 +322,9 @@ def test_get_function_with_provenance_filter():
         "sourceBuildAttemptId": "attempt-1",
     }
     assert session.run.call_args.kwargs["build_snapshot_id"] == "snap-1"
+    query = session.run.call_args[0][0]
+    assert "properties(fn)['build_snapshot_id'] = $build_snapshot_id" in query
+    assert "coalesce(properties(fn)['build_unit_id'], null) AS build_unit_id" in query
 
 
 def test_get_stats_with_snapshot_filter_counts_both_edge_ends():
@@ -342,4 +345,18 @@ def test_get_stats_with_snapshot_filter_counts_both_edge_ends():
     svc.get_stats("test-project", build_snapshot_id="snap-1")
 
     edge_query = session.run.call_args_list[1][0][0]
-    assert "endNode(r).build_snapshot_id" in edge_query
+    assert "properties(endNode(r))['build_snapshot_id']" in edge_query
+
+
+def test_find_dangerous_callers_uses_map_access_for_optional_provenance():
+    svc, session = _make_service()
+
+    result = MagicMock()
+    result.__iter__ = MagicMock(return_value=iter([]))
+    session.run.return_value = result
+
+    svc.find_dangerous_callers("test-project", ["popen"], build_snapshot_id="snap-1")
+
+    query = session.run.call_args[0][0]
+    assert "properties(caller)['build_snapshot_id'] = $build_snapshot_id" in query
+    assert "coalesce(properties(caller)['source_build_attempt_id'], null)" in query

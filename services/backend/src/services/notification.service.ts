@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import type { Notification, NotificationType, Severity } from "@aegis/shared";
+import type { Notification, NotificationType, Severity, NotificationJobKind } from "@aegis/shared";
 import type { WsNotificationMessage } from "@aegis/shared";
 import type { INotificationDAO } from "../dao/interfaces";
 import type { WsBroadcaster } from "./ws-broadcaster";
@@ -19,7 +19,9 @@ export class NotificationService {
     title: string;
     body?: string;
     severity?: Severity;
+    jobKind?: NotificationJobKind;
     resourceId?: string;
+    correlationId?: string;
   }): Notification {
     const now = new Date().toISOString();
     const notification: Notification = {
@@ -29,7 +31,9 @@ export class NotificationService {
       title: params.title,
       body: params.body ?? "",
       severity: params.severity,
+      jobKind: params.jobKind,
       resourceId: params.resourceId,
+      correlationId: params.correlationId,
       read: false,
       createdAt: now,
     };
@@ -41,7 +45,9 @@ export class NotificationService {
       title: notification.title,
       body: notification.body,
       severity: notification.severity,
+      jobKind: notification.jobKind,
       resourceId: notification.resourceId,
+      correlationId: notification.correlationId,
       createdAt: notification.createdAt,
     });
 

@@ -144,10 +144,9 @@ describe("useAnalysisWebSocket", () => {
     expect(result.current.stage).toBe("error");
     expect(result.current.error).toBe("SAST 실패");
     expect(result.current.errorPhase).toBe("quick");
-    expect(result.current.retryable).toBe(true);
   });
 
-  it("handles unexpected WS close during running stage", async () => {
+  it("handles unexpected WS close during running stage by reconnecting", async () => {
     const { result } = renderHook(() => useAnalysisWebSocket());
 
     await act(async () => {
@@ -155,14 +154,14 @@ describe("useAnalysisWebSocket", () => {
     });
 
     const ws = MockWebSocket.instances[0];
-    // Simulate unexpected close (not via cleanup)
+    // Simulate unexpected close — should trigger reconnection, not immediate error
     act(() => {
       ws.onclose?.();
     });
 
-    expect(result.current.stage).toBe("error");
-    expect(result.current.error).toBe("WebSocket 연결이 끊어졌습니다.");
-    expect(result.current.retryable).toBe(true);
+    // With reconnecting WS, stage stays as-is (reconnection in progress)
+    expect(result.current.stage).toBe("quick_sast");
+    expect(result.current.connectionState).toBe("reconnecting");
   });
 
   it("handles API failure on startAnalysis", async () => {
@@ -176,7 +175,6 @@ describe("useAnalysisWebSocket", () => {
 
     expect(result.current.stage).toBe("error");
     expect(result.current.error).toBe("Network error");
-    expect(result.current.retryable).toBe(true);
     expect(MockWebSocket.instances).toHaveLength(0);
   });
 

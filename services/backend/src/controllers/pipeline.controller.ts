@@ -37,7 +37,7 @@ export function createPipelineRouter(
     });
 
     orchestrator
-      .runPipeline(pid, targetIds, requestId)
+      .runPipeline(pid, targetIds, requestId, undefined, pipelineId)
       .catch((err) => {
         logger.error({ err, pipelineId, pid, requestId }, "Pipeline failed");
       });
@@ -59,16 +59,17 @@ export function createPipelineRouter(
     }
 
     const requestId = req.requestId;
+    const pipelineId = `pipe-${crypto.randomUUID().slice(0, 8)}`;
 
     res.status(202).json({
       success: true,
-      data: { targetId, status: "running" },
+      data: { pipelineId, targetId, status: "running" },
     });
 
     orchestrator
-      .runPipeline(pid, [targetId], requestId)
+      .runPipeline(pid, [targetId], requestId, undefined, pipelineId)
       .catch((err) => {
-        logger.error({ err, targetId, pid, requestId }, "Pipeline target re-run failed");
+        logger.error({ err, pipelineId, targetId, pid, requestId }, "Pipeline target re-run failed");
       });
   }));
 

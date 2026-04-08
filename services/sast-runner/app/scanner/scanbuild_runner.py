@@ -12,6 +12,7 @@ from typing import Any
 
 from app.errors import ScanTimeoutError
 from app.scanner.path_utils import normalize_path
+from app.scanner.tool_probe import probe_command, service_toolchain_executable
 from app.schemas.request import BuildProfile
 from app.schemas.response import SastDataFlowStep, SastFinding, SastFindingLocation
 
@@ -47,19 +48,25 @@ class ScanbuildRunner:
     """scan-build를 asyncio subprocess로 실행한다."""
 
     async def check_available(self) -> tuple[bool, str | None]:
+        last_probe: dict[str, Any] | None = None
         for name in ("scan-build", "scan-build-18", "scan-build-17"):
-            try:
-                proc = await asyncio.create_subprocess_exec(
-                    name, "--help",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-                _, _ = await asyncio.wait_for(proc.communicate(), timeout=10)
-                if proc.returncode == 0:
-                    return True, name
-                return False, None
-            except (FileNotFoundError, asyncio.TimeoutError):
-                continue
+            probe = await probe_command(
+                [name, "--help"],
+                version_parser=lambda _output, bin_name=name: bin_name,
+                expected_executable_path=service_toolchain_executable(name),
+            )
+            last_probe = probe
+            if probe["available"]:
+                self._last_probe = probe
+                return True, probe["version"] if isinstance(probe["version"], str) else None
+            if probe.get("probeReason") == "tool-check-failed":
+                break
+        self._last_probe = last_probe or {
+            "available": False,
+            "version": None,
+            "probeReason": "runtime-tool-missing",
+            "expectedExecutablePath": None,
+        }
         return False, None
 
     async def run(

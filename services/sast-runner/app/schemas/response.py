@@ -191,5 +191,9 @@ class HealthResponse(BaseModel):
     semgrep: dict[str, Any] = {}
     tools: dict[str, Any] = {}
     default_rulesets: list[str] = Field(default_factory=list, alias="defaultRulesets")
+    policy_status: str = Field(default="ok", alias="policyStatus")
+    policy_reasons: list[str] = Field(default_factory=list, alias="policyReasons")
+    unavailable_tools: list[str] = Field(default_factory=list, alias="unavailableTools")
+    allowed_skip_reasons: list[str] = Field(default_factory=list, alias="allowedSkipReasons")
 
     model_config = {"populate_by_name": True, "by_alias": True}

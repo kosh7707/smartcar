@@ -451,7 +451,18 @@ export interface ISdkAssetDAO {
 }
 
 export interface INotificationDAO {
-  save(notification: { id: string; projectId: string; type: string; title: string; body: string; severity?: string; resourceId?: string; createdAt: string }): void;
+  save(notification: {
+    id: string;
+    projectId: string;
+    type: string;
+    title: string;
+    body: string;
+    severity?: string;
+    jobKind?: string;
+    resourceId?: string;
+    correlationId?: string;
+    createdAt: string;
+  }): void;
   findByProjectId(projectId: string, unreadOnly?: boolean, limit?: number): Notification[];
   unreadCount(projectId: string): number;
   markAsRead(id: string): void;

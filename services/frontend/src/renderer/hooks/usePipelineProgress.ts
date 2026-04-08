@@ -1,7 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { BuildTargetStatus, PipelinePhase, WsPipelineMessage } from "@aegis/shared";
 import { runPipeline, runPipelineTarget, getWsBaseUrl, logError } from "../api/client";
-import { createSeqTracker, parseWsMessage } from "../utils/wsEnvelope";
+import { fetchPipelineStatus } from "../api/pipeline";
+import { createSeqTracker, parseWsMessage, createReconnectingWs } from "../utils/wsEnvelope";
+import type { ConnectionState, ReconnectableHookResult } from "../utils/wsEnvelope";
 
 export interface PipelineTargetState {
   name: string;
@@ -38,27 +40,27 @@ function toFailedStatus(
   return "build_failed";
 }
 
-export function usePipelineProgress() {
+export function usePipelineProgress(): PipelineState & ReconnectableHookResult & {
+  startPipeline: (projectId: string, targetIds?: string[]) => Promise<void>;
+  retryTarget: (projectId: string, targetId: string) => Promise<void>;
+  reset: () => void;
+} {
   const [state, setState] = useState<PipelineState>(INITIAL);
-  const wsRef = useRef<WebSocket | null>(null);
+  const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
+  const rwsRef = useRef<ReturnType<typeof createReconnectingWs> | null>(null);
+  const projectIdRef = useRef<string | null>(null);
 
   const cleanup = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
+    if (rwsRef.current) {
+      rwsRef.current.close();
+      rwsRef.current = null;
     }
   }, []);
 
   useEffect(() => cleanup, [cleanup]);
 
-  const connectWs = useCallback((projectId: string) => {
-    cleanup();
-    const wsUrl = `${getWsBaseUrl()}/ws/pipeline?projectId=${encodeURIComponent(projectId)}`;
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
-
-    const seqTracker = createSeqTracker("pipeline");
-
+  function wireWsHandlers(ws: WebSocket | null, seqTracker: ReturnType<typeof createSeqTracker>) {
+    if (!ws) return;
     ws.onmessage = (evt) => {
       try {
         const parsed = parseWsMessage(evt.data);
@@ -107,12 +109,58 @@ export function usePipelineProgress() {
         console.warn("[WS:pipeline] malformed message:", e);
       }
     };
+  }
 
-    ws.onerror = () => console.warn("[WS:pipeline] connection error");
+  const connectWs = useCallback((projectId: string) => {
+    cleanup();
+    projectIdRef.current = projectId;
+    const wsUrl = `${getWsBaseUrl()}/ws/pipeline?projectId=${encodeURIComponent(projectId)}`;
+    const seqTracker = createSeqTracker("pipeline");
 
-    ws.onclose = () => {
-      if (wsRef.current === ws) wsRef.current = null;
-    };
+    const rws = createReconnectingWs(() => wsUrl, {
+      maxRetries: 10,
+      onStateChange: setConnectionState,
+      onDisconnect() {
+        seqTracker.reset();
+      },
+      async onReconnect() {
+        // REST fallback: restore target states from pipeline/status
+        try {
+          const status = await fetchPipelineStatus(projectId);
+          setState((prev) => {
+            const next = new Map(prev.targets);
+            for (const target of status.targets ?? []) {
+              next.set(target.id, {
+                name: target.name,
+                status: target.status,
+                phase: target.phase,
+                message: target.message ?? "",
+                error: target.error,
+              });
+            }
+            return {
+              ...prev,
+              targets: next,
+              isRunning: status.isRunning ?? prev.isRunning,
+              readyCount: status.readyCount ?? prev.readyCount,
+              failedCount: status.failedCount ?? prev.failedCount,
+              totalCount: status.totalCount ?? prev.totalCount,
+            };
+          });
+        } catch (e) {
+          logError("Pipeline recovery", e);
+        }
+        wireWsHandlers(rws.getWs(), seqTracker);
+      },
+      onGiveUp() {
+        setState((prev) => ({
+          ...prev,
+          isRunning: false,
+        }));
+      },
+    });
+    rwsRef.current = rws;
+    wireWsHandlers(rws.getWs(), seqTracker);
   }, [cleanup]);
 
   const startPipeline = useCallback(async (projectId: string, targetIds?: string[]) => {
@@ -131,8 +179,7 @@ export function usePipelineProgress() {
   const retryTarget = useCallback(async (projectId: string, targetId: string) => {
     try {
       await runPipelineTarget(projectId, targetId);
-      // Re-connect WS if not connected
-      if (!wsRef.current) connectWs(projectId);
+      if (!rwsRef.current) connectWs(projectId);
       setState((prev) => ({ ...prev, isRunning: true }));
     } catch (e) {
       logError("Retry pipeline target", e);
@@ -143,7 +190,9 @@ export function usePipelineProgress() {
   const reset = useCallback(() => {
     cleanup();
     setState(INITIAL);
+    setConnectionState("disconnected");
+    projectIdRef.current = null;
   }, [cleanup]);
 
-  return { ...state, startPipeline, retryTarget, reset };
+  return { ...state, connectionState, startPipeline, retryTarget, reset };
 }

@@ -57,20 +57,39 @@ class SastScanTool:
             json=arguments,
             headers=headers,
         ) as response:
-            response.raise_for_status()
-
             content_type = response.headers.get("content-type", "")
 
             # S4가 NDJSON을 지원하지 않으면 동기 fallback
             if "ndjson" not in content_type:
                 body = await response.aread()
-                data = json.loads(body)
+                try:
+                    data = json.loads(body)
+                except json.JSONDecodeError:
+                    data = {
+                        "success": False,
+                        "error": body.decode(errors="replace")[:500],
+                    }
+
+                if response.status_code >= 400:
+                    message = (
+                        data.get("errorDetail", {}).get("message")
+                        or data.get("error")
+                        or f"SAST scan failed with HTTP {response.status_code}"
+                    )
+                    return ToolResult(
+                        tool_call_id="",
+                        name="",
+                        success=False,
+                        content=json.dumps(data, ensure_ascii=False),
+                        error=message,
+                    )
                 return self._build_result(data)
 
             # NDJSON 스트리밍 소비
             result_data = None
             error_event = None
             stall_detected = False
+            raw_events: list[str] = []
 
             # stall 감지 상태
             prev_files_completed: int | None = None
@@ -81,6 +100,7 @@ class SastScanTool:
                 line = line.strip()
                 if not line:
                     continue
+                raw_events.append(line)
 
                 try:
                     event = json.loads(line)
@@ -159,6 +179,22 @@ class SastScanTool:
 
             if result_data:
                 return self._build_result(result_data, stall_detected=stall_detected)
+
+            if response.status_code >= 400:
+                fallback_content = "\n".join(raw_events) if raw_events else json.dumps(
+                    {
+                        "success": False,
+                        "error": f"SAST scan failed with HTTP {response.status_code}",
+                    },
+                    ensure_ascii=False,
+                )
+                return ToolResult(
+                    tool_call_id="",
+                    name="",
+                    success=False,
+                    content=fallback_content,
+                    error=f"SAST scan failed with HTTP {response.status_code}",
+                )
 
             return ToolResult(
                 tool_call_id="", name="", success=False,

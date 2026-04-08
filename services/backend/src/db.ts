@@ -436,7 +436,9 @@ export function initSchema(db: DatabaseType): void {
       title       TEXT NOT NULL,
       body        TEXT NOT NULL DEFAULT '',
       severity    TEXT,
+      job_kind    TEXT,
       resource_id TEXT,
+      correlation_id TEXT,
       read        INTEGER NOT NULL DEFAULT 0,
       created_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -520,6 +522,8 @@ export function initSchema(db: DatabaseType): void {
   try { db.exec(`ALTER TABLE build_targets ADD COLUMN included_paths TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE build_targets ADD COLUMN source_path TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE build_targets ADD COLUMN build_command TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE notifications ADD COLUMN job_kind TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE notifications ADD COLUMN correlation_id TEXT`); } catch { /* 이미 존재 */ }
 
   // 레거시: rules 테이블이 남아있는 기존 DB에서 DROP
   try { db.exec(`DROP TABLE IF EXISTS rules`); } catch { /* 이미 제거됨 */ }

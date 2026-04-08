@@ -3,7 +3,7 @@ import type {
   CanMessage,
   DynamicAlert,
   DynamicAnalysisSession,
-  WsMessage,
+  WsMessage as SharedWsMessage,
   CanInjectionResponse,
   AttackScenario,
   InjectionClassification,
@@ -18,8 +18,9 @@ import {
   fetchInjections,
   logError,
 } from "../../api/client";
-import { parseWsMessage } from "../../utils/wsEnvelope";
-import { BackButton, SeverityBadge, Spinner } from "../ui";
+import { parseWsMessage, createReconnectingWs } from "../../utils/wsEnvelope";
+import type { ConnectionState } from "../../utils/wsEnvelope";
+import { BackButton, SeverityBadge, Spinner, ConnectionStatusBanner } from "../ui";
 import { useToast } from "../../contexts/ToastContext";
 import { formatTime } from "../../utils/format";
 
@@ -46,6 +47,7 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
   const [messageCount, setMessageCount] = useState(0);
   const [alertCount, setAlertCount] = useState(0);
   const [wsConnected, setWsConnected] = useState(false);
+  const [wsConnectionState, setWsConnectionState] = useState<ConnectionState>("disconnected");
   const [stopping, setStopping] = useState(false);
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(false);
@@ -66,53 +68,63 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
 
   const hasData = messages.length > 0 || messageCount > 0;
 
-  // Connect WebSocket
+  // Connect WebSocket with reconnection
   useEffect(() => {
-    const wsUrl = getWsBaseUrl();
-    const ws = new WebSocket(`${wsUrl}/ws/dynamic-analysis?sessionId=${session.id}`);
+    const wsUrl = `${getWsBaseUrl()}/ws/dynamic-analysis?sessionId=${session.id}`;
 
-    ws.onopen = () => { console.info("[WS:dynamic-analysis] connected"); setWsConnected(true); };
-    ws.onclose = (e) => { console.info(`[WS:dynamic-analysis] closed (code: ${e.code})`); setWsConnected(false); };
-    ws.onerror = () => { console.warn("[WS:dynamic-analysis] error"); setWsConnected(false); };
-
-    ws.onmessage = (event) => {
-      try {
-        const msg = parseWsMessage(event.data) as unknown as WsMessage;
-        switch (msg.type) {
-          case "message":
-            if (pausedRef.current) {
-              const buf = bufferRef.current;
-              buf.push(msg.payload);
-              if (buf.length > MAX_MESSAGES) bufferRef.current = buf.slice(-MAX_MESSAGES);
-            } else {
-              setMessages((prev) => {
-                const next = [...prev, msg.payload];
-                return next.length > MAX_MESSAGES ? next.slice(-MAX_MESSAGES) : next;
-              });
-            }
-            break;
-          case "alert":
-            setAlerts((prev) => [msg.payload, ...prev]);
-            break;
-          case "status":
-            setMessageCount(msg.payload.messageCount);
-            setAlertCount(msg.payload.alertCount);
-            break;
-          case "injection-result":
-            setInjections((prev) => [msg.payload, ...prev]);
-            break;
-          case "injection-error":
-            setInjError(msg.payload.error);
-            break;
+    function wireHandlers(ws: WebSocket | null) {
+      if (!ws) return;
+      ws.onmessage = (event) => {
+        try {
+          const msg = parseWsMessage(event.data) as unknown as SharedWsMessage;
+          switch (msg.type) {
+            case "message":
+              if (pausedRef.current) {
+                const buf = bufferRef.current;
+                buf.push(msg.payload);
+                if (buf.length > MAX_MESSAGES) bufferRef.current = buf.slice(-MAX_MESSAGES);
+              } else {
+                setMessages((prev) => {
+                  const next = [...prev, msg.payload];
+                  return next.length > MAX_MESSAGES ? next.slice(-MAX_MESSAGES) : next;
+                });
+              }
+              break;
+            case "alert":
+              setAlerts((prev) => [msg.payload, ...prev]);
+              break;
+            case "status":
+              setMessageCount(msg.payload.messageCount);
+              setAlertCount(msg.payload.alertCount);
+              break;
+            case "injection-result":
+              setInjections((prev) => [msg.payload, ...prev]);
+              break;
+            case "injection-error":
+              setInjError(msg.payload.error);
+              break;
+          }
+        } catch (e) {
+          console.warn("[WS:dynamic-analysis] malformed message:", e);
         }
-      } catch (e) {
-        console.warn("[WS:dynamic-analysis] malformed message:", e);
-      }
-    };
+      };
+    }
 
-    wsRef.current = ws;
+    const rws = createReconnectingWs(() => wsUrl, {
+      maxRetries: 10,
+      onStateChange(state: ConnectionState) {
+        setWsConnected(state === "connected");
+        setWsConnectionState(state);
+      },
+      onReconnect() {
+        wireHandlers(rws.getWs());
+      },
+    });
+    wireHandlers(rws.getWs());
+    wsRef.current = rws.getWs();
+
     return () => {
-      ws.close();
+      rws.close();
       wsRef.current = null;
     };
   }, [session.id]);
@@ -202,6 +214,7 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
 
   return (
     <div className="page-enter">
+      <ConnectionStatusBanner connectionState={wsConnectionState} />
       <BackButton onClick={onBack} label="세션 목록으로" />
 
       {/* Status bar */}

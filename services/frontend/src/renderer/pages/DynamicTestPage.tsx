@@ -17,7 +17,7 @@ import { getDynamicTestResults, getDynamicTestResult, deleteDynamicTestResult, A
 import { useDynamicTest, type TestProgress } from "../hooks/useDynamicTest";
 import { useToast } from "../contexts/ToastContext";
 import { useAdapters } from "../hooks/useAdapters";
-import { PageHeader, EmptyState, ConfirmDialog, ListItem, SeverityBadge, StatCard, Spinner, BackButton, AdapterSelector } from "../components/ui";
+import { PageHeader, EmptyState, ConfirmDialog, ListItem, SeverityBadge, StatCard, Spinner, BackButton, AdapterSelector, ConnectionStatusBanner } from "../components/ui";
 import { formatDateTime } from "../utils/format";
 import "./DynamicTestPage.css";
 
@@ -300,6 +300,7 @@ export const DynamicTestPage: React.FC = () => {
   // ── Default: history list ──
   return (
     <div className="page-enter">
+      <ConnectionStatusBanner connectionState={test.connectionState} />
       <PageHeader
         title="동적 테스트"
         icon={<FlaskConical size={20} />}

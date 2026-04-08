@@ -6,7 +6,8 @@ import type {
   WsTestMessage,
 } from "@aegis/shared";
 import { runDynamicTest, getWsBaseUrl } from "../api/client";
-import { parseWsMessage } from "../utils/wsEnvelope";
+import { parseWsMessage, createReconnectingWs } from "../utils/wsEnvelope";
+import type { ConnectionState, ReconnectableHookResult } from "../utils/wsEnvelope";
 
 export type TestView = "config" | "running" | "results";
 
@@ -18,18 +19,28 @@ export interface TestProgress {
   message: string;
 }
 
-export function useDynamicTest(projectId?: string) {
+export function useDynamicTest(projectId?: string): {
+  view: TestView;
+  progress: TestProgress;
+  findings: DynamicTestFinding[];
+  result: DynamicTestResult | null;
+  error: string | null;
+  startTest: (config: DynamicTestConfig, adapterId: string) => Promise<void>;
+  reset: () => void;
+  viewResult: (r: DynamicTestResult) => void;
+} & ReconnectableHookResult {
   const [view, setView] = useState<TestView>("config");
   const [progress, setProgress] = useState<TestProgress>({ current: 0, total: 0, crashes: 0, anomalies: 0, message: "" });
   const [findings, setFindings] = useState<DynamicTestFinding[]>([]);
   const [result, setResult] = useState<DynamicTestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
+  const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
+  const rwsRef = useRef<ReturnType<typeof createReconnectingWs> | null>(null);
 
   const cleanup = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
+    if (rwsRef.current) {
+      rwsRef.current.close();
+      rwsRef.current = null;
     }
   }, []);
 
@@ -44,45 +55,51 @@ export function useDynamicTest(projectId?: string) {
     setError(null);
 
     const testId = `test-${crypto.randomUUID()}`;
-
-    // 1. WS connect first (spec: must connect before POST)
     const wsUrl = `${getWsBaseUrl()}/ws/dynamic-test?testId=${testId}`;
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
 
-    ws.onmessage = (evt) => {
-      try {
-        const msg = parseWsMessage(evt.data) as unknown as WsTestMessage;
-        switch (msg.type) {
-          case "test-progress":
-            setProgress({
-              current: msg.payload.current,
-              total: msg.payload.total,
-              crashes: msg.payload.crashes,
-              anomalies: msg.payload.anomalies,
-              message: msg.payload.message,
-            });
-            break;
-          case "test-finding":
-            setFindings((prev) => [...prev, msg.payload.finding]);
-            break;
-          case "test-complete":
-            // Result will arrive from HTTP response
-            break;
-          case "test-error":
-            setError(msg.payload.error);
-            setView("config");
-            cleanup();
-            break;
-        }
-      } catch (e) { console.warn("[WS:dynamic-test] malformed message:", e); }
-    };
+    // WS connect first (spec: must connect before POST)
+    const rws = createReconnectingWs(() => wsUrl, {
+      maxRetries: 5,
+      onStateChange: setConnectionState,
+      onReconnect() {
+        // Re-wire message handlers on new WS
+        wireHandlers(rws.getWs());
+      },
+    });
+    rwsRef.current = rws;
 
-    ws.onerror = () => {
-      console.warn("[WS:dynamic-test] error (non-fatal, HTTP response still works)");
-    };
+    function wireHandlers(ws: WebSocket | null) {
+      if (!ws) return;
+      ws.onmessage = (evt) => {
+        try {
+          const msg = parseWsMessage(evt.data) as unknown as WsTestMessage;
+          switch (msg.type) {
+            case "test-progress":
+              setProgress({
+                current: msg.payload.current,
+                total: msg.payload.total,
+                crashes: msg.payload.crashes,
+                anomalies: msg.payload.anomalies,
+                message: msg.payload.message,
+              });
+              break;
+            case "test-finding":
+              setFindings((prev) => [...prev, msg.payload.finding]);
+              break;
+            case "test-complete":
+              break;
+            case "test-error":
+              setError(msg.payload.error);
+              setView("config");
+              cleanup();
+              break;
+          }
+        } catch (e) { console.warn("[WS:dynamic-test] malformed message:", e); }
+      };
+    }
+    wireHandlers(rws.getWs());
 
-    // 2. POST to start (wait briefly for WS to connect)
+    // POST to start (wait briefly for WS to connect)
     await new Promise((r) => setTimeout(r, 100));
 
     try {
@@ -103,6 +120,7 @@ export function useDynamicTest(projectId?: string) {
     setFindings([]);
     setResult(null);
     setError(null);
+    setConnectionState("disconnected");
     cleanup();
   }, [cleanup]);
 
@@ -118,6 +136,7 @@ export function useDynamicTest(projectId?: string) {
     findings,
     result,
     error,
+    connectionState,
     startTest,
     reset,
     viewResult,

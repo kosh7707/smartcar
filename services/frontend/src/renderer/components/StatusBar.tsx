@@ -130,9 +130,6 @@ export const StatusBar: React.FC = () => {
     <div className="statusbar">
       <div className="statusbar-item">
         <span>AEGIS {detail ? `v${detail.version}` : `v${__APP_VERSION__}`}</span>
-        {detail?.uptime != null && (
-          <span className="statusbar-detail">· {formatUptime(detail.uptime)}</span>
-        )}
       </div>
       <div className="statusbar-item" style={{ gap: "var(--space-3)" }}>
         <NotificationBell />

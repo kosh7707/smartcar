@@ -45,6 +45,8 @@ class Phase1Result:
     kb_not_ready: bool = False  # S5 Neo4j/Qdrant 미준비 시 True — 위협 검색 불가
     sast_partial_tools: list[str] = field(default_factory=list)
     sast_timed_out_files: int = 0
+    build_compile_commands_path: str | None = None
+    build_failure_detail: dict = field(default_factory=dict)
     sast_duration_ms: int = 0
     code_graph_duration_ms: int = 0
     sca_duration_ms: int = 0
@@ -197,6 +199,7 @@ class Phase1Executor:
                         result, files, project_id, analysis_path, build_profile, request_id,
                         third_party_paths=third_party_paths,
                         sast_tools=sast_tools,
+                        compile_commands_path=result.build_compile_commands_path,
                         revision_hint=revision_hint,
                         provenance=provenance,
                     )
@@ -206,6 +209,7 @@ class Phase1Executor:
                     result, files, project_id, analysis_path, build_profile, request_id,
                     third_party_paths=third_party_paths,
                     sast_tools=sast_tools,
+                    compile_commands_path=result.build_compile_commands_path,
                     revision_hint=revision_hint,
                     provenance=provenance,
                 )
@@ -274,7 +278,6 @@ class Phase1Executor:
                 json=body,
                 headers=headers,
             )
-            resp.raise_for_status()
             data = resp.json()
         except Exception as e:
             elapsed = int((time.monotonic() - start) * 1000)
@@ -288,11 +291,40 @@ class Phase1Executor:
 
         elapsed = int((time.monotonic() - start) * 1000)
 
+        if isinstance(data, dict):
+            build_info = data.get("build", {})
+            if not isinstance(build_info, dict):
+                build_info = {}
+            build_evidence = build_info.get("buildEvidence", {})
+            if not isinstance(build_evidence, dict):
+                build_evidence = {}
+            compile_commands_path = build_evidence.get("compileCommandsPath")
+            if isinstance(compile_commands_path, str) and compile_commands_path:
+                result.build_compile_commands_path = compile_commands_path
+
+            failure_detail = data.get("failureDetail", {})
+            if isinstance(failure_detail, dict):
+                result.build_failure_detail = failure_detail
+
+        if resp.status_code >= 400:
+            agent_log(
+                logger, "Phase 1: build-and-analyze HTTP 실패",
+                component="phase_one", phase="build_and_analyze_http_error",
+                statusCode=resp.status_code,
+                errorCode=result.build_failure_detail.get("code") or result.build_failure_detail.get("category"),
+                compileCommandsPath=result.build_compile_commands_path,
+                latencyMs=elapsed,
+                level=logging.WARNING,
+            )
+            return None
+
         if not data.get("success", True):
             agent_log(
                 logger, "Phase 1: build-and-analyze 비성공 응답",
                 component="phase_one", phase="build_and_analyze_unsuccessful",
                 error=data.get("error"),
+                errorCode=result.build_failure_detail.get("code") or result.build_failure_detail.get("category"),
+                compileCommandsPath=result.build_compile_commands_path,
                 latencyMs=elapsed,
                 level=logging.WARNING,
             )
@@ -348,6 +380,7 @@ class Phase1Executor:
         self, result: Phase1Result, files, project_id, project_path, build_profile, request_id,
         *, third_party_paths: list[str] | None = None,
         sast_tools: list[str] | None = None,
+        compile_commands_path: str | None = None,
         revision_hint: str | None = None,
         provenance: dict | None = None,
     ) -> Phase1Result:
@@ -356,10 +389,12 @@ class Phase1Executor:
             result = await self._run_sast(result, files, project_id, build_profile, request_id,
                                           third_party_paths=third_party_paths,
                                           project_path=project_path,
+                                          compile_commands_path=compile_commands_path,
                                           sast_tools=sast_tools)
         if self._codegraph_tool and (files or project_path):
             result = await self._run_codegraph(result, files, project_id, build_profile, request_id,
-                                               project_path=project_path)
+                                               project_path=project_path,
+                                               compile_commands_path=compile_commands_path)
         if self._sca_tool and project_path:
             result = await self._run_sca(result, project_id, project_path, request_id)
 
@@ -425,6 +460,7 @@ class Phase1Executor:
         self, result: Phase1Result, files, project_id, build_profile, request_id,
         *, third_party_paths: list[str] | None = None,
         project_path: str | None = None,
+        compile_commands_path: str | None = None,
         sast_tools: list[str] | None = None,
     ) -> Phase1Result:
         """SAST 스캔 실행."""
@@ -444,6 +480,8 @@ class Phase1Executor:
         # projectPath만 전달 — files[]는 S4가 자체 탐색
         if project_path:
             args["projectPath"] = project_path
+        if compile_commands_path:
+            args["compileCommands"] = compile_commands_path
         # buildProfile → sdkId만
         if build_profile:
             sdk_id = build_profile.get("sdkId") if isinstance(build_profile, dict) else None
@@ -500,6 +538,7 @@ class Phase1Executor:
     async def _run_codegraph(
         self, result: Phase1Result, files, project_id, build_profile, request_id,
         *, project_path: str | None = None,
+        compile_commands_path: str | None = None,
     ) -> Phase1Result:
         """코드 그래프 추출."""
         agent_log(
@@ -513,6 +552,8 @@ class Phase1Executor:
         }
         if project_path:
             args["projectPath"] = project_path
+        if compile_commands_path:
+            args["compileCommands"] = compile_commands_path
         if build_profile:
             sdk_id = build_profile.get("sdkId") if isinstance(build_profile, dict) else None
             if sdk_id:

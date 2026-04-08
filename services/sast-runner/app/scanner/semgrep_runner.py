@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from app.errors import ScanTimeoutError, SemgrepNotAvailableError
+from app.scanner.tool_probe import probe_command, service_toolchain_executable
 
 logger = logging.getLogger("aegis-sast-runner")
 
@@ -18,19 +19,13 @@ class SemgrepRunner:
 
     async def check_available(self) -> tuple[bool, str | None]:
         """Semgrep 바이너리 가용 여부와 버전을 반환."""
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                "semgrep", "--version",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10)
-            if proc.returncode == 0:
-                version = stdout.decode().strip()
-                return True, version
-            return False, None
-        except (FileNotFoundError, asyncio.TimeoutError):
-            return False, None
+        probe = await probe_command(
+            ["semgrep", "--version"],
+            version_parser=lambda output: output.strip(),
+            expected_executable_path=service_toolchain_executable("semgrep"),
+        )
+        self._last_probe = probe
+        return bool(probe["available"]), probe["version"] if isinstance(probe["version"], str) else None
 
     async def run(
         self,

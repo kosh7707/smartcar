@@ -12,6 +12,7 @@ import type {
   WsAnalysisMessage,
   WsUploadMessage,
   WsPipelineMessage,
+  WsSdkMessage,
   WsNotificationMessage,
 } from "@aegis/shared";
 
@@ -187,7 +188,7 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
   const analysisWs = new WsBroadcaster<WsAnalysisMessage>("/ws/analysis", "analysisId", "analysis");
   const uploadWs = new WsBroadcaster<WsUploadMessage>("/ws/upload", "uploadId", "upload");
   const pipelineWs = new WsBroadcaster<WsPipelineMessage>("/ws/pipeline", "projectId", "pipeline");
-  const sdkWs = new WsBroadcaster<any>("/ws/sdk", "projectId", "sdk");
+  const sdkWs = new WsBroadcaster<WsSdkMessage>("/ws/sdk", "projectId", "sdk");
 
   // ── CAN 룰 엔진 ──
   const canRuleEngine = new CanRuleEngine();
@@ -209,13 +210,13 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
     projectSourceService, sastClient, agentClient,
     analysisResultDAO, settingsService, resultNormalizer, analysisWs, buildTargetService, targetLibraryDAO,
   );
-  const sdkService = new SdkService(sdkRegistryDAO, sastClient, buildAgentClient, cfg.uploadsDir, sdkWs);
+  const sdkService = new SdkService(sdkRegistryDAO, buildAgentClient, cfg.uploadsDir, sdkWs, notificationService);
 
   const activityService = new ActivityService(runDAO, auditLogDAO, buildTargetDAO);
 
   const pipelineOrchestrator = new PipelineOrchestrator(
     projectSourceService, sastClient, kbClient, buildAgentClient, targetLibraryDAO,
-    buildTargetDAO, analysisResultDAO, resultNormalizer, pipelineWs,
+    buildTargetDAO, analysisResultDAO, resultNormalizer, pipelineWs, notificationService,
   );
 
   // ── Tier 4: 보고서 (전체 의존) ──

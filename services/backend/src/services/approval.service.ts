@@ -49,6 +49,7 @@ export class ApprovalService {
           projectId,
           type: "approval_pending",
           title: `승인 요청: ${actionType} — ${reason.slice(0, 50)}`,
+          jobKind: "approval",
           resourceId: request.id,
         });
       } catch { /* 알림 실패는 승인 요청에 영향 없음 */ }

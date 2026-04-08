@@ -173,6 +173,9 @@ export const OverviewPage: React.FC = () => {
 
   const { project, summary } = overview;
   const sev = summary?.bySeverity ?? { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+  const hasAnalysis = recentAnalyses.length > 0;
+  const hasFiles = projectFiles.length > 0;
+  const isEmpty = !hasAnalysis && !hasFiles;
 
   return (
     <div className="page-enter">
@@ -182,8 +185,29 @@ export const OverviewPage: React.FC = () => {
         subtitle={project.description || undefined}
       />
 
+      {/* Empty state: no files AND no analysis */}
+      {isEmpty && (
+        <div className="card overview-empty-hero">
+          <div className="overview-empty-hero__icon">
+            <Shield size={48} />
+          </div>
+          <h2 className="overview-empty-hero__title">분석 준비 완료</h2>
+          <p className="overview-empty-hero__desc">
+            소스 파일을 업로드하고 정적 분석을 실행하면 보안 대시보드가 활성화됩니다.
+          </p>
+          <div className="overview-empty-hero__actions">
+            <button className="btn" onClick={() => navigate(`/projects/${projectId}/files`)}>
+              <FileText size={14} /> 파일 업로드
+            </button>
+            <button className="btn btn-secondary" onClick={() => navigate(`/projects/${projectId}/settings`)}>
+              <Settings size={14} /> 프로젝트 설정
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Security posture group: Donut + modules + stats */}
-      <div className="overview-posture-group">
+      {!isEmpty && <div className="overview-posture-group">
         <div className="card" style={{ marginBottom: "var(--space-3)" }}>
           <div className="overview-security-card">
             <DonutChart summary={sev} size={140} showLegend={false} centerLabel="전체 Finding" />
@@ -223,10 +247,10 @@ export const OverviewPage: React.FC = () => {
         <StatCard icon={<AlertCircle size={16} />} label="Medium" value={sev.medium} color="var(--severity-medium)" detail={getModuleBreakdown(latestMap, "medium")} onClick={() => navigate(`/projects/${projectId}/vulnerabilities?severity=medium`)} />
         <StatCard icon={<Info size={16} />} label="Low" value={sev.low} color="var(--severity-low)" detail={getModuleBreakdown(latestMap, "low")} onClick={() => navigate(`/projects/${projectId}/vulnerabilities?severity=low`)} />
         </div>
-      </div>
+      </div>}
 
-      {/* Trend card */}
-      {overview.trend && (
+      {/* Trend card — hide when all values are zero */}
+      {overview.trend && (overview.trend.newFindings > 0 || overview.trend.resolvedFindings > 0 || overview.trend.unresolvedTotal > 0) && (
         <div className="card overview-trend-card">
           <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
             <Activity size={16} />
@@ -454,11 +478,11 @@ export const OverviewPage: React.FC = () => {
                 <div key={sdk.id} className="overview-sdk-row">
                   <span className="overview-sdk-name">{sdk.name}</span>
                   <span className="overview-sdk-status" style={{
-                    color: sdk.status === "ready" ? "var(--success)" : sdk.status === "verify_failed" ? "var(--danger)" : "var(--severity-medium)",
+                    color: sdk.status === "ready" ? "var(--success)" : sdk.status.endsWith("_failed") ? "var(--danger)" : "var(--severity-medium)",
                     fontSize: "var(--text-xs)",
                     fontWeight: "var(--weight-medium)",
                   }}>
-                    {sdk.status === "ready" ? "사용 가능" : sdk.status === "verify_failed" ? "검증 실패" : "진행 중"}
+                    {sdk.status === "ready" ? "사용 가능" : sdk.status.endsWith("_failed") ? "실패" : "진행 중"}
                   </span>
                 </div>
               ))}

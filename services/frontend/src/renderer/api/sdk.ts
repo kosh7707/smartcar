@@ -1,26 +1,19 @@
 import { apiFetch, getWsBaseUrl } from "./core";
+import type {
+  SdkRegistryStatus as _SdkRegistryStatus,
+  SdkArtifactKind as _SdkArtifactKind,
+  SdkAnalyzedProfile as _SdkAnalyzedProfile,
+  RegisteredSdk as _RegisteredSdk,
+} from "@aegis/shared";
 
-/* ── Types ── */
+/* ── Re-exported shared types ── */
 
-export type SdkRegistryStatus =
-  | "uploading"
-  | "extracting"
-  | "analyzing"
-  | "verifying"
-  | "ready"
-  | "verify_failed";
+export type SdkRegistryStatus = _SdkRegistryStatus;
+export type SdkArtifactKind = _SdkArtifactKind;
+export type SdkAnalyzedProfile = _SdkAnalyzedProfile;
+export type RegisteredSdk = _RegisteredSdk;
 
-export interface SdkAnalyzedProfile {
-  compiler?: string;
-  compilerPrefix?: string;
-  gccVersion?: string;
-  targetArch?: string;
-  languageStandard?: string;
-  sysroot?: string;
-  environmentSetup?: string;
-  includePaths?: string[];
-  defines?: Record<string, string>;
-}
+/* ── Local types (NOT migrated — SdkProfile.defaults shape differs from shared) ── */
 
 export interface SdkProfile {
   id: string;
@@ -35,20 +28,6 @@ export interface SdkProfile {
     includePaths?: string[];
     defines?: Record<string, string>;
   };
-}
-
-export interface RegisteredSdk {
-  id: string;
-  projectId: string;
-  name: string;
-  description?: string;
-  path: string;
-  profile?: SdkAnalyzedProfile;
-  status: SdkRegistryStatus;
-  verifyError?: string;
-  verified: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface SdkListResponse {
@@ -72,6 +51,7 @@ export async function fetchSdkDetail(projectId: string, sdkId: string): Promise<
   return res.data;
 }
 
+/** @deprecated Use registerSdkByUpload instead. Will be removed after S2 confirms localPath removal. */
 export async function registerSdkByPath(
   projectId: string,
   name: string,
@@ -92,13 +72,21 @@ export async function registerSdkByPath(
 export async function registerSdkByUpload(
   projectId: string,
   name: string,
-  file: File,
+  files: File[],
   description?: string,
+  relativePaths?: string[],
 ): Promise<RegisteredSdk> {
   const formData = new FormData();
-  formData.append("file", file);
   formData.append("name", name);
   if (description) formData.append("description", description);
+  if (relativePaths && relativePaths.length > 0) {
+    for (let i = 0; i < files.length; i++) {
+      formData.append("relativePath", relativePaths[i]);
+      formData.append("file", files[i]);
+    }
+  } else {
+    for (const f of files) formData.append("file", f);
+  }
   const res = await apiFetch<{ success: boolean; data: RegisteredSdk }>(
     `/api/projects/${projectId}/sdk`,
     { method: "POST", body: formData },

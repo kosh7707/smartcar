@@ -7,7 +7,15 @@ import pytest
 
 from app.scanner.orchestrator import ScanOrchestrator, _filter_user_code_findings, _is_third_party, _is_user_path, _parse_version
 from app.schemas.request import BuildProfile
-from app.schemas.response import SastDataFlowStep, SastFinding, SastFindingLocation, ToolExecutionResult
+from app.schemas.response import (
+    ExecutionReport,
+    FindingsFilterInfo,
+    SastDataFlowStep,
+    SastFinding,
+    SastFindingLocation,
+    SdkResolutionInfo,
+    ToolExecutionResult,
+)
 
 
 @pytest.fixture
@@ -102,7 +110,16 @@ class TestSelectTools:
         active = await orchestrator._select_tools(["cppcheck", "flawfinder"], None, available)
         assert "cppcheck" in active
         assert "flawfinder" in active
-        assert "semgrep" not in active or "semgrep" in active.get("_skipped", {})
+        assert active["_skipped"]["semgrep"] == "operator-requested-subset"
+        assert active["_skipped"]["clang-tidy"] == "operator-requested-subset"
+
+    @pytest.mark.asyncio
+    async def test_unavailable_tool_uses_probe_reason(self, orchestrator):
+        available = self._available_all()
+        available["semgrep"]["available"] = False
+        available["semgrep"]["probeReason"] = "environment-drift"
+        active = await orchestrator._select_tools(None, None, available)
+        assert active["_skipped"]["semgrep"] == "environment-drift"
 
     @pytest.mark.asyncio
     async def test_gcc_fanalyzer_sdk_recheck(self, orchestrator):
@@ -132,6 +149,42 @@ class TestSelectTools:
         orchestrator.gcc_analyzer.check_available = AsyncMock(return_value=(False, None))
         active = await orchestrator._select_tools(None, profile, available)
         assert "gcc-fanalyzer" in active.get("_skipped", {})
+
+
+class TestPolicyHelpers:
+    def test_build_health_policy(self, orchestrator):
+        policy = orchestrator.build_health_policy({
+            "semgrep": {"available": False, "version": None, "probeReason": "environment-drift"},
+            "cppcheck": {"available": True, "version": "2.13.0", "probeReason": None},
+        })
+        assert policy["policyStatus"] == "degraded"
+        assert policy["policyReasons"] == ["environment-drift"]
+        assert policy["unavailableTools"] == ["semgrep"]
+        assert policy["allowedSkipReasons"] == [
+            "operator-requested-subset",
+            "profile-not-applicable",
+        ]
+
+    def test_evaluate_policy_disallowed_skip(self, orchestrator):
+        execution = ExecutionReport(
+            toolsRun=["cppcheck"],
+            toolResults={
+                "semgrep": ToolExecutionResult(
+                    status="skipped",
+                    findings_count=0,
+                    elapsed_ms=0,
+                    skip_reason="environment-drift",
+                ),
+                "cppcheck": ToolExecutionResult(status="ok", findings_count=1, elapsed_ms=10),
+            },
+            sdk=SdkResolutionInfo(resolved=False),
+            filtering=FindingsFilterInfo(beforeFilter=1, afterFilter=1),
+            degraded=False,
+            degradeReasons=[],
+        )
+        policy = orchestrator.evaluate_policy(execution)
+        assert policy["code"] == "DISALLOWED_TOOL_ENVIRONMENT_DRIFT"
+        assert policy["omittedTools"] == ["semgrep"]
 
 
 class TestIsUserPath:

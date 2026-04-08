@@ -147,6 +147,26 @@ export class AnalysisOrchestrator {
         signal,
       );
 
+      if (sastResponse.status !== "completed") {
+        logger.warn({
+          analysisId,
+          target: targetInfo?.name,
+          requestId,
+          error: sastResponse.error,
+          errorCode: sastResponse.errorDetail?.code,
+        }, "Quick phase returned failed scan response");
+        this.broadcast(wsAnalysisId, {
+          type: "analysis-error",
+          payload: {
+            analysisId: wsAnalysisId,
+            phase: "quick",
+            error: sastResponse.error ?? "SAST scan failed",
+            retryable: sastResponse.errorDetail?.retryable === true,
+          },
+        });
+        return;
+      }
+
       sastFindings = sastResponse.findings;
       codeGraphSummary = sastResponse.codeGraph ?? undefined;
       scaLibraries = sastResponse.sca?.libraries ?? undefined;

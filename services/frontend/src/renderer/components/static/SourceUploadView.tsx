@@ -4,7 +4,7 @@ import type { SourceFileEntry } from "../../api/client";
 import { uploadSource, cloneSource, fetchSourceFiles, logError } from "../../api/client";
 import { useToast } from "../../contexts/ToastContext";
 import { useUploadProgress } from "../../hooks/useUploadProgress";
-import { Spinner } from "../ui";
+import { Spinner, ConnectionStatusBanner } from "../ui";
 import { formatFileSize } from "../../utils/format";
 import { buildTree, countFiles } from "../../utils/tree";
 import { LANG_GROUPS } from "../../constants/languages";
@@ -149,6 +149,7 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
 
   return (
     <div className="source-upload">
+      <ConnectionStatusBanner connectionState={upload.connectionState} />
       {/* Already have source — show summary + actions */}
       {sourceFiles && sourceFiles.length > 0 ? (
         <>

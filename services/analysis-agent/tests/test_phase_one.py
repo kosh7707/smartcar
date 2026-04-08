@@ -461,6 +461,93 @@ class TestTargetPath:
         await executor.aclose()
 
 
+class TestBuildAndAnalyzeFallback:
+    @pytest.mark.asyncio
+    async def test_execute_passes_preserved_compile_commands_to_fallback(self):
+        from app.core.agent_session import AgentSession
+        from app.schemas.request import TaskRequest
+
+        request = TaskRequest.model_validate({
+            "taskType": "deep-analyze",
+            "taskId": "test-ba-fallback",
+            "context": {
+                "trusted": {
+                    "objective": "test",
+                    "projectPath": "/uploads/project",
+                    "projectId": "proj-1",
+                    "buildCommand": "bash build.sh",
+                }
+            },
+        })
+        from agent_shared.schemas.agent import BudgetState
+        budget = BudgetState(max_steps=1, max_completion_tokens=100)
+        session = AgentSession(request, budget)
+
+        executor = Phase1Executor(
+            sast_endpoint="http://localhost:9000",
+            kb_endpoint="http://localhost:8002",
+        )
+
+        async def mock_ba(result, *args, **kwargs):
+            result.build_compile_commands_path = "/tmp/compile_commands.json"
+            return None
+
+        captured = {}
+
+        async def mock_individual(result, files, project_id, project_path, build_profile, request_id, **kwargs):
+            captured["compile_commands_path"] = kwargs.get("compile_commands_path")
+            return result
+
+        executor._run_build_and_analyze = mock_ba
+        executor._run_individual_tools = mock_individual
+
+        await executor.execute(session)
+
+        assert captured["compile_commands_path"] == "/tmp/compile_commands.json"
+        await executor.aclose()
+
+    @pytest.mark.asyncio
+    async def test_build_and_analyze_http_failure_preserves_build_evidence(self):
+        executor = Phase1Executor(
+            sast_endpoint="http://localhost:9000",
+            kb_endpoint="http://localhost:8002",
+        )
+        result = Phase1Result()
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 503
+        mock_resp.json.return_value = {
+            "success": False,
+            "status": "failed",
+            "build": {
+                "success": True,
+                "buildEvidence": {
+                    "compileCommandsPath": "/tmp/compile_commands.json",
+                    "entries": 7,
+                },
+            },
+            "failureDetail": {
+                "code": "DISALLOWED_TOOL_OMISSION",
+                "message": "tool omission policy violation",
+            },
+        }
+        executor._sast_client.post = AsyncMock(return_value=mock_resp)
+
+        ba_result = await executor._run_build_and_analyze(
+            result,
+            "proj-1",
+            "/uploads/project",
+            "bash build.sh",
+            None,
+            "req-1",
+        )
+
+        assert ba_result is None
+        assert result.build_compile_commands_path == "/tmp/compile_commands.json"
+        assert result.build_failure_detail["code"] == "DISALLOWED_TOOL_OMISSION"
+        await executor.aclose()
+
+
 # ───────────────────────────────────────────────
 # _format_origin_label
 # ───────────────────────────────────────────────

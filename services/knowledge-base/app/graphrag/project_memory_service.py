@@ -78,6 +78,11 @@ class ProjectMemoryService:
         )
         return hashlib.sha256(payload.encode()).hexdigest()[:16]
 
+    @staticmethod
+    def _prop_expr(alias: str, key: str) -> str:
+        """Neo4j map access를 사용해 optional property warning을 피한다."""
+        return f"properties({alias})['{key}']"
+
     def list_memories(
         self,
         project_id: str,
@@ -87,12 +92,16 @@ class ProjectMemoryService:
         """프로젝트의 메모리 목록을 반환한다 (만료된 메모리 제외)."""
         now = datetime.now(timezone.utc).isoformat()
         normalized_provenance = self._normalize_provenance(provenance_filters)
+        m_build_snapshot_id = self._prop_expr("m", "build_snapshot_id")
+        m_build_unit_id = self._prop_expr("m", "build_unit_id")
+        m_source_build_attempt_id = self._prop_expr("m", "source_build_attempt_id")
 
         type_clause = "AND m.type = $type " if memory_type else ""
         provenance_clause = (
-            "AND ($build_snapshot_id IS NULL OR m.build_snapshot_id = $build_snapshot_id) "
-            "AND ($build_unit_id IS NULL OR m.build_unit_id = $build_unit_id) "
-            "AND ($source_build_attempt_id IS NULL OR m.source_build_attempt_id = $source_build_attempt_id) "
+            f"AND ($build_snapshot_id IS NULL OR {m_build_snapshot_id} = $build_snapshot_id) "
+            f"AND ($build_unit_id IS NULL OR {m_build_unit_id} = $build_unit_id) "
+            f"AND ($source_build_attempt_id IS NULL OR "
+            f"{m_source_build_attempt_id} = $source_build_attempt_id) "
         )
         expire_clause = "AND (m.expiresAt IS NULL OR m.expiresAt > $now) "
 
@@ -101,9 +110,9 @@ class ProjectMemoryService:
             f"WHERE true {type_clause}{provenance_clause}{expire_clause}"
             "RETURN m.id AS id, m.type AS type, m.data AS data, "
             "m.createdAt AS createdAt, m.expiresAt AS expiresAt, "
-            "m.build_snapshot_id AS build_snapshot_id, "
-            "m.build_unit_id AS build_unit_id, "
-            "m.source_build_attempt_id AS source_build_attempt_id "
+            f"{m_build_snapshot_id} AS build_snapshot_id, "
+            f"{m_build_unit_id} AS build_unit_id, "
+            f"{m_source_build_attempt_id} AS source_build_attempt_id "
             "ORDER BY m.createdAt DESC"
         )
         params: dict = {
@@ -171,9 +180,9 @@ class ProjectMemoryService:
                 "WHERE m.content_hash = $hash "
                 "AND (m.expiresAt IS NULL OR m.expiresAt > $now) "
                 "RETURN m.id AS id, m.type AS type, m.createdAt AS createdAt, "
-                "m.build_snapshot_id AS build_snapshot_id, "
-                "m.build_unit_id AS build_unit_id, "
-                "m.source_build_attempt_id AS source_build_attempt_id",
+                f"{self._prop_expr('m', 'build_snapshot_id')} AS build_snapshot_id, "
+                f"{self._prop_expr('m', 'build_unit_id')} AS build_unit_id, "
+                f"{self._prop_expr('m', 'source_build_attempt_id')} AS source_build_attempt_id",
                 pid=project_id, hash=content_hash, now=datetime.now(timezone.utc).isoformat(),
             ).single()
 

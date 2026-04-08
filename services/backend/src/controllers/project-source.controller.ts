@@ -5,6 +5,7 @@ import type { WsUploadMessage } from "@aegis/shared";
 import type { ProjectSourceService } from "../services/project-source.service";
 import type { IProjectDAO } from "../dao/interfaces";
 import type { WsBroadcaster } from "../services/ws-broadcaster";
+import type { NotificationService } from "../services/notification.service";
 import { asyncHandler } from "../middleware/async-handler";
 import { NotFoundError, InvalidInputError } from "../lib/errors";
 import { createLogger } from "../lib/logger";
@@ -41,6 +42,7 @@ export function createProjectSourceRouter(
   projectDAO: IProjectDAO,
   uploadWs?: WsBroadcaster<WsUploadMessage>,
   buildTargetDAO?: import("../dao/interfaces").IBuildTargetDAO,
+  notificationService?: NotificationService,
 ): Router {
   const router = Router({ mergeParams: true });
 
@@ -64,7 +66,7 @@ export function createProjectSourceRouter(
     });
 
     // 백그라운드 처리
-    processUpload(pid, uploadId, uploadedFiles, sourceService, uploadWs).catch((err) => {
+    processUpload(pid, uploadId, uploadedFiles, sourceService, uploadWs, notificationService).catch((err) => {
       logger.error({ err, uploadId, pid }, "Upload processing failed");
     });
   }));
@@ -178,6 +180,7 @@ async function processUpload(
   uploadedFiles: Express.Multer.File[],
   sourceService: ProjectSourceService,
   ws?: WsBroadcaster<WsUploadMessage>,
+  notificationService?: NotificationService,
 ): Promise<void> {
   const broadcast = (msg: WsUploadMessage) => {
     ws?.broadcast(uploadId, msg);
@@ -245,6 +248,19 @@ async function processUpload(
       uploadId, phase: "complete", message: "완료",
       fileCount: files.length, projectPath,
     });
+    try {
+      notificationService?.emit({
+        projectId: pid,
+        type: "upload_complete",
+        title: "소스 업로드 완료",
+        body: `파일 ${files.length}개 인덱싱 완료`,
+        jobKind: "upload",
+        resourceId: uploadId,
+        correlationId: uploadId,
+      });
+    } catch {
+      // notification failure must not affect upload completion
+    }
 
     logger.info({ uploadId, pid, mode, fileCount: files.length }, "Upload processing complete");
   } catch (err) {
@@ -254,6 +270,19 @@ async function processUpload(
       payload: { uploadId, phase: "failed", error: errorMsg },
     });
     setUploadStatus(uploadId, { uploadId, phase: "failed", message: errorMsg, error: errorMsg });
+    try {
+      notificationService?.emit({
+        projectId: pid,
+        type: "upload_failed",
+        title: "소스 업로드 실패",
+        body: errorMsg,
+        jobKind: "upload",
+        resourceId: uploadId,
+        correlationId: uploadId,
+      });
+    } catch {
+      // notification failure must not affect upload failure propagation
+    }
 
     logger.error({ err, uploadId, pid }, "Upload processing failed");
   }

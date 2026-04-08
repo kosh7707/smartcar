@@ -21,13 +21,18 @@ interface SdkRegistryRow {
 }
 
 function rowToSdk(row: SdkRegistryRow): RegisteredSdk {
+  const profile = parseJson<SdkAnalyzedProfile | undefined>(row.profile, undefined);
   return {
     id: row.id,
     projectId: row.project_id,
     name: row.name,
     description: row.description ?? undefined,
     path: row.path,
-    profile: parseJson<SdkAnalyzedProfile | undefined>(row.profile, undefined),
+    profile,
+    artifactKind: profile?.artifactKind,
+    sdkVersion: profile?.sdkVersion,
+    targetSystem: profile?.targetSystem,
+    installLogPath: profile?.installLogPath,
     status: row.status as SdkRegistryStatus,
     verifyError: row.verify_error ?? undefined,
     verified: row.verified === 1,
@@ -42,6 +47,7 @@ export class SdkRegistryDAO {
   private selectByIdStmt;
   private updateStatusStmt;
   private updateProfileStmt;
+  private updatePathStmt;
   private deleteStmt;
 
   constructor(private db: DatabaseType) {
@@ -60,6 +66,9 @@ export class SdkRegistryDAO {
     );
     this.updateProfileStmt = db.prepare(
       `UPDATE sdk_registry SET profile = ?, updated_at = ? WHERE id = ?`,
+    );
+    this.updatePathStmt = db.prepare(
+      `UPDATE sdk_registry SET path = ?, updated_at = ? WHERE id = ?`,
     );
     this.deleteStmt = db.prepare(
       `DELETE FROM sdk_registry WHERE id = ?`,
@@ -91,6 +100,10 @@ export class SdkRegistryDAO {
 
   updateProfile(id: string, profile: SdkAnalyzedProfile): void {
     this.updateProfileStmt.run(JSON.stringify(profile), new Date().toISOString(), id);
+  }
+
+  updatePath(id: string, sdkPath: string): void {
+    this.updatePathStmt.run(sdkPath, new Date().toISOString(), id);
   }
 
   delete(id: string): boolean {

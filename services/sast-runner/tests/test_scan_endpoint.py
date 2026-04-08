@@ -20,7 +20,21 @@ async def client():
 
 @pytest.mark.asyncio
 async def test_health_endpoint(client: AsyncClient) -> None:
-    resp = await client.get("/v1/health")
+    from unittest.mock import AsyncMock, patch
+
+    with patch.object(
+        __import__("app.routers.scan", fromlist=["orchestrator"]).orchestrator,
+        "check_tools",
+        AsyncMock(return_value={
+            "semgrep": {"available": True, "version": "1.45.0", "probeReason": None},
+            "cppcheck": {"available": True, "version": "2.13.0", "probeReason": None},
+            "flawfinder": {"available": True, "version": "2.0.19", "probeReason": None},
+            "clang-tidy": {"available": True, "version": "18.1.3", "probeReason": None},
+            "scan-build": {"available": True, "version": "18.1.3", "probeReason": None},
+            "gcc-fanalyzer": {"available": True, "version": "13.3.0", "probeReason": None},
+        }),
+    ):
+        resp = await client.get("/v1/health")
     assert resp.status_code == 200
 
     data = resp.json()
@@ -29,6 +43,44 @@ async def test_health_endpoint(client: AsyncClient) -> None:
     assert data["version"] == "0.11.0"
     assert "semgrep" in data
     assert "defaultRulesets" in data
+    assert data["policyStatus"] == "ok"
+    assert data["policyReasons"] == []
+    assert data["unavailableTools"] == []
+    assert data["allowedSkipReasons"] == [
+        "operator-requested-subset",
+        "profile-not-applicable",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_health_endpoint_preserves_existing_fields_and_adds_policy(client: AsyncClient) -> None:
+    from unittest.mock import AsyncMock, patch
+
+    with patch.object(
+        __import__("app.routers.scan", fromlist=["orchestrator"]).orchestrator,
+        "check_tools",
+        AsyncMock(return_value={
+            "semgrep": {"available": False, "version": None, "probeReason": "environment-drift"},
+            "cppcheck": {"available": True, "version": "2.13.0", "probeReason": None},
+            "flawfinder": {"available": True, "version": "2.0.19", "probeReason": None},
+            "clang-tidy": {"available": True, "version": "18.1.3", "probeReason": None},
+            "scan-build": {"available": True, "version": "18.1.3", "probeReason": None},
+            "gcc-fanalyzer": {"available": True, "version": "13.3.0", "probeReason": None},
+        }),
+    ):
+        resp = await client.get("/v1/health")
+
+    data = resp.json()
+    assert resp.status_code == 200
+    assert data["status"] == "ok"
+    assert "semgrep" in data and "tools" in data and "defaultRulesets" in data
+    assert data["policyStatus"] == "degraded"
+    assert data["policyReasons"] == ["environment-drift"]
+    assert data["unavailableTools"] == ["semgrep"]
+    assert data["allowedSkipReasons"] == [
+        "operator-requested-subset",
+        "profile-not-applicable",
+    ]
 
 
 @pytest.mark.asyncio
@@ -616,6 +668,104 @@ async def test_scan_ndjson_error_event(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_scan_policy_violation_returns_503_with_execution(client: AsyncClient) -> None:
+    from unittest.mock import AsyncMock, patch
+
+    from app.schemas.response import (
+        ExecutionReport,
+        FindingsFilterInfo,
+        ScanStats,
+        SdkResolutionInfo,
+        ToolExecutionResult,
+    )
+
+    execution = ExecutionReport(
+        toolsRun=["cppcheck"],
+        toolResults={
+            "semgrep": ToolExecutionResult(
+                status="skipped",
+                findings_count=0,
+                elapsed_ms=0,
+                skip_reason="environment-drift",
+            ),
+            "cppcheck": ToolExecutionResult(
+                status="ok",
+                findings_count=1,
+                elapsed_ms=10,
+            ),
+        },
+        sdk=SdkResolutionInfo(resolved=False),
+        filtering=FindingsFilterInfo(beforeFilter=1, afterFilter=1),
+        degraded=False,
+        degradeReasons=[],
+    )
+
+    with patch("app.routers.scan.orchestrator.run", AsyncMock(return_value=([], execution))):
+        resp = await client.post(
+            "/v1/scan",
+            json={
+                "scanId": "policy-sync-001",
+                "projectId": "proj-test",
+                "files": [{"path": "src/main.c", "content": "int main() { return 0; }"}],
+            },
+        )
+
+    data = resp.json()
+    assert resp.status_code == 503
+    assert data["success"] is False
+    assert data["status"] == "failed"
+    assert data["errorDetail"]["code"] == "DISALLOWED_TOOL_ENVIRONMENT_DRIFT"
+    assert data["execution"]["toolResults"]["semgrep"]["status"] == "skipped"
+    assert data["execution"]["toolResults"]["semgrep"]["skipReason"] == "environment-drift"
+
+
+@pytest.mark.asyncio
+async def test_scan_ndjson_policy_violation_error_includes_execution(client: AsyncClient) -> None:
+    from unittest.mock import AsyncMock, patch
+
+    from app.schemas.response import (
+        ExecutionReport,
+        FindingsFilterInfo,
+        SdkResolutionInfo,
+        ToolExecutionResult,
+    )
+
+    execution = ExecutionReport(
+        toolsRun=["cppcheck"],
+        toolResults={
+            "semgrep": ToolExecutionResult(
+                status="skipped",
+                findings_count=0,
+                elapsed_ms=0,
+                skip_reason="environment-drift",
+            ),
+            "cppcheck": ToolExecutionResult(status="ok", findings_count=1, elapsed_ms=10),
+        },
+        sdk=SdkResolutionInfo(resolved=False),
+        filtering=FindingsFilterInfo(beforeFilter=1, afterFilter=1),
+        degraded=False,
+        degradeReasons=[],
+    )
+
+    with patch("app.routers.scan.orchestrator.run", AsyncMock(return_value=([], execution))):
+        resp = await client.post(
+            "/v1/scan",
+            headers={"Accept": "application/x-ndjson"},
+            json={
+                "scanId": "policy-stream-001",
+                "projectId": "proj-test",
+                "files": [{"path": "src/main.c", "content": "int main() { return 0; }"}],
+            },
+        )
+
+    events = _parse_ndjson(resp.text)
+    error_event = [e for e in events if e["type"] == "error"][0]
+    assert error_event["code"] == "DISALLOWED_TOOL_ENVIRONMENT_DRIFT"
+    assert error_event["retryable"] is False
+    assert error_event["execution"]["toolResults"]["semgrep"]["skipReason"] == "environment-drift"
+
+
+@pytest.mark.asyncio
 async def test_scan_without_ndjson_header_unchanged(client: AsyncClient, mock_semgrep_runner) -> None:
     """Accept 없으면 기존 동기 JSON 응답 (스트리밍 아님)."""
     resp = await client.post(
@@ -971,3 +1121,97 @@ async def test_build_and_analyze_rejects_legacy_build_profile(client: AsyncClien
             },
         )
     assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_build_and_analyze_policy_violation_preserves_build_evidence(client: AsyncClient) -> None:
+    from unittest.mock import AsyncMock, patch
+
+    from app.errors import PolicyViolationError
+    from app.schemas.response import (
+        BuildEvidence,
+        BuildResponse,
+        ErrorDetail,
+        ExecutionReport,
+        FindingsFilterInfo,
+        ScanResponse,
+        ScanStats,
+        SdkResolutionInfo,
+        ToolExecutionResult,
+    )
+
+    build = BuildResponse(
+        success=True,
+        buildEvidence=BuildEvidence(
+            requestedBuildCommand="make",
+            effectiveBuildCommand="make",
+            buildDir="/tmp/project",
+            compileCommandsPath="/tmp/project/compile_commands.json",
+            entries=1,
+            userEntries=1,
+            exitCode=0,
+            buildOutput="ok",
+            wrapWithBear=True,
+            timeoutSeconds=600,
+            elapsedMs=10,
+        ),
+    )
+    failed_scan = ScanResponse(
+        success=False,
+        scanId="build-analyze-policy-001",
+        status="failed",
+        findings=[],
+        stats=ScanStats(filesScanned=1, rulesRun=1, findingsTotal=0, elapsedMs=20),
+        execution=ExecutionReport(
+            toolsRun=["cppcheck"],
+            toolResults={
+                "semgrep": ToolExecutionResult(
+                    status="skipped",
+                    findings_count=0,
+                    elapsed_ms=0,
+                    skip_reason="environment-drift",
+                ),
+                "cppcheck": ToolExecutionResult(status="ok", findings_count=0, elapsed_ms=10),
+            },
+            sdk=SdkResolutionInfo(resolved=False),
+            filtering=FindingsFilterInfo(beforeFilter=0, afterFilter=0),
+            degraded=False,
+            degradeReasons=[],
+        ),
+        error="Disallowed tool omission: semgrep(environment-drift)",
+        errorDetail=ErrorDetail(
+            code="DISALLOWED_TOOL_ENVIRONMENT_DRIFT",
+            message="Disallowed tool omission: semgrep(environment-drift)",
+            requestId="req-policy-bna",
+            retryable=False,
+        ),
+    )
+
+    with (
+        patch("pathlib.Path.is_dir", return_value=True),
+        patch("app.routers.scan.build_runner.build", AsyncMock(return_value=build.model_dump(by_alias=True, exclude_none=True))),
+        patch(
+            "app.routers.scan._run_scan_core",
+            AsyncMock(side_effect=PolicyViolationError(
+                "Disallowed tool omission: semgrep(environment-drift)",
+                scan_response=failed_scan,
+                code="DISALLOWED_TOOL_ENVIRONMENT_DRIFT",
+            )),
+        ),
+    ):
+        resp = await client.post(
+            "/v1/build-and-analyze",
+            json={
+                "projectPath": "/tmp/project",
+                "buildCommand": "make",
+                "projectId": "proj-test",
+            },
+        )
+
+    data = resp.json()
+    assert resp.status_code == 503
+    assert data["success"] is False
+    assert data["build"]["buildEvidence"]["compileCommandsPath"].endswith("compile_commands.json")
+    assert data["scan"]["success"] is False
+    assert data["scan"]["execution"]["toolResults"]["semgrep"]["skipReason"] == "environment-drift"
+    assert data["errorDetail"]["code"] == "DISALLOWED_TOOL_ENVIRONMENT_DRIFT"

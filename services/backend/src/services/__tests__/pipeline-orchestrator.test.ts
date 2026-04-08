@@ -69,6 +69,7 @@ function createMocks() {
   const sastClient = {
     build: vi.fn().mockResolvedValue({ success: true, compileCommandsPath: "/uploads/p1/build/cc.json", entries: 10 }),
     scan: vi.fn().mockResolvedValue(scanResponse),
+    identifyLibraries: vi.fn().mockResolvedValue([]),
   };
   const kbClient = {
     ingestCodeGraph: vi.fn().mockResolvedValue({ nodes_created: 20, edges_created: 5 }),
@@ -92,6 +93,7 @@ function createMocks() {
   const analysisResultDAO = { save: vi.fn() };
   const resultNormalizer = { normalizeAnalysisResult: vi.fn() };
   const ws = { broadcast: vi.fn() };
+  const notificationService = { emit: vi.fn() };
 
   const orchestrator = new PipelineOrchestrator(
     sourceService as any,
@@ -103,14 +105,15 @@ function createMocks() {
     analysisResultDAO as any,
     resultNormalizer as any,
     ws as any,
+    notificationService as any,
   );
 
-  return { orchestrator, sourceService, sastClient, kbClient, buildAgentClient, targetLibraryDAO, buildTargetDAO, analysisResultDAO, resultNormalizer, ws };
+  return { orchestrator, sourceService, sastClient, kbClient, buildAgentClient, targetLibraryDAO, buildTargetDAO, analysisResultDAO, resultNormalizer, ws, notificationService };
 }
 
 describe("PipelineOrchestrator", () => {
   it("happy path: resolve → build → scan → graph → ready", async () => {
-    const { orchestrator, buildAgentClient, buildTargetDAO, sastClient, kbClient, ws } = createMocks();
+    const { orchestrator, buildAgentClient, buildTargetDAO, sastClient, kbClient, ws, notificationService } = createMocks();
 
     await orchestrator.runPipeline("p1");
 
@@ -120,6 +123,14 @@ describe("PipelineOrchestrator", () => {
 
     // build 호출됨
     expect(sastClient.build).toHaveBeenCalledOnce();
+    expect(sastClient.build).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectPath: "/uploads/p1/gateway/",
+        buildCommand: "bash build-aegis/aegis-build.sh",
+      }),
+      undefined,
+      undefined,
+    );
     expect(buildTargetDAO.updatePipelineState).toHaveBeenCalledWith("t1", expect.objectContaining({ status: "built" }));
 
     // scan 호출됨
@@ -134,6 +145,17 @@ describe("PipelineOrchestrator", () => {
 
     // pipeline-complete broadcast
     expect(ws.broadcast).toHaveBeenCalledWith("p1", expect.objectContaining({ type: "pipeline-complete" }));
+    expect(ws.broadcast).toHaveBeenCalledWith("p1", expect.objectContaining({
+      type: "pipeline-complete",
+      payload: expect.objectContaining({ pipelineId: expect.stringMatching(/^pipe-/) }),
+    }));
+    expect(notificationService.emit).toHaveBeenCalledWith(expect.objectContaining({
+      projectId: "p1",
+      type: "analysis_complete",
+      jobKind: "pipeline",
+      resourceId: expect.stringMatching(/^pipe-/),
+      correlationId: expect.stringMatching(/^pipe-/),
+    }));
   });
 
   it("skips resolve if target already has buildCommand", async () => {
@@ -147,8 +169,8 @@ describe("PipelineOrchestrator", () => {
     expect(buildAgentClient.submitTask).not.toHaveBeenCalled();
   });
 
-  it("resolve failure with existing profile → continues to build", async () => {
-    const { orchestrator, buildAgentClient, buildTargetDAO, sastClient } = createMocks();
+  it("resolve failure without materialized build command → stops before build", async () => {
+    const { orchestrator, buildAgentClient, buildTargetDAO, sastClient, ws, notificationService } = createMocks();
     buildAgentClient.submitTask.mockResolvedValue(resolveFail);
     buildAgentClient.isSuccess.mockReturnValue(false);
 
@@ -156,8 +178,13 @@ describe("PipelineOrchestrator", () => {
 
     // resolve_failed 상태가 저장됨
     expect(buildTargetDAO.updatePipelineState).toHaveBeenCalledWith("t1", expect.objectContaining({ status: "resolve_failed" }));
-    // 하지만 기존 compiler("gcc")가 있으므로 build 계속
-    expect(sastClient.build).toHaveBeenCalledOnce();
+    expect(sastClient.build).not.toHaveBeenCalled();
+    expect(ws.broadcast).toHaveBeenCalledWith("p1", expect.objectContaining({ type: "pipeline-error" }));
+    expect(notificationService.emit).toHaveBeenCalledWith(expect.objectContaining({
+      projectId: "p1",
+      type: "gate_failed",
+      jobKind: "pipeline",
+    }));
   });
 
   it("resolve failure without profile → throws", async () => {
@@ -175,7 +202,7 @@ describe("PipelineOrchestrator", () => {
   });
 
   it("build failure → build_failed status", async () => {
-    const { orchestrator, buildTargetDAO, sastClient, ws } = createMocks();
+    const { orchestrator, buildTargetDAO, sastClient, ws, notificationService } = createMocks();
     buildTargetDAO.findByProjectId.mockReturnValue([
       makeTarget({ status: "configured", buildCommand: "make" }),
     ]);
@@ -185,6 +212,11 @@ describe("PipelineOrchestrator", () => {
 
     expect(buildTargetDAO.updatePipelineState).toHaveBeenCalledWith("t1", expect.objectContaining({ status: "build_failed" }));
     expect(ws.broadcast).toHaveBeenCalledWith("p1", expect.objectContaining({ type: "pipeline-error" }));
+    expect(notificationService.emit).toHaveBeenCalledWith(expect.objectContaining({
+      projectId: "p1",
+      type: "gate_failed",
+      jobKind: "pipeline",
+    }));
   });
 
   it("scan failure → scan_failed status", async () => {
@@ -247,6 +279,7 @@ describe("PipelineOrchestrator", () => {
       (call: any[]) => call[1].type === "pipeline-complete",
     );
     expect(completeCall).toBeDefined();
+    expect(completeCall![1].payload.pipelineId).toMatch(/^pipe-/);
     expect(completeCall![1].payload.readyCount).toBe(1);
     expect(completeCall![1].payload.failedCount).toBe(1);
   });
@@ -262,6 +295,12 @@ describe("PipelineOrchestrator", () => {
     const statusMessages = ws.broadcast.mock.calls
       .filter((call: any[]) => call[1].type === "pipeline-target-status")
       .map((call: any[]) => call[1].payload.status);
+
+    const targetStatusCalls = ws.broadcast.mock.calls
+      .filter((call: any[]) => call[1].type === "pipeline-target-status");
+    for (const [, msg] of targetStatusCalls) {
+      expect(msg.payload.pipelineId).toMatch(/^pipe-/);
+    }
 
     expect(statusMessages).toContain("building");
     expect(statusMessages).toContain("built");

@@ -8,7 +8,7 @@ import {
   getNotificationWsUrl,
 } from "../api/notifications";
 import { logError } from "../api/core";
-import { parseWsMessage } from "../utils/wsEnvelope";
+import { parseWsMessage, createReconnectingWs } from "../utils/wsEnvelope";
 
 interface NotificationContextValue {
   notifications: Notification[];
@@ -31,7 +31,7 @@ export function NotificationProvider({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
-  const wsRef = useRef<WebSocket | null>(null);
+  const rwsRef = useRef<ReturnType<typeof createReconnectingWs> | null>(null);
 
   const refresh = useCallback(async () => {
     if (!projectId) return;
@@ -54,30 +54,51 @@ export function NotificationProvider({
     refresh();
   }, [refresh]);
 
-  // WebSocket connection for real-time notifications
+  // WebSocket connection for real-time notifications (with reconnection)
   useEffect(() => {
     if (!projectId) return;
-    if (import.meta.env.VITE_MOCK === "true") return; // Skip WS in mock mode
-    const ws = new WebSocket(getNotificationWsUrl(projectId));
-    wsRef.current = ws;
+    if (import.meta.env.VITE_MOCK === "true") return;
 
-    ws.onmessage = (event) => {
-      try {
-        const msg = parseWsMessage(event.data);
-        const payload = msg;
-        if (payload.type === "notification" && payload.payload) {
-          const notif = payload.payload as Notification;
-          setNotifications((prev) => [notif, ...prev]);
-          if (!notif.read) setUnreadCount((c) => c + 1);
+    const rws = createReconnectingWs(() => getNotificationWsUrl(projectId), {
+      maxRetries: 10,
+      async onReconnect() {
+        // Catch up on missed notifications via REST
+        try {
+          const [list, count] = await Promise.all([
+            fetchNotifications(projectId),
+            fetchNotificationCount(projectId),
+          ]);
+          setNotifications(list);
+          setUnreadCount(count.unread);
+        } catch (e) {
+          logError("NotificationContext.reconnect", e);
         }
-      } catch {
-        // ignore non-JSON messages
-      }
-    };
+        wireHandlers(rws.getWs());
+      },
+    });
+    rwsRef.current = rws;
+
+    function wireHandlers(ws: WebSocket | null) {
+      if (!ws) return;
+      ws.onmessage = (event) => {
+        try {
+          const msg = parseWsMessage(event.data);
+          const payload = msg;
+          if (payload.type === "notification" && payload.payload) {
+            const notif = payload.payload as Notification;
+            setNotifications((prev) => [notif, ...prev]);
+            if (!notif.read) setUnreadCount((c) => c + 1);
+          }
+        } catch {
+          // ignore non-JSON messages
+        }
+      };
+    }
+    wireHandlers(rws.getWs());
 
     return () => {
-      ws.close();
-      wsRef.current = null;
+      rws.close();
+      rwsRef.current = null;
     };
   }, [projectId]);
 

@@ -30,7 +30,7 @@ const mockFetchGateProfiles = vi.fn();
 const mockFetchProjectSettings = vi.fn();
 const mockUpdateProjectSettings = vi.fn();
 const mockFetchProjectSdks = vi.fn();
-const mockRegisterSdkByPath = vi.fn();
+const mockRegisterSdkByUpload = vi.fn();
 const mockDeleteSdk = vi.fn();
 const mockToast = { error: vi.fn(), success: vi.fn(), info: vi.fn() };
 
@@ -45,7 +45,7 @@ vi.mock("../api/projects", () => ({
 
 vi.mock("../api/sdk", () => ({
   fetchProjectSdks: (...args: unknown[]) => mockFetchProjectSdks(...args),
-  registerSdkByPath: (...args: unknown[]) => mockRegisterSdkByPath(...args),
+  registerSdkByUpload: (...args: unknown[]) => mockRegisterSdkByUpload(...args),
   deleteSdk: (...args: unknown[]) => mockDeleteSdk(...args),
   getSdkWsUrl: vi.fn(() => "ws://localhost:3000/ws/sdk?projectId=p-1"),
 }));
@@ -72,12 +72,12 @@ describe("ProjectSettingsPage", () => {
     mockFetchProjectSettings.mockResolvedValue({ gateProfileId: "" });
     mockUpdateProjectSettings.mockResolvedValue(undefined);
     mockFetchProjectSdks.mockResolvedValue({ builtIn: [], registered: [] });
-    mockRegisterSdkByPath.mockResolvedValue({
+    mockRegisterSdkByUpload.mockResolvedValue({
       id: "sdk-1",
       projectId: "p-1",
       name: "SDK One",
       description: "Cross compile SDK",
-      path: "/opt/sdk-one",
+      path: "/uploads/p-1/sdk/sdk-1",
       status: "uploading",
       verified: false,
       createdAt: "2026-04-04T00:00:00Z",
@@ -90,34 +90,26 @@ describe("ProjectSettingsPage", () => {
     vi.restoreAllMocks();
   });
 
-  it("limits SDK registration UX to localPath and explains the contract", async () => {
+  it("renders three upload mode tabs (archive, binary, folder)", async () => {
     renderPage();
 
     await waitFor(() => expect(mockFetchProjectSdks).toHaveBeenCalledWith("p-1"));
     fireEvent.click(screen.getByRole("button", { name: /sdk 추가/i }));
 
-    expect(screen.getByText(/localPath/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /파일 업로드/i })).not.toBeInTheDocument();
-    expect(screen.getByLabelText("로컬 경로")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /아카이브/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /바이너리/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /폴더/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText("로컬 경로")).not.toBeInTheDocument();
   });
 
-  it("appends the RegisteredSdk returned by path registration", async () => {
+  it("shows SDK name and description fields in upload form", async () => {
     renderPage();
 
     await waitFor(() => expect(mockFetchProjectSdks).toHaveBeenCalledWith("p-1"));
     fireEvent.click(screen.getByRole("button", { name: /sdk 추가/i }));
-    fireEvent.change(screen.getByLabelText("SDK 이름"), { target: { value: "SDK One" } });
-    fireEvent.change(screen.getByLabelText("설명 \(선택\)"), { target: { value: "Cross compile SDK" } });
-    fireEvent.change(screen.getByLabelText("로컬 경로"), { target: { value: "/opt/sdk-one" } });
 
-    fireEvent.click(screen.getByRole("button", { name: "등록" }));
-
-    await waitFor(() => {
-      expect(mockRegisterSdkByPath).toHaveBeenCalledWith("p-1", "SDK One", "/opt/sdk-one", "Cross compile SDK");
-    });
-    expect(await screen.findByText("SDK One")).toBeInTheDocument();
-    expect(screen.getByText("Cross compile SDK")).toBeInTheDocument();
-    expect(screen.getByText("/opt/sdk-one")).toBeInTheDocument();
+    expect(screen.getByLabelText("SDK 이름")).toBeInTheDocument();
+    expect(screen.getByLabelText("설명 (선택)")).toBeInTheDocument();
   });
 
   it("renders the canonical environmentSetup profile field", async () => {
@@ -147,5 +139,104 @@ describe("ProjectSettingsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /분석된 프로파일/i }));
 
     expect(await screen.findByText("/opt/sdk-one/environment-setup")).toBeInTheDocument();
+  });
+
+  it("stepper renders 5 grouped phases for in-progress SDK", async () => {
+    mockFetchProjectSdks.mockResolvedValue({
+      builtIn: [],
+      registered: [{
+        id: "sdk-1",
+        projectId: "p-1",
+        name: "Test SDK",
+        path: "/uploads/p-1/sdk/sdk-1",
+        status: "extracting",
+        verified: false,
+        createdAt: "2026-04-04T00:00:00Z",
+        updatedAt: "2026-04-04T00:00:00Z",
+      }],
+    });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText("Test SDK")).toBeInTheDocument());
+
+    expect(screen.getByText("업로드")).toBeInTheDocument();
+    expect(screen.getByText("설치/압축해제")).toBeInTheDocument();
+    expect(screen.getByText("AI 분석")).toBeInTheDocument();
+    expect(screen.getByText("검증")).toBeInTheDocument();
+    expect(screen.getByText("완료")).toBeInTheDocument();
+  });
+
+  it("stepper shows Group 1 as done and Group 2 as active for extracting status", async () => {
+    mockFetchProjectSdks.mockResolvedValue({
+      builtIn: [],
+      registered: [{
+        id: "sdk-1",
+        projectId: "p-1",
+        name: "Test SDK",
+        path: "/uploads/p-1/sdk/sdk-1",
+        status: "extracting",
+        verified: false,
+        createdAt: "2026-04-04T00:00:00Z",
+        updatedAt: "2026-04-04T00:00:00Z",
+      }],
+    });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText("Test SDK")).toBeInTheDocument());
+
+    const uploadStep = screen.getByText("업로드").closest(".sdk-stepper__step");
+    expect(uploadStep).toHaveClass("sdk-stepper__step--done");
+
+    const extractStep = screen.getByText("설치/압축해제").closest(".sdk-stepper__step");
+    expect(extractStep).toHaveClass("sdk-stepper__step--active");
+  });
+
+  it("install_failed marks Group 2 as failed and hides stepper", async () => {
+    mockFetchProjectSdks.mockResolvedValue({
+      builtIn: [],
+      registered: [{
+        id: "sdk-1",
+        projectId: "p-1",
+        name: "Test SDK",
+        path: "/uploads/p-1/sdk/sdk-1",
+        status: "install_failed",
+        verifyError: "설치 실패",
+        verified: false,
+        createdAt: "2026-04-04T00:00:00Z",
+        updatedAt: "2026-04-04T00:00:00Z",
+      }],
+    });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText("Test SDK")).toBeInTheDocument());
+
+    expect(screen.queryByText("설치/압축해제")).not.toBeInTheDocument();
+    expect(screen.getAllByText("설치 실패").length).toBeGreaterThan(0);
+  });
+
+  it("ready status shows all groups as done (no stepper rendered)", async () => {
+    mockFetchProjectSdks.mockResolvedValue({
+      builtIn: [],
+      registered: [{
+        id: "sdk-1",
+        projectId: "p-1",
+        name: "Test SDK",
+        path: "/uploads/p-1/sdk/sdk-1",
+        status: "ready",
+        verified: false,
+        createdAt: "2026-04-04T00:00:00Z",
+        updatedAt: "2026-04-04T00:00:00Z",
+      }],
+    });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText("Test SDK")).toBeInTheDocument());
+
+    expect(screen.queryByText("업로드")).not.toBeInTheDocument();
+    expect(screen.getByText("사용 가능")).toBeInTheDocument();
   });
 });

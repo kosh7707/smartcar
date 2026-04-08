@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 
 class SastRunnerError(Exception):
     code: str = "INTERNAL_ERROR"
@@ -33,3 +35,21 @@ class SarifParseError(SastRunnerError):
     code = "SARIF_PARSE_ERROR"
     status_code = 502
     retryable = False
+
+
+class PolicyViolationError(SastRunnerError):
+    code = "DISALLOWED_TOOL_OMISSION"
+    status_code = 503
+    retryable = False
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        scan_response: Any,
+        code: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.scan_response = scan_response
+        if code is not None:
+            self.code = code

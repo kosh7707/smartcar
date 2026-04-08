@@ -203,8 +203,21 @@ export interface BuildProfile {
 // ── SDK 등록 (유저 관리) ──
 
 export type SdkRegistryStatus =
-  | "uploading" | "extracting" | "analyzing"
-  | "verifying" | "ready" | "verify_failed";
+  | "uploading"
+  | "uploaded"
+  | "extracting"
+  | "extracted"
+  | "installing"
+  | "installed"
+  | "analyzing"
+  | "verifying"
+  | "ready"
+  | "upload_failed"
+  | "extract_failed"
+  | "install_failed"
+  | "verify_failed";
+
+export type SdkArtifactKind = "archive" | "bin" | "folder";
 
 /** S3 Build Agent가 분석한 SDK 프로파일 */
 export interface SdkAnalyzedProfile {
@@ -217,6 +230,10 @@ export interface SdkAnalyzedProfile {
   environmentSetup?: string;
   includePaths?: string[];
   defines?: Record<string, string>;
+  artifactKind?: SdkArtifactKind;
+  sdkVersion?: string;
+  targetSystem?: string;
+  installLogPath?: string;
 }
 
 /** 유저 등록 SDK (DB 저장, 상태머신: uploading→extracting→analyzing→verifying→ready) */
@@ -225,12 +242,16 @@ export interface RegisteredSdk {
   projectId: string;
   name: string;
   description?: string;
-  /** SDK 경로 (/uploads/{pid}/sdk/{id}/ 또는 로컬 경로) */
+  /** SDK canonical 경로 (/uploads/{pid}/sdk/{id}/content 또는 installed) */
   path: string;
   /** S3 Build Agent가 분석한 프로파일 */
   profile?: SdkAnalyzedProfile;
+  artifactKind?: SdkArtifactKind;
+  sdkVersion?: string;
+  targetSystem?: string;
+  installLogPath?: string;
   status: SdkRegistryStatus;
-  /** S4 검증 실패 사유 */
+  /** SDK 검증 실패 사유 */
   verifyError?: string;
   verified: boolean;
   createdAt: string;
@@ -884,7 +905,26 @@ export interface ApprovalRequest {
 // Notification
 // ============================================================
 
-export type NotificationType = "analysis_complete" | "critical_finding" | "approval_pending" | "gate_failed";
+export type NotificationType =
+  | "analysis_complete"
+  | "critical_finding"
+  | "approval_pending"
+  | "gate_failed"
+  | "upload_complete"
+  | "upload_failed"
+  | "sdk_ready"
+  | "sdk_failed"
+  | "pipeline_complete"
+  | "pipeline_failed";
+
+export type NotificationJobKind =
+  | "analysis"
+  | "upload"
+  | "sdk"
+  | "pipeline"
+  | "gate"
+  | "approval"
+  | "finding";
 
 export interface Notification {
   id: string;
@@ -893,7 +933,11 @@ export interface Notification {
   title: string;
   body: string;
   severity?: Severity;
+  /** Exact async-flow/domain kind; `type` remains the coarse UI category. */
+  jobKind?: NotificationJobKind;
   resourceId?: string;
+  /** Foreground/live-flow correlation key when a UX needs to reconnect a notification to an in-flight job. */
+  correlationId?: string;
   read: boolean;
   createdAt: string;
 }

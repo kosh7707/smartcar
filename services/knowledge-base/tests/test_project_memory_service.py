@@ -131,8 +131,20 @@ def test_list_memories_with_provenance_filter():
     svc.list_memories("re100", provenance_filters={"buildSnapshotId": "snap-1"})
 
     query = session.run.call_args[0][0]
-    assert "m.build_snapshot_id = $build_snapshot_id" in query
+    assert "properties(m)['build_snapshot_id'] = $build_snapshot_id" in query
     assert session.run.call_args.kwargs["build_snapshot_id"] == "snap-1"
+
+
+def test_list_memories_uses_map_access_for_optional_provenance_projection():
+    svc, session = _make_service()
+    session.run.return_value = _mock_list_result([])
+
+    svc.list_memories("re100")
+
+    query = session.run.call_args[0][0]
+    assert "properties(m)['build_snapshot_id'] AS build_snapshot_id" in query
+    assert "properties(m)['build_unit_id'] AS build_unit_id" in query
+    assert "properties(m)['source_build_attempt_id'] AS source_build_attempt_id" in query
 
 
 def test_list_memories_empty():
@@ -201,6 +213,8 @@ def test_create_memory_dedup():
     assert result["deduplicated"] is True
     # _ensure_indexes(4: 3 indexes + 1 migration) + dedup check(1) = 5
     assert session.run.call_count == 5
+    dedup_query = session.run.call_args[0][0]
+    assert "properties(m)['build_snapshot_id'] AS build_snapshot_id" in dedup_query
 
 
 def test_create_memory_expired_duplicate_is_not_deduped():

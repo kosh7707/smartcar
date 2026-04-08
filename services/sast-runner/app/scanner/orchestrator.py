@@ -37,6 +37,7 @@ from app.schemas.response import (
 logger = logging.getLogger("aegis-sast-runner")
 
 ALL_TOOLS = ["semgrep", "cppcheck", "flawfinder", "clang-tidy", "scan-build", "gcc-fanalyzer"]
+ALLOWED_SKIP_REASONS = ("operator-requested-subset", "profile-not-applicable")
 
 # 최소 권장 버전 — 미만 시 경고 (차단하지 않음)
 MIN_VERSIONS: dict[str, tuple[int, ...]] = {
@@ -93,10 +94,23 @@ class ScanOrchestrator:
         )
 
         names = ["semgrep", "cppcheck", "flawfinder", "clang-tidy", "scan-build", "gcc-fanalyzer"]
-        tool_info = {
-            name: {"available": avail, "version": ver}
-            for name, (avail, ver) in zip(names, results)
-        }
+        runners = [
+            self.semgrep,
+            self.cppcheck,
+            self.flawfinder,
+            self.clangtidy,
+            self.scanbuild,
+            self.gcc_analyzer,
+        ]
+        tool_info: dict[str, dict[str, Any]] = {}
+        for name, (avail, ver), runner in zip(names, results, runners):
+            probe = getattr(runner, "_last_probe", None) or {}
+            tool_info[name] = {
+                "available": avail,
+                "version": ver,
+                "probeReason": probe.get("probeReason"),
+                "expectedExecutablePath": probe.get("expectedExecutablePath"),
+            }
 
         # 최소 버전 경고
         for name, info in tool_info.items():
@@ -116,6 +130,54 @@ class ScanOrchestrator:
         self._tool_cache = tool_info
         self._tool_cache_time = now
         return tool_info
+
+    def build_health_policy(self, available_tools: dict[str, dict]) -> dict[str, Any]:
+        unavailable_tools = sorted(
+            name for name, info in available_tools.items()
+            if not info.get("available", False)
+        )
+        policy_reasons = sorted(
+            {
+                info.get("probeReason")
+                for info in available_tools.values()
+                if not info.get("available", False) and info.get("probeReason")
+            },
+        )
+        return {
+            "policyStatus": "degraded" if unavailable_tools else "ok",
+            "policyReasons": policy_reasons,
+            "unavailableTools": unavailable_tools,
+            "allowedSkipReasons": list(ALLOWED_SKIP_REASONS),
+        }
+
+    def evaluate_policy(self, execution: ExecutionReport) -> dict[str, Any] | None:
+        disallowed_tools: list[str] = []
+        policy_reasons: list[str] = []
+        for tool_name, result in execution.tool_results.items():
+            reason = result.skip_reason
+            if result.status == "skipped" and reason and reason not in ALLOWED_SKIP_REASONS:
+                disallowed_tools.append(tool_name)
+                if reason not in policy_reasons:
+                    policy_reasons.append(reason)
+
+        if not disallowed_tools:
+            return None
+
+        code = (
+            "DISALLOWED_TOOL_ENVIRONMENT_DRIFT"
+            if "environment-drift" in policy_reasons
+            else "DISALLOWED_TOOL_OMISSION"
+        )
+        msg = (
+            "Disallowed tool omission: "
+            + ", ".join(f"{tool}({execution.tool_results[tool].skip_reason})" for tool in disallowed_tools)
+        )
+        return {
+            "code": code,
+            "message": msg,
+            "omittedTools": disallowed_tools,
+            "policyReasons": policy_reasons,
+        }
 
     async def run(
         self,
@@ -137,7 +199,7 @@ class ScanOrchestrator:
             (findings, execution_report)
         """
         # 1. 도구 자동 선택
-        available_tools = await self.check_tools()
+        available_tools = await self.check_tools(force=True)
         active_tools = await self._select_tools(
             tools, profile, available_tools,
         )
@@ -328,13 +390,22 @@ class ScanOrchestrator:
         available: dict[str, dict],
     ) -> dict[str, Any]:
         """BuildProfile + 가용성을 보고 실행할 도구를 결정."""
-        candidates = set(requested or ALL_TOOLS)
+        requested_set = set(requested or ALL_TOOLS)
+        candidates = set(requested_set)
         active: dict[str, Any] = {"_skipped": {}}
+
+        if requested is not None:
+            for tool in ALL_TOOLS:
+                if tool not in requested_set:
+                    active["_skipped"][tool] = "operator-requested-subset"
 
         for tool in list(candidates):
             # 가용성 체크
             if not available.get(tool, {}).get("available", False):
-                active["_skipped"][tool] = "Not installed"
+                active["_skipped"][tool] = (
+                    available.get(tool, {}).get("probeReason")
+                    or "runtime-tool-missing"
+                )
                 candidates.discard(tool)
                 continue
 
@@ -348,7 +419,7 @@ class ScanOrchestrator:
         # gcc-fanalyzer: 호스트 gcc가 unavailable이지만 SDK 컴파일러가 지원할 수 있음
         if (
             "gcc-fanalyzer" in active["_skipped"]
-            and active["_skipped"]["gcc-fanalyzer"] == "Not installed"
+            and active["_skipped"]["gcc-fanalyzer"] in {"runtime-tool-missing", "environment-drift", "tool-check-failed"}
             and profile
             and profile.sdk_id
         ):
@@ -359,6 +430,9 @@ class ScanOrchestrator:
                 logger.info(
                     "gcc-fanalyzer available via SDK compiler (v%s)", sdk_ver,
                 )
+            else:
+                probe = getattr(self.gcc_analyzer, "_last_probe", {}) or {}
+                active["_skipped"]["gcc-fanalyzer"] = probe.get("probeReason") or active["_skipped"]["gcc-fanalyzer"]
 
         active.update({t: True for t in candidates})
         return active

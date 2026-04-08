@@ -25,3 +25,4 @@ export type { FileTreeNodeProps } from "./FileTreeNode";
 export { TargetStatusBadge } from "./TargetStatusBadge";
 export { TargetProgressStepper } from "./TargetProgressStepper";
 export { ComingSoonPlaceholder } from "./ComingSoonPlaceholder";
+export { ConnectionStatusBanner } from "./ConnectionStatusBanner";

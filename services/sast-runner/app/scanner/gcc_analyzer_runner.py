@@ -12,6 +12,7 @@ from typing import Any
 from app.errors import ScanTimeoutError
 from app.scanner.path_utils import normalize_path
 from app.scanner.sdk_resolver import get_sdk_compiler
+from app.scanner.tool_probe import probe_command, service_toolchain_executable
 from app.schemas.request import BuildProfile
 from app.schemas.response import SastDataFlowStep, SastFinding, SastFindingLocation
 
@@ -61,24 +62,28 @@ class GccAnalyzerRunner:
             if sdk_gcc:
                 gcc_bin = sdk_gcc
 
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                gcc_bin, "--version",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10)
-            if proc.returncode == 0:
-                output = stdout.decode()
-                match = re.search(r"(\d+\.\d+\.\d+)", output)
-                version = match.group(1) if match else "unknown"
-                # gcc 10+ 에서 -fanalyzer 지원
-                major = int(version.split(".")[0]) if version != "unknown" else 0
-                if major >= 10:
-                    return True, version
-            return False, None
-        except (FileNotFoundError, asyncio.TimeoutError):
-            return False, None
+        expected_path = None
+        if Path(gcc_bin).is_absolute():
+            expected_path = Path(gcc_bin)
+        else:
+            expected_path = service_toolchain_executable(gcc_bin)
+
+        probe = await probe_command(
+            [gcc_bin, "--version"],
+            version_parser=lambda output: (re.search(r"(\d+\.\d+\.\d+)", output).group(1)  # type: ignore[union-attr]
+                                           if re.search(r"(\d+\.\d+\.\d+)", output)
+                                           else "unknown"),
+            expected_executable_path=expected_path,
+        )
+        self._last_probe = probe
+        if probe["available"] and isinstance(probe["version"], str):
+            version = probe["version"]
+            major = int(version.split(".")[0]) if version != "unknown" else 0
+            if major >= 10:
+                return True, version
+            probe["probeReason"] = "tool-check-failed"
+            self._last_probe = probe
+        return False, None
 
     async def run(
         self,

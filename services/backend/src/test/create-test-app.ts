@@ -1,8 +1,12 @@
 import express from "express";
+import fs from "fs";
+import os from "os";
+import path from "path";
 import type { Database as DatabaseType } from "better-sqlite3";
 import type { RegisteredSdk } from "@aegis/shared";
 import { createTestDb } from "./test-db";
 import { errorHandlerMiddleware } from "../middleware/error-handler.middleware";
+import { InvalidInputError } from "../lib/errors";
 
 // DAOs
 import { RunDAO } from "../dao/run.dao";
@@ -81,12 +85,13 @@ export interface TestAppContext {
   notificationService: NotificationService;
   userService: UserService;
   settingsService: ProjectSettingsService;
-  pipelineRunCalls: Array<{ projectId: string; targetIds?: string[]; requestId?: string }>;
+  pipelineRunCalls: Array<{ projectId: string; targetIds?: string[]; requestId?: string; pipelineId?: string }>;
   analysisRunCalls: Array<{ projectId: string; analysisId: string; targetIds?: string[]; requestId?: string }>;
 }
 
 export function createTestApp(): TestAppContext {
   const db = createTestDb();
+  const sdkUploadRoot = fs.mkdtempSync(path.join(os.tmpdir(), "aegis-sdk-test-"));
 
   // ── Tier 0: DAOs ──
   const runDAO = new RunDAO(db);
@@ -127,16 +132,30 @@ export function createTestApp(): TestAppContext {
     },
     async register(
       projectId: string,
-      input: { name: string; description?: string; localPath?: string },
+      input: { sdkId?: string; name: string; description?: string; files: Array<{ originalName: string; storedPath: string; size: number; relativePath?: string }> },
     ) {
       const now = new Date().toISOString();
+      const primaryFile = input.files[0];
+      const lowerName = primaryFile?.originalName?.toLowerCase() ?? "";
+      const artifactKind = input.files.length > 1 ? "folder" : lowerName.endsWith(".bin") ? "bin" : "archive";
+      const inferredPath = artifactKind === "bin"
+        ? `/tmp/${projectId}/sdk/${input.sdkId ?? "uploaded"}/installed`
+        : `/tmp/${projectId}/sdk/${input.sdkId ?? "uploaded"}/content`;
       const sdk: RegisteredSdk = {
-        id: `sdk-test-${sdkStore.size + 1}`,
+        id: input.sdkId ?? `sdk-test-${sdkStore.size + 1}`,
         projectId,
         name: input.name,
         description: input.description,
-        path: input.localPath ?? `/tmp/${projectId}/sdk-upload`,
-        status: "uploading",
+        path: inferredPath,
+        artifactKind,
+        sdkVersion: artifactKind === "bin" ? "08.02.00.24" : artifactKind === "folder" ? "folder-virtual" : "1.0.0",
+        targetSystem: artifactKind === "bin" ? "am335x-evm" : artifactKind === "folder" ? "folder-target" : "archive-target",
+        profile: {
+          artifactKind,
+          sdkVersion: artifactKind === "bin" ? "08.02.00.24" : artifactKind === "folder" ? "folder-virtual" : "1.0.0",
+          targetSystem: artifactKind === "bin" ? "am335x-evm" : artifactKind === "folder" ? "folder-target" : "archive-target",
+        },
+        status: "uploaded",
         verified: false,
         createdAt: now,
         updatedAt: now,
@@ -206,10 +225,10 @@ export function createTestApp(): TestAppContext {
       };
     },
   };
-  const pipelineRunCalls: Array<{ projectId: string; targetIds?: string[]; requestId?: string }> = [];
+  const pipelineRunCalls: Array<{ projectId: string; targetIds?: string[]; requestId?: string; pipelineId?: string }> = [];
   const pipelineOrchestrator = {
-    async runPipeline(projectId: string, targetIds?: string[], requestId?: string) {
-      pipelineRunCalls.push({ projectId, targetIds, requestId });
+    async runPipeline(projectId: string, targetIds?: string[], requestId?: string, _signal?: AbortSignal, pipelineId?: string) {
+      pipelineRunCalls.push({ projectId, targetIds, requestId, pipelineId });
     },
   };
   const analysisRunCalls: Array<{ projectId: string; analysisId: string; targetIds?: string[]; requestId?: string }> = [];
@@ -254,9 +273,9 @@ export function createTestApp(): TestAppContext {
   app.use("/api/projects/:pid/approvals", createApprovalRouter(approvalService));
   app.use("/api/projects/:pid/report", createReportRouter(reportService));
   app.use("/api/projects/:pid/targets", createBuildTargetRouter(buildTargetService, projectDAO, testSourceService as any, testSastClient as any));
-  app.use("/api/projects/:pid/sdk", createSdkRouter(sdkService as any, projectDAO));
+  app.use("/api/projects/:pid/sdk", createSdkRouter(sdkService as any, projectDAO, undefined, notificationService, sdkUploadRoot));
   app.use("/api/projects/:pid/pipeline", createPipelineRouter(pipelineOrchestrator as any, projectDAO, buildTargetDAO));
-  app.use("/api/projects/:pid/source", createProjectSourceRouter(testSourceService as any, projectDAO, undefined, buildTargetDAO));
+  app.use("/api/projects/:pid/source", createProjectSourceRouter(testSourceService as any, projectDAO, undefined, buildTargetDAO, notificationService));
   app.use("/api/projects/:pid/activity", createActivityRouter(activityService));
   app.use("/api/projects/:pid/notifications", createNotificationRouter(notificationService));
   app.use("/api/projects", createProjectRouter(projectService));

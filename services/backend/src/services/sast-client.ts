@@ -38,9 +38,16 @@ export interface SastScanRequest {
 export interface SastToolResult {
   findingsCount: number;
   elapsedMs: number;
-  status: "ok" | "skipped" | "error";
+  status: "ok" | "partial" | "skipped" | "failed";
   skipReason?: string;
   error?: string;
+}
+
+export interface SastScanErrorDetail {
+  code?: string;
+  message?: string;
+  requestId?: string;
+  retryable?: boolean;
 }
 
 export interface SastCodeGraph {
@@ -81,6 +88,8 @@ export interface SastScanResponse {
       sdkNoiseRemoved: number;
       /** 서드파티 경로 제거 수 (thirdPartyPaths 전달 시) */
       thirdPartyRemoved?: number;
+      /** cross-boundary로 유지된 finding 수 */
+      crossBoundaryKept?: number;
       /** scope-early로 도구 실행 전 제외된 파일 수 */
       filesScopedOut?: number;
     };
@@ -90,6 +99,7 @@ export interface SastScanResponse {
   /** SCA 분석 결과 — 라이브러리 목록 (CVE는 S5에서 별도 조회) */
   sca?: { libraries: SastScaLibrary[] } | null;
   error?: string;
+  errorDetail?: SastScanErrorDetail;
 }
 
 /** 빌드 타겟 탐색 응답 */
@@ -101,6 +111,8 @@ export interface BuildResponse {
   elapsedMs?: number;
   error?: string;
   buildLog?: string;
+  failureCategory?: string;
+  environmentKeys?: string[];
 }
 
 export interface DiscoverTargetsResponse {
@@ -131,23 +143,13 @@ export class SastClient {
     };
     if (requestId) headers["X-Request-Id"] = requestId;
 
-    const res = await this.doFetch(
+    const data = await this.doScanFetch(
       `${this.baseUrl}/v1/scan`,
       headers,
       request,
       requestId,
       signal,
     );
-
-    let data: SastScanResponse;
-    try {
-      data = (await res.json()) as SastScanResponse;
-    } catch (err) {
-      throw new SastUnavailableError(
-        "Failed to parse SAST Runner response as JSON",
-        err,
-      );
-    }
 
     if (data.status === "completed") {
       logger.info(
@@ -162,7 +164,7 @@ export class SastClient {
       );
     } else {
       logger.warn(
-        { scanId: data.scanId, error: data.error, requestId },
+        { scanId: data.scanId, error: data.error, errorCode: data.errorDetail?.code, requestId },
         "SAST scan failed",
       );
     }
@@ -171,7 +173,17 @@ export class SastClient {
   }
 
   async build(
-    request: { projectPath: string; buildProfile?: BuildProfile; buildCommand?: string },
+    request: {
+      projectPath: string;
+      buildCommand: string;
+      buildEnvironment?: Record<string, string>;
+      provenance?: {
+        buildSnapshotId?: string;
+        buildUnitId?: string;
+        snapshotSchemaVersion?: string;
+      };
+      wrapWithBear?: boolean;
+    },
     requestId?: string,
     signal?: AbortSignal,
   ): Promise<BuildResponse> {
@@ -187,7 +199,38 @@ export class SastClient {
     );
 
     try {
-      return (await res.json()) as BuildResponse;
+      const data = (await res.json()) as {
+        success: boolean;
+        buildEvidence?: {
+          compileCommandsPath?: string;
+          entries?: number;
+          userEntries?: number;
+          elapsedMs?: number;
+          buildOutput?: string;
+          environmentKeys?: string[];
+        };
+        failureDetail?: {
+          category?: string;
+          summary?: string;
+          matchedExcerpt?: string;
+        };
+        compileCommandsPath?: string;
+        entries?: number;
+        elapsedMs?: number;
+        error?: string;
+        buildLog?: string;
+      };
+      const evidence = data.buildEvidence;
+      return {
+        success: data.success,
+        compileCommandsPath: evidence?.compileCommandsPath ?? data.compileCommandsPath,
+        entries: evidence?.userEntries ?? evidence?.entries ?? data.entries,
+        elapsedMs: evidence?.elapsedMs ?? data.elapsedMs,
+        buildLog: evidence?.buildOutput ?? data.buildLog,
+        error: data.error ?? data.failureDetail?.summary ?? data.failureDetail?.matchedExcerpt,
+        failureCategory: data.failureDetail?.category,
+        environmentKeys: evidence?.environmentKeys,
+      };
     } catch (err) {
       throw new SastUnavailableError("Failed to parse build response", err);
     }
@@ -211,43 +254,6 @@ export class SastClient {
       return (await res.json()) as DiscoverTargetsResponse;
     } catch (err) {
       throw new SastUnavailableError("Failed to parse discover-targets response", err);
-    }
-  }
-
-  async registerSdk(
-    sdk: { sdkId: string; description?: string; path: string; sysroot?: string; compilerPrefix?: string; gccVersion?: string; environmentSetup?: string },
-    requestId?: string,
-    signal?: AbortSignal,
-  ): Promise<{ success: boolean; errors?: string[] }> {
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (requestId) headers["X-Request-Id"] = requestId;
-
-    const res = await this.doFetch(
-      `${this.baseUrl}/v1/sdk-registry`,
-      headers,
-      sdk,
-      requestId,
-      signal,
-    );
-    return (await res.json()) as { success: boolean; errors?: string[] };
-  }
-
-  async deleteSdk(
-    sdkId: string,
-    requestId?: string,
-    signal?: AbortSignal,
-  ): Promise<void> {
-    const headers: Record<string, string> = {};
-    if (requestId) headers["X-Request-Id"] = requestId;
-
-    try {
-      await fetch(`${this.baseUrl}/v1/sdk-registry/${encodeURIComponent(sdkId)}`, {
-        method: "DELETE",
-        headers,
-        signal,
-      });
-    } catch (err) {
-      logger.warn({ err, sdkId }, "S4 SDK delete failed");
     }
   }
 
@@ -333,6 +339,103 @@ export class SastClient {
       }
 
       return res;
+    }
+  }
+
+  private async doScanFetch(
+    url: string,
+    headers: Record<string, string>,
+    body: unknown,
+    requestId?: string,
+    signal?: AbortSignal,
+  ): Promise<SastScanResponse> {
+    const bodyStr = JSON.stringify(body);
+
+    for (let attempt = 0; ; attempt++) {
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          method: "POST",
+          headers,
+          body: bodyStr,
+          signal,
+        });
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") throw err;
+        const message = err instanceof Error ? err.message : "Network error";
+        if (message.includes("timeout") || message.includes("ETIMEDOUT")) {
+          throw new SastTimeoutError(`SAST Runner timeout: ${message}`, err);
+        }
+        throw new SastUnavailableError(`SAST Runner unreachable: ${message}`, err);
+      }
+
+      if (res.status === 503) {
+        const text = await res.text().catch(() => "");
+        const failure = this.tryParseScanFailure(text);
+        if (failure) {
+          return failure;
+        }
+        if (attempt < SastClient.MAX_RETRIES) {
+          const delay = SastClient.RETRY_BASE_MS * 2 ** attempt;
+          logger.warn(
+            { attempt: attempt + 1, delayMs: delay, requestId },
+            "SAST Runner overloaded (503), retrying",
+          );
+          await this.sleep(delay, signal);
+          continue;
+        }
+        throw new SastUnavailableError(
+          `SAST Runner returned HTTP 503: ${text.slice(0, 200)}`,
+        );
+      }
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new SastUnavailableError(
+          `SAST Runner returned HTTP ${res.status}: ${text.slice(0, 200)}`,
+        );
+      }
+
+      try {
+        return (await res.json()) as SastScanResponse;
+      } catch (err) {
+        throw new SastUnavailableError(
+          "Failed to parse SAST Runner response as JSON",
+          err,
+        );
+      }
+    }
+  }
+
+  private tryParseScanFailure(text: string): SastScanResponse | null {
+    if (!text) return null;
+    try {
+      const parsed = JSON.parse(text) as Partial<SastScanResponse>;
+      if (parsed.success === false && parsed.status === "failed") {
+        return {
+          success: false,
+          scanId: parsed.scanId ?? "",
+          status: "failed",
+          findings: Array.isArray(parsed.findings) ? parsed.findings : [],
+          stats: parsed.stats ?? {
+            filesScanned: 0,
+            rulesRun: 0,
+            findingsTotal: 0,
+            elapsedMs: 0,
+          },
+          execution: parsed.execution ?? {
+            toolsRun: [],
+            toolResults: {},
+          },
+          codeGraph: parsed.codeGraph ?? null,
+          sca: parsed.sca ?? null,
+          error: parsed.error,
+          errorDetail: parsed.errorDetail,
+        };
+      }
+      return null;
+    } catch {
+      return null;
     }
   }
 

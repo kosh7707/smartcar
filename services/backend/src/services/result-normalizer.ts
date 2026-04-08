@@ -155,6 +155,7 @@ export class ResultNormalizer {
             projectId: result.projectId,
             type: "analysis_complete",
             title: `분석 완료: ${result.module} (${findings.length} findings)`,
+            jobKind: "analysis",
             resourceId: runId,
           });
           for (const f of findings) {
@@ -164,6 +165,7 @@ export class ResultNormalizer {
                 type: "critical_finding",
                 title: `Critical 취약점 발견: ${f.title}`,
                 severity: "critical",
+                jobKind: "finding",
                 resourceId: f.id,
               });
             }

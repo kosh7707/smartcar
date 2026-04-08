@@ -26,6 +26,11 @@ class CodeGraphService:
             ),
         }
 
+    @staticmethod
+    def _prop_expr(alias: str, key: str) -> str:
+        """Neo4j map access를 사용해 optional property warning을 피한다."""
+        return f"properties({alias})['{key}']"
+
     @classmethod
     def _attach_provenance(cls, item: dict, provenance: dict | None) -> dict:
         normalized = item.copy()
@@ -142,18 +147,21 @@ class CodeGraphService:
         build_snapshot_id: str | None = None,
     ) -> list[dict]:
         """해당 함수를 호출하는 함수 체인을 반환한다."""
+        target_build_snapshot_id = self._prop_expr("target", "build_snapshot_id")
+        caller_build_snapshot_id = self._prop_expr("caller", "build_snapshot_id")
         with self._driver.session() as session:
             result = session.run(
                 f"MATCH (target:Function {{project_id: $pid, name: $name}})"
                 f"<-[:CALLS*1..{depth}]-(caller:Function) "
-                "WHERE ($build_snapshot_id IS NULL OR (target.build_snapshot_id = $build_snapshot_id "
-                "AND caller.build_snapshot_id = $build_snapshot_id)) "
+                f"WHERE ($build_snapshot_id IS NULL OR ({target_build_snapshot_id} = $build_snapshot_id "
+                f"AND {caller_build_snapshot_id} = $build_snapshot_id)) "
                 "RETURN DISTINCT caller.name AS name, caller.file AS file, caller.line AS line, "
                 "coalesce(caller.origin, null) AS origin, coalesce(caller.original_lib, null) AS original_lib, "
                 "coalesce(caller.original_version, null) AS original_version, "
-                "coalesce(caller.build_snapshot_id, null) AS build_snapshot_id, "
-                "coalesce(caller.build_unit_id, null) AS build_unit_id, "
-                "coalesce(caller.source_build_attempt_id, null) AS source_build_attempt_id",
+                f"coalesce({self._prop_expr('caller', 'build_snapshot_id')}, null) AS build_snapshot_id, "
+                f"coalesce({self._prop_expr('caller', 'build_unit_id')}, null) AS build_unit_id, "
+                f"coalesce({self._prop_expr('caller', 'source_build_attempt_id')}, null) "
+                "AS source_build_attempt_id",
                 pid=project_id, name=function_name, build_snapshot_id=build_snapshot_id,
             )
             return [self._attach_provenance(dict(rec), None) for rec in result]
@@ -166,17 +174,19 @@ class CodeGraphService:
         build_snapshot_id: str | None = None,
     ) -> dict | None:
         """단일 함수 노드 정보를 반환한다."""
+        fn_build_snapshot_id = self._prop_expr("fn", "build_snapshot_id")
         with self._driver.session() as session:
             result = session.run(
                 "MATCH (fn:Function {project_id: $pid, name: $name}) "
-                "WHERE ($build_snapshot_id IS NULL OR fn.build_snapshot_id = $build_snapshot_id) "
+                f"WHERE ($build_snapshot_id IS NULL OR {fn_build_snapshot_id} = $build_snapshot_id) "
                 "RETURN fn.name AS name, fn.file AS file, fn.line AS line, "
                 "coalesce(fn.origin, null) AS origin, "
                 "coalesce(fn.original_lib, null) AS original_lib, "
                 "coalesce(fn.original_version, null) AS original_version, "
-                "coalesce(fn.build_snapshot_id, null) AS build_snapshot_id, "
-                "coalesce(fn.build_unit_id, null) AS build_unit_id, "
-                "coalesce(fn.source_build_attempt_id, null) AS source_build_attempt_id",
+                f"coalesce({self._prop_expr('fn', 'build_snapshot_id')}, null) AS build_snapshot_id, "
+                f"coalesce({self._prop_expr('fn', 'build_unit_id')}, null) AS build_unit_id, "
+                f"coalesce({self._prop_expr('fn', 'source_build_attempt_id')}, null) "
+                "AS source_build_attempt_id",
                 pid=project_id, name=function_name, build_snapshot_id=build_snapshot_id,
             )
             record = result.single()
@@ -192,18 +202,21 @@ class CodeGraphService:
         build_snapshot_id: str | None = None,
     ) -> list[dict]:
         """해당 함수가 호출하는 함수를 반환한다."""
+        fn_build_snapshot_id = self._prop_expr("fn", "build_snapshot_id")
+        callee_build_snapshot_id = self._prop_expr("callee", "build_snapshot_id")
         with self._driver.session() as session:
             result = session.run(
                 "MATCH (fn:Function {project_id: $pid, name: $name})"
                 "-[:CALLS]->(callee:Function) "
-                "WHERE ($build_snapshot_id IS NULL OR (fn.build_snapshot_id = $build_snapshot_id "
-                "AND callee.build_snapshot_id = $build_snapshot_id)) "
+                f"WHERE ($build_snapshot_id IS NULL OR ({fn_build_snapshot_id} = $build_snapshot_id "
+                f"AND {callee_build_snapshot_id} = $build_snapshot_id)) "
                 "RETURN callee.name AS name, callee.file AS file, callee.line AS line, "
                 "coalesce(callee.origin, null) AS origin, coalesce(callee.original_lib, null) AS original_lib, "
                 "coalesce(callee.original_version, null) AS original_version, "
-                "coalesce(callee.build_snapshot_id, null) AS build_snapshot_id, "
-                "coalesce(callee.build_unit_id, null) AS build_unit_id, "
-                "coalesce(callee.source_build_attempt_id, null) AS source_build_attempt_id",
+                f"coalesce({self._prop_expr('callee', 'build_snapshot_id')}, null) AS build_snapshot_id, "
+                f"coalesce({self._prop_expr('callee', 'build_unit_id')}, null) AS build_unit_id, "
+                f"coalesce({self._prop_expr('callee', 'source_build_attempt_id')}, null) "
+                "AS source_build_attempt_id",
                 pid=project_id, name=function_name, build_snapshot_id=build_snapshot_id,
             )
             return [self._attach_provenance(dict(rec), None) for rec in result]
@@ -216,29 +229,34 @@ class CodeGraphService:
         build_snapshot_id: str | None = None,
     ) -> list[dict]:
         """위험 함수(system, popen 등)를 호출하는 사용자 코드 함수를 식별한다."""
+        caller_build_snapshot_id = self._prop_expr("caller", "build_snapshot_id")
         with self._driver.session() as session:
             result = session.run(
                 "MATCH (caller:Function {project_id: $pid})"
                 "-[:CALLS]->(d:Function {project_id: $pid}) "
-                "WHERE ($build_snapshot_id IS NULL OR caller.build_snapshot_id = $build_snapshot_id) "
+                f"WHERE ($build_snapshot_id IS NULL OR {caller_build_snapshot_id} = $build_snapshot_id) "
                 "AND d.name IN $dangerous AND caller.file IS NOT NULL "
                 "RETURN caller.name AS name, caller.file AS file, "
                 "caller.line AS line, collect(DISTINCT d.name) AS dangerous_calls, "
                 "coalesce(caller.origin, null) AS origin, coalesce(caller.original_lib, null) AS original_lib, "
                 "coalesce(caller.original_version, null) AS original_version, "
-                "coalesce(caller.build_snapshot_id, null) AS build_snapshot_id, "
-                "coalesce(caller.build_unit_id, null) AS build_unit_id, "
-                "coalesce(caller.source_build_attempt_id, null) AS source_build_attempt_id",
+                f"coalesce({self._prop_expr('caller', 'build_snapshot_id')}, null) AS build_snapshot_id, "
+                f"coalesce({self._prop_expr('caller', 'build_unit_id')}, null) AS build_unit_id, "
+                f"coalesce({self._prop_expr('caller', 'source_build_attempt_id')}, null) "
+                "AS source_build_attempt_id",
                 pid=project_id, dangerous=dangerous_functions, build_snapshot_id=build_snapshot_id,
             )
             return [self._attach_provenance(dict(rec), None) for rec in result]
 
     def get_stats(self, project_id: str, *, build_snapshot_id: str | None = None) -> dict:
         """프로젝트 코드 그래프 통계."""
+        n_build_snapshot_id = self._prop_expr("n", "build_snapshot_id")
+        start_build_snapshot_id = "properties(startNode(r))['build_snapshot_id']"
+        end_build_snapshot_id = "properties(endNode(r))['build_snapshot_id']"
         with self._driver.session() as session:
             node_result = session.run(
                 "MATCH (n:Function {project_id: $pid}) "
-                "WHERE ($build_snapshot_id IS NULL OR n.build_snapshot_id = $build_snapshot_id) "
+                f"WHERE ($build_snapshot_id IS NULL OR {n_build_snapshot_id} = $build_snapshot_id) "
                 "RETURN count(n) AS cnt",
                 pid=project_id, build_snapshot_id=build_snapshot_id,
             )
@@ -246,8 +264,8 @@ class CodeGraphService:
 
             edge_result = session.run(
                 "MATCH (:Function {project_id: $pid})-[r:CALLS]->(:Function {project_id: $pid}) "
-                "WHERE ($build_snapshot_id IS NULL OR (startNode(r).build_snapshot_id = $build_snapshot_id "
-                "AND endNode(r).build_snapshot_id = $build_snapshot_id)) "
+                f"WHERE ($build_snapshot_id IS NULL OR ({start_build_snapshot_id} = $build_snapshot_id "
+                f"AND {end_build_snapshot_id} = $build_snapshot_id)) "
                 "RETURN count(r) AS cnt",
                 pid=project_id, build_snapshot_id=build_snapshot_id,
             )
@@ -255,7 +273,7 @@ class CodeGraphService:
 
             files_result = session.run(
                 "MATCH (n:Function {project_id: $pid}) "
-                "WHERE ($build_snapshot_id IS NULL OR n.build_snapshot_id = $build_snapshot_id) "
+                f"WHERE ($build_snapshot_id IS NULL OR {n_build_snapshot_id} = $build_snapshot_id) "
                 "AND n.file IS NOT NULL "
                 "RETURN DISTINCT n.file AS file",
                 pid=project_id, build_snapshot_id=build_snapshot_id,

@@ -11,6 +11,7 @@ from typing import Any
 
 from app.errors import ScanTimeoutError
 from app.scanner.path_utils import normalize_path
+from app.scanner.tool_probe import probe_command, service_toolchain_executable
 from app.schemas.response import SastFinding, SastFindingLocation
 
 logger = logging.getLogger("aegis-sast-runner")
@@ -30,19 +31,13 @@ class FlawfinderRunner:
     """Flawfinder를 asyncio subprocess로 실행한다."""
 
     async def check_available(self) -> tuple[bool, str | None]:
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                "flawfinder", "--version",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10)
-            if proc.returncode == 0:
-                version = stdout.decode().strip()
-                return True, version
-            return False, None
-        except (FileNotFoundError, asyncio.TimeoutError):
-            return False, None
+        probe = await probe_command(
+            ["flawfinder", "--version"],
+            version_parser=lambda output: output.strip(),
+            expected_executable_path=service_toolchain_executable("flawfinder"),
+        )
+        self._last_probe = probe
+        return bool(probe["available"]), probe["version"] if isinstance(probe["version"], str) else None
 
     async def run(
         self,

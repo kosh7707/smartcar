@@ -23,6 +23,25 @@ export async function fetchAllAnalysisStatuses(): Promise<AnalysisProgress[]> {
   return res.data;
 }
 
+// ── Per-Analysis Recovery (WR endpoints) ──
+
+export async function fetchAnalysisStatus(analysisId: string): Promise<AnalysisProgress> {
+  const res = await apiFetch<{ success: boolean; data: AnalysisProgress }>(
+    `/api/analysis/status/${analysisId}`,
+  );
+  return res.data;
+}
+
+export async function fetchAnalysisResults(
+  analysisId: string,
+): Promise<{ findings: Finding[]; summary: StaticAnalysisDashboardSummary }> {
+  const res = await apiFetch<{
+    success: boolean;
+    data: { findings: Finding[]; summary: StaticAnalysisDashboardSummary };
+  }>(`/api/analysis/results/${analysisId}`);
+  return res.data;
+}
+
 // ── Analysis API ──
 
 export async function runAnalysis(
