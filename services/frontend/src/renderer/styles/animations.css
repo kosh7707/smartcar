@@ -127,3 +127,20 @@
   animation: shimmer 1.5s ease-in-out infinite;
   border-radius: var(--cds-radius);
 }
+
+/* ── Migrated from components.css ── */
+
+/* ── Shimmer Fill (shared utility) ── */
+
+.shimmer-fill {
+  position: relative;
+}
+
+.shimmer-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--cds-shimmer), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}

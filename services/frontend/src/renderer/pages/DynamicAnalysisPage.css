@@ -148,7 +148,7 @@
 }
 
 tbody tr.can-row--flagged {
-  background: rgba(220, 38, 38, 0.06);
+  background: var(--aegis-severity-critical-bg);
   border-left: 3px solid var(--cds-support-error);
 }
 

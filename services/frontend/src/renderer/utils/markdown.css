@@ -1,0 +1,107 @@
+/* ── Markdown Renderer ── */
+
+.md-heading {
+  margin: var(--cds-spacing-04) 0 var(--cds-spacing-03);
+  color: var(--cds-text-primary);
+}
+
+.md-heading:first-child {
+  margin-top: 0;
+}
+
+.md-para {
+  margin: var(--cds-spacing-03) 0;
+  line-height: 1.7;
+  color: var(--cds-text-secondary);
+}
+
+.md-list {
+  margin: var(--cds-spacing-03) 0;
+  padding-left: var(--cds-spacing-06);
+  color: var(--cds-text-secondary);
+  line-height: 1.7;
+}
+
+.md-list li {
+  margin-bottom: var(--cds-spacing-02);
+}
+
+.md-link {
+  color: var(--cds-interactive);
+  text-decoration: none;
+}
+
+.md-link:hover {
+  text-decoration: underline;
+}
+
+.md-hr {
+  border: none;
+  border-top: 1px solid var(--cds-border-subtle);
+  margin: var(--cds-spacing-05) 0;
+}
+
+.md-blockquote {
+  border-left: 3px solid var(--cds-border-subtle);
+  padding: var(--cds-spacing-03) var(--cds-spacing-05);
+  margin: var(--cds-spacing-04) 0;
+  color: var(--cds-text-secondary);
+  font-style: italic;
+}
+
+.md-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--cds-spacing-04) 0;
+  font-size: var(--cds-type-sm);
+}
+
+.md-table th,
+.md-table td {
+  padding: var(--cds-spacing-03) var(--cds-spacing-04);
+  border: 1px solid var(--cds-border-subtle);
+  text-align: left;
+}
+
+.md-table th {
+  background: var(--cds-layer-02);
+  font-weight: var(--cds-weight-semibold);
+}
+
+.md-img {
+  max-width: 100%;
+  border-radius: var(--cds-radius);
+  margin: var(--cds-spacing-04) 0;
+}
+
+.md-code-block {
+  position: relative;
+  margin: var(--cds-spacing-04) 0;
+  padding: var(--cds-spacing-05);
+  border-radius: var(--cds-radius);
+  background: var(--cds-layer-02);
+  font-family: var(--cds-font-mono);
+  font-size: var(--cds-type-xs);
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre;
+  border: 1px solid var(--cds-border-subtle);
+}
+
+.md-code-lang {
+  position: absolute;
+  top: var(--cds-spacing-03);
+  right: var(--cds-spacing-04);
+  font-size: var(--cds-type-2xs);
+  color: var(--cds-text-placeholder);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.md-inline-code {
+  padding: 1px 5px;
+  border-radius: var(--cds-radius);
+  background: var(--cds-layer-02);
+  font-family: var(--cds-font-mono);
+  font-size: 0.9em;
+}

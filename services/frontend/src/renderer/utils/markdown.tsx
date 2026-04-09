@@ -1,4 +1,5 @@
 import React from "react";
+import "./markdown.css";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { highlightCode } from "./highlight";

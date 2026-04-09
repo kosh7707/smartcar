@@ -1,3 +1,16 @@
+/* ── v6: Page Header ── */
+
+.sa-page-header {
+  margin-bottom: var(--cds-spacing-07);
+}
+
+.sa-page-header__title {
+  font-size: var(--cds-type-3xl);
+  font-weight: var(--cds-weight-semibold);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
 /* ── Mode Selection ── */
 
 .static-mode-cards {

@@ -94,6 +94,7 @@ describe("ProjectSettingsPage", () => {
     renderPage();
 
     await waitFor(() => expect(mockFetchProjectSdks).toHaveBeenCalledWith("p-1"));
+    fireEvent.click(screen.getByText("SDK Management"));
     fireEvent.click(screen.getByRole("button", { name: /sdk 추가/i }));
 
     expect(screen.getByRole("button", { name: /아카이브/i })).toBeInTheDocument();
@@ -106,6 +107,7 @@ describe("ProjectSettingsPage", () => {
     renderPage();
 
     await waitFor(() => expect(mockFetchProjectSdks).toHaveBeenCalledWith("p-1"));
+    fireEvent.click(screen.getByText("SDK Management"));
     fireEvent.click(screen.getByRole("button", { name: /sdk 추가/i }));
 
     expect(screen.getByLabelText("SDK 이름")).toBeInTheDocument();
@@ -135,6 +137,7 @@ describe("ProjectSettingsPage", () => {
 
     renderPage();
 
+    await waitFor(() => fireEvent.click(screen.getByText("SDK Management")));
     await waitFor(() => expect(screen.getByText("SDK One")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: /분석된 프로파일/i }));
 
@@ -158,6 +161,7 @@ describe("ProjectSettingsPage", () => {
 
     renderPage();
 
+    await waitFor(() => fireEvent.click(screen.getByText("SDK Management")));
     await waitFor(() => expect(screen.getByText("Test SDK")).toBeInTheDocument());
 
     expect(screen.getByText("업로드")).toBeInTheDocument();
@@ -184,6 +188,7 @@ describe("ProjectSettingsPage", () => {
 
     renderPage();
 
+    await waitFor(() => fireEvent.click(screen.getByText("SDK Management")));
     await waitFor(() => expect(screen.getByText("Test SDK")).toBeInTheDocument());
 
     const uploadStep = screen.getByText("업로드").closest(".sdk-stepper__step");
@@ -211,6 +216,7 @@ describe("ProjectSettingsPage", () => {
 
     renderPage();
 
+    await waitFor(() => fireEvent.click(screen.getByText("SDK Management")));
     await waitFor(() => expect(screen.getByText("Test SDK")).toBeInTheDocument());
 
     expect(screen.queryByText("설치/압축해제")).not.toBeInTheDocument();
@@ -234,6 +240,7 @@ describe("ProjectSettingsPage", () => {
 
     renderPage();
 
+    await waitFor(() => fireEvent.click(screen.getByText("SDK Management")));
     await waitFor(() => expect(screen.getByText("Test SDK")).toBeInTheDocument());
 
     expect(screen.queryByText("업로드")).not.toBeInTheDocument();

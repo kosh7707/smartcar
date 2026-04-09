@@ -11,7 +11,8 @@ from agent_shared.schemas.agent import (
     ToolResult,
 )
 from agent_shared.tools.executor import ToolExecutor
-from agent_shared.tools.registry import ToolRegistry, ToolSchema
+from agent_shared.tools.hooks import HookRunner
+from agent_shared.tools.registry import ToolRegistry, ToolSchema, ToolSideEffect
 from app.budget.manager import BudgetManager
 from app.core.agent_session import AgentSession
 from app.policy.tool_failure import ToolFailurePolicy
@@ -78,6 +79,9 @@ def _build_router(
     register_impl: bool = True,
     impl: object | None = None,
     tier: ToolCostTier = ToolCostTier.CHEAP,
+    name: str = "read_file",
+    side_effect: ToolSideEffect = ToolSideEffect.PURE,
+    hook_runner: HookRunner | None = None,
 ) -> tuple[ToolRouter, BudgetManager, AgentSession]:
     bs = budget or BudgetState(
         max_steps=10,
@@ -91,16 +95,17 @@ def _build_router(
     registry = ToolRegistry()
     if register_schema:
         registry.register(ToolSchema(
-            name="read_file",
+            name=name,
             description="Read a file",
             parameters={"type": "object", "properties": {"path": {"type": "string"}}},
             cost_tier=tier,
+            side_effect=side_effect,
         ))
     executor = ToolExecutor(timeout_ms=5000)
     failure_policy = ToolFailurePolicy()
-    router = ToolRouter(registry, executor, bm, failure_policy)
+    router = ToolRouter(registry, executor, bm, failure_policy, hook_runner=hook_runner)
     if register_impl:
-        router.register_implementation("read_file", impl or _FakeImpl())
+        router.register_implementation(name, impl or _FakeImpl())
     session = _make_session(bs)
     return router, bm, session
 
@@ -234,3 +239,22 @@ async def test_no_implementation_returns_failure() -> None:
     results = await router.execute([call], session)
     assert results[0].success is False
     assert "No implementation" in results[0].content
+
+
+@pytest.mark.asyncio
+async def test_write_tool_success_clears_duplicate_hashes() -> None:
+    """write side-effect 성공 후 동일 args_hash 재호출이 허용되어야 한다."""
+    router, bm, session = _build_router(
+        name="write_file",
+        side_effect=ToolSideEffect.WRITE,
+    )
+    call1 = _make_call(name="write_file", args={"path": "/tmp/a.txt"})
+    call2 = _make_call(name="write_file", args={"path": "/tmp/a.txt"})
+
+    r1 = await router.execute([call1], session)
+    assert r1[0].success is True
+    assert bm.is_duplicate_call(call1.args_hash) is False
+
+    r2 = await router.execute([call2], session)
+    assert r2[0].success is True
+    assert bm.state.total_steps == 2

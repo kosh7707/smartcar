@@ -9,7 +9,6 @@ import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { useToast } from "../contexts/ToastContext";
 import { FindingDetailView } from "../components/static/FindingDetailView";
 import {
-  PageHeader,
   EmptyState,
   SeverityBadge,
   Spinner,
@@ -30,7 +29,6 @@ const SEVERITY_ICONS: Record<string, React.ReactNode> = {
   info: <Info size={14} />,
 };
 
-/** Common CWE descriptions for tooltip. Falls back to CWE ID if unknown. */
 const CWE_DESCRIPTIONS: Record<string, string> = {
   "CWE-120": "버퍼 오버플로우 (Buffer Copy without Checking Size)",
   "CWE-121": "스택 기반 버퍼 오버플로우",
@@ -58,6 +56,10 @@ export const VulnerabilitiesPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const toast = useToast();
+
+  useEffect(() => {
+    document.title = "AEGIS — Vulnerabilities";
+  }, []);
 
   const [findings, setFindings] = useState<Finding[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,7 +119,6 @@ export const VulnerabilitiesPage: React.FC = () => {
       .finally(() => setGroupsLoading(false));
   }, [groupBy, projectId]);
 
-  // Severity counts (unfiltered)
   const counts = useMemo(() => {
     const c = { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 };
     for (const f of findings) {
@@ -127,7 +128,6 @@ export const VulnerabilitiesPage: React.FC = () => {
     return c;
   }, [findings]);
 
-  // Filtered + sorted
   const filtered = useMemo(() => {
     let result = findings;
     if (activeSeverity !== "all") result = result.filter((f) => f.severity === activeSeverity);
@@ -155,7 +155,6 @@ export const VulnerabilitiesPage: React.FC = () => {
     });
   }, [findings, activeSeverity, sourceTypeFilter, statusFilter, searchQuery, sortBy, sortOrder]);
 
-  // Bulk selection
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -197,7 +196,6 @@ export const VulnerabilitiesPage: React.FC = () => {
     }
   };
 
-  // Keyboard shortcuts
   useKeyboardShortcuts({
     j: () => setHighlightIndex((i) => Math.min(i + 1, filtered.length - 1)),
     k: () => setHighlightIndex((i) => Math.max(i - 1, 0)),
@@ -207,10 +205,8 @@ export const VulnerabilitiesPage: React.FC = () => {
     "?": () => setShowShortcutHelp((v) => !v),
   }, !selectedFindingId);
 
-  // Active filter check
   const hasActiveFilters = activeSeverity !== "all" || sourceTypeFilter !== "all" || statusFilter !== "all" || searchQuery.trim() !== "";
 
-  // Detail view
   if (selectedFindingId) {
     return (
       <FindingDetailView
@@ -238,7 +234,15 @@ export const VulnerabilitiesPage: React.FC = () => {
 
   return (
     <div className="page-enter">
-      <PageHeader title="취약점 목록" icon={<Shield size={20} />} subtitle={`총 ${counts.total}건`} />
+      {/* v6 large title with left border stripe */}
+      <div className="vuln-page-header">
+        <h1 className="vuln-page-header__title">Vulnerabilities</h1>
+        <div className="vuln-page-header__meta">
+          <span className="vuln-page-header__count">
+            Total active findings: <strong>{counts.total}</strong>
+          </span>
+        </div>
+      </div>
 
       {/* Filter bar */}
       <div className="vuln-filter-bar">
@@ -268,9 +272,7 @@ export const VulnerabilitiesPage: React.FC = () => {
         >
           <option value="all">출처: 전체</option>
           {Object.entries(SOURCE_TYPE_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
+            <option key={k} value={k}>{v}</option>
           ))}
         </select>
 
@@ -281,9 +283,7 @@ export const VulnerabilitiesPage: React.FC = () => {
         >
           <option value="all">상태: 전체</option>
           {Object.entries(FINDING_STATUS_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
+            <option key={k} value={k}>{v}</option>
           ))}
         </select>
 
@@ -386,9 +386,7 @@ export const VulnerabilitiesPage: React.FC = () => {
           >
             <option value="">상태 선택</option>
             {Object.entries(FINDING_STATUS_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
+              <option key={k} value={k}>{v}</option>
             ))}
           </select>
           <input
@@ -457,7 +455,7 @@ export const VulnerabilitiesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Finding list (flat view) */}
+      {/* Finding list — v6 horizontal card rows */}
       {groupBy !== "none" && groups.length > 0 ? null : filtered.length === 0 ? (
         <EmptyState
           icon={<Shield size={28} />}
@@ -468,104 +466,76 @@ export const VulnerabilitiesPage: React.FC = () => {
           }
         />
       ) : (
-        <div className="vuln-finding-list card">
-          <div className="vuln-finding-header">
-            <span className="vuln-finding-col--check">
-              <input
-                type="checkbox"
-                checked={selectedIds.size === filtered.length && filtered.length > 0}
-                onChange={toggleSelectAll}
-              />
-            </span>
-            <span className="vuln-finding-col--severity">심각도</span>
-            <span className="vuln-finding-col--status">상태</span>
-            <span className="vuln-finding-col--title">제목</span>
-            <span className="vuln-finding-col--cwe">CWE</span>
-            <span className="vuln-finding-col--source">출처</span>
-            <span className="vuln-finding-col--confidence">확신도</span>
-            <span className="vuln-finding-col--date">날짜</span>
-          </div>
+        <div className="vuln-finding-list">
           {filtered.map((f, idx) => (
             <div
               key={f.id}
-              className={`vuln-finding-row${selectedIds.has(f.id) ? " vuln-finding-row--selected" : ""}${idx === highlightIndex ? " vuln-finding-row--highlight" : ""}`}
+              className={[
+                "vuln-finding-card",
+                `vuln-finding-card--${f.severity}`,
+                selectedIds.has(f.id) ? "vuln-finding-card--selected" : "",
+                idx === highlightIndex ? "vuln-finding-card--highlight" : "",
+              ].filter(Boolean).join(" ")}
+              onClick={() => setSelectedFindingId(f.id)}
             >
-              <span
-                className="vuln-finding-col--check"
-                onClick={(e) => e.stopPropagation()}
+              {/* Checkbox */}
+              <div
+                className="vuln-finding-card__check"
+                onClick={(e) => { e.stopPropagation(); toggleSelect(f.id); }}
               >
                 <input
                   type="checkbox"
                   checked={selectedIds.has(f.id)}
                   onChange={() => toggleSelect(f.id)}
                 />
-              </span>
-              <span
-                className="vuln-finding-col--severity"
-                onClick={() => setSelectedFindingId(f.id)}
-              >
-                <SeverityBadge severity={f.severity} size="sm" />
-              </span>
-              <span
-                className="vuln-finding-col--status"
-                onClick={() => setSelectedFindingId(f.id)}
-              >
-                <FindingStatusBadge status={f.status} size="sm" />
-              </span>
-              <span
-                className="vuln-finding-col--title"
-                onClick={() => setSelectedFindingId(f.id)}
-              >
-                <span className="vuln-finding-title">
+              </div>
+
+              {/* CWE + severity label */}
+              <div className="vuln-finding-card__cwe-col">
+                {f.cweId ? (
+                  <span
+                    className={`vuln-finding-card__cwe-id vuln-finding-card__cwe-id--${f.severity}`}
+                    title={CWE_DESCRIPTIONS[f.cweId] ?? f.cweId}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const num = f.cweId!.replace("CWE-", "");
+                      window.open(`https://cwe.mitre.org/data/definitions/${num}.html`, "_blank");
+                    }}
+                  >
+                    {f.cweId} <ExternalLink size={9} style={{ display: "inline" }} />
+                  </span>
+                ) : (
+                  <span className={`vuln-finding-card__cwe-id vuln-finding-card__cwe-id--${f.severity}`}>—</span>
+                )}
+                <span className="vuln-finding-card__sev-label">
+                  {f.severity.charAt(0).toUpperCase() + f.severity.slice(1)}
+                </span>
+              </div>
+
+              {/* Main body */}
+              <div className="vuln-finding-card__body">
+                <div className="vuln-finding-card__title">
                   {f.title}
                   {f.sourceType === "agent" && f.detail && (
                     <span className="vuln-poc-badge" title="PoC 생성 가능">
                       <FlaskConical size={12} /> PoC
                     </span>
                   )}
-                </span>
-                {f.location && (
-                  <span className="vuln-finding-location">{f.location}</span>
-                )}
-              </span>
-              <span
-                className="vuln-finding-col--cwe"
-                onClick={(e) => {
-                  if (f.cweId) {
-                    e.stopPropagation();
-                    const num = f.cweId.replace("CWE-", "");
-                    window.open(`https://cwe.mitre.org/data/definitions/${num}.html`, "_blank");
-                  } else {
-                    setSelectedFindingId(f.id);
-                  }
-                }}
-              >
-                {f.cweId ? (
-                  <span className="vuln-cwe-link" title={CWE_DESCRIPTIONS[f.cweId] ?? f.cweId}>
-                    {f.cweId} <ExternalLink size={10} />
-                  </span>
-                ) : (
-                  <span className="vuln-cwe-empty">—</span>
-                )}
-              </span>
-              <span
-                className="vuln-finding-col--source"
-                onClick={() => setSelectedFindingId(f.id)}
-              >
+                </div>
+                <div className="vuln-finding-card__location-row">
+                  {f.location && (
+                    <span className="vuln-finding-card__location">{f.location}</span>
+                  )}
+                  <span className="vuln-finding-card__module">{formatDateTime(f.createdAt)}</span>
+                </div>
+              </div>
+
+              {/* Right: status + source badges */}
+              <div className="vuln-finding-card__actions">
+                <FindingStatusBadge status={f.status} size="sm" />
                 <SourceBadge sourceType={f.sourceType} ruleId={f.ruleId} />
-              </span>
-              <span
-                className="vuln-finding-col--confidence"
-                onClick={() => setSelectedFindingId(f.id)}
-              >
                 <ConfidenceBadge confidence={f.confidence} sourceType={f.sourceType} confidenceScore={f.confidenceScore} />
-              </span>
-              <span
-                className="vuln-finding-col--date"
-                onClick={() => setSelectedFindingId(f.id)}
-              >
-                {formatDateTime(f.createdAt)}
-              </span>
+              </div>
             </div>
           ))}
         </div>

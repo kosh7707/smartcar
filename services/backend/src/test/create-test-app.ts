@@ -18,6 +18,7 @@ import { ApprovalDAO } from "../dao/approval.dao";
 import { AuditLogDAO } from "../dao/audit-log.dao";
 import { AnalysisResultDAO } from "../dao/analysis-result.dao";
 import { FileStore } from "../dao/file-store";
+import { DynamicSessionDAO } from "../dao/dynamic-session.dao";
 import { ProjectDAO } from "../dao/project.dao";
 import { AdapterDAO } from "../dao/adapter.dao";
 import { ProjectSettingsDAO } from "../dao/project-settings.dao";
@@ -33,6 +34,7 @@ import { RunService } from "../services/run.service";
 import { QualityGateService } from "../services/quality-gate.service";
 import { ApprovalService } from "../services/approval.service";
 import { ProjectService } from "../services/project.service";
+import { ProjectDeletionService } from "../services/project-deletion.service";
 import { AdapterManager } from "../services/adapter-manager";
 import { ProjectSettingsService } from "../services/project-settings.service";
 import { BuildTargetService } from "../services/build-target.service";
@@ -41,6 +43,7 @@ import { ResultNormalizer } from "../services/result-normalizer";
 import { ActivityService } from "../services/activity.service";
 import { NotificationService } from "../services/notification.service";
 import { UserService } from "../services/user.service";
+import { ProjectSourceService } from "../services/project-source.service";
 
 // Controllers
 import { createProjectRouter } from "../controllers/project.controller";
@@ -79,6 +82,7 @@ export interface TestAppContext {
   approvalDAO: ApprovalDAO;
   auditLogDAO: AuditLogDAO;
   analysisResultDAO: AnalysisResultDAO;
+  dynamicSessionDAO: DynamicSessionDAO;
   fileStore: FileStore;
   buildTargetDAO: BuildTargetDAO;
   targetLibraryDAO: TargetLibraryDAO;
@@ -96,11 +100,14 @@ export interface TestAppContext {
   analysisTracker: AnalysisTracker;
   pipelineRunCalls: Array<{ projectId: string; targetIds?: string[]; requestId?: string; pipelineId?: string }>;
   analysisRunCalls: Array<{ projectId: string; analysisId: string; targetIds?: string[]; requestId?: string }>;
+  projectUploadsRoot: string;
+  dynamicTestRunningProjects: Set<string>;
 }
 
 export function createTestApp(): TestAppContext {
   const db = createTestDb();
   const sdkUploadRoot = fs.mkdtempSync(path.join(os.tmpdir(), "aegis-sdk-test-"));
+  const projectUploadsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "aegis-project-delete-"));
 
   // ── Tier 0: DAOs ──
   const runDAO = new RunDAO(db);
@@ -110,6 +117,7 @@ export function createTestApp(): TestAppContext {
   const approvalDAO = new ApprovalDAO(db);
   const auditLogDAO = new AuditLogDAO(db);
   const analysisResultDAO = new AnalysisResultDAO(db);
+  const dynamicSessionDAO = new DynamicSessionDAO(db);
   const fileStore = new FileStore(db);
   const projectDAO = new ProjectDAO(db);
   const adapterDAO = new AdapterDAO(db);
@@ -147,6 +155,7 @@ export function createTestApp(): TestAppContext {
   };
   const settingsService = new ProjectSettingsService(projectSettingsDAO, sdkRegistryDAO);
   const buildTargetService = new BuildTargetService(buildTargetDAO, settingsService);
+  const deleteSourceService = new ProjectSourceService(projectUploadsRoot);
 
   // ── Tier 1.5: 알림 + 사용자 서비스 ──
   const notificationService = new NotificationService(notificationDAO);
@@ -355,8 +364,10 @@ export function createTestApp(): TestAppContext {
     },
   };
   const dynamicTestResults = new Map<string, any>();
+  const dynamicTestRunningProjects = new Set<string>();
   const dynamicTestService = {
     async runTest(projectId: string, config: any, adapterId: string, testId?: string) {
+      dynamicTestRunningProjects.add(projectId);
       const result = {
         id: testId ?? `test-${crypto.randomUUID().slice(0, 8)}`,
         projectId,
@@ -370,7 +381,11 @@ export function createTestApp(): TestAppContext {
         createdAt: new Date().toISOString(),
       };
       dynamicTestResults.set(result.id, result);
+      dynamicTestRunningProjects.delete(projectId);
       return result;
+    },
+    isRunningForProject(projectId: string) {
+      return dynamicTestRunningProjects.has(projectId);
     },
     findByProjectId(projectId: string) {
       return [...dynamicTestResults.values()].filter((result) => result.projectId === projectId);
@@ -382,9 +397,30 @@ export function createTestApp(): TestAppContext {
       return dynamicTestResults.delete(testId);
     },
   };
+  const projectDeletionService = new ProjectDeletionService(
+    db,
+    deleteSourceService,
+    adapterManager,
+    analysisTracker,
+    dynamicSessionDAO,
+    dynamicTestService as any,
+    sdkRegistryDAO,
+    buildTargetDAO,
+  );
 
   // ── Tier 2: 복합 서비스 ──
-  const projectService = new ProjectService(projectDAO, analysisResultDAO, fileStore, adapterManager, settingsService, buildTargetService, findingDAO, runDAO, gateResultDAO);
+  const projectService = new ProjectService(
+    projectDAO,
+    analysisResultDAO,
+    fileStore,
+    adapterManager,
+    settingsService,
+    buildTargetService,
+    findingDAO,
+    runDAO,
+    gateResultDAO,
+    projectDeletionService,
+  );
   const gateService = new QualityGateService(findingDAO, evidenceRefDAO, gateResultDAO, runDAO, settingsService, notificationService);
   const normalizer = new ResultNormalizer(db, runDAO, findingDAO, evidenceRefDAO, gateService, notificationService);
   const approvalService = new ApprovalService(approvalDAO, auditLogDAO, gateService, notificationService);
@@ -448,9 +484,10 @@ export function createTestApp(): TestAppContext {
   return {
     app, db,
     projectDAO, runDAO, findingDAO, evidenceRefDAO, gateResultDAO,
-    approvalDAO, auditLogDAO, analysisResultDAO, fileStore,
+    approvalDAO, auditLogDAO, analysisResultDAO, dynamicSessionDAO, fileStore,
     buildTargetDAO, targetLibraryDAO, sdkRegistryDAO, notificationDAO, userDAO, sessionDAO,
     gateService, normalizer, buildTargetService,
     notificationService, userService, settingsService, analysisTracker, pipelineRunCalls, analysisRunCalls,
+    projectUploadsRoot, dynamicTestRunningProjects,
   };
 }

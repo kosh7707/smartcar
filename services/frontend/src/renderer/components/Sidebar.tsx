@@ -28,8 +28,8 @@ const projectNavItems = [
   { sub: "files", label: "파일 탐색기", icon: Files, comingSoon: false },
   { sub: "vulnerabilities", label: "취약점 목록", icon: Shield, comingSoon: false },
   { sub: "static-analysis", label: "정적 분석", icon: FileSearch, comingSoon: false },
-  { sub: "dynamic-analysis", label: "동적 분석", icon: Activity, comingSoon: true },
-  { sub: "dynamic-test", label: "동적 테스트", icon: Zap, comingSoon: true },
+  { sub: "dynamic-analysis", label: "동적 분석", icon: Activity, comingSoon: false },
+  { sub: "dynamic-test", label: "동적 테스트", icon: Zap, comingSoon: false },
   { sub: "quality-gate", label: "Quality Gate", icon: ShieldCheck, comingSoon: false },
   { sub: "approvals", label: "Approval Queue", icon: ClipboardCheck, comingSoon: false },
   { sub: "analysis-history", label: "분석 이력", icon: Clock, comingSoon: false },
@@ -91,7 +91,7 @@ export const Sidebar: React.FC = () => {
           </div>
 
           <ul className="sidebar-nav">
-            {projectNavItems.filter((item) => !item.comingSoon).map((item) => (
+            {projectNavItems.map((item) => (
               <li key={item.sub}>
                 <NavLink
                   to={`/projects/${projectId}/${item.sub}`}
@@ -137,7 +137,7 @@ export const Sidebar: React.FC = () => {
           <ul className="sidebar-nav">
             <li>
               <NavLink
-                to="/projects"
+                to="/dashboard"
                 end
                 className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
               >

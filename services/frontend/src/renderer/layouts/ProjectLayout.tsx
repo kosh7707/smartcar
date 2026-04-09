@@ -36,7 +36,7 @@ export const ProjectLayout: React.FC = () => {
   return (
     <>
       <nav className="breadcrumb">
-        <Link to="/projects" className="breadcrumb-link">프로젝트</Link>
+        <Link to="/dashboard" className="breadcrumb-link">프로젝트</Link>
         <ChevronRight size={14} className="breadcrumb-sep" />
         <Link to={`/projects/${projectId}/overview`} className="breadcrumb-link">{project.name}</Link>
         <ChevronRight size={14} className="breadcrumb-sep" />

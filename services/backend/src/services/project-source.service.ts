@@ -6,6 +6,7 @@
  */
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import { execSync } from "child_process";
 import { createLogger } from "../lib/logger";
 import { InvalidInputError, NotFoundError } from "../lib/errors";
@@ -28,6 +29,12 @@ export interface SourceFileEntry {
   language: string;
   fileType: FileType;
   previewable: boolean;
+}
+
+export interface ProjectSourceQuarantine {
+  projectId: string;
+  projectPath: string;
+  quarantinedPath?: string;
 }
 
 const FILE_TYPE_MAP: Record<string, FileType> = {
@@ -453,6 +460,40 @@ export class ProjectSourceService {
       this.invalidateCompositionCache(projectId);
       logger.info({ projectId }, "Source deleted");
     }
+  }
+
+  quarantineProjectRoot(projectId: string): ProjectSourceQuarantine {
+    const projectPath = path.join(this.uploadsDir, projectId);
+    if (!fs.existsSync(projectPath)) {
+      return { projectId, projectPath };
+    }
+
+    const quarantinedPath = path.join(
+      this.uploadsDir,
+      `.quarantine-${projectId}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
+    );
+
+    fs.renameSync(projectPath, quarantinedPath);
+    this.invalidateCompositionCache(projectId);
+    logger.info({ projectId, quarantinedPath }, "Project root quarantined");
+    return { projectId, projectPath, quarantinedPath };
+  }
+
+  restoreQuarantinedProjectRoot(state: ProjectSourceQuarantine): void {
+    if (!state.quarantinedPath || !fs.existsSync(state.quarantinedPath)) return;
+    if (fs.existsSync(state.projectPath)) {
+      throw new InvalidInputError(`Project path already exists during restore: ${state.projectPath}`);
+    }
+    fs.renameSync(state.quarantinedPath, state.projectPath);
+    this.invalidateCompositionCache(state.projectId);
+    logger.warn({ projectId: state.projectId, quarantinedPath: state.quarantinedPath }, "Project root restored from quarantine");
+  }
+
+  removeQuarantinedProjectRoot(state: ProjectSourceQuarantine): void {
+    if (!state.quarantinedPath || !fs.existsSync(state.quarantinedPath)) return;
+    fs.rmSync(state.quarantinedPath, { recursive: true, force: true });
+    this.invalidateCompositionCache(state.projectId);
+    logger.info({ projectId: state.projectId, quarantinedPath: state.quarantinedPath }, "Quarantined project root removed");
   }
 
   private walkDir(

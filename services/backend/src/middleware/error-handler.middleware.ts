@@ -23,6 +23,7 @@ export function errorHandlerMiddleware(err: Error, req: Request, res: Response, 
         message: err.message,
         requestId,
         retryable: err.retryable,
+        ...(err.details ?? {}),
       },
     });
     return;

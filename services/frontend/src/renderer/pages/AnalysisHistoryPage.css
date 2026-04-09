@@ -1,3 +1,194 @@
+/* ── v6: Page Header ── */
+
+.history-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: var(--cds-spacing-07);
+}
+
+.history-page-header__title {
+  font-size: var(--cds-type-3xl);
+  font-weight: var(--cds-weight-semibold);
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--cds-spacing-02);
+}
+
+.history-page-header__subtitle {
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-secondary);
+  margin: 0;
+}
+
+/* ── Filter bar row ── */
+
+.history-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cds-spacing-05);
+  margin-bottom: var(--cds-spacing-05);
+  flex-wrap: wrap;
+}
+
+/* ── v6: Analysis Table ── */
+
+.history-table-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--cds-type-sm);
+}
+
+.history-table__head-row {
+  background: var(--cds-layer-01);
+  border-bottom: 1px solid var(--cds-border-subtle);
+}
+
+.history-table__th {
+  padding: var(--cds-spacing-04) var(--cds-spacing-05);
+  font-size: var(--cds-type-2xs);
+  font-weight: var(--cds-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cds-text-secondary);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.history-table__th--center {
+  text-align: center;
+}
+
+.history-table__row {
+  border-bottom: 1px solid var(--cds-border-subtle);
+  cursor: pointer;
+  transition: background var(--cds-transition-fast);
+}
+
+.history-table__row:last-child {
+  border-bottom: none;
+}
+
+.history-table__row:hover {
+  background: var(--cds-layer-01);
+}
+
+.history-table__row--stripe {
+  background: var(--cds-layer-01);
+}
+
+.history-table__row--stripe:hover {
+  background: var(--cds-layer-02);
+}
+
+.history-table__td {
+  padding: var(--cds-spacing-04) var(--cds-spacing-05);
+  vertical-align: middle;
+}
+
+.history-table__td--run {
+  font-family: var(--cds-font-mono);
+  font-weight: var(--cds-weight-semibold);
+  color: var(--cds-interactive);
+  font-size: var(--cds-type-sm);
+}
+
+.history-table__td--mono {
+  font-family: var(--cds-font-mono);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-secondary);
+  white-space: nowrap;
+}
+
+.history-table__td--center {
+  text-align: center;
+}
+
+.history-table__td--action {
+  text-align: right;
+  width: 40px;
+}
+
+.history-table__module {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cds-spacing-02);
+  font-size: var(--cds-type-sm);
+  font-weight: var(--cds-weight-medium);
+}
+
+.history-table__module-icon {
+  display: flex;
+  color: var(--cds-text-placeholder);
+}
+
+.history-table__status {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--cds-spacing-03);
+  border-radius: var(--cds-radius);
+  font-size: var(--cds-type-2xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.history-table__status--pass {
+  background: var(--cds-support-success);
+  color: var(--cds-text-inverse);
+}
+
+.history-table__status--fail {
+  background: var(--cds-support-error);
+  color: var(--cds-text-inverse);
+}
+
+.history-table__status--running {
+  background: var(--cds-interactive);
+  color: var(--cds-text-inverse);
+}
+
+/* Severity inline C/H/M/L */
+
+.history-sev {
+  font-family: var(--cds-font-mono);
+  font-size: var(--cds-type-xs);
+  font-weight: var(--cds-weight-medium);
+}
+
+.history-sev--critical { color: var(--aegis-severity-critical); }
+.history-sev--high     { color: var(--aegis-severity-high); }
+.history-sev--medium   { color: var(--aegis-severity-medium); }
+.history-sev--low      { color: var(--aegis-severity-low); }
+.history-sev--zero     { color: var(--cds-text-placeholder); }
+
+.history-sev__sep {
+  color: var(--cds-border-subtle);
+  margin: 0 2px;
+  font-family: var(--cds-font-mono);
+  font-size: var(--cds-type-xs);
+}
+
+.history-table__finding-count {
+  font-family: var(--cds-font-mono);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-secondary);
+}
+
+.history-table__chevron {
+  color: var(--cds-text-placeholder);
+  transition: color var(--cds-transition-fast);
+}
+
+.history-table__row:hover .history-table__chevron {
+  color: var(--cds-interactive);
+}
+
 /* ── Filter Tabs ── */
 
 .history-filter {

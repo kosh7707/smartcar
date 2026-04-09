@@ -1,0 +1,71 @@
+/* ── Vulnerability Detail ── */
+
+.detail-meta {
+  display: flex;
+  gap: var(--cds-spacing-06);
+  font-size: var(--cds-type-base);
+  color: var(--cds-text-secondary);
+  margin-bottom: var(--aegis-spacing-05);
+}
+
+.detail-meta-item {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-03);
+  padding: 4px 12px;
+  background: var(--cds-layer-02);
+  border-radius: var(--cds-radius);
+  font-size: var(--cds-type-sm);
+}
+
+.detail-meta-link {
+  border: 1px solid var(--cds-border-subtle);
+  color: var(--cds-interactive);
+  cursor: pointer;
+  transition: all var(--cds-transition-fast);
+}
+
+.detail-meta-link:hover {
+  background: var(--cds-interactive);
+  color: var(--cds-text-on-color);
+  border-color: var(--cds-interactive);
+}
+
+/* PoC section */
+.poc-section {
+  margin-top: var(--cds-spacing-04);
+}
+
+.poc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--cds-spacing-04);
+}
+
+.poc-header .card-title {
+  margin: 0;
+}
+
+.poc-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--cds-spacing-07) 0;
+}
+
+.poc-audit {
+  margin-top: var(--cds-spacing-04);
+  padding-top: var(--cds-spacing-04);
+  border-top: 1px solid var(--cds-border-subtle);
+  display: flex;
+  gap: var(--cds-spacing-05);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
+}
+
+.poc-audit-item {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-02);
+}

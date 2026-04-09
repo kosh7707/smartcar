@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { ProjectService } from "../services/project.service";
+import { asyncHandler } from "../middleware/async-handler";
 
 export function createProjectRouter(service: ProjectService): Router {
   const router = Router();
@@ -40,7 +41,14 @@ export function createProjectRouter(service: ProjectService): Router {
       name?: string;
       description?: string;
     };
-    const updated = service.update(req.params.id, { name, description });
+    if (name !== undefined && name.trim().length === 0) {
+      res.status(400).json({ success: false, error: "name is required" });
+      return;
+    }
+    const updated = service.update(req.params.id, {
+      ...(name !== undefined ? { name: name.trim() } : {}),
+      ...(description !== undefined ? { description: description.trim() } : {}),
+    });
     if (!updated) {
       res.status(404).json({ success: false, error: "Project not found" });
       return;
@@ -49,14 +57,15 @@ export function createProjectRouter(service: ProjectService): Router {
   });
 
   // P1-8: 프로젝트 삭제
-  router.delete("/:id", (req, res) => {
-    const deleted = service.delete(req.params.id);
+  router.delete("/:id", asyncHandler(async (req, res) => {
+    const projectId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const deleted = await service.delete(projectId);
     if (!deleted) {
       res.status(404).json({ success: false, error: "Project not found" });
       return;
     }
     res.json({ success: true });
-  });
+  }));
 
   // P1-9: 프로젝트 Overview
   router.get("/:id/overview", (req, res) => {

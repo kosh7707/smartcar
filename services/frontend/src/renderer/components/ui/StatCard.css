@@ -1,0 +1,121 @@
+/* ── Stat Card ── */
+
+.stat-cards {
+  display: flex;
+  gap: var(--cds-spacing-03);
+  margin-bottom: var(--aegis-spacing-05);
+  overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+  .stat-cards {
+    flex-wrap: wrap;
+    gap: var(--cds-spacing-04);
+  }
+  .stat-card {
+    min-width: calc(50% - var(--cds-spacing-04));
+    flex: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .stat-cards {
+    flex-wrap: wrap;
+  }
+}
+
+.stat-card {
+  background: var(--cds-layer-01);
+  border-radius: var(--cds-radius);
+  padding: var(--cds-spacing-04) var(--cds-spacing-05);
+  border: 1px solid var(--cds-border-subtle);
+  border-left: 3px solid var(--stat-accent, var(--cds-border-subtle));
+  box-shadow: none;
+  transition: border-color var(--cds-transition-base), background var(--cds-transition-base);
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  min-width: 120px;
+}
+
+.stat-card:hover {
+  border-color: var(--cds-interactive-border);
+  background: var(--cds-surface-inset);
+}
+
+.stat-card--cds-interactive {
+  --stat-accent: var(--cds-interactive);
+}
+
+.stat-card--clickable {
+  cursor: pointer;
+}
+
+.stat-card--clickable:hover {
+  border-color: var(--cds-interactive);
+}
+
+.stat-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-03);
+  margin-bottom: var(--cds-spacing-03);
+}
+
+.stat-card__label {
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
+  font-weight: var(--cds-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stat-card__value {
+  font-size: var(--cds-type-2xl);
+  font-weight: var(--cds-weight-semibold);
+  font-family: var(--cds-font-mono);
+  line-height: 1;
+  animation: countUp 400ms ease both;
+}
+
+.stat-card__detail {
+  margin-top: var(--cds-spacing-03);
+  font-size: var(--cds-type-xs);
+  line-height: 1.3;
+}
+
+.stat-card__breakdown {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-03);
+}
+
+.stat-card__sep {
+  width: 1px;
+  height: 10px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.stat-card__module {
+  color: var(--cds-text-placeholder);
+  opacity: 0.55;
+}
+
+.stat-card__module--active {
+  color: var(--cds-text-secondary);
+  opacity: 1;
+}
+
+.stat-card__module-count {
+  font-weight: var(--cds-weight-semibold);
+}
+
+.stat-card__lang-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 2px;
+}

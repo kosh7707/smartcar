@@ -156,6 +156,10 @@ export class DynamicTestService {
     return this.dynamicTestResultDAO.findByProjectId(projectId);
   }
 
+  isRunningForProject(projectId: string): boolean {
+    return this.runningTests.has(projectId);
+  }
+
   deleteById(testId: string): boolean {
     return this.dynamicTestResultDAO.deleteById(testId);
   }

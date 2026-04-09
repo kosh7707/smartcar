@@ -70,24 +70,45 @@ const STATUS_LABELS: Record<HealthStatus, string> = {
   checking: "확인 중",
 };
 
+/** Module-level health cache to prevent redundant checks on remount. */
+let _cachedStatus: HealthStatus = "checking";
+let _cachedDetail: { version: string; uptime: number } | null = null;
+let _lastCheckAt = 0;
+let _intervalId: ReturnType<typeof setInterval> | null = null;
+let _mountCount = 0;
+
+/** Reset cache — test only. */
+export function _resetHealthCache() {
+  _cachedStatus = "checking";
+  _cachedDetail = null;
+  _lastCheckAt = 0;
+  if (_intervalId) { clearInterval(_intervalId); _intervalId = null; }
+  _mountCount = 0;
+}
+
 export const StatusBar: React.FC = () => {
   const toast = useToast();
-  const [status, setStatus] = useState<HealthStatus>("checking");
-  const [detail, setDetail] = useState<{ version: string; uptime: number } | null>(null);
-  const prevStatus = useRef<HealthStatus>("checking");
+  const [status, setStatus] = useState<HealthStatus>(_cachedStatus);
+  const [detail, setDetail] = useState<{ version: string; uptime: number } | null>(_cachedDetail);
+  const prevStatus = useRef<HealthStatus>(_cachedStatus);
 
   useEffect(() => {
+    _mountCount++;
+
     const check = async () => {
       try {
         const data = await healthCheck();
         const s = data?.status as string;
-        if (data?.detail) setDetail(data.detail as { version: string; uptime: number });
+        if (data?.detail) {
+          _cachedDetail = data.detail as { version: string; uptime: number };
+          setDetail(_cachedDetail);
+        }
 
         if (s === "ok" || s === "degraded" || s === "unhealthy") {
           const newStatus = s as HealthStatus;
+          _cachedStatus = newStatus;
           setStatus(newStatus);
 
-          // Toast on transition to degraded/unhealthy
           if (newStatus === "unhealthy" && prevStatus.current !== "unhealthy") {
             toast.error("백엔드 서비스가 비정상 상태입니다.");
           } else if (newStatus === "degraded" && prevStatus.current === "ok") {
@@ -99,6 +120,7 @@ export const StatusBar: React.FC = () => {
           if (prevStatus.current !== "disconnected") {
             toast.error("백엔드 연결이 끊어졌습니다.");
           }
+          _cachedStatus = "disconnected";
           setStatus("disconnected");
           prevStatus.current = "disconnected";
         }
@@ -106,14 +128,32 @@ export const StatusBar: React.FC = () => {
         if (prevStatus.current !== "disconnected") {
           toast.error("백엔드 연결이 끊어졌습니다.");
         }
+        _cachedStatus = "disconnected";
         setStatus("disconnected");
         prevStatus.current = "disconnected";
       }
+      _lastCheckAt = Date.now();
     };
 
-    check();
-    const interval = setInterval(check, POLL_HEALTH_MS);
-    return () => clearInterval(interval);
+    // Skip immediate check if cached result is fresh (within poll interval)
+    const elapsed = Date.now() - _lastCheckAt;
+    if (elapsed >= POLL_HEALTH_MS || _cachedStatus === "checking") {
+      check();
+    }
+
+    // Share a single global interval — only the first mount creates it
+    if (!_intervalId) {
+      _intervalId = setInterval(check, POLL_HEALTH_MS);
+    }
+
+    return () => {
+      _mountCount--;
+      if (_mountCount <= 0 && _intervalId) {
+        clearInterval(_intervalId);
+        _intervalId = null;
+        _mountCount = 0;
+      }
+    };
   }, [toast]);
 
   const dotClass = (() => {
@@ -128,16 +168,18 @@ export const StatusBar: React.FC = () => {
 
   return (
     <div className="statusbar">
-      <div className="statusbar-item">
-        <span>AEGIS {detail ? `v${detail.version}` : `v${__APP_VERSION__}`}</span>
-      </div>
-      <div className="statusbar-item" style={{ gap: "var(--cds-spacing-04)" }}>
-        <NotificationBell />
-        <UserStatus />
+      <div className="statusbar-item statusbar__left">
         <div className="statusbar-item" role="status" aria-live="polite" title={STATUS_LABELS[status]}>
           <span className={`status-dot ${dotClass}`} aria-hidden="true" />
           <span>{STATUS_LABELS[status]}</span>
         </div>
+      </div>
+      <div className="statusbar__center">
+        AEGIS v2.1.0 — Embedded Firmware Security Analysis Platform
+      </div>
+      <div className="statusbar-item statusbar__right">
+        <NotificationBell />
+        <UserStatus />
       </div>
     </div>
   );

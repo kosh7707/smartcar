@@ -132,7 +132,7 @@
   font-size: var(--cds-type-xs);
   padding: 1px 6px;
   border-radius: var(--cds-radius);
-  background: var(--cds-interactive-bg, rgba(59, 130, 246, 0.1));
+  background: var(--cds-interactive-subtle);
   color: var(--cds-interactive);
   white-space: nowrap;
 }

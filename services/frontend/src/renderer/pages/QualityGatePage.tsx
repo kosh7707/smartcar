@@ -5,7 +5,7 @@ import type { GateResult, GateRuleResult } from "../api/gate";
 import { fetchProjectGates, overrideGate } from "../api/gate";
 import { logError } from "../api/core";
 import { useToast } from "../contexts/ToastContext";
-import { PageHeader, Spinner, EmptyState } from "../components/ui";
+import { Spinner, EmptyState } from "../components/ui";
 import { formatDateTime } from "../utils/format";
 import "./QualityGatePage.css";
 
@@ -57,6 +57,10 @@ export const QualityGatePage: React.FC = () => {
   const [overrideReason, setOverrideReason] = useState("");
   const [overriding, setOverriding] = useState(false);
 
+  useEffect(() => {
+    document.title = "AEGIS — Quality Gate";
+  }, []);
+
   const load = useCallback(async () => {
     if (!projectId) return;
     setLoading(true);
@@ -94,9 +98,32 @@ export const QualityGatePage: React.FC = () => {
     return <div className="page-enter centered-loader"><Spinner size={36} label="Quality Gate 로딩 중..." /></div>;
   }
 
+  const latestGate = gates[0] ?? null;
+
   return (
     <div className="page-enter">
-      <PageHeader title="Quality Gate" icon={<ShieldCheck size={20} />} />
+      {/* v6: large PASS/FAIL status banner */}
+      {latestGate ? (
+        <div className={`gate-status-banner gate-status-banner--${latestGate.status === "pass" ? "pass" : latestGate.status === "fail" ? "fail" : "warning"}`}>
+          <div className="gate-status-banner__left">
+            <div className="gate-status-banner__icon-row">
+              {latestGate.status === "pass" ? <ShieldCheck size={48} /> : latestGate.status === "fail" ? <ShieldX size={48} /> : <ShieldAlert size={48} />}
+              <span className="gate-status-banner__verdict">
+                {latestGate.status === "pass" ? "PASS" : latestGate.status === "fail" ? "FAIL" : "WARN"}
+              </span>
+            </div>
+            <div className="gate-status-banner__subtitle">Quality Gate</div>
+            <div className="gate-status-banner__time">
+              Last evaluated: {formatDateTime(latestGate.evaluatedAt)}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="gate-page-header">
+          <ShieldCheck size={28} className="gate-page-header__icon" />
+          <h1 className="gate-page-header__title">Quality Gate</h1>
+        </div>
+      )}
 
       {gates.length === 0 ? (
         <EmptyState
@@ -105,83 +132,112 @@ export const QualityGatePage: React.FC = () => {
           description="분석을 실행하면 자동으로 Quality Gate가 평가됩니다."
         />
       ) : (
-        <div className="gate-list">
-          {gates.map((gate) => {
-            const config = STATUS_CONFIG[gate.status] ?? STATUS_CONFIG.warning;
-            return (
-              <div key={gate.id} className="gate-card card">
-                <div className="gate-card__header">
-                  <div className={`gate-card__status ${config.className}`}>
-                    {config.icon}
-                    <span>{config.label}</span>
+        <div className="gate-content-grid">
+          {/* Left: criteria / rules — 2/3 width */}
+          <div className="gate-criteria-col">
+            {gates.map((gate) => {
+              const config = STATUS_CONFIG[gate.status] ?? STATUS_CONFIG.warning;
+              return (
+                <div key={gate.id} className="gate-card card">
+                  <div className="gate-card__header">
+                    <div className={`gate-card__status ${config.className}`}>
+                      {config.icon}
+                      <span>{config.label}</span>
+                    </div>
+                    <span className="gate-card__time">
+                      <Clock size={12} /> {formatDateTime(gate.evaluatedAt)}
+                    </span>
                   </div>
-                  <span className="gate-card__time">
-                    <Clock size={12} /> {formatDateTime(gate.evaluatedAt)}
-                  </span>
-                </div>
 
-                <div className="gate-card__rules">
-                  {[...gate.rules].sort((a, b) => {
-                    const order: Record<string, number> = { failed: 0, warning: 1, passed: 2 };
-                    return (order[a.result] ?? 9) - (order[b.result] ?? 9);
-                  }).map((rule) => (
-                    <RuleResultRow key={rule.ruleId} rule={rule} />
-                  ))}
-                </div>
-
-                {gate.override && (
-                  <div className="gate-card__override">
-                    <AlertTriangle size={12} />
-                    <span>오버라이드: {gate.override.reason}</span>
-                    <span className="gate-card__override-by">by {gate.override.overriddenBy}</span>
+                  <div className="gate-card__rules">
+                    {[...gate.rules].sort((a, b) => {
+                      const order: Record<string, number> = { failed: 0, warning: 1, passed: 2 };
+                      return (order[a.result] ?? 9) - (order[b.result] ?? 9);
+                    }).map((rule) => (
+                      <RuleResultRow key={rule.ruleId} rule={rule} />
+                    ))}
                   </div>
-                )}
 
-                {gate.status === "fail" && !gate.override && (
-                  <div className="gate-card__actions">
-                    {overrideTarget === gate.id ? (
-                      <div className="gate-override-form">
-                        {(() => {
-                          const failedCount = gate.rules.filter(r => r.result === "failed").length;
-                          return failedCount > 0 ? (
-                            <div className="gate-override-form__warning">
-                              <AlertTriangle size={14} />
-                              이 오버라이드로 {failedCount}건의 실패 규칙이 무시됩니다
-                            </div>
-                          ) : null;
-                        })()}
-                        <div className="gate-override-form__controls">
-                          <input
-                            type="text"
-                            className="input input-sm"
-                            placeholder="오버라이드 사유를 입력하세요 (최소 10자)"
-                            value={overrideReason}
-                            onChange={(e) => setOverrideReason(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && overrideReason.trim().length >= 10 && handleOverride()}
-                          />
-                          <button
-                            className="btn btn-sm confirm-dialog__btn--cds-support-error"
-                            style={{ background: 'var(--cds-support-error)', color: 'var(--cds-text-inverse)' }}
-                            onClick={handleOverride}
-                            disabled={overriding || overrideReason.trim().length < 10}
-                          >
-                            {overriding ? "처리 중..." : "오버라이드 확인"}
-                          </button>
-                          <button className="btn btn-secondary btn-sm" onClick={() => { setOverrideTarget(null); setOverrideReason(""); }}>
-                            취소
-                          </button>
+                  {gate.override && (
+                    <div className="gate-card__override">
+                      <AlertTriangle size={12} />
+                      <span>오버라이드: {gate.override.reason}</span>
+                      <span className="gate-card__override-by">by {gate.override.overriddenBy}</span>
+                    </div>
+                  )}
+
+                  {gate.status === "fail" && !gate.override && (
+                    <div className="gate-card__actions">
+                      {overrideTarget === gate.id ? (
+                        <div className="gate-override-form">
+                          {(() => {
+                            const failedCount = gate.rules.filter(r => r.result === "failed").length;
+                            return failedCount > 0 ? (
+                              <div className="gate-override-form__warning">
+                                <AlertTriangle size={14} />
+                                이 오버라이드로 {failedCount}건의 실패 규칙이 무시됩니다
+                              </div>
+                            ) : null;
+                          })()}
+                          <div className="gate-override-form__controls">
+                            <input
+                              type="text"
+                              className="input input-sm"
+                              placeholder="오버라이드 사유를 입력하세요 (최소 10자)"
+                              value={overrideReason}
+                              onChange={(e) => setOverrideReason(e.target.value)}
+                              onKeyDown={(e) => e.key === "Enter" && overrideReason.trim().length >= 10 && handleOverride()}
+                            />
+                            <button
+                              className="btn btn-sm confirm-dialog__btn--cds-support-error"
+                              style={{ background: 'var(--cds-support-error)', color: 'var(--cds-text-inverse)' }}
+                              onClick={handleOverride}
+                              disabled={overriding || overrideReason.trim().length < 10}
+                            >
+                              {overriding ? "처리 중..." : "오버라이드 확인"}
+                            </button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => { setOverrideTarget(null); setOverrideReason(""); }}>
+                              취소
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <button className="btn btn-secondary btn-sm" onClick={() => setOverrideTarget(gate.id)}>
-                        오버라이드
-                      </button>
-                    )}
+                      ) : (
+                        <button className="btn btn-secondary btn-sm" onClick={() => setOverrideTarget(gate.id)}>
+                          오버라이드
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Right: history + actions — 1/3 width */}
+          <div className="gate-side-col">
+            <div className="card gate-history-card">
+              <div className="gate-history-card__title">Gate History</div>
+              <div className="gate-history-list">
+                {gates.slice(0, 8).map((g, i) => (
+                  <div key={g.id} className={`gate-history-row${i === 0 ? " gate-history-row--active" : ""}`}>
+                    <span className="gate-history-row__run">#{i + 1}</span>
+                    <span className="gate-history-row__time">{formatDateTime(g.evaluatedAt)}</span>
+                    <span className={`gate-history-row__status gate-history-row__status--${g.status === "pass" ? "pass" : g.status === "fail" ? "fail" : "warning"}`}>
+                      {g.status === "pass" ? "PASS" : g.status === "fail" ? "FAIL" : "WARN"}
+                    </span>
                   </div>
-                )}
+                ))}
               </div>
-            );
-          })}
+            </div>
+
+            <div className="card gate-actions-card">
+              <div className="gate-actions-card__title">Gate Actions</div>
+              <p className="gate-actions-card__desc">오버라이드는 승인된 프로젝트 리드만 실행할 수 있습니다.</p>
+              <button className="btn btn-secondary btn-sm gate-actions-card__btn" disabled>
+                오버라이드 요청
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

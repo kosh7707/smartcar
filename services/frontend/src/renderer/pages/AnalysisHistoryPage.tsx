@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import type { Run } from "@aegis/shared";
-import { Clock } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { fetchProjectRuns, logError } from "../api/client";
 import { useToast } from "../contexts/ToastContext";
-import { PageHeader, EmptyState, ListItem, Spinner } from "../components/ui";
+import { EmptyState, Spinner } from "../components/ui";
 import { formatDateTime, formatUptime } from "../utils/format";
 import { MODULE_META } from "../constants/modules";
 import "./AnalysisHistoryPage.css";
@@ -29,6 +29,10 @@ export const AnalysisHistoryPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const toast = useToast();
+
+  useEffect(() => {
+    document.title = "AEGIS — Analysis History";
+  }, []);
 
   useEffect(() => {
     if (!projectId) return;
@@ -61,74 +65,119 @@ export const AnalysisHistoryPage: React.FC = () => {
 
   return (
     <div className="page-enter">
-      <PageHeader title="분석 이력" icon={<Clock size={20} />} />
-
-      <div className="history-filter">
-        {FILTER_OPTIONS.map((f) => (
-          <button
-            key={f.value}
-            className={`history-filter__btn${filter === f.value ? " active" : ""}`}
-            onClick={() => setFilter(f.value)}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="history-kpi-strip">
-        <div className="history-kpi">
-          <span className="history-kpi__value">{runs.length}</span>
-          <span className="history-kpi__label">전체</span>
-        </div>
-        <div className="history-kpi">
-          <span className="history-kpi__value history-kpi__value--success">{completedCount}</span>
-          <span className="history-kpi__label">완료</span>
-        </div>
-        <div className="history-kpi">
-          <span className="history-kpi__value history-kpi__value--danger">{failedCount}</span>
-          <span className="history-kpi__label">실패</span>
+      {/* v6: page header */}
+      <div className="history-page-header">
+        <div>
+          <h1 className="history-page-header__title">Analysis History</h1>
+          <p className="history-page-header__subtitle">{runs.length}회 분석 실행됨</p>
         </div>
       </div>
 
-      <div className="card">
+      {/* Filter bar */}
+      <div className="history-filter-bar">
+        <div className="history-filter">
+          {FILTER_OPTIONS.map((f) => (
+            <button
+              key={f.value}
+              className={`history-filter__btn${filter === f.value ? " active" : ""}`}
+              onClick={() => setFilter(f.value)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="history-kpi-strip">
+          <div className="history-kpi">
+            <span className="history-kpi__value">{runs.length}</span>
+            <span className="history-kpi__label">전체</span>
+          </div>
+          <div className="history-kpi">
+            <span className="history-kpi__value history-kpi__value--cds-support-success">{completedCount}</span>
+            <span className="history-kpi__label">완료</span>
+          </div>
+          <div className="history-kpi">
+            <span className="history-kpi__value history-kpi__value--cds-support-error">{failedCount}</span>
+            <span className="history-kpi__label">실패</span>
+          </div>
+        </div>
+      </div>
+
+      {/* v6: table */}
+      <div className="card history-table-card">
         {filtered.length === 0 ? (
           <EmptyState
-            icon={<Clock size={28} />}
+            icon={<ChevronRight size={28} />}
             title={filter === "all" ? "아직 분석 이력이 없습니다" : "해당 모듈의 분석 이력이 없습니다"}
           />
         ) : (
-          filtered.map((r) => {
-            const meta = MODULE_META[r.module] ?? { label: r.module, icon: null };
-            const durationSec = r.startedAt && r.endedAt
-              ? (new Date(r.endedAt).getTime() - new Date(r.startedAt).getTime()) / 1000
-              : 0;
-            return (
-              <ListItem
-                key={r.id}
-                onClick={() => navigate(`/projects/${projectId}/static-analysis`)}
-                trailing={
-                  <span className="history-item-time">{formatDateTime(r.createdAt)}</span>
-                }
-              >
-                <div>
-                  <div className="history-item-header">
-                    <span className="history-item-icon">{meta.icon}</span>
-                    <span className="history-item-label">{meta.label}</span>
-                    <span className={`badge badge-sm badge-${r.status === "completed" ? "completed" : r.status === "failed" ? "high" : "info"}`}>
-                      {STATUS_LABELS[r.status] ?? r.status}
-                    </span>
-                    {r.findingCount > 0 && (
-                      <span className="history-item-findings">Finding {r.findingCount}건</span>
-                    )}
-                    {durationSec > 0 && (
-                      <span className="history-item-duration">{formatUptime(durationSec)}</span>
-                    )}
-                  </div>
-                  <div className="history-item-id">{r.id}</div>
-                </div>
-              </ListItem>
-            );
-          })
+          <table className="history-table">
+            <thead>
+              <tr className="history-table__head-row">
+                <th className="history-table__th">Run #</th>
+                <th className="history-table__th">Date &amp; Time</th>
+                <th className="history-table__th">Module</th>
+                <th className="history-table__th">Status</th>
+                <th className="history-table__th history-table__th--center">Findings (C/H/M/L)</th>
+                <th className="history-table__th">Duration</th>
+                <th className="history-table__th"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((r, idx) => {
+                const meta = MODULE_META[r.module] ?? { label: r.module, icon: null };
+                const durationSec = r.startedAt && r.endedAt
+                  ? (new Date(r.endedAt).getTime() - new Date(r.startedAt).getTime()) / 1000
+                  : 0;
+                const isEven = idx % 2 === 0;
+                const sev = (r as any).severitySummary;
+                return (
+                  <tr
+                    key={r.id}
+                    className={`history-table__row${isEven ? "" : " history-table__row--stripe"}`}
+                    onClick={() => navigate(`/projects/${projectId}/static-analysis`)}
+                  >
+                    <td className="history-table__td history-table__td--run">#{idx + 1}</td>
+                    <td className="history-table__td history-table__td--mono">{formatDateTime(r.createdAt)}</td>
+                    <td className="history-table__td">
+                      <span className="history-table__module">
+                        <span className="history-table__module-icon">{meta.icon}</span>
+                        {meta.label}
+                      </span>
+                    </td>
+                    <td className="history-table__td">
+                      <span className={`history-table__status history-table__status--${r.status === "completed" ? "pass" : r.status === "failed" ? "fail" : "running"}`}>
+                        {STATUS_LABELS[r.status] ?? r.status}
+                      </span>
+                    </td>
+                    <td className="history-table__td history-table__td--center history-table__td--mono">
+                      {sev ? (
+                        <>
+                          <span className={`history-sev history-sev--critical${!sev.critical ? " history-sev--zero" : ""}`}>{sev.critical ?? 0}</span>
+                          <span className="history-sev__sep">/</span>
+                          <span className={`history-sev history-sev--high${!sev.high ? " history-sev--zero" : ""}`}>{sev.high ?? 0}</span>
+                          <span className="history-sev__sep">/</span>
+                          <span className={`history-sev history-sev--medium${!sev.medium ? " history-sev--zero" : ""}`}>{sev.medium ?? 0}</span>
+                          <span className="history-sev__sep">/</span>
+                          <span className={`history-sev history-sev--low${!sev.low ? " history-sev--zero" : ""}`}>{sev.low ?? 0}</span>
+                        </>
+                      ) : (
+                        r.findingCount > 0
+                          ? <span className="history-table__finding-count">{r.findingCount}</span>
+                          : <span className="history-sev--zero">—</span>
+                      )}
+                    </td>
+                    <td className="history-table__td history-table__td--mono">
+                      {durationSec > 0 ? formatUptime(durationSec) : "—"}
+                    </td>
+                    <td className="history-table__td history-table__td--action">
+                      <ChevronRight size={16} className="history-table__chevron" />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </div>
     </div>

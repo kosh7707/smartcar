@@ -1,4 +1,5 @@
 import React from "react";
+import "./DonutChart.css";
 import type { AnalysisSummary } from "@aegis/shared";
 
 interface Props {

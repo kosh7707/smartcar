@@ -36,6 +36,10 @@ export const FileDetailPage: React.FC = () => {
   const highlightLine = parseInt(searchParams.get("line") ?? "0") || 0;
   const highlightRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    document.title = "AEGIS — File Detail";
+  }, []);
+
   const [file, setFile] = useState<UploadedFile | null>(null);
   const [sourceCode, setSourceCode] = useState<string | null>(null);
   const [serverLineCount, setServerLineCount] = useState<number | null>(null);

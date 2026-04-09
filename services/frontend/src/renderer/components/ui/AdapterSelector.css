@@ -50,3 +50,17 @@
   color: var(--cds-text-placeholder);
   margin-left: auto;
 }
+
+/* ── Migrated from components.css ── */
+
+/* ── Adapter Warning ── */
+
+.adapter-warning {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-03);
+  color: var(--aegis-severity-medium);
+  font-size: var(--cds-type-sm);
+  background: var(--cds-support-warning-bg);
+  border: 1px solid var(--aegis-severity-medium-border);
+}

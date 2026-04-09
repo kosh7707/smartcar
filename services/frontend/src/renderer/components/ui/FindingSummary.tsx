@@ -1,4 +1,5 @@
 import React from "react";
+import "./FindingSummary.css";
 import type { FindingStatus } from "@aegis/shared";
 import { FINDING_STATUS_LABELS, FINDING_STATUS_ORDER } from "../../constants/finding";
 

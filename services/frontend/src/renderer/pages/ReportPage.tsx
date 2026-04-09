@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import type { ProjectReport, AnalysisModule } from "@aegis/shared";
-import { FileText, Download, Filter, Calendar, X, Paperclip, Settings2 } from "lucide-react";
+import { FileText, Download, Filter, Calendar, X, Paperclip, Settings2, CheckCircle, Clock } from "lucide-react";
 import { fetchProjectReport, ApiError, logError } from "../api/client";
 import type { ReportFilters } from "../api/client";
 import { CustomReportModal } from "../components/CustomReportModal";
@@ -40,6 +40,10 @@ const MODULE_KEY_MAP: Record<string, AnalysisModule> = {
 export const ReportPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const toast = useToast();
+
+  useEffect(() => {
+    document.title = "AEGIS — Report";
+  }, []);
 
   const [report, setReport] = useState<ProjectReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -125,6 +129,15 @@ export const ReportPage: React.FC = () => {
   const summary = activeTab === "all"
     ? report.totalSummary
     : moduleEntries[0]?.mod?.summary ?? report.totalSummary;
+
+  // Severity bar chart heights (relative to max)
+  const sevCounts = {
+    critical: summary.bySeverity.critical ?? 0,
+    high: summary.bySeverity.high ?? 0,
+    medium: summary.bySeverity.medium ?? 0,
+    low: summary.bySeverity.low ?? 0,
+  };
+  const sevMax = Math.max(1, ...Object.values(sevCounts));
 
   return (
     <div className="page-enter report-page">
@@ -227,7 +240,119 @@ export const ReportPage: React.FC = () => {
         ))}
       </div>
 
-      {/* Summary */}
+      {/* Bento: Executive Summary + Audit Trail */}
+      <div className="report-bento">
+        {/* Executive Summary */}
+        <div className="card report-exec-card">
+          <div className="report-exec-card__accent" />
+          <div className="card-title">Executive Summary</div>
+
+          <div className="report-exec-card__meta-grid">
+            <div className="report-exec-meta-item">
+              <span className="report-exec-meta-item__label">분석 날짜</span>
+              <span className="report-exec-meta-item__value">{formatDateTime(report.generatedAt).split(" ")[0]}</span>
+            </div>
+            <div className="report-exec-meta-item">
+              <span className="report-exec-meta-item__label">컴플라이언스</span>
+              <span className={`report-compliance-badge ${allRuns.some((r) => r.gate?.status === "fail") ? "report-compliance-badge--fail" : "report-compliance-badge--pass"}`}>
+                {allRuns.some((r) => r.gate?.status === "fail") ? "FAIL" : "PASS"}
+              </span>
+            </div>
+            <div className="report-exec-meta-item">
+              <span className="report-exec-meta-item__label">분석 실행</span>
+              <span className="report-exec-meta-item__value">{allRuns.length}</span>
+            </div>
+            <div className="report-exec-meta-item">
+              <span className="report-exec-meta-item__label">총 Finding</span>
+              <span className="report-exec-meta-item__value--large">{summary.totalFindings}</span>
+            </div>
+          </div>
+
+          {/* Severity bar chart */}
+          <div className="report-severity-chart">
+            <span className="report-severity-chart__label">심각도 분포</span>
+            <div className="report-severity-chart__bars">
+              {(["critical", "high", "medium", "low"] as const).map((sev) => (
+                <div key={sev} className="report-severity-bar">
+                  <span className="report-severity-bar__value">{sevCounts[sev]}</span>
+                  <div
+                    className={`report-severity-bar__fill report-severity-bar__fill--${sev}`}
+                    style={{ height: `${Math.max(5, (sevCounts[sev] / sevMax) * 72)}px` }}
+                  />
+                  <span className="report-severity-bar__name">{sev.charAt(0).toUpperCase() + sev.slice(1)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Audit Trail */}
+        <div className="card report-audit-card">
+          <span className="report-audit-card__title">Audit Trail</span>
+          <div className="report-audit-timeline">
+            {report.auditTrail.length === 0 ? (
+              <p style={{ fontSize: "var(--cds-type-sm)", color: "var(--cds-text-placeholder)", margin: 0 }}>감사 이력 없음</p>
+            ) : (
+              report.auditTrail.slice(0, 5).map((entry, idx) => (
+                <div key={entry.id} className="report-audit-item">
+                  <div className={`report-audit-item__dot ${idx < report.auditTrail.length - 1 ? "report-audit-item__dot--done" : "report-audit-item__dot--pending"}`}>
+                    {idx < report.auditTrail.length - 1
+                      ? <CheckCircle size={14} />
+                      : <Clock size={14} />}
+                  </div>
+                  <p className="report-audit-item__title">{entry.action}</p>
+                  <span className="report-audit-item__time">{formatDateTime(entry.timestamp)}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* By-Target Breakdown */}
+      {activeTab === "all" && (
+        <div className="card report-breakdown">
+          <div className="card-title">모듈별 분석 현황</div>
+          <table className="report-breakdown-table">
+            <thead>
+              <tr>
+                <th>모듈</th>
+                <th>Finding</th>
+                <th>Gate 통과</th>
+                <th>상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              {moduleEntries.map(({ key, mod }) => (
+                <tr key={key}>
+                  <td>
+                    <span className="report-breakdown__target-name">{MODULE_META[MODULE_KEY_MAP[key]]?.label ?? key}</span>
+                    <span className="report-breakdown__target-id">{MODULE_KEY_MAP[key]}</span>
+                  </td>
+                  <td><span className="report-breakdown__count">{mod!.summary.totalFindings}</span></td>
+                  <td>
+                    {mod!.runs.filter((r) => r.gate?.status === "pass").length}/{mod!.runs.length}
+                  </td>
+                  <td>
+                    <span className="report-breakdown__status">
+                      {mod!.runs.some((r) => r.gate?.status === "fail") ? "ISSUE" : "STABLE"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {moduleEntries.length === 0 && (
+                <tr>
+                  <td colSpan={4} style={{ textAlign: "center", color: "var(--cds-text-placeholder)", padding: "var(--cds-spacing-07) 0" }}>
+                    해당 모듈 데이터 없음
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Summary stats */}
       <div className="report-summary card">
         <div className="card-title">요약</div>
         <div className="report-summary__grid">
@@ -373,7 +498,7 @@ export const ReportPage: React.FC = () => {
         </div>
       )}
 
-      {/* Audit trail (full report only) */}
+      {/* Full audit log */}
       {activeTab === "all" && report.auditTrail.length > 0 && (
         <div className="card">
           <div className="card-title">감사 추적 ({report.auditTrail.length})</div>

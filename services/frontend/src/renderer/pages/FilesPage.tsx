@@ -23,7 +23,6 @@ import {
 import type { SourceFileEntry, TargetMappingEntry } from "../api/client";
 import {
   EmptyState,
-  PageHeader,
   Spinner,
   SeverityBadge,
   FileTreeNode,
@@ -79,6 +78,10 @@ export const FilesPage: React.FC = () => {
   const toast = useToast();
   const upload = useUploadProgress();
   const bt = useBuildTargets(projectId);
+
+  useEffect(() => {
+    document.title = "AEGIS — Files";
+  }, []);
 
   const [sourceFiles, setSourceFiles] = useState<SourceFileEntry[]>([]);
   const [targetMapping, setTargetMapping] = useState<Record<string, TargetMappingEntry>>({});
@@ -291,38 +294,41 @@ export const FilesPage: React.FC = () => {
       onDragLeave={(e) => { e.preventDefault(); setDragOver(false); }}
       onDrop={handleDrop}
     >
-      <PageHeader
-        title="파일 탐색기"
-        icon={<Code size={20} />}
-        subtitle={`${sourceFiles.length}개 파일 · ${formatFileSize(totalSize)}`}
-        action={
-          <div className="fpage-header-actions">
-            {sourceFiles.length > 0 && (
-              <button
-                className="btn btn-sm"
-                onClick={() => setShowSubprojectDialog(true)}
-              >
-                <Plus size={14} />
-                서브 프로젝트 생성
-              </button>
-            )}
+      {/* v6: page header */}
+      <div className="fpage-page-header">
+        <div>
+          <h1 className="fpage-page-header__title">Files</h1>
+          <p className="fpage-page-header__subtitle">
+            <Code size={14} className="fpage-page-header__icon" />
+            {sourceFiles.length}개 파일 · {formatFileSize(totalSize)}
+          </p>
+        </div>
+        <div className="fpage-header-actions">
+          {sourceFiles.length > 0 && (
             <button
-              className="fpage-action-btn"
-              onClick={() => fileInputRef.current?.click()}
-              title="소스코드 업로드"
+              className="btn btn-sm"
+              onClick={() => setShowSubprojectDialog(true)}
             >
-              <Upload size={20} />
+              <Plus size={14} />
+              서브 프로젝트 생성
             </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".zip,.tar.gz,.tgz,.tar.bz2,.tar"
-              className="fpage-hidden-input"
-              onChange={(e) => e.target.files && handleUpload(e.target.files)}
-            />
-          </div>
-        }
-      />
+          )}
+          <button
+            className="fpage-action-btn"
+            onClick={() => fileInputRef.current?.click()}
+            title="소스코드 업로드"
+          >
+            <Upload size={20} />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".zip,.tar.gz,.tgz,.tar.bz2,.tar"
+            className="fpage-hidden-input"
+            onChange={(e) => e.target.files && handleUpload(e.target.files)}
+          />
+        </div>
+      </div>
 
       {/* Upload progress banner */}
       {upload.isActive && (

@@ -1,3 +1,196 @@
+/* ── v6: Status Banner ── */
+
+.gate-page-header {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-04);
+  margin-bottom: var(--cds-spacing-08);
+}
+
+.gate-page-header__icon {
+  color: var(--cds-interactive);
+}
+
+.gate-page-header__title {
+  font-size: var(--cds-type-3xl);
+  font-weight: var(--cds-weight-semibold);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.gate-status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--cds-spacing-10) var(--cds-spacing-10);
+  border-radius: var(--cds-radius);
+  margin-bottom: var(--cds-spacing-08);
+  position: relative;
+  overflow: hidden;
+  color: var(--cds-text-inverse);
+}
+
+.gate-status-banner--pass {
+  background: var(--cds-support-success);
+}
+
+.gate-status-banner--fail {
+  background: var(--cds-support-error);
+}
+
+.gate-status-banner--warning {
+  background: var(--cds-support-warning);
+}
+
+.gate-status-banner__left {
+  position: relative;
+  z-index: 1;
+}
+
+.gate-status-banner__icon-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-05);
+  margin-bottom: var(--cds-spacing-03);
+}
+
+.gate-status-banner__verdict {
+  font-size: var(--cds-type-4xl);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.gate-status-banner__subtitle {
+  font-size: var(--cds-type-xl);
+  font-weight: var(--cds-weight-medium);
+  opacity: 0.9;
+  margin-bottom: var(--cds-spacing-02);
+}
+
+.gate-status-banner__time {
+  font-size: var(--cds-type-sm);
+  opacity: 0.7;
+  font-family: var(--cds-font-mono);
+}
+
+/* ── v6: Content Grid ── */
+
+.gate-content-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--cds-spacing-07);
+  align-items: start;
+}
+
+.gate-criteria-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cds-spacing-04);
+}
+
+.gate-side-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cds-spacing-05);
+}
+
+/* ── Gate History Card ── */
+
+.gate-history-card {
+  padding: var(--cds-spacing-06);
+}
+
+.gate-history-card__title {
+  font-size: var(--cds-type-base);
+  font-weight: var(--cds-weight-semibold);
+  letter-spacing: -0.01em;
+  margin-bottom: var(--cds-spacing-04);
+}
+
+.gate-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gate-history-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-03);
+  padding: var(--cds-spacing-03) var(--cds-spacing-04);
+  border-radius: var(--cds-radius);
+  border: 1px solid transparent;
+  transition: background var(--cds-transition-fast);
+}
+
+.gate-history-row:hover {
+  background: var(--cds-layer-02);
+}
+
+.gate-history-row--active {
+  background: var(--cds-layer-01);
+  border-color: var(--cds-border-subtle);
+}
+
+.gate-history-row__run {
+  font-family: var(--cds-font-mono);
+  font-size: var(--cds-type-xs);
+  font-weight: var(--cds-weight-semibold);
+  color: var(--cds-interactive);
+  min-width: 32px;
+}
+
+.gate-history-row__time {
+  font-family: var(--cds-font-mono);
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
+  flex: 1;
+}
+
+.gate-history-row__status {
+  font-size: var(--cds-type-2xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.gate-history-row__status--pass { color: var(--cds-support-success); }
+.gate-history-row__status--fail { color: var(--cds-support-error); }
+.gate-history-row__status--warning { color: var(--cds-support-warning); }
+
+/* ── Gate Actions Card ── */
+
+.gate-actions-card {
+  padding: var(--cds-spacing-06);
+  border-left: 4px solid var(--cds-interactive);
+}
+
+.gate-actions-card__title {
+  font-size: var(--cds-type-base);
+  font-weight: var(--cds-weight-semibold);
+  margin-bottom: var(--cds-spacing-03);
+}
+
+.gate-actions-card__desc {
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
+  margin-bottom: var(--cds-spacing-05);
+  line-height: var(--cds-leading-relaxed);
+}
+
+.gate-actions-card__btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 900px) {
+  .gate-content-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── Quality Gate Page ── */
 
 .gate-list {

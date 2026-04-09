@@ -10,6 +10,7 @@ import type { AdapterManager } from "./adapter-manager";
 import type { ProjectSettingsService } from "./project-settings.service";
 import type { BuildTargetService } from "./build-target.service";
 import type { ProjectListItem } from "@aegis/shared";
+import type { ProjectDeletionService } from "./project-deletion.service";
 
 export class ProjectService {
   constructor(
@@ -22,6 +23,7 @@ export class ProjectService {
     private findingDAO?: IFindingDAO,
     private runDAO?: IRunDAO,
     private gateResultDAO?: IGateResultDAO,
+    private projectDeletionService?: ProjectDeletionService,
   ) {}
 
   create(name: string, description?: string): Project {
@@ -80,8 +82,16 @@ export class ProjectService {
     return this.projectDAO.update(id, fields);
   }
 
-  delete(id: string): boolean {
-    // cascade: 프로젝트 어댑터/설정 삭제
+  async delete(id: string): Promise<boolean> {
+    const existing = this.projectDAO.findById(id);
+    if (!existing) return false;
+
+    if (this.projectDeletionService) {
+      await this.projectDeletionService.deleteProject(id);
+      return true;
+    }
+
+    // fallback legacy behavior
     this.adapterManager?.deleteByProjectId(id);
     this.settingsService?.deleteByProjectId(id);
     this.buildTargetService?.deleteByProjectId(id);

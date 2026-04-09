@@ -5,7 +5,7 @@ import type { ApprovalRequest } from "../api/approval";
 import { fetchProjectApprovals, decideApproval } from "../api/approval";
 import { logError } from "../api/core";
 import { useToast } from "../contexts/ToastContext";
-import { PageHeader, Spinner, EmptyState, ConfirmDialog } from "../components/ui";
+import { Spinner, EmptyState, ConfirmDialog } from "../components/ui";
 import { formatDateTime } from "../utils/format";
 import "./ApprovalsPage.css";
 
@@ -30,6 +30,10 @@ export const ApprovalsPage: React.FC = () => {
   const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterStatus>("all");
+
+  useEffect(() => {
+    document.title = "AEGIS — Approvals";
+  }, []);
   const [decidingId, setDecidingId] = useState<string | null>(null);
   const [decidingAction, setDecidingAction] = useState<"approved" | "rejected" | null>(null);
   const [comment, setComment] = useState("");
@@ -78,7 +82,15 @@ export const ApprovalsPage: React.FC = () => {
 
   return (
     <div className="page-enter">
-      <PageHeader title="Approval Queue" icon={<ClipboardCheck size={20} />} subtitle={pendingCount > 0 ? `${pendingCount}건 대기` : undefined} />
+      {/* v6: page header */}
+      <div className="approval-page-header">
+        <div>
+          <h1 className="approval-page-header__title">Approvals</h1>
+          {pendingCount > 0 && (
+            <p className="approval-page-header__subtitle">{pendingCount}건의 승인 요청이 대기 중입니다</p>
+          )}
+        </div>
+      </div>
 
       <div className="approval-filters">
         {(["all", "pending", "approved", "rejected", "expired"] as FilterStatus[]).map((f) => (
@@ -104,12 +116,23 @@ export const ApprovalsPage: React.FC = () => {
             const isExpired = new Date(approval.expiresAt) < new Date();
             const isImminent = new Date(approval.expiresAt).getTime() - Date.now() < 24 * 60 * 60 * 1000;
             return (
-              <div key={approval.id} className="approval-card card">
+              <div key={approval.id} className={`approval-card card approval-card--${approval.status}`}>
                 <div className="approval-card__header">
-                  <span className="approval-card__action">
-                    {ACTION_LABELS[approval.actionType] ?? approval.actionType}
-                  </span>
-                  <span className={`approval-card__status ${config.className}`}>
+                  <div>
+                    <h3 className="approval-card__action">
+                      {ACTION_LABELS[approval.actionType] ?? approval.actionType}
+                    </h3>
+                    <div className="approval-card__meta">
+                      <span>요청자: {approval.requestedBy}</span>
+                      <span>{formatDateTime(approval.createdAt)}</span>
+                      {!isExpired && approval.status === "pending" && (
+                        <span className={`approval-card__expires${isImminent ? " approval-card__expires--imminent" : ""}`}>
+                          만료: {formatDateTime(approval.expiresAt)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <span className={`approval-card__status-badge approval-card__status-badge--${approval.status}`}>
                     {config.icon} {config.label}
                   </span>
                 </div>
@@ -132,15 +155,6 @@ export const ApprovalsPage: React.FC = () => {
                     <ExternalLink size={11} />
                     {approval.actionType === "gate.override" ? "Gate 보기" : "Finding 보기"}
                   </button>
-                  <div className="approval-card__meta">
-                    <span>요청자: {approval.requestedBy}</span>
-                    <span>{formatDateTime(approval.createdAt)}</span>
-                    {!isExpired && approval.status === "pending" && (
-                      <span className={`approval-card__expires${isImminent ? " approval-card__expires--imminent" : ""}`}>
-                        만료: {formatDateTime(approval.expiresAt)}
-                      </span>
-                    )}
-                  </div>
                 </div>
 
                 {approval.decision && (

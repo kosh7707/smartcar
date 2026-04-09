@@ -1,4 +1,4 @@
-/* ── App Layout ── */
+/* ── App Layout — Legacy (kept for reference) ── */
 
 .app-layout {
   display: flex;
@@ -14,6 +14,75 @@
 }
 
 .content {
+  flex: 1;
+  padding: var(--cds-spacing-06);
+  overflow-y: auto;
+}
+
+/* ── Auth Layout (Login, Signup) ── */
+/* No navbar, no sidebar, no statusbar — centered card, max-width 420px */
+/* Handled entirely within each auth page component */
+
+/* ── Global Layout (Projects, Global Settings) ── */
+/* Navbar + Main content (full width, no sidebar) */
+
+.layout-global {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.layout-global__content {
+  flex: 1;
+  padding: var(--cds-spacing-07) var(--cds-spacing-08);
+  overflow-y: auto;
+  background: var(--cds-background);
+  max-width: 1280px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── Dashboard Layout (edge-to-edge, no max-width) ── */
+
+.layout-dashboard {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.layout-dashboard__content {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--cds-background);
+}
+
+/* ── Project Layout (all /projects/:id/* routes) ── */
+/* Navbar + Sidebar(232px) + Main content */
+
+.layout-project {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.layout-project__body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.layout-project__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--cds-background);
+}
+
+.layout-project__main {
   flex: 1;
   padding: var(--cds-spacing-06);
   overflow-y: auto;

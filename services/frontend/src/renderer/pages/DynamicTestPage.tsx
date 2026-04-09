@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import "../components/static/AnalysisListItem.css";
 import { useParams } from "react-router-dom";
 import type { DynamicTestConfig, DynamicTestResult, DynamicTestFinding, TestStrategy } from "@aegis/shared";
 import {
@@ -44,6 +45,10 @@ export const DynamicTestPage: React.FC = () => {
   const { connected, hasConnected } = useAdapters(projectId);
   const toast = useToast();
   const test = useDynamicTest(projectId);
+
+  useEffect(() => {
+    document.title = "AEGIS — Dynamic Test";
+  }, []);
 
   const [history, setHistory] = useState<DynamicTestResult[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);

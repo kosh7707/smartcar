@@ -1,6 +1,6 @@
 // ── API Core Infrastructure ──
 
-const DEFAULT_BACKEND_URL = "http://localhost:3000";
+const DEFAULT_BACKEND_URL = import.meta.env.DEV && import.meta.env.MODE !== "test" ? "" : "http://localhost:3000";
 const STORAGE_KEY = "aegis:backendUrl";
 
 export function getBackendUrl(): string {

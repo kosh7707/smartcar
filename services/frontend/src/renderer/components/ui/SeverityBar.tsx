@@ -1,4 +1,5 @@
 import React from "react";
+import "./SeverityBar.css";
 
 interface Props {
   summary: { critical: number; high: number; medium: number; low: number; info?: number };

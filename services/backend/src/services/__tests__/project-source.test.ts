@@ -56,4 +56,24 @@ describe("ProjectSourceService.copyToSubproject", () => {
     expect(fs.existsSync(path.join(subDir, "main.c"))).toBe(false);
     expect(fs.existsSync(path.join(subDir, "lib", "util.c"))).toBe(true);
   });
+
+  it("quarantines and removes a project root", () => {
+    const state = service.quarantineProjectRoot(projectId);
+
+    expect(fs.existsSync(path.join(tmpDir, projectId))).toBe(false);
+    expect(state.quarantinedPath).toBeTruthy();
+    expect(fs.existsSync(state.quarantinedPath!)).toBe(true);
+
+    service.removeQuarantinedProjectRoot(state);
+    expect(fs.existsSync(state.quarantinedPath!)).toBe(false);
+  });
+
+  it("restores a quarantined project root", () => {
+    const state = service.quarantineProjectRoot(projectId);
+
+    service.restoreQuarantinedProjectRoot(state);
+
+    expect(fs.existsSync(path.join(tmpDir, projectId))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, projectId, "main.c"))).toBe(true);
+  });
 });

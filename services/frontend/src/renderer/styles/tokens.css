@@ -239,6 +239,23 @@
 
   /* ── StatusBar ── */
   --aegis-statusbar-height: 32px;
+
+  /* ── Code line interaction (light) ── */
+  --cds-code-line-hover: rgba(0, 0, 0, 0.04);
+  --cds-code-line-highlight-bg: rgba(218, 30, 40, 0.12);
+  --cds-code-line-highlight-bg-hover: rgba(218, 30, 40, 0.18);
+
+  /* ── Highlight.js syntax tokens (light — GitHub-inspired) ── */
+  --cds-hljs-comment: #57606a;
+  --cds-hljs-keyword: #d73a49;
+  --cds-hljs-string: #032f62;
+  --cds-hljs-number: #005cc5;
+  --cds-hljs-function: #6f42c1;
+  --cds-hljs-variable: #e36209;
+  --cds-hljs-meta: #005cc5;
+  --cds-hljs-deletion: #b31d28;
+  --cds-hljs-deletion-bg: rgba(179, 29, 40, 0.08);
+  --cds-hljs-addition-bg: rgba(3, 47, 98, 0.06);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -373,4 +390,21 @@
 
   /* ── Panel (dark) ── */
   --cds-surface-inset: rgba(0, 0, 0, 0.2);
+
+  /* ── Code line interaction (dark) ── */
+  --cds-code-line-hover: rgba(255, 255, 255, 0.03);
+  --cds-code-line-highlight-bg: rgba(218, 30, 40, 0.15);
+  --cds-code-line-highlight-bg-hover: rgba(218, 30, 40, 0.22);
+
+  /* ── Highlight.js syntax tokens (dark — GitHub Dark) ── */
+  --cds-hljs-comment: #adb5bd;
+  --cds-hljs-keyword: #ff7b72;
+  --cds-hljs-string: #a5d6ff;
+  --cds-hljs-number: #79c0ff;
+  --cds-hljs-function: #d2a8ff;
+  --cds-hljs-variable: #ffa657;
+  --cds-hljs-meta: #79c0ff;
+  --cds-hljs-deletion: #ffa198;
+  --cds-hljs-deletion-bg: rgba(255, 161, 152, 0.1);
+  --cds-hljs-addition-bg: rgba(165, 214, 255, 0.08);
 }

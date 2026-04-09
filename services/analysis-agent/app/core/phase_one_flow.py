@@ -1,0 +1,140 @@
+"""Execution flow helpers for analysis-agent Phase 1."""
+
+from __future__ import annotations
+
+import logging
+import time
+from typing import TYPE_CHECKING
+
+from agent_shared.context import get_request_id
+from agent_shared.observability import agent_log
+from app.core.phase_one_types import Phase1Result
+
+if TYPE_CHECKING:
+    from app.core.agent_session import AgentSession
+
+
+def resolve_analysis_path(project_path: str | None, target_path: str | None, logger: logging.Logger) -> str | None:
+    analysis_path = project_path
+    if project_path and target_path:
+        from agent_shared.path_util import resolve_scoped_path
+
+        scoped = resolve_scoped_path(project_path, target_path)
+        if scoped is not None:
+            return scoped
+
+        agent_log(
+            logger, "targetPath directory traversal 차단",
+            component="phase_one", phase="security",
+            targetPath=target_path, level=logging.WARNING,
+        )
+    return analysis_path
+
+
+async def execute_phase_one(executor, session: "AgentSession", logger: logging.Logger) -> Phase1Result:
+    """Phase 1 main orchestration flow."""
+    result = Phase1Result()
+    start = time.monotonic()
+
+    trusted = session.request.context.trusted
+    files = trusted.get("files", [])
+    project_path = trusted.get("projectPath")
+    target_path = trusted.get("targetPath")
+    project_id = trusted.get("projectId", session.request.taskId)
+    revision_hint = trusted.get("revisionHint") or trusted.get("commitSha")
+    build_profile = trusted.get("buildProfile")
+    build_command = trusted.get("buildCommand")
+    build_environment = trusted.get("buildEnvironment")
+    third_party_paths = trusted.get("thirdPartyPaths", [])
+    sast_tools = trusted.get("sastTools")
+    request_id = get_request_id() or session.request.taskId
+    provenance = trusted.get("provenance") if isinstance(trusted.get("provenance"), dict) else None
+
+    analysis_path = resolve_analysis_path(project_path, target_path, logger)
+
+    if project_id:
+        result.project_memory = await executor._fetch_project_memory(
+            project_id, request_id, revision_hint, provenance=provenance,
+        )
+
+    pre_findings = trusted.get("sastFindings")
+    pre_sca = trusted.get("scaLibraries")
+
+    if pre_findings is not None:
+        result.sast_findings = pre_findings
+        if pre_sca is not None:
+            result.sca_libraries = pre_sca
+        agent_log(
+            logger, "Phase 1: pre-computed 결과 사용 (SAST/SCA 스킵)",
+            component="phase_one", phase="phase1_precomputed",
+            findings=len(result.sast_findings),
+            libraries=len(result.sca_libraries),
+        )
+    elif not files and not project_path:
+        agent_log(
+            logger, "Phase 1 스킵: files와 projectPath 모두 없음",
+            component="phase_one", phase="skip",
+        )
+        return result
+    else:
+        agent_log(
+            logger, "Phase 1 시작",
+            component="phase_one", phase="phase1_start",
+            fileCount=len(files), projectId=project_id,
+            hasProjectPath=bool(project_path), targetPath=target_path,
+            hasBuildCommand=bool(build_command),
+        )
+
+        if analysis_path and build_command:
+            ba_result = await executor._run_build_and_analyze(
+                result, project_id, analysis_path, build_command, build_profile, request_id,
+                build_environment=build_environment,
+                provenance=provenance,
+                third_party_paths=third_party_paths,
+            )
+            if ba_result is not None:
+                result = ba_result
+            else:
+                agent_log(
+                    logger, "Phase 1: build-and-analyze 실패, 개별 도구 fallback",
+                    component="phase_one", phase="ba_fallback",
+                    level=logging.WARNING,
+                )
+                result = await executor._run_individual_tools(
+                    result, files, project_id, analysis_path, build_profile, request_id,
+                    third_party_paths=third_party_paths,
+                    sast_tools=sast_tools,
+                    compile_commands_path=result.build_compile_commands_path,
+                    revision_hint=revision_hint,
+                    provenance=provenance,
+                )
+        else:
+            result = await executor._run_individual_tools(
+                result, files, project_id, analysis_path, build_profile, request_id,
+                third_party_paths=third_party_paths,
+                sast_tools=sast_tools,
+                compile_commands_path=result.build_compile_commands_path,
+                revision_hint=revision_hint,
+                provenance=provenance,
+            )
+
+    if result.sca_libraries:
+        result = await executor._run_cve_lookup(result)
+
+    if result.sast_findings:
+        result = await executor._run_threat_query(result)
+
+    if result.sast_findings and project_id:
+        result = await executor._run_dangerous_callers(result, project_id, provenance=provenance)
+
+    result.total_duration_ms = int((time.monotonic() - start) * 1000)
+
+    agent_log(
+        logger, "Phase 1 완료",
+        component="phase_one", phase="phase1_end",
+        findings=len(result.sast_findings),
+        functions=len(result.code_functions),
+        totalMs=result.total_duration_ms,
+    )
+
+    return result

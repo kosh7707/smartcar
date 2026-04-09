@@ -42,6 +42,7 @@ import { SdkService } from "./services/sdk.service";
 // Service classes
 import { ProjectSettingsService } from "./services/project-settings.service";
 import { ProjectService } from "./services/project.service";
+import { ProjectDeletionService } from "./services/project-deletion.service";
 import { LlmTaskClient } from "./services/llm-task-client";
 import { CanRuleEngine } from "./can-rules/can-rule-engine";
 import { FrequencyRule } from "./can-rules/frequency-rule";
@@ -177,7 +178,6 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
 
   // ── Tier 2: 복합 서비스 (Tier 1 의존) ──
   const buildTargetService = new BuildTargetService(buildTargetDAO, settingsService, projectSourceService);
-  const projectService = new ProjectService(projectDAO, analysisResultDAO, fileStore, adapterManager, settingsService, buildTargetService, findingDAO, runDAO, gateResultDAO);
   const qualityGateService = new QualityGateService(findingDAO, evidenceRefDAO, gateResultDAO, runDAO, settingsService, notificationService);
   const resultNormalizer = new ResultNormalizer(db, runDAO, findingDAO, evidenceRefDAO, qualityGateService, notificationService);
   const approvalService = new ApprovalService(approvalDAO, auditLogDAO, qualityGateService, notificationService);
@@ -217,6 +217,16 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
     dynamicTestResultDAO, analysisResultDAO,
     llmTaskClient, adapterManager, settingsService, dynamicTestWs, resultNormalizer,
   );
+  const projectDeletionService = new ProjectDeletionService(
+    db,
+    projectSourceService,
+    adapterManager,
+    analysisTracker,
+    dynamicSessionDAO,
+    dynamicTestService,
+    sdkRegistryDAO,
+    buildTargetDAO,
+  );
   const analysisOrchestrator = new AnalysisOrchestrator(
     projectSourceService, sastClient, agentClient,
     analysisResultDAO, settingsService, resultNormalizer, analysisWs, buildTargetService, targetLibraryDAO, analysisTracker,
@@ -224,6 +234,18 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
   const sdkService = new SdkService(sdkRegistryDAO, buildAgentClient, cfg.uploadsDir, sdkWs, notificationService);
 
   const activityService = new ActivityService(runDAO, auditLogDAO, buildTargetDAO);
+  const projectService = new ProjectService(
+    projectDAO,
+    analysisResultDAO,
+    fileStore,
+    adapterManager,
+    settingsService,
+    buildTargetService,
+    findingDAO,
+    runDAO,
+    gateResultDAO,
+    projectDeletionService,
+  );
 
   const pipelineOrchestrator = new PipelineOrchestrator(
     projectSourceService, sastClient, kbClient, buildAgentClient, targetLibraryDAO,

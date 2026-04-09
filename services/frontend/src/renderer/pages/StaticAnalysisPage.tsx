@@ -4,7 +4,6 @@ import type { UploadedFile, Finding } from "@aegis/shared";
 import type { RunDetailResponse } from "@aegis/shared";
 // Legacy views kept for RunDetailView prop compat but no longer routed
 import type { SourceFileEntry } from "../api/client";
-import { FileSearch } from "lucide-react";
 import { useStaticDashboard } from "../hooks/useStaticDashboard";
 import { useAnalysisWebSocket } from "../hooks/useAnalysisWebSocket";
 import { useBuildTargets } from "../hooks/useBuildTargets";
@@ -26,7 +25,7 @@ import { TwoStageProgressView } from "../components/static/TwoStageProgressView"
 import { RunDetailView } from "../components/static/RunDetailView";
 import { FindingDetailView } from "../components/static/FindingDetailView";
 import { TargetSelectDialog } from "../components/static/TargetSelectDialog";
-import { PageHeader, BackButton, Spinner, EmptyState, ConnectionStatusBanner } from "../components/ui";
+import { BackButton, Spinner, EmptyState, ConnectionStatusBanner } from "../components/ui";
 import { Upload } from "lucide-react";
 import "./StaticAnalysisPage.css";
 
@@ -44,6 +43,10 @@ export const StaticAnalysisPage: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const { setBlocking } = useSetAnalysisGuard();
+
+  useEffect(() => {
+    document.title = "AEGIS — Static Analysis";
+  }, []);
 
   // Hooks
   const dashboard = useStaticDashboard(projectId);
@@ -271,7 +274,7 @@ export const StaticAnalysisPage: React.FC = () => {
     return (
       <div className="page-enter">
         <BackButton onClick={goToDashboard} label="대시보드로" />
-        <PageHeader title="소스코드 업로드" icon={<FileSearch size={20} />} />
+        <div className="sa-page-header"><h1 className="sa-page-header__title">소스코드 업로드</h1></div>
         <SourceUploadView
           projectId={projectId}
           onAnalysisStart={handleAnalysisStart}
@@ -296,7 +299,7 @@ export const StaticAnalysisPage: React.FC = () => {
   if (!dashboard.summary) {
     return (
       <div className="page-enter">
-        <PageHeader title="정적 분석" icon={<FileSearch size={20} />} />
+        <div className="sa-page-header"><h1 className="sa-page-header__title">Static Analysis</h1></div>
         <EmptyState
           icon={<Upload size={28} />}
           title="아직 분석 데이터가 없습니다"

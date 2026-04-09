@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import "../components/static/AnalysisListItem.css";
 import { useParams } from "react-router-dom";
 import type { DynamicAnalysisSession } from "@aegis/shared";
 import { Activity, Plus, Radio, AlertTriangle, Trash2, Plug } from "lucide-react";
@@ -21,6 +22,10 @@ import "./DynamicAnalysisPage.css";
 
 export const DynamicAnalysisPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
+
+  useEffect(() => {
+    document.title = "AEGIS — Dynamic Analysis";
+  }, []);
 
   const { connected, hasConnected } = useAdapters(projectId);
   const toast = useToast();

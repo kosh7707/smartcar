@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import request from "supertest";
 import type { Database as DatabaseType } from "better-sqlite3";
 import type express from "express";
+import fs from "fs";
+import path from "path";
 import { createTestApp, type TestAppContext } from "../../test/create-test-app";
 import {
   makeProject,
@@ -14,6 +16,7 @@ import {
   makeStoredFile,
   makeBuildTarget,
   makeNotification,
+  makeDynamicSession,
 } from "../../test/factories";
 
 describe("API Contract Tests", () => {
@@ -78,6 +81,17 @@ describe("API Contract Tests", () => {
         description: "after",
       });
     });
+
+    it("rejects blank project names", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-update-invalid", name: "Old" }));
+
+      const res = await request(app)
+        .put("/api/projects/p-update-invalid")
+        .send({ name: "   " });
+
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({ success: false, error: "name is required" });
+    });
   });
 
   describe("DELETE /api/projects/:id", () => {
@@ -90,6 +104,43 @@ describe("API Contract Tests", () => {
 
       const missing = await request(app).get("/api/projects/p-delete");
       expect(missing.status).toBe(404);
+    });
+
+    it("returns 409 with blocker details when active work exists", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-delete-blocked", name: "Blocked" }));
+      ctx.analysisTracker.start("analysis-delete-blocked", "p-delete-blocked");
+
+      const res = await request(app).delete("/api/projects/p-delete-blocked");
+
+      expect(res.status).toBe(409);
+      expect(res.body.success).toBe(false);
+      expect(res.body.errorDetail.code).toBe("CONFLICT");
+      expect(res.body.errorDetail.blockers).toMatchObject({
+        activeAnalysis: { analysisId: "analysis-delete-blocked" },
+      });
+    });
+
+    it("removes uploads root and representative project rows on success", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-delete-clean", name: "Delete Clean" }));
+      ctx.fileStore.save(makeStoredFile({ id: "f-delete-clean", projectId: "p-delete-clean", name: "main.c" }));
+      ctx.analysisResultDAO.save(makeAnalysisResult({ id: "analysis-delete-clean", projectId: "p-delete-clean" }));
+      ctx.dynamicSessionDAO.save(makeDynamicSession({ id: "dyn-delete-clean", projectId: "p-delete-clean", status: "stopped" }));
+      ctx.buildTargetDAO.save(makeBuildTarget({ id: "t-delete-clean", projectId: "p-delete-clean", status: "ready" }));
+
+      const projectRoot = path.join(ctx.projectUploadsRoot, "p-delete-clean");
+      fs.mkdirSync(path.join(projectRoot, "sdk", "sdk-1"), { recursive: true });
+      fs.writeFileSync(path.join(projectRoot, "main.c"), "int main() {}");
+
+      const res = await request(app).delete("/api/projects/p-delete-clean");
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ success: true });
+      expect(fs.existsSync(projectRoot)).toBe(false);
+      expect(ctx.projectDAO.findById("p-delete-clean")).toBeUndefined();
+      expect(ctx.fileStore.findByProjectId("p-delete-clean")).toHaveLength(0);
+      expect(ctx.analysisResultDAO.findByProjectId("p-delete-clean")).toHaveLength(0);
+      expect(ctx.dynamicSessionDAO.findByProjectId("p-delete-clean")).toHaveLength(0);
+      expect(ctx.buildTargetDAO.findByProjectId("p-delete-clean")).toHaveLength(0);
     });
   });
 

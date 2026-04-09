@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "name": "sample-armhf-user",
+  "description": "Experimental S6 QEMU linux-user bench for a tiny ARMHF sample firmware. This is a runtime spike only; it is not yet Adapter-integrated.",
+  "workspaceRoot": "../..",
+  "runtime": "linux-user",
+  "architecture": "armhf",
+  "build": {
+    "source": "../firmware/sample-ecu.c",
+    "outputBinary": "../out/sample-ecu-armhf",
+    "cflags": ["-O2", "-ffreestanding", "-nostdlib"],
+    "linkFlags": ["-static", "-Wl,-e,_start"]
+  },
+  "firmware": {
+    "binary": "../out/sample-ecu-armhf",
+    "args": ["AegisSampleECU"],
+    "env": {
+      "ECU_SAMPLE_MODE": "demo"
+    }
+  },
+  "docker": {
+    "dockerfile": "../docker/toolchain.Dockerfile",
+    "imageTag": "aegis-s6-qemu-toolchain:armhf"
+  },
+  "qemu": {
+    "extraArgs": []
+  },
+  "probe": {
+    "stdin": "hello\nexit\n"
+  },
+  "smoke": {
+    "ecuName": "QEMU_SAMPLE_MANIFEST",
+    "telemetryCanId": "0x700",
+    "cases": [
+      {
+        "requestId": "req-hello",
+        "canId": "0x123",
+        "text": "hello"
+      },
+      {
+        "requestId": "req-exit",
+        "canId": "0x124",
+        "text": "exit"
+      }
+    ]
+  }
+}

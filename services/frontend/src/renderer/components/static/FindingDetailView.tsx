@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
+import "./FindingDetailView.css";
 import type { Finding, EvidenceRef, AuditLogEntry, FindingStatus } from "@aegis/shared";
 import { MapPin, Copy, Clock, FlaskConical, Timer, Cpu, History } from "lucide-react";
 import {

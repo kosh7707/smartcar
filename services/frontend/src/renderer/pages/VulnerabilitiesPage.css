@@ -1,7 +1,45 @@
+/* ── Vulnerabilities Page — v6 reference layout ── */
+
+/* ── Page Header (v6: large title with left border stripe) ── */
+
+.vuln-page-header {
+  margin-bottom: var(--cds-spacing-08);
+  position: relative;
+  border-left: 4px solid var(--cds-interactive);
+  padding-left: var(--cds-spacing-06);
+}
+
+.vuln-page-header__title {
+  font-size: var(--cds-type-4xl);
+  font-weight: var(--cds-weight-semibold);
+  color: var(--cds-text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  margin-bottom: var(--cds-spacing-02);
+}
+
+.vuln-page-header__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-04);
+}
+
+.vuln-page-header__count {
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-secondary);
+}
+
+.vuln-page-header__count strong {
+  color: var(--cds-text-primary);
+  font-weight: var(--cds-weight-semibold);
+}
+
+/* ── Filter Bar (v6 style: container-low bg, chips + selects) ── */
+
 .vuln-filter-bar {
   display: flex;
   gap: var(--cds-spacing-02);
-  margin-bottom: var(--cds-spacing-04);
+  margin-bottom: var(--cds-spacing-05);
   flex-wrap: wrap;
   align-items: center;
   padding: var(--cds-spacing-03) var(--cds-spacing-04);
@@ -10,48 +48,63 @@
   border-radius: var(--cds-radius);
 }
 
+/* Severity chip tabs (v6 rounded-full pills) */
 .vuln-filter-tab {
   display: inline-flex;
   align-items: center;
   gap: var(--cds-spacing-02);
-  padding: var(--cds-spacing-02) var(--cds-spacing-03);
-  border: none;
-  border-radius: var(--cds-radius);
-  background: transparent;
-  color: var(--cds-text-placeholder);
+  padding: var(--cds-spacing-02) var(--cds-spacing-04);
+  border: 1px solid var(--cds-border-subtle);
+  border-radius: var(--cds-radius-circle);
+  background: var(--cds-background);
+  color: var(--cds-text-secondary);
   font-size: var(--cds-type-xs);
   font-family: var(--cds-font-mono);
   font-weight: var(--cds-weight-medium);
   cursor: pointer;
-  transition: background var(--cds-transition-fast), color var(--cds-transition-fast);
+  transition: background var(--cds-transition-fast), border-color var(--cds-transition-fast), color var(--cds-transition-fast);
 }
 
 .vuln-filter-tab:hover {
-  background: var(--cds-layer-02);
-  color: var(--cds-text-secondary);
+  border-color: var(--cds-interactive);
+  color: var(--cds-interactive);
 }
 
 .vuln-filter-tab--active {
   background: var(--cds-interactive-subtle);
   color: var(--cds-interactive);
+  border-color: var(--cds-interactive);
 }
 
 .vuln-filter-tab--active:hover {
   background: var(--cds-interactive-subtle);
 }
 
-.vuln-filter-count {
-  font-size: var(--cds-type-xs);
-  opacity: 0.7;
+/* Severity-colored active states */
+.vuln-filter-tab--critical.vuln-filter-tab--active {
+  background: var(--aegis-severity-critical-bg);
+  color: var(--aegis-severity-critical);
+  border-color: var(--aegis-severity-critical);
+}
+.vuln-filter-tab--high.vuln-filter-tab--active {
+  background: var(--aegis-severity-high-bg);
+  color: var(--aegis-severity-high);
+  border-color: var(--aegis-severity-high);
+}
+.vuln-filter-tab--medium.vuln-filter-tab--active {
+  background: var(--aegis-severity-medium-bg);
+  color: var(--aegis-severity-medium);
+  border-color: var(--aegis-severity-medium);
+}
+.vuln-filter-tab--low.vuln-filter-tab--active {
+  background: var(--aegis-severity-low-bg);
+  color: var(--aegis-severity-low);
+  border-color: var(--aegis-severity-low);
 }
 
-.vuln-module-tag {
-  margin-left: auto;
+.vuln-filter-count {
   font-size: var(--cds-type-xs);
-  padding: 1px 6px;
-  border-radius: var(--cds-radius);
-  background: var(--cds-layer-02);
-  color: var(--cds-text-placeholder);
+  opacity: 0.75;
 }
 
 /* ── Search & Sort ── */
@@ -80,213 +133,12 @@
   font-size: var(--cds-type-sm);
 }
 
-/* ── Date Filter ── */
-
-.vuln-date-filter {
-  display: flex;
-  align-items: center;
-  gap: var(--cds-spacing-03);
-  margin-left: auto;
-}
-
-.vuln-date-filter__icon {
-  color: var(--cds-text-placeholder);
-  flex-shrink: 0;
-}
-
-.vuln-date-filter__input {
-  max-width: 160px;
-  font-size: var(--cds-type-sm);
-}
-
-.vuln-date-filter__sep {
-  color: var(--cds-text-placeholder);
-  font-size: var(--cds-type-sm);
-}
-
-/* ── Empty state ── */
-
-.vuln-empty-enter {
-  animation: vuln-card-enter 200ms ease-out both;
-}
-
-.vuln-empty-card {
-  padding: var(--cds-spacing-07);
-  text-align: center;
-}
-
-/* ── Vulnerability Groups ── */
-
-.vuln-group {
-  padding: 0;
-  overflow: hidden;
-}
-
-.vuln-group--static  { border-left: 3px solid var(--aegis-module-static); }
-.vuln-group--dynamic { border-left: 3px solid var(--cds-support-success); }
-.vuln-group--test    { border-left: 3px solid var(--cds-interactive); }
-
-.vuln-group__header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cds-spacing-03);
-  padding: var(--cds-spacing-04) var(--aegis-spacing-05);
-  background: var(--cds-background);
-  border-bottom: 1px solid var(--cds-border-subtle);
-}
-
-.vuln-group--static  .vuln-group__header { background: var(--aegis-module-static-bg); }
-.vuln-group--dynamic .vuln-group__header { background: var(--aegis-module-dynamic-bg); }
-.vuln-group--test    .vuln-group__header { background: var(--aegis-module-test-bg); }
-
-.vuln-group__header-top {
-  display: flex;
-  align-items: center;
-  gap: var(--cds-spacing-03);
-}
-
-.vuln-group__sep {
-  color: var(--cds-text-placeholder);
-  font-size: var(--cds-type-sm);
-}
-
-.vuln-group__time {
-  font-size: var(--cds-type-sm);
-  color: var(--cds-text-secondary);
-  white-space: nowrap;
-}
-
-.vuln-group__vcount {
-  font-size: var(--cds-type-sm);
-  font-weight: var(--cds-weight-medium);
-  color: var(--cds-text-secondary);
-  white-space: nowrap;
-}
-
-.vuln-group__body .vuln-card {
-  padding: var(--cds-spacing-04) var(--aegis-spacing-05);
-  border-bottom: 1px solid var(--cds-border-subtle);
-}
-
-.vuln-group__body .vuln-card:last-child {
-  border-bottom: none;
-}
-
-.vuln-group__body .vuln-card:hover {
-  background: var(--cds-layer-02);
-  box-shadow: none;
-}
-
-/* ── Extra Selects ── */
-
 .vuln-extra-select {
   max-width: 130px;
   font-size: var(--cds-type-sm);
 }
 
-/* ── Bulk Action Bar ── */
-
-.vuln-bulk-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--cds-spacing-03);
-  padding: var(--cds-spacing-03) var(--cds-spacing-04) !important;
-  margin-bottom: var(--cds-spacing-04);
-}
-
-.vuln-bulk-bar__count {
-  font-size: var(--cds-type-sm);
-  font-weight: var(--cds-weight-semibold);
-  color: var(--cds-interactive);
-  white-space: nowrap;
-}
-
-.vuln-bulk-bar__reason {
-  flex: 1;
-  min-width: 120px;
-}
-
-/* ── Finding List Table ── */
-
-.vuln-finding-list {
-  padding: 0 !important;
-  overflow: hidden;
-}
-
-.vuln-finding-header,
-.vuln-finding-row {
-  display: grid;
-  grid-template-columns: 36px 80px 90px 1fr 80px 100px 70px 100px;
-  gap: var(--cds-spacing-03);
-  padding: var(--cds-spacing-03) var(--cds-spacing-04);
-  align-items: center;
-}
-
-.vuln-finding-header {
-  font-size: var(--cds-type-xs);
-  font-weight: var(--cds-weight-semibold);
-  color: var(--cds-text-placeholder);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  border-bottom: 1px solid var(--cds-border-subtle);
-  background: var(--cds-background);
-}
-
-.vuln-finding-row {
-  border-bottom: 1px solid var(--cds-border-subtle);
-  font-size: var(--cds-type-sm);
-  cursor: pointer;
-  transition: background var(--cds-transition-fast);
-}
-
-.vuln-finding-row:last-child {
-  border-bottom: none;
-}
-
-.vuln-finding-row:hover {
-  background: var(--cds-layer-02);
-}
-
-.vuln-finding-row--selected {
-  background: var(--cds-layer-02);
-}
-
-.vuln-finding-col--check {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.vuln-finding-col--title {
-  min-width: 0;
-}
-
-.vuln-finding-title {
-  display: block;
-  font-weight: var(--cds-weight-medium);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.vuln-finding-location {
-  display: block;
-  font-size: var(--cds-type-xs);
-  color: var(--cds-text-placeholder);
-  font-family: var(--cds-font-mono);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.vuln-finding-col--date {
-  font-size: var(--cds-type-xs);
-  font-family: var(--cds-font-mono);
-  color: var(--cds-text-placeholder);
-  white-space: nowrap;
-}
-
-/* ── Active filter summary ── */
+/* ── Active filter chips ── */
 
 .vuln-active-filters {
   display: flex;
@@ -328,7 +180,7 @@
 }
 .vuln-filter-chip__x:hover { opacity: 1; }
 
-/* ── Keyboard shortcut help ── */
+/* ── Shortcut help ── */
 
 .vuln-shortcut-help {
   margin-bottom: var(--cds-spacing-04);
@@ -354,38 +206,229 @@
   margin-right: 2px;
 }
 
-/* ── Keyboard shortcut footer hint ── */
+/* ── Bulk action bar ── */
 
-.vuln-keyboard-hint {
+.vuln-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-03);
+  padding: var(--cds-spacing-03) var(--cds-spacing-04) !important;
+  margin-bottom: var(--cds-spacing-04);
+}
+
+.vuln-bulk-bar__count {
+  font-size: var(--cds-type-sm);
+  font-weight: var(--cds-weight-semibold);
+  color: var(--cds-interactive);
+  white-space: nowrap;
+}
+
+.vuln-bulk-bar__reason {
+  flex: 1;
+  min-width: 120px;
+}
+
+/* ── Finding list — v6 horizontal card rows ── */
+
+.vuln-finding-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cds-spacing-03);
+}
+
+/* v6-style finding row: horizontal card with left severity stripe */
+.vuln-finding-card {
+  background: var(--cds-background);
+  border: 1px solid var(--cds-border-subtle);
+  border-left: 4px solid var(--cds-border-subtle);
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-06);
+  padding: var(--cds-spacing-06);
+  cursor: pointer;
+  transition: background var(--cds-transition-base), box-shadow var(--cds-transition-base);
+}
+
+.vuln-finding-card:hover {
+  background: var(--cds-layer-01);
+  box-shadow: none;
+}
+
+.vuln-finding-card--critical { border-left-color: var(--aegis-severity-critical); }
+.vuln-finding-card--high     { border-left-color: var(--aegis-severity-high); }
+.vuln-finding-card--medium   { border-left-color: var(--aegis-severity-medium); }
+.vuln-finding-card--low      { border-left-color: var(--aegis-severity-low); }
+.vuln-finding-card--info     { border-left-color: var(--aegis-severity-info); }
+
+.vuln-finding-card--selected {
+  background: var(--cds-interactive-subtle);
+}
+
+.vuln-finding-card--highlight {
+  outline: 2px solid var(--cds-interactive);
+  outline-offset: -2px;
+}
+
+/* CWE + severity label column */
+.vuln-finding-card__cwe-col {
+  flex-shrink: 0;
+  text-align: center;
+  width: 88px;
+}
+
+.vuln-finding-card__cwe-id {
+  display: block;
+  font-family: var(--cds-font-mono);
+  font-size: var(--cds-type-xs);
+  font-weight: var(--cds-weight-semibold);
+  letter-spacing: -0.02em;
+  margin-bottom: 2px;
+}
+
+.vuln-finding-card__cwe-id--critical { color: var(--aegis-severity-critical); }
+.vuln-finding-card__cwe-id--high     { color: var(--aegis-severity-high); }
+.vuln-finding-card__cwe-id--medium   { color: var(--cds-interactive); }
+.vuln-finding-card__cwe-id--low      { color: var(--cds-text-placeholder); }
+.vuln-finding-card__cwe-id--info     { color: var(--cds-text-placeholder); }
+
+.vuln-finding-card__sev-label {
+  font-size: var(--cds-type-2xs);
+  font-weight: var(--cds-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--cds-text-placeholder);
+}
+
+/* Main content column */
+.vuln-finding-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.vuln-finding-card__title {
+  font-size: var(--cds-type-md);
+  font-weight: var(--cds-weight-semibold);
+  color: var(--cds-text-primary);
+  margin-bottom: var(--cds-spacing-02);
+  letter-spacing: -0.01em;
   display: flex;
   align-items: center;
   gap: var(--cds-spacing-02);
-  justify-content: center;
-  padding: var(--cds-spacing-03) 0;
+}
+
+.vuln-finding-card__location-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-04);
+  flex-wrap: wrap;
+}
+
+.vuln-finding-card__location {
+  font-family: var(--cds-font-mono);
   font-size: var(--cds-type-xs);
   color: var(--cds-text-placeholder);
-  opacity: 0.6;
+  background: var(--cds-layer-01);
+  padding: 1px 8px;
+  border-radius: var(--cds-radius);
 }
 
-.vuln-keyboard-hint kbd {
-  display: inline-block;
-  padding: 0 4px;
-  font-family: var(--cds-font-mono);
+.vuln-finding-card__module {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: var(--cds-type-2xs);
-  background: var(--cds-layer-02);
-  border: 1px solid var(--cds-border-subtle);
-  border-radius: 3px;
+  font-weight: var(--cds-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--cds-text-placeholder);
 }
 
-/* ── Finding row highlight ── */
+/* Right actions column */
+.vuln-finding-card__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-05);
+  flex-shrink: 0;
+}
 
+/* Check column */
+.vuln-finding-card__check {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* ── Legacy table layout (kept for grouped view) ── */
+
+.vuln-finding-header,
+.vuln-finding-row {
+  display: grid;
+  grid-template-columns: 36px 80px 90px 1fr 80px 100px 70px 100px;
+  gap: var(--cds-spacing-03);
+  padding: var(--cds-spacing-03) var(--cds-spacing-04);
+  align-items: center;
+}
+
+.vuln-finding-header {
+  font-size: var(--cds-type-xs);
+  font-weight: var(--cds-weight-semibold);
+  color: var(--cds-text-placeholder);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-bottom: 1px solid var(--cds-border-subtle);
+  background: var(--cds-background);
+}
+
+.vuln-finding-row {
+  border-bottom: 1px solid var(--cds-border-subtle);
+  font-size: var(--cds-type-sm);
+  cursor: pointer;
+  transition: background var(--cds-transition-fast);
+}
+
+.vuln-finding-row:last-child { border-bottom: none; }
+.vuln-finding-row:hover { background: var(--cds-layer-02); }
+.vuln-finding-row--selected { background: var(--cds-layer-02); }
 .vuln-finding-row--highlight {
   outline: 2px solid var(--cds-interactive);
   outline-offset: -2px;
   background: var(--cds-interactive-subtle) !important;
 }
 
-/* ── Finding Groups (accordion) ── */
+.vuln-finding-col--check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vuln-finding-col--title { min-width: 0; }
+
+.vuln-finding-title {
+  display: block;
+  font-weight: var(--cds-weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vuln-finding-location {
+  display: block;
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
+  font-family: var(--cds-font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vuln-finding-col--date {
+  font-size: var(--cds-type-xs);
+  font-family: var(--cds-font-mono);
+  color: var(--cds-text-placeholder);
+  white-space: nowrap;
+}
+
+/* ── Groups ── */
 
 .vuln-groups {
   margin-bottom: var(--cds-spacing-04);
@@ -405,9 +448,7 @@
   transition: background var(--cds-transition-fast);
 }
 
-.vuln-group__header:hover {
-  background: var(--cds-layer-02);
-}
+.vuln-group__header:hover { background: var(--cds-layer-02); }
 
 .vuln-group__arrow {
   font-size: var(--cds-type-xs);
@@ -416,9 +457,7 @@
   text-align: center;
 }
 
-.vuln-group__key {
-  font-family: var(--cds-font-mono);
-}
+.vuln-group__key { font-family: var(--cds-font-mono); }
 
 .vuln-group__count {
   font-size: var(--cds-type-xs);
@@ -441,11 +480,9 @@
   transition: background var(--cds-transition-fast);
 }
 
-.vuln-group__item:hover {
-  background: var(--cds-layer-02);
-}
+.vuln-group__item:hover { background: var(--cds-layer-02); }
 
-/* ── CWE column ── */
+/* ── CWE link ── */
 
 .vuln-finding-col--cwe {
   font-family: var(--cds-font-mono);
@@ -461,13 +498,8 @@
   text-decoration: none;
 }
 
-.vuln-cwe-link:hover {
-  text-decoration: underline;
-}
-
-.vuln-cwe-empty {
-  color: var(--cds-text-placeholder);
-}
+.vuln-cwe-link:hover { text-decoration: underline; }
+.vuln-cwe-empty { color: var(--cds-text-placeholder); }
 
 /* ── PoC badge ── */
 
@@ -485,6 +517,133 @@
   white-space: nowrap;
 }
 
+/* ── Keyboard hint ── */
+
+.vuln-keyboard-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-02);
+  justify-content: center;
+  padding: var(--cds-spacing-03) 0;
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
+  opacity: 0.6;
+}
+
+.vuln-keyboard-hint kbd {
+  display: inline-block;
+  padding: 0 4px;
+  font-family: var(--cds-font-mono);
+  font-size: var(--cds-type-2xs);
+  background: var(--cds-layer-02);
+  border: 1px solid var(--cds-border-subtle);
+  border-radius: 3px;
+}
+
+/* ── Legacy vuln-card (used in sub-views) ── */
+
+.vuln-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.vuln-card {
+  cursor: pointer;
+  transition: border-color var(--cds-transition-fast), background var(--cds-transition-base);
+  border-left: 3px solid transparent;
+}
+
+.vuln-card:hover {
+  border-color: var(--cds-interactive-border);
+  background: var(--cds-layer-02);
+}
+
+.vuln-card--critical { border-left-color: var(--aegis-severity-critical); }
+.vuln-card--high     { border-left-color: var(--aegis-severity-high); }
+.vuln-card--medium   { border-left-color: var(--aegis-severity-medium); }
+.vuln-card--low      { border-left-color: var(--aegis-severity-low); }
+.vuln-card--info     { border-left-color: var(--aegis-severity-info); }
+
+.vuln-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-03);
+  margin-bottom: var(--cds-spacing-03);
+}
+
+.vuln-title {
+  font-size: var(--cds-type-md);
+  font-weight: var(--cds-weight-semibold);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.vuln-card-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-05);
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-secondary);
+  margin-bottom: var(--cds-spacing-03);
+}
+
+.vuln-location-link {
+  color: var(--cds-text-secondary);
+  cursor: default;
+  text-decoration: none;
+  font-size: var(--cds-type-xs);
+}
+
+.vuln-source {
+  background: var(--cds-layer-02);
+  padding: 1px 6px;
+  border-radius: var(--cds-radius);
+  font-size: var(--cds-type-xs);
+}
+
+.vuln-card-desc {
+  font-size: var(--cds-type-base);
+  color: var(--cds-text-secondary);
+  line-height: var(--cds-leading-normal);
+}
+
+/* ── Pagination ── */
+
+.vuln-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--cds-spacing-05) 0;
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-secondary);
+}
+
+.vuln-pagination__count {
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
+}
+
+/* ── Filter entry animation ── */
+
+@keyframes vuln-card-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.vuln-list--animated .vuln-card {
+  animation: vuln-card-enter 250ms ease-out both;
+}
+
+.vuln-list--animated .vuln-card:nth-child(1)  { animation-delay: 0ms; }
+.vuln-list--animated .vuln-card:nth-child(2)  { animation-delay: 30ms; }
+.vuln-list--animated .vuln-card:nth-child(3)  { animation-delay: 60ms; }
+.vuln-list--animated .vuln-card:nth-child(4)  { animation-delay: 90ms; }
+.vuln-list--animated .vuln-card:nth-child(5)  { animation-delay: 120ms; }
+.vuln-list--animated .vuln-card:nth-child(n+6) { animation-delay: 150ms; }
+
 @media (max-width: 900px) {
   .vuln-finding-header,
   .vuln-finding-row {
@@ -494,5 +653,18 @@
   .vuln-finding-col--confidence,
   .vuln-finding-col--date {
     display: none;
+  }
+
+  .vuln-finding-card {
+    flex-wrap: wrap;
+    gap: var(--cds-spacing-04);
+  }
+
+  .vuln-finding-card__cwe-col {
+    width: auto;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: var(--cds-spacing-03);
   }
 }

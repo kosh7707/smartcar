@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { StatusBar } from "./StatusBar";
+import { StatusBar, _resetHealthCache } from "./StatusBar";
 import React from "react";
 
 // Mock ToastContext
@@ -12,6 +12,16 @@ vi.mock("../contexts/ToastContext", () => ({
   }),
 }));
 
+// Mock NotificationContext
+vi.mock("../contexts/NotificationContext", () => ({
+  useNotifications: () => ({ unreadCount: 0, notifications: [], markAsRead: vi.fn() }),
+}));
+
+// Mock AuthContext
+vi.mock("../contexts/AuthContext", () => ({
+  useAuth: () => ({ user: { username: "test", role: "Admin" }, isLoggedIn: true, login: vi.fn(), logout: vi.fn() }),
+}));
+
 // Mock healthCheck
 const mockHealthCheck = vi.fn();
 vi.mock("../api/client", () => ({
@@ -21,6 +31,7 @@ vi.mock("../api/client", () => ({
 describe("StatusBar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    _resetHealthCache();
   });
 
   it("renders version string", async () => {

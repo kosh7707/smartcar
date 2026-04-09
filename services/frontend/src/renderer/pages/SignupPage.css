@@ -1,0 +1,159 @@
+/* ── Signup Page — v6 auth layout ── */
+
+.signup-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--cds-background);
+  padding: var(--cds-spacing-05);
+}
+
+/* ── Auth Card ── */
+
+.signup-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--cds-layer-raised);
+  border-radius: var(--cds-radius);
+  padding: var(--cds-spacing-08) var(--cds-spacing-08) var(--cds-spacing-06);
+}
+
+/* ── Branding section ── */
+
+.signup-card__header {
+  text-align: center;
+  margin-bottom: var(--cds-spacing-07);
+}
+
+.signup-card__title {
+  font-family: var(--cds-font-sans);
+  font-size: var(--cds-type-2xl);
+  font-weight: var(--cds-weight-semibold);
+  color: var(--cds-text-primary);
+  margin: 0 0 var(--cds-spacing-02);
+  letter-spacing: -0.02em;
+}
+
+.signup-card__subtitle {
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-placeholder);
+  margin: 0;
+  display: block;
+}
+
+/* ── Form heading ── */
+
+.signup-form-heading {
+  font-size: var(--cds-type-xl);
+  font-weight: var(--cds-weight-semibold);
+  color: var(--cds-text-primary);
+  margin: 0 0 var(--cds-spacing-06);
+  text-align: left;
+}
+
+/* ── Form ── */
+
+.signup-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cds-spacing-05);
+}
+
+.signup-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cds-spacing-02);
+}
+
+.signup-field label {
+  font-size: var(--cds-type-sm);
+  font-weight: var(--cds-weight-medium);
+  color: var(--cds-text-primary);
+}
+
+.signup-field input {
+  width: 100%;
+  padding: var(--cds-spacing-03) var(--cds-spacing-04);
+  border: 1px solid var(--cds-border-subtle);
+  border-radius: var(--cds-radius);
+  background: var(--cds-layer-raised);
+  color: var(--cds-text-primary);
+  font-size: var(--cds-type-sm);
+  font-family: var(--cds-font-sans);
+  transition: border-color var(--cds-transition-fast);
+  outline: none;
+}
+
+.signup-field input:focus {
+  border-color: var(--cds-interactive);
+  box-shadow: 0 0 0 2px var(--cds-interactive-subtle);
+}
+
+/* ── Submit button ── */
+
+.signup-submit {
+  width: 100%;
+  margin-top: var(--cds-spacing-02);
+  padding: var(--cds-spacing-03) var(--cds-spacing-05);
+  background: var(--cds-button-primary);
+  color: var(--cds-text-on-color);
+  border: none;
+  border-radius: var(--cds-radius);
+  font-family: var(--cds-font-sans);
+  font-size: var(--cds-type-sm);
+  font-weight: var(--cds-weight-semibold);
+  cursor: pointer;
+  transition: background var(--cds-transition-fast);
+}
+
+.signup-submit:hover:not(:disabled) {
+  background: var(--cds-button-primary-hover);
+}
+
+.signup-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Divider ── */
+
+.signup-divider {
+  height: 1px;
+  background: var(--cds-border-subtle);
+  margin: var(--cds-spacing-06) 0;
+}
+
+/* ── Footer ── */
+
+.signup-card__footer {
+  margin: 0;
+  text-align: center;
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-secondary);
+}
+
+.signup-card__link {
+  color: var(--cds-link-primary);
+  font-weight: var(--cds-weight-medium);
+  text-decoration: none;
+}
+
+.signup-card__link:hover {
+  color: var(--cds-link-primary-hover);
+  text-decoration: underline;
+}
+
+/* ── Page footer ── */
+
+.signup-page__footer {
+  margin-top: var(--cds-spacing-07);
+  text-align: center;
+}
+
+.signup-page__footer p {
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
+  margin: 0;
+}

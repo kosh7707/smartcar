@@ -1,3 +1,84 @@
+/* ── v6: Page Header ── */
+
+.approval-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: var(--cds-spacing-07);
+}
+
+.approval-page-header__title {
+  font-size: var(--cds-type-3xl);
+  font-weight: var(--cds-weight-semibold);
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--cds-spacing-02);
+}
+
+.approval-page-header__subtitle {
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-secondary);
+  margin: 0;
+}
+
+/* ── v6: Approval Card border-l-4 by status ── */
+
+.approval-card--pending {
+  border-left: 4px solid var(--cds-support-warning);
+}
+
+.approval-card--approved {
+  border-left: 4px solid var(--cds-support-success);
+}
+
+.approval-card--rejected {
+  border-left: 4px solid var(--cds-support-error);
+}
+
+.approval-card--expired {
+  border-left: 4px solid var(--cds-border-subtle);
+  opacity: 0.85;
+}
+
+/* Status badge in card header */
+.approval-card__status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cds-spacing-02);
+  padding: var(--cds-spacing-01) var(--cds-spacing-03);
+  border-radius: var(--cds-radius);
+  font-size: var(--cds-type-2xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.approval-card__status-badge--pending {
+  background: var(--cds-support-warning-bg);
+  color: var(--cds-support-warning);
+  border-color: var(--cds-support-warning);
+}
+
+.approval-card__status-badge--approved {
+  background: var(--cds-support-success-bg);
+  color: var(--cds-support-success);
+  border-color: var(--cds-support-success);
+}
+
+.approval-card__status-badge--rejected {
+  background: var(--cds-support-error-bg);
+  color: var(--cds-support-error);
+  border-color: var(--cds-support-error);
+}
+
+.approval-card__status-badge--expired {
+  background: var(--cds-layer-02);
+  color: var(--cds-text-placeholder);
+  border-color: var(--cds-border-subtle);
+}
+
 /* ── Approvals Page ── */
 
 .approval-pending-badge {

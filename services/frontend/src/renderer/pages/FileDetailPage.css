@@ -1,3 +1,5 @@
+/* ── File Detail Page — DESIGN.md Section 4 layout ── */
+
 .file-detail-header {
   display: flex;
   flex-direction: column;
@@ -19,10 +21,13 @@
 .file-detail-header__name {
   font-size: var(--cds-type-lg);
   font-weight: var(--cds-weight-semibold);
+  font-family: var(--cds-font-mono);
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--cds-text-primary);
+  letter-spacing: -0.01em;
 }
 
 .file-detail-header__path {
@@ -65,9 +70,9 @@
 }
 
 .file-detail-badge--warn {
-  border-color: var(--aegis-severity-high);
+  border-color: var(--aegis-severity-high-border);
   color: var(--aegis-severity-high);
-  background: color-mix(in srgb, var(--aegis-severity-high) 8%, transparent);
+  background: var(--aegis-severity-high-bg);
 }
 
 .file-detail-vuln-row {
@@ -79,11 +84,13 @@
 .file-detail-vuln-title {
   font-size: var(--cds-type-md);
   font-weight: var(--cds-weight-medium);
+  color: var(--cds-text-primary);
 }
 
 .file-detail-vuln-location {
   font-size: var(--cds-type-sm);
   color: var(--cds-text-placeholder);
+  font-family: var(--cds-font-mono);
 }
 
 .file-detail-vuln-source {
@@ -166,7 +173,7 @@
   position: fixed;
   inset: 0;
   z-index: var(--cds-z-overlay);
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--cds-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -193,4 +200,154 @@
   flex: 1;
   overflow: auto;
   padding: var(--cds-spacing-04) 0;
+}
+
+/* ── Shimmer Fill (shared utility) ── */
+
+.shimmer-fill {
+  position: relative;
+}
+
+.shimmer-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--cds-shimmer), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ── Code Viewer ── */
+
+.code-viewer {
+  background: var(--cds-code-bg);
+  border-radius: var(--cds-radius);
+  padding: var(--cds-spacing-04) 0;
+  font-family: var(--cds-font-mono);
+  font-size: var(--cds-type-sm);
+  overflow-x: auto;
+  color: var(--cds-code-text);
+  border: 1px solid var(--cds-code-border);
+  line-height: 1.6;
+}
+
+.code-line {
+  display: flex;
+  align-items: center;
+  padding: 1px var(--cds-spacing-05);
+  line-height: 1.7;
+  transition: background var(--cds-transition-fast);
+}
+
+.code-line:hover {
+  background: var(--cds-code-line-hover);
+}
+
+.code-line-highlight {
+  background: var(--cds-code-line-highlight-bg);
+  border-left: 3px solid var(--aegis-severity-critical);
+}
+
+.code-line-highlight:hover {
+  background: var(--cds-code-line-highlight-bg-hover);
+}
+
+.code-line-num {
+  width: 40px;
+  text-align: right;
+  margin-right: var(--cds-spacing-05);
+  color: var(--cds-code-line-num);
+  user-select: none;
+  flex-shrink: 0;
+  font-size: var(--cds-type-sm);
+}
+
+.code-line-content {
+  flex: 1;
+  white-space: pre;
+}
+
+.code-line-marker {
+  color: var(--aegis-severity-critical);
+  font-size: var(--cds-type-xs);
+  margin-left: var(--cds-spacing-05);
+  white-space: nowrap;
+  font-family: var(--cds-font-sans);
+  font-weight: var(--cds-weight-medium);
+}
+
+.code-viewer--scrollable {
+  max-height: 625px;
+  overflow: auto;
+}
+
+/* ── Fix Code ── */
+
+.fix-code {
+  background: var(--cds-support-success-bg);
+  border-radius: var(--cds-radius);
+  padding: var(--cds-spacing-04) var(--cds-spacing-05);
+  font-family: var(--cds-font-mono);
+  font-size: var(--cds-type-base);
+  color: var(--cds-support-success);
+  border-left: 3px solid var(--cds-support-success);
+  line-height: var(--cds-leading-relaxed);
+  overflow-x: auto;
+}
+
+/* ── highlight.js theme — light/dark auto-switch via data-theme ── */
+
+.hljs {
+  color: var(--cds-text-primary);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--cds-hljs-comment);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-type {
+  color: var(--cds-hljs-keyword);
+}
+
+.hljs-string,
+.hljs-attr {
+  color: var(--cds-hljs-string);
+}
+
+.hljs-number,
+.hljs-literal {
+  color: var(--cds-hljs-number);
+}
+
+.hljs-function .hljs-title,
+.hljs-title.function_,
+.hljs-section {
+  color: var(--cds-hljs-function);
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-symbol {
+  color: var(--cds-hljs-variable);
+}
+
+.hljs-meta,
+.hljs-preprocessor {
+  color: var(--cds-hljs-meta);
+  font-weight: bold;
+}
+
+.hljs-deletion {
+  color: var(--cds-hljs-deletion);
+  background: var(--cds-hljs-deletion-bg);
+}
+
+.hljs-addition {
+  color: var(--cds-hljs-string);
+  background: var(--cds-hljs-addition-bg);
 }

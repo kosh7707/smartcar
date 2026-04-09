@@ -70,7 +70,7 @@ describe("ApprovalsPage", () => {
 
   it("shows pending badge", async () => {
     renderPage();
-    await waitFor(() => expect(screen.getByText("1건 대기")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("1건의 승인 요청이 대기 중입니다")).toBeInTheDocument());
   });
 
   it("shows approve/reject action buttons for pending", async () => {

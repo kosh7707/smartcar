@@ -19,6 +19,29 @@
   gap: var(--cds-spacing-04);
 }
 
+.statusbar__left {
+  flex: 1;
+}
+
+.statusbar__center {
+  flex: 0 1 auto;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: var(--cds-type-xs);
+  font-family: var(--cds-font-mono);
+  color: var(--cds-text-placeholder);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.statusbar__right {
+  flex: 1;
+  justify-content: flex-end;
+  gap: var(--cds-spacing-03);
+}
+
 .statusbar-item {
   display: flex;
   align-items: center;

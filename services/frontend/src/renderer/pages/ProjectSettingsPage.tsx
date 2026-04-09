@@ -1,15 +1,12 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { Settings, Plus, Trash2, CheckCircle, XCircle, Loader, ChevronDown, ChevronRight, ShieldCheck, Archive, Binary, FolderOpen } from "lucide-react";
-import type { GateProfile } from "@aegis/shared";
-import { fetchGateProfiles } from "../api/gate";
-import { fetchProjectSettings, updateProjectSettings } from "../api/projects";
+import { Settings, Plus, Trash2, CheckCircle, XCircle, Loader, ChevronDown, ChevronRight, Archive, Binary, FolderOpen, AlertTriangle } from "lucide-react";
 import type { RegisteredSdk, SdkRegistryStatus, SdkAnalyzedProfile } from "../api/sdk";
 import { fetchProjectSdks, deleteSdk } from "../api/sdk";
 import { logError } from "../api/core";
 import { useToast } from "../contexts/ToastContext";
 import { useSdkProgress } from "../hooks/useSdkProgress";
-import { PageHeader, Spinner, EmptyState, ConfirmDialog, ConnectionStatusBanner } from "../components/ui";
+import { Spinner, EmptyState, ConfirmDialog, ConnectionStatusBanner } from "../components/ui";
 import { SdkUploadForm } from "../components/SdkUploadForm";
 import "./SdkManagementPage.css";
 import "./SettingsPage.css";
@@ -52,7 +49,6 @@ function SdkStatusBadge({ status }: { status: SdkRegistryStatus }) {
 }
 
 function SdkStepper({ status }: { status: SdkRegistryStatus }) {
-  // Find which group the current status belongs to
   let activeGroupIdx = -1;
   let failedGroupIdx = -1;
   for (let g = 0; g < PHASE_GROUPS.length; g++) {
@@ -106,9 +102,20 @@ function ProfileDetail({ profile }: { profile: SdkAnalyzedProfile }) {
   );
 }
 
+type SettingsSection = "general" | "sdk" | "build-targets" | "notifications" | "adapters" | "danger";
+
+const NAV_ITEMS: { id: SettingsSection; label: string }[] = [
+  { id: "general", label: "General" },
+  { id: "sdk", label: "SDK Management" },
+  { id: "build-targets", label: "빌드 타겟" },
+  { id: "notifications", label: "알림" },
+  { id: "adapters", label: "어댑터" },
+];
+
 export const ProjectSettingsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const toast = useToast();
+  const [activeSection, setActiveSection] = useState<SettingsSection>("general");
   const [registered, setRegistered] = useState<RegisteredSdk[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -140,9 +147,10 @@ export const ProjectSettingsPage: React.FC = () => {
       toast.error(`SDK ${ERROR_LABELS[errorStatus] ?? "등록 실패"}: ${error}`);
     }, [toast]),
   });
-  const [gateProfiles, setGateProfiles] = useState<GateProfile[]>([]);
-  const [selectedProfileId, setSelectedProfileId] = useState<string>("");
-  const [savingProfile, setSavingProfile] = useState(false);
+
+  useEffect(() => {
+    document.title = "AEGIS — Project Settings";
+  }, []);
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -159,18 +167,6 @@ export const ProjectSettingsPage: React.FC = () => {
   }, [projectId, toast]);
 
   useEffect(() => { load(); }, [load]);
-
-  useEffect(() => {
-    if (!projectId) return;
-    fetchGateProfiles()
-      .then(setGateProfiles)
-      .catch((e) => logError("GateProfiles.load", e));
-    fetchProjectSettings(projectId)
-      .then((s) => { if (s.gateProfileId) setSelectedProfileId(s.gateProfileId); })
-      .catch((e) => logError("Settings.load", e));
-  }, [projectId]);
-
-  // SDK WS progress is now handled by useSdkProgress hook above
 
   const handleRegistered = useCallback((sdk: RegisteredSdk) => {
     setRegistered((prev) => [...prev, sdk]);
@@ -190,21 +186,6 @@ export const ProjectSettingsPage: React.FC = () => {
     setDeleteTarget(null);
   }, [projectId, toast]);
 
-  const handleProfileChange = async (profileId: string) => {
-    if (!projectId) return;
-    setSavingProfile(true);
-    try {
-      await updateProjectSettings(projectId, { gateProfileId: profileId });
-      setSelectedProfileId(profileId);
-      toast.success("Gate 프로파일이 변경되었습니다.");
-    } catch (e) {
-      logError("GateProfile.save", e);
-      toast.error("프로파일 변경에 실패했습니다.");
-    } finally {
-      setSavingProfile(false);
-    }
-  };
-
   if (loading) {
     return <div className="page-enter centered-loader"><Spinner size={36} label="설정 로딩 중..." /></div>;
   }
@@ -212,121 +193,206 @@ export const ProjectSettingsPage: React.FC = () => {
   return (
     <div className="page-enter">
       <ConnectionStatusBanner connectionState={sdkConnectionState} />
-      <PageHeader title="프로젝트 설정" icon={<Settings size={20} />} />
 
-      {/* Quality Gate Profile Section */}
-      <div className="card" style={{ marginBottom: "var(--cds-spacing-05)" }}>
-        <div className="card-title flex-center flex-gap-2">
-          <ShieldCheck size={16} />
-          Quality Gate 프로파일
-        </div>
-        <p style={{ color: "var(--cds-text-secondary)", fontSize: "var(--cds-type-sm)", marginBottom: "var(--cds-spacing-04)" }}>
-          프로젝트에 적용할 Quality Gate 규칙 세트를 선택합니다.
+      {/* Page header */}
+      <div style={{ marginBottom: "var(--cds-spacing-06)" }}>
+        <h1 style={{ fontSize: "var(--cds-type-3xl)", fontWeight: "var(--cds-weight-semibold)", color: "var(--cds-text-primary)", margin: "0 0 var(--cds-spacing-02)", letterSpacing: "-0.01em" }}>
+          Settings
+        </h1>
+        <p style={{ fontSize: "var(--cds-type-sm)", color: "var(--cds-text-secondary)", margin: 0 }}>
+          Configure analysis parameters and project metadata.
         </p>
-        {gateProfiles.length === 0 ? (
-          <p style={{ color: "var(--cds-text-placeholder)" }}>프로파일을 불러오는 중...</p>
-        ) : (
-          <>
-            <div style={{ display: "flex", gap: "var(--cds-spacing-03)", flexWrap: "wrap" }}>
-              {gateProfiles.map((gp) => (
-                <button
-                  key={gp.id}
-                  className={`btn ${selectedProfileId === gp.id ? "" : "btn-secondary"}`}
-                  onClick={() => handleProfileChange(gp.id)}
-                  disabled={savingProfile}
-                  title={gp.description}
-                  style={{ minWidth: 100 }}
-                >
-                  {gp.name}
-                </button>
-              ))}
-            </div>
-            {selectedProfileId && (() => {
-              const profile = gateProfiles.find((gp) => gp.id === selectedProfileId);
-              if (!profile) return null;
-              return (
-                <div style={{ marginTop: "var(--cds-spacing-04)", padding: "var(--cds-spacing-04)", background: "var(--cds-surface-inset)", borderRadius: "var(--cds-radius)" }}>
-                  <div style={{ fontWeight: "var(--cds-weight-semibold)", marginBottom: "var(--cds-spacing-03)" }}>{profile.name} — {profile.description}</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--cds-spacing-02)" }}>
-                    {profile.rules.map((r) => (
-                      <div key={r.ruleId} style={{ display: "flex", alignItems: "center", gap: "var(--cds-spacing-03)", fontSize: "var(--cds-type-sm)" }}>
-                        <span style={{ color: r.enabled ? "var(--cds-support-success)" : "var(--cds-text-placeholder)" }}>
-                          {r.enabled ? "\u2713" : "\u2014"}
-                        </span>
-                        <span>{r.ruleId}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
-          </>
-        )}
       </div>
 
-      {/* SDK Management Section */}
-      <div className="card gs-card">
-        <div className="gs-card__header">
-          <div className="gs-card__icon"><Settings size={18} /></div>
-          <div>
-            <div className="gs-card__title">SDK 관리</div>
-            <div className="gs-card__desc">크로스 컴파일 SDK를 등록하여 서브프로젝트 분석에 사용합니다.</div>
-          </div>
-        </div>
+      {/* Settings layout */}
+      <div className="settings-layout">
+        {/* Sidebar */}
+        <nav className="settings-sidebar">
+          {NAV_ITEMS.map((item) => (
+            <button
+              key={item.id}
+              className={`settings-sidebar__item${activeSection === item.id ? " settings-sidebar__item--active" : ""}`}
+              onClick={() => setActiveSection(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
 
-        <div className="sdk-actions">
-          <button className="btn btn-sm" onClick={() => setShowForm(!showForm)}>
-            <Plus size={14} /> SDK 추가
+          <div className="settings-sidebar__divider" />
+
+          <button
+            className={`settings-sidebar__item settings-sidebar__item--danger${activeSection === "danger" ? " settings-sidebar__item--active settings-sidebar__item--danger-active" : ""}`}
+            onClick={() => setActiveSection("danger")}
+          >
+            Danger Zone
           </button>
-        </div>
+        </nav>
 
-        {/* Register form */}
-        {showForm && projectId && (
-          <SdkUploadForm
-            projectId={projectId}
-            onRegistered={handleRegistered}
-            onCancel={() => setShowForm(false)}
-          />
-        )}
+        {/* Content area */}
+        <div className="settings-content">
 
-        {/* Registered SDKs */}
-        {registered.length === 0 ? (
-          <EmptyState icon={<Settings size={28} />} title="등록된 SDK가 없습니다" description="SDK 추가 버튼으로 크로스 컴파일 SDK를 등록하세요." />
-        ) : (
-          <div className="sdk-list">
-            {registered.map((sdk) => (
-              <div key={sdk.id} className={`card sdk-card sdk-card--registered${sdk.status.endsWith("_failed") ? " sdk-card--failed" : sdk.status === "ready" ? " sdk-card--ready" : ""}`}>
-                <div className="sdk-card__header">
-                  <span className="sdk-card__name">{sdk.name}</span>
-                  {sdk.artifactKind && (
-                    <span className="sdk-card__kind">
-                      {sdk.artifactKind === "archive" ? <Archive size={12} /> : sdk.artifactKind === "bin" ? <Binary size={12} /> : <FolderOpen size={12} />}
-                      {sdk.artifactKind === "archive" ? "아카이브" : sdk.artifactKind === "bin" ? "바이너리" : "폴더"}
-                    </span>
-                  )}
-                  <SdkStatusBadge status={sdk.status} />
-                  <button className="btn-icon btn-danger" title="삭제" onClick={() => setDeleteTarget(sdk)}>
-                    <Trash2 size={14} />
-                  </button>
+          {/* General */}
+          {activeSection === "general" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--cds-spacing-05)" }}>
+              <div className="card">
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--cds-spacing-02)", marginBottom: "var(--cds-spacing-04)" }}>
+                  <span style={{ width: "4px", height: "24px", background: "var(--cds-interactive)", borderRadius: "var(--cds-radius)", display: "inline-block", flexShrink: 0 }} />
+                  <div className="card-title" style={{ margin: 0 }}>General</div>
                 </div>
-                {sdk.description && <p className="sdk-card__desc">{sdk.description}</p>}
-                {(sdk.sdkVersion || sdk.targetSystem) && (
-                  <div className="sdk-card__meta">
-                    {sdk.sdkVersion && <span>버전: <code>{sdk.sdkVersion}</code></span>}
-                    {sdk.targetSystem && <span>타겟: <code>{sdk.targetSystem}</code></span>}
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--cds-spacing-04)" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "var(--cds-type-xs)", fontWeight: "var(--cds-weight-semibold)", color: "var(--cds-text-secondary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "var(--cds-spacing-02)" }}>
+                      프로젝트 이름
+                    </label>
+                    <div style={{ display: "flex", gap: "var(--cds-spacing-03)" }}>
+                      <input
+                        className="input"
+                        type="text"
+                        placeholder="프로젝트 이름"
+                        style={{ flex: 1 }}
+                      />
+                      <button className="btn btn-sm">저장</button>
+                    </div>
                   </div>
-                )}
-                {sdk.path && <div className="sdk-card__path"><code>{sdk.path}</code></div>}
-                {sdk.status !== "ready" && !sdk.status.endsWith("_failed") && <SdkStepper status={sdk.status} />}
-                {sdk.verifyError && <div className="sdk-card__error">{sdk.verifyError}</div>}
-                {sdk.status.endsWith("_failed") && sdk.installLogPath && (
-                  <div className="sdk-card__logpath"><strong>로그 경로:</strong> <code>{sdk.installLogPath}</code></div>
-                )}
-                {sdk.profile && <ProfileDetail profile={sdk.profile} />}
+                  <div>
+                    <label style={{ display: "block", fontSize: "var(--cds-type-xs)", fontWeight: "var(--cds-weight-semibold)", color: "var(--cds-text-secondary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "var(--cds-spacing-02)" }}>
+                      설명
+                    </label>
+                    <div style={{ display: "flex", gap: "var(--cds-spacing-03)", alignItems: "flex-start" }}>
+                      <textarea
+                        className="input"
+                        placeholder="프로젝트 설명"
+                        rows={3}
+                        style={{ flex: 1, resize: "vertical" }}
+                      />
+                      <button className="btn btn-sm">저장</button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          )}
+
+          {/* SDK Management */}
+          {activeSection === "sdk" && (
+            <div className="card gs-card">
+              <div className="gs-card__header">
+                <div className="gs-card__icon"><Settings size={18} /></div>
+                <div>
+                  <div className="gs-card__title">SDK 관리</div>
+                  <div className="gs-card__desc">크로스 컴파일 SDK를 등록하여 서브프로젝트 분석에 사용합니다.</div>
+                </div>
+              </div>
+
+              <div className="sdk-actions">
+                <button className="btn btn-sm" onClick={() => setShowForm(!showForm)}>
+                  <Plus size={14} /> SDK 추가
+                </button>
+              </div>
+
+              {showForm && projectId && (
+                <SdkUploadForm
+                  projectId={projectId}
+                  onRegistered={handleRegistered}
+                  onCancel={() => setShowForm(false)}
+                />
+              )}
+
+              {registered.length === 0 ? (
+                <EmptyState icon={<Settings size={28} />} title="등록된 SDK가 없습니다" description="SDK 추가 버튼으로 크로스 컴파일 SDK를 등록하세요." />
+              ) : (
+                <div className="sdk-list">
+                  {registered.map((sdk) => (
+                    <div key={sdk.id} className={`card sdk-card sdk-card--registered${sdk.status.endsWith("_failed") ? " sdk-card--failed" : sdk.status === "ready" ? " sdk-card--ready" : ""}`}>
+                      <div className="sdk-card__header">
+                        <span className="sdk-card__name">{sdk.name}</span>
+                        {sdk.artifactKind && (
+                          <span className="sdk-card__kind">
+                            {sdk.artifactKind === "archive" ? <Archive size={12} /> : sdk.artifactKind === "bin" ? <Binary size={12} /> : <FolderOpen size={12} />}
+                            {sdk.artifactKind === "archive" ? "아카이브" : sdk.artifactKind === "bin" ? "바이너리" : "폴더"}
+                          </span>
+                        )}
+                        <SdkStatusBadge status={sdk.status} />
+                        <button className="btn-icon btn-danger" title="삭제" onClick={() => setDeleteTarget(sdk)}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      {sdk.description && <p className="sdk-card__desc">{sdk.description}</p>}
+                      {(sdk.sdkVersion || sdk.targetSystem) && (
+                        <div className="sdk-card__meta">
+                          {sdk.sdkVersion && <span>버전: <code>{sdk.sdkVersion}</code></span>}
+                          {sdk.targetSystem && <span>타겟: <code>{sdk.targetSystem}</code></span>}
+                        </div>
+                      )}
+                      {sdk.path && <div className="sdk-card__path"><code>{sdk.path}</code></div>}
+                      {sdk.status !== "ready" && !sdk.status.endsWith("_failed") && <SdkStepper status={sdk.status} />}
+                      {sdk.verifyError && <div className="sdk-card__error">{sdk.verifyError}</div>}
+                      {sdk.status.endsWith("_failed") && sdk.installLogPath && (
+                        <div className="sdk-card__logpath"><strong>로그 경로:</strong> <code>{sdk.installLogPath}</code></div>
+                      )}
+                      {sdk.profile && <ProfileDetail profile={sdk.profile} />}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Build Targets placeholder */}
+          {activeSection === "build-targets" && (
+            <div className="card">
+              <EmptyState
+                icon={<Archive size={28} />}
+                title="빌드 타겟 설정은 준비 중입니다"
+                description="이 기능은 곧 제공될 예정입니다."
+              />
+            </div>
+          )}
+
+          {/* Notifications placeholder */}
+          {activeSection === "notifications" && (
+            <div className="card">
+              <EmptyState
+                icon={<Settings size={28} />}
+                title="프로젝트 알림 설정은 준비 중입니다"
+                description="이 기능은 곧 제공될 예정입니다."
+              />
+            </div>
+          )}
+
+          {/* Adapters placeholder */}
+          {activeSection === "adapters" && (
+            <div className="card">
+              <EmptyState
+                icon={<Settings size={28} />}
+                title="동적 분석 어댑터 설정은 준비 중입니다"
+                description="이 기능은 곧 제공될 예정입니다."
+              />
+            </div>
+          )}
+
+          {/* Danger Zone */}
+          {activeSection === "danger" && (
+            <div className="card" style={{ border: "1px solid var(--aegis-severity-critical-border)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--cds-spacing-03)", marginBottom: "var(--cds-spacing-04)" }}>
+                <AlertTriangle size={16} style={{ color: "var(--aegis-severity-critical)" }} />
+                <div className="card-title" style={{ margin: 0, color: "var(--aegis-severity-critical)" }}>Danger Zone</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "var(--cds-spacing-06)" }}>
+                <div>
+                  <div style={{ fontSize: "var(--cds-type-sm)", fontWeight: "var(--cds-weight-semibold)", marginBottom: "var(--cds-spacing-02)" }}>Delete this project</div>
+                  <p style={{ fontSize: "var(--cds-type-xs)", color: "var(--cds-text-secondary)", margin: 0, lineHeight: "var(--cds-leading-relaxed)" }}>
+                    Once deleted, all historical data, scan results, and configuration will be permanently removed. This action cannot be undone.
+                  </p>
+                </div>
+                <button className="btn" style={{ background: "var(--cds-button-danger)", flexShrink: 0 }}>
+                  Delete Project
+                </button>
+              </div>
+            </div>
+          )}
+
+        </div>
       </div>
 
       <ConfirmDialog

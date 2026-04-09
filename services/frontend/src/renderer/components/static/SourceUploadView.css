@@ -119,3 +119,131 @@
   justify-content: flex-end;
   gap: var(--cds-spacing-04);
 }
+
+/* ── Migrated from components.css ── */
+
+/* ── File Upload ── */
+
+.card.drop-zone {
+  text-align: center;
+  cursor: pointer;
+  border: 2px dashed var(--cds-border-strong);
+  transition: border-color var(--cds-transition-base), background var(--cds-transition-base);
+}
+
+.card.drop-zone:hover,
+.card.drop-zone--active {
+  border-color: var(--cds-interactive);
+  background: var(--cds-interactive-subtle);
+}
+
+.drop-zone-content {
+  padding: var(--cds-spacing-08) 0;
+  color: var(--cds-text-secondary);
+}
+
+.drop-zone-icon {
+  margin-bottom: var(--cds-spacing-04);
+  color: var(--cds-text-placeholder);
+}
+
+.drop-zone-content p {
+  font-size: var(--cds-type-md);
+  margin-bottom: var(--cds-spacing-02);
+}
+
+.drop-zone-content small {
+  color: var(--cds-text-placeholder);
+  font-size: var(--cds-type-sm);
+}
+
+.file-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--cds-border-subtle);
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-03);
+}
+
+.file-name {
+  font-size: var(--cds-type-md);
+}
+
+.file-lang {
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-secondary);
+  background: var(--cds-layer-02);
+  padding: 2px 6px;
+  border-radius: var(--cds-radius);
+}
+
+.file-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-04);
+}
+
+.file-size {
+  color: var(--cds-text-placeholder);
+  font-size: var(--cds-type-sm);
+}
+
+.file-upload-footer {
+  margin-top: var(--cds-spacing-05);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--cds-spacing-04);
+}
+
+.file-upload-summary {
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-secondary);
+}
+
+.file-select-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-04);
+  padding: var(--cds-spacing-03) var(--cds-spacing-04);
+  border-radius: var(--cds-radius);
+  cursor: pointer;
+  transition: background var(--cds-transition-fast);
+  border-bottom: 1px solid var(--cds-border-subtle);
+}
+
+.file-select-row:last-child {
+  border-bottom: none;
+}
+
+.file-select-row:hover {
+  background: var(--cds-layer-01);
+}
+
+.file-select-row--selected {
+  background: var(--cds-interactive-subtle);
+}
+
+.file-select-check {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--cds-border-subtle);
+  border-radius: var(--cds-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background var(--cds-transition-fast), border-color var(--cds-transition-fast);
+}
+
+.file-select-check--active {
+  background: var(--cds-interactive);
+  border-color: var(--cds-interactive);
+  color: var(--cds-text-inverse);
+}

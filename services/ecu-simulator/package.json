@@ -5,7 +5,12 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "qemu:plan": "tsx src/qemu-bench-cli.ts plan",
+    "qemu:plan:sample": "tsx src/qemu-bench-cli.ts plan qemu/manifests/sample-armhf-user.json",
+    "qemu:probe:sample": "tsx src/qemu-probe-cli.ts sample qemu/manifests/sample-armhf-user.json",
+    "qemu:bridge:sample": "tsx src/qemu-adapter-bridge-cli.ts --manifest=qemu/manifests/sample-armhf-user.json",
+    "qemu:smoke:sample": "tsx src/qemu-bridge-smoke-cli.ts --manifest=qemu/manifests/sample-armhf-user.json"
   },
   "dependencies": {
     "pino": "^9.6.0",

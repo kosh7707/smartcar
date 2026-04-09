@@ -1,3 +1,35 @@
+/* ── v6: Page Header ── */
+
+.fpage-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: var(--cds-spacing-07);
+  gap: var(--cds-spacing-04);
+}
+
+.fpage-page-header__title {
+  font-size: var(--cds-type-3xl);
+  font-weight: var(--cds-weight-semibold);
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--cds-spacing-02);
+}
+
+.fpage-page-header__subtitle {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-02);
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-secondary);
+  margin: 0;
+  font-family: var(--cds-font-mono);
+}
+
+.fpage-page-header__icon {
+  color: var(--cds-text-placeholder);
+  flex-shrink: 0;
+}
+
 /* ── Page Layout ── */
 
 .fpage {
@@ -54,7 +86,7 @@
 .fpage-drop-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(59, 130, 246, 0.08);
+  background: var(--cds-interactive-subtle);
   display: flex;
   flex-direction: column;
   align-items: center;
