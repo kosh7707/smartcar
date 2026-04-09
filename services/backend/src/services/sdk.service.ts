@@ -24,6 +24,8 @@ import type { NotificationService } from "./notification.service";
 const logger = createLogger("sdk-service");
 const execFileAsync = promisify(execFile);
 const INSTALL_TIMEOUT_MS = 30 * 60 * 1000;
+const ETXTBSY_RETRY_COUNT = 5;
+const ETXTBSY_RETRY_DELAY_MS = 200;
 
 export interface UploadedSdkFile {
   originalName: string;
@@ -104,6 +106,19 @@ function inferTargetSystem(...inputs: Array<string | undefined>): string | undef
 
 function mergeProfiles(base: SdkAnalyzedProfile, patch?: SdkAnalyzedProfile): SdkAnalyzedProfile {
   return { ...base, ...(patch ?? {}) };
+}
+
+function isTextFileBusyError(err: unknown): err is NodeJS.ErrnoException {
+  return err instanceof Error
+    && (
+      (typeof (err as NodeJS.ErrnoException).code === "string" && (err as NodeJS.ErrnoException).code === "ETXTBSY")
+      || (typeof (err as NodeJS.ErrnoException).errno === "number" && Math.abs((err as NodeJS.ErrnoException).errno ?? 0) === 26)
+      || err.message.includes("ETXTBSY")
+    );
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export class SdkService {
@@ -472,6 +487,42 @@ export class SdkService {
   }
 
   private runInstaller(
+    installerPath: string,
+    installRoot: string,
+    logPath: string,
+    homeDir: string,
+    tmpDir: string,
+  ): Promise<void> {
+    return this.runInstallerWithRetry(installerPath, installRoot, logPath, homeDir, tmpDir);
+  }
+
+  private async runInstallerWithRetry(
+    installerPath: string,
+    installRoot: string,
+    logPath: string,
+    homeDir: string,
+    tmpDir: string,
+  ): Promise<void> {
+    for (let attempt = 0; attempt <= ETXTBSY_RETRY_COUNT; attempt += 1) {
+      try {
+        await this.runInstallerOnce(installerPath, installRoot, logPath, homeDir, tmpDir);
+        return;
+      } catch (err) {
+        if (!isTextFileBusyError(err) || attempt === ETXTBSY_RETRY_COUNT) {
+          throw err;
+        }
+
+        logger.warn({
+          installerPath,
+          attempt: attempt + 1,
+          retryInMs: ETXTBSY_RETRY_DELAY_MS,
+        }, "Installer executable still busy after upload; retrying");
+        await delay(ETXTBSY_RETRY_DELAY_MS);
+      }
+    }
+  }
+
+  private runInstallerOnce(
     installerPath: string,
     installRoot: string,
     logPath: string,

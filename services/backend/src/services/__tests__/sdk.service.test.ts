@@ -184,6 +184,26 @@ describe("SdkService", () => {
     }));
   });
 
+  it("retries ETXTBSY when the uploaded installer is still open for writing", async () => {
+    const { installerPath, originalName } = createInstaller(uploadsDir, "ti-processor-sdk-linux-am335x-evm-08.02.00.24.bin", "success");
+    const installerFd = fs.openSync(installerPath, "r+");
+    setTimeout(() => {
+      fs.closeSync(installerFd);
+    }, 350);
+
+    await service.register("p-bin-busy", {
+      sdkId: "sdk-bin-busy",
+      name: "TI Installer Busy",
+      files: [{ originalName, storedPath: installerPath, size: fs.statSync(installerPath).size }],
+    }, "req-sdk-bin-busy");
+
+    await vi.waitFor(() => expect(dao.updateStatus).toHaveBeenCalledWith("sdk-bin-busy", "ready"));
+
+    const stored = records.get("sdk-bin-busy")!;
+    expect(fs.existsSync(path.join(stored.path, "installed.txt"))).toBe(true);
+    expect(stored.status).toBe("ready");
+  });
+
   it("surfaces extraction failures through sdk-error and sdk_failed notification", async () => {
     const badArchive = path.join(uploadsDir, "broken-sdk.tar.gz");
     fs.writeFileSync(badArchive, "not an archive");

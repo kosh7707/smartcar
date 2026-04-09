@@ -62,6 +62,25 @@ class SdkUploadStorage implements multer.StorageEngine {
     const out = fs.createWriteStream(targetPath);
     const totalBytes = ctx.totalBytes;
     let fileBytes = 0;
+    let settled = false;
+
+    const finish = (error?: Error | null): void => {
+      if (settled) return;
+      settled = true;
+
+      if (error) {
+        cb(error);
+        return;
+      }
+
+      cb(null, {
+        path: targetPath,
+        destination: incomingDir,
+        filename: fileName,
+        originalname: decodeFileName(file.originalname),
+        size: fileBytes,
+      });
+    };
 
     this.sdkWs?.broadcast(ctx.projectId, {
       type: "sdk-progress",
@@ -99,18 +118,10 @@ class SdkUploadStorage implements multer.StorageEngine {
 
     file.stream.on("error", (err) => {
       out.destroy(err);
-      cb(err);
+      finish(err);
     });
-    out.on("error", (err) => cb(err));
-    out.on("finish", () => {
-      cb(null, {
-        path: targetPath,
-        destination: incomingDir,
-        filename: fileName,
-        originalname: decodeFileName(file.originalname),
-        size: fileBytes,
-      });
-    });
+    out.on("error", (err) => finish(err));
+    out.on("close", () => finish());
 
     file.stream.pipe(out);
   }
