@@ -54,49 +54,8 @@ export function useUploadProgress(): UploadProgressState & ReconnectableHookResu
     const wsUrl = `${getWsBaseUrl()}/ws/upload?uploadId=${encodeURIComponent(uploadId)}`;
     const seqTracker = createSeqTracker("upload");
 
-    const rws = createReconnectingWs(() => wsUrl, {
-      maxRetries: 8,
-      onStateChange: setConnectionState,
-      onDisconnect() {
-        seqTracker.reset();
-      },
-      async onReconnect() {
-        // REST fallback: restore state from upload-status endpoint
-        if (!projectId) return;
-        try {
-          const snapshot = await fetchUploadStatus(projectId, uploadId);
-          setState((prev) => {
-            if (prev.phase === "complete" || prev.phase === "failed") return prev;
-            return {
-              ...prev,
-              phase: (snapshot.phase as UploadPhase) ?? prev.phase,
-              message: PHASE_LABELS[snapshot.phase] ?? prev.message,
-              fileCount: snapshot.fileCount ?? prev.fileCount,
-            };
-          });
-        } catch (e) {
-          // 404 = snapshot no longer available (non-permanent per WR)
-          if (e instanceof ApiError && e.message.includes("404")) {
-            setState((prev) => {
-              if (prev.phase === "complete" || prev.phase === "failed") return prev;
-              return { ...prev, message: "마지막 확인된 상태를 불러올 수 없습니다" };
-            });
-          } else {
-            logError("Upload recovery", e);
-          }
-        }
-      },
-      onGiveUp() {
-        setState((prev) => {
-          if (prev.phase === "complete" || prev.phase === "failed") return prev;
-          return { ...prev, phase: "failed", error: "업로드 연결이 끊어졌습니다." };
-        });
-      },
-    });
-    rwsRef.current = rws;
-
-    const ws = rws.getWs();
-    if (ws) {
+    function wireWsHandlers(ws: WebSocket | null) {
+      if (!ws) return;
       ws.onmessage = (evt) => {
         try {
           const msg = parseWsMessage(evt.data);
@@ -134,6 +93,50 @@ export function useUploadProgress(): UploadProgressState & ReconnectableHookResu
         }
       };
     }
+
+    const rws = createReconnectingWs(() => wsUrl, {
+      maxRetries: 8,
+      onStateChange: setConnectionState,
+      onDisconnect() {
+        seqTracker.reset();
+      },
+      async onReconnect() {
+        // REST fallback: restore state from upload-status endpoint
+        if (!projectId) return;
+        try {
+          const snapshot = await fetchUploadStatus(projectId, uploadId);
+          setState((prev) => {
+            if (prev.phase === "complete" || prev.phase === "failed") return prev;
+            return {
+              ...prev,
+              phase: (snapshot.phase as UploadPhase) ?? prev.phase,
+              message: PHASE_LABELS[snapshot.phase] ?? prev.message,
+              fileCount: snapshot.fileCount ?? prev.fileCount,
+            };
+          });
+        } catch (e) {
+          // 404 = snapshot no longer available (non-permanent per WR)
+          if (e instanceof ApiError && e.message.includes("404")) {
+            setState((prev) => {
+              if (prev.phase === "complete" || prev.phase === "failed") return prev;
+              return { ...prev, message: "마지막 확인된 상태를 불러올 수 없습니다" };
+            });
+          } else {
+            logError("Upload recovery", e);
+          }
+        }
+        // Re-wire message handlers on new WS after reconnect
+        wireWsHandlers(rws.getWs());
+      },
+      onGiveUp() {
+        setState((prev) => {
+          if (prev.phase === "complete" || prev.phase === "failed") return prev;
+          return { ...prev, phase: "failed", error: "업로드 연결이 끊어졌습니다." };
+        });
+      },
+    });
+    rwsRef.current = rws;
+    wireWsHandlers(rws.getWs());
   }, [cleanup]);
 
   const setUploading = useCallback(() => {

@@ -10,6 +10,10 @@
   .header { padding: 32px 48px 24px; border-bottom: 1px solid #1a2637; }
   .header h1 { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 600; margin-bottom: 8px; }
   .header p { color: #9facc1; font-size: 14px; }
+  .version-tabs { padding: 12px 48px; display: flex; gap: 8px; border-bottom: 1px solid #1a2637; background: #0a0e14; }
+  .version-tabs button { padding: 6px 16px; border: 1px solid #3c495b; background: transparent; color: #d9e6fd; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.15s; }
+  .version-tabs button:hover { background: #1a2637; }
+  .version-tabs button.active { background: #004a76; border-color: #96ccff; color: #96ccff; }
   .controls { padding: 16px 48px; display: flex; gap: 12px; border-bottom: 1px solid #1a2637; position: sticky; top: 0; background: #0a0e14; z-index: 10; }
   .controls button { padding: 8px 20px; border: 1px solid #3c495b; background: transparent; color: #d9e6fd; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.15s; }
   .controls button:hover { background: #1a2637; }
@@ -22,7 +26,8 @@
   .card-badge { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
   .badge-dark { background: #1a2637; color: #96ccff; }
   .badge-light { background: #e8e8e8; color: #1a1c1c; }
-  .badge-github { background: #0d3b1e; color: #3fb950; font-size: 10px; }
+  .badge-global { background: #0d3b1e; color: #3fb950; font-size: 10px; }
+  .badge-project { background: #1a2637; color: #96ccff; font-size: 10px; }
   .card-meta { padding: 0 20px 12px; color: #6a768a; font-size: 12px; display: flex; gap: 12px; }
   .card-pair { display: flex; gap: 1px; padding: 0 20px 16px; }
   .card-pair a { flex: 1; display: block; padding: 10px 16px; text-decoration: none; font-size: 13px; font-weight: 500; text-align: center; transition: background 0.15s; }
@@ -47,126 +52,126 @@
 
 <div class="header">
   <h1>AEGIS Design Reference</h1>
-  <p>9 pages &times; 2 themes = 18 mockups &mdash; Stitch MCP Content-First Generation &mdash; 2026-04-08</p>
+  <p>Latest: <a href="v6/index.html" style="color:#96ccff;text-decoration:underline;">v6</a> (13 pages, light-only, 2026-04-09) | <a href="v5/index.html" style="color:#9facc1;">v5</a> (18 pages, light+dark)</p>
 </div>
 
 <div class="controls">
   <button class="active" onclick="filterCards('all')">All (9)</button>
-  <button onclick="filterCards('github')">GitHub Pattern (4)</button>
-  <button onclick="filterCards('standard')">Standard (5)</button>
+  <button onclick="filterCards('global')">Global Pages (1)</button>
+  <button onclick="filterCards('project')">Project Pages (8)</button>
 </div>
 
 <div class="grid" id="grid">
 
-  <div class="section-label">GitHub Pattern Pages</div>
+  <div class="section-label">Global Pages</div>
 
-  <div class="card" data-type="github">
+  <div class="card" data-type="global">
     <div class="card-header">
       <span class="card-title">Projects List</span>
-      <span class="card-badge badge-github">repo list</span>
+      <span class="card-badge badge-global">global</span>
     </div>
     <div class="card-meta"><span>/ projects</span><span>4 projects, severity bars, gate badges</span></div>
     <div class="card-pair">
-      <a class="dark-link" href="#" onclick="openViewer('v2-dark/v2-projects-list-dark.html','Projects List','projects-list'); return false;">Dark</a>
-      <a class="light-link" href="#" onclick="openViewer('v2-light/v2-projects-list-light.html','Projects List','projects-list'); return false;">Light</a>
+      <a class="dark-link" href="#" onclick="openViewer('v5/dark/projects-list-dark.html','Projects List','projects-list'); return false;">Dark</a>
+      <a class="light-link" href="#" onclick="openViewer('v5/light/projects-list-light.html','Projects List','projects-list'); return false;">Light</a>
     </div>
   </div>
 
-  <div class="card" data-type="github">
+  <div class="section-label">Project Pages</div>
+
+  <div class="card" data-type="project">
     <div class="card-header">
       <span class="card-title">Overview</span>
-      <span class="card-badge badge-github">repo home</span>
+      <span class="card-badge badge-project">project</span>
     </div>
-    <div class="card-meta"><span>/ overview</span><span>About + Security + Activity + Meta sidebar</span></div>
+    <div class="card-meta"><span>/ overview</span><span>Security posture + build targets + activity</span></div>
     <div class="card-pair">
-      <a class="dark-link" href="#" onclick="openViewer('v2-dark/v2-overview-dark.html','Overview','overview'); return false;">Dark</a>
-      <a class="light-link" href="#" onclick="openViewer('v2-light/v2-overview-light.html','Overview','overview'); return false;">Light</a>
+      <a class="dark-link" href="#" onclick="openViewer('v5/dark/overview-dark.html','Overview','overview'); return false;">Dark</a>
+      <a class="light-link" href="#" onclick="openViewer('v5/light/overview-light.html','Overview','overview'); return false;">Light</a>
     </div>
   </div>
 
-  <div class="card" data-type="github">
+  <div class="card" data-type="project">
     <div class="card-header">
-      <span class="card-title">Analysis</span>
-      <span class="card-badge badge-github">actions</span>
+      <span class="card-title">Static Analysis</span>
+      <span class="card-badge badge-project">project</span>
     </div>
-    <div class="card-meta"><span>/ static-analysis</span><span>Run list + step logs + re-run</span></div>
+    <div class="card-meta"><span>/ static-analysis</span><span>Run list + workflow steps + history</span></div>
     <div class="card-pair">
-      <a class="dark-link" href="#" onclick="openViewer('v2-dark/v2-analysis-dark.html','Analysis','analysis'); return false;">Dark</a>
-      <a class="light-link" href="#" onclick="openViewer('v2-light/v2-analysis-light.html','Analysis','analysis'); return false;">Light</a>
+      <a class="dark-link" href="#" onclick="openViewer('v5/dark/analysis-dark.html','Static Analysis','analysis'); return false;">Dark</a>
+      <a class="light-link" href="#" onclick="openViewer('v5/light/analysis-light.html','Static Analysis','analysis'); return false;">Light</a>
     </div>
   </div>
 
-  <div class="card" data-type="github">
+  <div class="card" data-type="project">
     <div class="card-header">
-      <span class="card-title">Findings</span>
-      <span class="card-badge badge-github">issues</span>
+      <span class="card-title">Vulnerabilities</span>
+      <span class="card-badge badge-project">project</span>
     </div>
-    <div class="card-meta"><span>/ vulnerabilities</span><span>Open/Closed + severity labels + CWE tags</span></div>
+    <div class="card-meta"><span>/ vulnerabilities</span><span>Severity filter + build target + CWE/MISRA</span></div>
     <div class="card-pair">
-      <a class="dark-link" href="#" onclick="openViewer('v2-dark/v2-findings-dark.html','Findings','findings'); return false;">Dark</a>
-      <a class="light-link" href="#" onclick="openViewer('v2-light/v2-findings-light.html','Findings','findings'); return false;">Light</a>
+      <a class="dark-link" href="#" onclick="openViewer('v5/dark/findings-dark.html','Vulnerabilities','findings'); return false;">Dark</a>
+      <a class="light-link" href="#" onclick="openViewer('v5/light/findings-light.html','Vulnerabilities','findings'); return false;">Light</a>
     </div>
   </div>
 
-  <div class="section-label">Standard Pages (new layout)</div>
-
-  <div class="card" data-type="standard">
+  <div class="card" data-type="project">
     <div class="card-header">
       <span class="card-title">Approvals</span>
-      <span class="card-badge badge-github">PR</span>
+      <span class="card-badge badge-project">project</span>
     </div>
-    <div class="card-meta"><span>/ approvals</span><span>Approve/Reject + comment thread + gate diff</span></div>
+    <div class="card-meta"><span>/ approvals</span><span>Approve/Reject + conversation + gate diff</span></div>
     <div class="card-pair">
-      <a class="dark-link" href="#" onclick="openViewer('v2-dark/v2-approvals-dark.html','Approvals','approvals'); return false;">Dark</a>
-      <a class="light-link" href="#" onclick="openViewer('v2-light/v2-approvals-light.html','Approvals','approvals'); return false;">Light</a>
+      <a class="dark-link" href="#" onclick="openViewer('v5/dark/approvals-dark.html','Approvals','approvals'); return false;">Dark</a>
+      <a class="light-link" href="#" onclick="openViewer('v5/light/approvals-light.html','Approvals','approvals'); return false;">Light</a>
     </div>
   </div>
 
-  <div class="card" data-type="standard">
+  <div class="card" data-type="project">
     <div class="card-header">
-      <span class="card-title">Code / Files</span>
-      <span class="card-badge badge-dark">code</span>
+      <span class="card-title">Files</span>
+      <span class="card-badge badge-project">project</span>
     </div>
     <div class="card-meta"><span>/ files</span><span>Source tree + language bar + finding badges</span></div>
     <div class="card-pair">
-      <a class="dark-link" href="#" onclick="openViewer('v2-dark/v2-code-dark.html','Code','code'); return false;">Dark</a>
-      <a class="light-link" href="#" onclick="openViewer('v2-light/v2-code-light.html','Code','code'); return false;">Light</a>
+      <a class="dark-link" href="#" onclick="openViewer('v5/dark/code-dark.html','Code','code'); return false;">Dark</a>
+      <a class="light-link" href="#" onclick="openViewer('v5/light/code-light.html','Code','code'); return false;">Light</a>
     </div>
   </div>
 
-  <div class="card" data-type="standard">
+  <div class="card" data-type="project">
     <div class="card-header">
       <span class="card-title">Report</span>
-      <span class="card-badge badge-dark">report</span>
+      <span class="card-badge badge-project">project</span>
     </div>
     <div class="card-meta"><span>/ report</span><span>Executive summary + module tabs + audit trail</span></div>
     <div class="card-pair">
-      <a class="dark-link" href="#" onclick="openViewer('v2-dark/v2-report-dark.html','Report','report'); return false;">Dark</a>
-      <a class="light-link" href="#" onclick="openViewer('v2-light/v2-report-light.html','Report','report'); return false;">Light</a>
+      <a class="dark-link" href="#" onclick="openViewer('v5/dark/report-dark.html','Report','report'); return false;">Dark</a>
+      <a class="light-link" href="#" onclick="openViewer('v5/light/report-light.html','Report','report'); return false;">Light</a>
     </div>
   </div>
 
-  <div class="card" data-type="standard">
+  <div class="card" data-type="project">
     <div class="card-header">
       <span class="card-title">Quality Gate</span>
-      <span class="card-badge badge-dark">gate</span>
+      <span class="card-badge badge-project">project</span>
     </div>
     <div class="card-meta"><span>/ quality-gate</span><span>PASS/FAIL + criteria table + history + override</span></div>
     <div class="card-pair">
-      <a class="dark-link" href="#" onclick="openViewer('v2-dark/v2-quality-gate-dark.html','Quality Gate','quality-gate'); return false;">Dark</a>
-      <a class="light-link" href="#" onclick="openViewer('v2-light/v2-quality-gate-light.html','Quality Gate','quality-gate'); return false;">Light</a>
+      <a class="dark-link" href="#" onclick="openViewer('v5/dark/quality-gate-dark.html','Quality Gate','quality-gate'); return false;">Dark</a>
+      <a class="light-link" href="#" onclick="openViewer('v5/light/quality-gate-light.html','Quality Gate','quality-gate'); return false;">Light</a>
     </div>
   </div>
 
-  <div class="card" data-type="standard">
+  <div class="card" data-type="project">
     <div class="card-header">
       <span class="card-title">Settings</span>
-      <span class="card-badge badge-dark">settings</span>
+      <span class="card-badge badge-project">project</span>
     </div>
     <div class="card-meta"><span>/ settings</span><span>General + SDK + Build Targets + Adapters</span></div>
     <div class="card-pair">
-      <a class="dark-link" href="#" onclick="openViewer('v2-dark/v2-settings-dark.html','Settings','settings'); return false;">Dark</a>
-      <a class="light-link" href="#" onclick="openViewer('v2-light/v2-settings-light.html','Settings','settings'); return false;">Light</a>
+      <a class="dark-link" href="#" onclick="openViewer('v5/dark/settings-dark.html','Settings','settings'); return false;">Dark</a>
+      <a class="light-link" href="#" onclick="openViewer('v5/light/settings-light.html','Settings','settings'); return false;">Light</a>
     </div>
   </div>
 
@@ -190,15 +195,15 @@
 
 <script>
 const pages = [
-  { id: 'projects-list', name: 'Projects List', dark: 'v2-dark/v2-projects-list-dark.html', light: 'v2-light/v2-projects-list-light.html' },
-  { id: 'overview', name: 'Overview', dark: 'v2-dark/v2-overview-dark.html', light: 'v2-light/v2-overview-light.html' },
-  { id: 'analysis', name: 'Analysis', dark: 'v2-dark/v2-analysis-dark.html', light: 'v2-light/v2-analysis-light.html' },
-  { id: 'findings', name: 'Findings', dark: 'v2-dark/v2-findings-dark.html', light: 'v2-light/v2-findings-light.html' },
-  { id: 'approvals', name: 'Approvals', dark: 'v2-dark/v2-approvals-dark.html', light: 'v2-light/v2-approvals-light.html' },
-  { id: 'code', name: 'Code / Files', dark: 'v2-dark/v2-code-dark.html', light: 'v2-light/v2-code-light.html' },
-  { id: 'report', name: 'Report', dark: 'v2-dark/v2-report-dark.html', light: 'v2-light/v2-report-light.html' },
-  { id: 'quality-gate', name: 'Quality Gate', dark: 'v2-dark/v2-quality-gate-dark.html', light: 'v2-light/v2-quality-gate-light.html' },
-  { id: 'settings', name: 'Settings', dark: 'v2-dark/v2-settings-dark.html', light: 'v2-light/v2-settings-light.html' },
+  { id: 'projects-list', name: 'Projects List', dark: 'v5/dark/projects-list-dark.html', light: 'v5/light/projects-list-light.html' },
+  { id: 'overview', name: 'Overview', dark: 'v5/dark/overview-dark.html', light: 'v5/light/overview-light.html' },
+  { id: 'analysis', name: 'Analysis', dark: 'v5/dark/analysis-dark.html', light: 'v5/light/analysis-light.html' },
+  { id: 'findings', name: 'Findings', dark: 'v5/dark/findings-dark.html', light: 'v5/light/findings-light.html' },
+  { id: 'approvals', name: 'Approvals', dark: 'v5/dark/approvals-dark.html', light: 'v5/light/approvals-light.html' },
+  { id: 'code', name: 'Code / Files', dark: 'v5/dark/code-dark.html', light: 'v5/light/code-light.html' },
+  { id: 'report', name: 'Report', dark: 'v5/dark/report-dark.html', light: 'v5/light/report-light.html' },
+  { id: 'quality-gate', name: 'Quality Gate', dark: 'v5/dark/quality-gate-dark.html', light: 'v5/light/quality-gate-light.html' },
+  { id: 'settings', name: 'Settings', dark: 'v5/dark/settings-dark.html', light: 'v5/light/settings-light.html' },
 ];
 
 let currentIdx = 0;

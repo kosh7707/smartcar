@@ -32,6 +32,7 @@ import type { BuildTargetService } from "./build-target.service";
 import type { ResultNormalizer, NormalizerContext } from "./result-normalizer";
 import type { WsBroadcaster } from "./ws-broadcaster";
 import type { TargetLibraryDAO } from "../dao/target-library.dao";
+import type { AnalysisTracker } from "./analysis-tracker";
 
 const logger = createLogger("analysis-orchestrator");
 
@@ -46,6 +47,7 @@ export class AnalysisOrchestrator {
     private ws?: WsBroadcaster<WsAnalysisMessage>,
     private buildTargetService?: BuildTargetService,
     private targetLibraryDAO?: TargetLibraryDAO,
+    private analysisTracker?: AnalysisTracker,
   ) {}
 
   async runAnalysis(
@@ -125,6 +127,12 @@ export class AnalysisOrchestrator {
     const startedAt = new Date().toISOString();
 
     // ── Phase Quick: S4 SAST ──
+    this.analysisTracker?.update(wsAnalysisId, {
+      phase: "quick_sast",
+      message: `${prefix}SAST 스캔 시작`,
+      totalFiles: files.length,
+      processedFiles: 0,
+    });
     this.broadcast(wsAnalysisId, {
       type: "analysis-progress",
       payload: {
@@ -173,6 +181,11 @@ export class AnalysisOrchestrator {
       const quickResult = this.buildQuickResult(analysisId, projectId, sastResponse, startedAt, scaLibraries);
       this.analysisResultDAO.save(quickResult);
       this.resultNormalizer.normalizeAnalysisResult(quickResult, { startedAt });
+      this.analysisTracker?.update(wsAnalysisId, {
+        phase: "quick_sast",
+        message: `${prefix}Quick 분석 완료`,
+        processedFiles: files.length,
+      });
 
       this.broadcast(wsAnalysisId, {
         type: "analysis-quick-complete",
@@ -185,6 +198,10 @@ export class AnalysisOrchestrator {
       }, "Quick phase completed");
     } catch (err) {
       logger.error({ err, analysisId, target: targetInfo?.name, requestId }, "Quick phase failed");
+      this.analysisTracker?.update(wsAnalysisId, {
+        phase: "quick_sast",
+        message: `${prefix}Quick 분석 실패`,
+      });
       this.broadcast(wsAnalysisId, {
         type: "analysis-error",
         payload: {
@@ -198,6 +215,12 @@ export class AnalysisOrchestrator {
     if (signal?.aborted) return;
 
     // ── Phase Deep: S3 Agent ──
+    this.analysisTracker?.update(wsAnalysisId, {
+      phase: "deep_submitting",
+      message: `${prefix}심층 분석 에이전트 호출 중...`,
+      totalFiles: files.length,
+      processedFiles: files.length,
+    });
     this.broadcast(wsAnalysisId, {
       type: "analysis-progress",
       payload: {
@@ -237,6 +260,10 @@ export class AnalysisOrchestrator {
         constraints: { maxTokens: 4096, timeoutMs: 300000 },
       };
 
+      this.analysisTracker?.update(wsAnalysisId, {
+        phase: "deep_analyzing",
+        message: `${prefix}에이전트가 분석 중... (SAST + 코드그래프 + SCA + LLM)`,
+      });
       this.broadcast(wsAnalysisId, {
         type: "analysis-progress",
         payload: {
@@ -255,6 +282,10 @@ export class AnalysisOrchestrator {
           analysisId, failureCode: agentResponse.failureCode,
           target: targetInfo?.name, requestId,
         }, "Retryable failure, attempting retry (1/1)");
+        this.analysisTracker?.update(wsAnalysisId, {
+          phase: "deep_analyzing",
+          message: `${prefix}재시도 중...`,
+        });
 
         this.broadcast(wsAnalysisId, {
           type: "analysis-progress",
@@ -270,6 +301,10 @@ export class AnalysisOrchestrator {
 
         const ctx: NormalizerContext = { startedAt, agentEvidenceRefs: evidenceRefs };
         this.resultNormalizer.normalizeAgentResult(deepResult, agentResponse, ctx);
+        this.analysisTracker?.update(wsAnalysisId, {
+          phase: "deep_complete",
+          message: `${prefix}심층 분석 완료`,
+        });
 
         this.broadcast(wsAnalysisId, {
           type: "analysis-deep-complete",
@@ -297,6 +332,10 @@ export class AnalysisOrchestrator {
           createdAt: startedAt,
         };
         this.analysisResultDAO.save(failedResult);
+        this.analysisTracker?.update(wsAnalysisId, {
+          phase: "deep_analyzing",
+          message: `${prefix}심층 분석 실패`,
+        });
 
         this.broadcast(wsAnalysisId, {
           type: "analysis-error",
@@ -316,6 +355,10 @@ export class AnalysisOrchestrator {
       }
     } catch (err) {
       logger.error({ err, analysisId, target: targetInfo?.name, requestId }, "Deep phase error");
+      this.analysisTracker?.update(wsAnalysisId, {
+        phase: "deep_analyzing",
+        message: `${prefix}심층 분석 실패`,
+      });
       this.broadcast(wsAnalysisId, {
         type: "analysis-error",
         payload: {

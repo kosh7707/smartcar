@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | ECU-PowerTrain-v2.1</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed": "#83fc89",
+                    "outline": "#6a768a",
+                    "surface-variant": "#1a2637",
+                    "primary-fixed": "#cee5ff",
+                    "on-secondary-fixed-variant": "#565c64",
+                    "tertiary": "#c7ffc2",
+                    "on-tertiary-fixed-variant": "#006b20",
+                    "on-error-container": "#ff9993",
+                    "outline-variant": "#3c495b",
+                    "on-tertiary-container": "#005f1c",
+                    "on-secondary-container": "#bac0c8",
+                    "tertiary-dim": "#75ed7d",
+                    "surface-container-high": "#16202e",
+                    "on-primary-fixed-variant": "#006096",
+                    "surface-container-lowest": "#000000",
+                    "secondary": "#989ea7",
+                    "on-surface": "#d9e6fd",
+                    "primary-container": "#004a76",
+                    "primary-dim": "#78bffe",
+                    "primary-fixed-dim": "#b3d8ff",
+                    "inverse-primary": "#00649b",
+                    "error-container": "#7f2927",
+                    "surface-container": "#121a25",
+                    "on-primary-fixed": "#00436a",
+                    "surface-container-highest": "#1a2637",
+                    "on-secondary": "#1b2127",
+                    "on-tertiary-fixed": "#004a14",
+                    "on-primary": "#00436b",
+                    "on-background": "#d9e6fd",
+                    "surface-container-low": "#0e141c",
+                    "inverse-on-surface": "#51555c",
+                    "secondary-dim": "#989ea7",
+                    "error": "#ee7d77",
+                    "secondary-fixed-dim": "#cfd5de",
+                    "background": "#0a0e14",
+                    "surface-bright": "#1e2d41",
+                    "on-secondary-fixed": "#3a4047",
+                    "tertiary-fixed-dim": "#75ed7d",
+                    "secondary-container": "#363c43",
+                    "primary": "#96ccff",
+                    "secondary-fixed": "#dde3ec",
+                    "on-surface-variant": "#9facc1",
+                    "on-primary-container": "#aad5ff",
+                    "tertiary-container": "#83fc89",
+                    "on-tertiary": "#00691f",
+                    "error-dim": "#bb5551",
+                    "surface-tint": "#96ccff",
+                    "inverse-surface": "#f8f9ff",
+                    "surface-dim": "#0a0e14",
+                    "surface": "#0a0e14",
+                    "on-error": "#490106"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Space Grotesk"],
+                    "body": ["Inter"],
+                    "label": ["Inter"],
+                    "mono": ["JetBrains Mono"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #0a0e14; color: #d9e6fd; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-panel { backdrop-filter: blur(20px); background: rgba(18, 26, 37, 0.7); }
+    </style>
+</head>
+<body class="antialiased overflow-hidden">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 bg-[#0a0e14] border-b border-[#3c495b]/15 shadow-[0_48px_48px_rgba(150,204,255,0.08)] flex items-center justify-between px-6 h-16">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-[#96ccff] font-['Space_Grotesk']">AEGIS</span>
+<div class="flex items-center gap-2 bg-surface-container px-3 py-1.5 rounded-lg border border-outline-variant/20 cursor-pointer hover:bg-surface-bright transition-all">
+<span class="text-sm font-medium text-on-surface">ECU-PowerTrain-v2.1</span>
+<span class="material-symbols-outlined text-sm">unfold_more</span>
+</div>
+<nav class="hidden md:flex gap-6 text-sm font-['Space_Grotesk'] tracking-tight">
+<a class="text-[#96ccff] border-b-2 border-[#96ccff] pb-1 transition-all" href="#">Repositories</a>
+<a class="text-[#d9e6fd]/60 hover:text-[#96ccff] transition-colors duration-200" href="#">Pull Requests</a>
+<a class="text-[#d9e6fd]/60 hover:text-[#96ccff] transition-colors duration-200" href="#">Issues</a>
+<a class="text-[#d9e6fd]/60 hover:text-[#96ccff] transition-colors duration-200" href="#">Marketplace</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group">
+<span class="absolute inset-y-0 left-3 flex items-center text-on-surface-variant">
+<span class="material-symbols-outlined text-sm">search</span>
+</span>
+<input class="bg-surface-container-lowest border-none rounded-lg py-1.5 pl-10 pr-4 text-sm w-64 focus:ring-1 focus:ring-primary/40 placeholder:text-on-surface-variant/50" placeholder="Search resources..." type="text"/>
+</div>
+<button class="relative p-2 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-error text-[10px] font-bold text-on-error">3</span>
+</button>
+<div class="flex items-center gap-3 pl-4 border-l border-outline-variant/20">
+<div class="text-right">
+<p class="text-sm font-semibold text-on-surface leading-none">Kosh / Admin</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest mt-1">Lead Architect</p>
+</div>
+<img alt="User profile" class="h-8 w-8 rounded-full border border-primary/20" data-alt="professional portrait of a technical systems administrator in a dimly lit high-tech environment with soft blue rim lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDdL5Q9LrRwH0M7vVaGrsxXRL1vdx0Nv9uf-mm8PxYb8fiMomlv-BLKYbfo9i0xEQ-5afs4MufDlnpyqsvH1bqRGsmao22UgrP__dF7dO2V4CzhsBG9X52fixRRa__rqp-pZmVvcSTkJoLX1HghrM8YxT--jrTMjQ_aNMQ94_7cO9G8xxZ0dQVq-CGzmaXyHlDCJxyhdN_BLCezAK_-n-BVkO7Kctdz1T4vegji8acyv_qXT7LNFVnTd6dE01swR1BZOqhuBj7Yoa2g"/>
+</div>
+</div>
+</header>
+<!-- Sidebar Wrapper -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-[#0e141c] flex flex-col py-4 font-['Inter'] text-sm">
+<div class="px-4 mb-6">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-8 h-8 rounded bg-primary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-lg">memory</span>
+</div>
+<div>
+<p class="text-on-surface font-bold">Project Sentinel</p>
+<p class="text-[10px] text-on-surface-variant font-mono">v2.4.0-stable</p>
+</div>
+</div>
+</div>
+<div class="space-y-1">
+<div class="flex items-center gap-3 text-[#d9e6fd]/70 px-4 py-3 hover:bg-[#1a2637] hover:text-[#d9e6fd] transition-all cursor-pointer">
+<span class="material-symbols-outlined text-lg">dashboard</span>
+<span>Overview</span>
+</div>
+<div class="flex items-center gap-3 bg-[#1e2d41] text-[#96ccff] border-l-4 border-[#96ccff] px-4 py-3 cursor-pointer">
+<span class="material-symbols-outlined text-lg">code</span>
+<span>Source Code</span>
+</div>
+<div class="flex items-center gap-3 text-[#d9e6fd]/70 px-4 py-3 hover:bg-[#1a2637] hover:text-[#d9e6fd] transition-all cursor-pointer">
+<span class="material-symbols-outlined text-lg">security</span>
+<span>Security</span>
+</div>
+<div class="flex items-center gap-3 text-[#d9e6fd]/70 px-4 py-3 hover:bg-[#1a2637] hover:text-[#d9e6fd] transition-all cursor-pointer">
+<span class="material-symbols-outlined text-lg">rocket_launch</span>
+<span>Deployments</span>
+</div>
+<div class="flex items-center gap-3 text-[#d9e6fd]/70 px-4 py-3 hover:bg-[#1a2637] hover:text-[#d9e6fd] transition-all cursor-pointer">
+<span class="material-symbols-outlined text-lg">analytics</span>
+<span>Analytics</span>
+</div>
+</div>
+<div class="mt-8 px-4">
+<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-3 pl-1">Sub-projects</p>
+<div class="space-y-2">
+<div class="flex items-center justify-between group cursor-pointer">
+<span class="text-on-surface-variant group-hover:text-on-surface transition-colors">m4-main</span>
+<span class="bg-surface-container-highest px-2 py-0.5 rounded-full text-[10px] text-on-surface-variant">30</span>
+</div>
+<div class="flex items-center justify-between group cursor-pointer">
+<span class="text-on-surface-variant group-hover:text-on-surface transition-colors">m4-boot</span>
+<span class="bg-surface-container-highest px-2 py-0.5 rounded-full text-[10px] text-on-surface-variant">8</span>
+</div>
+<div class="flex items-center justify-between group cursor-pointer">
+<span class="text-on-surface-variant group-hover:text-on-surface transition-colors">rv32-diag</span>
+<span class="bg-surface-container-highest px-2 py-0.5 rounded-full text-[10px] text-on-surface-variant">5</span>
+</div>
+</div>
+</div>
+<div class="mt-auto border-t border-outline-variant/10 pt-4 px-4 space-y-4">
+<div class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-sm">west</span>
+<span class="text-xs">Back to Projects</span>
+</div>
+<button class="w-full py-2.5 rounded-lg bg-gradient-to-br from-primary to-primary-dim text-on-primary font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-lg">add</span>
+<span>New Branch</span>
+</button>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-64 mt-16 p-8 h-[calc(100vh-64px)] overflow-y-auto">
+<!-- Header Section -->
+<div class="flex items-end justify-between mb-8">
+<div>
+<h1 class="text-3xl font-headline font-bold text-on-surface tracking-tight mb-2">Code / Files</h1>
+<div class="flex items-center gap-4 text-sm text-on-surface-variant">
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px]">description</span> 247 files</span>
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px]">database</span> 1.2 MB</span>
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px]">history</span> Last updated: 2h ago</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2 bg-surface-container px-4 py-2 rounded-lg border border-outline-variant/20 text-sm font-medium">
+<span>All Targets</span>
+<span class="material-symbols-outlined text-sm">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Language Statistics Bar -->
+<div class="mb-10">
+<div class="flex h-2 rounded-full overflow-hidden bg-surface-variant mb-3">
+<div class="bg-primary" style="width: 82%"></div>
+<div class="bg-[#a855f7]" style="width: 11%"></div>
+<div class="bg-[#22c55e]" style="width: 4%"></div>
+<div class="bg-[#94a3b8]" style="width: 3%"></div>
+</div>
+<div class="flex gap-6 text-[11px] font-mono uppercase tracking-widest">
+<div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-primary"></span> <span class="text-on-surface">C (82%)</span></div>
+<div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#a855f7]"></span> <span class="text-on-surface-variant">C++ (11%)</span></div>
+<div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#22c55e]"></span> <span class="text-on-surface-variant">ASM (4%)</span></div>
+<div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#94a3b8]"></span> <span class="text-on-surface-variant">Header (3%)</span></div>
+</div>
+</div>
+<!-- Content Grid -->
+<div class="grid grid-cols-10 gap-8 h-full pb-20">
+<!-- File Tree Area (70%) -->
+<div class="col-span-7 bg-surface-container-low rounded-xl border border-outline-variant/10 overflow-hidden shadow-2xl">
+<div class="bg-surface-container px-6 py-4 border-b border-outline-variant/10 flex items-center justify-between">
+<div class="flex items-center gap-2 text-on-surface-variant font-mono text-xs">
+<span>src</span>
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+<span class="text-on-surface">drivers</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary">settings</span>
+</div>
+</div>
+<div class="divide-y divide-outline-variant/5">
+<!-- src/ folder -->
+<div class="flex items-center gap-3 px-6 py-4 bg-surface-bright/20">
+<span class="material-symbols-outlined text-primary-dim">folder_open</span>
+<span class="text-sm font-medium text-on-surface">src/</span>
+</div>
+<!-- core/ subfolder -->
+<div class="flex items-center gap-3 px-12 py-3 hover:bg-surface-container-high transition-colors cursor-pointer group">
+<span class="material-symbols-outlined text-on-surface-variant/60 group-hover:text-primary">folder</span>
+<span class="text-sm text-on-surface-variant group-hover:text-on-surface">core/</span>
+</div>
+<!-- core files -->
+<div class="flex items-center gap-3 px-16 py-3 hover:bg-surface-container-high transition-colors cursor-pointer group">
+<span class="material-symbols-outlined text-on-surface-variant/40 group-hover:text-primary">description</span>
+<span class="text-sm text-on-surface-variant group-hover:text-on-surface">main.c</span>
+<span class="ml-auto text-[10px] font-mono text-on-surface-variant/40">v1.2.4</span>
+</div>
+<div class="flex items-center gap-3 px-16 py-3 hover:bg-surface-container-high transition-colors cursor-pointer group">
+<span class="material-symbols-outlined text-on-surface-variant/40 group-hover:text-primary">description</span>
+<span class="text-sm text-on-surface-variant group-hover:text-on-surface">timer_config.c</span>
+<span class="ml-auto text-[10px] font-mono text-on-surface-variant/40">v1.0.1</span>
+</div>
+<!-- drivers/ subfolder -->
+<div class="flex items-center gap-3 px-12 py-3 bg-surface-bright/10 border-l-4 border-primary">
+<span class="material-symbols-outlined text-primary-dim">folder_open</span>
+<span class="text-sm font-medium text-on-surface">drivers/</span>
+</div>
+<!-- SELECTED FILE -->
+<div class="flex items-center gap-3 px-16 py-4 bg-surface-bright border-l-2 border-primary/40 cursor-default">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">description</span>
+<span class="text-sm font-semibold text-on-surface">can_driver.c</span>
+<div class="ml-auto flex items-center gap-2">
+<span class="bg-error/20 text-error text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-tighter border border-error/20">3 Critical Findings</span>
+</div>
+</div>
+<!-- placeholder empty space -->
+<div class="h-64 flex flex-col items-center justify-center text-on-surface-variant/20">
+<span class="material-symbols-outlined text-6xl mb-4">source_notes</span>
+<p class="text-sm italic">End of repository tree</p>
+</div>
+</div>
+</div>
+<!-- Detail Panel (30%) -->
+<div class="col-span-3 space-y-6">
+<!-- File Stats -->
+<div class="bg-surface-container rounded-xl border border-outline-variant/15 p-6 shadow-xl">
+<div class="flex items-start justify-between mb-6">
+<div>
+<h3 class="text-lg font-headline font-bold text-on-surface">File Info</h3>
+<p class="text-xs text-on-surface-variant font-mono">can_driver.c</p>
+</div>
+<span class="material-symbols-outlined text-primary-dim">info</span>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-surface-container-low p-3 rounded-lg border border-outline-variant/10">
+<p class="text-[10px] uppercase tracking-wider text-on-surface-variant mb-1">Size</p>
+<p class="text-lg font-bold text-on-surface">14.2<span class="text-xs ml-0.5 opacity-50">KB</span></p>
+</div>
+<div class="bg-surface-container-low p-3 rounded-lg border border-outline-variant/10">
+<p class="text-[10px] uppercase tracking-wider text-on-surface-variant mb-1">Lines</p>
+<p class="text-lg font-bold text-on-surface">567</p>
+</div>
+</div>
+</div>
+<!-- Findings List -->
+<div class="bg-surface-container rounded-xl border border-outline-variant/15 overflow-hidden shadow-xl">
+<div class="px-6 py-4 border-b border-outline-variant/10">
+<h3 class="text-sm font-bold uppercase tracking-widest text-on-surface-variant">Security Findings</h3>
+</div>
+<div class="divide-y divide-outline-variant/10">
+<!-- Critical -->
+<div class="p-4 hover:bg-surface-bright transition-colors cursor-pointer group">
+<div class="flex items-center gap-2 mb-1">
+<span class="w-2 h-2 rounded-full bg-error"></span>
+<span class="text-xs font-bold text-error">CWE-119 CRITICAL</span>
+</div>
+<p class="text-sm text-on-surface group-hover:text-primary transition-colors">Improper Restriction of Operations within the Bounds of a Memory Buffer</p>
+</div>
+<!-- High -->
+<div class="p-4 hover:bg-surface-bright transition-colors cursor-pointer group">
+<div class="flex items-center gap-2 mb-1">
+<span class="w-2 h-2 rounded-full bg-[#f59e0b]"></span>
+<span class="text-xs font-bold text-[#f59e0b]">CWE-476 HIGH</span>
+</div>
+<p class="text-sm text-on-surface">NULL Pointer Dereference in ISR context</p>
+</div>
+<!-- Medium -->
+<div class="p-4 hover:bg-surface-bright transition-colors cursor-pointer group">
+<div class="flex items-center gap-2 mb-1">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span class="text-xs font-bold text-tertiary">MISRA 11.3 MEDIUM</span>
+</div>
+<p class="text-sm text-on-surface">Cast between a pointer to object type and a pointer to a different object type</p>
+</div>
+</div>
+</div>
+<!-- Preview Card -->
+<div class="relative group overflow-hidden rounded-xl h-40 border border-outline-variant/15">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="close-up view of intricate green printed circuit board traces with glowing electronic components in a dark laboratory" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVvZCzwG-TX_GIG2FY6ycaMLCXrn1ADTIJ6WYEZPGRUQ1q1_Uc6yNjnzvuQyaGUu8YeOA8ld4H5gHzbX0rntcHk12USYM5n9c7UessyqaHA6UyZ7cJ1QhUzCuqh0kajBWUL6vnDyuCzeBgFYZWxnsKoILH3gWiGAAILVwjGlEKjZM7L-VdWj9jcZyYeeZ92PnfKrXY7STVhS7zsxYDeTHdlM_25M6hOIuA-m40RoIXHa1ibjV4Hb-TZfzgnZkqy35Kfx7-bBattzpG"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest to-transparent opacity-80"></div>
+<div class="absolute bottom-4 left-4">
+<p class="text-xs font-bold uppercase tracking-widest text-primary">System Integrity</p>
+<p class="text-[10px] text-on-surface-variant">Validated by Sentinel AI</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="fixed bottom-0 w-full h-8 bg-surface-container-lowest border-t border-outline-variant/10 flex items-center justify-center z-50">
+<p class="text-[10px] font-mono text-on-surface-variant/40 tracking-[0.3em] uppercase">AEGIS v2.1.0 // Terminal Core // Secure Execution Environment</p>
+</footer>
+</body></html>

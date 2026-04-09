@@ -69,6 +69,7 @@ import { PipelineOrchestrator } from "./services/pipeline-orchestrator";
 import { ActivityService } from "./services/activity.service";
 import { NotificationService } from "./services/notification.service";
 import { UserService } from "./services/user.service";
+import { getUploadWsSnapshot } from "./controllers/project-source.controller";
 
 export interface AppContext {
   // DAOs
@@ -172,6 +173,7 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
   const notificationWs = new WsBroadcaster<WsNotificationMessage>("/ws/notifications", "projectId", "notification");
   const notificationService = new NotificationService(notificationDAO, notificationWs);
   const userService = new UserService(userDAO, sessionDAO);
+  const analysisTracker = new AnalysisTracker();
 
   // ── Tier 2: 복합 서비스 (Tier 1 의존) ──
   const buildTargetService = new BuildTargetService(buildTargetDAO, settingsService, projectSourceService);
@@ -185,8 +187,18 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
   // ── WebSocket broadcasters ──
   const dynamicAnalysisWs = new WsBroadcaster<WsMessage>("/ws/dynamic-analysis", "sessionId", "dynamic-analysis");
   const dynamicTestWs = new WsBroadcaster<WsTestMessage>("/ws/dynamic-test", "testId", "dynamic-test");
-  const analysisWs = new WsBroadcaster<WsAnalysisMessage>("/ws/analysis", "analysisId", "analysis");
-  const uploadWs = new WsBroadcaster<WsUploadMessage>("/ws/upload", "uploadId", "upload");
+  const analysisWs = new WsBroadcaster<WsAnalysisMessage>(
+    "/ws/analysis",
+    "analysisId",
+    "analysis",
+    (analysisId) => analysisTracker.getWsSnapshot(analysisId),
+  );
+  const uploadWs = new WsBroadcaster<WsUploadMessage>(
+    "/ws/upload",
+    "uploadId",
+    "upload",
+    (uploadId) => getUploadWsSnapshot(uploadId),
+  );
   const pipelineWs = new WsBroadcaster<WsPipelineMessage>("/ws/pipeline", "projectId", "pipeline");
   const sdkWs = new WsBroadcaster<WsSdkMessage>("/ws/sdk", "projectId", "sdk");
 
@@ -205,10 +217,9 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
     dynamicTestResultDAO, analysisResultDAO,
     llmTaskClient, adapterManager, settingsService, dynamicTestWs, resultNormalizer,
   );
-  const analysisTracker = new AnalysisTracker();
   const analysisOrchestrator = new AnalysisOrchestrator(
     projectSourceService, sastClient, agentClient,
-    analysisResultDAO, settingsService, resultNormalizer, analysisWs, buildTargetService, targetLibraryDAO,
+    analysisResultDAO, settingsService, resultNormalizer, analysisWs, buildTargetService, targetLibraryDAO, analysisTracker,
   );
   const sdkService = new SdkService(sdkRegistryDAO, buildAgentClient, cfg.uploadsDir, sdkWs, notificationService);
 

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Projects List</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#dfe2eb",
+                        "surface-container": "#1c2026",
+                        "surface": "#10141a",
+                        "inverse-primary": "#0060aa",
+                        "on-tertiary-fixed-variant": "#614000",
+                        "primary": "#a2c9ff",
+                        "primary-fixed-dim": "#a2c9ff",
+                        "outline-variant": "#414752",
+                        "surface-container-lowest": "#0a0e14",
+                        "background": "#10141a",
+                        "error-container": "#93000a",
+                        "outline": "#8b919d",
+                        "on-primary-fixed": "#001c38",
+                        "primary-fixed": "#d3e4ff",
+                        "on-error-container": "#ffdad6",
+                        "tertiary-container": "#da9600",
+                        "on-primary": "#00315c",
+                        "on-secondary-container": "#9db7dd",
+                        "on-tertiary-fixed": "#281800",
+                        "error": "#ffb4ab",
+                        "surface-container-low": "#181c22",
+                        "on-surface-variant": "#c0c7d4",
+                        "on-background": "#dfe2eb",
+                        "on-tertiary-container": "#4f3400",
+                        "tertiary-fixed-dim": "#ffba42",
+                        "tertiary": "#ffba42",
+                        "on-secondary-fixed-variant": "#2e4869",
+                        "secondary": "#aec8ef",
+                        "surface-tint": "#a2c9ff",
+                        "tertiary-fixed": "#ffddaf",
+                        "on-secondary": "#163151",
+                        "secondary-fixed": "#d3e4ff",
+                        "secondary-container": "#2e4869",
+                        "inverse-on-surface": "#2d3137",
+                        "surface-container-high": "#262a31",
+                        "on-error": "#690005",
+                        "surface-container-highest": "#31353c",
+                        "surface-dim": "#10141a",
+                        "on-primary-fixed-variant": "#004882",
+                        "on-surface": "#dfe2eb",
+                        "on-tertiary": "#432c00",
+                        "on-secondary-fixed": "#001c38",
+                        "surface-variant": "#31353c",
+                        "surface-bright": "#353940",
+                        "on-primary-container": "#003a6b",
+                        "primary-container": "#58a6ff",
+                        "secondary-fixed-dim": "#aec8ef"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #0d1117;
+            color: #e6edf3;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .status-pass { color: #3fb950; }
+        .status-fail { color: #f85149; }
+        .status-warning { color: #d29922; }
+        .bg-btn-primary { background-color: #238636; }
+        .bg-btn-primary:hover { background-color: #2ea043; }
+        .card-bg { background-color: #161b22; }
+        .card-border { border-color: #30363d; }
+        .chip-bg { background-color: #1c2d41; }
+        
+        /* Custom progress bar sizing */
+        .severity-bar { height: 8px; border-radius: 4px; overflow: hidden; display: flex; }
+        .severity-critical { background-color: #f85149; }
+        .severity-high { background-color: #f0883e; }
+        .severity-medium { background-color: #d29922; }
+        .severity-low { background-color: #1f6feb; }
+    </style>
+</head>
+<body class="min-h-screen">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full h-[56px] bg-[#161b22] border-b border-[#30363d] flex items-center justify-between px-4 z-50">
+<div class="flex items-center gap-6">
+<span class="font-headline text-xl font-bold text-white tracking-tight">AEGIS</span>
+<div class="hidden md:flex items-center gap-4">
+<a class="font-headline text-sm tracking-tight text-white font-bold px-3 py-1 rounded hover:bg-[#31353c] transition-colors" href="#">All Projects</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+<input class="bg-surface-container-lowest border-none text-sm rounded-lg pl-8 pr-4 py-1.5 w-64 focus:ring-1 focus:ring-primary-container text-white" placeholder="Search projects..." type="text"/>
+</div>
+<span class="material-symbols-outlined text-slate-400 cursor-pointer hover:text-white">notifications</span>
+<div class="flex items-center gap-2 pl-2 border-l border-[#30363d]">
+<span class="text-xs font-medium text-slate-400">Kosh / Admin</span>
+<img alt="User avatar" class="w-7 h-7 rounded-full bg-slate-800" data-alt="professional user avatar profile picture with minimalist abstract shapes in cool blue tones" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAwL8ruiSEbndKwVID7pzEWKwNqTq9zYp7WeSUVBtR-3BlXRA_OcW9QC5TWVDOLeey2T2lINEdUZKh3SE3HJzZNSm7n2DW8L6AV5jiWwDck-wSB-AuWixWzruTKe53nusZ4-LLkTTz9mpR9weKI9bTrrbMzOBunXZ4RHdx7dO4Q1Cq-EsWJUMNiZ8bFE4sJju_5Rpk6sVP5cn6IIoax75Dvc4LY6ZjYVD1EAe0eWe9A5h3-KxPDRg7oHd1V1BQMR7qzp9yvmmwmVj8J"/>
+</div>
+</div>
+</nav>
+<!-- Main Content Shell -->
+<main class="pt-24 pb-20 px-6">
+<div class="max-w-[1100px] mx-auto">
+<!-- Header Section -->
+<header class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
+<div>
+<h1 class="font-headline text-[28px] font-bold text-[#e6edf3] leading-none mb-2">Projects</h1>
+<p class="text-[#8b949e] text-sm">4 projects registered in the analysis ecosystem</p>
+</div>
+<button class="bg-btn-primary text-white text-sm font-semibold px-4 py-2 rounded-[6px] flex items-center gap-2 transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined text-sm">add</span>
+                    New Project
+                </button>
+</header>
+<!-- Projects Stack -->
+<div class="flex flex-col gap-4">
+<!-- Project Card 1 -->
+<div class="card-bg card-border border rounded-lg p-6 flex flex-col gap-4 hover:border-[#8b919d] transition-colors group">
+<div class="flex justify-between items-start">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-slate-400 mt-1">account_tree</span>
+<div>
+<h2 class="font-headline text-lg font-bold text-[#a2c9ff] group-hover:underline cursor-pointer">ECU-PowerTrain-v2.1</h2>
+<div class="flex gap-2 mt-1">
+<span class="chip-bg text-[11px] font-mono px-2 py-0.5 rounded text-[#a2c9ff] border border-primary/20">C</span>
+<span class="chip-bg text-[11px] font-mono px-2 py-0.5 rounded text-[#a2c9ff] border border-primary/20">ARM Cortex-M4</span>
+<span class="chip-bg text-[11px] font-mono px-2 py-0.5 rounded text-[#a2c9ff] border border-primary/20">MISRA C:2012</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-1.5 status-pass text-sm font-semibold uppercase tracking-wider">
+<span class="material-symbols-outlined text-lg" data-weight="fill">check_circle</span>
+                            PASS
+                        </div>
+</div>
+<div class="flex flex-col gap-2">
+<div class="flex justify-between text-[11px] font-mono text-[#8b949e] uppercase tracking-tighter">
+<div class="flex gap-4">
+<span>Critical: 0</span>
+<span>High: 3</span>
+<span>Med: 12</span>
+<span>Low: 28</span>
+</div>
+<span>Total vulnerabilities: 43</span>
+</div>
+<div class="severity-bar w-full bg-[#30363d]">
+<div class="severity-critical" style="width: 0%"></div>
+<div class="severity-high" style="width: 7%"></div>
+<div class="severity-medium" style="width: 28%"></div>
+<div class="severity-low" style="width: 65%"></div>
+</div>
+</div>
+</div>
+<!-- Project Card 2 -->
+<div class="card-bg card-border border rounded-lg p-6 flex flex-col gap-4 hover:border-[#8b919d] transition-colors group">
+<div class="flex justify-between items-start">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-slate-400 mt-1">account_tree</span>
+<div>
+<h2 class="font-headline text-lg font-bold text-[#a2c9ff] group-hover:underline cursor-pointer">ADAS-Camera-Module</h2>
+<div class="flex gap-2 mt-1">
+<span class="chip-bg text-[11px] font-mono px-2 py-0.5 rounded text-[#a2c9ff] border border-primary/20">C</span>
+<span class="chip-bg text-[11px] font-mono px-2 py-0.5 rounded text-[#a2c9ff] border border-primary/20">C++</span>
+<span class="chip-bg text-[11px] font-mono px-2 py-0.5 rounded text-[#a2c9ff] border border-primary/20">ARM Cortex-A53</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-1.5 status-fail text-sm font-semibold uppercase tracking-wider">
+<span class="material-symbols-outlined text-lg" data-weight="fill">cancel</span>
+                            FAIL
+                        </div>
+</div>
+<div class="flex flex-col gap-2">
+<div class="flex justify-between text-[11px] font-mono text-[#8b949e] uppercase tracking-tighter">
+<div class="flex gap-4">
+<span>Critical: 2</span>
+<span>High: 8</span>
+<span>Med: 15</span>
+<span>Low: 31</span>
+</div>
+<span>Total vulnerabilities: 56</span>
+</div>
+<div class="severity-bar w-full bg-[#30363d]">
+<div class="severity-critical" style="width: 4%"></div>
+<div class="severity-high" style="width: 14%"></div>
+<div class="severity-medium" style="width: 27%"></div>
+<div class="severity-low" style="width: 55%"></div>
+</div>
+</div>
+</div>
+<!-- Project Card 3 -->
+<div class="card-bg card-border border rounded-lg p-6 flex flex-col gap-4 hover:border-[#8b919d] transition-colors group">
+<div class="flex justify-between items-start">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-slate-400 mt-1">account_tree</span>
+<div>
+<h2 class="font-headline text-lg font-bold text-[#a2c9ff] group-hover:underline cursor-pointer">BMS-CellMonitor</h2>
+<div class="flex gap-2 mt-1">
+<span class="chip-bg text-[11px] font-mono px-2 py-0.5 rounded text-[#a2c9ff] border border-primary/20">C</span>
+<span class="chip-bg text-[11px] font-mono px-2 py-0.5 rounded text-[#a2c9ff] border border-primary/20">ARM Cortex-M0+</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-1.5 status-pass text-sm font-semibold uppercase tracking-wider">
+<span class="material-symbols-outlined text-lg" data-weight="fill">check_circle</span>
+                            PASS
+                        </div>
+</div>
+<div class="flex flex-col gap-2">
+<div class="flex justify-between text-[11px] font-mono text-[#8b949e] uppercase tracking-tighter">
+<div class="flex gap-4">
+<span>Critical: 0</span>
+<span>High: 1</span>
+<span>Med: 5</span>
+<span>Low: 9</span>
+</div>
+<span>Total vulnerabilities: 15</span>
+</div>
+<div class="severity-bar w-full bg-[#30363d]">
+<div class="severity-critical" style="width: 0%"></div>
+<div class="severity-high" style="width: 7%"></div>
+<div class="severity-medium" style="width: 33%"></div>
+<div class="severity-low" style="width: 60%"></div>
+</div>
+</div>
+</div>
+<!-- Project Card 4 -->
+<div class="card-bg card-border border rounded-lg p-6 flex flex-col gap-4 hover:border-[#8b919d] transition-colors group">
+<div class="flex justify-between items-start">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-slate-400 mt-1">account_tree</span>
+<div>
+<h2 class="font-headline text-lg font-bold text-[#a2c9ff] group-hover:underline cursor-pointer">TCU-Telematics-Gateway</h2>
+<div class="flex gap-2 mt-1">
+<span class="chip-bg text-[11px] font-mono px-2 py-0.5 rounded text-[#a2c9ff] border border-primary/20">C</span>
+<span class="chip-bg text-[11px] font-mono px-2 py-0.5 rounded text-[#a2c9ff] border border-primary/20">PowerPC e200</span>
+<span class="chip-bg text-[11px] font-mono px-2 py-0.5 rounded text-[#a2c9ff] border border-primary/20">ARM Cortex-R5</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-1.5 status-warning text-sm font-semibold uppercase tracking-wider">
+<span class="material-symbols-outlined text-lg" data-weight="fill">warning</span>
+                            WARNING
+                        </div>
+</div>
+<div class="flex flex-col gap-2">
+<div class="flex justify-between text-[11px] font-mono text-[#8b949e] uppercase tracking-tighter">
+<div class="flex gap-4">
+<span>Critical: 1</span>
+<span>High: 4</span>
+<span>Med: 22</span>
+<span>Low: 47</span>
+</div>
+<span>Total vulnerabilities: 74</span>
+</div>
+<div class="severity-bar w-full bg-[#30363d]">
+<div class="severity-critical" style="width: 2%"></div>
+<div class="severity-high" style="width: 5%"></div>
+<div class="severity-medium" style="width: 30%"></div>
+<div class="severity-low" style="width: 63%"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="fixed bottom-0 w-full h-[48px] bg-[#161b22] border-t border-[#30363d] flex items-center justify-between px-6 z-50">
+<div class="flex items-center gap-4">
+<span class="text-slate-400 font-['Inter'] text-xs uppercase tracking-widest">AEGIS v2.1.0</span>
+<span class="hidden sm:inline text-slate-500 text-xs font-['Inter'] uppercase tracking-widest">• Automotive Embedded Security Analysis Platform</span>
+</div>
+<div class="flex gap-4">
+<a class="text-slate-500 text-xs hover:text-white transition-opacity uppercase tracking-widest" href="#">Documentation</a>
+<a class="text-slate-500 text-xs hover:text-white transition-opacity uppercase tracking-widest" href="#">Support</a>
+</div>
+</footer>
+</body></html>

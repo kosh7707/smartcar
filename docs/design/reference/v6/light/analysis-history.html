@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS — Analysis History</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary": "#ffffff",
+                        "secondary-fixed": "#d8e2ff",
+                        "surface-bright": "#f8f9fb",
+                        "inverse-on-surface": "#eff1f3",
+                        "primary-fixed-dim": "#adc6ff",
+                        "on-surface": "#191c1e",
+                        "surface-container-low": "#f2f4f6",
+                        "on-primary-container": "#ecefff",
+                        "inverse-primary": "#adc6ff",
+                        "tertiary-fixed-dim": "#ffb693",
+                        "background": "#f8f9fb",
+                        "surface-container-highest": "#e0e3e5",
+                        "outline": "#727785",
+                        "surface-container": "#eceef0",
+                        "error": "#ba1a1a",
+                        "on-secondary-container": "#405681",
+                        "on-tertiary-fixed": "#351000",
+                        "on-error": "#ffffff",
+                        "tertiary-container": "#b84b00",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-error-container": "#93000a",
+                        "surface-container-high": "#e6e8ea",
+                        "secondary": "#485e8a",
+                        "primary": "#0051ae",
+                        "secondary-fixed-dim": "#b0c6f8",
+                        "surface-tint": "#005bc0",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary-fixed-variant": "#304671",
+                        "on-surface-variant": "#424753",
+                        "on-tertiary-fixed-variant": "#7a2f00",
+                        "on-primary-fixed-variant": "#004493",
+                        "inverse-surface": "#2d3133",
+                        "primary-container": "#0969da",
+                        "on-secondary": "#ffffff",
+                        "surface": "#f8f9fb",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-container": "#ffece5",
+                        "tertiary": "#913900",
+                        "surface-dim": "#d8dadc",
+                        "secondary-container": "#b6ccfe",
+                        "outline-variant": "#c2c6d6",
+                        "on-primary-fixed": "#001a41",
+                        "on-background": "#191c1e",
+                        "primary-fixed": "#d8e2ff",
+                        "on-secondary-fixed": "#001a41",
+                        "surface-variant": "#e0e3e5",
+                        "status-pass": "#1a7f37",
+                        "status-fail": "#cf222e"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .mono { font-family: 'Space Grotesk', monospace; letter-spacing: -0.02em; }
+    </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen">
+<!-- TopNavBar Implementation -->
+<header class="bg-[#f8f9fb] dark:bg-slate-950 flex justify-between items-center w-full px-6 py-3 fixed top-0 z-50 border-b border-opacity-20 border-[#e6e8ea]">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-[#191c1e] dark:text-slate-100 font-['Space_Grotesk']">AEGIS</span>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-on-surface-variant text-sm">search</span>
+<input class="bg-surface-container-low border-none rounded-lg py-1.5 pl-10 pr-4 text-sm w-64 focus:ring-1 focus:ring-primary-container" placeholder="Search resources..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-[#e6e8ea] transition-colors">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+</button>
+<button class="p-2 rounded-full hover:bg-[#e6e8ea] transition-colors">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+</button>
+<div class="flex items-center gap-3 ml-2 pl-4 border-l border-outline-variant/30">
+<div class="text-right">
+<p class="text-xs font-semibold leading-none">Kosh Admin</p>
+<p class="text-[10px] text-on-surface-variant">Admin</p>
+</div>
+<img alt="User profile" class="w-8 h-8 rounded-full bg-primary-container/10 border border-primary-container/20" data-alt="Close up portrait of a professional male security administrator in a minimalist office setting with soft natural light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDzRwyfu-9UyaIoRBuh9iT_qP1pliGv74MAI-plPPw1Q90Jvoj6Qtp9FMmvBA0iXPxeuZeWwjoHSpmm490PJXOvtskPfK8GVCmfEV763gV9TU-zsAoWbleL2Vvun-x3lvjFF9dD0SrfaFjhssK4Gco49gSt8RB8tySgJXuOODWzpAGI6uG1zZv9epA9VLPT4rJuwWUPVDbn5mvgMHSuwEIQ8ByQzETxOZgj1uOPERNnEehps4oz2LKIQktfA9pYvIvnVweHSyTD3a5E"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar Implementation -->
+<aside class="flex flex-col h-screen fixed left-0 top-0 pt-16 pb-4 w-64 z-40 bg-[#f2f4f6] dark:bg-slate-900">
+<div class="px-6 py-4 mb-2">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-status-pass shadow-[0_0_8px_rgba(26,127,55,0.6)]"></div>
+<span class="font-headline text-sm font-bold tracking-tight">ECU-PowerTrain-v2.1</span>
+</div>
+<p class="text-[10px] text-on-surface-variant mt-1 font-headline uppercase tracking-widest">v2.4.0-stable</p>
+</div>
+<nav class="flex-1 overflow-y-auto px-3 space-y-0.5">
+<a class="flex items-center gap-3 px-3 py-2 text-sm text-[#191c1e] dark:text-slate-400 opacity-80 hover:text-[#0969da] hover:bg-[#e6e8ea] transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[18px]">dashboard</span>
+<span class="font-['Inter'] medium">Overview</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm text-[#191c1e] dark:text-slate-400 opacity-80 hover:text-[#0969da] hover:bg-[#e6e8ea] transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[18px]">folder_open</span>
+<span class="font-['Inter'] medium">Files</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm text-[#191c1e] dark:text-slate-400 opacity-80 hover:text-[#0969da] hover:bg-[#e6e8ea] transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[18px]">security</span>
+<span class="font-['Inter'] medium">Vulnerabilities</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm text-[#191c1e] dark:text-slate-400 opacity-80 hover:text-[#0969da] hover:bg-[#e6e8ea] transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[18px]">code</span>
+<span class="font-['Inter'] medium">Static Analysis</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm text-[#191c1e] dark:text-slate-400 opacity-80 hover:text-[#0969da] hover:bg-[#e6e8ea] transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[18px]">gpp_maybe</span>
+<span class="font-['Inter'] medium">Quality Gate</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm text-[#191c1e] dark:text-slate-400 opacity-80 hover:text-[#0969da] hover:bg-[#e6e8ea] transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[18px]">fact_check</span>
+<span class="font-['Inter'] medium">Approvals</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm text-[#0969da] font-semibold border-l-4 border-[#0969da] bg-white dark:bg-slate-800" href="#">
+<span class="material-symbols-outlined text-[18px]">history</span>
+<span class="font-['Inter'] medium">Analysis History</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm text-[#191c1e] dark:text-slate-400 opacity-80 hover:text-[#0969da] hover:bg-[#e6e8ea] transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[18px]">description</span>
+<span class="font-['Inter'] medium">Report</span>
+</a>
+<div class="pt-4 pb-2">
+<p class="px-3 text-[10px] font-headline font-bold text-on-surface-variant/60 uppercase tracking-widest mb-2">Sub-Projects</p>
+<div class="space-y-1">
+<div class="flex justify-between items-center px-3 py-1.5 hover:bg-[#e6e8ea] rounded cursor-pointer group">
+<span class="text-xs text-on-surface-variant group-hover:text-primary transition-colors">arm-cortex-m4-main</span>
+<span class="text-[10px] font-headline bg-surface-container-highest px-1.5 rounded">30</span>
+</div>
+<div class="flex justify-between items-center px-3 py-1.5 hover:bg-[#e6e8ea] rounded cursor-pointer group">
+<span class="text-xs text-on-surface-variant group-hover:text-primary transition-colors">arm-cortex-m4-boot</span>
+<span class="text-[10px] font-headline bg-surface-container-highest px-1.5 rounded">8</span>
+</div>
+<div class="flex justify-between items-center px-3 py-1.5 hover:bg-[#e6e8ea] rounded cursor-pointer group">
+<span class="text-xs text-on-surface-variant group-hover:text-primary transition-colors">riscv-rv32-diag</span>
+<span class="text-[10px] font-headline bg-surface-container-highest px-1.5 rounded">5</span>
+</div>
+</div>
+</div>
+</nav>
+<div class="px-3 pt-4 border-t border-outline-variant/20">
+<a class="flex items-center gap-3 px-3 py-2 text-sm text-on-surface-variant hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">arrow_back</span>
+<span class="font-['Inter']">Back to Projects</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-16 min-h-screen">
+<div class="p-8 max-w-[1400px] mx-auto">
+<!-- Page Header -->
+<div class="flex justify-between items-end mb-8">
+<div>
+<h1 class="text-[24px] font-headline font-bold tracking-tight text-on-surface">Analysis History</h1>
+<p class="text-[14px] text-on-surface-variant">47 runs completed since project inception</p>
+</div>
+<div class="flex gap-3">
+<button class="bg-gradient-to-r from-primary to-primary-container text-on-primary px-4 py-2 rounded-md font-headline text-xs font-bold uppercase tracking-widest flex items-center gap-2 shadow-sm">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+                        New Analysis
+                    </button>
+</div>
+</div>
+<div class="grid grid-cols-12 gap-8">
+<!-- Left Content: List and Filters -->
+<div class="col-span-12 lg:col-span-9 space-y-6">
+<!-- Filter Bar -->
+<div class="bg-surface-container-lowest p-4 rounded-xl flex flex-wrap gap-4 items-center shadow-[0px_12px_32px_rgba(25,28,30,0.04)]">
+<div class="flex flex-col gap-1">
+<span class="text-[10px] font-headline uppercase font-bold text-on-surface-variant px-1">Date Range</span>
+<select class="bg-surface-container-low border-none rounded text-xs py-1.5 px-3 focus:ring-1 focus:ring-primary min-w-[140px]">
+<option>Last 30 Days</option>
+<option>Last Quarter</option>
+<option>All Time</option>
+</select>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-[10px] font-headline uppercase font-bold text-on-surface-variant px-1">Status</span>
+<div class="flex bg-surface-container-low p-1 rounded">
+<button class="px-3 py-1 text-[10px] font-headline font-bold rounded bg-white shadow-sm">ALL</button>
+<button class="px-3 py-1 text-[10px] font-headline font-bold rounded hover:bg-white/50">PASS</button>
+<button class="px-3 py-1 text-[10px] font-headline font-bold rounded hover:bg-white/50">FAIL</button>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-[10px] font-headline uppercase font-bold text-on-surface-variant px-1">Build Target</span>
+<select class="bg-surface-container-low border-none rounded text-xs py-1.5 px-3 focus:ring-1 focus:ring-primary min-w-[160px]">
+<option>All Targets</option>
+<option>Production-Release</option>
+<option>Staging-Debug</option>
+</select>
+</div>
+<div class="ml-auto">
+<button class="text-primary text-[10px] font-headline font-bold uppercase tracking-widest hover:underline">Clear Filters</button>
+</div>
+</div>
+<!-- Analysis Table -->
+<div class="bg-surface-container-lowest rounded-xl shadow-[0px_12px_32px_rgba(25,28,30,0.04)] overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant/10">
+<th class="px-6 py-4 text-[10px] font-headline font-bold uppercase tracking-wider text-on-surface-variant">Run #</th>
+<th class="px-6 py-4 text-[10px] font-headline font-bold uppercase tracking-wider text-on-surface-variant">Date &amp; Time</th>
+<th class="px-6 py-4 text-[10px] font-headline font-bold uppercase tracking-wider text-on-surface-variant">Status</th>
+<th class="px-6 py-4 text-[10px] font-headline font-bold uppercase tracking-wider text-on-surface-variant text-center">Findings (C/H/M/L)</th>
+<th class="px-6 py-4 text-[10px] font-headline font-bold uppercase tracking-wider text-on-surface-variant">Duration</th>
+<th class="px-6 py-4"></th>
+</tr>
+</thead>
+<tbody class="text-[14px]">
+<!-- Row 47 -->
+<tr class="border-b border-outline-variant/10 hover:bg-surface-container-low/30 transition-colors">
+<td class="px-6 py-4 font-headline font-semibold text-primary">#47</td>
+<td class="px-6 py-4 mono text-xs">2023-11-24 14:32:01</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-sm bg-status-pass text-white text-[10px] font-headline font-bold">PASS</span>
+</td>
+<td class="px-6 py-4 text-center mono font-medium">
+<span class="text-error">0</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">3</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">12</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface-variant">28</span>
+</td>
+<td class="px-6 py-4 mono text-xs">04m 12s</td>
+<td class="px-6 py-4 text-right">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">chevron_right</button>
+</td>
+</tr>
+<!-- Row 46 -->
+<tr class="border-b border-outline-variant/10 bg-surface-container-low/20 hover:bg-surface-container-low/30 transition-colors">
+<td class="px-6 py-4 font-headline font-semibold text-primary">#46</td>
+<td class="px-6 py-4 mono text-xs">2023-11-23 09:15:44</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-sm bg-status-fail text-white text-[10px] font-headline font-bold">FAIL</span>
+</td>
+<td class="px-6 py-4 text-center mono font-medium">
+<span class="text-error">2</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">5</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">18</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface-variant">42</span>
+</td>
+<td class="px-6 py-4 mono text-xs">05m 58s</td>
+<td class="px-6 py-4 text-right">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">chevron_right</button>
+</td>
+</tr>
+<!-- Row 45 -->
+<tr class="border-b border-outline-variant/10 hover:bg-surface-container-low/30 transition-colors">
+<td class="px-6 py-4 font-headline font-semibold text-primary">#45</td>
+<td class="px-6 py-4 mono text-xs">2023-11-22 17:01:22</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-sm bg-status-pass text-white text-[10px] font-headline font-bold">PASS</span>
+</td>
+<td class="px-6 py-4 text-center mono font-medium">
+<span class="text-on-surface-variant/30">0</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">1</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">8</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface-variant">15</span>
+</td>
+<td class="px-6 py-4 mono text-xs">03m 44s</td>
+<td class="px-6 py-4 text-right">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">chevron_right</button>
+</td>
+</tr>
+<!-- Row 44 -->
+<tr class="border-b border-outline-variant/10 bg-surface-container-low/20 hover:bg-surface-container-low/30 transition-colors">
+<td class="px-6 py-4 font-headline font-semibold text-primary">#44</td>
+<td class="px-6 py-4 mono text-xs">2023-11-22 10:45:09</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-sm bg-status-pass text-white text-[10px] font-headline font-bold">PASS</span>
+</td>
+<td class="px-6 py-4 text-center mono font-medium">
+<span class="text-on-surface-variant/30">0</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">2</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">10</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface-variant">20</span>
+</td>
+<td class="px-6 py-4 mono text-xs">04m 02s</td>
+<td class="px-6 py-4 text-right">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">chevron_right</button>
+</td>
+</tr>
+<!-- Row 43 -->
+<tr class="border-b border-outline-variant/10 hover:bg-surface-container-low/30 transition-colors">
+<td class="px-6 py-4 font-headline font-semibold text-primary">#43</td>
+<td class="px-6 py-4 mono text-xs">2023-11-21 15:30:55</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-sm bg-status-pass text-white text-[10px] font-headline font-bold">PASS</span>
+</td>
+<td class="px-6 py-4 text-center mono font-medium">
+<span class="text-on-surface-variant/30">0</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">0</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">4</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface-variant">12</span>
+</td>
+<td class="px-6 py-4 mono text-xs">03m 50s</td>
+<td class="px-6 py-4 text-right">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">chevron_right</button>
+</td>
+</tr>
+<!-- Row 42 -->
+<tr class="border-b border-outline-variant/10 bg-surface-container-low/20 hover:bg-surface-container-low/30 transition-colors">
+<td class="px-6 py-4 font-headline font-semibold text-primary">#42</td>
+<td class="px-6 py-4 mono text-xs">2023-11-20 11:12:08</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-sm bg-status-fail text-white text-[10px] font-headline font-bold">FAIL</span>
+</td>
+<td class="px-6 py-4 text-center mono font-medium">
+<span class="text-error">1</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">4</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">22</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface-variant">50</span>
+</td>
+<td class="px-6 py-4 mono text-xs">06m 12s</td>
+<td class="px-6 py-4 text-right">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">chevron_right</button>
+</td>
+</tr>
+<!-- Row 41 -->
+<tr class="border-b border-outline-variant/10 hover:bg-surface-container-low/30 transition-colors">
+<td class="px-6 py-4 font-headline font-semibold text-primary">#41</td>
+<td class="px-6 py-4 mono text-xs">2023-11-19 14:00:33</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-sm bg-status-pass text-white text-[10px] font-headline font-bold">PASS</span>
+</td>
+<td class="px-6 py-4 text-center mono font-medium">
+<span class="text-on-surface-variant/30">0</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">2</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">15</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface-variant">33</span>
+</td>
+<td class="px-6 py-4 mono text-xs">04m 45s</td>
+<td class="px-6 py-4 text-right">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">chevron_right</button>
+</td>
+</tr>
+<!-- Row 40 -->
+<tr class="border-b border-outline-variant/10 bg-surface-container-low/20 hover:bg-surface-container-low/30 transition-colors">
+<td class="px-6 py-4 font-headline font-semibold text-primary">#40</td>
+<td class="px-6 py-4 mono text-xs">2023-11-18 16:44:50</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-sm bg-status-pass text-white text-[10px] font-headline font-bold">PASS</span>
+</td>
+<td class="px-6 py-4 text-center mono font-medium">
+<span class="text-on-surface-variant/30">0</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">0</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">2</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface-variant">10</span>
+</td>
+<td class="px-6 py-4 mono text-xs">03m 15s</td>
+<td class="px-6 py-4 text-right">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">chevron_right</button>
+</td>
+</tr>
+<!-- Row 39 -->
+<tr class="border-b border-outline-variant/10 hover:bg-surface-container-low/30 transition-colors">
+<td class="px-6 py-4 font-headline font-semibold text-primary">#39</td>
+<td class="px-6 py-4 mono text-xs">2023-11-17 10:20:12</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-sm bg-status-pass text-white text-[10px] font-headline font-bold">PASS</span>
+</td>
+<td class="px-6 py-4 text-center mono font-medium">
+<span class="text-on-surface-variant/30">0</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">1</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">5</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface-variant">18</span>
+</td>
+<td class="px-6 py-4 mono text-xs">04m 10s</td>
+<td class="px-6 py-4 text-right">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">chevron_right</button>
+</td>
+</tr>
+<!-- Row 38 -->
+<tr class="hover:bg-surface-container-low/30 transition-colors">
+<td class="px-6 py-4 font-headline font-semibold text-primary">#38</td>
+<td class="px-6 py-4 mono text-xs">2023-11-16 13:55:00</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-sm bg-status-fail text-white text-[10px] font-headline font-bold">FAIL</span>
+</td>
+<td class="px-6 py-4 text-center mono font-medium">
+<span class="text-error">1</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">8</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface">30</span><span class="text-outline-variant mx-1">/</span>
+<span class="text-on-surface-variant">72</span>
+</td>
+<td class="px-6 py-4 mono text-xs">07m 45s</td>
+<td class="px-6 py-4 text-right">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">chevron_right</button>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="px-6 py-4 border-t border-outline-variant/10 flex justify-between items-center bg-surface-container-low/10">
+<p class="text-xs text-on-surface-variant">Showing 10 of 47 runs</p>
+<div class="flex gap-2">
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant/30 text-on-surface-variant disabled:opacity-30" disabled="">
+<span class="material-symbols-outlined text-sm">chevron_left</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-primary text-white font-headline text-xs font-bold">1</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant/30 text-on-surface-variant font-headline text-xs hover:bg-surface-container-low">2</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant/30 text-on-surface-variant font-headline text-xs hover:bg-surface-container-low">3</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant/30 text-on-surface-variant font-headline text-xs hover:bg-surface-container-low">4</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low">
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Sidebar: Trends and Meta -->
+<div class="col-span-12 lg:col-span-3 space-y-6">
+<!-- Severity Trend Card -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-[0px_12px_32px_rgba(25,28,30,0.04)]">
+<h3 class="text-xs font-headline font-bold uppercase tracking-widest text-on-surface mb-4">Severity Trend</h3>
+<p class="text-[10px] text-on-surface-variant mb-6 uppercase tracking-tight">Vulnerabilities (C/H/M/L) over last 10 runs</p>
+<div class="h-48 border-2 border-dashed border-outline-variant/30 rounded flex items-center justify-center relative overflow-hidden bg-surface-container-low/30">
+<!-- Visual Placeholder for Trend Chart -->
+<div class="absolute inset-0 flex items-end justify-between px-4 pb-4">
+<div class="w-2 bg-status-fail h-[70%] opacity-20 rounded-t-sm"></div>
+<div class="w-2 bg-status-fail h-[40%] opacity-20 rounded-t-sm"></div>
+<div class="w-2 bg-status-pass h-[20%] opacity-20 rounded-t-sm"></div>
+<div class="w-2 bg-status-pass h-[25%] opacity-20 rounded-t-sm"></div>
+<div class="w-2 bg-status-pass h-[15%] opacity-20 rounded-t-sm"></div>
+<div class="w-2 bg-status-fail h-[65%] opacity-20 rounded-t-sm"></div>
+<div class="w-2 bg-status-pass h-[30%] opacity-20 rounded-t-sm"></div>
+<div class="w-2 bg-status-pass h-[10%] opacity-20 rounded-t-sm"></div>
+<div class="w-2 bg-status-pass h-[18%] opacity-20 rounded-t-sm"></div>
+<div class="w-2 bg-status-pass h-[22%] opacity-20 rounded-t-sm"></div>
+</div>
+<span class="text-[10px] font-headline text-on-surface-variant font-medium bg-white px-2 py-1 rounded shadow-sm z-10">Severity Trend Chart</span>
+</div>
+<div class="mt-6 space-y-3">
+<div class="flex items-center justify-between text-[11px]">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-error"></div>
+<span class="text-on-surface-variant">Critical</span>
+</div>
+<span class="mono font-bold">-15%</span>
+</div>
+<div class="flex items-center justify-between text-[11px]">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-on-tertiary-container"></div>
+<span class="text-on-surface-variant">High</span>
+</div>
+<span class="mono font-bold text-error">+5%</span>
+</div>
+<div class="flex items-center justify-between text-[11px]">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary-container"></div>
+<span class="text-on-surface-variant">Medium</span>
+</div>
+<span class="mono font-bold">-8%</span>
+</div>
+</div>
+</div>
+<!-- Statistics Summary -->
+<div class="bg-surface-container-low p-6 rounded-xl border border-outline-variant/10">
+<h3 class="text-xs font-headline font-bold uppercase tracking-widest text-on-surface mb-4">Quick Stats</h3>
+<div class="space-y-4">
+<div>
+<p class="text-[10px] font-headline font-bold text-on-surface-variant uppercase tracking-wider">Pass Rate</p>
+<p class="text-2xl font-headline font-bold text-status-pass">82.4%</p>
+</div>
+<div class="pt-2 border-t border-outline-variant/20">
+<p class="text-[10px] font-headline font-bold text-on-surface-variant uppercase tracking-wider">Avg. Duration</p>
+<p class="text-xl font-headline font-bold text-on-surface">04m 22s</p>
+</div>
+<div class="pt-2 border-t border-outline-variant/20">
+<p class="text-[10px] font-headline font-bold text-on-surface-variant uppercase tracking-wider">Total Findings</p>
+<p class="text-xl font-headline font-bold text-on-surface">1,402</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<footer class="mt-auto py-12 px-8 flex flex-col items-center">
+<div class="w-16 h-px bg-outline-variant/30 mb-6"></div>
+<p class="text-[11px] font-headline text-on-surface-variant/60 uppercase tracking-[0.2em] text-center">
+                AEGIS v2.1.0 — Embedded Firmware Security Analysis Platform
+            </p>
+<div class="mt-4 flex gap-6 text-[10px] text-on-surface-variant/40 font-headline uppercase tracking-widest">
+<a class="hover:text-primary transition-colors" href="#">Documentation</a>
+<a class="hover:text-primary transition-colors" href="#">Privacy Policy</a>
+<a class="hover:text-primary transition-colors" href="#">Support</a>
+</div>
+</footer>
+</main>
+</body></html>

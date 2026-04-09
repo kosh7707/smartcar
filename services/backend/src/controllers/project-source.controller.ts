@@ -168,6 +168,43 @@ interface UploadStatus {
 
 const uploadStatusMap = new Map<string, UploadStatus>();
 
+export function getUploadWsSnapshot(uploadId: string): WsUploadMessage | undefined {
+  const status = uploadStatusMap.get(uploadId);
+  if (!status) return undefined;
+
+  switch (status.phase) {
+    case "complete":
+      if (!status.projectPath || status.fileCount == null) return undefined;
+      return {
+        type: "upload-complete",
+        payload: {
+          uploadId,
+          fileCount: status.fileCount,
+          projectPath: status.projectPath,
+        },
+      };
+    case "failed":
+      return {
+        type: "upload-error",
+        payload: {
+          uploadId,
+          phase: "failed",
+          error: status.error ?? status.message,
+        },
+      };
+    default:
+      return {
+        type: "upload-progress",
+        payload: {
+          uploadId,
+          phase: status.phase as "received" | "extracting" | "indexing",
+          message: status.message,
+          ...(status.fileCount != null ? { fileCount: status.fileCount } : {}),
+        },
+      };
+  }
+}
+
 function setUploadStatus(uploadId: string, status: UploadStatus): void {
   uploadStatusMap.set(uploadId, status);
   // 30분 후 정리

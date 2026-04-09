@@ -180,7 +180,7 @@ td.can-table__empty {
   text-align: center;
   color: var(--cds-text-placeholder);
   padding: var(--cds-spacing-07) 0;
-  font-family: var(--font-sans);
+  font-family: var(--cds-font-sans);
 }
 
 /* ── Injected Row ── */
@@ -192,7 +192,7 @@ tbody tr.can-row--injected {
 
 .can-inject-tag {
   display: inline-block;
-  font-family: var(--font-sans);
+  font-family: var(--cds-font-sans);
   font-size: var(--cds-type-2xs);
   font-weight: var(--cds-weight-semibold);
   line-height: 1;

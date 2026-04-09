@@ -54,8 +54,8 @@
   align-items: center;
   justify-content: center;
   gap: var(--cds-spacing-03);
-  background: var(--cds-interactive);
-  color: var(--cds-text-inverse);
+  background: var(--cds-button-primary);
+  color: var(--cds-text-on-color);
   border: 1px solid transparent;
   padding: var(--cds-spacing-03) var(--aegis-spacing-05);
   border-radius: var(--cds-radius);
@@ -67,7 +67,7 @@
 }
 
 .btn:hover {
-  background: var(--cds-interactive-hover);
+  background: var(--cds-button-primary-hover);
 }
 
 .btn:active {

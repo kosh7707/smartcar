@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Approvals</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-highest": "#e2e2e2",
+                        "on-surface": "#1a1c1c",
+                        "primary-fixed": "#d8e2ff",
+                        "tertiary-container": "#007e33",
+                        "outline": "#727785",
+                        "on-secondary-fixed-variant": "#3f4751",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-container": "#c0ffc2",
+                        "error-container": "#ffdad6",
+                        "inverse-surface": "#2f3131",
+                        "tertiary-fixed": "#88fb99",
+                        "on-tertiary-fixed": "#002108",
+                        "on-primary-fixed": "#001a41",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary-container": "#5b636e",
+                        "on-secondary-fixed": "#141c25",
+                        "surface-bright": "#f9f9f9",
+                        "surface-variant": "#e2e2e2",
+                        "on-error": "#ffffff",
+                        "secondary-fixed": "#dbe3ef",
+                        "primary-container": "#0969da",
+                        "on-background": "#1a1c1c",
+                        "inverse-on-surface": "#f0f1f1",
+                        "outline-variant": "#c2c6d6",
+                        "surface-container-low": "#f3f3f4",
+                        "inverse-primary": "#adc6ff",
+                        "secondary": "#575f69",
+                        "on-primary-container": "#ecefff",
+                        "background": "#f9f9f9",
+                        "tertiary": "#006226",
+                        "surface-container": "#eeeeee",
+                        "surface-dim": "#dadada",
+                        "secondary-container": "#d8e0ed",
+                        "tertiary-fixed-dim": "#6bde80",
+                        "surface-tint": "#005bc0",
+                        "on-tertiary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "secondary-fixed-dim": "#bfc7d3",
+                        "primary": "#0051ae",
+                        "on-primary-fixed-variant": "#004493",
+                        "error": "#ba1a1a",
+                        "on-surface-variant": "#424753",
+                        "surface": "#f9f9f9",
+                        "on-tertiary-fixed-variant": "#00531f",
+                        "on-secondary": "#ffffff",
+                        "surface-container-high": "#e8e8e8"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #f9f9f9; color: #1a1c1c; font-size: 14px; }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .font-label { font-family: 'Space Grotesk', sans-serif; font-size: 11px; letter-spacing: 0.05em; }
+        .material-symbols-outlined { font-size: 20px; vertical-align: middle; }
+        .border-base { border-color: #f3f3f4; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+<!-- TopNavBar -->
+<header class="bg-slate-50 flex justify-between items-center px-6 h-16 w-full top-0 z-50 fixed border-b border-slate-200">
+<div class="flex items-center gap-8">
+<div class="text-xl font-bold tracking-tighter text-blue-700 font-headline">AEGIS</div>
+<div class="flex items-center bg-white border border-slate-200 px-3 py-1.5 rounded text-sm font-medium cursor-pointer hover:bg-slate-50 transition-colors">
+                ECU-PowerTrain-v2.1
+                <span class="material-symbols-outlined ml-2 text-slate-400">arrow_drop_down</span>
+</div>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-slate-400">search</span>
+<input class="bg-slate-100 border-none rounded-lg pl-10 pr-4 py-1.5 text-sm w-64 focus:ring-2 focus:ring-blue-700/20" placeholder="Search resources..." type="text"/>
+</div>
+</div>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-slate-500 hover:text-blue-700 transition-colors font-headline tracking-tight text-sm" href="#">Dashboard</a>
+<a class="text-slate-500 hover:text-blue-700 transition-colors font-headline tracking-tight text-sm" href="#">Analytics</a>
+<a class="text-slate-500 hover:text-blue-700 transition-colors font-headline tracking-tight text-sm" href="#">Security</a>
+</nav>
+<div class="flex items-center gap-4">
+<div class="relative">
+<span class="material-symbols-outlined text-slate-500 cursor-pointer">notifications</span>
+<span class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border-2 border-slate-50">3</span>
+</div>
+<span class="material-symbols-outlined text-slate-500 cursor-pointer">settings</span>
+<div class="h-8 w-px bg-slate-200 mx-2"></div>
+<div class="flex items-center gap-3">
+<div class="text-right">
+<div class="text-xs font-bold text-slate-900 leading-none">Kosh</div>
+<div class="text-[10px] text-slate-500 uppercase tracking-tighter">Admin</div>
+</div>
+<img alt="User Profile" class="w-8 h-8 rounded-full border border-slate-200" data-alt="Portrait of a professional man in a clean office environment, soft daylighting, high-end corporate style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDlJnz1Y0t-ZI5oxDPhmacgz68huYYkIigK-I2f96FvBcNeqgteqwLLtWM7Jmqa1AJmOnCP2AAOM6F8T6WlhWr_KUmodBc2HVGpnsSAGSK9ZyrEGXSwbo6XDXUkIyK3OiLu0lqKHCnNNTEcPfJ4qfUq1AwJiPoo_vpuTugGNIj6cg_vQYKVOYtmEuVi5crQ18pEThxHuAMMijoLzQzbwXQFUmBiumCGuDDWoHkPmW1aOclyyILmq3DkF6o0vMVX745ZDLHSOsco98X_"/>
+</div>
+</div>
+</header>
+<div class="flex flex-1 pt-16">
+<!-- SideNavBar -->
+<aside class="w-64 bg-slate-100 h-[calc(100vh-4rem)] fixed left-0 flex flex-col border-r border-slate-200/50">
+<div class="p-6">
+<div class="flex items-center gap-3 mb-6">
+<div class="w-10 h-10 bg-blue-700 rounded flex items-center justify-center text-white font-black text-lg">PA</div>
+<div>
+<div class="text-xs font-black uppercase tracking-widest text-slate-900">Project Alpha</div>
+<div class="text-[10px] text-slate-500 font-medium">Production Cluster</div>
+</div>
+</div>
+<div class="mb-8">
+<div class="font-label text-slate-400 mb-3 px-2">SUB-PROJECTS</div>
+<div class="space-y-1">
+<div class="flex justify-between items-center px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer rounded">
+<span class="truncate">arm-cortex-m4-main</span>
+<span class="bg-slate-200 px-1.5 rounded text-[10px] font-bold">30</span>
+</div>
+<div class="flex justify-between items-center px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer rounded">
+<span class="truncate">arm-cortex-m4-boot</span>
+<span class="bg-slate-200 px-1.5 rounded text-[10px] font-bold">8</span>
+</div>
+<div class="flex justify-between items-center px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer rounded">
+<span class="truncate">riscv-rv32-diag</span>
+<span class="bg-slate-200 px-1.5 rounded text-[10px] font-bold">5</span>
+</div>
+</div>
+</div>
+<nav class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-200 rounded transition-all duration-200 font-medium text-sm" href="#">
+<span class="material-symbols-outlined text-slate-400">dashboard</span>
+                        Overview
+                    </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-200 rounded transition-all duration-200 font-medium text-sm" href="#">
+<span class="material-symbols-outlined text-slate-400">account_tree</span>
+                        Infrastructure
+                    </a>
+<a class="flex items-center gap-3 px-3 py-2 bg-white text-blue-700 border-l-2 border-blue-700 rounded-r shadow-sm transition-all duration-200 font-medium text-sm" href="#">
+<span class="material-symbols-outlined">verified_user</span>
+                        Approvals
+                    </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-200 rounded transition-all duration-200 font-medium text-sm" href="#">
+<span class="material-symbols-outlined text-slate-400">terminal</span>
+                        Logs
+                    </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-200 rounded transition-all duration-200 font-medium text-sm" href="#">
+<span class="material-symbols-outlined text-slate-400">monitoring</span>
+                        Monitoring
+                    </a>
+</nav>
+</div>
+<div class="mt-auto border-t border-slate-200/50 p-4 space-y-2">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-900 transition-colors text-xs font-medium" href="#">
+<span class="material-symbols-outlined text-slate-400">arrow_back</span>
+                    Back to Projects
+                </a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-64 flex-1 p-8 pb-16 bg-[#f9f9f9]">
+<!-- Content Header -->
+<div class="mb-8 flex justify-between items-end">
+<div>
+<h1 class="text-3xl font-bold font-headline tracking-tight text-slate-900">Approvals</h1>
+<p class="text-slate-500 mt-1">Review and manage gate overrides and release requests across sub-projects.</p>
+</div>
+<div class="flex bg-slate-200/50 p-1 rounded-lg">
+<button class="px-4 py-1.5 text-sm font-semibold rounded bg-white shadow-sm text-slate-900">Open (1)</button>
+<button class="px-4 py-1.5 text-sm font-medium rounded text-slate-500 hover:text-slate-700">Closed (4)</button>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-6 items-start">
+<!-- Left: List Area -->
+<div class="col-span-12 lg:col-span-5 space-y-4">
+<!-- Item 1: Active/Selected -->
+<div class="bg-white p-5 rounded-lg shadow-[0_8px_32px_rgba(26,28,28,0.04)] border-l-4 border-yellow-500 ring-1 ring-slate-200/50">
+<div class="flex justify-between items-start mb-2">
+<span class="font-label text-yellow-700 bg-yellow-50 px-2 py-0.5 rounded">PENDING</span>
+<span class="text-[10px] text-slate-400">2h ago</span>
+</div>
+<h3 class="font-bold text-slate-900 text-base mb-1">Gate Override — analysis-20260408-003</h3>
+<p class="text-xs text-slate-500 mb-4 line-clamp-1">Safety-critical violation in ECU powertrain main loop.</p>
+<div class="flex items-center gap-4 text-[10px] font-medium text-slate-400 uppercase tracking-wider">
+<div class="flex items-center gap-1"><span class="material-symbols-outlined !text-sm">person</span> Park J.</div>
+<div class="flex items-center gap-1"><span class="material-symbols-outlined !text-sm">tag</span> ECU-V2.1</div>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="bg-slate-100/50 p-5 rounded-lg border border-slate-200/30 hover:bg-white hover:shadow-md transition-all cursor-pointer opacity-80">
+<div class="flex justify-between items-start mb-2">
+<span class="font-label text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">APPROVED</span>
+<span class="text-[10px] text-slate-400">1d ago</span>
+</div>
+<h3 class="font-bold text-slate-700 text-base mb-1">Release Approval — v2.1.0-rc3</h3>
+<div class="flex items-center gap-4 text-[10px] font-medium text-slate-400 uppercase tracking-wider">
+<div class="flex items-center gap-1"><span class="material-symbols-outlined !text-sm">person</span> System</div>
+<div class="flex items-center gap-1"><span class="material-symbols-outlined !text-sm">done_all</span> Verified</div>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="bg-slate-100/50 p-5 rounded-lg border border-slate-200/30 hover:bg-white hover:shadow-md transition-all cursor-pointer opacity-80">
+<div class="flex justify-between items-start mb-2">
+<span class="font-label text-red-700 bg-red-50 px-2 py-0.5 rounded">REJECTED</span>
+<span class="text-[10px] text-slate-400">3d ago</span>
+</div>
+<h3 class="font-bold text-slate-700 text-base mb-1">Gate Override — analysis-20260405-001</h3>
+<div class="flex items-center gap-4 text-[10px] font-medium text-slate-400 uppercase tracking-wider">
+<div class="flex items-center gap-1"><span class="material-symbols-outlined !text-sm">person</span> Chen L.</div>
+<div class="flex items-center gap-1"><span class="material-symbols-outlined !text-sm">close</span> Failed</div>
+</div>
+</div>
+</div>
+<!-- Right: Detailed View (The Data Monolith) -->
+<div class="col-span-12 lg:col-span-7 bg-white rounded-lg shadow-[0_8px_32px_rgba(26,28,28,0.04)] border border-slate-200/50 overflow-hidden">
+<!-- Monolith Header -->
+<div class="p-6 border-b border-slate-100 flex justify-between items-start">
+<div>
+<div class="flex items-center gap-3 mb-2">
+<h2 class="text-xl font-bold text-slate-900 font-headline">Gate Override — analysis-20260408-003</h2>
+<span class="bg-yellow-500 text-white text-[10px] px-2 py-0.5 font-bold rounded">PENDING</span>
+</div>
+<div class="flex items-center gap-4 text-xs text-slate-500">
+<span>Opened by <strong class="text-slate-900">Park J.</strong> 2 hours ago</span>
+<span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined !text-[14px]">commit</span> main #492a1d</span>
+</div>
+</div>
+<button class="p-2 hover:bg-slate-100 rounded">
+<span class="material-symbols-outlined text-slate-400">more_horiz</span>
+</button>
+</div>
+<!-- Tabs -->
+<div class="px-6 border-b border-slate-100 flex gap-8">
+<button class="py-3 text-sm font-bold border-b-2 border-blue-700 text-blue-700">Conversation</button>
+<button class="py-3 text-sm font-medium text-slate-400 hover:text-slate-600">Changes <span class="ml-1 bg-slate-100 px-1.5 py-0.5 rounded-full text-[10px]">+12 / -2</span></button>
+</div>
+<div class="flex">
+<!-- Thread -->
+<div class="flex-1 p-6 space-y-8 border-r border-slate-100">
+<!-- Message 1 -->
+<div class="flex gap-4">
+<img class="w-8 h-8 rounded-full flex-shrink-0" data-alt="Close-up profile of a male engineer in a tech office, soft focused code in background, daylighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA9UX8ioVS21Wjrkuxel6DH3Pn9twrX6VQLJVRpyHNgaIyFPqXKu8yOU4Soh3dRATujjGty-laO4P67wglDPVYyFxnDj9sd5gAExxehLFXMI7oor3qHUAzCm58qUqqP3ndjdSgk2OkMcnIE6FbSwwoUeK7szogijzZyzqEByMt687mDfTAAsQIVA1cWX9QQMCdQgItwBClYvDfH3dpMy_n0wsmv2wTYdv8dAC5mGGOapL24AKAFV06VHvqAJez3es24jHMI7rXboExO"/>
+<div class="space-y-1">
+<div class="flex items-center gap-2">
+<span class="font-bold text-slate-900 text-sm">Park J.</span>
+<span class="text-xs text-slate-400">2h ago</span>
+</div>
+<div class="text-sm text-slate-600 leading-relaxed">
+                                        Requesting override for MISRA Rule 12.1 violation in powertrain control module. The logic is intentional to ensure sub-millisecond response times in the emergency braking branch. Manual validation has been completed.
+                                    </div>
+</div>
+</div>
+<!-- Message 2 -->
+<div class="flex gap-4">
+<img class="w-8 h-8 rounded-full flex-shrink-0" data-alt="Professional female executive portrait, neutral background, studio lighting, high precision vibe" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCsi6xCS3rihooXjC6YMpvF0fjyIk4kqBccjNn9zzHvs7QiBX5y73gXd93EhJ0_A2PW9hz8MdFuTQWQsPjDfRX8Brscf8YWD6CUksSCOV3-oB67BYFvKdL0hVGDARKDuHsO6ErIxImgGiiN2HkjHsaZx08-qN4IksHSqHQpT9sjBftdYNv9HU_MVFV58W-xQSgKoKjmJoOlZ3yePazDCfq5fcI5ecREfNFOLW8Bq4bns4YwDkX7Rx9WBERzawRcrtx9oAVJx4RDMFfb"/>
+<div class="space-y-1">
+<div class="flex items-center gap-2">
+<span class="font-bold text-slate-900 text-sm">Kim S.</span>
+<span class="text-xs text-slate-400">1h ago</span>
+</div>
+<div class="text-sm text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-lg italic">
+                                        "Please provide the specific simulation evidence for the worst-case timing scenario before I can sign off on this. Rule 12.1 is critical for stack integrity."
+                                    </div>
+</div>
+</div>
+<!-- Comment Area -->
+<div class="pt-4 mt-8 border-t border-slate-100">
+<div class="bg-slate-50 rounded-lg border border-slate-200">
+<div class="px-4 py-2 border-b border-slate-200 flex gap-4">
+<button class="text-xs font-bold text-slate-900">Write</button>
+<button class="text-xs font-medium text-slate-500">Preview</button>
+</div>
+<textarea class="w-full bg-transparent border-none focus:ring-0 p-4 text-sm min-h-[100px]" placeholder="Leave a comment..."></textarea>
+</div>
+<div class="flex justify-end gap-3 mt-4">
+<button class="px-5 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded transition-colors uppercase tracking-widest">Reject</button>
+<button class="px-5 py-2 text-xs font-bold text-white bg-gradient-to-br from-primary to-primary-container hover:shadow-lg transition-all rounded uppercase tracking-widest">Approve</button>
+</div>
+</div>
+</div>
+<!-- Right Panel Info -->
+<div class="w-64 p-6 bg-slate-50/50 space-y-8">
+<div>
+<div class="font-label text-slate-400 mb-3">REVIEWERS</div>
+<div class="flex items-center gap-2 mb-2">
+<img class="w-5 h-5 rounded-full" data-alt="Portrait of a female reviewer" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZRFqM-vhatOg-JUjBBtU4hhEh7x9CArr9nNkDeI3sbRz-iWWREhORgRjGoI6JM2atxyUPe6JhS-e0X3sjnktb-ydQFy7x6sQcoPX72blged7BXc6T-CXgPJ_sCqZFZKg0-Gr8s81JOrnzojkBUyvmvXO4muInZ1XW4eM5-SGnzLYHCahQ_HpCqIsB3OAIi4FfahJEqSgxS8eFQ5fE9Y0ZqHzx6P9ayjBENsIhJK1BbPQYwWIljfOONyxNzBjDnURCvGpwHgLPJ89o"/>
+<span class="text-xs font-medium text-slate-700">Kim S.</span>
+<span class="material-symbols-outlined text-yellow-500 !text-sm">schedule</span>
+</div>
+</div>
+<div>
+<div class="font-label text-slate-400 mb-3">LABELS</div>
+<div class="flex flex-wrap gap-1">
+<span class="px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-bold uppercase tracking-tighter">Priority: High</span>
+<span class="px-2 py-0.5 rounded bg-slate-200 text-slate-600 text-[10px] font-bold uppercase tracking-tighter">Safety-Critical</span>
+</div>
+</div>
+<div>
+<div class="font-label text-slate-400 mb-3">GATE STATUS</div>
+<div class="flex items-center gap-2 text-red-600 font-bold text-xs">
+<span class="material-symbols-outlined !text-sm">cancel</span>
+                                    FAIL: static-analysis
+                                </div>
+</div>
+<div class="pt-4 border-t border-slate-200">
+<div class="font-label text-slate-400 mb-2">CRITERIA</div>
+<p class="text-[10px] text-slate-500 leading-tight">Critical findings must be 0 <br/>(actual: <span class="text-red-600 font-bold">1</span>)</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Footer -->
+<footer class="fixed bottom-0 w-full h-8 bg-slate-200 flex items-center justify-between px-4 z-40">
+<div class="font-label text-slate-600 flex items-center gap-2">
+<span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+            © 2024 AEGIS SYSTEMS • ALL SYSTEMS OPERATIONAL
+        </div>
+<div class="flex gap-4">
+<a class="font-label text-slate-500 hover:text-slate-900 transition-colors" href="#">Privacy</a>
+<a class="font-label text-slate-500 hover:text-slate-900 transition-colors" href="#">API Status</a>
+<a class="font-label text-slate-500 hover:text-slate-900 transition-colors" href="#">Documentation</a>
+</div>
+</footer>
+</body></html>

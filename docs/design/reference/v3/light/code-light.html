@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-container": "#0969da",
+                    "outline-variant": "#c2c6d6",
+                    "surface-variant": "#e0e3e6",
+                    "on-background": "#191c1e",
+                    "primary": "#0051ae",
+                    "secondary-fixed": "#d8e2ff",
+                    "primary-fixed-dim": "#adc6ff",
+                    "secondary-container": "#b6ccfe",
+                    "secondary": "#485e8a",
+                    "error-container": "#ffdad6",
+                    "tertiary-fixed": "#ffdbcc",
+                    "on-error": "#ffffff",
+                    "surface-container-high": "#e6e8eb",
+                    "on-primary-fixed": "#001a41",
+                    "surface-bright": "#f7f9fc",
+                    "surface-container-low": "#f2f4f7",
+                    "primary-fixed": "#d8e2ff",
+                    "background": "#f7f9fc",
+                    "on-secondary-fixed": "#001a41",
+                    "on-secondary": "#ffffff",
+                    "inverse-surface": "#2d3133",
+                    "on-surface": "#191c1e",
+                    "outline": "#727785",
+                    "surface": "#f7f9fc",
+                    "surface-tint": "#005bc0",
+                    "surface-container": "#eceef1",
+                    "tertiary": "#913900",
+                    "on-tertiary-fixed-variant": "#7a2f00",
+                    "on-primary": "#ffffff",
+                    "tertiary-fixed-dim": "#ffb693",
+                    "on-tertiary-container": "#ffece5",
+                    "on-primary-fixed-variant": "#004493",
+                    "surface-dim": "#d8dadd",
+                    "on-error-container": "#93000a",
+                    "on-surface-variant": "#424753",
+                    "inverse-primary": "#adc6ff",
+                    "on-primary-container": "#ecefff",
+                    "tertiary-container": "#b84b00",
+                    "surface-container-highest": "#e0e3e6",
+                    "inverse-on-surface": "#eff1f4",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-container": "#405681",
+                    "secondary-fixed-dim": "#b0c6f8",
+                    "surface-container-lowest": "#ffffff",
+                    "error": "#ba1a1a",
+                    "on-tertiary-fixed": "#351000"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Space Grotesk"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #f7f9fc; }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .sidebar-active { background-color: #ffffff; color: #0969da; font-weight: 600; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+    </style>
+</head>
+<body class="text-on-surface">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 bg-slate-50/80 backdrop-blur-md flex justify-between items-center px-6 h-16 w-full">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tight text-slate-900 font-headline">AEGIS</span>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-slate-600 hover:bg-slate-100 transition-colors px-3 py-2 rounded-lg font-medium" href="#">Docs</a>
+<a class="text-slate-600 hover:bg-slate-100 transition-colors px-3 py-2 rounded-lg font-medium" href="#">Support</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-slate-600 hover:bg-slate-100 transition-colors rounded-full active:scale-95 duration-150">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-slate-600 hover:bg-slate-100 transition-colors rounded-full active:scale-95 duration-150">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-slate-200">
+<img alt="User profile" data-alt="Close-up portrait of a professional software engineer with a neutral expression in a bright modern office setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCmcy-BLIHrjtgdjyC3xNQaJ-u8AGSLC8omgY9UgYkw5KeU_kZZxPgTin3fLQjJBHW2IYmhaW00uiTLTRO0vm1B0W6dwR7onuXvvQXVw7QJhOBOnlPv_PNITD0Nfh0g68C5bjsCrXR56bWToR3PGRpMNBQWrq-UnBg30dXxphlwfaoDjEIv6yiact6z3W-ZEm3PXlEO8g6Ncpb6ZpXh9sICQXQ8ZlDQ8k1rzi4aIXs2D9Ut9uaxBRu7xS_H8s0WgPTAhT34wYL51zpT"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="flex flex-col fixed left-0 top-16 h-[calc(100vh-64px)] py-4 w-64 border-r border-slate-200/60 bg-slate-100 font-body text-sm">
+<div class="px-4 mb-6">
+<div class="flex items-center gap-3 px-2 py-3 bg-surface-container-low rounded-xl">
+<div class="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center text-white font-bold">PA</div>
+<div>
+<div class="font-semibold text-on-surface">Project Alpha</div>
+<div class="text-xs text-slate-500">v2.4.0-stable</div>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-3 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-500 hover:bg-slate-200/50 transition-all duration-200" href="#">
+<span class="material-symbols-outlined">dashboard</span> Overview
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-500 hover:bg-slate-200/50 transition-all duration-200" href="#">
+<span class="material-symbols-outlined">analytics</span> Analysis
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white text-blue-600 font-semibold shadow-sm transition-all duration-200" href="#">
+<span class="material-symbols-outlined">code</span> Code
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-500 hover:bg-slate-200/50 transition-all duration-200" href="#">
+<span class="material-symbols-outlined">fact_check</span> Findings
+            </a>
+</nav>
+<!-- Sub-projects section -->
+<div class="px-6 py-4 mt-4">
+<h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Sub-Projects</h3>
+<div class="space-y-3">
+<div class="flex justify-between items-center text-xs">
+<span class="text-slate-600">arm-cortex-m4-main</span>
+<span class="px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] font-bold">30</span>
+</div>
+<div class="flex justify-between items-center text-xs">
+<span class="text-slate-600">arm-cortex-m4-boot</span>
+<span class="px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] font-bold">8</span>
+</div>
+<div class="flex justify-between items-center text-xs">
+<span class="text-slate-600">riscv-rv32-diag</span>
+<span class="px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] font-bold">5</span>
+</div>
+</div>
+</div>
+<div class="px-3 mt-auto">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-500 hover:bg-slate-200/50 transition-all duration-200" href="#">
+<span class="material-symbols-outlined">arrow_back</span> Back to Projects
+            </a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-16 min-h-screen">
+<div class="max-w-7xl mx-auto px-8 py-8">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+<div>
+<h1 class="text-2xl font-bold font-headline text-on-surface">Code / Files</h1>
+<p class="text-slate-500 mt-1">Source tree and file analysis</p>
+</div>
+<div class="flex items-center gap-4">
+<div class="bg-surface-container-lowest border border-outline-variant/20 rounded-xl px-4 py-2 flex items-center gap-3">
+<span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Filter</span>
+<select class="bg-transparent border-none p-0 pr-8 text-sm font-medium focus:ring-0 cursor-pointer">
+<option>All Targets</option>
+<option>arm-cortex-m4-main</option>
+<option>riscv-rv32-diag</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Language Distribution Bar -->
+<div class="mb-8">
+<div class="flex h-2 w-full rounded-full overflow-hidden mb-3">
+<div class="bg-[#0969da]" style="width: 82%" title="C: 82%"></div>
+<div class="bg-[#8957e5]" style="width: 11%" title="C++: 11%"></div>
+<div class="bg-[#2da44e]" style="width: 4%" title="Assembly: 4%"></div>
+<div class="bg-[#6e7681]" style="width: 3%" title="Header: 3%"></div>
+</div>
+<div class="flex flex-wrap gap-6 text-[11px] font-medium uppercase tracking-wider text-slate-500">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-[#0969da]"></span> C <span class="text-slate-400">82%</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-[#8957e5]"></span> C++ <span class="text-slate-400">11%</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-[#2da44e]"></span> Assembly <span class="text-slate-400">4%</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-[#6e7681]"></span> Header <span class="text-slate-400">3%</span>
+</div>
+</div>
+</div>
+<!-- File Stats Row -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+<div class="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/10">
+<div class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Assets</div>
+<div class="text-xl font-bold font-headline text-on-surface">247 files</div>
+</div>
+<div class="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/10">
+<div class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Disk Usage</div>
+<div class="text-xl font-bold font-headline text-on-surface">1.2 MB total</div>
+</div>
+<div class="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/10">
+<div class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Health Check</div>
+<div class="text-xl font-bold font-headline text-on-surface">Last updated: 2 hours ago</div>
+</div>
+</div>
+<div class="flex flex-col lg:flex-row gap-8 items-start">
+<!-- File Tree (70%) -->
+<div class="w-full lg:w-[70%] space-y-4">
+<div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/5 overflow-hidden">
+<!-- Toolbar -->
+<div class="px-6 py-4 bg-surface-container-low/50 flex items-center justify-between border-b border-slate-200/40">
+<span class="text-sm font-semibold text-slate-700">Project Root</span>
+<div class="flex gap-2">
+<button class="p-1.5 hover:bg-slate-200 rounded transition-colors">
+<span class="material-symbols-outlined text-sm">unfold_less</span>
+</button>
+<button class="p-1.5 hover:bg-slate-200 rounded transition-colors">
+<span class="material-symbols-outlined text-sm">refresh</span>
+</button>
+</div>
+</div>
+<!-- Tree Content -->
+<div class="p-4 font-body text-sm text-slate-600">
+<!-- src/ -->
+<div class="space-y-1">
+<div class="flex items-center gap-2 py-1.5 px-2 hover:bg-slate-50 rounded cursor-pointer group">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-blue-500">expand_more</span>
+<span class="material-symbols-outlined text-blue-500/80">folder_open</span>
+<span class="font-medium text-on-surface">src</span>
+</div>
+<div class="ml-6 space-y-1">
+<!-- core/ -->
+<div class="flex items-center gap-2 py-1.5 px-2 hover:bg-slate-50 rounded cursor-pointer group">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-blue-500">expand_more</span>
+<span class="material-symbols-outlined text-blue-500/80">folder_open</span>
+<span class="font-medium text-on-surface">core</span>
+</div>
+<div class="ml-6 space-y-1">
+<div class="flex items-center justify-between py-1.5 px-2 hover:bg-slate-50 rounded cursor-pointer group">
+<div class="flex items-center gap-2">
+<span class="w-4"></span>
+<span class="material-symbols-outlined text-slate-400 group-hover:text-blue-500">description</span>
+<span>main.c</span>
+</div>
+<span class="text-[10px] font-bold px-2 py-0.5 bg-surface-container-high rounded text-slate-500">2 findings</span>
+</div>
+<div class="flex items-center justify-between py-1.5 px-2 hover:bg-slate-50 rounded cursor-pointer group">
+<div class="flex items-center gap-2">
+<span class="w-4"></span>
+<span class="material-symbols-outlined text-slate-400 group-hover:text-blue-500">description</span>
+<span>timer_config.c</span>
+</div>
+<span class="text-[10px] font-bold px-2 py-0.5 bg-surface-container-high rounded text-slate-500">1 finding</span>
+</div>
+<div class="flex items-center justify-between py-1.5 px-2 hover:bg-slate-50 rounded cursor-pointer group">
+<div class="flex items-center gap-2">
+<span class="w-4"></span>
+<span class="material-symbols-outlined text-slate-400 group-hover:text-blue-500">description</span>
+<span>system_init.c</span>
+</div>
+<span class="text-[10px] font-bold px-2 py-0.5 text-slate-300">0 findings</span>
+</div>
+</div>
+<!-- drivers/ -->
+<div class="flex items-center gap-2 py-1.5 px-2 hover:bg-slate-50 rounded cursor-pointer group mt-2">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-blue-500">expand_more</span>
+<span class="material-symbols-outlined text-blue-500/80">folder_open</span>
+<span class="font-medium text-on-surface">drivers</span>
+</div>
+<div class="ml-6 space-y-1">
+<div class="flex items-center justify-between py-1.5 px-2 bg-blue-50/50 rounded cursor-pointer group">
+<div class="flex items-center gap-2">
+<span class="w-4"></span>
+<span class="material-symbols-outlined text-blue-600">description</span>
+<span class="font-semibold text-blue-700">can_driver.c</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-[10px] font-bold px-2 py-0.5 bg-red-100 text-red-600 rounded">Critical</span>
+<span class="text-[10px] font-bold px-2 py-0.5 bg-red-50 text-red-500 rounded">3 findings</span>
+</div>
+</div>
+<div class="flex items-center justify-between py-1.5 px-2 hover:bg-slate-50 rounded cursor-pointer group">
+<div class="flex items-center gap-2">
+<span class="w-4"></span>
+<span class="material-symbols-outlined text-slate-400 group-hover:text-blue-500">description</span>
+<span>spi_master.c</span>
+</div>
+<span class="text-[10px] font-bold px-2 py-0.5 bg-surface-container-high rounded text-slate-500">1 finding</span>
+</div>
+<div class="flex items-center justify-between py-1.5 px-2 hover:bg-slate-50 rounded cursor-pointer group">
+<div class="flex items-center gap-2">
+<span class="w-4"></span>
+<span class="material-symbols-outlined text-slate-400 group-hover:text-blue-500">description</span>
+<span>gpio_handler.c</span>
+</div>
+<span class="text-[10px] font-bold px-2 py-0.5 text-slate-300">0 findings</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Collapsed folders -->
+<div class="mt-4 space-y-1">
+<div class="flex items-center gap-2 py-1.5 px-2 hover:bg-slate-50 rounded cursor-pointer group">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-blue-500">chevron_right</span>
+<span class="material-symbols-outlined text-slate-400">folder</span>
+<span class="font-medium text-on-surface">hal</span>
+</div>
+<div class="flex items-center gap-2 py-1.5 px-2 hover:bg-slate-50 rounded cursor-pointer group">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-blue-500">chevron_right</span>
+<span class="material-symbols-outlined text-slate-400">folder</span>
+<span class="font-medium text-on-surface">comm</span>
+</div>
+<div class="flex items-center gap-2 py-1.5 px-2 hover:bg-slate-50 rounded cursor-pointer group">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-blue-500">chevron_right</span>
+<span class="material-symbols-outlined text-slate-400">folder</span>
+<span class="font-medium text-on-surface">sensors</span>
+</div>
+<div class="flex items-center gap-2 py-1.5 px-2 hover:bg-slate-50 rounded cursor-pointer group">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-blue-500">chevron_right</span>
+<span class="material-symbols-outlined text-slate-400">folder</span>
+<span class="font-medium text-on-surface">diag</span>
+</div>
+</div>
+<!-- Root files -->
+<div class="mt-4 space-y-1">
+<div class="flex items-center gap-2 py-1.5 px-2 hover:bg-slate-50 rounded cursor-pointer group">
+<span class="w-4"></span>
+<span class="material-symbols-outlined text-slate-400 group-hover:text-blue-500">terminal</span>
+<span class="text-on-surface">Makefile</span>
+</div>
+<div class="flex items-center gap-2 py-1.5 px-2 hover:bg-slate-50 rounded cursor-pointer group">
+<span class="w-4"></span>
+<span class="material-symbols-outlined text-slate-400 group-hover:text-blue-500">info</span>
+<span class="text-on-surface">README.md</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- File Details Panel (30%) -->
+<aside class="w-full lg:w-[30%] sticky top-24 space-y-6">
+<div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/5 p-6">
+<div class="flex items-center gap-3 mb-6">
+<div class="p-2.5 bg-blue-50 rounded-lg text-blue-600">
+<span class="material-symbols-outlined">description</span>
+</div>
+<div>
+<h2 class="font-bold text-lg font-headline">can_driver.c</h2>
+<p class="text-[10px] text-slate-400 font-mono tracking-tighter">src/drivers/can_driver.c</p>
+</div>
+</div>
+<div class="space-y-6">
+<div class="grid grid-cols-2 gap-4">
+<div>
+<div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Size</div>
+<div class="text-sm font-semibold">14.2 KB</div>
+</div>
+<div>
+<div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">LOC</div>
+<div class="text-sm font-semibold">567 lines</div>
+</div>
+<div>
+<div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Language</div>
+<div class="text-sm font-semibold">C</div>
+</div>
+</div>
+<div class="pt-4 border-t border-slate-100">
+<div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Build Targets</div>
+<div class="flex flex-wrap gap-2">
+<span class="px-2 py-1 bg-surface-container-high rounded text-[10px] font-bold text-slate-600">arm-cortex-m4-main</span>
+<span class="px-2 py-1 bg-surface-container-high rounded text-[10px] font-bold text-slate-600">riscv-rv32-diag</span>
+</div>
+</div>
+<div class="pt-4 border-t border-slate-100">
+<div class="flex justify-between items-center mb-3">
+<div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Findings Preview</div>
+<span class="text-[10px] font-bold text-red-600">3 TOTAL</span>
+</div>
+<div class="space-y-3">
+<div class="flex items-start gap-3 p-3 bg-red-50/30 rounded-lg group hover:bg-red-50/50 transition-colors cursor-pointer">
+<div class="w-1.5 h-1.5 rounded-full bg-red-600 mt-1.5"></div>
+<div class="flex-1">
+<div class="text-xs font-bold text-red-900">CWE-119 Critical</div>
+<div class="text-[10px] text-red-700/70 mt-0.5">Buffer Copy without Checking Size of Input</div>
+</div>
+</div>
+<div class="flex items-start gap-3 p-3 bg-orange-50/30 rounded-lg group hover:bg-orange-50/50 transition-colors cursor-pointer">
+<div class="w-1.5 h-1.5 rounded-full bg-orange-500 mt-1.5"></div>
+<div class="flex-1">
+<div class="text-xs font-bold text-orange-900">CWE-476 High</div>
+<div class="text-[10px] text-orange-700/70 mt-0.5">NULL Pointer Dereference</div>
+</div>
+</div>
+<div class="flex items-start gap-3 p-3 bg-amber-50/30 rounded-lg group hover:bg-amber-50/50 transition-colors cursor-pointer">
+<div class="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5"></div>
+<div class="flex-1">
+<div class="text-xs font-bold text-amber-900">MISRA 11.3 Medium</div>
+<div class="text-[10px] text-amber-700/70 mt-0.5">Cast between pointers</div>
+</div>
+</div>
+</div>
+</div>
+<button class="w-full py-3 bg-primary-container text-white font-bold text-xs rounded-xl hover:bg-primary transition-all active:scale-[0.98]">
+                                VIEW SOURCE ANALYTICS
+                            </button>
+</div>
+</div>
+<!-- Ad-hoc Technical Detail Card -->
+<div class="p-4 rounded-xl border border-blue-100 bg-blue-50/20">
+<div class="flex items-center gap-2 mb-2 text-blue-700">
+<span class="material-symbols-outlined text-sm">info</span>
+<span class="text-xs font-bold uppercase tracking-wide">Analysis Engine</span>
+</div>
+<p class="text-xs text-blue-800/70 leading-relaxed">
+                            Currently indexing deep semantic connections across 3 repositories. Expected completion in 4m 12s.
+                        </p>
+</div>
+</aside>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="flex justify-between items-center px-8 py-4 ml-64 w-[calc(100%-16rem)] bg-slate-50 border-t border-slate-200/50">
+<div class="font-['Inter'] text-[11px] tracking-wide uppercase text-slate-400">
+            © 2024 AEGIS Platform • v2.4.0
+        </div>
+<div class="flex gap-6">
+<a class="font-['Inter'] text-[11px] tracking-wide uppercase text-slate-400 hover:text-blue-600 transition-colors" href="#">Platform Status</a>
+<a class="font-['Inter'] text-[11px] tracking-wide uppercase text-slate-400 hover:text-blue-600 transition-colors" href="#">Terms of Service</a>
+</div>
+</footer>
+</body></html>

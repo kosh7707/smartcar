@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Quality Gate Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@700&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-low": "#0e141c",
+                        "outline": "#6a768a",
+                        "secondary-dim": "#989ea7",
+                        "on-surface-variant": "#9facc1",
+                        "on-tertiary": "#00691f",
+                        "on-secondary-container": "#bac0c8",
+                        "on-primary-fixed-variant": "#006096",
+                        "on-tertiary-container": "#005f1c",
+                        "primary-container": "#004a76",
+                        "inverse-primary": "#00649b",
+                        "surface-variant": "#1a2637",
+                        "on-primary-fixed": "#00436a",
+                        "error": "#ee7d77",
+                        "secondary": "#989ea7",
+                        "outline-variant": "#3c495b",
+                        "surface-tint": "#96ccff",
+                        "on-primary": "#00436b",
+                        "inverse-surface": "#f8f9ff",
+                        "surface-container-highest": "#1a2637",
+                        "inverse-on-surface": "#51555c",
+                        "surface-container": "#121a25",
+                        "on-surface": "#d9e6fd",
+                        "primary-dim": "#78bffe",
+                        "on-tertiary-fixed": "#004a14",
+                        "primary-fixed": "#cee5ff",
+                        "primary": "#96ccff",
+                        "surface-bright": "#1e2d41",
+                        "secondary-container": "#363c43",
+                        "on-tertiary-fixed-variant": "#006b20",
+                        "on-secondary": "#1b2127",
+                        "on-error-container": "#ff9993",
+                        "background": "#0a0e14",
+                        "tertiary-container": "#83fc89",
+                        "error-container": "#7f2927",
+                        "on-secondary-fixed-variant": "#565c64",
+                        "tertiary": "#c7ffc2",
+                        "tertiary-dim": "#75ed7d",
+                        "on-background": "#d9e6fd",
+                        "error-dim": "#bb5551",
+                        "tertiary-fixed": "#83fc89",
+                        "surface": "#0a0e14",
+                        "surface-container-lowest": "#000000",
+                        "secondary-fixed-dim": "#cfd5de",
+                        "tertiary-fixed-dim": "#75ed7d",
+                        "secondary-fixed": "#dde3ec",
+                        "surface-dim": "#0a0e14",
+                        "surface-container-high": "#16202e",
+                        "on-error": "#490106",
+                        "primary-fixed-dim": "#b3d8ff",
+                        "on-secondary-fixed": "#3a4047",
+                        "on-primary-container": "#aad5ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #0a0e14; }
+        .headline { font-family: 'Space Grotesk', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0e14; }
+        ::-webkit-scrollbar-thumb { background: #3c495b; border-radius: 10px; }
+    </style>
+</head>
+<body class="text-on-surface">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 bg-[#0a0e14] text-[#96ccff] font-['Space_Grotesk'] font-bold text-base tracking-tight border-b border-[#3c495b]/15 shadow-[0_48px_48px_rgba(150,204,255,0.08)] flex justify-between items-center px-6 h-16 w-full">
+<div class="flex items-center gap-6">
+<span class="text-xl font-bold text-[#d9e6fd] tracking-tighter">AEGIS</span>
+<div class="hidden md:flex items-center gap-1 bg-surface-container px-3 py-1.5 rounded-lg border border-outline-variant/20 hover:border-primary/50 transition-all cursor-pointer">
+<span class="text-sm font-medium text-on-surface">ECU-PowerTrain-v2.1</span>
+<span class="material-symbols-outlined text-xs">expand_more</span>
+</div>
+<nav class="hidden lg:flex items-center gap-6 ml-4">
+<a class="text-[#96ccff] border-b-2 border-[#96ccff] pb-1" href="#">Dashboard</a>
+<a class="text-[#d9e6fd]/70 hover:text-[#d9e6fd] transition-colors" href="#">Issues</a>
+<a class="text-[#d9e6fd]/70 hover:text-[#d9e6fd] transition-colors" href="#">Pull Requests</a>
+<a class="text-[#d9e6fd]/70 hover:text-[#d9e6fd] transition-colors" href="#">Actions</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="bg-surface-container-lowest border border-outline-variant/30 rounded-lg pl-9 pr-4 py-1.5 text-sm w-64 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all" placeholder="Search..." type="text"/>
+</div>
+<div class="relative hover:bg-[#1e2d41] p-2 rounded-full transition-all duration-200 cursor-pointer">
+<span class="material-symbols-outlined text-on-surface">notifications</span>
+<span class="absolute top-1 right-1 bg-error text-on-error text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold border-2 border-background">3</span>
+</div>
+<span class="material-symbols-outlined text-on-surface hover:bg-[#1e2d41] p-2 rounded-full transition-all duration-200 cursor-pointer">settings</span>
+<div class="flex items-center gap-2 pl-2 ml-2 border-l border-outline-variant/30 active:scale-95 duration-150 cursor-pointer">
+<img class="w-8 h-8 rounded-full border border-primary/30" data-alt="Professional user profile avatar of a developer in a high-tech office environment, cool blue tones" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB7jZQWI6hRUmVKzsnSXRQiEFv0GBSSoT2XAVPpf9pWwVzuWVevY6g1EVqlybRiRH7_jV0Q6xx1EW85VRMD0qVygBsfoXEKHWgy5CLc3i2kafzk6Mm02nH6LndiHt_Js1e-BDV1vwES9nYNeS1Vz2OvFcpyRHftFyvbuO7YyhzxnBnYN3NoNnOlYzebwFAj_xQyyXC4gTyfB-9_TGtJiGap0SLhjrf_VI6_J3DwS5ed1jiOZTzNitPmzmHdsad5Rf628rHgvyxWIEi4"/>
+<div class="hidden sm:block">
+<div class="text-xs font-bold text-on-surface leading-none">Kosh</div>
+<div class="text-[10px] text-on-surface-variant font-normal">Admin</div>
+</div>
+</div>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-[#0e141c] text-sm font-medium flex flex-col py-4 border-r border-[#3c495b]/15 z-40">
+<div class="px-4 mb-6">
+<div class="flex items-center gap-3 p-3 bg-surface-container rounded-xl border border-outline-variant/10">
+<div class="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">shield</span>
+</div>
+<div class="overflow-hidden">
+<div class="text-on-surface font-headline font-bold truncate">ECU-PowerTrain-v2.1</div>
+<div class="text-[10px] text-on-surface-variant uppercase tracking-widest">Quality Gate v2.4</div>
+</div>
+</div>
+</div>
+<div class="px-4 mb-4">
+<div class="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-widest mb-3 px-2">Sub-Projects</div>
+<div class="space-y-1">
+<div class="flex justify-between items-center px-3 py-2 rounded-lg text-on-surface-variant hover:bg-[#1a2637] transition-all cursor-pointer group">
+<span class="truncate">arm-cortex-m4-main</span>
+<span class="text-xs bg-surface-container-highest px-1.5 py-0.5 rounded text-on-surface-variant group-hover:text-primary transition-colors">30</span>
+</div>
+<div class="flex justify-between items-center px-3 py-2 rounded-lg text-on-surface-variant hover:bg-[#1a2637] transition-all cursor-pointer group">
+<span class="truncate">arm-cortex-m4-boot</span>
+<span class="text-xs bg-surface-container-highest px-1.5 py-0.5 rounded text-on-surface-variant group-hover:text-primary transition-colors">8</span>
+</div>
+<div class="flex justify-between items-center px-3 py-2 rounded-lg text-on-surface-variant hover:bg-[#1a2637] transition-all cursor-pointer group">
+<span class="truncate">riscv-rv32-diag</span>
+<span class="text-xs bg-surface-container-highest px-1.5 py-0.5 rounded text-on-surface-variant group-hover:text-primary transition-colors">5</span>
+</div>
+</div>
+</div>
+<nav class="mt-4 flex-grow">
+<div class="text-[#96ccff] bg-[#121a25] border-l-4 border-[#96ccff] flex items-center gap-3 px-4 py-3 cursor-pointer">
+<span class="material-symbols-outlined text-lg">verified_user</span>
+<span>Quality Gate</span>
+</div>
+<div class="text-[#d9e6fd]/60 hover:text-[#d9e6fd] hover:bg-[#1a2637] transition-all flex items-center gap-3 px-4 py-3 cursor-pointer">
+<span class="material-symbols-outlined text-lg">terminal</span>
+<span>Core Engine</span>
+</div>
+<div class="text-[#d9e6fd]/60 hover:text-[#d9e6fd] hover:bg-[#1a2637] transition-all flex items-center gap-3 px-4 py-3 cursor-pointer">
+<span class="material-symbols-outlined text-lg">shield</span>
+<span>Security Module</span>
+</div>
+<div class="text-[#d9e6fd]/60 hover:text-[#d9e6fd] hover:bg-[#1a2637] transition-all flex items-center gap-3 px-4 py-3 cursor-pointer">
+<span class="material-symbols-outlined text-lg">api</span>
+<span>API Gateway</span>
+</div>
+</nav>
+<div class="p-4 border-t border-outline-variant/10 space-y-2">
+<div class="text-on-surface-variant hover:text-on-surface flex items-center gap-3 px-2 py-2 cursor-pointer transition-all">
+<span class="material-symbols-outlined text-lg">arrow_back</span>
+<span>Back to Projects</span>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-64 mt-16 p-8 min-h-[calc(100vh-64px)] pb-16">
+<!-- Header Section -->
+<header class="flex justify-between items-end mb-8">
+<div>
+<h1 class="headline text-2xl font-bold text-on-surface">Quality Gate</h1>
+<p class="text-on-surface-variant text-sm mt-1">Unified compliance and security baseline for Project Sentinel.</p>
+</div>
+<button class="flex items-center gap-2 px-4 py-2 bg-surface-container border border-outline-variant/30 text-primary font-medium rounded-lg hover:border-primary transition-all active:scale-95">
+<span class="material-symbols-outlined text-sm">edit_document</span>
+                Request Override
+            </button>
+</header>
+<!-- Status Banner -->
+<div class="bg-[#0d2818] border border-[#238636] rounded-xl p-8 mb-8 flex items-center justify-between shadow-lg shadow-tertiary-container/5 relative overflow-hidden">
+<!-- Decorative Accent -->
+<div class="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-tertiary-container/10 to-transparent"></div>
+<div class="flex items-center gap-6 relative z-10">
+<div class="w-16 h-16 rounded-full bg-tertiary/20 flex items-center justify-center border-2 border-tertiary/40">
+<span class="material-symbols-outlined text-4xl text-[#3fb950]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div>
+<h2 class="text-4xl font-headline font-bold text-[#3fb950] tracking-tight">PASS</h2>
+<p class="text-on-surface font-medium mt-1">All criteria met — eligible for release</p>
+<p class="text-[#8b949e] text-xs mt-2 font-mono tracking-tighter">Analysis ID: 20260408-003 | Evaluated by AEGIS-Bot v2.1</p>
+</div>
+</div>
+<div class="text-right relative z-10 hidden md:block">
+<div class="text-[10px] text-on-surface-variant uppercase tracking-[0.2em] mb-1">Last Evaluation</div>
+<div class="text-on-surface font-medium">Apr 08, 2026 • 14:32 UTC</div>
+<div class="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 bg-[#238636]/20 text-tertiary-dim text-[10px] rounded border border-tertiary/20 font-bold">
+                    STABLE RELEASE
+                </div>
+</div>
+</div>
+<!-- Two Column Layout: Criteria & History -->
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+<!-- Criteria Table -->
+<div class="xl:col-span-2 space-y-6">
+<div class="bg-surface-container-high rounded-xl border border-outline-variant/20 overflow-hidden">
+<div class="px-6 py-4 bg-surface-container border-b border-outline-variant/20 flex justify-between items-center">
+<h3 class="font-bold text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-lg">rule</span>
+                            Gate Criteria Metrics
+                        </h3>
+<span class="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded font-bold uppercase">6 Checks Passed</span>
+</div>
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low/50">
+<th class="px-6 py-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Criterion</th>
+<th class="px-6 py-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Threshold</th>
+<th class="px-6 py-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Actual</th>
+<th class="px-6 py-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest text-center">Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/10">
+<tr class="hover:bg-surface-bright/50 transition-colors">
+<td class="px-6 py-4 text-sm font-medium text-on-surface">Critical findings</td>
+<td class="px-6 py-4 text-xs text-on-surface-variant font-mono">0</td>
+<td class="px-6 py-4 text-sm text-tertiary font-bold font-mono">0</td>
+<td class="px-6 py-4 text-center">
+<span class="material-symbols-outlined text-tertiary text-lg" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-bright/50 transition-colors">
+<td class="px-6 py-4 text-sm font-medium text-on-surface">High findings</td>
+<td class="px-6 py-4 text-xs text-on-surface-variant font-mono">&lt;=5</td>
+<td class="px-6 py-4 text-sm text-tertiary font-bold font-mono">3</td>
+<td class="px-6 py-4 text-center">
+<span class="material-symbols-outlined text-tertiary text-lg" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-bright/50 transition-colors">
+<td class="px-6 py-4 text-sm font-medium text-on-surface">New findings</td>
+<td class="px-6 py-4 text-xs text-on-surface-variant font-mono">&lt;=10</td>
+<td class="px-6 py-4 text-sm text-tertiary font-bold font-mono">+2</td>
+<td class="px-6 py-4 text-center">
+<span class="material-symbols-outlined text-tertiary text-lg" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-bright/50 transition-colors">
+<td class="px-6 py-4 text-sm font-medium text-on-surface">MISRA compliance</td>
+<td class="px-6 py-4 text-xs text-on-surface-variant font-mono">&gt;=90%</td>
+<td class="px-6 py-4 text-sm text-tertiary font-bold font-mono">94.2%</td>
+<td class="px-6 py-4 text-center">
+<span class="material-symbols-outlined text-tertiary text-lg" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-bright/50 transition-colors">
+<td class="px-6 py-4 text-sm font-medium text-on-surface">Code coverage</td>
+<td class="px-6 py-4 text-xs text-on-surface-variant font-mono">&gt;=70%</td>
+<td class="px-6 py-4 text-sm text-tertiary font-bold font-mono">78%</td>
+<td class="px-6 py-4 text-center">
+<span class="material-symbols-outlined text-tertiary text-lg" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-bright/50 transition-colors">
+<td class="px-6 py-4 text-sm font-medium text-on-surface">Unresolved overrides</td>
+<td class="px-6 py-4 text-xs text-on-surface-variant font-mono">0</td>
+<td class="px-6 py-4 text-sm text-tertiary font-bold font-mono">0</td>
+<td class="px-6 py-4 text-center">
+<span class="material-symbols-outlined text-tertiary text-lg" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- History Section -->
+<div class="space-y-6">
+<div class="bg-surface-container rounded-xl border border-outline-variant/20 overflow-hidden flex flex-col h-full">
+<div class="px-6 py-4 border-b border-outline-variant/20 flex justify-between items-center">
+<h3 class="font-bold text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-lg">history</span>
+                            Evaluation History
+                        </h3>
+</div>
+<div class="flex-grow">
+<div class="divide-y divide-outline-variant/10">
+<!-- Entry 1 -->
+<div class="p-4 hover:bg-surface-bright transition-all">
+<div class="flex justify-between items-start mb-2">
+<div class="font-mono text-xs text-on-surface-variant">2026-04-08</div>
+<span class="bg-[#238636] text-white text-[10px] px-2 py-0.5 rounded-full font-bold">PASS</span>
+</div>
+<div class="text-sm font-medium text-on-surface">analysis-20260408-003</div>
+<div class="flex justify-between mt-2 items-center">
+<span class="text-xs text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">trending_down</span> -5 Findings
+                                    </span>
+<span class="text-[10px] text-primary font-bold uppercase tracking-wider">Current</span>
+</div>
+</div>
+<!-- Entry 2 -->
+<div class="p-4 hover:bg-surface-bright transition-all">
+<div class="flex justify-between items-start mb-2">
+<div class="font-mono text-xs text-on-surface-variant">2026-04-07</div>
+<span class="bg-[#da3633] text-white text-[10px] px-2 py-0.5 rounded-full font-bold">FAIL</span>
+</div>
+<div class="text-sm font-medium text-on-surface">analysis-20260407-002</div>
+<div class="flex justify-between mt-2 items-center">
+<span class="text-xs text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-sm text-error">trending_up</span> +5 Findings
+                                    </span>
+<span class="text-[10px] text-error font-bold uppercase">CWE-119</span>
+</div>
+</div>
+<!-- Entry 3 -->
+<div class="p-4 hover:bg-surface-bright transition-all">
+<div class="flex justify-between items-start mb-2">
+<div class="font-mono text-xs text-on-surface-variant">2026-04-06</div>
+<span class="bg-[#238636] text-white text-[10px] px-2 py-0.5 rounded-full font-bold">PASS</span>
+</div>
+<div class="text-sm font-medium text-on-surface">analysis-20260406-001</div>
+<div class="flex justify-between mt-2 items-center">
+<span class="text-xs text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">trending_down</span> -3 Findings
+                                    </span>
+<span class="text-[10px] text-on-surface-variant italic">After override</span>
+</div>
+</div>
+<!-- Entry 4 -->
+<div class="p-4 hover:bg-surface-bright transition-all">
+<div class="flex justify-between items-start mb-2">
+<div class="font-mono text-xs text-on-surface-variant">2026-04-04</div>
+<span class="bg-[#9e6a03] text-white text-[10px] px-2 py-0.5 rounded-full font-bold">WARNING</span>
+</div>
+<div class="text-sm font-medium text-on-surface">analysis-20260404-001</div>
+<div class="flex justify-between mt-2 items-center">
+<span class="text-xs text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-sm text-yellow-500">trending_up</span> +1 Findings
+                                    </span>
+<span class="text-[10px] text-on-surface-variant uppercase">MISRA</span>
+</div>
+</div>
+</div>
+</div>
+<button class="w-full py-3 bg-surface-container-highest text-xs text-on-surface-variant hover:text-on-surface transition-all border-t border-outline-variant/10">
+                        View Complete History
+                    </button>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="fixed bottom-0 w-full bg-[#0a0e14]/80 backdrop-blur-md py-3 text-center border-t border-outline-variant/10 z-50">
+<div class="text-[#8b949e] text-xs font-mono">
+            AEGIS v2.1.0 — <span class="text-on-surface-variant">Secure Engineering Quality Control</span>
+</div>
+</footer>
+</body></html>

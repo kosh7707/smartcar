@@ -23,6 +23,8 @@ export class WsBroadcaster<T> {
     private paramName: string,
     /** WS 채널 식별자 (envelope meta 용) */
     readonly channel?: WsChannel,
+    /** 새 구독자에게 즉시 전달할 최신 스냅샷 (optional replay-on-subscribe) */
+    private initialSnapshot?: (key: string) => T | T[] | undefined,
   ) {
     this.wss = new WebSocketServer({ noServer: true });
     this.wss.on("connection", (ws, req) => this.handleConnection(ws, req));
@@ -32,19 +34,7 @@ export class WsBroadcaster<T> {
     const clients = this.clients.get(key);
     if (!clients) return;
 
-    // envelope meta 자동 첨부 (channel이 설정된 경우)
-    let payload: unknown = message;
-    if (this.channel) {
-      const seq = (this.seqCounters.get(key) ?? 0) + 1;
-      this.seqCounters.set(key, seq);
-      const meta: WsEnvelopeMeta = {
-        channel: this.channel,
-        projectId: key,
-        timestamp: Date.now(),
-        seq,
-      };
-      payload = { ...(message as object), meta };
-    }
+    const payload = this.withMeta(key, message);
     const data = JSON.stringify(payload);
     for (const ws of [...clients]) {
       if (ws.readyState !== WebSocket.OPEN) {
@@ -73,6 +63,7 @@ export class WsBroadcaster<T> {
     }
     this.clients.get(key)!.add(ws);
     logger.debug({ [this.paramName]: key, path: this.path }, "WS client connected");
+    this.sendInitialSnapshot(key, ws);
 
     ws.on("close", () => {
       this.removeClient(key, ws);
@@ -106,6 +97,45 @@ export class WsBroadcaster<T> {
     } catch {
       return null;
     }
+  }
+
+  private sendInitialSnapshot(key: string, ws: WebSocket): void {
+    if (!this.initialSnapshot || ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    const snapshot = this.initialSnapshot(key);
+    if (!snapshot) {
+      return;
+    }
+
+    const messages = Array.isArray(snapshot) ? snapshot : [snapshot];
+    for (const message of messages) {
+      try {
+        const payload = this.withMeta(key, message);
+        ws.send(JSON.stringify(payload));
+      } catch (err) {
+        logger.warn({ err, [this.paramName]: key, path: this.path }, "WS initial snapshot send failed");
+        this.removeClient(key, ws);
+        return;
+      }
+    }
+  }
+
+  private withMeta(key: string, message: T): unknown {
+    if (!this.channel) {
+      return message;
+    }
+
+    const seq = (this.seqCounters.get(key) ?? 0) + 1;
+    this.seqCounters.set(key, seq);
+    const meta: WsEnvelopeMeta = {
+      channel: this.channel,
+      projectId: key,
+      timestamp: Date.now(),
+      seq,
+    };
+    return { ...(message as object), meta };
   }
 }
 

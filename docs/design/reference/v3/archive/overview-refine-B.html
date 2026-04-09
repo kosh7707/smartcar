@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Project Overview - ECU-PowerTrain-v2.1</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        :root {
+            --primary: #4a6fa5;
+            --primary-hover: #3b5a86;
+            --primary-container: #e1e7f0;
+            --on-primary: #ffffff;
+            --background: #f4f6f9;
+            --surface: #ffffff;
+            --surface-variant: #f8fafc;
+            --surface-container-cool: #ebeff5;
+            --outline: #cfd8e3;
+            --metadata: #64748b;
+            --slate-900: #0f172a;
+            --slate-800: #1e293b;
+            --slate-700: #334155;
+            --slate-600: #475569;
+            --slate-500: #64748b;
+            --slate-400: #94a3b8;
+            --slate-300: #cbd5e1;
+            --slate-200: #e2e8f0;
+            --slate-100: #f1f5f9;
+            --slate-50: #f8fafc;
+            --emerald-700: #047857;
+            --emerald-600: #059669;
+            --emerald-500: #10b981;
+            --emerald-100: #d1fae5;
+            --error: #b94a48;
+            --tertiary: #8c6d5e;
+            --secondary: #5a7684;
+            --amber-500: #f59e0b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            font-size: 14px; 
+            line-height: 1.5; 
+            background-color: var(--background); 
+            color: var(--slate-800);
+        }
+
+        h1, h2, h3, .font-headline { font-family: 'Space Grotesk', sans-serif; }
+
+        h1 { font-size: 24px; font-weight: 700; color: var(--slate-900); letter-spacing: -0.025em; }
+        h3 { font-size: 16px; font-weight: 700; }
+        
+        .header {
+            height: 56px;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 50;
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid var(--outline);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+        }
+
+        .logo { font-size: 24px; font-weight: 700; letter-spacing: -0.05em; color: var(--slate-900); font-family: 'Space Grotesk'; }
+
+        .nav-links { display: none; gap: 40px; align-items: center; }
+        @media (min-width: 768px) { .nav-links { display: flex; } }
+        .nav-link { 
+            font-size: 15px; 
+            font-weight: 500; 
+            color: var(--slate-500); 
+            text-decoration: none; 
+            transition: color 0.2s; 
+            height: 56px;
+            display: flex;
+            align-items: center;
+        }
+        .nav-link:hover { color: var(--primary); }
+        .nav-link.active { color: var(--primary); font-weight: 600; border-bottom: 2px solid var(--primary); }
+
+        .header-actions { display: flex; align-items: center; gap: 24px; }
+        .search-container { position: relative; }
+        .search-input {
+            height: 36px;
+            padding-left: 40px;
+            padding-right: 16px;
+            background-color: rgba(241, 245, 249, 0.8);
+            border: none;
+            border-radius: 9999px;
+            font-size: 14px;
+            width: 320px;
+            outline: none;
+        }
+        .search-input:focus { box-shadow: 0 0 0 1px rgba(74, 111, 165, 0.5); }
+        .search-icon { position: absolute; left: 12px; top: 8px; color: var(--slate-400); font-size: 18px; }
+
+        .sidebar {
+            width: 240px;
+            position: fixed;
+            left: 0;
+            top: 56px;
+            height: calc(100vh - 56px);
+            background-color: rgba(248, 250, 252, 0.5);
+            border-right: 1px solid var(--outline);
+            display: flex;
+            flex-col: column;
+            flex-direction: column;
+            padding: 24px 0;
+        }
+
+        .sidebar-brand { padding: 0 24px; margin-bottom: 32px; }
+        .brand-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px;
+            background-color: #fff;
+            border-radius: 8px;
+            border: 1px solid rgba(207, 216, 227, 0.4);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .brand-icon {
+            width: 40px;
+            height: 40px;
+            background-color: rgba(74, 111, 165, 0.1);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+        }
+
+        .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 14px 24px;
+            text-decoration: none;
+            color: var(--slate-500);
+            transition: all 0.2s;
+        }
+        .sidebar-item:hover { background-color: rgba(74, 111, 165, 0.08); }
+        .sidebar-item.active {
+            background-color: #fff;
+            color: var(--primary);
+            border-right: 3px solid var(--primary);
+            font-weight: 600;
+        }
+
+        .main-content { margin-left: 240px; padding-top: 56px; padding-bottom: 56px; min-height: 100vh; background-color: rgba(248, 250, 252, 0.3); }
+        .page-header { padding: 24px 32px; display: flex; flex-direction: column; gap: 16px; }
+        .breadcrumb { display: flex; align-items: center; gap: 8px; font-family: 'Space Grotesk'; font-size: 13px; color: var(--metadata); }
+        .breadcrumb-active { color: var(--primary); font-weight: 700; }
+
+        .title-area { display: flex; justify-content: space-between; align-items: flex-start; }
+        .status-chip { font-size: 12px; background-color: var(--emerald-100); color: var(--emerald-700); padding: 2px 8px; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
+
+        .button-group { display: flex; gap: 12px; }
+        .btn {
+            padding: 10px 20px;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: 'Space Grotesk';
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 4px;
+        }
+        .btn-outline { background: #fff; border: 1px solid var(--outline); color: var(--slate-800); }
+        .btn-outline:hover { background: var(--slate-50); }
+        .btn-primary { 
+            background: var(--primary); 
+            color: #fff; 
+            border: 1px solid rgba(74, 111, 165, 0.5); 
+            box-shadow: 0 4px 6px -1px rgba(74, 111, 165, 0.2); 
+        }
+        .btn-primary:hover { background: var(--primary-hover); }
+
+        .content-grid { padding: 0 32px; display: flex; flex-direction: column; gap: 24px; }
+        @media (min-width: 1024px) { .content-grid { flex-direction: row; } }
+        .main-column { flex: 0 0 70%; display: flex; flex-direction: column; gap: 24px; }
+        .side-column { flex: 1; display: flex; flex-direction: column; gap: 24px; }
+
+        .card { background: #fff; border: 1px solid var(--outline); border-radius: 4px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); position: relative; }
+        .card-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--primary); }
+        .card-divider { border-bottom: 1px solid rgba(207, 216, 227, 0.4); padding-bottom: 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+        .card-title { font-size: 16px; font-family: 'Space Grotesk'; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--metadata); }
+
+        .tag { font-size: 11px; font-weight: 700; font-family: 'Space Grotesk'; padding: 4px 12px; background: var(--slate-50); border: 1px solid rgba(207, 216, 227, 0.5); border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--slate-600); }
+
+        .metric-large { font-size: 48px; font-weight: 700; font-family: 'Space Grotesk'; color: var(--slate-900); line-height: 1; letter-spacing: -0.025em; }
+        .metric-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--metadata); }
+        .metric-sub { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--emerald-600); }
+
+        .severity-group { display: flex; gap: 32px; background: rgba(248, 250, 252, 0.8); padding: 16px; border-radius: 8px; border: 1px solid rgba(207, 216, 227, 0.3); }
+        .severity-item { padding: 0 8px; }
+        .severity-item + .severity-item { border-left: 1px solid rgba(207, 216, 227, 0.4); }
+        .severity-val { font-size: 20px; font-weight: 700; font-family: 'Space Grotesk'; }
+
+        .progress-bar { width: 100%; height: 8px; background: var(--slate-100); border-radius: 9999px; overflow: hidden; display: flex; margin-bottom: 40px; }
+        
+        .chart-container { height: 144px; display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; padding: 0 16px; margin-top: 24px; }
+        .chart-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; height: 100%; justify-content: flex-end; }
+        .chart-bars { width: 100%; max-width: 40px; display: flex; align-items: flex-end; gap: 6px; height: 100%; }
+        .bar-left { flex: 1; background: var(--slate-200); border-radius: 2px 2px 0 0; transition: background 0.2s; }
+        .bar-right { flex: 1; background: rgba(74, 111, 165, 0.7); border-radius: 2px 2px 0 0; transition: background 0.2s; }
+        .chart-col:hover .bar-left { background: var(--slate-300); }
+        .chart-col:hover .bar-right { background: var(--primary); }
+
+        .timeline-item { display: flex; gap: 24px; padding-bottom: 24px; position: relative; }
+        .timeline-line { position: absolute; left: 7px; top: 24px; bottom: 0; width: 1px; background: var(--outline); }
+        .timeline-dot { position: relative; z-index: 10; width: 14px; height: 14px; border-radius: 9999px; margin-top: 4px; }
+
+        .inventory-list { display: flex; height: 8px; border-radius: 9999px; overflow: hidden; background: var(--slate-100); margin-bottom: 20px; }
+        .inventory-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+        .inventory-legend { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; color: var(--slate-700); }
+        .legend-dot { width: 8px; height: 8px; border-radius: 9999px; }
+
+        .stat-box { background: rgba(248, 250, 252, 0.5); padding: 8px; border-radius: 4px; }
+        .stat-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--metadata); letter-spacing: 0.1em; margin-bottom: 2px; }
+        .stat-val { font-size: 16px; font-family: 'Space Grotesk'; font-weight: 700; color: var(--slate-800); }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            padding: 12px 32px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            z-index: 50;
+            border-top: 1px solid var(--outline);
+            width: 100%;
+        }
+        @media (min-width: 1024px) { .footer { width: calc(100% - 240px); } }
+
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
+        
+        /* Helpers */
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .gap-2 { gap: 8px; }
+        .gap-3 { gap: 12px; }
+        .gap-4 { gap: 16px; }
+        .mb-4 { margin-bottom: 16px; }
+        .mb-6 { margin-bottom: 24px; }
+        .mt-1 { margin-top: 4px; }
+        .uppercase { text-transform: uppercase; }
+        .tracking-widest { letter-spacing: 0.15em; }
+        .text-metadata { color: var(--metadata); }
+        .text-primary { color: var(--primary); }
+    </style>
+</head>
+<body>
+<header class="header">
+<div style="display: flex; align-items: center; gap: 48px;">
+<span class="logo">AEGIS</span>
+<nav class="nav-links">
+<a class="nav-link active" href="#">Projects</a>
+<a class="nav-link" href="#">Assets</a>
+<a class="nav-link" href="#">Policies</a>
+</nav>
+</div>
+<div class="header-actions">
+<div class="search-container">
+<input class="search-input" placeholder="Search resources..." type="text"/>
+<span class="material-symbols-outlined search-icon">search</span>
+</div>
+<button style="background: none; border: none; cursor: pointer; color: var(--slate-500); position: relative;">
+<span class="material-symbols-outlined" style="font-size: 24px;">notifications</span>
+<span style="position: absolute; top: 0; right: 0; width: 8px; height: 8px; background: var(--error); border-radius: 9999px; border: 2px solid #fff;"></span>
+</button>
+<div style="display: flex; align-items: center; gap: 12px; padding-left: 8px; border-left: 1px solid var(--slate-200);">
+<div class="md-block" style="text-align: right; display: none;">
+<p style="font-size: 12px; font-weight: 700; color: var(--slate-900); line-height: 1;">Kosh Admin</p>
+<p style="font-size: 10px; color: var(--metadata); font-weight: 500; text-transform: uppercase; letter-spacing: -0.05em; margin-top: 2px;">System Architect</p>
+</div>
+<img alt="User" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBm3-Zz27bTxFt52gdONL-2D9MeOO00862LLCDvrrwwusXSNTCZ5XfTCJjaedbHq0cnatGH6kHmvo3zwD2SLg2dU1AMQfAl0t2l4dNTn4PI1BoXS7z3_Cygzd3Ri-oq4sHCTj46ZkmAvcKGauUSbCdzPULqh4IWvhcpE2e8CYpyO-OFtTuDKEtk2wxOCk3QuBKdMvfC5wufSWmpKYTWNM15xT5E6P36QvTs_IJBsxmUPD-80ld9QZ0EK9KpKVVsC5nl-tXGkiytZJt3" style="width: 36px; height: 36px; border-radius: 9999px; border: 1px solid var(--slate-200); object-fit: cover;"/>
+</div>
+</div>
+</header>
+<aside class="sidebar">
+<div class="sidebar-brand">
+<div class="brand-card">
+<div class="brand-icon">
+<span class="material-symbols-outlined" style="font-size: 20px;">memory</span>
+</div>
+<div style="overflow: hidden;">
+<p style="font-family: 'Space Grotesk'; font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--slate-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Firmware Alpha</p>
+<p style="font-size: 11px; color: var(--metadata); font-weight: 600; text-transform: uppercase; letter-spacing: -0.05em;">main • secure</p>
+</div>
+</div>
+</div>
+<nav class="sidebar-nav">
+<a class="sidebar-item active" href="#">
+<span class="material-symbols-outlined" style="font-size: 20px;">dashboard</span>
+<span class="font-headline" style="font-size: 14px; letter-spacing: 0.025em;">Overview</span>
+</a>
+<a class="sidebar-item" href="#">
+<span class="material-symbols-outlined" style="font-size: 20px;">query_stats</span>
+<span class="font-headline" style="font-size: 14px;">Analysis</span>
+</a>
+<a class="sidebar-item" href="#">
+<span class="material-symbols-outlined" style="font-size: 20px;">terminal</span>
+<span class="font-headline" style="font-size: 14px;">Code</span>
+</a>
+<a class="sidebar-item" href="#">
+<span class="material-symbols-outlined" style="font-size: 20px;">policy</span>
+<span class="font-headline" style="font-size: 14px;">Findings</span>
+</a>
+<a class="sidebar-item" href="#">
+<span class="material-symbols-outlined" style="font-size: 20px;">description</span>
+<span class="font-headline" style="font-size: 14px;">Report</span>
+</a>
+<a class="sidebar-item" href="#">
+<span class="material-symbols-outlined" style="font-size: 20px;">security</span>
+<span class="font-headline" style="font-size: 14px;">Quality Gate</span>
+</a>
+<a class="sidebar-item" href="#">
+<span class="material-symbols-outlined" style="font-size: 20px;">task_alt</span>
+<span class="font-headline" style="font-size: 14px;">Approvals</span>
+</a>
+<a class="sidebar-item" href="#" style="margin-top: 16px;">
+<span class="material-symbols-outlined" style="font-size: 20px;">settings</span>
+<span class="font-headline" style="font-size: 14px;">Settings</span>
+</a>
+</nav>
+<div style="margin-top: auto; padding: 24px 16px; border-top: 1px solid rgba(207, 216, 227, 0.4);">
+<a href="#" style="display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--slate-500); background: #fff; border: 1px solid rgba(207, 216, 227, 0.5); padding: 10px; border-radius: 8px; text-decoration: none; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; transition: background 0.2s;">
+<span class="material-symbols-outlined" style="font-size: 16px;">arrow_back</span>
+<span>Exit Project</span>
+</a>
+</div>
+</aside>
+<main class="main-content">
+<div class="page-header">
+<nav class="breadcrumb">
+<span>Projects</span>
+<span class="material-symbols-outlined" style="font-size: 14px;">chevron_right</span>
+<span>ECU-PowerTrain-v2.1</span>
+<span class="material-symbols-outlined" style="font-size: 14px;">chevron_right</span>
+<span class="breadcrumb-active">Overview</span>
+</nav>
+<div class="title-area">
+<div>
+<h1>ECU-PowerTrain-v2.1</h1>
+<div style="display: flex; align-items: center; gap: 12px; margin-top: 6px;">
+<p style="font-size: 14px; color: var(--metadata); font-weight: 500;">Firmware ID: <span style="font-family: 'Space Grotesk'; color: var(--slate-900); font-weight: 700;">AE-00-98-F2-11</span></p>
+<span style="width: 4px; height: 4px; background: var(--slate-300); border-radius: 9999px;"></span>
+<span class="status-chip">Stable</span>
+</div>
+</div>
+<div class="button-group">
+<button class="btn btn-outline">Re-Scan</button>
+<button class="btn btn-primary">Export Report</button>
+</div>
+</div>
+</div>
+<div class="content-grid">
+<div class="main-column">
+<section class="card">
+<div class="card-accent"></div>
+<div class="card-divider">
+<h3 class="card-title">Project Analysis Context</h3>
+<span style="font-family: 'Space Grotesk'; font-size: 12px; color: var(--metadata); font-weight: 500; text-transform: uppercase; letter-spacing: -0.05em;">Initial Upload: 2026-03-15</span>
+</div>
+<p style="font-size: 16px; font-weight: 500; line-height: 1.6; color: var(--slate-700); margin-bottom: 24px; max-width: 768px;">
+                    Next-generation Powertrain ECU firmware. Modules include CAN/LIN communications, real-time motor control algorithms, and UDS diagnostics (ISO 14229).
+                </p>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;">
+<span class="tag">C99</span>
+<span class="tag">ARM Cortex-M4</span>
+<span class="tag">MISRA C:2012</span>
+<span class="tag">ISO 26262 ASIL-D</span>
+<span class="tag">AUTOSAR v4.4</span>
+</div>
+</section>
+<section class="card">
+<div class="justify-between flex items-start mb-6">
+<div>
+<h3 class="card-title" style="margin-bottom: 16px;">Security Posture</h3>
+<div style="display: flex; align-items: baseline; gap: 16px;">
+<span class="metric-large">43</span>
+<div style="display: flex; flex-direction: column;">
+<span class="metric-label">Findings</span>
+<span class="metric-sub">↓ 12% since last scan</span>
+</div>
+</div>
+</div>
+<div class="severity-group">
+<div class="severity-item" style="text-align: right;">
+<p class="metric-label" style="margin-bottom: 4px;">Critical</p>
+<p class="severity-val" style="color: var(--slate-300);">0</p>
+</div>
+<div class="severity-item" style="text-align: right;">
+<p class="metric-label" style="margin-bottom: 4px;">High</p>
+<p class="severity-val" style="color: var(--error);">3</p>
+</div>
+<div class="severity-item" style="text-align: right;">
+<p class="metric-label" style="margin-bottom: 4px;">Medium</p>
+<p class="severity-val" style="color: var(--tertiary);">12</p>
+</div>
+<div class="severity-item" style="text-align: right;">
+<p class="metric-label" style="margin-bottom: 4px;">Low</p>
+<p class="severity-val" style="color: var(--primary);">28</p>
+</div>
+</div>
+</div>
+<div class="progress-bar">
+<div style="width: 7%; background: var(--error);"></div>
+<div style="width: 28%; background: var(--tertiary);"></div>
+<div style="width: 65%; background: var(--primary);"></div>
+</div>
+<div style="padding-top: 16px; border-top: 1px solid rgba(207, 216, 227, 0.4);">
+<h4 class="metric-label" style="margin-bottom: 24px;">30-Day Finding Trend (Detected vs Resolved)</h4>
+<div class="chart-container">
+<div class="chart-col">
+<div class="chart-bars">
+<div class="bar-left" style="height: 60%;"></div>
+<div class="bar-right" style="height: 40%;"></div>
+</div>
+<span class="metric-label" style="font-size: 10px; color: var(--metadata); letter-spacing: -0.05em;">W01</span>
+</div>
+<div class="chart-col">
+<div class="chart-bars">
+<div class="bar-left" style="height: 85%;"></div>
+<div class="bar-right" style="height: 55%;"></div>
+</div>
+<span class="metric-label" style="font-size: 10px; color: var(--metadata); letter-spacing: -0.05em;">W02</span>
+</div>
+<div class="chart-col">
+<div class="chart-bars">
+<div class="bar-left" style="height: 40%;"></div>
+<div class="bar-right" style="height: 70%;"></div>
+</div>
+<span class="metric-label" style="font-size: 10px; color: var(--metadata); letter-spacing: -0.05em;">W03</span>
+</div>
+<div class="chart-col">
+<div class="chart-bars">
+<div class="bar-left" style="height: 30%;"></div>
+<div class="bar-right" style="height: 20%;"></div>
+</div>
+<span class="metric-label" style="font-size: 10px; color: var(--metadata); letter-spacing: -0.05em;">W04</span>
+</div>
+</div>
+</div>
+</section>
+<section class="card">
+<div class="card-divider">
+<h3 class="card-title">Analysis Timeline</h3>
+<button style="background:none; border:none; cursor:pointer; font-size:11px; font-weight:700; color:var(--primary); text-transform:uppercase; letter-spacing:0.1em;">View History</button>
+</div>
+<div>
+<div class="timeline-item">
+<div class="timeline-line"></div>
+<div class="timeline-dot" style="background: var(--emerald-500); box-shadow: 0 0 0 4px rgba(16,185,129,0.1);"></div>
+<div style="flex: 1; min-width: 0;">
+<div class="justify-between flex items-baseline mb-1">
+<p style="font-weight: 700; color: var(--slate-800);">Quick SAST completed</p>
+<p class="metric-label" style="font-size: 11px;">2h ago</p>
+</div>
+<p style="font-size: 13px; color: var(--slate-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Analysis run #442 found 3 new vulnerabilities (Low severity).</p>
+</div>
+</div>
+<div class="timeline-item">
+<div class="timeline-line"></div>
+<div class="timeline-dot" style="background: var(--emerald-500); box-shadow: 0 0 0 4px rgba(16,185,129,0.1);"></div>
+<div style="flex: 1; min-width: 0;">
+<div class="justify-between flex items-baseline mb-1">
+<p style="font-weight: 700; color: var(--slate-800);">Deep Analysis completed</p>
+<p class="metric-label" style="font-size: 11px;">1d ago</p>
+</div>
+<p style="font-size: 13px; color: var(--slate-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Heuristic engine report for release candidate 2.1.0-RC1: 0 findings.</p>
+</div>
+</div>
+<div class="timeline-item">
+<div class="timeline-line"></div>
+<div class="timeline-dot" style="background: var(--error); box-shadow: 0 0 0 4px rgba(185,74,72,0.1);"></div>
+<div style="flex: 1; min-width: 0;">
+<div class="justify-between flex items-baseline mb-1">
+<p style="font-weight: 700; color: var(--slate-800);">Gate evaluated — FAIL</p>
+<p class="metric-label" style="font-size: 11px;">2d ago</p>
+</div>
+<p style="font-size: 13px; color: var(--slate-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Quality Gate 'Enterprise Hardening' rejected the build due to open High severity items.</p>
+</div>
+</div>
+<div class="timeline-item" style="padding-bottom: 0;">
+<div class="timeline-dot" style="background: var(--amber-500); box-shadow: 0 0 0 4px rgba(245,158,11,0.1);"></div>
+<div style="flex: 1; min-width: 0;">
+<div class="justify-between flex items-baseline mb-1">
+<p style="font-weight: 700; color: var(--slate-800);">Override requested by Kosh</p>
+<p class="metric-label" style="font-size: 11px;">2d ago</p>
+</div>
+<p style="font-size: 13px; color: var(--slate-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Exemption requested for VULN-ID-3392 (False Positive candidate).</p>
+</div>
+</div>
+</div>
+</section>
+</div>
+<aside class="side-column">
+<section class="card" style="padding: 20px;">
+<h3 class="card-title tracking-widest" style="font-size: 11px; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 1px solid rgba(207,216,227,0.4);">Build Targets</h3>
+<div style="display: flex; flex-direction: column; gap: 16px;">
+<div class="flex items-center justify-between" style="padding: 8px; border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+<span style="font-size: 13px; font-family: 'Space Grotesk'; font-weight: 600; color: var(--slate-700);">arm-cortex-m4-main</span>
+<span style="font-size: 10px; font-weight: 700; padding: 2px 8px; background: var(--emerald-50); color: var(--emerald-700); border-radius: 9999px; text-transform: uppercase;">Ready</span>
+</div>
+<div class="flex items-center justify-between" style="padding: 8px; border-radius: 4px; cursor: pointer;">
+<span style="font-size: 13px; font-family: 'Space Grotesk'; font-weight: 600; color: var(--slate-700);">arm-cortex-m4-bootloader</span>
+<span style="font-size: 10px; font-weight: 700; padding: 2px 8px; background: var(--emerald-50); color: var(--emerald-700); border-radius: 9999px; text-transform: uppercase;">Ready</span>
+</div>
+<div class="flex items-center justify-between" style="padding: 8px; border-radius: 4px; cursor: pointer;">
+<span style="font-size: 13px; font-family: 'Space Grotesk'; font-weight: 600; color: var(--slate-700);">riscv-rv32-diag</span>
+<span style="font-size: 10px; font-weight: 700; padding: 2px 8px; background: var(--slate-100); color: var(--slate-500); border-radius: 9999px; text-transform: uppercase;">Config</span>
+</div>
+</div>
+</section>
+<section class="card" style="padding: 20px;">
+<h3 class="card-title tracking-widest" style="font-size: 11px; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 1px solid rgba(207,216,227,0.4);">Inventory</h3>
+<div class="inventory-list">
+<div style="width: 82%; background: var(--primary);"></div>
+<div style="width: 11%; background: var(--secondary);"></div>
+<div style="width: 4%; background: var(--tertiary);"></div>
+<div style="width: 3%; background: var(--slate-300);"></div>
+</div>
+<div class="inventory-grid">
+<div class="inventory-legend">
+<div class="legend-dot" style="background: var(--primary);"></div>
+<span>C (82%)</span>
+</div>
+<div class="inventory-legend">
+<div class="legend-dot" style="background: var(--secondary);"></div>
+<span>C++ (11%)</span>
+</div>
+<div class="inventory-legend">
+<div class="legend-dot" style="background: var(--tertiary);"></div>
+<span>ASM (4%)</span>
+</div>
+</div>
+<div style="padding-top: 16px; border-top: 1px solid rgba(207,216,227,0.2); display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+<div class="stat-box">
+<p class="stat-label">Total Files</p>
+<p class="stat-val">127</p>
+</div>
+<div class="stat-box">
+<p class="stat-label">Bin Size</p>
+<p class="stat-val">2.4 MB</p>
+</div>
+</div>
+</section>
+<section class="card" style="padding: 20px;">
+<h3 class="card-title tracking-widest" style="font-size: 11px; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 1px solid rgba(207,216,227,0.4);">Environment</h3>
+<div style="display: flex; flex-direction: column; gap: 20px;">
+<div>
+<div class="justify-between flex items-baseline mb-2">
+<span style="font-size: 12px; font-family: 'Space Grotesk'; font-weight: 700; color: var(--slate-700);">arm-none-eabi-gcc 12.3</span>
+<span style="font-size: 10px; font-weight: 700; color: var(--emerald-600); text-transform: uppercase;">Ready</span>
+</div>
+<div style="width: 100%; height: 4px; background: var(--slate-100); border-radius: 9999px; overflow: hidden;">
+<div style="width: 100%; height: 100%; background: var(--emerald-500);"></div>
+</div>
+</div>
+<div>
+<div class="justify-between flex items-baseline mb-2">
+<span style="font-size: 12px; font-family: 'Space Grotesk'; font-weight: 700; color: var(--slate-700);">riscv32-elf-gcc 13.1</span>
+<span style="font-size: 10px; font-weight: 700; color: var(--primary); text-transform: uppercase;">Verifying 78%</span>
+</div>
+<div style="width: 100%; height: 4px; background: var(--slate-100); border-radius: 9999px; overflow: hidden;">
+<div style="width: 78%; height: 100%; background: var(--primary);"></div>
+</div>
+</div>
+</div>
+</section>
+<div style="background: rgba(225, 231, 240, 0.2); padding: 20px; border-radius: 4px; border: 1px solid rgba(74, 111, 165, 0.1);">
+<h4 class="card-title tracking-widest" style="color: var(--primary); font-size: 11px; margin-bottom: 16px;">Infrastructure Health</h4>
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<div class="justify-between flex items-center" style="font-size: 11px;">
+<span style="color: var(--slate-600); font-weight: 500;">Analysis Engine</span>
+<span style="color: var(--primary); font-weight: 700;">v4.2.1-PRO</span>
+</div>
+<div class="justify-between flex items-center" style="font-size: 11px;">
+<span style="color: var(--slate-600); font-weight: 500;">Cloud Latency</span>
+<span style="color: var(--emerald-600); font-weight: 700; text-transform: uppercase;">&lt; 12ms</span>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</main>
+<footer class="footer">
+<div style="display: flex; align-items: center; gap: 24px;">
+<div style="display: flex; align-items: center; gap: 8px;">
+<span style="width: 8px; height: 8px; border-radius: 9999px; background: var(--emerald-500);"></span>
+<span style="font-size: 11px; font-weight: 700; color: var(--emerald-600); text-transform: uppercase; letter-spacing: 0.1em;">System Operational</span>
+</div>
+<div style="height: 16px; width: 1px; background: var(--slate-200);"></div>
+<p style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: -0.025em; color: var(--metadata);">
+            AEGIS v2.1.0 • Last Sync: 2m ago • Region: us-east-1
+        </p>
+</div>
+</footer>
+</body></html>

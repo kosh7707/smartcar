@@ -1,0 +1,374 @@
+<html class="dark" lang="en"><head></head><body class="bg-background text-text-main min-h-screen selection:bg-primary/30">```html
+
+
+
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Project Security Analysis</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;700&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style type="text/tailwindcss">
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+        }
+        .headline-font {
+            font-family: 'Space+Grotesk', sans-serif;
+        }
+        .mono-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        :root {
+            --spotify-green: #1DB954;
+            --spotify-black: #121212;
+            --spotify-dark-grey: #181818;
+            --spotify-light-grey: #282828;
+            --spotify-text-secondary: #b3b3b3;
+            --gate-pass: #1DB954;
+            --gate-fail: #e91429;
+            --gate-warning: #ffa42b;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#1DB954",
+                        background: "#121212",
+                        surface: "#181818",
+                        "surface-highlight": "#282828",
+                        "text-main": "#ffffff",
+                        "text-sub": "#b3b3b3",
+                        error: "#e91429",
+                        warning: "#ffa42b"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "4px",
+                        "lg": "8px",
+                        "xl": "12px",
+                        "full": "9999px"
+                    }
+                },
+            },
+        }
+    </script>
+
+
+<header class="w-full h-16 border-b border-white/5 bg-background sticky top-0 z-50">
+<div class="flex justify-between items-center w-full px-6 max-w-[1920px] mx-auto h-full">
+<div class="flex items-center gap-8">
+<span class="text-2xl font-bold tracking-tighter text-primary uppercase font-['Space_Grotesk']">AEGIS</span>
+<div class="hidden md:flex items-center bg-surface border border-white/5 px-3 py-1.5 rounded-full group hover:border-primary/40 transition-all cursor-pointer">
+<span class="material-symbols-outlined text-primary text-[18px] mr-2">account_tree</span>
+<span class="text-sm font-semibold mr-4 text-text-main">Automotive_Division_Alpha</span>
+<span class="material-symbols-outlined text-text-sub text-[16px]">expand_more</span>
+</div>
+<div class="relative group max-w-md hidden lg:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-sub text-[20px]">search</span>
+<input class="bg-surface-highlight border-none ring-0 focus:ring-1 focus:ring-primary/50 rounded-full pl-10 pr-4 py-1.5 text-sm w-64 focus:w-80 transition-all placeholder:text-text-sub/50 text-white" placeholder="Search firmware projects..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="relative p-2 rounded-full hover:bg-surface-highlight transition-colors">
+<span class="material-symbols-outlined text-text-sub group-hover:text-white">notifications</span>
+<span class="absolute top-1 right-1.5 w-4 h-4 bg-primary text-black flex items-center justify-center text-[10px] font-bold rounded-full">3</span>
+</button>
+<div class="h-8 w-[1px] bg-white/10 mx-2"></div>
+<div class="flex items-center gap-3 pl-2 group cursor-pointer">
+<div class="text-right hidden sm:block">
+<p class="text-xs font-bold text-text-main leading-tight">Kosh / Admin</p>
+<p class="text-[10px] text-text-sub leading-tight">System Overseer</p>
+</div>
+<div class="w-9 h-9 rounded-full overflow-hidden ring-2 ring-white/5 group-hover:ring-primary/40 transition-all">
+<img alt="User Avatar" class="w-full h-full object-cover grayscale hover:grayscale-0 transition-all" src="https://lh3.googleusercontent.com/aida-public/AB6AXuChjOoq6d8xDm0IKuSOBFrwx9gXvc_GP8Y6SisPVg4N7HS_bU0uU-VqRpKwpDtm3Wa2b9tKwXFyIf0I5bhoQHkzaIGXJLl_hLsEI3MZwLMUO4gzXrHImK5DSkRydg6jStZ7Bcs4vmdNnAtqQtVs4yxsvspdHi9T2pDCcBwc53v0NNfva4PHxtDLvbGTqoKg0AY3Ltg_VZb3I6loafg3eK2hDGEJ2bYCHYfEOG9bZ7QmDOIuvcOu6-p62A2onZBg4SVuPDnQ4AcFRYPm"/>
+</div>
+</div>
+</div>
+</div>
+</header>
+<main class="max-w-[1920px] mx-auto px-6 py-8">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+<div>
+<h1 class="text-5xl font-bold tracking-tighter headline-font text-text-main mb-3">Projects</h1>
+<p class="text-text-sub max-w-2xl text-base font-medium">Monitoring security gates and vulnerability trends across the hardware lifecycle.</p>
+</div>
+<button class="bg-primary text-black px-8 py-3 rounded-full font-bold text-sm flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-lg hover:bg-[#1ed760]">
+<span class="material-symbols-outlined text-[20px] font-bold">add</span>
+            NEW PROJECT
+        </button>
+</div>
+<div class="space-y-2">
+<div class="group bg-surface hover:bg-surface-highlight transition-all duration-200 rounded-lg overflow-hidden border border-transparent hover:border-white/10">
+<div class="p-6 flex flex-col lg:flex-row gap-8">
+<div class="flex-1 space-y-4">
+<div class="flex items-center gap-4">
+<h2 class="text-2xl font-bold headline-font group-hover:text-primary transition-colors tracking-tight">ECU-PowerTrain-v2.1</h2>
+<span class="bg-primary text-black text-[10px] font-black px-2 py-0.5 rounded-sm uppercase tracking-tighter">Gate Pass</span>
+<span class="text-[11px] text-text-sub mono-font bg-white/5 px-2 py-0.5 rounded">v2.1.4-stable</span>
+</div>
+<p class="text-sm text-text-sub font-medium">파워트레인 ECU 펌웨어 — CAN/LIN 통신, 모터 제어, 진단(UDS)</p>
+<div class="flex flex-wrap items-center gap-y-2 gap-x-6 text-[12px] text-text-sub font-semibold">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+                            Last analysis: 2시간 전
+                        </div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">memory</span>
+                            3 targets — <span class="mono-font opacity-80">ARM Cortex-M4, RISC-V RV32</span>
+</div>
+<div class="flex items-center gap-1.5 text-error">
+<span class="material-symbols-outlined text-[16px]">trending_up</span>
+                            Delta: +3
+                        </div>
+</div>
+</div>
+<div class="lg:w-96 flex flex-col justify-center">
+<div class="flex justify-between items-end mb-2">
+<span class="text-[10px] font-black text-text-sub uppercase tracking-widest">Health Index</span>
+<span class="text-[11px] font-bold text-text-main">43 Findings</span>
+</div>
+<div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden flex">
+<div class="h-full bg-error" style="width: 0%"></div>
+<div class="h-full bg-warning" style="width: 8%"></div>
+<div class="h-full bg-warning/60" style="width: 28%"></div>
+<div class="h-full bg-primary" style="width: 64%"></div>
+</div>
+<div class="grid grid-cols-4 mt-4 gap-2">
+<div class="text-center">
+<p class="text-[10px] font-black text-text-sub uppercase">Crit</p>
+<p class="text-xl font-bold text-text-sub/30">0</p>
+</div>
+<div class="text-center border-l border-white/5">
+<p class="text-[10px] font-black text-warning uppercase">High</p>
+<p class="text-xl font-bold">3</p>
+</div>
+<div class="text-center border-l border-white/5">
+<p class="text-[10px] font-black text-warning/70 uppercase">Med</p>
+<p class="text-xl font-bold">12</p>
+</div>
+<div class="text-center border-l border-white/5">
+<p class="text-[10px] font-black text-primary uppercase">Low</p>
+<p class="text-xl font-bold">28</p>
+</div>
+</div>
+</div>
+<div class="flex items-center">
+<button class="p-2 rounded-full hover:bg-white/10 transition-colors text-text-sub hover:text-white">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</div>
+</div>
+</div>
+<div class="group bg-surface hover:bg-surface-highlight transition-all duration-200 rounded-lg overflow-hidden border border-transparent hover:border-white/10">
+<div class="p-6 flex flex-col lg:flex-row gap-8">
+<div class="flex-1 space-y-4">
+<div class="flex items-center gap-4">
+<h2 class="text-2xl font-bold headline-font group-hover:text-primary transition-colors tracking-tight">ADAS-Camera-Module</h2>
+<span class="bg-error text-white text-[10px] font-black px-2 py-0.5 rounded-sm uppercase tracking-tighter">Gate Fail</span>
+<span class="text-[11px] text-text-sub mono-font bg-white/5 px-2 py-0.5 rounded">v0.9.2-beta</span>
+</div>
+<p class="text-sm text-text-sub font-medium">ADAS 전방 카메라 모듈 — 객체 인식, 차선 감지 펌웨어</p>
+<div class="flex flex-wrap items-center gap-y-2 gap-x-6 text-[12px] text-text-sub font-semibold">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">calendar_today</span>
+                            Last analysis: 2026-04-06
+                        </div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">memory</span>
+                            2 targets — <span class="mono-font opacity-80">ARM Cortex-A53</span>
+</div>
+<div class="flex items-center gap-1.5 text-error">
+<span class="material-symbols-outlined text-[16px]">warning</span>
+                            Delta: +12 Regression
+                        </div>
+</div>
+</div>
+<div class="lg:w-96 flex flex-col justify-center">
+<div class="flex justify-between items-end mb-2">
+<span class="text-[10px] font-black text-text-sub uppercase tracking-widest">Health Index</span>
+<span class="text-[11px] font-bold text-text-main">56 Findings</span>
+</div>
+<div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden flex">
+<div class="h-full bg-error" style="width: 10%"></div>
+<div class="h-full bg-warning" style="width: 25%"></div>
+<div class="h-full bg-warning/60" style="width: 30%"></div>
+<div class="h-full bg-primary" style="width: 35%"></div>
+</div>
+<div class="grid grid-cols-4 mt-4 gap-2">
+<div class="text-center">
+<p class="text-[10px] font-black text-error uppercase">Crit</p>
+<p class="text-xl font-bold">2</p>
+</div>
+<div class="text-center border-l border-white/5">
+<p class="text-[10px] font-black text-warning uppercase">High</p>
+<p class="text-xl font-bold">8</p>
+</div>
+<div class="text-center border-l border-white/5">
+<p class="text-[10px] font-black text-warning/70 uppercase">Med</p>
+<p class="text-xl font-bold">15</p>
+</div>
+<div class="text-center border-l border-white/5">
+<p class="text-[10px] font-black text-primary uppercase">Low</p>
+<p class="text-xl font-bold">31</p>
+</div>
+</div>
+</div>
+<div class="flex items-center">
+<button class="p-2 rounded-full hover:bg-white/10 transition-colors text-text-sub hover:text-white">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</div>
+</div>
+</div>
+<div class="group bg-surface hover:bg-surface-highlight transition-all duration-200 rounded-lg overflow-hidden border border-transparent hover:border-white/10">
+<div class="p-6 flex flex-col lg:flex-row gap-8">
+<div class="flex-1 space-y-4">
+<div class="flex items-center gap-4">
+<h2 class="text-2xl font-bold headline-font group-hover:text-primary transition-colors tracking-tight">BMS-CellMonitor</h2>
+<span class="bg-primary text-black text-[10px] font-black px-2 py-0.5 rounded-sm uppercase tracking-tighter">Gate Pass</span>
+</div>
+<p class="text-sm text-text-sub font-medium">배터리 셀 모니터링 — SOC/SOH 추정, 셀 밸런싱</p>
+<div class="flex flex-wrap items-center gap-y-2 gap-x-6 text-[12px] text-text-sub font-semibold">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+                            Last analysis: 어제 14:30
+                        </div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">memory</span>
+                            1 target — <span class="mono-font opacity-80">ARM Cortex-M0+</span>
+</div>
+<div class="flex items-center gap-1.5 text-primary">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+                            Delta: 0
+                        </div>
+</div>
+</div>
+<div class="lg:w-96 flex flex-col justify-center">
+<div class="flex justify-between items-end mb-2">
+<span class="text-[10px] font-black text-text-sub uppercase tracking-widest">Health Index</span>
+<span class="text-[11px] font-bold text-text-main">15 Findings</span>
+</div>
+<div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden flex">
+<div class="h-full bg-error" style="width: 0%"></div>
+<div class="h-full bg-warning" style="width: 7%"></div>
+<div class="h-full bg-warning/60" style="width: 33%"></div>
+<div class="h-full bg-primary" style="width: 60%"></div>
+</div>
+<div class="grid grid-cols-4 mt-4 gap-2">
+<div class="text-center">
+<p class="text-[10px] font-black text-text-sub uppercase">Crit</p>
+<p class="text-xl font-bold text-text-sub/30">0</p>
+</div>
+<div class="text-center border-l border-white/5">
+<p class="text-[10px] font-black text-warning uppercase">High</p>
+<p class="text-xl font-bold">1</p>
+</div>
+<div class="text-center border-l border-white/5">
+<p class="text-[10px] font-black text-warning/70 uppercase">Med</p>
+<p class="text-xl font-bold">5</p>
+</div>
+<div class="text-center border-l border-white/5">
+<p class="text-[10px] font-black text-primary uppercase">Low</p>
+<p class="text-xl font-bold">9</p>
+</div>
+</div>
+</div>
+<div class="flex items-center">
+<button class="p-2 rounded-full hover:bg-white/10 transition-colors text-text-sub hover:text-white">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</div>
+</div>
+</div>
+<div class="group bg-surface hover:bg-surface-highlight transition-all duration-200 rounded-lg overflow-hidden border border-transparent hover:border-white/10">
+<div class="p-6 flex flex-col lg:flex-row gap-8">
+<div class="flex-1 space-y-4">
+<div class="flex items-center gap-4">
+<h2 class="text-2xl font-bold headline-font group-hover:text-primary transition-colors tracking-tight">TCU-Telematics-Gateway</h2>
+<span class="bg-warning text-black text-[10px] font-black px-2 py-0.5 rounded-sm uppercase tracking-tighter">Gate Warning</span>
+</div>
+<p class="text-sm text-text-sub font-medium">텔레매틱스 게이트웨이 — OTA 업데이트, V2X 통신</p>
+<div class="flex flex-wrap items-center gap-y-2 gap-x-6 text-[12px] text-text-sub font-semibold">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+                            Last analysis: 3일 전
+                        </div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">memory</span>
+                            2 targets — <span class="mono-font opacity-80">ARM Cortex-M4, PowerPC e200</span>
+</div>
+<div class="flex items-center gap-1.5 text-error">
+<span class="material-symbols-outlined text-[16px]">trending_up</span>
+                            Delta: +5
+                        </div>
+</div>
+</div>
+<div class="lg:w-96 flex flex-col justify-center">
+<div class="flex justify-between items-end mb-2">
+<span class="text-[10px] font-black text-text-sub uppercase tracking-widest">Health Index</span>
+<span class="text-[11px] font-bold text-text-main">74 Findings</span>
+</div>
+<div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden flex">
+<div class="h-full bg-error" style="width: 5%"></div>
+<div class="h-full bg-warning" style="width: 15%"></div>
+<div class="h-full bg-warning/60" style="width: 30%"></div>
+<div class="h-full bg-primary" style="width: 50%"></div>
+</div>
+<div class="grid grid-cols-4 mt-4 gap-2">
+<div class="text-center">
+<p class="text-[10px] font-black text-error uppercase">Crit</p>
+<p class="text-xl font-bold">1</p>
+</div>
+<div class="text-center border-l border-white/5">
+<p class="text-[10px] font-black text-warning uppercase">High</p>
+<p class="text-xl font-bold">4</p>
+</div>
+<div class="text-center border-l border-white/5">
+<p class="text-[10px] font-black text-warning/70 uppercase">Med</p>
+<p class="text-xl font-bold">22</p>
+</div>
+<div class="text-center border-l border-white/5">
+<p class="text-[10px] font-black text-primary uppercase">Low</p>
+<p class="text-xl font-bold">47</p>
+</div>
+</div>
+</div>
+<div class="flex items-center">
+<button class="p-2 rounded-full hover:bg-white/10 transition-colors text-text-sub hover:text-white">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-12 flex flex-col sm:flex-row justify-between items-center gap-4 text-[12px] text-text-sub font-bold uppercase tracking-widest">
+<div class="flex items-center gap-4">
+<span>Displaying 4 / 12 projects</span>
+<span class="w-[1px] h-3 bg-white/10"></span>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(29,185,84,0.6)]"></span>
+                System: Operational
+            </div>
+</div>
+<div class="flex gap-2">
+<button class="px-4 py-2 rounded-full bg-surface border border-white/5 hover:bg-surface-highlight hover:text-white transition-all">Prev</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-primary text-black font-black">1</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-surface border border-white/5 hover:text-white transition-all">2</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-surface border border-white/5 hover:text-white transition-all">3</button>
+<button class="px-4 py-2 rounded-full bg-surface border border-white/5 hover:bg-surface-highlight hover:text-white transition-all">Next</button>
+</div>
+</div>
+</main>
+<div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+<div class="absolute -top-[10%] -left-[5%] w-[30%] h-[30%] bg-primary/5 blur-[120px] rounded-full"></div>
+<div class="absolute bottom-[0%] right-[0%] w-[40%] h-[40%] bg-primary/2 blur-[150px] rounded-full"></div>
+</div>
+
+```</body></html>

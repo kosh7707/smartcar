@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS — Projects</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#727785",
+                        "surface-container-low": "#f3f3f4",
+                        "primary-fixed": "#d8e2ff",
+                        "on-secondary-container": "#5b636e",
+                        "surface": "#f9f9f9",
+                        "tertiary-container": "#007e33",
+                        "secondary-fixed": "#dbe3ef",
+                        "secondary": "#575f69",
+                        "on-secondary": "#ffffff",
+                        "on-surface-variant": "#424753",
+                        "on-tertiary-container": "#c0ffc2",
+                        "inverse-on-surface": "#f0f1f1",
+                        "on-primary": "#ffffff",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-error-container": "#93000a",
+                        "surface-bright": "#f9f9f9",
+                        "surface-dim": "#dadada",
+                        "on-surface": "#1a1c1c",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed-variant": "#3f4751",
+                        "primary": "#0051ae",
+                        "primary-container": "#0969da",
+                        "outline-variant": "#c2c6d6",
+                        "surface-tint": "#005bc0",
+                        "on-tertiary-fixed": "#002108",
+                        "inverse-surface": "#2f3131",
+                        "surface-container": "#eeeeee",
+                        "background": "#f9f9f9",
+                        "on-primary-container": "#ecefff",
+                        "secondary-container": "#d8e0ed",
+                        "surface-container-high": "#e8e8e8",
+                        "on-primary-fixed-variant": "#004493",
+                        "primary-fixed-dim": "#adc6ff",
+                        "on-secondary-fixed": "#141c25",
+                        "tertiary-fixed": "#88fb99",
+                        "inverse-primary": "#adc6ff",
+                        "tertiary": "#006226",
+                        "on-error": "#ffffff",
+                        "on-primary-fixed": "#001a41",
+                        "tertiary-fixed-dim": "#6bde80",
+                        "surface-variant": "#e2e2e2",
+                        "error-container": "#ffdad6",
+                        "on-background": "#1a1c1c",
+                        "error": "#ba1a1a",
+                        "secondary-fixed-dim": "#bfc7d3",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed-variant": "#00531f"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"]
+                    }
+                },
+            }
+        }
+    </script>
+</head>
+<body class="bg-[#f0f2f5] font-body text-[#1f2328] min-h-screen flex flex-col">
+<!-- TopNavBar -->
+<nav class="bg-slate-50 dark:bg-slate-900 flex justify-between items-center w-full px-6 py-3 fixed top-0 z-50">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-slate-900 dark:text-slate-50 font-headline uppercase">AEGIS</span>
+<div class="hidden md:flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-1.5 w-64 border-b-2 border-slate-200 dark:border-slate-700">
+<span class="material-symbols-outlined text-slate-400 text-sm" data-icon="search">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm ml-2 w-full text-slate-600 dark:text-slate-300" placeholder="Search..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-800/50 p-2 rounded transition-colors">
+<span class="material-symbols-outlined text-slate-500" data-icon="notifications">notifications</span>
+<span class="absolute top-1.5 right-1.5 bg-error text-white text-[10px] font-bold px-1 rounded-full min-w-[14px] flex items-center justify-center">3</span>
+</div>
+<div class="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-700">
+<div class="flex flex-col items-end">
+<span class="text-xs font-semibold leading-none">Kosh</span>
+<span class="font-label text-[10px] uppercase tracking-widest text-slate-500 mt-1">Admin</span>
+</div>
+<div class="h-8 w-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-headline font-bold text-sm">K</div>
+</div>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 mt-20 px-6 pb-20 max-w-7xl mx-auto w-full">
+<!-- Header Section -->
+<header class="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-4">
+<div>
+<h1 class="font-headline text-4xl font-bold tracking-tight text-on-surface">Projects</h1>
+<p class="font-label text-sm uppercase tracking-widest text-secondary mt-1">4 projects registered</p>
+</div>
+<button class="bg-gradient-to-br from-primary to-primary-container text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-medium hover:opacity-90 active:scale-95 transition-all shadow-sm">
+<span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+                New Project
+            </button>
+</header>
+<!-- Project Grid -->
+<div class="grid grid-cols-1 gap-6">
+<!-- Card 1 -->
+<div class="bg-white rounded-lg shadow-[0_8px_32px_rgba(26,28,28,0.04)] border-l-4 border-[#bf8700] p-6 hover:bg-slate-50 transition-colors flex flex-col md:flex-row gap-6 items-start md:items-center">
+<div class="flex-1 space-y-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-slate-400" data-icon="developer_board">developer_board</span>
+<h3 class="mono text-lg font-medium tracking-tight">ECU-PowerTrain-v2.1</h3>
+<span class="bg-tertiary/10 text-tertiary px-2 py-0.5 rounded font-label text-[10px] font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                            PASS
+                        </span>
+</div>
+<div class="flex flex-wrap gap-6 text-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-400 text-sm" data-icon="layers">layers</span>
+<span class="text-slate-600">3 build targets</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-1"><span class="mono font-bold text-slate-400">C:</span><span class="mono">0</span></div>
+<div class="flex items-center gap-1"><span class="mono font-bold text-error">H:</span><span class="mono">3</span></div>
+<div class="flex items-center gap-1"><span class="mono font-bold text-[#bf8700]">M:</span><span class="mono">12</span></div>
+<div class="flex items-center gap-1"><span class="mono font-bold text-slate-400">L:</span><span class="mono">28</span></div>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-start md:items-end gap-1">
+<span class="font-label text-[10px] uppercase tracking-widest text-slate-400">Last analysis</span>
+<span class="text-sm font-medium text-slate-600">2h ago</span>
+</div>
+<button class="bg-surface-container-highest text-on-surface px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-300 transition-colors">Details</button>
+</div>
+<!-- Card 2 -->
+<div class="bg-white rounded-lg shadow-[0_8px_32px_rgba(26,28,28,0.04)] border-l-4 border-[#cf222e] p-6 hover:bg-slate-50 transition-colors flex flex-col md:flex-row gap-6 items-start md:items-center">
+<div class="flex-1 space-y-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-slate-400" data-icon="camera">camera</span>
+<h3 class="mono text-lg font-medium tracking-tight">ADAS-Camera-v1.4</h3>
+<span class="bg-error/10 text-error px-2 py-0.5 rounded font-label text-[10px] font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" data-icon="error" data-weight="fill" style="font-variation-settings: 'FILL' 1;">error</span>
+                            FAIL
+                        </span>
+</div>
+<div class="flex flex-wrap gap-6 text-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-400 text-sm" data-icon="layers">layers</span>
+<span class="text-slate-600">2 build targets</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-1"><span class="mono font-bold text-error">C:</span><span class="mono font-bold">1</span></div>
+<div class="flex items-center gap-1"><span class="mono font-bold text-error">H:</span><span class="mono">5</span></div>
+<div class="flex items-center gap-1"><span class="mono font-bold text-[#bf8700]">M:</span><span class="mono">8</span></div>
+<div class="flex items-center gap-1"><span class="mono font-bold text-slate-400">L:</span><span class="mono">15</span></div>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-start md:items-end gap-1">
+<span class="font-label text-[10px] uppercase tracking-widest text-slate-400">Last analysis</span>
+<span class="text-sm font-medium text-slate-600">5h ago</span>
+</div>
+<button class="bg-surface-container-highest text-on-surface px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-300 transition-colors">Details</button>
+</div>
+<!-- Card 3 -->
+<div class="bg-white rounded-lg shadow-[0_8px_32px_rgba(26,28,28,0.04)] border-l-4 border-[#0969da] p-6 hover:bg-slate-50 transition-colors flex flex-col md:flex-row gap-6 items-start md:items-center">
+<div class="flex-1 space-y-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-slate-400" data-icon="battery_charging_full">battery_charging_full</span>
+<h3 class="mono text-lg font-medium tracking-tight">BMS-CellMonitor-v3.0</h3>
+<span class="bg-tertiary/10 text-tertiary px-2 py-0.5 rounded font-label text-[10px] font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                            PASS
+                        </span>
+</div>
+<div class="flex flex-wrap gap-6 text-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-400 text-sm" data-icon="layers">layers</span>
+<span class="text-slate-600">1 build target</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-1"><span class="mono font-bold text-slate-400">C:</span><span class="mono">0</span></div>
+<div class="flex items-center gap-1"><span class="mono font-bold text-slate-400">H:</span><span class="mono">0</span></div>
+<div class="flex items-center gap-1"><span class="mono font-bold text-[#bf8700]">M:</span><span class="mono">3</span></div>
+<div class="flex items-center gap-1"><span class="mono font-bold text-slate-400">L:</span><span class="mono">7</span></div>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-start md:items-end gap-1">
+<span class="font-label text-[10px] uppercase tracking-widest text-slate-400">Last analysis</span>
+<span class="text-sm font-medium text-slate-600">1d ago</span>
+</div>
+<button class="bg-surface-container-highest text-on-surface px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-300 transition-colors">Details</button>
+</div>
+<!-- Card 4 -->
+<div class="bg-white rounded-lg shadow-[0_8px_32px_rgba(26,28,28,0.04)] border-l-4 border-[#bf8700] p-6 hover:bg-slate-50 transition-colors flex flex-col md:flex-row gap-6 items-start md:items-center">
+<div class="flex-1 space-y-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-slate-400" data-icon="router">router</span>
+<h3 class="mono text-lg font-medium tracking-tight">TCU-Telematics-v2.2</h3>
+<span class="bg-[#e2e2e2] text-slate-600 px-2 py-0.5 rounded font-label text-[10px] font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" data-icon="pending" data-weight="fill" style="font-variation-settings: 'FILL' 1;">pending</span>
+                            PENDING
+                        </span>
+</div>
+<div class="flex flex-wrap gap-6 text-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-400 text-sm" data-icon="layers">layers</span>
+<span class="text-slate-600">2 build targets</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-1"><span class="mono font-bold text-slate-400">C:</span><span class="mono">0</span></div>
+<div class="flex items-center gap-1"><span class="mono font-bold text-error">H:</span><span class="mono">1</span></div>
+<div class="flex items-center gap-1"><span class="mono font-bold text-[#bf8700]">M:</span><span class="mono">6</span></div>
+<div class="flex items-center gap-1"><span class="mono font-bold text-slate-400">L:</span><span class="mono">11</span></div>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-start md:items-end gap-1">
+<span class="font-label text-[10px] uppercase tracking-widest text-slate-400">Last analysis</span>
+<span class="text-sm font-medium text-slate-600">3d ago</span>
+</div>
+<button class="bg-surface-container-highest text-on-surface px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-300 transition-colors">Details</button>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="mt-auto py-12 px-6 bg-[#f0f2f5] flex flex-col items-center">
+<div class="w-full max-w-7xl h-[1px] bg-slate-200 mb-8"></div>
+<div class="flex flex-col items-center gap-4 text-center">
+<span class="text-xl font-black text-primary font-headline tracking-tighter uppercase opacity-20">AEGIS</span>
+<p class="font-label text-[11px] uppercase tracking-[0.2em] text-secondary">
+                AEGIS v2.1.0 — Embedded Firmware Security Analysis Platform
+            </p>
+<div class="flex gap-6 mt-2">
+<span class="text-[10px] text-slate-400 font-medium">DOCUMENTATION</span>
+<span class="text-[10px] text-slate-400 font-medium">SUPPORT</span>
+<span class="text-[10px] text-slate-400 font-medium">API STATUS</span>
+</div>
+</div>
+</footer>
+</body></html>

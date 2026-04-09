@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Project Overview - ECU-PowerTrain-v2.1</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#0056b3", // Slightly richer blue for interactive elements
+                        "primary-hover": "#004494",
+                        "on-primary": "#ffffff",
+                        "surface": "#f9fafb",
+                        "surface-container": "#f1f3f5",
+                        "surface-container-low": "#f8f9fa",
+                        "surface-container-lowest": "#ffffff",
+                        "outline-variant": "#e2e8f0",
+                        "on-surface": "#111827",
+                        "on-surface-variant": "#4b5563",
+                        "error": "#dc2626",
+                        "tertiary": "#d97706",
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.375rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk", "sans-serif"],
+                        "body": ["Inter", "sans-serif"]
+                    }
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        @layer base {
+            body { 
+                @apply font-body text-[14px] bg-surface text-on-surface; 
+                -webkit-font-smoothing: antialiased;
+            }
+            h1 { @apply font-headline text-[28px] font-bold tracking-tight; }
+            h2 { @apply font-headline text-[20px] font-bold; }
+            h3 { @apply font-headline text-[16px] font-bold; }
+            .label-sm { @apply font-headline text-[12px] font-bold uppercase tracking-widest text-slate-500; }
+            .badge-xs { @apply text-[11px] font-bold px-2 py-0.5 rounded; }
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .sidebar-item {
+            @apply flex items-center gap-4 px-6 py-4 transition-all duration-200 text-slate-600 hover:bg-slate-200/50 hover:text-primary;
+        }
+        .sidebar-item.active {
+            @apply bg-white text-primary border-l-4 border-primary font-semibold shadow-sm;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface">
+<header class="h-20 fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 flex justify-between items-center px-8">
+<div class="flex items-center gap-12">
+<span class="font-headline text-[26px] font-bold tracking-tighter text-slate-900">AEGIS</span>
+<nav class="hidden md:flex gap-10 items-center">
+<a class="text-[15px] font-bold text-primary border-b-2 border-primary h-20 flex items-center" href="#">Projects</a>
+<a class="text-[15px] font-medium text-slate-600 hover:text-primary transition-colors" href="#">Assets</a>
+<a class="text-[15px] font-medium text-slate-600 hover:text-primary transition-colors" href="#">Policies</a>
+</nav>
+</div>
+<div class="flex items-center gap-8">
+<div class="relative group">
+<input class="h-11 pl-11 pr-4 bg-slate-100 border-none rounded-xl text-[14px] w-80 focus:ring-2 focus:ring-primary/20 transition-all group-hover:bg-slate-200/50" placeholder="Search resources..." type="text"/>
+<span class="material-symbols-outlined absolute left-3.5 top-2.5 text-slate-400 text-xl">search</span>
+</div>
+<button class="text-slate-500 hover:text-primary relative transition-colors">
+<span class="material-symbols-outlined text-2xl" data-icon="notifications">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-error rounded-full border-2 border-white"></span>
+</button>
+<img alt="Kosh / Admin" class="w-11 h-11 rounded-full border-2 border-slate-200 object-cover hover:border-primary transition-colors cursor-pointer" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBm3-Zz27bTxFt52gdONL-2D9MeOO00862LLCDvrrwwusXSNTCZ5XfTCJjaedbHq0cnatGH6kHmvo3zwD2SLg2dU1AMQfAl0t2l4dNTn4PI1BoXS7z3_Cygzd3Ri-oq4sHCTj46ZkmAvcKGauUSbCdzPULqh4IWvhcpE2e8CYpyO-OFtTuDKEtk2wxOCk3QuBKdMvfC5wufSWmpKYTWNM15xT5E6P36QvTs_IJBsxmUPD-80ld9QZ0EK9KpKVVsC5nl-tXGkiytZJt3"/>
+</div>
+</header>
+<aside class="w-72 fixed left-0 top-20 h-[calc(100vh-80px)] bg-surface-container border-r border-slate-200/60 flex flex-col py-10">
+<div class="px-8 mb-12">
+<div class="flex items-center gap-4 group cursor-pointer">
+<div class="w-12 h-12 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/20 transition-transform group-hover:scale-105">
+<span class="material-symbols-outlined text-2xl">memory</span>
+</div>
+<div>
+<p class="font-headline text-[14px] font-bold uppercase tracking-widest text-on-surface">Firmware Alpha</p>
+<p class="text-[12px] text-slate-500 font-semibold mt-0.5">main • <span class="text-emerald-600">Secure</span></p>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-1 overflow-y-auto custom-scrollbar">
+<a class="sidebar-item active" href="#">
+<span class="material-symbols-outlined text-xl">dashboard</span>
+<span class="font-headline text-[14px] uppercase tracking-wider">Overview</span>
+</a>
+<a class="sidebar-item" href="#">
+<span class="material-symbols-outlined text-xl">query_stats</span>
+<span class="font-headline text-[14px] uppercase tracking-wider">Analysis</span>
+</a>
+<a class="sidebar-item" href="#">
+<span class="material-symbols-outlined text-xl">terminal</span>
+<span class="font-headline text-[14px] uppercase tracking-wider">Code</span>
+</a>
+<a class="sidebar-item" href="#">
+<span class="material-symbols-outlined text-xl">policy</span>
+<span class="font-headline text-[14px] uppercase tracking-wider">Findings</span>
+</a>
+<a class="sidebar-item" href="#">
+<span class="material-symbols-outlined text-xl">description</span>
+<span class="font-headline text-[14px] uppercase tracking-wider">Report</span>
+</a>
+<a class="sidebar-item" href="#">
+<span class="material-symbols-outlined text-xl">security</span>
+<span class="font-headline text-[14px] uppercase tracking-wider">Quality Gate</span>
+</a>
+<a class="sidebar-item" href="#">
+<span class="material-symbols-outlined text-xl">task_alt</span>
+<span class="font-headline text-[14px] uppercase tracking-wider">Approvals</span>
+</a>
+<a class="sidebar-item" href="#">
+<span class="material-symbols-outlined text-xl">settings</span>
+<span class="font-headline text-[14px] uppercase tracking-wider">Settings</span>
+</a>
+</nav>
+<div class="mt-auto px-6 py-8">
+<a class="flex items-center gap-3 text-slate-500 px-4 py-3 rounded-lg hover:bg-slate-200 transition-all" href="#">
+<span class="material-symbols-outlined text-lg">arrow_back_ios</span>
+<span class="font-headline text-[13px] uppercase tracking-wider">Back to Projects</span>
+</a>
+</div>
+</aside>
+<main class="ml-72 pt-20 pb-20 min-h-screen">
+<div class="px-12 py-10">
+<nav class="flex items-center gap-3 text-[13px] font-headline text-slate-500 mb-6">
+<span class="hover:text-primary cursor-pointer transition-colors">Projects</span>
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+<span class="hover:text-primary cursor-pointer transition-colors">ECU-PowerTrain-v2.1</span>
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+<span class="text-primary font-bold">Overview</span>
+</nav>
+<div class="flex justify-between items-end">
+<div>
+<h1 class="text-[32px]">ECU-PowerTrain-v2.1</h1>
+<p class="text-[15px] text-slate-500 font-medium mt-2 flex items-center gap-2">
+                    Firmware ID: <span class="font-headline text-on-surface font-bold bg-slate-100 px-2 py-0.5 rounded">AE-00-98-F2-11</span>
+</p>
+</div>
+<div class="flex gap-4">
+<button class="px-7 py-3 bg-white border border-slate-300 text-[13px] font-bold font-headline uppercase tracking-widest hover:bg-slate-50 transition-all rounded-md shadow-sm active:scale-95">
+                    Re-Scan
+                </button>
+<button class="px-10 py-3 bg-primary text-on-primary rounded-md text-[13px] font-bold font-headline uppercase tracking-widest shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all active:scale-95">
+                    Export Report
+                </button>
+</div>
+</div>
+</div>
+<div class="px-12 flex flex-col xl:flex-row gap-12">
+<div class="xl:w-[72%] space-y-12">
+<section class="bg-white p-12 rounded-xl shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-shadow">
+<div class="absolute left-0 top-0 bottom-0 w-2 bg-primary transform transition-transform group-hover:scale-y-110"></div>
+<div class="flex justify-between items-start mb-10">
+<h3 class="label-sm">About Project</h3>
+<span class="font-headline text-[13px] text-slate-400 font-medium tracking-tight">CREATED: 2026-03-15</span>
+</div>
+<p class="text-[22px] font-medium leading-relaxed mb-10 max-w-4xl text-slate-800">
+                    파워트레인 ECU 펌웨어 v2.1 — CAN/LIN 통신, 모터 제어, 진단(UDS) 모듈 포함
+                </p>
+<div class="flex flex-wrap gap-4">
+<span class="px-5 py-2 bg-slate-50 text-[12px] font-bold font-headline text-slate-600 uppercase tracking-widest border border-slate-200 rounded hover:border-primary transition-colors cursor-default">C</span>
+<span class="px-5 py-2 bg-slate-50 text-[12px] font-bold font-headline text-slate-600 uppercase tracking-widest border border-slate-200 rounded hover:border-primary transition-colors cursor-default">ARM Cortex-M4</span>
+<span class="px-5 py-2 bg-slate-50 text-[12px] font-bold font-headline text-slate-600 uppercase tracking-widest border border-slate-200 rounded hover:border-primary transition-colors cursor-default">MISRA C:2012</span>
+<span class="px-5 py-2 bg-slate-50 text-[12px] font-bold font-headline text-slate-600 uppercase tracking-widest border border-slate-200 rounded hover:border-primary transition-colors cursor-default">ISO 26262</span>
+<span class="px-5 py-2 bg-slate-50 text-[12px] font-bold font-headline text-slate-600 uppercase tracking-widest border border-slate-200 rounded hover:border-primary transition-colors cursor-default">AUTOSAR</span>
+</div>
+</section>
+<section class="bg-white p-12 rounded-xl shadow-sm border border-slate-100 transition-shadow hover:shadow-md">
+<div class="flex flex-col md:flex-row justify-between items-start gap-10 mb-12">
+<div>
+<h3 class="label-sm mb-8">Security Posture</h3>
+<div class="flex items-baseline gap-4">
+<span class="text-[72px] font-bold font-headline leading-none text-slate-900">43</span>
+<span class="text-slate-400 font-bold uppercase text-[15px] tracking-tight">Total Vulnerabilities</span>
+</div>
+</div>
+<div class="grid grid-cols-2 md:flex gap-12">
+<div class="group">
+<p class="label-sm mb-2 opacity-60">Critical</p>
+<p class="text-[32px] font-bold font-headline text-slate-200">0</p>
+</div>
+<div>
+<p class="label-sm mb-2 text-error">High</p>
+<p class="text-[32px] font-bold font-headline text-error">3</p>
+</div>
+<div>
+<p class="label-sm mb-2 text-tertiary">Medium</p>
+<p class="text-[32px] font-bold font-headline text-tertiary">12</p>
+</div>
+<div>
+<p class="label-sm mb-2 text-primary">Low</p>
+<p class="text-[32px] font-bold font-headline text-primary">28</p>
+</div>
+</div>
+</div>
+<div class="w-full h-5 flex rounded-full overflow-hidden mb-16 bg-slate-100 shadow-inner">
+<div class="h-full bg-error" style="width: 7%"></div>
+<div class="h-full bg-tertiary" style="width: 28%"></div>
+<div class="h-full bg-primary" style="width: 65%"></div>
+</div>
+<div>
+<h4 class="label-sm mb-10 text-slate-400">30-Day Finding Trend (New vs Resolved)</h4>
+<div class="flex items-end justify-between h-56 gap-10 px-4">
+<div class="flex-1 flex flex-col items-center gap-4 h-full justify-end group">
+<div class="w-full flex gap-3 items-end justify-center h-full">
+<div class="w-7 bg-primary/10 rounded-t-lg h-[60%] hover:bg-primary/20 transition-colors"></div>
+<div class="w-7 bg-primary rounded-t-lg h-[40%] hover:brightness-110 transition-all"></div>
+</div>
+<span class="font-headline text-[12px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-primary transition-colors">Wk 01</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-4 h-full justify-end group">
+<div class="w-full flex gap-3 items-end justify-center h-full">
+<div class="w-7 bg-primary/10 rounded-t-lg h-[85%] hover:bg-primary/20 transition-colors"></div>
+<div class="w-7 bg-primary rounded-t-lg h-[55%] hover:brightness-110 transition-all"></div>
+</div>
+<span class="font-headline text-[12px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-primary transition-colors">Wk 02</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-4 h-full justify-end group">
+<div class="w-full flex gap-3 items-end justify-center h-full">
+<div class="w-7 bg-primary/10 rounded-t-lg h-[40%] hover:bg-primary/20 transition-colors"></div>
+<div class="w-7 bg-primary rounded-t-lg h-[70%] hover:brightness-110 transition-all"></div>
+</div>
+<span class="font-headline text-[12px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-primary transition-colors">Wk 03</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-4 h-full justify-end group">
+<div class="w-full flex gap-3 items-end justify-center h-full">
+<div class="w-7 bg-primary/10 rounded-t-lg h-[30%] hover:bg-primary/20 transition-colors"></div>
+<div class="w-7 bg-primary rounded-t-lg h-[20%] hover:brightness-110 transition-all"></div>
+</div>
+<span class="font-headline text-[12px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-primary transition-colors">Wk 04</span>
+</div>
+</div>
+</div>
+</section>
+<section class="bg-white p-12 rounded-xl border border-slate-100 shadow-sm transition-shadow hover:shadow-md">
+<h3 class="label-sm mb-12">Recent Activity</h3>
+<div class="space-y-0">
+<div class="flex gap-10 pb-10 relative group">
+<div class="absolute left-[9px] top-10 bottom-0 w-0.5 bg-slate-100 group-last:hidden"></div>
+<div class="relative z-10 w-5 h-5 rounded-full bg-emerald-500 mt-1.5 shadow-[0_0_0_6px_rgba(16,185,129,0.1)] transition-transform group-hover:scale-110"></div>
+<div class="flex-1">
+<div class="flex justify-between items-baseline mb-3">
+<p class="text-[17px] font-bold text-slate-900">Quick SAST completed</p>
+<p class="font-headline text-[12px] text-slate-400 font-bold uppercase tracking-widest">2h ago</p>
+</div>
+<p class="text-[15px] text-slate-600 leading-relaxed">Analysis run <span class="text-primary font-semibold">#442</span> found 3 new vulnerabilities (Low severity).</p>
+</div>
+</div>
+<div class="flex gap-10 pb-10 relative group">
+<div class="absolute left-[9px] top-10 bottom-0 w-0.5 bg-slate-100 group-last:hidden"></div>
+<div class="relative z-10 w-5 h-5 rounded-full bg-emerald-500 mt-1.5 shadow-[0_0_0_6px_rgba(16,185,129,0.1)] transition-transform group-hover:scale-110"></div>
+<div class="flex-1">
+<div class="flex justify-between items-baseline mb-3">
+<p class="text-[17px] font-bold text-slate-900">Deep Analysis completed</p>
+<p class="font-headline text-[12px] text-slate-400 font-bold uppercase tracking-widest">1d ago</p>
+</div>
+<p class="text-[15px] text-slate-600 leading-relaxed">Heuristic engine report for release candidate <span class="font-mono text-[14px] bg-slate-50 px-1">2.1.0-RC1</span>: 0 findings.</p>
+</div>
+</div>
+<div class="flex gap-10 pb-10 relative group">
+<div class="absolute left-[9px] top-10 bottom-0 w-0.5 bg-slate-100 group-last:hidden"></div>
+<div class="relative z-10 w-5 h-5 rounded-full bg-error mt-1.5 shadow-[0_0_0_6px_rgba(220,38,38,0.1)] transition-transform group-hover:scale-110"></div>
+<div class="flex-1">
+<div class="flex justify-between items-baseline mb-3">
+<p class="text-[17px] font-bold text-slate-900">Gate evaluated — <span class="text-error">FAIL</span></p>
+<p class="font-headline text-[12px] text-slate-400 font-bold uppercase tracking-widest">2d ago</p>
+</div>
+<p class="text-[15px] text-slate-600 leading-relaxed">Quality Gate 'Enterprise Hardening' rejected the build due to open High severity items.</p>
+</div>
+</div>
+<div class="flex gap-10 pb-10 relative group">
+<div class="absolute left-[9px] top-10 bottom-0 w-0.5 bg-slate-100 group-last:hidden"></div>
+<div class="relative z-10 w-5 h-5 rounded-full bg-amber-500 mt-1.5 shadow-[0_0_0_6px_rgba(245,158,11,0.1)] transition-transform group-hover:scale-110"></div>
+<div class="flex-1">
+<div class="flex justify-between items-baseline mb-3">
+<p class="text-[17px] font-bold text-slate-900">Override requested by Kosh</p>
+<p class="font-headline text-[12px] text-slate-400 font-bold uppercase tracking-widest">2d ago</p>
+</div>
+<p class="text-[15px] text-slate-600 leading-relaxed">Exemption requested for <span class="underline decoration-amber-200 decoration-2">VULN-ID-3392</span> (False Positive candidate).</p>
+</div>
+</div>
+<div class="flex gap-10 group">
+<div class="relative z-10 w-5 h-5 rounded-full bg-primary mt-1.5 shadow-[0_0_0_6px_rgba(0,86,179,0.1)] transition-transform group-hover:scale-110"></div>
+<div class="flex-1">
+<div class="flex justify-between items-baseline mb-3">
+<p class="text-[17px] font-bold text-slate-900">SDK verification started</p>
+<p class="font-headline text-[12px] text-slate-400 font-bold uppercase tracking-widest">3d ago</p>
+</div>
+<p class="text-[15px] text-slate-600 leading-relaxed">Validation process for riscv32-unknown-elf-gcc initialized by CI runner.</p>
+</div>
+</div>
+</div>
+</section>
+</div>
+<aside class="xl:w-[28%] space-y-12">
+<section class="bg-white p-10 rounded-xl shadow-sm border-l-4 border-primary/40 hover:shadow-md transition-shadow">
+<h3 class="label-sm mb-10">Build Targets</h3>
+<div class="space-y-8">
+<div class="flex items-center justify-between group">
+<span class="text-[15px] font-headline font-bold text-slate-700 group-hover:text-primary transition-colors">arm-cortex-m4-main</span>
+<span class="badge-xs bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase tracking-widest">Ready</span>
+</div>
+<div class="flex items-center justify-between group">
+<span class="text-[15px] font-headline font-bold text-slate-700 group-hover:text-primary transition-colors">arm-cortex-m4-bootloader</span>
+<span class="badge-xs bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase tracking-widest">Ready</span>
+</div>
+<div class="flex items-center justify-between group">
+<span class="text-[15px] font-headline font-bold text-slate-700 group-hover:text-primary transition-colors">riscv-rv32-diag</span>
+<span class="badge-xs bg-slate-50 text-slate-500 border border-slate-200 uppercase tracking-widest">Configured</span>
+</div>
+</div>
+</section>
+<section class="bg-white p-10 rounded-xl shadow-sm border-l-4 border-primary/40 hover:shadow-md transition-shadow">
+<h3 class="label-sm mb-10">Inventory</h3>
+<div class="flex h-4 w-full rounded-full overflow-hidden mb-8 bg-slate-100">
+<div class="bg-primary h-full" style="width: 82%"></div>
+<div class="bg-slate-500 h-full" style="width: 11%"></div>
+<div class="bg-tertiary h-full" style="width: 4%"></div>
+<div class="bg-slate-300 h-full" style="width: 3%"></div>
+</div>
+<div class="grid grid-cols-2 gap-4 mb-10">
+<div class="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
+<div class="w-3 h-3 rounded-full bg-primary"></div>
+<span class="text-[13px] font-bold text-slate-700">C <span class="text-slate-400 font-medium">82%</span></span>
+</div>
+<div class="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
+<div class="w-3 h-3 rounded-full bg-slate-500"></div>
+<span class="text-[13px] font-bold text-slate-700">C++ <span class="text-slate-400 font-medium">11%</span></span>
+</div>
+</div>
+<div class="pt-8 border-t border-slate-100 flex justify-between px-2">
+<div class="text-center">
+<p class="label-sm mb-1 text-[11px] opacity-70">Files</p>
+<p class="text-[18px] font-headline font-bold text-slate-900">127</p>
+</div>
+<div class="text-center">
+<p class="label-sm mb-1 text-[11px] opacity-70">Size</p>
+<p class="text-[18px] font-headline font-bold text-slate-900">2.4 MB</p>
+</div>
+</div>
+</section>
+<section class="bg-white p-10 rounded-xl shadow-sm border-l-4 border-primary/40 hover:shadow-md transition-shadow">
+<h3 class="label-sm mb-10">Toolchains &amp; SDKs</h3>
+<div class="space-y-10">
+<div>
+<div class="flex justify-between items-baseline mb-4">
+<span class="text-[15px] font-headline font-bold text-slate-800">arm-none-eabi-gcc 12.3</span>
+<span class="badge-xs text-emerald-600 bg-emerald-50 tracking-wider">Ready</span>
+</div>
+<div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+<div class="bg-emerald-500 h-full w-full shadow-sm"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between items-baseline mb-4">
+<span class="text-[15px] font-headline font-bold text-slate-800">riscv32-unknown-elf-gcc 13.1</span>
+<span class="badge-xs text-primary bg-primary/5 tracking-wider">Verifying 78%</span>
+</div>
+<div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[78%] shadow-sm shadow-primary/20"></div>
+</div>
+</div>
+</div>
+</section>
+<div class="bg-slate-100/60 p-10 rounded-xl border border-slate-200/50">
+<h4 class="label-sm mb-6 opacity-80">Infrastructure Status</h4>
+<div class="space-y-4">
+<div class="flex items-center justify-between text-[13px]">
+<span class="text-slate-500 font-medium">Analysis Engine</span>
+<span class="text-emerald-700 font-bold bg-emerald-100/50 px-2 rounded">v4.2.1-PRO</span>
+</div>
+<div class="flex items-center justify-between text-[13px]">
+<span class="text-slate-500 font-medium">Storage Cluster</span>
+<span class="text-emerald-700 font-bold uppercase tracking-tight">Latency &lt; 12ms</span>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</main>
+<footer class="fixed bottom-0 right-0 p-5 bg-white/90 backdrop-blur-md flex justify-end items-center z-50 border-t border-slate-200 w-full lg:w-[calc(100%-288px)]">
+<div class="flex items-center gap-6">
+<p class="font-body text-[12px] font-bold uppercase tracking-wider text-slate-400">
+            AEGIS v2.1.0 | <span class="text-emerald-600">System: Online</span> | Last sync: 2분 전
+        </p>
+</div>
+</footer>
+
+</body></html>

@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS Report - ECU-PowerTrain-v2.1</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "primary-fixed": "#cee5ff",
+                      "surface-dim": "#0a0e14",
+                      "on-tertiary-container": "#005f1c",
+                      "on-surface": "#d9e6fd",
+                      "on-surface-variant": "#9facc1",
+                      "on-tertiary": "#00691f",
+                      "surface-container-lowest": "#000000",
+                      "on-tertiary-fixed": "#004a14",
+                      "on-error-container": "#ff9993",
+                      "on-primary-fixed": "#00436a",
+                      "surface-container": "#121a25",
+                      "on-primary-fixed-variant": "#006096",
+                      "surface-bright": "#1e2d41",
+                      "outline-variant": "#3c495b",
+                      "secondary-container": "#363c43",
+                      "on-secondary": "#1b2127",
+                      "tertiary-container": "#83fc89",
+                      "surface": "#0a0e14",
+                      "background": "#0a0e14",
+                      "error-dim": "#bb5551",
+                      "tertiary": "#c7ffc2",
+                      "primary": "#96ccff",
+                      "on-primary-container": "#aad5ff",
+                      "surface-container-highest": "#1a2637",
+                      "secondary-fixed": "#dde3ec",
+                      "on-background": "#d9e6fd",
+                      "surface-tint": "#96ccff",
+                      "primary-fixed-dim": "#b3d8ff",
+                      "primary-container": "#004a76",
+                      "secondary": "#989ea7",
+                      "tertiary-fixed-dim": "#75ed7d",
+                      "on-secondary-fixed": "#3a4047",
+                      "outline": "#6a768a",
+                      "on-error": "#490106",
+                      "error-container": "#7f2927",
+                      "tertiary-dim": "#75ed7d",
+                      "primary-dim": "#78bffe",
+                      "secondary-fixed-dim": "#cfd5de",
+                      "error": "#ee7d77",
+                      "on-secondary-fixed-variant": "#565c64",
+                      "inverse-on-surface": "#51555c",
+                      "surface-container-low": "#0e141c",
+                      "inverse-primary": "#00649b",
+                      "inverse-surface": "#f8f9ff",
+                      "on-tertiary-fixed-variant": "#006b20",
+                      "tertiary-fixed": "#83fc89",
+                      "surface-variant": "#1a2637",
+                      "surface-container-high": "#16202e",
+                      "on-primary": "#00436b",
+                      "secondary-dim": "#989ea7",
+                      "on-secondary-container": "#bac0c8"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "fontFamily": {
+                      "headline": ["Space Grotesk"],
+                      "body": ["Inter"],
+                      "label": ["Inter"],
+                      "mono": ["JetBrains Mono"]
+              }
+            },
+          },
+        }
+      </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #0a0e14; color: #d9e6fd; font-size: 14px; }
+        .material-symbols-outlined { font-size: 20px; vertical-align: middle; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface antialiased overflow-hidden h-screen flex flex-col">
+<!-- TopNavBar (Shared Component Identity) -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-16 w-full bg-[#0a0e14] shadow-[0_48px_48px_rgba(150,204,255,0.08)] border-b border-outline-variant/10">
+<div class="flex items-center gap-6">
+<span class="text-xl font-bold tracking-widest text-[#96ccff] uppercase font-['Space_Grotesk']">AEGIS REPORT</span>
+<div class="flex items-center gap-2 px-3 py-1.5 bg-surface-container rounded-lg border border-outline-variant/20 cursor-pointer hover:bg-surface-container-highest transition-colors">
+<span class="text-xs font-medium text-on-surface-variant uppercase tracking-wider">ECU-PowerTrain-v2.1</span>
+<span class="material-symbols-outlined text-[#96ccff]">arrow_drop_down</span>
+</div>
+</div>
+<div class="flex items-center gap-6 flex-1 max-w-xl mx-12">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full bg-[#0d1117] border border-outline-variant/30 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-[#96ccff]/50" placeholder="Search security logs..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative cursor-pointer hover:bg-surface-container-highest p-2 rounded-full transition-all">
+<span class="material-symbols-outlined text-[#96ccff]">notifications</span>
+<span class="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-error text-[10px] font-bold text-on-error">3</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-on-surface transition-colors">settings</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-on-surface transition-colors">help</span>
+<div class="h-8 w-[1px] bg-outline-variant/20 mx-2"></div>
+<div class="flex items-center gap-3">
+<div class="text-right">
+<p class="text-xs font-bold leading-none">Kosh</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-tighter">Admin</p>
+</div>
+<img alt="User Profile" class="h-9 w-9 rounded-full border border-[#96ccff]/30 p-0.5" data-alt="professional portrait of a system administrator in dark tech gear, neon rim lighting, high tech aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDh_SVcR-2GPK4T9G6uVmPhvDKQZV-jsuXJWmSzvPLEqtcyAepFzSL19JM2ACNh6PrB_0ZAviY4vl_LyxDIoMv48BmKDeoZvdrogh0rTeLlpwacF3li-YWQVVrUhvlsHrKpz-0vesUtZDaADn7OUg6MDqLwLuIV73gFEVX5DO_TXj4coyabvrp-G02MyXUD9oCFN1ufcRG-A1UhzmmpExi4W-mXLezgZHDnpcVSpuCwTjHYmWjxiafcfl5SUi2gDjr5WmlTrBh-QGuC"/>
+</div>
+</div>
+</header>
+<div class="flex flex-1 pt-16 overflow-hidden">
+<!-- SideNavBar (Shared Component Logic) -->
+<aside class="fixed left-0 h-full w-64 pt-4 bg-[#0e141c] flex flex-col justify-between border-r border-outline-variant/5">
+<div class="flex flex-col h-full space-y-2 py-4 no-scrollbar overflow-y-auto">
+<div class="px-6 mb-6">
+<div class="flex items-center gap-2 text-[#96ccff] mb-1">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">shield</span>
+<span class="font-['Space_Grotesk'] font-black text-sm tracking-tight">SENTINEL</span>
+</div>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-[0.2em] px-0.5">Precision Security</p>
+</div>
+<nav class="flex-1 space-y-1">
+<div class="text-[#d9e6fd] opacity-60 flex items-center px-6 py-3 hover:bg-[#1a2637] hover:opacity-100 transition-all cursor-pointer group">
+<span class="material-symbols-outlined mr-3 group-hover:scale-110 transition-transform">dashboard</span>
+<span class="font-['Inter'] text-sm font-medium">Overview</span>
+</div>
+<div class="text-[#d9e6fd] opacity-60 flex items-center px-6 py-3 hover:bg-[#1a2637] hover:opacity-100 transition-all cursor-pointer group">
+<span class="material-symbols-outlined mr-3 group-hover:scale-110 transition-transform">monitoring</span>
+<span class="font-['Inter'] text-sm font-medium">Analysis</span>
+</div>
+<div class="text-[#d9e6fd] opacity-60 flex items-center px-6 py-3 hover:bg-[#1a2637] hover:opacity-100 transition-all cursor-pointer group">
+<span class="material-symbols-outlined mr-3 group-hover:scale-110 transition-transform">code</span>
+<span class="font-['Inter'] text-sm font-medium">Code</span>
+</div>
+<div class="text-[#d9e6fd] opacity-60 flex items-center px-6 py-3 hover:bg-[#1a2637] hover:opacity-100 transition-all cursor-pointer group">
+<span class="material-symbols-outlined mr-3 group-hover:scale-110 transition-transform">policy</span>
+<span class="font-['Inter'] text-sm font-medium">Findings</span>
+</div>
+<div class="text-[#96ccff] bg-[#1a2637] border-l-4 border-[#96ccff] flex items-center px-6 py-3 ml-0 rounded-r-md">
+<span class="material-symbols-outlined mr-3" style="font-variation-settings: 'FILL' 1;">assessment</span>
+<span class="font-['Inter'] text-sm font-bold">Report</span>
+</div>
+<div class="pt-6 px-6 pb-2">
+<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Sub-Projects</p>
+</div>
+<div class="px-4 space-y-1">
+<div class="flex justify-between items-center px-3 py-2 rounded-lg hover:bg-surface-container-highest transition-colors cursor-pointer group">
+<span class="text-xs text-on-surface-variant group-hover:text-primary">m4-main</span>
+<span class="bg-surface-container-highest px-1.5 py-0.5 rounded text-[10px] font-mono border border-outline-variant/30">30</span>
+</div>
+<div class="flex justify-between items-center px-3 py-2 rounded-lg hover:bg-surface-container-highest transition-colors cursor-pointer group">
+<span class="text-xs text-on-surface-variant group-hover:text-primary">m4-boot</span>
+<span class="bg-surface-container-highest px-1.5 py-0.5 rounded text-[10px] font-mono border border-outline-variant/30">8</span>
+</div>
+<div class="flex justify-between items-center px-3 py-2 rounded-lg hover:bg-surface-container-highest transition-colors cursor-pointer group">
+<span class="text-xs text-on-surface-variant group-hover:text-primary">rv32-diag</span>
+<span class="bg-surface-container-highest px-1.5 py-0.5 rounded text-[10px] font-mono border border-outline-variant/30">5</span>
+</div>
+</div>
+</nav>
+<div class="mt-auto px-6 py-8 border-t border-outline-variant/5">
+<div class="flex items-center text-on-surface-variant hover:text-error transition-colors cursor-pointer text-xs font-bold gap-2">
+<span class="material-symbols-outlined text-sm">logout</span>
+<span>Log Out</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 flex-1 flex flex-col bg-[#0d1117] overflow-y-auto no-scrollbar pb-12">
+<!-- Header Section -->
+<section class="bg-[#161b22] px-8 py-8 border-b border-outline-variant/10">
+<div class="flex justify-between items-start">
+<div>
+<h1 class="text-2xl font-bold font-headline text-on-surface">Security Analysis Report</h1>
+<p class="font-mono text-sm text-outline-variant mt-1">RPT-20260408-001</p>
+<div class="flex items-center gap-3 mt-4 text-xs text-on-surface-variant">
+<span class="bg-surface-container px-2 py-0.5 rounded border border-outline-variant/20">ECU-PowerTrain-v2.1</span>
+<span class="h-1 w-1 rounded-full bg-outline-variant"></span>
+<span>2026-04-08</span>
+<span class="h-1 w-1 rounded-full bg-outline-variant"></span>
+<span class="text-primary">v2.1.0-rc3</span>
+</div>
+</div>
+<div class="flex gap-3">
+<button class="bg-[#238636] hover:bg-[#2ea043] text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 transition-colors">
+<span class="material-symbols-outlined text-sm">download</span>
+                            Download PDF
+                        </button>
+<button class="border border-outline-variant text-on-surface px-4 py-2 rounded-md font-bold text-sm hover:bg-surface-container-highest transition-colors">
+                            Customize
+                        </button>
+</div>
+</div>
+<!-- Tabs -->
+<div class="flex gap-8 mt-8 border-b border-outline-variant/10">
+<div class="pb-3 border-b-2 border-primary text-primary font-bold text-sm cursor-pointer">Executive Summary</div>
+<div class="pb-3 text-on-surface-variant hover:text-on-surface font-medium text-sm cursor-pointer transition-colors">Static Analysis</div>
+<div class="pb-3 text-on-surface-variant hover:text-on-surface font-medium text-sm cursor-pointer transition-colors">MISRA</div>
+<div class="pb-3 text-on-surface-variant hover:text-on-surface font-medium text-sm cursor-pointer transition-colors">Deep Analysis</div>
+</div>
+</section>
+<div class="px-8 mt-8 grid grid-cols-12 gap-6">
+<!-- Pass Banner -->
+<div class="col-span-12 bg-[#0d2818] border border-[#3fb950]/30 rounded-xl p-4 flex items-center gap-4">
+<div class="h-10 w-10 rounded-full bg-[#3fb950]/20 flex items-center justify-center text-[#3fb950]">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div>
+<h4 class="font-bold text-[#3fb950]">PASS - All critical criteria met</h4>
+<p class="text-[#3fb950]/80 text-sm">The build is eligible for deployment to production environment based on safety-critical standards.</p>
+</div>
+</div>
+<!-- Metrics Bento Grid -->
+<div class="col-span-12 lg:col-span-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+<div class="bg-[#161b22] border border-outline-variant/10 rounded-xl p-5 relative overflow-hidden group">
+<div class="flex justify-between items-start mb-4">
+<span class="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Total Findings</span>
+<span class="bg-tertiary-container/20 text-tertiary text-[10px] px-1.5 py-0.5 rounded font-mono">-5</span>
+</div>
+<div class="text-4xl font-headline font-black text-on-surface">43</div>
+<div class="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-8xl">bug_report</span>
+</div>
+</div>
+<div class="bg-[#161b22] border border-outline-variant/10 rounded-xl p-5 relative overflow-hidden group">
+<div class="flex justify-between items-start mb-4 text-error">
+<span class="text-xs font-bold uppercase tracking-widest">Critical / High</span>
+<span class="material-symbols-outlined text-sm">priority_high</span>
+</div>
+<div class="text-4xl font-headline font-black text-error">3</div>
+<div class="absolute -right-4 -bottom-4 opacity-5 text-error">
+<span class="material-symbols-outlined text-8xl">warning</span>
+</div>
+</div>
+<div class="bg-[#161b22] border border-outline-variant/10 rounded-xl p-5 relative overflow-hidden group">
+<div class="flex justify-between items-start mb-4">
+<span class="text-xs font-bold text-on-surface-variant uppercase tracking-widest">MISRA</span>
+<span class="bg-error-container/20 text-error text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">Warning</span>
+</div>
+<div class="text-4xl font-headline font-black text-on-surface">94.2%</div>
+<div class="absolute -right-4 -bottom-4 opacity-5">
+<span class="material-symbols-outlined text-8xl">verified</span>
+</div>
+</div>
+<div class="bg-[#161b22] border border-outline-variant/10 rounded-xl p-5 relative overflow-hidden group">
+<div class="flex justify-between items-start mb-4">
+<span class="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Code Coverage</span>
+</div>
+<div class="text-4xl font-headline font-black text-on-surface">78%</div>
+<div class="mt-4 w-full bg-surface-container rounded-full h-1.5">
+<div class="bg-primary h-1.5 rounded-full" style="width: 78%"></div>
+</div>
+</div>
+</div>
+<!-- Side Panel Widgets -->
+<div class="col-span-12 lg:col-span-4 row-span-2 space-y-4">
+<div class="bg-[#161b22] border border-outline-variant/10 rounded-xl p-6">
+<h3 class="font-headline font-bold text-on-surface mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">tune</span>
+                            Customize Widget
+                        </h3>
+<div class="space-y-4">
+<div>
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest block mb-2">Client</label>
+<div class="bg-surface-container border border-outline-variant/20 rounded-lg px-3 py-2 text-sm">AutoTech Corp</div>
+</div>
+<div>
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest block mb-2">Audit Title</label>
+<div class="bg-surface-container border border-outline-variant/20 rounded-lg px-3 py-2 text-sm">Q1 2026 Security Audit</div>
+</div>
+<div>
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest block mb-2">Language</label>
+<div class="bg-surface-container border border-outline-variant/20 rounded-lg px-3 py-2 text-sm flex justify-between items-center">
+<span>Korean</span>
+<span class="material-symbols-outlined text-xs">expand_more</span>
+</div>
+</div>
+<button class="w-full bg-surface-container-highest border border-primary/30 text-primary font-bold py-2 rounded-lg mt-4 text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors">
+                                Apply Parameters
+                            </button>
+</div>
+</div>
+<div class="bg-[#161b22] border border-outline-variant/10 rounded-xl p-6">
+<h3 class="font-headline font-bold text-on-surface mb-4">Audit Trail</h3>
+<div class="space-y-4">
+<div class="flex gap-3 relative">
+<div class="absolute left-[7px] top-6 bottom-0 w-[2px] bg-outline-variant/20"></div>
+<div class="h-4 w-4 rounded-full bg-primary flex-shrink-0 mt-1 border-4 border-surface-container"></div>
+<div>
+<p class="text-xs font-bold">Report Approved</p>
+<p class="text-[10px] text-on-surface-variant">by Kosh · 2h ago</p>
+</div>
+</div>
+<div class="flex gap-3 relative">
+<div class="absolute left-[7px] top-6 bottom-0 w-[2px] bg-outline-variant/20"></div>
+<div class="h-4 w-4 rounded-full bg-outline flex-shrink-0 mt-1 border-4 border-surface-container"></div>
+<div>
+<p class="text-xs font-bold">PDF Generated</p>
+<p class="text-[10px] text-on-surface-variant">System Process · 5h ago</p>
+</div>
+</div>
+<div class="flex gap-3 relative">
+<div class="absolute left-[7px] top-6 bottom-0 w-[2px] bg-outline-variant/20"></div>
+<div class="h-4 w-4 rounded-full bg-outline flex-shrink-0 mt-1 border-4 border-surface-container"></div>
+<div>
+<p class="text-xs font-bold">MISRA Scan Completed</p>
+<p class="text-[10px] text-on-surface-variant">Worker-03 · 8h ago</p>
+</div>
+</div>
+<div class="flex gap-3">
+<div class="h-4 w-4 rounded-full bg-outline flex-shrink-0 mt-1 border-4 border-surface-container"></div>
+<div>
+<p class="text-xs font-bold">Audit Initialized</p>
+<p class="text-[10px] text-on-surface-variant">by Kosh · 1d ago</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Chart Area -->
+<div class="col-span-12 lg:col-span-8 bg-[#161b22] border border-outline-variant/10 rounded-xl p-6 h-64 flex flex-col items-center justify-center border-dashed relative">
+<div class="text-on-surface-variant font-mono text-sm flex flex-col items-center gap-4">
+<span class="material-symbols-outlined text-4xl opacity-20">bar_chart</span>
+                        Findings Distribution (Chart rendered at runtime)
+                    </div>
+<div class="absolute bottom-4 left-4 flex gap-4">
+<div class="flex items-center gap-1.5">
+<span class="h-2 w-2 rounded-full bg-error"></span>
+<span class="text-[10px] text-on-surface-variant uppercase tracking-tighter">Critical</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="h-2 w-2 rounded-full bg-[#f69e5d]"></span>
+<span class="text-[10px] text-on-surface-variant uppercase tracking-tighter">High</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="h-2 w-2 rounded-full bg-[#e3b341]"></span>
+<span class="text-[10px] text-on-surface-variant uppercase tracking-tighter">Medium</span>
+</div>
+</div>
+</div>
+<!-- Table Breakdown -->
+<div class="col-span-12 bg-[#161b22] border border-outline-variant/10 rounded-xl overflow-hidden">
+<div class="px-6 py-4 border-b border-outline-variant/10 flex justify-between items-center">
+<h3 class="font-headline font-bold text-on-surface uppercase tracking-wider text-xs">Module Breakdown</h3>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer">filter_list</span>
+</div>
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container/50 border-b border-outline-variant/10">
+<th class="px-6 py-3 text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Module</th>
+<th class="px-6 py-3 text-[10px] font-black text-on-surface-variant uppercase tracking-widest text-center">C/H</th>
+<th class="px-6 py-3 text-[10px] font-black text-on-surface-variant uppercase tracking-widest text-center">Medium</th>
+<th class="px-6 py-3 text-[10px] font-black text-on-surface-variant uppercase tracking-widest text-center">L/Misc</th>
+<th class="px-6 py-3 text-[10px] font-black text-on-surface-variant uppercase tracking-widest text-right">Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/5">
+<tr class="hover:bg-surface-bright transition-colors group">
+<td class="px-6 py-4 font-mono text-sm group-hover:text-primary transition-colors">drivers</td>
+<td class="px-6 py-4 text-center font-bold text-error">1/2</td>
+<td class="px-6 py-4 text-center">4</td>
+<td class="px-6 py-4 text-center opacity-60">12</td>
+<td class="px-6 py-4 text-right">
+<span class="text-[10px] font-black px-2 py-0.5 rounded bg-surface-container-highest text-secondary border border-outline-variant/30 uppercase">Review</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-bright transition-colors group">
+<td class="px-6 py-4 font-mono text-sm group-hover:text-primary transition-colors">core</td>
+<td class="px-6 py-4 text-center font-bold text-on-surface">0/1</td>
+<td class="px-6 py-4 text-center">3</td>
+<td class="px-6 py-4 text-center opacity-60">8</td>
+<td class="px-6 py-4 text-right">
+<span class="text-[10px] font-black px-2 py-0.5 rounded bg-tertiary-container/10 text-tertiary border border-tertiary/20 uppercase">Safe</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-bright transition-colors group">
+<td class="px-6 py-4 font-mono text-sm group-hover:text-primary transition-colors">comm</td>
+<td class="px-6 py-4 text-center font-bold text-on-surface">0/0</td>
+<td class="px-6 py-4 text-center">1</td>
+<td class="px-6 py-4 text-center opacity-60">4</td>
+<td class="px-6 py-4 text-right">
+<span class="text-[10px] font-black px-2 py-0.5 rounded bg-tertiary-container/10 text-tertiary border border-tertiary/20 uppercase">Safe</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-bright transition-colors group">
+<td class="px-6 py-4 font-mono text-sm group-hover:text-primary transition-colors">sensors</td>
+<td class="px-6 py-4 text-center font-bold text-on-surface">0/1</td>
+<td class="px-6 py-4 text-center">2</td>
+<td class="px-6 py-4 text-center opacity-60">0</td>
+<td class="px-6 py-4 text-right">
+<span class="text-[10px] font-black px-2 py-0.5 rounded bg-tertiary-container/10 text-tertiary border border-tertiary/20 uppercase">Safe</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<footer class="mt-12 px-8 py-6 border-t border-outline-variant/10 flex justify-between items-center text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">
+<div>AEGIS v2.1.0 · ISO-26262 COMPLIANT</div>
+<div class="flex gap-4">
+<span class="hover:text-primary cursor-pointer transition-colors">System Status</span>
+<span class="hover:text-primary cursor-pointer transition-colors">Security Policy</span>
+<span class="hover:text-primary cursor-pointer transition-colors">Documentation</span>
+</div>
+</footer>
+</main>
+</div>
+</body></html>

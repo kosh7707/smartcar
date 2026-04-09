@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Approvals</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed-variant": "#004882",
+                        "secondary": "#aec8ef",
+                        "on-tertiary-container": "#004411",
+                        "inverse-surface": "#dfe2eb",
+                        "surface-container-lowest": "#0a0e14",
+                        "on-tertiary-fixed-variant": "#005317",
+                        "secondary-fixed-dim": "#aec8ef",
+                        "background": "#10141a",
+                        "tertiary-container": "#40ba51",
+                        "on-surface": "#dfe2eb",
+                        "primary-fixed": "#d3e4ff",
+                        "tertiary": "#67df70",
+                        "on-secondary-fixed": "#001c38",
+                        "tertiary-fixed-dim": "#67df70",
+                        "outline": "#8b919d",
+                        "on-primary-container": "#003a6b",
+                        "on-tertiary": "#00390d",
+                        "surface-variant": "#31353c",
+                        "on-error": "#690005",
+                        "on-primary": "#00315c",
+                        "surface-container-low": "#181c22",
+                        "primary-fixed-dim": "#a2c9ff",
+                        "on-secondary-container": "#9db7dd",
+                        "surface-dim": "#10141a",
+                        "on-error-container": "#ffdad6",
+                        "secondary-fixed": "#d3e4ff",
+                        "secondary-container": "#2e4869",
+                        "outline-variant": "#414752",
+                        "inverse-on-surface": "#2d3137",
+                        "on-primary-fixed": "#001c38",
+                        "tertiary-fixed": "#83fc89",
+                        "surface-container-highest": "#31353c",
+                        "surface-container-high": "#262a31",
+                        "on-secondary": "#163151",
+                        "on-surface-variant": "#c0c7d4",
+                        "error-container": "#93000a",
+                        "surface-bright": "#353940",
+                        "inverse-primary": "#0060aa",
+                        "on-secondary-fixed-variant": "#2e4869",
+                        "on-tertiary-fixed": "#002105",
+                        "primary-container": "#58a6ff",
+                        "primary": "#a2c9ff",
+                        "surface-tint": "#a2c9ff",
+                        "error": "#ffb4ab",
+                        "on-background": "#dfe2eb",
+                        "surface-container": "#1c2026",
+                        "surface": "#10141a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { background-color: #0d1117; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-panel {
+            background: rgba(38, 42, 49, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+<body class="font-body text-on-surface overflow-x-hidden">
+<!-- TopNavBar -->
+<header class="bg-[#10141a] docked full-width top-0 z-50 fixed flex justify-between items-center w-full px-6 h-16">
+<div class="flex items-center gap-8">
+<div class="text-xl font-bold text-[#58a6ff] tracking-tighter font-headline">AEGIS</div>
+<div class="hidden md:flex items-center bg-[#181c22] rounded-md px-3 py-1.5 gap-2 border border-outline-variant/20">
+<span class="material-symbols-outlined text-sm text-[#8b949e]">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm text-on-surface-variant w-64 placeholder-[#484f58]" placeholder="Search system..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="hover:bg-[#262a31] transition-colors p-2 rounded-md relative">
+<span class="material-symbols-outlined text-[#8b949e]">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full"></span>
+</button>
+<div class="flex items-center gap-3 ml-2 border-l border-outline-variant/20 pl-4">
+<div class="text-right hidden sm:block">
+<p class="text-xs font-bold font-headline text-on-surface leading-none">Kosh</p>
+<p class="text-[10px] text-[#8b949e] uppercase tracking-wider">Admin</p>
+</div>
+<img alt="Kosh / Admin" class="w-8 h-8 rounded-md object-cover border border-primary-container/30" data-alt="Close-up professional portrait of a tech professional in a dark studio setting with subtle blue rim lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCu4OUu_X_OmrdTGBn1RoHL2OF-DDKc0rty2zkmKcjzd_RFNfIMkACmG0w9fgCF8BQo__EKjmOa9RzKsGc1rtEJGx-NkCkDdYzpP49UW99Ujn9NXEjJzE4zBFZDNDBcv9DdUhKES7pzfBftncAEKc8QSNbok4Ju_5fUJm6Lp8ydJGTQPQS7NDxX89No0K2GREFvpLKGZwMac5G4VSgIjrWntkD-i4gea6prm7epC2PJKhsMQYeDffQVrnKMHzwd8eCngTGGYIgNJbzh"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="bg-[#181c22] border-r border-[#30363d]/20 docked left-0 h-full w-72 flex flex-col h-screen fixed left-0 top-0 pt-16 pb-8 z-40">
+<div class="px-6 py-6 border-b border-[#30363d]/10 mb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-[#1c2026] flex items-center justify-center rounded border border-[#58a6ff]/20">
+<span class="material-symbols-outlined text-[#58a6ff]">settings_input_component</span>
+</div>
+<div>
+<h2 class="font-headline text-sm font-bold text-[#58a6ff] tracking-tight">ECU-PowerTrain-v2.1</h2>
+<p class="text-[10px] text-tertiary font-label uppercase tracking-widest flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-tertiary rounded-full animate-pulse"></span>
+                        System Online
+                    </p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-2 space-y-0.5 overflow-y-auto custom-scrollbar">
+<a class="text-[#8b949e] px-4 py-3 flex items-center gap-3 hover:text-white hover:bg-[#262a31] transition-all duration-150 ease-in-out font-headline text-xs font-medium uppercase tracking-widest" href="#">
+<span class="material-symbols-outlined text-lg">dashboard</span>
+                Overview
+            </a>
+<a class="text-[#8b949e] px-4 py-3 flex items-center gap-3 hover:text-white hover:bg-[#262a31] transition-all duration-150 ease-in-out font-headline text-xs font-medium uppercase tracking-widest" href="#">
+<span class="material-symbols-outlined text-lg">folder</span>
+                Files
+            </a>
+<a class="text-[#8b949e] px-4 py-3 flex items-center gap-3 hover:text-white hover:bg-[#262a31] transition-all duration-150 ease-in-out font-headline text-xs font-medium uppercase tracking-widest" href="#">
+<span class="material-symbols-outlined text-lg">security</span>
+                Vulnerabilities
+            </a>
+<a class="text-[#8b949e] px-4 py-3 flex items-center gap-3 hover:text-white hover:bg-[#262a31] transition-all duration-150 ease-in-out font-headline text-xs font-medium uppercase tracking-widest" href="#">
+<span class="material-symbols-outlined text-lg">analytics</span>
+                Static Analysis
+            </a>
+<a class="text-[#8b949e] px-4 py-3 flex items-center gap-3 hover:text-white hover:bg-[#262a31] transition-all duration-150 ease-in-out font-headline text-xs font-medium uppercase tracking-widest" href="#">
+<span class="material-symbols-outlined text-lg">verified_user</span>
+                Quality Gate
+            </a>
+<a class="text-[#a2c9ff] border-l-2 border-[#58a6ff] bg-[#1c2026] px-4 py-3 flex items-center gap-3 transition-all duration-150 ease-in-out font-headline text-xs font-medium uppercase tracking-widest" href="#">
+<span class="material-symbols-outlined text-lg">fact_check</span>
+                Approvals
+            </a>
+<a class="text-[#8b949e] px-4 py-3 flex items-center gap-3 hover:text-white hover:bg-[#262a31] transition-all duration-150 ease-in-out font-headline text-xs font-medium uppercase tracking-widest" href="#">
+<span class="material-symbols-outlined text-lg">history</span>
+                Analysis History
+            </a>
+<a class="text-[#8b949e] px-4 py-3 flex items-center gap-3 hover:text-white hover:bg-[#262a31] transition-all duration-150 ease-in-out font-headline text-xs font-medium uppercase tracking-widest" href="#">
+<span class="material-symbols-outlined text-lg">description</span>
+                Report
+            </a>
+<a class="text-[#8b949e] px-4 py-3 flex items-center gap-3 hover:text-white hover:bg-[#262a31] transition-all duration-150 ease-in-out font-headline text-xs font-medium uppercase tracking-widest" href="#">
+<span class="material-symbols-outlined text-lg">settings</span>
+                Settings
+            </a>
+</nav>
+<div class="mt-auto px-4 py-4 space-y-2 border-t border-[#30363d]/10">
+<p class="px-2 text-[10px] font-label text-outline uppercase tracking-widest mb-2 opacity-50">Sub-Projects</p>
+<div class="flex items-center gap-3 px-2 py-1.5 text-[#8b949e] text-[10px] font-label uppercase tracking-wider hover:text-primary cursor-pointer">
+<span class="material-symbols-outlined text-sm">memory</span>
+                arm-cortex-m4-main (30)
+            </div>
+<div class="flex items-center gap-3 px-2 py-1.5 text-[#8b949e] text-[10px] font-label uppercase tracking-wider hover:text-primary cursor-pointer">
+<span class="material-symbols-outlined text-sm">memory</span>
+                arm-cortex-m4-boot (8)
+            </div>
+<div class="flex items-center gap-3 px-2 py-1.5 text-[#8b949e] text-[10px] font-label uppercase tracking-wider hover:text-primary cursor-pointer">
+<span class="material-symbols-outlined text-sm">memory</span>
+                riscv-rv32-diag (5)
+            </div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-72 pt-16 pb-12 min-h-screen">
+<div class="max-w-6xl mx-auto px-8 py-10">
+<!-- Header Section -->
+<header class="mb-10 flex justify-between items-end">
+<div>
+<h1 class="font-headline text-4xl font-bold tracking-tight text-white">Approvals</h1>
+<p class="text-[#8b949e] font-body mt-2 text-lg">3 approval requests requiring attention</p>
+</div>
+<div class="flex gap-4">
+<button class="bg-surface-container-high hover:bg-surface-variant text-on-surface px-6 py-2.5 rounded-md font-label text-xs uppercase tracking-widest transition-colors border border-outline-variant/30">
+                        History
+                    </button>
+<button class="bg-gradient-to-br from-primary to-primary-container text-on-primary-container px-6 py-2.5 rounded-md font-label text-xs font-bold uppercase tracking-widest shadow-lg shadow-primary/10">
+                        Batch Action
+                    </button>
+</div>
+</header>
+<!-- Approvals List - Tactical Precision Cards -->
+<div class="space-y-6">
+<!-- Request 1: Pending -->
+<div class="bg-[#161b22] border-l-4 border-[#d29922] p-6 rounded-r-lg border-y border-r border-[#30363d] transition-colors hover:bg-surface-container-high group">
+<div class="flex justify-between items-start">
+<div class="flex-1">
+<div class="flex items-center gap-4 mb-2">
+<span class="bg-[#d29922]/10 text-[#d29922] font-label text-[10px] px-2.5 py-1 rounded-sm border border-[#d29922]/20 uppercase tracking-[0.15em] font-bold">
+                                    PENDING REVIEW
+                                </span>
+<span class="text-[#8b949e] font-label text-[10px] uppercase tracking-widest flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm">schedule</span>
+                                    Kosh, 6h ago
+                                </span>
+</div>
+<h3 class="text-[#e6edf3] font-headline text-xl font-semibold mb-1 group-hover:text-primary transition-colors">Release ECU-PowerTrain v2.1 for production</h3>
+<p class="text-[#8b949e] font-body text-sm flex items-center gap-2">
+<span class="text-tertiary-container font-medium">Gate #47 PASS</span>
+<span class="w-1 h-1 bg-[#30363d] rounded-full"></span>
+                                Automated security verification successful
+                            </p>
+</div>
+<div class="flex gap-3">
+<button class="w-10 h-10 border border-[#30363d] flex items-center justify-center rounded hover:bg-error/10 hover:text-error hover:border-error/30 transition-all">
+<span class="material-symbols-outlined">close</span>
+</button>
+<button class="bg-primary/10 text-primary border border-primary/30 px-5 rounded font-label text-[10px] uppercase tracking-widest font-bold hover:bg-primary hover:text-on-primary transition-all">
+                                Approve
+                            </button>
+</div>
+</div>
+</div>
+<!-- Request 2: Approved -->
+<div class="bg-[#161b22] border-l-4 border-[#3fb950] p-6 rounded-r-lg border-y border-r border-[#30363d] opacity-90 grayscale-[0.3] hover:grayscale-0 transition-all">
+<div class="flex justify-between items-start">
+<div class="flex-1">
+<div class="flex items-center gap-4 mb-2">
+<span class="bg-[#3fb950]/10 text-[#3fb950] font-label text-[10px] px-2.5 py-1 rounded-sm border border-[#3fb950]/20 uppercase tracking-[0.15em] font-bold">
+                                    APPROVED
+                                </span>
+<span class="text-[#8b949e] font-label text-[10px] uppercase tracking-widest flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm">person</span>
+                                    Admin, 1d ago
+                                </span>
+</div>
+<h3 class="text-[#e6edf3] font-headline text-xl font-semibold mb-1">Override Quality Gate for arm-cortex-m4-boot</h3>
+<p class="text-[#8b949e] font-body text-sm flex items-center gap-2">
+<span class="text-error font-medium">Gate #45 FAIL overridden</span>
+<span class="w-1 h-1 bg-[#30363d] rounded-full"></span>
+                                Manual intervention by Admin
+                            </p>
+</div>
+<div class="text-[#3fb950] flex items-center gap-2 px-3 py-1.5 rounded bg-[#3fb950]/5 border border-[#3fb950]/10">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-label text-[10px] font-bold tracking-widest uppercase">Validated</span>
+</div>
+</div>
+</div>
+<!-- Request 3: Rejected -->
+<div class="bg-[#161b22] border-l-4 border-[#f85149] p-6 rounded-r-lg border-y border-r border-[#30363d] opacity-90 grayscale-[0.3] hover:grayscale-0 transition-all">
+<div class="flex justify-between items-start">
+<div class="flex-1">
+<div class="flex items-center gap-4 mb-2">
+<span class="bg-[#f85149]/10 text-[#f85149] font-label text-[10px] px-2.5 py-1 rounded-sm border border-[#f85149]/20 uppercase tracking-[0.15em] font-bold">
+                                    REJECTED
+                                </span>
+<span class="text-[#8b949e] font-label text-[10px] uppercase tracking-widest flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm">person</span>
+                                    Admin, 3d ago
+                                </span>
+</div>
+<h3 class="text-[#e6edf3] font-headline text-xl font-semibold mb-1">Waive MISRA-11.3 for timer_config.c</h3>
+<p class="text-[#8b949e] font-body text-sm flex items-center gap-2">
+<span class="text-[#f85149] font-medium font-bold">MISRA compliance required</span>
+<span class="w-1 h-1 bg-[#30363d] rounded-full"></span>
+                                Security policy violation detected in pointer arithmetic
+                            </p>
+</div>
+<div class="text-[#f85149] flex items-center gap-2 px-3 py-1.5 rounded bg-[#f85149]/5 border border-[#f85149]/10">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">cancel</span>
+<span class="font-label text-[10px] font-bold tracking-widest uppercase">Blocked</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Contextual Information Panel - Asymmetric Detail -->
+<div class="mt-12 grid grid-cols-12 gap-8">
+<div class="col-span-8 glass-panel border border-[#30363d]/30 p-8 rounded-lg relative overflow-hidden">
+<div class="absolute top-0 left-0 w-1 h-full bg-primary-container"></div>
+<h4 class="font-headline text-sm font-bold uppercase tracking-widest text-[#58a6ff] mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">info</span>
+                        Approval Policy Overview
+                    </h4>
+<div class="grid grid-cols-2 gap-8">
+<div>
+<p class="text-[10px] font-label text-[#8b949e] uppercase tracking-widest mb-1">Critical Gate Policy</p>
+<p class="text-on-surface text-sm leading-relaxed">Production releases require 2/3 stakeholder consensus and 100% MISRA C:2012 compliance unless explicitly waived by Admin.</p>
+</div>
+<div>
+<p class="text-[10px] font-label text-[#8b949e] uppercase tracking-widest mb-1">Audit Trail</p>
+<p class="text-on-surface text-sm leading-relaxed">All manual overrides are logged and forwarded to the Compliance Department for quarterly system integrity reviews.</p>
+</div>
+</div>
+</div>
+<div class="col-span-4 flex flex-col gap-4">
+<div class="bg-surface-container p-6 rounded-lg border border-[#30363d]/20">
+<p class="text-[10px] font-label text-[#8b949e] uppercase tracking-widest mb-4">Pending Volume</p>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl font-headline font-bold text-white">01</span>
+<span class="text-sm font-label text-primary uppercase tracking-widest">Active</span>
+</div>
+<div class="w-full bg-[#0d1117] h-1 mt-4 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[33%]"></div>
+</div>
+</div>
+<div class="bg-surface-container p-6 rounded-lg border border-[#30363d]/20">
+<p class="text-[10px] font-label text-[#8b949e] uppercase tracking-widest mb-4">Approval Rate (7d)</p>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl font-headline font-bold text-white">84%</span>
+<span class="text-sm font-label text-tertiary uppercase tracking-widest">Stable</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-[#10141a] border-t border-[#30363d]/20 docked full-width bottom-0 fixed bottom-0 w-full flex justify-between items-center px-6 py-2 z-40 ml-72">
+<div class="flex items-center gap-6">
+<span class="font-label text-[10px] uppercase tracking-[0.2em] font-bold text-[#58a6ff]">AEGIS v2.1.0 — Embedded Firmware Security Analysis Platform</span>
+<div class="flex gap-4">
+<a class="font-label text-[10px] uppercase tracking-[0.2em] text-[#484f58] hover:text-[#a2c9ff] transition-colors" href="#">System Status</a>
+<a class="font-label text-[10px] uppercase tracking-[0.2em] text-[#484f58] hover:text-[#a2c9ff] transition-colors" href="#">API Docs</a>
+<a class="font-label text-[10px] uppercase tracking-[0.2em] text-[#484f58] hover:text-[#a2c9ff] transition-colors" href="#">Support</a>
+</div>
+</div>
+<div class="flex items-center gap-4 text-[#484f58] font-label text-[10px] uppercase tracking-[0.2em]">
+<span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 bg-tertiary rounded-full"></span> NODE: US-EAST-01</span>
+<span>© 2024 AEGIS INC.</span>
+</div>
+</footer>
+</body></html>

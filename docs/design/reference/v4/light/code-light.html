@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS - Code &amp; Files</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "tertiary-container": "#007e33",
+                "on-primary-fixed-variant": "#004493",
+                "on-tertiary-fixed-variant": "#00531f",
+                "surface-container-high": "#e8e8e8",
+                "on-secondary-fixed": "#141c25",
+                "primary-fixed": "#d8e2ff",
+                "primary-container": "#0969da",
+                "tertiary-fixed": "#88fb99",
+                "primary": "#0051ae",
+                "on-primary": "#ffffff",
+                "surface-variant": "#e2e2e2",
+                "secondary-fixed-dim": "#bfc7d3",
+                "inverse-on-surface": "#f0f1f1",
+                "on-tertiary-fixed": "#002108",
+                "secondary-fixed": "#dbe3ef",
+                "surface-container-lowest": "#ffffff",
+                "on-secondary-container": "#5b636e",
+                "surface-bright": "#f9f9f9",
+                "on-primary-fixed": "#001a41",
+                "error-container": "#ffdad6",
+                "on-error": "#ffffff",
+                "tertiary": "#006226",
+                "on-tertiary": "#ffffff",
+                "secondary": "#575f69",
+                "on-secondary-fixed-variant": "#3f4751",
+                "on-error-container": "#93000a",
+                "on-secondary": "#ffffff",
+                "surface-container-low": "#f3f3f4",
+                "tertiary-fixed-dim": "#6bde80",
+                "on-primary-container": "#ecefff",
+                "surface-dim": "#dadada",
+                "on-surface": "#1a1c1c",
+                "primary-fixed-dim": "#adc6ff",
+                "surface": "#f9f9f9",
+                "on-surface-variant": "#424753",
+                "on-background": "#1a1c1c",
+                "background": "#f9f9f9",
+                "outline-variant": "#c2c6d6",
+                "surface-container": "#eeeeee",
+                "secondary-container": "#d8e0ed",
+                "on-tertiary-container": "#c0ffc2",
+                "inverse-surface": "#2f3131",
+                "inverse-primary": "#adc6ff",
+                "surface-container-highest": "#e2e2e2",
+                "error": "#ba1a1a",
+                "surface-tint": "#005bc0",
+                "outline": "#727785"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.125rem",
+                "lg": "0.25rem",
+                "xl": "0.5rem",
+                "full": "0.75rem"
+            },
+            "fontFamily": {
+                "headline": ["Space Grotesk"],
+                "body": ["Inter"],
+                "label": ["Space Grotesk"]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #f0f2f5; font-size: 14px; color: #1a1c1c; }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .material-symbols-outlined { font-size: 20px; vertical-align: middle; }
+        .monolith-card { background: #ffffff; border-radius: 4px; position: relative; }
+        .monolith-card:hover { outline: 1px solid rgba(0, 81, 174, 0.1); }
+        .glass-panel { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(16px); }
+        .nav-active { color: #0051ae; font-weight: 600; border-left: 2px solid #0051ae; background: #ffffff; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f3f3f4; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c2c6d6; border-radius: 2px; }
+    </style>
+</head>
+<body class="overflow-hidden h-screen flex flex-col">
+<!-- TopNavBar (Shared Component) -->
+<header class="fixed top-0 w-full z-50 bg-slate-50 dark:bg-slate-950 flex items-center justify-between px-6 h-14 w-full shadow-sm border-b border-surface-container">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-slate-900 dark:text-slate-50 font-headline">AEGIS</span>
+<div class="flex items-center gap-2 px-3 py-1 bg-surface-container-low rounded-lg cursor-pointer hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-primary" data-icon="terminal">terminal</span>
+<span class="font-medium text-on-surface">ECU-PowerTrain-v2.1</span>
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="unfold_more">unfold_more</span>
+</div>
+<nav class="hidden md:flex items-center gap-6 text-sm font-label uppercase tracking-wider">
+<a class="text-slate-500 hover:text-slate-900 transition-colors" href="#">Projects</a>
+<a class="text-slate-500 hover:text-slate-900 transition-colors" href="#">Infrastructure</a>
+<a class="text-slate-500 hover:text-slate-900 transition-colors" href="#">Security</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative flex items-center bg-surface-container-low px-3 py-1.5 rounded-lg w-64">
+<span class="material-symbols-outlined text-on-surface-variant mr-2" data-icon="search">search</span>
+<input class="bg-transparent border-none text-sm w-full focus:ring-0 p-0 placeholder-on-surface-variant/50" placeholder="Search files..." type="text"/>
+</div>
+<button class="p-2 text-slate-500 hover:bg-slate-200/50 rounded-lg transition-colors relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-slate-50"></span>
+</button>
+<button class="p-2 text-slate-500 hover:bg-slate-200/50 rounded-lg transition-colors">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<div class="flex items-center gap-3 ml-2 pl-4 border-l border-surface-variant">
+<div class="text-right hidden sm:block">
+<p class="text-xs font-semibold text-on-surface">Kosh Admin</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-tighter">System Architect</p>
+</div>
+<img alt="User profile" class="w-8 h-8 rounded-full border border-surface-variant object-cover" data-alt="professional headshot of a middle-aged man with short hair and glasses in a corporate environment with soft lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1HWzJd5mD2dykA1C5VOVtr18HTt37mkwCUd-FC01jp4IKduZlVNO1Y69t-bLrtIjqPvXWo994KhTc-6LFHCKZmzsfbT10KuZJUegBwZNW0YLdR66zesoXJAl82blQPPeVv4VVSLcSRTp-8mrtu8i7lKWVykmx2S3IITUxsfoAZrNrYGBROrW9rBoFG8KfEXZ00M0vbbDXwYBJeOMHLF9mVa-d5bJrohsj1Bbazi00fGO3D6ibT-8Bgz4mZa0Le3dk--4EL_tPIadx"/>
+</div>
+</div>
+</header>
+<div class="flex flex-1 pt-14 h-full">
+<!-- SideNavBar (Shared Component) -->
+<aside class="h-screen w-64 bg-slate-100 dark:bg-slate-900 flex flex-col pt-4 border-r border-surface-container">
+<div class="px-6 mb-6">
+<div class="flex items-center gap-3 mb-1">
+<div class="w-8 h-8 bg-primary rounded flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-lg" data-icon="memory">memory</span>
+</div>
+<div>
+<h2 class="text-sm font-bold font-headline text-on-surface">Core Engine</h2>
+<p class="text-[10px] text-on-surface-variant">v2.4.0-stable</p>
+</div>
+</div>
+</div>
+<nav class="flex flex-col px-2 gap-y-1">
+<a class="flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-200 rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-medium">Overview</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2.5 bg-white shadow-sm text-blue-700 border-l-2 border-blue-700 font-semibold rounded-r-lg transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="code">code</span>
+<span class="font-medium">Code</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-200 rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="pest_control">pest_control</span>
+<span class="font-medium">Issues</span>
+<span class="ml-auto text-[10px] bg-error-container text-on-error-container px-1.5 rounded-full">12</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-200 rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="merge_type">merge_type</span>
+<span class="font-medium">Pull Requests</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-200 rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="play_circle">play_circle</span>
+<span class="font-medium">Actions</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-200 rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="shield">shield</span>
+<span class="font-medium">Security</span>
+</a>
+</nav>
+<div class="mt-8 px-6">
+<h3 class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-4 opacity-50">Sub-Projects</h3>
+<ul class="space-y-4">
+<li class="flex items-center justify-between group cursor-pointer">
+<span class="text-xs text-on-surface group-hover:text-primary transition-colors">m4-main</span>
+<span class="text-[10px] font-headline bg-surface-container-high px-2 py-0.5 rounded">30</span>
+</li>
+<li class="flex items-center justify-between group cursor-pointer">
+<span class="text-xs text-on-surface group-hover:text-primary transition-colors">m4-boot</span>
+<span class="text-[10px] font-headline bg-surface-container-high px-2 py-0.5 rounded">8</span>
+</li>
+<li class="flex items-center justify-between group cursor-pointer">
+<span class="text-xs text-on-surface group-hover:text-primary transition-colors">rv32-diag</span>
+<span class="text-[10px] font-headline bg-surface-container-high px-2 py-0.5 rounded">5</span>
+</li>
+</ul>
+</div>
+<div class="mt-auto p-4 border-t border-surface-container-highest bg-surface-container-low">
+<button class="flex items-center gap-3 w-full px-4 py-2 text-slate-600 hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+<span class="text-sm font-medium">Back to Projects</span>
+</button>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 overflow-y-auto custom-scrollbar bg-[#f0f2f5] p-8">
+<div class="max-w-7xl mx-auto">
+<!-- Page Header -->
+<div class="flex items-end justify-between mb-8">
+<div>
+<h1 class="text-3xl font-bold font-headline text-on-surface tracking-tight mb-2">Code / Files</h1>
+<div class="flex items-center gap-4 text-sm">
+<span class="flex items-center gap-1 text-on-surface-variant">
+<span class="material-symbols-outlined text-sm" data-icon="description">description</span>
+                                247 files
+                            </span>
+<span class="w-1 h-1 bg-outline-variant rounded-full"></span>
+<span class="flex items-center gap-1 text-on-surface-variant">
+<span class="material-symbols-outlined text-sm" data-icon="database">database</span>
+                                1.2 MB total
+                            </span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex bg-surface-container rounded p-1">
+<button class="px-4 py-1.5 text-xs font-bold font-label bg-white shadow-sm rounded">ALL TARGETS</button>
+<button class="px-4 py-1.5 text-xs font-bold font-label text-on-surface-variant">RELEASE</button>
+<button class="px-4 py-1.5 text-xs font-bold font-label text-on-surface-variant">DEBUG</button>
+</div>
+<button class="bg-primary text-on-primary px-5 py-2 rounded font-medium flex items-center gap-2 hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined" data-icon="download">download</span>
+                            Clone Repository
+                        </button>
+</div>
+</div>
+<!-- Language Distribution Bar -->
+<div class="monolith-card p-6 mb-8">
+<div class="flex h-2.5 w-full rounded-full overflow-hidden mb-4">
+<div class="h-full bg-primary" style="width: 82%"></div>
+<div class="h-full bg-purple-500" style="width: 11%"></div>
+<div class="h-full bg-tertiary" style="width: 4%"></div>
+<div class="h-full bg-outline" style="width: 3%"></div>
+</div>
+<div class="flex flex-wrap gap-8">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="text-xs font-semibold font-headline">C</span>
+<span class="text-xs text-on-surface-variant">82%</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-purple-500"></span>
+<span class="text-xs font-semibold font-headline">C++</span>
+<span class="text-xs text-on-surface-variant">11%</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span class="text-xs font-semibold font-headline">ASM</span>
+<span class="text-xs text-on-surface-variant">4%</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-outline"></span>
+<span class="text-xs font-semibold font-headline">HEADER</span>
+<span class="text-xs text-on-surface-variant">3%</span>
+</div>
+</div>
+</div>
+<!-- Content Grid 70/30 -->
+<div class="grid grid-cols-1 lg:grid-cols-10 gap-8 pb-20">
+<!-- Left: File Tree (70%) -->
+<div class="lg:col-span-7 monolith-card min-h-[600px] flex flex-col overflow-hidden">
+<div class="p-4 border-b border-surface-container flex items-center justify-between bg-surface-bright">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="folder_open">folder_open</span>
+<span class="font-semibold text-on-surface">Project Explorer</span>
+</div>
+<div class="flex gap-1">
+<button class="p-1.5 hover:bg-surface-container rounded"><span class="material-symbols-outlined text-sm" data-icon="create_new_folder">create_new_folder</span></button>
+<button class="p-1.5 hover:bg-surface-container rounded"><span class="material-symbols-outlined text-sm" data-icon="note_add">note_add</span></button>
+<button class="p-1.5 hover:bg-surface-container rounded"><span class="material-symbols-outlined text-sm" data-icon="sync">sync</span></button>
+</div>
+</div>
+<div class="p-4 overflow-y-auto">
+<!-- src/ Folder -->
+<div class="flex items-center gap-2 py-2 cursor-pointer hover:text-primary group">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="expand_more">expand_more</span>
+<span class="material-symbols-outlined text-primary" data-icon="folder_open" style="font-variation-settings: 'FILL' 1;">folder_open</span>
+<span class="font-medium text-on-surface">src/</span>
+</div>
+<!-- src/ Drivers/ (Expanded) -->
+<div class="ml-6 border-l-2 border-surface-container pl-4">
+<div class="flex items-center gap-2 py-2 cursor-pointer hover:text-primary group">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="expand_more">expand_more</span>
+<span class="material-symbols-outlined text-primary" data-icon="folder" style="font-variation-settings: 'FILL' 1;">folder</span>
+<span class="font-medium text-on-surface">drivers/</span>
+</div>
+<div class="ml-6 space-y-1">
+<div class="flex items-center justify-between py-2 px-3 rounded-lg bg-primary/5 border border-primary/20 cursor-pointer">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="description">description</span>
+<span class="font-semibold text-primary">can_driver.c</span>
+</div>
+<span class="bg-error text-on-error px-2 py-0.5 rounded text-[10px] font-bold font-headline">3 CRITICAL</span>
+</div>
+<div class="flex items-center justify-between py-2 px-3 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="description">description</span>
+<span class="text-on-surface group-hover:text-primary">spi_bus.c</span>
+</div>
+<span class="bg-tertiary/20 text-tertiary px-2 py-0.5 rounded text-[10px] font-bold font-headline">SAFE</span>
+</div>
+<div class="flex items-center justify-between py-2 px-3 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="description">description</span>
+<span class="text-on-surface group-hover:text-primary">flash_mem.c</span>
+</div>
+<span class="bg-outline-variant text-on-surface-variant px-2 py-0.5 rounded text-[10px] font-bold font-headline">UNSCANNED</span>
+</div>
+</div>
+</div>
+<!-- core/ Folder -->
+<div class="flex items-center gap-2 py-2 mt-4 cursor-pointer hover:text-primary group">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="chevron_right">chevron_right</span>
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="folder">folder</span>
+<span class="font-medium text-on-surface">core/</span>
+</div>
+<!-- build/ Folder -->
+<div class="flex items-center gap-2 py-2 cursor-pointer hover:text-primary group">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="chevron_right">chevron_right</span>
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="folder">folder</span>
+<span class="font-medium text-on-surface">include/</span>
+</div>
+<!-- makefile -->
+<div class="flex items-center gap-2 py-2 ml-6 cursor-pointer hover:text-primary group">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="settings_applications">settings_applications</span>
+<span class="font-medium text-on-surface">Makefile</span>
+</div>
+</div>
+</div>
+<!-- Right: File Detail (30%) -->
+<div class="lg:col-span-3 space-y-6">
+<div class="monolith-card p-6 overflow-hidden">
+<h3 class="font-headline font-bold text-on-surface mb-6 uppercase tracking-widest text-[11px] opacity-60">File Properties</h3>
+<div class="space-y-6">
+<div>
+<p class="text-[10px] text-on-surface-variant uppercase font-bold mb-1">Path</p>
+<p class="text-xs font-mono break-all bg-surface-container-low p-2 rounded">src/drivers/can_driver.c</p>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<p class="text-[10px] text-on-surface-variant uppercase font-bold mb-1">Size</p>
+<p class="text-sm font-semibold">14.2 KB</p>
+</div>
+<div>
+<p class="text-[10px] text-on-surface-variant uppercase font-bold mb-1">Last Modified</p>
+<p class="text-sm font-semibold">2h ago</p>
+</div>
+</div>
+<div>
+<p class="text-[10px] text-on-surface-variant uppercase font-bold mb-2">Build Targets</p>
+<div class="flex flex-wrap gap-2">
+<span class="text-[10px] font-bold font-label bg-secondary-container text-on-secondary-container px-2 py-1 rounded">M4_ARM</span>
+<span class="text-[10px] font-bold font-label bg-secondary-container text-on-secondary-container px-2 py-1 rounded">RV32_I</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Findings monolith -->
+<div class="monolith-card p-6 border-l-4 border-error">
+<div class="flex items-center justify-between mb-6">
+<h3 class="font-headline font-bold text-on-surface uppercase tracking-widest text-[11px] opacity-60">Findings List</h3>
+<span class="text-error font-bold font-headline text-lg">03</span>
+</div>
+<div class="space-y-4">
+<div class="p-3 bg-error-container/20 rounded border border-error-container hover:border-error transition-colors cursor-pointer group">
+<div class="flex items-center justify-between mb-1">
+<span class="text-[10px] font-bold text-error font-headline">CWE-119</span>
+<span class="material-symbols-outlined text-error text-sm" data-icon="warning">warning</span>
+</div>
+<p class="text-xs font-semibold text-on-surface-variant line-clamp-2">Improper Restriction of Operations within the Bounds of a Memory Buffer.</p>
+</div>
+<div class="p-3 bg-error-container/20 rounded border border-error-container hover:border-error transition-colors cursor-pointer group">
+<div class="flex items-center justify-between mb-1">
+<span class="text-[10px] font-bold text-error font-headline">CWE-476</span>
+<span class="material-symbols-outlined text-error text-sm" data-icon="warning">warning</span>
+</div>
+<p class="text-xs font-semibold text-on-surface-variant">NULL Pointer Dereference in CAN Frame initialization.</p>
+</div>
+<div class="p-3 bg-surface-container-high rounded border border-outline-variant/30 hover:border-primary transition-colors cursor-pointer group">
+<div class="flex items-center justify-between mb-1">
+<span class="text-[10px] font-bold text-on-surface-variant font-headline">MISRA 11.3</span>
+<span class="material-symbols-outlined text-on-surface-variant text-sm" data-icon="info">info</span>
+</div>
+<p class="text-xs font-semibold text-on-surface-variant">A cast shall not be performed between a pointer to object type and a pointer to a different object type.</p>
+</div>
+</div>
+<button class="w-full mt-6 py-2 text-xs font-bold font-label text-primary hover:bg-primary/5 rounded transition-colors uppercase tracking-widest">View Full Scan Results</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Footer -->
+<footer class="h-8 glass-panel border-t border-surface-container px-6 flex items-center justify-between fixed bottom-0 w-full z-50">
+<div class="flex items-center gap-4">
+<span class="text-[10px] font-bold font-headline text-on-surface-variant opacity-60">AEGIS v2.1.0</span>
+<span class="w-[1px] h-3 bg-outline-variant"></span>
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 bg-tertiary-container rounded-full"></span>
+<span class="text-[10px] text-on-surface-variant font-medium">System Health: Nominal</span>
+</div>
+</div>
+<div class="flex items-center gap-4 text-[10px] text-on-surface-variant font-medium">
+<span>Cluster: Node-04_EU</span>
+<span>Uptime: 99.98%</span>
+</div>
+</footer>
+</body></html>

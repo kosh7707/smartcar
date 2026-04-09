@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS — Approvals</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-background": "#191c1e",
+                        "secondary-fixed": "#d8e2ff",
+                        "primary-fixed-dim": "#adc6ff",
+                        "secondary": "#485e8a",
+                        "primary-container": "#0969da",
+                        "tertiary-fixed": "#ffdbcc",
+                        "surface-container-highest": "#e0e3e5",
+                        "on-secondary-fixed-variant": "#304671",
+                        "tertiary": "#913900",
+                        "primary": "#0051ae",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed": "#351000",
+                        "on-primary-fixed-variant": "#004493",
+                        "outline-variant": "#c2c6d6",
+                        "surface-container-high": "#e6e8ea",
+                        "on-tertiary-container": "#ffece5",
+                        "tertiary-container": "#b84b00",
+                        "on-tertiary": "#ffffff",
+                        "surface-container": "#eceef0",
+                        "on-secondary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "surface-tint": "#005bc0",
+                        "on-secondary-container": "#405681",
+                        "on-error-container": "#93000a",
+                        "background": "#f8f9fb",
+                        "outline": "#727785",
+                        "inverse-primary": "#adc6ff",
+                        "surface-variant": "#e0e3e5",
+                        "on-primary-container": "#ecefff",
+                        "tertiary-fixed-dim": "#ffb693",
+                        "on-surface-variant": "#424753",
+                        "secondary-container": "#b6ccfe",
+                        "error": "#cf222e",
+                        "secondary-fixed-dim": "#b0c6f8",
+                        "primary-fixed": "#d8e2ff",
+                        "surface-container-low": "#f2f4f6",
+                        "surface": "#f8f9fb",
+                        "inverse-surface": "#2d3133",
+                        "inverse-on-surface": "#eff1f3",
+                        "on-tertiary-fixed-variant": "#7a2f00",
+                        "on-primary-fixed": "#001a41",
+                        "error-container": "#ffdad6",
+                        "on-surface": "#191c1e",
+                        "surface-dim": "#d8dadc",
+                        "surface-bright": "#f8f9fb",
+                        "on-secondary-fixed": "#001a41",
+                        "on-error": "#ffffff",
+                        "warning": "#bf8700",
+                        "success": "#1a7f37"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"]
+                    }
+                },
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; background-color: #f8f9fb; }
+        .font-space { font-family: 'Space Grotesk', sans-serif; }
+    </style>
+</head>
+<body class="text-on-surface">
+<!-- TopNavBar -->
+<header class="w-full sticky top-0 z-50 bg-slate-50/80 backdrop-blur-xl border-b border-slate-200/20 shadow-sm flex justify-between items-center px-6 h-16 w-full">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-slate-900 font-space">AEGIS</span>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-slate-400 text-lg">search</span>
+<input class="pl-10 pr-4 py-1.5 bg-surface-container-low border-none rounded-lg text-sm w-64 focus:ring-2 focus:ring-primary-container outline-none transition-all" placeholder="Search audit logs..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative p-2 hover:bg-slate-200/50 rounded-full cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-slate-600">notifications</span>
+<span class="absolute top-1 right-1 w-4 h-4 bg-error text-[10px] text-white flex items-center justify-center rounded-full font-bold">3</span>
+</div>
+<div class="relative p-2 hover:bg-slate-200/50 rounded-full cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-slate-600">settings</span>
+</div>
+<div class="flex items-center gap-3 pl-4 border-l border-slate-200">
+<div class="text-right">
+<p class="text-sm font-semibold leading-none">Kosh Admin</p>
+<p class="text-[10px] text-slate-500 uppercase tracking-wider font-space mt-1">Superuser</p>
+</div>
+<img alt="User profile" class="w-8 h-8 rounded-full border border-slate-200" data-alt="minimalist professional avatar of a technical administrator in a circular frame" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDrg7S9vfaLKOhxrrspFmqOGo77EtbXlzgXzo2ziS-D4wMYmvYO4PljOIusL3pyDkhUVdAzMy8lgwHHq-MuCMPcz63YxqgxUN98-QD45wrwqcoQ2Qv03LE5RqMw5qArtbKxkW9t8602PCWB4eKlkB7nboA5DVIzcgHxbsJcCemWbjSjXBbPClIBgM3P2GKpkEWxgxRwFXVPv3buxEndrUuVQdeB7UmMjKcQ-UixxRWwEB-NzvKzlF7XXeTHuHLU8AOe3g7aYSXWxZfB"/>
+</div>
+</div>
+</header>
+<div class="flex">
+<!-- SideNavBar -->
+<aside class="h-[calc(100vh-4rem)] w-64 fixed left-0 top-16 bg-slate-100 flex flex-col pt-8 pb-4 overflow-y-auto">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-2 mb-1">
+<div class="w-2 h-2 rounded-full bg-success"></div>
+<span class="text-sm font-black text-slate-900 font-space tracking-tight">ECU-PowerTrain-v2.1</span>
+</div>
+<p class="text-[10px] font-space text-slate-500 uppercase tracking-widest">Active Project</p>
+</div>
+<nav class="flex flex-col gap-1 px-2 mb-6">
+<a class="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-slate-900 transition-all font-space text-[13px] uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined text-lg">dashboard</span> Overview
+                </a>
+<a class="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-slate-900 transition-all font-space text-[13px] uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined text-lg">folder</span> Files
+                </a>
+<a class="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-slate-900 transition-all font-space text-[13px] uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined text-lg">report_problem</span> Vulnerabilities
+                </a>
+<a class="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-slate-900 transition-all font-space text-[13px] uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined text-lg">terminal</span> Static Analysis
+                </a>
+<a class="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-slate-900 transition-all font-space text-[13px] uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined text-lg">gavel</span> Quality Gate
+                </a>
+<a class="flex items-center gap-3 px-4 py-2 text-blue-700 border-l-2 border-blue-700 bg-blue-50/50 font-bold font-space text-[13px] uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined text-lg">verified_user</span> Approvals
+                </a>
+<a class="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-slate-900 transition-all font-space text-[13px] uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined text-lg">history</span> Analysis History
+                </a>
+<a class="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-slate-900 transition-all font-space text-[13px] uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined text-lg">description</span> Report
+                </a>
+</nav>
+<div class="h-px bg-slate-200/50 mx-6 mb-6"></div>
+<div class="px-6 mb-4">
+<p class="text-[10px] font-space text-slate-400 uppercase tracking-widest mb-4">Sub-Projects</p>
+<div class="flex flex-col gap-3">
+<div class="flex justify-between items-center group cursor-pointer">
+<span class="text-[12px] text-slate-600 group-hover:text-primary transition-colors">arm-cortex-m4-main</span>
+<span class="text-[10px] px-1.5 py-0.5 bg-slate-200 rounded-sm text-slate-500">30</span>
+</div>
+<div class="flex justify-between items-center group cursor-pointer">
+<span class="text-[12px] text-slate-600 group-hover:text-primary transition-colors">arm-cortex-m4-boot</span>
+<span class="text-[10px] px-1.5 py-0.5 bg-slate-200 rounded-sm text-slate-500">8</span>
+</div>
+<div class="flex justify-between items-center group cursor-pointer">
+<span class="text-[12px] text-slate-600 group-hover:text-primary transition-colors">riscv-rv32-diag</span>
+<span class="text-[10px] px-1.5 py-0.5 bg-slate-200 rounded-sm text-slate-500">5</span>
+</div>
+</div>
+</div>
+<div class="mt-auto px-4 pb-4">
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-200/50 rounded-lg transition-all font-space text-[12px] uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined text-lg">arrow_back</span> Back to Projects
+                </a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-64 w-full min-h-[calc(100vh-4rem)] p-8 flex gap-8">
+<div class="flex-1 max-w-4xl">
+<header class="mb-10">
+<div class="flex items-center gap-2 text-slate-400 text-xs mb-2 font-space tracking-widest uppercase">
+<span>Projects</span>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span>ECU-PowerTrain-v2.1</span>
+</div>
+<h1 class="text-[24px] font-bold text-on-surface font-space tracking-tight mb-1">Approvals</h1>
+<p class="text-slate-500 text-sm">3 approval requests requiring attention</p>
+</header>
+<div class="flex flex-col gap-6">
+<!-- Approval Card 1 (PENDING) -->
+<div class="bg-surface-container-lowest border-l-4 border-warning rounded-lg p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)] relative cursor-pointer hover:shadow-md transition-shadow group">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="text-[16px] font-semibold mb-1 group-hover:text-primary transition-colors">Release ECU-PowerTrain v2.1 for production</h3>
+<div class="flex items-center gap-3 text-xs text-slate-500">
+<span class="flex items-center gap-1 font-space uppercase"><span class="material-symbols-outlined text-sm">person</span> Kosh</span>
+<span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+<span class="font-space uppercase">2026-04-09</span>
+</div>
+</div>
+<span class="px-2 py-1 bg-warning/10 text-warning text-[10px] font-bold font-space rounded uppercase tracking-wider border border-warning/20">Pending</span>
+</div>
+<div class="flex gap-4">
+<div class="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-low rounded text-[12px] font-medium text-success">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                                Quality Gate: PASS
+                            </div>
+<div class="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-low rounded text-[12px] font-medium text-error">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">error</span>
+                                Linked findings: 3 High
+                            </div>
+</div>
+</div>
+<!-- Approval Card 2 (APPROVED) -->
+<div class="bg-surface-container-lowest border-l-4 border-success rounded-lg p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)] opacity-90 hover:opacity-100 transition-opacity">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="text-[16px] font-semibold mb-1">Override Quality Gate for arm-cortex-m4-boot</h3>
+<div class="flex items-center gap-3 text-xs text-slate-500">
+<span class="flex items-center gap-1 font-space uppercase"><span class="material-symbols-outlined text-sm">person</span> Approved by Kosh</span>
+<span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+<span class="font-space uppercase">2026-04-08</span>
+</div>
+</div>
+<span class="px-2 py-1 bg-success/10 text-success text-[10px] font-bold font-space rounded uppercase tracking-wider border border-success/20">Approved</span>
+</div>
+<div class="p-3 bg-surface-container-low rounded text-sm text-slate-600 italic">
+                            "Known false positives in boot module"
+                        </div>
+</div>
+<!-- Approval Card 3 (REJECTED) -->
+<div class="bg-surface-container-lowest border-l-4 border-error rounded-lg p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)] opacity-90 hover:opacity-100 transition-opacity">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="text-[16px] font-semibold mb-1 italic line-through text-slate-400">Waive MISRA-11.3 for timer_config.c</h3>
+<div class="flex items-center gap-3 text-xs text-slate-500">
+<span class="flex items-center gap-1 font-space uppercase"><span class="material-symbols-outlined text-sm">person</span> Rejected by Kosh</span>
+<span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+<span class="font-space uppercase">2026-04-06</span>
+</div>
+</div>
+<span class="px-2 py-1 bg-error/10 text-error text-[10px] font-bold font-space rounded uppercase tracking-wider border border-error/20">Rejected</span>
+</div>
+<div class="p-3 bg-surface-container-low rounded text-sm text-slate-600">
+<span class="text-error font-bold font-space text-xs block mb-1 uppercase tracking-tight">Reason for rejection:</span>
+                            "Cast violation must be fixed, not waived. See <code class="font-mono bg-slate-200 px-1 text-xs">MISRA-11.3</code> compliance guidelines."
+                        </div>
+</div>
+</div>
+</div>
+<!-- Detail Panel (Active State Simulation) -->
+<aside class="w-96 flex flex-col gap-6">
+<div class="bg-surface-container-lowest p-6 rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.08)] border-t-2 border-primary">
+<h4 class="text-[14px] font-bold font-space uppercase tracking-widest mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-lg">chat_bubble</span>
+                        Audit Thread
+                    </h4>
+<div class="space-y-6 relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-px before:bg-slate-200">
+<div class="relative pl-8">
+<div class="absolute left-0 top-0 w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center border-4 border-surface-container-lowest">
+<span class="material-symbols-outlined text-xs">person</span>
+</div>
+<div class="mb-1 flex justify-between items-center">
+<span class="text-xs font-bold font-space">Kosh</span>
+<span class="text-[10px] text-slate-400 font-space">09:12 AM</span>
+</div>
+<p class="text-[13px] text-slate-600 leading-relaxed bg-surface-container-low p-3 rounded-lg">
+                                All static analysis modules for v2.1 are complete. Requesting final sign-off for production tag.
+                            </p>
+</div>
+<div class="relative pl-8">
+<div class="absolute left-0 top-0 w-6 h-6 rounded-full bg-primary-container flex items-center justify-center border-4 border-surface-container-lowest">
+<span class="material-symbols-outlined text-xs text-white">shield_person</span>
+</div>
+<div class="mb-1 flex justify-between items-center">
+<span class="text-xs font-bold font-space">Admin</span>
+<span class="text-[10px] text-slate-400 font-space">10:45 AM</span>
+</div>
+<p class="text-[13px] text-slate-600 leading-relaxed bg-blue-50/50 border border-blue-100 p-3 rounded-lg">
+                                Checking the 3 High findings linked to the release. We need a justification for the buffer overflow warning in <code class="font-mono text-[11px]">can_driver.c</code>.
+                            </p>
+</div>
+</div>
+<div class="mt-8 pt-6 border-t border-slate-100">
+<textarea class="w-full h-24 p-3 text-[13px] border border-outline-variant/40 rounded focus:ring-1 focus:ring-primary focus:outline-none resize-none mb-4" placeholder="Write a comment or justification..."></textarea>
+<div class="flex gap-2">
+<button class="flex-1 bg-gradient-to-b from-primary to-primary-container text-white py-2 rounded text-[12px] font-bold font-space uppercase tracking-wider hover:opacity-90 transition-opacity">Approve</button>
+<button class="flex-1 bg-white border border-error text-error py-2 rounded text-[12px] font-bold font-space uppercase tracking-wider hover:bg-error/5 transition-colors">Reject</button>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-low p-6 rounded-lg">
+<h4 class="text-[12px] font-bold font-space uppercase tracking-widest text-slate-500 mb-4">Request Metadata</h4>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<p class="text-[10px] text-slate-400 font-space uppercase">Branch</p>
+<p class="text-xs font-mono font-semibold">release/v2.1</p>
+</div>
+<div>
+<p class="text-[10px] text-slate-400 font-space uppercase">Commit</p>
+<p class="text-xs font-mono font-semibold">a7b2d91</p>
+</div>
+<div class="col-span-2">
+<p class="text-[10px] text-slate-400 font-space uppercase mb-2">Build Integrity</p>
+<div class="w-full bg-slate-300 h-1.5 rounded-full overflow-hidden">
+<div class="bg-success h-full w-[98%]"></div>
+</div>
+<p class="text-[10px] text-slate-500 mt-1 font-space">98.4% Secure Score</p>
+</div>
+</div>
+</div>
+</aside>
+</main>
+</div>
+<!-- Footer -->
+<footer class="w-full py-8 mt-auto border-t border-slate-100 flex justify-center items-center gap-6">
+<p class="font-['Inter'] text-xs text-slate-400 uppercase tracking-[0.2em]">
+            AEGIS v2.1.0 — Embedded Firmware Security Analysis Platform
+        </p>
+<span class="w-1.5 h-1.5 rounded-full bg-slate-200"></span>
+<p class="font-['Inter'] text-xs text-slate-400">
+            © 2024 AEGIS Technical Editorial. Forensic Integrity Guaranteed.
+        </p>
+</footer>
+</body></html>

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Projects List</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-primary": "#adc6ff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-container": "#c0ffc2",
+                        "on-error": "#ffffff",
+                        "on-surface-variant": "#424753",
+                        "secondary-fixed-dim": "#bfc7d3",
+                        "secondary-fixed": "#dbe3ef",
+                        "error-container": "#ffdad6",
+                        "on-primary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "tertiary": "#006226",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-container": "#ecefff",
+                        "primary-fixed-dim": "#adc6ff",
+                        "on-primary-fixed-variant": "#004493",
+                        "primary-container": "#0969da",
+                        "surface-tint": "#005bc0",
+                        "primary": "#0051ae",
+                        "on-background": "#1a1c1c",
+                        "surface-container-high": "#e8e8e8",
+                        "inverse-on-surface": "#f0f1f1",
+                        "tertiary-container": "#007e33",
+                        "on-surface": "#1a1c1c",
+                        "outline": "#727785",
+                        "on-secondary-container": "#5b636e",
+                        "tertiary-fixed": "#88fb99",
+                        "on-primary-fixed": "#001a41",
+                        "background": "#f9f9f9",
+                        "surface": "#f9f9f9",
+                        "surface-dim": "#dadada",
+                        "outline-variant": "#c2c6d6",
+                        "on-error-container": "#93000a",
+                        "on-secondary-fixed-variant": "#3f4751",
+                        "on-secondary": "#ffffff",
+                        "surface-container-highest": "#e2e2e2",
+                        "secondary": "#575f69",
+                        "on-tertiary-fixed-variant": "#00531f",
+                        "surface-container-low": "#f3f3f4",
+                        "inverse-surface": "#2f3131",
+                        "tertiary-fixed-dim": "#6bde80",
+                        "secondary-container": "#d8e0ed",
+                        "on-tertiary-fixed": "#002108"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"]
+                    }
+                },
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body { font-family: 'Inter', sans-serif; background-color: #f3f3f4; color: #1a1c1c; }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .font-label { font-family: 'Space Grotesk', sans-serif; }
+        .shadow-clinical { box-shadow: 0 8px 32px rgba(26, 28, 28, 0.04); }
+        .gradient-primary { background: linear-gradient(135deg, #0051ae 0%, #0969da 100%); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="sticky top-0 z-50 bg-surface-container-lowest border-b border-outline-variant/20">
+<div class="flex justify-between items-center w-full px-6 py-3 max-w-screen-2xl mx-auto">
+<!-- Left: Logo & Switcher -->
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-on-surface font-headline">ARCHITECT</span>
+<div class="flex items-center gap-2 px-3 py-1.5 bg-surface-container-low rounded-lg hover:bg-surface-container-high transition-colors cursor-pointer">
+<span class="text-sm font-medium font-label uppercase tracking-wider text-secondary">All Projects</span>
+<span class="material-symbols-outlined text-sm text-outline">unfold_more</span>
+</div>
+</div>
+<!-- Center: Search -->
+<div class="flex-1 max-w-xl px-12">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg group-focus-within:text-primary transition-colors">search</span>
+<input class="w-full bg-surface-container-low border-none rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-1 focus:ring-primary/20 placeholder:text-outline/60" placeholder="Search projects, findings, CWE..." type="text"/>
+</div>
+</div>
+<!-- Right: Actions -->
+<div class="flex items-center gap-4">
+<button class="relative p-2 rounded-full hover:bg-surface-container-low transition-colors group">
+<span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+<span class="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-error text-[10px] text-white font-bold ring-2 ring-surface-container-lowest">3</span>
+</button>
+<div class="flex items-center gap-3 pl-4 border-l border-outline-variant/30">
+<div class="text-right">
+<p class="text-sm font-semibold leading-tight text-on-surface">Kosh</p>
+<p class="text-[10px] font-label uppercase tracking-widest text-outline">Admin</p>
+</div>
+<div class="h-9 w-9 rounded-full bg-surface-container-high flex items-center justify-center overflow-hidden border border-outline-variant/20">
+<img class="h-full w-full object-cover" data-alt="close-up portrait of a professional male administrator in a clean office setting with soft natural lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA6xg69TvZ7SxWfOkY7UmJP66yAGEZU67d7IPlXFL63GlYZ7rfzp49mCDlhn_vHyK1hg9O_0WOxK08Tu-A80FXrhWhEjXMBgqlQaNFMks5tsT-70yDB_D659xGjSZJGGYcEsBZGYCJGKEUHJHxZfUXJPYyDlmeMqrdnjHWsJNj8wSe3rfyj5FXlAvBOgpx3O5X_t98wi2nSVtMTde7YGljp80QTPHOvu1SY3vYuoUsCq0EXZWgmkt92uqpY2Bf5xFLHwp_70cc_DfcU"/>
+</div>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-grow w-full max-w-[1200px] mx-auto px-6 py-12">
+<!-- Content Header -->
+<div class="flex justify-between items-end mb-10">
+<div>
+<h1 class="text-4xl font-bold font-headline tracking-tight text-on-surface mb-2">Projects</h1>
+<div class="flex items-center gap-2">
+<span class="h-2 w-2 rounded-full bg-primary"></span>
+<p class="text-sm font-label uppercase tracking-[0.05em] text-secondary">4 projects registered</p>
+</div>
+</div>
+<button class="gradient-primary text-white px-6 py-2.5 rounded-lg flex items-center gap-2 font-medium shadow-lg shadow-primary/10 hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-sm">add</span>
+<span class="text-sm">New Project</span>
+</button>
+</div>
+<!-- Bento-inspired Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Card 1: ECU-PowerTrain-v2.1 -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-clinical border border-outline-variant/10 hover:border-primary/30 transition-colors group">
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-primary text-lg" data-weight="fill">developer_board</span>
+<h3 class="text-lg font-bold text-on-surface group-hover:text-primary transition-colors">ECU-PowerTrain-v2.1</h3>
+</div>
+<p class="text-sm text-secondary">파워트레인 ECU 펌웨어 정적 분석</p>
+</div>
+<span class="px-3 py-1 bg-on-tertiary-container/30 text-tertiary text-[11px] font-bold font-label uppercase tracking-wider rounded-full">PASS</span>
+</div>
+<!-- Severity Bar -->
+<div class="my-6">
+<div class="flex justify-between text-[10px] font-label uppercase tracking-widest text-outline mb-2">
+<span>Analysis Health</span>
+<span>43 Total Findings</span>
+</div>
+<div class="h-2 w-full bg-surface-container flex rounded-full overflow-hidden">
+<div class="h-full bg-error" style="width: 0%"></div>
+<div class="h-full bg-orange-500" style="width: 7%"></div>
+<div class="h-full bg-amber-400" style="width: 28%"></div>
+<div class="h-full bg-blue-400" style="width: 65%"></div>
+</div>
+<div class="grid grid-cols-4 mt-3 gap-2">
+<div class="flex flex-col">
+<span class="text-xs font-bold text-error">0</span>
+<span class="text-[9px] font-label text-outline uppercase">Crit</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-bold text-orange-500">3</span>
+<span class="text-[9px] font-label text-outline uppercase">High</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-bold text-amber-500">12</span>
+<span class="text-[9px] font-label text-outline uppercase">Med</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-bold text-blue-500">28</span>
+<span class="text-[9px] font-label text-outline uppercase">Low</span>
+</div>
+</div>
+</div>
+<!-- Tags & Footer -->
+<div class="flex flex-wrap gap-1.5 mb-6">
+<span class="px-2 py-0.5 bg-secondary-container/50 text-on-secondary-container text-[10px] font-medium font-label rounded">C</span>
+<span class="px-2 py-0.5 bg-secondary-container/50 text-on-secondary-container text-[10px] font-medium font-label rounded">ARM Cortex-M4</span>
+<span class="px-2 py-0.5 bg-secondary-container/50 text-on-secondary-container text-[10px] font-medium font-label rounded">MISRA C:2012</span>
+</div>
+<div class="pt-4 border-t border-outline-variant/20 flex justify-between items-center text-[11px] text-outline">
+<div class="flex gap-4">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">target</span>
+<span>8 Targets</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span>2h ago</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary cursor-pointer">arrow_forward</span>
+</div>
+</div>
+<!-- Card 2: ADAS-Camera-Module -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-clinical border border-outline-variant/10 hover:border-error/30 transition-colors group">
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-primary text-lg" data-weight="fill">videocam</span>
+<h3 class="text-lg font-bold text-on-surface group-hover:text-primary transition-colors">ADAS-Camera-Module</h3>
+</div>
+<p class="text-sm text-secondary">ADAS 카메라 모듈 펌웨어 보안 분석</p>
+</div>
+<span class="px-3 py-1 bg-error-container text-error text-[11px] font-bold font-label uppercase tracking-wider rounded-full">FAIL</span>
+</div>
+<div class="my-6">
+<div class="flex justify-between text-[10px] font-label uppercase tracking-widest text-outline mb-2">
+<span>Critical Vulnerabilities Detected</span>
+<span>56 Total Findings</span>
+</div>
+<div class="h-2 w-full bg-surface-container flex rounded-full overflow-hidden">
+<div class="h-full bg-error" style="width: 4%"></div>
+<div class="h-full bg-orange-500" style="width: 14%"></div>
+<div class="h-full bg-amber-400" style="width: 27%"></div>
+<div class="h-full bg-blue-400" style="width: 55%"></div>
+</div>
+<div class="grid grid-cols-4 mt-3 gap-2">
+<div class="flex flex-col">
+<span class="text-xs font-bold text-error">2</span>
+<span class="text-[9px] font-label text-outline uppercase">Crit</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-bold text-orange-500">8</span>
+<span class="text-[9px] font-label text-outline uppercase">High</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-bold text-amber-500">15</span>
+<span class="text-[9px] font-label text-outline uppercase">Med</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-bold text-blue-500">31</span>
+<span class="text-[9px] font-label text-outline uppercase">Low</span>
+</div>
+</div>
+</div>
+<div class="flex flex-wrap gap-1.5 mb-6">
+<span class="px-2 py-0.5 bg-secondary-container/50 text-on-secondary-container text-[10px] font-medium font-label rounded">C</span>
+<span class="px-2 py-0.5 bg-secondary-container/50 text-on-secondary-container text-[10px] font-medium font-label rounded">C++</span>
+<span class="px-2 py-0.5 bg-secondary-container/50 text-on-secondary-container text-[10px] font-medium font-label rounded">ARM Cortex-A53</span>
+</div>
+<div class="pt-4 border-t border-outline-variant/20 flex justify-between items-center text-[11px] text-outline">
+<div class="flex gap-4">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">target</span>
+<span>12 Targets</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span>1d ago</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary cursor-pointer">arrow_forward</span>
+</div>
+</div>
+<!-- Card 3: BMS-CellMonitor -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-clinical border border-outline-variant/10 hover:border-primary/30 transition-colors group">
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-primary text-lg" data-weight="fill">battery_charging_full</span>
+<h3 class="text-lg font-bold text-on-surface group-hover:text-primary transition-colors">BMS-CellMonitor</h3>
+</div>
+<p class="text-sm text-secondary">배터리 셀 모니터 펌웨어</p>
+</div>
+<span class="px-3 py-1 bg-on-tertiary-container/30 text-tertiary text-[11px] font-bold font-label uppercase tracking-wider rounded-full">PASS</span>
+</div>
+<div class="my-6">
+<div class="flex justify-between text-[10px] font-label uppercase tracking-widest text-outline mb-2">
+<span>Analysis Health</span>
+<span>15 Total Findings</span>
+</div>
+<div class="h-2 w-full bg-surface-container flex rounded-full overflow-hidden">
+<div class="h-full bg-error" style="width: 0%"></div>
+<div class="h-full bg-orange-500" style="width: 6%"></div>
+<div class="h-full bg-amber-400" style="width: 33%"></div>
+<div class="h-full bg-blue-400" style="width: 61%"></div>
+</div>
+<div class="grid grid-cols-4 mt-3 gap-2">
+<div class="flex flex-col">
+<span class="text-xs font-bold text-error">0</span>
+<span class="text-[9px] font-label text-outline uppercase">Crit</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-bold text-orange-500">1</span>
+<span class="text-[9px] font-label text-outline uppercase">High</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-bold text-amber-500">5</span>
+<span class="text-[9px] font-label text-outline uppercase">Med</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-bold text-blue-500">9</span>
+<span class="text-[9px] font-label text-outline uppercase">Low</span>
+</div>
+</div>
+</div>
+<div class="flex flex-wrap gap-1.5 mb-6">
+<span class="px-2 py-0.5 bg-secondary-container/50 text-on-secondary-container text-[10px] font-medium font-label rounded">C</span>
+<span class="px-2 py-0.5 bg-secondary-container/50 text-on-secondary-container text-[10px] font-medium font-label rounded">ARM Cortex-M0+</span>
+</div>
+<div class="pt-4 border-t border-outline-variant/20 flex justify-between items-center text-[11px] text-outline">
+<div class="flex gap-4">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">target</span>
+<span>3 Targets</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span>4d ago</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary cursor-pointer">arrow_forward</span>
+</div>
+</div>
+<!-- Card 4: TCU-Telematics-Gateway -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-clinical border border-outline-variant/10 hover:border-amber-400/30 transition-colors group">
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-primary text-lg" data-weight="fill">router</span>
+<h3 class="text-lg font-bold text-on-surface group-hover:text-primary transition-colors">TCU-Telematics-Gateway</h3>
+</div>
+<p class="text-sm text-secondary">텔레매틱스 게이트웨이 통신 모듈</p>
+</div>
+<span class="px-3 py-1 bg-amber-100 text-amber-700 text-[11px] font-bold font-label uppercase tracking-wider rounded-full">WARNING</span>
+</div>
+<div class="my-6">
+<div class="flex justify-between text-[10px] font-label uppercase tracking-widest text-outline mb-2">
+<span>Significant Risks Identified</span>
+<span>74 Total Findings</span>
+</div>
+<div class="h-2 w-full bg-surface-container flex rounded-full overflow-hidden">
+<div class="h-full bg-error" style="width: 2%"></div>
+<div class="h-full bg-orange-500" style="width: 5%"></div>
+<div class="h-full bg-amber-400" style="width: 30%"></div>
+<div class="h-full bg-blue-400" style="width: 63%"></div>
+</div>
+<div class="grid grid-cols-4 mt-3 gap-2">
+<div class="flex flex-col">
+<span class="text-xs font-bold text-error">1</span>
+<span class="text-[9px] font-label text-outline uppercase">Crit</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-bold text-orange-500">4</span>
+<span class="text-[9px] font-label text-outline uppercase">High</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-bold text-amber-500">22</span>
+<span class="text-[9px] font-label text-outline uppercase">Med</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-bold text-blue-500">47</span>
+<span class="text-[9px] font-label text-outline uppercase">Low</span>
+</div>
+</div>
+</div>
+<div class="flex flex-wrap gap-1.5 mb-6">
+<span class="px-2 py-0.5 bg-secondary-container/50 text-on-secondary-container text-[10px] font-medium font-label rounded">C</span>
+<span class="px-2 py-0.5 bg-secondary-container/50 text-on-secondary-container text-[10px] font-medium font-label rounded">PowerPC e200</span>
+<span class="px-2 py-0.5 bg-secondary-container/50 text-on-secondary-container text-[10px] font-medium font-label rounded">ARM Cortex-R5</span>
+</div>
+<div class="pt-4 border-t border-outline-variant/20 flex justify-between items-center text-[11px] text-outline">
+<div class="flex gap-4">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">target</span>
+<span>15 Targets</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span>1w ago</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary cursor-pointer">arrow_forward</span>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-surface-container-low py-8 mt-auto border-t border-outline-variant/30">
+<div class="flex flex-col md:flex-row justify-between items-center px-12 w-full gap-4 max-w-screen-2xl mx-auto">
+<div class="flex flex-col md:flex-row items-center gap-4">
+<span class="text-[10px] font-label uppercase tracking-[0.05em] font-bold text-on-surface">AEGIS v2.1.0</span>
+<span class="hidden md:block h-3 w-[1px] bg-outline-variant"></span>
+<span class="text-[10px] font-label uppercase tracking-[0.05em] text-outline">Automotive Embedded Security Analysis Platform</span>
+</div>
+<div class="flex items-center gap-6">
+<a class="text-[10px] font-label uppercase tracking-[0.05em] text-secondary hover:text-primary transition-colors" href="#">Documentation</a>
+<a class="text-[10px] font-label uppercase tracking-[0.05em] text-secondary hover:text-primary transition-colors" href="#">Privacy</a>
+<a class="text-[10px] font-label uppercase tracking-[0.05em] text-secondary hover:text-primary transition-colors" href="#">Terms</a>
+</div>
+<p class="text-[10px] font-label uppercase tracking-[0.05em] text-outline">© 2024 Clinical Architect v1.2.0 • System Ready</p>
+</div>
+</footer>
+</body></html>

@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS Findings | Technical Precision</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<!-- Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@300,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "inverse-on-surface": "#f0f1f1",
+                        "tertiary-fixed-dim": "#6bde80",
+                        "surface-bright": "#f9f9f9",
+                        "on-primary-fixed": "#001a41",
+                        "on-secondary-fixed": "#141c25",
+                        "on-surface-variant": "#424753",
+                        "surface-container-lowest": "#ffffff",
+                        "primary-fixed": "#d8e2ff",
+                        "outline": "#727785",
+                        "surface-tint": "#005bc0",
+                        "on-error": "#ffffff",
+                        "tertiary-container": "#007e33",
+                        "tertiary": "#006226",
+                        "on-tertiary-fixed-variant": "#00531f",
+                        "inverse-primary": "#adc6ff",
+                        "surface-dim": "#dadada",
+                        "surface-container-high": "#e8e8e8",
+                        "primary-container": "#0969da",
+                        "surface-container-low": "#f3f3f4",
+                        "secondary-fixed": "#dbe3ef",
+                        "on-tertiary-container": "#c0ffc2",
+                        "on-primary-container": "#ecefff",
+                        "inverse-surface": "#2f3131",
+                        "on-secondary-container": "#5b636e",
+                        "surface-variant": "#e2e2e2",
+                        "outline-variant": "#c2c6d6",
+                        "error-container": "#ffdad6",
+                        "secondary-fixed-dim": "#bfc7d3",
+                        "surface-container-highest": "#e2e2e2",
+                        "surface": "#f9f9f9",
+                        "on-tertiary": "#ffffff",
+                        "on-surface": "#1a1c1c",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed": "#002108",
+                        "on-error-container": "#93000a",
+                        "secondary": "#575f69",
+                        "on-secondary-fixed-variant": "#3f4751",
+                        "on-background": "#1a1c1c",
+                        "background": "#f0f2f5",
+                        "surface-container": "#eeeeee",
+                        "tertiary-fixed": "#88fb99",
+                        "primary": "#0051ae",
+                        "error": "#ba1a1a",
+                        "on-primary": "#ffffff",
+                        "on-primary-fixed-variant": "#004493",
+                        "primary-fixed-dim": "#adc6ff",
+                        "secondary-container": "#d8e0ed"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; font-size: 14px; background-color: #f0f2f5; }
+        .material-symbols-outlined { font-size: 20px; vertical-align: middle; }
+        .github-card:hover { border-left-color: #0051ae; }
+    </style>
+</head>
+<body class="text-on-surface">
+<!-- TopNavBar -->
+<header class="bg-white fixed top-0 w-full h-[56px] flex justify-between items-center px-6 z-50">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-primary font-headline">AEGIS</span>
+<div class="flex items-center gap-2 px-3 py-1 bg-surface-container-low rounded border border-outline-variant/30 cursor-pointer hover:bg-surface-container-high transition-colors">
+<span class="text-xs font-medium text-secondary">ECU-PowerTrain-v2.1</span>
+<span class="material-symbols-outlined text-xs">arrow_drop_down</span>
+</div>
+<div class="relative group">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline text-lg">search</span>
+<input class="pl-10 pr-4 py-1.5 w-64 bg-surface-container-low border-none focus:ring-1 focus:ring-primary text-sm rounded transition-all" placeholder="Search findings, CWEs, rules..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative cursor-pointer p-1.5 hover:bg-surface-container-low rounded">
+<span class="material-symbols-outlined text-secondary">notifications</span>
+<span class="absolute top-1 right-1 w-4 h-4 bg-error text-[10px] text-white flex items-center justify-center rounded-full font-bold">3</span>
+</div>
+<div class="flex items-center gap-3 ml-2 pl-4 border-l border-outline-variant/30">
+<div class="flex flex-col items-end">
+<span class="text-xs font-semibold leading-none">Kosh Admin</span>
+<span class="text-[10px] text-secondary">Superuser</span>
+</div>
+<img class="w-8 h-8 rounded-full bg-surface-variant object-cover" data-alt="Professional headshot of a technical administrator in a clean office setting, soft lighting, neutral tones" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKw5jdf4bFzZlr6b3huR2W1YjIio1QPfcFWactpDDOb0vL2Ev-vxL0pYF9LaJeRgD1m731UFjOqNUtXWbEiXRwMaFfFSmv4tK6pfw8E4nNc5C9ezimZ9ynuQxq2WGW9CI_k9X3jy3sEzJYZSr3H-vGo6UhzF4rXdYExVwxFojk2jQg29d4zoSMjl62kHDvDg_AyoTMpho5G31w5_WNPHv94fWcd8cEaw1PUpkleogFuoEKSgpyuLXcs6LlTtbunk34QKt4Ap_e235k"/>
+</div>
+</div>
+</header>
+<div class="flex pt-[56px]">
+<!-- SideNavBar -->
+<aside class="w-[240px] h-[calc(100vh-56px)] bg-[#f5f6f8] border-r border-outline-variant/20 fixed left-0 flex flex-col justify-between py-4">
+<div class="flex flex-col space-y-1">
+<!-- Navigation Items -->
+<nav class="px-2 pb-6">
+<div class="text-[10px] font-headline uppercase tracking-widest text-secondary px-4 py-2 opacity-60">Operations</div>
+<a class="flex items-center gap-3 px-4 py-2 text-secondary hover:bg-surface-container-low rounded transition-all" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-medium">Overview</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 bg-white text-primary border-l-2 border-primary font-semibold transition-all" href="#">
+<span class="material-symbols-outlined">shield</span>
+<span class="font-medium">Findings</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-secondary hover:bg-surface-container-low rounded transition-all" href="#">
+<span class="material-symbols-outlined">rocket_launch</span>
+<span class="font-medium">Deployments</span>
+</a>
+</nav>
+<div class="px-2">
+<div class="text-[10px] font-headline uppercase tracking-widest text-secondary px-4 py-2 opacity-60">Sub-Projects</div>
+<div class="space-y-0.5">
+<div class="group flex items-center justify-between px-4 py-2 hover:bg-surface-container-low rounded cursor-pointer transition-colors">
+<span class="text-sm truncate pr-2">arm-cortex-m4-main</span>
+<span class="text-[10px] bg-secondary-container text-on-secondary-container px-1.5 py-0.5 rounded font-bold">30</span>
+</div>
+<div class="group flex items-center justify-between px-4 py-2 hover:bg-surface-container-low rounded cursor-pointer transition-colors">
+<span class="text-sm truncate pr-2">arm-cortex-m4-boot</span>
+<span class="text-[10px] bg-secondary-container text-on-secondary-container px-1.5 py-0.5 rounded font-bold">8</span>
+</div>
+<div class="group flex items-center justify-between px-4 py-2 hover:bg-surface-container-low rounded cursor-pointer transition-colors">
+<span class="text-sm truncate pr-2">riscv-rv32-diag</span>
+<span class="text-[10px] bg-secondary-container text-on-secondary-container px-1.5 py-0.5 rounded font-bold">5</span>
+</div>
+</div>
+</div>
+</div>
+<div class="px-4 pb-4">
+<a class="flex items-center gap-2 text-secondary hover:text-primary transition-colors py-2 group" href="#">
+<span class="material-symbols-outlined group-hover:-translate-x-1 transition-transform">arrow_back</span>
+<span class="text-xs font-bold uppercase font-headline tracking-wider">Back to Projects</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-[240px] flex-1 p-8">
+<header class="mb-8 flex justify-between items-end">
+<div>
+<h1 class="text-3xl font-headline font-bold tracking-tight text-on-surface">Findings</h1>
+<p class="text-secondary mt-1">Reviewing security vulnerabilities and code quality issues.</p>
+</div>
+<div class="flex gap-2">
+<button class="bg-surface-container-highest text-on-surface px-4 py-2 rounded text-sm font-medium hover:bg-surface-dim transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">filter_list</span> Filter
+                    </button>
+<button class="bg-primary text-white px-4 py-2 rounded text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">file_download</span> Export CSV
+                    </button>
+</div>
+</header>
+<!-- Findings List -->
+<div class="space-y-4 max-w-6xl">
+<!-- Finding 1 -->
+<div class="github-card bg-white border-l-4 border-transparent p-4 shadow-sm transition-all flex items-start justify-between group">
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-error mt-0.5" style="font-variation-settings: 'FILL' 1;">error</span>
+<div>
+<div class="flex items-center gap-2 flex-wrap mb-1">
+<a class="font-bold text-on-surface hover:text-primary leading-tight" href="#">Buffer overflow in DMA controller descriptor handling</a>
+<span class="bg-error/10 text-error text-[10px] font-headline font-bold px-2 py-0.5 rounded uppercase tracking-wider">Critical</span>
+<span class="bg-secondary-container text-on-secondary-container text-[10px] font-headline px-2 py-0.5 rounded uppercase tracking-wider">CWE-119</span>
+<span class="bg-secondary-container text-on-secondary-container text-[10px] font-headline px-2 py-0.5 rounded uppercase tracking-wider">MISRA 17.7</span>
+</div>
+<div class="flex items-center gap-3 text-xs text-secondary">
+<span class="font-mono">hal_dma.c:452</span>
+<span>•</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">psychology</span> Rule Engine</span>
+<span>•</span>
+<span>2h ago</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-lg">chat_bubble</span>
+<span class="text-xs font-bold">3</span>
+</div>
+<img class="w-6 h-6 rounded-full grayscale hover:grayscale-0 transition-all" data-alt="Portrait of a developer, focused expression, cinematic lighting, professional" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB1Ox1WYjwYjLy8xYl6n85Nvs2N3gyxwiMh0coindGELG2zzDhYm5uCIVnM38kUnPnDikRP8a-TUPRu3LAJjN-1i0jLAZ_o-QICkc_Q_1xR5rt0lsieOAkTamgTWlNei18BBInwjPL68gn1XD3lZUu7sfwQjbqr6gW9YiSOPVDhqKaNyJ3V7UJILxUB2P8k9_U6egHck0TGa2EOgG8YI_NOUq9en7oWikmMnyBUUZgjwfHeFS2_13RsnfzxshejINyV_3G68dT-FXMU"/>
+</div>
+</div>
+<!-- Finding 2 -->
+<div class="github-card bg-white border-l-4 border-transparent p-4 shadow-sm transition-all flex items-start justify-between">
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-[#f59e0b] mt-0.5" style="font-variation-settings: 'FILL' 1;">warning</span>
+<div>
+<div class="flex items-center gap-2 flex-wrap mb-1">
+<a class="font-bold text-on-surface hover:text-primary leading-tight" href="#">Null pointer dereference in peripheral initialization</a>
+<span class="bg-[#f59e0b]/10 text-[#f59e0b] text-[10px] font-headline font-bold px-2 py-0.5 rounded uppercase tracking-wider">High</span>
+<span class="bg-secondary-container text-on-secondary-container text-[10px] font-headline px-2 py-0.5 rounded uppercase tracking-wider">CWE-476</span>
+<span class="bg-primary/10 text-primary text-[10px] font-headline font-bold px-2 py-0.5 rounded uppercase tracking-wider">Confirmed</span>
+</div>
+<div class="flex items-center gap-3 text-xs text-secondary">
+<span class="font-mono">peripheral_init.c:89</span>
+<span>•</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">troubleshoot</span> Deep Analysis</span>
+<span>•</span>
+<span>yesterday</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-lg">chat_bubble</span>
+<span class="text-xs font-bold">1</span>
+</div>
+<div class="w-6 h-6 rounded-full bg-surface-container flex items-center justify-center text-[10px] font-bold">KA</div>
+</div>
+</div>
+<!-- Finding 3 -->
+<div class="github-card bg-white border-l-4 border-transparent p-4 shadow-sm transition-all flex items-start justify-between">
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-[#f59e0b] mt-0.5" style="font-variation-settings: 'FILL' 1;">warning</span>
+<div>
+<div class="flex items-center gap-2 flex-wrap mb-1">
+<a class="font-bold text-on-surface hover:text-primary leading-tight" href="#">Potential integer overflow in sensor scaling logic</a>
+<span class="bg-[#f59e0b]/10 text-[#f59e0b] text-[10px] font-headline font-bold px-2 py-0.5 rounded uppercase tracking-wider">High</span>
+<span class="bg-secondary-container text-on-secondary-container text-[10px] font-headline px-2 py-0.5 rounded uppercase tracking-wider">CWE-190</span>
+</div>
+<div class="flex items-center gap-3 text-xs text-secondary">
+<span class="font-mono">sensor_api.c:1102</span>
+<span>•</span>
+<span>2d ago</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">S</div>
+</div>
+</div>
+<!-- Finding 4 -->
+<div class="github-card bg-white border-l-4 border-transparent p-4 shadow-sm transition-all flex items-start justify-between">
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-secondary mt-0.5">info</span>
+<div>
+<div class="flex items-center gap-2 flex-wrap mb-1">
+<a class="font-bold text-on-surface hover:text-primary leading-tight" href="#">Unsafe pointer conversion (Typecasting)</a>
+<span class="bg-secondary-container text-on-secondary-container text-[10px] font-headline font-bold px-2 py-0.5 rounded uppercase tracking-wider">Medium</span>
+<span class="bg-secondary-container text-on-secondary-container text-[10px] font-headline px-2 py-0.5 rounded uppercase tracking-wider">MISRA 11.3</span>
+</div>
+<div class="flex items-center gap-3 text-xs text-secondary">
+<span class="font-mono">can_driver_raw.c:215</span>
+<span>•</span>
+<span>3d ago</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-lg">chat_bubble</span>
+<span class="text-xs font-bold">5</span>
+</div>
+<img class="w-6 h-6 rounded-full" data-alt="Close up of a technical expert face, soft office lighting, focused and detailed" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXNMatlgKSee6jaUEn38ERPSNuUMBVOQhupCi2hUcKPXI7ryiMYEE3db3Hul-XhsX1352VI_F-OsTz8Dy__9rKumcZtoPh4ew852aVgx5p3Bsa7AgZE2NKHGC31mCQBHhvtF6k1VVcCZLF-cbIh9HvUAq4HwKtEI2lbzjO8p5pLCa1aQemK-UYWD2QX-Cy6qsbZbyDlLvkdbm9KMdQqe5jgNO_e26cj1m66ABGu8nVsXus815YKZcN1yUdA5nH_RyxD1_NRUtwCs7m"/>
+</div>
+</div>
+<!-- Finding 5 -->
+<div class="github-card bg-white border-l-4 border-transparent p-4 shadow-sm transition-all flex items-start justify-between">
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-secondary mt-0.5">info</span>
+<div>
+<div class="flex items-center gap-2 flex-wrap mb-1">
+<a class="font-bold text-on-surface hover:text-primary leading-tight" href="#">Usage of uninitialized variable in error path</a>
+<span class="bg-secondary-container text-on-secondary-container text-[10px] font-headline font-bold px-2 py-0.5 rounded uppercase tracking-wider">Medium</span>
+<span class="bg-secondary-container text-on-secondary-container text-[10px] font-headline px-2 py-0.5 rounded uppercase tracking-wider">CWE-457</span>
+<span class="bg-outline-variant/30 text-outline text-[10px] font-headline font-bold px-2 py-0.5 rounded uppercase tracking-wider">False Positive</span>
+</div>
+<div class="flex items-center gap-3 text-xs text-secondary">
+<span class="font-mono">system_state.c:45</span>
+<span>•</span>
+<span>4d ago</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-6 h-6 rounded-full bg-surface-container flex items-center justify-center text-[10px] font-bold">JA</div>
+</div>
+</div>
+<!-- Finding 6 -->
+<div class="github-card bg-white border-l-4 border-transparent p-4 shadow-sm transition-all flex items-start justify-between">
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-primary mt-0.5">verified</span>
+<div>
+<div class="flex items-center gap-2 flex-wrap mb-1">
+<a class="font-bold text-on-surface hover:text-primary leading-tight" href="#">Dead code branch in legacy telemetry handler</a>
+<span class="bg-primary/10 text-primary text-[10px] font-headline font-bold px-2 py-0.5 rounded uppercase tracking-wider">Low</span>
+<span class="bg-secondary-container text-on-secondary-container text-[10px] font-headline px-2 py-0.5 rounded uppercase tracking-wider">CWE-561</span>
+</div>
+<div class="flex items-center gap-3 text-xs text-secondary">
+<span class="font-mono">telemetry_legacy.c:12</span>
+<span>•</span>
+<span>5d ago</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-outline">history</span>
+</div>
+</div>
+</div>
+<!-- Pagination -->
+<footer class="mt-8 flex justify-between items-center max-w-6xl">
+<span class="text-xs text-secondary font-medium uppercase tracking-wider">Showing 1-6 of 32 findings</span>
+<div class="flex gap-1">
+<button class="p-2 border border-outline-variant/30 rounded bg-white text-secondary hover:bg-surface-container-low transition-all">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="px-4 py-2 border border-primary rounded bg-primary text-white text-xs font-bold transition-all">1</button>
+<button class="px-4 py-2 border border-outline-variant/30 rounded bg-white text-secondary text-xs font-bold hover:bg-surface-container-low transition-all">2</button>
+<button class="px-4 py-2 border border-outline-variant/30 rounded bg-white text-secondary text-xs font-bold hover:bg-surface-container-low transition-all">3</button>
+<button class="p-2 border border-outline-variant/30 rounded bg-white text-secondary hover:bg-surface-container-low transition-all">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</footer>
+</main>
+</div>
+<!-- Global Footer Overlay -->
+<footer class="fixed bottom-0 w-full h-8 bg-white/80 backdrop-blur-md border-t border-outline-variant/20 flex justify-between items-center px-6 z-50">
+<div class="flex items-center gap-4">
+<span class="font-headline text-[9px] uppercase tracking-widest font-bold text-secondary">AEGIS System v2.4.0 • Operational</span>
+<div class="flex gap-3">
+<a class="font-headline text-[9px] uppercase tracking-widest text-outline hover:text-primary transition-colors" href="#">Status</a>
+<a class="font-headline text-[9px] uppercase tracking-widest text-outline hover:text-primary transition-colors" href="#">API</a>
+<a class="font-headline text-[9px] uppercase tracking-widest text-outline hover:text-primary transition-colors" href="#">Legal</a>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-tertiary-container shadow-[0_0_8px_rgba(0,126,51,0.5)]"></span>
+<span class="font-headline text-[9px] uppercase tracking-widest text-tertiary font-bold">System Secure</span>
+</div>
+</footer>
+</body></html>

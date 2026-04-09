@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS — Login</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-background": "#191c1e",
+                    "outline-variant": "#c2c6d6",
+                    "on-secondary-fixed": "#001a41",
+                    "on-primary-container": "#ecefff",
+                    "secondary": "#485e8a",
+                    "primary-fixed": "#d8e2ff",
+                    "error": "#ba1a1a",
+                    "on-error": "#ffffff",
+                    "on-secondary-container": "#405681",
+                    "background": "#f8f9fb",
+                    "on-secondary-fixed-variant": "#304671",
+                    "surface-tint": "#005bc0",
+                    "outline": "#727785",
+                    "on-surface-variant": "#424753",
+                    "surface-container": "#eceef0",
+                    "inverse-on-surface": "#eff1f3",
+                    "surface-container-low": "#f2f4f6",
+                    "on-tertiary-container": "#ffece5",
+                    "on-secondary": "#ffffff",
+                    "on-primary-fixed": "#001a41",
+                    "tertiary-fixed-dim": "#ffb693",
+                    "on-tertiary-fixed": "#351000",
+                    "error-container": "#ffdad6",
+                    "on-tertiary-fixed-variant": "#7a2f00",
+                    "surface": "#f8f9fb",
+                    "secondary-fixed": "#d8e2ff",
+                    "tertiary": "#913900",
+                    "surface-container-highest": "#e0e3e5",
+                    "surface-container-high": "#e6e8ea",
+                    "secondary-fixed-dim": "#b0c6f8",
+                    "inverse-primary": "#adc6ff",
+                    "inverse-surface": "#2d3133",
+                    "on-tertiary": "#ffffff",
+                    "primary-container": "#0969da",
+                    "surface-dim": "#d8dadc",
+                    "on-primary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "primary-fixed-dim": "#adc6ff",
+                    "surface-variant": "#e0e3e5",
+                    "primary": "#0051ae",
+                    "tertiary-container": "#b84b00",
+                    "surface-bright": "#f8f9fb",
+                    "on-primary-fixed-variant": "#004493",
+                    "surface-container-lowest": "#ffffff",
+                    "on-surface": "#191c1e",
+                    "tertiary-fixed": "#ffdbcc",
+                    "secondary-container": "#b6ccfe"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Space Grotesk"],
+                    "body": ["Inter"],
+                    "label": ["Space Grotesk"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background min-h-screen flex flex-col items-center justify-center p-4">
+<!-- Auth Container -->
+<main class="w-full max-w-[420px] bg-surface-container-lowest rounded-xl shadow-[0px_12px_32px_rgba(25,28,30,0.04)] overflow-hidden">
+<!-- Header Section -->
+<div class="p-8 pb-4 text-center">
+<div class="inline-flex items-center justify-center mb-6">
+<div class="w-12 h-12 bg-primary flex items-center justify-center rounded-lg text-on-primary">
+<span class="material-symbols-outlined text-3xl" data-icon="shield_lock" style="font-variation-settings: 'FILL' 1;">shield_lock</span>
+</div>
+</div>
+<h1 class="font-headline font-bold text-4xl tracking-tighter text-on-surface">AEGIS</h1>
+<p class="text-on-surface-variant font-label text-sm mt-2 tracking-tight">Embedded Firmware Security Analysis Platform</p>
+</div>
+<!-- Form Section -->
+<div class="px-8 py-6">
+<h2 class="text-xl font-bold text-on-surface mb-8">Sign in to AEGIS</h2>
+<form action="#" class="space-y-6" method="POST">
+<!-- Email Field -->
+<div class="space-y-2">
+<label class="font-label text-xs uppercase tracking-widest text-on-surface-variant font-semibold" for="email">Email address</label>
+<input class="w-full bg-transparent border-0 border-b border-outline-variant focus:ring-0 focus:border-primary px-0 py-2 transition-all outline-none text-on-surface placeholder:text-outline/40" id="email" name="email" placeholder="name@company.com" required="" type="email"/>
+</div>
+<!-- Password Field -->
+<div class="space-y-2">
+<div class="flex justify-between items-center">
+<label class="font-label text-xs uppercase tracking-widest text-on-surface-variant font-semibold" for="password">Password</label>
+<a class="text-xs text-primary font-medium hover:underline decoration-primary/30" href="#">Forgot password?</a>
+</div>
+<div class="relative">
+<input class="w-full bg-transparent border-0 border-b border-outline-variant focus:ring-0 focus:border-primary px-0 py-2 transition-all outline-none text-on-surface placeholder:text-outline/40" id="password" name="password" placeholder="••••••••" required="" type="password"/>
+<button class="absolute right-0 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface-variant" type="button">
+<span class="material-symbols-outlined text-sm" data-icon="visibility">visibility</span>
+</button>
+</div>
+</div>
+<!-- Submit Button -->
+<button class="w-full py-4 bg-gradient-to-r from-primary to-primary-container text-on-primary font-semibold rounded-md shadow-lg shadow-primary/20 hover:opacity-90 transition-all flex items-center justify-center gap-2 mt-8" type="submit">
+<span>Sign In</span>
+<span class="material-symbols-outlined text-lg" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</form>
+</div>
+<!-- Footer Card Section -->
+<div class="p-8 bg-surface-container-low">
+<div class="h-[1px] bg-outline-variant/20 mb-6"></div>
+<p class="text-center text-sm text-on-surface-variant">
+                Don't have an account? 
+                <a class="text-primary font-bold hover:underline decoration-primary/30" href="#">Sign Up</a>
+</p>
+</div>
+</main>
+<!-- Global Footer -->
+<footer class="mt-12 text-center max-w-lg">
+<p class="font-label text-xs tracking-tight text-on-surface-variant/60">
+            AEGIS v2.1.0 — Embedded Firmware Security Analysis Platform
+        </p>
+<div class="flex justify-center gap-4 mt-4 opacity-50 hover:opacity-100 transition-opacity">
+<a class="text-[10px] font-label uppercase tracking-widest text-on-surface hover:text-primary" href="#">Documentation</a>
+<span class="text-outline-variant text-[10px]">•</span>
+<a class="text-[10px] font-label uppercase tracking-widest text-on-surface hover:text-primary" href="#">Terms</a>
+<span class="text-outline-variant text-[10px]">•</span>
+<a class="text-[10px] font-label uppercase tracking-widest text-on-surface hover:text-primary" href="#">Privacy</a>
+</div>
+</footer>
+<!-- Aesthetic Decorative Element -->
+<div class="fixed top-0 right-0 p-12 pointer-events-none opacity-10">
+<span class="font-headline font-bold text-9xl tracking-tighter select-none">AEGIS</span>
+</div>
+</body></html>

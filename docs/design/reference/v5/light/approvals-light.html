@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS Approvals | Technical Precision Authority</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@300;400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(16px);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary-fixed-dim": "#6bde80",
+                      "surface-container": "#eeeeee",
+                      "on-surface": "#1a1c1c",
+                      "secondary-fixed": "#dbe3ef",
+                      "surface-dim": "#dadada",
+                      "surface-container-high": "#e8e8e8",
+                      "on-error": "#ffffff",
+                      "primary-fixed-dim": "#adc6ff",
+                      "on-tertiary-fixed": "#002108",
+                      "on-secondary-fixed": "#141c25",
+                      "primary-fixed": "#d8e2ff",
+                      "primary": "#0051ae",
+                      "on-primary-container": "#ecefff",
+                      "primary-container": "#0969da",
+                      "tertiary-fixed": "#88fb99",
+                      "inverse-primary": "#adc6ff",
+                      "surface-variant": "#e2e2e2",
+                      "on-primary-fixed": "#001a41",
+                      "error": "#ba1a1a",
+                      "secondary": "#575f69",
+                      "outline-variant": "#c2c6d6",
+                      "surface": "#f9f9f9",
+                      "surface-container-lowest": "#ffffff",
+                      "secondary-fixed-dim": "#bfc7d3",
+                      "surface-tint": "#005bc0",
+                      "on-primary": "#ffffff",
+                      "inverse-surface": "#2f3131",
+                      "surface-container-highest": "#e2e2e2",
+                      "inverse-on-surface": "#f0f1f1",
+                      "error-container": "#ffdad6",
+                      "on-tertiary": "#ffffff",
+                      "on-secondary-container": "#5b636e",
+                      "on-secondary-fixed-variant": "#3f4751",
+                      "tertiary": "#006226",
+                      "on-primary-fixed-variant": "#004493",
+                      "on-background": "#1a1c1c",
+                      "on-tertiary-container": "#c0ffc2",
+                      "surface-container-low": "#f3f3f4",
+                      "surface-bright": "#f9f9f9",
+                      "secondary-container": "#d8e0ed",
+                      "on-tertiary-fixed-variant": "#00531f",
+                      "on-secondary": "#ffffff",
+                      "on-error-container": "#93000a",
+                      "outline": "#727785",
+                      "background": "#f0f2f5",
+                      "tertiary-container": "#007e33",
+                      "on-surface-variant": "#424753"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "fontFamily": {
+                      "headline": ["Space Grotesk"],
+                      "body": ["Inter"],
+                      "label": ["Space Grotesk"]
+              }
+            },
+          }
+        }
+      </script>
+</head>
+<body class="bg-background font-body text-on-surface antialiased overflow-hidden">
+<!-- TopNavBar -->
+<header class="fixed top-0 z-50 flex justify-between items-center w-full px-6 py-2 h-14 bg-neutral-50 border-b border-neutral-200/20 font-['Space_Grotesk'] tracking-tight">
+<div class="flex items-center gap-8">
+<span class="text-2xl font-black tracking-tighter text-blue-700 uppercase">AEGIS</span>
+<div class="hidden md:flex relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">search</span>
+<input class="bg-surface-container-low border-none h-9 pl-10 pr-4 w-64 rounded-lg text-sm focus:ring-1 focus:ring-primary" placeholder="Search approvals..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative p-2 rounded hover:bg-neutral-200 transition-all cursor-pointer">
+<span class="material-symbols-outlined text-neutral-600">notifications</span>
+<span class="absolute top-1 right-1 w-4 h-4 bg-error text-[10px] text-white flex items-center justify-center rounded-full font-bold">3</span>
+</div>
+<button class="p-2 rounded hover:bg-neutral-200 transition-all">
+<span class="material-symbols-outlined text-neutral-600">settings</span>
+</button>
+<div class="flex items-center gap-2 pl-4 ml-2 border-l border-neutral-200">
+<div class="text-right">
+<p class="text-xs font-bold text-on-surface">Kosh Admin</p>
+<p class="text-[10px] text-neutral-500 uppercase tracking-wider">Kosh</p>
+</div>
+<div class="w-8 h-8 rounded bg-primary-container flex items-center justify-center text-white font-headline font-bold text-sm">K</div>
+</div>
+</div>
+</header>
+<div class="flex h-screen pt-14 overflow-hidden">
+<!-- SideNavBar -->
+<aside class="hidden md:flex flex-col h-full w-64 bg-neutral-100 py-6 border-r border-neutral-200/50">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3 mb-1">
+<div class="w-2 h-2 rounded-full bg-tertiary-fixed-dim shadow-[0_0_8px_rgba(107,222,128,0.6)]"></div>
+<span class="font-headline font-bold text-blue-700">Project AEGIS</span>
+</div>
+<p class="text-[11px] text-neutral-500 font-medium uppercase tracking-tighter">ECU-PowerTrain v2.4</p>
+</div>
+<nav class="flex-1 space-y-0.5 px-3 overflow-y-auto">
+<a class="group flex items-center gap-3 px-3 py-2 text-neutral-500 hover:bg-neutral-200/50 rounded transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">dashboard</span>
+<span class="text-sm">Overview</span>
+</a>
+<a class="group flex items-center gap-3 px-3 py-2 text-neutral-500 hover:bg-neutral-200/50 rounded transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">folder_open</span>
+<span class="text-sm">Files</span>
+</a>
+<a class="group flex items-center gap-3 px-3 py-2 text-neutral-500 hover:bg-neutral-200/50 rounded transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">security</span>
+<span class="text-sm">Vulnerabilities</span>
+</a>
+<a class="group flex items-center gap-3 px-3 py-2 text-neutral-500 hover:bg-neutral-200/50 rounded transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">data_object</span>
+<span class="text-sm">Static Analysis</span>
+</a>
+<a class="group flex items-center gap-3 px-3 py-2 text-neutral-500 hover:bg-neutral-200/50 rounded transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">verified_user</span>
+<span class="text-sm">Quality Gate</span>
+</a>
+<!-- Active Tab -->
+<a class="group flex items-center gap-3 px-3 py-2 bg-white text-blue-700 border-l-2 border-blue-700 font-semibold rounded-r transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">approval</span>
+<span class="text-sm">Approvals</span>
+</a>
+<a class="group flex items-center gap-3 px-3 py-2 text-neutral-500 hover:bg-neutral-200/50 rounded transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">history</span>
+<span class="text-sm">Analysis History</span>
+</a>
+<a class="group flex items-center gap-3 px-3 py-2 text-neutral-500 hover:bg-neutral-200/50 rounded transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">description</span>
+<span class="text-sm">Report</span>
+</a>
+<div class="py-4 px-3">
+<div class="h-[1px] bg-neutral-200 w-full"></div>
+</div>
+<p class="px-3 mb-2 text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Sub-Projects</p>
+<div class="space-y-1">
+<a class="flex justify-between items-center px-3 py-1.5 hover:bg-neutral-200/50 rounded text-xs text-neutral-600" href="#">
+<span>arm-cortex-m4-main</span>
+<span class="bg-neutral-200 px-1.5 py-0.5 rounded text-[10px]">30</span>
+</a>
+<a class="flex justify-between items-center px-3 py-1.5 hover:bg-neutral-200/50 rounded text-xs text-neutral-600" href="#">
+<span>arm-cortex-m4-boot</span>
+<span class="bg-neutral-200 px-1.5 py-0.5 rounded text-[10px]">8</span>
+</a>
+<a class="flex justify-between items-center px-3 py-1.5 hover:bg-neutral-200/50 rounded text-xs text-neutral-600" href="#">
+<span>riscv-rv32-diag</span>
+<span class="bg-neutral-200 px-1.5 py-0.5 rounded text-[10px]">5</span>
+</a>
+</div>
+</nav>
+<div class="px-3 mt-auto pt-6 border-t border-neutral-200">
+<a class="flex items-center gap-3 px-3 py-2 text-neutral-500 hover:bg-neutral-200/50 rounded transition-colors text-sm" href="#">
+<span class="material-symbols-outlined text-[20px]">arrow_back</span>
+<span>Back to Projects</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 overflow-y-auto scroll-smooth">
+<div class="max-w-5xl mx-auto px-8 py-10">
+<!-- Page Header -->
+<div class="mb-12">
+<h1 class="font-headline text-4xl font-bold tracking-tight text-on-surface mb-2">Approvals</h1>
+<div class="flex items-center gap-3 text-neutral-500">
+<span class="material-symbols-outlined text-[18px]">pending_actions</span>
+<p class="text-sm font-medium">3 approval requests requiring attention</p>
+</div>
+</div>
+<!-- Content Area: Approval Cards -->
+<div class="space-y-6">
+<!-- Card 1: Pending -->
+<article class="bg-surface-container-lowest rounded shadow-sm border-l-4 border-[#bf8700] hover:shadow-md transition-shadow">
+<div class="p-6">
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="flex items-center gap-3 mb-1">
+<h2 class="font-headline text-xl font-bold text-on-surface">Release ECU-PowerTrain v2.1 for production</h2>
+<span class="bg-[#fef9c3] text-[#854d0e] px-2 py-0.5 rounded text-[10px] font-headline font-bold tracking-wider uppercase">PENDING REVIEW</span>
+</div>
+<p class="text-xs text-neutral-500 flex items-center gap-2">
+<span class="font-semibold text-neutral-700">Requested by Kosh</span>
+<span class="w-1 h-1 rounded-full bg-neutral-300"></span>
+<span>6 hours ago</span>
+</p>
+</div>
+<div class="flex items-center gap-2 bg-tertiary-container/10 px-3 py-1.5 rounded">
+<span class="material-symbols-outlined text-tertiary text-[18px]">verified</span>
+<span class="text-xs font-bold text-tertiary uppercase tracking-tight">Gate #47: PASS</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-4 rounded-lg border-l-2 border-neutral-300 mb-4 space-y-4">
+<div class="flex gap-3">
+<div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xs font-bold shrink-0">K</div>
+<div>
+<p class="text-xs font-bold text-neutral-700 mb-1">Kosh <span class="text-neutral-400 font-normal">6h ago</span></p>
+<p class="text-sm text-neutral-600">Ready for production release. All critical safety path analysis results are verified.</p>
+</div>
+</div>
+<div class="flex gap-3">
+<div class="w-8 h-8 rounded-full bg-neutral-200 flex items-center justify-center text-neutral-600 text-xs font-bold shrink-0">A</div>
+<div>
+<p class="text-xs font-bold text-neutral-700 mb-1">Admin <span class="text-neutral-400 font-normal">2h ago</span></p>
+<p class="text-sm text-neutral-600">Reviewing security findings on the crypto-extension library before signing off.</p>
+</div>
+</div>
+</div>
+<div class="flex justify-end gap-3 pt-4 border-t border-neutral-100">
+<button class="px-4 py-2 text-xs font-headline font-bold text-error hover:bg-error-container/20 rounded transition-colors uppercase tracking-widest">Reject</button>
+<button class="px-6 py-2 text-xs font-headline font-bold bg-primary text-white hover:bg-primary-container rounded transition-all shadow-sm uppercase tracking-widest">Approve Release</button>
+</div>
+</div>
+</article>
+<!-- Card 2: Approved -->
+<article class="bg-surface-container-lowest rounded shadow-sm border-l-4 border-[#1a7f37] opacity-90 grayscale-[0.2] hover:grayscale-0 transition-all">
+<div class="p-6">
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="flex items-center gap-3 mb-1">
+<h2 class="font-headline text-xl font-bold text-on-surface">Override Quality Gate for arm-cortex-m4-boot</h2>
+<span class="bg-[#dcfce7] text-[#166534] px-2 py-0.5 rounded text-[10px] font-headline font-bold tracking-wider uppercase">APPROVED</span>
+</div>
+<p class="text-xs text-neutral-500 flex items-center gap-2">
+<span class="font-semibold text-neutral-700">Approved by Admin</span>
+<span class="w-1 h-1 rounded-full bg-neutral-300"></span>
+<span>1 day ago</span>
+</p>
+</div>
+<div class="flex items-center gap-2 bg-error-container/10 px-3 py-1.5 rounded">
+<span class="material-symbols-outlined text-error text-[18px]">report</span>
+<span class="text-xs font-bold text-error uppercase tracking-tight">Gate #45: FAIL (Overridden)</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-4 rounded-lg border-l-2 border-[#1a7f37] mb-4">
+<p class="text-[10px] font-headline font-bold text-neutral-500 uppercase tracking-widest mb-2">Override Reason</p>
+<p class="text-sm text-neutral-700 leading-relaxed italic">"Boot partition findings are false positives per vendor advisory. The highlighted memory access patterns are intentional for early boot strap diagnostics."</p>
+</div>
+<div class="flex justify-end pt-2">
+<button class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-neutral-500 hover:bg-neutral-100 rounded transition-colors">
+<span class="material-symbols-outlined text-[16px]">visibility</span>
+                                    View Audit Trail
+                                </button>
+</div>
+</div>
+</article>
+<!-- Card 3: Rejected -->
+<article class="bg-surface-container-lowest rounded shadow-sm border-l-4 border-[#cf222e]">
+<div class="p-6">
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="flex items-center gap-3 mb-1">
+<h2 class="font-headline text-xl font-bold text-on-surface">Waive MISRA-11.3 for timer_config.c</h2>
+<span class="bg-[#fee2e2] text-[#991b1b] px-2 py-0.5 rounded text-[10px] font-headline font-bold tracking-wider uppercase">REJECTED</span>
+</div>
+<p class="text-xs text-neutral-500 flex items-center gap-2">
+<span class="font-semibold text-neutral-700">Rejected by Admin</span>
+<span class="w-1 h-1 rounded-full bg-neutral-300"></span>
+<span>3 days ago</span>
+</p>
+</div>
+<div class="flex items-center gap-2 bg-neutral-100 px-3 py-1.5 rounded">
+<span class="material-symbols-outlined text-neutral-500 text-[18px]">find_in_page</span>
+<span class="text-xs font-bold text-neutral-700 tracking-tight">MISRA-11.3 | timer_config.c:56</span>
+</div>
+</div>
+<div class="bg-error-container/5 p-4 rounded-lg border-l-2 border-[#cf222e] mb-4">
+<p class="text-[10px] font-headline font-bold text-error uppercase tracking-widest mb-2">Rejection Reason</p>
+<p class="text-sm text-neutral-700 leading-relaxed">MISRA compliance required for ISO 26262 certification. Waiving this finding without a structural refactor compromises the safety integrity level of the power train control module.</p>
+</div>
+<div class="flex justify-end gap-3 pt-2">
+<button class="px-4 py-1.5 text-xs font-medium text-primary hover:bg-primary-container/5 rounded transition-colors">Resubmit with Correction</button>
+<button class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-neutral-500 hover:bg-neutral-100 rounded transition-colors">
+<span class="material-symbols-outlined text-[16px]">history</span>
+                                    Rejection History
+                                </button>
+</div>
+</div>
+</article>
+</div>
+<!-- Technical Monolith / Background Context -->
+<div class="mt-16 bg-surface-container-high p-8 rounded border-t-2 border-primary-container/30">
+<div class="grid grid-cols-3 gap-8">
+<div class="col-span-2">
+<h3 class="font-headline font-bold text-lg mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">analytics</span>
+                                System Approval Trends
+                            </h3>
+<div class="h-40 flex items-end gap-2 px-4">
+<div class="w-full bg-blue-200 h-1/4 rounded-t-sm" title="Mon"></div>
+<div class="w-full bg-blue-300 h-2/4 rounded-t-sm" title="Tue"></div>
+<div class="w-full bg-blue-500 h-3/4 rounded-t-sm" title="Wed"></div>
+<div class="w-full bg-blue-600 h-5/6 rounded-t-sm" title="Thu"></div>
+<div class="w-full bg-blue-400 h-2/3 rounded-t-sm" title="Fri"></div>
+<div class="w-full bg-blue-100 h-1/6 rounded-t-sm" title="Sat"></div>
+<div class="w-full bg-blue-200 h-1/4 rounded-t-sm" title="Sun"></div>
+</div>
+<div class="flex justify-between px-4 mt-2 text-[10px] font-bold text-neutral-500 uppercase font-headline">
+<span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-5 rounded shadow-sm">
+<h4 class="text-[10px] font-headline font-black text-neutral-400 uppercase tracking-[0.2em] mb-4">Approval Velocity</h4>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-xs mb-1">
+<span class="font-bold">MTTA</span>
+<span class="text-primary font-mono">2.4h</span>
+</div>
+<div class="h-1 bg-neutral-100 rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[70%]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-xs mb-1">
+<span class="font-bold">Override Rate</span>
+<span class="text-error font-mono">12%</span>
+</div>
+<div class="h-1 bg-neutral-100 rounded-full overflow-hidden">
+<div class="h-full bg-error w-[12%]"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="mt-auto flex justify-between items-center px-8 py-4 w-full bg-neutral-50 border-t border-neutral-200/10 font-['Space_Grotesk'] text-[10px] uppercase tracking-widest text-neutral-400">
+<p>AEGIS v2.1.0 — Embedded Firmware Security Analysis Platform</p>
+<div class="flex gap-6">
+<a class="hover:text-blue-700 transition-opacity opacity-80 hover:opacity-100" href="#">System Status</a>
+<a class="hover:text-blue-700 transition-opacity opacity-80 hover:opacity-100" href="#">API Logs</a>
+<a class="hover:text-blue-700 transition-opacity opacity-80 hover:opacity-100" href="#">Security Documentation</a>
+</div>
+<p>© 2024 AEGIS Systems • Technical Precision Authority</p>
+</footer>
+</main>
+</div>
+<!-- Floating Action Button (FAB) - Suppressed on Details/Transactional, but kept for active session if applicable. Shown here for new approval request -->
+<button class="fixed bottom-10 right-10 w-14 h-14 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-transform group">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">add</span>
+<span class="absolute right-full mr-4 bg-on-surface text-white text-[10px] px-3 py-1.5 rounded font-headline font-bold uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">New Manual Gate</span>
+</button>
+</body></html>

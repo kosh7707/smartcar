@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS — Files</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;700&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container": "#eceef1",
+                        "outline": "#727785",
+                        "surface-container-highest": "#e0e3e6",
+                        "background": "#f7f9fc",
+                        "tertiary-fixed-dim": "#ffb3ae",
+                        "inverse-primary": "#adc6ff",
+                        "on-primary-container": "#ecefff",
+                        "surface-container-low": "#f2f4f7",
+                        "on-surface": "#191c1e",
+                        "primary-fixed-dim": "#adc6ff",
+                        "inverse-on-surface": "#eff1f4",
+                        "surface-bright": "#f7f9fc",
+                        "secondary-fixed": "#dae3ef",
+                        "on-primary": "#ffffff",
+                        "secondary-fixed-dim": "#bec7d2",
+                        "secondary": "#565f69",
+                        "primary": "#0051ae",
+                        "surface-container-high": "#e6e8eb",
+                        "tertiary-fixed": "#ffdad7",
+                        "on-error-container": "#93000a",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-container": "#d22530",
+                        "on-error": "#ffffff",
+                        "on-tertiary-fixed": "#410005",
+                        "on-secondary-container": "#5c656f",
+                        "error": "#ba1a1a",
+                        "inverse-surface": "#2d3133",
+                        "on-primary-fixed-variant": "#004493",
+                        "on-tertiary-fixed-variant": "#930016",
+                        "on-surface-variant": "#424753",
+                        "surface-tint": "#005bc0",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary-fixed-variant": "#3f4851",
+                        "surface-variant": "#e0e3e6",
+                        "primary-fixed": "#d8e2ff",
+                        "on-secondary-fixed": "#141c25",
+                        "on-primary-fixed": "#001a41",
+                        "on-background": "#191c1e",
+                        "outline-variant": "#c2c6d6",
+                        "secondary-container": "#dae3ef",
+                        "surface-dim": "#d8dadd",
+                        "tertiary": "#ad001c",
+                        "on-tertiary-container": "#ffecea",
+                        "surface": "#f7f9fc",
+                        "error-container": "#ffdad6",
+                        "on-secondary": "#ffffff",
+                        "primary-container": "#0969da"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["Inter", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"]
+                    }
+                },
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+            font-size: 1.25rem;
+        }
+        body { font-family: 'Inter', sans-serif; background-color: #f7f9fc; }
+        .technical-manuscript-grid { background-image: radial-gradient(#e0e3e6 0.5px, transparent 0.5px); background-size: 24px 24px; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden text-on-surface">
+<!-- TopNavBar (JSON Logic Execution) -->
+<header class="bg-white dark:bg-slate-950 text-blue-600 dark:text-blue-400 font-['Inter'] text-sm antialiased border-b border-slate-100 dark:border-slate-800 flex justify-between items-center px-6 w-full z-50 fixed top-0 h-16">
+<div class="flex items-center gap-8">
+<span class="font-['Space_Grotesk'] font-bold text-xl tracking-tighter text-blue-700 dark:text-blue-500">AEGIS</span>
+<div class="relative w-64">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+<input class="w-full bg-slate-50 border-none rounded-lg pl-10 py-2 text-xs focus:ring-1 focus:ring-blue-600" placeholder="Search..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative cursor-pointer hover:bg-slate-50 p-2 rounded transition-colors">
+<span class="material-symbols-outlined text-slate-500" data-icon="notifications">notifications</span>
+<span class="absolute top-1 right-1 w-4 h-4 bg-tertiary-container text-white text-[10px] flex items-center justify-center rounded-full font-bold">3</span>
+</div>
+<div class="flex items-center gap-3 border-l border-slate-100 pl-6">
+<div class="text-right">
+<p class="text-on-surface font-bold text-xs">Kosh</p>
+<p class="text-slate-400 text-[10px] uppercase tracking-widest">Admin</p>
+</div>
+<div class="w-8 h-8 rounded bg-primary text-white flex items-center justify-center font-bold text-sm">K</div>
+</div>
+</div>
+</header>
+<div class="flex flex-1 pt-16 overflow-hidden">
+<!-- LeftSidebar (JSON Logic Execution) -->
+<aside class="flex flex-col h-full border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 w-64 shrink-0 overflow-y-auto">
+<div class="px-5 py-6">
+<div class="flex items-center gap-2 mb-8">
+<div class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+<span class="font-headline font-bold text-sm text-slate-900 dark:text-slate-100 truncate">ECU-PowerTrain-v2.1</span>
+</div>
+<nav class="space-y-1">
+<a class="text-slate-500 px-4 py-3 flex items-center gap-3 hover:bg-slate-100 transition-all font-['Inter'] text-xs font-medium uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span> Overview
+                    </a>
+<a class="bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border-l-4 border-blue-600 font-bold px-4 py-3 flex items-center gap-3 font-['Inter'] text-xs uppercase tracking-wider shadow-sm" href="#">
+<span class="material-symbols-outlined" data-icon="folder_open">folder_open</span> Files
+                    </a>
+<a class="text-slate-500 px-4 py-3 flex items-center gap-3 hover:bg-slate-100 transition-all font-['Inter'] text-xs font-medium uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined" data-icon="security">security</span> Vulnerabilities
+                    </a>
+<a class="text-slate-500 px-4 py-3 flex items-center gap-3 hover:bg-slate-100 transition-all font-['Inter'] text-xs font-medium uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined" data-icon="memory">memory</span> Static Analysis
+                    </a>
+<a class="text-slate-500 px-4 py-3 flex items-center gap-3 hover:bg-slate-100 transition-all font-['Inter'] text-xs font-medium uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined" data-icon="verified">verified</span> Quality Gate
+                    </a>
+<a class="text-slate-500 px-4 py-3 flex items-center gap-3 hover:bg-slate-100 transition-all font-['Inter'] text-xs font-medium uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined" data-icon="fact_check">fact_check</span> Approvals
+                    </a>
+<a class="text-slate-500 px-4 py-3 flex items-center gap-3 hover:bg-slate-100 transition-all font-['Inter'] text-xs font-medium uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span> Analysis History
+                    </a>
+<a class="text-slate-500 px-4 py-3 flex items-center gap-3 hover:bg-slate-100 transition-all font-['Inter'] text-xs font-medium uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span> Report
+                    </a>
+</nav>
+<div class="h-px bg-slate-200 my-6"></div>
+<a class="text-slate-500 px-4 py-3 flex items-center gap-3 hover:bg-slate-100 transition-all font-['Inter'] text-xs font-medium uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span> Settings
+                </a>
+<div class="mt-8">
+<p class="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Sub-Projects</p>
+<div class="space-y-1">
+<div class="flex items-center justify-between px-4 py-2 hover:bg-slate-100 rounded-lg cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-xs text-slate-400" data-icon="arrow_right">arrow_right</span>
+<span class="text-xs text-slate-600 font-medium">arm-cortex-m4-main</span>
+</div>
+<span class="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-bold">30</span>
+</div>
+<div class="flex items-center justify-between px-4 py-2 hover:bg-slate-100 rounded-lg cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-xs text-slate-400" data-icon="arrow_right">arrow_right</span>
+<span class="text-xs text-slate-600 font-medium">arm-cortex-m4-boot</span>
+</div>
+<span class="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-bold">8</span>
+</div>
+<div class="flex items-center justify-between px-4 py-2 hover:bg-slate-100 rounded-lg cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-xs text-slate-400" data-icon="arrow_right">arrow_right</span>
+<span class="text-xs text-slate-600 font-medium">riscv-rv32-diag</span>
+</div>
+<span class="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-bold">5</span>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-auto p-5 bg-slate-100/50">
+<button class="flex items-center gap-3 text-slate-500 hover:text-blue-600 transition-colors font-bold text-xs uppercase tracking-wider">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+                    Back to Projects
+                </button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 overflow-y-auto technical-manuscript-grid p-6 bg-background">
+<div class="max-w-[1400px] mx-auto space-y-6">
+<!-- Top Section: Stats & Progress -->
+<div class="bg-surface-container-lowest p-5 rounded border-l-4 border-primary shadow-sm">
+<div class="flex items-center justify-between mb-4">
+<h2 class="font-headline font-bold text-lg tracking-tight">Source Distribution</h2>
+<span class="text-[10px] font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded">LOC TOTAL: 142,593</span>
+</div>
+<div class="flex w-full h-2 rounded-full overflow-hidden bg-slate-100">
+<div class="h-full bg-primary" style="width: 72%"></div>
+<div class="h-full bg-slate-400" style="width: 18%"></div>
+<div class="h-full bg-slate-200" style="width: 10%"></div>
+</div>
+<div class="flex gap-6 mt-4">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 bg-primary"></div>
+<span class="text-xs font-medium text-slate-600">C Language (72%)</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 bg-slate-400"></div>
+<span class="text-xs font-medium text-slate-600">Assembly (18%)</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 bg-slate-200"></div>
+<span class="text-xs font-medium text-slate-600">Header Files (10%)</span>
+</div>
+</div>
+</div>
+<!-- 2-Column Grid -->
+<div class="grid grid-cols-10 gap-6">
+<!-- Column 1: File Tree (60%) -->
+<div class="col-span-6 flex flex-col bg-surface-container-lowest rounded shadow-sm overflow-hidden">
+<div class="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+<span class="text-xs font-bold uppercase tracking-[0.1em] text-slate-500">Project Directory</span>
+<div class="flex gap-2">
+<button class="p-1.5 hover:bg-white rounded transition-all text-slate-400">
+<span class="material-symbols-outlined text-sm" data-icon="create_new_folder">create_new_folder</span>
+</button>
+<button class="p-1.5 hover:bg-white rounded transition-all text-slate-400">
+<span class="material-symbols-outlined text-sm" data-icon="unfold_more">unfold_more</span>
+</button>
+</div>
+</div>
+<div class="p-5 font-mono text-sm space-y-1">
+<!-- Boot Folder -->
+<div class="flex items-center gap-2 py-1 text-slate-600 cursor-pointer">
+<span class="material-symbols-outlined text-blue-400" data-icon="folder">folder</span>
+<span>boot/</span>
+</div>
+<!-- Include Folder -->
+<div class="flex items-center gap-2 py-1 text-slate-600 cursor-pointer">
+<span class="material-symbols-outlined text-blue-400" data-icon="folder">folder</span>
+<span>include/</span>
+</div>
+<!-- Src Folder (Expanded) -->
+<div class="flex flex-col">
+<div class="flex items-center gap-2 py-1 text-slate-900 font-bold bg-blue-50/30">
+<span class="material-symbols-outlined text-blue-500" data-icon="folder_open">folder_open</span>
+<span>src/</span>
+</div>
+<div class="ml-6 border-l border-slate-100">
+<div class="flex items-center gap-2 py-1 pl-4 text-slate-600 cursor-pointer group">
+<span class="material-symbols-outlined text-blue-400" data-icon="folder">folder</span>
+<span>hal/</span>
+</div>
+<div class="flex items-center justify-between py-1 pl-4 pr-4 bg-primary/5 border-l-2 border-primary group cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors" data-icon="description">description</span>
+<span class="text-primary font-bold">can_driver.c</span>
+</div>
+<span class="px-1.5 py-0.5 bg-tertiary-container text-white text-[10px] rounded font-bold">2</span>
+</div>
+<div class="flex items-center justify-between py-1 pl-4 pr-4 hover:bg-slate-50 group cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-400" data-icon="description">description</span>
+<span class="text-slate-600">spi_handler.c</span>
+</div>
+<span class="px-1.5 py-0.5 bg-tertiary-container text-white text-[10px] rounded font-bold">1</span>
+</div>
+<div class="flex items-center justify-between py-1 pl-4 pr-4 hover:bg-slate-50 group cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-400" data-icon="description">description</span>
+<span class="text-slate-600">adc_convert.c</span>
+</div>
+<span class="px-1.5 py-0.5 bg-tertiary-container text-white text-[10px] rounded font-bold">2</span>
+</div>
+<div class="flex items-center justify-between py-1 pl-4 pr-4 hover:bg-slate-50 group cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-400" data-icon="description">description</span>
+<span class="text-slate-600">flash_write.c</span>
+</div>
+<span class="px-1.5 py-0.5 bg-tertiary-container text-white text-[10px] rounded font-bold">1</span>
+</div>
+<div class="flex items-center gap-2 py-1 pl-4 text-slate-600 cursor-pointer group hover:bg-slate-50">
+<span class="material-symbols-outlined text-slate-400" data-icon="description">description</span>
+<span>main.c</span>
+</div>
+</div>
+</div>
+<!-- Misc files -->
+<div class="flex items-center gap-2 py-1 text-slate-400">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+<span>Makefile</span>
+</div>
+<div class="flex items-center gap-2 py-1 text-slate-400">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span>linker_script.ld</span>
+</div>
+</div>
+</div>
+<!-- Column 2: File Detail Panel (40%) -->
+<div class="col-span-4 space-y-6">
+<!-- Detail Card -->
+<div class="bg-surface-container-lowest rounded shadow-sm overflow-hidden">
+<div class="px-5 py-5 border-b border-slate-100">
+<h3 class="font-headline font-bold text-xl text-slate-900 mb-1">can_driver.c</h3>
+<div class="bg-surface-container-high px-2 py-1 rounded inline-block">
+<span class="font-mono text-[11px] text-on-surface-variant tracking-tight">src/drivers/can_driver.c</span>
+</div>
+</div>
+<div class="p-5 space-y-4">
+<div class="grid grid-cols-2 gap-4">
+<div class="space-y-1">
+<p class="text-[10px] text-slate-400 uppercase font-bold">Metrics</p>
+<p class="text-sm font-medium text-slate-700">342 lines of code</p>
+</div>
+<div class="space-y-1 text-right">
+<p class="text-[10px] text-slate-400 uppercase font-bold">Language</p>
+<p class="text-sm font-medium text-slate-700">C Language</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] text-slate-400 uppercase font-bold">Last Modified</p>
+<p class="text-sm font-medium text-slate-700">2026-04-07</p>
+</div>
+<div class="space-y-1 text-right">
+<p class="text-[10px] text-slate-400 uppercase font-bold">Complexity</p>
+<p class="text-sm font-medium text-tertiary">High (O:14)</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Findings Card -->
+<div class="bg-surface-container-lowest rounded shadow-sm overflow-hidden">
+<div class="px-5 py-4 border-b border-slate-100 bg-tertiary/5">
+<p class="text-xs font-bold uppercase tracking-[0.1em] text-tertiary">Security Findings (2)</p>
+</div>
+<div class="p-0">
+<!-- Finding 1 -->
+<div class="p-5 border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer group">
+<div class="flex items-start gap-3">
+<div class="mt-1 w-2.5 h-2.5 rounded-full bg-tertiary shrink-0 shadow-[0_0_8px_rgba(173,0,28,0.3)]"></div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-1">
+<p class="text-sm font-bold text-slate-900 leading-tight">CWE-119: Buffer Overflow</p>
+<span class="text-[10px] font-mono text-slate-400">LINE 142</span>
+</div>
+<p class="text-xs text-slate-500 leading-relaxed">Memory corruption likely in CAN_Frame_Init function due to unchecked index access.</p>
+<div class="mt-3 flex items-center gap-2">
+<span class="px-2 py-0.5 bg-tertiary-container text-white text-[10px] rounded font-bold uppercase">Critical</span>
+<span class="text-[10px] text-slate-400 italic">Reported by Static Analysis V2</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Finding 2 -->
+<div class="p-5 hover:bg-slate-50 transition-colors cursor-pointer group">
+<div class="flex items-start gap-3">
+<div class="mt-1 w-2.5 h-2.5 rounded-full bg-yellow-500 shrink-0 shadow-[0_0_8px_rgba(234,179,8,0.3)]"></div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-1">
+<p class="text-sm font-bold text-slate-900 leading-tight">CWE-476: Null Pointer Dereference</p>
+<span class="text-[10px] font-mono text-slate-400">LINE 89</span>
+</div>
+<p class="text-xs text-slate-500 leading-relaxed">Potential null pointer access when tx_buffer fails to allocate.</p>
+<div class="mt-3 flex items-center gap-2">
+<span class="px-2 py-0.5 bg-yellow-500 text-white text-[10px] rounded font-bold uppercase">High</span>
+<span class="text-[10px] text-slate-400 italic">Reported by Flow Tracker</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Image Section (Decorative) -->
+<div class="rounded overflow-hidden h-40 relative group">
+<img alt="Technical component macro" class="w-full h-full object-cover grayscale opacity-50 group-hover:grayscale-0 transition-all duration-700" data-alt="Macro close-up of a high-tech circuit board with blue glowing pathways and metallic components, engineering blueprint aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB9CtXQyOzl5RghA-pnX692BYE-kOdvKhzcRo6tDjphM4KvL46m8kfNZTp4GPb7vRNNLEhN7ASqNlCY8gGbwJTvsrbFKpaFOk-ZOXJoxNwjnpGJP9U3JaKEJkXlF-VZ-VBhzjA9pke0By2wRurWiv6nV719IduwAu9faBspLganLolLad8xLMHv9dYWIR1bFL9naqATC2MkalAN7Hna4W6jrgJXn6KouRMXXj8LrXm0oYclcedyR38fhJSxSa1JkmHY-qJZtjQtU8LA"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
+<div class="absolute bottom-4 left-4">
+<p class="text-[10px] font-mono text-white bg-slate-900/80 px-2 py-1 rounded backdrop-blur-sm">MODULE_ID: CAN_DRV_01</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Footer -->
+<footer class="h-10 border-t border-slate-200 bg-white flex items-center justify-center shrink-0">
+<p class="text-[10px] font-medium text-slate-400 uppercase tracking-[0.2em]">
+            AEGIS v2.1.0 — Embedded Firmware Security Analysis Platform
+        </p>
+</footer>
+</body></html>

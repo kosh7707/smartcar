@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Approvals</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary": "#a2c9ff",
+                    "on-secondary-fixed": "#141c24",
+                    "secondary": "#bec7d2",
+                    "on-primary": "#00315c",
+                    "tertiary-fixed": "#ffdeaa",
+                    "surface": "#10141a",
+                    "surface-container": "#1c2026",
+                    "tertiary": "#fabc45",
+                    "on-error": "#690005",
+                    "inverse-on-surface": "#2d3137",
+                    "surface-tint": "#a2c9ff",
+                    "background": "#10141a",
+                    "tertiary-fixed-dim": "#fabc45",
+                    "tertiary-container": "#d29922",
+                    "on-surface": "#dfe2eb",
+                    "surface-variant": "#31353c",
+                    "surface-container-lowest": "#0a0e14",
+                    "surface-container-highest": "#31353c",
+                    "on-tertiary": "#422c00",
+                    "inverse-primary": "#0060aa",
+                    "surface-container-low": "#181c22",
+                    "on-surface-variant": "#c0c7d4",
+                    "surface-bright": "#353940",
+                    "on-tertiary-fixed-variant": "#5f4100",
+                    "error-container": "#93000a",
+                    "outline": "#8b919d",
+                    "error": "#ffb4ab",
+                    "secondary-fixed": "#dae3ee",
+                    "on-secondary-container": "#b0b9c4",
+                    "primary-fixed-dim": "#a2c9ff",
+                    "on-secondary": "#29313a",
+                    "on-background": "#dfe2eb",
+                    "primary-fixed": "#d3e4ff",
+                    "secondary-fixed-dim": "#bec7d2",
+                    "on-primary-fixed-variant": "#004882",
+                    "on-tertiary-fixed": "#271900",
+                    "on-tertiary-container": "#4d3500",
+                    "secondary-container": "#414a53",
+                    "on-secondary-fixed-variant": "#3f4850",
+                    "on-primary-fixed": "#001c38",
+                    "outline-variant": "#414752",
+                    "primary-container": "#58a6ff",
+                    "on-primary-container": "#003a6b",
+                    "on-error-container": "#ffdad6",
+                    "inverse-surface": "#dfe2eb",
+                    "surface-dim": "#10141a",
+                    "surface-container-high": "#262a31"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Space Grotesk"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+        body { font-family: 'Inter', sans-serif; background-color: #10141a; color: #dfe2eb; }
+        .github-border { border: 1px solid #414752; }
+    </style>
+</head>
+<body class="antialiased font-body text-sm">
+<!-- TopNavBar -->
+<nav class="bg-[#10141a] text-[#a2c9ff] font-['Space_Grotesk'] tracking-tight flex justify-between items-center px-6 h-16 w-full z-50 sticky top-0 transition-colors duration-200 ease-in-out border-b border-outline-variant/20">
+<div class="flex items-center gap-6">
+<span class="text-xl font-bold text-[#dfe2eb]">AEGIS</span>
+<div class="flex items-center gap-2 px-3 py-1 bg-surface-container rounded-sm border border-outline-variant/30 text-on-surface cursor-pointer hover:bg-surface-container-high transition-colors">
+<span class="text-xs font-medium opacity-70">Project:</span>
+<span class="text-sm font-semibold">ECU-PowerTrain-v2.1</span>
+<span class="material-symbols-outlined text-sm">arrow_drop_down</span>
+</div>
+</div>
+<div class="flex-1 max-w-xl px-8 hidden md:block">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">search</span>
+<input class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded-sm py-1.5 pl-10 pr-4 text-sm focus:outline-none focus:border-primary-container transition-all" placeholder="Search or jump to..." type="text"/>
+<div class="absolute right-3 top-1/2 -translate-y-1/2 border border-outline-variant/40 px-1.5 rounded text-[10px] text-outline">/</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative cursor-pointer hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute -top-1 -right-1 bg-error text-on-error rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">3</span>
+</div>
+<span class="material-symbols-outlined cursor-pointer hover:text-on-surface transition-colors" data-icon="settings">settings</span>
+<div class="flex items-center gap-2 pl-4 border-l border-outline-variant/20">
+<div class="w-7 h-7 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-bold text-xs overflow-hidden">
+<img alt="User Profile" data-alt="Close-up portrait of a professional male engineer with a clean minimalist aesthetic and soft cinematic studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAJnm_bpAH2RTEXwBXBMxRnCfDQk7i1QJr_-UkhwZQXc5WR0LlDTOUK87cD95Np3LSK_R_qBBqktI9QYJ-maQ2NR71YlizjDCNoe1Z437K12nzG5Z0ZsQiQl_qJRra_le0TV_Bp18RnSv1FTYGzQKXe94uiWiFFZsktm-m4SMZ3HgQITXoCq4h9YE1C5vfse2JEJ0JyegQr8qWj-rRNogZpMyd3Xyi5xmc1s8sWe4LF1c7SMXi0BJB-mj-tkHWAaQrei6JgxqsjruPi"/>
+</div>
+<span class="text-sm font-medium text-on-surface hidden lg:block">Kosh Admin</span>
+</div>
+</div>
+</nav>
+<div class="flex h-[calc(100vh-64px)] overflow-hidden">
+<!-- SideNavBar -->
+<aside class="bg-[#181c22] text-sm font-['Inter'] flex flex-col py-4 border-r border-[#414752]/20 h-full w-64 shrink-0 transition-all duration-150">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3 mb-1">
+<div class="w-6 h-6 rounded bg-primary-container flex items-center justify-center overflow-hidden">
+<img alt="Project Avatar" data-alt="Abstract geometric tech icon with glowing blue lines on a dark metallic background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBJPVB-nt_HAZatzvbQlG6KbZDYt_mRh_CXbE2JQ9KeHLUrs7EZ-pBvNfl6XccoKnx3a6zL2dJ7EDKMscxX88Q0S3B5hg4INC5WXPRwXzHx8T7B9nnM23M-fXk_wW53KMllbpSIlz9l4DVTJB0AsyoBH_qlzSul1qoIYDDbERsOTNk-P5E0kDpacsBBglUU8MChV2MqIazkU7bGHf-p8L6iAik-dTLCZUoJr-6sBh-Nu9oLdR4RHqjGUtk7QtBek--ECv0THhI5T7vh"/>
+</div>
+<span class="font-bold text-[#dfe2eb] text-lg">Aegis Engine</span>
+</div>
+<p class="text-outline text-xs">Core Infrastructure</p>
+</div>
+<nav class="flex-1">
+<div class="px-4 mb-4">
+<p class="text-[10px] font-bold text-outline tracking-widest uppercase px-3 mb-2">Navigation</p>
+<a class="flex items-center gap-3 px-3 py-2 text-[#9499a4] hover:text-[#dfe2eb] hover:bg-[#1c2026] rounded transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="dashboard">dashboard</span>
+<span>Overview</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#9499a4] hover:text-[#dfe2eb] hover:bg-[#1c2026] rounded transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="inventory_2">inventory_2</span>
+<span>Repositories</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 bg-[#262a31] text-[#a2c9ff] font-semibold border-l-4 border-[#58a6ff] transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="rule">rule</span>
+<span>Approvals</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#9499a4] hover:text-[#dfe2eb] hover:bg-[#1c2026] rounded transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="play_circle">play_circle</span>
+<span>Actions</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#9499a4] hover:text-[#dfe2eb] hover:bg-[#1c2026] rounded transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="account_tree">account_tree</span>
+<span>Projects</span>
+</a>
+</div>
+<div class="px-4 mb-4">
+<p class="text-[10px] font-bold text-outline tracking-widest uppercase px-3 mb-2">Sub-Projects</p>
+<div class="space-y-1">
+<div class="flex items-center justify-between px-3 py-1.5 text-outline hover:text-on-surface cursor-pointer text-xs">
+<span class="truncate">arm-cortex-m4-main</span>
+<span class="bg-surface-container-high px-1.5 rounded-full text-[10px]">30</span>
+</div>
+<div class="flex items-center justify-between px-3 py-1.5 text-outline hover:text-on-surface cursor-pointer text-xs">
+<span class="truncate">arm-cortex-m4-boot</span>
+<span class="bg-surface-container-high px-1.5 rounded-full text-[10px]">8</span>
+</div>
+<div class="flex items-center justify-between px-3 py-1.5 text-outline hover:text-on-surface cursor-pointer text-xs">
+<span class="truncate">riscv-rv32-diag</span>
+<span class="bg-surface-container-high px-1.5 rounded-full text-[10px]">5</span>
+</div>
+</div>
+</div>
+</nav>
+<div class="px-4 mt-auto space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-[#9499a4] hover:text-[#dfe2eb] hover:bg-[#1c2026] rounded transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="help">help</span>
+<span>Support</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#9499a4] hover:text-[#dfe2eb] hover:bg-[#1c2026] rounded transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="description">description</span>
+<span>Docs</span>
+</a>
+<div class="pt-4 mt-2 border-t border-outline-variant/20">
+<button class="w-full text-left flex items-center gap-3 px-3 py-2 text-outline hover:text-on-surface transition-all">
+<span class="material-symbols-outlined text-[20px]">arrow_back</span>
+<span>Back to Projects</span>
+</button>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 overflow-y-auto bg-surface p-8">
+<!-- Content Header -->
+<div class="flex justify-between items-start mb-6">
+<div>
+<h1 class="text-2xl font-bold text-on-surface font-headline mb-1">Approvals</h1>
+<p class="text-outline">Review and manage gate overrides and release signatures for ECU-PowerTrain-v2.1</p>
+</div>
+<button class="bg-primary-container text-on-primary-container px-4 py-2 font-bold flex items-center gap-2 hover:brightness-110 transition-all rounded-sm">
+<span class="material-symbols-outlined text-sm">add</span>
+                    New Request
+                </button>
+</div>
+<!-- Tabs -->
+<div class="flex items-center gap-6 mb-6 border-b border-outline-variant/20">
+<button class="px-2 py-3 text-on-surface font-semibold border-b-2 border-primary-container flex items-center gap-2">
+                    Open
+                    <span class="bg-surface-container-high px-2 py-0.5 rounded-full text-xs">1</span>
+</button>
+<button class="px-2 py-3 text-outline hover:text-on-surface transition-all flex items-center gap-2">
+                    Closed
+                    <span class="bg-surface-container-high px-2 py-0.5 rounded-full text-xs opacity-60">4</span>
+</button>
+</div>
+<!-- Split View: List and Detail -->
+<div class="grid grid-cols-12 gap-6">
+<!-- Requests List -->
+<div class="col-span-12 lg:col-span-5 space-y-3">
+<!-- Active Item -->
+<div class="bg-surface-container-low border border-primary-container/40 p-4 rounded-sm cursor-pointer relative">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary-container"></div>
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-tertiary mt-0.5" style="font-variation-settings: 'FILL' 1;">circle</span>
+<div class="flex-1">
+<h3 class="font-bold text-on-surface leading-tight mb-1">Gate Override — analysis-20260408-003</h3>
+<p class="text-outline text-xs mb-3 line-clamp-1">Waiver for CWE-119 buffer overflow detected in legacy diagnostic module...</p>
+<div class="flex flex-wrap gap-2 mb-3">
+<span class="bg-primary-container/10 text-primary-container border border-primary-container/20 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">override</span>
+<span class="bg-surface-container-high text-outline border border-outline-variant/30 px-2 py-0.5 rounded text-[10px]">arm-cortex-m4-main</span>
+</div>
+<div class="flex items-center justify-between text-[11px] text-outline">
+<div class="flex items-center gap-2">
+<div class="flex -space-x-1.5">
+<div class="w-5 h-5 rounded-full border border-surface bg-surface-container-highest overflow-hidden">
+<img alt="Park J" data-alt="Portrait of a Korean male developer in technical attire, professional studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-89HfLhEBbPXY0oN3QJXql6xSMPne6Wwjvrh7hP1ZgS2TcD7o-XcCR71gz3sZLb51OTd4arbgHnWRl1PyJVYLu_iV2KcT3xhVvP9kD4QcLrKhS_q2s3es83MXdZODcW2gkwnNPgOLrowbS0-GQc1I7pGtFggojNMnUItNGySHgzOwXonS6eHjuUR2qfY2Vi3Opw4e3-ng827wnOV3ebGvYCiBC6eNFmF-Qe3Bp0WB9c5ReZKUu9ryiSxaMKm4CBKdhcwYo2veHw8K"/>
+</div>
+<div class="w-5 h-5 rounded-full border border-surface bg-surface-container-highest overflow-hidden">
+<img alt="Kim S" data-alt="Portrait of a professional female tech executive, clean modern background, high key lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB-ngwoXPCQtBEowbpbHf_lWS6MQ2y30ZsJdXfNSnv_VukB5yOJ_SIX62S5khLBrOwpmeWaeyJzw87urinaEvtiQ6Bj4GBQswnNQI0JfJSTvIbN7sSc5hgfBDJjDEN-0l2zAOX_KAdb6tn-VQOOLa4nt3o5qNxDH2nBTwtB-b5nFOubbx0Jgl4dTmj9hYXmlQ0NVHsev6hu5E_8O-xn4KCXI_3vDwQ-XKBm8c2jDfOvNi-Ub3ydJZurqPnI4lqJnEYDkf1xl_1NTvgR"/>
+</div>
+</div>
+<span>2 comments</span>
+</div>
+<span class="mono">2h ago</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Closed Item 1 -->
+<div class="bg-surface-container-lowest border border-outline-variant/20 p-4 rounded-sm cursor-pointer opacity-70 hover:opacity-100 transition-all">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary-container mt-0.5">check_circle</span>
+<div class="flex-1">
+<h3 class="font-bold text-on-surface leading-tight mb-1">Release Approval — v2.1.0-rc3</h3>
+<div class="flex flex-wrap gap-2">
+<span class="bg-tertiary-container/10 text-tertiary-container border border-tertiary-container/20 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">release</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Closed Item 2 -->
+<div class="bg-surface-container-lowest border border-outline-variant/20 p-4 rounded-sm cursor-pointer opacity-70 hover:opacity-100 transition-all">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-error mt-0.5">cancel</span>
+<div class="flex-1">
+<h3 class="font-bold text-on-surface leading-tight mb-1">Gate Override — analysis-20260405-001</h3>
+<div class="flex flex-wrap gap-2">
+<span class="bg-primary-container/10 text-primary-container border border-primary-container/20 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">override</span>
+<span class="bg-surface-container-high text-outline border border-outline-variant/30 px-2 py-0.5 rounded text-[10px]">arm-cortex-m4-boot</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Request Detail (The "PR" View) -->
+<div class="col-span-12 lg:col-span-7 bg-surface-container-low border border-outline-variant/30 rounded-sm overflow-hidden flex flex-col">
+<!-- Detail Header -->
+<div class="p-6 border-b border-outline-variant/30">
+<div class="flex items-start justify-between mb-4">
+<div>
+<div class="flex items-center gap-3 mb-2">
+<h2 class="text-xl font-bold text-on-surface">Gate Override — analysis-20260408-003</h2>
+<span class="bg-tertiary-container/20 text-tertiary border border-tertiary-container/40 px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide">Pending</span>
+</div>
+<div class="flex items-center gap-2 text-outline text-sm">
+<span class="font-semibold text-on-surface">Park J.</span>
+<span>requested this override</span>
+<span class="mono px-1 bg-surface-container px-1.5 rounded">20260408-003</span>
+<span>· 2 hours ago</span>
+</div>
+</div>
+</div>
+<!-- PR Style Tabs -->
+<div class="flex gap-4">
+<button class="px-4 py-2 bg-surface-container text-on-surface font-semibold rounded-t-sm border-t border-x border-outline-variant/30 relative top-[1px]">
+                                Conversation
+                                <span class="ml-2 opacity-50 font-normal">2</span>
+</button>
+<button class="px-4 py-2 text-outline hover:text-on-surface transition-all">
+                                Changes
+                                <span class="ml-2 opacity-50 font-normal">14</span>
+</button>
+</div>
+</div>
+<!-- Conversation Body -->
+<div class="flex flex-1 overflow-hidden">
+<!-- Main Chat -->
+<div class="flex-1 overflow-y-auto p-6 space-y-6">
+<!-- Initial Post -->
+<div class="flex gap-4">
+<div class="shrink-0">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden">
+<img alt="Park J" data-alt="Portrait of a Korean male developer in technical attire, professional studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOcLskoXsqwSn6dDgLyzAJsNKnqeSMOFbZpFLS1gitLLubdLzWOHje6t0a-GapTc9lx24_qNm9AzS6LraQsFp0ucKh8Z6Nwc_daSNST_xMrOPgRattCwRxh_6TNZujD2uUcha-VoE_ibWYTkEhtluAIQdpbH-LiRhEK1jOdtTJ9aICWz6zj5RWYxcm8c2L7jl7lvLInL-4AnGBqBxDwq7g6NavgtXa6TGMz7GajuCZ9Z_rn7Perd0NFl0SgofRnJw_LWORbf_0rawN"/>
+</div>
+</div>
+<div class="flex-1 bg-surface border border-outline-variant/20 rounded-sm">
+<div class="bg-surface-container-low px-4 py-2 border-b border-outline-variant/20 flex justify-between">
+<span class="font-bold text-on-surface text-xs">Park J. <span class="font-normal text-outline">commented 2h ago</span></span>
+<span class="material-symbols-outlined text-outline text-sm">more_horiz</span>
+</div>
+<div class="p-4 prose prose-invert text-on-surface-variant max-w-none">
+<p class="mb-3">Override request for static analysis findings in <code class="mono text-primary bg-primary/10 px-1">diag_manager.c</code>.</p>
+<p>The reported <strong class="text-tertiary">CWE-119</strong> is a false positive. The buffer size is validated by the caller in the boot sequence, but the local scanner cannot trace the cross-module dependency. We have manually verified the bounds checking.</p>
+</div>
+</div>
+</div>
+<!-- Reply -->
+<div class="flex gap-4">
+<div class="shrink-0">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden">
+<img alt="Kim S" data-alt="Portrait of a professional female tech executive, clean modern background, high key lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDy8Qy_K_hdaw0VS4CTeIBooicu8WB9eyO7E7gWenAahg2jtliPWBTUJNOJVfWTP6Fz_qYC6cuNfNA-VVC92UeWDVP_Zg_GdWTc-7jvfU8WnU4OWKvfNHXIJYaggKDvJHZnbxvuvGNL-FuasJUZ8E9VyFXGVrDfhh29UjLfG0oD5ApqvDUXlQJLzwH3eGxT32qXb5pV6dstKUHqM90pU7E5dtXEDUtjMllYAbFWUOcbVag7PkAn_663Ib9kg1Xwm4uU30kTsi3xZ-E4"/>
+</div>
+</div>
+<div class="flex-1 bg-surface border border-outline-variant/20 rounded-sm">
+<div class="bg-surface-container-low px-4 py-2 border-b border-outline-variant/20 flex justify-between">
+<span class="font-bold text-on-surface text-xs">Kim S. <span class="font-normal text-outline">commented 1h ago</span></span>
+<span class="material-symbols-outlined text-outline text-sm">more_horiz</span>
+</div>
+<div class="p-4 text-on-surface-variant">
+<p>Can you provide the specific stack trace or evidence from the manual verification? I need to attach the proof to the audit log before I can sign off on this critical gate bypass.</p>
+</div>
+</div>
+</div>
+<!-- Comment Input -->
+<div class="pt-6 border-t border-outline-variant/20 mt-10">
+<div class="bg-surface border border-outline-variant/30 rounded-sm overflow-hidden">
+<div class="bg-surface-container-low px-4 py-2 border-b border-outline-variant/20 flex gap-4">
+<button class="text-xs font-bold text-on-surface border-b-2 border-primary-container pb-1">Write</button>
+<button class="text-xs text-outline pb-1">Preview</button>
+</div>
+<textarea class="w-full bg-transparent p-4 border-none focus:ring-0 text-sm placeholder:text-outline/50" placeholder="Leave a comment..." rows="4"></textarea>
+<div class="p-3 bg-surface-container-low flex justify-end gap-3 border-t border-outline-variant/20">
+<button class="px-4 py-2 text-error font-bold text-xs hover:bg-error-container/20 rounded transition-all">Reject</button>
+<button class="px-6 py-2 bg-primary-container text-on-primary-container font-bold text-xs hover:brightness-110 rounded transition-all">Approve</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Sidebar Stats -->
+<div class="w-56 border-l border-outline-variant/20 p-6 space-y-6 hidden xl:block">
+<div>
+<h4 class="text-[10px] font-bold text-outline tracking-widest uppercase mb-3">Reviewers</h4>
+<div class="space-y-3">
+<div class="flex items-center gap-2 group">
+<div class="w-5 h-5 rounded-full bg-surface-container-highest overflow-hidden">
+<img alt="Kim S" data-alt="Portrait of a professional female tech executive, clean modern background, high key lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZWULkMkQ09qQpCtkaKDj1mDrmOCTETTzAMBoCBhljlTMwkGuPZzhOxUxhlJzJcTc9tAE1L5SXxKlVuoUFILw7sTvBT4SneGV4l3GDOLtLE87sKBOFuDLXJiPSD7GLEOb3yJhgvTbEsHSAngvldQJqCTb0ij3JChj09zy-6M-ZrbAy9FBDYMGWiqpOZX7f2or8GTriv3OhPkvsSZdmyizU2kG_JdwcpOzgEevwwZqxdFI78WeWYiLA9wmffurcyGmlC0rfoU2WONue"/>
+</div>
+<span class="text-xs text-outline group-hover:text-on-surface cursor-pointer">Kim S.</span>
+<span class="material-symbols-outlined text-xs text-tertiary ml-auto">pending</span>
+</div>
+<div class="flex items-center gap-2 group">
+<div class="w-5 h-5 rounded-full bg-surface-container-highest overflow-hidden">
+<img alt="Lee H" data-alt="Profile photo of a male technical manager in his 40s, sharp focus, professional lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBKx7W_TdUUJu2mWSTa--5y-jl4ngxqZHaA3YUrnnvHf0fIqOHeep0CUBydrxzxUoiLckfCdEvdj3fBF1n2PcYvaEs3ZQVXIiNWJjWJyMVSfHpm3fAbxXPUG9mZrLhvLRKAfxrtjTyUeJyWaAFJ8NBZy43DawHOI122hB_XZP_yu1YESxHUIOuZ3qDjwAJERiB8ECI7HxTVrSoRA53t7KMQFfaXNoFDtswQrZlCRH3u-qq2OySMjMzUZ3oQTdvA7Ve4bHJYv4LR1qvl"/>
+</div>
+<span class="text-xs text-outline group-hover:text-on-surface cursor-pointer">Lee H.</span>
+</div>
+</div>
+</div>
+<div>
+<h4 class="text-[10px] font-bold text-outline tracking-widest uppercase mb-3">Labels</h4>
+<div class="flex flex-wrap gap-1">
+<span class="px-2 py-0.5 bg-error-container/20 text-error border border-error-container/40 rounded-full text-[10px] font-bold">Critical Override</span>
+</div>
+</div>
+<div>
+<h4 class="text-[10px] font-bold text-outline tracking-widest uppercase mb-3">Linked Gate</h4>
+<div class="bg-surface-container px-3 py-2 rounded border border-outline-variant/30">
+<div class="flex items-center justify-between mb-1">
+<span class="text-xs font-semibold">SAST Analysis</span>
+<span class="text-[10px] font-bold text-error uppercase">Fail</span>
+</div>
+<div class="w-full bg-outline-variant/20 h-1 rounded-full overflow-hidden">
+<div class="bg-error w-[40%] h-full"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS — Vulnerabilities</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "tertiary-fixed-dim": "#ffb693",
+                        "tertiary": "#913900",
+                        "on-secondary-fixed-variant": "#404850",
+                        "surface-tint": "#005bc0",
+                        "secondary": "#575f68",
+                        "tertiary-fixed": "#ffdbcc",
+                        "secondary-fixed": "#dbe3ee",
+                        "on-secondary": "#ffffff",
+                        "secondary-container": "#dbe3ee",
+                        "inverse-on-surface": "#eff1f4",
+                        "surface-container-high": "#e6e8eb",
+                        "on-error": "#ffffff",
+                        "surface-dim": "#d8dadd",
+                        "surface-container-highest": "#e0e3e6",
+                        "on-primary-fixed-variant": "#004493",
+                        "surface-variant": "#e0e3e6",
+                        "on-tertiary": "#ffffff",
+                        "on-surface": "#191c1e",
+                        "on-secondary-fixed": "#151c24",
+                        "surface-bright": "#f7f9fc",
+                        "on-primary-container": "#ecefff",
+                        "primary-container": "#0969da",
+                        "secondary-fixed-dim": "#bfc7d1",
+                        "inverse-surface": "#2d3133",
+                        "surface-container": "#eceef1",
+                        "surface": "#f7f9fc",
+                        "inverse-primary": "#adc6ff",
+                        "on-tertiary-fixed-variant": "#7a2f00",
+                        "primary": "#0051ae",
+                        "primary-fixed-dim": "#adc6ff",
+                        "surface-container-lowest": "#ffffff",
+                        "outline-variant": "#c2c6d6",
+                        "background": "#f7f9fc",
+                        "error-container": "#ffdad6",
+                        "outline": "#727785",
+                        "primary-fixed": "#d8e2ff",
+                        "on-primary-fixed": "#001a41",
+                        "on-error-container": "#93000a",
+                        "tertiary-container": "#b84b00",
+                        "on-primary": "#ffffff",
+                        "on-secondary-container": "#5d656e",
+                        "on-tertiary-fixed": "#351000",
+                        "error": "#ba1a1a",
+                        "surface-container-low": "#f2f4f7",
+                        "on-surface-variant": "#424753",
+                        "on-tertiary-container": "#ffece5",
+                        "on-background": "#191c1e",
+                        // Custom Brand Palette Overrides
+                        "brand-critical": "#cf222e",
+                        "brand-high": "#bf8700",
+                        "brand-medium": "#0969da",
+                        "brand-low": "#6e7781"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"],
+                        "mono": ["JetBrains Mono"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .hanging-header {
+            margin-left: -1rem;
+        }
+        @media (min-width: 1024px) {
+            .hanging-header {
+                margin-left: -2rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-surface font-body text-on-surface-variant selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopNavBar -->
+<header class="fixed top-0 z-50 w-full h-16 bg-[#f7f9fc] dark:bg-[#191c1e] flex justify-between items-center px-6 transition-all border-none">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-[#191c1e] dark:text-[#f7f9fc] font-headline">AEGIS</span>
+<div class="hidden md:flex items-center bg-surface-container rounded-lg px-3 py-1.5 w-80 group transition-all focus-within:ring-1 focus-within:ring-primary/20">
+<span class="material-symbols-outlined text-outline text-sm mr-2" data-icon="search">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm font-body w-full placeholder-outline-variant" placeholder="Search..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-surface-container transition-colors relative">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-4 h-4 bg-error text-white text-[10px] flex items-center justify-center rounded-full font-bold">3</span>
+</button>
+<button class="p-2 rounded-full hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="help_outline">help_outline</span>
+</button>
+<div class="h-8 w-[1px] bg-outline-variant/20 mx-2"></div>
+<div class="flex items-center gap-3">
+<div class="text-right hidden sm:block">
+<p class="text-xs font-bold text-on-surface leading-none">Kosh</p>
+<p class="text-[10px] text-outline font-label uppercase tracking-widest mt-1">Admin</p>
+</div>
+<div class="w-9 h-9 rounded-full bg-primary-container flex items-center justify-center text-on-primary font-bold font-headline ring-2 ring-surface ring-offset-2">
+                    K
+                </div>
+</div>
+</div>
+</header>
+<div class="flex pt-16 min-h-screen">
+<!-- SideNavBar -->
+<aside class="fixed left-0 w-64 h-[calc(100vh-64px)] bg-[#f2f4f7] dark:bg-[#191c1e] border-r border-[#424753]/10 flex flex-col py-4 overflow-y-auto z-40">
+<!-- Project Selector -->
+<div class="px-6 mb-8">
+<div class="flex items-center gap-2 mb-1">
+<div class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+<span class="text-[10px] font-label text-outline uppercase tracking-widest">Active Project</span>
+</div>
+<h3 class="text-on-surface font-headline font-bold text-sm tracking-tight truncate">ECU-PowerTrain-v2.1</h3>
+</div>
+<nav class="flex-1 space-y-0.5">
+<a class="flex items-center px-6 py-2.5 text-[#424753] opacity-70 hover:bg-[#ffffff] hover:opacity-100 transition-all font-label text-[0.875rem] uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined mr-3 text-lg" data-icon="dashboard">dashboard</span> Overview
+                </a>
+<a class="flex items-center px-6 py-2.5 text-[#424753] opacity-70 hover:bg-[#ffffff] hover:opacity-100 transition-all font-label text-[0.875rem] uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined mr-3 text-lg" data-icon="folder_open">folder_open</span> Files
+                </a>
+<a class="flex items-center px-6 py-2.5 text-[#0051ae] border-l-4 border-[#0051ae] bg-[#ffffff] font-label text-[0.875rem] uppercase tracking-wider font-bold" href="#">
+<span class="material-symbols-outlined mr-3 text-lg" data-icon="security" style="font-variation-settings: 'FILL' 1;">security</span> Vulnerabilities
+                </a>
+<a class="flex items-center px-6 py-2.5 text-[#424753] opacity-70 hover:bg-[#ffffff] hover:opacity-100 transition-all font-label text-[0.875rem] uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined mr-3 text-lg" data-icon="code">code</span> Static Analysis
+                </a>
+<a class="flex items-center px-6 py-2.5 text-[#424753] opacity-70 hover:bg-[#ffffff] hover:opacity-100 transition-all font-label text-[0.875rem] uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined mr-3 text-lg" data-icon="verified_user">verified_user</span> Quality Gate
+                </a>
+<a class="flex items-center px-6 py-2.5 text-[#424753] opacity-70 hover:bg-[#ffffff] hover:opacity-100 transition-all font-label text-[0.875rem] uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined mr-3 text-lg" data-icon="fact_check">fact_check</span> Approvals
+                </a>
+<a class="flex items-center px-6 py-2.5 text-[#424753] opacity-70 hover:bg-[#ffffff] hover:opacity-100 transition-all font-label text-[0.875rem] uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined mr-3 text-lg" data-icon="history">history</span> Analysis History
+                </a>
+<a class="flex items-center px-6 py-2.5 text-[#424753] opacity-70 hover:bg-[#ffffff] hover:opacity-100 transition-all font-label text-[0.875rem] uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined mr-3 text-lg" data-icon="description">description</span> Report
+                </a>
+<div class="px-6 py-4">
+<div class="h-[1px] bg-outline-variant/20"></div>
+</div>
+<a class="flex items-center px-6 py-2.5 text-[#424753] opacity-70 hover:bg-[#ffffff] hover:opacity-100 transition-all font-label text-[0.875rem] uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined mr-3 text-lg" data-icon="settings">settings</span> Settings
+                </a>
+<!-- Sub-projects Section -->
+<div class="mt-8 px-6">
+<h4 class="text-[10px] font-label text-outline uppercase tracking-[0.2em] mb-4">Sub-projects</h4>
+<ul class="space-y-4">
+<li class="flex items-center justify-between group cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline text-sm" data-icon="account_tree">account_tree</span>
+<span class="text-xs font-mono text-on-surface-variant truncate w-24">arm-cortex-m4-main</span>
+</div>
+<span class="text-[10px] bg-surface-container-high px-1.5 py-0.5 rounded font-mono font-bold">30</span>
+</li>
+<li class="flex items-center justify-between group cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline text-sm" data-icon="account_tree">account_tree</span>
+<span class="text-xs font-mono text-on-surface-variant truncate w-24">arm-cortex-m4-boot</span>
+</div>
+<span class="text-[10px] bg-surface-container-high px-1.5 py-0.5 rounded font-mono font-bold">8</span>
+</li>
+<li class="flex items-center justify-between group cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline text-sm" data-icon="account_tree">account_tree</span>
+<span class="text-xs font-mono text-on-surface-variant truncate w-24">riscv-rv32-diag</span>
+</div>
+<span class="text-[10px] bg-surface-container-high px-1.5 py-0.5 rounded font-mono font-bold">5</span>
+</li>
+</ul>
+</div>
+</nav>
+<div class="mt-auto px-6 py-4">
+<button class="w-full flex items-center justify-center gap-2 py-2 px-4 rounded border border-outline-variant/30 text-xs font-label uppercase tracking-widest text-outline hover:text-on-surface hover:border-primary transition-all active:scale-95">
+<span class="material-symbols-outlined text-sm" data-icon="arrow_back">arrow_back</span>
+                    Back to Projects
+                </button>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-64 flex-1 p-8 lg:p-12">
+<!-- Header Section -->
+<header class="mb-12 relative">
+<div class="hanging-header border-l-4 border-primary pl-4 md:pl-8">
+<h1 class="text-4xl lg:text-5xl font-headline font-bold text-on-surface tracking-tight leading-none mb-2">Vulnerabilities</h1>
+<div class="flex items-center gap-3">
+<span class="px-2 py-0.5 bg-surface-container-high rounded text-xs font-mono font-bold text-primary">ID: 4492-X</span>
+<span class="text-sm font-body text-outline">Total active findings: <span class="text-on-surface font-bold">43</span></span>
+</div>
+</div>
+<div class="absolute top-0 right-0 hidden lg:flex flex-col items-end">
+<button class="flex items-center gap-2 bg-primary text-on-primary px-5 py-2.5 rounded shadow-sm hover:brightness-110 transition-all font-label uppercase tracking-widest text-xs font-bold">
+<span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+                        New Analysis
+                    </button>
+<span class="text-[10px] font-label text-outline mt-2 uppercase tracking-tighter">Last analyzed 14m ago</span>
+</div>
+</header>
+<!-- Filter Bar -->
+<section class="bg-surface-container-low p-2 rounded-xl mb-8 flex flex-wrap items-center gap-2">
+<!-- Dropdown: Build Target -->
+<div class="relative group">
+<button class="bg-surface-container-lowest px-4 py-2 rounded text-xs font-label uppercase tracking-widest flex items-center gap-2 border border-transparent hover:border-outline-variant transition-all">
+<span class="text-outline">Target:</span>
+<span class="text-on-surface font-bold">All Targets</span>
+<span class="material-symbols-outlined text-xs" data-icon="expand_more">expand_more</span>
+</button>
+</div>
+<div class="h-6 w-[1px] bg-outline-variant/30 mx-2"></div>
+<!-- Severity Chips -->
+<div class="flex items-center gap-1.5">
+<button class="bg-brand-critical/10 text-brand-critical px-3 py-1.5 rounded-full text-[10px] font-label uppercase tracking-widest font-bold flex items-center gap-1.5 ring-1 ring-brand-critical/30">
+                        Critical <span class="w-1.5 h-1.5 rounded-full bg-brand-critical"></span>
+</button>
+<button class="bg-surface-container-lowest text-on-surface-variant px-3 py-1.5 rounded-full text-[10px] font-label uppercase tracking-widest border border-outline-variant/20 hover:border-brand-high transition-all">
+                        High
+                    </button>
+<button class="bg-surface-container-lowest text-on-surface-variant px-3 py-1.5 rounded-full text-[10px] font-label uppercase tracking-widest border border-outline-variant/20 hover:border-brand-medium transition-all">
+                        Medium
+                    </button>
+<button class="bg-surface-container-lowest text-on-surface-variant px-3 py-1.5 rounded-full text-[10px] font-label uppercase tracking-widest border border-outline-variant/20 hover:border-brand-low transition-all">
+                        Low
+                    </button>
+</div>
+<div class="h-6 w-[1px] bg-outline-variant/30 mx-2"></div>
+<!-- Status Select -->
+<div class="flex bg-surface-container-highest/50 rounded p-1">
+<button class="bg-surface-container-lowest px-4 py-1.5 rounded shadow-sm text-[10px] font-label uppercase tracking-widest font-bold text-primary">All</button>
+<button class="px-4 py-1.5 rounded text-[10px] font-label uppercase tracking-widest text-outline hover:text-on-surface transition-all">Open</button>
+<button class="px-4 py-1.5 rounded text-[10px] font-label uppercase tracking-widest text-outline hover:text-on-surface transition-all">Closed</button>
+</div>
+<button class="ml-auto p-2 text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="filter_list">filter_list</span>
+</button>
+</section>
+<!-- Findings List (No divider, tonal shift) -->
+<div class="space-y-3">
+<!-- Finding 1 -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border-l-4 border-brand-critical flex items-center gap-6 group hover:shadow-xl hover:shadow-on-surface/[0.03] transition-all">
+<div class="flex-shrink-0 text-center w-24">
+<p class="font-mono text-xs font-bold text-brand-critical tracking-tighter mb-1">CWE-119</p>
+<p class="text-[10px] font-label uppercase tracking-widest text-outline">Critical</p>
+</div>
+<div class="flex-1">
+<h4 class="text-on-surface font-headline font-bold text-base mb-1 group-hover:text-primary transition-colors">Buffer Overflow</h4>
+<div class="flex items-center gap-4">
+<span class="font-mono text-xs text-outline bg-surface-container-low px-2 py-0.5 rounded">can_driver.c:142</span>
+<span class="flex items-center gap-1.5 text-[10px] font-label uppercase tracking-widest text-outline">
+<span class="material-symbols-outlined text-sm" data-icon="account_tree">account_tree</span>
+                                arm-cortex-m4-main
+                            </span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<span class="px-3 py-1 rounded border border-brand-critical text-[10px] font-label font-bold uppercase tracking-widest text-brand-critical">OPEN</span>
+<button class="p-2 text-outline hover:bg-surface-container transition-colors rounded">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Finding 2 -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border-l-4 border-brand-high flex items-center gap-6 group hover:shadow-xl hover:shadow-on-surface/[0.03] transition-all">
+<div class="flex-shrink-0 text-center w-24">
+<p class="font-mono text-xs font-bold text-brand-high tracking-tighter mb-1">CWE-476</p>
+<p class="text-[10px] font-label uppercase tracking-widest text-outline">High</p>
+</div>
+<div class="flex-1">
+<h4 class="text-on-surface font-headline font-bold text-base mb-1 group-hover:text-primary transition-colors">Null Pointer Dereference</h4>
+<div class="flex items-center gap-4">
+<span class="font-mono text-xs text-outline bg-surface-container-low px-2 py-0.5 rounded">spi_handler.c:89</span>
+<span class="flex items-center gap-1.5 text-[10px] font-label uppercase tracking-widest text-outline">
+<span class="material-symbols-outlined text-sm" data-icon="account_tree">account_tree</span>
+                                arm-cortex-m4-main
+                            </span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<span class="px-3 py-1 rounded border border-brand-high/30 text-[10px] font-label font-bold uppercase tracking-widest text-brand-high">OPEN</span>
+<button class="p-2 text-outline hover:bg-surface-container transition-colors rounded">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Finding 3 -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border-l-4 border-brand-high flex items-center gap-6 group hover:shadow-xl hover:shadow-on-surface/[0.03] transition-all">
+<div class="flex-shrink-0 text-center w-24">
+<p class="font-mono text-xs font-bold text-brand-high tracking-tighter mb-1">CWE-190</p>
+<p class="text-[10px] font-label uppercase tracking-widest text-outline">High</p>
+</div>
+<div class="flex-1">
+<h4 class="text-on-surface font-headline font-bold text-base mb-1 group-hover:text-primary transition-colors">Integer Overflow</h4>
+<div class="flex items-center gap-4">
+<span class="font-mono text-xs text-outline bg-surface-container-low px-2 py-0.5 rounded">adc_convert.c:201</span>
+<span class="flex items-center gap-1.5 text-[10px] font-label uppercase tracking-widest text-outline">
+<span class="material-symbols-outlined text-sm" data-icon="account_tree">account_tree</span>
+                                arm-cortex-m4-boot
+                            </span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<span class="px-3 py-1 rounded bg-brand-high text-on-primary text-[10px] font-label font-bold uppercase tracking-widest">CONFIRMED</span>
+<button class="p-2 text-outline hover:bg-surface-container transition-colors rounded">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Finding 4 -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border-l-4 border-brand-medium flex items-center gap-6 group hover:shadow-xl hover:shadow-on-surface/[0.03] transition-all">
+<div class="flex-shrink-0 text-center w-24">
+<p class="font-mono text-xs font-bold text-brand-medium tracking-tighter mb-1">MISRA-11.3</p>
+<p class="text-[10px] font-label uppercase tracking-widest text-outline">Medium</p>
+</div>
+<div class="flex-1">
+<h4 class="text-on-surface font-headline font-bold text-base mb-1 group-hover:text-primary transition-colors">Cast violation</h4>
+<div class="flex items-center gap-4">
+<span class="font-mono text-xs text-outline bg-surface-container-low px-2 py-0.5 rounded">timer_config.c:56</span>
+<span class="flex items-center gap-1.5 text-[10px] font-label uppercase tracking-widest text-outline">
+<span class="material-symbols-outlined text-sm" data-icon="account_tree">account_tree</span>
+                                arm-cortex-m4-main
+                            </span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<span class="px-3 py-1 rounded border border-brand-medium/30 text-[10px] font-label font-bold uppercase tracking-widest text-brand-medium">OPEN</span>
+<button class="p-2 text-outline hover:bg-surface-container transition-colors rounded">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Finding 5 -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border-l-4 border-brand-medium flex items-center gap-6 group hover:shadow-xl hover:shadow-on-surface/[0.03] transition-all">
+<div class="flex-shrink-0 text-center w-24">
+<p class="font-mono text-xs font-bold text-brand-medium tracking-tighter mb-1">CWE-457</p>
+<p class="text-[10px] font-label uppercase tracking-widest text-outline">Medium</p>
+</div>
+<div class="flex-1">
+<h4 class="text-on-surface font-headline font-bold text-base mb-1 group-hover:text-primary transition-colors">Uninitialized Variable</h4>
+<div class="flex items-center gap-4">
+<span class="font-mono text-xs text-outline bg-surface-container-low px-2 py-0.5 rounded">flash_write.c:178</span>
+<span class="flex items-center gap-1.5 text-[10px] font-label uppercase tracking-widest text-outline">
+<span class="material-symbols-outlined text-sm" data-icon="account_tree">account_tree</span>
+                                riscv-rv32-diag
+                            </span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<span class="px-3 py-1 rounded border border-brand-medium/30 text-[10px] font-label font-bold uppercase tracking-widest text-brand-medium">OPEN</span>
+<button class="p-2 text-outline hover:bg-surface-container transition-colors rounded">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Finding 6 -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border-l-4 border-brand-low flex items-center gap-6 group hover:shadow-xl hover:shadow-on-surface/[0.03] transition-all">
+<div class="flex-shrink-0 text-center w-24">
+<p class="font-mono text-xs font-bold text-brand-low tracking-tighter mb-1">MISRA-8.4</p>
+<p class="text-[10px] font-label uppercase tracking-widest text-outline">Low</p>
+</div>
+<div class="flex-1">
+<h4 class="text-on-surface font-headline font-bold text-base mb-1 group-hover:text-primary transition-colors">Missing declaration</h4>
+<div class="flex items-center gap-4">
+<span class="font-mono text-xs text-outline bg-surface-container-low px-2 py-0.5 rounded">gpio_init.c:23</span>
+<span class="flex items-center gap-1.5 text-[10px] font-label uppercase tracking-widest text-outline">
+<span class="material-symbols-outlined text-sm" data-icon="account_tree">account_tree</span>
+                                arm-cortex-m4-main
+                            </span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<span class="px-3 py-1 rounded bg-surface-container text-outline text-[10px] font-label font-bold uppercase tracking-widest">FALSE POSITIVE</span>
+<button class="p-2 text-outline hover:bg-surface-container transition-colors rounded">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Pagination -->
+<footer class="mt-12 flex items-center justify-between">
+<span class="text-xs font-body text-outline">Showing <span class="text-on-surface font-bold">6</span> of <span class="text-on-surface font-bold">43</span> vulnerabilities</span>
+<div class="flex items-center gap-2">
+<button class="p-2 rounded bg-surface-container-low text-outline-variant cursor-not-allowed">
+<span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+</button>
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 rounded bg-primary text-on-primary text-xs font-bold font-headline">1</button>
+<button class="w-8 h-8 rounded hover:bg-surface-container text-xs font-bold font-headline transition-colors">2</button>
+<button class="w-8 h-8 rounded hover:bg-surface-container text-xs font-bold font-headline transition-colors">3</button>
+<span class="text-outline mx-1">...</span>
+<button class="w-8 h-8 rounded hover:bg-surface-container text-xs font-bold font-headline transition-colors">8</button>
+</div>
+<button class="p-2 rounded bg-surface-container-lowest border border-outline-variant/30 text-on-surface hover:border-primary transition-all">
+<span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</footer>
+</main>
+</div>
+<!-- Global Platform Footer -->
+<footer class="w-full py-6 bg-surface border-t border-outline-variant/10 text-center">
+<p class="text-[10px] font-label text-outline uppercase tracking-[0.25em]">
+            AEGIS v2.1.0 — Embedded Firmware Security Analysis Platform
+        </p>
+</footer>
+</body></html>

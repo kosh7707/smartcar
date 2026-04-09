@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS System - Findings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "secondary-container": "#2e4869",
+                      "on-secondary-fixed-variant": "#2e4869",
+                      "on-primary-fixed": "#001c38",
+                      "outline-variant": "#414752",
+                      "primary-container": "#58a6ff",
+                      "on-primary-container": "#003a6b",
+                      "on-error-container": "#ffdad6",
+                      "inverse-surface": "#dfe2eb",
+                      "surface-dim": "#10141a",
+                      "surface-container-high": "#262a31",
+                      "surface-bright": "#353940",
+                      "on-tertiary-fixed-variant": "#614000",
+                      "error-container": "#93000a",
+                      "error": "#ffb4ab",
+                      "outline": "#8b919d",
+                      "secondary-fixed": "#d3e4ff",
+                      "on-secondary-container": "#9db7dd",
+                      "on-background": "#dfe2eb",
+                      "primary-fixed-dim": "#a2c9ff",
+                      "on-secondary": "#163151",
+                      "primary-fixed": "#d3e4ff",
+                      "secondary-fixed-dim": "#aec8ef",
+                      "on-primary-fixed-variant": "#004882",
+                      "on-tertiary-container": "#4f3400",
+                      "on-tertiary-fixed": "#281800",
+                      "tertiary-fixed-dim": "#ffba42",
+                      "tertiary-container": "#da9600",
+                      "on-surface": "#dfe2eb",
+                      "surface-variant": "#31353c",
+                      "surface-container-lowest": "#0a0e14",
+                      "surface-container-highest": "#31353c",
+                      "on-tertiary": "#432c00",
+                      "inverse-primary": "#0060aa",
+                      "surface-container-low": "#181c22",
+                      "on-surface-variant": "#c0c7d4",
+                      "primary": "#a2c9ff",
+                      "on-secondary-fixed": "#001c38",
+                      "secondary": "#aec8ef",
+                      "on-primary": "#00315c",
+                      "surface": "#10141a",
+                      "tertiary-fixed": "#ffddaf",
+                      "surface-container": "#1c2026",
+                      "tertiary": "#ffba42",
+                      "on-error": "#690005",
+                      "inverse-on-surface": "#2d3137",
+                      "surface-tint": "#a2c9ff",
+                      "background": "#10141a"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "fontFamily": {
+                      "headline": ["Space Grotesk"],
+                      "body": ["Inter"],
+                      "label": ["Inter"]
+              }
+            },
+          },
+        }
+      </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, .headline { font-family: 'Space Grotesk', sans-serif; }
+    </style>
+</head>
+<body class="bg-background text-on-background selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full h-14 bg-[#161b22] flex items-center justify-between px-6 z-50 font-['Space_Grotesk'] tracking-wider">
+<div class="flex items-center gap-6">
+<span class="text-xl font-bold text-slate-100">AEGIS</span>
+<div class="flex items-center gap-2 px-3 py-1 bg-surface-container rounded-md cursor-pointer hover:bg-[#31353c] transition-colors">
+<span class="text-sm font-medium text-slate-300">ECU-PowerTrain-v2.1</span>
+<span class="material-symbols-outlined text-sm text-slate-500">arrow_drop_down</span>
+</div>
+</div>
+<div class="flex-1 max-w-xl px-10">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-lg">search</span>
+<input class="w-full bg-[#0d1117] border-none rounded-lg py-1.5 pl-10 pr-4 text-sm focus:ring-1 focus:ring-primary-container text-slate-200 placeholder-slate-600" placeholder="Search vulnerabilities, CWEs, or assets..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative cursor-pointer hover:bg-[#31353c] p-1.5 rounded-md transition-colors">
+<span class="material-symbols-outlined text-slate-400">notifications</span>
+<span class="absolute top-1 right-1 w-2 h-2 bg-error rounded-full border-2 border-[#161b22]"></span>
+</div>
+<div class="flex items-center gap-3 pl-4 border-l border-outline-variant/30">
+<div class="text-right">
+<p class="text-xs font-bold text-slate-200 leading-none">Kosh Admin</p>
+<p class="text-[10px] text-slate-500 mt-1 uppercase tracking-tighter">System Overseer</p>
+</div>
+<img alt="User Avatar" class="w-8 h-8 rounded-full border border-outline-variant/50" data-alt="professional male headshot with neutral background, corporate avatar style, sharp lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBf5ABbINdgijqaGs__M4zg84qvjFMHTZs8-wxV9KgZ6afnOYPlzdHfGKjXfwWbOA85LNzcqbyRaRf1b-5d0F_2XpxgGfWa3ZpWeUiOTfyI7Vl5RVrXw6QKsqYDjZxqmYJlb0otRi9TIcPqPoWdFi1QNxkEDWBrtQWxHBVA_Nrd15elWrrXsDY5UYtH9oyZWiGuqZEjJr_HH3ciNtPdc_8UZd8y19gnP09ZqxJkuDt-qpptiaypVvV_Jkpx7-voS3zBTSZRSjsgENBo"/>
+</div>
+</div>
+</nav>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-14 w-60 h-full bg-[#0d1117] flex flex-col border-r border-[#1c2026] z-40">
+<div class="p-6">
+<div class="flex items-center gap-3 mb-8">
+<div class="w-10 h-10 bg-secondary-container flex items-center justify-center rounded-lg">
+<span class="material-symbols-outlined text-primary" data-weight="fill" style="font-variation-settings: 'FILL' 1;">shield</span>
+</div>
+<div>
+<h2 class="text-lg font-bold text-slate-200 headline leading-tight">AEGIS System</h2>
+<p class="text-[10px] text-slate-500 uppercase tracking-widest font-semibold">High-Precision Security</p>
+</div>
+</div>
+<nav class="space-y-1">
+<a class="text-slate-500 px-4 py-3 flex items-center gap-3 hover:text-slate-200 hover:bg-[#1c2026] transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined text-xl">dashboard</span>
+<span class="text-sm font-medium">Dashboard</span>
+</a>
+<a class="text-[#58a6ff] bg-[#1c2026] border-r-4 border-[#58a6ff] px-4 py-3 flex items-center gap-3 transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-xl">shield</span>
+<span class="text-sm font-medium">Findings</span>
+</a>
+<a class="text-slate-500 px-4 py-3 flex items-center gap-3 hover:text-slate-200 hover:bg-[#1c2026] transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined text-xl">inventory_2</span>
+<span class="text-sm font-medium">Assets</span>
+</a>
+<a class="text-slate-500 px-4 py-3 flex items-center gap-3 hover:text-slate-200 hover:bg-[#1c2026] transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined text-xl">security</span>
+<span class="text-sm font-medium">Threats</span>
+</a>
+<a class="text-slate-500 px-4 py-3 flex items-center gap-3 hover:text-slate-200 hover:bg-[#1c2026] transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined text-xl">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</a>
+</nav>
+<div class="mt-10">
+<p class="text-[10px] text-slate-600 uppercase tracking-widest font-bold mb-4 px-4">Sub-Projects</p>
+<div class="space-y-2">
+<div class="flex items-center justify-between px-4 py-2 hover:bg-[#1c2026] rounded group cursor-pointer">
+<span class="text-xs text-slate-400 group-hover:text-slate-200 transition-colors">m4-main</span>
+<span class="text-[10px] font-bold bg-[#1c2026] border border-outline-variant/30 px-1.5 py-0.5 rounded text-slate-500">30</span>
+</div>
+<div class="flex items-center justify-between px-4 py-2 hover:bg-[#1c2026] rounded group cursor-pointer">
+<span class="text-xs text-slate-400 group-hover:text-slate-200 transition-colors">m4-boot</span>
+<span class="text-[10px] font-bold bg-[#1c2026] border border-outline-variant/30 px-1.5 py-0.5 rounded text-slate-500">8</span>
+</div>
+<div class="flex items-center justify-between px-4 py-2 hover:bg-[#1c2026] rounded group cursor-pointer">
+<span class="text-xs text-slate-400 group-hover:text-slate-200 transition-colors">rv32-diag</span>
+<span class="text-[10px] font-bold bg-[#1c2026] border border-outline-variant/30 px-1.5 py-0.5 rounded text-slate-500">5</span>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-auto p-6 border-t border-[#1c2026]">
+<a class="text-slate-500 px-4 py-2 flex items-center gap-3 hover:text-slate-200 transition-all text-xs mb-2" href="#">
+<span class="material-symbols-outlined text-lg">help</span>
+<span>Help Center</span>
+</a>
+<a class="text-slate-500 px-4 py-2 flex items-center gap-3 hover:text-error transition-all text-xs" href="#">
+<span class="material-symbols-outlined text-lg">logout</span>
+<span>Logout</span>
+</a>
+<button class="w-full mt-6 py-2 px-4 bg-surface-container hover:bg-surface-container-high text-slate-300 text-xs font-bold rounded flex items-center justify-center gap-2 transition-colors">
+<span class="material-symbols-outlined text-sm">arrow_back</span>
+                Back to Projects
+            </button>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-60 mt-14 p-8 min-h-screen bg-[#0d1117]">
+<!-- Page Header & Diagnostic HUD -->
+<div class="flex items-end justify-between mb-8 gap-12">
+<div>
+<h1 class="text-4xl font-bold text-white headline tracking-tight">Findings</h1>
+<p class="text-slate-500 mt-2 text-sm max-w-md">Security analysis results for the automotive powertrain ECU cluster. Critical assets require immediate triage.</p>
+</div>
+<!-- Diagnostic HUD Component -->
+<div class="flex gap-4 p-4 bg-surface-container-low rounded-xl border-l-4 border-primary-container backdrop-blur-md">
+<div class="pr-6 border-r border-outline-variant/20">
+<p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Total Threat Exposure</p>
+<p class="text-2xl font-bold text-primary headline">32 <span class="text-xs font-normal text-slate-600">active</span></p>
+</div>
+<div class="px-2">
+<p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Health Status</p>
+<div class="flex items-center gap-2 mt-1">
+<span class="w-2 h-2 bg-error rounded-full animate-pulse"></span>
+<span class="text-sm font-medium text-error">Critical Warnings</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Filter Tabs -->
+<div class="flex items-center gap-8 mb-6 border-b border-outline-variant/10">
+<button class="pb-4 text-sm font-bold text-primary border-b-2 border-primary transition-all">
+                Open (32)
+            </button>
+<button class="pb-4 text-sm font-medium text-slate-500 hover:text-slate-300 transition-all">
+                Closed (11)
+            </button>
+<div class="ml-auto flex items-center gap-4 pb-4">
+<span class="text-[10px] text-slate-600 font-bold uppercase">Sort By:</span>
+<button class="flex items-center gap-1 text-xs text-slate-400 font-medium hover:text-slate-200">
+                    Severity <span class="material-symbols-outlined text-sm">expand_more</span>
+</button>
+</div>
+</div>
+<!-- Findings Grid (Editorial Asymmetry) -->
+<div class="grid grid-cols-1 gap-4">
+<!-- Finding 1: Critical -->
+<div class="bg-[#161b22] border border-[#30363d] rounded-lg p-5 flex items-center gap-6 group hover:bg-[#1c2026] transition-all cursor-pointer">
+<div class="flex flex-col items-center gap-1 w-20 py-3 bg-error-container/20 rounded border border-error/20">
+<span class="text-[10px] font-bold text-error uppercase tracking-tighter">Critical</span>
+<span class="material-symbols-outlined text-error" data-weight="fill" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-3 mb-1">
+<h3 class="text-lg font-semibold text-slate-100 font-['Inter']">Buffer overflow in DMA controller processing</h3>
+<span class="px-2 py-0.5 bg-surface-container-highest text-[10px] font-bold text-slate-400 rounded">OPEN</span>
+</div>
+<div class="flex items-center gap-4 text-xs">
+<div class="flex items-center gap-1.5 text-slate-500">
+<span class="material-symbols-outlined text-sm">tag</span>
+<span>CWE-119</span>
+</div>
+<div class="flex items-center gap-1.5 text-slate-500">
+<span class="material-symbols-outlined text-sm">rule</span>
+<span>MISRA 17.7</span>
+</div>
+<div class="flex items-center gap-1.5 text-slate-600">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span>2h ago</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-6 pr-4">
+<div class="flex items-center gap-1 text-slate-500">
+<span class="material-symbols-outlined text-lg">chat_bubble</span>
+<span class="text-xs font-bold">3</span>
+</div>
+<span class="material-symbols-outlined text-slate-600 group-hover:text-primary transition-colors">chevron_right</span>
+</div>
+</div>
+<!-- Finding 2: High -->
+<div class="bg-[#161b22] border border-[#30363d] rounded-lg p-5 flex items-center gap-6 group hover:bg-[#1c2026] transition-all cursor-pointer">
+<div class="flex flex-col items-center gap-1 w-20 py-3 bg-tertiary-container/10 rounded border border-tertiary/20">
+<span class="text-[10px] font-bold text-tertiary uppercase tracking-tighter">High</span>
+<span class="material-symbols-outlined text-tertiary">priority_high</span>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-3 mb-1">
+<h3 class="text-lg font-semibold text-slate-100 font-['Inter']">Null pointer dereference during interrupt handling</h3>
+<span class="px-2 py-0.5 bg-secondary-container/30 text-[10px] font-bold text-primary rounded">CONFIRMED</span>
+</div>
+<div class="flex items-center gap-4 text-xs">
+<div class="flex items-center gap-1.5 text-slate-500">
+<span class="material-symbols-outlined text-sm">tag</span>
+<span>CWE-476</span>
+</div>
+<div class="flex items-center gap-1.5 text-slate-600">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span>Yesterday</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-6 pr-4">
+<div class="flex items-center gap-1 text-slate-500">
+<span class="material-symbols-outlined text-lg">chat_bubble</span>
+<span class="text-xs font-bold">1</span>
+</div>
+<span class="material-symbols-outlined text-slate-600 group-hover:text-primary transition-colors">chevron_right</span>
+</div>
+</div>
+<!-- Finding 3: High -->
+<div class="bg-[#161b22] border border-[#30363d] rounded-lg p-5 flex items-center gap-6 group hover:bg-[#1c2026] transition-all cursor-pointer">
+<div class="flex flex-col items-center gap-1 w-20 py-3 bg-tertiary-container/10 rounded border border-tertiary/20">
+<span class="text-[10px] font-bold text-tertiary uppercase tracking-tighter">High</span>
+<span class="material-symbols-outlined text-tertiary">priority_high</span>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-3 mb-1">
+<h3 class="text-lg font-semibold text-slate-100 font-['Inter']">Integer overflow in wheel-speed calculation module</h3>
+<span class="px-2 py-0.5 bg-surface-container-highest text-[10px] font-bold text-slate-400 rounded">OPEN</span>
+</div>
+<div class="flex items-center gap-4 text-xs">
+<div class="flex items-center gap-1.5 text-slate-500">
+<span class="material-symbols-outlined text-sm">tag</span>
+<span>CWE-190</span>
+</div>
+<div class="flex items-center gap-1.5 text-slate-600">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span>2d ago</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-6 pr-4">
+<div class="flex items-center gap-1 text-slate-700 opacity-30">
+<span class="material-symbols-outlined text-lg">chat_bubble</span>
+<span class="text-xs font-bold">0</span>
+</div>
+<span class="material-symbols-outlined text-slate-600 group-hover:text-primary transition-colors">chevron_right</span>
+</div>
+</div>
+<!-- Finding 4: Medium -->
+<div class="bg-[#161b22] border border-[#30363d] rounded-lg p-5 flex items-center gap-6 group hover:bg-[#1c2026] transition-all cursor-pointer">
+<div class="flex flex-col items-center gap-1 w-20 py-3 bg-primary-container/5 rounded border border-primary-container/20">
+<span class="text-[10px] font-bold text-primary-container uppercase tracking-tighter">Medium</span>
+<span class="material-symbols-outlined text-primary-container">info</span>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-3 mb-1">
+<h3 class="text-lg font-semibold text-slate-100 font-['Inter']">Unsafe pointer conversion in CAN-FD driver</h3>
+<span class="px-2 py-0.5 bg-surface-container-highest text-[10px] font-bold text-slate-400 rounded">OPEN</span>
+</div>
+<div class="flex items-center gap-4 text-xs">
+<div class="flex items-center gap-1.5 text-slate-500">
+<span class="material-symbols-outlined text-sm">rule</span>
+<span>MISRA 11.3</span>
+</div>
+<div class="flex items-center gap-1.5 text-slate-600">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span>3d ago</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-6 pr-4">
+<div class="flex items-center gap-1 text-slate-500">
+<span class="material-symbols-outlined text-lg">chat_bubble</span>
+<span class="text-xs font-bold">5</span>
+</div>
+<span class="material-symbols-outlined text-slate-600 group-hover:text-primary transition-colors">chevron_right</span>
+</div>
+</div>
+<!-- Finding 5: Medium -->
+<div class="bg-[#161b22] border border-[#30363d] rounded-lg p-5 flex items-center gap-6 group hover:bg-[#1c2026] transition-all cursor-pointer opacity-70">
+<div class="flex flex-col items-center gap-1 w-20 py-3 bg-primary-container/5 rounded border border-primary-container/20">
+<span class="text-[10px] font-bold text-primary-container uppercase tracking-tighter">Medium</span>
+<span class="material-symbols-outlined text-primary-container">info</span>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-3 mb-1">
+<h3 class="text-lg font-semibold text-slate-400 font-['Inter']">Uninitialized variable in diagnostic routine</h3>
+<span class="px-2 py-0.5 bg-error/10 text-[10px] font-bold text-error rounded">FALSE POSITIVE</span>
+</div>
+<div class="flex items-center gap-4 text-xs">
+<div class="flex items-center gap-1.5 text-slate-600">
+<span class="material-symbols-outlined text-sm">tag</span>
+<span>CWE-457</span>
+</div>
+<div class="flex items-center gap-1.5 text-slate-700">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span>4d ago</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-6 pr-4">
+<div class="flex items-center gap-1 text-slate-700">
+<span class="material-symbols-outlined text-lg">chat_bubble</span>
+<span class="text-xs font-bold">0</span>
+</div>
+<span class="material-symbols-outlined text-slate-700">block</span>
+</div>
+</div>
+<!-- Finding 6: Low -->
+<div class="bg-[#161b22] border border-[#30363d] rounded-lg p-5 flex items-center gap-6 group hover:bg-[#1c2026] transition-all cursor-pointer">
+<div class="flex flex-col items-center gap-1 w-20 py-3 bg-slate-800 rounded border border-outline-variant/20">
+<span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Low</span>
+<span class="material-symbols-outlined text-slate-500 text-sm">check_circle</span>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-3 mb-1">
+<h3 class="text-lg font-semibold text-slate-100 font-['Inter']">Dead code detected in legacy sensor API</h3>
+<span class="px-2 py-0.5 bg-surface-container-highest text-[10px] font-bold text-slate-400 rounded">OPEN</span>
+</div>
+<div class="flex items-center gap-4 text-xs">
+<div class="flex items-center gap-1.5 text-slate-500">
+<span class="material-symbols-outlined text-sm">tag</span>
+<span>CWE-561</span>
+</div>
+<div class="flex items-center gap-1.5 text-slate-600">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span>5d ago</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-6 pr-4">
+<div class="flex items-center gap-1 text-slate-700 opacity-30">
+<span class="material-symbols-outlined text-lg">chat_bubble</span>
+<span class="text-xs font-bold">0</span>
+</div>
+<span class="material-symbols-outlined text-slate-600 group-hover:text-primary transition-colors">chevron_right</span>
+</div>
+</div>
+</div>
+<!-- Pagination & Footer -->
+<div class="mt-12 flex items-center justify-between border-t border-outline-variant/10 pt-8 pb-12">
+<div class="flex items-center gap-2">
+<span class="text-sm font-medium text-slate-500">AEGIS v2.1.0</span>
+<span class="w-1 h-1 bg-slate-700 rounded-full"></span>
+<span class="text-xs text-slate-600">Precision Security Audit System</span>
+</div>
+<div class="flex items-center gap-6">
+<span class="text-xs font-bold text-slate-400 tracking-wider">1-6 of 32</span>
+<div class="flex gap-2">
+<button class="p-2 bg-surface-container hover:bg-surface-container-high rounded text-slate-400 disabled:opacity-30" disabled="">
+<span class="material-symbols-outlined">navigate_before</span>
+</button>
+<button class="p-2 bg-surface-container hover:bg-surface-container-high rounded text-slate-400">
+<span class="material-symbols-outlined">navigate_next</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- FAB for Adding Findings (Contextual) -->
+<button class="fixed bottom-8 right-8 w-14 h-14 bg-primary-container text-on-primary-container rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform active:scale-95 group z-50">
+<span class="material-symbols-outlined text-3xl">add</span>
+<span class="absolute right-full mr-4 bg-[#161b22] text-slate-100 text-[10px] font-bold py-1.5 px-3 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity border border-outline-variant/30 uppercase tracking-widest">Manually Log Finding</span>
+</button>
+</body></html>

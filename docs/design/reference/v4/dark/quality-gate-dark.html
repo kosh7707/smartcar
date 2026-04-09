@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS Quality Gate - ECU-PowerTrain-v2.1</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container": "#121a25",
+                        "surface": "#0a0e14",
+                        "inverse-primary": "#00649b",
+                        "primary": "#96ccff",
+                        "secondary-dim": "#989ea7",
+                        "outline": "#6a768a",
+                        "primary-fixed": "#cee5ff",
+                        "on-primary-fixed": "#00436a",
+                        "error-container": "#7f2927",
+                        "tertiary-dim": "#75ed7d",
+                        "surface-container-lowest": "#000000",
+                        "outline-variant": "#3c495b",
+                        "error": "#ee7d77",
+                        "surface-container-low": "#0e141c",
+                        "tertiary": "#c7ffc2",
+                        "surface-tint": "#96ccff",
+                        "secondary": "#989ea7",
+                        "surface-container-high": "#16202e",
+                        "secondary-container": "#363c43",
+                        "secondary-fixed": "#dde3ec",
+                        "on-secondary": "#1b2127",
+                        "surface-variant": "#1a2637",
+                        "on-surface": "#d9e6fd",
+                        "on-secondary-fixed": "#3a4047",
+                        "on-primary-fixed-variant": "#006096",
+                        "surface-container-highest": "#1a2637",
+                        "secondary-fixed-dim": "#cfd5de",
+                        "surface-bright": "#1e2d41",
+                        "on-tertiary-fixed-variant": "#006b20",
+                        "inverse-surface": "#f8f9ff",
+                        "primary-fixed-dim": "#b3d8ff",
+                        "on-error-container": "#ff9993",
+                        "background": "#0a0e14",
+                        "on-surface-variant": "#9facc1",
+                        "on-tertiary-container": "#005f1c",
+                        "on-background": "#d9e6fd",
+                        "on-tertiary-fixed": "#004a14",
+                        "tertiary-container": "#83fc89",
+                        "on-primary": "#00436b",
+                        "on-secondary-container": "#bac0c8",
+                        "tertiary-fixed": "#83fc89",
+                        "on-secondary-fixed-variant": "#565c64",
+                        "tertiary-fixed-dim": "#75ed7d",
+                        "on-error": "#490106",
+                        "error-dim": "#bb5551",
+                        "inverse-on-surface": "#51555c",
+                        "on-tertiary": "#00691f",
+                        "primary-dim": "#78bffe",
+                        "surface-dim": "#0a0e14",
+                        "on-primary-container": "#aad5ff",
+                        "primary-container": "#004a76"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #0a0e14; color: #d9e6fd; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-panel { background: rgba(18, 26, 37, 0.7); backdrop-filter: blur(12px); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-background text-on-surface">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 bg-[#0a0e14] text-[#96ccff] font-['Space_Grotesk'] text-sm tracking-tight shadow-[0_48px_48px_0_rgba(150,204,255,0.08)] flex justify-between items-center px-6 h-16 w-full">
+<div class="flex items-center gap-8">
+<div class="text-lg font-bold text-[#96ccff] tracking-widest uppercase">AEGIS</div>
+<div class="flex items-center gap-2 px-3 py-1.5 bg-[#1a2637] rounded-lg cursor-pointer hover:bg-[#1e2d41] transition-colors group">
+<span class="text-on-surface">ECU-PowerTrain-v2.1</span>
+<span class="material-symbols-outlined text-sm">expand_more</span>
+</div>
+<div class="hidden md:flex relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">search</span>
+<input class="bg-[#0e141c] border-none rounded-lg pl-10 pr-4 py-2 w-64 text-sm focus:ring-1 focus:ring-primary placeholder:text-outline-variant" placeholder="Search resources..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative group cursor-pointer p-2 rounded-full hover:bg-[#1e2d41] transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-4 h-4 bg-error text-[10px] text-on-error font-bold flex items-center justify-center rounded-full">3</span>
+</div>
+<div class="flex items-center gap-3 cursor-pointer group">
+<div class="text-right hidden sm:block">
+<p class="text-xs font-bold text-on-surface">Kosh / Admin</p>
+<p class="text-[10px] text-outline uppercase tracking-wider">Security Clearance Level 4</p>
+</div>
+<img alt="User profile" class="w-8 h-8 rounded-full border border-outline-variant" data-alt="close-up portrait of a technical system administrator avatar, minimalist high-tech theme" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCa6c7-1ry_9HzFw8lu2W8XemdweFly0Mf-b4vrIMeUE66LiXq_QWeLqeXrnHY2QaK2uz4aj07uuSsreFEovKL_3hPvoARHiqPQW848qKwJVC508GCS9-GMY8qc9OBr-81T5XV8hGnF0tB0N4tTiEG9uj-4_oLW4SH_o0fcwHf6XgkPUmLnMWJHxlqBQCMMHa8_eesndw3-W0jZuhxX5wUOHk0oDCY62rjW30CZM65pwWkZ18ppAeUFZLHTEWWeLwZt0Wr02dFD1ROX"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-[#0e141c] border-r border-[#3c495b]/15 flex flex-col py-4 z-40">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3 mb-1">
+<span class="material-symbols-outlined text-primary" data-icon="shield" style="font-variation-settings: 'FILL' 1;">shield</span>
+<h2 class="font-['Space_Grotesk'] uppercase tracking-widest text-[#96ccff] text-sm">Project Sentinel</h2>
+</div>
+<p class="text-[10px] text-outline-variant font-mono uppercase pl-8">ECU-PowerTrain-v2.1</p>
+</div>
+<nav class="flex-1 space-y-1 px-3">
+<div class="px-3 mb-2">
+<p class="text-[10px] font-bold text-outline uppercase tracking-widest mb-2">Sub-Projects</p>
+<div class="space-y-1">
+<a class="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-on-surface-variant hover:bg-surface-variant transition-all" href="#">
+<span>arm-cortex-m4-main</span>
+<span class="bg-surface-container-highest px-1.5 py-0.5 rounded text-[10px] font-mono">30</span>
+</a>
+<a class="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-on-surface-variant hover:bg-surface-variant transition-all" href="#">
+<span>arm-cortex-m4-boot</span>
+<span class="bg-surface-container-highest px-1.5 py-0.5 rounded text-[10px] font-mono">8</span>
+</a>
+<a class="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-on-surface-variant hover:bg-surface-variant transition-all" href="#">
+<span>riscv-rv32-diag</span>
+<span class="bg-surface-container-highest px-1.5 py-0.5 rounded text-[10px] font-mono">5</span>
+</a>
+</div>
+</div>
+<div class="border-t border-outline-variant/10 my-4 mx-3"></div>
+<a class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-[#d9e6fd]/70 hover:text-[#d9e6fd] hover:bg-[#1a2637] transition-all rounded-lg mx-2" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="dashboard">dashboard</span>
+                Overview
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-sm font-medium bg-[#1e2d41] text-[#96ccff] border-l-4 border-[#96ccff] transition-all mx-2" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="verified_user">verified_user</span>
+                Quality Gate
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-[#d9e6fd]/70 hover:text-[#d9e6fd] hover:bg-[#1a2637] transition-all rounded-lg mx-2" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="analytics">analytics</span>
+                Analysis
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-[#d9e6fd]/70 hover:text-[#d9e6fd] hover:bg-[#1a2637] transition-all rounded-lg mx-2" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="code">code</span>
+                Code
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-[#d9e6fd]/70 hover:text-[#d9e6fd] hover:bg-[#1a2637] transition-all rounded-lg mx-2" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="search_check">search_check</span>
+                Findings
+            </a>
+</nav>
+<div class="px-4 py-4 mt-auto border-t border-outline-variant/10">
+<a class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-outline hover:text-on-surface transition-all" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="arrow_back">arrow_back</span>
+                Back to Projects
+            </a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-64 mt-16 p-8 min-h-[calc(100vh-64px)] bg-[#0d1117] flex flex-col gap-8 relative pb-16">
+<!-- Header -->
+<div class="flex items-end justify-between">
+<div>
+<h1 class="font-headline text-3xl font-bold text-on-surface">Quality Gate</h1>
+<p class="text-on-surface-variant text-sm mt-1">Status and compliance report for ECU-PowerTrain-v2.1</p>
+</div>
+<div class="flex gap-3">
+<button class="px-4 py-2 bg-surface-container text-on-surface rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-surface-bright transition-all active:scale-95">
+<span class="material-symbols-outlined text-base">download</span> Export Report
+                </button>
+</div>
+</div>
+<!-- Pass Banner -->
+<div class="bg-[#0d2818] border border-[#238636] rounded-xl p-8 flex items-center justify-between">
+<div class="flex items-center gap-8">
+<div class="w-16 h-16 rounded-full bg-[#238636]/20 flex items-center justify-center border-2 border-[#238636]">
+<span class="material-symbols-outlined text-4xl text-[#3fb950]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div>
+<div class="flex items-baseline gap-4">
+<span class="text-4xl font-bold text-[#3fb950] tracking-tight">PASS</span>
+<span class="text-on-surface font-medium text-lg">All criteria met</span>
+</div>
+<div class="flex items-center gap-3 mt-2 text-outline text-sm">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-xs">calendar_today</span> 2026-04-08 14:30</span>
+<span class="w-1 h-1 bg-outline-variant rounded-full"></span>
+<span class="flex items-center gap-1 font-mono text-xs"><span class="material-symbols-outlined text-xs">fingerprint</span> analysis-003</span>
+</div>
+</div>
+</div>
+<div class="hidden lg:block text-right">
+<p class="text-xs uppercase tracking-widest text-[#3fb950]/70 font-bold mb-1">Current Shield Integrity</p>
+<div class="text-2xl font-mono text-[#3fb950]">100% SECURE</div>
+</div>
+</div>
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+<!-- Criteria Table -->
+<div class="xl:col-span-2 space-y-4">
+<div class="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden shadow-2xl">
+<div class="px-6 py-4 border-b border-[#30363d] flex justify-between items-center bg-[#0d1117]/50">
+<h3 class="font-bold text-sm text-on-surface tracking-wide uppercase">Gate Criteria</h3>
+<span class="text-[10px] font-mono text-outline uppercase">6 checks executed</span>
+</div>
+<div class="divide-y divide-[#30363d]">
+<!-- Row 1 -->
+<div class="px-6 py-4 flex items-center justify-between hover:bg-surface-bright transition-colors group">
+<div class="flex items-center gap-4">
+<div class="w-8 h-8 rounded-lg bg-tertiary-container/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">security</span>
+</div>
+<div>
+<p class="text-sm font-medium text-on-surface">Critical Security Findings</p>
+<p class="text-[11px] text-outline">Target: 0 findings</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="font-mono text-sm text-on-surface">0</span>
+<span class="bg-[#238636]/20 text-[#3fb950] px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider">PASS</span>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="px-6 py-4 flex items-center justify-between hover:bg-surface-bright transition-colors group">
+<div class="flex items-center gap-4">
+<div class="w-8 h-8 rounded-lg bg-tertiary-container/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<div>
+<p class="text-sm font-medium text-on-surface">High-Severity Findings</p>
+<p class="text-[11px] text-outline">Target: &lt; 2 findings</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="font-mono text-sm text-on-surface">1</span>
+<span class="bg-[#238636]/20 text-[#3fb950] px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider">PASS</span>
+</div>
+</div>
+<!-- Row 3 -->
+<div class="px-6 py-4 flex items-center justify-between hover:bg-surface-bright transition-colors group">
+<div class="flex items-center gap-4">
+<div class="w-8 h-8 rounded-lg bg-tertiary-container/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">rule</span>
+</div>
+<div>
+<p class="text-sm font-medium text-on-surface">MISRA-C:2012 Compliance</p>
+<p class="text-[11px] text-outline">Target: Zero mandatory violations</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="font-mono text-sm text-on-surface">0</span>
+<span class="bg-[#238636]/20 text-[#3fb950] px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider">PASS</span>
+</div>
+</div>
+<!-- Row 4 -->
+<div class="px-6 py-4 flex items-center justify-between hover:bg-surface-bright transition-colors group">
+<div class="flex items-center gap-4">
+<div class="w-8 h-8 rounded-lg bg-tertiary-container/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">shield_lock</span>
+</div>
+<div>
+<p class="text-sm font-medium text-on-surface">Memory Corruption Vulnerabilities</p>
+<p class="text-[11px] text-outline">Target: 0 items</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="font-mono text-sm text-on-surface">0</span>
+<span class="bg-[#238636]/20 text-[#3fb950] px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider">PASS</span>
+</div>
+</div>
+<!-- Row 5 -->
+<div class="px-6 py-4 flex items-center justify-between hover:bg-surface-bright transition-colors group">
+<div class="flex items-center gap-4">
+<div class="w-8 h-8 rounded-lg bg-tertiary-container/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">bug_report</span>
+</div>
+<div>
+<p class="text-sm font-medium text-on-surface">Static Analysis Coverage</p>
+<p class="text-[11px] text-outline">Target: &gt; 95% coverage</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="font-mono text-sm text-on-surface">98.2%</span>
+<span class="bg-[#238636]/20 text-[#3fb950] px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider">PASS</span>
+</div>
+</div>
+<!-- Row 6 -->
+<div class="px-6 py-4 flex items-center justify-between hover:bg-surface-bright transition-colors group">
+<div class="flex items-center gap-4">
+<div class="w-8 h-8 rounded-lg bg-tertiary-container/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+<div>
+<p class="text-sm font-medium text-on-surface">Secure Coding Guidelines</p>
+<p class="text-[11px] text-outline">Target: Grade A/B</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="font-mono text-sm text-on-surface">A+</span>
+<span class="bg-[#238636]/20 text-[#3fb950] px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider">PASS</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Override Footer -->
+<div class="bg-surface-container border-t-2 border-primary/30 p-4 rounded-xl flex items-center justify-between shadow-lg">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">gavel</span>
+</div>
+<div>
+<p class="text-xs font-bold text-on-surface uppercase tracking-wider">Administrative Overrides</p>
+<p class="text-sm text-outline-variant font-mono">CWE-119 waiver — <span class="text-on-surface-variant italic">Kim S.</span></p>
+</div>
+</div>
+<button class="bg-[#1a2637] hover:bg-[#1e2d41] text-primary border border-primary/30 px-5 py-2 rounded-lg text-sm font-semibold transition-all">
+                        Request Override
+                    </button>
+</div>
+</div>
+<!-- History Section -->
+<div class="space-y-4">
+<div class="bg-[#161b22] border border-[#30363d] rounded-xl h-fit shadow-2xl">
+<div class="px-6 py-4 border-b border-[#30363d] bg-[#0d1117]/50">
+<h3 class="font-bold text-sm text-on-surface tracking-wide uppercase">Gate History</h3>
+</div>
+<div class="p-2 space-y-1">
+<!-- History 1 -->
+<div class="p-4 rounded-lg hover:bg-surface-bright transition-all flex items-start justify-between">
+<div class="flex gap-4">
+<div class="mt-1 w-2 h-2 rounded-full bg-[#3fb950] shadow-[0_0_8px_#3fb950]"></div>
+<div>
+<p class="text-sm font-medium text-on-surface">2026-04-08</p>
+<p class="text-xs text-[#3fb950]">PASS <span class="text-[10px] ml-1 font-mono">(-5 findings)</span></p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline text-lg">chevron_right</span>
+</div>
+<!-- History 2 -->
+<div class="p-4 rounded-lg bg-error-container/5 hover:bg-error-container/10 border border-transparent hover:border-error/20 transition-all flex items-start justify-between">
+<div class="flex gap-4">
+<div class="mt-1 w-2 h-2 rounded-full bg-[#da3633] shadow-[0_0_8px_#da3633]"></div>
+<div>
+<p class="text-sm font-medium text-on-surface">2026-04-07</p>
+<p class="text-xs text-[#da3633]">FAIL <span class="text-[10px] ml-1 font-mono">(+5 findings)</span></p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline text-lg">chevron_right</span>
+</div>
+<!-- History 3 -->
+<div class="p-4 rounded-lg hover:bg-surface-bright transition-all flex items-start justify-between">
+<div class="flex gap-4">
+<div class="mt-1 w-2 h-2 rounded-full bg-[#3fb950] shadow-[0_0_8px_#3fb950]"></div>
+<div>
+<p class="text-sm font-medium text-on-surface">2026-04-06</p>
+<p class="text-xs text-[#3fb950]">PASS <span class="text-[10px] ml-1 font-mono">(-3 findings)</span></p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline text-lg">chevron_right</span>
+</div>
+<!-- History 4 -->
+<div class="p-4 rounded-lg hover:bg-surface-bright transition-all flex items-start justify-between">
+<div class="flex gap-4">
+<div class="mt-1 w-2 h-2 rounded-full bg-[#9e6a03] shadow-[0_0_8px_#9e6a03]"></div>
+<div>
+<p class="text-sm font-medium text-on-surface">2026-04-04</p>
+<p class="text-xs text-[#9e6a03]">WARNING <span class="text-[10px] ml-1 font-mono">(+1 finding)</span></p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline text-lg">chevron_right</span>
+</div>
+</div>
+<div class="p-4 border-t border-[#30363d] text-center">
+<a class="text-primary text-xs font-semibold hover:underline" href="#">View Full Audit Trail</a>
+</div>
+</div>
+<!-- Analysis Summary Card -->
+<div class="bg-gradient-to-br from-surface-container to-surface-container-high border border-outline-variant/20 rounded-xl p-6">
+<p class="text-[10px] font-bold text-outline uppercase tracking-widest mb-4">Latest Scan Stats</p>
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-surface-container-lowest p-3 rounded-lg">
+<p class="text-[10px] text-outline mb-1">LOCC</p>
+<p class="text-xl font-bold text-on-surface">142K</p>
+</div>
+<div class="bg-surface-container-lowest p-3 rounded-lg">
+<p class="text-[10px] text-outline mb-1">Time</p>
+<p class="text-xl font-bold text-on-surface">14m 2s</p>
+</div>
+</div>
+<div class="mt-4 flex items-center justify-between text-xs text-outline-variant font-mono">
+<span>Scanner: Sentinel-v4</span>
+<span>v2.1.0-rc3</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Global Footer -->
+<footer class="absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none">
+<span class="text-[#8b949e] text-[10px] font-mono tracking-widest uppercase opacity-60">AEGIS v2.1.0 — SECURE DEPLOYMENT PROTOCOL</span>
+</footer>
+</main>
+</body></html>

@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS Quality Gate</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container": "#eeeeee",
+                        "on-primary-fixed": "#001a41",
+                        "outline-variant": "#c2c6d6",
+                        "secondary-fixed-dim": "#bfc7d3",
+                        "on-primary-fixed-variant": "#004493",
+                        "surface-bright": "#f9f9f9",
+                        "error": "#ba1a1a",
+                        "secondary": "#575f69",
+                        "tertiary-fixed-dim": "#6bde80",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed": "#002108",
+                        "on-secondary-fixed": "#141c25",
+                        "outline": "#727785",
+                        "on-error-container": "#93000a",
+                        "on-error": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "on-surface-variant": "#424753",
+                        "on-tertiary": "#ffffff",
+                        "primary-container": "#0969da",
+                        "surface-dim": "#dadada",
+                        "on-background": "#1a1c1c",
+                        "primary-fixed": "#d8e2ff",
+                        "primary-fixed-dim": "#adc6ff",
+                        "on-tertiary-container": "#c0ffc2",
+                        "on-surface": "#1a1c1c",
+                        "surface-tint": "#005bc0",
+                        "surface-container-high": "#e8e8e8",
+                        "on-primary-container": "#ecefff",
+                        "surface-container-highest": "#e2e2e2",
+                        "tertiary": "#006226",
+                        "primary": "#0051ae",
+                        "secondary-fixed": "#dbe3ef",
+                        "on-secondary-container": "#5b636e",
+                        "on-primary": "#ffffff",
+                        "tertiary-fixed": "#88fb99",
+                        "on-tertiary-fixed-variant": "#00531f",
+                        "surface-variant": "#e2e2e2",
+                        "surface-container-low": "#f3f3f4",
+                        "surface": "#f9f9f9",
+                        "inverse-surface": "#2f3131",
+                        "inverse-primary": "#adc6ff",
+                        "background": "#f9f9f9",
+                        "tertiary-container": "#007e33",
+                        "on-secondary-fixed-variant": "#3f4751",
+                        "secondary-container": "#d8e0ed",
+                        "on-secondary": "#ffffff",
+                        "inverse-on-surface": "#f0f1f1"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #f0f2f5; }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .gate-pass-bg { background-color: #dafbe1; border: 1px solid #1a7f37; }
+        .gate-pass-text { color: #1a7f37; }
+        .monolith-card { background-color: #ffffff; border-radius: 0.125rem; box-shadow: 0 8px 32px rgba(26, 28, 28, 0.04); }
+    </style>
+</head>
+<body class="text-on-surface">
+<div class="flex min-h-screen">
+<!-- SideNavBar Component -->
+<aside class="h-screen w-64 flex-shrink-0 bg-slate-50 border-r border-slate-200/40 flex flex-col py-6">
+<div class="px-6 mb-8">
+<div class="text-lg font-black text-slate-900 font-headline tracking-tighter mb-1 uppercase">AEGIS</div>
+<div class="text-[10px] font-label font-medium text-slate-500 uppercase tracking-widest">v4.0 Production</div>
+</div>
+<!-- SUB-PROJECTS section -->
+<div class="px-6 mb-6">
+<h3 class="text-[10px] font-label font-bold text-slate-400 uppercase tracking-widest mb-3">Sub-Projects</h3>
+<div class="space-y-2">
+<div class="flex justify-between items-center text-xs font-medium text-slate-600 bg-white/50 p-2 rounded-lg border border-slate-200/40">
+<span>arm-cortex-m4-main</span>
+<span class="bg-slate-200 px-1.5 py-0.5 rounded text-[10px]">30</span>
+</div>
+<div class="flex justify-between items-center text-xs font-medium text-slate-500 p-2">
+<span>arm-cortex-m4-boot</span>
+<span class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">8</span>
+</div>
+<div class="flex justify-between items-center text-xs font-medium text-slate-500 p-2">
+<span>riscv-rv32-diag</span>
+<span class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">5</span>
+</div>
+</div>
+</div>
+<!-- Main Nav Items -->
+<nav class="flex-grow space-y-1 px-3">
+<a class="flex items-center px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:translate-x-1 transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined mr-3 text-slate-400">dashboard</span>
+                    Dashboard
+                </a>
+<a class="flex items-center px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:translate-x-1 transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined mr-3 text-slate-400">analytics</span>
+                    Analysis
+                </a>
+<a class="flex items-center px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:translate-x-1 transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined mr-3 text-slate-400">code</span>
+                    Code
+                </a>
+<a class="flex items-center px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:translate-x-1 transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined mr-3 text-slate-400">troubleshoot</span>
+                    Findings
+                </a>
+<!-- Active Tab: Quality Gate -->
+<a class="flex items-center px-3 py-2 text-sm font-bold bg-white text-blue-700 border-l-4 border-blue-600 shadow-sm rounded-r-lg" href="#">
+<span class="material-symbols-outlined mr-3 text-blue-700" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+                    Quality Gate
+                </a>
+<a class="flex items-center px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:translate-x-1 transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined mr-3 text-slate-400">settings</span>
+                    Settings
+                </a>
+</nav>
+<div class="px-6 mt-auto">
+<button class="w-full py-2.5 bg-gradient-to-br from-primary to-primary-container text-white text-sm font-medium rounded-lg shadow-sm hover:opacity-90 transition-opacity flex items-center justify-center">
+<span class="material-symbols-outlined mr-2 text-sm">add</span>
+                    New Analysis
+                </button>
+<div class="mt-6 pt-6 border-t border-slate-200/40">
+<a class="flex items-center text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined mr-2 text-sm">arrow_back</span>
+                        Back to Projects
+                    </a>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-grow flex flex-col min-w-0">
+<!-- TopNavBar -->
+<header class="sticky top-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-slate-200/20 shadow-sm shadow-slate-200/50 h-14 flex items-center justify-between px-8">
+<div class="flex items-center space-x-6">
+<h1 class="text-xl font-bold tracking-tighter text-slate-900 font-headline">AEGIS</h1>
+<nav class="hidden md:flex space-x-6 text-sm font-medium">
+<a class="text-slate-500 hover:text-slate-900" href="#">Explore</a>
+<a class="text-blue-700 border-b-2 border-blue-700 pb-1" href="#">Quality Control</a>
+<a class="text-slate-500 hover:text-slate-900" href="#">Documentation</a>
+</nav>
+</div>
+<div class="flex items-center space-x-4">
+<div class="relative">
+<span class="material-symbols-outlined text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 text-lg">search</span>
+<input class="pl-8 pr-4 py-1.5 bg-slate-100 border-none rounded-full text-xs w-48 focus:ring-1 focus:ring-primary/20 transition-all" placeholder="Search systems..." type="text"/>
+</div>
+<span class="material-symbols-outlined text-slate-500 cursor-pointer hover:text-slate-900">notifications</span>
+<span class="material-symbols-outlined text-slate-500 cursor-pointer hover:text-slate-900">help</span>
+<div class="w-8 h-8 rounded-full bg-slate-200 overflow-hidden border border-slate-300">
+<img class="w-full h-full object-cover" data-alt="professional technical architect portrait with glasses and neutral grey background soft studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDzUIzmYNrl52WfXDgyf0_cDGdSwUlWaBtsekKeeC1627Y9e_gt9nqs0RSJ0c-F5lmZ9c7ScM5jGN5rwJwMOQghKbUc1wlTXs-tucjbIae_0nvjEQIIls2JD28QEipcCBVjiIrlv3RPQqP9wEP20atDRW9dmZxkrtXALXX2VtKoIGuOCtu2126foJ_ycJWGAhFi-Lp9_1fKeyjpcJ0pfGcw93K2D6whL_6KLyTjt42ozJX2Ozs_l_vDXVvSJFvGeQ2rZNmKGSSBPNNs"/>
+</div>
+</div>
+</header>
+<div class="p-8 space-y-8 max-w-6xl">
+<!-- Header Section -->
+<div>
+<h2 class="text-2xl font-bold text-on-surface font-headline">Quality Gate</h2>
+<p class="text-on-surface-variant text-sm mt-1">Build release criteria evaluation</p>
+</div>
+<!-- Status Banner -->
+<div class="gate-pass-bg rounded-lg p-6 flex items-center justify-between">
+<div class="flex items-center gap-6">
+<div class="bg-white rounded-full p-2 flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-4xl font-bold gate-pass-text" style="font-variation-settings: 'wght' 700;">check_circle</span>
+</div>
+<div>
+<div class="text-4xl font-bold font-headline gate-pass-text">PASS</div>
+<div class="text-on-surface font-medium">All criteria met — eligible for release</div>
+</div>
+</div>
+<div class="text-right text-xs space-y-1 text-on-surface-variant font-medium">
+<div>Last evaluated: <span class="text-on-surface">2026-04-08 14:30</span></div>
+<div>Analysis: <span class="text-on-surface">analysis-20260408-003</span></div>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Criteria Table Card (The Monolith) -->
+<div class="lg:col-span-2 monolith-card p-6">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-sm font-bold font-headline uppercase tracking-widest text-slate-500">Evaluation Criteria</h3>
+<span class="text-[10px] font-bold px-2 py-1 bg-tertiary-container/10 text-tertiary rounded uppercase">Live Evaluation</span>
+</div>
+<div class="overflow-hidden">
+<table class="w-full text-sm">
+<thead>
+<tr class="text-left border-b border-slate-100">
+<th class="pb-3 font-semibold text-slate-400 text-xs uppercase tracking-tighter">Metric</th>
+<th class="pb-3 font-semibold text-slate-400 text-xs uppercase tracking-tighter text-center">Condition</th>
+<th class="pb-3 font-semibold text-slate-400 text-xs uppercase tracking-tighter text-center">Value</th>
+<th class="pb-3 font-semibold text-slate-400 text-xs uppercase tracking-tighter text-right">Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-50">
+<tr class="group hover:bg-slate-50/50 transition-colors">
+<td class="py-4 font-medium text-slate-700">Critical findings</td>
+<td class="py-4 text-center text-slate-500 font-mono text-xs">0</td>
+<td class="py-4 text-center font-bold text-slate-900">0</td>
+<td class="py-4 text-right">
+<span class="text-xs font-bold text-tertiary bg-tertiary-container/10 px-2 py-0.5 rounded">PASS</span>
+</td>
+</tr>
+<tr class="group hover:bg-slate-50/50 transition-colors">
+<td class="py-4 font-medium text-slate-700">High findings</td>
+<td class="py-4 text-center text-slate-500 font-mono text-xs">&lt;=5</td>
+<td class="py-4 text-center font-bold text-slate-900">3</td>
+<td class="py-4 text-right">
+<span class="text-xs font-bold text-tertiary bg-tertiary-container/10 px-2 py-0.5 rounded">PASS</span>
+</td>
+</tr>
+<tr class="group hover:bg-slate-50/50 transition-colors">
+<td class="py-4 font-medium text-slate-700">New findings delta</td>
+<td class="py-4 text-center text-slate-500 font-mono text-xs">&lt;=10</td>
+<td class="py-4 text-center font-bold text-slate-900">+2</td>
+<td class="py-4 text-right">
+<span class="text-xs font-bold text-tertiary bg-tertiary-container/10 px-2 py-0.5 rounded">PASS</span>
+</td>
+</tr>
+<tr class="group hover:bg-slate-50/50 transition-colors">
+<td class="py-4 font-medium text-slate-700">MISRA compliance</td>
+<td class="py-4 text-center text-slate-500 font-mono text-xs">&gt;=90%</td>
+<td class="py-4 text-center font-bold text-slate-900">94.2%</td>
+<td class="py-4 text-right">
+<span class="text-xs font-bold text-tertiary bg-tertiary-container/10 px-2 py-0.5 rounded">PASS</span>
+</td>
+</tr>
+<tr class="group hover:bg-slate-50/50 transition-colors">
+<td class="py-4 font-medium text-slate-700">Code coverage</td>
+<td class="py-4 text-center text-slate-500 font-mono text-xs">&gt;=70%</td>
+<td class="py-4 text-center font-bold text-slate-900">78%</td>
+<td class="py-4 text-right">
+<span class="text-xs font-bold text-tertiary bg-tertiary-container/10 px-2 py-0.5 rounded">PASS</span>
+</td>
+</tr>
+<tr class="group hover:bg-slate-50/50 transition-colors">
+<td class="py-4 font-medium text-slate-700">Unresolved overrides</td>
+<td class="py-4 text-center text-slate-500 font-mono text-xs">0</td>
+<td class="py-4 text-center font-bold text-slate-900">0</td>
+<td class="py-4 text-right">
+<span class="text-xs font-bold text-tertiary bg-tertiary-container/10 px-2 py-0.5 rounded">PASS</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Right Column: Override and Actions -->
+<div class="space-y-8">
+<!-- Override Section -->
+<div class="monolith-card p-6 border-l-4 border-slate-300">
+<h3 class="text-sm font-bold font-headline uppercase tracking-widest text-slate-500 mb-4">Manual Override</h3>
+<p class="text-sm text-on-surface-variant mb-6 leading-relaxed">Override allows proceeding despite gate failure. Requires secondary approval from Lead Architect.</p>
+<button class="w-full py-2 border-2 border-primary text-primary font-bold text-xs uppercase tracking-widest rounded-lg hover:bg-primary/5 transition-colors mb-6">
+                                Request Override
+                            </button>
+<div class="bg-slate-50 p-4 rounded-lg border border-slate-200/50">
+<div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Recent Override History</div>
+<div class="text-xs text-slate-600 italic">"No active overrides for current build. Previous waiver expired 2026-03-20."</div>
+</div>
+</div>
+<!-- Mini Data Viz -->
+<div class="monolith-card p-6 bg-slate-900 text-white overflow-hidden relative">
+<div class="relative z-10">
+<h3 class="text-[10px] font-bold font-headline uppercase tracking-widest text-slate-400 mb-4">Coverage Trend</h3>
+<div class="flex items-end gap-1 h-12">
+<div class="w-2 bg-blue-500/30 h-[60%]"></div>
+<div class="w-2 bg-blue-500/40 h-[65%]"></div>
+<div class="w-2 bg-blue-500/50 h-[72%]"></div>
+<div class="w-2 bg-blue-500/70 h-[70%]"></div>
+<div class="w-2 bg-blue-500 h-[78%]"></div>
+</div>
+<div class="mt-4 text-2xl font-bold font-headline">78.0<span class="text-slate-500 text-sm">%</span></div>
+<div class="text-[10px] text-tertiary-fixed font-bold">+2.4% from baseline</div>
+</div>
+<div class="absolute -right-4 -bottom-4 opacity-10">
+<span class="material-symbols-outlined text-8xl">show_chart</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Gate History Card -->
+<div class="monolith-card p-6">
+<h3 class="text-sm font-bold font-headline uppercase tracking-widest text-slate-500 mb-6">Gate Evaluation History</h3>
+<div class="overflow-x-auto">
+<table class="w-full text-sm">
+<thead>
+<tr class="text-left border-b border-slate-100">
+<th class="pb-4 font-semibold text-slate-400 text-xs uppercase tracking-tighter">Date</th>
+<th class="pb-4 font-semibold text-slate-400 text-xs uppercase tracking-tighter">Analysis ID</th>
+<th class="pb-4 font-semibold text-slate-400 text-xs uppercase tracking-tighter">Result</th>
+<th class="pb-4 font-semibold text-slate-400 text-xs uppercase tracking-tighter">Delta</th>
+<th class="pb-4 font-semibold text-slate-400 text-xs uppercase tracking-tighter">Notes</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-50">
+<tr>
+<td class="py-4 text-slate-600">2026-04-08 14:30</td>
+<td class="py-4 font-mono text-xs text-blue-600">analysis-20260408-003</td>
+<td class="py-4">
+<span class="text-[10px] font-bold text-tertiary bg-tertiary-container/10 px-2 py-0.5 rounded">PASS</span>
+</td>
+<td class="py-4 text-slate-500 text-xs">-2 Issues</td>
+<td class="py-4 text-slate-500 text-xs">Standard nightly evaluation.</td>
+</tr>
+<tr>
+<td class="py-4 text-slate-600">2026-04-07 10:15</td>
+<td class="py-4 font-mono text-xs text-blue-600">analysis-20260407-012</td>
+<td class="py-4">
+<span class="text-[10px] font-bold text-error bg-error-container/20 px-2 py-0.5 rounded">FAIL</span>
+</td>
+<td class="py-4 text-slate-500 text-xs">+12 Issues</td>
+<td class="py-4 text-slate-500 text-xs">Regression in memory module.</td>
+</tr>
+<tr>
+<td class="py-4 text-slate-600">2026-04-06 18:00</td>
+<td class="py-4 font-mono text-xs text-blue-600">analysis-20260406-001</td>
+<td class="py-4">
+<span class="text-[10px] font-bold text-tertiary bg-tertiary-container/10 px-2 py-0.5 rounded">PASS</span>
+</td>
+<td class="py-4 text-slate-500 text-xs">Initial</td>
+<td class="py-4 text-slate-500 text-xs">Baseline release criteria met.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Footer Component -->
+<footer class="mt-auto w-full border-t border-slate-200/30 bg-slate-50 flex justify-between items-center px-8 py-4">
+<div class="text-[10px] font-label font-bold text-slate-400 uppercase tracking-widest">
+                    System Version 2.4.1-Stable
+                </div>
+<div class="flex space-x-6">
+<a class="text-[10px] font-label font-medium text-slate-500 hover:text-slate-800 underline underline-offset-4 uppercase tracking-widest transition-opacity opacity-70 hover:opacity-100" href="#">API Reference</a>
+<a class="text-[10px] font-label font-medium text-slate-500 hover:text-slate-800 underline underline-offset-4 uppercase tracking-widest transition-opacity opacity-70 hover:opacity-100" href="#">Security Policy</a>
+<a class="text-[10px] font-label font-medium text-slate-500 hover:text-slate-800 underline underline-offset-4 uppercase tracking-widest transition-opacity opacity-70 hover:opacity-100" href="#">Status</a>
+</div>
+</footer>
+</main>
+</div>
+</body></html>

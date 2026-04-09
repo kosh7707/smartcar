@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Automotive Security Intelligence</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Gabarito:wght@600;800&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style type="text/tailwindcss">
+        :root {--bg-primary: #202225;
+            --bg-secondary: #2f3136;
+            --bg-tertiary: #36393f;
+            --blurple: #5865F2;
+            --blurple-hover: #4752c4;
+            --text-normal: #dcddde;
+            --text-muted: #96989d;
+            --text-header: #ffffff;--status-green: #43b581;
+            --status-red: #f04747;
+            --status-orange: #faa61a;
+            --status-yellow: #f8e71c;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-normal);
+        }
+        .headline-font {
+            font-family: 'Gabarito', sans-serif;
+        }
+        .mono-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #202225;
+            border-radius: 4px;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#5865F2",
+                        surface: "#202225",
+                        "surface-card": "#2f3136",
+                        "surface-hover": "#36393f",
+                        "off-white": "#dcddde",
+                        "warm-white": "#ffffff",
+                        "status-pass": "#43b581",
+                        "status-fail": "#f04747",
+                        "status-warn": "#faa61a",
+                        "status-info": "#00aff4",
+                    },
+                    borderRadius: {
+                        "DEFAULT": "4px",
+                        "lg": "8px",
+                        "xl": "12px",
+                        "full": "9999px"
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="selection:bg-primary/40">
+<header class="w-full h-14 bg-[#18191c] border-b border-black/20 sticky top-0 z-50">
+<div class="flex justify-between items-center w-full px-4 h-full">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2 group cursor-pointer">
+<div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-warm-white shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-[20px] font-bold">shield</span>
+</div>
+<span class="text-xl font-extrabold tracking-tight text-warm-white headline-font">AEGIS</span>
+</div>
+<div class="hidden md:flex items-center bg-[#202225] border border-white/5 hover:bg-[#36393f] px-3 py-1.5 rounded-lg transition-colors cursor-pointer group">
+<span class="material-symbols-outlined text-primary text-[18px] mr-2">precision_manufacturing</span>
+<span class="text-sm font-semibold text-off-white">Automotive_Division_Alpha</span>
+<span class="material-symbols-outlined text-muted text-[16px] ml-2 group-hover:text-off-white">expand_more</span>
+</div>
+<div class="relative group hidden lg:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted text-[18px]">search</span>
+<input class="bg-[#202225] border-none ring-1 ring-white/5 focus:ring-primary/50 rounded-lg pl-9 pr-4 py-1.5 text-sm w-64 focus:w-80 transition-all placeholder:text-muted" placeholder="Search firmware projects..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="relative p-2 rounded-lg hover:bg-surface-hover text-muted hover:text-off-white transition-all">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-4 h-4 bg-status-fail text-white flex items-center justify-center text-[10px] font-bold rounded-full border-2 border-[#18191c]">3</span>
+</button>
+<div class="h-6 w-[1px] bg-white/10 mx-2"></div>
+<div class="flex items-center gap-3 pl-2 group cursor-pointer">
+<div class="text-right hidden sm:block">
+<p class="text-xs font-bold text-warm-white leading-tight">Kosh / Admin</p>
+<p class="text-[10px] text-muted leading-tight font-medium">System Overseer</p>
+</div>
+<div class="w-8 h-8 rounded-lg overflow-hidden ring-2 ring-transparent group-hover:ring-primary/40 transition-all">
+<img alt="User Avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuChjOoq6d8xDm0IKuSOBFrwx9gXvc_GP8Y6SisPVg4N7HS_bU0uU-VqRpKwpDtm3Wa2b9tKwXFyIf0I5bhoQHkzaIGXJLl_hLsEI3MZwLMUO4gzXrHImK5DSkRydg6jStZ7Bcs4vmdNnAtqQtVs4yxsvspdHi9T2pDCcBwc53v0NNfva4PHxtDLvbGTqoKg0AY3Ltg_VZb3I6loafg3eK2hDGEJ2bYCHYfEOG9bZ7QmDOIuvcOu6-p62A2onZBg4SVuPDnQ4AcFRYPm"/>
+</div>
+</div>
+</div>
+</div>
+</header>
+<main class="max-w-7xl mx-auto px-6 py-10">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+<div class="space-y-1">
+<h1 class="text-3xl font-extrabold tracking-tight text-warm-white headline-font">Projects</h1>
+<p class="text-muted text-sm font-medium">Monitoring 12 automotive firmware targets across 4 core divisions.</p>
+</div>
+<button class="bg-primary hover:bg-[#4752c4] text-white px-5 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-primary/20 active:scale-95">
+<span class="material-symbols-outlined text-[20px]">add_circle</span>
+            New Project
+        </button>
+</div>
+<div class="grid grid-cols-1 gap-4">
+<div class="group bg-surface-card hover:bg-surface-hover border border-white/5 hover:border-primary/20 transition-all duration-200 rounded-xl overflow-hidden">
+<div class="p-6 flex flex-col lg:flex-row gap-8">
+<div class="flex-1 space-y-4">
+<div class="flex flex-wrap items-center gap-3">
+<h2 class="text-lg font-bold text-warm-white group-hover:text-primary transition-colors">ECU-PowerTrain-v2.1</h2>
+<span class="bg-status-pass/10 text-status-pass text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider border border-status-pass/20">Gate Pass</span>
+<span class="text-[11px] text-muted bg-black/20 px-2 py-0.5 rounded border border-white/5 mono-font">v2.1.4-stable</span>
+</div>
+<p class="text-sm text-off-white/80 leading-relaxed max-w-xl">파워트레인 ECU 펌웨어 — CAN/LIN 통신, 모터 제어, 진단(UDS)</p>
+<div class="flex flex-wrap items-center gap-y-2 gap-x-6 text-[12px] text-muted font-medium">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">history</span>
+                            2시간 전
+                        </div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">developer_board</span>
+                            3 targets — <span class="mono-font opacity-80">ARM Cortex-M4, RISC-V RV32</span>
+</div>
+<div class="flex items-center gap-1.5 text-status-red font-bold">
+<span class="material-symbols-outlined text-[16px]">trending_up</span>
+                            Delta: +3 unresolved
+                        </div>
+</div>
+</div>
+<div class="lg:w-80 flex flex-col justify-center">
+<div class="flex justify-between items-end mb-2.5">
+<span class="text-[10px] font-bold text-muted uppercase tracking-widest">Analysis Health</span>
+<span class="text-[11px] font-bold text-warm-white">43 Findings</span>
+</div>
+<div class="h-2 w-full bg-black/30 rounded-full overflow-hidden flex">
+<div class="h-full bg-status-red" style="width: 0%"></div>
+<div class="h-full bg-status-orange" style="width: 15%"></div>
+<div class="h-full bg-status-yellow" style="width: 25%"></div>
+<div class="h-full bg-primary" style="width: 60%"></div>
+</div>
+<div class="grid grid-cols-4 mt-4 gap-2 border-t border-white/5 pt-4">
+<div class="text-center">
+<p class="text-[10px] font-bold text-muted mb-0.5">CRIT</p>
+<p class="text-lg font-bold headline-font opacity-30">0</p>
+</div>
+<div class="text-center">
+<p class="text-[10px] font-bold text-status-orange mb-0.5">HIGH</p>
+<p class="text-lg font-bold headline-font text-warm-white">3</p>
+</div>
+<div class="text-center">
+<p class="text-[10px] font-bold text-status-yellow mb-0.5">MED</p>
+<p class="text-lg font-bold headline-font text-warm-white">12</p>
+</div>
+<div class="text-center">
+<p class="text-[10px] font-bold text-primary mb-0.5">LOW</p>
+<p class="text-lg font-bold headline-font text-warm-white">28</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="group bg-surface-card hover:bg-surface-hover border-l-4 border-status-fail transition-all duration-200 rounded-r-xl overflow-hidden shadow-xl">
+<div class="p-6 flex flex-col lg:flex-row gap-8">
+<div class="flex-1 space-y-4">
+<div class="flex flex-wrap items-center gap-3">
+<h2 class="text-lg font-bold text-warm-white group-hover:text-primary transition-colors">ADAS-Camera-Module</h2>
+<span class="bg-status-fail/10 text-status-fail text-[10px] font-extrabold px-2.5 py-1 rounded-md uppercase tracking-wider border border-status-fail/20">Gate Fail</span>
+<span class="text-[11px] text-muted bg-black/20 px-2 py-0.5 rounded border border-white/5 mono-font">v0.9.2-beta</span>
+</div>
+<p class="text-sm text-off-white/80 leading-relaxed">ADAS 전방 카메라 모듈 — 객체 인식, 차선 감지 펌웨어</p>
+<div class="flex flex-wrap items-center gap-y-2 gap-x-6 text-[12px] text-muted font-medium">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">calendar_month</span>
+                            2026-04-06
+                        </div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">developer_board</span>
+                            2 targets — <span class="mono-font opacity-80">ARM Cortex-A53</span>
+</div>
+<div class="flex items-center gap-1.5 text-status-fail font-bold bg-status-fail/5 px-2 py-0.5 rounded">
+<span class="material-symbols-outlined text-[16px]">warning</span>
+                            Delta: +12 Critical Regression
+                        </div>
+</div>
+</div>
+<div class="lg:w-80 flex flex-col justify-center">
+<div class="flex justify-between items-end mb-2.5">
+<span class="text-[10px] font-bold text-muted uppercase tracking-widest">Analysis Health</span>
+<span class="text-[11px] font-bold text-warm-white font-mono">56 Findings</span>
+</div>
+<div class="h-2 w-full bg-black/30 rounded-full overflow-hidden flex">
+<div class="h-full bg-status-fail" style="width: 15%"></div>
+<div class="h-full bg-status-orange" style="width: 25%"></div>
+<div class="h-full bg-status-yellow" style="width: 30%"></div>
+<div class="h-full bg-primary" style="width: 30%"></div>
+</div>
+<div class="grid grid-cols-4 mt-4 gap-2 border-t border-white/5 pt-4">
+<div class="text-center">
+<p class="text-[10px] font-bold text-status-fail mb-0.5">CRIT</p>
+<p class="text-lg font-bold headline-font text-warm-white">2</p>
+</div>
+<div class="text-center">
+<p class="text-[10px] font-bold text-status-orange mb-0.5">HIGH</p>
+<p class="text-lg font-bold headline-font text-warm-white">8</p>
+</div>
+<div class="text-center">
+<p class="text-[10px] font-bold text-status-yellow mb-0.5">MED</p>
+<p class="text-lg font-bold headline-font text-warm-white">15</p>
+</div>
+<div class="text-center">
+<p class="text-[10px] font-bold text-primary mb-0.5">LOW</p>
+<p class="text-lg font-bold headline-font text-warm-white">31</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="group bg-surface-card hover:bg-surface-hover border border-white/5 hover:border-primary/20 transition-all duration-200 rounded-xl overflow-hidden">
+<div class="p-6 flex flex-col lg:flex-row gap-8">
+<div class="flex-1 space-y-4">
+<div class="flex flex-wrap items-center gap-3">
+<h2 class="text-lg font-bold text-warm-white group-hover:text-primary transition-colors">BMS-CellMonitor</h2>
+<span class="bg-status-pass/10 text-status-pass text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider border border-status-pass/20">Gate Pass</span>
+</div>
+<p class="text-sm text-off-white/80">배터리 셀 모니터링 — SOC/SOH 추정, 셀 밸런싱</p>
+<div class="flex flex-wrap items-center gap-y-2 gap-x-6 text-[12px] text-muted font-medium">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+                            어제 14:30
+                        </div>
+<div class="flex items-center gap-1.5 text-status-pass">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+                            Delta: 0 (No change)
+                        </div>
+</div>
+</div>
+<div class="lg:w-80 flex flex-col justify-center">
+<div class="h-2 w-full bg-black/30 rounded-full overflow-hidden flex">
+<div class="h-full bg-status-orange" style="width: 10%"></div>
+<div class="h-full bg-status-yellow" style="width: 30%"></div>
+<div class="h-full bg-primary" style="width: 60%"></div>
+</div>
+<div class="grid grid-cols-4 mt-4 gap-2 pt-2">
+<div class="text-center opacity-30"><p class="text-[10px] font-bold">CRIT</p><p class="text-lg font-bold">0</p></div>
+<div class="text-center"><p class="text-[10px] font-bold text-status-orange">HIGH</p><p class="text-lg font-bold text-warm-white">1</p></div>
+<div class="text-center"><p class="text-[10px] font-bold text-status-yellow">MED</p><p class="text-lg font-bold text-warm-white">5</p></div>
+<div class="text-center"><p class="text-[10px] font-bold text-primary">LOW</p><p class="text-lg font-bold text-warm-white">9</p></div>
+</div>
+</div>
+</div>
+</div>
+<div class="group bg-surface-card hover:bg-surface-hover border border-white/5 hover:border-primary/20 transition-all duration-200 rounded-xl overflow-hidden">
+<div class="p-6 flex flex-col lg:flex-row gap-8">
+<div class="flex-1 space-y-4">
+<div class="flex flex-wrap items-center gap-3">
+<h2 class="text-lg font-bold text-warm-white group-hover:text-primary transition-colors">TCU-Telematics-Gateway</h2>
+<span class="bg-status-warn/10 text-status-warn text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider border border-status-warn/20">Gate Warning</span>
+</div>
+<p class="text-sm text-off-white/80">텔레매틱스 게이트웨이 — OTA 업데이트, V2X 통신</p>
+<div class="flex flex-wrap items-center gap-y-2 gap-x-6 text-[12px] text-muted font-medium">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">update</span>
+                            3일 전
+                        </div>
+<div class="flex items-center gap-1.5 text-status-fail font-bold">
+<span class="material-symbols-outlined text-[16px]">trending_up</span>
+                            Delta: +5 (unresolved)
+                        </div>
+</div>
+</div>
+<div class="lg:w-80 flex flex-col justify-center">
+<div class="h-2 w-full bg-black/30 rounded-full overflow-hidden flex">
+<div class="h-full bg-status-fail" style="width: 5%"></div>
+<div class="h-full bg-status-orange" style="width: 15%"></div>
+<div class="h-full bg-status-yellow" style="width: 30%"></div>
+<div class="h-full bg-primary" style="width: 50%"></div>
+</div>
+<div class="grid grid-cols-4 mt-4 gap-2 pt-2">
+<div class="text-center"><p class="text-[10px] font-bold text-status-fail">CRIT</p><p class="text-lg font-bold text-warm-white">1</p></div>
+<div class="text-center"><p class="text-[10px] font-bold text-status-orange">HIGH</p><p class="text-lg font-bold text-warm-white">4</p></div>
+<div class="text-center"><p class="text-[10px] font-bold text-status-yellow">MED</p><p class="text-lg font-bold text-warm-white">22</p></div>
+<div class="text-center"><p class="text-[10px] font-bold text-primary">LOW</p><p class="text-lg font-bold text-warm-white">47</p></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-12 flex flex-col sm:flex-row justify-between items-center gap-6 text-sm text-muted">
+<div class="flex items-center gap-4">
+<span class="font-medium">Showing 4 of 12 projects</span>
+<div class="flex items-center gap-2 px-3 py-1 bg-status-pass/10 border border-status-pass/20 rounded-full">
+<span class="w-2 h-2 rounded-full bg-status-pass animate-pulse"></span>
+<span class="text-[11px] font-bold text-status-pass uppercase">System Online</span>
+</div>
+</div>
+<div class="flex gap-1.5">
+<button class="px-3 py-1.5 rounded-md bg-surface-card border border-white/5 text-xs font-bold hover:bg-surface-hover hover:text-warm-white transition-all">Prev</button>
+<button class="px-3 py-1.5 rounded-md bg-primary text-white text-xs font-extrabold shadow-md">1</button>
+<button class="px-3 py-1.5 rounded-md bg-surface-card border border-white/5 text-xs font-bold hover:bg-surface-hover hover:text-warm-white transition-all">2</button>
+<button class="px-3 py-1.5 rounded-md bg-surface-card border border-white/5 text-xs font-bold hover:bg-surface-hover hover:text-warm-white transition-all">3</button>
+<button class="px-3 py-1.5 rounded-md bg-surface-card border border-white/5 text-xs font-bold hover:bg-surface-hover hover:text-warm-white transition-all">Next</button>
+</div>
+</div>
+</main>
+<div class="fixed inset-0 pointer-events-none -z-10 opacity-30">
+<div class="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2"></div>
+<div class="absolute bottom-0 left-0 w-[400px] h-[400px] bg-status-info/10 blur-[100px] rounded-full translate-y-1/2 -translate-x-1/2"></div>
+</div>
+
+</body></html>

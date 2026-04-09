@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Projects List</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<!-- Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface": "#1a1c1c",
+                        "surface-dim": "#dadada",
+                        "on-primary-fixed-variant": "#004493",
+                        "on-primary-fixed": "#001a41",
+                        "error": "#ba1a1a",
+                        "secondary-container": "#d8e0ed",
+                        "background": "#f0f2f5",
+                        "surface-variant": "#e2e2e2",
+                        "inverse-primary": "#adc6ff",
+                        "on-error": "#ffffff",
+                        "surface": "#f9f9f9",
+                        "on-secondary": "#ffffff",
+                        "secondary-fixed": "#dbe3ef",
+                        "on-primary": "#ffffff",
+                        "tertiary-fixed": "#88fb99",
+                        "outline": "#727785",
+                        "secondary-fixed-dim": "#bfc7d3",
+                        "tertiary": "#006226",
+                        "surface-container-high": "#e8e8e8",
+                        "error-container": "#ffdad6",
+                        "outline-variant": "#c2c6d6",
+                        "inverse-on-surface": "#f0f1f1",
+                        "on-primary-container": "#ecefff",
+                        "on-secondary-fixed": "#141c25",
+                        "primary-container": "#0969da",
+                        "on-tertiary-container": "#c0ffc2",
+                        "secondary": "#575f69",
+                        "primary-fixed-dim": "#adc6ff",
+                        "tertiary-fixed-dim": "#6bde80",
+                        "primary-fixed": "#d8e2ff",
+                        "on-tertiary-fixed-variant": "#00531f",
+                        "on-secondary-fixed-variant": "#3f4751",
+                        "on-tertiary-fixed": "#002108",
+                        "surface-container-highest": "#e2e2e2",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-background": "#1a1c1c",
+                        "on-surface-variant": "#424753",
+                        "surface-container-low": "#f3f3f4",
+                        "primary": "#0051ae",
+                        "tertiary-container": "#007e33",
+                        "inverse-surface": "#2f3131",
+                        "on-secondary-container": "#5b636e",
+                        "surface-bright": "#f9f9f9",
+                        "surface-tint": "#005bc0",
+                        "surface-container": "#eeeeee",
+                        "on-tertiary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["Space Grotesk", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .severity-badge {
+            @apply px-2 py-0.5 rounded-sm font-mono text-[11px] font-bold uppercase tracking-wider;
+        }
+        .project-card {
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .project-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(26, 28, 28, 0.04);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body min-h-screen flex flex-col">
+<!-- TopNavBar -->
+<header class="bg-[#f3f3f4] dark:bg-[#1a1c1c] docked full-width top-0 z-50">
+<div class="flex justify-between items-center px-8 py-3 w-full max-w-[1440px] mx-auto font-['Space_Grotesk'] text-sm tracking-tight">
+<!-- Brand -->
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-[#1a1c1c] dark:text-white uppercase">AEGIS</span>
+<!-- Search Bar -->
+<div class="hidden md:flex items-center bg-surface-container-lowest px-3 py-1.5 rounded-lg w-80 shadow-sm ring-1 ring-outline-variant/20">
+<span class="material-symbols-outlined text-outline text-[20px]" data-icon="search">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-full placeholder:text-outline-variant" placeholder="Search projects, assets..." type="text"/>
+</div>
+</div>
+<!-- Profile & Actions -->
+<div class="flex items-center gap-6">
+<div class="relative scale-95 active:scale-100 transition-transform cursor-pointer">
+<span class="material-symbols-outlined text-secondary" data-icon="notifications">notifications</span>
+<span class="absolute -top-1 -right-1 bg-primary text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">3</span>
+</div>
+<div class="flex items-center gap-3 pl-4 border-l border-outline-variant/30">
+<div class="flex flex-col items-end leading-none">
+<span class="font-bold text-on-surface">Kosh</span>
+<span class="text-[10px] uppercase tracking-widest text-[#0969da] font-bold">Admin</span>
+</div>
+<div class="w-9 h-9 rounded-full bg-primary-container flex items-center justify-center text-white font-bold border-2 border-white shadow-sm overflow-hidden">
+<img alt="Avatar of Kosh" class="w-full h-full object-cover" data-alt="Professional portrait of a male tech administrator in a clean minimalist setting with soft lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCG28UN9XnPyFV2JwDZs_LBI8oSig7fZjuLyR5jeS3igr4ECyQpuuMkgbJjdr8q7e_oKiCIQFLpHER5Aq4Yeyx8fAtWFZuCAW_POzSFJMaW5NlmH-fKRnpfeUy01CjNoOeAlISFspxMJuvHxTJsqbQswl1uI4yjIToQM0akCYaWVSA1lWagCLS5WylxSUnzWgQ9WwgumHr4T0v_943-YwbfGk0UPI1hFGlW7wF1qPDO3IW7TWgUTtlKpU9qligGIxw_gT7ZwBbahmr2"/>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-[#e2e2e2] dark:bg-[#2d3131] h-[1px] w-full"></div>
+</header>
+<main class="flex-grow w-full max-w-[1440px] mx-auto px-8 py-10">
+<!-- Main Header -->
+<div class="flex justify-between items-end mb-10">
+<div>
+<h1 class="font-headline text-4xl font-bold tracking-tight text-on-surface">Projects</h1>
+<p class="text-secondary font-medium mt-1">4 projects registered</p>
+</div>
+<button class="bg-gradient-to-br from-primary to-primary-container text-white px-6 py-2.5 rounded-lg font-headline font-bold text-sm tracking-tight flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all shadow-sm">
+<span class="material-symbols-outlined text-[20px]" data-icon="add">add</span>
+                NEW PROJECT
+            </button>
+</div>
+<!-- Project Grid (Horizontal Monoliths) -->
+<div class="flex flex-col gap-4">
+<!-- Project Card 1 -->
+<div class="project-card bg-surface-container-lowest border-l-4 border-[#bf8700] p-6 flex flex-wrap lg:flex-nowrap items-center gap-8 shadow-sm">
+<div class="flex-grow min-w-[300px]">
+<div class="flex items-center gap-3 mb-1">
+<h3 class="font-mono text-lg font-bold text-on-surface tracking-tight">ECU-PowerTrain-v2.1</h3>
+<span class="px-2 py-0.5 bg-secondary-container/50 text-on-secondary-container text-[10px] font-bold uppercase rounded-sm">Firmware</span>
+</div>
+<p class="text-sm text-secondary">Powertrain ECU firmware security analysis</p>
+</div>
+<div class="flex items-center gap-12">
+<div class="flex flex-col">
+<span class="text-[10px] uppercase tracking-widest font-bold text-outline-variant mb-2">Assets</span>
+<div class="flex items-center gap-1 font-mono text-sm font-medium">
+<span class="material-symbols-outlined text-[18px] text-secondary" data-icon="memory">memory</span>
+                            3 Targets
+                        </div>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] uppercase tracking-widest font-bold text-outline-variant mb-2">Security Exposure</span>
+<div class="flex gap-2">
+<div class="flex flex-col items-center">
+<span class="text-[9px] font-bold text-on-surface-variant">C</span>
+<span class="severity-badge bg-on-surface text-white">0</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="text-[9px] font-bold text-on-surface-variant">H</span>
+<span class="severity-badge bg-[#cf222e] text-white">3</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="text-[9px] font-bold text-on-surface-variant">M</span>
+<span class="severity-badge bg-[#bf8700] text-white">12</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="text-[9px] font-bold text-on-surface-variant">L</span>
+<span class="severity-badge bg-secondary-container text-on-secondary-container">28</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-center min-w-[80px]">
+<span class="text-[10px] uppercase tracking-widest font-bold text-outline-variant mb-2">Gate Status</span>
+<span class="px-3 py-1 bg-[#dafbe1] text-[#1a7f37] text-[11px] font-bold tracking-widest rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="check_circle">check_circle</span>
+                            PASS
+                        </span>
+</div>
+<div class="flex flex-col items-end min-w-[100px]">
+<span class="text-[10px] uppercase tracking-widest font-bold text-outline-variant mb-2">Last Activity</span>
+<span class="text-xs text-secondary font-medium italic">2 hours ago</span>
+</div>
+<button class="p-2 hover:bg-surface-container-low rounded-lg transition-colors group">
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary" data-icon="arrow_forward_ios">arrow_forward_ios</span>
+</button>
+</div>
+</div>
+<!-- Project Card 2 -->
+<div class="project-card bg-surface-container-lowest border-l-4 border-[#cf222e] p-6 flex flex-wrap lg:flex-nowrap items-center gap-8 shadow-sm">
+<div class="flex-grow min-w-[300px]">
+<div class="flex items-center gap-3 mb-1">
+<h3 class="font-mono text-lg font-bold text-on-surface tracking-tight">ADAS-Camera-v1.4</h3>
+<span class="px-2 py-0.5 bg-secondary-container/50 text-on-secondary-container text-[10px] font-bold uppercase rounded-sm">Validation</span>
+</div>
+<p class="text-sm text-secondary">ADAS camera module firmware validation</p>
+</div>
+<div class="flex items-center gap-12">
+<div class="flex flex-col">
+<span class="text-[10px] uppercase tracking-widest font-bold text-outline-variant mb-2">Assets</span>
+<div class="flex items-center gap-1 font-mono text-sm font-medium">
+<span class="material-symbols-outlined text-[18px] text-secondary" data-icon="videocam">videocam</span>
+                            2 Targets
+                        </div>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] uppercase tracking-widest font-bold text-outline-variant mb-2">Security Exposure</span>
+<div class="flex gap-2">
+<div class="flex flex-col items-center">
+<span class="text-[9px] font-bold text-on-surface-variant">C</span>
+<span class="severity-badge bg-on-surface text-white">1</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="text-[9px] font-bold text-on-surface-variant">H</span>
+<span class="severity-badge bg-[#cf222e] text-white">5</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="text-[9px] font-bold text-on-surface-variant">M</span>
+<span class="severity-badge bg-[#bf8700] text-white">8</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="text-[9px] font-bold text-on-surface-variant">L</span>
+<span class="severity-badge bg-secondary-container text-on-secondary-container">15</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-center min-w-[80px]">
+<span class="text-[10px] uppercase tracking-widest font-bold text-outline-variant mb-2">Gate Status</span>
+<span class="px-3 py-1 bg-[#ffebe9] text-[#cf222e] text-[11px] font-bold tracking-widest rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="cancel">cancel</span>
+                            FAIL
+                        </span>
+</div>
+<div class="flex flex-col items-end min-w-[100px]">
+<span class="text-[10px] uppercase tracking-widest font-bold text-outline-variant mb-2">Last Activity</span>
+<span class="text-xs text-secondary font-medium italic">5 hours ago</span>
+</div>
+<button class="p-2 hover:bg-surface-container-low rounded-lg transition-colors group">
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary" data-icon="arrow_forward_ios">arrow_forward_ios</span>
+</button>
+</div>
+</div>
+<!-- Project Card 3 -->
+<div class="project-card bg-surface-container-lowest border-l-4 border-[#0969da] p-6 flex flex-wrap lg:flex-nowrap items-center gap-8 shadow-sm">
+<div class="flex-grow min-w-[300px]">
+<div class="flex items-center gap-3 mb-1">
+<h3 class="font-mono text-lg font-bold text-on-surface tracking-tight">BMS-CellMonitor-v3.0</h3>
+<span class="px-2 py-0.5 bg-secondary-container/50 text-on-secondary-container text-[10px] font-bold uppercase rounded-sm">Battery</span>
+</div>
+<p class="text-sm text-secondary">Battery management cell monitor firmware</p>
+</div>
+<div class="flex items-center gap-12">
+<div class="flex flex-col">
+<span class="text-[10px] uppercase tracking-widest font-bold text-outline-variant mb-2">Assets</span>
+<div class="flex items-center gap-1 font-mono text-sm font-medium">
+<span class="material-symbols-outlined text-[18px] text-secondary" data-icon="battery_charging_full">battery_charging_full</span>
+                            1 Target
+                        </div>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] uppercase tracking-widest font-bold text-outline-variant mb-2">Security Exposure</span>
+<div class="flex gap-2">
+<div class="flex flex-col items-center">
+<span class="text-[9px] font-bold text-on-surface-variant">C</span>
+<span class="severity-badge bg-on-surface text-white">0</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="text-[9px] font-bold text-on-surface-variant">H</span>
+<span class="severity-badge bg-[#cf222e] text-white">0</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="text-[9px] font-bold text-on-surface-variant">M</span>
+<span class="severity-badge bg-[#bf8700] text-white">3</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="text-[9px] font-bold text-on-surface-variant">L</span>
+<span class="severity-badge bg-secondary-container text-on-secondary-container">7</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-center min-w-[80px]">
+<span class="text-[10px] uppercase tracking-widest font-bold text-outline-variant mb-2">Gate Status</span>
+<span class="px-3 py-1 bg-[#dafbe1] text-[#1a7f37] text-[11px] font-bold tracking-widest rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="check_circle">check_circle</span>
+                            PASS
+                        </span>
+</div>
+<div class="flex flex-col items-end min-w-[100px]">
+<span class="text-[10px] uppercase tracking-widest font-bold text-outline-variant mb-2">Last Activity</span>
+<span class="text-xs text-secondary font-medium italic">1 day ago</span>
+</div>
+<button class="p-2 hover:bg-surface-container-low rounded-lg transition-colors group">
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary" data-icon="arrow_forward_ios">arrow_forward_ios</span>
+</button>
+</div>
+</div>
+<!-- Project Card 4 -->
+<div class="project-card bg-surface-container-lowest border-l-4 border-[#bf8700] p-6 flex flex-wrap lg:flex-nowrap items-center gap-8 shadow-sm">
+<div class="flex-grow min-w-[300px]">
+<div class="flex items-center gap-3 mb-1">
+<h3 class="font-mono text-lg font-bold text-on-surface tracking-tight">TCU-Telematics-v2.2</h3>
+<span class="px-2 py-0.5 bg-secondary-container/50 text-on-secondary-container text-[10px] font-bold uppercase rounded-sm">Network</span>
+</div>
+<p class="text-sm text-secondary">Telematics control unit firmware analysis</p>
+</div>
+<div class="flex items-center gap-12">
+<div class="flex flex-col">
+<span class="text-[10px] uppercase tracking-widest font-bold text-outline-variant mb-2">Assets</span>
+<div class="flex items-center gap-1 font-mono text-sm font-medium">
+<span class="material-symbols-outlined text-[18px] text-secondary" data-icon="settings_input_antenna">settings_input_antenna</span>
+                            2 Targets
+                        </div>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] uppercase tracking-widest font-bold text-outline-variant mb-2">Security Exposure</span>
+<div class="flex gap-2">
+<div class="flex flex-col items-center">
+<span class="text-[9px] font-bold text-on-surface-variant">C</span>
+<span class="severity-badge bg-on-surface text-white">0</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="text-[9px] font-bold text-on-surface-variant">H</span>
+<span class="severity-badge bg-[#cf222e] text-white">1</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="text-[9px] font-bold text-on-surface-variant">M</span>
+<span class="severity-badge bg-[#bf8700] text-white">6</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="text-[9px] font-bold text-on-surface-variant">L</span>
+<span class="severity-badge bg-secondary-container text-on-secondary-container">11</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-center min-w-[80px]">
+<span class="text-[10px] uppercase tracking-widest font-bold text-outline-variant mb-2">Gate Status</span>
+<span class="px-3 py-1 bg-[#fff8c5] text-[#9a6700] text-[11px] font-bold tracking-widest rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="pending">pending</span>
+                            PENDING
+                        </span>
+</div>
+<div class="flex flex-col items-end min-w-[100px]">
+<span class="text-[10px] uppercase tracking-widest font-bold text-outline-variant mb-2">Last Activity</span>
+<span class="text-xs text-secondary font-medium italic">3 days ago</span>
+</div>
+<button class="p-2 hover:bg-surface-container-low rounded-lg transition-colors group">
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary" data-icon="arrow_forward_ios">arrow_forward_ios</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-[#f9f9f9] dark:bg-[#121212] w-full py-6 mt-auto border-t border-[#e2e2e2] dark:border-[#2d3131]">
+<div class="flex flex-col md:flex-row justify-center items-center px-8 gap-4">
+<span class="font-['Space_Grotesk'] text-[11px] uppercase tracking-widest text-[#5b636e] dark:text-[#7a7a7a] opacity-80 hover:opacity-100 transition-opacity">
+                AEGIS v2.1.0 — Embedded Firmware Security Analysis Platform
+            </span>
+</div>
+</footer>
+</body></html>

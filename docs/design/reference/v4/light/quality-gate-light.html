@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS Quality Gate Dashboard</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        /* CSS Reset & Variable Definitions */
+        :root {
+            --primary: #0051ae;
+            --primary-container: #0969da;
+            --surface: #f9f9f9;
+            --surface-container-low: #f3f3f4;
+            --surface-container-high: #e8e8e8;
+            --surface-container-highest: #e2e2e2;
+            --on-surface: #1a1c1c;
+            --on-surface-variant: #5b636e;
+            --background: #f0f2f5;
+            --pass-bg: #dafbe1;
+            --pass-border: #1a7f37;
+            --pass-text: #1a7f37;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08);
+            --radius: 8px;
+            --font-main: 'Inter', sans-serif;
+            --font-head: 'Space Grotesk', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-main);
+            font-size: 14px;
+            background-color: var(--background);
+            color: var(--on-surface);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .material-symbols-outlined {
+            font-size: 20px;
+            vertical-align: middle;
+        }
+
+        /* Layout Structure */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: 240px;
+            background-color: #f5f6f8;
+            border-right: 1px solid #e0e3e5;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 40;
+            padding-top: 56px; /* Offset for TopBar */
+        }
+
+        .sidebar-header {
+            padding: 24px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid var(--surface-container-highest);
+        }
+
+        .shield-icon {
+            color: var(--primary);
+            font-size: 24px;
+        }
+
+        .project-title {
+            font-family: var(--font-head);
+            font-weight: 700;
+            font-size: 13px;
+            color: var(--on-surface);
+        }
+
+        .nav-section {
+            padding: 16px 0;
+            flex-grow: 1;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 16px;
+            text-decoration: none;
+            color: var(--on-surface-variant);
+            font-family: var(--font-head);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.2s;
+        }
+
+        .nav-item.active {
+            background-color: white;
+            color: var(--primary);
+            border-left: 4px solid var(--primary);
+            font-weight: 700;
+        }
+
+        .nav-item:hover:not(.active) {
+            background-color: var(--surface-container-high);
+        }
+
+        .nav-item span:first-child {
+            margin-right: 12px;
+        }
+
+        .badge {
+            margin-left: auto;
+            background: var(--surface-container-highest);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+        }
+
+        .sidebar-footer {
+            padding: 16px;
+            border-top: 1px solid var(--surface-container-highest);
+        }
+
+        .back-link {
+            display: flex;
+            align-items: center;
+            color: var(--on-surface-variant);
+            text-decoration: none;
+            font-size: 12px;
+            gap: 8px;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            height: 56px;
+            background: white;
+            border-bottom: 1px solid #e2e2e2;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 50;
+        }
+
+        .top-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .logo {
+            font-family: var(--font-head);
+            font-weight: 900;
+            font-size: 20px;
+            color: var(--primary);
+            letter-spacing: -1px;
+        }
+
+        .project-switcher {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--surface-container-low);
+            border-radius: var(--radius);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .top-bar-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .search-container {
+            position: relative;
+        }
+
+        .search-input {
+            background: var(--surface-container-low);
+            border: none;
+            padding: 8px 12px 8px 36px;
+            border-radius: var(--radius);
+            width: 240px;
+            font-family: var(--font-main);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--on-surface-variant);
+        }
+
+        .notification-bell {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .notif-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #ba1a1a;
+            color: white;
+            font-size: 9px;
+            width: 14px;
+            height: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .profile-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+        }
+
+        .profile-img {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--surface-container-highest);
+            object-fit: cover;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 240px;
+            margin-top: 56px;
+            padding: 32px;
+            width: calc(100% - 240px);
+        }
+
+        .page-header {
+            margin-bottom: 24px;
+        }
+
+        .page-header h1 {
+            font-family: var(--font-head);
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--on-surface);
+        }
+
+        .page-header p {
+            color: var(--on-surface-variant);
+            font-size: 14px;
+        }
+
+        /* PASS Banner */
+        .pass-banner {
+            background-color: var(--pass-bg);
+            border: 1px solid var(--pass-border);
+            border-radius: var(--radius);
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .pass-icon-container {
+            width: 64px;
+            height: 64px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pass-icon-container span {
+            font-size: 40px;
+            color: var(--pass-text);
+        }
+
+        .pass-info h2 {
+            font-family: var(--font-head);
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--pass-text);
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+
+        .pass-info .status-msg {
+            font-weight: 600;
+            color: var(--pass-text);
+            margin-bottom: 2px;
+        }
+
+        .pass-info .timestamp {
+            font-size: 12px;
+            color: var(--on-surface-variant);
+            opacity: 0.8;
+        }
+
+        /* Bento Grid & Cards */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .card {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 24px;
+            height: fit-content;
+        }
+
+        .card-title {
+            font-family: var(--font-head);
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Criteria Table */
+        .criteria-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .criteria-table th {
+            text-align: left;
+            padding: 12px 16px;
+            color: var(--on-surface-variant);
+            font-family: var(--font-head);
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.05em;
+            border-bottom: 2px solid var(--surface-container-low);
+        }
+
+        .criteria-table td {
+            padding: 16px;
+            border-bottom: 1px solid var(--surface-container-low);
+        }
+
+        .criteria-table tr:hover td {
+            background-color: var(--surface-container-lowest);
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-pill.pass {
+            background: var(--pass-bg);
+            color: var(--pass-text);
+        }
+
+        /* Gate History */
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .history-item {
+            padding: 12px;
+            border-radius: var(--radius);
+            background: var(--surface-container-low);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .history-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-date {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--on-surface-variant);
+        }
+
+        .history-id {
+            font-size: 12px;
+            font-family: monospace;
+            background: var(--surface-container-highest);
+            padding: 2px 4px;
+        }
+
+        /* Override Section */
+        .override-section {
+            background: white;
+            padding: 24px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .override-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-tertiary {
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-family: var(--font-head);
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            background: var(--surface-container-highest);
+            border: none;
+            color: var(--on-surface);
+            transition: all 0.2s;
+        }
+
+        .btn-tertiary:hover {
+            background: var(--surface-container-high);
+        }
+
+        /* Footer */
+        .app-footer {
+            border-top: 1px solid var(--surface-container-highest);
+            padding: 12px 0;
+            color: var(--on-surface-variant);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-top: auto;
+        }
+    </style>
+</head>
+<body>
+<!-- Top Navigation Bar -->
+<header class="top-bar">
+<div class="top-bar-left">
+<div class="logo">AEGIS</div>
+<div class="project-switcher">
+<span>ECU-PowerTrain-v2.1</span>
+<span class="material-symbols-outlined">expand_more</span>
+</div>
+</div>
+<div class="top-bar-right">
+<div class="search-container">
+<span class="material-symbols-outlined search-icon">search</span>
+<input class="search-input" placeholder="Search parameters..." type="text"/>
+</div>
+<div class="notification-bell">
+<span class="material-symbols-outlined">notifications</span>
+<div class="notif-badge">3</div>
+</div>
+<div class="profile-chip">
+<img alt="Admin Profile" class="profile-img" data-alt="Close-up portrait of professional male administrator in office setting with soft studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAON6U6Xh5L091XKL1OlJxcC5a7yuJ7ShvmvEjE1dSNfUZhW5BvVfubzrTIHvnJTKc5f00pueX96NLwSdEbbRcn3375L8q1WzOHVsodQBPfHsrYQxHbZtUlPSLLEAeqfwEwcJ6vsTtAxLVc7pBq6_S-7chPamyHcXOmvMIIkpYWoCVb4zdt9Tyqzp9oLVzkvkR5mgyowDe0imUXaGC4oBR2Y4MiMDDhuTERzRtEydsJECX3jbvAZqdbTyCO7S46X2hxQKuyuBysHOCX"/>
+<span>Kosh Admin</span>
+</div>
+</div>
+</header>
+<div class="app-container">
+<!-- Sidebar Navigation -->
+<aside class="sidebar">
+<div class="sidebar-header">
+<span class="material-symbols-outlined shield-icon">shield</span>
+<span class="project-title">ECU-PowerTrain-v2.1</span>
+</div>
+<nav class="nav-section">
+<a class="nav-item" href="#">
+<span class="material-symbols-outlined">settings_input_component</span>
+                    Core Engine
+                    <div class="badge">12</div>
+</a>
+<a class="nav-item" href="#">
+<span class="material-symbols-outlined">lock</span>
+                    Auth Module
+                </a>
+<a class="nav-item active" href="#">
+<span class="material-symbols-outlined">layers</span>
+                    Quality Gate
+                </a>
+<a class="nav-item" href="#">
+<span class="material-symbols-outlined">database</span>
+                    Data Pipeline
+                </a>
+<a class="nav-item" href="#">
+<span class="material-symbols-outlined">api</span>
+                    API Gateway
+                    <div class="badge">4</div>
+</a>
+</nav>
+<div class="sidebar-footer">
+<a class="back-link" href="#">
+<span class="material-symbols-outlined">arrow_back</span>
+                    Back to Projects
+                </a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="main-content">
+<div class="page-header">
+<h1>Quality Gate</h1>
+<p>Build release criteria evaluation</p>
+</div>
+<!-- Pass Banner -->
+<div class="pass-banner">
+<div class="pass-icon-container">
+<span class="material-symbols-outlined">check_circle</span>
+</div>
+<div class="pass-info">
+<h2>PASS</h2>
+<p class="status-msg">All criteria met — eligible for release</p>
+<p class="timestamp">EVALUATION ID: AEGIS-77429-B | 2024-05-24 14:32:10 UTC</p>
+</div>
+</div>
+<div class="dashboard-grid">
+<!-- Criteria Table Card -->
+<div class="card">
+<div class="card-title">Criteria Evaluation</div>
+<table class="criteria-table">
+<thead>
+<tr>
+<th>Criterion</th>
+<th>Threshold</th>
+<th>Actual</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Critical findings</td>
+<td>0</td>
+<td>0</td>
+<td><span class="status-pill pass"><span class="material-symbols-outlined" style="font-size:14px">check</span> PASS</span></td>
+</tr>
+<tr>
+<td>High findings</td>
+<td>≤ 5</td>
+<td>3</td>
+<td><span class="status-pill pass"><span class="material-symbols-outlined" style="font-size:14px">check</span> PASS</span></td>
+</tr>
+<tr>
+<td>New findings delta</td>
+<td>≤ 10</td>
+<td>+2</td>
+<td><span class="status-pill pass"><span class="material-symbols-outlined" style="font-size:14px">check</span> PASS</span></td>
+</tr>
+<tr>
+<td>MISRA compliance</td>
+<td>≥ 90%</td>
+<td>94.2%</td>
+<td><span class="status-pill pass"><span class="material-symbols-outlined" style="font-size:14px">check</span> PASS</span></td>
+</tr>
+<tr>
+<td>Code coverage</td>
+<td>≥ 70%</td>
+<td>78%</td>
+<td><span class="status-pill pass"><span class="material-symbols-outlined" style="font-size:14px">check</span> PASS</span></td>
+</tr>
+<tr>
+<td>Unresolved overrides</td>
+<td>0</td>
+<td>0</td>
+<td><span class="status-pill pass"><span class="material-symbols-outlined" style="font-size:14px">check</span> PASS</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- History Card -->
+<div class="card">
+<div class="card-title">Gate History</div>
+<div class="history-list">
+<div class="history-item">
+<div class="history-item-header">
+<span class="history-date">22 MAY 2024</span>
+<span class="status-pill pass" style="font-size: 10px; padding: 2px 8px;">PASS</span>
+</div>
+<span class="history-id">#77421-A</span>
+<div style="font-size: 12px; color: var(--on-surface-variant);">No new critical issues.</div>
+</div>
+<div class="history-item" style="border-left: 3px solid #ba1a1a;">
+<div class="history-item-header">
+<span class="history-date">20 MAY 2024</span>
+<span class="status-pill" style="background:#ffdad6; color:#93000a; font-size: 10px; padding: 2px 8px;">FAIL</span>
+</div>
+<span class="history-id">#77415-C</span>
+<div style="font-size: 12px; color: var(--on-surface-variant);">2 High findings in ECU_DRV.</div>
+</div>
+<div class="history-item">
+<div class="history-item-header">
+<span class="history-date">15 MAY 2024</span>
+<span class="status-pill pass" style="font-size: 10px; padding: 2px 8px;">PASS</span>
+</div>
+<span class="history-id">#77398-F</span>
+<div style="font-size: 12px; color: var(--on-surface-variant);">Initial baseline evaluation.</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Override Section -->
+<section class="override-section">
+<div class="override-info">
+<span class="material-symbols-outlined" style="color: var(--primary);">verified_user</span>
+<div>
+<div style="font-weight: 600;">Override Status</div>
+<div style="font-size: 12px; color: var(--on-surface-variant);">CWE-119 waiver — Approved by Kim S.</div>
+</div>
+</div>
+<button class="btn-tertiary">Request Override</button>
+</section>
+<!-- Footer -->
+<footer class="app-footer">
+                AEGIS v2.1.0 | Technical Quality Assurance Protocol | © 2024 AEGIS Systems
+            </footer>
+</main>
+</div>
+</body></html>

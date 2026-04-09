@@ -1,4 +1,4 @@
-import type { AnalysisPhase, AnalysisTrackerStatus, AnalysisProgress } from "@aegis/shared";
+import type { AnalysisPhase, AnalysisTrackerStatus, AnalysisProgress, WsAnalysisMessage } from "@aegis/shared";
 import { createLogger } from "../lib/logger";
 
 const logger = createLogger("analysis-tracker");
@@ -65,8 +65,12 @@ export class AnalysisTracker {
 
     const now = new Date().toISOString();
     entry.status = "completed";
-    entry.phase = "complete";
-    entry.message = "분석 완료";
+    if (entry.phase === "queued") {
+      entry.phase = "complete";
+    }
+    if (!entry.message || entry.message === "분석 대기 중...") {
+      entry.message = "분석 완료";
+    }
     entry.updatedAt = now;
     entry.endedAt = now;
 
@@ -131,6 +135,36 @@ export class AnalysisTracker {
     return undefined;
   }
 
+  getWsSnapshot(analysisId: string): WsAnalysisMessage | undefined {
+    const entry = this.entries.get(analysisId);
+    if (!entry) return undefined;
+
+    if (entry.status === "failed") {
+      return {
+        type: "analysis-error",
+        payload: {
+          analysisId,
+          phase: this.toErrorPhase(entry.phase),
+          error: entry.error ?? entry.message,
+          retryable: false,
+        },
+      };
+    }
+
+    if (entry.status === "aborted" || entry.phase === "queued") {
+      return undefined;
+    }
+
+    return {
+      type: "analysis-progress",
+      payload: {
+        analysisId,
+        phase: this.toWsPhase(entry.phase),
+        message: entry.message,
+      },
+    };
+  }
+
   private toProgress(entry: AnalysisEntry): AnalysisProgress {
     return {
       analysisId: entry.analysisId,
@@ -154,6 +188,34 @@ export class AnalysisTracker {
       this.entries.delete(analysisId);
       logger.debug({ analysisId }, "Analysis tracking entry cleaned up");
     }, CLEANUP_DELAY_MS);
+  }
+
+  private toWsPhase(phase: AnalysisPhase): "quick_sast" | "quick_complete" | "deep_submitting" | "deep_analyzing" | "deep_retrying" | "deep_complete" {
+    switch (phase) {
+      case "quick_sast":
+        return "quick_sast";
+      case "deep_submitting":
+        return "deep_submitting";
+      case "deep_analyzing":
+        return "deep_analyzing";
+      case "deep_complete":
+      case "complete":
+        return "deep_complete";
+      case "rule_engine":
+      case "llm_chunk":
+      case "merging":
+        return "deep_analyzing";
+      case "queued":
+        return "quick_sast";
+    }
+    return "deep_analyzing";
+  }
+
+  private toErrorPhase(phase: AnalysisPhase): "quick" | "deep" {
+    if (phase === "quick_sast" || phase === "queued") {
+      return "quick";
+    }
+    return "deep";
   }
 }
 

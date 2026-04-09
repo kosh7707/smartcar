@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Project Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container": "#eeeeee",
+                        "on-secondary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "tertiary-container": "#007e33",
+                        "on-tertiary": "#ffffff",
+                        "on-tertiary-container": "#c0ffc2",
+                        "surface-container-high": "#e8e8e8",
+                        "on-primary-fixed-variant": "#004493",
+                        "outline-variant": "#c2c6d6",
+                        "tertiary": "#006226",
+                        "primary": "#0051ae",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed": "#002108",
+                        "on-secondary-fixed-variant": "#3f4751",
+                        "surface-container-highest": "#e2e2e2",
+                        "tertiary-fixed": "#88fb99",
+                        "secondary": "#575f69",
+                        "primary-container": "#0969da",
+                        "secondary-fixed": "#dbe3ef",
+                        "primary-fixed-dim": "#adc6ff",
+                        "on-background": "#1a1c1c",
+                        "on-secondary-fixed": "#141c25",
+                        "on-error": "#ffffff",
+                        "on-surface": "#1a1c1c",
+                        "surface-dim": "#dadada",
+                        "surface-bright": "#f9f9f9",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed-variant": "#00531f",
+                        "on-primary-fixed": "#001a41",
+                        "inverse-on-surface": "#f0f1f1",
+                        "inverse-surface": "#2f3131",
+                        "surface-container-low": "#f3f3f4",
+                        "surface": "#f9f9f9",
+                        "secondary-container": "#d8e0ed",
+                        "error": "#ba1a1a",
+                        "secondary-fixed-dim": "#bfc7d3",
+                        "primary-fixed": "#d8e2ff",
+                        "on-surface-variant": "#424753",
+                        "surface-variant": "#e2e2e2",
+                        "on-primary-container": "#ecefff",
+                        "tertiary-fixed-dim": "#6bde80",
+                        "surface-tint": "#005bc0",
+                        "on-secondary-container": "#5b636e",
+                        "on-error-container": "#93000a",
+                        "background": "#f9f9f9",
+                        "outline": "#727785",
+                        "inverse-primary": "#adc6ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #f0f2f5; }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .card-shadow { box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="text-on-surface">
+<!-- TopNavBar -->
+<header class="flex justify-between items-center px-6 h-[56px] w-full fixed top-0 z-50 bg-slate-50 border-b border-slate-200">
+<div class="flex items-center gap-6">
+<span class="text-xl font-bold tracking-tighter text-primary font-headline">AEGIS</span>
+<div class="flex items-center gap-2 px-3 py-1 bg-white border border-outline-variant rounded-lg cursor-pointer hover:bg-surface-container-low transition-colors">
+<span class="text-sm font-medium text-slate-700">ECU-PowerTrain-v2.1</span>
+<span class="material-symbols-outlined text-[18px]">expand_more</span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative hidden md:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
+<input class="pl-10 pr-4 py-1.5 bg-white border-none rounded-lg text-sm w-64 focus:ring-2 focus:ring-primary/20" placeholder="Search parameters..." type="text"/>
+</div>
+<div class="flex items-center gap-4">
+<button class="relative p-1 text-slate-500 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-0 right-0 w-4 h-4 bg-error text-white text-[10px] flex items-center justify-center rounded-full border-2 border-slate-50">3</span>
+</button>
+<div class="flex items-center gap-3 pl-4 border-l border-slate-200">
+<div class="text-right hidden sm:block">
+<div class="text-[13px] font-semibold text-slate-900">Kosh</div>
+<div class="text-[11px] text-slate-500 font-label tracking-wide">ADMIN</div>
+</div>
+<img alt="Kosh / Admin" class="w-8 h-8 rounded-full border border-slate-200" data-alt="professional user profile avatar, clean lighting, minimalist aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuALVsh3cZr0n_RNrVrwe6SW-Ohq4FG7KIH67HzowLsCrKNX-R20pFVCKeVQLp9CH99qwe2j2owil-KcSyAJhYxsrskLF2RWTFv4tw3eSPVH_qNfhMb05l_OAyZrvl5YxabjDF-MIHTl-6Axup9X1GXKE4tr5xEH2I3QcSPfhSSbj44w5X5GpfxWeLl5wFt-oaD1aoBJpKFMKYTiUpHtfudL5trYKXxZRwW7vJXcjY0jgtqZQX-HjmY7c5UegtKUcLCW15rQ2efNiVUC"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Sidebar Wrapper -->
+<aside class="fixed left-0 top-[56px] h-[calc(100vh-56px)] w-[240px] flex flex-col bg-[#f5f6f8] border-r border-[#e0e3e5] z-40">
+<div class="p-4 flex flex-col gap-4 overflow-y-auto no-scrollbar flex-1">
+<!-- Project Identification -->
+<div class="flex flex-col gap-2 p-3 bg-white rounded-lg card-shadow">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">shield</span>
+<span class="text-sm font-bold truncate text-slate-900">ECU-PowerTrain-v2.1</span>
+</div>
+<div class="flex flex-wrap gap-1.5">
+<span class="text-[10px] font-medium px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-label">release/2.1</span>
+<span class="text-[10px] font-medium px-2 py-0.5 bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-full font-label">GATE PASS</span>
+</div>
+</div>
+<!-- Sub-Projects -->
+<div class="mt-4">
+<span class="text-[11px] font-bold text-slate-400 font-label uppercase tracking-widest px-3">Sub-Projects</span>
+<nav class="mt-2 space-y-1">
+<div class="flex items-center justify-between px-3 py-1.5 text-[13px] text-slate-600 hover:bg-slate-200/50 cursor-pointer rounded-lg">
+<span class="truncate">arm-cortex-m4-main</span>
+<span class="text-[11px] font-medium text-slate-400">30</span>
+</div>
+<div class="flex items-center justify-between px-3 py-1.5 text-[13px] text-slate-600 hover:bg-slate-200/50 cursor-pointer rounded-lg">
+<span class="truncate">arm-cortex-m4-boot</span>
+<span class="text-[11px] font-medium text-slate-400">8</span>
+</div>
+<div class="flex items-center justify-between px-3 py-1.5 text-[13px] text-slate-600 hover:bg-slate-200/50 cursor-pointer rounded-lg">
+<span class="truncate">riscv-rv32-diag</span>
+<span class="text-[11px] font-medium text-slate-400">5</span>
+</div>
+</nav>
+</div>
+<!-- Main Navigation -->
+<div class="mt-4">
+<span class="text-[11px] font-bold text-slate-400 font-label uppercase tracking-widest px-3">Analysis Console</span>
+<nav class="mt-2 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-[13px] text-slate-600 hover:bg-slate-200/50 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">analytics</span>
+<span>ANALYSIS</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-[13px] text-slate-600 hover:bg-slate-200/50 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">code</span>
+<span>CODE</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-[13px] text-slate-600 hover:bg-slate-200/50 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">security</span>
+<span>FINDINGS</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-[13px] text-slate-600 hover:bg-slate-200/50 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">menu_book</span>
+<span>REPORT</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-[13px] text-slate-600 hover:bg-slate-200/50 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">fact_check</span>
+<span>QUALITY GATE</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-[13px] text-slate-600 hover:bg-slate-200/50 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">approval</span>
+<span>APPROVALS</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-[13px] bg-white text-primary border-l-2 border-primary card-shadow rounded-r-lg transition-colors font-semibold" href="#">
+<span class="material-symbols-outlined text-[18px]">settings</span>
+<span>SETTINGS</span>
+</a>
+</nav>
+</div>
+</div>
+<!-- Sidebar Footer -->
+<div class="p-4 border-t border-[#e0e3e5]">
+<a class="flex items-center gap-2 text-[13px] text-slate-500 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">arrow_back</span>
+<span>Back to Projects</span>
+</a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-[240px] mt-[56px] p-8 pb-24 min-h-[calc(100vh-56px)] flex flex-col gap-6">
+<!-- Header -->
+<div class="flex flex-col gap-1">
+<h1 class="text-2xl font-bold font-headline text-slate-900">Settings</h1>
+<p class="text-sm text-slate-500">Project configuration and management</p>
+</div>
+<!-- Horizontal Tabs -->
+<div class="flex gap-8 border-b border-slate-200">
+<button class="pb-3 text-sm font-semibold text-primary border-b-2 border-primary">General</button>
+<button class="pb-3 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors">SDK Management</button>
+<button class="pb-3 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors">Build Targets</button>
+<button class="pb-3 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors">Adapters</button>
+</div>
+<!-- General Tab Content -->
+<div class="flex flex-col gap-6 max-w-5xl">
+<!-- Section 1: Project Information -->
+<section class="bg-white rounded-lg card-shadow p-6">
+<div class="flex items-center gap-2 mb-6">
+<span class="material-symbols-outlined text-slate-400">info</span>
+<h2 class="text-lg font-bold font-headline">Project Information</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="flex flex-col gap-1.5">
+<label class="text-[12px] font-bold text-slate-500 font-label tracking-wide">PROJECT NAME</label>
+<input class="w-full bg-surface-container-low border-b-2 border-surface-container-highest focus:border-primary px-3 py-2 text-[14px] rounded-t-lg transition-colors" type="text" value="ECU-PowerTrain-v2.1"/>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="text-[12px] font-bold text-slate-500 font-label tracking-wide">OWNER</label>
+<select class="w-full bg-surface-container-low border-b-2 border-surface-container-highest focus:border-primary px-3 py-2 text-[14px] rounded-t-lg">
+<option>Kosh</option>
+<option>Admin Team</option>
+</select>
+</div>
+<div class="flex flex-col gap-1.5 md:col-span-2">
+<label class="text-[12px] font-bold text-slate-500 font-label tracking-wide">DESCRIPTION</label>
+<textarea class="w-full bg-surface-container-low border-b-2 border-surface-container-highest focus:border-primary px-3 py-2 text-[14px] rounded-t-lg" rows="2">파워트레인 ECU 펌웨어 정적 분석 프로젝트</textarea>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="text-[12px] font-bold text-slate-500 font-label tracking-wide">PROJECT ID</label>
+<div class="flex items-center bg-surface-container-low border-b-2 border-surface-container-highest px-3 py-2 rounded-t-lg">
+<code class="text-[13px] font-mono text-slate-700 flex-1">proj-ecu-pt-v21</code>
+<span class="material-symbols-outlined text-[16px] text-slate-400 cursor-pointer hover:text-primary">content_copy</span>
+</div>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="text-[12px] font-bold text-slate-500 font-label tracking-wide">CREATED DATE</label>
+<div class="px-3 py-2 text-[14px] text-slate-600 bg-surface-container-low rounded-lg">2026-01-15</div>
+</div>
+</div>
+</section>
+<!-- Section 2: Quality Gate Configuration -->
+<section class="bg-white rounded-lg card-shadow p-6">
+<div class="flex items-center justify-between mb-6">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-400">gavel</span>
+<h2 class="text-lg font-bold font-headline">Quality Gate Configuration</h2>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+<span class="ml-3 text-sm font-medium text-slate-700">Enabled</span>
+</label>
+</div>
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+<div class="flex flex-col gap-1.5">
+<label class="text-[12px] font-bold text-slate-500 font-label tracking-wide">CRITICAL ISSUES</label>
+<input class="w-full bg-surface-container-low border-b-2 border-surface-container-highest focus:border-primary px-3 py-2 text-[14px] rounded-t-lg" type="number" value="0"/>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="text-[12px] font-bold text-slate-500 font-label tracking-wide">HIGH ISSUES</label>
+<input class="w-full bg-surface-container-low border-b-2 border-surface-container-highest focus:border-primary px-3 py-2 text-[14px] rounded-t-lg" type="number" value="5"/>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="text-[12px] font-bold text-slate-500 font-label tracking-wide">MISRA COMPLIANCE</label>
+<div class="relative">
+<input class="w-full bg-surface-container-low border-b-2 border-surface-container-highest focus:border-primary px-3 py-2 text-[14px] rounded-t-lg pr-8" type="text" value="90"/>
+<span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
+</div>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="text-[12px] font-bold text-slate-500 font-label tracking-wide">COVERAGE MIN.</label>
+<div class="relative">
+<input class="w-full bg-surface-container-low border-b-2 border-surface-container-highest focus:border-primary px-3 py-2 text-[14px] rounded-t-lg pr-8" type="text" value="70"/>
+<span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3 p-4 bg-surface-container-low rounded-lg">
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</label>
+<div class="flex flex-col">
+<span class="text-[14px] font-semibold text-slate-900">Auto-evaluate on build</span>
+<span class="text-[12px] text-slate-500">Automatically trigger quality gate check after each analysis cycle.</span>
+</div>
+</div>
+</section>
+<!-- Section 3: Notification Settings -->
+<section class="bg-white rounded-lg card-shadow p-6">
+<div class="flex items-center gap-2 mb-6">
+<span class="material-symbols-outlined text-slate-400">notifications_active</span>
+<h2 class="text-lg font-bold font-headline">Notification Settings</h2>
+</div>
+<div class="flex flex-col gap-6">
+<div class="flex items-center justify-between pb-4 border-b border-slate-100">
+<div class="flex flex-col">
+<span class="text-[14px] font-semibold">Email Notifications</span>
+<span class="text-[12px] text-slate-500">Send summary reports to project owners.</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<div class="flex flex-col gap-3">
+<label class="text-[12px] font-bold text-slate-500 font-label tracking-wide">SLACK WEBHOOK URL</label>
+<input class="w-full bg-surface-container-low border-b-2 border-surface-container-highest focus:border-primary px-3 py-2 text-[14px] rounded-t-lg" placeholder="https://hooks.slack.com/services/..." type="text"/>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+<label class="flex items-center gap-3 p-3 border border-outline-variant/30 rounded-lg cursor-pointer hover:bg-slate-50">
+<input checked="" class="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary" type="checkbox"/>
+<span class="text-[13px] text-slate-700">Analysis complete</span>
+</label>
+<label class="flex items-center gap-3 p-3 border border-outline-variant/30 rounded-lg cursor-pointer hover:bg-slate-50">
+<input checked="" class="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary" type="checkbox"/>
+<span class="text-[13px] text-slate-700">Gate failure</span>
+</label>
+<label class="flex items-center gap-3 p-3 border border-outline-variant/30 rounded-lg cursor-pointer hover:bg-slate-50">
+<input class="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary" type="checkbox"/>
+<span class="text-[13px] text-slate-700">Gate pass</span>
+</label>
+<label class="flex items-center gap-3 p-3 border border-outline-variant/30 rounded-lg cursor-pointer hover:bg-slate-50">
+<input checked="" class="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary" type="checkbox"/>
+<span class="text-[13px] text-slate-700">Override request</span>
+</label>
+</div>
+</div>
+</section>
+<!-- Section 4: Danger Zone -->
+<section class="bg-red-50 border border-red-200 rounded-lg p-6">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-red-600">warning</span>
+<h2 class="text-lg font-bold font-headline text-red-700">Danger Zone</h2>
+</div>
+<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+<div class="flex flex-col">
+<span class="text-[14px] font-semibold text-red-900">Delete this project</span>
+<p class="text-[13px] text-red-700/70 max-w-md">Once you delete a project, there is no going back. Please be certain. All analysis history and findings will be permanently removed.</p>
+</div>
+<div class="flex gap-3 w-full sm:w-auto">
+<button class="px-4 py-2 text-[13px] font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">Archive Project</button>
+<button class="px-4 py-2 text-[13px] font-medium text-white bg-error rounded-lg hover:bg-red-700 transition-colors">Delete Project</button>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Footer Action Bar -->
+<footer class="fixed bottom-0 left-[240px] right-0 h-16 bg-white/90 backdrop-blur-md border-t border-slate-200 flex items-center justify-between px-8 z-50">
+<div class="flex items-center gap-2">
+<span class="text-[11px] font-bold font-label text-slate-400 tracking-widest uppercase">AEGIS v2.1.0</span>
+<span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+<span class="text-[11px] font-label text-slate-400">System Ready</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-sm font-medium text-slate-500 hover:text-slate-900">Discard</button>
+<button class="px-6 py-2 bg-gradient-to-br from-primary to-primary-container text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95">
+                Save Changes
+            </button>
+</div>
+</footer>
+</body></html>

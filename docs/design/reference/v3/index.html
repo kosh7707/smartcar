@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AEGIS Design Reference</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0e14; color: #d9e6fd; min-height: 100vh; }
+  .header { padding: 32px 48px 24px; border-bottom: 1px solid #1a2637; }
+  .header h1 { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 600; margin-bottom: 8px; }
+  .header p { color: #9facc1; font-size: 14px; }
+  .version-tabs { padding: 12px 48px; display: flex; gap: 8px; border-bottom: 1px solid #1a2637; background: #0a0e14; }
+  .version-tabs button { padding: 6px 16px; border: 1px solid #3c495b; background: transparent; color: #d9e6fd; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.15s; }
+  .version-tabs button:hover { background: #1a2637; }
+  .version-tabs button.active { background: #004a76; border-color: #96ccff; color: #96ccff; }
+  .controls { padding: 16px 48px; display: flex; gap: 12px; border-bottom: 1px solid #1a2637; position: sticky; top: 0; background: #0a0e14; z-index: 10; }
+  .controls button { padding: 8px 20px; border: 1px solid #3c495b; background: transparent; color: #d9e6fd; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.15s; }
+  .controls button:hover { background: #1a2637; }
+  .controls button.active { background: #004a76; border-color: #96ccff; color: #96ccff; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 32px 48px; }
+  .card { background: #121a25; border-radius: 8px; overflow: hidden; transition: transform 0.15s, box-shadow 0.15s; cursor: pointer; }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(150,204,255,0.06); }
+  .card-header { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .card-title { font-weight: 600; font-size: 15px; }
+  .card-badge { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+  .badge-dark { background: #1a2637; color: #96ccff; }
+  .badge-light { background: #e8e8e8; color: #1a1c1c; }
+  .badge-github { background: #0d3b1e; color: #3fb950; font-size: 10px; }
+  .card-meta { padding: 0 20px 12px; color: #6a768a; font-size: 12px; display: flex; gap: 12px; }
+  .card-pair { display: flex; gap: 1px; padding: 0 20px 16px; }
+  .card-pair a { flex: 1; display: block; padding: 10px 16px; text-decoration: none; font-size: 13px; font-weight: 500; text-align: center; transition: background 0.15s; }
+  .card-pair a.dark-link { background: #0e141c; color: #96ccff; border-radius: 6px 0 0 6px; }
+  .card-pair a.light-link { background: #e8e8e8; color: #1a1c1c; border-radius: 0 6px 6px 0; }
+  .card-pair a:hover { filter: brightness(1.2); }
+  .section-label { grid-column: 1 / -1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: #6a768a; padding-top: 16px; border-top: 1px solid #1a2637; font-weight: 600; }
+  iframe { width: 100%; height: 100vh; border: none; background: #0a0e14; }
+  .viewer { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 100; background: #0a0e14; }
+  .viewer.open { display: block; }
+  .viewer-bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; background: #121a25; border-bottom: 1px solid #1a2637; }
+  .viewer-bar .title { font-size: 14px; font-weight: 600; }
+  .viewer-bar .nav-group { display: flex; gap: 8px; }
+  .viewer-bar button { padding: 6px 14px; border: 1px solid #3c495b; background: transparent; color: #d9e6fd; border-radius: 4px; cursor: pointer; font-size: 12px; }
+  .viewer-bar button:hover { background: #1a2637; }
+  .viewer-bar button.close-btn { border-color: #7f2927; color: #ee7d77; }
+  .viewer-bar button.close-btn:hover { background: #7f2927; color: #fff; }
+  .viewer-bar button.active { background: #004a76; border-color: #96ccff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>AEGIS Design Reference</h1>
+  <p>9 pages &times; 2 themes = 18 mockups &mdash; Stitch MCP Content-First Generation &mdash; v3 &mdash; Initial Stitch Generation (2026-04-08)</p>
+</div>
+
+<div class="controls">
+  <button class="active" onclick="filterCards('all')">All (9)</button>
+  <button onclick="filterCards('github')">GitHub Pattern (4)</button>
+  <button onclick="filterCards('standard')">Standard (5)</button>
+</div>
+
+<div class="grid" id="grid">
+
+  <div class="section-label">GitHub Pattern Pages</div>
+
+  <div class="card" data-type="github">
+    <div class="card-header">
+      <span class="card-title">Projects List</span>
+      <span class="card-badge badge-github">repo list</span>
+    </div>
+    <div class="card-meta"><span>/ projects</span><span>4 projects, severity bars, gate badges</span></div>
+    <div class="card-pair">
+      <a class="dark-link" href="#" onclick="openViewer('dark/projects-list-dark.html','Projects List','projects-list'); return false;">Dark</a>
+      <a class="light-link" href="#" onclick="openViewer('light/projects-list-light.html','Projects List','projects-list'); return false;">Light</a>
+    </div>
+  </div>
+
+  <div class="card" data-type="github">
+    <div class="card-header">
+      <span class="card-title">Overview</span>
+      <span class="card-badge badge-github">repo home</span>
+    </div>
+    <div class="card-meta"><span>/ overview</span><span>About + Security + Activity + Sub-projects sidebar</span></div>
+    <div class="card-pair">
+      <a class="dark-link" href="#" onclick="openViewer('dark/overview-dark.html','Overview','overview'); return false;">Dark</a>
+      <a class="light-link" href="#" onclick="openViewer('light/overview-light.html','Overview','overview'); return false;">Light</a>
+    </div>
+  </div>
+
+  <div class="card" data-type="github">
+    <div class="card-header">
+      <span class="card-title">Analysis</span>
+      <span class="card-badge badge-github">actions</span>
+    </div>
+    <div class="card-meta"><span>/ static-analysis</span><span>Run list + step logs + re-run + progress</span></div>
+    <div class="card-pair">
+      <a class="dark-link" href="#" onclick="openViewer('dark/analysis-dark.html','Analysis','analysis'); return false;">Dark</a>
+      <a class="light-link" href="#" onclick="openViewer('light/analysis-light.html','Analysis','analysis'); return false;">Light</a>
+    </div>
+  </div>
+
+  <div class="card" data-type="github">
+    <div class="card-header">
+      <span class="card-title">Findings</span>
+      <span class="card-badge badge-github">issues</span>
+    </div>
+    <div class="card-meta"><span>/ vulnerabilities</span><span>Open/Closed + severity + CWE + build target filter</span></div>
+    <div class="card-pair">
+      <a class="dark-link" href="#" onclick="openViewer('dark/findings-dark.html','Findings','findings'); return false;">Dark</a>
+      <a class="light-link" href="#" onclick="openViewer('light/findings-light.html','Findings','findings'); return false;">Light</a>
+    </div>
+  </div>
+
+  <div class="section-label">Standard Pages</div>
+
+  <div class="card" data-type="standard">
+    <div class="card-header">
+      <span class="card-title">Approvals</span>
+      <span class="card-badge badge-github">PR</span>
+    </div>
+    <div class="card-meta"><span>/ approvals</span><span>Approve/Reject + conversation + gate diff</span></div>
+    <div class="card-pair">
+      <a class="dark-link" href="#" onclick="openViewer('dark/approvals-dark.html','Approvals','approvals'); return false;">Dark</a>
+      <a class="light-link" href="#" onclick="openViewer('light/approvals-light.html','Approvals','approvals'); return false;">Light</a>
+    </div>
+  </div>
+
+  <div class="card" data-type="standard">
+    <div class="card-header">
+      <span class="card-title">Code / Files</span>
+      <span class="card-badge badge-dark">code</span>
+    </div>
+    <div class="card-meta"><span>/ files</span><span>Source tree + language bar + finding badges</span></div>
+    <div class="card-pair">
+      <a class="dark-link" href="#" onclick="openViewer('dark/code-dark.html','Code','code'); return false;">Dark</a>
+      <a class="light-link" href="#" onclick="openViewer('light/code-light.html','Code','code'); return false;">Light</a>
+    </div>
+  </div>
+
+  <div class="card" data-type="standard">
+    <div class="card-header">
+      <span class="card-title">Report</span>
+      <span class="card-badge badge-dark">report</span>
+    </div>
+    <div class="card-meta"><span>/ report</span><span>Executive summary + module tabs + audit trail</span></div>
+    <div class="card-pair">
+      <a class="dark-link" href="#" onclick="openViewer('dark/report-dark.html','Report','report'); return false;">Dark</a>
+      <a class="light-link" href="#" onclick="openViewer('light/report-light.html','Report','report'); return false;">Light</a>
+    </div>
+  </div>
+
+  <div class="card" data-type="standard">
+    <div class="card-header">
+      <span class="card-title">Quality Gate</span>
+      <span class="card-badge badge-dark">gate</span>
+    </div>
+    <div class="card-meta"><span>/ quality-gate</span><span>PASS/FAIL + criteria table + history + override</span></div>
+    <div class="card-pair">
+      <a class="dark-link" href="#" onclick="openViewer('dark/quality-gate-dark.html','Quality Gate','quality-gate'); return false;">Dark</a>
+      <a class="light-link" href="#" onclick="openViewer('light/quality-gate-light.html','Quality Gate','quality-gate'); return false;">Light</a>
+    </div>
+  </div>
+
+  <div class="card" data-type="standard">
+    <div class="card-header">
+      <span class="card-title">Settings</span>
+      <span class="card-badge badge-dark">settings</span>
+    </div>
+    <div class="card-meta"><span>/ settings</span><span>General + SDK + Build Targets + Adapters</span></div>
+    <div class="card-pair">
+      <a class="dark-link" href="#" onclick="openViewer('dark/settings-dark.html','Settings','settings'); return false;">Dark</a>
+      <a class="light-link" href="#" onclick="openViewer('light/settings-light.html','Settings','settings'); return false;">Light</a>
+    </div>
+  </div>
+
+</div>
+
+<div class="viewer" id="viewer">
+  <div class="viewer-bar">
+    <div class="nav-group">
+      <button onclick="navigateViewer(-1)">&larr; Prev</button>
+      <button onclick="navigateViewer(1)">Next &rarr;</button>
+    </div>
+    <span class="title" id="viewer-title">-</span>
+    <div class="nav-group">
+      <button id="btn-dark" onclick="switchTheme('dark')">Dark</button>
+      <button id="btn-light" onclick="switchTheme('light')">Light</button>
+      <button class="close-btn" onclick="closeViewer()">Close &times;</button>
+    </div>
+  </div>
+  <iframe id="viewer-frame"></iframe>
+</div>
+
+<script>
+const pages = [
+  { id: 'projects-list', name: 'Projects List', dark: 'dark/projects-list-dark.html', light: 'light/projects-list-light.html' },
+  { id: 'overview', name: 'Overview', dark: 'dark/overview-dark.html', light: 'light/overview-light.html' },
+  { id: 'analysis', name: 'Analysis', dark: 'dark/analysis-dark.html', light: 'light/analysis-light.html' },
+  { id: 'findings', name: 'Findings', dark: 'dark/findings-dark.html', light: 'light/findings-light.html' },
+  { id: 'approvals', name: 'Approvals', dark: 'dark/approvals-dark.html', light: 'light/approvals-light.html' },
+  { id: 'code', name: 'Code / Files', dark: 'dark/code-dark.html', light: 'light/code-light.html' },
+  { id: 'report', name: 'Report', dark: 'dark/report-dark.html', light: 'light/report-light.html' },
+  { id: 'quality-gate', name: 'Quality Gate', dark: 'dark/quality-gate-dark.html', light: 'light/quality-gate-light.html' },
+  { id: 'settings', name: 'Settings', dark: 'dark/settings-dark.html', light: 'light/settings-light.html' },
+];
+
+let currentIdx = 0;
+let currentTheme = 'dark';
+
+function openViewer(url, title, pageId) {
+  currentIdx = pages.findIndex(p => p.id === pageId);
+  currentTheme = url.includes('light') ? 'light' : 'dark';
+  document.getElementById('viewer-frame').src = url;
+  document.getElementById('viewer-title').textContent = title + ' (' + currentTheme + ')';
+  document.getElementById('viewer').classList.add('open');
+  updateThemeButtons();
+}
+
+function closeViewer() {
+  document.getElementById('viewer').classList.remove('open');
+  document.getElementById('viewer-frame').src = '';
+}
+
+function switchTheme(theme) {
+  currentTheme = theme;
+  const page = pages[currentIdx];
+  document.getElementById('viewer-frame').src = page[theme];
+  document.getElementById('viewer-title').textContent = page.name + ' (' + theme + ')';
+  updateThemeButtons();
+}
+
+function navigateViewer(dir) {
+  currentIdx = (currentIdx + dir + pages.length) % pages.length;
+  const page = pages[currentIdx];
+  document.getElementById('viewer-frame').src = page[currentTheme];
+  document.getElementById('viewer-title').textContent = page.name + ' (' + currentTheme + ')';
+}
+
+function updateThemeButtons() {
+  document.getElementById('btn-dark').classList.toggle('active', currentTheme === 'dark');
+  document.getElementById('btn-light').classList.toggle('active', currentTheme === 'light');
+}
+
+function filterCards(type) {
+  document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.querySelectorAll('.card').forEach(c => {
+    if (type === 'all') { c.style.display = ''; return; }
+    c.style.display = c.dataset.type === type ? '' : 'none';
+  });
+  document.querySelectorAll('.section-label').forEach(l => {
+    if (type === 'all') { l.style.display = ''; return; }
+    l.style.display = 'none';
+  });
+}
+
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('viewer').classList.contains('open')) return;
+  if (e.key === 'Escape') closeViewer();
+  if (e.key === 'ArrowLeft') navigateViewer(-1);
+  if (e.key === 'ArrowRight') navigateViewer(1);
+  if (e.key === 'd') switchTheme('dark');
+  if (e.key === 'l') switchTheme('light');
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Static Analysis</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-container-low": "#0e141c",
+                      "on-secondary": "#1b2127",
+                      "on-primary-fixed": "#00436a",
+                      "inverse-on-surface": "#51555c",
+                      "surface": "#0a0e14",
+                      "error-dim": "#bb5551",
+                      "outline-variant": "#3c495b",
+                      "on-background": "#d9e6fd",
+                      "on-secondary-fixed": "#3a4047",
+                      "on-error": "#490106",
+                      "secondary": "#989ea7",
+                      "outline": "#6a768a",
+                      "on-primary": "#00436b",
+                      "on-error-container": "#ff9993",
+                      "primary-container": "#004a76",
+                      "primary": "#96ccff",
+                      "on-surface": "#d9e6fd",
+                      "tertiary-container": "#83fc89",
+                      "surface-bright": "#1e2d41",
+                      "on-primary-fixed-variant": "#006096",
+                      "secondary-container": "#363c43",
+                      "secondary-fixed-dim": "#cfd5de",
+                      "surface-container-highest": "#1a2637",
+                      "inverse-surface": "#f8f9ff",
+                      "secondary-dim": "#989ea7",
+                      "inverse-primary": "#00649b",
+                      "on-tertiary": "#00691f",
+                      "surface-container": "#121a25",
+                      "primary-dim": "#78bffe",
+                      "on-surface-variant": "#9facc1",
+                      "tertiary-fixed-dim": "#75ed7d",
+                      "on-tertiary-fixed": "#004a14",
+                      "error-container": "#7f2927",
+                      "on-tertiary-container": "#005f1c",
+                      "tertiary-dim": "#75ed7d",
+                      "on-tertiary-fixed-variant": "#006b20",
+                      "on-primary-container": "#aad5ff",
+                      "primary-fixed": "#cee5ff",
+                      "error": "#ee7d77",
+                      "surface-tint": "#96ccff",
+                      "on-secondary-fixed-variant": "#565c64",
+                      "on-secondary-container": "#bac0c8",
+                      "background": "#0a0e14",
+                      "surface-dim": "#0a0e14",
+                      "surface-variant": "#1a2637",
+                      "primary-fixed-dim": "#b3d8ff",
+                      "surface-container-lowest": "#000000",
+                      "tertiary-fixed": "#83fc89",
+                      "tertiary": "#c7ffc2",
+                      "secondary-fixed": "#dde3ec",
+                      "surface-container-high": "#16202e"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "fontFamily": {
+                      "headline": ["Space Grotesk"],
+                      "body": ["Inter"],
+                      "label": ["Inter"]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body {
+            background-color: #0a0e14;
+            color: #d9e6fd;
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="overflow-x-hidden">
+<!-- TopAppBar -->
+<nav class="fixed top-0 w-full z-50 bg-[#0a0e14] border-b border-[#3c495b]/15 shadow-[0_48px_48px_rgba(150,204,255,0.08)] flex items-center justify-between px-6 h-16 font-['Space_Grotesk'] tracking-tight">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-[#96ccff]">AEGIS</span>
+<div class="hidden md:flex relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#9facc1] text-lg">search</span>
+<input class="bg-[#121a25] border-none rounded-lg pl-10 pr-4 py-1.5 text-sm w-64 focus:ring-1 focus:ring-[#96ccff] text-[#d9e6fd] placeholder-[#9facc1]/50" placeholder="Search resources..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group cursor-pointer p-2 hover:bg-[#1e2d41] transition-colors duration-200 rounded-lg">
+<span class="material-symbols-outlined text-[#9facc1]" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-[#ee7d77] rounded-full border-2 border-[#0a0e14]"></span>
+</div>
+<div class="flex items-center gap-3 pl-4 border-l border-[#3c495b]/30">
+<div class="text-right hidden sm:block">
+<p class="text-sm font-medium text-[#d9e6fd]">Kosh Admin</p>
+<p class="text-[10px] text-[#9facc1] uppercase tracking-widest font-bold">Lead Analyst</p>
+</div>
+<img alt="Kosh Admin" class="w-8 h-8 rounded-lg bg-[#1a2637]" data-alt="Close up portrait of a professional security analyst male with serious expression and modern headset in a dark room" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBTLNjS5AF27nbmYzivWnXL0W9duajwNQ4kneZ7rJ90knGNe0jYBcrLDkh3xYPM3iHOdKW-MVYs1mNxmFJq2DWmnIGRtF3LyyxBnvZQu5_qAhD2-gNu8Q11RgkHC9eRr0HAyAiV3b9gs4ySIvfn9SpE2yE9tdxe-8Re77aIxrl5PZKBbIRQBGADOYnd9ETxc9TZUg_Gp2S6JzpXwHkhmeMMfDsUWXU_KXthCJaeACzjhtayUsUpn-w5qDaOUv_yasUvFTPizzACSdWy"/>
+</div>
+</div>
+</nav>
+<div class="flex pt-16 min-h-screen">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-[#0e141c] border-r border-[#3c495b]/15 flex flex-col py-4 font-['Inter'] text-sm z-40">
+<!-- Project Selector Area -->
+<div class="px-4 mb-6">
+<div class="p-3 bg-[#1e2d41] rounded-lg border border-[#96ccff]/20">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#96ccff]" data-icon="security" style="font-variation-settings: 'FILL' 1;">security</span>
+<div>
+<p class="text-xs font-bold text-[#96ccff] uppercase tracking-tighter">Active Project</p>
+<p class="text-sm font-semibold text-[#d9e6fd] truncate">ECU-PowerTrain-v2.1</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Navigation Links -->
+<div class="flex-1 space-y-1">
+<a class="flex items-center gap-3 text-[#d9e6fd]/60 px-4 py-3 hover:bg-[#121a25] hover:text-[#d9e6fd] transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 bg-[#1e2d41] text-[#96ccff] border-l-4 border-[#96ccff] font-semibold px-4 py-3 transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="security" style="font-variation-settings: 'FILL' 1;">security</span>
+<span>Static Analysis</span>
+</a>
+<a class="flex items-center gap-3 text-[#d9e6fd]/60 px-4 py-3 hover:bg-[#121a25] hover:text-[#d9e6fd] transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="bug_report">bug_report</span>
+<span>Vulnerabilities</span>
+</a>
+<!-- Sub-Projects -->
+<div class="pt-6 pb-2 px-4">
+<p class="text-[10px] font-bold text-[#9facc1] uppercase tracking-[0.2em] mb-3">Sub-Projects</p>
+<div class="space-y-2">
+<div class="flex items-center justify-between text-xs p-2 rounded hover:bg-[#1a2637] cursor-pointer">
+<span class="text-[#d9e6fd]/80">CAN-Interface-A1</span>
+<span class="bg-[#7f2927] text-[#ee7d77] px-1.5 py-0.5 rounded-sm font-mono font-bold">12</span>
+</div>
+<div class="flex items-center justify-between text-xs p-2 rounded hover:bg-[#1a2637] cursor-pointer">
+<span class="text-[#d9e6fd]/80">Memory-Manager</span>
+<span class="bg-[#3c495b]/30 text-[#9facc1] px-1.5 py-0.5 rounded-sm font-mono">0</span>
+</div>
+<div class="flex items-center justify-between text-xs p-2 rounded hover:bg-[#1a2637] cursor-pointer">
+<span class="text-[#d9e6fd]/80">Bootloader-v2</span>
+<span class="bg-[#1b2127] text-[#75ed7d] px-1.5 py-0.5 rounded-sm font-mono font-bold">3</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Action -->
+<div class="px-4 mt-auto border-t border-[#3c495b]/10 pt-4 pb-2">
+<button class="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm text-[#9facc1] hover:text-[#96ccff] hover:bg-[#1e2d41] transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="arrow_back">arrow_back</span>
+<span>Back to Projects</span>
+</button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 ml-64 p-8">
+<header class="mb-8 flex items-end justify-between">
+<div>
+<h1 class="font-headline text-3xl font-bold text-[#d9e6fd] tracking-tight">Static Analysis</h1>
+<p class="text-[#9facc1] mt-1">Deep firmware scanning for ECU-PowerTrain-v2.1</p>
+</div>
+<div class="flex gap-2 p-1 bg-[#121a25] rounded-lg">
+<button class="px-6 py-1.5 text-sm font-medium bg-[#1e2d41] text-[#96ccff] rounded-md shadow-sm">Latest Run</button>
+<button class="px-6 py-1.5 text-sm font-medium text-[#9facc1] hover:text-[#d9e6fd]">Overall</button>
+</div>
+</header>
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+<!-- Latest Run Summary Card -->
+<section class="xl:col-span-2 space-y-6">
+<div class="bg-[#121a25] border border-[#3c495b]/15 rounded-xl overflow-hidden shadow-2xl">
+<div class="bg-[#1e2d41]/50 p-6 flex items-center justify-between border-b border-[#3c495b]/15">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 bg-[#c7ffc2]/10 rounded-lg flex items-center justify-center border border-[#c7ffc2]/20">
+<span class="material-symbols-outlined text-[#75ed7d] text-3xl" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div>
+<h3 class="text-xl font-bold font-headline">Analysis Run #47</h3>
+<p class="text-xs font-mono text-[#9facc1]">JOBID: AE-992384-PT-2.1</p>
+</div>
+</div>
+<div class="text-right">
+<span class="bg-[#c7ffc2]/10 text-[#75ed7d] border border-[#75ed7d]/30 px-4 py-1 rounded-full text-xs font-bold tracking-widest uppercase">PASS</span>
+<p class="text-[10px] text-[#9facc1] mt-2">COMPLETED 2H AGO</p>
+</div>
+</div>
+<div class="p-8 grid md:grid-cols-2 gap-8">
+<div class="space-y-6">
+<div>
+<p class="text-[10px] font-bold text-[#9facc1] uppercase tracking-[0.2em] mb-4">Configuration Profile</p>
+<div class="bg-[#0a0e14] p-4 rounded-lg border border-[#3c495b]/10 space-y-3">
+<div class="flex justify-between items-center">
+<span class="text-xs text-[#9facc1]">Scan Depth</span>
+<span class="text-xs font-bold text-[#96ccff]">Quick + Deep (Combined)</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-xs text-[#9facc1]">MISRA C:2012</span>
+<span class="text-xs font-mono text-[#75ed7d]">ENABLED</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-xs text-[#9facc1]">Dead Code Analysis</span>
+<span class="text-xs font-mono text-[#75ed7d]">ENABLED</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-4">
+<div class="bg-[#0a0e14] p-3 rounded-lg text-center border border-[#3c495b]/10">
+<p class="text-[10px] text-[#9facc1] mb-1">FILES</p>
+<p class="text-xl font-headline font-bold">1,248</p>
+</div>
+<div class="bg-[#0a0e14] p-3 rounded-lg text-center border border-[#3c495b]/10">
+<p class="text-[10px] text-[#9facc1] mb-1">LOC</p>
+<p class="text-xl font-headline font-bold">482k</p>
+</div>
+<div class="bg-[#0a0e14] p-3 rounded-lg text-center border border-[#3c495b]/10">
+<p class="text-[10px] text-[#9facc1] mb-1">TIME</p>
+<p class="text-xl font-headline font-bold">14m</p>
+</div>
+</div>
+</div>
+<div>
+<p class="text-[10px] font-bold text-[#9facc1] uppercase tracking-[0.2em] mb-4">Workflow Progress</p>
+<ul class="space-y-4">
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#75ed7d] text-lg" data-icon="check_circle">check_circle</span>
+<div class="flex-1 border-b border-[#3c495b]/10 pb-2 flex justify-between">
+<span class="text-sm">Binary Extraction</span>
+<span class="text-[10px] font-mono text-[#9facc1]">0.8s</span>
+</div>
+</li>
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#75ed7d] text-lg" data-icon="check_circle">check_circle</span>
+<div class="flex-1 border-b border-[#3c495b]/10 pb-2 flex justify-between">
+<span class="text-sm">Symbolic Execution</span>
+<span class="text-[10px] font-mono text-[#9facc1]">3.2m</span>
+</div>
+</li>
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#75ed7d] text-lg" data-icon="check_circle">check_circle</span>
+<div class="flex-1 border-b border-[#3c495b]/10 pb-2 flex justify-between">
+<span class="text-sm">Flow-Control Mapping</span>
+<span class="text-[10px] font-mono text-[#9facc1]">8.4m</span>
+</div>
+</li>
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#75ed7d] text-lg" data-icon="check_circle">check_circle</span>
+<div class="flex-1 pb-2 flex justify-between">
+<span class="text-sm">Report Serialization</span>
+<span class="text-[10px] font-mono text-[#9facc1]">1.1m</span>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<!-- Analysis History Table -->
+<div class="bg-[#121a25] border border-[#3c495b]/15 rounded-xl shadow-2xl overflow-hidden">
+<div class="p-6 border-b border-[#3c495b]/15">
+<h3 class="text-lg font-bold font-headline">Analysis History</h3>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-[#0e141c] text-[#9facc1] text-[10px] uppercase tracking-widest">
+<th class="px-6 py-4 font-semibold">Run ID</th>
+<th class="px-6 py-4 font-semibold">Timestamp</th>
+<th class="px-6 py-4 font-semibold">Author</th>
+<th class="px-6 py-4 font-semibold">Security Findings</th>
+<th class="px-6 py-4 font-semibold">Status</th>
+<th class="px-6 py-4 font-semibold"></th>
+</tr>
+</thead>
+<tbody class="text-sm">
+<tr class="border-b border-[#3c495b]/10 hover:bg-[#1e2d41] transition-colors group">
+<td class="px-6 py-5 font-mono text-[#96ccff]">#47</td>
+<td class="px-6 py-5">Oct 24, 2023 14:20</td>
+<td class="px-6 py-5">Kosh Admin</td>
+<td class="px-6 py-5">
+<div class="flex gap-2">
+<span class="bg-[#3c495b]/30 px-2 py-0.5 rounded text-[10px]">0 CRIT</span>
+<span class="bg-[#3c495b]/30 px-2 py-0.5 rounded text-[10px]">2 LOW</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="text-[#75ed7d] flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-[#75ed7d]"></span>
+                                                PASS
+                                            </span>
+</td>
+<td class="px-6 py-5 text-right">
+<span class="material-symbols-outlined text-[#9facc1] opacity-0 group-hover:opacity-100 cursor-pointer" data-icon="open_in_new">open_in_new</span>
+</td>
+</tr>
+<tr class="border-b border-[#3c495b]/10 hover:bg-[#1e2d41] transition-colors group">
+<td class="px-6 py-5 font-mono text-[#96ccff]">#46</td>
+<td class="px-6 py-5">Oct 23, 2023 09:12</td>
+<td class="px-6 py-5">CI_PIPELINE</td>
+<td class="px-6 py-5">
+<div class="flex gap-2">
+<span class="bg-[#7f2927]/50 text-[#ee7d77] px-2 py-0.5 rounded text-[10px]">1 CRIT</span>
+<span class="bg-[#3c495b]/30 px-2 py-0.5 rounded text-[10px]">4 LOW</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="text-[#ee7d77] flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-[#ee7d77]"></span>
+                                                FAIL
+                                            </span>
+</td>
+<td class="px-6 py-5 text-right">
+<span class="material-symbols-outlined text-[#9facc1] opacity-0 group-hover:opacity-100 cursor-pointer" data-icon="open_in_new">open_in_new</span>
+</td>
+</tr>
+<tr class="border-b border-[#3c495b]/10 hover:bg-[#1e2d41] transition-colors group">
+<td class="px-6 py-5 font-mono text-[#96ccff]">#45</td>
+<td class="px-6 py-5">Oct 22, 2023 18:45</td>
+<td class="px-6 py-5">Kosh Admin</td>
+<td class="px-6 py-5">
+<div class="flex gap-2">
+<span class="bg-[#3c495b]/30 px-2 py-0.5 rounded text-[10px]">0 CRIT</span>
+<span class="bg-[#3c495b]/30 px-2 py-0.5 rounded text-[10px]">1 LOW</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="text-[#75ed7d] flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-[#75ed7d]"></span>
+                                                PASS
+                                            </span>
+</td>
+<td class="px-6 py-5 text-right">
+<span class="material-symbols-outlined text-[#9facc1] opacity-0 group-hover:opacity-100 cursor-pointer" data-icon="open_in_new">open_in_new</span>
+</td>
+</tr>
+<tr class="border-b border-[#3c495b]/10 hover:bg-[#1e2d41] transition-colors group">
+<td class="px-6 py-5 font-mono text-[#96ccff]">#44</td>
+<td class="px-6 py-5">Oct 22, 2023 11:30</td>
+<td class="px-6 py-5">CI_PIPELINE</td>
+<td class="px-6 py-5">
+<div class="flex gap-2">
+<span class="bg-[#7f2927]/50 text-[#ee7d77] px-2 py-0.5 rounded text-[10px]">3 CRIT</span>
+<span class="bg-[#3c495b]/30 px-2 py-0.5 rounded text-[10px]">2 LOW</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="text-[#ee7d77] flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-[#ee7d77]"></span>
+                                                FAIL
+                                            </span>
+</td>
+<td class="px-6 py-5 text-right">
+<span class="material-symbols-outlined text-[#9facc1] opacity-0 group-hover:opacity-100 cursor-pointer" data-icon="open_in_new">open_in_new</span>
+</td>
+</tr>
+<tr class="hover:bg-[#1e2d41] transition-colors group">
+<td class="px-6 py-5 font-mono text-[#96ccff]">#43</td>
+<td class="px-6 py-5">Oct 21, 2023 16:50</td>
+<td class="px-6 py-5">Kosh Admin</td>
+<td class="px-6 py-5">
+<div class="flex gap-2">
+<span class="bg-[#3c495b]/30 px-2 py-0.5 rounded text-[10px]">0 CRIT</span>
+<span class="bg-[#3c495b]/30 px-2 py-0.5 rounded text-[10px]">0 LOW</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="text-[#75ed7d] flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-[#75ed7d]"></span>
+                                                PASS
+                                            </span>
+</td>
+<td class="px-6 py-5 text-right">
+<span class="material-symbols-outlined text-[#9facc1] opacity-0 group-hover:opacity-100 cursor-pointer" data-icon="open_in_new">open_in_new</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<!-- Tactical Side Panels -->
+<aside class="space-y-6">
+<!-- Project Health -->
+<div class="bg-[#121a25] border border-[#3c495b]/15 rounded-xl p-6 shadow-2xl">
+<h4 class="text-[10px] font-bold text-[#9facc1] uppercase tracking-[0.2em] mb-6">Security Posture</h4>
+<div class="flex items-end justify-center mb-6">
+<span class="text-6xl font-headline font-bold text-[#96ccff]">98</span>
+<span class="text-[#9facc1] text-lg font-headline mb-2 ml-1">/100</span>
+</div>
+<p class="text-center text-xs text-[#9facc1] mb-8">Asset safety score remains within optimal parameters. No high-severity vulnerabilities detected in current branch.</p>
+<div class="space-y-4">
+<div class="space-y-2">
+<div class="flex justify-between text-[10px] text-[#9facc1] uppercase tracking-wider">
+<span>Code Coverage</span>
+<span class="text-[#d9e6fd]">82.4%</span>
+</div>
+<div class="h-1.5 bg-[#1a2637] rounded-full overflow-hidden">
+<div class="h-full bg-gradient-to-r from-[#96ccff] to-[#78bffe]" style="width: 82.4%"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-[10px] text-[#9facc1] uppercase tracking-wider">
+<span>Risk Index</span>
+<span class="text-[#d9e6fd]">Low</span>
+</div>
+<div class="h-1.5 bg-[#1a2637] rounded-full overflow-hidden">
+<div class="h-full bg-[#75ed7d]" style="width: 12%"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Quick Actions -->
+<div class="bg-[#121a25] border border-[#3c495b]/15 rounded-xl p-6 shadow-2xl">
+<h4 class="text-[10px] font-bold text-[#9facc1] uppercase tracking-[0.2em] mb-6">Control Center</h4>
+<div class="space-y-3">
+<button class="w-full flex items-center justify-between p-3 rounded-lg bg-[#96ccff] text-[#00436b] font-bold hover:scale-[1.02] transition-transform duration-200">
+<span class="text-sm">Run New Analysis</span>
+<span class="material-symbols-outlined text-lg" data-icon="play_arrow">play_arrow</span>
+</button>
+<button class="w-full flex items-center justify-between p-3 rounded-lg border border-[#3c495b]/30 text-[#d9e6fd] text-sm hover:bg-[#1e2d41] transition-colors">
+<span>Export Report (PDF)</span>
+<span class="material-symbols-outlined text-lg" data-icon="description">description</span>
+</button>
+<button class="w-full flex items-center justify-between p-3 rounded-lg border border-[#3c495b]/30 text-[#d9e6fd] text-sm hover:bg-[#1e2d41] transition-colors">
+<span>Settings &amp; Rulesets</span>
+<span class="material-symbols-outlined text-lg" data-icon="tune">tune</span>
+</button>
+</div>
+</div>
+<!-- Environment Detail -->
+<div class="bg-[#0e141c] rounded-xl p-6 border border-[#3c495b]/10">
+<div class="flex items-center gap-3 mb-4">
+<div class="w-2 h-2 rounded-full bg-[#75ed7d] animate-pulse"></div>
+<span class="text-[10px] font-bold text-[#9facc1] uppercase tracking-widest">System Status</span>
+</div>
+<div class="space-y-2 font-mono text-[10px] text-[#9facc1]">
+<p>ENGINE: V-4.2-AEGIS</p>
+<p>NODES: 12 ACTIVE</p>
+<p>LATENCY: 42ms</p>
+</div>
+</div>
+</aside>
+</div>
+</main>
+</div>
+<!-- Footer -->
+<footer class="ml-64 py-6 px-8 border-t border-[#3c495b]/15 bg-[#0a0e14] flex items-center justify-between text-[11px] text-[#9facc1]">
+<p>AEGIS v2.1.0 — Embedded Firmware Security Analysis Platform</p>
+<div class="flex gap-6">
+<a class="hover:text-[#96ccff] transition-colors" href="#">Documentation</a>
+<a class="hover:text-[#96ccff] transition-colors" href="#">Support Portal</a>
+<span class="text-[#3c495b]">© 2023 AEGIS Platform</span>
+</div>
+</footer>
+</body></html>

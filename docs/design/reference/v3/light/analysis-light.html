@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Static Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            color: #1a1c1c;
+            font-size: 14px;
+        }
+        h1 { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700; margin: 0; color: #1a1c1c; }
+        h2 { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 600; margin: 0; color: #1a1c1c; }
+        h3 { font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 600; margin: 0; color: #1a1c1c; }
+        .label-sm { font-family: 'Space Grotesk', sans-serif; font-size: 12px; text-transform: uppercase; tracking: 0.05em; color: #5b636e; }
+        
+        .material-symbols-outlined {
+            vertical-align: middle;
+            font-size: 18px;
+        }
+
+        /* Layout */
+        .app-container {
+            display: flex;
+            min-height: calc(100vh - 64px - 48px);
+            margin-top: 64px;
+        }
+
+        /* Top Bar */
+        .top-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background-color: #f9f9f9;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 100;
+        }
+        .brand-logo {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #1a1c1c;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 256px;
+            background-color: #f5f6f8;
+            border-right: 1px solid #e2e2e2;
+            padding: 32px 16px;
+            flex-shrink: 0;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            margin-bottom: 4px;
+            text-decoration: none;
+            color: #575f69;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .nav-item.active {
+            background-color: #ffffff;
+            color: #0051ae;
+            border-left: 2px solid #0051ae;
+            font-weight: 600;
+        }
+        .nav-icon { margin-right: 12px; }
+        
+        .sidebar-section-title {
+            padding: 24px 12px 8px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #5b636e;
+        }
+
+        .sub-project-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 12px;
+            font-size: 13px;
+            color: #575f69;
+        }
+        .badge-count {
+            background-color: #d8e0ed;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex-grow: 1;
+            padding: 32px 48px;
+            max-width: 1200px;
+        }
+
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 32px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #007e33, #006226);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .filter-select {
+            background: #ffffff;
+            border: 1px solid #c2c6d6;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        /* Cards */
+        .run-card {
+            background: #ffffff;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(26, 28, 28, 0.05);
+            margin-bottom: 16px;
+            overflow: hidden;
+            transition: transform 0.15s ease;
+        }
+        .run-card-header {
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .status-icon {
+            margin-right: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .status-success { color: #007e33; }
+        .status-fail { color: #ba1a1a; }
+        .status-running { color: #0051ae; }
+
+        .run-info { flex-grow: 1; }
+        .run-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            color: #575f69;
+            margin-top: 4px;
+        }
+        .type-badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 2px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .badge-sast { background: #d8e2ff; color: #0051ae; }
+        .badge-deep { background: #f3e5f5; color: #7b1fa2; }
+        
+        .gate-badge {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+        .gate-pass { background: #e8f5e9; color: #2e7d32; }
+        .gate-fail { background: #ffebee; color: #c62828; }
+
+        /* Expanded Detail */
+        .expanded-content {
+            border-top: 1px solid #f3f3f4;
+            background-color: #f9f9f9;
+            padding: 24px;
+            display: flex;
+            gap: 48px;
+        }
+        .workflow-steps {
+            flex-basis: 300px;
+        }
+        .step-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eeeeee;
+        }
+        .step-item:last-child { border-bottom: none; }
+        .step-circle {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 12px;
+        }
+        .summary-box {
+            flex-grow: 1;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 4px;
+            border-left: 4px solid #0051ae;
+        }
+        .summary-title { font-weight: 600; margin-bottom: 12px; }
+        .summary-stats { display: flex; gap: 32px; }
+
+        .btn-row {
+            margin-top: 24px;
+            display: flex;
+            gap: 12px;
+        }
+        .btn-outline {
+            background: #ffffff;
+            border: 1px solid #c2c6d6;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            width: 200px;
+            height: 6px;
+            background: #e2e2e2;
+            border-radius: 3px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #0051ae;
+            width: 60%;
+        }
+
+        /* Footer */
+        .footer {
+            height: 48px;
+            background: #f3f3f4;
+            border-top: 1px solid #e2e2e2;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            font-size: 12px;
+            color: #575f69;
+        }
+    </style>
+</head>
+<body>
+<!-- Top Navigation -->
+<header class="top-nav">
+<div style="display: flex; align-items: center; gap: 48px;">
+<div class="brand-logo">AEGIS</div>
+<nav style="display: flex; gap: 24px;">
+<a href="#" style="text-decoration: none; color: #575f69; font-weight: 500;">Projects</a>
+<a href="#" style="text-decoration: none; color: #575f69; font-weight: 500;">Scans</a>
+<a href="#" style="text-decoration: none; color: #575f69; font-weight: 500;">Team</a>
+</nav>
+</div>
+<div style="display: flex; align-items: center; gap: 16px;">
+<span class="material-symbols-outlined" style="color: #575f69;">notifications</span>
+<span class="material-symbols-outlined" style="color: #575f69;">settings</span>
+<div style="width: 32px; height: 32px; background: #e2e2e2; border-radius: 50%; overflow: hidden;">
+<img data-alt="professional headshot of a software architect in a clean studio setting with soft lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAAA7e1iJVv2Yr1lnpo7bJmaEE4IbDoK7g3BgOiCZ3rYa4AgTxyy9I-dEkUvzvUpCraLmCdI9JsNdnjTNP1I4dipJACJOmeEHs8dfxtyQbGzmOjVZE_hnUBv2goq3jgmoC9T4c3TJsGaPFhgesoK2gDI9mgF758IRUvz-4O_d9kWyxhWPw9jdpmuxkSn55jf-h-nl9cOTaA9qcO5HFWck5-RtatgQFoUdRmTp-HjZJvK-fBJ6Z_ix78G1YKPqGC8W1ixvo3VZUH3JY1" style="width: 100%; height: 100%; object-fit: cover;"/>
+</div>
+</div>
+</header>
+<div class="app-container">
+<!-- Sidebar -->
+<aside class="sidebar">
+<div style="display: flex; align-items: center; padding: 0 12px 24px;">
+<div style="width: 40px; height: 40px; background: #0051ae; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; margin-right: 12px;">
+<span class="material-symbols-outlined">memory</span>
+</div>
+<div>
+<div style="font-weight: 700; font-family: 'Space Grotesk';">Project Alpha</div>
+<div style="font-size: 11px; color: #5b636e;">V0.4.2-STABLE</div>
+</div>
+</div>
+<nav>
+<a class="nav-item" href="#">
+<span class="material-symbols-outlined nav-icon">dashboard</span>
+                    Overview
+                </a>
+<a class="nav-item active" href="#">
+<span class="material-symbols-outlined nav-icon">analytics</span>
+                    Analysis
+                </a>
+<a class="nav-item" href="#">
+<span class="material-symbols-outlined nav-icon">code</span>
+                    Code
+                </a>
+<a class="nav-item" href="#">
+<span class="material-symbols-outlined nav-icon">bug_report</span>
+                    Findings
+                </a>
+<a class="nav-item" href="#">
+<span class="material-symbols-outlined nav-icon">verified_user</span>
+                    Quality Gate
+                </a>
+</nav>
+<div class="sidebar-section-title">Sub-Projects</div>
+<div class="sub-project-item">
+<span>arm-cortex-m4-main</span>
+<span class="badge-count">30</span>
+</div>
+<div class="sub-project-item">
+<span>arm-cortex-m4-boot</span>
+<span class="badge-count">8</span>
+</div>
+<div class="sub-project-item">
+<span>riscv-rv32-diag</span>
+<span class="badge-count">5</span>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="main-content">
+<div class="header-row">
+<div>
+<h1>Static Analysis</h1>
+<div style="color: #575f69; margin-top: 4px;">GitHub Actions-style workflow runs</div>
+</div>
+<button class="btn-primary">
+                    Run Analysis
+                    <span class="material-symbols-outlined" style="margin-left: 8px; font-size: 16px;">arrow_drop_down</span>
+</button>
+</div>
+<div class="filter-bar">
+<select class="filter-select">
+<option>Status: All</option>
+</select>
+<select class="filter-select">
+<option>Type: All</option>
+</select>
+<select class="filter-select">
+<option>Target: All</option>
+</select>
+<div style="flex-grow: 1;"></div>
+<div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #575f69;">
+<span class="material-symbols-outlined" style="font-size: 16px;">history</span>
+                    24 runs in last 30 days
+                </div>
+</div>
+<!-- Run List -->
+<!-- Run 1: EXPANDED SUCCESS -->
+<div class="run-card">
+<div class="run-card-header">
+<div class="status-icon status-success">
+<span class="material-symbols-outlined" style="font-size: 24px;">check_circle</span>
+</div>
+<div class="run-info">
+<div style="display: flex; align-items: center; gap: 12px;">
+<span style="font-weight: 600;">analysis-20260408-003</span>
+<span class="type-badge badge-sast">Quick SAST</span>
+</div>
+<div class="run-meta">
+<span>Target: arm-cortex-m4-main</span>
+<span>•</span>
+<span style="color: #007e33; font-weight: 500;">+2 new, -1 resolved</span>
+<span>•</span>
+<span>2h ago by Jenkins</span>
+</div>
+</div>
+<div class="gate-badge gate-pass">Gate: PASS</div>
+<span class="material-symbols-outlined" style="margin-left: 24px; color: #c2c6d6;">expand_less</span>
+</div>
+<div class="expanded-content">
+<div class="workflow-steps">
+<div class="label-sm" style="margin-bottom: 12px;">Workflow Steps</div>
+<div class="step-item">
+<span class="material-symbols-outlined status-success" style="margin-right: 12px;">check_circle</span>
+<span style="flex-grow: 1;">Initialize Environment</span>
+<span style="color: #575f69; font-size: 11px;">12s</span>
+</div>
+<div class="step-item">
+<span class="material-symbols-outlined status-success" style="margin-right: 12px;">check_circle</span>
+<span style="flex-grow: 1;">Rule Engine Execution</span>
+<span style="color: #575f69; font-size: 11px;">1m 45s</span>
+</div>
+<div class="step-item">
+<span class="material-symbols-outlined status-success" style="margin-right: 12px;">check_circle</span>
+<span style="flex-grow: 1;">MISRA C:2012 Compliance Check</span>
+<span style="color: #575f69; font-size: 11px;">4m 12s</span>
+</div>
+<div class="step-item">
+<span class="material-symbols-outlined status-success" style="margin-right: 12px;">check_circle</span>
+<span style="flex-grow: 1;">Merge Findings</span>
+<span style="color: #575f69; font-size: 11px;">8s</span>
+</div>
+<div class="step-item">
+<span class="material-symbols-outlined status-success" style="margin-right: 12px;">check_circle</span>
+<span style="flex-grow: 1;">Quality Gate Validation</span>
+<span style="color: #575f69; font-size: 11px;">5s</span>
+</div>
+</div>
+<div style="flex-grow: 1;">
+<div class="summary-box">
+<div class="summary-title">Run Summary</div>
+<div class="summary-stats">
+<div>
+<div class="label-sm">Files Scanned</div>
+<div style="font-size: 20px; font-weight: 700;">247</div>
+</div>
+<div>
+<div class="label-sm">New Findings</div>
+<div style="font-size: 20px; font-weight: 700; color: #ba1a1a;">2</div>
+</div>
+<div>
+<div class="label-sm">Gate Status</div>
+<div style="font-size: 20px; font-weight: 700; color: #007e33;">PASS</div>
+</div>
+</div>
+<div class="btn-row">
+<button class="btn-outline" style="background: #0051ae; color: white; border: none;">View Findings</button>
+<button class="btn-outline">Re-run</button>
+<button class="btn-outline">Run Deep Analysis</button>
+</div>
+</div>
+<div style="margin-top: 24px; padding: 16px; background: #ffffff; border-radius: 4px; border: 1px solid #e2e2e2;">
+<div class="label-sm" style="margin-bottom: 8px;">Automotive Safety Context</div>
+<div style="font-size: 12px; line-height: 1.5; color: #575f69;">
+                               Scanned against profile <strong>ISO-26262-ASIL-D</strong>. No critical violations found in memory-safe clusters.
+                           </div>
+</div>
+</div>
+</div>
+</div>
+<!-- Run 2: FAILED -->
+<div class="run-card">
+<div class="run-card-header">
+<div class="status-icon status-fail">
+<span class="material-symbols-outlined" style="font-size: 24px;">cancel</span>
+</div>
+<div class="run-info">
+<div style="display: flex; align-items: center; gap: 12px;">
+<span style="font-weight: 600;">analysis-20260407-002</span>
+<span class="type-badge badge-deep">Deep Analysis</span>
+</div>
+<div class="run-meta">
+<span>Target: arm-cortex-m4-boot</span>
+<span>•</span>
+<span style="color: #ba1a1a; font-weight: 500;">+5 new</span>
+<span>•</span>
+<span>Yesterday at 14:20</span>
+</div>
+</div>
+<div class="gate-badge gate-fail">Gate: FAIL</div>
+<span class="material-symbols-outlined" style="margin-left: 24px; color: #c2c6d6;">expand_more</span>
+</div>
+</div>
+<!-- Run 5: RUNNING -->
+<div class="run-card">
+<div class="run-card-header">
+<div class="status-icon status-running">
+<span class="material-symbols-outlined" style="font-size: 24px;">sync</span>
+</div>
+<div class="run-info">
+<div style="display: flex; align-items: center; gap: 12px;">
+<span style="font-weight: 600;">analysis-20260408-004</span>
+<span class="type-badge badge-deep">Deep Analysis</span>
+</div>
+<div class="run-meta">
+<span>Target: arm-cortex-m4-main</span>
+<span>•</span>
+<span style="color: #0051ae;">Step 3/5: MISRA Check</span>
+</div>
+<div class="progress-container">
+<div class="progress-fill"></div>
+</div>
+</div>
+<div class="gate-badge" style="background: #f3f3f4; color: #575f69;">Gate: PENDING</div>
+<span class="material-symbols-outlined" style="margin-left: 24px; color: #c2c6d6;">expand_more</span>
+</div>
+</div>
+<!-- Generic Run 3 for list density -->
+<div class="run-card">
+<div class="run-card-header" style="opacity: 0.8;">
+<div class="status-icon status-success">
+<span class="material-symbols-outlined" style="font-size: 24px;">check_circle</span>
+</div>
+<div class="run-info">
+<div style="display: flex; align-items: center; gap: 12px;">
+<span style="font-weight: 600;">analysis-20260406-001</span>
+<span class="type-badge badge-sast">Quick SAST</span>
+</div>
+<div class="run-meta">
+<span>Target: riscv-rv32-diag</span>
+<span>•</span>
+<span>0 new</span>
+<span>•</span>
+<span>2 days ago</span>
+</div>
+</div>
+<div class="gate-badge gate-pass">Gate: PASS</div>
+<span class="material-symbols-outlined" style="margin-left: 24px; color: #c2c6d6;">expand_more</span>
+</div>
+</div>
+</main>
+</div>
+<!-- Footer -->
+<footer class="footer">
+<div>AEGIS v2.1.0</div>
+<div style="font-family: 'Space Grotesk'; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500;">
+            Automotive Embedded Security Analysis Platform
+        </div>
+<div style="display: flex; gap: 16px;">
+<a href="#" style="text-decoration: none; color: #575f69;">Docs</a>
+<a href="#" style="text-decoration: none; color: #575f69;">Support</a>
+<a href="#" style="text-decoration: none; color: #575f69;">API</a>
+</div>
+</footer>
+</body></html>

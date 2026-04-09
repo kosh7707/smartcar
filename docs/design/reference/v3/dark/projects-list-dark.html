@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Projects</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#6a768a",
+                        "primary": "#96ccff",
+                        "on-secondary-container": "#bac0c8",
+                        "outline-variant": "#3c495b",
+                        "secondary-container": "#363c43",
+                        "error-dim": "#bb5551",
+                        "primary-dim": "#78bffe",
+                        "on-primary-container": "#aad5ff",
+                        "surface": "#0a0e14",
+                        "on-primary-fixed": "#00436a",
+                        "error": "#ee7d77",
+                        "tertiary": "#c7ffc2",
+                        "surface-container-lowest": "#000000",
+                        "on-secondary": "#1b2127",
+                        "on-surface-variant": "#9facc1",
+                        "surface-container-high": "#16202e",
+                        "background": "#0a0e14",
+                        "on-tertiary": "#00691f",
+                        "on-error": "#490106",
+                        "on-primary": "#00436b",
+                        "inverse-on-surface": "#51555c",
+                        "surface-container-highest": "#1a2637",
+                        "on-tertiary-container": "#005f1c",
+                        "primary-fixed": "#cee5ff",
+                        "surface-bright": "#1e2d41",
+                        "error-container": "#7f2927",
+                        "surface-container": "#121a25",
+                        "primary-container": "#004a76",
+                        "secondary-dim": "#989ea7",
+                        "surface-dim": "#0a0e14",
+                        "secondary-fixed": "#dde3ec",
+                        "surface-variant": "#1a2637",
+                        "on-background": "#d9e6fd",
+                        "tertiary-fixed": "#83fc89",
+                        "inverse-primary": "#00649b",
+                        "on-tertiary-fixed-variant": "#006b20",
+                        "on-primary-fixed-variant": "#006096",
+                        "surface-container-low": "#0e141c",
+                        "tertiary-fixed-dim": "#75ed7d",
+                        "tertiary-dim": "#75ed7d",
+                        "primary-fixed-dim": "#b3d8ff",
+                        "on-surface": "#d9e6fd",
+                        "on-secondary-fixed-variant": "#565c64",
+                        "secondary": "#989ea7",
+                        "tertiary-container": "#83fc89",
+                        "on-error-container": "#ff9993",
+                        "inverse-surface": "#f8f9ff",
+                        "surface-tint": "#96ccff",
+                        "on-secondary-fixed": "#3a4047",
+                        "secondary-fixed-dim": "#cfd5de",
+                        "on-tertiary-fixed": "#004a14"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #0a0e14; color: #d9e6fd; }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .severity-bar-segment { height: 6px; }
+        .glass-panel { backdrop-filter: blur(20px); background: rgba(18, 26, 37, 0.7); }
+    </style>
+</head>
+<body class="bg-surface text-on-surface min-h-screen">
+<!-- TopNavBar (Shared Component JSON logic) -->
+<header class="sticky top-0 z-50 bg-[#0a0e14] border-b border-[#3c495b]/15 shadow-[0_48px_48px_-12px_rgba(150,204,255,0.08)]">
+<div class="flex justify-between items-center w-full px-6 max-w-[1920px] mx-auto h-16">
+<div class="flex items-center gap-8">
+<!-- Brand Logo -->
+<span class="text-2xl font-bold tracking-widest text-[#96ccff] uppercase font-headline">AEGIS</span>
+<!-- Project Switcher -->
+<div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-[#1e2d41] transition-colors duration-200 cursor-pointer text-on-surface-variant">
+<span class="text-xs font-label uppercase tracking-wider">Project</span>
+<span class="text-sm font-medium text-on-surface">All Projects</span>
+<span class="material-symbols-outlined text-sm">unfold_more</span>
+</div>
+</div>
+<!-- Search and Actions -->
+<div class="flex-1 max-w-xl mx-12 hidden md:block">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-xl">search</span>
+<input class="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg py-2 pl-10 pr-4 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" placeholder="Search systems, vulnerabilities, or assets..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<button class="relative p-2 text-on-surface-variant hover:bg-[#1e2d41] rounded-lg transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<div class="flex items-center gap-3 pl-6 border-l border-outline-variant/30">
+<div class="text-right">
+<p class="text-sm font-semibold text-on-surface leading-none">Kosh / Admin</p>
+<p class="text-[10px] text-on-surface-variant font-mono mt-1">ID: AG-99201</p>
+</div>
+<div class="w-10 h-10 rounded-full border border-primary/20 bg-surface-container overflow-hidden">
+<img alt="User Avatar" class="w-full h-auto object-cover" data-alt="portrait of a man with minimalist glasses and neutral expression in soft studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDdJC6A-k_xIRmBbqFGi9vW4jlJBXgGFr_H2Du3uzgIwnwNxFwEbX11TOZAsS0JHEwhRdEaF_-9em8kMDVPw141bV516pQTJkMTeTnLMPyTBt5Y2Txa1mFJT2vNLjYsg5AvoCCyenH_UD3CXKFZVzO_sg-_FStQguwjRpAlXLzjk223umzmfxUxnHSSJFUsQKuYJgiQCcCsr-XkslZf8yjTbjnfRZDWKiRKMmxhzjsqXm7hyH9Ka1N6D_srBMphx0cQnGAAQLLn0fNk"/>
+</div>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="max-w-[1200px] mx-auto px-6 py-12">
+<!-- Header Row -->
+<div class="flex justify-between items-end mb-10">
+<div>
+<h1 class="text-[2rem] font-bold font-headline tracking-tight text-on-surface">Projects</h1>
+<p class="text-on-surface-variant mt-2 max-w-lg">Unified security posture management for distributed repositories and enterprise infrastructure.</p>
+</div>
+<button class="bg-gradient-to-br from-primary to-primary-dim text-on-primary font-semibold px-6 py-3 rounded-lg shadow-lg active:scale-95 transition-transform flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">add_circle</span>
+                New Project
+            </button>
+</div>
+<!-- Bento-inspired Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+<!-- Project Card 1 -->
+<div class="bg-surface-container border border-outline-variant/15 rounded-xl p-6 hover:bg-surface-bright transition-all duration-300 group cursor-pointer">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="text-lg font-bold font-headline text-on-surface group-hover:text-primary transition-colors">Core API Infrastructure</h3>
+<p class="text-xs font-mono text-primary/60 mt-1 uppercase tracking-tighter">PRJ-CORE-01</p>
+</div>
+<div class="bg-tertiary/10 text-tertiary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border border-tertiary/20">
+                        PASS
+                    </div>
+</div>
+<p class="text-sm text-on-surface-variant line-clamp-2 mb-6">
+                    External facing API endpoints and internal microservices communication layer. <br/>
+                    외부 직면 API 엔드포인트 및 내부 마이크로서비스 통신 레이어 보안 분석.
+                </p>
+<div class="space-y-4">
+<!-- Severity Bar -->
+<div>
+<div class="flex justify-between text-[10px] font-bold uppercase mb-2 text-on-surface-variant/80 tracking-widest">
+<span>Vulnerability Distribution</span>
+<span>42 Total</span>
+</div>
+<div class="flex w-full rounded-full overflow-hidden h-2 bg-surface-container-lowest">
+<div class="bg-error" style="width: 5%"></div>
+<div class="bg-[#ff9900]" style="width: 15%"></div>
+<div class="bg-primary" style="width: 40%"></div>
+<div class="bg-secondary" style="width: 40%"></div>
+</div>
+</div>
+<!-- Tags -->
+<div class="flex flex-wrap gap-2">
+<span class="px-2 py-1 bg-surface-container-high rounded text-[11px] font-medium border border-outline-variant/20">Production</span>
+<span class="px-2 py-1 bg-surface-container-high rounded text-[11px] font-medium border border-outline-variant/20">AWS-EKS</span>
+<span class="px-2 py-1 bg-surface-container-high rounded text-[11px] font-medium border border-outline-variant/20">PCI-DSS</span>
+</div>
+<!-- Footer Meta -->
+<div class="pt-4 mt-2 border-t border-outline-variant/10 flex justify-between items-center text-[11px] font-mono text-on-surface-variant">
+<div class="flex gap-4">
+<span><span class="text-on-surface font-bold">128</span> Assets</span>
+<span><span class="text-on-surface font-bold">12</span> Scanners</span>
+</div>
+<span>Last Scan: 2023-11-20 14:02</span>
+</div>
+</div>
+</div>
+<!-- Project Card 2 -->
+<div class="bg-surface-container border border-outline-variant/15 rounded-xl p-6 hover:bg-surface-bright transition-all duration-300 group cursor-pointer">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="text-lg font-bold font-headline text-on-surface group-hover:text-primary transition-colors">Auth-Service Shield</h3>
+<p class="text-xs font-mono text-primary/60 mt-1 uppercase tracking-tighter">PRJ-AUTH-88</p>
+</div>
+<div class="bg-error-container/20 text-error px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border border-error/20">
+                        FAIL
+                    </div>
+</div>
+<p class="text-sm text-on-surface-variant line-clamp-2 mb-6">
+                    Authentication module and OAuth2.0 integration audits. Critical credentials handling. <br/>
+                    인증 모듈 및 OAuth2.0 통합 감사. 중요 자격 증명 처리 보안성 검토.
+                </p>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-[10px] font-bold uppercase mb-2 text-on-surface-variant/80 tracking-widest">
+<span>Vulnerability Distribution</span>
+<span>18 Total</span>
+</div>
+<div class="flex w-full rounded-full overflow-hidden h-2 bg-surface-container-lowest">
+<div class="bg-error" style="width: 45%"></div>
+<div class="bg-[#ff9900]" style="width: 25%"></div>
+<div class="bg-primary" style="width: 20%"></div>
+<div class="bg-secondary" style="width: 10%"></div>
+</div>
+</div>
+<div class="flex flex-wrap gap-2">
+<span class="px-2 py-1 bg-surface-container-high rounded text-[11px] font-medium border border-outline-variant/20">Identity</span>
+<span class="px-2 py-1 bg-surface-container-high rounded text-[11px] font-medium border border-outline-variant/20">Internal</span>
+<span class="px-2 py-1 bg-surface-container-high rounded text-[11px] font-medium border border-outline-variant/20">Sensitive</span>
+</div>
+<div class="pt-4 mt-2 border-t border-outline-variant/10 flex justify-between items-center text-[11px] font-mono text-on-surface-variant">
+<div class="flex gap-4">
+<span><span class="text-on-surface font-bold">14</span> Assets</span>
+<span><span class="text-on-surface font-bold">8</span> Scanners</span>
+</div>
+<span>Last Scan: 2023-11-19 09:45</span>
+</div>
+</div>
+</div>
+<!-- Project Card 3 -->
+<div class="bg-surface-container border border-outline-variant/15 rounded-xl p-6 hover:bg-surface-bright transition-all duration-300 group cursor-pointer">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="text-lg font-bold font-headline text-on-surface group-hover:text-primary transition-colors">Legacy DB Migration</h3>
+<p class="text-xs font-mono text-primary/60 mt-1 uppercase tracking-tighter">PRJ-MIG-04</p>
+</div>
+<div class="bg-secondary-container/30 text-secondary-fixed px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border border-outline-variant/30">
+                        WARNING
+                    </div>
+</div>
+<p class="text-sm text-on-surface-variant line-clamp-2 mb-6">
+                    Data integrity and encryption validation during multi-region database migration. <br/>
+                    멀티 리전 데이터베이스 마이그레이션 중 데이터 무결성 및 암호화 검증.
+                </p>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-[10px] font-bold uppercase mb-2 text-on-surface-variant/80 tracking-widest">
+<span>Vulnerability Distribution</span>
+<span>64 Total</span>
+</div>
+<div class="flex w-full rounded-full overflow-hidden h-2 bg-surface-container-lowest">
+<div class="bg-error" style="width: 10%"></div>
+<div class="bg-[#ff9900]" style="width: 50%"></div>
+<div class="bg-primary" style="width: 30%"></div>
+<div class="bg-secondary" style="width: 10%"></div>
+</div>
+</div>
+<div class="flex flex-wrap gap-2">
+<span class="px-2 py-1 bg-surface-container-high rounded text-[11px] font-medium border border-outline-variant/20">Database</span>
+<span class="px-2 py-1 bg-surface-container-high rounded text-[11px] font-medium border border-outline-variant/20">PostgreSQL</span>
+</div>
+<div class="pt-4 mt-2 border-t border-outline-variant/10 flex justify-between items-center text-[11px] font-mono text-on-surface-variant">
+<div class="flex gap-4">
+<span><span class="text-on-surface font-bold">2,410</span> Assets</span>
+<span><span class="text-on-surface font-bold">15</span> Scanners</span>
+</div>
+<span>Last Scan: 2023-11-18 23:59</span>
+</div>
+</div>
+</div>
+<!-- Project Card 4 -->
+<div class="bg-surface-container border border-outline-variant/15 rounded-xl p-6 hover:bg-surface-bright transition-all duration-300 group cursor-pointer">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="text-lg font-bold font-headline text-on-surface group-hover:text-primary transition-colors">Frontend Dashboard</h3>
+<p class="text-xs font-mono text-primary/60 mt-1 uppercase tracking-tighter">PRJ-WEB-UI</p>
+</div>
+<div class="bg-tertiary/10 text-tertiary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border border-tertiary/20">
+                        PASS
+                    </div>
+</div>
+<p class="text-sm text-on-surface-variant line-clamp-2 mb-6">
+                    Public facing portal security and XSS/CSRF prevention layer. <br/>
+                    공개용 포털 보안 및 XSS/CSRF 방어 레이어.
+                </p>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-[10px] font-bold uppercase mb-2 text-on-surface-variant/80 tracking-widest">
+<span>Vulnerability Distribution</span>
+<span>5 Total</span>
+</div>
+<div class="flex w-full rounded-full overflow-hidden h-2 bg-surface-container-lowest">
+<div class="bg-error" style="width: 0%"></div>
+<div class="bg-[#ff9900]" style="width: 0%"></div>
+<div class="bg-primary" style="width: 40%"></div>
+<div class="bg-secondary" style="width: 60%"></div>
+</div>
+</div>
+<div class="flex flex-wrap gap-2">
+<span class="px-2 py-1 bg-surface-container-high rounded text-[11px] font-medium border border-outline-variant/20">React</span>
+<span class="px-2 py-1 bg-surface-container-high rounded text-[11px] font-medium border border-outline-variant/20">Public</span>
+</div>
+<div class="pt-4 mt-2 border-t border-outline-variant/10 flex justify-between items-center text-[11px] font-mono text-on-surface-variant">
+<div class="flex gap-4">
+<span><span class="text-on-surface font-bold">52</span> Assets</span>
+<span><span class="text-on-surface font-bold">5</span> Scanners</span>
+</div>
+<span>Last Scan: 2023-11-20 02:15</span>
+</div>
+</div>
+</div>
+</div>
+<!-- System Status Footer (Bento Style) -->
+<div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="glass-panel p-4 rounded-xl border border-outline-variant/10 flex items-center gap-4">
+<div class="w-10 h-10 rounded bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">analytics</span>
+</div>
+<div>
+<p class="text-[10px] uppercase font-bold tracking-widest text-on-surface-variant/60">Avg. Risk Score</p>
+<p class="text-xl font-headline font-bold text-on-surface">24.8 <span class="text-xs font-normal text-tertiary">(-4.2%)</span></p>
+</div>
+</div>
+<div class="glass-panel p-4 rounded-xl border border-outline-variant/10 flex items-center gap-4">
+<div class="w-10 h-10 rounded bg-error/10 flex items-center justify-center text-error">
+<span class="material-symbols-outlined">emergency</span>
+</div>
+<div>
+<p class="text-[10px] uppercase font-bold tracking-widest text-on-surface-variant/60">Active Threats</p>
+<p class="text-xl font-headline font-bold text-on-surface">12 Critical</p>
+</div>
+</div>
+<div class="glass-panel p-4 rounded-xl border border-outline-variant/10 flex items-center gap-4">
+<div class="w-10 h-10 rounded bg-tertiary/10 flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined">shield_with_heart</span>
+</div>
+<div>
+<p class="text-[10px] uppercase font-bold tracking-widest text-on-surface-variant/60">Compliance Health</p>
+<p class="text-xl font-headline font-bold text-on-surface">98.2%</p>
+</div>
+</div>
+</div>
+</main>
+<!-- Visual Polish Elements -->
+<div class="fixed bottom-0 left-0 w-full h-1/2 pointer-events-none bg-gradient-to-t from-primary/5 to-transparent z-[-1]"></div>
+</body></html>

@@ -122,6 +122,37 @@ describe("WsBroadcaster", () => {
     expect((broadcaster as any).clients.size).toBe(0);
   });
 
+  it("replays the latest snapshot to a new subscriber before future broadcasts", () => {
+    const ws = createFakeSocket();
+    const broadcaster = new WsBroadcaster<{ type: "analysis-progress"; payload: { analysisId: string; phase: string; message: string } }>(
+      "/ws/analysis",
+      "analysisId",
+      "analysis",
+      (analysisId) => ({
+        type: "analysis-progress",
+        payload: { analysisId, phase: "deep_submitting", message: "restored" },
+      }),
+    );
+
+    (broadcaster as any).handleConnection(ws as any, { url: "/ws/analysis?analysisId=analysis-1" });
+    broadcaster.broadcast("analysis-1", {
+      type: "analysis-progress",
+      payload: { analysisId: "analysis-1", phase: "deep_analyzing", message: "live" },
+    });
+
+    const [snapshotPayload, livePayload] = ws.send.mock.calls.map(([raw]) => JSON.parse(raw as string));
+    expect(snapshotPayload).toMatchObject({
+      type: "analysis-progress",
+      payload: { analysisId: "analysis-1", phase: "deep_submitting", message: "restored" },
+      meta: { channel: "analysis", projectId: "analysis-1", seq: 1 },
+    });
+    expect(livePayload).toMatchObject({
+      type: "analysis-progress",
+      payload: { analysisId: "analysis-1", phase: "deep_analyzing", message: "live" },
+      meta: { channel: "analysis", projectId: "analysis-1", seq: 2 },
+    });
+  });
+
   it("destroys malformed upgrade requests instead of throwing", () => {
     const server = new EventEmitter();
     const socket = { destroy: vi.fn() };

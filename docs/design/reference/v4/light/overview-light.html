@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | ECU-PowerTrain-v2.1 Overview</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Inter', sans-serif; background-color: #f0f2f5; color: #191c1e; -webkit-font-smoothing: antialiased;">
+<!-- TOP NAVBAR -->
+<nav style="height: 56px; background-color: #ffffff; border-bottom: 1px solid #e0e3e5; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 1000; box-sizing: border-box;">
+<!-- Left: Brand & Switcher -->
+<div style="display: flex; align-items: center; gap: 16px;">
+<span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px; color: #0051ae; letter-spacing: -0.02em;">AEGIS</span>
+<div style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 4px 8px; border-radius: 4px; background: #f8f9fb; border: 1px solid #e0e3e5;">
+<span style="font-size: 14px; font-weight: 500;">ECU-PowerTrain-v2.1</span>
+<span class="material-symbols-outlined" style="font-size: 18px; color: #727785;">arrow_drop_down</span>
+</div>
+</div>
+<!-- Center: Search -->
+<div style="flex: 1; max-width: 480px; margin: 0 40px;">
+<div style="position: relative; display: flex; align-items: center;">
+<span class="material-symbols-outlined" style="position: absolute; left: 12px; font-size: 20px; color: #727785;">search</span>
+<input placeholder="Search findings, code, CWE..." style="width: 100%; height: 36px; background-color: #f5f6f8; border: 1px solid #e0e3e5; border-radius: 6px; padding: 0 12px 0 40px; font-family: 'Inter', sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s;" type="text"/>
+</div>
+</div>
+<!-- Right: Actions & Profile -->
+<div style="display: flex; align-items: center; gap: 20px;">
+<div style="position: relative; cursor: pointer;">
+<span class="material-symbols-outlined" style="font-size: 24px; color: #424753;">notifications</span>
+<div style="position: absolute; top: -2px; right: -2px; background-color: #ba1a1a; color: white; font-size: 10px; font-weight: bold; width: 14px; height: 14px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #ffffff;">3</div>
+</div>
+<div style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+<div style="text-align: right;">
+<div style="font-size: 14px; font-weight: 600; color: #191c1e; line-height: 1;">Kosh</div>
+<div style="font-size: 12px; color: #727785; margin-top: 2px;">Admin</div>
+</div>
+<img alt="User" data-alt="professional portrait of a technical lead in a clean modern office setting with soft natural light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHJFX72mMS7DcCVoxoae8wYUwy8eL4HaEsxjd0X4vWxz8AM_RsVeRNKtRkmmmrRcf75ebHhLQ3sUTtY5eEUVvhucoFEcgJ8RXNa5fn2H9eLdWKnm7JTD2WMerhnx8LPHhQFauTSH9hnNk8IPzxkEQM1Fg2Qhqcwr7xsXutndJ4HFTcb53mKq5v8ngpXb9nhYpPnECFKn9wvs3EPKNjLzTBqqDRI-1RRWmtXNvtxbzKfqiymwT6yeqwB0A59ErWnkqwtsiFbyh_Q9di" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid #e0e3e5;"/>
+</div>
+</div>
+</nav>
+<!-- LAYOUT WRAPPER -->
+<div style="display: flex; min-height: calc(100vh - 104px);">
+<!-- LEFT SIDEBAR -->
+<aside style="width: 240px; background-color: #f5f6f8; border-right: 1px solid #e0e3e5; display: flex; flex-direction: column; overflow-y: auto; box-sizing: border-box;">
+<!-- Top Project Context -->
+<div style="padding: 24px 20px;">
+<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+<span class="material-symbols-outlined" data-weight="fill" style="color: #0051ae; font-size: 22px;">shield</span>
+<span style="font-size: 15px; font-weight: 700; color: #191c1e;">ECU-PowerTrain-v2.1</span>
+</div>
+<span style="font-size: 11px; color: #727785; font-weight: 500;">Active Project</span>
+</div>
+<!-- SUB-PROJECTS SECTION -->
+<div style="margin-top: 8px;">
+<div style="padding: 0 20px 8px; font-size: 11px; font-weight: 700; color: #727785; letter-spacing: 0.05em;">SUB-PROJECTS</div>
+<div style="display: flex; flex-direction: column;">
+<div onmouseout="this.style.background='transparent'" onmouseover="this.style.background='#eceef0'" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 20px; font-size: 13px; color: #424753; cursor: pointer; transition: background 0.2s;">
+<div style="display: flex; align-items: center; gap: 8px;">
+<span style="width: 6px; height: 6px; border-radius: 50%; background: #0051ae;"></span>
+<span style="font-family: 'Space Grotesk', sans-serif;">arm-cortex-m4-main</span>
+</div>
+<span style="font-size: 11px; font-weight: 600; color: #727785;">30</span>
+</div>
+<div onmouseout="this.style.background='transparent'" onmouseover="this.style.background='#eceef0'" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 20px; font-size: 13px; color: #424753; cursor: pointer;">
+<div style="display: flex; align-items: center; gap: 8px;">
+<span style="width: 6px; height: 6px; border-radius: 50%; background: #0051ae;"></span>
+<span style="font-family: 'Space Grotesk', sans-serif;">arm-cortex-m4-boot</span>
+</div>
+<span style="font-size: 11px; font-weight: 600; color: #727785;">8</span>
+</div>
+<div onmouseout="this.style.background='transparent'" onmouseover="this.style.background='#eceef0'" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 20px; font-size: 13px; color: #424753; cursor: pointer;">
+<div style="display: flex; align-items: center; gap: 8px;">
+<span style="width: 6px; height: 6px; border-radius: 50%; background: #0051ae;"></span>
+<span style="font-family: 'Space Grotesk', sans-serif;">riscv-rv32-diag</span>
+</div>
+<span style="font-size: 11px; font-weight: 600; color: #727785;">5</span>
+</div>
+</div>
+</div>
+<!-- NAV ITEMS -->
+<div style="margin-top: 24px; flex: 1;">
+<div style="display: flex; align-items: center; gap: 12px; padding: 10px 20px; background-color: #ffffff; border-left: 3px solid #0051ae; font-size: 14px; font-weight: 600; color: #0051ae; cursor: default;">
+<span class="material-symbols-outlined" style="font-size: 20px;">dashboard</span>
+<span>Overview</span>
+</div>
+<div onmouseout="this.style.color='#424753'" onmouseover="this.style.color='#0051ae'" style="display: flex; align-items: center; gap: 12px; padding: 10px 20px; font-size: 14px; color: #424753; cursor: pointer;">
+<span class="material-symbols-outlined" style="font-size: 20px;">analytics</span>
+<span>Analysis</span>
+</div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 10px 20px; font-size: 14px; color: #424753; cursor: pointer;">
+<span class="material-symbols-outlined" style="font-size: 20px;">code</span>
+<span>Code</span>
+</div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 10px 20px; font-size: 14px; color: #424753; cursor: pointer;">
+<span class="material-symbols-outlined" style="font-size: 20px;">bug_report</span>
+<span>Findings</span>
+</div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 10px 20px; font-size: 14px; color: #424753; cursor: pointer;">
+<span class="material-symbols-outlined" style="font-size: 20px;">description</span>
+<span>Report</span>
+</div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 10px 20px; font-size: 14px; color: #424753; cursor: pointer;">
+<span class="material-symbols-outlined" style="font-size: 20px;">fact_check</span>
+<span>Quality Gate</span>
+</div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 10px 20px; font-size: 14px; color: #424753; cursor: pointer;">
+<span class="material-symbols-outlined" style="font-size: 20px;">verified_user</span>
+<span>Approvals</span>
+</div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 10px 20px; font-size: 14px; color: #424753; cursor: pointer;">
+<span class="material-symbols-outlined" style="font-size: 20px;">settings</span>
+<span>Settings</span>
+</div>
+</div>
+<!-- Bottom Action -->
+<div style="padding: 16px 20px; border-top: 1px solid #e0e3e5;">
+<div onmouseout="this.style.color='#727785'" onmouseover="this.style.color='#0051ae'" style="display: flex; align-items: center; gap: 8px; color: #727785; font-size: 13px; cursor: pointer;">
+<span class="material-symbols-outlined" style="font-size: 18px;">arrow_back</span>
+<span>Back to Projects</span>
+</div>
+</div>
+</aside>
+<!-- MAIN CONTENT -->
+<main style="flex: 1; display: flex; overflow-y: auto;">
+<!-- Left Column (70%) -->
+<section style="flex: 7; padding: 32px 40px; box-sizing: border-box; max-width: 960px;">
+<!-- Header -->
+<div style="margin-bottom: 32px;">
+<div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px;">
+<h1 style="font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700; margin: 0;">ECU-PowerTrain-v2.1</h1>
+<span style="background-color: #b6ccfe; color: #405681; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 2px; letter-spacing: 0.05em;">PASS</span>
+</div>
+<p style="font-size: 15px; color: #424753; line-height: 1.5; margin: 0 0 16px 0; max-width: 600px;">
+                        Safety-critical powertrain controller firmware, verified against MISRA C:2012 and ISO 26262. Integrated automotive security hardening for MCU interfaces.
+                    </p>
+<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+<span style="background: #ddf4ff; color: #004493; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 20px;">C</span>
+<span style="background: #ddf4ff; color: #004493; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 20px;">ARM Cortex-M4</span>
+<span style="background: #ddf4ff; color: #004493; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 20px;">MISRA C:2012</span>
+<span style="background: #ddf4ff; color: #004493; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 20px;">ISO 26262</span>
+</div>
+</div>
+<!-- Findings Overview -->
+<div style="background: #ffffff; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+<div style="display: flex; align-items: flex-end; gap: 12px; margin-bottom: 24px;">
+<span style="font-family: 'Space Grotesk', sans-serif; font-size: 48px; font-weight: 700; color: #191c1e; line-height: 1;">43</span>
+<span style="font-size: 16px; color: #727785; font-weight: 500; margin-bottom: 8px;">Open Findings</span>
+</div>
+<!-- Severity Bar -->
+<div style="display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: #eceef0;">
+<div style="width: 0%; background: #ba1a1a;"></div> <!-- Critical -->
+<div style="width: 7%; background: #ffb693;"></div> <!-- High (approx based on 3/43) -->
+<div style="width: 28%; background: #ffdbcc;"></div> <!-- Medium -->
+<div style="width: 65%; background: #b6ccfe;"></div> <!-- Low -->
+</div>
+<div style="display: flex; justify-content: space-between; font-size: 12px; font-family: 'Space Grotesk', sans-serif; font-weight: 600;">
+<div style="display: flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #ba1a1a;"></span> Critical: 0</div>
+<div style="display: flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #ffb693;"></span> High: 3</div>
+<div style="display: flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #ffdbcc;"></span> Medium: 12</div>
+<div style="display: flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #b6ccfe;"></span> Low: 28</div>
+</div>
+</div>
+</div>
+<!-- Targets Grid -->
+<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 24px;">
+<div style="background: #ffffff; padding: 20px; border-radius: 8px; border-left: 3px solid #b6ccfe;">
+<div style="font-size: 13px; color: #727785; font-weight: 600; margin-bottom: 8px;">m4-main</div>
+<div style="font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700; margin-bottom: 4px;">30</div>
+<div style="font-size: 11px; color: #405681; font-weight: 700;">PASS</div>
+</div>
+<div style="background: #ffffff; padding: 20px; border-radius: 8px; border-left: 3px solid #b6ccfe;">
+<div style="font-size: 13px; color: #727785; font-weight: 600; margin-bottom: 8px;">m4-boot</div>
+<div style="font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700; margin-bottom: 4px;">8</div>
+<div style="font-size: 11px; color: #405681; font-weight: 700;">PASS</div>
+</div>
+<div style="background: #ffffff; padding: 20px; border-radius: 8px; border-left: 3px solid #b6ccfe;">
+<div style="font-size: 13px; color: #727785; font-weight: 600; margin-bottom: 8px;">rv32-diag</div>
+<div style="font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700; margin-bottom: 4px;">5</div>
+<div style="font-size: 11px; color: #405681; font-weight: 700;">PASS</div>
+</div>
+</div>
+<!-- Chart Placeholder -->
+<div style="height: 160px; border: 2px dashed #e0e3e5; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f8f9fb; margin-bottom: 32px;">
+<div style="text-align: center;">
+<span class="material-symbols-outlined" style="font-size: 32px; color: #c2c6d6; margin-bottom: 8px;">monitoring</span>
+<div style="font-size: 14px; color: #727785; font-weight: 500;">30-Day Finding Trend (Chart rendered at runtime)</div>
+</div>
+</div>
+<!-- Activity Timeline -->
+<div>
+<h3 style="font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 20px;">Recent Activity</h3>
+<div style="display: flex; flex-direction: column; gap: 16px;">
+<!-- Timeline Item -->
+<div style="display: flex; gap: 16px;">
+<div style="display: flex; flex-direction: column; align-items: center;">
+<div style="width: 32px; height: 32px; border-radius: 50%; background: #d8e2ff; display: flex; align-items: center; justify-content: center;">
+<span class="material-symbols-outlined" style="font-size: 18px; color: #0051ae;">verified</span>
+</div>
+<div style="width: 2px; flex: 1; background: #eceef0; margin: 4px 0;"></div>
+</div>
+<div style="padding-bottom: 16px;">
+<div style="font-size: 14px; color: #191c1e;"><span style="font-weight: 600;">Kosh</span> approved 4 Medium findings in <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600;">m4-main</span></div>
+<div style="font-size: 12px; color: #727785; margin-top: 4px;">2 hours ago · Commit <code style="background: #eceef0; padding: 2px 4px; border-radius: 3px;">7a2f00</code></div>
+</div>
+</div>
+<!-- Timeline Item -->
+<div style="display: flex; gap: 16px;">
+<div style="display: flex; flex-direction: column; align-items: center;">
+<div style="width: 32px; height: 32px; border-radius: 50%; background: #ffdbcc; display: flex; align-items: center; justify-content: center;">
+<span class="material-symbols-outlined" style="font-size: 18px; color: #913900;">priority_high</span>
+</div>
+<div style="width: 2px; flex: 1; background: #eceef0; margin: 4px 0;"></div>
+</div>
+<div style="padding-bottom: 16px;">
+<div style="font-size: 14px; color: #191c1e;"><span style="font-weight: 600;">Analysis Engine</span> detected 2 new High findings in <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600;">rv32-diag</span></div>
+<div style="font-size: 12px; color: #727785; margin-top: 4px;">Yesterday · Automated Scan v4.2</div>
+</div>
+</div>
+<!-- Timeline Item -->
+<div style="display: flex; gap: 16px;">
+<div style="display: flex; flex-direction: column; align-items: center;">
+<div style="width: 32px; height: 32px; border-radius: 50%; background: #eceef0; display: flex; align-items: center; justify-content: center;">
+<span class="material-symbols-outlined" style="font-size: 18px; color: #424753;">cloud_upload</span>
+</div>
+</div>
+<div>
+<div style="font-size: 14px; color: #191c1e;"><span style="font-weight: 600;">M. Petrov</span> merged branch <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600;">fix/can-bus-overflow</span></div>
+<div style="font-size: 12px; color: #727785; margin-top: 4px;">2 days ago · PR #114</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Meta Sidebar (30%) -->
+<aside style="flex: 3; background-color: #ffffff; border-left: 1px solid #e0e3e5; padding: 32px 24px; box-sizing: border-box;">
+<!-- Build Targets -->
+<div style="margin-bottom: 32px;">
+<h4 style="font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 700; color: #727785; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px;">Build Targets</h4>
+<div style="display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; align-items: center; justify-content: space-between;">
+<span style="font-size: 14px; color: #191c1e; font-family: 'Space Grotesk', sans-serif;">production_v2</span>
+<span style="font-size: 10px; font-weight: 700; color: #0051ae; background: #d8e2ff; padding: 2px 6px; border-radius: 2px;">STABLE</span>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between;">
+<span style="font-size: 14px; color: #191c1e; font-family: 'Space Grotesk', sans-serif;">staging_v2.1_rc</span>
+<span style="font-size: 10px; font-weight: 700; color: #913900; background: #ffdbcc; padding: 2px 6px; border-radius: 2px;">BETA</span>
+</div>
+</div>
+</div>
+<!-- Language Composition -->
+<div style="margin-bottom: 32px;">
+<h4 style="font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 700; color: #727785; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px;">Languages</h4>
+<div style="display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 12px; background: #eceef0;">
+<div style="width: 82%; background: #0051ae;"></div>
+<div style="width: 11%; background: #b6ccfe;"></div>
+<div style="width: 4%; background: #424753;"></div>
+<div style="width: 3%; background: #c2c6d6;"></div>
+</div>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+<div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #424753;">
+<span style="width: 8px; height: 8px; border-radius: 50%; background: #0051ae;"></span> C <span style="font-weight: 600;">82%</span>
+</div>
+<div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #424753;">
+<span style="width: 8px; height: 8px; border-radius: 50%; background: #b6ccfe;"></span> C++ <span style="font-weight: 600;">11%</span>
+</div>
+<div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #424753;">
+<span style="width: 8px; height: 8px; border-radius: 50%; background: #424753;"></span> ASM <span style="font-weight: 600;">4%</span>
+</div>
+<div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #424753;">
+<span style="width: 8px; height: 8px; border-radius: 50%; background: #c2c6d6;"></span> Headers <span style="font-weight: 600;">3%</span>
+</div>
+</div>
+</div>
+<!-- Metadata -->
+<div style="margin-bottom: 32px; padding-top: 16px; border-top: 1px solid #f2f4f6;">
+<div style="display: flex; align-items: center; gap: 8px; color: #424753; font-size: 13px; margin-bottom: 12px;">
+<span class="material-symbols-outlined" style="font-size: 18px;">folder_open</span>
+<span>247 files · 1.2 MB total</span>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; color: #424753; font-size: 13px; margin-bottom: 12px;">
+<span class="material-symbols-outlined" style="font-size: 18px;">terminal</span>
+<span>SDK: Autosar R21-11</span>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; color: #424753; font-size: 13px;">
+<span class="material-symbols-outlined" style="font-size: 18px;">precision_manufacturing</span>
+<span>Engine: Aegis-Core v8.4.1</span>
+</div>
+</div>
+<!-- Mini Map / Image Placeholder -->
+<div style="border-radius: 8px; overflow: hidden; position: relative; height: 120px;">
+<img alt="Technical Visualization" data-alt="abstract close-up of a high-tech printed circuit board with glowing blue accents and precision components" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqKtXfGxb6sjsjIgcJ2aKp0yD_1pORL-ghjEuzp5uR3S1euAn4nTtwuL04GG2mDKKImlERWdl1Yo3TolWdJjC0uG9VWesxNpPMKJf3O3BYUP_xnsdVulBfq2p8uqZzLPibn1gKIXtRedImtOYEuRN8xWGmJout6K_qP0GAjB4QjzxVvptEi_1urj4uQutqj1J3pAYyPdek1xdfN-TEnA0kkdjBvZ7NMRgc6Wo9e46Cq-NGl_uomymz0FxAkC84F23w7lr7lar1_dF_" style="width: 100%; height: 100%; object-fit: cover;"/>
+<div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.6), transparent); display: flex; align-items: flex-end; padding: 12px;">
+<span style="color: white; font-size: 11px; font-weight: 600; font-family: 'Space Grotesk', sans-serif;">System Architecture View</span>
+</div>
+</div>
+</aside>
+</main>
+</div>
+<!-- FOOTER -->
+<footer style="height: 48px; background-color: #e6e8ea; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; box-sizing: border-box; border-top: 1px solid #d8dadc;">
+<div style="font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 600; color: #727785;">
+            AEGIS v2.1.0
+        </div>
+<div style="font-size: 12px; color: #727785; font-weight: 500;">
+            Automotive Embedded Security Analysis Platform
+        </div>
+</footer>
+</body></html>

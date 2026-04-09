@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Vulnerabilities</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface": "#d9e6fd",
+                        "secondary": "#989ea7",
+                        "on-secondary-container": "#bac0c8",
+                        "tertiary": "#c7ffc2",
+                        "on-primary-container": "#aad5ff",
+                        "surface-tint": "#96ccff",
+                        "surface-container-highest": "#1a2637",
+                        "primary-container": "#004a76",
+                        "on-primary-fixed-variant": "#006096",
+                        "on-tertiary-container": "#005f1c",
+                        "on-secondary-fixed": "#3a4047",
+                        "on-surface-variant": "#9facc1",
+                        "error-dim": "#bb5551",
+                        "on-background": "#d9e6fd",
+                        "on-primary-fixed": "#00436a",
+                        "surface-dim": "#0a0e14",
+                        "primary-dim": "#78bffe",
+                        "on-error": "#490106",
+                        "inverse-on-surface": "#51555c",
+                        "secondary-fixed": "#dde3ec",
+                        "on-error-container": "#ff9993",
+                        "error": "#ee7d77",
+                        "tertiary-container": "#83fc89",
+                        "inverse-surface": "#f8f9ff",
+                        "error-container": "#7f2927",
+                        "surface-container": "#121a25",
+                        "tertiary-fixed-dim": "#75ed7d",
+                        "primary": "#96ccff",
+                        "on-secondary": "#1b2127",
+                        "inverse-primary": "#00649b",
+                        "primary-fixed-dim": "#b3d8ff",
+                        "secondary-container": "#363c43",
+                        "surface-bright": "#1e2d41",
+                        "on-tertiary-fixed-variant": "#006b20",
+                        "outline": "#6a768a",
+                        "surface": "#0a0e14",
+                        "on-tertiary": "#00691f",
+                        "outline-variant": "#3c495b",
+                        "background": "#0a0e14",
+                        "secondary-fixed-dim": "#cfd5de",
+                        "on-secondary-fixed-variant": "#565c64",
+                        "surface-variant": "#1a2637",
+                        "on-tertiary-fixed": "#004a14",
+                        "on-primary": "#00436b",
+                        "primary-fixed": "#cee5ff",
+                        "surface-container-lowest": "#000000",
+                        "tertiary-dim": "#75ed7d",
+                        "surface-container-high": "#16202e",
+                        "tertiary-fixed": "#83fc89",
+                        "surface-container-low": "#0e141c",
+                        "secondary-dim": "#989ea7"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #0a0e14; color: #d9e6fd; }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    </style>
+</head>
+<body class="overflow-x-hidden">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-[#0a0e14] border-b border-[#3c495b]/15 flex items-center justify-between px-6 h-16 w-full shadow-[0_48px_48px_rgba(150,204,255,0.08)]">
+<div class="flex items-center gap-8">
+<span class="text-2xl font-bold tracking-tighter text-[#96ccff] font-['Space_Grotesk']">AEGIS</span>
+<div class="relative hidden md:block group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#d9e6fd]/40 text-sm">search</span>
+<input class="bg-[#121a25] border-none text-sm rounded-lg pl-10 pr-4 py-2 w-80 focus:ring-1 focus:ring-[#96ccff] transition-all placeholder:text-[#d9e6fd]/20" placeholder="Search security logs..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative cursor-pointer active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[#d9e6fd]/60 hover:text-[#96ccff]">notifications</span>
+<span class="absolute -top-1 -right-1 bg-error w-4 h-4 rounded-full text-[10px] flex items-center justify-center text-on-error font-bold">3</span>
+</div>
+<div class="flex items-center gap-3 pl-4 border-l border-[#3c495b]/30">
+<div class="text-right">
+<div class="text-sm font-semibold text-[#d9e6fd]">Kosh</div>
+<div class="text-[10px] text-[#96ccff] font-mono tracking-widest uppercase">Admin</div>
+</div>
+<img alt="User Profile" class="w-8 h-8 rounded-lg bg-[#1e2d41] border border-[#3c495b]/50" data-alt="Digital avatar of a security administrator with technical facial features and dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA4bw8z9e7AdRyFZmiU81Hsv32eZd6pg4ttRep76LE8-PWKbbLjKlzH66Qaz1ynU7YEBA4Ty_Ry6sW6d5FZyLUbMu1cXuaPk1HC-_Q8AaPedB2_SHsG3uSA4lJaQvp1yiWWuXLgTeRLUgTQIfvmoymrZy7tc5IKA-kFeJaA9oxfp6wff0uh4u0ZoCUtVTTH34Qkaq9j5WJj81-P8_xQPsuqwt_y_fncFEvWVxLivRs0r1wfTdXJDITAdW_Zo_iZdUv91QCe4vjT79Xh"/>
+</div>
+</div>
+</nav>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-[#0e141c] flex flex-col border-r border-[#3c495b]/15">
+<div class="p-6">
+<div class="flex items-center gap-2 mb-1">
+<div class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></div>
+<span class="text-[#96ccff] font-bold uppercase tracking-widest text-[10px]">Security Operations</span>
+</div>
+<h3 class="text-sm font-headline font-bold text-[#d9e6fd] truncate">ECU-PowerTrain-v2.1</h3>
+</div>
+<nav class="flex-1 px-3 space-y-1">
+<a class="text-[#d9e6fd]/70 px-4 py-3 flex items-center gap-3 hover:bg-[#121a25] transition-all duration-300 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-xl group-hover:text-[#96ccff]">dashboard</span>
+<span class="text-sm font-medium">Overview</span>
+</a>
+<a class="text-[#d9e6fd]/70 px-4 py-3 flex items-center gap-3 hover:bg-[#121a25] transition-all duration-300 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-xl group-hover:text-[#96ccff]">folder_open</span>
+<span class="text-sm font-medium">Files</span>
+</a>
+<a class="bg-[#1e2d41] text-[#96ccff] border-l-4 border-[#96ccff] px-4 py-3 flex items-center gap-3 transition-all duration-300" href="#">
+<span class="material-symbols-outlined text-xl" data-weight="fill">gpp_maybe</span>
+<span class="text-sm font-bold">Vulnerabilities</span>
+</a>
+<a class="text-[#d9e6fd]/70 px-4 py-3 flex items-center gap-3 hover:bg-[#121a25] transition-all duration-300 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-xl group-hover:text-[#96ccff]">analytics</span>
+<span class="text-sm font-medium">Static Analysis</span>
+</a>
+<a class="text-[#d9e6fd]/70 px-4 py-3 flex items-center gap-3 hover:bg-[#121a25] transition-all duration-300 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-xl group-hover:text-[#96ccff]">door_front</span>
+<span class="text-sm font-medium">Quality Gate</span>
+</a>
+<a class="text-[#d9e6fd]/70 px-4 py-3 flex items-center gap-3 hover:bg-[#121a25] transition-all duration-300 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-xl group-hover:text-[#96ccff]">fact_check</span>
+<span class="text-sm font-medium">Approvals</span>
+</a>
+<a class="text-[#d9e6fd]/70 px-4 py-3 flex items-center gap-3 hover:bg-[#121a25] transition-all duration-300 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-xl group-hover:text-[#96ccff]">history</span>
+<span class="text-sm font-medium">Analysis History</span>
+</a>
+<div class="my-4 border-t border-[#3c495b]/10 mx-4"></div>
+<div class="px-4 py-2">
+<span class="text-[10px] font-headline font-bold text-[#d9e6fd]/30 uppercase tracking-[0.2em]">Sub-Projects</span>
+</div>
+<div class="space-y-1">
+<div class="px-4 py-2 flex justify-between items-center text-xs text-[#d9e6fd]/60 hover:text-[#96ccff] cursor-pointer">
+<span class="font-mono">arm-cortex-m4-main</span>
+<span class="bg-error-container/20 text-error px-1.5 py-0.5 rounded text-[10px] font-bold">30</span>
+</div>
+<div class="px-4 py-2 flex justify-between items-center text-xs text-[#d9e6fd]/60 hover:text-[#96ccff] cursor-pointer">
+<span class="font-mono">arm-cortex-m4-boot</span>
+<span class="bg-secondary-container text-secondary px-1.5 py-0.5 rounded text-[10px] font-bold">8</span>
+</div>
+<div class="px-4 py-2 flex justify-between items-center text-xs text-[#d9e6fd]/60 hover:text-[#96ccff] cursor-pointer">
+<span class="font-mono">riscv-rv32-diag</span>
+<span class="bg-secondary-container text-secondary px-1.5 py-0.5 rounded text-[10px] font-bold">5</span>
+</div>
+</div>
+</nav>
+<div class="p-4 bg-[#0a0e14]/50 border-t border-[#3c495b]/10">
+<a class="flex items-center gap-3 text-[#d9e6fd]/40 hover:text-[#96ccff] transition-colors text-xs font-mono uppercase tracking-widest" href="#">
+<span class="material-symbols-outlined text-sm">settings</span>
+                Settings
+            </a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-64 pt-16 pb-12 px-8 min-h-screen">
+<header class="py-8 flex justify-between items-end">
+<div>
+<h1 class="text-2xl font-headline font-bold text-[#d9e6fd] mb-1">Vulnerability Analysis</h1>
+<p class="text-sm text-[#9facc1]">Deep scanning active on production firmware branch.</p>
+</div>
+<div class="flex gap-3">
+<button class="px-4 py-2 bg-surface-container-high border border-outline-variant/30 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-surface-bright transition-colors">
+                    Export Report
+                </button>
+<button class="px-4 py-2 bg-gradient-to-br from-primary to-primary-dim text-on-primary font-bold text-xs uppercase tracking-wider rounded-lg shadow-lg active:scale-95 transition-all">
+                    New Scan
+                </button>
+</div>
+</header>
+<!-- Filter Bar -->
+<section class="bg-[#121a25] rounded-xl border border-[#3c495b]/15 p-1 mb-8 flex flex-wrap items-center gap-1">
+<div class="flex items-center px-4 py-2 gap-2 text-xs border-r border-[#3c495b]/15 mr-2">
+<span class="text-on-surface-variant font-medium">Build Target:</span>
+<span class="text-[#96ccff] font-bold cursor-pointer hover:underline flex items-center gap-1">All Targets <span class="material-symbols-outlined text-[14px]">expand_more</span></span>
+</div>
+<div class="flex items-center gap-1 p-1">
+<button class="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-[#1a2637] text-on-surface">ALL</button>
+<button class="px-3 py-1.5 rounded-lg text-[11px] font-bold text-error/80 hover:bg-error-container/20">C</button>
+<button class="px-3 py-1.5 rounded-lg text-[11px] font-bold text-secondary-fixed hover:bg-surface-bright">H</button>
+<button class="px-3 py-1.5 rounded-lg text-[11px] font-bold text-primary hover:bg-primary-container/20">M</button>
+<button class="px-3 py-1.5 rounded-lg text-[11px] font-bold text-outline hover:bg-surface-bright">L</button>
+</div>
+<div class="ml-auto flex items-center gap-4 px-6">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+<span class="text-xs font-headline font-medium text-on-surface">Open <span class="text-error ml-1 font-bold">4</span></span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="text-xs font-headline font-medium text-on-surface">Closed <span class="text-tertiary ml-1 font-bold">2</span></span>
+</div>
+</div>
+</section>
+<!-- Vulnerability List -->
+<section class="space-y-4">
+<!-- Row 1: Critical -->
+<div class="group bg-[#121a25] border-l-4 border-[#ee7d77] rounded-r-xl p-6 flex items-center transition-all hover:bg-[#1a2637] cursor-pointer">
+<div class="flex-1 grid grid-cols-12 gap-4 items-center">
+<div class="col-span-1">
+<span class="text-[10px] font-mono font-bold text-error uppercase px-2 py-0.5 bg-error-container/10 border border-error/20 rounded">Critical</span>
+</div>
+<div class="col-span-4">
+<h4 class="text-base font-bold text-[#d9e6fd] mb-1">CWE-119 Buffer Overflow</h4>
+<div class="flex items-center gap-2 text-[11px] font-mono text-outline">
+<span class="material-symbols-outlined text-sm">terminal</span>
+                            can_driver.c:142
+                        </div>
+</div>
+<div class="col-span-3">
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Target</div>
+<div class="text-sm font-mono text-[#9facc1]">arm-cortex-m4-main</div>
+</div>
+<div class="col-span-2">
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Status</div>
+<div class="flex items-center gap-2">
+<span class="text-xs font-bold text-error">OPEN</span>
+</div>
+</div>
+<div class="col-span-2 text-right">
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Sequence</div>
+<div class="text-sm font-mono text-[#96ccff]">Run #47</div>
+</div>
+</div>
+<div class="ml-6 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[#96ccff]">chevron_right</span>
+</div>
+</div>
+<!-- Row 2: High -->
+<div class="group bg-[#121a25] border-l-4 border-[#dde3ec] rounded-r-xl p-6 flex items-center transition-all hover:bg-[#1a2637] cursor-pointer">
+<div class="flex-1 grid grid-cols-12 gap-4 items-center">
+<div class="col-span-1">
+<span class="text-[10px] font-mono font-bold text-secondary-fixed uppercase px-2 py-0.5 bg-secondary-container/20 rounded">High</span>
+</div>
+<div class="col-span-4">
+<h4 class="text-base font-bold text-[#d9e6fd] mb-1">CWE-476 Null Pointer</h4>
+<div class="flex items-center gap-2 text-[11px] font-mono text-outline">
+<span class="material-symbols-outlined text-sm">terminal</span>
+                            spi_handler.c:89
+                        </div>
+</div>
+<div class="col-span-3">
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Target</div>
+<div class="text-sm font-mono text-[#9facc1]">arm-cortex-m4-main</div>
+</div>
+<div class="col-span-2">
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Status</div>
+<span class="text-xs font-bold text-[#d9e6fd]">OPEN</span>
+</div>
+<div class="col-span-2 text-right">
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Sequence</div>
+<div class="text-sm font-mono text-[#96ccff]">Run #45</div>
+</div>
+</div>
+<div class="ml-6 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[#96ccff]">chevron_right</span>
+</div>
+</div>
+<!-- Row 3: High -->
+<div class="group bg-[#121a25] border-l-4 border-[#dde3ec] rounded-r-xl p-6 flex items-center transition-all hover:bg-[#1a2637] cursor-pointer">
+<div class="flex-1 grid grid-cols-12 gap-4 items-center">
+<div class="col-span-1">
+<span class="text-[10px] font-mono font-bold text-secondary-fixed uppercase px-2 py-0.5 bg-secondary-container/20 rounded">High</span>
+</div>
+<div class="col-span-4">
+<h4 class="text-base font-bold text-[#d9e6fd] mb-1">CWE-190 Integer Overflow</h4>
+<div class="flex items-center gap-2 text-[11px] font-mono text-outline">
+<span class="material-symbols-outlined text-sm">terminal</span>
+                            adc_convert.c:201
+                        </div>
+</div>
+<div class="col-span-3">
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Target</div>
+<div class="text-sm font-mono text-[#9facc1]">arm-cortex-m4-boot</div>
+</div>
+<div class="col-span-2">
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Status</div>
+<span class="text-xs font-bold text-tertiary">CONFIRMED</span>
+</div>
+<div class="col-span-2 text-right">
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Sequence</div>
+<div class="text-sm font-mono text-[#96ccff]">Run #44</div>
+</div>
+</div>
+<div class="ml-6 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[#96ccff]">chevron_right</span>
+</div>
+</div>
+<!-- Row 4: Medium -->
+<div class="group bg-[#121a25] border-l-4 border-[#96ccff] rounded-r-xl p-6 flex items-center transition-all hover:bg-[#1a2637] cursor-pointer">
+<div class="flex-1 grid grid-cols-12 gap-4 items-center">
+<div class="col-span-1">
+<span class="text-[10px] font-mono font-bold text-primary uppercase px-2 py-0.5 bg-primary-container/20 rounded">Medium</span>
+</div>
+<div class="col-span-4">
+<h4 class="text-base font-bold text-[#d9e6fd] mb-1">MISRA-11.3 Cast violation</h4>
+<div class="flex items-center gap-2 text-[11px] font-mono text-outline">
+<span class="material-symbols-outlined text-sm">terminal</span>
+                            timer_config.c:56
+                        </div>
+</div>
+<div class="col-span-3">
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Target</div>
+<div class="text-sm font-mono text-[#9facc1]">arm-cortex-m4-main</div>
+</div>
+<div class="col-span-2">
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Status</div>
+<span class="text-xs font-bold text-[#d9e6fd]">OPEN</span>
+</div>
+<div class="col-span-2 text-right">
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Sequence</div>
+<div class="text-sm font-mono text-[#96ccff]">Run #46</div>
+</div>
+</div>
+<div class="ml-6 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[#96ccff]">chevron_right</span>
+</div>
+</div>
+<!-- Row 5: Medium -->
+<div class="group bg-[#121a25] border-l-4 border-[#96ccff] rounded-r-xl p-6 flex items-center transition-all hover:bg-[#1a2637] cursor-pointer">
+<div class="flex-1 grid grid-cols-12 gap-4 items-center">
+<div class="col-span-1">
+<span class="text-[10px] font-mono font-bold text-primary uppercase px-2 py-0.5 bg-primary-container/20 rounded">Medium</span>
+</div>
+<div class="col-span-4">
+<h4 class="text-base font-bold text-[#d9e6fd] mb-1">CWE-457 Uninitialized Variable</h4>
+<div class="flex items-center gap-2 text-[11px] font-mono text-outline">
+<span class="material-symbols-outlined text-sm">terminal</span>
+                            flash_write.c:178
+                        </div>
+</div>
+<div class="col-span-3">
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Target</div>
+<div class="text-sm font-mono text-[#9facc1]">riscv-rv32-diag</div>
+</div>
+<div class="col-span-2">
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Status</div>
+<span class="text-xs font-bold text-[#d9e6fd]">OPEN</span>
+</div>
+<div class="col-span-2 text-right">
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Sequence</div>
+<div class="text-sm font-mono text-[#96ccff]">Run #47</div>
+</div>
+</div>
+<div class="ml-6 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[#96ccff]">chevron_right</span>
+</div>
+</div>
+<!-- Row 6: Low -->
+<div class="group bg-[#121a25] border-l-4 border-outline rounded-r-xl p-6 flex items-center transition-all hover:bg-[#1a2637] cursor-pointer">
+<div class="flex-1 grid grid-cols-12 gap-4 items-center">
+<div class="col-span-1">
+<span class="text-[10px] font-mono font-bold text-outline uppercase px-2 py-0.5 bg-surface-container-highest rounded">Low</span>
+</div>
+<div class="col-span-4">
+<h4 class="text-base font-bold text-[#d9e6fd] mb-1">MISRA-8.4 Missing declaration</h4>
+<div class="flex items-center gap-2 text-[11px] font-mono text-outline">
+<span class="material-symbols-outlined text-sm">terminal</span>
+                            gpio_init.c:23
+                        </div>
+</div>
+<div class="col-span-3">
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Target</div>
+<div class="text-sm font-mono text-[#9facc1]">arm-cortex-m4-main</div>
+</div>
+<div class="col-span-2">
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Status</div>
+<span class="text-[10px] font-bold text-outline-variant uppercase">False Positive</span>
+</div>
+<div class="col-span-2 text-right">
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Sequence</div>
+<div class="text-sm font-mono text-[#96ccff]">Run #43</div>
+</div>
+</div>
+<div class="ml-6 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[#96ccff]">chevron_right</span>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="fixed bottom-0 right-0 w-[calc(100%-16rem)] bg-[#0a0e14] border-t border-[#3c495b]/10 flex justify-between items-center px-8 py-2 w-full z-40">
+<div class="flex items-center gap-4">
+<span class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-widest text-[#d9e6fd]/40">AEGIS v2.1.0 — Embedded Firmware Security Analysis Platform</span>
+</div>
+<div class="flex items-center gap-6 opacity-80 hover:opacity-100 transition-opacity">
+<a class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-widest text-[#d9e6fd]/40 hover:text-[#96ccff] transition-colors" href="#">Platform Status</a>
+<a class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-widest text-[#d9e6fd]/40 hover:text-[#96ccff] transition-colors" href="#">Security Policy</a>
+<a class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-widest text-[#d9e6fd]/40 hover:text-[#96ccff] transition-colors" href="#">API Docs</a>
+</div>
+</footer>
+</body></html>

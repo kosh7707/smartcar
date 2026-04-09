@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS | Static Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "tertiary": "#c7ffc2",
+                        "on-secondary-fixed-variant": "#565c64",
+                        "error-container": "#7f2927",
+                        "tertiary-dim": "#75ed7d",
+                        "on-background": "#d9e6fd",
+                        "surface-bright": "#1e2d41",
+                        "secondary-container": "#363c43",
+                        "on-tertiary-fixed-variant": "#006b20",
+                        "on-secondary": "#1b2127",
+                        "tertiary-container": "#83fc89",
+                        "background": "#0a0e14",
+                        "on-error-container": "#ff9993",
+                        "secondary-fixed": "#dde3ec",
+                        "tertiary-fixed-dim": "#75ed7d",
+                        "on-primary-container": "#aad5ff",
+                        "on-secondary-fixed": "#3a4047",
+                        "primary-fixed-dim": "#b3d8ff",
+                        "on-error": "#490106",
+                        "surface-container-high": "#16202e",
+                        "surface-dim": "#0a0e14",
+                        "surface": "#0a0e14",
+                        "tertiary-fixed": "#83fc89",
+                        "error-dim": "#bb5551",
+                        "secondary-fixed-dim": "#cfd5de",
+                        "surface-container-lowest": "#000000",
+                        "on-secondary-container": "#bac0c8",
+                        "on-tertiary": "#00691f",
+                        "on-tertiary-container": "#005f1c",
+                        "on-primary-fixed-variant": "#006096",
+                        "surface-container-low": "#0e141c",
+                        "on-surface-variant": "#9facc1",
+                        "secondary-dim": "#989ea7",
+                        "outline": "#6a768a",
+                        "on-surface": "#d9e6fd",
+                        "surface-container": "#121a25",
+                        "primary": "#96ccff",
+                        "primary-fixed": "#cee5ff",
+                        "primary-dim": "#78bffe",
+                        "on-tertiary-fixed": "#004a14",
+                        "secondary": "#989ea7",
+                        "outline-variant": "#3c495b",
+                        "error": "#ee7d77",
+                        "surface-variant": "#1a2637",
+                        "on-primary-fixed": "#00436a",
+                        "inverse-primary": "#00649b",
+                        "primary-container": "#004a76",
+                        "inverse-on-surface": "#51555c",
+                        "surface-container-highest": "#1a2637",
+                        "surface-tint": "#96ccff",
+                        "on-primary": "#00436b",
+                        "inverse-surface": "#f8f9ff"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #0d1117; color: #e6edf3; margin: 0; }
+        .material-symbols-outlined { font-size: 20px; vertical-align: middle; }
+        .headline-font { font-family: 'Space Grotesk', sans-serif; }
+        .mono-font { font-family: 'JetBrains Mono', monospace; }
+        .sticky-nav { position: sticky; top: 0; z-index: 50; background-color: #161b22; border-bottom: 1px solid #30363d; height: 56px; }
+        .sidebar { position: fixed; left: 0; top: 56px; bottom: 0; width: 240px; background-color: #0d1117; border-right: 1px solid #30363d; overflow-y: auto; z-index: 40; }
+        .main-canvas { margin-left: 240px; padding: 32px; min-height: calc(100vh - 56px); }
+        .github-card { background-color: #161b22; border: 1px solid #30363d; border-radius: 6px; }
+        .status-pill { padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+        .status-pass { background-color: #23863620; color: #3fb950; border: 1px solid #23863640; }
+        .status-fail { background-color: #da363320; color: #f85149; border: 1px solid #da363340; }
+        .status-warning { background-color: #9e6a0320; color: #d29922; border: 1px solid #9e6a0340; }
+        .active-nav-item { border-left: 2px solid #58a6ff; color: #58a6ff; background-color: #1f242c; }
+        .custom-input { background-color: #161b22; border: 1px solid #30363d; color: #e6edf3; border-radius: 6px; padding: 5px 12px; font-size: 14px; }
+        .progress-bar-bg { background-color: #30363d; height: 8px; border-radius: 4px; overflow: hidden; }
+        .progress-bar-fill { background-color: #58a6ff; height: 100%; border-radius: 4px; transition: width 0.3s ease; }
+    </style>
+</head>
+<body class="bg-[#0d1117] text-[#e6edf3] font-body">
+<!-- TopNavBar -->
+<nav class="sticky-nav flex justify-between items-center px-4">
+<div class="flex items-center gap-4">
+<span class="headline-font font-bold text-xl tracking-tighter text-white">AEGIS</span>
+<div class="h-4 w-[1px] bg-[#30363d]"></div>
+<button class="flex items-center gap-2 text-sm font-medium hover:text-[#58a6ff] transition-colors">
+                ECU-PowerTrain-v2.1
+                <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
+</button>
+</div>
+<div class="flex-1 max-w-md px-8">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#8b949e]">search</span>
+<input class="w-full bg-[#0d1117] border border-[#30363d] rounded-md py-1 pl-10 pr-4 text-sm focus:outline-none focus:border-[#58a6ff] focus:ring-1 focus:ring-[#58a6ff]" placeholder="Search resources..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative cursor-pointer hover:bg-[#30363d] p-1.5 rounded-md transition-colors">
+<span class="material-symbols-outlined text-[#c9d1d9]">notifications</span>
+<span class="absolute top-1 right-1 w-4 h-4 bg-[#238636] text-[10px] flex items-center justify-center rounded-full text-white font-bold">3</span>
+</div>
+<div class="flex items-center gap-2 text-sm">
+<span class="text-white font-medium">Kosh</span>
+<span class="text-[#8b949e]">Admin</span>
+</div>
+<img alt="User profile" class="w-8 h-8 rounded-full border border-[#30363d]" data-alt="Close-up portrait of a professional male software architect in a dark high-tech office environment, moody lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB0ZEwtsVR8iVIKWr0Mrc-cCZSDk6IvoOVmCa9POMGidAFaE_dS9feXoH4B3NLXF6d0CJ4t32vB8PeD7Jm7MJhyMIWzsrN9kgZyBqg_AYbhFcv3qClse8tXHbVMOFna6qXR2m7TgJJuSd_JJlFac6wlQSYSOvRt6wpxmqlPoB3OUnYttGOE4t3D7mR9_jF9reUWoSaop9Ouodc64l4N97B7ztqAM8CSZfxjsfbxpJ98PYi0kMmFTSYxb6tI69lA1sGYKDE1lIKsPh52"/>
+</div>
+</nav>
+<!-- SideNavBar -->
+<aside class="sidebar py-4 flex flex-col">
+<div class="px-4 mb-6">
+<div class="flex items-center gap-3 mb-1">
+<span class="material-symbols-outlined text-[#58a6ff]" data-weight="fill">shield</span>
+<span class="font-bold text-white text-sm">ECU-PowerTrain-v2.1</span>
+</div>
+<span class="text-[#8b949e] text-xs px-8">main-branch-v2</span>
+</div>
+<div class="px-4 mb-6">
+<h3 class="text-[11px] font-semibold text-[#8b949e] uppercase tracking-wider mb-2">Sub-Projects</h3>
+<ul class="space-y-1">
+<li class="flex justify-between items-center text-xs py-1.5 px-2 hover:bg-[#1f242c] rounded cursor-pointer transition-colors group">
+<span class="text-[#c9d1d9] group-hover:text-[#58a6ff]">arm-cortex-m4-main</span>
+<span class="bg-[#30363d] text-[#8b949e] px-1.5 rounded-full text-[10px]">30</span>
+</li>
+<li class="flex justify-between items-center text-xs py-1.5 px-2 hover:bg-[#1f242c] rounded cursor-pointer transition-colors group">
+<span class="text-[#c9d1d9] group-hover:text-[#58a6ff]">arm-cortex-m4-boot</span>
+<span class="bg-[#30363d] text-[#8b949e] px-1.5 rounded-full text-[10px]">8</span>
+</li>
+<li class="flex justify-between items-center text-xs py-1.5 px-2 hover:bg-[#1f242c] rounded cursor-pointer transition-colors group">
+<span class="text-[#c9d1d9] group-hover:text-[#58a6ff]">riscv-rv32-diag</span>
+<span class="bg-[#30363d] text-[#8b949e] px-1.5 rounded-full text-[10px]">5</span>
+</li>
+</ul>
+</div>
+<nav class="flex-1 overflow-y-auto px-2 space-y-0.5">
+<a class="flex items-center gap-3 px-3 py-2 text-sm text-[#c9d1d9] hover:bg-[#1f242c] rounded transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span> Overview
+            </a>
+<a class="active-nav-item flex items-center gap-3 px-3 py-2 text-sm rounded transition-colors" href="#">
+<span class="material-symbols-outlined" data-weight="fill">analytics</span> Analysis
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm text-[#c9d1d9] hover:bg-[#1f242c] rounded transition-colors" href="#">
+<span class="material-symbols-outlined">code</span> Code
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm text-[#c9d1d9] hover:bg-[#1f242c] rounded transition-colors" href="#">
+<span class="material-symbols-outlined">find_replace</span> Findings
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm text-[#c9d1d9] hover:bg-[#1f242c] rounded transition-colors" href="#">
+<span class="material-symbols-outlined">history</span> Analysis History
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm text-[#c9d1d9] hover:bg-[#1f242c] rounded transition-colors" href="#">
+<span class="material-symbols-outlined">description</span> Report
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm text-[#c9d1d9] hover:bg-[#1f242c] rounded transition-colors" href="#">
+<span class="material-symbols-outlined">door_front</span> Quality Gate
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm text-[#c9d1d9] hover:bg-[#1f242c] rounded transition-colors" href="#">
+<span class="material-symbols-outlined">assignment_turned_in</span> Approvals
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm text-[#c9d1d9] hover:bg-[#1f242c] rounded transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span> Settings
+            </a>
+</nav>
+<div class="mt-auto px-4 py-4 border-t border-[#30363d]">
+<a class="flex items-center gap-2 text-xs text-[#8b949e] hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">arrow_back</span>
+                Back to Projects
+            </a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="main-canvas">
+<header class="flex justify-between items-center mb-8">
+<h1 class="headline-font font-bold text-2xl text-white">Static Analysis</h1>
+<div class="inline-flex">
+<button class="bg-[#238636] hover:bg-[#2ea043] text-white font-semibold text-sm px-4 py-1.5 rounded-l border-r border-[#ffffff20] transition-colors">
+                    Run Analysis
+                </button>
+<button class="bg-[#238636] hover:bg-[#2ea043] text-white px-2 py-1.5 rounded-r transition-colors">
+<span class="material-symbols-outlined">arrow_drop_down</span>
+</button>
+</div>
+</header>
+<!-- Filter Bar -->
+<div class="flex gap-3 mb-6">
+<select class="custom-input min-w-[120px]">
+<option>Status: All</option>
+<option>Success</option>
+<option>Failed</option>
+<option>Running</option>
+</select>
+<select class="custom-input min-w-[120px]">
+<option>Type: All</option>
+<option>Quick SAST</option>
+<option>Deep Analysis</option>
+<option>MISRA Check</option>
+</select>
+<select class="custom-input min-w-[180px]">
+<option>Target: All Projects</option>
+<option>arm-cortex-m4-main</option>
+<option>arm-cortex-m4-boot</option>
+</select>
+<button class="ml-auto text-xs text-[#8b949e] hover:text-[#58a6ff] flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[16px]">refresh</span> Clear Filters
+            </button>
+</div>
+<!-- Analysis List -->
+<div class="space-y-4">
+<!-- 1. Expanded Success Card -->
+<div class="github-card p-4 border-l-[4px] border-l-[#238636]">
+<div class="flex items-start justify-between mb-4">
+<div class="flex gap-3 items-center">
+<span class="material-symbols-outlined text-[#3fb950]" data-weight="fill">check_circle</span>
+<div>
+<div class="flex items-center gap-2 mb-1">
+<h3 class="font-bold text-white">Quick SAST</h3>
+<span class="text-[10px] bg-[#388bfd15] text-[#58a6ff] border border-[#388bfd30] px-1.5 rounded uppercase font-bold">analysis-20260408-003</span>
+</div>
+<div class="flex items-center gap-3 text-xs text-[#8b949e]">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">target</span> arm-cortex-m4-main</span>
+<span class="flex items-center gap-1 text-[#3fb950]"><span class="material-symbols-outlined text-[14px]">add</span> 2 new</span>
+<span class="flex items-center gap-1 text-[#8b949e]"><span class="material-symbols-outlined text-[14px]">done_all</span> 1 resolved</span>
+</div>
+</div>
+</div>
+<div class="text-right">
+<div class="status-pill status-pass mb-1">
+<span class="material-symbols-outlined text-[14px]">verified</span> GATE: PASS
+                        </div>
+<div class="text-[10px] text-[#8b949e]">Completed 14m ago</div>
+</div>
+</div>
+<div class="grid grid-cols-5 gap-2 mb-6 px-10">
+<div class="bg-[#0d1117] p-2 rounded border border-[#30363d] flex flex-col items-center">
+<span class="material-symbols-outlined text-[#3fb950] text-[16px]">check_circle</span>
+<span class="text-[10px] text-[#8b949e] mt-1">Setup</span>
+<span class="text-[10px] font-mono text-white">12s</span>
+</div>
+<div class="bg-[#0d1117] p-2 rounded border border-[#30363d] flex flex-col items-center">
+<span class="material-symbols-outlined text-[#3fb950] text-[16px]">check_circle</span>
+<span class="text-[10px] text-[#8b949e] mt-1">Rule Engine</span>
+<span class="text-[10px] font-mono text-white">2m 45s</span>
+</div>
+<div class="bg-[#0d1117] p-2 rounded border border-[#30363d] flex flex-col items-center">
+<span class="material-symbols-outlined text-[#3fb950] text-[16px]">check_circle</span>
+<span class="text-[10px] text-[#8b949e] mt-1">MISRA</span>
+<span class="text-[10px] font-mono text-white">1m 08s</span>
+</div>
+<div class="bg-[#0d1117] p-2 rounded border border-[#30363d] flex flex-col items-center">
+<span class="material-symbols-outlined text-[#3fb950] text-[16px]">check_circle</span>
+<span class="text-[10px] text-[#8b949e] mt-1">Merge</span>
+<span class="text-[10px] font-mono text-white">15s</span>
+</div>
+<div class="bg-[#0d1117] p-2 rounded border border-[#30363d] flex flex-col items-center">
+<span class="material-symbols-outlined text-[#3fb950] text-[16px]">check_circle</span>
+<span class="text-[10px] text-[#8b949e] mt-1">Gate</span>
+<span class="text-[10px] font-mono text-white">12s</span>
+</div>
+</div>
+<div class="flex items-center justify-between border-t border-[#30363d] pt-4">
+<p class="text-xs text-[#8b949e] max-w-xl">
+                        Analysis completed successfully. MISRA compliance levels at 98.4%. High-priority vulnerabilities were not detected. Data integrity checks verified for target architecture.
+                    </p>
+<div class="flex gap-2">
+<button class="bg-[#30363d] hover:bg-[#3c444d] text-[#c9d1d9] text-xs font-semibold px-3 py-1.5 rounded transition-colors">View Findings</button>
+<button class="bg-[#30363d] hover:bg-[#3c444d] text-[#c9d1d9] text-xs font-semibold px-3 py-1.5 rounded transition-colors">Re-run</button>
+<button class="bg-[#388bfd20] hover:bg-[#388bfd30] text-[#58a6ff] text-xs font-semibold px-3 py-1.5 rounded border border-[#388bfd40] transition-colors">Run Deep Analysis</button>
+</div>
+</div>
+</div>
+<!-- 2. Failed Card -->
+<div class="github-card p-4 border-l-[4px] border-l-[#da3633]">
+<div class="flex items-center justify-between">
+<div class="flex gap-3 items-center">
+<span class="material-symbols-outlined text-[#f85149]" data-weight="fill">cancel</span>
+<div>
+<div class="flex items-center gap-2 mb-1">
+<h3 class="font-bold text-white">Deep Analysis</h3>
+<span class="text-[10px] bg-[#bc8cff15] text-[#bc8cff] border border-[#bc8cff30] px-1.5 rounded uppercase font-bold">analysis-20260407-002</span>
+</div>
+<div class="flex items-center gap-3 text-xs text-[#8b949e]">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">target</span> arm-cortex-m4-boot</span>
+<span class="flex items-center gap-1 text-[#f85149]"><span class="material-symbols-outlined text-[14px]">add</span> 5 new</span>
+</div>
+</div>
+</div>
+<div class="text-right">
+<div class="status-pill status-fail mb-1">
+<span class="material-symbols-outlined text-[14px]">dangerous</span> GATE: FAIL
+                        </div>
+<div class="text-[10px] text-[#8b949e]">Completed 1d ago</div>
+</div>
+</div>
+</div>
+<!-- 3. Success Card Simple -->
+<div class="github-card p-4 border-l-[4px] border-l-[#238636]">
+<div class="flex items-center justify-between">
+<div class="flex gap-3 items-center">
+<span class="material-symbols-outlined text-[#3fb950]" data-weight="fill">check_circle</span>
+<div>
+<div class="flex items-center gap-2 mb-1">
+<h3 class="font-bold text-white">Quick SAST</h3>
+<span class="text-[10px] bg-[#388bfd15] text-[#58a6ff] border border-[#388bfd30] px-1.5 rounded uppercase font-bold">analysis-20260407-001</span>
+</div>
+<div class="flex items-center gap-3 text-xs text-[#8b949e]">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">target</span> riscv-rv32-diag</span>
+</div>
+</div>
+</div>
+<div class="text-right">
+<div class="status-pill status-pass mb-1">
+<span class="material-symbols-outlined text-[14px]">verified</span> GATE: PASS
+                        </div>
+<div class="text-[10px] text-[#8b949e]">Completed 1d ago</div>
+</div>
+</div>
+</div>
+<!-- 4. Warning Card -->
+<div class="github-card p-4 border-l-[4px] border-l-[#9e6a03]">
+<div class="flex items-center justify-between">
+<div class="flex gap-3 items-center">
+<span class="material-symbols-outlined text-[#d29922]" data-weight="fill">warning</span>
+<div>
+<div class="flex items-center gap-2 mb-1">
+<h3 class="font-bold text-white">MISRA Check</h3>
+<span class="text-[10px] bg-[#17e5e615] text-[#17e5e6] border border-[#17e5e630] px-1.5 rounded uppercase font-bold">analysis-20260406-004</span>
+</div>
+<div class="flex items-center gap-3 text-xs text-[#8b949e]">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">target</span> arm-cortex-m4-main</span>
+</div>
+</div>
+</div>
+<div class="text-right">
+<div class="status-pill status-warning mb-1">
+<span class="material-symbols-outlined text-[14px]">report_problem</span> GATE: WARNING
+                        </div>
+<div class="text-[10px] text-[#8b949e]">Completed 2d ago</div>
+</div>
+</div>
+</div>
+<!-- 5. Running Card -->
+<div class="github-card p-4 border-l-[4px] border-l-[#58a6ff]">
+<div class="flex items-start justify-between mb-4">
+<div class="flex gap-3 items-center">
+<span class="material-symbols-outlined text-[#58a6ff] animate-spin">sync</span>
+<div>
+<div class="flex items-center gap-2 mb-1">
+<h3 class="font-bold text-white">Deep Analysis</h3>
+<span class="text-[10px] bg-[#bc8cff15] text-[#bc8cff] border border-[#bc8cff30] px-1.5 rounded uppercase font-bold">analysis-20260408-004</span>
+</div>
+<div class="flex items-center gap-3 text-xs text-[#8b949e]">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">target</span> ECU-PowerTrain-v2.1</span>
+<span class="text-[#58a6ff] font-medium">Step 3/5: MISRA Check</span>
+</div>
+</div>
+</div>
+<div class="text-right">
+<span class="text-xs font-mono text-[#58a6ff]">60% Complete</span>
+</div>
+</div>
+<div class="progress-bar-bg w-full">
+<div class="progress-bar-fill" style="width: 60%"></div>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="mt-12 pt-6 border-t border-[#30363d] flex justify-between items-center text-xs text-[#8b949e]">
+<div class="flex gap-4">
+<a class="hover:text-[#58a6ff] transition-colors" href="#">Documentation</a>
+<a class="hover:text-[#58a6ff] transition-colors" href="#">Support</a>
+<a class="hover:text-[#58a6ff] transition-colors" href="#">Privacy</a>
+</div>
+<div class="font-mono">AEGIS v2.1.0</div>
+</footer>
+</main>
+</body></html>

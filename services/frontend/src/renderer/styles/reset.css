@@ -4,16 +4,19 @@
   box-sizing: border-box;
 }
 
-body {
+html, body {
   font-family: var(--cds-font-sans);
   font-size: var(--cds-type-base);
   line-height: var(--cds-leading-normal);
   background: var(--cds-background);
   color: var(--cds-text-primary);
-  overflow: hidden;
-  height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  overflow: hidden;
+  height: 100vh;
 }
 
 #root {
@@ -25,7 +28,7 @@ a {
   text-decoration: none;
 }
 
-button {
+button, input, textarea, select {
   font-family: inherit;
   font-size: inherit;
 }
