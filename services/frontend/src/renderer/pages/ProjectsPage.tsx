@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
-import { Search, Shield, FolderKanban, ArrowRight } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Search, Shield, FolderKanban, ArrowRight, Plus } from "lucide-react";
 import { useProjects } from "../contexts/ProjectContext";
 import { formatRelativeTime } from "../utils/format";
 import "./ProjectsPage.css";
@@ -156,8 +156,13 @@ function recentProjectUpdate(project: DashboardProject): string {
 }
 
 export const ProjectsPage: React.FC = () => {
-  const { projects, loading } = useProjects();
+  const { projects, loading, createProject } = useProjects();
+  const navigate = useNavigate();
   const [filter, setFilter] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [name, setName] = useState("");
+  const [desc, setDesc] = useState("");
+  const [visibleActivityCount, setVisibleActivityCount] = useState(10);
 
   useEffect(() => {
     document.title = "AEGIS — Dashboard";
@@ -178,6 +183,16 @@ export const ProjectsPage: React.FC = () => {
 
   const nextMoveProject = attentionProjects[0] ?? filtered[0] ?? projects[0] ?? null;
   const activity = useMemo(() => buildActivity(projects), [projects]);
+  const visibleActivity = useMemo(() => activity.slice(0, visibleActivityCount), [activity, visibleActivityCount]);
+
+  const handleCreate = async () => {
+    if (!name.trim()) return;
+    const project = await createProject(name.trim(), desc.trim());
+    setName("");
+    setDesc("");
+    setShowCreate(false);
+    navigate(`/projects/${project.id}/overview`);
+  };
 
   return (
     <div className="dashboard">
@@ -185,7 +200,17 @@ export const ProjectsPage: React.FC = () => {
         <aside className="dashboard-explorer" aria-label="Project explorer">
           <div className="dashboard-section-heading">
             <h2 className="dashboard-section-heading__title">Project explorer</h2>
-            <span className="dashboard-section-heading__count">{filtered.length}</span>
+            <div className="dashboard-section-heading__actions">
+              <button
+                type="button"
+                className="explorer-create-btn"
+                onClick={() => setShowCreate((prev) => !prev)}
+              >
+                <Plus size={13} />
+                <span>New</span>
+              </button>
+              <span className="dashboard-section-heading__count">{filtered.length}</span>
+            </div>
           </div>
 
           <div className="dashboard-search">
@@ -198,6 +223,46 @@ export const ProjectsPage: React.FC = () => {
               onChange={(event) => setFilter(event.target.value)}
             />
           </div>
+
+          {showCreate && (
+            <div className="dashboard-create-inline">
+              <input
+                className="dashboard-create-inline__input"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Project name"
+                autoFocus
+                onKeyDown={(event) => event.key === "Enter" && handleCreate()}
+              />
+              <input
+                className="dashboard-create-inline__input"
+                value={desc}
+                onChange={(event) => setDesc(event.target.value)}
+                placeholder="Description (optional)"
+                onKeyDown={(event) => event.key === "Enter" && handleCreate()}
+              />
+              <div className="dashboard-create-inline__actions">
+                <button
+                  type="button"
+                  className="dashboard-create-inline__btn dashboard-create-inline__btn--ghost"
+                  onClick={() => {
+                    setShowCreate(false);
+                    setName("");
+                    setDesc("");
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="dashboard-create-inline__btn dashboard-create-inline__btn--primary"
+                  onClick={handleCreate}
+                >
+                  Create
+                </button>
+              </div>
+            </div>
+          )}
 
           <ul className="project-list">
             {filtered.map((project) => (
@@ -299,42 +364,52 @@ export const ProjectsPage: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <div className="activity-panel">
-                  <div className="activity-list">
-                    {activity.map((event) => (
-                      <div key={event.id} className={`activity-row ${EVENT_CSS[event.type]}`}>
-                        <div className="activity-row__body">
-                          <div className="activity-row__head">
-                            <div className="activity-row__head-left">
-                              <Link to={`/projects/${event.projectId}/overview`} className="activity-row__project">
-                                {event.projectName}
-                              </Link>
-                              <span className={`activity-row__type activity-row__type--${event.type}`}>
-                                {EVENT_LABELS[event.type]}
-                              </span>
-                            </div>
+                <div className="activity-list activity-list--boxed">
+                  {visibleActivity.map((event) => (
+                    <div key={event.id} className={`activity-card ${EVENT_CSS[event.type]}`}>
+                      <div className="activity-card__body">
+                        <div className="activity-card__head">
+                          <div className="activity-card__head-left">
+                            <Link to={`/projects/${event.projectId}/overview`} className="activity-card__project">
+                              {event.projectName}
+                            </Link>
+                            <span className={`activity-card__type activity-card__type--${event.type}`}>
+                              {EVENT_LABELS[event.type]}
+                            </span>
                           </div>
-                          <p className="activity-row__description">{event.description}</p>
-                          {event.chips && event.chips.length > 0 ? (
-                            <div className="activity-row__chips">
-                              {event.chips.map((chip) => (
-                                <span key={chip.label} className={`dashboard-chip dashboard-chip--${chip.tone} dashboard-chip--compact`}>
-                                  {chip.label}
-                                </span>
-                              ))}
-                            </div>
-                          ) : null}
+                          <span className="activity-card__time">{formatRelativeTime(event.timestamp)}</span>
                         </div>
-                        <div className="activity-row__aside">
-                          <span className="activity-row__time">{formatRelativeTime(event.timestamp)}</span>
-                          <Link to={`/projects/${event.projectId}/overview`} className="activity-row__open">
-                            <span>Open</span>
-                            <ArrowRight size={14} />
-                          </Link>
-                        </div>
+                        <p className="activity-card__description">{event.description}</p>
+                        {event.chips && event.chips.length > 0 ? (
+                          <div className="activity-card__chips">
+                            {event.chips.map((chip) => (
+                              <span key={chip.label} className={`dashboard-chip dashboard-chip--${chip.tone} dashboard-chip--compact`}>
+                                {chip.label}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
-                    ))}
-                  </div>
+                      <div className="activity-card__aside">
+                        <Link to={`/projects/${event.projectId}/overview`} className="activity-card__open">
+                          <span>Open</span>
+                          <ArrowRight size={14} />
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activity.length > visibleActivityCount && (
+                <div className="activity-more">
+                  <button
+                    type="button"
+                    className="activity-more__btn"
+                    onClick={() => setVisibleActivityCount((count) => count + 10)}
+                  >
+                    More
+                  </button>
                 </div>
               )}
             </section>
