@@ -173,7 +173,12 @@ function cleanupUploadRoot(req: Request): void {
   fs.rmSync(sdkRoot, { recursive: true, force: true });
 }
 
-function emitUploadFailure(req: Request, sdkWs: WsBroadcaster<WsSdkMessage> | undefined, message: string): void {
+export function emitUploadFailure(
+  req: Request,
+  sdkWs: WsBroadcaster<WsSdkMessage> | undefined,
+  notificationService: NotificationService | undefined,
+  message: string,
+): void {
   const ctx = (req as SdkUploadRequest).sdkUploadContext;
   if (!ctx) return;
 
@@ -185,6 +190,20 @@ function emitUploadFailure(req: Request, sdkWs: WsBroadcaster<WsSdkMessage> | un
       error: message,
     },
   });
+
+  try {
+    notificationService?.emit({
+      projectId: ctx.projectId,
+      type: "sdk_failed",
+      title: "SDK 업로드 실패",
+      body: message,
+      jobKind: "sdk",
+      resourceId: ctx.sdkId,
+      correlationId: ctx.sdkId,
+    });
+  } catch {
+    // notification failure must not affect upload failure propagation
+  }
 }
 
 export function createSdkRouter(
@@ -223,7 +242,7 @@ export function createSdkRouter(
         }
         cleanupUploadRoot(req);
         const message = err instanceof Error ? err.message : "SDK upload failed";
-        emitUploadFailure(req, sdkWs, message);
+        emitUploadFailure(req, sdkWs, notificationService, message);
         next(new InvalidInputError(message));
       });
     },
