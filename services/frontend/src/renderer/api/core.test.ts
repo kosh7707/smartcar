@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getBackendUrl, setBackendUrl, getWsBaseUrl, ApiError, logError, healthFetch, apiFetch } from "./core";
+import { getBackendUrl, setBackendUrl, getWsBaseUrl, ApiError, logError, healthFetch, apiFetch, healthCheck } from "./core";
 
 describe("getBackendUrl", () => {
   beforeEach(() => localStorage.clear());
 
-  it("returns default when no storage or window.api", () => {
+  it("returns default when no storage is set", () => {
     expect(getBackendUrl()).toBe("http://localhost:3000");
   });
 
@@ -169,5 +169,18 @@ describe("apiFetch", () => {
     try { await apiFetch("/error"); } catch (e) {
       expect((e as ApiError).message).toContain("내부 오류");
     }
+  });
+});
+
+describe("healthCheck", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => vi.restoreAllMocks());
+
+  it("requests /health through the shared API path", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ status: "ok" }), { status: 200 }));
+
+    const result = await healthCheck();
+
+    expect(result).toEqual({ status: "ok" });
   });
 });

@@ -2,10 +2,19 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": ".",
     "jsx": "react-jsx",
-    "module": "commonjs",
-    "lib": ["ES2020", "DOM"]
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "types": ["vite/client", "vitest/globals", "node"]
   },
-  "include": ["src/main"]
+  "include": [
+    "src/renderer/api",
+    "src/renderer/components/StatusBar.tsx",
+    "src/renderer/components/StatusBar.test.tsx",
+    "src/renderer/types",
+    "src/test-setup.ts",
+    "e2e/fixtures"
+  ]
 }

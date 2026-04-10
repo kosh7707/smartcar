@@ -3,9 +3,18 @@
 const DEFAULT_BACKEND_URL = import.meta.env.DEV && import.meta.env.MODE !== "test" ? "" : "http://localhost:3000";
 const STORAGE_KEY = "aegis:backendUrl";
 
+export interface HealthCheckResponse {
+  status: "ok" | "degraded" | "unhealthy" | "disconnected" | "checking" | string;
+  service?: string;
+  version?: string;
+  detail?: {
+    version: string;
+    uptime: number;
+  };
+}
+
 export function getBackendUrl(): string {
   return localStorage.getItem(STORAGE_KEY)
-    ?? window.api?.backendUrl
     ?? DEFAULT_BACKEND_URL;
 }
 
@@ -157,8 +166,6 @@ export async function apiFetch<T = unknown>(
   }
 }
 
-export async function healthCheck() {
-  const api = window.api;
-  if (api?.healthCheck) return api.healthCheck();
-  return apiFetch("/health");
+export async function healthCheck(): Promise<HealthCheckResponse> {
+  return apiFetch<HealthCheckResponse>("/health");
 }
