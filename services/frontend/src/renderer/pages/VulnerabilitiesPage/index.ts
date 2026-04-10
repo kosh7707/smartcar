@@ -1,0 +1,1 @@
+export { VulnerabilitiesPage } from "./VulnerabilitiesPage";
