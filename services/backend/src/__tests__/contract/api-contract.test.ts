@@ -1056,6 +1056,60 @@ describe("API Contract Tests", () => {
       });
     });
 
+    it("POST /api/projects/:pid/sdk emits sdk_failed notification when validation fails after multipart acceptance", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-sdk-no-files" }));
+
+      const res = await request(app)
+        .post("/api/projects/p-sdk-no-files/sdk")
+        .field("name", "Missing Files SDK");
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe("SDK upload requires at least one file");
+
+      const notifRes = await request(app).get("/api/projects/p-sdk-no-files/notifications");
+      expect(notifRes.status).toBe(200);
+      expect(notifRes.body.success).toBe(true);
+      expect(notifRes.body.data).toEqual([
+        expect.objectContaining({
+          projectId: "p-sdk-no-files",
+          type: "sdk_failed",
+          title: "SDK 업로드 실패",
+          body: "SDK upload requires at least one file",
+          jobKind: "sdk",
+          correlationId: expect.stringMatching(/^sdk-/),
+          read: false,
+        }),
+      ]);
+      expect(notifRes.body.data[0].resourceId).toBeUndefined();
+    });
+
+    it("POST /api/projects/:pid/sdk emits sdk_failed notification when uploaded payload fails route validation", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-sdk-no-name" }));
+
+      const res = await request(app)
+        .post("/api/projects/p-sdk-no-name/sdk")
+        .attach("file", Buffer.from("archive-content"), "no-name-sdk.tar.gz");
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe("name is required");
+
+      const notifRes = await request(app).get("/api/projects/p-sdk-no-name/notifications");
+      expect(notifRes.status).toBe(200);
+      expect(notifRes.body.success).toBe(true);
+      expect(notifRes.body.data).toEqual([
+        expect.objectContaining({
+          projectId: "p-sdk-no-name",
+          type: "sdk_failed",
+          title: "SDK 업로드 실패",
+          body: "name is required",
+          jobKind: "sdk",
+          correlationId: expect.stringMatching(/^sdk-/),
+          read: false,
+        }),
+      ]);
+      expect(notifRes.body.data[0].resourceId).toBeUndefined();
+    });
+
     it("DELETE /api/projects/:pid/sdk/:id removes a registered SDK", async () => {
       ctx.projectDAO.save(makeProject({ id: "p-sdk-delete" }));
 

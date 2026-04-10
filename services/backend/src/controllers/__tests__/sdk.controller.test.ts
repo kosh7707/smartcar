@@ -33,7 +33,6 @@ describe("sdk.controller", () => {
       title: "SDK 업로드 실패",
       body: "Multipart transfer failed",
       jobKind: "sdk",
-      resourceId: "sdk-1234abcd",
       correlationId: "sdk-1234abcd",
     });
   });

@@ -198,12 +198,22 @@ export function emitUploadFailure(
       title: "SDK 업로드 실패",
       body: message,
       jobKind: "sdk",
-      resourceId: ctx.sdkId,
       correlationId: ctx.sdkId,
     });
   } catch {
     // notification failure must not affect upload failure propagation
   }
+}
+
+function failUploadRequest(
+  req: Request,
+  sdkWs: WsBroadcaster<WsSdkMessage> | undefined,
+  notificationService: NotificationService | undefined,
+  message: string,
+): never {
+  cleanupUploadRoot(req);
+  emitUploadFailure(req, sdkWs, notificationService, message);
+  throw new InvalidInputError(message);
 }
 
 export function createSdkRouter(
@@ -269,12 +279,10 @@ export function createSdkRouter(
       const description = typeof req.body.description === "string" ? req.body.description.trim() : undefined;
 
       if (!name) {
-        cleanupUploadRoot(req);
-        throw new InvalidInputError("name is required");
+        failUploadRequest(req, sdkWs, notificationService, "name is required");
       }
       if (files.length === 0) {
-        cleanupUploadRoot(req);
-        throw new InvalidInputError("SDK upload requires at least one file");
+        failUploadRequest(req, sdkWs, notificationService, "SDK upload requires at least one file");
       }
 
       try {
