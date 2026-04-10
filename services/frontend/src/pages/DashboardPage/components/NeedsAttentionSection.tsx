@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Shield } from "lucide-react";
+import { DashboardSectionEmpty } from "./DashboardSectionEmpty";
 import {
   attentionDescription,
   buildProjectChips,
@@ -23,19 +24,21 @@ export const NeedsAttentionSection: React.FC<NeedsAttentionSectionProps> = ({ pr
       </div>
 
       {projects.length === 0 ? (
-        <div className="dashboard-empty-state dashboard-empty-state--attention">
-          <Shield size={24} />
-          <div>
-            <strong>No urgent items</strong>
-            {nextMoveProject ? (
-              <Link to={`/projects/${nextMoveProject.id}/overview`} className="dashboard-inline-link">
-                {nextMoveProject.name} 열기
-              </Link>
-            ) : (
-              <span className="dashboard-empty-state__hint">프로젝트를 먼저 생성하세요.</span>
-            )}
-          </div>
-        </div>
+        <DashboardSectionEmpty
+          tone="attention"
+          icon={<Shield size={22} />}
+          title="No urgent items"
+          description={
+            nextMoveProject
+              ? "지금은 즉시 대응할 경고가 없습니다. 최근 프로젝트 상태를 한 번 점검해두면 충분합니다."
+              : "프로젝트를 생성하면 게이트 실패나 높은 위험 항목이 이곳에 우선 정렬됩니다."
+          }
+          action={nextMoveProject ? (
+            <Link to={`/projects/${nextMoveProject.id}/overview`} className="dashboard-section-empty__link">
+              {nextMoveProject.name} 열기
+            </Link>
+          ) : null}
+        />
       ) : (
         <div className="attention-shelf">
           {projects.map((project) => {

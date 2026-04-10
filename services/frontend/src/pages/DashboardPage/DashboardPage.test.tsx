@@ -104,4 +104,41 @@ describe("DashboardPage", () => {
     await waitFor(() => expect(mockCreateProject).toHaveBeenCalledWith("New Dashboard Project", "My desc"));
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/projects/p-created/overview"));
   });
+
+  it("renders refined empty lane sections when there is no dashboard data", async () => {
+    mockUseProjects.mockReturnValue({
+      projects: [],
+      loading: false,
+      createProject: mockCreateProject,
+    });
+
+    renderPage();
+
+    expect(screen.getByText("No urgent items")).toBeInTheDocument();
+    expect(screen.getByText("No activity yet")).toBeInTheDocument();
+    expect(screen.getByText(/프로젝트를 생성하면 게이트 실패나 높은 위험 항목이 이곳에 우선 정렬됩니다/)).toBeInTheDocument();
+    expect(screen.getByText(/첫 업로드, 분석, 승인 같은 작업이 시작되면 최근 흐름이 이 레인에 순서대로 쌓입니다/)).toBeInTheDocument();
+  });
+
+  it("offers a recent project shortcut when the lane is calm but projects exist", async () => {
+    const calmProjects = [
+      makeProject(1, {
+        gateStatus: "pass",
+        unresolvedDelta: 0,
+        severitySummary: { critical: 0, high: 0, medium: 0, low: 0 },
+      }),
+    ];
+
+    mockUseProjects.mockReturnValue({
+      projects: calmProjects,
+      loading: false,
+      createProject: mockCreateProject,
+    });
+
+    renderPage();
+
+    const link = screen.getByRole("link", { name: "Project 1 열기" });
+    expect(link).toHaveAttribute("href", "/projects/p-1/overview");
+    expect(screen.getByText(/최근 프로젝트 상태를 한 번 점검해두면 충분합니다/)).toBeInTheDocument();
+  });
 });

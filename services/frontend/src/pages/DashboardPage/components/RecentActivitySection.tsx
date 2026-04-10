@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { FolderKanban } from "lucide-react";
 import { formatRelativeTime } from "../../../utils/format";
 import { ActivityEvent, EVENT_CSS, EVENT_LABELS } from "../dashboardModel";
+import { DashboardSectionEmpty } from "./DashboardSectionEmpty";
 
 interface RecentActivitySectionProps {
   activity: ActivityEvent[];
@@ -22,13 +23,11 @@ export const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
       </div>
 
       {activity.length === 0 ? (
-        <div className="dashboard-empty-state">
-          <FolderKanban size={24} />
-          <div>
-            <strong>No activity yet</strong>
-            <span className="dashboard-empty-state__hint">분석이 시작되면 이곳에 기록됩니다.</span>
-          </div>
-        </div>
+        <DashboardSectionEmpty
+          icon={<FolderKanban size={22} />}
+          title="No activity yet"
+          description="첫 업로드, 분석, 승인 같은 작업이 시작되면 최근 흐름이 이 레인에 순서대로 쌓입니다."
+        />
       ) : (
         <div className="activity-list activity-list--boxed">
           {visibleActivity.map((event) => (
