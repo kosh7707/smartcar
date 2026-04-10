@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QualityGatePage } from "./QualityGatePage";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import React from "react";
@@ -33,13 +33,13 @@ const mockGates = [
 const mockFetchGates = vi.fn();
 const mockOverrideGate = vi.fn();
 
-vi.mock("../api/gate", () => ({
+vi.mock("../../api/gate", () => ({
   fetchProjectGates: (...args: unknown[]) => mockFetchGates(...args),
   overrideGate: (...args: unknown[]) => mockOverrideGate(...args),
 }));
 
-vi.mock("../api/core", () => ({ logError: vi.fn() }));
-vi.mock("../contexts/ToastContext", () => ({
+vi.mock("../../api/core", () => ({ logError: vi.fn() }));
+vi.mock("../../contexts/ToastContext", () => ({
   useToast: () => ({ error: vi.fn(), success: vi.fn(), info: vi.fn() }),
 }));
 
@@ -92,17 +92,24 @@ describe("QualityGatePage", () => {
 
   it("calls overrideGate on submit", async () => {
     renderPage();
-    await waitFor(() => screen.getByRole("button", { name: "오버라이드" }));
-    fireEvent.click(screen.getByRole("button", { name: "오버라이드" }));
-    const input = await waitFor(() => screen.getByPlaceholderText("오버라이드 사유를 입력하세요 (최소 10자)"));
+    const failedRule = await screen.findByText("Critical 1건 발견");
+    const gateCard = failedRule.closest(".gate-card") as HTMLElement;
+    fireEvent.click(within(gateCard).getByRole("button", { name: "오버라이드" }));
+
+    const input = await screen.findByPlaceholderText("오버라이드 사유를 입력하세요 (최소 10자)");
     fireEvent.change(input, { target: { value: "테스트 오버라이드 사유입니다" } });
+
+    await waitFor(() => expect((screen.getByPlaceholderText("오버라이드 사유를 입력하세요 (최소 10자)") as HTMLInputElement).value).toBe("테스트 오버라이드 사유입니다"));
+
     const confirmBtn = await waitFor(() => {
       const btn = screen.getByRole("button", { name: /오버라이드 확인/ });
       expect(btn).not.toBeDisabled();
       return btn;
     });
     fireEvent.click(confirmBtn);
-    await waitFor(() => expect(mockOverrideGate).toHaveBeenCalledWith("g-2", "테스트 오버라이드 사유입니다"));
+
+    await waitFor(() => expect(mockOverrideGate).toHaveBeenCalledTimes(1));
+    expect(mockOverrideGate).toHaveBeenCalledWith("g-2", "테스트 오버라이드 사유입니다");
   });
 
   it("shows empty state when no gates", async () => {
