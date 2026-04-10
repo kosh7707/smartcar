@@ -22,7 +22,7 @@ vi.mock("react-router-dom", async () => {
   };
 });
 
-vi.mock("../api/client", () => ({
+vi.mock("../../api/client", () => ({
   fetchSourceFilesWithComposition: (...args: unknown[]) => mockFetchSourceFilesWithComposition(...args),
   fetchSourceFileContent: (...args: unknown[]) => mockFetchSourceFileContent(...args),
   fetchProjectFindings: (...args: unknown[]) => mockFetchProjectFindings(...args),
@@ -30,23 +30,23 @@ vi.mock("../api/client", () => ({
   logError: (...args: unknown[]) => mockLogError(...args),
 }));
 
-vi.mock("../hooks/useBuildTargets", () => ({
+vi.mock("../../hooks/useBuildTargets", () => ({
   useBuildTargets: (...args: unknown[]) => mockUseBuildTargets(...args),
 }));
 
-vi.mock("../hooks/useUploadProgress", () => ({
+vi.mock("../../hooks/useUploadProgress", () => ({
   useUploadProgress: (...args: unknown[]) => mockUseUploadProgress(...args),
 }));
 
-vi.mock("../contexts/ToastContext", () => ({
+vi.mock("../../contexts/ToastContext", () => ({
   useToast: () => mockToast,
 }));
 
-vi.mock("../components/static/SubprojectCreateDialog", () => ({
+vi.mock("../../components/static/SubprojectCreateDialog", () => ({
   SubprojectCreateDialog: () => null,
 }));
 
-vi.mock("../components/static/BuildLogViewer", () => ({
+vi.mock("../../components/static/BuildLogViewer", () => ({
   BuildLogViewer: () => null,
 }));
 
