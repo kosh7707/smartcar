@@ -2,12 +2,12 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import type { Finding, Severity, FindingStatus, FindingSourceType } from "@aegis/shared";
 import { Shield, AlertTriangle, AlertCircle, Info, Search, ArrowUpDown, X, FlaskConical, ExternalLink, Keyboard } from "lucide-react";
-import { fetchProjectFindings, bulkUpdateFindingStatus, fetchFindingGroups } from "../api/analysis";
-import type { FindingGroup } from "../api/analysis";
-import { logError } from "../api/core";
-import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
-import { useToast } from "../contexts/ToastContext";
-import { FindingDetailView } from "../components/static/FindingDetailView";
+import { fetchProjectFindings, bulkUpdateFindingStatus, fetchFindingGroups } from "../../api/analysis";
+import type { FindingGroup } from "../../api/analysis";
+import { logError } from "../../api/core";
+import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
+import { useToast } from "../../contexts/ToastContext";
+import { FindingDetailView } from "../../components/static/FindingDetailView";
 import {
   EmptyState,
   SeverityBadge,
@@ -15,10 +15,10 @@ import {
   FindingStatusBadge,
   SourceBadge,
   ConfidenceBadge,
-} from "../components/ui";
-import { SEVERITY_ORDER } from "../utils/severity";
-import { FINDING_STATUS_LABELS, SOURCE_TYPE_LABELS } from "../constants/finding";
-import { formatDateTime } from "../utils/format";
+} from "../../components/ui";
+import { SEVERITY_ORDER } from "../../utils/severity";
+import { FINDING_STATUS_LABELS, SOURCE_TYPE_LABELS } from "../../constants/finding";
+import { formatDateTime } from "../../utils/format";
 import "./VulnerabilitiesPage.css";
 
 const SEVERITY_ICONS: Record<string, React.ReactNode> = {
