@@ -1,4 +1,4 @@
-/* ── Overview Page — v6 reference layout ── */
+/* ── Overview Page — page-local reference specimen ── */
 
 /* ── Page Header ── */
 
@@ -94,6 +94,10 @@
   flex: 1;
   height: 1px;
   background: var(--cds-border-subtle);
+}
+
+.overview-block {
+  margin-bottom: var(--cds-spacing-08);
 }
 
 /* ── Security Posture — 5-column stat grid ── */
@@ -240,6 +244,10 @@
   overflow: hidden;
 }
 
+.overview-activity-list__empty {
+  padding: var(--cds-spacing-05) var(--cds-spacing-06);
+}
+
 .overview-activity-item {
   display: flex;
   align-items: center;
@@ -311,6 +319,15 @@
   padding: var(--cds-spacing-06);
 }
 
+.overview-meta-section--clickable {
+  cursor: pointer;
+}
+
+.overview-meta-section--clickable:hover {
+  background: var(--cds-layer-02);
+  border-top-color: var(--cds-interactive-border);
+}
+
 .overview-meta-section__title {
   font-size: var(--cds-type-xs);
   font-weight: var(--cds-weight-semibold);
@@ -341,6 +358,10 @@
   font-weight: var(--cds-weight-medium);
   color: var(--cds-text-primary);
   font-family: var(--cds-font-mono);
+}
+
+.overview-meta-row__value--body {
+  font-family: inherit;
 }
 
 /* ── Gate + Approval summary strip (inline with meta) ── */
@@ -416,6 +437,15 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.overview-sdk-status {
+  font-size: var(--cds-type-xs);
+  font-weight: var(--cds-weight-medium);
+}
+
+.overview-sdk-status--ready { color: var(--cds-support-success); }
+.overview-sdk-status--failed { color: var(--cds-support-error); }
+.overview-sdk-status--pending { color: var(--aegis-severity-medium); }
 
 /* ── Target summary ── */
 
@@ -528,6 +558,11 @@
   font-size: var(--cds-type-sm);
 }
 
+.overview-file-icon {
+  color: var(--cds-interactive);
+  flex-shrink: 0;
+}
+
 .overview-lang-tag {
   font-size: var(--cds-type-xs);
   padding: 2px 6px;
@@ -608,6 +643,10 @@
 .overview-subproject-header:hover,
 .overview-sdk-header:hover {
   color: var(--cds-interactive);
+}
+
+.overview-header-chevron {
+  color: var(--cds-text-placeholder);
 }
 
 /* ── Activity row ── */
@@ -707,6 +746,10 @@
   padding: var(--cds-spacing-04) 0;
   font-style: italic;
   opacity: 0.7;
+}
+
+.overview-empty-text--compact {
+  padding: 0;
 }
 
 /* ── Posture group (legacy compat) ── */

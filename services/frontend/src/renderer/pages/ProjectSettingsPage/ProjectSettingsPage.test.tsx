@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
 import React from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ProjectSettingsPage } from "./ProjectSettingsPage";
 
 class MockWebSocket {
@@ -26,32 +26,20 @@ class MockWebSocket {
   }
 }
 
-const mockFetchGateProfiles = vi.fn();
-const mockFetchProjectSettings = vi.fn();
-const mockUpdateProjectSettings = vi.fn();
 const mockFetchProjectSdks = vi.fn();
 const mockRegisterSdkByUpload = vi.fn();
 const mockDeleteSdk = vi.fn();
 const mockToast = { error: vi.fn(), success: vi.fn(), info: vi.fn() };
 
-vi.mock("../api/gate", () => ({
-  fetchGateProfiles: (...args: unknown[]) => mockFetchGateProfiles(...args),
-}));
-
-vi.mock("../api/projects", () => ({
-  fetchProjectSettings: (...args: unknown[]) => mockFetchProjectSettings(...args),
-  updateProjectSettings: (...args: unknown[]) => mockUpdateProjectSettings(...args),
-}));
-
-vi.mock("../api/sdk", () => ({
+vi.mock("../../api/sdk", () => ({
   fetchProjectSdks: (...args: unknown[]) => mockFetchProjectSdks(...args),
   registerSdkByUpload: (...args: unknown[]) => mockRegisterSdkByUpload(...args),
   deleteSdk: (...args: unknown[]) => mockDeleteSdk(...args),
   getSdkWsUrl: vi.fn(() => "ws://localhost:3000/ws/sdk?projectId=p-1"),
 }));
 
-vi.mock("../api/core", () => ({ logError: vi.fn() }));
-vi.mock("../contexts/ToastContext", () => ({ useToast: () => mockToast }));
+vi.mock("../../api/core", () => ({ logError: vi.fn() }));
+vi.mock("../../contexts/ToastContext", () => ({ useToast: () => mockToast }));
 
 function renderPage() {
   return render(
@@ -68,9 +56,6 @@ describe("ProjectSettingsPage", () => {
     vi.clearAllMocks();
     MockWebSocket.instances = [];
     vi.stubGlobal("WebSocket", MockWebSocket);
-    mockFetchGateProfiles.mockResolvedValue([]);
-    mockFetchProjectSettings.mockResolvedValue({ gateProfileId: "" });
-    mockUpdateProjectSettings.mockResolvedValue(undefined);
     mockFetchProjectSdks.mockResolvedValue({ builtIn: [], registered: [] });
     mockRegisterSdkByUpload.mockResolvedValue({
       id: "sdk-1",
@@ -88,6 +73,26 @@ describe("ProjectSettingsPage", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("shows the general section by default", async () => {
+    renderPage();
+
+    await waitFor(() => expect(mockFetchProjectSdks).toHaveBeenCalledWith("p-1"));
+    expect(screen.getAllByText("General").length).toBeGreaterThan(0);
+    expect(screen.getByPlaceholderText("프로젝트 이름")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("프로젝트 설명")).toBeInTheDocument();
+  });
+
+  it("shows the danger zone copy when the danger section is selected", async () => {
+    renderPage();
+
+    await waitFor(() => expect(mockFetchProjectSdks).toHaveBeenCalledWith("p-1"));
+    fireEvent.click(screen.getByRole("button", { name: "Danger Zone" }));
+
+    expect(screen.getByText("Delete this project")).toBeInTheDocument();
+    expect(screen.getByText(/Once deleted, all historical data/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Project" })).toBeInTheDocument();
   });
 
   it("renders three upload mode tabs (archive, binary, folder)", async () => {
@@ -111,7 +116,7 @@ describe("ProjectSettingsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /sdk 추가/i }));
 
     expect(screen.getByLabelText("SDK 이름")).toBeInTheDocument();
-    expect(screen.getByLabelText("설명 (선택)")).toBeInTheDocument();
+    expect(screen.getByLabelText("설명 \(선택\)")).toBeInTheDocument();
   });
 
   it("renders the canonical environmentSetup profile field", async () => {

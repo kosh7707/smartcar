@@ -1,11 +1,11 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { Archive, Binary, FolderOpen, Upload, X } from "lucide-react";
-import type { RegisteredSdk, SdkArtifactKind } from "../api/sdk";
-import { registerSdkByUpload } from "../api/sdk";
-import { logError } from "../api/core";
-import { useToast } from "../contexts/ToastContext";
+import type { RegisteredSdk, SdkArtifactKind } from "../../../api/sdk";
+import { registerSdkByUpload } from "../../../api/sdk";
+import { logError } from "../../../api/core";
+import { useToast } from "../../../contexts/ToastContext";
 
-interface Props {
+interface SdkUploadFormProps {
   projectId: string;
   onRegistered: (sdk: RegisteredSdk) => void;
   onCancel: () => void;
@@ -26,7 +26,7 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export const SdkUploadForm: React.FC<Props> = ({ projectId, onRegistered, onCancel }) => {
+export const SdkUploadForm: React.FC<SdkUploadFormProps> = ({ projectId, onRegistered, onCancel }) => {
   const toast = useToast();
   const [mode, setMode] = useState<SdkArtifactKind>("archive");
   const [name, setName] = useState("");
@@ -43,25 +43,23 @@ export const SdkUploadForm: React.FC<Props> = ({ projectId, onRegistered, onCanc
     setFolderError("");
   }, []);
 
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    const selected = Array.from(e.target.files);
-    if (mode === "folder") {
-      if (selected.length === 0) {
-        setFolderError("빈 폴더입니다. 파일이 포함된 폴더를 선택하세요.");
-        setFiles([]);
-        return;
-      }
-      setFolderError("");
+  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0) return;
+    const selected = Array.from(event.target.files);
+    if (mode === "folder" && selected.length === 0) {
+      setFolderError("빈 폴더입니다. 파일이 포함된 폴더를 선택하세요.");
+      setFiles([]);
+      return;
     }
+    setFolderError("");
     setFiles(selected);
   }, [mode]);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    if (mode === "folder") return; // folder mode uses directory picker only
-    if (e.dataTransfer.files.length > 0) {
-      setFiles(Array.from(e.dataTransfer.files));
+  const handleDrop = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    if (mode === "folder") return;
+    if (event.dataTransfer.files.length > 0) {
+      setFiles(Array.from(event.dataTransfer.files));
     }
   }, [mode]);
 
@@ -78,10 +76,9 @@ export const SdkUploadForm: React.FC<Props> = ({ projectId, onRegistered, onCanc
     if (!canSubmit) return;
     setSubmitting(true);
     try {
-      let relativePaths: string[] | undefined;
-      if (mode === "folder") {
-        relativePaths = files.map((f) => (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name);
-      }
+      const relativePaths = mode === "folder"
+        ? files.map((file) => (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name)
+        : undefined;
       const sdk = await registerSdkByUpload(
         projectId,
         name.trim(),
@@ -91,40 +88,41 @@ export const SdkUploadForm: React.FC<Props> = ({ projectId, onRegistered, onCanc
       );
       onRegistered(sdk);
       toast.success("SDK 등록 요청 완료 — 진행률을 확인하세요.");
-    } catch (e) {
-      logError("Register SDK upload", e);
+    } catch (error) {
+      logError("Register SDK upload", error);
       toast.error("SDK 등록에 실패했습니다.");
     } finally {
       setSubmitting(false);
     }
-  }, [canSubmit, projectId, name, description, files, mode, onRegistered, toast]);
+  }, [canSubmit, description, files, mode, name, onRegistered, projectId, toast]);
 
   const accept = mode === "archive" ? ARCHIVE_ACCEPT : mode === "bin" ? BIN_ACCEPT : undefined;
 
   return (
     <div className="card sdk-register-form">
-      {/* Mode tabs */}
       <div className="sdk-register-form__modes">
-        {MODES.map((m) => (
-          <button
-            key={m.key}
-            className={`sdk-mode-btn${mode === m.key ? " active" : ""}`}
-            type="button"
-            onClick={() => handleModeChange(m.key)}
-          >
-            {m.icon} {m.label}
-          </button>
-        ))}
+        {MODES.map((entry) => {
+          const buttonClassName = mode === entry.key ? "sdk-mode-btn active" : "sdk-mode-btn";
+          return (
+            <button
+              key={entry.key}
+              className={buttonClassName}
+              type="button"
+              onClick={() => handleModeChange(entry.key)}
+            >
+              {entry.icon} {entry.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Name + Description fields */}
       <div className="sdk-register-form__fields">
         <label className="form-field">
           <span className="form-label">SDK 이름</span>
           <input
             className="form-input"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(event) => setName(event.target.value)}
             placeholder="예: TI AM335x SDK"
             autoFocus
           />
@@ -134,13 +132,12 @@ export const SdkUploadForm: React.FC<Props> = ({ projectId, onRegistered, onCanc
           <input
             className="form-input"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(event) => setDescription(event.target.value)}
             placeholder="SDK에 대한 간략한 설명"
           />
         </label>
       </div>
 
-      {/* File picker area */}
       {mode === "folder" ? (
         <div className="sdk-upload-zone sdk-upload-zone--folder">
           <FolderOpen size={24} className="sdk-upload-zone__icon" />
@@ -162,27 +159,22 @@ export const SdkUploadForm: React.FC<Props> = ({ projectId, onRegistered, onCanc
         <div
           className="sdk-upload-zone"
           onDrop={handleDrop}
-          onDragOver={(e) => e.preventDefault()}
+          onDragOver={(event) => event.preventDefault()}
           onClick={() => fileInputRef.current?.click()}
         >
           <Upload size={24} className="sdk-upload-zone__icon" />
           <p>{mode === "archive" ? "아카이브 파일 업로드" : "바이너리 파일 업로드"}</p>
-          <small>
-            {mode === "archive"
-              ? "지원: .tar.gz, .tar.xz, .tar.bz2, .zip"
-              : "지원: .bin, .run, .sh"}
-          </small>
+          <small>{mode === "archive" ? "지원: .tar.gz, .tar.xz, .tar.bz2, .zip" : "지원: .bin, .run, .sh"}</small>
           <input
             ref={fileInputRef}
             type="file"
             accept={accept}
-            style={{ display: "none" }}
+            className="sdk-upload-zone__hidden-input"
             onChange={handleFileSelect}
           />
         </div>
       )}
 
-      {/* File preview list */}
       {files.length > 0 && (
         <div className="sdk-file-preview">
           <div className="sdk-file-preview__header">
@@ -192,14 +184,14 @@ export const SdkUploadForm: React.FC<Props> = ({ projectId, onRegistered, onCanc
             </button>
           </div>
           <div className="sdk-file-preview__list">
-            {files.slice(0, 20).map((f, i) => (
-              <div key={i} className="sdk-file-preview__item">
+            {files.slice(0, 20).map((file, index) => (
+              <div key={`${file.name}-${index}`} className="sdk-file-preview__item">
                 <span className="sdk-file-preview__name">
                   {mode === "folder"
-                    ? (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name
-                    : f.name}
+                    ? (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name
+                    : file.name}
                 </span>
-                <span className="sdk-file-preview__size">{formatSize(f.size)}</span>
+                <span className="sdk-file-preview__size">{formatSize(file.size)}</span>
               </div>
             ))}
             {files.length > 20 && (
@@ -209,7 +201,6 @@ export const SdkUploadForm: React.FC<Props> = ({ projectId, onRegistered, onCanc
         </div>
       )}
 
-      {/* Actions */}
       <div className="sdk-register-form__actions">
         <button className="btn btn-secondary btn-sm" onClick={onCancel}>취소</button>
         <button className="btn btn-sm" onClick={handleSubmit} disabled={!canSubmit}>

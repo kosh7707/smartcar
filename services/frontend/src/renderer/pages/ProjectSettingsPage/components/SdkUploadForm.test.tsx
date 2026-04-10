@@ -1,13 +1,13 @@
 import React from "react";
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { SdkUploadForm } from "./SdkUploadForm";
 
-vi.mock("../api/sdk", () => ({
+vi.mock("../../../api/sdk", () => ({
   registerSdkByUpload: vi.fn(),
 }));
-vi.mock("../api/core", () => ({ logError: vi.fn() }));
-vi.mock("../contexts/ToastContext", () => ({
+vi.mock("../../../api/core", () => ({ logError: vi.fn() }));
+vi.mock("../../../contexts/ToastContext", () => ({
   useToast: () => ({ error: vi.fn(), success: vi.fn(), info: vi.fn() }),
 }));
 
@@ -27,15 +27,15 @@ describe("SdkUploadForm", () => {
 
   it("mode tab switching changes active state", () => {
     render(<SdkUploadForm {...defaultProps} />);
-    const binaryBtn = screen.getByRole("button", { name: /바이너리/ });
-    fireEvent.click(binaryBtn);
-    expect(binaryBtn.className).toContain("active");
+    const binaryButton = screen.getByRole("button", { name: /바이너리/ });
+    fireEvent.click(binaryButton);
+    expect(binaryButton.className).toContain("active");
   });
 
   it("submit button is disabled when name is empty", () => {
     render(<SdkUploadForm {...defaultProps} />);
-    const submitBtn = screen.getByRole("button", { name: "등록" });
-    expect((submitBtn as HTMLButtonElement).disabled).toBe(true);
+    const submitButton = screen.getByRole("button", { name: "등록" });
+    expect((submitButton as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("cancel button calls onCancel", () => {

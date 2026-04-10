@@ -11,11 +11,11 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ProjectLayout } from "./layouts/ProjectLayout";
 import { LoginPage } from "./pages/LoginPage";
 import { SignupPage } from "./pages/SignupPage";
-import { ProjectsPage } from "./pages/ProjectsPage";
-import { OverviewPage } from "./pages/OverviewPage";
+import { DashboardPage } from "./pages/DashboardPage/DashboardPage";
+import { OverviewPage } from "./pages/OverviewPage/OverviewPage";
 import { StaticAnalysisPage } from "./pages/StaticAnalysisPage";
 import { SettingsPage } from "./pages/SettingsPage";
-import { ProjectSettingsPage } from "./pages/ProjectSettingsPage";
+import { ProjectSettingsPage } from "./pages/ProjectSettingsPage/ProjectSettingsPage";
 import { FileDetailPage } from "./pages/FileDetailPage";
 import { FilesPage } from "./pages/FilesPage";
 import { VulnerabilitiesPage } from "./pages/VulnerabilitiesPage";
@@ -115,7 +115,7 @@ export const App: React.FC = () => {
                 {/* Global layout — navbar + full-width content */}
                 <Route path="/dashboard" element={
                   <DashboardLayout>
-                    <ProjectsPage />
+                    <DashboardPage />
                   </DashboardLayout>
                 } />
                 <Route path="/settings" element={
