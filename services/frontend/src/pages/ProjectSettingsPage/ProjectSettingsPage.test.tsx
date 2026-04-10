@@ -1,6 +1,6 @@
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ProjectSettingsPage } from "./ProjectSettingsPage";
 
@@ -250,5 +250,106 @@ describe("ProjectSettingsPage", () => {
 
     expect(screen.queryByText("업로드")).not.toBeInTheDocument();
     expect(screen.getByText("사용 가능")).toBeInTheDocument();
+  });
+
+  it("renders byte-level SDK upload progress details from websocket updates", async () => {
+    mockFetchProjectSdks.mockResolvedValue({
+      builtIn: [],
+      registered: [{
+        id: "sdk-1",
+        projectId: "p-1",
+        name: "Binary SDK",
+        path: "/uploads/p-1/sdk/sdk-1",
+        status: "uploading",
+        verified: false,
+        createdAt: "2026-04-04T00:00:00Z",
+        updatedAt: "2026-04-04T00:00:00Z",
+      }],
+    });
+
+    renderPage();
+
+    await waitFor(() => fireEvent.click(screen.getByText("SDK Management")));
+    await waitFor(() => expect(screen.getByText("Binary SDK")).toBeInTheDocument());
+
+    act(() => {
+      MockWebSocket.instances[0].onmessage?.({
+        data: JSON.stringify({
+          type: "sdk-progress",
+          payload: {
+            sdkId: "sdk-1",
+            phase: "uploading",
+            percent: 58,
+            uploadedBytes: 1024,
+            totalBytes: 2048,
+            fileName: "sdk.bin",
+          },
+        }),
+      });
+    });
+
+    expect(await screen.findByText("업로드 진행률")).toBeInTheDocument();
+    expect(screen.getByText("58%")).toBeInTheDocument();
+    expect(screen.getByText("sdk.bin")).toBeInTheDocument();
+    expect(screen.getByText("1.0 KB / 2.0 KB")).toBeInTheDocument();
+    expect(screen.getByLabelText("SDK upload progress")).toBeInTheDocument();
+  });
+
+  it("refreshes sdk metadata from the canonical list when sdk-complete arrives", async () => {
+    mockFetchProjectSdks
+      .mockResolvedValueOnce({
+        builtIn: [],
+        registered: [{
+          id: "sdk-1",
+          projectId: "p-1",
+          name: "Binary SDK",
+          path: "/uploads/p-1/sdk/sdk-1",
+          status: "verifying",
+          verified: false,
+          createdAt: "2026-04-04T00:00:00Z",
+          updatedAt: "2026-04-04T00:00:00Z",
+        }],
+      })
+      .mockResolvedValueOnce({
+        builtIn: [],
+        registered: [{
+          id: "sdk-1",
+          projectId: "p-1",
+          name: "Binary SDK",
+          path: "/uploads/p-1/sdk/sdk-1/installed",
+          status: "ready",
+          verified: true,
+          artifactKind: "bin",
+          sdkVersion: "08.02.00.24",
+          targetSystem: "am335x-evm",
+          createdAt: "2026-04-04T00:00:00Z",
+          updatedAt: "2026-04-04T00:01:00Z",
+          profile: {
+            compiler: "arm-none-eabi-gcc",
+          },
+        }],
+      });
+
+    renderPage();
+
+    await waitFor(() => fireEvent.click(screen.getByText("SDK Management")));
+    await waitFor(() => expect(screen.getByText("Binary SDK")).toBeInTheDocument());
+
+    act(() => {
+      MockWebSocket.instances[0].onmessage?.({
+        data: JSON.stringify({
+          type: "sdk-complete",
+          payload: {
+            sdkId: "sdk-1",
+            profile: { compiler: "arm-none-eabi-gcc" },
+          },
+        }),
+      });
+    });
+
+    await waitFor(() => expect(mockFetchProjectSdks).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("바이너리")).toBeInTheDocument();
+    expect(screen.getByText("08.02.00.24")).toBeInTheDocument();
+    expect(screen.getByText("am335x-evm")).toBeInTheDocument();
   });
 });

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Archive, Binary, CheckCircle, ChevronDown, ChevronRight, FolderOpen, Loader, Plus, Settings, Trash2, XCircle } from "lucide-react";
 import type { RegisteredSdk, SdkAnalyzedProfile, SdkRegistryStatus } from "../../../api/sdk";
+import type { SdkProgressDetails } from "../../../hooks/useSdkProgress";
 import { EmptyState } from "../../../shared/ui";
 import { SdkUploadForm } from "./SdkUploadForm";
 
@@ -31,11 +32,20 @@ const PHASE_GROUPS: { label: string; phases: SdkRegistryStatus[]; failPhases: Sd
 interface SdkManagementSectionProps {
   projectId: string;
   registered: RegisteredSdk[];
+  sdkProgressById: Record<string, SdkProgressDetails>;
   showForm: boolean;
   onToggleForm: () => void;
   onRegistered: (sdk: RegisteredSdk) => void;
   onCancelForm: () => void;
   onRequestDelete: (sdk: RegisteredSdk) => void;
+}
+
+function formatBytes(bytes?: number): string | null {
+  if (bytes == null) return null;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
 function SdkStatusBadge({ status }: { status: SdkRegistryStatus }) {
@@ -120,6 +130,7 @@ function artifactLabel(kind?: RegisteredSdk["artifactKind"]) {
 export const SdkManagementSection: React.FC<SdkManagementSectionProps> = ({
   projectId,
   registered,
+  sdkProgressById,
   showForm,
   onToggleForm,
   onRegistered,
@@ -162,6 +173,11 @@ export const SdkManagementSection: React.FC<SdkManagementSectionProps> = ({
             sdk.status === "ready" ? "sdk-card--ready" : "",
           ].filter(Boolean).join(" ");
           const kind = sdk.artifactKind ? artifactLabel(sdk.artifactKind) : null;
+          const details = sdkProgressById[sdk.id];
+          const byteSummary = details?.uploadedBytes != null && details?.totalBytes != null
+            ? `${formatBytes(details.uploadedBytes)} / ${formatBytes(details.totalBytes)}`
+            : null;
+          const uploadPercent = details?.percent != null ? Math.max(0, Math.min(100, details.percent)) : null;
 
           return (
             <div key={sdk.id} className={cardClassName}>
@@ -189,6 +205,27 @@ export const SdkManagementSection: React.FC<SdkManagementSectionProps> = ({
               )}
 
               {sdk.path && <div className="sdk-card__path"><code>{sdk.path}</code></div>}
+              {sdk.status === "uploading" && (
+                <div className="sdk-card__progress">
+                  <div className="sdk-card__progress-head">
+                    <span className="sdk-card__progress-label">업로드 진행률</span>
+                    {uploadPercent != null && (
+                      <span className="sdk-card__progress-value">{uploadPercent}%</span>
+                    )}
+                  </div>
+                  {details?.fileName && (
+                    <div className="sdk-card__progress-file">{details.fileName}</div>
+                  )}
+                  {byteSummary && (
+                    <div className="sdk-card__progress-bytes">{byteSummary}</div>
+                  )}
+                  {uploadPercent != null && (
+                    <div className="sdk-card__progress-track" aria-label="SDK upload progress">
+                      <div className="sdk-card__progress-fill" style={{ width: `${uploadPercent}%` }} />
+                    </div>
+                  )}
+                </div>
+              )}
               {sdk.status !== "ready" && !sdk.status.endsWith("_failed") && <SdkStepper status={sdk.status} />}
               {sdk.verifyError && <div className="sdk-card__error">{sdk.verifyError}</div>}
               {sdk.status.endsWith("_failed") && sdk.installLogPath && (

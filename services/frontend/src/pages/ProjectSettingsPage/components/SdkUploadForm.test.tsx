@@ -50,4 +50,24 @@ describe("SdkUploadForm", () => {
     expect(screen.getByText("SDK 이름")).toBeTruthy();
     expect(screen.getByText("설명 (선택)")).toBeTruthy();
   });
+
+  it("limits binary upload hint and accept attribute to .bin", () => {
+    render(<SdkUploadForm {...defaultProps} />);
+    fireEvent.click(screen.getByRole("button", { name: /바이너리/ }));
+
+    expect(screen.getByText("지원: .bin")).toBeInTheDocument();
+    const fileInput = document.querySelector('input[type="file"][accept=".bin"]');
+    expect(fileInput).toBeTruthy();
+  });
+
+  it("rejects non-.bin files in binary mode even if selected manually", () => {
+    render(<SdkUploadForm {...defaultProps} />);
+    fireEvent.click(screen.getByRole("button", { name: /바이너리/ }));
+
+    const invalidFile = new File(["echo hi"], "installer.run", { type: "application/octet-stream" });
+    const fileInput = document.querySelector('input[type="file"][accept=".bin"]') as HTMLInputElement;
+    fireEvent.change(fileInput, { target: { files: [invalidFile] } });
+
+    expect(screen.queryByText("installer.run")).not.toBeInTheDocument();
+  });
 });

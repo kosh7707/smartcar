@@ -18,7 +18,21 @@ const MODES: { key: SdkArtifactKind; label: string; icon: React.ReactNode }[] = 
 ];
 
 const ARCHIVE_ACCEPT = ".tar.gz,.tar.xz,.tar.bz2,.zip";
-const BIN_ACCEPT = ".bin,.run,.sh";
+const BIN_ACCEPT = ".bin";
+
+function isAcceptedFile(fileName: string, mode: SdkArtifactKind): boolean {
+  const lower = fileName.toLowerCase();
+  if (mode === "archive") {
+    return lower.endsWith(".tar.gz")
+      || lower.endsWith(".tar.xz")
+      || lower.endsWith(".tar.bz2")
+      || lower.endsWith(".zip");
+  }
+  if (mode === "bin") {
+    return lower.endsWith(".bin");
+  }
+  return true;
+}
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -37,6 +51,33 @@ export const SdkUploadForm: React.FC<SdkUploadFormProps> = ({ projectId, onRegis
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
+  const validateSelectedFiles = useCallback((selected: File[]) => {
+    if (mode === "folder") {
+      if (selected.length === 0) {
+        setFolderError("빈 폴더입니다. 파일이 포함된 폴더를 선택하세요.");
+        setFiles([]);
+        return false;
+      }
+      setFolderError("");
+      return true;
+    }
+
+    if (selected.length !== 1) {
+      toast.error("아카이브/바이너리 업로드는 파일 1개만 선택하세요.");
+      setFiles([]);
+      return false;
+    }
+
+    if (!isAcceptedFile(selected[0].name, mode)) {
+      toast.error(mode === "archive" ? "지원: .tar.gz, .tar.xz, .tar.bz2, .zip" : ".bin 파일만 업로드할 수 있습니다.");
+      setFiles([]);
+      return false;
+    }
+
+    setFolderError("");
+    return true;
+  }, [mode, toast]);
+
   const handleModeChange = useCallback((newMode: SdkArtifactKind) => {
     setMode(newMode);
     setFiles([]);
@@ -46,22 +87,19 @@ export const SdkUploadForm: React.FC<SdkUploadFormProps> = ({ projectId, onRegis
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0) return;
     const selected = Array.from(event.target.files);
-    if (mode === "folder" && selected.length === 0) {
-      setFolderError("빈 폴더입니다. 파일이 포함된 폴더를 선택하세요.");
-      setFiles([]);
-      return;
-    }
-    setFolderError("");
+    if (!validateSelectedFiles(selected)) return;
     setFiles(selected);
-  }, [mode]);
+  }, [validateSelectedFiles]);
 
   const handleDrop = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     if (mode === "folder") return;
     if (event.dataTransfer.files.length > 0) {
-      setFiles(Array.from(event.dataTransfer.files));
+      const selected = Array.from(event.dataTransfer.files);
+      if (!validateSelectedFiles(selected)) return;
+      setFiles(selected);
     }
-  }, [mode]);
+  }, [mode, validateSelectedFiles]);
 
   const clearFiles = useCallback(() => {
     setFiles([]);
@@ -164,7 +202,7 @@ export const SdkUploadForm: React.FC<SdkUploadFormProps> = ({ projectId, onRegis
         >
           <Upload size={24} className="sdk-upload-zone__icon" />
           <p>{mode === "archive" ? "아카이브 파일 업로드" : "바이너리 파일 업로드"}</p>
-          <small>{mode === "archive" ? "지원: .tar.gz, .tar.xz, .tar.bz2, .zip" : "지원: .bin, .run, .sh"}</small>
+          <small>{mode === "archive" ? "지원: .tar.gz, .tar.xz, .tar.bz2, .zip" : "지원: .bin"}</small>
           <input
             ref={fileInputRef}
             type="file"

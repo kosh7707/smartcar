@@ -5,7 +5,7 @@ import type { RegisteredSdk, SdkRegistryStatus } from "../../api/sdk";
 import { deleteSdk, fetchProjectSdks } from "../../api/sdk";
 import { logError } from "../../api/core";
 import { useToast } from "../../contexts/ToastContext";
-import { useSdkProgress } from "../../hooks/useSdkProgress";
+import { useSdkProgress, type SdkProgressDetails } from "../../hooks/useSdkProgress";
 import { ConfirmDialog, ConnectionStatusBanner, Spinner } from "../../shared/ui";
 import { ProjectSettingsSidebar, type SettingsSection } from "./components/ProjectSettingsSidebar";
 import { ProjectSettingsHeader } from "./components/ProjectSettingsHeader";
@@ -20,32 +20,55 @@ export const ProjectSettingsPage: React.FC = () => {
   const toast = useToast();
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
   const [registered, setRegistered] = useState<RegisteredSdk[]>([]);
+  const [sdkProgressById, setSdkProgressById] = useState<Record<string, SdkProgressDetails>>({});
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<RegisteredSdk | null>(null);
 
   const { connectionState: sdkConnectionState } = useSdkProgress({
     projectId,
-    onProgress: useCallback((sdkId: string, phase: SdkRegistryStatus) => {
+    onProgress: useCallback((sdkId: string, phase: SdkRegistryStatus, details?: SdkProgressDetails) => {
       setRegistered((prev) => prev.map((sdk) => (sdk.id === sdkId ? { ...sdk, status: phase } : sdk)));
+      setSdkProgressById((prev) => (
+        details && Object.keys(details).length > 0
+          ? { ...prev, [sdkId]: details }
+          : prev
+      ));
     }, []),
     onComplete: useCallback((sdkId: string, profile: RegisteredSdk["profile"]) => {
-      setRegistered((prev) => prev.map((sdk) => (sdk.id === sdkId ? { ...sdk, status: "ready", profile } : sdk)));
-      toast.success("SDK 등록 완료");
-    }, [toast]),
+      if (!projectId) return;
+      setSdkProgressById((prev) => {
+        const next = { ...prev };
+        delete next[sdkId];
+        return next;
+      });
+      void fetchProjectSdks(projectId)
+        .then((data) => {
+          const freshSdk = data.registered.find((sdk) => sdk.id === sdkId);
+          setRegistered((prev) => prev.map((sdk) => (
+            sdk.id === sdkId
+              ? freshSdk ?? { ...sdk, status: "ready", profile }
+              : sdk
+          )));
+        })
+        .catch((error) => {
+          logError("Refresh SDK after complete", error);
+          setRegistered((prev) => prev.map((sdk) => (
+            sdk.id === sdkId ? { ...sdk, status: "ready", profile } : sdk
+          )));
+        });
+    }, [projectId]),
     onError: useCallback((sdkId: string, error: string, phase?: string, logPath?: string) => {
       const errorStatus = (phase || "verify_failed") as SdkRegistryStatus;
-      const errorLabels: Record<string, string> = {
-        upload_failed: "업로드 실패",
-        extract_failed: "압축해제 실패",
-        install_failed: "설치 실패",
-        verify_failed: "검증 실패",
-      };
       setRegistered((prev) => prev.map((sdk) => (
         sdk.id === sdkId ? { ...sdk, status: errorStatus, verifyError: error, installLogPath: logPath } : sdk
       )));
-      toast.error(`SDK ${errorLabels[errorStatus] ?? "등록 실패"}: ${error}`);
-    }, [toast]),
+      setSdkProgressById((prev) => {
+        const next = { ...prev };
+        delete next[sdkId];
+        return next;
+      });
+    }, []),
   });
 
   useEffect(() => {
@@ -111,6 +134,7 @@ export const ProjectSettingsPage: React.FC = () => {
             <SdkManagementSection
               projectId={projectId}
               registered={registered}
+              sdkProgressById={sdkProgressById}
               showForm={showForm}
               onToggleForm={() => setShowForm((prev) => !prev)}
               onRegistered={handleRegistered}

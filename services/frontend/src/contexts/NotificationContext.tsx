@@ -9,6 +9,7 @@ import {
 } from "../api/notifications";
 import { logError } from "../api/core";
 import { parseWsMessage, createReconnectingWs } from "../utils/wsEnvelope";
+import { useToast } from "./ToastContext";
 
 interface NotificationContextValue {
   notifications: Notification[];
@@ -21,6 +22,18 @@ interface NotificationContextValue {
 
 const NotificationContext = createContext<NotificationContextValue | null>(null);
 
+function formatToastMessage(notification: Notification): string {
+  return notification.body ? `${notification.title} — ${notification.body}` : notification.title;
+}
+
+function getToastKind(notification: Notification): "error" | "warning" | "success" {
+  if (notification.severity === "critical") return "error";
+  if (notification.type.endsWith("_failed")) return "error";
+  if (notification.type === "critical_finding") return "warning";
+  if (notification.severity === "medium") return "warning";
+  return "success";
+}
+
 export function NotificationProvider({
   projectId,
   children,
@@ -28,10 +41,17 @@ export function NotificationProvider({
   projectId: string | undefined;
   children: React.ReactNode;
 }) {
+  const toast = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
-  const rwsRef = useRef<ReturnType<typeof createReconnectingWs> | null>(null);
+  const seenIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    seenIdsRef.current.clear();
+    setNotifications([]);
+    setUnreadCount(0);
+  }, [projectId]);
 
   const refresh = useCallback(async () => {
     if (!projectId) return;
@@ -43,6 +63,7 @@ export function NotificationProvider({
       ]);
       setNotifications(list);
       setUnreadCount(count.unread);
+      seenIdsRef.current = new Set(list.map((notification) => notification.id));
     } catch (e) {
       logError("NotificationContext.refresh", e);
     } finally {
@@ -70,13 +91,13 @@ export function NotificationProvider({
           ]);
           setNotifications(list);
           setUnreadCount(count.unread);
+          seenIdsRef.current = new Set(list.map((notification) => notification.id));
         } catch (e) {
           logError("NotificationContext.reconnect", e);
         }
         wireHandlers(rws.getWs());
       },
     });
-    rwsRef.current = rws;
 
     function wireHandlers(ws: WebSocket | null) {
       if (!ws) return;
@@ -86,8 +107,19 @@ export function NotificationProvider({
           const payload = msg;
           if (payload.type === "notification" && payload.payload) {
             const notif = payload.payload as Notification;
+            if (seenIdsRef.current.has(notif.id)) return;
+            seenIdsRef.current.add(notif.id);
             setNotifications((prev) => [notif, ...prev]);
             if (!notif.read) setUnreadCount((c) => c + 1);
+            const toastMessage = formatToastMessage(notif);
+            const toastKind = getToastKind(notif);
+            if (toastKind === "error") {
+              toast.error(toastMessage);
+            } else if (toastKind === "warning") {
+              toast.warning(toastMessage);
+            } else {
+              toast.success(toastMessage);
+            }
           }
         } catch {
           // ignore non-JSON messages
@@ -98,9 +130,8 @@ export function NotificationProvider({
 
     return () => {
       rws.close();
-      rwsRef.current = null;
     };
-  }, [projectId]);
+  }, [projectId, toast]);
 
   const markRead = useCallback(async (id: string) => {
     await apiMarkRead(id);
