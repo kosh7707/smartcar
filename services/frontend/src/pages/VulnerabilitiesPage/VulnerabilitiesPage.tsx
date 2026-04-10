@@ -7,7 +7,7 @@ import type { FindingGroup } from "../../api/analysis";
 import { logError } from "../../api/core";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useToast } from "../../contexts/ToastContext";
-import { FindingDetailView } from "../../components/static/FindingDetailView";
+import { FindingDetailView } from "../../shared/findings/FindingDetailView";
 import {
   EmptyState,
   SeverityBadge,
@@ -15,7 +15,7 @@ import {
   FindingStatusBadge,
   SourceBadge,
   ConfidenceBadge,
-} from "../../components/ui";
+} from "../../shared/ui";
 import { SEVERITY_ORDER } from "../../utils/severity";
 import { FINDING_STATUS_LABELS, SOURCE_TYPE_LABELS } from "../../constants/finding";
 import { formatDateTime } from "../../utils/format";

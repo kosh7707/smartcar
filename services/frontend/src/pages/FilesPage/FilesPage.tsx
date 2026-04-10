@@ -27,7 +27,7 @@ import {
   SeverityBadge,
   FileTreeNode,
   TargetStatusBadge,
-} from "../../components/ui";
+} from "../../shared/ui";
 import { useToast } from "../../contexts/ToastContext";
 import { formatFileSize } from "../../utils/format";
 import { buildTree, filterTree } from "../../utils/tree";
@@ -35,8 +35,8 @@ import type { TreeNode } from "../../utils/tree";
 import { LANG_GROUPS, getLangColorByName } from "../../constants/languages";
 import { useUploadProgress } from "../../hooks/useUploadProgress";
 import { useBuildTargets } from "../../hooks/useBuildTargets";
-import { SubprojectCreateDialog } from "../../components/static/SubprojectCreateDialog";
-import { BuildLogViewer } from "../../components/static/BuildLogViewer";
+import { SubprojectCreateDialog } from "./components/SubprojectCreateDialog";
+import { BuildLogViewer } from "./components/BuildLogViewer";
 import { computeFindingOverlay, getFindingCount } from "../../utils/findingOverlay";
 import type { DirFindingCount } from "../../utils/findingOverlay";
 import { parseLocation } from "../../utils/location";

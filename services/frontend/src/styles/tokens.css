@@ -237,9 +237,6 @@
   /* ── Panel ── */
   --cds-surface-inset: rgba(0, 0, 0, 0.025);
 
-  /* ── StatusBar ── */
-  --aegis-statusbar-height: 32px;
-
   /* ── Code line interaction (light) ── */
   --cds-code-line-hover: rgba(0, 0, 0, 0.04);
   --cds-code-line-highlight-bg: rgba(218, 30, 40, 0.12);

@@ -1,6 +1,6 @@
 import React from "react";
 import type { BuildTarget } from "@aegis/shared";
-import { TargetStatusBadge } from "../../../components/ui";
+import { TargetStatusBadge } from "../../../shared/ui";
 import { OverviewSectionHeader } from "./OverviewSectionHeader";
 
 interface BuildTargetsSectionProps {

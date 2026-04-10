@@ -11,7 +11,7 @@ import type { GateResult } from "../../api/gate";
 import { fetchApprovalCount } from "../../api/approval";
 import { useBuildTargets } from "../../hooks/useBuildTargets";
 import { useToast } from "../../contexts/ToastContext";
-import { Spinner } from "../../components/ui";
+import { Spinner } from "../../shared/ui";
 import { BuildTargetsSection } from "./components/BuildTargetsSection";
 import { OverviewActivityPanel } from "./components/OverviewActivityPanel";
 import { OverviewBottomGrid } from "./components/OverviewBottomGrid";

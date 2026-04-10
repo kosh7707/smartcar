@@ -22,8 +22,8 @@ vi.mock("../../api/client", () => ({
 
 vi.mock("../../hooks/useAdapters", () => ({ useAdapters: (...args: unknown[]) => mockUseAdapters(...args) }));
 vi.mock("../../contexts/ToastContext", () => ({ useToast: () => mockToast }));
-vi.mock("../../components/dynamic/MonitoringView", () => ({ MonitoringView: () => <div>monitoring-view</div> }));
-vi.mock("../../components/dynamic/SessionDetailView", () => ({ SessionDetailView: () => <div>session-detail-view</div> }));
+vi.mock("./components/MonitoringView", () => ({ MonitoringView: () => <div>monitoring-view</div> }));
+vi.mock("./components/SessionDetailView", () => ({ SessionDetailView: () => <div>session-detail-view</div> }));
 
 function renderPage() {
   return render(

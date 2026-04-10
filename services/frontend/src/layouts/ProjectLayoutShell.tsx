@@ -1,8 +1,8 @@
 import React from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { Navbar } from "../components/Navbar";
-import { Sidebar } from "../components/Sidebar";
-import { ErrorBoundary } from "../components/ErrorBoundary";
+import { Navbar } from "./Navbar";
+import { Sidebar } from "./Sidebar";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { OverviewPage } from "../pages/OverviewPage/OverviewPage";
 import { StaticAnalysisPage } from "../pages/StaticAnalysisPage/StaticAnalysisPage";
 import { FilesPage } from "../pages/FilesPage/FilesPage";

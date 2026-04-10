@@ -11,8 +11,6 @@
   },
   "include": [
     "src/api",
-    "src/components/StatusBar.tsx",
-    "src/components/StatusBar.test.tsx",
     "src/types",
     "src/test/setup.ts",
     "e2e/fixtures"

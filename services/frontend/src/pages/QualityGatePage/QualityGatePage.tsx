@@ -5,7 +5,7 @@ import type { GateResult, GateRuleResult } from "../../api/gate";
 import { fetchProjectGates, overrideGate } from "../../api/gate";
 import { logError } from "../../api/core";
 import { useToast } from "../../contexts/ToastContext";
-import { Spinner, EmptyState } from "../../components/ui";
+import { Spinner, EmptyState } from "../../shared/ui";
 import { formatDateTime } from "../../utils/format";
 import "./QualityGatePage.css";
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { StaticAnalysisDashboardSummary, Run, AnalysisProgress, RunDetailResponse } from "@aegis/shared";
-import type { DashboardPeriod } from "../components/ui/PeriodSelector";
+import type { DashboardPeriod } from "../shared/ui/PeriodSelector";
 import {
   fetchStaticDashboardSummary,
   fetchProjectRuns,

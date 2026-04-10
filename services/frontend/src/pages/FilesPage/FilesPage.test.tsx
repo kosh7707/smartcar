@@ -42,11 +42,11 @@ vi.mock("../../contexts/ToastContext", () => ({
   useToast: () => mockToast,
 }));
 
-vi.mock("../../components/static/SubprojectCreateDialog", () => ({
+vi.mock("./components/SubprojectCreateDialog", () => ({
   SubprojectCreateDialog: () => null,
 }));
 
-vi.mock("../../components/static/BuildLogViewer", () => ({
+vi.mock("./components/BuildLogViewer", () => ({
   BuildLogViewer: () => null,
 }));
 

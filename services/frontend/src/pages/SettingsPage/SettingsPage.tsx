@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Settings, Server, Info, Check, X, Sun, Moon, Monitor } from "lucide-react";
 import { getBackendUrl, setBackendUrl, healthFetch } from "../../api/client";
 import { getThemePreference, setThemePreference, type ThemePreference } from "../../utils/theme";
-import { Spinner } from "../../components/ui";
+import { Spinner } from "../../shared/ui";
 import "./SettingsPage.css";
 
 type TestStatus = "idle" | "testing" | "ok" | "error";

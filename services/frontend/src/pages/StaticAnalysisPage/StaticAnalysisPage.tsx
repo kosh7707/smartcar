@@ -16,16 +16,16 @@ import {
 } from "../../api/client";
 import { useToast } from "../../contexts/ToastContext";
 import { useSetAnalysisGuard } from "../../contexts/AnalysisGuardContext";
-import { SourceUploadView } from "../../components/static/SourceUploadView";
-import { SourceTreeView } from "../../components/static/SourceTreeView";
-import { AnalysisResultsView } from "../../components/static/AnalysisResultsView";
-import { VulnerabilityDetailView } from "../../components/static/VulnerabilityDetailView";
-import { StaticDashboard } from "../../components/static/StaticDashboard";
-import { TwoStageProgressView } from "../../components/static/TwoStageProgressView";
-import { RunDetailView } from "../../components/static/RunDetailView";
-import { FindingDetailView } from "../../components/static/FindingDetailView";
-import { TargetSelectDialog } from "../../components/static/TargetSelectDialog";
-import { BackButton, Spinner, EmptyState, ConnectionStatusBanner } from "../../components/ui";
+import { SourceUploadView } from "./components/SourceUploadView";
+import { SourceTreeView } from "./components/SourceTreeView";
+import { AnalysisResultsView } from "./components/AnalysisResultsView";
+import { VulnerabilityDetailView } from "../../shared/findings/VulnerabilityDetailView";
+import { StaticDashboard } from "./components/StaticDashboard";
+import { TwoStageProgressView } from "./components/TwoStageProgressView";
+import { RunDetailView } from "./components/RunDetailView";
+import { FindingDetailView } from "../../shared/findings/FindingDetailView";
+import { TargetSelectDialog } from "./components/TargetSelectDialog";
+import { BackButton, Spinner, EmptyState, ConnectionStatusBanner } from "../../shared/ui";
 import { Upload } from "lucide-react";
 import "./StaticAnalysisPage.css";
 

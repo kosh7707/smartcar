@@ -4,7 +4,7 @@ import type { ProjectReport, AnalysisModule } from "@aegis/shared";
 import { FileText, Download, Filter, Calendar, X, Paperclip, Settings2, CheckCircle, Clock } from "lucide-react";
 import { fetchProjectReport, ApiError, logError } from "../../api/client";
 import type { ReportFilters } from "../../api/client";
-import { CustomReportModal } from "../../components/CustomReportModal";
+import { CustomReportModal } from "./components/CustomReportModal";
 import { useToast } from "../../contexts/ToastContext";
 import { MODULE_META } from "../../constants/modules";
 import { FINDING_STATUS_LABELS } from "../../constants/finding";
@@ -16,7 +16,7 @@ import {
   SeveritySummary,
   FindingStatusBadge,
   SourceBadge,
-} from "../../components/ui";
+} from "../../shared/ui";
 import { formatDateTime } from "../../utils/format";
 import "./ReportPage.css";
 

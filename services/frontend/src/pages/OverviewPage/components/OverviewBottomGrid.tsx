@@ -1,7 +1,7 @@
 import React from "react";
 import type { BuildTarget, UploadedFile, Vulnerability } from "@aegis/shared";
 import { CheckCircle2, ChevronRight, FileText, HardDrive, Loader, Search, Shield, XCircle } from "lucide-react";
-import { SeverityBadge, TargetStatusBadge } from "../../../components/ui";
+import { SeverityBadge, TargetStatusBadge } from "../../../shared/ui";
 import { formatFileSize } from "../../../utils/format";
 
 interface OverviewBottomGridProps {

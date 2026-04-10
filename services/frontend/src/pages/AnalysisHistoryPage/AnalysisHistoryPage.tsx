@@ -4,7 +4,7 @@ import type { Run } from "@aegis/shared";
 import { ChevronRight } from "lucide-react";
 import { fetchProjectRuns, logError } from "../../api/client";
 import { useToast } from "../../contexts/ToastContext";
-import { EmptyState, Spinner } from "../../components/ui";
+import { EmptyState, Spinner } from "../../shared/ui";
 import { formatDateTime, formatUptime } from "../../utils/format";
 import { MODULE_META } from "../../constants/modules";
 import "./AnalysisHistoryPage.css";

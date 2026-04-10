@@ -1,5 +1,5 @@
 import React from "react";
-import { EmptyState } from "../../../components/ui";
+import { EmptyState } from "../../../shared/ui";
 
 interface PlaceholderSettingsSectionProps {
   icon: React.ReactNode;

@@ -1,7 +1,7 @@
 import React from "react";
 import { NotificationProvider } from "../contexts/NotificationContext";
-import { Navbar } from "../components/Navbar";
-import { ErrorBoundary } from "../components/ErrorBoundary";
+import { Navbar } from "./Navbar";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 interface GlobalLayoutProps {
   children: React.ReactNode;

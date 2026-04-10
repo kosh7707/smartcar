@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import "../../components/static/AnalysisListItem.css";
+import "../../shared/analysis/AnalysisListItem.css";
 import { useParams } from "react-router-dom";
 import type { DynamicAnalysisSession } from "@aegis/shared";
 import { Activity, Plus, Radio, AlertTriangle, Trash2, Plug } from "lucide-react";
@@ -12,9 +12,9 @@ import {
   logError,
 } from "../../api/client";
 import { useToast } from "../../contexts/ToastContext";
-import { MonitoringView } from "../../components/dynamic/MonitoringView";
-import { SessionDetailView } from "../../components/dynamic/SessionDetailView";
-import { PageHeader, EmptyState, ConfirmDialog, ListItem, Spinner, AdapterSelector, BackButton } from "../../components/ui";
+import { MonitoringView } from "./components/MonitoringView";
+import { SessionDetailView } from "./components/SessionDetailView";
+import { PageHeader, EmptyState, ConfirmDialog, ListItem, Spinner, AdapterSelector, BackButton } from "../../shared/ui";
 import { useAdapters } from "../../hooks/useAdapters";
 import { formatDateTime } from "../../utils/format";
 import { STATUS_LABELS } from "../../constants/dynamic";

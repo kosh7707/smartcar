@@ -22,7 +22,7 @@ vi.mock("../../contexts/ToastContext", () => ({
   useToast: () => mockToast,
 }));
 
-vi.mock("../../components/CustomReportModal", () => ({
+vi.mock("./components/CustomReportModal", () => ({
   CustomReportModal: ({ projectId, onClose }: { projectId: string; onClose: () => void }) => (
     <div data-testid="custom-report-modal">
       <span>custom report for {projectId}</span>

@@ -329,6 +329,8 @@ No CSS modules, no styled-components — vanilla CSS with custom properties.
 ## 5. Layout Principles
 
 ### Page Shell
+Navbar and sidebar shell components are layout-owned and live under `src/layouts/`.
+
 ```
 ┌─────────────────────────────────────────────┐
 │ Navbar (56px height, full width)            │
@@ -336,9 +338,7 @@ No CSS modules, no styled-components — vanilla CSS with custom properties.
 │ Sidebar  │ Main Content                     │
 │ (232px)  │                                  │
 │          │                                  │
-├──────────┴──────────────────────────────────┤
-│ StatusBar (32px, --aegis-statusbar-height)  │
-└─────────────────────────────────────────────┘
+└──────────┴──────────────────────────────────┘
 ```
 
 ### Page Types

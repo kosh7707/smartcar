@@ -25,7 +25,7 @@ vi.mock("../../api/client", () => ({
   logError: vi.fn(),
 }));
 vi.mock("../../contexts/ToastContext", () => ({ useToast: () => mockToast }));
-vi.mock("../../components/static/VulnerabilityDetailView", () => ({ VulnerabilityDetailView: () => <div>vuln-detail-view</div> }));
+vi.mock("../../shared/findings/VulnerabilityDetailView", () => ({ VulnerabilityDetailView: () => <div>vuln-detail-view</div> }));
 
 function renderPage() {
   return render(

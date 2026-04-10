@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import "../../components/static/AnalysisListItem.css";
+import "../../shared/analysis/AnalysisListItem.css";
 import { useParams } from "react-router-dom";
 import type { DynamicTestConfig, DynamicTestResult, DynamicTestFinding, TestStrategy } from "@aegis/shared";
 import {
@@ -18,7 +18,7 @@ import { getDynamicTestResults, getDynamicTestResult, deleteDynamicTestResult, A
 import { useDynamicTest, type TestProgress } from "../../hooks/useDynamicTest";
 import { useToast } from "../../contexts/ToastContext";
 import { useAdapters } from "../../hooks/useAdapters";
-import { PageHeader, EmptyState, ConfirmDialog, ListItem, SeverityBadge, StatCard, Spinner, BackButton, AdapterSelector, ConnectionStatusBanner } from "../../components/ui";
+import { PageHeader, EmptyState, ConfirmDialog, ListItem, SeverityBadge, StatCard, Spinner, BackButton, AdapterSelector, ConnectionStatusBanner } from "../../shared/ui";
 import { formatDateTime } from "../../utils/format";
 import "./DynamicTestPage.css";
 

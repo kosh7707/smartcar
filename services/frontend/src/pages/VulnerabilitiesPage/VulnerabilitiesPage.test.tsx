@@ -24,7 +24,7 @@ vi.mock("../../contexts/ToastContext", () => ({
   useToast: () => mockToast,
 }));
 
-vi.mock("../../components/static/FindingDetailView", () => ({
+vi.mock("../../shared/findings/FindingDetailView", () => ({
   FindingDetailView: ({ findingId, onBack }: { findingId: string; onBack: () => void }) => (
     <div>
       <p>Detail view: {findingId}</p>

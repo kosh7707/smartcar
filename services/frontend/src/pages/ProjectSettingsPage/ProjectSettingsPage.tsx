@@ -6,7 +6,7 @@ import { deleteSdk, fetchProjectSdks } from "../../api/sdk";
 import { logError } from "../../api/core";
 import { useToast } from "../../contexts/ToastContext";
 import { useSdkProgress } from "../../hooks/useSdkProgress";
-import { ConfirmDialog, ConnectionStatusBanner, Spinner } from "../../components/ui";
+import { ConfirmDialog, ConnectionStatusBanner, Spinner } from "../../shared/ui";
 import { ProjectSettingsSidebar, type SettingsSection } from "./components/ProjectSettingsSidebar";
 import { ProjectSettingsHeader } from "./components/ProjectSettingsHeader";
 import { GeneralSettingsSection } from "./components/GeneralSettingsSection";

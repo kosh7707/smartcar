@@ -4,7 +4,7 @@ import { AlertCircle, CheckCircle, ClipboardCheck, Clock, ExternalLink, Timer, X
 import type { ApprovalRequest } from "../../api/approval";
 import { decideApproval, fetchProjectApprovals } from "../../api/approval";
 import { logError } from "../../api/core";
-import { EmptyState, Spinner } from "../../components/ui";
+import { EmptyState, Spinner } from "../../shared/ui";
 import { useToast } from "../../contexts/ToastContext";
 import { formatDateTime } from "../../utils/format";
 import "./ApprovalsPage.css";

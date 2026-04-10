@@ -4,8 +4,8 @@ import type { AnalysisResult, UploadedFile, Vulnerability } from "@aegis/shared"
 import { FileText, Download, FileSearch, Shield, Maximize2, Minimize2, FileCode, Terminal, Wrench, Settings, BookOpen, Link2 } from "lucide-react";
 import { fetchProjectOverview, fetchProjectFiles, fetchSourceFiles, fetchFileContent, fetchSourceFileContent, logError } from "../../api/client";
 import { useToast } from "../../contexts/ToastContext";
-import { VulnerabilityDetailView } from "../../components/static/VulnerabilityDetailView";
-import { BackButton, EmptyState, SeverityBadge, SeveritySummary, ListItem, Spinner } from "../../components/ui";
+import { VulnerabilityDetailView } from "../../shared/findings/VulnerabilityDetailView";
+import { BackButton, EmptyState, SeverityBadge, SeveritySummary, ListItem, Spinner } from "../../shared/ui";
 import { formatFileSize, formatDateTime } from "../../utils/format";
 import { findFileByLocation } from "../../utils/fileMatch";
 import { parseLocation } from "../../utils/location";

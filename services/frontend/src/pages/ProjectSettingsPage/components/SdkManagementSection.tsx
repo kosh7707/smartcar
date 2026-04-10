@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Archive, Binary, CheckCircle, ChevronDown, ChevronRight, FolderOpen, Loader, Plus, Settings, Trash2, XCircle } from "lucide-react";
 import type { RegisteredSdk, SdkAnalyzedProfile, SdkRegistryStatus } from "../../../api/sdk";
-import { EmptyState } from "../../../components/ui";
+import { EmptyState } from "../../../shared/ui";
 import { SdkUploadForm } from "./SdkUploadForm";
 
 const STATUS_CONFIG: Record<SdkRegistryStatus, { label: string; icon: "spin" | "check" | "fail"; tone: string }> = {

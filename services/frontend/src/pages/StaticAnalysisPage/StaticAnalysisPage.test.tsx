@@ -21,15 +21,15 @@ vi.mock("../../api/client", () => ({
   fetchRunDetail: vi.fn(),
   logError: vi.fn(),
 }));
-vi.mock("../../components/static/SourceUploadView", () => ({ SourceUploadView: () => <div>source-upload-view</div> }));
-vi.mock("../../components/static/SourceTreeView", () => ({ SourceTreeView: () => <div>source-tree-view</div> }));
-vi.mock("../../components/static/StaticDashboard", () => ({ StaticDashboard: () => <div>static-dashboard-view</div> }));
-vi.mock("../../components/static/TwoStageProgressView", () => ({ TwoStageProgressView: () => <div>two-stage-progress-view</div> }));
-vi.mock("../../components/static/RunDetailView", () => ({ RunDetailView: () => <div>run-detail-view</div> }));
-vi.mock("../../components/static/FindingDetailView", () => ({ FindingDetailView: () => <div>finding-detail-view</div> }));
-vi.mock("../../components/static/VulnerabilityDetailView", () => ({ VulnerabilityDetailView: () => <div>vulnerability-detail-view</div> }));
-vi.mock("../../components/static/AnalysisResultsView", () => ({ AnalysisResultsView: () => <div>analysis-results-view</div> }));
-vi.mock("../../components/static/TargetSelectDialog", () => ({ TargetSelectDialog: () => null }));
+vi.mock("./components/SourceUploadView", () => ({ SourceUploadView: () => <div>source-upload-view</div> }));
+vi.mock("./components/SourceTreeView", () => ({ SourceTreeView: () => <div>source-tree-view</div> }));
+vi.mock("./components/StaticDashboard", () => ({ StaticDashboard: () => <div>static-dashboard-view</div> }));
+vi.mock("./components/TwoStageProgressView", () => ({ TwoStageProgressView: () => <div>two-stage-progress-view</div> }));
+vi.mock("./components/RunDetailView", () => ({ RunDetailView: () => <div>run-detail-view</div> }));
+vi.mock("../../shared/findings/FindingDetailView", () => ({ FindingDetailView: () => <div>finding-detail-view</div> }));
+vi.mock("../../shared/findings/VulnerabilityDetailView", () => ({ VulnerabilityDetailView: () => <div>vulnerability-detail-view</div> }));
+vi.mock("./components/AnalysisResultsView", () => ({ AnalysisResultsView: () => <div>analysis-results-view</div> }));
+vi.mock("./components/TargetSelectDialog", () => ({ TargetSelectDialog: () => null }));
 
 function renderPage() {
   return render(
