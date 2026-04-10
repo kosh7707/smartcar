@@ -17,7 +17,7 @@ const pageNames: Record<string, string> = {
   "dynamic-test": "동적 테스트",
 };
 
-export const ProjectLayout: React.FC = () => {
+export const ProjectBreadcrumbLayout: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { getProject } = useProjects();
   const project = projectId ? getProject(projectId) : null;

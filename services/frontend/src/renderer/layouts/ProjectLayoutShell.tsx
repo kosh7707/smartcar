@@ -15,7 +15,7 @@ import { ApprovalsPage } from "../pages/ApprovalsPage/ApprovalsPage";
 import { DynamicAnalysisPage } from "../pages/DynamicAnalysisPage/DynamicAnalysisPage";
 import { DynamicTestPage } from "../pages/DynamicTestPage/DynamicTestPage";
 import { ProjectSettingsPage } from "../pages/ProjectSettingsPage/ProjectSettingsPage";
-import { ProjectLayout } from "./ProjectLayout";
+import { ProjectBreadcrumbLayout } from "./ProjectBreadcrumbLayout";
 import { NotificationBridge } from "./NotificationBridge";
 
 /**
@@ -31,7 +31,7 @@ export const ProjectLayoutShell: React.FC = () => (
           <div className="layout-project__main">
             <ErrorBoundary>
               <Routes>
-                <Route element={<ProjectLayout />}>
+                <Route element={<ProjectBreadcrumbLayout />}>
                   <Route index element={<Navigate to="overview" replace />} />
                   <Route path="overview" element={<OverviewPage />} />
                   <Route path="static-analysis" element={<StaticAnalysisPage />} />
