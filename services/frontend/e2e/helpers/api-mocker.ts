@@ -3,7 +3,7 @@
  * Mocks all backend API requests so tests run without a backend.
  *
  * IMPORTANT: Uses URL function matchers (not glob) to avoid intercepting
- * Vite dev server source files (e.g. /src/renderer/api/core.ts).
+ * Vite dev server source files (e.g. /src/api/core.ts).
  * Only requests to the backend (localhost:3000) are intercepted.
  */
 import { Page } from "@playwright/test";

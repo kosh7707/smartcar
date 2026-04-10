@@ -2,7 +2,7 @@
 
 > IBM Carbon semantic token architecture + NVIDIA visual restraint.
 > Canonical source of truth for all AEGIS frontend styling.
-> Token values live in `src/renderer/styles/tokens.css` — this document defines rules, roles, and patterns.
+> Token values live in `src/styles/tokens.css` — this document defines rules, roles, and patterns.
 > Last updated: 2026-04-09
 
 ---
@@ -29,7 +29,7 @@ The design is defined by:
 
 ## 2. Color Palette & Roles
 
-All color values are defined in `src/renderer/styles/tokens.css`. This section documents **semantic roles**, not raw hex values.
+All color values are defined in `src/styles/tokens.css`. This section documents **semantic roles**, not raw hex values.
 
 ### Interactive (IBM Blue)
 | Token | Role |
@@ -530,7 +530,7 @@ CRITICAL CONSTRAINTS:
 ---
 
 ## References
-- **Token source**: `src/renderer/styles/tokens.css`
+- **Token source**: `src/styles/tokens.css`
 - **IBM Carbon reference**: `docs/design/ibm/DESIGN.md`
 - **NVIDIA reference**: `docs/design/nvidia/DESIGN.md`
 - **v6 Design Reference**: `docs/design/reference/v6/` (13 pages, light-only)

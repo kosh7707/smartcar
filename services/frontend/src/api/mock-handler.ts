@@ -3,7 +3,7 @@
  * Replaces real fetch when VITE_MOCK=true.
  * Route map mirrors e2e/helpers/api-mocker.ts 1:1.
  */
-import * as data from "../../../e2e/fixtures/mock-data";
+import * as data from "../../e2e/fixtures/mock-data";
 
 function delay<T>(value: T): Promise<T> {
   return new Promise((r) => setTimeout(() => r(value), 50));

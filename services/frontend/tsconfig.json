@@ -10,11 +10,11 @@
     "types": ["vite/client", "vitest/globals", "node"]
   },
   "include": [
-    "src/renderer/api",
-    "src/renderer/components/StatusBar.tsx",
-    "src/renderer/components/StatusBar.test.tsx",
-    "src/renderer/types",
-    "src/test-setup.ts",
+    "src/api",
+    "src/components/StatusBar.tsx",
+    "src/components/StatusBar.test.tsx",
+    "src/types",
+    "src/test/setup.ts",
     "e2e/fixtures"
   ]
 }
