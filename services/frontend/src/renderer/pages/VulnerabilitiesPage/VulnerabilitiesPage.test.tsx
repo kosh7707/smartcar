@@ -127,7 +127,8 @@ describe("VulnerabilitiesPage", () => {
 
     await screen.findByText("Buffer overflow in parser");
 
-    fireEvent.click(screen.getAllByRole("checkbox")[0]);
+    const findingCard = screen.getByText("Buffer overflow in parser").closest(".vuln-finding-card") as HTMLElement;
+    fireEvent.click(within(findingCard).getByRole("checkbox").closest(".vuln-finding-card__check") as HTMLElement);
     const bulkBar = await screen.findByText("1건 선택");
     const bulkScope = within(bulkBar.closest(".vuln-bulk-bar") as HTMLElement);
     fireEvent.change(bulkScope.getByRole("combobox"), { target: { value: "fixed" } });
