@@ -24,55 +24,37 @@ Avoid widening shared ownership unless a helper is reused by multiple pages.
 
 ### AnalysisHistoryPage
 
-- Add a page-local regression test before or with the move (no current `AnalysisHistoryPage` test file exists)
-- Move `AnalysisHistoryPage.tsx` to `AnalysisHistoryPage/AnalysisHistoryPage.tsx`
-- Move `AnalysisHistoryPage.css` to `AnalysisHistoryPage/AnalysisHistoryPage.css`
-- Rewrite `../` imports to `../../` from the new folder depth
-- Prefer a temporary compatibility stub at `pages/AnalysisHistoryPage.tsx` so `App.tsx` can stay stable until final integration
-
-Audit note: the current file has **6** relative imports that will need depth updates after the move.
+- Folderized implementation now lives at `AnalysisHistoryPage/AnalysisHistoryPage.tsx`
+- Regression coverage exists at `AnalysisHistoryPage/AnalysisHistoryPage.test.tsx`
+- `App.tsx` can now import the folder entrypoint directly
 
 ### ApprovalsPage
 
-- Move `ApprovalsPage.tsx` to `ApprovalsPage/ApprovalsPage.tsx`
-- Move `ApprovalsPage.css` to `ApprovalsPage/ApprovalsPage.css`
-- Move `ApprovalsPage.test.tsx` to `ApprovalsPage/ApprovalsPage.test.tsx`
-- Rewrite page `../` imports to `../../` from the new folder depth
-- Rewrite test imports/mocks (`./ApprovalsPage`, `../api/*`, `../contexts/*`) for the new folder depth
-- Prefer a temporary compatibility stub at `pages/ApprovalsPage.tsx` so `App.tsx` can stay stable until final integration
-
-Audit note: the current page file has **7** relative imports, and the current test file has **4** relative import/mock paths that will need depth updates after the move.
+- Folderized implementation now lives at `ApprovalsPage/ApprovalsPage.tsx`
+- Regression coverage lives at `ApprovalsPage/ApprovalsPage.test.tsx`
+- `App.tsx` can now import the folder entrypoint directly
 
 ### FilesPage
 
-- Move `FilesPage.tsx` to `FilesPage/FilesPage.tsx`
-- Move `FilesPage.css` to `FilesPage/FilesPage.css`
-- Add page-local regression tests before or with the move
-- Rewrite `../` imports to `../../` from the new folder depth
-- Reconcile the route import in `App.tsx` during final integration
-
-Audit note: the current file has **16** relative imports that will need depth updates after the move.
+- Folderized implementation now lives at `FilesPage/FilesPage.tsx`
+- Regression coverage lives at `FilesPage/FilesPage.test.tsx`
+- `App.tsx` can now import the folder entrypoint directly
 
 ### VulnerabilitiesPage
 
-- Move `VulnerabilitiesPage.tsx` to `VulnerabilitiesPage/VulnerabilitiesPage.tsx`
-- Move `VulnerabilitiesPage.css` to `VulnerabilitiesPage/VulnerabilitiesPage.css`
-- Add page-local regression tests before or with the move
-- Rewrite `../` imports to `../../` from the new folder depth
-- Reconcile the route import in `App.tsx` during final integration
-
-Audit note: the current file has **10** relative imports that will need depth updates after the move.
+- Folderized implementation now lives at `VulnerabilitiesPage/VulnerabilitiesPage.tsx`
+- Regression coverage lives at `VulnerabilitiesPage/VulnerabilitiesPage.test.tsx`
+- `App.tsx` can now import the folder entrypoint directly
 
 ## Shared-file merge risk
 
-`src/renderer/App.tsx` is the only current shared import hotspot for the remaining page-per-directory moves:
+The main shared-file hotspot was `src/renderer/App.tsx` while the page-per-directory migration was still in flight.
 
-- `import { AnalysisHistoryPage } from "./pages/AnalysisHistoryPage";`
-- `import { ApprovalsPage } from "./pages/ApprovalsPage";`
-- `import { FilesPage } from "./pages/FilesPage";`
-- `import { VulnerabilitiesPage } from "./pages/VulnerabilitiesPage";`
+That migration step is now complete for the already-folderized pages, so future cleanup work can:
 
-To keep worker ownership narrow, page-local moves should happen inside each page folder first. When possible, leave a thin compatibility stub (`export { PageName } from "./PageName/PageName";`) in the flat page file so `App.tsx` does not need to change during each worker slice. Any remaining `App.tsx` import updates should be applied once during integration.
+- import folder entrypoints directly from `App.tsx`
+- delete obsolete flat re-export stubs
+- reserve shared-file attention for the few remaining routes/pages that are not yet folderized
 
 ## Verification baseline
 

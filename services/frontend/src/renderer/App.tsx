@@ -9,22 +9,22 @@ import { Navbar } from "./components/Navbar";
 import { Sidebar } from "./components/Sidebar";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ProjectLayout } from "./layouts/ProjectLayout";
-import { LoginPage } from "./pages/LoginPage";
-import { SignupPage } from "./pages/SignupPage";
+import { LoginPage } from "./pages/LoginPage/LoginPage";
+import { SignupPage } from "./pages/SignupPage/SignupPage";
 import { DashboardPage } from "./pages/DashboardPage/DashboardPage";
 import { OverviewPage } from "./pages/OverviewPage/OverviewPage";
-import { StaticAnalysisPage } from "./pages/StaticAnalysisPage";
-import { SettingsPage } from "./pages/SettingsPage";
+import { StaticAnalysisPage } from "./pages/StaticAnalysisPage/StaticAnalysisPage";
+import { SettingsPage } from "./pages/SettingsPage/SettingsPage";
 import { ProjectSettingsPage } from "./pages/ProjectSettingsPage/ProjectSettingsPage";
-import { FileDetailPage } from "./pages/FileDetailPage";
-import { FilesPage } from "./pages/FilesPage";
+import { FileDetailPage } from "./pages/FileDetailPage/FileDetailPage";
+import { FilesPage } from "./pages/FilesPage/FilesPage";
 import { VulnerabilitiesPage } from "./pages/VulnerabilitiesPage";
-import { AnalysisHistoryPage } from "./pages/AnalysisHistoryPage";
-import { ReportPage } from "./pages/ReportPage";
-import { QualityGatePage } from "./pages/QualityGatePage";
-import { ApprovalsPage } from "./pages/ApprovalsPage";
-import { DynamicAnalysisPage } from "./pages/DynamicAnalysisPage";
-import { DynamicTestPage } from "./pages/DynamicTestPage";
+import { AnalysisHistoryPage } from "./pages/AnalysisHistoryPage/AnalysisHistoryPage";
+import { ReportPage } from "./pages/ReportPage/ReportPage";
+import { QualityGatePage } from "./pages/QualityGatePage/QualityGatePage";
+import { ApprovalsPage } from "./pages/ApprovalsPage/ApprovalsPage";
+import { DynamicAnalysisPage } from "./pages/DynamicAnalysisPage/DynamicAnalysisPage";
+import { DynamicTestPage } from "./pages/DynamicTestPage/DynamicTestPage";
 
 /** Extracts projectId from the current URL path and wraps children with NotificationProvider. */
 const NotificationBridge: React.FC<{ children: React.ReactNode }> = ({ children }) => {
