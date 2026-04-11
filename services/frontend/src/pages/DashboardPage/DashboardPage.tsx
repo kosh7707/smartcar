@@ -3,6 +3,7 @@ import { useProjects } from "../../contexts/ProjectContext";
 import { NeedsAttentionSection } from "./components/NeedsAttentionSection";
 import { ProjectExplorer } from "./components/ProjectExplorer";
 import { RecentActivitySection } from "./components/RecentActivitySection";
+import type { DashboardExplorerCreateFlow } from "./dashboardContracts";
 import { getDashboardAttentionState } from "./dashboardAttentionState";
 import { useDashboardActivityFeed } from "./useDashboardActivityFeed";
 import { useDashboardCreateForm } from "./useDashboardCreateForm";
@@ -41,6 +42,17 @@ export const DashboardPage: React.FC = () => {
     handleCancelCreate,
   } = useDashboardCreateForm({ createProject });
 
+  const createFlow: DashboardExplorerCreateFlow = {
+    show: showCreate,
+    name,
+    description: desc,
+    onToggle: toggleCreate,
+    onNameChange: setName,
+    onDescriptionChange: setDesc,
+    onSubmit: handleCreate,
+    onCancel: handleCancelCreate,
+  };
+
   return (
     <div className="dashboard">
       <div className="dashboard-body">
@@ -49,16 +61,7 @@ export const DashboardPage: React.FC = () => {
           filter={filter}
           emptyState={emptyState}
           onFilterChange={setFilter}
-          createFlow={{
-            show: showCreate,
-            name,
-            description: desc,
-            onToggle: toggleCreate,
-            onNameChange: setName,
-            onDescriptionChange: setDesc,
-            onSubmit: handleCreate,
-            onCancel: handleCancelCreate,
-          }}
+          createFlow={createFlow}
         />
 
         <main className="dashboard-main">
