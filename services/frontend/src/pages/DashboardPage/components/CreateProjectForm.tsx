@@ -23,7 +23,7 @@ export const CreateProjectForm: React.FC<CreateProjectFormProps> = ({
         className="dashboard-create-inline__input"
         value={name}
         onChange={(event) => onNameChange(event.target.value)}
-        placeholder="Project name"
+        placeholder="프로젝트 이름"
         autoFocus
         onKeyDown={(event) => event.key === "Enter" && onCreate()}
       />
@@ -31,7 +31,7 @@ export const CreateProjectForm: React.FC<CreateProjectFormProps> = ({
         className="dashboard-create-inline__input"
         value={description}
         onChange={(event) => onDescriptionChange(event.target.value)}
-        placeholder="Description (optional)"
+        placeholder="설명 (선택)"
         onKeyDown={(event) => event.key === "Enter" && onCreate()}
       />
       <div className="dashboard-create-inline__actions">
@@ -40,14 +40,14 @@ export const CreateProjectForm: React.FC<CreateProjectFormProps> = ({
           className="dashboard-create-inline__btn dashboard-create-inline__btn--ghost"
           onClick={onCancel}
         >
-          Cancel
+          취소
         </button>
         <button
           type="button"
           className="dashboard-create-inline__btn dashboard-create-inline__btn--primary"
           onClick={onCreate}
         >
-          Create
+          만들기
         </button>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import React from "react";
+import "./DashboardSectionEmpty.css";
 
 interface DashboardSectionEmptyProps {
   icon: React.ReactNode;

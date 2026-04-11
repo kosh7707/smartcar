@@ -22,12 +22,12 @@ export interface ActivityEvent {
 }
 
 export const EVENT_LABELS: Record<EventType, string> = {
-  analysis: "Analysis",
-  gate_pass: "Quality Gate",
-  gate_fail: "Quality Gate",
-  vulnerability: "Findings",
-  approval: "Approval",
-  upload: "Upload",
+  analysis: "분석 완료",
+  gate_pass: "게이트 통과",
+  gate_fail: "게이트 실패",
+  vulnerability: "취약점",
+  approval: "승인",
+  upload: "업로드",
 };
 
 export const EVENT_CSS: Record<EventType, string> = {
@@ -62,8 +62,8 @@ export function gateTone(gateStatus?: string | null): "fail" | "warning" | null 
 }
 
 export function gateLabel(gateStatus?: string | null): string | null {
-  if (gateStatus === "fail") return "Gate fail";
-  if (gateStatus === "warning") return "Gate warning";
+  if (gateStatus === "fail") return "게이트 실패";
+  if (gateStatus === "warning") return "게이트 경고";
   return null;
 }
 
@@ -84,12 +84,12 @@ export function buildProjectChips(project: DashboardProject): DashboardChip[] {
   const medium = project.severitySummary?.medium ?? 0;
   const low = project.severitySummary?.low ?? 0;
 
-  chips.push({ label: `Findings ${total}`, tone: total > 0 ? "neutral" : "success" });
-  if (critical > 0) chips.push({ label: `Critical ${critical}`, tone: "critical" });
-  if (high > 0) chips.push({ label: `High ${high}`, tone: "high" });
-  if (medium > 0) chips.push({ label: `Medium ${medium}`, tone: "medium" });
-  if (low > 0) chips.push({ label: `Low ${low}`, tone: "neutral" });
-  if ((project.unresolvedDelta ?? 0) > 0) chips.push({ label: `Unresolved +${project.unresolvedDelta}`, tone: "warning" });
+  chips.push({ label: `탐지 항목 ${total}건`, tone: total > 0 ? "neutral" : "success" });
+  if (critical > 0) chips.push({ label: `치명적 ${critical}`, tone: "critical" });
+  if (high > 0) chips.push({ label: `높음 ${high}`, tone: "high" });
+  if (medium > 0) chips.push({ label: `보통 ${medium}`, tone: "medium" });
+  if (low > 0) chips.push({ label: `낮음 ${low}`, tone: "neutral" });
+  if ((project.unresolvedDelta ?? 0) > 0) chips.push({ label: `미해결 +${project.unresolvedDelta}`, tone: "warning" });
 
   return chips;
 }
@@ -118,7 +118,7 @@ export function buildActivity(projects: DashboardProject[]): ActivityEvent[] {
         projectId: project.id,
         projectName: project.name,
         type: project.gateStatus === "fail" ? "gate_fail" : "gate_pass",
-        description: project.gateStatus === "fail" ? "Quality Gate에 실패했습니다" : "Quality Gate를 통과했습니다",
+        description: project.gateStatus === "fail" ? "품질 게이트에 실패했습니다" : "품질 게이트를 통과했습니다",
         chips: buildProjectChips(project).slice(0, 3),
         timestamp: timestamp || project.updatedAt,
       });
@@ -143,7 +143,7 @@ export function buildActivity(projects: DashboardProject[]): ActivityEvent[] {
 
 export function recentProjectUpdate(project: DashboardProject): string {
   const timestamp = project.lastAnalysisAt || project.updatedAt;
-  return `recent update · ${formatRelativeTime(timestamp)}`;
+  return `최근 업데이트 · ${formatRelativeTime(timestamp)}`;
 }
 
 export function attentionDescription(project: DashboardProject): string {
@@ -154,27 +154,27 @@ export function attentionDescription(project: DashboardProject): string {
   const unresolved = project.unresolvedDelta ?? 0;
 
   if (critical > 0) {
-    return `Critical ${critical}건을 포함해 Findings ${total}건이 확인되었습니다.`;
+    return `치명적 ${critical}건을 포함해 탐지 항목 ${total}건이 확인되었습니다.`;
   }
 
   if (high > 0) {
-    return `High ${high}건을 포함해 Findings ${total}건이 확인되었습니다.`;
+    return `높음 ${high}건을 포함해 탐지 항목 ${total}건이 확인되었습니다.`;
   }
 
   if (medium > 0) {
-    return `Medium ${medium}건을 포함해 Findings ${total}건이 확인되었습니다.`;
+    return `보통 ${medium}건을 포함해 탐지 항목 ${total}건이 확인되었습니다.`;
   }
 
   if (project.gateStatus === "fail") {
-    return "Quality Gate 실패로 추가 확인이 필요합니다.";
+    return "품질 게이트 실패로 추가 확인이 필요합니다.";
   }
 
   if (project.gateStatus === "warning") {
-    return "Quality Gate warning 상태라 점검이 필요합니다.";
+    return "품질 게이트 경고 상태라 점검이 필요합니다.";
   }
 
   if (unresolved > 0) {
-    return `Unresolved 항목이 ${unresolved}건 증가했습니다.`;
+    return `미해결 항목이 ${unresolved}건 증가했습니다.`;
   }
 
   return "최근 변경 내용을 확인하세요.";

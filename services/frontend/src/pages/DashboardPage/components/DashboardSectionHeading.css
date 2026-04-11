@@ -1,0 +1,20 @@
+.dashboard-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cds-spacing-03);
+}
+
+.dashboard-section-heading__title {
+  margin: 0;
+  font-size: var(--cds-type-lg);
+  font-weight: var(--cds-weight-semibold);
+  color: var(--cds-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.dashboard-section-heading__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cds-spacing-02);
+}

@@ -1,0 +1,104 @@
+.activity-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-event-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cds-spacing-03);
+  padding: var(--cds-spacing-04) 0;
+  border-bottom: 1px solid var(--cds-border-subtle);
+  color: inherit;
+  text-decoration: none;
+  transition: color var(--cds-transition-fast), transform var(--cds-transition-fast);
+}
+
+.activity-event-card:first-child {
+  border-top: 1px solid var(--cds-border-subtle);
+}
+
+.activity-event-card:hover,
+.activity-event-card:focus-visible {
+  transform: translateX(2px);
+}
+
+.activity-event-card:focus-visible {
+  outline: 2px solid var(--cds-interactive);
+  outline-offset: 2px;
+}
+
+.activity-event-card__meta,
+.activity-event-card__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cds-spacing-03);
+}
+
+.activity-event-card__title-row {
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.activity-event-card__project {
+  font-size: var(--cds-type-md);
+  font-weight: var(--cds-weight-semibold);
+  color: var(--cds-text-primary);
+}
+
+.activity-event-card__time {
+  font-size: var(--cds-type-xs);
+  color: var(--cds-text-placeholder);
+  white-space: nowrap;
+}
+
+.activity-event-card__type {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0 0.5rem;
+  border-radius: var(--dashboard-radius-pill);
+  font-size: 0.6875rem;
+  font-weight: var(--cds-weight-medium);
+}
+
+.activity-event-card__type--analysis {
+  background: var(--aegis-severity-low-bg);
+  color: var(--aegis-severity-low);
+}
+
+.activity-event-card__type--gate_pass {
+  background: var(--cds-support-success-bg);
+  color: var(--cds-support-success);
+}
+
+.activity-event-card__type--gate_fail {
+  background: var(--aegis-severity-critical-bg);
+  color: var(--aegis-severity-critical);
+}
+
+.activity-event-card__type--vulnerability {
+  background: var(--aegis-severity-high-bg);
+  color: var(--aegis-severity-high);
+}
+
+.activity-event-card__type--approval,
+.activity-event-card__type--upload {
+  background: var(--cds-layer-01);
+  color: var(--cds-text-secondary);
+}
+
+.activity-event-card__description {
+  margin: 0;
+  font-size: var(--cds-type-sm);
+  line-height: 1.55;
+  color: var(--cds-text-secondary);
+}
+
+@media (max-width: 640px) {
+  .activity-event-card__meta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
