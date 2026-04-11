@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import type { DashboardProject } from "./dashboardTypes";
 
 interface UseDashboardAttentionOptions {
@@ -6,15 +5,12 @@ interface UseDashboardAttentionOptions {
   filteredProjects: DashboardProject[];
 }
 
-export function useDashboardAttention({
+export function getDashboardAttentionState({
   projects,
   filteredProjects,
 }: UseDashboardAttentionOptions) {
-  const attentionProjects = useMemo(() => selectAttentionProjects(projects), [projects]);
-  const hasProjectContext = useMemo(
-    () => hasAttentionProjectContext(attentionProjects, filteredProjects, projects),
-    [attentionProjects, filteredProjects, projects],
-  );
+  const attentionProjects = selectAttentionProjects(projects);
+  const hasProjectContext = hasAttentionProjectContext(attentionProjects, filteredProjects, projects);
 
   return {
     attentionProjects,

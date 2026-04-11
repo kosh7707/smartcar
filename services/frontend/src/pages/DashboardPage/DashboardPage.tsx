@@ -3,7 +3,7 @@ import { useProjects } from "../../contexts/ProjectContext";
 import { NeedsAttentionSection } from "./components/NeedsAttentionSection";
 import { ProjectExplorer } from "./components/ProjectExplorer";
 import { RecentActivitySection } from "./components/RecentActivitySection";
-import { useDashboardAttention } from "./useDashboardAttention";
+import { getDashboardAttentionState } from "./dashboardAttentionState";
 import { useDashboardActivityFeed } from "./useDashboardActivityFeed";
 import { useDashboardCreateForm } from "./useDashboardCreateForm";
 import { useDashboardDocumentTitle } from "./useDashboardDocumentTitle";
@@ -20,7 +20,7 @@ export const DashboardPage: React.FC = () => {
     setFilter,
     filteredProjects,
   } = useDashboardExplorerFilter({ projects });
-  const { attentionProjects, hasProjectContext } = useDashboardAttention({
+  const { attentionProjects, hasProjectContext } = getDashboardAttentionState({
     projects,
     filteredProjects,
   });
