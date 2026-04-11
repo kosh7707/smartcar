@@ -24,7 +24,7 @@ export const DashboardPage: React.FC = () => {
     projects,
     filteredProjects,
   });
-  const { activity, visibleActivity, loadMore } = useDashboardActivityFeed({ projects });
+  const { activity, visibleActivity, hasMore, loadMore } = useDashboardActivityFeed({ projects });
 
   const {
     showCreate,
@@ -65,8 +65,8 @@ export const DashboardPage: React.FC = () => {
               nextMoveProject={nextMoveProject}
             />
             <RecentActivitySection
-              activity={activity}
               visibleActivity={visibleActivity}
+              hasMore={hasMore}
               onLoadMore={loadMore}
             />
           </div>

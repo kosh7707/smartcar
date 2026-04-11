@@ -24,6 +24,7 @@ export function useDashboardActivityFeed({
   return {
     activity,
     visibleActivity,
+    hasMore: activity.length > visibleActivity.length,
     loadMore,
   };
 }

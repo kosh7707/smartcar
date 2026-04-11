@@ -6,14 +6,14 @@ import { DashboardEmptySurface } from "./DashboardEmptySurface";
 import "./RecentActivitySection.css";
 
 interface RecentActivitySectionProps {
-  activity: ActivityEvent[];
   visibleActivity: ActivityEvent[];
+  hasMore: boolean;
   onLoadMore: () => void;
 }
 
 export const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
-  activity,
   visibleActivity,
+  hasMore,
   onLoadMore,
 }) => {
   return (
@@ -22,7 +22,7 @@ export const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
         <h2 className="dashboard-section-heading__title">최근 활동</h2>
       </div>
 
-      {activity.length === 0 ? (
+      {visibleActivity.length === 0 ? (
         <DashboardEmptySurface
           icon={<FolderKanban size={22} />}
           title="아직 활동 없음"
@@ -35,7 +35,7 @@ export const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
         </div>
       )}
 
-      {activity.length > visibleActivity.length && (
+      {hasMore && (
         <div className="recent-activity-more">
           <button
             type="button"
