@@ -547,14 +547,6 @@
 .dashboard-section-empty__marker {
   display: inline-flex;
   align-items: center;
-  gap: var(--cds-spacing-02);
-}
-
-.dashboard-section-empty__rule {
-  width: 18px;
-  height: 2px;
-  border-radius: var(--cds-radius-circle);
-  background: color-mix(in srgb, var(--cds-text-placeholder) 65%, transparent);
 }
 
 .dashboard-section-empty__icon {
@@ -563,10 +555,6 @@
   justify-content: center;
   color: color-mix(in srgb, var(--cds-text-secondary) 88%, transparent);
   opacity: 0.85;
-}
-
-.dashboard-section-empty--attention .dashboard-section-empty__rule {
-  background: color-mix(in srgb, var(--aegis-severity-critical) 55%, transparent);
 }
 
 .dashboard-section-empty--attention .dashboard-section-empty__icon {

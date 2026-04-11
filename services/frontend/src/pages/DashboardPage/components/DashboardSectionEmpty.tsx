@@ -17,7 +17,6 @@ export const DashboardSectionEmpty: React.FC<DashboardSectionEmptyProps> = ({
 }) => (
   <div className={`dashboard-section-empty dashboard-section-empty--${tone}`}>
     <div className="dashboard-section-empty__marker" aria-hidden="true">
-      <span className="dashboard-section-empty__rule" />
       <span className="dashboard-section-empty__icon">{icon}</span>
     </div>
     <div className="dashboard-section-empty__copy">
