@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QualityGatePage } from "./QualityGatePage";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -55,9 +55,14 @@ function renderPage() {
 
 describe("QualityGatePage", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     vi.clearAllMocks();
     mockFetchGates.mockResolvedValue(mockGates);
     mockOverrideGate.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("renders gate results", async () => {
