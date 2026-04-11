@@ -5,7 +5,7 @@ import { NeedsAttentionSection } from "./components/NeedsAttentionSection";
 import { ProjectExplorer } from "./components/ProjectExplorer";
 import { RecentActivitySection } from "./components/RecentActivitySection";
 import { buildActivity } from "./dashboardActivity";
-import { projectPriority } from "./dashboardProjectSignals";
+import { selectAttentionProjects, selectNextMoveProject } from "./dashboardProjectSignals";
 import { useDashboardCreateForm } from "./useDashboardCreateForm";
 import "./DashboardPage.css";
 
@@ -25,14 +25,11 @@ export const DashboardPage: React.FC = () => {
     return projects.filter((project) => `${project.name} ${project.description}`.toLowerCase().includes(query));
   }, [projects, filter]);
 
-  const attentionProjects = useMemo(() => {
-    return [...projects]
-      .sort((a, b) => projectPriority(b) - projectPriority(a))
-      .filter((project) => projectPriority(project) > 0)
-      .slice(0, 4);
-  }, [projects]);
-
-  const nextMoveProject = attentionProjects[0] ?? filtered[0] ?? projects[0] ?? null;
+  const attentionProjects = useMemo(() => selectAttentionProjects(projects), [projects]);
+  const nextMoveProject = useMemo(
+    () => selectNextMoveProject(attentionProjects, filtered, projects),
+    [attentionProjects, filtered, projects],
+  );
   const activity = useMemo(() => buildActivity(projects), [projects]);
   const visibleActivity = useMemo(() => activity.slice(0, visibleActivityCount), [activity, visibleActivityCount]);
 

@@ -40,6 +40,21 @@ export function projectPriority(project: DashboardProject): number {
   return critical * 100 + high * 20 + medium * 5 + unresolved + gatePenalty;
 }
 
+export function selectAttentionProjects(projects: DashboardProject[], limit = 4): DashboardProject[] {
+  return [...projects]
+    .sort((a, b) => projectPriority(b) - projectPriority(a))
+    .filter((project) => projectPriority(project) > 0)
+    .slice(0, limit);
+}
+
+export function selectNextMoveProject(
+  attentionProjects: DashboardProject[],
+  filteredProjects: DashboardProject[],
+  allProjects: DashboardProject[],
+): DashboardProject | null {
+  return attentionProjects[0] ?? filteredProjects[0] ?? allProjects[0] ?? null;
+}
+
 export function buildProjectChips(project: DashboardProject): DashboardChip[] {
   const chips: DashboardChip[] = [];
   const total = totalFindings(project);
