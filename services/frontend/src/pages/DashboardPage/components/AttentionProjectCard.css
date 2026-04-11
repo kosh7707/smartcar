@@ -9,8 +9,10 @@
   flex-direction: column;
   gap: var(--cds-spacing-03);
   padding: var(--cds-spacing-04) var(--cds-spacing-04) var(--cds-spacing-04) calc(var(--cds-spacing-04) + 2px);
-  border-left: 2px solid color-mix(in srgb, var(--aegis-severity-critical) 48%, transparent);
-  border-bottom: 1px solid var(--cds-border-subtle);
+  border: 1px solid color-mix(in srgb, var(--aegis-severity-critical) 14%, var(--cds-border-subtle));
+  border-left: 3px solid color-mix(in srgb, var(--aegis-severity-critical) 56%, transparent);
+  border-radius: var(--dashboard-radius-surface);
+  background: color-mix(in srgb, var(--aegis-severity-critical-bg) 36%, var(--cds-layer-01));
   color: inherit;
   text-decoration: none;
   transition: background var(--cds-transition-fast), border-color var(--cds-transition-fast), transform var(--cds-transition-fast);
@@ -18,7 +20,8 @@
 
 .attention-project-card:hover,
 .attention-project-card:focus-visible {
-  background: color-mix(in srgb, var(--aegis-severity-critical-bg) 52%, transparent);
+  background: color-mix(in srgb, var(--aegis-severity-critical-bg) 58%, var(--cds-layer-01));
+  border-color: color-mix(in srgb, var(--aegis-severity-critical) 22%, var(--cds-border-subtle));
   border-left-color: var(--aegis-severity-critical);
   transform: translateX(2px);
 }
