@@ -1,6 +1,5 @@
 import React from "react";
 import { Plus, Search } from "lucide-react";
-import { DashboardSectionHeading } from "./DashboardSectionHeading";
 
 interface ProjectExplorerSearchProps {
   filter: string;
@@ -15,9 +14,9 @@ export const ProjectExplorerSearch: React.FC<ProjectExplorerSearchProps> = ({
 }) => {
   return (
     <>
-      <DashboardSectionHeading
-        title="프로젝트 탐색기"
-        actions={(
+      <div className="dashboard-section-heading">
+        <h2 className="dashboard-section-heading__title">프로젝트 탐색기</h2>
+        <div className="dashboard-section-heading__actions">
           <button
             type="button"
             className="project-explorer-create-btn"
@@ -26,8 +25,8 @@ export const ProjectExplorerSearch: React.FC<ProjectExplorerSearchProps> = ({
             <Plus size={13} />
             <span>새 프로젝트</span>
           </button>
-        )}
-      />
+        </div>
+      </div>
 
       <div className="project-explorer-search">
         <Search size={14} className="project-explorer-search__icon" />

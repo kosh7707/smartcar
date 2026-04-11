@@ -2,7 +2,6 @@ import React from "react";
 import { Shield } from "lucide-react";
 import { AttentionProjectCard } from "./AttentionProjectCard";
 import { DashboardEmptySurface } from "./DashboardEmptySurface";
-import { DashboardSectionHeading } from "./DashboardSectionHeading";
 import type { DashboardProject } from "../dashboardTypes";
 import "./NeedsAttentionSection.css";
 
@@ -14,7 +13,9 @@ interface NeedsAttentionSectionProps {
 export const NeedsAttentionSection: React.FC<NeedsAttentionSectionProps> = ({ projects, nextMoveProject }) => {
   return (
     <section className="dashboard-section dashboard-section--attention">
-      <DashboardSectionHeading title="우선 확인" />
+      <div className="dashboard-section-heading">
+        <h2 className="dashboard-section-heading__title">우선 확인</h2>
+      </div>
 
       {projects.length === 0 ? (
         <DashboardEmptySurface

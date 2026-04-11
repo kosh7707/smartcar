@@ -3,7 +3,6 @@ import { FolderKanban } from "lucide-react";
 import type { ActivityEvent } from "../dashboardTypes";
 import { ActivityEventCard } from "./ActivityEventCard";
 import { DashboardEmptySurface } from "./DashboardEmptySurface";
-import { DashboardSectionHeading } from "./DashboardSectionHeading";
 import "./RecentActivitySection.css";
 
 interface RecentActivitySectionProps {
@@ -19,7 +18,9 @@ export const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
 }) => {
   return (
     <section className="dashboard-section dashboard-section--activity">
-      <DashboardSectionHeading title="최근 활동" />
+      <div className="dashboard-section-heading">
+        <h2 className="dashboard-section-heading__title">최근 활동</h2>
+      </div>
 
       {activity.length === 0 ? (
         <DashboardEmptySurface
