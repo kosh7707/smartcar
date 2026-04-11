@@ -2,7 +2,7 @@ import React from "react";
 import { FolderKanban } from "lucide-react";
 import type { ActivityEvent } from "../dashboardTypes";
 import { ActivityEventCard } from "./ActivityEventCard";
-import { DashboardSectionEmpty } from "./DashboardSectionEmpty";
+import { DashboardEmptySurface } from "./DashboardEmptySurface";
 import { DashboardSectionHeading } from "./DashboardSectionHeading";
 import "./RecentActivitySection.css";
 
@@ -22,10 +22,11 @@ export const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
       <DashboardSectionHeading title="최근 활동" />
 
       {activity.length === 0 ? (
-        <DashboardSectionEmpty
+        <DashboardEmptySurface
           icon={<FolderKanban size={22} />}
           title="아직 활동 없음"
           description="첫 업로드, 분석, 승인 같은 작업이 시작되면 최근 흐름이 이 레인에 순서대로 쌓입니다."
+          variant="panel"
         />
       ) : (
         <div className="recent-activity-list">
