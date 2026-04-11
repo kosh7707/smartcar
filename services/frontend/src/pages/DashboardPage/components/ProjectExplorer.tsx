@@ -5,7 +5,7 @@ import type { DashboardProject } from "../dashboardTypes";
 import { ProjectExplorerSearch } from "./ProjectExplorerSearch";
 import { ProjectRow } from "./ProjectRow";
 import { DashboardEmptySurface } from "./DashboardEmptySurface";
-import { getProjectExplorerEmptyState } from "../projectExplorerEmptyState";
+import { getProjectExplorerEmptyState } from "../dashboardExplorerEmptyState";
 import "./ProjectExplorer.css";
 
 interface ProjectExplorerProps {
