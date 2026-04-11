@@ -24,6 +24,28 @@ interface ProjectExplorerProps {
   onCancelCreate: () => void;
 }
 
+function renderProjectExplorerRow(project: DashboardProject) {
+  const tone = projectRowTone(project);
+
+  return (
+    <li key={project.id} className="project-explorer-list__item">
+      <Link
+        to={`/projects/${project.id}/overview`}
+        className={`project-explorer-row project-explorer-row--${tone}`}
+      >
+        <div className="project-explorer-row__body">
+          <div className="project-explorer-row__topline">
+            <span className="project-explorer-row__name" title={project.name}>{project.name}</span>
+          </div>
+          <div className="project-explorer-row__footer project-explorer-row__footer--compact">
+            <span className="project-explorer-row__time">{recentProjectUpdate(project)}</span>
+          </div>
+        </div>
+      </Link>
+    </li>
+  );
+}
+
 export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
   projects,
   totalProjects,
@@ -106,26 +128,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
       )}
 
       <ul className="project-explorer-list">
-        {projects.map((project) => {
-          const tone = projectRowTone(project);
-          return (
-            <li key={project.id} className="project-explorer-list__item">
-              <Link
-                to={`/projects/${project.id}/overview`}
-                className={`project-explorer-row project-explorer-row--${tone}`}
-              >
-                <div className="project-explorer-row__body">
-                  <div className="project-explorer-row__topline">
-                    <span className="project-explorer-row__name" title={project.name}>{project.name}</span>
-                  </div>
-                  <div className="project-explorer-row__footer project-explorer-row__footer--compact">
-                    <span className="project-explorer-row__time">{recentProjectUpdate(project)}</span>
-                  </div>
-                </div>
-              </Link>
-            </li>
-          );
-        })}
+        {projects.map(renderProjectExplorerRow)}
 
         {shouldRenderEmpty ? (
           <li className="project-explorer-list__empty">
