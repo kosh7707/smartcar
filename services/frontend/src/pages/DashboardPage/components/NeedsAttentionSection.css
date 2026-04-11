@@ -1,3 +1,7 @@
+.needs-attention-section {
+  min-width: 0;
+}
+
 .needs-attention-list {
   display: flex;
   flex-direction: column;

@@ -49,7 +49,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
   const shouldRenderEmpty = projects.length === 0 && (!loading || totalProjects === 0);
 
   return (
-    <aside className="dashboard-explorer" aria-label="프로젝트 탐색기">
+    <aside className="project-explorer" aria-label="프로젝트 탐색기">
       <ProjectExplorerSearch
         filter={filter}
         onFilterChange={onFilterChange}
