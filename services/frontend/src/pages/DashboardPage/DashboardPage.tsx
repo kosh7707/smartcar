@@ -6,6 +6,7 @@ import { ProjectExplorer } from "./components/ProjectExplorer";
 import { RecentActivitySection } from "./components/RecentActivitySection";
 import { buildActivity } from "./dashboardActivity";
 import { selectAttentionProjects, selectNextMoveProject } from "./dashboardProjectSignals";
+import { useDashboardActivityFeed } from "./useDashboardActivityFeed";
 import { useDashboardCreateForm } from "./useDashboardCreateForm";
 import "./DashboardPage.css";
 
@@ -13,7 +14,6 @@ export const DashboardPage: React.FC = () => {
   const { projects, loading, createProject } = useProjects();
   const navigate = useNavigate();
   const [filter, setFilter] = useState("");
-  const [visibleActivityCount, setVisibleActivityCount] = useState(10);
 
   useEffect(() => {
     document.title = "AEGIS — Dashboard";
@@ -31,7 +31,7 @@ export const DashboardPage: React.FC = () => {
     [attentionProjects, filtered, projects],
   );
   const activity = useMemo(() => buildActivity(projects), [projects]);
-  const visibleActivity = useMemo(() => activity.slice(0, visibleActivityCount), [activity, visibleActivityCount]);
+  const { visibleActivity, loadMore } = useDashboardActivityFeed({ activity });
 
   const {
     showCreate,
@@ -77,7 +77,7 @@ export const DashboardPage: React.FC = () => {
             <RecentActivitySection
               activity={activity}
               visibleActivity={visibleActivity}
-              onLoadMore={() => setVisibleActivityCount((count) => count + 10)}
+              onLoadMore={loadMore}
             />
           </div>
         </main>
