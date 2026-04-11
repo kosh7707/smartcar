@@ -3,11 +3,11 @@ import { Link } from "react-router-dom";
 import type { DashboardProject } from "../dashboardTypes";
 import {
   attentionDescription,
-  buildProjectChips,
+  buildAttentionChips,
   gateLabel,
   gateTone,
-  recentProjectUpdate,
-} from "../dashboardProjectSignals";
+} from "../dashboardAttention";
+import { recentProjectUpdate } from "../dashboardProjectSignals";
 import "./AttentionProjectCard.css";
 
 interface AttentionProjectCardProps {
@@ -17,7 +17,7 @@ interface AttentionProjectCardProps {
 export const AttentionProjectCard: React.FC<AttentionProjectCardProps> = ({ project }) => {
   const gate = gateTone(project.gateStatus);
   const gateText = gateLabel(project.gateStatus);
-  const chips = buildProjectChips(project).slice(0, 3);
+  const chips = buildAttentionChips(project);
 
   return (
     <Link to={`/projects/${project.id}/overview`} className="attention-project-card">

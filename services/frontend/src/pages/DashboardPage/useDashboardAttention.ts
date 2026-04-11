@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { selectAttentionProjects, selectNextMoveProject } from "./dashboardProjectSignals";
+import { selectAttentionProjects, selectNextMoveProject } from "./dashboardAttention";
 import type { DashboardProject } from "./dashboardTypes";
 
 interface UseDashboardAttentionOptions {
