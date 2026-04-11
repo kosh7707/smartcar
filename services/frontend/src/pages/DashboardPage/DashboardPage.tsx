@@ -1,5 +1,4 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
 import { useProjects } from "../../contexts/ProjectContext";
 import { NeedsAttentionSection } from "./components/NeedsAttentionSection";
 import { ProjectExplorer } from "./components/ProjectExplorer";
@@ -14,7 +13,6 @@ import "./DashboardPage.css";
 
 export const DashboardPage: React.FC = () => {
   const { projects, loading, createProject } = useProjects();
-  const navigate = useNavigate();
   useDashboardDocumentTitle();
 
   const {
@@ -37,12 +35,7 @@ export const DashboardPage: React.FC = () => {
     toggleCreate,
     handleCreate,
     handleCancelCreate,
-  } = useDashboardCreateForm({
-    onCreateProject: async (projectName, projectDescription) => {
-      const project = await createProject(projectName, projectDescription);
-      navigate(`/projects/${project.id}/overview`);
-    },
-  });
+  } = useDashboardCreateForm({ createProject });
 
   return (
     <div className="dashboard">
