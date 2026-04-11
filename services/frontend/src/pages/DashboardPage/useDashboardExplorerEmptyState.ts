@@ -12,7 +12,7 @@ interface GetProjectExplorerEmptyStateArgs {
   filter: string;
 }
 
-export function getProjectExplorerEmptyState({
+export function useDashboardExplorerEmptyState({
   loading,
   totalProjects,
   filter,
