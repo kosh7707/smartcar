@@ -22,7 +22,6 @@ export function useDashboardActivityFeed({
   const loadMore = () => setVisibleActivityCount((count) => count + pageSize);
 
   return {
-    activity,
     visibleActivity,
     hasMore: activity.length > visibleActivity.length,
     loadMore,

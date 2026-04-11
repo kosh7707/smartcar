@@ -24,7 +24,7 @@ export const DashboardPage: React.FC = () => {
     projects,
     filteredProjects,
   });
-  const { activity, visibleActivity, hasMore, loadMore } = useDashboardActivityFeed({ projects });
+  const { visibleActivity, hasMore, loadMore } = useDashboardActivityFeed({ projects });
 
   const {
     showCreate,
