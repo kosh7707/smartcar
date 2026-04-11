@@ -1,5 +1,5 @@
 import type { ActivityEvent, DashboardProject } from "./dashboardTypes";
-import { buildProjectChips, totalFindings } from "./dashboardProjectSignals";
+import { totalFindings } from "./dashboardProjectSignals";
 
 function buildPrimaryActivityEvent(project: DashboardProject): ActivityEvent | null {
   const timestamp = project.lastAnalysisAt || project.updatedAt;
