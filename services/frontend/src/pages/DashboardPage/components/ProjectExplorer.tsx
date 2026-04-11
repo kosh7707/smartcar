@@ -3,7 +3,7 @@ import { FolderSearch } from "lucide-react";
 import { CreateProjectForm } from "./CreateProjectForm";
 import type { DashboardProject } from "../dashboardTypes";
 import { DashboardEmptySurface } from "./DashboardEmptySurface";
-import type { ProjectExplorerEmptyState } from "../useDashboardExplorerState";
+import type { ProjectExplorerEmptyState } from "../hooks/useDashboardExplorerState";
 import { ProjectExplorerRow } from "./ProjectExplorerRow";
 import { ProjectExplorerSearch } from "./ProjectExplorerSearch";
 import "./ProjectExplorer.css";

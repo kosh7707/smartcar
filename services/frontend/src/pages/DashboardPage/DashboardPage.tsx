@@ -4,10 +4,10 @@ import { NeedsAttentionSection } from "./components/NeedsAttentionSection";
 import { ProjectExplorer } from "./components/ProjectExplorer";
 import { RecentActivitySection } from "./components/RecentActivitySection";
 import { getDashboardAttentionState } from "./dashboardAttentionState";
-import { useDashboardActivityFeed } from "./useDashboardActivityFeed";
-import { useDashboardCreateForm } from "./useDashboardCreateForm";
-import { useDashboardDocumentTitle } from "./useDashboardDocumentTitle";
-import { useDashboardExplorerState } from "./useDashboardExplorerState";
+import { useDashboardActivityFeed } from "./hooks/useDashboardActivityFeed";
+import { useDashboardCreateForm } from "./hooks/useDashboardCreateForm";
+import { useDashboardDocumentTitle } from "./hooks/useDashboardDocumentTitle";
+import { useDashboardExplorerState } from "./hooks/useDashboardExplorerState";
 import "./dashboardTokens.css";
 import "./DashboardPage.css";
 
