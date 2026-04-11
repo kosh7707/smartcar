@@ -1,7 +1,13 @@
 import { formatRelativeTime } from "../../utils/format";
-import type { DashboardChip, DashboardProject } from "./dashboardTypes";
+import type { DashboardProject } from "./dashboardTypes";
 
 export type ProjectExplorerRowTone = "critical" | "high" | "medium" | "pass" | "muted";
+export type DashboardChipTone = "neutral" | "critical" | "high" | "medium" | "success" | "warning";
+
+export interface DashboardChip {
+  label: string;
+  tone: DashboardChipTone;
+}
 
 export function totalFindings(project: DashboardProject): number {
   return (project.severitySummary?.critical ?? 0)

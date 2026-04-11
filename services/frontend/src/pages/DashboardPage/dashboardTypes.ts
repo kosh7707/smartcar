@@ -1,14 +1,8 @@
 import type { ProjectListItem } from "@aegis/shared";
 
 export type EventType = "analysis" | "gate_pass" | "gate_fail" | "gate_warning" | "vulnerability" | "approval" | "upload";
-export type ChipTone = "neutral" | "critical" | "high" | "medium" | "success" | "warning";
 
 export type DashboardProject = ProjectListItem;
-
-export interface DashboardChip {
-  label: string;
-  tone: ChipTone;
-}
 
 export interface ActivityEvent {
   id: string;
@@ -16,7 +10,6 @@ export interface ActivityEvent {
   projectName: string;
   type: EventType;
   description: string;
-  chips?: DashboardChip[];
   timestamp: string;
 }
 
