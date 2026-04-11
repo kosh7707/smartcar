@@ -13,15 +13,15 @@ interface ActivityEventCardProps {
 export const ActivityEventCard: React.FC<ActivityEventCardProps> = ({ event }) => (
   <Link to={`/projects/${event.projectId}/overview`} className="activity-event-card">
     <div className="activity-event-card__meta">
-      <div className="activity-event-card__title-row">
-        <span className="activity-event-card__project">{event.projectName}</span>
-        <span className={`activity-event-card__type activity-event-card__type--${event.type}`}>
-          {EVENT_LABELS[event.type]}
-        </span>
-      </div>
+      <span className={`activity-event-card__type activity-event-card__type--${event.type}`}>
+        {EVENT_LABELS[event.type]}
+      </span>
       <span className="activity-event-card__time">{formatRelativeTime(event.timestamp)}</span>
     </div>
-    <p className="activity-event-card__description">{event.description}</p>
-    {event.chips && event.chips.length > 0 ? <DashboardChipList chips={event.chips} compact /> : null}
+    <div className="activity-event-card__summary">
+      <span className="activity-event-card__project">{event.projectName}</span>
+      <p className="activity-event-card__description">{event.description}</p>
+    </div>
+    {event.chips && event.chips.length > 0 ? <DashboardChipList chips={event.chips.slice(0, 2)} compact /> : null}
   </Link>
 );

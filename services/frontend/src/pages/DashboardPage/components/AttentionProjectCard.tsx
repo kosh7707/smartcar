@@ -18,21 +18,19 @@ interface AttentionProjectCardProps {
 export const AttentionProjectCard: React.FC<AttentionProjectCardProps> = ({ project }) => {
   const gate = gateTone(project.gateStatus);
   const gateText = gateLabel(project.gateStatus);
-  const chips = buildProjectChips(project).slice(0, 4);
+  const chips = buildProjectChips(project).slice(0, 3);
 
   return (
     <Link to={`/projects/${project.id}/overview`} className="attention-project-card">
-      <div className="attention-project-card__meta">
-        <div className="attention-project-card__title-row">
-          <span className="attention-project-card__project">{project.name}</span>
-          {gate && gateText ? (
-            <span className={`attention-project-card__gate attention-project-card__gate--${gate}`}>{gateText}</span>
-          ) : null}
-        </div>
+      <div className="attention-project-card__header">
+        {gate && gateText ? (
+          <span className={`attention-project-card__gate attention-project-card__gate--${gate}`}>{gateText}</span>
+        ) : null}
         <span className="attention-project-card__time">{recentProjectUpdate(project)}</span>
       </div>
+      <span className="attention-project-card__project">{project.name}</span>
       <p className="attention-project-card__description">{attentionDescription(project)}</p>
-      <DashboardChipList chips={chips} />
+      {chips.length > 0 ? <DashboardChipList chips={chips} /> : null}
     </Link>
   );
 };
