@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import type { DashboardExplorerCreateFlow } from "./dashboardContracts";
 
 interface UseDashboardCreateFormOptions {
   createProject: (name: string, description: string) => Promise<{ id: string }>;
@@ -26,16 +27,18 @@ export function useDashboardCreateForm({ createProject }: UseDashboardCreateForm
     setDesc("");
   };
 
-  const toggleCreate = () => setShowCreate((prev) => !prev);
+  const createFlow: DashboardExplorerCreateFlow = {
+    show: showCreate,
+    name,
+    description: desc,
+    onToggle: () => setShowCreate((prev) => !prev),
+    onNameChange: setName,
+    onDescriptionChange: setDesc,
+    onSubmit: handleCreate,
+    onCancel: handleCancelCreate,
+  };
 
   return {
-    showCreate,
-    name,
-    desc,
-    setName,
-    setDesc,
-    toggleCreate,
-    handleCreate,
-    handleCancelCreate,
+    createFlow,
   };
 }
