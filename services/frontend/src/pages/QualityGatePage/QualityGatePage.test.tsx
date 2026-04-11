@@ -106,14 +106,13 @@ describe("QualityGatePage", () => {
 
     await waitFor(() => expect((screen.getByPlaceholderText("오버라이드 사유를 입력하세요 (최소 10자)") as HTMLInputElement).value).toBe("테스트 오버라이드 사유입니다"));
 
-    const confirmBtn = await waitFor(() => {
-      const btn = screen.getByRole("button", { name: /오버라이드 확인/ });
-      expect(btn).not.toBeDisabled();
-      return btn;
+    await waitFor(() => {
+      const confirmBtn = screen.getByRole("button", { name: /오버라이드 확인/ });
+      expect(confirmBtn).not.toBeDisabled();
+      fireEvent.click(confirmBtn);
+      expect(mockOverrideGate).toHaveBeenCalledTimes(1);
     });
-    fireEvent.click(confirmBtn);
 
-    await waitFor(() => expect(mockOverrideGate).toHaveBeenCalledTimes(1));
     expect(mockOverrideGate).toHaveBeenCalledWith("g-2", "테스트 오버라이드 사유입니다");
   });
 
