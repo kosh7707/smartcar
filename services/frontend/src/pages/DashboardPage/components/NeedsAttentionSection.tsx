@@ -7,10 +7,10 @@ import "./NeedsAttentionSection.css";
 
 interface NeedsAttentionSectionProps {
   projects: DashboardProject[];
-  nextMoveProject: DashboardProject | null;
+  hasProjectContext: boolean;
 }
 
-export const NeedsAttentionSection: React.FC<NeedsAttentionSectionProps> = ({ projects, nextMoveProject }) => {
+export const NeedsAttentionSection: React.FC<NeedsAttentionSectionProps> = ({ projects, hasProjectContext }) => {
   return (
     <section className="dashboard-section">
       <div className="dashboard-section-heading">
@@ -23,7 +23,7 @@ export const NeedsAttentionSection: React.FC<NeedsAttentionSectionProps> = ({ pr
           icon={<Shield size={22} />}
           title="긴급 항목 없음"
           description={
-            nextMoveProject
+            hasProjectContext
               ? "지금은 즉시 대응할 경고가 없습니다. 최근 프로젝트 상태를 한 번 점검해두면 충분합니다."
               : "프로젝트를 생성하면 게이트 실패나 높은 위험 항목이 이곳에 우선 정렬됩니다."
           }

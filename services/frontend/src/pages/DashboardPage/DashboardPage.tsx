@@ -20,7 +20,7 @@ export const DashboardPage: React.FC = () => {
     setFilter,
     filteredProjects,
   } = useDashboardExplorerFilter({ projects });
-  const { attentionProjects, nextMoveProject } = useDashboardAttention({
+  const { attentionProjects, hasProjectContext } = useDashboardAttention({
     projects,
     filteredProjects,
   });
@@ -62,7 +62,7 @@ export const DashboardPage: React.FC = () => {
           <div className="dashboard-main__lane">
             <NeedsAttentionSection
               projects={attentionProjects}
-              nextMoveProject={nextMoveProject}
+              hasProjectContext={hasProjectContext}
             />
             <RecentActivitySection
               visibleActivity={visibleActivity}

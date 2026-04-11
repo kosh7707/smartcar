@@ -7,12 +7,12 @@ export function selectAttentionProjects(projects: DashboardProject[], limit = 4)
     .slice(0, limit);
 }
 
-export function selectNextMoveProject(
+export function hasAttentionProjectContext(
   attentionProjects: DashboardProject[],
   filteredProjects: DashboardProject[],
   allProjects: DashboardProject[],
-): DashboardProject | null {
-  return attentionProjects[0] ?? filteredProjects[0] ?? allProjects[0] ?? null;
+): boolean {
+  return Boolean(attentionProjects[0] ?? filteredProjects[0] ?? allProjects[0]);
 }
 
 function projectPriorityForAttention(project: DashboardProject): number {
