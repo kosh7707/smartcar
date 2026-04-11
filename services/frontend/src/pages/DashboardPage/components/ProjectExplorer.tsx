@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { CreateProjectForm } from "./CreateProjectForm";
 import type { DashboardProject } from "../dashboardTypes";
 import { DashboardEmptySurface } from "./DashboardEmptySurface";
-import { useDashboardExplorerEmptyState } from "../useDashboardExplorerEmptyState";
+import { getDashboardExplorerEmptyState } from "../dashboardExplorerEmptyState";
 import { projectRowTone, recentProjectUpdate } from "../dashboardProjectSignals";
 import "./ProjectExplorer.css";
 
@@ -61,7 +61,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
   onCreate,
   onCancelCreate,
 }) => {
-  const emptyState = useDashboardExplorerEmptyState({
+  const emptyState = getDashboardExplorerEmptyState({
     loading,
     totalProjects,
     filter,
