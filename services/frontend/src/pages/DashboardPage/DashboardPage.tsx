@@ -6,15 +6,13 @@ import { ProjectExplorer } from "./components/ProjectExplorer";
 import { RecentActivitySection } from "./components/RecentActivitySection";
 import { buildActivity } from "./dashboardActivity";
 import { projectPriority } from "./dashboardProjectSignals";
+import { useDashboardCreateForm } from "./useDashboardCreateForm";
 import "./DashboardPage.css";
 
 export const DashboardPage: React.FC = () => {
   const { projects, loading, createProject } = useProjects();
   const navigate = useNavigate();
   const [filter, setFilter] = useState("");
-  const [showCreate, setShowCreate] = useState(false);
-  const [name, setName] = useState("");
-  const [desc, setDesc] = useState("");
   const [visibleActivityCount, setVisibleActivityCount] = useState(10);
 
   useEffect(() => {
@@ -38,20 +36,21 @@ export const DashboardPage: React.FC = () => {
   const activity = useMemo(() => buildActivity(projects), [projects]);
   const visibleActivity = useMemo(() => activity.slice(0, visibleActivityCount), [activity, visibleActivityCount]);
 
-  const handleCreate = async () => {
-    if (!name.trim()) return;
-    const project = await createProject(name.trim(), desc.trim());
-    setName("");
-    setDesc("");
-    setShowCreate(false);
-    navigate(`/projects/${project.id}/overview`);
-  };
-
-  const handleCancelCreate = () => {
-    setShowCreate(false);
-    setName("");
-    setDesc("");
-  };
+  const {
+    showCreate,
+    name,
+    desc,
+    setName,
+    setDesc,
+    toggleCreate,
+    handleCreate,
+    handleCancelCreate,
+  } = useDashboardCreateForm({
+    onCreateProject: async (projectName, projectDescription) => {
+      const project = await createProject(projectName, projectDescription);
+      navigate(`/projects/${project.id}/overview`);
+    },
+  });
 
   return (
     <div className="dashboard">
@@ -65,7 +64,7 @@ export const DashboardPage: React.FC = () => {
           createName={name}
           createDescription={desc}
           onFilterChange={setFilter}
-          onToggleCreate={() => setShowCreate((prev) => !prev)}
+          onToggleCreate={toggleCreate}
           onCreateNameChange={setName}
           onCreateDescriptionChange={setDesc}
           onCreate={handleCreate}
