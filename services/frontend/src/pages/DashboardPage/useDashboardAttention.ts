@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { hasAttentionProjectContext, selectAttentionProjects } from "./dashboardAttentionSelection";
 import type { DashboardProject } from "./dashboardTypes";
 
 interface UseDashboardAttentionOptions {
@@ -21,4 +20,28 @@ export function useDashboardAttention({
     attentionProjects,
     hasProjectContext,
   };
+}
+
+function selectAttentionProjects(projects: DashboardProject[], limit = 4): DashboardProject[] {
+  return [...projects]
+    .sort((a, b) => projectPriorityForAttention(b) - projectPriorityForAttention(a))
+    .filter((project) => projectPriorityForAttention(project) > 0)
+    .slice(0, limit);
+}
+
+function hasAttentionProjectContext(
+  attentionProjects: DashboardProject[],
+  filteredProjects: DashboardProject[],
+  allProjects: DashboardProject[],
+): boolean {
+  return Boolean(attentionProjects[0] ?? filteredProjects[0] ?? allProjects[0]);
+}
+
+function projectPriorityForAttention(project: DashboardProject): number {
+  const critical = project.severitySummary?.critical ?? 0;
+  const high = project.severitySummary?.high ?? 0;
+  const medium = project.severitySummary?.medium ?? 0;
+  const unresolved = project.unresolvedDelta ?? 0;
+  const gatePenalty = project.gateStatus === "fail" ? 40 : project.gateStatus === "warning" ? 18 : 0;
+  return critical * 100 + high * 20 + medium * 5 + unresolved + gatePenalty;
 }
