@@ -1,8 +1,4 @@
 .dashboard {
-  --dashboard-radius-control: 12px;
-  --dashboard-radius-surface: 16px;
-  --dashboard-radius-strong: 18px;
-  --dashboard-radius-pill: 999px;
   display: flex;
   flex-direction: column;
   min-height: 100%;

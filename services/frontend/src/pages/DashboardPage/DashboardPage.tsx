@@ -10,6 +10,7 @@ import { useDashboardActivityFeed } from "./useDashboardActivityFeed";
 import { useDashboardCreateForm } from "./useDashboardCreateForm";
 import { useDashboardDocumentTitle } from "./useDashboardDocumentTitle";
 import { useDashboardExplorerFilter } from "./useDashboardExplorerFilter";
+import "./dashboardTokens.css";
 import "./DashboardPage.css";
 
 export const DashboardPage: React.FC = () => {
