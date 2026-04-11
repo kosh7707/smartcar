@@ -1,11 +1,11 @@
 import React from "react";
-import { FolderSearch } from "lucide-react";
+import { FolderSearch, Plus, Search } from "lucide-react";
+import { Link } from "react-router-dom";
 import { CreateProjectForm } from "./CreateProjectForm";
 import type { DashboardProject } from "../dashboardTypes";
-import { ProjectExplorerSearch } from "./ProjectExplorerSearch";
-import { ProjectRow } from "./ProjectRow";
 import { DashboardEmptySurface } from "./DashboardEmptySurface";
 import { getProjectExplorerEmptyState } from "../dashboardExplorerEmptyState";
+import { projectRowTone, recentProjectUpdate } from "../dashboardProjectSignals";
 import "./ProjectExplorer.css";
 
 interface ProjectExplorerProps {
@@ -69,11 +69,30 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
 
   return (
     <aside className="project-explorer" aria-label="프로젝트 탐색기">
-      <ProjectExplorerSearch
-        filter={filter}
-        onFilterChange={onFilterChange}
-        onToggleCreate={onToggleCreate}
-      />
+      <div className="dashboard-section-heading">
+        <h2 className="dashboard-section-heading__title">프로젝트 탐색기</h2>
+        <div className="dashboard-section-heading__actions">
+          <button
+            type="button"
+            className="project-explorer-create-btn"
+            onClick={onToggleCreate}
+          >
+            <Plus size={13} />
+            <span>새 프로젝트</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="project-explorer-search">
+        <Search size={14} className="project-explorer-search__icon" />
+        <input
+          className="project-explorer-search__input"
+          type="text"
+          placeholder="프로젝트 검색"
+          value={filter}
+          onChange={(event) => onFilterChange(event.target.value)}
+        />
+      </div>
 
       {showCreate && (
         <CreateProjectForm
@@ -87,9 +106,26 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
       )}
 
       <ul className="project-explorer-list">
-        {projects.map((project) => (
-          <ProjectRow key={project.id} project={project} />
-        ))}
+        {projects.map((project) => {
+          const tone = projectRowTone(project);
+          return (
+            <li key={project.id} className="project-explorer-list__item">
+              <Link
+                to={`/projects/${project.id}/overview`}
+                className={`project-explorer-row project-explorer-row--${tone}`}
+              >
+                <div className="project-explorer-row__body">
+                  <div className="project-explorer-row__topline">
+                    <span className="project-explorer-row__name" title={project.name}>{project.name}</span>
+                  </div>
+                  <div className="project-explorer-row__footer project-explorer-row__footer--compact">
+                    <span className="project-explorer-row__time">{recentProjectUpdate(project)}</span>
+                  </div>
+                </div>
+              </Link>
+            </li>
+          );
+        })}
 
         {shouldRenderEmpty ? (
           <li className="project-explorer-list__empty">
