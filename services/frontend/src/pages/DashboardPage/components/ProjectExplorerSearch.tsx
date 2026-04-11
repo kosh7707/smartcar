@@ -20,7 +20,7 @@ export const ProjectExplorerSearch: React.FC<ProjectExplorerSearchProps> = ({
         actions={(
           <button
             type="button"
-            className="explorer-create-btn"
+            className="project-explorer-create-btn"
             onClick={onToggleCreate}
           >
             <Plus size={13} />
@@ -29,10 +29,10 @@ export const ProjectExplorerSearch: React.FC<ProjectExplorerSearchProps> = ({
         )}
       />
 
-      <div className="dashboard-search">
-        <Search size={14} className="dashboard-search__icon" />
+      <div className="project-explorer-search">
+        <Search size={14} className="project-explorer-search__icon" />
         <input
-          className="dashboard-search__input"
+          className="project-explorer-search__input"
           type="text"
           placeholder="프로젝트 검색"
           value={filter}

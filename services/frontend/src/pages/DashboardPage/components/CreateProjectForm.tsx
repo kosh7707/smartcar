@@ -19,9 +19,9 @@ export const CreateProjectForm: React.FC<CreateProjectFormProps> = ({
   onCancel,
 }) => {
   return (
-    <div className="dashboard-create-inline">
+    <div className="create-project-form">
       <input
-        className="dashboard-create-inline__input"
+        className="create-project-form__input"
         value={name}
         onChange={(event) => onNameChange(event.target.value)}
         placeholder="프로젝트 이름"
@@ -29,23 +29,23 @@ export const CreateProjectForm: React.FC<CreateProjectFormProps> = ({
         onKeyDown={(event) => event.key === "Enter" && onCreate()}
       />
       <input
-        className="dashboard-create-inline__input"
+        className="create-project-form__input"
         value={description}
         onChange={(event) => onDescriptionChange(event.target.value)}
         placeholder="설명 (선택)"
         onKeyDown={(event) => event.key === "Enter" && onCreate()}
       />
-      <div className="dashboard-create-inline__actions">
+      <div className="create-project-form__actions">
         <button
           type="button"
-          className="dashboard-create-inline__btn dashboard-create-inline__btn--ghost"
+          className="create-project-form__btn create-project-form__btn--ghost"
           onClick={onCancel}
         >
           취소
         </button>
         <button
           type="button"
-          className="dashboard-create-inline__btn dashboard-create-inline__btn--primary"
+          className="create-project-form__btn create-project-form__btn--primary"
           onClick={onCreate}
         >
           만들기
