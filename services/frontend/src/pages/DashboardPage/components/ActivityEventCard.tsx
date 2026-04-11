@@ -2,8 +2,17 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { formatRelativeTime } from "../../../utils/format";
 import type { ActivityEvent } from "../dashboardTypes";
-import { EVENT_LABELS } from "../dashboardTypes";
 import "./ActivityEventCard.css";
+
+const EVENT_LABELS: Record<ActivityEvent["type"], string> = {
+  analysis: "분석 완료",
+  gate_pass: "게이트 통과",
+  gate_fail: "게이트 실패",
+  gate_warning: "게이트 경고",
+  vulnerability: "취약점",
+  approval: "승인",
+  upload: "업로드",
+};
 
 interface ActivityEventCardProps {
   event: ActivityEvent;

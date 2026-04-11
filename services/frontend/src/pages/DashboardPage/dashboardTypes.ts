@@ -12,13 +12,3 @@ export interface ActivityEvent {
   description: string;
   timestamp: string;
 }
-
-export const EVENT_LABELS: Record<EventType, string> = {
-  analysis: "분석 완료",
-  gate_pass: "게이트 통과",
-  gate_fail: "게이트 실패",
-  gate_warning: "게이트 경고",
-  vulnerability: "취약점",
-  approval: "승인",
-  upload: "업로드",
-};
