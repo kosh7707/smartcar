@@ -4,6 +4,7 @@ import { DashboardProject } from "../dashboardModel";
 import { ProjectExplorerSearch } from "./ProjectExplorerSearch";
 import { ProjectExplorerEmpty } from "./ProjectExplorerEmpty";
 import { ProjectRow } from "./ProjectRow";
+import "./ProjectExplorer.css";
 
 interface ProjectExplorerProps {
   projects: DashboardProject[];
