@@ -1,13 +1,13 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import type { DashboardProject } from "../dashboardModel";
+import type { DashboardProject } from "../dashboardTypes";
 import {
   attentionDescription,
   buildProjectChips,
   gateLabel,
   gateTone,
   recentProjectUpdate,
-} from "../dashboardModel";
+} from "../dashboardProjectSignals";
 import { DashboardChipList } from "./DashboardChipList";
 import "./AttentionProjectCard.css";
 

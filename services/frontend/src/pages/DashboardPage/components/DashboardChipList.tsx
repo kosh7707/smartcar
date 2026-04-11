@@ -1,5 +1,5 @@
 import React from "react";
-import type { DashboardChip } from "../dashboardModel";
+import type { DashboardChip } from "../dashboardTypes";
 import "./DashboardChipList.css";
 
 interface DashboardChipListProps {

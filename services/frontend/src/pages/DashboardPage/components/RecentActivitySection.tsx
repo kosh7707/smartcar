@@ -1,6 +1,6 @@
 import React from "react";
 import { FolderKanban } from "lucide-react";
-import { ActivityEvent } from "../dashboardModel";
+import type { ActivityEvent } from "../dashboardTypes";
 import { ActivityEventCard } from "./ActivityEventCard";
 import { DashboardSectionEmpty } from "./DashboardSectionEmpty";
 import { DashboardSectionHeading } from "./DashboardSectionHeading";

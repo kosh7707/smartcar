@@ -4,7 +4,8 @@ import { useProjects } from "../../contexts/ProjectContext";
 import { NeedsAttentionSection } from "./components/NeedsAttentionSection";
 import { ProjectExplorer } from "./components/ProjectExplorer";
 import { RecentActivitySection } from "./components/RecentActivitySection";
-import { buildActivity, projectPriority } from "./dashboardModel";
+import { buildActivity } from "./dashboardActivity";
+import { projectPriority } from "./dashboardProjectSignals";
 import "./DashboardPage.css";
 
 export const DashboardPage: React.FC = () => {

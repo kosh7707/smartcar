@@ -1,8 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { formatRelativeTime } from "../../../utils/format";
-import type { ActivityEvent } from "../dashboardModel";
-import { EVENT_LABELS } from "../dashboardModel";
+import type { ActivityEvent } from "../dashboardTypes";
+import { EVENT_LABELS } from "../dashboardTypes";
 import { DashboardChipList } from "./DashboardChipList";
 import "./ActivityEventCard.css";
 

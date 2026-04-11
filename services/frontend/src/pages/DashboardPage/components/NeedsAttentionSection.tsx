@@ -3,9 +3,7 @@ import { Shield } from "lucide-react";
 import { AttentionProjectCard } from "./AttentionProjectCard";
 import { DashboardSectionEmpty } from "./DashboardSectionEmpty";
 import { DashboardSectionHeading } from "./DashboardSectionHeading";
-import {
-  DashboardProject,
-} from "../dashboardModel";
+import type { DashboardProject } from "../dashboardTypes";
 
 interface NeedsAttentionSectionProps {
   projects: DashboardProject[];

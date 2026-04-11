@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { DashboardProject, projectRowAccentClass, recentProjectUpdate } from "../dashboardModel";
+import type { DashboardProject } from "../dashboardTypes";
+import { projectRowAccentClass, recentProjectUpdate } from "../dashboardProjectSignals";
 
 interface ProjectRowProps {
   project: DashboardProject;

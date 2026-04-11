@@ -1,6 +1,6 @@
 import React from "react";
 import { CreateProjectForm } from "./CreateProjectForm";
-import { DashboardProject } from "../dashboardModel";
+import type { DashboardProject } from "../dashboardTypes";
 import { ProjectExplorerSearch } from "./ProjectExplorerSearch";
 import { ProjectExplorerEmpty } from "./ProjectExplorerEmpty";
 import { ProjectRow } from "./ProjectRow";
