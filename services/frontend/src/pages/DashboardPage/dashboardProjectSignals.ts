@@ -1,6 +1,8 @@
 import { formatRelativeTime } from "../../utils/format";
 import type { DashboardChip, DashboardProject } from "./dashboardTypes";
 
+export type ProjectExplorerRowTone = "critical" | "high" | "medium" | "pass" | "muted";
+
 export function totalFindings(project: DashboardProject): number {
   return (project.severitySummary?.critical ?? 0)
     + (project.severitySummary?.high ?? 0)
@@ -8,13 +10,13 @@ export function totalFindings(project: DashboardProject): number {
     + (project.severitySummary?.low ?? 0);
 }
 
-export function projectRowAccentClass(project: DashboardProject): string {
+export function projectRowTone(project: DashboardProject): ProjectExplorerRowTone {
   const summary = project.severitySummary;
-  if ((summary?.critical ?? 0) > 0) return "project-explorer-row--critical";
-  if ((summary?.high ?? 0) > 0) return "project-explorer-row--high";
-  if ((summary?.medium ?? 0) > 0) return "project-explorer-row--medium";
-  if (project.gateStatus === "pass") return "project-explorer-row--pass";
-  return "project-explorer-row--muted";
+  if ((summary?.critical ?? 0) > 0) return "critical";
+  if ((summary?.high ?? 0) > 0) return "high";
+  if ((summary?.medium ?? 0) > 0) return "medium";
+  if (project.gateStatus === "pass") return "pass";
+  return "muted";
 }
 
 export function gateTone(gateStatus?: string | null): "fail" | "warning" | null {

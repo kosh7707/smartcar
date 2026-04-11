@@ -1,18 +1,20 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import type { DashboardProject } from "../dashboardTypes";
-import { projectRowAccentClass, recentProjectUpdate } from "../dashboardProjectSignals";
+import { projectRowTone, recentProjectUpdate } from "../dashboardProjectSignals";
 
 interface ProjectRowProps {
   project: DashboardProject;
 }
 
 export const ProjectRow: React.FC<ProjectRowProps> = ({ project }) => {
+  const tone = projectRowTone(project);
+
   return (
     <li className="project-explorer-list__item">
       <Link
         to={`/projects/${project.id}/overview`}
-        className={`project-explorer-row ${projectRowAccentClass(project)}`}
+        className={`project-explorer-row project-explorer-row--${tone}`}
       >
         <div className="project-explorer-row__body">
           <div className="project-explorer-row__topline">
