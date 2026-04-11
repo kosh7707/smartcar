@@ -7,7 +7,7 @@ import { getDashboardAttentionState } from "./dashboardAttentionState";
 import { useDashboardActivityFeed } from "./useDashboardActivityFeed";
 import { useDashboardCreateForm } from "./useDashboardCreateForm";
 import { useDashboardDocumentTitle } from "./useDashboardDocumentTitle";
-import { useDashboardExplorerFilter } from "./useDashboardExplorerFilter";
+import { useDashboardExplorerState } from "./useDashboardExplorerState";
 import "./dashboardTokens.css";
 import "./DashboardPage.css";
 
@@ -19,7 +19,11 @@ export const DashboardPage: React.FC = () => {
     filter,
     setFilter,
     filteredProjects,
-  } = useDashboardExplorerFilter({ projects });
+    emptyState,
+  } = useDashboardExplorerState({
+    projects,
+    loading,
+  });
   const { attentionProjects, hasProjectContext } = getDashboardAttentionState({
     projects,
     filteredProjects,
@@ -42,9 +46,8 @@ export const DashboardPage: React.FC = () => {
       <div className="dashboard-body">
         <ProjectExplorer
           projects={filteredProjects}
-          totalProjects={projects.length}
-          loading={loading}
           filter={filter}
+          emptyState={emptyState}
           onFilterChange={setFilter}
           createFlow={{
             show: showCreate,

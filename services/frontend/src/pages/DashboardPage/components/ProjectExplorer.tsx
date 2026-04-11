@@ -3,16 +3,15 @@ import { FolderSearch } from "lucide-react";
 import { CreateProjectForm } from "./CreateProjectForm";
 import type { DashboardProject } from "../dashboardTypes";
 import { DashboardEmptySurface } from "./DashboardEmptySurface";
-import { getDashboardExplorerEmptyState } from "../dashboardExplorerEmptyState";
+import type { ProjectExplorerEmptyState } from "../useDashboardExplorerState";
 import { ProjectExplorerRow } from "./ProjectExplorerRow";
 import { ProjectExplorerSearch } from "./ProjectExplorerSearch";
 import "./ProjectExplorer.css";
 
 interface ProjectExplorerProps {
   projects: DashboardProject[];
-  totalProjects: number;
-  loading: boolean;
   filter: string;
+  emptyState: ProjectExplorerEmptyState;
   onFilterChange: (value: string) => void;
   createFlow: {
     show: boolean;
@@ -28,18 +27,12 @@ interface ProjectExplorerProps {
 
 export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
   projects,
-  totalProjects,
-  loading,
   filter,
+  emptyState,
   onFilterChange,
   createFlow,
 }) => {
-  const emptyState = getDashboardExplorerEmptyState({
-    loading,
-    totalProjects,
-    filter,
-  });
-  const shouldRenderEmpty = projects.length === 0 && (!loading || totalProjects === 0);
+  const shouldRenderEmpty = projects.length === 0;
   const emptyAction = emptyState.actionKind === "clear-filter"
     ? (
       <button
@@ -90,7 +83,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
               icon={<FolderSearch size={18} />}
               title={emptyState.title}
               description={emptyState.description}
-              action={loading ? undefined : emptyAction}
+              action={emptyAction}
               variant="inline"
             />
           </li>
