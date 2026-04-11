@@ -93,6 +93,18 @@ describe("DashboardPage", () => {
     expect(within(explorer).queryByRole("link", { name: /Project 1/i })).not.toBeInTheDocument();
   });
 
+  it("renders a refined explorer empty state for unmatched search and lets users reset it", async () => {
+    renderPage();
+
+    fireEvent.change(screen.getByPlaceholderText("Search projects"), { target: { value: "No Match" } });
+
+    expect(screen.getByText("검색 결과가 없습니다")).toBeInTheDocument();
+    expect(screen.getByText(/“No Match”와 일치하는 프로젝트가 없습니다/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "검색 초기화" }));
+    expect(screen.queryByText("검색 결과가 없습니다")).not.toBeInTheDocument();
+  });
+
   it("creates a project from the inline create form", async () => {
     renderPage();
 
@@ -103,6 +115,22 @@ describe("DashboardPage", () => {
 
     await waitFor(() => expect(mockCreateProject).toHaveBeenCalledWith("New Dashboard Project", "My desc"));
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/projects/p-created/overview"));
+  });
+
+  it("renders a clearer explorer empty state when there are no projects yet", async () => {
+    mockUseProjects.mockReturnValue({
+      projects: [],
+      loading: false,
+      createProject: mockCreateProject,
+    });
+
+    renderPage();
+
+    expect(screen.getByText("아직 프로젝트가 없습니다")).toBeInTheDocument();
+    expect(screen.getByText(/첫 프로젝트를 만들면 이곳에서 상태와 최근 흐름을 바로 탐색할 수 있습니다/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "새 프로젝트 시작" }));
+    expect(screen.getByPlaceholderText("Project name")).toBeInTheDocument();
   });
 
   it("renders refined empty lane sections when there is no dashboard data", async () => {
