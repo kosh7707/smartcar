@@ -1,9 +1,10 @@
 import React from "react";
+import { FolderSearch } from "lucide-react";
 import { CreateProjectForm } from "./CreateProjectForm";
 import type { DashboardProject } from "../dashboardTypes";
 import { ProjectExplorerSearch } from "./ProjectExplorerSearch";
-import { ProjectExplorerEmpty } from "./ProjectExplorerEmpty";
 import { ProjectRow } from "./ProjectRow";
+import { DashboardEmptySurface } from "./DashboardEmptySurface";
 import { getProjectExplorerEmptyState } from "../projectExplorerEmptyState";
 import "./ProjectExplorer.css";
 
@@ -72,11 +73,15 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
         ))}
 
         {shouldRenderEmpty ? (
-          <ProjectExplorerEmpty
-            title={emptyState.title}
-            description={emptyState.description}
-            action={loading ? undefined : emptyState.action}
-          />
+          <li className="project-explorer-list__empty">
+            <DashboardEmptySurface
+              icon={<FolderSearch size={18} />}
+              title={emptyState.title}
+              description={emptyState.description}
+              action={loading ? undefined : emptyState.action}
+              variant="inline"
+            />
+          </li>
         ) : null}
       </ul>
     </aside>
