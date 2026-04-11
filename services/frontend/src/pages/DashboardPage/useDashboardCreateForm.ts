@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { DashboardExplorerCreateFlow } from "./dashboardContracts";
+import type { DashboardExplorerCreateFlow } from "./components/ProjectExplorer";
 
 interface UseDashboardCreateFormOptions {
   createProject: (name: string, description: string) => Promise<{ id: string }>;

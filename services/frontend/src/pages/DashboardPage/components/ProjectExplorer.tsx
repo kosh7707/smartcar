@@ -2,12 +2,22 @@ import React from "react";
 import { FolderSearch } from "lucide-react";
 import { CreateProjectForm } from "./CreateProjectForm";
 import type { DashboardProject } from "../dashboardTypes";
-import type { DashboardExplorerCreateFlow } from "../dashboardContracts";
 import { DashboardEmptySurface } from "./DashboardEmptySurface";
 import type { ProjectExplorerEmptyState } from "../useDashboardExplorerState";
 import { ProjectExplorerRow } from "./ProjectExplorerRow";
 import { ProjectExplorerSearch } from "./ProjectExplorerSearch";
 import "./ProjectExplorer.css";
+
+export interface DashboardExplorerCreateFlow {
+  show: boolean;
+  name: string;
+  description: string;
+  onToggle: () => void;
+  onNameChange: (value: string) => void;
+  onDescriptionChange: (value: string) => void;
+  onSubmit: () => void;
+  onCancel: () => void;
+}
 
 interface ProjectExplorerProps {
   projects: DashboardProject[];
