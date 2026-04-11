@@ -27,7 +27,7 @@ export const NeedsAttentionSection: React.FC<NeedsAttentionSectionProps> = ({ pr
           }
         />
       ) : (
-        <div className="attention-shelf">
+        <div className="needs-attention-list">
           {projects.map((project) => <AttentionProjectCard key={project.id} project={project} />)}
         </div>
       )}

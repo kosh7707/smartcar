@@ -9,17 +9,17 @@ interface ProjectRowProps {
 
 export const ProjectRow: React.FC<ProjectRowProps> = ({ project }) => {
   return (
-    <li className="project-list__item">
+    <li className="project-explorer-list__item">
       <Link
         to={`/projects/${project.id}/overview`}
-        className={`project-row ${projectRowAccentClass(project)}`}
+        className={`project-explorer-row ${projectRowAccentClass(project)}`}
       >
-        <div className="project-row__body">
-          <div className="project-row__topline">
-            <span className="project-row__name" title={project.name}>{project.name}</span>
+        <div className="project-explorer-row__body">
+          <div className="project-explorer-row__topline">
+            <span className="project-explorer-row__name" title={project.name}>{project.name}</span>
           </div>
-          <div className="project-row__footer project-row__footer--compact">
-            <span className="project-row__time">{recentProjectUpdate(project)}</span>
+          <div className="project-explorer-row__footer project-explorer-row__footer--compact">
+            <span className="project-explorer-row__time">{recentProjectUpdate(project)}</span>
           </div>
         </div>
       </Link>

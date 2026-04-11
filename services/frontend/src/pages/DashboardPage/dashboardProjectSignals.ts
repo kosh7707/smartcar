@@ -10,11 +10,11 @@ export function totalFindings(project: DashboardProject): number {
 
 export function projectRowAccentClass(project: DashboardProject): string {
   const summary = project.severitySummary;
-  if ((summary?.critical ?? 0) > 0) return "project-row--critical";
-  if ((summary?.high ?? 0) > 0) return "project-row--high";
-  if ((summary?.medium ?? 0) > 0) return "project-row--medium";
-  if (project.gateStatus === "pass") return "project-row--pass";
-  return "project-row--muted";
+  if ((summary?.critical ?? 0) > 0) return "project-explorer-row--critical";
+  if ((summary?.high ?? 0) > 0) return "project-explorer-row--high";
+  if ((summary?.medium ?? 0) > 0) return "project-explorer-row--medium";
+  if (project.gateStatus === "pass") return "project-explorer-row--pass";
+  return "project-explorer-row--muted";
 }
 
 export function gateTone(gateStatus?: string | null): "fail" | "warning" | null {

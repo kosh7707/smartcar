@@ -14,7 +14,7 @@ export const ProjectExplorerEmpty: React.FC<ProjectExplorerEmptyProps> = ({
   action,
 }) => {
   return (
-    <li className="project-list__empty">
+    <li className="project-explorer-list__empty">
       <DashboardEmptySurface
         icon={<FolderSearch size={18} />}
         title={title}

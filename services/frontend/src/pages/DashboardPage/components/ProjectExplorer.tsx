@@ -117,7 +117,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
         />
       )}
 
-      <ul className="project-list">
+      <ul className="project-explorer-list">
         {projects.map((project) => (
           <ProjectRow key={project.id} project={project} />
         ))}
