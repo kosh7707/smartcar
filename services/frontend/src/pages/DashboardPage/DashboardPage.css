@@ -205,8 +205,7 @@
   padding: var(--cds-spacing-04);
   border: 1px solid var(--cds-border-subtle);
   border-radius: 16px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--cds-layer-01) 90%, transparent), var(--cds-background));
+  background: var(--cds-layer-01);
 }
 
 .project-list__empty-icon {
@@ -534,13 +533,11 @@
   padding: var(--cds-spacing-05) var(--cds-spacing-05);
   border: 1px solid var(--cds-border-subtle);
   border-radius: 18px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--cds-layer-01) 82%, transparent), var(--cds-background));
+  background: var(--cds-layer-01);
 }
 
 .dashboard-section-empty--attention {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--aegis-severity-critical-bg) 65%, transparent), var(--cds-background));
+  background: color-mix(in srgb, var(--aegis-severity-critical-bg) 70%, var(--cds-layer-01));
   border-color: color-mix(in srgb, var(--aegis-severity-critical) 16%, var(--cds-border-subtle));
 }
 
