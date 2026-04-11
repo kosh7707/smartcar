@@ -2,6 +2,7 @@ import React from "react";
 import { Outlet, useParams, Link, useLocation } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { useProjects } from "../contexts/ProjectContext";
+import "./ProjectBreadcrumbLayout.css";
 
 const pageNames: Record<string, string> = {
   overview: "대시보드",
