@@ -6,12 +6,12 @@
 .activity-event-card {
   display: flex;
   flex-direction: column;
-  gap: var(--cds-spacing-03);
+  gap: var(--cds-spacing-02);
   padding: var(--cds-spacing-04) 0;
   border-bottom: 1px solid var(--cds-border-subtle);
   color: inherit;
   text-decoration: none;
-  transition: color var(--cds-transition-fast), transform var(--cds-transition-fast);
+  transition: color var(--cds-transition-fast), background var(--cds-transition-fast);
 }
 
 .activity-event-card:first-child {
@@ -20,7 +20,7 @@
 
 .activity-event-card:hover,
 .activity-event-card:focus-visible {
-  transform: translateX(2px);
+  background: color-mix(in srgb, var(--cds-layer-01) 65%, transparent);
 }
 
 .activity-event-card:focus-visible {
@@ -28,16 +28,17 @@
   outline-offset: 2px;
 }
 
-.activity-event-card__meta,
-.activity-event-card__title-row {
+.activity-event-card__meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--cds-spacing-03);
 }
 
-.activity-event-card__title-row {
-  justify-content: flex-start;
+.activity-event-card__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
   min-width: 0;
 }
 
@@ -78,6 +79,11 @@
   color: var(--aegis-severity-critical);
 }
 
+.activity-event-card__type--gate_warning {
+  background: var(--aegis-severity-medium-bg);
+  color: var(--aegis-severity-medium);
+}
+
 .activity-event-card__type--vulnerability {
   background: var(--aegis-severity-high-bg);
   color: var(--aegis-severity-high);
@@ -91,14 +97,14 @@
 
 .activity-event-card__description {
   margin: 0;
-  font-size: var(--cds-type-sm);
+  font-size: var(--cds-type-xs);
   line-height: 1.55;
   color: var(--cds-text-secondary);
 }
 
 @media (max-width: 640px) {
   .activity-event-card__meta {
-    flex-direction: column;
-    align-items: flex-start;
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }

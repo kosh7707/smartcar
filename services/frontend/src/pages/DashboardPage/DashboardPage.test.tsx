@@ -42,6 +42,7 @@ function makeProject(index: number, overrides: Partial<ProjectListItem> = {}): P
 }
 
 const projects = Array.from({ length: 5 }, (_, i) => makeProject(i + 1));
+const manyProjects = Array.from({ length: 12 }, (_, i) => makeProject(i + 1));
 
 function renderPage() {
   return render(
@@ -63,6 +64,12 @@ describe("DashboardPage", () => {
   });
 
   it("renders dashboard sections and keeps explorer, attention, and activity links interactive", async () => {
+    mockUseProjects.mockReturnValue({
+      projects: manyProjects,
+      loading: false,
+      createProject: mockCreateProject,
+    });
+
     renderPage();
 
     expect(screen.getByRole("heading", { name: "프로젝트 탐색기" })).toBeInTheDocument();
@@ -80,7 +87,7 @@ describe("DashboardPage", () => {
     expect(within(activitySection as HTMLElement).getAllByRole("link")).toHaveLength(10);
 
     fireEvent.click(screen.getByRole("button", { name: "더 보기" }));
-    expect(within(activitySection as HTMLElement).getAllByRole("link")).toHaveLength(15);
+    expect(within(activitySection as HTMLElement).getAllByRole("link")).toHaveLength(12);
   });
 
   it("filters project explorer by search query", async () => {
