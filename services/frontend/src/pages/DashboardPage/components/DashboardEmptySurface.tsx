@@ -25,7 +25,7 @@ export const DashboardEmptySurface: React.FC<DashboardEmptySurfaceProps> = ({
     <div className="dashboard-empty-surface__copy">
       <strong className="dashboard-empty-surface__title">{title}</strong>
       <p className="dashboard-empty-surface__description">{description}</p>
-      {action ? <div className="dashboard-empty-surface__action">{action}</div> : null}
+      {variant === "inline" && action ? <div className="dashboard-empty-surface__action">{action}</div> : null}
     </div>
   </div>
 );
