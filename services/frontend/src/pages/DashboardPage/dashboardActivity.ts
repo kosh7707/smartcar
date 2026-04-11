@@ -16,7 +16,6 @@ function buildPrimaryActivityEvent(project: DashboardProject): ActivityEvent | n
       projectName: project.name,
       type: "gate_fail",
       description: "품질 게이트에 실패했습니다",
-      chips: buildProjectChips(project).slice(0, 2),
       timestamp,
     };
   }
@@ -28,7 +27,6 @@ function buildPrimaryActivityEvent(project: DashboardProject): ActivityEvent | n
       projectName: project.name,
       type: "gate_warning",
       description: "품질 게이트 경고 상태입니다",
-      chips: buildProjectChips(project).slice(0, 2),
       timestamp,
     };
   }
@@ -40,7 +38,6 @@ function buildPrimaryActivityEvent(project: DashboardProject): ActivityEvent | n
       projectName: project.name,
       type: "vulnerability",
       description: `취약점 ${findingsTotal}건이 발견되었습니다`,
-      chips: buildProjectChips(project).slice(0, 2),
       timestamp,
     };
   }
@@ -51,7 +48,6 @@ function buildPrimaryActivityEvent(project: DashboardProject): ActivityEvent | n
     projectName: project.name,
     type: project.gateStatus === "pass" ? "gate_pass" : "analysis",
     description: project.gateStatus === "pass" ? "품질 게이트를 통과했습니다" : "정적 분석이 완료되었습니다",
-    chips: [],
     timestamp,
   };
 }

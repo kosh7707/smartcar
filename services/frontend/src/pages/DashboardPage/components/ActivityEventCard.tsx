@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { formatRelativeTime } from "../../../utils/format";
 import type { ActivityEvent } from "../dashboardTypes";
 import { EVENT_LABELS } from "../dashboardTypes";
-import { DashboardChipList } from "./DashboardChipList";
 import "./ActivityEventCard.css";
 
 interface ActivityEventCardProps {
@@ -22,6 +21,5 @@ export const ActivityEventCard: React.FC<ActivityEventCardProps> = ({ event }) =
       <span className="activity-event-card__project">{event.projectName}</span>
       <p className="activity-event-card__description">{event.description}</p>
     </div>
-    {event.chips && event.chips.length > 0 ? <DashboardChipList chips={event.chips.slice(0, 2)} compact /> : null}
   </Link>
 );
