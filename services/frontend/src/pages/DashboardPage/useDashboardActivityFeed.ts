@@ -1,16 +1,18 @@
 import { useMemo, useState } from "react";
-import type { ActivityEvent } from "./dashboardTypes";
+import { buildActivity } from "./dashboardActivity";
+import type { DashboardProject } from "./dashboardTypes";
 
 interface UseDashboardActivityFeedOptions {
-  activity: ActivityEvent[];
+  projects: DashboardProject[];
   pageSize?: number;
 }
 
 export function useDashboardActivityFeed({
-  activity,
+  projects,
   pageSize = 10,
 }: UseDashboardActivityFeedOptions) {
   const [visibleActivityCount, setVisibleActivityCount] = useState(pageSize);
+  const activity = useMemo(() => buildActivity(projects), [projects]);
 
   const visibleActivity = useMemo(
     () => activity.slice(0, visibleActivityCount),
@@ -20,6 +22,7 @@ export function useDashboardActivityFeed({
   const loadMore = () => setVisibleActivityCount((count) => count + pageSize);
 
   return {
+    activity,
     visibleActivity,
     loadMore,
   };

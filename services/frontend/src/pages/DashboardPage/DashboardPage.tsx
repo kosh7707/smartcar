@@ -1,10 +1,9 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useProjects } from "../../contexts/ProjectContext";
 import { NeedsAttentionSection } from "./components/NeedsAttentionSection";
 import { ProjectExplorer } from "./components/ProjectExplorer";
 import { RecentActivitySection } from "./components/RecentActivitySection";
-import { buildActivity } from "./dashboardActivity";
 import { useDashboardAttention } from "./useDashboardAttention";
 import { useDashboardActivityFeed } from "./useDashboardActivityFeed";
 import { useDashboardCreateForm } from "./useDashboardCreateForm";
@@ -27,8 +26,7 @@ export const DashboardPage: React.FC = () => {
     projects,
     filteredProjects,
   });
-  const activity = useMemo(() => buildActivity(projects), [projects]);
-  const { visibleActivity, loadMore } = useDashboardActivityFeed({ activity });
+  const { activity, visibleActivity, loadMore } = useDashboardActivityFeed({ projects });
 
   const {
     showCreate,
