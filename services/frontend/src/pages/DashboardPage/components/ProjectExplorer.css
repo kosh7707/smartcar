@@ -157,6 +157,24 @@
   justify-content: flex-start;
 }
 
+.project-explorer-empty-action {
+  min-height: 1.875rem;
+  padding: 0 var(--cds-spacing-03);
+  border: 1px solid var(--cds-border-subtle);
+  border-radius: var(--dashboard-radius-pill);
+  background: var(--cds-background);
+  color: var(--cds-text-primary);
+  font-size: var(--cds-type-xs);
+  font-weight: var(--cds-weight-medium);
+  cursor: pointer;
+  transition: background var(--cds-transition-fast), border-color var(--cds-transition-fast);
+}
+
+.project-explorer-empty-action:hover {
+  background: var(--cds-layer-01);
+  border-color: var(--cds-border-strong);
+}
+
 @media (max-width: 980px) {
   .project-explorer {
     padding-right: 0;

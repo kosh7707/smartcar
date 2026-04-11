@@ -49,7 +49,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
     ? (
       <button
         type="button"
-        className="dashboard-empty-surface__action-control"
+        className="project-explorer-empty-action"
         onClick={() => onFilterChange("")}
       >
         검색 초기화
@@ -59,7 +59,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
       ? (
         <button
           type="button"
-          className="dashboard-empty-surface__action-control"
+          className="project-explorer-empty-action"
           onClick={onToggleCreate}
         >
           새 프로젝트 시작
