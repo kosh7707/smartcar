@@ -5,7 +5,7 @@ import { NeedsAttentionSection } from "./components/NeedsAttentionSection";
 import { ProjectExplorer } from "./components/ProjectExplorer";
 import { RecentActivitySection } from "./components/RecentActivitySection";
 import { buildActivity } from "./dashboardActivity";
-import { selectAttentionProjects, selectNextMoveProject } from "./dashboardProjectSignals";
+import { useDashboardAttention } from "./useDashboardAttention";
 import { useDashboardActivityFeed } from "./useDashboardActivityFeed";
 import { useDashboardCreateForm } from "./useDashboardCreateForm";
 import { useDashboardDocumentTitle } from "./useDashboardDocumentTitle";
@@ -23,12 +23,10 @@ export const DashboardPage: React.FC = () => {
     setFilter,
     filteredProjects,
   } = useDashboardExplorerFilter({ projects });
-
-  const attentionProjects = useMemo(() => selectAttentionProjects(projects), [projects]);
-  const nextMoveProject = useMemo(
-    () => selectNextMoveProject(attentionProjects, filteredProjects, projects),
-    [attentionProjects, filteredProjects, projects],
-  );
+  const { attentionProjects, nextMoveProject } = useDashboardAttention({
+    projects,
+    filteredProjects,
+  });
   const activity = useMemo(() => buildActivity(projects), [projects]);
   const { visibleActivity, loadMore } = useDashboardActivityFeed({ activity });
 
