@@ -28,16 +28,16 @@ export const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
           description="첫 업로드, 분석, 승인 같은 작업이 시작되면 최근 흐름이 이 레인에 순서대로 쌓입니다."
         />
       ) : (
-        <div className="activity-list">
+        <div className="recent-activity-list">
           {visibleActivity.map((event) => <ActivityEventCard key={event.id} event={event} />)}
         </div>
       )}
 
       {activity.length > visibleActivity.length && (
-        <div className="activity-more">
+        <div className="recent-activity-more">
           <button
             type="button"
-            className="activity-more__btn"
+            className="recent-activity-more__btn"
             onClick={onLoadMore}
           >
             더 보기
