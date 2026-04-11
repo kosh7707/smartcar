@@ -1,11 +1,22 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import type { DashboardProject } from "../dashboardTypes";
-import { projectRowTone, recentProjectUpdate } from "../dashboardProjectSignals";
+import { recentProjectUpdate } from "../dashboardProjectSignals";
 import "./ProjectExplorerRow.css";
 
 interface ProjectExplorerRowProps {
   project: DashboardProject;
+}
+
+type ProjectExplorerRowTone = "critical" | "high" | "medium" | "pass" | "muted";
+
+function projectRowTone(project: DashboardProject): ProjectExplorerRowTone {
+  const summary = project.severitySummary;
+  if ((summary?.critical ?? 0) > 0) return "critical";
+  if ((summary?.high ?? 0) > 0) return "high";
+  if ((summary?.medium ?? 0) > 0) return "medium";
+  if (project.gateStatus === "pass") return "pass";
+  return "muted";
 }
 
 export const ProjectExplorerRow: React.FC<ProjectExplorerRowProps> = ({ project }) => {
