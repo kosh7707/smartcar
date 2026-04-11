@@ -2,6 +2,11 @@
   min-width: 0;
 }
 
+.recent-activity-list {
+  display: flex;
+  flex-direction: column;
+}
+
 .recent-activity-more {
   display: flex;
   justify-content: center;

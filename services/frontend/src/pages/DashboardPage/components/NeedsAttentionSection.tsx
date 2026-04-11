@@ -4,6 +4,7 @@ import { AttentionProjectCard } from "./AttentionProjectCard";
 import { DashboardEmptySurface } from "./DashboardEmptySurface";
 import { DashboardSectionHeading } from "./DashboardSectionHeading";
 import type { DashboardProject } from "../dashboardTypes";
+import "./NeedsAttentionSection.css";
 
 interface NeedsAttentionSectionProps {
   projects: DashboardProject[];
