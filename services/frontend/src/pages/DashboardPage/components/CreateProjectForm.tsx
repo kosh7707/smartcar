@@ -1,4 +1,5 @@
 import React from "react";
+import "./CreateProjectForm.css";
 
 interface CreateProjectFormProps {
   name: string;

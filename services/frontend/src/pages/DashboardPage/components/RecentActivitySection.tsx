@@ -4,6 +4,7 @@ import { ActivityEvent } from "../dashboardModel";
 import { ActivityEventCard } from "./ActivityEventCard";
 import { DashboardSectionEmpty } from "./DashboardSectionEmpty";
 import { DashboardSectionHeading } from "./DashboardSectionHeading";
+import "./RecentActivitySection.css";
 
 interface RecentActivitySectionProps {
   activity: ActivityEvent[];

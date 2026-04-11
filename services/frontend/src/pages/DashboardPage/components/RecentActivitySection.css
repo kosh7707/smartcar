@@ -1,0 +1,28 @@
+.dashboard-section--activity {
+  min-width: 0;
+}
+
+.activity-more {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--cds-spacing-02);
+}
+
+.activity-more__btn {
+  min-height: 2.25rem;
+  padding: 0 1rem;
+  border: 1px solid var(--cds-border-subtle);
+  border-radius: var(--dashboard-radius-control);
+  background: var(--cds-background);
+  color: var(--cds-text-secondary);
+  font-size: var(--cds-type-sm);
+  font-weight: var(--cds-weight-medium);
+  cursor: pointer;
+  transition: background var(--cds-transition-fast), color var(--cds-transition-fast), border-color var(--cds-transition-fast);
+}
+
+.activity-more__btn:hover {
+  background: var(--cds-layer-01);
+  color: var(--cds-text-primary);
+  border-color: var(--cds-border-strong);
+}
