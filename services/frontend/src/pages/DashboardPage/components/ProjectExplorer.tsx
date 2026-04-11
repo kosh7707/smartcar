@@ -43,10 +43,29 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
     loading,
     totalProjects,
     filter,
-    onFilterChange,
-    onToggleCreate,
   });
   const shouldRenderEmpty = projects.length === 0 && (!loading || totalProjects === 0);
+  const emptyAction = emptyState.actionKind === "clear-filter"
+    ? (
+      <button
+        type="button"
+        className="dashboard-empty-surface__action-control"
+        onClick={() => onFilterChange("")}
+      >
+        검색 초기화
+      </button>
+    )
+    : emptyState.actionKind === "start-project"
+      ? (
+        <button
+          type="button"
+          className="dashboard-empty-surface__action-control"
+          onClick={onToggleCreate}
+        >
+          새 프로젝트 시작
+        </button>
+      )
+      : undefined;
 
   return (
     <aside className="project-explorer" aria-label="프로젝트 탐색기">
@@ -78,7 +97,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
               icon={<FolderSearch size={18} />}
               title={emptyState.title}
               description={emptyState.description}
-              action={loading ? undefined : emptyState.action}
+              action={loading ? undefined : emptyAction}
               variant="inline"
             />
           </li>
