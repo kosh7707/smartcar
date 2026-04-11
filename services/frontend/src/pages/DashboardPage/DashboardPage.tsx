@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProjects } from "../../contexts/ProjectContext";
 import { NeedsAttentionSection } from "./components/NeedsAttentionSection";
@@ -8,16 +8,14 @@ import { buildActivity } from "./dashboardActivity";
 import { selectAttentionProjects, selectNextMoveProject } from "./dashboardProjectSignals";
 import { useDashboardActivityFeed } from "./useDashboardActivityFeed";
 import { useDashboardCreateForm } from "./useDashboardCreateForm";
+import { useDashboardDocumentTitle } from "./useDashboardDocumentTitle";
 import { useDashboardExplorerFilter } from "./useDashboardExplorerFilter";
 import "./DashboardPage.css";
 
 export const DashboardPage: React.FC = () => {
   const { projects, loading, createProject } = useProjects();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    document.title = "AEGIS — Dashboard";
-  }, []);
+  useDashboardDocumentTitle();
 
   const {
     filter,
