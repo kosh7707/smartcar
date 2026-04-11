@@ -8,27 +8,27 @@ import { buildActivity } from "./dashboardActivity";
 import { selectAttentionProjects, selectNextMoveProject } from "./dashboardProjectSignals";
 import { useDashboardActivityFeed } from "./useDashboardActivityFeed";
 import { useDashboardCreateForm } from "./useDashboardCreateForm";
+import { useDashboardExplorerFilter } from "./useDashboardExplorerFilter";
 import "./DashboardPage.css";
 
 export const DashboardPage: React.FC = () => {
   const { projects, loading, createProject } = useProjects();
   const navigate = useNavigate();
-  const [filter, setFilter] = useState("");
 
   useEffect(() => {
     document.title = "AEGIS — Dashboard";
   }, []);
 
-  const filtered = useMemo(() => {
-    if (!filter.trim()) return projects;
-    const query = filter.toLowerCase();
-    return projects.filter((project) => `${project.name} ${project.description}`.toLowerCase().includes(query));
-  }, [projects, filter]);
+  const {
+    filter,
+    setFilter,
+    filteredProjects,
+  } = useDashboardExplorerFilter({ projects });
 
   const attentionProjects = useMemo(() => selectAttentionProjects(projects), [projects]);
   const nextMoveProject = useMemo(
-    () => selectNextMoveProject(attentionProjects, filtered, projects),
-    [attentionProjects, filtered, projects],
+    () => selectNextMoveProject(attentionProjects, filteredProjects, projects),
+    [attentionProjects, filteredProjects, projects],
   );
   const activity = useMemo(() => buildActivity(projects), [projects]);
   const { visibleActivity, loadMore } = useDashboardActivityFeed({ activity });
@@ -53,7 +53,7 @@ export const DashboardPage: React.FC = () => {
     <div className="dashboard">
       <div className="dashboard-body">
         <ProjectExplorer
-          projects={filtered}
+          projects={filteredProjects}
           totalProjects={projects.length}
           loading={loading}
           filter={filter}
