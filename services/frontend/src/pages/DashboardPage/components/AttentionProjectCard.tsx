@@ -6,7 +6,7 @@ import {
   buildAttentionChips,
   gateLabel,
   gateTone,
-} from "../dashboardAttention";
+} from "../dashboardAttentionPresentation";
 import { recentProjectUpdate } from "../dashboardProjectSignals";
 import "./AttentionProjectCard.css";
 

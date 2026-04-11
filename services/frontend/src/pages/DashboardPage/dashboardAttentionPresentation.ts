@@ -20,21 +20,6 @@ export function gateLabel(gateStatus?: string | null): string | null {
   return null;
 }
 
-export function selectAttentionProjects(projects: DashboardProject[], limit = 4): DashboardProject[] {
-  return [...projects]
-    .sort((a, b) => projectPriorityForAttention(b) - projectPriorityForAttention(a))
-    .filter((project) => projectPriorityForAttention(project) > 0)
-    .slice(0, limit);
-}
-
-export function selectNextMoveProject(
-  attentionProjects: DashboardProject[],
-  filteredProjects: DashboardProject[],
-  allProjects: DashboardProject[],
-): DashboardProject | null {
-  return attentionProjects[0] ?? filteredProjects[0] ?? allProjects[0] ?? null;
-}
-
 export function attentionDescription(project: DashboardProject): string {
   const total = totalFindings(project);
   const critical = project.severitySummary?.critical ?? 0;
@@ -89,13 +74,4 @@ function buildProjectChips(project: DashboardProject): DashboardChip[] {
   if ((project.unresolvedDelta ?? 0) > 0) chips.push({ label: `미해결 +${project.unresolvedDelta}`, tone: "warning" });
 
   return chips;
-}
-
-function projectPriorityForAttention(project: DashboardProject): number {
-  const critical = project.severitySummary?.critical ?? 0;
-  const high = project.severitySummary?.high ?? 0;
-  const medium = project.severitySummary?.medium ?? 0;
-  const unresolved = project.unresolvedDelta ?? 0;
-  const gatePenalty = project.gateStatus === "fail" ? 40 : project.gateStatus === "warning" ? 18 : 0;
-  return critical * 100 + high * 20 + medium * 5 + unresolved + gatePenalty;
 }
