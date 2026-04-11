@@ -17,7 +17,7 @@ export const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
   onLoadMore,
 }) => {
   return (
-    <section className="dashboard-section recent-activity-section">
+    <section className="dashboard-section">
       <div className="dashboard-section-heading">
         <h2 className="dashboard-section-heading__title">최근 활동</h2>
       </div>

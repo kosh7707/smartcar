@@ -1,7 +1,3 @@
-.recent-activity-section {
-  min-width: 0;
-}
-
 .recent-activity-list {
   display: flex;
   flex-direction: column;

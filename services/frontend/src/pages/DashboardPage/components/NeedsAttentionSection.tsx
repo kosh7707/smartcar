@@ -12,7 +12,7 @@ interface NeedsAttentionSectionProps {
 
 export const NeedsAttentionSection: React.FC<NeedsAttentionSectionProps> = ({ projects, nextMoveProject }) => {
   return (
-    <section className="dashboard-section needs-attention-section">
+    <section className="dashboard-section">
       <div className="dashboard-section-heading">
         <h2 className="dashboard-section-heading__title">우선 확인</h2>
       </div>
