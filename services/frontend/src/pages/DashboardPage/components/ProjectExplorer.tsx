@@ -1,11 +1,11 @@
 import React from "react";
-import { FolderSearch, Plus, Search } from "lucide-react";
-import { Link } from "react-router-dom";
+import { FolderSearch } from "lucide-react";
 import { CreateProjectForm } from "./CreateProjectForm";
 import type { DashboardProject } from "../dashboardTypes";
 import { DashboardEmptySurface } from "./DashboardEmptySurface";
 import { getDashboardExplorerEmptyState } from "../dashboardExplorerEmptyState";
-import { projectRowTone, recentProjectUpdate } from "../dashboardProjectSignals";
+import { ProjectExplorerRow } from "./ProjectExplorerRow";
+import { ProjectExplorerSearch } from "./ProjectExplorerSearch";
 import "./ProjectExplorer.css";
 
 interface ProjectExplorerProps {
@@ -22,28 +22,6 @@ interface ProjectExplorerProps {
   onCreateDescriptionChange: (value: string) => void;
   onCreate: () => void;
   onCancelCreate: () => void;
-}
-
-function renderProjectExplorerRow(project: DashboardProject) {
-  const tone = projectRowTone(project);
-
-  return (
-    <li key={project.id} className="project-explorer-list__item">
-      <Link
-        to={`/projects/${project.id}/overview`}
-        className={`project-explorer-row project-explorer-row--${tone}`}
-      >
-        <div className="project-explorer-row__body">
-          <div className="project-explorer-row__topline">
-            <span className="project-explorer-row__name" title={project.name}>{project.name}</span>
-          </div>
-          <div className="project-explorer-row__footer project-explorer-row__footer--compact">
-            <span className="project-explorer-row__time">{recentProjectUpdate(project)}</span>
-          </div>
-        </div>
-      </Link>
-    </li>
-  );
 }
 
 export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
@@ -91,30 +69,11 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
 
   return (
     <aside className="project-explorer" aria-label="프로젝트 탐색기">
-      <div className="dashboard-section-heading">
-        <h2 className="dashboard-section-heading__title">프로젝트 탐색기</h2>
-        <div className="dashboard-section-heading__actions">
-          <button
-            type="button"
-            className="project-explorer-create-btn"
-            onClick={onToggleCreate}
-          >
-            <Plus size={13} />
-            <span>새 프로젝트</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="project-explorer-search">
-        <Search size={14} className="project-explorer-search__icon" />
-        <input
-          className="project-explorer-search__input"
-          type="text"
-          placeholder="프로젝트 검색"
-          value={filter}
-          onChange={(event) => onFilterChange(event.target.value)}
-        />
-      </div>
+      <ProjectExplorerSearch
+        filter={filter}
+        onFilterChange={onFilterChange}
+        onToggleCreate={onToggleCreate}
+      />
 
       {showCreate && (
         <CreateProjectForm
@@ -128,7 +87,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
       )}
 
       <ul className="project-explorer-list">
-        {projects.map(renderProjectExplorerRow)}
+        {projects.map((project) => <ProjectExplorerRow key={project.id} project={project} />)}
 
         {shouldRenderEmpty ? (
           <li className="project-explorer-list__empty">
