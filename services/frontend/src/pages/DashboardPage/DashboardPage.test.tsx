@@ -148,7 +148,7 @@ describe("DashboardPage", () => {
     expect(screen.getByText(/첫 업로드, 분석, 승인 같은 작업이 시작되면 최근 흐름이 이 레인에 순서대로 쌓입니다/)).toBeInTheDocument();
   });
 
-  it("offers a recent project shortcut when the lane is calm but projects exist", async () => {
+  it("keeps the calm lane informational when projects exist but no urgent items are present", async () => {
     const calmProjects = [
       makeProject(1, {
         gateStatus: "pass",
@@ -165,8 +165,7 @@ describe("DashboardPage", () => {
 
     renderPage();
 
-    const link = screen.getByRole("link", { name: "Project 1 열기" });
-    expect(link).toHaveAttribute("href", "/projects/p-1/overview");
     expect(screen.getByText(/최근 프로젝트 상태를 한 번 점검해두면 충분합니다/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Project 1 열기" })).not.toBeInTheDocument();
   });
 });

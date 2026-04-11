@@ -33,11 +33,6 @@ export const NeedsAttentionSection: React.FC<NeedsAttentionSectionProps> = ({ pr
               ? "지금은 즉시 대응할 경고가 없습니다. 최근 프로젝트 상태를 한 번 점검해두면 충분합니다."
               : "프로젝트를 생성하면 게이트 실패나 높은 위험 항목이 이곳에 우선 정렬됩니다."
           }
-          action={nextMoveProject ? (
-            <Link to={`/projects/${nextMoveProject.id}/overview`} className="dashboard-section-empty__link">
-              {nextMoveProject.name} 열기
-            </Link>
-          ) : null}
         />
       ) : (
         <div className="attention-shelf">
