@@ -1,5 +1,12 @@
 import type { DashboardProject } from "./dashboardTypes";
-import { buildProjectChips, totalFindings } from "./dashboardProjectSignals";
+import { totalFindings } from "./dashboardProjectSignals";
+
+export type DashboardChipTone = "neutral" | "critical" | "high" | "medium" | "success" | "warning";
+
+export interface DashboardChip {
+  label: string;
+  tone: DashboardChipTone;
+}
 
 export function gateTone(gateStatus?: string | null): "fail" | "warning" | null {
   if (gateStatus === "fail") return "fail";
@@ -64,6 +71,24 @@ export function attentionDescription(project: DashboardProject): string {
 
 export function buildAttentionChips(project: DashboardProject) {
   return buildProjectChips(project).slice(0, 3);
+}
+
+function buildProjectChips(project: DashboardProject): DashboardChip[] {
+  const chips: DashboardChip[] = [];
+  const total = totalFindings(project);
+  const critical = project.severitySummary?.critical ?? 0;
+  const high = project.severitySummary?.high ?? 0;
+  const medium = project.severitySummary?.medium ?? 0;
+  const low = project.severitySummary?.low ?? 0;
+
+  chips.push({ label: `탐지 항목 ${total}건`, tone: total > 0 ? "neutral" : "success" });
+  if (critical > 0) chips.push({ label: `치명적 ${critical}`, tone: "critical" });
+  if (high > 0) chips.push({ label: `높음 ${high}`, tone: "high" });
+  if (medium > 0) chips.push({ label: `보통 ${medium}`, tone: "medium" });
+  if (low > 0) chips.push({ label: `낮음 ${low}`, tone: "neutral" });
+  if ((project.unresolvedDelta ?? 0) > 0) chips.push({ label: `미해결 +${project.unresolvedDelta}`, tone: "warning" });
+
+  return chips;
 }
 
 function projectPriorityForAttention(project: DashboardProject): number {
