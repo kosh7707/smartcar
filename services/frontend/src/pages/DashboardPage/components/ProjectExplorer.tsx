@@ -49,7 +49,7 @@ function getEmptyState(
       action: (
         <button
           type="button"
-          className="project-list__empty-action"
+          className="dashboard-empty-surface__action-control"
           onClick={() => onFilterChange("")}
         >
           검색 초기화
@@ -65,7 +65,7 @@ function getEmptyState(
       action: (
         <button
           type="button"
-          className="project-list__empty-action"
+          className="dashboard-empty-surface__action-control"
           onClick={onToggleCreate}
         >
           새 프로젝트 시작

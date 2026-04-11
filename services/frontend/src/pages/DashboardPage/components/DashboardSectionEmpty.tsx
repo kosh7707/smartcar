@@ -1,5 +1,5 @@
 import React from "react";
-import "./DashboardSectionEmpty.css";
+import { DashboardEmptySurface } from "./DashboardEmptySurface";
 
 interface DashboardSectionEmptyProps {
   icon: React.ReactNode;
@@ -14,15 +14,11 @@ export const DashboardSectionEmpty: React.FC<DashboardSectionEmptyProps> = ({
   description,
   tone = "default",
 }) => (
-  <div className={`dashboard-section-empty dashboard-section-empty--${tone}`}>
-    <div className="dashboard-section-empty__marker" aria-hidden="true">
-      <span className="dashboard-section-empty__icon">{icon}</span>
-    </div>
-    <div className="dashboard-section-empty__copy">
-      <div className="dashboard-section-empty__title-row">
-        <strong className="dashboard-section-empty__title">{title}</strong>
-      </div>
-      <p className="dashboard-section-empty__description">{description}</p>
-    </div>
-  </div>
+  <DashboardEmptySurface
+    icon={icon}
+    title={title}
+    description={description}
+    tone={tone}
+    variant="panel"
+  />
 );

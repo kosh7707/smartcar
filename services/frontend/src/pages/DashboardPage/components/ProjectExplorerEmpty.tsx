@@ -1,5 +1,6 @@
 import React from "react";
 import { FolderSearch } from "lucide-react";
+import { DashboardEmptySurface } from "./DashboardEmptySurface";
 
 interface ProjectExplorerEmptyProps {
   title: string;
@@ -14,16 +15,13 @@ export const ProjectExplorerEmpty: React.FC<ProjectExplorerEmptyProps> = ({
 }) => {
   return (
     <li className="project-list__empty">
-      <div className="project-list__empty-surface">
-        <div className="project-list__empty-icon">
-          <FolderSearch size={18} />
-        </div>
-        <div className="project-list__empty-copy">
-          <strong className="project-list__empty-title">{title}</strong>
-          <p className="project-list__empty-description">{description}</p>
-          {action ? <div className="project-list__empty-actions">{action}</div> : null}
-        </div>
-      </div>
+      <DashboardEmptySurface
+        icon={<FolderSearch size={18} />}
+        title={title}
+        description={description}
+        action={action}
+        variant="inline"
+      />
     </li>
   );
 };

@@ -30,15 +30,6 @@ export const EVENT_LABELS: Record<EventType, string> = {
   upload: "업로드",
 };
 
-export const EVENT_CSS: Record<EventType, string> = {
-  analysis: "event--analysis",
-  gate_pass: "event--success",
-  gate_fail: "event--danger",
-  vulnerability: "event--warning",
-  approval: "event--info",
-  upload: "event--neutral",
-};
-
 export function totalFindings(project: DashboardProject): number {
   return (project.severitySummary?.critical ?? 0)
     + (project.severitySummary?.high ?? 0)
