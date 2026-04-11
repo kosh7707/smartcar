@@ -13,15 +13,17 @@ interface ProjectExplorerProps {
   totalProjects: number;
   loading: boolean;
   filter: string;
-  showCreate: boolean;
-  createName: string;
-  createDescription: string;
   onFilterChange: (value: string) => void;
-  onToggleCreate: () => void;
-  onCreateNameChange: (value: string) => void;
-  onCreateDescriptionChange: (value: string) => void;
-  onCreate: () => void;
-  onCancelCreate: () => void;
+  createFlow: {
+    show: boolean;
+    name: string;
+    description: string;
+    onToggle: () => void;
+    onNameChange: (value: string) => void;
+    onDescriptionChange: (value: string) => void;
+    onSubmit: () => void;
+    onCancel: () => void;
+  };
 }
 
 export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
@@ -29,15 +31,8 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
   totalProjects,
   loading,
   filter,
-  showCreate,
-  createName,
-  createDescription,
   onFilterChange,
-  onToggleCreate,
-  onCreateNameChange,
-  onCreateDescriptionChange,
-  onCreate,
-  onCancelCreate,
+  createFlow,
 }) => {
   const emptyState = getDashboardExplorerEmptyState({
     loading,
@@ -60,7 +55,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
         <button
           type="button"
           className="project-explorer-empty-action"
-          onClick={onToggleCreate}
+          onClick={createFlow.onToggle}
         >
           새 프로젝트 시작
         </button>
@@ -72,17 +67,17 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
       <ProjectExplorerSearch
         filter={filter}
         onFilterChange={onFilterChange}
-        onToggleCreate={onToggleCreate}
+        onToggleCreate={createFlow.onToggle}
       />
 
-      {showCreate && (
+      {createFlow.show && (
         <CreateProjectForm
-          name={createName}
-          description={createDescription}
-          onNameChange={onCreateNameChange}
-          onDescriptionChange={onCreateDescriptionChange}
-          onCreate={onCreate}
-          onCancel={onCancelCreate}
+          name={createFlow.name}
+          description={createFlow.description}
+          onNameChange={createFlow.onNameChange}
+          onDescriptionChange={createFlow.onDescriptionChange}
+          onCreate={createFlow.onSubmit}
+          onCancel={createFlow.onCancel}
         />
       )}
 

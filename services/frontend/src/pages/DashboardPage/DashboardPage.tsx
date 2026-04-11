@@ -45,15 +45,17 @@ export const DashboardPage: React.FC = () => {
           totalProjects={projects.length}
           loading={loading}
           filter={filter}
-          showCreate={showCreate}
-          createName={name}
-          createDescription={desc}
           onFilterChange={setFilter}
-          onToggleCreate={toggleCreate}
-          onCreateNameChange={setName}
-          onCreateDescriptionChange={setDesc}
-          onCreate={handleCreate}
-          onCancelCreate={handleCancelCreate}
+          createFlow={{
+            show: showCreate,
+            name,
+            description: desc,
+            onToggle: toggleCreate,
+            onNameChange: setName,
+            onDescriptionChange: setDesc,
+            onSubmit: handleCreate,
+            onCancel: handleCancelCreate,
+          }}
         />
 
         <main className="dashboard-main">
