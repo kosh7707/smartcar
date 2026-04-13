@@ -9,6 +9,19 @@
   gap: 8px;
   font-size: var(--cds-type-sm);
   font-weight: var(--cds-weight-medium);
+  border-bottom: 1px solid transparent;
+}
+
+.connection-status-banner--reconnecting {
+  background: var(--cds-support-warning-bg, #fef3cd);
+  color: var(--cds-support-warning-text, #856404);
+  border-bottom-color: var(--cds-support-warning-border, #ffc107);
+}
+
+.connection-status-banner--failed {
+  background: var(--cds-support-error-bg, #fde8e8);
+  color: var(--cds-support-error, #dc3545);
+  border-bottom-color: var(--cds-support-error-border, #f5c6cb);
 }
 
 .connection-status-banner__reload-btn {

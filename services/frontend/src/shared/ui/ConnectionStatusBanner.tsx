@@ -11,17 +11,10 @@ export const ConnectionStatusBanner: React.FC<Props> = ({ connectionState, retry
   if (connectionState === "connected" || connectionState === "disconnected") return null;
 
   const isFailed = connectionState === "failed";
+  const bannerClassName = `connection-status-banner connection-status-banner--${isFailed ? "failed" : "reconnecting"}`;
 
   return (
-    <div
-      role="status"
-      className="connection-status-banner"
-      style={{
-        background: isFailed ? "var(--cds-support-error-bg, #fde8e8)" : "var(--cds-support-warning-bg, #fef3cd)",
-        color: isFailed ? "var(--cds-support-error, #dc3545)" : "var(--cds-support-warning-text, #856404)",
-        borderBottom: `1px solid ${isFailed ? "var(--cds-support-error-border, #f5c6cb)" : "var(--cds-support-warning-border, #ffc107)"}`,
-      }}
-    >
+    <div role="status" className={bannerClassName}>
       <span>
         {isFailed
           ? "연결 실패 — 새로고침 필요"

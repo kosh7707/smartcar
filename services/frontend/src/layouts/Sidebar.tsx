@@ -85,7 +85,7 @@ export const Sidebar: React.FC = () => {
               <ChevronLeft size={20} className="sidebar-header-icon" />
               <div className="sidebar-header-text">
                 <span className="sidebar-title">{project?.name ?? "알 수 없는 프로젝트"}</span>
-                <span className="sidebar-subtitle">Security Framework</span>
+                <span className="sidebar-subtitle">프로젝트 작업 공간</span>
               </div>
             </div>
           </div>
@@ -129,7 +129,7 @@ export const Sidebar: React.FC = () => {
               <Shield size={20} className="sidebar-header-icon" />
               <div className="sidebar-header-text">
                 <span className="sidebar-title">AEGIS</span>
-                <span className="sidebar-subtitle">Security Platform</span>
+                <span className="sidebar-subtitle">보안 분석 워크스페이스</span>
               </div>
             </div>
           </div>

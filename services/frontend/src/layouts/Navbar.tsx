@@ -1,8 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Shield, Bell } from "lucide-react";
+import type { Notification } from "@aegis/shared";
 import { useNotifications } from "../contexts/NotificationContext";
 import "./Navbar.css";
+
+function getNotificationToneClass(notification: Notification): string {
+  if (notification.type.endsWith("_failed") || notification.severity === "critical") {
+    return "navbar-notification--error";
+  }
+  if (notification.type === "critical_finding" || notification.severity === "medium" || notification.severity === "high") {
+    return "navbar-notification--warning";
+  }
+  return "navbar-notification--success";
+}
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
@@ -61,7 +72,7 @@ export const Navbar: React.FC = () => {
       <div className="navbar-actions">
         <div className="navbar-notifications" ref={dropdownRef}>
           <button
-            className="navbar-actions__btn"
+            className={`navbar-actions__btn${dropdownOpen ? " navbar-actions__btn--active" : ""}`}
             title="Notifications"
             aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
             aria-expanded={dropdownOpen}
@@ -105,7 +116,7 @@ export const Navbar: React.FC = () => {
                   recentNotifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className={`navbar-notification${notification.read ? "" : " navbar-notification--unread"}`}
+                      className={`navbar-notification ${getNotificationToneClass(notification)}${notification.read ? "" : " navbar-notification--unread"}`}
                     >
                       <div className="navbar-notification__content">
                         <div className="navbar-notification__title-row">
