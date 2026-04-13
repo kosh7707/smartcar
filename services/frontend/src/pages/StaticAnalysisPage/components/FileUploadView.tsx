@@ -1,6 +1,7 @@
 import React, { useCallback } from "react";
 import { Upload, FileText, Check } from "lucide-react";
 import type { UploadedFile } from "@aegis/shared";
+import { PageHeader } from "../../../shared/ui";
 
 interface LocalFile { file: File; name: string; size: number }
 import { formatFileSize } from "../../../utils/format";
@@ -47,7 +48,12 @@ export const FileUploadView: React.FC<Props> = ({
 
   return (
     <div className="page-enter">
-      <h2 className="page-title">정적 분석</h2>
+      <PageHeader
+        surface="plain"
+        eyebrow="정적 분석"
+        title="소스 코드 업로드"
+        subtitle="기존 프로젝트 파일을 선택하거나 새 소스를 추가해 분석을 시작합니다."
+      />
 
       {/* Existing project files */}
       {existingFiles.length > 0 && (

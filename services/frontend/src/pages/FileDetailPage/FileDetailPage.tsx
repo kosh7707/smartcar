@@ -5,7 +5,7 @@ import { FileText, Download, FileSearch, Shield, Maximize2, Minimize2, FileCode,
 import { fetchProjectOverview, fetchProjectFiles, fetchSourceFiles, fetchFileContent, fetchSourceFileContent, logError } from "../../api/client";
 import { useToast } from "../../contexts/ToastContext";
 import { VulnerabilityDetailView } from "../../shared/findings/VulnerabilityDetailView";
-import { BackButton, EmptyState, SeverityBadge, SeveritySummary, ListItem, Spinner } from "../../shared/ui";
+import { BackButton, EmptyState, PageHeader, SeverityBadge, SeveritySummary, ListItem, Spinner } from "../../shared/ui";
 import { formatFileSize, formatDateTime } from "../../utils/format";
 import { findFileByLocation } from "../../utils/fileMatch";
 import { parseLocation } from "../../utils/location";
@@ -187,7 +187,16 @@ export const FileDetailPage: React.FC = () => {
   }
 
   if (!file) {
-    return <h2 className="page-title">파일을 찾을 수 없습니다</h2>;
+    return (
+      <div className="page-enter">
+        <PageHeader
+          surface="plain"
+          eyebrow="파일 상세"
+          title="파일을 찾을 수 없습니다"
+          subtitle="선택한 파일이 삭제되었거나 현재 프로젝트 범위 밖에 있습니다."
+        />
+      </div>
+    );
   }
 
   return (

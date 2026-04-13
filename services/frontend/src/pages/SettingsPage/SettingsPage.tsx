@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Settings, Server, Info, Check, X, Sun, Moon, Monitor } from "lucide-react";
 import { getBackendUrl, setBackendUrl, healthFetch } from "../../api/client";
 import { getThemePreference, setThemePreference, type ThemePreference } from "../../utils/theme";
-import { Spinner } from "../../shared/ui";
+import { PageHeader, Spinner } from "../../shared/ui";
 import "./SettingsPage.css";
 
 type TestStatus = "idle" | "testing" | "ok" | "error";
@@ -52,19 +52,20 @@ export const SettingsPage: React.FC = () => {
 
   return (
     <div className="page-enter">
-      {/* Page header */}
-      <div className="gs-page-header">
-        <div className="gs-page-header__info">
-          <h1 className="gs-page-header__title">System Settings</h1>
-          <p className="gs-page-header__desc">Global core configuration and environment parameters.</p>
-        </div>
-        <div className="gs-page-header__actions">
-          <button className="btn btn-secondary" onClick={handleReset}>Reset</button>
-          <button className="btn" onClick={handleSave} disabled={!urlDirty && !saved}>
-            {saved ? "저장됨" : "Save Changes"}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        surface="plain"
+        eyebrow="시스템 설정"
+        title="System Settings"
+        subtitle="Global core configuration and environment parameters."
+        action={(
+          <div className="gs-page-header__actions">
+            <button className="btn btn-secondary" onClick={handleReset}>Reset</button>
+            <button className="btn" onClick={handleSave} disabled={!urlDirty && !saved}>
+              {saved ? "저장됨" : "Save Changes"}
+            </button>
+          </div>
+        )}
+      />
 
       {/* Bento grid */}
       <div className="gs-bento">

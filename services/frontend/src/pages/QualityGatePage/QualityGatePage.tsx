@@ -5,7 +5,7 @@ import type { GateResult, GateRuleResult } from "../../api/gate";
 import { fetchProjectGates, overrideGate } from "../../api/gate";
 import { logError } from "../../api/core";
 import { useToast } from "../../contexts/ToastContext";
-import { Spinner, EmptyState } from "../../shared/ui";
+import { Spinner, EmptyState, PageHeader } from "../../shared/ui";
 import { formatDateTime } from "../../utils/format";
 import "./QualityGatePage.css";
 
@@ -102,6 +102,13 @@ export const QualityGatePage: React.FC = () => {
 
   return (
     <div className="page-enter">
+      <PageHeader
+        surface="plain"
+        eyebrow="품질 게이트"
+        title="Quality Gate"
+        subtitle={latestGate ? "최근 평가 결과와 규칙 상태를 검토합니다." : "분석 결과가 준비되면 게이트가 자동으로 평가됩니다."}
+      />
+
       {/* v6: large PASS/FAIL status banner */}
       {latestGate ? (
         <div className={`gate-status-banner gate-status-banner--${latestGate.status === "pass" ? "pass" : latestGate.status === "fail" ? "fail" : "warning"}`}>
@@ -118,12 +125,7 @@ export const QualityGatePage: React.FC = () => {
             </div>
           </div>
         </div>
-      ) : (
-        <div className="gate-page-header">
-          <ShieldCheck size={28} className="gate-page-header__icon" />
-          <h1 className="gate-page-header__title">Quality Gate</h1>
-        </div>
-      )}
+      ) : null}
 
       {gates.length === 0 ? (
         <EmptyState

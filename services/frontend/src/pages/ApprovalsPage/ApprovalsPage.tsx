@@ -4,7 +4,7 @@ import { AlertCircle, CheckCircle, ClipboardCheck, Clock, ExternalLink, Timer, X
 import type { ApprovalRequest } from "../../api/approval";
 import { decideApproval, fetchProjectApprovals } from "../../api/approval";
 import { logError } from "../../api/core";
-import { EmptyState, Spinner } from "../../shared/ui";
+import { EmptyState, PageHeader, Spinner } from "../../shared/ui";
 import { useToast } from "../../contexts/ToastContext";
 import { formatDateTime } from "../../utils/format";
 import "./ApprovalsPage.css";
@@ -128,14 +128,12 @@ export const ApprovalsPage: React.FC = () => {
 
   return (
     <div className="page-enter">
-      <div className="approval-page-header">
-        <div>
-          <h1 className="approval-page-header__title">Approvals</h1>
-          {pendingCount > 0 && (
-            <p className="approval-page-header__subtitle">{pendingCount}건의 승인 요청이 대기 중입니다</p>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        surface="plain"
+        eyebrow="승인 검토"
+        title="Approvals"
+        subtitle={pendingCount > 0 ? `${pendingCount}건의 승인 요청이 대기 중입니다` : "현재 승인 상태를 검토합니다."}
+      />
 
       <div className="approval-filters" role="tablist" aria-label="Approval status filters">
         {FILTERS.map((status) => (

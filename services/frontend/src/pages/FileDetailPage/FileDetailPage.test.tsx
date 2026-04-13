@@ -70,4 +70,17 @@ describe("FileDetailPage", () => {
     fireEvent.click(await screen.findByText("Buffer overflow"));
     expect(await screen.findByText("vuln-detail-view")).toBeInTheDocument();
   });
+
+  it("uses the shared plain header when the requested file is missing", async () => {
+    mockFetchProjectFiles.mockResolvedValue([]);
+    mockFetchProjectOverview.mockResolvedValue({ recentAnalyses: [] });
+    mockFetchFileContent.mockResolvedValue(null);
+
+    const { container } = renderPage();
+
+    expect(await screen.findByRole("heading", { name: "파일을 찾을 수 없습니다" })).toBeInTheDocument();
+    expect(screen.getByText("파일 상세")).toBeInTheDocument();
+    expect(screen.getByText("선택한 파일이 삭제되었거나 현재 프로젝트 범위 밖에 있습니다.")).toBeInTheDocument();
+    expect(container.querySelector(".page-header--plain")).not.toBeNull();
+  });
 });

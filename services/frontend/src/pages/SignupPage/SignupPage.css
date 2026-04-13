@@ -17,40 +17,23 @@
   max-width: 420px;
   background: var(--cds-layer-raised);
   border-radius: var(--cds-radius);
-  padding: var(--cds-spacing-08) var(--cds-spacing-08) var(--cds-spacing-06);
+  border: 1px solid var(--cds-border-subtle);
+  overflow: hidden;
 }
 
-/* ── Branding section ── */
-
-.signup-card__header {
-  text-align: center;
-  margin-bottom: var(--cds-spacing-07);
+.signup-card .page-header--plain {
+  margin-bottom: 0;
+  padding: var(--cds-spacing-08) var(--cds-spacing-08) var(--cds-spacing-05);
+  border-bottom: 1px solid var(--cds-border-subtle);
 }
-
-.signup-card__title {
-  font-family: var(--cds-font-sans);
-  font-size: var(--cds-type-2xl);
-  font-weight: var(--cds-weight-semibold);
-  color: var(--cds-text-primary);
-  margin: 0 0 var(--cds-spacing-02);
-  letter-spacing: -0.02em;
-}
-
-.signup-card__subtitle {
-  font-size: var(--cds-type-sm);
-  color: var(--cds-text-placeholder);
-  margin: 0;
-  display: block;
-}
-
-/* ── Form heading ── */
 
 .signup-form-heading {
-  font-size: var(--cds-type-xl);
-  font-weight: var(--cds-weight-semibold);
-  color: var(--cds-text-primary);
+  font-size: var(--cds-type-sm);
+  font-weight: var(--cds-weight-medium);
+  color: var(--cds-text-secondary);
   margin: 0 0 var(--cds-spacing-06);
   text-align: left;
+  line-height: var(--cds-leading-normal);
 }
 
 /* ── Form ── */

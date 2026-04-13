@@ -4,7 +4,7 @@ import type { Run } from "@aegis/shared";
 import { ChevronRight } from "lucide-react";
 import { fetchProjectRuns, logError } from "../../api/client";
 import { useToast } from "../../contexts/ToastContext";
-import { EmptyState, Spinner } from "../../shared/ui";
+import { EmptyState, PageHeader, Spinner } from "../../shared/ui";
 import { formatDateTime, formatUptime } from "../../utils/format";
 import { MODULE_META } from "../../constants/modules";
 import "./AnalysisHistoryPage.css";
@@ -65,13 +65,12 @@ export const AnalysisHistoryPage: React.FC = () => {
 
   return (
     <div className="page-enter">
-      {/* v6: page header */}
-      <div className="history-page-header">
-        <div>
-          <h1 className="history-page-header__title">Analysis History</h1>
-          <p className="history-page-header__subtitle">{runs.length}회 분석 실행됨</p>
-        </div>
-      </div>
+      <PageHeader
+        surface="plain"
+        eyebrow="분석 이력"
+        title="Analysis History"
+        subtitle={`${runs.length}회 분석 실행됨`}
+      />
 
       {/* Filter bar */}
       <div className="history-filter-bar">

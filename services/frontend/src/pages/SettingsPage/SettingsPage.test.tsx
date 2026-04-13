@@ -29,7 +29,11 @@ describe("SettingsPage", () => {
   });
 
   it("saves a changed backend URL", () => {
-    render(<SettingsPage />);
+    const { container } = render(<SettingsPage />);
+
+    expect(screen.getByRole("heading", { name: "System Settings" })).toBeInTheDocument();
+    expect(screen.getByText("시스템 설정")).toBeInTheDocument();
+    expect(container.querySelector(".page-header--plain")).not.toBeNull();
 
     fireEvent.change(screen.getByPlaceholderText("http://localhost:3000"), { target: { value: "http://api.internal:4000" } });
     fireEvent.click(screen.getAllByRole("button", { name: "저장" })[0]);
