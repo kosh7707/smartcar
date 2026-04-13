@@ -66,13 +66,8 @@
   display: inline-flex;
   align-items: center;
   max-width: min(100%, 20rem);
-  min-height: 28px;
-  padding: 0 var(--cds-spacing-04);
-  border-radius: var(--cds-radius-pill);
-  border: 1px solid var(--cds-interactive-border);
-  background: var(--cds-interactive-surface);
   color: var(--cds-text-primary);
-  font-weight: var(--cds-weight-medium);
+  font-weight: var(--cds-weight-semibold);
   font-family: var(--cds-font-sans);
   font-size: var(--cds-type-base);
   letter-spacing: -0.01em;
