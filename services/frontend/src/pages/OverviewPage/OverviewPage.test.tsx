@@ -170,6 +170,7 @@ describe("OverviewPage", () => {
     renderPage();
 
     expect(await screen.findByRole("heading", { name: "Payments Platform" })).toBeInTheDocument();
+    expect(screen.getByText("프로젝트 개요")).toBeInTheDocument();
     expect(screen.getByText("Security Posture")).toBeInTheDocument();
     expect(screen.getByText("Recent Activity")).toBeInTheDocument();
     expect(screen.getByText("Project Metadata")).toBeInTheDocument();

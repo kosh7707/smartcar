@@ -3,6 +3,7 @@ import "./PageHeader.css";
 
 interface Props {
   title: string;
+  eyebrow?: string;
   subtitle?: string;
   icon?: React.ReactNode;
   action?: React.ReactNode;
@@ -21,6 +22,7 @@ export const PageHeader: React.FC<Props> = ({
       <div className="page-header__left">
         {icon && <div className="page-header__icon">{icon}</div>}
         <div className="page-header__text">
+          {eyebrow && <p className="page-header__eyebrow">{eyebrow}</p>}
           <h2 className="page-header__title">{title}</h2>
           {subtitle && <p className="page-header__subtitle">{subtitle}</p>}
         </div>
