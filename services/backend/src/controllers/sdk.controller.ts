@@ -11,6 +11,7 @@ import type { NotificationService } from "../services/notification.service";
 import { asyncHandler } from "../middleware/async-handler";
 import { NotFoundError, InvalidInputError } from "../lib/errors";
 import { config } from "../config";
+import { appendSdkLogLine, buildSdkInstallLogPath } from "../services/sdk-log";
 
 interface SdkUploadContext {
   projectId: string;
@@ -60,6 +61,7 @@ class SdkUploadStorage implements multer.StorageEngine {
 
     const targetPath = path.join(incomingDir, `${crypto.randomUUID().slice(0, 8)}-${fileName}`);
     const out = fs.createWriteStream(targetPath);
+    const logPath = buildSdkInstallLogPath(this.uploadsDir, ctx.projectId, ctx.sdkId);
     const totalBytes = ctx.totalBytes;
     let fileBytes = 0;
     let settled = false;
@@ -81,6 +83,16 @@ class SdkUploadStorage implements multer.StorageEngine {
         size: fileBytes,
       });
     };
+
+    appendSdkLogLine(
+      { projectId: ctx.projectId, sdkId: ctx.sdkId, logPath, sdkWs: this.sdkWs },
+      {
+        source: "aegis",
+        kind: "lifecycle",
+        message: `upload started | fileName=${fileName}`,
+        mirrorToServiceLog: true,
+      },
+    );
 
     this.sdkWs?.broadcast(ctx.projectId, {
       type: "sdk-progress",
@@ -121,7 +133,18 @@ class SdkUploadStorage implements multer.StorageEngine {
       finish(err);
     });
     out.on("error", (err) => finish(err));
-    out.on("close", () => finish());
+    out.on("close", () => {
+      appendSdkLogLine(
+        { projectId: ctx.projectId, sdkId: ctx.sdkId, logPath, sdkWs: this.sdkWs },
+        {
+          source: "aegis",
+          kind: "lifecycle",
+          message: `upload stored | fileName=${fileName} bytes=${fileBytes}`,
+          mirrorToServiceLog: true,
+        },
+      );
+      finish();
+    });
 
     file.stream.pipe(out);
   }
@@ -181,6 +204,17 @@ export function emitUploadFailure(
 ): void {
   const ctx = (req as SdkUploadRequest).sdkUploadContext;
   if (!ctx) return;
+  const logPath = path.join(ctx.uploadRoot, ctx.sdkId, "install.log");
+
+  appendSdkLogLine(
+    { projectId: ctx.projectId, sdkId: ctx.sdkId, logPath, sdkWs },
+    {
+      source: "aegis",
+      kind: "terminal",
+      message: `upload failed | error=${message}`,
+      mirrorToServiceLog: true,
+    },
+  );
 
   sdkWs?.broadcast(ctx.projectId, {
     type: "sdk-error",
@@ -239,6 +273,16 @@ export function createSdkRouter(
     const sdk = sdkService.findById(id);
     if (!sdk) throw new NotFoundError(`SDK not found: ${id}`);
     res.json({ success: true, data: sdk });
+  }));
+
+  router.get("/:id/log", asyncHandler(async (req, res) => {
+    const id = req.params.id as string;
+    const sdk = sdkService.findById(id);
+    if (!sdk || sdk.projectId !== req.params.pid) throw new NotFoundError(`SDK not found: ${id}`);
+
+    const tailLines = Number(req.query.tailLines ?? 200);
+    const data = sdkService.getInstallLog(id, Number.isFinite(tailLines) ? tailLines : 200);
+    res.json({ success: true, data });
   }));
 
   router.post(

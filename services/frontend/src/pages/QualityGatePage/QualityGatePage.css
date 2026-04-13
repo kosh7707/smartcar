@@ -1,23 +1,5 @@
 /* ── v6: Status Banner ── */
 
-.gate-page-header {
-  display: flex;
-  align-items: center;
-  gap: var(--cds-spacing-04);
-  margin-bottom: var(--cds-spacing-08);
-}
-
-.gate-page-header__icon {
-  color: var(--cds-interactive);
-}
-
-.gate-page-header__title {
-  font-size: var(--cds-type-3xl);
-  font-weight: var(--cds-weight-semibold);
-  letter-spacing: -0.02em;
-  margin: 0;
-}
-
 .gate-status-banner {
   display: flex;
   align-items: center;

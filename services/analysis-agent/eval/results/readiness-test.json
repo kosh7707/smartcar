@@ -1,0 +1,123 @@
+{
+  "run_id": "readiness-test",
+  "timestamp": "2026-04-13T04:33:34.628328+00:00",
+  "config": {
+    "gateway_url": "http://localhost:8000",
+    "model": "unknown",
+    "case_count": 1,
+    "case_filter": "cwe78",
+    "mode": "direct_llm"
+  },
+  "results": [
+    {
+      "golden_id": "cwe78-getenv-system",
+      "eval_result": {
+        "golden_id": "cwe78-getenv-system",
+        "timestamp": "2026-04-13T04:33:34.628194+00:00",
+        "status": "completed",
+        "metrics": {
+          "recall": 1.0,
+          "precision": 1.0,
+          "fp_rejection": 1.0,
+          "severity_accuracy": 0.5,
+          "evidence_validity": 1.0,
+          "cwe_coverage": 0.0,
+          "detail_heuristics": {
+            "has_detail": 1.0,
+            "has_attack_scenario": 1.0,
+            "has_code_path": 1.0,
+            "has_location": 1.0,
+            "detail_length_adequate": 1.0
+          },
+          "claim_count_ok": true
+        },
+        "composite_score": 0.85,
+        "details": {
+          "recall_details": [
+            {
+              "expected": {
+                "severity_min": "high",
+                "file": "cmd_handler.c",
+                "keywords": [
+                  "system"
+                ]
+              },
+              "found": true
+            }
+          ],
+          "precision_details": [
+            {
+              "claim": "src/cmd_handler.c:42의 system() 호출이 외부 입력을 직접 또는 간접적으로 전달받아 OS 명령어 주입 취약점을 유발할 수 ",
+              "spurious": false
+            }
+          ],
+          "fp_details": [],
+          "claim_count": 1
+        }
+      },
+      "raw_response": {
+        "status": "completed",
+        "result": {
+          "summary": "src/cmd_handler.c:42의 system() 호출이 외부 입력에 의해 제어될 경우 OS 명령어 주입(CWE-78) 취약점이 발생할 수 있으나, 현재 제공된 증거로는 입력 소스 및 검증 로직이 불명확하여 악용 가능성은 추정 수준에 머무른다.",
+          "claims": [
+            {
+              "statement": "src/cmd_handler.c:42의 system() 호출이 외부 입력을 직접 또는 간접적으로 전달받아 OS 명령어 주입 취약점을 유발할 수 있다.",
+              "detail": "SAST 도구는 src/cmd_handler.c:42에서 system() 함수 호출을 감지하여 위험성을 경고했다. system()은 OS 쉘을 통해 명령을 실행하므로, 만약 이 함수에 전달되는 문자열이 사용자 입력, 네트워크 데이터, 또는 외부 설정 파일에서 유래한 경우 공격자가 특수 문자(예: ';', '|', '&')를 삽입하여 의도하지 않은 명령을 실행할 수 있다. 현재 코드 구조 요약과 SAST finding만으로는 해당 함수가 호출되는 입력 경로나 검증 로직이 확인되지 않아, 공격자가 실제로 이 경로를 악용할 수 있는지 여부는 불확실하다. 그러나 system() 사용 자체가 보안상 위험하므로, 입력 검증이 명시적으로 이루어지지 않는다면 높은 위험도로 간주될 수 있다. 공격 시나리오: 공격자가 시스템에 입력된 데이터를 조작하여 system()에 전달된 명령어 뒤에 악성 명령을 추가하면, 해당 명령이 ECU 또는 호스트 시스템에서 실행될 수 있다.",
+              "supportingEvidenceRefs": [
+                "eref-sast-system-1",
+                "eref-eval-cwe78-src"
+              ],
+              "location": "src/cmd_handler.c:42"
+            }
+          ],
+          "caveats": [
+            "현재 분석은 SAST finding과 제한된 코드 구조 정보에 기반하여 수행되었으며, system() 호출자의 입력 소스 및 검증 로직을 확인할 수 없어 악용 가능성은 추정 수준이다.",
+            "함수 포인터 경유 호출이나 매크로 확장 호출이 있을 경우, 코드 그래프가 이를 누락했을 수 있어 실제 호출 체인이 다를 수 있다.",
+            "추가 분석을 위해 src/cmd_handler.c의 전체 소스 코드와 system() 호출자의 입력 경로를 확인해야 한다."
+          ],
+          "usedEvidenceRefs": [
+            "eref-sast-system-1",
+            "eref-eval-cwe78-src"
+          ],
+          "suggestedSeverity": "medium",
+          "needsHumanReview": true,
+          "recommendedNextSteps": [
+            "src/cmd_handler.c 소스 코드를 직접 확인하여 system() 호출 시 전달되는 인자의 출처와 검증 로직을 분석하라.",
+            "system() 호출자의 호출자 체인을 code_graph.callers 도구를 통해 추적하여 외부 입력이 개입하는지 확인하라.",
+            "필요한 경우 code.read_file 도구를 사용하여 함수 포인터나 매크로 경유 호출 여부를 확인하라."
+          ],
+          "policyFlags": [
+            "low_confidence_claim_present"
+          ]
+        },
+        "validation": {
+          "valid": true,
+          "errors": []
+        },
+        "audit": {
+          "tokenUsage": {
+            "prompt": 3001,
+            "completion": 689
+          },
+          "agentAudit": {
+            "turn_count": 1,
+            "tool_call_count": 0,
+            "termination_reason": "direct_eval",
+            "total_prompt_tokens": 3001,
+            "total_completion_tokens": 689
+          }
+        }
+      },
+      "latency_ms": 52203
+    }
+  ],
+  "summary": {
+    "mean_composite": 0.85,
+    "mean_recall": 1.0,
+    "mean_precision": 1.0,
+    "pass_count": 1,
+    "fail_count": 0,
+    "error_count": 0,
+    "total_latency_ms": 52203
+  }
+}

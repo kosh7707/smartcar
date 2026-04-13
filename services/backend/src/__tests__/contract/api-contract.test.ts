@@ -986,6 +986,27 @@ describe("API Contract Tests", () => {
       });
     });
 
+    it("GET /api/projects/:pid/sdk/:id/log returns install log content", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-sdk-log" }));
+
+      const createRes = await request(app)
+        .post("/api/projects/p-sdk-log/sdk")
+        .field("name", "Loggable SDK")
+        .attach("file", Buffer.from("installer"), "ti-sdk.bin");
+
+      const sdkId = createRes.body.data.id as string;
+      const res = await request(app).get(`/api/projects/p-sdk-log/sdk/${sdkId}/log?tailLines=200`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
+        sdkId,
+        logPath: expect.stringContaining(`/tmp/logs/${sdkId}.log`),
+        content: expect.stringContaining("line 1"),
+        truncated: false,
+      });
+    });
+
     it("POST /api/projects/:pid/sdk returns 202 with a full RegisteredSdk payload", async () => {
       ctx.projectDAO.save(makeProject({ id: "p-sdk3" }));
 

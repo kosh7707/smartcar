@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { Shield } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+import { PageHeader } from "../../shared/ui";
 import "./SignupPage.css";
 
 export const SignupPage: React.FC = () => {
@@ -32,16 +34,15 @@ export const SignupPage: React.FC = () => {
   return (
     <div className="signup-page">
       <div className="signup-card">
-        {/* Branding */}
-        <div className="signup-card__header">
-          <h1 className="signup-card__title">AEGIS</h1>
-          <span className="signup-card__subtitle">
-            Embedded Firmware Security Analysis Platform
-          </span>
-        </div>
+        <PageHeader
+          surface="plain"
+          title="AEGIS"
+          subtitle="새 계정을 준비하고 분석 워크스페이스로 바로 이동합니다."
+          icon={<Shield size={18} />}
+        />
 
         {/* Form */}
-        <h2 className="signup-form-heading">Create your account</h2>
+        <p className="signup-form-heading">필수 계정 정보를 먼저 입력합니다.</p>
 
         <form className="signup-form" onSubmit={handleSubmit}>
           <div className="signup-field">
@@ -92,15 +93,15 @@ export const SignupPage: React.FC = () => {
             className="signup-submit"
             disabled={submitting || !username || !password}
           >
-            {submitting ? "처리 중..." : "Create Account"}
+            {submitting ? "처리 중..." : "계정 만들기"}
           </button>
         </form>
 
         <div className="signup-divider" />
 
         <p className="signup-card__footer">
-          Already have an account?{" "}
-          <Link to="/login" className="signup-card__link">Sign In</Link>
+          이미 계정이 있으신가요?{" "}
+          <Link to="/login" className="signup-card__link">로그인</Link>
         </p>
       </div>
 

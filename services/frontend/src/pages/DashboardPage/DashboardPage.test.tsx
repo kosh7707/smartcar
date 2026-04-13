@@ -175,4 +175,29 @@ describe("DashboardPage", () => {
     expect(screen.getByText(/최근 프로젝트 상태를 한 번 점검해두면 충분합니다/)).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Project 1 열기" })).not.toBeInTheDocument();
   });
+
+  it("shows a neutral latest-update activity before a project has ever been analyzed", async () => {
+    mockUseProjects.mockReturnValue({
+      projects: [
+        makeProject(1, {
+          lastAnalysisAt: undefined,
+          gateStatus: undefined,
+          unresolvedDelta: 0,
+          severitySummary: { critical: 0, high: 0, medium: 0, low: 0 },
+        }),
+      ],
+      loading: false,
+      createProject: mockCreateProject,
+    });
+
+    renderPage();
+
+    const activitySection = screen.getByRole("heading", { name: "최근 활동" }).closest("section");
+
+    expect(activitySection).not.toBeNull();
+    expect(within(activitySection as HTMLElement).getByText("가장 마지막 수정")).toBeInTheDocument();
+    expect(within(activitySection as HTMLElement).getByText("Project 1")).toBeInTheDocument();
+    expect(screen.queryByText("분석 완료")).not.toBeInTheDocument();
+    expect(screen.queryByText("정적 분석이 완료되었습니다")).not.toBeInTheDocument();
+  });
 });

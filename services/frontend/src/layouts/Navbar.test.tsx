@@ -48,6 +48,16 @@ describe("Navbar", () => {
     mockMarkAllRead.mockResolvedValue(undefined);
   });
 
+  it("keeps the global dashboard route label as Dashboard", () => {
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Navbar />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/dashboard");
+  });
+
   it("shows unread badge and exposes notification dropdown actions", async () => {
     render(
       <MemoryRouter initialEntries={["/projects/p-1/overview"]}>

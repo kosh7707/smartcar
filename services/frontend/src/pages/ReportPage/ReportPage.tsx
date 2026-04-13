@@ -1,21 +1,21 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import type { ProjectReport, AnalysisModule } from "@aegis/shared";
-import { FileText, Download, Filter, Calendar, X, Paperclip, Settings2, CheckCircle, Clock } from "lucide-react";
+import { CheckCircle, Clock } from "lucide-react";
 import { fetchProjectReport, ApiError, logError } from "../../api/client";
 import type { ReportFilters } from "../../api/client";
 import { CustomReportModal } from "./components/CustomReportModal";
+import { ReportFiltersPanel } from "./components/ReportFiltersPanel";
+import { ReportFindingsSection } from "./components/ReportFindingsSection";
+import { ReportHeader } from "./components/ReportHeader";
+import { ReportRunsSection } from "./components/ReportRunsSection";
 import { useToast } from "../../contexts/ToastContext";
 import { MODULE_META } from "../../constants/modules";
 import { FINDING_STATUS_LABELS } from "../../constants/finding";
 import {
-  PageHeader,
   EmptyState,
   Spinner,
-  SeverityBadge,
   SeveritySummary,
-  FindingStatusBadge,
-  SourceBadge,
 } from "../../shared/ui";
 import { formatDateTime } from "../../utils/format";
 import "./ReportPage.css";
@@ -101,9 +101,14 @@ export const ReportPage: React.FC = () => {
   if (!report) {
     return (
       <div className="page-enter">
-        <PageHeader title="보고서" icon={<FileText size={20} />} />
+        <ReportHeader
+          generatedAt={new Date().toISOString()}
+          hasActiveFilters={hasActiveFilters}
+          onToggleFilters={() => setShowFilters(!showFilters)}
+          onOpenCustomReport={() => setShowCustomReport(true)}
+          onPrint={handlePrint}
+        />
         <EmptyState
-          icon={<FileText size={28} />}
           title={loadError ? "보고서를 불러올 수 없습니다" : "보고서를 생성할 수 없습니다"}
           description={loadError ? "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요." : "분석을 먼저 실행해주세요"}
           action={loadError ? (
@@ -141,90 +146,22 @@ export const ReportPage: React.FC = () => {
 
   return (
     <div className="page-enter report-page">
-      <PageHeader
-        title="보고서"
-        icon={<FileText size={20} />}
-        subtitle={`생성: ${formatDateTime(report.generatedAt)}`}
-        action={
-          <div className="report-page__actions">
-            <button
-              className={`btn btn-secondary btn-sm${hasActiveFilters ? " report-page__filter-active" : ""}`}
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <Filter size={14} />
-              필터{hasActiveFilters ? " (적용됨)" : ""}
-            </button>
-            <button className="btn btn-secondary btn-sm print-hide" onClick={() => setShowCustomReport(true)}>
-              <Settings2 size={14} />
-              커스텀 보고서
-            </button>
-            <button className="btn btn-sm print-hide" onClick={handlePrint}>
-              <Download size={14} />
-              PDF 내보내기
-            </button>
-          </div>
-        }
+      <ReportHeader
+        generatedAt={report.generatedAt}
+        hasActiveFilters={hasActiveFilters}
+        onToggleFilters={() => setShowFilters(!showFilters)}
+        onOpenCustomReport={() => setShowCustomReport(true)}
+        onPrint={handlePrint}
       />
 
-      {/* Filter panel */}
       {showFilters && (
-        <div className="card report-filters animate-fade-in print-hide">
-          <div className="report-filters__row">
-            <div className="report-filters__field">
-              <label className="report-filters__label"><Calendar size={12} /> 시작일</label>
-              <input
-                type="date"
-                className="form-input"
-                value={pendingFilters.from ?? ""}
-                onChange={(e) => setPendingFilters({ ...pendingFilters, from: e.target.value || undefined })}
-              />
-            </div>
-            <div className="report-filters__field">
-              <label className="report-filters__label"><Calendar size={12} /> 종료일</label>
-              <input
-                type="date"
-                className="form-input"
-                value={pendingFilters.to ?? ""}
-                onChange={(e) => setPendingFilters({ ...pendingFilters, to: e.target.value || undefined })}
-              />
-            </div>
-            <div className="report-filters__field">
-              <label className="report-filters__label">심각도</label>
-              <select
-                className="form-input"
-                value={pendingFilters.severity ?? ""}
-                onChange={(e) => setPendingFilters({ ...pendingFilters, severity: e.target.value || undefined })}
-              >
-                <option value="">전체</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </select>
-            </div>
-            <div className="report-filters__field">
-              <label className="report-filters__label">상태</label>
-              <select
-                className="form-input"
-                value={pendingFilters.status ?? ""}
-                onChange={(e) => setPendingFilters({ ...pendingFilters, status: e.target.value || undefined })}
-              >
-                <option value="">전체</option>
-                {Object.entries(FINDING_STATUS_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="report-filters__actions">
-            <button className="btn btn-sm" onClick={handleApplyFilters}>적용</button>
-            {hasActiveFilters && (
-              <button className="btn btn-secondary btn-sm" onClick={handleClearFilters}>
-                <X size={12} /> 초기화
-              </button>
-            )}
-          </div>
-        </div>
+        <ReportFiltersPanel
+          pendingFilters={pendingFilters}
+          setPendingFilters={setPendingFilters}
+          hasActiveFilters={hasActiveFilters}
+          onApply={handleApplyFilters}
+          onClear={handleClearFilters}
+        />
       )}
 
       {/* Module tabs */}
@@ -398,85 +335,9 @@ export const ReportPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Findings table */}
-      <div className="card">
-        <div className="card-title">Finding 목록 ({allFindings.length})</div>
-        {allFindings.length === 0 ? (
-          <EmptyState compact title="해당 조건의 Finding이 없습니다" />
-        ) : (
-          <div className="report-findings">
-            <div className="report-findings__header">
-              <span className="report-findings__col--status">상태</span>
-              <span className="report-findings__col--severity">심각도</span>
-              <span className="report-findings__col--title">제목</span>
-              <span className="report-findings__col--source">출처</span>
-              <span className="report-findings__col--module">모듈</span>
-              <span className="report-findings__col--evidence"><Paperclip size={10} /> 증적</span>
-            </div>
-            {allFindings.map(({ finding, evidenceRefs }) => (
-              <div key={finding.id} className="report-findings__row">
-                <span className="report-findings__col--status">
-                  <FindingStatusBadge status={finding.status} size="sm" />
-                </span>
-                <span className="report-findings__col--severity">
-                  <SeverityBadge severity={finding.severity} size="sm" />
-                </span>
-                <span className="report-findings__col--title">
-                  <span className="report-findings__title">{finding.title}</span>
-                  {finding.location && (
-                    <span className="report-findings__location">{finding.location}</span>
-                  )}
-                </span>
-                <span className="report-findings__col--source">
-                  <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
-                </span>
-                <span className="report-findings__col--module">
-                  {MODULE_META[finding.module]?.label ?? finding.module}
-                </span>
-                <span className="report-findings__col--evidence">
-                  {evidenceRefs.length > 0 ? (
-                    <span className="report-findings__evidence-count report-findings__evidence-count--has">
-                      <Paperclip size={10} /> {evidenceRefs.length}
-                    </span>
-                  ) : (
-                    <span className="report-findings__evidence-count">&mdash;</span>
-                  )}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <ReportFindingsSection findings={allFindings} />
 
-      {/* Runs */}
-      {allRuns.length > 0 && (
-        <div className="card">
-          <div className="card-title">Run 이력 ({allRuns.length})</div>
-          <div className="report-runs">
-            {allRuns.map(({ run, gate }) => (
-              <div key={run.id} className="report-runs__row">
-                <span className={`badge badge-sm badge-${run.status === "completed" ? "low" : run.status === "failed" ? "critical" : "info"}`}>
-                  {run.status}
-                </span>
-                <span className="report-runs__module">
-                  {MODULE_META[run.module]?.label ?? run.module}
-                </span>
-                <span className="report-runs__count">
-                  Finding {run.findingCount}건
-                </span>
-                {gate && (
-                  <span className={`badge badge-sm badge-${gate.status === "pass" ? "low" : gate.status === "fail" ? "critical" : "medium"}`}>
-                    Gate: {gate.status}
-                  </span>
-                )}
-                <span className="text-sm text-tertiary">
-                  {formatDateTime(run.createdAt)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <ReportRunsSection runs={allRuns} />
 
       {/* Approvals (full report only) */}
       {activeTab === "all" && report.approvals.length > 0 && (

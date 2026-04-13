@@ -171,6 +171,14 @@ export function createTestApp(): TestAppContext {
     findById(id: string) {
       return [...sdkStore.values()].flat().find((sdk) => sdk.id === id);
     },
+    getInstallLog(id: string, tailLines: number = 200) {
+      return {
+        sdkId: id,
+        logPath: `/tmp/logs/${id}.log`,
+        content: `line 1\nline 2`,
+        truncated: tailLines < 2,
+      };
+    },
     async register(
       projectId: string,
       input: { sdkId?: string; name: string; description?: string; files: Array<{ originalName: string; storedPath: string; size: number; relativePath?: string }> },
@@ -228,7 +236,21 @@ export function createTestApp(): TestAppContext {
       ];
       return filter === null ? all : all.filter((entry) => entry.fileType === "source");
     },
+    listFilesForExplorer(_projectId: string, filter?: string | null) {
+      const all = [
+        { relativePath: "src/main.c", size: 128, language: "c", fileType: "source", previewable: true },
+        { relativePath: "README.md", size: 64, language: "markdown", fileType: "doc", previewable: true },
+      ];
+      return filter === null ? all : all.filter((entry) => entry.fileType === "source");
+    },
     computeComposition() {
+      return {
+        composition: { source: 1, doc: 1 },
+        totalFiles: 2,
+        totalSize: 192,
+      };
+    },
+    computeCompositionForExplorer() {
       return {
         composition: { source: 1, doc: 1 },
         totalFiles: 2,

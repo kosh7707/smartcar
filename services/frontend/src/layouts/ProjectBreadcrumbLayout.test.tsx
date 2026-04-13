@@ -37,7 +37,7 @@ describe("ProjectBreadcrumbLayout", () => {
     expect(screen.getByRole("navigation", { name: "프로젝트 경로" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "프로젝트" })).toHaveAttribute("href", "/dashboard");
     expect(screen.getByRole("link", { name: "Payments Platform" })).toHaveAttribute("href", "/projects/p-1/overview");
-    expect(screen.getByText("대시보드").closest(".breadcrumb-current")).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("개요").closest(".breadcrumb-current")).toHaveAttribute("aria-current", "page");
     expect(screen.getByText("overview child")).toBeInTheDocument();
   });
 
@@ -53,8 +53,10 @@ describe("ProjectBreadcrumbLayout", () => {
       getProject: () => null,
     });
 
-    renderLayout("/projects/p-404/overview");
+    const { container } = renderLayout("/projects/p-404/overview");
 
     expect(screen.getByRole("heading", { name: "프로젝트를 찾을 수 없습니다" })).toBeInTheDocument();
+    expect(screen.getByText("삭제되었거나 현재 접근할 수 없는 프로젝트입니다.")).toBeInTheDocument();
+    expect(container.querySelector(".page-header--plain")).not.toBeNull();
   });
 });

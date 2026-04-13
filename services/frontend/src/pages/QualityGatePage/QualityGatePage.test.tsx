@@ -67,6 +67,7 @@ describe("QualityGatePage", () => {
 
   it("renders gate results", async () => {
     renderPage();
+    expect(await screen.findByRole("heading", { name: "Quality Gate" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("통과")).toBeInTheDocument());
     expect(screen.getByText("실패")).toBeInTheDocument();
   });

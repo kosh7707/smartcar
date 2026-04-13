@@ -19,10 +19,38 @@ function createTarArchive(root: string, archiveName: string): { archivePath: str
   return { archivePath, originalName: archiveName };
 }
 
-function createInstaller(root: string, name: string, mode: "success" | "fail"): { installerPath: string; originalName: string } {
+function createInstaller(root: string, name: string, mode: "success" | "success-verbose" | "success-heartbeat" | "fail"): { installerPath: string; originalName: string } {
   const installerPath = path.join(root, name);
-  const body = mode === "success"
+  const successBody = mode === "success-verbose"
     ? `#!/bin/sh
+set -eu
+prefix=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --prefix) shift; prefix="$1" ;;
+  esac
+  shift || true
+done
+echo "installer boot"
+mkdir -p "$prefix"/ti-sdk
+printf 'ok' > "$prefix"/ti-sdk/installed.txt
+echo "installer done"
+`
+    : mode === "success-heartbeat"
+      ? `#!/bin/sh
+set -eu
+prefix=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --prefix) shift; prefix="$1" ;;
+  esac
+  shift || true
+done
+mkdir -p "$prefix"/ti-sdk
+sleep 0.08
+printf 'ok' > "$prefix"/ti-sdk/installed.txt
+`
+      : `#!/bin/sh
 set -eu
 prefix=""
 while [ "$#" -gt 0 ]; do
@@ -33,12 +61,13 @@ while [ "$#" -gt 0 ]; do
 done
 mkdir -p "$prefix"/ti-sdk
 printf 'ok' > "$prefix"/ti-sdk/installed.txt
-`
-    : `#!/bin/sh
+`;
+  const failureBody = `#!/bin/sh
 echo "install failed" 1>&2
 exit 23
 `;
-  fs.writeFileSync(installerPath, body, { mode: 0o755 });
+  const script = mode === "fail" ? failureBody : successBody;
+  fs.writeFileSync(installerPath, script, { mode: 0o755 });
   return { installerPath, originalName: name };
 }
 
@@ -52,6 +81,8 @@ describe("SdkService", () => {
   let service: SdkService;
 
   beforeEach(() => {
+    delete process.env.AEGIS_SDK_INSTALL_HEARTBEAT_MS;
+    delete process.env.AEGIS_SDK_INSTALL_TIMEOUT_MS;
     uploadsDir = makeTempDir();
     records = new Map<string, RegisteredSdk>();
     dao = {
@@ -114,6 +145,8 @@ describe("SdkService", () => {
   });
 
   afterEach(() => {
+    delete process.env.AEGIS_SDK_INSTALL_HEARTBEAT_MS;
+    delete process.env.AEGIS_SDK_INSTALL_TIMEOUT_MS;
     fs.rmSync(uploadsDir, { recursive: true, force: true });
   });
 
@@ -154,10 +187,11 @@ describe("SdkService", () => {
       resourceId: "sdk-archive",
       correlationId: "sdk-archive",
     }));
+    expect(notificationService.emit.mock.calls.filter(([payload]: any[]) => payload.type === "sdk_ready")).toHaveLength(1);
   });
 
   it("executes .bin installers into project-scoped installed output and persists install log path", async () => {
-    const { installerPath, originalName } = createInstaller(uploadsDir, "ti-processor-sdk-linux-am335x-evm-08.02.00.24.bin", "success");
+    const { installerPath, originalName } = createInstaller(uploadsDir, "ti-processor-sdk-linux-am335x-evm-08.02.00.24.bin", "success-verbose");
 
     await service.register("p-bin", {
       sdkId: "sdk-bin",
@@ -171,6 +205,12 @@ describe("SdkService", () => {
     expect(stored.path).toContain(path.join(uploadsDir, "p-bin", "sdk", "sdk-bin", "installed"));
     expect(fs.existsSync(path.join(stored.path, "installed.txt"))).toBe(true);
     expect(stored.installLogPath).toContain(path.join(uploadsDir, "p-bin", "sdk", "sdk-bin", "install.log"));
+    const installLog = fs.readFileSync(stored.installLogPath!, "utf-8");
+    expect(installLog).toContain("upload completed");
+    expect(installLog).toContain("install started");
+    expect(installLog).toContain("installer boot");
+    expect(installLog).toContain("installer done");
+    expect(installLog).toContain("install completed");
     expect(stored.artifactKind).toBe("bin");
     expect(stored.sdkVersion).toBe("08.02.00.24");
     expect(stored.targetSystem).toBe("am335x-evm");
@@ -181,6 +221,10 @@ describe("SdkService", () => {
     expect(sdkWs.broadcast).toHaveBeenCalledWith("p-bin", expect.objectContaining({
       type: "sdk-progress",
       payload: expect.objectContaining({ sdkId: "sdk-bin", phase: "installed" }),
+    }));
+    expect(sdkWs.broadcast).toHaveBeenCalledWith("p-bin", expect.objectContaining({
+      type: "sdk-log",
+      payload: expect.objectContaining({ sdkId: "sdk-bin", source: "installer", kind: "output" }),
     }));
   });
 
@@ -202,6 +246,24 @@ describe("SdkService", () => {
     const stored = records.get("sdk-bin-busy")!;
     expect(fs.existsSync(path.join(stored.path, "installed.txt"))).toBe(true);
     expect(stored.status).toBe("ready");
+  });
+
+  it("writes lifecycle heartbeat lines even when installer output is silent", async () => {
+    process.env.AEGIS_SDK_INSTALL_HEARTBEAT_MS = "10";
+    const { installerPath, originalName } = createInstaller(uploadsDir, "ti-processor-sdk-linux-am335x-evm-heartbeat.bin", "success-heartbeat");
+
+    await service.register("p-bin-heartbeat", {
+      sdkId: "sdk-bin-heartbeat",
+      name: "TI Installer Heartbeat",
+      files: [{ originalName, storedPath: installerPath, size: fs.statSync(installerPath).size }],
+    }, "req-sdk-bin-heartbeat");
+
+    await vi.waitFor(() => expect(dao.updateStatus).toHaveBeenCalledWith("sdk-bin-heartbeat", "ready"));
+
+    const stored = records.get("sdk-bin-heartbeat")!;
+    const installLog = fs.readFileSync(stored.installLogPath!, "utf-8");
+    expect(installLog).toContain("install heartbeat");
+    expect(installLog).toContain("childAlive=true");
   });
 
   it("surfaces extraction failures through sdk-error and sdk_failed notification", async () => {
@@ -242,10 +304,15 @@ describe("SdkService", () => {
     const stored = records.get("sdk-fail")!;
     expect(stored.installLogPath).toContain("install.log");
     expect(fs.existsSync(installerPath)).toBe(true);
+    const installLog = fs.readFileSync(stored.installLogPath!, "utf-8");
+    expect(installLog).toContain("install failed");
+    expect(installLog).toContain("installer process exited with failure");
+    expect(installLog).toContain("install failed | phase=install_failed");
     expect(sdkWs.broadcast).toHaveBeenCalledWith("p-fail", expect.objectContaining({
       type: "sdk-error",
       payload: expect.objectContaining({ sdkId: "sdk-fail", phase: "install_failed", logPath: expect.stringContaining("install.log") }),
     }));
+    expect(notificationService.emit.mock.calls.filter(([payload]: any[]) => payload.type === "sdk_failed")).toHaveLength(1);
   });
 
   it("materializes folder uploads into canonical content and keeps project-scoped metadata", async () => {

@@ -24,7 +24,7 @@ import "./Sidebar.css";
 const ICON_SIZE = 18;
 
 const projectNavItems = [
-  { sub: "overview", label: "대시보드", icon: LayoutDashboard, comingSoon: false },
+  { sub: "overview", label: "개요", icon: LayoutDashboard, comingSoon: false },
   { sub: "files", label: "파일 탐색기", icon: Files, comingSoon: false },
   { sub: "vulnerabilities", label: "취약점 목록", icon: Shield, comingSoon: false },
   { sub: "static-analysis", label: "정적 분석", icon: FileSearch, comingSoon: false },
@@ -34,6 +34,7 @@ const projectNavItems = [
   { sub: "approvals", label: "Approval Queue", icon: ClipboardCheck, comingSoon: false },
   { sub: "analysis-history", label: "분석 이력", icon: Clock, comingSoon: false },
   { sub: "report", label: "보고서", icon: FileText, comingSoon: false },
+  { sub: "settings", label: "설정", icon: Settings, comingSoon: false },
 ];
 
 export const Sidebar: React.FC = () => {
@@ -85,7 +86,7 @@ export const Sidebar: React.FC = () => {
               <ChevronLeft size={20} className="sidebar-header-icon" />
               <div className="sidebar-header-text">
                 <span className="sidebar-title">{project?.name ?? "알 수 없는 프로젝트"}</span>
-                <span className="sidebar-subtitle">Security Framework</span>
+                <span className="sidebar-subtitle">프로젝트 작업 공간</span>
               </div>
             </div>
           </div>
@@ -107,20 +108,6 @@ export const Sidebar: React.FC = () => {
               </li>
             ))}
           </ul>
-
-          <div className="sidebar-divider" />
-          <ul className="sidebar-nav sidebar-nav-bottom">
-            <li>
-              <NavLink
-                to={`/projects/${projectId}/settings`}
-                className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
-                onClick={(e) => handleNavClick(e, `/projects/${projectId}/settings`)}
-              >
-                <Settings size={ICON_SIZE} />
-                <span className="sidebar-link__label">설정</span>
-              </NavLink>
-            </li>
-          </ul>
         </>
       ) : (
         <>
@@ -129,7 +116,7 @@ export const Sidebar: React.FC = () => {
               <Shield size={20} className="sidebar-header-icon" />
               <div className="sidebar-header-text">
                 <span className="sidebar-title">AEGIS</span>
-                <span className="sidebar-subtitle">Security Platform</span>
+                <span className="sidebar-subtitle">보안 분석 워크스페이스</span>
               </div>
             </div>
           </div>
@@ -145,10 +132,6 @@ export const Sidebar: React.FC = () => {
                 <span className="sidebar-link__label">프로젝트</span>
               </NavLink>
             </li>
-          </ul>
-
-          <div className="sidebar-divider" />
-          <ul className="sidebar-nav sidebar-nav-bottom">
             <li>
               <NavLink
                 to="/settings"

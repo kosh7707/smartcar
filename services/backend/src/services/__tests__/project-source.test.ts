@@ -76,4 +76,34 @@ describe("ProjectSourceService.copyToSubproject", () => {
     expect(fs.existsSync(path.join(tmpDir, projectId))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, projectId, "main.c"))).toBe(true);
   });
+
+  it("excludes only the managed sdk subtree from explorer listings", () => {
+    fs.mkdirSync(path.join(tmpDir, projectId, "sdk", "sdk-1", "installed"), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, projectId, "sdk", "sdk-1", "installed", "sdk-file.c"), "int sdk(void) { return 0; }");
+    fs.mkdirSync(path.join(tmpDir, projectId, "sdk", "core"), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, projectId, "sdk", "core", "real.c"), "int real_sdk(void) { return 2; }");
+    fs.mkdirSync(path.join(tmpDir, projectId, "src", "sdk"), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, projectId, "src", "sdk", "feature.c"), "int feature(void) { return 1; }");
+
+    const explorerFiles = service.listFilesForExplorer(projectId, null).map((file) => file.relativePath).sort();
+    const allFiles = service.listFiles(projectId, null).map((file) => file.relativePath).sort();
+
+    expect(explorerFiles).toContain("sdk/core/real.c");
+    expect(explorerFiles).toContain("src/sdk/feature.c");
+    expect(explorerFiles).not.toContain("sdk/sdk-1/installed/sdk-file.c");
+    expect(allFiles).toContain("sdk/sdk-1/installed/sdk-file.c");
+  });
+
+  it("computes explorer composition without counting managed sdk subtree files", () => {
+    fs.mkdirSync(path.join(tmpDir, projectId, "sdk", "sdk-1", "installed"), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, projectId, "sdk", "sdk-1", "installed", "sdk-file.c"), "int sdk(void) { return 0; }");
+    fs.mkdirSync(path.join(tmpDir, projectId, "sdk", "core"), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, projectId, "sdk", "core", "real.c"), "int real_sdk(void) { return 1; }");
+
+    const explorerComposition = service.computeCompositionForExplorer(projectId);
+    const fullComposition = service.computeComposition(projectId);
+
+    expect(explorerComposition.totalFiles).toBe(4);
+    expect(fullComposition.totalFiles).toBe(5);
+  });
 });

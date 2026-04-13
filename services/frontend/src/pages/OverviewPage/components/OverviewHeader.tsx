@@ -1,4 +1,5 @@
 import React from "react";
+import { PageHeader } from "../../../shared/ui";
 
 interface OverviewHeaderProps {
   name: string;
@@ -6,10 +7,9 @@ interface OverviewHeaderProps {
 }
 
 export const OverviewHeader: React.FC<OverviewHeaderProps> = ({ name, description }) => (
-  <div className="overview-page-header">
-    <div className="overview-page-header__info">
-      <h1 className="overview-page-header__title">{name}</h1>
-      {description && <span className="overview-page-header__subtitle">{description}</span>}
-    </div>
-  </div>
+  <PageHeader
+    surface="plain"
+    title={name}
+    subtitle={description ?? undefined}
+  />
 );

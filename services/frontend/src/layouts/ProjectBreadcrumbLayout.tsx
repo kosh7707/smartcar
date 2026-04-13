@@ -2,10 +2,11 @@ import React from "react";
 import { Outlet, useParams, Link, useLocation } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { useProjects } from "../contexts/ProjectContext";
+import { PageHeader } from "../shared/ui";
 import "./ProjectBreadcrumbLayout.css";
 
 const pageNames: Record<string, string> = {
-  overview: "대시보드",
+  overview: "개요",
   "static-analysis": "정적 분석",
   files: "파일 탐색기",
   vulnerabilities: "취약점 목록",
@@ -31,7 +32,15 @@ export const ProjectBreadcrumbLayout: React.FC = () => {
   const pageName = isFilePage ? "파일 상세" : (pageNames[currentPage] ?? currentPage);
 
   if (!project) {
-    return <h2 className="page-title">프로젝트를 찾을 수 없습니다</h2>;
+    return (
+      <div className="page-enter">
+        <PageHeader
+          surface="plain"
+          title="프로젝트를 찾을 수 없습니다"
+          subtitle="삭제되었거나 현재 접근할 수 없는 프로젝트입니다."
+        />
+      </div>
+    );
   }
 
   return (

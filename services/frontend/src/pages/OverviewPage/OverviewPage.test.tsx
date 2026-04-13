@@ -187,4 +187,14 @@ describe("OverviewPage", () => {
     fireEvent.click(screen.getByText("main.c"));
     expect(mockNavigate).toHaveBeenCalledWith("/projects/p-1/files/file-1");
   });
+
+  it("uses the shared plain project-page header on overview load failure", async () => {
+    mockFetchProjectOverview.mockRejectedValue(new Error("boom"));
+
+    const { container } = renderPage();
+
+    expect(await screen.findByRole("heading", { name: "데이터를 불러올 수 없습니다" })).toBeInTheDocument();
+    expect(screen.getByText("프로젝트 상태와 최근 흐름을 불러오는 중 문제가 발생했습니다.")).toBeInTheDocument();
+    expect(container.querySelector(".page-header--plain")).not.toBeNull();
+  });
 });

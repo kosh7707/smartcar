@@ -26,11 +26,16 @@ describe("LoginPage", () => {
   });
 
   it("logs in and navigates to projects on submit", async () => {
-    render(
+    const { container } = render(
       <MemoryRouter>
         <LoginPage />
       </MemoryRouter>,
     );
+
+    expect(screen.getByRole("heading", { name: "AEGIS" })).toBeInTheDocument();
+    expect(screen.getByText("임베디드 펌웨어 보안 분석 작업을 이어갑니다.")).toBeInTheDocument();
+    expect(container.querySelector(".page-header--plain")).not.toBeNull();
+    expect(container.querySelector(".page-header__eyebrow")).toBeNull();
 
     fireEvent.change(screen.getByLabelText("사용자 이름"), { target: { value: "user@example.com" } });
     fireEvent.change(screen.getByLabelText("비밀번호"), { target: { value: "secret" } });

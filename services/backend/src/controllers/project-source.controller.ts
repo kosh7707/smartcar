@@ -107,9 +107,9 @@ export function createProjectSourceRouter(
 
     const filter = req.query.filter as string | undefined;
     const files = filter === "source"
-      ? sourceService.listFiles(pid)          // C/C++ 기본 필터
-      : sourceService.listFiles(pid, null);   // 전체 파일
-    const { composition, totalFiles, totalSize } = sourceService.computeComposition(pid);
+      ? sourceService.listFilesForExplorer(pid)             // C/C++ 기본 필터
+      : sourceService.listFilesForExplorer(pid, null);      // 전체 파일
+    const { composition, totalFiles, totalSize } = sourceService.computeCompositionForExplorer(pid);
 
     // 파일→타겟 매핑: 각 파일이 어느 BuildTarget에 속하는지 표시
     let targetMapping: Record<string, { targetId: string; targetName: string }> | undefined;

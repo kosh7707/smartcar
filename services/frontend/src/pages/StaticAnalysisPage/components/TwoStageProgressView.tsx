@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { CheckCircle, AlertTriangle, Loader, XCircle } from "lucide-react";
 import type { AnalysisStage } from "../../../hooks/useAnalysisWebSocket";
 import { useElapsedTimer } from "../../../hooks/useElapsedTimer";
-import { ConfirmDialog } from "../../../shared/ui";
+import { ConfirmDialog, PageHeader } from "../../../shared/ui";
 import "./TwoStageProgressView.css";
 
 interface Props {
@@ -70,12 +70,12 @@ export const TwoStageProgressView: React.FC<Props> = ({
 
   return (
     <div className="page-enter two-stage-progress">
-      <div className="two-stage-header">
-        <h2 className="page-title">
-          {isComplete ? "분석 완료" : isError ? "분석 오류" : "분석 진행 중..."}
-        </h2>
-        <span className="two-stage-elapsed">{timeStr}</span>
-      </div>
+      <PageHeader
+        surface="plain"
+        title={isComplete ? "분석 완료" : isError ? "분석 오류" : "분석 진행 중..."}
+        subtitle={message || "빠른 분석과 심층 분석 단계를 순차적으로 진행합니다."}
+        action={<span className="two-stage-elapsed">{timeStr}</span>}
+      />
 
       {/* Target progress (multi-target only) */}
       {targetProgress && targetProgress.total > 1 && (

@@ -26,15 +26,21 @@ describe("SignupPage", () => {
   });
 
   it("submits and navigates to projects on success", async () => {
-    render(
+    const { container } = render(
       <MemoryRouter>
         <SignupPage />
       </MemoryRouter>,
     );
 
+    expect(screen.getByRole("heading", { name: "AEGIS" })).toBeInTheDocument();
+    expect(screen.getByText("새 계정을 준비하고 분석 워크스페이스로 바로 이동합니다.")).toBeInTheDocument();
+    expect(screen.getByText("필수 계정 정보를 먼저 입력합니다.")).toBeInTheDocument();
+    expect(container.querySelector(".page-header--plain")).not.toBeNull();
+    expect(container.querySelector(".page-header__eyebrow")).toBeNull();
+
     fireEvent.change(screen.getByLabelText("사용자 이름"), { target: { value: "user@example.com" } });
     fireEvent.change(screen.getByLabelText("비밀번호"), { target: { value: "secret" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create Account" }));
+    fireEvent.click(screen.getByRole("button", { name: "계정 만들기" }));
 
     await waitFor(() => expect(mockLogin).toHaveBeenCalledWith("user@example.com", "secret"));
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/projects"));
@@ -51,7 +57,7 @@ describe("SignupPage", () => {
 
     fireEvent.change(screen.getByLabelText("사용자 이름"), { target: { value: "user@example.com" } });
     fireEvent.change(screen.getByLabelText("비밀번호"), { target: { value: "secret" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create Account" }));
+    fireEvent.click(screen.getByRole("button", { name: "계정 만들기" }));
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/projects"));
   });

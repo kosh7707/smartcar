@@ -37,6 +37,14 @@ export interface ProjectSourceQuarantine {
   quarantinedPath?: string;
 }
 
+interface ListFilesOptions {
+  excludeManagedSdkSubtree?: boolean;
+}
+
+function isManagedSdkDirectory(baseDir: string, currentDir: string, entryName: string): boolean {
+  return currentDir === path.join(baseDir, "sdk") && /^sdk-[\w-]+$/.test(entryName);
+}
+
 const FILE_TYPE_MAP: Record<string, FileType> = {
   // source
   ".c": "source", ".cpp": "source", ".cc": "source", ".cxx": "source",
@@ -331,12 +339,25 @@ export class ProjectSourceService {
 
   /** 파일 목록. extensions=null이면 전체 파일, 기본값은 C/C++ 필터. */
   listFiles(projectId: string, extensions?: Set<string> | null): SourceFileEntry[] {
+    return this.listFilesInternal(projectId, extensions);
+  }
+
+  /** 파일 탐색기/소스 목록 전용 파일 목록. managed SDK subtree는 제외한다. */
+  listFilesForExplorer(projectId: string, extensions?: Set<string> | null): SourceFileEntry[] {
+    return this.listFilesInternal(projectId, extensions, { excludeManagedSdkSubtree: true });
+  }
+
+  private listFilesInternal(
+    projectId: string,
+    extensions?: Set<string> | null,
+    options?: ListFilesOptions,
+  ): SourceFileEntry[] {
     const projectDir = this.getProjectPath(projectId);
     if (!projectDir) return [];
 
     const exts = extensions === null ? null : (extensions ?? C_CPP_EXTENSIONS);
     const entries: SourceFileEntry[] = [];
-    this.walkDir(projectDir, projectDir, exts, entries);
+    this.walkDir(projectDir, projectDir, exts, entries, options);
     return entries;
   }
 
@@ -392,6 +413,23 @@ export class ProjectSourceService {
     const result = { composition, totalFiles: files.length, totalSize };
     this.compositionCache.set(projectId, { result, mtimeMs: dirMtime });
     return result;
+  }
+
+  /** 파일 탐색기/소스 목록 전용 composition. managed SDK subtree는 제외한다. */
+  computeCompositionForExplorer(projectId: string): { composition: Record<string, { count: number; bytes: number }>; totalFiles: number; totalSize: number } {
+    const files = this.listFilesForExplorer(projectId, null);
+    const composition: Record<string, { count: number; bytes: number }> = {};
+    let totalSize = 0;
+
+    for (const f of files) {
+      const group = this.languageToGroup(f.language);
+      if (!composition[group]) composition[group] = { count: 0, bytes: 0 };
+      composition[group].count++;
+      composition[group].bytes += f.size;
+      totalSize += f.size;
+    }
+
+    return { composition, totalFiles: files.length, totalSize };
   }
 
   /** 특정 프로젝트의 composition 캐시 무효화 (업로드/삭제 후 호출) */
@@ -501,6 +539,7 @@ export class ProjectSourceService {
     currentDir: string,
     extensions: Set<string> | null,
     result: SourceFileEntry[],
+    options?: ListFilesOptions,
   ): void {
     for (const entry of fs.readdirSync(currentDir, { withFileTypes: true })) {
       // 숨김 파일/디렉토리, node_modules, .git, build 제외
@@ -508,7 +547,10 @@ export class ProjectSourceService {
 
       const fullPath = path.join(currentDir, entry.name);
       if (entry.isDirectory()) {
-        this.walkDir(baseDir, fullPath, extensions, result);
+        if (options?.excludeManagedSdkSubtree && isManagedSdkDirectory(baseDir, currentDir, entry.name)) {
+          continue;
+        }
+        this.walkDir(baseDir, fullPath, extensions, result, options);
       } else if (entry.isFile()) {
         const ext = path.extname(entry.name).toLowerCase();
         if (extensions === null || extensions.has(ext)) {

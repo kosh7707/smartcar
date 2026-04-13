@@ -194,7 +194,7 @@ export type WsEventType =
   // 서브 프로젝트 파이프라인
   | "pipeline-target-status" | "pipeline-complete" | "pipeline-error"
   // SDK 등록
-  | "sdk-progress" | "sdk-complete" | "sdk-error"
+  | "sdk-progress" | "sdk-log" | "sdk-complete" | "sdk-error"
   // 알림
   | "notification";
 
@@ -561,6 +561,19 @@ export interface WsSdkProgress {
   };
 }
 
+export interface WsSdkLog {
+  type: "sdk-log";
+  payload: {
+    sdkId: string;
+    timestamp: string;
+    source: "aegis" | "installer";
+    kind: "lifecycle" | "heartbeat" | "output" | "terminal";
+    stream?: "stdout" | "stderr";
+    message: string;
+    logPath?: string;
+  };
+}
+
 export interface WsSdkComplete {
   type: "sdk-complete";
   payload: {
@@ -580,7 +593,7 @@ export interface WsSdkError {
   };
 }
 
-export type WsSdkMessage = WsSdkProgress | WsSdkComplete | WsSdkError;
+export type WsSdkMessage = WsSdkProgress | WsSdkLog | WsSdkComplete | WsSdkError;
 
 // ============================================================
 // 공통

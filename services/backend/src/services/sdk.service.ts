@@ -17,13 +17,15 @@ import type { SdkRegistryDAO } from "../dao/sdk-registry.dao";
 import type { BuildAgentClient } from "./build-agent-client";
 import type { WsBroadcaster } from "./ws-broadcaster";
 import { SDK_PROFILES } from "./sdk-profiles";
+import { appendSdkLogLine, buildSdkInstallLogPath, createSdkOutputCollector, type SdkLogContext } from "./sdk-log";
 import { createLogger } from "../lib/logger";
 import { NotFoundError, InvalidInputError } from "../lib/errors";
 import type { NotificationService } from "./notification.service";
 
 const logger = createLogger("sdk-service");
 const execFileAsync = promisify(execFile);
-const INSTALL_TIMEOUT_MS = 30 * 60 * 1000;
+const DEFAULT_INSTALL_TIMEOUT_MS = 30 * 60 * 1000;
+const DEFAULT_INSTALL_HEARTBEAT_MS = 5_000;
 const ETXTBSY_RETRY_COUNT = 5;
 const ETXTBSY_RETRY_DELAY_MS = 200;
 
@@ -121,6 +123,16 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function getInstallTimeoutMs(): number {
+  const parsed = Number(process.env.AEGIS_SDK_INSTALL_TIMEOUT_MS ?? DEFAULT_INSTALL_TIMEOUT_MS);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_INSTALL_TIMEOUT_MS;
+}
+
+function getInstallHeartbeatMs(): number {
+  const parsed = Number(process.env.AEGIS_SDK_INSTALL_HEARTBEAT_MS ?? DEFAULT_INSTALL_HEARTBEAT_MS);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_INSTALL_HEARTBEAT_MS;
+}
+
 export class SdkService {
   constructor(
     private dao: SdkRegistryDAO,
@@ -147,6 +159,27 @@ export class SdkService {
 
   findById(id: string): RegisteredSdk | undefined {
     return this.dao.findById(id);
+  }
+
+  getInstallLog(id: string, tailLines: number = 200): { sdkId: string; logPath: string; content: string; truncated: boolean } {
+    const sdk = this.dao.findById(id);
+    if (!sdk) throw new NotFoundError(`SDK not found: ${id}`);
+
+    const logPath = this.resolveInstallLogPath(sdk);
+    if (!fs.existsSync(logPath)) {
+      throw new NotFoundError(`SDK install log not found: ${id}`);
+    }
+
+    const content = fs.readFileSync(logPath, "utf-8");
+    const lines = content.split(/\r?\n/);
+    const normalizedTail = Math.max(1, tailLines);
+    const selected = lines.length > normalizedTail ? lines.slice(-normalizedTail) : lines;
+    return {
+      sdkId: id,
+      logPath,
+      content: selected.join("\n").trimEnd(),
+      truncated: lines.length > normalizedTail,
+    };
   }
 
   async register(
@@ -187,7 +220,10 @@ export class SdkService {
       updatedAt: now,
     };
     this.dao.save(sdk);
+    const logCtx = this.createLogContext(projectId, sdkId);
+    this.appendLifecycleLog(logCtx, "upload completed", { fileName: primaryFile.originalName, fileCount: input.files.length });
     this.broadcast(projectId, sdkId, "uploaded", "SDK 업로드 완료", { percent: 100, fileName: primaryFile.originalName });
+    const emitTerminalNotification = this.createTerminalNotificationEmitter(projectId, sdkId);
 
       this.runPipeline(projectId, sdk, input.files, requestId).catch((err) => {
       const failure = err instanceof SdkPipelineFailure
@@ -203,7 +239,9 @@ export class SdkService {
         type: "sdk-error",
         payload: { sdkId, phase: failure.phase, error: failure.message, logPath: failure.logPath },
       });
-      this.emitTerminalNotification(projectId, sdkId, "sdk_failed", failure.message);
+      const failureLogCtx = this.createLogContext(projectId, sdkId, failure.logPath);
+      this.appendTerminalLog(failureLogCtx, "install failed", { phase: failure.phase, error: failure.message });
+      emitTerminalNotification("sdk_failed", failure.message);
       logger.error({ err, sdkId, phase: failure.phase, logPath: failure.logPath }, "SDK registration pipeline failed");
     });
 
@@ -228,6 +266,8 @@ export class SdkService {
     files: UploadedSdkFile[],
     requestId?: string,
   ): Promise<void> {
+    const logCtx = this.createLogContext(projectId, sdk.id);
+    const emitTerminalNotification = this.createTerminalNotificationEmitter(projectId, sdk.id);
     let profile = mergeProfiles(sdk.profile ?? {}, undefined);
     const materialized = profile.artifactKind === "bin"
       ? await this.installBinary(projectId, sdk.id, files[0])
@@ -245,6 +285,7 @@ export class SdkService {
 
     this.dao.updateStatus(sdk.id, "analyzing");
     this.broadcast(projectId, sdk.id, "analyzing", "Build Agent가 SDK 구조 분석 중...");
+    this.appendLifecycleLog(logCtx, "analysis started");
 
     try {
       const resp = await this.buildAgentClient.submitTask(
@@ -274,16 +315,18 @@ export class SdkService {
 
     this.dao.updateStatus(sdk.id, "verifying");
     this.broadcast(projectId, sdk.id, "verifying", "S2가 SDK 구조를 검증 중...");
+    this.appendLifecycleLog(logCtx, "verification started");
 
     try {
       this.verifyMaterializedSdk(materialized.path, profile);
       this.dao.updateStatus(sdk.id, "ready");
       this.broadcast(projectId, sdk.id, "ready", "SDK 등록 완료");
+      this.appendTerminalLog(this.createLogContext(projectId, sdk.id, materialized.logPath), "install completed", { path: materialized.path });
       this.sdkWs.broadcast(projectId, {
         type: "sdk-complete",
         payload: { sdkId: sdk.id, profile, path: materialized.path },
       });
-      this.emitTerminalNotification(projectId, sdk.id, "sdk_ready", "SDK 등록 완료");
+      emitTerminalNotification("sdk_ready", "SDK 등록 완료");
     } catch (err) {
       if (err instanceof SdkPipelineFailure) throw err;
       const msg = err instanceof Error ? err.message : String(err);
@@ -368,9 +411,10 @@ export class SdkService {
   ): Promise<MaterializedSdkResult> {
     const sdkRoot = path.join(this.uploadsDir, projectId, "sdk", sdkId);
     const installRoot = path.join(sdkRoot, "installed");
-    const logPath = path.join(sdkRoot, "install.log");
+    const logPath = buildSdkInstallLogPath(this.uploadsDir, projectId, sdkId);
     const homeDir = path.join(sdkRoot, ".home");
     const tmpDir = path.join(sdkRoot, ".tmp");
+    const logCtx = this.createLogContext(projectId, sdkId, logPath);
 
     fs.mkdirSync(installRoot, { recursive: true });
     fs.mkdirSync(homeDir, { recursive: true });
@@ -378,10 +422,11 @@ export class SdkService {
 
     this.dao.updateStatus(sdkId, "installing");
     this.broadcast(projectId, sdkId, "installing", "SDK 설치 파일 실행 중...", { fileName: file.originalName });
+    this.appendLifecycleLog(logCtx, "install started", { fileName: file.originalName, installRoot });
 
     try {
       fs.chmodSync(file.storedPath, 0o755);
-      await this.runInstaller(file.storedPath, installRoot, logPath, homeDir, tmpDir);
+      await this.runInstaller(logCtx, file.storedPath, installRoot, homeDir, tmpDir);
     } catch (err) {
       throw new SdkPipelineFailure(
         "install_failed",
@@ -397,6 +442,7 @@ export class SdkService {
 
     this.dao.updateStatus(sdkId, "installed");
     this.broadcast(projectId, sdkId, "installed", "SDK 설치 완료");
+    this.appendLifecycleLog(logCtx, "install materialization completed", { installedPath: canonicalPath });
     return { path: canonicalPath, logPath };
   }
 
@@ -487,25 +533,25 @@ export class SdkService {
   }
 
   private runInstaller(
+    logCtx: SdkLogContext,
     installerPath: string,
     installRoot: string,
-    logPath: string,
     homeDir: string,
     tmpDir: string,
   ): Promise<void> {
-    return this.runInstallerWithRetry(installerPath, installRoot, logPath, homeDir, tmpDir);
+    return this.runInstallerWithRetry(logCtx, installerPath, installRoot, homeDir, tmpDir);
   }
 
   private async runInstallerWithRetry(
+    logCtx: SdkLogContext,
     installerPath: string,
     installRoot: string,
-    logPath: string,
     homeDir: string,
     tmpDir: string,
   ): Promise<void> {
     for (let attempt = 0; attempt <= ETXTBSY_RETRY_COUNT; attempt += 1) {
       try {
-        await this.runInstallerOnce(installerPath, installRoot, logPath, homeDir, tmpDir);
+        await this.runInstallerOnce(logCtx, installerPath, installRoot, homeDir, tmpDir, attempt + 1);
         return;
       } catch (err) {
         if (!isTextFileBusyError(err) || attempt === ETXTBSY_RETRY_COUNT) {
@@ -517,20 +563,30 @@ export class SdkService {
           attempt: attempt + 1,
           retryInMs: ETXTBSY_RETRY_DELAY_MS,
         }, "Installer executable still busy after upload; retrying");
+        this.appendLifecycleLog(logCtx, "installer retry scheduled", {
+          attempt: attempt + 1,
+          reason: "ETXTBSY",
+          retryInMs: ETXTBSY_RETRY_DELAY_MS,
+        });
         await delay(ETXTBSY_RETRY_DELAY_MS);
       }
     }
   }
 
   private runInstallerOnce(
+    logCtx: SdkLogContext,
     installerPath: string,
     installRoot: string,
-    logPath: string,
     homeDir: string,
     tmpDir: string,
-  ): Promise<void> {
+    attempt: number,
+    ): Promise<void> {
     return new Promise((resolve, reject) => {
-      const logStream = fs.createWriteStream(logPath, { flags: "a" });
+      const installTimeoutMs = getInstallTimeoutMs();
+      const installHeartbeatMs = getInstallHeartbeatMs();
+      const stdoutCollector = createSdkOutputCollector(logCtx, "stdout");
+      const stderrCollector = createSdkOutputCollector(logCtx, "stderr");
+      let lastInstallerOutputAt: number | undefined;
       const child = spawn(installerPath, [
         "--mode",
         "unattended",
@@ -547,30 +603,52 @@ export class SdkService {
         },
         stdio: ["ignore", "pipe", "pipe"],
       });
+      this.appendLifecycleLog(logCtx, "installer process spawned", { attempt, pid: child.pid ?? "unknown" });
+
+      const heartbeat = setInterval(() => {
+        const lastOutputAgeMs = typeof lastInstallerOutputAt === "number"
+          ? Math.max(0, Date.now() - lastInstallerOutputAt)
+          : undefined;
+        this.appendLifecycleLog(logCtx, "install heartbeat", {
+          childAlive: !child.killed,
+          attempt,
+          lastOutputAgeMs: lastOutputAgeMs ?? "n/a",
+        }, "heartbeat");
+      }, installHeartbeatMs);
 
       const timer = setTimeout(() => {
         child.kill("SIGKILL");
-        reject(new Error(`Installer timed out after ${INSTALL_TIMEOUT_MS / 60000} minutes`));
-      }, INSTALL_TIMEOUT_MS);
+        this.appendLifecycleLog(logCtx, "installer timeout reached", { attempt, timeoutMs: installTimeoutMs });
+        reject(new Error(`Installer timed out after ${installTimeoutMs / 60000} minutes`));
+      }, installTimeoutMs);
 
       child.stdout?.on("data", (chunk: Buffer | string) => {
-        logStream.write(chunk);
+        lastInstallerOutputAt = Date.now();
+        stdoutCollector.push(chunk);
       });
       child.stderr?.on("data", (chunk: Buffer | string) => {
-        logStream.write(chunk);
+        lastInstallerOutputAt = Date.now();
+        stderrCollector.push(chunk);
       });
       child.on("error", (err) => {
         clearTimeout(timer);
-        logStream.end();
+        clearInterval(heartbeat);
+        stdoutCollector.flush();
+        stderrCollector.flush();
+        this.appendLifecycleLog(logCtx, "installer process error", { attempt, error: err.message });
         reject(err);
       });
       child.on("close", (code) => {
         clearTimeout(timer);
-        logStream.end();
+        clearInterval(heartbeat);
+        stdoutCollector.flush();
+        stderrCollector.flush();
         if (code === 0) {
+          this.appendLifecycleLog(logCtx, "installer process exited successfully", { attempt, code: 0 });
           resolve();
           return;
         }
+        this.appendLifecycleLog(logCtx, "installer process exited with failure", { attempt, code: code ?? "unknown" });
         reject(new Error(`Installer exited with code ${code ?? "unknown"}`));
       });
     });
@@ -608,5 +686,65 @@ export class SdkService {
     } catch {
       // notification failure must not affect the SDK pipeline
     }
+  }
+
+  private resolveInstallLogPath(sdk: RegisteredSdk): string {
+    return sdk.installLogPath
+      ?? sdk.profile?.installLogPath
+      ?? buildSdkInstallLogPath(this.uploadsDir, sdk.projectId, sdk.id);
+  }
+
+  private createLogContext(projectId: string, sdkId: string, logPath?: string): SdkLogContext {
+    return {
+      projectId,
+      sdkId,
+      logPath: logPath ?? buildSdkInstallLogPath(this.uploadsDir, projectId, sdkId),
+      sdkWs: this.sdkWs,
+    };
+  }
+
+  private appendLifecycleLog(
+    ctx: SdkLogContext,
+    message: string,
+    details?: Record<string, unknown>,
+    kind: "lifecycle" | "heartbeat" = "lifecycle",
+  ): void {
+    const suffix = details && Object.keys(details).length > 0
+      ? ` | ${Object.entries(details).map(([key, value]) => `${key}=${String(value)}`).join(" ")}`
+      : "";
+    appendSdkLogLine(ctx, {
+      source: "aegis",
+      kind,
+      message: `${message}${suffix}`,
+      mirrorToServiceLog: true,
+    });
+  }
+
+  private appendTerminalLog(
+    ctx: SdkLogContext,
+    message: string,
+    details?: Record<string, unknown>,
+  ): void {
+    const suffix = details && Object.keys(details).length > 0
+      ? ` | ${Object.entries(details).map(([key, value]) => `${key}=${String(value)}`).join(" ")}`
+      : "";
+    appendSdkLogLine(ctx, {
+      source: "aegis",
+      kind: "terminal",
+      message: `${message}${suffix}`,
+      mirrorToServiceLog: true,
+    });
+  }
+
+  private createTerminalNotificationEmitter(
+    projectId: string,
+    sdkId: string,
+  ): (type: "sdk_ready" | "sdk_failed", detail: string) => void {
+    let emitted = false;
+    return (type: "sdk_ready" | "sdk_failed", detail: string): void => {
+      if (emitted) return;
+      emitted = true;
+      this.emitTerminalNotification(projectId, sdkId, type, detail);
+    };
   }
 }
