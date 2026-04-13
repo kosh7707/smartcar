@@ -36,12 +36,34 @@ export const ProjectBreadcrumbLayout: React.FC = () => {
 
   return (
     <>
-      <nav className="breadcrumb">
-        <Link to="/dashboard" className="breadcrumb-link">프로젝트</Link>
-        <ChevronRight size={14} className="breadcrumb-sep" />
-        <Link to={`/projects/${projectId}/overview`} className="breadcrumb-link">{project.name}</Link>
-        <ChevronRight size={14} className="breadcrumb-sep" />
-        <span className="breadcrumb-current">{pageName}</span>
+      <nav className="breadcrumb" aria-label="프로젝트 경로">
+        <ol className="breadcrumb__list">
+          <li className="breadcrumb__item">
+            <Link to="/dashboard" className="breadcrumb-link">
+              <span className="breadcrumb-link__label">프로젝트</span>
+            </Link>
+          </li>
+
+          <li className="breadcrumb__item" aria-hidden="true">
+            <ChevronRight size={12} className="breadcrumb-sep" />
+          </li>
+
+          <li className="breadcrumb__item">
+            <Link to={`/projects/${projectId}/overview`} className="breadcrumb-link" title={project.name}>
+              <span className="breadcrumb-link__label">{project.name}</span>
+            </Link>
+          </li>
+
+          <li className="breadcrumb__item" aria-hidden="true">
+            <ChevronRight size={12} className="breadcrumb-sep" />
+          </li>
+
+          <li className="breadcrumb__item">
+            <span className="breadcrumb-current" title={pageName} aria-current="page">
+              <span className="breadcrumb-current__label">{pageName}</span>
+            </span>
+          </li>
+        </ol>
       </nav>
       <Outlet />
     </>
