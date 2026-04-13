@@ -53,8 +53,11 @@ describe("ProjectBreadcrumbLayout", () => {
       getProject: () => null,
     });
 
-    renderLayout("/projects/p-404/overview");
+    const { container } = renderLayout("/projects/p-404/overview");
 
     expect(screen.getByRole("heading", { name: "프로젝트를 찾을 수 없습니다" })).toBeInTheDocument();
+    expect(screen.getByText("프로젝트")).toBeInTheDocument();
+    expect(screen.getByText("삭제되었거나 현재 접근할 수 없는 프로젝트입니다.")).toBeInTheDocument();
+    expect(container.querySelector(".page-header--plain")).not.toBeNull();
   });
 });

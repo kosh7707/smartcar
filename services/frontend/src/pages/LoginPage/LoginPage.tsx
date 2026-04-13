@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Shield } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+import { PageHeader } from "../../shared/ui";
 import "./LoginPage.css";
 
 export const LoginPage: React.FC = () => {
@@ -34,20 +35,17 @@ export const LoginPage: React.FC = () => {
   return (
     <div className="login-page">
       <div className="login-card">
-        {/* Branding header */}
-        <div className="login-card__header">
-          <div className="login-card__icon-wrap">
-            <Shield size={28} />
-          </div>
-          <h1 className="login-card__title">AEGIS</h1>
-          <p className="login-card__subtitle">
-            Embedded Firmware Security Analysis Platform
-          </p>
-        </div>
+        <PageHeader
+          surface="plain"
+          eyebrow="로그인"
+          title="AEGIS"
+          subtitle="임베디드 펌웨어 보안 분석 작업을 이어갑니다."
+          icon={<Shield size={18} />}
+        />
 
         {/* Form section */}
         <div className="login-form-section">
-          <h2 className="login-form-heading">Sign in to AEGIS</h2>
+          <p className="login-form-heading">등록된 계정으로 계속합니다.</p>
 
           <form className="login-form" onSubmit={handleSubmit}>
             <div className="login-field">

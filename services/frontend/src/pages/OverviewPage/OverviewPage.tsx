@@ -11,7 +11,7 @@ import type { GateResult } from "../../api/gate";
 import { fetchApprovalCount } from "../../api/approval";
 import { useBuildTargets } from "../../hooks/useBuildTargets";
 import { useToast } from "../../contexts/ToastContext";
-import { Spinner } from "../../shared/ui";
+import { PageHeader, Spinner } from "../../shared/ui";
 import { BuildTargetsSection } from "./components/BuildTargetsSection";
 import { OverviewActivityPanel } from "./components/OverviewActivityPanel";
 import { OverviewBottomGrid } from "./components/OverviewBottomGrid";
@@ -92,7 +92,16 @@ export const OverviewPage: React.FC = () => {
   }
 
   if (!overview) {
-    return <h2 className="page-title">데이터를 불러올 수 없습니다</h2>;
+    return (
+      <div className="page-enter">
+        <PageHeader
+          surface="plain"
+          eyebrow="프로젝트 개요"
+          title="데이터를 불러올 수 없습니다"
+          subtitle="프로젝트 상태와 최근 흐름을 불러오는 중 문제가 발생했습니다."
+        />
+      </div>
+    );
   }
 
   const { project, summary } = overview;
