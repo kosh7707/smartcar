@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import type { Finding, Severity, FindingStatus, FindingSourceType } from "@aegis/shared";
-import { Shield, AlertTriangle, AlertCircle, Info, Search, ArrowUpDown, X, FlaskConical, ExternalLink, Keyboard } from "lucide-react";
+import { Keyboard, Shield } from "lucide-react";
 import { fetchProjectFindings, bulkUpdateFindingStatus, fetchFindingGroups } from "../../api/analysis";
 import type { FindingGroup } from "../../api/analysis";
 import { logError } from "../../api/core";
@@ -10,24 +10,15 @@ import { useToast } from "../../contexts/ToastContext";
 import { FindingDetailView } from "../../shared/findings/FindingDetailView";
 import {
   EmptyState,
+  FindingStatusBadge,
   SeverityBadge,
   Spinner,
-  FindingStatusBadge,
-  SourceBadge,
-  ConfidenceBadge,
 } from "../../shared/ui";
 import { SEVERITY_ORDER } from "../../utils/severity";
-import { FINDING_STATUS_LABELS, SOURCE_TYPE_LABELS } from "../../constants/finding";
-import { formatDateTime } from "../../utils/format";
+import { VulnerabilitiesHeader } from "./components/VulnerabilitiesHeader";
+import { VulnerabilitiesToolbar } from "./components/VulnerabilitiesToolbar";
+import { VulnerabilityFindingCard } from "./components/VulnerabilityFindingCard";
 import "./VulnerabilitiesPage.css";
-
-const SEVERITY_ICONS: Record<string, React.ReactNode> = {
-  critical: <AlertTriangle size={14} />,
-  high: <AlertTriangle size={14} />,
-  medium: <AlertCircle size={14} />,
-  low: <Info size={14} />,
-  info: <Info size={14} />,
-};
 
 const CWE_DESCRIPTIONS: Record<string, string> = {
   "CWE-120": "버퍼 오버플로우 (Buffer Copy without Checking Size)",
@@ -234,183 +225,38 @@ export const VulnerabilitiesPage: React.FC = () => {
 
   return (
     <div className="page-enter">
-      {/* v6 large title with left border stripe */}
-      <div className="vuln-page-header">
-        <h1 className="vuln-page-header__title">Vulnerabilities</h1>
-        <div className="vuln-page-header__meta">
-          <span className="vuln-page-header__count">
-            Total active findings: <strong>{counts.total}</strong>
-          </span>
-        </div>
-      </div>
+      <VulnerabilitiesHeader totalActiveFindings={counts.total} />
 
-      {/* Filter bar */}
-      <div className="vuln-filter-bar">
-        <button
-          className={`vuln-filter-tab${activeSeverity === "all" ? " vuln-filter-tab--active" : ""}`}
-          onClick={() => setFilter("all")}
-        >
-          <Shield size={14} />
-          전체 <span className="vuln-filter-count">{counts.total}</span>
-        </button>
-        {SEVERITY_ORDER.map((sev) => (
-          <button
-            key={sev}
-            className={`vuln-filter-tab vuln-filter-tab--${sev}${activeSeverity === sev ? " vuln-filter-tab--active" : ""}`}
-            onClick={() => setFilter(sev)}
-          >
-            {SEVERITY_ICONS[sev]}
-            {sev.charAt(0).toUpperCase() + sev.slice(1)}
-            <span className="vuln-filter-count">{counts[sev as keyof typeof counts]}</span>
-          </button>
-        ))}
-
-        <select
-          className="form-input vuln-extra-select"
-          value={sourceTypeFilter}
-          onChange={(e) => setSourceTypeFilter(e.target.value as FindingSourceType | "all")}
-        >
-          <option value="all">출처: 전체</option>
-          {Object.entries(SOURCE_TYPE_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
-          ))}
-        </select>
-
-        <select
-          className="form-input vuln-extra-select"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as FindingStatus | "all")}
-        >
-          <option value="all">상태: 전체</option>
-          {Object.entries(FINDING_STATUS_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
-          ))}
-        </select>
-
-        <div className="vuln-search-bar">
-          <Search size={14} />
-          <input
-            type="text"
-            className="form-input vuln-search-input"
-            placeholder="제목/위치 검색..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        <div className="vuln-sort-bar">
-          <ArrowUpDown size={14} />
-          <select
-            className="form-input vuln-sort-select"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-          >
-            <option value="severity">심각도</option>
-            <option value="createdAt">날짜</option>
-            <option value="location">위치</option>
-          </select>
-          <button
-            className="btn-icon"
-            title="정렬 방향"
-            onClick={() => setSortOrder((o) => (o === "asc" ? "desc" : "asc"))}
-          >
-            {sortOrder === "asc" ? "↑" : "↓"}
-          </button>
-        </div>
-
-        <select
-          className="form-input vuln-extra-select"
-          value={groupBy}
-          onChange={(e) => { setGroupBy(e.target.value as typeof groupBy); setExpandedGroups(new Set()); }}
-        >
-          <option value="none">그루핑: 없음</option>
-          <option value="ruleId">CWE/규칙별</option>
-          <option value="location">위치별</option>
-        </select>
-      </div>
-
-      {/* Active filter summary */}
-      {hasActiveFilters && (
-        <div className="vuln-active-filters">
-          <span className="vuln-active-filters__label">{filtered.length}건 / {findings.length}건 표시</span>
-          {activeSeverity !== "all" && (
-            <span className="vuln-filter-chip">
-              심각도: {activeSeverity.charAt(0).toUpperCase() + activeSeverity.slice(1)}
-              <button className="vuln-filter-chip__x" onClick={() => setFilter("all")}><X size={10} /></button>
-            </span>
-          )}
-          {sourceTypeFilter !== "all" && (
-            <span className="vuln-filter-chip">
-              출처: {SOURCE_TYPE_LABELS[sourceTypeFilter]}
-              <button className="vuln-filter-chip__x" onClick={() => setSourceTypeFilter("all")}><X size={10} /></button>
-            </span>
-          )}
-          {statusFilter !== "all" && (
-            <span className="vuln-filter-chip">
-              상태: {FINDING_STATUS_LABELS[statusFilter]}
-              <button className="vuln-filter-chip__x" onClick={() => setStatusFilter("all")}><X size={10} /></button>
-            </span>
-          )}
-          {searchQuery.trim() && (
-            <span className="vuln-filter-chip">
-              검색: &quot;{searchQuery}&quot;
-              <button className="vuln-filter-chip__x" onClick={() => setSearchQuery("")}><X size={10} /></button>
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Shortcut help overlay */}
-      {showShortcutHelp && (
-        <div className="vuln-shortcut-help card">
-          <div className="card-title flex-center flex-gap-2">
-            <Keyboard size={14} /> 키보드 단축키
-          </div>
-          <div className="vuln-shortcut-list">
-            <span><kbd>j</kbd>/<kbd>k</kbd> 다음/이전</span>
-            <span><kbd>o</kbd>/<kbd>Enter</kbd> 상세 열기</span>
-            <span><kbd>Esc</kbd> 선택 해제</span>
-            <span><kbd>?</kbd> 도움말 토글</span>
-          </div>
-        </div>
-      )}
-
-      {/* Bulk action bar */}
-      {selectedIds.size > 0 && (
-        <div className="vuln-bulk-bar card">
-          <span className="vuln-bulk-bar__count">{selectedIds.size}건 선택</span>
-          <select
-            className="form-input"
-            value={bulkStatus}
-            onChange={(e) => setBulkStatus(e.target.value as FindingStatus | "")}
-          >
-            <option value="">상태 선택</option>
-            {Object.entries(FINDING_STATUS_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
-          <input
-            type="text"
-            className="form-input vuln-bulk-bar__reason"
-            placeholder="사유 입력"
-            value={bulkReason}
-            onChange={(e) => setBulkReason(e.target.value)}
-          />
-          <button
-            className="btn btn-sm"
-            onClick={handleBulkAction}
-            disabled={!bulkStatus || !bulkReason.trim() || bulkProcessing}
-          >
-            {bulkProcessing ? "처리 중..." : "적용"}
-          </button>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => setSelectedIds(new Set())}
-          >
-            <X size={12} /> 해제
-          </button>
-        </div>
-      )}
+      <VulnerabilitiesToolbar
+        counts={counts}
+        activeSeverity={activeSeverity}
+        sourceTypeFilter={sourceTypeFilter}
+        statusFilter={statusFilter}
+        searchQuery={searchQuery}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        groupBy={groupBy}
+        hasActiveFilters={hasActiveFilters}
+        filteredCount={filtered.length}
+        totalCount={findings.length}
+        showShortcutHelp={showShortcutHelp}
+        selectedCount={selectedIds.size}
+        bulkStatus={bulkStatus}
+        bulkReason={bulkReason}
+        bulkProcessing={bulkProcessing}
+        setFilter={setFilter}
+        setSourceTypeFilter={setSourceTypeFilter}
+        setStatusFilter={setStatusFilter}
+        setSearchQuery={setSearchQuery}
+        setSortBy={setSortBy}
+        setSortOrder={setSortOrder}
+        setGroupBy={(value) => { setGroupBy(value); setExpandedGroups(new Set()); }}
+        setShowShortcutHelp={setShowShortcutHelp}
+        setBulkStatus={setBulkStatus}
+        setBulkReason={setBulkReason}
+        clearSelection={() => setSelectedIds(new Set())}
+        onBulkAction={handleBulkAction}
+      />
 
       {/* Grouped view */}
       {groupBy !== "none" && groups.length > 0 && (
@@ -468,75 +314,15 @@ export const VulnerabilitiesPage: React.FC = () => {
       ) : (
         <div className="vuln-finding-list">
           {filtered.map((f, idx) => (
-            <div
+            <VulnerabilityFindingCard
               key={f.id}
-              className={[
-                "vuln-finding-card",
-                `vuln-finding-card--${f.severity}`,
-                selectedIds.has(f.id) ? "vuln-finding-card--selected" : "",
-                idx === highlightIndex ? "vuln-finding-card--highlight" : "",
-              ].filter(Boolean).join(" ")}
-              onClick={() => setSelectedFindingId(f.id)}
-            >
-              {/* Checkbox */}
-              <div
-                className="vuln-finding-card__check"
-                onClick={(e) => { e.stopPropagation(); toggleSelect(f.id); }}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedIds.has(f.id)}
-                  onChange={() => toggleSelect(f.id)}
-                />
-              </div>
-
-              {/* CWE + severity label */}
-              <div className="vuln-finding-card__cwe-col">
-                {f.cweId ? (
-                  <span
-                    className={`vuln-finding-card__cwe-id vuln-finding-card__cwe-id--${f.severity}`}
-                    title={CWE_DESCRIPTIONS[f.cweId] ?? f.cweId}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const num = f.cweId!.replace("CWE-", "");
-                      window.open(`https://cwe.mitre.org/data/definitions/${num}.html`, "_blank");
-                    }}
-                  >
-                    {f.cweId} <ExternalLink size={9} style={{ display: "inline" }} />
-                  </span>
-                ) : (
-                  <span className={`vuln-finding-card__cwe-id vuln-finding-card__cwe-id--${f.severity}`}>—</span>
-                )}
-                <span className="vuln-finding-card__sev-label">
-                  {f.severity.charAt(0).toUpperCase() + f.severity.slice(1)}
-                </span>
-              </div>
-
-              {/* Main body */}
-              <div className="vuln-finding-card__body">
-                <div className="vuln-finding-card__title">
-                  {f.title}
-                  {f.sourceType === "agent" && f.detail && (
-                    <span className="vuln-poc-badge" title="PoC 생성 가능">
-                      <FlaskConical size={12} /> PoC
-                    </span>
-                  )}
-                </div>
-                <div className="vuln-finding-card__location-row">
-                  {f.location && (
-                    <span className="vuln-finding-card__location">{f.location}</span>
-                  )}
-                  <span className="vuln-finding-card__module">{formatDateTime(f.createdAt)}</span>
-                </div>
-              </div>
-
-              {/* Right: status + source badges */}
-              <div className="vuln-finding-card__actions">
-                <FindingStatusBadge status={f.status} size="sm" />
-                <SourceBadge sourceType={f.sourceType} ruleId={f.ruleId} />
-                <ConfidenceBadge confidence={f.confidence} sourceType={f.sourceType} confidenceScore={f.confidenceScore} />
-              </div>
-            </div>
+              finding={f}
+              selected={selectedIds.has(f.id)}
+              highlighted={idx === highlightIndex}
+              cweDescription={f.cweId ? CWE_DESCRIPTIONS[f.cweId] : undefined}
+              onOpen={() => setSelectedFindingId(f.id)}
+              onToggleSelect={() => toggleSelect(f.id)}
+            />
           ))}
         </div>
       )}
