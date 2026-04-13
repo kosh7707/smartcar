@@ -4,13 +4,8 @@ import type { Finding } from "@aegis/shared";
 import {
   FileText,
   Upload,
-  Search,
   HardDrive,
-  ChevronsDownUp,
-  ChevronsUpDown,
   Code,
-  Plus,
-  ChevronRight,
   ScrollText,
 } from "lucide-react";
 import {
@@ -40,7 +35,9 @@ import { BuildLogViewer } from "./components/BuildLogViewer";
 import { computeFindingOverlay, getFindingCount } from "../../utils/findingOverlay";
 import type { DirFindingCount } from "../../utils/findingOverlay";
 import { parseLocation } from "../../utils/location";
-import { HighlightedCode } from "./components/HighlightedCode";
+import { FilesPageHeader } from "./components/FilesPageHeader";
+import { FilesLanguageSummary } from "./components/FilesLanguageSummary";
+import { FilesSourceWorkspace } from "./components/FilesSourceWorkspace";
 import "./FilesPage.css";
 
 const getSourcePath = (f: SourceFileEntry) => f.relativePath;
@@ -268,41 +265,15 @@ export const FilesPage: React.FC = () => {
       onDragLeave={(e) => { e.preventDefault(); setDragOver(false); }}
       onDrop={handleDrop}
     >
-      {/* v6: page header */}
-      <div className="fpage-page-header">
-        <div>
-          <h1 className="fpage-page-header__title">Files</h1>
-          <p className="fpage-page-header__subtitle">
-            <Code size={14} className="fpage-page-header__icon" />
-            {sourceFiles.length}개 파일 · {formatFileSize(totalSize)}
-          </p>
-        </div>
-        <div className="fpage-header-actions">
-          {sourceFiles.length > 0 && (
-            <button
-              className="btn btn-sm"
-              onClick={() => setShowSubprojectDialog(true)}
-            >
-              <Plus size={14} />
-              서브 프로젝트 생성
-            </button>
-          )}
-          <button
-            className="fpage-action-btn"
-            onClick={() => fileInputRef.current?.click()}
-            title="소스코드 업로드"
-          >
-            <Upload size={20} />
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".zip,.tar.gz,.tgz,.tar.bz2,.tar"
-            className="fpage-hidden-input"
-            onChange={(e) => e.target.files && handleUpload(e.target.files)}
-          />
-        </div>
-      </div>
+      <FilesPageHeader
+        fileCount={sourceFiles.length}
+        totalSize={totalSize}
+        showCreateTarget={sourceFiles.length > 0}
+        onOpenCreateTarget={() => setShowSubprojectDialog(true)}
+        onOpenUpload={() => fileInputRef.current?.click()}
+        fileInputRef={fileInputRef}
+        onFileInputChange={(e) => e.target.files && handleUpload(e.target.files)}
+      />
 
       {/* Upload progress banner */}
       {upload.isActive && (
@@ -320,30 +291,7 @@ export const FilesPage: React.FC = () => {
         />
       ) : (
         <>
-          {/* Language bar */}
-          {langStats.length > 0 && (
-            <div className="card fpage-summary">
-              <div className="fpage-langbar">
-                {langStats.map((item) => (
-                  <div
-                    key={item.group}
-                    className="fpage-langbar__segment"
-                    style={{ width: `${(item.count / sourceFiles.length) * 100}%`, background: item.color }}
-                    title={`${item.group}: ${item.count}`}
-                  />
-                ))}
-              </div>
-              <div className="fpage-langbar__legend">
-                {langStats.map((item) => (
-                  <div key={item.group} className="fpage-langbar__legend-item">
-                    <span className="fpage-langbar__dot" style={{ background: item.color }} />
-                    <span className="fpage-langbar__legend-label">{item.group}</span>
-                    <span className="fpage-langbar__legend-value">{item.count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <FilesLanguageSummary totalFiles={sourceFiles.length} langStats={langStats} />
 
           {/* Subproject list panel */}
           {bt.targets.length > 0 && (
@@ -376,121 +324,25 @@ export const FilesPage: React.FC = () => {
             </div>
           )}
 
-          {/* 2-panel layout */}
-          <div className="source-tree__layout">
-            {/* Tree panel */}
-            <div className="card source-tree__tree-panel">
-              <div className="source-tree__tree-header">
-                <div className="source-tree__search-area">
-                  <Search size={14} className="source-tree__search-icon" />
-                  <input
-                    type="text"
-                    className="source-tree__search"
-                    placeholder="파일 검색..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                </div>
-                <div className="source-tree__toolbar">
-                  <button
-                    className="source-tree__toolbar-btn"
-                    title="폴더 전부 열기"
-                    onClick={() => { setTreeDefaultOpen(true); setTreeKey((k) => k + 1); }}
-                  >
-                    <ChevronsUpDown size={16} />
-                  </button>
-                  <button
-                    className="source-tree__toolbar-btn"
-                    title="폴더 전부 접기"
-                    onClick={() => { setTreeDefaultOpen(false); setTreeKey((k) => k + 1); }}
-                  >
-                    <ChevronsDownUp size={16} />
-                  </button>
-                </div>
-              </div>
-              <div className="source-tree__tree-body">
-                {displayTree.children.length === 0 ? (
-                  <div className="ftree-no-results">검색 결과가 없습니다</div>
-                ) : (
-                  displayTree.children.map((node) => (
-                    <FileTreeNode<SourceFileEntry>
-                      key={`${treeKey}-${node.path}`}
-                      node={node}
-                      depth={0}
-                      searchOpen={search.trim().length > 0}
-                      defaultOpen={treeDefaultOpen}
-                      onClickFile={handleFileClick}
-                      renderFileIcon={renderFileIcon}
-                      renderFileMeta={renderFileMeta}
-                      renderFolderBadge={renderFolderBadge}
-                      selectedPath={selectedPath ?? undefined}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Preview panel */}
-            <div className="card source-tree__preview-panel">
-              {!selectedPath ? (
-                <div className="source-tree__preview-empty">
-                  <FileText size={32} />
-                  <span>파일을 선택하면 내용을 미리 볼 수 있습니다</span>
-                </div>
-              ) : previewLoading ? (
-                <div className="source-tree__preview-loading">
-                  <Spinner label="로딩 중..." />
-                </div>
-              ) : (
-                <>
-                  <div className="source-tree__preview-header">
-                    <FileText size={14} style={{ color: getLangColorByName(previewLang), flexShrink: 0 }} />
-                    <span className="source-tree__preview-filename">{selectedPath}</span>
-                    <div className="source-tree__preview-meta">
-                      {previewLang && <span>{previewLang}</span>}
-                    </div>
-                  </div>
-
-                  <div className="source-tree__preview-body">
-                    {previewContent !== null ? (
-                      <HighlightedCode
-                        code={previewContent}
-                        language={previewLang}
-                        highlightLineNos={highlightLines}
-                      />
-                    ) : (
-                      <div className="source-tree__preview-empty">
-                        <span>파일 내용을 불러올 수 없습니다</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Findings for this file */}
-                  {selectedFileFindings.length > 0 && (
-                    <div className="source-tree__file-findings">
-                      <div className="source-tree__file-findings-title">
-                        Finding ({selectedFileFindings.length})
-                      </div>
-                      {selectedFileFindings.map((f) => {
-                        const { line } = parseLocation(f.location);
-                        return (
-                          <div
-                            key={f.id}
-                            className="source-tree__finding-row"
-                            onClick={() => handleSelectFinding(f.id)}
-                          >
-                            <SeverityBadge severity={f.severity} size="sm" />
-                            <span className="source-tree__finding-title">{f.title}</span>
-                            {line && <span className="source-tree__finding-loc">:{line}</span>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
+          <FilesSourceWorkspace
+            search={search}
+            onSearchChange={setSearch}
+            onExpandAll={() => { setTreeDefaultOpen(true); setTreeKey((k) => k + 1); }}
+            onCollapseAll={() => { setTreeDefaultOpen(false); setTreeKey((k) => k + 1); }}
+            displayTree={displayTree}
+            treeKey={treeKey}
+            selectedPath={selectedPath}
+            handleFileClick={handleFileClick}
+            renderFileIcon={renderFileIcon}
+            renderFileMeta={renderFileMeta}
+            renderFolderBadge={renderFolderBadge}
+            previewLoading={previewLoading}
+            previewLang={previewLang}
+            previewContent={previewContent}
+            highlightLines={highlightLines}
+            selectedFileFindings={selectedFileFindings}
+            onSelectFinding={handleSelectFinding}
+          />
         </>
       )}
 
