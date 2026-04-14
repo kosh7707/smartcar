@@ -1,6 +1,5 @@
 import React from "react";
 import type { ProjectReport } from "@aegis/shared";
-import { Paperclip } from "lucide-react";
 import { EmptyState, FindingStatusBadge, SeverityBadge, SourceBadge } from "../../../shared/ui";
 import { MODULE_META } from "../../../constants/modules";
 
@@ -25,7 +24,7 @@ export const ReportFindingsSection: React.FC<ReportFindingsSectionProps> = ({ fi
           <span className="report-findings__col--title">제목</span>
           <span className="report-findings__col--source">출처</span>
           <span className="report-findings__col--module">모듈</span>
-          <span className="report-findings__col--evidence"><Paperclip size={10} /> 증적</span>
+          <span className="report-findings__col--evidence">증적</span>
         </div>
         {findings.map(({ finding, evidenceRefs }) => (
           <div key={finding.id} className="report-findings__row">
@@ -50,7 +49,7 @@ export const ReportFindingsSection: React.FC<ReportFindingsSectionProps> = ({ fi
             <span className="report-findings__col--evidence">
               {evidenceRefs.length > 0 ? (
                 <span className="report-findings__evidence-count report-findings__evidence-count--has">
-                  <Paperclip size={10} /> {evidenceRefs.length}
+                  {evidenceRefs.length}건
                 </span>
               ) : (
                 <span className="report-findings__evidence-count">&mdash;</span>

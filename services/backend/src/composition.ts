@@ -228,7 +228,7 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
     buildTargetDAO,
   );
   const analysisOrchestrator = new AnalysisOrchestrator(
-    projectSourceService, sastClient, agentClient,
+    projectSourceService, sastClient, kbClient, agentClient,
     analysisResultDAO, settingsService, resultNormalizer, analysisWs, buildTargetService, targetLibraryDAO, analysisTracker,
   );
   const sdkService = new SdkService(sdkRegistryDAO, buildAgentClient, cfg.uploadsDir, sdkWs, notificationService);

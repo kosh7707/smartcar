@@ -20,6 +20,7 @@ from app.schemas.response import (
     AssessmentResult,
     AuditInfo,
     BuildArtifact,
+    BuildPreparation,
     BuildResult,
     Claim,
     FailureContext,
@@ -207,6 +208,7 @@ class ResultAssembler:
             recommendedNextSteps=parsed.get("recommendedNextSteps", []),
             policyFlags=parsed.get("policyFlags", []),
             buildResult=build_result,
+            buildPreparation=self._build_preparation(session, build_result, contract),
             sdkProfile=sdk_profile,
         )
 
@@ -386,6 +388,38 @@ class ResultAssembler:
             environmentSetup=sdk_profile_data.get("environmentSetup", ""),
             includePaths=sdk_profile_data.get("includePaths", []),
             defines=sdk_profile_data.get("defines", {}),
+        )
+
+    def _build_preparation(
+        self,
+        session: AgentSession,
+        build_result: BuildResult | None,
+        contract: _StrictContract,
+    ) -> BuildPreparation | None:
+        if session.request.taskType != TaskType.BUILD_RESOLVE or build_result is None:
+            return None
+
+        trusted = session.request.context.trusted if isinstance(session.request.context.trusted, dict) else {}
+        build_blob = trusted.get("build") if isinstance(trusted.get("build"), dict) else {}
+        raw_build_environment = (
+            trusted.get("buildEnvironment")
+            if trusted.get("buildEnvironment") is not None
+            else build_blob.get("environment")
+        )
+        build_environment = self._normalize_build_environment(raw_build_environment)
+        raw_provenance = trusted.get("provenance")
+        provenance = dict(raw_provenance) if isinstance(raw_provenance, dict) else {}
+        produced_artifacts = [artifact.path or artifact.kind for artifact in build_result.producedArtifacts]
+        return BuildPreparation(
+            declaredMode=build_result.declaredMode or contract.build_mode,
+            sdkId=build_result.sdkId or contract.sdk_id,
+            buildCommand=build_result.buildCommand,
+            buildScript=build_result.buildScript,
+            buildDir=build_result.buildDir,
+            buildEnvironment=build_environment,
+            provenance=provenance,
+            expectedArtifacts=contract.expected_artifacts,
+            producedArtifacts=[item for item in produced_artifacts if item],
         )
 
     def _parse_build_artifacts(self, raw: Any) -> list[BuildArtifact]:
@@ -576,6 +610,17 @@ class ResultAssembler:
             if value is not None:
                 return value
         return None
+
+    @staticmethod
+    def _normalize_build_environment(raw: Any) -> dict[str, str]:
+        if not isinstance(raw, dict):
+            return {}
+        normalized: dict[str, str] = {}
+        for key, value in raw.items():
+            if not isinstance(key, str) or not key.strip() or not isinstance(value, str):
+                continue
+            normalized[key.strip()] = value
+        return normalized
 
     def _normalize_artifact_list(self, raw: Any) -> list[str]:
         if not isinstance(raw, list):

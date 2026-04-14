@@ -21,16 +21,19 @@ def _make_service():
 def test_ingest():
     svc, session = _make_service()
 
-    # get_stats mock (called after ingest)
     call_count = [0]
     def run_side_effect(query, **kwargs):
         result = MagicMock()
+        if "RETURN count(n) AS cnt" in query and "MATCH (n:Function {project_id: $pid}) " in query and "DETACH DELETE" not in query:
+            call_count[0] += 1
+            if call_count[0] == 1:
+                result.single.return_value = {"cnt": 0}
+            else:
+                result.single.return_value = {"cnt": 4}
+            return result
         if "DETACH DELETE" in query:
             return result
         if "UNWIND" in query:
-            return result
-        if "count(n)" in query:
-            result.single.return_value = {"cnt": 4}
             return result
         if "count(r)" in query:
             result.single.return_value = {"cnt": 3}
@@ -49,7 +52,9 @@ def test_ingest():
 
     result = svc.ingest("test-project", functions)
     assert result["project_id"] == "test-project"
-    assert session.run.call_count >= 3  # delete + create nodes + create edges + stats
+    assert result["replaceMode"] == "replace_project_graph"
+    assert result["replacedExistingGraph"] is False
+    assert session.run.call_count >= 4  # existing count + delete + create nodes + create edges + stats
 
 
 def test_get_callers():
@@ -265,10 +270,12 @@ def test_ingest_with_origin():
 def test_ingest_returns_provenance():
     svc, session = _make_service()
 
+    count_calls = [0]
     def run_side_effect(query, **kwargs):
         result = MagicMock()
-        if "count(n)" in query:
-            result.single.return_value = {"cnt": 1}
+        if "RETURN count(n) AS cnt" in query and "MATCH (n:Function {project_id: $pid}) " in query and "DETACH DELETE" not in query:
+            count_calls[0] += 1
+            result.single.return_value = {"cnt": 0 if count_calls[0] == 1 else 1}
         elif "count(r)" in query:
             result.single.return_value = {"cnt": 0}
         elif "DISTINCT n.file" in query:
@@ -295,6 +302,33 @@ def test_ingest_returns_provenance():
     ]
     assert edge_calls
     assert edge_calls[0].kwargs["build_snapshot_id"] == "snap-1"
+
+
+def test_ingest_marks_existing_graph_replacement():
+    svc, session = _make_service()
+
+    count_calls = [0]
+
+    def run_side_effect(query, **kwargs):
+        result = MagicMock()
+        if "RETURN count(n) AS cnt" in query and "MATCH (n:Function {project_id: $pid}) " in query and "DETACH DELETE" not in query:
+            count_calls[0] += 1
+            result.single.return_value = {"cnt": 2 if count_calls[0] == 1 else 1}
+        elif "count(r)" in query:
+            result.single.return_value = {"cnt": 0}
+        elif "DISTINCT n.file" in query:
+            result.__iter__ = MagicMock(return_value=iter([{"file": "main.cpp"}]))
+        return result
+
+    session.run.side_effect = run_side_effect
+
+    result = svc.ingest(
+        "test-project",
+        [{"name": "main", "file": "main.cpp", "line": 1, "calls": []}],
+    )
+
+    assert result["replaceMode"] == "replace_project_graph"
+    assert result["replacedExistingGraph"] is True
 
 
 def test_get_function_with_provenance_filter():

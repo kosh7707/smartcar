@@ -40,7 +40,7 @@ async def test_health_endpoint(client: AsyncClient) -> None:
     data = resp.json()
     assert data["service"] == "s4-sast"
     assert data["status"] == "ok"
-    assert data["version"] == "0.11.0"
+    assert data["version"] == "0.11.2"
     assert "semgrep" in data
     assert "defaultRulesets" in data
     assert data["policyStatus"] == "ok"
@@ -50,6 +50,9 @@ async def test_health_endpoint(client: AsyncClient) -> None:
         "operator-requested-subset",
         "profile-not-applicable",
     ]
+    assert data["activeRequestCount"] == 0
+    assert data["requestSummary"]["state"] == "idle"
+    assert data["requestSummary"]["ackStatus"] == "idle"
 
 
 @pytest.mark.asyncio
@@ -81,6 +84,126 @@ async def test_health_endpoint_preserves_existing_fields_and_adds_policy(client:
         "operator-requested-subset",
         "profile-not-applicable",
     ]
+    assert data["activeRequestCount"] == 0
+    assert data["requestSummary"]["state"] == "idle"
+
+
+@pytest.mark.asyncio
+async def test_health_endpoint_request_summary_reports_running_state(
+    client: AsyncClient,
+    mock_semgrep_runner,
+) -> None:
+    from app.scanner.sarif_parser import parse_sarif
+    import json
+    from pathlib import Path as P
+
+    sarif = json.loads((P(__file__).parent / "fixtures" / "sample.sarif.json").read_text())
+    findings, _ = parse_sarif(sarif, P("/tmp/mock"))
+    execution = mock_semgrep_runner.run.return_value[1]
+    mock_semgrep_runner.run = AsyncMock(
+        side_effect=_make_slow_progress_mock(findings, execution, delay=0.2),
+    )
+
+    scan_task = asyncio.create_task(
+        client.post(
+            "/v1/scan",
+            headers={"X-Request-Id": "scan-health-running"},
+            json={
+                "scanId": "scan-health-running",
+                "projectId": "proj-test",
+                "files": [{"path": "src/main.c", "content": "int main() {}"}],
+            },
+        ),
+    )
+    await asyncio.sleep(0.05)
+
+    health_resp = await client.get("/v1/health", params={"requestId": "scan-health-running"})
+    data = health_resp.json()
+
+    assert health_resp.status_code == 200
+    assert data["activeRequestCount"] >= 1
+    assert data["requestSummary"]["requestId"] == "scan-health-running"
+    assert data["requestSummary"]["state"] == "running"
+    assert data["requestSummary"]["ackStatus"] == "active"
+    assert data["requestSummary"]["degraded"] is True
+    assert "timeout-floor" in data["requestSummary"]["degradeReasons"]
+    assert data["requestSummary"]["lastAckSource"] in {"tool-progress", "runtime-state", "file-progress"}
+
+    await scan_task
+
+
+@pytest.mark.asyncio
+async def test_health_endpoint_request_summary_reports_queued_state(
+    client: AsyncClient,
+    mock_semgrep_runner,
+) -> None:
+    from app.config import settings
+    from app.routers.scan import _scan_semaphore
+    from app.scanner.sarif_parser import parse_sarif
+    import json
+    from pathlib import Path as P
+
+    sarif = json.loads((P(__file__).parent / "fixtures" / "sample.sarif.json").read_text())
+    findings, _ = parse_sarif(sarif, P("/tmp/mock"))
+    execution = mock_semgrep_runner.run.return_value[1]
+    mock_semgrep_runner.run = AsyncMock(side_effect=_make_progress_mock(findings, execution))
+
+    for _ in range(settings.max_concurrent_scans):
+        await _scan_semaphore.acquire()
+
+    async def _release_later():
+        await asyncio.sleep(0.15)
+        for _ in range(settings.max_concurrent_scans):
+            _scan_semaphore.release()
+
+    release_task = asyncio.create_task(_release_later())
+    scan_task = asyncio.create_task(
+        client.post(
+            "/v1/scan",
+            headers={"X-Request-Id": "scan-health-queued"},
+            json={
+                "scanId": "scan-health-queued",
+                "projectId": "proj-test",
+                "files": [{"path": "src/main.c", "content": "int main() {}"}],
+            },
+        ),
+    )
+    await asyncio.sleep(0.03)
+
+    health_resp = await client.get("/v1/health", params={"requestId": "scan-health-queued"})
+    data = health_resp.json()
+
+    assert health_resp.status_code == 200
+    assert data["requestSummary"]["requestId"] == "scan-health-queued"
+    assert data["requestSummary"]["state"] == "queued"
+    assert data["requestSummary"]["ackStatus"] == "active"
+
+    await release_task
+    await scan_task
+
+
+@pytest.mark.asyncio
+async def test_health_endpoint_request_summary_reports_ack_break(client: AsyncClient) -> None:
+    with patch("app.routers.scan.orchestrator.run", AsyncMock(side_effect=RuntimeError("runner exploded"))):
+        resp = await client.post(
+            "/v1/scan",
+            headers={"X-Request-Id": "scan-health-failed"},
+            json={
+                "scanId": "scan-health-failed",
+                "projectId": "proj-test",
+                "files": [{"path": "src/main.c", "content": "int main() {}"}],
+            },
+        )
+
+    assert resp.status_code == 500
+
+    health_resp = await client.get("/v1/health", params={"requestId": "scan-health-failed"})
+    data = health_resp.json()
+    assert health_resp.status_code == 200
+    assert data["requestSummary"]["requestId"] == "scan-health-failed"
+    assert data["requestSummary"]["state"] == "failed"
+    assert data["requestSummary"]["ackStatus"] == "broken"
+    assert data["requestSummary"]["blockedReason"] == "runner exploded"
 
 
 @pytest.mark.asyncio
@@ -475,6 +598,12 @@ async def test_build_echoes_provenance_and_structured_evidence(client: AsyncClie
             "environmentKeys": ["CC", "SDK_ROOT"],
             "elapsedMs": 123,
         },
+        "readiness": {
+            "status": "ready",
+            "compileCommandsReady": True,
+            "quickEligible": True,
+            "summary": "compile_commands.json contains user-target entries and the build exited successfully.",
+        },
         "failureDetail": None,
     }
 
@@ -500,6 +629,8 @@ async def test_build_echoes_provenance_and_structured_evidence(client: AsyncClie
     assert data["provenance"]["buildSnapshotId"] == "bsnap-1"
     assert data["buildEvidence"]["effectiveBuildCommand"] == "make"
     assert data["buildEvidence"]["environmentKeys"] == ["CC", "SDK_ROOT"]
+    assert data["readiness"]["status"] == "ready"
+    assert data["readiness"]["quickEligible"] is True
 
 
 # === /v1/includes ===
@@ -1055,6 +1186,12 @@ async def test_build_and_analyze_accepts_provenance(client: AsyncClient) -> None
             environmentKeys=["CC"],
             elapsedMs=10,
         ),
+        readiness={
+            "status": "ready",
+            "compileCommandsReady": True,
+            "quickEligible": True,
+            "summary": "compile_commands.json contains user-target entries and the build exited successfully.",
+        },
     )
     scan_response = ScanResponse(
         success=True,
@@ -1096,6 +1233,7 @@ async def test_build_and_analyze_accepts_provenance(client: AsyncClient) -> None
     assert data["success"] is True
     assert data["provenance"]["buildSnapshotId"] == "bsnap-9"
     assert data["build"]["buildEvidence"]["compileCommandsPath"].endswith("compile_commands.json")
+    assert data["build"]["readiness"]["status"] == "ready"
 
 
 @pytest.mark.asyncio
@@ -1155,6 +1293,12 @@ async def test_build_and_analyze_policy_violation_preserves_build_evidence(clien
             timeoutSeconds=600,
             elapsedMs=10,
         ),
+        readiness={
+            "status": "ready",
+            "compileCommandsReady": True,
+            "quickEligible": True,
+            "summary": "compile_commands.json contains user-target entries and the build exited successfully.",
+        },
     )
     failed_scan = ScanResponse(
         success=False,

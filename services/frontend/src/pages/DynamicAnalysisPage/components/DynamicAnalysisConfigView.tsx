@@ -1,6 +1,6 @@
 import React from "react";
 import type { Adapter } from "@aegis/shared";
-import { Activity, Plug, Radio } from "lucide-react";
+import { Plug, Radio } from "lucide-react";
 import { AdapterSelector, BackButton, PageHeader, Spinner } from "../../../shared/ui";
 
 interface DynamicAnalysisConfigViewProps {
@@ -24,7 +24,7 @@ export const DynamicAnalysisConfigView: React.FC<DynamicAnalysisConfigViewProps>
 }) => (
   <div className="page-enter">
     <BackButton onClick={onBack} label="이력으로" />
-    <PageHeader title="새 세션" icon={<Activity size={20} />} />
+    <PageHeader title="새 세션" />
 
     <div className="card dyn-config">
       <div className="dyn-config__section">

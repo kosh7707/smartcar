@@ -48,37 +48,20 @@
 
 .fpage-header-actions {
   display: flex;
-  gap: var(--cds-spacing-02);
+  gap: var(--cds-spacing-03);
+  flex-wrap: wrap;
 }
 
-.fpage-action-btn {
-  position: relative;
-  display: flex;
+.fpage-upload-banner {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: none;
+  gap: var(--cds-spacing-03);
+  padding: var(--cds-spacing-04) var(--aegis-spacing-05);
+  border: 1px solid var(--cds-interactive-border);
   border-radius: var(--cds-radius);
-  background: transparent;
-  color: var(--cds-text-secondary);
-  cursor: pointer;
-  transition: color var(--cds-transition-fast), background var(--cds-transition-fast);
-}
-
-.fpage-action-btn:hover {
-  color: var(--cds-interactive);
-  background: var(--cds-interactive-subtle);
-}
-
-.fpage-action-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.fpage-action-btn:disabled:hover {
-  color: var(--cds-text-secondary);
-  background: transparent;
+  background: linear-gradient(180deg, rgba(15, 98, 254, 0.04), rgba(255, 255, 255, 0.96));
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-primary);
 }
 
 /* ── Drop Overlay ── */
@@ -111,7 +94,7 @@
   height: 8px;
   border-radius: var(--cds-radius-circle);
   overflow: hidden;
-  background: var(--cds-layer-02);
+  background: rgba(224, 224, 224, 0.9);
 }
 
 .fpage-langbar__segment {
@@ -154,7 +137,7 @@
   margin-top: var(--cds-spacing-04);
   padding-top: var(--cds-spacing-04);
   border-top: 1px solid var(--cds-border-subtle);
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   color: var(--cds-text-placeholder);
 }
 
@@ -236,7 +219,7 @@
 }
 
 .fpage-subproject-row:hover {
-  background: var(--cds-layer-02);
+  background: rgba(244, 244, 244, 0.82);
 }
 
 .fpage-subproject-name {
@@ -247,7 +230,7 @@
 .fpage-subproject-meta {
   margin-left: auto;
   font-family: var(--cds-font-mono);
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   color: var(--cds-text-placeholder);
 }
 
@@ -260,4 +243,3 @@
     max-height: 80px;
   }
 }
-

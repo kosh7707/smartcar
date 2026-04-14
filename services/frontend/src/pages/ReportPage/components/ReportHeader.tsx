@@ -1,5 +1,5 @@
 import React from "react";
-import { Download, FileText, Filter, Settings2 } from "lucide-react";
+import { Download, Filter, Settings2 } from "lucide-react";
 import { PageHeader } from "../../../shared/ui";
 import { formatDateTime } from "../../../utils/format";
 
@@ -20,7 +20,6 @@ export const ReportHeader: React.FC<ReportHeaderProps> = ({
 }) => (
   <PageHeader
     title="보고서"
-    icon={<FileText size={20} />}
     subtitle={`생성: ${formatDateTime(generatedAt)}`}
     action={
       <div className="report-page__actions">

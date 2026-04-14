@@ -69,8 +69,34 @@
   color: var(--cds-text-primary);
 }
 
+.project-explorer-row__summary {
+  margin: 0;
+  font-size: var(--cds-type-sm);
+  line-height: 1.45;
+  color: var(--cds-text-secondary);
+}
+
+.project-explorer-row__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cds-spacing-02);
+}
+
+.project-explorer-row__chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0 0.625rem;
+  border-radius: 999px;
+  border: 1px solid var(--cds-border-subtle);
+  background: transparent;
+  font-size: var(--cds-type-sm);
+  font-weight: var(--cds-weight-medium);
+  color: var(--cds-text-secondary);
+}
+
 .project-explorer-row__time {
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   color: var(--cds-text-placeholder);
 }
 

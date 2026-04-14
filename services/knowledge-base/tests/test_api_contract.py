@@ -128,6 +128,8 @@ class FakeCodeGraphService:
     def ingest(self, project_id, functions, *, provenance=None):
         result = {
             "project_id": project_id,
+            "replaceMode": "replace_project_graph",
+            "replacedExistingGraph": project_id == "existing-project",
             "nodeCount": len(functions),
             "edgeCount": sum(len(f.get("calls", [])) for f in functions),
             "files": list({f.get("file") for f in functions if f.get("file")}),
@@ -565,13 +567,33 @@ class TestCodeGraphIngestContract:
         assert resp.status_code == 200
         body = resp.json()
 
-        for key in ("project_id", "nodeCount", "edgeCount", "files", "vectorCount"):
+        for key in (
+            "project_id",
+            "nodeCount",
+            "edgeCount",
+            "files",
+            "vectorCount",
+            "operation",
+            "readiness",
+            "status",
+        ):
             assert key in body, f"ingest 응답에 '{key}' 필드 누락"
 
         assert isinstance(body["nodeCount"], int)
         assert isinstance(body["edgeCount"], int)
         assert isinstance(body["files"], list)
         assert isinstance(body["vectorCount"], int)
+        assert body["operation"] == {
+            "mode": "replace_project_graph",
+            "repeatable": True,
+            "replacedExistingGraph": False,
+        }
+        assert body["readiness"] == {
+            "neo4jGraph": True,
+            "vectorIndex": True,
+            "graphRag": True,
+        }
+        assert body["status"] == "ready"
 
     def test_provenance_passthrough(self, _init_code_graph):
         resp = client.post(
@@ -602,6 +624,53 @@ class TestCodeGraphIngestContract:
         )
         body = resp.json()
         assert "provenance" not in body
+
+    def test_ingest_marks_repeat_replacement(self, _init_code_graph):
+        resp = client.post(
+            "/v1/code-graph/existing-project/ingest",
+            json={"functions": self._FUNCTIONS},
+            headers=_HEADERS,
+        )
+        body = resp.json()
+        assert body["operation"]["replacedExistingGraph"] is True
+
+    def test_ingest_partial_when_vector_stage_unavailable(self):
+        code_graph_api.set_service(FakeCodeGraphService())
+        code_graph_api.set_code_vector_search(None)
+        code_graph_api.set_code_assembler(FakeCodeAssembler())
+
+        resp = client.post(
+            "/v1/code-graph/re100/ingest",
+            json={"functions": self._FUNCTIONS},
+            headers=_HEADERS,
+        )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["vectorCount"] == 0
+        assert body["status"] == "partial"
+        assert body["readiness"] == {
+            "neo4jGraph": True,
+            "vectorIndex": False,
+            "graphRag": False,
+        }
+        assert body["warnings"] == ["VECTOR_INDEX_INCOMPLETE"]
+
+    def test_ingest_empty_graph_reports_not_ready(self, _init_code_graph):
+        resp = client.post(
+            "/v1/code-graph/re100/ingest",
+            json={"functions": []},
+            headers=_HEADERS,
+        )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["status"] == "empty"
+        assert body["readiness"] == {
+            "neo4jGraph": False,
+            "vectorIndex": False,
+            "graphRag": False,
+        }
 
     def test_503_when_not_initialized(self):
         code_graph_api.set_service(None)

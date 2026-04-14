@@ -63,6 +63,7 @@ function renderPage() {
 describe("FilesPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
     mockFetchSourceFilesWithComposition.mockResolvedValue({ success: true, data: [], targetMapping: {} });
     mockFetchProjectFindings.mockResolvedValue([]);
     mockFetchSourceFileContent.mockResolvedValue({
@@ -137,5 +138,41 @@ describe("FilesPage", () => {
 
     fireEvent.click(screen.getByText("Unsafe copy"));
     expect(mockNavigate).toHaveBeenCalledWith("/projects/p-1/static-analysis?finding=finding-1");
+  });
+
+  it("supports collapsing, expanding, and resizing the source workspace", async () => {
+    mockFetchSourceFilesWithComposition.mockResolvedValue({
+      success: true,
+      data: [
+        { relativePath: "src/main.c", size: 120, language: "C" },
+        { relativePath: "README.md", size: 40, language: "Markdown" },
+      ],
+      targetMapping: {},
+    });
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "Files" })).toBeInTheDocument();
+    expect(screen.getByText("main.c")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTitle("폴더 전부 접기"));
+    await waitFor(() => expect(screen.queryByText("main.c")).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByTitle("폴더 전부 열기"));
+    expect(await screen.findByText("main.c")).toBeInTheDocument();
+
+    const workspace = screen.getByTestId("files-source-workspace");
+    const splitter = screen.getByTestId("files-source-workspace-splitter");
+
+    Object.defineProperty(workspace, "getBoundingClientRect", {
+      value: () => ({ left: 0, width: 1000, top: 0, right: 1000, bottom: 600, height: 600, x: 0, y: 0, toJSON: () => ({}) }),
+      configurable: true,
+    });
+
+    fireEvent.mouseDown(splitter, { clientX: 360 });
+    fireEvent.mouseMove(window, { clientX: 480 });
+    fireEvent.mouseUp(window);
+
+    expect(workspace.style.getPropertyValue("--files-tree-panel-width")).toBe("480px");
   });
 });

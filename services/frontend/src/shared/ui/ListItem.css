@@ -17,7 +17,7 @@
 }
 
 .list-item--clickable:hover {
-  background: var(--cds-layer-02);
+  background: rgba(244, 244, 244, 0.82);
 }
 
 .list-item--clickable:focus-visible {

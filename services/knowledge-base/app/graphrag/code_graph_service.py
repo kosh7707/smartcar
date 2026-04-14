@@ -77,6 +77,13 @@ class CodeGraphService:
         normalized_provenance = self._normalize_provenance(provenance)
 
         with self._driver.session() as session:
+            existing_result = session.run(
+                "MATCH (n:Function {project_id: $pid}) "
+                "RETURN count(n) AS cnt",
+                pid=project_id,
+            )
+            existing_count = existing_result.single()["cnt"]
+
             # 기존 프로젝트 데이터 삭제 (현재는 프로젝트당 활성 그래프 1개 유지)
             session.run(
                 "MATCH (n:Function {project_id: $pid}) DETACH DELETE n",
@@ -129,7 +136,12 @@ class CodeGraphService:
             "코드 그래프 구축: project=%s, nodes=%d, edges=%d",
             project_id, stats["nodeCount"], stats["edgeCount"],
         )
-        result = {"project_id": project_id, **stats}
+        result = {
+            "project_id": project_id,
+            "replaceMode": "replace_project_graph",
+            "replacedExistingGraph": existing_count > 0,
+            **stats,
+        }
         if any(normalized_provenance.values()):
             result["provenance"] = {
                 "buildSnapshotId": normalized_provenance.get("build_snapshot_id"),

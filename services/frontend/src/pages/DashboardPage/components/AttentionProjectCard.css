@@ -96,7 +96,7 @@
 
 .attention-project-card__chip--neutral {
   color: var(--cds-text-secondary);
-  background: var(--cds-layer-01);
+  background: rgba(255, 255, 255, 0.9);
   border-color: var(--cds-border-subtle);
 }
 

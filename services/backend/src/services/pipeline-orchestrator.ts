@@ -108,6 +108,56 @@ export class PipelineOrchestrator {
     logger.info({ pipelineId, projectId, readyCount, failedCount, total: targets.length, requestId }, "Pipeline completed");
   }
 
+  async preparePipeline(
+    projectId: string,
+    targetIds?: string[],
+    requestId?: string,
+    signal?: AbortSignal,
+    preparationId: string = `prep-${crypto.randomUUID().slice(0, 8)}`,
+  ): Promise<void> {
+    const projectPath = this.sourceService.getProjectPath(projectId);
+    if (!projectPath) {
+      throw new NotFoundError(`Project source not found: ${projectId}`);
+    }
+
+    let targets = this.buildTargetDAO.findByProjectId(projectId);
+    if (targetIds?.length) {
+      targets = targets.filter((t) => targetIds.includes(t.id));
+    }
+    if (targets.length === 0) {
+      throw new NotFoundError("No build targets found for this project");
+    }
+
+    let preparedCount = 0;
+    let failedCount = 0;
+
+    for (const target of targets) {
+      if (signal?.aborted) break;
+
+      try {
+        await this.prepareTarget(projectId, preparationId, projectPath, target, requestId, signal);
+        preparedCount++;
+      } catch (err) {
+        failedCount++;
+        const errorMsg = err instanceof Error ? err.message : "Unknown error";
+        logger.error({ err, targetId: target.id, targetName: target.name, requestId }, "Build preparation target failed");
+        this.broadcast(projectId, {
+          type: "pipeline-error",
+          payload: {
+            pipelineId: preparationId,
+            projectId,
+            targetId: target.id,
+            targetName: target.name,
+            phase: "setup",
+            error: errorMsg,
+          },
+        });
+      }
+    }
+
+    logger.info({ preparationId, projectId, preparedCount, failedCount, total: targets.length, requestId }, "Build preparation completed");
+  }
+
   private async processTarget(
     projectId: string,
     pipelineId: string,
@@ -116,10 +166,136 @@ export class PipelineOrchestrator {
     requestId?: string,
     signal?: AbortSignal,
   ): Promise<void> {
+    const { scanPath } = await this.prepareTarget(projectId, pipelineId, projectPath, target, requestId, signal);
+
+    if (signal?.aborted) return;
+
+    const kbProjectId = `${projectId}:${target.name}`;
+
+    // ── Step 1.5: Library Identification (S4) ──
+    let thirdPartyPaths: string[] = [];
+    try {
+      const libs = await this.sastClient.identifyLibraries(scanPath, requestId, signal);
+      if (libs.length > 0) {
+        this.targetLibraryDAO.upsertFromScan(target.id, projectId, libs);
+        thirdPartyPaths = this.targetLibraryDAO.getIncludedPaths(target.id);
+        logger.info({ targetId: target.id, identified: libs.length, included: thirdPartyPaths.length }, "Libraries identified");
+      }
+    } catch (err) {
+      logger.warn({ err, targetId: target.id }, "Library identification failed — continuing without");
+    }
+
+    if (signal?.aborted) return;
+
+    // ── Step 2: SAST Scan ──
+    this.updateStatus(projectId, pipelineId, target, "scanning", "SAST 스캔 + SCA 진행 중...");
+
+    const scanId = `scan-${crypto.randomUUID().slice(0, 8)}`;
+    const sastResponse = await this.sastClient.scan(
+      {
+        scanId,
+        projectId,
+        projectPath: scanPath,
+        compileCommands: target.compileCommandsPath,
+        buildProfile: target.buildProfile,
+        thirdPartyPaths: thirdPartyPaths.length > 0 ? thirdPartyPaths : undefined,
+      },
+      requestId,
+      signal,
+    );
+
+    if (sastResponse.status !== "completed") {
+      this.buildTargetDAO.updatePipelineState(target.id, { status: "scan_failed" });
+      this.updateStatus(projectId, pipelineId, target, "scan_failed", `스캔 실패: ${sastResponse.error}`);
+      throw new PipelineStepError(`Scan failed for ${target.name}: ${sastResponse.error}`);
+    }
+
+    // Quick 결과 저장
+    const quickResult = this.buildQuickResult(scanId, projectId, target.name, sastResponse);
+    this.analysisResultDAO.save(quickResult);
+    this.resultNormalizer.normalizeAnalysisResult(quickResult, { startedAt: new Date().toISOString() });
+
+    this.buildTargetDAO.updatePipelineState(target.id, {
+      status: "scanned",
+      sastScanId: scanId,
+      scaLibraries: sastResponse.sca?.libraries,
+    });
+    this.updateStatus(projectId, pipelineId, target, "scanned", `스캔 완료 (${sastResponse.stats.findingsTotal} findings)`);
+
+    if (signal?.aborted) return;
+
+    // ── Step 3: Code Graph Ingest ──
+    if (sastResponse.codeGraph) {
+      // KB degraded 체크 — Neo4j 미연결 시 그래프 적재 스킵
+      const kbReady = await this.kbClient.checkReady().catch(() => null);
+      if (kbReady?.degraded === true) {
+        logger.warn({ targetId: target.id, requestId }, "KB degraded (Neo4j unavailable), skipping code graph ingest");
+        this.buildTargetDAO.updatePipelineState(target.id, {
+          status: "graphed",
+          codeGraphStatus: "skipped_degraded",
+        });
+        this.updateStatus(projectId, pipelineId, target, "graphed", "코드그래프 스킵 (KB degraded — Neo4j 미연결)");
+      } else {
+        this.updateStatus(projectId, pipelineId, target, "graphing", "코드그래프 KB 적재 중...");
+
+        try {
+          const ingestResult = await this.kbClient.ingestCodeGraph(
+            kbProjectId,
+            sastResponse.codeGraph,
+            requestId,
+            signal,
+          );
+
+          if (!this.kbClient.isGraphReady(ingestResult)) {
+            this.buildTargetDAO.updatePipelineState(target.id, {
+              status: "graph_failed",
+              codeGraphStatus: "failed",
+            });
+            this.updateStatus(projectId, pipelineId, target, "graph_failed", `코드그래프 미준비: ${ingestResult.status ?? "unknown"}`);
+            throw new PipelineStepError(`Code graph not ready for ${target.name}: ${ingestResult.status ?? "unknown"}`);
+          }
+
+          this.buildTargetDAO.updatePipelineState(target.id, {
+            status: "graphed",
+            codeGraphStatus: "ingested",
+            codeGraphNodeCount: ingestResult.nodes_created,
+          });
+          this.updateStatus(projectId, pipelineId, target, "graphed", `코드그래프 적재 완료 (${ingestResult.nodes_created} nodes)`);
+        } catch (err) {
+          if (err instanceof PipelineStepError) {
+            throw err;
+          }
+          // 코드그래프 실패는 치명적이지 않음 — 경고 후 계속
+          logger.warn({ err, targetId: target.id, requestId }, "Code graph ingest failed, continuing");
+          this.buildTargetDAO.updatePipelineState(target.id, {
+            status: "graphed",
+            codeGraphStatus: "failed",
+          });
+        }
+      } // end else (not degraded)
+    } else {
+      this.buildTargetDAO.updatePipelineState(target.id, {
+        status: "graphed",
+        codeGraphStatus: "pending",
+      });
+    }
+
+    // ── Step 4: Ready ──
+    this.buildTargetDAO.updatePipelineState(target.id, { status: "ready" });
+    this.updateStatus(projectId, pipelineId, target, "ready", "분석 준비 완료");
+  }
+
+  private async prepareTarget(
+    projectId: string,
+    pipelineId: string,
+    projectPath: string,
+    target: BuildTarget,
+    requestId?: string,
+    signal?: AbortSignal,
+  ): Promise<{ scanPath: string }> {
     // 격리된 서브프로젝트 경로 우선 사용 (없으면 원본 프로젝트 내 상대경로)
     const scanPath = target.sourcePath ?? path.join(projectPath, target.relativePath);
     const isIsolated = !!target.sourcePath;
-    const kbProjectId = `${projectId}:${target.name}`;
 
     // ── Step 0: Build Resolve (S3 Build Agent) ──
     if (target.status === "discovered" || !target.buildCommand) {
@@ -189,6 +365,8 @@ export class PipelineOrchestrator {
 
         if (this.buildAgentClient.isSuccess(resolveResp)) {
           const br = resolveResp.result.buildResult;
+          const buildPreparation = resolveResp.result.buildPreparation;
+          const resolvedBuildCommand = buildPreparation?.buildCommand ?? br.buildCommand;
 
           if (!br.success) {
             // 에이전트가 빌드 시도했지만 실패
@@ -205,9 +383,9 @@ export class PipelineOrchestrator {
             // 빌드 성공 — buildCommand + buildScript 저장
             this.buildTargetDAO.updatePipelineState(target.id, {
               status: "configured",
-              buildCommand: br.buildCommand,
+              buildCommand: resolvedBuildCommand,
             });
-            target.buildCommand = br.buildCommand;
+            target.buildCommand = resolvedBuildCommand;
             this.updateStatus(
               projectId,
               pipelineId,
@@ -237,8 +415,6 @@ export class PipelineOrchestrator {
       }
     }
 
-    if (signal?.aborted) return;
-
     if (!target.buildCommand) {
       this.buildTargetDAO.updatePipelineState(target.id, { status: "resolve_failed" });
       this.updateStatus(projectId, pipelineId, target, "resolve_failed", "빌드 명령어 없음 — caller-materialized buildCommand 필요");
@@ -254,139 +430,28 @@ export class PipelineOrchestrator {
       signal,
     );
 
-    if (!buildResult.success) {
-      if (buildResult.entries && buildResult.entries > 0 && buildResult.compileCommandsPath) {
-        // 부분 빌드 — compile_commands는 있으므로 SAST 진행 가능
-        logger.warn(
-          { targetId: target.id, entries: buildResult.entries, requestId },
-          "Partial build — continuing with partial compile_commands",
-        );
-        this.buildTargetDAO.updatePipelineState(target.id, {
-          status: "built",
-          compileCommandsPath: buildResult.compileCommandsPath,
-          buildLog: buildResult.buildLog ?? buildResult.error,
-          lastBuiltAt: new Date().toISOString(),
-        });
-        this.updateStatus(projectId, pipelineId, target, "built", `부분 빌드 (${buildResult.entries} entries) — SAST 진행`);
-      } else {
-        // 완전 실패
-        this.buildTargetDAO.updatePipelineState(target.id, {
-          status: "build_failed",
-          buildLog: buildResult.buildLog ?? buildResult.error,
-        });
-        this.updateStatus(projectId, pipelineId, target, "build_failed", `빌드 실패: ${buildResult.error}`);
-        throw new PipelineStepError(`Build failed for ${target.name}: ${buildResult.error}`);
-      }
-    } else {
+    if (!this.sastClient.isBuildReadyForQuick(buildResult)) {
+      const reason = buildResult.error
+        ?? (buildResult.readinessStatus
+          ? `build readiness not satisfied (${buildResult.readinessStatus})`
+          : "compile_commands 준비 실패");
       this.buildTargetDAO.updatePipelineState(target.id, {
-        status: "built",
-        compileCommandsPath: buildResult.compileCommandsPath,
-        lastBuiltAt: new Date().toISOString(),
+        status: "build_failed",
+        buildLog: buildResult.buildLog ?? reason,
       });
-      this.updateStatus(projectId, pipelineId, target, "built", `빌드 완료 (${buildResult.entries ?? 0} entries)`);
+      this.updateStatus(projectId, pipelineId, target, "build_failed", `빌드 실패: ${reason}`);
+      throw new PipelineStepError(`Build failed for ${target.name}: ${reason}`);
     }
-
-    if (signal?.aborted) return;
-
-    // ── Step 1.5: Library Identification (S4) ──
-    let thirdPartyPaths: string[] = [];
-    try {
-      const libs = await this.sastClient.identifyLibraries(scanPath, requestId, signal);
-      if (libs.length > 0) {
-        this.targetLibraryDAO.upsertFromScan(target.id, projectId, libs);
-        thirdPartyPaths = this.targetLibraryDAO.getIncludedPaths(target.id);
-        logger.info({ targetId: target.id, identified: libs.length, included: thirdPartyPaths.length }, "Libraries identified");
-      }
-    } catch (err) {
-      logger.warn({ err, targetId: target.id }, "Library identification failed — continuing without");
-    }
-
-    if (signal?.aborted) return;
-
-    // ── Step 2: SAST Scan ──
-    this.updateStatus(projectId, pipelineId, target, "scanning", "SAST 스캔 + SCA 진행 중...");
-
-    const scanId = `scan-${crypto.randomUUID().slice(0, 8)}`;
-    const sastResponse = await this.sastClient.scan(
-      {
-        scanId,
-        projectId,
-        projectPath: scanPath,
-        compileCommands: buildResult.compileCommandsPath,
-        buildProfile: target.buildProfile,
-        thirdPartyPaths: thirdPartyPaths.length > 0 ? thirdPartyPaths : undefined,
-      },
-      requestId,
-      signal,
-    );
-
-    if (sastResponse.status !== "completed") {
-      this.buildTargetDAO.updatePipelineState(target.id, { status: "scan_failed" });
-      this.updateStatus(projectId, pipelineId, target, "scan_failed", `스캔 실패: ${sastResponse.error}`);
-      throw new PipelineStepError(`Scan failed for ${target.name}: ${sastResponse.error}`);
-    }
-
-    // Quick 결과 저장
-    const quickResult = this.buildQuickResult(scanId, projectId, target.name, sastResponse);
-    this.analysisResultDAO.save(quickResult);
-    this.resultNormalizer.normalizeAnalysisResult(quickResult, { startedAt: new Date().toISOString() });
 
     this.buildTargetDAO.updatePipelineState(target.id, {
-      status: "scanned",
-      sastScanId: scanId,
-      scaLibraries: sastResponse.sca?.libraries,
+      status: "built",
+      compileCommandsPath: buildResult.compileCommandsPath,
+      lastBuiltAt: new Date().toISOString(),
     });
-    this.updateStatus(projectId, pipelineId, target, "scanned", `스캔 완료 (${sastResponse.stats.findingsTotal} findings)`);
+    target.compileCommandsPath = buildResult.compileCommandsPath;
+    this.updateStatus(projectId, pipelineId, target, "built", `빌드 완료 (${buildResult.userEntries ?? buildResult.entries ?? 0} entries)`);
 
-    if (signal?.aborted) return;
-
-    // ── Step 3: Code Graph Ingest ──
-    if (sastResponse.codeGraph) {
-      // KB degraded 체크 — Neo4j 미연결 시 그래프 적재 스킵
-      const kbReady = await this.kbClient.checkReady().catch(() => null);
-      if (kbReady?.degraded === true) {
-        logger.warn({ targetId: target.id, requestId }, "KB degraded (Neo4j unavailable), skipping code graph ingest");
-        this.buildTargetDAO.updatePipelineState(target.id, {
-          status: "graphed",
-          codeGraphStatus: "skipped_degraded",
-        });
-        this.updateStatus(projectId, pipelineId, target, "graphed", "코드그래프 스킵 (KB degraded — Neo4j 미연결)");
-      } else {
-      this.updateStatus(projectId, pipelineId, target, "graphing", "코드그래프 KB 적재 중...");
-
-      try {
-        const ingestResult = await this.kbClient.ingestCodeGraph(
-          kbProjectId,
-          sastResponse.codeGraph,
-          requestId,
-          signal,
-        );
-
-        this.buildTargetDAO.updatePipelineState(target.id, {
-          status: "graphed",
-          codeGraphStatus: "ingested",
-          codeGraphNodeCount: ingestResult.nodes_created,
-        });
-        this.updateStatus(projectId, pipelineId, target, "graphed", `코드그래프 적재 완료 (${ingestResult.nodes_created} nodes)`);
-      } catch (err) {
-        // 코드그래프 실패는 치명적이지 않음 — 경고 후 계속
-        logger.warn({ err, targetId: target.id, requestId }, "Code graph ingest failed, continuing");
-        this.buildTargetDAO.updatePipelineState(target.id, {
-          status: "graphed",
-          codeGraphStatus: "failed",
-        });
-      }
-      } // end else (not degraded)
-    } else {
-      this.buildTargetDAO.updatePipelineState(target.id, {
-        status: "graphed",
-        codeGraphStatus: "pending",
-      });
-    }
-
-    // ── Step 4: Ready ──
-    this.buildTargetDAO.updatePipelineState(target.id, { status: "ready" });
-    this.updateStatus(projectId, pipelineId, target, "ready", "분석 준비 완료");
+    return { scanPath };
   }
 
   private buildQuickResult(

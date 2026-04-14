@@ -123,6 +123,38 @@ def test_build_success_from_valid_json() -> None:
     assert resp.result.buildResult.declaredMode == "native"
 
 
+def test_build_success_includes_explicit_build_preparation_bundle() -> None:
+    """build-resolve 성공 응답은 다음 단계용 buildPreparation을 함께 제공한다."""
+    assembler = ResultAssembler()
+    session = _make_session(
+        metadata=_strict_metadata(expected_artifacts=["build-aegis/gateway"]),
+        trusted={
+            "projectPath": "/tmp/project",
+            "subprojectPath": "gateway",
+            "subprojectName": "gateway",
+            "buildEnvironment": {"CC": "arm-none-linux-gnueabihf-gcc"},
+            "provenance": {"buildSnapshotId": "bsnap-1", "buildUnitId": "bunit-1"},
+        },
+    )
+    _record_build_success(session)
+
+    resp = assembler.build(
+        _valid_build_json(produced_artifacts=[{"path": "build-aegis/gateway", "kind": "file"}]),
+        session,
+    )
+
+    assert isinstance(resp, TaskSuccessResponse)
+    assert resp.result.buildPreparation is not None
+    assert resp.result.buildPreparation.buildCommand == "bash build-aegis/aegis-build.sh"
+    assert resp.result.buildPreparation.buildEnvironment == {"CC": "arm-none-linux-gnueabihf-gcc"}
+    assert resp.result.buildPreparation.provenance == {
+        "buildSnapshotId": "bsnap-1",
+        "buildUnitId": "bunit-1",
+    }
+    assert resp.result.buildPreparation.expectedArtifacts == ["gateway"]
+    assert resp.result.buildPreparation.producedArtifacts == ["build-aegis/gateway"]
+
+
 def test_build_fallback_on_invalid_json_becomes_strict_failure() -> None:
     """strict compile contract에서는 비JSON fallback을 성공으로 처리하지 않는다."""
     assembler = ResultAssembler()

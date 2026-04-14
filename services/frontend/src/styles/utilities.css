@@ -6,7 +6,6 @@
 .text-success { color: var(--cds-support-success); }
 .text-accent { color: var(--cds-interactive); }
 
-.text-xs { font-size: var(--cds-type-xs); }
 .text-sm { font-size: var(--cds-type-sm); }
 .text-base { font-size: var(--cds-type-base); }
 .text-md { font-size: var(--cds-type-md); }
@@ -47,7 +46,6 @@
 .flex-gap-4 { gap: var(--cds-spacing-05); }
 
 /* ── Text Utilities (new) ── */
-.text-xs-muted { font-size: var(--cds-type-xs); color: var(--cds-text-placeholder); }
 .text-sm-secondary { font-size: var(--cds-type-sm); color: var(--cds-text-secondary); }
 
 /* ── Display Utilities (new) ── */

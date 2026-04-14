@@ -213,7 +213,6 @@ export const SourceTreeView: React.FC<Props> = ({
     <div className="source-tree">
       <PageHeader
         title="소스코드 탐색기"
-        icon={<Code size={20} />}
         subtitle={`${sourceFiles.length}개 파일 · ${formatFileSize(totalSize)}`}
       />
 

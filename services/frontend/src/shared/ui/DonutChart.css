@@ -26,12 +26,12 @@
 }
 
 .donut-chart__legend-label {
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   color: var(--cds-text-secondary);
 }
 
 .donut-chart__legend-value {
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   font-weight: var(--cds-weight-semibold);
   color: var(--cds-text-primary);
 }

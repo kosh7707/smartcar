@@ -1,5 +1,4 @@
 import React from "react";
-import { FolderSearch } from "lucide-react";
 import { CreateProjectForm } from "./CreateProjectForm";
 import type { DashboardProject } from "../dashboardTypes";
 import { DashboardEmptySurface } from "./DashboardEmptySurface";
@@ -82,7 +81,6 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
         {shouldRenderEmpty ? (
           <li className="project-explorer-list__empty">
             <DashboardEmptySurface
-              icon={<FolderSearch size={18} />}
               title={emptyState.title}
               description={emptyState.description}
               action={emptyAction}

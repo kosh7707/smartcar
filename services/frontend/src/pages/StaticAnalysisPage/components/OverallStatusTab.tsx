@@ -2,7 +2,6 @@ import React from "react";
 import type { StaticAnalysisDashboardSummary, Run } from "@aegis/shared";
 import type { DashboardPeriod } from "../../../shared/ui/PeriodSelector";
 import { StatCard, DonutChart, PeriodSelector, TrendChart, FindingSummary } from "../../../shared/ui";
-import { Shield, AlertTriangle, ShieldCheck, PlayCircle } from "lucide-react";
 import { TopFilesCard } from "./TopFilesCard";
 import { TopRulesCard } from "./TopRulesCard";
 import { RecentRunsList } from "./RecentRunsList";
@@ -52,21 +51,19 @@ export const OverallStatusTab: React.FC<Props> = ({
 
       {/* KPI Cards */}
       <div className="stat-cards stagger">
-        <StatCard icon={<Shield size={16} />} label="총 Finding" value={totalFindings} accent />
+        <StatCard label="총 Finding" value={totalFindings} accent />
         <StatCard
-          icon={<AlertTriangle size={16} />}
           label="미해결"
           value={unresolvedTotal}
           color="var(--aegis-severity-high)"
-          detail={<span className="text-xs text-tertiary">해결률 {totalFindings > 0 ? Math.round(((totalFindings - unresolvedTotal) / totalFindings) * 100) : 0}%</span>}
+          detail={<span className="overall-tab__stat-detail">해결률 {totalFindings > 0 ? Math.round(((totalFindings - unresolvedTotal) / totalFindings) * 100) : 0}%</span>}
         />
         <StatCard
-          icon={<ShieldCheck size={16} />}
           label="Gate 통과율"
           value={`${Math.round(summary.gateStats.rate * 100)}%`}
-          detail={<span className="text-xs text-tertiary">{summary.gateStats.passed}/{summary.gateStats.total}</span>}
+          detail={<span className="overall-tab__stat-detail">{summary.gateStats.passed}/{summary.gateStats.total}</span>}
         />
-        <StatCard icon={<PlayCircle size={16} />} label="최근 Run" value={recentRuns.length} />
+        <StatCard label="최근 Run" value={recentRuns.length} />
       </div>
 
       {/* Charts 2-column */}
@@ -78,19 +75,19 @@ export const OverallStatusTab: React.FC<Props> = ({
         <div className="card chart-card">
           <div className="card-title">출처 분포</div>
           {sourceTotal === 0 ? (
-            <p className="text-tertiary text-sm">데이터 없음</p>
+            <p className="source-dist__empty">데이터 없음</p>
           ) : (
             <div className="source-dist">
               {Object.entries(summary.bySource).map(([key, val]) => (
                 <div key={key} className="source-dist__row">
-                  <span className="text-sm source-dist__label">{key === "rule-engine" ? "룰 엔진" : key === "llm-assist" ? "AI" : key === "both" ? "룰 + AI" : key}</span>
+                  <span className="source-dist__label">{key === "rule-engine" ? "룰 엔진" : key === "llm-assist" ? "AI" : key === "both" ? "룰 + AI" : key}</span>
                   <div className="source-dist__bar-track">
                     <div
                       className={`source-dist__bar-fill source-dist__bar-fill--${key}`}
                       style={{ width: `${(val / sourceTotal) * 100}%` }}
                     />
                   </div>
-                  <span className="text-sm text-tertiary">{val}</span>
+                  <span className="source-dist__value">{val}</span>
                 </div>
               ))}
             </div>

@@ -42,7 +42,7 @@ describe("LoginPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "로그인" }));
 
     await waitFor(() => expect(mockLogin).toHaveBeenCalledWith("user@example.com", "secret"));
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/projects"));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard"));
   });
 
   it("shows an error when login fails", async () => {

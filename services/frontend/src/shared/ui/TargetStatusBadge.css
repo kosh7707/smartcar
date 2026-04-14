@@ -2,19 +2,22 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 8px;
+  min-height: 30px;
+  padding: 0 10px;
   border-radius: var(--cds-radius-circle);
   border: 1px solid;
   font-weight: var(--cds-weight-medium);
   white-space: nowrap;
   flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .target-status-badge--md {
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
 }
 
 .target-status-badge--sm {
-  font-size: var(--cds-type-2xs);
-  padding: 1px 6px;
+  font-size: var(--cds-type-sm);
+  min-height: 28px;
+  padding: 0 8px;
 }

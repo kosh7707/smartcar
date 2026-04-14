@@ -140,6 +140,24 @@ async def test_no_tools_uses_json_mode():
     body = call_args.kwargs.get("json") or call_args[1].get("json")
     assert "tools" not in body
     assert body["response_format"] == {"type": "json_object"}
+    headers = call_args.kwargs.get("headers") or call_args[1].get("headers")
+    assert headers["X-AEGIS-Strict-JSON"] == "true"
+
+
+@pytest.mark.asyncio
+async def test_tools_request_does_not_force_strict_json_header():
+    caller = LlmCaller("http://fake:8000", "qwen")
+    caller._client = MagicMock()
+    caller._client.post = AsyncMock(return_value=_make_httpx_response(_tool_calls_response([])))
+
+    await caller.call(
+        [{"role": "user", "content": "hi"}],
+        tools=[{"type": "function", "function": {"name": "tool"}}],
+    )
+
+    call_args = caller._client.post.call_args
+    headers = call_args.kwargs.get("headers") or call_args[1].get("headers")
+    assert "X-AEGIS-Strict-JSON" not in headers
 
 
 @pytest.mark.asyncio

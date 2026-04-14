@@ -190,10 +190,14 @@ export class AnalysisTracker {
     }, CLEANUP_DELAY_MS);
   }
 
-  private toWsPhase(phase: AnalysisPhase): "quick_sast" | "quick_complete" | "deep_submitting" | "deep_analyzing" | "deep_retrying" | "deep_complete" {
+  private toWsPhase(phase: AnalysisPhase): "quick_sast" | "quick_graphing" | "quick_complete" | "deep_submitting" | "deep_analyzing" | "deep_retrying" | "deep_complete" {
     switch (phase) {
       case "quick_sast":
         return "quick_sast";
+      case "quick_graphing":
+        return "quick_graphing";
+      case "quick_complete":
+        return "quick_complete";
       case "deep_submitting":
         return "deep_submitting";
       case "deep_analyzing":
@@ -212,7 +216,7 @@ export class AnalysisTracker {
   }
 
   private toErrorPhase(phase: AnalysisPhase): "quick" | "deep" {
-    if (phase === "quick_sast" || phase === "queued") {
+    if (phase === "quick_sast" || phase === "quick_graphing" || phase === "queued") {
       return "quick";
     }
     return "deep";

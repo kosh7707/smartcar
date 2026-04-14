@@ -68,6 +68,7 @@ class RealLlmClient(LlmClient):
         }
         if self.json_mode:
             body["response_format"] = {"type": "json_object"}
+            headers["X-AEGIS-Strict-JSON"] = "true"
 
         logger.info(
             "[S4 호출 시작] requestId=%s, model=%s, maxTokens=%d",

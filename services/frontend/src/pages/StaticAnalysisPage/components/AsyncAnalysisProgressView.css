@@ -106,7 +106,7 @@
 .async-progress__bar-track {
   flex: 1;
   height: 8px;
-  background: var(--cds-layer-02);
+  background: rgba(224, 224, 224, 0.9);
   border-radius: var(--cds-radius-circle);
   overflow: hidden;
 }
@@ -146,7 +146,7 @@
 }
 
 .async-progress__elapsed {
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   color: var(--cds-text-placeholder);
   margin: 0 0 var(--cds-spacing-05);
 }

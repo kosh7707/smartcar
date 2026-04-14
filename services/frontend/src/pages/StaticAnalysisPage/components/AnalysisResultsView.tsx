@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import type { AnalysisResult, Vulnerability, Severity, FileCoverageEntry } from "@aegis/shared";
 import { StatCard, PageHeader, BackButton, SeveritySummary } from "../../../shared/ui";
-import { Shield, AlertTriangle, AlertCircle, Info, FileSearch, FileCode, SkipForward } from "lucide-react";
+import { FileCode, SkipForward } from "lucide-react";
 import { SEVERITY_ORDER } from "../../../utils/severity";
 import { parseLocation } from "../../../utils/location";
 
@@ -116,15 +116,15 @@ export const AnalysisResultsView: React.FC<Props> = ({
   return (
     <div className="page-enter">
       <BackButton onClick={onNewAnalysis} label="세션 목록으로" />
-      <PageHeader title="정적 분석 결과" icon={<FileSearch size={20} />} />
+      <PageHeader title="정적 분석 결과" />
 
       {/* Summary */}
       <div className="stat-cards stagger">
-        <StatCard icon={<Shield size={16} />} label="총 취약점" value={result.summary.total - (result.summary.info ?? 0)} accent />
-        <StatCard icon={<AlertTriangle size={16} />} label="Critical" value={result.summary.critical} color="var(--aegis-severity-critical)" />
-        <StatCard icon={<AlertTriangle size={16} />} label="High" value={result.summary.high} color="var(--aegis-severity-high)" />
-        <StatCard icon={<AlertCircle size={16} />} label="Medium" value={result.summary.medium} color="var(--aegis-severity-medium)" />
-        <StatCard icon={<Info size={16} />} label="Low" value={result.summary.low} color="var(--aegis-severity-low)" />
+        <StatCard label="총 취약점" value={result.summary.total - (result.summary.info ?? 0)} accent />
+        <StatCard label="Critical" value={result.summary.critical} color="var(--aegis-severity-critical)" />
+        <StatCard label="High" value={result.summary.high} color="var(--aegis-severity-high)" />
+        <StatCard label="Medium" value={result.summary.medium} color="var(--aegis-severity-medium)" />
+        <StatCard label="Low" value={result.summary.low} color="var(--aegis-severity-low)" />
       </div>
 
       {/* File Coverage */}

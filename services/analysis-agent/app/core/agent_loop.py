@@ -10,6 +10,7 @@ from app.budget.token_counter import TokenCounter
 from app.core.agent_session import AgentSession
 from app.core.result_assembler import ResultAssembler
 from app.pipeline.response_parser import V1ResponseParser
+from agent_shared.context import get_request_id
 from agent_shared.errors import S3Error
 from agent_shared.llm.caller import LlmCaller
 from agent_shared.llm.message_manager import MessageManager
@@ -17,6 +18,7 @@ from agent_shared.llm.turn_summarizer import TurnSummarizer
 from agent_shared.observability import agent_log
 from agent_shared.policy.retry import RetryPolicy
 from app.policy.termination import TerminationPolicy
+from app.runtime.request_summary import request_summary_tracker
 from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
 from agent_shared.tools.registry import ToolRegistry
 from app.tools.router import ToolRouter
@@ -270,6 +272,10 @@ class AgentLoop:
                     promptTokens=response.prompt_tokens,
                     completionTokens=response.completion_tokens,
                 )
+                request_summary_tracker.mark_phase_advancing(
+                    get_request_id() or session.request.taskId,
+                    source="tool-complete",
+                )
             else:
                 agent_log(
                     logger, "턴 분기: content",
@@ -284,6 +290,10 @@ class AgentLoop:
                     turn=turn,
                     promptTokens=response.prompt_tokens,
                     completionTokens=response.completion_tokens,
+                )
+                request_summary_tracker.mark_phase_advancing(
+                    get_request_id() or session.request.taskId,
+                    source="turn-complete",
                 )
 
                 final_content = response.content or ""
@@ -344,6 +354,10 @@ class AgentLoop:
                     continue
 
                 result = self._result_assembler.build(final_content, session)
+                request_summary_tracker.mark_phase_advancing(
+                    get_request_id() or session.request.taskId,
+                    source="result-assembled",
+                )
 
                 agent_log(
                     logger, "세션 종료",

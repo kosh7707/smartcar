@@ -32,6 +32,8 @@
 /* Card */
 .sdk-card {
   padding: var(--cds-spacing-05);
+  background: transparent;
+  border-top: 2px solid var(--cds-border-strong);
 }
 
 .sdk-card--builtin {
@@ -65,7 +67,8 @@
   font-size: var(--cds-type-xs);
   color: var(--cds-text-placeholder);
   padding: 1px 6px;
-  background: var(--cds-layer-02);
+  background: transparent;
+  border: 1px solid var(--cds-border-subtle);
   border-radius: var(--cds-radius-circle);
 }
 
@@ -84,13 +87,13 @@
 .sdk-card__meta {
   display: flex;
   gap: var(--cds-spacing-03);
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   color: var(--cds-text-placeholder);
 }
 
 .sdk-card__meta code {
   font-family: var(--cds-font-mono);
-  background: var(--cds-layer-02);
+  background: rgba(255, 255, 255, 0.92);
   padding: 0 4px;
   border-radius: var(--cds-radius);
 }
@@ -101,7 +104,7 @@
 
 .sdk-card__path code {
   font-family: var(--cds-font-mono);
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   color: var(--cds-text-placeholder);
 }
 
@@ -109,7 +112,8 @@
   margin-bottom: var(--cds-spacing-03);
   padding: var(--cds-spacing-03);
   border-radius: var(--cds-radius);
-  background: var(--cds-layer-02);
+  background: transparent;
+  border: 1px solid var(--cds-border-subtle);
 }
 
 .sdk-card__progress-head {
@@ -123,7 +127,7 @@
 .sdk-card__progress-value,
 .sdk-card__progress-file,
 .sdk-card__progress-bytes {
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
 }
 
 .sdk-card__progress-label {
@@ -170,9 +174,10 @@
 .sdk-card__logpath {
   margin-top: var(--cds-spacing-03);
   padding: var(--cds-spacing-03);
-  background: var(--cds-layer-02);
+  background: transparent;
+  border: 1px solid var(--cds-border-subtle);
   border-radius: var(--cds-radius);
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   color: var(--cds-text-secondary);
 }
 
@@ -189,7 +194,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   font-weight: var(--cds-weight-medium);
 }
 
@@ -199,7 +204,7 @@
   align-items: center;
   gap: 0;
   margin-top: var(--cds-spacing-03);
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
 }
 
 .sdk-stepper__step {
@@ -217,7 +222,8 @@
 .sdk-stepper__step--active {
   color: var(--cds-interactive);
   font-weight: var(--cds-weight-semibold);
-  background: var(--cds-interactive-subtle);
+  border: 1px solid var(--cds-interactive-border);
+  background: transparent;
 }
 
 .sdk-stepper__step--failed {
@@ -293,7 +299,7 @@
   gap: var(--cds-spacing-02);
   padding: var(--cds-spacing-06) var(--cds-spacing-05);
   margin-top: var(--cds-spacing-04);
-  border: 2px dashed var(--cds-border-subtle);
+  border: 1px dashed var(--cds-border-subtle);
   border-radius: var(--cds-radius);
   cursor: pointer;
   text-align: center;
@@ -304,7 +310,7 @@
 
 .sdk-upload-zone:hover {
   border-color: var(--cds-interactive);
-  background: var(--cds-interactive-subtle);
+  background: color-mix(in srgb, var(--cds-layer-01) 45%, transparent);
 }
 
 .sdk-upload-zone--folder {
@@ -326,13 +332,13 @@
 .sdk-upload-zone__error {
   margin-top: var(--cds-spacing-03);
   color: var(--cds-support-error);
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   font-weight: var(--cds-weight-medium);
 }
 
 .sdk-upload-zone small {
   color: var(--cds-text-placeholder);
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
 }
 
 /* File preview */
@@ -348,8 +354,9 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--cds-spacing-03) var(--cds-spacing-04);
-  background: var(--cds-layer-02);
-  font-size: var(--cds-type-xs);
+  background: transparent;
+  border-bottom: 1px solid var(--cds-border-subtle);
+  font-size: var(--cds-type-sm);
   font-weight: var(--cds-weight-medium);
   color: var(--cds-text-secondary);
 }
@@ -364,7 +371,7 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--cds-spacing-02) var(--cds-spacing-04);
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   border-top: 1px solid var(--cds-border-subtle);
 }
 
@@ -386,7 +393,7 @@
 
 .sdk-file-preview__more {
   padding: var(--cds-spacing-02) var(--cds-spacing-04);
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   color: var(--cds-text-placeholder);
   text-align: center;
   border-top: 1px solid var(--cds-border-subtle);
@@ -405,16 +412,17 @@
   border: none;
   color: var(--cds-interactive);
   cursor: pointer;
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   padding: 0;
 }
 
 .sdk-profile-detail__body {
   margin-top: var(--cds-spacing-03);
   padding: var(--cds-spacing-03) var(--cds-spacing-04);
-  background: var(--cds-layer-02);
+  background: transparent;
+  border: 1px solid var(--cds-border-subtle);
   border-radius: var(--cds-radius);
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   color: var(--cds-text-secondary);
   display: flex;
   flex-direction: column;
@@ -479,7 +487,7 @@
 }
 
 .project-settings-sidebar__item:hover {
-  background: var(--cds-layer-01);
+  background: rgba(244, 244, 244, 0.82);
   color: var(--cds-text-primary);
 }
 
@@ -544,14 +552,10 @@
 }
 
 .project-settings-panel__icon {
-  width: 36px;
-  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--cds-radius);
-  background: var(--cds-interactive-subtle);
-  color: var(--cds-interactive);
+  color: var(--cds-text-placeholder);
   flex-shrink: 0;
 }
 
@@ -567,7 +571,7 @@
 
 .project-settings-panel__desc {
   font-size: var(--cds-type-sm);
-  color: var(--cds-text-placeholder);
+  color: var(--cds-text-secondary);
   margin-top: 2px;
 }
 
@@ -588,11 +592,10 @@
 
 .project-settings-field__label {
   display: block;
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   font-weight: var(--cds-weight-semibold);
   color: var(--cds-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   margin-bottom: var(--cds-spacing-02);
 }
 

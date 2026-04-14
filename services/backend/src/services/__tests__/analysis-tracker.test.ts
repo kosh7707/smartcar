@@ -68,4 +68,22 @@ describe("AnalysisTracker", () => {
       },
     });
   });
+
+  it("preserves quick_graphing as a websocket progress phase", () => {
+    const tracker = new AnalysisTracker();
+    tracker.start("analysis-4", "project-4");
+    tracker.update("analysis-4", {
+      phase: "quick_graphing",
+      message: "Quick 그래프 컨텍스트 적재 중...",
+    });
+
+    expect(tracker.getWsSnapshot("analysis-4")).toEqual({
+      type: "analysis-progress",
+      payload: {
+        analysisId: "analysis-4",
+        phase: "quick_graphing",
+        message: "Quick 그래프 컨텍스트 적재 중...",
+      },
+    });
+  });
 });

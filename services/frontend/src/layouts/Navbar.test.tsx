@@ -79,4 +79,14 @@ describe("Navbar", () => {
     fireEvent.click(screen.getByRole("button", { name: "모두 읽음" }));
     expect(mockMarkAllRead).toHaveBeenCalled();
   });
+
+  it("keeps the settings shortcut in the right action area", () => {
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Navbar />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("link", { name: "설정" })).toHaveAttribute("href", "/settings");
+  });
 });

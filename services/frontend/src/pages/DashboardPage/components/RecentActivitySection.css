@@ -23,7 +23,7 @@
 }
 
 .recent-activity-more__btn:hover {
-  background: var(--cds-layer-01);
+  background: rgba(244, 244, 244, 0.82);
   color: var(--cds-text-primary);
   border-color: var(--cds-border-strong);
 }

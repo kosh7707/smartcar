@@ -335,14 +335,14 @@ export type WsTestMessage =
 // ============================================================
 // Quick → Deep 분석 WS 메시지 (/ws/analysis?analysisId=)
 // Progress 의미론: phase 기반 상태 전이 + targetName/targetProgress 멀티 타겟
-// Phase 전이: quick_sast → quick_complete → deep_submitting → deep_analyzing → deep_complete
+// Phase 전이: quick_sast → quick_graphing → quick_complete → deep_submitting → deep_analyzing → deep_complete
 // ============================================================
 
 export interface WsAnalysisProgress {
   type: "analysis-progress";
   payload: {
     analysisId: string;
-    phase: "quick_sast" | "quick_complete" | "deep_submitting" | "deep_analyzing" | "deep_retrying" | "deep_complete";
+    phase: "quick_sast" | "quick_graphing" | "quick_complete" | "deep_submitting" | "deep_analyzing" | "deep_retrying" | "deep_complete";
     message: string;
     /** 현재 처리 중인 빌드 타겟 이름 */
     targetName?: string;
@@ -520,6 +520,20 @@ export interface PipelineStatusResponse {
     readyCount: number;
     failedCount: number;
     totalCount: number;
+  };
+  error?: string;
+}
+
+export interface PipelinePrepareRequest {
+  targetIds?: string[];
+}
+
+export interface PipelinePrepareAcceptedResponse {
+  success: boolean;
+  data?: {
+    preparationId: string;
+    targetId?: string;
+    status: "running";
   };
   error?: string;
 }
@@ -762,6 +776,7 @@ export type AnalysisPhase =
   | "merging"
   | "complete"
   | "quick_sast"
+  | "quick_graphing"
   | "quick_complete"
   | "deep_submitting"
   | "deep_analyzing"
@@ -799,8 +814,19 @@ export interface AnalysisStatusListResponse {
 export interface AnalysisRunRequest {
   projectId: string;
   targetIds?: string[];
-  /** 분석 모드. 생략 시 targetIds 유무로 추론. */
+  /** legacy auto-chain compatibility surface. 생략 시 targetIds 유무로 추론. */
   mode?: "full" | "subproject";
+}
+
+export interface AnalysisQuickRequest {
+  projectId: string;
+  targetIds?: string[];
+  mode?: "full" | "subproject";
+}
+
+export interface AnalysisDeepRequest {
+  projectId: string;
+  quickAnalysisId: string;
 }
 
 export interface AnalysisRunAcceptedResponse {

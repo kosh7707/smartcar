@@ -1,6 +1,6 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ProjectProvider } from "./contexts/ProjectContext";
 import { ToastProvider } from "./contexts/ToastContext";
 import { AnalysisGuardProvider } from "./contexts/AnalysisGuardContext";
@@ -12,6 +12,31 @@ import { SignupPage } from "./pages/SignupPage/SignupPage";
 import { DashboardPage } from "./pages/DashboardPage/DashboardPage";
 import { SettingsPage } from "./pages/SettingsPage/SettingsPage";
 
+const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) return null;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  return <>{children}</>;
+};
+
+const AuthEntryRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) return null;
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
+
+  return <>{children}</>;
+};
+
+const HomeRedirect: React.FC = () => {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) return null;
+  return <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />;
+};
+
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
@@ -20,29 +45,29 @@ export const App: React.FC = () => {
           <AnalysisGuardProvider>
             <ProjectProvider>
               <Routes>
-                {/* Auth layout — no navbar, no sidebar */}
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/signup" element={<SignupPage />} />
+                <Route path="/login" element={<AuthEntryRoute><LoginPage /></AuthEntryRoute>} />
+                <Route path="/signup" element={<AuthEntryRoute><SignupPage /></AuthEntryRoute>} />
 
-                {/* Global layout — navbar + full-width content */}
                 <Route path="/dashboard" element={
-                  <DashboardLayout>
-                    <DashboardPage />
-                  </DashboardLayout>
+                  <RequireAuth>
+                    <DashboardLayout>
+                      <DashboardPage />
+                    </DashboardLayout>
+                  </RequireAuth>
                 } />
                 <Route path="/settings" element={
-                  <GlobalLayout>
-                    <SettingsPage />
-                  </GlobalLayout>
+                  <RequireAuth>
+                    <GlobalLayout>
+                      <SettingsPage />
+                    </GlobalLayout>
+                  </RequireAuth>
                 } />
 
-                {/* Project layout — navbar + sidebar + content */}
-                <Route path="/projects/:projectId/*" element={<ProjectLayoutShell />} />
+                <Route path="/projects/:projectId/*" element={<RequireAuth><ProjectLayoutShell /></RequireAuth>} />
 
-                {/* Default redirect */}
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/projects" element={<Navigate to="/dashboard" replace />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/" element={<HomeRedirect />} />
+                <Route path="/projects" element={<HomeRedirect />} />
+                <Route path="*" element={<HomeRedirect />} />
               </Routes>
             </ProjectProvider>
           </AnalysisGuardProvider>

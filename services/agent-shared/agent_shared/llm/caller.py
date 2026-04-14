@@ -103,18 +103,19 @@ class LlmCaller:
             "chat_template_kwargs": {"enable_thinking": self._enable_thinking},
         }
 
-        if tools:
-            body["tools"] = tools
-            body["tool_choice"] = tool_choice
-        else:
-            body["response_format"] = {"type": "json_object"}
-
         headers = {"Content-Type": "application/json"}
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"
         request_id = get_request_id()
         if request_id:
             headers["X-Request-Id"] = request_id
+
+        if tools:
+            body["tools"] = tools
+            body["tool_choice"] = tool_choice
+        else:
+            body["response_format"] = {"type": "json_object"}
+            headers["X-AEGIS-Strict-JSON"] = "true"
 
         turn = (session.turn_count + 1) if session else None
 

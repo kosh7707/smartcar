@@ -6,6 +6,7 @@ import logging
 
 from app.config import settings
 from agent_shared.context import get_request_id
+from app.runtime.request_summary import request_summary_tracker
 from app.schemas.request import TaskRequest
 from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
 
@@ -43,6 +44,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
     files = trusted.get("files", [])
     project_id = trusted.get("projectId")
     request_id = get_request_id() or request.taskId
+    request_summary_tracker.mark_phase_advancing(request_id, source="generate-poc-start")
 
     agent_log(
         logger, "generate-poc 시작",
@@ -114,6 +116,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
                           component="generate_poc", phase="kb_error", level=logging.WARNING)
 
     kb_context = "\n".join(kb_context_lines) if kb_context_lines else "(KB 컨텍스트 없음)"
+    request_summary_tracker.mark_phase_advancing(request_id, source="kb-phase-complete")
 
     agent_log(
         logger, "generate-poc 미니 Phase 1 완료",
@@ -211,6 +214,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         raw = llm_response.content or ""
         prompt_tokens = llm_response.prompt_tokens
         completion_tokens = llm_response.completion_tokens
+        request_summary_tracker.mark_phase_advancing(request_id, source="llm-response")
     except Exception as e:
         elapsed = int((time.monotonic() - start) * 1000)
         return TaskFailureResponse(

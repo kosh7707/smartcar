@@ -33,13 +33,13 @@ export const RecentRunsList: React.FC<Props> = ({ runs, onClickRun }) => {
             onClick={() => onClickRun(run.id)}
             trailing={
               <>
-                <span className="text-xs text-tertiary">{formatDateTime(run.createdAt)}</span>
+                <span className="recent-runs__time">{formatDateTime(run.createdAt)}</span>
                 <span className={st.cls}>{st.label}</span>
               </>
             }
           >
             <div className="run-item__content">
-              <span className="text-sm">Finding {run.findingCount}건</span>
+              <span className="recent-runs__finding">Finding {run.findingCount}건</span>
             </div>
           </ListItem>
         );

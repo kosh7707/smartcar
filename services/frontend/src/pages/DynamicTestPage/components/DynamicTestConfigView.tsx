@@ -1,6 +1,6 @@
 import React from "react";
 import type { Adapter, DynamicTestConfig, TestStrategy } from "@aegis/shared";
-import { AlertTriangle, Bug, FlaskConical, Play, Zap } from "lucide-react";
+import { AlertTriangle, Bug, Play, Zap } from "lucide-react";
 import { BackButton, PageHeader } from "../../../shared/ui";
 import { AdapterSelector } from "../../../shared/ui";
 import { STRATEGY_LABELS } from "../dynamicTestPresentation";
@@ -48,7 +48,7 @@ export const DynamicTestConfigView: React.FC<DynamicTestConfigViewProps> = ({
 }) => (
   <div className="page-enter">
     <BackButton onClick={onBack} label="이력으로" />
-    <PageHeader title="새 세션" icon={<FlaskConical size={20} />} />
+    <PageHeader title="새 세션" />
 
     <div className="card dtest-config">
       <div className="dtest-config__section">

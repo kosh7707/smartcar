@@ -12,7 +12,7 @@
   height: 8px;
   border-radius: var(--cds-radius-circle);
   overflow: hidden;
-  background: var(--cds-layer-02);
+  background: rgba(224, 224, 224, 0.9);
 }
 
 .source-tree__langbar-seg {
@@ -225,7 +225,7 @@
 }
 
 .source-tree__code-line:hover {
-  background: var(--cds-layer-02);
+  background: rgba(244, 244, 244, 0.82);
 }
 
 .source-tree__code-line--highlight {
@@ -277,7 +277,7 @@
 }
 
 .source-tree__finding-row:hover {
-  background: var(--cds-layer-02);
+  background: rgba(244, 244, 244, 0.82);
 }
 
 .source-tree__finding-title {

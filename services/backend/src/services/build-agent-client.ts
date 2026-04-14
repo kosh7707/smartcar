@@ -60,6 +60,18 @@ export interface BuildResultPayload {
   errorLog?: string | null;
 }
 
+export interface BuildPreparationPayload {
+  declaredMode?: string;
+  sdkId?: string;
+  buildCommand?: string;
+  buildScript?: string;
+  buildDir?: string;
+  buildEnvironment?: Record<string, string>;
+  provenance?: Record<string, unknown>;
+  expectedArtifacts?: Array<Record<string, unknown>>;
+  producedArtifacts?: Array<Record<string, unknown>>;
+}
+
 export interface BuildResolveResult {
   summary: string;
   claims: Array<{
@@ -78,6 +90,8 @@ export interface BuildResolveResult {
   };
   needsHumanReview: boolean;
   buildResult: BuildResultPayload;
+  /** explicit-step flow용 follow-up bundle (legacy buildResult와 병행 유지) */
+  buildPreparation?: BuildPreparationPayload;
 }
 
 export interface BuildAgentAudit {

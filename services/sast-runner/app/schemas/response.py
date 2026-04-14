@@ -160,10 +160,20 @@ class BuildEvidence(BaseModel):
     model_config = {"populate_by_name": True, "by_alias": True}
 
 
+class BuildReadiness(BaseModel):
+    status: Literal["ready", "partial", "not-ready"]
+    compile_commands_ready: bool = Field(alias="compileCommandsReady")
+    quick_eligible: bool = Field(alias="quickEligible")
+    summary: str
+
+    model_config = {"populate_by_name": True, "by_alias": True}
+
+
 class BuildResponse(BaseModel):
     success: bool
     provenance: SnapshotProvenance | None = None
     build_evidence: BuildEvidence = Field(alias="buildEvidence")
+    readiness: BuildReadiness
     failure_detail: BuildFailureDetail | None = Field(default=None, alias="failureDetail")
 
     model_config = {"populate_by_name": True, "by_alias": True}
@@ -184,6 +194,27 @@ class BuildAndAnalyzeResponse(BaseModel):
     model_config = {"populate_by_name": True, "by_alias": True}
 
 
+class HealthRequestSummary(BaseModel):
+    request_id: str | None = Field(default=None, alias="requestId")
+    endpoint: str = "scan"
+    state: Literal["idle", "queued", "running", "completed", "failed"]
+    ack_status: Literal["idle", "active", "broken"] = Field(alias="ackStatus")
+    last_ack_at: int | None = Field(default=None, alias="lastAckAt")
+    last_ack_source: str | None = Field(default=None, alias="lastAckSource")
+    local_ack_sources: list[str] = Field(default_factory=list, alias="localAckSources")
+    degraded: bool = False
+    degrade_reasons: list[str] = Field(default_factory=list, alias="degradeReasons")
+    active_tools: list[str] = Field(default_factory=list, alias="activeTools")
+    completed_tools: list[str] = Field(default_factory=list, alias="completedTools")
+    findings_count: int = Field(default=0, alias="findingsCount")
+    files_completed: int = Field(default=0, alias="filesCompleted")
+    files_total: int = Field(default=0, alias="filesTotal")
+    current_file: str | None = Field(default=None, alias="currentFile")
+    blocked_reason: str | None = Field(default=None, alias="blockedReason")
+
+    model_config = {"populate_by_name": True, "by_alias": True}
+
+
 class HealthResponse(BaseModel):
     service: str = "s4-sast"
     status: str = "ok"
@@ -195,5 +226,10 @@ class HealthResponse(BaseModel):
     policy_reasons: list[str] = Field(default_factory=list, alias="policyReasons")
     unavailable_tools: list[str] = Field(default_factory=list, alias="unavailableTools")
     allowed_skip_reasons: list[str] = Field(default_factory=list, alias="allowedSkipReasons")
+    active_request_count: int = Field(default=0, alias="activeRequestCount")
+    request_summary: HealthRequestSummary = Field(
+        default_factory=lambda: HealthRequestSummary(state="idle", ackStatus="idle"),
+        alias="requestSummary",
+    )
 
     model_config = {"populate_by_name": True, "by_alias": True}

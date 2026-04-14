@@ -2,7 +2,6 @@ import React from "react";
 import "./StatCard.css";
 
 interface Props {
-  icon: React.ReactNode;
   label: string;
   value: number | string;
   color?: string;
@@ -11,7 +10,7 @@ interface Props {
   detail?: React.ReactNode;
 }
 
-export const StatCard: React.FC<Props> = ({ icon, label, value, color, accent, onClick, detail }) => {
+export const StatCard: React.FC<Props> = ({ label, value, color, accent, onClick, detail }) => {
   return (
     <div
       className={`stat-card${accent ? " stat-card--accent" : ""}${onClick ? " stat-card--clickable" : ""}`}
@@ -19,7 +18,6 @@ export const StatCard: React.FC<Props> = ({ icon, label, value, color, accent, o
       onClick={onClick}
     >
       <div className="stat-card__header">
-        {icon}
         <span className="stat-card__label">{label}</span>
       </div>
       <div className="stat-card__value" style={color ? { color } : undefined}>

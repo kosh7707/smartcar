@@ -6,6 +6,7 @@ import logging
 
 from app.config import settings
 from agent_shared.context import get_request_id
+from app.runtime.request_summary import request_summary_tracker
 from app.schemas.request import TaskRequest
 from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
 
@@ -30,6 +31,9 @@ async def handle_deep_analyze(request: TaskRequest, model_registry) -> TaskSucce
     from app.tools.implementations.mock_tools import MockKnowledgeTool
     from agent_shared.tools.registry import ToolRegistry, ToolSchema
     from app.tools.router import ToolRouter
+
+    request_id = get_request_id() or request.taskId
+    request_summary_tracker.mark_phase_advancing(request_id, source="deep-analyze-start")
 
     # 예산 구성
     budget = BudgetState(
@@ -192,6 +196,17 @@ async def handle_deep_analyze(request: TaskRequest, model_registry) -> TaskSucce
         timeout_budget_ms=phase1_budget_ms,
     )
     phase1_result = await phase1_executor.execute(session)
+    degrade_reasons: list[str] = []
+    if phase1_result.sast_partial_tools:
+        degrade_reasons.append("phase1-partial-tools")
+    if phase1_result.build_failure_detail:
+        degrade_reasons.append("build-path-fallback")
+    request_summary_tracker.mark_phase_advancing(
+        request_id,
+        source="phase-one-complete",
+        degraded=bool(degrade_reasons),
+        degrade_reasons=degrade_reasons,
+    )
 
     # Phase 2 코드 그래프 도구에 project_id 주입
     project_id = session.request.context.trusted.get("projectId", session.request.taskId)
@@ -276,6 +291,7 @@ async def handle_deep_analyze(request: TaskRequest, model_registry) -> TaskSucce
 
     try:
         result = await loop.run(session)
+        request_summary_tracker.mark_phase_advancing(request_id, source="llm-loop-complete")
 
         # 분석 완료 시 프로젝트 메모리에 결과 저장
         if isinstance(result, TaskSuccessResponse) and project_id and settings.llm_mode == "real":

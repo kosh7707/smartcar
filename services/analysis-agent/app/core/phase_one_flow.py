@@ -37,18 +37,46 @@ async def execute_phase_one(executor, session: "AgentSession", logger: logging.L
     start = time.monotonic()
 
     trusted = session.request.context.trusted
+    build_preparation = trusted.get("buildPreparation") if isinstance(trusted.get("buildPreparation"), dict) else {}
+    quick_context = trusted.get("quickContext") if isinstance(trusted.get("quickContext"), dict) else {}
+    graph_context = trusted.get("graphContext") if isinstance(trusted.get("graphContext"), dict) else {}
     files = trusted.get("files", [])
     project_path = trusted.get("projectPath")
     target_path = trusted.get("targetPath")
-    project_id = trusted.get("projectId", session.request.taskId)
-    revision_hint = trusted.get("revisionHint") or trusted.get("commitSha")
-    build_profile = trusted.get("buildProfile")
-    build_command = trusted.get("buildCommand")
-    build_environment = trusted.get("buildEnvironment")
-    third_party_paths = trusted.get("thirdPartyPaths", [])
-    sast_tools = trusted.get("sastTools")
+    project_id = (
+        trusted.get("projectId")
+        or graph_context.get("projectId")
+        or quick_context.get("projectId")
+        or session.request.taskId
+    )
+    revision_hint = (
+        trusted.get("revisionHint")
+        or trusted.get("commitSha")
+        or graph_context.get("revisionHint")
+        or graph_context.get("commitSha")
+    )
+    build_profile = (
+        trusted.get("buildProfile")
+        or build_preparation.get("buildProfile")
+        or quick_context.get("buildProfile")
+    )
+    build_command = trusted.get("buildCommand") or build_preparation.get("buildCommand")
+    build_environment = trusted.get("buildEnvironment") or build_preparation.get("buildEnvironment")
+    third_party_paths = (
+        trusted.get("thirdPartyPaths")
+        or quick_context.get("thirdPartyPaths")
+        or build_preparation.get("thirdPartyPaths")
+        or []
+    )
+    sast_tools = trusted.get("sastTools") or quick_context.get("sastTools")
     request_id = get_request_id() or session.request.taskId
-    provenance = trusted.get("provenance") if isinstance(trusted.get("provenance"), dict) else None
+    raw_provenance = (
+        trusted.get("provenance")
+        or quick_context.get("provenance")
+        or graph_context.get("provenance")
+        or build_preparation.get("provenance")
+    )
+    provenance = raw_provenance if isinstance(raw_provenance, dict) else None
 
     analysis_path = resolve_analysis_path(project_path, target_path, logger)
 
@@ -58,7 +86,11 @@ async def execute_phase_one(executor, session: "AgentSession", logger: logging.L
         )
 
     pre_findings = trusted.get("sastFindings")
+    if pre_findings is None:
+        pre_findings = quick_context.get("sastFindings")
     pre_sca = trusted.get("scaLibraries")
+    if pre_sca is None:
+        pre_sca = quick_context.get("scaLibraries")
 
     if pre_findings is not None:
         result.sast_findings = pre_findings

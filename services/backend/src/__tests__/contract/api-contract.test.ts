@@ -1293,6 +1293,24 @@ describe("API Contract Tests", () => {
       });
     });
 
+    it("POST /pipeline/prepare returns accepted build-preparation payload", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-pipe-prepare" }));
+
+      const res = await request(app)
+        .post("/api/projects/p-pipe-prepare/pipeline/prepare")
+        .send({ targetIds: ["t-a"] });
+
+      expect(res.status).toBe(202);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.preparationId).toMatch(/^prep-/);
+      expect(res.body.data.status).toBe("running");
+      expect(ctx.pipelinePrepareCalls[ctx.pipelinePrepareCalls.length - 1]).toMatchObject({
+        projectId: "p-pipe-prepare",
+        targetIds: ["t-a"],
+        preparationId: res.body.data.preparationId,
+      });
+    });
+
     it("GET /pipeline/status returns targets with phase mapping", async () => {
       ctx.projectDAO.save(makeProject({ id: "p-pipe" }));
       ctx.buildTargetDAO.save(makeBuildTarget({ id: "tp1", projectId: "p-pipe", status: "discovered" }));
@@ -1347,6 +1365,24 @@ describe("API Contract Tests", () => {
       });
     });
 
+    it("POST /pipeline/prepare/:targetId returns single-target build-preparation payload and resets failed targets", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-prep-rerun" }));
+      ctx.buildTargetDAO.save(makeBuildTarget({ id: "tp-prep", projectId: "p-prep-rerun", status: "build_failed" as any }));
+
+      const res = await request(app).post("/api/projects/p-prep-rerun/pipeline/prepare/tp-prep");
+
+      expect(res.status).toBe(202);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({ targetId: "tp-prep", status: "running" });
+      expect(res.body.data.preparationId).toMatch(/^prep-/);
+      expect(ctx.buildTargetDAO.findById("tp-prep")?.status).toBe("discovered");
+      expect(ctx.pipelinePrepareCalls[ctx.pipelinePrepareCalls.length - 1]).toMatchObject({
+        projectId: "p-prep-rerun",
+        targetIds: ["tp-prep"],
+        preparationId: res.body.data.preparationId,
+      });
+    });
+
     it("GET /pipeline/status includes optional artifact fields when present", async () => {
       ctx.projectDAO.save(makeProject({ id: "p-pipe3" }));
       ctx.buildTargetDAO.save(makeBuildTarget({
@@ -1376,7 +1412,7 @@ describe("API Contract Tests", () => {
   });
 
   describe("Analysis API", () => {
-    it("POST /api/analysis/run returns 202 accepted payload and dispatches async run", async () => {
+    it("POST /api/analysis/run returns 202 accepted payload and dispatches legacy quick alias", async () => {
       const res = await request(app)
         .post("/api/analysis/run")
         .send({ projectId: "p-analysis", mode: "subproject", targetIds: ["t-1"] });
@@ -1385,9 +1421,37 @@ describe("API Contract Tests", () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data.analysisId).toMatch(/^analysis-/);
       expect(res.body.data.status).toBe("running");
-      expect(ctx.analysisRunCalls[ctx.analysisRunCalls.length - 1]).toMatchObject({
+      expect(ctx.analysisQuickCalls[ctx.analysisQuickCalls.length - 1]).toMatchObject({
         projectId: "p-analysis",
         targetIds: ["t-1"],
+      });
+    });
+
+    it("POST /api/analysis/quick returns 202 accepted payload and dispatches quick-only run", async () => {
+      const res = await request(app)
+        .post("/api/analysis/quick")
+        .send({ projectId: "p-analysis", mode: "subproject", targetIds: ["t-1"] });
+
+      expect(res.status).toBe(202);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.analysisId).toMatch(/^analysis-/);
+      expect(ctx.analysisQuickCalls[ctx.analysisQuickCalls.length - 1]).toMatchObject({
+        projectId: "p-analysis",
+        targetIds: ["t-1"],
+      });
+    });
+
+    it("POST /api/analysis/deep returns 202 accepted payload and dispatches deep-only run", async () => {
+      const res = await request(app)
+        .post("/api/analysis/deep")
+        .send({ projectId: "p-analysis", quickAnalysisId: "analysis-quick-1" });
+
+      expect(res.status).toBe(202);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.analysisId).toMatch(/^analysis-/);
+      expect(ctx.analysisDeepCalls[ctx.analysisDeepCalls.length - 1]).toMatchObject({
+        projectId: "p-analysis",
+        quickAnalysisId: "analysis-quick-1",
       });
     });
 
@@ -1409,6 +1473,20 @@ describe("API Contract Tests", () => {
         .send({ projectId: "p-analysis", mode: "full", targetIds: ["t-1"] });
       expect(fullWithTargets.status).toBe(400);
       expect(fullWithTargets.body.error).toContain("targetIds must be empty");
+    });
+
+    it("POST /api/analysis/quick and /deep enforce additive validation rules", async () => {
+      const quickInvalid = await request(app)
+        .post("/api/analysis/quick")
+        .send({ projectId: "p-analysis", mode: "subproject" });
+      expect(quickInvalid.status).toBe(400);
+      expect(quickInvalid.body.error).toContain("targetIds is required");
+
+      const deepInvalid = await request(app)
+        .post("/api/analysis/deep")
+        .send({ projectId: "p-analysis" });
+      expect(deepInvalid.status).toBe(400);
+      expect(deepInvalid.body.error).toContain("quickAnalysisId is required");
     });
 
     it("GET /api/analysis/status returns running analyses", async () => {

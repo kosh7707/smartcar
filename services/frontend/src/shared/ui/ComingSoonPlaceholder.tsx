@@ -1,5 +1,4 @@
 import React from "react";
-import { Construction } from "lucide-react";
 import { EmptyState } from "./EmptyState";
 
 interface Props {
@@ -8,7 +7,6 @@ interface Props {
 
 export const ComingSoonPlaceholder: React.FC<Props> = ({ title }) => (
   <EmptyState
-    icon={<Construction size={28} />}
     title={`${title} — 준비 중`}
     description="이 기능은 현재 개발 중입니다."
   />

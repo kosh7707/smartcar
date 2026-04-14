@@ -1,6 +1,5 @@
 import React from "react";
 import { EmptyState } from "./EmptyState";
-import { BarChart3 } from "lucide-react";
 
 export interface TrendPoint {
   date: string;
@@ -16,13 +15,12 @@ interface Props {
 
 export const TrendChart: React.FC<Props> = ({ data, height = 200 }) => {
   if (data.length === 0) {
-    return <EmptyState compact icon={<BarChart3 size={20} />} title="트렌드 데이터 없음" />;
+    return <EmptyState compact title="트렌드 데이터 없음" />;
   }
 
   if (data.length < 2) {
     return (
       <div className="trend-chart" style={{ textAlign: "center", padding: "var(--cds-spacing-06)", color: "var(--cds-text-placeholder)" }}>
-        <BarChart3 size={24} style={{ marginBottom: "var(--cds-spacing-03)", opacity: 0.5 }} />
         <p style={{ fontSize: "var(--cds-type-sm)", margin: 0 }}>
           트렌드를 보려면 2회 이상 분석이 필요합니다. 현재 {data.length}회 완료.
         </p>
@@ -73,7 +71,7 @@ export const TrendChart: React.FC<Props> = ({ data, height = 200 }) => {
           return (
             <g key={frac}>
               <line x1={pad.left} y1={y} x2={w - pad.right} y2={y} stroke="var(--cds-border-subtle)" strokeWidth={0.5} />
-              <text x={pad.left - 6} y={y + 3} textAnchor="end" fontSize={9} fill="var(--cds-text-placeholder)">
+              <text x={pad.left - 6} y={y + 4} textAnchor="end" fontSize={14} fill="var(--cds-text-placeholder)">
                 {Math.round(frac * maxY)}
               </text>
             </g>
@@ -123,7 +121,7 @@ export const TrendChart: React.FC<Props> = ({ data, height = 200 }) => {
           const x = pad.left + i * gap + gap / 2;
           const label = d.date.slice(5); // "MM-DD"
           return (
-            <text key={`label-${i}`} x={x} y={h - 6} textAnchor="middle" fontSize={9} fill="var(--cds-text-placeholder)">
+            <text key={`label-${i}`} x={x} y={h - 8} textAnchor="middle" fontSize={14} fill="var(--cds-text-placeholder)">
               {label}
             </text>
           );

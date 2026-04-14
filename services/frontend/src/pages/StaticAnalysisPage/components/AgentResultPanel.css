@@ -30,7 +30,7 @@
 }
 
 .agent-confidence__label {
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   color: var(--cds-text-placeholder);
 }
 
@@ -38,11 +38,12 @@
   display: inline-flex;
   align-items: center;
   gap: var(--cds-spacing-02);
-  padding: 2px 8px;
-  border-radius: var(--cds-radius);
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: var(--cds-radius-pill);
   background: color-mix(in srgb, var(--aegis-severity-high) 12%, transparent);
   color: var(--aegis-severity-high);
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   font-weight: var(--cds-weight-semibold);
   margin-top: var(--cds-spacing-02);
 }
@@ -73,7 +74,7 @@
   flex: 1;
   height: 8px;
   border-radius: var(--cds-radius-circle);
-  background: var(--cds-layer-02);
+  background: rgba(224, 224, 224, 0.9);
   overflow: hidden;
 }
 
@@ -87,7 +88,7 @@
 .agent-conf-bar__value {
   width: 36px;
   text-align: right;
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   font-weight: var(--cds-weight-semibold);
   font-variant-numeric: tabular-nums;
   color: var(--cds-text-primary);
@@ -149,14 +150,15 @@
 .agent-flag {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
-  border-radius: var(--cds-radius);
-  font-size: var(--cds-type-xs);
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: var(--cds-radius-pill);
+  font-size: var(--cds-type-sm);
   font-weight: var(--cds-weight-medium);
-  font-family: var(--cds-font-mono);
+  font-family: var(--cds-font-sans);
   border: 1px solid var(--cds-border-subtle);
   color: var(--cds-text-secondary);
-  background: var(--cds-layer-01);
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .agent-flag--cve {
@@ -182,9 +184,7 @@
   text-align: left;
   font-weight: var(--cds-weight-semibold);
   color: var(--cds-text-placeholder);
-  font-size: var(--cds-type-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: var(--cds-type-sm);
   padding: var(--cds-spacing-03) var(--cds-spacing-04);
   border-bottom: 1px solid var(--cds-border-subtle);
 }
@@ -202,7 +202,7 @@
 
 .agent-sca-table .font-mono {
   font-family: var(--cds-font-mono);
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
 }
 
 .agent-sca-link {
@@ -252,7 +252,7 @@
 }
 
 .agent-audit-item__label {
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   color: var(--cds-text-placeholder);
 }
 

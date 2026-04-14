@@ -70,10 +70,12 @@ function createMocks() {
     build: vi.fn().mockResolvedValue({ success: true, compileCommandsPath: "/uploads/p1/build/cc.json", entries: 10 }),
     scan: vi.fn().mockResolvedValue(scanResponse),
     identifyLibraries: vi.fn().mockResolvedValue([]),
+    isBuildReadyForQuick: vi.fn((result: any) => result.success === true && !!result.compileCommandsPath && (result.entries ?? 0) > 0),
   };
   const kbClient = {
     ingestCodeGraph: vi.fn().mockResolvedValue({ nodes_created: 20, edges_created: 5 }),
     checkReady: vi.fn().mockResolvedValue({ status: "ready", degraded: false }),
+    isGraphReady: vi.fn().mockReturnValue(true),
   };
   const buildAgentClient = {
     submitTask: vi.fn().mockResolvedValue(resolveSuccess),
@@ -112,6 +114,25 @@ function createMocks() {
 }
 
 describe("PipelineOrchestrator", () => {
+  it("preparePipeline runs resolve/build only and stops before scan", async () => {
+    const { orchestrator, buildAgentClient, buildTargetDAO, sastClient, kbClient, ws } = createMocks();
+    buildTargetDAO.findByProjectId.mockReturnValue([
+      makeTarget({ status: "configured", buildCommand: "make" }),
+    ]);
+
+    await orchestrator.preparePipeline("p1");
+
+    expect(buildAgentClient.submitTask).not.toHaveBeenCalled();
+    expect(sastClient.build).toHaveBeenCalledOnce();
+    expect(sastClient.scan).not.toHaveBeenCalled();
+    expect(kbClient.ingestCodeGraph).not.toHaveBeenCalled();
+    expect(buildTargetDAO.updatePipelineState).toHaveBeenCalledWith("t1", expect.objectContaining({ status: "built" }));
+    expect(ws.broadcast).toHaveBeenCalledWith("p1", expect.objectContaining({
+      type: "pipeline-target-status",
+      payload: expect.objectContaining({ status: "building" }),
+    }));
+  });
+
   it("happy path: resolve → build → scan → graph → ready", async () => {
     const { orchestrator, buildAgentClient, buildTargetDAO, sastClient, kbClient, ws, notificationService } = createMocks();
 
@@ -237,6 +258,30 @@ describe("PipelineOrchestrator", () => {
     }));
   });
 
+  it("explicit S4 readiness not satisfied → build_failed before scan", async () => {
+    const { orchestrator, buildTargetDAO, sastClient, ws } = createMocks();
+    buildTargetDAO.findByProjectId.mockReturnValue([
+      makeTarget({ status: "configured", buildCommand: "make" }),
+    ]);
+    sastClient.build.mockResolvedValue({
+      success: true,
+      compileCommandsPath: "/cc.json",
+      entries: 3,
+      userEntries: 3,
+      exitCode: 1,
+      readinessStatus: "partial",
+      compileCommandsReady: true,
+      quickEligible: false,
+    });
+    sastClient.isBuildReadyForQuick.mockReturnValue(false);
+
+    await orchestrator.runPipeline("p1");
+
+    expect(buildTargetDAO.updatePipelineState).toHaveBeenCalledWith("t1", expect.objectContaining({ status: "build_failed" }));
+    expect(sastClient.scan).not.toHaveBeenCalled();
+    expect(ws.broadcast).toHaveBeenCalledWith("p1", expect.objectContaining({ type: "pipeline-error" }));
+  });
+
   it("scan failure → scan_failed status", async () => {
     const { orchestrator, buildTargetDAO, sastClient, ws } = createMocks();
     buildTargetDAO.findByProjectId.mockReturnValue([
@@ -260,6 +305,26 @@ describe("PipelineOrchestrator", () => {
 
     // graph fail is non-fatal — should still reach ready
     expect(buildTargetDAO.updatePipelineState).toHaveBeenCalledWith("t1", expect.objectContaining({ status: "ready" }));
+  });
+
+  it("graph ingest not GraphRAG-ready → graph_failed and no ready transition", async () => {
+    const { orchestrator, buildTargetDAO, kbClient, ws } = createMocks();
+    buildTargetDAO.findByProjectId.mockReturnValue([
+      makeTarget({ status: "configured", buildCommand: "make" }),
+    ]);
+    kbClient.ingestCodeGraph.mockResolvedValue({
+      nodes_created: 20,
+      edges_created: 5,
+      status: "partial",
+      readiness: { graphRag: false, neo4jGraph: true, vectorIndex: false },
+    });
+    kbClient.isGraphReady.mockReturnValue(false);
+
+    await orchestrator.runPipeline("p1");
+
+    expect(buildTargetDAO.updatePipelineState).toHaveBeenCalledWith("t1", expect.objectContaining({ status: "graph_failed" }));
+    expect(buildTargetDAO.updatePipelineState).not.toHaveBeenCalledWith("t1", expect.objectContaining({ status: "ready" }));
+    expect(ws.broadcast).toHaveBeenCalledWith("p1", expect.objectContaining({ type: "pipeline-error" }));
   });
 
   it("no source path → throws NotFoundError", async () => {

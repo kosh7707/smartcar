@@ -1,7 +1,6 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import "./FindingDetailView.css";
 import type { Finding, EvidenceRef, AuditLogEntry, FindingStatus } from "@aegis/shared";
-import { MapPin, Copy, Clock, FlaskConical, Timer, Cpu, History } from "lucide-react";
 import {
   BackButton,
   Spinner,
@@ -31,8 +30,6 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
   const [loading, setLoading] = useState(true);
   const [showTransition, setShowTransition] = useState(false);
   const [selectedEvidence, setSelectedEvidence] = useState<EvidenceRef | null>(null);
-  const [copied, setCopied] = useState(false);
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   // PoC state
   const [pocData, setPocData] = useState<PocResponse | null>(null);
@@ -61,7 +58,6 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
     fetchFindingHistory(findingId)
       .then(setHistory)
       .catch(() => setHistory([]));
-    return () => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); };
   }, [loadDetail, findingId]);
 
   const handleStatusChange = async (newStatus: FindingStatus, reason: string) => {
@@ -77,14 +73,6 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
       toast.error("상태 변경에 실패했습니다.");
     }
   };
-
-  const handleCopyCode = useCallback((text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
-    });
-  }, []);
 
   const handleGeneratePoc = useCallback(async () => {
     if (!finding) return;
@@ -125,7 +113,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
   return (
     <div className="page-enter">
       <BackButton onClick={onBack} label="뒤로" />
-      <p className="text-sm text-tertiary" style={{ margin: "0 0 var(--cds-spacing-04) 0" }}>정적 분석 › Finding 상세</p>
+      <p className="finding-detail-breadcrumb">정적 분석 › Finding 상세</p>
 
       {/* Header: severity banner */}
       <div
@@ -164,7 +152,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
           ))}
           {finding.fingerprint && (
             <span className="fingerprint-badge" title="이전 분석에서도 발견된 취약점 (fingerprint 추적)">
-              <History size={12} /> 재발견{history.length > 1 ? ` (${history.length}회)` : ""}
+              재발견{history.length > 1 ? ` (${history.length}회)` : ""}
             </span>
           )}
           <h2 className="finding-banner__title">
@@ -184,13 +172,12 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
             onClick={handleGeneratePoc}
             disabled={pocLoading}
           >
-            {pocLoading ? <Spinner size={14} /> : <FlaskConical size={14} />}
+            {pocLoading ? <Spinner size={14} /> : null}
             PoC 생성
           </button>
         )}
         {finding.location && (
           <span className="detail-meta-item">
-            <MapPin size={14} />
             {finding.location}
           </span>
         )}
@@ -225,10 +212,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
       {/* PoC result */}
       {pocLoading && (
         <div className="card poc-section">
-          <div className="card-title">
-            <FlaskConical size={16} />
-            PoC 생성 중...
-          </div>
+          <div className="card-title">PoC 생성 중...</div>
           <div className="poc-loading">
             <Spinner label="LLM이 PoC 코드를 생성하고 있습니다..." />
           </div>
@@ -238,8 +222,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
       {pocData && (
         <div className="card poc-section">
           <div className="poc-header">
-            <div className="card-title" style={{ display: "flex", alignItems: "center", gap: "var(--cds-spacing-03)" }}>
-              <FlaskConical size={16} />
+            <div className="card-title poc-header__title">
               PoC — {pocData.poc.statement}
             </div>
           </div>
@@ -248,11 +231,9 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
           </div>
           <div className="poc-audit">
             <span className="poc-audit-item">
-              <Timer size={12} />
               {(pocData.audit.latencyMs / 1000).toFixed(1)}초
             </span>
             <span className="poc-audit-item">
-              <Cpu size={12} />
               {pocData.audit.tokenUsage.prompt + pocData.audit.tokenUsage.completion} tokens
             </span>
           </div>
@@ -268,10 +249,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
       {/* Fingerprint History */}
       {history.length > 1 && (
         <div className="card">
-          <div className="card-title">
-            <History size={16} />
-            발견 이력 ({history.length}회)
-          </div>
+          <div className="card-title">발견 이력 ({history.length}회)</div>
           <div className="audit-timeline">
             {history.map((h) => (
               <div key={h.findingId} className="audit-entry">
@@ -288,10 +266,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
       {/* Audit Log Timeline */}
       {finding.auditLog.length > 0 && (
         <div className="card">
-          <div className="card-title">
-            <Clock size={16} />
-            감사 로그
-          </div>
+          <div className="card-title">감사 로그</div>
           <div className="audit-timeline">
             {finding.auditLog.map((entry) => (
               <div

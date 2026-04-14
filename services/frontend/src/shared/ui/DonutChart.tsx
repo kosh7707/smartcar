@@ -78,7 +78,7 @@ export const DonutChart: React.FC<Props> = ({ summary, size = 120, strokeWidth =
         <text x={cx} y={cy - 4} textAnchor="middle" dominantBaseline="central" fontSize="22" fontWeight="700" fill="var(--cds-text-primary)">
           {total}
         </text>
-        <text x={cx} y={cy + 14} textAnchor="middle" dominantBaseline="central" fontSize="10" fill="var(--cds-text-placeholder)">
+        <text x={cx} y={cy + 16} textAnchor="middle" dominantBaseline="central" fontSize="14" fill="var(--cds-text-placeholder)">
           {centerLabel}
         </text>
       </svg>

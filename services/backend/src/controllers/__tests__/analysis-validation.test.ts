@@ -12,6 +12,8 @@ import { errorHandlerMiddleware } from "../../middleware/error-handler.middlewar
 function createMockOrchestrator() {
   return {
     runAnalysis: vi.fn().mockResolvedValue(undefined),
+    runQuickAnalysis: vi.fn().mockResolvedValue(undefined),
+    runDeepAnalysis: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -124,5 +126,49 @@ describe("POST /api/analysis/run — mode validation", () => {
       .send({ mode: "full" });
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe("explicit analysis split endpoints", () => {
+  it("POST /api/analysis/quick validates mode like legacy run", async () => {
+    const { app } = buildApp();
+    const res = await request(app)
+      .post("/api/analysis/quick")
+      .send({ projectId: "p1", mode: "subproject" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.errorDetail.message).toMatch(/targetIds.*required/);
+  });
+
+  it("POST /api/analysis/quick returns 202", async () => {
+    const { app } = buildApp();
+    const res = await request(app)
+      .post("/api/analysis/quick")
+      .send({ projectId: "p1", mode: "full" });
+
+    expect(res.status).toBe(202);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.analysisId).toMatch(/^analysis-/);
+  });
+
+  it("POST /api/analysis/deep requires quickAnalysisId", async () => {
+    const { app } = buildApp();
+    const res = await request(app)
+      .post("/api/analysis/deep")
+      .send({ projectId: "p1" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.errorDetail.message).toMatch(/quickAnalysisId is required/);
+  });
+
+  it("POST /api/analysis/deep returns 202 when quickAnalysisId is provided", async () => {
+    const { app } = buildApp();
+    const res = await request(app)
+      .post("/api/analysis/deep")
+      .send({ projectId: "p1", quickAnalysisId: "analysis-quick-1" });
+
+    expect(res.status).toBe(202);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.analysisId).toMatch(/^analysis-/);
   });
 });

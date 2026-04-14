@@ -1,5 +1,5 @@
 import React from "react";
-import { FileText, Settings, Shield } from "lucide-react";
+import { FileText, Settings } from "lucide-react";
 import { EmptyState } from "../../../shared/ui";
 
 interface OverviewEmptyStateProps {
@@ -9,7 +9,6 @@ interface OverviewEmptyStateProps {
 
 export const OverviewEmptyState: React.FC<OverviewEmptyStateProps> = ({ onOpenFiles, onOpenSettings }) => (
   <EmptyState
-    icon={<Shield size={32} />}
     title="분석 준비 완료"
     description="소스 파일을 업로드하고 정적 분석을 실행하면 보안 대시보드가 활성화됩니다."
     action={(

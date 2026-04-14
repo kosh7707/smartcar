@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckCircle2, FileSearch } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { useElapsedTimer } from "../../../hooks/useElapsedTimer";
 import { PageHeader, Spinner } from "../../../shared/ui";
 import "./AnalysisProgressView.css";
@@ -20,7 +20,7 @@ export const AnalysisProgressView: React.FC<Props> = ({ progress, step }) => {
 
   return (
     <div className="page-enter">
-      <PageHeader title="정적 분석" icon={<FileSearch size={20} />} />
+      <PageHeader title="정적 분석" />
 
       <div className="card analysis-progress">
         <Spinner size={40} />

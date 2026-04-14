@@ -21,7 +21,7 @@
 }
 
 .ftree-row:hover {
-  background: var(--cds-layer-02);
+  background: rgba(244, 244, 244, 0.82);
 }
 
 .ftree-row:focus-visible {
@@ -108,13 +108,17 @@
 }
 
 .ftree-lang {
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   font-family: var(--cds-font-mono);
-  padding: 1px 6px;
-  border-radius: var(--cds-radius);
-  background: var(--cds-layer-02);
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: var(--cds-radius-circle);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--cds-border-subtle);
   color: var(--cds-text-secondary);
   letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
 }
 
 .ftree-size {
@@ -129,11 +133,13 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: var(--cds-type-xs);
-  padding: 1px 6px;
-  border-radius: var(--cds-radius);
+  font-size: var(--cds-type-sm);
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: var(--cds-radius-circle);
   background: var(--cds-interactive-subtle);
   color: var(--cds-interactive);
+  border: 1px solid var(--cds-interactive-border);
   white-space: nowrap;
 }
 
@@ -158,11 +164,11 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  font-size: var(--cds-type-2xs);
+  font-size: var(--cds-type-sm);
   font-weight: var(--cds-weight-semibold);
-  padding: 0 4px;
-  border-radius: var(--cds-radius);
-  height: 16px;
+  padding: 0 6px;
+  border-radius: var(--cds-radius-circle);
+  height: 22px;
   line-height: 1;
 }
 

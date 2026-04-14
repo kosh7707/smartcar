@@ -17,9 +17,10 @@ import type {
   WsAnalysisMessage,
 } from "@aegis/shared";
 import { createLogger } from "../lib/logger";
-import { NotFoundError } from "../lib/errors";
+import { InvalidInputError, NotFoundError } from "../lib/errors";
 import type { ProjectSourceService } from "./project-source.service";
 import type { SastClient, SastScanResponse } from "./sast-client";
+import type { KbClient, CodeGraphIngestResponse } from "./kb-client";
 import type {
   AgentClient,
   AgentTaskRequest,
@@ -40,6 +41,7 @@ export class AnalysisOrchestrator {
   constructor(
     private sourceService: ProjectSourceService,
     private sastClient: SastClient,
+    private kbClient: KbClient,
     private agentClient: AgentClient,
     private analysisResultDAO: IAnalysisResultDAO,
     private settingsService: ProjectSettingsService,
@@ -57,6 +59,185 @@ export class AnalysisOrchestrator {
     requestId?: string,
     signal?: AbortSignal,
   ): Promise<void> {
+    await this.runQuickAnalysis(projectId, analysisId, targetIds, requestId, signal);
+  }
+
+  async runQuickAnalysis(
+    projectId: string,
+    analysisId: string,
+    targetIds?: string[],
+    requestId?: string,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    await this.runAnalysisInternal(projectId, analysisId, targetIds, requestId, signal, true);
+  }
+
+  async runDeepAnalysis(
+    projectId: string,
+    analysisId: string,
+    quickAnalysisId: string,
+    requestId?: string,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const projectPath = this.sourceService.getProjectPath(projectId);
+    if (!projectPath) {
+      throw new NotFoundError(`Project source not found. Upload source first: ${projectId}`);
+    }
+
+    const quickResult = this.analysisResultDAO.findById(quickAnalysisId);
+    if (!quickResult || quickResult.projectId !== projectId || quickResult.module !== "static_analysis") {
+      throw new NotFoundError(`Quick analysis result not found: ${quickAnalysisId}`);
+    }
+
+    const graphStats = await this.kbClient.getCodeGraphStats(projectId, requestId);
+    if (!graphStats || graphStats.function_count <= 0) {
+      throw new InvalidInputError(`Quick graph context not ready for project ${projectId}`);
+    }
+
+    const settings = this.settingsService.getAll(projectId);
+    const files = this.sourceService.listFiles(projectId);
+    const startedAt = new Date().toISOString();
+
+    this.analysisTracker?.update(analysisId, {
+      phase: "deep_submitting",
+      message: "Quick 결과 기반 심층 분석 에이전트 호출 중...",
+      totalFiles: files.length,
+      processedFiles: files.length,
+    });
+    this.broadcast(analysisId, {
+      type: "analysis-progress",
+      payload: {
+        analysisId,
+        phase: "deep_submitting",
+        message: "Quick 결과 기반 심층 분석 에이전트 호출 중...",
+      },
+    });
+
+    const evidenceRefs: AgentEvidenceRef[] = [{
+      refId: "eref-project-source",
+      artifactId: projectId,
+      artifactType: "raw-source",
+      locatorType: "lineRange",
+      locator: { projectPath, fileCount: files.length },
+    }];
+
+    const quickContext = {
+      quickAnalysisId,
+      summary: quickResult.summary,
+      findingCount: quickResult.summary.total,
+      vulnerabilities: quickResult.vulnerabilities,
+      scaLibraries: quickResult.scaLibraries,
+    };
+    const graphContext = {
+      kbProjectId: projectId,
+      status: "ready",
+      functionCount: graphStats.function_count,
+      callEdgeCount: graphStats.call_edge_count,
+    };
+
+    const agentRequest: AgentTaskRequest = {
+      taskType: "deep-analyze",
+      taskId: `deep-${analysisId}`,
+      context: {
+        trusted: {
+          objective: `${projectId} 보안 취약점 심층 분석`,
+          projectId,
+          projectPath,
+          buildProfile: settings.buildProfile,
+          quickContext,
+          graphContext,
+          ...(quickResult.scaLibraries ? { scaLibraries: quickResult.scaLibraries } : {}),
+        },
+      },
+      evidenceRefs,
+      constraints: { maxTokens: 4096, timeoutMs: 300000 },
+    };
+
+    this.analysisTracker?.update(analysisId, {
+      phase: "deep_analyzing",
+      message: "에이전트가 심층 분석 중...",
+    });
+    this.broadcast(analysisId, {
+      type: "analysis-progress",
+      payload: {
+        analysisId,
+        phase: "deep_analyzing",
+        message: "에이전트가 심층 분석 중...",
+      },
+    });
+
+    let agentResponse = await this.agentClient.submitTask(agentRequest, requestId, signal);
+    if (!this.agentClient.isSuccess(agentResponse) && agentResponse.retryable && !signal?.aborted) {
+      this.analysisTracker?.update(analysisId, {
+        phase: "deep_analyzing",
+        message: "심층 분석 재시도 중...",
+      });
+      this.broadcast(analysisId, {
+        type: "analysis-progress",
+        payload: {
+          analysisId,
+          phase: "deep_retrying",
+          message: "심층 분석 재시도 중...",
+        },
+      });
+      agentResponse = await this.agentClient.submitTask(agentRequest, requestId, signal);
+    }
+
+    if (this.agentClient.isSuccess(agentResponse)) {
+      const deepResult = this.buildDeepResult(`deep-${analysisId}`, projectId, agentResponse, startedAt, quickResult.scaLibraries);
+      this.analysisResultDAO.save(deepResult);
+      this.resultNormalizer.normalizeAgentResult(deepResult, agentResponse, { startedAt, agentEvidenceRefs: evidenceRefs });
+      this.analysisTracker?.update(analysisId, {
+        phase: "deep_complete",
+        message: "심층 분석 완료",
+      });
+      this.broadcast(analysisId, {
+        type: "analysis-deep-complete",
+        payload: { analysisId, findingCount: agentResponse.result.claims.length },
+      });
+      return;
+    }
+
+    const isPartialFailure = agentResponse.failureCode?.startsWith("llm_failure_partial");
+    const failedResult: AnalysisResult = {
+      id: `deep-${analysisId}`,
+      projectId,
+      module: "deep_analysis",
+      status: "failed",
+      vulnerabilities: [],
+      summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 },
+      warnings: [
+        { code: agentResponse.failureCode, message: agentResponse.failureDetail },
+        ...(isPartialFailure ? [{ code: "PARTIAL_FAILURE", message: "LLM 실패로 부분 결과만 생성됨 (Quick 결과 기반)" }] : []),
+      ],
+      createdAt: startedAt,
+    };
+    this.analysisResultDAO.save(failedResult);
+    this.analysisTracker?.update(analysisId, {
+      phase: "deep_analyzing",
+      message: "심층 분석 실패",
+    });
+    this.broadcast(analysisId, {
+      type: "analysis-error",
+      payload: {
+        analysisId,
+        phase: "deep",
+        error: `[${agentResponse.failureCode}] ${agentResponse.failureDetail}`,
+        retryable: agentResponse.retryable ?? false,
+        partial: isPartialFailure,
+      },
+    });
+    throw new Error(`[${agentResponse.failureCode}] ${agentResponse.failureDetail}`);
+  }
+
+  private async runAnalysisInternal(
+    projectId: string,
+    analysisId: string,
+    targetIds: string[] | undefined,
+    requestId: string | undefined,
+    signal: AbortSignal | undefined,
+    quickOnly: boolean,
+  ): Promise<void> {
     const projectPath = this.sourceService.getProjectPath(projectId);
     if (!projectPath) {
       throw new NotFoundError(`Project source not found. Upload source first: ${projectId}`);
@@ -70,11 +251,11 @@ export class AnalysisOrchestrator {
 
     if (targets.length > 0) {
       // ── 타겟별 분석 ──
-      await this.runAnalysisWithTargets(projectId, analysisId, projectPath, targets, requestId, signal);
+      await this.runAnalysisWithTargets(projectId, analysisId, projectPath, targets, requestId, signal, quickOnly);
     } else {
       // ── 기존 방식 (타겟 없음: 프로젝트 전체) ──
       const settings = this.settingsService.getAll(projectId);
-      await this.runSingleAnalysis(projectId, analysisId, projectPath, settings.buildProfile, undefined, requestId, signal);
+      await this.runSingleAnalysis(projectId, analysisId, projectPath, settings.buildProfile, undefined, requestId, signal, undefined, analysisId, quickOnly);
     }
   }
 
@@ -86,6 +267,7 @@ export class AnalysisOrchestrator {
     targets: BuildTarget[],
     requestId?: string,
     signal?: AbortSignal,
+    quickOnly: boolean = false,
   ): Promise<void> {
     for (const [i, target] of targets.entries()) {
       if (signal?.aborted) return;
@@ -101,11 +283,17 @@ export class AnalysisOrchestrator {
         `${analysisId}-${target.name}`,
         scanPath,
         target.buildProfile,
-        { name: target.name, relativePath: target.relativePath, progress: targetProgress },
+        {
+          name: target.name,
+          relativePath: target.relativePath,
+          progress: targetProgress,
+          compileCommandsPath: target.compileCommandsPath,
+        },
         requestId,
         signal,
         thirdPartyPaths.length > 0 ? thirdPartyPaths : undefined,
         analysisId,
+        quickOnly,
       );
     }
   }
@@ -116,11 +304,12 @@ export class AnalysisOrchestrator {
     analysisId: string,
     scanPath: string,
     buildProfile: BuildProfile | undefined,
-    targetInfo?: { name: string; relativePath: string; progress?: { current: number; total: number } },
+    targetInfo?: { name: string; relativePath: string; progress?: { current: number; total: number }; compileCommandsPath?: string },
     requestId?: string,
     signal?: AbortSignal,
     thirdPartyPaths?: string[],
     wsAnalysisId: string = analysisId,
+    quickOnly: boolean = false,
   ): Promise<void> {
     const prefix = targetInfo ? `[${targetInfo.name}] ` : "";
     const files = this.sourceService.listFiles(projectId);
@@ -146,11 +335,23 @@ export class AnalysisOrchestrator {
     let sastFindings: SastFinding[] = [];
     let codeGraphSummary: unknown = undefined;
     let scaLibraries: unknown = undefined;
+    let graphContext: Record<string, unknown> | undefined;
 
     try {
+      if (quickOnly && targetInfo && !targetInfo.compileCommandsPath) {
+        throw new InvalidInputError(`Build preparation required before Quick for target ${targetInfo.name}`);
+      }
+
       const scanId = `scan-${crypto.randomUUID().slice(0, 8)}`;
       const sastResponse = await this.sastClient.scan(
-        { scanId, projectId, projectPath: scanPath, buildProfile, thirdPartyPaths },
+        {
+          scanId,
+          projectId,
+          projectPath: scanPath,
+          compileCommands: targetInfo?.compileCommandsPath,
+          buildProfile,
+          thirdPartyPaths,
+        },
         requestId,
         signal,
       );
@@ -172,17 +373,73 @@ export class AnalysisOrchestrator {
             retryable: sastResponse.errorDetail?.retryable === true,
           },
         });
-        return;
+        throw new Error(sastResponse.error ?? "SAST scan failed");
       }
 
       sastFindings = sastResponse.findings;
       codeGraphSummary = sastResponse.codeGraph ?? undefined;
       scaLibraries = sastResponse.sca?.libraries ?? undefined;
+
+      if (sastResponse.codeGraph) {
+        const kbProjectId = targetInfo ? `${projectId}:${targetInfo.name}` : projectId;
+        this.analysisTracker?.update(wsAnalysisId, {
+          phase: "quick_graphing",
+          message: `${prefix}Quick 그래프 컨텍스트 적재 중...`,
+          processedFiles: files.length,
+        });
+        this.broadcast(wsAnalysisId, {
+          type: "analysis-progress",
+          payload: {
+            analysisId: wsAnalysisId,
+            phase: "quick_graphing",
+            message: `${prefix}Quick 그래프 컨텍스트 적재 중...`,
+            targetName: targetInfo?.name,
+            targetProgress: targetInfo?.progress,
+          },
+        });
+
+        const ingestResult = await this.kbClient.ingestCodeGraph(
+          kbProjectId,
+          sastResponse.codeGraph,
+          requestId,
+          signal,
+        );
+
+        graphContext = this.buildGraphContext(kbProjectId, ingestResult);
+
+        if (!this.kbClient.isGraphReady(ingestResult)) {
+          logger.warn({
+            analysisId,
+            projectId,
+            kbProjectId,
+            status: ingestResult.status,
+            readiness: ingestResult.readiness,
+            warnings: ingestResult.warnings,
+            requestId,
+          }, "Quick graph ingest did not reach GraphRAG-ready state");
+
+          this.broadcast(wsAnalysisId, {
+            type: "analysis-error",
+            payload: {
+              analysisId: wsAnalysisId,
+              phase: "quick",
+              error: ingestResult.error
+                ?? `Quick graph context not ready (${ingestResult.status ?? "unknown"})`,
+              retryable: true,
+            },
+          });
+          throw new Error(
+            ingestResult.error
+            ?? `Quick graph context not ready (${ingestResult.status ?? "unknown"})`,
+          );
+        }
+      }
+
       const quickResult = this.buildQuickResult(analysisId, projectId, sastResponse, startedAt, scaLibraries);
       this.analysisResultDAO.save(quickResult);
       this.resultNormalizer.normalizeAnalysisResult(quickResult, { startedAt });
       this.analysisTracker?.update(wsAnalysisId, {
-        phase: "quick_sast",
+        phase: "quick_complete",
         message: `${prefix}Quick 분석 완료`,
         processedFiles: files.length,
       });
@@ -210,9 +467,10 @@ export class AnalysisOrchestrator {
           retryable: true,
         },
       });
+      throw err;
     }
 
-    if (signal?.aborted) return;
+    if (quickOnly || signal?.aborted) return;
 
     // ── Phase Deep: S3 Agent ──
     this.analysisTracker?.update(wsAnalysisId, {
@@ -253,6 +511,13 @@ export class AnalysisOrchestrator {
             sastFindings,
             codeGraphSummary,
             scaLibraries,
+            quickContext: {
+              analysisId,
+              findingCount: sastFindings.length,
+              sastFindings,
+              scaLibraries,
+            },
+            ...(graphContext ? { graphContext } : {}),
             thirdPartyPaths,
           },
         },
@@ -352,6 +617,7 @@ export class AnalysisOrchestrator {
           partial: isPartialFailure,
           target: targetInfo?.name, requestId,
         }, "Deep phase failed: %s", agentResponse.failureDetail);
+        throw new Error(`[${agentResponse.failureCode}] ${agentResponse.failureDetail}`);
       }
     } catch (err) {
       logger.error({ err, analysisId, target: targetInfo?.name, requestId }, "Deep phase error");
@@ -367,6 +633,7 @@ export class AnalysisOrchestrator {
           retryable: true,
         },
       });
+      throw err;
     }
   }
 
@@ -482,5 +749,21 @@ export class AnalysisOrchestrator {
 
   private broadcast(analysisId: string, msg: WsAnalysisMessage): void {
     this.ws?.broadcast(analysisId, msg);
+  }
+
+  private buildGraphContext(
+    kbProjectId: string,
+    ingestResult: CodeGraphIngestResponse,
+  ): Record<string, unknown> {
+    return {
+      kbProjectId,
+      status: ingestResult.status ?? "ready",
+      readiness: ingestResult.readiness,
+      replaceMode: ingestResult.replaceMode,
+      operation: ingestResult.operation,
+      nodesCreated: ingestResult.nodes_created,
+      edgesCreated: ingestResult.edges_created,
+      warnings: ingestResult.warnings,
+    };
   }
 }

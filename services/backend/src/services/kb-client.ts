@@ -19,6 +19,18 @@ export interface CodeGraphIngestResponse {
   nodes_created: number;
   edges_created: number;
   elapsed_ms: number;
+  status?: "ready" | "partial" | "empty";
+  readiness?: {
+    neo4jGraph?: boolean;
+    vectorIndex?: boolean;
+    graphRag?: boolean;
+  };
+  replaceMode?: "replace_project_graph";
+  operation?: {
+    repeatable?: boolean;
+    replacedExistingGraph?: boolean;
+  };
+  warnings?: string[];
   error?: string;
 }
 
@@ -42,11 +54,28 @@ export class KbClient {
   ): Promise<CodeGraphIngestResponse> {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (requestId) headers["X-Request-Id"] = requestId;
+    headers["X-Timeout-Ms"] = "15000";
+
+    const callsByFunction = new Map<string, Set<string>>();
+    for (const fn of codeGraph.functions) {
+      callsByFunction.set(fn.name, new Set());
+    }
+    for (const edge of codeGraph.callEdges) {
+      const calls = callsByFunction.get(edge.caller) ?? new Set<string>();
+      calls.add(edge.callee);
+      callsByFunction.set(edge.caller, calls);
+    }
 
     const res = await this.doFetch(
       `${this.baseUrl}/v1/code-graph/${encodeURIComponent(projectId)}/ingest`,
       headers,
-      { functions: codeGraph.functions, call_edges: codeGraph.callEdges },
+      {
+        functions: codeGraph.functions.map((fn) => ({
+          ...fn,
+          calls: [...(callsByFunction.get(fn.name) ?? new Set<string>())],
+        })),
+        call_edges: codeGraph.callEdges,
+      },
       requestId,
       signal,
     );
@@ -56,6 +85,14 @@ export class KbClient {
     } catch (err) {
       throw new KbHttpError(`Failed to parse KB ingest response: ${err}`, err);
     }
+  }
+
+  isGraphReady(result: CodeGraphIngestResponse): boolean {
+    if (result.status !== undefined || result.readiness !== undefined) {
+      return result.status === "ready" && result.readiness?.graphRag === true;
+    }
+
+    return (result.nodes_created ?? 0) > 0;
   }
 
   async getCodeGraphStats(

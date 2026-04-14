@@ -37,7 +37,7 @@
 }
 
 .spcd__row:hover {
-  background: var(--cds-layer-02);
+  background: rgba(244, 244, 244, 0.82);
 }
 
 /* Indent */
@@ -90,9 +90,14 @@
 }
 
 .spcd__meta {
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   color: var(--cds-text-placeholder);
   flex-shrink: 0;
+}
+
+.spcd__hint {
+  font-size: var(--cds-type-sm);
+  color: var(--cds-text-placeholder);
 }
 
 /* Selection summary */

@@ -69,7 +69,7 @@
 .bt-build-sys {
   padding: 1px 6px;
   border-radius: var(--cds-radius);
-  background: var(--cds-layer-02);
+  background: rgba(255, 255, 255, 0.92);
   font-size: var(--cds-type-xs);
 }
 
@@ -85,7 +85,7 @@
   border: 1px solid var(--cds-border-subtle);
   border-radius: var(--cds-radius);
   margin-bottom: var(--cds-spacing-04);
-  background: var(--cds-layer-01);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 244, 244, 0.58));
 }
 
 .bt-form__grid {
@@ -200,7 +200,7 @@
   font-family: var(--cds-font-mono);
   font-size: var(--cds-type-xs);
   color: var(--cds-text-secondary);
-  background: var(--cds-layer-02);
+  background: rgba(255, 255, 255, 0.92);
   padding: 2px 6px;
   border-radius: var(--cds-radius);
   word-break: break-all;

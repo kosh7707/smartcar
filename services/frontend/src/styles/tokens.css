@@ -113,16 +113,16 @@
   --cds-font-sans: 'IBM Plex Sans', 'Pretendard', -apple-system, system-ui, sans-serif;
   --cds-font-mono: 'IBM Plex Mono', 'Fira Code', monospace;
 
-  --cds-type-2xs: 10px;
-  --cds-type-xs: 11px;
-  --cds-type-sm: 12px;
-  --cds-type-base: 13px;
-  --cds-type-md: 14px;
-  --cds-type-lg: 16px;
-  --cds-type-xl: 20px;
-  --cds-type-2xl: 26px;
-  --cds-type-3xl: 32px;
-  --cds-type-display: 42px;
+  --cds-type-2xs: 14px;
+  --cds-type-xs: 14px;
+  --cds-type-sm: 14px;
+  --cds-type-base: 15px;
+  --cds-type-md: 16px;
+  --cds-type-lg: 18px;
+  --cds-type-xl: 24px;
+  --cds-type-2xl: 30px;
+  --cds-type-3xl: 36px;
+  --cds-type-display: 48px;
 
   --cds-leading-tight: 1.2;
   --cds-leading-normal: 1.5;

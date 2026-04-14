@@ -120,6 +120,12 @@ class BuildRunner:
                 await kill_result
             await proc.communicate()
             elapsed = int((time.perf_counter() - t0) * 1000)
+            readiness = self._build_readiness(
+                compile_commands_path=None,
+                entry_count=None,
+                user_entry_count=None,
+                exit_code=None,
+            )
             return {
                 "success": False,
                 "buildEvidence": self._build_evidence(
@@ -136,6 +142,7 @@ class BuildRunner:
                     environment=environment,
                     elapsed_ms=elapsed,
                 ),
+                "readiness": readiness,
                 "failureDetail": self._failure_detail(
                     category="timeout",
                     summary=f"Build timed out after {timeout}s.",
@@ -161,11 +168,19 @@ class BuildRunner:
             environment=environment,
             elapsed_ms=elapsed,
         )
+        entry_count: int | None = None
+        user_entry_count: int | None = None
 
         if not cc_path.exists():
             return {
                 "success": False,
                 "buildEvidence": base_evidence,
+                "readiness": self._build_readiness(
+                    compile_commands_path=None,
+                    entry_count=None,
+                    user_entry_count=None,
+                    exit_code=proc.returncode,
+                ),
                 "failureDetail": self._diagnose_failure(
                     build_output=build_output,
                     exit_code=proc.returncode,
@@ -198,6 +213,12 @@ class BuildRunner:
                     environment=environment,
                     elapsed_ms=elapsed,
                 ),
+                "readiness": self._build_readiness(
+                    compile_commands_path=str(cc_path),
+                    entry_count=entry_count,
+                    user_entry_count=0,
+                    exit_code=proc.returncode,
+                ),
                 "failureDetail": self._diagnose_failure(
                     build_output=build_output,
                     exit_code=proc.returncode,
@@ -210,14 +231,17 @@ class BuildRunner:
         user_entries = [e for e in entries if "CMakeFiles" not in e.get("file", "")]
         user_entry_count = len(user_entries)
         build_failed = proc.returncode != 0
+        readiness = self._build_readiness(
+            compile_commands_path=str(cc_path),
+            entry_count=entry_count,
+            user_entry_count=user_entry_count,
+            exit_code=proc.returncode,
+        )
 
-        if build_failed and user_entry_count == 0:
-            reason = f"build exited with code {proc.returncode}"
-            if entry_count > 0:
-                reason += " — compile_commands.json contains only CMake temporary entries"
+        if user_entry_count == 0:
             logger.warning(
-                "Build failed: %s (%d total entries, %d user entries, %dms)",
-                reason, entry_count, user_entry_count, elapsed,
+                "Build produced compile_commands without user entries (%d total entries, exit=%d, %dms)",
+                entry_count, proc.returncode, elapsed,
             )
             return {
                 "success": False,
@@ -235,12 +259,13 @@ class BuildRunner:
                     environment=environment,
                     elapsed_ms=elapsed,
                 ),
+                "readiness": readiness,
                 "failureDetail": self._diagnose_failure(
                     build_output=build_output,
                     exit_code=proc.returncode,
-                    default_category="build-process",
-                    default_summary=reason,
-                    default_hint="S4 will not infer or repair build intent; the caller must provide correct build materials.",
+                    default_category="compile-commands-no-user-entries",
+                    default_summary="compile_commands.json does not contain any user source entries (for example, only CMake temporary entries).",
+                    default_hint="Caller must provide a build command that materializes real user-target compiler invocations under bear.",
                 ),
             }
 
@@ -266,6 +291,7 @@ class BuildRunner:
                     environment=environment,
                     elapsed_ms=elapsed,
                 ),
+                "readiness": readiness,
                 "failureDetail": self._diagnose_failure(
                     build_output=build_output,
                     exit_code=proc.returncode,
@@ -295,6 +321,7 @@ class BuildRunner:
                 environment=environment,
                 elapsed_ms=elapsed,
             ),
+            "readiness": readiness,
             "failureDetail": None,
         }
 
@@ -383,4 +410,51 @@ class BuildRunner:
             "matchedExcerpt": matched_excerpt,
             "hint": hint,
             "retryable": retryable,
+        }
+
+    def _build_readiness(
+        self,
+        *,
+        compile_commands_path: str | None,
+        entry_count: int | None,
+        user_entry_count: int | None,
+        exit_code: int | None,
+    ) -> dict[str, Any]:
+        if compile_commands_path and (user_entry_count or 0) > 0 and exit_code == 0:
+            return {
+                "status": "ready",
+                "compileCommandsReady": True,
+                "quickEligible": True,
+                "summary": "compile_commands.json contains user-target entries and the build exited successfully.",
+            }
+
+        if compile_commands_path and (user_entry_count or 0) > 0:
+            return {
+                "status": "partial",
+                "compileCommandsReady": False,
+                "quickEligible": False,
+                "summary": "compile_commands.json contains some user-target entries, but the build did not finish successfully.",
+            }
+
+        if compile_commands_path and entry_count == 0:
+            return {
+                "status": "not-ready",
+                "compileCommandsReady": False,
+                "quickEligible": False,
+                "summary": "compile_commands.json exists but is empty.",
+            }
+
+        if compile_commands_path:
+            return {
+                "status": "not-ready",
+                "compileCommandsReady": False,
+                "quickEligible": False,
+                "summary": "compile_commands.json exists but does not contain any user-target entries.",
+            }
+
+        return {
+            "status": "not-ready",
+            "compileCommandsReady": False,
+            "quickEligible": False,
+            "summary": "A usable compile_commands.json could not be confirmed.",
         }

@@ -77,7 +77,6 @@ describe("ApprovalsPage", () => {
 
     await waitFor(() => expect(mockFetchApprovals).toHaveBeenCalledWith("p-1"));
     expect(await screen.findByRole("heading", { name: "Approvals" })).toBeInTheDocument();
-    expect(screen.getByText("승인 검토")).toBeInTheDocument();
     expect(screen.getByText("1건의 승인 요청이 대기 중입니다")).toBeInTheDocument();
     expect(screen.getByText("Quality Gate 오버라이드")).toBeInTheDocument();
     expect(screen.getByText("Finding 위험 수용")).toBeInTheDocument();

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import type { DynamicTestResult } from "@aegis/shared";
 import { BackButton, EmptyState, PageHeader, SeverityBadge, StatCard } from "../../../shared/ui";
-import { AlertTriangle, Bug, ChevronDown, ChevronRight, Clock, FlaskConical, Play } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { formatDateTime } from "../../../utils/format";
 import { FINDING_TYPE_ICON, FINDING_TYPE_LABEL, STRATEGY_LABELS } from "../dynamicTestPresentation";
 
@@ -16,13 +16,13 @@ export const DynamicTestResultsView: React.FC<DynamicTestResultsViewProps> = ({ 
   return (
     <div className="page-enter">
       <BackButton onClick={onBackToHistory} label="세션 목록으로" />
-      <PageHeader title="테스트 결과" icon={<FlaskConical size={20} />} />
+      <PageHeader title="테스트 결과" />
 
       <div className="stat-cards stagger">
-        <StatCard icon={<Play size={16} />} label="총 실행" value={result.totalRuns} accent />
-        <StatCard icon={<Bug size={16} />} label="Crashes" value={result.crashes} color="var(--cds-support-error)" />
-        <StatCard icon={<AlertTriangle size={16} />} label="Anomalies" value={result.anomalies} color="var(--aegis-severity-medium)" />
-        <StatCard icon={<Clock size={16} />} label="Findings" value={result.findings.length} accent />
+        <StatCard label="총 실행" value={result.totalRuns} accent />
+        <StatCard label="Crashes" value={result.crashes} color="var(--cds-support-error)" />
+        <StatCard label="Anomalies" value={result.anomalies} color="var(--aegis-severity-medium)" />
+        <StatCard label="Findings" value={result.findings.length} accent />
       </div>
 
       <div className="card dtest-result-config">
@@ -83,7 +83,6 @@ export const DynamicTestResultsView: React.FC<DynamicTestResultsViewProps> = ({ 
         </div>
       ) : (
         <EmptyState
-          icon={<FlaskConical size={28} />}
           title="발견된 이상이 없습니다"
         />
       )}

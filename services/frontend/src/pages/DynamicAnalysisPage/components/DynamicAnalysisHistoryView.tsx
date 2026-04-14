@@ -40,7 +40,6 @@ export const DynamicAnalysisHistoryView: React.FC<DynamicAnalysisHistoryViewProp
     <ConnectionStatusBanner connectionState={connectionState as any} />
     <PageHeader
       title="동적 분석"
-      icon={<Activity size={20} />}
       action={
         <button className="btn" onClick={() => {
           if (!hasConnected) { setAdapterWarning(true); return; }
@@ -66,7 +65,6 @@ export const DynamicAnalysisHistoryView: React.FC<DynamicAnalysisHistoryViewProp
       </div>
     ) : sessions.length === 0 ? (
       <EmptyState
-        icon={<Activity size={28} />}
         title="아직 동적 분석 이력이 없습니다"
         description="CAN 트래픽을 실시간으로 모니터링하고 이상을 탐지합니다"
         action={

@@ -1,47 +1,19 @@
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import type { Finding } from "@aegis/shared";
-import {
-  FileText,
-  Upload,
-  HardDrive,
-  Code,
-  ScrollText,
-} from "lucide-react";
-import {
-  fetchSourceFilesWithComposition,
-  fetchSourceFileContent,
-  fetchProjectFindings,
-  uploadSource,
-  logError,
-} from "../../api/client";
-import type { SourceFileEntry, TargetMappingEntry } from "../../api/client";
-import {
-  EmptyState,
-  Spinner,
-  SeverityBadge,
-  FileTreeNode,
-  TargetStatusBadge,
-} from "../../shared/ui";
+import { Upload } from "lucide-react";
+import { Spinner } from "../../shared/ui";
 import { useToast } from "../../contexts/ToastContext";
-import { formatFileSize } from "../../utils/format";
-import { buildTree, filterTree } from "../../utils/tree";
-import type { TreeNode } from "../../utils/tree";
-import { LANG_GROUPS, getLangColorByName } from "../../constants/languages";
 import { useUploadProgress } from "../../hooks/useUploadProgress";
 import { useBuildTargets } from "../../hooks/useBuildTargets";
+import { FilesEmptyState } from "./components/FilesEmptyState";
 import { SubprojectCreateDialog } from "./components/SubprojectCreateDialog";
 import { BuildLogViewer } from "./components/BuildLogViewer";
-import { computeFindingOverlay, getFindingCount } from "../../utils/findingOverlay";
-import type { DirFindingCount } from "../../utils/findingOverlay";
-import { parseLocation } from "../../utils/location";
 import { FilesPageHeader } from "./components/FilesPageHeader";
 import { FilesLanguageSummary } from "./components/FilesLanguageSummary";
+import { FilesSubprojectPanel } from "./components/FilesSubprojectPanel";
 import { FilesSourceWorkspace } from "./components/FilesSourceWorkspace";
+import { useFilesPage } from "./hooks/useFilesPage";
 import "./FilesPage.css";
-
-const getSourcePath = (f: SourceFileEntry) => f.relativePath;
-
 
 export const FilesPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -49,206 +21,9 @@ export const FilesPage: React.FC = () => {
   const toast = useToast();
   const upload = useUploadProgress();
   const bt = useBuildTargets(projectId);
+  const state = useFilesPage(projectId, navigate, toast, upload, bt);
 
-  useEffect(() => {
-    document.title = "AEGIS — Files";
-  }, []);
-
-  const [sourceFiles, setSourceFiles] = useState<SourceFileEntry[]>([]);
-  const [targetMapping, setTargetMapping] = useState<Record<string, TargetMappingEntry>>({});
-  const [findings, setFindings] = useState<Finding[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [dragOver, setDragOver] = useState(false);
-  const [showSubprojectDialog, setShowSubprojectDialog] = useState(false);
-  const [logTarget, setLogTarget] = useState<{ id: string; name: string } | null>(null);
-
-  // Tree view state
-  const [treeKey, setTreeKey] = useState(0);
-  const [treeDefaultOpen, setTreeDefaultOpen] = useState<boolean | undefined>(undefined);
-
-  // Preview state
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  const [previewContent, setPreviewContent] = useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewLang, setPreviewLang] = useState("");
-
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-  // Load data
-  const loadData = useCallback(() => {
-    if (!projectId) return;
-    setLoading(true);
-    Promise.all([
-      fetchSourceFilesWithComposition(projectId).catch(() => ({ success: true, data: [] as SourceFileEntry[] })),
-      fetchProjectFindings(projectId).catch(() => [] as Finding[]),
-    ])
-      .then(([filesRes, f]) => {
-        setSourceFiles(filesRes.data);
-        setTargetMapping(filesRes.targetMapping ?? {});
-        setFindings(f);
-      })
-      .catch((e) => {
-        logError("Load files", e);
-        toast.error("파일 목록을 불러올 수 없습니다.");
-      })
-      .finally(() => setLoading(false));
-  }, [projectId, toast]);
-
-  useEffect(() => { loadData(); }, [loadData]);
-
-  // Reload files when upload completes
-  useEffect(() => {
-    if (upload.phase === "complete") {
-      loadData();
-      upload.reset();
-    }
-  }, [upload.phase]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Build tree
-  const tree = useMemo(() => buildTree(sourceFiles, getSourcePath), [sourceFiles]);
-  const displayTree = useMemo(() => {
-    if (!search.trim()) return tree;
-    return filterTree(tree, search.trim().toLowerCase()) ?? { name: "", path: "", children: [] };
-  }, [tree, search]);
-
-  // Finding overlay
-  const overlay = useMemo(
-    () => (findings.length > 0 ? computeFindingOverlay(findings) : new Map<string, DirFindingCount>()),
-    [findings],
-  );
-
-  // File findings for preview
-  const selectedFileFindings = useMemo(() => {
-    if (!selectedPath || findings.length === 0) return [];
-    return findings.filter((f) => {
-      const { fileName } = parseLocation(f.location);
-      return fileName === selectedPath;
-    });
-  }, [selectedPath, findings]);
-
-  const highlightLines = useMemo(() => {
-    const lines = new Set<number>();
-    for (const f of selectedFileFindings) {
-      const { line } = parseLocation(f.location);
-      if (line) lines.add(parseInt(line));
-    }
-    return lines;
-  }, [selectedFileFindings]);
-
-  // Language stats
-  const langStats = useMemo(() => {
-    if (sourceFiles.length === 0) return [];
-    const grouped: Record<string, { count: number; color: string }> = {};
-    for (const f of sourceFiles) {
-      const lang = f.language || "기타";
-      const info = LANG_GROUPS[lang];
-      const group = info?.group ?? "기타";
-      const color = info?.color ?? "var(--cds-text-placeholder)";
-      if (!grouped[group]) grouped[group] = { count: 0, color };
-      grouped[group].count += 1;
-    }
-    return Object.entries(grouped)
-      .map(([group, { count, color }]) => ({ group, count, color }))
-      .sort((a, b) => b.count - a.count);
-  }, [sourceFiles]);
-
-  const totalSize = useMemo(
-    () => sourceFiles.reduce((sum, f) => sum + (f.size || 0), 0),
-    [sourceFiles],
-  );
-
-  // File click → load content
-  const handleFileClick = useCallback(
-    async (data: SourceFileEntry) => {
-      setSelectedPath(data.relativePath);
-      setPreviewContent(null);
-      setPreviewLoading(true);
-      setPreviewLang(data.language || "");
-      try {
-        const result = await fetchSourceFileContent(projectId!, data.relativePath);
-        setPreviewContent(result.content);
-      } catch (e) {
-        logError("Source file content", e);
-        toast.error("파일 내용을 불러올 수 없습니다.");
-        setPreviewContent(null);
-      } finally {
-        setPreviewLoading(false);
-      }
-    },
-    [projectId, toast],
-  );
-
-  // Upload
-  const handleUpload = async (fileList: FileList) => {
-    if (!projectId || fileList.length === 0) return;
-    const files = Array.from(fileList);
-    upload.setUploading();
-    try {
-      const { uploadId } = await uploadSource(projectId, files);
-      upload.startTracking(uploadId);
-    } catch (e) {
-      logError("Upload files", e);
-      toast.error("파일 업로드에 실패했습니다.");
-    }
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    if (e.dataTransfer.files.length > 0) {
-      handleUpload(e.dataTransfer.files);
-    }
-  }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Render delegates for FileTreeNode
-  const renderFileIcon = useCallback(
-    (data: SourceFileEntry) => (
-      <FileText size={16} style={{ color: getLangColorByName(data.language), flexShrink: 0 }} />
-    ),
-    [],
-  );
-
-  const renderFileMeta = useCallback(
-    (data: SourceFileEntry) => {
-      const mapping = targetMapping[data.relativePath];
-      return (
-        <>
-          {mapping && (
-            <span className="ftree-meta ftree-target" title={`서브프로젝트: ${mapping.targetName}`}>
-              <HardDrive size={10} /> {mapping.targetName}
-            </span>
-          )}
-          {data.language && <span className="ftree-meta ftree-lang">{data.language}</span>}
-          <span className="ftree-meta ftree-size">{formatFileSize(data.size)}</span>
-        </>
-      );
-    },
-    [targetMapping],
-  );
-
-  const renderFolderBadge = useCallback(
-    (node: TreeNode<SourceFileEntry>) => {
-      const counts = getFindingCount(node.path, overlay);
-      if (counts.total === 0) return null;
-      return (
-        <span className="ftree-folder-badge">
-          {counts.critical > 0 && <span className="ftree-finding-dot ftree-finding-dot--critical">{counts.critical}</span>}
-          {counts.high > 0 && <span className="ftree-finding-dot ftree-finding-dot--high">{counts.high}</span>}
-          {counts.medium > 0 && <span className="ftree-finding-dot ftree-finding-dot--medium">{counts.medium}</span>}
-          {counts.low > 0 && <span className="ftree-finding-dot ftree-finding-dot--low">{counts.low}</span>}
-        </span>
-      );
-    },
-    [overlay],
-  );
-
-  const handleSelectFinding = useCallback((findingId: string) => {
-    navigate(`/projects/${projectId}/static-analysis?finding=${findingId}`);
-  }, [navigate, projectId]);
-
-  if (loading) {
+  if (state.loading) {
     return (
       <div className="page-enter centered-loader">
         <Spinner size={36} label="파일 로딩 중..." />
@@ -260,94 +35,65 @@ export const FilesPage: React.FC = () => {
 
   return (
     <div
-      className={`page-enter fpage${dragOver ? " fpage--dragover" : ""}`}
-      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-      onDragLeave={(e) => { e.preventDefault(); setDragOver(false); }}
-      onDrop={handleDrop}
+      className={`page-enter fpage${state.dragOver ? " fpage--dragover" : ""}`}
+      onDragOver={(event) => { event.preventDefault(); state.setDragOver(true); }}
+      onDragLeave={(event) => { event.preventDefault(); state.setDragOver(false); }}
+      onDrop={state.handleDrop}
     >
       <FilesPageHeader
-        fileCount={sourceFiles.length}
-        totalSize={totalSize}
-        showCreateTarget={sourceFiles.length > 0}
-        onOpenCreateTarget={() => setShowSubprojectDialog(true)}
-        onOpenUpload={() => fileInputRef.current?.click()}
-        fileInputRef={fileInputRef}
-        onFileInputChange={(e) => e.target.files && handleUpload(e.target.files)}
+        fileCount={state.sourceFiles.length}
+        totalSize={state.totalSize}
+        showCreateTarget={state.sourceFiles.length > 0}
+        onOpenCreateTarget={() => state.setShowSubprojectDialog(true)}
+        onOpenUpload={() => state.fileInputRef.current?.click()}
+        fileInputRef={state.fileInputRef}
+        onFileInputChange={(event) => event.target.files && state.handleUpload(event.target.files)}
       />
 
-      {/* Upload progress banner */}
-      {upload.isActive && (
-        <div className="card flex-center flex-gap-3" style={{ padding: "var(--cds-spacing-04) var(--cds-spacing-05)" }}>
+      {state.upload.isActive && (
+        <div className="fpage-upload-banner">
           <Spinner size={18} />
-          <span>{upload.message}</span>
+          <span>{state.upload.message}</span>
         </div>
       )}
 
-      {sourceFiles.length === 0 && !upload.isActive ? (
-        <EmptyState
-          icon={<Upload size={28} />}
-          title="아직 업로드된 소스코드가 없습니다"
-          description="소스코드 아카이브(.zip, .tar.gz)를 드래그하거나 업로드 버튼을 사용하세요"
-        />
+      {state.sourceFiles.length === 0 && !state.upload.isActive ? (
+        <FilesEmptyState />
       ) : (
         <>
-          <FilesLanguageSummary totalFiles={sourceFiles.length} langStats={langStats} />
+          <FilesLanguageSummary totalFiles={state.sourceFiles.length} langStats={state.langStats} />
 
-          {/* Subproject list panel */}
-          {bt.targets.length > 0 && (
-            <div className="card fpage-subproject-card">
-              <div className="card-title flex-center flex-gap-2">
-                <HardDrive size={16} />
-                서브 프로젝트 ({bt.targets.length}개)
-              </div>
-              <div className="fpage-subproject-list">
-                {bt.targets.map((target) => (
-                  <div key={target.id} className="fpage-subproject-row">
-                    <span className="fpage-subproject-name">{target.name}</span>
-                    <TargetStatusBadge status={target.status ?? "discovered"} size="sm" />
-                    <span className="fpage-subproject-meta">
-                      {target.relativePath}
-                    </span>
-                    {target.status && target.status !== "discovered" && (
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => setLogTarget({ id: target.id, name: target.name })}
-                        title="빌드 로그"
-                      >
-                        <ScrollText size={14} />
-                        빌드 로그
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <FilesSubprojectPanel targets={state.buildTargets.targets} onOpenLog={state.setLogTarget} />
 
           <FilesSourceWorkspace
-            search={search}
-            onSearchChange={setSearch}
-            onExpandAll={() => { setTreeDefaultOpen(true); setTreeKey((k) => k + 1); }}
-            onCollapseAll={() => { setTreeDefaultOpen(false); setTreeKey((k) => k + 1); }}
-            displayTree={displayTree}
-            treeKey={treeKey}
-            selectedPath={selectedPath}
-            handleFileClick={handleFileClick}
-            renderFileIcon={renderFileIcon}
-            renderFileMeta={renderFileMeta}
-            renderFolderBadge={renderFolderBadge}
-            previewLoading={previewLoading}
-            previewLang={previewLang}
-            previewContent={previewContent}
-            highlightLines={highlightLines}
-            selectedFileFindings={selectedFileFindings}
-            onSelectFinding={handleSelectFinding}
+            search={state.search}
+            onSearchChange={state.setSearch}
+            onExpandAll={state.onExpandAll}
+            onCollapseAll={state.onCollapseAll}
+            displayTree={state.displayTree}
+            selectedPath={state.selectedPath}
+            handleFileClick={state.handleFileClick}
+            renderFileIcon={state.renderFileIcon}
+            renderFileMeta={state.renderFileMeta}
+            renderFolderBadge={state.renderFolderBadge}
+            previewLoading={state.previewLoading}
+            previewLang={state.previewLang}
+            previewContent={state.previewContent}
+            highlightLines={state.highlightLines}
+            selectedFileFindings={state.selectedFileFindings}
+            onSelectFinding={state.handleSelectFinding}
+            openPaths={state.effectiveOpenPaths}
+            onToggleFolder={state.onToggleFolder}
+            layoutRef={state.workspaceLayout.layoutRef}
+            treePanelWidth={state.workspaceLayout.treePanelWidth}
+            isResizing={state.workspaceLayout.isResizing}
+            onStartResize={state.workspaceLayout.startResizing}
+            onNudgeResize={state.workspaceLayout.nudgeResize}
           />
         </>
       )}
 
-      {/* Drag overlay */}
-      {dragOver && (
+      {state.dragOver && (
         <div className="fpage-drop-overlay">
           <Upload size={40} />
           <span>파일을 여기에 놓으세요</span>
@@ -355,19 +101,19 @@ export const FilesPage: React.FC = () => {
       )}
 
       <SubprojectCreateDialog
-        open={showSubprojectDialog}
+        open={state.showSubprojectDialog}
         projectId={projectId}
-        sourceFiles={sourceFiles}
-        onCreated={() => { setShowSubprojectDialog(false); bt.load(); }}
-        onCancel={() => setShowSubprojectDialog(false)}
+        sourceFiles={state.sourceFiles}
+        onCreated={state.onSubprojectCreated}
+        onCancel={() => state.setShowSubprojectDialog(false)}
       />
 
-      {logTarget && projectId && (
+      {state.logTarget && projectId && (
         <BuildLogViewer
           projectId={projectId}
-          targetId={logTarget.id}
-          targetName={logTarget.name}
-          onClose={() => setLogTarget(null)}
+          targetId={state.logTarget.id}
+          targetName={state.logTarget.name}
+          onClose={() => state.setLogTarget(null)}
         />
       )}
     </div>

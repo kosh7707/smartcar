@@ -37,12 +37,20 @@ export interface AgentTaskRequest {
       /** 프로젝트 내 빌드 타겟 상대 경로 (e.g. "gateway/") */
       targetPath?: string;
       buildCommand?: string;
+      buildEnvironment?: Record<string, string>;
       buildProfile?: Partial<BuildProfile>;
+      provenance?: Record<string, unknown>;
       sastFindings?: SastFinding[];
       /** Phase 1 캐싱: 코드그래프 요약 (S4 /v1/scan 응답에서 추출) */
       codeGraphSummary?: unknown;
       /** Phase 1 캐싱: SCA 라이브러리 목록 (S4 /v1/scan 응답에서 추출) */
       scaLibraries?: unknown;
+      /** explicit-step flow alias: build-prep 결과물 */
+      buildPreparation?: Record<string, unknown>;
+      /** explicit-step flow alias: Quick 결과 컨텍스트 */
+      quickContext?: Record<string, unknown>;
+      /** explicit-step flow alias: GraphRAG/graph ingest 컨텍스트 */
+      graphContext?: Record<string, unknown>;
       /** 서드파티 라이브러리 경로 — S3가 S4에 전달하여 heavy analyzer 제외 */
       thirdPartyPaths?: string[];
       /** S4 도구 서브셋 선택 (미지정 시 전체). e.g. ["flawfinder", "cppcheck"] */

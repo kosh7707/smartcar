@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from "react";
 import type { Run, Finding, FindingStatus, FindingSourceType, EvidenceRef, GateResult, Severity } from "@aegis/shared";
-import { FileCode, ShieldAlert, Shield, AlertTriangle, Plus, LayoutList, Layers, CheckSquare, History, Check, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { FileCode, Plus, LayoutList, Layers, CheckSquare, History, Check, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { StatCard, EmptyState, Spinner, GateResultCard, SeverityBadge, FindingStatusBadge, SourceBadge } from "../../../shared/ui";
 import { bulkUpdateFindingStatus } from "../../../api/analysis";
 import { TopFilesCard } from "./TopFilesCard";
@@ -104,7 +104,6 @@ export const LatestAnalysisTab: React.FC<Props> = ({
   if (!runDetail) {
     return (
       <EmptyState
-        icon={<Shield size={32} />}
         title="아직 완료된 분석이 없습니다"
         description="새 분석을 실행하여 코드 보안 상태를 확인하세요."
         action={
@@ -268,14 +267,13 @@ const LatestAnalysisContent: React.FC<{
 
       {/* Run Summary StatCards */}
       <div className="stat-cards stagger">
-        <StatCard icon={<Shield size={16} />} label="Finding" value={findings.length} accent />
+        <StatCard label="Finding" value={findings.length} accent />
         <StatCard
-          icon={<AlertTriangle size={16} />}
           label="Critical + High"
           value={critHighCount}
           color={critHighCount > 0 ? "var(--aegis-severity-high)" : undefined}
         />
-        <StatCard icon={<ShieldAlert size={16} />} label="미해결" value={unresolvedCount} color={unresolvedCount > 0 ? "var(--aegis-severity-high)" : undefined} />
+        <StatCard label="미해결" value={unresolvedCount} color={unresolvedCount > 0 ? "var(--aegis-severity-high)" : undefined} />
       </div>
 
       {/* Source Distribution + Top Files */}

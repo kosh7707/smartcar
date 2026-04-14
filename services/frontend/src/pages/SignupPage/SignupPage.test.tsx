@@ -43,7 +43,7 @@ describe("SignupPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "계정 만들기" }));
 
     await waitFor(() => expect(mockLogin).toHaveBeenCalledWith("user@example.com", "secret"));
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/projects"));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard"));
   });
 
   it("still navigates to projects when signup login stub rejects", async () => {
@@ -59,6 +59,6 @@ describe("SignupPage", () => {
     fireEvent.change(screen.getByLabelText("비밀번호"), { target: { value: "secret" } });
     fireEvent.click(screen.getByRole("button", { name: "계정 만들기" }));
 
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/projects"));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard"));
   });
 });

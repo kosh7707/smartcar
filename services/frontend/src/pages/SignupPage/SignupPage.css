@@ -14,17 +14,12 @@
 
 .signup-card {
   width: 100%;
-  max-width: 420px;
-  background: var(--cds-layer-raised);
-  border-radius: var(--cds-radius);
-  border: 1px solid var(--cds-border-subtle);
-  overflow: hidden;
+  max-width: 520px;
 }
 
 .signup-card .page-header--plain {
-  margin-bottom: 0;
-  padding: var(--cds-spacing-08) var(--cds-spacing-08) var(--cds-spacing-05);
-  border-bottom: 1px solid var(--cds-border-subtle);
+  margin-bottom: var(--cds-spacing-07);
+  padding: 0 0 var(--cds-spacing-05);
 }
 
 .signup-form-heading {
@@ -105,7 +100,7 @@
 .signup-divider {
   height: 1px;
   background: var(--cds-border-subtle);
-  margin: var(--cds-spacing-06) 0;
+  margin: var(--cds-spacing-07) 0 var(--cds-spacing-05);
 }
 
 /* ── Footer ── */
@@ -136,7 +131,7 @@
 }
 
 .signup-page__footer p {
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   color: var(--cds-text-placeholder);
   margin: 0;
 }

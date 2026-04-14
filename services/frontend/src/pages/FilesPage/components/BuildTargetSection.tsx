@@ -1,33 +1,14 @@
-import React, { useState, useCallback, useEffect } from "react";
-import type { BuildProfile, BuildTarget } from "@aegis/shared";
-import { Crosshair, Plus, Pencil, Trash2, Play, RotateCcw, Bot, FileText } from "lucide-react";
-import { useBuildTargets } from "../../../hooks/useBuildTargets";
-import { usePipelineProgress } from "../../../hooks/usePipelineProgress";
-import { useToast } from "../../../contexts/ToastContext";
-import { fetchSourceFiles, logError } from "../../../api/client";
-import type { SourceFileEntry } from "../../../api/client";
-import { ConfirmDialog, Spinner, TargetStatusBadge, TargetProgressStepper, ConnectionStatusBanner } from "../../../shared/ui";
+import React from "react";
+import { Crosshair } from "lucide-react";
+import { ConfirmDialog, ConnectionStatusBanner, Spinner } from "../../../shared/ui";
 import { BuildProfileForm } from "./BuildProfileForm";
 import { BuildLogViewer } from "./BuildLogViewer";
+import { BuildTargetActionBar } from "./BuildTargetActionBar";
+import { BuildTargetRow } from "./BuildTargetRow";
+import { BuildTargetSectionSummary } from "./BuildTargetSectionSummary";
 import { SubprojectCreateDialog } from "./SubprojectCreateDialog";
-import { TargetLibraryPanel } from "./TargetLibraryPanel";
-import { fetchProjectSdks } from "../../../api/sdk";
-import type { RegisteredSdk } from "../../../api/sdk";
+import { DEFAULT_PROFILE, INCLUDED_PATHS_EDIT_GUARD_TEXT, useBuildTargetSection } from "../hooks/useBuildTargetSection";
 import "./BuildTargetSection.css";
-
-const INCLUDED_PATHS_EDIT_GUARD_TEXT = "현재 백엔드 계약상 includedPaths는 수정 API에서 지원되지 않습니다. 이름과 빌드 프로필만 변경할 수 있으며, 파일 구성을 바꾸려면 새 서브 프로젝트를 생성해야 합니다.";
-
-const DEFAULT_PROFILE: BuildProfile = {
-  sdkId: "none",
-  compiler: "gcc",
-  targetArch: "x86_64",
-  languageStandard: "c17",
-  headerLanguage: "auto",
-};
-
-const FAILED_STATUSES = new Set(["build_failed", "scan_failed", "graph_failed", "resolve_failed"]);
-const RUNNING_STATUSES = new Set(["building", "scanning", "graphing", "resolving"]);
-const POST_BUILD_STATUSES = new Set(["built", "scanning", "scanned", "scan_failed", "graphing", "graphed", "graph_failed", "ready"]);
 
 interface Props {
   projectId: string;
@@ -35,123 +16,11 @@ interface Props {
 }
 
 export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnalysis }) => {
-  const toast = useToast();
-  const bt = useBuildTargets(projectId);
-  const pipeline = usePipelineProgress();
-  const [registeredSdks, setRegisteredSdks] = useState<RegisteredSdk[]>([]);
-  const [sourceFiles, setSourceFiles] = useState<SourceFileEntry[]>([]);
-
-  // Load registered SDKs
-  useEffect(() => {
-    if (projectId) {
-      fetchProjectSdks(projectId)
-        .then((data) => setRegisteredSdks(data.registered))
-        .catch(() => setRegisteredSdks([]));
-      fetchSourceFiles(projectId)
-        .then(setSourceFiles)
-        .catch(() => setSourceFiles([]));
-    }
-  }, [projectId]);
-
-  // Form state
-  const [formMode, setFormMode] = useState<"add" | null>(null);
-  const [formName, setFormName] = useState("");
-  const [formPath, setFormPath] = useState("");
-  const [formProfile, setFormProfile] = useState<BuildProfile>(DEFAULT_PROFILE);
-  const [saving, setSaving] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<BuildTarget | null>(null);
-  const [logTarget, setLogTarget] = useState<{id: string, name: string} | null>(null);
-  const [editingTarget, setEditingTarget] = useState<BuildTarget | null>(null);
-
-  const openAddForm = useCallback(() => {
-    setEditingTarget(null);
-    setFormMode("add");
-    setFormName("");
-    setFormPath("");
-    setFormProfile(DEFAULT_PROFILE);
-  }, []);
-
-  const closeForm = useCallback(() => {
-    setFormMode(null);
-  }, []);
-
-  const handleSave = useCallback(async () => {
-    if (!formName.trim()) { toast.error("타겟 이름을 입력해주세요."); return; }
-    if (formMode === "add" && !formPath.trim()) { toast.error("상대 경로를 입력해주세요."); return; }
-    setSaving(true);
-    try {
-      if (formMode === "add") {
-        await bt.add(formName.trim(), formPath.trim(), formProfile);
-        toast.success(`타겟 "${formName.trim()}" 추가됨`);
-      }
-      closeForm();
-    } catch (e) {
-      logError("Save build target", e);
-      toast.error("타겟 저장에 실패했습니다.");
-    } finally {
-      setSaving(false);
-    }
-  }, [formMode, formName, formPath, formProfile, bt, toast, closeForm]);
-
-  const handleDelete = useCallback(async (target: BuildTarget) => {
-    try {
-      await bt.remove(target.id);
-      toast.success(`타겟 "${target.name}" 삭제됨`);
-    } catch (e) {
-      logError("Delete build target", e);
-      toast.error("타겟 삭제에 실패했습니다.");
-    }
-    setDeleteTarget(null);
-  }, [bt, toast]);
-
-  const handleDiscover = useCallback(async () => {
-    try {
-      const discovered = await bt.discover();
-      toast.success(`${discovered.length}개 빌드 타겟 발견`);
-    } catch { toast.error("타겟 탐색에 실패했습니다."); }
-  }, [bt, toast]);
-
-  const handleRunPipeline = useCallback(async () => {
-    try {
-      await pipeline.startPipeline(projectId);
-      toast.success("빌드 & 분석 파이프라인 시작");
-    } catch { toast.error("파이프라인 실행에 실패했습니다."); }
-  }, [pipeline, projectId, toast]);
-
-  const handleRetryTarget = useCallback(async (targetId: string) => {
-    try {
-      await pipeline.retryTarget(projectId, targetId);
-      toast.success("재실행 시작");
-    } catch { toast.error("재실행에 실패했습니다."); }
-  }, [pipeline, projectId, toast]);
-
-  const handleDeepAnalysis = useCallback((targetId: string) => {
-    onStartDeepAnalysis?.([targetId]);
-  }, [onStartDeepAnalysis]);
-
-  // Merge pipeline WS state with stored target status
-  const getTargetStatus = (target: BuildTarget): string => {
-    const wsState = pipeline.targets.get(target.id);
-    return wsState?.status ?? target.status ?? "discovered";
-  };
-
-  const getTargetMessage = (target: BuildTarget): string | undefined => {
-    return pipeline.targets.get(target.id)?.message;
-  };
-
-  const getTargetError = (target: BuildTarget): string | undefined => {
-    return pipeline.targets.get(target.id)?.error;
-  };
-
-  const readyTargets = bt.targets.filter((t) => getTargetStatus(t) === "ready");
-  const configuredCount = bt.targets.filter((t) => {
-    const s = getTargetStatus(t);
-    return s !== "discovered";
-  }).length;
+  const state = useBuildTargetSection(projectId, onStartDeepAnalysis);
 
   return (
     <div className="card gs-card">
-      <ConnectionStatusBanner connectionState={pipeline.connectionState} />
+      <ConnectionStatusBanner connectionState={state.pipeline.connectionState} />
       <div className="gs-card__header">
         <div className="gs-card__icon"><Crosshair size={18} /></div>
         <div>
@@ -162,210 +31,108 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
         </div>
       </div>
 
-      {/* Action bar */}
-      <div className="bt-actions">
-        <button className="btn btn-secondary btn-sm" onClick={handleDiscover} disabled={bt.discovering || pipeline.isRunning}>
-          {bt.discovering ? <Spinner size={14} /> : <Crosshair size={14} />}
-          타겟 탐색
-        </button>
-        <button className="btn btn-secondary btn-sm" onClick={openAddForm} disabled={formMode !== null || editingTarget !== null || pipeline.isRunning}>
-          <Plus size={14} />
-          타겟 추가
-        </button>
-        {bt.targets.length > 0 && (
-          <button
-            className="btn btn-sm"
-            onClick={handleRunPipeline}
-            disabled={pipeline.isRunning || configuredCount === 0}
-          >
-            {pipeline.isRunning ? <Spinner size={14} /> : <Play size={14} />}
-            빌드 & 분석 실행
-          </button>
-        )}
-      </div>
+      <BuildTargetActionBar
+        discovering={state.buildTargets.discovering}
+        isRunning={state.pipeline.isRunning}
+        hasTargets={state.buildTargets.targets.length > 0}
+        configuredCount={state.configuredCount}
+        formLocked={state.formMode !== null || state.editingTarget !== null}
+        onDiscover={state.handleDiscover}
+        onOpenAddForm={state.openAddForm}
+        onRunPipeline={state.handleRunPipeline}
+      />
 
-      {/* Add form */}
-      {formMode === "add" && (
+      {state.formMode === "add" && (
         <div className="bt-form">
           <div className="bt-form__grid">
             <label className="form-field">
               <span className="form-label">타겟 이름</span>
-              <input className="form-input" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="서브프로젝트 이름" autoFocus />
+              <input className="form-input" value={state.formName} onChange={(event) => state.setFormName(event.target.value)} placeholder="서브프로젝트 이름" autoFocus />
             </label>
             <label className="form-field">
               <span className="form-label">상대 경로</span>
-              <input className="form-input font-mono" value={formPath} onChange={(e) => setFormPath(e.target.value)} placeholder="src/module-dir/" spellCheck={false} />
+              <input className="form-input font-mono" value={state.formPath} onChange={(event) => state.setFormPath(event.target.value)} placeholder="src/module-dir/" spellCheck={false} />
             </label>
           </div>
-          <BuildProfileForm value={formProfile} onChange={setFormProfile} registeredSdks={registeredSdks} />
+          <BuildProfileForm value={state.formProfile} onChange={state.setFormProfile} registeredSdks={state.registeredSdks} />
           <div className="bt-form__actions">
-            <button className="btn btn-secondary btn-sm" onClick={closeForm}>취소</button>
-            <button className="btn btn-sm" onClick={handleSave} disabled={saving}>{saving ? "저장 중..." : "추가"}</button>
+            <button className="btn btn-secondary btn-sm" onClick={state.closeForm}>취소</button>
+            <button className="btn btn-sm" onClick={state.handleSave} disabled={state.saving}>{state.saving ? "저장 중..." : "추가"}</button>
           </div>
         </div>
       )}
 
-      {/* Target list */}
-      {bt.loading ? (
+      {state.buildTargets.loading ? (
         <div className="bt-empty"><Spinner size={20} label="로딩 중..." /></div>
-      ) : bt.targets.length === 0 && formMode !== "add" ? (
+      ) : state.buildTargets.targets.length === 0 && state.formMode !== "add" ? (
         <div className="bt-empty">
           아직 빌드 타겟이 없습니다. "타겟 탐색"으로 자동 감지하거나 직접 추가하세요.
         </div>
       ) : (
-        bt.targets.map((target) => {
-          const status = getTargetStatus(target);
-          const message = getTargetMessage(target);
-          const error = getTargetError(target);
-          const sdk = registeredSdks.find((s) => s.id === target.buildProfile.sdkId);
-          const isFailed = FAILED_STATUSES.has(status);
-          const isRunning = RUNNING_STATUSES.has(status);
-          const isReady = status === "ready";
-
-          return (
-            <div key={target.id} className={`bt-row${isFailed ? " bt-row--failed" : isReady ? " bt-row--ready" : ""}`}>
-              <div className="bt-row__body">
-                <div className="bt-row__name-line">
-                  <span className="bt-row__name">{target.name}</span>
-                  <TargetStatusBadge status={status} size="sm" />
-                </div>
-                <div className="bt-row__meta">
-                  <span className="bt-path">{target.relativePath}</span>
-                  {sdk && <span className="bt-sdk">{sdk.name}</span>}
-                  {target.buildSystem && <span className="bt-build-sys">{target.buildSystem}</span>}
-                </div>
-                {target.buildCommand && (
-                  <div className="bt-row__build-cmd">
-                    <code>{target.buildCommand}</code>
-                  </div>
-                )}
-                {status !== "discovered" && (
-                  <div className="bt-row__stepper">
-                    <TargetProgressStepper
-                      status={status}
-                      message={isFailed && error ? error : isRunning ? message : undefined}
-                    />
-                  </div>
-                )}
-                {POST_BUILD_STATUSES.has(status) && (
-                  <TargetLibraryPanel
-                    projectId={projectId}
-                    targetId={target.id}
-                    targetName={target.name}
-                  />
-                )}
-              </div>
-              <div className="bt-row__actions">
-                {status !== "discovered" && status !== "resolving" && (
-                  <button className="btn btn-secondary btn-sm" onClick={() => setLogTarget({ id: target.id, name: target.name })} title="빌드 로그">
-                    <FileText size={14} />
-                  </button>
-                )}
-                {isReady && onStartDeepAnalysis && (
-                  <button className="btn btn-sm" onClick={() => handleDeepAnalysis(target.id)} title="심층 분석">
-                    <Bot size={14} />
-                  </button>
-                )}
-                {isFailed && (
-                  <button className="btn btn-secondary btn-sm" onClick={() => handleRetryTarget(target.id)} title="재실행">
-                    <RotateCcw size={14} />
-                  </button>
-                )}
-                <button
-                  className="btn-icon"
-                  title="편집"
-                  onClick={() => setEditingTarget(target)}
-                  disabled={formMode !== null || editingTarget !== null || pipeline.isRunning}
-                >
-                  <Pencil size={14} />
-                </button>
-                <button
-                  className="btn-icon btn-danger"
-                  title="삭제"
-                  onClick={() => setDeleteTarget(target)}
-                  disabled={pipeline.isRunning}
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </div>
-          );
-        })
+        state.buildTargets.targets.map((target) => (
+          <BuildTargetRow
+            key={target.id}
+            projectId={projectId}
+            target={target}
+            status={state.getTargetStatus(target)}
+            message={state.getTargetMessage(target)}
+            error={state.getTargetError(target)}
+            sdkName={state.registeredSdks.find((sdk) => sdk.id === target.buildProfile.sdkId)?.name}
+            actionLocked={state.formMode !== null || state.editingTarget !== null || state.pipeline.isRunning}
+            canDeepAnalyze={Boolean(onStartDeepAnalysis)}
+            onOpenLog={state.setLogTarget}
+            onDeepAnalyze={state.handleDeepAnalysis}
+            onRetry={state.handleRetryTarget}
+            onEdit={state.setEditingTarget}
+            onDelete={state.setDeleteTarget}
+          />
+        ))
       )}
 
-      {/* Pipeline progress summary */}
-      {pipeline.isRunning && bt.targets.length > 0 && (
-        <div className="bt-progress-summary">
-          <Spinner size={14} />
-          <span>파이프라인 진행 중...</span>
-          {pipeline.totalCount > 0 && (
-            <span className="bt-progress-counts">
-              {pipeline.readyCount}/{pipeline.totalCount} 완료
-              {pipeline.failedCount > 0 && <span className="bt-progress-failed"> · {pipeline.failedCount} 실패</span>}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Ready summary */}
-      {!pipeline.isRunning && readyTargets.length > 0 && onStartDeepAnalysis && (
-        <div className="bt-ready-summary">
-          <span>{readyTargets.length}개 서브 프로젝트 분석 준비 완료</span>
-          <button className="btn btn-sm" onClick={() => onStartDeepAnalysis(readyTargets.map((t) => t.id))}>
-            <Bot size={14} />
-            전체 심층 분석
-          </button>
-        </div>
-      )}
-
-      <ConfirmDialog
-        open={deleteTarget !== null}
-        title="빌드 타겟 삭제"
-        message={deleteTarget ? `"${deleteTarget.name}" 타겟을 삭제하시겠습니까?` : ""}
-        confirmLabel="삭제"
-        danger
-        onConfirm={() => deleteTarget && handleDelete(deleteTarget)}
-        onCancel={() => setDeleteTarget(null)}
+      <BuildTargetSectionSummary
+        isRunning={state.pipeline.isRunning}
+        targets={state.buildTargets.targets}
+        readyTargets={state.readyTargets}
+        readyCount={state.pipeline.readyCount}
+        failedCount={state.pipeline.failedCount}
+        totalCount={state.pipeline.totalCount}
+        canDeepAnalyzeAll={Boolean(onStartDeepAnalysis)}
+        onDeepAnalyzeAll={(targetIds) => onStartDeepAnalysis?.(targetIds)}
       />
 
-      {logTarget && (
+      <ConfirmDialog
+        open={state.deleteTarget !== null}
+        title="빌드 타겟 삭제"
+        message={state.deleteTarget ? `"${state.deleteTarget.name}" 타겟을 삭제하시겠습니까?` : ""}
+        confirmLabel="삭제"
+        danger
+        onConfirm={() => state.deleteTarget && state.handleDelete(state.deleteTarget)}
+        onCancel={() => state.setDeleteTarget(null)}
+      />
+
+      {state.logTarget && (
         <BuildLogViewer
           projectId={projectId}
-          targetId={logTarget.id}
-          targetName={logTarget.name}
-          onClose={() => setLogTarget(null)}
+          targetId={state.logTarget.id}
+          targetName={state.logTarget.name}
+          onClose={() => state.setLogTarget(null)}
         />
       )}
 
-      {editingTarget && (
+      {state.editingTarget && (
         <SubprojectCreateDialog
           open
           projectId={projectId}
-          sourceFiles={sourceFiles}
-          onCancel={() => setEditingTarget(null)}
+          sourceFiles={state.sourceFiles}
+          onCancel={() => state.setEditingTarget(null)}
           title="서브 프로젝트 수정"
           submitLabel="저장"
-          initialName={editingTarget.name}
-          initialProfile={editingTarget.buildProfile}
-          initialIncludedPaths={editingTarget.includedPaths ?? [editingTarget.relativePath]}
+          initialName={state.editingTarget.name}
+          initialProfile={state.editingTarget.buildProfile ?? DEFAULT_PROFILE}
+          initialIncludedPaths={state.editingTarget.includedPaths ?? [state.editingTarget.relativePath]}
           includedPathsEditable={false}
           includedPathsHelpText={INCLUDED_PATHS_EDIT_GUARD_TEXT}
-          onSubmit={async ({ name, profile }) => {
-            setSaving(true);
-            try {
-              await bt.update(editingTarget.id, {
-                name,
-                buildProfile: profile,
-              });
-              toast.success(`타겟 "${name}" 수정됨`);
-              setEditingTarget(null);
-            } catch (e) {
-              logError("Save build target", e);
-              toast.error("타겟 저장에 실패했습니다.");
-            } finally {
-              setSaving(false);
-            }
-          }}
+          onSubmit={state.handleEditSubmit}
         />
       )}
     </div>

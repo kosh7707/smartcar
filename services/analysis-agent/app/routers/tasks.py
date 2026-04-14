@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
 
 from app.config import settings
@@ -8,6 +8,7 @@ from agent_shared.context import get_request_id, set_request_id
 from app.pipeline.task_pipeline import TaskPipeline
 from app.registry.model_registry import create_default_registry as create_model_registry
 from app.registry.prompt_registry import create_default_registry as create_prompt_registry
+from app.runtime.request_summary import request_summary_tracker
 from app.routers.deep_analyze_handler import handle_deep_analyze as _handle_deep_analyze_impl
 from app.routers.generate_poc_handler import handle_generate_poc as _handle_generate_poc_impl
 from app.schemas.request import TaskRequest
@@ -23,6 +24,16 @@ _model_registry = create_model_registry()
 
 # 레거시 파이프라인 (기존 5개 task type용)
 _pipeline = TaskPipeline(_prompt_registry, _model_registry)
+
+
+def _failure_reason(result: TaskFailureResponse | TaskSuccessResponse) -> str:
+    failure_code = getattr(result, "failureCode", None)
+    if hasattr(failure_code, "value"):
+        return failure_code.value
+    status = getattr(result, "status", None)
+    if hasattr(status, "value"):
+        return status.value
+    return str(failure_code or status or "failed")
 
 
 def _json_response(
@@ -62,10 +73,12 @@ async def _handle_generate_poc(request: TaskRequest) -> TaskSuccessResponse | Ta
 @router.post("/tasks")
 async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
     set_request_id(req.headers.get("x-request-id"))
+    request_id = get_request_id() or request.taskId
     logger.info(
         "[v1] Task received: taskId=%s, taskType=%s",
         request.taskId, request.taskType,
     )
+    request_summary_tracker.register(request_id, endpoint="tasks")
 
     try:
         if request.taskType == TaskType.DEEP_ANALYZE:
@@ -73,6 +86,7 @@ async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
         elif request.taskType == TaskType.GENERATE_POC:
             result = await _handle_generate_poc(request)
         else:
+            request_summary_tracker.mark_failed(request_id, "UNKNOWN_TASK_TYPE")
             request_id = get_request_id()
             return JSONResponse(
                 status_code=400,
@@ -92,9 +106,13 @@ async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
                 },
                 headers={"X-Request-Id": request_id} if request_id else {},
             )
+        if result.status == "completed":
+            request_summary_tracker.mark_completed(request_id)
+        else:
+            request_summary_tracker.mark_failed(request_id, _failure_reason(result))
     except Exception:
         logger.error("[v1] Unexpected error", exc_info=True)
-        request_id = get_request_id()
+        request_summary_tracker.mark_failed(request_id, "INTERNAL_ERROR")
         return JSONResponse(
             status_code=500,
             content={
@@ -114,7 +132,7 @@ async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
 
 
 @router.get("/health")
-async def health(req: Request) -> dict:
+async def health(req: Request, requestId: str | None = Query(default=None)) -> dict:
     prompt_versions = {
         "deep-analyze": "agent-v1",
         "generate-poc": next(
@@ -141,6 +159,8 @@ async def health(req: Request) -> dict:
             },
         },
     }
+    result["activeRequestCount"] = request_summary_tracker.active_request_count()
+    result["requestSummary"] = request_summary_tracker.get_summary(requestId)
     if settings.llm_mode == "real":
         result["llmBackend"] = await _check_llm_backend()
         result["llmConcurrency"] = settings.llm_concurrency

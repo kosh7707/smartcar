@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -8,6 +9,8 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.main import app
+from app.runtime.request_summary import request_summary_tracker
+from app.config import settings
 from app.scanner.sarif_parser import parse_sarif
 from app.schemas.response import (
     ExecutionReport,
@@ -17,6 +20,23 @@ from app.schemas.response import (
 )
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+
+@pytest.fixture(autouse=True)
+def reset_request_summary_tracker():
+    request_summary_tracker.reset()
+    yield
+    request_summary_tracker.reset()
+
+
+@pytest.fixture(autouse=True)
+def reset_scan_semaphore():
+    from app.routers import scan as scan_router_module
+
+    original = scan_router_module._scan_semaphore
+    scan_router_module._scan_semaphore = asyncio.Semaphore(settings.max_concurrent_scans)
+    yield
+    scan_router_module._scan_semaphore = original
 
 
 @pytest.fixture
@@ -53,6 +73,15 @@ def mock_semgrep_runner(sample_sarif):
             "clang-tidy": {"available": True, "version": "18.1.3", "probeReason": None},
             "scan-build": {"available": False, "version": None, "probeReason": "runtime-tool-missing"},
             "gcc-fanalyzer": {"available": True, "version": "13.3.0", "probeReason": None},
+        })
+        mock_orch.build_health_policy = MagicMock(return_value={
+            "policyStatus": "degraded",
+            "policyReasons": ["runtime-tool-missing"],
+            "unavailableTools": ["scan-build"],
+            "allowedSkipReasons": [
+                "operator-requested-subset",
+                "profile-not-applicable",
+            ],
         })
         yield mock_orch
 

@@ -59,6 +59,18 @@ class BuildResult(BaseModel):
     artifactVerification: ArtifactVerification | None = None
 
 
+class BuildPreparation(BaseModel):
+    declaredMode: str | None = None
+    sdkId: str | None = None
+    buildCommand: str = ""
+    buildScript: str = ""
+    buildDir: str = "build-aegis"
+    buildEnvironment: dict[str, str] = Field(default_factory=dict)
+    provenance: dict[str, object] = Field(default_factory=dict)
+    expectedArtifacts: list[str] = Field(default_factory=list)
+    producedArtifacts: list[str] = Field(default_factory=list)
+
+
 class SdkProfile(BaseModel):
     compiler: str = ""
     compilerPrefix: str = ""
@@ -86,6 +98,7 @@ class AssessmentResult(BaseModel):
     policyFlags: list[str] = Field(default_factory=list)
     plan: TestPlan | None = None
     buildResult: BuildResult | None = None
+    buildPreparation: BuildPreparation | None = None
     sdkProfile: SdkProfile | None = None
 
 

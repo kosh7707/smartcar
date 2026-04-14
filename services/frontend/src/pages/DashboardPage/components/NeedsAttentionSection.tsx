@@ -1,5 +1,4 @@
 import React from "react";
-import { Shield } from "lucide-react";
 import { AttentionProjectCard } from "./AttentionProjectCard";
 import { DashboardEmptySurface } from "./DashboardEmptySurface";
 import type { DashboardProject } from "../dashboardTypes";
@@ -20,7 +19,6 @@ export const NeedsAttentionSection: React.FC<NeedsAttentionSectionProps> = ({ pr
       {projects.length === 0 ? (
         <DashboardEmptySurface
           tone="attention"
-          icon={<Shield size={22} />}
           title="긴급 항목 없음"
           description={
             hasProjectContext

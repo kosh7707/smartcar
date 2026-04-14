@@ -165,21 +165,19 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  padding: 1px 6px;
+  min-height: 28px;
+  padding: 0 8px;
   border-radius: var(--cds-radius-pill);
-  font-size: var(--cds-type-xs);
-  font-family: var(--cds-font-mono);
+  font-size: var(--cds-type-sm);
+  font-family: var(--cds-font-sans);
   font-weight: var(--cds-weight-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .badge-sm {
-  padding: 2px 8px;
+  min-height: 24px;
+  padding: 0 8px;
   font-size: var(--cds-type-sm);
-  letter-spacing: 0;
-  text-transform: none;
 }
 
 .badge-critical {
@@ -354,13 +352,16 @@
 }
 
 .severity-chip {
-  font-size: var(--cds-type-xs);
-  font-family: var(--cds-font-mono);
-  padding: 1px 6px;
+  font-size: var(--cds-type-sm);
+  font-family: var(--cds-font-sans);
+  min-height: 24px;
+  padding: 0 8px;
   border-radius: var(--cds-radius-pill);
   color: var(--cds-text-inverse);
   font-weight: var(--cds-weight-medium);
-  line-height: 1.6;
+  line-height: 1.4;
+  display: inline-flex;
+  align-items: center;
 }
 
 /* Fingerprint badge */
@@ -368,12 +369,13 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   color: var(--aegis-source-agent);
   background: var(--aegis-source-agent-bg);
   border: 1px solid var(--aegis-source-agent-border);
-  padding: 1px 6px;
-  border-radius: var(--cds-radius);
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: var(--cds-radius-pill);
   font-weight: var(--cds-weight-medium);
 }
 

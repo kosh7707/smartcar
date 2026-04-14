@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 _exchange_logger = logging.getLogger("llm_exchange")
 
 router = APIRouter(prefix="/v1", tags=["v1"])
+_STRICT_JSON_HEADER = "x-aegis-strict-json"
 
 
 def _json_response(
@@ -28,6 +29,91 @@ def _json_response(
         content=data.model_dump(mode="json"),
         headers=headers,
     )
+
+
+def _is_truthy_header(value: str | None) -> bool:
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _strict_json_requested(req: Request) -> bool:
+    return _is_truthy_header(req.headers.get(_STRICT_JSON_HEADER))
+
+
+def _strict_json_violation(
+    request_id: str,
+    model: str,
+    elapsed_ms: int,
+    detail: str,
+) -> JSONResponse:
+    logger.warning(
+        "[chat proxy] strict JSON contract violation requestId=%s, latencyMs=%d, detail=%s",
+        request_id, elapsed_ms, detail,
+        extra={"elapsedMs": elapsed_ms},
+    )
+    return JSONResponse(
+        status_code=502,
+        content={
+            "error": "Strict JSON contract violated",
+            "errorDetail": detail,
+            "retryable": True,
+            "strictJson": True,
+        },
+        headers={
+            "X-Request-Id": request_id,
+            "X-Model": model,
+            "X-Gateway-Latency-Ms": str(elapsed_ms),
+            "X-AEGIS-Strict-JSON": "applied",
+        },
+    )
+
+
+def _enforce_strict_json_request_controls(body: dict) -> None:
+    body["response_format"] = {"type": "json_object"}
+    chat_template_kwargs = body.get("chat_template_kwargs")
+    if not isinstance(chat_template_kwargs, dict):
+        chat_template_kwargs = {}
+    chat_template_kwargs["enable_thinking"] = False
+    body["chat_template_kwargs"] = chat_template_kwargs
+
+
+def _apply_strict_json_response_contract(resp_data: dict) -> tuple[dict | None, str | None]:
+    choices = resp_data.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return None, "LLM response missing choices[0] in strict JSON mode"
+
+    first_choice = choices[0]
+    if not isinstance(first_choice, dict):
+        return None, "LLM response choices[0] is not an object in strict JSON mode"
+
+    message = first_choice.get("message")
+    if not isinstance(message, dict):
+        return None, "LLM response missing choices[0].message in strict JSON mode"
+
+    content = message.get("content")
+    if not isinstance(content, str) or not content.strip():
+        return None, "LLM response missing JSON content in strict JSON mode"
+
+    try:
+        parsed_content = json.loads(content)
+    except json.JSONDecodeError as exc:
+        return None, f"LLM response content is not valid JSON in strict JSON mode: {exc.msg}"
+
+    if not isinstance(parsed_content, dict):
+        return None, "LLM response content is not a JSON object in strict JSON mode"
+
+    normalized = dict(resp_data)
+    normalized_choices = list(choices)
+    normalized_choice = dict(first_choice)
+    normalized_message = dict(message)
+    normalized_message["content"] = json.dumps(parsed_content, ensure_ascii=False, separators=(",", ":"))
+    if "reasoning" in normalized_message:
+        normalized_message["reasoning"] = None
+    normalized_choice["message"] = normalized_message
+    normalized_choices[0] = normalized_choice
+    normalized["choices"] = normalized_choices
+    return normalized, None
 
 
 @router.post("/tasks")
@@ -136,6 +222,7 @@ async def chat_proxy(req: Request) -> Response:
     request_id = get_request_id() or ""
 
     body = await req.json()
+    strict_json = _strict_json_requested(req)
 
     model_registry = req.app.state.model_registry
     profile = model_registry.get_default()
@@ -143,6 +230,8 @@ async def chat_proxy(req: Request) -> Response:
 
     # 모델명 오버라이드 — 호출자가 어떤 모델명을 보내든 Gateway가 실제 모델로 교체
     body["model"] = profile.modelName if profile else settings.llm_model
+    if strict_json:
+        _enforce_strict_json_request_controls(body)
 
     fwd_headers: dict[str, str] = {"Content-Type": "application/json"}
     if settings.llm_api_key:
@@ -266,9 +355,23 @@ async def chat_proxy(req: Request) -> Response:
         "model": body.get("model", ""),
         "usage": resp_data.get("usage") if resp_data else None,
         "finishReason": _finish_reason,
+        "strictJson": strict_json,
         "toolChoice": body.get("tool_choice", "none"),
         "toolCount": len(body.get("tools", [])),
     }, ensure_ascii=False))
+
+    if strict_json and resp.status_code == 200:
+        normalized_resp_data, strict_error = _apply_strict_json_response_contract(
+            resp_data if isinstance(resp_data, dict) else {},
+        )
+        if strict_error:
+            return _strict_json_violation(
+                request_id=request_id,
+                model=body.get("model", ""),
+                elapsed_ms=elapsed_ms,
+                detail=strict_error,
+            )
+        resp_data = normalized_resp_data
 
     if resp.status_code == 200:
         if circuit_breaker:
@@ -284,11 +387,11 @@ async def chat_proxy(req: Request) -> Response:
             )
         logger.info(
             "[chat proxy] 완료 requestId=%s, latencyMs=%d, model=%s, "
-            "promptTokens=%d, completionTokens=%d, finishReason=%s, "
+            "promptTokens=%d, completionTokens=%d, finishReason=%s, strictJson=%s, "
             "hasTools=%s, toolChoice=%s, toolCount=%d",
             request_id, elapsed_ms, body.get("model", ""),
             usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0),
-            _finish_reason, bool(body.get("tools")),
+            _finish_reason, strict_json, bool(body.get("tools")),
             body.get("tool_choice", "none"), len(body.get("tools", [])),
             extra={"elapsedMs": elapsed_ms},
         )
@@ -311,9 +414,11 @@ async def chat_proxy(req: Request) -> Response:
         resp_headers["X-Request-Id"] = request_id
     resp_headers["X-Model"] = body.get("model", "")
     resp_headers["X-Gateway-Latency-Ms"] = str(elapsed_ms)
+    if strict_json:
+        resp_headers["X-AEGIS-Strict-JSON"] = "applied"
 
     return Response(
-        content=resp.content,
+        content=json.dumps(resp_data, ensure_ascii=False).encode() if strict_json and resp_data else resp.content,
         status_code=resp.status_code,
         media_type="application/json",
         headers=resp_headers,

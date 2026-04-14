@@ -460,6 +460,105 @@ class TestTargetPath:
         assert captured_path["path"] == "/uploads/project"
         await executor.aclose()
 
+    @pytest.mark.asyncio
+    async def test_build_preparation_bundle_drives_build_and_analyze(self):
+        """명시적 buildPreparation 번들이 있으면 top-level buildCommand 없이도 build-and-analyze를 탄다."""
+        from app.core.agent_session import AgentSession
+        from app.schemas.request import TaskRequest
+
+        request = TaskRequest.model_validate({
+            "taskType": "deep-analyze",
+            "taskId": "test-build-preparation",
+            "context": {
+                "trusted": {
+                    "objective": "test",
+                    "projectPath": "/uploads/project",
+                    "projectId": "proj-1",
+                    "buildPreparation": {
+                        "buildCommand": "bash build-aegis/run.sh",
+                        "buildEnvironment": {"CC": "arm-none-linux-gnueabihf-gcc"},
+                        "buildProfile": {"sdkId": "nxp-s32g2"},
+                        "provenance": {"buildSnapshotId": "bsnap-1"},
+                    },
+                }
+            },
+        })
+        from agent_shared.schemas.agent import BudgetState
+        budget = BudgetState(max_steps=1, max_completion_tokens=100)
+        session = AgentSession(request, budget)
+
+        executor = Phase1Executor(
+            sast_endpoint="http://localhost:9000",
+            kb_endpoint="http://localhost:8002",
+        )
+
+        captured = {}
+
+        async def mock_ba(result, project_id, project_path, build_command, build_profile, request_id, **kwargs):
+            captured["project_id"] = project_id
+            captured["project_path"] = project_path
+            captured["build_command"] = build_command
+            captured["build_profile"] = build_profile
+            captured["build_environment"] = kwargs.get("build_environment")
+            captured["provenance"] = kwargs.get("provenance")
+            return result
+
+        executor._run_build_and_analyze = mock_ba
+
+        await executor.execute(session)
+
+        assert captured["project_id"] == "proj-1"
+        assert captured["project_path"] == "/uploads/project"
+        assert captured["build_command"] == "bash build-aegis/run.sh"
+        assert captured["build_profile"] == {"sdkId": "nxp-s32g2"}
+        assert captured["build_environment"] == {"CC": "arm-none-linux-gnueabihf-gcc"}
+        assert captured["provenance"] == {"buildSnapshotId": "bsnap-1"}
+        await executor.aclose()
+
+    @pytest.mark.asyncio
+    async def test_quick_context_precomputed_results_skip_tool_execution(self):
+        """명시적 quickContext findings/libraries가 있으면 결정론적 재실행을 건너뛴다."""
+        from app.core.agent_session import AgentSession
+        from app.schemas.request import TaskRequest
+
+        request = TaskRequest.model_validate({
+            "taskType": "deep-analyze",
+            "taskId": "test-quick-context",
+            "context": {
+                "trusted": {
+                    "objective": "test",
+                    "projectPath": "/uploads/project",
+                    "projectId": "proj-1",
+                    "quickContext": {
+                        "sastFindings": [{"ruleId": "CWE-78", "message": "command injection"}],
+                        "scaLibraries": [{"name": "openssl", "version": "1.1.1"}],
+                    },
+                }
+            },
+        })
+        from agent_shared.schemas.agent import BudgetState
+        budget = BudgetState(max_steps=1, max_completion_tokens=100)
+        session = AgentSession(request, budget)
+
+        executor = Phase1Executor(
+            sast_endpoint="http://localhost:9000",
+            kb_endpoint="http://localhost:8002",
+        )
+
+        executor._run_build_and_analyze = AsyncMock(side_effect=AssertionError("should not run"))
+        executor._run_individual_tools = AsyncMock(side_effect=AssertionError("should not run"))
+        executor._run_cve_lookup = AsyncMock(side_effect=lambda result: result)
+        executor._run_threat_query = AsyncMock(side_effect=lambda result: result)
+        executor._run_dangerous_callers = AsyncMock(side_effect=lambda result, *_args, **_kwargs: result)
+
+        result = await executor.execute(session)
+
+        assert result.sast_findings == [{"ruleId": "CWE-78", "message": "command injection"}]
+        assert result.sca_libraries == [{"name": "openssl", "version": "1.1.1"}]
+        executor._run_build_and_analyze.assert_not_called()
+        executor._run_individual_tools.assert_not_called()
+        await executor.aclose()
+
 
 class TestBuildAndAnalyzeFallback:
     @pytest.mark.asyncio

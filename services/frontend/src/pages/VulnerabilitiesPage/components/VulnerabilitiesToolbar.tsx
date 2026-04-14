@@ -1,16 +1,8 @@
 import React from "react";
 import type { FindingSourceType, FindingStatus, Severity } from "@aegis/shared";
-import { ArrowUpDown, Keyboard, Search, Shield, X } from "lucide-react";
+import { ArrowUpDown, Keyboard, Search, X } from "lucide-react";
 import { FINDING_STATUS_LABELS, SOURCE_TYPE_LABELS } from "../../../constants/finding";
 import { SEVERITY_ORDER } from "../../../utils/severity";
-
-const SEVERITY_ICONS: Record<string, React.ReactNode> = {
-  critical: <Shield size={14} />,
-  high: <Shield size={14} />,
-  medium: <Shield size={14} />,
-  low: <Shield size={14} />,
-  info: <Shield size={14} />,
-};
 
 interface VulnerabilitiesToolbarProps {
   counts: { total: number; critical: number; high: number; medium: number; low: number; info: number };
@@ -79,18 +71,16 @@ export const VulnerabilitiesToolbar: React.FC<VulnerabilitiesToolbarProps> = ({
         className={`vuln-filter-tab${activeSeverity === "all" ? " vuln-filter-tab--active" : ""}`}
         onClick={() => setFilter("all")}
       >
-        <Shield size={14} />
         전체 <span className="vuln-filter-count">{counts.total}</span>
       </button>
-      {SEVERITY_ORDER.map((sev) => (
+      {SEVERITY_ORDER.map((severity) => (
         <button
-          key={sev}
-          className={`vuln-filter-tab vuln-filter-tab--${sev}${activeSeverity === sev ? " vuln-filter-tab--active" : ""}`}
-          onClick={() => setFilter(sev)}
+          key={severity}
+          className={`vuln-filter-tab vuln-filter-tab--${severity}${activeSeverity === severity ? " vuln-filter-tab--active" : ""}`}
+          onClick={() => setFilter(severity)}
         >
-          {SEVERITY_ICONS[sev]}
-          {sev.charAt(0).toUpperCase() + sev.slice(1)}
-          <span className="vuln-filter-count">{counts[sev as keyof typeof counts]}</span>
+          {severity.charAt(0).toUpperCase() + severity.slice(1)}
+          <span className="vuln-filter-count">{counts[severity as keyof typeof counts]}</span>
         </button>
       ))}
 
@@ -100,8 +90,8 @@ export const VulnerabilitiesToolbar: React.FC<VulnerabilitiesToolbarProps> = ({
         onChange={(e) => setSourceTypeFilter(e.target.value as FindingSourceType | "all")}
       >
         <option value="all">출처: 전체</option>
-        {Object.entries(SOURCE_TYPE_LABELS).map(([k, v]) => (
-          <option key={k} value={k}>{v}</option>
+        {Object.entries(SOURCE_TYPE_LABELS).map(([key, value]) => (
+          <option key={key} value={key}>{value}</option>
         ))}
       </select>
 
@@ -111,8 +101,8 @@ export const VulnerabilitiesToolbar: React.FC<VulnerabilitiesToolbarProps> = ({
         onChange={(e) => setStatusFilter(e.target.value as FindingStatus | "all")}
       >
         <option value="all">상태: 전체</option>
-        {Object.entries(FINDING_STATUS_LABELS).map(([k, v]) => (
-          <option key={k} value={k}>{v}</option>
+        {Object.entries(FINDING_STATUS_LABELS).map(([key, value]) => (
+          <option key={key} value={key}>{value}</option>
         ))}
       </select>
 
@@ -211,8 +201,8 @@ export const VulnerabilitiesToolbar: React.FC<VulnerabilitiesToolbarProps> = ({
           onChange={(e) => setBulkStatus(e.target.value as FindingStatus | "")}
         >
           <option value="">상태 선택</option>
-          {Object.entries(FINDING_STATUS_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
+          {Object.entries(FINDING_STATUS_LABELS).map(([key, value]) => (
+            <option key={key} value={key}>{value}</option>
           ))}
         </select>
         <input
@@ -229,11 +219,8 @@ export const VulnerabilitiesToolbar: React.FC<VulnerabilitiesToolbarProps> = ({
         >
           {bulkProcessing ? "처리 중..." : "적용"}
         </button>
-        <button
-          className="btn btn-secondary btn-sm"
-          onClick={clearSelection}
-        >
-          <X size={12} /> 해제
+        <button className="btn btn-secondary btn-sm" onClick={clearSelection}>
+          해제
         </button>
       </div>
     )}

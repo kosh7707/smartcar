@@ -342,3 +342,84 @@ class TestChatProxy:
         call_kwargs = mock_client.post.call_args
         req_timeout = call_kwargs.kwargs.get("timeout") or call_kwargs[1].get("timeout")
         assert req_timeout.read == 1800.0
+
+    def test_chat_proxy_strict_json_mode_injects_controls(self, client_live):
+        """X-AEGIS-Strict-JSON=true 이면 Gateway가 JSON 강제 제어를 주입한다."""
+        mock_llm_response = {
+            "choices": [{"message": {"content": '{"ok":true}'}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 5, "completion_tokens": 3},
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            resp = client_live.post(
+                "/v1/chat",
+                json={"model": "test", "messages": [{"role": "user", "content": "x"}]},
+                headers={"X-AEGIS-Strict-JSON": "true"},
+            )
+
+        assert resp.status_code == 200
+        call_kwargs = mock_client.post.call_args
+        body = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
+        assert body["response_format"] == {"type": "json_object"}
+        assert body["chat_template_kwargs"]["enable_thinking"] is False
+        assert resp.headers["X-AEGIS-Strict-JSON"] == "applied"
+
+    def test_chat_proxy_strict_json_mode_scrubs_reasoning_and_normalizes_content(self, client_live):
+        """strict JSON 모드에서는 reasoning을 scrub하고 content를 compact JSON으로 정규화한다."""
+        mock_llm_response = {
+            "choices": [{
+                "message": {
+                    "content": '{\n  "ok": true\n}',
+                    "reasoning": "internal chain",
+                },
+                "finish_reason": "stop",
+            }],
+            "usage": {"prompt_tokens": 5, "completion_tokens": 3},
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            resp = client_live.post(
+                "/v1/chat",
+                json={"model": "test", "messages": [{"role": "user", "content": "x"}]},
+                headers={"X-AEGIS-Strict-JSON": "true"},
+            )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["choices"][0]["message"]["content"] == '{"ok":true}'
+        assert data["choices"][0]["message"]["reasoning"] is None
+
+    def test_chat_proxy_strict_json_mode_rejects_invalid_json_response(self, client_live):
+        """strict JSON 모드에서 JSON object가 아니면 502로 명확히 실패한다."""
+        mock_llm_response = {
+            "choices": [{
+                "message": {
+                    "content": None,
+                    "reasoning": "Thinking...",
+                },
+                "finish_reason": "length",
+            }],
+            "usage": {"prompt_tokens": 5, "completion_tokens": 64},
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            resp = client_live.post(
+                "/v1/chat",
+                json={"model": "test", "messages": [{"role": "user", "content": "x"}]},
+                headers={"X-AEGIS-Strict-JSON": "true"},
+            )
+
+        assert resp.status_code == 502
+        data = resp.json()
+        assert data["error"] == "Strict JSON contract violated"
+        assert data["retryable"] is True
+        assert data["strictJson"] is True

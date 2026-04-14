@@ -108,11 +108,16 @@ export interface BuildResponse {
   success: boolean;
   compileCommandsPath?: string;
   entries?: number;
+  userEntries?: number;
   elapsedMs?: number;
+  exitCode?: number;
   error?: string;
   buildLog?: string;
   failureCategory?: string;
   environmentKeys?: string[];
+  readinessStatus?: string;
+  compileCommandsReady?: boolean;
+  quickEligible?: boolean;
 }
 
 export interface DiscoverTargetsResponse {
@@ -205,6 +210,7 @@ export class SastClient {
           compileCommandsPath?: string;
           entries?: number;
           userEntries?: number;
+          exitCode?: number;
           elapsedMs?: number;
           buildOutput?: string;
           environmentKeys?: string[];
@@ -221,19 +227,47 @@ export class SastClient {
         buildLog?: string;
       };
       const evidence = data.buildEvidence;
+      const readiness = (data as {
+        readiness?: {
+          status?: string;
+          compileCommandsReady?: boolean;
+          quickEligible?: boolean;
+        };
+      }).readiness;
       return {
         success: data.success,
         compileCommandsPath: evidence?.compileCommandsPath ?? data.compileCommandsPath,
         entries: evidence?.userEntries ?? evidence?.entries ?? data.entries,
+        userEntries: evidence?.userEntries,
         elapsedMs: evidence?.elapsedMs ?? data.elapsedMs,
+        exitCode: evidence?.exitCode,
         buildLog: evidence?.buildOutput ?? data.buildLog,
         error: data.error ?? data.failureDetail?.summary ?? data.failureDetail?.matchedExcerpt,
         failureCategory: data.failureDetail?.category,
         environmentKeys: evidence?.environmentKeys,
+        readinessStatus: readiness?.status,
+        compileCommandsReady: readiness?.compileCommandsReady,
+        quickEligible: readiness?.quickEligible,
       };
     } catch (err) {
       throw new SastUnavailableError("Failed to parse build response", err);
     }
+  }
+
+  isBuildReadyForQuick(build: BuildResponse): boolean {
+    if (build.readinessStatus !== undefined || build.compileCommandsReady !== undefined || build.quickEligible !== undefined) {
+      return build.success === true
+        && build.readinessStatus === "ready"
+        && build.compileCommandsReady === true
+        && build.quickEligible === true
+        && !!build.compileCommandsPath
+        && (build.userEntries ?? build.entries ?? 0) > 0
+        && (build.exitCode ?? 0) === 0;
+    }
+
+    return build.success === true
+      && !!build.compileCommandsPath
+      && (build.entries ?? 0) > 0;
   }
 
   async discoverTargets(

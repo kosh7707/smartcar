@@ -14,23 +14,18 @@
 
 .login-card {
   width: 100%;
-  max-width: 420px;
-  background: var(--cds-layer-raised);
-  border-radius: var(--cds-radius);
-  overflow: hidden;
-  border: 1px solid var(--cds-border-subtle);
+  max-width: 480px;
 }
 
 .login-card .page-header--plain {
-  margin-bottom: 0;
-  padding: var(--cds-spacing-08) var(--cds-spacing-08) var(--cds-spacing-05);
-  border-bottom: 1px solid var(--cds-border-subtle);
+  margin-bottom: var(--cds-spacing-07);
+  padding: 0 0 var(--cds-spacing-05);
 }
 
 /* ── Form section ── */
 
 .login-form-section {
-  padding: var(--cds-spacing-06) var(--cds-spacing-08);
+  padding: 0;
 }
 
 .login-form-heading {
@@ -54,28 +49,28 @@
 }
 
 .login-field label {
-  font-size: var(--cds-type-xs);
-  font-weight: var(--cds-weight-semibold);
+  font-size: var(--cds-type-sm);
+  font-weight: var(--cds-weight-medium);
   color: var(--cds-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0;
 }
 
 .login-field input {
   width: 100%;
-  padding: var(--cds-spacing-03) 0;
-  border: none;
-  border-bottom: 1px solid var(--cds-border-subtle);
-  background: transparent;
+  padding: var(--cds-spacing-04);
+  border: 1px solid var(--cds-border-subtle);
+  border-radius: var(--cds-radius);
+  background: var(--cds-layer-raised);
   color: var(--cds-text-primary);
   font-size: var(--cds-type-md);
   font-family: var(--cds-font-sans);
-  transition: border-color var(--cds-transition-fast);
+  transition: border-color var(--cds-transition-fast), box-shadow var(--cds-transition-fast);
   outline: none;
 }
 
 .login-field input:focus {
-  border-bottom-color: var(--cds-interactive);
+  border-color: var(--cds-interactive);
+  box-shadow: 0 0 0 2px var(--cds-interactive-subtle);
 }
 
 .login-field input::placeholder {
@@ -127,8 +122,8 @@
 /* ── Footer section (sign up link) ── */
 
 .login-card__footer-section {
-  padding: var(--cds-spacing-06) var(--cds-spacing-08) var(--cds-spacing-08);
-  background: var(--cds-layer-01);
+  padding: var(--cds-spacing-06) 0 0;
+  margin-top: var(--cds-spacing-06);
   border-top: 1px solid var(--cds-border-subtle);
 }
 
@@ -158,7 +153,7 @@
 }
 
 .login-page__footer p {
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   color: var(--cds-text-placeholder);
   margin: 0;
   letter-spacing: var(--cds-letter-spacing-caption);

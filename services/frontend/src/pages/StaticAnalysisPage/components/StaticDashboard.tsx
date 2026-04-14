@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import type { StaticAnalysisDashboardSummary, Run, AnalysisProgress, RunDetailResponse } from "@aegis/shared";
 import type { DashboardPeriod } from "../../../shared/ui/PeriodSelector";
 import { PageHeader } from "../../../shared/ui";
-import { FileSearch, Plus, Code } from "lucide-react";
+import { Plus, Code } from "lucide-react";
 import { ActiveAnalysisBanner } from "./ActiveAnalysisBanner";
 import { LatestAnalysisTab } from "./LatestAnalysisTab";
 import { OverallStatusTab } from "./OverallStatusTab";
@@ -49,7 +49,6 @@ export const StaticDashboard: React.FC<Props> = ({
     <div className="page-enter">
       <PageHeader
         title="정적 분석"
-        icon={<FileSearch size={20} />}
         action={
           <div style={{ display: "flex", gap: "var(--cds-spacing-03)" }}>
             {onBrowseTree && (

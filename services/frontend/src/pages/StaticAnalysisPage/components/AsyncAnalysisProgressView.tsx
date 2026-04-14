@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import type { AnalysisProgress } from "@aegis/shared";
-import { CheckCircle2, FileSearch, XCircle, Eye } from "lucide-react";
+import { CheckCircle2, XCircle, Eye } from "lucide-react";
 import { useElapsedTimer } from "../../../hooks/useElapsedTimer";
 import { PageHeader, Spinner, BackButton, ConfirmDialog } from "../../../shared/ui";
 import "./AsyncAnalysisProgressView.css";
@@ -97,7 +97,7 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
   return (
     <div className="page-enter">
       <BackButton onClick={onBack} label="대시보드로" />
-      <PageHeader title="정적 분석" icon={<FileSearch size={20} />} />
+      <PageHeader title="정적 분석" />
 
       <div className="card async-progress">
         {!isDone && <Spinner size={40} />}

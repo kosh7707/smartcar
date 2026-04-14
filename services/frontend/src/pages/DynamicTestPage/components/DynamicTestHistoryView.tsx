@@ -38,7 +38,6 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
     <ConnectionStatusBanner connectionState={connectionState as any} />
     <PageHeader
       title="동적 테스트"
-      icon={<FlaskConical size={20} />}
       action={
         <button className="btn" onClick={() => {
           if (!hasConnected) { setAdapterWarning(true); return; }
@@ -64,7 +63,6 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
       </div>
     ) : history.length === 0 ? (
       <EmptyState
-        icon={<FlaskConical size={28} />}
         title="아직 테스트 이력이 없습니다"
         description="ECU에 퍼징/침투 테스트를 실행하고 취약점을 탐지합니다"
         action={

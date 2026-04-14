@@ -69,6 +69,29 @@ def _require_service():
         raise HTTPException(503, "Code graph service not initialized")
 
 
+def _ingest_readiness(node_count: int, vector_count: int) -> tuple[str, dict[str, bool], list[str]]:
+    if node_count <= 0:
+        return (
+            "empty",
+            {
+                "neo4jGraph": False,
+                "vectorIndex": False,
+                "graphRag": False,
+            },
+            [],
+        )
+
+    vector_ready = vector_count >= node_count
+    readiness = {
+        "neo4jGraph": True,
+        "vectorIndex": vector_ready,
+        "graphRag": vector_ready,
+    }
+    if vector_ready:
+        return "ready", readiness, []
+    return "partial", readiness, ["VECTOR_INDEX_INCOMPLETE"]
+
+
 class CodeSearchRequest(BaseModel):
     query: str = Field(..., description="검색 쿼리 (자연어 또는 함수명)")
     top_k: int = Field(default=10, ge=1, le=50)
@@ -107,6 +130,20 @@ async def ingest(
         except Exception as e:
             logger.warning("코드 함수 벡터 적재 실패 (Neo4j만 성공): %s", e)
             result["vectorCount"] = 0
+
+    status, readiness, warnings = _ingest_readiness(
+        result.get("nodeCount", 0),
+        result.get("vectorCount", 0),
+    )
+    result["operation"] = {
+        "mode": result.get("replaceMode", "replace_project_graph"),
+        "repeatable": True,
+        "replacedExistingGraph": result.get("replacedExistingGraph", False),
+    }
+    result["readiness"] = readiness
+    result["status"] = status
+    if warnings:
+        result["warnings"] = warnings
 
     return result
 

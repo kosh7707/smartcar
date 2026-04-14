@@ -38,11 +38,12 @@ export const FilesPageHeader: React.FC<FilesPageHeaderProps> = ({
           </button>
         )}
         <button
-          className="fpage-action-btn"
+          className="btn btn-secondary btn-sm"
           onClick={onOpenUpload}
           title="소스코드 업로드"
         >
-          <Upload size={20} />
+          <Upload size={14} />
+          소스 업로드
         </button>
         <input
           ref={fileInputRef}

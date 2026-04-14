@@ -99,7 +99,10 @@ export interface TestAppContext {
   settingsService: ProjectSettingsService;
   analysisTracker: AnalysisTracker;
   pipelineRunCalls: Array<{ projectId: string; targetIds?: string[]; requestId?: string; pipelineId?: string }>;
+  pipelinePrepareCalls: Array<{ projectId: string; targetIds?: string[]; requestId?: string; preparationId?: string }>;
   analysisRunCalls: Array<{ projectId: string; analysisId: string; targetIds?: string[]; requestId?: string }>;
+  analysisQuickCalls: Array<{ projectId: string; analysisId: string; targetIds?: string[]; requestId?: string }>;
+  analysisDeepCalls: Array<{ projectId: string; analysisId: string; quickAnalysisId: string; requestId?: string }>;
   projectUploadsRoot: string;
   dynamicTestRunningProjects: Set<string>;
 }
@@ -289,16 +292,28 @@ export function createTestApp(): TestAppContext {
     },
   };
   const pipelineRunCalls: Array<{ projectId: string; targetIds?: string[]; requestId?: string; pipelineId?: string }> = [];
+  const pipelinePrepareCalls: Array<{ projectId: string; targetIds?: string[]; requestId?: string; preparationId?: string }> = [];
   const pipelineOrchestrator = {
     async runPipeline(projectId: string, targetIds?: string[], requestId?: string, _signal?: AbortSignal, pipelineId?: string) {
       pipelineRunCalls.push({ projectId, targetIds, requestId, pipelineId });
     },
+    async preparePipeline(projectId: string, targetIds?: string[], requestId?: string, _signal?: AbortSignal, preparationId?: string) {
+      pipelinePrepareCalls.push({ projectId, targetIds, requestId, preparationId });
+    },
   };
   const analysisRunCalls: Array<{ projectId: string; analysisId: string; targetIds?: string[]; requestId?: string }> = [];
+  const analysisQuickCalls: Array<{ projectId: string; analysisId: string; targetIds?: string[]; requestId?: string }> = [];
+  const analysisDeepCalls: Array<{ projectId: string; analysisId: string; quickAnalysisId: string; requestId?: string }> = [];
   const analysisTracker = new AnalysisTracker();
   const analysisOrchestrator = {
     async runAnalysis(projectId: string, analysisId: string, targetIds?: string[], requestId?: string) {
       analysisRunCalls.push({ projectId, analysisId, targetIds, requestId });
+    },
+    async runQuickAnalysis(projectId: string, analysisId: string, targetIds?: string[], requestId?: string) {
+      analysisQuickCalls.push({ projectId, analysisId, targetIds, requestId });
+    },
+    async runDeepAnalysis(projectId: string, analysisId: string, quickAnalysisId: string, requestId?: string) {
+      analysisDeepCalls.push({ projectId, analysisId, quickAnalysisId, requestId });
     },
   };
   const agentClient = {
@@ -509,7 +524,7 @@ export function createTestApp(): TestAppContext {
     approvalDAO, auditLogDAO, analysisResultDAO, dynamicSessionDAO, fileStore,
     buildTargetDAO, targetLibraryDAO, sdkRegistryDAO, notificationDAO, userDAO, sessionDAO,
     gateService, normalizer, buildTargetService,
-    notificationService, userService, settingsService, analysisTracker, pipelineRunCalls, analysisRunCalls,
+    notificationService, userService, settingsService, analysisTracker, pipelineRunCalls, pipelinePrepareCalls, analysisRunCalls, analysisQuickCalls, analysisDeepCalls,
     projectUploadsRoot, dynamicTestRunningProjects,
   };
 }

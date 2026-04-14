@@ -6,6 +6,7 @@ import { FileTreeNode, Spinner } from "../../../shared/ui";
 import type { TreeNode } from "../../../utils/tree";
 import { HighlightedCode } from "./HighlightedCode";
 import { parseLocation } from "../../../utils/location";
+import "./FilesSourceWorkspace.css";
 
 interface FilesSourceWorkspaceProps {
   search: string;
@@ -13,7 +14,6 @@ interface FilesSourceWorkspaceProps {
   onExpandAll: () => void;
   onCollapseAll: () => void;
   displayTree: TreeNode<SourceFileEntry>;
-  treeKey: number;
   selectedPath: string | null;
   handleFileClick: (data: SourceFileEntry) => void;
   renderFileIcon: (data: SourceFileEntry) => React.ReactNode;
@@ -25,6 +25,13 @@ interface FilesSourceWorkspaceProps {
   highlightLines: Set<number>;
   selectedFileFindings: Finding[];
   onSelectFinding: (findingId: string) => void;
+  openPaths: Set<string>;
+  onToggleFolder: (path: string, open: boolean) => void;
+  layoutRef: React.RefObject<HTMLDivElement | null>;
+  treePanelWidth: number;
+  isResizing: boolean;
+  onStartResize: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onNudgeResize: (direction: "left" | "right") => void;
 }
 
 export const FilesSourceWorkspace: React.FC<FilesSourceWorkspaceProps> = ({
@@ -33,7 +40,6 @@ export const FilesSourceWorkspace: React.FC<FilesSourceWorkspaceProps> = ({
   onExpandAll,
   onCollapseAll,
   displayTree,
-  treeKey,
   selectedPath,
   handleFileClick,
   renderFileIcon,
@@ -45,8 +51,20 @@ export const FilesSourceWorkspace: React.FC<FilesSourceWorkspaceProps> = ({
   highlightLines,
   selectedFileFindings,
   onSelectFinding,
+  openPaths,
+  onToggleFolder,
+  layoutRef,
+  treePanelWidth,
+  isResizing,
+  onStartResize,
+  onNudgeResize,
 }) => (
-  <div className="source-tree__layout">
+  <div
+    ref={layoutRef}
+    className="source-tree__layout fpage-workspace"
+    data-testid="files-source-workspace"
+    style={{ ["--files-tree-panel-width" as string]: `${treePanelWidth}px` } as React.CSSProperties}
+  >
     <div className="card source-tree__tree-panel">
       <div className="source-tree__tree-header">
         <div className="source-tree__search-area">
@@ -82,7 +100,7 @@ export const FilesSourceWorkspace: React.FC<FilesSourceWorkspaceProps> = ({
         ) : (
           displayTree.children.map((node) => (
             <FileTreeNode<SourceFileEntry>
-              key={`${treeKey}-${node.path}`}
+              key={node.path}
               node={node}
               depth={0}
               searchOpen={search.trim().length > 0}
@@ -91,11 +109,33 @@ export const FilesSourceWorkspace: React.FC<FilesSourceWorkspaceProps> = ({
               renderFileMeta={renderFileMeta}
               renderFolderBadge={renderFolderBadge}
               selectedPath={selectedPath ?? undefined}
+              openPaths={openPaths}
+              onToggleFolder={onToggleFolder}
             />
           ))
         )}
       </div>
     </div>
+
+    <button
+      type="button"
+      className={`source-tree__splitter${isResizing ? " source-tree__splitter--active" : ""}`}
+      data-testid="files-source-workspace-splitter"
+      aria-label="패널 크기 조절"
+      aria-orientation="vertical"
+      title="패널 크기 조절"
+      onMouseDown={onStartResize}
+      onKeyDown={(event) => {
+        if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          onNudgeResize("left");
+        }
+        if (event.key === "ArrowRight") {
+          event.preventDefault();
+          onNudgeResize("right");
+        }
+      }}
+    />
 
     <div className="card source-tree__preview-panel">
       {!selectedPath ? (

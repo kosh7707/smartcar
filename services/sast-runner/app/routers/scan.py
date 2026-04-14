@@ -12,11 +12,13 @@ import time
 import uuid
 from pathlib import Path
 from fastapi import APIRouter, Request, Response
+from fastapi import Query
 from fastapi.responses import StreamingResponse
 
 from app.config import settings
 from app.context import set_request_id
 from app.errors import NoFilesError, PolicyViolationError, SastRunnerError
+from app.runtime.request_summary import request_summary_tracker
 from app.scanner.ast_dumper import AstDumper
 from app.scanner.build_metadata import BuildMetadataExtractor
 from app.scanner.build_runner import BuildRunner
@@ -35,6 +37,7 @@ from app.schemas.response import (
     BuildAndAnalyzeResponse,
     BuildEvidence,
     BuildFailureDetail,
+    BuildReadiness,
     BuildResponse,
     ErrorDetail,
     HealthResponse,
@@ -174,6 +177,7 @@ def _to_build_response(
         success=result["success"],
         provenance=provenance,
         buildEvidence=BuildEvidence(**result["buildEvidence"]),
+        readiness=BuildReadiness(**result["readiness"]),
         failureDetail=(
             BuildFailureDetail(**result["failureDetail"])
             if result.get("failureDetail")
@@ -201,6 +205,7 @@ async def _run_scan_core(
     t0 = time.perf_counter()
 
     async with _scan_semaphore:
+        request_summary_tracker.mark_started(request_id)
         if on_started:
             await on_started()
         scan_dir, source_files, should_cleanup = _prepare_scan_dir(body)
@@ -366,8 +371,10 @@ def _scan_streaming(
 
         async def _on_started():
             state["status"] = "running"
+            request_summary_tracker.mark_started(request_id)
 
         async def _on_progress(tool: str, status: str, count: int, elapsed: int):
+            request_summary_tracker.mark_progress(request_id, tool, status, count)
             if status == "started":
                 state["activeTools"].append(tool)
             elif status in ("completed", "failed"):
@@ -386,6 +393,7 @@ def _scan_streaming(
             })
 
         async def _on_file_progress(tool: str, file: str, done: int, total: int):
+            request_summary_tracker.mark_file_progress(request_id, file, done, total)
             file_progress_by_tool[tool] = {"done": done, "total": total}
             state["filesCompleted"] = sum(t["done"] for t in file_progress_by_tool.values())
             state["filesTotal"] = sum(t["total"] for t in file_progress_by_tool.values())
@@ -398,6 +406,7 @@ def _scan_streaming(
             )
 
         async def _on_runtime_state(tool: str, tool_state: dict):
+            request_summary_tracker.mark_runtime_state(request_id, tool_state)
             state["toolStates"].setdefault(tool, {}).update(tool_state)
             reasons = sorted(
                 {
@@ -460,12 +469,14 @@ def _scan_streaming(
 
             # 최종 결과
             result = scan_task.result()
+            request_summary_tracker.mark_completed(request_id)
             yield _json.dumps({
                 "type": "result",
                 "data": result.model_dump(by_alias=True, exclude_none=True),
             }, ensure_ascii=False) + "\n"
 
         except PolicyViolationError as exc:
+            request_summary_tracker.mark_failed(request_id, exc.message)
             execution_payload = None
             if exc.scan_response.execution is not None:
                 execution_payload = exc.scan_response.execution.model_dump(
@@ -484,6 +495,7 @@ def _scan_streaming(
             }, ensure_ascii=False) + "\n"
 
         except SastRunnerError as exc:
+            request_summary_tracker.mark_failed(request_id, exc.message)
             yield _json.dumps({
                 "type": "error",
                 "code": exc.code,
@@ -494,6 +506,7 @@ def _scan_streaming(
             }, ensure_ascii=False) + "\n"
 
         except Exception as exc:
+            request_summary_tracker.mark_failed(request_id, str(exc))
             yield _json.dumps({
                 "type": "error",
                 "code": "INTERNAL_ERROR",
@@ -536,6 +549,7 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
             raise NoFilesError("No files or projectPath provided for scanning")
         for f in body.files:
             _validate_path(f.path)
+        request_summary_tracker.register(request_id, endpoint="scan")
         rulesets = resolve_rulesets(
             body.rulesets, body.build_profile, settings.default_rulesets,
         )
@@ -550,19 +564,41 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
             raise NoFilesError("No files or projectPath provided for scanning")
         for f in body.files:
             _validate_path(f.path)
+        request_summary_tracker.register(request_id, endpoint="scan")
 
         rulesets = resolve_rulesets(
             body.rulesets, body.build_profile, settings.default_rulesets,
         )
         timeout = _get_timeout(request, body.options.timeout_seconds)
 
-        return await _run_scan_core(request_id, body, rulesets, timeout)
+        async def _track_progress(tool: str, status: str, count: int, elapsed: int):
+            request_summary_tracker.mark_progress(request_id, tool, status, count)
+
+        async def _track_file_progress(tool: str, file: str, done: int, total: int):
+            request_summary_tracker.mark_file_progress(request_id, file, done, total)
+
+        async def _track_runtime_state(tool: str, tool_state: dict):
+            request_summary_tracker.mark_runtime_state(request_id, tool_state)
+
+        result = await _run_scan_core(
+            request_id,
+            body,
+            rulesets,
+            timeout,
+            on_progress=_track_progress,
+            on_file_progress=_track_file_progress,
+            on_runtime_state=_track_runtime_state,
+        )
+        request_summary_tracker.mark_completed(request_id)
+        return result
 
     except PolicyViolationError as exc:
+        request_summary_tracker.mark_failed(request_id, exc.message)
         response.status_code = exc.status_code
         return exc.scan_response
 
     except SastRunnerError as exc:
+        request_summary_tracker.mark_failed(request_id, exc.message)
         logger.error(
             "Scan failed: %s",
             exc.message,
@@ -584,6 +620,7 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
         )
 
     except Exception as exc:
+        request_summary_tracker.mark_failed(request_id, str(exc))
         logger.error(
             "Unexpected error: %s",
             str(exc),
@@ -827,7 +864,26 @@ async def build_and_analyze(
         )
         rulesets = resolve_rulesets(body.rulesets, scan_profile, settings.default_rulesets)
         timeout = _get_timeout(request, body.options.timeout_seconds)
-        scan_result = await _run_scan_core(request_id, scan_req, rulesets, timeout)
+        request_summary_tracker.register(request_id, endpoint="scan")
+        async def _track_progress(tool: str, status: str, count: int, elapsed: int):
+            request_summary_tracker.mark_progress(request_id, tool, status, count)
+
+        async def _track_file_progress(tool: str, file: str, done: int, total: int):
+            request_summary_tracker.mark_file_progress(request_id, file, done, total)
+
+        async def _track_runtime_state(tool: str, tool_state: dict):
+            request_summary_tracker.mark_runtime_state(request_id, tool_state)
+
+        scan_result = await _run_scan_core(
+            request_id,
+            scan_req,
+            rulesets,
+            timeout,
+            on_progress=_track_progress,
+            on_file_progress=_track_file_progress,
+            on_runtime_state=_track_runtime_state,
+        )
+        request_summary_tracker.mark_completed(request_id)
         meta = await metadata_extractor.extract(scan_profile)
 
         elapsed_ms = int((time.perf_counter() - t0) * 1000)
@@ -855,6 +911,7 @@ async def build_and_analyze(
         )
 
     except PolicyViolationError as exc:
+        request_summary_tracker.mark_failed(request_id, exc.message)
         response.status_code = exc.status_code
         if build_response is None:
             return _error_response(request_id, exc, response)
@@ -871,6 +928,7 @@ async def build_and_analyze(
         )
 
     except Exception as exc:
+        request_summary_tracker.mark_failed(request_id, str(exc))
         return _error_response(request_id, exc, response)
 
 
@@ -971,7 +1029,7 @@ async def discover_targets(
     return {"targets": targets, "elapsedMs": elapsed_ms}
 
 @router.get("/health", response_model=HealthResponse)
-async def health() -> HealthResponse:
+async def health(request_id: str | None = Query(default=None, alias="requestId")) -> HealthResponse:
     """서비스 상태 및 도구 가용성 확인."""
     tools = await orchestrator.check_tools(force=True)
     policy = orchestrator.build_health_policy(tools)
@@ -984,4 +1042,6 @@ async def health() -> HealthResponse:
         policyReasons=policy["policyReasons"],
         unavailableTools=policy["unavailableTools"],
         allowedSkipReasons=policy["allowedSkipReasons"],
+        activeRequestCount=request_summary_tracker.active_request_count(),
+        requestSummary=request_summary_tracker.get_summary(request_id),
     )

@@ -43,6 +43,28 @@ export function createPipelineRouter(
       });
   }));
 
+  // POST /api/projects/:pid/pipeline/prepare — explicit build-preparation only (202)
+  router.post("/prepare", asyncHandler(async (req, res) => {
+    const pid = req.params.pid as string;
+    validateProjectId(pid);
+    if (!projectDAO.findById(pid)) throw new NotFoundError(`Project not found: ${pid}`);
+
+    const { targetIds } = req.body as { targetIds?: string[] };
+    const preparationId = `prep-${crypto.randomUUID().slice(0, 8)}`;
+    const requestId = req.requestId;
+
+    res.status(202).json({
+      success: true,
+      data: { preparationId, status: "running" },
+    });
+
+    orchestrator
+      .preparePipeline(pid, targetIds, requestId, undefined, preparationId)
+      .catch((err) => {
+        logger.error({ err, preparationId, pid, requestId }, "Build preparation failed");
+      });
+  }));
+
   // POST /api/projects/:pid/pipeline/run/:targetId — 개별 재실행 (202)
   router.post("/run/:targetId", asyncHandler(async (req, res) => {
     const pid = req.params.pid as string;
@@ -70,6 +92,35 @@ export function createPipelineRouter(
       .runPipeline(pid, [targetId], requestId, undefined, pipelineId)
       .catch((err) => {
         logger.error({ err, pipelineId, targetId, pid, requestId }, "Pipeline target re-run failed");
+      });
+  }));
+
+  // POST /api/projects/:pid/pipeline/prepare/:targetId — explicit single-target build-preparation only (202)
+  router.post("/prepare/:targetId", asyncHandler(async (req, res) => {
+    const pid = req.params.pid as string;
+    const targetId = req.params.targetId as string;
+    validateProjectId(pid);
+    if (!projectDAO.findById(pid)) throw new NotFoundError(`Project not found: ${pid}`);
+
+    const target = buildTargetDAO.findById(targetId);
+    if (!target || target.projectId !== pid) throw new NotFoundError(`Build target not found: ${targetId}`);
+
+    if (target.status.endsWith("_failed")) {
+      buildTargetDAO.updatePipelineState(targetId, { status: "discovered" });
+    }
+
+    const requestId = req.requestId;
+    const preparationId = `prep-${crypto.randomUUID().slice(0, 8)}`;
+
+    res.status(202).json({
+      success: true,
+      data: { preparationId, targetId, status: "running" },
+    });
+
+    orchestrator
+      .preparePipeline(pid, [targetId], requestId, undefined, preparationId)
+      .catch((err) => {
+        logger.error({ err, preparationId, targetId, pid, requestId }, "Build preparation target failed");
       });
   }));
 

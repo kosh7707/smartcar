@@ -99,7 +99,6 @@ describe("VulnerabilitiesPage", () => {
 
     await waitFor(() => expect(mockFetchProjectFindings).toHaveBeenCalledWith("project-1"));
     expect(await screen.findByRole("heading", { name: "Vulnerabilities" })).toBeInTheDocument();
-    expect(screen.getByText("취약점 검토")).toBeInTheDocument();
     expect(screen.getByText(/Total active findings:/)).toHaveTextContent("2");
     expect(screen.getByText("1건 / 3건 표시")).toBeInTheDocument();
     expect(screen.getByText("Buffer overflow in parser")).toBeInTheDocument();

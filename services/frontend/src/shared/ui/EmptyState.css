@@ -16,31 +16,6 @@
   gap: var(--cds-spacing-04);
 }
 
-.empty-state__icon-shell {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 84px;
-  height: 84px;
-  border-radius: 28px;
-  background: color-mix(in srgb, var(--cds-layer-02) 82%, transparent);
-  border: 1px solid var(--cds-border-subtle);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
-}
-
-.empty-state__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: var(--cds-radius-circle);
-  background: var(--cds-background);
-  color: var(--cds-interactive);
-  font-size: 24px;
-  border: 1px solid color-mix(in srgb, var(--cds-interactive) 22%, var(--cds-border-subtle));
-}
-
 .empty-state__copy {
   max-width: 42rem;
 }
@@ -78,20 +53,9 @@
   padding: var(--cds-spacing-03) var(--cds-spacing-04);
   border-radius: var(--cds-radius-md);
   border: 1px solid var(--cds-border-subtle);
-  background: var(--cds-layer-01);
+  background: rgba(255, 255, 255, 0.9);
   color: var(--cds-text-secondary);
   font-size: var(--cds-type-sm);
-}
-
-.empty-state--compact__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--cds-radius-circle);
-  background: var(--cds-layer-02);
-  color: var(--cds-interactive);
 }
 
 .empty-state--compact__title {

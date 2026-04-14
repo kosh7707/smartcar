@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Shield, Bell } from "lucide-react";
+import { Shield, Bell, Settings } from "lucide-react";
 import type { Notification } from "@aegis/shared";
 import { useNotifications } from "../contexts/NotificationContext";
 import "./Navbar.css";
@@ -70,6 +70,10 @@ export const Navbar: React.FC = () => {
       </div>
 
       <div className="navbar-actions">
+        <Link to="/settings" className="navbar-actions__link">
+          <Settings size={16} />
+          <span>설정</span>
+        </Link>
         <div className="navbar-notifications" ref={dropdownRef}>
           <button
             className={`navbar-actions__btn${dropdownOpen ? " navbar-actions__btn--active" : ""}`}

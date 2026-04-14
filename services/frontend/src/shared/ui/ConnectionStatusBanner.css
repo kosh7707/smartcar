@@ -27,7 +27,7 @@
 .connection-status-banner__reload-btn {
   margin-left: var(--cds-spacing-03);
   padding: 2px 10px;
-  font-size: 12px;
+  font-size: var(--cds-type-sm);
   border: 1px solid currentColor;
   border-radius: var(--cds-radius);
   background: transparent;

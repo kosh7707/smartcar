@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import type { Run, Finding, EvidenceRef, GateResult, AnalysisResult } from "@aegis/shared";
-import { FileCode, Clock, PlayCircle } from "lucide-react";
+import { FileCode } from "lucide-react";
 import { BackButton, PageHeader, StatCard, SeverityBadge, GateResultCard, FindingStatusBadge, ConfidenceBadge, SourceBadge } from "../../../shared/ui";
 import { AgentResultPanel } from "./AgentResultPanel";
 import { parseLocation } from "../../../utils/location";
@@ -64,22 +64,22 @@ export const RunDetailView: React.FC<Props> = ({
   return (
     <div className="page-enter">
       <BackButton onClick={onBack} label="대시보드로" />
-      <PageHeader title="Run 상세" icon={<PlayCircle size={20} />} />
+      <PageHeader title="Run 상세" />
 
       {/* Run metadata */}
       <div className="stat-cards stagger">
-        <StatCard icon={<PlayCircle size={16} />} label="상태" value={run.status} />
-        <StatCard icon={<FileCode size={16} />} label="Finding" value={run.findingCount} accent />
-        <StatCard icon={<Clock size={16} />} label="소요 시간" value={duration} />
+        <StatCard label="상태" value={run.status} />
+        <StatCard label="Finding" value={run.findingCount} accent />
+        <StatCard label="소요 시간" value={duration} />
       </div>
 
-      <div className="text-xs text-tertiary run-meta-text">
+      <div className="run-meta-text">
         시작: {run.startedAt ? formatDateTime(run.startedAt) : "—"} | 종료: {run.endedAt ? formatDateTime(run.endedAt) : "—"}
         {run.analysisResultId && onViewLegacyResult && (
           <>
             {" | "}
             <button
-              className="btn-link text-xs"
+              className="btn-link run-meta-link"
               onClick={() => onViewLegacyResult(run.analysisResultId)}
             >
               원본 분석 결과 보기
@@ -97,7 +97,7 @@ export const RunDetailView: React.FC<Props> = ({
       {/* Finding list by file */}
       {fileGroups.length === 0 ? (
         <div className="card card--empty">
-          <p className="text-tertiary">Finding이 없습니다</p>
+          <p className="run-empty-text">Finding이 없습니다</p>
         </div>
       ) : (
         fileGroups.map((group) => (

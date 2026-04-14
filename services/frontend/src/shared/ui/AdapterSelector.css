@@ -39,14 +39,14 @@
 }
 
 .adapter-selector__ecu {
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   color: var(--cds-support-success);
   font-weight: var(--cds-weight-medium);
 }
 
 .adapter-selector__url {
   font-family: var(--cds-font-mono);
-  font-size: var(--cds-type-xs);
+  font-size: var(--cds-type-sm);
   color: var(--cds-text-placeholder);
   margin-left: auto;
 }
@@ -59,8 +59,8 @@
   display: flex;
   align-items: center;
   gap: var(--cds-spacing-03);
-  color: var(--aegis-severity-medium);
+  color: #8a5d00;
   font-size: var(--cds-type-sm);
-  background: var(--cds-support-warning-bg);
-  border: 1px solid var(--aegis-severity-medium-border);
+  background: linear-gradient(180deg, rgba(241, 194, 27, 0.1), rgba(255, 255, 255, 0.96));
+  border: 1px solid rgba(241, 194, 27, 0.32);
 }

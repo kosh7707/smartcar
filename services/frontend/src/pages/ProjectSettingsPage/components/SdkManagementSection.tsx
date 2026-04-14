@@ -158,7 +158,6 @@ export const SdkManagementSection: React.FC<SdkManagementSectionProps> = ({
 
     {registered.length === 0 ? (
       <EmptyState
-        icon={<Settings size={28} />}
         title="등록된 SDK가 없습니다"
         description="SDK 추가 버튼으로 크로스 컴파일 SDK를 등록하세요."
       />

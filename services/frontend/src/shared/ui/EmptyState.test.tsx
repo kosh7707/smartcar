@@ -19,11 +19,6 @@ describe("EmptyState", () => {
     expect(container.querySelector(".empty-state__desc")).toBeNull();
   });
 
-  it("renders icon when provided", () => {
-    render(<EmptyState title="T" icon={<span data-testid="icon">I</span>} />);
-    expect(screen.getByTestId("icon")).toBeInTheDocument();
-  });
-
   it("renders action when provided", () => {
     render(<EmptyState title="T" action={<button>Action</button>} />);
     expect(screen.getByText("Action")).toBeInTheDocument();
