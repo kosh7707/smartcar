@@ -1,9 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Shield, Bell, Settings } from "lucide-react";
+import { Shield, Bell, Settings, Sun, Moon, Monitor } from "lucide-react";
 import type { Notification } from "@aegis/shared";
 import { useNotifications } from "../contexts/NotificationContext";
+import {
+  getThemePreference,
+  isThemePreferenceEnabled,
+  setThemePreference,
+  type ThemePreference,
+} from "../utils/theme";
 import "./Navbar.css";
+
+const THEME_OPTIONS: Array<{ value: ThemePreference; label: string; icon: React.ReactNode }> = [
+  { value: "light", icon: <Sun size={16} />, label: "라이트" },
+  { value: "dark", icon: <Moon size={16} />, label: "다크" },
+  { value: "system", icon: <Monitor size={16} />, label: "시스템" },
+];
 
 function getNotificationToneClass(notification: Notification): string {
   if (notification.type.endsWith("_failed") || notification.severity === "critical") {
@@ -20,25 +32,34 @@ export const Navbar: React.FC = () => {
   const isDashboard = location.pathname === "/dashboard";
   const isProjectRoute = location.pathname.startsWith("/projects/");
   const { notifications, unreadCount, loading, markRead, markAllRead } = useNotifications();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [theme, setTheme] = useState<ThemePreference>(getThemePreference);
+  const [activeMenu, setActiveMenu] = useState<"notifications" | "theme" | null>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
+  const themeRef = useRef<HTMLDivElement>(null);
   const recentNotifications = useMemo(() => notifications.slice(0, 6), [notifications]);
+  const themeLabel = useMemo(
+    () => THEME_OPTIONS.find((option) => option.value === theme)?.label ?? "라이트",
+    [theme],
+  );
 
   useEffect(() => {
-    setDropdownOpen(false);
+    setActiveMenu(null);
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!dropdownOpen) return;
+    if (!activeMenu) return;
 
     const handlePointerDown = (event: MouseEvent) => {
-      if (!dropdownRef.current?.contains(event.target as Node)) {
-        setDropdownOpen(false);
+      const target = event.target as Node;
+      const insideNotifications = notificationsRef.current?.contains(target);
+      const insideTheme = themeRef.current?.contains(target);
+      if (!insideNotifications && !insideTheme) {
+        setActiveMenu(null);
       }
     };
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setDropdownOpen(false);
+        setActiveMenu(null);
       }
     };
 
@@ -48,9 +69,19 @@ export const Navbar: React.FC = () => {
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [dropdownOpen]);
+  }, [activeMenu]);
 
-  const toggleDropdown = () => setDropdownOpen((prev) => !prev);
+  const notificationsOpen = activeMenu === "notifications";
+  const themeOpen = activeMenu === "theme";
+
+  const handleThemeSelect = (preference: ThemePreference) => {
+    if (!isThemePreferenceEnabled(preference)) {
+      return;
+    }
+    setThemePreference(preference);
+    setTheme(preference);
+    setActiveMenu(null);
+  };
 
   return (
     <header className="navbar">
@@ -74,14 +105,51 @@ export const Navbar: React.FC = () => {
           <Settings size={16} />
           <span>설정</span>
         </Link>
-        <div className="navbar-notifications" ref={dropdownRef}>
+        <div className="navbar-theme" ref={themeRef}>
           <button
-            className={`navbar-actions__btn${dropdownOpen ? " navbar-actions__btn--active" : ""}`}
+            className={`navbar-actions__btn${themeOpen ? " navbar-actions__btn--active" : ""}`}
+            title={`테마 (현재: ${themeLabel})`}
+            aria-label={`테마 설정 (현재: ${themeLabel})`}
+            aria-expanded={themeOpen}
+            aria-haspopup="dialog"
+            onClick={() => setActiveMenu((prev) => (prev === "theme" ? null : "theme"))}
+          >
+            <Sun size={16} />
+          </button>
+
+          {themeOpen && (
+            <div className="navbar-theme__dropdown" role="dialog" aria-label="Theme preferences">
+              <div className="navbar-theme__header">
+                <div className="navbar-theme__title">테마</div>
+                <div className="navbar-theme__subtitle">라이트, 다크, 시스템 테마를 전환할 수 있습니다.</div>
+              </div>
+
+              <div className="navbar-theme__body">
+                {THEME_OPTIONS.map((option) => {
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`navbar-theme__option${theme === option.value ? " navbar-theme__option--active" : ""}`}
+                      onClick={() => handleThemeSelect(option.value)}
+                    >
+                      <span className="navbar-theme__option-icon">{option.icon}</span>
+                      <span className="navbar-theme__option-label">{option.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="navbar-notifications" ref={notificationsRef}>
+          <button
+            className={`navbar-actions__btn${notificationsOpen ? " navbar-actions__btn--active" : ""}`}
             title="Notifications"
             aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
-            aria-expanded={dropdownOpen}
+            aria-expanded={notificationsOpen}
             aria-haspopup="dialog"
-            onClick={toggleDropdown}
+            onClick={() => setActiveMenu((prev) => (prev === "notifications" ? null : "notifications"))}
           >
             <Bell size={16} />
             {unreadCount > 0 && (
@@ -89,7 +157,7 @@ export const Navbar: React.FC = () => {
             )}
           </button>
 
-          {dropdownOpen && (
+          {notificationsOpen && (
             <div className="navbar-notifications__dropdown" role="dialog" aria-label="Project notifications">
               <div className="navbar-notifications__header">
                 <div>

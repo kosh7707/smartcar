@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { getThemePreference, setThemePreference, applyTheme } from "./theme";
+import { getThemePreference, setThemePreference, applyTheme, isThemePreferenceEnabled } from "./theme";
 
 describe("getThemePreference", () => {
   beforeEach(() => localStorage.clear());
@@ -8,7 +8,7 @@ describe("getThemePreference", () => {
     expect(getThemePreference()).toBe("system");
   });
 
-  it("returns stored preference", () => {
+  it("returns stored preference when it is supported", () => {
     localStorage.setItem("aegis:theme", "dark");
     expect(getThemePreference()).toBe("dark");
   });
@@ -26,7 +26,6 @@ describe("applyTheme", () => {
   });
 
   it("respects system preference when set to system", () => {
-    // jsdom doesn't have matchMedia — mock it
     window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia;
     applyTheme("system");
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");
@@ -44,5 +43,13 @@ describe("setThemePreference", () => {
     setThemePreference("dark");
     expect(localStorage.getItem("aegis:theme")).toBe("dark");
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+  });
+});
+
+describe("isThemePreferenceEnabled", () => {
+  it("enables all declared theme modes", () => {
+    expect(isThemePreferenceEnabled("light")).toBe(true);
+    expect(isThemePreferenceEnabled("dark")).toBe(true);
+    expect(isThemePreferenceEnabled("system")).toBe(true);
   });
 });

@@ -6,6 +6,8 @@ import { Navbar } from "./Navbar";
 
 const mockMarkRead = vi.fn();
 const mockMarkAllRead = vi.fn();
+const mockGetThemePreference = vi.fn();
+const mockSetThemePreference = vi.fn();
 
 const mockNotificationContext = {
   notifications: [
@@ -41,9 +43,16 @@ vi.mock("../contexts/NotificationContext", () => ({
   useNotifications: () => mockNotificationContext,
 }));
 
+vi.mock("../utils/theme", () => ({
+  getThemePreference: () => mockGetThemePreference(),
+  setThemePreference: (...args: unknown[]) => mockSetThemePreference(...args),
+  isThemePreferenceEnabled: () => true,
+}));
+
 describe("Navbar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetThemePreference.mockReturnValue("system");
     mockMarkRead.mockResolvedValue(undefined);
     mockMarkAllRead.mockResolvedValue(undefined);
   });
@@ -88,5 +97,23 @@ describe("Navbar", () => {
     );
 
     expect(screen.getByRole("link", { name: "설정" })).toHaveAttribute("href", "/settings");
+  });
+
+  it("shows a theme menu in the top-right action area and allows selecting dark/system", () => {
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Navbar />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /테마 설정/i }));
+
+    expect(screen.getByText("테마")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "다크" }));
+    expect(mockSetThemePreference).toHaveBeenCalledWith("dark");
+
+    fireEvent.click(screen.getByRole("button", { name: /테마 설정/i }));
+    fireEvent.click(screen.getByRole("button", { name: "시스템" }));
+    expect(mockSetThemePreference).toHaveBeenCalledWith("system");
   });
 });

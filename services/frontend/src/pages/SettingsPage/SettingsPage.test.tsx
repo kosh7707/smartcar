@@ -18,6 +18,7 @@ vi.mock("../../api/client", () => ({
 vi.mock("../../utils/theme", () => ({
   getThemePreference: () => mockGetThemePreference(),
   setThemePreference: (...args: unknown[]) => mockSetThemePreference(...args),
+  isThemePreferenceEnabled: () => true,
 }));
 
 describe("SettingsPage", () => {
@@ -80,6 +81,16 @@ describe("SettingsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "라이트" }));
 
     expect(mockSetThemePreference).toHaveBeenCalledWith("light");
+  });
+
+  it("allows selecting dark and system themes", () => {
+    render(<SettingsPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "다크" }));
+    fireEvent.click(screen.getByRole("button", { name: "시스템" }));
+
+    expect(mockSetThemePreference).toHaveBeenNthCalledWith(1, "dark");
+    expect(mockSetThemePreference).toHaveBeenNthCalledWith(2, "system");
   });
 
   it("resets the backend URL to the default value and clears stale test status", async () => {

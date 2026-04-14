@@ -1,34 +1,45 @@
 export type ThemePreference = "light" | "dark" | "system";
 
 const STORAGE_KEY = "aegis:theme";
+const THEME_PREFERENCES: ThemePreference[] = ["light", "dark", "system"];
+
+function normalizeThemePreference(pref: string | null | undefined): ThemePreference {
+  if (pref && THEME_PREFERENCES.includes(pref as ThemePreference)) {
+    return pref as ThemePreference;
+  }
+  return "system";
+}
+
+export function isThemePreferenceEnabled(pref: ThemePreference): boolean {
+  return THEME_PREFERENCES.includes(pref);
+}
 
 export function getThemePreference(): ThemePreference {
-  return (localStorage.getItem(STORAGE_KEY) as ThemePreference) ?? "system";
+  return normalizeThemePreference(localStorage.getItem(STORAGE_KEY));
 }
 
 export function setThemePreference(pref: ThemePreference): void {
-  localStorage.setItem(STORAGE_KEY, pref);
-  applyTheme(pref);
+  const normalized = normalizeThemePreference(pref);
+  localStorage.setItem(STORAGE_KEY, normalized);
+  applyTheme(normalized);
 }
 
 export function applyTheme(pref: ThemePreference): void {
+  const normalized = normalizeThemePreference(pref);
   const isDark =
-    pref === "dark" ||
-    (pref === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-
-  if (isDark) {
-    document.documentElement.setAttribute("data-theme", "dark");
-  } else {
-    document.documentElement.setAttribute("data-theme", "light");
-  }
+    normalized === "dark"
+    || (normalized === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
 }
 
 export function initTheme(): void {
   const pref = getThemePreference();
   applyTheme(pref);
 
-  // 시스템 테마 변경 실시간 감지
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+  const mediaQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
+  if (!mediaQuery?.addEventListener) return;
+
+  mediaQuery.addEventListener("change", () => {
     if (getThemePreference() === "system") {
       applyTheme("system");
     }
