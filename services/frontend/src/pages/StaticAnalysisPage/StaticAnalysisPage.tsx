@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useStaticDashboard } from "../../hooks/useStaticDashboard";
 import { useAnalysisWebSocket } from "../../hooks/useAnalysisWebSocket";
 import { useBuildTargets } from "../../hooks/useBuildTargets";
@@ -11,13 +11,24 @@ import "./StaticAnalysisPage.css";
 
 export const StaticAnalysisPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const toast = useToast();
   const guard = useSetAnalysisGuard();
   const dashboard = useStaticDashboard(projectId);
   const analysis = useAnalysisWebSocket();
   const buildTargets = useBuildTargets(projectId);
-  const state = useStaticAnalysisPage(projectId, dashboard, analysis, buildTargets, toast, guard, navigate);
+  const state = useStaticAnalysisPage(
+    projectId,
+    dashboard,
+    analysis,
+    buildTargets,
+    toast,
+    guard,
+    navigate,
+    searchParams.get("analysisId"),
+    searchParams.get("finding"),
+  );
 
   if (!projectId) return null;
   return (

@@ -1,6 +1,7 @@
 import React from "react";
 import { BackButton, ConnectionStatusBanner, Spinner } from "../../../shared/ui";
 import { FindingDetailView } from "../../../shared/findings/FindingDetailView";
+import { AnalysisResultsView } from "./AnalysisResultsView";
 import { RunDetailView } from "./RunDetailView";
 import { SourceTreeView } from "./SourceTreeView";
 import { StaticAnalysisUploadScreen } from "./StaticAnalysisUploadScreen";
@@ -41,6 +42,8 @@ type StaticAnalysisViewRouterProps = {
   };
   state: {
     view: string;
+    analysisResult: unknown;
+    analysisResultLoading: boolean;
     selectedFindingId: string | null;
     setSelectedFindingId: (value: string | null) => void;
     runDetail: unknown;
@@ -61,7 +64,7 @@ type StaticAnalysisViewRouterProps = {
     handleFileClick: (filePath: string) => void;
     showTargetSelect: boolean;
     setShowTargetSelect: (open: boolean) => void;
-    handleAnalysisWithTargets: (targetIds: string[]) => void;
+    handleAnalysisWithTargets: (selectedTargetId: string) => void;
   };
 };
 
@@ -127,6 +130,27 @@ export function StaticAnalysisViewRouter({
         onRetry={state.handleRetry}
         onViewResults={state.handleViewResults}
         onBack={state.goToDashboard}
+      />
+    );
+  }
+
+  if (state.view === "analysisResults") {
+    if (state.analysisResultLoading || !state.analysisResult) {
+      return (
+        <div className="page-enter">
+          <BackButton onClick={state.goToDashboard} label="대시보드로" />
+          <div className="centered-loader--compact">
+            <Spinner label="분석 결과 로딩 중..." />
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <AnalysisResultsView
+        result={state.analysisResult as never}
+        onSelectVuln={(vuln) => state.handleSelectFinding(vuln.id)}
+        onNewAnalysis={state.goToDashboard}
       />
     );
   }

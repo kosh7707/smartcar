@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import type { WsAnalysisMessage } from "@aegis/shared";
+import type { AnalysisProgress, WsAnalysisMessage } from "@aegis/shared";
 import { runAnalysis, getWsBaseUrl, logError } from "../api/client";
 import { fetchAnalysisStatus } from "../api/analysis";
 import { createSeqTracker, parseWsMessage, createReconnectingWs } from "../utils/wsEnvelope";
@@ -35,6 +35,32 @@ const PHASE_LABELS: Record<string, string> = {
   deep_complete: "심층 분석 완료",
 };
 
+function toStage(phase: string | undefined, fallback: AnalysisStage): AnalysisStage {
+  if (phase === "quick_complete" || phase === "deep_complete") {
+    return phase;
+  }
+  return RUNNING_STAGES.has(phase as AnalysisStage) ? phase as AnalysisStage : fallback;
+}
+
+function buildStatusState(status: AnalysisProgress): AnalysisWsState {
+  const stage = toStage(status.phase, "idle");
+  return {
+    analysisId: status.analysisId,
+    buildTargetId: status.buildTargetId ?? null,
+    executionId: status.executionId ?? null,
+    stage,
+    message: PHASE_LABELS[stage] ?? status.message ?? "",
+    quickFindingCount: null,
+    deepFindingCount: null,
+    error: status.error ?? null,
+    errorPhase: status.error
+      ? (status.phase?.startsWith("deep_") ? "deep" : "quick")
+      : null,
+    targetName: null,
+    targetProgress: null,
+  };
+}
+
 export interface AnalysisWsState {
   analysisId: string | null;
   buildTargetId: string | null;
@@ -66,6 +92,7 @@ const INITIAL_STATE: AnalysisWsState = {
 export function useAnalysisWebSocket(): AnalysisWsState & ReconnectableHookResult & {
   isRunning: boolean;
   startAnalysis: (projectId: string, buildTargetId: string) => Promise<void>;
+  resumeAnalysis: (analysisId: string, initialStatus?: AnalysisProgress) => Promise<void>;
   reset: () => void;
 } {
   const [state, setState] = useState<AnalysisWsState>(INITIAL_STATE);
@@ -83,7 +110,7 @@ export function useAnalysisWebSocket(): AnalysisWsState & ReconnectableHookResul
 
   useEffect(() => cleanup, [cleanup]);
 
-  function wireWsHandlers(ws: WebSocket | null, seqTracker: ReturnType<typeof createSeqTracker>) {
+  const wireWsHandlers = useCallback((ws: WebSocket | null, seqTracker: ReturnType<typeof createSeqTracker>) => {
     if (!ws) return;
     ws.onmessage = (evt) => {
       try {
@@ -144,7 +171,51 @@ export function useAnalysisWebSocket(): AnalysisWsState & ReconnectableHookResul
         console.warn("[WS:analysis] malformed message:", e);
       }
     };
-  }
+  }, [cleanup]);
+
+  const connectToAnalysis = useCallback((analysisId: string) => {
+    const wsUrl = `${getWsBaseUrl()}/ws/analysis?analysisId=${analysisId}`;
+    const seqTracker = createSeqTracker("analysis");
+
+    const rws = createReconnectingWs(() => wsUrl, {
+      maxRetries: 10,
+      onStateChange: setConnectionState,
+      onDisconnect() {
+        seqTracker.reset();
+      },
+      async onReconnect() {
+        try {
+          const status = await fetchAnalysisStatus(analysisId);
+          setState((prev) => {
+            if (prev.stage === "deep_complete" || prev.stage === "error") return prev;
+            const stage = toStage(status.phase, prev.stage);
+            return {
+              ...prev,
+              buildTargetId: status.buildTargetId ?? prev.buildTargetId,
+              executionId: status.executionId ?? prev.executionId,
+              stage,
+              message: PHASE_LABELS[stage] ?? status.message ?? prev.message,
+            };
+          });
+        } catch (e) {
+          logError("Analysis recovery", e);
+        }
+        wireWsHandlers(rws.getWs(), seqTracker);
+      },
+      onGiveUp() {
+        setState((prev) => {
+          if (!RUNNING_STAGES.has(prev.stage)) return prev;
+          return {
+            ...prev,
+            stage: "error",
+            error: "WebSocket 연결이 끊어졌습니다.",
+          };
+        });
+      },
+    });
+    rwsRef.current = rws;
+    wireWsHandlers(rws.getWs(), seqTracker);
+  }, [wireWsHandlers]);
 
   const startAnalysis = useCallback(async (projectId: string, buildTargetId: string) => {
     cleanup();
@@ -163,50 +234,7 @@ export function useAnalysisWebSocket(): AnalysisWsState & ReconnectableHookResul
         buildTargetId,
         executionId: executionId ?? analysisId,
       }));
-
-      const wsUrl = `${getWsBaseUrl()}/ws/analysis?analysisId=${analysisId}`;
-      const seqTracker = createSeqTracker("analysis");
-
-      const rws = createReconnectingWs(() => wsUrl, {
-        maxRetries: 10,
-        onStateChange: setConnectionState,
-        onDisconnect() {
-          seqTracker.reset();
-        },
-        async onReconnect() {
-          // REST fallback: restore state from analysis status endpoint
-          try {
-            const status = await fetchAnalysisStatus(analysisId);
-            setState((prev) => {
-              if (prev.stage === "deep_complete" || prev.stage === "error") return prev;
-              const phase = status.phase as AnalysisStage;
-              return {
-                ...prev,
-                buildTargetId: status.buildTargetId ?? prev.buildTargetId,
-                executionId: status.executionId ?? prev.executionId,
-                stage: RUNNING_STAGES.has(phase) ? phase : prev.stage,
-                message: PHASE_LABELS[phase] ?? prev.message,
-              };
-            });
-          } catch (e) {
-            logError("Analysis recovery", e);
-          }
-          // Re-wire message handlers on new WS
-          wireWsHandlers(rws.getWs(), seqTracker);
-        },
-        onGiveUp() {
-          setState((prev) => {
-            if (!RUNNING_STAGES.has(prev.stage)) return prev;
-            return {
-              ...prev,
-              stage: "error",
-              error: "WebSocket 연결이 끊어졌습니다.",
-            };
-          });
-        },
-      });
-      rwsRef.current = rws;
-      wireWsHandlers(rws.getWs(), seqTracker);
+      connectToAnalysis(analysisId);
     } catch (e) {
       logError("Start analysis", e);
       setState({
@@ -215,7 +243,28 @@ export function useAnalysisWebSocket(): AnalysisWsState & ReconnectableHookResul
         error: e instanceof Error ? e.message : "분석 실행에 실패했습니다.",
       });
     }
-  }, [cleanup]);
+  }, [cleanup, connectToAnalysis]);
+
+  const resumeAnalysis = useCallback(async (analysisId: string, initialStatus?: AnalysisProgress) => {
+    cleanup();
+    try {
+      const status = initialStatus ?? await fetchAnalysisStatus(analysisId);
+      setState(buildStatusState(status));
+      if (status.status === "running") {
+        connectToAnalysis(analysisId);
+      } else {
+        setConnectionState("disconnected");
+      }
+    } catch (e) {
+      logError("Resume analysis", e);
+      setState({
+        ...INITIAL_STATE,
+        analysisId,
+        stage: "error",
+        error: e instanceof Error ? e.message : "분석 상태 복구에 실패했습니다.",
+      });
+    }
+  }, [cleanup, connectToAnalysis]);
 
   const reset = useCallback(() => {
     cleanup();
@@ -224,7 +273,7 @@ export function useAnalysisWebSocket(): AnalysisWsState & ReconnectableHookResul
   }, [cleanup]);
 
   return useMemo(
-    () => ({ ...state, connectionState, isRunning, startAnalysis, reset }),
-    [state, connectionState, isRunning, startAnalysis, reset],
+    () => ({ ...state, connectionState, isRunning, startAnalysis, resumeAnalysis, reset }),
+    [state, connectionState, isRunning, startAnalysis, resumeAnalysis, reset],
   );
 }

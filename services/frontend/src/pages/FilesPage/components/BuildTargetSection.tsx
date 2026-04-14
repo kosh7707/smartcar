@@ -12,7 +12,7 @@ import "./BuildTargetSection.css";
 
 interface Props {
   projectId: string;
-  onStartDeepAnalysis?: (targetIds: string[]) => void;
+  onStartDeepAnalysis?: (buildTargetIds: string[]) => void;
 }
 
 export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnalysis }) => {
@@ -97,7 +97,7 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
         failedCount={state.pipeline.failedCount}
         totalCount={state.pipeline.totalCount}
         canDeepAnalyzeAll={Boolean(onStartDeepAnalysis)}
-        onDeepAnalyzeAll={(targetIds) => onStartDeepAnalysis?.(targetIds)}
+        onDeepAnalyzeAll={(buildTargetIds) => onStartDeepAnalysis?.(buildTargetIds)}
       />
 
       <ConfirmDialog

@@ -30,8 +30,12 @@ vi.mock("../api/client", () => ({
   getWsBaseUrl: vi.fn(() => "ws://localhost:3000"),
   logError: vi.fn(),
 }));
+vi.mock("../api/analysis", () => ({
+  fetchAnalysisStatus: vi.fn(),
+}));
 
 import { runAnalysis } from "../api/client";
+import { fetchAnalysisStatus } from "../api/analysis";
 
 beforeEach(() => {
   MockWebSocket.instances = [];
@@ -41,6 +45,19 @@ beforeEach(() => {
     buildTargetId: "t-1",
     executionId: "exec-1",
     status: "running",
+  });
+  vi.mocked(fetchAnalysisStatus).mockResolvedValue({
+    analysisId: "a-1",
+    projectId: "p-1",
+    buildTargetId: "t-1",
+    executionId: "exec-1",
+    status: "running",
+    phase: "quick_sast",
+    currentChunk: 0,
+    totalChunks: 1,
+    message: "running",
+    startedAt: "2026-04-14T00:00:00Z",
+    updatedAt: "2026-04-14T00:00:00Z",
   });
 });
 
@@ -253,5 +270,21 @@ describe("useAnalysisWebSocket", () => {
     expect(result.current.analysisId).toBeNull();
     expect(result.current.buildTargetId).toBeNull();
     expect(ws.closeCalled).toBe(true);
+  });
+
+  it("resumeAnalysis restores lineage from status and opens WebSocket", async () => {
+    const { result } = renderHook(() => useAnalysisWebSocket());
+
+    await act(async () => {
+      await result.current.resumeAnalysis("a-1");
+    });
+
+    expect(fetchAnalysisStatus).toHaveBeenCalledWith("a-1");
+    expect(result.current.analysisId).toBe("a-1");
+    expect(result.current.buildTargetId).toBe("t-1");
+    expect(result.current.executionId).toBe("exec-1");
+    expect(result.current.stage).toBe("quick_sast");
+    expect(MockWebSocket.instances).toHaveLength(1);
+    expect(MockWebSocket.instances[0].url).toContain("analysisId=a-1");
   });
 });

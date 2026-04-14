@@ -20,7 +20,7 @@ export const DEFAULT_PROFILE: BuildProfile = {
 
 export const POST_BUILD_STATUSES = new Set(["built", "scanning", "scanned", "scan_failed", "graphing", "graphed", "graph_failed", "ready"]);
 
-export function useBuildTargetSection(projectId: string, onStartDeepAnalysis?: (targetIds: string[]) => void) {
+export function useBuildTargetSection(projectId: string, onStartDeepAnalysis?: (buildTargetIds: string[]) => void) {
   const toast = useToast();
   const buildTargets = useBuildTargets(projectId);
   const pipeline = usePipelineProgress();

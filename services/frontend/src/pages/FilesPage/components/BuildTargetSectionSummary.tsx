@@ -11,7 +11,7 @@ type BuildTargetSectionSummaryProps = {
   failedCount: number;
   totalCount: number;
   canDeepAnalyzeAll: boolean;
-  onDeepAnalyzeAll: (targetIds: string[]) => void;
+  onDeepAnalyzeAll: (buildTargetIds: string[]) => void;
 };
 
 export function BuildTargetSectionSummary({

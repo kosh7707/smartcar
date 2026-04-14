@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Finding, RunDetailResponse, UploadedFile } from "@aegis/shared";
+import type { AnalysisResult, Finding, RunDetailResponse, UploadedFile } from "@aegis/shared";
 import type { SourceFileEntry } from "../../../api/client";
-import { fetchProjectFiles, fetchProjectFindings, fetchRunDetail, fetchSourceFiles, logError } from "../../../api/client";
+import {
+  fetchAnalysisResults,
+  fetchAnalysisStatus,
+  fetchProjectFiles,
+  fetchProjectFindings,
+  fetchRunDetail,
+  fetchSourceFiles,
+  logError,
+} from "../../../api/client";
 import type { useAnalysisWebSocket } from "../../../hooks/useAnalysisWebSocket";
 import type { useBuildTargets } from "../../../hooks/useBuildTargets";
 import type { useStaticDashboard } from "../../../hooks/useStaticDashboard";
@@ -11,6 +19,7 @@ type PageView =
   | "sourceUpload"
   | "sourceTree"
   | "progress"
+  | "analysisResults"
   | "runDetail"
   | "findingDetail";
 
@@ -32,11 +41,15 @@ export function useStaticAnalysisPage(
   toast: ToastApi,
   guard: GuardApi,
   navigate: (to: string) => void,
+  analysisIdParam?: string | null,
+  findingIdParam?: string | null,
 ) {
   const [view, setView] = useState<PageView>("dashboard");
   const [projectFiles, setProjectFiles] = useState<UploadedFile[]>([]);
   const [sourceFiles, setSourceFiles] = useState<SourceFileEntry[]>([]);
   const [findings, setFindings] = useState<Finding[]>([]);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [analysisResultLoading, setAnalysisResultLoading] = useState(false);
   const [runDetail, setRunDetail] = useState<RunDetailResponse["data"] | null>(null);
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const [runDetailLoading, setRunDetailLoading] = useState(false);
@@ -78,12 +91,17 @@ export function useStaticAnalysisPage(
 
   const goToDashboard = useCallback(() => {
     setView("dashboard");
+    setAnalysisResult(null);
     setRunDetail(null);
     setSelectedFindingId(null);
+    setShowTargetSelect(false);
     analysis.reset();
     dashboard.refresh();
     loadSourceData();
-  }, [analysis, dashboard, loadSourceData]);
+    if (projectId) {
+      navigate(`/projects/${projectId}/static-analysis`);
+    }
+  }, [analysis, dashboard, loadSourceData, navigate, projectId]);
 
   const handleViewRun = useCallback(async (runId: string) => {
     setRunDetailLoading(true);
@@ -166,12 +184,70 @@ export function useStaticAnalysisPage(
     }
   }, [navigate, projectFiles, projectId, toast]);
 
+  useEffect(() => {
+    if (!findingIdParam || analysisIdParam) return;
+    setSelectedFindingId(findingIdParam);
+    setView("findingDetail");
+  }, [analysisIdParam, findingIdParam]);
+
+  useEffect(() => {
+    if (!projectId || !analysisIdParam) return;
+
+    let cancelled = false;
+
+    const recoverAnalysis = async () => {
+      setAnalysisResultLoading(true);
+      setAnalysisResult(null);
+      try {
+        try {
+          const status = await fetchAnalysisStatus(analysisIdParam);
+          if (cancelled) return;
+
+          if (status.status === "running") {
+            await analysis.resumeAnalysis(analysisIdParam, status);
+            if (!cancelled) {
+              setView("progress");
+            }
+            return;
+          }
+        } catch (error) {
+          logError("Analysis status recovery", error);
+        }
+
+        try {
+          const result = await fetchAnalysisResults(analysisIdParam);
+          if (cancelled) return;
+          setAnalysisResult(result);
+          setView("analysisResults");
+        } catch (error) {
+          logError("Analysis result recovery", error);
+          if (!cancelled) {
+            toast.error("분석 결과를 복구할 수 없습니다.");
+            navigate(`/projects/${projectId}/static-analysis`);
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setAnalysisResultLoading(false);
+        }
+      }
+    };
+
+    void recoverAnalysis();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [analysis, analysisIdParam, navigate, projectId, toast]);
+
   return {
     view,
     setView,
     projectFiles,
     sourceFiles,
     findings,
+    analysisResult,
+    analysisResultLoading,
     runDetail,
     selectedFindingId,
     setSelectedFindingId,

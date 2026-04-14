@@ -3,6 +3,7 @@ import type {
   StaticDashboardResponse,
   RunDetailResponse,
   AnalysisProgress,
+  AnalysisResult,
   AnalysisStatusListResponse,
   Run,
   Finding,
@@ -34,10 +35,10 @@ export async function fetchAnalysisStatus(analysisId: string): Promise<AnalysisP
 
 export async function fetchAnalysisResults(
   analysisId: string,
-): Promise<{ findings: Finding[]; summary: StaticAnalysisDashboardSummary }> {
+): Promise<AnalysisResult> {
   const res = await apiFetch<{
     success: boolean;
-    data: { findings: Finding[]; summary: StaticAnalysisDashboardSummary };
+    data: AnalysisResult;
   }>(`/api/analysis/results/${analysisId}`);
   return res.data;
 }
