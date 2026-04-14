@@ -1,5 +1,6 @@
 import type {
   AnalysisModule,
+  Finding,
   FindingStatus,
   Severity,
   ModuleReport,
@@ -14,6 +15,7 @@ import { RunService } from "./run.service";
 import { FindingService } from "./finding.service";
 import { QualityGateService } from "./quality-gate.service";
 import { ApprovalService } from "./approval.service";
+import { isVisibleAnalysisArtifact } from "../lib/analysis-visibility";
 
 const MODULE_KEY_MAP: Record<AnalysisModule, "static" | "dynamic" | "test" | "deep"> = {
   static_analysis: "static",
@@ -24,6 +26,7 @@ const MODULE_KEY_MAP: Record<AnalysisModule, "static" | "dynamic" | "test" | "de
 
 const ALL_MODULES: AnalysisModule[] = [
   "static_analysis",
+  "deep_analysis",
   "dynamic_analysis",
   "dynamic_testing",
 ];
@@ -58,7 +61,7 @@ export class ReportService {
     const findings = this.findingService.findByProjectId(projectId, {
       module,
       ...filters,
-    });
+    }).filter((finding) => this.isAggregateVisibleFinding(finding));
     const evidenceMap = this.evidenceRefDAO.findByFindingIds(findings.map((f) => f.id));
     const findingEntries: FindingReportEntry[] = findings.map((f) => ({
       finding: f,
@@ -69,7 +72,7 @@ export class ReportService {
     const runIdSet = new Set(findings.map((f) => f.runId));
     const allRuns = this.runService.findByProjectId(projectId);
     const moduleRuns = allRuns.filter(
-      (r) => r.module === module && runIdSet.has(r.id),
+      (r) => r.module === module && runIdSet.has(r.id) && this.isAggregateVisibleRun(r),
     );
 
     const runEntries: RunReportEntry[] = moduleRuns.map((run) => ({
@@ -113,7 +116,9 @@ export class ReportService {
     }
 
     const totalSummary = this.mergeSummaries(allSummaries);
-    const approvals = this.approvalService.getByProjectId(projectId);
+    const approvals = this.approvalService
+      .getByProjectId(projectId)
+      .filter((approval) => this.isAggregateVisibleApproval(approval));
 
     // Collect audit logs from all findings + approvals, limit 100
     const findingIds = Object.values(modules)
@@ -195,7 +200,9 @@ export class ReportService {
     }
 
     const totalSummary = this.mergeSummaries(allSummaries);
-    const approvals = include.approvals !== false ? this.approvalService.getByProjectId(projectId) : [];
+    const approvals = include.approvals !== false
+      ? this.approvalService.getByProjectId(projectId).filter((approval) => this.isAggregateVisibleApproval(approval))
+      : [];
     let auditTrail: import("@aegis/shared").AuditLogEntry[] = [];
     if (include.auditTrail !== false) {
       const ids = Object.values(modules)
@@ -235,5 +242,23 @@ export class ReportService {
     }
 
     return merged;
+  }
+
+  private isAggregateVisibleRun(run: RunReportEntry["run"]): boolean {
+    return isVisibleAnalysisArtifact(run);
+  }
+
+  private isAggregateVisibleFinding(finding: Finding): boolean {
+    return isVisibleAnalysisArtifact(finding);
+  }
+
+  private isAggregateVisibleApproval(approval: import("@aegis/shared").ApprovalRequest): boolean {
+    if (approval.actionType === "gate.override") {
+      return !!this.gateService.getById(approval.targetId);
+    }
+    if (approval.actionType === "finding.accepted_risk") {
+      return !!this.findingService.findById(approval.targetId);
+    }
+    return true;
   }
 }

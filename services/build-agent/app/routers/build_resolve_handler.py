@@ -55,7 +55,7 @@ async def handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | Ta
     target_name = preflight.target_name
     request_id = get_request_id() or request.taskId
 
-    # 서브프로젝트 스코핑: build-aegis/는 canonical subprojectPath 기준
+    # BuildTarget 스코핑: build-aegis/는 canonical buildTargetPath 기준
     effective_root = os.path.join(project_path, target_path) if target_path else project_path
 
     # ─── 0. Request-scoped 빌드 워크스페이스 (동시 요청 격리) ───
@@ -252,7 +252,7 @@ async def handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | Ta
         f"## 프로젝트 경로\n{project_path}\n"
     )
     if target_path:
-        user_message += f"## 빌드 대상 서브프로젝트\n{target_path}\n"
+        user_message += f"## 빌드 대상 BuildTarget\n{target_path}\n"
     if preflight.contract.strictMode:
         user_message += (
             f"## 호출자 선언 contractVersion\n{normalize_contract_version(preflight.contract)}\n"

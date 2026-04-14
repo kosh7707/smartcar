@@ -16,8 +16,8 @@ def test_canonical_strict_contract_fields_parse() -> None:
     contract = BuildResolveContract.model_validate(
         {
             "projectPath": "/tmp/project",
-            "subprojectPath": "gateway",
-            "subprojectName": "gateway",
+            "buildTargetPath": "gateway",
+            "buildTargetName": "gateway",
             "contractVersion": "build-resolve-v1",
             "strictMode": True,
             "build": {"mode": "native", "scriptHintText": "make -j4\n"},
@@ -25,8 +25,8 @@ def test_canonical_strict_contract_fields_parse() -> None:
         }
     )
 
-    assert contract.subprojectPath == "gateway"
-    assert contract.subprojectName == "gateway"
+    assert contract.buildTargetPath == "gateway"
+    assert contract.buildTargetName == "gateway"
     assert contract.targetPath == "gateway"
     assert contract.targetName == "gateway"
     assert contract.buildMode == BuildMode.NATIVE
@@ -52,8 +52,8 @@ def test_legacy_aliases_normalize_to_canonical_contract() -> None:
         }
     )
 
-    assert contract.subprojectPath == "gateway"
-    assert contract.subprojectName == "gateway"
+    assert contract.buildTargetPath == "gateway"
+    assert contract.buildTargetName == "gateway"
     assert contract.buildMode == BuildMode.SDK
     assert contract.sdkId == "sdk-1"
     assert contract.buildEnvironment == {"CC": "arm-linux-gnueabihf-gcc"}
@@ -71,8 +71,8 @@ def test_task_request_accepts_top_level_strict_contract_fields() -> None:
             "context": {
                 "trusted": {
                     "projectPath": "/tmp/project",
-                    "subprojectPath": "gateway",
-                    "subprojectName": "gateway",
+                    "buildTargetPath": "gateway",
+                    "buildTargetName": "gateway",
                     "build": {"mode": "native"},
                     "expectedArtifacts": [{"kind": "executable", "path": "gateway"}],
                 },
@@ -83,12 +83,12 @@ def test_task_request_accepts_top_level_strict_contract_fields() -> None:
     contract = request.build_resolve_contract()
     assert contract.contractVersion == ContractVersion.BUILD_RESOLVE_V1
     assert contract.strictMode is True
-    assert contract.subprojectPath == "gateway"
-    assert contract.subprojectName == "gateway"
+    assert contract.buildTargetPath == "gateway"
+    assert contract.buildTargetName == "gateway"
 
 
 
-def test_preflight_requires_canonical_subproject_fields_in_strict_mode() -> None:
+def test_preflight_requires_canonical_build_target_fields_in_strict_mode() -> None:
     validator = BuildRequestContractValidator()
     preflight, errors = validator.validate(
         _request(
@@ -103,8 +103,8 @@ def test_preflight_requires_canonical_subproject_fields_in_strict_mode() -> None
     )
 
     assert preflight is None
-    assert any("subprojectPath" in error for error in errors)
-    assert any("subprojectName" in error for error in errors)
+    assert any("buildTargetPath" in error for error in errors)
+    assert any("buildTargetName" in error for error in errors)
 
 
 def test_strict_sdk_requires_materialization_source() -> None:
@@ -113,8 +113,8 @@ def test_strict_sdk_requires_materialization_source() -> None:
         _request(
             {
                 "projectPath": "/tmp/project",
-                "subprojectPath": "gateway",
-                "subprojectName": "gateway",
+                "buildTargetPath": "gateway",
+                "buildTargetName": "gateway",
                 "contractVersion": "build-resolve-v1",
                 "strictMode": True,
                 "build": {"mode": "sdk", "sdkId": "sdk-1"},

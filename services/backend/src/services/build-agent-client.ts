@@ -31,8 +31,8 @@ export interface BuildResolveRequest {
   context: {
     trusted: {
       projectPath: string;
-      subprojectPath?: string;
-      subprojectName?: string;
+      buildTargetPath?: string;
+      buildTargetName?: string;
       targetPath?: string;
       targetName?: string;
       targets?: BuildResolveTarget[];

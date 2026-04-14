@@ -1,0 +1,69 @@
+from __future__ import annotations
+
+import json
+
+import pytest
+
+from app.config import settings
+from app.routers.sdk_analyze_handler import handle_sdk_analyze
+from app.schemas.request import Context, TaskRequest
+from app.types import TaskType
+
+
+@pytest.mark.asyncio
+async def test_sdk_analyze_requests_async_ownership_on_toolless_turn(monkeypatch, tmp_path):
+    original_mode = settings.llm_mode
+    object.__setattr__(settings, "llm_mode", "real")
+
+    request = TaskRequest(
+        taskType=TaskType.SDK_ANALYZE,
+        taskId="sdk-async-001",
+        context=Context(trusted={"projectPath": str(tmp_path)}),
+    )
+
+    seen: dict[str, object] = {}
+
+    async def fake_call(self, *args, **kwargs):
+        seen["prefer_async_ownership"] = kwargs.get("prefer_async_ownership")
+        from agent_shared.schemas.agent import LlmResponse
+        return LlmResponse(
+            content=json.dumps({
+                "summary": "SDK 분석 완료",
+                "sdkProfile": {
+                    "compiler": "mock-gcc",
+                    "compilerPrefix": "mock",
+                    "gccVersion": "0.0.0",
+                    "targetArch": "mock-arch",
+                    "languageStandard": "c11",
+                    "sysroot": "",
+                    "environmentSetup": "",
+                    "includePaths": [],
+                    "defines": {},
+                },
+                "claims": [{"statement": "Mock SDK 분석 완료", "supportingEvidenceRefs": []}],
+                "caveats": [],
+                "usedEvidenceRefs": [],
+                "needsHumanReview": True,
+                "recommendedNextSteps": [],
+                "policyFlags": [],
+            }),
+            prompt_tokens=10,
+            completion_tokens=20,
+        )
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr(
+        "app.budget.manager.BudgetManager.no_callable_tools_remaining",
+        lambda self: True,
+    )
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+
+    try:
+        result = await handle_sdk_analyze(request)
+        assert result.status == "completed"
+        assert seen["prefer_async_ownership"] is True
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)

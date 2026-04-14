@@ -36,7 +36,12 @@ import { runAnalysis } from "../api/client";
 beforeEach(() => {
   MockWebSocket.instances = [];
   vi.stubGlobal("WebSocket", MockWebSocket);
-  vi.mocked(runAnalysis).mockResolvedValue({ analysisId: "a-1", status: "running" });
+  vi.mocked(runAnalysis).mockResolvedValue({
+    analysisId: "a-1",
+    buildTargetId: "t-1",
+    executionId: "exec-1",
+    status: "running",
+  });
 });
 
 afterEach(() => {
@@ -55,11 +60,13 @@ describe("useAnalysisWebSocket", () => {
     const { result } = renderHook(() => useAnalysisWebSocket());
 
     await act(async () => {
-      await result.current.startAnalysis("p-1");
+      await result.current.startAnalysis("p-1", "t-1");
     });
 
-    expect(runAnalysis).toHaveBeenCalledWith("p-1", undefined, undefined);
+    expect(runAnalysis).toHaveBeenCalledWith("p-1", "t-1");
     expect(result.current.analysisId).toBe("a-1");
+    expect(result.current.buildTargetId).toBe("t-1");
+    expect(result.current.executionId).toBe("exec-1");
     expect(result.current.stage).toBe("quick_sast");
     expect(result.current.isRunning).toBe(true);
     expect(MockWebSocket.instances).toHaveLength(1);
@@ -70,34 +77,85 @@ describe("useAnalysisWebSocket", () => {
     const { result } = renderHook(() => useAnalysisWebSocket());
 
     await act(async () => {
-      await result.current.startAnalysis("p-1");
+      await result.current.startAnalysis("p-1", "t-1");
     });
 
     const ws = MockWebSocket.instances[0];
     act(() => {
       ws.simulateMessage({
         type: "analysis-progress",
-        payload: { phase: "deep_analyzing", message: "분석 중", targetName: "gateway", targetProgress: { current: 1, total: 3 } },
+        payload: {
+          analysisId: "a-1",
+          buildTargetId: "t-1",
+          executionId: "exec-1",
+          phase: "deep_analyzing",
+          message: "분석 중",
+          targetName: "gateway",
+          targetProgress: { current: 1, total: 3 },
+        },
       });
     });
 
     expect(result.current.stage).toBe("deep_analyzing");
     expect(result.current.targetName).toBe("gateway");
     expect(result.current.targetProgress).toEqual({ current: 1, total: 3 });
+    expect(result.current.buildTargetId).toBe("t-1");
+    expect(result.current.executionId).toBe("exec-1");
+  });
+
+  it("treats quick_graphing and deep_retrying as running phases", async () => {
+    const { result } = renderHook(() => useAnalysisWebSocket());
+
+    await act(async () => {
+      await result.current.startAnalysis("p-1", "t-1");
+    });
+
+    const ws = MockWebSocket.instances[0];
+    act(() => {
+      ws.simulateMessage({
+        type: "analysis-progress",
+        payload: {
+          analysisId: "a-1",
+          buildTargetId: "t-1",
+          executionId: "exec-1",
+          phase: "quick_graphing",
+          message: "그래프 적재 중",
+        },
+      });
+    });
+
+    expect(result.current.stage).toBe("quick_graphing");
+    expect(result.current.isRunning).toBe(true);
+
+    act(() => {
+      ws.simulateMessage({
+        type: "analysis-progress",
+        payload: {
+          analysisId: "a-1",
+          buildTargetId: "t-1",
+          executionId: "exec-1",
+          phase: "deep_retrying",
+          message: "재시도 중",
+        },
+      });
+    });
+
+    expect(result.current.stage).toBe("deep_retrying");
+    expect(result.current.isRunning).toBe(true);
   });
 
   it("processes analysis-quick-complete", async () => {
     const { result } = renderHook(() => useAnalysisWebSocket());
 
     await act(async () => {
-      await result.current.startAnalysis("p-1");
+      await result.current.startAnalysis("p-1", "t-1");
     });
 
     const ws = MockWebSocket.instances[0];
     act(() => {
       ws.simulateMessage({
         type: "analysis-quick-complete",
-        payload: { findingCount: 12 },
+        payload: { analysisId: "a-1", buildTargetId: "t-1", executionId: "exec-1", findingCount: 12 },
       });
     });
 
@@ -109,14 +167,14 @@ describe("useAnalysisWebSocket", () => {
     const { result } = renderHook(() => useAnalysisWebSocket());
 
     await act(async () => {
-      await result.current.startAnalysis("p-1");
+      await result.current.startAnalysis("p-1", "t-1");
     });
 
     const ws = MockWebSocket.instances[0];
     act(() => {
       ws.simulateMessage({
         type: "analysis-deep-complete",
-        payload: { findingCount: 5 },
+        payload: { analysisId: "a-1", buildTargetId: "t-1", executionId: "exec-1", findingCount: 5 },
       });
     });
 
@@ -130,27 +188,28 @@ describe("useAnalysisWebSocket", () => {
     const { result } = renderHook(() => useAnalysisWebSocket());
 
     await act(async () => {
-      await result.current.startAnalysis("p-1");
+      await result.current.startAnalysis("p-1", "t-1");
     });
 
     const ws = MockWebSocket.instances[0];
     act(() => {
       ws.simulateMessage({
         type: "analysis-error",
-        payload: { error: "SAST 실패", phase: "quick", retryable: true },
+        payload: { analysisId: "a-1", buildTargetId: "t-1", executionId: "exec-1", error: "SAST 실패", phase: "quick", retryable: true },
       });
     });
 
     expect(result.current.stage).toBe("error");
     expect(result.current.error).toBe("SAST 실패");
     expect(result.current.errorPhase).toBe("quick");
+    expect(result.current.executionId).toBe("exec-1");
   });
 
   it("handles unexpected WS close during running stage by reconnecting", async () => {
     const { result } = renderHook(() => useAnalysisWebSocket());
 
     await act(async () => {
-      await result.current.startAnalysis("p-1");
+      await result.current.startAnalysis("p-1", "t-1");
     });
 
     const ws = MockWebSocket.instances[0];
@@ -170,7 +229,7 @@ describe("useAnalysisWebSocket", () => {
     const { result } = renderHook(() => useAnalysisWebSocket());
 
     await act(async () => {
-      await result.current.startAnalysis("p-1");
+      await result.current.startAnalysis("p-1", "t-1");
     });
 
     expect(result.current.stage).toBe("error");
@@ -182,7 +241,7 @@ describe("useAnalysisWebSocket", () => {
     const { result } = renderHook(() => useAnalysisWebSocket());
 
     await act(async () => {
-      await result.current.startAnalysis("p-1");
+      await result.current.startAnalysis("p-1", "t-1");
     });
 
     const ws = MockWebSocket.instances[0];
@@ -192,6 +251,7 @@ describe("useAnalysisWebSocket", () => {
 
     expect(result.current.stage).toBe("idle");
     expect(result.current.analysisId).toBeNull();
+    expect(result.current.buildTargetId).toBeNull();
     expect(ws.closeCalled).toBe(true);
   });
 });

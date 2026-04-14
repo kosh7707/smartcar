@@ -74,9 +74,12 @@ export async function mockApiFetch<T>(path: string, options?: RequestInit): Prom
   if (p === "/api/analysis/status") return delay(data.ANALYSIS_STATUS_EMPTY as T);
   if (p.startsWith("/api/analysis/summary")) return delay(data.DASHBOARD_SUMMARY as T);
 
-  // ── Analysis run (POST) ──
-  if (p === "/api/analysis/run" && method === "POST") {
-    return delay({ success: true, data: { analysisId: "mock-analysis-1", status: "running" } } as T);
+  // ── Analysis quick/deep (POST) ──
+  if (p === "/api/analysis/quick" && method === "POST") {
+    return delay({ success: true, data: { analysisId: "mock-analysis-1", buildTargetId: "target-1", executionId: "mock-analysis-1", status: "running" } } as T);
+  }
+  if (p === "/api/analysis/deep" && method === "POST") {
+    return delay({ success: true, data: { analysisId: "mock-deep-1", buildTargetId: "target-1", executionId: "exec-1", status: "running" } } as T);
   }
   if (p === "/api/analysis/poc" && method === "POST") {
     return delay({ success: true, data: { findingId: "find-1", poc: { statement: "Mock PoC", detail: "Mock detail" }, audit: { latencyMs: 500, tokenUsage: { prompt: 100, completion: 50 } } } } as T);

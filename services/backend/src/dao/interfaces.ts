@@ -99,7 +99,7 @@ export interface BuildUnitRevisionRecord {
   buildUnitId: string;
   projectId?: string;
   sourceAssetId: string;
-  subprojectAssetId: string;
+  buildTargetAssetId: string;
   sdkAssetId?: string;
   revisionNumber: number;
   includedPaths: string[];
@@ -163,7 +163,7 @@ export interface BuildSnapshotProjectionRecord {
   updatedAt?: string;
 }
 
-export interface SubprojectAssetRecord {
+export interface BuildTargetAssetRecord {
   id: string;
   projectId: string;
   buildUnitId: string;
@@ -405,11 +405,11 @@ export interface IBuildSnapshotProjectionDAO {
   findBySourceBuildAttemptId(buildAttemptId: string): BuildSnapshotProjectionRecord[];
 }
 
-export interface ISubprojectAssetDAO {
-  save(asset: SubprojectAssetRecord): void;
-  findById(id: string): SubprojectAssetRecord | undefined;
-  findByBuildUnitRevisionId(buildUnitRevisionId: string): SubprojectAssetRecord | undefined;
-  findByBuildUnitId(buildUnitId: string): SubprojectAssetRecord[];
+export interface IBuildTargetAssetDAO {
+  save(asset: BuildTargetAssetRecord): void;
+  findById(id: string): BuildTargetAssetRecord | undefined;
+  findByBuildUnitRevisionId(buildUnitRevisionId: string): BuildTargetAssetRecord | undefined;
+  findByBuildUnitId(buildUnitId: string): BuildTargetAssetRecord[];
 }
 
 export interface IBuildTargetDAO {

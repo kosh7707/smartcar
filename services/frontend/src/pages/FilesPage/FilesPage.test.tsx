@@ -53,8 +53,8 @@ vi.mock("../../contexts/ToastContext", () => ({
   useToast: () => mockToast,
 }));
 
-vi.mock("./components/SubprojectCreateDialog", () => ({
-  SubprojectCreateDialog: () => null,
+vi.mock("./components/BuildTargetCreateDialog", () => ({
+  BuildTargetCreateDialog: () => null,
 }));
 
 vi.mock("./components/BuildLogViewer", () => ({

@@ -260,10 +260,10 @@ export class ProjectSourceService {
   }
 
   /**
-   * 선택된 파일/폴더를 서브 프로젝트 디렉토리로 물리적 복사.
+   * 선택된 파일/폴더를 BuildTarget 전용 디렉토리로 물리적 복사.
    * uploads/{projectId}/{targetId}/ 에 완전 독립 복사본 생성.
    */
-  copyToSubproject(
+  copyToBuildTargetSource(
     projectId: string,
     targetId: string,
     includedPaths: string[],
@@ -271,13 +271,13 @@ export class ProjectSourceService {
     const projectDir = this.getProjectPath(projectId);
     if (!projectDir) throw new NotFoundError(`Project source not found: ${projectId}`);
 
-    const subDir = path.join(this.uploadsDir, projectId, targetId);
+    const targetDir = path.join(this.uploadsDir, projectId, targetId);
 
-    // 기존 서브 프로젝트 디렉토리 삭제 후 재생성
-    if (fs.existsSync(subDir)) {
-      fs.rmSync(subDir, { recursive: true, force: true });
+    // 기존 BuildTarget 디렉토리 삭제 후 재생성
+    if (fs.existsSync(targetDir)) {
+      fs.rmSync(targetDir, { recursive: true, force: true });
     }
-    fs.mkdirSync(subDir, { recursive: true });
+    fs.mkdirSync(targetDir, { recursive: true });
 
     let copiedFiles = 0;
     for (const includedPath of includedPaths) {
@@ -295,7 +295,7 @@ export class ProjectSourceService {
         continue;
       }
 
-      const destPath = path.join(subDir, includedPath);
+      const destPath = path.join(targetDir, includedPath);
 
       if (fs.statSync(resolved).isDirectory()) {
         // 디렉토리 재귀 복사
@@ -309,8 +309,8 @@ export class ProjectSourceService {
       }
     }
 
-    logger.info({ projectId, targetId, includedPaths: includedPaths.length, copiedFiles }, "Subproject source copied");
-    return subDir;
+    logger.info({ projectId, targetId, includedPaths: includedPaths.length, copiedFiles }, "BuildTarget source copied");
+    return targetDir;
   }
 
   private copyDirRecursive(src: string, dest: string): void {

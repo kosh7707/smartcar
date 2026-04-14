@@ -143,7 +143,7 @@ export const SdkManagementSection: React.FC<SdkManagementSectionProps> = ({
         <div className="project-settings-panel__icon"><Settings size={18} /></div>
         <div>
           <div className="project-settings-panel__title">SDK 관리</div>
-          <div className="project-settings-panel__desc">크로스 컴파일 SDK를 등록하여 서브프로젝트 분석에 사용합니다.</div>
+          <div className="project-settings-panel__desc">크로스 컴파일 SDK를 등록하여 BuildTarget 분석에 사용합니다.</div>
         </div>
       </div>
 

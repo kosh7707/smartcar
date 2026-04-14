@@ -114,8 +114,8 @@ import json
 import os
 trusted = {
     'projectPath': '${PROJECT_PATH}',
-    'subprojectPath': '${TARGET_PATH}',
-    'subprojectName': '${TARGET_NAME}'
+    'buildTargetPath': '${TARGET_PATH}',
+    'buildTargetName': '${TARGET_NAME}'
 }
 if os.environ.get('BUILD_CONTRACT_VERSION'):
     trusted['contractVersion'] = os.environ['BUILD_CONTRACT_VERSION']

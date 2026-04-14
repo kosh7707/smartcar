@@ -36,6 +36,8 @@ export function makeRun(overrides?: Partial<Run>): Run {
   return {
     id: `run-${uuid()}`,
     projectId: `proj-${uuid()}`,
+    buildTargetId: `target-${uuid()}`,
+    analysisExecutionId: `exec-${uuid()}`,
     module: "static_analysis",
     status: "completed",
     analysisResultId: `analysis-${uuid()}`,
@@ -52,6 +54,8 @@ export function makeFinding(overrides?: Partial<Finding>): Finding {
     id: `finding-${uuid()}`,
     runId: `run-${uuid()}`,
     projectId: `proj-${uuid()}`,
+    buildTargetId: `target-${uuid()}`,
+    analysisExecutionId: `exec-${uuid()}`,
     module: "static_analysis",
     status: "open",
     severity: "medium",
@@ -122,6 +126,8 @@ export function makeAnalysisResult(overrides?: Partial<AnalysisResult>): Analysi
   return {
     id: `analysis-${uuid()}`,
     projectId: `proj-${uuid()}`,
+    buildTargetId: `target-${uuid()}`,
+    analysisExecutionId: `exec-${uuid()}`,
     module: "static_analysis",
     status: "completed",
     vulnerabilities: [],

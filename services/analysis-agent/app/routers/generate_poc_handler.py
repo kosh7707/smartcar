@@ -212,6 +212,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
             messages,
             max_tokens=request.constraints.maxTokens or 8192,
             temperature=0.3,
+            prefer_async_ownership=True,
         )
         raw = llm_response.content or ""
         prompt_tokens = llm_response.prompt_tokens

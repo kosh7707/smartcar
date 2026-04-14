@@ -61,7 +61,7 @@ export function useFilesPage(
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [dragOver, setDragOver] = useState(false);
-  const [showSubprojectDialog, setShowSubprojectDialog] = useState(false);
+  const [showBuildTargetDialog, setShowBuildTargetDialog] = useState(false);
   const [logTarget, setLogTarget] = useState<{ id: string; name: string } | null>(null);
   const [openPaths, setOpenPaths] = useState<Set<string> | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -216,7 +216,7 @@ export function useFilesPage(
     return (
       <>
         {mapping && (
-          <span className="ftree-meta ftree-target" title={`서브프로젝트: ${mapping.targetName}`}>
+          <span className="ftree-meta ftree-target" title={`BuildTarget: ${mapping.targetName}`}>
             <HardDrive size={10} /> {mapping.targetName}
           </span>
         )}
@@ -262,8 +262,8 @@ export function useFilesPage(
     setSearch,
     dragOver,
     setDragOver,
-    showSubprojectDialog,
-    setShowSubprojectDialog,
+    showBuildTargetDialog,
+    setShowBuildTargetDialog,
     logTarget,
     setLogTarget,
     selectedPath,
@@ -290,8 +290,8 @@ export function useFilesPage(
     onExpandAll,
     onCollapseAll,
     onToggleFolder,
-    onSubprojectCreated: () => {
-      setShowSubprojectDialog(false);
+    onBuildTargetCreated: () => {
+      setShowBuildTargetDialog(false);
       void buildTargets.load();
     },
   };

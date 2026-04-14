@@ -4,7 +4,7 @@ import path from "path";
 import os from "os";
 import { ProjectSourceService } from "../project-source.service";
 
-describe("ProjectSourceService.copyToSubproject", () => {
+describe("ProjectSourceService.copyToBuildTargetSource", () => {
   let tmpDir: string;
   let service: ProjectSourceService;
   const projectId = "test-project";
@@ -27,34 +27,34 @@ describe("ProjectSourceService.copyToSubproject", () => {
   });
 
   it("copies files and directories preserving structure", () => {
-    const subDir = service.copyToSubproject(projectId, "t1", ["main.c", "lib"]);
+    const targetDir = service.copyToBuildTargetSource(projectId, "t1", ["main.c", "lib"]);
 
-    expect(fs.existsSync(path.join(subDir, "main.c"))).toBe(true);
-    expect(fs.existsSync(path.join(subDir, "lib", "util.c"))).toBe(true);
-    expect(fs.existsSync(path.join(subDir, "lib", "util.h"))).toBe(true);
-    expect(fs.readFileSync(path.join(subDir, "main.c"), "utf-8")).toBe("int main() {}");
+    expect(fs.existsSync(path.join(targetDir, "main.c"))).toBe(true);
+    expect(fs.existsSync(path.join(targetDir, "lib", "util.c"))).toBe(true);
+    expect(fs.existsSync(path.join(targetDir, "lib", "util.h"))).toBe(true);
+    expect(fs.readFileSync(path.join(targetDir, "main.c"), "utf-8")).toBe("int main() {}");
   });
 
   it("skips directory traversal paths", () => {
-    const subDir = service.copyToSubproject(projectId, "t2", ["../../../etc/passwd", "main.c"]);
+    const targetDir = service.copyToBuildTargetSource(projectId, "t2", ["../../../etc/passwd", "main.c"]);
 
-    expect(fs.existsSync(path.join(subDir, "main.c"))).toBe(true);
-    expect(fs.existsSync(path.join(subDir, "etc"))).toBe(false);
+    expect(fs.existsSync(path.join(targetDir, "main.c"))).toBe(true);
+    expect(fs.existsSync(path.join(targetDir, "etc"))).toBe(false);
   });
 
   it("skips non-existent paths without error", () => {
-    const subDir = service.copyToSubproject(projectId, "t3", ["nonexistent.c", "main.c"]);
+    const targetDir = service.copyToBuildTargetSource(projectId, "t3", ["nonexistent.c", "main.c"]);
 
-    expect(fs.existsSync(path.join(subDir, "main.c"))).toBe(true);
-    expect(fs.existsSync(path.join(subDir, "nonexistent.c"))).toBe(false);
+    expect(fs.existsSync(path.join(targetDir, "main.c"))).toBe(true);
+    expect(fs.existsSync(path.join(targetDir, "nonexistent.c"))).toBe(false);
   });
 
-  it("overwrites existing subproject directory", () => {
-    service.copyToSubproject(projectId, "t4", ["main.c"]);
-    const subDir = service.copyToSubproject(projectId, "t4", ["lib"]);
+  it("overwrites existing BuildTarget directory", () => {
+    service.copyToBuildTargetSource(projectId, "t4", ["main.c"]);
+    const targetDir = service.copyToBuildTargetSource(projectId, "t4", ["lib"]);
 
-    expect(fs.existsSync(path.join(subDir, "main.c"))).toBe(false);
-    expect(fs.existsSync(path.join(subDir, "lib", "util.c"))).toBe(true);
+    expect(fs.existsSync(path.join(targetDir, "main.c"))).toBe(false);
+    expect(fs.existsSync(path.join(targetDir, "lib", "util.c"))).toBe(true);
   });
 
   it("quarantines and removes a project root", () => {

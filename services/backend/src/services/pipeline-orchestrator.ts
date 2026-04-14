@@ -1,8 +1,8 @@
 /**
- * 서브 프로젝트 파이프라인 오케스트레이터
+ * BuildTarget 파이프라인 오케스트레이터
  *
  * 빌드(S4) → 스캔(S4) → 코드그래프 적재(S5) 순차 실행
- * 서브 프로젝트(BuildTarget)별로 상태머신 관리 + WS 진행률 브로드캐스트
+ * BuildTarget별로 상태머신 관리 + WS 진행률 브로드캐스트
  */
 import crypto from "crypto";
 import path from "path";
@@ -22,7 +22,7 @@ import type { SastClient, SastScanResponse } from "./sast-client";
 import type { KbClient } from "./kb-client";
 import type { BuildAgentClient } from "./build-agent-client";
 import type { TargetLibraryDAO } from "../dao/target-library.dao";
-import type { IBuildTargetDAO, IAnalysisResultDAO } from "../dao/interfaces";
+import type { IBuildTargetDAO, IAnalysisExecutionDAO, IAnalysisResultDAO } from "../dao/interfaces";
 import type { ResultNormalizer } from "./result-normalizer";
 import type { WsBroadcaster } from "./ws-broadcaster";
 import type { NotificationService } from "./notification.service";
@@ -49,6 +49,7 @@ export class PipelineOrchestrator {
     private resultNormalizer: ResultNormalizer,
     private ws?: WsBroadcaster<WsPipelineMessage>,
     private notificationService?: NotificationService,
+    private analysisExecutionDAO?: IAnalysisExecutionDAO,
   ) {}
 
   async runPipeline(
@@ -191,6 +192,7 @@ export class PipelineOrchestrator {
     this.updateStatus(projectId, pipelineId, target, "scanning", "SAST 스캔 + SCA 진행 중...");
 
     const scanId = `scan-${crypto.randomUUID().slice(0, 8)}`;
+    await this.prepareExecutionForScan(projectId, scanId, target);
     const sastResponse = await this.sastClient.scan(
       {
         scanId,
@@ -205,15 +207,23 @@ export class PipelineOrchestrator {
     );
 
     if (sastResponse.status !== "completed") {
+      await this.analysisExecutionDAO?.update(scanId, {
+        quickSastStatus: "failed",
+        quickGraphRagStatus: "failed",
+        status: "failed",
+      });
       this.buildTargetDAO.updatePipelineState(target.id, { status: "scan_failed" });
       this.updateStatus(projectId, pipelineId, target, "scan_failed", `스캔 실패: ${sastResponse.error}`);
       throw new PipelineStepError(`Scan failed for ${target.name}: ${sastResponse.error}`);
     }
 
     // Quick 결과 저장
-    const quickResult = this.buildQuickResult(scanId, projectId, target.name, sastResponse);
+    const quickResult = this.buildQuickResult(scanId, projectId, target, sastResponse);
     this.analysisResultDAO.save(quickResult);
     this.resultNormalizer.normalizeAnalysisResult(quickResult, { startedAt: new Date().toISOString() });
+    await this.analysisExecutionDAO?.update(scanId, {
+      quickSastStatus: "succeeded",
+    });
 
     this.buildTargetDAO.updatePipelineState(target.id, {
       status: "scanned",
@@ -251,23 +261,39 @@ export class PipelineOrchestrator {
           codeGraphStatus: "ingested",
           codeGraphNodeCount: ingestResult.nodes_created,
         });
+        await this.analysisExecutionDAO?.update(scanId, {
+          quickGraphRagStatus: "succeeded",
+          status: "completed",
+        });
         this.updateStatus(projectId, pipelineId, target, "graphed", `코드그래프 적재 완료 (${ingestResult.nodes_created} nodes)`);
       } catch (err) {
-        if (err instanceof PipelineStepError) {
-          throw err;
-        }
-        // 코드그래프 실패는 치명적이지 않음 — 경고 후 계속
-        logger.warn({ err, targetId: target.id, requestId }, "Code graph ingest failed, continuing");
         this.buildTargetDAO.updatePipelineState(target.id, {
-          status: "graphed",
+          status: "graph_failed",
           codeGraphStatus: "failed",
         });
+        logger.warn({ err, targetId: target.id, requestId }, "Code graph ingest failed");
+        await this.analysisExecutionDAO?.update(scanId, {
+          quickGraphRagStatus: "failed",
+          status: "failed",
+        });
+        if (err instanceof PipelineStepError) {
+          this.updateStatus(projectId, pipelineId, target, "graph_failed", `코드그래프 미준비: ${err.message}`);
+          throw err;
+        }
+        this.updateStatus(projectId, pipelineId, target, "graph_failed", "코드그래프 적재 실패");
+        throw new PipelineStepError(`Code graph ingest failed for ${target.name}`);
       }
     } else {
       this.buildTargetDAO.updatePipelineState(target.id, {
-        status: "graphed",
-        codeGraphStatus: "pending",
+        status: "graph_failed",
+        codeGraphStatus: "failed",
       });
+      await this.analysisExecutionDAO?.update(scanId, {
+        quickGraphRagStatus: "failed",
+        status: "failed",
+      });
+      this.updateStatus(projectId, pipelineId, target, "graph_failed", "코드그래프 결과 없음");
+      throw new PipelineStepError(`Code graph missing for ${target.name}`);
     }
 
     // ── Step 4: Ready ──
@@ -283,7 +309,7 @@ export class PipelineOrchestrator {
     requestId?: string,
     signal?: AbortSignal,
   ): Promise<{ scanPath: string }> {
-    // 격리된 서브프로젝트 경로 우선 사용 (없으면 원본 프로젝트 내 상대경로)
+    // 격리된 BuildTarget 경로 우선 사용 (없으면 원본 프로젝트 내 상대경로)
     const scanPath = target.sourcePath ?? path.join(projectPath, target.relativePath);
     const isIsolated = !!target.sourcePath;
 
@@ -301,8 +327,8 @@ export class PipelineOrchestrator {
             context: {
               trusted: {
                 projectPath: scanPath,
-                subprojectPath: isIsolated ? "." : target.relativePath,
-                subprojectName: target.name,
+                buildTargetPath: isIsolated ? "." : target.relativePath,
+                buildTargetName: target.name,
                 targetPath: isIsolated ? "." : target.relativePath,
                 targetName: target.name,
                 targets: [
@@ -334,8 +360,8 @@ export class PipelineOrchestrator {
               context: {
                 trusted: {
                   projectPath: scanPath,
-                  subprojectPath: isIsolated ? "." : target.relativePath,
-                  subprojectName: target.name,
+                  buildTargetPath: isIsolated ? "." : target.relativePath,
+                  buildTargetName: target.name,
                   targetPath: isIsolated ? "." : target.relativePath,
                   targetName: target.name,
                   targets: [{
@@ -447,7 +473,7 @@ export class PipelineOrchestrator {
   private buildQuickResult(
     scanId: string,
     projectId: string,
-    targetName: string,
+    target: BuildTarget,
     sastResponse: SastScanResponse,
   ): AnalysisResult {
     const vulns: Vulnerability[] = sastResponse.findings.map((f, i) => ({
@@ -466,6 +492,8 @@ export class PipelineOrchestrator {
     return {
       id: scanId,
       projectId,
+      buildTargetId: target.id,
+      analysisExecutionId: scanId,
       module: "static_analysis",
       status: "completed",
       vulnerabilities: vulns,
@@ -473,6 +501,40 @@ export class PipelineOrchestrator {
       scaLibraries: sastResponse.sca?.libraries ? [...sastResponse.sca.libraries] : undefined,
       createdAt: new Date().toISOString(),
     };
+  }
+
+  private async prepareExecutionForScan(
+    projectId: string,
+    executionId: string,
+    target: BuildTarget,
+  ): Promise<void> {
+    if (!this.analysisExecutionDAO) return;
+
+    const existingActive = this.analysisExecutionDAO.findActiveByBuildTargetId(target.id);
+    if (existingActive && existingActive.id !== executionId) {
+      this.analysisExecutionDAO.update(existingActive.id, {
+        status: "superseded",
+        supersededByExecutionId: executionId,
+      });
+    }
+
+    const now = new Date().toISOString();
+    this.analysisExecutionDAO.save({
+      id: executionId,
+      projectId,
+      buildTargetId: target.id,
+      buildTargetName: target.name,
+      buildTargetRelativePath: target.relativePath,
+      buildProfileSnapshot: target.buildProfile,
+      sdkChoiceState: target.sdkChoiceState,
+      status: "active",
+      quickBuildPrepStatus: "succeeded",
+      quickGraphRagStatus: "pending",
+      quickSastStatus: "running",
+      deepStatus: "pending",
+      createdAt: now,
+      updatedAt: now,
+    });
   }
 
   private normalizeSeverity(toolSeverity: string): Severity {

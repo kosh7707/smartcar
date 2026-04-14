@@ -130,8 +130,8 @@ def test_build_success_includes_explicit_build_preparation_bundle() -> None:
         metadata=_strict_metadata(expected_artifacts=["build-aegis/gateway"]),
         trusted={
             "projectPath": "/tmp/project",
-            "subprojectPath": "gateway",
-            "subprojectName": "gateway",
+            "buildTargetPath": "gateway",
+            "buildTargetName": "gateway",
             "buildEnvironment": {"CC": "arm-none-linux-gnueabihf-gcc"},
             "provenance": {"buildSnapshotId": "bsnap-1", "buildUnitId": "bunit-1"},
         },
@@ -300,8 +300,8 @@ def test_strict_build_infers_expected_artifact_from_filesystem(tmp_path) -> None
         metadata=_strict_metadata(expected_artifacts=["certificate-maker"]),
         trusted={
             "projectPath": str(project_root),
-            "subprojectPath": ".",
-            "subprojectName": "certificate-maker",
+            "buildTargetPath": ".",
+            "buildTargetName": "certificate-maker",
         },
     )
     _record_build_success(session)
@@ -327,8 +327,8 @@ def test_strict_build_infers_artifact_from_build_script_directory(tmp_path) -> N
         metadata=_strict_metadata(expected_artifacts=["certificate-maker"]),
         trusted={
             "projectPath": str(project_root),
-            "subprojectPath": ".",
-            "subprojectName": "certificate-maker",
+            "buildTargetPath": ".",
+            "buildTargetName": "certificate-maker",
         },
     )
     _record_build_success(session)

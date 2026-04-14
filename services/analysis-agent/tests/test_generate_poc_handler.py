@@ -99,6 +99,53 @@ async def test_generate_poc_returns_structured_json_with_valid_claim(monkeypatch
 
 
 @pytest.mark.asyncio
+async def test_generate_poc_requests_async_ownership_for_toolless_llm_call(monkeypatch):
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+
+    seen = {}
+
+    async def fake_call(self, *args, **kwargs):
+        seen["prefer_async_ownership"] = kwargs.get("prefer_async_ownership")
+        return _mock_llm_response(json.dumps({
+            "summary": "PoC가 RCE 가능성을 재현한다.",
+            "claims": [{
+                "statement": "PoC는 popen 경로를 통해 명령 주입 가능성을 증명한다.",
+                "detail": "PoC detail",
+                "supportingEvidenceRefs": ["eref-001"],
+                "location": "src/http_client.cpp:62",
+            }],
+            "caveats": [],
+            "usedEvidenceRefs": ["eref-001"],
+            "suggestedSeverity": "high",
+            "needsHumanReview": True,
+            "recommendedNextSteps": ["escape 검증 추가"],
+            "policyFlags": [],
+        }))
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "completed"
+        assert seen["prefer_async_ownership"] is True
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
 async def test_generate_poc_rejects_unstructured_output(monkeypatch):
     original_mode = settings.llm_mode
     monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(

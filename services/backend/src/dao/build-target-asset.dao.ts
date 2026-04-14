@@ -1,10 +1,10 @@
 import type { DatabaseType } from "../db";
 import { safeJsonParse } from "../lib/utils";
-import type { BuildSelectionManifest, ISubprojectAssetDAO, SubprojectAssetRecord } from "./interfaces";
+import type { BuildSelectionManifest, IBuildTargetAssetDAO, BuildTargetAssetRecord } from "./interfaces";
 
 const EMPTY_SELECTION_MANIFEST: BuildSelectionManifest = { files: [], excluded: [] };
 
-interface SubprojectAssetRow {
+interface BuildTargetAssetRow {
   id: string;
   project_id: string;
   build_unit_id: string;
@@ -16,7 +16,7 @@ interface SubprojectAssetRow {
   updated_at: string;
 }
 
-function rowToSubprojectAsset(row: SubprojectAssetRow): SubprojectAssetRecord {
+function rowToBuildTargetAsset(row: BuildTargetAssetRow): BuildTargetAssetRecord {
   return {
     id: row.id,
     projectId: row.project_id,
@@ -30,7 +30,7 @@ function rowToSubprojectAsset(row: SubprojectAssetRow): SubprojectAssetRecord {
   };
 }
 
-export class SubprojectAssetDAO implements ISubprojectAssetDAO {
+export class BuildTargetAssetDAO implements IBuildTargetAssetDAO {
   private readonly upsertStmt;
   private readonly selectByIdStmt;
   private readonly selectByBuildUnitRevisionStmt;
@@ -38,7 +38,7 @@ export class SubprojectAssetDAO implements ISubprojectAssetDAO {
 
   constructor(private readonly db: DatabaseType) {
     this.upsertStmt = db.prepare(
-      `INSERT INTO subproject_assets (
+      `INSERT INTO build_target_assets (
          id,
          project_id,
          build_unit_id,
@@ -59,16 +59,16 @@ export class SubprojectAssetDAO implements ISubprojectAssetDAO {
          selection_manifest = excluded.selection_manifest,
          updated_at = excluded.updated_at`,
     );
-    this.selectByIdStmt = db.prepare(`SELECT * FROM subproject_assets WHERE id = ?`);
+    this.selectByIdStmt = db.prepare(`SELECT * FROM build_target_assets WHERE id = ?`);
     this.selectByBuildUnitRevisionStmt = db.prepare(
-      `SELECT * FROM subproject_assets WHERE build_unit_revision_id = ? LIMIT 1`,
+      `SELECT * FROM build_target_assets WHERE build_unit_revision_id = ? LIMIT 1`,
     );
     this.selectByBuildUnitStmt = db.prepare(
-      `SELECT * FROM subproject_assets WHERE build_unit_id = ? ORDER BY updated_at DESC`,
+      `SELECT * FROM build_target_assets WHERE build_unit_id = ? ORDER BY updated_at DESC`,
     );
   }
 
-  save(asset: SubprojectAssetRecord): void {
+  save(asset: BuildTargetAssetRecord): void {
     this.upsertStmt.run(
       asset.id,
       asset.projectId,
@@ -82,17 +82,17 @@ export class SubprojectAssetDAO implements ISubprojectAssetDAO {
     );
   }
 
-  findById(id: string): SubprojectAssetRecord | undefined {
-    const row = this.selectByIdStmt.get(id) as SubprojectAssetRow | undefined;
-    return row ? rowToSubprojectAsset(row) : undefined;
+  findById(id: string): BuildTargetAssetRecord | undefined {
+    const row = this.selectByIdStmt.get(id) as BuildTargetAssetRow | undefined;
+    return row ? rowToBuildTargetAsset(row) : undefined;
   }
 
-  findByBuildUnitRevisionId(buildUnitRevisionId: string): SubprojectAssetRecord | undefined {
-    const row = this.selectByBuildUnitRevisionStmt.get(buildUnitRevisionId) as SubprojectAssetRow | undefined;
-    return row ? rowToSubprojectAsset(row) : undefined;
+  findByBuildUnitRevisionId(buildUnitRevisionId: string): BuildTargetAssetRecord | undefined {
+    const row = this.selectByBuildUnitRevisionStmt.get(buildUnitRevisionId) as BuildTargetAssetRow | undefined;
+    return row ? rowToBuildTargetAsset(row) : undefined;
   }
 
-  findByBuildUnitId(buildUnitId: string): SubprojectAssetRecord[] {
-    return (this.selectByBuildUnitStmt.all(buildUnitId) as SubprojectAssetRow[]).map(rowToSubprojectAsset);
+  findByBuildUnitId(buildUnitId: string): BuildTargetAssetRecord[] {
+    return (this.selectByBuildUnitStmt.all(buildUnitId) as BuildTargetAssetRow[]).map(rowToBuildTargetAsset);
   }
 }

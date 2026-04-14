@@ -8,6 +8,7 @@ import type { ProjectSourceService } from "../services/project-source.service";
 import { asyncHandler } from "../middleware/async-handler";
 import { InvalidInputError, NotFoundError } from "../lib/errors";
 import { createLogger } from "../lib/logger";
+import { isVisibleAnalysisArtifact } from "../lib/analysis-visibility";
 
 const logger = createLogger("analysis-controller");
 
@@ -44,14 +45,18 @@ export function createAnalysisRouter(
     rejectLegacyExecutionFields(req.body as Record<string, unknown>);
     if (!projectId) throw new InvalidInputError("projectId is required");
     if (!buildTargetId) throw new InvalidInputError("buildTargetId is required");
+    await orchestrator.preflightQuickRequest(projectId, buildTargetId);
 
     const analysisId = `analysis-${crypto.randomUUID().slice(0, 8)}`;
     const requestId = req.requestId;
-    const abortController = analysisTracker.start(analysisId, projectId);
+    const abortController = analysisTracker.start(analysisId, projectId, {
+      buildTargetId,
+      executionId: analysisId,
+    });
 
     res.status(202).json({
       success: true,
-      data: { analysisId, status: "running" },
+      data: { analysisId, buildTargetId, executionId: analysisId, status: "running" },
     });
 
     orchestrator
@@ -64,7 +69,7 @@ export function createAnalysisRouter(
       });
   }));
 
-  // POST /api/analysis/deep — explicit Deep only, using prior Quick context
+  // POST /api/analysis/deep — explicit Deep only, using prior execution context
   router.post("/deep", asyncHandler(async (req, res) => {
     const { projectId, buildTargetId, executionId } = req.body as {
       projectId?: string;
@@ -75,18 +80,22 @@ export function createAnalysisRouter(
     if (!projectId) throw new InvalidInputError("projectId is required");
     if (!buildTargetId) throw new InvalidInputError("buildTargetId is required");
     if (!executionId) throw new InvalidInputError("executionId is required");
+    await orchestrator.preflightDeepRequest(projectId, buildTargetId, executionId);
 
     const analysisId = `analysis-${crypto.randomUUID().slice(0, 8)}`;
     const requestId = req.requestId;
-    const abortController = analysisTracker.start(analysisId, projectId);
+    const abortController = analysisTracker.start(analysisId, projectId, {
+      buildTargetId,
+      executionId,
+    });
 
     res.status(202).json({
       success: true,
-      data: { analysisId, status: "running" },
+      data: { analysisId, buildTargetId, executionId, status: "running" },
     });
 
     orchestrator
-      .runDeepAnalysis(projectId, analysisId, executionId, requestId, abortController.signal)
+      .runDeepAnalysis(projectId, analysisId, buildTargetId, executionId, requestId, abortController.signal)
       .then(() => analysisTracker.complete(analysisId))
       .catch((err) => {
         const msg = err instanceof Error ? err.message : "Unknown error";
@@ -122,7 +131,7 @@ export function createAnalysisRouter(
     const projectId = req.query.projectId as string;
     if (!projectId) throw new InvalidInputError("projectId query parameter required");
 
-    const results = analysisResultDAO.findByProjectId(projectId);
+    const results = analysisResultDAO.findByProjectId(projectId).filter((result) => isVisibleAnalysisArtifact(result));
     res.json({ success: true, data: results });
   }));
 
@@ -131,7 +140,7 @@ export function createAnalysisRouter(
     const analysisId = req.params.analysisId as string;
     const result = analysisResultDAO.findById(analysisId)
       ?? analysisResultDAO.findById(`deep-${analysisId}`);
-    if (!result) throw new NotFoundError("Analysis result not found");
+    if (!result || !isVisibleAnalysisArtifact(result)) throw new NotFoundError("Analysis result not found");
     res.json({ success: true, data: result });
   }));
 
@@ -153,28 +162,41 @@ export function createAnalysisRouter(
     const since = periodToDate(period);
 
     const modules = ["static_analysis", "deep_analysis"] as const;
+    const isSummaryModule = (module: string): module is typeof modules[number] =>
+      module === "static_analysis" || module === "deep_analysis";
+    const visibleFindings = findingDAO.findByProjectId(projectId, { from: since })
+      .filter((finding) => isSummaryModule(finding.module))
+      .filter((finding) => isVisibleAnalysisArtifact(finding));
+    const visibleRuns = runDAO.findByProjectId(projectId)
+      .filter((run) => isSummaryModule(run.module))
+      .filter((run) => isVisibleAnalysisArtifact(run))
+      .filter((run) => !since || run.createdAt >= since);
+    const visibleRunIds = new Set(visibleRuns.map((run) => run.id));
+    const visibleGateResults = gateResultDAO.findByProjectId(projectId)
+      .filter((gate) => visibleRunIds.has(gate.runId))
+      .filter((gate) => !since || gate.createdAt >= since);
 
-    // 모듈별 집계 후 합산
     const merged = { bySeverity: {} as Record<string, number>, byStatus: {} as Record<string, number>, bySource: {} as Record<string, number>, total: 0 };
-    for (const mod of modules) {
-      const dist = findingDAO.summaryByModule(projectId, mod, since);
-      merged.total += dist.total;
-      for (const [k, v] of Object.entries(dist.bySeverity)) merged.bySeverity[k] = (merged.bySeverity[k] ?? 0) + v;
-      for (const [k, v] of Object.entries(dist.byStatus)) merged.byStatus[k] = (merged.byStatus[k] ?? 0) + v;
-      for (const [k, v] of Object.entries(dist.bySource)) merged.bySource[k] = (merged.bySource[k] ?? 0) + v;
+    for (const finding of visibleFindings) {
+      merged.total += 1;
+      merged.bySeverity[finding.severity] = (merged.bySeverity[finding.severity] ?? 0) + 1;
+      merged.byStatus[finding.status] = (merged.byStatus[finding.status] ?? 0) + 1;
+      merged.bySource[finding.sourceType] = (merged.bySource[finding.sourceType] ?? 0) + 1;
     }
 
-    // topFiles — 두 모듈 합산 후 상위 10개
-    const allFiles = modules.flatMap((mod) => findingDAO.topFilesByModule(projectId, mod, 20, since));
     const fileMap = new Map<string, { findingCount: number; topSeverity: string }>();
     const sevOrder: Record<string, number> = { critical: 5, high: 4, medium: 3, low: 2, info: 1 };
-    for (const f of allFiles) {
-      const existing = fileMap.get(f.filePath);
+    for (const finding of visibleFindings) {
+      if (!finding.location) continue;
+      const filePath = finding.location;
+      const existing = fileMap.get(filePath);
       if (existing) {
-        existing.findingCount += f.findingCount;
-        if ((sevOrder[f.topSeverity] ?? 0) > (sevOrder[existing.topSeverity] ?? 0)) existing.topSeverity = f.topSeverity;
+        existing.findingCount += 1;
+        if ((sevOrder[finding.severity] ?? 0) > (sevOrder[existing.topSeverity] ?? 0)) {
+          existing.topSeverity = finding.severity;
+        }
       } else {
-        fileMap.set(f.filePath, { findingCount: f.findingCount, topSeverity: f.topSeverity });
+        fileMap.set(filePath, { findingCount: 1, topSeverity: finding.severity });
       }
     }
     const topFiles = [...fileMap.entries()]
@@ -182,27 +204,46 @@ export function createAnalysisRouter(
       .sort((a, b) => b.findingCount - a.findingCount)
       .slice(0, 10);
 
-    // topRules — static_analysis만 (deep_analysis는 ruleId 없음)
-    const topRules = findingDAO.topRulesByModule(projectId, "static_analysis", 10, since);
+    const ruleCounts = new Map<string, number>();
+    for (const finding of visibleFindings) {
+      if (finding.module !== "static_analysis" || !finding.ruleId) continue;
+      ruleCounts.set(finding.ruleId, (ruleCounts.get(finding.ruleId) ?? 0) + 1);
+    }
+    const topRules = [...ruleCounts.entries()]
+      .map(([ruleId, hitCount]) => ({ ruleId, hitCount }))
+      .sort((a, b) => b.hitCount - a.hitCount)
+      .slice(0, 10);
 
-    // trend — 두 모듈 합산
-    const allTrend = modules.flatMap((mod) => runDAO.trendByModule(projectId, mod, since));
     const trendMap = new Map<string, { runCount: number; findingCount: number; gatePassCount: number }>();
-    for (const t of allTrend) {
-      const existing = trendMap.get(t.date);
+    const gateByRunId = new Map(visibleGateResults.map((gate) => [gate.runId, gate]));
+    for (const run of visibleRuns) {
+      const date = run.createdAt.slice(0, 10);
+      const existing = trendMap.get(date);
+      const gate = gateByRunId.get(run.id);
       if (existing) {
-        existing.runCount += t.runCount;
-        existing.findingCount += t.findingCount;
-        existing.gatePassCount += t.gatePassCount;
+        existing.runCount += 1;
+        existing.findingCount += run.findingCount;
+        existing.gatePassCount += gate?.status === "pass" ? 1 : 0;
       } else {
-        trendMap.set(t.date, { runCount: t.runCount, findingCount: t.findingCount, gatePassCount: t.gatePassCount });
+        trendMap.set(date, {
+          runCount: 1,
+          findingCount: run.findingCount,
+          gatePassCount: gate?.status === "pass" ? 1 : 0,
+        });
       }
     }
     const trend = [...trendMap.entries()]
       .map(([date, v]) => ({ date, ...v }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    const gateStats = gateResultDAO.statsByProject(projectId, since);
+    const gateStats = {
+      total: visibleGateResults.length,
+      passed: visibleGateResults.filter((gate) => gate.status === "pass").length,
+      failed: visibleGateResults.filter((gate) => gate.status === "fail").length,
+      rate: visibleGateResults.length > 0
+        ? Number((visibleGateResults.filter((gate) => gate.status === "pass").length / visibleGateResults.length).toFixed(4))
+        : 0,
+    };
 
     const unresolvedCount = {
       open: merged.byStatus["open"] ?? 0,
@@ -232,7 +273,7 @@ export function createAnalysisRouter(
     if (!projectId || !findingId) throw new InvalidInputError("projectId and findingId are required");
 
     const finding = findingDAO.findById(findingId);
-    if (!finding) throw new NotFoundError(`Finding not found: ${findingId}`);
+    if (!finding || !isVisibleAnalysisArtifact(finding)) throw new NotFoundError(`Finding not found: ${findingId}`);
     if (finding.projectId !== projectId) throw new NotFoundError(`Finding not found: ${findingId}`);
 
     // location에서 파일 경로 추출 (형식: "path/file.c:123" 또는 "path/file.c")

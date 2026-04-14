@@ -4,6 +4,7 @@ import type { IApprovalDAO, IAuditLogDAO } from "../dao/interfaces";
 import { createLogger } from "../lib/logger";
 import { NotFoundError, InvalidInputError } from "../lib/errors";
 import type { QualityGateService } from "./quality-gate.service";
+import type { FindingService } from "./finding.service";
 
 const logger = createLogger("approval");
 
@@ -15,6 +16,7 @@ export class ApprovalService {
     private auditLogDAO: IAuditLogDAO,
     private gateService: QualityGateService,
     private notificationService?: import("./notification.service").NotificationService,
+    private findingService?: FindingService,
   ) {}
 
   /** 승인 요청 생성 */
@@ -67,7 +69,7 @@ export class ApprovalService {
     requestId?: string
   ): ApprovalRequest {
     const request = this.approvalDAO.findById(approvalId);
-    if (!request) throw new NotFoundError(`Approval not found: ${approvalId}`);
+    if (!request || !this.isVisibleApproval(request)) throw new NotFoundError(`Approval not found: ${approvalId}`);
 
     // lazy expiration 체크
     if (request.status === "pending" && new Date(request.expiresAt) < new Date()) {
@@ -117,7 +119,7 @@ export class ApprovalService {
 
   getById(id: string): ApprovalRequest | undefined {
     const request = this.approvalDAO.findById(id);
-    if (request) return this.applyLazyExpiration(request);
+    if (request && this.isVisibleApproval(request)) return this.applyLazyExpiration(request);
     return undefined;
   }
 
@@ -125,7 +127,10 @@ export class ApprovalService {
     const requests = projectId
       ? this.approvalDAO.findByProjectId(projectId, "pending")
       : this.approvalDAO.findPending();
-    return requests.map((r) => this.applyLazyExpiration(r)).filter((r) => r.status === "pending");
+    return requests
+      .filter((request) => this.isVisibleApproval(request))
+      .map((r) => this.applyLazyExpiration(r))
+      .filter((r) => r.status === "pending");
   }
 
   getCountByProjectId(projectId: string): { pending: number; total: number } {
@@ -135,7 +140,10 @@ export class ApprovalService {
   }
 
   getByProjectId(projectId: string): ApprovalRequest[] {
-    return this.approvalDAO.findByProjectId(projectId).map((r) => this.applyLazyExpiration(r));
+    return this.approvalDAO
+      .findByProjectId(projectId)
+      .filter((request) => this.isVisibleApproval(request))
+      .map((r) => this.applyLazyExpiration(r));
   }
 
   /** 만료된 pending 요청을 expired로 전환 (lazy) */
@@ -145,5 +153,15 @@ export class ApprovalService {
       return { ...request, status: "expired" };
     }
     return request;
+  }
+
+  private isVisibleApproval(request: ApprovalRequest): boolean {
+    if (request.actionType === "gate.override") {
+      return !!this.gateService.getById(request.targetId);
+    }
+    if (request.actionType === "finding.accepted_risk") {
+      return this.findingService ? !!this.findingService.findById(request.targetId) : true;
+    }
+    return true;
   }
 }

@@ -145,6 +145,109 @@ async def test_no_tools_uses_json_mode():
 
 
 @pytest.mark.asyncio
+async def test_async_ownership_returns_wrapped_result_for_toolless_calls():
+    caller = LlmCaller("http://fake:8000", "qwen")
+
+    async def fake_post(url, **kwargs):
+        if url.endswith("/v1/async-chat-requests"):
+            return _make_httpx_response({
+                "requestId": "acr_001",
+                "traceRequestId": "gw-001",
+                "status": "accepted",
+                "statusUrl": "/v1/async-chat-requests/acr_001",
+                "resultUrl": "/v1/async-chat-requests/acr_001/result",
+                "expiresAt": "2026-04-14T03:45:00Z",
+            }, status_code=202)
+        raise AssertionError(f"unexpected POST url: {url}")
+
+    async def fake_get(url, **kwargs):
+        if url.endswith("/v1/async-chat-requests/acr_001"):
+            return _make_httpx_response({
+                "requestId": "acr_001",
+                "state": "completed",
+                "localAckState": None,
+                "resultReady": True,
+            })
+        if url.endswith("/v1/async-chat-requests/acr_001/result"):
+            return _make_httpx_response({
+                "requestId": "acr_001",
+                "state": "completed",
+                "response": _content_response('{"summary":"async ok"}'),
+            })
+        raise AssertionError(f"unexpected GET url: {url}")
+
+    caller._client = MagicMock()
+    caller._client.post = AsyncMock(side_effect=fake_post)
+    caller._client.get = AsyncMock(side_effect=fake_get)
+
+    result = await caller.call(
+        [{"role": "user", "content": "hi"}],
+        prefer_async_ownership=True,
+    )
+
+    assert result.content == '{"summary":"async ok"}'
+    assert result.has_tool_calls() is False
+
+
+@pytest.mark.asyncio
+async def test_async_ownership_falls_back_to_sync_when_endpoint_unavailable():
+    caller = LlmCaller("http://fake:8000", "qwen")
+
+    async def fake_post(url, **kwargs):
+        if url.endswith("/v1/async-chat-requests"):
+            return _make_httpx_response({"error": "not found"}, status_code=404)
+        if url.endswith("/v1/chat"):
+            return _make_httpx_response(_content_response('{"summary":"sync fallback"}'))
+        raise AssertionError(f"unexpected POST url: {url}")
+
+    caller._client = MagicMock()
+    caller._client.post = AsyncMock(side_effect=fake_post)
+
+    result = await caller.call(
+        [{"role": "user", "content": "hi"}],
+        prefer_async_ownership=True,
+    )
+
+    assert result.content == '{"summary":"sync fallback"}'
+    assert caller._client.post.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_async_ownership_unsupported_surface_is_temporarily_cached():
+    caller = LlmCaller("http://fake:8000", "qwen")
+
+    async def fake_post(url, **kwargs):
+        if url.endswith("/v1/async-chat-requests"):
+            return _make_httpx_response({"error": "not found"}, status_code=404)
+        if url.endswith("/v1/chat"):
+            return _make_httpx_response(_content_response('{"summary":"sync fallback"}'))
+        raise AssertionError(f"unexpected POST url: {url}")
+
+    caller._client = MagicMock()
+    caller._client.post = AsyncMock(side_effect=fake_post)
+
+    await caller.call(
+        [{"role": "user", "content": "hi"}],
+        prefer_async_ownership=True,
+    )
+    await caller.call(
+        [{"role": "user", "content": "hi again"}],
+        prefer_async_ownership=True,
+    )
+
+    async_calls = [
+        args.args[0] for args in caller._client.post.await_args_list
+        if args.args and args.args[0].endswith("/v1/async-chat-requests")
+    ]
+    sync_calls = [
+        args.args[0] for args in caller._client.post.await_args_list
+        if args.args and args.args[0].endswith("/v1/chat")
+    ]
+    assert len(async_calls) == 1
+    assert len(sync_calls) == 2
+
+
+@pytest.mark.asyncio
 async def test_tools_request_does_not_force_strict_json_header():
     caller = LlmCaller("http://fake:8000", "qwen")
     caller._client = MagicMock()

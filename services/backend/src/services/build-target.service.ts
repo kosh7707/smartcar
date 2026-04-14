@@ -34,7 +34,7 @@ export class BuildTargetService {
     // includedPaths가 있으면 물리적 복사
     let sourcePath: string | undefined;
     if (includedPaths?.length && this.sourceService) {
-      sourcePath = this.sourceService.copyToSubproject(projectId, targetId, includedPaths);
+      sourcePath = this.sourceService.copyToBuildTargetSource(projectId, targetId, includedPaths);
     }
 
     const target: BuildTarget = {

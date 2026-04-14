@@ -3,10 +3,12 @@ import express from "express";
 import request from "supertest";
 import { createAnalysisRouter } from "../analysis.controller";
 import { errorHandlerMiddleware } from "../../middleware/error-handler.middleware";
+import { NotFoundError } from "../../lib/errors";
 
 function createMockOrchestrator() {
   return {
-    runAnalysis: vi.fn().mockResolvedValue(undefined),
+    preflightQuickRequest: vi.fn(),
+    preflightDeepRequest: vi.fn(),
     runQuickAnalysis: vi.fn().mockResolvedValue(undefined),
     runDeepAnalysis: vi.fn().mockResolvedValue(undefined),
   };
@@ -64,7 +66,7 @@ describe("analysis execution validation", () => {
   it("POST /api/analysis/quick rejects legacy mode semantics", async () => {
     const res = await request(app)
       .post("/api/analysis/quick")
-      .send({ projectId: "p1", mode: "subproject", targetIds: ["t1"] });
+      .send({ projectId: "p1", mode: "full", targetIds: ["t1"] });
 
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
@@ -88,6 +90,8 @@ describe("analysis execution validation", () => {
     expect(res.status).toBe(202);
     expect(res.body.success).toBe(true);
     expect(res.body.data).toHaveProperty("analysisId");
+    expect(res.body.data.buildTargetId).toBe("t1");
+    expect(res.body.data.executionId).toBe(res.body.data.analysisId);
     expect(orchestrator.runQuickAnalysis).toHaveBeenCalledWith(
       "p1",
       expect.stringMatching(/^analysis-/),
@@ -95,6 +99,20 @@ describe("analysis execution validation", () => {
       undefined,
       expect.any(AbortSignal),
     );
+  });
+
+  it("POST /api/analysis/quick surfaces synchronous BuildTarget preflight failures", async () => {
+    vi.mocked(orchestrator.preflightQuickRequest).mockImplementation(() => {
+      throw new NotFoundError("BuildTarget not found: missing-target");
+    });
+
+    const res = await request(app)
+      .post("/api/analysis/quick")
+      .send({ projectId: "p1", buildTargetId: "missing-target" });
+
+    expect(res.status).toBe(404);
+    expect(res.body.errorDetail.message).toMatch(/BuildTarget not found/);
+    expect(orchestrator.runQuickAnalysis).not.toHaveBeenCalled();
   });
 
   it("POST /api/analysis/deep rejects legacy quickAnalysisId payloads", async () => {
@@ -132,12 +150,29 @@ describe("analysis execution validation", () => {
     expect(res.status).toBe(202);
     expect(res.body.success).toBe(true);
     expect(res.body.data.analysisId).toMatch(/^analysis-/);
+    expect(res.body.data.buildTargetId).toBe("t1");
+    expect(res.body.data.executionId).toBe("exec-1");
     expect(orchestrator.runDeepAnalysis).toHaveBeenCalledWith(
       "p1",
       expect.stringMatching(/^analysis-/),
+      "t1",
       "exec-1",
       undefined,
       expect.any(AbortSignal),
     );
+  });
+
+  it("POST /api/analysis/deep surfaces synchronous execution/buildTarget preflight failures", async () => {
+    vi.mocked(orchestrator.preflightDeepRequest).mockImplementation(() => {
+      throw new NotFoundError("AnalysisExecution not found: exec-missing");
+    });
+
+    const res = await request(app)
+      .post("/api/analysis/deep")
+      .send({ projectId: "p1", buildTargetId: "t1", executionId: "exec-missing" });
+
+    expect(res.status).toBe(404);
+    expect(res.body.errorDetail.message).toMatch(/AnalysisExecution not found/);
+    expect(orchestrator.runDeepAnalysis).not.toHaveBeenCalled();
   });
 });

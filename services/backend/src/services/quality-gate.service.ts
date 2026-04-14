@@ -13,6 +13,7 @@ import { findGateProfile, DEFAULT_GATE_PROFILE_ID } from "./gate-profiles";
 import type { GateProfile } from "@aegis/shared";
 import { createLogger } from "../lib/logger";
 import { NotFoundError } from "../lib/errors";
+import { isVisibleAnalysisArtifact } from "../lib/analysis-visibility";
 
 const logger = createLogger("quality-gate");
 
@@ -108,15 +109,18 @@ export class QualityGateService {
   }
 
   getById(id: string): GateResult | undefined {
-    return this.gateResultDAO.findById(id);
+    const result = this.gateResultDAO.findById(id);
+    return result && this.isAggregateVisibleGate(result) ? result : undefined;
   }
 
   getByRunId(runId: string): GateResult | undefined {
+    const run = this.runDAO.findById(runId);
+    if (!run || !isVisibleAnalysisArtifact(run)) return undefined;
     return this.gateResultDAO.findByRunId(runId);
   }
 
   getByProjectId(projectId: string): GateResult[] {
-    return this.gateResultDAO.findByProjectId(projectId);
+    return this.gateResultDAO.findByProjectId(projectId).filter((gate) => this.isAggregateVisibleGate(gate));
   }
 
   // ── 내부 규칙 평가 ──
@@ -149,6 +153,11 @@ export class QualityGateService {
     if (rules.some((r) => r.result === "failed")) return "fail";
     if (rules.some((r) => r.result === "warning")) return "warning";
     return "pass";
+  }
+
+  private isAggregateVisibleGate(result: GateResult): boolean {
+    const run = this.runDAO.findById(result.runId);
+    return !!run && isVisibleAnalysisArtifact(run);
   }
 
   /** severity=critical AND 활성 상태 finding → fail */

@@ -8,9 +8,9 @@ import { useToast } from "../../../contexts/ToastContext";
 import { useBuildTargets } from "../../../hooks/useBuildTargets";
 import { DEFAULT_PROFILE } from "./useBuildTargetSection";
 
-export const INCLUDED_PATHS_EDIT_UNSUPPORTED_TEXT = "현재 백엔드 계약상 includedPaths는 수정 API에서 갱신되지 않습니다. 파일 구성 변경이 필요하면 서브 프로젝트를 새로 만들고 기존 항목을 삭제하세요.";
+export const INCLUDED_PATHS_EDIT_UNSUPPORTED_TEXT = "현재 백엔드 계약상 includedPaths는 수정 API에서 갱신되지 않습니다. 파일 구성 변경이 필요하면 BuildTarget을 새로 만들고 기존 항목을 삭제하세요.";
 
-export function useSubprojectCreateDialog({
+export function useBuildTargetCreateDialog({
   open,
   projectId,
   sourceFiles,
@@ -70,7 +70,7 @@ export function useSubprojectCreateDialog({
   const includedPaths = useMemo(() => [...checked], [checked]);
 
   const handleCreate = useCallback(async () => {
-    if (!name.trim()) { toast.error("서브 프로젝트 이름을 입력해주세요."); return; }
+    if (!name.trim()) { toast.error("BuildTarget 이름을 입력해주세요."); return; }
     if (selectedCount === 0) { toast.error("파일을 1개 이상 선택해주세요."); return; }
     setCreating(true);
     try {
@@ -80,10 +80,10 @@ export function useSubprojectCreateDialog({
         await buildTargets.add(name.trim(), `${name.trim()}/`, profile, includedPaths);
         onCreated?.();
       }
-      toast.success(`서브 프로젝트 "${name.trim()}" ${onSubmit ? "수정" : "생성"} 완료 (${selectedCount}개 파일)`);
+      toast.success(`BuildTarget "${name.trim()}" ${onSubmit ? "수정" : "생성"} 완료 (${selectedCount}개 파일)`);
     } catch (error) {
-      logError(onSubmit ? "Update subproject" : "Create subproject", error);
-      toast.error(`서브 프로젝트 ${onSubmit ? "수정" : "생성"}에 실패했습니다.`);
+      logError(onSubmit ? "Update BuildTarget" : "Create BuildTarget", error);
+      toast.error(`BuildTarget ${onSubmit ? "수정" : "생성"}에 실패했습니다.`);
     } finally {
       setCreating(false);
     }

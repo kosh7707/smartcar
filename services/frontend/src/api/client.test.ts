@@ -115,33 +115,18 @@ describe("runPipelineTarget", () => {
 });
 
 describe("runAnalysis", () => {
-  it("sends projectId only when no targetIds", async () => {
-    mockResponse({ success: true, data: { analysisId: "a-1", status: "running" } });
+  it("sends BuildTarget-scoped quick request", async () => {
+    mockResponse({ success: true, data: { analysisId: "a-1", buildTargetId: "t-1", executionId: "exec-1", status: "running" } });
 
-    const result = await runAnalysis("proj-1");
+    const result = await runAnalysis("proj-1", "t-1");
     expect(result.analysisId).toBe("a-1");
+    expect(result.buildTargetId).toBe("t-1");
+    expect(result.executionId).toBe("exec-1");
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.projectId).toBe("proj-1");
-    expect(body.targetIds).toBeUndefined();
-  });
-
-  it("includes targetIds when provided", async () => {
-    mockResponse({ success: true, data: { analysisId: "a-2", status: "running" } });
-
-    await runAnalysis("proj-1", ["t-1", "t-2"]);
-
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(body.targetIds).toEqual(["t-1", "t-2"]);
-  });
-
-  it("omits targetIds when empty array", async () => {
-    mockResponse({ success: true, data: { analysisId: "a-3", status: "running" } });
-
-    await runAnalysis("proj-1", []);
-
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(body.targetIds).toBeUndefined();
+    expect(body.buildTargetId).toBe("t-1");
+    expect(mockFetch.mock.calls[0][0]).toContain("/api/analysis/quick");
   });
 });
 

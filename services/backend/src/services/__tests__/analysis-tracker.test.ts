@@ -4,7 +4,10 @@ import { AnalysisTracker } from "../analysis-tracker";
 describe("AnalysisTracker", () => {
   it("exposes websocket snapshot only after progress advances beyond queued", () => {
     const tracker = new AnalysisTracker();
-    tracker.start("analysis-1", "project-1");
+    tracker.start("analysis-1", "project-1", {
+      buildTargetId: "target-1",
+      executionId: "exec-1",
+    });
 
     expect(tracker.getWsSnapshot("analysis-1")).toBeUndefined();
 
@@ -17,6 +20,8 @@ describe("AnalysisTracker", () => {
       type: "analysis-progress",
       payload: {
         analysisId: "analysis-1",
+        buildTargetId: "target-1",
+        executionId: "exec-1",
         phase: "deep_submitting",
         message: "심층 분석 에이전트 호출 중...",
       },
@@ -25,7 +30,10 @@ describe("AnalysisTracker", () => {
 
   it("preserves deep_complete phase on completion for REST/WS recovery", () => {
     const tracker = new AnalysisTracker();
-    tracker.start("analysis-2", "project-2");
+    tracker.start("analysis-2", "project-2", {
+      buildTargetId: "target-2",
+      executionId: "exec-2",
+    });
     tracker.update("analysis-2", {
       phase: "deep_complete",
       message: "심층 분석 완료",
@@ -42,6 +50,8 @@ describe("AnalysisTracker", () => {
       type: "analysis-progress",
       payload: {
         analysisId: "analysis-2",
+        buildTargetId: "target-2",
+        executionId: "exec-2",
         phase: "deep_complete",
         message: "심층 분석 완료",
       },
@@ -50,7 +60,10 @@ describe("AnalysisTracker", () => {
 
   it("maps failed entries to analysis-error snapshots", () => {
     const tracker = new AnalysisTracker();
-    tracker.start("analysis-3", "project-3");
+    tracker.start("analysis-3", "project-3", {
+      buildTargetId: "target-3",
+      executionId: "exec-3",
+    });
     tracker.update("analysis-3", {
       phase: "quick_sast",
       message: "SAST 스캔 시작",
@@ -62,6 +75,8 @@ describe("AnalysisTracker", () => {
       type: "analysis-error",
       payload: {
         analysisId: "analysis-3",
+        buildTargetId: "target-3",
+        executionId: "exec-3",
         phase: "quick",
         error: "boom",
         retryable: false,
@@ -71,7 +86,10 @@ describe("AnalysisTracker", () => {
 
   it("preserves quick_graphing as a websocket progress phase", () => {
     const tracker = new AnalysisTracker();
-    tracker.start("analysis-4", "project-4");
+    tracker.start("analysis-4", "project-4", {
+      buildTargetId: "target-4",
+      executionId: "exec-4",
+    });
     tracker.update("analysis-4", {
       phase: "quick_graphing",
       message: "Quick 그래프 컨텍스트 적재 중...",
@@ -81,9 +99,27 @@ describe("AnalysisTracker", () => {
       type: "analysis-progress",
       payload: {
         analysisId: "analysis-4",
+        buildTargetId: "target-4",
+        executionId: "exec-4",
         phase: "quick_graphing",
         message: "Quick 그래프 컨텍스트 적재 중...",
       },
+    });
+  });
+
+  it("exposes BuildTarget and execution traceability in REST progress snapshots", () => {
+    const tracker = new AnalysisTracker();
+    tracker.start("analysis-5", "project-5", {
+      buildTargetId: "target-5",
+      executionId: "exec-5",
+    });
+
+    expect(tracker.get("analysis-5")).toMatchObject({
+      analysisId: "analysis-5",
+      projectId: "project-5",
+      buildTargetId: "target-5",
+      executionId: "exec-5",
+      status: "running",
     });
   });
 });

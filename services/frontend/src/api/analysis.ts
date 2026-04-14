@@ -46,14 +46,14 @@ export async function fetchAnalysisResults(
 
 export async function runAnalysis(
   projectId: string,
-  targetIds?: string[],
-  mode?: "full" | "subproject",
-): Promise<{ analysisId: string; status: string }> {
-  const body: Record<string, unknown> = { projectId };
-  if (targetIds && targetIds.length > 0) body.targetIds = targetIds;
-  if (mode) body.mode = mode;
-  const res = await apiFetch<{ success: boolean; data: { analysisId: string; status: string } }>(
-    "/api/analysis/run",
+  buildTargetId: string,
+): Promise<{ analysisId: string; buildTargetId: string; executionId: string; status: string }> {
+  const body = { projectId, buildTargetId };
+  const res = await apiFetch<{
+    success: boolean;
+    data: { analysisId: string; buildTargetId: string; executionId: string; status: string };
+  }>(
+    "/api/analysis/quick",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },

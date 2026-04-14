@@ -662,11 +662,11 @@ class ResultAssembler:
     ) -> None:
         trusted = session.request.context.trusted if isinstance(session.request.context.trusted, dict) else {}
         project_path = trusted.get("projectPath")
-        subproject_path = trusted.get("subprojectPath") or trusted.get("targetPath") or ""
+        build_target_path = trusted.get("buildTargetPath") or trusted.get("targetPath") or ""
         if not isinstance(project_path, str) or not project_path.strip():
             return
 
-        build_root = os.path.join(project_path, subproject_path) if subproject_path else project_path
+        build_root = os.path.join(project_path, build_target_path) if build_target_path else project_path
         build_root = os.path.normpath(build_root)
         build_dir = build_result.buildDir.strip() if build_result.buildDir else ""
         build_script_dir = ""

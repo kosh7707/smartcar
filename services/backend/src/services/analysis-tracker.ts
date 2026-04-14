@@ -8,6 +8,8 @@ const CLEANUP_DELAY_MS = 30 * 60 * 1000; // 30분
 interface AnalysisEntry {
   analysisId: string;
   projectId: string;
+  buildTargetId?: string;
+  executionId?: string;
   status: AnalysisTrackerStatus;
   phase: AnalysisPhase;
   currentChunk: number;
@@ -25,11 +27,19 @@ interface AnalysisEntry {
 export class AnalysisTracker {
   private entries = new Map<string, AnalysisEntry>();
 
-  start(analysisId: string, projectId: string): AbortController {
-    // 동일 프로젝트 중복 차단
-    const running = this.getRunning(projectId);
+  start(
+    analysisId: string,
+    projectId: string,
+    metadata?: { buildTargetId?: string; executionId?: string },
+  ): AbortController {
+    // BuildTarget execution exclusivity 우선. BuildTarget 정보가 없을 때만 project 단위 fallback.
+    const running = this.getRunning(projectId, metadata?.buildTargetId);
     if (running) {
-      throw new Error(`Analysis already running for project ${projectId}: ${running.analysisId}`);
+      throw new Error(
+        metadata?.buildTargetId
+          ? `Analysis already running for BuildTarget ${metadata.buildTargetId}: ${running.analysisId}`
+          : `Analysis already running for project ${projectId}: ${running.analysisId}`,
+      );
     }
 
     const abortController = new AbortController();
@@ -38,6 +48,8 @@ export class AnalysisTracker {
     this.entries.set(analysisId, {
       analysisId,
       projectId,
+      buildTargetId: metadata?.buildTargetId,
+      executionId: metadata?.executionId,
       status: "running",
       phase: "queued",
       currentChunk: 0,
@@ -126,11 +138,11 @@ export class AnalysisTracker {
     return all.map((e) => this.toProgress(e));
   }
 
-  getRunning(projectId: string): AnalysisProgress | undefined {
+  getRunning(projectId: string, buildTargetId?: string): AnalysisProgress | undefined {
     for (const entry of this.entries.values()) {
-      if (entry.projectId === projectId && entry.status === "running") {
-        return this.toProgress(entry);
-      }
+      if (entry.projectId !== projectId || entry.status !== "running") continue;
+      if (buildTargetId && entry.buildTargetId !== buildTargetId) continue;
+      return this.toProgress(entry);
     }
     return undefined;
   }
@@ -144,6 +156,8 @@ export class AnalysisTracker {
         type: "analysis-error",
         payload: {
           analysisId,
+          buildTargetId: entry.buildTargetId,
+          executionId: entry.executionId,
           phase: this.toErrorPhase(entry.phase),
           error: entry.error ?? entry.message,
           retryable: false,
@@ -159,6 +173,8 @@ export class AnalysisTracker {
       type: "analysis-progress",
       payload: {
         analysisId,
+        buildTargetId: entry.buildTargetId,
+        executionId: entry.executionId,
         phase: this.toWsPhase(entry.phase),
         message: entry.message,
       },
@@ -169,6 +185,8 @@ export class AnalysisTracker {
     return {
       analysisId: entry.analysisId,
       projectId: entry.projectId,
+      buildTargetId: entry.buildTargetId,
+      executionId: entry.executionId,
       status: entry.status,
       phase: entry.phase,
       currentChunk: entry.currentChunk,

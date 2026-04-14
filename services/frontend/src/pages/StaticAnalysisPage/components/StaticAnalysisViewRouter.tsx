@@ -23,6 +23,8 @@ type StaticAnalysisViewRouterProps = {
   };
   analysis: {
     analysisId: string | null;
+    buildTargetId?: string | null;
+    executionId?: string | null;
     stage: unknown;
     message: string;
     quickFindingCount: number | null;
@@ -111,6 +113,8 @@ export function StaticAnalysisViewRouter({
     return (
       <TwoStageProgressView
         analysisId={analysis.analysisId}
+        buildTargetId={analysis.buildTargetId}
+        executionId={analysis.executionId}
         stage={analysis.stage as never}
         message={analysis.message}
         quickFindingCount={analysis.quickFindingCount}

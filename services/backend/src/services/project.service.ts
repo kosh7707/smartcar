@@ -3,6 +3,9 @@ import type {
   Project,
   AnalysisSummary,
   AnalysisModule,
+  AnalysisResult,
+  Finding,
+  Run,
 } from "@aegis/shared";
 import type { ProjectOverviewResponse } from "@aegis/shared";
 import type { IProjectDAO, IAnalysisResultDAO, IFileStore, IFindingDAO, IRunDAO, IGateResultDAO } from "../dao/interfaces";
@@ -11,6 +14,7 @@ import type { ProjectSettingsService } from "./project-settings.service";
 import type { BuildTargetService } from "./build-target.service";
 import type { ProjectListItem } from "@aegis/shared";
 import type { ProjectDeletionService } from "./project-deletion.service";
+import { isVisibleAnalysisArtifact, requiresBuildTargetExecution } from "../lib/analysis-visibility";
 
 export class ProjectService {
   constructor(
@@ -54,17 +58,18 @@ export class ProjectService {
       return projects;
     }
     return projects.map((p) => {
-      const runs = this.runDAO!.findLatestCompletedRuns(p.id, 2);
+      const runs = this.runDAO!.findLatestCompletedRuns(p.id, 20).filter((run) => this.isAggregateVisibleRun(run));
       const latestRun = runs[0];
       const lastAnalysisAt = latestRun?.endedAt ?? latestRun?.createdAt;
-      const severitySummary = this.findingDAO!.severitySummaryByProjectId(p.id);
-      const latestGate = this.gateResultDAO!.latestByProjectId(p.id);
+      const visibleFindings = this.findingDAO!.findByProjectId(p.id).filter((finding) => this.isAggregateVisibleFinding(finding));
+      const severitySummary = this.buildSeveritySummary(visibleFindings);
+      const latestGate = latestRun ? this.gateResultDAO!.findByRunId(latestRun.id) : undefined;
 
       let unresolvedDelta: number | undefined;
       if (runs.length >= 2) {
-        const current = this.findingDAO!.unresolvedCountByProjectId(p.id);
+        const current = this.countUnresolvedFindings(visibleFindings);
         const prevCutoff = runs[1].endedAt ?? runs[1].createdAt;
-        const previous = this.findingDAO!.unresolvedCountByProjectId(p.id, { createdBefore: prevCutoff });
+        const previous = this.countUnresolvedFindings(visibleFindings.filter((finding) => finding.createdAt <= prevCutoff));
         unresolvedDelta = current - previous;
       }
 
@@ -102,24 +107,28 @@ export class ProjectService {
     const project = this.projectDAO.findById(projectId);
     if (!project) return undefined;
 
-    const analyses = this.analysisResultDAO.findByProjectId(projectId);
+    const analyses = this.analysisResultDAO.findByProjectId(projectId).filter((analysis) => this.isAggregateVisibleAnalysisResult(analysis));
     const fileCount = this.fileStore.countByProjectId(projectId);
 
-    // 모듈별 최신 완료 분석 1건만 사용 (재분석 시 중복 방지)
-    const latestByModule = new Map<AnalysisModule, typeof analyses[0]>();
+    // BuildTarget-owned execution은 BuildTarget별 최신 완료 분석을 누적하고,
+    // 그 외 모듈은 모듈별 최신 완료 분석 1건만 사용한다.
+    const latestByAggregateKey = new Map<string, typeof analyses[0]>();
     for (const a of analyses) {
       if (a.status !== "completed") continue;
-      if (!latestByModule.has(a.module)) {
-        latestByModule.set(a.module, a); // analyses는 이미 created_at DESC
+      const aggregateKey = requiresBuildTargetExecution(a.module)
+        ? `${a.module}:${a.buildTargetId ?? "unscoped"}`
+        : a.module;
+      if (!latestByAggregateKey.has(aggregateKey)) {
+        latestByAggregateKey.set(aggregateKey, a); // analyses는 created_at DESC
       }
     }
 
     const bySeverity: AnalysisSummary = {
       total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0,
     };
-    const byModule = { static: 0, dynamic: 0, test: 0 };
+    const byModule = { static: 0, deep: 0, dynamic: 0, test: 0 };
 
-    for (const [module, a] of latestByModule) {
+    for (const a of latestByAggregateKey.values()) {
       bySeverity.total += a.summary.total;
       bySeverity.critical += a.summary.critical;
       bySeverity.high += a.summary.high;
@@ -127,14 +136,15 @@ export class ProjectService {
       bySeverity.low += a.summary.low;
       bySeverity.info += a.summary.info;
 
-      if (module === "static_analysis") byModule.static = a.summary.total;
-      else if (module === "dynamic_analysis") byModule.dynamic = a.summary.total;
-      else if (module === "dynamic_testing") byModule.test = a.summary.total;
+      if (a.module === "static_analysis") byModule.static += a.summary.total;
+      else if (a.module === "deep_analysis") byModule.deep += a.summary.total;
+      else if (a.module === "dynamic_analysis") byModule.dynamic += a.summary.total;
+      else if (a.module === "dynamic_testing") byModule.test += a.summary.total;
     }
 
     const recentAnalyses = analyses.slice(0, 10);
 
-    // 서브프로젝트 상태 집계
+    // BuildTarget 상태 집계
     let targetSummary: { total: number; ready: number; failed: number; running: number; discovered: number } | undefined;
     if (this.buildTargetService) {
       const targets = this.buildTargetService.findByProjectId(projectId);
@@ -155,14 +165,17 @@ export class ProjectService {
     // trend 계산
     let trend: { newFindings: number; resolvedFindings: number; unresolvedTotal: number } | undefined;
     if (this.findingDAO && this.runDAO) {
-      const unresolvedTotal = this.findingDAO.unresolvedCountByProjectId(projectId);
-      const latestRuns = this.runDAO.findLatestCompletedRuns(projectId, 1);
+      const visibleFindings = this.findingDAO.findByProjectId(projectId).filter((finding) => this.isAggregateVisibleFinding(finding));
+      const unresolvedTotal = this.countUnresolvedFindings(visibleFindings);
+      const latestRuns = this.runDAO.findLatestCompletedRuns(projectId, 10).filter((run) => this.isAggregateVisibleRun(run));
       const latestRun = latestRuns[0];
       const newFindings = latestRun?.findingCount ?? 0;
       let resolvedFindings = 0;
       if (latestRun) {
         const since = latestRun.startedAt ?? latestRun.createdAt;
-        resolvedFindings = this.findingDAO.resolvedCountSince(projectId, since);
+        resolvedFindings = visibleFindings.filter(
+          (finding) => this.isResolvedStatus(finding.status) && finding.updatedAt >= since,
+        ).length;
       }
       trend = { newFindings, resolvedFindings, unresolvedTotal };
     }
@@ -179,5 +192,47 @@ export class ProjectService {
       recentAnalyses,
       trend,
     };
+  }
+
+  private isAggregateVisibleAnalysisResult(result: AnalysisResult): boolean {
+    return isVisibleAnalysisArtifact(result);
+  }
+
+  private isAggregateVisibleRun(run: Run): boolean {
+    return isVisibleAnalysisArtifact(run);
+  }
+
+  private isAggregateVisibleFinding(finding: Finding): boolean {
+    return isVisibleAnalysisArtifact(finding);
+  }
+
+  private countUnresolvedFindings(findings: Finding[]): number {
+    return findings.filter((finding) =>
+      finding.status === "open"
+      || finding.status === "needs_review"
+      || finding.status === "needs_revalidation"
+      || finding.status === "sandbox").length;
+  }
+
+  private isResolvedStatus(status: Finding["status"]): boolean {
+    return status === "fixed" || status === "false_positive" || status === "accepted_risk";
+  }
+
+  private buildSeveritySummary(findings: Finding[]): { critical: number; high: number; medium: number; low: number } {
+    return findings
+      .filter((finding) =>
+        finding.status === "open"
+        || finding.status === "needs_review"
+        || finding.status === "needs_revalidation"
+        || finding.status === "sandbox")
+      .reduce(
+        (summary, finding) => {
+          if (finding.severity !== "info") {
+            summary[finding.severity] += 1;
+          }
+          return summary;
+        },
+        { critical: 0, high: 0, medium: 0, low: 0 },
+      );
   }
 }

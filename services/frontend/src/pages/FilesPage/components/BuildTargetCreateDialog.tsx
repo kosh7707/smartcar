@@ -5,9 +5,9 @@ import { BuildProfileForm } from "./BuildProfileForm";
 import { formatFileSize } from "../../../utils/format";
 import { Spinner } from "../../../shared/ui";
 import { DEFAULT_PROFILE } from "../hooks/useBuildTargetSection";
-import { INCLUDED_PATHS_EDIT_UNSUPPORTED_TEXT, useSubprojectCreateDialog } from "../hooks/useSubprojectCreateDialog";
-import { SubprojectTreeSelector } from "./SubprojectTreeSelector";
-import "./SubprojectCreateDialog.css";
+import { INCLUDED_PATHS_EDIT_UNSUPPORTED_TEXT, useBuildTargetCreateDialog } from "../hooks/useBuildTargetCreateDialog";
+import { BuildTargetTreeSelector } from "./BuildTargetTreeSelector";
+import "./BuildTargetCreateDialog.css";
 
 interface Props {
   open: boolean;
@@ -27,15 +27,15 @@ interface Props {
 
 const EMPTY_INCLUDED_PATHS: string[] = [];
 
-export const SubprojectCreateDialog: React.FC<Props> = ({
+export const BuildTargetCreateDialog: React.FC<Props> = ({
   open,
   projectId,
   sourceFiles,
   onCreated,
   onCancel,
   onSubmit,
-  title = "서브 프로젝트 생성",
-  submitLabel = "서브 프로젝트 생성",
+  title = "BuildTarget 생성",
+  submitLabel = "BuildTarget 생성",
   initialName = "",
   initialProfile = DEFAULT_PROFILE,
   initialIncludedPaths = EMPTY_INCLUDED_PATHS,
@@ -54,7 +54,7 @@ export const SubprojectCreateDialog: React.FC<Props> = ({
     selectedSize,
     handleToggle,
     handleCreate,
-  } = useSubprojectCreateDialog({
+  } = useBuildTargetCreateDialog({
     open,
     projectId,
     sourceFiles,
@@ -74,7 +74,7 @@ export const SubprojectCreateDialog: React.FC<Props> = ({
 
         <div className="spcd__body">
           <label className="form-field">
-            <span className="form-label">서브 프로젝트 이름</span>
+            <span className="form-label">BuildTarget 이름</span>
             <input
               className="form-input"
               value={name}
@@ -99,7 +99,7 @@ export const SubprojectCreateDialog: React.FC<Props> = ({
                 {includedPathsHelpText}
               </div>
             )}
-            <SubprojectTreeSelector
+            <BuildTargetTreeSelector
               sourceFiles={sourceFiles}
               checked={checked}
               onToggle={handleToggle}

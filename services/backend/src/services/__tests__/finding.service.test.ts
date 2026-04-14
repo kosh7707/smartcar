@@ -79,6 +79,19 @@ describe("FindingService", () => {
       vi.mocked(findingDAO.findById).mockReturnValue(undefined);
       expect(service.findById("nonexistent")).toBeUndefined();
     });
+
+    it("returns undefined for legacy static/deep findings without full BuildTarget execution lineage", () => {
+      vi.mocked(findingDAO.findById).mockReturnValue(
+        makeFinding({
+          id: "legacy-finding",
+          module: "static_analysis",
+          buildTargetId: undefined,
+          analysisExecutionId: undefined,
+        }),
+      );
+
+      expect(service.findById("legacy-finding")).toBeUndefined();
+    });
   });
 
   describe("updateStatus — valid transitions", () => {
@@ -258,24 +271,53 @@ describe("FindingService", () => {
   });
 
   describe("getSummary", () => {
-    it("delegates to findingDAO.summaryByProjectId", () => {
-      const summary = { byStatus: { open: 3 }, bySeverity: { high: 2 }, total: 3 };
-      vi.mocked(findingDAO.summaryByProjectId).mockReturnValue(summary);
+    it("aggregates only visible findings", () => {
+      vi.mocked(findingDAO.findByProjectId).mockReturnValue([
+        makeFinding({
+          id: "modern",
+          projectId: "proj-1",
+          module: "static_analysis",
+          buildTargetId: "t-modern",
+          analysisExecutionId: "exec-modern",
+          severity: "high",
+          status: "open",
+        }),
+        makeFinding({
+          id: "legacy",
+          projectId: "proj-1",
+          module: "static_analysis",
+          buildTargetId: undefined,
+          analysisExecutionId: undefined,
+          severity: "critical",
+          status: "open",
+        }),
+      ]);
 
-      expect(service.getSummary("proj-1")).toEqual(summary);
-      expect(findingDAO.summaryByProjectId).toHaveBeenCalledWith("proj-1");
+      expect(service.getSummary("proj-1")).toEqual({
+        byStatus: { open: 1 },
+        bySeverity: { high: 1 },
+        total: 1,
+      });
     });
   });
 
   describe("findByProjectId", () => {
-    it("passes filters to DAO", () => {
-      const findings = [makeFinding()];
+    it("passes filters to DAO and hides legacy static/deep rows without full lineage", () => {
+      const findings = [
+        makeFinding({ id: "modern" }),
+        makeFinding({
+          id: "legacy",
+          module: "static_analysis",
+          buildTargetId: undefined,
+          analysisExecutionId: undefined,
+        }),
+      ];
       vi.mocked(findingDAO.findByProjectId).mockReturnValue(findings);
 
       const filters = { status: "open" as any, severity: "high" as any };
       const result = service.findByProjectId("proj-1", filters);
 
-      expect(result).toEqual(findings);
+      expect(result.map((finding) => finding.id)).toEqual(["modern"]);
       expect(findingDAO.findByProjectId).toHaveBeenCalledWith("proj-1", filters);
     });
   });

@@ -24,7 +24,7 @@ export interface FileTreeNodeProps<T> {
   openPaths?: Set<string>;
   /** Called when a folder is toggled (for controlled mode) */
   onToggleFolder?: (path: string, open: boolean) => void;
-  /** Inline panel rendered below folder row when expanded (e.g. subproject settings) */
+  /** Inline panel rendered below folder row when expanded (e.g. BuildTarget settings) */
   renderFolderPanel?: (node: TreeNode<T>) => ReactNode;
 }
 

@@ -124,24 +124,28 @@ export function useStaticAnalysisPage(
 
   const handleAnalysisStart = useCallback(() => {
     if (!projectId) return;
-    if (buildTargets.targets.length > 0) {
+    if (buildTargets.targets.length === 0) {
+      toast.warning("분석을 시작하려면 BuildTarget을 먼저 생성하세요.");
+      return;
+    }
+    if (buildTargets.targets.length > 1) {
       setShowTargetSelect(true);
       return;
     }
-    analysis.startAnalysis(projectId, undefined, "full");
+    analysis.startAnalysis(projectId, buildTargets.targets[0]!.id);
     setView("progress");
-  }, [analysis, buildTargets.targets.length, projectId]);
+  }, [analysis, buildTargets.targets, projectId, toast]);
 
-  const handleAnalysisWithTargets = useCallback((selectedTargetIds: string[]) => {
+  const handleAnalysisWithTargets = useCallback((selectedTargetId: string) => {
     if (!projectId) return;
     setShowTargetSelect(false);
-    analysis.startAnalysis(projectId, selectedTargetIds, "subproject");
+    analysis.startAnalysis(projectId, selectedTargetId);
     setView("progress");
   }, [analysis, projectId]);
 
   const handleRetry = useCallback(() => {
-    if (!projectId) return;
-    analysis.startAnalysis(projectId);
+    if (!projectId || !analysis.buildTargetId) return;
+    analysis.startAnalysis(projectId, analysis.buildTargetId);
   }, [analysis, projectId]);
 
   const handleResumeAnalysis = useCallback(() => {

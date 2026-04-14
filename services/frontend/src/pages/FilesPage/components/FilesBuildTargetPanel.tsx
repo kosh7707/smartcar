@@ -3,7 +3,7 @@ import { HardDrive, ScrollText } from "lucide-react";
 import type { useBuildTargets } from "../../../hooks/useBuildTargets";
 import { TargetStatusBadge } from "../../../shared/ui";
 
-export function FilesSubprojectPanel({
+export function FilesBuildTargetPanel({
   targets,
   onOpenLog,
 }: {
@@ -13,17 +13,17 @@ export function FilesSubprojectPanel({
   if (targets.length === 0) return null;
 
   return (
-    <div className="card fpage-subproject-card">
+    <div className="card fpage-build-target-card">
       <div className="card-title flex-center flex-gap-2">
         <HardDrive size={16} />
-        서브 프로젝트 ({targets.length}개)
+        BuildTarget ({targets.length}개)
       </div>
-      <div className="fpage-subproject-list">
+      <div className="fpage-build-target-list">
         {targets.map((target) => (
-          <div key={target.id} className="fpage-subproject-row">
-            <span className="fpage-subproject-name">{target.name}</span>
+          <div key={target.id} className="fpage-build-target-row">
+            <span className="fpage-build-target-name">{target.name}</span>
             <TargetStatusBadge status={target.status ?? "discovered"} size="sm" />
-            <span className="fpage-subproject-meta">{target.relativePath}</span>
+            <span className="fpage-build-target-meta">{target.relativePath}</span>
             {target.status && target.status !== "discovered" && (
               <button
                 className="btn btn-secondary btn-sm"

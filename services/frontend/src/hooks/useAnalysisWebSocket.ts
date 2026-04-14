@@ -8,24 +8,37 @@ import type { ConnectionState, ReconnectableHookResult } from "../utils/wsEnvelo
 export type AnalysisStage =
   | "idle"
   | "quick_sast"
+  | "quick_graphing"
   | "quick_complete"
   | "deep_submitting"
   | "deep_analyzing"
+  | "deep_retrying"
   | "deep_complete"
   | "error";
 
-const RUNNING_STAGES = new Set<AnalysisStage>(["quick_sast", "quick_complete", "deep_submitting", "deep_analyzing"]);
+const RUNNING_STAGES = new Set<AnalysisStage>([
+  "quick_sast",
+  "quick_graphing",
+  "quick_complete",
+  "deep_submitting",
+  "deep_analyzing",
+  "deep_retrying",
+]);
 
 const PHASE_LABELS: Record<string, string> = {
   quick_sast: "빌드 + SAST 스캔 중...",
+  quick_graphing: "코드 그래프 컨텍스트 적재 중...",
   quick_complete: "빠른 분석 완료",
   deep_submitting: "심층 분석 에이전트 호출 중...",
   deep_analyzing: "에이전트가 분석 중... (SAST + 코드그래프 + SCA + LLM)",
+  deep_retrying: "심층 분석 재시도 중...",
   deep_complete: "심층 분석 완료",
 };
 
 export interface AnalysisWsState {
   analysisId: string | null;
+  buildTargetId: string | null;
+  executionId?: string | null;
   stage: AnalysisStage;
   message: string;
   quickFindingCount: number | null;
@@ -38,6 +51,8 @@ export interface AnalysisWsState {
 
 const INITIAL_STATE: AnalysisWsState = {
   analysisId: null,
+  buildTargetId: null,
+  executionId: null,
   stage: "idle",
   message: "",
   quickFindingCount: null,
@@ -50,13 +65,12 @@ const INITIAL_STATE: AnalysisWsState = {
 
 export function useAnalysisWebSocket(): AnalysisWsState & ReconnectableHookResult & {
   isRunning: boolean;
-  startAnalysis: (projectId: string, targetIds?: string[], mode?: "full" | "subproject") => Promise<void>;
+  startAnalysis: (projectId: string, buildTargetId: string) => Promise<void>;
   reset: () => void;
 } {
   const [state, setState] = useState<AnalysisWsState>(INITIAL_STATE);
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
   const rwsRef = useRef<ReturnType<typeof createReconnectingWs> | null>(null);
-  const analysisIdRef = useRef<string | null>(null);
 
   const isRunning = RUNNING_STAGES.has(state.stage);
 
@@ -78,9 +92,11 @@ export function useAnalysisWebSocket(): AnalysisWsState & ReconnectableHookResul
         const msg = parsed as unknown as WsAnalysisMessage;
         switch (msg.type) {
           case "analysis-progress": {
-            const { phase, message: msg2, targetName, targetProgress } = msg.payload;
+            const { phase, message: msg2, targetName, targetProgress, buildTargetId, executionId } = msg.payload;
             setState((prev) => ({
               ...prev,
+              buildTargetId: buildTargetId ?? prev.buildTargetId,
+              executionId: executionId ?? prev.executionId,
               stage: (RUNNING_STAGES.has(phase as AnalysisStage) ? phase : prev.stage) as AnalysisStage,
               message: PHASE_LABELS[phase] ?? msg2 ?? prev.message,
               targetName: targetName ?? prev.targetName,
@@ -91,6 +107,8 @@ export function useAnalysisWebSocket(): AnalysisWsState & ReconnectableHookResul
           case "analysis-quick-complete":
             setState((prev) => ({
               ...prev,
+              buildTargetId: msg.payload.buildTargetId ?? prev.buildTargetId,
+              executionId: msg.payload.executionId ?? prev.executionId,
               stage: "quick_complete",
               message: PHASE_LABELS.quick_complete,
               quickFindingCount: msg.payload.findingCount,
@@ -99,6 +117,8 @@ export function useAnalysisWebSocket(): AnalysisWsState & ReconnectableHookResul
           case "analysis-deep-complete":
             setState((prev) => ({
               ...prev,
+              buildTargetId: msg.payload.buildTargetId ?? prev.buildTargetId,
+              executionId: msg.payload.executionId ?? prev.executionId,
               stage: "deep_complete",
               message: PHASE_LABELS.deep_complete,
               deepFindingCount: msg.payload.findingCount,
@@ -108,6 +128,8 @@ export function useAnalysisWebSocket(): AnalysisWsState & ReconnectableHookResul
           case "analysis-error":
             setState((prev) => ({
               ...prev,
+              buildTargetId: msg.payload.buildTargetId ?? prev.buildTargetId,
+              executionId: msg.payload.executionId ?? prev.executionId,
               stage: "error",
               message: "",
               error: msg.payload.error,
@@ -124,18 +146,23 @@ export function useAnalysisWebSocket(): AnalysisWsState & ReconnectableHookResul
     };
   }
 
-  const startAnalysis = useCallback(async (projectId: string, targetIds?: string[], mode?: "full" | "subproject") => {
+  const startAnalysis = useCallback(async (projectId: string, buildTargetId: string) => {
     cleanup();
     setState({
       ...INITIAL_STATE,
+      buildTargetId,
       stage: "quick_sast",
       message: "분석 준비 중...",
     });
 
     try {
-      const { analysisId } = await runAnalysis(projectId, targetIds, mode);
-      analysisIdRef.current = analysisId;
-      setState((prev) => ({ ...prev, analysisId }));
+      const { analysisId, executionId } = await runAnalysis(projectId, buildTargetId);
+      setState((prev) => ({
+        ...prev,
+        analysisId,
+        buildTargetId,
+        executionId: executionId ?? analysisId,
+      }));
 
       const wsUrl = `${getWsBaseUrl()}/ws/analysis?analysisId=${analysisId}`;
       const seqTracker = createSeqTracker("analysis");
@@ -155,6 +182,8 @@ export function useAnalysisWebSocket(): AnalysisWsState & ReconnectableHookResul
               const phase = status.phase as AnalysisStage;
               return {
                 ...prev,
+                buildTargetId: status.buildTargetId ?? prev.buildTargetId,
+                executionId: status.executionId ?? prev.executionId,
                 stage: RUNNING_STAGES.has(phase) ? phase : prev.stage,
                 message: PHASE_LABELS[phase] ?? prev.message,
               };
@@ -192,7 +221,6 @@ export function useAnalysisWebSocket(): AnalysisWsState & ReconnectableHookResul
     cleanup();
     setState(INITIAL_STATE);
     setConnectionState("disconnected");
-    analysisIdRef.current = null;
   }, [cleanup]);
 
   return useMemo(

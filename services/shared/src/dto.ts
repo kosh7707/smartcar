@@ -68,6 +68,7 @@ export interface ProjectOverviewResponse {
     bySeverity: AnalysisSummary;
     byModule: {
       static: number;
+      deep: number;
       dynamic: number;
       test: number;
     };
@@ -178,7 +179,7 @@ export interface DynamicAnalysisSessionResponse {
  * - 동적 테스트 (/ws/dynamic-test): 퍼징/침투 테스트 진행률
  * - Quick→Deep 분석 (/ws/analysis): SAST+Agent 2단계 파이프라인
  * - 업로드 (/ws/upload): 소스코드 업로드 상태머신
- * - 파이프라인 (/ws/pipeline): 서브 프로젝트 빌드→스캔→코드그래프
+ * - 파이프라인 (/ws/pipeline): BuildTarget 빌드→스캔→코드그래프
  * - SDK (/ws/sdk): SDK 등록/검증 파이프라인
  * - 알림 (/ws/notifications): 프로젝트 알림 push
  */
@@ -191,7 +192,7 @@ export type WsEventType =
   | "analysis-progress" | "analysis-quick-complete" | "analysis-deep-complete" | "analysis-error"
   // 업로드
   | "upload-progress" | "upload-complete" | "upload-error"
-  // 서브 프로젝트 파이프라인
+  // BuildTarget 파이프라인
   | "pipeline-target-status" | "pipeline-complete" | "pipeline-error"
   // SDK 등록
   | "sdk-progress" | "sdk-log" | "sdk-complete" | "sdk-error"
@@ -342,6 +343,8 @@ export interface WsAnalysisProgress {
   type: "analysis-progress";
   payload: {
     analysisId: string;
+    buildTargetId?: string;
+    executionId?: string;
     phase: "quick_sast" | "quick_graphing" | "quick_complete" | "deep_submitting" | "deep_analyzing" | "deep_retrying" | "deep_complete";
     message: string;
     /** 현재 처리 중인 빌드 타겟 이름 */
@@ -355,6 +358,8 @@ export interface WsAnalysisQuickComplete {
   type: "analysis-quick-complete";
   payload: {
     analysisId: string;
+    buildTargetId?: string;
+    executionId?: string;
     findingCount: number;
   };
 }
@@ -363,6 +368,8 @@ export interface WsAnalysisDeepComplete {
   type: "analysis-deep-complete";
   payload: {
     analysisId: string;
+    buildTargetId?: string;
+    executionId?: string;
     findingCount: number;
   };
 }
@@ -371,6 +378,8 @@ export interface WsAnalysisError {
   type: "analysis-error";
   payload: {
     analysisId: string;
+    buildTargetId?: string;
+    executionId?: string;
     phase: "quick" | "deep";
     error: string;
     retryable: boolean;
@@ -449,7 +458,7 @@ export interface UploadStatusResponse {
 }
 
 // ============================================================
-// 서브 프로젝트 파이프라인 WS 메시지 (/ws/pipeline?projectId=)
+// BuildTarget 파이프라인 WS 메시지 (/ws/pipeline?projectId=)
 // Progress 의미론: BuildTargetStatus(16상태) → PipelinePhase(3단계) 매핑
 // Phase 매핑: discovered|resolving|configured|resolve_failed → setup, building~graph_failed → build, ready → ready
 // ============================================================
@@ -803,6 +812,8 @@ export type AnalysisTrackerStatus = "running" | "completed" | "failed" | "aborte
 export interface AnalysisProgress {
   analysisId: string;
   projectId: string;
+  buildTargetId?: string;
+  executionId?: string;
   status: AnalysisTrackerStatus;
   phase: AnalysisPhase;
   currentChunk: number;
@@ -842,6 +853,8 @@ export interface AnalysisRunAcceptedResponse {
   success: boolean;
   data?: {
     analysisId: string;
+    buildTargetId: string;
+    executionId: string;
     status: AnalysisTrackerStatus;
   };
   error?: string;

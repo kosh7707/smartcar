@@ -89,7 +89,7 @@ describe("BuildTargetSection", () => {
 
     fireEvent.click(screen.getByText("타겟 추가"));
 
-    expect(screen.getByPlaceholderText("서브프로젝트 이름")).toBeTruthy();
+    expect(screen.getByPlaceholderText("BuildTarget 이름")).toBeTruthy();
   });
 
   it("has discover button", () => {
@@ -109,7 +109,7 @@ describe("BuildTargetSection", () => {
 
     fireEvent.click(screen.getByTitle("편집"));
 
-    await waitFor(() => expect(screen.getAllByText("서브 프로젝트 수정").length).toBeGreaterThanOrEqual(1));
+    await waitFor(() => expect(screen.getAllByText("BuildTarget 수정").length).toBeGreaterThanOrEqual(1));
     await waitFor(() => expect(screen.getByText(/2개 파일/)).toBeTruthy());
     expect(screen.getByRole("note").textContent).toContain("includedPaths는 수정 API에서 지원되지 않습니다");
     fireEvent.click(screen.getByText("저장"));

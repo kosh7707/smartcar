@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -33,6 +34,9 @@ class LlmCaller:
     _SAFETY_FACTOR = 2.0            # 안전 배수
     _MIN_TIMEOUT = 120.0            # 최소 타임아웃
     _MAX_TIMEOUT = 900.0            # 병렬 부하 시 보고서 턴 대비 (S7 상한 1800초)
+    _ASYNC_SUBMIT_TIMEOUT = 30.0
+    _ASYNC_POLL_INTERVAL = 1.0
+    _ASYNC_UNSUPPORTED_RETRY_SECONDS = 60.0
 
     def __init__(
         self,
@@ -50,6 +54,7 @@ class LlmCaller:
         self._enable_thinking = enable_thinking
         self._default_max_tokens = default_max_tokens
         self._service_id = service_id
+        self._async_surface_retry_at = 0.0
         self._client = httpx.AsyncClient(
             timeout=httpx.Timeout(connect=10.0, read=self._MAX_TIMEOUT + 30.0, write=10.0, pool=10.0),
             limits=httpx.Limits(max_connections=10, max_keepalive_connections=4),
@@ -90,6 +95,7 @@ class LlmCaller:
         tool_choice: str = "auto",
         max_tokens: int | None = None,
         temperature: float = 0.3,
+        prefer_async_ownership: bool = False,
     ) -> LlmResponse:
         """LLM에 messages를 보내고 LlmResponse를 반환한다."""
         if max_tokens is None:
@@ -123,6 +129,16 @@ class LlmCaller:
         req_timeout = self._estimate_timeout(messages, max_tokens, has_tools=bool(tools))
         # S7 Gateway에 타임아웃 동기화 (X-Timeout-Seconds)
         headers["X-Timeout-Seconds"] = str(int(req_timeout))
+
+        if prefer_async_ownership and not tools:
+            async_result = await self._call_via_async_ownership(
+                body=body,
+                headers=headers,
+                request_id=request_id,
+                turn=turn,
+            )
+            if async_result is not None:
+                return async_result
 
         agent_log(
             logger, "LLM 호출",
@@ -243,6 +259,201 @@ class LlmCaller:
         )
 
         return result
+
+    async def _call_via_async_ownership(
+        self,
+        *,
+        body: dict,
+        headers: dict[str, str],
+        request_id: str | None,
+        turn: int | None,
+    ) -> LlmResponse | None:
+        now = time.monotonic()
+        if now < self._async_surface_retry_at:
+            agent_log(
+                logger, "LLM async ownership 프로브 건너뜀 (cooldown)",
+                component="llm_caller", phase="llm_async_cooldown",
+                turn=turn, requestId=request_id,
+                retryAtMs=int(self._async_surface_retry_at * 1000),
+                level=logging.DEBUG,
+            )
+            return None
+
+        submit_headers = {k: v for k, v in headers.items() if k != "X-Timeout-Seconds"}
+        submit_url = f"{self._endpoint}/v1/async-chat-requests"
+        start = time.monotonic()
+
+        agent_log(
+            logger, "LLM async ownership 제출 시도",
+            component="llm_caller", phase="llm_async_submit",
+            turn=turn, requestId=request_id,
+        )
+
+        try:
+            submit_resp = await self._client.post(
+                submit_url,
+                json=body,
+                headers=submit_headers,
+                timeout=httpx.Timeout(
+                    connect=10.0,
+                    read=self._ASYNC_SUBMIT_TIMEOUT,
+                    write=10.0,
+                    pool=10.0,
+                ),
+            )
+        except httpx.TimeoutException:
+            raise LlmTimeoutError("LLM async submit 시간 초과")
+        except httpx.ConnectError:
+            raise LlmUnavailableError()
+
+        if submit_resp.status_code in (404, 405, 501):
+            self._async_surface_retry_at = time.monotonic() + self._ASYNC_UNSUPPORTED_RETRY_SECONDS
+            agent_log(
+                logger, "LLM async ownership 미지원 — sync chat로 폴백",
+                component="llm_caller", phase="llm_async_fallback",
+                turn=turn, statusCode=submit_resp.status_code,
+                cooldownSeconds=self._ASYNC_UNSUPPORTED_RETRY_SECONDS,
+                level=logging.WARNING,
+            )
+            return None
+
+        if submit_resp.status_code not in (200, 202):
+            text = submit_resp.text[:500]
+            if submit_resp.status_code == 400 and "too large" in text.lower():
+                raise LlmInputTooLargeError(chars=0, limit=0)
+            raise LlmHttpError(submit_resp.status_code, text)
+
+        try:
+            submit_data = submit_resp.json()
+        except Exception:
+            raise LlmHttpError(502, "Malformed async submit response")
+
+        async_request_id = submit_data.get("requestId")
+        if not async_request_id:
+            raise LlmHttpError(502, "Async submit response missing requestId")
+
+        status_url = self._resolve_endpoint_url(
+            submit_data.get("statusUrl"),
+            f"/v1/async-chat-requests/{async_request_id}",
+        )
+        result_url = self._resolve_endpoint_url(
+            submit_data.get("resultUrl"),
+            f"/v1/async-chat-requests/{async_request_id}/result",
+        )
+
+        poll_headers = {k: v for k, v in submit_headers.items() if k != "Content-Type"}
+
+        while True:
+            status_data = await self._get_async_json(status_url, poll_headers)
+            state = status_data.get("state")
+            local_ack_state = status_data.get("localAckState")
+            blocked_reason = status_data.get("blockedReason")
+            result_ready = bool(status_data.get("resultReady"))
+
+            agent_log(
+                logger, "LLM async ownership 상태 조회",
+                component="llm_caller", phase="llm_async_poll",
+                turn=turn, requestId=async_request_id,
+                state=state, localAckState=local_ack_state,
+                blockedReason=blocked_reason,
+            )
+
+            if blocked_reason or local_ack_state == "ack-break":
+                raise LlmHttpError(409, blocked_reason or "Async chat request reached ack-break")
+
+            if state in {"queued", "running"} and not result_ready:
+                await asyncio.sleep(self._ASYNC_POLL_INTERVAL)
+                continue
+
+            if state == "completed" or result_ready:
+                result_resp = await self._client.get(
+                    result_url,
+                    headers=poll_headers,
+                    timeout=httpx.Timeout(
+                        connect=10.0,
+                        read=self._ASYNC_SUBMIT_TIMEOUT,
+                        write=10.0,
+                        pool=10.0,
+                    ),
+                )
+                if result_resp.status_code == 409:
+                    await asyncio.sleep(self._ASYNC_POLL_INTERVAL)
+                    continue
+                if result_resp.status_code == 410:
+                    raise LlmHttpError(410, result_resp.text[:500] or "Async chat request expired")
+                if result_resp.status_code != 200:
+                    raise LlmHttpError(result_resp.status_code, result_resp.text[:500])
+
+                try:
+                    result_data = result_resp.json()
+                except Exception:
+                    raise LlmHttpError(502, "Malformed async result response")
+
+                wrapped = result_data.get("response")
+                if not isinstance(wrapped, dict):
+                    raise LlmHttpError(502, "Async result response missing wrapped response")
+
+                elapsed_ms = int((time.monotonic() - start) * 1000)
+                result = self._parse_response(wrapped, turn)
+                tool_names = [tc.name for tc in result.tool_calls]
+
+                agent_log(
+                    logger, "LLM async ownership 완료",
+                    component="llm_caller", phase="llm_async_complete",
+                    turn=turn, requestId=async_request_id,
+                    finishReason=result.finish_reason,
+                    latencyMs=elapsed_ms,
+                )
+
+                self._write_exchange_and_dump(
+                    request_id or submit_data.get("traceRequestId") or async_request_id,
+                    turn,
+                    elapsed_ms,
+                    "ok",
+                    finish_reason=result.finish_reason,
+                    tool_calls=tool_names or None,
+                    usage={"prompt": result.prompt_tokens, "completion": result.completion_tokens},
+                    body=body,
+                    data=result_data,
+                )
+                return result
+
+            if state in {"failed", "cancelled", "expired"}:
+                raise LlmHttpError(409, blocked_reason or f"Async chat request ended with state={state}")
+
+            raise LlmHttpError(502, f"Unknown async chat state: {state}")
+
+    async def _get_async_json(self, url: str, headers: dict[str, str]) -> dict:
+        try:
+            resp = await self._client.get(
+                url,
+                headers=headers,
+                timeout=httpx.Timeout(
+                    connect=10.0,
+                    read=self._ASYNC_SUBMIT_TIMEOUT,
+                    write=10.0,
+                    pool=10.0,
+                ),
+            )
+        except httpx.TimeoutException:
+            raise LlmTimeoutError("LLM async status 조회 시간 초과")
+        except httpx.ConnectError:
+            raise LlmUnavailableError()
+
+        if resp.status_code != 200:
+            raise LlmHttpError(resp.status_code, resp.text[:500])
+        try:
+            return resp.json()
+        except Exception:
+            raise LlmHttpError(502, "Malformed async status response")
+
+    def _resolve_endpoint_url(self, value: str | None, fallback_path: str) -> str:
+        if isinstance(value, str) and value:
+            if value.startswith("http://") or value.startswith("https://"):
+                return value
+            if value.startswith("/"):
+                return f"{self._endpoint}{value}"
+        return f"{self._endpoint}{fallback_path}"
 
     def _write_exchange_and_dump(
         self,

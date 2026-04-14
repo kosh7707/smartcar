@@ -57,7 +57,11 @@ export function initSchema(db: DatabaseType): void {
       policy_flags           TEXT NOT NULL DEFAULT '[]',
       sca_libraries          TEXT NOT NULL DEFAULT '[]',
       agent_audit            TEXT,
-      created_at             TEXT NOT NULL
+      created_at             TEXT NOT NULL,
+      CHECK (
+        module NOT IN ('static_analysis', 'deep_analysis')
+        OR (build_target_id IS NOT NULL AND analysis_execution_id IS NOT NULL)
+      )
     );
   `);
 
@@ -174,7 +178,11 @@ export function initSchema(db: DatabaseType): void {
       finding_count      INTEGER NOT NULL DEFAULT 0,
       started_at         TEXT,
       ended_at           TEXT,
-      created_at         TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at         TEXT NOT NULL DEFAULT (datetime('now')),
+      CHECK (
+        module NOT IN ('static_analysis', 'deep_analysis')
+        OR (build_target_id IS NOT NULL AND analysis_execution_id IS NOT NULL)
+      )
     );
 
     CREATE INDEX IF NOT EXISTS idx_runs_project ON runs(project_id);
@@ -202,7 +210,11 @@ export function initSchema(db: DatabaseType): void {
       cve_ids     TEXT NOT NULL DEFAULT '[]',
       confidence_score REAL,
       created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      CHECK (
+        module NOT IN ('static_analysis', 'deep_analysis')
+        OR (build_target_id IS NOT NULL AND analysis_execution_id IS NOT NULL)
+      )
     );
 
     CREATE INDEX IF NOT EXISTS idx_findings_run ON findings(run_id);
@@ -367,7 +379,7 @@ export function initSchema(db: DatabaseType): void {
       build_unit_id          TEXT NOT NULL,
       project_id             TEXT NOT NULL,
       source_asset_id        TEXT NOT NULL,
-      subproject_asset_id    TEXT NOT NULL,
+      build_target_asset_id    TEXT NOT NULL,
       sdk_asset_id           TEXT,
       revision_number        INTEGER NOT NULL,
       included_paths         TEXT NOT NULL DEFAULT '[]',
@@ -442,7 +454,7 @@ export function initSchema(db: DatabaseType): void {
     CREATE INDEX IF NOT EXISTS idx_build_snapshot_projections_revision ON build_snapshot_projections(build_unit_revision_id);
     CREATE INDEX IF NOT EXISTS idx_build_snapshot_projections_attempt ON build_snapshot_projections(source_build_attempt_id);
 
-    CREATE TABLE IF NOT EXISTS subproject_assets (
+    CREATE TABLE IF NOT EXISTS build_target_assets (
       id                     TEXT PRIMARY KEY,
       project_id             TEXT NOT NULL,
       build_unit_id          TEXT NOT NULL,
@@ -453,9 +465,9 @@ export function initSchema(db: DatabaseType): void {
       created_at             TEXT NOT NULL,
       updated_at             TEXT NOT NULL
     );
-    CREATE INDEX IF NOT EXISTS idx_subproject_assets_project ON subproject_assets(project_id);
-    CREATE INDEX IF NOT EXISTS idx_subproject_assets_unit ON subproject_assets(build_unit_id);
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_subproject_assets_revision ON subproject_assets(build_unit_revision_id);
+    CREATE INDEX IF NOT EXISTS idx_build_target_assets_project ON build_target_assets(project_id);
+    CREATE INDEX IF NOT EXISTS idx_build_target_assets_unit ON build_target_assets(build_unit_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_build_target_assets_revision ON build_target_assets(build_unit_revision_id);
   `);
 
   // 알림 테이블

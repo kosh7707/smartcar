@@ -16,7 +16,7 @@
 #
 # Options:
 #   -p PATH   프로젝트 절대 경로 (기본: ~/projects/re100-gateway)
-#   -t PATH   서브프로젝트 상대 경로
+#   -t PATH   BuildTarget 상대 경로
 #   -i ID     프로젝트 ID (기본: 디렉토리명)
 #
 # Examples:
@@ -93,7 +93,7 @@ Modes:
 
 Options:
   -p PATH   프로젝트 경로 (기본: ~/projects/re100-gateway)
-  -t PATH   서브프로젝트 상대 경로
+  -t PATH   BuildTarget 상대 경로
   -i ID     프로젝트 ID (기본: 디렉토리명)
 USAGE
     exit 1
@@ -157,7 +157,7 @@ check_services() {
 step_build() {
     hdr "BUILD (build-resolve)"
     printf "  project: %s\n" "$PROJECT"
-    [[ -n "$TARGET" ]] && printf "  subproject: %s\n" "$TARGET"
+    [[ -n "$TARGET" ]] && printf "  buildTarget: %s\n" "$TARGET"
     [[ -n "$BUILD_CONTRACT_VERSION" ]] && printf "  contract:%s%s\n" " " "$BUILD_CONTRACT_VERSION"
     [[ -n "$STRICT_MODE" ]] && printf "  strict:  %s\n" "$STRICT_MODE"
     [[ -n "$BUILD_MODE" ]] && printf "  mode:    %s%s\n" "$BUILD_MODE" "${SDK_ID:+ (sdkId=$SDK_ID)}"
@@ -173,8 +173,8 @@ import os
 trusted = {"projectPath":"${PROJECT}"}
 t = "${TARGET}"
 if t:
-    trusted["subprojectPath"] = t
-    trusted["subprojectName"] = t.rstrip("/").split("/")[-1]
+    trusted["buildTargetPath"] = t
+    trusted["buildTargetName"] = t.rstrip("/").split("/")[-1]
 if "${BUILD_CONTRACT_VERSION}":
     trusted["contractVersion"] = "${BUILD_CONTRACT_VERSION}"
 if "${STRICT_MODE}":

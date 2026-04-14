@@ -409,6 +409,48 @@ describe("ResultNormalizer", () => {
     });
   });
 
+  describe("agent result lineage", () => {
+    it("carries BuildTarget and execution lineage into deep-analysis runs and findings", () => {
+      const result = makeAnalysisResult({
+        id: "analysis-deep-1",
+        module: "deep_analysis",
+        buildTargetId: "target-1",
+        analysisExecutionId: "exec-1",
+      });
+
+      normalizer.normalizeAgentResult(
+        result,
+        {
+          result: {
+            claims: [{ statement: "Potential auth bypass", supportingEvidenceRefs: [], location: "src/auth.c:42" }],
+            suggestedSeverity: "high",
+            confidence: 0.8,
+            confidenceBreakdown: { grounding: 1, deterministicSupport: 1, ragCoverage: 1, schemaCompliance: 1 },
+            caveats: [],
+            recommendedNextSteps: ["manual review"],
+            policyFlags: [],
+            needsHumanReview: true,
+          },
+          audit: { latencyMs: 1 },
+        } as any,
+        { startedAt: "2026-04-14T00:00:00Z" },
+      );
+
+      expect(runDAO.save).toHaveBeenCalledWith(expect.objectContaining({
+        projectId: result.projectId,
+        buildTargetId: "target-1",
+        analysisExecutionId: "exec-1",
+        module: "deep_analysis",
+      }));
+      expect(findingDAO.save).toHaveBeenCalledWith(expect.objectContaining({
+        projectId: result.projectId,
+        buildTargetId: "target-1",
+        analysisExecutionId: "exec-1",
+        module: "deep_analysis",
+      }));
+    });
+  });
+
   describe("file matching", () => {
     it("matches file by exact path", () => {
       const analysisResult = makeAnalysisResult({

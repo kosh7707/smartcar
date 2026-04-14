@@ -46,6 +46,7 @@ describe("ApprovalService", () => {
     approvalDAO = createMockApprovalDAO();
     auditLogDAO = createMockAuditLogDAO();
     gateService = createMockGateService();
+    vi.mocked(gateService.getById).mockReturnValue({ id: "gate-1" } as any);
     service = new ApprovalService(approvalDAO, auditLogDAO, gateService);
   });
 

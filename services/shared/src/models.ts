@@ -326,7 +326,7 @@ export interface DeclaredBuildIntent {
   toolchainTriplet?: string;
 }
 
-export interface SubprojectAsset {
+export interface BuildTargetAsset {
   id: string;
   projectId: string;
   buildUnitId: string;
@@ -352,7 +352,7 @@ export interface BuildUnitRevision {
   buildUnitId: string;
   projectId: string;
   sourceAssetId: string;
-  subprojectAssetId: string;
+  buildTargetAssetId: string;
   sdkAssetId?: string;
   revisionNumber: number;
   includedPaths: string[];
@@ -446,7 +446,7 @@ export interface BuildSnapshotProjection {
 // ============================================================
 
 /**
- * 서브 프로젝트(빌드 타겟) 라이프사이클 상태 (16상태 FSM).
+ * BuildTarget(빌드 타겟) 라이프사이클 상태 (16상태 FSM).
  *
  * 정상 경로:
  *   discovered → resolving → configured → building → built → scanning → scanned → graphing → graphed → ready
@@ -474,7 +474,7 @@ export type BuildTargetSdkChoiceState = "sdk-selected" | "sdk-none-explicit" | "
 export type AnalysisExecutionStatus = "active" | "completed" | "failed" | "superseded" | "aborted";
 export type AnalysisExecutionStepStatus = "pending" | "running" | "succeeded" | "failed";
 
-/** 프로젝트 내 독립 빌드 단위 (서브 프로젝트) */
+/** 프로젝트 내 독립 빌드 단위 (BuildTarget) */
 export interface BuildTarget {
   id: string;
   projectId: string;
@@ -533,14 +533,14 @@ export interface AnalysisExecution {
   updatedAt: string;
 }
 
-/** 서브 프로젝트 내 서드파티 라이브러리 (S4 식별, 사용자 포함/제외 선택) */
+/** BuildTarget 내 서드파티 라이브러리 (S4 식별, 사용자 포함/제외 선택) */
 export interface TargetLibrary {
   id: string;
   targetId: string;
   projectId: string;
   name: string;
   version?: string;
-  /** 서브프로젝트 내 상대 경로 */
+  /** BuildTarget 내 상대 경로 */
   path: string;
   /** 스캔에 포함 여부 (false=제외, true=포함). 기본 제외. */
   included: boolean;

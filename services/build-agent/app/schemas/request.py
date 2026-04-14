@@ -73,8 +73,8 @@ class BuildResolveContract(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     projectPath: str = Field(min_length=1)
-    subprojectPath: str | None = None
-    subprojectName: str | None = None
+    buildTargetPath: str | None = None
+    buildTargetName: str | None = None
     targetPath: str | None = None
     targetName: str | None = None
     buildMode: BuildMode | None = None
@@ -98,10 +98,10 @@ class BuildResolveContract(BaseModel):
         if not isinstance(build_blob, dict):
             build_blob = {}
 
-        if normalized.get("subprojectPath") is None and normalized.get("targetPath") is not None:
-            normalized["subprojectPath"] = normalized.get("targetPath")
-        if normalized.get("subprojectName") is None and normalized.get("targetName") is not None:
-            normalized["subprojectName"] = normalized.get("targetName")
+        if normalized.get("buildTargetPath") is None and normalized.get("targetPath") is not None:
+            normalized["buildTargetPath"] = normalized.get("targetPath")
+        if normalized.get("buildTargetName") is None and normalized.get("targetName") is not None:
+            normalized["buildTargetName"] = normalized.get("targetName")
 
         if normalized.get("buildMode") is None and build_blob.get("mode") is not None:
             normalized["buildMode"] = build_blob.get("mode")
@@ -141,8 +141,8 @@ class BuildResolveContract(BaseModel):
 
     @field_validator(
         "projectPath",
-        "subprojectPath",
-        "subprojectName",
+        "buildTargetPath",
+        "buildTargetName",
         "targetPath",
         "targetName",
         "sdkId",
@@ -242,14 +242,14 @@ class BuildResolveContract(BaseModel):
                 ContractVersion.BUILD_RESOLVE_V1 if self.strictMode else ContractVersion.LEGACY
             )
 
-        if self.subprojectPath is None and self.targetPath is not None:
-            self.subprojectPath = self.targetPath
-        if self.subprojectName is None and self.targetName is not None:
-            self.subprojectName = self.targetName
-        if self.targetPath is None and self.subprojectPath is not None:
-            self.targetPath = self.subprojectPath
-        if self.targetName is None and self.subprojectName is not None:
-            self.targetName = self.subprojectName
+        if self.buildTargetPath is None and self.targetPath is not None:
+            self.buildTargetPath = self.targetPath
+        if self.buildTargetName is None and self.targetName is not None:
+            self.buildTargetName = self.targetName
+        if self.targetPath is None and self.buildTargetPath is not None:
+            self.targetPath = self.buildTargetPath
+        if self.targetName is None and self.buildTargetName is not None:
+            self.targetName = self.buildTargetName
 
         if self.buildMode == BuildMode.SDK and not self.sdkId:
             raise ValueError("sdkId is required when buildMode is 'sdk'")

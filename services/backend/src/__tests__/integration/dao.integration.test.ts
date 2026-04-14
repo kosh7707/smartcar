@@ -15,7 +15,7 @@ import { ProjectSettingsDAO } from "../../dao/project-settings.dao";
 import { BuildTargetDAO } from "../../dao/build-target.dao";
 import { BuildUnitDAO } from "../../dao/build-unit.dao";
 import { BuildUnitRevisionDAO } from "../../dao/build-unit-revision.dao";
-import { SubprojectAssetDAO } from "../../dao/subproject-asset.dao";
+import { BuildTargetAssetDAO } from "../../dao/build-target-asset.dao";
 import { BuildRequestDAO } from "../../dao/build-request.dao";
 import { BuildAttemptProjectionDAO } from "../../dao/build-attempt-projection.dao";
 import { BuildSnapshotProjectionDAO } from "../../dao/build-snapshot-projection.dao";
@@ -268,7 +268,7 @@ describe("DAO Integration Tests", () => {
       const sourceAssetDao = new ProjectSourceAssetDAO(db);
       const sdkAssetDao = new SdkAssetDAO(db);
       const buildUnitDao = new BuildUnitDAO(db);
-      const subprojectAssetDao = new SubprojectAssetDAO(db);
+      const buildTargetAssetDao = new BuildTargetAssetDAO(db);
       const revisionDao = new BuildUnitRevisionDAO(db);
       const requestDao = new BuildRequestDAO(db);
       const attemptDao = new BuildAttemptProjectionDAO(db);
@@ -310,7 +310,7 @@ describe("DAO Integration Tests", () => {
       });
       expect(buildUnitDao.findByRelativePath("p1", "gateway-webserver/")?.id).toBe("bunit-1");
 
-      subprojectAssetDao.save({
+      buildTargetAssetDao.save({
         id: "subasset-1",
         projectId: "p1",
         buildUnitId: "bunit-1",
@@ -324,14 +324,14 @@ describe("DAO Integration Tests", () => {
         createdAt: now,
         updatedAt: now,
       });
-      expect(subprojectAssetDao.findByBuildUnitRevisionId("brev-1")).toMatchObject({ id: "subasset-1" });
+      expect(buildTargetAssetDao.findByBuildUnitRevisionId("brev-1")).toMatchObject({ id: "subasset-1" });
 
       revisionDao.save({
         id: "brev-1",
         projectId: "p1",
         buildUnitId: "bunit-1",
         sourceAssetId: "src-1",
-        subprojectAssetId: "subasset-1",
+        buildTargetAssetId: "subasset-1",
         sdkAssetId: "sdk-1",
         revisionNumber: 1,
         includedPaths: ["gateway-webserver"],
@@ -694,6 +694,53 @@ describe("DAO Integration Tests", () => {
       expect(loaded.caveats).toBeUndefined();
       expect(loaded.confidenceScore).toBeUndefined();
       expect(loaded.agentAudit).toBeUndefined();
+    });
+  });
+
+  describe("BuildTarget-only lineage enforcement", () => {
+    it("rejects static/deep analysis artifacts without BuildTarget + execution lineage while allowing non-BuildTarget modules", () => {
+      const prev = process.env.AEGIS_ALLOW_LEGACY_STATIC_FIXTURES;
+      process.env.AEGIS_ALLOW_LEGACY_STATIC_FIXTURES = "0";
+      try {
+        const runDao = new RunDAO(db);
+        const findingDao = new FindingDAO(db);
+        const analysisResultDao = new AnalysisResultDAO(db);
+
+        expect(() => runDao.save(makeRun({
+          id: "run-static-legacy",
+          projectId: "p-lineage",
+          module: "static_analysis",
+          buildTargetId: undefined,
+          analysisExecutionId: undefined,
+        }))).toThrow(/build_target_id IS NOT NULL AND analysis_execution_id IS NOT NULL|requires buildTargetId and analysisExecutionId/);
+
+        expect(() => findingDao.save(makeFinding({
+          id: "finding-deep-legacy",
+          projectId: "p-lineage",
+          module: "deep_analysis",
+          buildTargetId: undefined,
+          analysisExecutionId: undefined,
+        }))).toThrow(/build_target_id IS NOT NULL AND analysis_execution_id IS NOT NULL|requires buildTargetId and analysisExecutionId/);
+
+        expect(() => analysisResultDao.save(makeAnalysisResult({
+          id: "analysis-static-legacy",
+          projectId: "p-lineage",
+          module: "static_analysis",
+          buildTargetId: undefined,
+          analysisExecutionId: undefined,
+        }))).toThrow(/build_target_id IS NOT NULL AND analysis_execution_id IS NOT NULL|requires buildTargetId and analysisExecutionId/);
+
+        expect(() => runDao.save(makeRun({
+          id: "run-dynamic-ok",
+          projectId: "p-lineage",
+          module: "dynamic_analysis",
+          buildTargetId: undefined,
+          analysisExecutionId: undefined,
+        }))).not.toThrow();
+      } finally {
+        if (prev === undefined) delete process.env.AEGIS_ALLOW_LEGACY_STATIC_FIXTURES;
+        else process.env.AEGIS_ALLOW_LEGACY_STATIC_FIXTURES = prev;
+      }
     });
   });
 

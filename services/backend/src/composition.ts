@@ -183,8 +183,8 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
   const buildTargetService = new BuildTargetService(buildTargetDAO, settingsService, projectSourceService);
   const qualityGateService = new QualityGateService(findingDAO, evidenceRefDAO, gateResultDAO, runDAO, settingsService, notificationService);
   const resultNormalizer = new ResultNormalizer(db, runDAO, findingDAO, evidenceRefDAO, qualityGateService, notificationService);
-  const approvalService = new ApprovalService(approvalDAO, auditLogDAO, qualityGateService, notificationService);
   const findingService = new FindingService(findingDAO, evidenceRefDAO, auditLogDAO);
+  const approvalService = new ApprovalService(approvalDAO, auditLogDAO, qualityGateService, notificationService, findingService);
   const runService = new RunService(runDAO, findingDAO, gateResultDAO, evidenceRefDAO);
 
   // ── WebSocket broadcasters ──
@@ -232,7 +232,7 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
   );
   const pipelineOrchestrator = new PipelineOrchestrator(
     projectSourceService, sastClient, kbClient, buildAgentClient, targetLibraryDAO,
-    buildTargetDAO, analysisResultDAO, resultNormalizer, pipelineWs, notificationService,
+    buildTargetDAO, analysisResultDAO, resultNormalizer, pipelineWs, notificationService, analysisExecutionDAO,
   );
   const analysisOrchestrator = new AnalysisOrchestrator(
     projectSourceService, sastClient, kbClient, agentClient,
@@ -240,7 +240,7 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
   );
   const sdkService = new SdkService(sdkRegistryDAO, buildAgentClient, cfg.uploadsDir, sdkWs, notificationService);
 
-  const activityService = new ActivityService(runDAO, auditLogDAO, buildTargetDAO);
+  const activityService = new ActivityService(runDAO, auditLogDAO, buildTargetDAO, findingService, approvalService);
   const projectService = new ProjectService(
     projectDAO,
     analysisResultDAO,

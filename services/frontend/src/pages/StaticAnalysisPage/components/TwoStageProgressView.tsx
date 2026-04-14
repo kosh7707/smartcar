@@ -7,6 +7,8 @@ import "./TwoStageProgressView.css";
 
 interface Props {
   analysisId: string | null;
+  buildTargetId?: string | null;
+  executionId?: string | null;
   stage: AnalysisStage;
   message: string;
   quickFindingCount: number | null;
@@ -28,7 +30,7 @@ const STAGES: { key: AnalysisStage; label: string }[] = [
 
 function isStageComplete(stageKey: string, currentStage: AnalysisStage): boolean {
   if (stageKey === "quick_sast") {
-    return ["quick_complete", "deep_submitting", "deep_analyzing", "deep_complete"].includes(currentStage);
+    return ["quick_complete", "deep_submitting", "deep_analyzing", "deep_retrying", "deep_complete"].includes(currentStage);
   }
   if (stageKey === "deep_analyzing") {
     return currentStage === "deep_complete";
@@ -38,16 +40,18 @@ function isStageComplete(stageKey: string, currentStage: AnalysisStage): boolean
 
 function isStageActive(stageKey: string, currentStage: AnalysisStage): boolean {
   if (stageKey === "quick_sast") {
-    return currentStage === "quick_sast";
+    return currentStage === "quick_sast" || currentStage === "quick_graphing";
   }
   if (stageKey === "deep_analyzing") {
-    return currentStage === "deep_submitting" || currentStage === "deep_analyzing";
+    return currentStage === "deep_submitting" || currentStage === "deep_analyzing" || currentStage === "deep_retrying";
   }
   return false;
 }
 
 export const TwoStageProgressView: React.FC<Props> = ({
   analysisId,
+  buildTargetId,
+  executionId,
   stage,
   message,
   quickFindingCount,
@@ -76,6 +80,17 @@ export const TwoStageProgressView: React.FC<Props> = ({
         subtitle={message || "빠른 분석과 심층 분석 단계를 순차적으로 진행합니다."}
         action={<span className="two-stage-elapsed">{timeStr}</span>}
       />
+
+      {(buildTargetId || executionId) && (
+        <div className="two-stage-target-info">
+          {buildTargetId && (
+            <span className="two-stage-target-name">BuildTarget: {buildTargetId}</span>
+          )}
+          {executionId && (
+            <span className="two-stage-target-progress">Execution: {executionId}</span>
+          )}
+        </div>
+      )}
 
       {/* Target progress (multi-target only) */}
       {targetProgress && targetProgress.total > 1 && (

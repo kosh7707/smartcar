@@ -197,19 +197,19 @@
 
 /* Tree styles imported from shared/ui/FileTreeNode.css */
 
-/* ── Subproject Card ── */
+/* ── BuildTarget Card ── */
 
-.fpage-subproject-card {
+.fpage-build-target-card {
   /* inherits .card */
 }
 
-.fpage-subproject-list {
+.fpage-build-target-list {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.fpage-subproject-row {
+.fpage-build-target-row {
   display: flex;
   align-items: center;
   gap: var(--cds-spacing-03);
@@ -218,16 +218,16 @@
   transition: background var(--cds-transition-fast);
 }
 
-.fpage-subproject-row:hover {
+.fpage-build-target-row:hover {
   background: rgba(244, 244, 244, 0.82);
 }
 
-.fpage-subproject-name {
+.fpage-build-target-name {
   font-weight: var(--cds-weight-medium);
   font-size: var(--cds-type-sm);
 }
 
-.fpage-subproject-meta {
+.fpage-build-target-meta {
   margin-left: auto;
   font-family: var(--cds-font-mono);
   font-size: var(--cds-type-sm);

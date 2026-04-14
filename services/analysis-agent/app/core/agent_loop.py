@@ -413,6 +413,7 @@ class AgentLoop:
                 )
                 return await self._llm_caller.call(
                     messages, session, tools=tools_schema,
+                    prefer_async_ownership=tools_schema is None,
                 )
             except S3Error as e:
                 last_error = e

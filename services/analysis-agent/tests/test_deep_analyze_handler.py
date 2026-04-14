@@ -1,5 +1,13 @@
+import json
+from unittest.mock import MagicMock
+
+import pytest
+
+from app.config import settings
 from app.core.phase_one_types import Phase1Result
-from app.routers.deep_analyze_handler import _configure_phase2_graph_tools
+from app.routers.deep_analyze_handler import _configure_phase2_graph_tools, handle_deep_analyze
+from app.schemas.request import Context, TaskRequest
+from app.types import TaskType
 from agent_shared.tools.registry import ToolRegistry, ToolSchema
 
 
@@ -69,3 +77,66 @@ def test_configure_phase2_graph_tools_removes_all_graph_tools_when_neo4j_not_rea
     assert registry.get("code_graph.callers") is None
     assert registry.get("code_graph.callees") is None
     assert registry.get("code_graph.search") is None
+
+
+@pytest.mark.asyncio
+async def test_handle_deep_analyze_requests_async_ownership_on_toolless_turn(monkeypatch):
+    original_mode = settings.llm_mode
+    object.__setattr__(settings, "llm_mode", "real")
+
+    request = TaskRequest(
+        taskType=TaskType.DEEP_ANALYZE,
+        taskId="deep-async-001",
+        context=Context(trusted={
+            "objective": "test",
+            "projectPath": "/tmp/project",
+            "projectId": "proj-1",
+        }),
+    )
+
+    seen: dict[str, object] = {}
+
+    async def fake_phase1_execute(self, session):
+        return Phase1Result()
+
+    async def fake_call(self, *args, **kwargs):
+        seen["prefer_async_ownership"] = kwargs.get("prefer_async_ownership")
+        from agent_shared.schemas.agent import LlmResponse
+        return LlmResponse(
+            content=json.dumps({
+                "summary": "Deep analysis completed",
+                "claims": [],
+                "caveats": [],
+                "usedEvidenceRefs": [],
+                "needsHumanReview": True,
+                "recommendedNextSteps": [],
+                "policyFlags": [],
+            }),
+            prompt_tokens=10,
+            completion_tokens=20,
+        )
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr(
+        "agent_shared.tools.registry.ToolRegistry.get_available_schemas",
+        lambda self, budget_manager: None,
+    )
+    monkeypatch.setattr("app.core.phase_one.Phase1Executor.execute", fake_phase1_execute)
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+
+    model_registry = MagicMock()
+    model_registry.get_default.return_value = MagicMock(
+        endpoint="http://localhost:8000",
+        modelName="test-model",
+        apiKey="",
+    )
+
+    try:
+        result = await handle_deep_analyze(request, model_registry)
+        assert result.status == "completed"
+        assert seen["prefer_async_ownership"] is True
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)

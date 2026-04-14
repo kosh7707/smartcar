@@ -10,6 +10,7 @@ import type {
 import type { IFindingDAO, IEvidenceRefDAO, IAuditLogDAO } from "../dao/interfaces";
 import { InvalidInputError, NotFoundError } from "../lib/errors";
 import { createLogger } from "../lib/logger";
+import { isVisibleAnalysisArtifact } from "../lib/analysis-visibility";
 
 const logger = createLogger("finding-service");
 
@@ -34,7 +35,7 @@ export class FindingService {
 
   findById(id: string): (Finding & { evidenceRefs: EvidenceRef[]; auditLog: AuditLogEntry[] }) | undefined {
     const finding = this.findingDAO.findById(id);
-    if (!finding) return undefined;
+    if (!finding || !isVisibleAnalysisArtifact(finding)) return undefined;
 
     const evidenceRefs = this.evidenceRefDAO.findByFindingId(id);
     const auditLog = this.auditLogDAO.findByResourceId(id);
@@ -45,7 +46,7 @@ export class FindingService {
     projectId: string,
     filters?: import("../dao/interfaces").FindingFilters,
   ): Finding[] {
-    return this.findingDAO.findByProjectId(projectId, filters);
+    return this.findingDAO.findByProjectId(projectId, filters).filter((finding) => isVisibleAnalysisArtifact(finding));
   }
 
   findByRunId(runId: string): Finding[] {
@@ -60,7 +61,7 @@ export class FindingService {
     requestId?: string
   ): Finding {
     const finding = this.findingDAO.findById(findingId);
-    if (!finding) throw new NotFoundError("Finding not found");
+    if (!finding || !isVisibleAnalysisArtifact(finding)) throw new NotFoundError("Finding not found");
 
     const allowed = VALID_TRANSITIONS[finding.status];
     if (!allowed || !allowed.includes(newStatus)) {
@@ -111,7 +112,11 @@ export class FindingService {
 
     this.findingDAO.withTransaction(() => {
       const findings = this.findingDAO.findByIds(findingIds);
-      const findingMap = new Map(findings.map((f) => [f.id, f]));
+      const findingMap = new Map(
+        findings
+          .filter((finding) => isVisibleAnalysisArtifact(finding))
+          .map((f) => [f.id, f]),
+      );
 
       for (const id of findingIds) {
         const finding = findingMap.get(id);
@@ -141,10 +146,12 @@ export class FindingService {
 
   getHistory(findingId: string): Array<{ findingId: string; runId: string; status: FindingStatus; createdAt: string }> | undefined {
     const finding = this.findingDAO.findById(findingId);
-    if (!finding) return undefined;
+    if (!finding || !isVisibleAnalysisArtifact(finding)) return undefined;
     if (!finding.fingerprint) return [];
 
-    const siblings = this.findingDAO.findAllByFingerprint(finding.projectId, finding.fingerprint);
+    const siblings = this.findingDAO
+      .findAllByFingerprint(finding.projectId, finding.fingerprint)
+      .filter((sibling) => isVisibleAnalysisArtifact(sibling));
     return siblings.map((f) => ({
       findingId: f.id,
       runId: f.runId,
@@ -154,17 +161,50 @@ export class FindingService {
   }
 
   getSummary(projectId: string): { byStatus: Record<string, number>; bySeverity: Record<string, number>; total: number } {
-    return this.findingDAO.summaryByProjectId(projectId);
+    const findings = this.findByProjectId(projectId);
+    const byStatus: Record<string, number> = {};
+    const bySeverity: Record<string, number> = {};
+
+    for (const finding of findings) {
+      byStatus[finding.status] = (byStatus[finding.status] ?? 0) + 1;
+      bySeverity[finding.severity] = (bySeverity[finding.severity] ?? 0) + 1;
+    }
+
+    return { byStatus, bySeverity, total: findings.length };
   }
 
   getGroups(projectId: string, groupBy: "ruleId" | "location"): Array<{ key: string; count: number; topSeverity: string; findingIds: string[] }> {
-    const dao = this.findingDAO as any;
-    if (groupBy === "ruleId" && typeof dao.groupByRuleId === "function") {
-      return dao.groupByRuleId(projectId);
+    const severityOrder: Record<Finding["severity"], number> = {
+      critical: 5,
+      high: 4,
+      medium: 3,
+      low: 2,
+      info: 1,
+    };
+
+    const grouped = new Map<string, { count: number; topSeverity: Finding["severity"]; findingIds: string[] }>();
+    for (const finding of this.findByProjectId(projectId)) {
+      const key = groupBy === "ruleId" ? finding.ruleId : finding.location;
+      if (!key) continue;
+
+      const existing = grouped.get(key);
+      if (existing) {
+        existing.count += 1;
+        existing.findingIds.push(finding.id);
+        if (severityOrder[finding.severity] > severityOrder[existing.topSeverity]) {
+          existing.topSeverity = finding.severity;
+        }
+      } else {
+        grouped.set(key, {
+          count: 1,
+          topSeverity: finding.severity,
+          findingIds: [finding.id],
+        });
+      }
     }
-    if (groupBy === "location" && typeof dao.groupByLocation === "function") {
-      return dao.groupByLocation(projectId);
-    }
-    return [];
+
+    return [...grouped.entries()]
+      .map(([key, value]) => ({ key, ...value }))
+      .sort((a, b) => b.count - a.count);
   }
 }

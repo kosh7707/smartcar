@@ -29,8 +29,8 @@ SAST_URL="http://localhost:9000"
 GW_URL="http://localhost:8000"
 
 PROJECT_PATH="${1:-/home/kosh/AEGIS/uploads/proj-60bf5eb4-bc1f-4275-b7d5-15db1f939935}"
-SUBPROJECT_PATH="${2:-gateway-webserver/}"
-SUBPROJECT_NAME="${SUBPROJECT_PATH%/}"
+BUILD_TARGET_PATH="${2:-gateway-webserver/}"
+BUILD_TARGET_NAME="${BUILD_TARGET_PATH%/}"
 REQUEST_ID="build-test-$(date +%s)"
 BUILD_CONTRACT_VERSION="${BUILD_CONTRACT_VERSION:-}"
 STRICT_MODE="${STRICT_MODE:-}"
@@ -58,7 +58,7 @@ echo "║              AEGIS Build Agent 통합 테스트                  ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 echo "  프로젝트: ${PROJECT_PATH}"
-echo "  타겟:     ${SUBPROJECT_PATH}"
+echo "  타겟:     ${BUILD_TARGET_PATH}"
 [[ -n "$BUILD_CONTRACT_VERSION" ]] && echo "  contract: ${BUILD_CONTRACT_VERSION} (strict=${STRICT_MODE:-unset})"
 [[ -n "$BUILD_MODE" ]] && echo "  mode:     ${BUILD_MODE}${SDK_ID:+ (sdkId=${SDK_ID})}"
 [[ -n "$BUILD_SETUP_SCRIPT" ]] && echo "  setup:    ${BUILD_SETUP_SCRIPT}"
@@ -89,8 +89,8 @@ RESULT=$(curl -s -X POST "${BUILD_URL}/v1/tasks" \
 import json, os
 trusted = {
     'projectPath': '${PROJECT_PATH}',
-    'subprojectPath': '${SUBPROJECT_PATH}',
-    'subprojectName': '${SUBPROJECT_NAME}',
+    'buildTargetPath': '${BUILD_TARGET_PATH}',
+    'buildTargetName': '${BUILD_TARGET_NAME}',
 }
 if '${BUILD_CONTRACT_VERSION}':
     trusted['contractVersion'] = '${BUILD_CONTRACT_VERSION}'
@@ -141,7 +141,7 @@ else:
 
 # 스크립트 존재 확인
 build_script = br.get('buildScript') or ''
-script = '${PROJECT_PATH}/${SUBPROJECT_PATH}/' + build_script if build_script else ''
+script = '${PROJECT_PATH}/${BUILD_TARGET_PATH}/' + build_script if build_script else ''
 script = script.replace('//', '/')
 print(f'  script exists: {os.path.isfile(script)}')
 

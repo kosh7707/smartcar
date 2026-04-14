@@ -97,6 +97,11 @@ function createMocks() {
   const resultNormalizer = { normalizeAnalysisResult: vi.fn() };
   const ws = { broadcast: vi.fn() };
   const notificationService = { emit: vi.fn() };
+  const analysisExecutionDAO = {
+    save: vi.fn(),
+    update: vi.fn(),
+    findActiveByBuildTargetId: vi.fn().mockReturnValue(undefined),
+  };
 
   const orchestrator = new PipelineOrchestrator(
     sourceService as any,
@@ -109,9 +114,10 @@ function createMocks() {
     resultNormalizer as any,
     ws as any,
     notificationService as any,
+    analysisExecutionDAO as any,
   );
 
-  return { orchestrator, sourceService, sastClient, kbClient, buildAgentClient, targetLibraryDAO, buildTargetDAO, analysisResultDAO, resultNormalizer, ws, notificationService };
+  return { orchestrator, sourceService, sastClient, kbClient, buildAgentClient, targetLibraryDAO, buildTargetDAO, analysisResultDAO, resultNormalizer, ws, notificationService, analysisExecutionDAO };
 }
 
 describe("PipelineOrchestrator", () => {
@@ -135,7 +141,7 @@ describe("PipelineOrchestrator", () => {
   });
 
   it("happy path: resolve → build → scan → graph → ready", async () => {
-    const { orchestrator, buildAgentClient, buildTargetDAO, sastClient, kbClient, ws, notificationService } = createMocks();
+    const { orchestrator, buildAgentClient, buildTargetDAO, sastClient, kbClient, ws, notificationService, analysisResultDAO, analysisExecutionDAO } = createMocks();
 
     await orchestrator.runPipeline("p1");
 
@@ -149,8 +155,8 @@ describe("PipelineOrchestrator", () => {
         context: {
           trusted: expect.objectContaining({
             projectPath: "/uploads/p1/gateway/",
-            subprojectPath: "gateway/",
-            subprojectName: "gateway",
+            buildTargetPath: "gateway/",
+            buildTargetName: "gateway",
             targetPath: "gateway/",
             targetName: "gateway",
           }),
@@ -175,6 +181,17 @@ describe("PipelineOrchestrator", () => {
 
     // scan 호출됨
     expect(sastClient.scan).toHaveBeenCalledOnce();
+    expect(analysisExecutionDAO.save).toHaveBeenCalledWith(expect.objectContaining({
+      buildTargetId: "t1",
+      id: expect.stringMatching(/^scan-/),
+      quickBuildPrepStatus: "succeeded",
+      quickSastStatus: "running",
+    }));
+    expect(analysisResultDAO.save).toHaveBeenCalledWith(expect.objectContaining({
+      buildTargetId: "t1",
+      analysisExecutionId: expect.stringMatching(/^scan-/),
+      module: "static_analysis",
+    }));
     expect(buildTargetDAO.updatePipelineState).toHaveBeenCalledWith("t1", expect.objectContaining({ status: "scanned" }));
 
     // graph 호출됨
@@ -195,6 +212,22 @@ describe("PipelineOrchestrator", () => {
       jobKind: "pipeline",
       resourceId: expect.stringMatching(/^pipe-/),
       correlationId: expect.stringMatching(/^pipe-/),
+    }));
+  });
+
+  it("supersedes an existing active execution when pipeline scan restarts for the same BuildTarget", async () => {
+    const { orchestrator, analysisExecutionDAO } = createMocks();
+    analysisExecutionDAO.findActiveByBuildTargetId.mockReturnValue({
+      id: "exec-old",
+      buildTargetId: "t1",
+      status: "active",
+    });
+
+    await orchestrator.runPipeline("p1");
+
+    expect(analysisExecutionDAO.update).toHaveBeenCalledWith("exec-old", expect.objectContaining({
+      status: "superseded",
+      supersededByExecutionId: expect.stringMatching(/^scan-/),
     }));
   });
 
@@ -295,7 +328,7 @@ describe("PipelineOrchestrator", () => {
     expect(buildTargetDAO.updatePipelineState).toHaveBeenCalledWith("t1", expect.objectContaining({ status: "scan_failed" }));
   });
 
-  it("graph failure → non-fatal, still reaches ready", async () => {
+  it("graph failure → graph_failed and no ready transition", async () => {
     const { orchestrator, buildTargetDAO, kbClient } = createMocks();
     buildTargetDAO.findByProjectId.mockReturnValue([
       makeTarget({ status: "configured", buildCommand: "make" }),
@@ -304,8 +337,8 @@ describe("PipelineOrchestrator", () => {
 
     await orchestrator.runPipeline("p1");
 
-    // graph fail is non-fatal — should still reach ready
-    expect(buildTargetDAO.updatePipelineState).toHaveBeenCalledWith("t1", expect.objectContaining({ status: "ready" }));
+    expect(buildTargetDAO.updatePipelineState).toHaveBeenCalledWith("t1", expect.objectContaining({ status: "graph_failed" }));
+    expect(buildTargetDAO.updatePipelineState).not.toHaveBeenCalledWith("t1", expect.objectContaining({ status: "ready" }));
   });
 
   it("does not infer code-graph readiness from checkReady before ingest", async () => {
@@ -338,6 +371,22 @@ describe("PipelineOrchestrator", () => {
     expect(buildTargetDAO.updatePipelineState).toHaveBeenCalledWith("t1", expect.objectContaining({ status: "graph_failed" }));
     expect(buildTargetDAO.updatePipelineState).not.toHaveBeenCalledWith("t1", expect.objectContaining({ status: "ready" }));
     expect(ws.broadcast).toHaveBeenCalledWith("p1", expect.objectContaining({ type: "pipeline-error" }));
+  });
+
+  it("missing code graph in SAST response → graph_failed and no ready transition", async () => {
+    const { orchestrator, buildTargetDAO, sastClient } = createMocks();
+    buildTargetDAO.findByProjectId.mockReturnValue([
+      makeTarget({ status: "configured", buildCommand: "make" }),
+    ]);
+    sastClient.scan.mockResolvedValue({
+      ...scanResponse,
+      codeGraph: null,
+    });
+
+    await orchestrator.runPipeline("p1");
+
+    expect(buildTargetDAO.updatePipelineState).toHaveBeenCalledWith("t1", expect.objectContaining({ status: "graph_failed" }));
+    expect(buildTargetDAO.updatePipelineState).not.toHaveBeenCalledWith("t1", expect.objectContaining({ status: "ready" }));
   });
 
   it("no source path → throws NotFoundError", async () => {

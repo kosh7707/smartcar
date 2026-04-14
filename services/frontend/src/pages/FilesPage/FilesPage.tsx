@@ -6,11 +6,11 @@ import { useToast } from "../../contexts/ToastContext";
 import { useUploadProgress } from "../../hooks/useUploadProgress";
 import { useBuildTargets } from "../../hooks/useBuildTargets";
 import { FilesEmptyState } from "./components/FilesEmptyState";
-import { SubprojectCreateDialog } from "./components/SubprojectCreateDialog";
+import { BuildTargetCreateDialog } from "./components/BuildTargetCreateDialog";
 import { BuildLogViewer } from "./components/BuildLogViewer";
 import { FilesPageHeader } from "./components/FilesPageHeader";
 import { FilesLanguageSummary } from "./components/FilesLanguageSummary";
-import { FilesSubprojectPanel } from "./components/FilesSubprojectPanel";
+import { FilesBuildTargetPanel } from "./components/FilesBuildTargetPanel";
 import { FilesSourceWorkspace } from "./components/FilesSourceWorkspace";
 import { useFilesPage } from "./hooks/useFilesPage";
 import "./FilesPage.css";
@@ -44,7 +44,7 @@ export const FilesPage: React.FC = () => {
         fileCount={state.sourceFiles.length}
         totalSize={state.totalSize}
         showCreateTarget={state.sourceFiles.length > 0}
-        onOpenCreateTarget={() => state.setShowSubprojectDialog(true)}
+        onOpenCreateTarget={() => state.setShowBuildTargetDialog(true)}
         onOpenUpload={() => state.fileInputRef.current?.click()}
         fileInputRef={state.fileInputRef}
         onFileInputChange={(event) => event.target.files && state.handleUpload(event.target.files)}
@@ -63,7 +63,7 @@ export const FilesPage: React.FC = () => {
         <>
           <FilesLanguageSummary totalFiles={state.sourceFiles.length} langStats={state.langStats} />
 
-          <FilesSubprojectPanel targets={state.buildTargets.targets} onOpenLog={state.setLogTarget} />
+          <FilesBuildTargetPanel targets={state.buildTargets.targets} onOpenLog={state.setLogTarget} />
 
           <FilesSourceWorkspace
             search={state.search}
@@ -100,12 +100,12 @@ export const FilesPage: React.FC = () => {
         </div>
       )}
 
-      <SubprojectCreateDialog
-        open={state.showSubprojectDialog}
+      <BuildTargetCreateDialog
+        open={state.showBuildTargetDialog}
         projectId={projectId}
         sourceFiles={state.sourceFiles}
-        onCreated={state.onSubprojectCreated}
-        onCancel={() => state.setShowSubprojectDialog(false)}
+        onCreated={state.onBuildTargetCreated}
+        onCancel={() => state.setShowBuildTargetDialog(false)}
       />
 
       {state.logTarget && projectId && (

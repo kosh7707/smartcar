@@ -34,7 +34,7 @@ export const FilesPageHeader: React.FC<FilesPageHeaderProps> = ({
             onClick={onOpenCreateTarget}
           >
             <Plus size={14} />
-            서브 프로젝트 생성
+            BuildTarget 생성
           </button>
         )}
         <button

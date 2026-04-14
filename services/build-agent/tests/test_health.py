@@ -32,8 +32,8 @@ def test_build_resolve_strict_contract_payload_example(client):
             "context": {
                 "trusted": {
                     "projectPath": "/tmp/test",
-                    "subprojectPath": "gateway/",
-                    "subprojectName": "gateway",
+                    "buildTargetPath": "gateway/",
+                    "buildTargetName": "gateway",
                     "contractVersion": "build-resolve-v1",
                     "strictMode": True,
                     "build": {"mode": "native"},
@@ -62,8 +62,8 @@ def test_build_resolve_accepts_top_level_strict_contract_fields(client):
             "context": {
                 "trusted": {
                     "projectPath": "/tmp/test",
-                    "subprojectPath": "gateway/",
-                    "subprojectName": "gateway",
+                    "buildTargetPath": "gateway/",
+                    "buildTargetName": "gateway",
                     "build": {"mode": "native"},
                     "expectedArtifacts": [
                         {"kind": "executable", "path": "build-aegis/gateway"},

@@ -354,6 +354,8 @@ export class ResultNormalizer {
           id: findingId,
           runId,
           projectId: result.projectId,
+          buildTargetId: result.buildTargetId,
+          analysisExecutionId: result.analysisExecutionId,
           module: "deep_analysis",
           status: preservedStatus,
           severity,
@@ -406,6 +408,8 @@ export class ResultNormalizer {
       const run: Run = {
         id: runId,
         projectId: result.projectId,
+        buildTargetId: result.buildTargetId,
+        analysisExecutionId: result.analysisExecutionId,
         module: "deep_analysis",
         status: "completed",
         analysisResultId: result.id,

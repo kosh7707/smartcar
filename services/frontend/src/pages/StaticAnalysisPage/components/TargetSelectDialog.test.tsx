@@ -7,11 +7,13 @@ const targets: BuildTarget[] = [
   {
     id: "t-1", projectId: "p-1", name: "gateway", relativePath: "gateway/",
     buildProfile: { sdkId: "nxp-s32g2", compiler: "gcc", targetArch: "aarch64", languageStandard: "c11", headerLanguage: "c" },
+    sdkChoiceState: "sdk-selected",
     createdAt: "2026-01-01", updatedAt: "2026-01-01",
   },
   {
     id: "t-2", projectId: "p-1", name: "body-control", relativePath: "body-control/",
     buildProfile: { sdkId: "nxp-s32k", compiler: "arm-gcc", targetArch: "arm-cortex-m7", languageStandard: "c11", headerLanguage: "c" },
+    sdkChoiceState: "sdk-selected",
     createdAt: "2026-01-01", updatedAt: "2026-01-01",
   },
 ];
@@ -29,49 +31,26 @@ describe("TargetSelectDialog", () => {
     expect(screen.getByText("body-control")).toBeInTheDocument();
   });
 
-  it("starts with all targets selected", () => {
+  it("starts with the first target selected", () => {
     render(<TargetSelectDialog open={true} targets={targets} onConfirm={vi.fn()} onCancel={vi.fn()} />);
-    expect(screen.getByText("분석 실행 (2개)")).toBeInTheDocument();
+    expect(screen.getByText("분석 실행")).toBeInTheDocument();
+    expect(screen.getByText("gateway").closest(".tsd__row")).toHaveAttribute("aria-checked", "true");
   });
 
-  it("toggles individual target", () => {
+  it("switches selected target", () => {
     render(<TargetSelectDialog open={true} targets={targets} onConfirm={vi.fn()} onCancel={vi.fn()} />);
-    // Click gateway to deselect
-    fireEvent.click(screen.getByText("gateway").closest(".tsd__row")!);
-    expect(screen.getByText("분석 실행 (1개)")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("body-control").closest(".tsd__row")!);
+    expect(screen.getByText("body-control").closest(".tsd__row")).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByText("gateway").closest(".tsd__row")).toHaveAttribute("aria-checked", "false");
   });
 
-  it("toggle all deselects then reselects", () => {
-    render(<TargetSelectDialog open={true} targets={targets} onConfirm={vi.fn()} onCancel={vi.fn()} />);
-    const selectAll = screen.getByText(/전체 선택/).closest(".tsd__select-all")!;
-
-    // Deselect all
-    fireEvent.click(selectAll);
-    const btn = screen.getByText(/분석 실행/);
-    expect(btn).toBeDisabled();
-
-    // Reselect all
-    fireEvent.click(selectAll);
-    expect(screen.getByText("분석 실행 (2개)")).toBeInTheDocument();
-  });
-
-  it("confirm button disabled when nothing selected", () => {
-    render(<TargetSelectDialog open={true} targets={targets} onConfirm={vi.fn()} onCancel={vi.fn()} />);
-    // Deselect all
-    fireEvent.click(screen.getByText(/전체 선택/).closest(".tsd__select-all")!);
-    expect(screen.getByText(/분석 실행/).closest("button")).toBeDisabled();
-  });
-
-  it("calls onConfirm with selected IDs", () => {
+  it("calls onConfirm with the selected ID", () => {
     const onConfirm = vi.fn();
     render(<TargetSelectDialog open={true} targets={targets} onConfirm={onConfirm} onCancel={vi.fn()} />);
 
-    // Deselect body-control
     fireEvent.click(screen.getByText("body-control").closest(".tsd__row")!);
-
-    // Confirm
-    fireEvent.click(screen.getByText("분석 실행 (1개)"));
-    expect(onConfirm).toHaveBeenCalledWith(["t-1"]);
+    fireEvent.click(screen.getByText("분석 실행"));
+    expect(onConfirm).toHaveBeenCalledWith("t-2");
   });
 
   it("calls onCancel on overlay click", () => {

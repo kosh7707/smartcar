@@ -194,7 +194,7 @@ def build_system_prompt(
 
     if target_path:
         build_source = os.path.join(project_path, target_path)
-        target_desc = f"`{target_path}` (서브프로젝트)"
+        target_desc = f"`{target_path}` (BuildTarget)"
     else:
         build_source = project_path
         target_desc = "프로젝트 루트"

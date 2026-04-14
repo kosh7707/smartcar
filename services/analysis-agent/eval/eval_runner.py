@@ -31,6 +31,7 @@ from eval.scorer import score_response
 
 _GOLDEN_DIR = Path(__file__).parent / "golden" / "cases"
 _RESULTS_DIR = Path(__file__).parent / "results"
+_ASYNC_UNSUPPORTED_RETRY_SECONDS = 60.0
 
 
 def _load_golden_cases(golden_dir: Path, case_filter: str = "") -> list[dict]:
@@ -99,7 +100,11 @@ async def _call_llm(
     model: str,
     max_tokens: int = 4096,
 ) -> dict:
-    """S7 Gateway에 도구 없이 직접 LLM 호출."""
+    """S7 Gateway에 도구 없이 직접 LLM 호출.
+
+    새 async ownership surface가 있으면 우선 사용하고,
+    없으면 기존 동기 `/v1/chat`로 fallback 한다.
+    """
     body = {
         "model": model,
         "messages": [
@@ -112,6 +117,10 @@ async def _call_llm(
         "response_format": {"type": "json_object"},
     }
 
+    async_data = await _call_llm_via_async_ownership(client, gateway_url, body)
+    if async_data is not None:
+        return async_data
+
     resp = await client.post(
         f"{gateway_url}/v1/chat",
         json=body,
@@ -120,6 +129,94 @@ async def _call_llm(
     )
     resp.raise_for_status()
     return resp.json()
+
+
+async def _call_llm_via_async_ownership(
+    client: httpx.AsyncClient,
+    gateway_url: str,
+    body: dict,
+) -> dict | None:
+    retry_at = client.__dict__.get("_aegis_async_retry_at", 0.0)
+    if time.monotonic() < retry_at:
+        return None
+
+    submit_resp = await client.post(
+        f"{gateway_url}/v1/async-chat-requests",
+        json=body,
+        headers={"Content-Type": "application/json"},
+        timeout=httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=30.0),
+    )
+
+    if submit_resp.status_code in (404, 405, 501):
+        setattr(client, "_aegis_async_retry_at", time.monotonic() + _ASYNC_UNSUPPORTED_RETRY_SECONDS)
+        return None
+
+    submit_resp.raise_for_status()
+    submit_data = submit_resp.json()
+
+    request_id = submit_data.get("requestId")
+    if not request_id:
+        raise ValueError("async submit missing requestId")
+
+    status_url = _resolve_async_url(
+        gateway_url,
+        submit_data.get("statusUrl"),
+        f"/v1/async-chat-requests/{request_id}",
+    )
+    result_url = _resolve_async_url(
+        gateway_url,
+        submit_data.get("resultUrl"),
+        f"/v1/async-chat-requests/{request_id}/result",
+    )
+
+    while True:
+        status_resp = await client.get(
+            status_url,
+            timeout=httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=30.0),
+        )
+        status_resp.raise_for_status()
+        status_data = status_resp.json()
+
+        state = status_data.get("state")
+        result_ready = bool(status_data.get("resultReady"))
+        local_ack_state = status_data.get("localAckState")
+        blocked_reason = status_data.get("blockedReason")
+
+        if blocked_reason or local_ack_state == "ack-break":
+            raise ValueError(blocked_reason or f"async chat request failed: {state}")
+
+        if state in {"queued", "running"} and not result_ready:
+            await asyncio.sleep(1.0)
+            continue
+
+        if state == "completed" or result_ready:
+            result_resp = await client.get(
+                result_url,
+                timeout=httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=30.0),
+            )
+            if result_resp.status_code == 409:
+                await asyncio.sleep(1.0)
+                continue
+            result_resp.raise_for_status()
+            result_data = result_resp.json()
+            wrapped = result_data.get("response")
+            if not isinstance(wrapped, dict):
+                raise ValueError("async result missing wrapped response")
+            return wrapped
+
+        if state in {"failed", "cancelled", "expired"}:
+            raise ValueError(f"async chat request terminal non-success: {state}")
+
+        raise ValueError(f"unknown async chat state: {state}")
+
+
+def _resolve_async_url(gateway_url: str, value: str | None, fallback_path: str) -> str:
+    if isinstance(value, str) and value:
+        if value.startswith("http://") or value.startswith("https://"):
+            return value
+        if value.startswith("/"):
+            return f"{gateway_url}{value}"
+    return f"{gateway_url}{fallback_path}"
 
 
 def _parse_llm_response(llm_data: dict) -> dict:

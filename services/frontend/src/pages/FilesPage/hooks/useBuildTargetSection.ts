@@ -8,7 +8,7 @@ import { useToast } from "../../../contexts/ToastContext";
 import { useBuildTargets } from "../../../hooks/useBuildTargets";
 import { usePipelineProgress } from "../../../hooks/usePipelineProgress";
 
-export const INCLUDED_PATHS_EDIT_GUARD_TEXT = "현재 백엔드 계약상 includedPaths는 수정 API에서 지원되지 않습니다. 이름과 빌드 프로필만 변경할 수 있으며, 파일 구성을 바꾸려면 새 서브 프로젝트를 생성해야 합니다.";
+export const INCLUDED_PATHS_EDIT_GUARD_TEXT = "현재 백엔드 계약상 includedPaths는 수정 API에서 지원되지 않습니다. 이름과 빌드 프로필만 변경할 수 있으며, 파일 구성을 바꾸려면 새 BuildTarget을 생성해야 합니다.";
 
 export const DEFAULT_PROFILE: BuildProfile = {
   sdkId: "none",

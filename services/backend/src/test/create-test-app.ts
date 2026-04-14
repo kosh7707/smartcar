@@ -9,6 +9,10 @@ import { createTestDb } from "./test-db";
 import { errorHandlerMiddleware } from "../middleware/error-handler.middleware";
 import { InvalidInputError, NotFoundError } from "../lib/errors";
 
+// Contract tests intentionally seed legacy static/deep rows to prove aggregate filtering.
+// Keep the production lineage guard enabled elsewhere, but allow explicit legacy fixtures here.
+process.env.AEGIS_ALLOW_LEGACY_STATIC_FIXTURES = "1";
+
 // DAOs
 import { RunDAO } from "../dao/run.dao";
 import { FindingDAO } from "../dao/finding.dao";
@@ -100,15 +104,17 @@ export interface TestAppContext {
   analysisTracker: AnalysisTracker;
   pipelineRunCalls: Array<{ projectId: string; targetIds?: string[]; requestId?: string; pipelineId?: string }>;
   pipelinePrepareCalls: Array<{ projectId: string; targetIds?: string[]; requestId?: string; preparationId?: string }>;
-  analysisRunCalls: Array<{ projectId: string; analysisId: string; targetIds?: string[]; requestId?: string }>;
   analysisQuickCalls: Array<{ projectId: string; analysisId: string; targetIds?: string[]; requestId?: string }>;
-  analysisDeepCalls: Array<{ projectId: string; analysisId: string; quickAnalysisId: string; requestId?: string }>;
+  analysisDeepCalls: Array<{ projectId: string; analysisId: string; buildTargetId: string; executionId: string; requestId?: string }>;
   projectUploadsRoot: string;
   dynamicTestRunningProjects: Set<string>;
 }
 
 export function createTestApp(): TestAppContext {
   const db = createTestDb();
+  // Contract tests still seed legacy static/deep rows to prove aggregate/read surfaces hide them.
+  // Production schema keeps CHECK constraints enabled; only this test app relaxes them for legacy-fixture seeding.
+  db.pragma("ignore_check_constraints = ON");
   const sdkUploadRoot = fs.mkdtempSync(path.join(os.tmpdir(), "aegis-sdk-test-"));
   const projectUploadsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "aegis-project-delete-"));
 
@@ -277,7 +283,7 @@ export function createTestApp(): TestAppContext {
       return `/tmp/${projectId}/archive`;
     },
     async saveFiles() {},
-    copyToSubproject(projectId: string, targetId: string) {
+    copyToBuildTargetSource(projectId: string, targetId: string) {
       return `/tmp/${projectId}/${targetId}`;
     },
   };
@@ -301,19 +307,17 @@ export function createTestApp(): TestAppContext {
       pipelinePrepareCalls.push({ projectId, targetIds, requestId, preparationId });
     },
   };
-  const analysisRunCalls: Array<{ projectId: string; analysisId: string; targetIds?: string[]; requestId?: string }> = [];
   const analysisQuickCalls: Array<{ projectId: string; analysisId: string; targetIds?: string[]; requestId?: string }> = [];
-  const analysisDeepCalls: Array<{ projectId: string; analysisId: string; quickAnalysisId: string; requestId?: string }> = [];
+  const analysisDeepCalls: Array<{ projectId: string; analysisId: string; buildTargetId: string; executionId: string; requestId?: string }> = [];
   const analysisTracker = new AnalysisTracker();
   const analysisOrchestrator = {
-    async runAnalysis(projectId: string, analysisId: string, targetIds?: string[], requestId?: string) {
-      analysisRunCalls.push({ projectId, analysisId, targetIds, requestId });
-    },
+    async preflightQuickRequest() {},
+    async preflightDeepRequest() {},
     async runQuickAnalysis(projectId: string, analysisId: string, targetIds?: string[], requestId?: string) {
       analysisQuickCalls.push({ projectId, analysisId, targetIds, requestId });
     },
-    async runDeepAnalysis(projectId: string, analysisId: string, quickAnalysisId: string, requestId?: string) {
-      analysisDeepCalls.push({ projectId, analysisId, quickAnalysisId, requestId });
+    async runDeepAnalysis(projectId: string, analysisId: string, buildTargetId: string, executionId: string, requestId?: string) {
+      analysisDeepCalls.push({ projectId, analysisId, buildTargetId, executionId, requestId });
     },
   };
   const agentClient = {
@@ -460,10 +464,10 @@ export function createTestApp(): TestAppContext {
   );
   const gateService = new QualityGateService(findingDAO, evidenceRefDAO, gateResultDAO, runDAO, settingsService, notificationService);
   const normalizer = new ResultNormalizer(db, runDAO, findingDAO, evidenceRefDAO, gateService, notificationService);
-  const approvalService = new ApprovalService(approvalDAO, auditLogDAO, gateService, notificationService);
   const findingService = new FindingService(findingDAO, evidenceRefDAO, auditLogDAO);
+  const approvalService = new ApprovalService(approvalDAO, auditLogDAO, gateService, notificationService, findingService);
   const runService = new RunService(runDAO, findingDAO, gateResultDAO, evidenceRefDAO);
-  const activityService = new ActivityService(runDAO, auditLogDAO, buildTargetDAO);
+  const activityService = new ActivityService(runDAO, auditLogDAO, buildTargetDAO, findingService, approvalService);
   const reportService = new ReportService(evidenceRefDAO, auditLogDAO, projectService, runService, findingService, gateService, approvalService);
 
   // App
@@ -524,7 +528,7 @@ export function createTestApp(): TestAppContext {
     approvalDAO, auditLogDAO, analysisResultDAO, dynamicSessionDAO, fileStore,
     buildTargetDAO, targetLibraryDAO, sdkRegistryDAO, notificationDAO, userDAO, sessionDAO,
     gateService, normalizer, buildTargetService,
-    notificationService, userService, settingsService, analysisTracker, pipelineRunCalls, pipelinePrepareCalls, analysisRunCalls, analysisQuickCalls, analysisDeepCalls,
+    notificationService, userService, settingsService, analysisTracker, pipelineRunCalls, pipelinePrepareCalls, analysisQuickCalls, analysisDeepCalls,
     projectUploadsRoot, dynamicTestRunningProjects,
   };
 }

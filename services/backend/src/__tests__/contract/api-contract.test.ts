@@ -12,6 +12,7 @@ import {
   makeEvidenceRef,
   makeGateResult,
   makeApproval,
+  makeAuditLog,
   makeAnalysisResult,
   makeStoredFile,
   makeBuildTarget,
@@ -49,6 +50,69 @@ describe("API Contract Tests", () => {
       expect(proj).toHaveProperty("description");
       expect(proj).toHaveProperty("createdAt");
       expect(proj).toHaveProperty("updatedAt");
+    });
+
+    it("aggregates only BuildTarget-owned analysis records in project summaries", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-agg", name: "Aggregate Project" }));
+
+      ctx.runDAO.save(makeRun({
+        id: "run-modern",
+        projectId: "p-agg",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+        module: "static_analysis",
+        findingCount: 2,
+        endedAt: "2026-03-26T10:00:00Z",
+      }));
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-modern-critical",
+        runId: "run-modern",
+        projectId: "p-agg",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+        module: "static_analysis",
+        severity: "critical",
+      }));
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-modern-high",
+        runId: "run-modern",
+        projectId: "p-agg",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+        module: "static_analysis",
+        severity: "high",
+      }));
+      ctx.gateResultDAO.save(makeGateResult({ id: "gate-modern", runId: "run-modern", projectId: "p-agg", status: "fail" }));
+
+      ctx.runDAO.save(makeRun({
+        id: "run-legacy",
+        projectId: "p-agg",
+        buildTargetId: undefined,
+        analysisExecutionId: undefined,
+        module: "static_analysis",
+        findingCount: 99,
+        endedAt: "2026-03-26T09:00:00Z",
+      }));
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-legacy",
+        runId: "run-legacy",
+        projectId: "p-agg",
+        buildTargetId: undefined,
+        analysisExecutionId: undefined,
+        module: "static_analysis",
+        severity: "critical",
+      }));
+
+      const res = await request(app).get("/api/projects");
+
+      expect(res.status).toBe(200);
+      const aggregate = res.body.data.find((project: any) => project.id === "p-agg");
+      expect(aggregate).toMatchObject({
+        id: "p-agg",
+        lastAnalysisAt: "2026-03-26T10:00:00Z",
+        gateStatus: "fail",
+        severitySummary: { critical: 1, high: 1, medium: 0, low: 0 },
+      });
     });
   });
 
@@ -171,6 +235,41 @@ describe("API Contract Tests", () => {
       expect(res.body).toHaveProperty("project");
       expect(res.body.project.id).toBe("p-overview");
     });
+
+    it("excludes legacy project-owned static analysis rows from aggregate overview semantics", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-overview-agg", name: "Overview Aggregate" }));
+      ctx.analysisResultDAO.save(makeAnalysisResult({
+        id: "analysis-modern",
+        projectId: "p-overview-agg",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+        module: "static_analysis",
+        summary: { total: 3, critical: 1, high: 1, medium: 1, low: 0, info: 0 },
+      }));
+      ctx.analysisResultDAO.save(makeAnalysisResult({
+        id: "analysis-legacy",
+        projectId: "p-overview-agg",
+        buildTargetId: undefined,
+        analysisExecutionId: undefined,
+        module: "static_analysis",
+        summary: { total: 99, critical: 99, high: 0, medium: 0, low: 0, info: 0 },
+      }));
+
+      const res = await request(app).get("/api/projects/p-overview-agg/overview");
+
+      expect(res.status).toBe(200);
+      expect(res.body.summary.totalVulnerabilities).toBe(3);
+      expect(res.body.summary.bySeverity).toMatchObject({
+        total: 3,
+        critical: 1,
+        high: 1,
+        medium: 1,
+        low: 0,
+        info: 0,
+      });
+      expect(res.body.recentAnalyses).toHaveLength(1);
+      expect(res.body.recentAnalyses[0].id).toBe("analysis-modern");
+    });
   });
 
   // ── Files ──
@@ -267,6 +366,28 @@ describe("API Contract Tests", () => {
         expect(run).toHaveProperty("findingCount");
       }
     });
+
+    it("filters legacy static/deep runs without full BuildTarget execution lineage", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-run-agg" }));
+      ctx.runDAO.save(makeRun({
+        id: "run-modern",
+        projectId: "p-run-agg",
+        module: "static_analysis",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+      }));
+      ctx.runDAO.save(makeRun({
+        id: "run-legacy",
+        projectId: "p-run-agg",
+        module: "static_analysis",
+        buildTargetId: undefined,
+        analysisExecutionId: undefined,
+      }));
+
+      const res = await request(app).get("/api/projects/p-run-agg/runs");
+      expect(res.status).toBe(200);
+      expect(res.body.data.map((run: any) => run.id)).toEqual(["run-modern"]);
+    });
   });
 
   describe("GET /api/runs/:id", () => {
@@ -308,6 +429,27 @@ describe("API Contract Tests", () => {
         expect(finding).toHaveProperty("title");
         expect(finding).toHaveProperty("sourceType");
       }
+    });
+
+    it("filters legacy static/deep findings without full BuildTarget execution lineage", async () => {
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-modern",
+        projectId: "p-find-agg",
+        module: "static_analysis",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+      }));
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-legacy",
+        projectId: "p-find-agg",
+        module: "static_analysis",
+        buildTargetId: undefined,
+        analysisExecutionId: undefined,
+      }));
+
+      const res = await request(app).get("/api/projects/p-find-agg/findings");
+      expect(res.status).toBe(200);
+      expect(res.body.data.map((finding: any) => finding.id)).toEqual(["finding-modern"]);
     });
   });
 
@@ -376,10 +518,49 @@ describe("API Contract Tests", () => {
         expect(gate).toHaveProperty("evaluatedAt");
       }
     });
+
+    it("filters legacy static/deep gate results whose runs lack BuildTarget execution lineage", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-gate-agg" }));
+      ctx.runDAO.save(makeRun({
+        id: "run-gate-modern",
+        projectId: "p-gate-agg",
+        module: "static_analysis",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+      }));
+      ctx.gateResultDAO.save(makeGateResult({
+        id: "gate-modern",
+        projectId: "p-gate-agg",
+        runId: "run-gate-modern",
+      }));
+      ctx.runDAO.save(makeRun({
+        id: "run-gate-legacy",
+        projectId: "p-gate-agg",
+        module: "static_analysis",
+        buildTargetId: undefined,
+        analysisExecutionId: undefined,
+      }));
+      ctx.gateResultDAO.save(makeGateResult({
+        id: "gate-legacy",
+        projectId: "p-gate-agg",
+        runId: "run-gate-legacy",
+      }));
+
+      const res = await request(app).get("/api/projects/p-gate-agg/gates");
+      expect(res.status).toBe(200);
+      expect(res.body.data.map((gate: any) => gate.id)).toEqual(["gate-modern"]);
+    });
   });
 
   describe("GET /api/gates/:id", () => {
     it("returns gate result detail", async () => {
+      ctx.runDAO.save(makeRun({
+        id: "run-1",
+        projectId: "p1",
+        module: "static_analysis",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+      }));
       ctx.gateResultDAO.save(makeGateResult({ id: "g1", runId: "run-1", projectId: "p1" }));
 
       const res = await request(app).get("/api/gates/g1");
@@ -400,9 +581,18 @@ describe("API Contract Tests", () => {
 
   describe("GET /api/projects/:pid/approvals", () => {
     it("returns { success, data: ApprovalRequest[] }", async () => {
+      ctx.runDAO.save(makeRun({
+        id: "run-ap-1",
+        projectId: "p1",
+        module: "static_analysis",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+      }));
+      ctx.gateResultDAO.save(makeGateResult({ id: "gate-ap-1", projectId: "p1", runId: "run-ap-1" }));
       ctx.approvalDAO.save(makeApproval({
         id: "ap-1",
         projectId: "p1",
+        targetId: "gate-ap-1",
         expiresAt: new Date(Date.now() + 86400000).toISOString(),
       }));
 
@@ -419,15 +609,69 @@ describe("API Contract Tests", () => {
         expect(approval).toHaveProperty("expiresAt");
       }
     });
+
+    it("filters legacy approvals tied to hidden static/deep lineage", async () => {
+      ctx.runDAO.save(makeRun({
+        id: "run-ap-modern",
+        projectId: "p-approvals-agg",
+        module: "static_analysis",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+      }));
+      ctx.gateResultDAO.save(makeGateResult({
+        id: "gate-ap-modern",
+        projectId: "p-approvals-agg",
+        runId: "run-ap-modern",
+      }));
+      ctx.approvalDAO.save(makeApproval({
+        id: "approval-modern",
+        projectId: "p-approvals-agg",
+        targetId: "gate-ap-modern",
+        actionType: "gate.override",
+        expiresAt: new Date(Date.now() + 86400000).toISOString(),
+      }));
+
+      ctx.runDAO.save(makeRun({
+        id: "run-ap-legacy",
+        projectId: "p-approvals-agg",
+        module: "static_analysis",
+        buildTargetId: undefined,
+        analysisExecutionId: undefined,
+      }));
+      ctx.gateResultDAO.save(makeGateResult({
+        id: "gate-ap-legacy",
+        projectId: "p-approvals-agg",
+        runId: "run-ap-legacy",
+      }));
+      ctx.approvalDAO.save(makeApproval({
+        id: "approval-legacy",
+        projectId: "p-approvals-agg",
+        targetId: "gate-ap-legacy",
+        actionType: "gate.override",
+        expiresAt: new Date(Date.now() + 86400000).toISOString(),
+      }));
+
+      const res = await request(app).get("/api/projects/p-approvals-agg/approvals");
+      expect(res.status).toBe(200);
+      expect(res.body.data.map((approval: any) => approval.id)).toEqual(["approval-modern"]);
+    });
   });
 
   describe("POST /api/approvals/:id/decide", () => {
     it("approves and returns updated approval", async () => {
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-approval-target",
+        projectId: "p1",
+        module: "static_analysis",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+      }));
       ctx.approvalDAO.save(makeApproval({
         id: "ap-1",
         projectId: "p1",
         status: "pending",
         actionType: "finding.accepted_risk",
+        targetId: "finding-approval-target",
         expiresAt: new Date(Date.now() + 86400000).toISOString(),
       }));
 
@@ -472,6 +716,51 @@ describe("API Contract Tests", () => {
       expect(res.status).toBe(404);
       expect(res.body.success).toBe(false);
     });
+
+    it("filters legacy static-analysis rows without BuildTarget ownership out of aggregate reports", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-report-agg", name: "Aggregate Report" }));
+      ctx.runDAO.save(makeRun({
+        id: "run-modern",
+        projectId: "p-report-agg",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+        module: "static_analysis",
+        findingCount: 1,
+      }));
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-modern",
+        runId: "run-modern",
+        projectId: "p-report-agg",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+        module: "static_analysis",
+      }));
+
+      ctx.runDAO.save(makeRun({
+        id: "run-legacy",
+        projectId: "p-report-agg",
+        buildTargetId: undefined,
+        analysisExecutionId: undefined,
+        module: "static_analysis",
+        findingCount: 1,
+      }));
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-legacy",
+        runId: "run-legacy",
+        projectId: "p-report-agg",
+        buildTargetId: undefined,
+        analysisExecutionId: undefined,
+        module: "static_analysis",
+      }));
+
+      const res = await request(app).get("/api/projects/p-report-agg/report");
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.modules.static.findings).toHaveLength(1);
+      expect(res.body.data.modules.static.findings[0].finding.id).toBe("finding-modern");
+      expect(res.body.data.modules.static.runs).toHaveLength(1);
+      expect(res.body.data.modules.static.runs[0].run.id).toBe("run-modern");
+    });
   });
 
   describe("GET /api/projects/:pid/report/static", () => {
@@ -491,6 +780,49 @@ describe("API Contract Tests", () => {
     it("returns 404 for nonexistent project", async () => {
       const res = await request(app).get("/api/projects/nonexistent/report/static");
       expect(res.status).toBe(404);
+    });
+
+    it("filters legacy static-analysis rows without BuildTarget ownership out of module reports", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-report-static-agg", name: "Static Aggregate" }));
+      ctx.runDAO.save(makeRun({
+        id: "run-static-modern",
+        projectId: "p-report-static-agg",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+        module: "static_analysis",
+      }));
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-static-modern",
+        runId: "run-static-modern",
+        projectId: "p-report-static-agg",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+        module: "static_analysis",
+      }));
+
+      ctx.runDAO.save(makeRun({
+        id: "run-static-legacy",
+        projectId: "p-report-static-agg",
+        buildTargetId: undefined,
+        analysisExecutionId: undefined,
+        module: "static_analysis",
+      }));
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-static-legacy",
+        runId: "run-static-legacy",
+        projectId: "p-report-static-agg",
+        buildTargetId: undefined,
+        analysisExecutionId: undefined,
+        module: "static_analysis",
+      }));
+
+      const res = await request(app).get("/api/projects/p-report-static-agg/report/static");
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.findings).toHaveLength(1);
+      expect(res.body.data.findings[0].finding.id).toBe("finding-static-modern");
+      expect(res.body.data.runs).toHaveLength(1);
+      expect(res.body.data.runs[0].run.id).toBe("run-static-modern");
     });
   });
 
@@ -650,12 +982,30 @@ describe("API Contract Tests", () => {
 
   describe("GET /api/projects/:pid/approvals/count", () => {
     it("returns pending and total counts", async () => {
+      ctx.runDAO.save(makeRun({
+        id: "run-count-1",
+        projectId: "p-ac",
+        module: "static_analysis",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+      }));
+      ctx.gateResultDAO.save(makeGateResult({ id: "gate-count-1", projectId: "p-ac", runId: "run-count-1" }));
+      ctx.runDAO.save(makeRun({
+        id: "run-count-2",
+        projectId: "p-ac",
+        module: "static_analysis",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+      }));
+      ctx.gateResultDAO.save(makeGateResult({ id: "gate-count-2", projectId: "p-ac", runId: "run-count-2" }));
       ctx.approvalDAO.save(makeApproval({
         id: "ac-1", projectId: "p-ac", status: "pending",
+        targetId: "gate-count-1",
         expiresAt: new Date(Date.now() + 86400000).toISOString(),
       }));
       ctx.approvalDAO.save(makeApproval({
         id: "ac-2", projectId: "p-ac", status: "pending",
+        targetId: "gate-count-2",
         expiresAt: new Date(Date.now() + 86400000).toISOString(),
       }));
 
@@ -663,6 +1013,44 @@ describe("API Contract Tests", () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data).toMatchObject({ pending: 2, total: 2 });
+    });
+
+    it("ignores legacy approvals tied to hidden static/deep lineage", async () => {
+      ctx.runDAO.save(makeRun({
+        id: "run-count-modern",
+        projectId: "p-ac-agg",
+        module: "static_analysis",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+      }));
+      ctx.gateResultDAO.save(makeGateResult({ id: "gate-count-modern", projectId: "p-ac-agg", runId: "run-count-modern" }));
+      ctx.approvalDAO.save(makeApproval({
+        id: "ac-modern",
+        projectId: "p-ac-agg",
+        status: "pending",
+        targetId: "gate-count-modern",
+        expiresAt: new Date(Date.now() + 86400000).toISOString(),
+      }));
+
+      ctx.runDAO.save(makeRun({
+        id: "run-count-legacy",
+        projectId: "p-ac-agg",
+        module: "static_analysis",
+        buildTargetId: undefined,
+        analysisExecutionId: undefined,
+      }));
+      ctx.gateResultDAO.save(makeGateResult({ id: "gate-count-legacy", projectId: "p-ac-agg", runId: "run-count-legacy" }));
+      ctx.approvalDAO.save(makeApproval({
+        id: "ac-legacy",
+        projectId: "p-ac-agg",
+        status: "pending",
+        targetId: "gate-count-legacy",
+        expiresAt: new Date(Date.now() + 86400000).toISOString(),
+      }));
+
+      const res = await request(app).get("/api/projects/p-ac-agg/approvals/count");
+      expect(res.status).toBe(200);
+      expect(res.body.data).toMatchObject({ pending: 1, total: 1 });
     });
 
     it("returns zero counts when no approvals", async () => {
@@ -713,6 +1101,132 @@ describe("API Contract Tests", () => {
       const res = await request(app).get("/api/projects/p-empty/activity");
       expect(res.status).toBe(200);
       expect(res.body.data).toEqual([]);
+    });
+
+    it("skips legacy static/deep run entries without BuildTarget ownership", async () => {
+      ctx.runDAO.save(makeRun({
+        id: "ra-legacy-static",
+        projectId: "p-act-agg",
+        buildTargetId: undefined,
+        analysisExecutionId: undefined,
+        status: "completed",
+        module: "static_analysis",
+        findingCount: 2,
+        endedAt: "2026-03-26T09:00:00Z",
+      }));
+      ctx.runDAO.save(makeRun({
+        id: "ra-modern-static",
+        projectId: "p-act-agg",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+        status: "completed",
+        module: "static_analysis",
+        findingCount: 1,
+        endedAt: "2026-03-26T10:00:00Z",
+      }));
+
+      const res = await request(app).get("/api/projects/p-act-agg/activity?limit=10");
+
+      expect(res.status).toBe(200);
+      const runEntries = res.body.data.filter((entry: any) => entry.type === "run_completed");
+      expect(runEntries).toHaveLength(1);
+      expect(runEntries[0].metadata.runId).toBe("ra-modern-static");
+    });
+
+    it("skips hidden finding/approval activity entries tied to legacy static/deep lineage", async () => {
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-activity-modern",
+        projectId: "p-act-hidden",
+        module: "static_analysis",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+      }));
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-activity-legacy",
+        projectId: "p-act-hidden",
+        module: "static_analysis",
+        buildTargetId: undefined,
+        analysisExecutionId: undefined,
+      }));
+      ctx.auditLogDAO.save(makeAuditLog({
+        id: "audit-finding-modern",
+        timestamp: "2026-03-26T11:00:00Z",
+        actor: "alice",
+        action: "finding.status_change",
+        resource: "finding",
+        resourceId: "finding-activity-modern",
+        detail: { from: "open", to: "fixed" },
+      }));
+      ctx.auditLogDAO.save(makeAuditLog({
+        id: "audit-finding-legacy",
+        timestamp: "2026-03-26T11:30:00Z",
+        actor: "bob",
+        action: "finding.status_change",
+        resource: "finding",
+        resourceId: "finding-activity-legacy",
+        detail: { from: "open", to: "fixed" },
+      }));
+
+      ctx.runDAO.save(makeRun({
+        id: "run-approval-modern",
+        projectId: "p-act-hidden",
+        module: "static_analysis",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+      }));
+      ctx.gateResultDAO.save(makeGateResult({ id: "gate-approval-modern", projectId: "p-act-hidden", runId: "run-approval-modern" }));
+      ctx.approvalDAO.save(makeApproval({
+        id: "approval-activity-modern",
+        projectId: "p-act-hidden",
+        actionType: "gate.override",
+        targetId: "gate-approval-modern",
+        expiresAt: new Date(Date.now() + 86400000).toISOString(),
+      }));
+
+      ctx.runDAO.save(makeRun({
+        id: "run-approval-legacy",
+        projectId: "p-act-hidden",
+        module: "static_analysis",
+        buildTargetId: undefined,
+        analysisExecutionId: undefined,
+      }));
+      ctx.gateResultDAO.save(makeGateResult({ id: "gate-approval-legacy", projectId: "p-act-hidden", runId: "run-approval-legacy" }));
+      ctx.approvalDAO.save(makeApproval({
+        id: "approval-activity-legacy",
+        projectId: "p-act-hidden",
+        actionType: "gate.override",
+        targetId: "gate-approval-legacy",
+        expiresAt: new Date(Date.now() + 86400000).toISOString(),
+      }));
+      ctx.auditLogDAO.save(makeAuditLog({
+        id: "audit-approval-modern",
+        timestamp: "2026-03-26T12:00:00Z",
+        actor: "admin",
+        action: "approval.approved",
+        resource: "approval",
+        resourceId: "approval-activity-modern",
+        detail: { decision: "approved", actionType: "gate.override", targetId: "gate-approval-modern" },
+      }));
+      ctx.auditLogDAO.save(makeAuditLog({
+        id: "audit-approval-legacy",
+        timestamp: "2026-03-26T12:30:00Z",
+        actor: "admin",
+        action: "approval.approved",
+        resource: "approval",
+        resourceId: "approval-activity-legacy",
+        detail: { decision: "approved", actionType: "gate.override", targetId: "gate-approval-legacy" },
+      }));
+
+      const res = await request(app).get("/api/projects/p-act-hidden/activity?limit=10");
+
+      expect(res.status).toBe(200);
+      const findingEntries = res.body.data.filter((entry: any) => entry.type === "finding_status_changed");
+      expect(findingEntries).toHaveLength(1);
+      expect(findingEntries[0].metadata.findingId).toBe("finding-activity-modern");
+
+      const approvalEntries = res.body.data.filter((entry: any) => entry.type === "approval_decided");
+      expect(approvalEntries).toHaveLength(1);
+      expect(approvalEntries[0].metadata.approvalId).toBe("approval-activity-modern");
     });
   });
 
@@ -1428,6 +1942,8 @@ describe("API Contract Tests", () => {
       expect(res.status).toBe(202);
       expect(res.body.success).toBe(true);
       expect(res.body.data.analysisId).toMatch(/^analysis-/);
+      expect(res.body.data.buildTargetId).toBe("t-1");
+      expect(res.body.data.executionId).toBe(res.body.data.analysisId);
       expect(ctx.analysisQuickCalls[ctx.analysisQuickCalls.length - 1]).toMatchObject({
         projectId: "p-analysis",
         targetIds: ["t-1"],
@@ -1442,16 +1958,19 @@ describe("API Contract Tests", () => {
       expect(res.status).toBe(202);
       expect(res.body.success).toBe(true);
       expect(res.body.data.analysisId).toMatch(/^analysis-/);
+      expect(res.body.data.buildTargetId).toBe("t-1");
+      expect(res.body.data.executionId).toBe("exec-1");
       expect(ctx.analysisDeepCalls[ctx.analysisDeepCalls.length - 1]).toMatchObject({
         projectId: "p-analysis",
-        quickAnalysisId: "exec-1",
+        buildTargetId: "t-1",
+        executionId: "exec-1",
       });
     });
 
     it("POST /api/analysis/quick and /deep reject legacy project-level analysis semantics", async () => {
       const quickLegacy = await request(app)
         .post("/api/analysis/quick")
-        .send({ projectId: "p-analysis", mode: "subproject", targetIds: ["t-1"] });
+        .send({ projectId: "p-analysis", mode: "full", targetIds: ["t-1"] });
       expect(quickLegacy.status).toBe(400);
       expect(quickLegacy.body.error).toContain("mode is no longer supported");
 
@@ -1475,7 +1994,10 @@ describe("API Contract Tests", () => {
     });
 
     it("GET /api/analysis/status returns running analyses", async () => {
-      ctx.analysisTracker.start("analysis-running", "p-analysis-status");
+      ctx.analysisTracker.start("analysis-running", "p-analysis-status", {
+        buildTargetId: "t-analysis",
+        executionId: "exec-analysis",
+      });
 
       const res = await request(app).get("/api/analysis/status");
       expect(res.status).toBe(200);
@@ -1485,6 +2007,8 @@ describe("API Contract Tests", () => {
           expect.objectContaining({
             analysisId: "analysis-running",
             projectId: "p-analysis-status",
+            buildTargetId: "t-analysis",
+            executionId: "exec-analysis",
             status: "running",
           }),
         ]),
@@ -1492,13 +2016,18 @@ describe("API Contract Tests", () => {
     });
 
     it("GET /api/analysis/status/:analysisId and abort flow return tracker payloads", async () => {
-      ctx.analysisTracker.start("analysis-abort", "p-analysis-abort");
+      ctx.analysisTracker.start("analysis-abort", "p-analysis-abort", {
+        buildTargetId: "t-abort",
+        executionId: "exec-abort",
+      });
 
       const detailRes = await request(app).get("/api/analysis/status/analysis-abort");
       expect(detailRes.status).toBe(200);
       expect(detailRes.body.data).toMatchObject({
         analysisId: "analysis-abort",
         projectId: "p-analysis-abort",
+        buildTargetId: "t-abort",
+        executionId: "exec-abort",
         status: "running",
       });
 
@@ -1526,6 +2055,30 @@ describe("API Contract Tests", () => {
       const deleteRes = await request(app).delete("/api/analysis/results/analysis-result-1");
       expect(deleteRes.status).toBe(200);
       expect(deleteRes.body).toEqual({ success: true });
+    });
+
+    it("GET /api/analysis/results hides legacy static/deep results without full BuildTarget execution lineage", async () => {
+      ctx.analysisResultDAO.save(makeAnalysisResult({
+        id: "analysis-modern",
+        projectId: "p-analysis-results-agg",
+        module: "static_analysis",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+      }));
+      ctx.analysisResultDAO.save(makeAnalysisResult({
+        id: "analysis-legacy",
+        projectId: "p-analysis-results-agg",
+        module: "static_analysis",
+        buildTargetId: undefined,
+        analysisExecutionId: undefined,
+      }));
+
+      const listRes = await request(app).get("/api/analysis/results?projectId=p-analysis-results-agg");
+      expect(listRes.status).toBe(200);
+      expect(listRes.body.data.map((result: any) => result.id)).toEqual(["analysis-modern"]);
+
+      const detailRes = await request(app).get("/api/analysis/results/analysis-legacy");
+      expect(detailRes.status).toBe(404);
     });
 
     it("GET /api/analysis/summary returns aggregated dashboard shape", async () => {
@@ -1560,6 +2113,82 @@ describe("API Contract Tests", () => {
       expect(res.body.data.unresolvedCount).toMatchObject({ open: 1, needsReview: 1 });
       expect(Array.isArray(res.body.data.topFiles)).toBe(true);
       expect(Array.isArray(res.body.data.trend)).toBe(true);
+    });
+
+    it("GET /api/analysis/summary excludes legacy static/deep findings, runs, and gate rows without full lineage", async () => {
+      ctx.runDAO.save(makeRun({
+        id: "run-summary-modern",
+        projectId: "p-analysis-summary-agg",
+        module: "static_analysis",
+        status: "completed",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+        findingCount: 1,
+        createdAt: "2026-03-25T00:00:00Z",
+      }));
+      ctx.gateResultDAO.save(makeGateResult({
+        id: "gate-summary-modern",
+        projectId: "p-analysis-summary-agg",
+        runId: "run-summary-modern",
+        status: "pass",
+        createdAt: "2026-03-25T00:00:00Z",
+      }));
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-summary-modern",
+        runId: "run-summary-modern",
+        projectId: "p-analysis-summary-agg",
+        module: "static_analysis",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+        severity: "high",
+        status: "open",
+        sourceType: "rule-engine",
+        ruleId: "RULE-MODERN",
+        location: "src/modern.c:10",
+        createdAt: "2026-03-25T00:00:00Z",
+      }));
+
+      ctx.runDAO.save(makeRun({
+        id: "run-summary-legacy",
+        projectId: "p-analysis-summary-agg",
+        module: "static_analysis",
+        status: "completed",
+        buildTargetId: undefined,
+        analysisExecutionId: undefined,
+        findingCount: 3,
+        createdAt: "2026-03-25T00:00:00Z",
+      }));
+      ctx.gateResultDAO.save(makeGateResult({
+        id: "gate-summary-legacy",
+        projectId: "p-analysis-summary-agg",
+        runId: "run-summary-legacy",
+        status: "fail",
+        createdAt: "2026-03-25T00:00:00Z",
+      }));
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-summary-legacy",
+        runId: "run-summary-legacy",
+        projectId: "p-analysis-summary-agg",
+        module: "static_analysis",
+        buildTargetId: undefined,
+        analysisExecutionId: undefined,
+        severity: "critical",
+        status: "open",
+        sourceType: "rule-engine",
+        ruleId: "RULE-LEGACY",
+        location: "src/legacy.c:20",
+        createdAt: "2026-03-25T00:00:00Z",
+      }));
+
+      const res = await request(app).get("/api/analysis/summary?projectId=p-analysis-summary-agg&period=30d");
+      expect(res.status).toBe(200);
+      expect(res.body.data.bySeverity).toMatchObject({ high: 1 });
+      expect(res.body.data.bySeverity.critical ?? 0).toBe(0);
+      expect(res.body.data.topRules).toEqual([{ ruleId: "RULE-MODERN", hitCount: 1 }]);
+      expect(res.body.data.gateStats).toMatchObject({ total: 1, passed: 1, failed: 0 });
+      expect(res.body.data.trend).toEqual([
+        expect.objectContaining({ date: "2026-03-25", runCount: 1, findingCount: 1, gatePassCount: 1 }),
+      ]);
     });
 
     it("POST /api/analysis/poc returns generated PoC payload", async () => {
@@ -1874,10 +2503,48 @@ describe("API Contract Tests", () => {
         },
       });
     });
+
+    it("GET /api/projects/:pid/findings/summary hides legacy static/deep findings without full lineage", async () => {
+      ctx.findingDAO.save(makeFinding({
+        id: "fsum-modern",
+        projectId: "p-fsum-agg",
+        module: "static_analysis",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+        severity: "high",
+        status: "open",
+      }));
+      ctx.findingDAO.save(makeFinding({
+        id: "fsum-legacy",
+        projectId: "p-fsum-agg",
+        module: "static_analysis",
+        buildTargetId: undefined,
+        analysisExecutionId: undefined,
+        severity: "critical",
+        status: "open",
+      }));
+
+      const res = await request(app).get("/api/projects/p-fsum-agg/findings/summary");
+      expect(res.status).toBe(200);
+      expect(res.body.data).toMatchObject({
+        total: 1,
+        bySeverity: {
+          high: 1,
+        },
+      });
+      expect(res.body.data.bySeverity.critical ?? 0).toBe(0);
+    });
   });
 
   describe("Gate detail APIs", () => {
     it("GET /api/projects/:pid/gates/runs/:runId returns the gate result for a run", async () => {
+      ctx.runDAO.save(makeRun({
+        id: "run-gate-detail",
+        projectId: "p-gate-run",
+        module: "static_analysis",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+      }));
       ctx.gateResultDAO.save(makeGateResult({ id: "gate-run-detail", projectId: "p-gate-run", runId: "run-gate-detail", status: "fail" }));
 
       const res = await request(app).get("/api/projects/p-gate-run/gates/runs/run-gate-detail");
@@ -1887,6 +2554,13 @@ describe("API Contract Tests", () => {
     });
 
     it("POST /api/gates/:id/override creates an approval request", async () => {
+      ctx.runDAO.save(makeRun({
+        id: "run-gate-override",
+        projectId: "p-gate-override",
+        module: "static_analysis",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+      }));
       ctx.gateResultDAO.save(makeGateResult({ id: "gate-override", projectId: "p-gate-override", runId: "run-gate-override", status: "fail" }));
 
       const res = await request(app)
@@ -1906,6 +2580,18 @@ describe("API Contract Tests", () => {
 
   describe("Approval detail API", () => {
     it("GET /api/approvals/:id returns approval detail", async () => {
+      ctx.runDAO.save(makeRun({
+        id: "run-approval-detail",
+        projectId: "p-approval-detail",
+        module: "static_analysis",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+      }));
+      ctx.gateResultDAO.save(makeGateResult({
+        id: "gate-1",
+        projectId: "p-approval-detail",
+        runId: "run-approval-detail",
+      }));
       ctx.approvalDAO.save(makeApproval({ id: "approval-detail", projectId: "p-approval-detail", targetId: "gate-1" }));
 
       const res = await request(app).get("/api/approvals/approval-detail");

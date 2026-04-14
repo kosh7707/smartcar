@@ -6,7 +6,7 @@ import { BuildLogViewer } from "./BuildLogViewer";
 import { BuildTargetActionBar } from "./BuildTargetActionBar";
 import { BuildTargetRow } from "./BuildTargetRow";
 import { BuildTargetSectionSummary } from "./BuildTargetSectionSummary";
-import { SubprojectCreateDialog } from "./SubprojectCreateDialog";
+import { BuildTargetCreateDialog } from "./BuildTargetCreateDialog";
 import { DEFAULT_PROFILE, INCLUDED_PATHS_EDIT_GUARD_TEXT, useBuildTargetSection } from "../hooks/useBuildTargetSection";
 import "./BuildTargetSection.css";
 
@@ -24,7 +24,7 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
       <div className="gs-card__header">
         <div className="gs-card__icon"><Crosshair size={18} /></div>
         <div>
-          <div className="gs-card__title">서브 프로젝트</div>
+          <div className="gs-card__title">BuildTarget</div>
           <div className="gs-card__desc">
             프로젝트 내 독립 빌드 단위를 관리합니다. 타겟별로 SDK 설정 후 빌드 & 분석을 실행하세요.
           </div>
@@ -47,7 +47,7 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
           <div className="bt-form__grid">
             <label className="form-field">
               <span className="form-label">타겟 이름</span>
-              <input className="form-input" value={state.formName} onChange={(event) => state.setFormName(event.target.value)} placeholder="서브프로젝트 이름" autoFocus />
+              <input className="form-input" value={state.formName} onChange={(event) => state.setFormName(event.target.value)} placeholder="BuildTarget 이름" autoFocus />
             </label>
             <label className="form-field">
               <span className="form-label">상대 경로</span>
@@ -120,12 +120,12 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
       )}
 
       {state.editingTarget && (
-        <SubprojectCreateDialog
+        <BuildTargetCreateDialog
           open
           projectId={projectId}
           sourceFiles={state.sourceFiles}
           onCancel={() => state.setEditingTarget(null)}
-          title="서브 프로젝트 수정"
+          title="BuildTarget 수정"
           submitLabel="저장"
           initialName={state.editingTarget.name}
           initialProfile={state.editingTarget.buildProfile ?? DEFAULT_PROFILE}

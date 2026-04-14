@@ -336,16 +336,16 @@
   margin-left: auto;
 }
 
-/* ── Subproject rows ── */
+/* ── BuildTarget rows ── */
 
-.overview-subproject-body,
+.overview-build-target-body,
 .overview-sdk-body {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.overview-subproject-row,
+.overview-build-target-row,
 .overview-sdk-row {
   display: flex;
   align-items: center;
@@ -354,7 +354,7 @@
   font-size: var(--cds-type-sm);
 }
 
-.overview-subproject-name,
+.overview-build-target-name,
 .overview-sdk-name {
   font-weight: var(--cds-weight-medium);
   flex: 1;
@@ -553,7 +553,7 @@
 .overview-history-header,
 .overview-gate-header,
 .overview-approval-header,
-.overview-subproject-header,
+.overview-build-target-header,
 .overview-sdk-header {
   display: flex;
   align-items: center;
@@ -567,7 +567,7 @@
 .overview-history-header:hover,
 .overview-gate-header:hover,
 .overview-approval-header:hover,
-.overview-subproject-header:hover,
+.overview-build-target-header:hover,
 .overview-sdk-header:hover {
   color: var(--cds-interactive);
 }

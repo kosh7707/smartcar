@@ -1,11 +1,11 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { SubprojectCreateDialog } from "./SubprojectCreateDialog";
+import { BuildTargetCreateDialog } from "./BuildTargetCreateDialog";
 import type { SourceFileEntry } from "../../../api/client";
 
 // Mock dependencies
-vi.mock("./SubprojectCreateDialog.css", () => ({}));
+vi.mock("./BuildTargetCreateDialog.css", () => ({}));
 vi.mock("../../../hooks/useBuildTargets", () => ({
   useBuildTargets: () => ({
     targets: [],
@@ -46,19 +46,19 @@ const defaultProps = {
   onCancel: vi.fn(),
 };
 
-describe("SubprojectCreateDialog", () => {
+describe("BuildTargetCreateDialog", () => {
   it("renders nothing when open=false", () => {
     const { container } = render(
-      <SubprojectCreateDialog {...defaultProps} open={false} />,
+      <BuildTargetCreateDialog {...defaultProps} open={false} />,
     );
     expect(container.innerHTML).toBe("");
   });
 
   it("renders name input and file tree when open", async () => {
-    render(<SubprojectCreateDialog {...defaultProps} />);
+    render(<BuildTargetCreateDialog {...defaultProps} />);
 
     await waitFor(() => expect(screen.getByText("src")).toBeTruthy());
-    expect(screen.getAllByText("서브 프로젝트 생성").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("BuildTarget 생성").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByPlaceholderText("예: gateway-module")).toBeTruthy();
     expect(screen.getByText("포함할 파일/폴더 선택")).toBeTruthy();
     // File tree should show folder names
@@ -67,7 +67,7 @@ describe("SubprojectCreateDialog", () => {
   });
 
   it("shows selected file count", async () => {
-    render(<SubprojectCreateDialog {...defaultProps} />);
+    render(<BuildTargetCreateDialog {...defaultProps} />);
 
     await waitFor(() => expect(screen.getByText(/0개 파일/)).toBeTruthy());
     // Initially 0 selected
@@ -81,9 +81,9 @@ describe("SubprojectCreateDialog", () => {
   it("preloads includedPaths in edit mode and submits updated payload", () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     render(
-      <SubprojectCreateDialog
+      <BuildTargetCreateDialog
         {...defaultProps}
-        title="서브 프로젝트 수정"
+        title="BuildTarget 수정"
         submitLabel="저장"
         initialName="gateway"
         initialIncludedPaths={["src/"]}
@@ -105,9 +105,9 @@ describe("SubprojectCreateDialog", () => {
   it("locks includedPaths selection when edit support is disabled", () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     render(
-      <SubprojectCreateDialog
+      <BuildTargetCreateDialog
         {...defaultProps}
-        title="서브 프로젝트 수정"
+        title="BuildTarget 수정"
         submitLabel="저장"
         initialName="gateway"
         initialIncludedPaths={["src/"]}

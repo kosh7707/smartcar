@@ -97,11 +97,11 @@ export const OverviewBottomGrid: React.FC<OverviewBottomGridProps> = ({
       )}
     </div>
 
-    <div className="card overview-subproject-card">
-      <div className="card-title overview-subproject-header" onClick={onOpenFiles}>
+    <div className="card overview-build-target-card">
+      <div className="card-title overview-build-target-header" onClick={onOpenFiles}>
         <span className="flex-center flex-gap-2">
           <HardDrive size={16} />
-          서브 프로젝트 ({targets.length}개)
+          BuildTarget ({targets.length}개)
         </span>
         <ChevronRight size={16} className="overview-header-chevron" />
       </div>
@@ -122,12 +122,12 @@ export const OverviewBottomGrid: React.FC<OverviewBottomGridProps> = ({
         </div>
       )}
       {targets.length === 0 ? (
-        <p className="overview-empty-text">등록된 서브 프로젝트가 없습니다.</p>
+        <p className="overview-empty-text">등록된 BuildTarget이 없습니다.</p>
       ) : (
-        <div className="overview-subproject-body">
+        <div className="overview-build-target-body">
           {targets.map((target) => (
-            <div key={target.id} className="overview-subproject-row">
-              <span className="overview-subproject-name">{target.name}</span>
+            <div key={target.id} className="overview-build-target-row">
+              <span className="overview-build-target-name">{target.name}</span>
               <TargetStatusBadge status={target.status ?? "discovered"} size="sm" />
             </div>
           ))}

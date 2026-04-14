@@ -17,7 +17,7 @@ interface BuildUnitRevisionRow {
   build_unit_id: string;
   project_id: string;
   source_asset_id: string;
-  subproject_asset_id: string;
+  build_target_asset_id: string;
   sdk_asset_id: string | null;
   revision_number: number;
   included_paths: string | null;
@@ -36,7 +36,7 @@ function rowToBuildUnitRevision(row: BuildUnitRevisionRow): BuildUnitRevisionRec
     buildUnitId: row.build_unit_id,
     projectId: row.project_id,
     sourceAssetId: row.source_asset_id,
-    subprojectAssetId: row.subproject_asset_id,
+    buildTargetAssetId: row.build_target_asset_id,
     sdkAssetId: row.sdk_asset_id ?? undefined,
     revisionNumber: row.revision_number,
     includedPaths: safeJsonParse<string[]>(row.included_paths, []),
@@ -63,7 +63,7 @@ export class BuildUnitRevisionDAO implements IBuildUnitRevisionDAO {
          build_unit_id,
          project_id,
          source_asset_id,
-         subproject_asset_id,
+         build_target_asset_id,
          sdk_asset_id,
          revision_number,
          included_paths,
@@ -80,7 +80,7 @@ export class BuildUnitRevisionDAO implements IBuildUnitRevisionDAO {
          build_unit_id = excluded.build_unit_id,
          project_id = excluded.project_id,
          source_asset_id = excluded.source_asset_id,
-         subproject_asset_id = excluded.subproject_asset_id,
+         build_target_asset_id = excluded.build_target_asset_id,
          sdk_asset_id = excluded.sdk_asset_id,
          revision_number = excluded.revision_number,
          included_paths = excluded.included_paths,
@@ -106,7 +106,7 @@ export class BuildUnitRevisionDAO implements IBuildUnitRevisionDAO {
       revision.buildUnitId,
       revision.projectId,
       revision.sourceAssetId,
-      revision.subprojectAssetId,
+      revision.buildTargetAssetId,
       revision.sdkAssetId ?? null,
       revision.revisionNumber,
       JSON.stringify(revision.includedPaths),

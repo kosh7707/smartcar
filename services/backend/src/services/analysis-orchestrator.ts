@@ -76,22 +76,11 @@ export class AnalysisOrchestrator {
     if (!targetIds || targetIds.length !== 1) {
       throw new InvalidInputError("BuildTarget-only quick execution requires exactly one BuildTarget");
     }
-    const targetId = targetIds[0];
-    if (!targetId) {
-      throw new InvalidInputError("buildTargetId is required");
-    }
-    const target = this.buildTargetService?.findById?.(targetId)
-      ?? this.buildTargetService?.findByProjectId(projectId)?.find((candidate) => candidate.id === targetId);
-    if (!target || target.projectId !== projectId) {
-      throw new NotFoundError(`BuildTarget not found: ${targetId}`);
-    }
-    if (target.sdkChoiceState === "sdk-unresolved") {
-      throw new InvalidInputError(`BuildTarget ${target.name} is not Quick-eligible until SDK choice is explicit`);
-    }
+    const target = this.preflightQuickRequest(projectId, targetIds[0]!);
 
     await this.prepareExecutionForQuick(projectId, analysisId, target, requestId, signal);
-    const refreshedTarget = this.buildTargetService?.findById?.(targetId)
-      ?? this.buildTargetService?.findByProjectId(projectId)?.find((candidate) => candidate.id === targetId)
+    const refreshedTarget = this.buildTargetService?.findById?.(target.id)
+      ?? this.buildTargetService?.findByProjectId(projectId)?.find((candidate) => candidate.id === target.id)
       ?? target;
     if (!refreshedTarget.compileCommandsPath) {
       await this.analysisExecutionDAO?.update(analysisId, {
@@ -107,33 +96,16 @@ export class AnalysisOrchestrator {
   async runDeepAnalysis(
     projectId: string,
     analysisId: string,
-    quickAnalysisId: string,
+    buildTargetId: string,
+    executionId: string,
     requestId?: string,
     signal?: AbortSignal,
   ): Promise<void> {
-    const projectPath = this.sourceService.getProjectPath(projectId);
-    if (!projectPath) {
-      throw new NotFoundError(`Project source not found. Upload source first: ${projectId}`);
-    }
-
-    const { quickResult, target } = this.resolveQuickAnalysisContext(projectId, quickAnalysisId);
+    const { projectPath, quickResult, target } = this.preflightDeepRequest(projectId, buildTargetId, executionId);
     const kbProjectId = target ? `${projectId}:${target.name}` : projectId;
-    const execution = this.analysisExecutionDAO?.findById(quickAnalysisId);
+    const execution = this.analysisExecutionDAO?.findById(executionId);
     if (execution) {
-      if (execution.projectId !== projectId) {
-        throw new NotFoundError(`AnalysisExecution not found: ${quickAnalysisId}`);
-      }
-      if (execution.status !== "active") {
-        throw new InvalidInputError(`AnalysisExecution is not active: ${quickAnalysisId}`);
-      }
-      if (
-        execution.quickBuildPrepStatus !== "succeeded"
-        || execution.quickGraphRagStatus !== "succeeded"
-        || execution.quickSastStatus !== "succeeded"
-      ) {
-        throw new InvalidInputError(`Deep requires a Quick-complete AnalysisExecution: ${quickAnalysisId}`);
-      }
-      await this.analysisExecutionDAO?.update(quickAnalysisId, { deepStatus: "running" });
+      await this.analysisExecutionDAO?.update(executionId, { deepStatus: "running" });
     }
     const graphStats = await this.kbClient.getCodeGraphStats(kbProjectId, requestId);
     if (!graphStats || graphStats.function_count <= 0) {
@@ -154,6 +126,8 @@ export class AnalysisOrchestrator {
       type: "analysis-progress",
       payload: {
         analysisId,
+        buildTargetId: target?.id,
+        executionId,
         phase: "deep_submitting",
         message: "Quick 결과 기반 심층 분석 에이전트 호출 중...",
       },
@@ -172,7 +146,7 @@ export class AnalysisOrchestrator {
     }];
 
     const quickContext = {
-      quickAnalysisId: quickResult.id,
+      executionId,
       summary: quickResult.summary,
       findingCount: quickResult.summary.total,
       vulnerabilities: quickResult.vulnerabilities,
@@ -214,6 +188,8 @@ export class AnalysisOrchestrator {
       type: "analysis-progress",
       payload: {
         analysisId,
+        buildTargetId: target?.id,
+        executionId,
         phase: "deep_analyzing",
         message: "에이전트가 심층 분석 중...",
       },
@@ -229,6 +205,8 @@ export class AnalysisOrchestrator {
         type: "analysis-progress",
         payload: {
           analysisId,
+          buildTargetId: target?.id,
+          executionId,
           phase: "deep_retrying",
           message: "심층 분석 재시도 중...",
         },
@@ -237,7 +215,7 @@ export class AnalysisOrchestrator {
     }
 
     if (this.agentClient.isSuccess(agentResponse)) {
-      const deepResult = this.buildDeepResult(`deep-${analysisId}`, projectId, agentResponse, startedAt, quickResult.scaLibraries, target?.id, quickAnalysisId);
+      const deepResult = this.buildDeepResult(`deep-${analysisId}`, projectId, agentResponse, startedAt, quickResult.scaLibraries, target?.id, executionId);
       this.analysisResultDAO.save(deepResult);
       this.resultNormalizer.normalizeAgentResult(deepResult, agentResponse, { startedAt, agentEvidenceRefs: evidenceRefs });
       this.analysisTracker?.update(analysisId, {
@@ -246,9 +224,9 @@ export class AnalysisOrchestrator {
       });
       this.broadcast(analysisId, {
         type: "analysis-deep-complete",
-        payload: { analysisId, findingCount: agentResponse.result.claims.length },
+        payload: { analysisId, buildTargetId: target?.id, executionId, findingCount: agentResponse.result.claims.length },
       });
-      await this.analysisExecutionDAO?.update(quickAnalysisId, {
+      await this.analysisExecutionDAO?.update(executionId, {
         deepStatus: "succeeded",
         status: "completed",
       });
@@ -260,7 +238,7 @@ export class AnalysisOrchestrator {
       id: `deep-${analysisId}`,
       projectId,
       buildTargetId: target?.id,
-      analysisExecutionId: quickAnalysisId,
+      analysisExecutionId: executionId,
       module: "deep_analysis",
       status: "failed",
       vulnerabilities: [],
@@ -272,7 +250,7 @@ export class AnalysisOrchestrator {
       createdAt: startedAt,
     };
     this.analysisResultDAO.save(failedResult);
-    await this.analysisExecutionDAO?.update(quickAnalysisId, {
+    await this.analysisExecutionDAO?.update(executionId, {
       deepStatus: "failed",
       status: "failed",
     });
@@ -284,6 +262,8 @@ export class AnalysisOrchestrator {
       type: "analysis-error",
       payload: {
         analysisId,
+        buildTargetId: target?.id,
+        executionId,
         phase: "deep",
         error: `[${agentResponse.failureCode}] ${agentResponse.failureDetail}`,
         retryable: agentResponse.retryable ?? false,
@@ -385,7 +365,10 @@ export class AnalysisOrchestrator {
     this.broadcast(wsAnalysisId, {
       type: "analysis-progress",
       payload: {
-        analysisId: wsAnalysisId, phase: "quick_sast",
+        analysisId: wsAnalysisId,
+        buildTargetId: targetInfo?.id,
+        executionId: wsAnalysisId,
+        phase: "quick_sast",
         message: `${prefix}SAST 스캔 시작`,
         targetName: targetInfo?.name,
         targetProgress: targetInfo?.progress,
@@ -396,6 +379,7 @@ export class AnalysisOrchestrator {
     let codeGraphSummary: unknown = undefined;
     let scaLibraries: unknown = undefined;
     let graphContext: Record<string, unknown> | undefined;
+    let quickSastSucceeded = false;
 
     try {
       if (quickOnly && targetInfo && !targetInfo.compileCommandsPath) {
@@ -428,6 +412,8 @@ export class AnalysisOrchestrator {
           type: "analysis-error",
           payload: {
             analysisId: wsAnalysisId,
+            buildTargetId: targetInfo?.id,
+            executionId: wsAnalysisId,
             phase: "quick",
             error: sastResponse.error ?? "SAST scan failed",
             retryable: sastResponse.errorDetail?.retryable === true,
@@ -439,11 +425,27 @@ export class AnalysisOrchestrator {
       sastFindings = sastResponse.findings;
       codeGraphSummary = sastResponse.codeGraph ?? undefined;
       scaLibraries = sastResponse.sca?.libraries ?? undefined;
-      await this.analysisExecutionDAO?.update(analysisId, {
+      await this.analysisExecutionDAO?.update(wsAnalysisId, {
         quickSastStatus: "succeeded",
       });
+      quickSastSucceeded = true;
 
-      if (sastResponse.codeGraph) {
+      if (!sastResponse.codeGraph) {
+        this.broadcast(wsAnalysisId, {
+          type: "analysis-error",
+          payload: {
+            analysisId: wsAnalysisId,
+            buildTargetId: targetInfo?.id,
+            executionId: wsAnalysisId,
+            phase: "quick",
+            error: "Quick graph context missing from SAST response",
+            retryable: false,
+          },
+        });
+        throw new Error("Quick graph context missing from SAST response");
+      }
+
+      {
         const kbProjectId = targetInfo ? `${projectId}:${targetInfo.name}` : projectId;
         this.analysisTracker?.update(wsAnalysisId, {
           phase: "quick_graphing",
@@ -454,6 +456,8 @@ export class AnalysisOrchestrator {
           type: "analysis-progress",
           payload: {
             analysisId: wsAnalysisId,
+            buildTargetId: targetInfo?.id,
+            executionId: wsAnalysisId,
             phase: "quick_graphing",
             message: `${prefix}Quick 그래프 컨텍스트 적재 중...`,
             targetName: targetInfo?.name,
@@ -485,6 +489,8 @@ export class AnalysisOrchestrator {
             type: "analysis-error",
             payload: {
               analysisId: wsAnalysisId,
+              buildTargetId: targetInfo?.id,
+              executionId: wsAnalysisId,
               phase: "quick",
               error: ingestResult.error
                 ?? `Quick graph context not ready (${ingestResult.status ?? "unknown"})`,
@@ -498,10 +504,18 @@ export class AnalysisOrchestrator {
         }
       }
 
-      const quickResult = this.buildQuickResult(analysisId, projectId, sastResponse, startedAt, scaLibraries, targetInfo?.id, analysisId);
+      const quickResult = this.buildQuickResult(
+        analysisId,
+        projectId,
+        sastResponse,
+        startedAt,
+        scaLibraries,
+        targetInfo?.id,
+        wsAnalysisId,
+      );
       this.analysisResultDAO.save(quickResult);
       this.resultNormalizer.normalizeAnalysisResult(quickResult, { startedAt });
-      await this.analysisExecutionDAO?.update(analysisId, {
+      await this.analysisExecutionDAO?.update(wsAnalysisId, {
         quickGraphRagStatus: "succeeded",
       });
       this.analysisTracker?.update(wsAnalysisId, {
@@ -512,7 +526,12 @@ export class AnalysisOrchestrator {
 
       this.broadcast(wsAnalysisId, {
         type: "analysis-quick-complete",
-        payload: { analysisId: wsAnalysisId, findingCount: sastResponse.stats.findingsTotal },
+        payload: {
+          analysisId: wsAnalysisId,
+          buildTargetId: targetInfo?.id,
+          executionId: wsAnalysisId,
+          findingCount: sastResponse.stats.findingsTotal,
+        },
       });
 
       logger.info({
@@ -520,11 +539,16 @@ export class AnalysisOrchestrator {
         target: targetInfo?.name, requestId,
       }, "Quick phase completed");
     } catch (err) {
-      await this.analysisExecutionDAO?.update(analysisId, {
-        quickGraphRagStatus: "failed",
-        quickSastStatus: "failed",
-        status: "failed",
-      });
+      await this.analysisExecutionDAO?.update(wsAnalysisId, quickSastSucceeded
+        ? {
+            quickGraphRagStatus: "failed",
+            status: "failed",
+          }
+        : {
+            quickGraphRagStatus: "failed",
+            quickSastStatus: "failed",
+            status: "failed",
+          });
       logger.error({ err, analysisId, target: targetInfo?.name, requestId }, "Quick phase failed");
       this.analysisTracker?.update(wsAnalysisId, {
         phase: "quick_sast",
@@ -533,7 +557,10 @@ export class AnalysisOrchestrator {
       this.broadcast(wsAnalysisId, {
         type: "analysis-error",
         payload: {
-          analysisId: wsAnalysisId, phase: "quick",
+          analysisId: wsAnalysisId,
+          buildTargetId: targetInfo?.id,
+          executionId: wsAnalysisId,
+          phase: "quick",
           error: err instanceof Error ? err.message : "SAST scan failed",
           retryable: true,
         },
@@ -553,7 +580,10 @@ export class AnalysisOrchestrator {
     this.broadcast(wsAnalysisId, {
       type: "analysis-progress",
       payload: {
-        analysisId: wsAnalysisId, phase: "deep_submitting",
+        analysisId: wsAnalysisId,
+        buildTargetId: targetInfo?.id,
+        executionId: wsAnalysisId,
+        phase: "deep_submitting",
         message: `${prefix}심층 분석 에이전트 호출 중...`,
         targetName: targetInfo?.name,
         targetProgress: targetInfo?.progress,
@@ -603,7 +633,10 @@ export class AnalysisOrchestrator {
       this.broadcast(wsAnalysisId, {
         type: "analysis-progress",
         payload: {
-          analysisId: wsAnalysisId, phase: "deep_analyzing",
+          analysisId: wsAnalysisId,
+          buildTargetId: targetInfo?.id,
+          executionId: wsAnalysisId,
+          phase: "deep_analyzing",
           message: `${prefix}에이전트가 분석 중... (SAST + 코드그래프 + SCA + LLM)`,
           targetName: targetInfo?.name,
           targetProgress: targetInfo?.progress,
@@ -625,14 +658,29 @@ export class AnalysisOrchestrator {
 
         this.broadcast(wsAnalysisId, {
           type: "analysis-progress",
-          payload: { analysisId: wsAnalysisId, phase: "deep_retrying", message: `${prefix}재시도 중...`, targetName: targetInfo?.name },
+          payload: {
+            analysisId: wsAnalysisId,
+            buildTargetId: targetInfo?.id,
+            executionId: wsAnalysisId,
+            phase: "deep_retrying",
+            message: `${prefix}재시도 중...`,
+            targetName: targetInfo?.name,
+          },
         });
 
         agentResponse = await this.agentClient.submitTask(agentRequest, requestId, signal);
       }
 
       if (this.agentClient.isSuccess(agentResponse)) {
-        const deepResult = this.buildDeepResult(`deep-${analysisId}`, projectId, agentResponse, startedAt, scaLibraries);
+        const deepResult = this.buildDeepResult(
+          `deep-${analysisId}`,
+          projectId,
+          agentResponse,
+          startedAt,
+          scaLibraries,
+          targetInfo?.id,
+          wsAnalysisId,
+        );
         this.analysisResultDAO.save(deepResult);
 
         const ctx: NormalizerContext = { startedAt, agentEvidenceRefs: evidenceRefs };
@@ -644,7 +692,12 @@ export class AnalysisOrchestrator {
 
         this.broadcast(wsAnalysisId, {
           type: "analysis-deep-complete",
-          payload: { analysisId: wsAnalysisId, findingCount: agentResponse.result.claims.length },
+          payload: {
+            analysisId: wsAnalysisId,
+            buildTargetId: targetInfo?.id,
+            executionId: wsAnalysisId,
+            findingCount: agentResponse.result.claims.length,
+          },
         });
 
         logger.info({
@@ -657,6 +710,8 @@ export class AnalysisOrchestrator {
         const failedResult: AnalysisResult = {
           id: `deep-${analysisId}`,
           projectId,
+          buildTargetId: targetInfo?.id,
+          analysisExecutionId: wsAnalysisId,
           module: "deep_analysis",
           status: "failed",
           vulnerabilities: [],
@@ -676,7 +731,10 @@ export class AnalysisOrchestrator {
         this.broadcast(wsAnalysisId, {
           type: "analysis-error",
           payload: {
-            analysisId: wsAnalysisId, phase: "deep",
+            analysisId: wsAnalysisId,
+            buildTargetId: targetInfo?.id,
+            executionId: wsAnalysisId,
+            phase: "deep",
             error: `[${agentResponse.failureCode}] ${agentResponse.failureDetail}`,
             retryable: agentResponse.retryable ?? false,
             partial: isPartialFailure,
@@ -699,7 +757,10 @@ export class AnalysisOrchestrator {
       this.broadcast(wsAnalysisId, {
         type: "analysis-error",
         payload: {
-          analysisId: wsAnalysisId, phase: "deep",
+          analysisId: wsAnalysisId,
+          buildTargetId: targetInfo?.id,
+          executionId: wsAnalysisId,
+          phase: "deep",
           error: err instanceof Error ? err.message : "Agent call failed",
           retryable: true,
         },
@@ -899,62 +960,81 @@ export class AnalysisOrchestrator {
     await this.pipelineOrchestrator?.preparePipeline(projectId, [target.id], requestId, signal, `prep-${executionId}`);
   }
 
-  private resolveQuickAnalysisContext(
-    projectId: string,
-    quickAnalysisId: string,
-  ): { quickResult: AnalysisResult; target?: BuildTarget } {
-    const byExecution = this.analysisResultDAO.findByExecutionId?.(quickAnalysisId, "static_analysis")?.[0];
-    if (byExecution && byExecution.projectId === projectId) {
-      const target = byExecution.buildTargetId
-        ? this.buildTargetService?.findById?.(byExecution.buildTargetId)
-          ?? this.buildTargetService?.findByProjectId(projectId)?.find((candidate) => candidate.id === byExecution.buildTargetId)
-          ?? this.matchTargetFromQuickResultId(projectId, byExecution.id)
-        : this.matchTargetFromQuickResultId(projectId, byExecution.id);
-      return { quickResult: byExecution, ...(target ? { target } : {}) };
+  preflightQuickRequest(projectId: string, buildTargetId: string): BuildTarget {
+    const projectPath = this.sourceService.getProjectPath(projectId);
+    if (!projectPath) {
+      throw new NotFoundError(`Project source not found. Upload source first: ${projectId}`);
     }
 
-    const direct = this.analysisResultDAO.findById(quickAnalysisId);
-    if (direct && direct.projectId === projectId && direct.module === "static_analysis") {
-      const target = direct.buildTargetId
-        ? this.buildTargetService?.findById?.(direct.buildTargetId)
-          ?? this.buildTargetService?.findByProjectId(projectId)?.find((candidate) => candidate.id === direct.buildTargetId)
-          ?? this.matchTargetFromQuickResultId(projectId, direct.id)
-        : this.matchTargetFromQuickResultId(projectId, direct.id);
-      return { quickResult: direct, ...(target ? { target } : {}) };
+    const target = this.resolveBuildTarget(projectId, buildTargetId);
+    if (target.sdkChoiceState === "sdk-unresolved") {
+      throw new InvalidInputError(`BuildTarget ${target.name} is not Quick-eligible until SDK choice is explicit`);
     }
-
-    const targets = this.buildTargetService?.findByProjectId(projectId) ?? [];
-    const matches = targets
-      .map((target) => ({
-        target,
-        result: this.analysisResultDAO.findById(`${quickAnalysisId}-${target.name}`),
-      }))
-      .filter((entry): entry is { target: BuildTarget; result: AnalysisResult } =>
-        !!entry.result
-        && entry.result.projectId === projectId
-        && entry.result.module === "static_analysis");
-
-    if (matches.length === 1) {
-      return {
-        quickResult: matches[0].result,
-        target: matches[0].target,
-      };
-    }
-
-    if (matches.length > 1) {
-      throw new InvalidInputError(
-        `Quick analysis result is ambiguous for ${quickAnalysisId}; use a target-scoped quick result id`,
-      );
-    }
-
-    throw new NotFoundError(`Quick analysis result not found: ${quickAnalysisId}`);
+    return target;
   }
 
-  private matchTargetFromQuickResultId(projectId: string, quickResultId: string): BuildTarget | undefined {
-    const targets = this.buildTargetService?.findByProjectId(projectId) ?? [];
-    const matches = targets
-      .filter((target) => quickResultId.endsWith(`-${target.name}`))
-      .sort((a, b) => b.name.length - a.name.length);
-    return matches[0];
+  preflightDeepRequest(
+    projectId: string,
+    buildTargetId: string,
+    executionId: string,
+  ): { projectPath: string; quickResult: AnalysisResult; target?: BuildTarget } {
+    const projectPath = this.sourceService.getProjectPath(projectId);
+    if (!projectPath) {
+      throw new NotFoundError(`Project source not found. Upload source first: ${projectId}`);
+    }
+
+    const execution = this.analysisExecutionDAO?.findById(executionId);
+    if (!execution || execution.projectId !== projectId) {
+      throw new NotFoundError(`AnalysisExecution not found: ${executionId}`);
+    }
+    if (execution.buildTargetId !== buildTargetId) {
+      throw new InvalidInputError(`AnalysisExecution ${executionId} does not belong to BuildTarget ${buildTargetId}`);
+    }
+    if (execution.status !== "active") {
+      throw new InvalidInputError(`AnalysisExecution is not active: ${executionId}`);
+    }
+    if (
+      execution.quickBuildPrepStatus !== "succeeded"
+      || execution.quickGraphRagStatus !== "succeeded"
+      || execution.quickSastStatus !== "succeeded"
+    ) {
+      throw new InvalidInputError(`Deep requires a Quick-complete AnalysisExecution: ${executionId}`);
+    }
+
+    const { quickResult, target } = this.resolveQuickExecutionContext(projectId, execution, buildTargetId);
+    if (
+      (quickResult.buildTargetId && quickResult.buildTargetId !== buildTargetId)
+      || (target?.id && target.id !== buildTargetId)
+    ) {
+      throw new InvalidInputError(`AnalysisExecution ${executionId} does not belong to BuildTarget ${buildTargetId}`);
+    }
+
+    return { projectPath, quickResult, ...(target ? { target } : {}) };
+  }
+
+  private resolveQuickExecutionContext(
+    projectId: string,
+    execution: AnalysisExecution,
+    buildTargetId: string,
+  ): { quickResult: AnalysisResult; target?: BuildTarget } {
+    const byExecution = this.analysisResultDAO.findByExecutionId?.(execution.id, "static_analysis")?.[0];
+    if (byExecution && byExecution.projectId === projectId) {
+      const target = this.buildTargetService?.findById?.(buildTargetId)
+        ?? this.buildTargetService?.findByProjectId(projectId)?.find((candidate) => candidate.id === buildTargetId);
+      return { quickResult: byExecution, ...(target ? { target } : {}) };
+    }
+    throw new NotFoundError(`Quick analysis result not found for AnalysisExecution ${execution.id}`);
+  }
+
+  private resolveBuildTarget(projectId: string, buildTargetId: string): BuildTarget {
+    if (!buildTargetId) {
+      throw new InvalidInputError("buildTargetId is required");
+    }
+    const target = this.buildTargetService?.findById?.(buildTargetId)
+      ?? this.buildTargetService?.findByProjectId(projectId)?.find((candidate) => candidate.id === buildTargetId);
+    if (!target || target.projectId !== projectId) {
+      throw new NotFoundError(`BuildTarget not found: ${buildTargetId}`);
+    }
+    return target;
   }
 }

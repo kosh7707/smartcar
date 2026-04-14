@@ -1,5 +1,6 @@
 import type { Run, Finding, GateResult, EvidenceRef } from "@aegis/shared";
 import type { IRunDAO, IFindingDAO, IGateResultDAO, IEvidenceRefDAO } from "../dao/interfaces";
+import { isVisibleAnalysisArtifact } from "../lib/analysis-visibility";
 
 export interface RunDetail {
   run: Run;
@@ -17,7 +18,7 @@ export class RunService {
 
   findById(id: string): RunDetail | undefined {
     const run = this.runDAO.findById(id);
-    if (!run) return undefined;
+    if (!run || !isVisibleAnalysisArtifact(run)) return undefined;
 
     const gate = this.gateResultDAO.findByRunId(id);
     const findings = this.findingDAO.findByRunId(id);
@@ -35,6 +36,6 @@ export class RunService {
   }
 
   findByProjectId(projectId: string): Run[] {
-    return this.runDAO.findByProjectId(projectId);
+    return this.runDAO.findByProjectId(projectId).filter((run) => isVisibleAnalysisArtifact(run));
   }
 }

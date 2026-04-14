@@ -42,7 +42,7 @@ export function BuildTargetSectionSummary({
   if (!isRunning && readyTargets.length > 0 && canDeepAnalyzeAll) {
     return (
       <div className="bt-ready-summary">
-        <span>{readyTargets.length}개 서브 프로젝트 분석 준비 완료</span>
+        <span>{readyTargets.length}개 BuildTarget 분석 준비 완료</span>
         <button className="btn btn-sm" onClick={() => onDeepAnalyzeAll(readyTargets.map((target) => target.id))}>
           <Bot size={14} />
           전체 심층 분석

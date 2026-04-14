@@ -98,7 +98,7 @@ const CheckNode: React.FC<{
   );
 };
 
-export function SubprojectTreeSelector({
+export function BuildTargetTreeSelector({
   sourceFiles,
   checked,
   onToggle,
