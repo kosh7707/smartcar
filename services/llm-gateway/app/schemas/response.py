@@ -86,3 +86,44 @@ class TaskFailureResponse(BaseModel):
     failureDetail: str
     retryable: bool = False
     audit: AuditInfo
+
+
+class AsyncChatAcceptedResponse(BaseModel):
+    requestId: str
+    traceRequestId: str
+    status: str
+    statusUrl: str
+    resultUrl: str
+    cancelUrl: str
+    acceptedAt: str
+    expiresAt: str
+
+
+class AsyncChatStatusResponse(BaseModel):
+    requestId: str
+    traceRequestId: str
+    state: str
+    localAckState: str | None = None
+    phase: str | None = None
+    degraded: bool = False
+    degradeReasons: list[str] = []
+    lastAckAt: int | None = None
+    lastAckSource: str | None = None
+    blockedReason: str | None = None
+    resultReady: bool = False
+    acceptedAt: str
+    startedAt: str | None = None
+    endedAt: str | None = None
+    expiresAt: str
+    statusUrl: str
+    resultUrl: str
+    cancelUrl: str
+
+
+class AsyncChatResultResponse(BaseModel):
+    requestId: str
+    traceRequestId: str
+    state: str
+    completedAt: str | None = None
+    expiresAt: str
+    response: dict

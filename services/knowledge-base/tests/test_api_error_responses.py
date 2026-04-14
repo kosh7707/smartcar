@@ -1,10 +1,13 @@
 """Phase 1+2: HTTP 에러 시맨틱 + Health/Readiness 분리 테스트."""
 
+import asyncio
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.routers import api, code_graph_api, project_memory_api
+from app.routers import api, code_graph_api, cve_api, project_memory_api
 
 
 @pytest.fixture(autouse=True)
@@ -15,12 +18,16 @@ def _reset_state():
     old_qdrant_ready = api._qdrant_ready
     old_code_service = code_graph_api._service
     old_code_vector = code_graph_api._code_vector_search
+    old_code_assembler = code_graph_api._code_assembler
+    old_nvd_client = cve_api._nvd_client
     old_memory_service = project_memory_api._service
     api.set_assembler(None)
     api.set_neo4j_graph(None)
     api.set_qdrant_ready(False)
     code_graph_api.set_service(None)
     code_graph_api.set_code_vector_search(None)
+    code_graph_api.set_code_assembler(None)
+    cve_api.set_nvd_client(None)
     project_memory_api.set_service(None)
     yield
     api.set_assembler(old_assembler)
@@ -28,6 +35,8 @@ def _reset_state():
     api.set_qdrant_ready(old_qdrant_ready)
     code_graph_api.set_service(old_code_service)
     code_graph_api.set_code_vector_search(old_code_vector)
+    code_graph_api.set_code_assembler(old_code_assembler)
+    cve_api.set_nvd_client(old_nvd_client)
     project_memory_api.set_service(old_memory_service)
 
 
@@ -204,10 +213,42 @@ def test_project_memory_limit_error_uses_specific_code():
     assert body["errorDetail"]["code"] == "MEMORY_LIMIT_EXCEEDED"
 
 
+def test_code_graph_503_uses_kb_not_ready_code():
+    resp = client.post(
+        "/v1/code-graph/re100/ingest",
+        json={"functions": [{"name": "main", "file": "main.cpp", "line": 1, "calls": []}]},
+        headers=_TIMEOUT_HEADER,
+    )
+    _assert_503_format(resp)
+
+
+def test_project_memory_503_uses_kb_not_ready_code():
+    resp = client.get("/v1/project-memory/re100")
+    _assert_503_format(resp)
+
+
+def test_cve_batch_503_uses_kb_not_ready_code():
+    resp = client.post(
+        "/v1/cve/batch-lookup",
+        json={"libraries": [{"name": "test", "version": "1.0"}]},
+        headers=_TIMEOUT_HEADER,
+    )
+    _assert_503_format(resp)
+
+
 def test_code_graph_ingest_defaults_vector_count_to_zero_when_vector_unavailable():
     class FakeCodeGraphService:
+        def export_project(self, project_id):
+            return []
+
         def ingest(self, project_id, functions, provenance=None):
             return {"project_id": project_id, "nodeCount": 1, "edgeCount": 0, "files": ["main.cpp"]}
+
+        def activate_staging(self, staging_project_id, project_id):
+            return {"project_id": project_id, "nodeCount": 1, "edgeCount": 0, "files": ["main.cpp"]}
+
+        def delete_project(self, project_id):
+            return True
 
     code_graph_api.set_service(FakeCodeGraphService())
     code_graph_api.set_code_vector_search(None)
@@ -242,3 +283,242 @@ def test_http_exception_uses_observability_format():
     body = resp.json()
     assert body["success"] is False
     assert body["errorDetail"]["code"] == "NOT_FOUND"
+
+
+class _SlowAssembler:
+    def assemble(self, query, **kwargs):
+        time.sleep(0.05)
+        return {
+            "query": query,
+            "hits": [],
+            "total": 0,
+            "extracted_ids": [],
+            "related_cwe": [],
+            "related_cve": [],
+            "related_attack": [],
+            "match_type_counts": {"id_exact": 0, "graph_neighbor": 0, "vector_semantic": 0},
+        }
+
+    def batch_assemble(self, queries):
+        time.sleep(0.05)
+        return {
+            "results": [],
+            "global_stats": {"total_queries": len(queries), "total_hits": 0, "unique_ids": 0},
+        }
+
+
+class _SlowCodeAssembler:
+    def search(self, *args, **kwargs):
+        time.sleep(0.05)
+        return {
+            "query": kwargs.get("query", ""),
+            "hits": [],
+            "total": 0,
+            "match_type_counts": {"name_exact": 0, "vector_semantic": 0, "graph_neighbor": 0},
+        }
+
+
+class _SlowNvdClient:
+    async def batch_lookup(self, libraries):
+        await asyncio.sleep(0.05)
+        return [{"library": lib["name"], "version": lib["version"], "cves": [], "total": 0, "cached": False} for lib in libraries]
+
+
+class _FastGraph:
+    node_count = 10
+    edge_count = 5
+
+
+def test_search_timeout_returns_408():
+    api.set_assembler(_SlowAssembler())
+    api.set_neo4j_graph(_FastGraph())
+    api.set_qdrant_ready(True)
+
+    resp = client.post("/v1/search", json={"query": "test"}, headers={"X-Timeout-Ms": "1"})
+    assert resp.status_code == 408
+    assert resp.json()["errorDetail"]["code"] == "TIMEOUT"
+
+
+def test_search_batch_timeout_returns_408():
+    api.set_assembler(_SlowAssembler())
+    api.set_neo4j_graph(_FastGraph())
+    api.set_qdrant_ready(True)
+
+    resp = client.post(
+        "/v1/search/batch",
+        json={"queries": [{"query": "test"}]},
+        headers={"X-Timeout-Ms": "1"},
+    )
+    assert resp.status_code == 408
+    assert resp.json()["errorDetail"]["code"] == "TIMEOUT"
+
+
+def test_code_graph_search_timeout_returns_408():
+    code_graph_api.set_code_assembler(_SlowCodeAssembler())
+
+    resp = client.post(
+        "/v1/code-graph/re100/search",
+        json={"query": "test"},
+        headers={"X-Timeout-Ms": "1"},
+    )
+    assert resp.status_code == 408
+    assert resp.json()["errorDetail"]["code"] == "TIMEOUT"
+
+
+def test_cve_batch_timeout_returns_408():
+    cve_api.set_nvd_client(_SlowNvdClient())
+
+    resp = client.post(
+        "/v1/cve/batch-lookup",
+        json={"libraries": [{"name": "test", "version": "1.0"}]},
+        headers={"X-Timeout-Ms": "1"},
+    )
+    assert resp.status_code == 408
+    assert resp.json()["errorDetail"]["code"] == "TIMEOUT"
+
+
+def test_code_graph_ingest_timeout_after_vector_stage_returns_408():
+    class _FastCodeGraphService:
+        def export_project(self, project_id):
+            return []
+
+        def ingest(self, project_id, functions, provenance=None):
+            return {"project_id": project_id, "nodeCount": 1, "edgeCount": 0, "files": ["main.cpp"]}
+
+        def activate_staging(self, staging_project_id, project_id):
+            return {"project_id": project_id, "nodeCount": 1, "edgeCount": 0, "files": ["main.cpp"]}
+
+        def delete_project(self, project_id):
+            return True
+
+    class _SlowCodeVectorSearch:
+        def ingest(self, project_id, functions, provenance=None):
+            time.sleep(0.05)
+            return 1
+
+    code_graph_api.set_service(_FastCodeGraphService())
+    code_graph_api.set_code_vector_search(_SlowCodeVectorSearch())
+
+    resp = client.post(
+        "/v1/code-graph/re100/ingest",
+        json={"functions": [{"name": "main", "file": "main.cpp", "line": 1, "calls": []}]},
+        headers={"X-Timeout-Ms": "1"},
+    )
+    assert resp.status_code == 408
+    assert resp.json()["errorDetail"]["code"] == "TIMEOUT"
+
+
+def test_code_graph_ingest_timeout_rolls_back_previous_state():
+    class _StatefulCodeGraphService:
+        def __init__(self):
+            self.current = [{"name": "old", "file": "old.cpp", "line": 1, "calls": ["legacy"]}]
+            self.deleted = False
+
+        def export_project(self, project_id):
+            return [dict(item) for item in self.current]
+
+        def ingest(self, project_id, functions, provenance=None):
+            self.current = [dict(item) for item in functions]
+            self.deleted = False
+            return {"project_id": project_id, "nodeCount": len(functions), "edgeCount": 0, "files": ["main.cpp"]}
+
+        def activate_staging(self, staging_project_id, project_id):
+            self.current = [dict(item) for item in self.current]
+            return {"project_id": project_id, "nodeCount": len(self.current), "edgeCount": 0, "files": ["main.cpp"]}
+
+        def delete_project(self, project_id):
+            self.current = []
+            self.deleted = True
+
+    class _StatefulVectorSearch:
+        def __init__(self):
+            self.current = [{"name": "old", "file": "old.cpp", "line": 1, "calls": ["legacy"]}]
+            self.deleted = False
+
+        def ingest(self, project_id, functions, provenance=None):
+            self.current = [dict(item) for item in functions]
+            self.deleted = False
+            time.sleep(0.05)
+            return len(functions)
+
+        def activate_staging(self, staging_project_id, project_id):
+            return None
+
+        def delete_project(self, project_id):
+            self.current = []
+            self.deleted = True
+
+    svc = _StatefulCodeGraphService()
+    vec = _StatefulVectorSearch()
+    code_graph_api.set_service(svc)
+    code_graph_api.set_code_vector_search(vec)
+
+    resp = client.post(
+        "/v1/code-graph/re100/ingest",
+        json={"functions": [{"name": "new", "file": "new.cpp", "line": 10, "calls": []}]},
+        headers={"X-Timeout-Ms": "1"},
+    )
+
+    assert resp.status_code == 408
+    assert svc.current == [{"name": "old", "file": "old.cpp", "line": 1, "calls": ["legacy"]}]
+    assert vec.current == [{"name": "old", "file": "old.cpp", "line": 1, "calls": ["legacy"]}]
+    assert svc.deleted is False
+    assert vec.deleted is False
+
+
+def test_code_graph_ingest_timeout_rolls_back_to_empty_when_no_previous_state():
+    class _EmptyCodeGraphService:
+        def __init__(self):
+            self.current = []
+            self.deleted = False
+
+        def export_project(self, project_id):
+            return []
+
+        def ingest(self, project_id, functions, provenance=None):
+            self.current = [dict(item) for item in functions]
+            self.deleted = False
+            return {"project_id": project_id, "nodeCount": len(functions), "edgeCount": 0, "files": ["main.cpp"]}
+
+        def activate_staging(self, staging_project_id, project_id):
+            self.current = [dict(item) for item in self.current]
+            return {"project_id": project_id, "nodeCount": len(self.current), "edgeCount": 0, "files": ["main.cpp"]}
+
+        def delete_project(self, project_id):
+            self.current = []
+            self.deleted = True
+
+    class _SlowVectorSearch:
+        def __init__(self):
+            self.current = []
+            self.deleted = False
+
+        def ingest(self, project_id, functions, provenance=None):
+            self.current = [dict(item) for item in functions]
+            self.deleted = False
+            time.sleep(0.05)
+            return len(functions)
+
+        def activate_staging(self, staging_project_id, project_id):
+            return None
+
+        def delete_project(self, project_id):
+            self.current = []
+            self.deleted = True
+
+    svc = _EmptyCodeGraphService()
+    vec = _SlowVectorSearch()
+    code_graph_api.set_service(svc)
+    code_graph_api.set_code_vector_search(vec)
+
+    resp = client.post(
+        "/v1/code-graph/re100/ingest",
+        json={"functions": [{"name": "new", "file": "new.cpp", "line": 10, "calls": []}]},
+        headers={"X-Timeout-Ms": "1"},
+    )
+
+    assert resp.status_code == 408
+    assert svc.current == []
+    assert vec.current == []
+    assert svc.deleted is True
+    assert vec.deleted is True

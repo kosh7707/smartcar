@@ -32,6 +32,7 @@ const mockGates = [
 
 const mockFetchGates = vi.fn();
 const mockOverrideGate = vi.fn();
+const mockToast = { error: vi.fn(), success: vi.fn(), info: vi.fn() };
 
 vi.mock("../../api/gate", () => ({
   fetchProjectGates: (...args: unknown[]) => mockFetchGates(...args),
@@ -40,7 +41,7 @@ vi.mock("../../api/gate", () => ({
 
 vi.mock("../../api/core", () => ({ logError: vi.fn() }));
 vi.mock("../../contexts/ToastContext", () => ({
-  useToast: () => ({ error: vi.fn(), success: vi.fn(), info: vi.fn() }),
+  useToast: () => mockToast,
 }));
 
 function renderPage() {
@@ -63,6 +64,14 @@ describe("QualityGatePage", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("shows loading feedback before gate results resolve", () => {
+    mockFetchGates.mockImplementation(() => new Promise(() => {}));
+
+    renderPage();
+
+    expect(screen.getByText("Quality Gate 로딩 중...")).toBeInTheDocument();
   });
 
   it("renders gate results", async () => {
@@ -121,5 +130,25 @@ describe("QualityGatePage", () => {
     mockFetchGates.mockResolvedValue([]);
     renderPage();
     await waitFor(() => expect(screen.getByText("아직 Quality Gate 결과가 없습니다")).toBeInTheDocument());
+  });
+
+  it("shows the empty state and does not fetch when no project id is present", async () => {
+    render(
+      <MemoryRouter initialEntries={["/quality-gate"]}>
+        <Routes>
+          <Route path="/quality-gate" element={<QualityGatePage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("아직 Quality Gate 결과가 없습니다")).toBeInTheDocument();
+    expect(mockFetchGates).not.toHaveBeenCalled();
+  });
+
+  it("shows an empty fallback when loading gates fails", async () => {
+    mockFetchGates.mockRejectedValue(new Error("load failed"));
+    renderPage();
+
+    expect(await screen.findByText("아직 Quality Gate 결과가 없습니다")).toBeInTheDocument();
   });
 });

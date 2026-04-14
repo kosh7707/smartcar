@@ -9,6 +9,13 @@ import neo4j
 
 logger = logging.getLogger(__name__)
 
+_THREAT_LABELS = ("CWE", "CVE", "Attack", "CAPEC")
+_THREAT_NODE_FILTER = " OR ".join(f"n:{label}" for label in _THREAT_LABELS)
+_THREAT_EDGE_FILTER = " AND ".join(
+    f"({alias}:CWE OR {alias}:CVE OR {alias}:Attack OR {alias}:CAPEC)"
+    for alias in ("a", "b")
+)
+
 # source 값 → Neo4j 노드 레이블 매핑
 _SOURCE_TO_LABEL = {
     "CWE": "CWE",
@@ -55,7 +62,7 @@ class Neo4jGraph:
     def node_count(self) -> int:
         with self._driver.session() as session:
             result = session.run(
-                "MATCH (n) WHERE n:CWE OR n:CVE OR n:Attack OR n:CAPEC "
+                f"MATCH (n) WHERE {_THREAT_NODE_FILTER} "
                 "RETURN count(n) AS cnt"
             )
             return result.single()["cnt"]
@@ -63,7 +70,9 @@ class Neo4jGraph:
     @property
     def edge_count(self) -> int:
         with self._driver.session() as session:
-            result = session.run("MATCH ()-[r]->() RETURN count(r) AS cnt")
+            result = session.run(
+                f"MATCH (a)-[r]->(b) WHERE {_THREAT_EDGE_FILTER} RETURN count(r) AS cnt"
+            )
             return result.single()["cnt"]
 
     def load_from_records(self, records: list[dict]) -> None:
@@ -214,13 +223,13 @@ class Neo4jGraph:
         with self._driver.session() as session:
             # 소스별 카운트
             sources = {}
-            for label in ["CWE", "CVE", "Attack", "CAPEC"]:
+            for label in _THREAT_LABELS:
                 result = session.run(f"MATCH (n:{label}) RETURN count(n) AS cnt")
                 sources[label] = result.single()["cnt"]
 
             # 관계 타입별 카운트
             result = session.run(
-                "MATCH ()-[r]->() "
+                f"MATCH (a)-[r]->(b) WHERE {_THREAT_EDGE_FILTER} "
                 "RETURN type(r) AS rel_type, count(r) AS cnt "
                 "ORDER BY cnt DESC"
             )

@@ -9,9 +9,11 @@
  */
 import { createLogger } from "../lib/logger";
 import { KbUnavailableError, KbHttpError } from "../lib/errors";
+import { buildHealthCheckUrl } from "../lib/downstream-health";
 import type { SastCodeGraph } from "./sast-client";
 
 const logger = createLogger("kb-client");
+const DEFAULT_CODE_GRAPH_INGEST_TIMEOUT_MS = "15000";
 
 export interface CodeGraphIngestResponse {
   success: boolean;
@@ -40,6 +42,16 @@ export interface CodeGraphStatsResponse {
   call_edge_count: number;
 }
 
+interface KbErrorPayload {
+  error?: string;
+  errorDetail?: {
+    code?: string;
+    message?: string;
+    requestId?: string;
+    retryable?: boolean;
+  };
+}
+
 export class KbClient {
   private static readonly MAX_RETRIES = 2;
   private static readonly RETRY_BASE_MS = 2000;
@@ -54,7 +66,7 @@ export class KbClient {
   ): Promise<CodeGraphIngestResponse> {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (requestId) headers["X-Request-Id"] = requestId;
-    headers["X-Timeout-Ms"] = "15000";
+    headers["X-Timeout-Ms"] = DEFAULT_CODE_GRAPH_INGEST_TIMEOUT_MS;
 
     const callsByFunction = new Map<string, Set<string>>();
     for (const fn of codeGraph.functions) {
@@ -133,9 +145,9 @@ export class KbClient {
   }
 
   /** Liveness — S5가 살아있는지 확인 */
-  async checkHealth(): Promise<Record<string, unknown> | null> {
+  async checkHealth(requestId?: string): Promise<Record<string, unknown> | null> {
     try {
-      const res = await fetch(`${this.baseUrl}/v1/health`);
+      const res = await fetch(buildHealthCheckUrl(this.baseUrl, requestId));
       return (await res.json()) as Record<string, unknown>;
     } catch {
       logger.warn("KB health check failed");
@@ -173,18 +185,49 @@ export class KbClient {
       }
 
       if (res.status === 503 && attempt < KbClient.MAX_RETRIES) {
+        const errorPayload = await this.parseErrorPayload(res.clone());
         const delay = KbClient.RETRY_BASE_MS * 2 ** attempt;
-        logger.warn({ attempt: attempt + 1, delayMs: delay, requestId }, "KB overloaded (503), retrying");
+        logger.warn(
+          {
+            attempt: attempt + 1,
+            delayMs: delay,
+            requestId,
+            errorCode: errorPayload.errorDetail?.code,
+          },
+          "KB returned 503, retrying",
+        );
         await this.sleep(delay, signal);
         continue;
       }
 
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new KbHttpError(`KB returned HTTP ${res.status}: ${text.slice(0, 200)}`);
+        const errorPayload = await this.parseErrorPayload(res);
+        const errorCode = errorPayload.errorDetail?.code;
+        const errorMessage = errorPayload.errorDetail?.message
+          ?? errorPayload.error
+          ?? `HTTP ${res.status}`;
+        throw new KbHttpError(
+          `KB returned HTTP ${res.status}${errorCode ? ` (${errorCode})` : ""}: ${errorMessage}`.slice(0, 240),
+          undefined,
+          {
+            status: res.status,
+            errorCode,
+            retryable: errorPayload.errorDetail?.retryable ?? false,
+            requestId: errorPayload.errorDetail?.requestId,
+          },
+        );
       }
 
       return res;
+    }
+  }
+
+  private async parseErrorPayload(res: Response): Promise<KbErrorPayload> {
+    try {
+      return (await res.json()) as KbErrorPayload;
+    } catch {
+      const text = await res.text().catch(() => "");
+      return { error: text.slice(0, 200) };
     }
   }
 

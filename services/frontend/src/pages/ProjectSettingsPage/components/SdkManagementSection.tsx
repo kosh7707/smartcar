@@ -138,22 +138,29 @@ export const SdkManagementSection: React.FC<SdkManagementSectionProps> = ({
   onRequestDelete,
 }) => (
   <div className="card project-settings-card">
-    <div className="project-settings-panel__header">
-      <div className="project-settings-panel__icon"><Settings size={18} /></div>
-      <div>
-        <div className="project-settings-panel__title">SDK 관리</div>
-        <div className="project-settings-panel__desc">크로스 컴파일 SDK를 등록하여 서브프로젝트 분석에 사용합니다.</div>
+    <div className="project-settings-panel__toolbar">
+      <div className="project-settings-panel__header">
+        <div className="project-settings-panel__icon"><Settings size={18} /></div>
+        <div>
+          <div className="project-settings-panel__title">SDK 관리</div>
+          <div className="project-settings-panel__desc">크로스 컴파일 SDK를 등록하여 서브프로젝트 분석에 사용합니다.</div>
+        </div>
+      </div>
+
+      <div className="project-settings-panel__actions">
+        <span className="project-settings-panel__meta">등록된 SDK {registered.length}개</span>
+        <div className="sdk-actions">
+          <button className="btn btn-sm" onClick={onToggleForm}>
+            <Plus size={14} /> SDK 추가
+          </button>
+        </div>
       </div>
     </div>
 
-    <div className="sdk-actions">
-      <button className="btn btn-sm" onClick={onToggleForm}>
-        <Plus size={14} /> SDK 추가
-      </button>
-    </div>
-
     {showForm && (
-      <SdkUploadForm projectId={projectId} onRegistered={onRegistered} onCancel={onCancelForm} />
+      <div className="project-settings-inline-panel">
+        <SdkUploadForm projectId={projectId} onRegistered={onRegistered} onCancel={onCancelForm} />
+      </div>
     )}
 
     {registered.length === 0 ? (

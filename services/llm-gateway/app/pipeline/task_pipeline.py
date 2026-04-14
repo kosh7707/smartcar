@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from app.config import settings
+from app.context import get_request_id
 from app.errors import LlmCircuitOpenError, LlmHttpError, LlmInputTooLargeError, LlmTimeoutError, LlmUnavailableError
 from app.metrics import prom
 from app.pipeline.confidence import ConfidenceCalculator
@@ -63,6 +64,7 @@ class TaskPipeline:
         context_enricher: "ContextEnricher | None" = None,
         llm_client: "RealLlmClient | None" = None,
         semaphore: "asyncio.Semaphore | None" = None,
+        request_tracker: "RequestTracker | None" = None,
     ) -> None:
         self._prompt_registry = prompt_registry
         self._model_registry = model_registry
@@ -74,12 +76,22 @@ class TaskPipeline:
         self._context_enricher = context_enricher
         self._llm_client = llm_client
         self._semaphore = semaphore or asyncio.Semaphore(settings.llm_concurrency)
+        self._request_tracker = request_tracker
 
     async def execute(
         self,
         request: TaskRequest,
     ) -> TaskSuccessResponse | TaskFailureResponse:
         start = time.monotonic()
+        request_id = get_request_id()
+
+        if self._request_tracker and request_id:
+            self._request_tracker.mark_phase(
+                request_id,
+                phase="prompt-build",
+                state="running",
+                ack_source="prompt-build",
+            )
 
         # 1. Prompt 조회
         prompt_entry = self._prompt_registry.get(request.taskType)
@@ -331,9 +343,29 @@ class TaskPipeline:
                     enable_thinking=False, json_mode=True,
                 )
 
+            request_id = get_request_id()
+            if self._request_tracker and request_id:
+                self._request_tracker.mark_phase(
+                    request_id,
+                    phase="llm-inference",
+                    state="queued",
+                    ack_source="llm-ready",
+                )
+
             async with self._semaphore:
                 prom.CONCURRENT_REQUESTS.inc()
                 try:
+                    if self._request_tracker and request_id:
+                        self._request_tracker.mark_phase(
+                            request_id,
+                            phase="llm-inference",
+                            state="running",
+                            ack_source="queue-exit",
+                        )
+                        self._request_tracker.mark_transport_only(
+                            request_id,
+                            phase="llm-inference",
+                        )
                     content = await client.generate(
                         messages,
                         max_tokens=request.constraints.maxTokens,
@@ -348,6 +380,15 @@ class TaskPipeline:
                     prom.CONCURRENT_REQUESTS.dec()
 
         from app.mock.dispatcher import V1MockDispatcher
+
+        request_id = get_request_id()
+        if self._request_tracker and request_id:
+            self._request_tracker.mark_phase(
+                request_id,
+                phase="llm-inference",
+                state="running",
+                ack_source="mock-dispatch",
+            )
 
         dispatcher = V1MockDispatcher()
         content = await dispatcher.dispatch(request)
@@ -383,6 +424,8 @@ class TaskPipeline:
         messages: list[dict[str, str]],
     ) -> tuple[str, dict, TokenUsage, ValidationInfo] | _LlmAttemptFailure:
         """Steps 5-9: LLM 호출 → 파싱 → 검증. HTTP 에러는 propagate."""
+        request_id = get_request_id()
+
         # 5. LLM 호출
         raw_response, token_usage = await self._call_llm(request, messages)
 
@@ -415,6 +458,13 @@ class TaskPipeline:
             )
 
         # 8. Schema 검증
+        if self._request_tracker and request_id:
+            self._request_tracker.mark_phase(
+                request_id,
+                phase="validation",
+                state="running",
+                ack_source="validation-start",
+            )
         validation = self._schema_validator.validate(parsed, request.taskType)
         if not validation.valid:
             return _LlmAttemptFailure(

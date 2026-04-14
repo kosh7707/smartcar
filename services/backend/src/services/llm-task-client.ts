@@ -11,6 +11,7 @@ import {
   LlmParseError,
   LlmTimeoutError,
 } from "../lib/errors";
+import { buildHealthCheckUrl } from "../lib/downstream-health";
 
 const logger = createLogger("llm-task-client");
 
@@ -298,10 +299,10 @@ export class LlmTaskClient {
     return response.status === "completed";
   }
 
-  async checkHealth(baseUrl?: string): Promise<Record<string, unknown> | null> {
+  async checkHealth(requestId?: string, baseUrl?: string): Promise<Record<string, unknown> | null> {
     const url = baseUrl ?? this.baseUrl;
     try {
-      const res = await fetch(`${url}/v1/health`);
+      const res = await fetch(buildHealthCheckUrl(url, requestId));
       return (await res.json()) as Record<string, unknown>;
     } catch (err) {
       logger.warn({ err }, "v1 health check failed");

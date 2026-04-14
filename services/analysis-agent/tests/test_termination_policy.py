@@ -36,11 +36,11 @@ def test_stops_at_max_completion_tokens():
     session.set_termination_reason.assert_called_with("budget_exhausted")
 
 
-def test_stops_at_timeout():
+def test_elapsed_time_alone_does_not_stop_session():
     policy = TerminationPolicy(timeout_ms=5000)
     session = _make_session(elapsed_ms=5001)
-    assert policy.should_stop(session) is True
-    session.set_termination_reason.assert_called_with("timeout")
+    assert policy.should_stop(session) is False
+    session.set_termination_reason.assert_not_called()
 
 
 def test_stops_at_no_new_evidence():

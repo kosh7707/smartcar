@@ -19,6 +19,15 @@ class Phase1Result:
     project_memory: list[dict] = field(default_factory=list)
     kb_degraded: bool = False
     kb_not_ready: bool = False
+    kb_timed_out: bool = False
+    cve_lookup_timed_out: bool = False
+    dangerous_callers_timed_out: bool = False
+    code_graph_status: str | None = None
+    code_graph_neo4j_ready: bool | None = None
+    code_graph_vector_ready: bool | None = None
+    code_graph_graph_rag_ready: bool | None = None
+    code_graph_warnings: list[str] = field(default_factory=list)
+    code_graph_ingest_timed_out: bool = False
     sast_partial_tools: list[str] = field(default_factory=list)
     sast_timed_out_files: int = 0
     build_compile_commands_path: str | None = None

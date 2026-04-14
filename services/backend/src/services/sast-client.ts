@@ -10,6 +10,7 @@ import {
   SastUnavailableError,
   SastTimeoutError,
 } from "../lib/errors";
+import { buildHealthCheckUrl } from "../lib/downstream-health";
 import type { BuildProfile, SastFinding } from "@aegis/shared";
 
 const logger = createLogger("sast-client");
@@ -315,9 +316,9 @@ export class SastClient {
     }
   }
 
-  async checkHealth(): Promise<Record<string, unknown> | null> {
+  async checkHealth(requestId?: string): Promise<Record<string, unknown> | null> {
     try {
-      const res = await fetch(`${this.baseUrl}/v1/health`);
+      const res = await fetch(buildHealthCheckUrl(this.baseUrl, requestId));
       return (await res.json()) as Record<string, unknown>;
     } catch (err) {
       logger.warn({ err }, "SAST Runner health check failed");

@@ -134,17 +134,8 @@ async def test_language_detection(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# SDK / 프로젝트 트리
+# 프로젝트 트리 / 스코핑
 # ---------------------------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_sdk_fetch_failure_graceful(tmp_path):
-    """S4 연결 불가 시 빈 dict 반환."""
-    ex = Phase0Executor(str(tmp_path), sast_endpoint="http://localhost:1")
-    result = await ex.execute()
-    assert result.sdk_info == {}
-    assert result.sdk_dir == ""
-
 
 @pytest.mark.asyncio
 async def test_project_tree_generated(tmp_path):
@@ -174,11 +165,3 @@ async def test_target_path_scoping(tmp_path):
     ex = Phase0Executor(str(tmp_path), target_path="sub")
     result = await ex.execute()
     assert result.build_system == "cmake"
-
-
-@pytest.mark.asyncio
-async def test_sdk_dir_extraction():
-    """SDK setupScript에서 SDK 경로를 추출한다."""
-    sdk_info = {"sdks": [{"setupScript": "/home/kosh/sdks/ti-am335x/linux-devkit/environment-setup-armv7at2hf"}]}
-    sdk_dir = Phase0Executor._extract_sdk_dir(sdk_info)
-    assert sdk_dir == "/home/kosh/sdks/ti-am335x"

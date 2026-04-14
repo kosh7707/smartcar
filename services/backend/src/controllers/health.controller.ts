@@ -6,6 +6,8 @@ import type { SastClient } from "../services/sast-client";
 import type { KbClient } from "../services/kb-client";
 import type { BuildAgentClient } from "../services/build-agent-client";
 import { asyncHandler } from "../middleware/async-handler";
+import { toDownstreamServiceHealth } from "../lib/downstream-health";
+import type { DownstreamControlSummary } from "../lib/downstream-health";
 
 type ServiceStatus = "ok" | "degraded" | "unreachable";
 type OverallStatus = "ok" | "degraded" | "unhealthy";
@@ -13,6 +15,7 @@ type OverallStatus = "ok" | "degraded" | "unhealthy";
 interface ServiceHealth {
   status: ServiceStatus;
   detail?: Record<string, unknown>;
+  control?: DownstreamControlSummary;
 }
 
 export function createHealthRouter(
@@ -26,13 +29,16 @@ export function createHealthRouter(
   const router = Router();
   const startedAt = Date.now();
 
-  router.get("/", asyncHandler(async (_req, res) => {
+  router.get("/", asyncHandler(async (req, res) => {
+    const requestedRequestId = typeof req.query.requestId === "string" && req.query.requestId.trim().length > 0
+      ? req.query.requestId.trim()
+      : undefined;
     const [llmHealth, agentHealth, sastHealth, kbHealth, buildAgentHealth] = await Promise.all([
-      llmClient.checkHealth().catch(() => null),
-      agentClient?.checkHealth().catch(() => null) ?? null,
-      sastClient?.checkHealth().catch(() => null) ?? null,
-      kbClient?.checkHealth().catch(() => null) ?? null,
-      buildAgentClient?.checkHealth().catch(() => null) ?? null,
+      llmClient.checkHealth(requestedRequestId).catch(() => null),
+      agentClient?.checkHealth(requestedRequestId).catch(() => null) ?? null,
+      sastClient?.checkHealth(requestedRequestId).catch(() => null) ?? null,
+      kbClient?.checkHealth(requestedRequestId).catch(() => null) ?? null,
+      buildAgentClient?.checkHealth(requestedRequestId).catch(() => null) ?? null,
     ]);
 
     const adapters = adapterManager.findAll();
@@ -64,6 +70,8 @@ export function createHealthRouter(
       service: "aegis-core-service",
       status,
       version: "0.2.0",
+      controlPolicyVersion: "health-control-signal-rollout-v1",
+      ...(requestedRequestId ? { requestIdQueried: requestedRequestId } : {}),
       detail: {
         version: "0.2.0",
         uptime: Math.floor((Date.now() - startedAt) / 1000),
@@ -80,15 +88,5 @@ export function createHealthRouter(
 }
 
 function toServiceHealth(data: Record<string, unknown> | null): ServiceHealth {
-  if (!data) return { status: "unreachable" };
-  const childStatus = typeof data.status === "string" ? data.status : null;
-  const policyStatus = typeof data.policyStatus === "string" ? data.policyStatus : null;
-  if (
-    data.degraded === true ||
-    (childStatus !== null && childStatus !== "ok") ||
-    (policyStatus !== null && policyStatus !== "ok")
-  ) {
-    return { status: "degraded", detail: data };
-  }
-  return { status: "ok", detail: data };
+  return toDownstreamServiceHealth(data);
 }

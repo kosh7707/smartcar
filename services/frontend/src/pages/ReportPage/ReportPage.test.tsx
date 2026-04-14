@@ -178,12 +178,21 @@ describe("ReportPage", () => {
     mockFetchProjectReport.mockResolvedValue(makeReport());
   });
 
+  it("shows loading feedback before the report resolves", () => {
+    mockFetchProjectReport.mockImplementation(() => new Promise(() => {}));
+
+    renderPage();
+
+    expect(screen.getByText("보고서 생성 중...")).toBeInTheDocument();
+  });
+
   it("renders report content and only applies pending filters after confirmation", async () => {
     renderPage();
 
     await waitFor(() => expect(mockFetchProjectReport).toHaveBeenCalledWith("project-1", {}));
     expect(await screen.findByText("Executive Summary")).toBeInTheDocument();
     expect(screen.getByText(/Critical auth bypass/i)).toBeInTheDocument();
+    expect(document.title).toBe("AEGIS — Report");
 
     fireEvent.click(screen.getByRole("button", { name: /필터/i }));
     const startDateInput = document.querySelector('input[type="date"]') as HTMLInputElement | null;
@@ -215,5 +224,32 @@ describe("ReportPage", () => {
 
     await waitFor(() => expect(mockFetchProjectReport).toHaveBeenCalledTimes(2));
     expect(await screen.findByText("Executive Summary")).toBeInTheDocument();
+  });
+
+  it("opens and closes the custom report modal", async () => {
+    renderPage();
+
+    await screen.findByText("Executive Summary");
+    fireEvent.click(screen.getByRole("button", { name: /커스텀 보고서/i }));
+
+    expect(await screen.findByTestId("custom-report-modal")).toBeInTheDocument();
+    expect(screen.getByText("custom report for project-1")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "close custom report" }));
+    await waitFor(() => expect(screen.queryByTestId("custom-report-modal")).not.toBeInTheDocument());
+  });
+
+  it("shows the unavailable state without fetching when no project id is present", async () => {
+    render(
+      <MemoryRouter initialEntries={["/report"]}>
+        <Routes>
+          <Route path="/report" element={<ReportPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("보고서를 생성할 수 없습니다")).toBeInTheDocument();
+    expect(screen.getByText("분석을 먼저 실행해주세요")).toBeInTheDocument();
+    expect(mockFetchProjectReport).not.toHaveBeenCalled();
   });
 });

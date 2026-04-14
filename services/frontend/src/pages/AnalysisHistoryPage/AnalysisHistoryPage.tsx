@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader, Spinner } from "../../shared/ui";
 import { useToast } from "../../contexts/ToastContext";
+import { getModuleRoute } from "../../constants/modules";
 import { AnalysisHistoryToolbar } from "./components/AnalysisHistoryToolbar";
 import { AnalysisHistoryRunsTable } from "./components/AnalysisHistoryRunsTable";
 import { useAnalysisHistoryPage } from "./hooks/useAnalysisHistoryPage";
@@ -52,7 +53,12 @@ export const AnalysisHistoryPage: React.FC = () => {
       <AnalysisHistoryRunsTable
         filter={filter}
         runs={filteredRuns}
-        onOpenRun={() => navigate(`/projects/${projectId}/static-analysis`)}
+        onOpenRun={(run) => {
+          if (!projectId) {
+            return;
+          }
+          navigate(getModuleRoute(run.module, projectId, run.analysisResultId));
+        }}
       />
     </div>
   );

@@ -45,6 +45,10 @@ class CodeVectorSearch:
         self._client = client
 
     @staticmethod
+    def _project_filter(project_id: str) -> Filter:
+        return Filter(must=[FieldCondition(key="project_id", match=MatchValue(value=project_id))])
+
+    @staticmethod
     def _normalize_provenance(source: dict | None) -> dict[str, str | None]:
         src = source or {}
         return {
@@ -132,6 +136,24 @@ class CodeVectorSearch:
         )
         return len(documents)
 
+    def activate_staging(self, staging_project_id: str, project_id: str) -> None:
+        """staging project_id로 적재된 포인트를 활성 project_id로 승격한다."""
+        if not self._collection_exists():
+            return
+
+        self.delete_project(project_id)
+        self._client.set_payload(
+            collection_name=COLLECTION,
+            payload={"project_id": project_id},
+            points=FilterSelector(filter=self._project_filter(staging_project_id)),
+            wait=True,
+        )
+        logger.info(
+            "코드 함수 벡터 staging 승격: staging=%s -> project=%s",
+            staging_project_id,
+            project_id,
+        )
+
     def search(
         self,
         query: str,
@@ -181,6 +203,50 @@ class CodeVectorSearch:
             ))
         return hits
 
+    def export_project(self, project_id: str) -> list[dict]:
+        """현재 project_id 포인트를 ingest 가능한 함수 목록 형태로 직렬화한다."""
+        if not self._collection_exists():
+            return []
+
+        records = []
+        offset = None
+        while True:
+            batch, offset = self._client.scroll(
+                collection_name=COLLECTION,
+                scroll_filter=self._project_filter(project_id),
+                limit=256,
+                with_payload=True,
+                with_vectors=False,
+                offset=offset,
+            )
+            records.extend(batch)
+            if offset is None:
+                break
+
+        exported = []
+        for record in records:
+            payload = record.payload or {}
+            item = {
+                "name": payload.get("name"),
+                "file": payload.get("file"),
+                "line": payload.get("line"),
+                "calls": payload.get("calls", []),
+                "origin": payload.get("origin"),
+                "originalLib": payload.get("original_lib"),
+                "originalVersion": payload.get("original_version"),
+            }
+            provenance = {
+                "buildSnapshotId": payload.get("build_snapshot_id"),
+                "buildUnitId": payload.get("build_unit_id"),
+                "sourceBuildAttemptId": payload.get("source_build_attempt_id"),
+            }
+            if any(value is not None for value in provenance.values()):
+                item["provenance"] = provenance
+            exported.append(item)
+
+        exported.sort(key=lambda item: item["name"] or "")
+        return exported
+
     def delete_project(self, project_id: str) -> None:
         """프로젝트 벡터 데이터 삭제."""
         if not self._collection_exists():
@@ -188,11 +254,7 @@ class CodeVectorSearch:
 
         self._client.delete(
             collection_name=COLLECTION,
-            points_selector=FilterSelector(
-                filter=Filter(
-                    must=[FieldCondition(key="project_id", match=MatchValue(value=project_id))]
-                )
-            ),
+            points_selector=FilterSelector(filter=self._project_filter(project_id)),
         )
         logger.info("코드 함수 벡터 삭제: project=%s", project_id)
 

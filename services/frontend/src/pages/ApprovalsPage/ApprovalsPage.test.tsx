@@ -72,6 +72,14 @@ describe("ApprovalsPage", () => {
     mockDecideApproval.mockResolvedValue(mockApprovals[0]);
   });
 
+  it("shows loading feedback before approvals resolve", () => {
+    mockFetchApprovals.mockImplementation(() => new Promise(() => {}));
+
+    renderPage();
+
+    expect(screen.getByText("승인 요청 로딩 중...")).toBeInTheDocument();
+  });
+
   it("renders the approval list with pending summary and existing decisions", async () => {
     renderPage();
 
@@ -122,6 +130,47 @@ describe("ApprovalsPage", () => {
     );
     await waitFor(() => expect(mockFetchApprovals).toHaveBeenCalledTimes(2));
     expect(mockToast.success).toHaveBeenCalledWith("승인 완료");
+  });
+
+  it("submits a rejection decision without a comment and reloads the list", async () => {
+    renderPage();
+
+    const reason = await screen.findByText("긴급 릴리즈 필요");
+    const pendingCard = reason.closest(".approval-card") as HTMLElement;
+    fireEvent.click(within(pendingCard).getByRole("button", { name: "거부" }));
+
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "거부" }));
+
+    await waitFor(() =>
+      expect(mockDecideApproval).toHaveBeenCalledWith("a-1", "rejected", undefined, undefined),
+    );
+    await waitFor(() => expect(mockFetchApprovals).toHaveBeenCalledTimes(2));
+    expect(mockToast.success).toHaveBeenCalledWith("거부 완료");
+  });
+
+  it("logs and toasts when approvals fail to load", async () => {
+    const error = new Error("load failed");
+    mockFetchApprovals.mockRejectedValue(error);
+
+    renderPage();
+
+    await waitFor(() => expect(mockToast.error).toHaveBeenCalledWith("승인 요청 목록을 불러올 수 없습니다."));
+    expect(await screen.findByText("승인 요청이 없습니다")).toBeInTheDocument();
+  });
+
+  it("does not fetch approvals and shows an empty state when the route has no project id", async () => {
+    render(
+      <MemoryRouter initialEntries={["/approvals"]}>
+        <Routes>
+          <Route path="/approvals" element={<ApprovalsPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByText("승인 요청이 없습니다")).toBeInTheDocument());
+    expect(mockFetchApprovals).not.toHaveBeenCalled();
+    expect(mockToast.error).not.toHaveBeenCalled();
   });
 
   it("shows the empty state when the project has no approvals", async () => {

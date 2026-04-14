@@ -22,7 +22,7 @@ export const ProjectSettingsPage: React.FC = () => {
   }
 
   return (
-    <div className="page-enter">
+    <div className={`page-enter project-settings-page project-settings-page--${state.activeSection}`}>
       <ConnectionStatusBanner connectionState={state.sdkConnectionState} />
       <ProjectSettingsHeader />
 

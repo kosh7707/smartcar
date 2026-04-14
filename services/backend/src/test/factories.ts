@@ -156,6 +156,7 @@ export function makeBuildTarget(overrides?: Partial<BuildTarget>): BuildTarget {
       languageStandard: "c11",
       headerLanguage: "auto",
     },
+    sdkChoiceState: "sdk-selected",
     buildSystem: "cmake",
     status: "discovered",
     createdAt: now(),

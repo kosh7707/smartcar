@@ -82,6 +82,56 @@ def test_ingest_empty():
     assert count == 0
 
 
+def test_activate_staging():
+    client = _make_client()
+    vs = CodeVectorSearch(client)
+
+    vs.activate_staging("__staging__", "proj-1")
+
+    assert client.delete.call_count == 1
+    client.set_payload.assert_called_once()
+    kwargs = client.set_payload.call_args.kwargs
+    assert kwargs["payload"] == {"project_id": "proj-1"}
+
+
+def test_export_project():
+    client = _make_client()
+    vs = CodeVectorSearch(client)
+
+    record1 = MagicMock()
+    record1.payload = {
+        "name": "main",
+        "file": "main.cpp",
+        "line": 1,
+        "calls": ["helper"],
+        "origin": None,
+        "original_lib": None,
+        "original_version": None,
+        "build_snapshot_id": "snap-1",
+        "build_unit_id": "unit-1",
+        "source_build_attempt_id": None,
+    }
+    record2 = MagicMock()
+    record2.payload = {
+        "name": "helper",
+        "file": "helper.cpp",
+        "line": 2,
+        "calls": [],
+        "origin": "modified-third-party",
+        "original_lib": "libx",
+        "original_version": "1.2.3",
+    }
+    client.scroll.side_effect = [
+        ([record2, record1], None),
+    ]
+
+    exported = vs.export_project("proj-1")
+
+    assert exported[0]["name"] == "helper"
+    assert exported[1]["name"] == "main"
+    assert exported[1]["provenance"]["buildSnapshotId"] == "snap-1"
+
+
 # ── search ──
 
 

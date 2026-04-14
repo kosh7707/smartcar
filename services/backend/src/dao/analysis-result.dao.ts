@@ -6,6 +6,8 @@ import { safeJsonParse } from "../lib/utils";
 interface AnalysisResultRow {
   id: string;
   project_id: string;
+  build_target_id: string | null;
+  analysis_execution_id: string | null;
   module: AnalysisModule;
   status: AnalysisStatus;
   vulnerabilities: string;
@@ -38,6 +40,8 @@ function rowToResult(row: AnalysisResultRow): AnalysisResult {
   return {
     id: row.id,
     projectId: row.project_id,
+    buildTargetId: row.build_target_id ?? undefined,
+    analysisExecutionId: row.analysis_execution_id ?? undefined,
     module: row.module,
     status: row.status,
     vulnerabilities: safeJsonParse(row.vulnerabilities, []),
@@ -63,12 +67,13 @@ export class AnalysisResultDAO implements IAnalysisResultDAO {
   private selectAllStmt;
   private selectByModuleStmt;
   private selectByProjectStmt;
+  private selectByExecutionStmt;
   private deleteByIdStmt;
 
   constructor(private db: DatabaseType) {
     this.insertStmt = db.prepare(
-      `INSERT INTO analysis_results (id, project_id, module, status, vulnerabilities, summary, warnings, analyzed_file_ids, file_coverage, caveats, confidence_score, confidence_breakdown, needs_human_review, recommended_next_steps, policy_flags, sca_libraries, agent_audit, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO analysis_results (id, project_id, build_target_id, analysis_execution_id, module, status, vulnerabilities, summary, warnings, analyzed_file_ids, file_coverage, caveats, confidence_score, confidence_breakdown, needs_human_review, recommended_next_steps, policy_flags, sca_libraries, agent_audit, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     this.selectByIdStmt = db.prepare(
       `SELECT * FROM analysis_results WHERE id = ?`,
@@ -82,6 +87,9 @@ export class AnalysisResultDAO implements IAnalysisResultDAO {
     this.selectByProjectStmt = db.prepare(
       `SELECT * FROM analysis_results WHERE project_id = ? ORDER BY created_at DESC`,
     );
+    this.selectByExecutionStmt = db.prepare(
+      `SELECT * FROM analysis_results WHERE analysis_execution_id = ? ORDER BY created_at DESC`,
+    );
     this.deleteByIdStmt = db.prepare(
       `DELETE FROM analysis_results WHERE id = ?`,
     );
@@ -91,6 +99,8 @@ export class AnalysisResultDAO implements IAnalysisResultDAO {
     this.insertStmt.run(
       result.id,
       result.projectId,
+      result.buildTargetId ?? null,
+      result.analysisExecutionId ?? null,
       result.module,
       result.status,
       JSON.stringify(result.vulnerabilities),
@@ -125,6 +135,11 @@ export class AnalysisResultDAO implements IAnalysisResultDAO {
 
   findByProjectId(projectId: string): AnalysisResult[] {
     return (this.selectByProjectStmt.all(projectId) as AnalysisResultRow[]).map(rowToResult);
+  }
+
+  findByExecutionId(analysisExecutionId: string, module?: AnalysisModule): AnalysisResult[] {
+    const rows = (this.selectByExecutionStmt.all(analysisExecutionId) as AnalysisResultRow[]).map(rowToResult);
+    return module ? rows.filter((row) => row.module === module) : rows;
   }
 
   deleteById(id: string): boolean {

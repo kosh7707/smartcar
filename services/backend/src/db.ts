@@ -40,6 +40,8 @@ export function initSchema(db: DatabaseType): void {
     CREATE TABLE IF NOT EXISTS analysis_results (
       id                     TEXT PRIMARY KEY,
       project_id             TEXT NOT NULL DEFAULT '',
+      build_target_id        TEXT,
+      analysis_execution_id  TEXT,
       module                 TEXT NOT NULL,
       status                 TEXT NOT NULL,
       vulnerabilities        TEXT NOT NULL,            -- JSON
@@ -164,6 +166,8 @@ export function initSchema(db: DatabaseType): void {
     CREATE TABLE IF NOT EXISTS runs (
       id                 TEXT PRIMARY KEY,
       project_id         TEXT NOT NULL,
+      build_target_id    TEXT,
+      analysis_execution_id TEXT,
       module             TEXT NOT NULL,
       status             TEXT NOT NULL DEFAULT 'completed',
       analysis_result_id TEXT NOT NULL,
@@ -180,6 +184,8 @@ export function initSchema(db: DatabaseType): void {
       id          TEXT PRIMARY KEY,
       run_id      TEXT NOT NULL,
       project_id  TEXT NOT NULL,
+      build_target_id TEXT,
+      analysis_execution_id TEXT,
       module      TEXT NOT NULL,
       status      TEXT NOT NULL DEFAULT 'open',
       severity    TEXT NOT NULL,
@@ -256,6 +262,7 @@ export function initSchema(db: DatabaseType): void {
       name                  TEXT NOT NULL,
       relative_path         TEXT NOT NULL,
       build_profile         TEXT NOT NULL DEFAULT '{}',
+      sdk_choice_state      TEXT NOT NULL DEFAULT 'sdk-unresolved',
       build_system          TEXT,
       status                TEXT NOT NULL DEFAULT 'discovered',
       compile_commands_path TEXT,
@@ -272,6 +279,29 @@ export function initSchema(db: DatabaseType): void {
       updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_build_targets_project ON build_targets(project_id);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS analysis_executions (
+      id                         TEXT PRIMARY KEY,
+      project_id                 TEXT NOT NULL,
+      build_target_id            TEXT NOT NULL,
+      build_target_name          TEXT NOT NULL,
+      build_target_relative_path TEXT NOT NULL,
+      build_profile_snapshot     TEXT NOT NULL DEFAULT '{}',
+      sdk_choice_state           TEXT NOT NULL,
+      status                     TEXT NOT NULL DEFAULT 'active',
+      quick_build_prep_status    TEXT NOT NULL DEFAULT 'pending',
+      quick_graphrag_status      TEXT NOT NULL DEFAULT 'pending',
+      quick_sast_status          TEXT NOT NULL DEFAULT 'pending',
+      deep_status                TEXT NOT NULL DEFAULT 'pending',
+      superseded_by_execution_id TEXT,
+      created_at                 TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at                 TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_analysis_executions_project ON analysis_executions(project_id);
+    CREATE INDEX IF NOT EXISTS idx_analysis_executions_target ON analysis_executions(build_target_id);
+    CREATE INDEX IF NOT EXISTS idx_analysis_executions_target_status ON analysis_executions(build_target_id, status);
   `);
 
   // 프로젝트별 SDK 업로드/등록 surface (현재 runtime + contract test 호환)
@@ -488,6 +518,8 @@ export function initSchema(db: DatabaseType): void {
   // ── 레거시 DB 호환 마이그레이션 (기존 DB에서만 실행됨) ──
 
   try { db.exec(`ALTER TABLE analysis_results ADD COLUMN project_id TEXT NOT NULL DEFAULT ''`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN build_target_id TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN analysis_execution_id TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE uploaded_files ADD COLUMN project_id TEXT NOT NULL DEFAULT ''`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE uploaded_files ADD COLUMN path TEXT NOT NULL DEFAULT ''`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE dynamic_analysis_sessions ADD COLUMN source TEXT NOT NULL DEFAULT '{}'`); } catch { /* 이미 존재 */ }
@@ -512,6 +544,11 @@ export function initSchema(db: DatabaseType): void {
     db.exec(`ALTER TABLE adapters ADD COLUMN project_id TEXT NOT NULL DEFAULT ''`);
     db.exec(`DELETE FROM adapters WHERE project_id = ''`);
   } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE runs ADD COLUMN build_target_id TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE runs ADD COLUMN analysis_execution_id TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE findings ADD COLUMN build_target_id TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE findings ADD COLUMN analysis_execution_id TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN sdk_choice_state TEXT NOT NULL DEFAULT 'sdk-unresolved'`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE build_targets ADD COLUMN status TEXT NOT NULL DEFAULT 'discovered'`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE build_targets ADD COLUMN compile_commands_path TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE build_targets ADD COLUMN build_log TEXT`); } catch { /* 이미 존재 */ }

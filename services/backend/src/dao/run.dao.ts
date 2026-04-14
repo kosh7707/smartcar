@@ -5,6 +5,8 @@ import type { IRunDAO } from "./interfaces";
 interface RunRow {
   id: string;
   project_id: string;
+  build_target_id: string | null;
+  analysis_execution_id: string | null;
   module: AnalysisModule;
   status: RunStatus;
   analysis_result_id: string;
@@ -18,6 +20,8 @@ function rowToRun(row: RunRow): Run {
   return {
     id: row.id,
     projectId: row.project_id,
+    buildTargetId: row.build_target_id ?? undefined,
+    analysisExecutionId: row.analysis_execution_id ?? undefined,
     module: row.module,
     status: row.status,
     analysisResultId: row.analysis_result_id,
@@ -37,8 +41,8 @@ export class RunDAO implements IRunDAO {
 
   constructor(private db: DatabaseType) {
     this.insertStmt = db.prepare(
-      `INSERT INTO runs (id, project_id, module, status, analysis_result_id, finding_count, started_at, ended_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO runs (id, project_id, build_target_id, analysis_execution_id, module, status, analysis_result_id, finding_count, started_at, ended_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     this.selectByIdStmt = db.prepare(`SELECT * FROM runs WHERE id = ?`);
     this.selectByProjectStmt = db.prepare(
@@ -56,6 +60,8 @@ export class RunDAO implements IRunDAO {
     this.insertStmt.run(
       run.id,
       run.projectId,
+      run.buildTargetId ?? null,
+      run.analysisExecutionId ?? null,
       run.module,
       run.status,
       run.analysisResultId,

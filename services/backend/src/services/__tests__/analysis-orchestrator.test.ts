@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AnalysisOrchestrator } from "../analysis-orchestrator";
 
 describe("AnalysisOrchestrator", () => {
-  it("legacy run alias keeps root analysisId in WS while target-scoped Quick result ids stay distinct", async () => {
+  it("quick execution keeps root executionId in WS while target-scoped result ids stay distinct", async () => {
     const sourceService = {
       getProjectPath: vi.fn(() => "/tmp/project"),
       listFiles: vi.fn(() => [{ relativePath: "src/main.c" }]),
@@ -55,12 +55,23 @@ describe("AnalysisOrchestrator", () => {
       broadcast: vi.fn(),
     };
     const buildTargetService = {
+      findById: vi.fn(() => ({
+        id: "target-1",
+        projectId: "project-1",
+        name: "gateway",
+        relativePath: "gateway/",
+        compileCommandsPath: "/tmp/project/gateway/compile_commands.json",
+        buildProfile: { sdkId: "sdk-gateway", compiler: "arm-none-eabi-gcc", targetArch: "armv7-a", languageStandard: "c11", headerLanguage: "c" },
+        sdkChoiceState: "sdk-selected",
+      })),
       findByProjectId: vi.fn(() => [{
         id: "target-1",
+        projectId: "project-1",
         name: "gateway",
         relativePath: "gateway/",
         compileCommandsPath: "/tmp/project/gateway/compile_commands.json",
         buildProfile: { sdkId: "sdk-default", compiler: "gcc", targetArch: "arm", languageStandard: "c11", headerLanguage: "c" },
+        sdkChoiceState: "sdk-selected",
       }]),
     };
     const targetLibraryDAO = {
@@ -80,7 +91,7 @@ describe("AnalysisOrchestrator", () => {
       targetLibraryDAO as any,
     );
 
-    await orchestrator.runAnalysis("project-1", "analysis-root", ["target-1"], "req-1");
+    await orchestrator.runQuickAnalysis("project-1", "analysis-root", ["target-1"], "req-1");
 
     expect(sastClient.scan).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -142,6 +153,17 @@ describe("AnalysisOrchestrator", () => {
     const ws = {
       broadcast: vi.fn(),
     };
+    const buildTargetService = {
+      findByProjectId: vi.fn(() => [{
+        id: "target-1",
+        projectId: "project-1",
+        name: "gateway",
+        relativePath: "gateway/",
+        compileCommandsPath: "/tmp/project/gateway/compile_commands.json",
+        buildProfile: { sdkId: "sdk-default", compiler: "gcc", targetArch: "arm", languageStandard: "c11", headerLanguage: "c" },
+        sdkChoiceState: "sdk-selected",
+      }]),
+    };
 
     const orchestrator = new AnalysisOrchestrator(
       sourceService as any,
@@ -152,9 +174,10 @@ describe("AnalysisOrchestrator", () => {
       settingsService as any,
       resultNormalizer as any,
       ws as any,
+      buildTargetService as any,
     );
 
-    await expect(orchestrator.runAnalysis("project-1", "analysis-root", undefined, "req-1"))
+    await expect(orchestrator.runAnalysis("project-1", "analysis-root", ["target-1"], "req-1"))
       .rejects.toThrow(/Disallowed tool omission/);
 
     expect(agentClient.submitTask).not.toHaveBeenCalled();
@@ -172,7 +195,7 @@ describe("AnalysisOrchestrator", () => {
     );
   });
 
-  it("legacy run alias completes Quick with GraphRAG-ready ingest without auto-starting Deep", async () => {
+  it("runAnalysis completes BuildTarget-scoped Quick with GraphRAG-ready ingest without auto-starting Deep", async () => {
     const sourceService = {
       getProjectPath: vi.fn(() => "/tmp/project"),
       listFiles: vi.fn(() => [{ relativePath: "src/main.c" }]),
@@ -224,6 +247,17 @@ describe("AnalysisOrchestrator", () => {
     const settingsService = { getAll: vi.fn(() => ({})) };
     const resultNormalizer = { normalizeAnalysisResult: vi.fn(), normalizeAgentResult: vi.fn() };
     const ws = { broadcast: vi.fn() };
+    const buildTargetService = {
+      findByProjectId: vi.fn(() => [{
+        id: "target-1",
+        projectId: "project-1",
+        name: "gateway",
+        relativePath: "gateway/",
+        compileCommandsPath: "/tmp/project/gateway/compile_commands.json",
+        buildProfile: { sdkId: "sdk-default", compiler: "gcc", targetArch: "arm", languageStandard: "c11", headerLanguage: "c" },
+        sdkChoiceState: "sdk-selected",
+      }]),
+    };
 
     const orchestrator = new AnalysisOrchestrator(
       sourceService as any,
@@ -234,9 +268,10 @@ describe("AnalysisOrchestrator", () => {
       settingsService as any,
       resultNormalizer as any,
       ws as any,
+      buildTargetService as any,
     );
 
-    await orchestrator.runAnalysis("project-1", "analysis-1", undefined, "req-1");
+    await orchestrator.runAnalysis("project-1", "analysis-1", ["target-1"], "req-1");
 
     expect(kbClient.ingestCodeGraph).toHaveBeenCalledOnce();
     expect(agentClient.submitTask).not.toHaveBeenCalled();
@@ -291,6 +326,17 @@ describe("AnalysisOrchestrator", () => {
     const settingsService = { getAll: vi.fn(() => ({})) };
     const resultNormalizer = { normalizeAnalysisResult: vi.fn(), normalizeAgentResult: vi.fn() };
     const ws = { broadcast: vi.fn() };
+    const buildTargetService = {
+      findByProjectId: vi.fn(() => [{
+        id: "target-1",
+        projectId: "project-1",
+        name: "gateway",
+        relativePath: "gateway/",
+        compileCommandsPath: "/tmp/project/gateway/compile_commands.json",
+        buildProfile: { sdkId: "sdk-default", compiler: "gcc", targetArch: "arm", languageStandard: "c11", headerLanguage: "c" },
+        sdkChoiceState: "sdk-selected",
+      }]),
+    };
 
     const orchestrator = new AnalysisOrchestrator(
       sourceService as any,
@@ -301,9 +347,10 @@ describe("AnalysisOrchestrator", () => {
       settingsService as any,
       resultNormalizer as any,
       ws as any,
+      buildTargetService as any,
     );
 
-    await expect(orchestrator.runAnalysis("project-1", "analysis-1", undefined, "req-1"))
+    await expect(orchestrator.runAnalysis("project-1", "analysis-1", ["target-1"], "req-1"))
       .rejects.toThrow(/Quick graph context not ready/);
 
     expect(agentClient.submitTask).not.toHaveBeenCalled();
@@ -349,6 +396,17 @@ describe("AnalysisOrchestrator", () => {
     const settingsService = { getAll: vi.fn(() => ({})) };
     const resultNormalizer = { normalizeAnalysisResult: vi.fn(), normalizeAgentResult: vi.fn() };
     const ws = { broadcast: vi.fn() };
+    const buildTargetService = {
+      findByProjectId: vi.fn(() => [{
+        id: "target-1",
+        projectId: "project-1",
+        name: "gateway",
+        relativePath: "gateway/",
+        compileCommandsPath: "/tmp/project/gateway/compile_commands.json",
+        buildProfile: { sdkId: "sdk-default", compiler: "gcc", targetArch: "arm", languageStandard: "c11", headerLanguage: "c" },
+        sdkChoiceState: "sdk-selected",
+      }]),
+    };
 
     const orchestrator = new AnalysisOrchestrator(
       sourceService as any,
@@ -359,9 +417,10 @@ describe("AnalysisOrchestrator", () => {
       settingsService as any,
       resultNormalizer as any,
       ws as any,
+      buildTargetService as any,
     );
 
-    await orchestrator.runQuickAnalysis("project-1", "analysis-1", undefined, "req-1");
+    await orchestrator.runQuickAnalysis("project-1", "analysis-1", ["target-1"], "req-1");
 
     expect(agentClient.submitTask).not.toHaveBeenCalled();
     expect(analysisResultDAO.save).toHaveBeenCalledOnce();
@@ -395,9 +454,11 @@ describe("AnalysisOrchestrator", () => {
     const buildTargetService = {
       findByProjectId: vi.fn(() => [{
         id: "target-1",
+        projectId: "project-1",
         name: "gateway",
         relativePath: "gateway/",
         buildProfile: { sdkId: "sdk-default", compiler: "gcc", targetArch: "arm", languageStandard: "c11", headerLanguage: "c" },
+        sdkChoiceState: "sdk-selected",
       }]),
     };
     const targetLibraryDAO = { getIncludedPaths: vi.fn(() => []) };
@@ -416,7 +477,7 @@ describe("AnalysisOrchestrator", () => {
     );
 
     await expect(orchestrator.runQuickAnalysis("project-1", "analysis-1", ["target-1"], "req-1"))
-      .rejects.toThrow(/Build preparation required before Quick/);
+      .rejects.toThrow(/compile_commands/);
     expect(sastClient.scan).not.toHaveBeenCalled();
   });
 
@@ -451,6 +512,7 @@ describe("AnalysisOrchestrator", () => {
     };
     const analysisResultDAO = {
       save: vi.fn(),
+      findByExecutionId: vi.fn(() => []),
       findById: vi.fn((id: string) => id === "analysis-quick-1" ? {
         id,
         projectId: "project-1",
@@ -495,6 +557,116 @@ describe("AnalysisOrchestrator", () => {
     expect(ws.broadcast).toHaveBeenCalledWith(
       "analysis-deep-1",
       expect.objectContaining({ type: "analysis-deep-complete" }),
+    );
+  });
+
+  it("runDeepAnalysis resolves a target-scoped quick result and uses subproject KB scope", async () => {
+    const sourceService = {
+      getProjectPath: vi.fn(() => "/tmp/project"),
+      listFiles: vi.fn(() => [{ relativePath: "gateway/main.c" }]),
+    };
+    const sastClient = {
+      scan: vi.fn(),
+    };
+    const kbClient = {
+      ingestCodeGraph: vi.fn(),
+      isGraphReady: vi.fn(() => true),
+      getCodeGraphStats: vi.fn(async () => ({ project_id: "project-1:gateway", function_count: 7, call_edge_count: 9 })),
+    };
+    const agentClient = {
+      submitTask: vi.fn(async () => ({
+        status: "completed",
+        result: {
+          claims: [],
+          confidence: 0.9,
+          caveats: [],
+          recommendedNextSteps: [],
+          policyFlags: [],
+          confidenceBreakdown: { grounding: 1, deterministicSupport: 1, ragCoverage: 1, schemaCompliance: 1 },
+          needsHumanReview: false,
+        },
+        audit: { latencyMs: 1 },
+      })),
+      isSuccess: vi.fn(() => true),
+    };
+    const analysisResultDAO = {
+      save: vi.fn(),
+      findByExecutionId: vi.fn((id: string) => id === "analysis-quick-1" ? [{
+        id: "analysis-quick-1-gateway",
+        projectId: "project-1",
+        buildTargetId: "target-1",
+        analysisExecutionId: "analysis-quick-1",
+        module: "static_analysis",
+        status: "completed",
+        vulnerabilities: [],
+        summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 },
+        scaLibraries: [{ name: "openssl", version: "1.1.1" }],
+        createdAt: new Date().toISOString(),
+      }] : []),
+      findById: vi.fn((id: string) => id === "analysis-quick-1-gateway" ? {
+        id,
+        projectId: "project-1",
+        buildTargetId: "target-1",
+        analysisExecutionId: "analysis-quick-1",
+        module: "static_analysis",
+        status: "completed",
+        vulnerabilities: [],
+        summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 },
+        scaLibraries: [{ name: "openssl", version: "1.1.1" }],
+        createdAt: new Date().toISOString(),
+      } : undefined),
+    };
+    const settingsService = { getAll: vi.fn(() => ({ buildProfile: { sdkId: "sdk-default" } })) };
+    const resultNormalizer = { normalizeAnalysisResult: vi.fn(), normalizeAgentResult: vi.fn() };
+    const ws = { broadcast: vi.fn() };
+    const buildTargetService = {
+      findByProjectId: vi.fn(() => [{
+        id: "target-1",
+        projectId: "project-1",
+        name: "gateway",
+        relativePath: "gateway/",
+        buildProfile: { sdkId: "sdk-gateway", compiler: "arm-none-eabi-gcc", targetArch: "armv7-a", languageStandard: "c11", headerLanguage: "c" },
+        sdkChoiceState: "sdk-selected",
+      }]),
+    };
+
+    const orchestrator = new AnalysisOrchestrator(
+      sourceService as any,
+      sastClient as any,
+      kbClient as any,
+      agentClient as any,
+      analysisResultDAO as any,
+      settingsService as any,
+      resultNormalizer as any,
+      ws as any,
+      buildTargetService as any,
+    );
+
+    await orchestrator.runDeepAnalysis("project-1", "analysis-deep-1", "analysis-quick-1", "req-1");
+
+    expect(kbClient.getCodeGraphStats).toHaveBeenCalledWith("project-1:gateway", "req-1");
+    expect(agentClient.submitTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: {
+          trusted: expect.objectContaining({
+            objective: "project-1 보안 취약점 심층 분석 (gateway)",
+            targetPath: "gateway/",
+            buildProfile: expect.objectContaining({ sdkId: "sdk-gateway" }),
+            quickContext: expect.objectContaining({
+              quickAnalysisId: "analysis-quick-1-gateway",
+              kbProjectId: "project-1:gateway",
+              targetName: "gateway",
+            }),
+            graphContext: expect.objectContaining({
+              kbProjectId: "project-1:gateway",
+              functionCount: 7,
+              targetPath: "gateway/",
+            }),
+          }),
+        },
+      }),
+      "req-1",
+      undefined,
     );
   });
 });

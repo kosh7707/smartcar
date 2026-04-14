@@ -25,6 +25,20 @@ vi.mock("../../contexts/ToastContext", () => ({ useToast: () => mockToast }));
 vi.mock("./components/MonitoringView", () => ({ MonitoringView: () => <div>monitoring-view</div> }));
 vi.mock("./components/SessionDetailView", () => ({ SessionDetailView: () => <div>session-detail-view</div> }));
 
+function makeSession(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "session-1",
+    projectId: "p-1",
+    status: "stopped",
+    source: { type: "adapter", adapterId: "adapter-1", adapterName: "CAN Adapter" },
+    messageCount: 10,
+    alertCount: 1,
+    startedAt: "2026-04-10T00:00:00Z",
+    endedAt: "2026-04-10T00:10:00Z",
+    ...overrides,
+  };
+}
+
 function renderPage() {
   return render(
     <MemoryRouter initialEntries={["/projects/p-1/dynamic-analysis"]}>
@@ -43,6 +57,15 @@ describe("DynamicAnalysisPage", () => {
     mockCreateDynamicSession.mockResolvedValue({ id: "session-1" });
     mockStartDynamicSession.mockResolvedValue({ id: "session-1", status: "monitoring" });
     mockStopDynamicSession.mockResolvedValue(undefined);
+  });
+
+  it("shows history loading feedback while sessions are resolving", () => {
+    mockFetchDynamicSessions.mockImplementation(() => new Promise(() => {}));
+
+    renderPage();
+
+    expect(screen.getByText("세션 이력 로딩 중...")).toBeInTheDocument();
+    expect(document.title).toBe("AEGIS — Dynamic Analysis");
   });
 
   it("shows adapter warning when starting without connected adapters", async () => {
@@ -68,5 +91,53 @@ describe("DynamicAnalysisPage", () => {
     await waitFor(() => expect(mockCreateDynamicSession).toHaveBeenCalledWith("p-1", "adapter-1"));
     await waitFor(() => expect(mockStartDynamicSession).toHaveBeenCalledWith("session-1"));
     expect(await screen.findByText("monitoring-view")).toBeInTheDocument();
+  });
+
+  it("opens monitoring view immediately when the API returns an active session", async () => {
+    mockUseAdapters.mockReturnValue({ connected: [{ id: "adapter-1", name: "CAN Adapter" }], hasConnected: true });
+    mockFetchDynamicSessions.mockResolvedValue([
+      makeSession({ status: "monitoring", endedAt: undefined }),
+    ]);
+
+    renderPage();
+
+    await waitFor(() => expect(mockFetchDynamicSessions).toHaveBeenCalledWith("p-1"));
+    expect(await screen.findByText("monitoring-view")).toBeInTheDocument();
+  });
+
+  it("opens the session detail view when a historical session is selected", async () => {
+    mockUseAdapters.mockReturnValue({ connected: [{ id: "adapter-1", name: "CAN Adapter" }], hasConnected: true });
+    mockFetchDynamicSessions.mockResolvedValue([
+      makeSession(),
+    ]);
+
+    renderPage();
+
+    const adapterBadge = await screen.findByText("CAN Adapter");
+    fireEvent.click(adapterBadge);
+
+    expect(await screen.findByText("session-detail-view")).toBeInTheDocument();
+  });
+
+  it("shows the empty history state and a toast when loading sessions fails", async () => {
+    mockFetchDynamicSessions.mockRejectedValue(new Error("load failed"));
+
+    renderPage();
+
+    expect(await screen.findByText("아직 동적 분석 이력이 없습니다")).toBeInTheDocument();
+    await waitFor(() => expect(mockToast.error).toHaveBeenCalled());
+  });
+
+  it("does not fetch sessions and shows the empty history state when no project id is present", async () => {
+    render(
+      <MemoryRouter initialEntries={["/dynamic-analysis"]}>
+        <Routes>
+          <Route path="/dynamic-analysis" element={<DynamicAnalysisPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("아직 동적 분석 이력이 없습니다")).toBeInTheDocument();
+    expect(mockFetchDynamicSessions).not.toHaveBeenCalled();
   });
 });

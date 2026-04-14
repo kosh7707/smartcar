@@ -37,6 +37,9 @@ class ToolRegistry:
     def register(self, schema: ToolSchema) -> None:
         self._schemas[schema.name] = schema
 
+    def unregister(self, name: str) -> None:
+        self._schemas.pop(name, None)
+
     def get(self, name: str) -> ToolSchema | None:
         return self._schemas.get(name)
 

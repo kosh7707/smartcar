@@ -394,3 +394,67 @@ def test_find_dangerous_callers_uses_map_access_for_optional_provenance():
     query = session.run.call_args[0][0]
     assert "properties(caller)['build_snapshot_id'] = $build_snapshot_id" in query
     assert "coalesce(properties(caller)['source_build_attempt_id'], null)" in query
+
+
+def test_export_project():
+    svc, session = _make_service()
+
+    mock_records = [
+        {
+            "name": "main",
+            "file": "main.cpp",
+            "line": 1,
+            "origin": None,
+            "original_lib": None,
+            "original_version": None,
+            "build_snapshot_id": "snap-1",
+            "build_unit_id": "unit-1",
+            "source_build_attempt_id": None,
+            "calls": ["helper", None],
+        },
+        {
+            "name": "helper",
+            "file": "helper.cpp",
+            "line": 2,
+            "origin": "modified-third-party",
+            "original_lib": "libx",
+            "original_version": "1.2.3",
+            "build_snapshot_id": None,
+            "build_unit_id": None,
+            "source_build_attempt_id": None,
+            "calls": [],
+        },
+    ]
+    result = MagicMock()
+    result.__iter__ = MagicMock(return_value=iter(mock_records))
+    session.run.return_value = result
+
+    exported = svc.export_project("test-project")
+
+    assert exported[0]["name"] == "main"
+    assert exported[0]["calls"] == ["helper"]
+    assert exported[0]["provenance"]["buildSnapshotId"] == "snap-1"
+    assert exported[1]["originalLib"] == "libx"
+
+
+def test_activate_staging():
+    svc, session = _make_service()
+
+    def run_side_effect(query, **kwargs):
+        result = MagicMock()
+        if "count(n)" in query:
+            result.single.return_value = {"cnt": 2}
+        elif "count(r)" in query:
+            result.single.return_value = {"cnt": 1}
+        elif "DISTINCT n.file" in query:
+            result.__iter__ = MagicMock(return_value=iter([{"file": "main.cpp"}]))
+        return result
+
+    session.run.side_effect = run_side_effect
+
+    stats = svc.activate_staging("__staging__", "test-project")
+
+    assert stats["nodeCount"] == 2
+    queries = [call.args[0] for call in session.run.call_args_list]
+    assert any("DETACH DELETE" in query for query in queries)
+    assert any("SET n.project_id = $pid" in query for query in queries)

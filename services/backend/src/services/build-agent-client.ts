@@ -10,6 +10,7 @@ import {
   BuildAgentUnavailableError,
   BuildAgentTimeoutError,
 } from "../lib/errors";
+import { buildHealthCheckUrl } from "../lib/downstream-health";
 
 const logger = createLogger("build-agent-client");
 
@@ -212,9 +213,9 @@ export class BuildAgentClient {
     return response.status === "completed";
   }
 
-  async checkHealth(): Promise<Record<string, unknown> | null> {
+  async checkHealth(requestId?: string): Promise<Record<string, unknown> | null> {
     try {
-      const res = await fetch(`${this.baseUrl}/v1/health`);
+      const res = await fetch(buildHealthCheckUrl(this.baseUrl, requestId));
       return (await res.json()) as Record<string, unknown>;
     } catch (err) {
       logger.warn({ err }, "Build Agent health check failed");

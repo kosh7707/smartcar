@@ -85,6 +85,8 @@ export class ResultNormalizer {
           id: findingId,
           runId,
           projectId: result.projectId,
+          buildTargetId: result.buildTargetId,
+          analysisExecutionId: result.analysisExecutionId,
           module: result.module,
           status: preservedStatus,
           severity: vuln.severity,
@@ -111,6 +113,8 @@ export class ResultNormalizer {
       const run: Run = {
         id: runId,
         projectId: result.projectId,
+        buildTargetId: result.buildTargetId,
+        analysisExecutionId: result.analysisExecutionId,
         module: result.module,
         status: result.status === "completed" ? "completed" : result.status === "failed" ? "failed" : "completed",
         analysisResultId: result.id,

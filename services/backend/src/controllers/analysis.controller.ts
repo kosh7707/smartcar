@@ -23,59 +23,27 @@ export function createAnalysisRouter(
 ): Router {
   const router = Router();
 
-  const validateMode = (mode: string | undefined, targetIds: string[] | undefined) => {
-    if (mode === undefined) return;
-    if (mode !== "full" && mode !== "subproject") {
-      throw new InvalidInputError('mode must be "full" or "subproject"');
+  const rejectLegacyExecutionFields = (body: Record<string, unknown>) => {
+    if (body.mode !== undefined) {
+      throw new InvalidInputError("mode is no longer supported; use buildTargetId");
     }
-    if (mode === "subproject" && (!targetIds || targetIds.length === 0)) {
-      throw new InvalidInputError("targetIds is required when mode is 'subproject'");
+    if (body.targetIds !== undefined) {
+      throw new InvalidInputError("targetIds is no longer supported; use buildTargetId");
     }
-    if (mode === "full" && targetIds && targetIds.length > 0) {
-      throw new InvalidInputError("targetIds must be empty when mode is 'full'");
+    if (body.quickAnalysisId !== undefined) {
+      throw new InvalidInputError("quickAnalysisId is no longer supported; use executionId");
     }
   };
 
-  // POST /api/analysis/run — legacy alias of explicit Quick
-  router.post("/run", asyncHandler(async (req, res) => {
-    const { projectId, targetIds, mode } = req.body as {
-      projectId?: string;
-      targetIds?: string[];
-      mode?: string;
-    };
-    if (!projectId) throw new InvalidInputError("projectId is required");
-    validateMode(mode, targetIds);
-
-    const analysisId = `analysis-${crypto.randomUUID().slice(0, 8)}`;
-    const requestId = req.requestId;
-
-    // Async 실행 (항상 비동기)
-    const abortController = analysisTracker.start(analysisId, projectId);
-
-    res.status(202).json({
-      success: true,
-      data: { analysisId, status: "running" },
-    });
-
-    orchestrator
-      .runQuickAnalysis(projectId, analysisId, targetIds, requestId, abortController.signal)
-      .then(() => analysisTracker.complete(analysisId))
-      .catch((err) => {
-        const msg = err instanceof Error ? err.message : "Unknown error";
-        analysisTracker.fail(analysisId, msg);
-        logger.error({ err, analysisId, requestId }, "Legacy /run quick alias failed");
-      });
-  }));
-
   // POST /api/analysis/quick — explicit Quick only
   router.post("/quick", asyncHandler(async (req, res) => {
-    const { projectId, targetIds, mode } = req.body as {
+    const { projectId, buildTargetId } = req.body as {
       projectId?: string;
-      targetIds?: string[];
-      mode?: string;
+      buildTargetId?: string;
     };
+    rejectLegacyExecutionFields(req.body as Record<string, unknown>);
     if (!projectId) throw new InvalidInputError("projectId is required");
-    validateMode(mode, targetIds);
+    if (!buildTargetId) throw new InvalidInputError("buildTargetId is required");
 
     const analysisId = `analysis-${crypto.randomUUID().slice(0, 8)}`;
     const requestId = req.requestId;
@@ -87,23 +55,26 @@ export function createAnalysisRouter(
     });
 
     orchestrator
-      .runQuickAnalysis(projectId, analysisId, targetIds, requestId, abortController.signal)
+      .runQuickAnalysis(projectId, analysisId, [buildTargetId], requestId, abortController.signal)
       .then(() => analysisTracker.complete(analysisId))
       .catch((err) => {
         const msg = err instanceof Error ? err.message : "Unknown error";
         analysisTracker.fail(analysisId, msg);
-        logger.error({ err, analysisId, requestId }, "Quick analysis failed");
+        logger.error({ err, analysisId, buildTargetId, requestId }, "Quick analysis failed");
       });
   }));
 
   // POST /api/analysis/deep — explicit Deep only, using prior Quick context
   router.post("/deep", asyncHandler(async (req, res) => {
-    const { projectId, quickAnalysisId } = req.body as {
+    const { projectId, buildTargetId, executionId } = req.body as {
       projectId?: string;
-      quickAnalysisId?: string;
+      buildTargetId?: string;
+      executionId?: string;
     };
+    rejectLegacyExecutionFields(req.body as Record<string, unknown>);
     if (!projectId) throw new InvalidInputError("projectId is required");
-    if (!quickAnalysisId) throw new InvalidInputError("quickAnalysisId is required");
+    if (!buildTargetId) throw new InvalidInputError("buildTargetId is required");
+    if (!executionId) throw new InvalidInputError("executionId is required");
 
     const analysisId = `analysis-${crypto.randomUUID().slice(0, 8)}`;
     const requestId = req.requestId;
@@ -115,12 +86,12 @@ export function createAnalysisRouter(
     });
 
     orchestrator
-      .runDeepAnalysis(projectId, analysisId, quickAnalysisId, requestId, abortController.signal)
+      .runDeepAnalysis(projectId, analysisId, executionId, requestId, abortController.signal)
       .then(() => analysisTracker.complete(analysisId))
       .catch((err) => {
         const msg = err instanceof Error ? err.message : "Unknown error";
         analysisTracker.fail(analysisId, msg);
-        logger.error({ err, analysisId, quickAnalysisId, requestId }, "Deep analysis failed");
+        logger.error({ err, analysisId, buildTargetId, executionId, requestId }, "Deep analysis failed");
       });
   }));
 

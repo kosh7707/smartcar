@@ -9,7 +9,7 @@ from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from app.context import set_request_id
-from app.timeout import parse_timeout
+from app.timeout import parse_timeout, run_async_with_deadline
 
 logger = logging.getLogger(__name__)
 
@@ -48,14 +48,18 @@ async def batch_lookup(
     x_timeout_ms: int | None = Header(None, alias="X-Timeout-Ms"),
 ) -> dict:
     set_request_id(x_request_id)
-    parse_timeout(x_timeout_ms)
+    deadline, _ = parse_timeout(x_timeout_ms)
     start = time.monotonic()
 
     if _nvd_client is None:
         raise HTTPException(503, "NVD client not initialized")
 
-    results = await _nvd_client.batch_lookup(
-        [{"name": lib.name, "version": lib.version, "repo_url": lib.repo_url, "commit": lib.commit} for lib in req.libraries]
+    results = await run_async_with_deadline(
+        deadline,
+        "cve-batch-lookup",
+        _nvd_client.batch_lookup(
+            [{"name": lib.name, "version": lib.version, "repo_url": lib.repo_url, "commit": lib.commit} for lib in req.libraries]
+        ),
     )
 
     elapsed_ms = int((time.monotonic() - start) * 1000)

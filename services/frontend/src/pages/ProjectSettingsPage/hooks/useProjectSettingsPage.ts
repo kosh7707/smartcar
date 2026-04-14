@@ -69,7 +69,11 @@ export function useProjectSettingsPage(projectId: string | undefined, toast: Toa
   }, []);
 
   const load = useCallback(async () => {
-    if (!projectId) return;
+    if (!projectId) {
+      setRegistered([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const data = await fetchProjectSdks(projectId);

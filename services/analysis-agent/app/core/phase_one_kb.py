@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 
+from app.clients.kb_error_utils import is_kb_not_ready_error, is_kb_timeout_error
 from agent_shared.context import get_request_id
 from agent_shared.observability import agent_log
 from app.config import settings
@@ -29,20 +30,6 @@ _DANGEROUS_FUNC_PATTERNS: dict[str, re.Pattern] = {
     func: re.compile(rf"\b{re.escape(func)}\b")
     for func in _DANGEROUS_FUNCS
 }
-
-
-def is_kb_not_ready_error(exc: Exception) -> bool:
-    if not isinstance(exc, httpx.HTTPStatusError):
-        return False
-    response = exc.response
-    if response is None or response.status_code != 503:
-        return False
-    try:
-        data = response.json()
-    except Exception:
-        return False
-    return data.get("errorDetail", {}).get("code") == "KB_NOT_READY"
-
 
 def extract_cwe_ids(findings: list[dict]) -> set[str]:
     """findings에서 고유 CWE ID를 결정론적으로 추출한다."""
@@ -124,12 +111,21 @@ async def run_cve_lookup(
                 cve["_version"] = lib_result.get("version", "")
                 result.cve_lookup.append(cve)
     except Exception as exc:
-        agent_log(
-            logger, "Phase 1: CVE 조회 실패",
-            component="phase_one", phase="cve_lookup_error_detail",
-            requestBody=json.dumps(request_body, ensure_ascii=False)[:500],
-            level=logging.WARNING,
-        )
+        if is_kb_timeout_error(exc):
+            result.cve_lookup_timed_out = True
+            agent_log(
+                logger, "Phase 1: CVE 조회 timeout",
+                component="phase_one", phase="cve_lookup_timeout",
+                requestBody=json.dumps(request_body, ensure_ascii=False)[:500],
+                level=logging.WARNING,
+            )
+        else:
+            agent_log(
+                logger, "Phase 1: CVE 조회 실패",
+                component="phase_one", phase="cve_lookup_error_detail",
+                requestBody=json.dumps(request_body, ensure_ascii=False)[:500],
+                level=logging.WARNING,
+            )
         agent_log(
             logger, "Phase 1: CVE 조회 실패",
             component="phase_one", phase="cve_lookup_error",
@@ -199,7 +195,14 @@ async def run_threat_query(
                 level=logging.WARNING,
             )
     except Exception as exc:
-        if is_kb_not_ready_error(exc):
+        if is_kb_timeout_error(exc):
+            result.kb_timed_out = True
+            agent_log(
+                logger, "Phase 1: KB 위협 배치 조회 timeout",
+                component="phase_one", phase="threat_query_timeout",
+                level=logging.WARNING,
+            )
+        elif is_kb_not_ready_error(exc):
             result.kb_not_ready = True
             agent_log(
                 logger, "Phase 1: KB not ready",
@@ -264,6 +267,13 @@ async def run_dangerous_callers(
         resp.raise_for_status()
         result.dangerous_callers = resp.json().get("results", [])
     except Exception as exc:
+        if is_kb_timeout_error(exc):
+            result.dangerous_callers_timed_out = True
+            agent_log(
+                logger, "Phase 1: 위험 호출자 조회 timeout",
+                component="phase_one", phase="dangerous_callers_timeout",
+                level=logging.WARNING,
+            )
         agent_log(
             logger, "Phase 1: 위험 호출자 조회 실패",
             component="phase_one", phase="dangerous_callers_error",

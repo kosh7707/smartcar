@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.types import TaskType
 
@@ -39,3 +39,12 @@ class TaskRequest(BaseModel):
     evidenceRefs: list[EvidenceRef] = []
     constraints: Constraints = Field(default_factory=Constraints)
     metadata: RequestMetadata | None = None
+
+
+class AsyncChatSubmitRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    model: str | None = None
+    messages: list[dict] = Field(min_length=1)
+    max_tokens: int | None = Field(default=None, ge=1)
+    temperature: float | None = None

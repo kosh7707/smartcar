@@ -82,6 +82,7 @@ class BuildRunner:
         timeout: int = 300,
         environment: dict[str, str] | None = None,
         wrap_with_bear: bool = True,
+        on_runtime_state=None,
     ) -> dict[str, Any]:
         """caller가 제공한 build command를 그대로 실행하고 compile_commands.json을 생성한다."""
         import time
@@ -112,13 +113,59 @@ class BuildRunner:
             stderr=asyncio.subprocess.PIPE,
         )
 
+        async def _emit_runtime_state(
+            *,
+            local_ack_state: str,
+            last_ack_source: str,
+            blocked_reason: str | None = None,
+        ) -> None:
+            if on_runtime_state:
+                await on_runtime_state(
+                    {
+                        "localAckState": local_ack_state,
+                        "lastAckSource": last_ack_source,
+                        "blockedReason": blocked_reason,
+                        "degraded": False,
+                        "degradeReasons": [],
+                    },
+                )
+
+        communicate_task: asyncio.Task[tuple[bytes, bytes]] | None = None
         try:
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+            heartbeat_interval = max(min(timeout, 5), 1)
+            communicate_task = asyncio.create_task(proc.communicate())
+            deadline = time.perf_counter() + timeout
+            await _emit_runtime_state(
+                local_ack_state="transport-only",
+                last_ack_source="build-subprocess-alive",
+            )
+            while True:
+                remaining = deadline - time.perf_counter()
+                if remaining <= 0:
+                    raise asyncio.TimeoutError
+                try:
+                    stdout, stderr = await asyncio.wait_for(
+                        asyncio.shield(communicate_task),
+                        timeout=min(heartbeat_interval, remaining),
+                    )
+                    break
+                except asyncio.TimeoutError:
+                    if communicate_task.done():
+                        stdout, stderr = communicate_task.result()
+                        break
+                    await _emit_runtime_state(
+                        local_ack_state="transport-only",
+                        last_ack_source="build-subprocess-alive",
+                    )
         except asyncio.TimeoutError:
             kill_result = proc.kill()
             if asyncio.iscoroutine(kill_result):
                 await kill_result
-            await proc.communicate()
+            if communicate_task is not None:
+                try:
+                    await communicate_task
+                except asyncio.TimeoutError:
+                    await proc.communicate()
             elapsed = int((time.perf_counter() - t0) * 1000)
             readiness = self._build_readiness(
                 compile_commands_path=None,
@@ -151,6 +198,10 @@ class BuildRunner:
                     retryable=True,
                 ),
             }
+        await _emit_runtime_state(
+            local_ack_state="phase-advancing",
+            last_ack_source="build-phase-complete",
+        )
 
         elapsed = int((time.perf_counter() - t0) * 1000)
         build_output = stdout.decode() + stderr.decode()

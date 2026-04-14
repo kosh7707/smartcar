@@ -94,6 +94,14 @@ describe("VulnerabilitiesPage", () => {
     });
   });
 
+  it("shows loading feedback before findings resolve", () => {
+    mockFetchProjectFindings.mockImplementation(() => new Promise(() => {}));
+
+    renderPage();
+
+    expect(screen.getByText("Finding 로딩 중...")).toBeInTheDocument();
+  });
+
   it("loads the routed project findings and respects the severity query filter", async () => {
     renderPage("/projects/project-1/vulnerabilities?severity=critical");
 
@@ -144,5 +152,40 @@ describe("VulnerabilitiesPage", () => {
     });
     await waitFor(() => expect(mockFetchProjectFindings).toHaveBeenCalledTimes(2));
     expect(mockToast.success).toHaveBeenCalledWith("1건 상태 변경 완료");
+  });
+
+  it("opens the finding detail view and reloads findings when returning", async () => {
+    renderPage();
+
+    fireEvent.click(await screen.findByText("Buffer overflow in parser"));
+    expect(await screen.findByText("Detail view: finding-1")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+
+    await waitFor(() => expect(mockFetchProjectFindings).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("Buffer overflow in parser")).toBeInTheDocument();
+  });
+
+  it("logs and toasts when loading findings fails", async () => {
+    mockFetchProjectFindings.mockRejectedValue(new Error("load failed"));
+
+    renderPage();
+
+    await waitFor(() => expect(mockToast.error).toHaveBeenCalledWith("Finding 목록을 불러올 수 없습니다."));
+    expect(await screen.findByText("조건에 맞는 Finding이 없습니다")).toBeInTheDocument();
+  });
+
+  it("does not fetch findings and shows an empty state when no project id is present", async () => {
+    render(
+      <MemoryRouter initialEntries={["/vulnerabilities"]}>
+        <Routes>
+          <Route path="/vulnerabilities" element={<VulnerabilitiesPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByText("조건에 맞는 Finding이 없습니다")).toBeInTheDocument());
+    expect(mockFetchProjectFindings).not.toHaveBeenCalled();
+    expect(mockToast.error).not.toHaveBeenCalled();
   });
 });

@@ -67,3 +67,27 @@ def test_mode_property_values(_mock_qdrant):
     MockClient.reset_mock()
     ts_server = ThreatSearch(qdrant_url="http://host:6333")
     assert ts_server.mode == "server"
+
+
+def test_missing_collection_raises_by_default():
+    with patch("app.rag.threat_search.QdrantClient") as MockClient:
+        instance = MagicMock()
+        instance.get_collections.return_value.collections = []
+        MockClient.return_value = instance
+
+        from app.rag.threat_search import ThreatSearch
+
+        with pytest.raises(RuntimeError, match="threat_knowledge"):
+            ThreatSearch(qdrant_path="/tmp/qdrant")
+
+
+def test_missing_collection_allowed_when_not_required():
+    with patch("app.rag.threat_search.QdrantClient") as MockClient:
+        instance = MagicMock()
+        instance.get_collections.return_value.collections = []
+        MockClient.return_value = instance
+
+        from app.rag.threat_search import ThreatSearch
+
+        ts = ThreatSearch(qdrant_path="/tmp/qdrant", require_collection=False)
+        assert ts.mode == "file"

@@ -13,6 +13,7 @@ from agent_shared.context import get_request_id
 from agent_shared.observability import agent_log
 from agent_shared.schemas.agent import ToolResult
 from agent_shared.schemas.upstream import SastFinding
+from app.runtime.request_summary import request_summary_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,8 @@ class SastScanTool:
             headers["X-Request-Id"] = request_id
 
         try:
+            if request_id:
+                request_summary_tracker.mark_transport_only(request_id, source="s4-scan-wait")
             return await self._stream_scan(arguments, headers)
         except Exception as e:
             logger.warning("SAST Runner 호출 실패: %s", e)
@@ -110,6 +113,12 @@ class SastScanTool:
                 event_type = event.get("type", "")
 
                 if event_type == "progress":
+                    request_id = get_request_id()
+                    if request_id:
+                        request_summary_tracker.mark_phase_advancing(
+                            request_id,
+                            source="s4-progress",
+                        )
                     agent_log(
                         logger, "SAST 도구 진행",
                         component="sast_tool", phase="sast_progress",
@@ -129,6 +138,12 @@ class SastScanTool:
                             component="sast_tool", phase="sast_queued",
                         )
                     elif hb_status == "running":
+                        request_id = get_request_id()
+                        if request_id:
+                            request_summary_tracker.mark_phase_advancing(
+                                request_id,
+                                source="s4-heartbeat",
+                            )
                         is_running = True
                         progress = event.get("progress", {})
                         files_completed = progress.get("filesCompleted", 0)

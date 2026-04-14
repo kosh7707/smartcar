@@ -140,6 +140,26 @@ class TestRunThreatQuery:
         assert result.kb_not_ready is True
         await executor.aclose()
 
+    @pytest.mark.asyncio
+    async def test_kb_timeout_flagged(self):
+        executor = Phase1Executor(kb_endpoint="http://localhost:8002")
+        result = Phase1Result(
+            sast_findings=[{"ruleId": "CWE-78", "message": "injection"}],
+        )
+
+        mock_response = MagicMock()
+        mock_response.status_code = 408
+        mock_response.json.return_value = {"errorDetail": {"code": "TIMEOUT"}}
+        executor._kb_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError("timeout", request=MagicMock(), response=mock_response)
+        )
+
+        result = await executor._run_threat_query(result)
+
+        assert result.threat_context == []
+        assert result.kb_timed_out is True
+        await executor.aclose()
+
 
 # ───────────────────────────────────────────────
 # _run_cve_lookup
@@ -194,6 +214,26 @@ class TestRunCveLookup:
         await executor.aclose()
 
     @pytest.mark.asyncio
+    async def test_timeout_flagged(self):
+        executor = Phase1Executor(kb_endpoint="http://localhost:8002")
+        result = Phase1Result(
+            sca_libraries=[{"name": "openssl", "version": "1.1.1"}],
+        )
+
+        mock_response = MagicMock()
+        mock_response.status_code = 408
+        mock_response.json.return_value = {"errorDetail": {"code": "TIMEOUT"}}
+        executor._kb_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError("timeout", request=MagicMock(), response=mock_response)
+        )
+
+        result = await executor._run_cve_lookup(result)
+
+        assert result.cve_lookup == []
+        assert result.cve_lookup_timed_out is True
+        await executor.aclose()
+
+    @pytest.mark.asyncio
     async def test_no_libraries_skips(self):
         executor = Phase1Executor(kb_endpoint="http://localhost:8002")
         result = Phase1Result(sca_libraries=[])
@@ -230,6 +270,62 @@ class TestRunDangerousCallers:
 
         assert len(result.dangerous_callers) == 1
         assert result.dangerous_callers[0]["name"] == "postJson"
+        await executor.aclose()
+
+    @pytest.mark.asyncio
+    async def test_timeout_flagged(self):
+        executor = Phase1Executor(kb_endpoint="http://localhost:8002")
+        result = Phase1Result(
+            sast_findings=[{"ruleId": "", "message": "popen() used for command execution"}],
+        )
+
+        mock_response = MagicMock()
+        mock_response.status_code = 408
+        mock_response.json.return_value = {"errorDetail": {"code": "TIMEOUT"}}
+        executor._kb_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError("timeout", request=MagicMock(), response=mock_response)
+        )
+
+        result = await executor._run_dangerous_callers(result, "test-project")
+
+        assert result.dangerous_callers == []
+        assert result.dangerous_callers_timed_out is True
+        await executor.aclose()
+
+
+class TestIngestCodeGraph:
+    @pytest.mark.asyncio
+    async def test_consumes_ingest_readiness_contract(self):
+        executor = Phase1Executor(kb_endpoint="http://localhost:8002")
+        result = Phase1Result(
+            code_functions=[
+                {"name": "postJson", "file": "src/http_client.cpp", "line": 8, "calls": ["popen"]},
+            ],
+        )
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = {
+            "status": "partial",
+            "readiness": {
+                "neo4jGraph": True,
+                "vectorIndex": False,
+                "graphRag": False,
+            },
+            "warnings": ["VECTOR_INDEX_INCOMPLETE"],
+            "nodeCount": 1,
+            "edgeCount": 0,
+        }
+        executor._kb_client.post = AsyncMock(return_value=mock_resp)
+
+        await executor._ingest_code_graph(result, "proj-1", "req-1")
+
+        assert result.code_graph_status == "partial"
+        assert result.code_graph_neo4j_ready is True
+        assert result.code_graph_vector_ready is False
+        assert result.code_graph_graph_rag_ready is False
+        assert result.code_graph_warnings == ["VECTOR_INDEX_INCOMPLETE"]
         await executor.aclose()
 
 
@@ -317,6 +413,41 @@ class TestBuildPhase2Prompt:
         assert "위험 함수 호출자" in user
         assert "postJson" in user
         assert "popen" in user
+
+    def test_mentions_kb_timeouts_as_caveats(self):
+        result = Phase1Result(
+            kb_timed_out=True,
+            cve_lookup_timed_out=True,
+            dangerous_callers_timed_out=True,
+        )
+
+        _, user = build_phase2_prompt(result, {"objective": "test"})
+
+        assert "KB timeout" in user
+        assert "CVE lookup timeout" in user
+        assert "dangerous-callers timeout" in user
+
+    def test_mentions_code_graph_not_ready(self):
+        result = Phase1Result(
+            code_graph_neo4j_ready=False,
+        )
+
+        _, user = build_phase2_prompt(result, {"objective": "test"})
+
+        assert "code graph not ready" in user
+        assert "code_graph.callers" in user
+
+    def test_mentions_code_graph_semantic_search_not_ready(self):
+        result = Phase1Result(
+            code_graph_neo4j_ready=True,
+            code_graph_graph_rag_ready=False,
+            code_graph_warnings=["VECTOR_INDEX_INCOMPLETE"],
+        )
+
+        _, user = build_phase2_prompt(result, {"objective": "test"})
+
+        assert "code graph semantic search not ready" in user
+        assert "VECTOR_INDEX_INCOMPLETE" in user
 
     def test_phase_a_is_not_accepted_as_final_output(self):
         """Phase A 계획만 출력하고 종료하면 안 된다는 규칙이 포함된다."""
@@ -557,6 +688,54 @@ class TestTargetPath:
         assert result.sca_libraries == [{"name": "openssl", "version": "1.1.1"}]
         executor._run_build_and_analyze.assert_not_called()
         executor._run_individual_tools.assert_not_called()
+        await executor.aclose()
+
+    @pytest.mark.asyncio
+    async def test_graph_context_not_ready_skips_dangerous_callers(self):
+        from app.core.agent_session import AgentSession
+        from app.schemas.request import TaskRequest
+
+        request = TaskRequest.model_validate({
+            "taskType": "deep-analyze",
+            "taskId": "test-graph-context-not-ready",
+            "context": {
+                "trusted": {
+                    "objective": "test",
+                    "projectPath": "/uploads/project",
+                    "projectId": "proj-1",
+                    "quickContext": {
+                        "sastFindings": [{"ruleId": "CWE-78", "message": "command injection"}],
+                    },
+                    "graphContext": {
+                        "status": "partial",
+                        "readiness": {
+                            "neo4jGraph": False,
+                            "graphRag": False,
+                        },
+                    },
+                }
+            },
+        })
+        from agent_shared.schemas.agent import BudgetState
+        budget = BudgetState(max_steps=1, max_completion_tokens=100)
+        session = AgentSession(request, budget)
+
+        executor = Phase1Executor(
+            sast_endpoint="http://localhost:9000",
+            kb_endpoint="http://localhost:8002",
+        )
+
+        executor._run_build_and_analyze = AsyncMock(side_effect=AssertionError("should not run"))
+        executor._run_individual_tools = AsyncMock(side_effect=AssertionError("should not run"))
+        executor._run_cve_lookup = AsyncMock(side_effect=lambda result: result)
+        executor._run_threat_query = AsyncMock(side_effect=lambda result: result)
+        executor._run_dangerous_callers = AsyncMock(side_effect=lambda result, *_args, **_kwargs: result)
+
+        result = await executor.execute(session)
+
+        assert result.code_graph_status == "partial"
+        assert result.code_graph_neo4j_ready is False
+        executor._run_dangerous_callers.assert_not_called()
         await executor.aclose()
 
 

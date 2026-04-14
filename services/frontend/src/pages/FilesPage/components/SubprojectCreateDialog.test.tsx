@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { SubprojectCreateDialog } from "./SubprojectCreateDialog";
 import type { SourceFileEntry } from "../../../api/client";
 
@@ -54,9 +54,10 @@ describe("SubprojectCreateDialog", () => {
     expect(container.innerHTML).toBe("");
   });
 
-  it("renders name input and file tree when open", () => {
+  it("renders name input and file tree when open", async () => {
     render(<SubprojectCreateDialog {...defaultProps} />);
 
+    await waitFor(() => expect(screen.getByText("src")).toBeTruthy());
     expect(screen.getAllByText("서브 프로젝트 생성").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByPlaceholderText("예: gateway-module")).toBeTruthy();
     expect(screen.getByText("포함할 파일/폴더 선택")).toBeTruthy();
@@ -65,15 +66,16 @@ describe("SubprojectCreateDialog", () => {
     expect(screen.getByText("include")).toBeTruthy();
   });
 
-  it("shows selected file count", () => {
+  it("shows selected file count", async () => {
     render(<SubprojectCreateDialog {...defaultProps} />);
 
+    await waitFor(() => expect(screen.getByText(/0개 파일/)).toBeTruthy());
     // Initially 0 selected
     expect(screen.getByText(/0개 파일/)).toBeTruthy();
 
     // Click on a file to select it
     fireEvent.click(screen.getByText("main.c"));
-    expect(screen.getByText(/1개 파일/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/1개 파일/)).toBeTruthy());
   });
 
   it("preloads includedPaths in edit mode and submits updated payload", () => {

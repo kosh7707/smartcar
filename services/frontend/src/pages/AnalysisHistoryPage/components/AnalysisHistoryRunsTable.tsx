@@ -31,7 +31,7 @@ const EMPTY_TITLES: Record<AnalysisHistoryFilter, string> = {
 interface AnalysisHistoryRunsTableProps {
   filter: AnalysisHistoryFilter;
   runs: HistoryRun[];
-  onOpenRun: () => void;
+  onOpenRun: (run: HistoryRun) => void;
 }
 
 export const AnalysisHistoryRunsTable: React.FC<AnalysisHistoryRunsTableProps> = ({
@@ -83,7 +83,7 @@ export const AnalysisHistoryRunsTable: React.FC<AnalysisHistoryRunsTableProps> =
                 <tr
                   key={run.id}
                   className="history-table__row"
-                  onClick={onOpenRun}
+                  onClick={() => onOpenRun(run)}
                 >
                   <td className="history-table__td history-table__td--run">#{index + 1}</td>
                   <td className="history-table__td history-table__td--mono">{formatDateTime(run.createdAt)}</td>

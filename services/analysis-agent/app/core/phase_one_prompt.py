@@ -369,10 +369,21 @@ def build_phase2_prompt(
             sections.append(
                 f"참고: 버전 미매칭 CVE {len(unmatched_cves)}건은 현재 프로젝트 버전에 해당하지 않아 제외되었습니다."
             )
+    elif phase1.cve_lookup_timed_out:
+        sections.append(
+            "## 라이브러리 CVE (실시간 조회 결과)\n"
+            "**⚠ CVE lookup timeout**: S5 실시간 CVE 조회가 호출자 예산 내에 완료되지 않았습니다. "
+            "이번 분석에서 라이브러리 CVE가 보이지 않더라도 곧바로 '없음'으로 단정하지 말고 caveats에 이 한계를 반영하라."
+        )
 
     # KB 위협 지식 (Phase 1에서 결정론적 조회)
     if phase1.threat_context:
         threat_lines = ["## 위협 지식 (자동 조회 결과)"]
+        if phase1.kb_timed_out:
+            threat_lines.append(
+                "**⚠ KB timeout**: 위협 지식 배치 조회가 호출자 예산 내에 완료되지 않았습니다. "
+                "그래프 기반 CWE/CVE/ATT&CK 보강이 일부 비어 있을 수 있으므로 caveats에 이 한계를 명시하라."
+            )
         if phase1.kb_not_ready:
             threat_lines.append(
                 "**⚠ KB not ready**: Neo4j 또는 KB readiness 부족으로 위협 지식 조회가 수행되지 않았습니다. "
@@ -407,6 +418,38 @@ def build_phase2_prompt(
             "**⚠ KB not ready**: Neo4j 또는 KB readiness 부족으로 위협 지식 조회를 건너뛰었습니다. "
             "위협 그래프 보강이 빠졌음을 caveats에 반영하라."
         )
+    elif phase1.kb_timed_out:
+        sections.append(
+            "## 위협 지식 (자동 조회 결과)\n"
+            "**⚠ KB timeout**: 위협 지식 조회가 호출자 예산 내에 완료되지 않았습니다. "
+            "위협 그래프 보강이 빠졌을 수 있으므로 absence를 곧바로 negative evidence로 해석하지 말고 caveats에 반영하라."
+        )
+
+    # 코드 그래프 readiness / ingest 상태
+    if phase1.code_graph_ingest_timed_out:
+        sections.append(
+            "## 코드 그래프 준비 상태\n"
+            "**⚠ code-graph ingest timeout**: S5 코드 그래프 적재가 호출자 예산 내에 완료되지 않았습니다. "
+            "호출자 체인/피호출 함수/시맨틱 코드 검색 결과가 비어 있어도 이를 곧바로 negative evidence로 해석하지 말고 caveats에 반영하라."
+        )
+    elif phase1.code_graph_neo4j_ready is False:
+        sections.append(
+            "## 코드 그래프 준비 상태\n"
+            "**⚠ code graph not ready**: S5 코드 그래프가 active/readable 상태가 아니어서 "
+            "`code_graph.callers` / `code_graph.callees` / `dangerous-callers` 결과가 비어 있을 수 있습니다. "
+            "호출 체인 부재를 단정 근거로 쓰지 말고 caveats에 한계를 명시하라."
+        )
+    elif phase1.code_graph_graph_rag_ready is False:
+        warning_text = ""
+        if phase1.code_graph_warnings:
+            warning_text = f" (경고: {', '.join(phase1.code_graph_warnings[:3])})"
+        sections.append(
+            "## 코드 그래프 준비 상태\n"
+            f"**⚠ code graph semantic search not ready**{warning_text}: "
+            "Neo4j 코드 그래프는 일부 읽을 수 있을 수 있지만 GraphRAG/vector readiness가 완전하지 않아 "
+            "`code_graph.search` 결과가 비거나 불완전할 수 있습니다. "
+            "필요하면 `code_graph.callers`, `code_graph.callees`, `code.read_file` 중심으로 보강하고 caveats에 한계를 반영하라."
+        )
 
     # 위험 함수 호출자 (Phase 1에서 결정론적 조회)
     if phase1.dangerous_callers:
@@ -418,6 +461,12 @@ def build_phase2_prompt(
                 f"{origin_label} → 위험 호출: {', '.join(dc.get('dangerous_calls', []))}"
             )
         sections.append("\n".join(caller_lines))
+    elif phase1.dangerous_callers_timed_out:
+        sections.append(
+            "## 위험 함수 호출자 분석\n"
+            "**⚠ dangerous-callers timeout**: S5 호출자 체인 조회가 호출자 예산 내에 완료되지 않았습니다. "
+            "호출자 체인이 비어 있어도 위험 함수가 실제로 고립되었다고 단정하지 말고 caveats에 한계를 명시하라."
+        )
 
     # 프로젝트 메모리 (이전 분석 이력, false positive, 사용자 선호)
     if phase1.project_memory:

@@ -263,6 +263,7 @@ class KnowledgeAssembler:
         else:
             all_hits = exact_hits + vector_hits
             all_hits.sort(key=lambda h: h.get("score", 0), reverse=True)
+        all_hits = all_hits[: top_k * 2]
 
         return {
             "query": query,

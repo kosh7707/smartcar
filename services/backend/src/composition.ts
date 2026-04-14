@@ -24,6 +24,7 @@ import { GateResultDAO } from "./dao/gate-result.dao";
 import { ApprovalDAO } from "./dao/approval.dao";
 import { AuditLogDAO } from "./dao/audit-log.dao";
 import { AnalysisResultDAO } from "./dao/analysis-result.dao";
+import { AnalysisExecutionDAO } from "./dao/analysis-execution.dao";
 import { FileStore } from "./dao/file-store";
 import { DynamicSessionDAO } from "./dao/dynamic-session.dao";
 import { DynamicAlertDAO } from "./dao/dynamic-alert.dao";
@@ -81,6 +82,7 @@ export interface AppContext {
   approvalDAO: ApprovalDAO;
   auditLogDAO: AuditLogDAO;
   analysisResultDAO: AnalysisResultDAO;
+  analysisExecutionDAO: AnalysisExecutionDAO;
   fileStore: FileStore;
   dynamicSessionDAO: DynamicSessionDAO;
   dynamicAlertDAO: DynamicAlertDAO;
@@ -144,6 +146,7 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
   const approvalDAO = new ApprovalDAO(db);
   const auditLogDAO = new AuditLogDAO(db);
   const analysisResultDAO = new AnalysisResultDAO(db);
+  const analysisExecutionDAO = new AnalysisExecutionDAO(db);
   const fileStore = new FileStore(db);
   const dynamicSessionDAO = new DynamicSessionDAO(db);
   const dynamicAlertDAO = new DynamicAlertDAO(db);
@@ -227,9 +230,13 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
     sdkRegistryDAO,
     buildTargetDAO,
   );
+  const pipelineOrchestrator = new PipelineOrchestrator(
+    projectSourceService, sastClient, kbClient, buildAgentClient, targetLibraryDAO,
+    buildTargetDAO, analysisResultDAO, resultNormalizer, pipelineWs, notificationService,
+  );
   const analysisOrchestrator = new AnalysisOrchestrator(
     projectSourceService, sastClient, kbClient, agentClient,
-    analysisResultDAO, settingsService, resultNormalizer, analysisWs, buildTargetService, targetLibraryDAO, analysisTracker,
+    analysisResultDAO, settingsService, resultNormalizer, analysisWs, buildTargetService, targetLibraryDAO, analysisTracker, analysisExecutionDAO, pipelineOrchestrator,
   );
   const sdkService = new SdkService(sdkRegistryDAO, buildAgentClient, cfg.uploadsDir, sdkWs, notificationService);
 
@@ -247,11 +254,6 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
     projectDeletionService,
   );
 
-  const pipelineOrchestrator = new PipelineOrchestrator(
-    projectSourceService, sastClient, kbClient, buildAgentClient, targetLibraryDAO,
-    buildTargetDAO, analysisResultDAO, resultNormalizer, pipelineWs, notificationService,
-  );
-
   // ── Tier 4: 보고서 (전체 의존) ──
   const reportService = new ReportService(
     evidenceRefDAO, auditLogDAO,
@@ -260,7 +262,7 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
 
   return {
     runDAO, findingDAO, evidenceRefDAO, gateResultDAO, approvalDAO, auditLogDAO,
-    analysisResultDAO, fileStore, dynamicSessionDAO, dynamicAlertDAO, dynamicMessageDAO,
+    analysisResultDAO, analysisExecutionDAO, fileStore, dynamicSessionDAO, dynamicAlertDAO, dynamicMessageDAO,
     dynamicTestResultDAO, projectDAO, adapterDAO, projectSettingsDAO, buildTargetDAO,
     adapterManager, settingsService, projectSourceService, buildTargetService, targetLibraryDAO, sdkRegistryDAO, sdkService,
     projectService, qualityGateService, resultNormalizer, approvalService, findingService,

@@ -39,6 +39,8 @@ class ThreatSearch:
         qdrant_path: str | None = None,
         qdrant_url: str | None = None,
         qdrant_api_key: str | None = None,
+        *,
+        require_collection: bool = True,
     ) -> None:
         if qdrant_url:
             self._client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
@@ -56,9 +58,14 @@ class ThreatSearch:
         # 컬렉션 존재 확인
         collections = [c.name for c in self._client.get_collections().collections]
         if COLLECTION not in collections:
-            raise RuntimeError(
-                f"Qdrant 컬렉션 '{COLLECTION}'이 없습니다. "
-                f"ETL을 먼저 실행하세요: python scripts/threat-db/build.py"
+            if require_collection:
+                raise RuntimeError(
+                    f"Qdrant 컬렉션 '{COLLECTION}'이 없습니다. "
+                    f"ETL을 먼저 실행하세요: python scripts/threat-db/build.py"
+                )
+            logger.warning(
+                "ThreatSearch 초기화 경고: collection=%s 없음 — threat search 비활성",
+                COLLECTION,
             )
         logger.info(
             "ThreatSearch 초기화 완료: mode=%s, collection=%s",

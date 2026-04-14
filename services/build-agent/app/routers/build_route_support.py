@@ -37,11 +37,20 @@ def build_invalid_contract_failure(
     request_id = get_request_id() or request.taskId
 
     trusted = request.context.trusted if isinstance(request.context.trusted, dict) else {}
+    top_level_contract_version = request.contractVersion.value if request.contractVersion is not None else None
+    trusted_contract_version = trusted.get("contractVersion")
+    if hasattr(trusted_contract_version, "value"):
+        trusted_contract_version = trusted_contract_version.value
+    response_contract_version = trusted_contract_version or top_level_contract_version
+    response_strict_mode = trusted.get("strictMode")
+    if response_strict_mode is None:
+        response_strict_mode = request.strictMode
+
     return TaskFailureResponse(
         taskId=request.taskId,
         taskType=request.taskType,
-        contractVersion=trusted.get("contractVersion"),
-        strictMode=trusted.get("strictMode"),
+        contractVersion=response_contract_version,
+        strictMode=response_strict_mode,
         status=TaskStatus.VALIDATION_FAILED,
         failureCode=FailureCode.INVALID_SCHEMA,
         failureDetail="Invalid build-resolve contract: " + " | ".join(errors),

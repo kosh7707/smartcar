@@ -7,6 +7,7 @@
 import crypto from "crypto";
 import path from "path";
 import type {
+  AnalysisExecution,
   AnalysisResult,
   Vulnerability,
   AnalysisSummary,
@@ -27,13 +28,14 @@ import type {
   AgentEvidenceRef,
   AgentResponseSuccess,
 } from "./agent-client";
-import type { IAnalysisResultDAO } from "../dao/interfaces";
+import type { IAnalysisExecutionDAO, IAnalysisResultDAO } from "../dao/interfaces";
 import type { ProjectSettingsService } from "./project-settings.service";
 import type { BuildTargetService } from "./build-target.service";
 import type { ResultNormalizer, NormalizerContext } from "./result-normalizer";
 import type { WsBroadcaster } from "./ws-broadcaster";
 import type { TargetLibraryDAO } from "../dao/target-library.dao";
 import type { AnalysisTracker } from "./analysis-tracker";
+import type { PipelineOrchestrator } from "./pipeline-orchestrator";
 
 const logger = createLogger("analysis-orchestrator");
 
@@ -50,6 +52,8 @@ export class AnalysisOrchestrator {
     private buildTargetService?: BuildTargetService,
     private targetLibraryDAO?: TargetLibraryDAO,
     private analysisTracker?: AnalysisTracker,
+    private analysisExecutionDAO?: IAnalysisExecutionDAO,
+    private pipelineOrchestrator?: PipelineOrchestrator,
   ) {}
 
   async runAnalysis(
@@ -69,6 +73,34 @@ export class AnalysisOrchestrator {
     requestId?: string,
     signal?: AbortSignal,
   ): Promise<void> {
+    if (!targetIds || targetIds.length !== 1) {
+      throw new InvalidInputError("BuildTarget-only quick execution requires exactly one BuildTarget");
+    }
+    const targetId = targetIds[0];
+    if (!targetId) {
+      throw new InvalidInputError("buildTargetId is required");
+    }
+    const target = this.buildTargetService?.findById?.(targetId)
+      ?? this.buildTargetService?.findByProjectId(projectId)?.find((candidate) => candidate.id === targetId);
+    if (!target || target.projectId !== projectId) {
+      throw new NotFoundError(`BuildTarget not found: ${targetId}`);
+    }
+    if (target.sdkChoiceState === "sdk-unresolved") {
+      throw new InvalidInputError(`BuildTarget ${target.name} is not Quick-eligible until SDK choice is explicit`);
+    }
+
+    await this.prepareExecutionForQuick(projectId, analysisId, target, requestId, signal);
+    const refreshedTarget = this.buildTargetService?.findById?.(targetId)
+      ?? this.buildTargetService?.findByProjectId(projectId)?.find((candidate) => candidate.id === targetId)
+      ?? target;
+    if (!refreshedTarget.compileCommandsPath) {
+      await this.analysisExecutionDAO?.update(analysisId, {
+        quickBuildPrepStatus: "failed",
+        status: "failed",
+      });
+      throw new InvalidInputError(`Quick build-prep did not produce compile_commands.json for BuildTarget ${refreshedTarget.name}`);
+    }
+    await this.analysisExecutionDAO?.update(analysisId, { quickBuildPrepStatus: "succeeded" });
     await this.runAnalysisInternal(projectId, analysisId, targetIds, requestId, signal, true);
   }
 
@@ -84,14 +116,28 @@ export class AnalysisOrchestrator {
       throw new NotFoundError(`Project source not found. Upload source first: ${projectId}`);
     }
 
-    const quickResult = this.analysisResultDAO.findById(quickAnalysisId);
-    if (!quickResult || quickResult.projectId !== projectId || quickResult.module !== "static_analysis") {
-      throw new NotFoundError(`Quick analysis result not found: ${quickAnalysisId}`);
+    const { quickResult, target } = this.resolveQuickAnalysisContext(projectId, quickAnalysisId);
+    const kbProjectId = target ? `${projectId}:${target.name}` : projectId;
+    const execution = this.analysisExecutionDAO?.findById(quickAnalysisId);
+    if (execution) {
+      if (execution.projectId !== projectId) {
+        throw new NotFoundError(`AnalysisExecution not found: ${quickAnalysisId}`);
+      }
+      if (execution.status !== "active") {
+        throw new InvalidInputError(`AnalysisExecution is not active: ${quickAnalysisId}`);
+      }
+      if (
+        execution.quickBuildPrepStatus !== "succeeded"
+        || execution.quickGraphRagStatus !== "succeeded"
+        || execution.quickSastStatus !== "succeeded"
+      ) {
+        throw new InvalidInputError(`Deep requires a Quick-complete AnalysisExecution: ${quickAnalysisId}`);
+      }
+      await this.analysisExecutionDAO?.update(quickAnalysisId, { deepStatus: "running" });
     }
-
-    const graphStats = await this.kbClient.getCodeGraphStats(projectId, requestId);
+    const graphStats = await this.kbClient.getCodeGraphStats(kbProjectId, requestId);
     if (!graphStats || graphStats.function_count <= 0) {
-      throw new InvalidInputError(`Quick graph context not ready for project ${projectId}`);
+      throw new InvalidInputError(`Quick graph context not ready for scope ${kbProjectId}`);
     }
 
     const settings = this.settingsService.getAll(projectId);
@@ -118,21 +164,27 @@ export class AnalysisOrchestrator {
       artifactId: projectId,
       artifactType: "raw-source",
       locatorType: "lineRange",
-      locator: { projectPath, fileCount: files.length },
+      locator: {
+        projectPath,
+        fileCount: files.length,
+        ...(target ? { targetName: target.name, targetPath: target.relativePath } : {}),
+      },
     }];
 
     const quickContext = {
-      quickAnalysisId,
+      quickAnalysisId: quickResult.id,
       summary: quickResult.summary,
       findingCount: quickResult.summary.total,
       vulnerabilities: quickResult.vulnerabilities,
       scaLibraries: quickResult.scaLibraries,
+      ...(target ? { kbProjectId, targetName: target.name, targetPath: target.relativePath } : {}),
     };
     const graphContext = {
-      kbProjectId: projectId,
+      kbProjectId,
       status: "ready",
       functionCount: graphStats.function_count,
       callEdgeCount: graphStats.call_edge_count,
+      ...(target ? { targetName: target.name, targetPath: target.relativePath } : {}),
     };
 
     const agentRequest: AgentTaskRequest = {
@@ -140,10 +192,11 @@ export class AnalysisOrchestrator {
       taskId: `deep-${analysisId}`,
       context: {
         trusted: {
-          objective: `${projectId} 보안 취약점 심층 분석`,
+          objective: `${projectId} 보안 취약점 심층 분석${target ? ` (${target.name})` : ""}`,
           projectId,
           projectPath,
-          buildProfile: settings.buildProfile,
+          ...(target ? { targetPath: target.relativePath } : {}),
+          buildProfile: target?.buildProfile ?? settings.buildProfile,
           quickContext,
           graphContext,
           ...(quickResult.scaLibraries ? { scaLibraries: quickResult.scaLibraries } : {}),
@@ -184,7 +237,7 @@ export class AnalysisOrchestrator {
     }
 
     if (this.agentClient.isSuccess(agentResponse)) {
-      const deepResult = this.buildDeepResult(`deep-${analysisId}`, projectId, agentResponse, startedAt, quickResult.scaLibraries);
+      const deepResult = this.buildDeepResult(`deep-${analysisId}`, projectId, agentResponse, startedAt, quickResult.scaLibraries, target?.id, quickAnalysisId);
       this.analysisResultDAO.save(deepResult);
       this.resultNormalizer.normalizeAgentResult(deepResult, agentResponse, { startedAt, agentEvidenceRefs: evidenceRefs });
       this.analysisTracker?.update(analysisId, {
@@ -195,6 +248,10 @@ export class AnalysisOrchestrator {
         type: "analysis-deep-complete",
         payload: { analysisId, findingCount: agentResponse.result.claims.length },
       });
+      await this.analysisExecutionDAO?.update(quickAnalysisId, {
+        deepStatus: "succeeded",
+        status: "completed",
+      });
       return;
     }
 
@@ -202,6 +259,8 @@ export class AnalysisOrchestrator {
     const failedResult: AnalysisResult = {
       id: `deep-${analysisId}`,
       projectId,
+      buildTargetId: target?.id,
+      analysisExecutionId: quickAnalysisId,
       module: "deep_analysis",
       status: "failed",
       vulnerabilities: [],
@@ -213,6 +272,10 @@ export class AnalysisOrchestrator {
       createdAt: startedAt,
     };
     this.analysisResultDAO.save(failedResult);
+    await this.analysisExecutionDAO?.update(quickAnalysisId, {
+      deepStatus: "failed",
+      status: "failed",
+    });
     this.analysisTracker?.update(analysisId, {
       phase: "deep_analyzing",
       message: "심층 분석 실패",
@@ -249,14 +312,10 @@ export class AnalysisOrchestrator {
       targets = targets.filter((t) => targetIds.includes(t.id));
     }
 
-    if (targets.length > 0) {
-      // ── 타겟별 분석 ──
-      await this.runAnalysisWithTargets(projectId, analysisId, projectPath, targets, requestId, signal, quickOnly);
-    } else {
-      // ── 기존 방식 (타겟 없음: 프로젝트 전체) ──
-      const settings = this.settingsService.getAll(projectId);
-      await this.runSingleAnalysis(projectId, analysisId, projectPath, settings.buildProfile, undefined, requestId, signal, undefined, analysisId, quickOnly);
+    if (targets.length === 0) {
+      throw new InvalidInputError(`BuildTarget is required for analysis execution: ${projectId}`);
     }
+    await this.runAnalysisWithTargets(projectId, analysisId, projectPath, targets, requestId, signal, quickOnly);
   }
 
   /** 타겟별 순차 분석 */
@@ -284,6 +343,7 @@ export class AnalysisOrchestrator {
         scanPath,
         target.buildProfile,
         {
+          id: target.id,
           name: target.name,
           relativePath: target.relativePath,
           progress: targetProgress,
@@ -304,7 +364,7 @@ export class AnalysisOrchestrator {
     analysisId: string,
     scanPath: string,
     buildProfile: BuildProfile | undefined,
-    targetInfo?: { name: string; relativePath: string; progress?: { current: number; total: number }; compileCommandsPath?: string },
+    targetInfo?: { id: string; name: string; relativePath: string; progress?: { current: number; total: number }; compileCommandsPath?: string },
     requestId?: string,
     signal?: AbortSignal,
     thirdPartyPaths?: string[],
@@ -379,6 +439,9 @@ export class AnalysisOrchestrator {
       sastFindings = sastResponse.findings;
       codeGraphSummary = sastResponse.codeGraph ?? undefined;
       scaLibraries = sastResponse.sca?.libraries ?? undefined;
+      await this.analysisExecutionDAO?.update(analysisId, {
+        quickSastStatus: "succeeded",
+      });
 
       if (sastResponse.codeGraph) {
         const kbProjectId = targetInfo ? `${projectId}:${targetInfo.name}` : projectId;
@@ -435,9 +498,12 @@ export class AnalysisOrchestrator {
         }
       }
 
-      const quickResult = this.buildQuickResult(analysisId, projectId, sastResponse, startedAt, scaLibraries);
+      const quickResult = this.buildQuickResult(analysisId, projectId, sastResponse, startedAt, scaLibraries, targetInfo?.id, analysisId);
       this.analysisResultDAO.save(quickResult);
       this.resultNormalizer.normalizeAnalysisResult(quickResult, { startedAt });
+      await this.analysisExecutionDAO?.update(analysisId, {
+        quickGraphRagStatus: "succeeded",
+      });
       this.analysisTracker?.update(wsAnalysisId, {
         phase: "quick_complete",
         message: `${prefix}Quick 분석 완료`,
@@ -454,6 +520,11 @@ export class AnalysisOrchestrator {
         target: targetInfo?.name, requestId,
       }, "Quick phase completed");
     } catch (err) {
+      await this.analysisExecutionDAO?.update(analysisId, {
+        quickGraphRagStatus: "failed",
+        quickSastStatus: "failed",
+        status: "failed",
+      });
       logger.error({ err, analysisId, target: targetInfo?.name, requestId }, "Quick phase failed");
       this.analysisTracker?.update(wsAnalysisId, {
         phase: "quick_sast",
@@ -643,6 +714,8 @@ export class AnalysisOrchestrator {
     sastResponse: SastScanResponse,
     startedAt: string,
     scaLibraries?: unknown,
+    buildTargetId?: string,
+    analysisExecutionId?: string,
   ): AnalysisResult {
     const vulns: Vulnerability[] = sastResponse.findings.map((f, i) => ({
       id: `VULN-SAST-${Date.now()}-${i}`,
@@ -660,6 +733,8 @@ export class AnalysisOrchestrator {
     return {
       id: analysisId,
       projectId,
+      buildTargetId,
+      analysisExecutionId,
       module: "static_analysis",
       status: "completed",
       vulnerabilities: vulns,
@@ -675,6 +750,8 @@ export class AnalysisOrchestrator {
     agentResponse: AgentResponseSuccess,
     startedAt: string,
     scaLibraries?: unknown,
+    buildTargetId?: string,
+    analysisExecutionId?: string,
   ): AnalysisResult {
     const assessment = agentResponse.result;
     const audit = agentResponse.audit;
@@ -697,6 +774,8 @@ export class AnalysisOrchestrator {
     return {
       id: deepId,
       projectId,
+      buildTargetId,
+      analysisExecutionId,
       module: "deep_analysis",
       status: "completed",
       vulnerabilities: vulns,
@@ -765,5 +844,117 @@ export class AnalysisOrchestrator {
       edgesCreated: ingestResult.edges_created,
       warnings: ingestResult.warnings,
     };
+  }
+
+  private async prepareExecutionForQuick(
+    projectId: string,
+    executionId: string,
+    target: BuildTarget,
+    requestId?: string,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    if (!this.analysisExecutionDAO) {
+      await this.pipelineOrchestrator?.preparePipeline(projectId, [target.id], requestId, signal, `prep-${executionId}`);
+      return;
+    }
+
+    const existingActive = this.analysisExecutionDAO?.findActiveByBuildTargetId(target.id);
+    if (existingActive && existingActive.id !== executionId) {
+      await this.analysisExecutionDAO.update(existingActive.id, {
+        status: "superseded",
+        supersededByExecutionId: executionId,
+      });
+    }
+
+    const now = new Date().toISOString();
+    if (!this.analysisExecutionDAO?.findById(executionId)) {
+      const execution: AnalysisExecution = {
+        id: executionId,
+        projectId,
+        buildTargetId: target.id,
+        buildTargetName: target.name,
+        buildTargetRelativePath: target.relativePath,
+        buildProfileSnapshot: target.buildProfile,
+        sdkChoiceState: target.sdkChoiceState,
+        status: "active",
+        quickBuildPrepStatus: "running",
+        quickGraphRagStatus: "pending",
+        quickSastStatus: "pending",
+        deepStatus: "pending",
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.analysisExecutionDAO.save(execution);
+    } else {
+      await this.analysisExecutionDAO.update(executionId, {
+        sdkChoiceState: target.sdkChoiceState,
+        status: "active",
+        quickBuildPrepStatus: "running",
+        quickGraphRagStatus: "pending",
+        quickSastStatus: "pending",
+        deepStatus: "pending",
+      });
+    }
+
+    await this.pipelineOrchestrator?.preparePipeline(projectId, [target.id], requestId, signal, `prep-${executionId}`);
+  }
+
+  private resolveQuickAnalysisContext(
+    projectId: string,
+    quickAnalysisId: string,
+  ): { quickResult: AnalysisResult; target?: BuildTarget } {
+    const byExecution = this.analysisResultDAO.findByExecutionId?.(quickAnalysisId, "static_analysis")?.[0];
+    if (byExecution && byExecution.projectId === projectId) {
+      const target = byExecution.buildTargetId
+        ? this.buildTargetService?.findById?.(byExecution.buildTargetId)
+          ?? this.buildTargetService?.findByProjectId(projectId)?.find((candidate) => candidate.id === byExecution.buildTargetId)
+          ?? this.matchTargetFromQuickResultId(projectId, byExecution.id)
+        : this.matchTargetFromQuickResultId(projectId, byExecution.id);
+      return { quickResult: byExecution, ...(target ? { target } : {}) };
+    }
+
+    const direct = this.analysisResultDAO.findById(quickAnalysisId);
+    if (direct && direct.projectId === projectId && direct.module === "static_analysis") {
+      const target = direct.buildTargetId
+        ? this.buildTargetService?.findById?.(direct.buildTargetId)
+          ?? this.buildTargetService?.findByProjectId(projectId)?.find((candidate) => candidate.id === direct.buildTargetId)
+          ?? this.matchTargetFromQuickResultId(projectId, direct.id)
+        : this.matchTargetFromQuickResultId(projectId, direct.id);
+      return { quickResult: direct, ...(target ? { target } : {}) };
+    }
+
+    const targets = this.buildTargetService?.findByProjectId(projectId) ?? [];
+    const matches = targets
+      .map((target) => ({
+        target,
+        result: this.analysisResultDAO.findById(`${quickAnalysisId}-${target.name}`),
+      }))
+      .filter((entry): entry is { target: BuildTarget; result: AnalysisResult } =>
+        !!entry.result
+        && entry.result.projectId === projectId
+        && entry.result.module === "static_analysis");
+
+    if (matches.length === 1) {
+      return {
+        quickResult: matches[0].result,
+        target: matches[0].target,
+      };
+    }
+
+    if (matches.length > 1) {
+      throw new InvalidInputError(
+        `Quick analysis result is ambiguous for ${quickAnalysisId}; use a target-scoped quick result id`,
+      );
+    }
+
+    throw new NotFoundError(`Quick analysis result not found: ${quickAnalysisId}`);
+  }
+
+  private matchTargetFromQuickResultId(projectId: string, quickResultId: string): BuildTarget | undefined {
+    const targets = this.buildTargetService?.findByProjectId(projectId) ?? [];
+    const matches = targets
+      .filter((target) => quickResultId.endsWith(`-${target.name}`))
+      .sort((a, b) => b.name.length - a.name.length);
+    return matches[0];
   }
 }

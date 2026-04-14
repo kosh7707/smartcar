@@ -3,7 +3,7 @@
 Pydantic 모델 검증에 의한 422 반환을 HTTP 레벨에서 확인한다.
 """
 
-from tests.conftest import make_task_body
+from tests.conftest import make_chat_body, make_task_body
 
 
 class TestInputValidation:
@@ -39,4 +39,16 @@ class TestInputValidation:
     def test_max_tokens_out_of_range_422(self, client_live):
         body = make_task_body(max_tokens=99999)
         resp = client_live.post("/v1/tasks", json=body)
+        assert resp.status_code == 422
+
+    def test_async_chat_missing_messages_422(self, client_live):
+        body = make_chat_body()
+        del body["messages"]
+        resp = client_live.post("/v1/async-chat-requests", json=body)
+        assert resp.status_code == 422
+
+    def test_async_chat_empty_messages_422(self, client_live):
+        body = make_chat_body()
+        body["messages"] = []
+        resp = client_live.post("/v1/async-chat-requests", json=body)
         assert resp.status_code == 422

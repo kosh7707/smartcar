@@ -24,6 +24,7 @@ export class BuildTargetService {
     includedPaths?: string[],
   ): BuildTarget {
     const now = new Date().toISOString();
+    const sdkChoiceState = this.resolveSdkChoiceState(buildProfile);
     const resolved = this.settingsService.resolveBuildProfile(
       buildProfile ?? this.settingsService.get(projectId, "buildProfile") ?? {},
     );
@@ -44,6 +45,7 @@ export class BuildTargetService {
       includedPaths: includedPaths?.length ? includedPaths : undefined,
       sourcePath,
       buildProfile: resolved,
+      sdkChoiceState,
       buildSystem: buildSystem as BuildTarget["buildSystem"],
       status: "discovered",
       createdAt: now,
@@ -67,7 +69,10 @@ export class BuildTargetService {
     id: string,
     fields: { name?: string; relativePath?: string; buildProfile?: BuildProfile; buildSystem?: string },
   ): BuildTarget {
-    const updated = this.dao.update(id, fields);
+    const updated = this.dao.update(id, {
+      ...fields,
+      ...(fields.buildProfile ? { sdkChoiceState: this.resolveSdkChoiceState(fields.buildProfile) } : {}),
+    });
     if (!updated) throw new NotFoundError(`Build target not found: ${id}`);
     logger.info({ targetId: id }, "Build target updated");
     return updated;
@@ -105,5 +110,11 @@ export class BuildTargetService {
       "Bulk create from discovery",
     );
     return created;
+  }
+
+  private resolveSdkChoiceState(buildProfile?: Partial<BuildProfile>): BuildTarget["sdkChoiceState"] {
+    if (!buildProfile?.sdkId) return "sdk-unresolved";
+    if (buildProfile.sdkId === "none") return "sdk-none-explicit";
+    return "sdk-selected";
   }
 }

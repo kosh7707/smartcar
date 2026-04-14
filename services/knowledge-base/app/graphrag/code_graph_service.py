@@ -150,6 +150,60 @@ class CodeGraphService:
             }
         return result
 
+    def export_project(self, project_id: str) -> list[dict]:
+        """현재 프로젝트 그래프를 ingest 가능한 함수 목록 형태로 직렬화한다."""
+        with self._driver.session() as session:
+            result = session.run(
+                "MATCH (fn:Function {project_id: $pid}) "
+                "OPTIONAL MATCH (fn)-[:CALLS]->(callee:Function {project_id: $pid}) "
+                "RETURN fn.name AS name, fn.file AS file, fn.line AS line, "
+                "coalesce(fn.origin, null) AS origin, "
+                "coalesce(fn.original_lib, null) AS original_lib, "
+                "coalesce(fn.original_version, null) AS original_version, "
+                f"coalesce({self._prop_expr('fn', 'build_snapshot_id')}, null) AS build_snapshot_id, "
+                f"coalesce({self._prop_expr('fn', 'build_unit_id')}, null) AS build_unit_id, "
+                f"coalesce({self._prop_expr('fn', 'source_build_attempt_id')}, null) "
+                "AS source_build_attempt_id, "
+                "collect(DISTINCT callee.name) AS calls "
+                "ORDER BY name",
+                pid=project_id,
+            )
+            exported = []
+            for rec in result:
+                item = {
+                    "name": rec["name"],
+                    "file": rec["file"],
+                    "line": rec["line"],
+                    "calls": [name for name in rec["calls"] if name],
+                    "origin": rec["origin"],
+                    "originalLib": rec["original_lib"],
+                    "originalVersion": rec["original_version"],
+                }
+                provenance = {
+                    "buildSnapshotId": rec.get("build_snapshot_id"),
+                    "buildUnitId": rec.get("build_unit_id"),
+                    "sourceBuildAttemptId": rec.get("source_build_attempt_id"),
+                }
+                if any(value is not None for value in provenance.values()):
+                    item["provenance"] = provenance
+                exported.append(item)
+            return exported
+
+    def activate_staging(self, staging_project_id: str, project_id: str) -> dict:
+        """staging project_id로 적재된 그래프를 활성 project_id로 승격한다."""
+        with self._driver.session() as session:
+            session.run(
+                "MATCH (n:Function {project_id: $pid}) DETACH DELETE n",
+                pid=project_id,
+            )
+            session.run(
+                "MATCH (n:Function {project_id: $staging_pid}) "
+                "SET n.project_id = $pid",
+                staging_pid=staging_project_id,
+                pid=project_id,
+            )
+        return self.get_stats(project_id)
+
     def get_callers(
         self,
         project_id: str,

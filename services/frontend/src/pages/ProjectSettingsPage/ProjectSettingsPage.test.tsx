@@ -1,6 +1,6 @@
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ProjectSettingsPage } from "./ProjectSettingsPage";
 
@@ -75,6 +75,14 @@ describe("ProjectSettingsPage", () => {
     vi.restoreAllMocks();
   });
 
+  it("shows loading feedback before sdk settings resolve", () => {
+    mockFetchProjectSdks.mockImplementation(() => new Promise(() => {}));
+
+    renderPage();
+
+    expect(screen.getByText("설정 로딩 중...")).toBeInTheDocument();
+  });
+
   it("shows the general section by default", async () => {
     const { container } = renderPage();
 
@@ -85,6 +93,7 @@ describe("ProjectSettingsPage", () => {
     expect(screen.getAllByText("General").length).toBeGreaterThan(0);
     expect(screen.getByPlaceholderText("프로젝트 이름")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("프로젝트 설명")).toBeInTheDocument();
+    expect(document.title).toBe("AEGIS — Project Settings");
   });
 
   it("shows the danger zone copy when the danger section is selected", async () => {
@@ -96,6 +105,21 @@ describe("ProjectSettingsPage", () => {
     expect(screen.getByText("Delete this project")).toBeInTheDocument();
     expect(screen.getByText(/Once deleted, all historical data/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Project" })).toBeInTheDocument();
+  });
+
+  it("renders placeholder sections for not-yet-available settings areas", async () => {
+    renderPage();
+
+    await waitFor(() => expect(mockFetchProjectSdks).toHaveBeenCalledWith("p-1"));
+
+    fireEvent.click(screen.getByRole("button", { name: "빌드 타겟" }));
+    expect(await screen.findByText("빌드 타겟 설정은 준비 중입니다")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "알림" }));
+    expect(await screen.findByText("프로젝트 알림 설정은 준비 중입니다")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "어댑터" }));
+    expect(await screen.findByText("동적 분석 어댑터 설정은 준비 중입니다")).toBeInTheDocument();
   });
 
   it("renders three upload mode tabs (archive, binary, folder)", async () => {
@@ -354,5 +378,58 @@ describe("ProjectSettingsPage", () => {
     expect(await screen.findByText("바이너리")).toBeInTheDocument();
     expect(screen.getByText("08.02.00.24")).toBeInTheDocument();
     expect(screen.getByText("am335x-evm")).toBeInTheDocument();
+  });
+
+  it("deletes a registered sdk after confirmation", async () => {
+    mockFetchProjectSdks.mockResolvedValue({
+      builtIn: [],
+      registered: [{
+        id: "sdk-1",
+        projectId: "p-1",
+        name: "Delete Me SDK",
+        path: "/uploads/p-1/sdk/sdk-1",
+        status: "ready",
+        verified: true,
+        createdAt: "2026-04-04T00:00:00Z",
+        updatedAt: "2026-04-04T00:00:00Z",
+      }],
+    });
+
+    renderPage();
+
+    await waitFor(() => fireEvent.click(screen.getByText("SDK Management")));
+    expect(await screen.findByText("Delete Me SDK")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTitle("삭제"));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText('"Delete Me SDK" SDK를 삭제하시겠습니까?')).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "삭제" }));
+
+    await waitFor(() => expect(mockDeleteSdk).toHaveBeenCalledWith("p-1", "sdk-1"));
+    await waitFor(() => expect(screen.queryByText("Delete Me SDK")).not.toBeInTheDocument());
+    expect(mockToast.success).toHaveBeenCalledWith('SDK "Delete Me SDK" 삭제 완료');
+  });
+
+  it("shows the general section without fetching when no project id is present", async () => {
+    render(
+      <MemoryRouter initialEntries={["/settings"]}>
+        <Routes>
+          <Route path="/settings" element={<ProjectSettingsPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByPlaceholderText("프로젝트 이름")).toBeInTheDocument();
+    expect(mockFetchProjectSdks).not.toHaveBeenCalled();
+    expect(mockToast.error).not.toHaveBeenCalled();
+  });
+
+  it("shows a toast when sdk loading fails", async () => {
+    mockFetchProjectSdks.mockRejectedValue(new Error("load failed"));
+
+    renderPage();
+
+    await waitFor(() => expect(mockToast.error).toHaveBeenCalledWith("SDK 목록을 불러올 수 없습니다."));
+    expect(await screen.findByPlaceholderText("프로젝트 이름")).toBeInTheDocument();
   });
 });

@@ -637,14 +637,30 @@ export interface AdapterResponse {
 }
 
 export interface ServiceHealth {
-  status: "ok" | "unreachable";
+  status: "ok" | "degraded" | "unreachable";
   detail?: Record<string, unknown>;
+  control?: {
+    activeRequestCount: number | null;
+    requestId: string | null;
+    endpoint: string | null;
+    state: "idle" | "queued" | "running" | "failed";
+    localAckState: "phase-advancing" | "transport-only" | "ack-break" | null;
+    degraded: boolean;
+    degradeReasons: string[];
+    lastAckAt: number | null;
+    lastAckSource: string | null;
+    blockedReason: string | null;
+    pollDecision: "continue_waiting" | "chain_abort" | "no_active_request" | "inconclusive";
+    decisionReasons: string[];
+  };
 }
 
 export interface HealthResponse {
   service: string;
   status: "ok" | "degraded" | "unhealthy";
   version: string;
+  controlPolicyVersion?: "health-control-signal-rollout-v1";
+  requestIdQueried?: string;
   detail?: { version: string; uptime: number };
   llmGateway?: ServiceHealth | null;
   analysisAgent?: ServiceHealth | null;
@@ -811,22 +827,15 @@ export interface AnalysisStatusListResponse {
   data: AnalysisProgress[];
 }
 
-export interface AnalysisRunRequest {
-  projectId: string;
-  targetIds?: string[];
-  /** legacy auto-chain compatibility surface. 생략 시 targetIds 유무로 추론. */
-  mode?: "full" | "subproject";
-}
-
 export interface AnalysisQuickRequest {
   projectId: string;
-  targetIds?: string[];
-  mode?: "full" | "subproject";
+  buildTargetId: string;
 }
 
 export interface AnalysisDeepRequest {
   projectId: string;
-  quickAnalysisId: string;
+  buildTargetId: string;
+  executionId: string;
 }
 
 export interface AnalysisRunAcceptedResponse {

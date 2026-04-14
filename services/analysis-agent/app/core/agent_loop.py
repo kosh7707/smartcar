@@ -407,6 +407,10 @@ class AgentLoop:
 
         for attempt in range(1 + self._retry_policy._max_retries):
             try:
+                request_summary_tracker.mark_transport_only(
+                    get_request_id() or session.request.taskId,
+                    source="llm-inference",
+                )
                 return await self._llm_caller.call(
                     messages, session, tools=tools_schema,
                 )

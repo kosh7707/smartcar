@@ -1,6 +1,6 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { FileDetailPage } from "./FileDetailPage";
 
@@ -55,6 +55,16 @@ describe("FileDetailPage", () => {
     mockFetchSourceFileContent.mockResolvedValue(null);
   });
 
+  it("shows loading feedback before file detail requests resolve", () => {
+    mockFetchProjectFiles.mockImplementation(() => new Promise(() => {}));
+    mockFetchProjectOverview.mockImplementation(() => new Promise(() => {}));
+    mockFetchFileContent.mockImplementation(() => new Promise(() => {}));
+
+    renderPage();
+
+    expect(screen.getByText("파일 정보 로딩 중...")).toBeInTheDocument();
+  });
+
   it("renders file metadata and vulnerability list", async () => {
     renderPage();
 
@@ -69,6 +79,49 @@ describe("FileDetailPage", () => {
 
     fireEvent.click(await screen.findByText("Buffer overflow"));
     expect(await screen.findByText("vuln-detail-view")).toBeInTheDocument();
+  });
+
+  it("navigates to the related static-analysis run when an analysis history row is selected", async () => {
+    renderPage();
+
+    const historyHeading = await screen.findByText("관련 분석 이력 (1)");
+    const historySection = historyHeading.closest("section") as HTMLElement;
+    fireEvent.click(within(historySection).getByText("취약점 1건"));
+
+    expect(mockNavigate).toHaveBeenCalledWith("/projects/p-1/static-analysis?analysisId=run-1");
+  });
+
+  it("downloads the current file content", async () => {
+    const anchorClick = vi.fn();
+    const createObjectURL = vi.fn(() => "blob:download");
+    const revokeObjectURL = vi.fn();
+    const originalCreateElement = document.createElement.bind(document);
+    const createElementSpy = vi.spyOn(document, "createElement").mockImplementation(((tagName: string) => {
+      if (tagName === "a") {
+        return {
+          click: anchorClick,
+          set href(_value: string) {},
+          set download(_value: string) {},
+        } as unknown as HTMLAnchorElement;
+      }
+      return originalCreateElement(tagName);
+    }) as typeof document.createElement);
+
+    vi.stubGlobal("URL", {
+      createObjectURL,
+      revokeObjectURL,
+    });
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /다운로드/i }));
+
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(anchorClick).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:download");
+
+    createElementSpy.mockRestore();
+    vi.unstubAllGlobals();
   });
 
   it("uses the shared plain header when the requested file is missing", async () => {

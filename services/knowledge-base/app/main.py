@@ -19,7 +19,7 @@ from app.graphrag.knowledge_assembler import KnowledgeAssembler
 from app.graphrag.neo4j_graph import Neo4jGraph
 from app.graphrag.vector_search import VectorSearch
 from app.observability import setup_logging
-from app.rag.threat_search import ThreatSearch
+from app.rag.threat_search import COLLECTION as THREAT_COLLECTION, ThreatSearch
 from app.graphrag.project_memory_service import ProjectMemoryService
 from app.routers import api, code_graph_api, cve_api, project_memory_api
 
@@ -40,11 +40,16 @@ async def lifespan(_app: FastAPI):
             qdrant_path=settings.qdrant_path if not settings.qdrant_url else None,
             qdrant_url=settings.qdrant_url,
             qdrant_api_key=settings.qdrant_api_key,
+            require_collection=False,
         )
-        vector_search = VectorSearch(threat_search)
+        collections = {c.name for c in threat_search.client.get_collections().collections}
+        if THREAT_COLLECTION in collections:
+            vector_search = VectorSearch(threat_search)
         logger.info("Qdrant 초기화 완료: mode=%s, target=%s",
                      threat_search.mode,
                      settings.qdrant_url or settings.qdrant_path)
+        if THREAT_COLLECTION not in collections:
+            logger.warning("Qdrant 연결은 성공했지만 threat_knowledge 컬렉션이 없어 threat search 비활성")
     except Exception as e:
         logger.warning("Qdrant 초기화 실패 (데이터 미적재 시 정상): %s", e)
 
@@ -79,7 +84,7 @@ async def lifespan(_app: FastAPI):
 
     # NVD 실시간 CVE 조회 클라이언트
     try:
-        kb_lookup = threat_search.get_by_id if threat_search else None
+        kb_lookup = threat_search.get_by_id if vector_search else None
         nvd_client = NvdClient(
             api_key=settings.nvd_api_key,
             api_base=settings.nvd_api_base,
@@ -98,7 +103,7 @@ async def lifespan(_app: FastAPI):
     except Exception as e:
         logger.warning("NVD 클라이언트 초기화 실패: %s", e)
 
-    # 소스코드 GraphRAG 초기화 (Qdrant + Neo4j 모두 필요)
+    # 소스코드 GraphRAG 초기화 (공유 Qdrant client + Neo4j 필요)
     code_vector_search = None
     code_assembler = None
     if threat_search and code_graph_svc:
@@ -163,7 +168,7 @@ async def _http_exception_handler(request: Request, exc: HTTPException):
         408: "TIMEOUT",
         409: "CONFLICT",
         422: "INVALID_INPUT",
-        503: "SERVICE_UNAVAILABLE",
+        503: "KB_NOT_READY",
     }
     code = _code_map.get(exc.status_code, "INTERNAL_ERROR")
     detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)

@@ -20,6 +20,7 @@ import type {
   AnalysisStatus,
   UploadedFile,
   BuildTarget,
+  AnalysisExecution,
   BuildProfile,
   BuildTargetStatus,
   ScaLibrary,
@@ -286,6 +287,7 @@ export interface IAnalysisResultDAO {
   findAll(): AnalysisResult[];
   findByModule(module: string): AnalysisResult[];
   findByProjectId(projectId: string): AnalysisResult[];
+  findByExecutionId(analysisExecutionId: string, module?: AnalysisModule): AnalysisResult[];
   deleteById(id: string): boolean;
 }
 
@@ -416,7 +418,7 @@ export interface IBuildTargetDAO {
   findByProjectId(projectId: string): BuildTarget[];
   update(
     id: string,
-    fields: { name?: string; relativePath?: string; buildProfile?: BuildProfile; buildSystem?: string; status?: BuildTargetStatus },
+    fields: { name?: string; relativePath?: string; buildProfile?: BuildProfile; buildSystem?: string; status?: BuildTargetStatus; sdkChoiceState?: BuildTarget["sdkChoiceState"] },
   ): BuildTarget | undefined;
   updatePipelineState(
     id: string,
@@ -430,10 +432,23 @@ export interface IBuildTargetDAO {
       codeGraphNodeCount?: number;
       lastBuiltAt?: string;
       buildCommand?: string;
+      sdkChoiceState?: BuildTarget["sdkChoiceState"];
     },
   ): BuildTarget | undefined;
   delete(id: string): boolean;
   deleteByProjectId(projectId: string): number;
+}
+
+export interface IAnalysisExecutionDAO {
+  save(execution: AnalysisExecution): void;
+  findById(id: string): AnalysisExecution | undefined;
+  findByProjectId(projectId: string): AnalysisExecution[];
+  findByBuildTargetId(buildTargetId: string): AnalysisExecution[];
+  findActiveByBuildTargetId(buildTargetId: string): AnalysisExecution | undefined;
+  update(
+    id: string,
+    fields: Partial<Omit<AnalysisExecution, "id" | "projectId" | "buildTargetId" | "buildTargetName" | "buildTargetRelativePath" | "buildProfileSnapshot" | "createdAt">>,
+  ): AnalysisExecution | undefined;
 }
 
 export interface IProjectSourceAssetDAO {

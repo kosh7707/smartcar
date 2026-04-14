@@ -7,21 +7,12 @@ import logging
 
 import httpx
 
+from app.clients.kb_error_utils import is_kb_not_ready_response, is_kb_timeout_response
 from agent_shared.context import get_request_id
 from agent_shared.schemas.agent import ToolResult
 from agent_shared.schemas.upstream import KbSearchHit
 
 logger = logging.getLogger(__name__)
-
-
-def _is_kb_not_ready(response: httpx.Response | None) -> bool:
-    if response is None or response.status_code != 503:
-        return False
-    try:
-        data = response.json()
-    except Exception:
-        return False
-    return data.get("errorDetail", {}).get("code") == "KB_NOT_READY"
 
 
 class KnowledgeTool:
@@ -85,7 +76,16 @@ class KnowledgeTool:
                 new_evidence_refs=new_refs,
             )
         except httpx.HTTPStatusError as e:
-            if _is_kb_not_ready(e.response):
+            if is_kb_timeout_response(e.response):
+                logger.warning("knowledge.search: KB timeout under caller budget")
+                return ToolResult(
+                    tool_call_id="",
+                    name="",
+                    success=False,
+                    content=json.dumps({"error": "TIMEOUT", "message": "Knowledge base search timed out under caller budget"}),
+                    error="TIMEOUT",
+                )
+            if is_kb_not_ready_response(e.response):
                 logger.warning("knowledge.search: KB not ready")
                 return ToolResult(
                     tool_call_id="",

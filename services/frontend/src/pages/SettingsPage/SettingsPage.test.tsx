@@ -33,6 +33,7 @@ describe("SettingsPage", () => {
 
     expect(screen.getByRole("heading", { name: "System Settings" })).toBeInTheDocument();
     expect(container.querySelector(".page-header--plain")).not.toBeNull();
+    expect(document.title).toBe("AEGIS — Settings");
 
     fireEvent.change(screen.getByPlaceholderText("http://localhost:3000"), { target: { value: "http://api.internal:4000" } });
     fireEvent.click(screen.getAllByRole("button", { name: "저장" })[0]);
@@ -49,11 +50,69 @@ describe("SettingsPage", () => {
     expect(await screen.findByText(/연결 성공/)).toBeInTheDocument();
   });
 
+  it("shows an error message when backend connectivity fails", async () => {
+    mockHealthFetch.mockResolvedValue({ ok: false, data: null });
+    render(<SettingsPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "테스트" }));
+
+    await waitFor(() => expect(mockHealthFetch).toHaveBeenCalledWith("http://localhost:3000"));
+    expect(await screen.findByText("연결 실패")).toBeInTheDocument();
+  });
+
+  it("resets the backend URL to the stored default and clears prior test feedback", async () => {
+    render(<SettingsPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "테스트" }));
+    expect(await screen.findByText(/연결 성공/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText("http://localhost:3000"), { target: { value: "http://api.internal:4000" } });
+    fireEvent.click(screen.getByRole("button", { name: "기본값으로 초기화" }));
+
+    expect(screen.getByDisplayValue("http://localhost:3000")).toBeInTheDocument();
+    expect(screen.queryByText(/연결 성공/)).not.toBeInTheDocument();
+    expect(mockSetBackendUrl).toHaveBeenCalledWith("");
+  });
+
   it("updates theme preference", () => {
     render(<SettingsPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "라이트" }));
 
     expect(mockSetThemePreference).toHaveBeenCalledWith("light");
+  });
+
+  it("resets the backend URL to the default value and clears stale test status", async () => {
+    mockGetBackendUrl
+      .mockReturnValueOnce("http://localhost:3000")
+      .mockReturnValue("http://localhost:3000");
+    mockHealthFetch.mockResolvedValueOnce({ ok: false });
+
+    render(<SettingsPage />);
+
+    fireEvent.change(screen.getByPlaceholderText("http://localhost:3000"), {
+      target: { value: "http://api.internal:4000" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "테스트" }));
+    expect(await screen.findByText("연결 실패")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "기본값으로 초기화" }));
+
+    expect(mockSetBackendUrl).toHaveBeenCalledWith("");
+    await waitFor(() =>
+      expect(screen.getByDisplayValue("http://localhost:3000")).toBeInTheDocument(),
+    );
+    expect(screen.queryByText("연결 실패")).not.toBeInTheDocument();
+  });
+
+  it("shows an error message when the backend connectivity test fails", async () => {
+    mockHealthFetch.mockResolvedValue({ ok: false });
+
+    render(<SettingsPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "테스트" }));
+
+    await waitFor(() => expect(mockHealthFetch).toHaveBeenCalledWith("http://localhost:3000"));
+    expect(await screen.findByText("연결 실패")).toBeInTheDocument();
   });
 });

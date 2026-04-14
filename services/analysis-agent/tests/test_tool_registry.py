@@ -43,3 +43,10 @@ def test_list_names():
     r.register(_make_schema("x"))
     r.register(_make_schema("y"))
     assert set(r.list_names()) == {"x", "y"}
+
+
+def test_unregister():
+    r = ToolRegistry()
+    r.register(_make_schema("x"))
+    r.unregister("x")
+    assert r.get("x") is None

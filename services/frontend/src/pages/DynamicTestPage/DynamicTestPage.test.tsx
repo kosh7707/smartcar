@@ -120,6 +120,15 @@ describe("DynamicTestPage", () => {
     });
   });
 
+  it("shows history loading feedback while test history resolves", () => {
+    mockGetDynamicTestResults.mockImplementation(() => new Promise(() => {}));
+
+    renderPage();
+
+    expect(screen.getByText("이력 로딩 중...")).toBeInTheDocument();
+    expect(document.title).toBe("AEGIS — Dynamic Test");
+  });
+
   it("shows the empty state and warns when no adapter is connected", async () => {
     renderPage();
 
@@ -192,5 +201,27 @@ describe("DynamicTestPage", () => {
 
     await waitFor(() => expect(mockDeleteDynamicTestResult).toHaveBeenCalledWith("test-1"));
     await waitFor(() => expect(screen.queryByText("ECU-1 · CAN · 0x101")).not.toBeInTheDocument());
+  });
+
+  it("shows the empty history state and a toast when loading test history fails", async () => {
+    mockGetDynamicTestResults.mockRejectedValue(new Error("load failed"));
+
+    renderPage();
+
+    expect(await screen.findByText("아직 테스트 이력이 없습니다")).toBeInTheDocument();
+    await waitFor(() => expect(mockToast.error).toHaveBeenCalled());
+  });
+
+  it("does not fetch test history and shows the empty state when no project id is present", async () => {
+    render(
+      <MemoryRouter initialEntries={["/dynamic-test"]}>
+        <Routes>
+          <Route path="/dynamic-test" element={<DynamicTestPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("아직 테스트 이력이 없습니다")).toBeInTheDocument();
+    expect(mockGetDynamicTestResults).not.toHaveBeenCalled();
   });
 });

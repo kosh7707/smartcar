@@ -1,11 +1,14 @@
 """엔드포인트 계약 테스트 (/v1/health, /v1/models, /v1/prompts, /v1/chat)."""
+import asyncio
+import time
+from threading import Event
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 
 from app.main import app
-from tests.conftest import ALL_TASK_TYPES
+from tests.conftest import ALL_TASK_TYPES, make_chat_body
 
 
 # ---------------------------------------------------------------------------
@@ -18,7 +21,8 @@ class TestHealthEndpoint:
         assert resp.status_code == 200
         data = resp.json()
         for field in ("service", "status", "version", "llmMode",
-                      "modelProfiles", "activePromptVersions", "rag"):
+                      "modelProfiles", "activePromptVersions", "rag",
+                      "activeRequestCount", "requestSummary"):
             assert field in data, f"missing field: {field}"
 
     def test_health_service_name(self, client_live):
@@ -60,6 +64,64 @@ class TestHealthEndpoint:
         assert cb["consecutiveFailures"] == 0
         assert "threshold" in cb
         assert "recoverySeconds" in cb
+
+    def test_health_idle_request_summary_shape(self, client_live):
+        data = client_live.get("/v1/health").json()
+        summary = data["requestSummary"]
+        assert data["activeRequestCount"] == 0
+        assert summary["requestId"] is None
+        assert summary["state"] == "idle"
+        assert summary["localAckState"] is None
+        assert summary["degraded"] is False
+        assert summary["degradeReasons"] == []
+        assert summary["blockedReason"] is None
+        assert summary["phase"] is None
+
+    def test_health_request_id_query_prefers_matching_active_request(self, client_live):
+        tracker = app.state.request_tracker
+        tracker.register("gw-health-001", endpoint="chat")
+        tracker.mark_phase(
+            "gw-health-001",
+            phase="llm-inference",
+            state="running",
+            ack_source="queue-exit",
+        )
+        tracker.mark_transport_only("gw-health-001", phase="llm-inference")
+
+        try:
+            resp = client_live.get("/v1/health", params={"requestId": "gw-health-001"})
+        finally:
+            tracker.clear("gw-health-001")
+
+        data = resp.json()
+        summary = data["requestSummary"]
+        assert data["activeRequestCount"] == 1
+        assert summary["requestId"] == "gw-health-001"
+        assert summary["endpoint"] == "chat"
+        assert summary["state"] == "running"
+        assert summary["localAckState"] == "transport-only"
+        assert summary["phase"] == "llm-inference"
+        assert summary["elapsedMs"] >= 0
+
+    def test_health_unknown_request_id_returns_idle_summary(self, client_live):
+        tracker = app.state.request_tracker
+        tracker.register("gw-health-002", endpoint="tasks", task_type="static-explain")
+        tracker.mark_phase(
+            "gw-health-002",
+            phase="prompt-build",
+            state="running",
+            ack_source="prompt-build",
+        )
+
+        try:
+            resp = client_live.get("/v1/health", params={"requestId": "gw-missing"})
+        finally:
+            tracker.clear("gw-health-002")
+
+        data = resp.json()
+        assert data["activeRequestCount"] == 1
+        assert data["requestSummary"]["requestId"] is None
+        assert data["requestSummary"]["state"] == "idle"
 
 
 # ---------------------------------------------------------------------------
@@ -423,3 +485,160 @@ class TestChatProxy:
         assert data["error"] == "Strict JSON contract violated"
         assert data["retryable"] is True
         assert data["strictJson"] is True
+
+
+class TestAsyncChatOwnershipSurface:
+    def test_async_submit_returns_accepted_shape(self, client_live):
+        mock_llm_response = {
+            "choices": [{"message": {"content": '{"ok": true}'}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 8, "completion_tokens": 4},
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            resp = client_live.post(
+                "/v1/async-chat-requests",
+                json=make_chat_body(),
+                headers={"X-Request-Id": "trace-async-001"},
+            )
+
+        assert resp.status_code == 202
+        data = resp.json()
+        assert data["status"] == "accepted"
+        assert data["requestId"].startswith("acr_")
+        assert data["traceRequestId"] == "trace-async-001"
+        assert data["statusUrl"].endswith(data["requestId"])
+        assert data["resultUrl"].endswith(f'{data["requestId"]}/result')
+        assert data["cancelUrl"].endswith(data["requestId"])
+        assert "acceptedAt" in data
+        assert "expiresAt" in data
+
+    def test_async_status_and_result_wrap_chat_response(self, client_live):
+        mock_llm_response = {
+            "choices": [{"message": {"content": '{"ok": true}'}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 8, "completion_tokens": 4},
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            submit = client_live.post(
+                "/v1/async-chat-requests",
+                json=make_chat_body(),
+                headers={"X-Request-Id": "trace-async-002"},
+            )
+            request_id = submit.json()["requestId"]
+
+            deadline = time.time() + 1.0
+            status_data = None
+            while time.time() < deadline:
+                status_resp = client_live.get(f"/v1/async-chat-requests/{request_id}")
+                status_data = status_resp.json()
+                if status_data["state"] == "completed":
+                    break
+                time.sleep(0.01)
+
+            assert status_data is not None
+            assert status_data["state"] == "completed"
+            assert status_data["resultReady"] is True
+            assert status_data["traceRequestId"] == "trace-async-002"
+
+            result_resp = client_live.get(f"/v1/async-chat-requests/{request_id}/result")
+
+        assert result_resp.status_code == 200
+        result_data = result_resp.json()
+        assert result_data["requestId"] == request_id
+        assert result_data["state"] == "completed"
+        assert result_data["traceRequestId"] == "trace-async-002"
+        assert result_data["response"]["choices"][0]["message"]["content"] == '{"ok": true}'
+        assert result_data["response"]["usage"]["prompt_tokens"] == 8
+
+    def test_async_result_not_ready_is_explicit(self, client_live):
+        async def delayed_response(*args, **kwargs):
+            await asyncio.sleep(0.05)
+            return httpx.Response(
+                200,
+                json={
+                    "choices": [{"message": {"content": '{"ok": true}'}, "finish_reason": "stop"}],
+                    "usage": {"prompt_tokens": 8, "completion_tokens": 4},
+                },
+            )
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(side_effect=delayed_response)
+
+            submit = client_live.post("/v1/async-chat-requests", json=make_chat_body())
+            request_id = submit.json()["requestId"]
+            result_resp = client_live.get(f"/v1/async-chat-requests/{request_id}/result")
+
+        assert result_resp.status_code == 409
+        result_data = result_resp.json()
+        assert result_data["requestId"] == request_id
+        assert result_data["error"] == "Async result not ready"
+        assert result_data["state"] in {"queued", "running"}
+
+    def test_async_cancel_returns_cancelled_state(self, client_live):
+        started = Event()
+
+        async def delayed_response(*args, **kwargs):
+            started.set()
+            await asyncio.sleep(60)
+            return httpx.Response(
+                200,
+                json={
+                    "choices": [{"message": {"content": '{"ok": true}'}, "finish_reason": "stop"}],
+                    "usage": {"prompt_tokens": 8, "completion_tokens": 4},
+                },
+            )
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(side_effect=delayed_response)
+
+            submit = client_live.post("/v1/async-chat-requests", json=make_chat_body())
+            request_id = submit.json()["requestId"]
+
+            deadline = time.time() + 1.0
+            while not started.is_set() and time.time() < deadline:
+                time.sleep(0.01)
+
+            cancel_resp = client_live.delete(f"/v1/async-chat-requests/{request_id}")
+
+        assert cancel_resp.status_code == 200
+        cancel_data = cancel_resp.json()
+        assert cancel_data["requestId"] == request_id
+        assert cancel_data["state"] == "cancelled"
+        assert cancel_data["localAckState"] == "ack-break"
+
+    def test_async_result_expired_is_explicit(self, client_live):
+        mock_llm_response = {
+            "choices": [{"message": {"content": '{"ok": true}'}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 8, "completion_tokens": 4},
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            submit = client_live.post("/v1/async-chat-requests", json=make_chat_body())
+            request_id = submit.json()["requestId"]
+
+            deadline = time.time() + 1.0
+            while time.time() < deadline:
+                status_resp = client_live.get(f"/v1/async-chat-requests/{request_id}")
+                if status_resp.json()["state"] == "completed":
+                    break
+                time.sleep(0.01)
+
+            record = app.state.async_chat_manager._requests[request_id]
+            record.expires_at_ms = 0
+
+            result_resp = client_live.get(f"/v1/async-chat-requests/{request_id}/result")
+
+        assert result_resp.status_code == 410
+        result_data = result_resp.json()
+        assert result_data["requestId"] == request_id
+        assert result_data["state"] == "expired"
+        assert result_data["error"] == "Async result expired"

@@ -7,17 +7,25 @@ import httpx
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
+from app.async_chat_manager import AsyncChatRequestRecord
 from app.config import settings
 from app.context import get_request_id, set_request_id
 from app.metrics import prom
-from app.schemas.request import TaskRequest
-from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
+from app.schemas.request import AsyncChatSubmitRequest, TaskRequest
+from app.schemas.response import (
+    AsyncChatAcceptedResponse,
+    AsyncChatResultResponse,
+    AsyncChatStatusResponse,
+    TaskFailureResponse,
+    TaskSuccessResponse,
+)
 
 logger = logging.getLogger(__name__)
 _exchange_logger = logging.getLogger("llm_exchange")
 
 router = APIRouter(prefix="/v1", tags=["v1"])
 _STRICT_JSON_HEADER = "x-aegis-strict-json"
+_MAX_CHAT_TIMEOUT_SECONDS = 1800.0
 
 
 def _json_response(
@@ -39,6 +47,37 @@ def _is_truthy_header(value: str | None) -> bool:
 
 def _strict_json_requested(req: Request) -> bool:
     return _is_truthy_header(req.headers.get(_STRICT_JSON_HEADER))
+
+
+def _build_forward_headers(request_id: str) -> dict[str, str]:
+    headers: dict[str, str] = {"Content-Type": "application/json"}
+    if settings.llm_api_key:
+        headers["Authorization"] = f"Bearer {settings.llm_api_key}"
+    if request_id:
+        headers["X-Request-Id"] = request_id
+    return headers
+
+
+def _prepare_chat_forward(
+    request_body: dict,
+    *,
+    model_registry,
+    strict_json: bool,
+) -> tuple[dict, str]:
+    body = dict(request_body)
+    profile = model_registry.get_default()
+    llm_endpoint = profile.endpoint if profile else settings.llm_endpoint
+    body["model"] = profile.modelName if profile else settings.llm_model
+    if strict_json:
+        _enforce_strict_json_request_controls(body)
+    return body, llm_endpoint
+
+
+def _chat_timeout_from_header(raw_value: str | None) -> float:
+    try:
+        return min(float(raw_value or _MAX_CHAT_TIMEOUT_SECONDS), _MAX_CHAT_TIMEOUT_SECONDS)
+    except (ValueError, TypeError):
+        return _MAX_CHAT_TIMEOUT_SECONDS
 
 
 def _strict_json_violation(
@@ -119,6 +158,7 @@ def _apply_strict_json_response_contract(resp_data: dict) -> tuple[dict | None, 
 @router.post("/tasks")
 async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
     set_request_id(req.headers.get("x-request-id") or f"gw-{uuid4().hex[:12]}")
+    request_id = get_request_id() or ""
     logger.info(
         "[v1] Task received: taskId=%s, taskType=%s",
         request.taskId, request.taskType,
@@ -126,6 +166,14 @@ async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
 
     pipeline = req.app.state.pipeline
     token_tracker = getattr(req.app.state, "token_tracker", None)
+    request_tracker = getattr(req.app.state, "request_tracker", None)
+
+    if request_tracker and request_id:
+        request_tracker.register(
+            request_id,
+            endpoint="tasks",
+            task_type=request.taskType.value,
+        )
 
     task_start = time.monotonic()
     try:
@@ -140,6 +188,12 @@ async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
                 error_type="INTERNAL_ERROR",
             )
         request_id = get_request_id()
+        if request_tracker and request_id:
+            request_tracker.mark_ack_break(
+                request_id,
+                blocked_reason="internal_error",
+                ack_source="router-exception",
+            )
         return JSONResponse(
             status_code=500,
             content={
@@ -154,6 +208,9 @@ async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
             },
             headers={"X-Request-Id": request_id} if request_id else {},
         )
+    finally:
+        if request_tracker and request_id:
+            request_tracker.clear(request_id)
 
     task_duration = time.monotonic() - task_start
     if token_tracker:
@@ -170,6 +227,316 @@ async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
         )
 
     return _json_response(result)
+
+
+def _async_result_error(
+    *,
+    status_code: int,
+    request_id: str,
+    trace_request_id: str,
+    state: str,
+    expires_at: str | None,
+    error: str,
+    blocked_reason: str | None = None,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "requestId": request_id,
+            "traceRequestId": trace_request_id,
+            "state": state,
+            "expiresAt": expires_at,
+            "error": error,
+            "blockedReason": blocked_reason,
+        },
+    )
+
+
+async def _run_async_chat_request(
+    *,
+    app,
+    record: AsyncChatRequestRecord,
+    request_body: dict,
+    strict_json: bool,
+) -> None:
+    set_request_id(record.trace_request_id)
+
+    model_registry = app.state.model_registry
+    body, llm_endpoint = _prepare_chat_forward(
+        request_body,
+        model_registry=model_registry,
+        strict_json=strict_json,
+    )
+    fwd_headers = _build_forward_headers(record.trace_request_id)
+    req_timeout = httpx.Timeout(
+        connect=settings.llm_connect_timeout,
+        read=_MAX_CHAT_TIMEOUT_SECONDS,
+        write=10.0,
+        pool=10.0,
+    )
+
+    circuit_breaker = getattr(app.state, "circuit_breaker", None)
+    token_tracker = getattr(app.state, "token_tracker", None)
+    llm_semaphore = app.state.llm_semaphore
+    proxy_client = app.state.proxy_client
+    async_chat_manager = app.state.async_chat_manager
+
+    start = time.monotonic()
+
+    if circuit_breaker:
+        from app.errors import LlmCircuitOpenError
+        try:
+            await circuit_breaker.check()
+        except LlmCircuitOpenError:
+            if token_tracker:
+                await token_tracker.record(
+                    endpoint="async_chat",
+                    success=False,
+                    duration_s=0.0,
+                    error_type="LLM_CIRCUIT_OPEN",
+                )
+            await async_chat_manager.fail(
+                record.request_id,
+                blocked_reason="circuit_open",
+                ack_source="circuit-open",
+            )
+            return
+
+    try:
+        async with llm_semaphore:
+            prom.CONCURRENT_REQUESTS.inc()
+            try:
+                await async_chat_manager.mark_phase(
+                    record.request_id,
+                    phase="llm-inference",
+                    state="running",
+                    ack_source="queue-exit",
+                )
+                await async_chat_manager.mark_transport_only(
+                    record.request_id,
+                    phase="llm-inference",
+                )
+                resp = await proxy_client.post(
+                    f"{llm_endpoint}/v1/chat/completions",
+                    json=body,
+                    headers=fwd_headers,
+                    timeout=req_timeout,
+                )
+            finally:
+                prom.CONCURRENT_REQUESTS.dec()
+    except httpx.ConnectError:
+        elapsed_ms = int((time.monotonic() - start) * 1000)
+        if circuit_breaker:
+            await circuit_breaker.record_failure()
+        if token_tracker:
+            await token_tracker.record(
+                endpoint="async_chat",
+                success=False,
+                duration_s=elapsed_ms / 1000,
+                error_type="CONNECT",
+            )
+        await async_chat_manager.fail(
+            record.request_id,
+            blocked_reason="backend_unreachable",
+            ack_source="connect-error",
+        )
+        return
+    except httpx.TimeoutException:
+        elapsed_ms = int((time.monotonic() - start) * 1000)
+        if circuit_breaker:
+            await circuit_breaker.record_failure()
+        if token_tracker:
+            await token_tracker.record(
+                endpoint="async_chat",
+                success=False,
+                duration_s=elapsed_ms / 1000,
+                error_type="TIMEOUT",
+            )
+        await async_chat_manager.fail(
+            record.request_id,
+            blocked_reason="backend_timeout",
+            ack_source="backend-timeout",
+        )
+        return
+
+    elapsed_ms = int((time.monotonic() - start) * 1000)
+    try:
+        resp_data = resp.json()
+    except Exception:
+        resp_data = {}
+
+    choices = resp_data.get("choices", [{}]) if isinstance(resp_data, dict) else [{}]
+    finish_reason = choices[0].get("finish_reason", "?") if choices else "?"
+
+    _exchange_logger.info(json.dumps({
+        "service": "s7-gateway",
+        "level": 30,
+        "time": int(time.time() * 1000),
+        "requestId": record.trace_request_id,
+        "msg": f"[LLM exchange] async {body.get('model', '')} latencyMs={elapsed_ms}",
+        "type": "async_chat",
+        "asyncRequestId": record.request_id,
+        "elapsedMs": elapsed_ms,
+        "latencyMs": elapsed_ms,
+        "status": "ok" if resp.status_code == 200 else f"HTTP_{resp.status_code}",
+        "model": body.get("model", ""),
+        "usage": resp_data.get("usage") if isinstance(resp_data, dict) else None,
+        "finishReason": finish_reason,
+        "strictJson": strict_json,
+        "toolChoice": body.get("tool_choice", "none"),
+        "toolCount": len(body.get("tools", [])),
+    }, ensure_ascii=False))
+
+    if strict_json and resp.status_code == 200:
+        normalized_resp_data, strict_error = _apply_strict_json_response_contract(
+            resp_data if isinstance(resp_data, dict) else {},
+        )
+        if strict_error:
+            await async_chat_manager.fail(
+                record.request_id,
+                blocked_reason="strict_json_contract_violation",
+                ack_source="strict-json-contract",
+            )
+            return
+        resp_data = normalized_resp_data
+
+    if resp.status_code == 200:
+        if circuit_breaker:
+            await circuit_breaker.record_success()
+        usage = resp_data.get("usage", {}) if isinstance(resp_data, dict) else {}
+        if token_tracker:
+            await token_tracker.record(
+                endpoint="async_chat",
+                prompt_tokens=usage.get("prompt_tokens", 0),
+                completion_tokens=usage.get("completion_tokens", 0),
+                success=True,
+                duration_s=elapsed_ms / 1000,
+            )
+        await async_chat_manager.complete(
+            record.request_id,
+            response_payload=resp_data,
+        )
+        return
+
+    if circuit_breaker and resp.status_code >= 500:
+        await circuit_breaker.record_failure()
+    if token_tracker:
+        await token_tracker.record(
+            endpoint="async_chat",
+            success=False,
+            duration_s=elapsed_ms / 1000,
+            error_type=f"HTTP_{resp.status_code}",
+        )
+    await async_chat_manager.fail(
+        record.request_id,
+        blocked_reason=f"http_{resp.status_code}",
+        ack_source="backend-error",
+    )
+
+
+@router.post("/async-chat-requests")
+async def create_async_chat_request(
+    request: AsyncChatSubmitRequest,
+    req: Request,
+) -> JSONResponse:
+    raw_id = req.headers.get("x-request-id") or f"gw-{uuid4().hex[:12]}"
+    set_request_id(raw_id)
+    trace_request_id = get_request_id() or ""
+    strict_json = _strict_json_requested(req)
+    request_body = request.model_dump(mode="json", exclude_none=True)
+
+    async_chat_manager = req.app.state.async_chat_manager
+    record = await async_chat_manager.submit(
+        trace_request_id=trace_request_id,
+        runner=lambda submitted_record: _run_async_chat_request(
+            app=req.app,
+            record=submitted_record,
+            request_body=request_body,
+            strict_json=strict_json,
+        ),
+    )
+
+    accepted = AsyncChatAcceptedResponse(**record.to_submit_response())
+    headers = {"X-Request-Id": trace_request_id} if trace_request_id else {}
+    return JSONResponse(
+        status_code=202,
+        content=accepted.model_dump(mode="json"),
+        headers=headers,
+    )
+
+
+@router.get("/async-chat-requests/{request_id}")
+async def get_async_chat_request_status(request_id: str, req: Request) -> JSONResponse:
+    async_chat_manager = req.app.state.async_chat_manager
+    status_payload = await async_chat_manager.status(request_id)
+    if status_payload is None:
+        return JSONResponse(
+            status_code=404,
+            content={"requestId": request_id, "error": "Async request not found"},
+        )
+
+    status_response = AsyncChatStatusResponse(**status_payload)
+    return JSONResponse(content=status_response.model_dump(mode="json"))
+
+
+@router.get("/async-chat-requests/{request_id}/result")
+async def get_async_chat_request_result(request_id: str, req: Request) -> JSONResponse:
+    async_chat_manager = req.app.state.async_chat_manager
+    record = await async_chat_manager.result(request_id)
+    if record is None:
+        return JSONResponse(
+            status_code=404,
+            content={"requestId": request_id, "error": "Async request not found"},
+        )
+
+    if record.state == "completed" and record.response_payload is not None:
+        result_response = AsyncChatResultResponse(**record.to_result_response())
+        return JSONResponse(content=result_response.model_dump(mode="json"))
+
+    if record.state == "expired":
+        return _async_result_error(
+            status_code=410,
+            request_id=record.request_id,
+            trace_request_id=record.trace_request_id,
+            state=record.state,
+            expires_at=record.to_status_response()["expiresAt"],
+            error="Async result expired",
+        )
+
+    if record.state in {"queued", "running"}:
+        return _async_result_error(
+            status_code=409,
+            request_id=record.request_id,
+            trace_request_id=record.trace_request_id,
+            state=record.state,
+            expires_at=record.to_status_response()["expiresAt"],
+            error="Async result not ready",
+            blocked_reason=record.blocked_reason,
+        )
+
+    return _async_result_error(
+        status_code=409,
+        request_id=record.request_id,
+        trace_request_id=record.trace_request_id,
+        state=record.state,
+        expires_at=record.to_status_response()["expiresAt"],
+        error="Async request did not complete successfully",
+        blocked_reason=record.blocked_reason,
+    )
+
+
+@router.delete("/async-chat-requests/{request_id}")
+async def cancel_async_chat_request(request_id: str, req: Request) -> JSONResponse:
+    async_chat_manager = req.app.state.async_chat_manager
+    record = await async_chat_manager.cancel(request_id)
+    if record is None:
+        return JSONResponse(
+            status_code=404,
+            content={"requestId": request_id, "error": "Async request not found"},
+        )
+
+    status_response = AsyncChatStatusResponse(**record.to_status_response())
+    return JSONResponse(content=status_response.model_dump(mode="json"))
 
 
 @router.get("/health")
@@ -207,6 +574,11 @@ async def health(req: Request) -> dict:
         "status": "ok" if threat_search else "disabled",
     }
 
+    request_tracker = getattr(req.app.state, "request_tracker", None)
+    if request_tracker:
+        request_id = req.query_params.get("requestId")
+        result.update(request_tracker.snapshot(request_id=request_id))
+
     return result
 
 
@@ -221,33 +593,20 @@ async def chat_proxy(req: Request) -> Response:
     set_request_id(raw_id)
     request_id = get_request_id() or ""
 
-    body = await req.json()
+    original_body = await req.json()
     strict_json = _strict_json_requested(req)
 
     model_registry = req.app.state.model_registry
-    profile = model_registry.get_default()
-    llm_endpoint = profile.endpoint if profile else settings.llm_endpoint
+    body, llm_endpoint = _prepare_chat_forward(
+        original_body,
+        model_registry=model_registry,
+        strict_json=strict_json,
+    )
 
-    # 모델명 오버라이드 — 호출자가 어떤 모델명을 보내든 Gateway가 실제 모델로 교체
-    body["model"] = profile.modelName if profile else settings.llm_model
-    if strict_json:
-        _enforce_strict_json_request_controls(body)
-
-    fwd_headers: dict[str, str] = {"Content-Type": "application/json"}
-    if settings.llm_api_key:
-        fwd_headers["Authorization"] = f"Bearer {settings.llm_api_key}"
-    if request_id:
-        fwd_headers["X-Request-Id"] = request_id
+    fwd_headers = _build_forward_headers(request_id)
 
     # 호출자 타임아웃: X-Timeout-Seconds 헤더로 전달, 미전달 시 기본 1800초
-    _MAX_TIMEOUT = 1800.0
-    try:
-        caller_timeout = min(
-            float(req.headers.get("x-timeout-seconds", _MAX_TIMEOUT)),
-            _MAX_TIMEOUT,
-        )
-    except (ValueError, TypeError):
-        caller_timeout = _MAX_TIMEOUT
+    caller_timeout = _chat_timeout_from_header(req.headers.get("x-timeout-seconds"))
     req_timeout = httpx.Timeout(
         connect=settings.llm_connect_timeout,
         read=caller_timeout,
@@ -259,8 +618,12 @@ async def chat_proxy(req: Request) -> Response:
 
     circuit_breaker = getattr(req.app.state, "circuit_breaker", None)
     token_tracker = getattr(req.app.state, "token_tracker", None)
+    request_tracker = getattr(req.app.state, "request_tracker", None)
     llm_semaphore = req.app.state.llm_semaphore
     proxy_client = req.app.state.proxy_client
+
+    if request_tracker and request_id:
+        request_tracker.register(request_id, endpoint="chat")
 
     # Circuit Breaker 확인
     if circuit_breaker:
@@ -270,6 +633,13 @@ async def chat_proxy(req: Request) -> Response:
         except LlmCircuitOpenError:
             elapsed_ms = int((time.monotonic() - start) * 1000)
             logger.warning("[chat proxy] Circuit Breaker OPEN — 즉시 실패")
+            if request_tracker and request_id:
+                request_tracker.mark_ack_break(
+                    request_id,
+                    blocked_reason="circuit_open",
+                    ack_source="circuit-open",
+                )
+                request_tracker.clear(request_id)
             return JSONResponse(
                 status_code=503,
                 content={"error": "LLM Engine circuit open", "retryable": True},
@@ -281,9 +651,27 @@ async def chat_proxy(req: Request) -> Response:
             )
 
     try:
+        if request_tracker and request_id:
+            request_tracker.mark_phase(
+                request_id,
+                phase="llm-inference",
+                state="queued",
+                ack_source="chat-accepted",
+            )
         async with llm_semaphore:
             prom.CONCURRENT_REQUESTS.inc()
             try:
+                if request_tracker and request_id:
+                    request_tracker.mark_phase(
+                        request_id,
+                        phase="llm-inference",
+                        state="running",
+                        ack_source="queue-exit",
+                    )
+                    request_tracker.mark_transport_only(
+                        request_id,
+                        phase="llm-inference",
+                    )
                 resp = await proxy_client.post(
                     f"{llm_endpoint}/v1/chat/completions",
                     json=body,
@@ -301,6 +689,13 @@ async def chat_proxy(req: Request) -> Response:
         )
         if circuit_breaker:
             await circuit_breaker.record_failure()
+        if request_tracker and request_id:
+            request_tracker.mark_ack_break(
+                request_id,
+                blocked_reason="backend_unreachable",
+                ack_source="connect-error",
+            )
+            request_tracker.clear(request_id)
         return JSONResponse(
             status_code=503,
             content={"error": "LLM Engine unreachable", "retryable": True},
@@ -319,6 +714,13 @@ async def chat_proxy(req: Request) -> Response:
         )
         if circuit_breaker:
             await circuit_breaker.record_failure()
+        if request_tracker and request_id:
+            request_tracker.mark_ack_break(
+                request_id,
+                blocked_reason="transport_timeout",
+                ack_source="transport-timeout",
+            )
+            request_tracker.clear(request_id)
         return JSONResponse(
             status_code=504,
             content={"error": "LLM Engine timeout", "retryable": True},
@@ -365,6 +767,13 @@ async def chat_proxy(req: Request) -> Response:
             resp_data if isinstance(resp_data, dict) else {},
         )
         if strict_error:
+            if request_tracker and request_id:
+                request_tracker.mark_ack_break(
+                    request_id,
+                    blocked_reason="strict_json_contract_violation",
+                    ack_source="strict-json-contract",
+                )
+                request_tracker.clear(request_id)
             return _strict_json_violation(
                 request_id=request_id,
                 model=body.get("model", ""),
@@ -408,6 +817,12 @@ async def chat_proxy(req: Request) -> Response:
             "[chat proxy] LLM Engine HTTP_%d, requestId=%s, latencyMs=%d",
             resp.status_code, request_id, elapsed_ms,
         )
+        if request_tracker and request_id and resp.status_code >= 500:
+            request_tracker.mark_ack_break(
+                request_id,
+                blocked_reason=f"http_{resp.status_code}",
+                ack_source="backend-error",
+            )
 
     resp_headers: dict[str, str] = {}
     if request_id:
@@ -417,12 +832,15 @@ async def chat_proxy(req: Request) -> Response:
     if strict_json:
         resp_headers["X-AEGIS-Strict-JSON"] = "applied"
 
-    return Response(
+    response = Response(
         content=json.dumps(resp_data, ensure_ascii=False).encode() if strict_json and resp_data else resp.content,
         status_code=resp.status_code,
         media_type="application/json",
         headers=resp_headers,
     )
+    if request_tracker and request_id:
+        request_tracker.clear(request_id)
+    return response
 
 
 async def _check_llm_backend(model_registry, proxy_client: httpx.AsyncClient) -> dict:

@@ -7,7 +7,7 @@ interface PlaceholderSettingsSectionProps {
 }
 
 export const PlaceholderSettingsSection: React.FC<PlaceholderSettingsSectionProps> = ({ title, description }) => (
-  <div className="card">
+  <div className="card project-settings-card project-settings-placeholder">
     <EmptyState title={title} description={description} />
   </div>
 );

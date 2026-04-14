@@ -73,14 +73,14 @@ def test_stop_budget_exhausted() -> None:
 # ── timeout ─────────────────────────────────────────────────
 
 
-def test_stop_timeout() -> None:
-    """경과 시간이 timeout을 초과하면 reason='timeout'."""
+def test_elapsed_time_alone_does_not_stop() -> None:
+    """경과 시간 초과만으로는 더 이상 종료되지 않는다."""
     session = _make_session()
     policy = TerminationPolicy(timeout_ms=100)
     # elapsed_ms()를 mock하여 200ms 반환
     with patch.object(type(session), "elapsed_ms", return_value=200):
-        assert policy.should_stop(session) is True
-    assert session.termination_reason == "timeout"
+        assert policy.should_stop(session) is False
+    assert session.termination_reason == ""
 
 
 # ── no_new_evidence ─────────────────────────────────────────

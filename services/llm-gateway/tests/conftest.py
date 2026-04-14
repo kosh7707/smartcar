@@ -118,4 +118,12 @@ def make_test_plan_body(task_id: str = "test-tp-001") -> dict:
     )
 
 
+def make_chat_body() -> dict:
+    return {
+        "model": "ignored-by-gateway",
+        "messages": [{"role": "user", "content": "hello async"}],
+        "max_tokens": 64,
+    }
+
+
 ALL_TASK_TYPES = [t.value for t in TaskType]

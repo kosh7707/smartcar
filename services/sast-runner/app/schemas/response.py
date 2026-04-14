@@ -199,6 +199,10 @@ class HealthRequestSummary(BaseModel):
     endpoint: str = "scan"
     state: Literal["idle", "queued", "running", "completed", "failed"]
     ack_status: Literal["idle", "active", "broken"] = Field(alias="ackStatus")
+    local_ack_state: Literal["phase-advancing", "transport-only", "ack-break"] | None = Field(
+        default=None,
+        alias="localAckState",
+    )
     last_ack_at: int | None = Field(default=None, alias="lastAckAt")
     last_ack_source: str | None = Field(default=None, alias="lastAckSource")
     local_ack_sources: list[str] = Field(default_factory=list, alias="localAckSources")
@@ -228,7 +232,7 @@ class HealthResponse(BaseModel):
     allowed_skip_reasons: list[str] = Field(default_factory=list, alias="allowedSkipReasons")
     active_request_count: int = Field(default=0, alias="activeRequestCount")
     request_summary: HealthRequestSummary = Field(
-        default_factory=lambda: HealthRequestSummary(state="idle", ackStatus="idle"),
+        default_factory=lambda: HealthRequestSummary(state="idle", ackStatus="idle", localAckState=None),
         alias="requestSummary",
     )
 

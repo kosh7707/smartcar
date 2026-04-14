@@ -78,6 +78,20 @@ async def execute_phase_one(executor, session: "AgentSession", logger: logging.L
     )
     provenance = raw_provenance if isinstance(raw_provenance, dict) else None
 
+    graph_readiness = graph_context.get("readiness") if isinstance(graph_context.get("readiness"), dict) else {}
+    if graph_readiness:
+        if "neo4jGraph" in graph_readiness:
+            result.code_graph_neo4j_ready = bool(graph_readiness.get("neo4jGraph"))
+        if "vectorIndex" in graph_readiness:
+            result.code_graph_vector_ready = bool(graph_readiness.get("vectorIndex"))
+        if "graphRag" in graph_readiness:
+            result.code_graph_graph_rag_ready = bool(graph_readiness.get("graphRag"))
+    if isinstance(graph_context.get("status"), str):
+        result.code_graph_status = graph_context.get("status")
+    graph_warnings = graph_context.get("warnings")
+    if isinstance(graph_warnings, list):
+        result.code_graph_warnings = [str(item) for item in graph_warnings]
+
     analysis_path = resolve_analysis_path(project_path, target_path, logger)
 
     if project_id:
@@ -156,8 +170,16 @@ async def execute_phase_one(executor, session: "AgentSession", logger: logging.L
     if result.sast_findings:
         result = await executor._run_threat_query(result)
 
-    if result.sast_findings and project_id:
+    if result.sast_findings and project_id and result.code_graph_neo4j_ready is not False:
         result = await executor._run_dangerous_callers(result, project_id, provenance=provenance)
+    elif result.sast_findings and project_id:
+        agent_log(
+            logger, "Phase 1: dangerous-callers 건너뜀 (code graph not ready)",
+            component="phase_one", phase="dangerous_callers_skipped",
+            codeGraphStatus=result.code_graph_status,
+            graphWarnings=result.code_graph_warnings,
+            level=logging.WARNING,
+        )
 
     result.total_duration_ms = int((time.monotonic() - start) * 1000)
 

@@ -72,6 +72,10 @@ export interface FileCoverageEntry {
 export interface AnalysisResult {
   id: string;
   projectId: string;
+  /** static/deep lineage owner when applicable */
+  buildTargetId?: string;
+  /** immutable execution lineage identifier for BuildTarget-owned analysis */
+  analysisExecutionId?: string;
   module: AnalysisModule;
   status: AnalysisStatus;
   vulnerabilities: Vulnerability[];
@@ -465,6 +469,11 @@ export type BuildTargetStatus =
   | "graphing" | "graphed" | "graph_failed"
   | "ready";
 
+export type BuildTargetSdkChoiceState = "sdk-selected" | "sdk-none-explicit" | "sdk-unresolved";
+
+export type AnalysisExecutionStatus = "active" | "completed" | "failed" | "superseded" | "aborted";
+export type AnalysisExecutionStepStatus = "pending" | "running" | "succeeded" | "failed";
+
 /** 프로젝트 내 독립 빌드 단위 (서브 프로젝트) */
 export interface BuildTarget {
   id: string;
@@ -479,6 +488,8 @@ export interface BuildTarget {
   sourcePath?: string;
   /** 타겟별 독립 빌드 설정 */
   buildProfile: BuildProfile;
+  /** SDK 선택 상태 — unresolved이면 Quick/Deep 비허용 */
+  sdkChoiceState: BuildTargetSdkChoiceState;
   /** 빌드 시스템 (S4 탐색 결과) */
   buildSystem?: "cmake" | "make" | "custom";
   /** S3 Build Agent가 결정한 빌드 명령어 */
@@ -499,6 +510,25 @@ export interface BuildTarget {
   codeGraphNodeCount?: number;
   /** 마지막 빌드 시각 */
   lastBuiltAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** BuildTarget이 소유하는 immutable execution lineage */
+export interface AnalysisExecution {
+  id: string;
+  projectId: string;
+  buildTargetId: string;
+  buildTargetName: string;
+  buildTargetRelativePath: string;
+  buildProfileSnapshot: BuildProfile;
+  sdkChoiceState: BuildTargetSdkChoiceState;
+  status: AnalysisExecutionStatus;
+  quickBuildPrepStatus: AnalysisExecutionStepStatus;
+  quickGraphRagStatus: AnalysisExecutionStepStatus;
+  quickSastStatus: AnalysisExecutionStepStatus;
+  deepStatus: AnalysisExecutionStepStatus;
+  supersededByExecutionId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -676,6 +706,8 @@ export type ArtifactType = "analysis-result" | "uploaded-file" | "dynamic-sessio
 export interface Run {
   id: string;
   projectId: string;
+  buildTargetId?: string;
+  analysisExecutionId?: string;
   module: AnalysisModule;
   status: RunStatus;
   analysisResultId: string;
@@ -689,6 +721,8 @@ export interface Finding {
   id: string;
   runId: string;
   projectId: string;
+  buildTargetId?: string;
+  analysisExecutionId?: string;
   module: AnalysisModule;
   status: FindingStatus;
   severity: Severity;

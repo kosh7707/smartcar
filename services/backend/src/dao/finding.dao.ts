@@ -6,6 +6,8 @@ interface FindingRow {
   id: string;
   run_id: string;
   project_id: string;
+  build_target_id: string | null;
+  analysis_execution_id: string | null;
   module: AnalysisModule;
   status: FindingStatus;
   severity: Severity;
@@ -30,6 +32,8 @@ function rowToFinding(row: FindingRow): Finding {
     id: row.id,
     runId: row.run_id,
     projectId: row.project_id,
+    buildTargetId: row.build_target_id ?? undefined,
+    analysisExecutionId: row.analysis_execution_id ?? undefined,
     module: row.module,
     status: row.status,
     severity: row.severity,
@@ -59,8 +63,8 @@ export class FindingDAO implements IFindingDAO {
 
   constructor(private db: DatabaseType) {
     this.insertStmt = db.prepare(
-      `INSERT INTO findings (id, run_id, project_id, module, status, severity, confidence, source_type, title, description, location, suggestion, detail, rule_id, cwe_id, cve_ids, confidence_score, fingerprint, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO findings (id, run_id, project_id, build_target_id, analysis_execution_id, module, status, severity, confidence, source_type, title, description, location, suggestion, detail, rule_id, cwe_id, cve_ids, confidence_score, fingerprint, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     this.selectByIdStmt = db.prepare(`SELECT * FROM findings WHERE id = ?`);
     this.selectByRunStmt = db.prepare(
@@ -79,6 +83,8 @@ export class FindingDAO implements IFindingDAO {
       finding.id,
       finding.runId,
       finding.projectId,
+      finding.buildTargetId ?? null,
+      finding.analysisExecutionId ?? null,
       finding.module,
       finding.status,
       finding.severity,

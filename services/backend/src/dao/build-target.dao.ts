@@ -9,6 +9,7 @@ interface BuildTargetRow {
   name: string;
   relative_path: string;
   build_profile: string | null;
+  sdk_choice_state: BuildTarget["sdkChoiceState"] | null;
   build_system: "cmake" | "make" | "custom" | null;
   included_paths: string | null;
   source_path: string | null;
@@ -33,6 +34,7 @@ function rowToBuildTarget(row: BuildTargetRow): BuildTarget {
     name: row.name,
     relativePath: row.relative_path,
     buildProfile: safeJsonParse(row.build_profile, {} as BuildProfile),
+    sdkChoiceState: row.sdk_choice_state ?? "sdk-unresolved",
     buildSystem: row.build_system ?? undefined,
     includedPaths: safeJsonParse<string[]>(row.included_paths, []).length > 0
       ? safeJsonParse<string[]>(row.included_paths, []) : undefined,
@@ -62,18 +64,18 @@ export class BuildTargetDAO implements IBuildTargetDAO {
 
   constructor(private db: DatabaseType) {
     this.insertStmt = db.prepare(
-      `INSERT INTO build_targets (id, project_id, name, relative_path, build_profile, build_system, status, included_paths, source_path, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO build_targets (id, project_id, name, relative_path, build_profile, sdk_choice_state, build_system, status, included_paths, source_path, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     this.selectByIdStmt = db.prepare(`SELECT * FROM build_targets WHERE id = ?`);
     this.selectByProjectStmt = db.prepare(
       `SELECT * FROM build_targets WHERE project_id = ? ORDER BY name ASC`,
     );
     this.updateStmt = db.prepare(
-      `UPDATE build_targets SET name = ?, relative_path = ?, build_profile = ?, build_system = ?, status = ?, updated_at = ? WHERE id = ?`,
+      `UPDATE build_targets SET name = ?, relative_path = ?, build_profile = ?, sdk_choice_state = ?, build_system = ?, status = ?, updated_at = ? WHERE id = ?`,
     );
     this.updateStatusStmt = db.prepare(
-      `UPDATE build_targets SET status = ?, compile_commands_path = ?, build_log = ?, sast_scan_id = ?, sca_libraries = ?, code_graph_status = ?, code_graph_node_count = ?, last_built_at = ?, build_command = ?, updated_at = ? WHERE id = ?`,
+      `UPDATE build_targets SET status = ?, compile_commands_path = ?, build_log = ?, sast_scan_id = ?, sca_libraries = ?, code_graph_status = ?, code_graph_node_count = ?, last_built_at = ?, build_command = ?, sdk_choice_state = ?, updated_at = ? WHERE id = ?`,
     );
     this.deleteStmt = db.prepare(`DELETE FROM build_targets WHERE id = ?`);
     this.deleteByProjectStmt = db.prepare(`DELETE FROM build_targets WHERE project_id = ?`);
@@ -86,6 +88,7 @@ export class BuildTargetDAO implements IBuildTargetDAO {
       target.name,
       target.relativePath,
       JSON.stringify(target.buildProfile),
+      target.sdkChoiceState,
       target.buildSystem ?? null,
       target.status ?? "discovered",
       JSON.stringify(target.includedPaths ?? []),
@@ -106,7 +109,7 @@ export class BuildTargetDAO implements IBuildTargetDAO {
 
   update(
     id: string,
-    fields: { name?: string; relativePath?: string; buildProfile?: BuildProfile; buildSystem?: string; status?: BuildTargetStatus },
+    fields: { name?: string; relativePath?: string; buildProfile?: BuildProfile; buildSystem?: string; status?: BuildTargetStatus; sdkChoiceState?: BuildTarget["sdkChoiceState"] },
   ): BuildTarget | undefined {
     const existing = this.findById(id);
     if (!existing) return undefined;
@@ -114,12 +117,13 @@ export class BuildTargetDAO implements IBuildTargetDAO {
     const name = fields.name ?? existing.name;
     const relativePath = fields.relativePath ?? existing.relativePath;
     const buildProfile = fields.buildProfile ?? existing.buildProfile;
+    const sdkChoiceState = fields.sdkChoiceState ?? existing.sdkChoiceState;
     const buildSystem = fields.buildSystem ?? existing.buildSystem;
     const status = fields.status ?? existing.status;
     const updatedAt = new Date().toISOString();
 
-    this.updateStmt.run(name, relativePath, JSON.stringify(buildProfile), buildSystem ?? null, status, updatedAt, id);
-    return { ...existing, name, relativePath, buildProfile, buildSystem: buildSystem as BuildTarget["buildSystem"], status, updatedAt };
+    this.updateStmt.run(name, relativePath, JSON.stringify(buildProfile), sdkChoiceState, buildSystem ?? null, status, updatedAt, id);
+    return { ...existing, name, relativePath, buildProfile, sdkChoiceState, buildSystem: buildSystem as BuildTarget["buildSystem"], status, updatedAt };
   }
 
   /** 파이프라인 상태 전이용 (모든 파이프라인 관련 필드 일괄 업데이트) */
@@ -135,6 +139,7 @@ export class BuildTargetDAO implements IBuildTargetDAO {
       codeGraphNodeCount?: number;
       lastBuiltAt?: string;
       buildCommand?: string;
+      sdkChoiceState?: BuildTarget["sdkChoiceState"];
     },
   ): BuildTarget | undefined {
     const existing = this.findById(id);
@@ -151,6 +156,7 @@ export class BuildTargetDAO implements IBuildTargetDAO {
       fields.codeGraphNodeCount ?? existing.codeGraphNodeCount ?? 0,
       fields.lastBuiltAt ?? existing.lastBuiltAt ?? null,
       fields.buildCommand ?? existing.buildCommand ?? null,
+      fields.sdkChoiceState ?? existing.sdkChoiceState,
       updatedAt,
       id,
     );

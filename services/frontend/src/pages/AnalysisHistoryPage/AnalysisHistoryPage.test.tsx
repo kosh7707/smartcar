@@ -51,11 +51,14 @@ function makeRun(overrides: Partial<HistoryRun> = {}): HistoryRun {
   };
 }
 
-function renderPage() {
+function renderPage(
+  initialEntries = ["/projects/p-1/analysis-history"],
+  routePath = "/projects/:projectId/analysis-history",
+) {
   return render(
-    <MemoryRouter initialEntries={["/projects/p-1/analysis-history"]}>
+    <MemoryRouter initialEntries={initialEntries}>
       <Routes>
-        <Route path="/projects/:projectId/analysis-history" element={<AnalysisHistoryPage />} />
+        <Route path={routePath} element={<AnalysisHistoryPage />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -67,12 +70,21 @@ describe("AnalysisHistoryPage", () => {
     mockFetchProjectRuns.mockResolvedValue([]);
   });
 
-  it("renders runs sorted newest-first and navigates when a row is clicked", async () => {
+  it("shows loading feedback before the history request resolves", () => {
+    mockFetchProjectRuns.mockImplementation(() => new Promise(() => {}));
+
+    renderPage();
+
+    expect(screen.getByText("분석 이력 로딩 중...")).toBeInTheDocument();
+  });
+
+  it("renders runs sorted newest-first with KPI, duration, and severity details, then navigates when a row is clicked", async () => {
     mockFetchProjectRuns.mockResolvedValue([
       makeRun({
         id: "run-older",
         module: "deep_analysis",
         status: "failed",
+        analysisResultId: "analysis-deep",
         createdAt: "2026-04-01T12:00:00Z",
         startedAt: "2026-04-01T12:00:00Z",
         endedAt: "2026-04-01T12:01:30Z",
@@ -81,6 +93,7 @@ describe("AnalysisHistoryPage", () => {
         id: "run-newer",
         module: "static_analysis",
         status: "completed",
+        analysisResultId: "analysis-static",
         createdAt: "2026-04-02T12:00:00Z",
         startedAt: "2026-04-02T12:00:00Z",
         endedAt: "2026-04-02T12:02:00Z",
@@ -93,20 +106,30 @@ describe("AnalysisHistoryPage", () => {
     await waitFor(() => expect(mockFetchProjectRuns).toHaveBeenCalledWith("p-1"));
     expect(await screen.findByRole("heading", { name: "Analysis History" })).toBeInTheDocument();
     expect(screen.getByText("2회 분석 실행됨")).toBeInTheDocument();
+    const toolbar = screen.getByRole("region", { name: "분석 이력 필터와 요약" });
+    expect(within(toolbar).getByText("전체 실행")).toBeInTheDocument();
+    expect(within(toolbar).getByText("완료")).toBeInTheDocument();
+    expect(within(toolbar).getByText("실패")).toBeInTheDocument();
+    expect(document.title).toBe("AEGIS — Analysis History");
 
     const rows = screen.getAllByRole("row");
     expect(rows).toHaveLength(3);
     expect(within(rows[1]!).getByText("정적 분석")).toBeInTheDocument();
+    expect(within(rows[1]!).getByText("1")).toBeInTheDocument();
+    expect(within(rows[1]!).getByText("2분")).toBeInTheDocument();
     expect(within(rows[2]!).getByText("심층 분석")).toBeInTheDocument();
+    expect(within(rows[2]!).getByText("3")).toBeInTheDocument();
+    expect(within(rows[2]!).getByText("1분")).toBeInTheDocument();
 
     fireEvent.click(rows[1]!);
-    expect(mockNavigate).toHaveBeenCalledWith("/projects/p-1/static-analysis");
+    expect(mockNavigate).toHaveBeenCalledWith("/projects/p-1/static-analysis?analysisId=analysis-static");
+
+    fireEvent.click(rows[2]!);
+    expect(mockNavigate).toHaveBeenCalledWith("/projects/p-1/static-analysis?analysisId=analysis-deep");
   });
 
   it("shows a filter-specific empty state when no runs match the selected module", async () => {
-    mockFetchProjectRuns.mockResolvedValue([
-      makeRun({ id: "run-static", module: "static_analysis" }),
-    ]);
+    mockFetchProjectRuns.mockResolvedValue([makeRun({ id: "run-static", module: "static_analysis" })]);
 
     renderPage();
 
@@ -125,5 +148,19 @@ describe("AnalysisHistoryPage", () => {
     await waitFor(() => expect(mockLogError).toHaveBeenCalledWith("Fetch analysis history", error));
     expect(mockToast.error).toHaveBeenCalledWith("분석 이력을 불러올 수 없습니다.");
     expect(await screen.findByText("아직 분석 이력이 없습니다")).toBeInTheDocument();
+  });
+
+  it("does not fetch and shows the empty state when the route has no project id", async () => {
+    render(
+      <MemoryRouter initialEntries={["/analysis-history"]}>
+        <Routes>
+          <Route path="/analysis-history" element={<AnalysisHistoryPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByText("아직 분석 이력이 없습니다")).toBeInTheDocument());
+    expect(mockFetchProjectRuns).not.toHaveBeenCalled();
+    expect(mockToast.error).not.toHaveBeenCalled();
   });
 });

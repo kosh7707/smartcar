@@ -125,6 +125,11 @@ class FakeAssembler:
 
 
 class FakeCodeGraphService:
+    def export_project(self, project_id):
+        if project_id == "existing-project":
+            return [{"name": "legacy", "file": "legacy.cpp", "line": 1, "calls": []}]
+        return []
+
     def ingest(self, project_id, functions, *, provenance=None):
         result = {
             "project_id": project_id,
@@ -144,6 +149,9 @@ class FakeCodeGraphService:
                     "sourceBuildAttemptId": np.get("source_build_attempt_id"),
                 }
         return result
+
+    def activate_staging(self, staging_project_id, project_id):
+        return self.get_stats(project_id)
 
     def get_stats(self, project_id, *, build_snapshot_id=None):
         result = {"nodeCount": 3, "edgeCount": 2, "files": ["main.cpp", "http.cpp"]}
@@ -204,6 +212,9 @@ class FakeCodeGraphService:
 class FakeCodeVectorSearch:
     def ingest(self, project_id, functions, *, provenance=None):
         return len(functions)
+
+    def activate_staging(self, staging_project_id, project_id):
+        return None
 
     def delete_project(self, project_id):
         pass

@@ -5,7 +5,10 @@ export const GeneralSettingsSection: React.FC = () => (
     <div className="card project-settings-card">
       <div className="project-settings-section-header">
         <span className="project-settings-section-header__accent" />
-        <div className="card-title project-settings-section-header__title">General</div>
+        <div>
+          <div className="card-title project-settings-section-header__title">General</div>
+          <p className="project-settings-section-header__desc">프로젝트 이름과 설명처럼 가장 기본적인 운영 정보를 관리합니다.</p>
+        </div>
       </div>
 
       <div className="project-settings-form-grid">

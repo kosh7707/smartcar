@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from app.config import settings
 from app.context import set_request_id
 from app.errors import error_response
-from app.timeout import parse_timeout
+from app.timeout import parse_timeout, run_sync_with_deadline
 
 logger = logging.getLogger(__name__)
 
@@ -70,14 +70,17 @@ async def search(
     x_timeout_ms: int | None = Header(None, alias="X-Timeout-Ms"),
 ) -> dict:
     set_request_id(x_request_id)
-    parse_timeout(x_timeout_ms)
+    deadline, _ = parse_timeout(x_timeout_ms)
     start = time.monotonic()
 
     if _assembler is None or _neo4j_graph is None:
         logger.warning("검색 요청 — Knowledge base 미초기화")
         return error_response(503, "KB_NOT_READY", "Knowledge base not initialized", retryable=True)
 
-    result = _assembler.assemble(
+    result = await run_sync_with_deadline(
+        deadline,
+        "threat-search",
+        _assembler.assemble,
         req.query,
         top_k=req.top_k,
         min_score=req.min_score,
@@ -108,7 +111,7 @@ async def search_batch(
     x_timeout_ms: int | None = Header(None, alias="X-Timeout-Ms"),
 ) -> dict:
     set_request_id(x_request_id)
-    parse_timeout(x_timeout_ms)
+    deadline, _ = parse_timeout(x_timeout_ms)
     start = time.monotonic()
 
     if _assembler is None or _neo4j_graph is None:
@@ -125,7 +128,12 @@ async def search_batch(
         for q in req.queries
     ]
 
-    result = _assembler.batch_assemble(queries)
+    result = await run_sync_with_deadline(
+        deadline,
+        "threat-search-batch",
+        _assembler.batch_assemble,
+        queries,
+    )
 
     elapsed_ms = int((time.monotonic() - start) * 1000)
     logger.info(

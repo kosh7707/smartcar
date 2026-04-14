@@ -13,6 +13,26 @@ from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
 logger = logging.getLogger(__name__)
 
 
+def _configure_phase2_graph_tools(registry, phase1_result, project_id, callers_tool=None, callees_tool=None, search_tool=None) -> None:
+    neo4j_ready = phase1_result.code_graph_neo4j_ready is not False
+    graph_rag_ready = phase1_result.code_graph_graph_rag_ready is not False
+
+    if neo4j_ready:
+        if callers_tool:
+            callers_tool.set_project_id(project_id)
+        if callees_tool:
+            callees_tool.set_project_id(project_id)
+    else:
+        registry.unregister("code_graph.callers")
+        registry.unregister("code_graph.callees")
+
+    if graph_rag_ready:
+        if search_tool:
+            search_tool.set_project_id(project_id)
+    else:
+        registry.unregister("code_graph.search")
+
+
 async def handle_deep_analyze(request: TaskRequest, model_registry) -> TaskSuccessResponse | TaskFailureResponse:
     """deep-analyze 요청을 AgentLoop로 처리한다."""
     from app.budget.manager import BudgetManager
@@ -210,12 +230,15 @@ async def handle_deep_analyze(request: TaskRequest, model_registry) -> TaskSucce
 
     # Phase 2 코드 그래프 도구에 project_id 주입
     project_id = session.request.context.trusted.get("projectId", session.request.taskId)
-    if settings.llm_mode == "real" and callers_tool:
-        callers_tool.set_project_id(project_id)
-    if settings.llm_mode == "real" and callees_tool:
-        callees_tool.set_project_id(project_id)
-    if settings.llm_mode == "real" and search_tool:
-        search_tool.set_project_id(project_id)
+    if settings.llm_mode == "real":
+        _configure_phase2_graph_tools(
+            registry,
+            phase1_result,
+            project_id,
+            callers_tool=callers_tool,
+            callees_tool=callees_tool,
+            search_tool=search_tool,
+        )
 
     # ─── Phase 2 준비: LLM 프롬프트에 Phase 1 결과 주입 ───
 

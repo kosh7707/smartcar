@@ -11,6 +11,7 @@ function makeTarget(overrides: Partial<BuildTarget> = {}): BuildTarget {
     name: "gateway",
     relativePath: "gateway/",
     buildProfile: { sdkId: "linux-x86_64-c", compiler: "gcc", headerLanguage: "c" } as BuildProfile,
+    sdkChoiceState: "sdk-selected",
     status: "discovered",
     createdAt: "2026-03-25T00:00:00Z",
     updatedAt: "2026-03-25T00:00:00Z",
@@ -305,6 +306,18 @@ describe("PipelineOrchestrator", () => {
 
     // graph fail is non-fatal — should still reach ready
     expect(buildTargetDAO.updatePipelineState).toHaveBeenCalledWith("t1", expect.objectContaining({ status: "ready" }));
+  });
+
+  it("does not infer code-graph readiness from checkReady before ingest", async () => {
+    const { orchestrator, buildTargetDAO, kbClient } = createMocks();
+    buildTargetDAO.findByProjectId.mockReturnValue([
+      makeTarget({ status: "configured", buildCommand: "make" }),
+    ]);
+    kbClient.checkReady.mockResolvedValue({ ready: false, degraded: true });
+
+    await orchestrator.runPipeline("p1");
+
+    expect(kbClient.ingestCodeGraph).toHaveBeenCalledOnce();
   });
 
   it("graph ingest not GraphRAG-ready → graph_failed and no ready transition", async () => {

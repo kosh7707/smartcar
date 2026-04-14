@@ -56,6 +56,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
     # ─── 미니 Phase 1: KB 컨텍스트 수집 ───
     kb_context_lines = []
 
+    request_summary_tracker.mark_transport_only(request_id, source="kb-lookup")
     async with httpx.AsyncClient(base_url=settings.kb_endpoint, timeout=10.0) as kb:
         headers: dict[str, str] = {"X-Timeout-Ms": "10000"}
         if request_id:
@@ -206,6 +207,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message},
         ]
+        request_summary_tracker.mark_transport_only(request_id, source="llm-inference")
         llm_response = await llm.call(
             messages,
             max_tokens=request.constraints.maxTokens or 8192,

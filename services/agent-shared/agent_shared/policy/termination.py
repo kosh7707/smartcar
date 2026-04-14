@@ -83,8 +83,9 @@ class TerminationPolicy:
             return "max_steps"
         if budget.total_completion_tokens >= budget.max_completion_tokens:
             return "budget_exhausted"
-        if session.elapsed_ms() >= self._timeout_ms:
-            return "timeout"
+        # 2026-04-14 health-control policy:
+        # elapsed wall-clock time is informational only and must not by itself
+        # trigger abort while the ack/progress chain is still alive.
         if budget.consecutive_no_evidence_turns >= budget.max_consecutive_no_evidence:
             return "no_new_evidence"
         if _all_tiers_exhausted(budget):

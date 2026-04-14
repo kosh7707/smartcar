@@ -79,11 +79,17 @@ async def lifespan(_app: FastAPI):
 
     # Circuit Breaker + TokenTracker 초기화
     from app.circuit_breaker import CircuitBreaker
+    from app.async_chat_manager import AsyncChatRequestManager
     from app.metrics.token_tracker import TokenTracker
+    from app.request_tracker import RequestTracker
     circuit_breaker = CircuitBreaker()
     token_tracker = TokenTracker()
+    request_tracker = RequestTracker()
+    async_chat_manager = AsyncChatRequestManager(request_tracker=request_tracker)
     _app.state.circuit_breaker = circuit_breaker
     _app.state.token_tracker = token_tracker
+    _app.state.request_tracker = request_tracker
+    _app.state.async_chat_manager = async_chat_manager
 
     # Registry 초기화
     from app.registry.model_registry import create_default_registry as create_model_registry
@@ -118,6 +124,7 @@ async def lifespan(_app: FastAPI):
         _app.state.prompt_registry, _app.state.model_registry,
         context_enricher=enricher, llm_client=llm_client,
         semaphore=_app.state.llm_semaphore,
+        request_tracker=request_tracker,
     )
 
     # LLM Engine 프록시 클라이언트 초기화 (/v1/chat 용)
@@ -151,6 +158,7 @@ async def lifespan(_app: FastAPI):
     )
     yield
 
+    await _app.state.async_chat_manager.close()
     await _app.state.proxy_client.aclose()
     if llm_client:
         await llm_client.aclose()

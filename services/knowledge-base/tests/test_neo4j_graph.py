@@ -60,6 +60,9 @@ def test_edge_count():
 
     graph = Neo4jGraph(driver)
     assert graph.edge_count == 5432
+    query = session.run.call_args.args[0]
+    assert "MATCH (a)-[r]->(b)" in query
+    assert "a:CWE" in query and "b:CAPEC" in query
 
 
 def test_neighbors():
@@ -131,6 +134,9 @@ def test_get_stats_includes_edge_types():
     assert stats["edgeTypes"]["RELATED_CWE"] == 50
     assert stats["nodeCount"] == 100
     assert stats["edgeCount"] == 250
+    rel_query = next(call.args[0] for call in session.run.call_args_list if "type(r) AS rel_type" in call.args[0])
+    assert "MATCH (a)-[r]->(b)" in rel_query
+    assert "a:CWE" in rel_query and "b:CAPEC" in rel_query
 
 
 def test_get_node_info_found():

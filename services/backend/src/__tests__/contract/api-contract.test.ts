@@ -1412,25 +1412,18 @@ describe("API Contract Tests", () => {
   });
 
   describe("Analysis API", () => {
-    it("POST /api/analysis/run returns 202 accepted payload and dispatches legacy quick alias", async () => {
+    it("POST /api/analysis/run is absent after cutover", async () => {
       const res = await request(app)
         .post("/api/analysis/run")
-        .send({ projectId: "p-analysis", mode: "subproject", targetIds: ["t-1"] });
+        .send({ projectId: "p-analysis", buildTargetId: "t-1" });
 
-      expect(res.status).toBe(202);
-      expect(res.body.success).toBe(true);
-      expect(res.body.data.analysisId).toMatch(/^analysis-/);
-      expect(res.body.data.status).toBe("running");
-      expect(ctx.analysisQuickCalls[ctx.analysisQuickCalls.length - 1]).toMatchObject({
-        projectId: "p-analysis",
-        targetIds: ["t-1"],
-      });
+      expect(res.status).toBe(404);
     });
 
-    it("POST /api/analysis/quick returns 202 accepted payload and dispatches quick-only run", async () => {
+    it("POST /api/analysis/quick returns 202 accepted payload and dispatches BuildTarget-scoped quick", async () => {
       const res = await request(app)
         .post("/api/analysis/quick")
-        .send({ projectId: "p-analysis", mode: "subproject", targetIds: ["t-1"] });
+        .send({ projectId: "p-analysis", buildTargetId: "t-1" });
 
       expect(res.status).toBe(202);
       expect(res.body.success).toBe(true);
@@ -1441,52 +1434,44 @@ describe("API Contract Tests", () => {
       });
     });
 
-    it("POST /api/analysis/deep returns 202 accepted payload and dispatches deep-only run", async () => {
+    it("POST /api/analysis/deep returns 202 accepted payload and dispatches execution-bound deep", async () => {
       const res = await request(app)
         .post("/api/analysis/deep")
-        .send({ projectId: "p-analysis", quickAnalysisId: "analysis-quick-1" });
+        .send({ projectId: "p-analysis", buildTargetId: "t-1", executionId: "exec-1" });
 
       expect(res.status).toBe(202);
       expect(res.body.success).toBe(true);
       expect(res.body.data.analysisId).toMatch(/^analysis-/);
       expect(ctx.analysisDeepCalls[ctx.analysisDeepCalls.length - 1]).toMatchObject({
         projectId: "p-analysis",
-        quickAnalysisId: "analysis-quick-1",
+        quickAnalysisId: "exec-1",
       });
     });
 
-    it("POST /api/analysis/run enforces mode validation rules", async () => {
-      const invalidMode = await request(app)
-        .post("/api/analysis/run")
-        .send({ projectId: "p-analysis", mode: "weird" });
-      expect(invalidMode.status).toBe(400);
-      expect(invalidMode.body.error).toContain('mode must be "full" or "subproject"');
-
-      const missingTargets = await request(app)
-        .post("/api/analysis/run")
-        .send({ projectId: "p-analysis", mode: "subproject" });
-      expect(missingTargets.status).toBe(400);
-      expect(missingTargets.body.error).toContain("targetIds is required");
-
-      const fullWithTargets = await request(app)
-        .post("/api/analysis/run")
-        .send({ projectId: "p-analysis", mode: "full", targetIds: ["t-1"] });
-      expect(fullWithTargets.status).toBe(400);
-      expect(fullWithTargets.body.error).toContain("targetIds must be empty");
-    });
-
-    it("POST /api/analysis/quick and /deep enforce additive validation rules", async () => {
-      const quickInvalid = await request(app)
+    it("POST /api/analysis/quick and /deep reject legacy project-level analysis semantics", async () => {
+      const quickLegacy = await request(app)
         .post("/api/analysis/quick")
-        .send({ projectId: "p-analysis", mode: "subproject" });
-      expect(quickInvalid.status).toBe(400);
-      expect(quickInvalid.body.error).toContain("targetIds is required");
+        .send({ projectId: "p-analysis", mode: "subproject", targetIds: ["t-1"] });
+      expect(quickLegacy.status).toBe(400);
+      expect(quickLegacy.body.error).toContain("mode is no longer supported");
 
-      const deepInvalid = await request(app)
-        .post("/api/analysis/deep")
+      const quickProjectOnly = await request(app)
+        .post("/api/analysis/quick")
         .send({ projectId: "p-analysis" });
-      expect(deepInvalid.status).toBe(400);
-      expect(deepInvalid.body.error).toContain("quickAnalysisId is required");
+      expect(quickProjectOnly.status).toBe(400);
+      expect(quickProjectOnly.body.error).toContain("buildTargetId is required");
+
+      const deepLegacy = await request(app)
+        .post("/api/analysis/deep")
+        .send({ projectId: "p-analysis", buildTargetId: "t-1", quickAnalysisId: "analysis-quick-1" });
+      expect(deepLegacy.status).toBe(400);
+      expect(deepLegacy.body.error).toContain("quickAnalysisId is no longer supported");
+
+      const deepMissingExecution = await request(app)
+        .post("/api/analysis/deep")
+        .send({ projectId: "p-analysis", buildTargetId: "t-1" });
+      expect(deepMissingExecution.status).toBe(400);
+      expect(deepMissingExecution.body.error).toContain("executionId is required");
     });
 
     it("GET /api/analysis/status returns running analyses", async () => {

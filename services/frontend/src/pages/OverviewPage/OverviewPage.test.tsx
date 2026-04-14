@@ -126,6 +126,16 @@ describe("OverviewPage", () => {
     });
   });
 
+  it("shows loading feedback while overview data is resolving", () => {
+    mockFetchProjectOverview.mockImplementation(() => new Promise(() => {}));
+    mockFetchProjectFiles.mockImplementation(() => new Promise(() => {}));
+
+    renderPage();
+
+    expect(screen.getByText("데이터 로딩 중...")).toBeInTheDocument();
+    expect(document.title).toBe("AEGIS — Overview");
+  });
+
   it("renders the empty state and routes users to files/settings actions", async () => {
     renderPage();
 
@@ -196,5 +206,19 @@ describe("OverviewPage", () => {
     expect(await screen.findByRole("heading", { name: "데이터를 불러올 수 없습니다" })).toBeInTheDocument();
     expect(screen.getByText("프로젝트 상태와 최근 흐름을 불러오는 중 문제가 발생했습니다.")).toBeInTheDocument();
     expect(container.querySelector(".page-header--plain")).not.toBeNull();
+  });
+
+  it("stops loading and shows the failure state when no project id is present", async () => {
+    render(
+      <MemoryRouter initialEntries={["/overview"]}>
+        <Routes>
+          <Route path="/overview" element={<OverviewPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "데이터를 불러올 수 없습니다" })).toBeInTheDocument();
+    expect(mockFetchProjectOverview).not.toHaveBeenCalled();
+    expect(mockToast.error).not.toHaveBeenCalled();
   });
 });

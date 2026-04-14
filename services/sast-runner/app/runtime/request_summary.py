@@ -19,14 +19,20 @@ def _idle_summary() -> dict[str, Any]:
         "endpoint": "scan",
         "state": "idle",
         "ackStatus": "idle",
+        "localAckState": None,
         "lastAckAt": None,
         "lastAckSource": None,
         "localAckSources": [
-            "semaphore-acquire",
+            "request-accepted",
+            "semaphore-acquired",
+            "build-started",
             "tool-progress",
             "file-progress",
             "runtime-state",
+            "build-subprocess-alive",
+            "build-phase-complete",
             "terminal-result",
+            "ack-break",
         ],
         "degraded": False,
         "degradeReasons": [],
@@ -70,14 +76,27 @@ class RequestSummaryTracker:
                     "endpoint": endpoint,
                     "state": "queued",
                     "ackStatus": "active",
+                    "localAckState": "transport-only",
                     "lastAckAt": now,
                     "lastAckSource": "request-accepted",
                 },
             )
             self._entries[request_id] = summary
 
-    def mark_started(self, request_id: str) -> None:
-        self._update(request_id, state="running", ackStatus="active", lastAckSource="semaphore-acquired")
+    def mark_started(
+        self,
+        request_id: str,
+        *,
+        last_ack_source: str = "semaphore-acquired",
+        local_ack_state: str = "phase-advancing",
+    ) -> None:
+        self._update(
+            request_id,
+            state="running",
+            ackStatus="active",
+            localAckState=local_ack_state,
+            lastAckSource=last_ack_source,
+        )
 
     def mark_progress(self, request_id: str, tool: str, status: str, count: int) -> None:
         with self._lock:
@@ -95,6 +114,7 @@ class RequestSummaryTracker:
                     entry["findingsCount"] = max(entry["findingsCount"], count)
             entry["state"] = "running"
             entry["ackStatus"] = "active"
+            entry["localAckState"] = "phase-advancing"
             entry["lastAckAt"] = _now_ms()
             entry["lastAckSource"] = "tool-progress"
 
@@ -103,20 +123,44 @@ class RequestSummaryTracker:
             request_id,
             state="running",
             ackStatus="active",
+            localAckState="phase-advancing",
             filesCompleted=done,
             filesTotal=total,
             currentFile=file,
             lastAckSource="file-progress",
         )
 
-    def mark_runtime_state(self, request_id: str, tool_state: dict[str, Any]) -> None:
+    def mark_runtime_state(
+        self,
+        request_id: str,
+        tool_state: dict[str, Any],
+        *,
+        local_ack_state: str | None = None,
+        last_ack_source: str | None = None,
+    ) -> None:
+        updates: dict[str, Any] = {
+            "state": "running",
+            "ackStatus": "active",
+            "localAckState": local_ack_state or tool_state.get("localAckState") or "phase-advancing",
+            "degraded": bool(tool_state.get("degraded", False) or tool_state.get("degradeReasons")),
+            "degradeReasons": list(tool_state.get("degradeReasons", [])),
+            "lastAckSource": last_ack_source or tool_state.get("lastAckSource") or "runtime-state",
+        }
+        optional_fields = (
+            ("activeTools", "activeTools"),
+            ("completedTools", "completedTools"),
+            ("findingsCount", "findingsCount"),
+            ("filesCompleted", "filesCompleted"),
+            ("filesTotal", "filesTotal"),
+            ("currentFile", "currentFile"),
+            ("blockedReason", "blockedReason"),
+        )
+        for src_key, dst_key in optional_fields:
+            if src_key in tool_state:
+                updates[dst_key] = tool_state[src_key]
         self._update(
             request_id,
-            state="running",
-            ackStatus="active",
-            degraded=bool(tool_state.get("degraded", False) or tool_state.get("degradeReasons")),
-            degradeReasons=list(tool_state.get("degradeReasons", [])),
-            lastAckSource="runtime-state",
+            **updates,
         )
 
     def mark_completed(self, request_id: str) -> None:
@@ -124,6 +168,7 @@ class RequestSummaryTracker:
             request_id,
             state="completed",
             ackStatus="idle",
+            localAckState=None,
             blockedReason=None,
             lastAckSource="terminal-result",
         )
@@ -133,6 +178,7 @@ class RequestSummaryTracker:
             request_id,
             state="failed",
             ackStatus="broken",
+            localAckState="ack-break",
             blockedReason=reason,
             activeTools=[],
             lastAckSource="ack-break",

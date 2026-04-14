@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
+from collections.abc import Awaitable, Callable
+from typing import TypeVar
 
 from fastapi import HTTPException
+
+_T = TypeVar("_T")
 
 
 def parse_timeout(x_timeout_ms: int | None) -> tuple[float, float]:
@@ -30,6 +35,21 @@ def parse_timeout(x_timeout_ms: int | None) -> tuple[float, float]:
     return deadline, timeout_sec
 
 
+def _raise_timeout(stage: str) -> None:
+    raise HTTPException(
+        408,
+        f"Client timeout exceeded before completing stage: {stage}",
+    )
+
+
+def remaining_timeout(deadline: float, stage: str) -> float:
+    """데드라인까지 남은 시간을 초 단위로 반환한다."""
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        _raise_timeout(stage)
+    return remaining
+
+
 def check_deadline(deadline: float, stage: str) -> None:
     """데드라인 초과 시 408 Timeout을 발생시킨다.
 
@@ -42,8 +62,37 @@ def check_deadline(deadline: float, stage: str) -> None:
     Raises:
         HTTPException 408: 데드라인 초과.
     """
-    if time.monotonic() > deadline:
-        raise HTTPException(
-            408,
-            f"Client timeout exceeded before completing stage: {stage}",
+    remaining_timeout(deadline, stage)
+
+
+async def run_sync_with_deadline(
+    deadline: float,
+    stage: str,
+    fn: Callable[..., _T],
+    *args,
+    **kwargs,
+) -> _T:
+    """동기 함수를 별도 스레드에서 실행하고 데드라인을 강제한다."""
+    timeout = remaining_timeout(deadline, stage)
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(fn, *args, **kwargs),
+            timeout=timeout,
         )
+    except asyncio.TimeoutError as exc:
+        _raise_timeout(stage)
+        raise AssertionError("unreachable") from exc
+
+
+async def run_async_with_deadline(
+    deadline: float,
+    stage: str,
+    awaitable: Awaitable[_T],
+) -> _T:
+    """비동기 작업에 남은 데드라인을 강제한다."""
+    timeout = remaining_timeout(deadline, stage)
+    try:
+        return await asyncio.wait_for(awaitable, timeout=timeout)
+    except asyncio.TimeoutError as exc:
+        _raise_timeout(stage)
+        raise AssertionError("unreachable") from exc

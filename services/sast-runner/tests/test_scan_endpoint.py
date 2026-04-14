@@ -53,6 +53,7 @@ async def test_health_endpoint(client: AsyncClient) -> None:
     assert data["activeRequestCount"] == 0
     assert data["requestSummary"]["state"] == "idle"
     assert data["requestSummary"]["ackStatus"] == "idle"
+    assert data["requestSummary"]["localAckState"] is None
 
 
 @pytest.mark.asyncio
@@ -86,6 +87,7 @@ async def test_health_endpoint_preserves_existing_fields_and_adds_policy(client:
     ]
     assert data["activeRequestCount"] == 0
     assert data["requestSummary"]["state"] == "idle"
+    assert data["requestSummary"]["localAckState"] is None
 
 
 @pytest.mark.asyncio
@@ -125,6 +127,7 @@ async def test_health_endpoint_request_summary_reports_running_state(
     assert data["requestSummary"]["requestId"] == "scan-health-running"
     assert data["requestSummary"]["state"] == "running"
     assert data["requestSummary"]["ackStatus"] == "active"
+    assert data["requestSummary"]["localAckState"] == "phase-advancing"
     assert data["requestSummary"]["degraded"] is True
     assert "timeout-floor" in data["requestSummary"]["degradeReasons"]
     assert data["requestSummary"]["lastAckSource"] in {"tool-progress", "runtime-state", "file-progress"}
@@ -177,6 +180,7 @@ async def test_health_endpoint_request_summary_reports_queued_state(
     assert data["requestSummary"]["requestId"] == "scan-health-queued"
     assert data["requestSummary"]["state"] == "queued"
     assert data["requestSummary"]["ackStatus"] == "active"
+    assert data["requestSummary"]["localAckState"] == "transport-only"
 
     await release_task
     await scan_task
@@ -203,7 +207,228 @@ async def test_health_endpoint_request_summary_reports_ack_break(client: AsyncCl
     assert data["requestSummary"]["requestId"] == "scan-health-failed"
     assert data["requestSummary"]["state"] == "failed"
     assert data["requestSummary"]["ackStatus"] == "broken"
+    assert data["requestSummary"]["localAckState"] == "ack-break"
     assert data["requestSummary"]["blockedReason"] == "runner exploded"
+
+
+@pytest.mark.asyncio
+async def test_health_endpoint_request_summary_reports_build_transport_only_state(
+    client: AsyncClient,
+) -> None:
+    gate = asyncio.Event()
+
+    async def _slow_build(*args, on_runtime_state=None, **kwargs):
+        if on_runtime_state:
+            await on_runtime_state(
+                {
+                    "localAckState": "transport-only",
+                    "lastAckSource": "build-subprocess-alive",
+                },
+            )
+        await gate.wait()
+        return {
+            "success": True,
+            "buildEvidence": {
+                "requestedBuildCommand": "make",
+                "effectiveBuildCommand": "make",
+                "buildDir": "/tmp/project",
+                "compileCommandsPath": "/tmp/project/compile_commands.json",
+                "entries": 1,
+                "userEntries": 1,
+                "exitCode": 0,
+                "buildOutput": "ok",
+                "wrapWithBear": True,
+                "timeoutSeconds": 600,
+                "environmentKeys": None,
+                "elapsedMs": 200,
+            },
+            "readiness": {
+                "status": "ready",
+                "compileCommandsReady": True,
+                "quickEligible": True,
+                "summary": "ready",
+            },
+            "failureDetail": None,
+        }
+
+    with patch("app.routers.scan.Path.is_dir", return_value=True), patch(
+        "app.routers.scan.build_runner.build",
+        AsyncMock(side_effect=_slow_build),
+    ):
+        build_task = asyncio.create_task(
+            client.post(
+                "/v1/build",
+                headers={"X-Request-Id": "build-health-running"},
+                json={"projectPath": "/tmp/project", "buildCommand": "make"},
+            ),
+        )
+        await asyncio.sleep(0.05)
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as health_client:
+            health_resp = await health_client.get("/v1/health", params={"requestId": "build-health-running"})
+            data = health_resp.json()
+
+            assert health_resp.status_code == 200
+            assert data["requestSummary"]["requestId"] == "build-health-running"
+            assert data["requestSummary"]["endpoint"] == "build"
+            assert data["requestSummary"]["state"] == "running"
+            assert data["requestSummary"]["ackStatus"] == "active"
+            assert data["requestSummary"]["localAckState"] == "transport-only"
+            assert data["requestSummary"]["lastAckSource"] == "build-subprocess-alive"
+
+        gate.set()
+        await build_task
+
+
+@pytest.mark.asyncio
+async def test_health_endpoint_request_summary_reports_build_and_analyze_transport_only_state(
+    client: AsyncClient,
+) -> None:
+    from app.schemas.response import (
+        ExecutionReport,
+        FindingsFilterInfo,
+        ScanResponse,
+        ScanStats,
+        SdkResolutionInfo,
+    )
+    gate = asyncio.Event()
+
+    async def _slow_build(*args, on_runtime_state=None, **kwargs):
+        if on_runtime_state:
+            await on_runtime_state(
+                {
+                    "localAckState": "transport-only",
+                    "lastAckSource": "build-subprocess-alive",
+                },
+            )
+        await gate.wait()
+        return {
+            "success": True,
+            "buildEvidence": {
+                "requestedBuildCommand": "make",
+                "effectiveBuildCommand": "make",
+                "buildDir": "/tmp/project",
+                "compileCommandsPath": "/tmp/project/compile_commands.json",
+                "entries": 1,
+                "userEntries": 1,
+                "exitCode": 0,
+                "buildOutput": "ok",
+                "wrapWithBear": True,
+                "timeoutSeconds": 600,
+                "environmentKeys": None,
+                "elapsedMs": 200,
+            },
+            "readiness": {
+                "status": "ready",
+                "compileCommandsReady": True,
+                "quickEligible": True,
+                "summary": "ready",
+            },
+            "failureDetail": None,
+        }
+
+    scan_result = ScanResponse(
+        success=True,
+        scanId="build-analyze-health-running",
+        status="completed",
+        findings=[],
+        stats=ScanStats(filesScanned=1, rulesRun=1, findingsTotal=0, elapsedMs=5),
+        execution=ExecutionReport(
+            toolsRun=[],
+            toolResults={},
+            sdk=SdkResolutionInfo(resolved=False),
+            filtering=FindingsFilterInfo(beforeFilter=0, afterFilter=0),
+        ),
+        codeGraph={"functions": []},
+        sca={"libraries": []},
+    )
+
+    with patch("app.routers.scan.Path.is_dir", return_value=True), patch(
+        "app.routers.scan.build_runner.build",
+        AsyncMock(side_effect=_slow_build),
+    ), patch(
+        "app.routers.scan._run_scan_core",
+        AsyncMock(return_value=scan_result),
+    ), patch(
+        "app.routers.scan.metadata_extractor.extract",
+        AsyncMock(return_value={"compiler": "gcc"}),
+    ):
+        task = asyncio.create_task(
+            client.post(
+                "/v1/build-and-analyze",
+                headers={"X-Request-Id": "build-analyze-health-running"},
+                json={"projectPath": "/tmp/project", "buildCommand": "make"},
+            ),
+        )
+        await asyncio.sleep(0.05)
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as health_client:
+            health_resp = await health_client.get("/v1/health", params={"requestId": "build-analyze-health-running"})
+            data = health_resp.json()
+
+            assert health_resp.status_code == 200
+            assert data["requestSummary"]["requestId"] == "build-analyze-health-running"
+            assert data["requestSummary"]["endpoint"] == "build-and-analyze"
+            assert data["requestSummary"]["state"] == "running"
+            assert data["requestSummary"]["ackStatus"] == "active"
+            assert data["requestSummary"]["localAckState"] == "transport-only"
+            assert data["requestSummary"]["lastAckSource"] == "build-subprocess-alive"
+
+        gate.set()
+        await task
+
+
+@pytest.mark.asyncio
+async def test_health_endpoint_request_summary_reports_build_ack_break(client: AsyncClient) -> None:
+    with patch("app.routers.scan.Path.is_dir", return_value=True), patch(
+        "app.routers.scan.build_runner.build",
+        AsyncMock(
+            return_value={
+                "success": False,
+                "buildEvidence": {
+                    "requestedBuildCommand": "make",
+                    "effectiveBuildCommand": "make",
+                    "buildDir": "/tmp/project",
+                    "compileCommandsPath": None,
+                    "entries": None,
+                    "userEntries": None,
+                    "exitCode": 127,
+                    "buildOutput": "command not found",
+                    "wrapWithBear": True,
+                    "timeoutSeconds": 600,
+                    "environmentKeys": None,
+                    "elapsedMs": 5,
+                },
+                "readiness": {
+                    "status": "not-ready",
+                    "compileCommandsReady": False,
+                    "quickEligible": False,
+                    "summary": "not ready",
+                },
+                "failureDetail": {
+                    "category": "command-not-found",
+                    "summary": "The supplied build command referenced an unavailable executable or script (exit code 127).",
+                    "matchedExcerpt": "command not found",
+                    "hint": "provide a valid build command",
+                    "retryable": False,
+                },
+            },
+        ),
+    ):
+        resp = await client.post(
+            "/v1/build",
+            headers={"X-Request-Id": "build-health-failed"},
+            json={"projectPath": "/tmp/project", "buildCommand": "make"},
+        )
+
+    assert resp.status_code == 200
+    health_resp = await client.get("/v1/health", params={"requestId": "build-health-failed"})
+    data = health_resp.json()
+    assert data["requestSummary"]["endpoint"] == "build"
+    assert data["requestSummary"]["state"] == "failed"
+    assert data["requestSummary"]["ackStatus"] == "broken"
+    assert data["requestSummary"]["localAckState"] == "ack-break"
+    assert "unavailable executable" in data["requestSummary"]["blockedReason"]
 
 
 @pytest.mark.asyncio

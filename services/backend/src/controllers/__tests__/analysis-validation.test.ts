@@ -4,11 +4,6 @@ import request from "supertest";
 import { createAnalysisRouter } from "../analysis.controller";
 import { errorHandlerMiddleware } from "../../middleware/error-handler.middleware";
 
-/**
- * analysis.controller의 mode 검증 로직 단위 테스트.
- * orchestrator/tracker는 mock으로 주입 — 202 이후 비동기 로직은 검증하지 않는다.
- */
-
 function createMockOrchestrator() {
   return {
     runAnalysis: vi.fn().mockResolvedValue(undefined),
@@ -50,125 +45,99 @@ function buildApp() {
   return { app, orchestrator, tracker };
 }
 
-describe("POST /api/analysis/run — mode validation", () => {
+describe("analysis execution validation", () => {
   let app: express.Express;
+  let orchestrator: ReturnType<typeof createMockOrchestrator>;
 
   beforeEach(() => {
-    ({ app } = buildApp());
+    ({ app, orchestrator } = buildApp());
   });
 
-  it('mode: "subproject" without targetIds → 400', async () => {
+  it("POST /api/analysis/run is absent after cutover", async () => {
     const res = await request(app)
       .post("/api/analysis/run")
-      .send({ projectId: "p1", mode: "subproject" });
+      .send({ projectId: "p1", buildTargetId: "t1" });
+
+    expect(res.status).toBe(404);
+  });
+
+  it("POST /api/analysis/quick rejects legacy mode semantics", async () => {
+    const res = await request(app)
+      .post("/api/analysis/quick")
+      .send({ projectId: "p1", mode: "subproject", targetIds: ["t1"] });
 
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
-    expect(res.body.errorDetail.message).toMatch(/targetIds.*required/);
+    expect(res.body.errorDetail.message).toMatch(/mode is no longer supported/);
   });
 
-  it('mode: "full" with targetIds → 400', async () => {
+  it("POST /api/analysis/quick requires buildTargetId", async () => {
     const res = await request(app)
-      .post("/api/analysis/run")
-      .send({ projectId: "p1", mode: "full", targetIds: ["t1"] });
+      .post("/api/analysis/quick")
+      .send({ projectId: "p1" });
 
     expect(res.status).toBe(400);
-    expect(res.body.errorDetail.message).toMatch(/targetIds.*empty/);
+    expect(res.body.errorDetail.message).toMatch(/buildTargetId is required/);
   });
 
-  it('mode: "banana" → 400', async () => {
+  it("POST /api/analysis/quick returns 202 for explicit BuildTarget identity", async () => {
     const res = await request(app)
-      .post("/api/analysis/run")
-      .send({ projectId: "p1", mode: "banana" });
-
-    expect(res.status).toBe(400);
-    expect(res.body.errorDetail.message).toMatch(/mode must be/);
-  });
-
-  it('mode: "subproject" with targetIds → 202', async () => {
-    const res = await request(app)
-      .post("/api/analysis/run")
-      .send({ projectId: "p1", mode: "subproject", targetIds: ["t1"] });
+      .post("/api/analysis/quick")
+      .send({ projectId: "p1", buildTargetId: "t1" });
 
     expect(res.status).toBe(202);
     expect(res.body.success).toBe(true);
     expect(res.body.data).toHaveProperty("analysisId");
+    expect(orchestrator.runQuickAnalysis).toHaveBeenCalledWith(
+      "p1",
+      expect.stringMatching(/^analysis-/),
+      ["t1"],
+      undefined,
+      expect.any(AbortSignal),
+    );
   });
 
-  it('mode: "full" without targetIds → 202', async () => {
+  it("POST /api/analysis/deep rejects legacy quickAnalysisId payloads", async () => {
     const res = await request(app)
-      .post("/api/analysis/run")
-      .send({ projectId: "p1", mode: "full" });
-
-    expect(res.status).toBe(202);
-    expect(res.body.success).toBe(true);
-  });
-
-  it("mode omitted, targetIds present → 202 (backward compatible)", async () => {
-    const res = await request(app)
-      .post("/api/analysis/run")
-      .send({ projectId: "p1", targetIds: ["t1"] });
-
-    expect(res.status).toBe(202);
-  });
-
-  it("mode omitted, no targetIds → 202 (backward compatible)", async () => {
-    const res = await request(app)
-      .post("/api/analysis/run")
-      .send({ projectId: "p1" });
-
-    expect(res.status).toBe(202);
-  });
-
-  it("missing projectId → 400", async () => {
-    const res = await request(app)
-      .post("/api/analysis/run")
-      .send({ mode: "full" });
+      .post("/api/analysis/deep")
+      .send({ projectId: "p1", buildTargetId: "t1", quickAnalysisId: "analysis-quick-1" });
 
     expect(res.status).toBe(400);
+    expect(res.body.errorDetail.message).toMatch(/quickAnalysisId is no longer supported/);
   });
-});
 
-describe("explicit analysis split endpoints", () => {
-  it("POST /api/analysis/quick validates mode like legacy run", async () => {
-    const { app } = buildApp();
+  it("POST /api/analysis/deep requires buildTargetId", async () => {
     const res = await request(app)
-      .post("/api/analysis/quick")
-      .send({ projectId: "p1", mode: "subproject" });
+      .post("/api/analysis/deep")
+      .send({ projectId: "p1", executionId: "exec-1" });
 
     expect(res.status).toBe(400);
-    expect(res.body.errorDetail.message).toMatch(/targetIds.*required/);
+    expect(res.body.errorDetail.message).toMatch(/buildTargetId is required/);
   });
 
-  it("POST /api/analysis/quick returns 202", async () => {
-    const { app } = buildApp();
+  it("POST /api/analysis/deep requires executionId", async () => {
     const res = await request(app)
-      .post("/api/analysis/quick")
-      .send({ projectId: "p1", mode: "full" });
+      .post("/api/analysis/deep")
+      .send({ projectId: "p1", buildTargetId: "t1" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.errorDetail.message).toMatch(/executionId is required/);
+  });
+
+  it("POST /api/analysis/deep returns 202 for explicit BuildTarget + execution lineage", async () => {
+    const res = await request(app)
+      .post("/api/analysis/deep")
+      .send({ projectId: "p1", buildTargetId: "t1", executionId: "exec-1" });
 
     expect(res.status).toBe(202);
     expect(res.body.success).toBe(true);
     expect(res.body.data.analysisId).toMatch(/^analysis-/);
-  });
-
-  it("POST /api/analysis/deep requires quickAnalysisId", async () => {
-    const { app } = buildApp();
-    const res = await request(app)
-      .post("/api/analysis/deep")
-      .send({ projectId: "p1" });
-
-    expect(res.status).toBe(400);
-    expect(res.body.errorDetail.message).toMatch(/quickAnalysisId is required/);
-  });
-
-  it("POST /api/analysis/deep returns 202 when quickAnalysisId is provided", async () => {
-    const { app } = buildApp();
-    const res = await request(app)
-      .post("/api/analysis/deep")
-      .send({ projectId: "p1", quickAnalysisId: "analysis-quick-1" });
-
-    expect(res.status).toBe(202);
-    expect(res.body.success).toBe(true);
-    expect(res.body.data.analysisId).toMatch(/^analysis-/);
+    expect(orchestrator.runDeepAnalysis).toHaveBeenCalledWith(
+      "p1",
+      expect.stringMatching(/^analysis-/),
+      "exec-1",
+      undefined,
+      expect.any(AbortSignal),
+    );
   });
 });

@@ -76,7 +76,13 @@ export function useFilesPage(
   }, []);
 
   const loadData = useCallback(() => {
-    if (!projectId) return;
+    if (!projectId) {
+      setSourceFiles([]);
+      setTargetMapping({});
+      setFindings([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     Promise.all([
       fetchSourceFilesWithComposition(projectId).catch(() => ({ success: true, data: [] as SourceFileEntry[] })),

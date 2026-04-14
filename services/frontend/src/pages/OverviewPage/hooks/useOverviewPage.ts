@@ -28,7 +28,16 @@ export function useOverviewPage(projectId: string | undefined, toast: ToastApi) 
   }, []);
 
   useEffect(() => {
-    if (!projectId) return;
+    if (!projectId) {
+      setOverview(null);
+      setProjectFiles([]);
+      setRegisteredSdks([]);
+      setActivities([]);
+      setGates([]);
+      setApprovalCount({ pending: 0, total: 0 });
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     Promise.all([

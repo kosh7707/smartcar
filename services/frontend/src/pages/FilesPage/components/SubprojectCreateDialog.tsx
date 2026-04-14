@@ -25,6 +25,8 @@ interface Props {
   includedPathsHelpText?: string;
 }
 
+const EMPTY_INCLUDED_PATHS: string[] = [];
+
 export const SubprojectCreateDialog: React.FC<Props> = ({
   open,
   projectId,
@@ -36,7 +38,7 @@ export const SubprojectCreateDialog: React.FC<Props> = ({
   submitLabel = "서브 프로젝트 생성",
   initialName = "",
   initialProfile = DEFAULT_PROFILE,
-  initialIncludedPaths = [],
+  initialIncludedPaths = EMPTY_INCLUDED_PATHS,
   includedPathsEditable = true,
   includedPathsHelpText = !includedPathsEditable ? INCLUDED_PATHS_EDIT_UNSUPPORTED_TEXT : undefined,
 }) => {

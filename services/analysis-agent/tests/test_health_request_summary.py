@@ -46,6 +46,22 @@ def test_health_endpoint_reports_running_request_summary(client_live):
     assert data["requestSummary"]["lastAckSource"] == "phase-one-complete"
 
 
+def test_health_endpoint_reports_transport_only_wait_state(client_live):
+    request_summary_tracker.register("health-transport", endpoint="tasks")
+    request_summary_tracker.mark_transport_only("health-transport", source="llm-inference")
+
+    resp = client_live.get("/v1/health", params={"requestId": "health-transport"})
+    assert resp.status_code == 200
+
+    data = resp.json()
+    assert data["activeRequestCount"] == 1
+    assert data["requestSummary"]["requestId"] == "health-transport"
+    assert data["requestSummary"]["state"] == "running"
+    assert data["requestSummary"]["localAckState"] == "transport-only"
+    assert data["requestSummary"]["blockedReason"] is None
+    assert data["requestSummary"]["lastAckSource"] == "llm-inference"
+
+
 def test_health_endpoint_reports_ack_break(client_live):
     request_summary_tracker.register("health-failed", endpoint="tasks")
     request_summary_tracker.mark_failed("health-failed", "MODEL_UNAVAILABLE")

@@ -226,53 +226,43 @@ export class PipelineOrchestrator {
 
     // ── Step 3: Code Graph Ingest ──
     if (sastResponse.codeGraph) {
-      // KB degraded 체크 — Neo4j 미연결 시 그래프 적재 스킵
-      const kbReady = await this.kbClient.checkReady().catch(() => null);
-      if (kbReady?.degraded === true) {
-        logger.warn({ targetId: target.id, requestId }, "KB degraded (Neo4j unavailable), skipping code graph ingest");
-        this.buildTargetDAO.updatePipelineState(target.id, {
-          status: "graphed",
-          codeGraphStatus: "skipped_degraded",
-        });
-        this.updateStatus(projectId, pipelineId, target, "graphed", "코드그래프 스킵 (KB degraded — Neo4j 미연결)");
-      } else {
-        this.updateStatus(projectId, pipelineId, target, "graphing", "코드그래프 KB 적재 중...");
+      // S5 notice (2026-04-14): code-graph readiness는 /ready가 아니라 ingest 응답(status + readiness.graphRag)이 authoritative.
+      this.updateStatus(projectId, pipelineId, target, "graphing", "코드그래프 KB 적재 중...");
 
-        try {
-          const ingestResult = await this.kbClient.ingestCodeGraph(
-            kbProjectId,
-            sastResponse.codeGraph,
-            requestId,
-            signal,
-          );
+      try {
+        const ingestResult = await this.kbClient.ingestCodeGraph(
+          kbProjectId,
+          sastResponse.codeGraph,
+          requestId,
+          signal,
+        );
 
-          if (!this.kbClient.isGraphReady(ingestResult)) {
-            this.buildTargetDAO.updatePipelineState(target.id, {
-              status: "graph_failed",
-              codeGraphStatus: "failed",
-            });
-            this.updateStatus(projectId, pipelineId, target, "graph_failed", `코드그래프 미준비: ${ingestResult.status ?? "unknown"}`);
-            throw new PipelineStepError(`Code graph not ready for ${target.name}: ${ingestResult.status ?? "unknown"}`);
-          }
-
+        if (!this.kbClient.isGraphReady(ingestResult)) {
           this.buildTargetDAO.updatePipelineState(target.id, {
-            status: "graphed",
-            codeGraphStatus: "ingested",
-            codeGraphNodeCount: ingestResult.nodes_created,
-          });
-          this.updateStatus(projectId, pipelineId, target, "graphed", `코드그래프 적재 완료 (${ingestResult.nodes_created} nodes)`);
-        } catch (err) {
-          if (err instanceof PipelineStepError) {
-            throw err;
-          }
-          // 코드그래프 실패는 치명적이지 않음 — 경고 후 계속
-          logger.warn({ err, targetId: target.id, requestId }, "Code graph ingest failed, continuing");
-          this.buildTargetDAO.updatePipelineState(target.id, {
-            status: "graphed",
+            status: "graph_failed",
             codeGraphStatus: "failed",
           });
+          this.updateStatus(projectId, pipelineId, target, "graph_failed", `코드그래프 미준비: ${ingestResult.status ?? "unknown"}`);
+          throw new PipelineStepError(`Code graph not ready for ${target.name}: ${ingestResult.status ?? "unknown"}`);
         }
-      } // end else (not degraded)
+
+        this.buildTargetDAO.updatePipelineState(target.id, {
+          status: "graphed",
+          codeGraphStatus: "ingested",
+          codeGraphNodeCount: ingestResult.nodes_created,
+        });
+        this.updateStatus(projectId, pipelineId, target, "graphed", `코드그래프 적재 완료 (${ingestResult.nodes_created} nodes)`);
+      } catch (err) {
+        if (err instanceof PipelineStepError) {
+          throw err;
+        }
+        // 코드그래프 실패는 치명적이지 않음 — 경고 후 계속
+        logger.warn({ err, targetId: target.id, requestId }, "Code graph ingest failed, continuing");
+        this.buildTargetDAO.updatePipelineState(target.id, {
+          status: "graphed",
+          codeGraphStatus: "failed",
+        });
+      }
     } else {
       this.buildTargetDAO.updatePipelineState(target.id, {
         status: "graphed",

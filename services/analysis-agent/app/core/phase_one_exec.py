@@ -7,8 +7,10 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
+from app.clients.kb_error_utils import is_kb_timeout_error
 from agent_shared.context import get_request_id
 from agent_shared.observability import agent_log
+from app.runtime.request_summary import request_summary_tracker
 
 if TYPE_CHECKING:
     import httpx
@@ -61,6 +63,10 @@ async def run_build_and_analyze(
 
     start = time.monotonic()
     try:
+        request_summary_tracker.mark_transport_only(
+            request_id or project_id,
+            source="s4-build-and-analyze-wait",
+        )
         resp = await sast_client.post(
             "/v1/build-and-analyze",
             json=body,
@@ -257,13 +263,53 @@ async def ingest_code_graph(
         )
         resp.raise_for_status()
         data = resp.json()
+        readiness = data.get("readiness", {}) if isinstance(data.get("readiness"), dict) else {}
+        warnings = data.get("warnings", [])
+        if not isinstance(warnings, list):
+            warnings = []
+
+        result.code_graph_status = data.get("status") if isinstance(data.get("status"), str) else result.code_graph_status
+
+        if readiness:
+            if "neo4jGraph" in readiness:
+                result.code_graph_neo4j_ready = bool(readiness.get("neo4jGraph"))
+            if "vectorIndex" in readiness:
+                result.code_graph_vector_ready = bool(readiness.get("vectorIndex"))
+            if "graphRag" in readiness:
+                result.code_graph_graph_rag_ready = bool(readiness.get("graphRag"))
+        else:
+            node_count = data.get("nodeCount", 0)
+            vector_count = data.get("vectorCount", node_count)
+            if isinstance(node_count, int):
+                result.code_graph_neo4j_ready = node_count > 0
+            if isinstance(vector_count, int):
+                result.code_graph_vector_ready = vector_count > 0
+            if result.code_graph_neo4j_ready is not None and result.code_graph_vector_ready is not None:
+                result.code_graph_graph_rag_ready = (
+                    result.code_graph_neo4j_ready and result.code_graph_vector_ready
+                )
+
+        result.code_graph_warnings = [str(item) for item in warnings]
+
         agent_log(
             logger, "Phase 1: KB 코드 그래프 적재 완료",
             component="phase_one", phase="kb_ingest_end",
             nodeCount=data.get("nodeCount", 0),
             edgeCount=data.get("edgeCount", 0),
+            codeGraphStatus=result.code_graph_status,
+            neo4jReady=result.code_graph_neo4j_ready,
+            vectorReady=result.code_graph_vector_ready,
+            graphRagReady=result.code_graph_graph_rag_ready,
+            warnings=result.code_graph_warnings,
         )
     except Exception as exc:
+        if is_kb_timeout_error(exc):
+            result.code_graph_ingest_timed_out = True
+            agent_log(
+                logger, "Phase 1: KB 코드 그래프 적재 timeout",
+                component="phase_one", phase="kb_ingest_timeout",
+                level=logging.WARNING,
+            )
         agent_log(
             logger, "Phase 1: KB 코드 그래프 적재 실패",
             component="phase_one", phase="kb_ingest_error",

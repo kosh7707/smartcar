@@ -7,6 +7,7 @@ import logging
 
 import httpx
 
+from app.clients.kb_error_utils import is_kb_not_ready_response, is_kb_timeout_response
 from agent_shared.context import get_request_id
 from agent_shared.schemas.agent import ToolResult
 
@@ -72,12 +73,19 @@ class CodeGraphSearchTool:
                 new_evidence_refs=new_refs,
             )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 503:
-                logger.warning("KB code-graph search 미초기화 (503): %s", e)
+            if is_kb_timeout_response(e.response):
+                logger.warning("KB code-graph search timeout under caller budget: %s", e)
                 return ToolResult(
                     tool_call_id="", name="", success=False,
-                    content='{"error": "Code graph vector search not initialized (Qdrant not loaded)"}',
-                    error="503: not initialized",
+                    content='{"error": "TIMEOUT", "message": "Code graph search timed out under caller budget"}',
+                    error="TIMEOUT",
+                )
+            if is_kb_not_ready_response(e.response):
+                logger.warning("KB code-graph search 미초기화 (KB_NOT_READY): %s", e)
+                return ToolResult(
+                    tool_call_id="", name="", success=False,
+                    content='{"error": "KB_NOT_READY", "message": "Code graph search not ready"}',
+                    error="KB_NOT_READY",
                 )
             logger.warning("KB code-graph search 실패: %s", e)
             return ToolResult(

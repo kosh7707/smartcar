@@ -449,6 +449,7 @@ describe("KbClient contract", () => {
     expect(url).toBe("http://localhost:8002/v1/code-graph/p-1/ingest");
     expect(opts.method).toBe("POST");
     expect(opts.headers["X-Request-Id"]).toBe("req-ingest");
+    expect(opts.headers["X-Timeout-Ms"]).toBe("15000");
     const body = JSON.parse(opts.body);
     expect(body.functions).toHaveLength(1);
     expect(body.functions[0].name).toBe("main");
@@ -502,7 +503,30 @@ describe("KbClient contract", () => {
   });
 
   it("retries ingest on 503", async () => {
-    globalThis.fetch = mockFetch503ThenOk(ingestResponse);
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: async () => ({
+          success: false,
+          error: "Knowledge base not initialized",
+          errorDetail: { code: "KB_NOT_READY", message: "Knowledge base not initialized", retryable: true },
+        }),
+        text: async () => JSON.stringify({
+          success: false,
+          error: "Knowledge base not initialized",
+          errorDetail: { code: "KB_NOT_READY", message: "Knowledge base not initialized", retryable: true },
+        }),
+        clone() { return this; },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ingestResponse,
+        text: async () => JSON.stringify(ingestResponse),
+        clone() { return this; },
+      }) as any;
 
     const result = await client.ingestCodeGraph(
       "p-1",
@@ -511,6 +535,23 @@ describe("KbClient contract", () => {
 
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
     expect(result.nodes_created).toBe(50);
+  });
+
+  it("surfaces real 408 timeout semantics from S5 ingest", async () => {
+    globalThis.fetch = mockFetch({
+      success: false,
+      error: "Deadline exceeded",
+      errorDetail: {
+        code: "TIMEOUT",
+        message: "Deadline exceeded",
+        retryable: true,
+        requestId: "req-kb-timeout",
+      },
+    }, 408);
+
+    await expect(
+      client.ingestCodeGraph("p-1", { functions: [], callEdges: [] }, "req-kb-timeout"),
+    ).rejects.toThrow(/408.*TIMEOUT|TIMEOUT.*408/i);
   });
 
   it("encodes projectId with special characters in URL", async () => {

@@ -63,6 +63,20 @@ describe("DashboardPage", () => {
     });
   });
 
+  it("shows the explorer loading empty state while projects are still loading", () => {
+    mockUseProjects.mockReturnValue({
+      projects: [],
+      loading: true,
+      createProject: mockCreateProject,
+    });
+
+    renderPage();
+
+    expect(screen.getByText("프로젝트 목록을 불러오는 중")).toBeInTheDocument();
+    expect(screen.getByText(/최근 작업 공간과 상태를 불러와 Explorer를 준비하고 있습니다/)).toBeInTheDocument();
+    expect(document.title).toBe("AEGIS — Dashboard");
+  });
+
   it("renders dashboard sections and keeps explorer, attention, and activity links interactive", async () => {
     mockUseProjects.mockReturnValue({
       projects: manyProjects,
@@ -122,6 +136,18 @@ describe("DashboardPage", () => {
 
     await waitFor(() => expect(mockCreateProject).toHaveBeenCalledWith("New Dashboard Project", "My desc"));
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/projects/p-created/overview"));
+  });
+
+  it("does not create a project when the inline form name is blank", async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "새 프로젝트" }));
+    fireEvent.change(screen.getByPlaceholderText("프로젝트 이름"), { target: { value: "   " } });
+    fireEvent.change(screen.getByPlaceholderText("설명 (선택)"), { target: { value: "ignored" } });
+    fireEvent.click(screen.getByRole("button", { name: "만들기" }));
+
+    await waitFor(() => expect(mockCreateProject).not.toHaveBeenCalled());
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it("renders a clearer explorer empty state when there are no projects yet", async () => {

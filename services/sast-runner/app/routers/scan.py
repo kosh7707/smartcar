@@ -832,15 +832,36 @@ async def build_and_analyze(
     build_response: BuildResponse | None = None
 
     try:
+        request_summary_tracker.register(request_id, endpoint="build-and-analyze")
+        request_summary_tracker.mark_started(
+            request_id,
+            last_ack_source="build-started",
+            local_ack_state="phase-advancing",
+        )
+
+        async def _track_build_runtime(state: dict):
+            request_summary_tracker.mark_runtime_state(
+                request_id,
+                state,
+                local_ack_state=state.get("localAckState"),
+                last_ack_source=state.get("lastAckSource"),
+            )
+
         # 1. 빌드 (bear)
         logger.info("Build-and-analyze started", extra={"requestId": request_id, "projectPath": project_path})
         build_result = await build_runner.build(
             project_dir,
             build_command,
             environment=body.build_environment,
+            on_runtime_state=_track_build_runtime,
         )
         build_response = _to_build_response(build_result, body.provenance)
         if not build_result.get("success"):
+            failure_detail = build_result.get("failureDetail") or {}
+            request_summary_tracker.mark_failed(
+                request_id,
+                failure_detail.get("summary") or "build failed",
+            )
             return BuildAndAnalyzeResponse(
                 success=False,
                 provenance=body.provenance,
@@ -864,7 +885,7 @@ async def build_and_analyze(
         )
         rulesets = resolve_rulesets(body.rulesets, scan_profile, settings.default_rulesets)
         timeout = _get_timeout(request, body.options.timeout_seconds)
-        request_summary_tracker.register(request_id, endpoint="scan")
+
         async def _track_progress(tool: str, status: str, count: int, elapsed: int):
             request_summary_tracker.mark_progress(request_id, tool, status, count)
 
@@ -965,6 +986,21 @@ async def build(
     build_timeout = _get_timeout(request)
 
     try:
+        request_summary_tracker.register(request_id, endpoint="build")
+        request_summary_tracker.mark_started(
+            request_id,
+            last_ack_source="build-started",
+            local_ack_state="phase-advancing",
+        )
+
+        async def _track_build_runtime(state: dict):
+            request_summary_tracker.mark_runtime_state(
+                request_id,
+                state,
+                local_ack_state=state.get("localAckState"),
+                last_ack_source=state.get("lastAckSource"),
+            )
+
         logger.info(
             "Build started",
             extra={"requestId": request_id, "projectPath": project_path, "buildCommand": build_command,
@@ -976,11 +1012,24 @@ async def build(
             environment=body.build_environment,
             wrap_with_bear=wrap_with_bear,
             timeout=build_timeout,
+            on_runtime_state=_track_build_runtime,
         )
+        if result.get("success"):
+            request_summary_tracker.mark_completed(request_id)
+        else:
+            failure_detail = result.get("failureDetail") or {}
+            request_summary_tracker.mark_failed(
+                request_id,
+                failure_detail.get("summary") or "build failed",
+            )
 
         return _to_build_response(result, body.provenance)
 
     except Exception as exc:
+        request_summary_tracker.mark_failed(
+            request_id,
+            exc.message if isinstance(exc, SastRunnerError) else str(exc),
+        )
         return _error_response(request_id, exc, response)
 
 

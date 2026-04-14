@@ -266,3 +266,24 @@ def test_rrf_single_list():
     # 첫 번째가 rank 1 → 1/(60+1), 두 번째가 rank 2 → 1/(60+2)
     assert merged[0]["id"] == "X"
     assert merged[0]["score"] > merged[1]["score"]
+
+
+def test_assemble_caps_total_hits_to_double_top_k():
+    mock_search = MagicMock()
+    mock_search.search.return_value = [
+        FakeHit(id=f"CWE-{i + 100}", source="CWE", title=f"hit-{i}")
+        for i in range(5)
+    ]
+    vs = VectorSearch.__new__(VectorSearch)
+    vs._search = mock_search
+
+    graph = FakeGraph([
+        {"id": "CWE-1", "source": "CWE", "title": "one", "related_capec": [], "related_cwe": [], "related_cve": [], "related_attack": []},
+        {"id": "CWE-2", "source": "CWE", "title": "two", "related_capec": [], "related_cwe": [], "related_cve": [], "related_attack": []},
+        {"id": "CWE-3", "source": "CWE", "title": "three", "related_capec": [], "related_cwe": [], "related_cve": [], "related_attack": []},
+    ])
+
+    assembler = KnowledgeAssembler(vs, graph, rrf_k=60)
+    result = assembler.assemble("CWE-1 CWE-2 CWE-3", top_k=2)
+
+    assert result["total"] <= 4

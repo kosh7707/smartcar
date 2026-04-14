@@ -16,7 +16,12 @@ interface ProjectSettingsSidebarProps {
 }
 
 export const ProjectSettingsSidebar: React.FC<ProjectSettingsSidebarProps> = ({ activeSection, onSelect }) => (
-  <nav className="project-settings-sidebar">
+  <nav className="project-settings-sidebar" aria-label="프로젝트 설정 섹션">
+    <div className="project-settings-sidebar__intro">
+      <div className="project-settings-sidebar__eyebrow">Workspace settings</div>
+      <p className="project-settings-sidebar__hint">프로젝트 운영 규칙과 SDK 준비 상태를 이곳에서 조정합니다.</p>
+    </div>
+
     {NAV_ITEMS.map((item) => (
       <button
         key={item.id}
