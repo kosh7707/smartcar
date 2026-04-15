@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Library, FileWarning } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { TargetLibrary } from "../../../api/pipeline";
@@ -20,17 +20,23 @@ export const TargetLibraryPanel: React.FC<Props> = ({ projectId, targetId, targe
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const data = await fetchTargetLibraries(projectId, targetId);
+      if (!mountedRef.current) return;
       setLibs(data);
       setDirty(false);
     } catch (e) {
       logError("Load libraries", e);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, [projectId, targetId]);
 
@@ -52,12 +58,12 @@ export const TargetLibraryPanel: React.FC<Props> = ({ projectId, targetId, targe
         libs.map((lib) => ({ id: lib.id, included: lib.included })),
       );
       toast.success("라이브러리 설정 저장 완료");
-      setDirty(false);
+      if (mountedRef.current) setDirty(false);
     } catch (e) {
       logError("Save libraries", e);
       toast.error("라이브러리 설정 저장에 실패했습니다.");
     } finally {
-      setSaving(false);
+      if (mountedRef.current) setSaving(false);
     }
   }, [projectId, targetId, libs, toast]);
 
