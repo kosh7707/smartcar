@@ -1,5 +1,0 @@
-.needs-attention-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cds-spacing-02);
-}

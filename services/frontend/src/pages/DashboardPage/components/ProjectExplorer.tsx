@@ -1,11 +1,11 @@
 import React from "react";
+import { Button } from "@/components/ui/button";
 import { CreateProjectForm } from "./CreateProjectForm";
 import type { DashboardProject } from "../dashboardTypes";
 import { DashboardEmptySurface } from "./DashboardEmptySurface";
 import type { ProjectExplorerEmptyState } from "../hooks/useDashboardExplorerState";
 import { ProjectExplorerRow } from "./ProjectExplorerRow";
 import { ProjectExplorerSearch } from "./ProjectExplorerSearch";
-import "./ProjectExplorer.css";
 
 export interface DashboardExplorerCreateFlow {
   show: boolean;
@@ -35,29 +35,13 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
 }) => {
   const shouldRenderEmpty = projects.length === 0;
   const emptyAction = emptyState.actionKind === "clear-filter"
-    ? (
-      <button
-        type="button"
-        className="project-explorer-empty-action"
-        onClick={() => onFilterChange("")}
-      >
-        검색 초기화
-      </button>
-    )
+    ? <Button type="button" variant="outline" size="sm" onClick={() => onFilterChange("")}>검색 초기화</Button>
     : emptyState.actionKind === "start-project"
-      ? (
-        <button
-          type="button"
-          className="project-explorer-empty-action"
-          onClick={createFlow.onToggle}
-        >
-          새 프로젝트 시작
-        </button>
-      )
+      ? <Button type="button" variant="outline" size="sm" onClick={createFlow.onToggle}>새 프로젝트 시작</Button>
       : undefined;
 
   return (
-    <aside className="project-explorer" aria-label="프로젝트 탐색기">
+    <aside className="sticky top-[calc(60px+var(--cds-spacing-05))] flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-background/80 p-5 text-foreground max-[980px]:static" aria-label="프로젝트 탐색기">
       <ProjectExplorerSearch
         filter={filter}
         onFilterChange={onFilterChange}
@@ -75,11 +59,11 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
         />
       )}
 
-      <ul className="project-explorer-list">
+      <ul className="m-0 flex list-none flex-col p-0 pb-1">
         {projects.map((project) => <ProjectExplorerRow key={project.id} project={project} />)}
 
         {shouldRenderEmpty ? (
-          <li className="project-explorer-list__empty">
+          <li className="py-5">
             <DashboardEmptySurface
               title={emptyState.title}
               description={emptyState.description}

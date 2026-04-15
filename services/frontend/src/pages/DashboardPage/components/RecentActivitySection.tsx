@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import type { ActivityEvent } from "../dashboardTypes";
 import { ActivityEventCard } from "./ActivityEventCard";
 import { DashboardEmptySurface } from "./DashboardEmptySurface";
-import "./RecentActivitySection.css";
 
 interface RecentActivitySectionProps { visibleActivity: ActivityEvent[]; hasMore: boolean; onLoadMore: () => void; }
 
@@ -14,9 +13,9 @@ export const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({ vi
       {visibleActivity.length === 0 ? (
         <DashboardEmptySurface title="아직 활동 없음" description="첫 업로드, 분석, 승인 같은 작업이 시작되면 최근 흐름이 이 레인에 순서대로 쌓입니다." variant="panel" />
       ) : (
-        <div className="recent-activity-list">{visibleActivity.map((event) => <ActivityEventCard key={event.id} event={event} />)}</div>
+        <div className="flex flex-col">{visibleActivity.map((event) => <ActivityEventCard key={event.id} event={event} />)}</div>
       )}
-      {hasMore && <div className="recent-activity-more"><Button type="button" variant="outline" size="sm" className="recent-activity-more__btn" onClick={onLoadMore}>더 보기</Button></div>}
+      {hasMore && <div className="flex justify-center pt-2"><Button type="button" variant="outline" size="sm" onClick={onLoadMore}>더 보기</Button></div>}
     </section>
   );
 };

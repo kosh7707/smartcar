@@ -2,7 +2,6 @@ import React from "react";
 import { AttentionProjectCard } from "./AttentionProjectCard";
 import { DashboardEmptySurface } from "./DashboardEmptySurface";
 import type { DashboardProject } from "../dashboardTypes";
-import "./NeedsAttentionSection.css";
 
 interface NeedsAttentionSectionProps {
   projects: DashboardProject[];
@@ -28,7 +27,7 @@ export const NeedsAttentionSection: React.FC<NeedsAttentionSectionProps> = ({ pr
           variant="panel"
         />
       ) : (
-        <div className="needs-attention-list">
+        <div className="flex flex-col gap-2">
           {projects.map((project) => <AttentionProjectCard key={project.id} project={project} />)}
         </div>
       )}
