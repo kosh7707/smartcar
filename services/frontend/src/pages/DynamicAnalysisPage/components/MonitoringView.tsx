@@ -21,6 +21,11 @@ import {
 import { parseWsMessage, createReconnectingWs } from "../../../utils/wsEnvelope";
 import type { ConnectionState } from "../../../utils/wsEnvelope";
 import { BackButton, SeverityBadge, Spinner, ConnectionStatusBanner } from "../../../shared/ui";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "../../../contexts/ToastContext";
 import { formatTime } from "../../../utils/format";
 
@@ -65,6 +70,7 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
   const toast = useToast();
   const wsRef = useRef<WebSocket | null>(null);
   const canWrapperRef = useRef<HTMLDivElement>(null);
+  const inputClassName = "h-8";
 
   const hasData = messages.length > 0 || messageCount > 0;
 
@@ -246,19 +252,21 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
             <span>알림 {alertCount || alerts.length}</span>
           </div>
         </div>
-        <button
-          className="btn btn-stop"
+        <Button
+          variant="destructive"
+          className="btn-stop"
           onClick={handleStop}
           disabled={stopping}
         >
           {stopping ? <Spinner size={14} /> : <Square size={14} />}
           세션 종료
-        </button>
+        </Button>
       </div>
 
       {/* Waiting for data */}
       {!hasData && (
-        <div className="card dyn-external-waiting">
+        <Card className="dyn-external-waiting shadow-none">
+          <CardContent className="flex flex-col items-center gap-3 text-center">
           <div className="dyn-external-waiting__icon">
             <Plug size={32} />
           </div>
@@ -268,24 +276,28 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
             <br />
             또는 아래 <strong>CAN 주입</strong> 탭에서 직접 메시지를 전송할 수 있습니다.
           </p>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Main content: messages + tabbed right panel */}
       <div className="monitor-layout">
         {/* CAN Messages */}
         <div className="monitor-messages">
-          <div className="card">
-            <div className="card-title flex-between">
+          <Card className="shadow-none">
+            <CardContent className="space-y-3">
+            <CardTitle className="flex-between">
               CAN 메시지
-              <button
-                className={`btn-secondary btn-sm monitor-pause-btn${paused ? " monitor-pause-btn--active" : ""}`}
+              <Button
+                variant="outline"
+                size="sm"
+                className={`monitor-pause-btn${paused ? " monitor-pause-btn--active" : ""}`}
                 onClick={() => setPaused((p) => !p)}
               >
                 {paused ? <Play size={12} /> : <Pause size={12} />}
                 {paused ? "재개" : "일시정지"}
-              </button>
-            </div>
+              </Button>
+            </CardTitle>
             <div className="can-table-wrapper" ref={canWrapperRef}>
               <table className="can-table">
                 <thead>
@@ -325,15 +337,17 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
                 </tbody>
               </table>
             </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Flagged messages mini-table */}
           {flaggedMessages.length > 0 && (
-            <div className="card flagged-panel">
-              <div className="card-title flagged-panel__title">
+            <Card className="flagged-panel shadow-none">
+              <CardContent className="space-y-3">
+              <CardTitle className="flagged-panel__title">
                 <AlertTriangle size={14} />
                 알림 패킷 ({flaggedMessages.length})
-              </div>
+              </CardTitle>
               <div className="flagged-panel__wrapper">
                 <table className="can-table">
                   <thead>
@@ -356,13 +370,15 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
                   </tbody>
                 </table>
               </div>
-            </div>
+              </CardContent>
+            </Card>
           )}
         </div>
 
         {/* Right Panel — Tabbed */}
         <div className="monitor-panel">
-          <div className="card">
+          <Card className="shadow-none">
+            <CardContent className="space-y-4">
             <div className="monitor-panel-tabs">
               <button
                 className={`monitor-panel-tab${activeTab === "alerts" ? " monitor-panel-tab--active" : ""}`}
@@ -404,7 +420,7 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
                         <p className="alert-card__desc">{alert.description}</p>
                         {alert.llmAnalysis && (
                           <div className="alert-card__llm">
-                            <span className="badge badge-info" style={{ fontSize: "var(--cds-type-xs)" }}>LLM</span>
+                            <Badge variant="outline" className="text-xs">LLM</Badge>
                             <p>{alert.llmAnalysis}</p>
                           </div>
                         )}
@@ -422,54 +438,53 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
                 {/* Raw injection form */}
                 <form onSubmit={handleInject} className="inject-form">
                   <div className="inject-form__row">
-                    <label className="form-field">
+                    <Label className="form-field">
                       <span className="form-label">CAN ID</span>
-                      <input
-                        className="form-input"
+                      <Input
+                        className={inputClassName}
                         value={injForm.canId}
                         onChange={(e) => setInjForm((p) => ({ ...p, canId: e.target.value }))}
                         placeholder="0x7DF"
                       />
-                    </label>
-                    <label className="form-field" style={{ maxWidth: 80 }}>
+                    </Label>
+                    <Label className="form-field max-w-20">
                       <span className="form-label">DLC</span>
-                      <input
-                        className="form-input"
+                      <Input
+                        className={inputClassName}
                         type="number"
                         min={0}
                         max={8}
                         value={injForm.dlc}
                         onChange={(e) => setInjForm((p) => ({ ...p, dlc: Number(e.target.value) }))}
                       />
-                    </label>
+                    </Label>
                   </div>
-                  <label className="form-field">
+                  <Label className="form-field">
                     <span className="form-label">Data</span>
-                    <input
-                      className="form-input form-input--mono"
+                    <Input
+                      className="form-input--mono font-mono"
                       value={injForm.data}
                       onChange={(e) => setInjForm((p) => ({ ...p, data: e.target.value }))}
                       placeholder="FF FF FF FF FF FF FF FF"
                     />
-                  </label>
-                  <label className="form-field">
+                  </Label>
+                  <Label className="form-field">
                     <span className="form-label">Label (선택)</span>
-                    <input
-                      className="form-input"
+                    <Input
+                      className={inputClassName}
                       value={injForm.label}
                       onChange={(e) => setInjForm((p) => ({ ...p, label: e.target.value }))}
                       placeholder="Diagnostic Request"
                     />
-                  </label>
-                  <button
+                  </Label>
+                  <Button
                     type="submit"
-                    className="btn"
+                    className="self-start"
                     disabled={injecting || !injForm.canId.trim() || !injForm.data.trim() || stopping}
-                    style={{ alignSelf: "flex-start" }}
                   >
                     {injecting ? <Spinner size={14} /> : <Send size={14} />}
                     주입
-                  </button>
+                  </Button>
                 </form>
 
                 {injError && (
@@ -496,14 +511,14 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
                         <p className="inject-scenario-card__desc">{s.description}</p>
                         <div className="inject-scenario-card__footer">
                           <span className="inject-scenario-card__steps">{s.steps.length}단계</span>
-                          <button
-                            className="btn btn-sm"
+                          <Button
+                            size="sm"
                             disabled={runningScenario !== null || stopping}
                             onClick={() => handleRunScenario(s.id)}
                           >
                             {runningScenario === s.id ? <Spinner size={12} /> : <Play size={12} />}
                             실행
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     ))
@@ -549,7 +564,8 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
                 )}
               </div>
             )}
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

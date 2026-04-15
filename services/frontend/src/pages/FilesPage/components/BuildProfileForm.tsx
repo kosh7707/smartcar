@@ -1,6 +1,11 @@
 import React, { useState, useCallback } from "react";
 import type { BuildProfile } from "@aegis/shared";
 import { ChevronRight, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import type { RegisteredSdk } from "../../../api/sdk";
 
 interface Props {
@@ -88,14 +93,15 @@ export const BuildProfileForm: React.FC<Props> = ({ value, onChange, registeredS
 
   // Find current SDK name for hint
   const currentSdk = readySdks.find((s) => s.id === value.sdkId);
+  const selectClassName = "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
   return (
     <div className="bp-form">
       {/* SDK selector */}
-      <label className="form-field">
+      <Label className="form-field">
         <span className="form-label">SDK 프로파일</span>
         <select
-          className="form-input"
+          className={selectClassName}
           value={value.sdkId}
           onChange={handleSdkChange}
         >
@@ -106,7 +112,7 @@ export const BuildProfileForm: React.FC<Props> = ({ value, onChange, registeredS
             </option>
           ))}
         </select>
-      </label>
+      </Label>
 
       {value.sdkId === "none" && readySdks.length === 0 && (
         <div className="bp-sdk-hint">등록된 SDK가 없습니다. 프로젝트 설정에서 SDK를 먼저 등록하세요.</div>
@@ -117,68 +123,69 @@ export const BuildProfileForm: React.FC<Props> = ({ value, onChange, registeredS
       )}
 
       {/* Advanced toggle */}
-      <button
+      <Button
         type="button"
-        className="bp-advanced-toggle"
+        variant="ghost"
+        size="sm"
+        className="bp-advanced-toggle justify-start"
         aria-expanded={showAdvanced}
         onClick={() => setShowAdvanced(!showAdvanced)}
       >
         <ChevronRight
           size={14}
-          className={showAdvanced ? "ftree-chevron--open" : ""}
-          style={{ transition: "transform 0.15s" }}
+          className={cn("transition-transform", showAdvanced && "rotate-90")}
         />
         <Settings size={14} />
         상세 설정
-      </button>
+      </Button>
 
       {showAdvanced && (
         <div className="bp-advanced">
           <div className="bp-grid">
-            <label className="form-field">
+            <Label className="form-field">
               <span className="form-label">컴파일러</span>
-              <input
-                className="form-input font-mono"
+              <Input
+                className="font-mono"
                 value={value.compiler}
                 onChange={(e) => update("compiler", e.target.value)}
                 placeholder="gcc"
                 spellCheck={false}
               />
-            </label>
-            <label className="form-field">
+            </Label>
+            <Label className="form-field">
               <span className="form-label">컴파일러 버전</span>
-              <input
-                className="form-input font-mono"
+              <Input
+                className="font-mono"
                 value={value.compilerVersion ?? ""}
                 onChange={(e) => onChange({ ...value, compilerVersion: e.target.value || undefined })}
                 placeholder="(선택)"
                 spellCheck={false}
               />
-            </label>
-            <label className="form-field">
+            </Label>
+            <Label className="form-field">
               <span className="form-label">타겟 아키텍처</span>
-              <input
-                className="form-input font-mono"
+              <Input
+                className="font-mono"
                 value={value.targetArch}
                 onChange={(e) => update("targetArch", e.target.value)}
                 placeholder="aarch64"
                 spellCheck={false}
               />
-            </label>
-            <label className="form-field">
+            </Label>
+            <Label className="form-field">
               <span className="form-label">언어 표준</span>
-              <input
-                className="form-input font-mono"
+              <Input
+                className="font-mono"
                 value={value.languageStandard}
                 onChange={(e) => update("languageStandard", e.target.value)}
                 placeholder="c11"
                 spellCheck={false}
               />
-            </label>
-            <label className="form-field">
+            </Label>
+            <Label className="form-field">
               <span className="form-label">헤더 처리 (.h)</span>
               <select
-                className="form-input"
+                className={selectClassName}
                 value={value.headerLanguage}
                 onChange={(e) => update("headerLanguage", e.target.value)}
               >
@@ -186,25 +193,25 @@ export const BuildProfileForm: React.FC<Props> = ({ value, onChange, registeredS
                 <option value="c">C</option>
                 <option value="cpp">C++</option>
               </select>
-            </label>
+            </Label>
           </div>
 
-          <label className="form-field">
+          <Label className="form-field">
             <span className="form-label">인클루드 경로 (한 줄에 하나)</span>
-            <textarea
-              className="form-input font-mono bp-textarea"
+            <Textarea
+              className="font-mono bp-textarea"
               value={(value.includePaths ?? []).join("\n")}
               onChange={handleIncludePathsChange}
               placeholder="../common-lib/include"
               rows={3}
               spellCheck={false}
             />
-          </label>
+          </Label>
 
-          <label className="form-field">
+          <Label className="form-field">
             <span className="form-label">전처리기 매크로 (KEY=VALUE, 한 줄에 하나)</span>
-            <textarea
-              className="form-input font-mono bp-textarea"
+            <Textarea
+              className="font-mono bp-textarea"
               value={
                 value.defines
                   ? Object.entries(value.defines)
@@ -217,19 +224,19 @@ export const BuildProfileForm: React.FC<Props> = ({ value, onChange, registeredS
               rows={2}
               spellCheck={false}
             />
-          </label>
+          </Label>
 
-          <label className="form-field">
+          <Label className="form-field">
             <span className="form-label">추가 컴파일 플래그 (공백 구분)</span>
-            <textarea
-              className="form-input font-mono bp-textarea"
+            <Textarea
+              className="font-mono bp-textarea"
               value={(value.flags ?? []).join(" ")}
               onChange={handleFlagsChange}
               placeholder="-Wall -Wextra"
               rows={2}
               spellCheck={false}
             />
-          </label>
+          </Label>
         </div>
       )}
     </div>

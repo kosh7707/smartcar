@@ -1,5 +1,9 @@
 import React from "react";
 import { Crosshair } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ConfirmDialog, ConnectionStatusBanner, Spinner } from "../../../shared/ui";
 import { BuildProfileForm } from "./BuildProfileForm";
 import { BuildLogViewer } from "./BuildLogViewer";
@@ -19,7 +23,8 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
   const state = useBuildTargetSection(projectId, onStartDeepAnalysis);
 
   return (
-    <div className="card gs-card">
+    <Card className="gs-card shadow-none">
+      <CardContent className="space-y-4">
       <ConnectionStatusBanner connectionState={state.pipeline.connectionState} />
       <div className="gs-card__header">
         <div className="gs-card__icon"><Crosshair size={18} /></div>
@@ -45,19 +50,19 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
       {state.formMode === "add" && (
         <div className="bt-form">
           <div className="bt-form__grid">
-            <label className="form-field">
+            <Label className="form-field">
               <span className="form-label">타겟 이름</span>
-              <input className="form-input" value={state.formName} onChange={(event) => state.setFormName(event.target.value)} placeholder="빌드 타겟 이름" autoFocus />
-            </label>
-            <label className="form-field">
+              <Input value={state.formName} onChange={(event) => state.setFormName(event.target.value)} placeholder="빌드 타겟 이름" autoFocus />
+            </Label>
+            <Label className="form-field">
               <span className="form-label">상대 경로</span>
-              <input className="form-input font-mono" value={state.formPath} onChange={(event) => state.setFormPath(event.target.value)} placeholder="src/module-dir/" spellCheck={false} />
-            </label>
+              <Input className="font-mono" value={state.formPath} onChange={(event) => state.setFormPath(event.target.value)} placeholder="src/module-dir/" spellCheck={false} />
+            </Label>
           </div>
           <BuildProfileForm value={state.formProfile} onChange={state.setFormProfile} registeredSdks={state.registeredSdks} />
           <div className="bt-form__actions">
-            <button className="btn btn-secondary btn-sm" onClick={state.closeForm}>취소</button>
-            <button className="btn btn-sm" onClick={state.handleSave} disabled={state.saving}>{state.saving ? "저장 중..." : "추가"}</button>
+            <Button variant="outline" size="sm" onClick={state.closeForm}>취소</Button>
+            <Button size="sm" onClick={state.handleSave} disabled={state.saving}>{state.saving ? "저장 중..." : "추가"}</Button>
           </div>
         </div>
       )}
@@ -135,6 +140,7 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
           onSubmit={state.handleEditSubmit}
         />
       )}
-    </div>
+      </CardContent>
+    </Card>
   );
 };

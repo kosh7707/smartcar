@@ -1,6 +1,10 @@
 import React from "react";
 import type { Adapter, DynamicTestConfig, TestStrategy } from "@aegis/shared";
 import { AlertTriangle, Bug, Play, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { BackButton, PageHeader } from "../../../shared/ui";
 import { AdapterSelector } from "../../../shared/ui";
 import { STRATEGY_LABELS } from "../dynamicTestPresentation";
@@ -45,12 +49,16 @@ export const DynamicTestConfigView: React.FC<DynamicTestConfigViewProps> = ({
   error,
   onBack,
   onStart,
-}) => (
-  <div className="page-enter">
+}) => {
+  const selectClassName = "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+
+  return (
+    <div className="page-enter">
     <BackButton onClick={onBack} label="이력으로" />
     <PageHeader title="새 세션" />
 
-    <div className="card dtest-config">
+    <Card className="dtest-config shadow-none">
+      <CardContent className="space-y-5">
       <div className="dtest-config__section">
         <label className="dtest-config__label">어댑터</label>
         {connected.length === 0 ? (
@@ -84,29 +92,29 @@ export const DynamicTestConfigView: React.FC<DynamicTestConfigViewProps> = ({
         <label className="dtest-config__label">대상 설정</label>
         {hasEcuMeta && ecuMeta ? (
           <div className="dtest-config__field-row">
-            <label className="form-field">
+            <Label className="form-field">
               <span className="form-label">Target ECU</span>
-              <input className="form-input" value={targetEcu} readOnly />
-            </label>
-            <label className="form-field">
+              <Input value={targetEcu} readOnly />
+            </Label>
+            <Label className="form-field">
               <span className="form-label">Target ID</span>
-              <select className="filter-select" value={targetId} onChange={(e) => setTargetId(e.target.value)}>
+              <select className={selectClassName} value={targetId} onChange={(e) => setTargetId(e.target.value)}>
                 {ecuMeta.canIds.map((id) => (
                   <option key={id} value={id}>{id}</option>
                 ))}
               </select>
-            </label>
+            </Label>
           </div>
         ) : (
           <div className="dtest-config__field-row">
-            <label className="form-field">
+            <Label className="form-field">
               <span className="form-label">Target ECU</span>
-              <input className="form-input" value={targetEcu} onChange={(e) => setTargetEcu(e.target.value)} />
-            </label>
-            <label className="form-field">
+              <Input value={targetEcu} onChange={(e) => setTargetEcu(e.target.value)} />
+            </Label>
+            <Label className="form-field">
               <span className="form-label">Target ID</span>
-              <input className="form-input" value={targetId} onChange={(e) => setTargetId(e.target.value)} placeholder="0x100" />
-            </label>
+              <Input value={targetId} onChange={(e) => setTargetId(e.target.value)} placeholder="0x100" />
+            </Label>
           </div>
         )}
       </div>
@@ -126,9 +134,9 @@ export const DynamicTestConfigView: React.FC<DynamicTestConfigViewProps> = ({
       {strategy === "random" ? (
         <div className="dtest-config__section">
           <label className="dtest-config__label">입력 수</label>
-          <input
+          <Input
             type="number"
-            className="form-input dtest-config__count-input"
+            className="dtest-config__count-input"
             min={1}
             max={1000}
             value={count}
@@ -167,18 +175,22 @@ export const DynamicTestConfigView: React.FC<DynamicTestConfigViewProps> = ({
       </div>
 
       <div className="dtest-config__actions">
-        <button className="btn" onClick={onStart} disabled={!targetEcu.trim() || !targetId.trim() || !selectedAdapterId}>
+        <Button onClick={onStart} disabled={!targetEcu.trim() || !targetId.trim() || !selectedAdapterId}>
           <Play size={16} />
           테스트 시작
-        </button>
+        </Button>
       </div>
-    </div>
+      </CardContent>
+    </Card>
 
     {error && (
-      <div className="card dtest-error animate-fade-in">
+      <Card className="dtest-error animate-fade-in shadow-none">
+        <CardContent className="flex items-center gap-2">
         <AlertTriangle size={16} />
         <span>{error}</span>
-      </div>
+        </CardContent>
+      </Card>
     )}
   </div>
-);
+  );
+};

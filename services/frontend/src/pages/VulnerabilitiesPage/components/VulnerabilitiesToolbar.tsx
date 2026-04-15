@@ -1,6 +1,10 @@
 import React from "react";
 import type { FindingSourceType, FindingStatus, Severity } from "@aegis/shared";
 import { ArrowUpDown, Keyboard, Search, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { FINDING_STATUS_LABELS, SOURCE_TYPE_LABELS } from "../../../constants/finding";
 import { SEVERITY_ORDER } from "../../../utils/severity";
 
@@ -64,28 +68,39 @@ export const VulnerabilitiesToolbar: React.FC<VulnerabilitiesToolbarProps> = ({
   setBulkReason,
   clearSelection,
   onBulkAction,
-}) => (
-  <>
+}) => {
+  const selectClassName = "h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+
+  return (
+    <>
     <div className="vuln-filter-bar">
-      <button
-        className={`vuln-filter-tab${activeSeverity === "all" ? " vuln-filter-tab--active" : ""}`}
+      <Button
+        type="button"
+        variant={activeSeverity === "all" ? "default" : "outline"}
+        className={cn("vuln-filter-tab", activeSeverity === "all" && "vuln-filter-tab--active")}
         onClick={() => setFilter("all")}
       >
         전체 <span className="vuln-filter-count">{counts.total}</span>
-      </button>
+      </Button>
       {SEVERITY_ORDER.map((severity) => (
-        <button
+        <Button
           key={severity}
-          className={`vuln-filter-tab vuln-filter-tab--${severity}${activeSeverity === severity ? " vuln-filter-tab--active" : ""}`}
+          type="button"
+          variant={activeSeverity === severity ? "default" : "outline"}
+          className={cn(
+            "vuln-filter-tab",
+            `vuln-filter-tab--${severity}`,
+            activeSeverity === severity && "vuln-filter-tab--active",
+          )}
           onClick={() => setFilter(severity)}
         >
           {severity === "critical" ? "치명" : severity === "high" ? "높음" : severity === "medium" ? "보통" : severity === "low" ? "낮음" : "정보"}
           <span className="vuln-filter-count">{counts[severity as keyof typeof counts]}</span>
-        </button>
+        </Button>
       ))}
 
       <select
-        className="form-input vuln-extra-select"
+        className={cn(selectClassName, "vuln-extra-select")}
         value={sourceTypeFilter}
         onChange={(e) => setSourceTypeFilter(e.target.value as FindingSourceType | "all")}
       >
@@ -96,7 +111,7 @@ export const VulnerabilitiesToolbar: React.FC<VulnerabilitiesToolbarProps> = ({
       </select>
 
       <select
-        className="form-input vuln-extra-select"
+        className={cn(selectClassName, "vuln-extra-select")}
         value={statusFilter}
         onChange={(e) => setStatusFilter(e.target.value as FindingStatus | "all")}
       >
@@ -108,9 +123,9 @@ export const VulnerabilitiesToolbar: React.FC<VulnerabilitiesToolbarProps> = ({
 
       <div className="vuln-search-bar">
         <Search size={14} />
-        <input
+        <Input
           type="text"
-          className="form-input vuln-search-input"
+          className="vuln-search-input"
           placeholder="제목/위치 검색..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -120,7 +135,7 @@ export const VulnerabilitiesToolbar: React.FC<VulnerabilitiesToolbarProps> = ({
       <div className="vuln-sort-bar">
         <ArrowUpDown size={14} />
         <select
-          className="form-input vuln-sort-select"
+          className={cn(selectClassName, "vuln-sort-select")}
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as "severity" | "createdAt" | "location")}
         >
@@ -128,17 +143,20 @@ export const VulnerabilitiesToolbar: React.FC<VulnerabilitiesToolbarProps> = ({
           <option value="createdAt">날짜</option>
           <option value="location">위치</option>
         </select>
-        <button
-          className="btn-icon"
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
           title="정렬 방향"
+          aria-label="정렬 방향"
           onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
         >
           {sortOrder === "asc" ? "↑" : "↓"}
-        </button>
+        </Button>
       </div>
 
       <select
-        className="form-input vuln-extra-select"
+        className={cn(selectClassName, "vuln-extra-select")}
         value={groupBy}
         onChange={(e) => setGroupBy(e.target.value as "none" | "ruleId" | "location")}
       >
@@ -179,24 +197,27 @@ export const VulnerabilitiesToolbar: React.FC<VulnerabilitiesToolbarProps> = ({
     )}
 
     {showShortcutHelp && (
-      <div className="vuln-shortcut-help card">
-        <div className="card-title flex-center flex-gap-2">
+      <Card className="vuln-shortcut-help shadow-none">
+        <CardContent className="space-y-3">
+        <CardTitle className="flex-center flex-gap-2">
           <Keyboard size={14} /> 키보드 단축키
-        </div>
+        </CardTitle>
         <div className="vuln-shortcut-list">
           <span><kbd>j</kbd>/<kbd>k</kbd> 다음/이전</span>
           <span><kbd>o</kbd>/<kbd>엔터</kbd> 상세 열기</span>
           <span><kbd>Esc</kbd> 선택 초기화</span>
           <span><kbd>?</kbd> 도움말 토글</span>
         </div>
-      </div>
+        </CardContent>
+      </Card>
     )}
 
     {selectedCount > 0 && (
-      <div className="vuln-bulk-bar card">
+      <Card className="vuln-bulk-bar shadow-none">
+        <CardContent className="flex flex-wrap items-center gap-3">
         <span className="vuln-bulk-bar__count">{selectedCount}건 선택</span>
         <select
-          className="form-input"
+          className={selectClassName}
           value={bulkStatus}
           onChange={(e) => setBulkStatus(e.target.value as FindingStatus | "")}
         >
@@ -205,24 +226,26 @@ export const VulnerabilitiesToolbar: React.FC<VulnerabilitiesToolbarProps> = ({
             <option key={key} value={key}>{value}</option>
           ))}
         </select>
-        <input
+        <Input
           type="text"
-          className="form-input vuln-bulk-bar__reason"
+          className="vuln-bulk-bar__reason"
           placeholder="사유 입력"
           value={bulkReason}
           onChange={(e) => setBulkReason(e.target.value)}
         />
-        <button
-          className="btn btn-sm"
+        <Button
+          size="sm"
           onClick={onBulkAction}
           disabled={!bulkStatus || !bulkReason.trim() || bulkProcessing}
         >
           {bulkProcessing ? "처리 중..." : "적용"}
-        </button>
-        <button className="btn btn-secondary btn-sm" onClick={clearSelection}>
+        </Button>
+        <Button variant="outline" size="sm" onClick={clearSelection}>
           해제
-        </button>
-      </div>
+        </Button>
+        </CardContent>
+      </Card>
     )}
-  </>
-);
+    </>
+  );
+};
