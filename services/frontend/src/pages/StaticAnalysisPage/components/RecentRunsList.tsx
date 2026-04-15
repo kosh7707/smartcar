@@ -11,10 +11,10 @@ interface Props {
 }
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  completed: { label: "완료", cls: "badge-info" },
-  running: { label: "진행 중", cls: "badge-warning" },
-  failed: { label: "실패", cls: "badge-critical" },
-  pending: { label: "대기", cls: "badge-low" },
+  completed: { label: "완료", cls: "badge-severity--info" },
+  running: { label: "진행 중", cls: "badge-severity--medium" },
+  failed: { label: "실패", cls: "badge-severity--critical" },
+  pending: { label: "대기", cls: "badge-severity--low" },
 };
 
 export const RecentRunsList: React.FC<Props> = ({ runs, onClickRun }) => {

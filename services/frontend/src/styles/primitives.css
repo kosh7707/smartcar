@@ -49,60 +49,13 @@
 
 /* ── Badge ── */
 
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  min-height: 28px;
-  padding: 0 8px;
-  border-radius: var(--cds-radius-pill);
-  font-size: var(--cds-type-sm);
-  font-family: var(--cds-font-sans);
-  font-weight: var(--cds-weight-medium);
-  line-height: 1.4;
-}
 
-.badge-sm {
-  min-height: 24px;
-  padding: 0 8px;
-  font-size: var(--cds-type-sm);
-}
 
-.badge-critical {
-  background: var(--aegis-severity-critical-bg);
-  color: var(--aegis-severity-critical);
-  border: 1px solid var(--aegis-severity-critical-border);
-}
 
-.badge-high {
-  background: var(--aegis-severity-high-bg);
-  color: var(--aegis-severity-high);
-  border: 1px solid var(--aegis-severity-high-border);
-}
 
-.badge-medium {
-  background: var(--aegis-severity-medium-bg);
-  color: var(--aegis-severity-medium);
-  border: 1px solid var(--aegis-severity-medium-border);
-}
 
-.badge-low {
-  background: var(--aegis-severity-low-bg);
-  color: var(--aegis-severity-low);
-  border: 1px solid var(--aegis-severity-low-border);
-}
 
-.badge-info {
-  background: var(--aegis-severity-info-bg);
-  color: var(--aegis-severity-info);
-  border: 1px solid var(--aegis-severity-info-border);
-}
 
-.badge-completed {
-  background: var(--cds-support-success-bg);
-  color: var(--cds-support-success);
-  border: 1px solid var(--cds-support-success-bg);
-}
 
 /* ── Severity Badges (BEM aliases) ── */
 

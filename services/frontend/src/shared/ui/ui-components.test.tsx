@@ -12,14 +12,14 @@ describe("SeverityBadge", () => {
     expect(screen.getByText("CRITICAL")).toBeInTheDocument();
   });
 
-  it("applies sm size class", () => {
+  it("applies compact text class for sm size", () => {
     const { container } = render(<SeverityBadge severity="high" size="sm" />);
-    expect(container.querySelector(".badge-sm")).toBeInTheDocument();
+    expect(container.querySelector(".text-xs")).toBeInTheDocument();
   });
 
   it("applies severity class", () => {
     const { container } = render(<SeverityBadge severity="medium" />);
-    expect(container.querySelector(".badge-medium")).toBeInTheDocument();
+    expect(container.querySelector(".badge-severity--medium")).toBeInTheDocument();
   });
 });
 

@@ -36,23 +36,11 @@
     @apply rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-none outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25;
   }
 
-  .badge,
-  [class*="badge-"] {
-    @apply inline-flex items-center justify-center gap-1 rounded-full border border-border bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground;
-  }
 
-  .badge-sm { @apply px-1.5 py-0 text-[0.68rem]; }
-
-  .badge-critical,
   .severity-chip--critical { @apply border-red-200 bg-red-50 text-red-700 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-200; }
-  .badge-high,
   .severity-chip--high { @apply border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/70 dark:bg-orange-950/40 dark:text-orange-200; }
-  .badge-medium,
   .severity-chip--medium { @apply border-yellow-200 bg-yellow-50 text-yellow-700 dark:border-yellow-900/70 dark:bg-yellow-950/40 dark:text-yellow-100; }
-  .badge-low,
   .severity-chip--low { @apply border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/70 dark:bg-blue-950/40 dark:text-blue-200; }
-  .badge-info { @apply border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200; }
-
   .navbar { @apply border-b border-border bg-background/95 text-foreground shadow-none backdrop-blur supports-[backdrop-filter]:bg-background/80; }
   .navbar-brand__icon { @apply border border-border bg-primary text-primary-foreground; }
   .navbar-brand__subtitle,

@@ -8,23 +8,23 @@ describe("SeverityBadge", () => {
     expect(screen.getByText("CRITICAL")).toBeInTheDocument();
   });
 
-  it("applies badge-{severity} class", () => {
+  it("applies badge-severity class", () => {
     render(<SeverityBadge severity="high" />);
     const badge = screen.getByText("HIGH");
-    expect(badge.className).toContain("badge-high");
+    expect(badge.className).toContain("badge-severity--high");
   });
 
-  it("applies sm size class", () => {
+  it("applies compact text class for sm size", () => {
     render(<SeverityBadge severity="medium" size="sm" />);
     const badge = screen.getByText("MEDIUM");
-    expect(badge.className).toContain("badge-sm");
+    expect(badge.className).toContain("text-xs");
   });
 
   it("defaults to md size", () => {
     render(<SeverityBadge severity="low" />);
     const badge = screen.getByText("LOW");
-    expect(badge.className).toContain("badge");
-    expect(badge.className).not.toContain("badge-sm");
+    expect(badge).toHaveAttribute("data-slot", "badge");
+    expect(badge.className).toContain("badge-severity--low");
   });
 
   it("handles info severity", () => {

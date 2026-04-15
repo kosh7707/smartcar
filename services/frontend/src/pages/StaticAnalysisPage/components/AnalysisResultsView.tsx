@@ -191,7 +191,7 @@ export const AnalysisResultsView: React.FC<Props> = ({
                   onClick={() => onSelectVuln(v)}
                 >
                   <div className="vuln-card-header">
-                    <Badge variant="outline" className={`badge-${v.severity}`}>
+                    <Badge variant="outline" className={`badge-severity--${v.severity}`}>
                       {v.severity === "critical" ? "치명" : v.severity === "high" ? "높음" : v.severity === "medium" ? "보통" : v.severity === "low" ? "낮음" : "정보"}
                     </Badge>
                     <span className="vuln-title">{v.title}</span>

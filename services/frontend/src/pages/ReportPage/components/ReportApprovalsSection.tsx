@@ -9,7 +9,7 @@ export function ReportApprovalsSection({ approvals }: { approvals: ProjectReport
       <div className="card-title">승인 이력 ({approvals.length})</div>
       {approvals.map((approval) => (
         <div key={approval.id} className="report-approval-row">
-          <Badge variant="outline" className={`text-xs badge-${approval.status === "approved" ? "low" : approval.status === "rejected" ? "critical" : "medium"}`}>
+          <Badge variant="outline" className={`text-xs badge-severity--${approval.status === "approved" ? "low" : approval.status === "rejected" ? "critical" : "medium"}`}>
             {approval.status}
           </Badge>
           <span>{approval.actionType}</span>

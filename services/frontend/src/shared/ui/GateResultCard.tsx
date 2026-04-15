@@ -41,7 +41,7 @@ export const GateResultCard: React.FC<Props> = ({ gate, compact }) => {
             <div key={r.ruleId} className="gate-card__rule-row flex items-start gap-2 text-sm">
               <Badge
                 variant="outline"
-                className={`badge-sm ${r.result === "passed" ? "gate-badge--pass" : r.result === "failed" ? "gate-badge--fail" : "gate-badge--cds-support-warning"}`}
+                className={`text-xs ${r.result === "passed" ? "gate-badge--pass" : r.result === "failed" ? "gate-badge--fail" : "gate-badge--cds-support-warning"}`}
               >
                 {r.result === "passed" ? "PASS" : r.result === "failed" ? "FAIL" : "WARN"}
               </Badge>

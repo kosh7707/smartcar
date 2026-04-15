@@ -21,7 +21,7 @@ export const ReportRunsSection: React.FC<ReportRunsSectionProps> = ({ runs }) =>
       <div className="report-runs">
         {runs.map(({ run, gate }) => (
           <div key={run.id} className="report-runs__row">
-            <Badge variant="outline" className={`text-xs badge-${run.status === "completed" ? "low" : run.status === "failed" ? "critical" : "info"}`}>
+            <Badge variant="outline" className={`text-xs badge-severity--${run.status === "completed" ? "low" : run.status === "failed" ? "critical" : "info"}`}>
               {run.status}
             </Badge>
             <span className="report-runs__module">
@@ -31,7 +31,7 @@ export const ReportRunsSection: React.FC<ReportRunsSectionProps> = ({ runs }) =>
               탐지 항목 {run.findingCount}건
             </span>
             {gate && (
-              <Badge variant="outline" className={`text-xs badge-${gate.status === "pass" ? "low" : gate.status === "fail" ? "critical" : "medium"}`}>
+              <Badge variant="outline" className={`text-xs badge-severity--${gate.status === "pass" ? "low" : gate.status === "fail" ? "critical" : "medium"}`}>
                 게이트: {gate.status}
               </Badge>
             )}
