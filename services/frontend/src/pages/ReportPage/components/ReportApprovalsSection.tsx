@@ -1,12 +1,14 @@
 import React from "react";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import type { ProjectReport } from "@aegis/shared";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "../../../utils/format";
 
 export function ReportApprovalsSection({ approvals }: { approvals: ProjectReport["approvals"] }) {
   return (
-    <div className="card">
-      <div className="card-title">승인 이력 ({approvals.length})</div>
+    <Card className="shadow-none">
+      <CardContent className="space-y-3">
+      <CardTitle>승인 이력 ({approvals.length})</CardTitle>
       {approvals.map((approval) => (
         <div key={approval.id} className="report-approval-row">
           <Badge variant="outline" className={`text-xs badge-severity--${approval.status === "approved" ? "low" : approval.status === "rejected" ? "critical" : "medium"}`}>
@@ -20,6 +22,7 @@ export function ReportApprovalsSection({ approvals }: { approvals: ProjectReport
           <span className="text-sm text-tertiary">{formatDateTime(approval.createdAt)}</span>
         </div>
       ))}
-    </div>
+      </CardContent>
+    </Card>
   );
 }

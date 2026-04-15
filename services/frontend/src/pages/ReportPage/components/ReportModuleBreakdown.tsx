@@ -1,11 +1,13 @@
 import React from "react";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { MODULE_KEY_MAP, type ReportModuleEntry } from "../reportPresentation";
 import { MODULE_META } from "../../../constants/modules";
 
 export function ReportModuleBreakdown({ moduleEntries }: { moduleEntries: ReportModuleEntry[] }) {
   return (
-    <div className="card report-breakdown">
-      <div className="card-title">모듈별 분석 현황</div>
+    <Card className="report-breakdown shadow-none">
+      <CardContent className="space-y-3">
+      <CardTitle>모듈별 분석 현황</CardTitle>
       <table className="report-breakdown-table">
         <thead>
           <tr>
@@ -42,6 +44,7 @@ export function ReportModuleBreakdown({ moduleEntries }: { moduleEntries: Report
           )}
         </tbody>
       </table>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

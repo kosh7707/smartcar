@@ -1,4 +1,5 @@
 import React from "react";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import type { ProjectReport } from "@aegis/shared";
 import { Badge } from "@/components/ui/badge";
 import { MODULE_META } from "../../../constants/modules";
@@ -16,8 +17,9 @@ export const ReportRunsSection: React.FC<ReportRunsSectionProps> = ({ runs }) =>
   if (runs.length === 0) return null;
 
   return (
-    <div className="card">
-      <div className="card-title">실행 이력 ({runs.length})</div>
+    <Card className="shadow-none">
+      <CardContent className="space-y-3">
+      <CardTitle>실행 이력 ({runs.length})</CardTitle>
       <div className="report-runs">
         {runs.map(({ run, gate }) => (
           <div key={run.id} className="report-runs__row">
@@ -41,6 +43,7 @@ export const ReportRunsSection: React.FC<ReportRunsSectionProps> = ({ runs }) =>
           </div>
         ))}
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
