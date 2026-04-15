@@ -3,6 +3,7 @@ import "./FindingDetailView.css";
 import type { Finding, EvidenceRef, AuditLogEntry, FindingStatus } from "@aegis/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import {
   BackButton,
   Spinner,
@@ -118,10 +119,11 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
       <p className="finding-detail-breadcrumb">정적 분석 › Finding 상세</p>
 
       {/* Header: severity banner */}
-      <div
-        className="card finding-banner"
+      <Card
+        className="finding-banner shadow-none"
         data-severity={finding.severity}
       >
+        <CardContent>
         <div className="finding-banner__badges">
           <SeverityBadge severity={finding.severity} />
           <FindingStatusBadge status={finding.status} />
@@ -171,7 +173,8 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
             {finding.title}
           </h2>
         </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Status change + PoC button */}
       <div className="finding-actions">
@@ -196,47 +199,56 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
       </div>
 
       {/* Description */}
-      <div className="card">
-        <div className="card-title">설명</div>
+      <Card className="shadow-none">
+        <CardContent className="space-y-3">
+        <CardTitle>설명</CardTitle>
         <p className="finding-body-text">{finding.description}</p>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Detail (Agent deep analysis — markdown) */}
       {finding.detail && (
-        <div className="card">
-          <div className="card-title">상세 분석</div>
+        <Card className="shadow-none">
+          <CardContent className="space-y-3">
+          <CardTitle>상세 분석</CardTitle>
           <div className="finding-detail-md">
             {renderMarkdown(finding.detail)}
           </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Suggestion + fixCode */}
       {finding.suggestion && (
-        <div className="card">
-          <div className="card-title">수정 가이드</div>
+        <Card className="shadow-none">
+          <CardContent className="space-y-3">
+          <CardTitle>수정 가이드</CardTitle>
           <p className="finding-suggestion-text">
             {finding.suggestion}
           </p>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* PoC result */}
       {pocLoading && (
-        <div className="card poc-section">
-          <div className="card-title">PoC 생성 중...</div>
+        <Card className="poc-section shadow-none">
+          <CardContent className="space-y-3">
+          <CardTitle>PoC 생성 중...</CardTitle>
           <div className="poc-loading">
             <Spinner label="LLM이 PoC 코드를 생성하고 있습니다..." />
           </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {pocData && (
-        <div className="card poc-section">
+        <Card className="poc-section shadow-none">
+          <CardContent className="space-y-3">
           <div className="poc-header">
-            <div className="card-title poc-header__title">
+            <CardTitle className="poc-header__title">
               PoC — {pocData.poc.statement}
-            </div>
+            </CardTitle>
           </div>
           <div className="finding-detail-md">
             {renderMarkdown(pocData.poc.detail)}
@@ -249,7 +261,8 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
               {pocData.audit.tokenUsage.prompt + pocData.audit.tokenUsage.completion} tokens
             </span>
           </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Evidence Panel */}
@@ -260,8 +273,9 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
 
       {/* Fingerprint History */}
       {history.length > 1 && (
-        <div className="card">
-          <div className="card-title">발견 이력 ({history.length}회)</div>
+        <Card className="shadow-none">
+          <CardContent className="space-y-3">
+          <CardTitle>발견 이력 ({history.length}회)</CardTitle>
           <div className="audit-timeline">
             {history.map((h) => (
               <div key={h.findingId} className="audit-entry">
@@ -272,13 +286,15 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
               </div>
             ))}
           </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Audit Log Timeline */}
       {finding.auditLog.length > 0 && (
-        <div className="card">
-          <div className="card-title">감사 로그</div>
+        <Card className="shadow-none">
+          <CardContent className="space-y-3">
+          <CardTitle>감사 로그</CardTitle>
           <div className="audit-timeline">
             {finding.auditLog.map((entry) => (
               <div
@@ -300,7 +316,8 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
               </div>
             ))}
           </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* State transition dialog */}

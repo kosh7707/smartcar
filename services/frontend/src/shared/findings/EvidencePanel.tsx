@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import type { EvidenceRef } from "@aegis/shared";
 import { FileCheck, ChevronDown, ChevronUp } from "lucide-react";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { EvidenceItemRow } from "./EvidenceItemRow";
 import { EmptyState } from "../ui";
 import "./EvidencePanel.css";
@@ -21,11 +22,12 @@ export const EvidencePanel: React.FC<Props> = ({ evidenceRefs, onSelectEvidence 
   const hiddenCount = evidenceRefs.length - COLLAPSE_THRESHOLD;
 
   return (
-    <div className="evidence-panel card">
-      <div className="card-title">
+    <Card className="evidence-panel shadow-none">
+      <CardContent className="space-y-3">
+      <CardTitle className="flex items-center gap-2">
         <FileCheck size={16} />
         증적 ({evidenceRefs.length})
-      </div>
+      </CardTitle>
       <p style={{ fontSize: "var(--cds-type-xs)", color: "var(--cds-text-placeholder)", margin: "0 0 var(--cds-spacing-03)" }}>
         Finding과 연결된 코드 위치 및 분석 근거
       </p>
@@ -63,6 +65,7 @@ export const EvidencePanel: React.FC<Props> = ({ evidenceRefs, onSelectEvidence 
           )}
         </>
       )}
-    </div>
+      </CardContent>
+    </Card>
   );
 };
