@@ -1,6 +1,8 @@
 import React, { useCallback } from "react";
 import { Upload, FileText, Check } from "lucide-react";
 import type { UploadedFile } from "@aegis/shared";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "../../../shared/ui";
 
 interface LocalFile { file: File; name: string; size: number }
@@ -56,16 +58,17 @@ export const FileUploadView: React.FC<Props> = ({
 
       {/* Existing project files */}
       {existingFiles.length > 0 && (
-        <div className="card">
-          <div className="card-title">
+        <Card className="shadow-none">
+          <CardContent className="space-y-3">
+          <CardTitle className="flex items-center gap-2">
             <FileText size={16} />
             프로젝트 파일에서 선택 ({selectedExisting.length}/{existingFiles.length})
             {onSelectAll && selectedExisting.length < existingFiles.length && (
-              <button className="btn btn-secondary btn-sm ml-auto" onClick={onSelectAll}>
+              <Button variant="outline" size="sm" className="ml-auto" onClick={onSelectAll}>
                 전체 선택
-              </button>
+              </Button>
             )}
-          </div>
+          </CardTitle>
           {existingFiles.map((file) => {
             const selected = selectedExisting.some((f) => f.id === file.id);
             return (
@@ -83,16 +86,18 @@ export const FileUploadView: React.FC<Props> = ({
               </div>
             );
           })}
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* New file upload */}
-      <div
-        className="card drop-zone"
+      <Card
+        className="drop-zone shadow-none"
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
         onClick={() => document.getElementById("file-input")?.click()}
       >
+        <CardContent>
         <div className="drop-zone-content">
           <div className="drop-zone-icon">
             <Upload size={36} />
@@ -108,11 +113,13 @@ export const FileUploadView: React.FC<Props> = ({
           style={{ display: "none" }}
           onChange={handleFileSelect}
         />
-      </div>
+        </CardContent>
+      </Card>
 
       {files.length > 0 && (
-        <div className="card animate-fade-in-up">
-          <div className="card-title">새로 추가한 파일 ({files.length})</div>
+        <Card className="animate-fade-in-up shadow-none">
+          <CardContent className="space-y-3">
+          <CardTitle>새로 추가한 파일 ({files.length})</CardTitle>
           {files.map((f, i) => (
             <div key={f.info.id} className="file-row">
               <div className="file-info">
@@ -125,13 +132,14 @@ export const FileUploadView: React.FC<Props> = ({
                 <span className="file-size">
                   {(f.info.size / 1024).toFixed(1)}KB
                 </span>
-                <button className="btn btn-secondary btn-sm" onClick={() => onRemoveFile(i)}>
+                <Button variant="outline" size="sm" onClick={() => onRemoveFile(i)}>
                   삭제
-                </button>
+                </Button>
               </div>
             </div>
           ))}
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {totalSelected > 0 && (
@@ -142,9 +150,9 @@ export const FileUploadView: React.FC<Props> = ({
               <> (기존 {selectedExisting.length} + 새 파일 {files.length})</>
             )}
           </span>
-          <button className="btn" onClick={onStartAnalysis}>
+          <Button onClick={onStartAnalysis}>
             분석 시작
-          </button>
+          </Button>
         </div>
       )}
     </div>

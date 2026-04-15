@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import type { AnalysisProgress } from "@aegis/shared";
 import { CheckCircle2, XCircle, Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useElapsedTimer } from "../../../hooks/useElapsedTimer";
 import { PageHeader, Spinner, BackButton, ConfirmDialog } from "../../../shared/ui";
 import "./AsyncAnalysisProgressView.css";
@@ -158,16 +159,16 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
         {/* Actions */}
         <div className="async-progress__actions">
           {isCompleted && (
-            <button className="btn" onClick={() => onViewResult(progress.analysisId)}>
+            <Button onClick={() => onViewResult(progress.analysisId)}>
               <Eye size={16} />
               결과 보기{autoRedirect !== null && autoRedirect > 0 ? ` (${autoRedirect})` : ""}
-            </button>
+            </Button>
           )}
           {!isDone && (
-            <button className="btn btn-secondary btn-danger" onClick={() => setShowAbortConfirm(true)}>
+            <Button variant="destructive" onClick={() => setShowAbortConfirm(true)}>
               <XCircle size={16} />
               분석 중단
-            </button>
+            </Button>
           )}
         </div>
       </div>

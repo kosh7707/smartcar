@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useCallback } from "react";
 import type { Run, Finding, FindingStatus, FindingSourceType, EvidenceRef, GateResult, Severity } from "@aegis/shared";
 import { FileCode, Plus, LayoutList, Layers, CheckSquare, History, Check, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { StatCard, EmptyState, Spinner, GateResultCard, SeverityBadge, FindingStatusBadge, SourceBadge } from "../../../shared/ui";
 import { bulkUpdateFindingStatus } from "../../../api/analysis";
 import { TopFilesCard } from "./TopFilesCard";
@@ -107,10 +108,10 @@ export const LatestAnalysisTab: React.FC<Props> = ({
         title="아직 완료된 분석이 없습니다"
         description="새 분석을 실행하여 코드 보안 상태를 확인하세요."
         action={
-          <button className="btn" onClick={onNewAnalysis}>
+          <Button onClick={onNewAnalysis}>
             <Plus size={16} />
             새 분석
-          </button>
+          </Button>
         }
       />
     );
@@ -414,15 +415,15 @@ const LatestAnalysisContent: React.FC<{
           </label>
           {selectedIds.size > 0 && (
             <div className="finding-bulk-actions">
-              <button className="btn btn-sm btn-secondary" onClick={() => handleBulkStatus("false_positive")} disabled={bulkProcessing}>
+              <Button variant="outline" size="sm" onClick={() => handleBulkStatus("false_positive")} disabled={bulkProcessing}>
                 오탐 처리
-              </button>
-              <button className="btn btn-sm btn-secondary" onClick={() => handleBulkStatus("accepted_risk")} disabled={bulkProcessing}>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleBulkStatus("accepted_risk")} disabled={bulkProcessing}>
                 위험 수용
-              </button>
-              <button className="btn btn-sm btn-secondary" onClick={() => handleBulkStatus("fixed")} disabled={bulkProcessing}>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleBulkStatus("fixed")} disabled={bulkProcessing}>
                 수정 완료
-              </button>
+              </Button>
               {bulkProcessing && <Spinner size={14} />}
             </div>
           )}

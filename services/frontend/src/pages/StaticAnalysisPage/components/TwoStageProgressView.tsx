@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { CheckCircle, AlertTriangle, Loader, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import type { AnalysisStage } from "../../../hooks/useAnalysisWebSocket";
 import { useElapsedTimer } from "../../../hooks/useElapsedTimer";
 import { ConfirmDialog, PageHeader } from "../../../shared/ui";
@@ -105,7 +107,8 @@ export const TwoStageProgressView: React.FC<Props> = ({
       )}
 
       {/* Stepper */}
-      <div className="card two-stage-stepper">
+      <Card className="two-stage-stepper shadow-none">
+        <CardContent className="space-y-4">
         {STAGES.map((s, i) => {
           const complete = isStageComplete(s.key, stage);
           const active = isStageActive(s.key, stage);
@@ -147,11 +150,13 @@ export const TwoStageProgressView: React.FC<Props> = ({
             </div>
           );
         })}
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Error state */}
       {isError && error && (
-        <div className="card two-stage-error">
+        <Card className="two-stage-error shadow-none">
+          <CardContent className="space-y-3">
           <div className="two-stage-error__header">
             <XCircle size={20} />
             <span>
@@ -160,40 +165,43 @@ export const TwoStageProgressView: React.FC<Props> = ({
           </div>
           <p className="two-stage-error__message">{error}</p>
           {retryable && (
-            <button className="btn" onClick={onRetry}>
+            <Button onClick={onRetry}>
               다시 시도
-            </button>
+            </Button>
           )}
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Actions */}
       <div className="two-stage-actions">
         {isComplete ? (
-          <button className="btn" onClick={onViewResults}>
+          <Button onClick={onViewResults}>
             결과 보기
-          </button>
+          </Button>
         ) : isError ? (
-          <button className="btn btn-secondary" onClick={onBack}>
+          <Button variant="outline" onClick={onBack}>
             돌아가기
-          </button>
+          </Button>
         ) : (
-          <button className="btn btn-secondary btn-danger" onClick={() => setShowAbortConfirm(true)}>
+          <Button variant="destructive" onClick={() => setShowAbortConfirm(true)}>
             <AlertTriangle size={14} />
             분석 중단
-          </button>
+          </Button>
         )}
       </div>
 
       {/* Quick complete — intermediate CTA */}
       {stage === "deep_submitting" || stage === "deep_analyzing" ? (
-        <div className="two-stage-quick-cta card">
+        <Card className="two-stage-quick-cta shadow-none">
+          <CardContent className="flex items-center gap-3">
           <CheckCircle size={16} className="two-stage-quick-cta__icon" />
           <span>빠른 분석 결과가 준비되었습니다.</span>
-          <button className="btn btn-secondary btn-sm" onClick={onViewResults}>
+          <Button variant="outline" size="sm" onClick={onViewResults}>
             먼저 확인하기
-          </button>
-        </div>
+          </Button>
+          </CardContent>
+        </Card>
       ) : null}
 
       <ConfirmDialog
