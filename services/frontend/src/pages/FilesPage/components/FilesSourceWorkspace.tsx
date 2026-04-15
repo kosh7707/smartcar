@@ -96,7 +96,7 @@ export const FilesSourceWorkspace: React.FC<FilesSourceWorkspaceProps> = ({
       </div>
       <div className="source-tree__tree-body">
         {displayTree.children.length === 0 ? (
-          <div className="ftree-no-results">검색 결과가 없습니다</div>
+          <div className="ftree-no-results py-6 text-center text-base text-muted-foreground">검색 결과가 없습니다</div>
         ) : (
           displayTree.children.map((node) => (
             <FileTreeNode<SourceFileEntry>

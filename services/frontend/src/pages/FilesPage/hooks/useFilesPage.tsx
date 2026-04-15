@@ -216,12 +216,12 @@ export function useFilesPage(
     return (
       <>
         {mapping && (
-          <span className="ftree-meta ftree-target" title={`BuildTarget: ${mapping.targetName}`}>
+          <span className="ftree-meta ftree-target inline-flex min-h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-primary/30 bg-primary/10 px-2 text-sm text-primary" title={`BuildTarget: ${mapping.targetName}`}>
             <HardDrive size={10} /> {mapping.targetName}
           </span>
         )}
-        {data.language && <span className="ftree-meta ftree-lang">{data.language}</span>}
-        <span className="ftree-meta ftree-size">{formatFileSize(data.size)}</span>
+        {data.language && <span className="ftree-meta ftree-lang inline-flex min-h-6 shrink-0 items-center rounded-full border border-border bg-background/90 px-2 font-mono text-sm tracking-wide text-muted-foreground">{data.language}</span>}
+        <span className="ftree-meta ftree-size min-w-12 shrink-0 text-right font-mono text-sm text-muted-foreground">{formatFileSize(data.size)}</span>
       </>
     );
   }, [targetMapping]);
@@ -230,11 +230,11 @@ export function useFilesPage(
     const counts = getFindingCount(node.path, overlay);
     if (counts.total === 0) return null;
     return (
-      <span className="ftree-folder-badge">
-        {counts.critical > 0 && <span className="ftree-finding-dot ftree-finding-dot--critical">{counts.critical}</span>}
-        {counts.high > 0 && <span className="ftree-finding-dot ftree-finding-dot--high">{counts.high}</span>}
-        {counts.medium > 0 && <span className="ftree-finding-dot ftree-finding-dot--medium">{counts.medium}</span>}
-        {counts.low > 0 && <span className="ftree-finding-dot ftree-finding-dot--low">{counts.low}</span>}
+      <span className="ftree-folder-badge flex shrink-0 items-center gap-1">
+        {counts.critical > 0 && <span className="ftree-finding-dot ftree-finding-dot--critical inline-flex h-5 items-center rounded-full bg-[color-mix(in_srgb,var(--aegis-severity-critical)_15%,transparent)] px-1.5 text-sm font-semibold text-[var(--aegis-severity-critical)]">{counts.critical}</span>}
+        {counts.high > 0 && <span className="ftree-finding-dot ftree-finding-dot--high inline-flex h-5 items-center rounded-full bg-[color-mix(in_srgb,var(--aegis-severity-high)_15%,transparent)] px-1.5 text-sm font-semibold text-[var(--aegis-severity-high)]">{counts.high}</span>}
+        {counts.medium > 0 && <span className="ftree-finding-dot ftree-finding-dot--medium inline-flex h-5 items-center rounded-full bg-[color-mix(in_srgb,var(--aegis-severity-medium)_15%,transparent)] px-1.5 text-sm font-semibold text-[var(--aegis-severity-medium)]">{counts.medium}</span>}
+        {counts.low > 0 && <span className="ftree-finding-dot ftree-finding-dot--low inline-flex h-5 items-center rounded-full bg-[color-mix(in_srgb,var(--aegis-severity-low)_15%,transparent)] px-1.5 text-sm font-semibold text-[var(--aegis-severity-low)]">{counts.low}</span>}
       </span>
     );
   }, [overlay]);

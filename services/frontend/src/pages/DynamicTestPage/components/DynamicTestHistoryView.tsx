@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import {
   ConfirmDialog,
   ConnectionStatusBanner,
@@ -18,6 +19,9 @@ import {
 } from "../../../shared/ui";
 import { formatDateTime } from "../../../utils/format";
 import { STRATEGY_LABELS, TEST_TYPE_ICON } from "../dynamicTestPresentation";
+
+const ANALYSIS_BADGE_BASE =
+  "inline-flex min-h-7 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-sm font-medium";
 
 interface DynamicTestHistoryViewProps {
   projectId?: string;
@@ -132,13 +136,13 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
               onClick={() => onOpenResult(result)}
               trailing={
                 <>
-                  <span className="analysis-item__time">
+                  <span className="whitespace-nowrap text-sm text-muted-foreground">
                     {formatDateTime(result.createdAt)}
                   </span>
                   <Button
                     variant="destructive"
                     size="icon-sm"
-                    className="analysis-item__delete"
+                    className="opacity-0 transition-opacity group-hover/list-item:opacity-100"
                     title="삭제"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -151,29 +155,29 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
               }
             >
               <div>
-                <div className="analysis-item__header">
-                  <span className="analysis-item__badge analysis-item__badge--test">
+                <div className="mb-0.5 flex items-center gap-3">
+                  <span className={cn(ANALYSIS_BADGE_BASE, "border-primary/30 bg-primary/10 text-primary")}>
                     {TEST_TYPE_ICON[result.config.testType]}
                     {result.config.testType === "fuzzing" ? "퍼징" : "침투"}
                   </span>
-                  <span className="analysis-item__label">
+                  <span className="text-sm font-medium">
                     {STRATEGY_LABELS[result.config.strategy]}
                   </span>
-                  <span className="analysis-item__stat">
+                  <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     {result.totalRuns}회
                   </span>
                   {result.crashes > 0 && (
-                    <span className="analysis-item__stat analysis-item__stat--cds-support-error">
+                    <span className="flex items-center gap-1.5 text-sm font-medium text-destructive">
                       Crash {result.crashes}
                     </span>
                   )}
                   {result.anomalies > 0 && (
-                    <span className="analysis-item__stat analysis-item__stat--warn">
+                    <span className="flex items-center gap-1.5 text-sm font-medium text-[var(--aegis-severity-medium)]">
                       Anomaly {result.anomalies}
                     </span>
                   )}
                 </div>
-                <div className="analysis-item__sub">
+                <div className="pl-1 text-sm text-muted-foreground">
                   {result.config.targetEcu} · {result.config.protocol} ·{" "}
                   {result.config.targetId}
                 </div>

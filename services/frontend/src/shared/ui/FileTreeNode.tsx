@@ -2,7 +2,7 @@ import React, { useState, type ReactNode } from "react";
 import { ChevronRight, Folder, FolderOpen, FileText } from "lucide-react";
 import type { TreeNode } from "../../utils/tree";
 import { countFiles } from "../../utils/tree";
-import "./FileTreeNode.css";
+import { cn } from "@/lib/utils";
 
 export interface FileTreeNodeProps<T> {
   node: TreeNode<T>;
@@ -61,32 +61,40 @@ function FileTreeNodeInner<T>({
   // Indent guides
   const guides = [];
   for (let i = 0; i < depth; i++) {
-    guides.push(<span key={i} className="ftree-guide" />);
+    guides.push(
+      <span
+        key={i}
+        className="ftree-guide relative h-[34px] w-5 shrink-0 before:absolute before:inset-y-0 before:left-[9px] before:w-px before:bg-border before:content-['']"
+      />,
+    );
   }
 
   if (isFolder) {
     return (
       <>
         <div
-          className="ftree-row ftree-row--folder"
+          className="ftree-row ftree-row--folder group flex h-[34px] cursor-pointer items-center gap-3 rounded-none px-4 transition-colors hover:bg-muted/80 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
           role="button"
           aria-expanded={effectiveOpen}
           tabIndex={0}
           onClick={handleToggle}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleToggle(); } }}
         >
-          <div className="ftree-indent">{guides}</div>
+          <div className="ftree-indent flex shrink-0">{guides}</div>
           <ChevronRight
             size={14}
-            className={`ftree-chevron${effectiveOpen ? " ftree-chevron--open" : ""}`}
+            className={cn(
+              "ftree-chevron shrink-0 text-muted-foreground transition-transform",
+              effectiveOpen && "ftree-chevron--open rotate-90",
+            )}
           />
           {effectiveOpen ? (
-            <FolderOpen size={16} className="ftree-icon--folder" />
+            <FolderOpen size={16} className="ftree-icon--folder shrink-0 text-amber-500" />
           ) : (
-            <Folder size={16} className="ftree-icon--folder" />
+            <Folder size={16} className="ftree-icon--folder shrink-0 text-amber-500" />
           )}
-          <span className="ftree-name">{node.name}</span>
-          <span className="ftree-meta ftree-count">{countFiles(node)}개</span>
+          <span className="ftree-name min-w-0 flex-1 truncate text-base font-medium">{node.name}</span>
+          <span className="ftree-meta ftree-count shrink-0 text-sm text-muted-foreground">{countFiles(node)}개</span>
           {renderFolderBadge?.(node)}
         </div>
         {effectiveOpen && renderFolderPanel?.(node)}
@@ -117,20 +125,23 @@ function FileTreeNodeInner<T>({
 
   return (
     <div
-      className={`ftree-row ftree-row--file${isSelected ? " ftree-row--selected" : ""}`}
+      className={cn(
+        "ftree-row ftree-row--file group flex h-[34px] cursor-pointer items-center gap-3 rounded-none px-4 transition-colors hover:bg-muted/80 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary",
+        isSelected && "ftree-row--selected bg-primary/10",
+      )}
       onClick={() => node.data && onClickFile?.(node.data, node)}
     >
-      <div className="ftree-indent">{guides}</div>
-      <span className="ftree-icon-spacer" />
+      <div className="ftree-indent flex shrink-0">{guides}</div>
+      <span className="ftree-icon-spacer w-3.5 shrink-0" />
       {node.data && renderFileIcon ? (
         renderFileIcon(node.data)
       ) : (
-        <FileText size={16} style={{ color: "var(--cds-text-placeholder)", flexShrink: 0 }} />
+        <FileText size={16} className="shrink-0 text-muted-foreground" />
       )}
-      <span className="ftree-name">{node.name}</span>
+      <span className="ftree-name min-w-0 flex-1 truncate text-base font-normal">{node.name}</span>
       {node.data && renderFileMeta?.(node.data)}
       {node.data && renderActions && (
-        <div className="ftree-actions">{renderActions(node.data)}</div>
+        <div className="ftree-actions flex shrink-0 gap-2 opacity-0 transition-opacity group-hover:opacity-100">{renderActions(node.data)}</div>
       )}
     </div>
   );

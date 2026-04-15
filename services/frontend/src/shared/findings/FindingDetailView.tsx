@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useCallback } from "react";
-import "./FindingDetailView.css";
 import type { Finding, EvidenceRef, AuditLogEntry, FindingStatus } from "@aegis/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -116,7 +115,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
   return (
     <div className="page-enter">
       <BackButton onClick={onBack} label="뒤로" />
-      <p className="finding-detail-breadcrumb">정적 분석 › Finding 상세</p>
+      <p className="mb-4 text-sm text-muted-foreground">정적 분석 › Finding 상세</p>
 
       {/* Header: severity banner */}
       <Card
@@ -192,7 +191,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
           </Button>
         )}
         {finding.location && (
-          <span className="detail-meta-item">
+          <span className="inline-flex min-h-7 items-center gap-3 rounded-full border border-border bg-background/90 px-3 py-1 text-sm">
             {finding.location}
           </span>
         )}
@@ -211,7 +210,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
         <Card className="shadow-none">
           <CardContent className="space-y-3">
           <CardTitle>상세 분석</CardTitle>
-          <div className="finding-detail-md">
+          <div className="space-y-3">
             {renderMarkdown(finding.detail)}
           </div>
           </CardContent>
@@ -232,10 +231,10 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
 
       {/* PoC result */}
       {pocLoading && (
-        <Card className="poc-section shadow-none">
+        <Card className="mt-4 shadow-none">
           <CardContent className="space-y-3">
           <CardTitle>PoC 생성 중...</CardTitle>
-          <div className="poc-loading">
+          <div className="flex items-center justify-center py-8">
             <Spinner label="LLM이 PoC 코드를 생성하고 있습니다..." />
           </div>
           </CardContent>
@@ -243,21 +242,21 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
       )}
 
       {pocData && (
-        <Card className="poc-section shadow-none">
+        <Card className="mt-4 shadow-none">
           <CardContent className="space-y-3">
-          <div className="poc-header">
-            <CardTitle className="poc-header__title">
+          <div className="mb-4 flex items-center justify-between">
+            <CardTitle className="flex items-center gap-3">
               PoC — {pocData.poc.statement}
             </CardTitle>
           </div>
-          <div className="finding-detail-md">
+          <div className="space-y-3">
             {renderMarkdown(pocData.poc.detail)}
           </div>
-          <div className="poc-audit">
-            <span className="poc-audit-item">
+          <div className="mt-4 flex gap-5 border-t border-border pt-4 text-sm text-muted-foreground">
+            <span className="flex items-center gap-1.5">
               {(pocData.audit.latencyMs / 1000).toFixed(1)}초
             </span>
-            <span className="poc-audit-item">
+            <span className="flex items-center gap-1.5">
               {pocData.audit.tokenUsage.prompt + pocData.audit.tokenUsage.completion} tokens
             </span>
           </div>

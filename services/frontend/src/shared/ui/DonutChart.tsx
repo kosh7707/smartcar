@@ -1,5 +1,4 @@
 import React from "react";
-import "./DonutChart.css";
 import type { AnalysisSummary } from "@aegis/shared";
 
 interface Props {
@@ -33,7 +32,7 @@ export const DonutChart: React.FC<Props> = ({ summary, size = 120, strokeWidth =
   let offset = 0;
 
   return (
-    <div className="donut-chart-container">
+    <div className="flex items-center gap-5">
       <svg viewBox="0 0 120 120" width={size} height={size}>
         {/* Background track */}
         <circle
@@ -83,12 +82,12 @@ export const DonutChart: React.FC<Props> = ({ summary, size = 120, strokeWidth =
         </text>
       </svg>
       {showLegend && (
-        <div className="donut-chart__legend">
+        <div className="flex flex-col gap-3">
           {segments.map((seg) => (
-            <div key={seg.key} className="donut-chart__legend-item">
-              <span className="donut-chart__dot" style={{ background: seg.color }} />
-              <span className="donut-chart__legend-label">{seg.label}</span>
-              <span className="donut-chart__legend-value">{seg.value}</span>
+            <div key={seg.key} className="flex items-center gap-3">
+              <span className="size-2.5 shrink-0 rounded-full" style={{ background: seg.color }} />
+              <span className="text-sm text-muted-foreground">{seg.label}</span>
+              <span className="text-sm font-semibold text-foreground">{seg.value}</span>
             </div>
           ))}
         </div>

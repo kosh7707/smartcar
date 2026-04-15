@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import type { EvidenceRef } from "@aegis/shared";
 import { FileCheck, ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { EvidenceItemRow } from "./EvidenceItemRow";
 import { EmptyState } from "../ui";
-import "./EvidencePanel.css";
 
 const COLLAPSE_THRESHOLD = 5;
 
@@ -22,13 +22,13 @@ export const EvidencePanel: React.FC<Props> = ({ evidenceRefs, onSelectEvidence 
   const hiddenCount = evidenceRefs.length - COLLAPSE_THRESHOLD;
 
   return (
-    <Card className="evidence-panel shadow-none">
+    <Card className="shadow-none">
       <CardContent className="space-y-3">
       <CardTitle className="flex items-center gap-2">
         <FileCheck size={16} />
         증적 ({evidenceRefs.length})
       </CardTitle>
-      <p style={{ fontSize: "var(--cds-type-xs)", color: "var(--cds-text-placeholder)", margin: "0 0 var(--cds-spacing-03)" }}>
+      <p className="mb-3 text-xs text-muted-foreground">
         Finding과 연결된 코드 위치 및 분석 근거
       </p>
 
@@ -36,7 +36,7 @@ export const EvidencePanel: React.FC<Props> = ({ evidenceRefs, onSelectEvidence 
         <EmptyState compact title="연결된 증적이 없습니다" />
       ) : (
         <>
-          <div className="evidence-panel__list">
+          <div className="flex flex-col">
             {visibleRefs.map((ref) => (
               <EvidenceItemRow
                 key={ref.id}
@@ -46,8 +46,10 @@ export const EvidencePanel: React.FC<Props> = ({ evidenceRefs, onSelectEvidence 
             ))}
           </div>
           {shouldCollapse && (
-            <button
-              className="evidence-panel__toggle"
+            <Button
+              type="button"
+              variant="ghost"
+              className="mt-2 w-full justify-center gap-3 border-t border-border py-3 text-sm font-medium text-primary hover:text-primary"
               onClick={() => setExpanded((prev) => !prev)}
             >
               {expanded ? (
@@ -61,7 +63,7 @@ export const EvidencePanel: React.FC<Props> = ({ evidenceRefs, onSelectEvidence 
                   나머지 {hiddenCount}건 더 보기
                 </>
               )}
-            </button>
+            </Button>
           )}
         </>
       )}

@@ -355,7 +355,7 @@ const LatestAnalysisContent: React.FC<{
       )}
 
       {/* Run Summary StatCards */}
-      <div className="stat-cards stagger">
+      <div className="stagger mb-5 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-3">
         <StatCard label="탐지 항목" value={findings.length} accent />
         <StatCard
           label="치명 + 높음"

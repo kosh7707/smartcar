@@ -196,9 +196,9 @@ export const SourceTreeView: React.FC<Props> = ({
     (data: SourceFileEntry) => (
       <>
         {data.language && (
-          <span className="ftree-meta ftree-lang">{data.language}</span>
+          <span className="ftree-meta ftree-lang inline-flex min-h-6 shrink-0 items-center rounded-full border border-border bg-background/90 px-2 font-mono text-sm tracking-wide text-muted-foreground">{data.language}</span>
         )}
-        <span className="ftree-meta ftree-size">
+        <span className="ftree-meta ftree-size min-w-12 shrink-0 text-right font-mono text-sm text-muted-foreground">
           {formatFileSize(data.size)}
         </span>
       </>
@@ -211,24 +211,24 @@ export const SourceTreeView: React.FC<Props> = ({
       const counts = getFindingCount(node.path, overlay);
       if (counts.total === 0) return null;
       return (
-        <span className="ftree-folder-badge">
+        <span className="ftree-folder-badge flex shrink-0 items-center gap-1">
           {counts.critical > 0 && (
-            <span className="ftree-finding-dot ftree-finding-dot--critical">
+            <span className="ftree-finding-dot ftree-finding-dot--critical inline-flex h-5 items-center rounded-full bg-[color-mix(in_srgb,var(--aegis-severity-critical)_15%,transparent)] px-1.5 text-sm font-semibold text-[var(--aegis-severity-critical)]">
               {counts.critical}
             </span>
           )}
           {counts.high > 0 && (
-            <span className="ftree-finding-dot ftree-finding-dot--high">
+            <span className="ftree-finding-dot ftree-finding-dot--high inline-flex h-5 items-center rounded-full bg-[color-mix(in_srgb,var(--aegis-severity-high)_15%,transparent)] px-1.5 text-sm font-semibold text-[var(--aegis-severity-high)]">
               {counts.high}
             </span>
           )}
           {counts.medium > 0 && (
-            <span className="ftree-finding-dot ftree-finding-dot--medium">
+            <span className="ftree-finding-dot ftree-finding-dot--medium inline-flex h-5 items-center rounded-full bg-[color-mix(in_srgb,var(--aegis-severity-medium)_15%,transparent)] px-1.5 text-sm font-semibold text-[var(--aegis-severity-medium)]">
               {counts.medium}
             </span>
           )}
           {counts.low > 0 && (
-            <span className="ftree-finding-dot ftree-finding-dot--low">
+            <span className="ftree-finding-dot ftree-finding-dot--low inline-flex h-5 items-center rounded-full bg-[color-mix(in_srgb,var(--aegis-severity-low)_15%,transparent)] px-1.5 text-sm font-semibold text-[var(--aegis-severity-low)]">
               {counts.low}
             </span>
           )}
@@ -326,7 +326,7 @@ export const SourceTreeView: React.FC<Props> = ({
             </div>
             <div className="source-tree__tree-body">
               {displayTree.children.length === 0 ? (
-                <div className="ftree-no-results">검색 결과가 없습니다</div>
+                <div className="ftree-no-results py-6 text-center text-base text-muted-foreground">검색 결과가 없습니다</div>
               ) : (
                 displayTree.children.map((node) => (
                   <FileTreeNode<SourceFileEntry>

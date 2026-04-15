@@ -1,5 +1,4 @@
 import React from "react";
-import "./SeverityBar.css";
 
 interface Props {
   summary: { critical: number; high: number; medium: number; low: number; info?: number };
@@ -12,6 +11,14 @@ const LABELS: Record<string, string> = {
   medium: "Medium",
   low: "Low",
   info: "Info",
+};
+
+const SEVERITY_COLORS: Record<string, string> = {
+  critical: "var(--aegis-severity-critical)",
+  high: "var(--aegis-severity-high)",
+  medium: "var(--aegis-severity-medium)",
+  low: "var(--aegis-severity-low)",
+  info: "var(--aegis-severity-info)",
 };
 
 export const SeverityBar: React.FC<Props> = ({ summary, compact = false }) => {
@@ -31,25 +38,25 @@ export const SeverityBar: React.FC<Props> = ({ summary, compact = false }) => {
     : undefined;
 
   return (
-    <div className="severity-bar-container" title={compactTooltip}>
+    <div className="mb-5" title={compactTooltip}>
       {/* Bar */}
-      <div className="severity-bar">
+      <div className="flex h-2 overflow-hidden rounded-full bg-muted">
         {segments.map((s) => (
           <div
             key={s.key}
-            className={`severity-bar__segment severity-bar__segment--${s.key}`}
-            style={{ width: `${(s.value / total) * 100}%` }}
+            className="min-w-0 transition-[width] duration-500 ease-out"
+            style={{ width: `${(s.value / total) * 100}%`, background: SEVERITY_COLORS[s.key] }}
           />
         ))}
       </div>
       {/* Legend (hidden in compact mode) */}
       {!compact && (
-        <div className="severity-bar__legend">
+        <div className="mt-3 flex flex-wrap gap-5">
           {segments.map((s) => (
-            <div key={s.key} className="severity-bar__legend-item">
-              <span className={`severity-bar__dot severity-bar__dot--${s.key}`} />
-              <span className="severity-bar__legend-label">{LABELS[s.key]}</span>
-              <span className="severity-bar__legend-value">{s.value}</span>
+            <div key={s.key} className="flex items-center gap-2">
+              <span className="size-2 shrink-0 rounded-full" style={{ background: SEVERITY_COLORS[s.key] }} />
+              <span className="text-sm text-muted-foreground">{LABELS[s.key]}</span>
+              <span className="text-sm font-semibold text-foreground">{s.value}</span>
             </div>
           ))}
         </div>

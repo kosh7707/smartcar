@@ -1,5 +1,4 @@
 import React from "react";
-import "../../shared/analysis/AnalysisListItem.css";
 import { useParams } from "react-router-dom";
 import { useToast } from "../../contexts/ToastContext";
 import { DynamicAnalysisConfigView } from "./components/DynamicAnalysisConfigView";

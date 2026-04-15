@@ -6,7 +6,6 @@ import type { BuildTarget } from "@aegis/shared";
 
 // Mock CSS
 vi.mock("./BuildTargetSection.css", () => ({}));
-vi.mock("../../../shared/ui/TargetProgressStepper.css", () => ({}));
 
 const mockTargets: BuildTarget[] = [
   {

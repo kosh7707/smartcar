@@ -1,7 +1,7 @@
 import React from "react";
 import type { BuildTargetStatus } from "@aegis/shared";
 import { Check, Loader, X } from "lucide-react";
-import "./TargetProgressStepper.css";
+import { cn } from "@/lib/utils";
 
 const STEPS = [
   { key: "setup", label: "설정", statuses: ["discovered", "configured"] },
@@ -38,39 +38,57 @@ export const TargetProgressStepper: React.FC<Props> = ({ status, message }) => {
   const running = isRunning(status);
 
   return (
-    <div className="tps">
-      <div className="tps__steps">
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-0">
         {STEPS.map((step, i) => {
           const isComplete = i < currentIdx || (i === currentIdx && !failed && !running && status !== "discovered");
           const isCurrent = i === currentIdx;
           const isActive = isCurrent && running;
           const isFail = isCurrent && failed;
 
-          let cls = "tps__step";
-          if (isComplete) cls += " tps__step--done";
-          else if (isActive) cls += " tps__step--active";
-          else if (isFail) cls += " tps__step--failed";
-          else if (isCurrent && status !== "discovered") cls += " tps__step--current";
-
           return (
             <React.Fragment key={step.key}>
               {i > 0 && (
-                <div className={`tps__connector${isComplete ? " tps__connector--done" : isCurrent && !failed ? " tps__connector--active" : ""}`} />
+                <div
+                  className={cn(
+                    "mb-3.5 mx-0.5 h-0.5 min-w-4 max-w-10 flex-1 bg-border transition-colors",
+                    isComplete && "bg-[var(--cds-support-success)]",
+                    isCurrent && !failed && "bg-primary/50",
+                  )}
+                />
               )}
-              <div className={cls} title={step.label}>
-                <div className="tps__dot">
+              <div className="flex shrink-0 flex-col items-center gap-0.5" title={step.label}>
+                <div
+                  className={cn(
+                    "flex size-5 items-center justify-center rounded-full border-2 border-border bg-background text-muted-foreground transition-colors",
+                    isComplete && "border-[var(--cds-support-success)] bg-[var(--cds-support-success)] text-white",
+                    isActive && "border-[var(--aegis-severity-medium)] bg-[color-mix(in_srgb,var(--aegis-severity-medium)_15%,transparent)] text-[var(--aegis-severity-medium)]",
+                    isFail && "border-[var(--aegis-severity-high)] bg-[var(--aegis-severity-high)] text-white",
+                    isCurrent && !isActive && !isFail && status !== "discovered" && "border-primary bg-primary/10 text-primary",
+                  )}
+                >
                   {isComplete && <Check size={10} />}
                   {isActive && <Loader size={10} className="animate-spin" />}
                   {isFail && <X size={10} />}
                 </div>
-                <span className="tps__label">{step.label}</span>
+                <span
+                  className={cn(
+                    "whitespace-nowrap text-sm font-medium text-muted-foreground",
+                    isComplete && "text-[var(--cds-support-success)]",
+                    isActive && "font-semibold text-[var(--aegis-severity-medium)]",
+                    isFail && "font-semibold text-[var(--aegis-severity-high)]",
+                    isCurrent && !isActive && !isFail && status !== "discovered" && "text-primary",
+                  )}
+                >
+                  {step.label}
+                </span>
               </div>
             </React.Fragment>
           );
         })}
       </div>
       {message && (
-        <div className={`tps__message${failed ? " tps__message--error" : ""}`}>{message}</div>
+        <div className={cn("pl-0.5 text-xs text-muted-foreground", failed && "text-[var(--aegis-severity-high)]")}>{message}</div>
       )}
     </div>
   );

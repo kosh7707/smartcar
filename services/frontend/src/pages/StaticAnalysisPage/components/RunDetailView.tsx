@@ -67,7 +67,7 @@ export const RunDetailView: React.FC<Props> = ({
       <PageHeader title="실행 상세" subtitle="실행 상태, 게이트 판정, 파일별 탐지 항목을 한 흐름에서 검토합니다." />
 
       {/* Run metadata */}
-      <div className="stat-cards stagger run-detail__summary">
+      <div className="run-detail__summary stagger mb-5 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-3">
         <StatCard label="상태" value={run.status} />
         <StatCard label="탐지 항목" value={run.findingCount} accent />
         <StatCard label="소요 시간" value={duration} />

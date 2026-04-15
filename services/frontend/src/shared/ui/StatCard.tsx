@@ -1,7 +1,6 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import "./StatCard.css";
 
 interface Props {
   label: string;
@@ -16,21 +15,21 @@ export const StatCard: React.FC<Props> = ({ label, value, color, accent, onClick
   return (
     <Card
       className={cn(
-        "stat-card border-border/80 bg-card/95 shadow-none transition-colors",
-        accent && "stat-card--accent border-primary/30 bg-primary/5",
-        onClick && "stat-card--clickable cursor-pointer hover:bg-muted/50",
+        "min-w-30 flex-1 overflow-hidden rounded-lg border-border/80 border-l-[3px] bg-gradient-to-b from-background to-muted/50 shadow-none transition-colors hover:border-primary/40",
+        accent && "border-primary/30 bg-primary/5",
+        onClick && "cursor-pointer hover:bg-muted/50",
       )}
-      style={color ? { "--stat-accent": color } as React.CSSProperties : undefined}
+      style={{ borderLeftColor: color ?? (accent ? "var(--primary)" : "var(--border)") }}
       onClick={onClick}
     >
       <CardContent className="p-4">
-        <div className="stat-card__header">
-          <span className="stat-card__label text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">{label}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">{label}</span>
         </div>
-        <div className="stat-card__value mt-2 text-2xl font-semibold tracking-tight text-foreground" style={color ? { color } : undefined}>
+        <div className="mt-2 font-mono text-2xl font-semibold leading-none tracking-tight text-foreground" style={color ? { color } : undefined}>
           {value}
         </div>
-        {detail && <div className="stat-card__detail mt-2 text-sm text-muted-foreground">{detail}</div>}
+        {detail && <div className="mt-2 text-sm leading-snug text-muted-foreground">{detail}</div>}
       </CardContent>
     </Card>
   );

@@ -62,7 +62,7 @@ export const OverallStatusTab: React.FC<Props> = ({
       </div>
 
       {/* KPI Cards */}
-      <div className="stat-cards stagger">
+      <div className="stagger mb-5 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-3">
         <StatCard label="총 탐지 항목" value={totalFindings} accent />
         <StatCard
           label="미해결"

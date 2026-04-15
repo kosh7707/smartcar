@@ -201,7 +201,7 @@ export const DynamicTestRunningView: React.FC<DynamicTestRunningViewProps> = ({
     <div className="page-enter">
       <PageHeader title="동적 테스트" subtitle="테스트 진행 중..." />
 
-      <div className="stat-cards stagger">
+      <div className="stagger mb-5 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-3">
         <StatCard
           label="진행"
           value={`${progress.current} / ${progress.total}`}

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import {
   ConnectionStatusBanner,
   ConfirmDialog,
@@ -20,6 +21,19 @@ import {
 } from "../../../shared/ui";
 import { formatDateTime } from "../../../utils/format";
 import { STATUS_LABELS } from "../../../constants/dynamic";
+
+const ANALYSIS_BADGE_BASE =
+  "inline-flex min-h-7 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-sm font-medium";
+
+const getSessionBadgeClass = (status: string) =>
+  cn(
+    ANALYSIS_BADGE_BASE,
+    {
+      monitoring: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      stopped: "border-border bg-muted text-muted-foreground",
+      connected: "border-border bg-muted text-foreground",
+    }[status] ?? "border-border bg-background/90 text-muted-foreground",
+  );
 
 interface DynamicAnalysisHistoryViewProps {
   projectId?: string;
@@ -141,7 +155,7 @@ export const DynamicAnalysisHistoryView: React.FC<
               onClick={() => onOpenSession(session)}
               trailing={
                 <>
-                  <span className="analysis-item__time">
+                  <span className="whitespace-nowrap text-sm text-muted-foreground">
                     {formatDateTime(session.startedAt)}
                   </span>
                   {session.status === "monitoring" && (
@@ -161,7 +175,7 @@ export const DynamicAnalysisHistoryView: React.FC<
                     <Button
                       variant="destructive"
                       size="icon-sm"
-                      className="analysis-item__delete"
+                      className="opacity-0 transition-opacity group-hover/list-item:opacity-100"
                       title="삭제"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -174,26 +188,26 @@ export const DynamicAnalysisHistoryView: React.FC<
               }
             >
               <div>
-                <div className="analysis-item__header">
+                <div className="mb-0.5 flex items-center gap-3">
                   <span
-                    className={`analysis-item__badge analysis-item__badge--${session.status}`}
+                    className={getSessionBadgeClass(session.status)}
                   >
                     <Activity size={11} />
                     {STATUS_LABELS[session.status] ?? session.status}
                   </span>
-                  <span className="analysis-item__badge">
+                  <span className={cn(ANALYSIS_BADGE_BASE, "border-border bg-background/90 text-muted-foreground")}>
                     <Plug size={11} />
                     {session.source.adapterName ?? "어댑터"}
                   </span>
-                  <span className="analysis-item__stat">
+                  <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <Radio size={12} /> {session.messageCount}건
                   </span>
-                  <span className="analysis-item__stat">
+                  <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <AlertTriangle size={12} /> {session.alertCount}건
                   </span>
                 </div>
                 {session.endedAt && (
-                  <div className="analysis-item__sub">
+                  <div className="pl-1 text-sm text-muted-foreground">
                     종료: {formatDateTime(session.endedAt)}
                   </div>
                 )}

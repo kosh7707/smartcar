@@ -1,5 +1,4 @@
 import React from "react";
-import "./FindingSummary.css";
 import type { FindingStatus } from "@aegis/shared";
 import { FINDING_STATUS_LABELS, FINDING_STATUS_ORDER } from "../../constants/finding";
 
@@ -26,12 +25,12 @@ export const FindingSummary: React.FC<Props> = ({ byStatus }) => {
   if (total === 0) return null;
 
   return (
-    <div className="status-bar-container">
-      <div className="status-bar">
+    <div className="mb-3">
+      <div className="flex h-2.5 overflow-hidden rounded-full bg-muted">
         {entries.map((e) => (
           <div
             key={e.status}
-            className="status-bar__segment"
+            className="min-w-0 transition-[width] duration-500 ease-out"
             style={{
               width: `${(e.count / total) * 100}%`,
               background: `var(--status-${e.cssKey})`,
@@ -39,17 +38,17 @@ export const FindingSummary: React.FC<Props> = ({ byStatus }) => {
           />
         ))}
       </div>
-      <div className="status-bar__legend">
+      <div className="mt-3 flex flex-wrap gap-5">
         {entries.map((e) => (
-          <div key={e.status} className="status-bar__legend-item">
+          <div key={e.status} className="flex items-center gap-2">
             <span
-              className="status-bar__dot"
+              className="size-2 shrink-0 rounded-full"
               style={{ background: `var(--status-${e.cssKey})` }}
             />
-            <span className="status-bar__legend-label">
+            <span className="text-sm text-muted-foreground">
               {FINDING_STATUS_LABELS[e.status]}
             </span>
-            <span className="status-bar__legend-value">{e.count}</span>
+            <span className="text-sm font-semibold text-foreground">{e.count}</span>
           </div>
         ))}
       </div>

@@ -167,7 +167,7 @@ export const AnalysisResultsView: React.FC<Props> = ({
       />
 
       {/* Summary */}
-      <div className="stat-cards stagger analysis-results__summary">
+      <div className="analysis-results__summary stagger mb-5 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-3">
         <StatCard
           label="총 취약점"
           value={result.summary.total - (result.summary.info ?? 0)}

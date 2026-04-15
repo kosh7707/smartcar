@@ -32,7 +32,7 @@ export const DynamicTestResultsView: React.FC<DynamicTestResultsViewProps> = ({
       <BackButton onClick={onBackToHistory} label="세션 목록으로" />
       <PageHeader title="테스트 결과" />
 
-      <div className="stat-cards stagger">
+      <div className="stagger mb-5 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-3">
         <StatCard label="총 실행" value={result.totalRuns} accent />
         <StatCard
           label="Crashes"
