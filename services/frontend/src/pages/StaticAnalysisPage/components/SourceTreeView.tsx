@@ -11,12 +11,21 @@ import {
   Code,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { fetchSourceFileContent, logError } from "../../../api/client";
 import { useToast } from "../../../contexts/ToastContext";
-import { PageHeader, Spinner, SeverityBadge, FileTreeNode } from "../../../shared/ui";
+import {
+  PageHeader,
+  Spinner,
+  SeverityBadge,
+  FileTreeNode,
+} from "../../../shared/ui";
 import { buildTree, filterTree } from "../../../utils/tree";
 import type { TreeNode } from "../../../utils/tree";
-import { computeFindingOverlay, getFindingCount } from "../../../utils/findingOverlay";
+import {
+  computeFindingOverlay,
+  getFindingCount,
+} from "../../../utils/findingOverlay";
 import type { DirFindingCount } from "../../../utils/findingOverlay";
 import { formatFileSize } from "../../../utils/format";
 import { parseLocation } from "../../../utils/location";
@@ -52,7 +61,10 @@ const HighlightedCode: React.FC<{
             className={`source-tree__code-line${isHL ? " source-tree__code-line--highlight" : ""}`}
           >
             <span className="source-tree__line-no">{lineNo}</span>
-            <span className="source-tree__line-content" dangerouslySetInnerHTML={{ __html: html }} />
+            <span
+              className="source-tree__line-content"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
           </div>
         );
       })}
@@ -71,23 +83,37 @@ export const SourceTreeView: React.FC<Props> = ({
   const toast = useToast();
   const [search, setSearch] = useState("");
   const [treeKey, setTreeKey] = useState(0);
-  const [treeDefaultOpen, setTreeDefaultOpen] = useState<boolean | undefined>(undefined);
+  const [treeDefaultOpen, setTreeDefaultOpen] = useState<boolean | undefined>(
+    undefined,
+  );
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewLang, setPreviewLang] = useState("");
 
   // Build tree
-  const tree = useMemo(() => buildTree(sourceFiles, getSourcePath), [sourceFiles]);
+  const tree = useMemo(
+    () => buildTree(sourceFiles, getSourcePath),
+    [sourceFiles],
+  );
 
   const displayTree = useMemo(() => {
     if (!search.trim()) return tree;
-    return filterTree(tree, search.trim().toLowerCase()) ?? { name: "", path: "", children: [] };
+    return (
+      filterTree(tree, search.trim().toLowerCase()) ?? {
+        name: "",
+        path: "",
+        children: [],
+      }
+    );
   }, [tree, search]);
 
   // Finding overlay
   const overlay = useMemo(
-    () => (findings ? computeFindingOverlay(findings) : new Map<string, DirFindingCount>()),
+    () =>
+      findings
+        ? computeFindingOverlay(findings)
+        : new Map<string, DirFindingCount>(),
     [findings],
   );
 
@@ -139,7 +165,10 @@ export const SourceTreeView: React.FC<Props> = ({
       setPreviewLoading(true);
       setPreviewLang(data.language || "");
       try {
-        const result = await fetchSourceFileContent(projectId, data.relativePath);
+        const result = await fetchSourceFileContent(
+          projectId,
+          data.relativePath,
+        );
         setPreviewContent(result.content);
       } catch (e) {
         logError("Source file content", e);
@@ -169,7 +198,9 @@ export const SourceTreeView: React.FC<Props> = ({
         {data.language && (
           <span className="ftree-meta ftree-lang">{data.language}</span>
         )}
-        <span className="ftree-meta ftree-size">{formatFileSize(data.size)}</span>
+        <span className="ftree-meta ftree-size">
+          {formatFileSize(data.size)}
+        </span>
       </>
     ),
     [],
@@ -219,166 +250,179 @@ export const SourceTreeView: React.FC<Props> = ({
 
       {/* Language bar */}
       {langStats.length > 0 && (
-        <div className="card">
-          <div className="source-tree__langbar">
-            {langStats.map((item) => (
-              <div
-                key={item.group}
-                className="source-tree__langbar-seg"
-                style={{
-                  width: `${(item.count / sourceFiles.length) * 100}%`,
-                  background: item.color,
-                }}
-                title={`${item.group}: ${item.count}`}
-              />
-            ))}
-          </div>
-          <div className="source-tree__langbar-legend">
-            {langStats.map((item) => (
-              <div key={item.group} className="source-tree__langbar-item">
-                <span
-                  className="source-tree__langbar-dot"
-                  style={{ background: item.color }}
+        <Card className="shadow-none">
+          <CardContent className="space-y-3">
+            <div className="source-tree__langbar">
+              {langStats.map((item) => (
+                <div
+                  key={item.group}
+                  className="source-tree__langbar-seg"
+                  style={{
+                    width: `${(item.count / sourceFiles.length) * 100}%`,
+                    background: item.color,
+                  }}
+                  title={`${item.group}: ${item.count}`}
                 />
-                <span className="source-tree__langbar-label">{item.group}</span>
-                <span className="source-tree__langbar-value">{item.count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+              ))}
+            </div>
+            <div className="source-tree__langbar-legend">
+              {langStats.map((item) => (
+                <div key={item.group} className="source-tree__langbar-item">
+                  <span
+                    className="source-tree__langbar-dot"
+                    style={{ background: item.color }}
+                  />
+                  <span className="source-tree__langbar-label">
+                    {item.group}
+                  </span>
+                  <span className="source-tree__langbar-value">
+                    {item.count}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* 2-panel layout */}
       <div className="source-tree__layout">
         {/* Tree panel */}
-        <div className="card source-tree__tree-panel">
-          <div className="source-tree__tree-header">
-            <div className="source-tree__search-area">
-              <Search size={14} className="source-tree__search-icon" />
-              <input
-                type="text"
-                className="source-tree__search"
-                placeholder="파일 검색..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            <div className="source-tree__toolbar">
-              <button
-                className="source-tree__toolbar-btn"
-                title="폴더 전부 열기"
-                onClick={() => {
-                  setTreeDefaultOpen(true);
-                  setTreeKey((k) => k + 1);
-                }}
-              >
-                <ChevronsUpDown size={16} />
-              </button>
-              <button
-                className="source-tree__toolbar-btn"
-                title="폴더 전부 접기"
-                onClick={() => {
-                  setTreeDefaultOpen(false);
-                  setTreeKey((k) => k + 1);
-                }}
-              >
-                <ChevronsDownUp size={16} />
-              </button>
-            </div>
-          </div>
-          <div className="source-tree__tree-body">
-            {displayTree.children.length === 0 ? (
-              <div className="ftree-no-results">검색 결과가 없습니다</div>
-            ) : (
-              displayTree.children.map((node) => (
-                <FileTreeNode<SourceFileEntry>
-                  key={`${treeKey}-${node.path}`}
-                  node={node}
-                  depth={0}
-                  searchOpen={search.trim().length > 0}
-                  defaultOpen={treeDefaultOpen}
-                  onClickFile={handleFileClick}
-                  renderFileIcon={renderFileIcon}
-                  renderFileMeta={renderFileMeta}
-                  renderFolderBadge={renderFolderBadge}
-                  selectedPath={selectedPath ?? undefined}
+        <Card className="source-tree__tree-panel shadow-none">
+          <CardContent className="space-y-3">
+            <div className="source-tree__tree-header">
+              <div className="source-tree__search-area">
+                <Search size={14} className="source-tree__search-icon" />
+                <input
+                  type="text"
+                  className="source-tree__search"
+                  placeholder="파일 검색..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
                 />
-              ))
-            )}
-          </div>
-        </div>
+              </div>
+              <div className="source-tree__toolbar">
+                <button
+                  className="source-tree__toolbar-btn"
+                  title="폴더 전부 열기"
+                  onClick={() => {
+                    setTreeDefaultOpen(true);
+                    setTreeKey((k) => k + 1);
+                  }}
+                >
+                  <ChevronsUpDown size={16} />
+                </button>
+                <button
+                  className="source-tree__toolbar-btn"
+                  title="폴더 전부 접기"
+                  onClick={() => {
+                    setTreeDefaultOpen(false);
+                    setTreeKey((k) => k + 1);
+                  }}
+                >
+                  <ChevronsDownUp size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="source-tree__tree-body">
+              {displayTree.children.length === 0 ? (
+                <div className="ftree-no-results">검색 결과가 없습니다</div>
+              ) : (
+                displayTree.children.map((node) => (
+                  <FileTreeNode<SourceFileEntry>
+                    key={`${treeKey}-${node.path}`}
+                    node={node}
+                    depth={0}
+                    searchOpen={search.trim().length > 0}
+                    defaultOpen={treeDefaultOpen}
+                    onClickFile={handleFileClick}
+                    renderFileIcon={renderFileIcon}
+                    renderFileMeta={renderFileMeta}
+                    renderFolderBadge={renderFolderBadge}
+                    selectedPath={selectedPath ?? undefined}
+                  />
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Preview panel */}
-        <div className="card source-tree__preview-panel">
-          {!selectedPath ? (
-            <div className="source-tree__preview-empty">
-              <FileText size={32} />
-              <span>파일을 선택하면 내용을 미리 볼 수 있습니다</span>
-            </div>
-          ) : previewLoading ? (
-            <div className="source-tree__preview-loading">
-              <Spinner label="로딩 중..." />
-            </div>
-          ) : (
-            <>
-              <div className="source-tree__preview-header">
-                <FileText
-                  size={14}
-                  style={{ color: getLangColorByName(previewLang), flexShrink: 0 }}
-                />
-                <span className="source-tree__preview-filename">
-                  {selectedPath}
-                </span>
-                <div className="source-tree__preview-meta">
-                  {previewLang && <span>{previewLang}</span>}
-                </div>
+        <Card className="source-tree__preview-panel shadow-none">
+          <CardContent className="space-y-3">
+            {!selectedPath ? (
+              <div className="source-tree__preview-empty">
+                <FileText size={32} />
+                <span>파일을 선택하면 내용을 미리 볼 수 있습니다</span>
               </div>
-
-              <div className="source-tree__preview-body">
-                {previewContent !== null ? (
-                  <HighlightedCode
-                    code={previewContent}
-                    language={previewLang}
-                    highlightLineNos={highlightLines}
+            ) : previewLoading ? (
+              <div className="source-tree__preview-loading">
+                <Spinner label="로딩 중..." />
+              </div>
+            ) : (
+              <>
+                <div className="source-tree__preview-header">
+                  <FileText
+                    size={14}
+                    style={{
+                      color: getLangColorByName(previewLang),
+                      flexShrink: 0,
+                    }}
                   />
-                ) : (
-                  <div className="source-tree__preview-empty">
-                    <span>파일 내용을 불러올 수 없습니다</span>
+                  <span className="source-tree__preview-filename">
+                    {selectedPath}
+                  </span>
+                  <div className="source-tree__preview-meta">
+                    {previewLang && <span>{previewLang}</span>}
+                  </div>
+                </div>
+
+                <div className="source-tree__preview-body">
+                  {previewContent !== null ? (
+                    <HighlightedCode
+                      code={previewContent}
+                      language={previewLang}
+                      highlightLineNos={highlightLines}
+                    />
+                  ) : (
+                    <div className="source-tree__preview-empty">
+                      <span>파일 내용을 불러올 수 없습니다</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Findings for this file */}
+                {selectedFileFindings.length > 0 && (
+                  <div className="source-tree__file-findings">
+                    <div className="source-tree__file-findings-title">
+                      Finding ({selectedFileFindings.length})
+                    </div>
+                    {selectedFileFindings.map((f) => {
+                      const { line } = parseLocation(f.location);
+                      return (
+                        <div
+                          key={f.id}
+                          className="source-tree__finding-row"
+                          onClick={() => onSelectFinding?.(f.id)}
+                        >
+                          <SeverityBadge severity={f.severity} size="sm" />
+                          <span className="source-tree__finding-title">
+                            {f.title}
+                          </span>
+                          {line && (
+                            <span className="source-tree__finding-loc">
+                              :{line}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
-              </div>
-
-              {/* Findings for this file */}
-              {selectedFileFindings.length > 0 && (
-                <div className="source-tree__file-findings">
-                  <div className="source-tree__file-findings-title">
-                    Finding ({selectedFileFindings.length})
-                  </div>
-                  {selectedFileFindings.map((f) => {
-                    const { line } = parseLocation(f.location);
-                    return (
-                      <div
-                        key={f.id}
-                        className="source-tree__finding-row"
-                        onClick={() => onSelectFinding?.(f.id)}
-                      >
-                        <SeverityBadge severity={f.severity} size="sm" />
-                        <span className="source-tree__finding-title">
-                          {f.title}
-                        </span>
-                        {line && (
-                          <span className="source-tree__finding-loc">
-                            :{line}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
-        </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Actions */}
