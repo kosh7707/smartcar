@@ -1,7 +1,6 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import "./PageHeader.css";
 
 interface Props {
   title: string;
@@ -30,14 +29,14 @@ export const PageHeader: React.FC<Props> = ({
 
   if (surface === "plain") {
     return (
-      <div className="page-header page-header--plain flex items-start justify-between gap-4 border-b border-border/70 pb-4">
+      <div className="page-header page-header--plain mb-8 flex items-start justify-between gap-4 border-b border-border/70 pb-5">
         {body}
       </div>
     );
   }
 
   return (
-    <Card className={cn("page-header page-header--card border-border/80 bg-card/95 shadow-none")}>
+    <Card className={cn("page-header page-header--card border-border/80 bg-card/95 pb-4 shadow-none")}>
       <CardContent className="flex items-start justify-between gap-4 p-0">
         {body}
       </CardContent>

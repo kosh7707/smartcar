@@ -1,7 +1,7 @@
 import React from "react";
 import type { BuildTargetStatus } from "@aegis/shared";
 import { Circle, CheckCircle, Loader, XCircle, Settings } from "lucide-react";
-import "./TargetStatusBadge.css";
+import { Badge } from "@/components/ui/badge";
 
 const STATUS_CONFIG: Record<string, { label: string; description: string; color: string; icon: "dot" | "check" | "spin" | "partial" | "fail" | "settings" }> = {
   discovered: { label: "감지됨", description: "빌드 타겟으로 감지되었습니다", color: "var(--cds-text-placeholder)", icon: "dot" },
@@ -41,13 +41,14 @@ export const TargetStatusBadge: React.FC<Props> = ({ status, size = "md" }) => {
   })();
 
   return (
-    <span
-      className={`target-status-badge target-status-badge--${size}`}
+    <Badge
+      variant="outline"
+      className={`target-status-badge target-status-badge--${size} min-h-7 shrink-0 gap-1 rounded-full bg-background/90 px-2 font-medium ${size === "md" ? "text-sm" : "text-xs"}`}
       style={{ color: config.color, borderColor: config.color }}
       title={config.description}
     >
       {icon}
       {config.label}
-    </span>
+    </Badge>
   );
 };
