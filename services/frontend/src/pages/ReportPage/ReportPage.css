@@ -608,10 +608,6 @@
   flex-wrap: wrap;
 }
 
-.report-page__actions .btn,
-.report-page__actions .btn-secondary {
-  min-height: 40px;
-}
 
 .report-page .card {
   background: var(--cds-background);

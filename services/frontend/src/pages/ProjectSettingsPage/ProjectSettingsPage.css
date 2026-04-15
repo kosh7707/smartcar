@@ -768,9 +768,6 @@
   min-height: 44px;
 }
 
-.project-settings-field__row .btn {
-  align-self: flex-end;
-}
 
 .project-settings-field__textarea {
   resize: vertical;

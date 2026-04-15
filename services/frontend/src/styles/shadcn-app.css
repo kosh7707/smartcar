@@ -30,21 +30,6 @@
     @apply rounded-xl border border-border bg-card text-card-foreground shadow-none;
   }
 
-  .btn {
-    @apply inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-transparent bg-primary px-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50;
-  }
-
-  .btn-sm { @apply h-7 rounded-md px-2 text-xs; }
-
-  .btn-secondary,
-  .btn-tertiary,
-  .btn-ghost {
-    @apply border-border bg-background text-foreground hover:bg-muted;
-  }
-
-  .btn-danger { @apply bg-destructive/10 text-destructive hover:bg-destructive/20; }
-
-  .form-input,
   input:not([type="checkbox"]):not([type="radio"]),
   textarea,
   select {

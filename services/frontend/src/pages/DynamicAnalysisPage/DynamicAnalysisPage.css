@@ -281,10 +281,6 @@ tbody tr.can-row--injected {
   flex: 1;
 }
 
-.form-input--mono {
-  font-family: var(--cds-font-mono);
-  letter-spacing: 0.05em;
-}
 
 .inject-error {
   display: flex;
@@ -517,7 +513,7 @@ tbody tr.can-row--injected {
 
 /* ── Stop Button ── */
 
-.btn-stop {
+.monitor-stop-button {
   background: var(--cds-support-error);
   color: var(--cds-text-inverse);
   border: none;
@@ -532,11 +528,11 @@ tbody tr.can-row--injected {
   transition: background var(--cds-transition-fast);
 }
 
-.btn-stop:hover {
+.monitor-stop-button:hover {
   background: var(--cds-support-error-hover);
 }
 
-.btn-stop:disabled {
+.monitor-stop-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

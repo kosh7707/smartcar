@@ -254,7 +254,7 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
         </div>
         <Button
           variant="destructive"
-          className="btn-stop"
+          className="monitor-stop-button"
           onClick={handleStop}
           disabled={stopping}
         >
@@ -462,7 +462,7 @@ export const MonitoringView: React.FC<Props> = ({ session, onBack, onStopped }) 
                   <Label className="form-field">
                     <span className="form-label">Data</span>
                     <Input
-                      className="form-input--mono font-mono"
+                      className="font-mono"
                       value={injForm.data}
                       onChange={(e) => setInjForm((p) => ({ ...p, data: e.target.value }))}
                       placeholder="FF FF FF FF FF FF FF FF"
