@@ -8,8 +8,6 @@ import { useDashboardActivityFeed } from "./hooks/useDashboardActivityFeed";
 import { useDashboardCreateForm } from "./hooks/useDashboardCreateForm";
 import { useDashboardDocumentTitle } from "./hooks/useDashboardDocumentTitle";
 import { useDashboardExplorerState } from "./hooks/useDashboardExplorerState";
-import "./dashboardTokens.css";
-import "./DashboardPage.css";
 
 export const DashboardPage: React.FC = () => {
   const { projects, loading, createProject } = useProjects();
@@ -32,8 +30,8 @@ export const DashboardPage: React.FC = () => {
   const { createFlow } = useDashboardCreateForm({ createProject });
 
   return (
-    <div className="dashboard">
-      <div className="dashboard-body">
+    <div className="flex min-h-full flex-col px-7 py-6 pb-7 max-[980px]:px-5 max-[980px]:py-4 max-[640px]:p-4">
+      <div className="grid grid-cols-[minmax(18rem,21rem)_minmax(0,1fr)] items-start gap-5 max-[980px]:flex max-[980px]:flex-col">
         <ProjectExplorer
           projects={filteredProjects}
           filter={filter}
@@ -42,8 +40,8 @@ export const DashboardPage: React.FC = () => {
           createFlow={createFlow}
         />
 
-        <main className="dashboard-main">
-          <div className="dashboard-main__lane">
+        <main className="flex min-w-0">
+          <div className="mx-auto flex w-full max-w-[1080px] flex-col gap-5 max-[980px]:mx-0 max-[980px]:max-w-none">
             <NeedsAttentionSection
               projects={attentionProjects}
               hasProjectContext={hasProjectContext}

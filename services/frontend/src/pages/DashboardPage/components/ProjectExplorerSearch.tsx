@@ -11,9 +11,9 @@ interface ProjectExplorerSearchProps {
 
 export const ProjectExplorerSearch: React.FC<ProjectExplorerSearchProps> = ({ filter, onFilterChange, onToggleCreate }) => (
   <>
-    <div className="dashboard-section-heading">
-      <h2 className="dashboard-section-heading__title">프로젝트 탐색기</h2>
-      <div className="dashboard-section-heading__actions">
+    <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
+      <h2 className="m-0 text-lg font-semibold tracking-tight text-foreground">프로젝트 탐색기</h2>
+      <div className="inline-flex items-center gap-2">
         <Button type="button" variant="outline" size="sm" onClick={onToggleCreate}>
           <Plus size={13} />
           <span>새 프로젝트</span>

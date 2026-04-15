@@ -8,8 +8,8 @@ interface RecentActivitySectionProps { visibleActivity: ActivityEvent[]; hasMore
 
 export const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({ visibleActivity, hasMore, onLoadMore }) => {
   return (
-    <section className="dashboard-section">
-      <div className="dashboard-section-heading"><h2 className="dashboard-section-heading__title">최근 활동</h2></div>
+    <section className="flex min-w-0 flex-col gap-3 p-0">
+      <div className="flex items-center justify-between gap-3 border-b border-border pb-3"><h2 className="m-0 text-lg font-semibold tracking-tight text-foreground">최근 활동</h2></div>
       {visibleActivity.length === 0 ? (
         <DashboardEmptySurface title="아직 활동 없음" description="첫 업로드, 분석, 승인 같은 작업이 시작되면 최근 흐름이 이 레인에 순서대로 쌓입니다." variant="panel" />
       ) : (

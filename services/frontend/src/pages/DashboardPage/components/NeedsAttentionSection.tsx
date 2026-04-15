@@ -10,9 +10,9 @@ interface NeedsAttentionSectionProps {
 
 export const NeedsAttentionSection: React.FC<NeedsAttentionSectionProps> = ({ projects, hasProjectContext }) => {
   return (
-    <section className="dashboard-section">
-      <div className="dashboard-section-heading">
-        <h2 className="dashboard-section-heading__title">우선 확인</h2>
+    <section className="flex min-w-0 flex-col gap-3 p-0">
+      <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
+        <h2 className="m-0 text-lg font-semibold tracking-tight text-foreground">우선 확인</h2>
       </div>
 
       {projects.length === 0 ? (
