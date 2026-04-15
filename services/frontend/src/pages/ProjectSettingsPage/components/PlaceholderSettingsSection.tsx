@@ -1,4 +1,5 @@
 import React from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "../../../shared/ui";
 
 interface PlaceholderSettingsSectionProps {
@@ -6,8 +7,12 @@ interface PlaceholderSettingsSectionProps {
   description: string;
 }
 
-export const PlaceholderSettingsSection: React.FC<PlaceholderSettingsSectionProps> = ({ title, description }) => (
-  <div className="card project-settings-card project-settings-placeholder">
-    <EmptyState title={title} description={description} />
-  </div>
+export const PlaceholderSettingsSection: React.FC<
+  PlaceholderSettingsSectionProps
+> = ({ title, description }) => (
+  <Card className="project-settings-card project-settings-placeholder shadow-none">
+    <CardContent>
+      <EmptyState title={title} description={description} />
+    </CardContent>
+  </Card>
 );
