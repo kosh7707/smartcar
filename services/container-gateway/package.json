@@ -1,0 +1,29 @@
+{
+  "name": "@aegis/container-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "smoke:upload-compile": "bash scripts/smoke-upload-compile.sh",
+    "image:build": "docker build -f docker/container-toolchain.Dockerfile -t aegis-s8-qemu-compile:latest .",
+    "exec:cmd": "bash scripts/exec-command.sh",
+    "exec:upload-and-run": "bash scripts/upload-and-exec.sh"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "multer": "^2.0.2",
+    "pino": "^9.6.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/multer": "^2.0.0",
+    "@types/supertest": "^6.0.3",
+    "supertest": "^7.1.4",
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.1",
+    "@types/node": "^24.10.1"
+  }
+}

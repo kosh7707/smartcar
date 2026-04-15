@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "projects": {
+    "projA": [
+      {
+        "projectId": "projA",
+        "uploadId": "upload-6a65477a",
+        "workspaceId": "projA-ws-v1",
+        "workspaceVersion": 1,
+        "workspacePath": "/home/gang/AEGIS/services/container-gateway/uploads/projA/projA-ws-v1",
+        "fileCount": 1,
+        "createdAt": "2026-04-13T11:25:13.619Z"
+      },
+      {
+        "projectId": "projA",
+        "uploadId": "upload-c497c839",
+        "workspaceId": "projA-ws-v2",
+        "workspaceVersion": 2,
+        "workspacePath": "/home/gang/AEGIS/services/container-gateway/uploads/projA/projA-ws-v2",
+        "fileCount": 1,
+        "createdAt": "2026-04-13T11:26:04.435Z"
+      },
+      {
+        "projectId": "projA",
+        "uploadId": "upload-dc7cfd8d",
+        "workspaceId": "projA-ws-v3",
+        "workspaceVersion": 3,
+        "workspacePath": "/home/gang/AEGIS/services/container-gateway/uploads/projA/projA-ws-v3",
+        "fileCount": 3919,
+        "createdAt": "2026-04-13T11:48:13.837Z"
+      }
+    ],
+    "projExec": [
+      {
+        "projectId": "projExec",
+        "uploadId": "upload-aba51630",
+        "workspaceId": "projExec-ws-v1",
+        "workspaceVersion": 1,
+        "workspacePath": "/home/gang/AEGIS/services/container-gateway/uploads/projExec/projExec-ws-v1",
+        "fileCount": 1,
+        "createdAt": "2026-04-13T12:04:41.607Z"
+      },
+      {
+        "projectId": "projExec",
+        "uploadId": "upload-27824df0",
+        "workspaceId": "projExec-ws-v2",
+        "workspaceVersion": 2,
+        "workspacePath": "/home/gang/AEGIS/services/container-gateway/uploads/projExec/projExec-ws-v2",
+        "fileCount": 1,
+        "createdAt": "2026-04-13T12:05:03.483Z"
+      },
+      {
+        "projectId": "projExec",
+        "uploadId": "upload-3140d3e3",
+        "workspaceId": "projExec-ws-v3",
+        "workspaceVersion": 3,
+        "workspacePath": "/home/gang/AEGIS/services/container-gateway/uploads/projExec/projExec-ws-v3",
+        "fileCount": 1,
+        "createdAt": "2026-04-13T12:06:33.926Z"
+      },
+      {
+        "projectId": "projExec",
+        "uploadId": "upload-7c97074b",
+        "workspaceId": "projExec-ws-v4",
+        "workspaceVersion": 4,
+        "workspacePath": "/home/gang/AEGIS/services/container-gateway/uploads/projExec/projExec-ws-v4",
+        "fileCount": 1,
+        "createdAt": "2026-04-14T01:01:58.425Z"
+      }
+    ],
+    "demo-project": [
+      {
+        "projectId": "demo-project",
+        "uploadId": "upload-af390f4c",
+        "workspaceId": "demo-project-ws-v1",
+        "workspaceVersion": 1,
+        "workspacePath": "/home/gang/AEGIS/services/container-gateway/uploads/demo-project/demo-project-ws-v1",
+        "fileCount": 1,
+        "createdAt": "2026-04-14T02:09:01.515Z"
+      }
+    ],
+    "projCli": [
+      {
+        "projectId": "projCli",
+        "uploadId": "upload-a8a85d0c",
+        "workspaceId": "projCli-ws-v1",
+        "workspaceVersion": 1,
+        "workspacePath": "/home/gang/AEGIS/services/container-gateway/uploads/projCli/projCli-ws-v1",
+        "fileCount": 1,
+        "createdAt": "2026-04-14T02:18:00.992Z"
+      },
+      {
+        "projectId": "projCli",
+        "uploadId": "upload-56eb517f",
+        "workspaceId": "projCli-ws-v2",
+        "workspaceVersion": 2,
+        "workspacePath": "/home/gang/AEGIS/services/container-gateway/uploads/projCli/projCli-ws-v2",
+        "fileCount": 1,
+        "createdAt": "2026-04-14T04:19:37.015Z"
+      }
+    ]
+  }
+}
