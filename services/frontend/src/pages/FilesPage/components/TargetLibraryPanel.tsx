@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Library, FileWarning } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { TargetLibrary } from "../../../api/pipeline";
 import { fetchTargetLibraries, updateTargetLibraries } from "../../../api/pipeline";
 import { logError } from "../../../api/core";
@@ -104,12 +105,12 @@ export const TargetLibraryPanel: React.FC<Props> = ({ projectId, targetId, targe
 
       {dirty && (
         <div className="tlib__actions">
-          <button className="btn btn-sm" onClick={handleSave} disabled={saving}>
+          <Button size="sm" onClick={handleSave} disabled={saving}>
             {saving ? "저장 중..." : "설정 저장"}
-          </button>
-          <button className="btn btn-secondary btn-sm" onClick={load} disabled={saving}>
+          </Button>
+          <Button variant="outline" size="sm" onClick={load} disabled={saving}>
             취소
-          </button>
+          </Button>
         </div>
       )}
     </div>

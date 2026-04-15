@@ -1,5 +1,6 @@
 import React from "react";
 import { Plus, Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "../../../shared/ui";
 import { formatFileSize } from "../../../utils/format";
 
@@ -29,22 +30,23 @@ export const FilesPageHeader: React.FC<FilesPageHeaderProps> = ({
     action={(
       <div className="fpage-header-actions">
         {showCreateTarget && (
-          <button
-            className="btn btn-sm"
+          <Button
+            size="sm"
             onClick={onOpenCreateTarget}
           >
             <Plus size={14} />
             빌드 타겟 생성
-          </button>
+          </Button>
         )}
-        <button
-          className="btn btn-secondary btn-sm"
+        <Button
+          variant="outline"
+          size="sm"
           onClick={onOpenUpload}
           title="소스코드 업로드"
         >
           <Upload size={14} />
           소스 업로드
-        </button>
+        </Button>
         <input
           ref={fileInputRef}
           type="file"

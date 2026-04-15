@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-15T08:22:36.369Z",
+  "generatedAt": "2026-04-15T08:25:06.221Z",
   "baseUrl": "http://localhost:5173",
   "reusedExistingServer": true,
   "status": "PASS",
@@ -23,16 +23,6 @@
         ],
         "legacyControls": {
           "btn": [
-            {
-              "tag": "button",
-              "text": "빌드 타겟 생성",
-              "title": ""
-            },
-            {
-              "tag": "button",
-              "text": "소스 업로드",
-              "title": "소스코드 업로드"
-            },
             {
               "tag": "button",
               "text": "빌드 로그",

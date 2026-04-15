@@ -1,6 +1,7 @@
 import React from "react";
 import type { BuildTarget } from "@aegis/shared";
 import { Bot, FileText, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { TargetProgressStepper, TargetStatusBadge } from "../../../shared/ui";
 import { POST_BUILD_STATUSES } from "../hooks/useBuildTargetSection";
 import { TargetLibraryPanel } from "./TargetLibraryPanel";
@@ -71,26 +72,26 @@ export function BuildTargetRow({
       </div>
       <div className="bt-row__actions">
         {status !== "discovered" && status !== "resolving" && (
-          <button className="btn btn-secondary btn-sm" onClick={() => onOpenLog({ id: target.id, name: target.name })} title="빌드 로그">
+          <Button variant="outline" size="icon-sm" onClick={() => onOpenLog({ id: target.id, name: target.name })} title="빌드 로그">
             <FileText size={14} />
-          </button>
+          </Button>
         )}
         {isReady && canDeepAnalyze && (
-          <button className="btn btn-sm" onClick={() => onDeepAnalyze(target.id)} title="심층 분석">
+          <Button size="icon-sm" onClick={() => onDeepAnalyze(target.id)} title="심층 분석">
             <Bot size={14} />
-          </button>
+          </Button>
         )}
         {isFailed && (
-          <button className="btn btn-secondary btn-sm" onClick={() => onRetry(target.id)} title="재실행">
+          <Button variant="outline" size="icon-sm" onClick={() => onRetry(target.id)} title="재실행">
             <RotateCcw size={14} />
-          </button>
+          </Button>
         )}
-        <button className="btn-icon" title="편집" onClick={() => onEdit(target)} disabled={actionLocked}>
+        <Button variant="ghost" size="icon-sm" title="편집" onClick={() => onEdit(target)} disabled={actionLocked}>
           <Pencil size={14} />
-        </button>
-        <button className="btn-icon btn-danger" title="삭제" onClick={() => onDelete(target)} disabled={actionLocked}>
+        </Button>
+        <Button variant="destructive" size="icon-sm" title="삭제" onClick={() => onDelete(target)} disabled={actionLocked}>
           <Trash2 size={14} />
-        </button>
+        </Button>
       </div>
     </div>
   );
