@@ -1,5 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { ApprovalFilterStatus } from "../hooks/useApprovalsPage";
 
@@ -24,14 +25,14 @@ export const ApprovalFilters: React.FC<ApprovalFiltersProps> = ({
   pendingCount,
   totalCount,
 }) => (
-  <section className="approval-toolbar" aria-label="승인 요청 필터와 요약">
-    <div className="approval-filters" role="tablist" aria-label="Approval status filters">
+  <section className="grid grid-cols-[minmax(0,1.4fr)_minmax(220px,auto)] items-start gap-5 rounded-lg border border-border bg-gradient-to-b from-muted/80 to-background/95 p-5 max-[960px]:grid-cols-1" aria-label="승인 요청 필터와 요약">
+    <div className="flex flex-wrap gap-3" role="tablist" aria-label="Approval status filters">
       {(Object.keys(FILTER_LABELS) as ApprovalFilterStatus[]).map((status) => (
         <Button
           key={status}
           type="button"
           variant={filter === status ? "default" : "outline"}
-          className={cn("approval-filter__btn", filter === status && "active")}
+          className={cn("min-h-10 rounded-full px-5 text-sm font-medium", filter === status && "border-primary bg-primary/10 text-primary")}
           onClick={() => onChange(status)}
         >
           {FILTER_LABELS[status]}
@@ -39,15 +40,19 @@ export const ApprovalFilters: React.FC<ApprovalFiltersProps> = ({
       ))}
     </div>
 
-    <div className="approval-summary">
-      <div className="approval-summary__item">
-        <span className="approval-summary__label">전체 요청</span>
-        <span className="approval-summary__value">{totalCount}</span>
-      </div>
-      <div className="approval-summary__item approval-summary__item--pending">
-        <span className="approval-summary__label">대기 중</span>
-        <span className="approval-summary__value">{pendingCount}</span>
-      </div>
+    <div className="grid grid-cols-2 gap-3">
+      <Card className="shadow-none">
+        <CardContent className="flex flex-col gap-2 p-4">
+          <span className="text-sm font-medium text-muted-foreground">전체 요청</span>
+          <span className="font-mono text-lg font-semibold text-foreground">{totalCount}</span>
+        </CardContent>
+      </Card>
+      <Card className="border-amber-200 bg-amber-50/70 shadow-none dark:border-amber-900/70 dark:bg-amber-950/30">
+        <CardContent className="flex flex-col gap-2 p-4">
+          <span className="text-sm font-medium text-muted-foreground">대기 중</span>
+          <span className="font-mono text-lg font-semibold text-foreground">{pendingCount}</span>
+        </CardContent>
+      </Card>
     </div>
   </section>
 );

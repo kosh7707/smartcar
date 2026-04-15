@@ -7,7 +7,6 @@ import { ApprovalDecisionDialog } from "./components/ApprovalDecisionDialog";
 import { ApprovalFilters } from "./components/ApprovalFilters";
 import { ApprovalRequestList } from "./components/ApprovalRequestList";
 import { useApprovalsPage } from "./hooks/useApprovalsPage";
-import "./ApprovalsPage.css";
 
 export const ApprovalsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -55,7 +54,7 @@ export const ApprovalsPage: React.FC = () => {
   }
 
   return (
-    <div className="page-enter approvals-page">
+    <div className="page-enter approvals-page flex flex-col gap-6 max-sm:gap-5">
       <PageHeader
         surface="plain"
         title="승인 큐"

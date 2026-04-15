@@ -39,13 +39,13 @@ export const ApprovalDecisionDialog: React.FC<ApprovalDecisionDialogProps> = ({
         <DialogTitle className="confirm-dialog__title">
           {action === "approved" ? "승인 확인" : "거부 확인"}
         </DialogTitle>
-        <DialogDescription className="approval-dialog__subtitle">
+        <DialogDescription className="m-0 text-sm text-muted-foreground">
           결정 사유를 남기면 이후 감사 추적과 승인 이력 검토에 도움이 됩니다.
         </DialogDescription>
       </DialogHeader>
       <div className="px-5 py-4">
         <Textarea
-          className="approval-dialog__comment-input min-h-24"
+          className="min-h-24 w-full"
           rows={4}
           placeholder="코멘트 (선택)"
           value={comment}
