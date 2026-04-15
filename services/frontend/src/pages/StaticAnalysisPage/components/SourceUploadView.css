@@ -63,12 +63,12 @@
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 244, 244, 0.6));
 }
 
-.source-git-form .btn {
+.source-git-submit {
   align-self: flex-end;
 }
 
 /* Source files summary card */
-.source-files-card .card-title {
+.source-files-card__title {
   display: flex;
   align-items: center;
   gap: var(--cds-spacing-03);
@@ -131,7 +131,7 @@
 
 /* ── File Upload ── */
 
-.card.drop-zone {
+.drop-zone {
   text-align: center;
   cursor: pointer;
   border: 2px dashed var(--cds-border-strong);
@@ -139,8 +139,8 @@
   transition: border-color var(--cds-transition-base), background var(--cds-transition-base);
 }
 
-.card.drop-zone:hover,
-.card.drop-zone--active {
+.drop-zone:hover,
+.drop-zone--active {
   border-color: var(--cds-interactive);
   background: var(--cds-interactive-subtle);
 }

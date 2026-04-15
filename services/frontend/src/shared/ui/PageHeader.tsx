@@ -20,7 +20,7 @@ export const PageHeader: React.FC<Props> = ({
     <>
       <div className="page-header__left min-w-0">
         <div className="page-header__text min-w-0">
-          <h2 className="page-header__title text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
+          <h1 className="page-header__title text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
           {subtitle && <p className="page-header__subtitle mt-1 max-w-3xl text-sm text-muted-foreground">{subtitle}</p>}
         </div>
       </div>

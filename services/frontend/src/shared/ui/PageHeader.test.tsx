@@ -14,7 +14,8 @@ describe("PageHeader", () => {
     );
 
     expect(container.querySelector(".page-header--plain")).not.toBeNull();
-    expect(screen.getByRole("heading", { name: "Payments Platform" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Payments Platform" })).toBeInTheDocument();
+    expect(container.querySelectorAll("h1")).toHaveLength(1);
     expect(screen.getByText("Secure build and scan surface")).toBeInTheDocument();
     expect(container.querySelector(".page-header__eyebrow")).toBeNull();
   });
@@ -23,6 +24,7 @@ describe("PageHeader", () => {
     const { container } = render(<PageHeader title="정적 분석" />);
 
     expect(container.querySelector(".page-header--card")).not.toBeNull();
-    expect(screen.getByRole("heading", { name: "정적 분석" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "정적 분석" })).toBeInTheDocument();
+    expect(container.querySelectorAll("h1")).toHaveLength(1);
   });
 });

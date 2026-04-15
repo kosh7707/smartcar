@@ -1,6 +1,8 @@
 import React from "react";
 import type { AnalysisProgress } from "@aegis/shared";
 import { Loader2, Eye, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 interface Props {
   progress: AnalysisProgress;
@@ -40,7 +42,7 @@ export const ActiveAnalysisBanner: React.FC<Props> = ({ progress, onView, onAbor
     : 100;
 
   return (
-    <div className="active-analysis-banner card">
+    <Card className="active-analysis-banner mb-5 gap-0 border-l-4 border-l-primary px-5 py-4">
       <div className="active-analysis-banner__content">
         <Loader2 size={16} className="spin" />
         <span className="active-analysis-banner__text">
@@ -54,19 +56,19 @@ export const ActiveAnalysisBanner: React.FC<Props> = ({ progress, onView, onAbor
           </span>
         )}
         <div className="active-analysis-banner__actions">
-          <button className="btn btn-secondary btn-sm" onClick={onView}>
+          <Button variant="outline" size="sm" onClick={onView}>
             <Eye size={14} />
             보기
-          </button>
-          <button className="btn btn-secondary btn-sm btn-danger" onClick={onAbort}>
+          </Button>
+          <Button variant="destructive" size="sm" onClick={onAbort}>
             <XCircle size={14} />
             중단
-          </button>
+          </Button>
         </div>
       </div>
       <div className="active-analysis-banner__bar">
         <div className="active-analysis-banner__bar-fill shimmer-fill" style={{ width: `${pct}%` }} />
       </div>
-    </div>
+    </Card>
   );
 };

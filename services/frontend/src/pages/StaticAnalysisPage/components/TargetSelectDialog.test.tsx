@@ -34,21 +34,30 @@ describe("TargetSelectDialog", () => {
   it("starts with the first target selected", () => {
     render(<TargetSelectDialog open={true} targets={targets} onConfirm={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByText("분석 실행")).toBeInTheDocument();
-    expect(screen.getByText("gateway").closest(".tsd__row")).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: /gateway/ })).toHaveAttribute("aria-checked", "true");
   });
 
   it("switches selected target", () => {
     render(<TargetSelectDialog open={true} targets={targets} onConfirm={vi.fn()} onCancel={vi.fn()} />);
-    fireEvent.click(screen.getByText("body-control").closest(".tsd__row")!);
-    expect(screen.getByText("body-control").closest(".tsd__row")).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByText("gateway").closest(".tsd__row")).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(screen.getByRole("radio", { name: /body-control/ }));
+    expect(screen.getByRole("radio", { name: /body-control/ })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: /gateway/ })).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("switches selected target from the keyboard", () => {
+    render(<TargetSelectDialog open={true} targets={targets} onConfirm={vi.fn()} onCancel={vi.fn()} />);
+    const bodyControl = screen.getByRole("radio", { name: /body-control/ });
+
+    fireEvent.keyDown(bodyControl, { key: " " });
+
+    expect(bodyControl).toHaveAttribute("aria-checked", "true");
   });
 
   it("calls onConfirm with the selected ID", () => {
     const onConfirm = vi.fn();
     render(<TargetSelectDialog open={true} targets={targets} onConfirm={onConfirm} onCancel={vi.fn()} />);
 
-    fireEvent.click(screen.getByText("body-control").closest(".tsd__row")!);
+    fireEvent.click(screen.getByRole("radio", { name: /body-control/ }));
     fireEvent.click(screen.getByText("분석 실행"));
     expect(onConfirm).toHaveBeenCalledWith("t-2");
   });
@@ -56,8 +65,15 @@ describe("TargetSelectDialog", () => {
   it("calls onCancel on overlay click", () => {
     const onCancel = vi.fn();
     render(<TargetSelectDialog open={true} targets={targets} onConfirm={vi.fn()} onCancel={onCancel} />);
-    fireEvent.click(document.querySelector(".confirm-overlay")!);
-    expect(onCancel).toHaveBeenCalled();
+    fireEvent.click(document.querySelector('[data-slot="dialog-overlay"]')!);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not cancel when the dialog content is clicked", () => {
+    const onCancel = vi.fn();
+    render(<TargetSelectDialog open={true} targets={targets} onConfirm={vi.fn()} onCancel={onCancel} />);
+    fireEvent.click(screen.getByText("분석 대상 선택"));
+    expect(onCancel).not.toHaveBeenCalled();
   });
 
   it("calls onCancel on cancel button click", () => {
@@ -65,5 +81,12 @@ describe("TargetSelectDialog", () => {
     render(<TargetSelectDialog open={true} targets={targets} onConfirm={vi.fn()} onCancel={onCancel} />);
     fireEvent.click(screen.getByText("취소"));
     expect(onCancel).toHaveBeenCalled();
+  });
+
+  it("calls onCancel on Escape key", () => {
+    const onCancel = vi.fn();
+    render(<TargetSelectDialog open={true} targets={targets} onConfirm={vi.fn()} onCancel={onCancel} />);
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });

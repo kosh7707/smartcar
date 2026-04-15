@@ -5,6 +5,10 @@ import { uploadSource, cloneSource, fetchSourceFiles, logError } from "../../../
 import { useToast } from "../../../contexts/ToastContext";
 import { useUploadProgress } from "../../../hooks/useUploadProgress";
 import { Spinner, ConnectionStatusBanner } from "../../../shared/ui";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { formatFileSize } from "../../../utils/format";
 import { buildTree, countFiles } from "../../../utils/tree";
 import { LANG_GROUPS } from "../../../constants/languages";
@@ -153,11 +157,13 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
       {/* Already have source — show summary + actions */}
       {sourceFiles && sourceFiles.length > 0 ? (
         <>
-          <div className="card source-files-card">
-            <div className="card-title card-title--flush">
-              <FolderArchive size={16} />
-              소스코드 ({sourceFiles.length}개 파일 · {formatFileSize(totalSize)})
-            </div>
+          <Card className="source-files-card gap-0">
+            <CardHeader>
+              <CardTitle className="source-files-card__title">
+                <FolderArchive size={16} />
+                소스코드 ({sourceFiles.length}개 파일 · {formatFileSize(totalSize)})
+              </CardTitle>
+            </CardHeader>
 
             {/* Language bar */}
             {langStats.length > 0 && (
@@ -178,7 +184,7 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
 
             {/* Top-level directories */}
             {topDirs.length > 0 && (
-              <div className="source-dir-list">
+              <CardContent className="source-dir-list">
                 {topDirs.map((d) => (
                   <div key={d.name} className="source-dir-row">
                     <Folder size={14} className="source-dir-icon" />
@@ -186,31 +192,31 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
                     <span className="source-dir-count">{d.count}개 파일</span>
                   </div>
                 ))}
-              </div>
+              </CardContent>
             )}
-          </div>
+          </Card>
 
           <div className="source-actions">
             {onBrowseTree && (
-              <button className="btn btn-secondary" onClick={onBrowseTree}>
+              <Button variant="outline" onClick={onBrowseTree}>
                 <Search size={14} />
                 소스코드 탐색
-              </button>
+              </Button>
             )}
             {onDiscoverTargets && (
-              <button className="btn btn-secondary" onClick={onDiscoverTargets}>
+              <Button variant="outline" onClick={onDiscoverTargets}>
                 <Crosshair size={14} />
                 타겟 탐색
-              </button>
+              </Button>
             )}
-            <button className="btn btn-secondary" onClick={handleReupload}>
+            <Button variant="outline" onClick={handleReupload}>
               <Upload size={14} />
               재업로드
-            </button>
-            <button className="btn" onClick={onAnalysisStart}>
+            </Button>
+            <Button onClick={onAnalysisStart}>
               <Play size={14} />
               분석 실행
-            </button>
+            </Button>
           </div>
         </>
       ) : (
@@ -234,12 +240,12 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
           </div>
 
           {uploading ? (
-            <div className="card source-loading">
+            <Card className="source-loading">
               <Spinner size={32} label={upload.isActive ? upload.message : (tab === "zip" ? "업로드 중..." : "클론 중...")} />
-            </div>
+            </Card>
           ) : tab === "zip" ? (
-            <div
-              className={`card drop-zone${dragOver ? " drop-zone--active" : ""}`}
+            <Card
+              className={`drop-zone${dragOver ? " drop-zone--active" : ""}`}
               onDrop={handleDrop}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
@@ -259,33 +265,32 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
                 style={{ display: "none" }}
                 onChange={handleFileSelect}
               />
-            </div>
+            </Card>
           ) : (
-            <div className="card source-git-form">
-              <label className="form-field">
+            <Card className="source-git-form">
+              <Label className="form-field">
                 <span className="form-label">Git URL *</span>
-                <input
-                  className="form-input font-mono"
+                <Input
+                  className="font-mono"
                   value={gitUrl}
                   onChange={(e) => setGitUrl(e.target.value)}
                   placeholder="https://github.com/org/repo.git"
                   spellCheck={false}
                 />
-              </label>
-              <label className="form-field">
+              </Label>
+              <Label className="form-field">
                 <span className="form-label">Branch</span>
-                <input
-                  className="form-input"
+                <Input
                   value={gitBranch}
                   onChange={(e) => setGitBranch(e.target.value)}
                   placeholder="main (기본)"
                 />
-              </label>
-              <button className="btn" onClick={handleGitClone}>
+              </Label>
+              <Button className="source-git-submit" onClick={handleGitClone}>
                 <GitBranch size={14} />
                 클론
-              </button>
-            </div>
+              </Button>
+            </Card>
           )}
         </>
       )}

@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { X, Copy, Check } from "lucide-react";
+import { Check, Copy, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { fetchBuildLog } from "../../../api/pipeline";
 import { logError } from "../../../api/core";
 import { Spinner } from "../../../shared/ui";
-import "./BuildLogViewer.css";
 
 interface Props {
   projectId: string;
@@ -50,40 +56,43 @@ export const BuildLogViewer: React.FC<Props> = ({ projectId, targetId, targetNam
     }
   };
 
-  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) onClose();
-  };
-
   return (
-    <div className="build-log-overlay" onClick={handleOverlayClick}>
-      <div className="build-log-modal">
-        <div className="build-log-header">
-          <div className="build-log-header__title">
-            <span>{targetName} - 빌드 로그</span>
-            {status && <span style={{ fontSize: "var(--cds-type-xs)", color: "var(--cds-text-placeholder)", fontWeight: "normal" }}>({status})</span>}
-          </div>
-          <div className="build-log-actions">
+    <Dialog open onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}>
+      <DialogContent
+        className="flex flex-col max-h-[80vh] max-w-[800px] grid-rows-[auto_1fr] gap-0 overflow-hidden border-border bg-card p-0 shadow-2xl sm:max-w-[800px]"
+        overlayClassName="build-log-overlay"
+        onOverlayClick={onClose}
+        showCloseButton={false}
+      >
+        <DialogHeader className="flex-row items-center justify-between space-y-0 border-b border-border px-5 py-4">
+          <DialogTitle className="flex min-w-0 items-center gap-3 text-base font-semibold text-foreground">
+            <span className="truncate">{targetName} - 빌드 로그</span>
+            {status && (
+              <span className="shrink-0 text-xs font-normal text-muted-foreground">({status})</span>
+            )}
+          </DialogTitle>
+          <div className="flex shrink-0 items-center gap-2">
             {buildLog && (
-              <button className="btn btn-secondary btn-sm" onClick={handleCopy} title="복사">
+              <Button variant="outline" size="sm" onClick={handleCopy} title="복사">
                 {copied ? <Check size={14} /> : <Copy size={14} />}
                 {copied ? "복사됨" : "복사"}
-              </button>
+              </Button>
             )}
-            <button className="btn-icon" onClick={onClose} title="닫기">
+            <Button variant="ghost" size="icon-sm" onClick={onClose} title="닫기" aria-label="닫기">
               <X size={16} />
-            </button>
+            </Button>
           </div>
-        </div>
-        <div className="build-log-body">
+        </DialogHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto bg-background/80 p-5">
           {loading ? (
             <Spinner size={24} label="로그 불러오는 중..." />
           ) : buildLog ? (
-            <pre className="build-log-pre">{buildLog}</pre>
+            <pre className="m-0 whitespace-pre-wrap break-all font-mono text-sm leading-6 text-foreground">{buildLog}</pre>
           ) : (
-            <div className="build-log-empty">빌드 로그가 없습니다</div>
+            <div className="py-10 text-center text-sm text-muted-foreground">빌드 로그가 없습니다</div>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

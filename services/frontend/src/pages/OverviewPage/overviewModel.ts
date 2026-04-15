@@ -25,7 +25,9 @@ export function getTopVulnerabilities(analyses: AnalysisResult[], count = 5): Vu
   const all: Vulnerability[] = [];
   for (const analysis of analyses) {
     if (analysis.status !== "completed") continue;
-    all.push(...analysis.vulnerabilities);
+    if (Array.isArray(analysis.vulnerabilities)) {
+      all.push(...analysis.vulnerabilities);
+    }
   }
 
   const order: Vulnerability["severity"][] = ["critical", "high", "medium", "low", "info"];

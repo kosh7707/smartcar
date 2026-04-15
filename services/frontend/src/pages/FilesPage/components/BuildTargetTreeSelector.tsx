@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import type { SourceFileEntry } from "../../../api/client";
 import { Check, ChevronRight, FileText, Folder, FolderOpen, Minus } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { formatFileSize } from "../../../utils/format";
 import { buildTree, countFiles } from "../../../utils/tree";
 import type { TreeNode } from "../../../utils/tree";
@@ -25,6 +26,17 @@ function getCheckState(node: TreeNode<SourceFileEntry>, checked: Set<string>): "
   return hasChecked ? "checked" : "unchecked";
 }
 
+const checkClass = (checkedState: "checked" | "indeterminate" | "unchecked") => cn(
+  "flex size-4 shrink-0 items-center justify-center rounded border text-primary-foreground transition-colors",
+  checkedState === "unchecked" ? "border-input bg-background" : "border-primary bg-primary",
+);
+
+const rowClass = (disabled: boolean, selected = false) => cn(
+  "flex min-h-8 cursor-pointer items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+  selected && "bg-primary/10",
+  disabled && "cursor-default opacity-70 hover:bg-transparent",
+);
+
 const CheckNode: React.FC<{
   node: TreeNode<SourceFileEntry>;
   depth: number;
@@ -44,16 +56,15 @@ const CheckNode: React.FC<{
     onToggle(collectPaths(node), state !== "checked");
   };
 
-  const guides = [];
-  for (let i = 0; i < depth; i += 1) guides.push(<span key={i} className="spcd__indent-guide" />);
+  const indent = <span aria-hidden className="shrink-0" style={{ width: depth * 18 }} />;
 
   if (isFolder) {
     return (
       <>
-        <div className={`spcd__row spcd__row--folder${disabled ? " spcd__row--disabled" : ""}`} onClick={() => setOpen(!open)} style={disabled ? { opacity: 0.72 } : undefined}>
-          <div className="spcd__indent">{guides}</div>
+        <div className={rowClass(disabled, state !== "unchecked")} onClick={() => setOpen(!open)}>
+          {indent}
           <div
-            className={`spcd__check${state === "checked" ? " spcd__check--checked" : state === "indeterminate" ? " spcd__check--indeterminate" : ""}`}
+            className={checkClass(state)}
             role="checkbox"
             aria-checked={state === "checked" ? "true" : state === "indeterminate" ? "mixed" : "false"}
             aria-disabled={disabled}
@@ -64,10 +75,10 @@ const CheckNode: React.FC<{
             {state === "checked" && <Check size={10} />}
             {state === "indeterminate" && <Minus size={10} />}
           </div>
-          <ChevronRight size={12} style={{ transform: open ? "rotate(90deg)" : "none", transition: "transform 0.15s", color: "var(--cds-text-placeholder)" }} />
-          {open ? <FolderOpen size={14} style={{ color: "var(--cds-support-warning)" }} /> : <Folder size={14} style={{ color: "var(--cds-support-warning)" }} />}
-          <span className="spcd__name">{node.name}</span>
-          <span className="spcd__meta">{countFiles(node)}개</span>
+          <ChevronRight className={cn("size-3 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")} />
+          {open ? <FolderOpen className="size-3.5 shrink-0 text-amber-600" /> : <Folder className="size-3.5 shrink-0 text-amber-600" />}
+          <span className="min-w-0 flex-1 truncate font-medium">{node.name}</span>
+          <span className="shrink-0 text-muted-foreground">{countFiles(node)}개</span>
         </div>
         {open && node.children.map((child) => (
           <CheckNode key={child.path} node={child} depth={depth + 1} checked={checked} onToggle={onToggle} disabled={disabled} />
@@ -78,10 +89,10 @@ const CheckNode: React.FC<{
 
   const isChecked = checked.has(node.path);
   return (
-    <div className={`spcd__row${disabled ? " spcd__row--disabled" : ""}`} onClick={handleToggle} style={disabled ? { opacity: 0.72, cursor: "default" } : undefined}>
-      <div className="spcd__indent">{guides}</div>
+    <div className={rowClass(disabled, isChecked)} onClick={handleToggle}>
+      {indent}
       <div
-        className={`spcd__check${isChecked ? " spcd__check--checked" : ""}`}
+        className={checkClass(isChecked ? "checked" : "unchecked")}
         role="checkbox"
         aria-checked={isChecked}
         aria-disabled={disabled}
@@ -90,10 +101,10 @@ const CheckNode: React.FC<{
       >
         {isChecked && <Check size={10} />}
       </div>
-      <span style={{ width: 12 }} />
-      <FileText size={14} style={{ color: "var(--cds-text-placeholder)", flexShrink: 0 }} />
-      <span className="spcd__name">{node.name}</span>
-      {node.data && node.data.size > 0 && <span className="spcd__meta">{formatFileSize(node.data.size)}</span>}
+      <span aria-hidden className="w-3 shrink-0" />
+      <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+      <span className="min-w-0 flex-1 truncate">{node.name}</span>
+      {node.data && node.data.size > 0 && <span className="shrink-0 text-muted-foreground">{formatFileSize(node.data.size)}</span>}
     </div>
   );
 };
@@ -112,7 +123,7 @@ export function BuildTargetTreeSelector({
   const tree = buildTree(sourceFiles, (sourceFile) => sourceFile.relativePath);
 
   return (
-    <div className="spcd__tree-wrap">
+    <div className="max-h-[350px] overflow-y-auto rounded-lg border border-border py-3">
       {tree.children.map((child) => (
         <CheckNode key={child.path} node={child} depth={0} checked={checked} onToggle={onToggle} disabled={disabled} />
       ))}

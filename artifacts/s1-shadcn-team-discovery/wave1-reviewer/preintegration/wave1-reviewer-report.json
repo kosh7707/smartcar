@@ -1,0 +1,151 @@
+{
+  "generatedAt": "2026-04-15T08:09:08.045Z",
+  "baseUrl": "http://localhost:5173",
+  "reusedExistingServer": true,
+  "status": "PASS",
+  "failures": [],
+  "pageErrors": [],
+  "consoleErrors": [
+    "[Check active analysis] Cannot read properties of null (reading 'find') TypeError: Cannot read properties of null (reading 'find')\n    at http://localhost:5173/src/hooks/useStaticDashboard.ts:52:32",
+    "[Check active analysis] Cannot read properties of null (reading 'find') TypeError: Cannot read properties of null (reading 'find')\n    at http://localhost:5173/src/hooks/useStaticDashboard.ts:52:32",
+    "[Check active analysis] Cannot read properties of null (reading 'find') TypeError: Cannot read properties of null (reading 'find')\n    at http://localhost:5173/src/hooks/useStaticDashboard.ts:52:32",
+    "[Check active analysis] Cannot read properties of null (reading 'find') TypeError: Cannot read properties of null (reading 'find')\n    at http://localhost:5173/src/hooks/useStaticDashboard.ts:52:32"
+  ],
+  "results": [
+    {
+      "name": "files",
+      "path": "/projects/p-1/files",
+      "expectedH1": "파일 탐색기",
+      "screenshot": "artifacts/s1-shadcn-team-discovery/wave1-reviewer/preintegration/screenshots/files.png",
+      "dom": {
+        "h1s": [
+          "파일 탐색기"
+        ],
+        "legacyControls": {
+          "btn": [
+            {
+              "tag": "button",
+              "text": "빌드 타겟 생성",
+              "title": ""
+            },
+            {
+              "tag": "button",
+              "text": "소스 업로드",
+              "title": "소스코드 업로드"
+            },
+            {
+              "tag": "button",
+              "text": "빌드 로그",
+              "title": "빌드 로그"
+            },
+            {
+              "tag": "button",
+              "text": "빌드 로그",
+              "title": "빌드 로그"
+            }
+          ],
+          "btn-icon": [],
+          "card": [],
+          "form-input": []
+        },
+        "dialogs": [],
+        "failures": []
+      }
+    },
+    {
+      "name": "static-analysis",
+      "path": "/projects/p-1/static-analysis",
+      "expectedH1": "정적 분석",
+      "screenshot": "artifacts/s1-shadcn-team-discovery/wave1-reviewer/preintegration/screenshots/static-analysis.png",
+      "dom": {
+        "h1s": [
+          "정적 분석"
+        ],
+        "legacyControls": {
+          "btn": [
+            {
+              "tag": "button",
+              "text": "소스 탐색",
+              "title": ""
+            },
+            {
+              "tag": "button",
+              "text": "새 분석",
+              "title": ""
+            }
+          ],
+          "btn-icon": [],
+          "card": [],
+          "form-input": []
+        },
+        "dialogs": [],
+        "failures": []
+      }
+    },
+    {
+      "name": "overview",
+      "path": "/projects/p-1/overview",
+      "expectedH1": "차량 게이트웨이 ECU",
+      "screenshot": "artifacts/s1-shadcn-team-discovery/wave1-reviewer/preintegration/screenshots/overview.png",
+      "dom": {
+        "h1s": [
+          "차량 게이트웨이 ECU"
+        ],
+        "legacyControls": {
+          "btn": [],
+          "btn-icon": [],
+          "card": [],
+          "form-input": []
+        },
+        "dialogs": [],
+        "failures": []
+      }
+    },
+    {
+      "name": "global-settings",
+      "path": "/settings",
+      "expectedH1": "시스템 설정",
+      "screenshot": "artifacts/s1-shadcn-team-discovery/wave1-reviewer/preintegration/screenshots/global-settings.png",
+      "dom": {
+        "h1s": [
+          "시스템 설정"
+        ],
+        "legacyControls": {
+          "btn": [],
+          "btn-icon": [],
+          "card": [],
+          "form-input": []
+        },
+        "dialogs": [],
+        "failures": []
+      }
+    },
+    {
+      "name": "files-interactions",
+      "interactions": [
+        {
+          "name": "build-target-create-dialog",
+          "screenshot": "artifacts/s1-shadcn-team-discovery/wave1-reviewer/preintegration/screenshots/files-build-target-dialog.png",
+          "dialogRoleCount": 1
+        },
+        {
+          "name": "build-log-viewer",
+          "screenshot": "artifacts/s1-shadcn-team-discovery/wave1-reviewer/preintegration/screenshots/files-build-log-viewer.png",
+          "dialogRoleCount": 1
+        }
+      ]
+    },
+    {
+      "name": "static-analysis-interactions",
+      "interactions": [
+        {
+          "name": "target-select-or-upload-flow",
+          "screenshot": "artifacts/s1-shadcn-team-discovery/wave1-reviewer/preintegration/screenshots/static-analysis-target-selection.png",
+          "targetDialogVisible": false,
+          "dialogRoleCount": 0
+        }
+      ]
+    }
+  ],
+  "note": "Screenshots require human visual review for spacing/density/readability. DOM gates are enforced above."
+}

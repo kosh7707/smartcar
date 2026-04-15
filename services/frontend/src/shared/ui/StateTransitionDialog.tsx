@@ -24,7 +24,6 @@ import {
   ALLOWED_TRANSITIONS,
   canTransitionTo,
 } from "../../constants/finding";
-import "./StateTransitionDialog.css";
 
 interface Props {
   open: boolean;
@@ -62,53 +61,55 @@ export const StateTransitionDialog: React.FC<Props> = ({
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onCancel(); }}>
-      <DialogContent className="state-dialog sm:max-w-md" showCloseButton={false}>
+      <DialogContent className="max-w-[440px] sm:max-w-[440px]" showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle className="confirm-dialog__title">상태 변경</DialogTitle>
+          <DialogTitle>상태 변경</DialogTitle>
           <DialogDescription>
             탐지 항목의 상태를 바꾸려면 새 상태와 변경 사유를 남기세요.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="state-dialog__field">
-          <Label className="state-dialog__label">현재 상태</Label>
-          <Badge variant="outline" className={`badge-status--${currentStatus}`}>
-            {FINDING_STATUS_LABELS[currentStatus]}
-          </Badge>
+        <div className="space-y-5">
+          <div className="flex flex-col gap-2">
+            <Label>현재 상태</Label>
+            <Badge variant="outline" className={`badge-status--${currentStatus} w-fit`}>
+              {FINDING_STATUS_LABELS[currentStatus]}
+            </Badge>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="state-select">새 상태</Label>
+            <Select
+              value={selectedStatus}
+              onValueChange={(nextStatus) => setSelectedStatus(nextStatus as FindingStatus)}
+            >
+              <SelectTrigger id="state-select" className="w-full">
+                <SelectValue placeholder="선택하세요" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableTransitions.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {FINDING_STATUS_LABELS[s]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="state-reason">사유</Label>
+            <Textarea
+              id="state-reason"
+              className="min-h-[72px] resize-y"
+              rows={3}
+              placeholder="상태 변경 사유를 입력하세요 (필수)"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </div>
         </div>
 
-        <div className="state-dialog__field">
-          <Label className="state-dialog__label" htmlFor="state-select">새 상태</Label>
-          <Select
-            value={selectedStatus}
-            onValueChange={(nextStatus) => setSelectedStatus(nextStatus as FindingStatus)}
-          >
-            <SelectTrigger id="state-select" className="state-dialog__select w-full">
-              <SelectValue placeholder="선택하세요" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableTransitions.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {FINDING_STATUS_LABELS[s]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="state-dialog__field">
-          <Label className="state-dialog__label" htmlFor="state-reason">사유</Label>
-          <Textarea
-            id="state-reason"
-            className="state-dialog__textarea"
-            rows={3}
-            placeholder="상태 변경 사유를 입력하세요 (필수)"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-          />
-        </div>
-
-        <DialogFooter className="confirm-dialog__actions">
+        <DialogFooter className="flex-row justify-end gap-2">
           <Button variant="outline" size="sm" onClick={onCancel}>
             취소
           </Button>

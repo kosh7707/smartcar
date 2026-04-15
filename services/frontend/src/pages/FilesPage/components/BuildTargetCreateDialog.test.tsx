@@ -5,7 +5,6 @@ import { BuildTargetCreateDialog } from "./BuildTargetCreateDialog";
 import type { SourceFileEntry } from "../../../api/client";
 
 // Mock dependencies
-vi.mock("./BuildTargetCreateDialog.css", () => ({}));
 vi.mock("../../../hooks/useBuildTargets", () => ({
   useBuildTargets: () => ({
     targets: [],
@@ -64,6 +63,31 @@ describe("BuildTargetCreateDialog", () => {
     // File tree should show folder names
     expect(screen.getByText("src")).toBeTruthy();
     expect(screen.getByText("include")).toBeTruthy();
+  });
+
+  it("keeps cancel scoped to explicit cancel actions and the overlay", () => {
+    const onCancel = vi.fn();
+    render(<BuildTargetCreateDialog {...defaultProps} onCancel={onCancel} />);
+
+    fireEvent.click(screen.getByText("BuildTarget 이름"));
+    expect(onCancel).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText("취소"));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+
+    onCancel.mockClear();
+    fireEvent.click(document.querySelector(".confirm-overlay")!);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps submit disabled until at least one source path is selected", async () => {
+    render(<BuildTargetCreateDialog {...defaultProps} />);
+
+    const submit = screen.getByRole("button", { name: "BuildTarget 생성" });
+    expect(submit).toBeDisabled();
+
+    fireEvent.click(screen.getByText("main.c"));
+    await waitFor(() => expect(submit).not.toBeDisabled());
   });
 
   it("shows selected file count", async () => {

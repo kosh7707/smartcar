@@ -9,7 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import "./ConfirmDialog.css";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -45,14 +44,14 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             <AlertTriangle size={17} />
           </div>
           <div className="min-w-0">
-            <DialogTitle className="confirm-dialog__title text-base font-semibold text-foreground">{title}</DialogTitle>
-            <DialogDescription className="confirm-dialog__message mt-1 text-sm leading-6 text-muted-foreground">
+            <DialogTitle className="text-base font-semibold text-foreground">{title}</DialogTitle>
+            <DialogDescription className="mt-1 text-sm leading-6 text-muted-foreground">
               {message}
             </DialogDescription>
           </div>
         </DialogHeader>
-        <DialogFooter className="confirm-dialog__actions flex-row justify-end gap-2 rounded-b-xl border-t-0 bg-transparent px-5 py-4">
-          <Button variant="outline" size="sm" className="" onClick={onCancel}>
+        <DialogFooter className="flex-row justify-end gap-2 rounded-b-xl border-t-0 bg-transparent px-5 py-4">
+          <Button variant="outline" size="sm" onClick={onCancel}>
             취소
           </Button>
           <Button
