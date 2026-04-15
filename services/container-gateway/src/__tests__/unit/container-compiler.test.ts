@@ -30,4 +30,17 @@ describe('container compiler', () => {
     expect(res.success).toBe(true);
     expect(res.workspaceId).toBe(ws.workspaceId);
   });
+
+  it('canonicalizes project ids before compiling', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 's8-compiler-')); dirs.push(dir);
+    const versions = new WorkspaceVersionStore(path.join(dir, 'versions.json'));
+    const sources = new ProjectSourceStore(path.join(dir, 'uploads'), versions);
+    const ws = sources.createWorkspace('ProjA', [{ relativePath: 'src/main.c', buffer: Buffer.from('int main(){return 0;}') }]);
+    const runner = new FakeDockerRunner();
+    const manager = new ProjectContainerManager(new ProjectContainerStore(path.join(dir, 'containers.json')), runner, 'img', '/workspace');
+    const compiler = new ContainerCompiler(manager, sources, runner, '/workspace');
+    const res = await compiler.compile('ProjA', { workspaceId: ws.workspaceId, profile: { language:'c', entryFile:'src/main.c', outputName:'main' } });
+    expect(res.projectId).toBe('proja');
+    expect(res.workspaceId).toBe('proja-ws-v1');
+  });
 });

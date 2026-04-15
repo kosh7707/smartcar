@@ -4,7 +4,8 @@ import crypto from "crypto";
 import type { UploadWorkspaceSummary } from "../contracts/upload-contract";
 import { WorkspaceVersionStore, type WorkspaceRecord } from "./workspace-version-store";
 import type { ArchiveExtractor } from "./archive-extractor";
-import { assertProjectId } from "../utils/project-id";
+import { canonicalizeProjectId } from "../utils/project-id";
+import { resolvePathWithin } from "../utils/path-boundary";
 
 export class ProjectSourceStore {
   constructor(private readonly uploadsDir: string, private readonly versions: WorkspaceVersionStore) {
@@ -12,12 +13,11 @@ export class ProjectSourceStore {
   }
 
   createWorkspace(projectId: string, files: Array<{ relativePath: string; buffer: Buffer }>): UploadWorkspaceSummary {
-    assertProjectId(projectId);
+    projectId = canonicalizeProjectId(projectId);
     const { record, workspacePath } = this.prepareWorkspace(projectId);
     let fileCount = 0;
     for (const file of files) {
-      const resolved = path.resolve(path.join(workspacePath, file.relativePath));
-      if (!resolved.startsWith(workspacePath)) throw new Error(`Invalid file path: ${file.relativePath}`);
+      const resolved = resolvePathWithin(workspacePath, file.relativePath, `Invalid file path: ${file.relativePath}`);
       fs.mkdirSync(path.dirname(resolved), { recursive: true });
       fs.writeFileSync(resolved, file.buffer);
       fileCount += 1;
@@ -28,7 +28,7 @@ export class ProjectSourceStore {
   }
 
   createWorkspaceFromArchive(projectId: string, archiveBuffer: Buffer, originalName: string | undefined, extractor: ArchiveExtractor): UploadWorkspaceSummary {
-    assertProjectId(projectId);
+    projectId = canonicalizeProjectId(projectId);
     const { record, workspacePath } = this.prepareWorkspace(projectId);
     extractor.extract(archiveBuffer, workspacePath, originalName);
     record.fileCount = this.listFiles(workspacePath).length;
@@ -37,14 +37,14 @@ export class ProjectSourceStore {
   }
 
   getWorkspace(projectId: string, workspaceId?: string): WorkspaceRecord {
-    assertProjectId(projectId);
+    projectId = canonicalizeProjectId(projectId);
     const record = workspaceId ? this.versions.find(projectId, workspaceId) : this.versions.latest(projectId);
     if (!record) throw new Error(`Workspace not found for ${projectId}`);
     return record;
   }
 
   quarantineWorkspace(projectId: string): WorkspaceRecord | undefined {
-    assertProjectId(projectId);
+    projectId = canonicalizeProjectId(projectId);
     const latest = this.versions.latest(projectId);
     if (!latest || !fs.existsSync(latest.workspacePath)) return latest;
     const quarantinedPath = path.join(path.dirname(latest.workspacePath), `.quarantine-${path.basename(latest.workspacePath)}-${Date.now()}-${crypto.randomUUID().slice(0,8)}`);
@@ -68,7 +68,7 @@ export class ProjectSourceStore {
   }
 
   private prepareWorkspace(projectId: string): { record: WorkspaceRecord; workspacePath: string } {
-    assertProjectId(projectId);
+    projectId = canonicalizeProjectId(projectId);
     const uploadId = `upload-${crypto.randomUUID().slice(0,8)}`;
     const prev = this.versions.latest(projectId);
     const workspaceVersion = (prev?.workspaceVersion ?? 0) + 1;

@@ -5,13 +5,13 @@ import { ProjectContainerManager } from "./project-container-manager";
 import { ProjectSourceStore } from "./project-source-store";
 import logger from "../logger";
 import { shellQuote } from "../utils/shell-quote";
-import { assertProjectId } from "../utils/project-id";
+import { canonicalizeProjectId } from "../utils/project-id";
 
 export class ContainerCompiler {
   constructor(private readonly manager: ProjectContainerManager, private readonly sources: ProjectSourceStore, private readonly runner: DockerRunner, private readonly workspaceDir: string) {}
 
   async compile(projectId: string, request: CompileRequest): Promise<CompileResponse> {
-    assertProjectId(projectId);
+    projectId = canonicalizeProjectId(projectId);
     const workspace = this.sources.getWorkspace(projectId, request.workspaceId);
     const ensured = await this.manager.ensureContainer(projectId);
     const jobId = new Date().toISOString().replace(/[:.]/g, '-');

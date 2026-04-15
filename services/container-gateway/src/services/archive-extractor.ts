@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { execFileSync } from "child_process";
+import { normalizeArchiveEntryPath } from "../utils/path-boundary";
 
 export type ArchiveFormat = "zip" | "tar";
 
@@ -23,6 +24,7 @@ export class ArchiveExtractor {
     const tmpFile = path.join(workspacePath, format === "zip" ? "__upload.zip" : "__upload.tar");
     fs.writeFileSync(tmpFile, buffer);
     try {
+      this.validateEntries(tmpFile, format);
       if (format === "zip") execFileSync("unzip", ["-o", "-q", tmpFile, "-d", workspacePath], { stdio: "pipe", timeout: 60000 });
       else execFileSync("tar", ["-xf", tmpFile, "-C", workspacePath], { stdio: "pipe", timeout: 60000 });
     } finally {
@@ -39,5 +41,14 @@ export class ArchiveExtractor {
       fs.renameSync(path.join(inner, name), path.join(workspacePath, name));
     }
     fs.rmSync(inner, { recursive: true, force: true });
+  }
+
+  private validateEntries(archivePath: string, format: ArchiveFormat): void {
+    const args = format === "zip" ? ["-Z1", archivePath] : ["-tf", archivePath];
+    const command = format === "zip" ? "unzip" : "tar";
+    const stdout = execFileSync(command, args, { stdio: "pipe", timeout: 60000, encoding: "utf8" });
+    for (const entry of stdout.split(/\r?\n/).map((value) => value.trim()).filter(Boolean)) {
+      normalizeArchiveEntryPath(entry);
+    }
   }
 }

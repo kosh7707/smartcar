@@ -27,4 +27,22 @@ describe('project source store', () => {
       store.createWorkspace('../escape', [{ relativePath: 'src/main.c', buffer: Buffer.from('int main(){}') }])
     ).toThrow('Invalid projectId');
   });
+
+  it('rejects sibling-prefix path escapes during file upload materialization', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 's8-source-')); dirs.push(dir);
+    const versions = new WorkspaceVersionStore(path.join(dir, 'versions.json'));
+    const store = new ProjectSourceStore(path.join(dir, 'uploads'), versions);
+    expect(() =>
+      store.createWorkspace('projA', [{ relativePath: '../proja-ws-v1-evil/main.c', buffer: Buffer.from('int main(){}') }])
+    ).toThrow('Invalid file path');
+  });
+
+  it('canonicalizes project ids to lowercase for workspace identity', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 's8-source-')); dirs.push(dir);
+    const versions = new WorkspaceVersionStore(path.join(dir, 'versions.json'));
+    const store = new ProjectSourceStore(path.join(dir, 'uploads'), versions);
+    const summary = store.createWorkspace('ProjA', [{ relativePath: 'src/main.c', buffer: Buffer.from('int main(){}') }]);
+    expect(summary.projectId).toBe('proja');
+    expect(summary.workspaceId).toBe('proja-ws-v1');
+  });
 });

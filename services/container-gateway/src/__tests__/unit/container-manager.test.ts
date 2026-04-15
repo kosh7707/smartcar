@@ -21,4 +21,14 @@ describe('project container manager', () => {
     expect(two.reused).toBe(true);
     expect(two.containerId).toBe(one.containerId);
   });
+
+  it('canonicalizes project ids before generating container names', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 's8-manager-')); dirs.push(dir);
+    const store = new ProjectContainerStore(path.join(dir, 'containers.json'));
+    const runner = new FakeDockerRunner();
+    const manager = new ProjectContainerManager(store, runner, 'img', '/workspace');
+    const ensured = await manager.ensureContainer('ProjA');
+    expect(ensured.projectId).toBe('proja');
+    expect(ensured.containerName).toBe('aegis-s8-project-proja');
+  });
 });

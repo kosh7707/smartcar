@@ -2,10 +2,11 @@ import path from "path";
 import logger from "../logger";
 import type { ExecRequest, ExecResponse } from "../contracts/exec-contract";
 import type { DockerRunner } from "../runtime/docker-runner";
-import { assertProjectId } from "../utils/project-id";
+import { canonicalizeProjectId } from "../utils/project-id";
 import { ProjectContainerManager } from "./project-container-manager";
 import { ProjectSourceStore } from "./project-source-store";
 import { ensureAllowedCommand, ensureSafeExecArgs } from "./exec-policy";
+import { resolvePosixPathWithin } from "../utils/path-boundary";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MAX_TIMEOUT_MS = 60_000;
@@ -19,7 +20,7 @@ export class ContainerExecutor {
   ) {}
 
   async execute(projectId: string, request: ExecRequest): Promise<ExecResponse> {
-    assertProjectId(projectId);
+    projectId = canonicalizeProjectId(projectId);
     if (!request.command?.trim()) {
       throw new Error("command is required");
     }
@@ -47,11 +48,8 @@ export class ContainerExecutor {
     );
 
     const requestedCwd = request.cwd
-      ? path.posix.normalize(path.posix.join(containerWorkspace, request.cwd))
+      ? resolvePosixPathWithin(containerWorkspace, request.cwd, "cwd must remain inside the uploaded workspace")
       : containerWorkspace;
-    if (!requestedCwd.startsWith(containerWorkspace)) {
-      throw new Error("cwd must remain inside the uploaded workspace");
-    }
 
     const startedAt = Date.now();
     const result = await this.runner.execInContainer(

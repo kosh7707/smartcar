@@ -40,4 +40,17 @@ describe("container executor", () => {
 
     await expect(executor.execute("projA", { workspaceId: ws.workspaceId, command: "ls", cwd: "../../.." })).rejects.toThrow("cwd must remain inside the uploaded workspace");
   });
+
+  it("rejects sibling-prefix cwd escapes", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "s8-exec-"));
+    dirs.push(dir);
+    const versions = new WorkspaceVersionStore(path.join(dir, "versions.json"));
+    const sources = new ProjectSourceStore(path.join(dir, "uploads"), versions);
+    const ws = sources.createWorkspace("projA", [{ relativePath: "src/main.c", buffer: Buffer.from("int main(){return 0;}") }]);
+    const runner = new FakeDockerRunner();
+    const manager = new ProjectContainerManager(new ProjectContainerStore(path.join(dir, "containers.json")), runner, "img", "/workspace");
+    const executor = new ContainerExecutor(manager, sources, runner, "/workspace");
+
+    await expect(executor.execute("projA", { workspaceId: ws.workspaceId, command: "ls", cwd: "../proja-ws-v1-evil" })).rejects.toThrow("cwd must remain inside the uploaded workspace");
+  });
 });

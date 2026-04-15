@@ -2,18 +2,18 @@ import type { EnsureProjectContainerResponse, ManagedContainerStatus, ProjectCon
 import type { DockerRunner, DockerContainerInspection } from "../runtime/docker-runner";
 import { ProjectContainerStore } from "./project-container-store";
 import logger from "../logger";
-import { assertProjectId } from "../utils/project-id";
+import { canonicalizeProjectId } from "../utils/project-id";
 
 export class ProjectContainerManager {
   constructor(private readonly store: ProjectContainerStore, private readonly runner: DockerRunner, private readonly defaultImage: string, private readonly workspaceDir: string) {}
 
   getContainerName(projectId: string): string {
-    assertProjectId(projectId);
+    projectId = canonicalizeProjectId(projectId);
     return `aegis-s8-project-${sanitize(projectId)}`;
   }
 
   async ensureContainer(projectId: string, imageOverride?: string): Promise<EnsureProjectContainerResponse> {
-    assertProjectId(projectId);
+    projectId = canonicalizeProjectId(projectId);
     const image = imageOverride ?? this.defaultImage;
     const containerName = this.getContainerName(projectId);
     const labels = { "aegis.managed": "true", "aegis.scope": "container-gateway", "aegis.projectId": projectId };
@@ -40,7 +40,7 @@ export class ProjectContainerManager {
   }
 
   async getContainerStatus(projectId: string): Promise<ProjectContainerRecord> {
-    assertProjectId(projectId);
+    projectId = canonicalizeProjectId(projectId);
     const name = this.getContainerName(projectId);
     const stored = this.store.find(projectId);
     const inspected = await this.runner.inspectContainer(name);
@@ -54,7 +54,7 @@ export class ProjectContainerManager {
   }
 
   async teardownProject(projectId: string): Promise<void> {
-    assertProjectId(projectId);
+    projectId = canonicalizeProjectId(projectId);
     const name = this.getContainerName(projectId);
     await this.runner.stopContainer(name);
     await this.runner.removeContainer(name);

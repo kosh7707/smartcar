@@ -3,3 +3,8 @@ export function assertProjectId(projectId: string): void {
     throw new Error("Invalid projectId");
   }
 }
+
+export function canonicalizeProjectId(projectId: string): string {
+  assertProjectId(projectId);
+  return projectId.toLowerCase();
+}
