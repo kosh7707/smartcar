@@ -34,7 +34,7 @@ export const TargetSelectDialog: React.FC<Props> = ({ open, targets, onConfirm, 
     <div className="confirm-overlay" onClick={onCancel}>
       <div className="card tsd" onClick={(e) => e.stopPropagation()}>
         <h3 className="confirm-dialog__title">분석 대상 선택</h3>
-        <p className="confirm-dialog__message">Quick/Deep 분석을 실행할 BuildTarget 하나를 선택하세요.</p>
+        <p className="confirm-dialog__message">빠른 분석 또는 정밀 분석을 실행할 빌드 타겟 하나를 선택하세요.</p>
 
         <div className="tsd__body">
           {targets.map((t) => {

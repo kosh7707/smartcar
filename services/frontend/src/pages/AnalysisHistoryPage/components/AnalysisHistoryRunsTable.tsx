@@ -43,6 +43,7 @@ export const AnalysisHistoryRunsTable: React.FC<AnalysisHistoryRunsTableProps> =
     return (
       <section className="history-panel history-panel--empty">
         <EmptyState
+          className="empty-state--workspace"
           title={EMPTY_TITLES[filter]}
           description="분석이 실행되면 이력, 심각도 분포, 소요 시간 정보를 이곳에서 확인할 수 있습니다."
         />
@@ -67,7 +68,7 @@ export const AnalysisHistoryRunsTable: React.FC<AnalysisHistoryRunsTableProps> =
               <th className="history-table__th">시각</th>
               <th className="history-table__th">모듈</th>
               <th className="history-table__th">상태</th>
-              <th className="history-table__th history-table__th--center">Finding 요약</th>
+              <th className="history-table__th history-table__th--center">탐지 요약</th>
               <th className="history-table__th">소요 시간</th>
               <th className="history-table__th history-table__th--action" />
             </tr>

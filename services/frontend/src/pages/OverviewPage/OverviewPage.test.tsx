@@ -180,9 +180,9 @@ describe("OverviewPage", () => {
     renderPage();
 
     expect(await screen.findByRole("heading", { name: "Payments Platform" })).toBeInTheDocument();
-    expect(screen.getByText("Security Posture")).toBeInTheDocument();
-    expect(screen.getByText("Recent Activity")).toBeInTheDocument();
-    expect(screen.getByText("Project Metadata")).toBeInTheDocument();
+    expect(screen.getByText("보안 현황")).toBeInTheDocument();
+    expect(screen.getByText("최근 활동")).toBeInTheDocument();
+    expect(screen.getByText("프로젝트 메타데이터")).toBeInTheDocument();
     expect(screen.getByText("Quality Gate")).toBeInTheDocument();
     expect(screen.getByText("승인 요청")).toBeInTheDocument();
     expect(screen.getByText("ARM SDK")).toBeInTheDocument();
@@ -191,7 +191,7 @@ describe("OverviewPage", () => {
     expect(screen.getByText("정적 분석이 완료되었습니다")).toBeInTheDocument();
     expect(screen.getByText("건 대기 중")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("Total Findings").closest("div") as HTMLElement);
+    fireEvent.click(screen.getByText("총 Finding").closest("div") as HTMLElement);
     expect(mockNavigate).toHaveBeenCalledWith("/projects/p-1/vulnerabilities");
 
     fireEvent.click(screen.getByText("main.c"));

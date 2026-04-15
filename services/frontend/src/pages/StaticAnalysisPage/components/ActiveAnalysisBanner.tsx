@@ -48,7 +48,7 @@ export const ActiveAnalysisBanner: React.FC<Props> = ({ progress, onView, onAbor
         </span>
         {(progress.buildTargetId || progress.executionId) && (
           <span className="active-analysis-banner__text">
-            {progress.buildTargetId ? `BuildTarget ${progress.buildTargetId}` : ""}
+            {progress.buildTargetId ? `빌드 타겟 ${progress.buildTargetId}` : ""}
             {progress.buildTargetId && progress.executionId ? " · " : ""}
             {progress.executionId ? `Execution ${progress.executionId}` : ""}
           </span>

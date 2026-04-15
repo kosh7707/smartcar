@@ -62,14 +62,14 @@ export const RunDetailView: React.FC<Props> = ({
   const duration = durationSec != null && durationSec > 0 ? `${durationSec}초` : "—";
 
   return (
-    <div className="page-enter">
+    <div className="page-enter run-detail">
       <BackButton onClick={onBack} label="대시보드로" />
-      <PageHeader title="Run 상세" />
+      <PageHeader title="실행 상세" subtitle="실행 상태, 게이트 판정, 파일별 탐지 항목을 한 흐름에서 검토합니다." />
 
       {/* Run metadata */}
-      <div className="stat-cards stagger">
+      <div className="stat-cards stagger run-detail__summary">
         <StatCard label="상태" value={run.status} />
-        <StatCard label="Finding" value={run.findingCount} accent />
+        <StatCard label="탐지 항목" value={run.findingCount} accent />
         <StatCard label="소요 시간" value={duration} />
       </div>
 
@@ -96,12 +96,12 @@ export const RunDetailView: React.FC<Props> = ({
 
       {/* Finding list by file */}
       {fileGroups.length === 0 ? (
-        <div className="card card--empty">
-          <p className="run-empty-text">Finding이 없습니다</p>
+        <div className="run-detail__empty card--empty">
+          <p className="run-empty-text">탐지 항목이 없습니다</p>
         </div>
       ) : (
         fileGroups.map((group) => (
-          <div key={group.fileName} className="file-group card">
+          <div key={group.fileName} className="file-group analysis-results__file-group">
             <div className="file-group__header">
               <FileCode size={16} className="file-group__icon" />
               <span className="file-group__name">{group.fileName}</span>

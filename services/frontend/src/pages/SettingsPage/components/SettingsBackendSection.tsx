@@ -30,7 +30,7 @@ export function SettingsBackendSection({
     <section className="gs-section gs-section--surface gs-bento__col-8">
       <div className="gs-section__header">
         <div className="gs-section__icon"><Server size={20} /></div>
-        <h3 className="gs-section__title">Backend Server</h3>
+        <h3 className="gs-section__title">백엔드 연결</h3>
       </div>
       <div className="gs-info-row gs-info-row--stacked">
         <span className="gs-info-label">API 서버 주소</span>

@@ -10,8 +10,8 @@ export function ReportModuleBreakdown({ moduleEntries }: { moduleEntries: Report
         <thead>
           <tr>
             <th>모듈</th>
-            <th>Finding</th>
-            <th>Gate 통과</th>
+            <th>탐지 항목</th>
+            <th>게이트 통과</th>
             <th>상태</th>
           </tr>
         </thead>
@@ -28,7 +28,7 @@ export function ReportModuleBreakdown({ moduleEntries }: { moduleEntries: Report
               </td>
               <td>
                 <span className="report-breakdown__status">
-                  {mod.runs.some((run) => run.gate?.status === "fail") ? "ISSUE" : "STABLE"}
+                  {mod.runs.some((run) => run.gate?.status === "fail") ? "주의 필요" : "안정"}
                 </span>
               </td>
             </tr>

@@ -51,7 +51,7 @@ export const OverallStatusTab: React.FC<Props> = ({
 
       {/* KPI Cards */}
       <div className="stat-cards stagger">
-        <StatCard label="총 Finding" value={totalFindings} accent />
+        <StatCard label="총 탐지 항목" value={totalFindings} accent />
         <StatCard
           label="미해결"
           value={unresolvedTotal}

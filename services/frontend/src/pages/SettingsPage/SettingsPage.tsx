@@ -24,11 +24,11 @@ export const SettingsPage: React.FC = () => {
   } = useSettingsPage();
 
   return (
-    <div className="page-enter">
+    <div className="page-enter settings-page">
       <PageHeader
         surface="plain"
-        title="System Settings"
-        subtitle="Global core configuration and environment parameters."
+        title="시스템 설정"
+        subtitle="전역 연결, 테마, 런타임 환경을 운영 기준으로 정리합니다."
         action={<SettingsHeaderActions saved={saved} urlDirty={urlDirty} onReset={handleReset} onSave={handleSave} />}
       />
 

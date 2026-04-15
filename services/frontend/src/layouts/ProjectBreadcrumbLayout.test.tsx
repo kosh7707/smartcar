@@ -16,7 +16,10 @@ function renderLayout(initialEntry: string) {
       <Routes>
         <Route path="/projects/:projectId" element={<ProjectBreadcrumbLayout />}>
           <Route path="overview" element={<div>overview child</div>} />
+          <Route path="files" element={<div>files child</div>} />
           <Route path="files/:fileId" element={<div>file child</div>} />
+          <Route path="quality-gate" element={<div>gate child</div>} />
+          <Route path="approvals" element={<div>approvals child</div>} />
         </Route>
       </Routes>
     </MemoryRouter>,
@@ -46,6 +49,27 @@ describe("ProjectBreadcrumbLayout", () => {
 
     expect(screen.getByText("파일 상세").closest(".breadcrumb-current")).toHaveAttribute("aria-current", "page");
     expect(screen.getByText("file child")).toBeInTheDocument();
+  });
+
+  it("keeps the file explorer label for the top-level files route", () => {
+    renderLayout("/projects/p-1/files");
+
+    expect(screen.getByText("파일 탐색기").closest(".breadcrumb-current")).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("files child")).toBeInTheDocument();
+  });
+
+  it("uses localized labels for quality gate and approvals routes", () => {
+    renderLayout("/projects/p-1/quality-gate");
+
+    expect(screen.getByText("품질 게이트").closest(".breadcrumb-current")).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("gate child")).toBeInTheDocument();
+  });
+
+  it("uses the localized approvals label", () => {
+    renderLayout("/projects/p-1/approvals");
+
+    expect(screen.getByText("승인 큐").closest(".breadcrumb-current")).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("approvals child")).toBeInTheDocument();
   });
 
   it("renders a not-found title when the project context is missing", () => {

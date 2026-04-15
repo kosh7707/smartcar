@@ -1,7 +1,7 @@
 import React from "react";
 import type { Adapter, DynamicTestResult } from "@aegis/shared";
-import { AlertTriangle, FlaskConical, Plus, Trash2 } from "lucide-react";
-import { ConfirmDialog, ConnectionStatusBanner, EmptyState, ListItem, PageHeader, Spinner } from "../../../shared/ui";
+import { AlertTriangle, CheckCircle2, FlaskConical, Plus, Trash2 } from "lucide-react";
+import { ConfirmDialog, ConnectionStatusBanner, ListItem, PageHeader, Spinner } from "../../../shared/ui";
 import { formatDateTime } from "../../../utils/format";
 import { STRATEGY_LABELS, TEST_TYPE_ICON } from "../dynamicTestPresentation";
 
@@ -62,10 +62,20 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
         <Spinner label="이력 로딩 중..." />
       </div>
     ) : history.length === 0 ? (
-      <EmptyState
-        title="아직 테스트 이력이 없습니다"
-        description="ECU에 퍼징/침투 테스트를 실행하고 취약점을 탐지합니다"
-        action={
+      <section className="dtest-history-empty">
+        <div className="dtest-history-empty__copy">
+          <p className="dtest-history-empty__eyebrow">Testing workspace</p>
+          <h2 className="dtest-history-empty__title">아직 테스트 이력이 없습니다</h2>
+          <p className="dtest-history-empty__description">
+            퍼징·침투 테스트를 시작하면 대상 ECU, 전략, 결과 이력이 같은 작업면 안에서 이어지도록 정리됩니다.
+          </p>
+        </div>
+        <div className="dtest-history-empty__readiness">
+          <span><CheckCircle2 size={14} /> 어댑터 연결</span>
+          <span><CheckCircle2 size={14} /> 전략 선택</span>
+          <span><CheckCircle2 size={14} /> 결과 검토</span>
+        </div>
+        <div className="dtest-history-empty__actions">
           <button className="btn" onClick={() => {
             if (!hasConnected) { setAdapterWarning(true); return; }
             setAdapterWarning(false);
@@ -73,8 +83,8 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
           }}>
             첫 세션 시작
           </button>
-        }
-      />
+        </div>
+      </section>
     ) : (
       <div className="card">
         {history.map((result) => (

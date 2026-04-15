@@ -71,14 +71,14 @@ describe("QualityGatePage", () => {
 
     renderPage();
 
-    expect(screen.getByText("Quality Gate 로딩 중...")).toBeInTheDocument();
+    expect(screen.getByText("품질 게이트 로딩 중...")).toBeInTheDocument();
   });
 
   it("renders gate results", async () => {
     renderPage();
-    expect(await screen.findByRole("heading", { name: "Quality Gate" })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText("통과")).toBeInTheDocument());
-    expect(screen.getByText("실패")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "품질 게이트" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText("통과").length).toBeGreaterThanOrEqual(1));
+    expect(screen.getAllByText("실패").length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders rule details", async () => {
@@ -89,8 +89,8 @@ describe("QualityGatePage", () => {
 
   it("shows finding count for rules with linked findings", async () => {
     renderPage();
-    await waitFor(() => expect(screen.getByText("Finding 2건")).toBeInTheDocument());
-    expect(screen.getByText("Finding 1건")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("탐지 항목 2건")).toBeInTheDocument());
+    expect(screen.getByText("탐지 항목 1건")).toBeInTheDocument();
   });
 
   it("shows override button on failed gate", async () => {
@@ -129,7 +129,7 @@ describe("QualityGatePage", () => {
   it("shows empty state when no gates", async () => {
     mockFetchGates.mockResolvedValue([]);
     renderPage();
-    await waitFor(() => expect(screen.getByText("아직 Quality Gate 결과가 없습니다")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("아직 품질 게이트 결과가 없습니다")).toBeInTheDocument());
   });
 
   it("shows the empty state and does not fetch when no project id is present", async () => {
@@ -141,7 +141,7 @@ describe("QualityGatePage", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText("아직 Quality Gate 결과가 없습니다")).toBeInTheDocument();
+    expect(await screen.findByText("아직 품질 게이트 결과가 없습니다")).toBeInTheDocument();
     expect(mockFetchGates).not.toHaveBeenCalled();
   });
 
@@ -149,6 +149,6 @@ describe("QualityGatePage", () => {
     mockFetchGates.mockRejectedValue(new Error("load failed"));
     renderPage();
 
-    expect(await screen.findByText("아직 Quality Gate 결과가 없습니다")).toBeInTheDocument();
+    expect(await screen.findByText("아직 품질 게이트 결과가 없습니다")).toBeInTheDocument();
   });
 });

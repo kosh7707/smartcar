@@ -30,7 +30,7 @@ export function useQualityGatePage(projectId: string | undefined, toast: ToastAp
       setGates(data.sort(sortGatesByEvaluatedAt));
     } catch (error) {
       logError("Load quality gates", error);
-      toast.error("Quality Gate 결과를 불러올 수 없습니다.");
+      toast.error("품질 게이트 결과를 불러올 수 없습니다.");
       setGates([]);
     } finally {
       setLoading(false);
@@ -53,7 +53,7 @@ export function useQualityGatePage(projectId: string | undefined, toast: ToastAp
 
     try {
       await overrideGate(overrideTarget, overrideReason.trim());
-      toast.success("Quality Gate 오버라이드 완료");
+      toast.success("품질 게이트 오버라이드 완료");
       resetOverrideDraft();
       await loadGates();
     } catch (error) {

@@ -40,7 +40,7 @@ export const VulnerabilitiesPage: React.FC = () => {
   if (state.loading) {
     return (
       <div className="page-enter centered-loader">
-        <Spinner size={36} label="Finding 로딩 중..." />
+        <Spinner size={36} label="탐지 항목 로딩 중..." />
       </div>
     );
   }
@@ -93,10 +93,11 @@ export const VulnerabilitiesPage: React.FC = () => {
 
       {state.groupBy !== "none" && state.groups.length > 0 ? null : state.filtered.length === 0 ? (
         <EmptyState
+          className="empty-state--workspace"
           title={
             activeSeverity === "all"
-              ? "조건에 맞는 Finding이 없습니다"
-              : `${activeSeverity.toUpperCase()} 수준의 Finding이 없습니다`
+              ? "조건에 맞는 탐지 항목이 없습니다"
+              : `${activeSeverity === "critical" ? "치명" : activeSeverity === "high" ? "높음" : activeSeverity === "medium" ? "보통" : activeSeverity === "low" ? "낮음" : "정보"} 수준의 탐지 항목이 없습니다`
           }
         />
       ) : (

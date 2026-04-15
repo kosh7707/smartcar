@@ -49,7 +49,7 @@ export function QualityGateCard({
       {gate.override && (
         <div className="gate-card__override">
           <span>오버라이드: {gate.override.reason}</span>
-          <span className="gate-card__override-by">by {gate.override.overriddenBy}</span>
+          <span className="gate-card__override-by">승인자 {gate.override.overriddenBy}</span>
         </div>
       )}
 

@@ -6,9 +6,10 @@ interface Props {
   description?: string;
   action?: React.ReactNode;
   compact?: boolean;
+  className?: string;
 }
 
-export const EmptyState: React.FC<Props> = ({ title, description, action, compact }) => {
+export const EmptyState: React.FC<Props> = ({ title, description, action, compact, className }) => {
   if (compact) {
     return (
       <div className="empty-state--compact">
@@ -18,7 +19,7 @@ export const EmptyState: React.FC<Props> = ({ title, description, action, compac
   }
 
   return (
-    <div className="empty-state card">
+    <div className={`empty-state card${className ? ` ${className}` : ""}`}>
       <div className="empty-state__surface">
         <div className="empty-state__copy">
           <h2 className="empty-state__title">{title}</h2>

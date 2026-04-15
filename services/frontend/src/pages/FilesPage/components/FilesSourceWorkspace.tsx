@@ -65,7 +65,7 @@ export const FilesSourceWorkspace: React.FC<FilesSourceWorkspaceProps> = ({
     data-testid="files-source-workspace"
     style={{ ["--files-tree-panel-width" as string]: `${treePanelWidth}px` } as React.CSSProperties}
   >
-    <div className="card source-tree__tree-panel">
+    <div className="source-tree__tree-panel">
       <div className="source-tree__tree-header">
         <div className="source-tree__search-area">
           <Search size={14} className="source-tree__search-icon" />
@@ -137,11 +137,14 @@ export const FilesSourceWorkspace: React.FC<FilesSourceWorkspaceProps> = ({
       }}
     />
 
-    <div className="card source-tree__preview-panel">
+    <div className="source-tree__preview-panel">
       {!selectedPath ? (
         <div className="source-tree__preview-empty">
           <FileText size={32} />
-          <span>파일을 선택하면 내용을 미리 볼 수 있습니다</span>
+          <div className="source-tree__preview-empty-copy">
+            <strong>파일을 선택하면 내용을 미리 볼 수 있습니다</strong>
+          <span>좌측 트리에서 소스를 선택하면 코드 미리보기와 연결된 탐지 항목이 함께 표시됩니다.</span>
+          </div>
         </div>
       ) : previewLoading ? (
         <div className="source-tree__preview-loading">
@@ -174,7 +177,7 @@ export const FilesSourceWorkspace: React.FC<FilesSourceWorkspaceProps> = ({
           {selectedFileFindings.length > 0 && (
             <div className="source-tree__file-findings">
               <div className="source-tree__file-findings-title">
-                Finding ({selectedFileFindings.length})
+                탐지 항목 ({selectedFileFindings.length})
               </div>
               {selectedFileFindings.map((finding) => {
                 const { line } = parseLocation(finding.location);

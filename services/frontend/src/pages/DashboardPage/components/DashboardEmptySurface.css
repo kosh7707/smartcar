@@ -1,6 +1,6 @@
 .dashboard-empty-surface {
   border: 1px solid var(--cds-border-subtle);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 244, 244, 0.58));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 244, 244, 0.72));
 }
 
 .dashboard-empty-surface--panel {

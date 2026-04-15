@@ -57,14 +57,14 @@ describe("Navbar", () => {
     mockMarkAllRead.mockResolvedValue(undefined);
   });
 
-  it("keeps the global dashboard route label as Dashboard", () => {
+  it("keeps the global dashboard route label as 대시보드", () => {
     render(
       <MemoryRouter initialEntries={["/dashboard"]}>
         <Navbar />
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/dashboard");
+    expect(screen.getByRole("link", { name: "대시보드" })).toHaveAttribute("href", "/dashboard");
   });
 
   it("shows unread badge and exposes notification dropdown actions", async () => {
@@ -76,7 +76,7 @@ describe("Navbar", () => {
 
     expect(screen.getByText("1")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /notifications/i }));
+    fireEvent.click(screen.getByRole("button", { name: /알림/i }));
 
     expect(screen.getByText("SDK 등록 완료")).toBeInTheDocument();
     expect(screen.getByText("ARM SDK 사용 가능")).toBeInTheDocument();

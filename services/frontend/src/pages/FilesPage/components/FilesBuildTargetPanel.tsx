@@ -13,10 +13,10 @@ export function FilesBuildTargetPanel({
   if (targets.length === 0) return null;
 
   return (
-    <div className="card fpage-build-target-card">
-      <div className="card-title flex-center flex-gap-2">
+    <div className="fpage-build-target-card">
+      <div className="fpage-build-target-card__title flex-center flex-gap-2">
         <HardDrive size={16} />
-        BuildTarget ({targets.length}개)
+        빌드 타겟 현황 ({targets.length}개)
       </div>
       <div className="fpage-build-target-list">
         {targets.map((target) => (

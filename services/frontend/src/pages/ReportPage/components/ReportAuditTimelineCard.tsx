@@ -6,7 +6,7 @@ import { formatDateTime } from "../../../utils/format";
 export function ReportAuditTimelineCard({ auditTrail }: { auditTrail: ProjectReport["auditTrail"] }) {
   return (
     <div className="card report-audit-card">
-      <span className="report-audit-card__title">Audit Trail</span>
+      <span className="report-audit-card__title">감사 추적</span>
       <div className="report-audit-timeline">
         {auditTrail.length === 0 ? (
           <p className="report-audit-card__empty">감사 이력 없음</p>

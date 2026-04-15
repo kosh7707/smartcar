@@ -104,13 +104,13 @@ describe("AnalysisHistoryPage", () => {
     renderPage();
 
     await waitFor(() => expect(mockFetchProjectRuns).toHaveBeenCalledWith("p-1"));
-    expect(await screen.findByRole("heading", { name: "Analysis History" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "분석 이력" })).toBeInTheDocument();
     expect(screen.getByText("2회 분석 실행됨")).toBeInTheDocument();
     const toolbar = screen.getByRole("region", { name: "분석 이력 필터와 요약" });
     expect(within(toolbar).getByText("전체 실행")).toBeInTheDocument();
     expect(within(toolbar).getByText("완료")).toBeInTheDocument();
     expect(within(toolbar).getByText("실패")).toBeInTheDocument();
-    expect(document.title).toBe("AEGIS — Analysis History");
+    expect(document.title).toBe("AEGIS — 분석 이력");
 
     const rows = screen.getAllByRole("row");
     expect(rows).toHaveLength(3);

@@ -300,6 +300,7 @@
 .report-breakdown {
   margin-bottom: var(--cds-spacing-06);
   overflow-x: auto;
+  border-top: 2px solid color-mix(in srgb, var(--cds-interactive) 14%, var(--cds-border-subtle));
 }
 
 .report-breakdown-table {

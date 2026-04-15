@@ -46,10 +46,10 @@ export const ReportFiltersPanel: React.FC<ReportFiltersPanelProps> = ({
           onChange={(e) => setPendingFilters({ ...pendingFilters, severity: e.target.value || undefined })}
         >
           <option value="">전체</option>
-          <option value="critical">Critical</option>
-          <option value="high">High</option>
-          <option value="medium">Medium</option>
-          <option value="low">Low</option>
+          <option value="critical">치명</option>
+          <option value="high">높음</option>
+          <option value="medium">보통</option>
+          <option value="low">낮음</option>
         </select>
       </div>
       <div className="report-filters__field">

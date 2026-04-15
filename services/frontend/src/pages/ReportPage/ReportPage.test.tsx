@@ -190,9 +190,9 @@ describe("ReportPage", () => {
     renderPage();
 
     await waitFor(() => expect(mockFetchProjectReport).toHaveBeenCalledWith("project-1", {}));
-    expect(await screen.findByText("Executive Summary")).toBeInTheDocument();
+    expect(await screen.findByText("요약")).toBeInTheDocument();
     expect(screen.getByText(/Critical auth bypass/i)).toBeInTheDocument();
-    expect(document.title).toBe("AEGIS — Report");
+    expect(document.title).toBe("AEGIS — 보고서");
 
     fireEvent.click(screen.getByRole("button", { name: /필터/i }));
     const startDateInput = document.querySelector('input[type="date"]') as HTMLInputElement | null;
@@ -223,13 +223,13 @@ describe("ReportPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "다시 시도" }));
 
     await waitFor(() => expect(mockFetchProjectReport).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText("Executive Summary")).toBeInTheDocument();
+    expect(await screen.findByText("요약")).toBeInTheDocument();
   });
 
   it("opens and closes the custom report modal", async () => {
     renderPage();
 
-    await screen.findByText("Executive Summary");
+    await screen.findByText("요약");
     fireEvent.click(screen.getByRole("button", { name: /커스텀 보고서/i }));
 
     expect(await screen.findByTestId("custom-report-modal")).toBeInTheDocument();

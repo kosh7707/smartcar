@@ -3,7 +3,7 @@
 > IBM Carbon semantic token architecture + NVIDIA visual restraint.
 > Canonical source of truth for all AEGIS frontend styling.
 > Token values live in `src/styles/tokens.css` — this document defines rules, roles, and patterns.
-> Last updated: 2026-04-09
+> Last updated: 2026-04-15
 
 ---
 
@@ -16,14 +16,15 @@
 The design is defined by:
 - **IBM Carbon structure** — semantic token architecture (`--cds-*`), 8px grid, productive density
 - **NVIDIA restraint** — accent as signal not surface, 2px radius, sharp geometry
-- **Dark-mode-first** — the primary operating mode is `[data-theme="dark"]` (Carbon Gray 100 theme)
+- **Light-mode operational baseline + dark shell anchor** — the main canvas stays light and readable, while the navbar/sidebar act as a darker trust anchor
 - **Productive density** — information-rich layouts with minimal wasted space, optimized for 1440p+ displays
 
 ### AEGIS Identity Markers (must preserve)
 1. **Severity color hierarchy** — Critical → High → Medium → Low with escalating visual urgency
-2. **Dark-mode-first** — command center / operations console aesthetic
+2. **Dark project rail + branded navbar** — the shell must establish AEGIS as a named security console before content loads
 3. **Monospace for technical data** — CVE IDs, file paths, hashes, run numbers, versions → IBM Plex Mono
 4. **Productive density** — Carbon productive spacing, no decorative panels without analytical purpose
+5. **Operational empty states** — empty surfaces must explain readiness, next action, and workspace purpose; never ship a giant blank neutral panel
 
 ---
 
@@ -296,11 +297,14 @@ All buttons: `border-radius: var(--cds-radius)` (2px). Hover/active variants: `-
 - Background: `--cds-layer-raised`
 
 ### Empty State
-- Centered layout within content area
-- Muted icon or illustration (48-64px)
-- Primary text: `--cds-text-primary`, 16px
+- Default to a **workspace-status** surface, not a placeholder card
+- Left-aligned copy by default; centered only for narrow auth/onboarding moments
+- Include three things whenever possible: current readiness, next action, and why the area is currently empty
+- Keep width constrained (`~56-60rem`) so empty states do not become washed-out white slabs
+- Muted icon or minimal readiness chips are preferred over decorative illustrations
+- Primary text: `--cds-text-primary`, 16px+
 - Secondary text: `--cds-text-secondary`, 14px
-- CTA button: Primary or Ghost style
+- CTA button: Primary or Secondary, never orphaned without context
 
 ### Code Viewer
 - Background: `--cds-code-bg`
@@ -346,15 +350,15 @@ Navbar and sidebar shell components are layout-owned and live under `src/layouts
 |------|--------|---------|---------|
 | Project | Yes | Yes (project nav) | Overview, Files, Vulnerabilities, etc. |
 | Global | Yes | No | Projects List, Global Settings |
-| Auth | No | No | Login, Signup (centered card, max 420px) |
+| Auth | No | No | Login, Signup (split hero + auth panel) |
 
 ### Sidebar Navigation Order (canonical, from Sidebar.tsx)
 1. Overview
 2. Files
 3. Vulnerabilities
 4. Static Analysis
-5. ~~Dynamic Analysis~~ (comingSoon)
-6. ~~Dynamic Test~~ (comingSoon)
+5. Dynamic Analysis
+6. Dynamic Test
 7. Quality Gate
 8. Approvals
 9. Analysis History
@@ -362,7 +366,14 @@ Navbar and sidebar shell components are layout-owned and live under `src/layouts
 --- (divider) ---
 11. Settings
 
-Items 5-6 are filtered in rendering when `comingSoon: true`.
+Sidebar labels should be localized and consistent across shell + breadcrumb (`품질 게이트`, `승인 큐`, `분석 이력`, `파일 탐색기`).
+
+### Shell rules
+- Navbar must expose a readable **AEGIS** brand block, not icon-only branding
+- Project sidebar must remain visually darker than the main canvas in every theme
+- Main content surfaces should use restrained layer separation (`background → section surface → inset panel`) instead of many independent cards
+- Dense workspaces (Files / Vulnerabilities / Static Analysis / Report) should feel like one coherent operational surface, not a grid of unrelated admin boxes
+- The top navigation label should reflect the current IA (`대시보드`) and avoid English drift unless the domain term is intentionally fixed
 
 ### Grid System
 - Base unit: 8px (`--cds-spacing-03`)
@@ -488,8 +499,8 @@ When using AI design tools (Stitch, etc.) to generate AEGIS-consistent screens, 
 ### Must-Include Elements by Page Type
 
 **Project pages** (sidebar + navbar):
-- Navbar: "AEGIS" logo left, search center, notification bell (badge) + "Kosh" / "Admin" right
-- Sidebar: project name with green dot, canonical nav order (Section 5), sub-projects section, "Back to Projects" link
+- Navbar: readable "AEGIS" brand block left, concise product subtitle, settings/theme/notifications/avatar on the right
+- Sidebar: dark project rail with canonical nav order (Section 5) and current project context
 - Footer: standard footer contract (Section 7)
 
 **Global pages** (navbar, no project sidebar):
@@ -498,7 +509,7 @@ When using AI design tools (Stitch, etc.) to generate AEGIS-consistent screens, 
 - Footer: standard
 
 **Auth pages** (no navbar, no sidebar):
-- Centered card (max 420px), AEGIS logo + subtitle
+- Split hero + auth panel layout, with strong AEGIS identity on the hero side
 - Footer: standard
 
 ### Canonical Project Data

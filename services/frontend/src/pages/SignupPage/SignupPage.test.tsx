@@ -34,14 +34,14 @@ describe("SignupPage", () => {
 
     expect(screen.getByRole("heading", { name: "AEGIS" })).toBeInTheDocument();
     expect(screen.getByText("새 계정을 준비하고 분석 워크스페이스로 바로 이동합니다.")).toBeInTheDocument();
-    expect(screen.getByText("필수 계정 정보를 먼저 입력합니다.")).toBeInTheDocument();
+    expect(screen.getByText("현재 데모 워크스페이스에 사용할 작업자 정보를 입력합니다.")).toBeInTheDocument();
     expect(container.querySelector(".page-header--plain")).not.toBeNull();
     expect(container.querySelector(".page-header__eyebrow")).toBeNull();
     expect(document.title).toBe("AEGIS — Sign Up");
 
     fireEvent.change(screen.getByLabelText("사용자 이름"), { target: { value: "user@example.com" } });
     fireEvent.change(screen.getByLabelText("비밀번호"), { target: { value: "secret" } });
-    fireEvent.click(screen.getByRole("button", { name: "계정 만들기" }));
+    fireEvent.click(screen.getByRole("button", { name: "프로필 준비" }));
 
     await waitFor(() => expect(mockLogin).toHaveBeenCalledWith("user@example.com", "secret"));
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard"));
@@ -58,7 +58,7 @@ describe("SignupPage", () => {
 
     fireEvent.change(screen.getByLabelText("사용자 이름"), { target: { value: "user@example.com" } });
     fireEvent.change(screen.getByLabelText("비밀번호"), { target: { value: "secret" } });
-    fireEvent.click(screen.getByRole("button", { name: "계정 만들기" }));
+    fireEvent.click(screen.getByRole("button", { name: "프로필 준비" }));
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard"));
   });
@@ -70,7 +70,7 @@ describe("SignupPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("button", { name: "계정 만들기" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "프로필 준비" })).toBeDisabled();
   });
 
   it("shows the submitting label while signup is in flight", async () => {
@@ -87,9 +87,9 @@ describe("SignupPage", () => {
 
     fireEvent.change(screen.getByLabelText("사용자 이름"), { target: { value: "user@example.com" } });
     fireEvent.change(screen.getByLabelText("비밀번호"), { target: { value: "secret" } });
-    fireEvent.click(screen.getByRole("button", { name: "계정 만들기" }));
+    fireEvent.click(screen.getByRole("button", { name: "프로필 준비" }));
 
-    expect(await screen.findByRole("button", { name: "처리 중..." })).toBeDisabled();
+    expect(await screen.findByRole("button", { name: "준비 중..." })).toBeDisabled();
 
     resolveLogin?.();
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard"));

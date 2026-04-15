@@ -32,7 +32,7 @@ describe("SettingsPage", () => {
   it("saves a changed backend URL", () => {
     const { container } = render(<SettingsPage />);
 
-    expect(screen.getByRole("heading", { name: "System Settings" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "시스템 설정" })).toBeInTheDocument();
     expect(container.querySelector(".page-header--plain")).not.toBeNull();
     expect(document.title).toBe("AEGIS — Settings");
 

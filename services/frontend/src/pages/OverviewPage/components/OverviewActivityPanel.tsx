@@ -10,7 +10,7 @@ interface OverviewActivityPanelProps {
 
 export const OverviewActivityPanel: React.FC<OverviewActivityPanelProps> = ({ activities }) => (
   <div>
-    <OverviewSectionHeader title="Recent Activity" />
+    <OverviewSectionHeader title="최근 활동" />
     <div className="overview-activity-list">
       {activities.length === 0 ? (
         <div className="overview-activity-list__empty">

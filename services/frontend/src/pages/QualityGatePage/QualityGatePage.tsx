@@ -25,18 +25,18 @@ export const QualityGatePage: React.FC = () => {
   } = useQualityGatePage(projectId, toast);
 
   useEffect(() => {
-    document.title = "AEGIS — Quality Gate";
+    document.title = "AEGIS — 품질 게이트";
   }, []);
 
   if (loading) {
-    return <div className="page-enter centered-loader"><Spinner size={36} label="Quality Gate 로딩 중..." /></div>;
+    return <div className="page-enter centered-loader"><Spinner size={36} label="품질 게이트 로딩 중..." /></div>;
   }
 
   return (
     <div className="page-enter">
       <PageHeader
         surface="plain"
-        title="Quality Gate"
+        title="품질 게이트"
         subtitle={latestGate ? "최근 평가 결과와 규칙 상태를 검토합니다." : "분석 결과가 준비되면 게이트가 자동으로 평가됩니다."}
       />
 
@@ -44,8 +44,9 @@ export const QualityGatePage: React.FC = () => {
 
       {gates.length === 0 ? (
         <EmptyState
-          title="아직 Quality Gate 결과가 없습니다"
-          description="분석을 실행하면 자동으로 Quality Gate가 평가됩니다."
+          className="empty-state--workspace"
+          title="아직 품질 게이트 결과가 없습니다"
+          description="정적 분석이 완료되면 실패 규칙, 경고 항목, 승인 필요 조건이 이 작업면에 운영 순서대로 정리됩니다."
         />
       ) : (
         <div className="gate-content-grid">

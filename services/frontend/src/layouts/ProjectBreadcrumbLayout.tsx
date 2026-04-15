@@ -13,8 +13,8 @@ const pageNames: Record<string, string> = {
   "analysis-history": "분석 이력",
   report: "보고서",
   settings: "프로젝트 설정",
-  "quality-gate": "Quality Gate",
-  approvals: "Approval Queue",
+  "quality-gate": "품질 게이트",
+  approvals: "승인 큐",
   "dynamic-analysis": "동적 분석",
   "dynamic-test": "동적 테스트",
 };
@@ -27,9 +27,9 @@ export const ProjectBreadcrumbLayout: React.FC = () => {
 
   // /projects/:id/files/:fileId → "파일 상세"
   const pathSegments = location.pathname.split("/").filter(Boolean);
-  const isFilePage = pathSegments.includes("files");
+  const isFileDetailPage = pathSegments[pathSegments.length - 2] === "files";
   const currentPage = pathSegments[pathSegments.length - 1] ?? "";
-  const pageName = isFilePage ? "파일 상세" : (pageNames[currentPage] ?? currentPage);
+  const pageName = isFileDetailPage ? "파일 상세" : (pageNames[currentPage] ?? currentPage);
 
   if (!project) {
     return (

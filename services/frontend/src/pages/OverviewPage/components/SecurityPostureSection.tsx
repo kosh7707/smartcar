@@ -16,10 +16,10 @@ export const SecurityPostureSection: React.FC<SecurityPostureSectionProps> = ({
   onOpenSeverity,
 }) => (
   <div className="overview-block">
-    <OverviewSectionHeader title="Security Posture" />
+    <OverviewSectionHeader title="보안 현황" />
     <div className="overview-posture-grid">
       <div className="overview-stat-card overview-stat-card--total" onClick={onOpenAllFindings}>
-        <span className="overview-stat-card__label">Total Findings</span>
+        <span className="overview-stat-card__label">총 Finding</span>
         <span className="overview-stat-card__value">{totalFindings}</span>
       </div>
       <div

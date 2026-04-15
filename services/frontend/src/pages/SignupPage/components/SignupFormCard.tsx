@@ -23,11 +23,11 @@ export function SignupFormCard({
     <div className="signup-card">
       <PageHeader
         surface="plain"
-        title="AEGIS"
-        subtitle="새 계정을 준비하고 분석 워크스페이스로 바로 이동합니다."
+        title="프로필 준비"
+        subtitle="워크스페이스에 표시할 작업자 정보를 먼저 정리합니다."
       />
 
-      <p className="signup-form-heading">필수 계정 정보를 먼저 입력합니다.</p>
+      <p className="signup-form-heading">현재 데모 워크스페이스에 사용할 작업자 정보를 입력합니다.</p>
 
       <form className="signup-form" onSubmit={onSubmit}>
         <div className="signup-field">
@@ -78,15 +78,15 @@ export function SignupFormCard({
           className="signup-submit"
           disabled={submitting || !username || !password}
         >
-          {submitting ? "처리 중..." : "계정 만들기"}
+          {submitting ? "준비 중..." : "프로필 준비"}
         </button>
       </form>
 
       <div className="signup-divider" />
 
       <p className="signup-card__footer">
-        이미 계정이 있으신가요?{" "}
-        <Link to="/login" className="signup-card__link">로그인</Link>
+        이미 입력을 마쳤나요?{" "}
+        <Link to="/login" className="signup-card__link">워크스페이스 열기</Link>
       </p>
     </div>
   );

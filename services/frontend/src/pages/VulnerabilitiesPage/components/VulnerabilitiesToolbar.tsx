@@ -79,7 +79,7 @@ export const VulnerabilitiesToolbar: React.FC<VulnerabilitiesToolbarProps> = ({
           className={`vuln-filter-tab vuln-filter-tab--${severity}${activeSeverity === severity ? " vuln-filter-tab--active" : ""}`}
           onClick={() => setFilter(severity)}
         >
-          {severity.charAt(0).toUpperCase() + severity.slice(1)}
+          {severity === "critical" ? "치명" : severity === "high" ? "높음" : severity === "medium" ? "보통" : severity === "low" ? "낮음" : "정보"}
           <span className="vuln-filter-count">{counts[severity as keyof typeof counts]}</span>
         </button>
       ))}
@@ -185,8 +185,8 @@ export const VulnerabilitiesToolbar: React.FC<VulnerabilitiesToolbarProps> = ({
         </div>
         <div className="vuln-shortcut-list">
           <span><kbd>j</kbd>/<kbd>k</kbd> 다음/이전</span>
-          <span><kbd>o</kbd>/<kbd>Enter</kbd> 상세 열기</span>
-          <span><kbd>Esc</kbd> 선택 해제</span>
+          <span><kbd>o</kbd>/<kbd>엔터</kbd> 상세 열기</span>
+          <span><kbd>Esc</kbd> 선택 초기화</span>
           <span><kbd>?</kbd> 도움말 토글</span>
         </div>
       </div>

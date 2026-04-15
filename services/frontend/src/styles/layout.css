@@ -37,7 +37,7 @@
   flex: 1;
   padding: var(--cds-spacing-07) var(--cds-spacing-08);
   overflow-y: auto;
-  background: var(--cds-background);
+  background: linear-gradient(180deg, #f4f6fa 0%, var(--cds-background) 14rem);
   max-width: 1280px;
   margin: 0 auto;
   width: 100%;
@@ -55,7 +55,7 @@
 .layout-dashboard__content {
   flex: 1;
   overflow-y: auto;
-  background: var(--cds-background);
+  background: linear-gradient(180deg, #f4f6fa 0%, var(--cds-background) 12rem);
 }
 
 /* ── Project Layout (all /projects/:id/* routes) ── */
@@ -79,11 +79,11 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--cds-background);
+  background: linear-gradient(180deg, #f4f6fa 0%, var(--cds-background) 12rem);
 }
 
 .layout-project__main {
   flex: 1;
-  padding: var(--cds-spacing-06);
+  padding: var(--cds-spacing-07);
   overflow-y: auto;
 }

@@ -24,7 +24,7 @@ export const FilesPageHeader: React.FC<FilesPageHeaderProps> = ({
 }) => (
   <PageHeader
     surface="plain"
-    title="Files"
+    title="파일 탐색기"
     subtitle={`${fileCount}개 파일 · ${formatFileSize(totalSize)}`}
     action={(
       <div className="fpage-header-actions">
@@ -34,7 +34,7 @@ export const FilesPageHeader: React.FC<FilesPageHeaderProps> = ({
             onClick={onOpenCreateTarget}
           >
             <Plus size={14} />
-            BuildTarget 생성
+            빌드 타겟 생성
           </button>
         )}
         <button

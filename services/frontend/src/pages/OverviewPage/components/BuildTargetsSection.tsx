@@ -13,7 +13,7 @@ export const BuildTargetsSection: React.FC<BuildTargetsSectionProps> = ({ target
 
   return (
     <div className="overview-block">
-      <OverviewSectionHeader title="Build Targets" />
+      <OverviewSectionHeader title="빌드 타겟" />
       <div className="overview-targets-grid">
         {targets.map((target) => (
           <div key={target.id} className="overview-target-card" onClick={onOpenFiles}>

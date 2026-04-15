@@ -58,7 +58,7 @@ export const ApprovalsPage: React.FC = () => {
     <div className="page-enter approvals-page">
       <PageHeader
         surface="plain"
-        title="Approvals"
+        title="승인 큐"
         subtitle={pendingCount > 0 ? `${pendingCount}건의 승인 요청이 대기 중입니다` : "현재 승인 상태를 검토합니다."}
       />
 

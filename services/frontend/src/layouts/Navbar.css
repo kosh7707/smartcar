@@ -1,8 +1,8 @@
 /* ── Navbar — calmer shell chrome ── */
 
 .navbar {
-  height: 52px;
-  min-height: 52px;
+  height: 60px;
+  min-height: 60px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -18,18 +18,18 @@
 .navbar-left {
   display: flex;
   align-items: center;
-  gap: var(--cds-spacing-03);
+  gap: var(--cds-spacing-04);
 }
 
 .navbar-brand {
   display: flex;
   align-items: center;
+  gap: 10px;
   text-decoration: none;
   color: var(--cds-text-primary);
-  width: 28px;
-  height: 28px;
-  justify-content: center;
-  border-radius: 6px;
+  min-height: 38px;
+  padding: 0 10px 0 8px;
+  border-radius: 10px;
   transition: background var(--cds-transition-fast), color var(--cds-transition-fast);
 }
 
@@ -41,14 +41,40 @@
   color: var(--cds-text-primary);
   display: flex;
   align-items: center;
+  width: 26px;
+  height: 26px;
+  justify-content: center;
+}
+
+.navbar-brand__copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.navbar-brand__title {
+  color: var(--cds-text-primary);
+  font-size: var(--cds-type-md);
+  font-weight: var(--cds-weight-semibold);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.navbar-brand__subtitle {
+  margin-top: 2px;
+  color: var(--cds-text-placeholder);
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .navbar-navlink {
   display: inline-flex;
   align-items: center;
-  min-height: 30px;
-  padding: 0 10px;
-  border-radius: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
   text-decoration: none;
   color: var(--cds-text-secondary);
   font-size: var(--cds-type-md);
@@ -372,12 +398,12 @@
 }
 
 .navbar-actions__avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--cds-interactive);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--cds-radius-circle);
+  background: linear-gradient(135deg, var(--cds-interactive), color-mix(in srgb, var(--cds-interactive) 72%, #8ab4ff));
   color: var(--cds-text-inverse);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: var(--cds-type-sm);
@@ -388,4 +414,19 @@
 
 .navbar-actions__avatar:hover {
   opacity: 0.85;
+}
+
+@media (max-width: 720px) {
+  .navbar {
+    padding: 0 var(--cds-spacing-04);
+  }
+
+  .navbar-brand__subtitle,
+  .navbar-actions__link span {
+    display: none;
+  }
+
+  .navbar-brand {
+    padding-right: 8px;
+  }
 }

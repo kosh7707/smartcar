@@ -39,7 +39,7 @@ export const RecentRunsList: React.FC<Props> = ({ runs, onClickRun }) => {
             }
           >
             <div className="run-item__content">
-              <span className="recent-runs__finding">Finding {run.findingCount}건</span>
+              <span className="recent-runs__finding">탐지 항목 {run.findingCount}건</span>
             </div>
           </ListItem>
         );

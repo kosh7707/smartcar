@@ -13,7 +13,7 @@ export function SettingsApiAccessSection({ url, testStatus }: { url: string; tes
     <section className="gs-section gs-section--surface gs-section--api gs-bento__col-5">
       <div className="gs-section__header">
         <div className="gs-section__icon"><Settings size={20} /></div>
-        <h3 className="gs-section__title">API Access</h3>
+        <h3 className="gs-section__title">API 접근</h3>
       </div>
       <div className="gs-info-table">
         <div className="gs-info-row">

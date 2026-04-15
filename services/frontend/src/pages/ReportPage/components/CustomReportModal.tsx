@@ -60,7 +60,7 @@ export const CustomReportModal: React.FC<Props> = ({ projectId, onClose }) => {
             />
           </label>
           <label className="form-field">
-            <span className="form-label">Executive Summary</span>
+            <span className="form-label">요약</span>
             <textarea
               className="form-input custom-report-textarea"
               value={executiveSummary}
@@ -91,7 +91,7 @@ export const CustomReportModal: React.FC<Props> = ({ projectId, onClose }) => {
             <span className="form-label">언어</span>
             <select className="form-input" value={language} onChange={(e) => setLanguage(e.target.value)}>
               <option value="ko">한국어</option>
-              <option value="en">English</option>
+              <option value="en">영어</option>
             </select>
           </label>
         </div>

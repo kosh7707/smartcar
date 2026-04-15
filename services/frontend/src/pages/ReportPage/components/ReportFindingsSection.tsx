@@ -13,9 +13,9 @@ interface ReportFindingsSectionProps {
 
 export const ReportFindingsSection: React.FC<ReportFindingsSectionProps> = ({ findings }) => (
   <div className="card">
-    <div className="card-title">Finding 목록 ({findings.length})</div>
+    <div className="card-title">탐지 항목 목록 ({findings.length})</div>
     {findings.length === 0 ? (
-      <EmptyState compact title="해당 조건의 Finding이 없습니다" />
+      <EmptyState compact title="해당 조건의 탐지 항목이 없습니다" />
     ) : (
       <div className="report-findings">
         <div className="report-findings__header">

@@ -86,9 +86,13 @@ export const Navbar: React.FC = () => {
   return (
     <header className="navbar">
       <div className="navbar-left">
-        <Link to="/dashboard" className="navbar-brand" aria-label="AEGIS home">
+        <Link to="/dashboard" className="navbar-brand" aria-label="AEGIS 홈">
           <span className="navbar-brand__icon">
             <Shield size={18} />
+          </span>
+          <span className="navbar-brand__copy">
+            <span className="navbar-brand__title">AEGIS</span>
+            <span className="navbar-brand__subtitle">펌웨어 보안 관제 콘솔</span>
           </span>
         </Link>
         <Link
@@ -96,7 +100,7 @@ export const Navbar: React.FC = () => {
           className={`navbar-navlink${isDashboard ? " navbar-navlink--active" : ""}`}
           aria-current={isDashboard ? "page" : undefined}
         >
-          Dashboard
+          대시보드
         </Link>
       </div>
 
@@ -118,7 +122,7 @@ export const Navbar: React.FC = () => {
           </button>
 
           {themeOpen && (
-            <div className="navbar-theme__dropdown" role="dialog" aria-label="Theme preferences">
+            <div className="navbar-theme__dropdown" role="dialog" aria-label="테마 설정">
               <div className="navbar-theme__header">
                 <div className="navbar-theme__title">테마</div>
                 <div className="navbar-theme__subtitle">라이트, 다크, 시스템 테마를 전환할 수 있습니다.</div>
@@ -145,8 +149,8 @@ export const Navbar: React.FC = () => {
         <div className="navbar-notifications" ref={notificationsRef}>
           <button
             className={`navbar-actions__btn${notificationsOpen ? " navbar-actions__btn--active" : ""}`}
-            title="Notifications"
-            aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
+            title="알림"
+            aria-label={`알림${unreadCount > 0 ? ` (${unreadCount}건 읽지 않음)` : ""}`}
             aria-expanded={notificationsOpen}
             aria-haspopup="dialog"
             onClick={() => setActiveMenu((prev) => (prev === "notifications" ? null : "notifications"))}
@@ -158,7 +162,7 @@ export const Navbar: React.FC = () => {
           </button>
 
           {notificationsOpen && (
-            <div className="navbar-notifications__dropdown" role="dialog" aria-label="Project notifications">
+            <div className="navbar-notifications__dropdown" role="dialog" aria-label="프로젝트 알림">
               <div className="navbar-notifications__header">
                 <div>
                   <div className="navbar-notifications__title">알림</div>
@@ -220,7 +224,7 @@ export const Navbar: React.FC = () => {
           )}
         </div>
         <span className="navbar-actions__divider" />
-        <div className="navbar-actions__avatar" title="Kosh (Admin)">K</div>
+        <div className="navbar-actions__avatar" title="Kosh (관리자)">K</div>
       </div>
     </header>
   );

@@ -14,7 +14,7 @@ export function QualityGateRuleResultRow({ rule }: { rule: GateRuleResult }) {
         <span className="gate-rule__name">{ruleInfo?.label ?? rule.ruleId}</span>
         <span className="gate-rule__message">{rule.message}</span>
         {rule.linkedFindingIds.length > 0 && (
-          <span className="gate-rule__findings">Finding {rule.linkedFindingIds.length}건</span>
+          <span className="gate-rule__findings">탐지 항목 {rule.linkedFindingIds.length}건</span>
         )}
       </div>
       {ruleInfo?.description && (

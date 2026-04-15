@@ -16,7 +16,7 @@ export const ReportRunsSection: React.FC<ReportRunsSectionProps> = ({ runs }) =>
 
   return (
     <div className="card">
-      <div className="card-title">Run 이력 ({runs.length})</div>
+      <div className="card-title">실행 이력 ({runs.length})</div>
       <div className="report-runs">
         {runs.map(({ run, gate }) => (
           <div key={run.id} className="report-runs__row">
@@ -27,11 +27,11 @@ export const ReportRunsSection: React.FC<ReportRunsSectionProps> = ({ runs }) =>
               {MODULE_META[run.module]?.label ?? run.module}
             </span>
             <span className="report-runs__count">
-              Finding {run.findingCount}건
+              탐지 항목 {run.findingCount}건
             </span>
             {gate && (
               <span className={`badge badge-sm badge-${gate.status === "pass" ? "low" : gate.status === "fail" ? "critical" : "medium"}`}>
-                Gate: {gate.status}
+                게이트: {gate.status}
               </span>
             )}
             <span className="text-sm text-tertiary">

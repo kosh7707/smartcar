@@ -267,9 +267,9 @@ const LatestAnalysisContent: React.FC<{
 
       {/* Run Summary StatCards */}
       <div className="stat-cards stagger">
-        <StatCard label="Finding" value={findings.length} accent />
+        <StatCard label="탐지 항목" value={findings.length} accent />
         <StatCard
-          label="Critical + High"
+          label="치명 + 높음"
           value={critHighCount}
           color={critHighCount > 0 ? "var(--aegis-severity-high)" : undefined}
         />
@@ -312,7 +312,7 @@ const LatestAnalysisContent: React.FC<{
             <input
               type="text"
               className="finding-search-input"
-              placeholder="Finding 검색..."
+              placeholder="탐지 항목 검색..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />

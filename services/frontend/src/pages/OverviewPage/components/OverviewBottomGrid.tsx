@@ -101,7 +101,7 @@ export const OverviewBottomGrid: React.FC<OverviewBottomGridProps> = ({
       <div className="card-title overview-build-target-header" onClick={onOpenFiles}>
         <span className="flex-center flex-gap-2">
           <HardDrive size={16} />
-          BuildTarget ({targets.length}개)
+          빌드 타겟 ({targets.length}개)
         </span>
         <ChevronRight size={16} className="overview-header-chevron" />
       </div>
@@ -122,7 +122,7 @@ export const OverviewBottomGrid: React.FC<OverviewBottomGridProps> = ({
         </div>
       )}
       {targets.length === 0 ? (
-        <p className="overview-empty-text">등록된 BuildTarget이 없습니다.</p>
+        <p className="overview-empty-text">등록된 빌드 타겟이 없습니다.</p>
       ) : (
         <div className="overview-build-target-body">
           {targets.map((target) => (

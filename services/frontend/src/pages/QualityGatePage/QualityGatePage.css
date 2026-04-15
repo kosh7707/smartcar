@@ -144,7 +144,7 @@
 .gate-actions-card {
   padding: var(--cds-spacing-06);
   border-left: 4px solid var(--cds-interactive);
-  background: transparent;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 248, 251, 0.92));
 }
 
 .gate-actions-card__title {

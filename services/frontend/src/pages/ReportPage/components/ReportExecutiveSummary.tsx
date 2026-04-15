@@ -16,7 +16,7 @@ export function ReportExecutiveSummary({ report, allRuns, summary, sevCounts, se
   return (
     <div className="card report-exec-card">
       <div className="report-exec-card__accent" />
-      <div className="card-title">Executive Summary</div>
+      <div className="card-title">요약</div>
 
       <div className="report-exec-card__meta-grid">
         <div className="report-exec-meta-item">

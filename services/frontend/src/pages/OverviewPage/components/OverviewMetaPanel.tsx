@@ -34,7 +34,7 @@ export const OverviewMetaPanel: React.FC<OverviewMetaPanelProps> = ({
 }) => (
   <div className="overview-meta-panel">
     <div className="overview-meta-section">
-      <div className="overview-meta-section__title">Project Metadata</div>
+      <div className="overview-meta-section__title">프로젝트 메타데이터</div>
       <div className="overview-meta-rows">
         <div>
           <span className="overview-meta-row__label">Files</span>

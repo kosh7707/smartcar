@@ -99,15 +99,15 @@ describe("VulnerabilitiesPage", () => {
 
     renderPage();
 
-    expect(screen.getByText("Finding 로딩 중...")).toBeInTheDocument();
+    expect(screen.getByText("탐지 항목 로딩 중...")).toBeInTheDocument();
   });
 
   it("loads the routed project findings and respects the severity query filter", async () => {
     renderPage("/projects/project-1/vulnerabilities?severity=critical");
 
     await waitFor(() => expect(mockFetchProjectFindings).toHaveBeenCalledWith("project-1"));
-    expect(await screen.findByRole("heading", { name: "Vulnerabilities" })).toBeInTheDocument();
-    expect(screen.getByText(/Total active findings:/)).toHaveTextContent("2");
+    expect(await screen.findByRole("heading", { name: "취약점 목록" })).toBeInTheDocument();
+    expect(screen.getByText(/활성 탐지 항목:/)).toHaveTextContent("2");
     expect(screen.getByText("1건 / 3건 표시")).toBeInTheDocument();
     expect(screen.getByText("Buffer overflow in parser")).toBeInTheDocument();
     expect(screen.queryByText("Weak crypto defaults")).not.toBeInTheDocument();
@@ -172,7 +172,7 @@ describe("VulnerabilitiesPage", () => {
     renderPage();
 
     await waitFor(() => expect(mockToast.error).toHaveBeenCalledWith("Finding 목록을 불러올 수 없습니다."));
-    expect(await screen.findByText("조건에 맞는 Finding이 없습니다")).toBeInTheDocument();
+    expect(await screen.findByText("조건에 맞는 탐지 항목이 없습니다")).toBeInTheDocument();
   });
 
   it("does not fetch findings and shows an empty state when no project id is present", async () => {
@@ -184,7 +184,7 @@ describe("VulnerabilitiesPage", () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => expect(screen.getByText("조건에 맞는 Finding이 없습니다")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("조건에 맞는 탐지 항목이 없습니다")).toBeInTheDocument());
     expect(mockFetchProjectFindings).not.toHaveBeenCalled();
     expect(mockToast.error).not.toHaveBeenCalled();
   });

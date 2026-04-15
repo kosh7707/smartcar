@@ -114,17 +114,17 @@ export const AnalysisResultsView: React.FC<Props> = ({
   const fileGroups = useMemo(() => groupByFile(filtered), [filtered]);
 
   return (
-    <div className="page-enter">
+    <div className="page-enter analysis-results">
       <BackButton onClick={onNewAnalysis} label="세션 목록으로" />
-      <PageHeader title="정적 분석 결과" />
+      <PageHeader title="정적 분석 결과" subtitle="빌드 타겟별 결과와 파일 단위 탐지 현황을 한 작업면에서 검토합니다." />
 
       {/* Summary */}
-      <div className="stat-cards stagger">
+      <div className="stat-cards stagger analysis-results__summary">
         <StatCard label="총 취약점" value={result.summary.total - (result.summary.info ?? 0)} accent />
-        <StatCard label="Critical" value={result.summary.critical} color="var(--aegis-severity-critical)" />
-        <StatCard label="High" value={result.summary.high} color="var(--aegis-severity-high)" />
-        <StatCard label="Medium" value={result.summary.medium} color="var(--aegis-severity-medium)" />
-        <StatCard label="Low" value={result.summary.low} color="var(--aegis-severity-low)" />
+        <StatCard label="치명" value={result.summary.critical} color="var(--aegis-severity-critical)" />
+        <StatCard label="높음" value={result.summary.high} color="var(--aegis-severity-high)" />
+        <StatCard label="보통" value={result.summary.medium} color="var(--aegis-severity-medium)" />
+        <StatCard label="낮음" value={result.summary.low} color="var(--aegis-severity-low)" />
       </div>
 
       {/* File Coverage */}
@@ -133,8 +133,8 @@ export const AnalysisResultsView: React.FC<Props> = ({
       )}
 
       {/* Filter bar */}
-      <div className="card static-result-filter">
-        <span className="text-sm text-secondary">필터:</span>
+      <div className="static-result-filter analysis-results__filter">
+        <span className="text-sm text-secondary">검토 기준</span>
         <select
           className="filter-select"
           value={filterSeverity}
@@ -142,7 +142,9 @@ export const AnalysisResultsView: React.FC<Props> = ({
         >
           <option value="all">심각도 전체</option>
           {SEVERITY_ORDER.map((s) => (
-            <option key={s} value={s}>{s.toUpperCase()}</option>
+            <option key={s} value={s}>
+              {s === "critical" ? "치명" : s === "high" ? "높음" : s === "medium" ? "보통" : s === "low" ? "낮음" : "정보"}
+            </option>
           ))}
         </select>
         <select
@@ -152,7 +154,7 @@ export const AnalysisResultsView: React.FC<Props> = ({
         >
           <option value="all">출처 전체</option>
           <option value="rule">룰 탐지</option>
-          <option value="llm">LLM 탐지</option>
+          <option value="llm">LLM 검토</option>
         </select>
         <select
           className="filter-select"
@@ -168,12 +170,12 @@ export const AnalysisResultsView: React.FC<Props> = ({
 
       {/* File-grouped vulnerability list */}
       {fileGroups.length === 0 ? (
-        <div className="card vuln-empty-card">
+        <div className="analysis-results__empty vuln-empty-card">
           <p className="text-tertiary">필터 조건에 맞는 취약점이 없습니다</p>
         </div>
       ) : (
         fileGroups.map((group) => (
-          <div key={group.fileName} className="file-group card">
+          <div key={group.fileName} className="file-group analysis-results__file-group">
             <div className="file-group__header">
               <FileCode size={16} className="file-group__icon" />
               <span className="file-group__name">{group.fileName}</span>
@@ -189,14 +191,14 @@ export const AnalysisResultsView: React.FC<Props> = ({
                 >
                   <div className="vuln-card-header">
                     <span className={`badge badge-${v.severity}`}>
-                      {v.severity.toUpperCase()}
+                      {v.severity === "critical" ? "치명" : v.severity === "high" ? "높음" : v.severity === "medium" ? "보통" : v.severity === "low" ? "낮음" : "정보"}
                     </span>
                     <span className="vuln-title">{v.title}</span>
                     {v._line && <span className="file-group__line">:{v._line}</span>}
                   </div>
                   <div className="vuln-card-meta">
                     <span className="vuln-source">
-                      {v.source === "rule" ? `룰 탐지 (${v.ruleId})` : "LLM 탐지"}
+                      {v.source === "rule" ? `룰 탐지 (${v.ruleId})` : "LLM 검토"}
                     </span>
                   </div>
                   <div className="vuln-card-desc">{v.description}</div>

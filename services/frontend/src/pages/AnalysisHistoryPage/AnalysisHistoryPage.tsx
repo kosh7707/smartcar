@@ -23,7 +23,7 @@ export const AnalysisHistoryPage: React.FC = () => {
   } = useAnalysisHistoryPage(projectId, toast);
 
   useEffect(() => {
-    document.title = "AEGIS — Analysis History";
+    document.title = "AEGIS — 분석 이력";
   }, []);
 
   if (loading) {
@@ -38,7 +38,7 @@ export const AnalysisHistoryPage: React.FC = () => {
     <div className="page-enter history-page">
       <PageHeader
         surface="plain"
-        title="Analysis History"
+        title="분석 이력"
         subtitle={runs.length > 0 ? `${runs.length}회 분석 실행됨` : "실행된 분석 기록을 시간순으로 검토합니다."}
       />
 

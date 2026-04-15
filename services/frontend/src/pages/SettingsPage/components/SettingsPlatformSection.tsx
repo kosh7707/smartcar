@@ -6,7 +6,7 @@ export function SettingsPlatformSection() {
     <section className="gs-section gs-section--surface gs-bento__col-4">
       <div className="gs-section__header">
         <div className="gs-section__icon"><Info size={20} /></div>
-        <h3 className="gs-section__title">Platform Information</h3>
+        <h3 className="gs-section__title">플랫폼 정보</h3>
       </div>
       <div className="gs-info-table">
         <div className="gs-info-row">

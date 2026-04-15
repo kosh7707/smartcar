@@ -21,7 +21,7 @@ export function useReportPage(projectId: string | undefined, toast: ToastApi) {
   const [pendingFilters, setPendingFilters] = useState<ReportFilters>({});
 
   useEffect(() => {
-    document.title = "AEGIS — Report";
+    document.title = "AEGIS — 보고서";
   }, []);
 
   const loadReport = useCallback(() => {

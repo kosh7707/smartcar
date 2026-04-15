@@ -1,6 +1,5 @@
 import React from "react";
-import { FileText, Settings } from "lucide-react";
-import { EmptyState } from "../../../shared/ui";
+import { CheckCircle2, FileText, Settings } from "lucide-react";
 
 interface OverviewEmptyStateProps {
   onOpenFiles: () => void;
@@ -8,18 +7,28 @@ interface OverviewEmptyStateProps {
 }
 
 export const OverviewEmptyState: React.FC<OverviewEmptyStateProps> = ({ onOpenFiles, onOpenSettings }) => (
-  <EmptyState
-    title="분석 준비 완료"
-    description="소스 파일을 업로드하고 정적 분석을 실행하면 보안 대시보드가 활성화됩니다."
-    action={(
-      <div className="overview-empty-hero__actions">
+  <section className="overview-empty-hero">
+    <div className="overview-empty-hero__copy">
+      <p className="overview-empty-hero__eyebrow">Workspace status</p>
+      <h2 className="overview-empty-hero__title">분석 준비 완료</h2>
+      <p className="overview-empty-hero__description">
+        소스 업로드와 프로젝트 구성을 마치면 보안 상태, 품질 게이트, 승인 흐름이 이 작업 공간에 순서대로 활성화됩니다.
+      </p>
+    </div>
+
+    <div className="overview-empty-hero__readiness" aria-label="준비 체크리스트">
+      <span><CheckCircle2 size={14} /> 소스 업로드</span>
+      <span><CheckCircle2 size={14} /> BuildTarget 확인</span>
+      <span><CheckCircle2 size={14} /> 정적 분석 시작</span>
+    </div>
+
+    <div className="overview-empty-hero__actions">
       <button className="btn" onClick={onOpenFiles}>
         <FileText size={14} /> 파일 업로드
       </button>
       <button className="btn btn-secondary" onClick={onOpenSettings}>
         <Settings size={14} /> 프로젝트 설정
       </button>
-      </div>
-    )}
-  />
+    </div>
+  </section>
 );

@@ -45,6 +45,7 @@
   padding: var(--cds-spacing-03) var(--cds-spacing-04);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 244, 244, 0.58));
   border: 1px solid var(--cds-border-subtle);
+  border-top: 2px solid color-mix(in srgb, var(--cds-interactive) 16%, var(--cds-border-subtle));
   border-radius: var(--cds-radius);
 }
 
@@ -244,7 +245,7 @@
   display: flex;
   align-items: center;
   gap: var(--cds-spacing-06);
-  padding: var(--cds-spacing-06);
+  padding: var(--cds-spacing-05) var(--cds-spacing-06);
   cursor: pointer;
   transition: background var(--cds-transition-base), box-shadow var(--cds-transition-base);
 }
@@ -294,8 +295,7 @@
 .vuln-finding-card__sev-label {
   font-size: var(--cds-type-2xs);
   font-weight: var(--cds-weight-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.02em;
   color: var(--cds-text-placeholder);
 }
 
@@ -338,8 +338,7 @@
   gap: 4px;
   font-size: var(--cds-type-2xs);
   font-weight: var(--cds-weight-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.02em;
   color: var(--cds-text-placeholder);
 }
 
@@ -725,12 +724,9 @@
 .vuln-shortcut-help.card,
 .vuln-bulk-bar.card,
 .vuln-groups.card {
-  background: var(--cds-background);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 248, 251, 0.92));
   border-color: var(--cds-border-subtle);
-}
-
-.vuln-bulk-bar.card {
-  background: linear-gradient(180deg, rgba(244, 244, 244, 0.82), rgba(255, 255, 255, 0.96));
+  border-top: 2px solid color-mix(in srgb, var(--cds-interactive) 14%, var(--cds-border-subtle));
 }
 
 .vuln-finding-card {

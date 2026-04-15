@@ -40,7 +40,7 @@ describe("LoginPage", () => {
 
     fireEvent.change(screen.getByLabelText("사용자 이름"), { target: { value: "user@example.com" } });
     fireEvent.change(screen.getByLabelText("비밀번호"), { target: { value: "secret" } });
-    fireEvent.click(screen.getByRole("button", { name: "로그인" }));
+    fireEvent.click(screen.getByRole("button", { name: "워크스페이스 열기" }));
 
     await waitFor(() => expect(mockLogin).toHaveBeenCalledWith("user@example.com", "secret"));
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard"));
@@ -57,7 +57,7 @@ describe("LoginPage", () => {
 
     fireEvent.change(screen.getByLabelText("사용자 이름"), { target: { value: "user@example.com" } });
     fireEvent.change(screen.getByLabelText("비밀번호"), { target: { value: "secret" } });
-    fireEvent.click(screen.getByRole("button", { name: "로그인" }));
+    fireEvent.click(screen.getByRole("button", { name: "워크스페이스 열기" }));
 
     expect(await screen.findByText("로그인 실패")).toBeInTheDocument();
     expect(mockNavigate).not.toHaveBeenCalled();
@@ -70,7 +70,7 @@ describe("LoginPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("button", { name: "로그인" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "워크스페이스 열기" })).toBeDisabled();
   });
 
   it("shows the submitting label while login is in flight", async () => {
@@ -87,9 +87,9 @@ describe("LoginPage", () => {
 
     fireEvent.change(screen.getByLabelText("사용자 이름"), { target: { value: "user@example.com" } });
     fireEvent.change(screen.getByLabelText("비밀번호"), { target: { value: "secret" } });
-    fireEvent.click(screen.getByRole("button", { name: "로그인" }));
+    fireEvent.click(screen.getByRole("button", { name: "워크스페이스 열기" }));
 
-    expect(await screen.findByRole("button", { name: "로그인 중..." })).toBeDisabled();
+    expect(await screen.findByRole("button", { name: "진입 중..." })).toBeDisabled();
 
     resolveLogin?.();
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard"));

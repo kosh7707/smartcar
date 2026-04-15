@@ -1,7 +1,7 @@
 import React from "react";
 import type { DynamicAnalysisSession } from "@aegis/shared";
-import { Activity, AlertTriangle, Plus, Radio, Trash2, Plug } from "lucide-react";
-import { ConnectionStatusBanner, ConfirmDialog, EmptyState, ListItem, PageHeader, Spinner } from "../../../shared/ui";
+import { Activity, AlertTriangle, CheckCircle2, Plus, Radio, Trash2, Plug } from "lucide-react";
+import { ConnectionStatusBanner, ConfirmDialog, ListItem, PageHeader, Spinner } from "../../../shared/ui";
 import { formatDateTime } from "../../../utils/format";
 import { STATUS_LABELS } from "../../../constants/dynamic";
 
@@ -64,10 +64,20 @@ export const DynamicAnalysisHistoryView: React.FC<DynamicAnalysisHistoryViewProp
         <Spinner label="세션 이력 로딩 중..." />
       </div>
     ) : sessions.length === 0 ? (
-      <EmptyState
-        title="아직 동적 분석 이력이 없습니다"
-        description="CAN 트래픽을 실시간으로 모니터링하고 이상을 탐지합니다"
-        action={
+      <section className="analysis-history-empty">
+        <div className="analysis-history-empty__copy">
+          <p className="analysis-history-empty__eyebrow">Monitoring workspace</p>
+          <h2 className="analysis-history-empty__title">아직 동적 분석 이력이 없습니다</h2>
+          <p className="analysis-history-empty__description">
+            CAN 트래픽 모니터링을 시작하면 어댑터 연결 상태, 수신 메시지 이상 징후, 세션 이력이 이 작업면에 순서대로 쌓입니다.
+          </p>
+        </div>
+        <div className="analysis-history-empty__readiness">
+          <span><CheckCircle2 size={14} /> 어댑터 연결 확인</span>
+          <span><CheckCircle2 size={14} /> CAN 트래픽 수집</span>
+          <span><CheckCircle2 size={14} /> 이상 징후 탐지</span>
+        </div>
+        <div className="analysis-history-empty__actions">
           <button className="btn" onClick={() => {
             if (!hasConnected) { setAdapterWarning(true); return; }
             setAdapterWarning(false);
@@ -75,8 +85,8 @@ export const DynamicAnalysisHistoryView: React.FC<DynamicAnalysisHistoryViewProp
           }}>
             첫 세션 시작
           </button>
-        }
-      />
+        </div>
+      </section>
     ) : (
       <div className="card">
         {sessions.map((session) => (
