@@ -1,5 +1,24 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import type { FindingStatus, FindingSourceType } from "@aegis/shared";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   FINDING_STATUS_LABELS,
   ALLOWED_TRANSITIONS,
@@ -37,58 +56,51 @@ export const StateTransitionDialog: React.FC<Props> = ({
     }
   }, [open]);
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
-    },
-    [onCancel],
-  );
-
-  useEffect(() => {
-    if (open) {
-      document.addEventListener("keydown", handleKeyDown);
-      return () => document.removeEventListener("keydown", handleKeyDown);
-    }
-  }, [open, handleKeyDown]);
-
   if (!open) return null;
 
   const canSubmit = selectedStatus !== "" && reason.trim().length > 0;
 
   return (
-    <div className="confirm-overlay" onClick={onCancel}>
-      <div className="confirm-dialog card state-dialog" onClick={(e) => e.stopPropagation()}>
-        <h3 className="confirm-dialog__title">상태 변경</h3>
+    <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onCancel(); }}>
+      <DialogContent className="state-dialog sm:max-w-md" showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle className="confirm-dialog__title">상태 변경</DialogTitle>
+          <DialogDescription>
+            탐지 항목의 상태를 바꾸려면 새 상태와 변경 사유를 남기세요.
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="state-dialog__field">
-          <label className="state-dialog__label">현재 상태</label>
-          <span className={`badge badge-status--${currentStatus}`}>
+          <Label className="state-dialog__label">현재 상태</Label>
+          <Badge variant="outline" className={`badge-status--${currentStatus}`}>
             {FINDING_STATUS_LABELS[currentStatus]}
-          </span>
+          </Badge>
         </div>
 
         <div className="state-dialog__field">
-          <label className="state-dialog__label" htmlFor="state-select">새 상태</label>
-          <select
-            id="state-select"
-            className="form-input state-dialog__select"
+          <Label className="state-dialog__label" htmlFor="state-select">새 상태</Label>
+          <Select
             value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value as FindingStatus)}
+            onValueChange={(nextStatus) => setSelectedStatus(nextStatus as FindingStatus)}
           >
-            <option value="">선택하세요</option>
-            {availableTransitions.map((s) => (
-              <option key={s} value={s}>
-                {FINDING_STATUS_LABELS[s]}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id="state-select" className="state-dialog__select w-full">
+              <SelectValue placeholder="선택하세요" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableTransitions.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {FINDING_STATUS_LABELS[s]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="state-dialog__field">
-          <label className="state-dialog__label" htmlFor="state-reason">사유</label>
-          <textarea
+          <Label className="state-dialog__label" htmlFor="state-reason">사유</Label>
+          <Textarea
             id="state-reason"
-            className="form-input state-dialog__textarea"
+            className="state-dialog__textarea"
             rows={3}
             placeholder="상태 변경 사유를 입력하세요 (필수)"
             value={reason}
@@ -96,21 +108,21 @@ export const StateTransitionDialog: React.FC<Props> = ({
           />
         </div>
 
-        <div className="confirm-dialog__actions">
-          <button className="btn btn-secondary btn-sm" onClick={onCancel}>
+        <DialogFooter className="confirm-dialog__actions">
+          <Button variant="outline" size="sm" onClick={onCancel}>
             취소
-          </button>
-          <button
-            className="btn btn-sm"
+          </Button>
+          <Button
+            size="sm"
             disabled={!canSubmit}
             onClick={() => {
               if (canSubmit) onConfirm(selectedStatus as FindingStatus, reason.trim());
             }}
           >
             변경
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

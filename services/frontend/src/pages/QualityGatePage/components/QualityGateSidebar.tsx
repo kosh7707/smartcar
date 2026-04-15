@@ -1,4 +1,5 @@
 import React from "react";
+import { Button } from "@/components/ui/button";
 import type { GateResult } from "../../../api/gate";
 import { formatDateTime } from "../../../utils/format";
 
@@ -23,9 +24,9 @@ export function QualityGateSidebar({ gates }: { gates: GateResult[] }) {
       <div className="card gate-actions-card">
         <div className="gate-actions-card__title">조치 안내</div>
         <p className="gate-actions-card__desc">오버라이드는 승인된 프로젝트 리드만 실행할 수 있습니다.</p>
-        <button className="btn btn-secondary btn-sm gate-actions-card__btn" disabled>
+        <Button variant="outline" size="sm" className="gate-actions-card__btn" disabled>
           오버라이드 요청
-        </button>
+        </Button>
       </div>
     </div>
   );

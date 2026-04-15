@@ -1,19 +1,13 @@
 import React from "react";
+import { Button } from "@/components/ui/button";
 
-type SettingsHeaderActionsProps = {
-  saved: boolean;
-  urlDirty: boolean;
-  onReset: () => void;
-  onSave: () => void;
-};
+type SettingsHeaderActionsProps = { saved: boolean; urlDirty: boolean; onReset: () => void; onSave: () => void; };
 
 export function SettingsHeaderActions({ saved, urlDirty, onReset, onSave }: SettingsHeaderActionsProps) {
   return (
-    <div className="gs-page-header__actions">
-      <button className="btn btn-secondary" onClick={onReset}>초기화</button>
-      <button className="btn" onClick={onSave} disabled={!urlDirty && !saved}>
-        {saved ? "저장됨" : "변경 저장"}
-      </button>
+    <div className="gs-page-header__actions flex items-center gap-2">
+      <Button variant="outline" onClick={onReset}>초기화</Button>
+      <Button onClick={onSave} disabled={!urlDirty && !saved}>{saved ? "저장됨" : "변경 저장"}</Button>
     </div>
   );
 }

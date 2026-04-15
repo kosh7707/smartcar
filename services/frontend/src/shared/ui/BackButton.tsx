@@ -1,5 +1,6 @@
 import React from "react";
 import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   onClick: () => void;
@@ -8,9 +9,9 @@ interface Props {
 
 export const BackButton: React.FC<Props> = ({ onClick, label = "뒤로" }) => {
   return (
-    <button className="btn btn-secondary btn-sm" onClick={onClick} style={{ marginBottom: "var(--cds-spacing-05)" }}>
+    <Button variant="outline" size="sm" className="mb-5" onClick={onClick}>
       <ArrowLeft size={14} />
       {label}
-    </button>
+    </Button>
   );
 };

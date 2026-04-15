@@ -1,5 +1,7 @@
 import React from "react";
 import type { ProjectReport } from "@aegis/shared";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { CustomReportModal } from "./CustomReportModal";
 import { ReportApprovalsSection } from "./ReportApprovalsSection";
 import { ReportAuditLogSection } from "./ReportAuditLogSection";
@@ -76,13 +78,15 @@ export function ReportContent({
 
       <div className="report-tabs print-hide">
         {(Object.keys(MODULE_TAB_LABELS) as ModuleTab[]).map((tab) => (
-          <button
+          <Button
             key={tab}
-            className={`report-tabs__item${activeTab === tab ? " report-tabs__item--active" : ""}`}
+            type="button"
+            variant={activeTab === tab ? "default" : "outline"}
+            className={cn("report-tabs__item", activeTab === tab && "report-tabs__item--active")}
             onClick={() => setActiveTab(tab)}
           >
             {MODULE_TAB_LABELS[tab]}
-          </button>
+          </Button>
         ))}
       </div>
 

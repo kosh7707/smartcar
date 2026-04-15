@@ -50,6 +50,11 @@ export function useSdkProgress({
   useEffect(() => {
     if (!projectId) return;
 
+    if (import.meta.env.VITE_MOCK === "true") {
+      setConnectionState("disconnected");
+      return;
+    }
+
     const seqTracker = createSeqTracker("sdk");
     const wsUrl = getSdkWsUrl(projectId);
 

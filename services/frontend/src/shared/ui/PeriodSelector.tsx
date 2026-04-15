@@ -1,4 +1,6 @@
 import React from "react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export type DashboardPeriod = "7d" | "30d" | "90d" | "all";
 
@@ -15,15 +17,21 @@ const OPTIONS: { value: DashboardPeriod; label: string }[] = [
 ];
 
 export const PeriodSelector: React.FC<Props> = ({ value, onChange }) => (
-  <div className="period-selector">
+  <div className="period-selector inline-flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
     {OPTIONS.map((opt) => (
-      <button
+      <Button
         key={opt.value}
-        className={`btn btn-secondary btn-sm period-selector__btn${value === opt.value ? " period-selector__btn--active" : ""}`}
+        type="button"
+        variant={value === opt.value ? "default" : "ghost"}
+        size="sm"
+        className={cn(
+          "period-selector__btn h-7 px-2.5",
+          value === opt.value && "period-selector__btn--active",
+        )}
         onClick={() => onChange(opt.value)}
       >
         {opt.label}
-      </button>
+      </Button>
     ))}
   </div>
 );

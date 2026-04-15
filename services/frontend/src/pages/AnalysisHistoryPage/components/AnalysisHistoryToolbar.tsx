@@ -1,4 +1,6 @@
 import React from "react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   ANALYSIS_HISTORY_FILTER_OPTIONS,
   type AnalysisHistoryFilter,
@@ -22,14 +24,15 @@ export const AnalysisHistoryToolbar: React.FC<AnalysisHistoryToolbarProps> = ({
   <section className="history-toolbar" aria-label="분석 이력 필터와 요약">
     <div className="history-filter" role="tablist" aria-label="Analysis module filters">
       {ANALYSIS_HISTORY_FILTER_OPTIONS.map((option) => (
-        <button
+        <Button
           key={option.value}
           type="button"
-          className={`history-filter__btn${filter === option.value ? " active" : ""}`}
+          variant={filter === option.value ? "default" : "outline"}
+          className={cn("history-filter__btn", filter === option.value && "active")}
           onClick={() => onFilterChange(option.value)}
         >
           {option.label}
-        </button>
+        </Button>
       ))}
     </div>
 

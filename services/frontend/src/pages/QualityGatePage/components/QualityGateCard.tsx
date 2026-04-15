@@ -1,4 +1,6 @@
 import React from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { GateResult } from "../../../api/gate";
 import { formatDateTime } from "../../../utils/format";
 import { STATUS_CONFIG, sortGateRules } from "../qualityGatePresentation";
@@ -63,30 +65,30 @@ export function QualityGateCard({
                 </div>
               )}
               <div className="gate-override-form__controls">
-                <input
+                <Input
                   type="text"
-                  className="input input-sm"
                   placeholder="오버라이드 사유를 입력하세요 (최소 10자)"
                   value={overrideReason}
                   onChange={(event) => onSetOverrideReason(event.target.value)}
                   onKeyDown={(event) => event.key === "Enter" && overrideReason.trim().length >= 10 && onSubmitOverride()}
                 />
-                <button
-                  className="btn btn-sm gate-override-form__confirm"
+                <Button
+                  size="sm"
+                  className="gate-override-form__confirm"
                   onClick={onSubmitOverride}
                   disabled={overriding || overrideReason.trim().length < 10}
                 >
                   {overriding ? "처리 중..." : "오버라이드 확인"}
-                </button>
-                <button className="btn btn-secondary btn-sm" onClick={onCancelOverride}>
+                </Button>
+                <Button variant="outline" size="sm" onClick={onCancelOverride}>
                   취소
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
-            <button className="btn btn-secondary btn-sm" onClick={() => onSetOverrideTarget(gate.id)}>
+            <Button variant="outline" size="sm" onClick={() => onSetOverrideTarget(gate.id)}>
               오버라이드
-            </button>
+            </Button>
           )}
         </div>
       )}

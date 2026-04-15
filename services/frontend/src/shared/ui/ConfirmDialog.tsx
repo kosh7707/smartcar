@@ -1,4 +1,14 @@
-import React, { useEffect, useCallback, useRef } from "react";
+import React from "react";
+import { AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import "./ConfirmDialog.css";
 
 interface ConfirmDialogProps {
@@ -20,73 +30,41 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onConfirm,
   onCancel,
 }) => {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const previousFocus = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (open) {
-      previousFocus.current = document.activeElement as HTMLElement | null;
-      // Focus the first button after render
-      requestAnimationFrame(() => {
-        const firstBtn = dialogRef.current?.querySelector<HTMLButtonElement>("button");
-        firstBtn?.focus();
-      });
-      return () => {
-        previousFocus.current?.focus();
-      };
-    }
-  }, [open]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Escape") { onCancel(); return; }
-      // Focus trap: Tab cycles within dialog
-      if (e.key === "Tab") {
-        const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (!focusable || focusable.length === 0) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    },
-    [onCancel],
-  );
-
   if (!open) return null;
 
   return (
-    <div className="confirm-overlay" onClick={onCancel} role="presentation">
-      <div
-        ref={dialogRef}
-        className="confirm-dialog card"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="confirm-dialog-title"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={handleKeyDown}
+    <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onCancel(); }}>
+      <DialogContent
+        className="confirm-dialog max-w-md gap-0 border-border bg-card p-0 shadow-2xl sm:max-w-md"
+        overlayClassName="confirm-overlay"
+        onOverlayClick={onCancel}
+        showCloseButton={false}
       >
-        <h3 id="confirm-dialog-title" className="confirm-dialog__title">{title}</h3>
-        <p className="confirm-dialog__message">{message}</p>
-        <div className="confirm-dialog__actions">
-          <button className="btn btn-secondary btn-sm" onClick={onCancel}>
+        <DialogHeader className="flex-row items-start gap-3 space-y-0 border-b border-border px-5 py-4">
+          <div className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg ${danger ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"}`}>
+            <AlertTriangle size={17} />
+          </div>
+          <div className="min-w-0">
+            <DialogTitle className="confirm-dialog__title text-base font-semibold text-foreground">{title}</DialogTitle>
+            <DialogDescription className="confirm-dialog__message mt-1 text-sm leading-6 text-muted-foreground">
+              {message}
+            </DialogDescription>
+          </div>
+        </DialogHeader>
+        <DialogFooter className="confirm-dialog__actions flex-row justify-end gap-2 rounded-b-xl border-t-0 bg-transparent px-5 py-4">
+          <Button variant="outline" size="sm" className="" onClick={onCancel}>
             취소
-          </button>
-          <button
-            className={`btn btn-sm${danger ? " confirm-dialog__btn--danger" : ""}`}
+          </Button>
+          <Button
+            variant={danger ? "destructive" : "default"}
+            size="sm"
+            className={danger ? "confirm-dialog__btn--danger" : ""}
             onClick={onConfirm}
           >
             {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

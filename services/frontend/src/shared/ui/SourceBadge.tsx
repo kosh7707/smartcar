@@ -1,5 +1,6 @@
 import React from "react";
 import type { FindingSourceType } from "@aegis/shared";
+import { Badge } from "@/components/ui/badge";
 import { SOURCE_TYPE_LABELS, SOURCE_TYPE_DESCRIPTIONS } from "../../constants/finding";
 
 interface Props {
@@ -13,8 +14,8 @@ export const SourceBadge: React.FC<Props> = ({ sourceType, ruleId }) => {
     : SOURCE_TYPE_LABELS[sourceType];
 
   return (
-    <span className={`badge badge-source--${sourceType}`} title={SOURCE_TYPE_DESCRIPTIONS[sourceType]}>
+    <Badge variant="outline" className={`badge-source--${sourceType}`} title={SOURCE_TYPE_DESCRIPTIONS[sourceType]}>
       {label}
-    </span>
+    </Badge>
   );
 };

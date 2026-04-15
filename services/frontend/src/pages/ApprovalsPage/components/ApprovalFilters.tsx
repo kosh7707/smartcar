@@ -1,4 +1,6 @@
 import React from "react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { ApprovalFilterStatus } from "../hooks/useApprovalsPage";
 
 const FILTER_LABELS: Record<ApprovalFilterStatus, string> = {
@@ -25,14 +27,15 @@ export const ApprovalFilters: React.FC<ApprovalFiltersProps> = ({
   <section className="approval-toolbar" aria-label="승인 요청 필터와 요약">
     <div className="approval-filters" role="tablist" aria-label="Approval status filters">
       {(Object.keys(FILTER_LABELS) as ApprovalFilterStatus[]).map((status) => (
-        <button
+        <Button
           key={status}
           type="button"
-          className={`approval-filter__btn${filter === status ? " active" : ""}`}
+          variant={filter === status ? "default" : "outline"}
+          className={cn("approval-filter__btn", filter === status && "active")}
           onClick={() => onChange(status)}
         >
           {FILTER_LABELS[status]}
-        </button>
+        </Button>
       ))}
     </div>
 

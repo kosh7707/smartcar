@@ -1,4 +1,6 @@
 import React from "react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export type SettingsSection = "general" | "sdk" | "build-targets" | "notifications" | "adapters" | "danger";
 
@@ -23,22 +25,29 @@ export const ProjectSettingsSidebar: React.FC<ProjectSettingsSidebarProps> = ({ 
     </div>
 
     {NAV_ITEMS.map((item) => (
-      <button
+      <Button
         key={item.id}
+        type="button"
+        variant="ghost"
         className={`project-settings-sidebar__item${activeSection === item.id ? " project-settings-sidebar__item--active" : ""}`}
         onClick={() => onSelect(item.id)}
       >
         {item.label}
-      </button>
+      </Button>
     ))}
 
     <div className="project-settings-sidebar__divider" />
 
-    <button
-      className={`project-settings-sidebar__item project-settings-sidebar__item--danger${activeSection === "danger" ? " project-settings-sidebar__item--active project-settings-sidebar__item--danger-active" : ""}`}
+    <Button
+      type="button"
+      variant="ghost"
+      className={cn(
+        "project-settings-sidebar__item project-settings-sidebar__item--danger",
+        activeSection === "danger" && "project-settings-sidebar__item--active project-settings-sidebar__item--danger-active",
+      )}
       onClick={() => onSelect("danger")}
     >
       위험 구역
-    </button>
+    </Button>
   </nav>
 );

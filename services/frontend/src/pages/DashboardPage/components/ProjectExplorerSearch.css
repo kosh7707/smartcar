@@ -4,10 +4,10 @@
   gap: 0.375rem;
   min-height: 2rem;
   padding: 0 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--cds-border-subtle);
   border-radius: var(--dashboard-radius-control);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--aegis-sidebar-text-active);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--cds-text-secondary);
   font-size: var(--cds-type-sm);
   font-weight: var(--cds-weight-medium);
   cursor: pointer;
@@ -15,9 +15,9 @@
 }
 
 .project-explorer-create-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--aegis-sidebar-text-active);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(244, 244, 244, 0.88);
+  color: var(--cds-text-primary);
+  border-color: var(--cds-border-strong);
 }
 
 .project-explorer-search {
@@ -26,9 +26,9 @@
   gap: var(--cds-spacing-02);
   min-height: 2.75rem;
   padding: 0 var(--cds-spacing-03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--cds-border-subtle);
   border-radius: var(--dashboard-radius-strong);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--cds-field);
   transition: border-color var(--cds-transition-fast), box-shadow var(--cds-transition-fast), background var(--cds-transition-fast);
 }
 
@@ -38,7 +38,7 @@
 }
 
 .project-explorer-search__icon {
-  color: rgba(244, 244, 244, 0.46);
+  color: var(--cds-text-placeholder);
   flex-shrink: 0;
 }
 
@@ -47,11 +47,11 @@
   border: none;
   background: transparent;
   outline: none;
-  color: var(--aegis-sidebar-text-active);
+  color: var(--cds-text-primary);
   font-size: var(--cds-type-sm);
   font-family: var(--cds-font-sans);
 }
 
 .project-explorer-search__input::placeholder {
-  color: rgba(244, 244, 244, 0.46);
+  color: var(--cds-text-placeholder);
 }

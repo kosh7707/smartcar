@@ -1,0 +1,130 @@
+@reference "../index.css";
+@layer components {
+  .layout-global__content,
+  .layout-dashboard__content,
+  .layout-project__content {
+    @apply bg-background text-foreground;
+  }
+
+  .layout-project__main,
+  .page-enter,
+  .settings-page,
+  .project-settings-page,
+  .history-page,
+  .approvals-page,
+  .file-detail-page,
+  .fpage {
+    @apply text-foreground;
+  }
+
+  .page-enter:not(.centered-loader):not(.centered-loader--compact) {
+    @apply space-y-5;
+  }
+
+  .centered-loader,
+  .centered-loader--compact {
+    @apply flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30;
+  }
+
+  .card {
+    @apply rounded-xl border border-border bg-card text-card-foreground shadow-none;
+  }
+
+  .btn {
+    @apply inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-transparent bg-primary px-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-sm { @apply h-7 rounded-md px-2 text-xs; }
+
+  .btn-secondary,
+  .btn-tertiary,
+  .btn-ghost {
+    @apply border-border bg-background text-foreground hover:bg-muted;
+  }
+
+  .btn-danger { @apply bg-destructive/10 text-destructive hover:bg-destructive/20; }
+
+  .form-input,
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    @apply rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-none outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25;
+  }
+
+  .badge,
+  [class*="badge-"] {
+    @apply inline-flex items-center justify-center gap-1 rounded-full border border-border bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground;
+  }
+
+  .badge-sm { @apply px-1.5 py-0 text-[0.68rem]; }
+
+  .badge-critical,
+  .severity-chip--critical { @apply border-red-200 bg-red-50 text-red-700 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-200; }
+  .badge-high,
+  .severity-chip--high { @apply border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/70 dark:bg-orange-950/40 dark:text-orange-200; }
+  .badge-medium,
+  .severity-chip--medium { @apply border-yellow-200 bg-yellow-50 text-yellow-700 dark:border-yellow-900/70 dark:bg-yellow-950/40 dark:text-yellow-100; }
+  .badge-low,
+  .severity-chip--low { @apply border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/70 dark:bg-blue-950/40 dark:text-blue-200; }
+  .badge-info { @apply border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200; }
+
+  .navbar { @apply border-b border-border bg-background/95 text-foreground shadow-none backdrop-blur supports-[backdrop-filter]:bg-background/80; }
+  .navbar-brand__icon { @apply border border-border bg-primary text-primary-foreground; }
+  .navbar-brand__subtitle,
+  .navbar-notifications__subtitle,
+  .navbar-theme__subtitle { @apply text-muted-foreground; }
+  .navbar-actions__btn,
+  .navbar-actions__link { @apply rounded-lg border border-border bg-background text-foreground transition-colors hover:bg-muted; }
+  .navbar-actions__btn--active,
+  .navbar-navlink--active { @apply bg-primary/10 text-primary; }
+  .navbar-notifications__dropdown,
+  .navbar-theme__dropdown { @apply rounded-xl border border-border bg-popover text-popover-foreground shadow-xl; }
+
+  .sidebar { @apply border-r border-sidebar-border bg-sidebar text-sidebar-foreground; }
+  .sidebar-item,
+  .sidebar-project-link { @apply rounded-lg transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground; }
+  .sidebar-item--active,
+  .sidebar-project-link--active { @apply bg-sidebar-primary text-sidebar-primary-foreground; }
+
+  .login-page,
+  .signup-page { @apply min-h-screen bg-background text-foreground; }
+  .login-page__panel,
+  .signup-page__panel,
+  .login-form-card,
+  .signup-form-card { @apply rounded-2xl border border-border bg-card text-card-foreground shadow-xl shadow-slate-950/5; }
+  .login-page__hero,
+  .signup-page__hero { @apply rounded-2xl border border-border bg-muted/30; }
+
+  .dashboard,
+  .dashboard-body,
+  .dashboard-main,
+  .project-settings-layout,
+  .overview-main-grid,
+  .gate-content-grid,
+  .gs-bento { @apply gap-5; }
+
+  .project-explorer,
+  .needs-attention,
+  .recent-activity,
+  .overview-main-grid > *,
+  .overview-bottom-grid > *,
+  .gate-content-grid > *,
+  .gs-bento > *,
+  .project-settings-sidebar,
+  .project-settings-content,
+  .fpage-workspace,
+  .file-detail-source,
+  .vuln-toolbar,
+  .report-shell,
+  .dynamic-analysis-page,
+  .dynamic-test-page {
+    @apply rounded-xl border border-border bg-card text-card-foreground shadow-none;
+  }
+
+  .empty-state--workspace { @apply border-dashed bg-muted/30; }
+
+  table,
+  .runs-table,
+  .vuln-list,
+  .approval-list { @apply border-border text-sm; }
+}

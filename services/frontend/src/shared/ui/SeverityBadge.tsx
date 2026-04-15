@@ -1,5 +1,6 @@
 import React from "react";
 import type { Severity } from "@aegis/shared";
+import { Badge } from "@/components/ui/badge";
 
 interface Props {
   severity: Severity | string;
@@ -7,10 +8,10 @@ interface Props {
 }
 
 export const SeverityBadge: React.FC<Props> = ({ severity, size = "md" }) => {
-  const cls = size === "sm" ? "badge badge-sm" : "badge";
+  const cls = size === "sm" ? "badge-sm" : "";
   return (
-    <span className={`${cls} badge-${severity}`}>
+    <Badge variant="outline" className={`${cls} badge-${severity}`.trim()}>
       {severity.toUpperCase()}
-    </span>
+    </Badge>
   );
 };

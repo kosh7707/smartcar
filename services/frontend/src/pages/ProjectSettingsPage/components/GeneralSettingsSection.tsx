@@ -1,4 +1,8 @@
 import React from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export const GeneralSettingsSection: React.FC = () => (
   <div className="project-settings-stack">
@@ -13,22 +17,22 @@ export const GeneralSettingsSection: React.FC = () => (
 
       <div className="project-settings-form-grid">
         <div className="project-settings-field">
-          <label className="project-settings-field__label">프로젝트 이름</label>
+          <Label className="project-settings-field__label">프로젝트 이름</Label>
           <div className="project-settings-field__row">
-            <input className="input project-settings-field__control" type="text" placeholder="프로젝트 이름" />
-            <button className="btn btn-sm">저장</button>
+            <Input className="project-settings-field__control" type="text" placeholder="프로젝트 이름" />
+            <Button size="sm">저장</Button>
           </div>
         </div>
 
         <div className="project-settings-field">
-          <label className="project-settings-field__label">설명</label>
+          <Label className="project-settings-field__label">설명</Label>
           <div className="project-settings-field__row project-settings-field__row--textarea">
-            <textarea
-              className="input project-settings-field__control project-settings-field__textarea"
+            <Textarea
+              className="project-settings-field__control project-settings-field__textarea"
               placeholder="프로젝트 설명"
               rows={3}
             />
-            <button className="btn btn-sm">저장</button>
+            <Button size="sm">저장</Button>
           </div>
         </div>
       </div>

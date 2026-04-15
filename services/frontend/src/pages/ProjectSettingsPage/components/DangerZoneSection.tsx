@@ -1,5 +1,6 @@
 import React from "react";
 import { AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const DangerZoneSection: React.FC = () => (
   <div className="card project-settings-danger">
@@ -15,7 +16,7 @@ export const DangerZoneSection: React.FC = () => (
           Once deleted, all historical data, scan results, and configuration will be permanently removed. This action cannot be undone.
         </p>
       </div>
-      <button className="btn project-settings-danger__button">Delete Project</button>
+      <Button variant="destructive" className="project-settings-danger__button">Delete Project</Button>
     </div>
   </div>
 );

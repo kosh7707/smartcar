@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { verifyReconnectableHook } from "../test-utils/testReconnectionBehavior";
 
@@ -36,10 +36,15 @@ vi.mock("../api/core", () => ({
 
 // Must import AFTER mocks
 import { useSdkProgress } from "./useSdkProgress";
+import { createReconnectingWs } from "../utils/wsEnvelope";
 
 beforeEach(() => {
   capturedOptions = {};
   vi.clearAllMocks();
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 function simulateMessage(data: unknown) {
@@ -249,5 +254,20 @@ describe("useSdkProgress", () => {
 
     // Should still expose connectionState as disconnected
     expect(result.current.connectionState).toBe("disconnected");
+  });
+
+  it("does not connect in mock mode", () => {
+    vi.stubEnv("VITE_MOCK", "true");
+    const { result } = renderHook(() =>
+      useSdkProgress({
+        projectId: "p-1",
+        onProgress: vi.fn(),
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+      }),
+    );
+
+    expect(result.current.connectionState).toBe("disconnected");
+    expect(vi.mocked(createReconnectingWs)).not.toHaveBeenCalled();
   });
 });

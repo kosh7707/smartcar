@@ -3,7 +3,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--cds-spacing-03);
-  padding: var(--cds-spacing-03) 0;
+  padding: var(--cds-spacing-03) var(--cds-spacing-02);
   border-bottom: 1px solid var(--cds-border-subtle);
   color: inherit;
   text-decoration: none;
@@ -16,7 +16,7 @@
 
 .activity-event-card:hover,
 .activity-event-card:focus-visible {
-  background: color-mix(in srgb, var(--cds-layer-01) 65%, transparent);
+  background: var(--cds-layer-01);
 }
 
 .activity-event-card:focus-visible {

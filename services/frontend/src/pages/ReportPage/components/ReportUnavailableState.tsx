@@ -1,4 +1,5 @@
 import React from "react";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "../../../shared/ui";
 import { ReportHeader } from "./ReportHeader";
 
@@ -31,7 +32,7 @@ export function ReportUnavailableState({
         title={loadError ? "보고서를 불러올 수 없습니다" : "보고서를 생성할 수 없습니다"}
         description={loadError ? "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요." : "분석을 먼저 실행해주세요"}
         action={loadError ? (
-          <button className="btn btn-secondary" onClick={onRetry}>다시 시도</button>
+          <Button variant="outline" onClick={onRetry}>다시 시도</Button>
         ) : undefined}
       />
     </div>

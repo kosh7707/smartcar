@@ -9,6 +9,8 @@ import "./styles/animations.css";
 import "./styles/layout.css";
 import "./styles/primitives.css";
 import "./styles/utilities.css";
+import "./index.css";
+import "./styles/shadcn-app.css";
 
 window.addEventListener("unhandledrejection", (e) => {
   console.error("Unhandled promise rejection:", e.reason);

@@ -1,5 +1,6 @@
 import React from "react";
 import { CheckCircle2, FileText, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface OverviewEmptyStateProps {
   onOpenFiles: () => void;
@@ -23,12 +24,12 @@ export const OverviewEmptyState: React.FC<OverviewEmptyStateProps> = ({ onOpenFi
     </div>
 
     <div className="overview-empty-hero__actions">
-      <button className="btn" onClick={onOpenFiles}>
+      <Button onClick={onOpenFiles}>
         <FileText size={14} /> 파일 업로드
-      </button>
-      <button className="btn btn-secondary" onClick={onOpenSettings}>
+      </Button>
+      <Button variant="outline" onClick={onOpenSettings}>
         <Settings size={14} /> 프로젝트 설정
-      </button>
+      </Button>
     </div>
   </section>
 );

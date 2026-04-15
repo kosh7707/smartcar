@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Archive, Binary, CheckCircle, ChevronDown, ChevronRight, FolderOpen, Loader, Plus, Settings, Trash2, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { RegisteredSdk, SdkAnalyzedProfile, SdkRegistryStatus } from "../../../api/sdk";
 import type { SdkProgressDetails } from "../../../hooks/useSdkProgress";
 import { EmptyState } from "../../../shared/ui";
@@ -98,10 +99,10 @@ function ProfileDetail({ profile }: { profile: SdkAnalyzedProfile }) {
 
   return (
     <div className="sdk-profile-detail">
-      <button className="sdk-profile-detail__toggle" onClick={() => setOpen((prev) => !prev)}>
+      <Button variant="ghost" size="sm" className="sdk-profile-detail__toggle" onClick={() => setOpen((prev) => !prev)}>
         {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         분석된 프로파일
-      </button>
+      </Button>
       {open && (
         <div className="sdk-profile-detail__body">
           {profile.compiler && <div><strong>컴파일러:</strong> {profile.compiler}</div>}
@@ -150,9 +151,9 @@ export const SdkManagementSection: React.FC<SdkManagementSectionProps> = ({
       <div className="project-settings-panel__actions">
         <span className="project-settings-panel__meta">등록된 SDK {registered.length}개</span>
         <div className="sdk-actions">
-          <button className="btn btn-sm" onClick={onToggleForm}>
+          <Button size="sm" onClick={onToggleForm}>
             <Plus size={14} /> SDK 추가
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -196,9 +197,9 @@ export const SdkManagementSection: React.FC<SdkManagementSectionProps> = ({
                   </span>
                 )}
                 <SdkStatusBadge status={sdk.status} />
-                <button className="btn-icon btn-danger" title="삭제" onClick={() => onRequestDelete(sdk)}>
+                <Button variant="destructive" size="icon-sm" title="삭제" onClick={() => onRequestDelete(sdk)}>
                   <Trash2 size={14} />
-                </button>
+                </Button>
               </div>
 
               {sdk.description && <p className="sdk-card__desc">{sdk.description}</p>}

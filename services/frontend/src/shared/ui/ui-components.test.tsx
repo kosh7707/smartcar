@@ -46,7 +46,7 @@ describe("SourceBadge", () => {
 
   it("has title attribute with description", () => {
     const { container } = render(<SourceBadge sourceType="llm-assist" />);
-    const badge = container.querySelector(".badge");
+    const badge = container.querySelector('[data-slot="badge"]');
     expect(badge).toHaveAttribute("title");
   });
 });

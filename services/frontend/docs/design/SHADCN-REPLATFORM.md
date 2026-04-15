@@ -1,0 +1,64 @@
+# S1 Frontend UI Contract — shadcn / Aceternity Replatform
+
+Last verified: 2026-04-15
+
+This file replaces the previous bespoke AEGIS design doctrine. Historical session/evidence docs are preserved elsewhere, but the active S1 UI contract is now this component-sourcing model.
+
+## Active rule
+
+S1 UI is assembled from:
+
+1. shadcn/ui + Tailwind + Radix-style primitives in `src/components/ui/*`
+2. Aceternity UI as a mandatory searched reference/source
+3. `$frontend-skill` reviewer hard-veto for visual quality
+
+## Dependency convention
+
+- Use the shadcn v4 / Tailwind v4 Vite path configured in `components.json`, `src/index.css`, and `vite.config.ts`.
+- Use the `radix-ui` aggregate package for generated primitive imports. Do not add parallel direct `@radix-ui/react-*` dependencies unless a future component explicitly requires that import style and records the reason in the sourcing matrix.
+- New UI dependencies must be recorded with source component, reason, maintenance/bundle risk, and reviewer/developer signoff.
+- Aceternity remains a searched source/reference by default. Adopt copied/adapted Aceternity code only when it improves workflow scanability and survives reviewer veto.
+
+## CSS bridge policy
+
+`src/styles/shadcn-app.css` is a temporary compatibility bridge, not a new bespoke design system.
+
+- Broad legacy selectors such as `.card`, `.btn`, `.badge`, global inputs, `.navbar`, and `.sidebar` exist only to keep old pages stable while page slices move to shadcn primitives.
+- Do not expand the bridge without recording the reason in the residual CSS ledger.
+- Prefer migrating shared/page code to `src/components/ui/*` primitives over adding new bespoke selectors.
+- Remove or narrow bridge selectors when the corresponding page-level slice is fully migrated and verified.
+
+## 3-role gate
+
+| Role | Responsibility |
+|---|---|
+| Component sourcing worker | Search shadcn/ui and Aceternity UI; fill sourcing matrix. |
+| Developer | Implement selected components while preserving behavior/tests. |
+| Reviewer | Load `$frontend-skill`; code nothing; search nothing; approve or veto. |
+
+Reviewer veto wins over implementation feasibility and sourcing preference.
+
+## AEGIS fit
+
+AEGIS is an automotive embedded security operations console. It should feel restrained, dense, legible, and operational.
+
+Reject:
+- generic SaaS card mosaics
+- decorative gradients/glow
+- ornamental Aceternity motion
+- marketing-copy hero sections inside app surfaces
+- components that decorate but do not improve workflow
+
+Prefer:
+- shadcn Button/Input/Dialog/Dropdown/Table/Tabs/Badge/Alert/Skeleton/Progress primitives
+- dense but readable operational surfaces
+- utility copy
+- page-level normal/empty/error interaction evidence
+
+## Required evidence
+
+Execution must leave:
+- component sourcing matrix
+- reviewer gate verdicts
+- page-level verification ledger
+- full test/typecheck/build evidence

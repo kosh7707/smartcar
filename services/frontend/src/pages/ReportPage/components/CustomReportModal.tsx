@@ -1,5 +1,16 @@
 import React, { useState } from "react";
 import { FileText, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { generateCustomReport } from "../../../api/report";
 import { logError } from "../../../api/core";
 import { useToast } from "../../../contexts/ToastContext";
@@ -41,67 +52,75 @@ export const CustomReportModal: React.FC<Props> = ({ projectId, onClose }) => {
   };
 
   return (
-    <div className="custom-report-overlay" onClick={onClose}>
-      <div className="custom-report-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="custom-report-header">
-          <span className="custom-report-header__title">
+    <Dialog open onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}>
+      <DialogContent
+        className="custom-report-modal max-w-xl gap-0 border-border bg-card p-0 shadow-2xl sm:max-w-xl"
+        overlayClassName="custom-report-overlay"
+        onOverlayClick={onClose}
+        showCloseButton={false}
+      >
+        <DialogHeader className="custom-report-header flex-row items-center justify-between space-y-0 border-b border-border px-5 py-4">
+          <DialogTitle className="custom-report-header__title">
             <FileText size={16} /> 커스텀 보고서 생성
-          </span>
-          <button className="btn-icon" onClick={onClose}><X size={16} /></button>
-        </div>
-        <div className="custom-report-body">
-          <label className="form-field">
+          </DialogTitle>
+          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="커스텀 보고서 닫기">
+            <X size={16} />
+          </Button>
+        </DialogHeader>
+        <div className="custom-report-body px-5 py-4">
+          <Label className="form-field">
             <span className="form-label">보고서 제목</span>
-            <input
-              className="form-input"
+            <Input
               value={reportTitle}
               onChange={(e) => setReportTitle(e.target.value)}
               placeholder="프로젝트명 + 보안 분석 보고서"
             />
-          </label>
-          <label className="form-field">
+          </Label>
+          <Label className="form-field">
             <span className="form-label">요약</span>
-            <textarea
-              className="form-input custom-report-textarea"
+            <Textarea
+              className="custom-report-textarea"
               value={executiveSummary}
               onChange={(e) => setExecutiveSummary(e.target.value)}
               placeholder="보고서 서두에 포함할 요약문"
               rows={4}
             />
-          </label>
-          <label className="form-field">
+          </Label>
+          <Label className="form-field">
             <span className="form-label">회사명</span>
-            <input
-              className="form-input"
+            <Input
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
               placeholder="보고서에 표시할 회사명"
             />
-          </label>
-          <label className="form-field">
+          </Label>
+          <Label className="form-field">
             <span className="form-label">로고 URL</span>
-            <input
-              className="form-input"
+            <Input
               value={logoUrl}
               onChange={(e) => setLogoUrl(e.target.value)}
               placeholder="https://example.com/logo.png"
             />
-          </label>
-          <label className="form-field">
+          </Label>
+          <Label className="form-field">
             <span className="form-label">언어</span>
-            <select className="form-input" value={language} onChange={(e) => setLanguage(e.target.value)}>
+            <select
+              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+            >
               <option value="ko">한국어</option>
               <option value="en">영어</option>
             </select>
-          </label>
+          </Label>
         </div>
-        <div className="custom-report-footer">
-          <button className="btn btn-secondary" onClick={onClose} disabled={generating}>취소</button>
-          <button className="btn" onClick={handleGenerate} disabled={generating}>
+        <DialogFooter className="custom-report-footer flex-row justify-end gap-2 rounded-b-xl border-t bg-muted/30 px-5 py-4">
+          <Button variant="outline" onClick={onClose} disabled={generating}>취소</Button>
+          <Button onClick={handleGenerate} disabled={generating}>
             {generating ? <><Spinner size={14} /> 생성 중...</> : "보고서 생성"}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

@@ -1,5 +1,6 @@
 import React from "react";
 import { AlertCircle, CheckCircle, Clock, ExternalLink, Timer, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { ApprovalRequest } from "../../../api/approval";
 import { EmptyState } from "../../../shared/ui";
 import { formatDateTime } from "../../../utils/format";
@@ -99,20 +100,23 @@ export const ApprovalRequestList: React.FC<ApprovalRequestListProps> = ({
 
             {isPending && !isExpired && (
               <div className="approval-card__actions">
-                <button
+                <Button
                   type="button"
-                  className="btn btn-sm approval-btn--approve"
+                  size="sm"
+                  className="approval-btn--approve"
                   onClick={() => onStartDecision(approval.id, "approved")}
                 >
                   승인
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className="btn btn-sm approval-btn--reject"
+                  variant="destructive"
+                  size="sm"
+                  className="approval-btn--reject"
                   onClick={() => onStartDecision(approval.id, "rejected")}
                 >
                   거부
-                </button>
+                </Button>
               </div>
             )}
           </article>
