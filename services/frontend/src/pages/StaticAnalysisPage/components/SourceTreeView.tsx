@@ -10,6 +10,7 @@ import {
   Play,
   Code,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { fetchSourceFileContent, logError } from "../../../api/client";
 import { useToast } from "../../../contexts/ToastContext";
 import { PageHeader, Spinner, SeverityBadge, FileTreeNode } from "../../../shared/ui";
@@ -382,14 +383,14 @@ export const SourceTreeView: React.FC<Props> = ({
 
       {/* Actions */}
       <div className="source-tree__actions">
-        <button className="btn btn-secondary" onClick={onReupload}>
+        <Button variant="outline" onClick={onReupload}>
           <Upload size={14} />
           소스코드 재업로드
-        </button>
-        <button className="btn" onClick={onAnalysisStart}>
+        </Button>
+        <Button onClick={onAnalysisStart}>
           <Play size={14} />
           분석 실행
-        </button>
+        </Button>
       </div>
     </div>
   );

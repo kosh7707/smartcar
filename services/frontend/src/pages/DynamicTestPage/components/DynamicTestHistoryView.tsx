@@ -1,6 +1,7 @@
 import React from "react";
 import type { Adapter, DynamicTestResult } from "@aegis/shared";
 import { AlertTriangle, CheckCircle2, FlaskConical, Plus, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { ConfirmDialog, ConnectionStatusBanner, ListItem, PageHeader, Spinner } from "../../../shared/ui";
 import { formatDateTime } from "../../../utils/format";
 import { STRATEGY_LABELS, TEST_TYPE_ICON } from "../dynamicTestPresentation";
@@ -39,14 +40,14 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
     <PageHeader
       title="동적 테스트"
       action={
-        <button className="btn" onClick={() => {
+        <Button onClick={() => {
           if (!hasConnected) { setAdapterWarning(true); return; }
           setAdapterWarning(false);
           onOpenConfig();
         }}>
           <Plus size={16} />
           새 세션
-        </button>
+        </Button>
       }
     />
 
@@ -76,13 +77,13 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
           <span><CheckCircle2 size={14} /> 결과 검토</span>
         </div>
         <div className="dtest-history-empty__actions">
-          <button className="btn" onClick={() => {
+          <Button onClick={() => {
             if (!hasConnected) { setAdapterWarning(true); return; }
             setAdapterWarning(false);
             onOpenConfig();
           }}>
             첫 세션 시작
-          </button>
+          </Button>
         </div>
       </section>
     ) : (
@@ -94,13 +95,15 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
             trailing={
               <>
                 <span className="analysis-item__time">{formatDateTime(result.createdAt)}</span>
-                <button
-                  className="btn-icon btn-danger analysis-item__delete"
+                <Button
+                  variant="destructive"
+                  size="icon-sm"
+                  className="analysis-item__delete"
                   title="삭제"
                   onClick={(e) => { e.stopPropagation(); setConfirmDeleteTarget(result); }}
                 >
                   <Trash2 size={14} />
-                </button>
+                </Button>
               </>
             }
           >

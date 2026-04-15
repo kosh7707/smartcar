@@ -1,6 +1,7 @@
 import React from "react";
 import type { Adapter } from "@aegis/shared";
 import { Plug, Radio } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { AdapterSelector, BackButton, PageHeader, Spinner } from "../../../shared/ui";
 
 interface DynamicAnalysisConfigViewProps {
@@ -59,14 +60,13 @@ export const DynamicAnalysisConfigView: React.FC<DynamicAnalysisConfigViewProps>
       </div>
 
       <div className="dyn-config__actions">
-        <button
-          className="btn"
+        <Button
           disabled={!selectedAdapterId || creating}
           onClick={onStart}
         >
           {creating ? <Spinner size={14} /> : <Plug size={16} />}
           모니터링 시작
-        </button>
+        </Button>
       </div>
     </div>
 

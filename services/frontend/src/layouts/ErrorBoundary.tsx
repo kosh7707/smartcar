@@ -1,5 +1,6 @@
 import React from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import "./ErrorBoundary.css";
 
 interface Props {
@@ -39,13 +40,13 @@ export class ErrorBoundary extends React.Component<Props, State> {
           <p className="error-boundary__text">
             예기치 않은 오류가 발생했습니다. 새로고침을 시도해 주세요.
           </p>
-          <button
-            className="btn btn-primary error-boundary__btn"
+          <Button
+            className="error-boundary__btn"
             onClick={this.handleReload}
           >
             <RefreshCw size={14} />
             새로고침
-          </button>
+          </Button>
         </div>
       );
     }

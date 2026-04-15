@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import "./FindingDetailView.css";
 import type { Finding, EvidenceRef, AuditLogEntry, FindingStatus } from "@aegis/shared";
+import { Button } from "@/components/ui/button";
 import {
   BackButton,
   Spinner,
@@ -163,18 +164,18 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
 
       {/* Status change + PoC button */}
       <div className="finding-actions">
-        <button className="btn btn-secondary" onClick={() => setShowTransition(true)}>
+        <Button variant="outline" onClick={() => setShowTransition(true)}>
           상태 변경
-        </button>
+        </Button>
         {canGeneratePoc && !pocData && (
-          <button
-            className="btn btn-secondary"
+          <Button
+            variant="outline"
             onClick={handleGeneratePoc}
             disabled={pocLoading}
           >
             {pocLoading ? <Spinner size={14} /> : null}
             PoC 생성
-          </button>
+          </Button>
         )}
         {finding.location && (
           <span className="detail-meta-item">

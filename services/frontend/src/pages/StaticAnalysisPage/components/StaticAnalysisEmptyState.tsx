@@ -1,5 +1,6 @@
 import React from "react";
 import { CheckCircle2, Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export function StaticAnalysisEmptyState({ onUpload }: { onUpload: () => void }) {
   return (
@@ -21,10 +22,10 @@ export function StaticAnalysisEmptyState({ onUpload }: { onUpload: () => void })
         </div>
 
         <div className="sa-empty-state__actions">
-          <button className="btn" onClick={onUpload}>
+          <Button onClick={onUpload}>
             <Upload size={14} />
             소스 코드 업로드
-          </button>
+          </Button>
         </div>
       </section>
     </div>

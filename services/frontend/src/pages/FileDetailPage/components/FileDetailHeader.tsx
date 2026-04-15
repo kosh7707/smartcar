@@ -1,6 +1,7 @@
 import React from "react";
 import type { UploadedFile } from "@aegis/shared";
 import { BookOpen, Download, FileCode, FileText, Link2, Settings, Shield, Terminal, Wrench } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { formatFileSize } from "../../../utils/format";
 import { getLangColorByName } from "../../../constants/languages";
 
@@ -41,9 +42,9 @@ export const FileDetailHeader: React.FC<FileDetailHeaderProps> = ({
           <span className="file-detail-header__path">{file.path}</span>
         )}
       </div>
-      <button className="btn btn-secondary btn-sm" onClick={onDownload}>
+      <Button variant="outline" size="sm" onClick={onDownload}>
         <Download size={14} /> 다운로드
-      </button>
+      </Button>
     </div>
     <div className="file-detail-header__badges">
       {file.language && (

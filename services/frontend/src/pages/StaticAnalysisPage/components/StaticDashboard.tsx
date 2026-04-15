@@ -3,6 +3,7 @@ import type { StaticAnalysisDashboardSummary, Run, AnalysisProgress, RunDetailRe
 import type { DashboardPeriod } from "../../../shared/ui/PeriodSelector";
 import { PageHeader } from "../../../shared/ui";
 import { Plus, Code } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { ActiveAnalysisBanner } from "./ActiveAnalysisBanner";
 import { LatestAnalysisTab } from "./LatestAnalysisTab";
 import { OverallStatusTab } from "./OverallStatusTab";
@@ -53,15 +54,15 @@ export const StaticDashboard: React.FC<Props> = ({
         action={
           <div style={{ display: "flex", gap: "var(--cds-spacing-03)" }}>
             {onBrowseTree && (
-              <button className="btn btn-secondary" onClick={onBrowseTree}>
+              <Button variant="outline" onClick={onBrowseTree}>
                 <Code size={16} />
                 소스 탐색
-              </button>
+              </Button>
             )}
-            <button className="btn" onClick={onNewAnalysis}>
+            <Button onClick={onNewAnalysis}>
               <Plus size={16} />
               새 분석
-            </button>
+            </Button>
           </div>
         }
       />

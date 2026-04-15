@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-15T08:28:12.568Z",
+  "generatedAt": "2026-04-15T08:33:01.751Z",
   "baseUrl": "http://localhost:5173",
   "reusedExistingServer": true,
   "status": "PASS",
@@ -22,18 +22,7 @@
           "파일 탐색기"
         ],
         "legacyControls": {
-          "btn": [
-            {
-              "tag": "button",
-              "text": "빌드 로그",
-              "title": "빌드 로그"
-            },
-            {
-              "tag": "button",
-              "text": "빌드 로그",
-              "title": "빌드 로그"
-            }
-          ],
+          "btn": [],
           "btn-icon": [],
           "card": [],
           "form-input": []
@@ -52,18 +41,7 @@
           "정적 분석"
         ],
         "legacyControls": {
-          "btn": [
-            {
-              "tag": "button",
-              "text": "소스 탐색",
-              "title": ""
-            },
-            {
-              "tag": "button",
-              "text": "새 분석",
-              "title": ""
-            }
-          ],
+          "btn": [],
           "btn-icon": [],
           "card": [],
           "form-input": []

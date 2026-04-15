@@ -1,6 +1,7 @@
 import React from "react";
 import type { DynamicAnalysisSession } from "@aegis/shared";
 import { Activity, AlertTriangle, CheckCircle2, Plus, Radio, Trash2, Plug } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { ConnectionStatusBanner, ConfirmDialog, ListItem, PageHeader, Spinner } from "../../../shared/ui";
 import { formatDateTime } from "../../../utils/format";
 import { STATUS_LABELS } from "../../../constants/dynamic";
@@ -41,14 +42,14 @@ export const DynamicAnalysisHistoryView: React.FC<DynamicAnalysisHistoryViewProp
     <PageHeader
       title="동적 분석"
       action={
-        <button className="btn" onClick={() => {
+        <Button onClick={() => {
           if (!hasConnected) { setAdapterWarning(true); return; }
           setAdapterWarning(false);
           onOpenConfig();
         }} disabled={creating}>
           {creating ? <Spinner size={14} /> : <Plus size={16} />}
           새 세션
-        </button>
+        </Button>
       }
     />
 
@@ -78,13 +79,13 @@ export const DynamicAnalysisHistoryView: React.FC<DynamicAnalysisHistoryViewProp
           <span><CheckCircle2 size={14} /> 이상 징후 탐지</span>
         </div>
         <div className="analysis-history-empty__actions">
-          <button className="btn" onClick={() => {
+          <Button onClick={() => {
             if (!hasConnected) { setAdapterWarning(true); return; }
             setAdapterWarning(false);
             onOpenConfig();
           }}>
             첫 세션 시작
-          </button>
+          </Button>
         </div>
       </section>
     ) : (
@@ -97,8 +98,9 @@ export const DynamicAnalysisHistoryView: React.FC<DynamicAnalysisHistoryViewProp
               <>
                 <span className="analysis-item__time">{formatDateTime(session.startedAt)}</span>
                 {session.status === "monitoring" && (
-                  <button
-                    className="btn-icon btn-danger"
+                  <Button
+                    variant="destructive"
+                    size="icon-sm"
                     title="종료"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -106,16 +108,18 @@ export const DynamicAnalysisHistoryView: React.FC<DynamicAnalysisHistoryViewProp
                     }}
                   >
                     <Activity size={14} />
-                  </button>
+                  </Button>
                 )}
                 {session.status === "stopped" && (
-                  <button
-                    className="btn-icon btn-danger analysis-item__delete"
+                  <Button
+                    variant="destructive"
+                    size="icon-sm"
+                    className="analysis-item__delete"
                     title="삭제"
                     onClick={(e) => { e.stopPropagation(); }}
                   >
                     <Trash2 size={14} />
-                  </button>
+                  </Button>
                 )}
               </>
             }
