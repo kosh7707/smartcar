@@ -1,5 +1,6 @@
 import React from "react";
 import type { Run } from "@aegis/shared";
+import { Badge } from "@/components/ui/badge";
 import { ListItem } from "../../../shared/ui";
 import { PlayCircle } from "lucide-react";
 import { formatDateTime } from "../../../utils/format";
@@ -10,10 +11,10 @@ interface Props {
 }
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  completed: { label: "완료", cls: "badge badge-info" },
-  running: { label: "진행 중", cls: "badge badge-warning" },
-  failed: { label: "실패", cls: "badge badge-critical" },
-  pending: { label: "대기", cls: "badge badge-low" },
+  completed: { label: "완료", cls: "badge-info" },
+  running: { label: "진행 중", cls: "badge-warning" },
+  failed: { label: "실패", cls: "badge-critical" },
+  pending: { label: "대기", cls: "badge-low" },
 };
 
 export const RecentRunsList: React.FC<Props> = ({ runs, onClickRun }) => {
@@ -34,7 +35,7 @@ export const RecentRunsList: React.FC<Props> = ({ runs, onClickRun }) => {
             trailing={
               <>
                 <span className="recent-runs__time">{formatDateTime(run.createdAt)}</span>
-                <span className={st.cls}>{st.label}</span>
+                <Badge variant="outline" className={st.cls}>{st.label}</Badge>
               </>
             }
           >

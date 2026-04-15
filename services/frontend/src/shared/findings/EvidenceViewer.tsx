@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import type { EvidenceRef, LocatorType } from "@aegis/shared";
 import { X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ARTIFACT_TYPE_LABELS, LOCATOR_TYPE_LABELS } from "../../constants/evidence";
 import { formatDateTime } from "../../utils/format";
@@ -101,9 +102,9 @@ export const EvidenceViewer: React.FC<Props> = ({ evidence, onClose }) => {
       {/* 헤더 */}
       <div className="evidence-viewer__header">
         <div className="evidence-viewer__header-left">
-          <span className="badge badge-sm badge-info">
+          <Badge variant="outline" className="text-xs">
             {ARTIFACT_TYPE_LABELS[evidence.artifactType]}
-          </span>
+          </Badge>
           <span className="evidence-viewer__locator-label">
             {LOCATOR_TYPE_LABELS[evidence.locatorType]}
           </span>

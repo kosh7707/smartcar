@@ -1,5 +1,6 @@
 import React from "react";
 import type { ProjectReport } from "@aegis/shared";
+import { Badge } from "@/components/ui/badge";
 import { MODULE_META } from "../../../constants/modules";
 import { formatDateTime } from "../../../utils/format";
 
@@ -20,9 +21,9 @@ export const ReportRunsSection: React.FC<ReportRunsSectionProps> = ({ runs }) =>
       <div className="report-runs">
         {runs.map(({ run, gate }) => (
           <div key={run.id} className="report-runs__row">
-            <span className={`badge badge-sm badge-${run.status === "completed" ? "low" : run.status === "failed" ? "critical" : "info"}`}>
+            <Badge variant="outline" className={`text-xs badge-${run.status === "completed" ? "low" : run.status === "failed" ? "critical" : "info"}`}>
               {run.status}
-            </span>
+            </Badge>
             <span className="report-runs__module">
               {MODULE_META[run.module]?.label ?? run.module}
             </span>
@@ -30,9 +31,9 @@ export const ReportRunsSection: React.FC<ReportRunsSectionProps> = ({ runs }) =>
               탐지 항목 {run.findingCount}건
             </span>
             {gate && (
-              <span className={`badge badge-sm badge-${gate.status === "pass" ? "low" : gate.status === "fail" ? "critical" : "medium"}`}>
+              <Badge variant="outline" className={`text-xs badge-${gate.status === "pass" ? "low" : gate.status === "fail" ? "critical" : "medium"}`}>
                 게이트: {gate.status}
-              </span>
+              </Badge>
             )}
             <span className="text-sm text-tertiary">
               {formatDateTime(run.createdAt)}

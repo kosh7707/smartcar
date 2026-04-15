@@ -1,5 +1,6 @@
 import React from "react";
 import type { ProjectReport } from "@aegis/shared";
+import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "../../../utils/format";
 
 export function ReportApprovalsSection({ approvals }: { approvals: ProjectReport["approvals"] }) {
@@ -8,9 +9,9 @@ export function ReportApprovalsSection({ approvals }: { approvals: ProjectReport
       <div className="card-title">승인 이력 ({approvals.length})</div>
       {approvals.map((approval) => (
         <div key={approval.id} className="report-approval-row">
-          <span className={`badge badge-sm badge-${approval.status === "approved" ? "low" : approval.status === "rejected" ? "critical" : "medium"}`}>
+          <Badge variant="outline" className={`text-xs badge-${approval.status === "approved" ? "low" : approval.status === "rejected" ? "critical" : "medium"}`}>
             {approval.status}
-          </span>
+          </Badge>
           <span>{approval.actionType}</span>
           <span className="text-tertiary">요청: {approval.requestedBy}</span>
           {approval.decision && (

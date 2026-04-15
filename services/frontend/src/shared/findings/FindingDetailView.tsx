@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import "./FindingDetailView.css";
 import type { Finding, EvidenceRef, AuditLogEntry, FindingStatus } from "@aegis/shared";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   BackButton,
@@ -127,8 +128,12 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
           <ConfidenceBadge confidence={finding.confidence} sourceType={finding.sourceType} confidenceScore={finding.confidenceScore} />
           <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
           {finding.cweId && (
+            <Badge
+              asChild
+              variant="outline"
+              className="badge-cwe"
+            >
             <a
-              className="badge badge-cwe"
               href={`https://cwe.mitre.org/data/definitions/${finding.cweId.replace("CWE-", "")}.html`}
               target="_blank"
               rel="noopener noreferrer"
@@ -137,11 +142,16 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
             >
               {finding.cweId}
             </a>
+            </Badge>
           )}
           {finding.cveIds && finding.cveIds.length > 0 && finding.cveIds.map((cve) => (
-            <a
+            <Badge
               key={cve}
-              className="badge badge-cve"
+              asChild
+              variant="outline"
+              className="badge-cve"
+            >
+            <a
               href={`https://nvd.nist.gov/vuln/detail/${cve}`}
               target="_blank"
               rel="noopener noreferrer"
@@ -150,6 +160,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
             >
               {cve}
             </a>
+            </Badge>
           ))}
           {finding.fingerprint && (
             <span className="fingerprint-badge" title="이전 분석에서도 발견된 취약점 (fingerprint 추적)">

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import type { DynamicAnalysisSession, DynamicAlert, CanMessage } from "@aegis/shared";
 import { Clock, Radio, AlertTriangle, Plug } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { fetchDynamicSessionDetail, logError } from "../../../api/client";
 import { BackButton, EmptyState, SeverityBadge, Spinner } from "../../../shared/ui";
 import { useToast } from "../../../contexts/ToastContext";
@@ -104,7 +105,7 @@ export const SessionDetailView: React.FC<Props> = ({ sessionId, onBack }) => {
                 <p className="alert-card__desc">{alert.description}</p>
                 {alert.llmAnalysis && (
                   <div className="alert-card__llm">
-                    <span className="badge badge-info" style={{ fontSize: "var(--cds-type-xs)" }}>LLM</span>
+                    <Badge variant="outline" className="text-xs">LLM</Badge>
                     <p>{alert.llmAnalysis}</p>
                   </div>
                 )}

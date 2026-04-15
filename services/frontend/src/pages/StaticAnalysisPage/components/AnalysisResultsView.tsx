@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import type { AnalysisResult, Vulnerability, Severity, FileCoverageEntry } from "@aegis/shared";
+import { Badge } from "@/components/ui/badge";
 import { StatCard, PageHeader, BackButton, SeveritySummary } from "../../../shared/ui";
 import { FileCode, SkipForward } from "lucide-react";
 import { SEVERITY_ORDER } from "../../../utils/severity";
@@ -190,9 +191,9 @@ export const AnalysisResultsView: React.FC<Props> = ({
                   onClick={() => onSelectVuln(v)}
                 >
                   <div className="vuln-card-header">
-                    <span className={`badge badge-${v.severity}`}>
+                    <Badge variant="outline" className={`badge-${v.severity}`}>
                       {v.severity === "critical" ? "치명" : v.severity === "high" ? "높음" : v.severity === "medium" ? "보통" : v.severity === "low" ? "낮음" : "정보"}
-                    </span>
+                    </Badge>
                     <span className="vuln-title">{v.title}</span>
                     {v._line && <span className="file-group__line">:{v._line}</span>}
                   </div>
