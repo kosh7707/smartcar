@@ -1,7 +1,6 @@
 import React from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import "./ErrorBoundary.css";
 
 interface Props {
   children: React.ReactNode;
@@ -30,18 +29,18 @@ export class ErrorBoundary extends React.Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="error-boundary">
-          <div className="error-boundary__icon">
+        <div className="flex flex-col items-center justify-center gap-5 px-6 py-10 text-center">
+          <div className="flex size-12 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
             <AlertTriangle size={24} />
           </div>
-          <h2 className="error-boundary__title">
+          <h2 className="m-0 text-lg font-semibold text-foreground">
             페이지를 표시할 수 없습니다
           </h2>
-          <p className="error-boundary__text">
+          <p className="m-0 max-w-[400px] text-base leading-relaxed text-muted-foreground">
             예기치 않은 오류가 발생했습니다. 새로고침을 시도해 주세요.
           </p>
           <Button
-            className="error-boundary__btn"
+            className="gap-3"
             onClick={this.handleReload}
           >
             <RefreshCw size={14} />

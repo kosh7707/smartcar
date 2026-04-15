@@ -1,9 +1,15 @@
 import React from "react";
 import { Outlet, useParams, Link, useLocation } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
 import { useProjects } from "../contexts/ProjectContext";
 import { PageHeader } from "../shared/ui";
-import "./ProjectBreadcrumbLayout.css";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 const pageNames: Record<string, string> = {
   overview: "개요",
@@ -45,35 +51,31 @@ export const ProjectBreadcrumbLayout: React.FC = () => {
 
   return (
     <>
-      <nav className="breadcrumb" aria-label="프로젝트 경로">
-        <ol className="breadcrumb__list">
-          <li className="breadcrumb__item">
-            <Link to="/dashboard" className="breadcrumb-link">
-              <span className="breadcrumb-link__label">프로젝트</span>
-            </Link>
-          </li>
+      <Breadcrumb className="mb-4 min-w-0" aria-label="프로젝트 경로">
+        <BreadcrumbList className="min-w-0">
+          <BreadcrumbItem className="min-w-0">
+            <BreadcrumbLink asChild className="max-w-56 truncate font-medium">
+              <Link to="/dashboard">프로젝트</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
 
-          <li className="breadcrumb__item" aria-hidden="true">
-            <ChevronRight size={12} className="breadcrumb-sep" />
-          </li>
+          <BreadcrumbSeparator />
 
-          <li className="breadcrumb__item">
-            <Link to={`/projects/${projectId}/overview`} className="breadcrumb-link" title={project.name}>
-              <span className="breadcrumb-link__label">{project.name}</span>
-            </Link>
-          </li>
+          <BreadcrumbItem className="min-w-0">
+            <BreadcrumbLink asChild className="max-w-56 truncate font-medium" title={project.name}>
+              <Link to={`/projects/${projectId}/overview`}>{project.name}</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
 
-          <li className="breadcrumb__item" aria-hidden="true">
-            <ChevronRight size={12} className="breadcrumb-sep" />
-          </li>
+          <BreadcrumbSeparator />
 
-          <li className="breadcrumb__item">
-            <span className="breadcrumb-current" title={pageName} aria-current="page">
-              <span className="breadcrumb-current__label">{pageName}</span>
-            </span>
-          </li>
-        </ol>
-      </nav>
+          <BreadcrumbItem className="min-w-0">
+            <BreadcrumbPage className="breadcrumb-current max-w-56 truncate font-semibold" title={pageName}>
+              {pageName}
+            </BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
       <Outlet />
     </>
   );
