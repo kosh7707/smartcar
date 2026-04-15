@@ -6,7 +6,6 @@ import { getModuleRoute } from "../../constants/modules";
 import { AnalysisHistoryToolbar } from "./components/AnalysisHistoryToolbar";
 import { AnalysisHistoryRunsTable } from "./components/AnalysisHistoryRunsTable";
 import { useAnalysisHistoryPage } from "./hooks/useAnalysisHistoryPage";
-import "./AnalysisHistoryPage.css";
 
 export const AnalysisHistoryPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -35,7 +34,7 @@ export const AnalysisHistoryPage: React.FC = () => {
   }
 
   return (
-    <div className="page-enter history-page">
+    <div className="page-enter history-page flex flex-col gap-6 max-sm:gap-5">
       <PageHeader
         surface="plain"
         title="분석 이력"
