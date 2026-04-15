@@ -26,9 +26,6 @@
     @apply flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30;
   }
 
-  .card {
-    @apply rounded-xl border border-border bg-card text-card-foreground shadow-none;
-  }
 
   input:not([type="checkbox"]):not([type="radio"]),
   textarea,

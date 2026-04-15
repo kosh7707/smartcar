@@ -2,8 +2,14 @@ import React, { useEffect, useState } from "react";
 import type { AnalysisProgress } from "@aegis/shared";
 import { CheckCircle2, XCircle, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { useElapsedTimer } from "../../../hooks/useElapsedTimer";
-import { PageHeader, Spinner, BackButton, ConfirmDialog } from "../../../shared/ui";
+import {
+  PageHeader,
+  Spinner,
+  BackButton,
+  ConfirmDialog,
+} from "../../../shared/ui";
 import "./AsyncAnalysisProgressView.css";
 
 interface Props {
@@ -38,7 +44,10 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
   const [showAbortConfirm, setShowAbortConfirm] = useState(false);
   const [autoRedirect, setAutoRedirect] = useState<number | null>(null);
 
-  const isDone = progress.status === "completed" || progress.status === "failed" || progress.status === "aborted";
+  const isDone =
+    progress.status === "completed" ||
+    progress.status === "failed" ||
+    progress.status === "aborted";
   const { timeStr } = useElapsedTimer(!isDone, progress.startedAt);
 
   // Auto-redirect countdown on completion
@@ -67,12 +76,22 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
   const isCompleted = progress.status === "completed";
   const isFailed = progress.status === "failed";
   const isAborted = progress.status === "aborted";
-  const llmDone = progress.phase === "llm_chunk" && progress.totalChunks > 0 && progress.currentChunk >= progress.totalChunks;
+  const llmDone =
+    progress.phase === "llm_chunk" &&
+    progress.totalChunks > 0 &&
+    progress.currentChunk >= progress.totalChunks;
 
   // Phase weights — 서버 제공 시 우선, 없으면 기본값
-  const DEFAULT_WEIGHTS = { queued: 5, rule_engine: 5, llm_chunk: 80, merging: 10 };
-  const w = (progress as Record<string, unknown>).phaseWeights as Record<string, number> | undefined
-    ?? DEFAULT_WEIGHTS;
+  const DEFAULT_WEIGHTS = {
+    queued: 5,
+    rule_engine: 5,
+    llm_chunk: 80,
+    merging: 10,
+  };
+  const w =
+    ((progress as Record<string, unknown>).phaseWeights as
+      | Record<string, number>
+      | undefined) ?? DEFAULT_WEIGHTS;
   const cum = {
     rule_engine: w.queued,
     llm_chunk: w.queued + w.rule_engine,
@@ -82,15 +101,21 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
   // Progress percentage — time-weighted (LLM 분석이 대부분 시간 차지)
   const calcPhaseProgress = (): number => {
     switch (progress.phase) {
-      case "queued": return w.queued / 2;
-      case "rule_engine": return cum.rule_engine + w.rule_engine / 2;
+      case "queued":
+        return w.queued / 2;
+      case "rule_engine":
+        return cum.rule_engine + w.rule_engine / 2;
       case "llm_chunk":
         return progress.totalChunks > 0
-          ? cum.llm_chunk + (progress.currentChunk / progress.totalChunks) * w.llm_chunk
+          ? cum.llm_chunk +
+              (progress.currentChunk / progress.totalChunks) * w.llm_chunk
           : cum.llm_chunk;
-      case "merging": return cum.merging + w.merging / 2;
-      case "complete": return 100;
-      default: return 0;
+      case "merging":
+        return cum.merging + w.merging / 2;
+      case "complete":
+        return 100;
+      default:
+        return 0;
     }
   };
   const pct = isCompleted ? 100 : calcPhaseProgress();
@@ -100,78 +125,110 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
       <BackButton onClick={onBack} label="대시보드로" />
       <PageHeader title="정적 분석" />
 
-      <div className="card async-progress">
-        {!isDone && <Spinner size={40} />}
+      <Card className="async-progress shadow-none">
+        <CardContent className="space-y-5">
+          {!isDone && <Spinner size={40} />}
 
-        <h3 className="async-progress__title">
-          {isCompleted ? "분석 완료" : isFailed ? "분석 실패" : isAborted ? "분석 중단됨" : "분석 진행 중..."}
-        </h3>
+          <h3 className="async-progress__title">
+            {isCompleted
+              ? "분석 완료"
+              : isFailed
+                ? "분석 실패"
+                : isAborted
+                  ? "분석 중단됨"
+                  : "분석 진행 중..."}
+          </h3>
 
-        {/* 5-step stepper */}
-        <div className="async-stepper">
-          {STEPS.map((s, i) => {
-            const done = isCompleted ? true : currentIdx > i || (llmDone && i === currentIdx);
-            const active = !isDone && currentIdx === i && !done;
-            const failed = (isFailed || isAborted) && currentIdx === i;
-            return (
-              <React.Fragment key={s.key}>
-                {i > 0 && (
-                  <div className={`async-stepper__line${done ? " async-stepper__line--done" : ""}`} />
-                )}
-                <div className={`async-stepper__step${done ? " async-stepper__step--done" : active ? " async-stepper__step--active" : failed ? " async-stepper__step--failed" : ""}`}>
-                  <div className="async-stepper__circle">
-                    {done ? <CheckCircle2 size={18} /> : failed ? <XCircle size={18} /> : <span>{i + 1}</span>}
+          {/* 5-step stepper */}
+          <div className="async-stepper">
+            {STEPS.map((s, i) => {
+              const done = isCompleted
+                ? true
+                : currentIdx > i || (llmDone && i === currentIdx);
+              const active = !isDone && currentIdx === i && !done;
+              const failed = (isFailed || isAborted) && currentIdx === i;
+              return (
+                <React.Fragment key={s.key}>
+                  {i > 0 && (
+                    <div
+                      className={`async-stepper__line${done ? " async-stepper__line--done" : ""}`}
+                    />
+                  )}
+                  <div
+                    className={`async-stepper__step${done ? " async-stepper__step--done" : active ? " async-stepper__step--active" : failed ? " async-stepper__step--failed" : ""}`}
+                  >
+                    <div className="async-stepper__circle">
+                      {done ? (
+                        <CheckCircle2 size={18} />
+                      ) : failed ? (
+                        <XCircle size={18} />
+                      ) : (
+                        <span>{i + 1}</span>
+                      )}
+                    </div>
+                    <span className="async-stepper__label">{s.label}</span>
                   </div>
-                  <span className="async-stepper__label">{s.label}</span>
-                </div>
-              </React.Fragment>
-            );
-          })}
-        </div>
-
-        {/* Chunk info */}
-        {progress.phase === "llm_chunk" && progress.totalChunks > 0 && !isDone && !llmDone && (
-          <p className="async-progress__chunk">
-            {progress.totalFiles ? `${progress.processedFiles ?? 0} / ${progress.totalFiles}개 파일 진행 중 — ` : ""}LLM 분석 {progress.currentChunk} / {progress.totalChunks} 단계
-          </p>
-        )}
-
-        {/* Progress bar */}
-        <div className="async-progress__bar-wrap">
-          <div className="async-progress__bar-track">
-            <div
-              className={`async-progress__bar-fill${!isDone ? " shimmer-fill" : isFailed || isAborted ? " async-progress__bar-fill--error" : ""}`}
-              style={{ width: `${pct}%` }}
-            />
+                </React.Fragment>
+              );
+            })}
           </div>
-          <span className="async-progress__percent">{Math.round(pct)}%</span>
-        </div>
 
-        {/* Message & time */}
-        <p className="async-progress__message">{progress.message}</p>
-        <p className="async-progress__elapsed">경과 시간: {timeStr}</p>
+          {/* Chunk info */}
+          {progress.phase === "llm_chunk" &&
+            progress.totalChunks > 0 &&
+            !isDone &&
+            !llmDone && (
+              <p className="async-progress__chunk">
+                {progress.totalFiles
+                  ? `${progress.processedFiles ?? 0} / ${progress.totalFiles}개 파일 진행 중 — `
+                  : ""}
+                LLM 분석 {progress.currentChunk} / {progress.totalChunks} 단계
+              </p>
+            )}
 
-        {/* Error */}
-        {isFailed && progress.error && (
-          <p className="async-progress__error">{progress.error}</p>
-        )}
+          {/* Progress bar */}
+          <div className="async-progress__bar-wrap">
+            <div className="async-progress__bar-track">
+              <div
+                className={`async-progress__bar-fill${!isDone ? " shimmer-fill" : isFailed || isAborted ? " async-progress__bar-fill--error" : ""}`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <span className="async-progress__percent">{Math.round(pct)}%</span>
+          </div>
 
-        {/* Actions */}
-        <div className="async-progress__actions">
-          {isCompleted && (
-            <Button onClick={() => onViewResult(progress.analysisId)}>
-              <Eye size={16} />
-              결과 보기{autoRedirect !== null && autoRedirect > 0 ? ` (${autoRedirect})` : ""}
-            </Button>
+          {/* Message & time */}
+          <p className="async-progress__message">{progress.message}</p>
+          <p className="async-progress__elapsed">경과 시간: {timeStr}</p>
+
+          {/* Error */}
+          {isFailed && progress.error && (
+            <p className="async-progress__error">{progress.error}</p>
           )}
-          {!isDone && (
-            <Button variant="destructive" onClick={() => setShowAbortConfirm(true)}>
-              <XCircle size={16} />
-              분석 중단
-            </Button>
-          )}
-        </div>
-      </div>
+
+          {/* Actions */}
+          <div className="async-progress__actions">
+            {isCompleted && (
+              <Button onClick={() => onViewResult(progress.analysisId)}>
+                <Eye size={16} />
+                결과 보기
+                {autoRedirect !== null && autoRedirect > 0
+                  ? ` (${autoRedirect})`
+                  : ""}
+              </Button>
+            )}
+            {!isDone && (
+              <Button
+                variant="destructive"
+                onClick={() => setShowAbortConfirm(true)}
+              >
+                <XCircle size={16} />
+                분석 중단
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       <ConfirmDialog
         open={showAbortConfirm}
@@ -179,7 +236,10 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
         message="진행 중인 분석을 중단하시겠습니까? 이 작업은 되돌릴 수 없습니다."
         confirmLabel="중단"
         danger
-        onConfirm={() => { setShowAbortConfirm(false); onAbort(); }}
+        onConfirm={() => {
+          setShowAbortConfirm(false);
+          onAbort();
+        }}
         onCancel={() => setShowAbortConfirm(false)}
       />
     </div>

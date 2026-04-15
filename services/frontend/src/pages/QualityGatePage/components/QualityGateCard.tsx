@@ -1,5 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { GateResult } from "../../../api/gate";
 import { formatDateTime } from "../../../utils/format";
@@ -29,69 +30,89 @@ export function QualityGateCard({
 }: QualityGateCardProps) {
   const config = STATUS_CONFIG[gate.status] ?? STATUS_CONFIG.warning;
   const isOverrideOpen = overrideTarget === gate.id;
-  const failedCount = gate.rules.filter((rule) => rule.result === "failed").length;
+  const failedCount = gate.rules.filter(
+    (rule) => rule.result === "failed",
+  ).length;
 
   return (
-    <div className="gate-card card">
-      <div className="gate-card__header">
-        <div className={`gate-card__status ${config.className}`}>
-          <span>{config.label}</span>
+    <Card className="gate-card shadow-none">
+      <CardContent className="space-y-4">
+        <div className="gate-card__header">
+          <div className={`gate-card__status ${config.className}`}>
+            <span>{config.label}</span>
+          </div>
+          <span className="gate-card__time">
+            {formatDateTime(gate.evaluatedAt)}
+          </span>
         </div>
-        <span className="gate-card__time">
-          {formatDateTime(gate.evaluatedAt)}
-        </span>
-      </div>
 
-      <div className="gate-card__rules">
-        {[...gate.rules].sort(sortGateRules).map((rule) => (
-          <QualityGateRuleResultRow key={rule.ruleId} rule={rule} />
-        ))}
-      </div>
-
-      {gate.override && (
-        <div className="gate-card__override">
-          <span>오버라이드: {gate.override.reason}</span>
-          <span className="gate-card__override-by">승인자 {gate.override.overriddenBy}</span>
+        <div className="gate-card__rules">
+          {[...gate.rules].sort(sortGateRules).map((rule) => (
+            <QualityGateRuleResultRow key={rule.ruleId} rule={rule} />
+          ))}
         </div>
-      )}
 
-      {gate.status === "fail" && !gate.override && (
-        <div className="gate-card__actions">
-          {isOverrideOpen ? (
-            <div className="gate-override-form">
-              {failedCount > 0 && (
-                <div className="gate-override-form__warning">
-                  이 오버라이드로 {failedCount}건의 실패 규칙이 무시됩니다
+        {gate.override && (
+          <div className="gate-card__override">
+            <span>오버라이드: {gate.override.reason}</span>
+            <span className="gate-card__override-by">
+              승인자 {gate.override.overriddenBy}
+            </span>
+          </div>
+        )}
+
+        {gate.status === "fail" && !gate.override && (
+          <div className="gate-card__actions">
+            {isOverrideOpen ? (
+              <div className="gate-override-form">
+                {failedCount > 0 && (
+                  <div className="gate-override-form__warning">
+                    이 오버라이드로 {failedCount}건의 실패 규칙이 무시됩니다
+                  </div>
+                )}
+                <div className="gate-override-form__controls">
+                  <Input
+                    type="text"
+                    placeholder="오버라이드 사유를 입력하세요 (최소 10자)"
+                    value={overrideReason}
+                    onChange={(event) =>
+                      onSetOverrideReason(event.target.value)
+                    }
+                    onKeyDown={(event) =>
+                      event.key === "Enter" &&
+                      overrideReason.trim().length >= 10 &&
+                      onSubmitOverride()
+                    }
+                  />
+                  <Button
+                    size="sm"
+                    className="gate-override-form__confirm"
+                    onClick={onSubmitOverride}
+                    disabled={overriding || overrideReason.trim().length < 10}
+                  >
+                    {overriding ? "처리 중..." : "오버라이드 확인"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onCancelOverride}
+                  >
+                    취소
+                  </Button>
                 </div>
-              )}
-              <div className="gate-override-form__controls">
-                <Input
-                  type="text"
-                  placeholder="오버라이드 사유를 입력하세요 (최소 10자)"
-                  value={overrideReason}
-                  onChange={(event) => onSetOverrideReason(event.target.value)}
-                  onKeyDown={(event) => event.key === "Enter" && overrideReason.trim().length >= 10 && onSubmitOverride()}
-                />
-                <Button
-                  size="sm"
-                  className="gate-override-form__confirm"
-                  onClick={onSubmitOverride}
-                  disabled={overriding || overrideReason.trim().length < 10}
-                >
-                  {overriding ? "처리 중..." : "오버라이드 확인"}
-                </Button>
-                <Button variant="outline" size="sm" onClick={onCancelOverride}>
-                  취소
-                </Button>
               </div>
-            </div>
-          ) : (
-            <Button variant="outline" size="sm" onClick={() => onSetOverrideTarget(gate.id)}>
-              오버라이드
-            </Button>
-          )}
-        </div>
-      )}
-    </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onSetOverrideTarget(gate.id)}
+              >
+                오버라이드
+              </Button>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

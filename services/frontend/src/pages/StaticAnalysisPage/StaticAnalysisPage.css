@@ -423,7 +423,7 @@
 
 /* ── Active Analysis Banner ── */
 
-.card.active-analysis-banner {
+.active-analysis-banner {
   border-left: 4px solid var(--cds-interactive);
   padding: var(--cds-spacing-04) var(--cds-spacing-05);
   margin-bottom: var(--cds-spacing-05);
@@ -780,7 +780,7 @@
   padding: var(--aegis-spacing-05);
 }
 
-.chart-card--donut .card-title {
+.chart-card--donut [data-slot="card-title"] {
   align-self: flex-start;
 }
 
@@ -847,7 +847,7 @@
   padding: var(--cds-spacing-05) var(--aegis-spacing-05);
 }
 
-.status-dist-card .card-title {
+.status-dist-card [data-slot="card-title"] {
   margin-bottom: var(--cds-spacing-03);
 }
 

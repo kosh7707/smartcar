@@ -1,6 +1,7 @@
 import React from "react";
 import type { Vulnerability } from "@aegis/shared";
 import { FileText, Maximize2, Minimize2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface FileDetailSourcePanelProps {
   fileName: string;
@@ -33,10 +34,15 @@ export const FileDetailSourcePanel: React.FC<FileDetailSourcePanelProps> = ({
   onToggleMaximized,
   renderedPreview,
 }) => {
-  const isMarkdown = fileName.endsWith(".md") || fileLanguage === "markdown" || fileLanguage === "md";
+  const isMarkdown =
+    fileName.endsWith(".md") ||
+    fileLanguage === "markdown" ||
+    fileLanguage === "md";
 
   const codeContent = (
-    <div className={`code-viewer${maximized ? "" : " code-viewer--scrollable"}`}>
+    <div
+      className={`code-viewer${maximized ? "" : " code-viewer--scrollable"}`}
+    >
       {sourceLines.map((line, index) => {
         const lineNum = index + 1;
         const hasVulnerability = fileVulns.some((vulnerability) => {
@@ -51,15 +57,23 @@ export const FileDetailSourcePanel: React.FC<FileDetailSourcePanelProps> = ({
             className={`code-line ${hasVulnerability || isTarget ? "code-line-highlight" : ""}`}
           >
             <span className="code-line-num">{lineNum}</span>
-            <span className="code-line-content" dangerouslySetInnerHTML={{ __html: highlightedSourceLines[index] ?? line }} />
-            {(hasVulnerability || isTarget) && <span className="code-line-marker">← 취약점</span>}
+            <span
+              className="code-line-content"
+              dangerouslySetInnerHTML={{
+                __html: highlightedSourceLines[index] ?? line,
+              }}
+            />
+            {(hasVulnerability || isTarget) && (
+              <span className="code-line-marker">← 취약점</span>
+            )}
           </div>
         );
       })}
     </div>
   );
 
-  const viewBody = viewTab === "preview" && isMarkdown ? renderedPreview : codeContent;
+  const viewBody =
+    viewTab === "preview" && isMarkdown ? renderedPreview : codeContent;
 
   const toolbar = (
     <div className="file-detail-toolbar">
@@ -93,25 +107,35 @@ export const FileDetailSourcePanel: React.FC<FileDetailSourcePanelProps> = ({
 
   if (maximized) {
     return (
-      <div className="file-detail-maximized-overlay" onClick={onToggleMaximized}>
-        <div className="file-detail-maximized-panel card" onClick={(event) => event.stopPropagation()}>
-          {toolbar}
-          <div className="file-detail-maximized-body">{viewBody}</div>
-        </div>
+      <div
+        className="file-detail-maximized-overlay"
+        onClick={onToggleMaximized}
+      >
+        <Card
+          className="file-detail-maximized-panel shadow-none"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <CardContent className="space-y-3">
+            {toolbar}
+            <div className="file-detail-maximized-body">{viewBody}</div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <section className="card file-detail-code-card">
-      {toolbar}
-      <div className="file-detail-code-body">{viewBody}</div>
-      {!isMarkdown && sourceCode.length === 0 && (
-        <div className="file-detail-code-empty">
-          <FileText size={24} />
-          <span>표시할 소스 코드가 없습니다</span>
-        </div>
-      )}
-    </section>
+    <Card className="file-detail-code-card shadow-none">
+      <CardContent className="space-y-3">
+        {toolbar}
+        <div className="file-detail-code-body">{viewBody}</div>
+        {!isMarkdown && sourceCode.length === 0 && (
+          <div className="file-detail-code-empty">
+            <FileText size={24} />
+            <span>표시할 소스 코드가 없습니다</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };

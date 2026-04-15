@@ -596,11 +596,6 @@
     padding: 0;
   }
 
-  .card {
-    box-shadow: none;
-    border: 1px solid var(--cds-border-subtle);
-    break-inside: avoid;
-  }
 }
 
 /* Wave 3 frontend-skill refinement */
