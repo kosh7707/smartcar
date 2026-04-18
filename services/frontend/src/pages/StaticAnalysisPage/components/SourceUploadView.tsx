@@ -1,27 +1,25 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Upload, GitBranch, FolderArchive, Folder, Play, Search, Crosshair } from "lucide-react";
-import type { SourceFileEntry } from "../../../api/client";
-import { uploadSource, cloneSource, fetchSourceFiles, logError } from "../../../api/client";
-import { useToast } from "../../../contexts/ToastContext";
-import { useUploadProgress } from "../../../hooks/useUploadProgress";
-import { Spinner, ConnectionStatusBanner } from "../../../shared/ui";
+import { Crosshair, Folder, FolderArchive, GitBranch, Play, Search, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { SourceFileEntry } from "../../../api/client";
+import { cloneSource, fetchSourceFiles, logError, uploadSource } from "../../../api/client";
+import { LANG_GROUPS } from "../../../constants/languages";
+import { useToast } from "../../../contexts/ToastContext";
+import { useUploadProgress } from "../../../hooks/useUploadProgress";
+import { ConnectionStatusBanner, Spinner } from "../../../shared/ui";
 import { formatFileSize } from "../../../utils/format";
 import { buildTree, countFiles } from "../../../utils/tree";
-import { LANG_GROUPS } from "../../../constants/languages";
-import "./SourceUploadView.css";
 
 type UploadTab = "zip" | "git";
 
 interface Props {
   projectId: string;
   onAnalysisStart: () => void;
-  /** Called to open the full source tree explorer */
   onBrowseTree?: () => void;
-  /** Called to auto-discover build targets */
   onDiscoverTargets?: () => void;
 }
 
@@ -32,12 +30,9 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
   const [uploading, setUploading] = useState(false);
   const [sourceFiles, setSourceFiles] = useState<SourceFileEntry[] | null>(null);
   const [dragOver, setDragOver] = useState(false);
-
-  // Git form
   const [gitUrl, setGitUrl] = useState("");
   const [gitBranch, setGitBranch] = useState("");
 
-  // Load existing source files on mount
   const loadSourceFiles = useCallback(async () => {
     try {
       const files = await fetchSourceFiles(projectId);
@@ -47,9 +42,10 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
     }
   }, [projectId]);
 
-  React.useEffect(() => { loadSourceFiles(); }, [loadSourceFiles]);
+  React.useEffect(() => {
+    loadSourceFiles();
+  }, [loadSourceFiles]);
 
-  // Reload source files when upload completes
   useEffect(() => {
     if (upload.phase === "complete") {
       loadSourceFiles();
@@ -60,42 +56,50 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
       upload.reset();
       setUploading(false);
     }
-    // Only react to phase transitions; callbacks (loadSourceFiles, upload.reset) are stable
   }, [upload.phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleZipUpload = useCallback(async (file: File) => {
-    const ext = file.name.toLowerCase();
-    if (!ext.endsWith(".zip") && !ext.endsWith(".tar.gz") && !ext.endsWith(".tgz") && !ext.endsWith(".tar.bz2") && !ext.endsWith(".tar")) {
-      toast.error("ZIP, tar.gz, tgz, tar.bz2, tar 파일만 업로드할 수 있습니다.");
-      return;
-    }
-    setUploading(true);
-    upload.setUploading();
-    try {
-      const { uploadId } = await uploadSource(projectId, file);
-      upload.startTracking(uploadId);
-    } catch (e) {
-      logError("Upload source", e);
-      toast.error("소스코드 업로드에 실패했습니다.");
-      setUploading(false);
-      upload.reset();
-    }
-  }, [projectId, toast, upload]);
+  const handleZipUpload = useCallback(
+    async (file: File) => {
+      const ext = file.name.toLowerCase();
+      if (!ext.endsWith(".zip") && !ext.endsWith(".tar.gz") && !ext.endsWith(".tgz") && !ext.endsWith(".tar.bz2") && !ext.endsWith(".tar")) {
+        toast.error("ZIP, tar.gz, tgz, tar.bz2, tar 파일만 업로드할 수 있습니다.");
+        return;
+      }
+      setUploading(true);
+      upload.setUploading();
+      try {
+        const { uploadId } = await uploadSource(projectId, file);
+        upload.startTracking(uploadId);
+      } catch (e) {
+        logError("Upload source", e);
+        toast.error("소스코드 업로드에 실패했습니다.");
+        setUploading(false);
+        upload.reset();
+      }
+    },
+    [projectId, toast, upload],
+  );
 
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (!file) return;
-    await handleZipUpload(file);
-  }, [handleZipUpload]);
+  const handleDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragOver(false);
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+      await handleZipUpload(file);
+    },
+    [handleZipUpload],
+  );
 
-  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    await handleZipUpload(file);
-    e.target.value = "";
-  }, [handleZipUpload]);
+  const handleFileSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      await handleZipUpload(file);
+      e.target.value = "";
+    },
+    [handleZipUpload],
+  );
 
   const handleGitClone = useCallback(async () => {
     if (!gitUrl.trim()) {
@@ -119,17 +123,15 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
     setSourceFiles(null);
   };
 
-  // Compute top-level directory summary
   const topDirs = useMemo(() => {
     if (!sourceFiles || sourceFiles.length === 0) return [];
     const tree = buildTree(sourceFiles, (f) => f.relativePath);
     return tree.children
-      .filter((c) => !c.data) // folders only
+      .filter((c) => !c.data)
       .map((c) => ({ name: c.name, count: countFiles(c) }))
       .sort((a, b) => b.count - a.count);
   }, [sourceFiles]);
 
-  // Language stats for bar
   const langStats = useMemo(() => {
     if (!sourceFiles || sourceFiles.length === 0) return [];
     const grouped: Record<string, { count: number; color: string }> = {};
@@ -146,32 +148,26 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
       .sort((a, b) => b.count - a.count);
   }, [sourceFiles]);
 
-  const totalSize = useMemo(
-    () => (sourceFiles ?? []).reduce((sum, f) => sum + (f.size || 0), 0),
-    [sourceFiles],
-  );
+  const totalSize = useMemo(() => (sourceFiles ?? []).reduce((sum, f) => sum + (f.size || 0), 0), [sourceFiles]);
 
   return (
-    <div className="source-upload">
+    <div className="space-y-5">
       <ConnectionStatusBanner connectionState={upload.connectionState} />
-      {/* Already have source — show summary + actions */}
       {sourceFiles && sourceFiles.length > 0 ? (
         <>
-          <Card className="source-files-card gap-0">
-            <CardHeader>
-              <CardTitle className="source-files-card__title">
+          <Card className="shadow-none">
+            <CardHeader className="gap-3">
+              <CardTitle className="flex items-center gap-3">
                 <FolderArchive size={16} />
                 소스코드 ({sourceFiles.length}개 파일 · {formatFileSize(totalSize)})
               </CardTitle>
             </CardHeader>
-
-            {/* Language bar */}
             {langStats.length > 0 && (
-              <div className="source-summary-langbar">
+              <div className="mx-5 mt-1 flex h-1.5 overflow-hidden rounded-full bg-border/70">
                 {langStats.map((item) => (
                   <div
                     key={item.group}
-                    className="source-summary-langbar__seg"
+                    className="min-w-[2px] transition-[width]"
                     style={{
                       width: `${(item.count / sourceFiles.length) * 100}%`,
                       background: item.color,
@@ -181,22 +177,20 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
                 ))}
               </div>
             )}
-
-            {/* Top-level directories */}
             {topDirs.length > 0 && (
-              <CardContent className="source-dir-list">
+              <CardContent className="space-y-1 pt-4">
                 {topDirs.map((d) => (
-                  <div key={d.name} className="source-dir-row">
-                    <Folder size={14} className="source-dir-icon" />
-                    <span className="source-dir-name">{d.name}/</span>
-                    <span className="source-dir-count">{d.count}개 파일</span>
+                  <div key={d.name} className="flex items-center gap-3 py-2 text-sm">
+                    <Folder size={14} className="shrink-0 text-[var(--cds-support-warning)]" />
+                    <span className="flex-1 font-mono font-medium text-foreground">{d.name}/</span>
+                    <span className="text-muted-foreground">{d.count}개 파일</span>
                   </div>
                 ))}
               </CardContent>
             )}
           </Card>
 
-          <div className="source-actions">
+          <div className="flex flex-wrap justify-end gap-3">
             {onBrowseTree && (
               <Button variant="outline" onClick={onBrowseTree}>
                 <Search size={14} />
@@ -221,43 +215,48 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
         </>
       ) : (
         <>
-          {/* Tab selector */}
-          <div className="source-tabs">
-            <button
-              className={`source-tab${tab === "zip" ? " source-tab--active" : ""}`}
-              onClick={() => setTab("zip")}
-            >
-              <FolderArchive size={14} />
-              ZIP / tar.gz 업로드
-            </button>
-            <button
-              className={`source-tab${tab === "git" ? " source-tab--active" : ""}`}
-              onClick={() => setTab("git")}
-            >
-              <GitBranch size={14} />
-              Git 클론
-            </button>
-          </div>
+          <Tabs value={tab} onValueChange={(value) => setTab(value as UploadTab)}>
+            <TabsList className="h-auto flex-wrap rounded-xl bg-muted/40 p-1">
+              <TabsTrigger value="zip" className="gap-2 px-4 py-2 text-sm">
+                <FolderArchive size={14} />
+                ZIP / tar.gz 업로드
+              </TabsTrigger>
+              <TabsTrigger value="git" className="gap-2 px-4 py-2 text-sm">
+                <GitBranch size={14} />
+                Git 클론
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
           {uploading ? (
-            <Card className="source-loading">
-              <Spinner size={32} label={upload.isActive ? upload.message : (tab === "zip" ? "업로드 중..." : "클론 중...")} />
+            <Card className="shadow-none">
+              <CardContent className="flex items-center justify-center py-16">
+                <Spinner size={32} label={upload.isActive ? upload.message : tab === "zip" ? "업로드 중..." : "클론 중..."} />
+              </CardContent>
             </Card>
           ) : tab === "zip" ? (
             <Card
-              className={`drop-zone${dragOver ? " drop-zone--active" : ""}`}
+              className={[
+                "cursor-pointer border-2 border-dashed shadow-none transition-colors",
+                dragOver
+                  ? "border-primary bg-primary/5"
+                  : "border-[var(--cds-border-strong)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(244,244,244,0.55))] hover:border-primary hover:bg-primary/5",
+              ].join(" ")}
               onDrop={handleDrop}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
               onDragLeave={() => setDragOver(false)}
               onClick={() => document.getElementById("source-file-input")?.click()}
             >
-              <div className="drop-zone-content">
-                <div className="drop-zone-icon">
+              <CardContent className="px-5 py-16 text-center text-muted-foreground">
+                <div className="mb-4 flex justify-center text-muted-foreground">
                   <Upload size={36} />
                 </div>
-                <p>프로젝트 소스코드를 드래그하거나 클릭하여 업로드</p>
-                <small>지원 형식: .zip, .tar.gz, .tgz, .tar.bz2, .tar</small>
-              </div>
+                <p className="mb-2 text-base text-foreground">프로젝트 소스코드를 드래그하거나 클릭하여 업로드</p>
+                <small className="text-sm text-muted-foreground">지원 형식: .zip, .tar.gz, .tgz, .tar.bz2, .tar</small>
+              </CardContent>
               <input
                 id="source-file-input"
                 type="file"
@@ -267,29 +266,29 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
               />
             </Card>
           ) : (
-            <Card className="source-git-form">
-              <Label className="form-field">
-                <span className="form-label">Git URL *</span>
-                <Input
-                  className="font-mono"
-                  value={gitUrl}
-                  onChange={(e) => setGitUrl(e.target.value)}
-                  placeholder="https://github.com/org/repo.git"
-                  spellCheck={false}
-                />
-              </Label>
-              <Label className="form-field">
-                <span className="form-label">Branch</span>
-                <Input
-                  value={gitBranch}
-                  onChange={(e) => setGitBranch(e.target.value)}
-                  placeholder="main (기본)"
-                />
-              </Label>
-              <Button className="source-git-submit" onClick={handleGitClone}>
-                <GitBranch size={14} />
-                클론
-              </Button>
+            <Card className="shadow-none">
+              <CardContent className="space-y-5 p-6">
+                <Label className="form-field">
+                  <span className="form-label">Git URL *</span>
+                  <Input
+                    className="font-mono"
+                    value={gitUrl}
+                    onChange={(e) => setGitUrl(e.target.value)}
+                    placeholder="https://github.com/org/repo.git"
+                    spellCheck={false}
+                  />
+                </Label>
+                <Label className="form-field">
+                  <span className="form-label">Branch</span>
+                  <Input value={gitBranch} onChange={(e) => setGitBranch(e.target.value)} placeholder="main (기본)" />
+                </Label>
+                <div className="flex justify-end">
+                  <Button onClick={handleGitClone}>
+                    <GitBranch size={14} />
+                    클론
+                  </Button>
+                </div>
+              </CardContent>
             </Card>
           )}
         </>

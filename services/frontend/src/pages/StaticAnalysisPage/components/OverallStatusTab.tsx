@@ -57,7 +57,7 @@ export const OverallStatusTab: React.FC<Props> = ({
   return (
     <>
       {/* Period Selector */}
-      <div className="overall-tab__period">
+      <div className="mb-5">
         <PeriodSelector value={period} onChange={onPeriodChange} />
       </div>
 
