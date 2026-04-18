@@ -1,7 +1,6 @@
 import React from "react";
 import type { ProjectReport } from "@aegis/shared";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CustomReportModal } from "./CustomReportModal";
 import { ReportApprovalsSection } from "./ReportApprovalsSection";
 import { ReportAuditLogSection } from "./ReportAuditLogSection";
@@ -57,7 +56,7 @@ export function ReportContent({
   sevMax,
 }: ReportContentProps) {
   return (
-    <div className="page-enter report-page">
+    <div className="page-enter space-y-6">
       <ReportHeader
         generatedAt={report.generatedAt}
         hasActiveFilters={hasActiveFilters}
@@ -76,21 +75,28 @@ export function ReportContent({
         />
       )}
 
-      <div className="report-tabs print-hide">
-        {(Object.keys(MODULE_TAB_LABELS) as ModuleTab[]).map((tab) => (
-          <Button
-            key={tab}
-            type="button"
-            variant={activeTab === tab ? "default" : "outline"}
-            className={cn("report-tabs__item", activeTab === tab && "report-tabs__item--active")}
-            onClick={() => setActiveTab(tab)}
-          >
-            {MODULE_TAB_LABELS[tab]}
-          </Button>
-        ))}
-      </div>
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as ModuleTab)}
+        className="print-hide"
+      >
+        <TabsList
+          variant="line"
+          className="h-auto w-full justify-start overflow-x-auto rounded-none border-b border-border p-0"
+        >
+          {(Object.keys(MODULE_TAB_LABELS) as ModuleTab[]).map((tab) => (
+            <TabsTrigger
+              key={tab}
+              value={tab}
+              className="rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-active:border-primary data-active:text-foreground"
+            >
+              {MODULE_TAB_LABELS[tab]}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
-      <div className="report-bento">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.95fr)]">
         <ReportExecutiveSummary
           report={report}
           allRuns={allRuns}
@@ -101,9 +107,7 @@ export function ReportContent({
         <ReportAuditTimelineCard auditTrail={report.auditTrail} />
       </div>
 
-      {activeTab === "all" && (
-        <ReportModuleBreakdown moduleEntries={moduleEntries} />
-      )}
+      {activeTab === "all" && <ReportModuleBreakdown moduleEntries={moduleEntries} />}
 
       <ReportFindingsSection findings={allFindings} />
       <ReportRunsSection runs={allRuns as never} />

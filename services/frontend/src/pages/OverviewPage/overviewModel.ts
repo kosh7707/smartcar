@@ -62,7 +62,7 @@ export function getSdkStatusLabel(status: string): string {
 }
 
 export function getSdkStatusToneClass(status: string): string {
-  if (status === "ready") return "overview-sdk-status--ready";
-  if (status.endsWith("_failed")) return "overview-sdk-status--failed";
-  return "overview-sdk-status--pending";
+  if (status === "ready") return "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+  if (status.endsWith("_failed")) return "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300";
+  return "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300";
 }

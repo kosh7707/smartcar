@@ -13,7 +13,6 @@ import { OverviewMetaPanel } from "./components/OverviewMetaPanel";
 import { SecurityPostureSection } from "./components/SecurityPostureSection";
 import { TrendSummaryCard } from "./components/TrendSummaryCard";
 import { useOverviewPage } from "./hooks/useOverviewPage";
-import "./OverviewPage.css";
 
 export const OverviewPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -39,7 +38,7 @@ export const OverviewPage: React.FC = () => {
   };
 
   return (
-    <div className="page-enter">
+    <div className="page-enter flex flex-col gap-8">
       <OverviewHeader name={project.name} description={project.description} />
 
       {state.empty ? (
@@ -60,7 +59,7 @@ export const OverviewPage: React.FC = () => {
 
           <TrendSummaryCard trend={state.overview.trend} />
 
-          <div className="overview-main-grid">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
             <OverviewActivityPanel activities={state.activities} />
             <OverviewMetaPanel
               fileCount={state.overview.fileCount ?? state.projectFiles.length}

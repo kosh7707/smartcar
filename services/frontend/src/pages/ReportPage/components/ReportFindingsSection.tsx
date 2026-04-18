@@ -1,5 +1,14 @@
 import React from "react";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { ProjectReport } from "@aegis/shared";
 import { EmptyState, FindingStatusBadge, SeverityBadge, SourceBadge } from "../../../shared/ui";
 import { MODULE_META } from "../../../constants/modules";
@@ -13,53 +22,55 @@ interface ReportFindingsSectionProps {
 }
 
 export const ReportFindingsSection: React.FC<ReportFindingsSectionProps> = ({ findings }) => (
-  <Card className="shadow-none">
-    <CardContent className="space-y-3">
+  <Card className="border-border/80 shadow-none">
+    <CardHeader className="border-b border-border/70">
       <CardTitle>탐지 항목 목록 ({findings.length})</CardTitle>
+    </CardHeader>
+    <CardContent className="px-0">
       {findings.length === 0 ? (
-        <EmptyState compact title="해당 조건의 탐지 항목이 없습니다" />
-      ) : (
-        <div className="report-findings">
-          <div className="report-findings__header">
-            <span className="report-findings__col--status">상태</span>
-            <span className="report-findings__col--severity">심각도</span>
-            <span className="report-findings__col--title">제목</span>
-            <span className="report-findings__col--source">출처</span>
-            <span className="report-findings__col--module">모듈</span>
-            <span className="report-findings__col--evidence">증적</span>
-          </div>
-          {findings.map(({ finding, evidenceRefs }) => (
-            <div key={finding.id} className="report-findings__row">
-              <span className="report-findings__col--status">
-                <FindingStatusBadge status={finding.status} size="sm" />
-              </span>
-              <span className="report-findings__col--severity">
-                <SeverityBadge severity={finding.severity} size="sm" />
-              </span>
-              <span className="report-findings__col--title">
-                <span className="report-findings__title">{finding.title}</span>
-                {finding.location && (
-                  <span className="report-findings__location">{finding.location}</span>
-                )}
-              </span>
-              <span className="report-findings__col--source">
-                <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
-              </span>
-              <span className="report-findings__col--module">
-                {MODULE_META[finding.module]?.label ?? finding.module}
-              </span>
-              <span className="report-findings__col--evidence">
-                {evidenceRefs.length > 0 ? (
-                  <span className="report-findings__evidence-count report-findings__evidence-count--has">
-                    {evidenceRefs.length}건
-                  </span>
-                ) : (
-                  <span className="report-findings__evidence-count">&mdash;</span>
-                )}
-              </span>
-            </div>
-          ))}
+        <div className="px-4 py-6">
+          <EmptyState compact title="해당 조건의 탐지 항목이 없습니다" />
         </div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="px-4 text-xs text-muted-foreground">상태</TableHead>
+              <TableHead className="text-xs text-muted-foreground">심각도</TableHead>
+              <TableHead className="text-xs text-muted-foreground">제목</TableHead>
+              <TableHead className="text-xs text-muted-foreground">출처</TableHead>
+              <TableHead className="text-xs text-muted-foreground">모듈</TableHead>
+              <TableHead className="px-4 text-center text-xs text-muted-foreground">증적</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {findings.map(({ finding, evidenceRefs }) => (
+              <TableRow key={finding.id}>
+                <TableCell className="px-4"><FindingStatusBadge status={finding.status} size="sm" /></TableCell>
+                <TableCell><SeverityBadge severity={finding.severity} size="sm" /></TableCell>
+                <TableCell className="whitespace-normal">
+                  <div className="space-y-1">
+                    <p className="font-medium text-foreground">{finding.title}</p>
+                    {finding.location && (
+                      <p className="font-mono text-xs text-muted-foreground">{finding.location}</p>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="whitespace-normal"><SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} /></TableCell>
+                <TableCell>{MODULE_META[finding.module]?.label ?? finding.module}</TableCell>
+                <TableCell className="px-4 text-center">
+                  {evidenceRefs.length > 0 ? (
+                    <Badge variant="outline" className="rounded-md px-2 py-1 text-xs text-muted-foreground">
+                      {evidenceRefs.length}건
+                    </Badge>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">&mdash;</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </CardContent>
   </Card>

@@ -10,7 +10,7 @@ import { VulnerabilityKeyboardHint } from "./components/VulnerabilityKeyboardHin
 import { VulnerabilityList } from "./components/VulnerabilityList";
 import { VulnerabilitiesToolbar } from "./components/VulnerabilitiesToolbar";
 import { useVulnerabilitiesPage } from "./hooks/useVulnerabilitiesPage";
-import "./VulnerabilitiesPage.css";
+import { SEVERITY_KO_LABELS } from "./vulnerabilitiesPresentation";
 
 export const VulnerabilitiesPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -46,7 +46,7 @@ export const VulnerabilitiesPage: React.FC = () => {
   }
 
   return (
-    <div className="page-enter">
+    <div className="page-enter space-y-6">
       <VulnerabilitiesHeader totalActiveFindings={state.counts.total} />
 
       <VulnerabilitiesToolbar
@@ -97,7 +97,7 @@ export const VulnerabilitiesPage: React.FC = () => {
           title={
             activeSeverity === "all"
               ? "조건에 맞는 탐지 항목이 없습니다"
-              : `${activeSeverity === "critical" ? "치명" : activeSeverity === "high" ? "높음" : activeSeverity === "medium" ? "보통" : activeSeverity === "low" ? "낮음" : "정보"} 수준의 탐지 항목이 없습니다`
+              : `${SEVERITY_KO_LABELS[activeSeverity]} 수준의 탐지 항목이 없습니다`
           }
         />
       ) : (

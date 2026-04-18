@@ -23,6 +23,7 @@ describe("CustomReportModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGenerateCustomReport.mockResolvedValue(undefined);
+    window.HTMLElement.prototype.scrollIntoView = vi.fn();
   });
 
   it("closes when the overlay or cancel action is clicked", () => {
@@ -46,7 +47,8 @@ describe("CustomReportModal", () => {
     fireEvent.change(screen.getByPlaceholderText("보고서 서두에 포함할 요약문"), { target: { value: "  Executive summary  " } });
     fireEvent.change(screen.getByPlaceholderText("보고서에 표시할 회사명"), { target: { value: "  AEGIS Inc.  " } });
     fireEvent.change(screen.getByPlaceholderText("https://example.com/logo.png"), { target: { value: "  https://example.com/logo.png  " } });
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "en" } });
+    fireEvent.click(screen.getByRole("combobox", { name: "언어" }));
+    fireEvent.click(await screen.findByRole("option", { name: "영어" }));
 
     fireEvent.click(screen.getByRole("button", { name: "보고서 생성" }));
 

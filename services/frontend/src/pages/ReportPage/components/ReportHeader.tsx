@@ -1,7 +1,6 @@
 import React from "react";
 import { Download, Filter, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { PageHeader } from "../../../shared/ui";
 import { formatDateTime } from "../../../utils/format";
 
@@ -24,13 +23,8 @@ export const ReportHeader: React.FC<ReportHeaderProps> = ({
     title="보고서"
     subtitle={`생성: ${formatDateTime(generatedAt)}`}
     action={
-      <div className="report-page__actions">
-        <Button
-          variant="outline"
-          size="sm"
-          className={cn(hasActiveFilters && "report-page__filter-active")}
-          onClick={onToggleFilters}
-        >
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button variant={hasActiveFilters ? "default" : "outline"} size="sm" onClick={onToggleFilters}>
           <Filter size={14} />
           필터{hasActiveFilters ? " (적용됨)" : ""}
         </Button>

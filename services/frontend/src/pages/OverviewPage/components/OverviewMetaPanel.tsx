@@ -1,5 +1,7 @@
 import React from "react";
 import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import type { RegisteredSdk } from "../../../api/sdk";
 import { formatFileSize } from "../../../utils/format";
 import type { GateCounts } from "../overviewModel";
@@ -19,6 +21,24 @@ interface OverviewMetaPanelProps {
   onOpenSettings: () => void;
 }
 
+interface MetaCardProps {
+  title: string;
+  onClick?: () => void;
+  children: React.ReactNode;
+}
+
+function MetaCard({ title, onClick, children }: MetaCardProps) {
+  return (
+    <Card
+      className={`gap-4 border-border/70 bg-card/80 p-5 shadow-none ${onClick ? "cursor-pointer transition-colors hover:bg-muted/40" : ""}`}
+      onClick={onClick}
+    >
+      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{title}</div>
+      {children}
+    </Card>
+  );
+}
+
 export const OverviewMetaPanel: React.FC<OverviewMetaPanelProps> = ({
   fileCount,
   totalFileSize,
@@ -32,75 +52,75 @@ export const OverviewMetaPanel: React.FC<OverviewMetaPanelProps> = ({
   onOpenApprovals,
   onOpenSettings,
 }) => (
-  <div className="overview-meta-panel">
-    <div className="overview-meta-section">
-      <div className="overview-meta-section__title">프로젝트 메타데이터</div>
-      <div className="overview-meta-rows">
-        <div>
-          <span className="overview-meta-row__label">Files</span>
-          <span className="overview-meta-row__value">{fileCount}</span>
+  <aside className="space-y-4">
+    <MetaCard title="프로젝트 메타데이터">
+      <dl className="space-y-4 text-sm">
+        <div className="space-y-1">
+          <dt className="font-medium text-muted-foreground">Files</dt>
+          <dd className="font-mono text-foreground">{fileCount}</dd>
         </div>
         {hasFiles && (
-          <div>
-            <span className="overview-meta-row__label">Total Size</span>
-            <span className="overview-meta-row__value">{formatFileSize(totalFileSize)}</span>
+          <div className="space-y-1">
+            <dt className="font-medium text-muted-foreground">Total Size</dt>
+            <dd className="font-mono text-foreground">{formatFileSize(totalFileSize)}</dd>
           </div>
         )}
         {description && (
-          <div>
-            <span className="overview-meta-row__label">Description</span>
-            <span className="overview-meta-row__value overview-meta-row__value--body">{description}</span>
+          <div className="space-y-1">
+            <dt className="font-medium text-muted-foreground">Description</dt>
+            <dd className="leading-6 text-foreground">{description}</dd>
           </div>
         )}
-      </div>
-    </div>
+      </dl>
+    </MetaCard>
 
     {hasGates && (
-      <div className="overview-meta-section overview-meta-section--clickable" onClick={onOpenQualityGate}>
-        <div className="overview-meta-section__title">Quality Gate</div>
-        <div className="overview-gate-summary">
-          <span className="overview-gate-item overview-gate-item--pass">
+      <MetaCard title="Quality Gate" onClick={onOpenQualityGate}>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline" className="border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
             <CheckCircle2 size={12} /> 통과 {gateCounts.pass}
-          </span>
-          <span className="overview-gate-item overview-gate-item--fail">
+          </Badge>
+          <Badge variant="outline" className="border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300">
             <XCircle size={12} /> 실패 {gateCounts.fail}
-          </span>
-          <span className="overview-gate-item overview-gate-item--cds-support-warning">
+          </Badge>
+          <Badge variant="outline" className="border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300">
             <AlertTriangle size={12} /> 경고 {gateCounts.warning}
-          </span>
+          </Badge>
         </div>
-      </div>
+      </MetaCard>
     )}
 
-    <div className="overview-meta-section overview-meta-section--clickable" onClick={onOpenApprovals}>
-      <div className="overview-meta-section__title">승인 요청</div>
-      <div className="overview-approval-body">
+    <MetaCard title="승인 요청" onClick={onOpenApprovals}>
+      <div className="flex items-end justify-between gap-3">
         {approvalCount.pending > 0 ? (
-          <div className="overview-approval-pending">
-            <span className="overview-approval-pending__count">{approvalCount.pending}</span>
-            <span className="overview-approval-pending__label">건 대기 중</span>
+          <div className="flex items-end gap-2">
+            <span className="font-mono text-3xl font-semibold leading-none text-red-700 dark:text-red-300">
+              {approvalCount.pending}
+            </span>
+            <span className="pb-0.5 text-sm text-muted-foreground">건 대기 중</span>
           </div>
         ) : (
-          <p className="overview-empty-text overview-empty-text--compact">대기 없음</p>
+          <p className="inline-flex min-h-7 items-center rounded-md border border-border/70 bg-background/80 px-3 text-xs font-medium text-muted-foreground">
+            대기 없음
+          </p>
         )}
-        {approvalCount.total > 0 && <span className="overview-approval-total">총 {approvalCount.total}건</span>}
+        {approvalCount.total > 0 && <span className="text-sm text-muted-foreground">총 {approvalCount.total}건</span>}
       </div>
-    </div>
+    </MetaCard>
 
     {registeredSdks.length > 0 && (
-      <div className="overview-meta-section overview-meta-section--clickable" onClick={onOpenSettings}>
-        <div className="overview-meta-section__title">SDK ({registeredSdks.length}개)</div>
-        <div className="overview-sdk-body">
+      <MetaCard title={`SDK (${registeredSdks.length}개)`} onClick={onOpenSettings}>
+        <div className="space-y-2">
           {registeredSdks.slice(0, 4).map((sdk) => (
-            <div key={sdk.id} className="overview-sdk-row">
-              <span className="overview-sdk-name">{sdk.name}</span>
-              <span className={`overview-sdk-status ${getSdkStatusToneClass(sdk.status)}`}>
+            <div key={sdk.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-background/60 px-3 py-2">
+              <span className="truncate text-sm font-medium text-foreground">{sdk.name}</span>
+              <Badge variant="outline" className={getSdkStatusToneClass(sdk.status)}>
                 {getSdkStatusLabel(sdk.status)}
-              </span>
+              </Badge>
             </div>
           ))}
         </div>
-      </div>
+      </MetaCard>
     )}
-  </div>
+  </aside>
 );

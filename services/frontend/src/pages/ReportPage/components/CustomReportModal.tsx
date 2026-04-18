@@ -4,12 +4,20 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { generateCustomReport } from "../../../api/report";
 import { logError } from "../../../api/core";
@@ -53,15 +61,20 @@ export const CustomReportModal: React.FC<Props> = ({ projectId, onClose }) => {
   return (
     <Dialog open onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}>
       <DialogContent
-        className="flex flex-col max-h-[85vh] max-w-xl grid-rows-[auto_1fr_auto] gap-0 overflow-hidden border-border bg-card p-0 shadow-2xl sm:max-w-xl"
+        className="flex max-h-[85vh] max-w-xl flex-col gap-0 overflow-hidden border-border bg-card p-0 shadow-2xl sm:max-w-xl"
         overlayClassName="custom-report-overlay"
         onOverlayClick={onClose}
         showCloseButton={false}
       >
         <DialogHeader className="flex-row items-center justify-between space-y-0 border-b border-border px-5 py-4">
-          <DialogTitle className="flex items-center gap-3 text-base font-semibold">
-            <FileText size={16} /> 커스텀 보고서 생성
-          </DialogTitle>
+          <div className="space-y-1">
+            <DialogTitle className="flex items-center gap-3 text-base font-semibold">
+              <FileText size={16} /> 커스텀 보고서 생성
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              보고서 제목, 요약, 회사 정보와 출력 언어를 지정해 맞춤형 보고서를 생성합니다.
+            </DialogDescription>
+          </div>
           <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="커스텀 보고서 닫기">
             <X size={16} />
           </Button>
@@ -103,14 +116,15 @@ export const CustomReportModal: React.FC<Props> = ({ projectId, onClose }) => {
           </Label>
           <Label className="flex-col items-start gap-2">
             <span>언어</span>
-            <select
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
-            >
-              <option value="ko">한국어</option>
-              <option value="en">영어</option>
-            </select>
+            <Select value={language} onValueChange={setLanguage}>
+              <SelectTrigger className="w-full" aria-label="언어">
+                <SelectValue placeholder="언어 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ko">한국어</SelectItem>
+                <SelectItem value="en">영어</SelectItem>
+              </SelectContent>
+            </Select>
           </Label>
         </div>
         <DialogFooter className="flex-row justify-end gap-2 rounded-b-xl border-t bg-muted/30 px-5 py-4">

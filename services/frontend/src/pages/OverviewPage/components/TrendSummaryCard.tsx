@@ -8,40 +8,56 @@ interface TrendSummaryCardProps {
   trend?: OverviewTrend | null;
 }
 
-export const TrendSummaryCard: React.FC<TrendSummaryCardProps> = ({
-  trend,
-}) => {
+const trendItems = [
+  {
+    key: "new",
+    label: "신규 발견",
+    getValue: (trend?: OverviewTrend | null) => `+${trend?.newFindings ?? 0}`,
+    icon: TrendingUp,
+    className: "bg-red-500/8 text-red-700 dark:text-red-300",
+  },
+  {
+    key: "resolved",
+    label: "해결됨",
+    getValue: (trend?: OverviewTrend | null) => `-${trend?.resolvedFindings ?? 0}`,
+    icon: TrendingDown,
+    className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  },
+  {
+    key: "total",
+    label: "미해결 총계",
+    getValue: (trend?: OverviewTrend | null) => `${trend?.unresolvedTotal ?? 0}`,
+    icon: Minus,
+    className: "bg-muted text-foreground",
+  },
+] as const;
+
+export const TrendSummaryCard: React.FC<TrendSummaryCardProps> = ({ trend }) => {
   if (!hasTrendSignal(trend)) return null;
 
   return (
-    <Card className="overview-trend-card shadow-none">
-      <CardContent className="space-y-3">
-        <CardTitle className="flex-center flex-gap-2">
+    <Card className="border-border/70 bg-card/80 shadow-none">
+      <CardContent className="space-y-4">
+        <CardTitle className="flex items-center gap-2">
           <Activity size={16} />
           이전 분석 대비 변화
         </CardTitle>
-        <div className="overview-trend-row">
-          <div className="overview-trend-item overview-trend-item--new">
-            <TrendingUp size={16} />
-            <span className="overview-trend-value">
-              +{trend?.newFindings ?? 0}
-            </span>
-            <span className="overview-trend-label">신규 발견</span>
-          </div>
-          <div className="overview-trend-item overview-trend-item--resolved">
-            <TrendingDown size={16} />
-            <span className="overview-trend-value">
-              -{trend?.resolvedFindings ?? 0}
-            </span>
-            <span className="overview-trend-label">해결됨</span>
-          </div>
-          <div className="overview-trend-item overview-trend-item--total">
-            <Minus size={16} />
-            <span className="overview-trend-value">
-              {trend?.unresolvedTotal ?? 0}
-            </span>
-            <span className="overview-trend-label">미해결 총계</span>
-          </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          {trendItems.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <div key={item.key} className={`rounded-xl px-4 py-3 ${item.className}`}>
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Icon size={16} />
+                  <span>{item.label}</span>
+                </div>
+                <div className="mt-3 font-mono text-2xl font-semibold leading-none tracking-tight">
+                  {item.getValue(trend)}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </CardContent>
     </Card>

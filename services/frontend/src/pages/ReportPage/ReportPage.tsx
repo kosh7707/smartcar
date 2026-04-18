@@ -5,7 +5,6 @@ import { Spinner } from "../../shared/ui";
 import { ReportContent } from "./components/ReportContent";
 import { ReportUnavailableState } from "./components/ReportUnavailableState";
 import { useReportPage } from "./hooks/useReportPage";
-import "./ReportPage.css";
 
 export const ReportPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -36,7 +35,7 @@ export const ReportPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="page-enter centered-loader--compact">
+      <div className="page-enter flex min-h-[40vh] items-center justify-center">
         <Spinner label="보고서 생성 중..." />
       </div>
     );

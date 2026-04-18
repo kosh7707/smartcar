@@ -1,3 +1,5 @@
+import type { Severity } from "@aegis/shared";
+
 export const CWE_DESCRIPTIONS: Record<string, string> = {
   "CWE-120": "버퍼 오버플로우 (Buffer Copy without Checking Size)",
   "CWE-121": "스택 기반 버퍼 오버플로우",
@@ -19,4 +21,29 @@ export const CWE_DESCRIPTIONS: Record<string, string> = {
   "CWE-400": "자원 소모 (Resource Exhaustion)",
   "CWE-415": "이중 해제 (Double Free)",
   "CWE-469": "포인터 연산에서의 잘못된 크기값 사용",
+};
+
+export const SEVERITY_KO_LABELS: Record<Severity | "all", string> = {
+  all: "전체",
+  critical: "치명",
+  high: "높음",
+  medium: "보통",
+  low: "낮음",
+  info: "정보",
+};
+
+export const SEVERITY_SURFACE_CLASSES: Record<Severity, string> = {
+  critical: "border-[var(--aegis-severity-critical-border)] bg-[var(--aegis-severity-critical-bg)] text-[var(--aegis-severity-critical)]",
+  high: "border-[var(--aegis-severity-high-border)] bg-[var(--aegis-severity-high-bg)] text-[var(--aegis-severity-high)]",
+  medium: "border-[var(--aegis-severity-medium-border)] bg-[var(--aegis-severity-medium-bg)] text-[var(--aegis-severity-medium)]",
+  low: "border-[var(--aegis-severity-low-border)] bg-[var(--aegis-severity-low-bg)] text-[var(--aegis-severity-low)]",
+  info: "border-[var(--aegis-severity-info-border)] bg-[var(--aegis-severity-info-bg)] text-[var(--aegis-severity-info)]",
+};
+
+export const SEVERITY_STRIP_CLASSES: Record<Severity, string> = {
+  critical: "bg-[var(--aegis-severity-critical)]",
+  high: "bg-[var(--aegis-severity-high)]",
+  medium: "bg-[var(--aegis-severity-medium)]",
+  low: "bg-[var(--aegis-severity-low)]",
+  info: "bg-[var(--aegis-severity-info)]",
 };
