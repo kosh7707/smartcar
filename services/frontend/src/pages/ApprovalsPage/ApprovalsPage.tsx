@@ -47,7 +47,7 @@ export const ApprovalsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="page-enter centered-loader">
+      <div className="page-enter flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
         <Spinner size={36} label="승인 요청 로딩 중..." />
       </div>
     );

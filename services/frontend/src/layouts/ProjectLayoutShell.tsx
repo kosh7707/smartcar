@@ -23,12 +23,12 @@ import { NotificationBridge } from "./NotificationBridge";
  */
 export const ProjectLayoutShell: React.FC = () => (
   <NotificationBridge>
-    <div className="layout-project">
+    <div className="flex h-screen flex-col overflow-hidden">
       <Navbar />
-      <div className="layout-project__body">
+      <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <div className="layout-project__content">
-          <div className="layout-project__main">
+        <div className="flex flex-1 flex-col overflow-hidden bg-[linear-gradient(180deg,#f4f6fa_0%,var(--cds-background)_12rem)]">
+          <div className="flex-1 overflow-y-auto p-7">
             <ErrorBoundary>
               <Routes>
                 <Route element={<ProjectBreadcrumbLayout />}>

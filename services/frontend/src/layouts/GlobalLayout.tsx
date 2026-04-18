@@ -12,9 +12,9 @@ interface GlobalLayoutProps {
  */
 export const GlobalLayout: React.FC<GlobalLayoutProps> = ({ children }) => (
   <NotificationProvider>
-    <div className="layout-global">
+    <div className="flex h-screen flex-col overflow-hidden">
       <Navbar />
-      <div className="layout-global__content">
+      <div className="mx-auto w-full max-w-[1280px] flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f4f6fa_0%,var(--cds-background)_14rem)] px-8 py-7">
         <ErrorBoundary>
           {children}
         </ErrorBoundary>

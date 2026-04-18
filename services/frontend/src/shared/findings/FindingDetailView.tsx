@@ -94,7 +94,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
     return (
       <div className="page-enter">
         <BackButton onClick={onBack} />
-        <div className="centered-loader--compact">
+        <div className="flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
           <Spinner label="Finding 로딩 중..." />
         </div>
       </div>
@@ -105,7 +105,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
     return (
       <div className="page-enter">
         <BackButton onClick={onBack} />
-        <p className="text-tertiary">Finding을 찾을 수 없습니다.</p>
+        <p className="text-muted-foreground">Finding을 찾을 수 없습니다.</p>
       </div>
     );
   }
@@ -300,16 +300,16 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
                 key={entry.id}
                 className="audit-timeline__entry"
               >
-                <span className="text-tertiary audit-timeline__time">
+                <span className="text-muted-foreground audit-timeline__time">
                   {formatDateTime(entry.timestamp)}
                 </span>
                 <span>
                   <strong>{entry.actor}</strong> — {entry.action}
                   {entry.detail?.from && entry.detail?.to && (
-                    <span className="text-tertiary"> ({String(entry.detail.from)} → {String(entry.detail.to)})</span>
+                    <span className="text-muted-foreground"> ({String(entry.detail.from)} → {String(entry.detail.to)})</span>
                   )}
                   {entry.detail?.reason && (
-                    <span className="text-tertiary"> "{String(entry.detail.reason)}"</span>
+                    <span className="text-muted-foreground"> "{String(entry.detail.reason)}"</span>
                   )}
                 </span>
               </div>

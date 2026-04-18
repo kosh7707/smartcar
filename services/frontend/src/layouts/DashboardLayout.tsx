@@ -12,9 +12,9 @@ interface DashboardLayoutProps {
  */
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => (
   <NotificationProvider>
-    <div className="layout-dashboard">
+    <div className="flex h-screen flex-col overflow-hidden">
       <Navbar />
-      <div className="layout-dashboard__content">
+      <div className="flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f4f6fa_0%,var(--cds-background)_12rem)]">
         <ErrorBoundary>
           {children}
         </ErrorBoundary>

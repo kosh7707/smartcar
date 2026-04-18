@@ -145,7 +145,7 @@ export const LatestAnalysisTab: React.FC<Props> = ({
 }) => {
   if (loading) {
     return (
-      <div className="centered-loader--compact">
+      <div className="flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
         <Spinner label="최신 분석 로딩 중..." />
       </div>
     );
@@ -348,7 +348,7 @@ const LatestAnalysisContent: React.FC<{
         <GateResultCard gate={gate} />
       ) : (
         <p
-          className="text-tertiary text-sm"
+          className="text-muted-foreground text-sm"
           style={{ marginBottom: "var(--cds-spacing-05)" }}
         >
           Quality Gate가 설정되지 않았습니다.

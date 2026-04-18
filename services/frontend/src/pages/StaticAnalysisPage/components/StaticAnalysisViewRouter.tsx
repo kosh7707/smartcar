@@ -93,7 +93,7 @@ export function StaticAnalysisViewRouter({
       return (
         <div className="page-enter">
           <BackButton onClick={state.goToDashboard} label="대시보드로" />
-          <div className="centered-loader--compact">
+          <div className="flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
             <Spinner label="Run 로딩 중..." />
           </div>
         </div>
@@ -139,7 +139,7 @@ export function StaticAnalysisViewRouter({
       return (
         <div className="page-enter">
           <BackButton onClick={state.goToDashboard} label="대시보드로" />
-          <div className="centered-loader--compact">
+          <div className="flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
             <Spinner label="분석 결과 로딩 중..." />
           </div>
         </div>
@@ -186,7 +186,7 @@ export function StaticAnalysisViewRouter({
   if (dashboard.loading) {
     return (
       <div className="page-enter">
-        <div className="centered-loader--compact">
+        <div className="flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
           <Spinner label="대시보드 로딩 중..." />
         </div>
       </div>

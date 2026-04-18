@@ -31,7 +31,7 @@ export const FileDetailPage: React.FC = () => {
 
   if (state.loading) {
     return (
-      <div className="page-enter centered-loader">
+      <div className="page-enter flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
         <Spinner size={36} label="파일 정보 로딩 중..." />
       </div>
     );

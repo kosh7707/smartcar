@@ -108,7 +108,7 @@ export const DynamicAnalysisConfigView: React.FC<
     </Card>
 
     {creating && (
-      <div className="centered-loader--compact">
+      <div className="flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
         <Spinner label="세션 생성 중..." />
       </div>
     )}

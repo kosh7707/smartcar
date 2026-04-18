@@ -103,7 +103,7 @@ export const DynamicAnalysisHistoryView: React.FC<
     )}
 
     {historyLoading ? (
-      <div className="centered-loader--compact">
+      <div className="flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
         <Spinner label="세션 이력 로딩 중..." />
       </div>
     ) : sessions.length === 0 ? (
