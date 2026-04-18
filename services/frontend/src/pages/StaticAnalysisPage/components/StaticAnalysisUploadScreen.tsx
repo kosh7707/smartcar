@@ -1,5 +1,5 @@
 import React from "react";
-import { BackButton } from "../../../shared/ui";
+import { BackButton, PageHeader } from "../../../shared/ui";
 import { SourceUploadView } from "./SourceUploadView";
 
 type StaticAnalysisUploadScreenProps = {
@@ -18,9 +18,9 @@ export function StaticAnalysisUploadScreen({
   onDiscoverTargets,
 }: StaticAnalysisUploadScreenProps) {
   return (
-    <div className="page-enter">
+    <div className="page-enter space-y-5">
       <BackButton onClick={onBack} label="대시보드로" />
-      <div className="sa-page-header"><h1 className="sa-page-header__title">소스코드 업로드</h1></div>
+      <PageHeader title="소스코드 업로드" />
       <SourceUploadView
         projectId={projectId}
         onAnalysisStart={onAnalysisStart}

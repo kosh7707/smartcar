@@ -91,15 +91,13 @@ export const BuildProfileForm: React.FC<Props> = ({ value, onChange, registeredS
     [value, onChange],
   );
 
-  // Find current SDK name for hint
   const currentSdk = readySdks.find((s) => s.id === value.sdkId);
   const selectClassName = "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
   return (
-    <div className="bp-form">
-      {/* SDK selector */}
-      <Label className="form-field">
-        <span className="form-label">SDK 프로파일</span>
+    <div className="space-y-4">
+      <Label className="flex flex-col items-start gap-2">
+        <span className="text-sm font-medium text-foreground">SDK 프로파일</span>
         <select
           className={selectClassName}
           value={value.sdkId}
@@ -115,19 +113,18 @@ export const BuildProfileForm: React.FC<Props> = ({ value, onChange, registeredS
       </Label>
 
       {value.sdkId === "none" && readySdks.length === 0 && (
-        <div className="bp-sdk-hint">등록된 SDK가 없습니다. 프로젝트 설정에서 SDK를 먼저 등록하세요.</div>
+        <div className="text-xs text-muted-foreground">등록된 SDK가 없습니다. 프로젝트 설정에서 SDK를 먼저 등록하세요.</div>
       )}
 
       {currentSdk?.description && (
-        <div className="bp-sdk-hint">{currentSdk.description}</div>
+        <div className="text-xs text-muted-foreground">{currentSdk.description}</div>
       )}
 
-      {/* Advanced toggle */}
       <Button
         type="button"
         variant="ghost"
         size="sm"
-        className="bp-advanced-toggle justify-start"
+        className="justify-start px-0 text-sm text-muted-foreground hover:text-foreground"
         aria-expanded={showAdvanced}
         onClick={() => setShowAdvanced(!showAdvanced)}
       >
@@ -140,10 +137,10 @@ export const BuildProfileForm: React.FC<Props> = ({ value, onChange, registeredS
       </Button>
 
       {showAdvanced && (
-        <div className="bp-advanced">
-          <div className="bp-grid">
-            <Label className="form-field">
-              <span className="form-label">컴파일러</span>
+        <div className="space-y-4 rounded-xl border border-border/70 bg-background/80 p-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Label className="flex flex-col items-start gap-2">
+              <span className="text-sm font-medium text-foreground">컴파일러</span>
               <Input
                 className="font-mono"
                 value={value.compiler}
@@ -152,8 +149,8 @@ export const BuildProfileForm: React.FC<Props> = ({ value, onChange, registeredS
                 spellCheck={false}
               />
             </Label>
-            <Label className="form-field">
-              <span className="form-label">컴파일러 버전</span>
+            <Label className="flex flex-col items-start gap-2">
+              <span className="text-sm font-medium text-foreground">컴파일러 버전</span>
               <Input
                 className="font-mono"
                 value={value.compilerVersion ?? ""}
@@ -162,8 +159,8 @@ export const BuildProfileForm: React.FC<Props> = ({ value, onChange, registeredS
                 spellCheck={false}
               />
             </Label>
-            <Label className="form-field">
-              <span className="form-label">타겟 아키텍처</span>
+            <Label className="flex flex-col items-start gap-2">
+              <span className="text-sm font-medium text-foreground">타겟 아키텍처</span>
               <Input
                 className="font-mono"
                 value={value.targetArch}
@@ -172,8 +169,8 @@ export const BuildProfileForm: React.FC<Props> = ({ value, onChange, registeredS
                 spellCheck={false}
               />
             </Label>
-            <Label className="form-field">
-              <span className="form-label">언어 표준</span>
+            <Label className="flex flex-col items-start gap-2">
+              <span className="text-sm font-medium text-foreground">언어 표준</span>
               <Input
                 className="font-mono"
                 value={value.languageStandard}
@@ -182,8 +179,8 @@ export const BuildProfileForm: React.FC<Props> = ({ value, onChange, registeredS
                 spellCheck={false}
               />
             </Label>
-            <Label className="form-field">
-              <span className="form-label">헤더 처리 (.h)</span>
+            <Label className="flex flex-col items-start gap-2">
+              <span className="text-sm font-medium text-foreground">헤더 처리 (.h)</span>
               <select
                 className={selectClassName}
                 value={value.headerLanguage}
@@ -196,10 +193,10 @@ export const BuildProfileForm: React.FC<Props> = ({ value, onChange, registeredS
             </Label>
           </div>
 
-          <Label className="form-field">
-            <span className="form-label">인클루드 경로 (한 줄에 하나)</span>
+          <Label className="flex flex-col items-start gap-2">
+            <span className="text-sm font-medium text-foreground">인클루드 경로 (한 줄에 하나)</span>
             <Textarea
-              className="font-mono bp-textarea"
+              className="min-h-12 font-mono text-xs"
               value={(value.includePaths ?? []).join("\n")}
               onChange={handleIncludePathsChange}
               placeholder="../common-lib/include"
@@ -208,10 +205,10 @@ export const BuildProfileForm: React.FC<Props> = ({ value, onChange, registeredS
             />
           </Label>
 
-          <Label className="form-field">
-            <span className="form-label">전처리기 매크로 (KEY=VALUE, 한 줄에 하나)</span>
+          <Label className="flex flex-col items-start gap-2">
+            <span className="text-sm font-medium text-foreground">전처리기 매크로 (KEY=VALUE, 한 줄에 하나)</span>
             <Textarea
-              className="font-mono bp-textarea"
+              className="min-h-12 font-mono text-xs"
               value={
                 value.defines
                   ? Object.entries(value.defines)
@@ -226,10 +223,10 @@ export const BuildProfileForm: React.FC<Props> = ({ value, onChange, registeredS
             />
           </Label>
 
-          <Label className="form-field">
-            <span className="form-label">추가 컴파일 플래그 (공백 구분)</span>
+          <Label className="flex flex-col items-start gap-2">
+            <span className="text-sm font-medium text-foreground">추가 컴파일 플래그 (공백 구분)</span>
             <Textarea
-              className="font-mono bp-textarea"
+              className="min-h-12 font-mono text-xs"
               value={(value.flags ?? []).join(" ")}
               onChange={handleFlagsChange}
               placeholder="-Wall -Wextra"

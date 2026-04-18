@@ -1,16 +1,10 @@
 import React, { useEffect, useState } from "react";
 import type { AnalysisProgress } from "@aegis/shared";
-import { CheckCircle2, XCircle, Eye } from "lucide-react";
+import { CheckCircle2, Eye, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useElapsedTimer } from "../../../hooks/useElapsedTimer";
-import {
-  PageHeader,
-  Spinner,
-  BackButton,
-  ConfirmDialog,
-} from "../../../shared/ui";
-import "./AsyncAnalysisProgressView.css";
+import { BackButton, ConfirmDialog, PageHeader, Spinner } from "../../../shared/ui";
 
 interface Props {
   progress: AnalysisProgress;
@@ -50,7 +44,6 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
     progress.status === "aborted";
   const { timeStr } = useElapsedTimer(!isDone, progress.startedAt);
 
-  // Auto-redirect countdown on completion
   useEffect(() => {
     if (progress.status !== "completed") return;
     setAutoRedirect(5);
@@ -81,7 +74,6 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
     progress.totalChunks > 0 &&
     progress.currentChunk >= progress.totalChunks;
 
-  // Phase weights — 서버 제공 시 우선, 없으면 기본값
   const DEFAULT_WEIGHTS = {
     queued: 5,
     rule_engine: 5,
@@ -89,16 +81,14 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
     merging: 10,
   };
   const w =
-    ((progress as Record<string, unknown>).phaseWeights as
-      | Record<string, number>
-      | undefined) ?? DEFAULT_WEIGHTS;
+    ((progress as Record<string, unknown>).phaseWeights as Record<string, number> | undefined) ??
+    DEFAULT_WEIGHTS;
   const cum = {
     rule_engine: w.queued,
     llm_chunk: w.queued + w.rule_engine,
     merging: w.queued + w.rule_engine + w.llm_chunk,
   };
 
-  // Progress percentage — time-weighted (LLM 분석이 대부분 시간 차지)
   const calcPhaseProgress = (): number => {
     switch (progress.phase) {
       case "queued":
@@ -107,8 +97,7 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
         return cum.rule_engine + w.rule_engine / 2;
       case "llm_chunk":
         return progress.totalChunks > 0
-          ? cum.llm_chunk +
-              (progress.currentChunk / progress.totalChunks) * w.llm_chunk
+          ? cum.llm_chunk + (progress.currentChunk / progress.totalChunks) * w.llm_chunk
           : cum.llm_chunk;
       case "merging":
         return cum.merging + w.merging / 2;
@@ -125,11 +114,15 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
       <BackButton onClick={onBack} label="대시보드로" />
       <PageHeader title="정적 분석" />
 
-      <Card className="async-progress shadow-none">
-        <CardContent className="space-y-5">
-          {!isDone && <Spinner size={40} />}
+      <Card className="shadow-none">
+        <CardContent className="space-y-5 px-8 py-10 text-center">
+          {!isDone && (
+            <div className="flex justify-center">
+              <Spinner size={40} />
+            </div>
+          )}
 
-          <h3 className="async-progress__title">
+          <h3 className="text-lg font-semibold text-foreground">
             {isCompleted
               ? "분석 완료"
               : isFailed
@@ -139,89 +132,103 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
                   : "분석 진행 중..."}
           </h3>
 
-          {/* 5-step stepper */}
-          <div className="async-stepper">
+          <div className="mb-7 flex items-start justify-center gap-0">
             {STEPS.map((s, i) => {
-              const done = isCompleted
-                ? true
-                : currentIdx > i || (llmDone && i === currentIdx);
+              const done = isCompleted ? true : currentIdx > i || (llmDone && i === currentIdx);
               const active = !isDone && currentIdx === i && !done;
               const failed = (isFailed || isAborted) && currentIdx === i;
               return (
                 <React.Fragment key={s.key}>
                   {i > 0 && (
                     <div
-                      className={`async-stepper__line${done ? " async-stepper__line--done" : ""}`}
+                      className={[
+                        "mt-[14px] h-0.5 w-9 shrink-0 rounded-sm bg-border/80 transition-colors",
+                        done ? "bg-emerald-500" : "",
+                      ].join(" ")}
                     />
                   )}
-                  <div
-                    className={`async-stepper__step${done ? " async-stepper__step--done" : active ? " async-stepper__step--active" : failed ? " async-stepper__step--failed" : ""}`}
-                  >
-                    <div className="async-stepper__circle">
-                      {done ? (
-                        <CheckCircle2 size={18} />
-                      ) : failed ? (
-                        <XCircle size={18} />
-                      ) : (
-                        <span>{i + 1}</span>
-                      )}
+                  <div className="flex min-w-16 flex-col items-center gap-2">
+                    <div
+                      className={[
+                        "flex h-7 w-7 items-center justify-center rounded-full border-2 bg-background text-xs font-semibold transition-all",
+                        done
+                          ? "border-emerald-500 bg-emerald-500 text-white"
+                          : failed
+                            ? "border-[var(--aegis-severity-critical)] bg-[var(--aegis-severity-critical)] text-white"
+                            : active
+                              ? "border-primary text-primary shadow-[0_0_0_3px_var(--cds-interactive-subtle)]"
+                              : "border-border text-muted-foreground",
+                      ].join(" ")}
+                    >
+                      {done ? <CheckCircle2 size={18} /> : failed ? <XCircle size={18} /> : <span>{i + 1}</span>}
                     </div>
-                    <span className="async-stepper__label">{s.label}</span>
+                    <span
+                      className={[
+                        "whitespace-nowrap text-xs",
+                        done
+                          ? "text-emerald-600 dark:text-emerald-300"
+                          : failed
+                            ? "text-[var(--aegis-severity-critical)]"
+                            : active
+                              ? "font-medium text-foreground"
+                              : "text-muted-foreground",
+                      ].join(" ")}
+                    >
+                      {s.label}
+                    </span>
                   </div>
                 </React.Fragment>
               );
             })}
           </div>
 
-          {/* Chunk info */}
-          {progress.phase === "llm_chunk" &&
-            progress.totalChunks > 0 &&
-            !isDone &&
-            !llmDone && (
-              <p className="async-progress__chunk">
-                {progress.totalFiles
-                  ? `${progress.processedFiles ?? 0} / ${progress.totalFiles}개 파일 진행 중 — `
-                  : ""}
-                LLM 분석 {progress.currentChunk} / {progress.totalChunks} 단계
-              </p>
-            )}
+          {progress.phase === "llm_chunk" && progress.totalChunks > 0 && !isDone && !llmDone && (
+            <p className="mb-5 text-sm font-medium text-primary">
+              {progress.totalFiles
+                ? `${progress.processedFiles ?? 0} / ${progress.totalFiles}개 파일 진행 중 — `
+                : ""}
+              LLM 분석 {progress.currentChunk} / {progress.totalChunks} 단계
+            </p>
+          )}
 
-          {/* Progress bar */}
-          <div className="async-progress__bar-wrap">
-            <div className="async-progress__bar-track">
+          <div className="mx-auto mb-4 flex max-w-[400px] items-center gap-4">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-border/70">
               <div
-                className={`async-progress__bar-fill${!isDone ? " shimmer-fill" : isFailed || isAborted ? " async-progress__bar-fill--error" : ""}`}
+                className={[
+                  "h-full rounded-full transition-[width]",
+                  !isDone
+                    ? "shimmer-fill bg-[linear-gradient(90deg,var(--cds-interactive),var(--cds-interactive-hover))]"
+                    : isFailed || isAborted
+                      ? "bg-[var(--aegis-severity-critical)]"
+                      : "bg-[linear-gradient(90deg,var(--cds-interactive),var(--cds-interactive-hover))]",
+                ].join(" ")}
                 style={{ width: `${pct}%` }}
               />
             </div>
-            <span className="async-progress__percent">{Math.round(pct)}%</span>
+            <span className="min-w-9 text-right text-sm font-semibold text-primary">
+              {Math.round(pct)}%
+            </span>
           </div>
 
-          {/* Message & time */}
-          <p className="async-progress__message">{progress.message}</p>
-          <p className="async-progress__elapsed">경과 시간: {timeStr}</p>
+          <p className="text-sm text-muted-foreground">{progress.message}</p>
+          <p className="text-sm text-muted-foreground">경과 시간: {timeStr}</p>
 
-          {/* Error */}
           {isFailed && progress.error && (
-            <p className="async-progress__error">{progress.error}</p>
+            <p className="mx-auto mb-5 max-w-[400px] rounded-lg bg-[var(--aegis-severity-critical-bg)] px-5 py-4 text-sm text-[var(--aegis-severity-critical)]">
+              {progress.error}
+            </p>
           )}
 
-          {/* Actions */}
-          <div className="async-progress__actions">
+          <div className="mt-3 flex justify-center gap-4">
             {isCompleted && (
               <Button onClick={() => onViewResult(progress.analysisId)}>
                 <Eye size={16} />
                 결과 보기
-                {autoRedirect !== null && autoRedirect > 0
-                  ? ` (${autoRedirect})`
-                  : ""}
+                {autoRedirect !== null && autoRedirect > 0 ? ` (${autoRedirect})` : ""}
               </Button>
             )}
             {!isDone && (
-              <Button
-                variant="destructive"
-                onClick={() => setShowAbortConfirm(true)}
-              >
+              <Button variant="destructive" onClick={() => setShowAbortConfirm(true)}>
                 <XCircle size={16} />
                 분석 중단
               </Button>
@@ -229,6 +236,18 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
           </div>
         </CardContent>
       </Card>
+
+      {(progress.phase === "deep_submitting" || progress.phase === "deep_analyzing") && (
+        <Card className="mt-5 shadow-none">
+          <CardContent className="flex items-center gap-3 px-5 py-4 text-sm text-muted-foreground">
+            <CheckCircle2 size={16} className="shrink-0 text-emerald-600 dark:text-emerald-300" />
+            <span>빠른 분석 결과가 준비되었습니다.</span>
+            <Button variant="outline" size="sm" onClick={onViewResult}>
+              먼저 확인하기
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <ConfirmDialog
         open={showAbortConfirm}

@@ -25,7 +25,7 @@ export function BuildTargetActionBar({
   onRunPipeline,
 }: BuildTargetActionBarProps) {
   return (
-    <div className="bt-actions">
+    <div className="flex flex-wrap gap-3">
       <Button variant="outline" size="sm" onClick={onDiscover} disabled={discovering || isRunning}>
         {discovering ? <Spinner size={14} /> : <Crosshair size={14} />}
         타겟 탐색

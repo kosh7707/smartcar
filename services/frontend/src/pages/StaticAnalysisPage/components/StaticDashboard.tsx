@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import type { StaticAnalysisDashboardSummary, Run, AnalysisProgress, RunDetailResponse } from "@aegis/shared";
+import type { AnalysisProgress, Run, RunDetailResponse, StaticAnalysisDashboardSummary } from "@aegis/shared";
+import { Code, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { DashboardPeriod } from "../../../shared/ui/PeriodSelector";
 import { PageHeader } from "../../../shared/ui";
-import { Plus, Code } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { ActiveAnalysisBanner } from "./ActiveAnalysisBanner";
 import { LatestAnalysisTab } from "./LatestAnalysisTab";
 import { OverallStatusTab } from "./OverallStatusTab";
@@ -47,12 +48,12 @@ export const StaticDashboard: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<TabId>("latest");
 
   return (
-    <div className="page-enter">
+    <div className="page-enter space-y-5">
       <PageHeader
         title="정적 분석"
         subtitle="빌드 타겟 단위 보안 분석 상태와 최근 실행 결과를 같은 작업면에서 검토합니다."
         action={
-          <div style={{ display: "flex", gap: "var(--cds-spacing-03)" }}>
+          <div className="flex gap-3">
             {onBrowseTree && (
               <Button variant="outline" onClick={onBrowseTree}>
                 <Code size={16} />
@@ -67,7 +68,6 @@ export const StaticDashboard: React.FC<Props> = ({
         }
       />
 
-      {/* Active Analysis Banner (always visible above tabs) */}
       {activeAnalysis && (
         <ActiveAnalysisBanner
           progress={activeAnalysis}
@@ -76,41 +76,44 @@ export const StaticDashboard: React.FC<Props> = ({
         />
       )}
 
-      {/* Tab Bar */}
-      <div className="static-dashboard-tabs">
-        <button
-          className={`static-dashboard-tabs__item${activeTab === "latest" ? " static-dashboard-tabs__item--active" : ""}`}
-          onClick={() => setActiveTab("latest")}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabId)} className="gap-4">
+        <TabsList
+          variant="line"
+          className="h-auto w-full justify-start overflow-x-auto rounded-none border-b border-border p-0"
         >
-          최신 분석
-        </button>
-        <button
-          className={`static-dashboard-tabs__item${activeTab === "overall" ? " static-dashboard-tabs__item--active" : ""}`}
-          onClick={() => setActiveTab("overall")}
-        >
-          전체 현황
-        </button>
-      </div>
+          <TabsTrigger
+            value="latest"
+            className="rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-active:border-primary data-active:text-foreground"
+          >
+            최신 분석
+          </TabsTrigger>
+          <TabsTrigger
+            value="overall"
+            className="rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-active:border-primary data-active:text-foreground"
+          >
+            전체 현황
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Tab Content */}
-      {activeTab === "latest" ? (
-        <LatestAnalysisTab
-          runDetail={latestRunDetail}
-          loading={latestRunLoading}
-          onSelectFinding={onSelectFinding}
-          onFileClick={onFileClick}
-          onNewAnalysis={onNewAnalysis}
-        />
-      ) : (
-        <OverallStatusTab
-          summary={summary}
-          recentRuns={recentRuns}
-          period={period}
-          onPeriodChange={onPeriodChange}
-          onViewRun={onViewRun}
-          onFileClick={onFileClick}
-        />
-      )}
+        {activeTab === "latest" ? (
+          <LatestAnalysisTab
+            runDetail={latestRunDetail}
+            loading={latestRunLoading}
+            onSelectFinding={onSelectFinding}
+            onFileClick={onFileClick}
+            onNewAnalysis={onNewAnalysis}
+          />
+        ) : (
+          <OverallStatusTab
+            summary={summary}
+            recentRuns={recentRuns}
+            period={period}
+            onPeriodChange={onPeriodChange}
+            onViewRun={onViewRun}
+            onFileClick={onFileClick}
+          />
+        )}
+      </Tabs>
     </div>
   );
 };

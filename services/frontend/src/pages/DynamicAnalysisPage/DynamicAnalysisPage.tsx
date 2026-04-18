@@ -1,13 +1,12 @@
 import React from "react";
 import { useParams } from "react-router-dom";
 import { useToast } from "../../contexts/ToastContext";
+import { useAdapters } from "../../hooks/useAdapters";
 import { DynamicAnalysisConfigView } from "./components/DynamicAnalysisConfigView";
 import { DynamicAnalysisHistoryView } from "./components/DynamicAnalysisHistoryView";
 import { MonitoringView } from "./components/MonitoringView";
 import { SessionDetailView } from "./components/SessionDetailView";
-import { useAdapters } from "../../hooks/useAdapters";
 import { useDynamicAnalysisPage } from "./hooks/useDynamicAnalysisPage";
-import "./DynamicAnalysisPage.css";
 
 export const DynamicAnalysisPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -42,7 +41,6 @@ export const DynamicAnalysisPage: React.FC = () => {
     );
   }
 
-  // Session detail view
   if (viewingSessionId) {
     return (
       <SessionDetailView

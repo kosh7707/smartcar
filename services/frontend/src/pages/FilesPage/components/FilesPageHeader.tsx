@@ -28,7 +28,7 @@ export const FilesPageHeader: React.FC<FilesPageHeaderProps> = ({
     title="파일 탐색기"
     subtitle={`${fileCount}개 파일 · ${formatFileSize(totalSize)}`}
     action={(
-      <div className="fpage-header-actions">
+      <div className="flex flex-wrap gap-3">
         {showCreateTarget && (
           <Button
             size="sm"
@@ -51,7 +51,7 @@ export const FilesPageHeader: React.FC<FilesPageHeaderProps> = ({
           ref={fileInputRef}
           type="file"
           accept=".zip,.tar.gz,.tgz,.tar.bz2,.tar"
-          className="fpage-hidden-input"
+          className="hidden"
           onChange={onFileInputChange}
         />
       </div>

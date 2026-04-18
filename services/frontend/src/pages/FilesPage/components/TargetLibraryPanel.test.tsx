@@ -106,7 +106,7 @@ describe("TargetLibraryPanel", () => {
   it("renders nothing when no libraries", async () => {
     mockFetchLibs.mockResolvedValue([]);
     const { container } = render(<TargetLibraryPanel projectId="p-1" targetId="t-1" targetName="gateway" />);
-    await waitFor(() => expect(container.querySelector(".tlib")).toBeNull());
+    await waitFor(() => expect(container).toBeEmptyDOMElement());
   });
 
   it("cancel reloads original data", async () => {

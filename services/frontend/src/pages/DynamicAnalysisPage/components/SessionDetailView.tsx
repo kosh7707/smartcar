@@ -1,22 +1,48 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import type {
-  DynamicAnalysisSession,
-  DynamicAlert,
   CanMessage,
+  DynamicAlert,
+  DynamicAnalysisSession,
 } from "@aegis/shared";
-import { Clock, Radio, AlertTriangle, Plug } from "lucide-react";
+import { AlertTriangle, Clock, Plug, Radio } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { fetchDynamicSessionDetail, logError } from "../../../api/client";
+import { STATUS_LABELS } from "../../../constants/dynamic";
+import { useToast } from "../../../contexts/ToastContext";
 import {
   BackButton,
   EmptyState,
   SeverityBadge,
   Spinner,
 } from "../../../shared/ui";
-import { useToast } from "../../../contexts/ToastContext";
 import { formatDateTime, formatTime } from "../../../utils/format";
-import { STATUS_LABELS } from "../../../constants/dynamic";
+
+const tableHeadClass = "sticky top-0 z-10 bg-background/95 backdrop-blur";
+
+const getSessionStatusClass = (status: string) =>
+  ({
+    monitoring: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300",
+    stopped: "border-border bg-muted text-muted-foreground",
+    connected: "border-border bg-muted text-foreground",
+  }[status] ?? "border-border bg-background text-muted-foreground");
 
 interface Props {
   sessionId: string;
@@ -37,12 +63,64 @@ export const SessionDetailView: React.FC<Props> = ({ sessionId, onBack }) => {
         setAlerts(detail.alerts);
         setMessages(detail.recentMessages);
       })
-      .catch((e) => {
-        logError("Load session detail", e);
+      .catch((error) => {
+        logError("Load session detail", error);
         toast.error("세션 정보를 불러올 수 없습니다.");
       })
       .finally(() => setLoading(false));
-  }, [sessionId]);
+  }, [sessionId, toast]);
+
+  const summaryItems = useMemo(
+    () =>
+      session
+        ? [
+            {
+              label: "상태",
+              value: (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "h-7 rounded-full px-2.5 text-sm",
+                    getSessionStatusClass(session.status),
+                  )}
+                >
+                  {STATUS_LABELS[session.status] ?? session.status}
+                </Badge>
+              ),
+            },
+            {
+              label: "시작",
+              icon: <Clock size={14} />,
+              value: formatDateTime(session.startedAt),
+            },
+            ...(session.endedAt
+              ? [
+                  {
+                    label: "종료",
+                    icon: <Clock size={14} />,
+                    value: formatDateTime(session.endedAt),
+                  },
+                ]
+              : []),
+            {
+              label: "소스",
+              icon: <Plug size={14} />,
+              value: session.source.adapterName ?? "어댑터",
+            },
+            {
+              label: "메시지",
+              icon: <Radio size={14} />,
+              value: `${session.messageCount}건`,
+            },
+            {
+              label: "알림",
+              icon: <AlertTriangle size={14} />,
+              value: `${session.alertCount}건`,
+            },
+          ]
+        : [],
+    [session],
+  );
 
   if (loading) {
     return (
@@ -54,125 +132,148 @@ export const SessionDetailView: React.FC<Props> = ({ sessionId, onBack }) => {
 
   if (!session) {
     return (
-      <div className="page-enter">
+      <div className="page-enter space-y-4">
         <BackButton onClick={onBack} label="세션 목록으로" />
-        <p className="text-tertiary">세션을 찾을 수 없습니다.</p>
+        <p className="text-sm text-muted-foreground">세션을 찾을 수 없습니다.</p>
       </div>
     );
   }
 
   return (
-    <div className="page-enter">
+    <div className="page-enter space-y-6">
       <BackButton onClick={onBack} label="세션 목록으로" />
 
-      {/* Session info */}
-      <Card className="session-info-card shadow-none">
+      <Card className="shadow-none">
+        <CardHeader>
+          <CardTitle>세션 요약</CardTitle>
+          <CardDescription>
+            동적 분석 세션의 상태, 시간 정보, 수집된 메시지 규모를 확인합니다.
+          </CardDescription>
+        </CardHeader>
         <CardContent>
-          <div className="session-info-grid">
-            <div className="session-info-item">
-              <span className="session-info-label">상태</span>
-              <span
-                className={`session-status session-status--${session.status}`}
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {summaryItems.map((item) => (
+              <Card
+                key={item.label}
+                size="sm"
+                className="border border-border/70 bg-muted/20 shadow-none"
               >
-                {STATUS_LABELS[session.status] ?? session.status}
-              </span>
-            </div>
-            <div className="session-info-item">
-              <Clock size={14} />
-              <span className="session-info-label">시작</span>
-              <span>{formatDateTime(session.startedAt)}</span>
-            </div>
-            {session.endedAt && (
-              <div className="session-info-item">
-                <Clock size={14} />
-                <span className="session-info-label">종료</span>
-                <span>{formatDateTime(session.endedAt)}</span>
-              </div>
-            )}
-            <div className="session-info-item">
-              <Plug size={14} />
-              <span className="session-info-label">소스</span>
-              <span>어댑터</span>
-            </div>
-            <div className="session-info-item">
-              <Radio size={14} />
-              <span>메시지 {session.messageCount}건</span>
-            </div>
-            <div className="session-info-item">
-              <AlertTriangle size={14} />
-              <span>알림 {session.alertCount}건</span>
-            </div>
+                <CardContent className="flex items-center gap-3 pt-3">
+                  {item.icon && (
+                    <div className="rounded-full border border-border/70 bg-background p-2 text-muted-foreground">
+                      {item.icon}
+                    </div>
+                  )}
+                  <div className="min-w-0 space-y-1">
+                    <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {item.label}
+                    </div>
+                    <div className="truncate text-sm font-medium text-foreground">
+                      {item.value}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Alerts */}
       <Card className="shadow-none">
-        <CardContent className="space-y-3">
+        <CardHeader>
           <CardTitle>탐지 알림 ({alerts.length})</CardTitle>
+          <CardDescription>
+            세션 중 기록된 이상 징후와 LLM 해석 결과를 확인합니다.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           {alerts.length === 0 ? (
             <EmptyState compact title="탐지된 이상이 없습니다" />
           ) : (
-            <div className="alert-list">
-              {alerts.map((alert) => (
-                <div key={alert.id} className="alert-card">
-                  <div className="alert-card__header">
-                    <SeverityBadge severity={alert.severity} size="sm" />
-                    <span className="alert-card__title">{alert.title}</span>
-                  </div>
-                  <p className="alert-card__desc">{alert.description}</p>
-                  {alert.llmAnalysis && (
-                    <div className="alert-card__llm">
-                      <Badge variant="outline" className="text-xs">
-                        LLM
-                      </Badge>
-                      <p>{alert.llmAnalysis}</p>
+            <ScrollArea className="h-[420px] pr-3">
+              <div className="space-y-3">
+                {alerts.map((alert) => (
+                  <Alert key={alert.id} className="items-start gap-3">
+                    <AlertTriangle size={16} className="mt-0.5" />
+                    <div className="space-y-3">
+                      <div>
+                        <div className="mb-2 flex items-center gap-2">
+                          <SeverityBadge severity={alert.severity} size="sm" />
+                          <AlertTitle>{alert.title}</AlertTitle>
+                        </div>
+                        <AlertDescription className="leading-6">
+                          {alert.description}
+                        </AlertDescription>
+                      </div>
+                      {alert.llmAnalysis && (
+                        <div className="rounded-lg border bg-muted/30 p-3">
+                          <Badge variant="outline" className="mb-2 text-[10px] uppercase tracking-wide">
+                            LLM
+                          </Badge>
+                          <p className="text-sm leading-6 text-muted-foreground">
+                            {alert.llmAnalysis}
+                          </p>
+                        </div>
+                      )}
+                      <div className="text-xs text-muted-foreground">
+                        {formatTime(alert.detectedAt)}
+                      </div>
                     </div>
-                  )}
-                  <span className="alert-card__time">
-                    {formatTime(alert.detectedAt)}
-                  </span>
-                </div>
-              ))}
-            </div>
+                  </Alert>
+                ))}
+              </div>
+            </ScrollArea>
           )}
         </CardContent>
       </Card>
 
-      {/* Recent messages */}
       <Card className="shadow-none">
-        <CardContent className="space-y-3">
+        <CardHeader>
           <CardTitle>CAN 메시지 (최근 {messages.length}건)</CardTitle>
+          <CardDescription>
+            세션 종료 시점 기준으로 저장된 최근 CAN 패킷을 표시합니다.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           {messages.length === 0 ? (
             <EmptyState compact title="수신된 메시지가 없습니다" />
           ) : (
-            <div className="can-table-wrapper can-table-wrapper--compact">
-              <table className="can-table">
-                <thead>
-                  <tr>
-                    <th>시간</th>
-                    <th>CAN ID</th>
-                    <th>DLC</th>
-                    <th>데이터</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {messages.map((msg, i) => (
-                    <tr
-                      key={i}
-                      className={msg.flagged ? "can-row--flagged" : ""}
+            <ScrollArea className="h-[320px] rounded-lg border">
+              <Table className="text-sm">
+                <TableHeader className={tableHeadClass}>
+                  <TableRow>
+                    <TableHead className={tableHeadClass}>시간</TableHead>
+                    <TableHead className={tableHeadClass}>CAN ID</TableHead>
+                    <TableHead className={cn(tableHeadClass, "text-center")}>DLC</TableHead>
+                    <TableHead className={tableHeadClass}>데이터</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {messages.map((message, index) => (
+                    <TableRow
+                      key={index}
+                      className={cn(
+                        message.flagged &&
+                          "border-l-4 border-l-destructive bg-destructive/5 text-destructive hover:bg-destructive/10",
+                      )}
                     >
-                      <td className="can-cell--time">
-                        {formatTime(msg.timestamp)}
-                      </td>
-                      <td className="can-cell--id">{msg.id}</td>
-                      <td className="can-cell--dlc">{msg.dlc}</td>
-                      <td className="can-cell--data">{msg.data}</td>
-                    </tr>
+                      <TableCell className="text-muted-foreground">
+                        {formatTime(message.timestamp)}
+                      </TableCell>
+                      <TableCell className="font-mono font-medium text-primary">
+                        {message.id}
+                      </TableCell>
+                      <TableCell className="text-center text-muted-foreground">
+                        {message.dlc}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs sm:text-sm">
+                        {message.data}
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </TableBody>
+              </Table>
+            </ScrollArea>
           )}
         </CardContent>
       </Card>

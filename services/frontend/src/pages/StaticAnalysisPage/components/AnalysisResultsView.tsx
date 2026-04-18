@@ -67,42 +67,30 @@ const FileCoverageSummary: React.FC<{ coverage: FileCoverageEntry[] }> = ({
   const [showSkipped, setShowSkipped] = useState(false);
 
   return (
-    <Card className="file-coverage shadow-none">
-      <CardContent className="space-y-3">
-        <div className="file-coverage__header">
+    <Card className="shadow-none">
+      <CardContent className="space-y-3 p-5">
+        <div className="flex flex-wrap items-center gap-3">
           <FileCode size={16} />
-          <span className="file-coverage__title">파일 커버리지</span>
-          <span className="file-coverage__stat">
+          <span className="text-sm font-semibold text-foreground">파일 커버리지</span>
+          <span className="ml-auto text-sm font-mono text-muted-foreground">
             {analyzed.length} / {total}개 분석 완료 ({pct}%)
           </span>
           {skipped.length > 0 && (
-            <button
-              className="btn-link"
-              onClick={() => setShowSkipped(!showSkipped)}
-            >
+            <Button variant="link" size="sm" className="h-auto px-0" onClick={() => setShowSkipped(!showSkipped)}>
               {showSkipped ? "접기" : `스킵 ${skipped.length}건 보기`}
-            </button>
+            </Button>
           )}
         </div>
-        <div className="file-coverage__bar-track">
-          <div
-            className="file-coverage__bar-fill"
-            style={{ width: `${pct}%` }}
-          />
+        <div className="h-1.5 overflow-hidden rounded-full bg-border/70">
+          <div className="h-full rounded-full bg-emerald-500 transition-[width]" style={{ width: `${pct}%` }} />
         </div>
         {showSkipped && skipped.length > 0 && (
-          <div className="file-coverage__skipped">
+          <div className="space-y-2">
             {skipped.map((f) => (
-              <div key={f.fileId} className="file-coverage__skipped-item">
+              <div key={f.fileId} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/30">
                 <SkipForward size={14} />
-                <span className="file-coverage__skipped-path">
-                  {f.filePath}
-                </span>
-                {f.skipReason && (
-                  <span className="file-coverage__skipped-reason">
-                    {f.skipReason}
-                  </span>
-                )}
+                <span className="min-w-0 flex-1 truncate font-mono">{f.filePath}</span>
+                {f.skipReason && <span className="shrink-0 text-sm text-muted-foreground">{f.skipReason}</span>}
               </div>
             ))}
           </div>
@@ -201,8 +189,9 @@ export const AnalysisResultsView: React.FC<Props> = ({
       )}
 
       {/* Filter bar */}
-      <div className="static-result-filter analysis-results__filter">
-        <span className="text-sm text-secondary">검토 기준</span>
+      <Card className="shadow-none">
+        <CardContent className="flex flex-wrap items-center gap-3 p-4">
+        <span className="text-sm text-muted-foreground">검토 기준</span>
         <select
           className="filter-select"
           value={filterSeverity}
@@ -248,7 +237,8 @@ export const AnalysisResultsView: React.FC<Props> = ({
             </option>
           ))}
         </select>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* File-grouped vulnerability list */}
       {fileGroups.length === 0 ? (

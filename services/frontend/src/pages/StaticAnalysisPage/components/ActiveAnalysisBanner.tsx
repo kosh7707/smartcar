@@ -1,8 +1,8 @@
 import React from "react";
 import type { AnalysisProgress } from "@aegis/shared";
-import { Loader2, Eye, XCircle } from "lucide-react";
+import { Eye, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface Props {
   progress: AnalysisProgress;
@@ -29,7 +29,6 @@ export const ActiveAnalysisBanner: React.FC<Props> = ({ progress, onView, onAbor
       ? llmDone ? " (완료)" : ` (${progress.currentChunk}/${progress.totalChunks} 단계)`
       : "";
 
-  // Rough percentage for shimmer bar
   const pct =
     progress.phase === "queued" ? 5
     : progress.phase === "quick_sast" ? 25
@@ -42,33 +41,41 @@ export const ActiveAnalysisBanner: React.FC<Props> = ({ progress, onView, onAbor
     : 100;
 
   return (
-    <Card className="active-analysis-banner mb-5 gap-0 border-l-4 border-l-primary px-5 py-4">
-      <div className="active-analysis-banner__content">
-        <Loader2 size={16} className="spin" />
-        <span className="active-analysis-banner__text">
-          {progress.totalFiles ? `${progress.processedFiles ?? 0}/${progress.totalFiles}개 파일 ` : ""}분석 진행 중 — {phaseText}{chunkText}
-        </span>
-        {(progress.buildTargetId || progress.executionId) && (
-          <span className="active-analysis-banner__text">
-            {progress.buildTargetId ? `빌드 타겟 ${progress.buildTargetId}` : ""}
-            {progress.buildTargetId && progress.executionId ? " · " : ""}
-            {progress.executionId ? `Execution ${progress.executionId}` : ""}
-          </span>
-        )}
-        <div className="active-analysis-banner__actions">
-          <Button variant="outline" size="sm" onClick={onView}>
-            <Eye size={14} />
-            보기
-          </Button>
-          <Button variant="destructive" size="sm" onClick={onAbort}>
-            <XCircle size={14} />
-            중단
-          </Button>
+    <Card className="mb-5 gap-0 border-l-4 border-l-primary shadow-none">
+      <CardContent className="space-y-4 px-5 py-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 text-sm text-foreground">
+            <Loader2 size={16} className="spin shrink-0" />
+            <span className="min-w-0">
+              {progress.totalFiles ? `${progress.processedFiles ?? 0}/${progress.totalFiles}개 파일 ` : ""}
+              분석 진행 중 — {phaseText}{chunkText}
+            </span>
+            {(progress.buildTargetId || progress.executionId) && (
+              <span className="text-muted-foreground">
+                {progress.buildTargetId ? `빌드 타겟 ${progress.buildTargetId}` : ""}
+                {progress.buildTargetId && progress.executionId ? " · " : ""}
+                {progress.executionId ? `Execution ${progress.executionId}` : ""}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={onView}>
+              <Eye size={14} />
+              보기
+            </Button>
+            <Button variant="destructive" size="sm" onClick={onAbort}>
+              <XCircle size={14} />
+              중단
+            </Button>
+          </div>
         </div>
-      </div>
-      <div className="active-analysis-banner__bar">
-        <div className="active-analysis-banner__bar-fill shimmer-fill" style={{ width: `${pct}%` }} />
-      </div>
+        <div className="h-2 overflow-hidden rounded-full bg-border/70">
+          <div
+            className="shimmer-fill h-full rounded-full bg-[linear-gradient(90deg,var(--cds-interactive),var(--cds-interactive-hover))] transition-[width]"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </CardContent>
     </Card>
   );
 };

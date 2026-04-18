@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Library, FileWarning } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { TargetLibrary } from "../../../api/pipeline";
 import { fetchTargetLibraries, updateTargetLibraries } from "../../../api/pipeline";
 import { logError } from "../../../api/core";
 import { useToast } from "../../../contexts/ToastContext";
 import { Spinner } from "../../../shared/ui";
-import "./TargetLibraryPanel.css";
 
 interface Props {
   projectId: string;
@@ -14,7 +15,7 @@ interface Props {
   targetName: string;
 }
 
-export const TargetLibraryPanel: React.FC<Props> = ({ projectId, targetId, targetName }) => {
+export const TargetLibraryPanel: React.FC<Props> = ({ projectId, targetId, targetName: _targetName }) => {
   const toast = useToast();
   const [libs, setLibs] = useState<TargetLibrary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,36 +71,46 @@ export const TargetLibraryPanel: React.FC<Props> = ({ projectId, targetId, targe
   const includedCount = libs.filter((l) => l.included).length;
 
   if (loading) {
-    return <div className="tlib-loading"><Spinner size={16} /></div>;
+    return (
+      <div className="mt-3 flex justify-center rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-5">
+        <Spinner size={16} />
+      </div>
+    );
   }
 
   if (libs.length === 0) return null;
 
   return (
-    <div className="tlib">
-      <div className="tlib__header">
+    <div className="mt-3 space-y-3 rounded-xl border border-border/70 bg-muted/20 p-4">
+      <div className="flex items-center gap-3 text-sm text-muted-foreground">
         <Library size={14} />
-        <span className="tlib__title">서드파티 라이브러리</span>
-        <span className="tlib__count">{includedCount}/{libs.length}개 포함</span>
+        <span className="font-medium text-foreground">서드파티 라이브러리</span>
+        <span className="ml-auto font-mono text-xs text-muted-foreground">{includedCount}/{libs.length}개 포함</span>
       </div>
 
-      <div className="tlib__list">
+      <div className="space-y-2">
         {libs.map((lib) => (
-          <label key={lib.id} className="tlib__item">
-            <input
-              type="checkbox"
+          <label
+            key={lib.id}
+            className="flex cursor-pointer items-start gap-3 rounded-xl border border-transparent bg-background/80 px-3 py-2 transition hover:border-border hover:bg-background"
+          >
+            <Checkbox
               checked={lib.included}
-              onChange={() => handleToggle(lib.id)}
-              className="tlib__checkbox"
+              onCheckedChange={() => handleToggle(lib.id)}
+              className="mt-0.5"
             />
-            <div className="tlib__info">
-              <div className="tlib__name-line">
-                <span className="tlib__name">{lib.name}</span>
-                {lib.version && <span className="tlib__version">{lib.version}</span>}
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium text-foreground">{lib.name}</span>
+                {lib.version && (
+                  <Badge variant="outline" className="font-mono text-[11px] text-muted-foreground">
+                    {lib.version}
+                  </Badge>
+                )}
               </div>
-              <span className="tlib__path">{lib.path}</span>
+              <span className="break-all font-mono text-xs text-muted-foreground sm:text-sm">{lib.path}</span>
               {lib.modifiedFiles.length > 0 && (
-                <span className="tlib__modified" title={lib.modifiedFiles.join(", ")}>
+                <span className="inline-flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300" title={lib.modifiedFiles.join(", ")}>
                   <FileWarning size={11} />
                   수정 {lib.modifiedFiles.length}개
                 </span>
@@ -110,7 +121,7 @@ export const TargetLibraryPanel: React.FC<Props> = ({ projectId, targetId, targe
       </div>
 
       {dirty && (
-        <div className="tlib__actions">
+        <div className="flex gap-3 border-t border-border/70 pt-3">
           <Button size="sm" onClick={handleSave} disabled={saving}>
             {saving ? "저장 중..." : "설정 저장"}
           </Button>

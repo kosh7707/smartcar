@@ -4,9 +4,6 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { BuildTargetSection } from "./BuildTargetSection";
 import type { BuildTarget } from "@aegis/shared";
 
-// Mock CSS
-vi.mock("./BuildTargetSection.css", () => ({}));
-
 const mockTargets: BuildTarget[] = [
   {
     id: "t-1",

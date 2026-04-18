@@ -10,8 +10,8 @@ export const HighlightedCode: React.FC<{
 
   if (!code) {
     return (
-      <div className="source-tree__code">
-        <p className="text-tertiary" style={{ padding: "var(--cds-spacing-05)" }}>
+      <div className="min-w-max font-mono text-sm leading-6 text-foreground">
+        <p className="px-5 py-5 text-sm text-muted-foreground">
           파일을 선택하면 내용을 볼 수 있습니다.
         </p>
       </div>
@@ -19,7 +19,7 @@ export const HighlightedCode: React.FC<{
   }
 
   return (
-    <div className="source-tree__code">
+    <div className="min-w-max font-mono text-sm leading-6 text-foreground">
       {lines.map((html, i) => {
         const lineNo = i + 1;
         const isHighlighted = highlightLineNos?.has(lineNo);
@@ -27,10 +27,11 @@ export const HighlightedCode: React.FC<{
         return (
           <div
             key={lineNo}
-            className={`source-tree__code-line${isHighlighted ? " source-tree__code-line--highlight" : ""}`}
+            className="flex min-h-6 px-5 transition-colors hover:bg-muted/60"
+            style={isHighlighted ? { background: "color-mix(in srgb, var(--aegis-severity-high) 10%, transparent)" } : undefined}
           >
-            <span className="source-tree__line-no">{lineNo}</span>
-            <span className="source-tree__line-content" dangerouslySetInnerHTML={{ __html: html }} />
+            <span className="inline-block min-w-11 shrink-0 select-none pr-4 text-right text-muted-foreground">{lineNo}</span>
+            <span className="flex-1 whitespace-pre" dangerouslySetInnerHTML={{ __html: html }} />
           </div>
         );
       })}

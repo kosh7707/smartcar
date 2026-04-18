@@ -1,9 +1,36 @@
 import React from "react";
+import { KeyRound, ShieldCheck, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { useAuth } from "../../contexts/AuthContext";
 import { SignupFormCard } from "./components/SignupFormCard";
 import { useSignupForm } from "./hooks/useSignupForm";
-import "./SignupPage.css";
+
+const onboardingSignals = [
+  "프로젝트 생성",
+  "분석 파이프라인 준비",
+  "검토·보고 흐름 연결",
+];
+
+const onboardingSteps = [
+  {
+    icon: UserPlus,
+    label: "작업자 등록",
+    detail: "데모 워크스페이스에 사용할 작업자 정보를 먼저 정리합니다.",
+  },
+  {
+    icon: KeyRound,
+    label: "접근 정보 준비",
+    detail: "운영 콘솔 진입에 필요한 기본 자격 정보를 같은 화면에서 맞춥니다.",
+  },
+  {
+    icon: ShieldCheck,
+    label: "즉시 콘솔 진입",
+    detail: "준비가 끝나면 대시보드로 이동해 분석 흐름을 바로 이어갑니다.",
+  },
+];
 
 export const SignupPage: React.FC = () => {
   const navigate = useNavigate();
@@ -18,39 +45,86 @@ export const SignupPage: React.FC = () => {
   } = useSignupForm(login, navigate);
 
   return (
-    <div className="signup-page">
-      <div className="signup-page__shell">
-        <section className="signup-page__hero" aria-label="AEGIS onboarding">
-          <div className="signup-page__hero-copy">
-            <h1 className="signup-page__eyebrow">AEGIS</h1>
-            <p className="signup-page__headline">보안 분석 워크스페이스 준비</p>
-            <p className="signup-page__summary">새 계정을 준비하고 분석 워크스페이스로 바로 이동합니다.</p>
-            <p className="signup-page__detail">
-              프로젝트 운영, 취약점 검토, 승인 흐름을 같은 콘솔에서 이어갈 수 있도록 계정 정보를 먼저 정리합니다.
-            </p>
-          </div>
+    <div className="min-h-screen bg-[linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--muted)/0.88)_100%)]">
+      <div className="mx-auto flex min-h-screen w-full max-w-7xl items-center px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div className="grid w-full overflow-hidden rounded-[28px] border border-border/70 bg-background/96 shadow-[0_32px_96px_-40px_rgba(15,23,42,0.55)] backdrop-blur lg:grid-cols-[minmax(0,1.1fr)_460px]">
+          <section
+            className="flex flex-col justify-between gap-8 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.2),transparent_30%),linear-gradient(200deg,#08131e_0%,#0f172a_52%,#101826_100%)] px-6 py-8 text-white sm:px-8 sm:py-10 lg:px-10 lg:py-12"
+            aria-label="AEGIS onboarding"
+          >
+            <div className="space-y-6">
+              <Badge variant="secondary" className="w-fit border border-white/10 bg-white/10 px-3 py-1 text-[0.7rem] tracking-[0.18em] text-white uppercase hover:bg-white/10">
+                AEGIS workspace setup
+              </Badge>
 
-          <div className="signup-page__signals" aria-label="AEGIS onboarding signals">
-            <span>프로젝트 생성</span>
-            <span>분석 파이프라인 준비</span>
-            <span>검토·보고 흐름 연결</span>
-          </div>
-        </section>
+              <div className="space-y-4">
+                <h1 className="max-w-xl text-4xl font-semibold tracking-[-0.08em] text-white sm:text-5xl lg:text-6xl">
+                  AEGIS
+                </h1>
+                <p className="max-w-xl text-lg text-white/86 sm:text-xl">
+                  보안 분석 워크스페이스 준비
+                </p>
+                <p className="max-w-xl text-base leading-7 text-white/74">
+                  새 계정을 준비하고 분석 워크스페이스로 바로 이동합니다.
+                </p>
+                <p className="max-w-2xl text-sm leading-7 text-white/60 sm:text-base">
+                  프로젝트 운영, 취약점 검토, 승인 흐름을 같은 콘솔에서 이어갈 수 있도록 계정 정보를 먼저 정리합니다.
+                </p>
+              </div>
 
-        <section className="signup-page__panel">
-          <SignupFormCard
-            username={username}
-            password={password}
-            submitting={submitting}
-            onUsernameChange={setUsername}
-            onPasswordChange={setPassword}
-            onSubmit={handleSubmit}
-          />
+              <div className="flex flex-wrap gap-2" aria-label="AEGIS onboarding signals">
+                {onboardingSignals.map((signal) => (
+                  <Badge
+                    key={signal}
+                    variant="outline"
+                    className="border-white/12 bg-white/5 px-3 py-1 text-xs text-white/78 backdrop-blur hover:bg-white/10"
+                  >
+                    {signal}
+                  </Badge>
+                ))}
+              </div>
+            </div>
 
-          <footer className="signup-page__footer">
-            <p>AEGIS v{__APP_VERSION__} — Embedded Firmware Security Analysis Platform</p>
-          </footer>
-        </section>
+            <Card className="border-white/10 bg-white/6 py-0 text-white shadow-none backdrop-blur">
+              <CardContent className="grid gap-4 px-5 py-5 sm:px-6 sm:py-6 lg:grid-cols-3">
+                {onboardingSteps.map(({ icon: Icon, label, detail }) => (
+                  <div key={label} className="space-y-3 rounded-2xl border border-white/10 bg-black/10 p-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-white">
+                      <Icon className="size-4 text-cyan-200" aria-hidden="true" />
+                      <span>{label}</span>
+                    </div>
+                    <p className="text-sm leading-6 text-white/62">{detail}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </section>
+
+          <section className="flex flex-col justify-center gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+            <SignupFormCard
+              username={username}
+              password={password}
+              submitting={submitting}
+              onUsernameChange={setUsername}
+              onPasswordChange={setPassword}
+              onSubmit={handleSubmit}
+            />
+
+            <div className="rounded-2xl border border-border/70 bg-muted/35 px-4 py-4 sm:px-5">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <ShieldCheck className="size-4 text-primary" aria-hidden="true" />
+                <span>온보딩 메모</span>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                계정 준비 후에는 프로젝트 생성과 분석 실행 흐름을 대시보드에서 바로 이어갈 수 있습니다.
+              </p>
+              <Separator className="my-4" />
+              <p className="text-xs tracking-[0.08em] text-muted-foreground uppercase">
+                AEGIS v{__APP_VERSION__} — Embedded Firmware Security Analysis Platform
+              </p>
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   );

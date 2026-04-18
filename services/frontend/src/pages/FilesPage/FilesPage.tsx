@@ -13,7 +13,6 @@ import { FilesLanguageSummary } from "./components/FilesLanguageSummary";
 import { FilesBuildTargetPanel } from "./components/FilesBuildTargetPanel";
 import { FilesSourceWorkspace } from "./components/FilesSourceWorkspace";
 import { useFilesPage } from "./hooks/useFilesPage";
-import "./FilesPage.css";
 
 export const FilesPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -35,7 +34,7 @@ export const FilesPage: React.FC = () => {
 
   return (
     <div
-      className={`page-enter fpage${state.dragOver ? " fpage--dragover" : ""}`}
+      className={`page-enter relative space-y-6${state.dragOver ? " rounded-2xl ring-2 ring-primary/40 ring-offset-2 ring-offset-background" : ""}`}
       onDragOver={(event) => { event.preventDefault(); state.setDragOver(true); }}
       onDragLeave={(event) => { event.preventDefault(); state.setDragOver(false); }}
       onDrop={state.handleDrop}
@@ -51,7 +50,7 @@ export const FilesPage: React.FC = () => {
       />
 
       {state.upload.isActive && (
-        <div className="fpage-upload-banner">
+        <div className="inline-flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
           <Spinner size={18} />
           <span>{state.upload.message}</span>
         </div>
@@ -94,7 +93,7 @@ export const FilesPage: React.FC = () => {
       )}
 
       {state.dragOver && (
-        <div className="fpage-drop-overlay">
+        <div className="pointer-events-none fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-primary/10 text-lg font-medium text-primary backdrop-blur-[1px]">
           <Upload size={40} />
           <span>파일을 여기에 놓으세요</span>
         </div>
