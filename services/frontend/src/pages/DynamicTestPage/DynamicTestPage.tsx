@@ -8,7 +8,6 @@ import { DynamicTestHistoryView } from "./components/DynamicTestHistoryView";
 import { DynamicTestResultsView } from "./components/DynamicTestResultsView";
 import { DynamicTestRunningView } from "./components/DynamicTestRunningView";
 import { useDynamicTestPage } from "./hooks/useDynamicTestPage";
-import "./DynamicTestPage.css";
 
 export const DynamicTestPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -19,6 +18,7 @@ export const DynamicTestPage: React.FC = () => {
     history,
     historyLoading,
     showConfig,
+    setShowConfig,
     adapterWarning,
     setAdapterWarning,
     confirmDeleteTarget,
@@ -45,12 +45,17 @@ export const DynamicTestPage: React.FC = () => {
   } = useDynamicTestPage(projectId, test, toast, connected, hasConnected);
 
   if (test.view === "running") {
-    return <DynamicTestRunningView progress={test.progress} findings={test.findings} />;
+    return (
+      <DynamicTestRunningView progress={test.progress} findings={test.findings} />
+    );
   }
 
   if (test.view === "results" && test.result) {
     return (
-      <DynamicTestResultsView result={test.result} onBackToHistory={handleNewTest} />
+      <DynamicTestResultsView
+        result={test.result}
+        onBackToHistory={handleNewTest}
+      />
     );
   }
 

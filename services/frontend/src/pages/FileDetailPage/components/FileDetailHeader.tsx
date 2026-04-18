@@ -11,8 +11,9 @@ import {
   Terminal,
   Wrench,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatFileSize } from "../../../utils/format";
 import { getLangColorByName } from "../../../constants/languages";
 
@@ -41,31 +42,36 @@ const FileDetailIcon: React.FC<{ language?: string }> = ({ language }) => {
   ) {
     return <FileCode size={size} style={{ color, flexShrink: 0 }} />;
   }
-  if (["shell", "sh", "bash", "powershell"].includes(lang))
+  if (["shell", "sh", "bash", "powershell"].includes(lang)) {
     return <Terminal size={size} style={{ color, flexShrink: 0 }} />;
-  if (["cmake", "make"].includes(lang))
+  }
+  if (["cmake", "make"].includes(lang)) {
     return <Wrench size={size} style={{ color: "#064f8c", flexShrink: 0 }} />;
-  if (["json", "yaml", "yml", "toml", "xml", "config"].includes(lang))
+  }
+  if (["json", "yaml", "yml", "toml", "xml", "config"].includes(lang)) {
     return (
       <Settings
         size={size}
         style={{ color: "var(--cds-text-placeholder)", flexShrink: 0 }}
       />
     );
-  if (["markdown", "md", "text", "txt"].includes(lang))
+  }
+  if (["markdown", "md", "text", "txt"].includes(lang)) {
     return (
       <BookOpen
         size={size}
         style={{ color: "var(--cds-text-placeholder)", flexShrink: 0 }}
       />
     );
-  if (["linker-script"].includes(lang))
+  }
+  if (["linker-script"].includes(lang)) {
     return (
       <Link2
         size={size}
         style={{ color: "var(--cds-text-placeholder)", flexShrink: 0 }}
       />
     );
+  }
   return <FileText size={size} style={{ color, flexShrink: 0 }} />;
 };
 
@@ -81,45 +87,65 @@ export const FileDetailHeader: React.FC<FileDetailHeaderProps> = ({
   lineCount,
   vulnerabilityCount,
   onDownload,
-}) => (
-  <Card className="file-detail-header shadow-none">
-    <CardContent className="space-y-4">
-      <div className="file-detail-header__top">
-        <FileDetailIcon language={file.language} />
-        <div className="file-detail-header__info">
-          <h2 className="file-detail-header__name">{file.name}</h2>
-          {file.path && file.path !== file.name && (
-            <span className="file-detail-header__path">{file.path}</span>
-          )}
+}) => {
+  const languageColor = file.language ? getLangColorByName(file.language) : undefined;
+
+  return (
+    <Card className="overflow-hidden border-border/70 bg-card/95 shadow-none">
+      <CardHeader className="gap-4 border-b border-border/60 pb-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted/40 text-muted-foreground">
+              <FileDetailIcon language={file.language} />
+            </div>
+            <div className="min-w-0 space-y-1">
+              <CardTitle className="truncate font-mono text-lg tracking-tight text-foreground">
+                {file.name}
+              </CardTitle>
+              {file.path && file.path !== file.name && (
+                <p className="truncate font-mono text-sm text-muted-foreground">
+                  {file.path}
+                </p>
+              )}
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={onDownload} className="shrink-0 self-start">
+            <Download size={14} /> 다운로드
+          </Button>
         </div>
-        <Button variant="outline" size="sm" onClick={onDownload}>
-          <Download size={14} /> 다운로드
-        </Button>
-      </div>
-      <div className="file-detail-header__badges">
+      </CardHeader>
+      <CardContent className="flex flex-wrap gap-2 pt-4">
         {file.language && (
-          <span
-            className="file-detail-badge"
-            style={{ borderColor: getLangColorByName(file.language) }}
+          <Badge
+            variant="outline"
+            className="h-8 rounded-full px-3 text-sm font-medium"
+            style={{ borderColor: languageColor }}
           >
             <span
-              className="file-detail-badge__dot"
-              style={{ background: getLangColorByName(file.language) }}
+              className="size-2 rounded-full"
+              style={{ background: languageColor }}
             />
             {file.language}
-          </span>
+          </Badge>
         )}
         {file.size > 0 && (
-          <span className="file-detail-badge">{formatFileSize(file.size)}</span>
+          <Badge variant="outline" className="h-8 rounded-full px-3 text-sm font-medium">
+            {formatFileSize(file.size)}
+          </Badge>
         )}
-        <span className="file-detail-badge">{lineCount}줄</span>
+        <Badge variant="outline" className="h-8 rounded-full px-3 text-sm font-medium">
+          {lineCount}줄
+        </Badge>
         {vulnerabilityCount > 0 && (
-          <span className="file-detail-badge file-detail-badge--warn">
+          <Badge
+            variant="outline"
+            className="h-8 rounded-full border-[var(--aegis-severity-high-border)] bg-[var(--aegis-severity-high-bg)] px-3 text-sm font-medium text-[var(--aegis-severity-high)]"
+          >
             <Shield size={12} />
             취약점 {vulnerabilityCount}건
-          </span>
+          </Badge>
         )}
-      </div>
-    </CardContent>
-  </Card>
-);
+      </CardContent>
+    </Card>
+  );
+};

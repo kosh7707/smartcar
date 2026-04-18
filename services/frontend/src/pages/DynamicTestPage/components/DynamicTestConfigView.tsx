@@ -1,12 +1,14 @@
 import React from "react";
-import type { Adapter, DynamicTestConfig, TestStrategy } from "@aegis/shared";
+import type { Adapter, TestStrategy } from "@aegis/shared";
 import { AlertTriangle, Bug, Play, Zap } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BackButton, PageHeader } from "../../../shared/ui";
-import { AdapterSelector } from "../../../shared/ui";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { cn } from "@/lib/utils";
+import { AdapterSelector, BackButton, PageHeader } from "../../../shared/ui";
 import { STRATEGY_LABELS } from "../dynamicTestPresentation";
 
 interface DynamicTestConfigViewProps {
@@ -30,6 +32,9 @@ interface DynamicTestConfigViewProps {
   onStart: () => void;
 }
 
+const CONFIG_CARD_CLASS =
+  "flex items-start gap-3 rounded-xl border border-border/70 bg-card px-4 py-3 text-sm transition-colors";
+
 export const DynamicTestConfigView: React.FC<DynamicTestConfigViewProps> = ({
   connected,
   selectedAdapterId,
@@ -50,147 +55,238 @@ export const DynamicTestConfigView: React.FC<DynamicTestConfigViewProps> = ({
   onBack,
   onStart,
 }) => {
-  const selectClassName = "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  const selectClassName =
+    "h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
   return (
-    <div className="page-enter">
-    <BackButton onClick={onBack} label="이력으로" />
-    <PageHeader title="새 세션" />
+    <div className="page-enter space-y-5">
+      <BackButton onClick={onBack} label="이력으로" />
+      <PageHeader
+        title="새 세션"
+        subtitle="연결된 어댑터와 전략을 선택해 동적 테스트 세션을 준비합니다."
+      />
 
-    <Card className="dtest-config shadow-none">
-      <CardContent className="space-y-5">
-      <div className="dtest-config__section">
-        <label className="dtest-config__label">어댑터</label>
-        {connected.length === 0 ? (
-          <p className="dtest-config__hint" style={{ color: "var(--cds-support-error)" }}>연결된 어댑터가 없습니다</p>
-        ) : (
-          <AdapterSelector
-            adapters={connected}
-            selectedId={selectedAdapterId || null}
-            onSelect={setSelectedAdapterId}
-          />
-        )}
-      </div>
+      <Card className="shadow-none">
+        <CardContent className="space-y-6 p-5 sm:p-6">
+          <section className="space-y-2">
+            <p className="text-sm font-semibold text-foreground">어댑터</p>
+            {connected.length === 0 ? (
+              <Alert variant="destructive">
+                <AlertTriangle size={16} />
+                <AlertTitle>연결된 어댑터가 없습니다</AlertTitle>
+                <AlertDescription>
+                  프로젝트 설정에서 어댑터를 연결한 뒤 테스트를 시작하세요.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <AdapterSelector
+                adapters={connected}
+                selectedId={selectedAdapterId || null}
+                onSelect={setSelectedAdapterId}
+              />
+            )}
+          </section>
 
-      <div className="dtest-config__section">
-        <label className="dtest-config__label">테스트 유형</label>
-        <div className="dtest-config__radio-group">
-          <label className={`dtest-config__radio-card${testType === "fuzzing" ? " dtest-config__radio-card--selected" : ""}`}>
-            <input type="radio" name="testType" checked={testType === "fuzzing"} onChange={() => setTestType("fuzzing")} />
-            <Zap size={16} />
-            <span>퍼징 (Fuzzing)</span>
-          </label>
-          <label className={`dtest-config__radio-card${testType === "pentest" ? " dtest-config__radio-card--selected" : ""}`}>
-            <input type="radio" name="testType" checked={testType === "pentest"} onChange={() => setTestType("pentest")} />
-            <Bug size={16} />
-            <span>침투 테스트 (Pentest)</span>
-          </label>
-        </div>
-      </div>
+          <section className="space-y-2">
+            <p className="text-sm font-semibold text-foreground">테스트 유형</p>
+            <RadioGroup
+              value={testType}
+              onValueChange={(value) => setTestType(value as "fuzzing" | "pentest")}
+              className="grid gap-3 sm:grid-cols-2"
+            >
+              {[
+                {
+                  value: "fuzzing" as const,
+                  icon: <Zap size={16} className="text-primary" />,
+                  label: "퍼징 (Fuzzing)",
+                  description: "랜덤·경계값 기반 입력으로 비정상 반응을 탐지합니다.",
+                },
+                {
+                  value: "pentest" as const,
+                  icon: <Bug size={16} className="text-primary" />,
+                  label: "침투 테스트 (Pentest)",
+                  description: "알려진 공격 벡터를 순차 실행합니다.",
+                },
+              ].map((option) => (
+                <Label
+                  key={option.value}
+                  htmlFor={`dynamic-test-type-${option.value}`}
+                  className={cn(
+                    CONFIG_CARD_CLASS,
+                    "cursor-pointer",
+                    testType === option.value &&
+                      "border-primary/50 bg-primary/5 text-primary shadow-sm",
+                  )}
+                >
+                  <RadioGroupItem
+                    id={`dynamic-test-type-${option.value}`}
+                    value={option.value}
+                  />
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 font-medium text-foreground">
+                      {option.icon}
+                      <span>{option.label}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {option.description}
+                    </p>
+                  </div>
+                </Label>
+              ))}
+            </RadioGroup>
+          </section>
 
-      <div className="dtest-config__section">
-        <label className="dtest-config__label">대상 설정</label>
-        {hasEcuMeta && ecuMeta ? (
-          <div className="dtest-config__field-row">
-            <Label className="form-field">
-              <span className="form-label">Target ECU</span>
-              <Input value={targetEcu} readOnly />
-            </Label>
-            <Label className="form-field">
-              <span className="form-label">Target ID</span>
-              <select className={selectClassName} value={targetId} onChange={(e) => setTargetId(e.target.value)}>
-                {ecuMeta.canIds.map((id) => (
-                  <option key={id} value={id}>{id}</option>
-                ))}
-              </select>
-            </Label>
+          <section className="space-y-3">
+            <p className="text-sm font-semibold text-foreground">대상 설정</p>
+            {hasEcuMeta && ecuMeta ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                <Label className="form-field gap-2">
+                  <span className="form-label">Target ECU</span>
+                  <Input value={targetEcu} readOnly />
+                </Label>
+                <Label className="form-field gap-2">
+                  <span className="form-label">Target ID</span>
+                  <select
+                    className={selectClassName}
+                    value={targetId}
+                    onChange={(e) => setTargetId(e.target.value)}
+                  >
+                    {ecuMeta.canIds.map((id) => (
+                      <option key={id} value={id}>
+                        {id}
+                      </option>
+                    ))}
+                  </select>
+                </Label>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                <Label className="form-field gap-2">
+                  <span className="form-label">Target ECU</span>
+                  <Input
+                    value={targetEcu}
+                    onChange={(e) => setTargetEcu(e.target.value)}
+                  />
+                </Label>
+                <Label className="form-field gap-2">
+                  <span className="form-label">Target ID</span>
+                  <Input
+                    value={targetId}
+                    onChange={(e) => setTargetId(e.target.value)}
+                    placeholder="0x100"
+                  />
+                </Label>
+              </div>
+            )}
+          </section>
+
+          <section className="space-y-2">
+            <p className="text-sm font-semibold text-foreground">전략</p>
+            <RadioGroup
+              value={strategy}
+              onValueChange={(value) => setStrategy(value as TestStrategy)}
+              className="grid gap-3 md:grid-cols-3"
+            >
+              {(["random", "boundary", "scenario"] as TestStrategy[]).map((value) => (
+                <Label
+                  key={value}
+                  htmlFor={`dynamic-test-strategy-${value}`}
+                  className={cn(
+                    CONFIG_CARD_CLASS,
+                    "cursor-pointer",
+                    strategy === value &&
+                      "border-primary/50 bg-primary/5 text-primary shadow-sm",
+                  )}
+                >
+                  <RadioGroupItem
+                    id={`dynamic-test-strategy-${value}`}
+                    value={value}
+                  />
+                  <span className="font-medium text-foreground">
+                    {STRATEGY_LABELS[value]}
+                  </span>
+                </Label>
+              ))}
+            </RadioGroup>
+          </section>
+
+          {strategy === "random" ? (
+            <section className="space-y-2">
+              <Label className="form-field max-w-40 gap-2">
+                <span className="form-label">입력 수</span>
+                <Input
+                  type="number"
+                  min={1}
+                  max={1000}
+                  value={count}
+                  onChange={(e) =>
+                    setCount(Math.max(1, Math.min(1000, Number(e.target.value))))
+                  }
+                />
+              </Label>
+              <p className="text-sm text-muted-foreground">1 ~ 1,000</p>
+            </section>
+          ) : (
+            <section className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                고정 입력 세트:{" "}
+                {strategy === "boundary"
+                  ? "12개 (경계값 + DLC 변형)"
+                  : "20개 (DoS/진단/리플레이/파괴적)"}
+              </p>
+            </section>
+          )}
+
+          <section className="space-y-2">
+            <p className="text-sm font-semibold text-foreground">요약</p>
+            <Card className="border-primary/20 bg-primary/5 shadow-none">
+              <CardContent className="flex items-start gap-3 p-4">
+                {testType === "fuzzing" ? (
+                  <Zap size={16} className="mt-0.5 shrink-0 text-primary" />
+                ) : (
+                  <Bug size={16} className="mt-0.5 shrink-0 text-primary" />
+                )}
+                <div className="space-y-1 text-sm">
+                  <div className="font-medium text-foreground">
+                    {testType === "fuzzing" ? "퍼징" : "침투 테스트"} —{" "}
+                    {STRATEGY_LABELS[strategy]}
+                  </div>
+                  <p className="leading-6 text-muted-foreground">
+                    {testType === "fuzzing"
+                      ? strategy === "random"
+                        ? `무작위 데이터 ${count}개를 생성하여 ${targetEcu}에 전송합니다. 예기치 않은 크래시나 이상 응답을 탐지합니다.`
+                        : strategy === "boundary"
+                          ? `경계값과 DLC 변형 12개를 ${targetEcu}에 전송하여 입력 검증 취약점을 탐지합니다.`
+                          : `DoS, 진단, 리플레이 등 20개 공격 시나리오를 ${targetEcu}에 실행합니다.`
+                      : `알려진 공격 벡터를 기반으로 ${targetEcu}의 보안 취약점을 능동적으로 탐지합니다.`}{" "}
+                    프로토콜: CAN · 대상 ID: {targetId}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
+          <div className="pt-1">
+            <Button
+              onClick={onStart}
+              disabled={
+                !targetEcu.trim() || !targetId.trim() || !selectedAdapterId
+              }
+            >
+              <Play size={16} />
+              테스트 시작
+            </Button>
           </div>
-        ) : (
-          <div className="dtest-config__field-row">
-            <Label className="form-field">
-              <span className="form-label">Target ECU</span>
-              <Input value={targetEcu} onChange={(e) => setTargetEcu(e.target.value)} />
-            </Label>
-            <Label className="form-field">
-              <span className="form-label">Target ID</span>
-              <Input value={targetId} onChange={(e) => setTargetId(e.target.value)} placeholder="0x100" />
-            </Label>
-          </div>
-        )}
-      </div>
-
-      <div className="dtest-config__section">
-        <label className="dtest-config__label">전략</label>
-        <div className="dtest-config__radio-group">
-          {(["random", "boundary", "scenario"] as TestStrategy[]).map((s) => (
-            <label key={s} className={`dtest-config__radio-card${strategy === s ? " dtest-config__radio-card--selected" : ""}`}>
-              <input type="radio" name="strategy" checked={strategy === s} onChange={() => setStrategy(s)} />
-              <span>{STRATEGY_LABELS[s]}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      {strategy === "random" ? (
-        <div className="dtest-config__section">
-          <label className="dtest-config__label">입력 수</label>
-          <Input
-            type="number"
-            className="dtest-config__count-input"
-            min={1}
-            max={1000}
-            value={count}
-            onChange={(e) => setCount(Math.max(1, Math.min(1000, Number(e.target.value))))}
-          />
-          <span className="dtest-config__hint">1 ~ 1,000</span>
-        </div>
-      ) : (
-        <div className="dtest-config__section">
-          <span className="dtest-config__hint">
-            고정 입력 세트: {strategy === "boundary" ? "12개 (경계값 + DLC 변형)" : "20개 (DoS/진단/리플레이/파괴적)"}
-          </span>
-        </div>
-      )}
-
-      <div className="dtest-config__section">
-        <label className="dtest-config__label">요약</label>
-        <div className="dtest-config__mode-card">
-          {testType === "fuzzing" ? <Zap size={16} /> : <Bug size={16} />}
-          <div>
-            <div className="dtest-config__mode-title">
-              {testType === "fuzzing" ? "퍼징" : "침투 테스트"} — {STRATEGY_LABELS[strategy]}
-            </div>
-            <p className="dtest-config__mode-desc">
-              {testType === "fuzzing"
-                ? strategy === "random"
-                  ? `무작위 데이터 ${count}개를 생성하여 ${targetEcu}에 전송합니다. 예기치 않은 크래시나 이상 응답을 탐지합니다.`
-                  : strategy === "boundary"
-                    ? `경계값과 DLC 변형 12개를 ${targetEcu}에 전송하여 입력 검증 취약점을 탐지합니다.`
-                    : `DoS, 진단, 리플레이 등 20개 공격 시나리오를 ${targetEcu}에 실행합니다.`
-                : `알려진 공격 벡터를 기반으로 ${targetEcu}의 보안 취약점을 능동적으로 탐지합니다.`}
-              {" "}프로토콜: CAN · 대상 ID: {targetId}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="dtest-config__actions">
-        <Button onClick={onStart} disabled={!targetEcu.trim() || !targetId.trim() || !selectedAdapterId}>
-          <Play size={16} />
-          테스트 시작
-        </Button>
-      </div>
-      </CardContent>
-    </Card>
-
-    {error && (
-      <Card className="dtest-error animate-fade-in shadow-none">
-        <CardContent className="flex items-center gap-2">
-        <AlertTriangle size={16} />
-        <span>{error}</span>
         </CardContent>
       </Card>
-    )}
-  </div>
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertTriangle size={16} />
+          <AlertTitle>테스트 시작 실패</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+    </div>
   );
 };

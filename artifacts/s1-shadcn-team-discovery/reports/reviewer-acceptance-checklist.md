@@ -156,6 +156,7 @@ Reject by default:
 
 A reviewer should reject the wave if any of these are true:
 
+0. **Usable component ignored:** a touched slice leaves bespoke UI/CSS/markup even though a viable shadcn primitive or a safe Aceternity-derived reference was reasonably available.
 1. **No fresh screenshots** for all changed routes/states/viewports.
 2. **Any touched route has zero or multiple `h1` elements.** Current baseline had `h1Count=0`; the first wave should not perpetuate that on touched routes.
 3. **Generic card mosaic remains or increases** on a touched route without interaction-boundary justification.

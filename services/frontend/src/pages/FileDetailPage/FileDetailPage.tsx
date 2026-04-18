@@ -10,7 +10,6 @@ import { FileDetailMissingState } from "./components/FileDetailMissingState";
 import { FileDetailSourcePanel } from "./components/FileDetailSourcePanel";
 import { FileDetailVulnerabilitiesSection } from "./components/FileDetailVulnerabilitiesSection";
 import { useFileDetailPage } from "./hooks/useFileDetailPage";
-import "./FileDetailPage.css";
 
 export const FileDetailPage: React.FC = () => {
   const { projectId, fileId } = useParams<{ projectId: string; fileId: string }>();
@@ -41,7 +40,7 @@ export const FileDetailPage: React.FC = () => {
   if (!state.file) return <FileDetailMissingState />;
 
   return (
-    <div className="page-enter file-detail-page">
+    <div className="page-enter flex flex-col gap-5">
       <BackButton onClick={() => navigate(-1)} label="뒤로" />
 
       <FileDetailHeader
@@ -65,11 +64,7 @@ export const FileDetailPage: React.FC = () => {
           onViewTabChange={state.setViewTab}
           maximized={state.maximized}
           onToggleMaximized={() => state.setMaximized((current) => !current)}
-          renderedPreview={
-            <div className={`file-detail-md-preview${state.maximized ? " file-detail-md-preview--maximized" : ""}`}>
-              {renderMarkdown(state.sourceCode)}
-            </div>
-          }
+          renderedPreview={renderMarkdown(state.sourceCode)}
         />
       )}
 

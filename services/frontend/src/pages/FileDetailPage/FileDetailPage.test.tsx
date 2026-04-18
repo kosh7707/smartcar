@@ -1,6 +1,6 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { FileDetailPage } from "./FileDetailPage";
 
@@ -70,7 +70,9 @@ describe("FileDetailPage", () => {
 
     expect(await screen.findByText("main.c")).toBeInTheDocument();
     expect(screen.getAllByText(/취약점 1건/).length).toBeGreaterThan(0);
-    expect(screen.getByText("Buffer overflow")).toBeInTheDocument();
+    const vulnerabilitiesHeading = screen.getByText("발견된 취약점 (1)");
+    const vulnerabilitiesSection = vulnerabilitiesHeading.closest("section") as HTMLElement;
+    expect(within(vulnerabilitiesSection).getByText("Buffer overflow")).toBeInTheDocument();
     expect(screen.getByText("관련 분석 이력 (1)")).toBeInTheDocument();
   });
 
@@ -89,6 +91,26 @@ describe("FileDetailPage", () => {
     fireEvent.click(within(historySection).getByText("취약점 1건"));
 
     expect(mockNavigate).toHaveBeenCalledWith("/projects/p-1/static-analysis?analysisId=run-1");
+  });
+
+  it("renders markdown view tabs for markdown files", async () => {
+    mockFetchProjectFiles.mockResolvedValue([{ id: "f-1", name: "README.md", path: "docs/README.md", size: 64, language: "md" }]);
+    mockFetchFileContent.mockResolvedValue({ content: "# Preview heading\n\nBody" });
+
+    renderPage();
+
+    expect(await screen.findByText("README.md")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "코드" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "프리뷰" })).toBeInTheDocument();
+  });
+
+  it("opens the source panel in a dialog when maximized", async () => {
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "전체 화면" }));
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "축소" })).toBeInTheDocument();
   });
 
   it("downloads the current file content", async () => {

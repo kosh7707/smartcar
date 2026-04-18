@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { DynamicTestFinding } from "@aegis/shared";
-import { AlertTriangle, Bug, Clock } from "lucide-react";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { PageHeader, SeverityBadge, StatCard } from "../../../shared/ui";
 import type { TestProgress } from "../../../hooks/useDynamicTest";
 import {
@@ -21,7 +22,7 @@ const PerformanceChart: React.FC<{
 }> = ({ snapshots, total }) => {
   if (snapshots.length < 2) {
     return (
-      <div className="dtest-chart-empty">
+      <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
         <span>데이터 수집 중...</span>
       </div>
     );
@@ -68,7 +69,7 @@ const PerformanceChart: React.FC<{
   const last = snapshots[snapshots.length - 1];
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="dtest-chart">
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full">
       {yTicks.map((v) => (
         <line
           key={v}
@@ -119,16 +120,8 @@ const PerformanceChart: React.FC<{
       >
         테스트 진행 (iterations)
       </text>
-      <path
-        d={toArea("anomalies")}
-        fill="var(--aegis-severity-medium)"
-        opacity={0.08}
-      />
-      <path
-        d={toArea("crashes")}
-        fill="var(--cds-support-error)"
-        opacity={0.1}
-      />
+      <path d={toArea("anomalies")} fill="var(--aegis-severity-medium)" opacity={0.08} />
+      <path d={toArea("crashes")} fill="var(--cds-support-error)" opacity={0.1} />
       <polyline
         points={toPolyline("anomalies")}
         fill="none"
@@ -143,12 +136,7 @@ const PerformanceChart: React.FC<{
         strokeWidth={2}
         strokeLinejoin="round"
       />
-      <circle
-        cx={x(last.step)}
-        cy={y(last.crashes)}
-        r={3.5}
-        fill="var(--cds-support-error)"
-      />
+      <circle cx={x(last.step)} cy={y(last.crashes)} r={3.5} fill="var(--cds-support-error)" />
       <circle
         cx={x(last.step)}
         cy={y(last.anomalies)}
@@ -198,7 +186,7 @@ export const DynamicTestRunningView: React.FC<DynamicTestRunningViewProps> = ({
   }, [findings.length]);
 
   return (
-    <div className="page-enter">
+    <div className="page-enter space-y-5">
       <PageHeader title="동적 테스트" subtitle="테스트 진행 중..." />
 
       <div className="stagger mb-5 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-3">
@@ -220,58 +208,54 @@ export const DynamicTestRunningView: React.FC<DynamicTestRunningViewProps> = ({
         <StatCard label="Findings" value={findings.length} accent />
       </div>
 
-      <Card className="dtest-running-bar shadow-none">
-        <CardContent className="space-y-3">
-          <div className="dtest-running__bar-wrap">
-            <div className="dtest-running__bar-track">
-              <div
-                className="dtest-running__bar-fill shimmer-fill"
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-            <span className="dtest-running__pct">{pct}%</span>
+      <Card className="shadow-none">
+        <CardContent className="space-y-3 p-5">
+          <div className="flex items-center gap-4">
+            <Progress value={pct} className="h-2 flex-1" />
+            <span className="min-w-10 text-right text-sm font-semibold text-primary">
+              {pct}%
+            </span>
           </div>
-          <p className="dtest-running__message">{progress.message}</p>
+          <p className="text-sm text-muted-foreground">{progress.message}</p>
         </CardContent>
       </Card>
 
-      <div className="dtest-running-grid">
+      <div className="grid gap-5 xl:grid-cols-2">
         <Card className="shadow-none">
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 p-5">
             <CardTitle>실시간 탐지 추이</CardTitle>
             <PerformanceChart snapshots={snapshots} total={progress.total} />
           </CardContent>
         </Card>
 
         <Card className="shadow-none">
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 p-5">
             <CardTitle>실시간 Findings ({findings.length})</CardTitle>
-            <div className="dtest-findings-log" ref={logRef}>
-              {findings.length === 0 ? (
-                <p className="dtest-findings-log__empty">
-                  아직 발견된 이상 없음...
-                </p>
-              ) : (
-                findings.map((finding) => (
-                  <div
-                    key={finding.id}
-                    className="dtest-finding-row animate-fade-in"
-                  >
-                    <SeverityBadge severity={finding.severity} size="sm" />
-                    <span className="dtest-finding-row__type">
-                      {FINDING_TYPE_ICON[finding.type]}
-                      {FINDING_TYPE_LABEL[finding.type]}
-                    </span>
-                    <code className="dtest-finding-row__input">
-                      {finding.input}
-                    </code>
-                    <span className="dtest-finding-row__desc">
-                      {finding.description}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
+            <ScrollArea className="h-[360px] rounded-lg border border-border/70">
+              <div className="divide-y divide-border/70" ref={logRef}>
+                {findings.length === 0 ? (
+                  <p className="px-4 py-10 text-center text-sm text-muted-foreground">
+                    아직 발견된 이상 없음...
+                  </p>
+                ) : (
+                  findings.map((finding) => (
+                    <div key={finding.id} className="flex items-center gap-3 px-4 py-3 text-sm">
+                      <SeverityBadge severity={finding.severity} size="sm" />
+                      <span className="flex min-w-20 items-center gap-1.5 font-medium text-foreground">
+                        {FINDING_TYPE_ICON[finding.type]}
+                        {FINDING_TYPE_LABEL[finding.type]}
+                      </span>
+                      <code className="max-w-[260px] truncate rounded-md border border-border/70 bg-muted/40 px-2 py-1 font-mono text-primary">
+                        {finding.input}
+                      </code>
+                      <span className="truncate text-muted-foreground">
+                        {finding.description}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
           </CardContent>
         </Card>
       </div>

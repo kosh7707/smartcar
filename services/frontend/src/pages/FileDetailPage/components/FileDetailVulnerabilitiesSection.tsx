@@ -12,33 +12,35 @@ interface FileDetailVulnerabilitiesSectionProps {
 export const FileDetailVulnerabilitiesSection: React.FC<
   FileDetailVulnerabilitiesSectionProps
 > = ({ vulnerabilities, onSelect }) => (
-  <section className="file-detail-section-card">
-    <Card className="shadow-none">
-      <CardContent className="space-y-3">
-        <div className="file-detail-section-title">
+  <section>
+    <Card className="border-border/70 shadow-none">
+      <CardContent className="space-y-3 py-0">
+        <div className="flex items-center gap-2 border-b border-border/60 py-4 text-sm font-semibold text-foreground">
           <Shield size={16} />
           발견된 취약점 ({vulnerabilities.length})
         </div>
         {vulnerabilities.length === 0 ? (
-          <EmptyState title="이 파일에서 발견된 취약점이 없습니다" />
+          <div className="pb-4">
+            <EmptyState title="이 파일에서 발견된 취약점이 없습니다" />
+          </div>
         ) : (
-          <div>
+          <div className="pb-2">
             {vulnerabilities.map((vulnerability) => (
               <ListItem
                 key={vulnerability.id}
                 onClick={() => onSelect(vulnerability)}
                 trailing={
-                  <span className="file-detail-vuln-source">
+                  <span className="font-mono text-xs text-muted-foreground">
                     {vulnerability.source === "rule" ? "룰" : "LLM"}
                   </span>
                 }
               >
-                <div className="file-detail-vuln-row">
+                <div className="flex flex-wrap items-center gap-2">
                   <SeverityBadge severity={vulnerability.severity} size="sm" />
-                  <span className="file-detail-vuln-title">
+                  <span className="font-medium text-foreground">
                     {vulnerability.title}
                   </span>
-                  <span className="file-detail-vuln-location">
+                  <span className="font-mono text-xs text-muted-foreground">
                     {vulnerability.location}
                   </span>
                 </div>

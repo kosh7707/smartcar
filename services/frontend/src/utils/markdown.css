@@ -105,3 +105,61 @@
   font-family: var(--cds-font-mono);
   font-size: 0.9em;
 }
+
+
+/* ── highlight.js token theme ── */
+
+.hljs {
+  color: var(--cds-text-primary);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--cds-hljs-comment);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-type {
+  color: var(--cds-hljs-keyword);
+}
+
+.hljs-string,
+.hljs-attr {
+  color: var(--cds-hljs-string);
+}
+
+.hljs-number,
+.hljs-literal {
+  color: var(--cds-hljs-number);
+}
+
+.hljs-function .hljs-title,
+.hljs-title.function_,
+.hljs-section {
+  color: var(--cds-hljs-function);
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-symbol {
+  color: var(--cds-hljs-variable);
+}
+
+.hljs-meta,
+.hljs-preprocessor {
+  color: var(--cds-hljs-meta);
+  font-weight: bold;
+}
+
+.hljs-deletion {
+  color: var(--cds-hljs-deletion);
+  background: var(--cds-hljs-deletion-bg);
+}
+
+.hljs-addition {
+  color: var(--cds-hljs-string);
+  background: var(--cds-hljs-addition-bg);
+}
