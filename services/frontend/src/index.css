@@ -1,3 +1,412 @@
+/* ═══════════════════════════════════════════════════════════════
+   AEGIS Design Tokens — IBM Carbon Architecture + NVIDIA Restraint
+
+   Base: IBM Carbon --cds-* semantic token system
+   Domain: AEGIS --aegis-* security operations extensions
+   Accent: IBM Blue 60 (#0f62fe)
+   Identity: Security operations console — severity urgency,
+             dark-mode-first, mono data, productive density
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Surface / Layer (Carbon Gray — Light) ── */
+  --cds-background: #ffffff;
+  --cds-layer-01: #f4f4f4;          /* Gray 10 */
+  --cds-layer-02: #e0e0e0;          /* Gray 20 */
+  --cds-layer-03: #c6c6c6;          /* Gray 30 */
+  --cds-layer-raised: #ffffff;
+  --cds-overlay: rgba(22, 22, 22, 0.5);
+
+  /* ── Sidebar (Always Dark — theme-invariant) ── */
+  --aegis-sidebar-bg: #161616;
+  --aegis-sidebar-surface: #262626;
+  --aegis-sidebar-hover: rgba(15, 98, 254, 0.08);
+  --aegis-sidebar-active: rgba(15, 98, 254, 0.14);
+  --aegis-sidebar-text: #c6c6c6;
+  --aegis-sidebar-text-active: #f4f4f4;
+  --aegis-sidebar-border: rgba(255, 255, 255, 0.06);
+  --aegis-sidebar-width: 232px;
+
+  /* ── Text (Carbon Gray) ── */
+  --cds-text-primary: #161616;       /* Gray 100 */
+  --cds-text-secondary: #525252;     /* Gray 70 */
+  --cds-text-placeholder: #6f6f6f;   /* Gray 60 */
+  --cds-text-on-color: #ffffff;
+  --cds-text-inverse: #f4f4f4;       /* Gray 10 */
+  --cds-text-disabled: #8d8d8d;      /* Gray 50 */
+
+  /* ── Interactive (IBM Blue 60) ── */
+  --cds-interactive: #0f62fe;
+  --cds-interactive-hover: #0043ce;  /* Blue 70 */
+  --cds-interactive-active: #002d9c; /* Blue 80 */
+  --cds-interactive-subtle: rgba(15, 98, 254, 0.08);
+  --cds-interactive-border: rgba(15, 98, 254, 0.22);
+  --cds-interactive-surface: rgba(15, 98, 254, 0.04);
+  --cds-link-primary: #0f62fe;
+  --cds-link-primary-hover: #0043ce;
+  --cds-focus: #0f62fe;
+  --cds-focus-inset: #ffffff;
+
+  /* ── Button (Carbon patterns) ── */
+  --cds-button-primary: #0f62fe;
+  --cds-button-primary-hover: #0353e9;
+  --cds-button-primary-active: #002d9c;
+  --cds-button-secondary: #393939;   /* Gray 80 */
+  --cds-button-secondary-hover: #4c4c4c;
+  --cds-button-tertiary: #0f62fe;
+  --cds-button-danger: #da1e28;
+  --cds-button-danger-hover: #b81921;
+
+  /* ── Severity (Security Standard — AEGIS domain) ── */
+  --aegis-severity-critical: #da1e28;
+  --aegis-severity-critical-bg: rgba(218, 30, 40, 0.07);
+  --aegis-severity-critical-border: rgba(218, 30, 40, 0.18);
+  --aegis-severity-high: #ff832b;
+  --aegis-severity-high-bg: rgba(255, 131, 43, 0.07);
+  --aegis-severity-high-border: rgba(255, 131, 43, 0.18);
+  --aegis-severity-medium: #f1c21b;
+  --aegis-severity-medium-bg: rgba(241, 194, 27, 0.07);
+  --aegis-severity-medium-border: rgba(241, 194, 27, 0.18);
+  --aegis-severity-low: #00539a;
+  --aegis-severity-low-bg: rgba(0, 83, 154, 0.07);
+  --aegis-severity-low-border: rgba(0, 83, 154, 0.18);
+  --aegis-severity-info: #525252;
+  --aegis-severity-info-bg: rgba(82, 82, 82, 0.07);
+  --aegis-severity-info-border: rgba(82, 82, 82, 0.18);
+
+  /* ── Semantic (Carbon Support) ── */
+  --cds-support-success: #24a148;
+  --cds-support-success-bg: rgba(36, 161, 72, 0.07);
+  --cds-support-warning: #f1c21b;
+  --cds-support-warning-bg: rgba(241, 194, 27, 0.07);
+  --cds-support-error: #da1e28;
+  --cds-support-error-bg: rgba(218, 30, 40, 0.07);
+  --cds-support-error-hover: #b81921;
+  --cds-support-info: #0f62fe;
+  --cds-support-info-bg: rgba(15, 98, 254, 0.07);
+
+  /* ── Border (Carbon Gray) ── */
+  --cds-border-subtle: #e0e0e0;      /* Gray 20 */
+  --cds-border-strong: #8d8d8d;      /* Gray 50 */
+  --cds-border-inverse: #161616;
+
+  /* ── Field (Carbon input) ── */
+  --cds-field: #f4f4f4;              /* Gray 10 */
+  --cds-field-hover: #e8e8e8;        /* Gray 10 Hover */
+
+  /* ── Spacing (Carbon 8px grid) ── */
+  --cds-spacing-01: 2px;
+  --cds-spacing-02: 4px;
+  --cds-spacing-03: 8px;
+  --cds-spacing-04: 12px;
+  --cds-spacing-05: 16px;
+  --cds-spacing-06: 24px;
+  --cds-spacing-07: 32px;
+  --cds-spacing-08: 40px;
+  --cds-spacing-09: 48px;
+  --cds-spacing-10: 64px;
+  --cds-spacing-11: 80px;
+  --cds-spacing-12: 96px;
+  --aegis-spacing-05: 20px;          /* AEGIS extension — productive density */
+
+  /* ── Typography (IBM Plex) ── */
+  --cds-font-sans: 'IBM Plex Sans', 'Pretendard', -apple-system, system-ui, sans-serif;
+  --cds-font-mono: 'IBM Plex Mono', 'Fira Code', monospace;
+
+  --cds-type-2xs: 14px;
+  --cds-type-xs: 14px;
+  --cds-type-sm: 14px;
+  --cds-type-base: 15px;
+  --cds-type-md: 16px;
+  --cds-type-lg: 18px;
+  --cds-type-xl: 24px;
+  --cds-type-2xl: 30px;
+  --cds-type-3xl: 36px;
+  --cds-type-display: 48px;
+
+  --cds-leading-tight: 1.2;
+  --cds-leading-normal: 1.5;
+  --cds-leading-relaxed: 1.65;
+  --cds-letter-spacing-body: 0.16px;
+  --cds-letter-spacing-caption: 0.32px;
+
+  --cds-weight-light: 300;
+  --cds-weight-normal: 400;
+  --cds-weight-medium: 500;
+  --cds-weight-semibold: 600;
+
+  /* ── Shadow (flat design — floating only) ── */
+  --cds-shadow-dropdown: 0 2px 6px rgba(0, 0, 0, 0.3);
+  --cds-shadow-modal: 0 2px 6px rgba(0, 0, 0, 0.3);
+  --cds-shadow-sidebar: 1px 0 0 var(--aegis-sidebar-border);
+
+  /* ── Radius (NVIDIA-style 2px) ── */
+  --cds-radius: 2px;
+  --cds-radius-pill: 24px;
+  --cds-radius-circle: 9999px;
+
+  /* ── Transition ── */
+  --cds-transition-fast: 100ms ease;
+  --cds-transition-base: 180ms ease;
+  --cds-transition-slow: 280ms ease;
+  --cds-transition-spring: 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Code Viewer ── */
+  --cds-code-bg: #f4f4f4;
+  --cds-code-text: #161616;
+  --cds-code-border: #e0e0e0;
+  --cds-code-line-num: #8d8d8d;
+
+  /* ── Shimmer ── */
+  --cds-shimmer: rgba(255, 255, 255, 0.4);
+
+  /* ── Module Colors (AEGIS domain) ── */
+  --aegis-module-static: #7c6ee6;
+  --aegis-module-static-bg: rgba(124, 110, 230, 0.08);
+  --aegis-module-dynamic: var(--cds-support-success);
+  --aegis-module-dynamic-bg: rgba(36, 161, 72, 0.08);
+  --aegis-module-test: #0f62fe;
+  --aegis-module-test-bg: rgba(15, 98, 254, 0.08);
+
+  /* ── Finding Status (AEGIS domain) ── */
+  --aegis-status-open: #6f6f6f;
+  --aegis-status-open-bg: rgba(111, 111, 111, 0.07);
+  --aegis-status-open-border: rgba(111, 111, 111, 0.18);
+  --aegis-status-needs-review: #f1c21b;
+  --aegis-status-needs-review-bg: rgba(241, 194, 27, 0.07);
+  --aegis-status-needs-review-border: rgba(241, 194, 27, 0.18);
+  --aegis-status-accepted-risk: #d97706;
+  --aegis-status-accepted-risk-bg: rgba(217, 119, 6, 0.07);
+  --aegis-status-accepted-risk-border: rgba(217, 119, 6, 0.18);
+  --aegis-status-false-positive: #6f6f6f;
+  --aegis-status-false-positive-bg: rgba(111, 111, 111, 0.07);
+  --aegis-status-false-positive-border: rgba(111, 111, 111, 0.18);
+  --aegis-status-fixed: #24a148;
+  --aegis-status-fixed-bg: rgba(36, 161, 72, 0.07);
+  --aegis-status-fixed-border: rgba(36, 161, 72, 0.18);
+  --aegis-status-needs-revalidation: #ff832b;
+  --aegis-status-needs-revalidation-bg: rgba(255, 131, 43, 0.07);
+  --aegis-status-needs-revalidation-border: rgba(255, 131, 43, 0.18);
+  --aegis-status-sandbox: #a8a8a8;
+  --aegis-status-sandbox-bg: rgba(168, 168, 168, 0.07);
+  --aegis-status-sandbox-border: rgba(168, 168, 168, 0.18);
+
+  /* ── Confidence (AEGIS domain) ── */
+  --aegis-confidence-high: #24a148;
+  --aegis-confidence-high-bg: rgba(36, 161, 72, 0.07);
+  --aegis-confidence-high-border: rgba(36, 161, 72, 0.18);
+  --aegis-confidence-medium: #f1c21b;
+  --aegis-confidence-medium-bg: rgba(241, 194, 27, 0.07);
+  --aegis-confidence-medium-border: rgba(241, 194, 27, 0.18);
+  --aegis-confidence-low: #da1e28;
+  --aegis-confidence-low-bg: rgba(218, 30, 40, 0.07);
+  --aegis-confidence-low-border: rgba(218, 30, 40, 0.18);
+
+  /* ── Source Classification (AEGIS domain) ── */
+  --aegis-source-rule: #7c6ee6;
+  --aegis-source-rule-bg: rgba(124, 110, 230, 0.07);
+  --aegis-source-rule-border: rgba(124, 110, 230, 0.18);
+  --aegis-source-ai: #0f62fe;
+  --aegis-source-ai-bg: rgba(15, 98, 254, 0.07);
+  --aegis-source-ai-border: rgba(15, 98, 254, 0.18);
+  --aegis-source-both: #8b5cf6;
+  --aegis-source-both-bg: rgba(139, 92, 246, 0.07);
+  --aegis-source-both-border: rgba(139, 92, 246, 0.18);
+  --aegis-source-agent: #f1c21b;
+  --aegis-source-agent-bg: rgba(241, 194, 27, 0.07);
+  --aegis-source-agent-border: rgba(241, 194, 27, 0.18);
+  --aegis-source-sast: #24a148;
+  --aegis-source-sast-bg: rgba(36, 161, 72, 0.07);
+  --aegis-source-sast-border: rgba(36, 161, 72, 0.18);
+
+  /* ── Z-Index Scale ── */
+  --cds-z-base: 1;
+  --cds-z-sticky: 10;
+  --cds-z-dropdown: 50;
+  --cds-z-overlay: 100;
+  --cds-z-modal-backdrop: 1000;
+  --cds-z-modal: 1050;
+  --cds-z-toast: 1100;
+
+  /* ── Glow (severity instrument emphasis) ── */
+  --aegis-glow-success: 0 0 8px rgba(36, 161, 72, 0.35);
+  --aegis-glow-danger: 0 0 8px rgba(218, 30, 40, 0.35);
+  --aegis-glow-warning: 0 0 8px rgba(241, 194, 27, 0.35);
+  --aegis-glow-interactive: 0 0 10px rgba(15, 98, 254, 0.3);
+
+  /* ── Panel ── */
+  --cds-surface-inset: rgba(0, 0, 0, 0.025);
+
+  /* ── Code line interaction (light) ── */
+  --cds-code-line-hover: rgba(0, 0, 0, 0.04);
+  --cds-code-line-highlight-bg: rgba(218, 30, 40, 0.12);
+  --cds-code-line-highlight-bg-hover: rgba(218, 30, 40, 0.18);
+
+  /* ── Highlight.js syntax tokens (light — GitHub-inspired) ── */
+  --cds-hljs-comment: #57606a;
+  --cds-hljs-keyword: #d73a49;
+  --cds-hljs-string: #032f62;
+  --cds-hljs-number: #005cc5;
+  --cds-hljs-function: #6f42c1;
+  --cds-hljs-variable: #e36209;
+  --cds-hljs-meta: #005cc5;
+  --cds-hljs-deletion: #b31d28;
+  --cds-hljs-deletion-bg: rgba(179, 29, 40, 0.08);
+  --cds-hljs-addition-bg: rgba(3, 47, 98, 0.06);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Dark Theme — Carbon Gray 100 Theme (Primary operating mode)
+   ═══════════════════════════════════════════════════════════════ */
+
+[data-theme="dark"] {
+  /* ── Surface / Layer ── */
+  --cds-background: #161616;         /* Gray 100 */
+  --cds-layer-01: #262626;           /* Gray 90 */
+  --cds-layer-02: #393939;           /* Gray 80 */
+  --cds-layer-03: #525252;           /* Gray 70 */
+  --cds-layer-raised: #262626;
+  --cds-overlay: rgba(0, 0, 0, 0.65);
+
+  /* ── Sidebar (same values — theme-invariant) ── */
+  --aegis-sidebar-bg: #161616;
+  --aegis-sidebar-surface: #262626;
+  --aegis-sidebar-hover: rgba(15, 98, 254, 0.1);
+  --aegis-sidebar-border: rgba(255, 255, 255, 0.04);
+
+  /* ── Text ── */
+  --cds-text-primary: #f4f4f4;       /* Gray 10 */
+  --cds-text-secondary: #c6c6c6;     /* Gray 30 */
+  --cds-text-placeholder: #6f6f6f;   /* Gray 60 */
+  --cds-text-on-color: #ffffff;
+  --cds-text-inverse: #161616;
+  --cds-text-disabled: #525252;
+
+  /* ── Interactive (Blue 40 for dark) ── */
+  --cds-interactive: #78a9ff;        /* Blue 40 */
+  --cds-interactive-hover: #a6c8ff;  /* Blue 30 */
+  --cds-interactive-active: #4589ff; /* Blue 50 */
+  --cds-interactive-subtle: rgba(120, 169, 255, 0.12);
+  --cds-interactive-border: rgba(120, 169, 255, 0.28);
+  --cds-interactive-surface: rgba(120, 169, 255, 0.06);
+  --cds-link-primary: #78a9ff;
+  --cds-link-primary-hover: #a6c8ff;
+  --cds-focus: #ffffff;
+  --cds-focus-inset: #161616;
+
+  /* ── Button (dark) ── */
+  --cds-button-primary: #0f62fe;
+  --cds-button-primary-hover: #0353e9;
+  --cds-button-secondary: #6f6f6f;
+  --cds-button-secondary-hover: #8d8d8d;
+  --cds-button-danger: #da1e28;
+  --cds-button-danger-hover: #b81921;
+
+  /* ── Severity (boosted opacity for dark) ── */
+  --aegis-severity-critical-bg: rgba(218, 30, 40, 0.15);
+  --aegis-severity-critical-border: rgba(218, 30, 40, 0.28);
+  --aegis-severity-high-bg: rgba(255, 131, 43, 0.15);
+  --aegis-severity-high-border: rgba(255, 131, 43, 0.28);
+  --aegis-severity-medium-bg: rgba(241, 194, 27, 0.15);
+  --aegis-severity-medium-border: rgba(241, 194, 27, 0.28);
+  --aegis-severity-low-bg: rgba(0, 83, 154, 0.15);
+  --aegis-severity-low-border: rgba(0, 83, 154, 0.28);
+  --aegis-severity-info-bg: rgba(82, 82, 82, 0.15);
+  --aegis-severity-info-border: rgba(82, 82, 82, 0.28);
+
+  /* ── Semantic (dark) ── */
+  --cds-support-success-bg: rgba(36, 161, 72, 0.15);
+  --cds-support-warning-bg: rgba(241, 194, 27, 0.15);
+  --cds-support-error-bg: rgba(218, 30, 40, 0.15);
+  --cds-support-error-hover: #fa4d56;
+  --cds-support-info-bg: rgba(15, 98, 254, 0.15);
+
+  /* ── Border (dark) ── */
+  --cds-border-subtle: #393939;      /* Gray 80 */
+  --cds-border-strong: rgba(255, 255, 255, 0.15);
+  --cds-border-inverse: #f4f4f4;
+
+  /* ── Field (dark) ── */
+  --cds-field: #262626;
+  --cds-field-hover: #393939;
+
+  /* ── Shadow (flat — only for floating) ── */
+  --cds-shadow-dropdown: 0 2px 6px rgba(0, 0, 0, 0.5);
+  --cds-shadow-modal: 0 2px 6px rgba(0, 0, 0, 0.5);
+  --cds-shadow-sidebar: 1px 0 0 rgba(255, 255, 255, 0.04);
+
+  /* ── Code (dark) ── */
+  --cds-code-bg: #262626;
+  --cds-code-text: #f4f4f4;
+  --cds-code-border: rgba(255, 255, 255, 0.06);
+
+  /* ── Shimmer ── */
+  --cds-shimmer: rgba(255, 255, 255, 0.06);
+
+  /* ── Module (dark) ── */
+  --aegis-module-static: #9b8afb;
+  --aegis-module-static-bg: rgba(155, 138, 251, 0.15);
+  --aegis-module-dynamic-bg: rgba(36, 161, 72, 0.15);
+  --aegis-module-test-bg: rgba(15, 98, 254, 0.15);
+
+  /* ── Finding Status (dark — boosted) ── */
+  --aegis-status-open-bg: rgba(111, 111, 111, 0.15);
+  --aegis-status-open-border: rgba(111, 111, 111, 0.28);
+  --aegis-status-needs-review-bg: rgba(241, 194, 27, 0.15);
+  --aegis-status-needs-review-border: rgba(241, 194, 27, 0.28);
+  --aegis-status-accepted-risk-bg: rgba(217, 119, 6, 0.15);
+  --aegis-status-accepted-risk-border: rgba(217, 119, 6, 0.28);
+  --aegis-status-false-positive-bg: rgba(111, 111, 111, 0.15);
+  --aegis-status-false-positive-border: rgba(111, 111, 111, 0.28);
+  --aegis-status-fixed-bg: rgba(36, 161, 72, 0.15);
+  --aegis-status-fixed-border: rgba(36, 161, 72, 0.28);
+  --aegis-status-needs-revalidation-bg: rgba(255, 131, 43, 0.15);
+  --aegis-status-needs-revalidation-border: rgba(255, 131, 43, 0.28);
+  --aegis-status-sandbox-bg: rgba(168, 168, 168, 0.15);
+  --aegis-status-sandbox-border: rgba(168, 168, 168, 0.28);
+
+  /* ── Confidence (dark) ── */
+  --aegis-confidence-high-bg: rgba(36, 161, 72, 0.15);
+  --aegis-confidence-high-border: rgba(36, 161, 72, 0.28);
+  --aegis-confidence-medium-bg: rgba(241, 194, 27, 0.15);
+  --aegis-confidence-medium-border: rgba(241, 194, 27, 0.28);
+  --aegis-confidence-low-bg: rgba(218, 30, 40, 0.15);
+  --aegis-confidence-low-border: rgba(218, 30, 40, 0.28);
+
+  /* ── Source (dark) ── */
+  --aegis-source-rule-bg: rgba(155, 138, 251, 0.15);
+  --aegis-source-rule-border: rgba(155, 138, 251, 0.28);
+  --aegis-source-ai-bg: rgba(15, 98, 254, 0.15);
+  --aegis-source-ai-border: rgba(15, 98, 254, 0.28);
+  --aegis-source-both-bg: rgba(139, 92, 246, 0.15);
+  --aegis-source-both-border: rgba(139, 92, 246, 0.28);
+  --aegis-source-agent-bg: rgba(241, 194, 27, 0.15);
+  --aegis-source-agent-border: rgba(241, 194, 27, 0.28);
+  --aegis-source-sast-bg: rgba(36, 161, 72, 0.15);
+  --aegis-source-sast-border: rgba(36, 161, 72, 0.28);
+
+  /* ── Panel (dark) ── */
+  --cds-surface-inset: rgba(0, 0, 0, 0.2);
+
+  /* ── Code line interaction (dark) ── */
+  --cds-code-line-hover: rgba(255, 255, 255, 0.03);
+  --cds-code-line-highlight-bg: rgba(218, 30, 40, 0.15);
+  --cds-code-line-highlight-bg-hover: rgba(218, 30, 40, 0.22);
+
+  /* ── Highlight.js syntax tokens (dark — GitHub Dark) ── */
+  --cds-hljs-comment: #adb5bd;
+  --cds-hljs-keyword: #ff7b72;
+  --cds-hljs-string: #a5d6ff;
+  --cds-hljs-number: #79c0ff;
+  --cds-hljs-function: #d2a8ff;
+  --cds-hljs-variable: #ffa657;
+  --cds-hljs-meta: #79c0ff;
+  --cds-hljs-deletion: #ffa198;
+  --cds-hljs-deletion-bg: rgba(255, 161, 152, 0.1);
+  --cds-hljs-addition-bg: rgba(165, 214, 255, 0.08);
+}
+
+
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -216,4 +625,134 @@
   select {
     @apply rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-none outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25;
   }
+}
+
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@layer components {
+  .animate-fade-in { animation: fadeIn var(--cds-transition-base) both; }
+  .animate-fade-in-up { animation: fadeInUp var(--cds-transition-slow) both; }
+  .animate-fade-in-scale { animation: fadeInScale var(--cds-transition-slow) both; }
+  .animate-slide-in-right { animation: slideInRight var(--cds-transition-slow) both; }
+  .animate-pulse { animation: pulse 2s ease-in-out infinite; }
+  .animate-spin { animation: spin 1s linear infinite; }
+  .page-enter { animation: fadeInUp 200ms ease both; }
+  .stagger > * { animation: fadeInUp 220ms ease both; }
+  .stagger > :nth-child(1) { animation-delay: 0ms; }
+  .stagger > :nth-child(2) { animation-delay: 50ms; }
+  .stagger > :nth-child(3) { animation-delay: 100ms; }
+  .stagger > :nth-child(4) { animation-delay: 150ms; }
+  .stagger > :nth-child(5) { animation-delay: 200ms; }
+  .stagger > :nth-child(6) { animation-delay: 250ms; }
+  .stagger > :nth-child(7) { animation-delay: 300ms; }
+  .stagger > :nth-child(8) { animation-delay: 350ms; }
+  .stagger > :nth-child(9) { animation-delay: 400ms; }
+  .stagger > :nth-child(10) { animation-delay: 450ms; }
+  .stagger > :nth-child(11) { animation-delay: 500ms; }
+  .stagger > :nth-child(12) { animation-delay: 550ms; }
+  .skeleton {
+    background: linear-gradient(90deg, var(--cds-layer-02) 25%, var(--cds-layer-03) 50%, var(--cds-layer-02) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: var(--cds-radius);
+  }
+  .shimmer-fill { position: relative; }
+  .shimmer-fill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, var(--cds-shimmer), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+}
+
+
+.hljs {
+  color: var(--cds-text-primary);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--cds-hljs-comment);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-type {
+  color: var(--cds-hljs-keyword);
+}
+
+.hljs-string,
+.hljs-attr {
+  color: var(--cds-hljs-string);
+}
+
+.hljs-number,
+.hljs-literal {
+  color: var(--cds-hljs-number);
+}
+
+.hljs-function .hljs-title,
+.hljs-title.function_,
+.hljs-section {
+  color: var(--cds-hljs-function);
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-symbol {
+  color: var(--cds-hljs-variable);
+}
+
+.hljs-meta,
+.hljs-preprocessor {
+  color: var(--cds-hljs-meta);
+  font-weight: bold;
+}
+
+.hljs-deletion {
+  color: var(--cds-hljs-deletion);
+  background: var(--cds-hljs-deletion-bg);
+}
+
+.hljs-addition {
+  color: var(--cds-hljs-string);
+  background: var(--cds-hljs-addition-bg);
 }

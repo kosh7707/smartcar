@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from "react";
-import "./ToastContext.css";
+import { cn } from "@/lib/utils";
 import { AlertTriangle, CheckCircle, X, XCircle } from "lucide-react";
 
 type ToastType = "error" | "warning" | "success";
@@ -59,17 +59,34 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ToastContext.Provider value={api}>
       {children}
-      <div className="toast-container">
+      <div className="fixed right-6 bottom-6 z-[1000] flex w-max max-w-[560px] flex-col gap-3 pointer-events-none">
         {toasts.map((t) => (
-          <div key={t.id} className={`toast toast--${t.type}`} role="alert" aria-live="assertive">
+          <div
+            key={t.id}
+            className={cn(
+              "pointer-events-auto flex items-center gap-3 rounded-md px-4 py-3 text-sm shadow-[var(--cds-shadow-dropdown)] backdrop-blur-[12px] animate-fade-in",
+              t.type === "warning" && "border border-[var(--aegis-severity-medium-border)] bg-[color-mix(in_srgb,var(--cds-background)_92%,var(--aegis-severity-medium))] text-[var(--aegis-severity-medium)]",
+              t.type === "error" && "border border-[var(--aegis-severity-critical-border)] bg-[color-mix(in_srgb,var(--cds-background)_92%,var(--cds-support-error))] text-[var(--aegis-severity-high)]",
+              t.type === "success" && "border border-[var(--aegis-status-fixed-border)] bg-[color-mix(in_srgb,var(--cds-background)_92%,var(--cds-support-success))] text-[var(--cds-support-success)]",
+            )}
+            role="alert"
+            aria-live="assertive"
+          >
             {ICONS[t.type]}
-            <span className="toast__message">{t.message}</span>
+            <span className="flex-1 leading-[1.4]">{t.message}</span>
             {t.action && (
-              <button className="toast__action" onClick={() => { dismiss(t.id); t.action!.onClick(); }}>
+              <button
+                className="shrink-0 whitespace-nowrap rounded-sm border border-current px-2 py-0.5 text-[14px] font-medium opacity-80 transition-opacity hover:opacity-100"
+                onClick={() => { dismiss(t.id); t.action!.onClick(); }}
+              >
                 {t.action.label}
               </button>
             )}
-            <button className="toast__close" onClick={() => dismiss(t.id)} aria-label="알림 닫기">
+            <button
+              className="shrink-0 opacity-60 transition-opacity hover:opacity-100"
+              onClick={() => dismiss(t.id)}
+              aria-label="알림 닫기"
+            >
               <X size={14} />
             </button>
           </div>

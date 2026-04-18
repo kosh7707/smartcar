@@ -3,8 +3,6 @@ import ReactDOM from "react-dom/client";
 import { App } from "./App";
 import { initTheme } from "./utils/theme";
 
-import "./styles/tokens.css";
-import "./styles/animations.css";
 import "./index.css";
 
 window.addEventListener("unhandledrejection", (e) => {
