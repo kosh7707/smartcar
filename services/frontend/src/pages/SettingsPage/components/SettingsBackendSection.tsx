@@ -42,8 +42,8 @@ export function SettingsBackendSection({
         </div>
       </CardHeader>
       <CardContent className="space-y-4 pt-5">
-        <Label className="form-field gap-2" htmlFor="backend-url">
-          <span className="form-label">API 서버 주소</span>
+        <Label className="flex flex-col items-start gap-2" htmlFor="backend-url">
+          <span className="text-sm font-medium text-muted-foreground">API 서버 주소</span>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             <div className="relative flex-1">
               <Input

@@ -24,6 +24,7 @@ import {
   ALLOWED_TRANSITIONS,
   canTransitionTo,
 } from "../../constants/finding";
+import { findingStatusBadgeClass } from "./FindingStatusBadge";
 
 interface Props {
   open: boolean;
@@ -72,7 +73,7 @@ export const StateTransitionDialog: React.FC<Props> = ({
         <div className="space-y-5">
           <div className="flex flex-col gap-2">
             <Label>현재 상태</Label>
-            <Badge variant="outline" className={`badge-status--${currentStatus} w-fit`}>
+            <Badge variant="outline" className={`${findingStatusBadgeClass(currentStatus)} w-fit`}>
               {FINDING_STATUS_LABELS[currentStatus]}
             </Badge>
           </div>

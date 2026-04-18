@@ -140,12 +140,12 @@ export const DynamicTestConfigView: React.FC<DynamicTestConfigViewProps> = ({
             <p className="text-sm font-semibold text-foreground">대상 설정</p>
             {hasEcuMeta && ecuMeta ? (
               <div className="grid gap-4 md:grid-cols-2">
-                <Label className="form-field gap-2">
-                  <span className="form-label">Target ECU</span>
+                <Label className="flex flex-col items-start gap-2">
+                  <span className="text-sm font-medium text-muted-foreground">Target ECU</span>
                   <Input value={targetEcu} readOnly />
                 </Label>
-                <Label className="form-field gap-2">
-                  <span className="form-label">Target ID</span>
+                <Label className="flex flex-col items-start gap-2">
+                  <span className="text-sm font-medium text-muted-foreground">Target ID</span>
                   <select
                     className={selectClassName}
                     value={targetId}
@@ -161,15 +161,15 @@ export const DynamicTestConfigView: React.FC<DynamicTestConfigViewProps> = ({
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
-                <Label className="form-field gap-2">
-                  <span className="form-label">Target ECU</span>
+                <Label className="flex flex-col items-start gap-2">
+                  <span className="text-sm font-medium text-muted-foreground">Target ECU</span>
                   <Input
                     value={targetEcu}
                     onChange={(e) => setTargetEcu(e.target.value)}
                   />
                 </Label>
-                <Label className="form-field gap-2">
-                  <span className="form-label">Target ID</span>
+                <Label className="flex flex-col items-start gap-2">
+                  <span className="text-sm font-medium text-muted-foreground">Target ID</span>
                   <Input
                     value={targetId}
                     onChange={(e) => setTargetId(e.target.value)}
@@ -212,8 +212,8 @@ export const DynamicTestConfigView: React.FC<DynamicTestConfigViewProps> = ({
 
           {strategy === "random" ? (
             <section className="space-y-2">
-              <Label className="form-field max-w-40 gap-2">
-                <span className="form-label">입력 수</span>
+              <Label className="flex max-w-40 flex-col items-start gap-2">
+                <span className="text-sm font-medium text-muted-foreground">입력 수</span>
                 <Input
                   type="number"
                   min={1}

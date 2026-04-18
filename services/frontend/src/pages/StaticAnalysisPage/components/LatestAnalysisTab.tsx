@@ -569,7 +569,7 @@ const LatestAnalysisContent: React.FC<{
                         <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
                         <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{finding.title}</span>
                         {(finding as Record<string, unknown>).fingerprint && (
-                          <span className="fingerprint-badge" title="이전 분석에서도 발견된 취약점">
+                          <span className="inline-flex min-h-6 items-center gap-1 rounded-full border border-[var(--aegis-source-agent-border)] bg-[var(--aegis-source-agent-bg)] px-2 text-sm font-medium text-[var(--aegis-source-agent)]" title="이전 분석에서도 발견된 취약점">
                             <History size={11} />
                           </span>
                         )}

@@ -32,12 +32,6 @@
   select {
     @apply rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-none outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25;
   }
-
-
-  .severity-chip--critical { @apply border-red-200 bg-red-50 text-red-700 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-200; }
-  .severity-chip--high { @apply border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/70 dark:bg-orange-950/40 dark:text-orange-200; }
-  .severity-chip--medium { @apply border-yellow-200 bg-yellow-50 text-yellow-700 dark:border-yellow-900/70 dark:bg-yellow-950/40 dark:text-yellow-100; }
-  .severity-chip--low { @apply border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/70 dark:bg-blue-950/40 dark:text-blue-200; }
   .navbar { @apply border-b border-border bg-background/95 text-foreground shadow-none backdrop-blur supports-[backdrop-filter]:bg-background/80; }
   .navbar-brand__icon { @apply border border-border bg-primary text-primary-foreground; }
   .navbar-brand__subtitle,

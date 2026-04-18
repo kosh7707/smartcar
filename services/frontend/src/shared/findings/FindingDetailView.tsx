@@ -164,7 +164,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
             </Badge>
           ))}
           {finding.fingerprint && (
-            <span className="fingerprint-badge" title="이전 분석에서도 발견된 취약점 (fingerprint 추적)">
+            <span className="inline-flex min-h-6 items-center gap-1 rounded-full border border-[var(--aegis-source-agent-border)] bg-[var(--aegis-source-agent-bg)] px-2 text-sm font-medium text-[var(--aegis-source-agent)]" title="이전 분석에서도 발견된 취약점 (fingerprint 추적)">
               재발견{history.length > 1 ? ` (${history.length}회)` : ""}
             </span>
           )}

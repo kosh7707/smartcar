@@ -268,8 +268,8 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
           ) : (
             <Card className="shadow-none">
               <CardContent className="space-y-5 p-6">
-                <Label className="form-field">
-                  <span className="form-label">Git URL *</span>
+                <Label className="flex flex-col items-start gap-2">
+                  <span className="text-sm font-medium text-muted-foreground">Git URL *</span>
                   <Input
                     className="font-mono"
                     value={gitUrl}
@@ -278,8 +278,8 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
                     spellCheck={false}
                   />
                 </Label>
-                <Label className="form-field">
-                  <span className="form-label">Branch</span>
+                <Label className="flex flex-col items-start gap-2">
+                  <span className="text-sm font-medium text-muted-foreground">Branch</span>
                   <Input value={gitBranch} onChange={(e) => setGitBranch(e.target.value)} placeholder="main (기본)" />
                 </Label>
                 <div className="flex justify-end">

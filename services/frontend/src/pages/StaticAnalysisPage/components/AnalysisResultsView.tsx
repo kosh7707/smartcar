@@ -5,7 +5,6 @@ import type {
   Severity,
   Vulnerability,
 } from "@aegis/shared";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -191,7 +190,7 @@ export const AnalysisResultsView: React.FC<Props> = ({ result, onSelectVuln, onN
                 {group.vulns.map((v) => (
                   <button key={v.id} type="button" className="w-full space-y-2 px-5 py-4 text-left transition-colors hover:bg-muted/30" onClick={() => onSelectVuln(v)}>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="outline" className={`badge-severity--${v.severity}`}>{v.severity === "critical" ? "치명" : v.severity === "high" ? "높음" : v.severity === "medium" ? "보통" : v.severity === "low" ? "낮음" : "정보"}</Badge>
+                      <SeverityBadge severity={v.severity} size="sm" />
                       <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{v.title}</span>
                       {v._line && <span className="shrink-0 font-mono text-sm text-muted-foreground">:{v._line}</span>}
                     </div>

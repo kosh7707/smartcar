@@ -7,7 +7,6 @@ import "./styles/tokens.css";
 import "./styles/reset.css";
 import "./styles/animations.css";
 import "./styles/layout.css";
-import "./styles/primitives.css";
 import "./styles/utilities.css";
 import "./index.css";
 import "./styles/shadcn-app.css";
