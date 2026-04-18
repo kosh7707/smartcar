@@ -1,15 +1,15 @@
 /* ═══════════════════════════════════════════════════════════════
-   AEGIS Design Tokens — IBM Carbon Architecture + NVIDIA Restraint
+   AEGIS Design Tokens — neutral operations-console system
 
-   Base: IBM Carbon --cds-* semantic token system
+   Base: semantic token system (`--cds-*` prefix retained for compatibility)
    Domain: AEGIS --aegis-* security operations extensions
-   Accent: IBM Blue 60 (#0f62fe)
+   Accent: primary blue (#0f62fe)
    Identity: Security operations console — severity urgency,
              dark-mode-first, mono data, productive density
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Surface / Layer (Carbon Gray — Light) ── */
+  /* ── Surface / Layer (Light) ── */
   --cds-background: #ffffff;
   --cds-layer-01: #f4f4f4;          /* Gray 10 */
   --cds-layer-02: #e0e0e0;          /* Gray 20 */
@@ -27,7 +27,7 @@
   --aegis-sidebar-border: rgba(255, 255, 255, 0.06);
   --aegis-sidebar-width: 232px;
 
-  /* ── Text (Carbon Gray) ── */
+  /* ── Text ── */
   --cds-text-primary: #161616;       /* Gray 100 */
   --cds-text-secondary: #525252;     /* Gray 70 */
   --cds-text-placeholder: #6f6f6f;   /* Gray 60 */
@@ -35,7 +35,7 @@
   --cds-text-inverse: #f4f4f4;       /* Gray 10 */
   --cds-text-disabled: #8d8d8d;      /* Gray 50 */
 
-  /* ── Interactive (IBM Blue 60) ── */
+  /* ── Interactive ── */
   --cds-interactive: #0f62fe;
   --cds-interactive-hover: #0043ce;  /* Blue 70 */
   --cds-interactive-active: #002d9c; /* Blue 80 */
@@ -47,7 +47,7 @@
   --cds-focus: #0f62fe;
   --cds-focus-inset: #ffffff;
 
-  /* ── Button (Carbon patterns) ── */
+  /* ── Button ── */
   --cds-button-primary: #0f62fe;
   --cds-button-primary-hover: #0353e9;
   --cds-button-primary-active: #002d9c;
@@ -74,7 +74,7 @@
   --aegis-severity-info-bg: rgba(82, 82, 82, 0.07);
   --aegis-severity-info-border: rgba(82, 82, 82, 0.18);
 
-  /* ── Semantic (Carbon Support) ── */
+  /* ── Semantic ── */
   --cds-support-success: #24a148;
   --cds-support-success-bg: rgba(36, 161, 72, 0.07);
   --cds-support-warning: #f1c21b;
@@ -85,16 +85,16 @@
   --cds-support-info: #0f62fe;
   --cds-support-info-bg: rgba(15, 98, 254, 0.07);
 
-  /* ── Border (Carbon Gray) ── */
+  /* ── Border ── */
   --cds-border-subtle: #e0e0e0;      /* Gray 20 */
   --cds-border-strong: #8d8d8d;      /* Gray 50 */
   --cds-border-inverse: #161616;
 
-  /* ── Field (Carbon input) ── */
+  /* ── Field ── */
   --cds-field: #f4f4f4;              /* Gray 10 */
   --cds-field-hover: #e8e8e8;        /* Gray 10 Hover */
 
-  /* ── Spacing (Carbon 8px grid) ── */
+  /* ── Spacing (8px grid) ── */
   --cds-spacing-01: 2px;
   --cds-spacing-02: 4px;
   --cds-spacing-03: 8px;
@@ -109,9 +109,9 @@
   --cds-spacing-12: 96px;
   --aegis-spacing-05: 20px;          /* AEGIS extension — productive density */
 
-  /* ── Typography (IBM Plex) ── */
-  --cds-font-sans: 'IBM Plex Sans', 'Pretendard', -apple-system, system-ui, sans-serif;
-  --cds-font-mono: 'IBM Plex Mono', 'Fira Code', monospace;
+  /* ── Typography ── */
+  --cds-font-sans: 'Geist Variable', 'Pretendard', -apple-system, system-ui, sans-serif;
+  --cds-font-mono: ui-monospace, 'SFMono-Regular', 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
 
   --cds-type-2xs: 14px;
   --cds-type-xs: 14px;
@@ -140,7 +140,7 @@
   --cds-shadow-modal: 0 2px 6px rgba(0, 0, 0, 0.3);
   --cds-shadow-sidebar: 1px 0 0 var(--aegis-sidebar-border);
 
-  /* ── Radius (NVIDIA-style 2px) ── */
+  /* ── Radius ── */
   --cds-radius: 2px;
   --cds-radius-pill: 24px;
   --cds-radius-circle: 9999px;
@@ -256,7 +256,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Dark Theme — Carbon Gray 100 Theme (Primary operating mode)
+   Dark Theme — primary operating mode
    ═══════════════════════════════════════════════════════════════ */
 
 [data-theme="dark"] {

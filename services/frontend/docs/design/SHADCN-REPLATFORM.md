@@ -12,7 +12,7 @@ This file replaces the previous bespoke AEGIS design doctrine. Historical sessio
   - `wiki/canon/handoff/s1/architecture.md`
   - `wiki/canon/feedback/s1_frontend_working_guide.md`
 - This file is the **repo-local mirror/compatibility copy** of the active contract.
-- `docs/design/ibm/*` and `docs/design/nvidia/*` are inspiration/reference packs only; they are not the current AEGIS UI approval baseline.
+- Vendor-branded design packs were removed from the repo-local design surface; this contract stands on shadcn/Aceternity guidance only.
 
 ## Active rule
 
