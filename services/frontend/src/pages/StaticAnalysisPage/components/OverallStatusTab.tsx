@@ -22,6 +22,12 @@ interface Props {
   onFileClick?: (filePath: string) => void;
 }
 
+const selectBarFillClass = (key: string) => {
+  if (key === "rule-engine") return "bg-[var(--aegis-source-rule)]";
+  if (key === "llm-assist") return "bg-[var(--aegis-source-ai)]";
+  return "bg-[var(--aegis-source-both)]";
+};
+
 export const OverallStatusTab: React.FC<Props> = ({
   summary,
   recentRuns,
@@ -30,10 +36,7 @@ export const OverallStatusTab: React.FC<Props> = ({
   onViewRun,
   onFileClick,
 }) => {
-  const totalFindings = Object.values(summary.bySeverity).reduce(
-    (a, b) => a + b,
-    0,
-  );
+  const totalFindings = Object.values(summary.bySeverity).reduce((a, b) => a + b, 0);
   const unresolvedTotal =
     summary.unresolvedCount.open +
     summary.unresolvedCount.needsReview +
@@ -49,19 +52,14 @@ export const OverallStatusTab: React.FC<Props> = ({
     info: summary.bySeverity["info"] ?? 0,
   };
 
-  const sourceTotal = Object.values(summary.bySource).reduce(
-    (a, b) => a + b,
-    0,
-  );
+  const sourceTotal = Object.values(summary.bySource).reduce((a, b) => a + b, 0);
 
   return (
     <>
-      {/* Period Selector */}
       <div className="mb-5">
         <PeriodSelector value={period} onChange={onPeriodChange} />
       </div>
 
-      {/* KPI Cards */}
       <div className="stagger mb-5 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-3">
         <StatCard label="총 탐지 항목" value={totalFindings} accent />
         <StatCard
@@ -69,14 +67,8 @@ export const OverallStatusTab: React.FC<Props> = ({
           value={unresolvedTotal}
           color="var(--aegis-severity-high)"
           detail={
-            <span className="overall-tab__stat-detail">
-              해결률{" "}
-              {totalFindings > 0
-                ? Math.round(
-                    ((totalFindings - unresolvedTotal) / totalFindings) * 100,
-                  )
-                : 0}
-              %
+            <span className="text-sm text-muted-foreground">
+              해결률 {totalFindings > 0 ? Math.round(((totalFindings - unresolvedTotal) / totalFindings) * 100) : 0}%
             </span>
           }
         />
@@ -84,7 +76,7 @@ export const OverallStatusTab: React.FC<Props> = ({
           label="Gate 통과율"
           value={`${Math.round(summary.gateStats.rate * 100)}%`}
           detail={
-            <span className="overall-tab__stat-detail">
+            <span className="text-sm text-muted-foreground">
               {summary.gateStats.passed}/{summary.gateStats.total}
             </span>
           }
@@ -92,39 +84,40 @@ export const OverallStatusTab: React.FC<Props> = ({
         <StatCard label="최근 Run" value={recentRuns.length} />
       </div>
 
-      {/* Charts 2-column */}
-      <div className="static-dashboard__charts">
-        <Card className="chart-card--donut shadow-none">
-          <CardContent className="space-y-3">
+      <div className="mb-5 grid gap-5 lg:grid-cols-2">
+        <Card className="shadow-none">
+          <CardContent className="space-y-3 p-5">
             <CardTitle>심각도 분포</CardTitle>
             <DonutChart summary={severitySummary} size={140} />
           </CardContent>
         </Card>
-        <Card className="chart-card shadow-none">
-          <CardContent className="space-y-3">
+        <Card className="shadow-none">
+          <CardContent className="space-y-3 p-5">
             <CardTitle>출처 분포</CardTitle>
             {sourceTotal === 0 ? (
-              <p className="source-dist__empty">데이터 없음</p>
+              <p className="text-sm text-muted-foreground">데이터 없음</p>
             ) : (
-              <div className="source-dist">
+              <div className="space-y-3">
                 {Object.entries(summary.bySource).map(([key, val]) => (
-                  <div key={key} className="source-dist__row">
-                    <span className="source-dist__label">
-                      {key === "rule-engine"
-                        ? "룰 엔진"
-                        : key === "llm-assist"
-                          ? "AI"
-                          : key === "both"
-                            ? "룰 + AI"
-                            : key}
-                    </span>
-                    <div className="source-dist__bar-track">
+                  <div key={key} className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-muted-foreground">
+                        {key === "rule-engine"
+                          ? "룰 엔진"
+                          : key === "llm-assist"
+                            ? "AI"
+                            : key === "both"
+                              ? "룰 + AI"
+                              : key}
+                      </span>
+                      <span className="font-mono text-sm text-muted-foreground">{val}</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-border/70">
                       <div
-                        className={`source-dist__bar-fill source-dist__bar-fill--${key}`}
+                        className={`h-full rounded-full ${selectBarFillClass(key)}`}
                         style={{ width: `${(val / sourceTotal) * 100}%` }}
                       />
                     </div>
-                    <span className="source-dist__value">{val}</span>
                   </div>
                 ))}
               </div>
@@ -133,33 +126,29 @@ export const OverallStatusTab: React.FC<Props> = ({
         </Card>
       </div>
 
-      {/* Trend Chart */}
-      <div className="static-dashboard__charts-full">
-        <Card className="chart-card shadow-none">
-          <CardContent className="space-y-3">
+      <div className="mb-5">
+        <Card className="shadow-none">
+          <CardContent className="space-y-3 p-5">
             <CardTitle>트렌드</CardTitle>
             <TrendChart data={summary.trend} />
           </CardContent>
         </Card>
       </div>
 
-      {/* Status Distribution */}
       {Object.keys(summary.byStatus).length > 0 && (
-        <Card className="status-dist-card shadow-none">
-          <CardContent className="space-y-3">
+        <Card className="mb-5 shadow-none">
+          <CardContent className="space-y-3 p-5">
             <CardTitle>상태 분포</CardTitle>
             <FindingSummary byStatus={summary.byStatus} />
           </CardContent>
         </Card>
       )}
 
-      {/* Rankings 2-column */}
-      <div className="static-dashboard__rankings">
+      <div className="mb-5 grid gap-5 lg:grid-cols-2">
         <TopFilesCard topFiles={summary.topFiles} onFileClick={onFileClick} />
         <TopRulesCard topRules={summary.topRules} />
       </div>
 
-      {/* Recent Runs */}
       <RecentRunsList runs={recentRuns} onClickRun={onViewRun} />
     </>
   );

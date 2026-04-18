@@ -1,10 +1,19 @@
 import React, { useMemo } from "react";
-import type { Run, Finding, EvidenceRef, GateResult, AnalysisResult } from "@aegis/shared";
+import type { AnalysisResult, EvidenceRef, Finding, GateResult, Run } from "@aegis/shared";
 import { FileCode } from "lucide-react";
-import { BackButton, PageHeader, StatCard, SeverityBadge, GateResultCard, FindingStatusBadge, ConfidenceBadge, SourceBadge } from "../../../shared/ui";
+import {
+  BackButton,
+  PageHeader,
+  StatCard,
+  SeverityBadge,
+  GateResultCard,
+  FindingStatusBadge,
+  SourceBadge,
+} from "../../../shared/ui";
 import { AgentResultPanel } from "./AgentResultPanel";
 import { parseLocation } from "../../../utils/location";
 import { formatDateTime } from "../../../utils/format";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface FindingWithEvidence {
   finding: Finding;
@@ -56,78 +65,71 @@ export const RunDetailView: React.FC<Props> = ({
   const { run, gate, findings } = runDetail;
   const fileGroups = useMemo(() => groupFindingsByFile(findings), [findings]);
 
-  const durationSec = run.startedAt && run.endedAt
-    ? Math.round((new Date(run.endedAt).getTime() - new Date(run.startedAt).getTime()) / 1000)
-    : null;
+  const durationSec =
+    run.startedAt && run.endedAt
+      ? Math.round((new Date(run.endedAt).getTime() - new Date(run.startedAt).getTime()) / 1000)
+      : null;
   const duration = durationSec != null && durationSec > 0 ? `${durationSec}초` : "—";
 
   return (
-    <div className="page-enter run-detail">
+    <div className="page-enter space-y-5">
       <BackButton onClick={onBack} label="대시보드로" />
       <PageHeader title="실행 상세" subtitle="실행 상태, 게이트 판정, 파일별 탐지 항목을 한 흐름에서 검토합니다." />
 
-      {/* Run metadata */}
-      <div className="run-detail__summary stagger mb-5 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-3">
+      <div className="stagger mb-5 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-3">
         <StatCard label="상태" value={run.status} />
         <StatCard label="탐지 항목" value={run.findingCount} accent />
         <StatCard label="소요 시간" value={duration} />
       </div>
 
-      <div className="run-meta-text">
+      <div className="text-sm text-muted-foreground">
         시작: {run.startedAt ? formatDateTime(run.startedAt) : "—"} | 종료: {run.endedAt ? formatDateTime(run.endedAt) : "—"}
         {run.analysisResultId && onViewLegacyResult && (
           <>
             {" | "}
-            <button
-              className="btn-link run-meta-link"
-              onClick={() => onViewLegacyResult(run.analysisResultId)}
-            >
+            <button className="text-primary underline-offset-4 hover:underline" onClick={() => onViewLegacyResult(run.analysisResultId)}>
               원본 분석 결과 보기
             </button>
           </>
         )}
       </div>
 
-      {/* Gate result */}
       {gate && <GateResultCard gate={gate} />}
-
-      {/* Agent analysis metadata */}
       {analysisResult && <AgentResultPanel analysisResult={analysisResult} />}
 
-      {/* Finding list by file */}
       {fileGroups.length === 0 ? (
-        <div className="run-detail__empty card--empty">
-          <p className="run-empty-text">탐지 항목이 없습니다</p>
-        </div>
+        <Card className="shadow-none">
+          <CardContent className="p-6">
+            <p className="text-sm text-muted-foreground">탐지 항목이 없습니다</p>
+          </CardContent>
+        </Card>
       ) : (
         fileGroups.map((group) => (
-          <div key={group.fileName} className="file-group analysis-results__file-group">
-            <div className="file-group__header">
-              <FileCode size={16} className="file-group__icon" />
-              <span className="file-group__name">{group.fileName}</span>
-              <span className="file-group__count">{group.items.length}건</span>
-            </div>
-            <div className="file-group__body">
-              {group.items.map(({ finding }) => {
-                const line = finding.location?.includes(":") ? finding.location.split(":")[1] : null;
-                return (
-                  <div
-                    key={finding.id}
-                    className="vuln-card"
-                    onClick={() => onSelectFinding(finding.id)}
-                  >
-                    <div className="vuln-card-header">
-                      <SeverityBadge severity={finding.severity} size="sm" />
-                      <FindingStatusBadge status={finding.status} size="sm" />
-                      <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
-                      <span className="vuln-title">{finding.title}</span>
-                      {line && <span className="file-group__line">:{line}</span>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <Card key={group.fileName} className="overflow-hidden shadow-none">
+            <CardContent className="space-y-0 p-0">
+              <div className="flex items-center gap-3 border-b border-border/70 bg-background/90 px-5 py-4">
+                <FileCode size={16} className="shrink-0 text-primary" />
+                <span className="min-w-0 flex-1 truncate font-mono text-sm font-semibold text-foreground">{group.fileName}</span>
+                <span className="shrink-0 font-mono text-sm text-muted-foreground">{group.items.length}건</span>
+              </div>
+              <div className="divide-y divide-border/70">
+                {group.items.map(({ finding }) => {
+                  const line = finding.location?.includes(":") ? finding.location.split(":")[1] : null;
+                  return (
+                    <button key={finding.id} type="button" className="w-full px-5 py-4 text-left transition-colors hover:bg-muted/30" onClick={() => onSelectFinding(finding.id)}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <SeverityBadge severity={finding.severity} size="sm" />
+                        <FindingStatusBadge status={finding.status} size="sm" />
+                        <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{finding.title}</span>
+                        {line && <span className="shrink-0 font-mono text-sm text-muted-foreground">:{line}</span>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
         ))
       )}
     </div>

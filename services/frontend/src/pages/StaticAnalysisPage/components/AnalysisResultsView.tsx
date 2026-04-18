@@ -1,17 +1,18 @@
-import React, { useState, useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import type {
   AnalysisResult,
-  Vulnerability,
-  Severity,
   FileCoverageEntry,
+  Severity,
+  Vulnerability,
 } from "@aegis/shared";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  StatCard,
-  PageHeader,
   BackButton,
+  PageHeader,
   SeveritySummary,
+  StatCard,
 } from "../../../shared/ui";
 import { FileCode, SkipForward } from "lucide-react";
 import { SEVERITY_ORDER } from "../../../utils/severity";
@@ -36,7 +37,6 @@ function groupByFile(vulns: Vulnerability[]): FileGroup[] {
     if (!map.has(fileName)) map.set(fileName, []);
     map.get(fileName)!.push({ ...v, _line: line });
   }
-  // "기타" group last
   const entries = Array.from(map.entries()).sort((a, b) => {
     if (a[0] === "기타") return 1;
     if (b[0] === "기타") return -1;
@@ -55,11 +55,10 @@ function groupByFile(vulns: Vulnerability[]): FileGroup[] {
   }));
 }
 
-/* ── File Coverage Summary ── */
+const selectClassName =
+  "h-9 rounded-lg border border-input bg-background px-3 text-sm shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
-const FileCoverageSummary: React.FC<{ coverage: FileCoverageEntry[] }> = ({
-  coverage,
-}) => {
+const FileCoverageSummary: React.FC<{ coverage: FileCoverageEntry[] }> = ({ coverage }) => {
   const analyzed = coverage.filter((f) => f.status === "analyzed");
   const skipped = coverage.filter((f) => f.status === "skipped");
   const total = coverage.length;
@@ -100,202 +99,109 @@ const FileCoverageSummary: React.FC<{ coverage: FileCoverageEntry[] }> = ({
   );
 };
 
-/* ── Component ── */
-
 interface Props {
   result: AnalysisResult;
   onSelectVuln: (v: Vulnerability) => void;
   onNewAnalysis: () => void;
 }
 
-export const AnalysisResultsView: React.FC<Props> = ({
-  result,
-  onSelectVuln,
-  onNewAnalysis,
-}) => {
+export const AnalysisResultsView: React.FC<Props> = ({ result, onSelectVuln, onNewAnalysis }) => {
   const [filterSeverity, setFilterSeverity] = useState<Severity | "all">("all");
-  const [filterSource, setFilterSource] = useState<"all" | "rule" | "llm">(
-    "all",
-  );
+  const [filterSource, setFilterSource] = useState<"all" | "rule" | "llm">("all");
   const [filterFile, setFilterFile] = useState<string>("all");
 
   const allFileNames = useMemo(
-    () =>
-      [
-        ...new Set(
-          result.vulnerabilities.map((v) => parseLocation(v.location).fileName),
-        ),
-      ].sort((a, b) => {
-        if (a === "기타") return 1;
-        if (b === "기타") return -1;
-        return a.localeCompare(b);
-      }),
+    () => [...new Set(result.vulnerabilities.map((v) => parseLocation(v.location).fileName))].sort((a, b) => {
+      if (a === "기타") return 1;
+      if (b === "기타") return -1;
+      return a.localeCompare(b);
+    }),
     [result.vulnerabilities],
   );
 
   const filtered = result.vulnerabilities.filter((v) => {
     if (filterSeverity !== "all" && v.severity !== filterSeverity) return false;
     if (filterSource !== "all" && v.source !== filterSource) return false;
-    if (
-      filterFile !== "all" &&
-      parseLocation(v.location).fileName !== filterFile
-    )
-      return false;
+    if (filterFile !== "all" && parseLocation(v.location).fileName !== filterFile) return false;
     return true;
   });
 
   const fileGroups = useMemo(() => groupByFile(filtered), [filtered]);
 
   return (
-    <div className="page-enter analysis-results">
+    <div className="page-enter space-y-5">
       <BackButton onClick={onNewAnalysis} label="세션 목록으로" />
       <PageHeader
         title="정적 분석 결과"
         subtitle="빌드 타겟별 결과와 파일 단위 탐지 현황을 한 작업면에서 검토합니다."
       />
 
-      {/* Summary */}
       <div className="analysis-results__summary stagger mb-5 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-3">
-        <StatCard
-          label="총 취약점"
-          value={result.summary.total - (result.summary.info ?? 0)}
-          accent
-        />
-        <StatCard
-          label="치명"
-          value={result.summary.critical}
-          color="var(--aegis-severity-critical)"
-        />
-        <StatCard
-          label="높음"
-          value={result.summary.high}
-          color="var(--aegis-severity-high)"
-        />
-        <StatCard
-          label="보통"
-          value={result.summary.medium}
-          color="var(--aegis-severity-medium)"
-        />
-        <StatCard
-          label="낮음"
-          value={result.summary.low}
-          color="var(--aegis-severity-low)"
-        />
+        <StatCard label="총 취약점" value={result.summary.total - (result.summary.info ?? 0)} accent />
+        <StatCard label="치명" value={result.summary.critical} color="var(--aegis-severity-critical)" />
+        <StatCard label="높음" value={result.summary.high} color="var(--aegis-severity-high)" />
+        <StatCard label="보통" value={result.summary.medium} color="var(--aegis-severity-medium)" />
+        <StatCard label="낮음" value={result.summary.low} color="var(--aegis-severity-low)" />
       </div>
 
-      {/* File Coverage */}
-      {result.fileCoverage && result.fileCoverage.length > 0 && (
-        <FileCoverageSummary coverage={result.fileCoverage} />
-      )}
+      {result.fileCoverage && result.fileCoverage.length > 0 && <FileCoverageSummary coverage={result.fileCoverage} />}
 
-      {/* Filter bar */}
       <Card className="shadow-none">
         <CardContent className="flex flex-wrap items-center gap-3 p-4">
-        <span className="text-sm text-muted-foreground">검토 기준</span>
-        <select
-          className="filter-select"
-          value={filterSeverity}
-          onChange={(e) =>
-            setFilterSeverity(e.target.value as Severity | "all")
-          }
-        >
-          <option value="all">심각도 전체</option>
-          {SEVERITY_ORDER.map((s) => (
-            <option key={s} value={s}>
-              {s === "critical"
-                ? "치명"
-                : s === "high"
-                  ? "높음"
-                  : s === "medium"
-                    ? "보통"
-                    : s === "low"
-                      ? "낮음"
-                      : "정보"}
-            </option>
-          ))}
-        </select>
-        <select
-          className="filter-select"
-          value={filterSource}
-          onChange={(e) =>
-            setFilterSource(e.target.value as "all" | "rule" | "llm")
-          }
-        >
-          <option value="all">출처 전체</option>
-          <option value="rule">룰 탐지</option>
-          <option value="llm">LLM 검토</option>
-        </select>
-        <select
-          className="filter-select"
-          value={filterFile}
-          onChange={(e) => setFilterFile(e.target.value)}
-        >
-          <option value="all">파일 전체</option>
-          {allFileNames.map((f) => (
-            <option key={f} value={f}>
-              {f}
-            </option>
-          ))}
-        </select>
+          <span className="text-sm text-muted-foreground">검토 기준</span>
+          <select className={selectClassName} value={filterSeverity} onChange={(e) => setFilterSeverity(e.target.value as Severity | "all")}>
+            <option value="all">심각도 전체</option>
+            {SEVERITY_ORDER.map((s) => (
+              <option key={s} value={s}>
+                {s === "critical" ? "치명" : s === "high" ? "높음" : s === "medium" ? "보통" : s === "low" ? "낮음" : "정보"}
+              </option>
+            ))}
+          </select>
+          <select className={selectClassName} value={filterSource} onChange={(e) => setFilterSource(e.target.value as "all" | "rule" | "llm")}>
+            <option value="all">출처 전체</option>
+            <option value="rule">룰 탐지</option>
+            <option value="llm">LLM 검토</option>
+          </select>
+          <select className={selectClassName} value={filterFile} onChange={(e) => setFilterFile(e.target.value)}>
+            <option value="all">파일 전체</option>
+            {allFileNames.map((f) => (
+              <option key={f} value={f}>{f}</option>
+            ))}
+          </select>
         </CardContent>
       </Card>
 
-      {/* File-grouped vulnerability list */}
       {fileGroups.length === 0 ? (
-        <div className="analysis-results__empty vuln-empty-card">
-          <p className="text-tertiary">필터 조건에 맞는 취약점이 없습니다</p>
-        </div>
+        <Card className="shadow-none">
+          <CardContent className="p-6">
+            <p className="text-sm text-muted-foreground">필터 조건에 맞는 취약점이 없습니다</p>
+          </CardContent>
+        </Card>
       ) : (
         fileGroups.map((group) => (
-          <div
-            key={group.fileName}
-            className="file-group analysis-results__file-group"
-          >
-            <div className="file-group__header">
-              <FileCode size={16} className="file-group__icon" />
-              <span className="file-group__name">{group.fileName}</span>
-              <span className="file-group__count">{group.vulns.length}건</span>
-              <SeveritySummary summary={group.summary} />
-            </div>
-            <div className="file-group__body vuln-list--animated">
-              {group.vulns.map((v) => (
-                <div
-                  key={v.id}
-                  className={`vuln-card vuln-card--${v.severity}`}
-                  onClick={() => onSelectVuln(v)}
-                >
-                  <div className="vuln-card-header">
-                    <Badge
-                      variant="outline"
-                      className={`badge-severity--${v.severity}`}
-                    >
-                      {v.severity === "critical"
-                        ? "치명"
-                        : v.severity === "high"
-                          ? "높음"
-                          : v.severity === "medium"
-                            ? "보통"
-                            : v.severity === "low"
-                              ? "낮음"
-                              : "정보"}
-                    </Badge>
-                    <span className="vuln-title">{v.title}</span>
-                    {v._line && (
-                      <span className="file-group__line">:{v._line}</span>
-                    )}
-                  </div>
-                  <div className="vuln-card-meta">
-                    <span className="vuln-source">
-                      {v.source === "rule"
-                        ? `룰 탐지 (${v.ruleId})`
-                        : "LLM 검토"}
-                    </span>
-                  </div>
-                  <div className="vuln-card-desc">{v.description}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <Card key={group.fileName} className="overflow-hidden shadow-none">
+            <CardContent className="space-y-0 p-0">
+              <div className="flex items-center gap-3 border-b border-border/70 bg-background/90 px-5 py-4">
+                <FileCode size={16} className="shrink-0 text-primary" />
+                <span className="min-w-0 flex-1 truncate font-mono text-sm font-semibold text-foreground">{group.fileName}</span>
+                <span className="shrink-0 font-mono text-sm text-muted-foreground">{group.vulns.length}건</span>
+                <SeveritySummary summary={group.summary} />
+              </div>
+              <div className="divide-y divide-border/70">
+                {group.vulns.map((v) => (
+                  <button key={v.id} type="button" className="w-full space-y-2 px-5 py-4 text-left transition-colors hover:bg-muted/30" onClick={() => onSelectVuln(v)}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className={`badge-severity--${v.severity}`}>{v.severity === "critical" ? "치명" : v.severity === "high" ? "높음" : v.severity === "medium" ? "보통" : v.severity === "low" ? "낮음" : "정보"}</Badge>
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{v.title}</span>
+                      {v._line && <span className="shrink-0 font-mono text-sm text-muted-foreground">:{v._line}</span>}
+                    </div>
+                    <div className="text-sm text-muted-foreground">{v.source === "rule" ? `룰 탐지 (${v.ruleId})` : "LLM 검토"}</div>
+                    <div className="text-sm text-muted-foreground">{v.description}</div>
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         ))
       )}
     </div>

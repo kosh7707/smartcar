@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   StatCard,
   EmptyState,
@@ -369,28 +370,34 @@ const LatestAnalysisContent: React.FC<{
         />
       </div>
 
-      {/* Source Distribution + Top Files */}
       {findings.length > 0 && (
-        <div className="static-dashboard__charts">
-          <Card className="chart-card--donut shadow-none">
-            <CardContent className="space-y-3">
+        <div className="grid gap-5 lg:grid-cols-2">
+          <Card className="shadow-none">
+            <CardContent className="space-y-3 p-5">
               <CardTitle>출처별 분포</CardTitle>
               {sourceTotal === 0 ? (
-                <p className="text-tertiary text-sm">데이터 없음</p>
+                <p className="text-sm text-muted-foreground">데이터 없음</p>
               ) : (
-                <div className="source-dist">
+                <div className="space-y-3">
                   {Object.entries(sourceCounts).map(([key, val]) => (
-                    <div key={key} className="source-dist__row">
-                      <span className="text-sm source-dist__label">
-                        {SOURCE_TYPE_LABELS[key as FindingSourceType] ?? key}
-                      </span>
-                      <div className="source-dist__bar-track">
+                    <div key={key} className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="text-muted-foreground">{SOURCE_TYPE_LABELS[key as FindingSourceType] ?? key}</span>
+                        <span className="font-mono text-sm text-muted-foreground">{val}</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-border/70">
                         <div
-                          className={`source-dist__bar-fill source-dist__bar-fill--${key}`}
+                          className={[
+                            "h-full rounded-full",
+                            key === "rule-engine"
+                              ? "bg-[var(--aegis-source-rule)]"
+                              : key === "llm-assist"
+                                ? "bg-[var(--aegis-source-ai)]"
+                                : "bg-[var(--aegis-source-both)]",
+                          ].join(" ")}
                           style={{ width: `${(val / sourceTotal) * 100}%` }}
                         />
                       </div>
-                      <span className="text-sm text-tertiary">{val}</span>
                     </div>
                   ))}
                 </div>
@@ -401,216 +408,153 @@ const LatestAnalysisContent: React.FC<{
         </div>
       )}
 
-      {/* Search + Source Type + Sort Bar */}
       {findings.length > 0 && (
-        <div className="finding-search-bar">
-          <div className="finding-search-input-wrap">
-            <Search size={14} className="finding-search-icon" />
-            <input
-              type="text"
-              className="finding-search-input"
-              placeholder="탐지 항목 검색..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className="finding-filter-tabs">
-            <button
-              className={`finding-filter-tab finding-filter-tab--sm${sourceTypeFilter === "all" ? " finding-filter-tab--active" : ""}`}
-              onClick={() => setSourceTypeFilter("all")}
-            >
-              전체
-            </button>
-            {(
-              Object.entries(SOURCE_TYPE_LABELS) as [
-                FindingSourceType,
-                string,
-              ][]
-            )
-              .filter(([key]) => sourceCounts[key])
-              .map(([key, label]) => (
-                <button
-                  key={key}
-                  className={`finding-filter-tab finding-filter-tab--sm${sourceTypeFilter === key ? " finding-filter-tab--active" : ""}`}
-                  onClick={() => setSourceTypeFilter(key)}
+        <Card className="shadow-none">
+          <CardContent className="space-y-4 p-4">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <div className="relative flex-1 xl:max-w-sm">
+                <Search size={14} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  className="pl-9"
+                  placeholder="탐지 항목 검색..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant={sourceTypeFilter === "all" ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={() => setSourceTypeFilter("all")}
                 >
-                  {label}
-                </button>
-              ))}
-          </div>
-          <div className="finding-sort-controls">
-            <select
-              className="finding-sort-select"
-              value={sortKey}
-              onChange={(e) =>
-                setSortKey(
-                  e.target.value as "severity" | "createdAt" | "location",
-                )
-              }
-            >
-              <option value="severity">심각도</option>
-              <option value="createdAt">생성일</option>
-              <option value="location">위치</option>
-            </select>
-            <button
-              className="finding-sort-dir"
-              onClick={() =>
-                setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
-              }
-              title={sortOrder === "asc" ? "오름차순" : "내림차순"}
-            >
-              {sortOrder === "asc" ? (
-                <ArrowUp size={14} />
-              ) : (
-                <ArrowDown size={14} />
-              )}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Severity Filter Bar */}
-      {findings.length > 0 && (
-        <div className="finding-filter-bar">
-          <div className="finding-filter-tabs">
-            <button
-              className={`finding-filter-tab${severityFilter === "all" ? " finding-filter-tab--active" : ""}`}
-              onClick={() => setSeverityFilter("all")}
-            >
-              전체{" "}
-              <span className="finding-filter-count">{findings.length}</span>
-            </button>
-            {SEVERITY_ORDER.filter((sev) => severityCounts[sev] > 0).map(
-              (sev) => (
-                <button
-                  key={sev}
-                  className={`finding-filter-tab${severityFilter === sev ? " finding-filter-tab--active" : ""}`}
-                  onClick={() => setSeverityFilter(sev)}
+                  전체
+                </Button>
+                {(Object.entries(SOURCE_TYPE_LABELS) as [FindingSourceType, string][])
+                  .filter(([key]) => sourceCounts[key])
+                  .map(([key, label]) => (
+                    <Button
+                      key={key}
+                      variant={sourceTypeFilter === key ? "secondary" : "outline"}
+                      size="sm"
+                      onClick={() => setSourceTypeFilter(key)}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  className="h-9 rounded-lg border border-input bg-background px-3 text-sm shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  value={sortKey}
+                  onChange={(e) => setSortKey(e.target.value as "severity" | "createdAt" | "location")}
                 >
-                  {SEVERITY_LABELS[sev]}{" "}
-                  <span className="finding-filter-count">
-                    {severityCounts[sev]}
-                  </span>
-                </button>
-              ),
-            )}
-          </div>
-          <div className="finding-group-toggle">
-            <button
-              className={`finding-group-btn${groupBy === "severity" ? " finding-group-btn--active" : ""}`}
-              onClick={() => setGroupBy("severity")}
-              title="심각도별"
-            >
-              <Layers size={14} />
-            </button>
-            <button
-              className={`finding-group-btn${groupBy === "file" ? " finding-group-btn--active" : ""}`}
-              onClick={() => setGroupBy("file")}
-              title="파일별"
-            >
-              <FileCode size={14} />
-            </button>
-            <button
-              className={`finding-group-btn${groupBy === "status" ? " finding-group-btn--active" : ""}`}
-              onClick={() => setGroupBy("status")}
-              title="상태별"
-            >
-              <CheckSquare size={14} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Bulk Action Bar */}
-      {findings.length > 0 && (
-        <div className="finding-bulk-bar">
-          <label className="finding-bulk-check">
-            <input
-              type="checkbox"
-              checked={
-                selectedIds.size === findings.length && findings.length > 0
-              }
-              onChange={toggleSelectAll}
-            />
-            {selectedIds.size > 0 ? `${selectedIds.size}건 선택` : "전체 선택"}
-          </label>
-          {selectedIds.size > 0 && (
-            <div className="finding-bulk-actions">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleBulkStatus("false_positive")}
-                disabled={bulkProcessing}
-              >
-                오탐 처리
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleBulkStatus("accepted_risk")}
-                disabled={bulkProcessing}
-              >
-                위험 수용
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleBulkStatus("fixed")}
-                disabled={bulkProcessing}
-              >
-                수정 완료
-              </Button>
-              {bulkProcessing && <Spinner size={14} />}
+                  <option value="severity">심각도</option>
+                  <option value="createdAt">생성일</option>
+                  <option value="location">위치</option>
+                </select>
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  onClick={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
+                  title={sortOrder === "asc" ? "오름차순" : "내림차순"}
+                >
+                  {sortOrder === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+                </Button>
+              </div>
             </div>
-          )}
-        </div>
+
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant={severityFilter === "all" ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={() => setSeverityFilter("all")}
+                >
+                  전체 <span className="ml-1 rounded-full bg-background/80 px-1.5 py-0.5 text-[11px]">{findings.length}</span>
+                </Button>
+                {SEVERITY_ORDER.filter((sev) => severityCounts[sev] > 0).map((sev) => (
+                  <Button
+                    key={sev}
+                    variant={severityFilter === sev ? "secondary" : "outline"}
+                    size="sm"
+                    onClick={() => setSeverityFilter(sev)}
+                  >
+                    {SEVERITY_LABELS[sev]} <span className="ml-1 rounded-full bg-background/80 px-1.5 py-0.5 text-[11px]">{severityCounts[sev]}</span>
+                  </Button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant={groupBy === "severity" ? "secondary" : "outline"} size="icon-sm" onClick={() => setGroupBy("severity")} title="심각도별">
+                  <Layers size={14} />
+                </Button>
+                <Button variant={groupBy === "file" ? "secondary" : "outline"} size="icon-sm" onClick={() => setGroupBy("file")} title="파일별">
+                  <FileCode size={14} />
+                </Button>
+                <Button variant={groupBy === "status" ? "secondary" : "outline"} size="icon-sm" onClick={() => setGroupBy("status")} title="상태별">
+                  <CheckSquare size={14} />
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size === findings.length && findings.length > 0}
+                  onChange={toggleSelectAll}
+                />
+                {selectedIds.size > 0 ? `${selectedIds.size}건 선택` : "전체 선택"}
+              </label>
+              {selectedIds.size > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => handleBulkStatus("false_positive")} disabled={bulkProcessing}>
+                    오탐 처리
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleBulkStatus("accepted_risk")} disabled={bulkProcessing}>
+                    위험 수용
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleBulkStatus("fixed")} disabled={bulkProcessing}>
+                    수정 완료
+                  </Button>
+                  {bulkProcessing && <Spinner size={14} />}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Finding List by Group */}
       {groups.length === 0 ? (
-        <Card className="card--empty shadow-none">
-          <CardContent>
-            <p className="text-tertiary">
-              {severityFilter === "all"
-                ? "Finding이 없습니다"
-                : `${SEVERITY_LABELS[severityFilter]} Finding이 없습니다`}
+        <Card className="shadow-none">
+          <CardContent className="p-6">
+            <p className="text-sm text-muted-foreground">
+              {severityFilter === "all" ? "Finding이 없습니다" : `${SEVERITY_LABELS[severityFilter]} Finding이 없습니다`}
             </p>
           </CardContent>
         </Card>
       ) : (
         groups.map((group) => (
-          <Card key={group.key} className="file-group shadow-none">
-            <CardContent className="space-y-3">
-              <div className="file-group__header">
-                {groupBy === "file" && (
-                  <FileCode size={16} className="file-group__icon" />
-                )}
-                {groupBy === "severity" && (
-                  <SeverityBadge severity={group.key as Severity} size="sm" />
-                )}
-                {groupBy === "status" && (
-                  <FindingStatusBadge
-                    status={group.key as FindingStatus}
-                    size="sm"
-                  />
-                )}
-                <span className="file-group__name">{group.label}</span>
-                <span className="file-group__count">
-                  {group.items.length}건
-                </span>
+          <Card key={group.key} className="overflow-hidden shadow-none">
+            <CardContent className="space-y-0 p-0">
+              <div className="flex items-center gap-3 border-b border-border/70 bg-background/90 px-5 py-4">
+                {groupBy === "file" && <FileCode size={16} className="shrink-0 text-primary" />}
+                {groupBy === "severity" && <SeverityBadge severity={group.key as Severity} size="sm" />}
+                {groupBy === "status" && <FindingStatusBadge status={group.key as FindingStatus} size="sm" />}
+                <span className="min-w-0 flex-1 truncate font-mono text-sm font-semibold text-foreground">{group.label}</span>
+                <span className="shrink-0 font-mono text-sm text-muted-foreground">{group.items.length}건</span>
               </div>
-              <div className="file-group__body">
+              <div className="divide-y divide-border/70">
                 {group.items.map(({ finding }) => {
-                  const line = finding.location?.includes(":")
-                    ? finding.location.split(":")[1]
-                    : null;
+                  const line = finding.location?.includes(":") ? finding.location.split(":")[1] : null;
                   return (
-                    <div
+                    <button
                       key={finding.id}
-                      className="vuln-card"
+                      type="button"
+                      className="w-full space-y-2 px-5 py-4 text-left transition-colors hover:bg-muted/30"
                       onClick={() => onSelectFinding(finding.id)}
                     >
-                      <div className="vuln-card-header">
+                      <div className="flex flex-wrap items-center gap-2">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(finding.id)}
@@ -619,28 +563,19 @@ const LatestAnalysisContent: React.FC<{
                             toggleSelect(finding.id);
                           }}
                           onClick={(e) => e.stopPropagation()}
-                          className="finding-check"
                         />
                         <SeverityBadge severity={finding.severity} size="sm" />
                         <FindingStatusBadge status={finding.status} size="sm" />
-                        <SourceBadge
-                          sourceType={finding.sourceType}
-                          ruleId={finding.ruleId}
-                        />
-                        <span className="vuln-title">{finding.title}</span>
+                        <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{finding.title}</span>
                         {(finding as Record<string, unknown>).fingerprint && (
-                          <span
-                            className="fingerprint-badge"
-                            title="이전 분석에서도 발견된 취약점"
-                          >
+                          <span className="fingerprint-badge" title="이전 분석에서도 발견된 취약점">
                             <History size={11} />
                           </span>
                         )}
-                        {line && (
-                          <span className="file-group__line">:{line}</span>
-                        )}
+                        {line && <span className="shrink-0 font-mono text-sm text-muted-foreground">:{line}</span>}
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
