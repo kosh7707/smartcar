@@ -4,6 +4,16 @@ Last verified: 2026-04-18
 
 This file replaces the previous bespoke AEGIS design doctrine. Historical session/evidence docs are preserved elsewhere, but the active S1 UI contract is now this component-sourcing model.
 
+## Document status
+
+- Canonical source of truth: `wiki/canon/specs/frontend.md`
+- Active supporting canon pages:
+  - `wiki/canon/handoff/s1/readme.md`
+  - `wiki/canon/handoff/s1/architecture.md`
+  - `wiki/canon/feedback/s1_frontend_working_guide.md`
+- This file is the **repo-local mirror/compatibility copy** of the active contract.
+- `docs/design/ibm/*` and `docs/design/nvidia/*` are inspiration/reference packs only; they are not the current AEGIS UI approval baseline.
+
 ## Active rule
 
 S1 UI is assembled from:

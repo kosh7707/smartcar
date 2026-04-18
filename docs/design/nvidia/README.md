@@ -1,5 +1,8 @@
 # NVIDIA Inspired Design System
 
+> **AEGIS note:** This directory is a **reference-only inspiration pack**.
+> The active AEGIS frontend contract lives in `wiki/canon/specs/frontend.md` and `services/frontend/docs/design/SHADCN-REPLATFORM.md`.
+
 [DESIGN.md](https://github.com/VoltAgent/awesome-design-md/blob/main/design-md/nvidia/DESIGN.md) extracted from the public [NVIDIA](https://nvidia.com/) website. This is not the official design system. Colors, fonts, and spacing may not be 100% accurate. But it's a good starting point for building something similar.
 
 ## Files
