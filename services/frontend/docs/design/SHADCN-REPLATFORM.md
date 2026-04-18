@@ -1,6 +1,6 @@
 # S1 Frontend UI Contract — shadcn / Aceternity Replatform
 
-Last verified: 2026-04-15
+Last verified: 2026-04-18
 
 This file replaces the previous bespoke AEGIS design doctrine. Historical session/evidence docs are preserved elsewhere, but the active S1 UI contract is now this component-sourcing model.
 
@@ -19,14 +19,18 @@ S1 UI is assembled from:
 - New UI dependencies must be recorded with source component, reason, maintenance/bundle risk, and reviewer/developer signoff.
 - Aceternity remains a searched source/reference by default. Adopt copied/adapted Aceternity code only when it improves workflow scanability and survives reviewer veto.
 
-## CSS bridge policy
+## Styling contract
 
-`src/styles/shadcn-app.css` is a temporary compatibility bridge, not a new bespoke design system.
-
-- Broad legacy selectors such as `.card`, `.btn`, `.badge`, global inputs, `.navbar`, and `.sidebar` exist only to keep old pages stable while page slices move to shadcn primitives.
-- Do not expand the bridge without recording the reason in the residual CSS ledger.
-- Prefer migrating shared/page code to `src/components/ui/*` primitives over adding new bespoke selectors.
-- Remove or narrow bridge selectors when the corresponding page-level slice is fully migrated and verified.
+- `src/index.css` is the **only remaining stylesheet entrypoint** in `services/frontend/src`.
+- Page-local, component-local, and former shared bridge CSS files were removed during the replatform.
+- Global responsibilities that remain in `src/index.css` are limited to:
+  - theme variables / semantic tokens
+  - base/reset rules
+  - markdown/highlight rendering
+  - animation keyframes used by shared primitives
+- Prefer utility composition in TSX and shadcn primitives in `src/components/ui/*` over adding new global selectors.
+- If a new global rule is unavoidable, add it to `src/index.css` only after confirming the same outcome cannot be achieved with existing shadcn/Radix/Tailwind composition.
+- Critic/reviewer gate: if an available shadcn primitive or safe Aceternity-derived pattern should have been used and was skipped in favor of bespoke styling, the change should be rejected.
 
 ## 3-role gate
 
@@ -54,6 +58,7 @@ Prefer:
 - dense but readable operational surfaces
 - utility copy
 - page-level normal/empty/error interaction evidence
+- single-entrypoint CSS with minimal global surface area
 
 ## Required evidence
 
