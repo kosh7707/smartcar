@@ -51,6 +51,13 @@ function renderPage() {
   );
 }
 
+function activateSection(name: RegExp) {
+  const tab = screen.getByRole("tab", { name });
+  fireEvent.pointerDown(tab);
+  fireEvent.mouseDown(tab);
+  fireEvent.click(tab);
+}
+
 describe("ProjectSettingsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -100,7 +107,7 @@ describe("ProjectSettingsPage", () => {
     renderPage();
 
     await waitFor(() => expect(mockFetchProjectSdks).toHaveBeenCalledWith("p-1"));
-    fireEvent.click(screen.getByRole("button", { name: "위험 구역" }));
+    activateSection(/위험 구역/i);
 
     expect(screen.getByText("Delete this project")).toBeInTheDocument();
     expect(screen.getByText(/Once deleted, all historical data/i)).toBeInTheDocument();
@@ -112,13 +119,13 @@ describe("ProjectSettingsPage", () => {
 
     await waitFor(() => expect(mockFetchProjectSdks).toHaveBeenCalledWith("p-1"));
 
-    fireEvent.click(screen.getByRole("button", { name: "빌드 타겟" }));
+    activateSection(/빌드 타겟/i);
     expect(await screen.findByText("빌드 타겟 설정은 준비 중입니다")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "알림" }));
+    activateSection(/알림/i);
     expect(await screen.findByText("프로젝트 알림 설정은 준비 중입니다")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "어댑터" }));
+    activateSection(/어댑터/i);
     expect(await screen.findByText("동적 분석 어댑터 설정은 준비 중입니다")).toBeInTheDocument();
   });
 
@@ -126,7 +133,7 @@ describe("ProjectSettingsPage", () => {
     renderPage();
 
     await waitFor(() => expect(mockFetchProjectSdks).toHaveBeenCalledWith("p-1"));
-    fireEvent.click(screen.getByText("SDK 관리"));
+    activateSection(/SDK 관리/i);
     fireEvent.click(screen.getByRole("button", { name: /sdk 추가/i }));
 
     expect(screen.getByRole("button", { name: /아카이브/i })).toBeInTheDocument();
@@ -139,7 +146,7 @@ describe("ProjectSettingsPage", () => {
     renderPage();
 
     await waitFor(() => expect(mockFetchProjectSdks).toHaveBeenCalledWith("p-1"));
-    fireEvent.click(screen.getByText("SDK 관리"));
+    activateSection(/SDK 관리/i);
     fireEvent.click(screen.getByRole("button", { name: /sdk 추가/i }));
 
     expect(screen.getByLabelText("SDK 이름")).toBeInTheDocument();
@@ -169,7 +176,7 @@ describe("ProjectSettingsPage", () => {
 
     renderPage();
 
-    await waitFor(() => fireEvent.click(screen.getByText("SDK 관리")));
+    await waitFor(() => activateSection(/SDK 관리/i));
     await waitFor(() => expect(screen.getByText("SDK One")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: /분석된 프로파일/i }));
 
@@ -193,7 +200,7 @@ describe("ProjectSettingsPage", () => {
 
     renderPage();
 
-    await waitFor(() => fireEvent.click(screen.getByText("SDK 관리")));
+    await waitFor(() => activateSection(/SDK 관리/i));
     await waitFor(() => expect(screen.getByText("Test SDK")).toBeInTheDocument());
 
     expect(screen.getByText("업로드")).toBeInTheDocument();
@@ -220,7 +227,7 @@ describe("ProjectSettingsPage", () => {
 
     renderPage();
 
-    await waitFor(() => fireEvent.click(screen.getByText("SDK 관리")));
+    await waitFor(() => activateSection(/SDK 관리/i));
     await waitFor(() => expect(screen.getByText("Test SDK")).toBeInTheDocument());
 
     const uploadStep = screen.getByText("업로드").closest(".sdk-stepper__step");
@@ -248,7 +255,7 @@ describe("ProjectSettingsPage", () => {
 
     renderPage();
 
-    await waitFor(() => fireEvent.click(screen.getByText("SDK 관리")));
+    await waitFor(() => activateSection(/SDK 관리/i));
     await waitFor(() => expect(screen.getByText("Test SDK")).toBeInTheDocument());
 
     expect(screen.queryByText("설치/압축해제")).not.toBeInTheDocument();
@@ -272,7 +279,7 @@ describe("ProjectSettingsPage", () => {
 
     renderPage();
 
-    await waitFor(() => fireEvent.click(screen.getByText("SDK 관리")));
+    await waitFor(() => activateSection(/SDK 관리/i));
     await waitFor(() => expect(screen.getByText("Test SDK")).toBeInTheDocument());
 
     expect(screen.queryByText("업로드")).not.toBeInTheDocument();
@@ -296,7 +303,7 @@ describe("ProjectSettingsPage", () => {
 
     renderPage();
 
-    await waitFor(() => fireEvent.click(screen.getByText("SDK 관리")));
+    await waitFor(() => activateSection(/SDK 관리/i));
     await waitFor(() => expect(screen.getByText("Binary SDK")).toBeInTheDocument());
 
     act(() => {
@@ -359,7 +366,7 @@ describe("ProjectSettingsPage", () => {
 
     renderPage();
 
-    await waitFor(() => fireEvent.click(screen.getByText("SDK 관리")));
+    await waitFor(() => activateSection(/SDK 관리/i));
     await waitFor(() => expect(screen.getByText("Binary SDK")).toBeInTheDocument());
 
     act(() => {
@@ -397,7 +404,7 @@ describe("ProjectSettingsPage", () => {
 
     renderPage();
 
-    await waitFor(() => fireEvent.click(screen.getByText("SDK 관리")));
+    await waitFor(() => activateSection(/SDK 관리/i));
     expect(await screen.findByText("Delete Me SDK")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle("삭제"));

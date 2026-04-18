@@ -15,11 +15,25 @@ import {
   Activity,
   Zap,
 } from "lucide-react";
+import { Button } from "../components/ui/button";
+import { ScrollArea } from "../components/ui/scroll-area";
+import {
+  Sidebar as ShellSidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuBadge,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarSeparator,
+} from "../components/ui/sidebar";
 import { useProjects } from "../contexts/ProjectContext";
 import { useAnalysisGuard } from "../contexts/AnalysisGuardContext";
+import { cn } from "../lib/utils";
 import { ConfirmDialog } from "../shared/ui";
 import { fetchApprovalCount } from "../api/approval";
-import "./Sidebar.css";
 
 const ICON_SIZE = 18;
 
@@ -36,6 +50,16 @@ const projectNavItems = [
   { sub: "report", label: "보고서", icon: FileText, comingSoon: false },
   { sub: "settings", label: "설정", icon: Settings, comingSoon: false },
 ];
+
+const sidebarLinkClassName = cn(
+  "relative h-9 gap-3 rounded-lg px-3 text-[var(--aegis-sidebar-text)] hover:bg-[var(--aegis-sidebar-hover)] hover:text-[var(--aegis-sidebar-text-active)] [&_svg]:opacity-75 aria-[current=page]:bg-[linear-gradient(90deg,rgba(15,98,254,0.18),rgba(255,255,255,0.03))] aria-[current=page]:font-medium aria-[current=page]:text-[var(--aegis-sidebar-text-active)] aria-[current=page]:before:absolute aria-[current=page]:before:inset-y-1.5 aria-[current=page]:before:left-0 aria-[current=page]:before:w-[3px] aria-[current=page]:before:rounded-full aria-[current=page]:before:bg-[var(--cds-interactive)] aria-[current=page]:before:shadow-[var(--aegis-glow-interactive)] aria-[current=page]:[&_svg]:opacity-100",
+);
+
+interface SidebarNavItem {
+  sub: string;
+  label: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+}
 
 export const Sidebar: React.FC = () => {
   const projectMatch = useMatch("/projects/:projectId/*");
@@ -68,82 +92,92 @@ export const Sidebar: React.FC = () => {
     }
   }, [pendingNav, navigate]);
 
+  const renderNavItem = useCallback(
+    (item: SidebarNavItem, to: string, extra?: React.ReactNode) => (
+      <SidebarMenuItem key={item.sub}>
+        <SidebarMenuButton asChild className={sidebarLinkClassName}>
+          <NavLink to={to} onClick={(event) => handleNavClick(event, to)}>
+            <item.icon size={ICON_SIZE} />
+            <span>{item.label}</span>
+          </NavLink>
+        </SidebarMenuButton>
+        {extra}
+      </SidebarMenuItem>
+    ),
+    [handleNavClick],
+  );
+
   return (
-    <nav className="sidebar">
-      {projectId ? (
-        <>
-          <div
-            className="sidebar-header sidebar-header-clickable"
-            onClick={(e) => {
-              if (isBlocking) {
-                setPendingNav("/projects");
-              } else {
-                navigate("/projects");
-              }
-            }}
-          >
-            <div className="sidebar-header-row">
-              <ChevronLeft size={20} className="sidebar-header-icon" />
-              <div className="sidebar-header-text">
-                <span className="sidebar-title">{project?.name ?? "알 수 없는 프로젝트"}</span>
-                <span className="sidebar-subtitle">프로젝트 작업 공간</span>
-              </div>
-            </div>
-          </div>
-
-          <ul className="sidebar-nav">
-            {projectNavItems.map((item) => (
-              <li key={item.sub}>
-                <NavLink
-                  to={`/projects/${projectId}/${item.sub}`}
-                  className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
-                  onClick={(e) => handleNavClick(e, `/projects/${projectId}/${item.sub}`)}
-                >
-                  <item.icon size={ICON_SIZE} />
-                  <span className="sidebar-link__label">{item.label}</span>
-                  {item.sub === "approvals" && pendingApprovals > 0 && (
-                    <span className="sidebar-badge">{pendingApprovals}</span>
-                  )}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : (
-        <>
-          <div className="sidebar-header">
-            <div className="sidebar-header-row">
-              <Shield size={20} className="sidebar-header-icon" />
-              <div className="sidebar-header-text">
-                <span className="sidebar-title">AEGIS</span>
-                <span className="sidebar-subtitle">보안 분석 워크스페이스</span>
-              </div>
-            </div>
-          </div>
-
-          <ul className="sidebar-nav">
-            <li>
-              <NavLink
-                to="/dashboard"
-                end
-                className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
+    <>
+      <SidebarProvider
+        className="min-h-0 w-auto flex-none"
+        style={{ "--sidebar-width": "var(--aegis-sidebar-width)" } as React.CSSProperties}
+      >
+        <ShellSidebar
+          collapsible="none"
+          className="border-r border-[var(--aegis-sidebar-border)] bg-[linear-gradient(180deg,#101317,var(--aegis-sidebar-bg)_22%,#121619_100%)] text-[var(--aegis-sidebar-text)]"
+        >
+          <SidebarHeader className="gap-0 px-4 pt-5 pb-4">
+            {projectId ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-auto w-full justify-start rounded-lg px-3 py-2 text-left text-[var(--aegis-sidebar-text)] hover:bg-white/5 hover:text-[var(--aegis-sidebar-text-active)]"
+                onClick={() => {
+                  if (isBlocking) {
+                    setPendingNav("/projects");
+                    return;
+                  }
+                  navigate("/projects");
+                }}
               >
-                <FolderOpen size={ICON_SIZE} />
-                <span className="sidebar-link__label">프로젝트</span>
-              </NavLink>
-            </li>
-            <li>
-              <NavLink
-                to="/settings"
-                className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
-              >
-                <Settings size={ICON_SIZE} />
-                <span className="sidebar-link__label">설정</span>
-              </NavLink>
-            </li>
-          </ul>
-        </>
-      )}
+                <ChevronLeft size={20} className="shrink-0" />
+                <span className="flex min-w-0 flex-col text-left">
+                  <span className="truncate text-sm font-semibold text-[var(--aegis-sidebar-text-active)]">
+                    {project?.name ?? "알 수 없는 프로젝트"}
+                  </span>
+                  <span className="text-xs tracking-[0.02em] text-white/60">프로젝트 작업 공간</span>
+                </span>
+              </Button>
+            ) : (
+              <div className="flex items-center gap-3 rounded-lg px-3 py-2">
+                <Shield size={20} className="shrink-0 text-[var(--aegis-sidebar-text)]" />
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate text-sm font-semibold text-[var(--aegis-sidebar-text-active)]">AEGIS</span>
+                  <span className="text-xs tracking-[0.02em] text-white/60">보안 분석 워크스페이스</span>
+                </div>
+              </div>
+            )}
+          </SidebarHeader>
+
+          <SidebarSeparator className="bg-[var(--aegis-sidebar-border)]" />
+
+          <SidebarContent className="px-2 pb-3">
+            <ScrollArea className="h-full">
+              <SidebarGroup className="p-0">
+                <SidebarMenu className="gap-1 px-1">
+                  {projectId
+                    ? projectNavItems.map((item) =>
+                        renderNavItem(
+                          item,
+                          `/projects/${projectId}/${item.sub}`,
+                          item.sub === "approvals" && pendingApprovals > 0 ? (
+                            <SidebarMenuBadge className="top-2 rounded-full bg-[var(--cds-interactive)] px-1.5 text-white shadow-[var(--aegis-glow-interactive)]">
+                              {pendingApprovals}
+                            </SidebarMenuBadge>
+                          ) : undefined,
+                        ),
+                      )
+                    : [
+                        renderNavItem({ sub: "dashboard", label: "프로젝트", icon: FolderOpen }, "/dashboard"),
+                        renderNavItem({ sub: "settings", label: "설정", icon: Settings }, "/settings"),
+                      ]}
+                </SidebarMenu>
+              </SidebarGroup>
+            </ScrollArea>
+          </SidebarContent>
+        </ShellSidebar>
+      </SidebarProvider>
 
       <ConfirmDialog
         open={!!pendingNav}
@@ -153,6 +187,6 @@ export const Sidebar: React.FC = () => {
         onConfirm={confirmNav}
         onCancel={() => setPendingNav(null)}
       />
-    </nav>
+    </>
   );
 };

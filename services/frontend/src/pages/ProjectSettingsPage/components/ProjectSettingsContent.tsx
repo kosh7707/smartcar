@@ -1,4 +1,5 @@
 import React from "react";
+import { TabsContent } from "@/components/ui/tabs";
 import type { RegisteredSdk } from "../../../api/sdk";
 import type { SdkProgressDetails } from "../../../hooks/useSdkProgress";
 import { DangerZoneSection } from "./DangerZoneSection";
@@ -30,51 +31,56 @@ export function ProjectSettingsContent({
   onCancelForm,
   onRequestDelete,
 }: ProjectSettingsContentProps) {
-  if (activeSection === "general") {
-    return <GeneralSettingsSection />;
-  }
+  return (
+    <>
+      <TabsContent value="general" className="mt-0 outline-none">
+        <GeneralSettingsSection />
+      </TabsContent>
 
-  if (activeSection === "sdk" && projectId) {
-    return (
-      <SdkManagementSection
-        projectId={projectId}
-        registered={registered}
-        sdkProgressById={sdkProgressById}
-        showForm={showForm}
-        onToggleForm={onToggleForm}
-        onRegistered={onRegistered}
-        onCancelForm={onCancelForm}
-        onRequestDelete={onRequestDelete}
-      />
-    );
-  }
+      <TabsContent value="sdk" className="mt-0 outline-none">
+        {projectId ? (
+          <SdkManagementSection
+            projectId={projectId}
+            registered={registered}
+            sdkProgressById={sdkProgressById}
+            showForm={showForm}
+            onToggleForm={onToggleForm}
+            onRegistered={onRegistered}
+            onCancelForm={onCancelForm}
+            onRequestDelete={onRequestDelete}
+          />
+        ) : (
+          <PlaceholderSettingsSection
+            title="프로젝트 정보가 필요합니다"
+            description="프로젝트를 선택한 뒤 SDK 설정을 관리할 수 있습니다."
+          />
+        )}
+      </TabsContent>
 
-  if (activeSection === "build-targets") {
-    return (
-      <PlaceholderSettingsSection
-        title="빌드 타겟 설정은 준비 중입니다"
-        description="이 기능은 곧 제공될 예정입니다."
-      />
-    );
-  }
+      <TabsContent value="build-targets" className="mt-0 outline-none">
+        <PlaceholderSettingsSection
+          title="빌드 타겟 설정은 준비 중입니다"
+          description="이 기능은 곧 제공될 예정입니다."
+        />
+      </TabsContent>
 
-  if (activeSection === "notifications") {
-    return (
-      <PlaceholderSettingsSection
-        title="프로젝트 알림 설정은 준비 중입니다"
-        description="이 기능은 곧 제공될 예정입니다."
-      />
-    );
-  }
+      <TabsContent value="notifications" className="mt-0 outline-none">
+        <PlaceholderSettingsSection
+          title="프로젝트 알림 설정은 준비 중입니다"
+          description="이 기능은 곧 제공될 예정입니다."
+        />
+      </TabsContent>
 
-  if (activeSection === "adapters") {
-    return (
-      <PlaceholderSettingsSection
-        title="동적 분석 어댑터 설정은 준비 중입니다"
-        description="이 기능은 곧 제공될 예정입니다."
-      />
-    );
-  }
+      <TabsContent value="adapters" className="mt-0 outline-none">
+        <PlaceholderSettingsSection
+          title="동적 분석 어댑터 설정은 준비 중입니다"
+          description="이 기능은 곧 제공될 예정입니다."
+        />
+      </TabsContent>
 
-  return <DangerZoneSection />;
+      <TabsContent value="danger" className="mt-0 outline-none">
+        <DangerZoneSection />
+      </TabsContent>
+    </>
+  );
 }

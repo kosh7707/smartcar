@@ -1,12 +1,12 @@
 import React from "react";
 import { useParams } from "react-router-dom";
+import { Tabs } from "@/components/ui/tabs";
 import { useToast } from "../../contexts/ToastContext";
 import { ConfirmDialog, ConnectionStatusBanner, Spinner } from "../../shared/ui";
-import { ProjectSettingsSidebar, type SettingsSection } from "./components/ProjectSettingsSidebar";
+import { ProjectSettingsSidebar } from "./components/ProjectSettingsSidebar";
 import { ProjectSettingsHeader } from "./components/ProjectSettingsHeader";
 import { ProjectSettingsContent } from "./components/ProjectSettingsContent";
 import { useProjectSettingsPage } from "./hooks/useProjectSettingsPage";
-import "./ProjectSettingsPage.css";
 
 export const ProjectSettingsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -22,14 +22,19 @@ export const ProjectSettingsPage: React.FC = () => {
   }
 
   return (
-    <div className={`page-enter project-settings-page project-settings-page--${state.activeSection}`}>
+    <div className="page-enter flex flex-col gap-6">
       <ConnectionStatusBanner connectionState={state.sdkConnectionState} />
       <ProjectSettingsHeader />
 
-      <div className="project-settings-layout">
-        <ProjectSettingsSidebar activeSection={state.activeSection} onSelect={state.setActiveSection} />
+      <Tabs
+        value={state.activeSection}
+        onValueChange={(value) => state.setActiveSection(value as typeof state.activeSection)}
+        orientation="vertical"
+        className="grid items-start gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]"
+      >
+        <ProjectSettingsSidebar />
 
-        <div className="project-settings-content">
+        <div className="min-w-0 space-y-5">
           <ProjectSettingsContent
             activeSection={state.activeSection}
             projectId={projectId}
@@ -42,7 +47,7 @@ export const ProjectSettingsPage: React.FC = () => {
             onRequestDelete={state.setDeleteTarget}
           />
         </div>
-      </div>
+      </Tabs>
 
       <ConfirmDialog
         open={state.deleteTarget !== null}
