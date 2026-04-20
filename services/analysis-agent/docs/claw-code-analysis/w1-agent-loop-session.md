@@ -10,7 +10,7 @@ claw-code는 `conversation.rs`의 단일 `loop` + tool_call 유무 분기, `sess
 
 ### 2.1 conversation.rs -- 에이전트 루프
 
-**파일**: `/home/kosh/references/claw-code-main/rust/crates/runtime/src/conversation.rs` (801줄)
+**파일**: `<CLAW_CODE_REF_ROOT>/rust/crates/runtime/src/conversation.rs` (801줄)
 
 #### 2.1.1 핵심 구조: `ConversationRuntime<C, T>`
 
@@ -96,7 +96,7 @@ Hook feedback:
 
 ### 2.2 session.rs -- 세션 관리
 
-**파일**: `/home/kosh/references/claw-code-main/rust/crates/runtime/src/session.rs` (436줄)
+**파일**: `<CLAW_CODE_REF_ROOT>/rust/crates/runtime/src/session.rs` (436줄)
 
 #### 2.2.1 데이터 모델
 
@@ -133,7 +133,7 @@ let restored = Session::load_from_path("session.json")?;  // 파일 복원
 
 #### 2.2.3 compact.rs -- 컨텍스트 압축
 
-**파일**: `/home/kosh/references/claw-code-main/rust/crates/runtime/src/compact.rs` (702줄)
+**파일**: `<CLAW_CODE_REF_ROOT>/rust/crates/runtime/src/compact.rs` (702줄)
 
 ```
 compact_session(session, config) -> CompactionResult:
@@ -164,7 +164,7 @@ compact_session(session, config) -> CompactionResult:
 
 ### 2.3 Python 레퍼런스 (runtime.py, context.py)
 
-**파일**: `/home/kosh/references/claw-code-main/src/runtime.py` (193줄)
+**파일**: `<CLAW_CODE_REF_ROOT>/src/runtime.py` (193줄)
 
 #### 2.3.1 PortRuntime & RuntimeSession
 
@@ -205,7 +205,7 @@ compact_session(session, config) -> CompactionResult:
 
 ### 2.4 usage.rs -- 토큰 추적 & 비용 산출
 
-**파일**: `/home/kosh/references/claw-code-main/rust/crates/runtime/src/usage.rs` (311줄)
+**파일**: `<CLAW_CODE_REF_ROOT>/rust/crates/runtime/src/usage.rs` (311줄)
 
 ```rust
 UsageTracker {
@@ -222,7 +222,7 @@ UsageTracker {
 
 ### 2.5 permissions.rs -- 5단계 권한 체계
 
-**파일**: `/home/kosh/references/claw-code-main/rust/crates/runtime/src/permissions.rs` (233줄)
+**파일**: `<CLAW_CODE_REF_ROOT>/rust/crates/runtime/src/permissions.rs` (233줄)
 
 ```
 PermissionMode 계층:

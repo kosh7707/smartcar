@@ -224,12 +224,12 @@ class TestFilterUserCodeFindings:
         """SDK 경로 finding이지만 dataFlow에 사용자 코드 포함 → 유지 + origin 태깅."""
         findings = [
             _make_finding(
-                "/home/kosh/sdks/ti-am335x/sysroot/usr/include/sdk_api.h",
+                "/opt/sdks/ti-am335x/sysroot/usr/include/sdk_api.h",
                 tool="gcc-fanalyzer",
                 data_flow=[
                     SastDataFlowStep(file="src/main.c", line=10, content="buf allocated here"),
                     SastDataFlowStep(
-                        file="/home/kosh/sdks/ti-am335x/sysroot/usr/include/sdk_api.h",
+                        file="/opt/sdks/ti-am335x/sysroot/usr/include/sdk_api.h",
                         line=42, content="buffer overflow here",
                     ),
                 ],

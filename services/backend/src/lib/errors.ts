@@ -2,6 +2,8 @@ export type ErrorCode =
   | "INVALID_INPUT"
   | "NOT_FOUND"
   | "CONFLICT"
+  | "FORBIDDEN"
+  | "RATE_LIMITED"
   | "ADAPTER_UNAVAILABLE"
   | "LLM_UNAVAILABLE"
   | "LLM_HTTP_ERROR"
@@ -51,6 +53,20 @@ export class ConflictError extends AppError {
   constructor(message: string, cause?: unknown, details?: Record<string, unknown>) {
     super("CONFLICT", 409, message, false, cause, details);
     this.name = "ConflictError";
+  }
+}
+
+export class ForbiddenError extends AppError {
+  constructor(message: string, cause?: unknown, details?: Record<string, unknown>) {
+    super("FORBIDDEN", 403, message, false, cause, details);
+    this.name = "ForbiddenError";
+  }
+}
+
+export class RateLimitError extends AppError {
+  constructor(message: string, cause?: unknown, details?: Record<string, unknown>) {
+    super("RATE_LIMITED", 429, message, true, cause, details);
+    this.name = "RateLimitError";
   }
 }
 

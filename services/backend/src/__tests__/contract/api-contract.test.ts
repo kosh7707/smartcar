@@ -2433,7 +2433,18 @@ describe("API Contract Tests", () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.token).toBeDefined();
+      expect(res.body.data.expiresAt).toBeDefined();
       expect(res.body.data.user.username).toBe("testuser");
+    });
+
+    it("POST /api/auth/login honors rememberMe session policy", async () => {
+      ctx.userService.createUser("remember", "pass1234", "Remember User");
+      const normal = await request(app).post("/api/auth/login").send({ username: "remember", password: "pass1234" });
+      const remembered = await request(app).post("/api/auth/login").send({ username: "remember", password: "pass1234", rememberMe: true });
+
+      expect(normal.status).toBe(200);
+      expect(remembered.status).toBe(200);
+      expect(new Date(remembered.body.data.expiresAt).getTime()).toBeGreaterThan(new Date(normal.body.data.expiresAt).getTime());
     });
 
     it("POST /api/auth/login with invalid credentials", async () => {
@@ -2442,11 +2453,150 @@ describe("API Contract Tests", () => {
       expect(res.status).toBe(400);
     });
 
-    it("GET /api/auth/users returns user list", async () => {
-      ctx.userService.createUser("user1", "pass1234", "User 1");
-      const res = await request(app).get("/api/auth/users");
+    it("POST /api/auth/login returns 429 after repeated failed attempts", async () => {
+      ctx.userService.createUser("throttle-user", "pass1234", "Throttle User");
+      for (let i = 0; i < 10; i += 1) {
+        const res = await request(app).post("/api/auth/login").send({ username: "throttle-user", password: "wrong" });
+        expect(res.status).toBe(400);
+      }
+      const limited = await request(app).post("/api/auth/login").send({ username: "throttle-user", password: "wrong" });
+      expect(limited.status).toBe(429);
+      expect(limited.body.errorDetail.code).toBe("RATE_LIMITED");
+    });
+
+    it("GET /api/auth/users requires admin token", async () => {
+      ctx.organizationDAO.save({
+        id: "org-auth",
+        code: "AUTH-ORG",
+        name: "Auth Org",
+        region: "kr-seoul-1",
+        defaultRole: "viewer",
+        adminDisplayName: "Org Admin",
+        adminEmail: "admin@auth.org",
+      });
+      ctx.userService.createUser("user1", "pass1234", "User 1", "analyst", {
+        email: "user1@auth.org",
+        organizationId: "org-auth",
+      });
+      ctx.userService.createUser("orgadmin", "pass1234", "Org Admin", "admin", {
+        email: "admin@auth.org",
+        organizationId: "org-auth",
+      });
+      const login = await request(app).post("/api/auth/login").send({ username: "orgadmin", password: "pass1234" });
+      const res = await request(app)
+        .get("/api/auth/users")
+        .set("Authorization", `Bearer ${login.body.data.token}`);
+
       expect(res.status).toBe(200);
       expect(res.body.data.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("GET /api/auth/orgs/:code/verify returns org preview", async () => {
+      ctx.organizationDAO.save({
+        id: "org-verify",
+        code: "VERIFY-ORG",
+        name: "Verify Org",
+        region: "kr-seoul-1",
+        defaultRole: "viewer",
+        adminDisplayName: "Verifier",
+        adminEmail: "verify@org.kr",
+      });
+
+      const res = await request(app).get("/api/auth/orgs/VERIFY-ORG/verify");
+      expect(res.status).toBe(200);
+      expect(res.body.data.name).toBe("Verify Org");
+      expect(res.body.data.admin.email).toBe("verify@org.kr");
+    });
+
+    it("POST /api/auth/register returns lookup token and lookup API resolves status", async () => {
+      ctx.organizationDAO.save({
+        id: "org-register",
+        code: "REGISTER-ORG",
+        name: "Register Org",
+        region: "kr-seoul-1",
+        defaultRole: "viewer",
+        adminDisplayName: "Reg Admin",
+        adminEmail: "reg@org.kr",
+      });
+
+      const registerRes = await request(app).post("/api/auth/register").send({
+        fullName: "Bob Member",
+        email: "bob@org.kr",
+        password: "Passw0rd!",
+        orgCode: "REGISTER-ORG",
+        termsAcceptedAt: new Date().toISOString(),
+        auditAcceptedAt: new Date().toISOString(),
+      });
+
+      expect(registerRes.status).toBe(202);
+      expect(registerRes.body.data.lookupToken).toBeDefined();
+
+      const lookupRes = await request(app).get(`/api/auth/registrations/lookup/${registerRes.body.data.lookupToken}`);
+      expect(lookupRes.status).toBe(200);
+      expect(lookupRes.body.data.status).toBe("pending_admin_review");
+      expect(lookupRes.body.data.email).toBe("bob@org.kr");
+
+      const rawIdRes = await request(app).get(`/api/auth/registrations/lookup/${registerRes.body.data.registrationId}`);
+      expect(rawIdRes.status).toBe(404);
+    });
+
+    it("admin can approve same-org registration and user can login immediately", async () => {
+      ctx.organizationDAO.save({
+        id: "org-approve",
+        code: "APPROVE-ORG",
+        name: "Approve Org",
+        region: "kr-seoul-1",
+        defaultRole: "viewer",
+        adminDisplayName: "Approve Admin",
+        adminEmail: "approve@org.kr",
+      });
+      ctx.userService.createUser("approve-admin", "pass1234", "Approve Admin", "admin", {
+        email: "approve@org.kr",
+        organizationId: "org-approve",
+      });
+
+      const registerRes = await request(app).post("/api/auth/register").send({
+        fullName: "Alice Member",
+        email: "alice@approve.org",
+        password: "Passw0rd!",
+        orgCode: "APPROVE-ORG",
+        termsAcceptedAt: new Date().toISOString(),
+        auditAcceptedAt: new Date().toISOString(),
+      });
+      const adminLogin = await request(app).post("/api/auth/login").send({ username: "approve-admin", password: "pass1234" });
+      const approveRes = await request(app)
+        .post(`/api/auth/registration-requests/${registerRes.body.data.registrationId}/approve`)
+        .set("Authorization", `Bearer ${adminLogin.body.data.token}`)
+        .send({ role: "analyst" });
+
+      expect(approveRes.status).toBe(200);
+      expect(approveRes.body.data.status).toBe("approved");
+
+      const memberLogin = await request(app).post("/api/auth/login").send({ username: "alice@approve.org", password: "Passw0rd!" });
+      expect(memberLogin.status).toBe(200);
+      expect(memberLogin.body.data.user.role).toBe("analyst");
+    });
+
+    it("password reset request is non-enumerating and confirm resets password", async () => {
+      ctx.userService.createUser("reset-user", "pass1234", "Reset User", "analyst", { email: "reset@org.kr" });
+
+      const known = await request(app).post("/api/auth/password-reset/request").send({ email: "reset@org.kr" });
+      const unknown = await request(app).post("/api/auth/password-reset/request").send({ email: "nobody@org.kr" });
+      expect(known.status).toBe(202);
+      expect(unknown.status).toBe(202);
+      expect(known.body).toEqual(unknown.body);
+
+      const issued = ctx.userService.requestPasswordReset("reset@org.kr", "127.0.0.1");
+      const confirm = await request(app).post("/api/auth/password-reset/confirm").send({
+        token: issued.token,
+        newPassword: "NewPassw0rd!",
+      });
+      expect(confirm.status).toBe(200);
+
+      const oldLogin = await request(app).post("/api/auth/login").send({ username: "reset-user", password: "pass1234" });
+      const newLogin = await request(app).post("/api/auth/login").send({ username: "reset-user", password: "NewPassw0rd!" });
+      expect(oldLogin.status).toBe(400);
+      expect(newLogin.status).toBe(200);
     });
 
     it("GET /api/auth/me without token returns 401 or empty", async () => {

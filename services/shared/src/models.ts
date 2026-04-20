@@ -981,12 +981,66 @@ export interface Notification {
 // ============================================================
 
 export type UserRole = "viewer" | "analyst" | "admin";
+export type UserAccountStatus = "active" | "disabled";
 
 export interface User {
   id: string;
   username: string;
   displayName: string;
+  email?: string;
   role: UserRole;
+  accountStatus?: UserAccountStatus;
+  organizationId?: string | null;
+  organizationCode?: string | null;
+  organizationName?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Organization {
+  id: string;
+  code: string;
+  name: string;
+  region: string;
+  defaultRole: UserRole;
+  emailDomainHint?: string;
+  adminDisplayName: string;
+  adminEmail: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrganizationVerifyPreview {
+  orgId: string;
+  code: string;
+  name: string;
+  admin: {
+    displayName: string;
+    email: string;
+  };
+  region: string;
+  defaultRole: UserRole;
+  emailDomainHint?: string;
+}
+
+export type RegistrationRequestStatus =
+  | "pending_admin_review"
+  | "approved"
+  | "rejected";
+
+export interface RegistrationRequest {
+  id: string;
+  organizationId: string;
+  organizationCode: string;
+  organizationName: string;
+  fullName: string;
+  email: string;
+  status: RegistrationRequestStatus;
+  assignedRole?: UserRole;
+  approvedUserId?: string;
+  decisionReason?: string;
+  lookupExpiresAt: string;
+  createdAt: string;
+  approvedAt?: string;
+  rejectedAt?: string;
 }

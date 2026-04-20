@@ -4,12 +4,12 @@
 
 ## Documentation
 
-- Canonical agent-facing wiki: `/home/kosh/aegis-static-wiki`
-- Start at: `/home/kosh/aegis-static-wiki/wiki/system/index.md`
+- Canonical agent-facing wiki: sibling repo `aegis-static-wiki`
+- Start at: `wiki/system/index.md` inside the `aegis-static-wiki` repo
 - Local repo docs are intentionally reduced to:
   - `docs/AEGIS.md`
   - `docs/mcp.md`
-- Use `/home/kosh/aegis-static-wiki/wiki/system/migration-map.md` to resolve legacy `docs/**` references that still appear in comments or historical notes.
+- Use `wiki/system/migration-map.md` inside the `aegis-static-wiki` repo to resolve legacy `docs/**` references that still appear in comments or historical notes.
 
 ## Prerequisites
 

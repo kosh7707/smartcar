@@ -181,23 +181,23 @@ def test_build_sanitizes_invalid_evidence_refs() -> None:
             {
                 "statement": "SDK 환경을 확인했다",
                 "supportingEvidenceRefs": [
-                    "ls -la /home/kosh/sdks/ti-am335x",
+                    "ls -la /opt/sdks/ti-am335x",
                     "eref-build-success",
                 ],
             },
         ],
         "caveats": [],
         "usedEvidenceRefs": [
-            "ls -la /home/kosh/sdks/ti-am335x",
+            "ls -la /opt/sdks/ti-am335x",
             "eref-build-success",
         ],
         "sdkProfile": {
-            "compiler": "/home/kosh/sdks/ti-am335x/bin/arm-none-linux-gnueabihf-gcc",
+            "compiler": "/opt/sdks/ti-am335x/bin/arm-none-linux-gnueabihf-gcc",
             "compilerPrefix": "arm-none-linux-gnueabihf",
             "gccVersion": "9.2.1",
             "targetArch": "armv7-a",
             "languageStandard": "c11",
-            "sysroot": "/home/kosh/sdks/ti-am335x/sysroot",
+            "sysroot": "/opt/sdks/ti-am335x/sysroot",
             "environmentSetup": "linux-devkit/environment-setup-armv7at2hf-neon-linux-gnueabi",
             "includePaths": [],
             "defines": {},

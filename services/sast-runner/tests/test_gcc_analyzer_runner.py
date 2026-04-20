@@ -96,10 +96,10 @@ class TestParseOutput:
     def test_cross_boundary_dataflow(self, runner):
         """사용자 코드 → SDK 경계를 넘는 dataFlow가 파싱되는지 확인."""
         output = (
-            "/home/kosh/sdks/ti-am335x/include/sdk_api.h:42:5: warning: "
+            "/opt/sdks/ti-am335x/include/sdk_api.h:42:5: warning: "
             "buffer overflow [-Wanalyzer-buffer-overflow]\n"
             "/tmp/scan/src/main.c:10:3: note: 'buf' allocated here [-Wanalyzer-buffer-overflow]\n"
-            "/home/kosh/sdks/ti-am335x/include/sdk_api.h:42:5: note: overflow occurs here [-Wanalyzer-buffer-overflow]\n"
+            "/opt/sdks/ti-am335x/include/sdk_api.h:42:5: note: overflow occurs here [-Wanalyzer-buffer-overflow]\n"
         )
         findings = runner._parse_output(output, Path("/tmp/scan"))
         assert len(findings) == 1

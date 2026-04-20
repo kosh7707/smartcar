@@ -28,7 +28,7 @@ BUILD_URL="http://localhost:8003"
 SAST_URL="http://localhost:9000"
 GW_URL="http://localhost:8000"
 
-PROJECT_PATH="${1:-/home/kosh/AEGIS/uploads/proj-60bf5eb4-bc1f-4275-b7d5-15db1f939935}"
+PROJECT_PATH="${1:?usage: $0 <project-absolute-path> [build-target]}"
 BUILD_TARGET_PATH="${2:-gateway-webserver/}"
 BUILD_TARGET_NAME="${BUILD_TARGET_PATH%/}"
 REQUEST_ID="build-test-$(date +%s)"

@@ -37,7 +37,8 @@ import { BuildTargetDAO } from "./dao/build-target.dao";
 import { TargetLibraryDAO } from "./dao/target-library.dao";
 import { SdkRegistryDAO } from "./dao/sdk-registry.dao";
 import { NotificationDAO } from "./dao/notification.dao";
-import { UserDAO, SessionDAO } from "./dao/user.dao";
+import { OrganizationDAO, PasswordResetTokenDAO, RegistrationRequestDAO, UserDAO, SessionDAO } from "./dao/user.dao";
+import { AuthRateLimitDAO } from "./dao/auth-rate-limit.dao";
 import { SdkService } from "./services/sdk.service";
 
 // Service classes
@@ -161,6 +162,10 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
   const notificationDAO = new NotificationDAO(db);
   const userDAO = new UserDAO(db);
   const sessionDAO = new SessionDAO(db);
+  const authRateLimitDAO = new AuthRateLimitDAO(db);
+  const organizationDAO = new OrganizationDAO(db);
+  const registrationRequestDAO = new RegistrationRequestDAO(db);
+  const passwordResetTokenDAO = new PasswordResetTokenDAO(db);
 
   // ── Tier 1: 기본 서비스 + 외부 클라이언트 ──
   const llmTaskClient = new LlmTaskClient(cfg.llmGatewayUrl, cfg.llmConcurrency);
@@ -176,7 +181,14 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
   // ── Tier 1.5: 알림 + 사용자 서비스 (순환 의존 방지를 위해 QualityGateService보다 먼저 생성) ──
   const notificationWs = new WsBroadcaster<WsNotificationMessage>("/ws/notifications", "projectId", "notification");
   const notificationService = new NotificationService(notificationDAO, notificationWs);
-  const userService = new UserService(userDAO, sessionDAO);
+  const userService = new UserService(
+    userDAO,
+    sessionDAO,
+    organizationDAO,
+    registrationRequestDAO,
+    passwordResetTokenDAO,
+    authRateLimitDAO,
+  );
   const analysisTracker = new AnalysisTracker();
 
   // ── Tier 2: 복합 서비스 (Tier 1 의존) ──

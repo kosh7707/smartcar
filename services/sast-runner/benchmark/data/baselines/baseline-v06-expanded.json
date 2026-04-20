@@ -1,6 +1,6 @@
 {
   "timestamp": "2026-03-19T08:12:03.410988+00:00",
-  "julietPath": "/home/kosh/Juliet/C",
+  "julietPath": "<JULIET_ROOT>/C",
   "variantFilter": "01",
   "targetCWEs": [
     "CWE-78",

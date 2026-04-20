@@ -1,7 +1,7 @@
 """SDK 설치 경로 자동 해석 — BuildProfile.sdkId로 헤더/컴파일러 경로를 찾는다.
 
 SDK 폴더 규칙:
-  SAST_SDK_ROOT=/home/kosh/sdks   (.env에 설정)
+  SAST_SDK_ROOT=/opt/sdks         (.env 예시값 — 환경별로 교체)
     ├── sdk-registry.json          ← SDK 메타데이터 (코드 밖에서 관리)
     ├── ti-am335x/                 ← sdkId가 곧 폴더명
     └── nxp-s32k/                  ← 나중에 추가 시 json만 편집

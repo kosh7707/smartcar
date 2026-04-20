@@ -7,6 +7,7 @@ import type { Database as DatabaseType } from "better-sqlite3";
 import type { RegisteredSdk } from "@aegis/shared";
 import { createTestDb } from "./test-db";
 import { errorHandlerMiddleware } from "../middleware/error-handler.middleware";
+import { createAuthMiddleware } from "../middleware/auth.middleware";
 import { InvalidInputError, NotFoundError } from "../lib/errors";
 
 // Contract tests intentionally seed legacy static/deep rows to prove aggregate filtering.
@@ -30,7 +31,8 @@ import { BuildTargetDAO } from "../dao/build-target.dao";
 import { SdkRegistryDAO } from "../dao/sdk-registry.dao";
 import { NotificationDAO } from "../dao/notification.dao";
 import { TargetLibraryDAO } from "../dao/target-library.dao";
-import { UserDAO, SessionDAO } from "../dao/user.dao";
+import { OrganizationDAO, PasswordResetTokenDAO, RegistrationRequestDAO, UserDAO, SessionDAO } from "../dao/user.dao";
+import { AuthRateLimitDAO } from "../dao/auth-rate-limit.dao";
 
 // Services
 import { FindingService } from "../services/finding.service";
@@ -94,6 +96,9 @@ export interface TestAppContext {
   notificationDAO: NotificationDAO;
   userDAO: UserDAO;
   sessionDAO: SessionDAO;
+  organizationDAO: OrganizationDAO;
+  registrationRequestDAO: RegistrationRequestDAO;
+  passwordResetTokenDAO: PasswordResetTokenDAO;
   // Services exposed for seeding
   gateService: QualityGateService;
   normalizer: ResultNormalizer;
@@ -137,6 +142,10 @@ export function createTestApp(): TestAppContext {
   const notificationDAO = new NotificationDAO(db);
   const userDAO = new UserDAO(db);
   const sessionDAO = new SessionDAO(db);
+  const authRateLimitDAO = new AuthRateLimitDAO(db);
+  const organizationDAO = new OrganizationDAO(db);
+  const registrationRequestDAO = new RegistrationRequestDAO(db);
+  const passwordResetTokenDAO = new PasswordResetTokenDAO(db);
 
   // ── Tier 1: 기본 서비스 ──
   const adapterManager = new AdapterManager(adapterDAO);
@@ -168,7 +177,14 @@ export function createTestApp(): TestAppContext {
 
   // ── Tier 1.5: 알림 + 사용자 서비스 ──
   const notificationService = new NotificationService(notificationDAO);
-  const userService = new UserService(userDAO, sessionDAO);
+  const userService = new UserService(
+    userDAO,
+    sessionDAO,
+    organizationDAO,
+    registrationRequestDAO,
+    passwordResetTokenDAO,
+    authRateLimitDAO,
+  );
   const sdkStore = new Map<string, RegisteredSdk[]>();
   const sdkService = {
     listAll(projectId: string) {
@@ -473,6 +489,7 @@ export function createTestApp(): TestAppContext {
   // App
   const app = express();
   app.use(express.json());
+  app.use(createAuthMiddleware(userService, false));
 
   // Mount routes matching index.ts
   app.use("/api/projects/:pid/adapters", createProjectAdaptersRouter(adapterManager));
@@ -527,6 +544,7 @@ export function createTestApp(): TestAppContext {
     projectDAO, runDAO, findingDAO, evidenceRefDAO, gateResultDAO,
     approvalDAO, auditLogDAO, analysisResultDAO, dynamicSessionDAO, fileStore,
     buildTargetDAO, targetLibraryDAO, sdkRegistryDAO, notificationDAO, userDAO, sessionDAO,
+    organizationDAO, registrationRequestDAO, passwordResetTokenDAO,
     gateService, normalizer, buildTargetService,
     notificationService, userService, settingsService, analysisTracker, pipelineRunCalls, pipelinePrepareCalls, analysisQuickCalls, analysisDeepCalls,
     projectUploadsRoot, dynamicTestRunningProjects,

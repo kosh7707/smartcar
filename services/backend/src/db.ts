@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import Database, { type Database as DatabaseType } from "better-sqlite3";
 import { createLogger } from "./lib/logger";
 import { config } from "./config";
@@ -494,12 +495,18 @@ export function initSchema(db: DatabaseType): void {
     CREATE TABLE IF NOT EXISTS users (
       id            TEXT PRIMARY KEY,
       username      TEXT NOT NULL UNIQUE,
+      email         TEXT,
       display_name  TEXT NOT NULL,
       password_hash TEXT NOT NULL,
       role          TEXT NOT NULL DEFAULT 'analyst',
+      organization_id TEXT,
+      account_status TEXT NOT NULL DEFAULT 'active',
       created_at    TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users(email) WHERE email IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_users_org ON users(organization_id);
 
     CREATE TABLE IF NOT EXISTS sessions (
       token      TEXT PRIMARY KEY,
@@ -508,6 +515,60 @@ export function initSchema(db: DatabaseType): void {
       expires_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+
+    CREATE TABLE IF NOT EXISTS organizations (
+      id                 TEXT PRIMARY KEY,
+      code               TEXT NOT NULL UNIQUE,
+      name               TEXT NOT NULL,
+      region             TEXT NOT NULL,
+      default_role       TEXT NOT NULL DEFAULT 'viewer',
+      email_domain_hint  TEXT,
+      admin_display_name TEXT NOT NULL,
+      admin_email        TEXT NOT NULL,
+      created_at         TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at         TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS registration_requests (
+      id                TEXT PRIMARY KEY,
+      organization_id   TEXT NOT NULL,
+      full_name         TEXT NOT NULL,
+      email             TEXT NOT NULL,
+      password_hash     TEXT NOT NULL,
+      status            TEXT NOT NULL DEFAULT 'pending_admin_review',
+      assigned_role     TEXT,
+      decision_reason   TEXT,
+      approved_user_id  TEXT,
+      reviewed_by_user_id TEXT,
+      terms_accepted_at TEXT NOT NULL,
+      audit_accepted_at TEXT NOT NULL,
+      lookup_token_hash TEXT NOT NULL UNIQUE,
+      lookup_expires_at TEXT NOT NULL,
+      created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+      approved_at       TEXT,
+      rejected_at       TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_registration_requests_org ON registration_requests(organization_id);
+    CREATE INDEX IF NOT EXISTS idx_registration_requests_email ON registration_requests(email);
+    CREATE INDEX IF NOT EXISTS idx_registration_requests_status ON registration_requests(status);
+
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id           TEXT PRIMARY KEY,
+      user_id      TEXT NOT NULL,
+      token_hash   TEXT NOT NULL UNIQUE,
+      expires_at   TEXT NOT NULL,
+      consumed_at  TEXT,
+      created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id);
+
+    CREATE TABLE IF NOT EXISTS auth_rate_limit_events (
+      id          TEXT PRIMARY KEY,
+      scope       TEXT NOT NULL,
+      key         TEXT NOT NULL,
+      occurred_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_auth_rate_limit_scope_key_time ON auth_rate_limit_events(scope, key, occurred_at);
   `);
 
   // 서드파티 라이브러리 (타겟별)
@@ -552,6 +613,9 @@ export function initSchema(db: DatabaseType): void {
   try { db.exec(`ALTER TABLE findings ADD COLUMN cwe_id TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE findings ADD COLUMN cve_ids TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE findings ADD COLUMN confidence_score REAL`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE users ADD COLUMN email TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE users ADD COLUMN organization_id TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE users ADD COLUMN account_status TEXT NOT NULL DEFAULT 'active'`); } catch { /* 이미 존재 */ }
   try {
     db.exec(`ALTER TABLE adapters ADD COLUMN project_id TEXT NOT NULL DEFAULT ''`);
     db.exec(`DELETE FROM adapters WHERE project_id = ''`);
@@ -560,6 +624,18 @@ export function initSchema(db: DatabaseType): void {
   try { db.exec(`ALTER TABLE runs ADD COLUMN analysis_execution_id TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE findings ADD COLUMN build_target_id TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE findings ADD COLUMN analysis_execution_id TEXT`); } catch { /* 이미 존재 */ }
+
+  try {
+    const rows = db.prepare(`SELECT token FROM sessions`).all() as Array<{ token: string }>;
+    const update = db.prepare(`UPDATE sessions SET token = ? WHERE token = ?`);
+    for (const row of rows) {
+      if (/^[a-f0-9]{64}$/i.test(row.token)) continue;
+      const hashed = crypto.createHash("sha256").update(row.token).digest("hex");
+      update.run(hashed, row.token);
+    }
+  } catch {
+    /* sessions migration best-effort */
+  }
   try { db.exec(`ALTER TABLE build_targets ADD COLUMN sdk_choice_state TEXT NOT NULL DEFAULT 'sdk-unresolved'`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE build_targets ADD COLUMN status TEXT NOT NULL DEFAULT 'discovered'`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE build_targets ADD COLUMN compile_commands_path TEXT`); } catch { /* 이미 존재 */ }

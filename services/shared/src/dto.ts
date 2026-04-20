@@ -906,16 +906,79 @@ export type WsNotificationMessage = WsNotification;
 export interface LoginRequest {
   username: string;
   password: string;
+  rememberMe?: boolean;
 }
 
 export interface LoginResponse {
   success: boolean;
-  data?: { token: string; user: import("./models").User };
+  data?: { token: string; expiresAt: string; user: import("./models").User };
   error?: string;
 }
 
 export interface UserResponse {
   success: boolean;
   data?: import("./models").User;
+  error?: string;
+}
+
+export interface OrganizationVerifyResponse {
+  success: boolean;
+  data?: import("./models").OrganizationVerifyPreview;
+  error?: string;
+}
+
+export interface RegisterRequest {
+  fullName: string;
+  email: string;
+  password: string;
+  orgCode: string;
+  termsAcceptedAt: string;
+  auditAcceptedAt: string;
+}
+
+export interface RegisterResponse {
+  success: boolean;
+  data?: {
+    registrationId: string;
+    lookupToken: string;
+    lookupExpiresAt: string;
+    status: import("./models").RegistrationRequestStatus;
+    createdAt: string;
+  };
+  error?: string;
+}
+
+export interface RegistrationLookupResponse {
+  success: boolean;
+  data?: import("./models").RegistrationRequest;
+  error?: string;
+}
+
+export interface RegistrationApprovalRequest {
+  role: import("./models").UserRole;
+}
+
+export interface RegistrationRejectRequest {
+  reason: string;
+}
+
+export interface RegistrationRequestListResponse {
+  success: boolean;
+  data?: import("./models").RegistrationRequest[];
+  error?: string;
+}
+
+export interface PasswordResetRequestBody {
+  email: string;
+}
+
+export interface PasswordResetConfirmBody {
+  token: string;
+  newPassword: string;
+}
+
+export interface PasswordResetRequestResponse {
+  success: boolean;
+  data?: { accepted: true };
   error?: string;
 }

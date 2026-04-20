@@ -21,7 +21,7 @@
 #
 # Examples:
 #   ./e2e.sh all
-#   ./e2e.sh build -p /home/kosh/projects/re100-gateway
+#   ./e2e.sh build -p /path/to/projects/re100-gateway
 #   ./e2e.sh analyze-poc -p /path/to/proj -t gateway/ -i my-gw
 #
 # Strict compile-first examples:

@@ -2,19 +2,19 @@
   "mcpServers": {
     "aegis-static-wiki": {
       "command": "node",
-      "args": ["/home/kosh/aegis-static-wiki/tools/wiki/mcpServer.js"],
-      "cwd": "/home/kosh/aegis-static-wiki"
+      "args": ["../aegis-static-wiki/tools/wiki/mcpServer.js"],
+      "cwd": "../aegis-static-wiki"
     },
     "stitch": {
       "command": "stitch-mcp",
       "args": ["proxy"]
     },
     "log-analyzer": {
-      "command": "/home/kosh/AEGIS/tools/log-analyzer/.venv/bin/python",
-      "args": ["/home/kosh/AEGIS/tools/log-analyzer/server.py"],
-      "cwd": "/home/kosh/AEGIS",
+      "command": "./tools/log-analyzer/.venv/bin/python",
+      "args": ["./tools/log-analyzer/server.py"],
+      "cwd": ".",
       "env": {
-        "LOGS_DIR": "/home/kosh/AEGIS/logs"
+        "LOGS_DIR": "./logs"
       }
     }
   }

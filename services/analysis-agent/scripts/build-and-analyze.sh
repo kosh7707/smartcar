@@ -33,7 +33,7 @@ SAST_URL="http://localhost:9000"
 KB_URL="http://localhost:8002"
 GW_URL="http://localhost:8000"
 
-PROJECT_PATH="${1:-/home/kosh/AEGIS/uploads/proj-60bf5eb4-bc1f-4275-b7d5-15db1f939935}"
+PROJECT_PATH="${1:?usage: $0 <project-absolute-path> [target-relative-path] [project-id]}"
 TARGET_PATH="${2:-gateway-webserver/}"
 TARGET_NAME="${TARGET_PATH%/}"
 PROJECT_ID="${3:-re100-${TARGET_NAME}}"
