@@ -8,6 +8,8 @@ const mockMarkRead = vi.fn();
 const mockMarkAllRead = vi.fn();
 const mockGetThemePreference = vi.fn();
 const mockSetThemePreference = vi.fn();
+const mockLogout = vi.fn();
+const mockNavigate = vi.fn();
 
 const mockNotificationContext = {
   notifications: [
@@ -43,6 +45,24 @@ vi.mock("../contexts/NotificationContext", () => ({
   useNotifications: () => mockNotificationContext,
 }));
 
+vi.mock("../contexts/AuthContext", () => ({
+  useAuth: () => ({
+    user: { id: "u", username: "acme-admin", displayName: "ACME Security Admin", email: "admin@acme.kr", role: "admin", organizationName: "ACME Corp · Security Team", createdAt: "", updatedAt: "" },
+    loading: false,
+    isAuthenticated: true,
+    login: vi.fn(),
+    logout: (...args: unknown[]) => mockLogout(...args),
+  }),
+}));
+
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
 vi.mock("../utils/theme", () => ({
   getThemePreference: () => mockGetThemePreference(),
   setThemePreference: (...args: unknown[]) => mockSetThemePreference(...args),
@@ -55,6 +75,7 @@ describe("Navbar", () => {
     mockGetThemePreference.mockReturnValue("system");
     mockMarkRead.mockResolvedValue(undefined);
     mockMarkAllRead.mockResolvedValue(undefined);
+    mockLogout.mockResolvedValue(undefined);
   });
 
   it("keeps the global dashboard route label as 대시보드", () => {
@@ -99,21 +120,41 @@ describe("Navbar", () => {
     expect(screen.getByRole("link", { name: "설정" })).toHaveAttribute("href", "/settings");
   });
 
-  it("shows a theme menu in the top-right action area and allows selecting dark/system", () => {
+  it("opens the user menu and logs out", async () => {
     render(
       <MemoryRouter initialEntries={["/dashboard"]}>
         <Navbar />
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /테마 설정/i }));
+    const userButton = screen.getByRole("button", { name: "계정 · ACME Security Admin" });
+    fireEvent.click(userButton);
 
-    expect(screen.getByText("테마")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "다크" }));
-    expect(mockSetThemePreference).toHaveBeenCalledWith("dark");
+    const logoutButton = await screen.findByRole("button", { name: "로그아웃" });
+    fireEvent.click(logoutButton);
 
-    fireEvent.click(screen.getByRole("button", { name: /테마 설정/i }));
-    fireEvent.click(screen.getByRole("button", { name: "시스템" }));
-    expect(mockSetThemePreference).toHaveBeenCalledWith("system");
+    await screen.findByRole("button", { name: "계정 · ACME Security Admin" });
+    expect(mockLogout).toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith("/login", { replace: true });
+  });
+
+  it("toggles between light and dark when clicking the theme button", () => {
+    document.documentElement.setAttribute("data-theme", "light");
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Navbar />
+      </MemoryRouter>,
+    );
+
+    const toggle = screen.getByRole("button", { name: /라이트로 전환|다크로 전환/ });
+    expect(toggle).toHaveAttribute("aria-label", "현재 라이트 모드 · 다크로 전환");
+
+    fireEvent.click(toggle);
+    expect(mockSetThemePreference).toHaveBeenLastCalledWith("dark");
+
+    document.documentElement.setAttribute("data-theme", "dark");
+    fireEvent.click(screen.getByRole("button", { name: /라이트로 전환|다크로 전환/ }));
+    expect(mockSetThemePreference).toHaveBeenLastCalledWith("light");
   });
 });

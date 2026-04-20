@@ -43,6 +43,14 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
     claim = trusted.get("claim", {})
     files = trusted.get("files", [])
     project_id = trusted.get("projectId")
+    build_preparation = trusted.get("buildPreparation") or {}
+    # Evidence refs carried by the input claim (typically produced by deep-analyze).
+    # Used both in the user-message evidence list and later to widen allowed_refs
+    # so the sanitizer does not strip refs that came from a trusted upstream result.
+    _claim_sr = claim.get("supportingEvidenceRefs")
+    claim_supporting: list[str] = (
+        [r for r in _claim_sr if isinstance(r, str) and r] if isinstance(_claim_sr, list) else []
+    )
     request_id = get_request_id() or request.taskId
     request_summary_tracker.mark_phase_advancing(request_id, source="generate-poc-start")
 
@@ -138,6 +146,26 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         "- PoC는 Python, curl, 또는 셸 스크립트로 작성하라 (재현 용이성 우선)\n"
         "- 실행 환경의 전제 조건 (타겟 서비스 기동, 포트, 인증 등)을 명시하라\n"
         "- 방어 우회가 필요한 경우 (ASLR, 스택 카나리 등) 그 한계를 caveat에 명시하라\n\n"
+        "## Shell quoting awareness (CRITICAL)\n"
+        "Target sink 분석 시, 사용자 입력이 shell command string에 어떻게 interpolate 되는지 반드시 단계적으로 추적하라:\n"
+        "1. `popen`/`system`/`exec` 등 shell-exec sink까지의 호출 체인을 식별\n"
+        "2. 각 interpolation 지점의 quote context를 명시: 단일따옴표 `'...'`, 이중따옴표 `\"...\"`, unquoted\n"
+        "3. 단일따옴표 안이라면 `;`, `|`, `$()`, backtick 등 shell metachar는 **literal로 해석되어 실행되지 않는다**. payload는 먼저 현재 quote 를 break out 해야 한다.\n"
+        "4. 예: `popen(\"openssl req ... -subj '/CN=\" + cn + \"'\")` — `cn` 이 단일따옴표 안. 단순 `test; echo X` 주입은 openssl의 CN 문자열 일부로 전달될 뿐 쉘에서 실행되지 않는다. 탈출 payload 예: `test' && echo X && echo '` (단일따옴표 구조를 깨지 않고 이어지게).\n"
+        "5. quote context 분석 결과를 claim.detail의 \"## Injection 분석\" 섹션에 명시적으로 적어라 (sink/quote context/escape 경로).\n\n"
+        "## Detection self-check (CRITICAL)\n"
+        "PoC의 탐지 로직이 **명령 에코와 실제 실행을 구별**할 수 있는지 반드시 검토하라:\n"
+        "- 타겟 프로그램이 verbose 모드로 `[exec] <cmd>` 같은 문자열을 stdout에 출력한다면, canary 문자열이 payload 자체의 일부로 stdout에 에코되어 탐지 로직이 false positive를 낸다.\n"
+        "- 단순 `\"CANARY\" in stdout` 탐지보다 **side-effect 기반 탐지를 우선하라**:\n"
+        "  - `touch /tmp/pwned.<random>` → 실행 후 파일 존재 검사\n"
+        "  - 비활성 포트로 `nc -z 127.0.0.1 PORT` → 연결 시도 관찰\n"
+        "  - 환경변수/파일시스템의 관찰 가능한 부작용\n"
+        "- stdout 기반 탐지가 불가피하다면, canary는 **입력 payload 문자열에 등장하지 않는 랜덤 토큰**(UUID, sha 해시 prefix)이어야 한다.\n\n"
+        "## Target metadata honesty\n"
+        "빌드 산출물 이름, 컴파일 명령, 실행 방식은 **context에 주어진 것만 사용하라. 없으면 추측하지 말고 명시하라**:\n"
+        "- 입력에 `Build metadata` 섹션이 있으면 거기 적힌 `buildCommand`/`buildScript`/`declaredMode`/`buildDir` 값을 그대로 사용\n"
+        "- 없으면 PoC의 실행 방법 섹션에 `<unknown: please compile from source; check CMakeLists.txt/Makefile for target name>` 같이 명시적으로 표기\n"
+        "- 바이너리 이름을 확신할 수 없으면 `./<binary-from-CMakeLists-add_executable>` 같이 플레이스홀더로 남겨 분석가가 채우도록\n\n"
         "## 출력 형식\n"
         "**순수 JSON만 출력하라. ```json 코드 펜스, 인사말, 설명문을 절대 붙이지 마라. 첫 문자는 반드시 `{`이어야 한다.**\n"
         "반드시 아래 스키마를 정확히 따라라:\n"
@@ -168,17 +196,58 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         source_sections.append(f"### {f.get('path', '?')}\n```cpp\n{f.get('content', '')}\n```")
     source_text = "\n\n".join(source_sections) if source_sections else "(소스코드 없음)"
 
+    # Build metadata from caller (buildPreparation alias). Prevents LLM from inventing
+    # binary names / compile commands when caller actually provided them.
+    build_meta_lines: list[str] = []
+    for key in ("declaredMode", "buildCommand", "buildScript", "buildDir"):
+        value = build_preparation.get(key)
+        if value:
+            build_meta_lines.append(f"- **{key}**: `{value}`")
+    expected_artifacts = build_preparation.get("expectedArtifacts")
+    if isinstance(expected_artifacts, list) and expected_artifacts:
+        names: list[str] = []
+        for item in expected_artifacts:
+            if isinstance(item, str):
+                names.append(item)
+            elif isinstance(item, dict) and item.get("name"):
+                names.append(str(item["name"]))
+        if names:
+            build_meta_lines.append(f"- **expectedArtifacts**: {', '.join(names)}")
+    produced_artifacts = build_preparation.get("producedArtifacts")
+    if isinstance(produced_artifacts, list) and produced_artifacts:
+        parts: list[str] = []
+        for item in produced_artifacts:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                parts.append(str(item.get("path") or item.get("name") or item))
+        if parts:
+            build_meta_lines.append(f"- **producedArtifacts**: {', '.join(parts)}")
+    if build_meta_lines:
+        build_meta_section = "## Build metadata (caller-provided, use as-is)\n" + "\n".join(build_meta_lines) + "\n\n"
+    else:
+        build_meta_section = (
+            "## Build metadata\n"
+            "(no buildPreparation provided; do not invent binary names — state `<unknown>` or placeholder)\n\n"
+        )
+
     user_message = (
         f"## 분석된 취약점\n"
         f"- **statement**: {claim.get('statement', '?')}\n"
         f"- **detail**: {claim.get('detail', '?')}\n"
         f"- **location**: {claim.get('location', '?')}\n\n"
+        f"{build_meta_section}"
         f"{kb_context}\n\n"
         f"## 소스코드\n{source_text}\n\n"
         f"## 사용 가능한 Evidence Refs\n"
     )
     for ref in request.evidenceRefs:
         user_message += f"- `{ref.refId}` ({ref.artifactType}: {ref.locator.get('file', '?')})\n"
+    # Also list refs carried by the input claim so the LLM can cite them in output.
+    _top_level_ids = {ref.refId for ref in request.evidenceRefs}
+    for r in claim_supporting:
+        if r not in _top_level_ids:
+            user_message += f"- `{r}` (carried over from input claim)\n"
 
     # ─── LLM 호출 (LlmCaller — adaptive timeout + X-Timeout-Seconds 적용) ───
     from agent_shared.llm.caller import LlmCaller
@@ -260,7 +329,25 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
             ),
         )
 
-    allowed_refs = {ref.refId for ref in request.evidenceRefs}
+    # allowed_refs: request-level EvidenceRef IDs ∪ input claim's supportingEvidenceRefs.
+    # Input claim's refs come from a trusted upstream (deep-analyze) result, so they are
+    # treated as allowed by default — without this, the sanitizer strips them and grounding
+    # collapses to the 0.3 ceiling even when the claim already carries valid refs.
+    allowed_refs = {ref.refId for ref in request.evidenceRefs} | set(claim_supporting)
+
+    # Post-LLM heuristic FP scanner — catches common PoC footguns and surfaces as caveats.
+    # Always non-destructive (warnings only), never rejects the response.
+    fp_warnings = _poc_fp_heuristics(parsed)
+    if fp_warnings:
+        existing_caveats = parsed.get("caveats") or []
+        if not isinstance(existing_caveats, list):
+            existing_caveats = []
+        parsed["caveats"] = list(existing_caveats) + [f"[auto-detected FP risk] {w}" for w in fp_warnings]
+        agent_log(
+            logger, "generate-poc FP heuristic triggered",
+            component="generate_poc", phase="poc_fp_heuristic",
+            warningCount=len(fp_warnings),
+        )
 
     # 환각 refId 교정/제거
     from app.validators.evidence_sanitizer import EvidenceRefSanitizer
@@ -372,3 +459,91 @@ def extract_function_from_claim(claim: dict) -> str | None:
     # 일반 함수명 패턴 (xxx() 형태)
     match = re.search(r"\b([a-zA-Z_]\w+)\(\)", text)
     return match.group(1) if match else None
+
+
+def _poc_fp_heuristics(parsed: dict) -> list[str]:
+    """Scan LLM-generated PoC claims for common false-positive patterns.
+
+    Returns a list of human-readable warnings to append to ``caveats``. Never raises
+    and never rejects the response — the analyst gets the PoC plus explicit caveats.
+
+    Heuristics (conservative — prefer false-negative over false-positive warnings):
+
+    H1 "echo-collision canary": PoC detects success by substring-matching a canary
+        token in stdout, AND the canary token also appears inside an injection
+        payload/input string on the same claim. When the target program echoes its
+        command line (verbose mode), the canary will appear in stdout regardless of
+        whether the injection actually executed — the detection will false-positive.
+
+    H2 "unescaped single-quote injection": PoC injects into a shell argument that is
+        wrapped in single quotes (pattern ``-<flag> '...<payload>...'``), AND the
+        payload contains shell metacharacters (``;|&$`` or backticks) but does NOT
+        contain a ``'`` to break out of the quote. Shell treats metacharacters inside
+        single quotes as literal, so the injection will not execute.
+    """
+    import re
+
+    warnings: list[str] = []
+    claims = parsed.get("claims", []) or []
+    if not isinstance(claims, list):
+        return warnings
+
+    detection_pattern = re.compile(
+        r"""["']([A-Z][A-Z0-9_]{3,})["'].{0,40}?\bin\s+(?:stdout|output|out|result)\b""",
+        re.IGNORECASE,
+    )
+    single_quoted_arg_pattern = re.compile(
+        r"""-\w+\s+'(/?[A-Za-z][A-Za-z0-9_]*=)?([^'\n]{0,200})'""",
+    )
+    shell_metachar_re = re.compile(r"[;|&`]|\$\(")
+
+    for i, claim_obj in enumerate(claims):
+        if not isinstance(claim_obj, dict):
+            continue
+        detail = str(claim_obj.get("detail") or "")
+        if not detail:
+            continue
+
+        # H1: canary both in detection logic AND in injection payload
+        for match in detection_pattern.finditer(detail):
+            canary = match.group(1)
+            # Ignore generic English words that could appear in any prose
+            if canary in {"TRUE", "FALSE", "NULL", "NONE", "OK", "ERROR"}:
+                continue
+            # Check whether the same token appears inside a quoted payload/input
+            # literal earlier in the detail. We scan all single/double-quoted strings
+            # and flag if any of them contains the canary token.
+            for lit in re.finditer(r"""["']([^"'\n]{3,200})["']""", detail):
+                body = lit.group(1)
+                if canary in body and "in stdout" not in body.lower() and "in output" not in body.lower():
+                    warnings.append(
+                        f"claim[{i}]: canary '{canary}' is used for stdout-substring detection "
+                        f"and also appears inside an injected/input string. If the target program "
+                        f"echoes its command line (verbose mode), '{canary}' will appear in stdout "
+                        f"whether or not the injection actually executed — detection may be false "
+                        f"positive. Prefer side-effect based detection (touch a unique file, "
+                        f"observable network call, etc.) or use a random/nonce canary not present "
+                        f"in the payload."
+                    )
+                    break
+            else:
+                continue
+            break  # one H1 warning per claim is enough
+
+        # H2: shell metachar injection inside a single-quoted arg without breakout
+        for match in single_quoted_arg_pattern.finditer(detail):
+            inner = match.group(2) or ""
+            if not inner:
+                continue
+            if shell_metachar_re.search(inner) and "'" not in inner:
+                warnings.append(
+                    f"claim[{i}]: injection payload contains shell metacharacters "
+                    f"(;|&`$) but sits inside a single-quoted shell argument "
+                    f"({match.group(0)[:80]}...) and does not contain a ' to break out. "
+                    f"Shell treats metacharacters inside '...' as literal — the injection "
+                    f"will not execute. Payload must close the single quote first "
+                    f"(e.g., `...'; <cmd>; echo '...`) or target an unquoted interpolation."
+                )
+                break  # one H2 warning per claim is enough
+
+    return warnings

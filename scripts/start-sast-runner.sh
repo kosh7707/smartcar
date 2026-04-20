@@ -14,4 +14,19 @@ if [ ! -d ".venv" ]; then
 fi
 
 export PATH="$(pwd)/.venv/bin:$PATH"
-exec .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port "${SAST_PORT:-9000}"
+
+hot_reload="${SAST_HOT_RELOAD:-1}"
+case "${hot_reload,,}" in
+  1|true|yes|on)
+    exec .venv/bin/python -m uvicorn app.main:app \
+      --host 0.0.0.0 \
+      --port "${SAST_PORT:-9000}" \
+      --reload \
+      --reload-dir "$(pwd)/app"
+    ;;
+  *)
+    exec .venv/bin/python -m uvicorn app.main:app \
+      --host 0.0.0.0 \
+      --port "${SAST_PORT:-9000}"
+    ;;
+esac

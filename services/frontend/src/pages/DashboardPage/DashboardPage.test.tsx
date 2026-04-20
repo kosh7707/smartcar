@@ -23,6 +23,16 @@ vi.mock("../../contexts/ProjectContext", () => ({
   useProjects: () => mockUseProjects(),
 }));
 
+vi.mock("../../contexts/AuthContext", () => ({
+  useAuth: () => ({
+    user: { id: "u", username: "analyst", displayName: "김분석", role: "analyst", createdAt: "", updatedAt: "" },
+    loading: false,
+    isAuthenticated: true,
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+}));
+
 vi.mock("../../api/projects", async () => {
   const actual = await vi.importActual<typeof import("../../api/projects")>("../../api/projects");
   return {

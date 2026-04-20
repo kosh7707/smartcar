@@ -37,7 +37,7 @@ import { BuildTargetDAO } from "./dao/build-target.dao";
 import { TargetLibraryDAO } from "./dao/target-library.dao";
 import { SdkRegistryDAO } from "./dao/sdk-registry.dao";
 import { NotificationDAO } from "./dao/notification.dao";
-import { OrganizationDAO, PasswordResetTokenDAO, RegistrationRequestDAO, UserDAO, SessionDAO } from "./dao/user.dao";
+import { DevPasswordResetDeliveryDAO, OrganizationDAO, PasswordResetTokenDAO, RegistrationRequestDAO, UserDAO, SessionDAO } from "./dao/user.dao";
 import { AuthRateLimitDAO } from "./dao/auth-rate-limit.dao";
 import { SdkService } from "./services/sdk.service";
 
@@ -166,6 +166,7 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
   const organizationDAO = new OrganizationDAO(db);
   const registrationRequestDAO = new RegistrationRequestDAO(db);
   const passwordResetTokenDAO = new PasswordResetTokenDAO(db);
+  const devPasswordResetDeliveryDAO = new DevPasswordResetDeliveryDAO(db);
 
   // ── Tier 1: 기본 서비스 + 외부 클라이언트 ──
   const llmTaskClient = new LlmTaskClient(cfg.llmGatewayUrl, cfg.llmConcurrency);
@@ -188,6 +189,7 @@ export function createAppContext(cfg: AppConfig, db: DatabaseType): AppContext {
     registrationRequestDAO,
     passwordResetTokenDAO,
     authRateLimitDAO,
+    devPasswordResetDeliveryDAO,
   );
   const analysisTracker = new AnalysisTracker();
 

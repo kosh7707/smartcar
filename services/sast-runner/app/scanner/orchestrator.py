@@ -412,7 +412,7 @@ class ScanOrchestrator:
             # BuildProfile 기반 자동 스킵 (Semgrep은 확장자 필터로 대체)
             if tool == "gcc-fanalyzer" and profile:
                 sdk_gcc = get_sdk_compiler(profile)
-                if not sdk_gcc and profile.sdk_id != "custom":
+                if not sdk_gcc:
                     # SDK가 지정됐는데 크로스 컴파일러가 없으면 호스트 gcc 사용
                     pass  # 호스트 gcc로 폴백
 

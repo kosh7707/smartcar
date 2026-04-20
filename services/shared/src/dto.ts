@@ -982,3 +982,12 @@ export interface PasswordResetRequestResponse {
   data?: { accepted: true };
   error?: string;
 }
+
+export interface DevPasswordResetDeliveryResponse {
+  success: boolean;
+  data?: {
+    available: boolean;
+    delivery?: import("./models").DevPasswordResetDelivery;
+  };
+  error?: string;
+}

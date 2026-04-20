@@ -2599,6 +2599,23 @@ describe("API Contract Tests", () => {
       expect(newLogin.status).toBe(200);
     });
 
+    it("GET /api/auth/dev/password-reset/latest exposes the latest dev reset token for mock bridging", async () => {
+      ctx.userService.createUser("dev-reset-user", "pass1234", "Dev Reset User", "analyst", { email: "dev-reset@org.kr" });
+
+      const requestRes = await request(app).post("/api/auth/password-reset/request").send({ email: "dev-reset@org.kr" });
+      expect(requestRes.status).toBe(202);
+
+      const latest = await request(app).get("/api/auth/dev/password-reset/latest").query({ email: "dev-reset@org.kr" });
+      expect(latest.status).toBe(200);
+      expect(latest.body.data.available).toBe(true);
+      expect(latest.body.data.delivery.email).toBe("dev-reset@org.kr");
+      expect(latest.body.data.delivery.token).toBeTruthy();
+
+      const absent = await request(app).get("/api/auth/dev/password-reset/latest").query({ email: "missing@org.kr" });
+      expect(absent.status).toBe(200);
+      expect(absent.body.data).toEqual({ available: false });
+    });
+
     it("GET /api/auth/me without token returns 401 or empty", async () => {
       const res = await request(app).get("/api/auth/me");
       // Soft auth: no token → no user → 401

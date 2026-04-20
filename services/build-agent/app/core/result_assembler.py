@@ -8,7 +8,7 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Any
 
 from agent_shared.observability import agent_log
@@ -690,6 +690,26 @@ class ResultAssembler:
             if (identity := self._artifact_identity({"path": artifact.path, "kind": artifact.kind}))
         }
 
+        recursive_roots: list[str] = []
+
+        def add_recursive_root(path: str) -> None:
+            normalized = os.path.normpath(path)
+            if normalized in recursive_roots or not os.path.isdir(normalized):
+                return
+            recursive_roots.append(normalized)
+
+        for rel_dir in (build_dir, build_script_dir, build_command_dir):
+            if rel_dir:
+                add_recursive_root(os.path.join(build_root, rel_dir))
+
+        try:
+            for entry in os.listdir(build_root):
+                if not entry.startswith("build-aegis-"):
+                    continue
+                add_recursive_root(os.path.join(build_root, entry))
+        except OSError:
+            pass
+
         for raw_path in contract.expected_artifact_paths:
             candidates: list[str] = [os.path.join(build_root, raw_path)]
             if build_dir:
@@ -720,6 +740,106 @@ class ResultAssembler:
                 )
                 existing_identities.add(identity)
                 break
+            else:
+                discovered = self._find_nested_expected_artifact(
+                    build_root=build_root,
+                    recursive_roots=recursive_roots,
+                    raw_path=raw_path,
+                    existing_identities=existing_identities,
+                )
+                if discovered is None:
+                    continue
+                rel_path, kind, identity = discovered
+                build_result.producedArtifacts.append(
+                    BuildArtifact(path=rel_path, kind=kind, exists=True, notes="filesystem-inferred-recursive"),
+                )
+                existing_identities.add(identity)
+
+    def _find_nested_expected_artifact(
+        self,
+        *,
+        build_root: str,
+        recursive_roots: list[str],
+        raw_path: str,
+        existing_identities: set[str],
+    ) -> tuple[str, str, str] | None:
+        normalized_raw = raw_path.strip().replace("\\", "/")
+        if not normalized_raw:
+            return None
+
+        expected_tail = PurePosixPath(normalized_raw)
+        expected_name = expected_tail.name
+        if not expected_name:
+            return None
+
+        preferred_subdirs = ("build", "out", "bin", "dist")
+        direct_candidates: list[str] = []
+        for root in recursive_roots:
+            direct_candidates.append(os.path.join(root, expected_name))
+            for subdir in preferred_subdirs:
+                direct_candidates.append(os.path.join(root, subdir, expected_name))
+
+        for candidate in direct_candidates:
+            if not os.path.exists(candidate):
+                continue
+            discovered = self._materialize_discovered_artifact(
+                build_root=build_root,
+                candidate=candidate,
+                expected_tail=expected_tail,
+                existing_identities=existing_identities,
+            )
+            if discovered is not None:
+                return discovered
+
+        for root in recursive_roots:
+            try:
+                root_path = Path(root)
+                for current_root, dirnames, filenames in os.walk(root):
+                    current_path = Path(current_root)
+                    depth = len(current_path.relative_to(root_path).parts)
+                    if depth >= 4:
+                        dirnames[:] = []
+                        continue
+                    dirnames[:] = [
+                        dirname for dirname in dirnames
+                        if dirname not in {"CMakeFiles", ".git", "__pycache__"}
+                    ]
+                    for name in filenames:
+                        if name != expected_name:
+                            continue
+                        candidate = os.path.join(current_root, name)
+                        discovered = self._materialize_discovered_artifact(
+                            build_root=build_root,
+                            candidate=candidate,
+                            expected_tail=expected_tail,
+                            existing_identities=existing_identities,
+                        )
+                        if discovered is not None:
+                            return discovered
+            except OSError:
+                continue
+        return None
+
+    def _materialize_discovered_artifact(
+        self,
+        *,
+        build_root: str,
+        candidate: str,
+        expected_tail: PurePosixPath,
+        existing_identities: set[str],
+    ) -> tuple[str, str, str] | None:
+        normalized_candidate = os.path.normpath(candidate)
+        if not os.path.exists(normalized_candidate):
+            return None
+        rel_path = os.path.relpath(normalized_candidate, build_root)
+        rel_posix = PurePosixPath(rel_path.replace(os.sep, "/"))
+        if len(expected_tail.parts) > 1 and not str(rel_posix).endswith(str(expected_tail)):
+            return None
+        identity = self._artifact_identity({"path": rel_path})
+        if not identity or identity in existing_identities:
+            return None
+        kind = "directory" if os.path.isdir(normalized_candidate) else "file"
+        return rel_path, kind, identity
 
     def _verify_expected_artifacts(
         self,

@@ -1,5 +1,6 @@
 import crypto, { randomBytes, scryptSync } from "crypto";
 import type {
+  DevPasswordResetDelivery,
   OrganizationVerifyPreview,
   RegistrationRequest,
   RegistrationRequestStatus,
@@ -7,12 +8,14 @@ import type {
   UserRole,
 } from "@aegis/shared";
 import type {
+  DevPasswordResetDeliveryDAO,
   OrganizationDAO,
   PasswordResetTokenDAO,
   RegistrationRequestDAO,
   SessionDAO,
   UserDAO,
 } from "../dao/user.dao";
+import { isAuthDevPasswordResetBridgeEnabled } from "../auth-dev-support";
 import type { AuthRateLimitDAO } from "../dao/auth-rate-limit.dao";
 import { ConflictError, ForbiddenError, InvalidInputError, NotFoundError, RateLimitError } from "../lib/errors";
 import { createLogger } from "../lib/logger";
@@ -100,6 +103,7 @@ export class UserService {
     private registrationRequestDAO: RegistrationRequestDAO,
     private passwordResetTokenDAO: PasswordResetTokenDAO,
     private authRateLimitDAO: AuthRateLimitDAO,
+    private devPasswordResetDeliveryDAO: DevPasswordResetDeliveryDAO,
   ) {}
 
   createUser(
@@ -204,6 +208,52 @@ export class UserService {
       defaultRole: organization.defaultRole,
       emailDomainHint: organization.emailDomainHint,
     };
+  }
+
+  seedOrganization(input: {
+    id: string;
+    code: string;
+    name: string;
+    region: string;
+    defaultRole: UserRole;
+    emailDomainHint?: string;
+    adminDisplayName: string;
+    adminEmail: string;
+  }) {
+    const existing = this.organizationDAO.findByCode(input.code);
+    if (existing) return existing;
+    this.organizationDAO.save(input);
+    logger.info({ code: input.code, organizationId: input.id }, "Organization fixture seeded");
+    return this.organizationDAO.findByCode(input.code)!;
+  }
+
+  seedUserIfMissing(input: {
+    username: string;
+    password: string;
+    displayName: string;
+    role?: UserRole;
+    email?: string;
+    organizationId?: string | null;
+    accountStatus?: "active" | "disabled";
+  }): User {
+    const existingByUsername = this.userDAO.findByUsername(input.username);
+    if (existingByUsername) {
+      const { passwordHash: _, ...safeUser } = existingByUsername;
+      return safeUser;
+    }
+    const normalizedEmail = input.email ? normalizeEmail(input.email) : undefined;
+    if (normalizedEmail) {
+      const existingByEmail = this.userDAO.findByEmail(normalizedEmail);
+      if (existingByEmail) {
+        const { passwordHash: _, ...safeUser } = existingByEmail;
+        return safeUser;
+      }
+    }
+    return this.createUser(input.username, input.password, input.displayName, input.role ?? "analyst", {
+      email: normalizedEmail,
+      organizationId: input.organizationId ?? null,
+      accountStatus: input.accountStatus ?? "active",
+    });
   }
 
   submitRegistration(input: {
@@ -376,22 +426,36 @@ export class UserService {
     if (!user || (user.accountStatus && user.accountStatus !== "active")) {
       return { accepted: true };
     }
-    this.revokeOutstandingPasswordResetTokens(user.id);
+    this.revokeOutstandingPasswordResetState(user.id, normalizedEmail);
     const token = generateOpaqueToken();
+    const tokenHash = hashOpaqueToken(token);
+    const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS).toISOString();
+    const createdAt = nowIso();
     this.passwordResetTokenDAO.save({
       id: `prt-${crypto.randomUUID().slice(0, 8)}`,
       userId: user.id,
-      tokenHash: hashOpaqueToken(token),
-      expiresAt: new Date(Date.now() + PASSWORD_RESET_TTL_MS).toISOString(),
-      createdAt: nowIso(),
+      tokenHash,
+      expiresAt,
+      createdAt,
     });
+    if (isAuthDevPasswordResetBridgeEnabled()) {
+      this.devPasswordResetDeliveryDAO.save({
+        id: `dpr-${crypto.randomUUID().slice(0, 8)}`,
+        email: normalizedEmail,
+        token,
+        tokenHash,
+        expiresAt,
+        createdAt,
+      });
+    }
     logger.info({ userId: user.id }, "Password reset requested");
     return { accepted: true, token };
   }
 
   confirmPasswordReset(token: string, newPassword: string): { success: true } {
     assertStrongPassword(newPassword);
-    const tokenRecord = this.passwordResetTokenDAO.findByTokenHash(hashOpaqueToken(token));
+    const tokenHash = hashOpaqueToken(token);
+    const tokenRecord = this.passwordResetTokenDAO.findByTokenHash(tokenHash);
     if (!tokenRecord) {
       throw new NotFoundError("Password reset token not found");
     }
@@ -405,9 +469,13 @@ export class UserService {
     if (!user) {
       throw new NotFoundError("User not found for password reset");
     }
+    const consumedAt = nowIso();
     this.userDAO.update(user.id, { passwordHash: hashPassword(newPassword) });
-    this.passwordResetTokenDAO.consume(tokenRecord.id, nowIso());
-    this.revokeOutstandingPasswordResetTokens(user.id);
+    this.passwordResetTokenDAO.consume(tokenRecord.id, consumedAt);
+    if (isAuthDevPasswordResetBridgeEnabled()) {
+      this.devPasswordResetDeliveryDAO.consumeByTokenHash(tokenHash, consumedAt);
+    }
+    this.revokeOutstandingPasswordResetState(user.id, user.email);
     this.sessionDAO.deleteByUserId(user.id);
     logger.info({ userId: user.id }, "Password reset completed");
     return { success: true };
@@ -417,6 +485,24 @@ export class UserService {
     if (this.userDAO.count() > 0) return;
     this.createUser(username, password, "Administrator", "admin");
     logger.info({ username }, "Default admin user seeded");
+  }
+
+  getLatestDevPasswordResetDelivery(email: string): { available: boolean; delivery?: DevPasswordResetDelivery } {
+    if (!isAuthDevPasswordResetBridgeEnabled()) {
+      throw new NotFoundError("Dev password reset bridge is disabled");
+    }
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail || !normalizedEmail.includes("@")) {
+      throw new InvalidInputError("email is required");
+    }
+    const delivery = this.devPasswordResetDeliveryDAO.findLatestActiveByEmail(normalizedEmail);
+    if (!delivery) {
+      return { available: false };
+    }
+    if (delivery.consumedAt || new Date(delivery.expiresAt) < new Date()) {
+      return { available: false };
+    }
+    return { available: true, delivery };
   }
 
   private resolveLoginRecord(identifier: string) {
@@ -482,7 +568,11 @@ export class UserService {
     return this.userDAO.findById(id)!;
   }
 
-  private revokeOutstandingPasswordResetTokens(userId: string): void {
-    this.passwordResetTokenDAO.revokeActiveByUserId(userId, nowIso());
+  private revokeOutstandingPasswordResetState(userId: string, email?: string): void {
+    const revokedAt = nowIso();
+    this.passwordResetTokenDAO.revokeActiveByUserId(userId, revokedAt);
+    if (isAuthDevPasswordResetBridgeEnabled() && email) {
+      this.devPasswordResetDeliveryDAO.revokeActiveByEmail(email, revokedAt);
+    }
   }
 }

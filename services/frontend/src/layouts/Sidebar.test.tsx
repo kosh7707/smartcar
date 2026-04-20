@@ -39,7 +39,7 @@ describe("Sidebar", () => {
     mockFetchApprovalCount.mockResolvedValue({ pending: 2, total: 2 });
   });
 
-  it("renders the project shell subtitle and keeps settings in the main nav list", async () => {
+  it("renders grouped project nav with pinned settings footer", async () => {
     const { container } = render(
       <MemoryRouter initialEntries={["/projects/p-1/overview"]}>
         <Sidebar />
@@ -50,10 +50,19 @@ describe("Sidebar", () => {
     expect(screen.getByText("프로젝트 작업 공간")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /개요/i })).toHaveAttribute("href", "/projects/p-1/overview");
     expect(screen.getByRole("link", { name: "설정" })).toHaveAttribute("href", "/projects/p-1/settings");
+
+    // Groups are visible
+    expect(screen.getByText("분석")).toBeInTheDocument();
+    expect(screen.getByText("검증")).toBeInTheDocument();
+    expect(screen.getByText("기록")).toBeInTheDocument();
+
+    // Settings is pinned to the sidebar foot
+    const footEl = container.querySelector(".app-sidebar-foot");
+    expect(footEl).not.toBeNull();
+    expect(footEl?.querySelector('a[href="/projects/p-1/settings"]')).not.toBeNull();
+
     await waitFor(() => expect(mockFetchApprovalCount).toHaveBeenCalledWith("p-1"));
     expect(await screen.findByText("2")).toBeInTheDocument();
-    expect(container.querySelector(".sidebar-divider")).toBeNull();
-    expect(container.querySelector(".sidebar-nav-bottom")).toBeNull();
   });
 
   it("renders the global shell subtitle outside project routes", () => {

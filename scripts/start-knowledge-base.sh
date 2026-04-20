@@ -35,4 +35,7 @@ else
   echo "[KB] WARNING: Neo4j 미설치 ($NEO4J_HOME) — 그래프 기능 비활성화로 기동"
 fi
 
-exec .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port "${AEGIS_KB_PORT:-8002}"
+exec .venv/bin/python -m uvicorn app.main:app \
+  --host 0.0.0.0 \
+  --port "${AEGIS_KB_PORT:-8002}" \
+  --reload

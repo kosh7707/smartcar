@@ -148,7 +148,9 @@ describe("FilesPage", () => {
 
     await waitFor(() => expect(mockFetchProjectFindings).toHaveBeenCalledWith("p-1"));
     expect(await screen.findByRole("heading", { name: "파일 탐색기" })).toBeInTheDocument();
-    expect(screen.getByText(/2개 파일/)).toBeInTheDocument();
+    const filesStat = screen.getByText("Files").closest(".overview-identity__stat");
+    expect(filesStat).not.toBeNull();
+    expect(filesStat?.textContent).toContain("2");
     expect(screen.getByText("README.md")).toBeInTheDocument();
     expect(screen.getByText("Firmware")).toBeInTheDocument();
 

@@ -8,6 +8,7 @@ import {
   UserService,
 } from "../user.service";
 import {
+  DevPasswordResetDeliveryDAO,
   OrganizationDAO,
   PasswordResetTokenDAO,
   RegistrationRequestDAO,
@@ -27,6 +28,7 @@ describe("UserService", () => {
   let organizationDAO: OrganizationDAO;
   let registrationRequestDAO: RegistrationRequestDAO;
   let passwordResetTokenDAO: PasswordResetTokenDAO;
+  let devPasswordResetDeliveryDAO: DevPasswordResetDeliveryDAO;
   let authRateLimitDAO: AuthRateLimitDAO;
 
   beforeEach(() => {
@@ -37,6 +39,7 @@ describe("UserService", () => {
     organizationDAO = new OrganizationDAO(db);
     registrationRequestDAO = new RegistrationRequestDAO(db);
     passwordResetTokenDAO = new PasswordResetTokenDAO(db);
+    devPasswordResetDeliveryDAO = new DevPasswordResetDeliveryDAO(db);
     service = new UserService(
       userDAO,
       sessionDAO,
@@ -44,6 +47,7 @@ describe("UserService", () => {
       registrationRequestDAO,
       passwordResetTokenDAO,
       authRateLimitDAO,
+      devPasswordResetDeliveryDAO,
     );
 
     organizationDAO.save({
@@ -134,6 +138,7 @@ describe("UserService", () => {
         registrationRequestDAO,
         passwordResetTokenDAO,
         authRateLimitDAO,
+        devPasswordResetDeliveryDAO,
       );
       expect(() => reloaded.authenticate("alice", "wrong", false, "127.0.0.1")).toThrow(RateLimitError);
     });
@@ -321,6 +326,16 @@ describe("UserService", () => {
       expect(service.authenticate("alice", "NewPassw0rd!").user.email).toBe("alice@acme.kr");
     });
 
+    it("stores the latest reset token in the dev bridge outbox", () => {
+      const reset = service.requestPasswordReset("alice@acme.kr", "127.0.0.1");
+      expect(reset.token).toBeDefined();
+
+      const latest = service.getLatestDevPasswordResetDelivery("alice@acme.kr");
+      expect(latest.available).toBe(true);
+      expect(latest.delivery?.token).toBe(reset.token);
+      expect(latest.delivery?.email).toBe("alice@acme.kr");
+    });
+
     it("revokes older outstanding reset tokens when issuing a new one and after confirm", () => {
       const first = service.requestPasswordReset("alice@acme.kr", "127.0.0.1");
       const firstHash = crypto.createHash("sha256").update(first.token!).digest("hex");
@@ -328,10 +343,60 @@ describe("UserService", () => {
 
       const second = service.requestPasswordReset("alice@acme.kr", "127.0.0.2");
       expect(passwordResetTokenDAO.findByTokenHash(firstHash)?.consumedAt).toBeDefined();
+      expect(service.getLatestDevPasswordResetDelivery("alice@acme.kr").delivery?.token).toBe(second.token);
 
       service.confirmPasswordReset(second.token!, "NewPassw0rd!");
       const secondHash = crypto.createHash("sha256").update(second.token!).digest("hex");
       expect(passwordResetTokenDAO.findByTokenHash(secondHash)?.consumedAt).toBeDefined();
+      expect(service.getLatestDevPasswordResetDelivery("alice@acme.kr")).toEqual({ available: false });
+    });
+  });
+
+  describe("dev fixture seed helpers", () => {
+    it("creates missing organizations and org-admin users idempotently", () => {
+      const organization = service.seedOrganization({
+        id: "org-seeded",
+        code: "ACME-KR-SEC",
+        name: "ACME Corp · Security Team",
+        region: "kr-seoul-1",
+        defaultRole: "analyst",
+        emailDomainHint: "acme.kr",
+        adminDisplayName: "ACME Security Admin",
+        adminEmail: "admin@acme.kr",
+      });
+      const admin = service.seedUserIfMissing({
+        username: "acme-admin",
+        password: "Admin1234!",
+        displayName: "ACME Security Admin",
+        role: "admin",
+        email: "admin@acme.kr",
+        organizationId: organization.id,
+      });
+
+      expect(organization.code).toBe("ACME-KR-SEC");
+      expect(admin.username).toBe("acme-admin");
+      expect(admin.organizationId).toBe(organization.id);
+
+      const sameOrganization = service.seedOrganization({
+        id: "org-different",
+        code: "ACME-KR-SEC",
+        name: "Different Name",
+        region: "kr-seoul-1",
+        defaultRole: "viewer",
+        adminDisplayName: "Different Admin",
+        adminEmail: "different@acme.kr",
+      });
+      const sameAdmin = service.seedUserIfMissing({
+        username: "acme-admin",
+        password: "Admin1234!",
+        displayName: "ACME Security Admin",
+        role: "admin",
+        email: "admin@acme.kr",
+        organizationId: organization.id,
+      });
+
+      expect(sameOrganization.id).toBe(organization.id);
+      expect(sameAdmin.id).toBe(admin.id);
     });
   });
 });

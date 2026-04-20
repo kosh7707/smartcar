@@ -23,6 +23,15 @@ from app.schemas.request import BuildProfile
 logger = logging.getLogger("aegis-sast-runner")
 
 
+def _profile_sdk_id(profile: BuildProfile) -> str | None:
+    """BuildProfile의 sdkId를 정규화한다."""
+    sdk_id = profile.sdk_id
+    if sdk_id is None:
+        return None
+    sdk_id = sdk_id.strip()
+    return sdk_id or None
+
+
 def _get_sdk_root() -> Path:
     """SDK 루트 디렉토리. .env의 SAST_SDK_ROOT → 폴백 ~/sdks."""
     from app.config import settings
@@ -69,6 +78,23 @@ def _get_sdk_base(sdk_id: str) -> Path:
     if sdk_info and "path" in sdk_info:
         return Path(sdk_info["path"])
     return _get_sdk_root() / sdk_id
+
+
+def profile_sdk_id(profile: BuildProfile | None) -> str | None:
+    """외부 호출자가 사용할 수 있는 정규화된 sdkId."""
+    if profile is None:
+        return None
+    return _profile_sdk_id(profile)
+
+
+def sdk_reference_exists(profile: BuildProfile | None) -> bool:
+    """profile에 sdkId가 주어진 경우 해당 SDK reference가 존재하는지 확인."""
+    sdk_id = profile_sdk_id(profile)
+    if sdk_id is None:
+        return True
+    if _get_registry().get(sdk_id):
+        return True
+    return _get_sdk_base(sdk_id).is_dir()
 
 
 def _save_registry(registry: dict[str, dict[str, Any]]) -> None:
@@ -154,20 +180,22 @@ def resolve_sdk_paths(profile: BuildProfile) -> list[str]:
     profile.includePaths가 있으면 그것도 포함한다.
     """
     paths: list[str] = []
+    sdk_id = _profile_sdk_id(profile)
 
     # 1. SDK 레지스트리에서 자동 해석
-    sdk_info = _get_registry().get(profile.sdk_id)
-    base = _get_sdk_base(profile.sdk_id)
+    if sdk_id is not None:
+        sdk_info = _get_registry().get(sdk_id)
+        base = _get_sdk_base(sdk_id)
 
-    if sdk_info and base.is_dir():
-        sdk_paths = _resolve_from_registry(base, sdk_info)
-        paths.extend(sdk_paths)
-        logger.info(
-            "Resolved %d include paths from SDK '%s' at %s",
-            len(sdk_paths), profile.sdk_id, base,
-        )
-    elif not base.is_dir():
-        logger.warning("SDK directory not found: %s", base)
+        if sdk_info and base.is_dir():
+            sdk_paths = _resolve_from_registry(base, sdk_info)
+            paths.extend(sdk_paths)
+            logger.info(
+                "Resolved %d include paths from SDK '%s' at %s",
+                len(sdk_paths), sdk_id, base,
+            )
+        elif not base.is_dir():
+            logger.warning("SDK directory not found: %s", base)
 
     # 2. BuildProfile에 명시된 includePaths 추가
     if profile.include_paths:
@@ -178,11 +206,15 @@ def resolve_sdk_paths(profile: BuildProfile) -> list[str]:
 
 def get_sdk_compiler(profile: BuildProfile) -> str | None:
     """SDK의 크로스 컴파일러 경로를 반환."""
-    sdk_info = _get_registry().get(profile.sdk_id)
+    sdk_id = _profile_sdk_id(profile)
+    if sdk_id is None:
+        return None
+
+    sdk_info = _get_registry().get(sdk_id)
     if not sdk_info:
         return None
 
-    base = _get_sdk_base(profile.sdk_id)
+    base = _get_sdk_base(sdk_id)
     sysroot = sdk_info.get("sysroot", "")
     prefix = sdk_info.get("compiler_prefix", "")
     if not sysroot or not prefix:
@@ -196,11 +228,15 @@ def get_sdk_compiler(profile: BuildProfile) -> str | None:
 
 def get_sdk_environment_setup(profile: BuildProfile) -> str | None:
     """SDK의 environment-setup 스크립트 경로를 반환."""
-    sdk_info = _get_registry().get(profile.sdk_id)
+    sdk_id = _profile_sdk_id(profile)
+    if sdk_id is None:
+        return None
+
+    sdk_info = _get_registry().get(sdk_id)
     if not sdk_info or "environment_setup" not in sdk_info:
         return None
 
-    base = _get_sdk_base(profile.sdk_id)
+    base = _get_sdk_base(sdk_id)
     setup_path = base / sdk_info["environment_setup"]
     if setup_path.exists():
         return str(setup_path)

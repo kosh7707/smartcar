@@ -559,7 +559,6 @@ async def test_scan_with_build_profile(client: AsyncClient, mock_semgrep_runner)
                 {"path": "src/main.c", "content": "int main() { return 0; }"}
             ],
             "buildProfile": {
-                "sdkId": "ti-am335x",
                 "compiler": "arm-none-eabi-gcc",
                 "compilerVersion": "12.3.0",
                 "targetArch": "arm-cortex-a8",
@@ -609,7 +608,6 @@ async def test_scan_with_cpp_profile_auto_rulesets(client: AsyncClient, mock_sem
                 {"path": "src/main.cpp", "content": "int main() { return 0; }"}
             ],
             "buildProfile": {
-                "sdkId": "linux-x86_64-cpp",
                 "compiler": "g++",
                 "targetArch": "x86_64",
                 "languageStandard": "c++17",
@@ -1021,6 +1019,150 @@ async def test_scan_ndjson_error_event(client: AsyncClient) -> None:
     assert len(error_events) == 1
     assert error_events[0]["code"] == "SCAN_TIMEOUT"
     assert error_events[0]["retryable"] is True
+
+
+@pytest.mark.asyncio
+async def test_scan_ndjson_internal_error_logs_traceback(
+    client: AsyncClient,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level("ERROR", logger="aegis-sast-runner")
+
+    with patch("app.routers.scan.orchestrator") as mock_orch:
+        mock_orch.run = AsyncMock(side_effect=RuntimeError("runner exploded"))
+        resp = await client.post(
+            "/v1/scan",
+            headers={"Accept": "application/x-ndjson"},
+            json={
+                "scanId": "test-stream-internal-error",
+                "projectId": "proj-test",
+                "files": [
+                    {"path": "src/main.c", "content": "int main() { return 0; }"},
+                ],
+            },
+        )
+
+    events = _parse_ndjson(resp.text)
+    error_events = [e for e in events if e["type"] == "error"]
+    assert len(error_events) == 1
+    assert error_events[0]["code"] == "INTERNAL_ERROR"
+    assert "runner exploded" in error_events[0]["message"]
+    assert any(
+        record.exc_info and "NDJSON scan failed unexpectedly" in record.getMessage()
+        for record in caplog.records
+    )
+
+
+@pytest.mark.asyncio
+async def test_scan_with_build_profile_without_sdk_id_succeeds(
+    client: AsyncClient,
+    tmp_path,
+) -> None:
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    (project_dir / "main.c").write_text("int main(void) { return 0; }\n", encoding="utf-8")
+
+    with patch.object(
+        __import__("app.routers.scan", fromlist=["orchestrator"]).orchestrator,
+        "check_tools",
+        AsyncMock(return_value={}),
+    ), patch.object(
+        __import__("app.routers.scan", fromlist=["orchestrator"]).orchestrator,
+        "_select_tools",
+        AsyncMock(return_value={"_skipped": {}}),
+    ), patch.object(
+        __import__("app.routers.scan", fromlist=["orchestrator"]).orchestrator,
+        "evaluate_policy",
+        return_value=None,
+    ):
+        resp = await client.post(
+            "/v1/scan",
+            json={
+                "scanId": "test-build-profile-no-sdk",
+                "projectId": "proj-test",
+                "projectPath": str(project_dir),
+                "buildProfile": {
+                    "compiler": "gcc",
+                    "targetArch": "x86_64",
+                    "languageStandard": "c++17",
+                    "headerLanguage": "cpp",
+                },
+            },
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    assert data["execution"]["sdk"]["resolved"] is False
+    assert data["execution"]["sdk"].get("sdkId") is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("sdk_id", ["nonexistent", "custom"])
+async def test_scan_with_invalid_sdk_id_returns_domain_error(
+    client: AsyncClient,
+    tmp_path,
+    sdk_id: str,
+) -> None:
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    (project_dir / "main.c").write_text("int main(void) { return 0; }\n", encoding="utf-8")
+
+    resp = await client.post(
+        "/v1/scan",
+        json={
+            "scanId": "test-build-profile-bad-sdk",
+            "projectId": "proj-test",
+            "projectPath": str(project_dir),
+            "buildProfile": {
+                "sdkId": sdk_id,
+                "compiler": "gcc",
+                "targetArch": "x86_64",
+                "languageStandard": "c++17",
+                "headerLanguage": "cpp",
+            },
+        },
+    )
+
+    assert resp.status_code == 400
+    data = resp.json()
+    assert data["success"] is False
+    assert data["errorDetail"]["code"] == "SDK_NOT_FOUND"
+    assert sdk_id in data["errorDetail"]["message"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("sdk_id", ["nonexistent", "custom"])
+async def test_scan_ndjson_with_invalid_sdk_id_returns_json_domain_error(
+    client: AsyncClient,
+    tmp_path,
+    sdk_id: str,
+) -> None:
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    (project_dir / "main.c").write_text("int main(void) { return 0; }\n", encoding="utf-8")
+
+    resp = await client.post(
+        "/v1/scan",
+        headers={"Accept": "application/x-ndjson"},
+        json={
+            "scanId": "test-build-profile-bad-sdk-stream",
+            "projectId": "proj-test",
+            "projectPath": str(project_dir),
+            "buildProfile": {
+                "sdkId": sdk_id,
+                "compiler": "gcc",
+                "targetArch": "x86_64",
+                "languageStandard": "c++17",
+                "headerLanguage": "cpp",
+            },
+        },
+    )
+
+    assert resp.status_code == 400
+    assert "application/json" in resp.headers.get("content-type", "")
+    data = resp.json()
+    assert data["errorDetail"]["code"] == "SDK_NOT_FOUND"
 
 
 @pytest.mark.asyncio

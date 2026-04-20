@@ -131,6 +131,15 @@ export function createAuthRouter(userService: UserService): Router {
     res.status(202).json({ success: true, data: { accepted: true } });
   }));
 
+  router.get("/dev/password-reset/latest", asyncHandler(async (req, res) => {
+    const email = req.query.email;
+    if (typeof email !== "string" || !email) {
+      throw new InvalidInputError("email query is required");
+    }
+    const result = userService.getLatestDevPasswordResetDelivery(email);
+    res.json({ success: true, data: result });
+  }));
+
   router.post("/password-reset/confirm", asyncHandler(async (req, res) => {
     const { token, newPassword } = req.body as { token?: string; newPassword?: string };
     if (!token || !newPassword) {

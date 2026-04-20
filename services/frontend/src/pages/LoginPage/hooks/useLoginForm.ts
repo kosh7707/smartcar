@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 
-type LoginFn = (username: string, password: string) => Promise<unknown>;
+type LoginFn = (username: string, password: string, rememberMe?: boolean) => Promise<unknown>;
 type NavigateFn = (to: string) => void;
 
 export function useLoginForm(login: LoginFn, navigate: NavigateFn) {
@@ -21,7 +21,7 @@ export function useLoginForm(login: LoginFn, navigate: NavigateFn) {
     setError(null);
     setSubmitting(true);
     try {
-      await login(username, password);
+      await login(username, password, rememberMe);
       navigate("/dashboard");
     } catch (failure: unknown) {
       const message = failure instanceof Error ? failure.message : "로그인에 실패했습니다.";
@@ -29,7 +29,7 @@ export function useLoginForm(login: LoginFn, navigate: NavigateFn) {
     } finally {
       setSubmitting(false);
     }
-  }, [login, navigate, password, username]);
+  }, [login, navigate, password, rememberMe, username]);
 
   return {
     username,

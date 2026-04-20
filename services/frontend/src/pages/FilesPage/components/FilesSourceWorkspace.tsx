@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronsDownUp, ChevronsUpDown, FileText, Search } from "lucide-react";
+import { ChevronsDownUp, ChevronsUpDown, Code2, FileText, Layers, Search, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -132,11 +132,34 @@ export const FilesSourceWorkspace: React.FC<FilesSourceWorkspaceProps> = ({
     <Card className="files-workspace-panel">
       {!selectedPath ? (
         <div className="files-workspace-empty-preview">
-          <FileText size={32} />
+          <header className="files-workspace-empty-preview__eyebrow">
+            <span className="files-workspace-empty-preview__dot" aria-hidden="true" />
+            <span>PREVIEW · SELECT TO INSPECT</span>
+          </header>
+          <div className="files-workspace-empty-preview__anchor" aria-hidden="true">
+            <FileText />
+          </div>
           <div className="files-workspace-empty-preview-copy">
             <strong className="files-workspace-empty-preview-title">파일을 선택하면 내용을 미리 볼 수 있습니다</strong>
-            <div className="files-workspace-empty-preview-text">좌측 트리에서 소스를 선택하면 코드 미리보기와 연결된 탐지 항목이 함께 표시됩니다.</div>
+            <div className="files-workspace-empty-preview-text">좌측 트리에서 소스를 클릭하면 문법 하이라이팅 · 연결된 Finding · 빌드 타겟 링크가 이 패널에 함께 로드됩니다.</div>
           </div>
+          <ul className="files-workspace-empty-preview__hints">
+            <li>
+              <span className="files-workspace-empty-preview__hint-icon"><Code2 aria-hidden="true" /></span>
+              <span className="files-workspace-empty-preview__hint-label">문법 하이라이트</span>
+              <span className="files-workspace-empty-preview__hint-tag">syntax</span>
+            </li>
+            <li>
+              <span className="files-workspace-empty-preview__hint-icon"><Shield aria-hidden="true" /></span>
+              <span className="files-workspace-empty-preview__hint-label">연결된 Finding</span>
+              <span className="files-workspace-empty-preview__hint-tag">severity</span>
+            </li>
+            <li>
+              <span className="files-workspace-empty-preview__hint-icon"><Layers aria-hidden="true" /></span>
+              <span className="files-workspace-empty-preview__hint-label">빌드 타겟 링크</span>
+              <span className="files-workspace-empty-preview__hint-tag">compile_commands</span>
+            </li>
+          </ul>
         </div>
       ) : previewLoading ? (
         <div className="files-workspace-loading-preview">

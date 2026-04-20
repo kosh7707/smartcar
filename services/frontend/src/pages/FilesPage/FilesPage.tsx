@@ -42,6 +42,7 @@ export const FilesPage: React.FC = () => {
       <FilesPageHeader
         fileCount={state.sourceFiles.length}
         totalSize={state.totalSize}
+        targetCount={state.buildTargets.targets.length}
         showCreateTarget={state.sourceFiles.length > 0}
         onOpenCreateTarget={() => state.setShowBuildTargetDialog(true)}
         onOpenUpload={() => state.fileInputRef.current?.click()}

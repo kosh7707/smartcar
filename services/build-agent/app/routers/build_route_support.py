@@ -291,6 +291,8 @@ def build_system_prompt(
         "### 2단계: 빌드 스크립트 작성 (write_file)\n"
         f"`{build_subdir}/aegis-build.sh`에 빌드 스크립트를 작성하라. 스크립트 요구사항:\n"
         f"- 빌드 출력은 `{build_source}/{build_subdir}/`에 생성\n"
+        f"- **중요: 호출자가 선언한 buildDir는 `{build_subdir}/` 자체다. `{build_subdir}/build`, `{build_subdir}/out`, 또 다른 `build-aegis-*` 중첩 디렉토리를 기본 빌드 디렉토리로 새로 만들지 마라.**\n"
+        f"- CMake out-of-source build가 필요하면 `BUILD_DIR=\"${{PROJECT_ROOT}}/{build_subdir}\"` 로 두고 그 디렉토리에서 `cmake \"$PROJECT_ROOT\"` 를 실행하라.\n"
         "- SDK build material이 setupScript로 선언되었으면, 스크립트 안에서 해당 setupScript를 source하라.\n"
         "- caller buildEnvironment가 선언되었으면 try_build의 `build_environment` 인자로 전달하거나, 스크립트 안에서 필요한 env를 명시적으로 소비하라.\n"
         "- 소스 코드를 수정하지 말 것\n"

@@ -69,9 +69,45 @@ export async function mockApiFetch<T>(path: string, options?: RequestInit): Prom
   if (p === "/api/auth/login" && method === "POST") return delay(data.LOGIN_RESPONSE as T);
   if (p === "/api/auth/logout") return delay({ success: true } as T);
   if (p === "/api/auth/users") return delay({ success: true, data: [data.AUTH_USER] } as T);
-  if (p === "/api/auth/password-reset/request" && method === "POST") return delay({ success: true } as T);
+  if (p === "/api/auth/password-reset/request" && method === "POST") {
+    return delay({ success: true, data: { accepted: true } } as T);
+  }
   if (p === "/api/auth/password-reset/confirm" && method === "POST") {
     return delay({ success: true, data: { token: "mock-token:reset", user: data.AUTH_USER } } as T);
+  }
+  {
+    const orgVerifyMatch = p.match(/^\/api\/auth\/orgs\/([^/]+)\/verify$/);
+    if (orgVerifyMatch && method === "GET") {
+      return delay({ success: true, data: { ...data.ORG_VERIFY_PREVIEW, code: decodeURIComponent(orgVerifyMatch[1]) } } as T);
+    }
+  }
+  if (p === "/api/auth/register" && method === "POST") {
+    return delay({ success: true, data: data.REGISTRATION_CREATED } as T);
+  }
+  {
+    const lookupMatch = p.match(/^\/api\/auth\/registrations\/lookup\/([^/]+)$/);
+    if (lookupMatch && method === "GET") {
+      return delay({ success: true, data: data.REGISTRATION_LOOKUP } as T);
+    }
+  }
+  if (p === "/api/auth/registration-requests" && method === "GET") {
+    return delay({ success: true, data: [data.REGISTRATION_LOOKUP] } as T);
+  }
+  {
+    const approveMatch = p.match(/^\/api\/auth\/registration-requests\/([^/]+)\/approve$/);
+    if (approveMatch && method === "POST") {
+      return delay({
+        success: true,
+        data: { ...data.REGISTRATION_LOOKUP, id: approveMatch[1], status: "approved", approvedAt: new Date().toISOString() },
+      } as T);
+    }
+    const rejectMatch = p.match(/^\/api\/auth\/registration-requests\/([^/]+)\/reject$/);
+    if (rejectMatch && method === "POST") {
+      return delay({
+        success: true,
+        data: { ...data.REGISTRATION_LOOKUP, id: rejectMatch[1], status: "rejected", rejectedAt: new Date().toISOString() },
+      } as T);
+    }
   }
 
   // ── Analysis Status (global) ──

@@ -505,9 +505,6 @@ export function initSchema(db: DatabaseType): void {
       updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users(email) WHERE email IS NOT NULL;
-    CREATE INDEX IF NOT EXISTS idx_users_org ON users(organization_id);
-
     CREATE TABLE IF NOT EXISTS sessions (
       token      TEXT PRIMARY KEY,
       user_id    TEXT NOT NULL,
@@ -561,6 +558,18 @@ export function initSchema(db: DatabaseType): void {
       created_at   TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id);
+
+    CREATE TABLE IF NOT EXISTS dev_password_reset_deliveries (
+      id           TEXT PRIMARY KEY,
+      email        TEXT NOT NULL,
+      token        TEXT NOT NULL,
+      token_hash   TEXT NOT NULL UNIQUE,
+      expires_at   TEXT NOT NULL,
+      consumed_at  TEXT,
+      created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_dev_password_reset_email_created
+      ON dev_password_reset_deliveries(email, created_at);
 
     CREATE TABLE IF NOT EXISTS auth_rate_limit_events (
       id          TEXT PRIMARY KEY,
@@ -624,6 +633,8 @@ export function initSchema(db: DatabaseType): void {
   try { db.exec(`ALTER TABLE runs ADD COLUMN analysis_execution_id TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE findings ADD COLUMN build_target_id TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE findings ADD COLUMN analysis_execution_id TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users(email) WHERE email IS NOT NULL`); } catch { /* users.email 미존재 legacy DB 방어 */ }
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_users_org ON users(organization_id)`); } catch { /* users.organization_id 미존재 legacy DB 방어 */ }
 
   try {
     const rows = db.prepare(`SELECT token FROM sessions`).all() as Array<{ token: string }>;

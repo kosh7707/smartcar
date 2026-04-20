@@ -17,7 +17,7 @@ from fastapi.responses import StreamingResponse
 
 from app.config import settings
 from app.context import set_request_id
-from app.errors import NoFilesError, PolicyViolationError, SastRunnerError
+from app.errors import NoFilesError, PolicyViolationError, SastRunnerError, SdkNotFoundError
 from app.runtime.request_summary import request_summary_tracker
 from app.scanner.ast_dumper import AstDumper
 from app.scanner.build_metadata import BuildMetadataExtractor
@@ -25,6 +25,7 @@ from app.scanner.build_runner import BuildRunner
 from app.scanner.include_resolver import IncludeResolver
 from app.scanner.orchestrator import ScanOrchestrator
 from app.scanner.sca_service import analyze_libraries, identify_libraries
+from app.scanner.sdk_resolver import profile_sdk_id, sdk_reference_exists
 from app.scanner.ruleset_selector import resolve_rulesets
 from app.schemas.request import (
     BuildAndAnalyzeRequest,
@@ -82,6 +83,18 @@ def _get_timeout(request: Request, body_timeout: int | None = None) -> int:
     if body_timeout and body_timeout != 120:  # 120은 ScanOptions 기본값이므로 명시적 지정만 존중
         return body_timeout
     return DEFAULT_TIMEOUT_S
+
+
+def _validate_sdk_profile(profile) -> None:
+    """analysis-path profile의 sdkId reference를 검증한다."""
+    sdk_id = profile_sdk_id(profile)
+    if sdk_id is None:
+        return
+    if sdk_reference_exists(profile):
+        return
+    raise SdkNotFoundError(
+        f"Unknown sdkId '{sdk_id}'. Register it in sdk-registry.json or omit sdkId for native/non-SDK builds.",
+    )
 
 
 def _error_response(
@@ -477,6 +490,15 @@ def _scan_streaming(
 
         except PolicyViolationError as exc:
             request_summary_tracker.mark_failed(request_id, exc.message)
+            logger.warning(
+                "NDJSON scan policy violation: %s",
+                exc.message,
+                extra={
+                    "requestId": request_id,
+                    "scanId": exc.scan_response.scan_id,
+                    "code": exc.code,
+                },
+            )
             execution_payload = None
             if exc.scan_response.execution is not None:
                 execution_payload = exc.scan_response.execution.model_dump(
@@ -496,6 +518,11 @@ def _scan_streaming(
 
         except SastRunnerError as exc:
             request_summary_tracker.mark_failed(request_id, exc.message)
+            logger.error(
+                "NDJSON scan failed: %s",
+                exc.message,
+                extra={"requestId": request_id, "scanId": body.scan_id, "code": exc.code},
+            )
             yield _json.dumps({
                 "type": "error",
                 "code": exc.code,
@@ -507,6 +534,12 @@ def _scan_streaming(
 
         except Exception as exc:
             request_summary_tracker.mark_failed(request_id, str(exc))
+            logger.error(
+                "NDJSON scan failed unexpectedly: %s",
+                str(exc),
+                extra={"requestId": request_id, "scanId": body.scan_id},
+                exc_info=True,
+            )
             yield _json.dumps({
                 "type": "error",
                 "code": "INTERNAL_ERROR",
@@ -549,6 +582,7 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
             raise NoFilesError("No files or projectPath provided for scanning")
         for f in body.files:
             _validate_path(f.path)
+        _validate_sdk_profile(body.build_profile)
         request_summary_tracker.register(request_id, endpoint="scan")
         rulesets = resolve_rulesets(
             body.rulesets, body.build_profile, settings.default_rulesets,
@@ -564,6 +598,7 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
             raise NoFilesError("No files or projectPath provided for scanning")
         for f in body.files:
             _validate_path(f.path)
+        _validate_sdk_profile(body.build_profile)
         request_summary_tracker.register(request_id, endpoint="scan")
 
         rulesets = resolve_rulesets(
@@ -658,6 +693,7 @@ async def functions(request: Request, body: ScanRequest, response: Response):
 
     for f in body.files:
         _validate_path(f.path)
+    _validate_sdk_profile(body.build_profile)
 
     t0 = time.perf_counter()
     scan_dir, source_files, should_cleanup = _prepare_scan_dir(body)
@@ -711,6 +747,7 @@ async def includes(request: Request, body: ScanRequest, response: Response):
         raise NoFilesError("No files or projectPath provided")
     for f in body.files:
         _validate_path(f.path)
+    _validate_sdk_profile(body.build_profile)
 
     t0 = time.perf_counter()
     scan_dir, source_files, should_cleanup = _prepare_scan_dir(body)
@@ -740,6 +777,7 @@ async def metadata(request: Request, body: ScanRequest, response: Response):
     response.headers["X-Request-Id"] = request_id
 
     try:
+        _validate_sdk_profile(body.build_profile)
         result = await metadata_extractor.extract(body.build_profile)
         logger.info(
             "Build metadata extracted",
@@ -827,6 +865,7 @@ async def build_and_analyze(
         return {"error": "buildCommand is required"}
 
     scan_profile = body.scan_profile
+    _validate_sdk_profile(scan_profile)
 
     t0 = time.perf_counter()
     build_response: BuildResponse | None = None

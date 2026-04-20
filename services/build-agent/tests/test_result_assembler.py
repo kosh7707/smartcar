@@ -359,6 +359,33 @@ def test_strict_build_infers_artifact_from_build_script_directory(tmp_path) -> N
     assert resp.result.buildResult.artifactVerification.matched is True
 
 
+def test_strict_build_infers_artifact_from_nested_build_directory(tmp_path) -> None:
+    project_root = tmp_path / "project"
+    nested_build_dir = project_root / "build-aegis" / "build"
+    nested_build_dir.mkdir(parents=True)
+    (nested_build_dir / "certificate-maker").write_text("binary")
+
+    assembler = ResultAssembler()
+    session = _make_session(
+        metadata=_strict_metadata(expected_artifacts=["certificate-maker"]),
+        trusted={
+            "projectPath": str(project_root),
+            "buildTargetPath": ".",
+            "buildTargetName": "certificate-maker",
+        },
+    )
+    _record_build_success(session)
+
+    resp = assembler.build(_valid_build_json(produced_artifacts=[]), session)
+
+    assert isinstance(resp, TaskSuccessResponse)
+    assert resp.result.buildResult is not None
+    produced_paths = [artifact.path for artifact in resp.result.buildResult.producedArtifacts]
+    assert "build-aegis/build/certificate-maker" in produced_paths
+    assert resp.result.buildResult.artifactVerification is not None
+    assert resp.result.buildResult.artifactVerification.matched is True
+
+
 def test_exhaustion_max_steps() -> None:
     assembler = ResultAssembler()
     session = _make_session(termination_reason="max_steps")

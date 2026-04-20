@@ -7,6 +7,7 @@ const PUBLIC_AUTH_ROUTES = new Set([
   "GET /api/auth/orgs/",
   "POST /api/auth/register",
   "GET /api/auth/registrations/lookup/",
+  "GET /api/auth/dev/password-reset/latest",
   "POST /api/auth/password-reset/request",
   "POST /api/auth/password-reset/confirm",
   "GET /health",

@@ -13,12 +13,23 @@ import { ForgotPasswordPage } from "./pages/ForgotPasswordPage/ForgotPasswordPag
 import { ResetPasswordPage } from "./pages/ResetPasswordPage/ResetPasswordPage";
 import { DashboardPage } from "./pages/DashboardPage/DashboardPage";
 import { SettingsPage } from "./pages/SettingsPage/SettingsPage";
+import { AdminRegistrationsPage } from "./pages/AdminRegistrationsPage/AdminRegistrationsPage";
 
 const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) return null;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  return <>{children}</>;
+};
+
+const RequireAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, loading, user } = useAuth();
+
+  if (loading) return null;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (user?.role !== "admin") return <Navigate to="/dashboard" replace />;
 
   return <>{children}</>;
 };
@@ -65,6 +76,13 @@ export const App: React.FC = () => {
                       <SettingsPage />
                     </GlobalLayout>
                   </RequireAuth>
+                } />
+                <Route path="/admin/registrations" element={
+                  <RequireAdmin>
+                    <GlobalLayout>
+                      <AdminRegistrationsPage />
+                    </GlobalLayout>
+                  </RequireAdmin>
                 } />
 
                 <Route path="/projects/:projectId/*" element={<RequireAuth><ProjectLayoutShell /></RequireAuth>} />

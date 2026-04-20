@@ -8,7 +8,7 @@ import { useSignupForm } from "./hooks/useSignupForm";
 const onboardingSteps = [
   { label: "가입 요청 제출", detail: "이메일, 비밀번호, 조직 코드를 오른쪽 폼에 입력하세요.", current: true },
   { label: "조직 관리자 검토 · 승인", detail: "요청은 승인 큐에 등록됩니다. 평균 응답 시간 < 24h." },
-  { label: "이메일 인증 · 최초 로그인", detail: "승인 후 이메일로 초대 링크가 발송됩니다. 링크 만료 48시간." },
+  { label: "가입 시 입력한 계정으로 로그인", detail: "승인 즉시 최초 로그인 가능. 별도 초대 링크는 없습니다." },
   { label: "콘솔 진입 · 프로젝트 배정", detail: "배정된 프로젝트와 권한 스코프가 대시보드에 나타납니다." },
 ]
 
@@ -40,6 +40,8 @@ export const SignupPage: React.FC = () => {
     togglePasswordVisibility,
     canSubmit,
     handleSubmit,
+    submitError,
+    receipt,
   } = useSignupForm(login, navigate)
 
   return (
@@ -106,6 +108,8 @@ export const SignupPage: React.FC = () => {
         onAuditAcceptedChange={setAuditAccepted}
         onResetSubmitted={() => setSubmitted(false)}
         onSubmit={handleSubmit}
+        submitError={submitError}
+        receipt={receipt}
       />
     </AuthConsoleShell>
   )

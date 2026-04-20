@@ -1,5 +1,6 @@
 import React from "react";
 import { Outlet, useParams, Link, useLocation } from "react-router-dom";
+import { ChevronRight, Home } from "lucide-react";
 import { useProjects } from "../contexts/ProjectContext";
 import { PageHeader } from "../shared/ui";
 
@@ -39,11 +40,17 @@ export const ProjectBreadcrumbLayout: React.FC = () => {
   return (
     <>
       <nav className="page-breadcrumbs" aria-label="프로젝트 경로">
-        <Link to="/dashboard">프로젝트</Link>
-        <span>/</span>
-        <Link to={`/projects/${projectId}/overview`} title={project.name}>{project.name}</Link>
-        <span>/</span>
-        <span className="current breadcrumb-current" aria-current="page" title={pageName}>{pageName}</span>
+        <Link to="/dashboard" className="page-breadcrumbs__home" aria-label="대시보드로 이동">
+          <Home aria-hidden="true" />
+        </Link>
+        <ChevronRight className="page-breadcrumbs__sep" aria-hidden="true" />
+        <Link to={`/projects/${projectId}/overview`} className="page-breadcrumbs__crumb" title={project.name}>
+          {project.name}
+        </Link>
+        <ChevronRight className="page-breadcrumbs__sep" aria-hidden="true" />
+        <span className="page-breadcrumbs__current current breadcrumb-current" aria-current="page" title={pageName}>
+          {pageName}
+        </span>
       </nav>
       <Outlet />
     </>

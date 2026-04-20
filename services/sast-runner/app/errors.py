@@ -19,6 +19,12 @@ class NoFilesError(SastRunnerError):
     retryable = False
 
 
+class SdkNotFoundError(SastRunnerError):
+    code = "SDK_NOT_FOUND"
+    status_code = 400
+    retryable = False
+
+
 class SemgrepNotAvailableError(SastRunnerError):
     code = "SEMGREP_NOT_AVAILABLE"
     status_code = 503

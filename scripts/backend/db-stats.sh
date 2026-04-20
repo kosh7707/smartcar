@@ -10,7 +10,7 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 DB_PATH="${DB_PATH:-$ROOT_DIR/services/backend/aegis.db}"
-EXPECTED_TABLE_COUNT=34
+EXPECTED_TABLE_COUNT=35
 
 if ! command -v sqlite3 >/dev/null 2>&1; then
   echo "  sqlite3 명령을 찾을 수 없습니다."
@@ -39,7 +39,7 @@ fi
 
 echo ""
 echo "============================================"
-echo "  Backend DB 현황 (핵심 25 테이블 + execution/persistence seam 9개)"
+echo "  Backend DB 현황 (핵심 26 테이블 + execution/persistence seam 9개)"
 echo "============================================"
 echo ""
 
@@ -86,6 +86,8 @@ UNION ALL SELECT
   'registration_requests', COUNT(*) FROM registration_requests
 UNION ALL SELECT
   'password_reset_tokens', COUNT(*) FROM password_reset_tokens
+UNION ALL SELECT
+  'dev_password_reset_deliveries', COUNT(*) FROM dev_password_reset_deliveries
 UNION ALL SELECT
   'auth_rate_limit_events', COUNT(*) FROM auth_rate_limit_events
 UNION ALL SELECT

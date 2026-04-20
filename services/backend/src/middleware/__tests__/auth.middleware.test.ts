@@ -21,12 +21,14 @@ describe("auth.middleware public route matrix", () => {
     app.get("/api/auth/orgs/:code/verify", (_req, res) => res.json({ ok: true }));
     app.post("/api/auth/register", (_req, res) => res.json({ ok: true }));
     app.get("/api/auth/registrations/lookup/:token", (_req, res) => res.json({ ok: true }));
+    app.get("/api/auth/dev/password-reset/latest", (_req, res) => res.json({ ok: true }));
     app.post("/api/auth/password-reset/request", (_req, res) => res.json({ ok: true }));
     app.post("/api/auth/password-reset/confirm", (_req, res) => res.json({ ok: true }));
 
     expect((await request(app).get("/api/auth/orgs/ACME/verify")).status).toBe(200);
     expect((await request(app).post("/api/auth/register")).status).toBe(200);
     expect((await request(app).get("/api/auth/registrations/lookup/token-1")).status).toBe(200);
+    expect((await request(app).get("/api/auth/dev/password-reset/latest?email=test@example.com")).status).toBe(200);
     expect((await request(app).post("/api/auth/password-reset/request")).status).toBe(200);
     expect((await request(app).post("/api/auth/password-reset/confirm")).status).toBe(200);
   });

@@ -37,7 +37,7 @@ describe("LoginPage", () => {
     expect(screen.getByText("AEGIS · PRODUCTION")).toBeInTheDocument();
     expect(screen.getByLabelText(/테마 전환/)).toBeInTheDocument();
     expect(screen.getByLabelText("이메일")).toBeInTheDocument();
-    expect(screen.getByLabelText("비밀번호", { selector: "input" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("••••••••")).toBeInTheDocument();
     expect(screen.getByText("이 기기에서 로그인 유지")).toBeInTheDocument();
     expect(document.title).toBe("AEGIS — 로그인");
   });
@@ -50,10 +50,10 @@ describe("LoginPage", () => {
     );
 
     fireEvent.change(screen.getByLabelText("이메일"), { target: { value: "user@example.com" } });
-    fireEvent.change(screen.getByLabelText("비밀번호", { selector: "input" }), { target: { value: "secret" } });
+    fireEvent.change(screen.getByPlaceholderText("••••••••"), { target: { value: "secret" } });
     fireEvent.click(screen.getByRole("button", { name: "로그인" }));
 
-    await waitFor(() => expect(mockLogin).toHaveBeenCalledWith("user@example.com", "secret"));
+    await waitFor(() => expect(mockLogin).toHaveBeenCalledWith("user@example.com", "secret", false));
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard"));
   });
 
@@ -67,7 +67,7 @@ describe("LoginPage", () => {
     );
 
     fireEvent.change(screen.getByLabelText("이메일"), { target: { value: "user@example.com" } });
-    fireEvent.change(screen.getByLabelText("비밀번호", { selector: "input" }), { target: { value: "secret" } });
+    fireEvent.change(screen.getByPlaceholderText("••••••••"), { target: { value: "secret" } });
     fireEvent.click(screen.getByRole("button", { name: "로그인" }));
 
     expect(await screen.findByText("로그인 실패")).toBeInTheDocument();
@@ -91,7 +91,7 @@ describe("LoginPage", () => {
       </MemoryRouter>,
     );
 
-    const passwordInput = screen.getByLabelText("비밀번호", { selector: "input" }) as HTMLInputElement;
+    const passwordInput = screen.getByPlaceholderText("••••••••") as HTMLInputElement;
     const toggleButton = screen.getByRole("button", { name: "비밀번호 보기" });
 
     expect(passwordInput.type).toBe("password");
@@ -113,7 +113,7 @@ describe("LoginPage", () => {
     );
 
     fireEvent.change(screen.getByLabelText("이메일"), { target: { value: "user@example.com" } });
-    fireEvent.change(screen.getByLabelText("비밀번호", { selector: "input" }), { target: { value: "secret" } });
+    fireEvent.change(screen.getByPlaceholderText("••••••••"), { target: { value: "secret" } });
     fireEvent.click(screen.getByRole("button", { name: "로그인" }));
 
     expect(await screen.findByRole("button", { name: "진입 중..." })).toBeDisabled();

@@ -1,13 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { confirmPasswordReset } from "../../../api/auth";
-import type { User } from "@aegis/shared";
 
-type SetUserFn = (user: User | null) => void;
-
-export function useResetPasswordForm(onAuthenticated?: SetUserFn) {
-  const navigate = useNavigate();
+export function useResetPasswordForm() {
   const location = useLocation();
   const token = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -18,6 +14,7 @@ export function useResetPasswordForm(onAuthenticated?: SetUserFn) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -34,16 +31,15 @@ export function useResetPasswordForm(onAuthenticated?: SetUserFn) {
     setError(null);
     setSubmitting(true);
     try {
-      const { user } = await confirmPasswordReset(token, password);
-      onAuthenticated?.(user);
-      navigate("/dashboard");
+      await confirmPasswordReset(token, password);
+      setSubmitted(true);
     } catch (failure: unknown) {
       const message = failure instanceof Error ? failure.message : "재설정 링크가 유효하지 않거나 만료되었습니다.";
       setError(message);
     } finally {
       setSubmitting(false);
     }
-  }, [canSubmit, navigate, onAuthenticated, password, token]);
+  }, [canSubmit, password, token]);
 
   return {
     token,
@@ -58,6 +54,7 @@ export function useResetPasswordForm(onAuthenticated?: SetUserFn) {
     meetsLength,
     canSubmit,
     submitting,
+    submitted,
     error,
     handleSubmit,
   };

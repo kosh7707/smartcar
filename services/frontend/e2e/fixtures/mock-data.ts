@@ -527,12 +527,46 @@ export const AUTH_USER = {
 
 export const LOGIN_RESPONSE = {
   success: true,
-  data: { token: "mock-jwt-token-abc123", user: AUTH_USER },
+  data: {
+    token: "mock-jwt-token-abc123",
+    expiresAt: "2026-04-21T00:00:00Z",
+    user: AUTH_USER,
+  },
 };
 
 export const AUTH_ME_RESPONSE = {
   success: true,
   data: AUTH_USER,
+};
+
+export const ORG_VERIFY_PREVIEW = {
+  orgId: "org-acme-kr-sec",
+  code: "ACME-KR-SEC",
+  name: "ACME Corp · Security Team",
+  admin: { displayName: "ACME Security Admin", email: "admin@acme.kr" },
+  region: "kr-seoul-1",
+  defaultRole: "analyst" as const,
+  emailDomainHint: "acme.kr",
+};
+
+export const REGISTRATION_CREATED = {
+  registrationId: "mock-reg-0001",
+  lookupToken: "mock-lookup-0001",
+  lookupExpiresAt: "2026-04-27T00:00:00Z",
+  status: "pending_admin_review" as const,
+  createdAt: "2026-04-20T08:00:00Z",
+};
+
+export const REGISTRATION_LOOKUP = {
+  id: "mock-reg-0001",
+  organizationId: "org-acme-kr-sec",
+  organizationCode: "ACME-KR-SEC",
+  organizationName: "ACME Corp · Security Team",
+  fullName: "홍길동",
+  email: "qa-member@acme.kr",
+  status: "pending_admin_review" as const,
+  lookupExpiresAt: "2026-04-27T00:00:00Z",
+  createdAt: "2026-04-20T08:00:00Z",
 };
 
 // ── Custom Report ──

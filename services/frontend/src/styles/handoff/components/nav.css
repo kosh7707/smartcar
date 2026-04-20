@@ -14,12 +14,20 @@
   padding: 0 var(--space-7);
 
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: var(--space-7);
+  gap: var(--space-6);
 
   background: color-mix(in srgb, var(--surface) 90%, transparent);
   backdrop-filter: saturate(1.2) blur(8px);
   border-bottom: 1px solid var(--navbar-border);
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
 }
 
 /* ── Brand cluster ──────────────────────────────────────────── */
@@ -42,31 +50,6 @@
   font-weight: var(--weight-semibold);
   letter-spacing: 0.02em;
   color: var(--foreground);
-}
-.nav-brand .env {
-  margin-left: 4px;
-  padding: 2px 6px;
-
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-caps);
-  color: var(--foreground-muted);
-
-  background: var(--surface-sunken);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xs);
-}
-.nav-brand .env .dot {
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  margin-right: 4px;
-  vertical-align: middle;
-
-  background: var(--success);
-  border-radius: 999px;
-  box-shadow: 0 0 0 2px var(--success-surface);
 }
 
 /* ── Command-palette search trigger ─────────────────────────── */
@@ -114,7 +97,20 @@
 .nav-right {
   display: flex;
   align-items: center;
+  gap: var(--space-3);
+}
+
+.nav-cluster {
+  display: flex;
+  align-items: center;
   gap: 4px;
+}
+
+.nav-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border-subtle);
+  flex-shrink: 0;
 }
 
 .nav-icon {

@@ -24,6 +24,7 @@ export const ResetPasswordPage: React.FC = () => {
     meetsLength,
     canSubmit,
     submitting,
+    submitted,
     error,
     handleSubmit,
   } = useResetPasswordForm();
@@ -68,7 +69,20 @@ export const ResetPasswordPage: React.FC = () => {
           </div>
         </div>
 
-        {!hasToken ? (
+        {submitted ? (
+          <>
+            <div className="notice chore c-5">
+              <Info aria-hidden="true" />
+              <div>
+                <strong>새 비밀번호로 변경되었습니다.</strong><br />
+                보안을 위해 기존 세션은 모두 무효화되었습니다. 새 비밀번호로 다시 로그인해 주세요.
+              </div>
+            </div>
+            <div className="form-footer chore c-9">
+              <Link to="/login">로그인으로 이동</Link>
+            </div>
+          </>
+        ) : !hasToken ? (
           <>
             <div className="notice chore c-5" role="alert" style={{ borderColor: "var(--danger)", background: "var(--danger-surface)" }}>
               <Info aria-hidden="true" />
@@ -139,7 +153,7 @@ export const ResetPasswordPage: React.FC = () => {
               {!submitting ? <ArrowRight aria-hidden="true" /> : null}
             </button>
 
-            <p className="fine-print chore c-9">새 비밀번호가 설정되면 자동으로 대시보드로 이동합니다.</p>
+            <p className="fine-print chore c-9">새 비밀번호 설정 후 로그인 페이지로 이동합니다. 기존 세션은 모두 무효화됩니다.</p>
 
             <div className="form-footer chore c-9">
               재설정을 취소하시나요? <Link to="/login">로그인</Link>

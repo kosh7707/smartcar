@@ -606,6 +606,40 @@ class TestCodeGraphIngestContract:
         }
         assert body["status"] == "ready"
 
+    def test_ingest_ready_when_graph_has_more_nodes_than_vectorized_functions(self):
+        class GraphWithExternalCallees(FakeCodeGraphService):
+            def ingest(self, project_id, functions, *, provenance=None):
+                return {
+                    "project_id": project_id,
+                    "replaceMode": "replace_project_graph",
+                    "replacedExistingGraph": False,
+                    "nodeCount": 24,
+                    "edgeCount": 41,
+                    "files": ["main.cpp", "http.cpp"],
+                }
+
+        code_graph_api.set_service(GraphWithExternalCallees())
+        code_graph_api.set_code_vector_search(FakeCodeVectorSearch())
+        code_graph_api.set_code_assembler(FakeCodeAssembler())
+
+        resp = client.post(
+            "/v1/code-graph/re100/ingest",
+            json={"functions": self._FUNCTIONS},
+            headers=_HEADERS,
+        )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["nodeCount"] == 24
+        assert body["vectorCount"] == len(self._FUNCTIONS)
+        assert body["status"] == "ready"
+        assert body["readiness"] == {
+            "neo4jGraph": True,
+            "vectorIndex": True,
+            "graphRag": True,
+        }
+        assert "warnings" not in body
+
     def test_provenance_passthrough(self, _init_code_graph):
         resp = client.post(
             "/v1/code-graph/re100/ingest",

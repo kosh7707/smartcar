@@ -70,7 +70,11 @@ def _require_service():
         raise HTTPException(503, "Code graph service not initialized")
 
 
-def _ingest_readiness(node_count: int, vector_count: int) -> tuple[str, dict[str, bool], list[str]]:
+def _ingest_readiness(
+    node_count: int,
+    vector_count: int,
+    expected_vector_count: int,
+) -> tuple[str, dict[str, bool], list[str]]:
     if node_count <= 0:
         return (
             "empty",
@@ -82,7 +86,7 @@ def _ingest_readiness(node_count: int, vector_count: int) -> tuple[str, dict[str
             [],
         )
 
-    vector_ready = vector_count >= node_count
+    vector_ready = vector_count >= expected_vector_count
     readiness = {
         "neo4jGraph": True,
         "vectorIndex": vector_ready,
@@ -111,7 +115,7 @@ def _rollback_ingest(project_id: str, previous_functions: list[dict] | None) -> 
 
 
 def _cleanup_staging(project_id: str, staging_project_id: str) -> None:
-    logger.warning(
+    logger.info(
         "코드 그래프 staging 정리: project=%s, staging=%s",
         project_id,
         staging_project_id,
@@ -215,6 +219,7 @@ async def ingest(
     status, readiness, warnings = _ingest_readiness(
         result.get("nodeCount", 0),
         result.get("vectorCount", 0),
+        len(req.functions),
     )
     result["operation"] = {
         "mode": result.get("replaceMode", "replace_project_graph"),

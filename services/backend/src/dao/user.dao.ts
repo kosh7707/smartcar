@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import type {
+  DevPasswordResetDelivery,
   Organization,
   RegistrationRequest,
   User,
@@ -76,6 +77,16 @@ interface PasswordResetTokenRow {
   created_at: string;
 }
 
+interface DevPasswordResetDeliveryRow {
+  id: string;
+  email: string;
+  token: string;
+  token_hash: string;
+  expires_at: string;
+  consumed_at: string | null;
+  created_at: string;
+}
+
 export interface UserRecord extends User {
   passwordHash: string;
 }
@@ -96,6 +107,10 @@ export interface PasswordResetTokenRecord {
   expiresAt: string;
   consumedAt?: string;
   createdAt: string;
+}
+
+export interface DevPasswordResetDeliveryRecord extends DevPasswordResetDelivery {
+  tokenHash: string;
 }
 
 function rowToUser(row: UserRow, org?: { code?: string | null; name?: string | null }): User {
@@ -157,6 +172,17 @@ function rowToRegistrationRequestRecord(row: RegistrationRequestRow): Registrati
     termsAcceptedAt: row.terms_accepted_at,
     auditAcceptedAt: row.audit_accepted_at,
     lookupTokenHash: row.lookup_token_hash,
+  };
+}
+
+function rowToDevPasswordResetDelivery(row: DevPasswordResetDeliveryRow): DevPasswordResetDelivery {
+  return {
+    id: row.id,
+    email: row.email,
+    token: row.token,
+    expiresAt: row.expires_at,
+    consumedAt: row.consumed_at ?? undefined,
+    createdAt: row.created_at,
   };
 }
 
@@ -559,5 +585,55 @@ export class PasswordResetTokenDAO {
     return this.db.prepare(
       `UPDATE password_reset_tokens SET consumed_at = ? WHERE user_id = ? AND consumed_at IS NULL`,
     ).run(consumedAt, userId).changes;
+  }
+}
+
+export class DevPasswordResetDeliveryDAO {
+  constructor(private db: DatabaseType) {}
+
+  save(delivery: DevPasswordResetDeliveryRecord): void {
+    this.db.prepare(
+      `INSERT INTO dev_password_reset_deliveries (
+        id, email, token, token_hash, expires_at, consumed_at, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      delivery.id,
+      delivery.email.toLowerCase(),
+      delivery.token,
+      delivery.tokenHash,
+      delivery.expiresAt,
+      delivery.consumedAt ?? null,
+      delivery.createdAt,
+    );
+  }
+
+  findLatestActiveByEmail(email: string): DevPasswordResetDelivery | undefined {
+    const row = this.db.prepare(
+      `SELECT *
+       FROM dev_password_reset_deliveries
+       WHERE lower(email) = lower(?)
+         AND consumed_at IS NULL
+         AND datetime(expires_at) >= datetime('now')
+       ORDER BY created_at DESC
+       LIMIT 1`,
+    ).get(email) as DevPasswordResetDeliveryRow | undefined;
+    return row ? rowToDevPasswordResetDelivery(row) : undefined;
+  }
+
+  consumeByTokenHash(tokenHash: string, consumedAt: string): number {
+    return this.db.prepare(
+      `UPDATE dev_password_reset_deliveries
+       SET consumed_at = ?
+       WHERE token_hash = ? AND consumed_at IS NULL`,
+    ).run(consumedAt, tokenHash).changes;
+  }
+
+  revokeActiveByEmail(email: string, consumedAt: string): number {
+    return this.db.prepare(
+      `UPDATE dev_password_reset_deliveries
+       SET consumed_at = ?
+       WHERE lower(email) = lower(?)
+         AND consumed_at IS NULL`,
+    ).run(consumedAt, email).changes;
   }
 }

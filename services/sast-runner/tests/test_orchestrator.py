@@ -78,7 +78,7 @@ class TestSelectTools:
         """C++ 프로젝트에서도 Semgrep은 스킵되지 않음 (확장자 필터로 대체)."""
         available = self._available_all()
         profile = BuildProfile(
-            sdkId="custom", compiler="g++",
+            compiler="g++",
             targetArch="x86_64", languageStandard="c++17",
             headerLanguage="cpp",
         )
@@ -90,7 +90,7 @@ class TestSelectTools:
     async def test_semgrep_not_skipped_for_c(self, orchestrator):
         available = self._available_all()
         profile = BuildProfile(
-            sdkId="custom", compiler="gcc",
+            compiler="gcc",
             targetArch="x86_64", languageStandard="c99",
             headerLanguage="c",
         )

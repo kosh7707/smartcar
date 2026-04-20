@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Building2, Check, Eye, EyeOff, Info, Lock, Mail, User } from "lucide-react";
+import { AlertCircle, ArrowRight, Building2, Check, Eye, EyeOff, Info, Lock, Mail, User } from "lucide-react";
 
 type OrgVerificationState = {
   status: "idle" | "checking" | "ok" | "bad";
@@ -9,6 +9,14 @@ type OrgVerificationState = {
   admin: string;
   region: string;
   role: string;
+};
+
+type SubmittedReceipt = {
+  registrationId: string;
+  lookupToken: string;
+  lookupExpiresAt: string;
+  status: "pending_admin_review" | "approved" | "rejected";
+  createdAt: string;
 };
 
 type SignupFormCardProps = {
@@ -26,6 +34,8 @@ type SignupFormCardProps = {
   strengthTicks: string;
   strengthLabel: string;
   canSubmit: boolean;
+  submitError: string | null;
+  receipt: SubmittedReceipt | null;
   onFullNameChange: (value: string) => void;
   onUsernameChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
@@ -37,6 +47,20 @@ type SignupFormCardProps = {
   onResetSubmitted: () => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
 };
+
+function formatLookupExpires(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
 
 export function SignupFormCard({
   fullName,
@@ -53,6 +77,8 @@ export function SignupFormCard({
   strengthTicks,
   strengthLabel,
   canSubmit,
+  submitError,
+  receipt,
   onFullNameChange,
   onUsernameChange,
   onPasswordChange,
@@ -84,7 +110,7 @@ export function SignupFormCard({
             <Info aria-hidden="true" />
             <div>
               <strong>가입 요청이 제출되었습니다.</strong><br />
-              관리자 승인 후 초대 링크와 후속 안내가 전달됩니다.
+              조직 관리자의 승인을 기다리세요. 승인 후에는 이 페이지에서 입력한 이메일과 비밀번호로 바로 로그인하실 수 있습니다.
             </div>
           </div>
           <div className="org-verify" data-state="ok">
@@ -92,6 +118,13 @@ export function SignupFormCard({
             <div className="row"><span className="k">이름</span><span className="v">{fullName || "—"}</span></div>
             <div className="row"><span className="k">이메일</span><span className="v mono">{username || "—"}</span></div>
             <div className="row"><span className="k">조직 코드</span><span className="v mono">{orgCode || "—"}</span></div>
+            {receipt ? (
+              <>
+                <div className="row"><span className="k">요청 ID</span><span className="v mono">{receipt.registrationId}</span></div>
+                <div className="row"><span className="k">조회 토큰</span><span className="v mono">{receipt.lookupToken}</span></div>
+                <div className="row"><span className="k">토큰 만료</span><span className="v mono">{formatLookupExpires(receipt.lookupExpiresAt)}</span></div>
+              </>
+            ) : null}
           </div>
           <div className="form-footer chore c-9">
             이미 계정이 있으신가요? <Link to="/login">로그인</Link>
@@ -104,7 +137,7 @@ export function SignupFormCard({
             <Info aria-hidden="true" />
             <div>
               <strong>가입은 승인제로 운영됩니다.</strong><br />
-              조직 코드는 관리자에게 요청하거나, <span className="mono">invite/</span> 링크로 접근하세요.
+              조직 코드를 입력하고 검증한 뒤, 가입 요청을 제출하세요. 승인은 조직 관리자가 처리합니다.
             </div>
           </div>
 
@@ -195,6 +228,13 @@ export function SignupFormCard({
                 <span>계정 활동은 감사 목적으로 기록되며, 조직 관리자가 열람할 수 있음을 이해합니다. <span style={{ color: 'var(--danger)' }}>*</span></span>
               </label>
             </div>
+
+            {submitError ? (
+              <div className="notice chore c-9" role="alert" style={{ borderColor: "var(--danger)", background: "var(--danger-surface)" }}>
+                <AlertCircle aria-hidden="true" />
+                <div>{submitError}</div>
+              </div>
+            ) : null}
 
             <button className="btn btn-primary btn-block chore c-9" type="submit" disabled={submitting || !canSubmit}>
               {submitting ? '요청 제출 중...' : '가입 요청 제출'}

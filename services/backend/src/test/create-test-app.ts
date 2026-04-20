@@ -31,7 +31,7 @@ import { BuildTargetDAO } from "../dao/build-target.dao";
 import { SdkRegistryDAO } from "../dao/sdk-registry.dao";
 import { NotificationDAO } from "../dao/notification.dao";
 import { TargetLibraryDAO } from "../dao/target-library.dao";
-import { OrganizationDAO, PasswordResetTokenDAO, RegistrationRequestDAO, UserDAO, SessionDAO } from "../dao/user.dao";
+import { DevPasswordResetDeliveryDAO, OrganizationDAO, PasswordResetTokenDAO, RegistrationRequestDAO, UserDAO, SessionDAO } from "../dao/user.dao";
 import { AuthRateLimitDAO } from "../dao/auth-rate-limit.dao";
 
 // Services
@@ -99,6 +99,7 @@ export interface TestAppContext {
   organizationDAO: OrganizationDAO;
   registrationRequestDAO: RegistrationRequestDAO;
   passwordResetTokenDAO: PasswordResetTokenDAO;
+  devPasswordResetDeliveryDAO: DevPasswordResetDeliveryDAO;
   // Services exposed for seeding
   gateService: QualityGateService;
   normalizer: ResultNormalizer;
@@ -146,6 +147,7 @@ export function createTestApp(): TestAppContext {
   const organizationDAO = new OrganizationDAO(db);
   const registrationRequestDAO = new RegistrationRequestDAO(db);
   const passwordResetTokenDAO = new PasswordResetTokenDAO(db);
+  const devPasswordResetDeliveryDAO = new DevPasswordResetDeliveryDAO(db);
 
   // ── Tier 1: 기본 서비스 ──
   const adapterManager = new AdapterManager(adapterDAO);
@@ -184,6 +186,7 @@ export function createTestApp(): TestAppContext {
     registrationRequestDAO,
     passwordResetTokenDAO,
     authRateLimitDAO,
+    devPasswordResetDeliveryDAO,
   );
   const sdkStore = new Map<string, RegisteredSdk[]>();
   const sdkService = {
@@ -544,7 +547,7 @@ export function createTestApp(): TestAppContext {
     projectDAO, runDAO, findingDAO, evidenceRefDAO, gateResultDAO,
     approvalDAO, auditLogDAO, analysisResultDAO, dynamicSessionDAO, fileStore,
     buildTargetDAO, targetLibraryDAO, sdkRegistryDAO, notificationDAO, userDAO, sessionDAO,
-    organizationDAO, registrationRequestDAO, passwordResetTokenDAO,
+    organizationDAO, registrationRequestDAO, passwordResetTokenDAO, devPasswordResetDeliveryDAO,
     gateService, normalizer, buildTargetService,
     notificationService, userService, settingsService, analysisTracker, pipelineRunCalls, pipelinePrepareCalls, analysisQuickCalls, analysisDeepCalls,
     projectUploadsRoot, dynamicTestRunningProjects,

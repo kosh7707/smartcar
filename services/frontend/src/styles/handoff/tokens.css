@@ -150,6 +150,7 @@
   /* ── Typography ───────────────────────────────────────────── */
   --font-sans: 'Paperlogy', 'Pretendard Variable', 'Pretendard', -apple-system, system-ui, sans-serif;
   --font-mono: 'Paperlogy', 'Pretendard Variable', 'Pretendard', -apple-system, system-ui, sans-serif;
+  --font-code: ui-monospace, 'SF Mono', 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
   --font-display: var(--font-sans);
 
   /* Type scale (medium density) */

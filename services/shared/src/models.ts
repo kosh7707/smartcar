@@ -1044,3 +1044,12 @@ export interface RegistrationRequest {
   approvedAt?: string;
   rejectedAt?: string;
 }
+
+export interface DevPasswordResetDelivery {
+  id: string;
+  email: string;
+  token: string;
+  expiresAt: string;
+  consumedAt?: string;
+  createdAt: string;
+}

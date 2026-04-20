@@ -12,8 +12,10 @@ from app.scanner.sdk_resolver import (
     _infer_arch,
     _invalidate_cache,
     get_sdk_compiler,
+    profile_sdk_id,
     register_sdk,
     resolve_sdk_paths,
+    sdk_reference_exists,
     unregister_sdk,
     validate_sdk,
 )
@@ -292,6 +294,58 @@ class TestResolveSdkPaths:
 
         assert paths == []
 
+    def test_missing_sdk_id_skips_resolution_and_preserves_include_paths(self, tmp_path):
+        """sdkId가 없으면 SDK 해석을 건너뛰고 profile includePaths만 유지."""
+        _write_registry(tmp_path, {})
+
+        profile = BuildProfile(
+            compiler="gcc",
+            includePaths=["/usr/include", "/opt/project/include"],
+        )
+
+        with patch.object(sdk_resolver, "_get_sdk_root", return_value=tmp_path):
+            paths = resolve_sdk_paths(profile)
+
+        assert paths == ["/usr/include", "/opt/project/include"]
+
+
+class TestSdkReferenceExists:
+    def test_missing_sdk_id_is_valid(self, tmp_path):
+        _write_registry(tmp_path, {})
+        profile = BuildProfile(compiler="gcc")
+
+        with patch.object(sdk_resolver, "_get_sdk_root", return_value=tmp_path):
+            assert sdk_reference_exists(profile) is True
+
+    def test_registry_entry_counts_as_existing(self, tmp_path):
+        _write_registry(tmp_path, {"ti-am335x": {"sysroot": "sysroots/arm"}})
+        profile = BuildProfile(sdkId="ti-am335x")
+
+        with patch.object(sdk_resolver, "_get_sdk_root", return_value=tmp_path):
+            assert sdk_reference_exists(profile) is True
+
+    def test_missing_directory_and_registry_is_invalid(self, tmp_path):
+        _write_registry(tmp_path, {})
+        profile = BuildProfile(sdkId="nonexistent")
+
+        with patch.object(sdk_resolver, "_get_sdk_root", return_value=tmp_path):
+            assert sdk_reference_exists(profile) is False
+
+    def test_custom_sdk_id_is_not_treated_as_existing(self, tmp_path):
+        _write_registry(tmp_path, {})
+        profile = BuildProfile(sdkId="custom")
+
+        with patch.object(sdk_resolver, "_get_sdk_root", return_value=tmp_path):
+            assert sdk_reference_exists(profile) is False
+
+
+class TestProfileSdkId:
+    def test_none_profile(self):
+        assert profile_sdk_id(None) is None
+
+    def test_blank_sdk_id_normalizes_to_none(self):
+        assert profile_sdk_id(BuildProfile(sdkId="   ", compiler="gcc")) is None
+
     def test_include_paths_from_profile(self, tmp_path):
         """BuildProfile.includePaths가 결과에 추가되는지."""
         _write_registry(tmp_path, {})
@@ -355,6 +409,17 @@ class TestGetSdkCompiler:
         _write_registry(tmp_path, {})
 
         profile = BuildProfile(sdkId="nonexistent")
+
+        with patch.object(sdk_resolver, "_get_sdk_root", return_value=tmp_path):
+            compiler = get_sdk_compiler(profile)
+
+        assert compiler is None
+
+    def test_missing_sdk_id_returns_none(self, tmp_path):
+        """sdkId가 없으면 SDK 컴파일러 해석을 시도하지 않는다."""
+        _write_registry(tmp_path, {})
+
+        profile = BuildProfile(compiler="gcc")
 
         with patch.object(sdk_resolver, "_get_sdk_root", return_value=tmp_path):
             compiler = get_sdk_compiler(profile)
