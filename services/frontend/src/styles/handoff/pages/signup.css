@@ -1,0 +1,393 @@
+/* ═══════════════════════════════════════════════════════════════
+   AEGIS — Signup page
+
+   Signup-specific pieces on top of auth-console.css.
+
+   Sections:
+     .onboard-header     brand-panel progress header
+     .onboard-list       4-step vertical checklist
+       .onboard-item     current / upcoming step
+     .notice             "가입은 승인제" callout above form
+     .field, .hint       form field + inline hint text
+     .strength           password-strength mono ticks
+     .section-group      numbered rail + section body (01/02 steps)
+     .org-verify         organization-code verification card
+     #org-verify-btn     inline verify button states
+     .org-alt            "don't have a code?" footer strip
+   ═══════════════════════════════════════════════════════════════ */
+
+
+/* ── Onboarding progress list (brand panel) ──────────────────── */
+.onboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 var(--space-3) 0;
+  border-bottom: 1px solid var(--sidebar-border);
+}
+.onboard-header .label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--sidebar-text-muted);
+}
+.onboard-header .counter {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--sidebar-text);
+}
+.onboard-header .counter .cur {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.onboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+.onboard-item {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: var(--space-4);
+  align-items: start;
+  position: relative;
+  padding: 2px 0;
+}
+.onboard-item .step {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--sidebar-border);
+  background: oklch(1 0 0 / 0.02);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--sidebar-text-muted);
+  position: relative;
+}
+/* Current step — pulse dot, not a number */
+.onboard-item.current .step {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: transparent;
+}
+.onboard-item.current .step::before {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: oklch(1 0 0);
+  animation: step-pulse 1.6s ease-in-out infinite;
+}
+.onboard-item.current .step::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--primary);
+  opacity: 0.4;
+  animation: step-ring 1.6s ease-in-out infinite;
+}
+@keyframes step-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+@keyframes step-ring {
+  0%   { opacity: 0.6; transform: scale(0.9); }
+  100% { opacity: 0;   transform: scale(1.4); }
+}
+
+.onboard-item .body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.onboard-item .title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.onboard-item .title {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--sidebar-text);
+}
+.onboard-item.current .title { color: var(--sidebar-text-active); }
+.onboard-item .now-tag {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 2px 5px;
+  border-radius: 3px;
+  color: var(--primary);
+  background: var(--primary-surface);
+  border: 1px solid oklch(0.58 0.18 250 / 0.35);
+}
+.onboard-item .desc {
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--sidebar-text-muted);
+}
+.onboard-item .desc .mono {
+  font-family: var(--font-mono);
+  color: var(--sidebar-text);
+}
+.onboard-item.upcoming .title { color: var(--sidebar-text); }
+.onboard-item.upcoming .desc  { opacity: 0.75; }
+
+
+/* ── Notice (info callout above form) ────────────────────────── */
+.notice {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--primary-surface);
+  border: 1px solid oklch(0.58 0.18 250 / 0.25);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  line-height: var(--leading-relaxed);
+  color: var(--foreground);
+}
+.notice svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--primary);
+}
+.notice strong { font-weight: 600; }
+.notice .mono  { font-family: var(--font-mono); font-size: 11px; }
+
+
+/* ── Field hint (inline) ─────────────────────────────────────── */
+.hint {
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--foreground-subtle);
+}
+
+
+/* ── Password strength (mono ticks) ──────────────────────────── */
+.strength {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+}
+.strength-ticks {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.15em;
+  color: var(--border-strong);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.strength[data-level="1"] .strength-ticks { color: var(--danger);  }
+.strength[data-level="2"] .strength-ticks { color: var(--warning); }
+.strength[data-level="3"] .strength-ticks { color: var(--primary); }
+.strength[data-level="4"] .strength-ticks { color: var(--success); }
+.strength-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-subtle);
+}
+
+
+/* ── Section group (numbered rail + body) ────────────────────── */
+.section-group {
+  position: relative;
+  display: flex;
+  gap: var(--space-5);
+}
+.section-group .rail {
+  flex-shrink: 0;
+  width: 28px;
+  padding-top: 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.section-group .rail .num {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--foreground-muted);
+}
+.section-group .rail .line {
+  flex: 1;
+  width: 1px;
+  margin-top: 4px;
+  background: var(--border-subtle);
+}
+.section-group.active .rail .num {
+  border-color: var(--primary);
+  background: var(--primary-surface);
+  color: var(--primary);
+}
+.section-group .body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.section-group .section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.section-group .section-header .title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--foreground);
+}
+.section-group .section-header .meta {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-subtle);
+}
+
+
+/* ── Org verification card ───────────────────────────────────── */
+.org-verify {
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  transition: border-color var(--duration-fast), background var(--duration-fast);
+}
+.org-verify[data-state="ok"] {
+  border-color: var(--success);
+  background: oklch(0.96 0.04 150 / 0.25);
+}
+[data-theme="dark"] .org-verify[data-state="ok"] {
+  background: oklch(0.28 0.06 150 / 0.25);
+}
+.org-verify[data-state="bad"] { border-color: var(--danger); }
+
+.org-verify .row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--foreground-muted);
+}
+.org-verify .row .k {
+  min-width: 88px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--foreground-subtle);
+}
+.org-verify .row .v       { color: var(--foreground); }
+.org-verify .row .v.mono  { font-family: var(--font-mono); }
+
+.org-verify .status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-subtle);
+}
+.org-verify .status .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border-strong);
+}
+.org-verify[data-state="ok"] .status       { color: var(--success); }
+.org-verify[data-state="ok"] .status .dot  {
+  background: var(--success);
+  box-shadow: 0 0 0 3px oklch(0.62 0.14 150 / 0.18);
+}
+.org-verify[data-state="checking"] .status       { color: var(--primary); }
+.org-verify[data-state="checking"] .status .dot  {
+  background: var(--primary);
+  animation: pulse-dot 1s ease-in-out infinite;
+}
+.org-verify[data-state="bad"] .status       { color: var(--danger); }
+.org-verify[data-state="bad"] .status .dot  { background: var(--danger); }
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1;   }
+  50%      { opacity: 0.3; }
+}
+
+
+/* ── Org verify button (inline state) ────────────────────────── */
+#org-verify-btn[data-state="checking"]     { color: var(--primary); }
+#org-verify-btn[data-state="checking"] svg { animation: pulse-dot 1s ease-in-out infinite; }
+#org-verify-btn[data-state="ok"]           { color: var(--success); }
+#org-verify-btn[data-state="ok"] svg       { display: none; }
+#org-verify-btn[data-state="ok"]::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  margin-right: 2px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg>") center / contain no-repeat;
+          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg>") center / contain no-repeat;
+}
+#org-verify-btn[data-state="bad"] { color: var(--danger); }
+
+
+/* ── Org alt (footer strip: "no code?") ──────────────────────── */
+.org-alt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-sunken);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  color: var(--foreground-muted);
+}
+.org-alt .left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.org-alt .left svg {
+  width: 14px;
+  height: 14px;
+  color: var(--foreground-subtle);
+}
+.org-alt a {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--primary);
+  text-decoration: none;
+}
+.org-alt a:hover { text-decoration: underline; }

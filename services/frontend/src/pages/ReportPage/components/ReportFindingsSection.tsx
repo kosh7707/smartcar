@@ -22,49 +22,49 @@ interface ReportFindingsSectionProps {
 }
 
 export const ReportFindingsSection: React.FC<ReportFindingsSectionProps> = ({ findings }) => (
-  <Card className="border-border/80 shadow-none">
-    <CardHeader className="border-b border-border/70">
+  <Card className="report-findings-card">
+    <CardHeader className="report-findings-card__head">
       <CardTitle>탐지 항목 목록 ({findings.length})</CardTitle>
     </CardHeader>
-    <CardContent className="px-0">
+    <CardContent className="report-findings-card__body">
       {findings.length === 0 ? (
-        <div className="px-4 py-6">
+        <div className="report-findings-card__empty">
           <EmptyState compact title="해당 조건의 탐지 항목이 없습니다" />
         </div>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="px-4 text-xs text-muted-foreground">상태</TableHead>
-              <TableHead className="text-xs text-muted-foreground">심각도</TableHead>
-              <TableHead className="text-xs text-muted-foreground">제목</TableHead>
-              <TableHead className="text-xs text-muted-foreground">출처</TableHead>
-              <TableHead className="text-xs text-muted-foreground">모듈</TableHead>
-              <TableHead className="px-4 text-center text-xs text-muted-foreground">증적</TableHead>
+              <TableHead className="report-findings-card__head-cell report-findings-card__head-cell--pad">상태</TableHead>
+              <TableHead className="report-findings-card__head-cell">심각도</TableHead>
+              <TableHead className="report-findings-card__head-cell">제목</TableHead>
+              <TableHead className="report-findings-card__head-cell">출처</TableHead>
+              <TableHead className="report-findings-card__head-cell">모듈</TableHead>
+              <TableHead className="report-findings-card__head-cell report-findings-card__head-cell--center report-findings-card__head-cell--pad">증적</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {findings.map(({ finding, evidenceRefs }) => (
               <TableRow key={finding.id}>
-                <TableCell className="px-4"><FindingStatusBadge status={finding.status} size="sm" /></TableCell>
+                <TableCell className="report-findings-card__cell report-findings-card__cell--pad"><FindingStatusBadge status={finding.status} size="sm" /></TableCell>
                 <TableCell><SeverityBadge severity={finding.severity} size="sm" /></TableCell>
-                <TableCell className="whitespace-normal">
-                  <div className="space-y-1">
-                    <p className="font-medium text-foreground">{finding.title}</p>
+                <TableCell className="report-findings-card__cell report-findings-card__cell--wrap">
+                  <div className="report-findings-card__title-block">
+                    <p className="report-findings-card__title">{finding.title}</p>
                     {finding.location && (
-                      <p className="font-mono text-xs text-muted-foreground">{finding.location}</p>
+                      <p className="report-findings-card__location">{finding.location}</p>
                     )}
                   </div>
                 </TableCell>
-                <TableCell className="whitespace-normal"><SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} /></TableCell>
+                <TableCell className="report-findings-card__cell report-findings-card__cell--wrap"><SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} /></TableCell>
                 <TableCell>{MODULE_META[finding.module]?.label ?? finding.module}</TableCell>
-                <TableCell className="px-4 text-center">
+                <TableCell className="report-findings-card__cell report-findings-card__cell--center report-findings-card__cell--pad">
                   {evidenceRefs.length > 0 ? (
-                    <Badge variant="outline" className="rounded-md px-2 py-1 text-xs text-muted-foreground">
+                    <Badge variant="outline" className="report-findings-card__evidence-badge">
                       {evidenceRefs.length}건
                     </Badge>
                   ) : (
-                    <span className="text-sm text-muted-foreground">&mdash;</span>
+                    <span className="report-findings-card__evidence-empty">&mdash;</span>
                   )}
                 </TableCell>
               </TableRow>

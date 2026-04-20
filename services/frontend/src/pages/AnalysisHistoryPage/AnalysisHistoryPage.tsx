@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader, Spinner } from "../../shared/ui";
 import { useToast } from "../../contexts/ToastContext";
@@ -21,20 +21,18 @@ export const AnalysisHistoryPage: React.FC = () => {
     failedCount,
   } = useAnalysisHistoryPage(projectId, toast);
 
-  useEffect(() => {
-    document.title = "AEGIS — 분석 이력";
-  }, []);
+  document.title = "AEGIS — 분석 이력";
 
   if (loading) {
     return (
-      <div className="page-enter flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
+      <div className="page-loading-shell">
         <Spinner size={36} label="분석 이력 로딩 중..." />
       </div>
     );
   }
 
   return (
-    <div className="page-enter history-page flex flex-col gap-6 max-sm:gap-5">
+    <div className="page-shell history-page">
       <PageHeader
         surface="plain"
         title="분석 이력"

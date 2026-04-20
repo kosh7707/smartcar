@@ -19,10 +19,10 @@ export const TopFilesCard: React.FC<Props> = ({ topFiles, onFileClick }) => {
   if (topFiles.length === 0) return null;
 
   return (
-    <Card className="shadow-none">
-      <CardContent className="space-y-3 p-5">
+    <Card className="overall-top-files-card">
+      <CardContent className="overall-top-files-card__body">
         <CardTitle>취약 파일 Top {topFiles.length}</CardTitle>
-        <div className="space-y-2">
+        <div className="overall-top-files-card__list">
           {topFiles.map((f, i) => {
             const rowProps = onFileClick
               ? {
@@ -39,17 +39,17 @@ export const TopFilesCard: React.FC<Props> = ({ topFiles, onFileClick }) => {
                 key={f.filePath}
                 {...rowProps}
                 className={[
-                  "flex items-center gap-3 rounded-lg border border-border/70 px-4 py-3 text-sm",
-                  onFileClick ? "cursor-pointer transition-colors hover:bg-muted/40" : "",
+                  "overall-top-files-card__row",
+                  onFileClick ? "overall-top-files-card__row--clickable" : "",
                 ].join(" ")}
               >
-                <span className="w-6 shrink-0 text-sm font-semibold text-muted-foreground">{i + 1}</span>
-                <span className="min-w-0 flex-1 truncate font-medium text-foreground" title={f.filePath}>
+                <span className="overall-top-files-card__rank">{i + 1}</span>
+                <span className="overall-top-files-card__name" title={f.filePath}>
                   {f.filePath}
                 </span>
-                <span className="shrink-0 font-mono text-sm text-muted-foreground">{f.findingCount}건</span>
+                <span className="overall-top-files-card__count">{f.findingCount}건</span>
                 <SeverityBadge severity={f.topSeverity as Severity} size="sm" />
-                {onFileClick && <ExternalLink size={14} className="shrink-0 text-muted-foreground" />}
+                {onFileClick && <ExternalLink size={14} className="overall-top-files-card__icon" />}
               </div>
             );
           })}

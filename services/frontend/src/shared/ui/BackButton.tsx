@@ -9,7 +9,7 @@ interface Props {
 
 export const BackButton: React.FC<Props> = ({ onClick, label = "뒤로" }) => {
   return (
-    <Button variant="outline" size="sm" className="mb-5" onClick={onClick}>
+    <Button variant="outline" size="sm" className="back-button" onClick={onClick}>
       <ArrowLeft size={14} />
       {label}
     </Button>

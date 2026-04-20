@@ -56,7 +56,7 @@ export function ReportContent({
   sevMax,
 }: ReportContentProps) {
   return (
-    <div className="page-enter space-y-6">
+    <div className="page-enter report-content">
       <ReportHeader
         generatedAt={report.generatedAt}
         hasActiveFilters={hasActiveFilters}
@@ -78,17 +78,17 @@ export function ReportContent({
       <Tabs
         value={activeTab}
         onValueChange={(value) => setActiveTab(value as ModuleTab)}
-        className="print-hide"
+        className="report-content__tabs print-hide"
       >
         <TabsList
           variant="line"
-          className="h-auto w-full justify-start overflow-x-auto rounded-none border-b border-border p-0"
+          className="report-module-tabs"
         >
           {(Object.keys(MODULE_TAB_LABELS) as ModuleTab[]).map((tab) => (
             <TabsTrigger
               key={tab}
               value={tab}
-              className="rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-active:border-primary data-active:text-foreground"
+              className="report-module-tabs__trigger"
             >
               {MODULE_TAB_LABELS[tab]}
             </TabsTrigger>
@@ -96,7 +96,7 @@ export function ReportContent({
         </TabsList>
       </Tabs>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.95fr)]">
+      <div className="report-content__top-grid">
         <ReportExecutiveSummary
           report={report}
           allRuns={allRuns}

@@ -79,17 +79,17 @@ export const BuildTargetCreateDialog: React.FC<Props> = ({
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onCancel(); }}>
       <DialogContent
-        className="flex flex-col max-h-[85vh] max-w-[600px] grid-rows-[auto_1fr_auto] gap-0 overflow-hidden border-border bg-card p-0 shadow-2xl sm:max-w-[600px]"
+        className="build-target-create-dialog"
         overlayClassName="confirm-overlay"
         onOverlayClick={onCancel}
         showCloseButton={false}
       >
-        <DialogHeader className="border-b border-border px-5 py-4">
+        <DialogHeader className="build-target-create-dialog__header">
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-          <Label className="flex-col items-start gap-2">
+        <div className="build-target-create-dialog__body">
+          <Label className="build-target-create-dialog__field">
             <span>BuildTarget 이름</span>
             <Input
               value={name}
@@ -99,13 +99,13 @@ export const BuildTargetCreateDialog: React.FC<Props> = ({
             />
           </Label>
 
-          <div className="space-y-3">
-            <span className="text-sm font-medium text-foreground">포함할 파일/폴더 선택</span>
-            {includedPathsHelpText && (
-              <div className="text-sm leading-6 text-muted-foreground" role="note">
+          <div className="build-target-create-dialog__section">
+            <span className="build-target-create-dialog__section-title">포함할 파일/폴더 선택</span>
+            {includedPathsHelpText ? (
+              <div className="build-target-create-dialog__help" role="note">
                 {includedPathsHelpText}
               </div>
-            )}
+            ) : null}
             <BuildTargetTreeSelector
               sourceFiles={sourceFiles}
               checked={checked}
@@ -114,15 +114,15 @@ export const BuildTargetCreateDialog: React.FC<Props> = ({
             />
           </div>
 
-          <div className="py-1 text-sm text-muted-foreground">
-            선택: <strong className="font-semibold text-primary">{selectedCount}개 파일</strong>
-            {selectedSize > 0 && <> · {formatFileSize(selectedSize)}</>}
+          <div className="build-target-create-dialog__selection-summary">
+            선택: <strong className="build-target-create-dialog__selection-count">{selectedCount}개 파일</strong>
+            {selectedSize > 0 ? <> · {formatFileSize(selectedSize)}</> : null}
           </div>
 
           <BuildProfileForm value={profile} onChange={setProfile} registeredSdks={registeredSdks} />
         </div>
 
-        <DialogFooter className="flex-row justify-end gap-2 rounded-b-xl border-t bg-muted/30 px-5 py-4">
+        <DialogFooter className="build-target-create-dialog__footer">
           <Button variant="outline" onClick={onCancel}>취소</Button>
           <Button onClick={handleCreate} disabled={creating || selectedCount === 0}>
             {creating ? <Spinner size={14} /> : null}

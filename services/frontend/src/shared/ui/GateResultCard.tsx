@@ -12,18 +12,18 @@ interface Props {
 const STATUS_CONFIG = {
   pass: {
     label: "통과",
-    badgeClass: "border-emerald-400/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-    cardClass: "border-l-4 border-l-emerald-500",
+    badgeClass: "gate-result-tone gate-result-tone--pass",
+    cardClass: "gate-result-card gate-result-card--pass",
   },
   fail: {
     label: "실패",
-    badgeClass: "border-destructive/50 bg-destructive/10 text-destructive",
-    cardClass: "border-l-4 border-l-[var(--aegis-severity-critical)]",
+    badgeClass: "gate-result-tone gate-result-tone--fail",
+    cardClass: "gate-result-card gate-result-card--fail",
   },
   warning: {
     label: "경고",
-    badgeClass: "border-yellow-400/50 bg-yellow-500/10 text-yellow-700 dark:text-yellow-200",
-    cardClass: "border-l-4 border-l-[var(--aegis-severity-medium)]",
+    badgeClass: "gate-result-tone gate-result-tone--warning",
+    cardClass: "gate-result-card gate-result-card--warning",
   },
 } as const;
 
@@ -39,13 +39,13 @@ export const GateResultCard: React.FC<Props> = ({ gate, compact }) => {
   }
 
   return (
-    <Card className={`${cfg.cardClass} shadow-none`}>
-      <CardContent className="space-y-4 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <span className="text-sm font-semibold text-foreground">Quality Gate: {cfg.label}</span>
-          <span className="text-xs text-muted-foreground">{formatDateTime(gate.evaluatedAt)}</span>
+    <Card className={cfg.cardClass}>
+      <CardContent className="gate-result-card__body">
+        <div className="gate-result-card__head">
+          <span className="gate-result-card__title">Quality Gate: {cfg.label}</span>
+          <span className="gate-result-card__time">{formatDateTime(gate.evaluatedAt)}</span>
         </div>
-        <div className="space-y-2">
+        <div className="gate-result-card__rules">
           {gate.rules.map((r) => {
             const tone = r.result === "passed"
               ? STATUS_CONFIG.pass.badgeClass
@@ -53,20 +53,20 @@ export const GateResultCard: React.FC<Props> = ({ gate, compact }) => {
                 ? STATUS_CONFIG.fail.badgeClass
                 : STATUS_CONFIG.warning.badgeClass;
             return (
-              <div key={r.ruleId} className="flex items-start gap-2 text-sm">
-                <Badge variant="outline" className={`text-xs ${tone}`}>
+              <div key={r.ruleId} className="gate-result-card__rule">
+                <Badge variant="outline" className={tone}>
                   {r.result === "passed" ? "PASS" : r.result === "failed" ? "FAIL" : "WARN"}
                 </Badge>
-                <span className="min-w-0 flex-1 text-muted-foreground">{r.message}</span>
+                <span className="gate-result-card__message">{r.message}</span>
               </div>
             );
           })}
         </div>
-        {gate.override && (
-          <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+        {gate.override ? (
+          <div className="gate-result-card__override">
             Override by {gate.override.overriddenBy}: {gate.override.reason}
           </div>
-        )}
+        ) : null}
       </CardContent>
     </Card>
   );

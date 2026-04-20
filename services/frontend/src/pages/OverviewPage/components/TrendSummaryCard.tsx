@@ -14,21 +14,21 @@ const trendItems = [
     label: "신규 발견",
     getValue: (trend?: OverviewTrend | null) => `+${trend?.newFindings ?? 0}`,
     icon: TrendingUp,
-    className: "bg-red-500/8 text-red-700 dark:text-red-300",
+    className: "trend-summary__item trend-summary__item--new",
   },
   {
     key: "resolved",
     label: "해결됨",
     getValue: (trend?: OverviewTrend | null) => `-${trend?.resolvedFindings ?? 0}`,
     icon: TrendingDown,
-    className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    className: "trend-summary__item trend-summary__item--resolved",
   },
   {
     key: "total",
     label: "미해결 총계",
     getValue: (trend?: OverviewTrend | null) => `${trend?.unresolvedTotal ?? 0}`,
     icon: Minus,
-    className: "bg-muted text-foreground",
+    className: "trend-summary__item trend-summary__item--total",
   },
 ] as const;
 
@@ -36,25 +36,23 @@ export const TrendSummaryCard: React.FC<TrendSummaryCardProps> = ({ trend }) => 
   if (!hasTrendSignal(trend)) return null;
 
   return (
-    <Card className="border-border/70 bg-card/80 shadow-none">
-      <CardContent className="space-y-4">
-        <CardTitle className="flex items-center gap-2">
+    <Card className="trend-summary-card">
+      <CardContent className="trend-summary-card__body">
+        <CardTitle className="trend-summary-card__title">
           <Activity size={16} />
           이전 분석 대비 변화
         </CardTitle>
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="trend-summary-card__grid">
           {trendItems.map((item) => {
             const Icon = item.icon;
 
             return (
-              <div key={item.key} className={`rounded-xl px-4 py-3 ${item.className}`}>
-                <div className="flex items-center gap-2 text-sm font-medium">
+              <div key={item.key} className={item.className}>
+                <div className="trend-summary__item-head">
                   <Icon size={16} />
                   <span>{item.label}</span>
                 </div>
-                <div className="mt-3 font-mono text-2xl font-semibold leading-none tracking-tight">
-                  {item.getValue(trend)}
-                </div>
+                <div className="trend-summary__item-value">{item.getValue(trend)}</div>
               </div>
             );
           })}

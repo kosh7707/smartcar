@@ -1,5 +1,4 @@
 import React from "react";
-import type { FindingStatus } from "@aegis/shared";
 import { FINDING_STATUS_LABELS, FINDING_STATUS_ORDER } from "../../constants/finding";
 
 interface Props {
@@ -18,37 +17,37 @@ const STATUS_CSS_KEY: Record<string, string> = {
 
 export const FindingSummary: React.FC<Props> = ({ byStatus }) => {
   const entries = FINDING_STATUS_ORDER
-    .filter((s) => (byStatus[s] ?? 0) > 0)
-    .map((s) => ({ status: s, count: byStatus[s], cssKey: STATUS_CSS_KEY[s] ?? s }));
+    .filter((status) => (byStatus[status] ?? 0) > 0)
+    .map((status) => ({ status, count: byStatus[status], cssKey: STATUS_CSS_KEY[status] ?? status }));
 
-  const total = entries.reduce((sum, e) => sum + e.count, 0);
+  const total = entries.reduce((sum, entry) => sum + entry.count, 0);
   if (total === 0) return null;
 
   return (
-    <div className="mb-3">
-      <div className="flex h-2.5 overflow-hidden rounded-full bg-muted">
-        {entries.map((e) => (
+    <div className="finding-summary">
+      <div className="finding-summary__bar">
+        {entries.map((entry) => (
           <div
-            key={e.status}
-            className="min-w-0 transition-[width] duration-500 ease-out"
+            key={entry.status}
+            className="finding-summary__segment"
             style={{
-              width: `${(e.count / total) * 100}%`,
-              background: `var(--status-${e.cssKey})`,
+              width: `${(entry.count / total) * 100}%`,
+              background: `var(--status-${entry.cssKey})`,
             }}
           />
         ))}
       </div>
-      <div className="mt-3 flex flex-wrap gap-5">
-        {entries.map((e) => (
-          <div key={e.status} className="flex items-center gap-2">
+      <div className="finding-summary__legend">
+        {entries.map((entry) => (
+          <div key={entry.status} className="finding-summary__legend-item">
             <span
-              className="size-2 shrink-0 rounded-full"
-              style={{ background: `var(--status-${e.cssKey})` }}
+              className="finding-summary__legend-dot"
+              style={{ background: `var(--status-${entry.cssKey})` }}
             />
-            <span className="text-sm text-muted-foreground">
-              {FINDING_STATUS_LABELS[e.status]}
+            <span className="finding-summary__legend-label">
+              {FINDING_STATUS_LABELS[entry.status]}
             </span>
-            <span className="text-sm font-semibold text-foreground">{e.count}</span>
+            <span className="finding-summary__legend-value">{entry.count}</span>
           </div>
         ))}
       </div>

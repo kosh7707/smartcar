@@ -13,25 +13,18 @@ export function QualityGateStatusBanner({ gate }: { gate: GateResult }) {
 
   return (
     <Card
-      className={cn(
-        "overflow-hidden border-l-4 shadow-none",
-        config.bannerClassName,
-        config.accentClassName,
-      )}
+      className={cn(config.bannerClassName, config.accentClassName)}
     >
-      <CardContent className="flex flex-col gap-3 p-5">
-        <div className="space-y-2">
+      <CardContent className="quality-gate-status-banner__body">
+        <div className="quality-gate-status-banner__copy">
           <Badge
             variant="outline"
-            className={cn(
-              "min-h-8 rounded-full px-3 text-sm font-semibold",
-              config.badgeClassName,
-            )}
+            className={cn(config.badgeClassName)}
           >
             {verdict}
           </Badge>
-          <div className="text-lg font-semibold tracking-tight">품질 게이트</div>
-          <p className="text-sm text-muted-foreground">
+          <div className="quality-gate-status-banner__title">품질 게이트</div>
+          <p className="quality-gate-status-banner__timestamp">
             최근 평가: {formatDateTime(gate.evaluatedAt)}
           </p>
         </div>

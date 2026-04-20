@@ -32,20 +32,20 @@ export function SettingsBackendSection({
   onReset,
 }: SettingsBackendSectionProps) {
   return (
-    <Card className="border-border/70 shadow-none">
-      <CardHeader className="gap-4 border-b border-border/60 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl border border-border/60 bg-muted/40 text-muted-foreground">
+    <Card className="settings-backend-card">
+      <CardHeader className="settings-backend-card__head">
+        <div className="settings-backend-card__title-row">
+          <div className="settings-backend-card__icon-shell">
             <Server size={20} />
           </div>
-          <CardTitle className="text-lg">백엔드 연결</CardTitle>
+          <CardTitle className="settings-backend-card__title">백엔드 연결</CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 pt-5">
-        <Label className="flex flex-col items-start gap-2" htmlFor="backend-url">
-          <span className="text-sm font-medium text-muted-foreground">API 서버 주소</span>
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <div className="relative flex-1">
+      <CardContent className="settings-backend-card__body">
+        <Label className="settings-backend-card__field" htmlFor="backend-url">
+          <span className="settings-backend-card__label">API 서버 주소</span>
+          <div className="settings-backend-card__controls">
+            <div className="settings-backend-card__input-wrap">
               <Input
                 id="backend-url"
                 type="text"
@@ -53,25 +53,25 @@ export function SettingsBackendSection({
                 onChange={(event) => onUrlChange(event.target.value)}
                 placeholder="http://localhost:3000"
                 spellCheck={false}
-                className="pr-10 font-mono text-sm"
+                className="settings-backend-card__input"
               />
-              {testStatus === "ok" && (
-                <span className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full bg-emerald-500 p-1 text-white">
+              {testStatus === "ok" ? (
+                <span className="settings-backend-card__status-indicator settings-backend-card__status-indicator--ok">
                   <Check size={12} />
                 </span>
-              )}
-              {testStatus === "error" && (
-                <span className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full bg-destructive p-1 text-white">
+              ) : null}
+              {testStatus === "error" ? (
+                <span className="settings-backend-card__status-indicator settings-backend-card__status-indicator--error">
                   <X size={12} />
                 </span>
-              )}
-              {testStatus === "testing" && (
-                <span className="absolute top-1/2 right-3 -translate-y-1/2 text-primary">
+              ) : null}
+              {testStatus === "testing" ? (
+                <span className="settings-backend-card__status-indicator settings-backend-card__status-indicator--testing">
                   <Spinner size={12} />
                 </span>
-              )}
+              ) : null}
             </div>
-            <div className="flex gap-2">
+            <div className="settings-backend-card__actions">
               <Button
                 variant="outline"
                 size="sm"
@@ -86,21 +86,19 @@ export function SettingsBackendSection({
             </div>
           </div>
         </Label>
-        {testStatus !== "idle" && testStatus !== "testing" && (
+        {testStatus !== "idle" && testStatus !== "testing" ? (
           <div
             className={cn(
-              "rounded-lg border px-4 py-3 font-mono text-sm",
-              testStatus === "ok" &&
-                "border-emerald-400/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-              testStatus === "error" &&
-                "border-destructive/40 bg-destructive/10 text-destructive",
+              "settings-backend-card__status-message",
+              testStatus === "ok" && "settings-backend-card__status-message--ok",
+              testStatus === "error" && "settings-backend-card__status-message--error",
             )}
           >
             {testStatus === "ok" ? `연결 성공 — ${testDetail}` : testDetail}
           </div>
-        )}
+        ) : null}
         <div>
-          <Button variant="link" className="px-0 text-muted-foreground" onClick={onReset}>
+          <Button variant="link" className="settings-backend-card__reset" onClick={onReset}>
             기본값으로 초기화
           </Button>
         </div>

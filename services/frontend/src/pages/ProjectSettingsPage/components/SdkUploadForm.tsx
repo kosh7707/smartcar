@@ -142,8 +142,8 @@ export const SdkUploadForm: React.FC<SdkUploadFormProps> = ({ projectId, onRegis
   const accept = mode === "archive" ? ARCHIVE_ACCEPT : mode === "bin" ? BIN_ACCEPT : undefined;
 
   return (
-    <Card className="sdk-register-form border-border bg-card/95 shadow-none">
-      <CardContent className="space-y-4 p-4">
+    <Card className="sdk-register-form">
+      <CardContent className="sdk-register-form__body">
       <div className="sdk-register-form__modes">
         {MODES.map((entry) => {
           return (
@@ -161,8 +161,8 @@ export const SdkUploadForm: React.FC<SdkUploadFormProps> = ({ projectId, onRegis
       </div>
 
       <div className="sdk-register-form__fields">
-        <Label className="flex flex-col items-start gap-2">
-          <span className="text-sm font-medium text-muted-foreground">SDK 이름</span>
+        <Label className="sdk-register-form__field">
+          <span className="sdk-register-form__label">SDK 이름</span>
           <Input
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -170,8 +170,8 @@ export const SdkUploadForm: React.FC<SdkUploadFormProps> = ({ projectId, onRegis
             autoFocus
           />
         </Label>
-        <Label className="flex flex-col items-start gap-2">
-          <span className="text-sm font-medium text-muted-foreground">설명 (선택)</span>
+        <Label className="sdk-register-form__field">
+          <span className="sdk-register-form__label">설명 (선택)</span>
           <Input
             value={description}
             onChange={(event) => setDescription(event.target.value)}

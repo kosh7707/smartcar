@@ -15,14 +15,14 @@ export const ProjectSettingsPage: React.FC = () => {
 
   if (state.loading) {
     return (
-      <div className="page-enter flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
+      <div className="page-loading-shell">
         <Spinner size={36} label="설정 로딩 중..." />
       </div>
     );
   }
 
   return (
-    <div className="page-enter flex flex-col gap-6">
+    <div className="page-shell">
       <ConnectionStatusBanner connectionState={state.sdkConnectionState} />
       <ProjectSettingsHeader />
 
@@ -30,11 +30,11 @@ export const ProjectSettingsPage: React.FC = () => {
         value={state.activeSection}
         onValueChange={(value) => state.setActiveSection(value as typeof state.activeSection)}
         orientation="vertical"
-        className="grid items-start gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]"
+        className="project-settings-layout"
       >
         <ProjectSettingsSidebar />
 
-        <div className="min-w-0 space-y-5">
+        <div className="project-settings-main">
           <ProjectSettingsContent
             activeSection={state.activeSection}
             projectId={projectId}

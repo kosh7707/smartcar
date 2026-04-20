@@ -10,6 +10,7 @@ import {
   Target,
 } from "lucide-react";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { highlightCVEs } from "../../../utils/cveHighlight";
 
 const TERMINATION_LABELS: Record<string, string> = {
@@ -41,6 +42,12 @@ const BREAKDOWN_LABELS: { key: string; label: string }[] = [
   { key: "schemaCompliance", label: "스키마 준수" },
 ];
 
+function getPolicyFlagClass(flag: string): string {
+  if (flag.startsWith("CVE-")) return "agent-result-flag agent-result-flag--cve";
+  if (flag.startsWith("CWE-")) return "agent-result-flag agent-result-flag--cwe";
+  return "agent-result-flag";
+}
+
 export const AgentResultPanel: React.FC<Props> = ({ analysisResult }) => {
   const [auditOpen, setAuditOpen] = useState(false);
 
@@ -66,38 +73,39 @@ export const AgentResultPanel: React.FC<Props> = ({ analysisResult }) => {
   if (!hasAgentData) return null;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="agent-result-panel">
       {confidenceScore != null && (
-        <Card className="shadow-none">
-          <CardContent className="space-y-3 p-5">
-            <CardTitle className="flex items-center gap-2">
+        <Card className="agent-result-card">
+          <CardContent className="agent-result-card-body">
+            <CardTitle className="agent-result-title">
               <Target size={16} /> 분석 신뢰도
             </CardTitle>
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-              <div className="flex shrink-0 flex-col items-center gap-2">
-                <span className="font-mono text-2xl font-semibold text-foreground tabular-nums">
+            <div className="agent-result-score-layout">
+              <div className="agent-result-score-main">
+                <span className="agent-result-score-value">
                   {(confidenceScore * 100).toFixed(1)}%
                 </span>
-                <span className="text-sm text-muted-foreground">신뢰도</span>
+                <span className="agent-result-score-label">신뢰도</span>
                 {needsHumanReview && (
-                  <span className="mt-1 inline-flex min-h-6 items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--aegis-severity-high)_12%,transparent)] px-2 text-sm font-semibold text-[var(--aegis-severity-high)]">
+                  <span className="agent-result-review-badge">
                     <AlertTriangle size={11} /> 검토 필요
                   </span>
                 )}
               </div>
               {confidenceBreakdown && (
-                <div className="min-w-0 flex-1 space-y-3">
+                <div className="agent-result-breakdown">
                   {BREAKDOWN_LABELS.map(({ key, label }) => {
                     const value = (confidenceBreakdown as Record<string, number>)[key] ?? 0;
                     return (
-                      <div key={key} className="flex items-center gap-4">
-                        <span className="w-[140px] shrink-0 text-right text-sm text-muted-foreground max-sm:w-[100px]">
-                          {label}
-                        </span>
-                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-border/70">
-                          <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${value * 100}%` }} />
+                      <div key={key} className="agent-result-breakdown-row">
+                        <span className="agent-result-breakdown-label">{label}</span>
+                        <div className="agent-result-breakdown-bar">
+                          <div
+                            className="agent-result-breakdown-fill"
+                            style={{ width: `${value * 100}%` }}
+                          />
                         </div>
-                        <span className="w-9 text-right text-sm font-semibold text-foreground tabular-nums">
+                        <span className="agent-result-breakdown-value">
                           {(value * 100).toFixed(0)}
                         </span>
                       </div>
@@ -111,12 +119,12 @@ export const AgentResultPanel: React.FC<Props> = ({ analysisResult }) => {
       )}
 
       {caveats && caveats.length > 0 && (
-        <Card className="shadow-none">
-          <CardContent className="space-y-3 p-5">
-            <CardTitle className="flex items-center gap-2">
+        <Card className="agent-result-card">
+          <CardContent className="agent-result-card-body">
+            <CardTitle className="agent-result-title">
               <AlertTriangle size={16} /> 분석 한계 ({caveats.length})
             </CardTitle>
-            <ul className="list-disc space-y-3 pl-5 text-sm leading-7 text-muted-foreground">
+            <ul className="agent-result-list agent-result-list--bulleted">
               {caveats.map((c, i) => (
                 <li key={i}>{highlightCVEs(c)}</li>
               ))}
@@ -126,12 +134,12 @@ export const AgentResultPanel: React.FC<Props> = ({ analysisResult }) => {
       )}
 
       {recommendedNextSteps && recommendedNextSteps.length > 0 && (
-        <Card className="shadow-none">
-          <CardContent className="space-y-3 p-5">
-            <CardTitle className="flex items-center gap-2">
+        <Card className="agent-result-card">
+          <CardContent className="agent-result-card-body">
+            <CardTitle className="agent-result-title">
               <ClipboardList size={16} /> 수정 권고 ({recommendedNextSteps.length})
             </CardTitle>
-            <ol className="list-decimal space-y-3 pl-5 text-sm leading-7 text-muted-foreground">
+            <ol className="agent-result-list agent-result-list--ordered">
               {recommendedNextSteps.map((step, i) => (
                 <li key={i}>{step}</li>
               ))}
@@ -141,69 +149,58 @@ export const AgentResultPanel: React.FC<Props> = ({ analysisResult }) => {
       )}
 
       {policyFlags && policyFlags.length > 0 && (
-        <Card className="shadow-none">
-          <CardContent className="space-y-3 p-5">
-            <CardTitle className="flex items-center gap-2">
+        <Card className="agent-result-card">
+          <CardContent className="agent-result-card-body">
+            <CardTitle className="agent-result-title">
               <Tag size={16} /> 정책 플래그
             </CardTitle>
-            <div className="flex flex-wrap gap-3">
-              {policyFlags.map((flag) => {
-                const isCve = flag.startsWith("CVE-");
-                const isCwe = flag.startsWith("CWE-");
-                return (
-                  <span
-                    key={flag}
-                    className={[
-                      "inline-flex min-h-6 items-center rounded-full border px-2 text-sm font-medium",
-                      isCve
-                        ? "border-[var(--aegis-severity-high)] bg-[color-mix(in_srgb,var(--aegis-severity-high)_8%,transparent)] text-[var(--aegis-severity-high)]"
-                        : isCwe
-                          ? "border-[var(--aegis-severity-medium)] bg-[color-mix(in_srgb,var(--aegis-severity-medium)_8%,transparent)] text-[var(--aegis-severity-medium)]"
-                          : "border-border bg-background/90 text-muted-foreground",
-                    ].join(" ")}
-                  >
-                    {flag}
-                  </span>
-                );
-              })}
+            <div className="agent-result-flags">
+              {policyFlags.map((flag) => (
+                <span key={flag} className={getPolicyFlagClass(flag)}>
+                  {flag}
+                </span>
+              ))}
             </div>
           </CardContent>
         </Card>
       )}
 
       {scaLibraries && scaLibraries.length > 0 && (
-        <Card className="shadow-none">
-          <CardContent className="space-y-3 p-5">
-            <CardTitle className="flex items-center gap-2">
+        <Card className="agent-result-card">
+          <CardContent className="agent-result-card-body">
+            <CardTitle className="agent-result-title">
               <Package size={16} /> 서드파티 라이브러리 ({scaLibraries.length})
             </CardTitle>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
+            <div className="agent-result-table-wrap">
+              <table className="agent-result-table">
                 <thead>
                   <tr>
-                    <th className="border-b border-border px-4 py-3 text-left text-sm font-semibold text-muted-foreground">이름</th>
-                    <th className="border-b border-border px-4 py-3 text-left text-sm font-semibold text-muted-foreground">버전</th>
-                    <th className="border-b border-border px-4 py-3 text-left text-sm font-semibold text-muted-foreground">경로</th>
+                    <th>이름</th>
+                    <th>버전</th>
+                    <th>경로</th>
                   </tr>
                 </thead>
                 <tbody>
                   {scaLibraries.map((lib) => (
                     <tr key={`${lib.name}-${lib.path}`}>
-                      <td className="border-b border-border px-4 py-3 font-medium text-foreground">
+                      <td className="agent-result-table-name">
                         {lib.repoUrl ? (
-                          <a href={lib.repoUrl} target="_blank" rel="noopener noreferrer" className="text-primary no-underline hover:underline">
+                          <a
+                            href={lib.repoUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="agent-result-table-link"
+                          >
                             {lib.name}
                           </a>
                         ) : (
                           lib.name
                         )}
                       </td>
-                      <td className="border-b border-border px-4 py-3 font-mono text-sm text-muted-foreground">
+                      <td className="agent-result-table-mono">
                         {lib.version ?? "—"}
                       </td>
-                      <td className="border-b border-border px-4 py-3 font-mono text-sm text-muted-foreground">
-                        {lib.path}
-                      </td>
+                      <td className="agent-result-table-mono">{lib.path}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -214,59 +211,71 @@ export const AgentResultPanel: React.FC<Props> = ({ analysisResult }) => {
       )}
 
       {agentAudit && (
-        <Card className="shadow-none">
-          <CardContent className="space-y-3 p-5">
+        <Card className="agent-result-card">
+          <CardContent className="agent-result-card-body">
             <button
-              className="flex items-center gap-3 bg-transparent py-3 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+              type="button"
+              className="agent-result-audit-toggle"
               aria-expanded={auditOpen}
               onClick={() => setAuditOpen(!auditOpen)}
             >
-              <ChevronRight size={14} style={{ transform: auditOpen ? "rotate(90deg)" : "none", transition: "transform 0.15s" }} />
+              <ChevronRight
+                size={14}
+                className={cn("agent-result-audit-chevron", auditOpen && "is-open")}
+              />
               <Cpu size={16} />
               에이전트 실행 정보
             </button>
             {auditOpen && (
-              <div className="mt-3 grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(180px,1fr))]">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-sm text-muted-foreground">소요 시간</span>
-                  <span className="font-mono text-sm font-medium text-foreground tabular-nums">{(agentAudit.latencyMs / 1000).toFixed(1)}초</span>
+              <div className="agent-result-audit-grid">
+                <div className="agent-result-audit-item">
+                  <span className="agent-result-audit-label">소요 시간</span>
+                  <span className="agent-result-audit-value">
+                    {(agentAudit.latencyMs / 1000).toFixed(1)}초
+                  </span>
                 </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-sm text-muted-foreground">프롬프트 토큰</span>
-                  <span className="font-mono text-sm font-medium text-foreground tabular-nums">{agentAudit.tokenUsage.prompt.toLocaleString()}</span>
+                <div className="agent-result-audit-item">
+                  <span className="agent-result-audit-label">프롬프트 토큰</span>
+                  <span className="agent-result-audit-value">
+                    {agentAudit.tokenUsage.prompt.toLocaleString()}
+                  </span>
                 </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-sm text-muted-foreground">응답 토큰</span>
-                  <span className="font-mono text-sm font-medium text-foreground tabular-nums">{agentAudit.tokenUsage.completion.toLocaleString()}</span>
+                <div className="agent-result-audit-item">
+                  <span className="agent-result-audit-label">응답 토큰</span>
+                  <span className="agent-result-audit-value">
+                    {agentAudit.tokenUsage.completion.toLocaleString()}
+                  </span>
                 </div>
                 {agentAudit.turnCount != null && (
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-sm text-muted-foreground">턴 수</span>
-                    <span className="font-mono text-sm font-medium text-foreground tabular-nums">{agentAudit.turnCount}</span>
+                  <div className="agent-result-audit-item">
+                    <span className="agent-result-audit-label">턴 수</span>
+                    <span className="agent-result-audit-value">{agentAudit.turnCount}</span>
                   </div>
                 )}
                 {agentAudit.toolCallCount != null && (
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-sm text-muted-foreground">도구 호출</span>
-                    <span className="font-mono text-sm font-medium text-foreground tabular-nums">{agentAudit.toolCallCount}회</span>
+                  <div className="agent-result-audit-item">
+                    <span className="agent-result-audit-label">도구 호출</span>
+                    <span className="agent-result-audit-value">{agentAudit.toolCallCount}회</span>
                   </div>
                 )}
                 {agentAudit.terminationReason && (
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-sm text-muted-foreground">종료 사유</span>
-                    <span className="font-mono text-sm font-medium text-foreground tabular-nums">{formatTerminationReason(agentAudit.terminationReason)}</span>
+                  <div className="agent-result-audit-item">
+                    <span className="agent-result-audit-label">종료 사유</span>
+                    <span className="agent-result-audit-value">
+                      {formatTerminationReason(agentAudit.terminationReason)}
+                    </span>
                   </div>
                 )}
                 {agentAudit.modelName && (
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-sm text-muted-foreground">LLM 모델</span>
-                    <span className="font-mono text-sm font-medium text-foreground tabular-nums">{agentAudit.modelName}</span>
+                  <div className="agent-result-audit-item">
+                    <span className="agent-result-audit-label">LLM 모델</span>
+                    <span className="agent-result-audit-value">{agentAudit.modelName}</span>
                   </div>
                 )}
                 {agentAudit.promptVersion && (
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-sm text-muted-foreground">프롬프트 버전</span>
-                    <span className="font-mono text-sm font-medium text-foreground tabular-nums">{agentAudit.promptVersion}</span>
+                  <div className="agent-result-audit-item">
+                    <span className="agent-result-audit-label">프롬프트 버전</span>
+                    <span className="agent-result-audit-value">{agentAudit.promptVersion}</span>
                   </div>
                 )}
               </div>

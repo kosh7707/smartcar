@@ -41,21 +41,21 @@ const EMPTY_TITLES: Record<AnalysisHistoryFilter, string> = {
 
 const getStatusClass = (status: string) =>
   ({
-    completed: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    failed: "border-destructive/20 bg-destructive/10 text-destructive",
-    running: "border-primary/20 bg-primary/10 text-primary",
-    queued: "border-border bg-background text-muted-foreground",
-  })[status] ?? "border-border bg-background text-muted-foreground";
+    completed: "analysis-history-runs__status analysis-history-runs__status--completed",
+    failed: "analysis-history-runs__status analysis-history-runs__status--failed",
+    running: "analysis-history-runs__status analysis-history-runs__status--running",
+    queued: "analysis-history-runs__status analysis-history-runs__status--queued",
+  })[status] ?? "analysis-history-runs__status analysis-history-runs__status--queued";
 
 const getSeverityClass = (tone: "critical" | "high" | "medium" | "low", value?: number) =>
   !value
-    ? "text-muted-foreground"
+    ? "analysis-history-runs__severity-value analysis-history-runs__severity-value--muted"
     : {
-      critical: "text-[var(--aegis-severity-critical)]",
-      high: "text-[var(--aegis-severity-high)]",
-      medium: "text-[var(--aegis-severity-medium)]",
-      low: "text-[var(--aegis-severity-low)]",
-    }[tone];
+        critical: "analysis-history-runs__severity-value analysis-history-runs__severity-value--critical",
+        high: "analysis-history-runs__severity-value analysis-history-runs__severity-value--high",
+        medium: "analysis-history-runs__severity-value analysis-history-runs__severity-value--medium",
+        low: "analysis-history-runs__severity-value analysis-history-runs__severity-value--low",
+      }[tone];
 
 interface AnalysisHistoryRunsTableProps {
   filter: AnalysisHistoryFilter;
@@ -70,7 +70,7 @@ export const AnalysisHistoryRunsTable: React.FC<AnalysisHistoryRunsTableProps> =
 }) => {
   if (runs.length === 0) {
     return (
-      <section className="rounded-lg border border-border bg-background p-6">
+      <section className="analysis-history-runs__empty-shell">
         <EmptyState
           className="empty-state--workspace"
           title={EMPTY_TITLES[filter]}
@@ -81,23 +81,23 @@ export const AnalysisHistoryRunsTable: React.FC<AnalysisHistoryRunsTableProps> =
   }
 
   return (
-    <Card className="overflow-hidden shadow-none">
-      <CardHeader className="border-b border-border bg-gradient-to-b from-muted/80 to-background/95 p-5">
+    <Card className="analysis-history-runs">
+      <CardHeader className="analysis-history-runs__head">
         <CardTitle>최근 실행</CardTitle>
-        <p className="m-0 text-sm text-muted-foreground">분석 시점, 심각도 요약, 소요 시간을 한 번에 검토합니다.</p>
+        <p className="analysis-history-runs__head-copy">분석 시점, 심각도 요약, 소요 시간을 한 번에 검토합니다.</p>
       </CardHeader>
 
-      <CardContent className="p-0">
+      <CardContent className="analysis-history-runs__body">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/70">
-              <TableHead className="px-5 py-4 font-semibold text-muted-foreground">실행</TableHead>
-              <TableHead className="px-5 py-4 font-semibold text-muted-foreground">시각</TableHead>
-              <TableHead className="px-5 py-4 font-semibold text-muted-foreground">모듈</TableHead>
-              <TableHead className="px-5 py-4 font-semibold text-muted-foreground">상태</TableHead>
-              <TableHead className="px-5 py-4 text-center font-semibold text-muted-foreground">탐지 요약</TableHead>
-              <TableHead className="px-5 py-4 font-semibold text-muted-foreground">소요 시간</TableHead>
-              <TableHead className="w-11 px-5 py-4" />
+            <TableRow className="analysis-history-runs__header-row">
+              <TableHead className="analysis-history-runs__cell-head">실행</TableHead>
+              <TableHead className="analysis-history-runs__cell-head">시각</TableHead>
+              <TableHead className="analysis-history-runs__cell-head">모듈</TableHead>
+              <TableHead className="analysis-history-runs__cell-head">상태</TableHead>
+              <TableHead className="analysis-history-runs__cell-head analysis-history-runs__cell-head--center">탐지 요약</TableHead>
+              <TableHead className="analysis-history-runs__cell-head">소요 시간</TableHead>
+              <TableHead className="analysis-history-runs__cell-head analysis-history-runs__cell-head--icon" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -110,44 +110,44 @@ export const AnalysisHistoryRunsTable: React.FC<AnalysisHistoryRunsTableProps> =
               return (
                 <TableRow
                   key={run.id}
-                  className="cursor-pointer hover:bg-muted/80"
+                  className="analysis-history-runs__row"
                   onClick={() => onOpenRun(run)}
                 >
-                  <TableCell className="px-5 py-5 font-mono font-semibold text-foreground">#{index + 1}</TableCell>
-                  <TableCell className="px-5 py-5 font-mono text-muted-foreground">{formatDateTime(run.createdAt)}</TableCell>
-                  <TableCell className="px-5 py-5">
-                    <span className="inline-flex items-center gap-3 text-sm font-medium text-foreground">
-                      <span className="flex items-center text-muted-foreground">{meta.icon}</span>
+                  <TableCell className="analysis-history-runs__cell analysis-history-runs__cell--run">#{index + 1}</TableCell>
+                  <TableCell className="analysis-history-runs__cell analysis-history-runs__cell--meta">{formatDateTime(run.createdAt)}</TableCell>
+                  <TableCell className="analysis-history-runs__cell">
+                    <span className="analysis-history-runs__module">
+                      <span className="analysis-history-runs__module-icon">{meta.icon}</span>
                       {meta.label}
                     </span>
                   </TableCell>
-                  <TableCell className="px-5 py-5">
-                    <Badge variant="outline" className={cn("rounded-full px-2.5 py-1 text-sm font-medium", getStatusClass(run.status))}>
+                  <TableCell className="analysis-history-runs__cell">
+                    <Badge variant="outline" className={cn(getStatusClass(run.status))}>
                       {STATUS_LABELS[run.status] ?? run.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="px-5 py-5 text-center font-mono">
+                  <TableCell className="analysis-history-runs__cell analysis-history-runs__cell--center analysis-history-runs__cell--mono">
                     {severity ? (
-                      <span className="inline-flex items-center">
-                        <span className={cn("text-sm font-medium", getSeverityClass("critical", severity.critical))}>{severity.critical ?? 0}</span>
-                        <span className="mx-2 text-sm text-border">/</span>
-                        <span className={cn("text-sm font-medium", getSeverityClass("high", severity.high))}>{severity.high ?? 0}</span>
-                        <span className="mx-2 text-sm text-border">/</span>
-                        <span className={cn("text-sm font-medium", getSeverityClass("medium", severity.medium))}>{severity.medium ?? 0}</span>
-                        <span className="mx-2 text-sm text-border">/</span>
-                        <span className={cn("text-sm font-medium", getSeverityClass("low", severity.low))}>{severity.low ?? 0}</span>
+                      <span className="analysis-history-runs__severity-summary">
+                        <span className={cn(getSeverityClass("critical", severity.critical))}>{severity.critical ?? 0}</span>
+                        <span className="analysis-history-runs__severity-sep">/</span>
+                        <span className={cn(getSeverityClass("high", severity.high))}>{severity.high ?? 0}</span>
+                        <span className="analysis-history-runs__severity-sep">/</span>
+                        <span className={cn(getSeverityClass("medium", severity.medium))}>{severity.medium ?? 0}</span>
+                        <span className="analysis-history-runs__severity-sep">/</span>
+                        <span className={cn(getSeverityClass("low", severity.low))}>{severity.low ?? 0}</span>
                       </span>
                     ) : run.findingCount > 0 ? (
-                      <span className="font-mono text-sm text-muted-foreground">{run.findingCount}</span>
+                      <span className="analysis-history-runs__cell--meta">{run.findingCount}</span>
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="analysis-history-runs__cell--meta">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="px-5 py-5 font-mono text-muted-foreground">
+                  <TableCell className="analysis-history-runs__cell analysis-history-runs__cell--meta">
                     {durationSec > 0 ? formatUptime(durationSec) : "—"}
                   </TableCell>
-                  <TableCell className="px-5 py-5 text-right">
-                    <ChevronRight size={16} className="text-muted-foreground" />
+                  <TableCell className="analysis-history-runs__cell analysis-history-runs__cell--icon-cell">
+                    <ChevronRight size={16} className="analysis-history-runs__chevron" />
                   </TableCell>
                 </TableRow>
               );

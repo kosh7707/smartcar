@@ -25,6 +25,7 @@ describe("renderMarkdown", () => {
     const c = renderMd("```python\nprint('hello')\n```");
     expect(c.querySelector("pre")).toBeTruthy();
     expect(c.querySelector("code")).toBeTruthy();
+    expect(c.querySelector(".markdown-code-block__lang")?.textContent).toBe("python");
   });
 
   it("renders bullet lists", () => {
@@ -48,6 +49,7 @@ describe("renderMarkdown", () => {
     const c = renderMd("Use `printf()` here");
     expect(c.querySelector("code")).toBeTruthy();
     expect(c.querySelector("code")?.textContent).toBe("printf()");
+    expect(c.querySelector("code")?.className).toContain("markdown-inline-code");
   });
 
   it("renders italic text", () => {

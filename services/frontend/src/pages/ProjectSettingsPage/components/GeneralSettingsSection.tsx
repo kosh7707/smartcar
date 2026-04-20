@@ -7,8 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 
 export const GeneralSettingsSection: React.FC = () => (
   <div className="project-settings-stack">
-    <Card className="project-settings-card shadow-none">
-      <CardContent className="space-y-4">
+    <Card className="project-settings-card">
+      <CardContent className="project-settings-card__body">
         <div className="project-settings-section-header">
           <span className="project-settings-section-header__accent" />
           <div>

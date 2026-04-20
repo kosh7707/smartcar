@@ -14,24 +14,24 @@ import { MODULE_META } from "../../../constants/modules";
 
 export function ReportModuleBreakdown({ moduleEntries }: { moduleEntries: ReportModuleEntry[] }) {
   return (
-    <Card className="border-border/80 shadow-none">
-      <CardHeader className="border-b border-border/70">
+    <Card className="report-module-breakdown-card">
+      <CardHeader className="report-module-breakdown-card__head">
         <CardTitle>모듈별 분석 현황</CardTitle>
       </CardHeader>
-      <CardContent className="px-0">
+      <CardContent className="report-module-breakdown-card__body">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="px-4 text-xs text-muted-foreground">모듈</TableHead>
-              <TableHead className="text-center text-xs text-muted-foreground">탐지 항목</TableHead>
-              <TableHead className="text-center text-xs text-muted-foreground">게이트 통과</TableHead>
-              <TableHead className="px-4 text-right text-xs text-muted-foreground">상태</TableHead>
+              <TableHead className="report-module-breakdown-card__head-cell report-module-breakdown-card__head-cell--pad">모듈</TableHead>
+              <TableHead className="report-module-breakdown-card__head-cell report-module-breakdown-card__head-cell--center">탐지 항목</TableHead>
+              <TableHead className="report-module-breakdown-card__head-cell report-module-breakdown-card__head-cell--center">게이트 통과</TableHead>
+              <TableHead className="report-module-breakdown-card__head-cell report-module-breakdown-card__head-cell--pad report-module-breakdown-card__head-cell--right">상태</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {moduleEntries.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={4} className="report-module-breakdown-card__empty-cell">
                   해당 모듈 데이터 없음
                 </TableCell>
               </TableRow>
@@ -41,24 +41,24 @@ export function ReportModuleBreakdown({ moduleEntries }: { moduleEntries: Report
 
                 return (
                   <TableRow key={key}>
-                    <TableCell className="px-4 py-3 whitespace-normal">
-                      <div className="space-y-1">
-                        <p className="font-medium text-foreground">
+                    <TableCell className="report-module-breakdown-card__cell report-module-breakdown-card__cell--pad report-module-breakdown-card__cell--wrap">
+                      <div className="report-module-breakdown-card__module-copy">
+                        <p className="report-module-breakdown-card__module-title">
                           {MODULE_META[MODULE_KEY_MAP[key]]?.label ?? key}
                         </p>
-                        <p className="font-mono text-xs text-muted-foreground">{MODULE_KEY_MAP[key]}</p>
+                        <p className="report-module-breakdown-card__module-key">{MODULE_KEY_MAP[key]}</p>
                       </div>
                     </TableCell>
-                    <TableCell className="text-center font-mono font-semibold">{mod.summary.totalFindings}</TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="report-module-breakdown-card__cell report-module-breakdown-card__cell--center report-module-breakdown-card__cell--mono">{mod.summary.totalFindings}</TableCell>
+                    <TableCell className="report-module-breakdown-card__cell report-module-breakdown-card__cell--center">
                       {mod.runs.filter((run) => run.gate?.status === "pass").length}/{mod.runs.length}
                     </TableCell>
-                    <TableCell className="px-4 text-right">
+                    <TableCell className="report-module-breakdown-card__cell report-module-breakdown-card__cell--pad report-module-breakdown-card__cell--right">
                       <Badge
                         variant="outline"
                         className={hasFailedGate
-                          ? "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                          : "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"}
+                          ? "report-module-breakdown-card__status-badge report-module-breakdown-card__status-badge--warning"
+                          : "report-module-breakdown-card__status-badge report-module-breakdown-card__status-badge--stable"}
                       >
                         {hasFailedGate ? "주의 필요" : "안정"}
                       </Badge>

@@ -29,14 +29,14 @@ export const QualityGatePage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="page-enter flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
+      <div className="page-loading-shell">
         <Spinner size={36} label="품질 게이트 로딩 중..." />
       </div>
     );
   }
 
   return (
-    <div className="page-enter">
+    <div className="page-shell">
       <PageHeader
         surface="plain"
         title="품질 게이트"
@@ -56,8 +56,8 @@ export const QualityGatePage: React.FC = () => {
           description="정적 분석이 완료되면 실패 규칙, 경고 항목, 승인 필요 조건이 이 작업면에 운영 순서대로 정리됩니다."
         />
       ) : (
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)] xl:items-start">
-          <div className="flex min-w-0 flex-col gap-4">
+        <div className="quality-gate-layout">
+          <div className="quality-gate-main">
             {gates.map((gate) => (
               <QualityGateCard
                 key={gate.id}

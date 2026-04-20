@@ -30,11 +30,6 @@ interface FileDetailSourcePanelProps {
   renderedPreview: React.ReactNode;
 }
 
-const highlightedRowStyle = {
-  background: "color-mix(in srgb, var(--aegis-severity-critical) 10%, transparent)",
-  borderLeft: "3px solid var(--aegis-severity-critical)",
-} as const;
-
 export const FileDetailSourcePanel: React.FC<FileDetailSourcePanelProps> = ({
   fileName,
   fileLanguage,
@@ -58,11 +53,11 @@ export const FileDetailSourcePanel: React.FC<FileDetailSourcePanelProps> = ({
   const codeContent = (
     <ScrollArea
       className={cn(
-        "rounded-lg border border-[var(--cds-code-border)] bg-[var(--cds-code-bg)]",
-        maximized ? "h-full" : "max-h-[625px]",
+        "file-detail-source-code-scroll",
+        maximized && "is-maximized",
       )}
     >
-      <div className="min-w-max py-3 font-mono text-sm leading-[1.7] text-[var(--cds-code-text)]">
+      <div className="file-detail-source-code">
         {sourceLines.map((line, index) => {
           const lineNum = index + 1;
           const hasVulnerability = fileVulns.some((vulnerability) => {
@@ -77,25 +72,22 @@ export const FileDetailSourcePanel: React.FC<FileDetailSourcePanelProps> = ({
               key={`${lineNum}-${line}`}
               ref={isTarget ? highlightRef : undefined}
               className={cn(
-                "flex items-center gap-5 px-5 py-px",
-                !isHighlighted && "hover:bg-muted/70",
+                "file-detail-source-line",
+                isHighlighted
+                  ? "file-detail-source-line--highlighted"
+                  : "file-detail-source-line--hoverable",
               )}
-              style={isHighlighted ? highlightedRowStyle : undefined}
             >
-              <span className="w-10 shrink-0 text-right text-[color:var(--cds-code-line-num)] select-none">
-                {lineNum}
-              </span>
+              <span className="file-detail-source-line-num">{lineNum}</span>
               <span
-                className="flex-1 whitespace-pre"
+                className="file-detail-source-line-text"
                 dangerouslySetInnerHTML={{
                   __html: highlightedSourceLines[index] ?? line,
                 }}
               />
-              {isHighlighted && (
-                <span className="shrink-0 whitespace-nowrap font-sans text-sm font-medium text-[var(--aegis-severity-critical)]">
-                  ← 취약점
-                </span>
-              )}
+              {isHighlighted ? (
+                <span className="file-detail-source-line-flag">← 취약점</span>
+              ) : null}
             </div>
           );
         })}
@@ -106,11 +98,11 @@ export const FileDetailSourcePanel: React.FC<FileDetailSourcePanelProps> = ({
   const previewContent = (
     <ScrollArea
       className={cn(
-        "rounded-lg border border-border/70 bg-background",
-        maximized ? "h-full" : "max-h-[625px]",
+        "file-detail-source-preview-scroll",
+        maximized && "is-maximized",
       )}
     >
-      <div className="file-detail-markdown px-4 py-3 text-sm leading-7">
+      <div className="file-detail-markdown file-detail-source-preview-body">
         {renderedPreview}
       </div>
     </ScrollArea>
@@ -123,7 +115,7 @@ export const FileDetailSourcePanel: React.FC<FileDetailSourcePanelProps> = ({
       title={maximized ? "축소" : "전체 화면"}
       aria-label={maximized ? "축소" : "전체 화면"}
       onClick={onToggleMaximized}
-      className="shrink-0"
+      className="file-detail-source-maximize"
     >
       {maximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
     </Button>
@@ -131,18 +123,18 @@ export const FileDetailSourcePanel: React.FC<FileDetailSourcePanelProps> = ({
 
   const nonMarkdownBody = (
     <>
-      <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
-        <div className="text-sm font-semibold text-foreground">소스 코드</div>
+      <div className="file-detail-source-panel-head">
+        <div className="file-detail-source-panel-title">소스 코드</div>
         {maximizeButton}
       </div>
-      <div className="space-y-4 px-4 py-4">
+      <div className="file-detail-source-panel-body">
         {codeContent}
-        {sourceCode.length === 0 && (
-          <div className="flex items-center gap-2 rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
+        {sourceCode.length === 0 ? (
+          <div className="file-detail-source-empty">
             <FileText size={20} />
             <span>표시할 소스 코드가 없습니다</span>
           </div>
-        )}
+        ) : null}
       </div>
     </>
   );
@@ -151,24 +143,24 @@ export const FileDetailSourcePanel: React.FC<FileDetailSourcePanelProps> = ({
     <Tabs
       value={viewTab}
       onValueChange={(value) => onViewTabChange(value as "code" | "preview")}
-      className="gap-0"
+      className="file-detail-source-tabs"
     >
-      <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
-        <TabsList variant="line" className="h-auto rounded-none p-0">
-          <TabsTrigger value="code" className="px-3 py-1.5 text-sm">
+      <div className="file-detail-source-panel-head">
+        <TabsList variant="line" className="file-detail-source-tabs-list">
+          <TabsTrigger value="code" className="file-detail-source-tabs-trigger">
             코드
           </TabsTrigger>
-          <TabsTrigger value="preview" className="px-3 py-1.5 text-sm">
+          <TabsTrigger value="preview" className="file-detail-source-tabs-trigger">
             프리뷰
           </TabsTrigger>
         </TabsList>
         {maximizeButton}
       </div>
-      <div className="px-4 py-4">
-        <TabsContent value="code" className="mt-0">
+      <div className="file-detail-source-panel-body">
+        <TabsContent value="code" className="file-detail-source-tabs-content">
           {codeContent}
         </TabsContent>
-        <TabsContent value="preview" className="mt-0">
+        <TabsContent value="preview" className="file-detail-source-tabs-content">
           {previewContent}
         </TabsContent>
       </div>
@@ -179,15 +171,18 @@ export const FileDetailSourcePanel: React.FC<FileDetailSourcePanelProps> = ({
 
   if (maximized) {
     return (
-      <Dialog open={maximized} onOpenChange={(nextOpen) => {
-        if (!nextOpen) {
-          onToggleMaximized();
-        }
-      }}>
+      <Dialog
+        open={maximized}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            onToggleMaximized();
+          }
+        }}
+      >
         <DialogContent
           showCloseButton={false}
-          className="h-[calc(100dvh-3rem)] max-w-6xl overflow-hidden border-border/70 p-0 sm:max-w-6xl"
-          overlayClassName="bg-black/30 supports-backdrop-filter:backdrop-blur-xs"
+          className="file-detail-source-dialog"
+          overlayClassName="file-detail-source-overlay"
         >
           <DialogHeader className="sr-only">
             <DialogTitle>{fileName} 전체 화면 보기</DialogTitle>
@@ -195,12 +190,10 @@ export const FileDetailSourcePanel: React.FC<FileDetailSourcePanelProps> = ({
               파일 소스 코드와 마크다운 프리뷰를 전체 화면으로 확인합니다.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex h-full flex-col overflow-hidden">
-            <Card className="h-full rounded-none border-0 shadow-none">
-              <CardContent className="flex h-full flex-col px-0 py-0">
-                <div className="min-h-0 flex-1">
-                  {panelBody}
-                </div>
+          <div className="file-detail-source-dialog-shell">
+            <Card className="file-detail-source-dialog-card">
+              <CardContent className="file-detail-source-dialog-card-body">
+                <div className="file-detail-source-dialog-content">{panelBody}</div>
               </CardContent>
             </Card>
           </div>
@@ -210,10 +203,8 @@ export const FileDetailSourcePanel: React.FC<FileDetailSourcePanelProps> = ({
   }
 
   return (
-    <Card className="border-border/70 shadow-none">
-      <CardContent className="px-0 py-0">
-        {panelBody}
-      </CardContent>
+    <Card className="file-detail-source-card">
+      <CardContent className="file-detail-source-card-body">{panelBody}</CardContent>
     </Card>
   );
 };

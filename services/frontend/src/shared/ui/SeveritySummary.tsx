@@ -1,4 +1,5 @@
 import React from "react";
+import { cn } from "@/lib/utils";
 
 interface Props {
   summary: { critical: number; high: number; medium: number; low: number; info?: number };
@@ -6,20 +7,24 @@ interface Props {
 }
 
 const items = [
-  { key: "C", field: "critical" as const, cls: "bg-[var(--aegis-severity-critical)]" },
-  { key: "H", field: "high" as const, cls: "bg-[var(--aegis-severity-high)]" },
-  { key: "M", field: "medium" as const, cls: "bg-[var(--aegis-severity-medium)] text-black" },
-  { key: "L", field: "low" as const, cls: "bg-[var(--aegis-severity-low)]" },
+  { key: "C", field: "critical" as const, cls: "severity-summary-pill--critical" },
+  { key: "H", field: "high" as const, cls: "severity-summary-pill--high" },
+  { key: "M", field: "medium" as const, cls: "severity-summary-pill--medium" },
+  { key: "L", field: "low" as const, cls: "severity-summary-pill--low" },
 ];
 
 export const SeveritySummary: React.FC<Props> = ({ summary, compact = true }) => {
-  const visible = compact ? items.filter((i) => summary[i.field] > 0) : items;
+  const visible = compact ? items.filter((item) => summary[item.field] > 0) : items;
   if (visible.length === 0) return null;
+
   return (
-    <div className="flex gap-2">
-      {visible.map((i) => (
-        <span key={i.key} className={`inline-flex min-h-6 items-center rounded-full px-2 text-sm font-medium text-white ${i.cls}`}>
-          {i.key}:{summary[i.field]}
+    <div className="severity-summary">
+      {visible.map((item) => (
+        <span
+          key={item.key}
+          className={cn("severity-summary-pill", item.cls)}
+        >
+          {item.key}:{summary[item.field]}
         </span>
       ))}
     </div>

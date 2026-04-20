@@ -14,46 +14,46 @@ interface ReportRunsSectionProps {
 }
 
 const runStatusTone = {
-  completed: "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  failed: "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300",
-  running: "border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-300",
+  completed: "report-status-tone report-status-tone--completed",
+  failed: "report-status-tone report-status-tone--failed",
+  running: "report-status-tone report-status-tone--running",
 } as const;
 
 const gateStatusTone = {
-  pass: "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  fail: "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300",
+  pass: "report-status-tone report-status-tone--pass",
+  fail: "report-status-tone report-status-tone--fail",
 } as const;
 
 export const ReportRunsSection: React.FC<ReportRunsSectionProps> = ({ runs }) => {
   if (runs.length === 0) return null;
 
   return (
-    <Card className="border-border/80 shadow-none">
-      <CardHeader className="border-b border-border/70">
+    <Card className="report-runs-card">
+      <CardHeader className="report-runs-card__head">
         <CardTitle>실행 이력 ({runs.length})</CardTitle>
       </CardHeader>
-      <CardContent className="divide-y divide-border px-4 py-0">
+      <CardContent className="report-runs-card__body">
         {runs.map(({ run, gate }) => (
-          <div key={run.id} className="flex flex-col gap-3 py-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
+          <div key={run.id} className="report-runs-card__row">
+            <div className="report-runs-card__meta">
               <Badge
                 variant="outline"
-                className={runStatusTone[run.status as keyof typeof runStatusTone] ?? "text-muted-foreground"}
+                className={runStatusTone[run.status as keyof typeof runStatusTone] ?? "report-runs-card__status report-runs-card__status--idle"}
               >
                 {run.status}
               </Badge>
-              <span className="font-medium text-foreground">{MODULE_META[run.module]?.label ?? run.module}</span>
-              <span className="text-sm text-muted-foreground">탐지 항목 {run.findingCount}건</span>
+              <span className="report-runs-card__module">{MODULE_META[run.module]?.label ?? run.module}</span>
+              <span className="report-runs-card__finding-count">탐지 항목 {run.findingCount}건</span>
               {gate?.status && (
                 <Badge
                   variant="outline"
-                  className={gateStatusTone[gate.status as keyof typeof gateStatusTone] ?? "text-muted-foreground"}
+                  className={gateStatusTone[gate.status as keyof typeof gateStatusTone] ?? "report-runs-card__status report-runs-card__status--idle"}
                 >
                   게이트: {gate.status}
                 </Badge>
               )}
             </div>
-            <span className="text-sm text-muted-foreground">{formatDateTime(run.createdAt)}</span>
+            <span className="report-runs-card__timestamp">{formatDateTime(run.createdAt)}</span>
           </div>
         ))}
       </CardContent>

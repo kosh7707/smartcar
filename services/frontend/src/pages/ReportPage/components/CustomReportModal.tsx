@@ -61,17 +61,17 @@ export const CustomReportModal: React.FC<Props> = ({ projectId, onClose }) => {
   return (
     <Dialog open onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}>
       <DialogContent
-        className="flex max-h-[85vh] max-w-xl flex-col gap-0 overflow-hidden border-border bg-card p-0 shadow-2xl sm:max-w-xl"
+        className="custom-report-modal"
         overlayClassName="custom-report-overlay"
         onOverlayClick={onClose}
         showCloseButton={false}
       >
-        <DialogHeader className="flex-row items-center justify-between space-y-0 border-b border-border px-5 py-4">
-          <div className="space-y-1">
-            <DialogTitle className="flex items-center gap-3 text-base font-semibold">
+        <DialogHeader className="custom-report-modal__header">
+          <div className="custom-report-modal__header-copy">
+            <DialogTitle className="custom-report-modal__title">
               <FileText size={16} /> 커스텀 보고서 생성
             </DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">
+            <DialogDescription className="custom-report-modal__description">
               보고서 제목, 요약, 회사 정보와 출력 언어를 지정해 맞춤형 보고서를 생성합니다.
             </DialogDescription>
           </div>
@@ -79,8 +79,8 @@ export const CustomReportModal: React.FC<Props> = ({ projectId, onClose }) => {
             <X size={16} />
           </Button>
         </DialogHeader>
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-          <Label className="flex-col items-start gap-2">
+        <div className="custom-report-modal__body">
+          <Label className="custom-report-modal__field">
             <span>보고서 제목</span>
             <Input
               value={reportTitle}
@@ -88,17 +88,17 @@ export const CustomReportModal: React.FC<Props> = ({ projectId, onClose }) => {
               placeholder="프로젝트명 + 보안 분석 보고서"
             />
           </Label>
-          <Label className="flex-col items-start gap-2">
+          <Label className="custom-report-modal__field">
             <span>요약</span>
             <Textarea
-              className="min-h-20 resize-y"
+              className="custom-report-modal__textarea"
               value={executiveSummary}
               onChange={(e) => setExecutiveSummary(e.target.value)}
               placeholder="보고서 서두에 포함할 요약문"
               rows={4}
             />
           </Label>
-          <Label className="flex-col items-start gap-2">
+          <Label className="custom-report-modal__field">
             <span>회사명</span>
             <Input
               value={companyName}
@@ -106,7 +106,7 @@ export const CustomReportModal: React.FC<Props> = ({ projectId, onClose }) => {
               placeholder="보고서에 표시할 회사명"
             />
           </Label>
-          <Label className="flex-col items-start gap-2">
+          <Label className="custom-report-modal__field">
             <span>로고 URL</span>
             <Input
               value={logoUrl}
@@ -114,10 +114,10 @@ export const CustomReportModal: React.FC<Props> = ({ projectId, onClose }) => {
               placeholder="https://example.com/logo.png"
             />
           </Label>
-          <Label className="flex-col items-start gap-2">
+          <Label className="custom-report-modal__field">
             <span>언어</span>
             <Select value={language} onValueChange={setLanguage}>
-              <SelectTrigger className="w-full" aria-label="언어">
+              <SelectTrigger className="custom-report-modal__select" aria-label="언어">
                 <SelectValue placeholder="언어 선택" />
               </SelectTrigger>
               <SelectContent>
@@ -127,7 +127,7 @@ export const CustomReportModal: React.FC<Props> = ({ projectId, onClose }) => {
             </Select>
           </Label>
         </div>
-        <DialogFooter className="flex-row justify-end gap-2 rounded-b-xl border-t bg-muted/30 px-5 py-4">
+        <DialogFooter className="custom-report-modal__footer">
           <Button variant="outline" onClick={onClose} disabled={generating}>취소</Button>
           <Button onClick={handleGenerate} disabled={generating}>
             {generating ? <><Spinner size={14} /> 생성 중...</> : "보고서 생성"}

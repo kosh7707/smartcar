@@ -28,6 +28,18 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("react-router-dom") || id.includes("react-dom") || id.includes("scheduler") || id.includes("/react/")) return "react-vendor";
+          if (id.includes("radix-ui") || id.includes("cmdk") || id.includes("react-resizable-panels")) return "ui-vendor";
+          if (id.includes("lucide-react")) return "icon-vendor";
+          if (id.includes("highlight.js") || id.includes("react-markdown") || id.includes("remark-gfm")) return "content-vendor";
+          return undefined;
+        },
+      },
+    },
   },
   test: {
     environment: "jsdom",

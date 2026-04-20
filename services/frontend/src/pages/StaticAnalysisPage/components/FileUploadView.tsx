@@ -5,7 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "../../../shared/ui";
 
-interface LocalFile { file: File; name: string; size: number }
+interface LocalFile {
+  file: File;
+  name: string;
+  size: number;
+  info: { id: string; name: string; size: number; language?: string };
+}
 import { formatFileSize } from "../../../utils/format";
 
 interface Props {
@@ -49,22 +54,21 @@ export const FileUploadView: React.FC<Props> = ({
   const totalSelected = selectedExisting.length + files.length;
 
   return (
-    <div className="page-enter">
+    <div className="page-shell static-upload-view">
       <PageHeader
         surface="plain"
         title="소스 코드 업로드"
         subtitle="기존 프로젝트 파일을 선택하거나 새 소스를 추가해 분석을 시작합니다."
       />
 
-      {/* Existing project files */}
       {existingFiles.length > 0 && (
-        <Card className="shadow-none">
-          <CardContent className="space-y-3">
-          <CardTitle className="flex items-center gap-2">
+        <Card className="static-upload-view__existing-card">
+          <CardContent className="static-upload-view__existing-body">
+          <CardTitle className="static-upload-view__section-title">
             <FileText size={16} />
             프로젝트 파일에서 선택 ({selectedExisting.length}/{existingFiles.length})
             {onSelectAll && selectedExisting.length < existingFiles.length && (
-              <Button variant="outline" size="sm" className="ml-auto" onClick={onSelectAll}>
+              <Button variant="outline" size="sm" className="static-upload-view__select-all" onClick={onSelectAll}>
                 전체 선택
               </Button>
             )}
@@ -74,15 +78,15 @@ export const FileUploadView: React.FC<Props> = ({
             return (
               <div
                 key={file.id}
-                className={`file-select-row${selected ? " file-select-row--selected" : ""}`}
+                className={`static-upload-view__existing-row${selected ? " static-upload-view__existing-row--selected" : ""}`}
                 onClick={() => onToggleExisting(file)}
               >
-                <div className={`file-select-check${selected ? " file-select-check--active" : ""}`}>
+                <div className={`static-upload-view__existing-check${selected ? " static-upload-view__existing-check--active" : ""}`}>
                   {selected && <Check size={12} />}
                 </div>
-                <span className="file-name">{file.name}</span>
-                {file.language && <span className="file-lang">{file.language}</span>}
-                <span className="file-size">{formatFileSize(file.size)}</span>
+                <span className="static-upload-view__file-name">{file.name}</span>
+                {file.language && <span className="static-upload-view__file-lang">{file.language}</span>}
+                <span className="static-upload-view__file-size">{formatFileSize(file.size)}</span>
               </div>
             );
           })}
@@ -90,46 +94,45 @@ export const FileUploadView: React.FC<Props> = ({
         </Card>
       )}
 
-      {/* New file upload */}
       <Card
-        className="drop-zone shadow-none"
+        className="static-upload-view__dropzone"
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
         onClick={() => document.getElementById("file-input")?.click()}
       >
         <CardContent>
-        <div className="drop-zone-content">
-          <div className="drop-zone-icon">
+        <div className="static-upload-view__dropzone-body">
+          <div className="static-upload-view__dropzone-icon">
             <Upload size={36} />
           </div>
-          <p>새 파일을 드래그하거나 클릭하여 업로드</p>
-          <small>지원 형식: .c .cpp .h .hpp .py .java .js .ts</small>
+          <p className="static-upload-view__dropzone-title">새 파일을 드래그하거나 클릭하여 업로드</p>
+          <small className="static-upload-view__dropzone-copy">지원 형식: .c .cpp .h .hpp .py .java .js .ts</small>
         </div>
         <input
           id="file-input"
           type="file"
           multiple
           accept=".c,.cpp,.h,.hpp,.py,.java,.js,.ts"
-          style={{ display: "none" }}
+          className="static-upload-view__hidden-input"
           onChange={handleFileSelect}
         />
         </CardContent>
       </Card>
 
       {files.length > 0 && (
-        <Card className="animate-fade-in-up shadow-none">
-          <CardContent className="space-y-3">
+        <Card className="static-upload-view__added-card">
+          <CardContent className="static-upload-view__added-body">
           <CardTitle>새로 추가한 파일 ({files.length})</CardTitle>
           {files.map((f, i) => (
-            <div key={f.info.id} className="file-row">
-              <div className="file-info">
-                <span className="file-name">{f.info.name}</span>
-                <span className="file-lang">
+            <div key={f.info.id} className="static-upload-view__added-row">
+              <div className="static-upload-view__added-info">
+                <span className="static-upload-view__file-name">{f.info.name}</span>
+                <span className="static-upload-view__file-lang">
                   {f.info.language === "python" ? "Python" : "C/C++"}
                 </span>
               </div>
-              <div className="file-actions">
-                <span className="file-size">
+              <div className="static-upload-view__added-actions">
+                <span className="static-upload-view__file-size">
                   {(f.info.size / 1024).toFixed(1)}KB
                 </span>
                 <Button variant="outline" size="sm" onClick={() => onRemoveFile(i)}>
@@ -143,8 +146,8 @@ export const FileUploadView: React.FC<Props> = ({
       )}
 
       {totalSelected > 0 && (
-        <div className="file-upload-footer animate-fade-in">
-          <span className="file-upload-summary">
+        <div className="static-upload-view__footer">
+          <span className="static-upload-view__summary">
             총 {totalSelected}개 파일 선택됨
             {selectedExisting.length > 0 && files.length > 0 && (
               <> (기존 {selectedExisting.length} + 새 파일 {files.length})</>

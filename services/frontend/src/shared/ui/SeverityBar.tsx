@@ -31,36 +31,34 @@ export const SeverityBar: React.FC<Props> = ({ summary, compact = false }) => {
     { key: "medium", value: summary.medium },
     { key: "low", value: summary.low },
     { key: "info", value: summary.info ?? 0 },
-  ].filter((s) => s.value > 0);
+  ].filter((segment) => segment.value > 0);
 
   const compactTooltip = compact
-    ? segments.map((s) => `${LABELS[s.key][0]}:${s.value}`).join(" ")
+    ? segments.map((segment) => `${LABELS[segment.key][0]}:${segment.value}`).join(" ")
     : undefined;
 
   return (
-    <div className="mb-5" title={compactTooltip}>
-      {/* Bar */}
-      <div className="flex h-2 overflow-hidden rounded-full bg-muted">
-        {segments.map((s) => (
+    <div className="severity-bar" title={compactTooltip}>
+      <div className="severity-bar__track">
+        {segments.map((segment) => (
           <div
-            key={s.key}
-            className="min-w-0 transition-[width] duration-500 ease-out"
-            style={{ width: `${(s.value / total) * 100}%`, background: SEVERITY_COLORS[s.key] }}
+            key={segment.key}
+            className="severity-bar__segment"
+            style={{ width: `${(segment.value / total) * 100}%`, background: SEVERITY_COLORS[segment.key] }}
           />
         ))}
       </div>
-      {/* Legend (hidden in compact mode) */}
-      {!compact && (
-        <div className="mt-3 flex flex-wrap gap-5">
-          {segments.map((s) => (
-            <div key={s.key} className="flex items-center gap-2">
-              <span className="size-2 shrink-0 rounded-full" style={{ background: SEVERITY_COLORS[s.key] }} />
-              <span className="text-sm text-muted-foreground">{LABELS[s.key]}</span>
-              <span className="text-sm font-semibold text-foreground">{s.value}</span>
+      {!compact ? (
+        <div className="severity-bar__legend">
+          {segments.map((segment) => (
+            <div key={segment.key} className="severity-bar__legend-item">
+              <span className="severity-bar__legend-dot" style={{ background: SEVERITY_COLORS[segment.key] }} />
+              <span className="severity-bar__legend-label">{LABELS[segment.key]}</span>
+              <span className="severity-bar__legend-value">{segment.value}</span>
             </div>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

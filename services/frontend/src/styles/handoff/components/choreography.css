@@ -1,0 +1,44 @@
+/* ═══════════════════════════════════════════════════════════════
+   AEGIS — Choreography
+
+   Simple fade-up enter animations used on first paint.
+
+     [data-chore] .chore     element to animate
+     .chore.c-1 … c-9        staggered delay steps (40–520ms)
+
+   Pages mark a region with [data-chore], then mark children with
+   `.chore c-N`. Respects `prefers-reduced-motion`.
+   ═══════════════════════════════════════════════════════════════ */
+
+
+[data-chore] .chore {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: chore-in var(--duration-slow, 400ms) var(--ease-out, cubic-bezier(.2,.8,.2,1)) forwards;
+}
+
+@keyframes chore-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chore.c-1 { animation-delay:  40ms; }
+.chore.c-2 { animation-delay: 100ms; }
+.chore.c-3 { animation-delay: 160ms; }
+.chore.c-4 { animation-delay: 220ms; }
+.chore.c-5 { animation-delay: 280ms; }
+.chore.c-6 { animation-delay: 340ms; }
+.chore.c-7 { animation-delay: 400ms; }
+.chore.c-8 { animation-delay: 460ms; }
+.chore.c-9 { animation-delay: 520ms; }
+
+
+@media (prefers-reduced-motion: reduce) {
+  [data-chore] .chore {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+}

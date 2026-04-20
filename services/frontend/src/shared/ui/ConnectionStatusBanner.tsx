@@ -23,28 +23,23 @@ export const ConnectionStatusBanner: React.FC<Props> = ({ connectionState, retry
     <Alert
       role="status"
       variant={isFailed ? "destructive" : "default"}
-      className={cn(
-        "sticky top-0 z-50 mb-4 flex items-center justify-between gap-3 border-b px-4 py-2 font-medium",
-        isFailed
-          ? "border-destructive/30 bg-destructive/10 text-destructive"
-          : "border-amber-300 bg-amber-50 text-amber-900",
-      )}
+      className={cn("connection-status-banner", isFailed ? "is-failed" : "is-reconnecting")}
     >
-      <WifiOff size={16} />
-      <div className="min-w-0 flex-1">
+      <WifiOff size={16} className="connection-status-banner__icon" />
+      <div className="connection-status-banner__copy">
         <AlertTitle>{title}</AlertTitle>
         <AlertDescription>{description}</AlertDescription>
       </div>
-      {isFailed && (
+      {isFailed ? (
         <Button
           onClick={() => window.location.reload()}
-          className="ml-3 border-current bg-transparent text-inherit hover:bg-background/40"
+          className="connection-status-banner__action"
           size="sm"
           variant="outline"
         >
           새로고침
         </Button>
-      )}
+      ) : null}
     </Alert>
   );
 };

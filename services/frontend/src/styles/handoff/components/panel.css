@@ -1,0 +1,88 @@
+/* ═══════════════════════════════════════════════════════════════
+   AEGIS — Panel
+
+   Surface container used for Projects table, activity feed, etc.
+
+     .panel           card shell (bordered, rounded)
+     .panel-head      top bar: title + count + tools
+       .panel-head h3 panel title
+       .count         mono count badge next to title
+     .panel-tools     right-side tool cluster (filters, search, btns)
+     .panel-foot      bottom bar: pagination / footnote links
+
+   Note: .filter-pills and inline search live in pill.css / input.css.
+   ═══════════════════════════════════════════════════════════════ */
+
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+
+/* ── Panel header ────────────────────────────────────────────── */
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+
+  padding: var(--space-5) var(--space-6);
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  color: var(--foreground);
+}
+
+.panel-head h3 .count {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: var(--weight-medium);
+
+  padding: 2px 6px;
+  border-radius: 3px;
+
+  color: var(--foreground-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.panel-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+
+/* ── Panel footer ────────────────────────────────────────────── */
+.panel-foot {
+  padding: var(--space-4) var(--space-6);
+  border-top: 1px solid var(--border);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--foreground-subtle);
+}
+.panel-foot a {
+  color: var(--primary);
+  text-decoration: none;
+}
+.panel-foot a:hover {
+  text-decoration: underline;
+}

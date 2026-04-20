@@ -28,101 +28,87 @@ export const DynamicTestResultsView: React.FC<DynamicTestResultsViewProps> = ({
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
-    <div className="page-enter space-y-5">
+    <div className="page-shell dynamic-test-results-shell">
       <BackButton onClick={onBackToHistory} label="세션 목록으로" />
       <PageHeader title="테스트 결과" />
 
-      <div className="stagger mb-5 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-3">
+      <div className="dynamic-test-results-stats">
         <StatCard label="총 실행" value={result.totalRuns} accent />
-        <StatCard
-          label="Crashes"
-          value={result.crashes}
-          color="var(--cds-support-error)"
-        />
-        <StatCard
-          label="Anomalies"
-          value={result.anomalies}
-          color="var(--aegis-severity-medium)"
-        />
+        <StatCard label="Crashes" value={result.crashes} color="var(--cds-support-error)" />
+        <StatCard label="Anomalies" value={result.anomalies} color="var(--aegis-severity-medium)" />
         <StatCard label="Findings" value={result.findings.length} accent />
       </div>
 
-      <Card className="shadow-none">
-        <CardContent className="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="space-y-1 rounded-lg border border-border/70 bg-muted/30 p-3 text-sm">
-            <div className="font-medium text-muted-foreground">유형</div>
-            <div className="text-foreground">
+      <Card className="dynamic-test-results-meta-card">
+        <CardContent className="dynamic-test-results-meta-grid">
+          <div className="dynamic-test-results-meta-item">
+            <div className="dynamic-test-results-meta-label">유형</div>
+            <div className="dynamic-test-results-meta-value">
               {result.config.testType === "fuzzing" ? "퍼징" : "침투 테스트"}
             </div>
           </div>
-          <div className="space-y-1 rounded-lg border border-border/70 bg-muted/30 p-3 text-sm">
-            <div className="font-medium text-muted-foreground">전략</div>
-            <div className="text-foreground">{STRATEGY_LABELS[result.config.strategy]}</div>
+          <div className="dynamic-test-results-meta-item">
+            <div className="dynamic-test-results-meta-label">전략</div>
+            <div className="dynamic-test-results-meta-value">{STRATEGY_LABELS[result.config.strategy]}</div>
           </div>
-          <div className="space-y-1 rounded-lg border border-border/70 bg-muted/30 p-3 text-sm">
-            <div className="font-medium text-muted-foreground">대상</div>
-            <div className="text-foreground">
+          <div className="dynamic-test-results-meta-item">
+            <div className="dynamic-test-results-meta-label">대상</div>
+            <div className="dynamic-test-results-meta-value">
               {result.config.targetEcu} · {result.config.protocol} · {result.config.targetId}
             </div>
           </div>
-          <div className="space-y-1 rounded-lg border border-border/70 bg-muted/30 p-3 text-sm">
-            <div className="font-medium text-muted-foreground">실행일시</div>
-            <div className="text-foreground">{formatDateTime(result.createdAt)}</div>
+          <div className="dynamic-test-results-meta-item">
+            <div className="dynamic-test-results-meta-label">실행일시</div>
+            <div className="dynamic-test-results-meta-value">{formatDateTime(result.createdAt)}</div>
           </div>
         </CardContent>
       </Card>
 
       {result.findings.length > 0 ? (
-        <Card className="shadow-none">
-          <CardContent className="space-y-3 p-4">
+        <Card className="dynamic-test-results-findings-card">
+          <CardContent className="dynamic-test-results-findings-body">
             <CardTitle>Findings ({result.findings.length})</CardTitle>
-            <div className="space-y-3">
+            <div className="dynamic-test-results-findings-list">
               {result.findings.map((finding) => {
                 const expanded = expandedId === finding.id;
                 return (
-                  <Card key={finding.id} className="border-border/70 shadow-none">
-                    <CardContent className="space-y-3 p-4">
+                  <Card key={finding.id} className="dynamic-test-results-finding-card">
+                    <CardContent className="dynamic-test-results-finding-body">
                       <button
                         type="button"
-                        className="flex w-full items-start gap-3 text-left"
-                        onClick={() =>
-                          setExpandedId(expanded ? null : finding.id)
-                        }
+                        className="dynamic-test-results-finding-toggle"
+                        onClick={() => setExpandedId(expanded ? null : finding.id)}
                       >
                         <SeverityBadge severity={finding.severity} size="sm" />
-                        <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                        <span className="dynamic-test-results-finding-type">
                           {FINDING_TYPE_ICON[finding.type]}
                           {FINDING_TYPE_LABEL[finding.type]}
                         </span>
-                        <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+                        <span className="dynamic-test-results-finding-description">
                           {finding.description}
                         </span>
                         {finding.llmAnalysis ? (
                           expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />
                         ) : null}
                       </button>
-                      <div className="space-y-2 pl-1 text-sm">
-                        <div className="flex flex-wrap items-start gap-2">
-                          <span className="min-w-14 font-medium text-muted-foreground">Input</span>
-                          <code className="rounded-md border border-border/70 bg-muted/40 px-2 py-1 font-mono text-primary break-all">
-                            {finding.input}
-                          </code>
+                      <div className="dynamic-test-results-finding-io-list">
+                        <div className="dynamic-test-results-finding-io-row">
+                          <span className="dynamic-test-results-finding-io-label">Input</span>
+                          <code className="dynamic-test-results-finding-code">{finding.input}</code>
                         </div>
-                        {finding.response && (
-                          <div className="flex flex-wrap items-start gap-2">
-                            <span className="min-w-14 font-medium text-muted-foreground">Response</span>
-                            <code className="rounded-md border border-border/70 bg-muted/40 px-2 py-1 font-mono text-primary break-all">
-                              {finding.response}
-                            </code>
+                        {finding.response ? (
+                          <div className="dynamic-test-results-finding-io-row">
+                            <span className="dynamic-test-results-finding-io-label">Response</span>
+                            <code className="dynamic-test-results-finding-code">{finding.response}</code>
                           </div>
-                        )}
+                        ) : null}
                       </div>
-                      {finding.llmAnalysis && expanded && (
-                        <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
-                          <div className="mb-1 font-medium text-primary">LLM 분석</div>
-                          <p className="leading-6">{finding.llmAnalysis}</p>
+                      {finding.llmAnalysis && expanded ? (
+                        <div className="dynamic-test-results-finding-llm">
+                          <div className="dynamic-test-results-finding-llm-title">LLM 분석</div>
+                          <p className="dynamic-test-results-finding-llm-copy">{finding.llmAnalysis}</p>
                         </div>
-                      )}
+                      ) : null}
                     </CardContent>
                   </Card>
                 );

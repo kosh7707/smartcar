@@ -1,0 +1,45 @@
+/* ═══════════════════════════════════════════════════════════════
+   AEGIS — Language tag
+
+   Tiny chip for language columns on the Projects table.
+     .lang-tag           base chip
+     .lang-tag .lang-dot 5px dot, color varies
+     .lang-tag.l-c       C
+     .lang-tag.l-cpp     C++
+     .lang-tag.l-rust    Rust
+     .lang-tag.l-py      Python
+     .lang-tag.l-ts      TypeScript
+   ═══════════════════════════════════════════════════════════════ */
+
+
+.lang-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  padding: 1px 6px;
+
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+
+  color: var(--foreground-muted);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.lang-tag .lang-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.lang-tag.l-c   .lang-dot { background: oklch(0.58 0.18 250); }
+.lang-tag.l-cpp .lang-dot { background: oklch(0.55 0.17 290); }
+.lang-tag.l-rust .lang-dot{ background: oklch(0.65 0.15 55);  }
+.lang-tag.l-py  .lang-dot { background: oklch(0.62 0.14 150); }
+.lang-tag.l-ts  .lang-dot { background: oklch(0.62 0.12 230); }

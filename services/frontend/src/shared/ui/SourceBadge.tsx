@@ -11,24 +11,24 @@ interface Props {
 export const sourceBadgeClass = (sourceType: FindingSourceType) => {
   switch (sourceType) {
     case "rule-engine":
-      return "border-[var(--aegis-source-rule-border)] bg-[var(--aegis-source-rule-bg)] text-[var(--aegis-source-rule)]";
+      return "source-badge source-badge--rule-engine";
     case "llm-assist":
-      return "border-[var(--aegis-source-ai-border)] bg-[var(--aegis-source-ai-bg)] text-[var(--aegis-source-ai)]";
+      return "source-badge source-badge--llm-assist";
     case "both":
-      return "border-[var(--aegis-source-both-border)] bg-[var(--aegis-source-both-bg)] text-[var(--aegis-source-both)]";
+      return "source-badge source-badge--both";
     case "agent":
-      return "border-[var(--aegis-source-agent-border)] bg-[var(--aegis-source-agent-bg)] text-[var(--aegis-source-agent)]";
+      return "source-badge source-badge--agent";
     case "sast-tool":
-      return "border-[var(--aegis-source-sast-border)] bg-[var(--aegis-source-sast-bg)] text-[var(--aegis-source-sast)]";
+      return "source-badge source-badge--sast-tool";
     default:
-      return "border-border bg-background text-foreground";
+      return "source-badge";
   }
 };
 
 export const SourceBadge: React.FC<Props> = ({ sourceType, ruleId }) => {
   const label = sourceType === "rule-engine" && ruleId ? `${SOURCE_TYPE_LABELS[sourceType]}: ${ruleId}` : SOURCE_TYPE_LABELS[sourceType];
   return (
-    <Badge variant="outline" className={`badge-source--${sourceType} ${sourceBadgeClass(sourceType)}`} title={SOURCE_TYPE_DESCRIPTIONS[sourceType]}>
+    <Badge variant="outline" className={`${sourceBadgeClass(sourceType)} badge-source--${sourceType}`} title={SOURCE_TYPE_DESCRIPTIONS[sourceType]}>
       {label}
     </Badge>
   );

@@ -2,16 +2,8 @@ import React, { useEffect, useState, useCallback } from "react";
 import type { Finding, EvidenceRef, AuditLogEntry, FindingStatus } from "@aegis/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
-import {
-  BackButton,
-  Spinner,
-  SeverityBadge,
-  FindingStatusBadge,
-  ConfidenceBadge,
-  SourceBadge,
-  StateTransitionDialog,
-} from "../ui";
+import { Card, CardContent } from "@/components/ui/card";
+import { BackButton, Spinner, SeverityBadge, FindingStatusBadge, ConfidenceBadge, SourceBadge, StateTransitionDialog } from "../ui";
 import { EvidencePanel } from "./EvidencePanel";
 import { EvidenceViewer } from "./EvidenceViewer";
 import { fetchFindingDetail, updateFindingStatus, generatePoc, fetchFindingHistory, logError } from "../../api/client";
@@ -20,11 +12,7 @@ import { useToast } from "../../contexts/ToastContext";
 import { formatDateTime } from "../../utils/format";
 import { renderMarkdown } from "../../utils/markdown";
 
-interface Props {
-  findingId: string;
-  projectId: string;
-  onBack: () => void;
-}
+interface Props { findingId: string; projectId: string; onBack: () => void; }
 
 export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBack }) => {
   const toast = useToast();
@@ -32,12 +20,8 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
   const [loading, setLoading] = useState(true);
   const [showTransition, setShowTransition] = useState(false);
   const [selectedEvidence, setSelectedEvidence] = useState<EvidenceRef | null>(null);
-
-  // PoC state
   const [pocData, setPocData] = useState<PocResponse | null>(null);
   const [pocLoading, setPocLoading] = useState(false);
-
-  // Fingerprint history
   const [history, setHistory] = useState<FindingHistoryEntry[]>([]);
 
   const loadDetail = useCallback(async () => {
@@ -57,16 +41,14 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
     setPocData(null);
     setHistory([]);
     loadDetail();
-    fetchFindingHistory(findingId)
-      .then(setHistory)
-      .catch(() => setHistory([]));
+    fetchFindingHistory(findingId).then(setHistory).catch(() => setHistory([]));
   }, [loadDetail, findingId]);
 
   const handleStatusChange = async (newStatus: FindingStatus, reason: string) => {
     if (!finding) return;
     try {
       const updated = await updateFindingStatus(finding.id, newStatus, reason);
-      setFinding((prev) => prev ? { ...prev, ...updated } : null);
+      setFinding((prev) => (prev ? { ...prev, ...updated } : null));
       setShowTransition(false);
       toast.success("상태가 변경되었습니다.");
       loadDetail();
@@ -92,20 +74,18 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
 
   if (loading) {
     return (
-      <div className="page-enter">
+      <div className="finding-detail-shell">
         <BackButton onClick={onBack} />
-        <div className="flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
-          <Spinner label="Finding 로딩 중..." />
-        </div>
+        <div className="page-loading-shell"><Spinner label="Finding 로딩 중..." /></div>
       </div>
     );
   }
 
   if (!finding) {
     return (
-      <div className="page-enter">
+      <div className="finding-detail-shell">
         <BackButton onClick={onBack} />
-        <p className="text-muted-foreground">Finding을 찾을 수 없습니다.</p>
+        <p className="finding-body-text">Finding을 찾을 수 없습니다.</p>
       </div>
     );
   }
@@ -113,228 +93,80 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
   const canGeneratePoc = finding.sourceType === "agent";
 
   return (
-    <div className="page-enter">
-      <BackButton onClick={onBack} label="뒤로" />
-      <p className="mb-4 text-sm text-muted-foreground">정적 분석 › Finding 상세</p>
+    <div className="finding-detail-shell">
+      <BackButton onClick={onBack} label="뒤로" className="finding-back-link" />
+      <p className="page-meta-inline">정적 분석 › Finding 상세</p>
 
-      {/* Header: severity banner */}
-      <Card
-        className="finding-banner shadow-none"
-        data-severity={finding.severity}
-      >
+      <Card className="finding-banner-shell" data-severity={finding.severity}>
         <CardContent>
-        <div className="finding-banner__badges">
-          <SeverityBadge severity={finding.severity} />
-          <FindingStatusBadge status={finding.status} />
-          <ConfidenceBadge confidence={finding.confidence} sourceType={finding.sourceType} confidenceScore={finding.confidenceScore} />
-          <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
-          {finding.cweId && (
-            <Badge
-              asChild
-              variant="outline"
-              className="badge-cwe"
-            >
-            <a
-              href={`https://cwe.mitre.org/data/definitions/${finding.cweId.replace("CWE-", "")}.html`}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={`MITRE ${finding.cweId} 상세`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {finding.cweId}
-            </a>
-            </Badge>
-          )}
-          {finding.cveIds && finding.cveIds.length > 0 && finding.cveIds.map((cve) => (
-            <Badge
-              key={cve}
-              asChild
-              variant="outline"
-              className="badge-cve"
-            >
-            <a
-              href={`https://nvd.nist.gov/vuln/detail/${cve}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={`NVD ${cve} 상세`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {cve}
-            </a>
-            </Badge>
-          ))}
-          {finding.fingerprint && (
-            <span className="inline-flex min-h-6 items-center gap-1 rounded-full border border-[var(--aegis-source-agent-border)] bg-[var(--aegis-source-agent-bg)] px-2 text-sm font-medium text-[var(--aegis-source-agent)]" title="이전 분석에서도 발견된 취약점 (fingerprint 추적)">
-              재발견{history.length > 1 ? ` (${history.length}회)` : ""}
-            </span>
-          )}
-          <h2 className="finding-banner__title">
-            {finding.title}
-          </h2>
-        </div>
+          <div className="finding-banner__badges">
+            <SeverityBadge severity={finding.severity} />
+            <FindingStatusBadge status={finding.status} />
+            <ConfidenceBadge confidence={finding.confidence} sourceType={finding.sourceType} confidenceScore={finding.confidenceScore} />
+            <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
+            {finding.cweId ? (
+              <Badge asChild variant="outline" className="badge-cwe"><a href={`https://cwe.mitre.org/data/definitions/${finding.cweId.replace("CWE-", "")}.html`} target="_blank" rel="noopener noreferrer" title={`MITRE ${finding.cweId} 상세`} onClick={(e) => e.stopPropagation()}>{finding.cweId}</a></Badge>
+            ) : null}
+            {finding.cveIds?.length ? finding.cveIds.map((cve) => (
+              <Badge key={cve} asChild variant="outline" className="badge-cve"><a href={`https://nvd.nist.gov/vuln/detail/${cve}`} target="_blank" rel="noopener noreferrer" title={`NVD ${cve} 상세`} onClick={(e) => e.stopPropagation()}>{cve}</a></Badge>
+            )) : null}
+            {finding.fingerprint ? <span className="finding-chip" title="이전 분석에서도 발견된 취약점 (fingerprint 추적)">재발견{history.length > 1 ? ` (${history.length}회)` : ""}</span> : null}
+            <h2 className="finding-banner__title">{finding.title}</h2>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Status change + PoC button */}
       <div className="finding-actions">
-        <Button variant="outline" onClick={() => setShowTransition(true)}>
-          상태 변경
-        </Button>
-        {canGeneratePoc && !pocData && (
-          <Button
-            variant="outline"
-            onClick={handleGeneratePoc}
-            disabled={pocLoading}
-          >
-            {pocLoading ? <Spinner size={14} /> : null}
-            PoC 생성
-          </Button>
-        )}
-        {finding.location && (
-          <span className="inline-flex min-h-7 items-center gap-3 rounded-full border border-border bg-background/90 px-3 py-1 text-sm">
-            {finding.location}
-          </span>
-        )}
+        <Button variant="outline" onClick={() => setShowTransition(true)}>상태 변경</Button>
+        {canGeneratePoc && !pocData ? <Button variant="outline" onClick={handleGeneratePoc} disabled={pocLoading}>{pocLoading ? <Spinner size={14} /> : null}PoC 생성</Button> : null}
+        {finding.location ? <span className="finding-chip">{finding.location}</span> : null}
       </div>
 
-      {/* Description */}
-      <Card className="shadow-none">
-        <CardContent className="space-y-3">
-        <CardTitle>설명</CardTitle>
-        <p className="finding-body-text">{finding.description}</p>
-        </CardContent>
-      </Card>
+      <Card className="finding-copy-card"><CardContent><div className="finding-copy-title">설명</div><p className="finding-body-text">{finding.description}</p></CardContent></Card>
 
-      {/* Detail (Agent deep analysis — markdown) */}
-      {finding.detail && (
-        <Card className="shadow-none">
-          <CardContent className="space-y-3">
-          <CardTitle>상세 분석</CardTitle>
-          <div className="space-y-3">
-            {renderMarkdown(finding.detail)}
-          </div>
-          </CardContent>
-        </Card>
-      )}
+      {finding.detail ? <Card className="finding-copy-card"><CardContent><div className="finding-copy-title">상세 분석</div><div className="page-section-stack">{renderMarkdown(finding.detail)}</div></CardContent></Card> : null}
 
-      {/* Suggestion + fixCode */}
-      {finding.suggestion && (
-        <Card className="shadow-none">
-          <CardContent className="space-y-3">
-          <CardTitle>수정 가이드</CardTitle>
-          <p className="finding-suggestion-text">
-            {finding.suggestion}
-          </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* PoC result */}
-      {pocLoading && (
-        <Card className="mt-4 shadow-none">
-          <CardContent className="space-y-3">
-          <CardTitle>PoC 생성 중...</CardTitle>
-          <div className="flex items-center justify-center py-8">
-            <Spinner label="LLM이 PoC 코드를 생성하고 있습니다..." />
-          </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {pocData && (
-        <Card className="mt-4 shadow-none">
-          <CardContent className="space-y-3">
-          <div className="mb-4 flex items-center justify-between">
-            <CardTitle className="flex items-center gap-3">
-              PoC — {pocData.poc.statement}
-            </CardTitle>
-          </div>
-          <div className="space-y-3">
-            {renderMarkdown(pocData.poc.detail)}
-          </div>
-          <div className="mt-4 flex gap-5 border-t border-border pt-4 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              {(pocData.audit.latencyMs / 1000).toFixed(1)}초
-            </span>
-            <span className="flex items-center gap-1.5">
-              {pocData.audit.tokenUsage.prompt + pocData.audit.tokenUsage.completion} tokens
-            </span>
-          </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Evidence Panel */}
-      <EvidencePanel
-        evidenceRefs={finding.evidenceRefs}
-        onSelectEvidence={setSelectedEvidence}
-      />
-
-      {/* Fingerprint History */}
-      {history.length > 1 && (
-        <Card className="shadow-none">
-          <CardContent className="space-y-3">
-          <CardTitle>발견 이력 ({history.length}회)</CardTitle>
-          <div className="audit-timeline">
-            {history.map((h) => (
-              <div key={h.findingId} className="audit-entry">
-                <span className="audit-entry__time">{formatDateTime(h.createdAt)}</span>
-                <span className="audit-entry__body">
-                  Run {h.runId.slice(0, 8)} — 상태: {h.status}
-                </span>
+      {finding.suggestion ? (
+        <Card className="finding-copy-card">
+          <CardContent>
+            <div className="finding-copy-title">수정 가이드</div>
+            <p className="finding-suggestion-text">{finding.suggestion}</p>
+            {finding.fixCode ? (
+              <div className="fix-code-wrap">
+                <Button variant="outline" size="sm" className="fix-code-wrap__copy-btn" title="코드 복사" onClick={() => navigator.clipboard.writeText(finding.fixCode!)}>
+                  복사
+                </Button>
+                <div className="fix-code"><code>{finding.fixCode}</code></div>
               </div>
-            ))}
-          </div>
+            ) : null}
           </CardContent>
         </Card>
-      )}
+      ) : null}
 
-      {/* Audit Log Timeline */}
-      {finding.auditLog.length > 0 && (
-        <Card className="shadow-none">
-          <CardContent className="space-y-3">
-          <CardTitle>감사 로그</CardTitle>
-          <div className="audit-timeline">
-            {finding.auditLog.map((entry) => (
-              <div
-                key={entry.id}
-                className="audit-timeline__entry"
-              >
-                <span className="text-muted-foreground audit-timeline__time">
-                  {formatDateTime(entry.timestamp)}
-                </span>
-                <span>
-                  <strong>{entry.actor}</strong> — {entry.action}
-                  {entry.detail?.from && entry.detail?.to && (
-                    <span className="text-muted-foreground"> ({String(entry.detail.from)} → {String(entry.detail.to)})</span>
-                  )}
-                  {entry.detail?.reason && (
-                    <span className="text-muted-foreground"> "{String(entry.detail.reason)}"</span>
-                  )}
-                </span>
-              </div>
-            ))}
-          </div>
+      {pocLoading ? <Card className="finding-copy-card"><CardContent><div className="finding-copy-title">PoC 생성 중...</div><div className="page-loading-shell"><Spinner label="LLM이 PoC 코드를 생성하고 있습니다..." /></div></CardContent></Card> : null}
+
+      {pocData ? (
+        <Card className="finding-copy-card">
+          <CardContent>
+            <div className="finding-copy-title">PoC — {pocData.poc.statement}</div>
+            <div className="page-section-stack">{renderMarkdown(pocData.poc.detail)}</div>
+            <div className="page-meta-inline"><span>{(pocData.audit.latencyMs / 1000).toFixed(1)}초</span><span>{pocData.audit.tokenUsage.prompt + pocData.audit.tokenUsage.completion} tokens</span></div>
           </CardContent>
         </Card>
-      )}
+      ) : null}
 
-      {/* State transition dialog */}
-      <StateTransitionDialog
-        open={showTransition}
-        currentStatus={finding.status}
-        sourceType={finding.sourceType}
-        onConfirm={handleStatusChange}
-        onCancel={() => setShowTransition(false)}
-      />
+      <EvidencePanel evidenceRefs={finding.evidenceRefs} onSelectEvidence={setSelectedEvidence} />
 
-      {/* Evidence viewer */}
-      {selectedEvidence && (
-        <EvidenceViewer
-          evidence={selectedEvidence}
-          onClose={() => setSelectedEvidence(null)}
-        />
-      )}
+      {history.length > 1 ? (
+        <Card className="finding-copy-card"><CardContent><div className="finding-copy-title">발견 이력 ({history.length}회)</div><div className="audit-timeline">{history.map((h) => <div key={h.findingId} className="audit-entry"><span className="audit-entry__time">{formatDateTime(h.createdAt)}</span><span className="audit-entry__body">Run {h.runId.slice(0, 8)} — 상태: {h.status}</span></div>)}</div></CardContent></Card>
+      ) : null}
+
+      {finding.auditLog.length > 0 ? (
+        <Card className="finding-copy-card"><CardContent><div className="finding-copy-title">감사 로그</div><div className="audit-timeline">{finding.auditLog.map((entry) => <div key={entry.id} className="audit-timeline__entry"><span className="audit-timeline__time">{formatDateTime(entry.timestamp)}</span><span><strong>{entry.actor}</strong> — {entry.action}{entry.detail?.from && entry.detail?.to ? <span className="finding-body-text"> ({String(entry.detail.from)} → {String(entry.detail.to)})</span> : null}{entry.detail?.reason ? <span className="finding-body-text"> "{String(entry.detail.reason)}"</span> : null}</span></div>)}</div></CardContent></Card>
+      ) : null}
+
+      {selectedEvidence ? <EvidenceViewer evidence={selectedEvidence} onClose={() => setSelectedEvidence(null)} /> : null}
+      {showTransition ? <StateTransitionDialog currentStatus={finding.status} onSubmit={handleStatusChange} onCancel={() => setShowTransition(false)} /> : null}
     </div>
   );
 };

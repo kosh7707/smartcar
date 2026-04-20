@@ -6,8 +6,8 @@ interface OverviewSectionHeaderProps {
 }
 
 export const OverviewSectionHeader: React.FC<OverviewSectionHeaderProps> = ({ title }) => (
-  <div className="flex items-center gap-4">
-    <h2 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">{title}</h2>
-    <Separator className="flex-1" />
+  <div className="overview-section-header">
+    <h2 className="overview-section-header__title">{title}</h2>
+    <Separator className="overview-section-header__separator" />
   </div>
 );

@@ -11,30 +11,28 @@ interface OverviewActivityPanelProps {
 }
 
 export const OverviewActivityPanel: React.FC<OverviewActivityPanelProps> = ({ activities }) => (
-  <section className="min-w-0 space-y-5">
+  <section className="overview-activity-panel">
     <OverviewSectionHeader title="최근 활동" />
-    <Card className="gap-0 border-border/70 bg-card/80 p-0 shadow-none">
+    <Card className="overview-activity-panel__card">
       {activities.length === 0 ? (
-        <div className="px-5 py-5">
-          <p className="inline-flex min-h-9 items-center rounded-lg border border-border/70 bg-background/80 px-4 text-sm font-medium text-muted-foreground">
-            아직 활동 이력이 없습니다.
-          </p>
+        <div className="overview-activity-panel__empty-wrap">
+          <p className="overview-activity-panel__empty">아직 활동 이력이 없습니다.</p>
         </div>
       ) : (
-        <ScrollArea className="max-h-80">
-          <div className="divide-y divide-border/60">
+        <ScrollArea className="overview-activity-panel__scroll">
+          <div className="overview-activity-panel__list">
             {activities.map((activity, index) => (
               <div
                 key={`${activity.timestamp}-${index}`}
-                className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-muted/40"
+                className="overview-activity-panel__item"
               >
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <div className="overview-activity-panel__item-main">
+                  <div className="overview-activity-panel__item-icon">
                     <Activity size={14} />
                   </div>
-                  <span className="truncate text-sm text-foreground">{activity.summary}</span>
+                  <span className="overview-activity-panel__item-text">{activity.summary}</span>
                 </div>
-                <span className="shrink-0 text-xs text-muted-foreground sm:text-sm">
+                <span className="overview-activity-panel__item-time">
                   {formatDateTime(activity.timestamp)}
                 </span>
               </div>

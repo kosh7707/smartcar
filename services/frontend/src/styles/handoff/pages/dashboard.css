@@ -1,0 +1,888 @@
+/* ═══════════════════════════════════════════════════════════════
+   AEGIS — Dashboard page
+
+   Scope: Dashboard.html only.
+   Depends on: tokens.css, base.css, and components:
+     button, panel, pill, seg, toggle, severity, lang-tag,
+     choreography, divider, nav.
+
+   Sections:
+     1. Main layout + page head
+     2. Needs Attention (hero cards)
+     3. Two-column grid (projects + activity)
+     4. Projects table & card layout
+     5. Activity feed
+     6. Tweaks panel
+     7. Density / visibility modes
+     8. Responsive breakpoints
+   ═══════════════════════════════════════════════════════════════ */
+
+
+/* ───────────────────────────────────────────────────────────────
+   2. MAIN LAYOUT + PAGE HEAD
+   ─────────────────────────────────────────────────────────────── */
+.main {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: var(--space-9) var(--space-7) var(--space-10);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-9);
+}
+
+/* ── Page head / greeting ───────────────────────────────────── */
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-7);
+  flex-wrap: wrap;
+}
+.page-head h1 {
+  font-size: 28px;
+  font-weight: var(--weight-semibold);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+}
+.page-head h1 em {
+  margin-left: 6px;
+
+  font-style: normal;
+  font-weight: var(--weight-normal);
+  letter-spacing: -0.01em;
+  color: var(--foreground-muted);
+}
+.page-head h1 em .crit-n {
+  padding: 0 2px;
+
+  font-family: var(--font-mono);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--severity-critical);
+}
+
+.page-head .sub {
+  margin-top: 12px;
+
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.005em;
+  color: var(--foreground-subtle);
+}
+.page-head .sub .sep {
+  color: var(--border-strong);
+  opacity: 0.5;
+  user-select: none;
+}
+.page-head .sub b {
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+.page-head .sub .critical {
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--severity-critical);
+}
+
+.page-head .actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+
+/* ───────────────────────────────────────────────────────────────
+   3. NEEDS ATTENTION (hero strip)
+   ─────────────────────────────────────────────────────────────── */
+.section-head {
+  margin-bottom: var(--space-5);
+
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.section-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--foreground);
+}
+.section-head h2 .count {
+  padding: 2px 7px;
+
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: var(--weight-normal);
+  color: var(--foreground-muted);
+
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+}
+.section-head .hint {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-subtle);
+}
+
+.attention-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-5);
+}
+
+/* ── Attention card ─────────────────────────────────────────── */
+.att-card {
+  position: relative;
+  overflow: hidden;
+
+  padding: var(--space-6) var(--space-6) var(--space-5);
+  padding-left: calc(var(--space-6) + 3px); /* room for rail */
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+
+  transition:
+    border-color var(--duration-fast),
+    transform var(--duration-fast),
+    box-shadow var(--duration-fast),
+    background var(--duration-fast);
+}
+.att-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+/* Left severity rail */
+.att-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--severity-info);
+}
+
+/* Severity variants ─ tinted wash + rail color */
+.att-card.sev-critical {
+  background:
+    linear-gradient(180deg, oklch(0.55 0.21 25 / 0.06) 0%, transparent 60%),
+    var(--surface);
+}
+.att-card.sev-critical::before {
+  background: var(--severity-critical);
+  box-shadow: 2px 0 12px oklch(0.55 0.21 25 / 0.18);
+}
+.att-card.sev-critical:hover { border-color: var(--severity-critical-border); }
+
+.att-card.sev-high {
+  background:
+    linear-gradient(180deg, oklch(0.68 0.17 50 / 0.05) 0%, transparent 60%),
+    var(--surface);
+}
+.att-card.sev-high::before { background: var(--severity-high); }
+.att-card.sev-high:hover   { border-color: var(--severity-high-border); }
+
+.att-card.sev-medium {
+  background:
+    linear-gradient(180deg, oklch(0.75 0.14 85 / 0.05) 0%, transparent 60%),
+    var(--surface);
+}
+.att-card.sev-medium::before { background: var(--severity-medium); }
+.att-card.sev-medium:hover   { border-color: var(--severity-medium-border); }
+
+/* ── Card head (title + gate) ───────────────────────────────── */
+.att-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.att-head .title-block { min-width: 0; }
+.att-head .title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  font-size: 15px;
+  font-weight: var(--weight-semibold);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+.att-head .title .dot-sev {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+}
+.att-card.sev-critical .dot-sev { background: var(--severity-critical); box-shadow: 0 0 0 3px oklch(0.55 0.21 25 / 0.14); }
+.att-card.sev-high     .dot-sev { background: var(--severity-high);     box-shadow: 0 0 0 3px oklch(0.68 0.17 50 / 0.12); }
+.att-card.sev-medium   .dot-sev { background: var(--severity-medium);   box-shadow: 0 0 0 3px oklch(0.75 0.14 85 / 0.14); }
+
+.att-head .meta {
+  margin-top: 4px;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--foreground-subtle);
+}
+.att-head .meta .sep { color: var(--border); }
+
+/* ── Card body ──────────────────────────────────────────────── */
+.att-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.att-headline {
+  font-size: 13.5px;
+  line-height: var(--leading-normal);
+  letter-spacing: -0.005em;
+  color: var(--foreground-muted);
+}
+.att-headline .n {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+.att-headline .n.critical { color: var(--severity-critical); }
+.att-headline .n.high     { color: var(--severity-high); }
+.att-headline .arrow-indicator {
+  margin-left: 4px;
+
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  color: var(--severity-critical);
+}
+
+/* Inline chips strip */
+.att-chips {
+  padding: 8px 10px;
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Card foot (timestamp + arrow) ──────────────────────────── */
+.att-foot {
+  padding-top: var(--space-4);
+  margin-top: var(--space-2);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.01em;
+  color: var(--foreground-subtle);
+
+  border-top: 1px solid var(--border-subtle);
+}
+.att-foot .left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.att-foot .sep { color: var(--border); }
+.att-foot .arrow {
+  color: var(--foreground-muted);
+  transition:
+    transform var(--duration-fast),
+    color var(--duration-fast);
+}
+.att-card:hover .att-foot .arrow {
+  color: var(--primary);
+  transform: translateX(2px);
+}
+
+/* ── In-progress laser bar ──────────────────────────────────── */
+.att-progress {
+  position: relative;
+  margin-top: -4px;
+  height: 2px;
+
+  overflow: hidden;
+  background: var(--surface-sunken);
+  border-radius: 2px;
+}
+.att-progress::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  animation: laser 1.6s linear infinite;
+}
+@keyframes laser {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
+
+/* ───────────────────────────────────────────────────────────────
+   4. TWO-COLUMN GRID (Projects + Activity)
+   ─────────────────────────────────────────────────────────────── */
+.cols {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: var(--space-7);
+  align-items: start;
+}
+
+
+/* ───────────────────────────────────────────────────────────────
+   5. PROJECTS TABLE + CARD LAYOUT
+   ─────────────────────────────────────────────────────────────── */
+
+/* ── Inline search (panel tool) ─────────────────────────────── */
+.search-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  height: 28px;
+  padding: 0 10px;
+
+  font-size: var(--text-xs);
+  color: var(--foreground-muted);
+
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.search-inline svg { width: 12px; height: 12px; }
+.search-inline input {
+  width: 160px;
+
+  font: inherit;
+  font-size: var(--text-xs);
+  color: var(--foreground);
+
+  background: none;
+  border: none;
+  outline: none;
+}
+.search-inline input::placeholder { color: var(--foreground-subtle); }
+
+/* ── Table ──────────────────────────────────────────────────── */
+table.projects {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+table.projects thead { background: var(--surface-sunken); }
+
+table.projects th {
+  padding: 10px var(--space-5);
+
+  text-align: left;
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-subtle);
+  white-space: nowrap;
+  user-select: none;
+
+  border-bottom: 1px solid var(--border);
+}
+table.projects th.sort {
+  cursor: pointer;
+  transition: color var(--duration-fast);
+}
+table.projects th.sort:hover          { color: var(--foreground-muted); }
+table.projects th.sort:hover .chev    { opacity: 0.5; }
+table.projects th.active              { color: var(--foreground); }
+table.projects th .chev {
+  display: inline-block;
+  width: 0;
+  margin-left: 3px;
+
+  font-size: 8px;
+  color: var(--primary);
+  opacity: 0;
+
+  transition: opacity var(--duration-fast);
+}
+table.projects th.active .chev { opacity: 1; width: auto; }
+table.projects th.active .chev {
+  display: inline-block;
+  transition: transform var(--duration-fast), opacity var(--duration-fast);
+}
+/* Default (no .asc) = descending = chevron points down (▾, original glyph).
+   Adding .asc rotates it 180° to point up. */
+table.projects th.active.asc .chev { transform: rotate(180deg); }
+table.projects th.num    { text-align: right; font-variant-numeric: tabular-nums; }
+table.projects th.center { text-align: center; }
+
+table.projects tbody tr {
+  cursor: pointer;
+  transition: background var(--duration-fast);
+}
+table.projects tbody tr:hover { background: var(--surface-sunken); }
+table.projects tbody tr:hover .cell-when { color: var(--foreground-muted); }
+table.projects tbody tr.running {
+  background: color-mix(in srgb, var(--primary-surface) 55%, transparent);
+}
+table.projects tbody tr.running:hover {
+  background: color-mix(in srgb, var(--primary-surface) 80%, transparent);
+}
+
+table.projects td {
+  padding: 14px var(--space-5);
+
+  vertical-align: middle;
+  color: var(--foreground);
+
+  border-bottom: 1px solid var(--border-subtle);
+}
+table.projects tbody tr:last-child td { border-bottom: none; }
+
+/* Compact density */
+body.density-compact table.projects td { padding: 10px var(--space-5); }
+body.density-compact table.projects th { padding:  8px var(--space-5); }
+
+/* ── Name cell ──────────────────────────────────────────────── */
+.cell-name {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cell-name .n {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  font-weight: var(--weight-medium);
+  letter-spacing: -0.005em;
+  color: var(--foreground);
+}
+.cell-name .n.running::after {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+
+  background: var(--primary);
+  border-radius: 999px;
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+.cell-name .slug {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--foreground-subtle);
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1;   box-shadow: 0 0 0 0 var(--primary-surface); }
+  50%      { opacity: 0.5; box-shadow: 0 0 0 5px transparent; }
+}
+
+/* Timestamps & owners */
+.cell-when {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--foreground-subtle);
+  white-space: nowrap;
+}
+.cell-owner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--foreground-muted);
+}
+.cell-owner .mini-avatar {
+  width: 18px;
+  height: 18px;
+
+  display: grid;
+  place-items: center;
+
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: var(--weight-semibold);
+  color: var(--foreground-muted);
+
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+/* ── Card layout (alternate) ──────────────────────────────────
+   Visibility is controlled by body.layout-cards — see §7. Modes. */
+.ptable-cards {
+  display: none;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+.pcard {
+  padding: var(--space-5);
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+
+  transition:
+    border-color var(--duration-fast),
+    transform var(--duration-fast);
+}
+.pcard:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-strong);
+}
+.pcard .pc-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pcard .pc-name {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+.pcard .pc-meta {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--foreground-subtle);
+}
+.pcard .pc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+
+/* ───────────────────────────────────────────────────────────────
+   6. ACTIVITY FEED
+   ─────────────────────────────────────────────────────────────── */
+.activity {
+  position: sticky;
+  top: calc(var(--navbar-height) + var(--space-5));
+}
+.activity-body {
+  padding: var(--space-3);
+  max-height: 72vh;
+
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.activity-body::-webkit-scrollbar       { width: 6px; }
+.activity-body::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }
+.activity-body::-webkit-scrollbar-track { background: transparent; }
+
+.activity-item {
+  position: relative;
+  padding: 10px var(--space-3);
+
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 12px;
+
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+
+  transition: background var(--duration-fast);
+}
+.activity-item:hover { background: var(--surface-sunken); }
+
+/* Vertical timeline rail */
+.activity-item::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--space-3) + 8px);
+  top: 30px;
+  bottom: -2px;
+  width: 1px;
+
+  background: var(--border);
+}
+.activity-item:last-child::before { display: none; }
+
+.activity-icon {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+
+  display: grid;
+  place-items: center;
+
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.activity-icon svg { width: 10px; height: 10px; color: var(--foreground-muted); }
+.activity-icon.success  { background: var(--success-surface);          border-color: oklch(0.62 0.14 150 / 0.3); }
+.activity-icon.success svg  { color: var(--success); }
+.activity-icon.critical { background: var(--severity-critical-surface); border-color: var(--severity-critical-border); }
+.activity-icon.critical svg { color: var(--severity-critical); }
+.activity-icon.primary  { background: var(--primary-surface);           border-color: var(--primary-border); }
+.activity-icon.primary svg  { color: var(--primary); }
+.activity-icon.muted svg    { color: var(--foreground-subtle); }
+
+.activity-content { min-width: 0; }
+.activity-content .line {
+  font-size: 12.5px;
+  line-height: var(--leading-snug);
+  color: var(--foreground);
+}
+.activity-content .line b {
+  font-weight: var(--weight-medium);
+  color: var(--foreground);
+}
+.activity-content .line .proj {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-medium);
+  color: var(--primary);
+}
+.activity-content .line .n {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-semibold);
+}
+.activity-content .line .n.critical { color: var(--severity-critical); }
+.activity-content .line .n.high     { color: var(--severity-high); }
+.activity-content .when {
+  margin-top: 3px;
+
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--foreground-subtle);
+}
+
+.activity-foot {
+  padding: 10px var(--space-5);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--foreground-subtle);
+
+  border-top: 1px solid var(--border);
+}
+.activity-foot--reconnecting { color: var(--warning); }
+.activity-foot--disconnected { color: var(--foreground-muted); }
+.activity-foot .live-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+
+  background: var(--success);
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px var(--success-surface);
+  animation: pulse-live 2s ease-in-out infinite;
+}
+.activity-foot--reconnecting .live-dot {
+  background: var(--warning);
+  box-shadow: 0 0 0 2px var(--warning-surface);
+}
+.activity-foot--disconnected .live-dot {
+  background: var(--foreground-disabled);
+  box-shadow: 0 0 0 2px transparent;
+  animation: none;
+}
+@keyframes pulse-live {
+  0%, 100% { opacity: 1;   box-shadow: 0 0 0 2px var(--success-surface); }
+  50%      { opacity: 0.5; box-shadow: 0 0 0 5px transparent; }
+}
+
+
+/* ───────────────────────────────────────────────────────────────
+   7. TWEAKS PANEL
+   ─────────────────────────────────────────────────────────────── */
+.tweaks {
+  position: fixed;
+  right: var(--space-6);
+  bottom: var(--space-6);
+  z-index: var(--z-popover);
+
+  width: 268px;
+  overflow: hidden;
+  display: none;
+
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+.tweaks.show { display: block; }
+
+.tweaks-head {
+  padding: 10px var(--space-5);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border);
+}
+.tweaks-head .title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-muted);
+}
+.tweaks-head button {
+  padding: 4px;
+
+  color: var(--foreground-subtle);
+  background: none;
+  border: none;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+}
+.tweaks-head button:hover {
+  color: var(--foreground);
+  background: var(--surface);
+}
+
+.tweaks-body {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.tweak-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tweak-group label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-subtle);
+}
+
+
+/* ───────────────────────────────────────────────────────────────
+   7. MODES (density + visibility + live-animation gating)
+   ───────────────────────────────────────────────────────────────
+
+   Density and layout toggles live here so the Tweaks panel can
+   swap them at runtime without page-level CSS awareness.
+   ─────────────────────────────────────────────────────────────── */
+
+/* Density: compact ── tighter paddings + smaller type in table rows. */
+body.density-compact .projects-panel .panel-head { padding: var(--space-4) var(--space-5); }
+body.density-compact .ptable thead th            { padding: 8px 14px; }
+body.density-compact .ptable tbody td            { padding: 8px 14px; font-size: var(--text-xs); }
+body.density-compact .cell-name .n               { font-size: var(--text-xs); }
+body.density-compact .att-card                   { padding: var(--space-4) var(--space-5); }
+body.density-compact .att-chip-strip             { gap: 4px; }
+body.density-compact .main                       { padding-top: var(--space-7); padding-bottom: var(--space-8); }
+
+/* Layout: cards ── replace the table with a responsive card grid. */
+body.layout-cards .ptable-wrap  { display: none; }
+body.layout-cards .ptable-cards { display: grid; }
+
+body.no-activity .cols     { grid-template-columns: 1fr; }
+body.no-activity .activity { display: none; }
+
+/* Disable all "live" pulse animations when the user turns it off */
+body.no-live .cell-name .n.running::after,
+body.no-live .cell-gate.running::before,
+body.no-live .att-progress::after,
+body.no-live .activity-foot .live-dot {
+  animation: none !important;
+}
+
+
+/* ───────────────────────────────────────────────────────────────
+   8. RESPONSIVE
+
+   DESIGN.md §8.5 — "Needs Attention" is never hidden. On narrow
+   viewports it collapses to a vertical stack with compressed
+   metrics so all three cards remain visible.
+   ─────────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .attention-grid { grid-template-columns: 1fr 1fr; }
+  .cols           { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  /* Stack all three Attention cards — never hide. */
+  .attention-grid { grid-template-columns: 1fr; gap: var(--space-3); }
+  .att-card       { padding: var(--space-4) var(--space-5); }
+
+  /* Switch body of the card to a horizontal layout to save vertical space */
+  .att-card .att-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-5);
+  }
+  .att-card h3          { font-size: var(--text-base); }
+  .att-card .att-meta   { font-size: var(--text-xs); }
+
+  /* At narrow widths, tables scroll horizontally — users can also
+     switch to card layout via Tweaks (body.layout-cards). */
+  .ptable-wrap { overflow-x: auto; }
+}
+@media (max-width: 640px) {
+  .main { padding: var(--space-6) var(--space-5) var(--space-8); }
+  .att-card .att-body { grid-template-columns: 1fr; }
+}
+
+.activity-when-icon { display:inline-block; vertical-align:middle; margin-right:4px; }
+.activity-load-more { padding-top:var(--space-4); text-align:center; }
+table.projects td.center-cell { text-align:center; }

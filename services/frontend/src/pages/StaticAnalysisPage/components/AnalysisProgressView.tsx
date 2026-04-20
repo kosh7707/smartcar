@@ -19,18 +19,18 @@ export const AnalysisProgressView: React.FC<Props> = ({ progress, step }) => {
   const { timeStr } = useElapsedTimer(true);
 
   return (
-    <div className="page-enter">
+    <div className="page-shell analysis-progress-view">
       <PageHeader title="정적 분석" />
 
-      <Card className="shadow-none">
-        <CardContent className="space-y-5 px-8 py-10 text-center">
-          <div className="flex justify-center">
+      <Card className="analysis-progress-view__card">
+        <CardContent className="analysis-progress-view__body">
+          <div className="analysis-progress-view__spinner">
             <Spinner size={40} />
           </div>
 
-          <h3 className="text-lg font-semibold text-foreground">분석 진행 중...</h3>
+          <h3 className="analysis-progress-view__title">분석 진행 중...</h3>
 
-          <div className="mb-7 flex items-start justify-center gap-0">
+          <div className="analysis-progress-view__steps">
             {STEPS.map((s, i) => {
               const done = progress >= s.threshold;
               const active = !done && (i === 0 || progress >= STEPS[i - 1].threshold);
@@ -39,32 +39,32 @@ export const AnalysisProgressView: React.FC<Props> = ({ progress, step }) => {
                   {i > 0 && (
                     <div
                       className={[
-                        "mt-[14px] h-0.5 w-12 shrink-0 rounded-sm bg-border/80 transition-colors",
-                        progress >= STEPS[i - 1].threshold ? "bg-emerald-500" : "",
+                        "analysis-progress-view__step-connector",
+                        progress >= STEPS[i - 1].threshold ? "is-complete" : "",
                       ].join(" ")}
                     />
                   )}
-                  <div className="flex min-w-20 flex-col items-center gap-2">
+                  <div className="analysis-progress-view__step">
                     <div
                       className={[
-                        "flex h-7 w-7 items-center justify-center rounded-full border-2 bg-background text-xs font-semibold transition-all",
+                        "analysis-progress-view__step-indicator",
                         done
-                          ? "border-emerald-500 bg-emerald-500 text-white"
+                          ? "is-complete"
                           : active
-                            ? "border-primary text-primary shadow-[0_0_0_3px_var(--cds-interactive-subtle)]"
-                            : "border-border text-muted-foreground",
+                            ? "is-active"
+                            : "is-pending",
                       ].join(" ")}
                     >
                       {done ? <CheckCircle2 size={18} /> : <span>{i + 1}</span>}
                     </div>
                     <span
                       className={[
-                        "whitespace-nowrap text-xs",
+                        "analysis-progress-view__step-label",
                         done
-                          ? "text-emerald-600 dark:text-emerald-300"
+                          ? "is-complete"
                           : active
-                            ? "font-medium text-foreground"
-                            : "text-muted-foreground",
+                            ? "is-active"
+                            : "is-pending",
                       ].join(" ")}
                     >
                       {s.label}
@@ -75,20 +75,20 @@ export const AnalysisProgressView: React.FC<Props> = ({ progress, step }) => {
             })}
           </div>
 
-          <div className="mx-auto mb-4 flex max-w-[400px] items-center gap-4">
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-border/70">
+          <div className="analysis-progress-view__progress-row">
+            <div className="analysis-progress-view__progress-track">
               <div
-                className="shimmer-fill h-full rounded-full bg-[linear-gradient(90deg,var(--cds-interactive),var(--cds-interactive-hover))] transition-[width]"
+                className="analysis-progress-view__progress-fill shimmer-fill"
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <span className="min-w-9 text-right text-sm font-semibold text-primary">
+            <span className="analysis-progress-view__progress-value">
               {progress}%
             </span>
           </div>
 
-          <p className="text-sm text-muted-foreground">{step}</p>
-          <p className="text-sm text-muted-foreground">경과 시간: {timeStr}</p>
+          <p className="analysis-progress-view__message">{step}</p>
+          <p className="analysis-progress-view__message">경과 시간: {timeStr}</p>
         </CardContent>
       </Card>
     </div>

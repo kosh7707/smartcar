@@ -110,19 +110,19 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
   const pct = isCompleted ? 100 : calcPhaseProgress();
 
   return (
-    <div className="page-enter">
+    <div className="page-shell async-analysis-progress-view">
       <BackButton onClick={onBack} label="대시보드로" />
       <PageHeader title="정적 분석" />
 
-      <Card className="shadow-none">
-        <CardContent className="space-y-5 px-8 py-10 text-center">
+      <Card className="async-analysis-progress-view__card">
+        <CardContent className="async-analysis-progress-view__body">
           {!isDone && (
-            <div className="flex justify-center">
+            <div className="async-analysis-progress-view__spinner">
               <Spinner size={40} />
             </div>
           )}
 
-          <h3 className="text-lg font-semibold text-foreground">
+          <h3 className="async-analysis-progress-view__title">
             {isCompleted
               ? "분석 완료"
               : isFailed
@@ -132,7 +132,7 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
                   : "분석 진행 중..."}
           </h3>
 
-          <div className="mb-7 flex items-start justify-center gap-0">
+          <div className="async-analysis-progress-view__steps">
             {STEPS.map((s, i) => {
               const done = isCompleted ? true : currentIdx > i || (llmDone && i === currentIdx);
               const active = !isDone && currentIdx === i && !done;
@@ -142,36 +142,36 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
                   {i > 0 && (
                     <div
                       className={[
-                        "mt-[14px] h-0.5 w-9 shrink-0 rounded-sm bg-border/80 transition-colors",
-                        done ? "bg-emerald-500" : "",
+                        "async-analysis-progress-view__step-connector",
+                        done ? "is-complete" : "",
                       ].join(" ")}
                     />
                   )}
-                  <div className="flex min-w-16 flex-col items-center gap-2">
+                  <div className="async-analysis-progress-view__step">
                     <div
                       className={[
-                        "flex h-7 w-7 items-center justify-center rounded-full border-2 bg-background text-xs font-semibold transition-all",
+                        "async-analysis-progress-view__step-indicator",
                         done
-                          ? "border-emerald-500 bg-emerald-500 text-white"
+                          ? "is-complete"
                           : failed
-                            ? "border-[var(--aegis-severity-critical)] bg-[var(--aegis-severity-critical)] text-white"
+                            ? "is-failed"
                             : active
-                              ? "border-primary text-primary shadow-[0_0_0_3px_var(--cds-interactive-subtle)]"
-                              : "border-border text-muted-foreground",
+                              ? "is-active"
+                              : "is-pending",
                       ].join(" ")}
                     >
                       {done ? <CheckCircle2 size={18} /> : failed ? <XCircle size={18} /> : <span>{i + 1}</span>}
                     </div>
                     <span
                       className={[
-                        "whitespace-nowrap text-xs",
+                        "async-analysis-progress-view__step-label",
                         done
-                          ? "text-emerald-600 dark:text-emerald-300"
+                          ? "is-complete"
                           : failed
-                            ? "text-[var(--aegis-severity-critical)]"
+                            ? "is-failed"
                             : active
-                              ? "font-medium text-foreground"
-                              : "text-muted-foreground",
+                              ? "is-active"
+                              : "is-pending",
                       ].join(" ")}
                     >
                       {s.label}
@@ -183,7 +183,7 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
           </div>
 
           {progress.phase === "llm_chunk" && progress.totalChunks > 0 && !isDone && !llmDone && (
-            <p className="mb-5 text-sm font-medium text-primary">
+            <p className="async-analysis-progress-view__chunk-copy">
               {progress.totalFiles
                 ? `${progress.processedFiles ?? 0} / ${progress.totalFiles}개 파일 진행 중 — `
                 : ""}
@@ -191,35 +191,35 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
             </p>
           )}
 
-          <div className="mx-auto mb-4 flex max-w-[400px] items-center gap-4">
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-border/70">
+          <div className="async-analysis-progress-view__progress-row">
+            <div className="async-analysis-progress-view__progress-track">
               <div
                 className={[
-                  "h-full rounded-full transition-[width]",
+                  "async-analysis-progress-view__progress-fill",
                   !isDone
-                    ? "shimmer-fill bg-[linear-gradient(90deg,var(--cds-interactive),var(--cds-interactive-hover))]"
+                    ? "is-running shimmer-fill"
                     : isFailed || isAborted
-                      ? "bg-[var(--aegis-severity-critical)]"
-                      : "bg-[linear-gradient(90deg,var(--cds-interactive),var(--cds-interactive-hover))]",
+                      ? "is-failed"
+                      : "is-complete",
                 ].join(" ")}
                 style={{ width: `${pct}%` }}
               />
             </div>
-            <span className="min-w-9 text-right text-sm font-semibold text-primary">
+            <span className="async-analysis-progress-view__progress-value">
               {Math.round(pct)}%
             </span>
           </div>
 
-          <p className="text-sm text-muted-foreground">{progress.message}</p>
-          <p className="text-sm text-muted-foreground">경과 시간: {timeStr}</p>
+          <p className="async-analysis-progress-view__copy">{progress.message}</p>
+          <p className="async-analysis-progress-view__copy">경과 시간: {timeStr}</p>
 
           {isFailed && progress.error && (
-            <p className="mx-auto mb-5 max-w-[400px] rounded-lg bg-[var(--aegis-severity-critical-bg)] px-5 py-4 text-sm text-[var(--aegis-severity-critical)]">
+            <p className="async-analysis-progress-view__error">
               {progress.error}
             </p>
           )}
 
-          <div className="mt-3 flex justify-center gap-4">
+          <div className="async-analysis-progress-view__actions">
             {isCompleted && (
               <Button onClick={() => onViewResult(progress.analysisId)}>
                 <Eye size={16} />
@@ -238,9 +238,9 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
       </Card>
 
       {(progress.phase === "deep_submitting" || progress.phase === "deep_analyzing") && (
-        <Card className="mt-5 shadow-none">
-          <CardContent className="flex items-center gap-3 px-5 py-4 text-sm text-muted-foreground">
-            <CheckCircle2 size={16} className="shrink-0 text-emerald-600 dark:text-emerald-300" />
+        <Card className="async-analysis-progress-view__handoff-card">
+          <CardContent className="async-analysis-progress-view__handoff-body">
+            <CheckCircle2 size={16} className="async-analysis-progress-view__handoff-icon" />
             <span>빠른 분석 결과가 준비되었습니다.</span>
             <Button variant="outline" size="sm" onClick={onViewResult}>
               먼저 확인하기

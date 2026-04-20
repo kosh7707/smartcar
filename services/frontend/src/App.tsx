@@ -9,6 +9,8 @@ import { DashboardLayout } from "./layouts/DashboardLayout";
 import { ProjectLayoutShell } from "./layouts/ProjectLayoutShell";
 import { LoginPage } from "./pages/LoginPage/LoginPage";
 import { SignupPage } from "./pages/SignupPage/SignupPage";
+import { ForgotPasswordPage } from "./pages/ForgotPasswordPage/ForgotPasswordPage";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage/ResetPasswordPage";
 import { DashboardPage } from "./pages/DashboardPage/DashboardPage";
 import { SettingsPage } from "./pages/SettingsPage/SettingsPage";
 
@@ -47,6 +49,8 @@ export const App: React.FC = () => {
               <Routes>
                 <Route path="/login" element={<AuthEntryRoute><LoginPage /></AuthEntryRoute>} />
                 <Route path="/signup" element={<AuthEntryRoute><SignupPage /></AuthEntryRoute>} />
+                <Route path="/forgot-password" element={<AuthEntryRoute><ForgotPasswordPage /></AuthEntryRoute>} />
+                <Route path="/reset-password" element={<AuthEntryRoute><ResetPasswordPage /></AuthEntryRoute>} />
 
                 <Route path="/dashboard" element={
                   <RequireAuth>

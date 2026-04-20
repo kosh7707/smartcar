@@ -30,10 +30,10 @@ interface MetaCardProps {
 function MetaCard({ title, onClick, children }: MetaCardProps) {
   return (
     <Card
-      className={`gap-4 border-border/70 bg-card/80 p-5 shadow-none ${onClick ? "cursor-pointer transition-colors hover:bg-muted/40" : ""}`}
+      className={`overview-meta-card ${onClick ? "overview-meta-card--interactive" : ""}`}
       onClick={onClick}
     >
-      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{title}</div>
+      <div className="overview-meta-card__title">{title}</div>
       {children}
     </Card>
   );
@@ -52,68 +52,64 @@ export const OverviewMetaPanel: React.FC<OverviewMetaPanelProps> = ({
   onOpenApprovals,
   onOpenSettings,
 }) => (
-  <aside className="space-y-4">
+  <aside className="overview-meta-panel">
     <MetaCard title="프로젝트 메타데이터">
-      <dl className="space-y-4 text-sm">
-        <div className="space-y-1">
-          <dt className="font-medium text-muted-foreground">Files</dt>
-          <dd className="font-mono text-foreground">{fileCount}</dd>
+      <dl className="overview-meta-panel__dl">
+        <div className="overview-meta-panel__entry">
+          <dt className="overview-meta-panel__dt">Files</dt>
+          <dd className="overview-meta-panel__dd overview-meta-panel__dd--mono">{fileCount}</dd>
         </div>
-        {hasFiles && (
-          <div className="space-y-1">
-            <dt className="font-medium text-muted-foreground">Total Size</dt>
-            <dd className="font-mono text-foreground">{formatFileSize(totalFileSize)}</dd>
+        {hasFiles ? (
+          <div className="overview-meta-panel__entry">
+            <dt className="overview-meta-panel__dt">Total Size</dt>
+            <dd className="overview-meta-panel__dd overview-meta-panel__dd--mono">{formatFileSize(totalFileSize)}</dd>
           </div>
-        )}
-        {description && (
-          <div className="space-y-1">
-            <dt className="font-medium text-muted-foreground">Description</dt>
-            <dd className="leading-6 text-foreground">{description}</dd>
+        ) : null}
+        {description ? (
+          <div className="overview-meta-panel__entry">
+            <dt className="overview-meta-panel__dt">Description</dt>
+            <dd className="overview-meta-panel__dd overview-meta-panel__dd--body">{description}</dd>
           </div>
-        )}
+        ) : null}
       </dl>
     </MetaCard>
 
-    {hasGates && (
+    {hasGates ? (
       <MetaCard title="Quality Gate" onClick={onOpenQualityGate}>
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="outline" className="border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+        <div className="overview-meta-panel__badges">
+          <Badge variant="outline" className="overview-gate-badge overview-gate-badge--pass">
             <CheckCircle2 size={12} /> 통과 {gateCounts.pass}
           </Badge>
-          <Badge variant="outline" className="border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300">
+          <Badge variant="outline" className="overview-gate-badge overview-gate-badge--fail">
             <XCircle size={12} /> 실패 {gateCounts.fail}
           </Badge>
-          <Badge variant="outline" className="border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300">
+          <Badge variant="outline" className="overview-gate-badge overview-gate-badge--warning">
             <AlertTriangle size={12} /> 경고 {gateCounts.warning}
           </Badge>
         </div>
       </MetaCard>
-    )}
+    ) : null}
 
     <MetaCard title="승인 요청" onClick={onOpenApprovals}>
-      <div className="flex items-end justify-between gap-3">
+      <div className="overview-meta-panel__approval-row">
         {approvalCount.pending > 0 ? (
-          <div className="flex items-end gap-2">
-            <span className="font-mono text-3xl font-semibold leading-none text-red-700 dark:text-red-300">
-              {approvalCount.pending}
-            </span>
-            <span className="pb-0.5 text-sm text-muted-foreground">건 대기 중</span>
+          <div className="overview-meta-panel__approval-main">
+            <span className="overview-meta-panel__approval-count">{approvalCount.pending}</span>
+            <span className="overview-meta-panel__approval-copy">건 대기 중</span>
           </div>
         ) : (
-          <p className="inline-flex min-h-7 items-center rounded-md border border-border/70 bg-background/80 px-3 text-xs font-medium text-muted-foreground">
-            대기 없음
-          </p>
+          <p className="overview-meta-panel__approval-empty">대기 없음</p>
         )}
-        {approvalCount.total > 0 && <span className="text-sm text-muted-foreground">총 {approvalCount.total}건</span>}
+        {approvalCount.total > 0 ? <span className="overview-meta-panel__approval-total">총 {approvalCount.total}건</span> : null}
       </div>
     </MetaCard>
 
-    {registeredSdks.length > 0 && (
+    {registeredSdks.length > 0 ? (
       <MetaCard title={`SDK (${registeredSdks.length}개)`} onClick={onOpenSettings}>
-        <div className="space-y-2">
+        <div className="overview-meta-panel__sdk-list">
           {registeredSdks.slice(0, 4).map((sdk) => (
-            <div key={sdk.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-background/60 px-3 py-2">
-              <span className="truncate text-sm font-medium text-foreground">{sdk.name}</span>
+            <div key={sdk.id} className="overview-meta-panel__sdk-row">
+              <span className="overview-meta-panel__sdk-name">{sdk.name}</span>
               <Badge variant="outline" className={getSdkStatusToneClass(sdk.status)}>
                 {getSdkStatusLabel(sdk.status)}
               </Badge>
@@ -121,6 +117,6 @@ export const OverviewMetaPanel: React.FC<OverviewMetaPanelProps> = ({
           ))}
         </div>
       </MetaCard>
-    )}
+    ) : null}
   </aside>
 );

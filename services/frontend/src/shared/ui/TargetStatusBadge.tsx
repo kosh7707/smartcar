@@ -2,6 +2,7 @@ import React from "react";
 import type { BuildTargetStatus } from "@aegis/shared";
 import { Circle, CheckCircle, Loader, XCircle, Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const STATUS_CONFIG: Record<string, { label: string; description: string; color: string; icon: "dot" | "check" | "spin" | "partial" | "fail" | "settings" }> = {
   discovered: { label: "감지됨", description: "빌드 타겟으로 감지되었습니다", color: "var(--cds-text-placeholder)", icon: "dot" },
@@ -31,7 +32,7 @@ export const TargetStatusBadge: React.FC<Props> = ({ status, size = "md" }) => {
 
   const icon = (() => {
     switch (config.icon) {
-      case "spin": return <Loader size={iconSize} className="animate-spin" />;
+      case "spin": return <Loader size={iconSize} className="target-status-badge__icon-spin" />;
       case "check": return <CheckCircle size={iconSize} />;
       case "partial": return <CheckCircle size={iconSize} />;
       case "fail": return <XCircle size={iconSize} />;
@@ -43,7 +44,7 @@ export const TargetStatusBadge: React.FC<Props> = ({ status, size = "md" }) => {
   return (
     <Badge
       variant="outline"
-      className={`target-status-badge target-status-badge--${size} min-h-7 shrink-0 gap-1 rounded-full bg-background/90 px-2 font-medium ${size === "md" ? "text-sm" : "text-xs"}`}
+      className={cn("target-status-badge", size === "sm" ? "target-status-badge--sm" : "target-status-badge--md")}
       style={{ color: config.color, borderColor: config.color }}
       title={config.description}
     >

@@ -35,7 +35,7 @@ export const ReportPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="page-enter flex min-h-[40vh] items-center justify-center">
+      <div className="page-loading-shell">
         <Spinner label="보고서 생성 중..." />
       </div>
     );

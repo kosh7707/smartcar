@@ -23,7 +23,7 @@ export const OverviewPage: React.FC = () => {
 
   if (state.loading) {
     return (
-      <div className="page-enter flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
+      <div className="page-loading-shell">
         <Spinner size={36} label="데이터 로딩 중..." />
       </div>
     );
@@ -38,7 +38,7 @@ export const OverviewPage: React.FC = () => {
   };
 
   return (
-    <div className="page-enter flex flex-col gap-8">
+    <div className="page-shell">
       <OverviewHeader name={project.name} description={project.description} />
 
       {state.empty ? (
@@ -59,7 +59,7 @@ export const OverviewPage: React.FC = () => {
 
           <TrendSummaryCard trend={state.overview.trend} />
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+          <div className="overview-main-grid">
             <OverviewActivityPanel activities={state.activities} />
             <OverviewMetaPanel
               fileCount={state.overview.fileCount ?? state.projectFiles.length}

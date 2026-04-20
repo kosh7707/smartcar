@@ -11,15 +11,14 @@ interface CreateProjectFormProps {
   onCancel: () => void;
 }
 
-export const CreateProjectForm: React.FC<CreateProjectFormProps> = ({ name, description, onNameChange, onDescriptionChange, onCreate, onCancel }) => {
-  return (
-    <div className="flex flex-col gap-2 rounded-xl border border-border bg-gradient-to-b from-background to-muted/50 p-3">
-      <Input value={name} onChange={(event) => onNameChange(event.target.value)} placeholder="프로젝트 이름" autoFocus onKeyDown={(event) => event.key === "Enter" && onCreate()} />
-      <Input value={description} onChange={(event) => onDescriptionChange(event.target.value)} placeholder="설명 (선택)" onKeyDown={(event) => event.key === "Enter" && onCreate()} />
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={onCancel}>취소</Button>
-        <Button type="button" size="sm" onClick={onCreate}>만들기</Button>
-      </div>
+export const CreateProjectForm: React.FC<CreateProjectFormProps> = ({ name, description, onNameChange, onDescriptionChange, onCreate, onCancel }) => (
+  <div className="placeholder-card">
+    <span className="eyebrow">new project</span>
+    <Input value={name} onChange={(event) => onNameChange(event.target.value)} placeholder="프로젝트 이름" autoFocus onKeyDown={(event) => event.key === "Enter" && onCreate()} />
+    <Input value={description} onChange={(event) => onDescriptionChange(event.target.value)} placeholder="설명 (선택)" onKeyDown={(event) => event.key === "Enter" && onCreate()} />
+    <div className="actions">
+      <Button type="button" variant="outline" size="sm" onClick={onCancel}>취소</Button>
+      <Button type="button" size="sm" onClick={onCreate}>만들기</Button>
     </div>
-  );
-};
+  </div>
+);

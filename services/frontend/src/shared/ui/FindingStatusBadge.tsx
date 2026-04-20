@@ -12,26 +12,34 @@ interface Props {
 export const findingStatusBadgeClass = (status: FindingStatus) => {
   switch (status) {
     case "open":
-      return "border-[var(--aegis-status-open-border)] bg-[var(--aegis-status-open-bg)] text-[var(--aegis-status-open)]";
+      return "finding-status-badge finding-status-badge--open";
     case "needs_review":
-      return "border-[var(--aegis-status-needs-review-border)] bg-[var(--aegis-status-needs-review-bg)] text-[var(--aegis-status-needs-review)]";
+      return "finding-status-badge finding-status-badge--needs-review";
     case "accepted_risk":
-      return "border-[var(--aegis-status-accepted-risk-border)] bg-[var(--aegis-status-accepted-risk-bg)] text-[var(--aegis-status-accepted-risk)]";
+      return "finding-status-badge finding-status-badge--accepted-risk";
     case "false_positive":
-      return "border-[var(--aegis-status-false-positive-border)] bg-[var(--aegis-status-false-positive-bg)] text-[var(--aegis-status-false-positive)]";
+      return "finding-status-badge finding-status-badge--false-positive";
     case "fixed":
-      return "border-[var(--aegis-status-fixed-border)] bg-[var(--aegis-status-fixed-bg)] text-[var(--aegis-status-fixed)]";
+      return "finding-status-badge finding-status-badge--fixed";
     case "needs_revalidation":
-      return "border-[var(--aegis-status-needs-revalidation-border)] bg-[var(--aegis-status-needs-revalidation-bg)] text-[var(--aegis-status-needs-revalidation)]";
+      return "finding-status-badge finding-status-badge--needs-revalidation";
     case "sandbox":
-      return "border-[var(--aegis-status-sandbox-border)] bg-[var(--aegis-status-sandbox-bg)] text-[var(--aegis-status-sandbox)]";
+      return "finding-status-badge finding-status-badge--sandbox";
     default:
-      return "border-border bg-background text-foreground";
+      return "finding-status-badge";
   }
 };
 
 export const FindingStatusBadge: React.FC<Props> = ({ status, size = "md" }) => (
-  <Badge variant="outline" className={cn(size === "sm" && "text-xs", `badge-status--${status}`, findingStatusBadgeClass(status))} title={FINDING_STATUS_DESCRIPTIONS[status]}>
+  <Badge
+    variant="outline"
+    className={cn(
+      findingStatusBadgeClass(status),
+      `badge-status--${status}` ,
+      size === "sm" ? "finding-status-badge--sm text-xs" : "finding-status-badge--md",
+    )}
+    title={FINDING_STATUS_DESCRIPTIONS[status]}
+  >
     {FINDING_STATUS_LABELS[status]}
   </Badge>
 );

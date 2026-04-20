@@ -16,20 +16,20 @@ export const TopRulesCard: React.FC<Props> = ({ topRules }) => {
   const maxHit = Math.max(...topRules.map((r) => r.hitCount), 1);
 
   return (
-    <Card className="shadow-none">
-      <CardContent className="space-y-3 p-5">
+    <Card className="overall-top-rules-card">
+      <CardContent className="overall-top-rules-card__body">
         <CardTitle>룰 히트 Top {topRules.length}</CardTitle>
-        <div className="space-y-2">
+        <div className="overall-top-rules-card__list">
           {topRules.map((r, i) => (
-            <div key={r.ruleId} className="flex items-center gap-3 rounded-lg border border-border/70 px-4 py-3 text-sm">
-              <span className="w-6 shrink-0 text-sm font-semibold text-muted-foreground">{i + 1}</span>
-              <span className="min-w-0 flex-1 truncate font-medium text-foreground" title={r.ruleId}>
+            <div key={r.ruleId} className="overall-top-rules-card__row">
+              <span className="overall-top-rules-card__rank">{i + 1}</span>
+              <span className="overall-top-rules-card__name" title={r.ruleId}>
                 {r.ruleId}
               </span>
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-border/70">
-                <div className="h-full rounded-full bg-primary" style={{ width: `${(r.hitCount / maxHit) * 100}%` }} />
+              <div className="overall-top-rules-card__bar">
+                <div className="overall-top-rules-card__bar-fill" style={{ width: `${(r.hitCount / maxHit) * 100}%` }} />
               </div>
-              <span className="w-10 shrink-0 text-right font-mono text-sm text-muted-foreground">{r.hitCount}</span>
+              <span className="overall-top-rules-card__count">{r.hitCount}</span>
             </div>
           ))}
         </div>

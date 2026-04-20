@@ -18,17 +18,14 @@ import { ProjectSettingsPage } from "../pages/ProjectSettingsPage/ProjectSetting
 import { ProjectBreadcrumbLayout } from "./ProjectBreadcrumbLayout";
 import { NotificationBridge } from "./NotificationBridge";
 
-/**
- * Navbar + sidebar shell for all /projects/:projectId/* routes.
- */
 export const ProjectLayoutShell: React.FC = () => (
   <NotificationBridge>
-    <div className="flex h-screen flex-col overflow-hidden">
+    <div className="app-shell">
       <Navbar />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="project-shell">
         <Sidebar />
-        <div className="flex flex-1 flex-col overflow-hidden bg-[linear-gradient(180deg,#f4f6fa_0%,var(--cds-background)_12rem)]">
-          <div className="flex-1 overflow-y-auto p-7">
+        <div className="project-shell-main">
+          <div className="project-shell-inner">
             <ErrorBoundary>
               <Routes>
                 <Route element={<ProjectBreadcrumbLayout />}>

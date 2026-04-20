@@ -5,18 +5,18 @@ import { formatDateTime } from "../../../utils/format";
 
 export function ReportAuditLogSection({ auditTrail }: { auditTrail: ProjectReport["auditTrail"] }) {
   return (
-    <Card className="border-border/80 shadow-none">
-      <CardHeader className="border-b border-border/70">
+    <Card className="report-audit-log-card">
+      <CardHeader className="report-audit-log-card__head">
         <CardTitle>감사 추적 ({auditTrail.length})</CardTitle>
       </CardHeader>
-      <CardContent className="divide-y divide-border px-4 py-0">
+      <CardContent className="report-audit-log-card__body">
         {auditTrail.map((entry) => (
-          <div key={entry.id} className="flex flex-col gap-3 py-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-xs text-muted-foreground">{formatDateTime(entry.timestamp)}</span>
-              <span className="font-medium text-foreground">{entry.actor}</span>
-              <span className="text-sm text-muted-foreground">{entry.action}</span>
-              <span className="text-sm text-muted-foreground">
+          <div key={entry.id} className="report-audit-log-card__row">
+            <div className="report-audit-log-card__meta">
+              <span className="report-audit-log-card__timestamp">{formatDateTime(entry.timestamp)}</span>
+              <span className="report-audit-log-card__actor">{entry.actor}</span>
+              <span className="report-audit-log-card__copy">{entry.action}</span>
+              <span className="report-audit-log-card__copy">
                 {entry.resource} {entry.resourceId?.slice(0, 8)}
               </span>
             </div>

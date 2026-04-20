@@ -20,32 +20,32 @@ export function SettingsApiAccessSection({
   testStatus: TestStatus;
 }) {
   return (
-    <Card className="h-full border-border/70 shadow-none">
-      <CardHeader className="gap-4 border-b border-border/60 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl border border-border/60 bg-muted/40 text-muted-foreground">
+    <Card className="settings-api-card">
+      <CardHeader className="settings-api-card__head">
+        <div className="settings-api-card__title-row">
+          <div className="settings-api-card__icon-shell">
             <Settings size={20} />
           </div>
-          <CardTitle className="text-lg">API 접근</CardTitle>
+          <CardTitle className="settings-api-card__title">API 접근</CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 pt-4">
-        <div className="space-y-2 rounded-lg border border-border/70 bg-muted/20 p-4">
-          <div className="text-sm font-semibold text-muted-foreground">Endpoint</div>
-          <div className="truncate font-mono text-sm text-foreground">
+      <CardContent className="settings-api-card__body">
+        <div className="settings-api-card__surface">
+          <div className="settings-api-card__surface-label">Endpoint</div>
+          <div className="settings-api-card__endpoint">
             {url || "http://localhost:3000"}/api/v1
           </div>
         </div>
-        <div className="space-y-2 rounded-lg border border-border/70 bg-muted/20 p-4">
-          <div className="text-sm font-semibold text-muted-foreground">Status</div>
+        <div className="settings-api-card__surface">
+          <div className="settings-api-card__surface-label">Status</div>
           <Badge
             variant="outline"
             className={cn(
-              "h-auto rounded-full px-3 py-1 text-sm",
-              testStatus === "ok" && "border-emerald-400/60 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
-              testStatus === "error" && "border-destructive/50 bg-destructive/10 text-destructive",
+              "settings-api-card__status-badge",
+              testStatus === "ok" && "settings-api-card__status-badge--ok",
+              testStatus === "error" && "settings-api-card__status-badge--error",
               (testStatus === "idle" || testStatus === "testing") &&
-                "text-muted-foreground",
+                "settings-api-card__status-badge--idle",
             )}
           >
             {getStatusLabel(testStatus)}

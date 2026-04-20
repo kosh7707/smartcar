@@ -37,25 +37,25 @@ function getLocatorSummary(evidence: EvidenceRef): string {
 
 export const EvidenceItemRow: React.FC<Props> = ({ evidence, onClick }) => (
   <div
-    className={`list-item${onClick ? " list-item--clickable" : ""}`}
+    className={`list-item list-item--divider evidence-item-row${onClick ? " list-item--clickable" : ""}`}
     onClick={onClick}
     tabIndex={onClick ? 0 : undefined}
     onKeyDown={onClick ? (e) => { if (e.key === "Enter") onClick(); } : undefined}
   >
     <div className="evidence-item">
-      <Badge variant="outline" className="text-xs">
+      <Badge variant="outline" className="evidence-item__artifact">
         {ARTIFACT_TYPE_LABELS[evidence.artifactType]}
       </Badge>
       <span className="evidence-item__locator">
         {LOCATOR_TYPE_LABELS[evidence.locatorType]}
       </span>
-      <span className="evidence-item__summary text-muted-foreground">
+      <span className="evidence-item__summary">
         {getLocatorSummary(evidence)}
       </span>
     </div>
 
     <div className="list-item__trailing">
-      <span className="text-sm text-muted-foreground">{formatDateTime(evidence.createdAt)}</span>
+      <span className="evidence-item__timestamp">{formatDateTime(evidence.createdAt)}</span>
       {onClick && <ChevronRight size={14} className="list-item__chevron" />}
     </div>
   </div>

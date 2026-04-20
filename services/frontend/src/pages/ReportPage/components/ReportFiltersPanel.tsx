@@ -32,14 +32,14 @@ export const ReportFiltersPanel: React.FC<ReportFiltersPanelProps> = ({
   onApply,
   onClear,
 }) => (
-  <Card className="print-hide border-border/80 bg-card/95 shadow-none">
-    <CardHeader className="border-b border-border/70">
-      <CardTitle className="text-base">필터</CardTitle>
+  <Card className="print-hide report-filters-card">
+    <CardHeader className="report-filters-card__head">
+      <CardTitle className="report-filters-card__title">필터</CardTitle>
     </CardHeader>
-    <CardContent className="space-y-5 pt-4">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="space-y-2">
-          <Label className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+    <CardContent className="report-filters-card__body">
+      <div className="report-filters-card__grid">
+        <div className="report-filters-card__field">
+          <Label className="report-filters-card__label">
             <Calendar size={12} /> 시작일
           </Label>
           <Input
@@ -48,8 +48,8 @@ export const ReportFiltersPanel: React.FC<ReportFiltersPanelProps> = ({
             onChange={(e) => setPendingFilters({ ...pendingFilters, from: e.target.value || undefined })}
           />
         </div>
-        <div className="space-y-2">
-          <Label className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+        <div className="report-filters-card__field">
+          <Label className="report-filters-card__label">
             <Calendar size={12} /> 종료일
           </Label>
           <Input
@@ -58,8 +58,8 @@ export const ReportFiltersPanel: React.FC<ReportFiltersPanelProps> = ({
             onChange={(e) => setPendingFilters({ ...pendingFilters, to: e.target.value || undefined })}
           />
         </div>
-        <div className="space-y-2">
-          <Label className="text-sm font-medium text-muted-foreground">심각도</Label>
+        <div className="report-filters-card__field">
+          <Label className="report-filters-card__label">심각도</Label>
           <Select
             value={pendingFilters.severity ?? ALL_SEVERITIES_VALUE}
             onValueChange={(value) =>
@@ -69,7 +69,7 @@ export const ReportFiltersPanel: React.FC<ReportFiltersPanelProps> = ({
               })
             }
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="report-filters-card__select">
               <SelectValue placeholder="전체" />
             </SelectTrigger>
             <SelectContent>
@@ -81,8 +81,8 @@ export const ReportFiltersPanel: React.FC<ReportFiltersPanelProps> = ({
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
-          <Label className="text-sm font-medium text-muted-foreground">상태</Label>
+        <div className="report-filters-card__field">
+          <Label className="report-filters-card__label">상태</Label>
           <Select
             value={pendingFilters.status ?? ALL_STATUSES_VALUE}
             onValueChange={(value) =>
@@ -92,7 +92,7 @@ export const ReportFiltersPanel: React.FC<ReportFiltersPanelProps> = ({
               })
             }
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="report-filters-card__select">
               <SelectValue placeholder="전체" />
             </SelectTrigger>
             <SelectContent>
@@ -106,7 +106,7 @@ export const ReportFiltersPanel: React.FC<ReportFiltersPanelProps> = ({
           </Select>
         </div>
       </div>
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="report-filters-card__actions">
         {hasActiveFilters && (
           <Button variant="outline" size="sm" onClick={onClear}>
             <X size={12} /> 초기화

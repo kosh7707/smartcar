@@ -11,27 +11,27 @@ interface Props {
 }
 
 export const AdapterSelector: React.FC<Props> = ({ adapters, selectedId, onSelect, disabled }) => (
-  <div className="flex flex-col gap-3">
-    {adapters.map((a) => (
+  <div className="adapter-selector">
+    {adapters.map((adapter) => (
       <Button
-        key={a.id}
+        key={adapter.id}
         type="button"
         variant="outline"
         className={cn(
-          "h-auto w-full justify-start gap-3 rounded-lg border-border bg-background px-3 py-3 text-left font-normal hover:border-primary hover:bg-primary/5 disabled:opacity-50",
-          selectedId === a.id && "border-primary bg-primary/5 text-foreground",
+          "adapter-selector__item",
+          selectedId === adapter.id && "is-selected",
         )}
-        onClick={() => onSelect(a.id)}
+        onClick={() => onSelect(adapter.id)}
         disabled={disabled}
       >
         <Plug size={14} />
-        <span className="font-medium">{a.name}</span>
-        {a.ecuMeta && a.ecuMeta.length > 0 && (
-          <span className="text-sm font-medium text-emerald-700">
-            {a.ecuMeta[0].name} · {a.ecuMeta[0].canIds.length} IDs
+        <span className="adapter-selector__name">{adapter.name}</span>
+        {adapter.ecuMeta && adapter.ecuMeta.length > 0 ? (
+          <span className="adapter-selector__meta">
+            {adapter.ecuMeta[0].name} · {adapter.ecuMeta[0].canIds.length} IDs
           </span>
-        )}
-        <code className="ml-auto max-w-[45%] truncate rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">{a.url}</code>
+        ) : null}
+        <code className="adapter-selector__url">{adapter.url}</code>
       </Button>
     ))}
   </div>

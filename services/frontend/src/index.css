@@ -57,23 +57,6 @@
   --cds-button-danger: #da1e28;
   --cds-button-danger-hover: #b81921;
 
-  /* ── Severity (Security Standard — AEGIS domain) ── */
-  --aegis-severity-critical: #da1e28;
-  --aegis-severity-critical-bg: rgba(218, 30, 40, 0.07);
-  --aegis-severity-critical-border: rgba(218, 30, 40, 0.18);
-  --aegis-severity-high: #ff832b;
-  --aegis-severity-high-bg: rgba(255, 131, 43, 0.07);
-  --aegis-severity-high-border: rgba(255, 131, 43, 0.18);
-  --aegis-severity-medium: #f1c21b;
-  --aegis-severity-medium-bg: rgba(241, 194, 27, 0.07);
-  --aegis-severity-medium-border: rgba(241, 194, 27, 0.18);
-  --aegis-severity-low: #00539a;
-  --aegis-severity-low-bg: rgba(0, 83, 154, 0.07);
-  --aegis-severity-low-border: rgba(0, 83, 154, 0.18);
-  --aegis-severity-info: #525252;
-  --aegis-severity-info-bg: rgba(82, 82, 82, 0.07);
-  --aegis-severity-info-border: rgba(82, 82, 82, 0.18);
-
   /* ── Semantic ── */
   --cds-support-success: #24a148;
   --cds-support-success-bg: rgba(36, 161, 72, 0.07);
@@ -110,8 +93,8 @@
   --aegis-spacing-05: 20px;          /* AEGIS extension — productive density */
 
   /* ── Typography ── */
-  --cds-font-sans: 'Geist Variable', 'Pretendard', -apple-system, system-ui, sans-serif;
-  --cds-font-mono: ui-monospace, 'SFMono-Regular', 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  --cds-font-sans: var(--font-sans, 'Paperlogy', 'Pretendard', -apple-system, system-ui, sans-serif);
+  --cds-font-mono: var(--font-mono, 'Paperlogy', 'Pretendard', -apple-system, system-ui, sans-serif);
 
   --cds-type-2xs: 14px;
   --cds-type-xs: 14px;
@@ -302,18 +285,6 @@
   --cds-button-danger: #da1e28;
   --cds-button-danger-hover: #b81921;
 
-  /* ── Severity (boosted opacity for dark) ── */
-  --aegis-severity-critical-bg: rgba(218, 30, 40, 0.15);
-  --aegis-severity-critical-border: rgba(218, 30, 40, 0.28);
-  --aegis-severity-high-bg: rgba(255, 131, 43, 0.15);
-  --aegis-severity-high-border: rgba(255, 131, 43, 0.28);
-  --aegis-severity-medium-bg: rgba(241, 194, 27, 0.15);
-  --aegis-severity-medium-border: rgba(241, 194, 27, 0.28);
-  --aegis-severity-low-bg: rgba(0, 83, 154, 0.15);
-  --aegis-severity-low-border: rgba(0, 83, 154, 0.28);
-  --aegis-severity-info-bg: rgba(82, 82, 82, 0.15);
-  --aegis-severity-info-border: rgba(82, 82, 82, 0.28);
-
   /* ── Semantic (dark) ── */
   --cds-support-success-bg: rgba(36, 161, 72, 0.15);
   --cds-support-warning-bg: rgba(241, 194, 27, 0.15);
@@ -410,7 +381,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
 
 @custom-variant dark (&:is(.dark *, [data-theme="dark"] *));
 
@@ -439,7 +409,8 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --font-heading: var(--font-sans);
-  --font-sans: 'Geist Variable', sans-serif;
+  --font-sans: 'Paperlogy', 'Pretendard Variable', 'Pretendard', -apple-system, system-ui, sans-serif;
+  --font-mono: 'Paperlogy', 'Pretendard Variable', 'Pretendard', -apple-system, system-ui, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -556,11 +527,11 @@
 
   html,
   body {
-    font-family: var(--cds-font-sans);
+    font-family: var(--font-sans, var(--cds-font-sans));
     font-size: var(--cds-type-base);
     line-height: var(--cds-leading-normal);
-    background: var(--cds-background);
-    color: var(--cds-text-primary);
+    background: var(--background, var(--cds-background));
+    color: var(--foreground, var(--cds-text-primary));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }

@@ -23,7 +23,7 @@ export const SettingsPage: React.FC = () => {
   } = useSettingsPage();
 
   return (
-    <div className="page-enter flex flex-col gap-7">
+    <div className="page-shell">
       <PageHeader
         surface="plain"
         title="시스템 설정"
@@ -38,11 +38,11 @@ export const SettingsPage: React.FC = () => {
         }
       />
 
-      <div className="grid gap-6 xl:grid-cols-12">
-        <div className="xl:col-span-4">
+      <div className="settings-page-layout">
+        <div className="settings-page-layout__platform">
           <SettingsPlatformSection />
         </div>
-        <div className="xl:col-span-8">
+        <div className="settings-page-layout__backend">
           <SettingsBackendSection
             url={url}
             urlDirty={urlDirty}
@@ -55,10 +55,10 @@ export const SettingsPage: React.FC = () => {
             onReset={handleReset}
           />
         </div>
-        <div className="xl:col-span-7">
+        <div className="settings-page-layout__theme">
           <SettingsThemeSection theme={theme} onThemeChange={handleThemeChange} />
         </div>
-        <div className="xl:col-span-5">
+        <div className="settings-page-layout__api">
           <SettingsApiAccessSection url={url} testStatus={testStatus} />
         </div>
       </div>

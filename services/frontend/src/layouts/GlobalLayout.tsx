@@ -7,17 +7,14 @@ interface GlobalLayoutProps {
   children: React.ReactNode;
 }
 
-/**
- * Navbar + full-width content area for global surfaces.
- */
 export const GlobalLayout: React.FC<GlobalLayoutProps> = ({ children }) => (
   <NotificationProvider>
-    <div className="flex h-screen flex-col overflow-hidden">
+    <div className="app-shell">
       <Navbar />
-      <div className="mx-auto w-full max-w-[1280px] flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f4f6fa_0%,var(--cds-background)_14rem)] px-8 py-7">
-        <ErrorBoundary>
-          {children}
-        </ErrorBoundary>
+      <div className="app-scroll-region">
+        <div className="global-shell-inner">
+          <ErrorBoundary>{children}</ErrorBoundary>
+        </div>
       </div>
     </div>
   </NotificationProvider>

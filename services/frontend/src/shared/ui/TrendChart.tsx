@@ -20,8 +20,8 @@ export const TrendChart: React.FC<Props> = ({ data, height = 200 }) => {
 
   if (data.length < 2) {
     return (
-      <div className="trend-chart" style={{ textAlign: "center", padding: "var(--cds-spacing-06)", color: "var(--cds-text-placeholder)" }}>
-        <p style={{ fontSize: "var(--cds-type-sm)", margin: 0 }}>
+      <div className="trend-chart trend-chart--empty">
+        <p className="trend-chart__empty-copy">
           트렌드를 보려면 2회 이상 분석이 필요합니다. 현재 {data.length}회 완료.
         </p>
       </div>
@@ -49,36 +49,33 @@ export const TrendChart: React.FC<Props> = ({ data, height = 200 }) => {
     })
     .join(" ");
 
-  // Show ~5 labels max
   const labelStep = Math.max(1, Math.floor(data.length / 5));
 
   return (
     <div className="trend-chart">
       <div className="trend-chart__legend">
         <span className="trend-chart__legend-item">
-          <span className="trend-chart__dot" style={{ background: "var(--cds-interactive)" }} />
+          <span className="trend-chart__dot trend-chart__dot--bar" />
           Finding 수
         </span>
         <span className="trend-chart__legend-item">
-          <span className="trend-chart__dot trend-chart__dot--line" style={{ background: "var(--cds-support-success)" }} />
+          <span className="trend-chart__dot trend-chart__dot--line" />
           Gate 통과
         </span>
       </div>
       <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" width="100%" style={{ maxHeight: h }}>
-        {/* Y-axis guides */}
         {[0, 0.25, 0.5, 0.75, 1].map((frac) => {
           const y = pad.top + innerH - frac * innerH;
           return (
             <g key={frac}>
-              <line x1={pad.left} y1={y} x2={w - pad.right} y2={y} stroke="var(--cds-border-subtle)" strokeWidth={0.5} />
-              <text x={pad.left - 6} y={y + 4} textAnchor="end" fontSize={14} fill="var(--cds-text-placeholder)">
+              <line x1={pad.left} y1={y} x2={w - pad.right} y2={y} className="trend-chart__guide" />
+              <text x={pad.left - 6} y={y + 4} textAnchor="end" className="trend-chart__axis-label">
                 {Math.round(frac * maxY)}
               </text>
             </g>
           );
         })}
 
-        {/* Bars (findingCount) */}
         {data.map((d, i) => {
           const x = pad.left + i * gap + gap / 2 - barWidth / 2;
           const barH = (d.findingCount / maxY) * innerH;
@@ -90,38 +87,31 @@ export const TrendChart: React.FC<Props> = ({ data, height = 200 }) => {
               width={barWidth}
               height={barH}
               rx={2}
-              fill="var(--cds-interactive)"
-              opacity={0.7}
+              className="trend-chart__bar"
             />
           );
         })}
 
-        {/* Line (gatePassCount) */}
-        {data.length > 1 && (
+        {data.length > 1 ? (
           <polyline
             points={linePoints}
             fill="none"
-            stroke="var(--cds-support-success)"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            className="trend-chart__line"
           />
-        )}
+        ) : null}
 
-        {/* Line dots */}
         {data.map((d, i) => {
           const x = pad.left + i * gap + gap / 2;
           const y = pad.top + innerH - (d.gatePassCount / maxY) * innerH;
-          return <circle key={`dot-${i}`} cx={x} cy={y} r={3} fill="var(--cds-support-success)" />;
+          return <circle key={`dot-${i}`} cx={x} cy={y} r={3} className="trend-chart__line-dot" />;
         })}
 
-        {/* X-axis labels */}
         {data.map((d, i) => {
           if (i % labelStep !== 0 && i !== data.length - 1) return null;
           const x = pad.left + i * gap + gap / 2;
-          const label = d.date.slice(5); // "MM-DD"
+          const label = d.date.slice(5);
           return (
-            <text key={`label-${i}`} x={x} y={h - 8} textAnchor="middle" fontSize={14} fill="var(--cds-text-placeholder)">
+            <text key={`label-${i}`} x={x} y={h - 8} textAnchor="middle" className="trend-chart__axis-label">
               {label}
             </text>
           );

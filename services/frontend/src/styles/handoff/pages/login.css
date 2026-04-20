@@ -1,0 +1,62 @@
+/* ═══════════════════════════════════════════════════════════════
+   AEGIS — Login page
+
+   Login-specific pieces on top of auth-console.css.
+   Right now that's just .status-block (API / Orchestrator /
+   Analyzers / Heartbeat panel) inside the brand hero.
+   ═══════════════════════════════════════════════════════════════ */
+
+
+.status-block {
+  display: flex;
+  flex-direction: column;
+
+  border-left: 1px solid var(--sidebar-border);
+  padding-left: var(--space-5);
+
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1;
+  color: var(--sidebar-text);
+}
+
+.status-block .row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: var(--space-4);
+  align-items: center;
+
+  padding: 9px 0;
+  border-bottom: 1px solid oklch(1 0 0 / 0.04);
+}
+.status-block .row:last-child { border-bottom: none; }
+
+.status-block dt {
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--sidebar-text-muted);
+}
+
+.status-block dd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--sidebar-text-active);
+}
+
+.status-block dd .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--success);
+  box-shadow: 0 0 0 3px oklch(0.62 0.14 150 / 0.15);
+  flex-shrink: 0;
+}
+
+.status-block dd.hb { color: var(--sidebar-text); }
+.status-block dd.hb .hb-num {
+  color: var(--sidebar-text-active);
+  font-variant-numeric: tabular-nums;
+}

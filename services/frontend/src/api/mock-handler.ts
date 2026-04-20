@@ -69,6 +69,10 @@ export async function mockApiFetch<T>(path: string, options?: RequestInit): Prom
   if (p === "/api/auth/login" && method === "POST") return delay(data.LOGIN_RESPONSE as T);
   if (p === "/api/auth/logout") return delay({ success: true } as T);
   if (p === "/api/auth/users") return delay({ success: true, data: [data.AUTH_USER] } as T);
+  if (p === "/api/auth/password-reset/request" && method === "POST") return delay({ success: true } as T);
+  if (p === "/api/auth/password-reset/confirm" && method === "POST") {
+    return delay({ success: true, data: { token: "mock-token:reset", user: data.AUTH_USER } } as T);
+  }
 
   // ── Analysis Status (global) ──
   if (p === "/api/analysis/status") return delay(data.ANALYSIS_STATUS_EMPTY as T);
@@ -199,7 +203,17 @@ export async function mockApiFetch<T>(path: string, options?: RequestInit): Prom
     if (sub === "/approvals/count") return delay(data.APPROVAL_COUNT as T);
 
     // Activity
-    if (sub.startsWith("/activity")) return delay({ success: true, data: data.ACTIVITIES } as T);
+    if (sub.startsWith("/activity")) {
+      const limit = Number(url.searchParams.get("limit") ?? "10");
+      const activity = data.ACTIVITIES
+        .filter((entry) => {
+          const activityProjectId = typeof entry.metadata?.projectId === "string" ? entry.metadata.projectId : pid;
+          return activityProjectId === pid;
+        })
+        .slice(0, Number.isFinite(limit) && limit > 0 ? limit : data.ACTIVITIES.length);
+
+      return delay({ success: true, data: activity } as T);
+    }
 
     // SDK
     if (sub === "/sdk" && method === "GET") {
@@ -248,6 +262,20 @@ export async function mockApiFetch<T>(path: string, options?: RequestInit): Prom
 
     // Delete operations
     if (method === "DELETE") return delay({ success: true } as T);
+  }
+
+  // ── Top-level file content (FileDetailPage mock) ──
+  if (p.match(/^\/api\/files\/[^/]+\/content$/) && method === "GET") {
+    const fileId = p.split("/")[3];
+    const file = data.FILES.find((entry) => entry.id === fileId);
+    return delay({
+      success: true,
+      data: {
+        ...data.FILE_CONTENT_RESPONSE.data,
+        path: file?.path ?? data.FILE_CONTENT_RESPONSE.data.path,
+        language: file?.language ?? data.FILE_CONTENT_RESPONSE.data.language,
+      },
+    } as T);
   }
 
   // ── Notification mark read ──

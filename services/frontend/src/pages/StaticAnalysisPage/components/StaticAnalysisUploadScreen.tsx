@@ -18,7 +18,7 @@ export function StaticAnalysisUploadScreen({
   onDiscoverTargets,
 }: StaticAnalysisUploadScreenProps) {
   return (
-    <div className="page-enter space-y-5">
+    <div className="page-shell static-analysis-upload-screen">
       <BackButton onClick={onBack} label="대시보드로" />
       <PageHeader title="소스코드 업로드" />
       <SourceUploadView

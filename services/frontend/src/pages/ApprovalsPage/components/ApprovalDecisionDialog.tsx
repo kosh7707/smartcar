@@ -30,29 +30,29 @@ export const ApprovalDecisionDialog: React.FC<ApprovalDecisionDialogProps> = ({
 }) => (
   <Dialog open onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}>
     <DialogContent
-      className="confirm-dialog approval-dialog max-w-md gap-0 border-border bg-card p-0 shadow-2xl sm:max-w-md"
+      className="confirm-dialog approval-decision-dialog"
       overlayClassName="confirm-overlay"
       onOverlayClick={onClose}
       showCloseButton={false}
     >
-      <DialogHeader className="border-b border-border px-5 py-4">
+      <DialogHeader className="approval-decision-dialog__header">
         <DialogTitle className="confirm-dialog__title">
           {action === "approved" ? "승인 확인" : "거부 확인"}
         </DialogTitle>
-        <DialogDescription className="m-0 text-sm text-muted-foreground">
+        <DialogDescription className="approval-decision-dialog__description">
           결정 사유를 남기면 이후 감사 추적과 승인 이력 검토에 도움이 됩니다.
         </DialogDescription>
       </DialogHeader>
-      <div className="px-5 py-4">
+      <div className="approval-decision-dialog__body">
         <Textarea
-          className="min-h-24 w-full"
+          className="approval-decision-dialog__textarea"
           rows={4}
           placeholder="코멘트 (선택)"
           value={comment}
           onChange={(event) => onCommentChange(event.target.value)}
         />
       </div>
-      <DialogFooter className="confirm-dialog__actions flex-row justify-end gap-2 rounded-b-xl border-t bg-muted/30 px-5 py-4">
+      <DialogFooter className="confirm-dialog__actions approval-decision-dialog__footer">
         <Button type="button" variant="outline" size="sm" onClick={onClose}>
           취소
         </Button>

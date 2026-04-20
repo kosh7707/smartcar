@@ -1,0 +1,86 @@
+/* ═══════════════════════════════════════════════════════════════
+   AEGIS — Pill (filter pills, approvals pill)
+
+     .filter-pills       segmented filter container
+     .pill               individual pill button
+     .pill.active        current filter
+     .pill .dot          tiny colored dot prefix
+     .approvals-pill     compact badge for pending-approvals count
+   ═══════════════════════════════════════════════════════════════ */
+
+
+/* ── Filter pills (container) ────────────────────────────────── */
+.filter-pills {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.pill {
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1;
+
+  color: var(--foreground-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+
+  transition: all var(--duration-fast);
+}
+.pill:hover {
+  color: var(--foreground);
+}
+.pill.active {
+  background: var(--surface-raised, var(--surface));
+  color: var(--foreground);
+  box-shadow: var(--shadow-xs);
+}
+.pill .dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.pill .dot.critical { background: var(--severity-critical); }
+.pill .dot.blocked  { background: var(--severity-critical); }
+.pill .dot.running  { background: var(--primary); }
+.pill .dot.stale    { background: var(--foreground-subtle); }
+
+
+/* ── Approvals pill (Needs attention count / table) ──────────── */
+.approvals-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  padding: 3px 8px;
+
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.02em;
+  line-height: 1;
+
+  color: var(--severity-high);
+  background: var(--severity-high-surface);
+  border: 1px solid var(--severity-high-border);
+  border-radius: 3px;
+}
+.approvals-pill.zero {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--foreground-disabled);
+  font-weight: var(--weight-normal);
+}

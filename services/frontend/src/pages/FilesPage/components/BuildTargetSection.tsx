@@ -22,21 +22,21 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
   const state = useBuildTargetSection(projectId, onStartDeepAnalysis);
 
   return (
-    <Card className="border-border/80 bg-card/95 shadow-none">
-      <CardHeader className="border-b border-border/70 pb-4">
-        <div className="flex items-start gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+    <Card className="build-target-section-card">
+      <CardHeader className="build-target-section-card__head">
+        <div className="build-target-section-card__title-row">
+          <div className="build-target-section-card__icon-shell">
             <Crosshair size={18} />
           </div>
-          <div className="min-w-0">
+          <div className="build-target-section-card__copy">
             <CardTitle>빌드 타겟</CardTitle>
-            <CardDescription className="mt-1">
+            <CardDescription className="build-target-section-card__description">
               프로젝트 내 독립 빌드 단위를 관리합니다. 타겟별로 SDK 설정 후 빌드 & 분석을 실행하세요.
             </CardDescription>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 pt-4">
+      <CardContent className="build-target-section-card__body">
         <ConnectionStatusBanner connectionState={state.pipeline.connectionState} />
 
         <BuildTargetActionBar
@@ -51,19 +51,19 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
         />
 
         {state.formMode === "add" && (
-          <div className="space-y-4 rounded-xl border border-border/70 bg-muted/20 p-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Label className="flex flex-col items-start gap-2">
-                <span className="text-sm font-medium text-foreground">타겟 이름</span>
+          <div className="build-target-section-card__form">
+            <div className="build-target-section-card__form-grid">
+              <Label className="build-target-section-card__field">
+                <span className="build-target-section-card__field-label">타겟 이름</span>
                 <Input value={state.formName} onChange={(event) => state.setFormName(event.target.value)} placeholder="빌드 타겟 이름" autoFocus />
               </Label>
-              <Label className="flex flex-col items-start gap-2">
-                <span className="text-sm font-medium text-foreground">상대 경로</span>
-                <Input className="font-mono" value={state.formPath} onChange={(event) => state.setFormPath(event.target.value)} placeholder="src/module-dir/" spellCheck={false} />
+              <Label className="build-target-section-card__field">
+                <span className="build-target-section-card__field-label">상대 경로</span>
+                <Input className="build-target-section-card__path-input" value={state.formPath} onChange={(event) => state.setFormPath(event.target.value)} placeholder="src/module-dir/" spellCheck={false} />
               </Label>
             </div>
             <BuildProfileForm value={state.formProfile} onChange={state.setFormProfile} registeredSdks={state.registeredSdks} />
-            <div className="flex justify-end gap-3 border-t border-border/70 pt-4">
+            <div className="build-target-section-card__form-actions">
               <Button variant="outline" size="sm" onClick={state.closeForm}>취소</Button>
               <Button size="sm" onClick={state.handleSave} disabled={state.saving}>{state.saving ? "저장 중..." : "추가"}</Button>
             </div>
@@ -71,9 +71,9 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
         )}
 
         {state.buildTargets.loading ? (
-          <div className="py-6 text-center text-base text-muted-foreground"><Spinner size={20} label="로딩 중..." /></div>
+          <div className="build-target-section-card__loading"><Spinner size={20} label="로딩 중..." /></div>
         ) : state.buildTargets.targets.length === 0 && state.formMode !== "add" ? (
-          <div className="py-6 text-center text-base text-muted-foreground">
+          <div className="build-target-section-card__empty">
             아직 빌드 타겟이 없습니다. "타겟 탐색"으로 자동 감지하거나 직접 추가하세요.
           </div>
         ) : (

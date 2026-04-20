@@ -1,0 +1,19 @@
+/* ═══════════════════════════════════════════════════════════════
+   AEGIS — Divider
+
+     .divider        horizontal 1px rule (border color)
+     .divider-v      vertical divider
+   ═══════════════════════════════════════════════════════════════ */
+
+
+.divider {
+  height: 1px;
+  background: var(--border-subtle);
+  border: none;
+}
+
+.divider-v {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border-subtle);
+}

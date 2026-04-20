@@ -1,6 +1,7 @@
 import React from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -34,30 +35,30 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onCancel(); }}>
       <DialogContent
-        className="confirm-dialog max-w-md gap-0 border-border bg-card p-0 shadow-2xl sm:max-w-md"
+        className="confirm-dialog"
         overlayClassName="confirm-overlay"
         onOverlayClick={onCancel}
         showCloseButton={false}
       >
-        <DialogHeader className="flex-row items-start gap-3 space-y-0 border-b border-border px-5 py-4">
-          <div className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg ${danger ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"}`}>
+        <DialogHeader className="confirm-dialog__header">
+          <div className={cn("confirm-dialog__icon", danger ? "is-danger" : "is-default")}>
             <AlertTriangle size={17} />
           </div>
-          <div className="min-w-0">
-            <DialogTitle className="text-base font-semibold text-foreground">{title}</DialogTitle>
-            <DialogDescription className="mt-1 text-sm leading-6 text-muted-foreground">
+          <div className="confirm-dialog__copy">
+            <DialogTitle className="confirm-dialog__title">{title}</DialogTitle>
+            <DialogDescription className="confirm-dialog__description">
               {message}
             </DialogDescription>
           </div>
         </DialogHeader>
-        <DialogFooter className="flex-row justify-end gap-2 rounded-b-xl border-t-0 bg-transparent px-5 py-4">
+        <DialogFooter className="confirm-dialog__footer">
           <Button variant="outline" size="sm" onClick={onCancel}>
             취소
           </Button>
           <Button
             variant={danger ? "destructive" : "default"}
             size="sm"
-            className={danger ? "confirm-dialog__btn--danger" : ""}
+            className={danger ? "confirm-dialog__btn--danger" : undefined}
             onClick={onConfirm}
           >
             {confirmLabel}

@@ -33,11 +33,11 @@ export function ProjectSettingsContent({
 }: ProjectSettingsContentProps) {
   return (
     <>
-      <TabsContent value="general" className="mt-0 outline-none">
+      <TabsContent value="general" className="project-settings-content__panel">
         <GeneralSettingsSection />
       </TabsContent>
 
-      <TabsContent value="sdk" className="mt-0 outline-none">
+      <TabsContent value="sdk" className="project-settings-content__panel">
         {projectId ? (
           <SdkManagementSection
             projectId={projectId}
@@ -57,28 +57,28 @@ export function ProjectSettingsContent({
         )}
       </TabsContent>
 
-      <TabsContent value="build-targets" className="mt-0 outline-none">
+      <TabsContent value="build-targets" className="project-settings-content__panel">
         <PlaceholderSettingsSection
           title="빌드 타겟 설정은 준비 중입니다"
           description="이 기능은 곧 제공될 예정입니다."
         />
       </TabsContent>
 
-      <TabsContent value="notifications" className="mt-0 outline-none">
+      <TabsContent value="notifications" className="project-settings-content__panel">
         <PlaceholderSettingsSection
           title="프로젝트 알림 설정은 준비 중입니다"
           description="이 기능은 곧 제공될 예정입니다."
         />
       </TabsContent>
 
-      <TabsContent value="adapters" className="mt-0 outline-none">
+      <TabsContent value="adapters" className="project-settings-content__panel">
         <PlaceholderSettingsSection
           title="동적 분석 어댑터 설정은 준비 중입니다"
           description="이 기능은 곧 제공될 예정입니다."
         />
       </TabsContent>
 
-      <TabsContent value="danger" className="mt-0 outline-none">
+      <TabsContent value="danger" className="project-settings-content__panel">
         <DangerZoneSection />
       </TabsContent>
     </>

@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { ProjectListItem } from "@aegis/shared";
+import type { ActivityEntry } from "../../api/projects";
 import { DashboardPage } from "./DashboardPage";
 
 const mockNavigate = vi.fn();
 const mockCreateProject = vi.fn();
 const mockUseProjects = vi.fn();
+const mockFetchProjectActivity = vi.fn();
 
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
@@ -20,6 +22,14 @@ vi.mock("react-router-dom", async () => {
 vi.mock("../../contexts/ProjectContext", () => ({
   useProjects: () => mockUseProjects(),
 }));
+
+vi.mock("../../api/projects", async () => {
+  const actual = await vi.importActual<typeof import("../../api/projects")>("../../api/projects");
+  return {
+    ...actual,
+    fetchProjectActivity: (...args: Parameters<typeof actual.fetchProjectActivity>) => mockFetchProjectActivity(...args),
+  };
+});
 
 function makeProject(index: number, overrides: Partial<ProjectListItem> = {}): ProjectListItem {
   return {
@@ -44,6 +54,68 @@ function makeProject(index: number, overrides: Partial<ProjectListItem> = {}): P
 const projects = Array.from({ length: 5 }, (_, i) => makeProject(i + 1));
 const manyProjects = Array.from({ length: 12 }, (_, i) => makeProject(i + 1));
 
+function makeActivity(index: number): ActivityEntry {
+  const projectId = `p-${index}`;
+  const projectName = `Project ${index}`;
+
+  if (index === 1) {
+    return {
+      type: "run_completed",
+      timestamp: "2026-04-12T12:00:00Z",
+      summary: "정적 분석 완료",
+      metadata: {
+        projectId,
+        projectName,
+        variant: "analysis_completed",
+        critical: 3,
+        high: 5,
+      },
+    };
+  }
+
+  if (index === 2) {
+    return {
+      type: "approval_decided",
+      timestamp: "2026-04-11T12:00:00Z",
+      summary: "위험 수용 승인",
+      metadata: {
+        projectId,
+        projectName,
+        variant: "accepted_risk",
+        actor: "박지은",
+        findingId: "F-4021",
+      },
+    };
+  }
+
+  if (index === 3) {
+    return {
+      type: "source_uploaded",
+      timestamp: "2026-04-10T12:00:00Z",
+      summary: "빌드 타깃 추가",
+      metadata: {
+        projectId,
+        projectName,
+        variant: "build_target_added",
+        targetName: "QNX 7.1",
+      },
+    };
+  }
+
+  return {
+    type: "approval_decided",
+    timestamp: `2026-04-${String(20 - index).padStart(2, "0")}T12:00:00Z`,
+    summary: `승인 요청 ${index}`,
+    metadata: {
+      projectId,
+      projectName,
+      variant: "approval_requested",
+      actor: "Kim",
+      approvalId: `A-${100 + index}`,
+    },
+  };
+}
+
 function renderPage() {
   return render(
     <MemoryRouter initialEntries={["/dashboard"]}>
@@ -56,6 +128,10 @@ describe("DashboardPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCreateProject.mockResolvedValue({ id: "p-created" });
+    mockFetchProjectActivity.mockImplementation(async (projectId: string) => {
+      const index = Number(projectId.replace("p-", ""));
+      return Number.isFinite(index) && index > 0 ? [makeActivity(index)] : [];
+    });
     mockUseProjects.mockReturnValue({
       projects,
       loading: false,
@@ -86,29 +162,33 @@ describe("DashboardPage", () => {
 
     renderPage();
 
-    expect(screen.getByRole("heading", { name: "프로젝트 탐색기" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "우선 확인" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "프로젝트 12" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "주의 필요 3" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "최근 활동" })).toBeInTheDocument();
     expect(screen.queryByText("Open")).not.toBeInTheDocument();
 
-    const attentionSection = screen.getByRole("heading", { name: "우선 확인" }).closest("section");
+    const attentionSection = screen.getByRole("heading", { name: "주의 필요 3" }).closest("section");
     const activitySection = screen.getByRole("heading", { name: "최근 활동" }).closest("section");
 
     expect(attentionSection).not.toBeNull();
     expect(activitySection).not.toBeNull();
+    expect(screen.getByText(/승인 대기/)).toBeInTheDocument();
+    await screen.findByText("WS 연결됨 · 실시간 스트림");
+    await screen.findByText(/accepted-risk/);
+    await screen.findByText(/QNX 7.1/);
 
-    expect(within(attentionSection as HTMLElement).getAllByRole("link")).toHaveLength(4);
-    expect(within(activitySection as HTMLElement).getAllByRole("link")).toHaveLength(10);
+    expect(within(attentionSection as HTMLElement).getAllByRole("link")).toHaveLength(3);
+    await waitFor(() => expect(within(activitySection as HTMLElement).getAllByRole("link")).toHaveLength(10));
 
     fireEvent.click(screen.getByRole("button", { name: "더 보기" }));
-    expect(within(activitySection as HTMLElement).getAllByRole("link")).toHaveLength(12);
+    await waitFor(() => expect(within(activitySection as HTMLElement).getAllByRole("link")).toHaveLength(12));
   });
 
   it("filters project explorer by search query", async () => {
     renderPage();
 
     const explorer = screen.getByLabelText("프로젝트 탐색기");
-    fireEvent.change(screen.getByPlaceholderText("프로젝트 검색"), { target: { value: "Project 3" } });
+    fireEvent.change(screen.getByPlaceholderText("프로젝트 이름…"), { target: { value: "Project 3" } });
 
     expect(within(explorer).getByRole("link", { name: /Project 3/i })).toBeInTheDocument();
     expect(within(explorer).queryByRole("link", { name: /Project 1/i })).not.toBeInTheDocument();
@@ -117,7 +197,7 @@ describe("DashboardPage", () => {
   it("renders a refined explorer empty state for unmatched search and lets users reset it", async () => {
     renderPage();
 
-    fireEvent.change(screen.getByPlaceholderText("프로젝트 검색"), { target: { value: "No Match" } });
+    fireEvent.change(screen.getByPlaceholderText("프로젝트 이름…"), { target: { value: "No Match" } });
 
     expect(screen.getByText("검색 결과가 없습니다")).toBeInTheDocument();
     expect(screen.getByText(/“No Match”와 일치하는 프로젝트가 없습니다/)).toBeInTheDocument();
@@ -203,6 +283,7 @@ describe("DashboardPage", () => {
   });
 
   it("shows a neutral latest-update activity before a project has ever been analyzed", async () => {
+    mockFetchProjectActivity.mockResolvedValue([]);
     mockUseProjects.mockReturnValue({
       projects: [
         makeProject(1, {
@@ -221,9 +302,8 @@ describe("DashboardPage", () => {
     const activitySection = screen.getByRole("heading", { name: "최근 활동" }).closest("section");
 
     expect(activitySection).not.toBeNull();
-    expect(within(activitySection as HTMLElement).getByText("가장 마지막 수정")).toBeInTheDocument();
+    await within(activitySection as HTMLElement).findByText("가장 마지막 수정");
     expect(within(activitySection as HTMLElement).getByText("Project 1")).toBeInTheDocument();
-    expect(screen.queryByText("분석 완료")).not.toBeInTheDocument();
-    expect(screen.queryByText("정적 분석이 완료되었습니다")).not.toBeInTheDocument();
+    expect(screen.queryByText(/정적 분석 완료/)).not.toBeInTheDocument();
   });
 });

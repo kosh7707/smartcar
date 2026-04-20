@@ -16,6 +16,11 @@ export const PROJECTS = [
     severitySummary: { critical: 1, high: 2, medium: 1, low: 1 },
     gateStatus: "fail" as const,
     unresolvedDelta: 2,
+    pendingApprovals: 2,
+    owner: "김",
+    ownerName: "Kim",
+    lang: "c" as const,
+    metaLabel: "ECU · AUTOSAR Classic",
   },
   {
     id: "p-2",
@@ -23,10 +28,15 @@ export const PROJECTS = [
     description: "BCM 펌웨어 보안 검증",
     createdAt: "2026-03-10T09:00:00Z",
     updatedAt: "2026-03-25T11:00:00Z",
-    lastAnalysisAt: "2026-03-22T15:00:00Z",
+    lastAnalysisAt: "2026-03-25T11:00:00Z",
     severitySummary: { critical: 0, high: 1, medium: 2, low: 0 },
-    gateStatus: "pass" as const,
+    gateStatus: "running" as const,
     unresolvedDelta: -1,
+    pendingApprovals: 1,
+    owner: "박",
+    ownerName: "Park",
+    lang: "cpp" as const,
+    metaLabel: "BMS · CAN-FD",
   },
 ];
 
@@ -174,9 +184,116 @@ export const APPROVALS = [
 // ── Activities ──
 
 export const ACTIVITIES = [
-  { type: "run_completed", timestamp: "2026-03-25T10:02:30Z", summary: "정적 분석 완료 (Finding 4건)", metadata: { runId: "run-1" } },
-  { type: "finding_status_changed", timestamp: "2026-03-26T12:00:00Z", summary: "미사용 변수 → Fixed", metadata: { findingId: "find-5" } },
-  { type: "approval_decided", timestamp: "2026-03-26T09:00:00Z", summary: "하드코딩 키 위험 수용 승인", metadata: { approvalId: "appr-2" } },
+  {
+    type: "run_completed",
+    timestamp: "2026-03-25T10:02:30Z",
+    summary: "정적 분석 완료",
+    metadata: {
+      projectId: "p-1",
+      projectName: "motor-control-unit",
+      variant: "analysis_completed",
+      critical: 14,
+      high: 23,
+      runId: "run-1",
+    },
+  },
+  {
+    type: "pipeline_completed",
+    timestamp: "2026-03-25T09:59:30Z",
+    summary: "Quality Gate BLOCKED",
+    metadata: {
+      projectId: "p-1",
+      projectName: "motor-control-unit",
+      variant: "gate_blocked",
+      blockedRules: 3,
+      totalRules: 7,
+    },
+  },
+  {
+    type: "run_completed",
+    timestamp: "2026-03-27T09:00:00Z",
+    summary: "정적 분석 시작",
+    metadata: {
+      projectId: "p-2",
+      projectName: "bms-gateway-fw",
+      variant: "analysis_started",
+      tone: "primary",
+      icon: "play",
+      agent: "taint-flow",
+    },
+  },
+  {
+    type: "approval_decided",
+    timestamp: "2026-03-26T09:00:00Z",
+    summary: "하드코딩 키 위험 수용 승인",
+    metadata: {
+      projectId: "p-3",
+      projectName: "adas-perception-rt",
+      variant: "accepted_risk",
+      actor: "박지은",
+      findingId: "F-4021",
+      approvalId: "appr-2",
+    },
+  },
+  {
+    type: "source_uploaded",
+    timestamp: "2026-03-26T08:46:00Z",
+    summary: "빌드 타깃 QNX 7.1 추가",
+    metadata: {
+      projectId: "p-4",
+      projectName: "infotainment-ivi",
+      variant: "build_target_added",
+      targetName: "QNX 7.1",
+    },
+  },
+  {
+    type: "run_completed",
+    timestamp: "2026-03-26T08:00:00Z",
+    summary: "동적 테스트 통과",
+    metadata: {
+      projectId: "p-5",
+      projectName: "ota-update-service",
+      variant: "dynamic_test_passed",
+      passed: 120,
+      total: 120,
+    },
+  },
+  {
+    type: "approval_decided",
+    timestamp: "2026-03-26T07:00:00Z",
+    summary: "승인 요청 제출",
+    metadata: {
+      projectId: "p-6",
+      projectName: "v2x-stack-dsrc",
+      variant: "approval_requested",
+      actor: "이준호",
+      approvalId: "A-209",
+    },
+  },
+  {
+    type: "finding_status_changed",
+    timestamp: "2026-03-26T06:00:00Z",
+    summary: "재검증 필요",
+    metadata: {
+      projectId: "p-9",
+      projectName: "hypervisor-arm",
+      variant: "needs_revalidation",
+      findingId: "F-3880",
+      findingStatus: "needs-revalidation",
+    },
+  },
+  {
+    type: "run_completed",
+    timestamp: "2026-03-25T22:00:00Z",
+    summary: "정적 분석 완료 · 신규 없음",
+    metadata: {
+      projectId: "p-7",
+      projectName: "telematics-edge",
+      variant: "analysis_completed",
+      critical: 0,
+      high: 0,
+    },
+  },
 ];
 
 // ── Overview ──

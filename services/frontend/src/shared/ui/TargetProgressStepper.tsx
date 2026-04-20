@@ -11,10 +11,9 @@ const STEPS = [
   { key: "ready", label: "완료", statuses: ["ready"] },
 ] as const;
 
-// Map status to step index
 function getStepIndex(status: string): number {
-  for (let i = 0; i < STEPS.length; i++) {
-    if ((STEPS[i].statuses as readonly string[]).includes(status)) return i;
+  for (let index = 0; index < STEPS.length; index++) {
+    if ((STEPS[index].statuses as readonly string[]).includes(status)) return index;
   }
   return 0;
 }
@@ -38,46 +37,46 @@ export const TargetProgressStepper: React.FC<Props> = ({ status, message }) => {
   const running = isRunning(status);
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-0">
-        {STEPS.map((step, i) => {
-          const isComplete = i < currentIdx || (i === currentIdx && !failed && !running && status !== "discovered");
-          const isCurrent = i === currentIdx;
+    <div className="target-progress-stepper">
+      <div className="target-progress-stepper__track">
+        {STEPS.map((step, index) => {
+          const isComplete = index < currentIdx || (index === currentIdx && !failed && !running && status !== "discovered");
+          const isCurrent = index === currentIdx;
           const isActive = isCurrent && running;
           const isFail = isCurrent && failed;
 
           return (
             <React.Fragment key={step.key}>
-              {i > 0 && (
+              {index > 0 ? (
                 <div
                   className={cn(
-                    "mb-3.5 mx-0.5 h-0.5 min-w-4 max-w-10 flex-1 bg-border transition-colors",
-                    isComplete && "bg-[var(--cds-support-success)]",
-                    isCurrent && !failed && "bg-primary/50",
+                    "target-progress-stepper__connector",
+                    isComplete && "is-complete",
+                    isCurrent && !failed && "is-current",
                   )}
                 />
-              )}
-              <div className="flex shrink-0 flex-col items-center gap-0.5" title={step.label}>
+              ) : null}
+              <div className="target-progress-stepper__step" title={step.label}>
                 <div
                   className={cn(
-                    "flex size-5 items-center justify-center rounded-full border-2 border-border bg-background text-muted-foreground transition-colors",
-                    isComplete && "border-[var(--cds-support-success)] bg-[var(--cds-support-success)] text-white",
-                    isActive && "border-[var(--aegis-severity-medium)] bg-[color-mix(in_srgb,var(--aegis-severity-medium)_15%,transparent)] text-[var(--aegis-severity-medium)]",
-                    isFail && "border-[var(--aegis-severity-high)] bg-[var(--aegis-severity-high)] text-white",
-                    isCurrent && !isActive && !isFail && status !== "discovered" && "border-primary bg-primary/10 text-primary",
+                    "target-progress-stepper__marker",
+                    isComplete && "is-complete",
+                    isActive && "is-active",
+                    isFail && "is-fail",
+                    isCurrent && !isActive && !isFail && status !== "discovered" && "is-current",
                   )}
                 >
-                  {isComplete && <Check size={10} />}
-                  {isActive && <Loader size={10} className="animate-spin" />}
-                  {isFail && <X size={10} />}
+                  {isComplete ? <Check size={10} /> : null}
+                  {isActive ? <Loader size={10} className="target-progress-stepper__spin" /> : null}
+                  {isFail ? <X size={10} /> : null}
                 </div>
                 <span
                   className={cn(
-                    "whitespace-nowrap text-sm font-medium text-muted-foreground",
-                    isComplete && "text-[var(--cds-support-success)]",
-                    isActive && "font-semibold text-[var(--aegis-severity-medium)]",
-                    isFail && "font-semibold text-[var(--aegis-severity-high)]",
-                    isCurrent && !isActive && !isFail && status !== "discovered" && "text-primary",
+                    "target-progress-stepper__label",
+                    isComplete && "is-complete",
+                    isActive && "is-active",
+                    isFail && "is-fail",
+                    isCurrent && !isActive && !isFail && status !== "discovered" && "is-current",
                   )}
                 >
                   {step.label}
@@ -87,9 +86,9 @@ export const TargetProgressStepper: React.FC<Props> = ({ status, message }) => {
           );
         })}
       </div>
-      {message && (
-        <div className={cn("pl-0.5 text-xs text-muted-foreground", failed && "text-[var(--aegis-severity-high)]")}>{message}</div>
-      )}
+      {message ? (
+        <div className={cn("target-progress-stepper__message", failed && "is-fail")}>{message}</div>
+      ) : null}
     </div>
   );
 };

@@ -25,73 +25,117 @@ describe("SignupPage", () => {
     mockLogin.mockResolvedValue(undefined);
   });
 
-  it("submits and navigates to projects on success", async () => {
-    const { container } = render(
-      <MemoryRouter>
-        <SignupPage />
-      </MemoryRouter>,
-    );
-
-    expect(screen.getByRole("heading", { name: "AEGIS" })).toBeInTheDocument();
-    expect(screen.getByText("새 계정을 준비하고 분석 워크스페이스로 바로 이동합니다.")).toBeInTheDocument();
-    expect(screen.getByText("현재 데모 워크스페이스에 사용할 작업자 정보를 입력합니다.")).toBeInTheDocument();
-    expect(container.querySelector(".page-header--plain")).not.toBeNull();
-    expect(container.querySelector(".page-header__eyebrow")).toBeNull();
-    expect(document.title).toBe("AEGIS — Sign Up");
-
-    fireEvent.change(screen.getByLabelText("사용자 이름"), { target: { value: "user@example.com" } });
-    fireEvent.change(screen.getByLabelText("비밀번호"), { target: { value: "secret" } });
-    fireEvent.click(screen.getByRole("button", { name: "프로필 준비" }));
-
-    await waitFor(() => expect(mockLogin).toHaveBeenCalledWith("user@example.com", "secret"));
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard"));
-  });
-
-  it("still navigates to projects when signup login stub rejects", async () => {
-    mockLogin.mockRejectedValue(new Error("stub failure"));
-
+  it("renders the imported onboarding template surface", () => {
     render(
       <MemoryRouter>
         <SignupPage />
       </MemoryRouter>,
     );
 
-    fireEvent.change(screen.getByLabelText("사용자 이름"), { target: { value: "user@example.com" } });
-    fireEvent.change(screen.getByLabelText("비밀번호"), { target: { value: "secret" } });
-    fireEvent.click(screen.getByRole("button", { name: "프로필 준비" }));
-
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard"));
+    expect(screen.getByRole("heading", { name: "회원가입" })).toBeInTheDocument();
+    expect(screen.getByText("가입은 승인제로 운영됩니다.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /계정 하나로/ })).toBeInTheDocument();
+    expect(screen.getByText("조직 · 접근 범위")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "로그인으로" })).toBeInTheDocument();
+    expect(screen.getByLabelText("이름")).toBeInTheDocument();
+    expect(screen.getByLabelText("업무용 이메일")).toBeInTheDocument();
+    expect(screen.getByLabelText("비밀번호", { selector: "input" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("ACME-KR-SEC")).toBeInTheDocument();
+    expect(document.title).toBe("AEGIS — 가입 요청");
   });
 
-  it("keeps submit disabled when required fields are blank", () => {
+  it("submits and shows an awaiting-approval completion state", async () => {
     render(
       <MemoryRouter>
         <SignupPage />
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("button", { name: "프로필 준비" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("이름"), { target: { value: "홍길동" } });
+    fireEvent.change(screen.getByLabelText("업무용 이메일"), { target: { value: "user@example.com" } });
+    fireEvent.change(screen.getByLabelText("비밀번호", { selector: "input" }), { target: { value: "Secret123!" } });
+    fireEvent.change(screen.getByPlaceholderText("ACME-KR-SEC"), { target: { value: "ACME-KR-SEC" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: /서비스 이용 약관/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /계정 활동은 감사 목적/ }));
+    fireEvent.click(screen.getByRole("button", { name: "가입 요청 제출" }));
+
+    expect(await screen.findByRole("button", { name: "요청 제출 중..." })).toBeDisabled();
+    expect(await screen.findByText("가입 요청이 제출되었습니다.")).toBeInTheDocument();
+    expect(screen.getByText("관리자 승인 후 초대 링크와 후속 안내가 전달됩니다.")).toBeInTheDocument();
+    expect(mockLogin).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  it("shows the submitting label while signup is in flight", async () => {
-    let resolveLogin: (() => void) | null = null;
-    mockLogin.mockImplementation(() => new Promise<void>((resolve) => {
-      resolveLogin = resolve;
-    }));
-
+  it("keeps submit disabled until the required mock fields are filled", () => {
     render(
       <MemoryRouter>
         <SignupPage />
       </MemoryRouter>,
     );
 
-    fireEvent.change(screen.getByLabelText("사용자 이름"), { target: { value: "user@example.com" } });
-    fireEvent.change(screen.getByLabelText("비밀번호"), { target: { value: "secret" } });
-    fireEvent.click(screen.getByRole("button", { name: "프로필 준비" }));
+    expect(screen.getByRole("button", { name: "가입 요청 제출" })).toBeDisabled();
+  });
 
-    expect(await screen.findByRole("button", { name: "준비 중..." })).toBeDisabled();
+  it("updates password strength and toggles password visibility", () => {
+    render(
+      <MemoryRouter>
+        <SignupPage />
+      </MemoryRouter>,
+    );
 
-    resolveLogin?.();
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard"));
+    const passwordInput = screen.getByLabelText("비밀번호", { selector: "input" }) as HTMLInputElement;
+    fireEvent.change(passwordInput, { target: { value: "Secret123!" } });
+
+    expect(screen.getByText("strength=strong")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "가입 비밀번호 보기" }));
+    expect(passwordInput.type).toBe("text");
+  });
+
+  it("verifies a mock org code and updates the org panel", async () => {
+    render(
+      <MemoryRouter>
+        <SignupPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText("ACME-KR-SEC"), { target: { value: "ACME-KR-SEC" } });
+    fireEvent.click(screen.getByRole("button", { name: "조직 코드 검증" }));
+
+    await waitFor(() => expect(screen.getByText("verified · pending approval")).toBeInTheDocument());
+    expect(screen.getByText("승인 대기 조직")).toBeInTheDocument();
+    expect(screen.getByText("승인 후 공개")).toBeInTheDocument();
+  });
+
+  it("allows starting a new request again after submission", async () => {
+    render(
+      <MemoryRouter>
+        <SignupPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText("이름"), { target: { value: "홍길동" } });
+    fireEvent.change(screen.getByLabelText("업무용 이메일"), { target: { value: "user@example.com" } });
+    fireEvent.change(screen.getByLabelText("비밀번호", { selector: "input" }), { target: { value: "Secret123!" } });
+    fireEvent.change(screen.getByPlaceholderText("ACME-KR-SEC"), { target: { value: "ACME-KR-SEC" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: /서비스 이용 약관/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /계정 활동은 감사 목적/ }));
+    fireEvent.click(screen.getByRole("button", { name: "가입 요청 제출" }));
+
+    await screen.findByText("가입 요청이 제출되었습니다.");
+    fireEvent.click(screen.getByRole("button", { name: "다시 요청 작성" }));
+
+    expect(screen.getByRole("button", { name: "가입 요청 제출" })).toBeInTheDocument();
+  });
+
+  it("navigates back to login from the top back button", () => {
+    render(
+      <MemoryRouter>
+        <SignupPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "로그인으로" }));
+
+    expect(mockNavigate).toHaveBeenCalledWith("/login");
   });
 });

@@ -49,7 +49,7 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
   onOpenResult,
   onConfirmDelete,
 }) => (
-  <div className="page-enter space-y-5">
+  <div className="page-shell dynamic-test-history-shell">
     <ConnectionStatusBanner connectionState={connectionState as any} />
     <PageHeader
       title="동적 테스트"
@@ -69,50 +69,38 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
       }
     />
 
-    {adapterWarning && (
+    {adapterWarning ? (
       <Alert variant="destructive">
         <AlertTriangle size={16} />
         <AlertTitle>연결된 어댑터가 없습니다</AlertTitle>
         <AlertDescription>
-          <a className="underline underline-offset-4" href={`#/projects/${projectId}/settings`}>
+          <a className="dynamic-test-history__settings-link" href={`#/projects/${projectId}/settings`}>
             프로젝트 설정
           </a>
           에서 어댑터를 연결해주세요.
         </AlertDescription>
       </Alert>
-    )}
+    ) : null}
 
     {historyLoading ? (
-      <div className="flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
+      <div className="dynamic-test-history__loading-shell">
         <Spinner label="이력 로딩 중..." />
       </div>
     ) : history.length === 0 ? (
-      <Card className="shadow-none">
-        <CardContent className="space-y-5 p-6 sm:p-8">
-          <div className="space-y-2">
-            <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Testing workspace
-            </p>
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-              아직 테스트 이력이 없습니다
-            </h2>
-            <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+      <Card className="dynamic-test-history__empty-card">
+        <CardContent className="dynamic-test-history__empty-body">
+          <div className="dynamic-test-history__empty-copy">
+            <p className="dynamic-test-history__empty-eyebrow">Testing workspace</p>
+            <h2 className="dynamic-test-history__empty-title">아직 테스트 이력이 없습니다</h2>
+            <p className="dynamic-test-history__empty-description">
               퍼징·침투 테스트를 시작하면 대상 ECU, 전략, 결과 이력이 같은
               작업면 안에서 이어지도록 정리됩니다.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {[
-              "어댑터 연결",
-              "전략 선택",
-              "결과 검토",
-            ].map((step) => (
-              <Badge
-                key={step}
-                variant="outline"
-                className="h-auto rounded-full px-3 py-1 text-sm"
-              >
-                <CheckCircle2 size={14} />
+          <div className="dynamic-test-history__empty-checks">
+            {["어댑터 연결", "전략 선택", "결과 검토"].map((step) => (
+              <Badge key={step} variant="outline" className="dynamic-test-history__empty-check">
+                <CheckCircle2 size={14} className="dynamic-test-history__empty-check-icon" />
                 {step}
               </Badge>
             ))}
@@ -134,24 +122,24 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
         </CardContent>
       </Card>
     ) : (
-      <Card className="shadow-none">
-        <CardContent className="space-y-2 p-3">
+      <Card className="dynamic-test-history__list-card">
+        <CardContent className="dynamic-test-history__list-body">
           {history.map((result) => (
             <ListItem
               key={result.id}
               onClick={() => onOpenResult(result)}
               trailing={
                 <>
-                  <span className="whitespace-nowrap text-sm text-muted-foreground">
+                  <span className="dynamic-test-history__item-time">
                     {formatDateTime(result.createdAt)}
                   </span>
                   <Button
                     variant="destructive"
                     size="icon-sm"
-                    className="opacity-0 transition-opacity group-hover/list-item:opacity-100"
+                    className="dynamic-test-history__delete-button"
                     title="삭제"
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={(event) => {
+                      event.stopPropagation();
                       setConfirmDeleteTarget(result);
                     }}
                   >
@@ -160,35 +148,31 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
                 </>
               }
             >
-              <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <Badge
-                    variant="outline"
-                    className="h-auto rounded-full border-primary/30 bg-primary/10 px-2.5 py-1 text-sm text-primary"
-                  >
+              <div className="dynamic-test-history__item-copy">
+                <div className="dynamic-test-history__item-head">
+                  <Badge variant="outline" className="dynamic-test-history__type-badge">
                     {TEST_TYPE_ICON[result.config.testType]}
                     {result.config.testType === "fuzzing" ? "퍼징" : "침투"}
                   </Badge>
-                  <span className="text-sm font-medium text-foreground">
+                  <span className="dynamic-test-history__item-strategy">
                     {STRATEGY_LABELS[result.config.strategy]}
                   </span>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="dynamic-test-history__item-count">
                     {result.totalRuns}회
                   </span>
-                  {result.crashes > 0 && (
-                    <span className="text-sm font-medium text-destructive">
+                  {result.crashes > 0 ? (
+                    <span className="dynamic-test-history__item-metric dynamic-test-history__item-metric--crash">
                       Crash {result.crashes}
                     </span>
-                  )}
-                  {result.anomalies > 0 && (
-                    <span className="text-sm font-medium text-[var(--aegis-severity-medium)]">
+                  ) : null}
+                  {result.anomalies > 0 ? (
+                    <span className="dynamic-test-history__item-metric dynamic-test-history__item-metric--anomaly">
                       Anomaly {result.anomalies}
                     </span>
-                  )}
+                  ) : null}
                 </div>
-                <div className="pl-1 text-sm text-muted-foreground">
-                  {result.config.targetEcu} · {result.config.protocol} ·{" "}
-                  {result.config.targetId}
+                <div className="dynamic-test-history__item-target">
+                  {result.config.targetEcu} · {result.config.protocol} · {result.config.targetId}
                 </div>
               </div>
             </ListItem>

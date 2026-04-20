@@ -33,17 +33,17 @@ export const SEVERITY_KO_LABELS: Record<Severity | "all", string> = {
 };
 
 export const SEVERITY_SURFACE_CLASSES: Record<Severity, string> = {
-  critical: "border-[var(--aegis-severity-critical-border)] bg-[var(--aegis-severity-critical-bg)] text-[var(--aegis-severity-critical)]",
-  high: "border-[var(--aegis-severity-high-border)] bg-[var(--aegis-severity-high-bg)] text-[var(--aegis-severity-high)]",
-  medium: "border-[var(--aegis-severity-medium-border)] bg-[var(--aegis-severity-medium-bg)] text-[var(--aegis-severity-medium)]",
-  low: "border-[var(--aegis-severity-low-border)] bg-[var(--aegis-severity-low-bg)] text-[var(--aegis-severity-low)]",
-  info: "border-[var(--aegis-severity-info-border)] bg-[var(--aegis-severity-info-bg)] text-[var(--aegis-severity-info)]",
+  critical: "vuln-tone vuln-tone--critical",
+  high: "vuln-tone vuln-tone--high",
+  medium: "vuln-tone vuln-tone--medium",
+  low: "vuln-tone vuln-tone--low",
+  info: "vuln-tone vuln-tone--info",
 };
 
 export const SEVERITY_STRIP_CLASSES: Record<Severity, string> = {
-  critical: "bg-[var(--aegis-severity-critical)]",
-  high: "bg-[var(--aegis-severity-high)]",
-  medium: "bg-[var(--aegis-severity-medium)]",
-  low: "bg-[var(--aegis-severity-low)]",
-  info: "bg-[var(--aegis-severity-info)]",
+  critical: "vuln-strip vuln-strip--critical",
+  high: "vuln-strip vuln-strip--high",
+  medium: "vuln-strip vuln-strip--medium",
+  low: "vuln-strip vuln-strip--low",
+  info: "vuln-strip vuln-strip--info",
 };

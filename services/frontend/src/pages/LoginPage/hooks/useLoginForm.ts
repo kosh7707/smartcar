@@ -9,9 +9,11 @@ export function useLoginForm(login: LoginFn, navigate: NavigateFn) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   useEffect(() => {
-    document.title = "AEGIS — Login";
+    document.title = "AEGIS — 로그인";
   }, []);
 
   const handleSubmit = useCallback(async (event: FormEvent<HTMLFormElement>) => {
@@ -36,6 +38,10 @@ export function useLoginForm(login: LoginFn, navigate: NavigateFn) {
     setPassword,
     error,
     submitting,
+    showPassword,
+    rememberMe,
+    setRememberMe,
+    togglePasswordVisibility: () => setShowPassword((current) => !current),
     handleSubmit,
   };
 }

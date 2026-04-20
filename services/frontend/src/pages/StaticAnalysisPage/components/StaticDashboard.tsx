@@ -48,12 +48,12 @@ export const StaticDashboard: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<TabId>("latest");
 
   return (
-    <div className="page-enter space-y-5">
+    <div className="page-shell static-dashboard-shell">
       <PageHeader
         title="정적 분석"
         subtitle="빌드 타겟 단위 보안 분석 상태와 최근 실행 결과를 같은 작업면에서 검토합니다."
         action={
-          <div className="flex gap-3">
+          <div className="static-dashboard-actions">
             {onBrowseTree && (
               <Button variant="outline" onClick={onBrowseTree}>
                 <Code size={16} />
@@ -76,20 +76,20 @@ export const StaticDashboard: React.FC<Props> = ({
         />
       )}
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabId)} className="gap-4">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabId)} className="static-dashboard-tabs">
         <TabsList
           variant="line"
-          className="h-auto w-full justify-start overflow-x-auto rounded-none border-b border-border p-0"
+          className="static-dashboard-tabs__list"
         >
           <TabsTrigger
             value="latest"
-            className="rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-active:border-primary data-active:text-foreground"
+            className="static-dashboard-tabs__trigger"
           >
             최신 분석
           </TabsTrigger>
           <TabsTrigger
             value="overall"
-            className="rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-active:border-primary data-active:text-foreground"
+            className="static-dashboard-tabs__trigger"
           >
             전체 현황
           </TabsTrigger>

@@ -45,41 +45,41 @@ export function BuildTargetRow({
   return (
     <div
       className={cn(
-        "flex flex-col gap-4 rounded-xl border px-4 py-4 transition-colors md:flex-row md:items-start",
+        "build-target-row",
         isFailed
-          ? "border-destructive/50 bg-destructive/5"
+          ? "build-target-row--failed"
           : isReady
-            ? "border-emerald-500/40 bg-emerald-500/[0.04]"
-            : "border-border/70 bg-background/80 hover:border-primary/30",
+            ? "build-target-row--ready"
+            : "build-target-row--default",
       )}
     >
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-base font-semibold text-foreground">{target.name}</span>
+      <div className="build-target-row__main">
+        <div className="build-target-row__head">
+          <span className="build-target-row__title">{target.name}</span>
           <TargetStatusBadge status={status} size="sm" />
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground sm:text-sm">
-          <span className="font-mono">{target.relativePath}</span>
+        <div className="build-target-row__meta">
+          <span className="build-target-row__path">{target.relativePath}</span>
           {sdkName && (
-            <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+            <span className="build-target-row__chip build-target-row__chip--sdk">
               {sdkName}
             </span>
           )}
           {target.buildSystem && (
-            <span className="rounded-full border border-border bg-background px-2 py-0.5 text-xs">
+            <span className="build-target-row__chip build-target-row__chip--system">
               {target.buildSystem}
             </span>
           )}
         </div>
         {target.buildCommand && (
-          <div className="mt-2">
-            <code className="block break-all rounded-lg bg-muted px-3 py-2 font-mono text-xs text-muted-foreground">
+          <div className="build-target-row__command-wrap">
+            <code className="build-target-row__command">
               {target.buildCommand}
             </code>
           </div>
         )}
         {status !== "discovered" && (
-          <div className="mt-3">
+          <div className="build-target-row__stepper">
             <TargetProgressStepper
               status={status as never}
               message={isFailed && error ? error : isRunning ? message : undefined}
@@ -90,7 +90,7 @@ export function BuildTargetRow({
           <TargetLibraryPanel projectId={projectId} targetId={target.id} targetName={target.name} />
         )}
       </div>
-      <div className="flex flex-row flex-wrap gap-2 md:ml-4 md:flex-col">
+      <div className="build-target-row__actions">
         {status !== "discovered" && status !== "resolving" && (
           <Button variant="outline" size="icon-sm" onClick={() => onOpenLog({ id: target.id, name: target.name })} title="빌드 로그">
             <FileText size={14} />

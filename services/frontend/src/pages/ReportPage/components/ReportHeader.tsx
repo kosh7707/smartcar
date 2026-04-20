@@ -23,7 +23,7 @@ export const ReportHeader: React.FC<ReportHeaderProps> = ({
     title="보고서"
     subtitle={`생성: ${formatDateTime(generatedAt)}`}
     action={
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="report-header-actions">
         <Button variant={hasActiveFilters ? "default" : "outline"} size="sm" onClick={onToggleFilters}>
           <Filter size={14} />
           필터{hasActiveFilters ? " (적용됨)" : ""}

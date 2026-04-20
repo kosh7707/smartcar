@@ -11,19 +11,17 @@ import type {
 import {
   FileCode,
   Plus,
-  LayoutList,
   Layers,
   CheckSquare,
   History,
-  Check,
   Search,
-  ArrowUpDown,
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   StatCard,
   EmptyState,
@@ -68,13 +66,7 @@ interface FindingGroup {
 
 type GroupBy = "severity" | "file" | "status";
 
-const SEVERITY_ORDER: Severity[] = [
-  "critical",
-  "high",
-  "medium",
-  "low",
-  "info",
-];
+const SEVERITY_ORDER: Severity[] = ["critical", "high", "medium", "low", "info"];
 
 const SEVERITY_LABELS: Record<Severity, string> = {
   critical: "Critical",
@@ -128,12 +120,17 @@ function groupByStatus(findings: FindingWithEvidence[]): FindingGroup[] {
   }));
 }
 
-const GROUP_FNS: Record<GroupBy, (f: FindingWithEvidence[]) => FindingGroup[]> =
-  {
-    file: groupByFile,
-    severity: groupBySeverity,
-    status: groupByStatus,
-  };
+const GROUP_FNS: Record<GroupBy, (f: FindingWithEvidence[]) => FindingGroup[]> = {
+  file: groupByFile,
+  severity: groupBySeverity,
+  status: groupByStatus,
+};
+
+function getSourceBarClass(sourceType: string): string {
+  if (sourceType === "rule-engine") return "latest-analysis-distribution-fill latest-analysis-distribution-fill--rule";
+  if (sourceType === "llm-assist") return "latest-analysis-distribution-fill latest-analysis-distribution-fill--ai";
+  return "latest-analysis-distribution-fill latest-analysis-distribution-fill--hybrid";
+}
 
 export const LatestAnalysisTab: React.FC<Props> = ({
   runDetail,
@@ -145,7 +142,7 @@ export const LatestAnalysisTab: React.FC<Props> = ({
 }) => {
   if (loading) {
     return (
-      <div className="flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
+      <div className="latest-analysis-loading">
         <Spinner label="최신 분석 로딩 중..." />
       </div>
     );
@@ -181,19 +178,15 @@ const LatestAnalysisContent: React.FC<{
   onFileClick?: (filePath: string) => void;
   onBulkStatusDone?: () => void;
 }> = ({ runDetail, onSelectFinding, onFileClick, onBulkStatusDone }) => {
-  const { run, gate, findings } = runDetail;
+  const { gate, findings } = runDetail;
 
   const [severityFilter, setSeverityFilter] = useState<Severity | "all">("all");
   const [groupBy, setGroupBy] = useState<GroupBy>("severity");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sourceTypeFilter, setSourceTypeFilter] = useState<
-    FindingSourceType | "all"
-  >("all");
-  const [sortKey, setSortKey] = useState<"severity" | "createdAt" | "location">(
-    "severity",
-  );
+  const [sourceTypeFilter, setSourceTypeFilter] = useState<FindingSourceType | "all">("all");
+  const [sortKey, setSortKey] = useState<"severity" | "createdAt" | "location">("severity");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const toggleSelect = useCallback((id: string) => {
@@ -218,11 +211,7 @@ const LatestAnalysisContent: React.FC<{
       if (selectedIds.size === 0) return;
       setBulkProcessing(true);
       try {
-        const result = await bulkUpdateFindingStatus(
-          [...selectedIds],
-          status,
-          "벌크 상태 변경",
-        );
+        await bulkUpdateFindingStatus([...selectedIds], status, "벌크 상태 변경");
         setSelectedIds(new Set());
         onBulkStatusDone?.();
       } catch {
@@ -246,12 +235,7 @@ const LatestAnalysisContent: React.FC<{
   const critHighCount = severityCounts.critical + severityCounts.high;
 
   const unresolvedCount = useMemo(() => {
-    const statuses: FindingStatus[] = [
-      "open",
-      "needs_review",
-      "needs_revalidation",
-      "sandbox",
-    ];
+    const statuses: FindingStatus[] = ["open", "needs_review", "needs_revalidation", "sandbox"];
     return findings.filter((f) => statuses.includes(f.finding.status)).length;
   }, [findings]);
 
@@ -275,10 +259,7 @@ const LatestAnalysisContent: React.FC<{
         fileMap.set(fileName, { count: 1, topSeverity: sev });
       } else {
         existing.count++;
-        if (
-          SEVERITY_ORDER.indexOf(sev) <
-          SEVERITY_ORDER.indexOf(existing.topSeverity)
-        ) {
+        if (SEVERITY_ORDER.indexOf(sev) < SEVERITY_ORDER.indexOf(existing.topSeverity)) {
           existing.topSeverity = sev;
         }
       }
@@ -312,51 +293,28 @@ const LatestAnalysisContent: React.FC<{
     result = [...result].sort((a, b) => {
       let cmp = 0;
       if (sortKey === "severity") {
-        cmp =
-          SEVERITY_ORDER.indexOf(a.finding.severity) -
-          SEVERITY_ORDER.indexOf(b.finding.severity);
+        cmp = SEVERITY_ORDER.indexOf(a.finding.severity) - SEVERITY_ORDER.indexOf(b.finding.severity);
       } else if (sortKey === "createdAt") {
-        cmp =
-          new Date(a.finding.createdAt).getTime() -
-          new Date(b.finding.createdAt).getTime();
+        cmp = new Date(a.finding.createdAt).getTime() - new Date(b.finding.createdAt).getTime();
       } else {
-        cmp = (a.finding.location ?? "").localeCompare(
-          b.finding.location ?? "",
-        );
+        cmp = (a.finding.location ?? "").localeCompare(b.finding.location ?? "");
       }
       return sortOrder === "asc" ? cmp : -cmp;
     });
     return result;
-  }, [
-    findings,
-    severityFilter,
-    sourceTypeFilter,
-    searchQuery,
-    sortKey,
-    sortOrder,
-  ]);
+  }, [findings, severityFilter, sourceTypeFilter, searchQuery, sortKey, sortOrder]);
 
-  const groups = useMemo(
-    () => GROUP_FNS[groupBy](filteredFindings),
-    [filteredFindings, groupBy],
-  );
+  const groups = useMemo(() => GROUP_FNS[groupBy](filteredFindings), [filteredFindings, groupBy]);
 
   return (
-    <>
-      {/* Quality Gate Banner */}
+    <div className="latest-analysis-stack">
       {gate ? (
         <GateResultCard gate={gate} />
       ) : (
-        <p
-          className="text-muted-foreground text-sm"
-          style={{ marginBottom: "var(--cds-spacing-05)" }}
-        >
-          Quality Gate가 설정되지 않았습니다.
-        </p>
+        <p className="latest-analysis-note">Quality Gate가 설정되지 않았습니다.</p>
       )}
 
-      {/* Run Summary StatCards */}
-      <div className="stagger mb-5 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-3">
+      <div className="latest-analysis-stats">
         <StatCard label="탐지 항목" value={findings.length} accent />
         <StatCard
           label="치명 + 높음"
@@ -371,30 +329,25 @@ const LatestAnalysisContent: React.FC<{
       </div>
 
       {findings.length > 0 && (
-        <div className="grid gap-5 lg:grid-cols-2">
-          <Card className="shadow-none">
-            <CardContent className="space-y-3 p-5">
+        <div className="latest-analysis-summary-grid">
+          <Card className="latest-analysis-card">
+            <CardContent className="latest-analysis-card-body">
               <CardTitle>출처별 분포</CardTitle>
               {sourceTotal === 0 ? (
-                <p className="text-sm text-muted-foreground">데이터 없음</p>
+                <p className="latest-analysis-empty-copy">데이터 없음</p>
               ) : (
-                <div className="space-y-3">
+                <div className="latest-analysis-distribution-list">
                   {Object.entries(sourceCounts).map(([key, val]) => (
-                    <div key={key} className="space-y-1.5">
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="text-muted-foreground">{SOURCE_TYPE_LABELS[key as FindingSourceType] ?? key}</span>
-                        <span className="font-mono text-sm text-muted-foreground">{val}</span>
+                    <div key={key} className="latest-analysis-distribution-row">
+                      <div className="latest-analysis-distribution-meta">
+                        <span className="latest-analysis-distribution-label">
+                          {SOURCE_TYPE_LABELS[key as FindingSourceType] ?? key}
+                        </span>
+                        <span className="latest-analysis-distribution-count">{val}</span>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-border/70">
+                      <div className="latest-analysis-distribution-bar">
                         <div
-                          className={[
-                            "h-full rounded-full",
-                            key === "rule-engine"
-                              ? "bg-[var(--aegis-source-rule)]"
-                              : key === "llm-assist"
-                                ? "bg-[var(--aegis-source-ai)]"
-                                : "bg-[var(--aegis-source-both)]",
-                          ].join(" ")}
+                          className={getSourceBarClass(key)}
                           style={{ width: `${(val / sourceTotal) * 100}%` }}
                         />
                       </div>
@@ -409,20 +362,20 @@ const LatestAnalysisContent: React.FC<{
       )}
 
       {findings.length > 0 && (
-        <Card className="shadow-none">
-          <CardContent className="space-y-4 p-4">
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-              <div className="relative flex-1 xl:max-w-sm">
-                <Search size={14} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" />
+        <Card className="latest-analysis-card">
+          <CardContent className="latest-analysis-toolbar-card">
+            <div className="latest-analysis-toolbar-row">
+              <div className="latest-analysis-search-wrap">
+                <Search size={14} className="latest-analysis-search-icon" />
                 <Input
                   type="text"
-                  className="pl-9"
+                  className="latest-analysis-search-input"
                   placeholder="탐지 항목 검색..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="latest-analysis-filter-group">
                 <Button
                   variant={sourceTypeFilter === "all" ? "secondary" : "outline"}
                   size="sm"
@@ -443,9 +396,9 @@ const LatestAnalysisContent: React.FC<{
                     </Button>
                   ))}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="latest-analysis-sort-group">
                 <select
-                  className="h-9 rounded-lg border border-input bg-background px-3 text-sm shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  className="latest-analysis-select"
                   value={sortKey}
                   onChange={(e) => setSortKey(e.target.value as "severity" | "createdAt" | "location")}
                 >
@@ -464,14 +417,14 @@ const LatestAnalysisContent: React.FC<{
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-              <div className="flex flex-wrap items-center gap-2">
+            <div className="latest-analysis-toolbar-row">
+              <div className="latest-analysis-filter-group">
                 <Button
                   variant={severityFilter === "all" ? "secondary" : "outline"}
                   size="sm"
                   onClick={() => setSeverityFilter("all")}
                 >
-                  전체 <span className="ml-1 rounded-full bg-background/80 px-1.5 py-0.5 text-[11px]">{findings.length}</span>
+                  전체 <span className="latest-analysis-count-pill">{findings.length}</span>
                 </Button>
                 {SEVERITY_ORDER.filter((sev) => severityCounts[sev] > 0).map((sev) => (
                   <Button
@@ -480,25 +433,40 @@ const LatestAnalysisContent: React.FC<{
                     size="sm"
                     onClick={() => setSeverityFilter(sev)}
                   >
-                    {SEVERITY_LABELS[sev]} <span className="ml-1 rounded-full bg-background/80 px-1.5 py-0.5 text-[11px]">{severityCounts[sev]}</span>
+                    {SEVERITY_LABELS[sev]} <span className="latest-analysis-count-pill">{severityCounts[sev]}</span>
                   </Button>
                 ))}
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant={groupBy === "severity" ? "secondary" : "outline"} size="icon-sm" onClick={() => setGroupBy("severity")} title="심각도별">
+              <div className="latest-analysis-filter-group">
+                <Button
+                  variant={groupBy === "severity" ? "secondary" : "outline"}
+                  size="icon-sm"
+                  onClick={() => setGroupBy("severity")}
+                  title="심각도별"
+                >
                   <Layers size={14} />
                 </Button>
-                <Button variant={groupBy === "file" ? "secondary" : "outline"} size="icon-sm" onClick={() => setGroupBy("file")} title="파일별">
+                <Button
+                  variant={groupBy === "file" ? "secondary" : "outline"}
+                  size="icon-sm"
+                  onClick={() => setGroupBy("file")}
+                  title="파일별"
+                >
                   <FileCode size={14} />
                 </Button>
-                <Button variant={groupBy === "status" ? "secondary" : "outline"} size="icon-sm" onClick={() => setGroupBy("status")} title="상태별">
+                <Button
+                  variant={groupBy === "status" ? "secondary" : "outline"}
+                  size="icon-sm"
+                  onClick={() => setGroupBy("status")}
+                  title="상태별"
+                >
                   <CheckSquare size={14} />
                 </Button>
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="latest-analysis-selection-row">
+              <label className="latest-analysis-checkbox-label">
                 <input
                   type="checkbox"
                   checked={selectedIds.size === findings.length && findings.length > 0}
@@ -507,14 +475,29 @@ const LatestAnalysisContent: React.FC<{
                 {selectedIds.size > 0 ? `${selectedIds.size}건 선택` : "전체 선택"}
               </label>
               {selectedIds.size > 0 && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleBulkStatus("false_positive")} disabled={bulkProcessing}>
+                <div className="latest-analysis-bulk-actions">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleBulkStatus("false_positive")}
+                    disabled={bulkProcessing}
+                  >
                     오탐 처리
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleBulkStatus("accepted_risk")} disabled={bulkProcessing}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleBulkStatus("accepted_risk")}
+                    disabled={bulkProcessing}
+                  >
                     위험 수용
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleBulkStatus("fixed")} disabled={bulkProcessing}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleBulkStatus("fixed")}
+                    disabled={bulkProcessing}
+                  >
                     수정 완료
                   </Button>
                   {bulkProcessing && <Spinner size={14} />}
@@ -526,35 +509,37 @@ const LatestAnalysisContent: React.FC<{
       )}
 
       {groups.length === 0 ? (
-        <Card className="shadow-none">
-          <CardContent className="p-6">
-            <p className="text-sm text-muted-foreground">
-              {severityFilter === "all" ? "Finding이 없습니다" : `${SEVERITY_LABELS[severityFilter]} Finding이 없습니다`}
+        <Card className="latest-analysis-card">
+          <CardContent className="latest-analysis-empty-card-body">
+            <p className="latest-analysis-empty-copy">
+              {severityFilter === "all"
+                ? "Finding이 없습니다"
+                : `${SEVERITY_LABELS[severityFilter]} Finding이 없습니다`}
             </p>
           </CardContent>
         </Card>
       ) : (
         groups.map((group) => (
-          <Card key={group.key} className="overflow-hidden shadow-none">
-            <CardContent className="space-y-0 p-0">
-              <div className="flex items-center gap-3 border-b border-border/70 bg-background/90 px-5 py-4">
-                {groupBy === "file" && <FileCode size={16} className="shrink-0 text-primary" />}
+          <Card key={group.key} className="latest-analysis-group-card">
+            <CardContent className="latest-analysis-group-card-body">
+              <div className="latest-analysis-group-head">
+                {groupBy === "file" && <FileCode size={16} className="latest-analysis-group-icon" />}
                 {groupBy === "severity" && <SeverityBadge severity={group.key as Severity} size="sm" />}
                 {groupBy === "status" && <FindingStatusBadge status={group.key as FindingStatus} size="sm" />}
-                <span className="min-w-0 flex-1 truncate font-mono text-sm font-semibold text-foreground">{group.label}</span>
-                <span className="shrink-0 font-mono text-sm text-muted-foreground">{group.items.length}건</span>
+                <span className="latest-analysis-group-label">{group.label}</span>
+                <span className="latest-analysis-group-count">{group.items.length}건</span>
               </div>
-              <div className="divide-y divide-border/70">
+              <div className="latest-analysis-group-list">
                 {group.items.map(({ finding }) => {
                   const line = finding.location?.includes(":") ? finding.location.split(":")[1] : null;
                   return (
                     <button
                       key={finding.id}
                       type="button"
-                      className="w-full space-y-2 px-5 py-4 text-left transition-colors hover:bg-muted/30"
+                      className="latest-analysis-item"
                       onClick={() => onSelectFinding(finding.id)}
                     >
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="latest-analysis-item-row">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(finding.id)}
@@ -567,13 +552,16 @@ const LatestAnalysisContent: React.FC<{
                         <SeverityBadge severity={finding.severity} size="sm" />
                         <FindingStatusBadge status={finding.status} size="sm" />
                         <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{finding.title}</span>
+                        <span className="latest-analysis-item-title">{finding.title}</span>
                         {(finding as Record<string, unknown>).fingerprint && (
-                          <span className="inline-flex min-h-6 items-center gap-1 rounded-full border border-[var(--aegis-source-agent-border)] bg-[var(--aegis-source-agent-bg)] px-2 text-sm font-medium text-[var(--aegis-source-agent)]" title="이전 분석에서도 발견된 취약점">
+                          <span
+                            className="latest-analysis-fingerprint"
+                            title="이전 분석에서도 발견된 취약점"
+                          >
                             <History size={11} />
                           </span>
                         )}
-                        {line && <span className="shrink-0 font-mono text-sm text-muted-foreground">:{line}</span>}
+                        {line && <span className="latest-analysis-item-line">:{line}</span>}
                       </div>
                     </button>
                   );
@@ -583,6 +571,6 @@ const LatestAnalysisContent: React.FC<{
           </Card>
         ))
       )}
-    </>
+    </div>
   );
 };

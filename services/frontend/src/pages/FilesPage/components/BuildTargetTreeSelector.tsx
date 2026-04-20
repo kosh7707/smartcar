@@ -27,14 +27,16 @@ function getCheckState(node: TreeNode<SourceFileEntry>, checked: Set<string>): "
 }
 
 const checkClass = (checkedState: "checked" | "indeterminate" | "unchecked") => cn(
-  "flex size-4 shrink-0 items-center justify-center rounded border text-primary-foreground transition-colors",
-  checkedState === "unchecked" ? "border-input bg-background" : "border-primary bg-primary",
+  "build-target-tree__check",
+  checkedState === "unchecked"
+    ? "build-target-tree__check--unchecked"
+    : "build-target-tree__check--checked",
 );
 
 const rowClass = (disabled: boolean, selected = false) => cn(
-  "flex min-h-8 cursor-pointer items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-  selected && "bg-primary/10",
-  disabled && "cursor-default opacity-70 hover:bg-transparent",
+  "build-target-tree__row",
+  selected && "build-target-tree__row--selected",
+  disabled && "build-target-tree__row--disabled",
 );
 
 const CheckNode: React.FC<{
@@ -56,7 +58,7 @@ const CheckNode: React.FC<{
     onToggle(collectPaths(node), state !== "checked");
   };
 
-  const indent = <span aria-hidden className="shrink-0" style={{ width: depth * 18 }} />;
+  const indent = <span aria-hidden className="build-target-tree__indent" style={{ width: depth * 18 }} />;
 
   if (isFolder) {
     return (
@@ -75,10 +77,10 @@ const CheckNode: React.FC<{
             {state === "checked" && <Check size={10} />}
             {state === "indeterminate" && <Minus size={10} />}
           </div>
-          <ChevronRight className={cn("size-3 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")} />
-          {open ? <FolderOpen className="size-3.5 shrink-0 text-amber-600" /> : <Folder className="size-3.5 shrink-0 text-amber-600" />}
-          <span className="min-w-0 flex-1 truncate font-medium">{node.name}</span>
-          <span className="shrink-0 text-muted-foreground">{countFiles(node)}개</span>
+          <ChevronRight className={cn("build-target-tree__chevron", open && "is-open")} />
+          {open ? <FolderOpen className="build-target-tree__folder-icon" /> : <Folder className="build-target-tree__folder-icon" />}
+          <span className="build-target-tree__name build-target-tree__name--folder">{node.name}</span>
+          <span className="build-target-tree__count">{countFiles(node)}개</span>
         </div>
         {open && node.children.map((child) => (
           <CheckNode key={child.path} node={child} depth={depth + 1} checked={checked} onToggle={onToggle} disabled={disabled} />
@@ -101,10 +103,10 @@ const CheckNode: React.FC<{
       >
         {isChecked && <Check size={10} />}
       </div>
-      <span aria-hidden className="w-3 shrink-0" />
-      <FileText className="size-3.5 shrink-0 text-muted-foreground" />
-      <span className="min-w-0 flex-1 truncate">{node.name}</span>
-      {node.data && node.data.size > 0 && <span className="shrink-0 text-muted-foreground">{formatFileSize(node.data.size)}</span>}
+      <span aria-hidden className="build-target-tree__spacer" />
+      <FileText className="build-target-tree__file-icon" />
+      <span className="build-target-tree__name build-target-tree__name--file">{node.name}</span>
+      {node.data && node.data.size > 0 && <span className="build-target-tree__count">{formatFileSize(node.data.size)}</span>}
     </div>
   );
 };
@@ -123,7 +125,7 @@ export function BuildTargetTreeSelector({
   const tree = buildTree(sourceFiles, (sourceFile) => sourceFile.relativePath);
 
   return (
-    <div className="max-h-[350px] overflow-y-auto rounded-lg border border-border py-3">
+    <div className="build-target-tree">
       {tree.children.map((child) => (
         <CheckNode key={child.path} node={child} depth={0} checked={checked} onToggle={onToggle} disabled={disabled} />
       ))}

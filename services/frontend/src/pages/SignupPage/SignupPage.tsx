@@ -1,131 +1,112 @@
 import React from "react";
-import { KeyRound, ShieldCheck, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { useAuth } from "../../contexts/AuthContext";
+import { AuthConsoleBrandMark, AuthConsoleFooterMeta, AuthConsoleShell } from "../../shared/auth/AuthConsoleShell";
 import { SignupFormCard } from "./components/SignupFormCard";
 import { useSignupForm } from "./hooks/useSignupForm";
 
-const onboardingSignals = [
-  "프로젝트 생성",
-  "분석 파이프라인 준비",
-  "검토·보고 흐름 연결",
-];
-
 const onboardingSteps = [
-  {
-    icon: UserPlus,
-    label: "작업자 등록",
-    detail: "데모 워크스페이스에 사용할 작업자 정보를 먼저 정리합니다.",
-  },
-  {
-    icon: KeyRound,
-    label: "접근 정보 준비",
-    detail: "운영 콘솔 진입에 필요한 기본 자격 정보를 같은 화면에서 맞춥니다.",
-  },
-  {
-    icon: ShieldCheck,
-    label: "즉시 콘솔 진입",
-    detail: "준비가 끝나면 대시보드로 이동해 분석 흐름을 바로 이어갑니다.",
-  },
-];
+  { label: "가입 요청 제출", detail: "이메일, 비밀번호, 조직 코드를 오른쪽 폼에 입력하세요.", current: true },
+  { label: "조직 관리자 검토 · 승인", detail: "요청은 승인 큐에 등록됩니다. 평균 응답 시간 < 24h." },
+  { label: "이메일 인증 · 최초 로그인", detail: "승인 후 이메일로 초대 링크가 발송됩니다. 링크 만료 48시간." },
+  { label: "콘솔 진입 · 프로젝트 배정", detail: "배정된 프로젝트와 권한 스코프가 대시보드에 나타납니다." },
+]
 
 export const SignupPage: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const {
+    fullName,
+    setFullName,
     username,
     setUsername,
     password,
     setPassword,
     submitting,
+    showPassword,
+    submitted,
+    setSubmitted,
+    orgCode,
+    setOrgCode,
+    termsAccepted,
+    setTermsAccepted,
+    auditAccepted,
+    setAuditAccepted,
+    orgVerification,
+    verifyOrg,
+    strengthLevel,
+    strengthTicks,
+    strengthLabel,
+    togglePasswordVisibility,
+    canSubmit,
     handleSubmit,
-  } = useSignupForm(login, navigate);
+  } = useSignupForm(login, navigate)
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--muted)/0.88)_100%)]">
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl items-center px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <div className="grid w-full overflow-hidden rounded-[28px] border border-border/70 bg-background/96 shadow-[0_32px_96px_-40px_rgba(15,23,42,0.55)] backdrop-blur lg:grid-cols-[minmax(0,1.1fr)_460px]">
-          <section
-            className="flex flex-col justify-between gap-8 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.2),transparent_30%),linear-gradient(200deg,#08131e_0%,#0f172a_52%,#101826_100%)] px-6 py-8 text-white sm:px-8 sm:py-10 lg:px-10 lg:py-12"
-            aria-label="AEGIS onboarding"
-          >
-            <div className="space-y-6">
-              <Badge variant="secondary" className="w-fit border border-white/10 bg-white/10 px-3 py-1 text-[0.7rem] tracking-[0.18em] text-white uppercase hover:bg-white/10">
-                AEGIS workspace setup
-              </Badge>
+    <AuthConsoleShell
+      onBack={{ label: "로그인으로 돌아가기", onClick: () => navigate("/login") }}
+      brandPanel={(
+        <aside className="brand-panel" data-chore>
+          <AuthConsoleBrandMark tagline="embedded security · analysis platform" region="kr-seoul-1" statusLabel="operational" />
 
-              <div className="space-y-4">
-                <h1 className="max-w-xl text-4xl font-semibold tracking-[-0.08em] text-white sm:text-5xl lg:text-6xl">
-                  AEGIS
-                </h1>
-                <p className="max-w-xl text-lg text-white/86 sm:text-xl">
-                  보안 분석 워크스페이스 준비
-                </p>
-                <p className="max-w-xl text-base leading-7 text-white/74">
-                  새 계정을 준비하고 분석 워크스페이스로 바로 이동합니다.
-                </p>
-                <p className="max-w-2xl text-sm leading-7 text-white/60 sm:text-base">
-                  프로젝트 운영, 취약점 검토, 승인 흐름을 같은 콘솔에서 이어갈 수 있도록 계정 정보를 먼저 정리합니다.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2" aria-label="AEGIS onboarding signals">
-                {onboardingSignals.map((signal) => (
-                  <Badge
-                    key={signal}
-                    variant="outline"
-                    className="border-white/12 bg-white/5 px-3 py-1 text-xs text-white/78 backdrop-blur hover:bg-white/10"
-                  >
-                    {signal}
-                  </Badge>
-                ))}
-              </div>
+          <div className="brand-hero">
+            <h1 className="chore c-2">계정 하나로<br /><em>분석부터 승인까지.</em></h1>
+            <p className="chore c-3">정밀한 소스코드 분석과 시스템 검증으로, 개발 속도를 늦추지 않는 강력한 보안.</p>
+            <div className="onboard-header chore c-4">
+              <span className="label">onboarding · request flow</span>
+              <span className="counter">step <span className="cur">01</span> / 04</span>
             </div>
-
-            <Card className="border-white/10 bg-white/6 py-0 text-white shadow-none backdrop-blur">
-              <CardContent className="grid gap-4 px-5 py-5 sm:px-6 sm:py-6 lg:grid-cols-3">
-                {onboardingSteps.map(({ icon: Icon, label, detail }) => (
-                  <div key={label} className="space-y-3 rounded-2xl border border-white/10 bg-black/10 p-4">
-                    <div className="flex items-center gap-2 text-sm font-medium text-white">
-                      <Icon className="size-4 text-cyan-200" aria-hidden="true" />
-                      <span>{label}</span>
+            <div className="onboard-list chore c-4">
+              {onboardingSteps.map((step, index) => (
+                <div className={`onboard-item ${step.current ? 'current' : 'upcoming'}`} key={step.label}>
+                  <div className="step">{step.current ? '' : index + 1}</div>
+                  <div className="body">
+                    <div className="title-row">
+                      <span className="title">{step.label}</span>
+                      {step.current ? <span className="now-tag">NOW</span> : null}
                     </div>
-                    <p className="text-sm leading-6 text-white/62">{detail}</p>
+                    <div className="desc">{step.detail}</div>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
-          </section>
-
-          <section className="flex flex-col justify-center gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-            <SignupFormCard
-              username={username}
-              password={password}
-              submitting={submitting}
-              onUsernameChange={setUsername}
-              onPasswordChange={setPassword}
-              onSubmit={handleSubmit}
-            />
-
-            <div className="rounded-2xl border border-border/70 bg-muted/35 px-4 py-4 sm:px-5">
-              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <ShieldCheck className="size-4 text-primary" aria-hidden="true" />
-                <span>온보딩 메모</span>
-              </div>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                계정 준비 후에는 프로젝트 생성과 분석 실행 흐름을 대시보드에서 바로 이어갈 수 있습니다.
-              </p>
-              <Separator className="my-4" />
-              <p className="text-xs tracking-[0.08em] text-muted-foreground uppercase">
-                AEGIS v{__APP_VERSION__} — Embedded Firmware Security Analysis Platform
-              </p>
+                </div>
+              ))}
             </div>
-          </section>
-        </div>
-      </div>
-    </div>
-  );
-};
+          </div>
+
+          <AuthConsoleFooterMeta items={[
+            { type: "text", label: "© 2026 AEGIS" },
+            { type: "link", label: "security" },
+            { type: "link", label: "privacy" },
+            { type: "text", label: `v${__APP_VERSION__} · main` },
+          ]} />
+        </aside>
+      )}
+    >
+      <SignupFormCard
+        fullName={fullName}
+        username={username}
+        password={password}
+        submitting={submitting}
+        submitted={submitted}
+        showPassword={showPassword}
+        orgCode={orgCode}
+        termsAccepted={termsAccepted}
+        auditAccepted={auditAccepted}
+        orgVerification={orgVerification}
+        strengthLevel={strengthLevel}
+        strengthTicks={strengthTicks}
+        strengthLabel={strengthLabel}
+        canSubmit={canSubmit}
+        onFullNameChange={setFullName}
+        onUsernameChange={setUsername}
+        onPasswordChange={setPassword}
+        onPasswordVisibilityToggle={togglePasswordVisibility}
+        onOrgCodeChange={setOrgCode}
+        onVerifyOrg={verifyOrg}
+        onTermsAcceptedChange={setTermsAccepted}
+        onAuditAcceptedChange={setAuditAccepted}
+        onResetSubmitted={() => setSubmitted(false)}
+        onSubmit={handleSubmit}
+      />
+    </AuthConsoleShell>
+  )
+}

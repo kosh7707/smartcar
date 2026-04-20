@@ -47,14 +47,14 @@ export const ApprovalsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="page-enter flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
+      <div className="page-loading-shell">
         <Spinner size={36} label="승인 요청 로딩 중..." />
       </div>
     );
   }
 
   return (
-    <div className="page-enter approvals-page flex flex-col gap-6 max-sm:gap-5">
+    <div className="page-shell approvals-page">
       <PageHeader
         surface="plain"
         title="승인 큐"

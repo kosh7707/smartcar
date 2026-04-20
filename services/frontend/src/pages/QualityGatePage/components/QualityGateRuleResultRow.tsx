@@ -11,41 +11,38 @@ export function QualityGateRuleResultRow({ rule }: { rule: GateRuleResult }) {
   return (
     <div
       className={cn(
-        "space-y-2 rounded-xl border px-4 py-3",
+        "quality-gate-rule",
         resultConfig.surfaceClassName,
       )}
     >
-      <div className="flex flex-wrap items-start gap-3">
+      <div className="quality-gate-rule__row">
         <Badge
           variant="outline"
-          className={cn(
-            "min-h-7 min-w-16 justify-center rounded-full px-2.5 text-xs font-semibold",
-            resultConfig.badgeClassName,
-          )}
+          className={cn(resultConfig.badgeClassName, "quality-gate-rule__badge")}
         >
           {resultConfig.label}
         </Badge>
 
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-medium text-foreground">
+        <div className="quality-gate-rule__copy">
+          <div className="quality-gate-rule__head">
+            <span className="quality-gate-rule__title">
               {ruleInfo?.label ?? rule.ruleId}
             </span>
             {rule.linkedFindingIds.length > 0 && (
               <Badge
                 variant="outline"
-                className="rounded-full px-2 text-[11px] text-muted-foreground"
+                className="quality-gate-rule__finding-count"
               >
                 탐지 항목 {rule.linkedFindingIds.length}건
               </Badge>
             )}
           </div>
-          <p className="text-sm text-muted-foreground">{rule.message}</p>
+          <p className="quality-gate-rule__message">{rule.message}</p>
         </div>
       </div>
 
       {ruleInfo?.description && (
-        <p className="text-xs leading-relaxed text-muted-foreground sm:pl-[4.75rem]">
+        <p className="quality-gate-rule__description">
           {ruleInfo.description}
         </p>
       )}

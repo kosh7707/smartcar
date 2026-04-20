@@ -50,10 +50,21 @@ function buildMockUser(username: string): User {
   };
 }
 
+function isMockAuthEnabled(): boolean {
+  return import.meta.env.VITE_MOCK === "true";
+}
+
+function createMockToken(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `mock-token:${crypto.randomUUID()}`;
+  }
+  return `mock-token:${Date.now().toString(36)}`;
+}
+
 export async function login(username: string, password: string): Promise<{ token: string; user: User }> {
-  if (import.meta.env.MODE !== "test") {
+  if (isMockAuthEnabled()) {
     const user = buildMockUser(username);
-    const token = `mock-token:${user.id}:${password.length}`;
+    const token = createMockToken();
     setAuthToken(token);
     writeMockUser(user);
     return { token, user };
@@ -70,7 +81,7 @@ export async function login(username: string, password: string): Promise<{ token
 }
 
 export async function logout(): Promise<void> {
-  if (import.meta.env.MODE !== "test") {
+  if (isMockAuthEnabled()) {
     clearAuthToken();
     clearMockUser();
     return;
@@ -84,7 +95,7 @@ export async function logout(): Promise<void> {
 }
 
 export async function fetchCurrentUser(): Promise<User> {
-  if (import.meta.env.MODE !== "test") {
+  if (isMockAuthEnabled()) {
     const user = readMockUser();
     if (!user) {
       clearAuthToken();
@@ -98,11 +109,43 @@ export async function fetchCurrentUser(): Promise<User> {
 }
 
 export async function fetchUsers(): Promise<User[]> {
-  if (import.meta.env.MODE !== "test") {
+  if (isMockAuthEnabled()) {
     const user = readMockUser();
     return user ? [user] : [];
   }
 
   const res = await apiFetch<{ success: boolean; data: User[] }>("/api/auth/users");
+  return res.data;
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  if (isMockAuthEnabled()) {
+    await new Promise((resolve) => window.setTimeout(resolve, 400));
+    return;
+  }
+
+  await apiFetch("/api/auth/password-reset/request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function confirmPasswordReset(token: string, newPassword: string): Promise<{ token: string; user: User }> {
+  if (isMockAuthEnabled()) {
+    await new Promise((resolve) => window.setTimeout(resolve, 400));
+    const user = buildMockUser("operator");
+    const authToken = createMockToken();
+    setAuthToken(authToken);
+    writeMockUser(user);
+    return { token: authToken, user };
+  }
+
+  const res = await apiFetch<{ success: boolean; data: { token: string; user: User } }>("/api/auth/password-reset/confirm", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, newPassword }),
+  });
+  setAuthToken(res.data.token);
   return res.data;
 }

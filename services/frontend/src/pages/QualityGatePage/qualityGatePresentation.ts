@@ -1,11 +1,8 @@
 import type { GateRuleResult, GateResult, GateStatus } from "../../api/gate";
 
-const PASS_BADGE =
-  "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-200";
-const FAIL_BADGE =
-  "border-red-200 bg-red-50 text-red-700 dark:border-red-900/70 dark:bg-red-950/30 dark:text-red-200";
-const WARNING_BADGE =
-  "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-100";
+const PASS_BADGE = "quality-gate-badge quality-gate-badge--pass";
+const FAIL_BADGE = "quality-gate-badge quality-gate-badge--fail";
+const WARNING_BADGE = "quality-gate-badge quality-gate-badge--warning";
 
 type StatusConfig = {
   label: string;
@@ -24,23 +21,20 @@ export const STATUS_CONFIG: Record<GateStatus, StatusConfig> = {
   pass: {
     label: "통과",
     badgeClassName: PASS_BADGE,
-    bannerClassName:
-      "border-emerald-200/80 bg-emerald-50/70 dark:border-emerald-900/60 dark:bg-emerald-950/15",
-    accentClassName: "border-l-emerald-500",
+    bannerClassName: "quality-gate-status-banner quality-gate-status-banner--pass",
+    accentClassName: "",
   },
   fail: {
     label: "실패",
     badgeClassName: FAIL_BADGE,
-    bannerClassName:
-      "border-red-200/80 bg-red-50/70 dark:border-red-900/60 dark:bg-red-950/15",
-    accentClassName: "border-l-red-500",
+    bannerClassName: "quality-gate-status-banner quality-gate-status-banner--fail",
+    accentClassName: "",
   },
   warning: {
     label: "경고",
     badgeClassName: WARNING_BADGE,
-    bannerClassName:
-      "border-amber-200/80 bg-amber-50/70 dark:border-amber-900/60 dark:bg-amber-950/15",
-    accentClassName: "border-l-amber-500",
+    bannerClassName: "quality-gate-status-banner quality-gate-status-banner--warning",
+    accentClassName: "",
   },
 };
 
@@ -48,20 +42,17 @@ export const RULE_RESULT_CONFIG: Record<GateRuleResult["result"], RuleResultConf
   passed: {
     label: "PASS",
     badgeClassName: PASS_BADGE,
-    surfaceClassName:
-      "border-emerald-200/80 bg-emerald-50/50 dark:border-emerald-900/60 dark:bg-emerald-950/10",
+    surfaceClassName: "quality-gate-rule quality-gate-rule--passed",
   },
   failed: {
     label: "FAIL",
     badgeClassName: FAIL_BADGE,
-    surfaceClassName:
-      "border-red-200/80 bg-red-50/50 dark:border-red-900/60 dark:bg-red-950/10",
+    surfaceClassName: "quality-gate-rule quality-gate-rule--failed",
   },
   warning: {
     label: "WARN",
     badgeClassName: WARNING_BADGE,
-    surfaceClassName:
-      "border-amber-200/80 bg-amber-50/50 dark:border-amber-900/60 dark:bg-amber-950/10",
+    surfaceClassName: "quality-gate-rule quality-gate-rule--warning",
   },
 };
 

@@ -1,0 +1,123 @@
+/* ═══════════════════════════════════════════════════════════════
+   AEGIS — Base
+
+   Reset + document defaults + tiny utility classes used across the
+   product. Loaded AFTER tokens.css, BEFORE any component/page CSS.
+   ═══════════════════════════════════════════════════════════════ */
+
+
+/* ── Reset ───────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--foreground);
+  background: var(--background);
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv11";
+}
+
+img,
+svg,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+a { color: inherit; }
+
+/* Tabular numerics on any numeric label */
+[data-num],
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* ── Utilities (small, deliberate) ───────────────────────────── */
+
+/* Monospace inline token — used inside paragraphs and hints */
+.mono {
+  font-family: var(--font-mono);
+}
+
+/* Visually hidden but reachable by AT */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Focus ring — one shared treatment */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Scrollbar — subtle, only in scrollable surfaces */
+.scroll {
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.scroll::-webkit-scrollbar        { width: 10px; height: 10px; }
+.scroll::-webkit-scrollbar-track  { background: transparent; }
+.scroll::-webkit-scrollbar-thumb  {
+  background: var(--border-strong);
+  border: 2px solid var(--background);
+  border-radius: 999px;
+}
+
+
+/* ── Reduced motion ──────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

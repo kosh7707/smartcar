@@ -31,7 +31,7 @@ export const FileDetailPage: React.FC = () => {
 
   if (state.loading) {
     return (
-      <div className="page-enter flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
+      <div className="page-loading-shell">
         <Spinner size={36} label="파일 정보 로딩 중..." />
       </div>
     );
@@ -40,7 +40,7 @@ export const FileDetailPage: React.FC = () => {
   if (!state.file) return <FileDetailMissingState />;
 
   return (
-    <div className="page-enter flex flex-col gap-5">
+    <div className="page-shell">
       <BackButton onClick={() => navigate(-1)} label="뒤로" />
 
       <FileDetailHeader

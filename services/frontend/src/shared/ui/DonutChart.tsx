@@ -17,7 +17,13 @@ const SEGMENTS = [
   { key: "info" as const, label: "Info", color: "var(--aegis-severity-info)" },
 ];
 
-export const DonutChart: React.FC<Props> = ({ summary, size = 120, strokeWidth = 14, showLegend = true, centerLabel = "Finding" }) => {
+export const DonutChart: React.FC<Props> = ({
+  summary,
+  size = 120,
+  strokeWidth = 14,
+  showLegend = true,
+  centerLabel = "Finding",
+}) => {
   const total = summary.critical + summary.high + summary.medium + summary.low + (summary.info ?? 0);
 
   const cx = 60;
@@ -26,15 +32,14 @@ export const DonutChart: React.FC<Props> = ({ summary, size = 120, strokeWidth =
   const circumference = 2 * Math.PI * radius;
 
   const segments = SEGMENTS
-    .map((s) => ({ ...s, value: summary[s.key] ?? 0 }))
-    .filter((s) => s.value > 0);
+    .map((segment) => ({ ...segment, value: summary[segment.key] ?? 0 }))
+    .filter((segment) => segment.value > 0);
 
   let offset = 0;
 
   return (
-    <div className="flex items-center gap-5">
+    <div className="donut-chart">
       <svg viewBox="0 0 120 120" width={size} height={size}>
-        {/* Background track */}
         <circle
           cx={cx}
           cy={cy}
@@ -43,22 +48,22 @@ export const DonutChart: React.FC<Props> = ({ summary, size = 120, strokeWidth =
           stroke="var(--cds-layer-02)"
           strokeWidth={strokeWidth}
         />
-        {/* Segments */}
-        {total > 0 && (
+        {total > 0 ? (
           <g transform={`rotate(-90 ${cx} ${cy})`}>
-            {segments.map((seg) => {
-              const segLen = (seg.value / total) * circumference;
-              const dashOffset = circumference - segLen;
+            {segments.map((segment) => {
+              const segmentLength = (segment.value / total) * circumference;
+              const dashOffset = circumference - segmentLength;
               const currentOffset = offset;
-              offset += segLen;
+              offset += segmentLength;
+
               return (
                 <circle
-                  key={seg.key}
+                  key={segment.key}
                   cx={cx}
                   cy={cy}
                   r={radius}
                   fill="none"
-                  stroke={seg.color}
+                  stroke={segment.color}
                   strokeWidth={strokeWidth}
                   strokeDasharray={`${circumference}`}
                   strokeDashoffset={dashOffset}
@@ -72,26 +77,37 @@ export const DonutChart: React.FC<Props> = ({ summary, size = 120, strokeWidth =
               );
             })}
           </g>
-        )}
-        {/* Center text */}
-        <text x={cx} y={cy - 4} textAnchor="middle" dominantBaseline="central" fontSize="22" fontWeight="700" fill="var(--cds-text-primary)">
+        ) : null}
+        <text
+          x={cx}
+          y={cy - 4}
+          textAnchor="middle"
+          dominantBaseline="central"
+          className="donut-chart__value"
+        >
           {total}
         </text>
-        <text x={cx} y={cy + 16} textAnchor="middle" dominantBaseline="central" fontSize="14" fill="var(--cds-text-placeholder)">
+        <text
+          x={cx}
+          y={cy + 16}
+          textAnchor="middle"
+          dominantBaseline="central"
+          className="donut-chart__label"
+        >
           {centerLabel}
         </text>
       </svg>
-      {showLegend && (
-        <div className="flex flex-col gap-3">
-          {segments.map((seg) => (
-            <div key={seg.key} className="flex items-center gap-3">
-              <span className="size-2.5 shrink-0 rounded-full" style={{ background: seg.color }} />
-              <span className="text-sm text-muted-foreground">{seg.label}</span>
-              <span className="text-sm font-semibold text-foreground">{seg.value}</span>
+      {showLegend ? (
+        <div className="donut-chart__legend">
+          {segments.map((segment) => (
+            <div key={segment.key} className="donut-chart__legend-item">
+              <span className="donut-chart__legend-dot" style={{ background: segment.color }} />
+              <span className="donut-chart__legend-label">{segment.label}</span>
+              <span className="donut-chart__legend-value">{segment.value}</span>
             </div>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

@@ -1,14 +1,6 @@
 import React from "react";
-import {
-  AlertTriangle,
-  Bell,
-  Cable,
-  FolderCog,
-  Hammer,
-  Package,
-} from "lucide-react";
+import { AlertTriangle, Bell, Cable, FolderCog, Hammer, Package } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export type SettingsSection = "general" | "sdk" | "build-targets" | "notifications" | "adapters" | "danger";
@@ -27,66 +19,38 @@ const NAV_ITEMS: {
 ];
 
 export const ProjectSettingsSidebar: React.FC = () => (
-  <nav aria-label="프로젝트 설정 섹션" className="min-w-0">
-    <Card className="sticky top-24 shadow-none">
-      <CardContent className="space-y-4 p-4">
-        <div className="space-y-1">
-          <p className="text-xs font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-            워크스페이스 설정
-          </p>
-          <p className="text-sm leading-6 text-muted-foreground">
-            프로젝트 운영 규칙과 SDK 준비 상태를 이곳에서 조정합니다.
-          </p>
+  <nav aria-label="프로젝트 설정 섹션" className="project-settings-sidebar-shell">
+    <Card className="project-settings-sidebar-card">
+      <CardContent>
+        <div className="project-settings-sidebar-copy">
+          <p className="project-settings-sidebar-eyebrow">워크스페이스 설정</p>
+          <p className="project-settings-sidebar-text">프로젝트 운영 규칙과 SDK 준비 상태를 이곳에서 조정합니다.</p>
         </div>
 
-        <TabsList
-          variant="line"
-          aria-label="프로젝트 설정 탭"
-          className="h-auto w-full flex-col items-stretch gap-1 bg-transparent p-0"
-        >
+        <TabsList aria-label="프로젝트 설정 탭" variant="line" className="project-settings-sidebar-tabs">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
-
             return (
-              <TabsTrigger
-                key={item.id}
-                value={item.id}
-                className="w-full justify-start rounded-xl border border-transparent px-3 py-3 text-left data-[active]:border-border data-[active]:bg-muted/60"
-              >
-                <div className="flex min-w-0 items-start gap-3">
-                  <span className="rounded-lg border border-border bg-muted/60 p-2 text-muted-foreground data-[state=active]:text-foreground">
-                    <Icon className="size-4" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium text-foreground">
-                      {item.label}
-                    </span>
-                    <span className="block text-xs text-muted-foreground">
-                      {item.description}
-                    </span>
+              <TabsTrigger key={item.id} value={item.id} className="project-settings-sidebar-tab">
+                <div className="project-settings-sidebar-tab-body">
+                  <span className="project-settings-sidebar-tab-icon"><Icon className="size-4" /></span>
+                  <span className="project-settings-sidebar-tab-copy">
+                    <span className="project-settings-sidebar-tab-title">{item.label}</span>
+                    <span className="project-settings-sidebar-tab-desc">{item.description}</span>
                   </span>
                 </div>
               </TabsTrigger>
             );
           })}
 
-          <div aria-hidden="true" className="my-2 h-px bg-border" />
+          <div aria-hidden="true" className="project-settings-sidebar-divider" />
 
-          <TabsTrigger
-            value="danger"
-            className={cn(
-              "w-full justify-start rounded-xl border border-transparent px-3 py-3 text-left text-destructive data-[active]:border-destructive/30 data-[active]:bg-destructive/8 data-[active]:text-destructive",
-            )}
-          >
-            <div className="flex min-w-0 items-start gap-3">
-              <span className="rounded-lg border border-destructive/20 bg-destructive/5 p-2 text-destructive">
-                <AlertTriangle className="size-4" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-medium">위험 구역</span>
-                <span className="block text-xs text-destructive/80">
-                  되돌릴 수 없는 프로젝트 작업
-                </span>
+          <TabsTrigger value="danger" className="project-settings-sidebar-tab project-settings-sidebar-tab--danger">
+            <div className="project-settings-sidebar-tab-body">
+              <span className="project-settings-sidebar-tab-icon"><AlertTriangle className="size-4" /></span>
+              <span className="project-settings-sidebar-tab-copy">
+                <span className="project-settings-sidebar-tab-title">위험 구역</span>
+                <span className="project-settings-sidebar-tab-desc">되돌릴 수 없는 프로젝트 작업</span>
               </span>
             </div>
           </TabsTrigger>

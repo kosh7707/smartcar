@@ -1,0 +1,197 @@
+/* ═══════════════════════════════════════════════════════════════
+   AEGIS — Severity & Gate
+
+   Severity palette is consumed by:
+     .sev-chip           compact chip with dot + label
+     .gate               larger status gate badge (CICD-style)
+     .num-cell .crit etc coloring for numeric columns
+     .cell-gate          inline gate used inside table cells
+
+   All colors sourced from tokens (severity-*, primary, success, …).
+   ═══════════════════════════════════════════════════════════════ */
+
+
+/* ── Severity chip ───────────────────────────────────────────── */
+.sev-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+
+  padding: 1px 6px;
+
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.4;
+
+  border: 1px solid transparent;
+  border-radius: 3px;
+}
+.sev-chip .sev-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.sev-chip.critical {
+  background: var(--severity-critical-surface);
+  color: var(--severity-critical);
+  border-color: var(--severity-critical-border);
+}
+.sev-chip.critical .sev-dot { background: var(--severity-critical); }
+
+.sev-chip.high {
+  background: var(--severity-high-surface);
+  color: var(--severity-high);
+  border-color: var(--severity-high-border);
+}
+.sev-chip.high .sev-dot { background: var(--severity-high); }
+
+.sev-chip.medium {
+  background: var(--severity-medium-surface);
+  color: var(--severity-medium);
+  border-color: var(--severity-medium-border);
+}
+.sev-chip.medium .sev-dot { background: var(--severity-medium); }
+
+.sev-chip.low {
+  background: var(--severity-low-surface);
+  color: var(--severity-low);
+  border-color: var(--severity-low-border);
+}
+.sev-chip.low .sev-dot { background: var(--severity-low); }
+
+
+/* ── Gate badge ──────────────────────────────────────────────── */
+.gate {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+
+  padding: 3px 8px;
+
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  line-height: 1;
+
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+}
+
+.gate.blocked {
+  background: var(--severity-critical-surface);
+  color: var(--severity-critical);
+  border-color: var(--severity-critical-border);
+}
+.gate.warn {
+  background: var(--severity-high-surface);
+  color: var(--severity-high);
+  border-color: var(--severity-high-border);
+}
+.gate.pass {
+  background: var(--success-surface);
+  color: var(--success);
+  border-color: oklch(0.62 0.14 150 / 0.25);
+}
+.gate.running {
+  background: var(--primary-surface);
+  color: var(--primary);
+  border-color: var(--primary-border);
+  position: relative;
+  padding-left: 16px;
+}
+.gate.running::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin-top: -2.5px;
+  border-radius: 999px;
+  background: var(--primary);
+  animation: gate-pulse 1.4s ease-in-out infinite;
+}
+@keyframes gate-pulse {
+  0%, 100% { opacity: 1;   box-shadow: 0 0 0 0   oklch(0.58 0.18 250 / 0.4); }
+  50%      { opacity: 0.5; box-shadow: 0 0 0 4px oklch(0.58 0.18 250 / 0);   }
+}
+
+
+/* ── Cell-embedded gate (table) ──────────────────────────────── */
+.cell-gate {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+
+  padding: 2px 6px;
+
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.02em;
+  line-height: 1;
+
+  border: 1px solid transparent;
+  border-radius: 3px;
+}
+.cell-gate.blocked {
+  background: var(--severity-critical-surface);
+  color: var(--severity-critical);
+  border-color: var(--severity-critical-border);
+}
+.cell-gate.warn {
+  background: var(--severity-high-surface);
+  color: var(--severity-high);
+  border-color: var(--severity-high-border);
+}
+.cell-gate.pass {
+  background: var(--success-surface);
+  color: var(--success);
+  border-color: oklch(0.62 0.14 150 / 0.25);
+}
+.cell-gate.running {
+  background: var(--primary-surface);
+  color: var(--primary);
+  border-color: var(--primary-border);
+  position: relative;
+  padding-left: 14px;
+}
+.cell-gate.running::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 999px;
+  background: var(--primary);
+  animation: gate-pulse 1.4s ease-in-out infinite;
+}
+.cell-gate.none {
+  color: var(--foreground-subtle);
+  background: var(--surface-sunken);
+  border-color: var(--border);
+}
+
+
+/* ── Numeric column coloring (table) ─────────────────────────── */
+.num-cell {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xs);
+  color: var(--foreground-muted);
+}
+.num-cell.zero { color: var(--foreground-disabled); }
+
+.num-cell .crit { color: var(--severity-critical); font-weight: var(--weight-semibold); }
+.num-cell .high { color: var(--severity-high);     font-weight: var(--weight-semibold); }
+.num-cell .med  { color: var(--severity-medium);   font-weight: var(--weight-medium); }

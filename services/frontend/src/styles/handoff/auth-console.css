@@ -1,0 +1,425 @@
+/* ═══════════════════════════════════════════════════════════════
+   AEGIS — Auth Console
+
+   Shared shell for LoginPage and SignupPage.
+   Layout: dark brand panel on the left (58%), light form panel
+           on the right (42%). Grid + radial mask for console feel.
+
+   Sections:
+     .shell              flex container
+     .brand-panel        left dark panel (58%)
+       decorations       ::before grid, ::after accent rail, shield, spec sheet
+     .brand-mark         logo + wordmark stack + optional spec sheet
+     .brand-hero         large copy block
+     .brand-meta         footer row inside brand panel
+     .form-panel         right panel (42%), centered form
+       .theme-toggle     top-right theme switch
+       .sso-link         top-right "use SSO"
+     .form-wrap          max-width wrapper for the form
+     .form-header        eyebrow + h2 + meta
+     .form-footer        "Don't have an account?" etc.
+     .fine-print         legal/meta block under the form
+
+   Mobile: <900px collapses brand-panel; form-panel goes full-bleed.
+   ═══════════════════════════════════════════════════════════════ */
+
+
+/* ── Shell ───────────────────────────────────────────────────── */
+.shell {
+  height: 100vh;
+  min-height: 100vh;
+  display: flex;
+  overflow: hidden;
+}
+
+
+/* ── LEFT: Brand panel ───────────────────────────────────────── */
+.brand-panel {
+  flex: 1 1 58%;
+  min-width: 440px;
+  min-height: 0;
+
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+
+  padding: var(--space-9);
+
+  position: relative;
+  overflow: hidden;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Background grid (radially masked so it fades to corners) */
+.brand-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(oklch(1 0 0 / 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(1 0 0 / 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at 30% 40%, black 0%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse at 30% 40%, black 0%, transparent 75%);
+  pointer-events: none;
+}
+
+/* Left accent rail — a subtle vertical glow */
+.brand-panel::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 15%;
+  bottom: 15%;
+  width: 1px;
+  background: linear-gradient(to bottom,
+    transparent 0%,
+    var(--primary) 20%,
+    var(--primary) 80%,
+    transparent 100%);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* Children above decorations */
+.brand-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+
+/* ── Brand mark (logo + wordstack + optional spec sheet) ────── */
+.brand-mark {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.brand-mark .row-1 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.brand-mark .shield {
+  position: relative;
+  width: 32px;
+  height: 36px;
+  flex-shrink: 0;
+  color: var(--sidebar-text-active);
+  opacity: 0.82;
+}
+.brand-mark .shield svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.brand-mark .shield .dot {
+  position: absolute;
+  top: 7px;
+  right: 2px;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--primary);
+  box-shadow: 0 0 6px oklch(0.58 0.18 250 / 0.7);
+  animation: shield-pulse 2.4s ease-in-out infinite;
+}
+@keyframes shield-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+.brand-mark .wordstack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.brand-mark .wordmark {
+  font-size: 18px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: var(--sidebar-text-active);
+}
+.brand-mark .tagline {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--sidebar-text-muted);
+}
+
+/* Spec sheet — "console identity" grid of key/value pairs */
+.brand-mark .spec {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  max-width: 320px;
+
+  background: var(--sidebar-border);
+  border: 1px solid var(--sidebar-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.brand-mark .spec .cell {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 12px;
+  background: oklch(1 0 0 / 0.015);
+
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--sidebar-text);
+}
+.brand-mark .spec .cell .k {
+  min-width: 44px;
+  font-size: 9.5px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sidebar-text-muted);
+}
+.brand-mark .spec .cell .v {
+  color: var(--sidebar-text-active);
+}
+.brand-mark .spec .cell .v .live-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--success);
+  box-shadow: 0 0 0 2px oklch(0.62 0.14 150 / 0.18);
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+
+/* ── Brand hero (big copy) ───────────────────────────────────── */
+.brand-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 520px;
+}
+.brand-hero h1 {
+  font-size: var(--text-3xl);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  font-weight: var(--weight-semibold);
+  color: var(--sidebar-text-active);
+}
+.brand-hero h1 em {
+  font-style: normal;
+  color: var(--primary);
+  font-weight: inherit;
+}
+.brand-hero p {
+  font-size: var(--text-md);
+  line-height: var(--leading-relaxed);
+  color: var(--sidebar-text);
+  max-width: 44ch;
+}
+
+
+/* ── Brand footer (bottom row inside brand panel) ────────────── */
+.brand-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--sidebar-text-muted);
+}
+.brand-meta .vdiv {
+  width: 1px;
+  height: 8px;
+  background: var(--sidebar-border);
+}
+.brand-meta a {
+  color: var(--sidebar-text-muted);
+  text-decoration: none;
+  transition: color var(--duration-fast);
+}
+.brand-meta a:hover { color: var(--sidebar-text-active); }
+
+
+/* ── RIGHT: Form panel ───────────────────────────────────────── */
+.form-panel {
+  flex: 1 1 42%;
+  background: var(--background);
+  padding: var(--space-9) var(--space-10);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+
+  position: relative;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.theme-toggle {
+  position: absolute;
+  top: var(--space-6);
+  right: var(--space-6);
+
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--foreground-muted);
+
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.theme-toggle:hover {
+  color: var(--foreground);
+  border-color: var(--border-strong);
+}
+.theme-toggle svg {
+  width: 14px;
+  height: 14px;
+}
+.theme-toggle .sun { display: none; }
+[data-theme="dark"] .theme-toggle .moon { display: none; }
+[data-theme="dark"] .theme-toggle .sun  { display: block; }
+
+.sso-link {
+  position: absolute;
+  top: var(--space-6);
+  right: calc(var(--space-6) + 44px);
+
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-muted);
+
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+
+  transition: color var(--duration-fast), background var(--duration-fast);
+}
+.sso-link:hover {
+  color: var(--foreground);
+  background: var(--surface-sunken);
+}
+.sso-link svg { width: 10px; height: 10px; }
+
+
+/* ── Form wrapper + header/footer ────────────────────────────── */
+.form-wrap {
+  width: 100%;
+  max-width: 360px;
+  margin-block: auto;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+}
+/* Signup has a denser form — use .form-wrap.wide for 440px / padded */
+.form-wrap.wide {
+  max-width: 440px;
+  gap: var(--space-6);
+  padding: var(--space-8) 0;
+}
+
+.form-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.form-header .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-muted);
+}
+.form-header .eyebrow .env-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--severity-low, #10b981);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--severity-low, #10b981) 60%, transparent);
+}
+.form-header .eyebrow.onboard .env-dot {
+  background: var(--severity-medium);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--severity-medium) 60%, transparent);
+}
+.form-header h2 {
+  margin-top: 2px;
+  font-size: var(--text-3xl);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  font-weight: var(--weight-semibold);
+  color: var(--foreground);
+}
+.form-header .meta {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--foreground-subtle);
+}
+.form-header .meta span { white-space: nowrap; }
+.form-header .meta .sep { color: var(--border); }
+
+.form-footer {
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--foreground-muted);
+}
+.form-footer a {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: var(--weight-medium);
+}
+.form-footer a:hover { text-decoration: underline; }
+
+.fine-print {
+  max-width: 360px;
+  margin: 0 auto;
+  text-align: center;
+  text-wrap: balance;
+
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: var(--leading-relaxed);
+  color: var(--foreground-subtle);
+}
+.fine-print .mono {
+  color: var(--foreground-muted);
+}
+
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .brand-panel { display: none; }
+  .form-panel  { flex: 1; }
+  .sso-link    { right: calc(var(--space-5) + 44px); }
+}

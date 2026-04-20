@@ -94,7 +94,9 @@ describe("ToastProvider rendering", () => {
     act(() => { screen.getByText("show").click(); });
 
     const toasts = document.querySelectorAll(".toast");
-    expect(toasts.length).toBeLessThanOrEqual(5);
+    expect(toasts.length).toBe(5);
+    expect(screen.queryByText("에러 0")).not.toBeInTheDocument();
+    expect(screen.getByText("에러 6")).toBeInTheDocument();
   });
 
   it("renders toast with action button", () => {

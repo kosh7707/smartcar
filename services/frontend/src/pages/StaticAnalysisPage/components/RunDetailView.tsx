@@ -72,22 +72,22 @@ export const RunDetailView: React.FC<Props> = ({
   const duration = durationSec != null && durationSec > 0 ? `${durationSec}초` : "—";
 
   return (
-    <div className="page-enter space-y-5">
+    <div className="page-shell run-detail-view">
       <BackButton onClick={onBack} label="대시보드로" />
       <PageHeader title="실행 상세" subtitle="실행 상태, 게이트 판정, 파일별 탐지 항목을 한 흐름에서 검토합니다." />
 
-      <div className="stagger mb-5 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-3">
+      <div className="run-detail-view__stats">
         <StatCard label="상태" value={run.status} />
         <StatCard label="탐지 항목" value={run.findingCount} accent />
         <StatCard label="소요 시간" value={duration} />
       </div>
 
-      <div className="text-sm text-muted-foreground">
+      <div className="run-detail-view__meta">
         시작: {run.startedAt ? formatDateTime(run.startedAt) : "—"} | 종료: {run.endedAt ? formatDateTime(run.endedAt) : "—"}
         {run.analysisResultId && onViewLegacyResult && (
           <>
             {" | "}
-            <button className="text-primary underline-offset-4 hover:underline" onClick={() => onViewLegacyResult(run.analysisResultId)}>
+            <button className="run-detail-view__legacy-link" onClick={() => onViewLegacyResult(run.analysisResultId)}>
               원본 분석 결과 보기
             </button>
           </>
@@ -98,31 +98,31 @@ export const RunDetailView: React.FC<Props> = ({
       {analysisResult && <AgentResultPanel analysisResult={analysisResult} />}
 
       {fileGroups.length === 0 ? (
-        <Card className="shadow-none">
-          <CardContent className="p-6">
-            <p className="text-sm text-muted-foreground">탐지 항목이 없습니다</p>
+        <Card className="run-detail-view__empty-card">
+          <CardContent className="run-detail-view__empty-body">
+            <p className="run-detail-view__empty-copy">탐지 항목이 없습니다</p>
           </CardContent>
         </Card>
       ) : (
         fileGroups.map((group) => (
-          <Card key={group.fileName} className="overflow-hidden shadow-none">
-            <CardContent className="space-y-0 p-0">
-              <div className="flex items-center gap-3 border-b border-border/70 bg-background/90 px-5 py-4">
-                <FileCode size={16} className="shrink-0 text-primary" />
-                <span className="min-w-0 flex-1 truncate font-mono text-sm font-semibold text-foreground">{group.fileName}</span>
-                <span className="shrink-0 font-mono text-sm text-muted-foreground">{group.items.length}건</span>
+          <Card key={group.fileName} className="run-detail-view__group-card">
+            <CardContent className="run-detail-view__group-card-body">
+              <div className="run-detail-view__group-head">
+                <FileCode size={16} className="run-detail-view__group-icon" />
+                <span className="run-detail-view__group-file">{group.fileName}</span>
+                <span className="run-detail-view__group-count">{group.items.length}건</span>
               </div>
-              <div className="divide-y divide-border/70">
+              <div className="run-detail-view__group-list">
                 {group.items.map(({ finding }) => {
                   const line = finding.location?.includes(":") ? finding.location.split(":")[1] : null;
                   return (
-                    <button key={finding.id} type="button" className="w-full px-5 py-4 text-left transition-colors hover:bg-muted/30" onClick={() => onSelectFinding(finding.id)}>
-                      <div className="flex flex-wrap items-center gap-2">
+                    <button key={finding.id} type="button" className="run-detail-view__item" onClick={() => onSelectFinding(finding.id)}>
+                      <div className="run-detail-view__item-row">
                         <SeverityBadge severity={finding.severity} size="sm" />
                         <FindingStatusBadge status={finding.status} size="sm" />
                         <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{finding.title}</span>
-                        {line && <span className="shrink-0 font-mono text-sm text-muted-foreground">:{line}</span>}
+                        <span className="run-detail-view__item-title">{finding.title}</span>
+                        {line && <span className="run-detail-view__item-line">:{line}</span>}
                       </div>
                     </button>
                   );

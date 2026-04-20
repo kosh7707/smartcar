@@ -39,14 +39,14 @@ export const VulnerabilitiesPage: React.FC = () => {
 
   if (state.loading) {
     return (
-      <div className="page-enter flex min-h-[360px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
+      <div className="page-loading-shell">
         <Spinner size={36} label="탐지 항목 로딩 중..." />
       </div>
     );
   }
 
   return (
-    <div className="page-enter space-y-6">
+    <div className="page-shell">
       <VulnerabilitiesHeader totalActiveFindings={state.counts.total} />
 
       <VulnerabilitiesToolbar

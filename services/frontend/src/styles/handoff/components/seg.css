@@ -1,0 +1,47 @@
+/* ═══════════════════════════════════════════════════════════════
+   AEGIS — Segmented control (seg)
+
+     .seg                container with inset background
+     .seg button         option
+     .seg button.active  current selection (elevated)
+
+   Used inside Tweaks panel for density / layout / theme toggles.
+   ═══════════════════════════════════════════════════════════════ */
+
+
+.seg {
+  display: flex;
+  padding: 2px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.seg button {
+  flex: 1;
+  padding: 6px 10px;
+
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+
+  color: var(--foreground-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+
+  transition: all var(--duration-fast);
+}
+.seg button:hover {
+  color: var(--foreground);
+}
+.seg button.active {
+  background: var(--surface);
+  color: var(--foreground);
+  box-shadow: var(--shadow-xs);
+}

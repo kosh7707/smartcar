@@ -41,24 +41,24 @@ export const ActiveAnalysisBanner: React.FC<Props> = ({ progress, onView, onAbor
     : 100;
 
   return (
-    <Card className="mb-5 gap-0 border-l-4 border-l-primary shadow-none">
-      <CardContent className="space-y-4 px-5 py-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 text-sm text-foreground">
-            <Loader2 size={16} className="spin shrink-0" />
-            <span className="min-w-0">
+    <Card className="active-analysis-banner">
+      <CardContent className="active-analysis-banner__body">
+        <div className="active-analysis-banner__header">
+          <div className="active-analysis-banner__status">
+            <Loader2 size={16} className="active-analysis-banner__spinner spin" />
+            <span className="active-analysis-banner__copy">
               {progress.totalFiles ? `${progress.processedFiles ?? 0}/${progress.totalFiles}개 파일 ` : ""}
               분석 진행 중 — {phaseText}{chunkText}
             </span>
             {(progress.buildTargetId || progress.executionId) && (
-              <span className="text-muted-foreground">
+              <span className="active-analysis-banner__meta">
                 {progress.buildTargetId ? `빌드 타겟 ${progress.buildTargetId}` : ""}
                 {progress.buildTargetId && progress.executionId ? " · " : ""}
                 {progress.executionId ? `Execution ${progress.executionId}` : ""}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="active-analysis-banner__actions">
             <Button variant="outline" size="sm" onClick={onView}>
               <Eye size={14} />
               보기
@@ -69,9 +69,9 @@ export const ActiveAnalysisBanner: React.FC<Props> = ({ progress, onView, onAbor
             </Button>
           </div>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-border/70">
+        <div className="active-analysis-banner__progress-track">
           <div
-            className="shimmer-fill h-full rounded-full bg-[linear-gradient(90deg,var(--cds-interactive),var(--cds-interactive-hover))] transition-[width]"
+            className="active-analysis-banner__progress-fill shimmer-fill"
             style={{ width: `${pct}%` }}
           />
         </div>

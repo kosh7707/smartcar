@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 
 export const DangerZoneSection: React.FC = () => (
-  <Card className="project-settings-danger shadow-none">
-    <CardContent className="space-y-4">
+  <Card className="project-settings-danger">
+    <CardContent className="project-settings-danger__content">
       <div className="project-settings-danger__header">
         <AlertTriangle size={16} className="project-settings-danger__icon" />
         <CardTitle className="project-settings-danger__title">

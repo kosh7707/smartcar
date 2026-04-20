@@ -25,28 +25,39 @@ describe("LoginPage", () => {
     mockLogin.mockResolvedValue(undefined);
   });
 
-  it("logs in and navigates to projects on submit", async () => {
-    const { container } = render(
+  it("renders the imported console template surface", () => {
+    render(
       <MemoryRouter>
         <LoginPage />
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("heading", { name: "AEGIS" })).toBeInTheDocument();
-    expect(screen.getByText("임베디드 펌웨어 보안 분석 작업을 이어갑니다.")).toBeInTheDocument();
-    expect(container.querySelector(".page-header--plain")).not.toBeNull();
-    expect(container.querySelector(".page-header__eyebrow")).toBeNull();
-    expect(document.title).toBe("AEGIS — Login");
+    expect(screen.getByRole("heading", { name: "로그인" })).toBeInTheDocument();
+    expect(screen.getByText((_, node) => node?.textContent === "임베디드 보안 분석을 한 곳에서")).toBeInTheDocument();
+    expect(screen.getByText("AEGIS · PRODUCTION")).toBeInTheDocument();
+    expect(screen.getByLabelText(/테마 전환/)).toBeInTheDocument();
+    expect(screen.getByLabelText("이메일")).toBeInTheDocument();
+    expect(screen.getByLabelText("비밀번호", { selector: "input" })).toBeInTheDocument();
+    expect(screen.getByText("이 기기에서 로그인 유지")).toBeInTheDocument();
+    expect(document.title).toBe("AEGIS — 로그인");
+  });
 
-    fireEvent.change(screen.getByLabelText("사용자 이름"), { target: { value: "user@example.com" } });
-    fireEvent.change(screen.getByLabelText("비밀번호"), { target: { value: "secret" } });
-    fireEvent.click(screen.getByRole("button", { name: "워크스페이스 열기" }));
+  it("logs in and navigates to dashboard on submit", async () => {
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText("이메일"), { target: { value: "user@example.com" } });
+    fireEvent.change(screen.getByLabelText("비밀번호", { selector: "input" }), { target: { value: "secret" } });
+    fireEvent.click(screen.getByRole("button", { name: "로그인" }));
 
     await waitFor(() => expect(mockLogin).toHaveBeenCalledWith("user@example.com", "secret"));
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard"));
   });
 
-  it("shows an error when login fails", async () => {
+  it("shows an inline error when login fails", async () => {
     mockLogin.mockRejectedValue(new Error("로그인 실패"));
 
     render(
@@ -55,9 +66,9 @@ describe("LoginPage", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.change(screen.getByLabelText("사용자 이름"), { target: { value: "user@example.com" } });
-    fireEvent.change(screen.getByLabelText("비밀번호"), { target: { value: "secret" } });
-    fireEvent.click(screen.getByRole("button", { name: "워크스페이스 열기" }));
+    fireEvent.change(screen.getByLabelText("이메일"), { target: { value: "user@example.com" } });
+    fireEvent.change(screen.getByLabelText("비밀번호", { selector: "input" }), { target: { value: "secret" } });
+    fireEvent.click(screen.getByRole("button", { name: "로그인" }));
 
     expect(await screen.findByText("로그인 실패")).toBeInTheDocument();
     expect(mockNavigate).not.toHaveBeenCalled();
@@ -70,7 +81,23 @@ describe("LoginPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("button", { name: "워크스페이스 열기" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "로그인" })).toBeDisabled();
+  });
+
+  it("toggles password visibility", () => {
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+
+    const passwordInput = screen.getByLabelText("비밀번호", { selector: "input" }) as HTMLInputElement;
+    const toggleButton = screen.getByRole("button", { name: "비밀번호 보기" });
+
+    expect(passwordInput.type).toBe("password");
+    fireEvent.click(toggleButton);
+    expect(passwordInput.type).toBe("text");
+    expect(screen.getByRole("button", { name: "비밀번호 숨기기" })).toBeInTheDocument();
   });
 
   it("shows the submitting label while login is in flight", async () => {
@@ -85,9 +112,9 @@ describe("LoginPage", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.change(screen.getByLabelText("사용자 이름"), { target: { value: "user@example.com" } });
-    fireEvent.change(screen.getByLabelText("비밀번호"), { target: { value: "secret" } });
-    fireEvent.click(screen.getByRole("button", { name: "워크스페이스 열기" }));
+    fireEvent.change(screen.getByLabelText("이메일"), { target: { value: "user@example.com" } });
+    fireEvent.change(screen.getByLabelText("비밀번호", { selector: "input" }), { target: { value: "secret" } });
+    fireEvent.click(screen.getByRole("button", { name: "로그인" }));
 
     expect(await screen.findByRole("button", { name: "진입 중..." })).toBeDisabled();
 

@@ -48,7 +48,6 @@ export const StateTransitionDialog: React.FC<Props> = ({
     canTransitionTo(currentStatus, to, sourceType),
   );
 
-  // Reset form when dialog opens
   useEffect(() => {
     if (open) {
       setSelectedStatus("");
@@ -62,7 +61,7 @@ export const StateTransitionDialog: React.FC<Props> = ({
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onCancel(); }}>
-      <DialogContent className="max-w-[440px] sm:max-w-[440px]" showCloseButton={false}>
+      <DialogContent className="state-transition-dialog" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>상태 변경</DialogTitle>
           <DialogDescription>
@@ -70,47 +69,47 @@ export const StateTransitionDialog: React.FC<Props> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5">
-          <div className="flex flex-col gap-2">
+        <div className="state-transition-dialog__body">
+          <div className="state-transition-dialog__field">
             <Label>현재 상태</Label>
-            <Badge variant="outline" className={`${findingStatusBadgeClass(currentStatus)} w-fit`}>
+            <Badge variant="outline" className={`${findingStatusBadgeClass(currentStatus)} state-transition-dialog__status`}>
               {FINDING_STATUS_LABELS[currentStatus]}
             </Badge>
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className="state-transition-dialog__field">
             <Label htmlFor="state-select">새 상태</Label>
             <Select
               value={selectedStatus}
               onValueChange={(nextStatus) => setSelectedStatus(nextStatus as FindingStatus)}
             >
-              <SelectTrigger id="state-select" className="w-full">
+              <SelectTrigger id="state-select" className="state-transition-dialog__select">
                 <SelectValue placeholder="선택하세요" />
               </SelectTrigger>
               <SelectContent>
-                {availableTransitions.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {FINDING_STATUS_LABELS[s]}
+                {availableTransitions.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {FINDING_STATUS_LABELS[status]}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className="state-transition-dialog__field">
             <Label htmlFor="state-reason">사유</Label>
             <Textarea
               id="state-reason"
-              className="min-h-[72px] resize-y"
+              className="state-transition-dialog__reason"
               rows={3}
               placeholder="상태 변경 사유를 입력하세요 (필수)"
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={(event) => setReason(event.target.value)}
             />
           </div>
         </div>
 
-        <DialogFooter className="flex-row justify-end gap-2">
+        <DialogFooter className="state-transition-dialog__footer">
           <Button variant="outline" size="sm" onClick={onCancel}>
             취소
           </Button>

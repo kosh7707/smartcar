@@ -35,14 +35,16 @@ export const BuildLogViewer: React.FC<Props> = ({ projectId, targetId, targetNam
         setStatus(res.status);
         setUpdatedAt(res.updatedAt);
       })
-      .catch((e) => {
-        logError("fetchBuildLog", e);
+      .catch((error) => {
+        logError("fetchBuildLog", error);
         if (!cancelled) setBuildLog(null);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [projectId, targetId]);
 
   const handleCopy = async () => {
@@ -51,45 +53,43 @@ export const BuildLogViewer: React.FC<Props> = ({ projectId, targetId, targetNam
       await navigator.clipboard.writeText(buildLog);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (e) {
-      logError("clipboard copy", e);
+    } catch (error) {
+      logError("clipboard copy", error);
     }
   };
 
   return (
     <Dialog open onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}>
       <DialogContent
-        className="flex flex-col max-h-[80vh] max-w-[800px] grid-rows-[auto_1fr] gap-0 overflow-hidden border-border bg-card p-0 shadow-2xl sm:max-w-[800px]"
+        className="build-log-viewer"
         overlayClassName="build-log-overlay"
         onOverlayClick={onClose}
         showCloseButton={false}
       >
-        <DialogHeader className="flex-row items-center justify-between space-y-0 border-b border-border px-5 py-4">
-          <DialogTitle className="flex min-w-0 items-center gap-3 text-base font-semibold text-foreground">
-            <span className="truncate">{targetName} - 빌드 로그</span>
-            {status && (
-              <span className="shrink-0 text-xs font-normal text-muted-foreground">({status})</span>
-            )}
+        <DialogHeader className="build-log-viewer__header">
+          <DialogTitle className="build-log-viewer__title">
+            <span className="build-log-viewer__title-text">{targetName} - 빌드 로그</span>
+            {status ? <span className="build-log-viewer__status">({status})</span> : null}
           </DialogTitle>
-          <div className="flex shrink-0 items-center gap-2">
-            {buildLog && (
+          <div className="build-log-viewer__actions">
+            {buildLog ? (
               <Button variant="outline" size="sm" onClick={handleCopy} title="복사">
                 {copied ? <Check size={14} /> : <Copy size={14} />}
                 {copied ? "복사됨" : "복사"}
               </Button>
-            )}
+            ) : null}
             <Button variant="ghost" size="icon-sm" onClick={onClose} title="닫기" aria-label="닫기">
               <X size={16} />
             </Button>
           </div>
         </DialogHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto bg-background/80 p-5">
+        <div className="build-log-viewer__body">
           {loading ? (
             <Spinner size={24} label="로그 불러오는 중..." />
           ) : buildLog ? (
-            <pre className="m-0 whitespace-pre-wrap break-all font-mono text-sm leading-6 text-foreground">{buildLog}</pre>
+            <pre className="build-log-viewer__pre">{buildLog}</pre>
           ) : (
-            <div className="py-10 text-center text-sm text-muted-foreground">빌드 로그가 없습니다</div>
+            <div className="build-log-viewer__empty">빌드 로그가 없습니다</div>
           )}
         </div>
       </DialogContent>

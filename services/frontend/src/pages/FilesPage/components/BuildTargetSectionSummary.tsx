@@ -27,13 +27,13 @@ export function BuildTargetSectionSummary({
 }: BuildTargetSectionSummaryProps) {
   if (isRunning && targets.length > 0) {
     return (
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/70 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+      <div className="build-target-section-summary build-target-section-summary--running">
         <Spinner size={14} />
-        <span>파이프라인 진행 중...</span>
+        <span className="build-target-section-summary__label">파이프라인 진행 중...</span>
         {totalCount > 0 && (
-          <span className="ml-auto font-semibold tabular-nums">
+          <span className="build-target-section-summary__count">
             {readyCount}/{totalCount} 완료
-            {failedCount > 0 && <span className="text-destructive"> · {failedCount} 실패</span>}
+            {failedCount > 0 && <span className="build-target-section-summary__failed"> · {failedCount} 실패</span>}
           </span>
         )}
       </div>
@@ -42,8 +42,8 @@ export function BuildTargetSectionSummary({
 
   if (!isRunning && readyTargets.length > 0 && canDeepAnalyzeAll) {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.05] px-4 py-3 text-sm font-medium text-emerald-700 dark:text-emerald-300">
-        <span>{readyTargets.length}개 BuildTarget 분석 준비 완료</span>
+      <div className="build-target-section-summary build-target-section-summary--ready">
+        <span className="build-target-section-summary__label">{readyTargets.length}개 BuildTarget 분석 준비 완료</span>
         <Button size="sm" onClick={() => onDeepAnalyzeAll(readyTargets.map((target) => target.id))}>
           <Bot size={14} />
           전체 심층 분석

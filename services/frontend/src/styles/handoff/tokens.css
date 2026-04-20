@@ -1,0 +1,311 @@
+/* ═══════════════════════════════════════════════════════════════
+   AEGIS Design Tokens — v1 (Light-first, Dark-ready)
+
+   Philosophy: Analyst's Console — quiet, dense, evidence-first.
+   Not a marketing product. A workbench.
+
+   Naming: shadcn-compatible semantic tokens (--background, --foreground,
+   --primary, etc.) + AEGIS domain tokens (--severity-*, --status-*).
+
+   To switch to dark: set `data-theme="dark"` on <html>.
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Surface / Layer ───────────────────────────────────────── */
+  --background:            oklch(0.99 0.002 250);   /* app bg — nearly white w/ cool tint */
+  --surface:               oklch(1.00 0 0);         /* cards, panels */
+  --surface-sunken:        oklch(0.975 0.003 250);  /* inset areas (code bg, wells) */
+  --surface-raised:        oklch(1.00 0 0);         /* popovers, modals */
+  --surface-overlay:       oklch(0.20 0.01 250 / 0.45); /* modal scrim */
+
+  /* ── Foreground (text) ─────────────────────────────────────── */
+  --foreground:            oklch(0.18 0.01 250);    /* primary text */
+  --foreground-muted:      oklch(0.45 0.01 250);    /* secondary text */
+  --foreground-subtle:     oklch(0.60 0.01 250);    /* placeholder, captions */
+  --foreground-disabled:   oklch(0.75 0.01 250);
+  --foreground-on-accent:  oklch(0.99 0 0);         /* text on colored surfaces */
+
+  /* ── Border ────────────────────────────────────────────────── */
+  --border:                oklch(0.92 0.005 250);   /* default border */
+  --border-strong:         oklch(0.82 0.007 250);   /* emphasized divider */
+  --border-subtle:         oklch(0.95 0.003 250);   /* hairline */
+  --border-focus:          var(--primary);
+
+  /* ── Primary (Electric Blue — single accent) ──────────────── */
+  --primary:               oklch(0.58 0.18 250);
+  --primary-hover:         oklch(0.52 0.19 250);
+  --primary-active:        oklch(0.46 0.19 250);
+  --primary-surface:       oklch(0.58 0.18 250 / 0.08); /* tinted bg */
+  --primary-border:        oklch(0.58 0.18 250 / 0.25);
+  --primary-foreground:    oklch(0.99 0 0);
+
+  /* ── Semantic (Severity — meaning colors, never decorative) ── */
+  --severity-critical:          oklch(0.55 0.21 25);   /* red */
+  --severity-critical-surface:  oklch(0.55 0.21 25 / 0.08);
+  --severity-critical-border:   oklch(0.55 0.21 25 / 0.22);
+
+  --severity-high:              oklch(0.68 0.17 50);   /* orange */
+  --severity-high-surface:      oklch(0.68 0.17 50 / 0.08);
+  --severity-high-border:       oklch(0.68 0.17 50 / 0.22);
+
+  --severity-medium:            oklch(0.75 0.14 85);   /* amber */
+  --severity-medium-surface:    oklch(0.75 0.14 85 / 0.10);
+  --severity-medium-border:     oklch(0.75 0.14 85 / 0.24);
+
+  --severity-low:               oklch(0.62 0.12 230);  /* muted blue */
+  --severity-low-surface:       oklch(0.62 0.12 230 / 0.08);
+  --severity-low-border:        oklch(0.62 0.12 230 / 0.22);
+
+  --severity-info:              oklch(0.60 0.01 250);  /* neutral */
+  --severity-info-surface:      oklch(0.60 0.01 250 / 0.08);
+  --severity-info-border:       oklch(0.60 0.01 250 / 0.22);
+
+  /* ── Status (Finding lifecycle) ───────────────────────────── */
+  --status-open:                var(--severity-info);
+  --status-open-surface:        var(--severity-info-surface);
+
+  --status-needs-review:        oklch(0.72 0.15 75);
+  --status-needs-review-surface:oklch(0.72 0.15 75 / 0.10);
+
+  --status-accepted-risk:       oklch(0.65 0.15 55);
+  --status-accepted-risk-surface:oklch(0.65 0.15 55 / 0.10);
+
+  --status-false-positive:      oklch(0.60 0.01 250);
+  --status-false-positive-surface:oklch(0.60 0.01 250 / 0.08);
+
+  --status-fixed:               oklch(0.62 0.14 150);
+  --status-fixed-surface:       oklch(0.62 0.14 150 / 0.10);
+
+  --status-needs-revalidation:  oklch(0.68 0.17 50);
+  --status-needs-revalidation-surface: oklch(0.68 0.17 50 / 0.10);
+
+  /* ── Confidence (AI / Rule) ───────────────────────────────── */
+  --confidence-high:            oklch(0.62 0.14 150); /* green */
+  --confidence-medium:          oklch(0.75 0.14 85);  /* amber */
+  --confidence-low:             oklch(0.55 0.21 25);  /* red */
+
+  /* ── Source (provenance) ──────────────────────────────────── */
+  --source-rule:                oklch(0.55 0.17 290); /* purple */
+  --source-ai:                  oklch(0.58 0.18 250); /* primary blue */
+  --source-agent:               oklch(0.75 0.14 85);  /* amber */
+  --source-sast:                oklch(0.62 0.14 150); /* green */
+  --source-both:                oklch(0.55 0.17 310); /* magenta */
+
+  /* ── Module ───────────────────────────────────────────────── */
+  --module-static:              oklch(0.55 0.17 290);
+  --module-dynamic:             oklch(0.62 0.14 150);
+  --module-test:                var(--primary);
+
+  /* ── Feedback ─────────────────────────────────────────────── */
+  --success:                    oklch(0.62 0.14 150);
+  --success-surface:            oklch(0.62 0.14 150 / 0.10);
+  --warning:                    oklch(0.75 0.14 85);
+  --warning-surface:            oklch(0.75 0.14 85 / 0.10);
+  --danger:                     oklch(0.55 0.21 25);
+  --danger-surface:             oklch(0.55 0.21 25 / 0.08);
+  --info:                       var(--primary);
+  --info-surface:               var(--primary-surface);
+
+  /* ── Input ────────────────────────────────────────────────── */
+  --input:                      oklch(1.00 0 0);
+  --input-border:               var(--border);
+  --input-border-hover:         var(--border-strong);
+  --ring:                       oklch(0.58 0.18 250 / 0.35); /* focus ring */
+
+  /* ── Code / Data surfaces ─────────────────────────────────── */
+  --code-bg:                    oklch(0.975 0.003 250);
+  --code-border:                var(--border-subtle);
+  --code-fg:                    var(--foreground);
+  --code-line-number:           var(--foreground-subtle);
+  --code-line-hover:            oklch(0.95 0.005 250);
+  --code-line-highlight:        oklch(0.55 0.21 25 / 0.08);
+
+  /* Syntax (GitHub-like, light) */
+  --syntax-comment:             oklch(0.55 0.02 250);
+  --syntax-keyword:             oklch(0.50 0.19 15);
+  --syntax-string:              oklch(0.45 0.14 250);
+  --syntax-number:              oklch(0.50 0.17 280);
+  --syntax-function:            oklch(0.50 0.17 310);
+  --syntax-variable:            oklch(0.55 0.15 40);
+  --syntax-meta:                oklch(0.50 0.17 280);
+
+  /* ── Sidebar (ALWAYS neutral dark panel — theme-invariant) ── */
+  --sidebar-bg:                 oklch(0.16 0.008 250);
+  --sidebar-surface:            oklch(0.22 0.008 250);
+  --sidebar-hover:              oklch(1.00 0 0 / 0.05);
+  --sidebar-active:             oklch(0.58 0.18 250 / 0.18);
+  --sidebar-active-rail:        var(--primary);
+  --sidebar-text:               oklch(0.82 0.005 250);
+  --sidebar-text-active:        oklch(0.99 0 0);
+  --sidebar-text-muted:         oklch(0.65 0.005 250);
+  --sidebar-border:             oklch(1.00 0 0 / 0.06);
+  --sidebar-width:              240px;
+  --sidebar-width-collapsed:    56px;
+
+  /* ── Navbar ───────────────────────────────────────────────── */
+  --navbar-height:              52px;
+  --navbar-bg:                  var(--surface);
+  --navbar-border:              var(--border);
+
+  /* ── Typography ───────────────────────────────────────────── */
+  --font-sans: 'Paperlogy', 'Pretendard Variable', 'Pretendard', -apple-system, system-ui, sans-serif;
+  --font-mono: 'Paperlogy', 'Pretendard Variable', 'Pretendard', -apple-system, system-ui, sans-serif;
+  --font-display: var(--font-sans);
+
+  /* Type scale (medium density) */
+  --text-2xs:    11px;
+  --text-xs:     12px;
+  --text-sm:     13px;
+  --text-base:   14px;
+  --text-md:     15px;
+  --text-lg:     17px;
+  --text-xl:     20px;
+  --text-2xl:    24px;
+  --text-3xl:    30px;
+  --text-display:40px;
+
+  /* Line height */
+  --leading-tight:   1.2;
+  --leading-snug:    1.35;
+  --leading-normal:  1.5;
+  --leading-relaxed: 1.65;
+
+  /* Weight */
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  /* Letter spacing */
+  --tracking-tight:  -0.01em;
+  --tracking-normal: 0;
+  --tracking-wide:   0.02em;
+  --tracking-caps:   0.06em;  /* for uppercase labels */
+
+  /* ── Spacing (4px base) ───────────────────────────────────── */
+  --space-0:   0;
+  --space-1:   2px;
+  --space-2:   4px;
+  --space-3:   8px;
+  --space-4:   12px;
+  --space-5:   16px;
+  --space-6:   20px;
+  --space-7:   24px;
+  --space-8:   32px;
+  --space-9:   40px;
+  --space-10:  48px;
+  --space-11:  64px;
+  --space-12:  80px;
+  --space-13:  96px;
+
+  /* ── Radius ───────────────────────────────────────────────── */
+  --radius-xs:   4px;
+  --radius-sm:   6px;
+  --radius-md:   8px;   /* default */
+  --radius-lg:   12px;  /* cards */
+  --radius-xl:   16px;
+  --radius-pill: 999px;
+
+  /* ── Shadow (extremely restrained — only for floating) ────── */
+  --shadow-xs:      0 1px 0 0 oklch(0.18 0.01 250 / 0.04);
+  --shadow-sm:      0 1px 2px 0 oklch(0.18 0.01 250 / 0.06);
+  --shadow-md:      0 2px 6px -1px oklch(0.18 0.01 250 / 0.08), 0 1px 2px oklch(0.18 0.01 250 / 0.05);
+  --shadow-lg:      0 6px 16px -4px oklch(0.18 0.01 250 / 0.10), 0 2px 4px oklch(0.18 0.01 250 / 0.05);
+  --shadow-popover: 0 4px 16px -2px oklch(0.18 0.01 250 / 0.10), 0 0 0 1px var(--border);
+  --shadow-focus:   0 0 0 3px var(--ring);
+  --shadow-inner:   inset 0 1px 0 0 oklch(0.18 0.01 250 / 0.04);
+
+  /* ── Motion ───────────────────────────────────────────────── */
+  --duration-instant: 80ms;
+  --duration-fast:    140ms;
+  --duration-base:    200ms;
+  --duration-slow:    320ms;
+
+  --ease-out:      cubic-bezier(0.2, 0, 0, 1);
+  --ease-in:       cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out:   cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Z-Index ──────────────────────────────────────────────── */
+  --z-base:       1;
+  --z-sticky:     10;
+  --z-dropdown:   50;
+  --z-overlay:    100;
+  --z-modal:      1000;
+  --z-popover:    1100;
+  --z-toast:      1200;
+  --z-tooltip:    1300;
+
+  /* ── Chart palette (categorical, perceptually balanced) ───── */
+  --chart-1: oklch(0.58 0.18 250);  /* blue */
+  --chart-2: oklch(0.62 0.14 150);  /* green */
+  --chart-3: oklch(0.75 0.14 85);   /* amber */
+  --chart-4: oklch(0.55 0.21 25);   /* red */
+  --chart-5: oklch(0.55 0.17 290);  /* purple */
+  --chart-6: oklch(0.62 0.12 230);  /* cyan-blue */
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DARK THEME (placeholder — will be refined once light is approved)
+   Only includes overrides; everything else inherits.
+   ═══════════════════════════════════════════════════════════════ */
+[data-theme="dark"] {
+  --background:            oklch(0.16 0.008 250);
+  --surface:               oklch(0.20 0.008 250);
+  --surface-sunken:        oklch(0.14 0.008 250);
+  --surface-raised:        oklch(0.24 0.008 250);
+  --surface-overlay:       oklch(0 0 0 / 0.60);
+
+  --foreground:            oklch(0.96 0.003 250);
+  --foreground-muted:      oklch(0.75 0.005 250);
+  --foreground-subtle:     oklch(0.60 0.005 250);
+  --foreground-disabled:   oklch(0.45 0.005 250);
+
+  --border:                oklch(1 0 0 / 0.08);
+  --border-strong:         oklch(1 0 0 / 0.16);
+  --border-subtle:         oklch(1 0 0 / 0.05);
+
+  --primary:               oklch(0.72 0.16 250);
+  --primary-hover:         oklch(0.78 0.15 250);
+  --primary-surface:       oklch(0.72 0.16 250 / 0.12);
+  --primary-border:        oklch(0.72 0.16 250 / 0.30);
+
+  --input:                 oklch(0.22 0.008 250);
+  --code-bg:               oklch(0.14 0.008 250);
+  --code-line-hover:       oklch(1 0 0 / 0.04);
+
+  --ring:                  oklch(0.72 0.16 250 / 0.45);
+}
+
+/* Base reset aligned with tokens */
+html, body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Focus-visible default */
+*:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+/* Data utility (Paperlogy-first unified typography) */
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Caps label utility */
+.label-caps {
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-muted);
+  font-weight: var(--weight-medium);
+}
