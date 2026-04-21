@@ -36,3 +36,6 @@ uploads/
 /reports/
 
 .codex
+
+# QA screenshots
+*.png
