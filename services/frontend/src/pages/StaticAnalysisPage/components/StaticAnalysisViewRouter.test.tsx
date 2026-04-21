@@ -12,9 +12,6 @@ vi.mock("./AnalysisResultsView", () => ({
 vi.mock("./RunDetailView", () => ({
   RunDetailView: () => <div>run-detail-view</div>,
 }));
-vi.mock("./SourceTreeView", () => ({
-  SourceTreeView: () => <div>source-tree-view</div>,
-}));
 vi.mock("./StaticAnalysisUploadScreen", () => ({
   StaticAnalysisUploadScreen: () => <div>upload-screen</div>,
 }));
@@ -162,23 +159,4 @@ describe("StaticAnalysisViewRouter", () => {
     expect(screen.getByText("target-select-dialog")).toBeInTheDocument();
   });
 
-  it("keeps the target select dialog available on the source tree view", () => {
-    render(
-      <StaticAnalysisViewRouter
-        {...makeProps({
-          state: {
-            ...makeProps().state,
-            view: "sourceTree",
-            showTargetSelect: true,
-          },
-          buildTargets: {
-            targets: [{ id: "t-1", name: "target-1" }],
-          },
-        })}
-      />,
-    );
-
-    expect(screen.getByText("source-tree-view")).toBeInTheDocument();
-    expect(screen.getByText("target-select-dialog")).toBeInTheDocument();
-  });
 });

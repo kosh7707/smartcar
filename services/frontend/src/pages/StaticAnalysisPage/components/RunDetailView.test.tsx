@@ -14,7 +14,7 @@ vi.mock("../../../shared/ui", async () => {
 
 const runDetail = {
   run: {
-    id: "run-1",
+    id: "run-1a2b3c4d-xxxx",
     projectId: "project-1",
     module: "static_analysis",
     status: "completed",
@@ -24,7 +24,15 @@ const runDetail = {
     endedAt: "2026-04-10T01:00:30Z",
     createdAt: "2026-04-10T01:00:00Z",
   },
-  gate: { id: "gate-1", status: "pass", evaluatedAt: "2026-04-10T01:00:40Z", rules: [], runId: "run-1", projectId: "project-1", createdAt: "2026-04-10T01:00:40Z" },
+  gate: {
+    id: "gate-1",
+    status: "pass",
+    evaluatedAt: "2026-04-10T01:00:40Z",
+    rules: [],
+    runId: "run-1a2b3c4d-xxxx",
+    projectId: "project-1",
+    createdAt: "2026-04-10T01:00:40Z",
+  },
   findings: [
     {
       finding: {
@@ -53,7 +61,7 @@ const runDetail = {
 } as any;
 
 describe("RunDetailView", () => {
-  it("renders summary, gate, agent panel, and grouped findings", () => {
+  it("renders page header with run slug, meta sub, severity tally, gate, agent panel, and grouped findings", () => {
     render(
       <RunDetailView
         runDetail={runDetail}
@@ -65,13 +73,13 @@ describe("RunDetailView", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "실행 상세" })).toBeInTheDocument();
-    expect(screen.getByText("실행 정보")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: /실행 상세/ })).toBeInTheDocument();
+    expect(screen.getByText("RUN-run-1a2b")).toBeInTheDocument();
     expect(screen.getByText("STATUS")).toBeInTheDocument();
     expect(screen.getByText("DURATION")).toBeInTheDocument();
-    expect(screen.getByText("보안 현황")).toBeInTheDocument();
-    expect(screen.getByText("총 탐지")).toBeInTheDocument();
-    expect(screen.getAllByText("탐지 항목").length).toBeGreaterThan(0);
+    expect(screen.getByText("30s")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: /보안 현황/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: /탐지 항목/ })).toBeInTheDocument();
     expect(screen.getByText("gate-result-card")).toBeInTheDocument();
     expect(screen.getByText("agent-result-panel")).toBeInTheDocument();
     expect(screen.getByText("src/auth.ts")).toBeInTheDocument();

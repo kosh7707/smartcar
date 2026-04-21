@@ -5,19 +5,14 @@ import type {
   Severity,
   Vulnerability,
 } from "@aegis/shared";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { ArrowLeft, FileCode, SkipForward } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
-  BackButton,
-  PageHeader,
   SeveritySummary,
   SeverityBadge,
 } from "../../../shared/ui";
-import { cn } from "@/lib/utils";
-import { FileCode, SkipForward } from "lucide-react";
 import { SEVERITY_ORDER } from "../../../utils/severity";
 import { parseLocation } from "../../../utils/location";
-import { OverviewSectionHeader } from "../../OverviewPage/components/OverviewSectionHeader";
 
 const SEVERITY_LABEL_SHORT: Record<Severity, string> = {
   critical: "CRIT",
@@ -55,11 +50,11 @@ function groupByFile(vulns: Vulnerability[]): FileGroup[] {
     fileName,
     vulns: vulnerabilities,
     summary: {
-      critical: vulnerabilities.filter((vulnerability) => vulnerability.severity === "critical").length,
-      high: vulnerabilities.filter((vulnerability) => vulnerability.severity === "high").length,
-      medium: vulnerabilities.filter((vulnerability) => vulnerability.severity === "medium").length,
-      low: vulnerabilities.filter((vulnerability) => vulnerability.severity === "low").length,
-      info: vulnerabilities.filter((vulnerability) => vulnerability.severity === "info").length,
+      critical: vulnerabilities.filter((v) => v.severity === "critical").length,
+      high: vulnerabilities.filter((v) => v.severity === "high").length,
+      medium: vulnerabilities.filter((v) => v.severity === "medium").length,
+      low: vulnerabilities.filter((v) => v.severity === "low").length,
+      info: vulnerabilities.filter((v) => v.severity === "info").length,
     },
   }));
 }
@@ -72,45 +67,45 @@ const FileCoverageSummary: React.FC<{ coverage: FileCoverageEntry[] }> = ({ cove
   const [showSkipped, setShowSkipped] = useState(false);
 
   return (
-    <Card className="analysis-results-card">
-      <CardContent className="analysis-results-coverage-body">
-        <div className="analysis-results-coverage-head">
-          <span className="analysis-results-coverage-label">FILE COVERAGE</span>
-          <span className="analysis-results-coverage-count">
-            {analyzed.length} / {total} · {pct}%
+    <div className="panel coverage-card">
+      <div className="panel-head">
+        <h3>
+          파일 커버리지
+          <span className="count">
+            {analyzed.length}/{total} · {pct}%
           </span>
-          {skipped.length > 0 ? (
-            <Button
-              variant="link"
-              size="sm"
-              className="analysis-results-link-button"
+        </h3>
+        {skipped.length > 0 ? (
+          <div className="panel-tools">
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
               onClick={() => setShowSkipped(!showSkipped)}
             >
               {showSkipped ? "접기" : `스킵 ${skipped.length}건 보기`}
-            </Button>
-          ) : null}
-        </div>
-        <div className="analysis-results-coverage-bar" role="img" aria-label={`분석 완료 ${pct}%`}>
-          <div
-            className="analysis-results-coverage-bar-fill"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-        {showSkipped && skipped.length > 0 ? (
-          <div className="analysis-results-skipped-list">
-            {skipped.map((entry) => (
-              <div key={entry.fileId} className="analysis-results-skipped-item">
-                <SkipForward size={14} />
-                <span className="analysis-results-skipped-path">{entry.filePath}</span>
-                {entry.skipReason ? (
-                  <span className="analysis-results-skipped-reason">{entry.skipReason}</span>
-                ) : null}
-              </div>
-            ))}
+            </button>
           </div>
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+      <div className="panel-body coverage-card__body">
+        <div className="coverage-bar" role="img" aria-label={`분석 완료 ${pct}%`}>
+          <div className="coverage-bar__fill" style={{ width: `${pct}%` }} />
+        </div>
+        {showSkipped && skipped.length > 0 ? (
+          <ul className="coverage-skipped-list">
+            {skipped.map((entry) => (
+              <li key={entry.fileId} className="coverage-skipped-item">
+                <SkipForward size={12} aria-hidden="true" />
+                <span className="coverage-skipped-item__path">{entry.filePath}</span>
+                {entry.skipReason ? (
+                  <span className="coverage-skipped-item__reason">{entry.skipReason}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    </div>
   );
 };
 
@@ -120,6 +115,13 @@ interface Props {
   onNewAnalysis: () => void;
 }
 
+const POSTURE: Array<{ key: Exclude<Severity, "info">; label: string }> = [
+  { key: "critical", label: "Critical" },
+  { key: "high", label: "High" },
+  { key: "medium", label: "Medium" },
+  { key: "low", label: "Low" },
+];
+
 export const AnalysisResultsView: React.FC<Props> = ({ result, onSelectVuln, onNewAnalysis }) => {
   const [filterSeverity, setFilterSeverity] = useState<Severity | "all">("all");
   const [filterSource, setFilterSource] = useState<"all" | "rule" | "llm">("all");
@@ -127,7 +129,7 @@ export const AnalysisResultsView: React.FC<Props> = ({ result, onSelectVuln, onN
 
   const allFileNames = useMemo(
     () =>
-      [...new Set(result.vulnerabilities.map((vulnerability) => parseLocation(vulnerability.location).fileName))].sort(
+      [...new Set(result.vulnerabilities.map((v) => parseLocation(v.location).fileName))].sort(
         (a, b) => {
           if (a === "기타") return 1;
           if (b === "기타") return -1;
@@ -145,112 +147,123 @@ export const AnalysisResultsView: React.FC<Props> = ({ result, onSelectVuln, onN
   });
 
   const fileGroups = useMemo(() => groupByFile(filtered), [filtered]);
-
-  const POSTURE: Array<{ key: Exclude<Severity, "info">; label: string }> = [
-    { key: "critical", label: "Critical" },
-    { key: "high", label: "High" },
-    { key: "medium", label: "Medium" },
-    { key: "low", label: "Low" },
-  ];
   const totalExInfo = result.summary.total - (result.summary.info ?? 0);
 
   return (
-    <div className="analysis-results-shell">
-      <BackButton onClick={onNewAnalysis} label="세션 목록으로" />
-      <PageHeader title="정적 분석 결과" />
+    <div className="page-shell analysis-results-shell" data-chore>
+      <header className="page-head chore c-1">
+        <div>
+          <button type="button" className="back-link" onClick={onNewAnalysis}>
+            <ArrowLeft aria-hidden="true" /> 세션 목록으로
+          </button>
+          <h1>정적 분석 결과</h1>
+          <div className="sub">
+            <span className="sub-caps">TOTAL</span>
+            <b>{totalExInfo}</b>
+            <span className="sep" aria-hidden="true">·</span>
+            <span className="sub-caps">FILES</span>
+            <b>{allFileNames.length}</b>
+          </div>
+        </div>
+      </header>
 
-      <section className="analysis-results-section">
-        <OverviewSectionHeader title="보안 현황" />
-        <div className="overview-security-posture__grid analysis-results-severity-grid">
-          <Card
+      <section className="chore c-2" aria-labelledby="results-posture-head">
+        <div className="section-head">
+          <h2 id="results-posture-head">
+            보안 현황
+            <span className="count">{totalExInfo}</span>
+          </h2>
+          <span className="hint">
+            {filterSeverity === "all" ? "전체 표시 중" : "심각도 필터 적용"}
+          </span>
+        </div>
+        <div className="severity-tally severity-tally--clickable" role="group">
+          <button
+            type="button"
             className={cn(
-              "overview-security-posture__card overview-security-posture__card--total",
+              "severity-tally__cell severity-tally__cell--total",
               filterSeverity === "all" && "is-active",
             )}
             onClick={() => setFilterSeverity("all")}
           >
-            <span className="overview-security-posture__eyebrow">총 취약점</span>
-            <span className="overview-security-posture__value">{totalExInfo}</span>
-            <span className="overview-security-posture__copy">
-              {filterSeverity === "all" ? "전체 표시 중" : "전체 보기"}
-            </span>
-          </Card>
-          {POSTURE.map((card) => (
-            <Card
-              key={card.key}
+            <span className="severity-tally__total-label">총 취약점</span>
+            <span className="severity-tally__count">{totalExInfo}</span>
+          </button>
+          {POSTURE.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
               className={cn(
-                "overview-security-posture__card overview-security-posture__card--severity",
-                `overview-security-posture__card--${card.key}`,
-                filterSeverity === card.key && "is-active",
+                "severity-tally__cell",
+                `severity-tally__cell--${key}`,
+                filterSeverity === key && "is-active",
               )}
-              onClick={() => setFilterSeverity(filterSeverity === card.key ? "all" : card.key)}
+              onClick={() => setFilterSeverity(filterSeverity === key ? "all" : key)}
             >
-              <span
-                className={cn(
-                  "overview-security-posture__eyebrow",
-                  `overview-security-posture__eyebrow--${card.key}`,
-                )}
-              >
-                {card.label}
+              <span className={`sev-chip ${key}`}>
+                <span className="sev-dot" aria-hidden="true" />
+                {label}
               </span>
-              <span className="overview-security-posture__value">
-                {result.summary[card.key] ?? 0}
-              </span>
-              <span className="overview-security-posture__copy">
-                {filterSeverity === card.key ? "필터 해제" : "해당 심각도만"}
-              </span>
-            </Card>
+              <span className="severity-tally__count">{result.summary[key] ?? 0}</span>
+            </button>
           ))}
         </div>
       </section>
 
       {result.fileCoverage && result.fileCoverage.length > 0 ? (
-        <section className="analysis-results-section">
-          <OverviewSectionHeader title="분석 커버리지" />
+        <section className="chore c-3" aria-labelledby="coverage-head">
+          <div className="section-head">
+            <h2 id="coverage-head">분석 커버리지</h2>
+          </div>
           <FileCoverageSummary coverage={result.fileCoverage} />
         </section>
       ) : null}
 
-      <section className="analysis-results-section">
-        <OverviewSectionHeader title="탐지 항목" />
-        <Card className="analysis-results-card">
-        <CardContent className="analysis-results-filter-bar">
-          <div className="analysis-results-filter-group">
-            <span className="analysis-results-filter-label">SEVERITY</span>
-            <div className="filter-pills" role="tablist" aria-label="심각도 필터">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={filterSeverity === "all"}
-                className={`pill${filterSeverity === "all" ? " active" : ""}`}
-                onClick={() => setFilterSeverity("all")}
-              >
-                ALL
-              </button>
-              {SEVERITY_ORDER.map((severity) => (
+      <section className="chore c-4" aria-labelledby="results-findings-head">
+        <div className="section-head">
+          <h2 id="results-findings-head">
+            탐지 항목
+            <span className="count">{filtered.length}</span>
+          </h2>
+        </div>
+
+        <div className="panel">
+          <div className="panel-head">
+            <h3>필터</h3>
+            <div className="panel-tools">
+              <div className="filter-pills" role="tablist" aria-label="심각도 필터">
                 <button
-                  key={severity}
                   type="button"
                   role="tab"
-                  aria-selected={filterSeverity === severity}
-                  className={`pill${filterSeverity === severity ? " active" : ""}`}
-                  onClick={() => setFilterSeverity(severity as Severity)}
+                  aria-selected={filterSeverity === "all"}
+                  className={cn("pill", filterSeverity === "all" && "active")}
+                  onClick={() => setFilterSeverity("all")}
                 >
-                  <span className={`dot sev-${severity}`} aria-hidden="true" />
-                  {SEVERITY_LABEL_SHORT[severity as Severity]}
+                  ALL
                 </button>
-              ))}
+                {SEVERITY_ORDER.map((severity) => (
+                  <button
+                    key={severity}
+                    type="button"
+                    role="tab"
+                    aria-selected={filterSeverity === severity}
+                    className={cn("pill", filterSeverity === severity && "active")}
+                    onClick={() => setFilterSeverity(severity as Severity)}
+                  >
+                    <span className={`dot sev-${severity}`} aria-hidden="true" />
+                    {SEVERITY_LABEL_SHORT[severity as Severity]}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-
-          <div className="analysis-results-filter-group">
-            <span className="analysis-results-filter-label">SOURCE</span>
+          <div className="panel-body panel-body--tools">
             <div className="filter-pills" role="tablist" aria-label="출처 필터">
               <button
                 type="button"
                 role="tab"
                 aria-selected={filterSource === "all"}
-                className={`pill${filterSource === "all" ? " active" : ""}`}
+                className={cn("pill", filterSource === "all" && "active")}
                 onClick={() => setFilterSource("all")}
               >
                 ALL
@@ -259,7 +272,7 @@ export const AnalysisResultsView: React.FC<Props> = ({ result, onSelectVuln, onN
                 type="button"
                 role="tab"
                 aria-selected={filterSource === "rule"}
-                className={`pill${filterSource === "rule" ? " active" : ""}`}
+                className={cn("pill", filterSource === "rule" && "active")}
                 onClick={() => setFilterSource("rule")}
               >
                 RULE
@@ -268,77 +281,72 @@ export const AnalysisResultsView: React.FC<Props> = ({ result, onSelectVuln, onN
                 type="button"
                 role="tab"
                 aria-selected={filterSource === "llm"}
-                className={`pill${filterSource === "llm" ? " active" : ""}`}
+                className={cn("pill", filterSource === "llm" && "active")}
                 onClick={() => setFilterSource("llm")}
               >
                 LLM
               </button>
             </div>
-          </div>
-
-          <div className="analysis-results-filter-group analysis-results-filter-group--file">
-            <span className="analysis-results-filter-label">FILE</span>
-            <select
-              className="analysis-results-select"
-              value={filterFile}
-              onChange={(event) => setFilterFile(event.target.value)}
-            >
-              <option value="all">전체 파일</option>
-              {allFileNames.map((fileName) => (
-                <option key={fileName} value={fileName}>
-                  {fileName}
-                </option>
-              ))}
-            </select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {fileGroups.length === 0 ? (
-        <Card className="analysis-results-card">
-          <CardContent className="analysis-results-empty-body">
-            <span className="analysis-results-empty-eyebrow">NO MATCH</span>
-            <p className="analysis-results-empty-copy">현재 필터 조건에 맞는 취약점이 없습니다.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        fileGroups.map((group) => (
-          <Card key={group.fileName} className="analysis-results-group-card">
-            <CardContent className="analysis-results-group-body">
-              <div className="analysis-results-group-head">
-                <FileCode size={14} className="analysis-results-group-icon" />
-                <span className="analysis-results-group-file">{group.fileName}</span>
-                <span className="analysis-results-group-count">{group.vulns.length} findings</span>
-                <SeveritySummary summary={group.summary} />
-              </div>
-              <div className="analysis-results-group-list">
-                {group.vulns.map((vulnerability) => (
-                  <button
-                    key={vulnerability.id}
-                    type="button"
-                    className="analysis-results-item"
-                    onClick={() => onSelectVuln(vulnerability)}
-                  >
-                    <div className="analysis-results-item-row">
-                      <SeverityBadge severity={vulnerability.severity} size="sm" />
-                      <span className="analysis-results-item-title">{vulnerability.title}</span>
-                      {vulnerability._line ? (
-                        <span className="analysis-results-item-line">:{vulnerability._line}</span>
-                      ) : null}
-                    </div>
-                    <div className="analysis-results-item-source">
-                      {vulnerability.source === "rule"
-                        ? `룰 탐지 · ${vulnerability.ruleId}`
-                        : "LLM 검토"}
-                    </div>
-                    <div className="analysis-results-item-description">{vulnerability.description}</div>
-                  </button>
+            <div className="filter-sort-wrap">
+              <span className="sub-caps">FILE</span>
+              <select
+                className="filter-select"
+                value={filterFile}
+                onChange={(event) => setFilterFile(event.target.value)}
+              >
+                <option value="all">전체</option>
+                {allFileNames.map((fileName) => (
+                  <option key={fileName} value={fileName}>
+                    {fileName}
+                  </option>
                 ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {fileGroups.length === 0 ? (
+          <div className="panel">
+            <div className="panel-empty">
+              <span className="panel-empty__eyebrow">NO MATCH</span>
+              <p className="panel-empty__copy">현재 필터 조건에 맞는 취약점이 없습니다.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="finding-groups">
+            {fileGroups.map((group) => (
+              <div key={group.fileName} className="panel finding-group">
+                <div className="panel-head">
+                  <h3>
+                    <FileCode aria-hidden="true" />
+                    <span className="finding-group__file">{group.fileName}</span>
+                    <span className="count">{group.vulns.length}</span>
+                  </h3>
+                  <div className="panel-tools">
+                    <SeveritySummary summary={group.summary} />
+                  </div>
+                </div>
+                <ul className="finding-list">
+                  {group.vulns.map((vulnerability) => (
+                    <li key={vulnerability.id} className="finding-row">
+                      <button
+                        type="button"
+                        className="finding-row__btn"
+                        onClick={() => onSelectVuln(vulnerability)}
+                      >
+                        <SeverityBadge severity={vulnerability.severity} size="sm" />
+                        <span className="finding-row__title">{vulnerability.title}</span>
+                        {vulnerability._line ? (
+                          <span className="finding-row__line">:{vulnerability._line}</span>
+                        ) : null}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </CardContent>
-          </Card>
-        ))
-      )}
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

@@ -35,14 +35,6 @@ vi.mock("./components/StaticAnalysisUploadScreen", () => ({
     </div>
   ),
 }));
-vi.mock("./components/SourceTreeView", () => ({
-  SourceTreeView: ({ onSelectFinding }: { onSelectFinding: (findingId: string) => void }) => (
-    <div>
-      <div>source-tree-view</div>
-      <button onClick={() => onSelectFinding("finding-1")}>open-finding</button>
-    </div>
-  ),
-}));
 vi.mock("./components/StaticDashboard", () => ({
   StaticDashboard: ({ onNewAnalysis, onViewRun }: { onNewAnalysis: () => void; onViewRun: (runId: string) => void }) => (
     <div>
@@ -96,7 +88,7 @@ describe("StaticAnalysisPage", () => {
   it("shows an empty state when there is no static analysis summary", async () => {
     mockUseStaticDashboard.mockReturnValue({ loading: false, summary: null });
     renderPage();
-    expect(await screen.findByText("분석 대기")).toBeInTheDocument();
+    expect(await screen.findByText("AWAITING SOURCE")).toBeInTheDocument();
   });
 
   it("navigates to the upload view from the empty state action", async () => {
@@ -119,21 +111,6 @@ describe("StaticAnalysisPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "open-run-detail" }));
     expect(await screen.findByText("run-detail-view")).toBeInTheDocument();
     await waitFor(() => expect(mockFetchRunDetail).toHaveBeenCalledWith("run-1"));
-  });
-
-  it("navigates from upload to source tree and opens finding detail", async () => {
-    mockUseStaticDashboard.mockReturnValue({ loading: false, summary: { ok: true }, recentRuns: [], activeAnalysis: null, latestRunDetail: null, latestRunLoading: false, period: '7d', setPeriod: vi.fn(), refresh: vi.fn() });
-
-    renderPage();
-
-    fireEvent.click(await screen.findByRole("button", { name: "open-new-analysis" }));
-    expect(await screen.findByText("source-upload-view")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "browse-tree" }));
-    expect(await screen.findByText("source-tree-view")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "open-finding" }));
-    expect(await screen.findByText("finding-detail-view")).toBeInTheDocument();
   });
 
   it("updates the analysis guard blocking flag based on running state", async () => {

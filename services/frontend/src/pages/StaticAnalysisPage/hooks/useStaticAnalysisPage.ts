@@ -17,7 +17,6 @@ import type { useStaticDashboard } from "../../../hooks/useStaticDashboard";
 type PageView =
   | "dashboard"
   | "sourceUpload"
-  | "sourceTree"
   | "progress"
   | "analysisResults"
   | "runDetail"
@@ -124,8 +123,9 @@ export function useStaticAnalysisPage(
   }, []);
 
   const handleBrowseTree = useCallback(() => {
-    setView("sourceTree");
-  }, []);
+    if (!projectId) return;
+    navigate(`/projects/${projectId}/files`);
+  }, [projectId, navigate]);
 
   const handleDiscoverTargets = useCallback(async () => {
     try {

@@ -17,22 +17,16 @@ import {
   Search,
   ArrowUp,
   ArrowDown,
+  ArrowRight,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
-  StatCard,
-  EmptyState,
   Spinner,
   GateResultCard,
-  SeverityBadge,
   FindingStatusBadge,
   SourceBadge,
 } from "../../../shared/ui";
 import { bulkUpdateFindingStatus } from "../../../api/analysis";
-import { OverviewSectionHeader } from "../../OverviewPage/components/OverviewSectionHeader";
 import { TopFilesCard } from "./TopFilesCard";
 import { parseLocation } from "../../../utils/location";
 import {
@@ -76,6 +70,13 @@ const SEVERITY_LABELS: Record<Severity, string> = {
   low: "Low",
   info: "Info",
 };
+
+const POSTURE: Array<{ key: Exclude<Severity, "info">; label: string }> = [
+  { key: "critical", label: "Critical" },
+  { key: "high", label: "High" },
+  { key: "medium", label: "Medium" },
+  { key: "low", label: "Low" },
+];
 
 function groupByFile(findings: FindingWithEvidence[]): FindingGroup[] {
   const map = new Map<string, FindingWithEvidence[]>();
@@ -127,12 +128,6 @@ const GROUP_FNS: Record<GroupBy, (f: FindingWithEvidence[]) => FindingGroup[]> =
   status: groupByStatus,
 };
 
-function getSourceBarClass(sourceType: string): string {
-  if (sourceType === "rule-engine") return "latest-analysis-distribution-fill latest-analysis-distribution-fill--rule";
-  if (sourceType === "llm-assist") return "latest-analysis-distribution-fill latest-analysis-distribution-fill--ai";
-  return "latest-analysis-distribution-fill latest-analysis-distribution-fill--hybrid";
-}
-
 export const LatestAnalysisTab: React.FC<Props> = ({
   runDetail,
   loading,
@@ -151,15 +146,50 @@ export const LatestAnalysisTab: React.FC<Props> = ({
 
   if (!runDetail) {
     return (
-      <EmptyState
-        title="아직 완료된 분석이 없습니다"
-        description="새 분석을 실행하여 코드 보안 상태를 확인하세요."
-        action={
-          <Button onClick={onNewAnalysis}>
-            <Plus size={16} />새 분석
-          </Button>
-        }
-      />
+      <div className="latest-analysis-stack" data-chore>
+        <section className="chore c-1" aria-labelledby="latest-empty-head">
+          <div className="section-head">
+            <h2 id="latest-empty-head">최신 분석 없음</h2>
+            <span className="hint">AWAITING FIRST RUN</span>
+          </div>
+          <div className="panel latest-analysis-empty">
+            <div className="latest-analysis-empty__body">
+              <div className="latest-analysis-empty__copy">
+                <span className="panel-empty__eyebrow">NOTHING YET</span>
+                <p className="latest-analysis-empty__headline">
+                  이 프로젝트에 완료된 분석이 없습니다.
+                </p>
+                <p className="latest-analysis-empty__caption">
+                  새 분석을 실행하면 품질 게이트 · 심각도 분포 · 탐지 항목이 여기에 채워집니다.
+                </p>
+              </div>
+              <button type="button" className="btn btn-primary" onClick={onNewAnalysis}>
+                <Plus size={14} />
+                새 분석 실행
+                <ArrowRight size={14} />
+              </button>
+            </div>
+            <dl className="latest-analysis-empty__preview" aria-label="나타날 결과 미리보기">
+              <div className="latest-analysis-empty__preview-cell">
+                <dt>품질 게이트</dt>
+                <dd>PASS · WARN · FAIL</dd>
+              </div>
+              <div className="latest-analysis-empty__preview-cell">
+                <dt>보안 현황</dt>
+                <dd>CRIT · HIGH · MED · LOW</dd>
+              </div>
+              <div className="latest-analysis-empty__preview-cell">
+                <dt>분포</dt>
+                <dd>출처 · Top 파일</dd>
+              </div>
+              <div className="latest-analysis-empty__preview-cell">
+                <dt>탐지 항목</dt>
+                <dd>파일 · 심각도 · 상태 그룹</dd>
+              </div>
+            </dl>
+          </div>
+        </section>
+      </div>
     );
   }
 
@@ -233,13 +263,6 @@ const LatestAnalysisContent: React.FC<{
     return counts;
   }, [findings]);
 
-  const critHighCount = severityCounts.critical + severityCounts.high;
-
-  const unresolvedCount = useMemo(() => {
-    const statuses: FindingStatus[] = ["open", "needs_review", "needs_revalidation", "sandbox"];
-    return findings.filter((f) => statuses.includes(f.finding.status)).length;
-  }, [findings]);
-
   const sourceCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const f of findings) {
@@ -307,98 +330,107 @@ const LatestAnalysisContent: React.FC<{
 
   const groups = useMemo(() => GROUP_FNS[groupBy](filteredFindings), [filteredFindings, groupBy]);
 
-  return (
-    <div className="latest-analysis-stack">
-      <section className="latest-analysis-section">
-        <OverviewSectionHeader title="품질 게이트" />
-        {gate ? (
-          <GateResultCard gate={gate} />
-        ) : (
-          <p className="latest-analysis-note">
-            <span className="latest-analysis-note-prefix" aria-hidden="true" />
-            Quality Gate가 설정되지 않았습니다
-          </p>
-        )}
-      </section>
+  const totalExInfo = findings.length - severityCounts.info;
 
-      <section className="latest-analysis-section">
-        <OverviewSectionHeader title="보안 현황" />
-        <div className="overview-security-posture__grid latest-analysis-severity-grid">
-          <Card
+  return (
+    <div className="latest-analysis-stack" data-chore>
+      {gate ? (
+        <section className="chore c-1" aria-labelledby="latest-gate-head">
+          <div className="section-head">
+            <h2 id="latest-gate-head">품질 게이트</h2>
+          </div>
+          <GateResultCard gate={gate} />
+        </section>
+      ) : (
+        <section className="chore c-1" aria-labelledby="latest-gate-head">
+          <div className="section-head">
+            <h2 id="latest-gate-head">품질 게이트</h2>
+          </div>
+          <div className="panel">
+            <div className="panel-empty">
+              <span className="panel-empty__eyebrow">NO GATE</span>
+              <p className="panel-empty__copy">Quality Gate가 설정되지 않았습니다.</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section className="chore c-2" aria-labelledby="latest-posture-head">
+        <div className="section-head">
+          <h2 id="latest-posture-head">
+            보안 현황
+            <span className="count">{totalExInfo}</span>
+          </h2>
+          <span className="hint">
+            {severityFilter === "all" ? "전체 표시 중" : "심각도 필터 적용"}
+          </span>
+        </div>
+        <div className="severity-tally severity-tally--clickable" role="group" aria-label="심각도별 탐지 현황">
+          <button
+            type="button"
             className={cn(
-              "overview-security-posture__card overview-security-posture__card--total",
+              "severity-tally__cell severity-tally__cell--total",
               severityFilter === "all" && "is-active",
             )}
             onClick={() => setSeverityFilter("all")}
           >
-            <span className="overview-security-posture__eyebrow">총 Finding</span>
-            <span className="overview-security-posture__value">{findings.length}</span>
-            <span className="overview-security-posture__copy">
-              {severityFilter === "all" ? "전체 표시 중" : "전체 보기"}
-            </span>
-          </Card>
-          {(SEVERITY_ORDER.filter((s) => s !== "info") as Severity[]).map((sev) => (
-            <Card
-              key={sev}
+            <span className="severity-tally__total-label">총 Finding</span>
+            <span className="severity-tally__count">{findings.length}</span>
+          </button>
+          {POSTURE.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
               className={cn(
-                "overview-security-posture__card overview-security-posture__card--severity",
-                `overview-security-posture__card--${sev}`,
-                severityFilter === sev && "is-active",
+                "severity-tally__cell",
+                `severity-tally__cell--${key}`,
+                severityFilter === key && "is-active",
               )}
-              onClick={() => setSeverityFilter(severityFilter === sev ? "all" : sev)}
+              onClick={() => setSeverityFilter(severityFilter === key ? "all" : key)}
             >
-              <span
-                className={cn(
-                  "overview-security-posture__eyebrow",
-                  `overview-security-posture__eyebrow--${sev}`,
-                )}
-              >
-                {SEVERITY_LABELS[sev]}
+              <span className={`sev-chip ${key}`}>
+                <span className="sev-dot" aria-hidden="true" />
+                {label}
               </span>
-              <span className="overview-security-posture__value">{severityCounts[sev] ?? 0}</span>
-              <span className="overview-security-posture__copy">
-                {severityFilter === sev ? "필터 해제" : "해당 심각도만"}
-              </span>
-            </Card>
+              <span className="severity-tally__count">{severityCounts[key] ?? 0}</span>
+            </button>
           ))}
-        </div>
-
-        <div className="latest-analysis-stats latest-analysis-substats">
-          <StatCard
-            label="치명 + 높음"
-            value={critHighCount}
-            color={critHighCount > 0 ? "var(--aegis-severity-high)" : undefined}
-          />
-          <StatCard
-            label="미해결"
-            value={unresolvedCount}
-            color={unresolvedCount > 0 ? "var(--aegis-severity-high)" : undefined}
-          />
         </div>
       </section>
 
       {findings.length > 0 && (
-        <section className="latest-analysis-section">
-          <OverviewSectionHeader title="분포" />
-          <div className="latest-analysis-summary-grid">
-            <Card className="latest-analysis-card">
-              <CardContent className="latest-analysis-card-body">
-                <CardTitle>출처별 분포</CardTitle>
+        <section className="chore c-3" aria-labelledby="latest-distribution-head">
+          <div className="section-head">
+            <h2 id="latest-distribution-head">분포</h2>
+          </div>
+          <div className="latest-analysis-distribution-grid">
+            <div className="panel">
+              <div className="panel-head">
+                <h3>출처별 분포</h3>
+              </div>
               {sourceTotal === 0 ? (
-                <p className="latest-analysis-empty-copy">데이터 없음</p>
+                <div className="panel-empty">
+                  <span className="panel-empty__eyebrow">NO DATA</span>
+                  <p className="panel-empty__copy">출처 데이터가 없습니다.</p>
+                </div>
               ) : (
-                <div className="latest-analysis-distribution-list">
+                <div className="distribution-list">
                   {Object.entries(sourceCounts).map(([key, val]) => (
-                    <div key={key} className="latest-analysis-distribution-row">
-                      <div className="latest-analysis-distribution-meta">
-                        <span className="latest-analysis-distribution-label">
+                    <div key={key} className="distribution-row">
+                      <div className="distribution-meta">
+                        <span className="distribution-label">
                           {SOURCE_TYPE_LABELS[key as FindingSourceType] ?? key}
                         </span>
-                        <span className="latest-analysis-distribution-count">{val}</span>
+                        <span className="distribution-count">{val}</span>
                       </div>
-                      <div className="latest-analysis-distribution-bar">
+                      <div className="distribution-bar">
                         <div
-                          className={getSourceBarClass(key)}
+                          className={cn(
+                            "distribution-fill",
+                            key === "rule-engine" && "distribution-fill--rule",
+                            key === "llm-assist" && "distribution-fill--ai",
+                            key === "both" && "distribution-fill--hybrid",
+                          )}
                           style={{ width: `${(val / sourceTotal) * 100}%` }}
                         />
                       </div>
@@ -406,178 +438,187 @@ const LatestAnalysisContent: React.FC<{
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
             <TopFilesCard topFiles={topFiles} onFileClick={onFileClick} />
           </div>
         </section>
       )}
 
       {findings.length > 0 && (
-        <section className="latest-analysis-section">
-          <OverviewSectionHeader title="탐지 항목" />
-          <Card className="latest-analysis-card">
-            <CardContent className="latest-analysis-toolbar-card">
-              <div className="latest-analysis-toolbar-row">
-                <div className="latest-analysis-search-wrap">
-                <Search size={14} className="latest-analysis-search-icon" />
-                <Input
-                  type="text"
-                  className="latest-analysis-search-input"
-                  placeholder="탐지 항목 검색..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <div className="latest-analysis-filter-group">
-                <Button
-                  variant={sourceTypeFilter === "all" ? "secondary" : "outline"}
-                  size="sm"
-                  onClick={() => setSourceTypeFilter("all")}
-                >
-                  전체
-                </Button>
-                {(Object.entries(SOURCE_TYPE_LABELS) as [FindingSourceType, string][])
-                  .filter(([key]) => sourceCounts[key])
-                  .map(([key, label]) => (
-                    <Button
-                      key={key}
-                      variant={sourceTypeFilter === key ? "secondary" : "outline"}
-                      size="sm"
-                      onClick={() => setSourceTypeFilter(key)}
-                    >
-                      {label}
-                    </Button>
-                  ))}
-              </div>
-              <div className="latest-analysis-sort-group">
-                <select
-                  className="latest-analysis-select"
-                  value={sortKey}
-                  onChange={(e) => setSortKey(e.target.value as "severity" | "createdAt" | "location")}
-                >
-                  <option value="severity">심각도</option>
-                  <option value="createdAt">생성일</option>
-                  <option value="location">위치</option>
-                </select>
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  onClick={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
-                  title={sortOrder === "asc" ? "오름차순" : "내림차순"}
-                >
-                  {sortOrder === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
-                </Button>
+        <section className="chore c-4" aria-labelledby="latest-findings-head">
+          <div className="section-head">
+            <h2 id="latest-findings-head">
+              탐지 항목
+              <span className="count">{filteredFindings.length}</span>
+            </h2>
+            <span className="hint">GROUP BY {groupBy.toUpperCase()}</span>
+          </div>
+
+          <div className="panel">
+            <div className="panel-head">
+              <h3>필터</h3>
+              <div className="panel-tools">
+                <div className="search-inline">
+                  <Search size={12} />
+                  <input
+                    type="text"
+                    placeholder="탐지 항목 검색..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <div className="filter-pills">
+                  <button
+                    type="button"
+                    className={cn("pill", sourceTypeFilter === "all" && "active")}
+                    onClick={() => setSourceTypeFilter("all")}
+                  >
+                    ALL
+                  </button>
+                  {(Object.entries(SOURCE_TYPE_LABELS) as [FindingSourceType, string][])
+                    .filter(([key]) => sourceCounts[key])
+                    .map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        className={cn("pill", sourceTypeFilter === key && "active")}
+                        onClick={() => setSourceTypeFilter(key)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                </div>
               </div>
             </div>
 
-              <div className="latest-analysis-toolbar-row latest-analysis-toolbar-row--group">
-                <span className="latest-analysis-toolbar-label">GROUP BY</span>
-                <div className="latest-analysis-filter-group">
-                  <Button
-                    variant={groupBy === "severity" ? "secondary" : "outline"}
-                    size="icon-sm"
-                    onClick={() => setGroupBy("severity")}
-                    title="심각도별"
-                  >
-                    <Layers size={14} />
-                  </Button>
-                  <Button
-                    variant={groupBy === "file" ? "secondary" : "outline"}
-                    size="icon-sm"
-                    onClick={() => setGroupBy("file")}
-                    title="파일별"
-                  >
-                    <FileCode size={14} />
-                  </Button>
-                  <Button
-                    variant={groupBy === "status" ? "secondary" : "outline"}
-                    size="icon-sm"
-                    onClick={() => setGroupBy("status")}
-                    title="상태별"
-                  >
-                    <CheckSquare size={14} />
-                  </Button>
-                </div>
+            <div className="panel-body panel-body--tools">
+              <div className="filter-pills">
+                <button
+                  type="button"
+                  className={cn("pill", groupBy === "severity" && "active")}
+                  onClick={() => setGroupBy("severity")}
+                  aria-label="심각도별 그룹"
+                >
+                  <Layers size={11} /> SEVERITY
+                </button>
+                <button
+                  type="button"
+                  className={cn("pill", groupBy === "file" && "active")}
+                  onClick={() => setGroupBy("file")}
+                  aria-label="파일별 그룹"
+                >
+                  <FileCode size={11} /> FILE
+                </button>
+                <button
+                  type="button"
+                  className={cn("pill", groupBy === "status" && "active")}
+                  onClick={() => setGroupBy("status")}
+                  aria-label="상태별 그룹"
+                >
+                  <CheckSquare size={11} /> STATUS
+                </button>
               </div>
+              <div className="filter-sort-wrap">
+                <select
+                  className="filter-select"
+                  value={sortKey}
+                  onChange={(e) => setSortKey(e.target.value as "severity" | "createdAt" | "location")}
+                >
+                  <option value="severity">심각도순</option>
+                  <option value="createdAt">생성일순</option>
+                  <option value="location">위치순</option>
+                </select>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
+                  aria-label={sortOrder === "asc" ? "오름차순" : "내림차순"}
+                >
+                  {sortOrder === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+                </button>
+              </div>
+            </div>
 
-            <div className="latest-analysis-selection-row">
-              <label className="latest-analysis-checkbox-label">
+            <div className="panel-body panel-body--selection">
+              <label className="selection-label">
                 <input
                   type="checkbox"
                   checked={selectedIds.size === findings.length && findings.length > 0}
                   onChange={toggleSelectAll}
                 />
-                {selectedIds.size > 0 ? `${selectedIds.size}건 선택` : "전체 선택"}
+                <span>{selectedIds.size > 0 ? `${selectedIds.size}건 선택` : "전체 선택"}</span>
               </label>
               {selectedIds.size > 0 && (
-                <div className="latest-analysis-bulk-actions">
-                  <Button
-                    variant="outline"
-                    size="sm"
+                <div className="selection-actions">
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
                     onClick={() => handleBulkStatus("false_positive")}
                     disabled={bulkProcessing}
                   >
                     오탐 처리
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
                     onClick={() => handleBulkStatus("accepted_risk")}
                     disabled={bulkProcessing}
                   >
                     위험 수용
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
                     onClick={() => handleBulkStatus("fixed")}
                     disabled={bulkProcessing}
                   >
                     수정 완료
-                  </Button>
+                  </button>
                   {bulkProcessing && <Spinner size={14} />}
                 </div>
               )}
             </div>
-            </CardContent>
-          </Card>
+          </div>
 
           {groups.length === 0 ? (
-            <Card className="latest-analysis-card">
-              <CardContent className="latest-analysis-empty-card-body">
-                <span className="latest-analysis-empty-eyebrow">
+            <div className="panel">
+              <div className="panel-empty">
+                <span className="panel-empty__eyebrow">
                   {severityFilter === "all" ? "NO FINDINGS" : `NO ${severityFilter.toUpperCase()} FINDINGS`}
                 </span>
-                <p className="latest-analysis-empty-copy">
+                <p className="panel-empty__copy">
                   {severityFilter === "all"
                     ? "현재 조건에서 노출된 탐지 항목이 없습니다."
                     : `${SEVERITY_LABELS[severityFilter]} 심각도 필터에 걸리는 탐지 항목이 없습니다.`}
                 </p>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
-            groups.map((group) => (
-              <Card key={group.key} className="latest-analysis-group-card">
-                <CardContent className="latest-analysis-group-card-body">
-                  <div className="latest-analysis-group-head">
-                    {groupBy === "file" && <FileCode size={16} className="latest-analysis-group-icon" />}
-                    {groupBy === "severity" && <SeverityBadge severity={group.key as Severity} size="sm" />}
-                    {groupBy === "status" && <FindingStatusBadge status={group.key as FindingStatus} size="sm" />}
-                    <span className="latest-analysis-group-label">{group.label}</span>
-                    <span className="latest-analysis-group-count">{group.items.length} findings</span>
+            <div className="finding-groups">
+              {groups.map((group) => (
+                <div key={group.key} className="panel finding-group">
+                  <div className="panel-head">
+                    <h3>
+                      {groupBy === "file" && <FileCode aria-hidden="true" />}
+                      {groupBy === "severity" && (
+                        <span className={`sev-chip ${group.key}`}>
+                          <span className="sev-dot" aria-hidden="true" />
+                          {group.label}
+                        </span>
+                      )}
+                      {groupBy === "status" && <FindingStatusBadge status={group.key as FindingStatus} size="sm" />}
+                      {groupBy !== "severity" && <span className="finding-group__file">{group.label}</span>}
+                      <span className="count">{group.items.length}</span>
+                    </h3>
                   </div>
-                  <div className="latest-analysis-group-list">
+                  <ul className="finding-list">
                     {group.items.map(({ finding }) => {
-                      const line = finding.location?.includes(":") ? finding.location.split(":")[1] : null;
+                      const line = finding.location?.includes(":")
+                        ? finding.location.split(":")[1]
+                        : null;
                       return (
-                        <button
-                          key={finding.id}
-                          type="button"
-                          className="latest-analysis-item"
-                          onClick={() => onSelectFinding(finding.id)}
-                        >
-                          <div className="latest-analysis-item-row">
+                        <li key={finding.id} className="finding-row">
+                          <div className="finding-row__select">
                             <input
                               type="checkbox"
                               checked={selectedIds.has(finding.id)}
@@ -587,27 +628,36 @@ const LatestAnalysisContent: React.FC<{
                               }}
                               onClick={(e) => e.stopPropagation()}
                             />
-                            <SeverityBadge severity={finding.severity} size="sm" />
+                          </div>
+                          <button
+                            type="button"
+                            className="finding-row__btn"
+                            onClick={() => onSelectFinding(finding.id)}
+                          >
+                            <span className={`sev-chip ${finding.severity}`}>
+                              <span className="sev-dot" aria-hidden="true" />
+                              {finding.severity.toUpperCase()}
+                            </span>
                             <FindingStatusBadge status={finding.status} size="sm" />
                             <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
-                            <span className="latest-analysis-item-title">{finding.title}</span>
+                            <span className="finding-row__title">{finding.title}</span>
                             {(finding as Record<string, unknown>).fingerprint && (
                               <span
-                                className="latest-analysis-fingerprint"
+                                className="finding-row__fingerprint"
                                 title="이전 분석에서도 발견된 취약점"
                               >
                                 <History size={11} />
                               </span>
                             )}
-                            {line && <span className="latest-analysis-item-line">:{line}</span>}
-                          </div>
-                        </button>
+                            {line && <span className="finding-row__line">:{line}</span>}
+                          </button>
+                        </li>
                       );
                     })}
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </ul>
+                </div>
+              ))}
+            </div>
           )}
         </section>
       )}

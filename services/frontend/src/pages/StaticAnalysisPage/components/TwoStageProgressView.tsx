@@ -1,11 +1,9 @@
 import React, { useState } from "react";
-import { AlertTriangle, CheckCircle, Loader, XCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { AlertTriangle, ArrowLeft, CheckCircle, Loader, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AnalysisStage } from "../../../hooks/useAnalysisWebSocket";
 import { useElapsedTimer } from "../../../hooks/useElapsedTimer";
-import { ConfirmDialog, PageHeader } from "../../../shared/ui";
+import { ConfirmDialog } from "../../../shared/ui";
 
 interface Props {
   analysisId: string | null;
@@ -74,43 +72,81 @@ export const TwoStageProgressView: React.FC<Props> = ({
   const isComplete = stage === "deep_complete";
   const isError = stage === "error";
 
+  const titleText = isComplete ? "분석 완료" : isError ? "분석 오류" : "분석 진행 중";
+  const gateKind = isComplete ? "pass" : isError ? "blocked" : "running";
+
   return (
-    <div className="two-stage-shell">
-      <PageHeader
-        surface="plain"
-        title={isComplete ? "분석 완료" : isError ? "분석 오류" : "분석 진행 중"}
-        subtitle={message || undefined}
-        action={<span className="two-stage-timer">{timeStr}</span>}
-      />
-
-      {(buildTargetId || executionId || (targetProgress && targetProgress.total > 1)) && (
-        <div className="two-stage-meta-readout" role="group" aria-label="분석 메타">
-          {buildTargetId ? (
-            <div className="two-stage-meta-cell">
-              <span className="two-stage-meta-label">BUILD TARGET</span>
-              <span className="two-stage-meta-value">{buildTargetId}</span>
-            </div>
-          ) : null}
-          {executionId ? (
-            <div className="two-stage-meta-cell">
-              <span className="two-stage-meta-label">EXECUTION</span>
-              <span className="two-stage-meta-value">{executionId}</span>
-            </div>
-          ) : null}
-          {targetProgress && targetProgress.total > 1 ? (
-            <div className="two-stage-meta-cell">
-              <span className="two-stage-meta-label">TARGET PROGRESS</span>
-              <span className="two-stage-meta-value">
-                {targetProgress.current} / {targetProgress.total}
-                {targetName ? ` · ${targetName}` : ""}
-              </span>
-            </div>
-          ) : null}
+    <div className="page-shell two-stage-shell" data-chore>
+      <header className="page-head chore c-1">
+        <div>
+          <button type="button" className="back-link" onClick={onBack}>
+            <ArrowLeft aria-hidden="true" /> 대시보드로
+          </button>
+          <h1>{titleText}</h1>
+          <div className="sub">
+            <span className={`cell-gate ${gateKind}`}>
+              {isComplete ? "COMPLETE" : isError ? "ERROR" : "RUNNING"}
+            </span>
+            <span className="sep" aria-hidden="true">·</span>
+            <span className="sub-caps">ELAPSED</span>
+            <b>{timeStr}</b>
+            {buildTargetId ? (
+              <>
+                <span className="sep" aria-hidden="true">·</span>
+                <span className="sub-caps">BUILD TARGET</span>
+                <b className="mono-code">{buildTargetId}</b>
+              </>
+            ) : null}
+            {executionId ? (
+              <>
+                <span className="sep" aria-hidden="true">·</span>
+                <span className="sub-caps">EXECUTION</span>
+                <b className="mono-code">{executionId}</b>
+              </>
+            ) : null}
+            {targetProgress && targetProgress.total > 1 ? (
+              <>
+                <span className="sep" aria-hidden="true">·</span>
+                <span className="sub-caps">TARGET</span>
+                <b>
+                  {targetProgress.current} / {targetProgress.total}
+                  {targetName ? ` · ${targetName}` : ""}
+                </b>
+              </>
+            ) : null}
+          </div>
         </div>
-      )}
+        <div className="actions">
+          {isComplete ? (
+            <button type="button" className="btn btn-primary" onClick={onViewResults}>
+              결과 보기
+            </button>
+          ) : isError ? (
+            <button type="button" className="btn btn-outline" onClick={onBack}>
+              돌아가기
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={() => setShowAbortConfirm(true)}
+            >
+              <AlertTriangle size={14} />
+              분석 중단
+            </button>
+          )}
+        </div>
+      </header>
 
-      <Card className="two-stage-progress-card">
-        <CardContent className="two-stage-progress-body">
+      <section className="chore c-2" aria-labelledby="progress-head">
+        <div className="section-head">
+          <h2 id="progress-head">
+            진행 단계
+            <span className="count">{STAGES.length}</span>
+          </h2>
+          {message ? <span className="hint">{message}</span> : null}
+        </div>
+        <div className="panel">
           <div className="two-stage-steps">
             {STAGES.map((stageInfo, index) => {
               const complete = isStageComplete(stageInfo.key, stage);
@@ -118,74 +154,82 @@ export const TwoStageProgressView: React.FC<Props> = ({
               const stateClass = complete ? "is-complete" : active ? "is-active" : "is-pending";
 
               return (
-                <div key={stageInfo.key} className="two-stage-step">
-                  <div className={cn("two-stage-step-marker", stateClass)}>
+                <div key={stageInfo.key} className={cn("two-stage-step", stateClass)}>
+                  <div className="two-stage-step__marker">
                     {complete ? (
-                      <CheckCircle size={24} />
+                      <CheckCircle size={18} />
                     ) : active ? (
-                      <Loader size={24} className="two-stage-step-spinner" />
+                      <Loader size={18} className="two-stage-step__spinner" />
                     ) : (
-                      <span className="two-stage-step-index">{index + 1}</span>
+                      <span className="two-stage-step__index">{index + 1}</span>
                     )}
                   </div>
-                  <div className="two-stage-step-copy">
-                    <div className={cn("two-stage-step-title", stateClass === "is-pending" && "is-muted")}>
-                      {stageInfo.label}
-                    </div>
+                  <div className="two-stage-step__copy">
+                    <div className="two-stage-step__title">{stageInfo.label}</div>
                     {stageInfo.key === "quick_sast" && complete && quickFindingCount !== null ? (
-                      <div className="two-stage-step-success">{quickFindingCount}개 finding 발견</div>
+                      <div className="two-stage-step__success">
+                        <span className="sub-caps">QUICK FINDINGS</span>
+                        <b>{quickFindingCount}</b>
+                      </div>
                     ) : null}
                     {stageInfo.key === "deep_analyzing" && complete && deepFindingCount !== null ? (
-                      <div className="two-stage-step-success">{deepFindingCount}개 finding 추가 발견</div>
+                      <div className="two-stage-step__success">
+                        <span className="sub-caps">DEEP ADDED</span>
+                        <b>{deepFindingCount}</b>
+                      </div>
                     ) : null}
-                    {active && message ? <div className="two-stage-step-message">{message}</div> : null}
+                    {active && message ? (
+                      <div className="two-stage-step__message">{message}</div>
+                    ) : null}
                   </div>
                   {index < STAGES.length - 1 ? (
-                    <div className={cn("two-stage-step-line", complete && "is-complete")} />
+                    <div className={cn("two-stage-step__line", complete && "is-complete")} />
                   ) : null}
                 </div>
               );
             })}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       {isError && error ? (
-        <Card className="two-stage-error-card">
-          <CardContent className="two-stage-error-body">
-            <div className="two-stage-error-head">
-              <XCircle size={20} />
+        <section className="chore c-3" aria-labelledby="error-head">
+          <div className="section-head">
+            <h2 id="error-head">오류</h2>
+          </div>
+          <div className="panel two-stage-error">
+            <div className="two-stage-error__head">
+              <XCircle size={16} aria-hidden="true" />
               <span>
                 {errorPhase === "quick" ? "빠른 분석" : errorPhase === "deep" ? "심층 분석" : "분석"} 중 오류 발생
               </span>
             </div>
-            <p className="two-stage-error-copy">{error}</p>
-            {retryable ? <Button onClick={onRetry}>다시 시도</Button> : null}
-          </CardContent>
-        </Card>
+            <p className="two-stage-error__copy">{error}</p>
+            {retryable ? (
+              <div className="two-stage-error__actions">
+                <button type="button" className="btn btn-primary btn-sm" onClick={onRetry}>
+                  다시 시도
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </section>
       ) : null}
 
-      <div className="two-stage-actions">
-        {isComplete ? (
-          <Button onClick={onViewResults}>결과 보기</Button>
-        ) : isError ? (
-          <Button variant="outline" onClick={onBack}>돌아가기</Button>
-        ) : (
-          <Button variant="destructive" onClick={() => setShowAbortConfirm(true)}>
-            <AlertTriangle size={14} />
-            분석 중단
-          </Button>
-        )}
-      </div>
-
       {stage === "deep_submitting" || stage === "deep_analyzing" ? (
-        <Card className="two-stage-handoff-card">
-          <CardContent className="two-stage-handoff-body">
-            <CheckCircle size={16} className="two-stage-handoff-icon" />
-            <span>빠른 분석 결과가 준비되었습니다.</span>
-            <Button variant="outline" size="sm" onClick={onViewResults}>먼저 확인하기</Button>
-          </CardContent>
-        </Card>
+        <section className="chore c-4" aria-labelledby="handoff-head">
+          <div className="section-head">
+            <h2 id="handoff-head">먼저 확인</h2>
+            <span className="hint">QUICK 결과 준비됨</span>
+          </div>
+          <div className="panel two-stage-handoff">
+            <CheckCircle size={16} aria-hidden="true" />
+            <span>빠른 분석 결과를 먼저 확인할 수 있습니다.</span>
+            <button type="button" className="btn btn-outline btn-sm" onClick={onViewResults}>
+              Quick 결과 보기
+            </button>
+          </div>
+        </section>
       ) : null}
 
       <ConfirmDialog

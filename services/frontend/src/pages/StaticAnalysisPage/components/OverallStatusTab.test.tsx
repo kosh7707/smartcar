@@ -48,8 +48,7 @@ describe("OverallStatusTab", () => {
       />,
     );
 
-    expect(screen.getByText("총 Finding")).toBeInTheDocument();
-    expect(screen.getByText("보안 현황")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: /보안 현황/ })).toBeInTheDocument();
     expect(screen.getByText("분포")).toBeInTheDocument();
     expect(screen.getByText("취약 파일 Top 2")).toBeInTheDocument();
     expect(screen.getByText("룰 히트 Top 2")).toBeInTheDocument();

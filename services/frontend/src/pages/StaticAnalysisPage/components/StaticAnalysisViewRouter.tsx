@@ -3,7 +3,6 @@ import { BackButton, ConnectionStatusBanner, Spinner } from "../../../shared/ui"
 import { FindingDetailView } from "../../../shared/findings/FindingDetailView";
 import { AnalysisResultsView } from "./AnalysisResultsView";
 import { RunDetailView } from "./RunDetailView";
-import { SourceTreeView } from "./SourceTreeView";
 import { StaticAnalysisUploadScreen } from "./StaticAnalysisUploadScreen";
 import { StaticAnalysisEmptyState } from "./StaticAnalysisEmptyState";
 import { StaticDashboard } from "./StaticDashboard";
@@ -161,25 +160,6 @@ export function StaticAnalysisViewRouter({
         onSelectVuln={(vuln) => state.handleSelectFinding(vuln.id)}
         onNewAnalysis={state.goToDashboard}
       />
-    );
-  }
-
-  if (state.view === "sourceTree") {
-    return (
-      <>
-        <div className="page-enter">
-          <BackButton onClick={state.goToDashboard} label="대시보드로" />
-          <SourceTreeView
-            projectId={projectId}
-            sourceFiles={state.sourceFiles as never}
-            findings={state.findings as never}
-            onAnalysisStart={state.handleAnalysisStart}
-            onReupload={() => state.setView("sourceUpload" as never)}
-            onSelectFinding={state.handleSelectFinding}
-          />
-        </div>
-        {targetSelectDialog}
-      </>
     );
   }
 

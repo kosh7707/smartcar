@@ -6,10 +6,8 @@ import type {
   StaticAnalysisDashboardSummary,
 } from "@aegis/shared";
 import { Code, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import type { DashboardPeriod } from "../../../shared/ui/PeriodSelector";
-import { PageHeader } from "../../../shared/ui";
 import { ActiveAnalysisBanner } from "./ActiveAnalysisBanner";
 import { LatestAnalysisTab } from "./LatestAnalysisTab";
 import { OverallStatusTab } from "./OverallStatusTab";
@@ -34,14 +32,6 @@ interface Props {
   onBrowseTree?: () => void;
 }
 
-type Tone = "neutral" | "info" | "warn" | "critical" | "ok";
-
-interface IdentityStat {
-  label: string;
-  value: string;
-  tone?: Tone;
-}
-
 function toRelative(iso?: string | null): string {
   if (!iso) return "—";
   try {
@@ -57,16 +47,6 @@ function toRelative(iso?: string | null): string {
     return new Date(iso).toLocaleDateString("ko-KR", { year: "2-digit", month: "2-digit", day: "2-digit" });
   } catch {
     return "—";
-  }
-}
-
-function toneClass(tone?: Tone): string {
-  switch (tone) {
-    case "info": return "static-dashboard-identity__stat--info";
-    case "warn": return "static-dashboard-identity__stat--warn";
-    case "critical": return "static-dashboard-identity__stat--critical";
-    case "ok": return "static-dashboard-identity__stat--ok";
-    default: return "";
   }
 }
 
@@ -94,60 +74,50 @@ export const StaticDashboard: React.FC<Props> = ({
   const highCount = summary.bySeverity.high ?? 0;
   const gatePassed = summary.gateStats.passed;
   const gateTotal = summary.gateStats.total;
-  const gateFailed = gateTotal - gatePassed;
-
-  const findingsTone: Tone =
-    totalFindings === 0 ? "ok"
-    : critCount > 0 ? "critical"
-    : highCount > 0 ? "warn"
-    : "info";
-
-  const gateTone: Tone =
-    gateTotal === 0 ? "neutral"
-    : gateFailed === 0 ? "ok"
-    : gateFailed > 0 ? "critical"
-    : "neutral";
-
-  const identityStats: IdentityStat[] = [
-    { label: "LAST RUN", value: toRelative(lastRunIso), tone: lastRunIso ? "info" : "neutral" },
-    { label: "FINDINGS", value: String(totalFindings), tone: findingsTone },
-    { label: "CRITICAL", value: String(critCount), tone: critCount > 0 ? "critical" : "neutral" },
-    { label: "HIGH", value: String(highCount), tone: highCount > 0 ? "warn" : "neutral" },
-    { label: "GATE", value: gateTotal === 0 ? "—" : `${gatePassed}/${gateTotal}`, tone: gateTone },
-  ];
 
   return (
-    <div className="page-shell static-dashboard-shell">
-      <div className="static-dashboard-identity">
-        <PageHeader
-          title="정적 분석"
-          action={
-            <div className="static-dashboard-actions">
-              {onBrowseTree && (
-                <Button variant="outline" onClick={onBrowseTree}>
-                  <Code size={16} />
-                  소스 탐색
-                </Button>
-              )}
-              <Button onClick={onNewAnalysis}>
-                <Plus size={16} />
-                새 분석
-              </Button>
-            </div>
-          }
-        />
-        <dl className="static-dashboard-identity__strip" aria-label="정적 분석 지표">
-          {identityStats.map((stat) => (
-            <div
-              key={stat.label}
-              className={`static-dashboard-identity__stat ${toneClass(stat.tone)}`.trim()}
-            >
-              <dt className="static-dashboard-identity__label">{stat.label}</dt>
-              <dd className="static-dashboard-identity__value">{stat.value}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
+    <div className="page-shell static-dashboard-shell" data-chore>
+      <header className="page-head chore c-1">
+        <div>
+          <h1>정적 분석</h1>
+          <div className="sub">
+            <span className="sub-caps">LAST RUN</span>
+            <b>{toRelative(lastRunIso)}</b>
+            <span className="sep" aria-hidden="true">·</span>
+            <span className="sub-caps">FINDINGS</span>
+            <b className={cn(critCount > 0 && "is-critical")}>{totalFindings}</b>
+            {critCount > 0 && (
+              <>
+                <span className="sep" aria-hidden="true">·</span>
+                <span className="sub-caps">CRITICAL</span>
+                <b className="is-critical">{critCount}</b>
+              </>
+            )}
+            {highCount > 0 && (
+              <>
+                <span className="sep" aria-hidden="true">·</span>
+                <span className="sub-caps">HIGH</span>
+                <b className="is-high">{highCount}</b>
+              </>
+            )}
+            <span className="sep" aria-hidden="true">·</span>
+            <span className="sub-caps">GATE</span>
+            <b>{gateTotal === 0 ? "—" : `${gatePassed}/${gateTotal}`}</b>
+          </div>
+        </div>
+        <div className="actions">
+          {onBrowseTree && (
+            <button type="button" className="btn btn-outline" onClick={onBrowseTree}>
+              <Code size={16} />
+              소스 탐색
+            </button>
+          )}
+          <button type="button" className="btn btn-primary" onClick={onNewAnalysis}>
+            <Plus size={16} />
+            새 분석
+          </button>
+        </div>
+      </header>
 
       {activeAnalysis && (
         <ActiveAnalysisBanner
@@ -157,20 +127,30 @@ export const StaticDashboard: React.FC<Props> = ({
         />
       )}
 
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) => setActiveTab(value as TabId)}
-        className="static-dashboard-tabs"
-      >
-        <TabsList variant="line" className="static-dashboard-tabs__list">
-          <TabsTrigger value="latest" className="static-dashboard-tabs__trigger">
+      <nav className="static-dashboard-tabs chore c-2" aria-label="대시보드 탭">
+        <div className="filter-pills filter-pills--tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "latest"}
+            className={cn("pill", activeTab === "latest" && "active")}
+            onClick={() => setActiveTab("latest")}
+          >
             최신 분석
-          </TabsTrigger>
-          <TabsTrigger value="overall" className="static-dashboard-tabs__trigger">
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "overall"}
+            className={cn("pill", activeTab === "overall" && "active")}
+            onClick={() => setActiveTab("overall")}
+          >
             전체 현황
-          </TabsTrigger>
-        </TabsList>
+          </button>
+        </div>
+      </nav>
 
+      <div className="chore c-3">
         {activeTab === "latest" ? (
           <LatestAnalysisTab
             runDetail={latestRunDetail}
@@ -189,7 +169,7 @@ export const StaticDashboard: React.FC<Props> = ({
             onFileClick={onFileClick}
           />
         )}
-      </Tabs>
+      </div>
     </div>
   );
 };

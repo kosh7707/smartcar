@@ -23,8 +23,10 @@ describe("ActiveAnalysisBanner", () => {
     expect(screen.getByText(/3\/10개 파일/)).toBeInTheDocument();
     expect(screen.getByText(/심층 분석 진행 중/)).toBeInTheDocument();
     expect(screen.getByText(/2\/4 단계/)).toBeInTheDocument();
-    expect(screen.getByText(/빌드 타겟 target-1/)).toBeInTheDocument();
-    expect(screen.getByText(/Execution exec-1/)).toBeInTheDocument();
+    expect(screen.getByText("BUILD TARGET")).toBeInTheDocument();
+    expect(screen.getByText("target-1")).toBeInTheDocument();
+    expect(screen.getByText("EXECUTION")).toBeInTheDocument();
+    expect(screen.getByText("exec-1")).toBeInTheDocument();
   });
 
   it("fires view and abort actions", () => {
