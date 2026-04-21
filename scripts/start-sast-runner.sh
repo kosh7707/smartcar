@@ -16,17 +16,24 @@ fi
 export PATH="$(pwd)/.venv/bin:$PATH"
 
 hot_reload="${SAST_HOT_RELOAD:-1}"
+export SAST_HOT_RELOAD="${hot_reload}"
+
+cmd=(
+  .venv/bin/python -m uvicorn app.main:app
+  --host 0.0.0.0
+  --port "${SAST_PORT:-9000}"
+)
+
 case "${hot_reload,,}" in
   1|true|yes|on)
-    exec .venv/bin/python -m uvicorn app.main:app \
-      --host 0.0.0.0 \
-      --port "${SAST_PORT:-9000}" \
-      --reload \
-      --reload-dir "$(pwd)/app"
-    ;;
-  *)
-    exec .venv/bin/python -m uvicorn app.main:app \
-      --host 0.0.0.0 \
-      --port "${SAST_PORT:-9000}"
+    cmd+=(--reload --reload-dir "$(pwd)/app")
     ;;
 esac
+
+if [[ "${AEGIS_PRINT_CMD:-0}" == "1" ]]; then
+  printf '%q ' "${cmd[@]}"
+  printf '\n'
+  exit 0
+fi
+
+exec "${cmd[@]}"

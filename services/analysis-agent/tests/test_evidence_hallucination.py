@@ -1,7 +1,7 @@
-"""Evidence ref 환각 → 교정 통합 테스트.
+"""Evidence ref 환각 → strict grounding failure 통합 테스트.
 
-mock LLM이 환각 refId를 포함한 응답을 반환할 때,
-ResultAssembler가 sanitize 후 validation.valid == True를 보장하는지 검증한다.
+mock LLM이 unsupported refId를 포함한 응답을 반환할 때,
+ResultAssembler가 successful response로 숨기지 않는지 검증한다.
 """
 
 import json
@@ -53,9 +53,9 @@ def _make_session(
     return session
 
 
-class TestHallucinationCorrection:
-    def test_hallucinated_ref_corrected_to_valid(self):
-        """환각 refId가 유사한 allowed ref로 교정된다."""
+class TestHallucinationRejection:
+    def test_hallucinated_ref_causes_invalid_grounding(self):
+        """유사해 보이는 환각 refId도 성공 응답으로 숨기지 않는다."""
         session = _make_session(
             input_refs=["eref-001"],
             extra_allowed={"eref-sast-cmd-injection"},
@@ -67,7 +67,9 @@ class TestHallucinationCorrection:
             "summary": "Command injection found",
             "claims": [{
                 "statement": "popen() vulnerable",
+                "detail": "popen() is reachable from the cited code path.",
                 "supportingEvidenceRefs": ["eref-001", "eref-knowledge-CWE78"],
+                "location": "src/file0.c:1",
             }],
             "caveats": [],
             "usedEvidenceRefs": ["eref-001", "eref-knowledge-CWE78"],
@@ -80,21 +82,21 @@ class TestHallucinationCorrection:
         assembler = ResultAssembler()
         result = assembler.build(final_content, session)
 
-        assert result.validation.valid is True
-        assert result.validation.errors == []
-        # 교정된 refId 확인
-        assert "eref-knowledge-CWE-78" in result.result.usedEvidenceRefs
-        assert "eref-knowledge-CWE78" not in result.result.usedEvidenceRefs
+        assert result.status == "validation_failed"
+        assert result.failureCode == "INVALID_GROUNDING"
+        assert "eref-knowledge-CWE78" in result.failureDetail
 
-    def test_completely_fake_ref_removed(self):
-        """매칭 불가능한 환각 refId는 제거된다."""
+    def test_completely_fake_ref_causes_invalid_grounding(self):
+        """매칭 불가능한 환각 refId도 성공 응답으로 숨기지 않는다."""
         session = _make_session(input_refs=["eref-001"])
 
         final_content = json.dumps({
             "summary": "Analysis complete",
             "claims": [{
                 "statement": "Vulnerability found",
+                "detail": "The claim is grounded by the remaining valid evidence ref.",
                 "supportingEvidenceRefs": ["eref-001", "eref-code-graph-00"],
+                "location": "src/file0.c:1",
             }],
             "caveats": [],
             "usedEvidenceRefs": ["eref-001", "eref-code-graph-00"],
@@ -107,13 +109,12 @@ class TestHallucinationCorrection:
         assembler = ResultAssembler()
         result = assembler.build(final_content, session)
 
-        assert result.validation.valid is True
-        assert result.validation.errors == []
-        assert result.result.usedEvidenceRefs == ["eref-001"]
-        assert result.result.claims[0].supportingEvidenceRefs == ["eref-001"]
+        assert result.status == "validation_failed"
+        assert result.failureCode == "INVALID_GROUNDING"
+        assert "eref-code-graph-00" in result.failureDetail
 
     def test_all_valid_refs_pass_through(self):
-        """유효한 refId만 있으면 교정 없이 통과."""
+        """유효한 refId만 있으면 그대로 통과."""
         session = _make_session(
             input_refs=["eref-001"],
             trace_refs=[["eref-caller-main"]],
@@ -123,7 +124,9 @@ class TestHallucinationCorrection:
             "summary": "Clean analysis",
             "claims": [{
                 "statement": "Finding confirmed",
+                "detail": "All refs are valid and should pass through unchanged.",
                 "supportingEvidenceRefs": ["eref-001", "eref-caller-main"],
+                "location": "src/file0.c:1",
             }],
             "caveats": [],
             "usedEvidenceRefs": ["eref-001", "eref-caller-main"],
@@ -141,7 +144,7 @@ class TestHallucinationCorrection:
         assert set(result.result.usedEvidenceRefs) == {"eref-001", "eref-caller-main"}
 
     def test_mixed_hallucination_scenario(self):
-        """유효 + 교정가능 + 불가능 refId가 혼재된 경우."""
+        """유효 + 환각 refId가 혼재된 경우 환각 refId는 모두 제거된다."""
         session = _make_session(
             input_refs=["eref-001"],
             extra_allowed={"eref-sast-cmd-injection"},
@@ -153,11 +156,15 @@ class TestHallucinationCorrection:
             "claims": [
                 {
                     "statement": "Claim 1",
+                    "detail": "Claim 1 has one valid and one hallucinated ref.",
                     "supportingEvidenceRefs": ["eref-001", "eref-knowledge-CWE78"],
+                    "location": "src/file0.c:1",
                 },
                 {
                     "statement": "Claim 2",
+                    "detail": "Claim 2 keeps only the valid caller ref.",
                     "supportingEvidenceRefs": ["eref-totally-made-up", "eref-caller-main"],
+                    "location": "src/file1.c:1",
                 },
             ],
             "caveats": [],
@@ -171,9 +178,7 @@ class TestHallucinationCorrection:
         assembler = ResultAssembler()
         result = assembler.build(final_content, session)
 
-        assert result.validation.valid is True
-        assert result.validation.errors == []
-        # claim 1: eref-knowledge-CWE78 → eref-knowledge-CWE-78
-        assert "eref-knowledge-CWE-78" in result.result.claims[0].supportingEvidenceRefs
-        # claim 2: eref-totally-made-up 제거, eref-caller-main 유지
-        assert result.result.claims[1].supportingEvidenceRefs == ["eref-caller-main"]
+        assert result.status == "validation_failed"
+        assert result.failureCode == "INVALID_GROUNDING"
+        assert "eref-knowledge-CWE78" in result.failureDetail
+        assert "eref-totally-made-up" in result.failureDetail

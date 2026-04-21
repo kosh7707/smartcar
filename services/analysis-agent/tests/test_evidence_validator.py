@@ -38,10 +38,11 @@ class TestUsedEvidenceRefs:
         valid, errors = validator.validate(parsed, ALLOWED)
         assert valid is True
 
-    def test_non_list_ignored(self, validator):
+    def test_non_list_is_invalid(self, validator):
         parsed = {"usedEvidenceRefs": "not-a-list", "claims": []}
         valid, errors = validator.validate(parsed, ALLOWED)
-        assert valid is True
+        assert valid is False
+        assert "usedEvidenceRefs가 리스트가 아님" in errors
 
 
 class TestClaimsSupportingRefs:
@@ -81,6 +82,15 @@ class TestClaimsSupportingRefs:
         parsed = {"usedEvidenceRefs": [], "claims": ["not-a-dict"]}
         valid, errors = validator.validate(parsed, ALLOWED)
         assert valid is True
+
+    def test_empty_claim_refs_invalid(self, validator):
+        parsed = {
+            "usedEvidenceRefs": [],
+            "claims": [{"supportingEvidenceRefs": []}],
+        }
+        valid, errors = validator.validate(parsed, ALLOWED)
+        assert valid is False
+        assert "claims[0].supportingEvidenceRefs가 비어 있음" in errors
 
     def test_empty_allowed_set(self, validator):
         parsed = {"usedEvidenceRefs": ["eref-001"], "claims": []}

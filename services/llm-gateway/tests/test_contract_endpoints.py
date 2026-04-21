@@ -642,3 +642,56 @@ class TestAsyncChatOwnershipSurface:
         assert result_data["requestId"] == request_id
         assert result_data["state"] == "expired"
         assert result_data["error"] == "Async result expired"
+
+    def test_async_strict_json_failure_is_explicit_retryable(self, client_live):
+        """S3 structured finalizer용 async strict JSON 실패는 retryable terminal failure로 노출한다."""
+        mock_llm_response = {
+            "choices": [{
+                "message": {
+                    "content": "not json",
+                    "reasoning": "internal chain",
+                },
+                "finish_reason": "stop",
+            }],
+            "usage": {"prompt_tokens": 8, "completion_tokens": 4},
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            submit = client_live.post(
+                "/v1/async-chat-requests",
+                json=make_chat_body(),
+                headers={
+                    "X-Request-Id": "trace-async-strict-001",
+                    "X-AEGIS-Strict-JSON": "true",
+                },
+            )
+            request_id = submit.json()["requestId"]
+
+            deadline = time.time() + 1.0
+            status_data = None
+            while time.time() < deadline:
+                status_resp = client_live.get(f"/v1/async-chat-requests/{request_id}")
+                status_data = status_resp.json()
+                if status_data["state"] == "failed":
+                    break
+                time.sleep(0.01)
+
+            result_resp = client_live.get(f"/v1/async-chat-requests/{request_id}/result")
+
+        assert status_data is not None
+        assert status_data["state"] == "failed"
+        assert status_data["blockedReason"] == "strict_json_contract_violation"
+        assert status_data["error"] == "Strict JSON contract violated"
+        assert status_data["retryable"] is True
+
+        result_data = result_resp.json()
+        assert result_resp.status_code == 409
+        assert result_data["requestId"] == request_id
+        assert result_data["state"] == "failed"
+        assert result_data["error"] == "Strict JSON contract violated"
+        assert "valid JSON" in result_data["errorDetail"]
+        assert result_data["retryable"] is True
+        assert result_data["blockedReason"] == "strict_json_contract_violation"

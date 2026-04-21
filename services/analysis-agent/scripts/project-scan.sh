@@ -128,7 +128,6 @@ FUNC_RESPONSE=$(curl -sf -X POST "$SAST_URL/v1/functions" \
       \"projectId\": \"$PROJECT_ID\",
       \"projectPath\": \"$PROJECT_ROOT\",
       \"buildProfile\": {
-        \"sdkId\": \"custom\",
         \"compiler\": \"g++\",
         \"targetArch\": \"x86_64\",
         \"languageStandard\": \"c++17\",

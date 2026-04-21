@@ -1,5 +1,4 @@
 import React from "react";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
 
 interface TopRule {
   ruleId: string;
@@ -16,24 +15,33 @@ export const TopRulesCard: React.FC<Props> = ({ topRules }) => {
   const maxHit = Math.max(...topRules.map((r) => r.hitCount), 1);
 
   return (
-    <Card className="overall-top-rules-card">
-      <CardContent className="overall-top-rules-card__body">
-        <CardTitle>룰 히트 Top {topRules.length}</CardTitle>
-        <div className="overall-top-rules-card__list">
+    <div className="panel overall-top-rules">
+      <div className="panel-head">
+        <h3>룰 히트 Top {topRules.length}</h3>
+      </div>
+      <div className="panel-body panel-body--flush">
+        <ol className="rank-list">
           {topRules.map((r, i) => (
-            <div key={r.ruleId} className="overall-top-rules-card__row">
-              <span className="overall-top-rules-card__rank">{i + 1}</span>
-              <span className="overall-top-rules-card__name" title={r.ruleId}>
-                {r.ruleId}
-              </span>
-              <div className="overall-top-rules-card__bar">
-                <div className="overall-top-rules-card__bar-fill" style={{ width: `${(r.hitCount / maxHit) * 100}%` }} />
+            <li key={r.ruleId} className="rank-list__item">
+              <div className="rank-row">
+                <span className="rank-row__index" aria-hidden="true">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span className="rank-row__primary rank-row__primary--rule" title={r.ruleId}>
+                  {r.ruleId}
+                </span>
+                <div className="rank-row__bar" aria-hidden="true">
+                  <div
+                    className="rank-row__bar-fill"
+                    style={{ width: `${(r.hitCount / maxHit) * 100}%` }}
+                  />
+                </div>
+                <span className="rank-row__count">{r.hitCount}</span>
               </div>
-              <span className="overall-top-rules-card__count">{r.hitCount}</span>
-            </div>
+            </li>
           ))}
-        </div>
-      </CardContent>
-    </Card>
+        </ol>
+      </div>
+    </div>
   );
 };

@@ -99,6 +99,244 @@ async def test_generate_poc_returns_structured_json_with_valid_claim(monkeypatch
 
 
 @pytest.mark.asyncio
+async def test_generate_poc_repairs_missing_top_level_caveats(monkeypatch):
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+
+    responses = [
+        {
+            "summary": "PoC가 RCE 가능성을 재현한다.",
+            "claims": [{
+                "statement": "PoC는 popen 경로를 통해 명령 주입 가능성을 증명한다.",
+                "detail": "PoC detail",
+                "supportingEvidenceRefs": ["eref-001"],
+                "location": "src/http_client.cpp:62",
+            }],
+            "usedEvidenceRefs": ["eref-001"],
+            "suggestedSeverity": "high",
+            "needsHumanReview": True,
+            "recommendedNextSteps": ["escape 검증 추가"],
+            "policyFlags": [],
+        },
+        {
+            "summary": "PoC가 RCE 가능성을 재현한다.",
+            "claims": [{
+                "statement": "PoC는 popen 경로를 통해 명령 주입 가능성을 증명한다.",
+                "detail": "PoC detail",
+                "supportingEvidenceRefs": ["eref-001"],
+                "location": "src/http_client.cpp:62",
+            }],
+            "caveats": [],
+            "usedEvidenceRefs": ["eref-001"],
+            "suggestedSeverity": "high",
+            "needsHumanReview": True,
+            "recommendedNextSteps": ["escape 검증 추가"],
+            "policyFlags": [],
+        },
+    ]
+    calls = {"count": 0}
+
+    async def fake_call(self, *args, **kwargs):
+        payload = responses[min(calls["count"], len(responses) - 1)]
+        calls["count"] += 1
+        return _mock_llm_response(json.dumps(payload))
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "completed"
+        assert isinstance(result.result.caveats, list)
+        assert result.validation.valid is True
+        assert result.validation.errors == []
+        assert result.result.claims[0].supportingEvidenceRefs == ["eref-001"]
+        assert calls["count"] == 2
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
+async def test_generate_poc_repairs_orphaned_claim_fragment_via_strict_schema_repair(monkeypatch):
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+
+    responses = [
+        {
+            "summary": "PoC가 RCE 가능성을 재현한다.",
+            "claims": [
+                {
+                    "statement": "PoC는 popen 경로를 통해 명령 주입 가능성을 증명한다.",
+                    "detail": "## Injection 분석\n- Quote Context: -subj '/CN=",
+                },
+                (
+                    'supportingEvidenceRefs": ["eref-001"],\n'
+                    '"location": "src/http_client.cpp:62"\n'
+                    '  }],\n'
+                    '  "caveats": [],\n'
+                    '  "usedEvidenceRefs": ["eref-001"],\n'
+                    '  "suggestedSeverity": "high",\n'
+                    '  "needsHumanReview": true,\n'
+                    '  "recommendedNextSteps": ["escape 검증 추가"],\n'
+                    '  "policyFlags": []'
+                ),
+            ],
+        },
+        {
+            "summary": "PoC가 RCE 가능성을 재현한다.",
+            "claims": [
+                {
+                    "statement": "PoC는 popen 경로를 통해 명령 주입 가능성을 증명한다.",
+                    "detail": "## Injection 분석\n- Quote Context: -subj '/CN='",
+                    "supportingEvidenceRefs": ["eref-001"],
+                    "location": "src/http_client.cpp:62",
+                }
+            ],
+            "caveats": [],
+            "usedEvidenceRefs": ["eref-001"],
+            "suggestedSeverity": "high",
+            "needsHumanReview": True,
+            "recommendedNextSteps": ["escape 검증 추가"],
+            "policyFlags": [],
+        },
+    ]
+    calls = {"count": 0}
+
+    async def fake_call(self, *args, **kwargs):
+        payload = responses[min(calls["count"], len(responses) - 1)]
+        calls["count"] += 1
+        return _mock_llm_response(json.dumps(payload))
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "completed"
+        assert len(result.result.claims) == 1
+        assert result.result.claims[0].supportingEvidenceRefs == ["eref-001"]
+        assert result.result.claims[0].location == "src/http_client.cpp:62"
+        assert isinstance(result.result.caveats, list)
+        assert result.result.usedEvidenceRefs == ["eref-001"]
+        assert result.validation.valid is True
+        assert calls["count"] == 2
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
+async def test_generate_poc_rejects_schema_valid_evidence_empty_output(monkeypatch):
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+
+    async def fake_call(self, *args, **kwargs):
+        return _mock_llm_response(json.dumps({
+            "summary": "PoC for command injection.",
+            "claims": [{
+                "statement": "CN input reaches popen and can trigger command injection.",
+                "detail": "PoC calls the vulnerable certificate maker with a crafted CN.",
+                "supportingEvidenceRefs": [],
+                "location": "src/http_client.cpp:62",
+            }],
+            "caveats": [],
+            "usedEvidenceRefs": [],
+            "suggestedSeverity": "critical",
+            "needsHumanReview": True,
+            "recommendedNextSteps": [],
+            "policyFlags": [],
+        }))
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "validation_failed"
+        assert result.failureCode == "INVALID_GROUNDING"
+        assert "claims[0].supportingEvidenceRefs가 비어 있음" in result.failureDetail
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
+async def test_generate_poc_rejects_hallucinated_refs_after_sanitization(monkeypatch):
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+
+    async def fake_call(self, *args, **kwargs):
+        return _mock_llm_response(json.dumps({
+            "summary": "PoC for command injection.",
+            "claims": [{
+                "statement": "CN input reaches popen and can trigger command injection.",
+                "detail": "PoC calls the vulnerable certificate maker with a crafted CN.",
+                "supportingEvidenceRefs": ["eref-hallucinated"],
+                "location": "src/http_client.cpp:62",
+            }],
+            "caveats": [],
+            "usedEvidenceRefs": ["eref-hallucinated"],
+            "suggestedSeverity": "critical",
+            "needsHumanReview": True,
+            "recommendedNextSteps": [],
+            "policyFlags": [],
+        }))
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "validation_failed"
+        assert result.failureCode == "INVALID_GROUNDING"
+        assert "eref-hallucinated" in result.failureDetail
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
 async def test_generate_poc_requests_async_ownership_for_toolless_llm_call(monkeypatch):
     original_mode = settings.llm_mode
     monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(

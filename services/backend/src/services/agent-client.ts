@@ -166,23 +166,13 @@ export class AgentClient {
     };
     if (requestId) headers["X-Request-Id"] = requestId;
 
-    const res = await this.doFetch(
+    const data = await this.doFetch(
       `${this.baseUrl}/v1/tasks`,
       headers,
       request,
       requestId,
       signal,
     );
-
-    let data: AgentResponse;
-    try {
-      data = (await res.json()) as AgentResponse;
-    } catch (err) {
-      throw new AgentUnavailableError(
-        "Failed to parse Agent response as JSON",
-        err,
-      );
-    }
 
     if (data.status === "completed") {
       const success = data as AgentResponseSuccess;
@@ -234,7 +224,7 @@ export class AgentClient {
     body: unknown,
     requestId?: string,
     signal?: AbortSignal,
-  ): Promise<Response> {
+  ): Promise<AgentResponse> {
     const bodyStr = JSON.stringify(body);
 
     for (let attempt = 0; ; attempt++) {
@@ -258,6 +248,11 @@ export class AgentClient {
         );
       }
 
+      const structuredFailure = await this.tryParseFailureResponse(res);
+      if (structuredFailure) {
+        return structuredFailure;
+      }
+
       if (res.status === 503 && attempt < AgentClient.MAX_RETRIES) {
         const delay = AgentClient.RETRY_BASE_MS * 2 ** attempt;
         logger.warn(
@@ -275,8 +270,34 @@ export class AgentClient {
         );
       }
 
-      return res;
+      try {
+        return (await res.json()) as AgentResponse;
+      } catch (err) {
+        throw new AgentUnavailableError(
+          "Failed to parse Agent response as JSON",
+          err,
+        );
+      }
     }
+  }
+
+  private async tryParseFailureResponse(res: Response): Promise<AgentResponseFailure | null> {
+    if (res.ok) return null;
+    try {
+      const clone = typeof res.clone === "function" ? res.clone() : res;
+      const parsed = (await clone.json()) as Record<string, unknown>;
+      if (
+        typeof parsed.status === "string"
+        && parsed.status !== "completed"
+        && typeof parsed.failureCode === "string"
+        && typeof parsed.failureDetail === "string"
+      ) {
+        return parsed as unknown as AgentResponseFailure;
+      }
+    } catch {
+      // Non-JSON transport failure: keep legacy retry / unavailable behavior.
+    }
+    return null;
   }
 
   private sleep(ms: number, signal?: AbortSignal): Promise<void> {

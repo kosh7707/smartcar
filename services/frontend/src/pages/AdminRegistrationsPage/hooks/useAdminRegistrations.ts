@@ -38,8 +38,8 @@ export function useAdminRegistrations() {
     setActionError(null);
     setBusy((prev) => ({ ...prev, [id]: "approve" }));
     try {
-      await approveRegistrationRequest(id, role);
-      await refresh();
+      const updated = await approveRegistrationRequest(id, role);
+      setRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
     } catch (failure: unknown) {
       const message = failure instanceof Error ? failure.message : "승인 처리에 실패했습니다.";
       setActionError(message);
@@ -50,7 +50,7 @@ export function useAdminRegistrations() {
         return next;
       });
     }
-  }, [refresh]);
+  }, []);
 
   const reject = useCallback(async (id: string, reason: string) => {
     const trimmed = reason.trim();
@@ -61,8 +61,8 @@ export function useAdminRegistrations() {
     setActionError(null);
     setBusy((prev) => ({ ...prev, [id]: "reject" }));
     try {
-      await rejectRegistrationRequest(id, trimmed);
-      await refresh();
+      const updated = await rejectRegistrationRequest(id, trimmed);
+      setRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       return true;
     } catch (failure: unknown) {
       const message = failure instanceof Error ? failure.message : "반려 처리에 실패했습니다.";
@@ -75,7 +75,7 @@ export function useAdminRegistrations() {
         return next;
       });
     }
-  }, [refresh]);
+  }, []);
 
   const counts = {
     pending: requests.filter((r) => r.status === "pending_admin_review").length,

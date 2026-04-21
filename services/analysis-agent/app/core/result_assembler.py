@@ -76,18 +76,52 @@ class ResultAssembler:
         for step in session.trace:
             allowed_refs.update(step.new_evidence_refs)
 
-        # 환각 refId 교정/제거 (validation 전에 실행)
+        schema_result = self._schema_validator.validate(parsed, session.request.taskType)
+        if not schema_result.valid:
+            agent_log(
+                logger, "결과 검증",
+                component="result_assembler", phase="result_validate",
+                schemaValid=False,
+                evidenceValid=False,
+                errorCount=len(schema_result.errors),
+            )
+            session.set_termination_reason("invalid_final_output")
+            return self.build_failure(
+                session,
+                TaskStatus.VALIDATION_FAILED,
+                FailureCode.INVALID_SCHEMA,
+                "; ".join(schema_result.errors),
+                retryable=False,
+            )
+
+        evidence_valid, evidence_errors = self._evidence_validator.validate(parsed, allowed_refs)
+        if not evidence_valid:
+            agent_log(
+                logger, "결과 검증",
+                component="result_assembler", phase="result_validate",
+                schemaValid=True,
+                evidenceValid=False,
+                errorCount=len(evidence_errors),
+            )
+            session.set_termination_reason("invalid_grounding")
+            return self.build_failure(
+                session,
+                TaskStatus.VALIDATION_FAILED,
+                FailureCode.INVALID_GROUNDING,
+                "; ".join(evidence_errors),
+                retryable=False,
+            )
+
+        # 환각 refId 제거 (raw evidence validation 이후의 방어적 no-op)
         parsed, sanitize_corrections = self._evidence_sanitizer.sanitize(parsed, allowed_refs)
         if sanitize_corrections:
             agent_log(
-                logger, "evidence ref 교정",
+                logger, "evidence ref defensive cleanup",
                 component="result_assembler", phase="result_sanitize",
                 correctionCount=len(sanitize_corrections),
                 corrections=sanitize_corrections[:10],
             )
 
-        schema_result = self._schema_validator.validate(parsed, session.request.taskType)
-        evidence_valid, evidence_errors = self._evidence_validator.validate(parsed, allowed_refs)
         validation = ValidationInfo(
             valid=schema_result.valid and evidence_valid,
             errors=schema_result.errors + evidence_errors,
@@ -100,24 +134,6 @@ class ResultAssembler:
             evidenceValid=evidence_valid,
             errorCount=len(schema_result.errors) + len(evidence_errors),
         )
-
-        if not schema_result.valid:
-            session.set_termination_reason("invalid_final_output")
-            return self.build_failure(
-                session,
-                TaskStatus.VALIDATION_FAILED,
-                FailureCode.INVALID_SCHEMA,
-                "; ".join(schema_result.errors),
-                retryable=False,
-            )
-
-        if not evidence_valid:
-            agent_log(
-                logger, "evidence 검증 경고 (soft mode — 보고서는 반환)",
-                component="result_assembler", phase="result_validate_soft",
-                evidence_errors=evidence_errors[:5],
-                level=logging.WARNING,
-            )
 
         # confidence
         finding = session.request.context.trusted.get("finding")

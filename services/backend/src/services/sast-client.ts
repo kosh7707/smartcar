@@ -34,6 +34,18 @@ export interface SastScanRequest {
   };
 }
 
+function normalizeScanRequestForS4(request: SastScanRequest): SastScanRequest {
+  if (request.buildProfile?.sdkId !== "custom") {
+    return request;
+  }
+
+  const { sdkId: _sdkId, ...nativeBuildProfile } = request.buildProfile;
+  return {
+    ...request,
+    buildProfile: nativeBuildProfile as BuildProfile,
+  };
+}
+
 // ── 응답 타입 ──
 
 export interface SastToolResult {
@@ -152,7 +164,7 @@ export class SastClient {
     const data = await this.doScanFetch(
       `${this.baseUrl}/v1/scan`,
       headers,
-      request,
+      normalizeScanRequestForS4(request),
       requestId,
       signal,
     );

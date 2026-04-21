@@ -238,6 +238,8 @@ def _async_result_error(
     expires_at: str | None,
     error: str,
     blocked_reason: str | None = None,
+    error_detail: str | None = None,
+    retryable: bool = False,
 ) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
@@ -247,6 +249,8 @@ def _async_result_error(
             "state": state,
             "expiresAt": expires_at,
             "error": error,
+            "errorDetail": error_detail or blocked_reason or error,
+            "retryable": retryable,
             "blockedReason": blocked_reason,
         },
     )
@@ -299,6 +303,9 @@ async def _run_async_chat_request(
                 record.request_id,
                 blocked_reason="circuit_open",
                 ack_source="circuit-open",
+                error="LLM Engine circuit open",
+                error_detail="Circuit breaker is open for the LLM backend",
+                retryable=True,
             )
             return
 
@@ -339,6 +346,9 @@ async def _run_async_chat_request(
             record.request_id,
             blocked_reason="backend_unreachable",
             ack_source="connect-error",
+            error="LLM Engine unreachable",
+            error_detail="Could not connect to LLM backend",
+            retryable=True,
         )
         return
     except httpx.TimeoutException:
@@ -356,6 +366,9 @@ async def _run_async_chat_request(
             record.request_id,
             blocked_reason="backend_timeout",
             ack_source="backend-timeout",
+            error="LLM Engine timeout",
+            error_detail="LLM backend did not respond before the async ownership timeout",
+            retryable=True,
         )
         return
 
@@ -396,6 +409,9 @@ async def _run_async_chat_request(
                 record.request_id,
                 blocked_reason="strict_json_contract_violation",
                 ack_source="strict-json-contract",
+                error="Strict JSON contract violated",
+                error_detail=strict_error,
+                retryable=True,
             )
             return
         resp_data = normalized_resp_data
@@ -431,6 +447,9 @@ async def _run_async_chat_request(
         record.request_id,
         blocked_reason=f"http_{resp.status_code}",
         ack_source="backend-error",
+        error=f"LLM Engine HTTP_{resp.status_code}",
+        error_detail=(resp.text[:500] if resp.text else f"LLM backend returned HTTP {resp.status_code}"),
+        retryable=resp.status_code in {429, 500, 502, 503, 504},
     )
 
 
@@ -512,6 +531,7 @@ async def get_async_chat_request_result(request_id: str, req: Request) -> JSONRe
             expires_at=record.to_status_response()["expiresAt"],
             error="Async result not ready",
             blocked_reason=record.blocked_reason,
+            retryable=True,
         )
 
     return _async_result_error(
@@ -520,7 +540,9 @@ async def get_async_chat_request_result(request_id: str, req: Request) -> JSONRe
         trace_request_id=record.trace_request_id,
         state=record.state,
         expires_at=record.to_status_response()["expiresAt"],
-        error="Async request did not complete successfully",
+        error=record.error or "Async request did not complete successfully",
+        error_detail=record.error_detail,
+        retryable=record.retryable,
         blocked_reason=record.blocked_reason,
     )
 

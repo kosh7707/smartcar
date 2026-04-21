@@ -257,13 +257,20 @@ async def handle_deep_analyze(request: TaskRequest, model_registry) -> TaskSucce
         from unittest.mock import AsyncMock, MagicMock
         import json
         from agent_shared.schemas.agent import LlmResponse
+        ref_ids = [ref.refId for ref in request.evidenceRefs]
         llm_caller = MagicMock()
         llm_caller.call = AsyncMock(return_value=LlmResponse(
             content=json.dumps({
                 "summary": "[Mock] Deep analysis completed",
-                "claims": [{"statement": "Mock analysis result", "supportingEvidenceRefs": []}],
+                "claims": [{
+                    "statement": "Mock analysis result",
+                    "detail": "Mock deep analysis detail.",
+                    "supportingEvidenceRefs": ref_ids[:1],
+                    "location": "mock:1",
+                }],
                 "caveats": ["This is a mock response"],
-                "usedEvidenceRefs": [],
+                "usedEvidenceRefs": ref_ids[:1],
+                "suggestedSeverity": "info",
                 "needsHumanReview": True,
                 "recommendedNextSteps": [],
                 "policyFlags": [],

@@ -2535,6 +2535,12 @@ describe("API Contract Tests", () => {
       expect(lookupRes.status).toBe(200);
       expect(lookupRes.body.data.status).toBe("pending_admin_review");
       expect(lookupRes.body.data.email).toBe("bob@org.kr");
+      expect(lookupRes.body.data.fullName).toBe("Bob Member");
+      expect(lookupRes.body.data.organizationId).toBe("org-register");
+      expect(lookupRes.body.data.organizationCode).toBe("REGISTER-ORG");
+      expect(lookupRes.body.data.organizationName).toBe("Register Org");
+      expect(lookupRes.body.data.createdAt).toBeDefined();
+      expect(lookupRes.body.data.lookupExpiresAt).toBeDefined();
 
       const rawIdRes = await request(app).get(`/api/auth/registrations/lookup/${registerRes.body.data.registrationId}`);
       expect(rawIdRes.status).toBe(404);
@@ -2571,10 +2577,62 @@ describe("API Contract Tests", () => {
 
       expect(approveRes.status).toBe(200);
       expect(approveRes.body.data.status).toBe("approved");
+      expect(approveRes.body.data.fullName).toBe("Alice Member");
+      expect(approveRes.body.data.organizationId).toBe("org-approve");
+      expect(approveRes.body.data.organizationCode).toBe("APPROVE-ORG");
+      expect(approveRes.body.data.organizationName).toBe("Approve Org");
+      expect(approveRes.body.data.assignedRole).toBe("analyst");
+      expect(approveRes.body.data.approvedAt).toBeDefined();
+      expect(approveRes.body.data.createdAt).toBeDefined();
+      expect(approveRes.body.data.lookupExpiresAt).toBeDefined();
 
       const memberLogin = await request(app).post("/api/auth/login").send({ username: "alice@approve.org", password: "Passw0rd!" });
       expect(memberLogin.status).toBe(200);
       expect(memberLogin.body.data.user.role).toBe("analyst");
+    });
+
+    it("admin reject returns full registration request shape", async () => {
+      ctx.organizationDAO.save({
+        id: "org-reject",
+        code: "REJECT-ORG",
+        name: "Reject Org",
+        region: "kr-seoul-1",
+        defaultRole: "viewer",
+        adminDisplayName: "Reject Admin",
+        adminEmail: "reject@org.kr",
+      });
+      ctx.userService.createUser("reject-admin", "pass1234", "Reject Admin", "admin", {
+        email: "reject@org.kr",
+        organizationId: "org-reject",
+      });
+
+      const registerRes = await request(app).post("/api/auth/register").send({
+        fullName: "Reject Member",
+        email: "member@reject.org",
+        password: "Passw0rd!",
+        orgCode: "REJECT-ORG",
+        termsAcceptedAt: new Date().toISOString(),
+        auditAcceptedAt: new Date().toISOString(),
+      });
+      const adminLogin = await request(app).post("/api/auth/login").send({ username: "reject-admin", password: "pass1234" });
+      const rejectRes = await request(app)
+        .post(`/api/auth/registration-requests/${registerRes.body.data.registrationId}/reject`)
+        .set("Authorization", `Bearer ${adminLogin.body.data.token}`)
+        .send({ reason: "Not in scope" });
+
+      expect(rejectRes.status).toBe(200);
+      expect(rejectRes.body.data).toMatchObject({
+        status: "rejected",
+        fullName: "Reject Member",
+        email: "member@reject.org",
+        organizationId: "org-reject",
+        organizationCode: "REJECT-ORG",
+        organizationName: "Reject Org",
+        decisionReason: "Not in scope",
+      });
+      expect(rejectRes.body.data.rejectedAt).toBeDefined();
+      expect(rejectRes.body.data.createdAt).toBeDefined();
+      expect(rejectRes.body.data.lookupExpiresAt).toBeDefined();
     });
 
     it("password reset request is non-enumerating and confirm resets password", async () => {

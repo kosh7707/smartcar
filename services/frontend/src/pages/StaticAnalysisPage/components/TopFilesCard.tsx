@@ -1,7 +1,6 @@
 import React from "react";
 import type { Severity } from "@aegis/shared";
-import { ExternalLink } from "lucide-react";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { ChevronRight } from "lucide-react";
 import { SeverityBadge } from "../../../shared/ui";
 
 interface TopFile {
@@ -19,42 +18,48 @@ export const TopFilesCard: React.FC<Props> = ({ topFiles, onFileClick }) => {
   if (topFiles.length === 0) return null;
 
   return (
-    <Card className="overall-top-files-card">
-      <CardContent className="overall-top-files-card__body">
-        <CardTitle>취약 파일 Top {topFiles.length}</CardTitle>
-        <div className="overall-top-files-card__list">
+    <div className="panel overall-top-files">
+      <div className="panel-head">
+        <h3>취약 파일 Top {topFiles.length}</h3>
+      </div>
+      <div className="panel-body panel-body--flush">
+        <ol className="rank-list">
           {topFiles.map((f, i) => {
-            const rowProps = onFileClick
-              ? {
-                  role: "button" as const,
-                  tabIndex: 0,
-                  onClick: () => onFileClick(f.filePath),
-                  onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
-                    if (e.key === "Enter") onFileClick(f.filePath);
-                  },
-                }
-              : {};
+            const interactive = Boolean(onFileClick);
+            const handleActivate = () => onFileClick?.(f.filePath);
             return (
-              <div
-                key={f.filePath}
-                {...rowProps}
-                className={[
-                  "overall-top-files-card__row",
-                  onFileClick ? "overall-top-files-card__row--clickable" : "",
-                ].join(" ")}
-              >
-                <span className="overall-top-files-card__rank">{i + 1}</span>
-                <span className="overall-top-files-card__name" title={f.filePath}>
-                  {f.filePath}
-                </span>
-                <span className="overall-top-files-card__count">{f.findingCount}건</span>
-                <SeverityBadge severity={f.topSeverity as Severity} size="sm" />
-                {onFileClick && <ExternalLink size={14} className="overall-top-files-card__icon" />}
-              </div>
+              <li key={f.filePath} className="rank-list__item">
+                <div
+                  className={`rank-row${interactive ? " rank-row--clickable" : ""}`}
+                  {...(interactive
+                    ? {
+                        role: "button",
+                        tabIndex: 0,
+                        onClick: handleActivate,
+                        onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            handleActivate();
+                          }
+                        },
+                      }
+                    : {})}
+                >
+                  <span className="rank-row__index" aria-hidden="true">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span className="rank-row__primary rank-row__primary--path" title={f.filePath}>
+                    {f.filePath}
+                  </span>
+                  <span className="rank-row__count">{f.findingCount}건</span>
+                  <SeverityBadge severity={f.topSeverity as Severity} size="sm" />
+                  {interactive && <ChevronRight size={14} className="rank-row__chev" aria-hidden="true" />}
+                </div>
+              </li>
             );
           })}
-        </div>
-      </CardContent>
-    </Card>
+        </ol>
+      </div>
+    </div>
   );
 };

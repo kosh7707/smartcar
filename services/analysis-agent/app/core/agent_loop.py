@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 
 from app.budget.manager import BudgetManager
@@ -10,6 +11,7 @@ from app.budget.token_counter import TokenCounter
 from app.core.agent_session import AgentSession
 from app.core.result_assembler import ResultAssembler
 from app.pipeline.response_parser import V1ResponseParser
+from app.validators.schema_validator import SchemaValidator
 from agent_shared.context import get_request_id
 from agent_shared.errors import S3Error
 from agent_shared.llm.caller import LlmCaller
@@ -118,6 +120,14 @@ def _should_request_extra_grounding_lookup(
     return has_uncertainty_markers or no_new_retrieval_refs
 
 
+def _schema_repair_detail(parsed: dict, task_type) -> str | None:
+    """Return schema errors that should trigger strict repair."""
+    validation = SchemaValidator().validate(parsed, task_type)
+    if validation.valid:
+        return None
+    return "; ".join(validation.errors)
+
+
 class AgentLoop:
     """멀티 턴 에이전트 루프를 실행한다."""
 
@@ -163,6 +173,7 @@ class AgentLoop:
         force_report = False
         warned_approaching_limit = False
         structured_retry_used = False
+        schema_repair_used = False
         grounding_nudge_used = False
         response_parser = V1ResponseParser()
 
@@ -327,6 +338,102 @@ class AgentLoop:
                         turn=turn, level=logging.WARNING,
                     )
                     continue
+                if parsed_content is None and structured_retry_used:
+                    try:
+                        finalizer_response = await self._call_structured_finalizer(session, final_content)
+                    except S3Error as e:
+                        return self._result_assembler.build_failure(
+                            session,
+                            TaskStatus.MODEL_ERROR,
+                            FailureCode.MODEL_UNAVAILABLE,
+                            f"Structured finalizer failed: {e}",
+                            retryable=e.retryable,
+                        )
+
+                    self._token_counter.record(finalizer_response, session)
+                    session.record_content_turn(finalizer_response)
+                    finalizer_content = finalizer_response.content or ""
+                    agent_log(
+                        logger,
+                        "구조화 최종화 응답 수신",
+                        component="agent_loop",
+                        phase="structured_finalizer_response",
+                        turn=session.turn_count,
+                        hasContent=bool(finalizer_content.strip()),
+                        level=logging.WARNING,
+                    )
+
+                    result = self._result_assembler.build(finalizer_content, session)
+                    request_summary_tracker.mark_phase_advancing(
+                        get_request_id() or session.request.taskId,
+                        source="result-assembled-finalizer",
+                    )
+                    agent_log(
+                        logger, "세션 종료",
+                        component="agent_loop", phase="session_end",
+                        totalTurns=session.turn_count,
+                        totalPromptTokens=session.total_prompt_tokens(),
+                        totalCompletionTokens=session.total_completion_tokens(),
+                        terminationReason="content_returned_structured_finalizer",
+                        latencyMs=session.elapsed_ms(),
+                    )
+                    return result
+
+                schema_repair_detail = (
+                    _schema_repair_detail(parsed_content, session.request.taskType)
+                    if parsed_content is not None
+                    else None
+                )
+                if schema_repair_detail and not schema_repair_used:
+                    schema_repair_used = True
+                    self._message_manager.add_assistant_content(final_content)
+                    repair_input = (
+                        "The previous response was valid JSON but failed the Assessment schema. "
+                        "Repair it into one valid Assessment JSON object.\n\n"
+                        f"Schema errors: {schema_repair_detail}\n\n"
+                        "Invalid JSON content:\n"
+                        f"{final_content}"
+                    )
+                    try:
+                        finalizer_response = await self._call_structured_finalizer(session, repair_input)
+                    except S3Error as e:
+                        return self._result_assembler.build_failure(
+                            session,
+                            TaskStatus.MODEL_ERROR,
+                            FailureCode.MODEL_UNAVAILABLE,
+                            f"Structured schema repair failed: {e}",
+                            retryable=e.retryable,
+                        )
+
+                    self._token_counter.record(finalizer_response, session)
+                    session.record_content_turn(finalizer_response)
+                    finalizer_content = finalizer_response.content or ""
+                    agent_log(
+                        logger,
+                        "구조화 schema repair 응답 수신",
+                        component="agent_loop",
+                        phase="structured_schema_repair_response",
+                        turn=session.turn_count,
+                        schemaErrors=schema_repair_detail,
+                        hasContent=bool(finalizer_content.strip()),
+                        level=logging.WARNING,
+                    )
+
+                    result = self._result_assembler.build(finalizer_content, session)
+                    request_summary_tracker.mark_phase_advancing(
+                        get_request_id() or session.request.taskId,
+                        source="result-assembled-schema-repair",
+                    )
+                    agent_log(
+                        logger, "세션 종료",
+                        component="agent_loop", phase="session_end",
+                        totalTurns=session.turn_count,
+                        totalPromptTokens=session.total_prompt_tokens(),
+                        totalCompletionTokens=session.total_completion_tokens(),
+                        terminationReason="content_returned_structured_schema_repair",
+                        latencyMs=session.elapsed_ms(),
+                    )
+                    return result
 
                 if _should_request_extra_grounding_lookup(
                     final_content=final_content,
@@ -432,3 +539,71 @@ class AgentLoop:
                 raise
 
         raise last_error  # type: ignore[misc]
+
+    async def _call_structured_finalizer(self, session: AgentSession, non_json_content: str):
+        """Ask S7 for a strict final Assessment JSON with tools disabled."""
+        refs = _allowed_finalizer_refs(session)
+        ref_lines = "\n".join(f"- `{ref}`" for ref in refs[:40]) or "- (no refs available)"
+        state = session.analysis_state_summary()
+        trusted = session.request.context.trusted if isinstance(session.request.context.trusted, dict) else {}
+        objective = trusted.get("objective") or trusted.get("task") or "security assessment"
+        system = (
+            "You are the AEGIS structured-output finalizer. "
+            "Convert the prior analysis notes into one valid Assessment JSON object. "
+            "Do not add prose, markdown fences, or comments. The first character must be `{`.\n\n"
+            "Required top-level fields: summary, claims, caveats, usedEvidenceRefs, "
+            "suggestedSeverity, needsHumanReview, recommendedNextSteps, policyFlags.\n"
+            "Never omit caveats or usedEvidenceRefs; output [] when there is no content for them.\n"
+            "Each claim must be an object with statement, detail, supportingEvidenceRefs, and location.\n"
+            "Use only evidence refs listed by the user. If a claim cannot be grounded in those refs, "
+            "do not include that claim; put the limitation in caveats instead.\n"
+            "If no grounded claims remain, output claims: [] with explicit caveats and needsHumanReview: true.\n"
+        )
+        user = (
+            f"Objective: {objective}\n\n"
+            "Allowed evidence refs:\n"
+            f"{ref_lines}\n\n"
+            "Session state summary:\n"
+            f"{json.dumps(state, ensure_ascii=False)}\n\n"
+            "Prior non-JSON content to convert/summarize:\n"
+            f"{non_json_content[:6000]}\n\n"
+            "Return only a JSON object matching this shape:\n"
+            "{"
+            "\"summary\":\"...\","
+            "\"claims\":[{\"statement\":\"...\",\"detail\":\"...\",\"supportingEvidenceRefs\":[\"eref-...\"],\"location\":\"file:line\"}],"
+            "\"caveats\":[\"...\"],"
+            "\"usedEvidenceRefs\":[\"eref-...\"],"
+            "\"suggestedSeverity\":\"critical|high|medium|low|info\","
+            "\"needsHumanReview\":true,"
+            "\"recommendedNextSteps\":[\"...\"],"
+            "\"policyFlags\":[\"structured_finalizer\"]"
+            "}"
+        )
+        agent_log(
+            logger,
+            "구조화 최종화 호출",
+            component="agent_loop",
+            phase="structured_finalizer_request",
+            refCount=len(refs),
+            level=logging.WARNING,
+        )
+        request_summary_tracker.mark_transport_only(
+            get_request_id() or session.request.taskId,
+            source="structured-finalizer",
+        )
+        return await self._llm_caller.call(
+            [{"role": "system", "content": system}, {"role": "user", "content": user}],
+            session,
+            tools=None,
+            max_tokens=min(session.budget.max_completion_tokens, 6000),
+            temperature=0.0,
+            prefer_async_ownership=True,
+        )
+
+
+def _allowed_finalizer_refs(session: AgentSession) -> list[str]:
+    refs: list[str] = []
+    refs.extend(ref.refId for ref in session.request.evidenceRefs)
+    refs.extend(sorted(session.extra_allowed_refs))
+    refs.extend(ref for step in session.trace for ref in step.new_evidence_refs)
+    return [ref for ref in dict.fromkeys(refs) if isinstance(ref, str) and ref]

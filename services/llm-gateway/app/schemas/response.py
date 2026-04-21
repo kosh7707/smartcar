@@ -110,6 +110,9 @@ class AsyncChatStatusResponse(BaseModel):
     lastAckAt: int | None = None
     lastAckSource: str | None = None
     blockedReason: str | None = None
+    error: str | None = None
+    errorDetail: str | None = None
+    retryable: bool = False
     resultReady: bool = False
     acceptedAt: str
     startedAt: str | None = None

@@ -71,7 +71,7 @@ echo ""
 echo "[Phase 3] 코드 그래프 추출 + KB 적재..."
 FUNC_RESPONSE=$(curl -sf -X POST "$SAST_URL/v1/functions" \
     -H "Content-Type: application/json" -H "X-Request-Id: $REQUEST_ID" \
-    -d "{\"scanId\":\"$REQUEST_ID-func\",\"projectId\":\"$PROJECT_ID\",\"projectPath\":\"$PROJECT_ROOT\",\"buildProfile\":{\"sdkId\":\"custom\",\"compiler\":\"g++\",\"targetArch\":\"x86_64\",\"languageStandard\":\"c++17\",\"headerLanguage\":\"cpp\",\"includePaths\":[\"src\",\"libraries/civetweb/include\",\"libraries/rapidjson/include\"]}}" 2>&1) || FUNC_RESPONSE='{"functions":[]}'
+    -d "{\"scanId\":\"$REQUEST_ID-func\",\"projectId\":\"$PROJECT_ID\",\"projectPath\":\"$PROJECT_ROOT\",\"buildProfile\":{\"compiler\":\"g++\",\"targetArch\":\"x86_64\",\"languageStandard\":\"c++17\",\"headerLanguage\":\"cpp\",\"includePaths\":[\"src\",\"libraries/civetweb/include\",\"libraries/rapidjson/include\"]}}" 2>&1) || FUNC_RESPONSE='{"functions":[]}'
 FUNC_COUNT=$(echo "$FUNC_RESPONSE" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('functions',[])))")
 echo "  함수 $FUNC_COUNT개"
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 import time as _time
 from contextlib import asynccontextmanager
@@ -71,6 +72,21 @@ async def lifespan(app: FastAPI):
     """앱 시작/종료 시 실행."""
     _setup_logging()
     logger = logging.getLogger("aegis-sast-runner")
+    hot_reload = os.getenv("SAST_HOT_RELOAD", "").lower() in {"1", "true", "yes", "on"}
+    logger.info(
+        "SAST Runner runtime configuration",
+        extra={
+            "port": settings.port,
+            "serviceVersion": SERVICE_VERSION,
+            "hotReload": hot_reload,
+            "reloadDir": "app" if hot_reload else None,
+            "maxConcurrentScans": settings.max_concurrent_scans,
+            "scanTimeout": settings.scan_timeout,
+            "defaultRulesets": settings.default_rulesets,
+            "sdkRootConfigured": bool(settings.sdk_root),
+            "logDir": settings.log_dir or str(Path(__file__).resolve().parents[3] / "logs"),
+        },
+    )
 
     orch = ScanOrchestrator()
     tools = await orch.check_tools(force=True)
@@ -100,9 +116,17 @@ async def lifespan(app: FastAPI):
         )
 
     logger.info(
-        "SAST Runner started on port %d (rulesets: %s)",
-        settings.port,
-        settings.default_rulesets,
+        "SAST Runner ready for traffic",
+        extra={
+            "port": settings.port,
+            "serviceVersion": SERVICE_VERSION,
+            "hotReload": hot_reload,
+            "policyStatus": policy["policyStatus"],
+            "policyReasons": policy["policyReasons"],
+            "unavailableTools": policy["unavailableTools"],
+            "allowedSkipReasons": policy["allowedSkipReasons"],
+            "defaultRulesets": settings.default_rulesets,
+        },
     )
 
     yield

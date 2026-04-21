@@ -13,4 +13,20 @@ if [ ! -d ".venv" ]; then
   exit 1
 fi
 
-exec .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+export PATH="$(pwd)/.venv/bin:$PATH"
+
+cmd=(
+  .venv/bin/python -m uvicorn app.main:app
+  --host 0.0.0.0
+  --port "${AEGIS_LLM_GATEWAY_PORT:-8000}"
+  --reload
+  --reload-dir app
+)
+
+if [[ "${AEGIS_PRINT_CMD:-0}" == "1" ]]; then
+  printf '%q ' "${cmd[@]}"
+  printf '\n'
+  exit 0
+fi
+
+exec "${cmd[@]}"

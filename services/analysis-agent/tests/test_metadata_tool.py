@@ -79,3 +79,23 @@ async def test_sends_build_profile(tool):
     body = call_args.kwargs.get("json") or call_args[1].get("json")
     assert body["projectPath"] == "/tmp/test-project"
     assert body["buildProfile"]["sdkId"] == "ti-am335x"
+
+
+@pytest.mark.asyncio
+async def test_omits_custom_sdkid_for_s4_metadata():
+    tool = MetadataTool(
+        sast_endpoint="http://localhost:9000",
+        project_path="/tmp/test-project",
+        build_profile={"sdkId": "custom", "compiler": "g++"},
+    )
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.json.return_value = {"macros": {}, "targetInfo": {"arch": "x86_64"}}
+    tool._client = MagicMock()
+    tool._client.post = AsyncMock(return_value=mock_resp)
+
+    await tool.execute({})
+    call_args = tool._client.post.call_args
+    body = call_args.kwargs.get("json") or call_args[1].get("json")
+    assert body["buildProfile"] == {"compiler": "g++"}

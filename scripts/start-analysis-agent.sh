@@ -13,15 +13,14 @@ if [ ! -d ".venv" ]; then
   exit 1
 fi
 
-cmd=(.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8001)
-hot_reload="${AEGIS_HOT_RELOAD:-1}"
-case "${hot_reload,,}" in
-  0|false|no|off)
-    ;;
-  *)
-    cmd+=(--reload --reload-dir app --reload-dir ../agent-shared/agent_shared)
-    ;;
-esac
+cmd=(
+  .venv/bin/python -m uvicorn app.main:app
+  --host 0.0.0.0
+  --port 8001
+  --reload
+  --reload-dir app
+  --reload-dir ../agent-shared/agent_shared
+)
 
 if [[ "${AEGIS_PRINT_CMD:-0}" == "1" ]]; then
   printf '%q ' "${cmd[@]}"

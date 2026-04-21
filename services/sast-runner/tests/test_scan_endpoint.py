@@ -509,8 +509,13 @@ async def test_scan_generates_request_id_if_missing(client: AsyncClient) -> None
 
 
 @pytest.mark.asyncio
-async def test_scan_success_with_mock(client: AsyncClient, mock_semgrep_runner) -> None:
+async def test_scan_success_with_mock(
+    client: AsyncClient,
+    mock_semgrep_runner,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """Semgrep mock으로 정상 스캔 응답 구조 확인."""
+    caplog.set_level("INFO", logger="aegis-sast-runner")
     resp = await client.post(
         "/v1/scan",
         headers={"X-Request-Id": "req-mock-001"},
@@ -545,6 +550,25 @@ async def test_scan_success_with_mock(client: AsyncClient, mock_semgrep_runner) 
     assert data["stats"]["filesScanned"] == 1
     assert data["stats"]["findingsTotal"] == 3
     assert data["stats"]["elapsedMs"] >= 0
+
+    scan_summary = [
+        record for record in caplog.records
+        if record.getMessage() == "Scan execution summary"
+    ][-1]
+    assert scan_summary.requestId == "req-mock-001"
+    assert scan_summary.scanId == "test-mock-001"
+    assert scan_summary.findingsByTool["semgrep"] == 3
+    assert scan_summary.findingsAfterFilter == 3
+    assert scan_summary.compileCommandsProvided is False
+    assert scan_summary.sdkResolved is False
+
+    terminal_summary = [
+        record for record in caplog.records
+        if record.getMessage() == "Request terminal summary"
+    ][-1]
+    assert terminal_summary.requestId == "req-mock-001"
+    assert terminal_summary.endpoint == "scan"
+    assert terminal_summary.state == "completed"
 
 
 @pytest.mark.asyncio
@@ -804,7 +828,11 @@ async def test_build_rejects_legacy_build_profile(client: AsyncClient, tmp_path)
 
 
 @pytest.mark.asyncio
-async def test_build_echoes_provenance_and_structured_evidence(client: AsyncClient) -> None:
+async def test_build_echoes_provenance_and_structured_evidence(
+    client: AsyncClient,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level("INFO", logger="aegis-sast-runner")
     mocked = {
         "success": True,
         "buildEvidence": {
@@ -854,6 +882,25 @@ async def test_build_echoes_provenance_and_structured_evidence(client: AsyncClie
     assert data["buildEvidence"]["environmentKeys"] == ["CC", "SDK_ROOT"]
     assert data["readiness"]["status"] == "ready"
     assert data["readiness"]["quickEligible"] is True
+
+    build_summary = [
+        record for record in caplog.records
+        if record.getMessage() == "Build execution summary"
+    ][-1]
+    assert build_summary.requestId
+    assert build_summary.endpoint == "build"
+    assert build_summary.readinessStatus == "ready"
+    assert build_summary.compileCommandsReady is True
+    assert build_summary.quickEligible is True
+    assert build_summary.entries == 2
+    assert build_summary.userEntries == 2
+
+    terminal_summary = [
+        record for record in caplog.records
+        if record.getMessage() == "Request terminal summary"
+    ][-1]
+    assert terminal_summary.endpoint == "build"
+    assert terminal_summary.state == "completed"
 
 
 # === /v1/includes ===

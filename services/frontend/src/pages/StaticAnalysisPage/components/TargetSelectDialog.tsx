@@ -24,7 +24,8 @@ export const TargetSelectDialog: React.FC<Props> = ({ open, targets, onConfirm, 
 
   useEffect(() => {
     if (open) {
-      setSelected(targets[0]?.id ?? null);
+      const firstEligible = targets.find((t) => t.sdkChoiceState !== "sdk-unresolved");
+      setSelected(firstEligible?.id ?? null);
     }
   }, [open, targets]);
 
@@ -57,15 +58,25 @@ export const TargetSelectDialog: React.FC<Props> = ({ open, targets, onConfirm, 
           {targets.map((target) => {
             const isSelected = selected === target.id;
             const sdkLabel = target.buildProfile.sdkId === "none" ? null : target.buildProfile.sdkId;
+            const sdkUnresolved = target.sdkChoiceState === "sdk-unresolved";
             return (
               <div
                 key={target.id}
-                className={cn("target-select-dialog__option", isSelected && "is-selected")}
+                className={cn(
+                  "target-select-dialog__option",
+                  isSelected && "is-selected",
+                  sdkUnresolved && "is-disabled",
+                )}
                 role="radio"
                 aria-checked={isSelected}
-                tabIndex={0}
-                onClick={() => chooseTarget(target.id)}
+                aria-disabled={sdkUnresolved || undefined}
+                tabIndex={sdkUnresolved ? -1 : 0}
+                onClick={() => {
+                  if (sdkUnresolved) return;
+                  chooseTarget(target.id);
+                }}
                 onKeyDown={(event) => {
+                  if (sdkUnresolved) return;
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
                     chooseTarget(target.id);
@@ -78,6 +89,11 @@ export const TargetSelectDialog: React.FC<Props> = ({ open, targets, onConfirm, 
                 <div className="target-select-dialog__option-copy">
                   <div className="target-select-dialog__option-title">{target.name}</div>
                   <div className="target-select-dialog__option-path">{target.relativePath}</div>
+                  {sdkUnresolved ? (
+                    <div className="target-select-dialog__option-hint">
+                      SDK 선택이 필요합니다 — 파일 탐색기에서 SDK를 지정하거나 SDK 미사용으로 명시해 주세요.
+                    </div>
+                  ) : null}
                 </div>
                 {sdkLabel ? <span className="target-select-dialog__option-sdk">{sdkLabel}</span> : null}
               </div>

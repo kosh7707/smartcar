@@ -197,6 +197,7 @@ def build_phase2_prompt(
         "- 불확실한 사항은 claim 대신 caveats에 기록하라.\n\n"
         "## 규칙\n"
         "- summary, claims, caveats, usedEvidenceRefs는 **필수**이다.\n"
+        "- caveats 또는 usedEvidenceRefs가 비어 있더라도 필드를 생략하지 말고 반드시 []로 출력하라.\n"
         "- claims[].supportingEvidenceRefs와 usedEvidenceRefs에는 **도구가 반환한 refId만** 사용하라.\n"
         "  - 도구 호출 결과의 `new_evidence_refs` 목록에 있는 refId를 사용하라 (예: `eref-caller-main`, `eref-knowledge-CWE-78`, `eref-sast-cmd-injection`).\n"
         "  - 아래 [사용 가능한 Evidence Refs]에 나열된 refId도 사용 가능하다.\n"

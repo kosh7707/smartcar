@@ -40,6 +40,9 @@ class AsyncChatRequestRecord:
     last_ack_at: int | None = None
     last_ack_source: str | None = None
     blocked_reason: str | None = None
+    error: str | None = None
+    error_detail: str | None = None
+    retryable: bool = False
     result_ready: bool = False
     accepted_at_ms: int = field(default_factory=_now_ms)
     started_at_ms: int | None = None
@@ -72,6 +75,9 @@ class AsyncChatRequestRecord:
             "lastAckAt": self.last_ack_at,
             "lastAckSource": self.last_ack_source,
             "blockedReason": self.blocked_reason,
+            "error": self.error,
+            "errorDetail": self.error_detail,
+            "retryable": self.retryable,
             "resultReady": self.result_ready,
             "acceptedAt": _iso_from_ms(self.accepted_at_ms),
             "startedAt": _iso_from_ms(self.started_at_ms),
@@ -254,11 +260,17 @@ class AsyncChatRequestManager:
         *,
         blocked_reason: str,
         ack_source: str = "ack-break",
+        error: str | None = None,
+        error_detail: str | None = None,
+        retryable: bool = False,
     ) -> None:
         await self._mark_failed(
             request_id,
             blocked_reason=blocked_reason,
             ack_source=ack_source,
+            error=error,
+            error_detail=error_detail,
+            retryable=retryable,
         )
 
     async def _mark_failed(
@@ -267,6 +279,9 @@ class AsyncChatRequestManager:
         *,
         blocked_reason: str,
         ack_source: str,
+        error: str | None = None,
+        error_detail: str | None = None,
+        retryable: bool = False,
     ) -> None:
         async with self._lock:
             record = self._requests.get(request_id)
@@ -277,6 +292,9 @@ class AsyncChatRequestManager:
             record.local_ack_state = "ack-break"
             record.phase = None
             record.blocked_reason = blocked_reason
+            record.error = error or "Async request did not complete successfully"
+            record.error_detail = error_detail or blocked_reason
+            record.retryable = retryable
             record.result_ready = False
             record.ended_at_ms = now_ms
             record.expires_at_ms = max(record.expires_at_ms, now_ms + _RETENTION_MS)

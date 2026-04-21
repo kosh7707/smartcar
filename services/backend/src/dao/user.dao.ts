@@ -175,6 +175,18 @@ function rowToRegistrationRequestRecord(row: RegistrationRequestRow): Registrati
   };
 }
 
+function recordToRegistrationRequest(record: RegistrationRequestRecord): RegistrationRequest {
+  const {
+    passwordHash: _passwordHash,
+    reviewedByUserId: _reviewedByUserId,
+    termsAcceptedAt: _termsAcceptedAt,
+    auditAcceptedAt: _auditAcceptedAt,
+    lookupTokenHash: _lookupTokenHash,
+    ...safe
+  } = record;
+  return safe;
+}
+
 function rowToDevPasswordResetDelivery(row: DevPasswordResetDeliveryRow): DevPasswordResetDelivery {
   return {
     id: row.id,
@@ -443,7 +455,7 @@ export class RegistrationRequestDAO {
 
   findById(id: string): RegistrationRequest | undefined {
     const record = this.findRecordById(id);
-    return record ? rowToRegistrationRequest(record as unknown as RegistrationRequestRow) : undefined;
+    return record ? recordToRegistrationRequest(record) : undefined;
   }
 
   findByLookupTokenHash(lookupTokenHash: string): RegistrationRequestRecord | undefined {

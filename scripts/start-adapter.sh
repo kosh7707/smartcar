@@ -17,5 +17,5 @@ for arg in "$@"; do
   esac
 done
 
-echo "[Adapter] 포트 ${PORT:-4000} 에서 기동..."
-exec npx tsx "$ROOT_DIR/services/adapter/src/index.ts" --port="${PORT:-4000}"
+echo "[Adapter] 포트 ${PORT:-4000} 에서 기동 (watch 모드)..."
+exec npx tsx watch "$ROOT_DIR/services/adapter/src/index.ts" --port="${PORT:-4000}"

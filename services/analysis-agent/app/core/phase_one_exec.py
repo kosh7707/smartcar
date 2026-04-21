@@ -19,6 +19,22 @@ if TYPE_CHECKING:
     from agent_shared.tools.base import ToolImplementation
 
 
+def _s4_build_profile(build_profile) -> dict:
+    """Normalize S4-facing buildProfile/scanProfile.
+
+    S4 no longer accepts the legacy sdkId='custom' native-build sentinel. Native
+    builds must omit sdkId entirely while preserving other profile hints.
+    """
+    if not isinstance(build_profile, dict):
+        return {}
+    normalized = {
+        key: value
+        for key, value in build_profile.items()
+        if not (key == "sdkId" and value == "custom")
+    }
+    return normalized
+
+
 async def run_build_and_analyze(
     sast_client: "httpx.AsyncClient",
     timeout_budget_ms: int,
@@ -49,8 +65,9 @@ async def run_build_and_analyze(
         body["buildCommand"] = build_command
     if isinstance(build_environment, dict) and build_environment:
         body["buildEnvironment"] = build_environment
-    if build_profile:
-        body["scanProfile"] = build_profile
+    scan_profile = _s4_build_profile(build_profile)
+    if scan_profile:
+        body["scanProfile"] = scan_profile
     if isinstance(provenance, dict) and provenance:
         body["provenance"] = provenance
     if third_party_paths:
@@ -349,10 +366,9 @@ async def run_sast(
         args["projectPath"] = project_path
     if compile_commands_path:
         args["compileCommands"] = compile_commands_path
-    if build_profile:
-        sdk_id = build_profile.get("sdkId") if isinstance(build_profile, dict) else None
-        if sdk_id:
-            args["buildProfile"] = {"sdkId": sdk_id}
+    normalized_build_profile = _s4_build_profile(build_profile)
+    if normalized_build_profile:
+        args["buildProfile"] = normalized_build_profile
     if third_party_paths:
         args["thirdPartyPaths"] = third_party_paths
     if sast_tools:
@@ -426,10 +442,9 @@ async def run_codegraph(
         args["projectPath"] = project_path
     if compile_commands_path:
         args["compileCommands"] = compile_commands_path
-    if build_profile:
-        sdk_id = build_profile.get("sdkId") if isinstance(build_profile, dict) else None
-        if sdk_id:
-            args["buildProfile"] = {"sdkId": sdk_id}
+    normalized_build_profile = _s4_build_profile(build_profile)
+    if normalized_build_profile:
+        args["buildProfile"] = normalized_build_profile
 
     start = time.monotonic()
     try:

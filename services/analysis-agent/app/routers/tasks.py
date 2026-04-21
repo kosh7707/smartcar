@@ -13,7 +13,7 @@ from app.routers.deep_analyze_handler import handle_deep_analyze as _handle_deep
 from app.routers.generate_poc_handler import handle_generate_poc as _handle_generate_poc_impl
 from app.schemas.request import TaskRequest
 from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
-from app.types import TaskType
+from app.types import FailureCode, TaskStatus, TaskType
 
 logger = logging.getLogger(__name__)
 
@@ -41,10 +41,66 @@ def _json_response(
 ) -> JSONResponse:
     request_id = get_request_id()
     headers = {"X-Request-Id": request_id} if request_id else {}
+    headers["X-AEGIS-Task-Status"] = str(data.status)
+    headers["X-AEGIS-Task-Ok"] = "true" if data.status == TaskStatus.COMPLETED else "false"
     return JSONResponse(
+        status_code=_http_status_for_task_result(data),
         content=data.model_dump(mode="json"),
         headers=headers,
     )
+
+
+def _http_status_for_task_result(
+    data: TaskSuccessResponse | TaskFailureResponse,
+) -> int:
+    """Map terminal task outcome to transport status.
+
+    `/v1/tasks` is synchronous for S3.  A parsed task envelope is not enough to
+    mean the task itself succeeded, so terminal task failures must not be
+    hidden behind HTTP 200.
+    """
+    if data.status == TaskStatus.COMPLETED:
+        return 200
+
+    failure_code = getattr(data, "failureCode", None)
+    if failure_code == FailureCode.UNKNOWN_TASK_TYPE:
+        return 400
+    if failure_code in {
+        FailureCode.INVALID_SCHEMA,
+        FailureCode.INVALID_GROUNDING,
+        FailureCode.INSUFFICIENT_EVIDENCE,
+        FailureCode.UNSAFE_CONTENT,
+        FailureCode.EMPTY_RESPONSE,
+        FailureCode.ALL_TOOLS_EXHAUSTED,
+    }:
+        return 422
+    if failure_code in {
+        FailureCode.INPUT_TOO_LARGE,
+        FailureCode.TOKEN_BUDGET_EXCEEDED,
+        FailureCode.MAX_STEPS_EXCEEDED,
+    }:
+        return 413
+    if failure_code == FailureCode.TIMEOUT:
+        return 504
+    if failure_code in {
+        FailureCode.MODEL_UNAVAILABLE,
+        FailureCode.LLM_OVERLOADED,
+    }:
+        return 503
+
+    if data.status in {
+        TaskStatus.VALIDATION_FAILED,
+        TaskStatus.UNSAFE_OUTPUT,
+        TaskStatus.EMPTY_RESULT,
+    }:
+        return 422
+    if data.status == TaskStatus.BUDGET_EXCEEDED:
+        return 413
+    if data.status == TaskStatus.TIMEOUT:
+        return 504
+    if data.status == TaskStatus.MODEL_ERROR:
+        return 503
+    return 500
 
 
 def _rebuild_pipeline(threat_search=None, llm_client=None) -> None:

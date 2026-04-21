@@ -89,4 +89,31 @@ describe("TargetSelectDialog", () => {
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
+
+  it("disables selection and surfaces SDK hint for sdk-unresolved targets", () => {
+    const unresolvedTargets: BuildTarget[] = [
+      {
+        id: "t-u",
+        projectId: "p-1",
+        name: "blocked-target",
+        relativePath: "blocked/",
+        buildProfile: { sdkId: "", compiler: "gcc", targetArch: "x86_64", languageStandard: "c17", headerLanguage: "auto" },
+        sdkChoiceState: "sdk-unresolved",
+        createdAt: "2026-01-01",
+        updatedAt: "2026-01-01",
+      },
+      ...targets,
+    ];
+    const onConfirm = vi.fn();
+    render(<TargetSelectDialog open={true} targets={unresolvedTargets} onConfirm={onConfirm} onCancel={vi.fn()} />);
+
+    const blocked = screen.getByRole("radio", { name: /blocked-target/ });
+    expect(blocked).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText(/SDK 선택이 필요합니다/)).toBeInTheDocument();
+
+    fireEvent.click(blocked);
+    expect(blocked).toHaveAttribute("aria-checked", "false");
+
+    expect(screen.getByRole("radio", { name: /gateway/ })).toHaveAttribute("aria-checked", "true");
+  });
 });

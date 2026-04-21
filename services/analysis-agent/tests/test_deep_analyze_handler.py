@@ -108,6 +108,7 @@ async def test_handle_deep_analyze_requests_async_ownership_on_toolless_turn(mon
                 "claims": [],
                 "caveats": [],
                 "usedEvidenceRefs": [],
+                "suggestedSeverity": "info",
                 "needsHumanReview": True,
                 "recommendedNextSteps": [],
                 "policyFlags": [],

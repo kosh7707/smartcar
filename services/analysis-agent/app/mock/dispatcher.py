@@ -43,7 +43,9 @@ class V1MockDispatcher:
         )
         claims.append({
             "statement": claim_text,
+            "detail": claim_text,
             "supportingEvidenceRefs": ref_ids[:1] if ref_ids else [],
+            "location": str(location),
         })
 
         if source_snippet and any(
@@ -55,7 +57,9 @@ class V1MockDispatcher:
                     "소스코드에서 안전하지 않은 문자열 처리 함수가 확인되었습니다. "
                     "입력 길이 검증 없이 복사 연산이 수행되어 버퍼 오버플로우가 발생할 수 있습니다."
                 ),
+                "detail": "소스코드 snippet에서 unsafe string function 사용이 관찰되었습니다.",
                 "supportingEvidenceRefs": ref_ids[:1] if ref_ids else [],
+                "location": str(location),
             })
 
         return json.dumps({
@@ -75,6 +79,7 @@ class V1MockDispatcher:
                 "안전한 대안 함수로 교체 후 regression test 수행",
                 "MISRA C / CERT C 코딩 표준 기반 수동 코드 리뷰 권장",
             ],
+            "policyFlags": [],
         }, ensure_ascii=False)
 
     def _dynamic_annotate(self, request: TaskRequest) -> str:
@@ -89,13 +94,17 @@ class V1MockDispatcher:
                     f"'{match.get('title', 'Unknown')}' 패턴이 감지되었습니다. "
                     "이는 비정상 트래픽 패턴과 일치합니다."
                 ),
+                "detail": "동적 이벤트 패턴이 rule match와 일치합니다.",
                 "supportingEvidenceRefs": ref_ids[:1] if ref_ids else [],
+                "location": str(match.get("location", "CAN Bus")),
             })
 
         if not claims:
             claims.append({
                 "statement": "제공된 이벤트 데이터에서 비정상 패턴이 관찰되었습니다.",
+                "detail": "rule match가 없더라도 입력 이벤트의 비정상 패턴을 요약합니다.",
                 "supportingEvidenceRefs": ref_ids[:1] if ref_ids else [],
+                "location": "dynamic-events",
             })
 
         return json.dumps({
@@ -115,6 +124,7 @@ class V1MockDispatcher:
                 "정상 트래픽 베이스라인 수립 후 비교 분석 수행",
                 "IDS/IPS 룰 업데이트 검토",
             ],
+            "policyFlags": [],
         }, ensure_ascii=False)
 
     def _test_plan_propose(self, request: TaskRequest) -> str:
@@ -131,7 +141,7 @@ class V1MockDispatcher:
                 "제안된 시나리오는 승인 후에만 실행 가능합니다.",
             ],
             "usedEvidenceRefs": ref_ids,
-            "suggestedSeverity": None,
+            "suggestedSeverity": "medium",
             "needsHumanReview": True,
             "recommendedNextSteps": [
                 "테스트 계획 승인 절차 진행",
@@ -168,6 +178,7 @@ class V1MockDispatcher:
                 ],
                 "suggestedRiskLevel": "medium",
             },
+            "policyFlags": [],
         }, ensure_ascii=False)
 
     def _static_cluster(self, request: TaskRequest) -> str:
@@ -177,18 +188,21 @@ class V1MockDispatcher:
             "claims": [
                 {
                     "statement": "제공된 finding 목록에서 유사한 패턴을 식별했습니다.",
+                    "detail": "finding similarity grouping mock result.",
                     "supportingEvidenceRefs": ref_ids[:1] if ref_ids else [],
+                    "location": "findings",
                 },
             ],
             "caveats": [
                 "finding 간 정확한 중복 여부는 소스코드 수준의 비교가 필요합니다.",
             ],
             "usedEvidenceRefs": ref_ids,
-            "suggestedSeverity": None,
+            "suggestedSeverity": "info",
             "needsHumanReview": True,
             "recommendedNextSteps": [
                 "그룹별 대표 finding 선정 후 심층 분석 수행",
             ],
+            "policyFlags": [],
         }, ensure_ascii=False)
 
     def _report_draft(self, request: TaskRequest) -> str:
@@ -198,18 +212,21 @@ class V1MockDispatcher:
             "claims": [
                 {
                     "statement": "제공된 확정 finding과 evidence를 기반으로 보고서를 구성했습니다.",
+                    "detail": "report draft mock claim based on provided evidence.",
                     "supportingEvidenceRefs": ref_ids[:1] if ref_ids else [],
+                    "location": "report",
                 },
             ],
             "caveats": [
                 "자동 생성 초안이므로 전문가 검토 및 수정이 필요합니다.",
             ],
             "usedEvidenceRefs": ref_ids,
-            "suggestedSeverity": None,
+            "suggestedSeverity": "info",
             "needsHumanReview": True,
             "recommendedNextSteps": [
                 "보고서 검토 및 승인 절차 진행",
             ],
+            "policyFlags": [],
         }, ensure_ascii=False)
 
     def _stub(self, request: TaskRequest) -> str:
@@ -218,7 +235,8 @@ class V1MockDispatcher:
             "claims": [],
             "caveats": ["이 응답은 stub입니다."],
             "usedEvidenceRefs": [],
-            "suggestedSeverity": None,
+            "suggestedSeverity": "info",
             "needsHumanReview": True,
             "recommendedNextSteps": [],
+            "policyFlags": [],
         }, ensure_ascii=False)

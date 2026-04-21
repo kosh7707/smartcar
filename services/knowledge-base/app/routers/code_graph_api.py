@@ -70,6 +70,10 @@ def _require_service():
         raise HTTPException(503, "Code graph service not initialized")
 
 
+def _elapsed_ms(start: float) -> int:
+    return int((time.monotonic() - start) * 1000)
+
+
 def _ingest_readiness(
     node_count: int,
     vector_count: int,
@@ -143,6 +147,7 @@ async def ingest(
     x_timeout_ms: int | None = Header(None, alias="X-Timeout-Ms"),
 ) -> dict:
     set_request_id(x_request_id)
+    start = time.monotonic()
     deadline, _ = parse_timeout(x_timeout_ms)
     _require_service()
 
@@ -153,25 +158,44 @@ async def ingest(
     previous_functions = _service.export_project(project_id)
     replaced_existing_graph = len(previous_functions) > 0
     staging_project_id = f"__staging__::{project_id}::{uuid.uuid4().hex}"
+    neo4j_stage_ms = 0
+    vector_stage_ms = 0
+    activation_ms = 0
+    cleanup_ms = 0
     try:
+        stage_start = time.monotonic()
         staged_result = _service.ingest(staging_project_id, req.functions, provenance=provenance)
+        neo4j_stage_ms = _elapsed_ms(stage_start)
         check_deadline(deadline, "neo4j-stage-ingest")
 
         vector_count = 0
         if _code_vector_search is not None:
             try:
+                stage_start = time.monotonic()
                 vector_count = _code_vector_search.ingest(
                     staging_project_id,
                     req.functions,
                     provenance=provenance,
                 )
+                vector_stage_ms = _elapsed_ms(stage_start)
                 check_deadline(deadline, "vector-stage-ingest")
             except HTTPException:
                 raise
             except Exception as e:
-                logger.warning("코드 함수 벡터 stage 적재 실패 (Neo4j staging만 성공): %s", e)
+                vector_stage_ms = _elapsed_ms(stage_start)
+                logger.warning(
+                    "코드 함수 벡터 stage 적재 실패 (Neo4j staging만 성공): %s",
+                    e,
+                    extra={"_extra": {
+                        "projectId": project_id,
+                        "stagingProjectId": staging_project_id,
+                        "elapsedMs": _elapsed_ms(start),
+                        "vectorStageMs": vector_stage_ms,
+                    }},
+                )
                 vector_count = 0
 
+        stage_start = time.monotonic()
         _service.activate_staging(staging_project_id, project_id)
         check_deadline(deadline, "neo4j-activate")
         result = {
@@ -185,15 +209,23 @@ async def ingest(
             _code_vector_search.activate_staging(staging_project_id, project_id)
             result["vectorCount"] = vector_count
             check_deadline(deadline, "vector-activate")
+        activation_ms = _elapsed_ms(stage_start)
     except HTTPException as exc:
         try:
+            cleanup_start = time.monotonic()
             _cleanup_staging(project_id, staging_project_id)
+            cleanup_ms = _elapsed_ms(cleanup_start)
         except Exception as cleanup_error:
             logger.error(
                 "코드 그래프 staging 정리 실패: project=%s staging=%s error=%s",
                 project_id,
                 staging_project_id,
                 cleanup_error,
+                extra={"_extra": {
+                    "projectId": project_id,
+                    "stagingProjectId": staging_project_id,
+                    "elapsedMs": _elapsed_ms(start),
+                }},
             )
         if exc.status_code == 408:
             try:
@@ -203,17 +235,43 @@ async def ingest(
                     "코드 그래프 ingest 롤백 실패: project=%s error=%s",
                     project_id,
                     rollback_error,
+                    extra={"_extra": {
+                        "projectId": project_id,
+                        "elapsedMs": _elapsed_ms(start),
+                    }},
                 )
+        logger.warning(
+            "코드 그래프 ingest 실패",
+            extra={"_extra": {
+                "projectId": project_id,
+                "stagingProjectId": staging_project_id,
+                "statusCode": exc.status_code,
+                "error": str(exc.detail),
+                "elapsedMs": _elapsed_ms(start),
+                "timeoutMs": x_timeout_ms,
+                "neo4jStageMs": neo4j_stage_ms,
+                "vectorStageMs": vector_stage_ms,
+                "activationMs": activation_ms,
+                "cleanupMs": cleanup_ms,
+            }},
+        )
         raise
     else:
         try:
+            cleanup_start = time.monotonic()
             _cleanup_staging(project_id, staging_project_id)
+            cleanup_ms = _elapsed_ms(cleanup_start)
         except Exception as cleanup_error:
             logger.error(
                 "코드 그래프 staging 정리 실패: project=%s staging=%s error=%s",
                 project_id,
                 staging_project_id,
                 cleanup_error,
+                extra={"_extra": {
+                    "projectId": project_id,
+                    "stagingProjectId": staging_project_id,
+                    "elapsedMs": _elapsed_ms(start),
+                }},
             )
 
     status, readiness, warnings = _ingest_readiness(
@@ -231,6 +289,31 @@ async def ingest(
     if warnings:
         result["warnings"] = warnings
 
+    logger.info(
+        "코드 그래프 ingest 완료",
+        extra={"_extra": {
+            "projectId": project_id,
+            "stagingProjectId": staging_project_id,
+            "status": status,
+            "nodeCount": result.get("nodeCount", 0),
+            "edgeCount": result.get("edgeCount", 0),
+            "vectorCount": result.get("vectorCount", 0),
+            "expectedVectorCount": len(req.functions),
+            "readinessNeo4jGraph": readiness["neo4jGraph"],
+            "readinessVectorIndex": readiness["vectorIndex"],
+            "readinessGraphRag": readiness["graphRag"],
+            "warningCount": len(warnings),
+            "warnings": warnings,
+            "replacedExistingGraph": result["operation"]["replacedExistingGraph"],
+            "elapsedMs": _elapsed_ms(start),
+            "timeoutMs": x_timeout_ms,
+            "neo4jStageMs": neo4j_stage_ms,
+            "vectorStageMs": vector_stage_ms,
+            "activationMs": activation_ms,
+            "cleanupMs": cleanup_ms,
+        }},
+    )
+
     return result
 
 
@@ -238,9 +321,24 @@ async def ingest(
 async def stats(
     project_id: str,
     build_snapshot_id: str | None = Query(default=None, alias="buildSnapshotId"),
+    x_request_id: str | None = Header(None, alias="X-Request-Id"),
 ) -> dict:
+    set_request_id(x_request_id)
+    start = time.monotonic()
     _require_service()
-    return _service.get_stats(project_id, build_snapshot_id=build_snapshot_id)
+    result = _service.get_stats(project_id, build_snapshot_id=build_snapshot_id)
+    logger.info(
+        "코드 그래프 stats 조회",
+        extra={"_extra": {
+            "projectId": project_id,
+            "buildSnapshotId": build_snapshot_id,
+            "nodeCount": result.get("nodeCount", 0),
+            "edgeCount": result.get("edgeCount", 0),
+            "fileCount": len(result.get("files", [])),
+            "elapsedMs": _elapsed_ms(start),
+        }},
+    )
+    return result
 
 
 @router.get("/{project_id}/callers/{function_name}")
@@ -249,10 +347,24 @@ async def callers(
     function_name: str,
     depth: int = Query(default=2, ge=1, le=10),
     build_snapshot_id: str | None = Query(default=None, alias="buildSnapshotId"),
+    x_request_id: str | None = Header(None, alias="X-Request-Id"),
 ) -> dict:
+    set_request_id(x_request_id)
+    start = time.monotonic()
     _require_service()
     results = _service.get_callers(
         project_id, function_name, depth=depth, build_snapshot_id=build_snapshot_id,
+    )
+    logger.info(
+        "코드 그래프 callers 조회",
+        extra={"_extra": {
+            "projectId": project_id,
+            "functionName": function_name,
+            "depth": depth,
+            "buildSnapshotId": build_snapshot_id,
+            "resultCount": len(results),
+            "elapsedMs": _elapsed_ms(start),
+        }},
     )
     return {"function": function_name, "depth": depth, "callers": results}
 
@@ -262,10 +374,23 @@ async def callees(
     project_id: str,
     function_name: str,
     build_snapshot_id: str | None = Query(default=None, alias="buildSnapshotId"),
+    x_request_id: str | None = Header(None, alias="X-Request-Id"),
 ) -> dict:
+    set_request_id(x_request_id)
+    start = time.monotonic()
     _require_service()
     results = _service.get_callees(
         project_id, function_name, build_snapshot_id=build_snapshot_id,
+    )
+    logger.info(
+        "코드 그래프 callees 조회",
+        extra={"_extra": {
+            "projectId": project_id,
+            "functionName": function_name,
+            "buildSnapshotId": build_snapshot_id,
+            "resultCount": len(results),
+            "elapsedMs": _elapsed_ms(start),
+        }},
     )
     return {"function": function_name, "callees": results}
 
@@ -277,6 +402,7 @@ async def dangerous_callers(
     x_timeout_ms: int | None = Header(None, alias="X-Timeout-Ms"),
 ) -> dict:
     set_request_id(x_request_id)
+    start = time.monotonic()
     deadline, _ = parse_timeout(x_timeout_ms)
     _require_service()
     results = await run_sync_with_deadline(
@@ -286,6 +412,17 @@ async def dangerous_callers(
         project_id,
         req.dangerous_functions,
         build_snapshot_id=req.build_snapshot_id,
+    )
+    logger.info(
+        "코드 그래프 dangerous-callers 조회",
+        extra={"_extra": {
+            "projectId": project_id,
+            "dangerousFunctionCount": len(req.dangerous_functions),
+            "buildSnapshotId": req.build_snapshot_id,
+            "resultCount": len(results),
+            "elapsedMs": _elapsed_ms(start),
+            "timeoutMs": x_timeout_ms,
+        }},
     )
     return {"results": results}
 
@@ -323,6 +460,9 @@ async def search(
             "projectId": project_id,
             "query": req.query,
             "hits": result["total"],
+            "matchTypeCounts": result.get("match_type_counts", {}),
+            "buildSnapshotId": req.build_snapshot_id,
+            "timeoutMs": x_timeout_ms,
             "latencyMs": elapsed_ms,
         }},
     )
@@ -331,7 +471,12 @@ async def search(
 
 
 @router.delete("/{project_id}")
-async def delete_project(project_id: str) -> dict:
+async def delete_project(
+    project_id: str,
+    x_request_id: str | None = Header(None, alias="X-Request-Id"),
+) -> dict:
+    set_request_id(x_request_id)
+    start = time.monotonic()
     _require_service()
     deleted = _service.delete_project(project_id)
     if not deleted:
@@ -343,11 +488,30 @@ async def delete_project(project_id: str) -> dict:
         except Exception as e:
             logger.warning("코드 함수 벡터 삭제 실패: %s", e)
 
+    logger.info(
+        "코드 그래프 삭제",
+        extra={"_extra": {
+            "projectId": project_id,
+            "deleted": True,
+            "elapsedMs": _elapsed_ms(start),
+        }},
+    )
     return {"deleted": True, "project_id": project_id}
 
 
 @router.get("")
-async def list_projects() -> dict:
+async def list_projects(
+    x_request_id: str | None = Header(None, alias="X-Request-Id"),
+) -> dict:
+    set_request_id(x_request_id)
+    start = time.monotonic()
     _require_service()
     projects = _service.list_projects()
+    logger.info(
+        "코드 그래프 프로젝트 목록 조회",
+        extra={"_extra": {
+            "projectCount": len(projects),
+            "elapsedMs": _elapsed_ms(start),
+        }},
+    )
     return {"projects": projects}

@@ -199,6 +199,132 @@ def _to_build_response(
     )
 
 
+def _execution_summary(execution) -> dict:
+    tool_results = execution.tool_results
+    return {
+        "toolsRun": list(execution.tools_run),
+        "findingsByTool": {
+            name: result.findings_count
+            for name, result in tool_results.items()
+        },
+        "elapsedByToolMs": {
+            name: result.elapsed_ms
+            for name, result in tool_results.items()
+        },
+        "toolStatuses": {
+            name: result.status
+            for name, result in tool_results.items()
+        },
+        "toolSkipReasons": {
+            name: result.skip_reason
+            for name, result in tool_results.items()
+            if result.skip_reason
+        },
+    }
+
+
+def _log_scan_execution_summary(
+    *,
+    request_id: str,
+    body: ScanRequest,
+    source_files: list[str],
+    findings_count: int,
+    execution,
+    elapsed_ms: int,
+    has_code_graph: bool,
+    sca_libraries: int,
+) -> None:
+    filtering = execution.filtering
+    sdk = execution.sdk
+    summary = _execution_summary(execution)
+    logger.info(
+        "Scan execution summary",
+        extra={
+            "requestId": request_id,
+            "scanId": body.scan_id,
+            "projectId": body.project_id,
+            "projectPath": body.project_path,
+            "filesScanned": len(source_files),
+            "compileCommandsProvided": bool(body.compile_commands),
+            "sdkResolved": sdk.resolved,
+            "sdkId": sdk.sdk_id,
+            "includePathsAdded": sdk.include_paths_added,
+            "findingsCount": findings_count,
+            "findingsBeforeFilter": filtering.before_filter,
+            "findingsAfterFilter": filtering.after_filter,
+            "sdkNoiseRemoved": filtering.sdk_noise_removed,
+            "thirdPartyRemoved": filtering.third_party_removed,
+            "crossBoundaryKept": filtering.cross_boundary_kept,
+            "filesScopedOut": filtering.files_scoped_out,
+            "degraded": execution.degraded,
+            "degradeReasons": execution.degrade_reasons,
+            "hasCodeGraph": has_code_graph,
+            "scaLibraries": sca_libraries,
+            "elapsedMs": elapsed_ms,
+            **summary,
+        },
+    )
+
+
+def _log_build_execution_summary(
+    *,
+    request_id: str,
+    endpoint: str,
+    result: dict,
+    project_path: str,
+) -> None:
+    evidence = result.get("buildEvidence") or {}
+    readiness = result.get("readiness") or {}
+    failure_detail = result.get("failureDetail") or {}
+    logger.info(
+        "Build execution summary",
+        extra={
+            "requestId": request_id,
+            "endpoint": endpoint,
+            "projectPath": project_path,
+            "success": bool(result.get("success")),
+            "requestedBuildCommand": evidence.get("requestedBuildCommand"),
+            "effectiveBuildCommand": evidence.get("effectiveBuildCommand"),
+            "compileCommandsPath": evidence.get("compileCommandsPath"),
+            "entries": evidence.get("entries"),
+            "userEntries": evidence.get("userEntries"),
+            "exitCode": evidence.get("exitCode"),
+            "wrapWithBear": evidence.get("wrapWithBear"),
+            "timeoutSeconds": evidence.get("timeoutSeconds"),
+            "environmentKeys": evidence.get("environmentKeys"),
+            "buildElapsedMs": evidence.get("elapsedMs"),
+            "readinessStatus": readiness.get("status"),
+            "compileCommandsReady": readiness.get("compileCommandsReady"),
+            "quickEligible": readiness.get("quickEligible"),
+            "failureCategory": failure_detail.get("category"),
+            "failureRetryable": failure_detail.get("retryable"),
+        },
+    )
+
+
+def _log_terminal_request_summary(request_id: str) -> None:
+    summary = request_summary_tracker.get_summary(request_id)
+    logger.info(
+        "Request terminal summary",
+        extra={
+            "requestId": request_id,
+            "endpoint": summary.get("endpoint"),
+            "state": summary.get("state"),
+            "ackStatus": summary.get("ackStatus"),
+            "localAckState": summary.get("localAckState"),
+            "lastAckSource": summary.get("lastAckSource"),
+            "degraded": summary.get("degraded"),
+            "degradeReasons": summary.get("degradeReasons"),
+            "activeTools": summary.get("activeTools"),
+            "completedTools": summary.get("completedTools"),
+            "findingsCount": summary.get("findingsCount"),
+            "filesCompleted": summary.get("filesCompleted"),
+            "filesTotal": summary.get("filesTotal"),
+            "blockedReason": summary.get("blockedReason"),
+        },
+    )
+
+
 async def _run_scan_core(
     request_id: str,
     body: ScanRequest,
@@ -329,6 +455,17 @@ async def _run_scan_core(
             scan_response=failed_response,
             code=policy_violation["code"],
         )
+
+    _log_scan_execution_summary(
+        request_id=request_id,
+        body=body,
+        source_files=source_files,
+        findings_count=len(findings),
+        execution=execution,
+        elapsed_ms=elapsed_ms,
+        has_code_graph=code_graph_result is not None,
+        sca_libraries=len(sca_result["libraries"]) if sca_result else 0,
+    )
 
     logger.info(
         "Scan completed",
@@ -483,6 +620,7 @@ def _scan_streaming(
             # 최종 결과
             result = scan_task.result()
             request_summary_tracker.mark_completed(request_id)
+            _log_terminal_request_summary(request_id)
             yield _json.dumps({
                 "type": "result",
                 "data": result.model_dump(by_alias=True, exclude_none=True),
@@ -490,6 +628,7 @@ def _scan_streaming(
 
         except PolicyViolationError as exc:
             request_summary_tracker.mark_failed(request_id, exc.message)
+            _log_terminal_request_summary(request_id)
             logger.warning(
                 "NDJSON scan policy violation: %s",
                 exc.message,
@@ -518,6 +657,7 @@ def _scan_streaming(
 
         except SastRunnerError as exc:
             request_summary_tracker.mark_failed(request_id, exc.message)
+            _log_terminal_request_summary(request_id)
             logger.error(
                 "NDJSON scan failed: %s",
                 exc.message,
@@ -534,6 +674,7 @@ def _scan_streaming(
 
         except Exception as exc:
             request_summary_tracker.mark_failed(request_id, str(exc))
+            _log_terminal_request_summary(request_id)
             logger.error(
                 "NDJSON scan failed unexpectedly: %s",
                 str(exc),
@@ -625,15 +766,18 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
             on_runtime_state=_track_runtime_state,
         )
         request_summary_tracker.mark_completed(request_id)
+        _log_terminal_request_summary(request_id)
         return result
 
     except PolicyViolationError as exc:
         request_summary_tracker.mark_failed(request_id, exc.message)
+        _log_terminal_request_summary(request_id)
         response.status_code = exc.status_code
         return exc.scan_response
 
     except SastRunnerError as exc:
         request_summary_tracker.mark_failed(request_id, exc.message)
+        _log_terminal_request_summary(request_id)
         logger.error(
             "Scan failed: %s",
             exc.message,
@@ -656,6 +800,7 @@ async def scan(request: Request, body: ScanRequest, response: Response) -> ScanR
 
     except Exception as exc:
         request_summary_tracker.mark_failed(request_id, str(exc))
+        _log_terminal_request_summary(request_id)
         logger.error(
             "Unexpected error: %s",
             str(exc),
@@ -894,6 +1039,12 @@ async def build_and_analyze(
             environment=body.build_environment,
             on_runtime_state=_track_build_runtime,
         )
+        _log_build_execution_summary(
+            request_id=request_id,
+            endpoint="build-and-analyze",
+            result=build_result,
+            project_path=project_path,
+        )
         build_response = _to_build_response(build_result, body.provenance)
         if not build_result.get("success"):
             failure_detail = build_result.get("failureDetail") or {}
@@ -901,6 +1052,7 @@ async def build_and_analyze(
                 request_id,
                 failure_detail.get("summary") or "build failed",
             )
+            _log_terminal_request_summary(request_id)
             return BuildAndAnalyzeResponse(
                 success=False,
                 provenance=body.provenance,
@@ -943,10 +1095,11 @@ async def build_and_analyze(
             on_file_progress=_track_file_progress,
             on_runtime_state=_track_runtime_state,
         )
-        request_summary_tracker.mark_completed(request_id)
         meta = await metadata_extractor.extract(scan_profile)
 
         elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        request_summary_tracker.mark_completed(request_id)
+        _log_terminal_request_summary(request_id)
 
         logger.info(
             "Build-and-analyze completed",
@@ -972,6 +1125,7 @@ async def build_and_analyze(
 
     except PolicyViolationError as exc:
         request_summary_tracker.mark_failed(request_id, exc.message)
+        _log_terminal_request_summary(request_id)
         response.status_code = exc.status_code
         if build_response is None:
             return _error_response(request_id, exc, response)
@@ -989,6 +1143,7 @@ async def build_and_analyze(
 
     except Exception as exc:
         request_summary_tracker.mark_failed(request_id, str(exc))
+        _log_terminal_request_summary(request_id)
         return _error_response(request_id, exc, response)
 
 
@@ -1053,6 +1208,12 @@ async def build(
             timeout=build_timeout,
             on_runtime_state=_track_build_runtime,
         )
+        _log_build_execution_summary(
+            request_id=request_id,
+            endpoint="build",
+            result=result,
+            project_path=project_path,
+        )
         if result.get("success"):
             request_summary_tracker.mark_completed(request_id)
         else:
@@ -1061,6 +1222,7 @@ async def build(
                 request_id,
                 failure_detail.get("summary") or "build failed",
             )
+        _log_terminal_request_summary(request_id)
 
         return _to_build_response(result, body.provenance)
 
@@ -1069,6 +1231,7 @@ async def build(
             request_id,
             exc.message if isinstance(exc, SastRunnerError) else str(exc),
         )
+        _log_terminal_request_summary(request_id)
         return _error_response(request_id, exc, response)
 
 

@@ -5,6 +5,8 @@
 이 파일은 **성공 경로의 응답 shape**이 계약서와 일치하는지 검증한다.
 """
 
+import logging
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -606,6 +608,29 @@ class TestCodeGraphIngestContract:
         }
         assert body["status"] == "ready"
 
+    def test_ingest_completion_is_structured_logged(self, _init_code_graph, caplog):
+        caplog.set_level(logging.INFO, logger="app.routers.code_graph_api")
+
+        resp = client.post(
+            "/v1/code-graph/re100/ingest",
+            json={"functions": self._FUNCTIONS},
+            headers=_HEADERS,
+        )
+
+        assert resp.status_code == 200
+        records = [
+            rec for rec in caplog.records
+            if rec.name == "app.routers.code_graph_api"
+            and rec.getMessage() == "코드 그래프 ingest 완료"
+        ]
+        assert records
+        extra = records[-1]._extra
+        assert extra["projectId"] == "re100"
+        assert extra["status"] == "ready"
+        assert extra["expectedVectorCount"] == len(self._FUNCTIONS)
+        assert extra["readinessGraphRag"] is True
+        assert isinstance(extra["elapsedMs"], int)
+
     def test_ingest_ready_when_graph_has_more_nodes_than_vectorized_functions(self):
         class GraphWithExternalCallees(FakeCodeGraphService):
             def ingest(self, project_id, functions, *, provenance=None):
@@ -797,6 +822,24 @@ class TestCodeGraphStatsContract:
         for key in ("nodeCount", "edgeCount", "files"):
             assert key in body
 
+    def test_stats_is_structured_logged(self, _init_code_graph, caplog):
+        caplog.set_level(logging.INFO, logger="app.routers.code_graph_api")
+
+        resp = client.get("/v1/code-graph/re100/stats", headers={"X-Request-Id": _REQ_ID})
+
+        assert resp.status_code == 200
+        records = [
+            rec for rec in caplog.records
+            if rec.name == "app.routers.code_graph_api"
+            and rec.getMessage() == "코드 그래프 stats 조회"
+        ]
+        assert records
+        extra = records[-1]._extra
+        assert extra["projectId"] == "re100"
+        assert extra["nodeCount"] == 3
+        assert extra["edgeCount"] == 2
+        assert extra["fileCount"] == 2
+
     def test_provenance_filter(self, _init_code_graph):
         resp = client.get("/v1/code-graph/re100/stats?buildSnapshotId=snap-001")
         body = resp.json()
@@ -865,6 +908,28 @@ class TestCodeGraphDangerousCallersContract:
         for key in ("name", "file", "line", "dangerous_calls"):
             assert key in item
         assert isinstance(item["dangerous_calls"], list)
+
+    def test_dangerous_callers_is_structured_logged(self, _init_code_graph, caplog):
+        caplog.set_level(logging.INFO, logger="app.routers.code_graph_api")
+
+        resp = client.post(
+            "/v1/code-graph/re100/dangerous-callers",
+            json={"dangerous_functions": ["popen", "system"]},
+            headers=_HEADERS,
+        )
+
+        assert resp.status_code == 200
+        records = [
+            rec for rec in caplog.records
+            if rec.name == "app.routers.code_graph_api"
+            and rec.getMessage() == "코드 그래프 dangerous-callers 조회"
+        ]
+        assert records
+        extra = records[-1]._extra
+        assert extra["projectId"] == "re100"
+        assert extra["dangerousFunctionCount"] == 2
+        assert extra["resultCount"] == 1
+        assert extra["timeoutMs"] == int(_TIMEOUT["X-Timeout-Ms"])
 
 
 class TestCodeGraphDeleteContract:
@@ -1018,6 +1083,26 @@ class TestProjectMemoryListContract:
         resp = client.get("/v1/project-memory/re100?buildSnapshotId=snap-001")
         assert resp.status_code == 200
 
+    def test_list_memories_is_structured_logged(self, _init_memory, caplog):
+        caplog.set_level(logging.INFO, logger="app.routers.project_memory_api")
+
+        resp = client.get(
+            "/v1/project-memory/re100?type=analysis_history",
+            headers={"X-Request-Id": _REQ_ID},
+        )
+
+        assert resp.status_code == 200
+        records = [
+            rec for rec in caplog.records
+            if rec.name == "app.routers.project_memory_api"
+            and rec.getMessage() == "프로젝트 메모리 조회"
+        ]
+        assert records
+        extra = records[-1]._extra
+        assert extra["projectId"] == "re100"
+        assert extra["type"] == "analysis_history"
+        assert extra["resultCount"] == 1
+
 
 class TestProjectMemoryCreateContract:
     """POST /v1/project-memory/{project_id} 성공 응답 shape."""
@@ -1031,6 +1116,27 @@ class TestProjectMemoryCreateContract:
         body = resp.json()
         for key in ("id", "type", "createdAt"):
             assert key in body, f"create memory 응답에 '{key}' 필드 누락"
+
+    def test_create_memory_is_structured_logged(self, _init_memory, caplog):
+        caplog.set_level(logging.INFO, logger="app.routers.project_memory_api")
+
+        resp = client.post(
+            "/v1/project-memory/re100",
+            json={"type": "false_positive", "data": {"pattern": "test"}},
+            headers={"X-Request-Id": _REQ_ID},
+        )
+
+        assert resp.status_code == 200
+        records = [
+            rec for rec in caplog.records
+            if rec.name == "app.routers.project_memory_api"
+            and rec.getMessage() == "프로젝트 메모리 생성 요청 완료"
+        ]
+        assert records
+        extra = records[-1]._extra
+        assert extra["projectId"] == "re100"
+        assert extra["type"] == "false_positive"
+        assert extra["memoryId"] == "mem-new12345"
 
     def test_provenance_passthrough(self, _init_memory):
         resp = client.post(
@@ -1076,6 +1182,26 @@ class TestProjectMemoryDeleteContract:
         assert body["deleted"] is True
         assert body["projectId"] == "re100"
         assert body["memoryId"] == "mem-a1b2c3d4"
+
+    def test_delete_memory_is_structured_logged(self, _init_memory, caplog):
+        caplog.set_level(logging.INFO, logger="app.routers.project_memory_api")
+
+        resp = client.delete(
+            "/v1/project-memory/re100/mem-a1b2c3d4",
+            headers={"X-Request-Id": _REQ_ID},
+        )
+
+        assert resp.status_code == 200
+        records = [
+            rec for rec in caplog.records
+            if rec.name == "app.routers.project_memory_api"
+            and rec.getMessage() == "프로젝트 메모리 삭제"
+        ]
+        assert records
+        extra = records[-1]._extra
+        assert extra["projectId"] == "re100"
+        assert extra["memoryId"] == "mem-a1b2c3d4"
+        assert extra["deleted"] is True
 
     def test_not_found_404(self, _init_memory):
         resp = client.delete("/v1/project-memory/re100/mem-nonexistent")

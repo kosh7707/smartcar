@@ -215,6 +215,11 @@ describe("UserService", () => {
       const lookup = service.lookupRegistration(result.lookupToken);
       expect(lookup.email).toBe("bob@acme.kr");
       expect(lookup.status).toBe("pending_admin_review");
+      expect(lookup.fullName).toBe("Bob Analyst");
+      expect(lookup.organizationId).toBe("org-1");
+      expect(lookup.organizationCode).toBe("ACME-KR");
+      expect(lookup.organizationName).toBe("ACME Corp");
+      expect(lookup.lookupExpiresAt).toBe(result.lookupExpiresAt);
     });
 
     it("approves registration with same-org admin and enables login immediately", () => {
@@ -239,6 +244,14 @@ describe("UserService", () => {
       );
 
       expect(approved.status).toBe("approved");
+      expect(approved.fullName).toBe("Bob Analyst");
+      expect(approved.organizationId).toBe("org-1");
+      expect(approved.organizationCode).toBe("ACME-KR");
+      expect(approved.organizationName).toBe("ACME Corp");
+      expect(approved.assignedRole).toBe("analyst");
+      expect(approved.approvedAt).toBeDefined();
+      expect(approved.createdAt).toBeDefined();
+      expect(approved.lookupExpiresAt).toBeDefined();
       const login = service.authenticate("bob@acme.kr", "Passw0rd!");
       expect(login.user.email).toBe("bob@acme.kr");
       expect(login.user.role).toBe("analyst");

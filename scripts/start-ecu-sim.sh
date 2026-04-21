@@ -25,8 +25,8 @@ for arg in "$@"; do
   esac
 done
 
-echo "[ECU Sim] 시나리오=$SCENARIO, 속도=${SPEED}x, 어댑터=$ADAPTER"
-exec npx tsx "$ROOT_DIR/services/ecu-simulator/src/index.ts" \
+echo "[ECU Sim] 시나리오=$SCENARIO, 속도=${SPEED}x, 어댑터=$ADAPTER (watch 모드)"
+exec npx tsx watch "$ROOT_DIR/services/ecu-simulator/src/index.ts" \
   --adapter="$ADAPTER" \
   --scenario="$SCENARIO" \
   --speed="$SPEED" \

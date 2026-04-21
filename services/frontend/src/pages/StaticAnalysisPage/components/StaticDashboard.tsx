@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import type {
   AnalysisProgress,
   Run,
@@ -66,7 +67,10 @@ export const StaticDashboard: React.FC<Props> = ({
   onFileClick,
   onBrowseTree,
 }) => {
-  const [activeTab, setActiveTab] = useState<TabId>("latest");
+  const [searchParams] = useSearchParams();
+  const initialTab: TabId = searchParams.get("tab") === "overall" ? "overall" : "latest";
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
+  const handleTab = setActiveTab;
 
   const lastRunIso = recentRuns[0]?.startedAt ?? recentRuns[0]?.endedAt ?? null;
   const totalFindings = Object.values(summary.bySeverity).reduce((a, b) => a + b, 0);
@@ -134,7 +138,7 @@ export const StaticDashboard: React.FC<Props> = ({
             role="tab"
             aria-selected={activeTab === "latest"}
             className={cn("pill", activeTab === "latest" && "active")}
-            onClick={() => setActiveTab("latest")}
+            onClick={() => handleTab("latest")}
           >
             최신 분석
           </button>
@@ -143,7 +147,7 @@ export const StaticDashboard: React.FC<Props> = ({
             role="tab"
             aria-selected={activeTab === "overall"}
             className={cn("pill", activeTab === "overall" && "active")}
-            onClick={() => setActiveTab("overall")}
+            onClick={() => handleTab("overall")}
           >
             전체 현황
           </button>

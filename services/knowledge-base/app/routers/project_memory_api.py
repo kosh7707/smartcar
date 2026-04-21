@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -54,6 +55,10 @@ def _require_service():
         raise HTTPException(503, "Project memory service not initialized")
 
 
+def _elapsed_ms(start: float) -> int:
+    return int((time.monotonic() - start) * 1000)
+
+
 @router.get("/{project_id}")
 async def list_memories(
     project_id: str,
@@ -64,6 +69,7 @@ async def list_memories(
     x_request_id: str | None = Header(None, alias="X-Request-Id"),
 ) -> dict:
     set_request_id(x_request_id)
+    start = time.monotonic()
     _require_service()
     memories = _service.list_memories(
         project_id,
@@ -73,6 +79,18 @@ async def list_memories(
             "build_unit_id": build_unit_id,
             "source_build_attempt_id": source_build_attempt_id,
         },
+    )
+    logger.info(
+        "프로젝트 메모리 조회",
+        extra={"_extra": {
+            "projectId": project_id,
+            "type": type,
+            "buildSnapshotId": build_snapshot_id,
+            "buildUnitId": build_unit_id,
+            "sourceBuildAttemptId": source_build_attempt_id,
+            "resultCount": len(memories),
+            "elapsedMs": _elapsed_ms(start),
+        }},
     )
     return {"projectId": project_id, "memories": memories}
 
@@ -84,6 +102,7 @@ async def create_memory(
     x_request_id: str | None = Header(None, alias="X-Request-Id"),
 ) -> dict:
     set_request_id(x_request_id)
+    start = time.monotonic()
     _require_service()
     from app.graphrag.project_memory_service import MemoryLimitError
     try:
@@ -98,9 +117,40 @@ async def create_memory(
             ),
         )
     except ValueError as e:
+        logger.warning(
+            "프로젝트 메모리 생성 실패",
+            extra={"_extra": {
+                "projectId": project_id,
+                "type": req.type,
+                "error": str(e),
+                "elapsedMs": _elapsed_ms(start),
+            }},
+        )
         raise HTTPException(422, str(e))
     except MemoryLimitError as e:
+        logger.warning(
+            "프로젝트 메모리 생성 실패",
+            extra={"_extra": {
+                "projectId": project_id,
+                "type": req.type,
+                "error": str(e),
+                "code": "MEMORY_LIMIT_EXCEEDED",
+                "elapsedMs": _elapsed_ms(start),
+            }},
+        )
         return error_response(409, "MEMORY_LIMIT_EXCEEDED", str(e), retryable=False)
+    logger.info(
+        "프로젝트 메모리 생성 요청 완료",
+        extra={"_extra": {
+            "projectId": project_id,
+            "type": req.type,
+            "memoryId": result.get("id"),
+            "deduplicated": result.get("deduplicated", False),
+            "hasTtl": req.ttl_seconds is not None,
+            "hasProvenance": req.provenance is not None,
+            "elapsedMs": _elapsed_ms(start),
+        }},
+    )
     return result
 
 
@@ -111,8 +161,18 @@ async def delete_memory(
     x_request_id: str | None = Header(None, alias="X-Request-Id"),
 ) -> dict:
     set_request_id(x_request_id)
+    start = time.monotonic()
     _require_service()
     deleted = _service.delete_memory(project_id, memory_id)
     if not deleted:
         raise HTTPException(404, f"Memory '{memory_id}' not found in project '{project_id}'")
+    logger.info(
+        "프로젝트 메모리 삭제",
+        extra={"_extra": {
+            "projectId": project_id,
+            "memoryId": memory_id,
+            "deleted": True,
+            "elapsedMs": _elapsed_ms(start),
+        }},
+    )
     return {"deleted": True, "projectId": project_id, "memoryId": memory_id}

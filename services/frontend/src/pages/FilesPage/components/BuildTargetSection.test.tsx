@@ -33,7 +33,7 @@ const target: BuildTarget = {
     languageStandard: "c17",
     headerLanguage: "auto",
   },
-  sdkChoiceState: "unresolved",
+  sdkChoiceState: "sdk-none-explicit",
   status: "discovered",
   createdAt: "2026-04-10T00:00:00Z",
   updatedAt: "2026-04-10T00:00:00Z",

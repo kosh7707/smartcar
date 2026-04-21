@@ -13,6 +13,16 @@ from agent_shared.schemas.agent import ToolResult
 logger = logging.getLogger(__name__)
 
 
+def _s4_build_profile(build_profile: dict | None) -> dict:
+    if not isinstance(build_profile, dict):
+        return {}
+    return {
+        key: value
+        for key, value in build_profile.items()
+        if not (key == "sdkId" and value == "custom")
+    }
+
+
 class MetadataTool:
     """build.metadata tool — S4 /v1/metadata로 타겟 빌드 환경 매크로/아키텍처 조회."""
 
@@ -24,7 +34,7 @@ class MetadataTool:
     ) -> None:
         self._sast_endpoint = sast_endpoint
         self._project_path = project_path
-        self._build_profile = build_profile or {}
+        self._build_profile = _s4_build_profile(build_profile)
         self._client = httpx.AsyncClient(timeout=30.0)
 
     async def execute(self, arguments: dict) -> ToolResult:

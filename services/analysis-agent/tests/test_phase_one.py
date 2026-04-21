@@ -850,3 +850,28 @@ class TestFormatOriginLabel:
         from app.core.phase_one import _format_origin_label
         func = {"origin": None}
         assert _format_origin_label(func) == ""
+
+
+def test_s4_build_profile_strips_custom_sdkid_for_native_profile():
+    from app.core.phase_one_exec import _s4_build_profile
+
+    assert _s4_build_profile({
+        "sdkId": "custom",
+        "compiler": "g++",
+        "targetArch": "x86_64",
+    }) == {
+        "compiler": "g++",
+        "targetArch": "x86_64",
+    }
+
+
+def test_s4_build_profile_preserves_real_sdkid():
+    from app.core.phase_one_exec import _s4_build_profile
+
+    assert _s4_build_profile({
+        "sdkId": "ti-am335x",
+        "compiler": "arm-none-linux-gnueabihf-gcc",
+    }) == {
+        "sdkId": "ti-am335x",
+        "compiler": "arm-none-linux-gnueabihf-gcc",
+    }

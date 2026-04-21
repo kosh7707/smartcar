@@ -1,6 +1,5 @@
 import React from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import type { ApprovalFilterStatus } from "../hooks/useApprovalsPage";
 
 const FILTER_LABELS: Record<ApprovalFilterStatus, string> = {
@@ -15,39 +14,22 @@ interface ApprovalFiltersProps {
   filter: ApprovalFilterStatus;
   onChange: (value: ApprovalFilterStatus) => void;
   statusCounts: Record<ApprovalFilterStatus, number>;
-  pendingCount: number;
-  totalCount: number;
 }
 
-export const ApprovalFilters: React.FC<ApprovalFiltersProps> = ({ filter, onChange, statusCounts, pendingCount, totalCount }) => (
-  <section className="approval-filters" aria-label="승인 요청 필터와 요약">
-    <div className="approval-filters__tabs" role="tablist" aria-label="Approval status filters">
+export const ApprovalFilters: React.FC<ApprovalFiltersProps> = ({ filter, onChange, statusCounts }) => (
+  <nav className="approval-filters chore c-2" aria-label="승인 요청 필터">
+    <div className="filter-pills">
       {(Object.keys(FILTER_LABELS) as ApprovalFilterStatus[]).map((status) => (
-        <Button
+        <button
           key={status}
           type="button"
-          variant={filter === status ? "default" : "outline"}
-          className={filter === status ? "pill active" : "pill"}
+          aria-pressed={filter === status}
+          className={cn("pill", filter === status && "active")}
           onClick={() => onChange(status)}
         >
           {FILTER_LABELS[status]} {statusCounts[status]}
-        </Button>
+        </button>
       ))}
     </div>
-
-    <div className="approval-filters__stats">
-      <Card>
-        <CardContent className="approval-filters__stat">
-          <span className="approval-filters__label">전체 요청</span>
-          <span className="approval-filters__value">{totalCount}</span>
-        </CardContent>
-      </Card>
-      <Card className="approval-filters__stat--pending">
-        <CardContent className="approval-filters__stat">
-          <span className="approval-filters__label">대기 중</span>
-          <span className="approval-filters__value">{pendingCount}</span>
-        </CardContent>
-      </Card>
-    </div>
-  </section>
+  </nav>
 );

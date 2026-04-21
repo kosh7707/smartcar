@@ -42,10 +42,19 @@ const BREAKDOWN_LABELS: { key: string; label: string }[] = [
   { key: "schemaCompliance", label: "스키마 준수" },
 ];
 
+const PROVENANCE_FLAGS: Record<string, string> = {
+  structured_finalizer: "구조화 마감",
+};
+
 function getPolicyFlagClass(flag: string): string {
   if (flag.startsWith("CVE-")) return "agent-result-flag agent-result-flag--cve";
   if (flag.startsWith("CWE-")) return "agent-result-flag agent-result-flag--cwe";
+  if (flag in PROVENANCE_FLAGS) return "agent-result-flag agent-result-flag--provenance";
   return "agent-result-flag";
+}
+
+function formatPolicyFlag(flag: string): string {
+  return PROVENANCE_FLAGS[flag] ?? flag;
 }
 
 export const AgentResultPanel: React.FC<Props> = ({ analysisResult }) => {
@@ -155,11 +164,18 @@ export const AgentResultPanel: React.FC<Props> = ({ analysisResult }) => {
               <Tag size={16} /> 정책 플래그
             </CardTitle>
             <div className="agent-result-flags">
-              {policyFlags.map((flag) => (
-                <span key={flag} className={getPolicyFlagClass(flag)}>
-                  {flag}
-                </span>
-              ))}
+              {policyFlags.map((flag) => {
+                const isProvenance = flag in PROVENANCE_FLAGS;
+                return (
+                  <span
+                    key={flag}
+                    className={getPolicyFlagClass(flag)}
+                    title={isProvenance ? "분석 과정 정보 — 취약점 분류 아님" : undefined}
+                  >
+                    {formatPolicyFlag(flag)}
+                  </span>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
