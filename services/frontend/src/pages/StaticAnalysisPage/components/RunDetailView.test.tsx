@@ -66,9 +66,12 @@ describe("RunDetailView", () => {
     );
 
     expect(screen.getByRole("heading", { name: "실행 상세" })).toBeInTheDocument();
-    expect(screen.getByText("상태")).toBeInTheDocument();
-    expect(screen.getByText("탐지 항목")).toBeInTheDocument();
-    expect(screen.getByText("소요 시간")).toBeInTheDocument();
+    expect(screen.getByText("실행 정보")).toBeInTheDocument();
+    expect(screen.getByText("STATUS")).toBeInTheDocument();
+    expect(screen.getByText("DURATION")).toBeInTheDocument();
+    expect(screen.getByText("보안 현황")).toBeInTheDocument();
+    expect(screen.getByText("총 탐지")).toBeInTheDocument();
+    expect(screen.getAllByText("탐지 항목").length).toBeGreaterThan(0);
     expect(screen.getByText("gate-result-card")).toBeInTheDocument();
     expect(screen.getByText("agent-result-panel")).toBeInTheDocument();
     expect(screen.getByText("src/auth.ts")).toBeInTheDocument();

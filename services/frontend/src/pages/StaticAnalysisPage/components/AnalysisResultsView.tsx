@@ -12,11 +12,12 @@ import {
   PageHeader,
   SeveritySummary,
   SeverityBadge,
-  StatCard,
 } from "../../../shared/ui";
+import { cn } from "@/lib/utils";
 import { FileCode, SkipForward } from "lucide-react";
 import { SEVERITY_ORDER } from "../../../utils/severity";
 import { parseLocation } from "../../../utils/location";
+import { OverviewSectionHeader } from "../../OverviewPage/components/OverviewSectionHeader";
 
 const SEVERITY_LABEL_SHORT: Record<Severity, string> = {
   critical: "CRIT",
@@ -145,24 +146,74 @@ export const AnalysisResultsView: React.FC<Props> = ({ result, onSelectVuln, onN
 
   const fileGroups = useMemo(() => groupByFile(filtered), [filtered]);
 
+  const POSTURE: Array<{ key: Exclude<Severity, "info">; label: string }> = [
+    { key: "critical", label: "Critical" },
+    { key: "high", label: "High" },
+    { key: "medium", label: "Medium" },
+    { key: "low", label: "Low" },
+  ];
+  const totalExInfo = result.summary.total - (result.summary.info ?? 0);
+
   return (
     <div className="analysis-results-shell">
       <BackButton onClick={onNewAnalysis} label="세션 목록으로" />
       <PageHeader title="정적 분석 결과" />
 
-      <div className="analysis-results-summary-grid">
-        <StatCard label="총 취약점" value={result.summary.total - (result.summary.info ?? 0)} accent />
-        <StatCard label="치명" value={result.summary.critical} color="var(--aegis-severity-critical)" />
-        <StatCard label="높음" value={result.summary.high} color="var(--aegis-severity-high)" />
-        <StatCard label="보통" value={result.summary.medium} color="var(--aegis-severity-medium)" />
-        <StatCard label="낮음" value={result.summary.low} color="var(--aegis-severity-low)" />
-      </div>
+      <section className="analysis-results-section">
+        <OverviewSectionHeader title="보안 현황" />
+        <div className="overview-security-posture__grid analysis-results-severity-grid">
+          <Card
+            className={cn(
+              "overview-security-posture__card overview-security-posture__card--total",
+              filterSeverity === "all" && "is-active",
+            )}
+            onClick={() => setFilterSeverity("all")}
+          >
+            <span className="overview-security-posture__eyebrow">총 취약점</span>
+            <span className="overview-security-posture__value">{totalExInfo}</span>
+            <span className="overview-security-posture__copy">
+              {filterSeverity === "all" ? "전체 표시 중" : "전체 보기"}
+            </span>
+          </Card>
+          {POSTURE.map((card) => (
+            <Card
+              key={card.key}
+              className={cn(
+                "overview-security-posture__card overview-security-posture__card--severity",
+                `overview-security-posture__card--${card.key}`,
+                filterSeverity === card.key && "is-active",
+              )}
+              onClick={() => setFilterSeverity(filterSeverity === card.key ? "all" : card.key)}
+            >
+              <span
+                className={cn(
+                  "overview-security-posture__eyebrow",
+                  `overview-security-posture__eyebrow--${card.key}`,
+                )}
+              >
+                {card.label}
+              </span>
+              <span className="overview-security-posture__value">
+                {result.summary[card.key] ?? 0}
+              </span>
+              <span className="overview-security-posture__copy">
+                {filterSeverity === card.key ? "필터 해제" : "해당 심각도만"}
+              </span>
+            </Card>
+          ))}
+        </div>
+      </section>
 
       {result.fileCoverage && result.fileCoverage.length > 0 ? (
-        <FileCoverageSummary coverage={result.fileCoverage} />
+        <section className="analysis-results-section">
+          <OverviewSectionHeader title="분석 커버리지" />
+          <FileCoverageSummary coverage={result.fileCoverage} />
+        </section>
       ) : null}
 
-      <Card className="analysis-results-card">
+      <section className="analysis-results-section">
+        <OverviewSectionHeader title="탐지 항목" />
+        <Card className="analysis-results-card">
         <CardContent className="analysis-results-filter-bar">
           <div className="analysis-results-filter-group">
             <span className="analysis-results-filter-label">SEVERITY</span>
@@ -288,6 +339,7 @@ export const AnalysisResultsView: React.FC<Props> = ({ result, onSelectVuln, onN
           </Card>
         ))
       )}
+      </section>
     </div>
   );
 };
