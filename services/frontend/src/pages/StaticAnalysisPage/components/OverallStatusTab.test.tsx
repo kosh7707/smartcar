@@ -48,8 +48,9 @@ describe("OverallStatusTab", () => {
       />,
     );
 
-    expect(screen.getByText("총 탐지 항목")).toBeInTheDocument();
-    expect(screen.getByText("출처 분포")).toBeInTheDocument();
+    expect(screen.getByText("총 Finding")).toBeInTheDocument();
+    expect(screen.getByText("보안 현황")).toBeInTheDocument();
+    expect(screen.getByText("분포")).toBeInTheDocument();
     expect(screen.getByText("취약 파일 Top 2")).toBeInTheDocument();
     expect(screen.getByText("룰 히트 Top 2")).toBeInTheDocument();
     expect(screen.getAllByText("최근 Run").length).toBeGreaterThan(0);

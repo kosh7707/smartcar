@@ -32,6 +32,7 @@ import {
   SourceBadge,
 } from "../../../shared/ui";
 import { bulkUpdateFindingStatus } from "../../../api/analysis";
+import { OverviewSectionHeader } from "../../OverviewPage/components/OverviewSectionHeader";
 import { TopFilesCard } from "./TopFilesCard";
 import { parseLocation } from "../../../utils/location";
 import {
@@ -308,31 +309,81 @@ const LatestAnalysisContent: React.FC<{
 
   return (
     <div className="latest-analysis-stack">
-      {gate ? (
-        <GateResultCard gate={gate} />
-      ) : (
-        <p className="latest-analysis-note">Quality Gate가 설정되지 않았습니다.</p>
-      )}
+      <section className="latest-analysis-section">
+        <OverviewSectionHeader title="품질 게이트" />
+        {gate ? (
+          <GateResultCard gate={gate} />
+        ) : (
+          <p className="latest-analysis-note">
+            <span className="latest-analysis-note-prefix" aria-hidden="true" />
+            Quality Gate가 설정되지 않았습니다
+          </p>
+        )}
+      </section>
 
-      <div className="latest-analysis-stats">
-        <StatCard label="탐지 항목" value={findings.length} accent />
-        <StatCard
-          label="치명 + 높음"
-          value={critHighCount}
-          color={critHighCount > 0 ? "var(--aegis-severity-high)" : undefined}
-        />
-        <StatCard
-          label="미해결"
-          value={unresolvedCount}
-          color={unresolvedCount > 0 ? "var(--aegis-severity-high)" : undefined}
-        />
-      </div>
+      <section className="latest-analysis-section">
+        <OverviewSectionHeader title="보안 현황" />
+        <div className="overview-security-posture__grid latest-analysis-severity-grid">
+          <Card
+            className={cn(
+              "overview-security-posture__card overview-security-posture__card--total",
+              severityFilter === "all" && "is-active",
+            )}
+            onClick={() => setSeverityFilter("all")}
+          >
+            <span className="overview-security-posture__eyebrow">총 Finding</span>
+            <span className="overview-security-posture__value">{findings.length}</span>
+            <span className="overview-security-posture__copy">
+              {severityFilter === "all" ? "전체 표시 중" : "전체 보기"}
+            </span>
+          </Card>
+          {(SEVERITY_ORDER.filter((s) => s !== "info") as Severity[]).map((sev) => (
+            <Card
+              key={sev}
+              className={cn(
+                "overview-security-posture__card overview-security-posture__card--severity",
+                `overview-security-posture__card--${sev}`,
+                severityFilter === sev && "is-active",
+              )}
+              onClick={() => setSeverityFilter(severityFilter === sev ? "all" : sev)}
+            >
+              <span
+                className={cn(
+                  "overview-security-posture__eyebrow",
+                  `overview-security-posture__eyebrow--${sev}`,
+                )}
+              >
+                {SEVERITY_LABELS[sev]}
+              </span>
+              <span className="overview-security-posture__value">{severityCounts[sev] ?? 0}</span>
+              <span className="overview-security-posture__copy">
+                {severityFilter === sev ? "필터 해제" : "해당 심각도만"}
+              </span>
+            </Card>
+          ))}
+        </div>
+
+        <div className="latest-analysis-stats latest-analysis-substats">
+          <StatCard
+            label="치명 + 높음"
+            value={critHighCount}
+            color={critHighCount > 0 ? "var(--aegis-severity-high)" : undefined}
+          />
+          <StatCard
+            label="미해결"
+            value={unresolvedCount}
+            color={unresolvedCount > 0 ? "var(--aegis-severity-high)" : undefined}
+          />
+        </div>
+      </section>
 
       {findings.length > 0 && (
-        <div className="latest-analysis-summary-grid">
-          <Card className="latest-analysis-card">
-            <CardContent className="latest-analysis-card-body">
-              <CardTitle>출처별 분포</CardTitle>
+        <section className="latest-analysis-section">
+          <OverviewSectionHeader title="분포" />
+          <div className="latest-analysis-summary-grid">
+            <Card className="latest-analysis-card">
+              <CardContent className="latest-analysis-card-body">
+                <CardTitle>출처별 분포</CardTitle>
               {sourceTotal === 0 ? (
                 <p className="latest-analysis-empty-copy">데이터 없음</p>
               ) : (
@@ -357,15 +408,18 @@ const LatestAnalysisContent: React.FC<{
               )}
             </CardContent>
           </Card>
-          <TopFilesCard topFiles={topFiles} onFileClick={onFileClick} />
-        </div>
+            <TopFilesCard topFiles={topFiles} onFileClick={onFileClick} />
+          </div>
+        </section>
       )}
 
       {findings.length > 0 && (
-        <Card className="latest-analysis-card">
-          <CardContent className="latest-analysis-toolbar-card">
-            <div className="latest-analysis-toolbar-row">
-              <div className="latest-analysis-search-wrap">
+        <section className="latest-analysis-section">
+          <OverviewSectionHeader title="탐지 항목" />
+          <Card className="latest-analysis-card">
+            <CardContent className="latest-analysis-toolbar-card">
+              <div className="latest-analysis-toolbar-row">
+                <div className="latest-analysis-search-wrap">
                 <Search size={14} className="latest-analysis-search-icon" />
                 <Input
                   type="text"
@@ -417,53 +471,35 @@ const LatestAnalysisContent: React.FC<{
               </div>
             </div>
 
-            <div className="latest-analysis-toolbar-row">
-              <div className="latest-analysis-filter-group">
-                <Button
-                  variant={severityFilter === "all" ? "secondary" : "outline"}
-                  size="sm"
-                  onClick={() => setSeverityFilter("all")}
-                >
-                  전체 <span className="latest-analysis-count-pill">{findings.length}</span>
-                </Button>
-                {SEVERITY_ORDER.filter((sev) => severityCounts[sev] > 0).map((sev) => (
+              <div className="latest-analysis-toolbar-row latest-analysis-toolbar-row--group">
+                <span className="latest-analysis-toolbar-label">GROUP BY</span>
+                <div className="latest-analysis-filter-group">
                   <Button
-                    key={sev}
-                    variant={severityFilter === sev ? "secondary" : "outline"}
-                    size="sm"
-                    onClick={() => setSeverityFilter(sev)}
+                    variant={groupBy === "severity" ? "secondary" : "outline"}
+                    size="icon-sm"
+                    onClick={() => setGroupBy("severity")}
+                    title="심각도별"
                   >
-                    {SEVERITY_LABELS[sev]} <span className="latest-analysis-count-pill">{severityCounts[sev]}</span>
+                    <Layers size={14} />
                   </Button>
-                ))}
+                  <Button
+                    variant={groupBy === "file" ? "secondary" : "outline"}
+                    size="icon-sm"
+                    onClick={() => setGroupBy("file")}
+                    title="파일별"
+                  >
+                    <FileCode size={14} />
+                  </Button>
+                  <Button
+                    variant={groupBy === "status" ? "secondary" : "outline"}
+                    size="icon-sm"
+                    onClick={() => setGroupBy("status")}
+                    title="상태별"
+                  >
+                    <CheckSquare size={14} />
+                  </Button>
+                </div>
               </div>
-              <div className="latest-analysis-filter-group">
-                <Button
-                  variant={groupBy === "severity" ? "secondary" : "outline"}
-                  size="icon-sm"
-                  onClick={() => setGroupBy("severity")}
-                  title="심각도별"
-                >
-                  <Layers size={14} />
-                </Button>
-                <Button
-                  variant={groupBy === "file" ? "secondary" : "outline"}
-                  size="icon-sm"
-                  onClick={() => setGroupBy("file")}
-                  title="파일별"
-                >
-                  <FileCode size={14} />
-                </Button>
-                <Button
-                  variant={groupBy === "status" ? "secondary" : "outline"}
-                  size="icon-sm"
-                  onClick={() => setGroupBy("status")}
-                  title="상태별"
-                >
-                  <CheckSquare size={14} />
-                </Button>
-              </div>
-            </div>
 
             <div className="latest-analysis-selection-row">
               <label className="latest-analysis-checkbox-label">
@@ -504,72 +540,76 @@ const LatestAnalysisContent: React.FC<{
                 </div>
               )}
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {groups.length === 0 ? (
-        <Card className="latest-analysis-card">
-          <CardContent className="latest-analysis-empty-card-body">
-            <p className="latest-analysis-empty-copy">
-              {severityFilter === "all"
-                ? "Finding이 없습니다"
-                : `${SEVERITY_LABELS[severityFilter]} Finding이 없습니다`}
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        groups.map((group) => (
-          <Card key={group.key} className="latest-analysis-group-card">
-            <CardContent className="latest-analysis-group-card-body">
-              <div className="latest-analysis-group-head">
-                {groupBy === "file" && <FileCode size={16} className="latest-analysis-group-icon" />}
-                {groupBy === "severity" && <SeverityBadge severity={group.key as Severity} size="sm" />}
-                {groupBy === "status" && <FindingStatusBadge status={group.key as FindingStatus} size="sm" />}
-                <span className="latest-analysis-group-label">{group.label}</span>
-                <span className="latest-analysis-group-count">{group.items.length} findings</span>
-              </div>
-              <div className="latest-analysis-group-list">
-                {group.items.map(({ finding }) => {
-                  const line = finding.location?.includes(":") ? finding.location.split(":")[1] : null;
-                  return (
-                    <button
-                      key={finding.id}
-                      type="button"
-                      className="latest-analysis-item"
-                      onClick={() => onSelectFinding(finding.id)}
-                    >
-                      <div className="latest-analysis-item-row">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(finding.id)}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            toggleSelect(finding.id);
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <SeverityBadge severity={finding.severity} size="sm" />
-                        <FindingStatusBadge status={finding.status} size="sm" />
-                        <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
-                        <span className="latest-analysis-item-title">{finding.title}</span>
-                        {(finding as Record<string, unknown>).fingerprint && (
-                          <span
-                            className="latest-analysis-fingerprint"
-                            title="이전 분석에서도 발견된 취약점"
-                          >
-                            <History size={11} />
-                          </span>
-                        )}
-                        {line && <span className="latest-analysis-item-line">:{line}</span>}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
             </CardContent>
           </Card>
-        ))
+
+          {groups.length === 0 ? (
+            <Card className="latest-analysis-card">
+              <CardContent className="latest-analysis-empty-card-body">
+                <span className="latest-analysis-empty-eyebrow">
+                  {severityFilter === "all" ? "NO FINDINGS" : `NO ${severityFilter.toUpperCase()} FINDINGS`}
+                </span>
+                <p className="latest-analysis-empty-copy">
+                  {severityFilter === "all"
+                    ? "현재 조건에서 노출된 탐지 항목이 없습니다."
+                    : `${SEVERITY_LABELS[severityFilter]} 심각도 필터에 걸리는 탐지 항목이 없습니다.`}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            groups.map((group) => (
+              <Card key={group.key} className="latest-analysis-group-card">
+                <CardContent className="latest-analysis-group-card-body">
+                  <div className="latest-analysis-group-head">
+                    {groupBy === "file" && <FileCode size={16} className="latest-analysis-group-icon" />}
+                    {groupBy === "severity" && <SeverityBadge severity={group.key as Severity} size="sm" />}
+                    {groupBy === "status" && <FindingStatusBadge status={group.key as FindingStatus} size="sm" />}
+                    <span className="latest-analysis-group-label">{group.label}</span>
+                    <span className="latest-analysis-group-count">{group.items.length} findings</span>
+                  </div>
+                  <div className="latest-analysis-group-list">
+                    {group.items.map(({ finding }) => {
+                      const line = finding.location?.includes(":") ? finding.location.split(":")[1] : null;
+                      return (
+                        <button
+                          key={finding.id}
+                          type="button"
+                          className="latest-analysis-item"
+                          onClick={() => onSelectFinding(finding.id)}
+                        >
+                          <div className="latest-analysis-item-row">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(finding.id)}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                toggleSelect(finding.id);
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <SeverityBadge severity={finding.severity} size="sm" />
+                            <FindingStatusBadge status={finding.status} size="sm" />
+                            <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
+                            <span className="latest-analysis-item-title">{finding.title}</span>
+                            {(finding as Record<string, unknown>).fingerprint && (
+                              <span
+                                className="latest-analysis-fingerprint"
+                                title="이전 분석에서도 발견된 취약점"
+                              >
+                                <History size={11} />
+                              </span>
+                            )}
+                            {line && <span className="latest-analysis-item-line">:{line}</span>}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </section>
       )}
     </div>
   );
