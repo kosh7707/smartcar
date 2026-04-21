@@ -23,7 +23,7 @@ describe("TwoStageProgressView", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "분석 진행 중..." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "분석 진행 중" })).toBeInTheDocument();
     expect(document.querySelector(".page-header__subtitle")).toHaveTextContent("심층 분석을 진행하고 있습니다.");
   });
 

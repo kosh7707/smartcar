@@ -11,11 +11,20 @@ import {
   BackButton,
   PageHeader,
   SeveritySummary,
+  SeverityBadge,
   StatCard,
 } from "../../../shared/ui";
 import { FileCode, SkipForward } from "lucide-react";
 import { SEVERITY_ORDER } from "../../../utils/severity";
 import { parseLocation } from "../../../utils/location";
+
+const SEVERITY_LABEL_SHORT: Record<Severity, string> = {
+  critical: "CRIT",
+  high: "HIGH",
+  medium: "MED",
+  low: "LOW",
+  info: "INFO",
+};
 
 interface FileGroup {
   fileName: string;
@@ -65,12 +74,9 @@ const FileCoverageSummary: React.FC<{ coverage: FileCoverageEntry[] }> = ({ cove
     <Card className="analysis-results-card">
       <CardContent className="analysis-results-coverage-body">
         <div className="analysis-results-coverage-head">
-          <div className="analysis-results-coverage-title-wrap">
-            <FileCode size={16} />
-            <span className="analysis-results-coverage-title">파일 커버리지</span>
-          </div>
+          <span className="analysis-results-coverage-label">FILE COVERAGE</span>
           <span className="analysis-results-coverage-count">
-            {analyzed.length} / {total}개 분석 완료 ({pct}%)
+            {analyzed.length} / {total} · {pct}%
           </span>
           {skipped.length > 0 ? (
             <Button
@@ -83,7 +89,7 @@ const FileCoverageSummary: React.FC<{ coverage: FileCoverageEntry[] }> = ({ cove
             </Button>
           ) : null}
         </div>
-        <div className="analysis-results-coverage-bar">
+        <div className="analysis-results-coverage-bar" role="img" aria-label={`분석 완료 ${pct}%`}>
           <div
             className="analysis-results-coverage-bar-fill"
             style={{ width: `${pct}%` }}
@@ -158,55 +164,90 @@ export const AnalysisResultsView: React.FC<Props> = ({ result, onSelectVuln, onN
 
       <Card className="analysis-results-card">
         <CardContent className="analysis-results-filter-bar">
-          <span className="analysis-results-filter-label">검토 기준</span>
-          <select
-            className="analysis-results-select"
-            value={filterSeverity}
-            onChange={(event) => setFilterSeverity(event.target.value as Severity | "all")}
-          >
-            <option value="all">심각도 전체</option>
-            {SEVERITY_ORDER.map((severity) => (
-              <option key={severity} value={severity}>
-                {severity === "critical"
-                  ? "치명"
-                  : severity === "high"
-                    ? "높음"
-                    : severity === "medium"
-                      ? "보통"
-                      : severity === "low"
-                        ? "낮음"
-                        : "정보"}
-              </option>
-            ))}
-          </select>
-          <select
-            className="analysis-results-select"
-            value={filterSource}
-            onChange={(event) => setFilterSource(event.target.value as "all" | "rule" | "llm")}
-          >
-            <option value="all">출처 전체</option>
-            <option value="rule">룰 탐지</option>
-            <option value="llm">LLM 검토</option>
-          </select>
-          <select
-            className="analysis-results-select analysis-results-select--wide"
-            value={filterFile}
-            onChange={(event) => setFilterFile(event.target.value)}
-          >
-            <option value="all">파일 전체</option>
-            {allFileNames.map((fileName) => (
-              <option key={fileName} value={fileName}>
-                {fileName}
-              </option>
-            ))}
-          </select>
+          <div className="analysis-results-filter-group">
+            <span className="analysis-results-filter-label">SEVERITY</span>
+            <div className="filter-pills" role="tablist" aria-label="심각도 필터">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={filterSeverity === "all"}
+                className={`pill${filterSeverity === "all" ? " active" : ""}`}
+                onClick={() => setFilterSeverity("all")}
+              >
+                ALL
+              </button>
+              {SEVERITY_ORDER.map((severity) => (
+                <button
+                  key={severity}
+                  type="button"
+                  role="tab"
+                  aria-selected={filterSeverity === severity}
+                  className={`pill${filterSeverity === severity ? " active" : ""}`}
+                  onClick={() => setFilterSeverity(severity as Severity)}
+                >
+                  <span className={`dot sev-${severity}`} aria-hidden="true" />
+                  {SEVERITY_LABEL_SHORT[severity as Severity]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="analysis-results-filter-group">
+            <span className="analysis-results-filter-label">SOURCE</span>
+            <div className="filter-pills" role="tablist" aria-label="출처 필터">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={filterSource === "all"}
+                className={`pill${filterSource === "all" ? " active" : ""}`}
+                onClick={() => setFilterSource("all")}
+              >
+                ALL
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={filterSource === "rule"}
+                className={`pill${filterSource === "rule" ? " active" : ""}`}
+                onClick={() => setFilterSource("rule")}
+              >
+                RULE
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={filterSource === "llm"}
+                className={`pill${filterSource === "llm" ? " active" : ""}`}
+                onClick={() => setFilterSource("llm")}
+              >
+                LLM
+              </button>
+            </div>
+          </div>
+
+          <div className="analysis-results-filter-group analysis-results-filter-group--file">
+            <span className="analysis-results-filter-label">FILE</span>
+            <select
+              className="analysis-results-select"
+              value={filterFile}
+              onChange={(event) => setFilterFile(event.target.value)}
+            >
+              <option value="all">전체 파일</option>
+              {allFileNames.map((fileName) => (
+                <option key={fileName} value={fileName}>
+                  {fileName}
+                </option>
+              ))}
+            </select>
+          </div>
         </CardContent>
       </Card>
 
       {fileGroups.length === 0 ? (
         <Card className="analysis-results-card">
           <CardContent className="analysis-results-empty-body">
-            <p className="analysis-results-empty-copy">필터 조건에 맞는 취약점이 없습니다</p>
+            <span className="analysis-results-empty-eyebrow">NO MATCH</span>
+            <p className="analysis-results-empty-copy">현재 필터 조건에 맞는 취약점이 없습니다.</p>
           </CardContent>
         </Card>
       ) : (
@@ -214,9 +255,9 @@ export const AnalysisResultsView: React.FC<Props> = ({ result, onSelectVuln, onN
           <Card key={group.fileName} className="analysis-results-group-card">
             <CardContent className="analysis-results-group-body">
               <div className="analysis-results-group-head">
-                <FileCode size={16} className="analysis-results-group-icon" />
+                <FileCode size={14} className="analysis-results-group-icon" />
                 <span className="analysis-results-group-file">{group.fileName}</span>
-                <span className="analysis-results-group-count">{group.vulns.length}건</span>
+                <span className="analysis-results-group-count">{group.vulns.length} findings</span>
                 <SeveritySummary summary={group.summary} />
               </div>
               <div className="analysis-results-group-list">
@@ -236,7 +277,7 @@ export const AnalysisResultsView: React.FC<Props> = ({ result, onSelectVuln, onN
                     </div>
                     <div className="analysis-results-item-source">
                       {vulnerability.source === "rule"
-                        ? `룰 탐지 (${vulnerability.ruleId})`
+                        ? `룰 탐지 · ${vulnerability.ruleId}`
                         : "LLM 검토"}
                     </div>
                     <div className="analysis-results-item-description">{vulnerability.description}</div>

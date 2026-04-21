@@ -24,7 +24,7 @@ import type { DirFindingCount } from "../../../utils/findingOverlay";
 import { formatFileSize } from "../../../utils/format";
 import { parseLocation } from "../../../utils/location";
 import { highlightLines as hlLines } from "../../../utils/highlight";
-import { LANG_GROUPS, getLangColorByName } from "../../../constants/languages";
+import { getLangColorByName } from "../../../constants/languages";
 
 interface Props {
   projectId: string;
@@ -112,21 +112,6 @@ export const SourceTreeView: React.FC<Props> = ({
     return lines;
   }, [selectedFileFindings]);
 
-  const langStats = useMemo(() => {
-    const grouped: Record<string, { count: number; color: string }> = {};
-    for (const file of sourceFiles) {
-      const lang = file.language || "기타";
-      const info = LANG_GROUPS[lang];
-      const group = info?.group ?? "기타";
-      const color = info?.color ?? "var(--cds-text-placeholder)";
-      if (!grouped[group]) grouped[group] = { count: 0, color };
-      grouped[group].count += 1;
-    }
-    return Object.entries(grouped)
-      .map(([group, { count, color }]) => ({ group, count, color }))
-      .sort((a, b) => b.count - a.count);
-  }, [sourceFiles]);
-
   const totalSize = useMemo(
     () => sourceFiles.reduce((sum, file) => sum + (file.size || 0), 0),
     [sourceFiles],
@@ -195,35 +180,25 @@ export const SourceTreeView: React.FC<Props> = ({
 
   return (
     <div className="source-tree-shell">
-      <PageHeader
-        title="소스코드 탐색기"
-        subtitle={`${sourceFiles.length}개 파일 · ${formatFileSize(totalSize)}`}
-      />
+      <PageHeader title="소스코드 탐색기" />
 
-      {langStats.length > 0 ? (
-        <Card className="source-tree-summary-card">
-          <CardContent className="source-tree-summary-body">
-            <div className="source-tree-summary-bar">
-              {langStats.map((item) => (
-                <div
-                  key={item.group}
-                  className="source-tree-summary-segment"
-                  style={{ width: `${(item.count / sourceFiles.length) * 100}%`, background: item.color }}
-                  title={`${item.group}: ${item.count}`}
-                />
-              ))}
+      {sourceFiles.length > 0 ? (
+        <div className="source-tree-meta" role="group" aria-label="소스 파일 요약">
+          <div className="source-tree-meta-cell">
+            <span className="source-tree-meta-label">FILES</span>
+            <span className="source-tree-meta-value">{sourceFiles.length}</span>
+          </div>
+          <div className="source-tree-meta-cell">
+            <span className="source-tree-meta-label">SIZE</span>
+            <span className="source-tree-meta-value">{formatFileSize(totalSize)}</span>
+          </div>
+          {findings && findings.length > 0 ? (
+            <div className="source-tree-meta-cell">
+              <span className="source-tree-meta-label">FINDINGS</span>
+              <span className="source-tree-meta-value">{findings.length}</span>
             </div>
-            <div className="source-tree-summary-legend">
-              {langStats.map((item) => (
-                <div key={item.group} className="source-tree-summary-legend-item">
-                  <span className="source-tree-summary-dot" style={{ background: item.color }} />
-                  <span className="source-tree-summary-label">{item.group}</span>
-                  <span className="source-tree-summary-count">{item.count}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="source-tree-grid">

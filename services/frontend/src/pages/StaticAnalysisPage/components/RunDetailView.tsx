@@ -82,15 +82,30 @@ export const RunDetailView: React.FC<Props> = ({
         <StatCard label="소요 시간" value={duration} />
       </div>
 
-      <div className="run-detail-view__meta">
-        시작: {run.startedAt ? formatDateTime(run.startedAt) : "—"} | 종료: {run.endedAt ? formatDateTime(run.endedAt) : "—"}
+      <div className="run-detail-view__meta" role="group" aria-label="실행 메타">
+        <div className="run-detail-view__meta-cell">
+          <span className="run-detail-view__meta-label">STARTED</span>
+          <span className="run-detail-view__meta-value">
+            {run.startedAt ? formatDateTime(run.startedAt) : "—"}
+          </span>
+        </div>
+        <div className="run-detail-view__meta-cell">
+          <span className="run-detail-view__meta-label">ENDED</span>
+          <span className="run-detail-view__meta-value">
+            {run.endedAt ? formatDateTime(run.endedAt) : "—"}
+          </span>
+        </div>
         {run.analysisResultId && onViewLegacyResult && (
-          <>
-            {" | "}
-            <button className="run-detail-view__legacy-link" onClick={() => onViewLegacyResult(run.analysisResultId)}>
+          <div className="run-detail-view__meta-cell">
+            <span className="run-detail-view__meta-label">LEGACY RESULT</span>
+            <button
+              type="button"
+              className="run-detail-view__legacy-link"
+              onClick={() => onViewLegacyResult(run.analysisResultId)}
+            >
               원본 분석 결과 보기
             </button>
-          </>
+          </div>
         )}
       </div>
 
@@ -100,7 +115,8 @@ export const RunDetailView: React.FC<Props> = ({
       {fileGroups.length === 0 ? (
         <Card className="run-detail-view__empty-card">
           <CardContent className="run-detail-view__empty-body">
-            <p className="run-detail-view__empty-copy">탐지 항목이 없습니다</p>
+            <span className="run-detail-view__empty-eyebrow">CLEAN RUN</span>
+            <p className="run-detail-view__empty-copy">이 실행에서는 탐지된 항목이 없습니다.</p>
           </CardContent>
         </Card>
       ) : (
@@ -108,9 +124,9 @@ export const RunDetailView: React.FC<Props> = ({
           <Card key={group.fileName} className="run-detail-view__group-card">
             <CardContent className="run-detail-view__group-card-body">
               <div className="run-detail-view__group-head">
-                <FileCode size={16} className="run-detail-view__group-icon" />
+                <FileCode size={14} className="run-detail-view__group-icon" />
                 <span className="run-detail-view__group-file">{group.fileName}</span>
-                <span className="run-detail-view__group-count">{group.items.length}건</span>
+                <span className="run-detail-view__group-count">{group.items.length} findings</span>
               </div>
               <div className="run-detail-view__group-list">
                 {group.items.map(({ finding }) => {

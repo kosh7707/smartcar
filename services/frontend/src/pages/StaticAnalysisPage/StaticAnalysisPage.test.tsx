@@ -96,7 +96,7 @@ describe("StaticAnalysisPage", () => {
   it("shows an empty state when there is no static analysis summary", async () => {
     mockUseStaticDashboard.mockReturnValue({ loading: false, summary: null });
     renderPage();
-    expect(await screen.findByText("아직 분석 데이터가 없습니다")).toBeInTheDocument();
+    expect(await screen.findByText("분석 대기")).toBeInTheDocument();
   });
 
   it("navigates to the upload view from the empty state action", async () => {

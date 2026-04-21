@@ -78,28 +78,36 @@ export const TwoStageProgressView: React.FC<Props> = ({
     <div className="two-stage-shell">
       <PageHeader
         surface="plain"
-        title={isComplete ? "분석 완료" : isError ? "분석 오류" : "분석 진행 중..."}
-        subtitle={message || "빠른 분석과 심층 분석 단계를 순차적으로 진행합니다."}
+        title={isComplete ? "분석 완료" : isError ? "분석 오류" : "분석 진행 중"}
+        subtitle={message || undefined}
         action={<span className="two-stage-timer">{timeStr}</span>}
       />
 
-      {buildTargetId || executionId ? (
-        <div className="two-stage-meta-banner">
-          {buildTargetId ? <span className="two-stage-meta-primary">BuildTarget: {buildTargetId}</span> : null}
-          {executionId ? <span className="two-stage-meta-secondary">Execution: {executionId}</span> : null}
+      {(buildTargetId || executionId || (targetProgress && targetProgress.total > 1)) && (
+        <div className="two-stage-meta-readout" role="group" aria-label="분석 메타">
+          {buildTargetId ? (
+            <div className="two-stage-meta-cell">
+              <span className="two-stage-meta-label">BUILD TARGET</span>
+              <span className="two-stage-meta-value">{buildTargetId}</span>
+            </div>
+          ) : null}
+          {executionId ? (
+            <div className="two-stage-meta-cell">
+              <span className="two-stage-meta-label">EXECUTION</span>
+              <span className="two-stage-meta-value">{executionId}</span>
+            </div>
+          ) : null}
+          {targetProgress && targetProgress.total > 1 ? (
+            <div className="two-stage-meta-cell">
+              <span className="two-stage-meta-label">TARGET PROGRESS</span>
+              <span className="two-stage-meta-value">
+                {targetProgress.current} / {targetProgress.total}
+                {targetName ? ` · ${targetName}` : ""}
+              </span>
+            </div>
+          ) : null}
         </div>
-      ) : null}
-
-      {targetProgress && targetProgress.total > 1 ? (
-        <div className="two-stage-meta-banner">
-          <span className="two-stage-meta-primary">
-            {targetName ? `[${targetName}]` : "타겟"} 분석 중
-          </span>
-          <span className="two-stage-meta-secondary">
-            {targetProgress.current} / {targetProgress.total} 타겟
-          </span>
-        </div>
-      ) : null}
+      )}
 
       <Card className="two-stage-progress-card">
         <CardContent className="two-stage-progress-body">

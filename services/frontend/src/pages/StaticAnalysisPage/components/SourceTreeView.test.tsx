@@ -55,7 +55,8 @@ describe("SourceTreeView", () => {
       />,
     );
 
-    expect(screen.getByText(/3개 파일/)).toBeTruthy();
+    expect(screen.getByText("FILES")).toBeInTheDocument();
+    expect(screen.getByText("SIZE")).toBeInTheDocument();
   });
 
   it("renders tree with folder names", () => {
