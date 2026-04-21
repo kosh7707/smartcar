@@ -27,7 +27,6 @@ export const SettingsPage: React.FC = () => {
       <PageHeader
         surface="plain"
         title="시스템 설정"
-        subtitle="전역 연결, 테마, 런타임 환경을 운영 기준으로 정리합니다."
         action={
           <SettingsHeaderActions
             saved={saved}

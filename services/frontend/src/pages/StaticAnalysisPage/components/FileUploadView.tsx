@@ -55,11 +55,7 @@ export const FileUploadView: React.FC<Props> = ({
 
   return (
     <div className="page-shell static-upload-view">
-      <PageHeader
-        surface="plain"
-        title="소스 코드 업로드"
-        subtitle="기존 프로젝트 파일을 선택하거나 새 소스를 추가해 분석을 시작합니다."
-      />
+      <PageHeader surface="plain" title="소스 코드 업로드" />
 
       {existingFiles.length > 0 && (
         <Card className="static-upload-view__existing-card">

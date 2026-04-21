@@ -53,13 +53,15 @@ export class ApiError extends Error {
   readonly code: string;
   readonly retryable: boolean;
   readonly requestId: string;
+  readonly detailMessage?: string;
 
-  constructor(message: string, code: string, retryable: boolean, requestId: string) {
+  constructor(message: string, code: string, retryable: boolean, requestId: string, detailMessage?: string) {
     super(message);
     this.name = "ApiError";
     this.code = code;
     this.retryable = retryable;
     this.requestId = requestId;
+    this.detailMessage = detailMessage;
   }
 }
 
@@ -134,12 +136,14 @@ export async function apiFetch<T = unknown>(
     let code = "UNKNOWN";
     let retryable = false;
     let msg: string;
+    let detailMessage: string | undefined;
 
     try {
       const body = await res.json();
       if (body.errorDetail) {
         code = body.errorDetail.code ?? code;
         retryable = body.errorDetail.retryable ?? false;
+        detailMessage = body.errorDetail.message ?? undefined;
         msg = ERROR_MESSAGES[code] ?? body.errorDetail.message ?? `API 오류 (${res.status})`;
       } else {
         msg = body.error ?? `API 오류 (${res.status})`;
@@ -153,7 +157,7 @@ export async function apiFetch<T = unknown>(
     }
 
     console.error(`[API ${res.status}] ${code} (requestId: ${requestId})`);
-    throw new ApiError(msg, code, retryable, requestId);
+    throw new ApiError(msg, code, retryable, requestId, detailMessage);
   }
 
   try {

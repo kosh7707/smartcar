@@ -74,7 +74,7 @@ export const RunDetailView: React.FC<Props> = ({
   return (
     <div className="page-shell run-detail-view">
       <BackButton onClick={onBack} label="대시보드로" />
-      <PageHeader title="실행 상세" subtitle="실행 상태, 게이트 판정, 파일별 탐지 항목을 한 흐름에서 검토합니다." />
+      <PageHeader title="실행 상세" />
 
       <div className="run-detail-view__stats">
         <StatCard label="상태" value={run.status} />

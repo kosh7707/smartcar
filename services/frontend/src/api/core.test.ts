@@ -58,6 +58,11 @@ describe("ApiError", () => {
     expect(err.name).toBe("ApiError");
     expect(err).toBeInstanceOf(Error);
   });
+
+  it("retains optional detailMessage when provided", () => {
+    const err = new ApiError("msg", "INVALID_INPUT", false, "req-2", "specific detail");
+    expect(err.detailMessage).toBe("specific detail");
+  });
 });
 
 describe("logError", () => {
@@ -147,11 +152,16 @@ describe("apiFetch", () => {
 
   it("throws ApiError with errorDetail from response", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(new Response(
       JSON.stringify({ errorDetail: { code: "NOT_FOUND", retryable: false, message: "missing" } }),
       { status: 404 },
-    ));
+    )));
     await expect(apiFetch("/notfound")).rejects.toThrow(ApiError);
+    try {
+      await apiFetch("/notfound");
+    } catch (e) {
+      expect((e as ApiError).detailMessage).toBe("missing");
+    }
   });
 
   it("throws PARSE_ERROR on invalid JSON response", async () => {

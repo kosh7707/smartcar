@@ -25,11 +25,15 @@ class MockWebSocket {
   }
 }
 
-vi.mock("../api/client", () => ({
-  runAnalysis: vi.fn(),
-  getWsBaseUrl: vi.fn(() => "ws://localhost:3000"),
-  logError: vi.fn(),
-}));
+vi.mock("../api/client", async () => {
+  const actual = await vi.importActual<typeof import("../api/client")>("../api/client");
+  return {
+    ...actual,
+    runAnalysis: vi.fn(),
+    getWsBaseUrl: vi.fn(() => "ws://localhost:3000"),
+    logError: vi.fn(),
+  };
+});
 vi.mock("../api/analysis", () => ({
   fetchAnalysisStatus: vi.fn(),
 }));

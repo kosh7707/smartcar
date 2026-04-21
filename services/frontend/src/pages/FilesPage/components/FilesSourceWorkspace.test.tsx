@@ -32,6 +32,8 @@ function makeProps(overrides: Record<string, unknown> = {}) {
     previewLoading: false,
     previewLang: "C",
     previewContent: null,
+    previewFileClass: "text",
+    previewSize: 120,
     highlightLines: new Set<number>(),
     selectedFileFindings: [],
     onSelectFinding: vi.fn(),

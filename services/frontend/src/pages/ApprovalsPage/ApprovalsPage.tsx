@@ -18,6 +18,7 @@ export const ApprovalsPage: React.FC = () => {
     filter,
     setFilter,
     filteredApprovals,
+    statusCounts,
     pendingCount,
     decidingId,
     decidingAction,
@@ -30,7 +31,7 @@ export const ApprovalsPage: React.FC = () => {
   } = useApprovalsPage(projectId, toast);
 
   useEffect(() => {
-    document.title = "AEGIS — Approvals";
+    document.title = "AEGIS — 승인 큐";
   }, []);
 
   const handleTargetOpen = useCallback(
@@ -64,6 +65,7 @@ export const ApprovalsPage: React.FC = () => {
       <ApprovalFilters
         filter={filter}
         onChange={setFilter}
+        statusCounts={statusCounts}
         pendingCount={pendingCount}
         totalCount={approvals.length}
       />

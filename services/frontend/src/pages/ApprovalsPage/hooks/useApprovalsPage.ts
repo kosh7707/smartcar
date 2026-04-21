@@ -84,12 +84,24 @@ export function useApprovalsPage(projectId: string | undefined, toast: ToastApi)
     [approvals],
   );
 
+  const statusCounts = useMemo(
+    () => ({
+      all: approvals.length,
+      pending: approvals.filter((approval) => approval.status === "pending").length,
+      approved: approvals.filter((approval) => approval.status === "approved").length,
+      rejected: approvals.filter((approval) => approval.status === "rejected").length,
+      expired: approvals.filter((approval) => approval.status === "expired").length,
+    }),
+    [approvals],
+  );
+
   return {
     approvals,
     loading,
     filter,
     setFilter,
     filteredApprovals,
+    statusCounts,
     pendingCount,
     decidingId,
     decidingAction,

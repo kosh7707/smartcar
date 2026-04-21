@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import type { AnalysisProgress, WsAnalysisMessage } from "@aegis/shared";
-import { runAnalysis, getWsBaseUrl, logError } from "../api/client";
+import { ApiError, runAnalysis, getWsBaseUrl, logError } from "../api/client";
 import { fetchAnalysisStatus } from "../api/analysis";
 import { createSeqTracker, parseWsMessage, createReconnectingWs } from "../utils/wsEnvelope";
 import type { ConnectionState, ReconnectableHookResult } from "../utils/wsEnvelope";
@@ -240,7 +240,11 @@ export function useAnalysisWebSocket(): AnalysisWsState & ReconnectableHookResul
       setState({
         ...INITIAL_STATE,
         stage: "error",
-        error: e instanceof Error ? e.message : "분석 실행에 실패했습니다.",
+        error: e instanceof ApiError
+          ? e.detailMessage ?? e.message
+          : e instanceof Error
+            ? e.message
+            : "분석 실행에 실패했습니다.",
       });
     }
   }, [cleanup, connectToAnalysis]);

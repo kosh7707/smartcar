@@ -25,7 +25,8 @@ vi.mock("./StaticDashboard", () => ({
   StaticDashboard: () => <div>dashboard-view</div>,
 }));
 vi.mock("./TargetSelectDialog", () => ({
-  TargetSelectDialog: () => null,
+  TargetSelectDialog: ({ open }: { open: boolean }) =>
+    open ? <div>target-select-dialog</div> : null,
 }));
 vi.mock("./TwoStageProgressView", () => ({
   TwoStageProgressView: () => <div>progress-view</div>,
@@ -139,5 +140,45 @@ describe("StaticAnalysisViewRouter", () => {
     );
 
     expect(screen.getByText("대시보드 로딩 중...")).toBeInTheDocument();
+  });
+
+  it("keeps the target select dialog available on the source upload view", () => {
+    render(
+      <StaticAnalysisViewRouter
+        {...makeProps({
+          state: {
+            ...makeProps().state,
+            view: "sourceUpload",
+            showTargetSelect: true,
+          },
+          buildTargets: {
+            targets: [{ id: "t-1", name: "target-1" }],
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByText("upload-screen")).toBeInTheDocument();
+    expect(screen.getByText("target-select-dialog")).toBeInTheDocument();
+  });
+
+  it("keeps the target select dialog available on the source tree view", () => {
+    render(
+      <StaticAnalysisViewRouter
+        {...makeProps({
+          state: {
+            ...makeProps().state,
+            view: "sourceTree",
+            showTargetSelect: true,
+          },
+          buildTargets: {
+            targets: [{ id: "t-1", name: "target-1" }],
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByText("source-tree-view")).toBeInTheDocument();
+    expect(screen.getByText("target-select-dialog")).toBeInTheDocument();
   });
 });

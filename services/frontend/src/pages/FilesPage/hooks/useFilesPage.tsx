@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Finding } from "@aegis/shared";
-import { FileText, HardDrive } from "lucide-react";
+import { FileText } from "lucide-react";
 import {
   fetchProjectFindings,
   fetchSourceFileContent,
@@ -13,6 +13,8 @@ import { getLangColorByName, LANG_GROUPS } from "../../../constants/languages";
 import { useFilesWorkspaceLayout } from "./useFilesWorkspaceLayout";
 import { computeFindingOverlay, getFindingCount } from "../../../utils/findingOverlay";
 import type { DirFindingCount } from "../../../utils/findingOverlay";
+import { getFileClass } from "../../../utils/fileClass";
+import type { FileClass } from "../../../utils/fileClass";
 import { formatFileSize } from "../../../utils/format";
 import { parseLocation } from "../../../utils/location";
 import { buildTree, filterTree } from "../../../utils/tree";
@@ -68,6 +70,8 @@ export function useFilesPage(
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewLang, setPreviewLang] = useState("");
+  const [previewFileClass, setPreviewFileClass] = useState<FileClass>("text");
+  const [previewSize, setPreviewSize] = useState(0);
   const workspaceLayout = useFilesWorkspaceLayout();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -168,8 +172,15 @@ export function useFilesPage(
     if (!projectId) return;
     setSelectedPath(file.relativePath);
     setPreviewContent(null);
-    setPreviewLoading(true);
     setPreviewLang(file.language || "");
+    setPreviewSize(file.size || 0);
+    const cls = getFileClass(file.relativePath, file.language);
+    setPreviewFileClass(cls);
+    if (cls !== "text") {
+      setPreviewLoading(false);
+      return;
+    }
+    setPreviewLoading(true);
     try {
       const result = await fetchSourceFileContent(projectId, file.relativePath);
       setPreviewContent(result.content);
@@ -211,20 +222,9 @@ export function useFilesPage(
     [],
   );
 
-  const renderFileMeta = useCallback((data: SourceFileEntry) => {
-    const mapping = targetMapping[data.relativePath];
-    return (
-      <>
-        {mapping && (
-          <span className="ftree-meta ftree-target" title={`BuildTarget: ${mapping.targetName}`}>
-            <HardDrive size={10} /> {mapping.targetName}
-          </span>
-        )}
-        {data.language && <span className="ftree-meta ftree-lang">{data.language}</span>}
-        <span className="ftree-meta ftree-size">{formatFileSize(data.size)}</span>
-      </>
-    );
-  }, [targetMapping]);
+  const renderFileMeta = useCallback((data: SourceFileEntry) => (
+    <span className="ftree-meta ftree-size">{formatFileSize(data.size)}</span>
+  ), []);
 
   const renderFolderBadge = useCallback((node: TreeNode<SourceFileEntry>) => {
     const counts = getFindingCount(node.path, overlay);
@@ -270,6 +270,8 @@ export function useFilesPage(
     previewContent,
     previewLoading,
     previewLang,
+    previewFileClass,
+    previewSize,
     workspaceLayout,
     fileInputRef,
     displayTree,

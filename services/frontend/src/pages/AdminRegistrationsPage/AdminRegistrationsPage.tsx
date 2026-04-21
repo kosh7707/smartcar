@@ -151,7 +151,6 @@ export const AdminRegistrationsPage: React.FC = () => {
       <PageHeader
         surface="plain"
         title="가입 요청 관리"
-        subtitle="조직 신규 가입 요청을 승인하거나 반려합니다. 승인 즉시 계정이 활성화됩니다."
         action={(
           <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading}>
             <RefreshCw aria-hidden="true" />

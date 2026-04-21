@@ -40,11 +40,6 @@ export const FilesPage: React.FC = () => {
       onDrop={state.handleDrop}
     >
       <FilesPageHeader
-        fileCount={state.sourceFiles.length}
-        totalSize={state.totalSize}
-        targetCount={state.buildTargets.targets.length}
-        showCreateTarget={state.sourceFiles.length > 0}
-        onOpenCreateTarget={() => state.setShowBuildTargetDialog(true)}
         onOpenUpload={() => state.fileInputRef.current?.click()}
         fileInputRef={state.fileInputRef}
         onFileInputChange={(event) => event.target.files && state.handleUpload(event.target.files)}
@@ -61,9 +56,17 @@ export const FilesPage: React.FC = () => {
         <FilesEmptyState />
       ) : (
         <>
-          <FilesLanguageSummary totalFiles={state.sourceFiles.length} langStats={state.langStats} />
+          <FilesLanguageSummary
+            totalFiles={state.sourceFiles.length}
+            totalSize={state.totalSize}
+            langStats={state.langStats}
+          />
 
-          <FilesBuildTargetPanel targets={state.buildTargets.targets} onOpenLog={state.setLogTarget} />
+          <FilesBuildTargetPanel
+            targets={state.buildTargets.targets}
+            onOpenLog={state.setLogTarget}
+            onOpenCreateTarget={() => state.setShowBuildTargetDialog(true)}
+          />
 
           <FilesSourceWorkspace
             search={state.search}
@@ -79,6 +82,8 @@ export const FilesPage: React.FC = () => {
             previewLoading={state.previewLoading}
             previewLang={state.previewLang}
             previewContent={state.previewContent}
+            previewFileClass={state.previewFileClass}
+            previewSize={state.previewSize}
             highlightLines={state.highlightLines}
             selectedFileFindings={state.selectedFileFindings}
             onSelectFinding={state.handleSelectFinding}

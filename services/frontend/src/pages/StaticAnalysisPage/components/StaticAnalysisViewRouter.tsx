@@ -75,6 +75,15 @@ export function StaticAnalysisViewRouter({
   buildTargets,
   state,
 }: StaticAnalysisViewRouterProps) {
+  const targetSelectDialog = (
+    <TargetSelectDialog
+      open={state.showTargetSelect}
+      targets={buildTargets.targets as never}
+      onConfirm={state.handleAnalysisWithTargets}
+      onCancel={() => state.setShowTargetSelect(false)}
+    />
+  );
+
   if (state.view === "findingDetail" && state.selectedFindingId) {
     return (
       <FindingDetailView
@@ -157,29 +166,35 @@ export function StaticAnalysisViewRouter({
 
   if (state.view === "sourceTree") {
     return (
-      <div className="page-enter">
-        <BackButton onClick={state.goToDashboard} label="대시보드로" />
-        <SourceTreeView
-          projectId={projectId}
-          sourceFiles={state.sourceFiles as never}
-          findings={state.findings as never}
-          onAnalysisStart={state.handleAnalysisStart}
-          onReupload={() => state.setView("sourceUpload" as never)}
-          onSelectFinding={state.handleSelectFinding}
-        />
-      </div>
+      <>
+        <div className="page-enter">
+          <BackButton onClick={state.goToDashboard} label="대시보드로" />
+          <SourceTreeView
+            projectId={projectId}
+            sourceFiles={state.sourceFiles as never}
+            findings={state.findings as never}
+            onAnalysisStart={state.handleAnalysisStart}
+            onReupload={() => state.setView("sourceUpload" as never)}
+            onSelectFinding={state.handleSelectFinding}
+          />
+        </div>
+        {targetSelectDialog}
+      </>
     );
   }
 
   if (state.view === "sourceUpload") {
     return (
-      <StaticAnalysisUploadScreen
-        projectId={projectId}
-        onBack={state.goToDashboard}
-        onAnalysisStart={state.handleAnalysisStart}
-        onBrowseTree={state.handleBrowseTree}
-        onDiscoverTargets={state.handleDiscoverTargets}
-      />
+      <>
+        <StaticAnalysisUploadScreen
+          projectId={projectId}
+          onBack={state.goToDashboard}
+          onAnalysisStart={state.handleAnalysisStart}
+          onBrowseTree={state.handleBrowseTree}
+          onDiscoverTargets={state.handleDiscoverTargets}
+        />
+        {targetSelectDialog}
+      </>
     );
   }
 
@@ -218,12 +233,7 @@ export function StaticAnalysisViewRouter({
         onBrowseTree={state.sourceFiles.length > 0 ? state.handleBrowseTree : undefined}
       />
 
-      <TargetSelectDialog
-        open={state.showTargetSelect}
-        targets={buildTargets.targets as never}
-        onConfirm={state.handleAnalysisWithTargets}
-        onCancel={() => state.setShowTargetSelect(false)}
-      />
+      {targetSelectDialog}
     </>
   );
 }

@@ -142,10 +142,7 @@ export const AnalysisResultsView: React.FC<Props> = ({ result, onSelectVuln, onN
   return (
     <div className="analysis-results-shell">
       <BackButton onClick={onNewAnalysis} label="세션 목록으로" />
-      <PageHeader
-        title="정적 분석 결과"
-        subtitle="빌드 타겟별 결과와 파일 단위 탐지 현황을 한 작업면에서 검토합니다."
-      />
+      <PageHeader title="정적 분석 결과" />
 
       <div className="analysis-results-summary-grid">
         <StatCard label="총 취약점" value={result.summary.total - (result.summary.info ?? 0)} accent />

@@ -19,14 +19,32 @@ const targets = [
 ] as any;
 
 describe("FilesBuildTargetPanel", () => {
-  it("renders nothing when there are no targets", () => {
-    const { container } = render(<FilesBuildTargetPanel targets={[]} onOpenLog={vi.fn()} />);
-    expect(container).toBeEmptyDOMElement();
+  it("renders empty state and create button when there are no targets", () => {
+    const onOpenCreateTarget = vi.fn();
+    render(
+      <FilesBuildTargetPanel
+        targets={[]}
+        onOpenLog={vi.fn()}
+        onOpenCreateTarget={onOpenCreateTarget}
+      />,
+    );
+
+    expect(screen.getByText("빌드 타겟 현황")).toBeInTheDocument();
+    expect(screen.getByText("아직 생성된 빌드 타겟이 없습니다.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /빌드 타겟 생성/ }));
+    expect(onOpenCreateTarget).toHaveBeenCalledTimes(1);
   });
 
   it("renders targets and opens build log for actionable rows", () => {
     const onOpenLog = vi.fn();
-    render(<FilesBuildTargetPanel targets={targets} onOpenLog={onOpenLog} />);
+    render(
+      <FilesBuildTargetPanel
+        targets={targets}
+        onOpenLog={onOpenLog}
+        onOpenCreateTarget={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText("빌드 타겟 현황")).toBeInTheDocument();
     expect(screen.getByText("gateway")).toBeInTheDocument();

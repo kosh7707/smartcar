@@ -51,7 +51,6 @@ export const StaticDashboard: React.FC<Props> = ({
     <div className="page-shell static-dashboard-shell">
       <PageHeader
         title="정적 분석"
-        subtitle="빌드 타겟 단위 보안 분석 상태와 최근 실행 결과를 같은 작업면에서 검토합니다."
         action={
           <div className="static-dashboard-actions">
             {onBrowseTree && (

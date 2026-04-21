@@ -56,10 +56,6 @@ export function useStaticAnalysisPage(
   const [showTargetSelect, setShowTargetSelect] = useState(false);
 
   useEffect(() => {
-    document.title = "AEGIS — Static Analysis";
-  }, []);
-
-  useEffect(() => {
     guard.setBlocking(analysis.isRunning);
     return () => guard.setBlocking(false);
   }, [analysis.isRunning, guard]);

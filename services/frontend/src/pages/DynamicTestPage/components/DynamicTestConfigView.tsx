@@ -59,7 +59,7 @@ export const DynamicTestConfigView: React.FC<DynamicTestConfigViewProps> = ({
   return (
     <div className="dynamic-test-config">
       <BackButton onClick={onBack} label="이력으로" />
-      <PageHeader title="새 세션" subtitle="연결된 어댑터와 전략을 선택해 동적 테스트 세션을 준비합니다." />
+      <PageHeader title="새 세션" />
 
       <Card className="dynamic-test-config-card">
         <CardContent>

@@ -9,7 +9,9 @@ import type { Finding } from "@aegis/shared";
 import type { SourceFileEntry } from "../../../api/client";
 import { FileTreeNode, Spinner } from "../../../shared/ui";
 import type { TreeNode } from "../../../utils/tree";
+import type { FileClass } from "../../../utils/fileClass";
 import { HighlightedCode } from "./HighlightedCode";
+import { FilesBinaryPreview } from "./FilesBinaryPreview";
 import { parseLocation } from "../../../utils/location";
 
 interface FilesSourceWorkspaceProps {
@@ -26,6 +28,8 @@ interface FilesSourceWorkspaceProps {
   previewLoading: boolean;
   previewLang: string;
   previewContent: string | null;
+  previewFileClass: FileClass;
+  previewSize: number;
   highlightLines: Set<number>;
   selectedFileFindings: Finding[];
   onSelectFinding: (findingId: string) => void;
@@ -52,6 +56,8 @@ export const FilesSourceWorkspace: React.FC<FilesSourceWorkspaceProps> = ({
   previewLoading,
   previewLang,
   previewContent,
+  previewFileClass,
+  previewSize,
   highlightLines,
   selectedFileFindings,
   onSelectFinding,
@@ -176,13 +182,17 @@ export const FilesSourceWorkspace: React.FC<FilesSourceWorkspaceProps> = ({
           </CardHeader>
 
           <CardContent className="files-workspace-preview-body">
-            <ScrollArea className="files-workspace-preview-scroll">
-              {previewContent !== null ? (
-                <HighlightedCode code={previewContent} language={previewLang} highlightLineNos={highlightLines} />
-              ) : (
-                <div className="files-workspace-error-preview"><span className="files-workspace-error-preview-text">파일 내용을 불러올 수 없습니다</span></div>
-              )}
-            </ScrollArea>
+            {previewFileClass !== "text" && selectedPath ? (
+              <FilesBinaryPreview path={selectedPath} size={previewSize} language={previewLang || null} fileClass={previewFileClass} />
+            ) : (
+              <ScrollArea className="files-workspace-preview-scroll">
+                {previewContent !== null ? (
+                  <HighlightedCode code={previewContent} language={previewLang} highlightLineNos={highlightLines} />
+                ) : (
+                  <div className="files-workspace-error-preview"><span className="files-workspace-error-preview-text">파일 내용을 불러올 수 없습니다</span></div>
+                )}
+              </ScrollArea>
+            )}
 
             {selectedFileFindings.length > 0 ? (
               <div className="files-workspace-findings">

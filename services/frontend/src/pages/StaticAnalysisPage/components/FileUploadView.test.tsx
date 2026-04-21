@@ -20,7 +20,6 @@ describe("FileUploadView", () => {
     );
 
     expect(screen.getByRole("heading", { name: "소스 코드 업로드" })).toBeInTheDocument();
-    expect(screen.getByText("기존 프로젝트 파일을 선택하거나 새 소스를 추가해 분석을 시작합니다.")).toBeInTheDocument();
   });
 
   it("shows the combined selection summary when existing and new files are present", () => {

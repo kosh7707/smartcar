@@ -95,7 +95,6 @@ describe("ProjectSettingsPage", () => {
 
     await waitFor(() => expect(mockFetchProjectSdks).toHaveBeenCalledWith("p-1"));
     expect(screen.getByRole("heading", { name: "프로젝트 설정" })).toBeInTheDocument();
-    expect(screen.getByText("SDK, 빌드, 알림과 프로젝트 메타데이터를 관리합니다.")).toBeInTheDocument();
     expect(container.querySelector(".page-header--plain")).not.toBeNull();
     expect(screen.getAllByText("일반").length).toBeGreaterThan(0);
     expect(screen.getByPlaceholderText("프로젝트 이름")).toBeInTheDocument();

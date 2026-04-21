@@ -29,6 +29,10 @@ export const StaticAnalysisPage: React.FC = () => {
     searchParams.get("finding"),
   );
 
+  React.useEffect(() => {
+    document.title = "AEGIS — 정적 분석";
+  }, []);
+
   if (!projectId) return null;
   return (
     <StaticAnalysisViewRouter
