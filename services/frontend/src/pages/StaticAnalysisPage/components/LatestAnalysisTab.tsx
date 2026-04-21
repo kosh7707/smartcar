@@ -527,7 +527,7 @@ const LatestAnalysisContent: React.FC<{
                 {groupBy === "severity" && <SeverityBadge severity={group.key as Severity} size="sm" />}
                 {groupBy === "status" && <FindingStatusBadge status={group.key as FindingStatus} size="sm" />}
                 <span className="latest-analysis-group-label">{group.label}</span>
-                <span className="latest-analysis-group-count">{group.items.length}건</span>
+                <span className="latest-analysis-group-count">{group.items.length} findings</span>
               </div>
               <div className="latest-analysis-group-list">
                 {group.items.map(({ finding }) => {
