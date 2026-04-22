@@ -1,15 +1,6 @@
-import React from "react";
+import React, { useCallback, useEffect } from "react";
 import type { DynamicTestResult } from "@aegis/shared";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Plus,
-  Trash2,
-} from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Plus, Trash2 } from "lucide-react";
 import {
   ConfirmDialog,
   ConnectionStatusBanner,
@@ -19,6 +10,120 @@ import {
 } from "../../../shared/ui";
 import { formatDateTime } from "../../../utils/format";
 import { STRATEGY_LABELS, TEST_TYPE_ICON } from "../dynamicTestPresentation";
+
+const TEST_BOOT_LINES = [
+  { status: "ok" as const, slot: "aegis-fuzzer",     value: "warm · rng/splice(mt19937)" },
+  { status: "ok" as const, slot: "strategy-loader",  value: "fuzzing · penetration · replay" },
+  { status: "ok" as const, slot: "payload-queue",    value: "000/000 pending" },
+] as const;
+
+interface DynamicTestBootConsoleProps {
+  hasConnected: boolean;
+  onStart: () => void;
+}
+
+const DynamicTestBootConsole: React.FC<DynamicTestBootConsoleProps> = ({ hasConnected, onStart }) => {
+  const handleKey = useCallback(
+    (event: React.KeyboardEvent<HTMLElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        onStart();
+      }
+    },
+    [onStart],
+  );
+
+  useEffect(() => {
+    const globalHandler = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea" || target?.isContentEditable) return;
+      if (event.key === "Enter" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        event.preventDefault();
+        onStart();
+      }
+    };
+    document.addEventListener("keydown", globalHandler);
+    return () => document.removeEventListener("keydown", globalHandler);
+  }, [onStart]);
+
+  const waitLine = hasConnected
+    ? { slot: "target-ecu", value: "no ECU bound · bus idle" }
+    : { slot: "adapter",    value: "no device on /dev/can0" };
+
+  return (
+    <section
+      className="console-empty"
+      tabIndex={0}
+      role="group"
+      aria-label="동적 테스트 워크벤치 — 첫 세션 시작 대기"
+      onKeyDown={handleKey}
+    >
+      <div className="console-empty__scanlines" aria-hidden="true" />
+      <div className="console-empty__scope">
+        <div className="console-empty__bar" aria-hidden="true">
+          <span className="console-empty__bar-dot console-empty__bar-dot--r" />
+          <span className="console-empty__bar-dot console-empty__bar-dot--y" />
+          <span className="console-empty__bar-dot console-empty__bar-dot--g" />
+          <span className="console-empty__bar-label">aegis@fuzzer:~#</span>
+          <span className="console-empty__bar-meta">dispatch --arm</span>
+        </div>
+        <div className="console-empty__log" aria-hidden="true">
+          {TEST_BOOT_LINES.map((line, i) => (
+            <div
+              key={line.slot}
+              className="console-empty__line console-empty__line--in"
+              
+            >
+              <span className="console-empty__status-chip console-empty__status-chip--ok">
+                <span className="console-empty__bracket">[</span>
+                <span className="console-empty__status console-empty__status--ok">OK</span>
+                <span className="console-empty__bracket">]</span>
+              </span>
+              <span className="console-empty__slot">{line.slot}</span>
+              <span className="console-empty__value">{line.value}</span>
+            </div>
+          ))}
+          <div
+            className="console-empty__line console-empty__line--in"
+            
+          >
+            <span className="console-empty__status-chip console-empty__status-chip--wait">
+              <span className="console-empty__bracket">[</span>
+              <span className="console-empty__status console-empty__status--wait">WAIT</span>
+              <span className="console-empty__bracket">]</span>
+            </span>
+            <span className="console-empty__slot">{waitLine.slot}</span>
+            <span className="console-empty__value console-empty__value--warn">{waitLine.value}</span>
+          </div>
+          <div
+            className="console-empty__prompt console-empty__line--in"
+            
+          >
+            <span className="console-empty__tree">└─</span>
+            <span>press</span>
+            <kbd className="console-empty__kbd">↵ Enter</kbd>
+            <span>to dispatch payload</span>
+            <span className="console-empty__cursor" aria-hidden="true">▊</span>
+          </div>
+        </div>
+
+        <div className="console-empty__actions">
+          <button
+            type="button"
+            className="console-empty__cta"
+            onClick={onStart}
+            aria-label="첫 세션 시작"
+          >
+            <span className="console-empty__cta-arrow">▸</span>
+            <span>dispatch payload</span>
+            <span className="console-empty__cta-hint">[ ↵ ]</span>
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+};
 
 interface DynamicTestHistoryViewProps {
   projectId?: string;
@@ -54,7 +159,7 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
     <PageHeader
       title="동적 테스트"
       action={
-        <Button
+        <button type="button" className="btn btn-primary"
           onClick={() => {
             if (!hasConnected) {
               setAdapterWarning(true);
@@ -65,21 +170,35 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
           }}
         >
           <Plus size={16} />새 세션
-        </Button>
+        </button>
       }
     />
 
     {adapterWarning ? (
-      <Alert variant="destructive">
-        <AlertTriangle size={16} />
-        <AlertTitle>연결된 어댑터가 없습니다</AlertTitle>
-        <AlertDescription>
-          <a className="dynamic-test-history__settings-link" href={`#/projects/${projectId}/settings`}>
-            프로젝트 설정
-          </a>
-          에서 어댑터를 연결해주세요.
-        </AlertDescription>
-      </Alert>
+      <div className="console-alert" role="alert">
+        <span className="console-alert__chip" aria-hidden="true">
+          <span className="console-alert__bracket">[</span>
+          <span className="console-alert__status">FAIL</span>
+          <span className="console-alert__bracket">]</span>
+        </span>
+        <div className="console-alert__body">
+          <div className="console-alert__row">
+            <span className="console-alert__slot">can-adapter</span>
+            <span className="console-alert__value">no device on /dev/can0 · bind required</span>
+            <a
+              className="console-alert__link"
+              href={`#/projects/${projectId}/settings`}
+              aria-label="프로젝트 설정으로 이동해 어댑터를 연결하세요"
+            >
+              <span className="console-alert__link-arrow" aria-hidden="true">└─</span>
+              <span>bind › ./settings</span>
+            </a>
+          </div>
+          <div className="console-alert__comment">
+            # 연결된 어댑터가 없습니다 — 프로젝트 설정에서 어댑터를 연결해주세요.
+          </div>
+        </div>
+      </div>
     ) : null}
 
     {historyLoading ? (
@@ -87,43 +206,20 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
         <Spinner label="이력 로딩 중..." />
       </div>
     ) : history.length === 0 ? (
-      <Card className="dynamic-test-history__empty-card">
-        <CardContent className="dynamic-test-history__empty-body">
-          <div className="dynamic-test-history__empty-copy">
-            <p className="dynamic-test-history__empty-eyebrow">Testing workspace</p>
-            <h2 className="dynamic-test-history__empty-title">아직 테스트 이력이 없습니다</h2>
-            <p className="dynamic-test-history__empty-description">
-              퍼징·침투 테스트를 시작하면 대상 ECU, 전략, 결과 이력이 같은
-              작업면 안에서 이어지도록 정리됩니다.
-            </p>
-          </div>
-          <div className="dynamic-test-history__empty-checks">
-            {["어댑터 연결", "전략 선택", "결과 검토"].map((step) => (
-              <Badge key={step} variant="outline" className="dynamic-test-history__empty-check">
-                <CheckCircle2 size={14} className="dynamic-test-history__empty-check-icon" />
-                {step}
-              </Badge>
-            ))}
-          </div>
-          <div>
-            <Button
-              onClick={() => {
-                if (!hasConnected) {
-                  setAdapterWarning(true);
-                  return;
-                }
-                setAdapterWarning(false);
-                onOpenConfig();
-              }}
-            >
-              첫 세션 시작
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <DynamicTestBootConsole
+        hasConnected={hasConnected}
+        onStart={() => {
+          if (!hasConnected) {
+            setAdapterWarning(true);
+            return;
+          }
+          setAdapterWarning(false);
+          onOpenConfig();
+        }}
+      />
     ) : (
-      <Card className="dynamic-test-history__list-card">
-        <CardContent className="dynamic-test-history__list-body">
+      <div className="panel dynamic-test-history__list-card">
+        <div className="panel-body dynamic-test-history__list-body">
           {history.map((result) => (
             <ListItem
               key={result.id}
@@ -133,10 +229,8 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
                   <span className="dynamic-test-history__item-time">
                     {formatDateTime(result.createdAt)}
                   </span>
-                  <Button
-                    variant="destructive"
-                    size="icon-sm"
-                    className="dynamic-test-history__delete-button"
+                  <button type="button"
+                    className="btn btn-danger btn-icon-sm dynamic-test-history__delete-button"
                     title="삭제"
                     onClick={(event) => {
                       event.stopPropagation();
@@ -144,16 +238,16 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
                     }}
                   >
                     <Trash2 size={14} />
-                  </Button>
+                  </button>
                 </>
               }
             >
               <div className="dynamic-test-history__item-copy">
                 <div className="dynamic-test-history__item-head">
-                  <Badge variant="outline" className="dynamic-test-history__type-badge">
+                  <span className="dynamic-test-history__type-badge">
                     {TEST_TYPE_ICON[result.config.testType]}
                     {result.config.testType === "fuzzing" ? "퍼징" : "침투"}
-                  </Badge>
+                  </span>
                   <span className="dynamic-test-history__item-strategy">
                     {STRATEGY_LABELS[result.config.strategy]}
                   </span>
@@ -177,8 +271,8 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
               </div>
             </ListItem>
           ))}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     )}
 
     <ConfirmDialog
