@@ -956,3 +956,38 @@ def test_plain_execution_word_in_evidence_does_not_make_empty_claims_fail_comman
 
     assert result.status == "completed"
     assert result.result.claims == []
+
+
+def test_partial_command_injection_refs_are_repopulated_from_complete_bundle():
+    assembler = ResultAssembler()
+    session = _make_session()
+    _add_command_injection_catalog(session)
+    final_content = json.dumps({
+        "summary": "CWE-78 command injection is present with partial refs.",
+        "claims": [{
+            "statement": "User input reaches popen and can cause command injection.",
+            "detail": "The model cited SAST and caller refs but omitted the source/input-path ref.",
+            "supportingEvidenceRefs": [
+                "eref-sast-flawfinder:shell/popen",
+                "eref-caller-create_ca-main.cpp-143",
+            ],
+            "location": "main.cpp:35",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": [
+            "eref-sast-flawfinder:shell/popen",
+            "eref-caller-create_ca-main.cpp-143",
+        ],
+        "suggestedSeverity": "high",
+        "needsHumanReview": True,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    result = assembler.build(final_content, session)
+
+    assert result.status == "completed"
+    refs = result.result.claims[0].supportingEvidenceRefs
+    assert "eref-file-main.cpp" in refs
+    assert "eref-sast-flawfinder:shell/popen" in refs
+    assert "eref-caller-create_ca-main.cpp-143" in refs

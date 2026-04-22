@@ -3,14 +3,113 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from app.config import settings
 from agent_shared.context import get_request_id
+from app.core.evidence_catalog import EvidenceCatalogEntry
 from app.runtime.request_summary import request_summary_tracker
 from app.schemas.request import TaskRequest
 from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
 
 logger = logging.getLogger(__name__)
+
+
+def _ingest_command_injection_source_refs(session, phase1_result) -> None:
+    """Add deterministic source-file evidence for command-injection SAST files.
+
+    Pre-computed Quick contexts may include SAST findings and S5 dangerous-callers
+    but omit source-file refs unless the LLM chooses `code.read_file`. The final
+    coherence gate needs a local source/input-path ref, so ingest the SAST file
+    directly from trusted projectPath before prompting/final assembly.
+    """
+    trusted = session.request.context.trusted if isinstance(session.request.context.trusted, dict) else {}
+    project_path = trusted.get("projectPath")
+    if not isinstance(project_path, str) or not project_path:
+        return
+    root = Path(project_path).resolve()
+    if not root.exists() or not root.is_dir():
+        return
+
+    for finding in phase1_result.sast_findings:
+        if not isinstance(finding, dict) or not _is_command_injection_finding(finding):
+            continue
+        loc = finding.get("location", {}) if isinstance(finding.get("location"), dict) else {}
+        rel_file = loc.get("file")
+        if not isinstance(rel_file, str) or not rel_file:
+            continue
+        candidate = (root / rel_file).resolve()
+        try:
+            candidate.relative_to(root)
+        except ValueError:
+            continue
+        if not candidate.is_file():
+            continue
+        try:
+            content = candidate.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+
+        metadata = finding.get("metadata", {}) if isinstance(finding.get("metadata"), dict) else {}
+        cwe = metadata.get("cweId")
+        if not isinstance(cwe, str):
+            raw_cwes = metadata.get("cwe")
+            cwe = raw_cwes[0] if isinstance(raw_cwes, list) and raw_cwes and isinstance(raw_cwes[0], str) else None
+        ref_id = "eref-file-" + rel_file.replace("\\", "/").replace("/", "-")
+        session.evidence_catalog.add(EvidenceCatalogEntry(
+            ref_id=ref_id,
+            category="source",
+            source_tool="phase1.source_file",
+            artifact_type="source-file",
+            file=rel_file,
+            line=_int_or_none(loc.get("line")),
+            sink=_sink_from_finding(finding),
+            rule_id=finding.get("ruleId") if isinstance(finding.get("ruleId"), str) else None,
+            cwe_id=cwe,
+            summary=content,
+        ))
+
+
+def _is_command_injection_finding(finding: dict) -> bool:
+    metadata = finding.get("metadata", {}) if isinstance(finding.get("metadata"), dict) else {}
+    haystack = " ".join(str(value or "") for value in (
+        finding.get("ruleId"),
+        finding.get("message"),
+        metadata.get("category"),
+        metadata.get("name"),
+        metadata.get("context"),
+        metadata.get("cweId"),
+    )).lower()
+    return any(marker in haystack for marker in (
+        "cwe-78",
+        "popen",
+        "system",
+        "shell",
+        "command injection",
+        "os command",
+    ))
+
+
+def _sink_from_finding(finding: dict) -> str | None:
+    metadata = finding.get("metadata", {}) if isinstance(finding.get("metadata"), dict) else {}
+    haystack = " ".join(str(value or "") for value in (
+        finding.get("ruleId"),
+        finding.get("message"),
+        metadata.get("category"),
+        metadata.get("name"),
+        metadata.get("context"),
+    )).lower()
+    for sink in ("popen", "system", "exec"):
+        if sink in haystack:
+            return sink
+    return None
+
+
+def _int_or_none(value) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _configure_phase2_graph_tools(registry, phase1_result, project_id, callers_tool=None, callees_tool=None, search_tool=None) -> None:
@@ -279,6 +378,7 @@ async def handle_deep_analyze(request: TaskRequest, model_registry) -> TaskSucce
         ))
 
     session.evidence_catalog.ingest_phase1_result(phase1_result)
+    _ingest_command_injection_source_refs(session, phase1_result)
     session.extra_allowed_refs = set(session.evidence_catalog.ref_ids())
     all_evidence_refs = session.evidence_catalog.as_evidence_refs()
 

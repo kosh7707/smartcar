@@ -401,10 +401,20 @@ def _repair_deep_command_injection_assessment(
         for index, claim in enumerate(claims):
             if not isinstance(claim, dict):
                 continue
-            claim_text = " ".join(str(claim.get(k) or "") for k in ("statement", "detail")).lower()
-            if claim_text and not any(marker in claim_text for marker in ("popen", "command", "cwe-78", "명령")):
+            claim_text = " ".join(str(claim.get(k) or "") for k in ("statement", "detail")).strip()
+            if claim_text and not _is_command_injection_claim(claim):
                 continue
-            if not isinstance(claim.get("supportingEvidenceRefs"), list) or not claim.get("supportingEvidenceRefs"):
+            supporting = claim.get("supportingEvidenceRefs")
+            if (
+                not isinstance(supporting, list)
+                or not supporting
+                or (
+                    _is_command_injection_claim(claim)
+                    and not _has_non_contextual_invalid_ref(supporting, allowed_refs)
+                    and not _claim_refs_have_command_injection_coherence(supporting, bundle)
+                    and not _has_incoherent_command_injection_local_refs(supporting, bundle)
+                )
+            ):
                 claim["supportingEvidenceRefs"] = [ref for ref in bundle.refs if ref in allowed_refs]
                 repairs.append(f"claims[{index}].supportingEvidenceRefs")
             if not isinstance(claim.get("location"), str) or not claim.get("location", "").strip():
@@ -470,6 +480,7 @@ def _cleanup_contextual_knowledge_refs(
                 and _is_command_injection_claim(claim)
                 and not _has_non_contextual_invalid_ref(claim.get("supportingEvidenceRefs", []), allowed_refs)
                 and not _claim_refs_have_command_injection_coherence(claim.get("supportingEvidenceRefs", []), bundle)
+                and not _has_incoherent_command_injection_local_refs(claim.get("supportingEvidenceRefs", []), bundle)
                 and bundle.complete
             ):
                 claim["supportingEvidenceRefs"] = [ref for ref in bundle.refs if ref in allowed_refs]
@@ -594,6 +605,15 @@ def _claim_refs_have_command_injection_coherence(refs: list, bundle) -> bool:
         and bool(ref_set & set(bundle.input_path_source_refs))
         and bool(ref_set & set(bundle.caller_refs))
     )
+
+
+def _has_incoherent_command_injection_local_refs(refs: list, bundle) -> bool:
+    ref_set = {ref for ref in refs if isinstance(ref, str)}
+    source_refs = set(bundle.source_refs)
+    coherent_source_refs = set(bundle.input_path_source_refs)
+    caller_refs = {ref for ref in ref_set if ref.startswith("eref-caller-")}
+    coherent_caller_refs = set(bundle.caller_refs)
+    return bool((ref_set & (source_refs - coherent_source_refs)) or (caller_refs - coherent_caller_refs))
 
 
 def _rebuilt_used_refs(parsed: dict) -> list[str]:

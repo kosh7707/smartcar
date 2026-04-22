@@ -52,8 +52,9 @@ export function LoginFormCard({
               id="login-username"
               className="input"
               type="email"
+              name="username"
               placeholder="analyst@company.com"
-              autoComplete="email"
+              autoComplete="username"
               value={username}
               onChange={(event) => onUsernameChange(event.target.value)}
               required
@@ -73,6 +74,7 @@ export function LoginFormCard({
               id="login-password"
               className="input"
               type={showPassword ? "text" : "password"}
+              name="password"
               placeholder="••••••••"
               autoComplete="current-password"
               value={password}

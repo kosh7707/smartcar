@@ -141,3 +141,42 @@ async def test_handle_deep_analyze_requests_async_ownership_on_toolless_turn(mon
         assert seen["prefer_async_ownership"] is True
     finally:
         object.__setattr__(settings, "llm_mode", original_mode)
+
+
+def test_phase1_ingests_command_injection_source_file_for_precomputed_quick_context(tmp_path):
+    from agent_shared.schemas.agent import BudgetState
+    from app.core.agent_session import AgentSession
+    from app.core.phase_one_types import Phase1Result
+    from app.routers.deep_analyze_handler import _ingest_command_injection_source_refs
+
+    (tmp_path / "main.cpp").write_text(
+        'std::getline(std::cin, cn);\n'
+        'std::string cmd = "openssl -subj /CN=" + cn;\n'
+        'FILE *p = popen(cmd.c_str(), "r");\n',
+        encoding="utf-8",
+    )
+    request = TaskRequest(
+        taskType=TaskType.DEEP_ANALYZE,
+        taskId="source-ingest-test",
+        context=Context(trusted={"projectPath": str(tmp_path)}),
+        evidenceRefs=[],
+    )
+    session = AgentSession(request, BudgetState())
+    phase1 = Phase1Result(
+        sast_findings=[{
+            "ruleId": "flawfinder:shell/popen",
+            "message": "This causes a new program to execute and is difficult to use safely (CWE-78).",
+            "location": {"file": "main.cpp", "line": 3},
+            "metadata": {"name": "popen", "cweId": "CWE-78", "context": 'FILE *p = popen(cmd.c_str(), "r");'},
+        }],
+        dangerous_callers=[{"name": "run", "file": "main.cpp", "line": 1, "dangerous_calls": ["popen"]}],
+    )
+    session.evidence_catalog.ingest_phase1_result(phase1)
+
+    _ingest_command_injection_source_refs(session, phase1)
+
+    source_entry = session.evidence_catalog.get("eref-file-main.cpp")
+    assert source_entry is not None
+    assert source_entry.category == "source"
+    assert "std::getline" in (source_entry.summary or "")
+    assert session.evidence_catalog.command_injection_bundle().complete is True
