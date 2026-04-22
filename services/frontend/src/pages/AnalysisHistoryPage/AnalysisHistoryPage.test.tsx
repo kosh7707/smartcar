@@ -105,7 +105,6 @@ describe("AnalysisHistoryPage", () => {
 
     await waitFor(() => expect(mockFetchProjectRuns).toHaveBeenCalledWith("p-1"));
     expect(await screen.findByRole("heading", { name: "분석 이력" })).toBeInTheDocument();
-    expect(screen.getByText("2회 분석 실행됨")).toBeInTheDocument();
     const toolbar = screen.getByRole("region", { name: "분석 이력 필터와 요약" });
     expect(within(toolbar).getByText("전체 실행")).toBeInTheDocument();
     expect(within(toolbar).getByText("완료")).toBeInTheDocument();

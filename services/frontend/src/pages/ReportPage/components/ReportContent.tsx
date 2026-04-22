@@ -57,7 +57,6 @@ export function ReportContent({
   return (
     <div className="page-enter report-content">
       <ReportHeader
-        generatedAt={report.generatedAt}
         hasActiveFilters={hasActiveFilters}
         onToggleFilters={() => setShowFilters(!showFilters)}
         onOpenCustomReport={() => setShowCustomReport(true)}

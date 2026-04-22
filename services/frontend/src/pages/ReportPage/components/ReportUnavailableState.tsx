@@ -20,7 +20,6 @@ export function ReportUnavailableState({
   return (
     <div className="page-enter">
       <ReportHeader
-        generatedAt={new Date().toISOString()}
         hasActiveFilters={hasActiveFilters}
         onToggleFilters={onToggleFilters}
         onOpenCustomReport={onOpenCustomReport}

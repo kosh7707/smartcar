@@ -1,10 +1,8 @@
 import React from "react";
 import { Download, Filter, Settings2 } from "lucide-react";
 import { PageHeader } from "../../../shared/ui";
-import { formatDateTime } from "../../../utils/format";
 
 interface ReportHeaderProps {
-  generatedAt: string;
   hasActiveFilters: boolean;
   onToggleFilters: () => void;
   onOpenCustomReport: () => void;
@@ -12,7 +10,6 @@ interface ReportHeaderProps {
 }
 
 export const ReportHeader: React.FC<ReportHeaderProps> = ({
-  generatedAt,
   hasActiveFilters,
   onToggleFilters,
   onOpenCustomReport,
@@ -20,7 +17,6 @@ export const ReportHeader: React.FC<ReportHeaderProps> = ({
 }) => (
   <PageHeader
     title="보고서"
-    subtitle={`생성: ${formatDateTime(generatedAt)}`}
     action={
       <div className="report-header-actions">
         <button type="button" className="btn btn-primary btn-sm" variant={hasActiveFilters ? "default" : "outline"} onClick={onToggleFilters}>

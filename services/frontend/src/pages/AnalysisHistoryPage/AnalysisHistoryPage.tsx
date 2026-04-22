@@ -34,11 +34,7 @@ export const AnalysisHistoryPage: React.FC = () => {
 
   return (
     <div className="page-shell history-page">
-      <PageHeader
-        surface="plain"
-        title="분석 이력"
-        subtitle={runs.length > 0 ? `${runs.length}회 분석 실행됨` : "실행된 분석 기록을 시간순으로 검토합니다."}
-      />
+      <PageHeader surface="plain" title="분석 이력" />
 
       <AnalysisHistoryToolbar
         filter={filter}
