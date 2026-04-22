@@ -39,6 +39,12 @@ export function useSettingsPage() {
     setTestDetail("");
   }, []);
 
+  const handleCancel = useCallback(() => {
+    setUrl(getBackendUrl());
+    setTestStatus("idle");
+    setTestDetail("");
+  }, []);
+
   const handleTest = useCallback(async () => {
     setTestStatus("testing");
     setTestDetail("");
@@ -66,6 +72,7 @@ export function useSettingsPage() {
     handleThemeChange,
     handleSave,
     handleReset,
+    handleCancel,
     handleTest,
   };
 }

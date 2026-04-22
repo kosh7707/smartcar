@@ -6,25 +6,19 @@ import type { TestStatus } from "../hooks/useSettingsPage";
 
 type SettingsBackendSectionProps = {
   url: string;
-  urlDirty: boolean;
-  saved: boolean;
   testStatus: TestStatus;
   testDetail: string;
   onUrlChange: (value: string) => void;
   onTest: () => void;
-  onSave: () => void;
   onReset: () => void;
 };
 
 export function SettingsBackendSection({
   url,
-  urlDirty,
-  saved,
   testStatus,
   testDetail,
   onUrlChange,
   onTest,
-  onSave,
   onReset,
 }: SettingsBackendSectionProps) {
   return (
@@ -69,14 +63,6 @@ export function SettingsBackendSection({
           disabled={testStatus === "testing" || !url.trim()}
         >
           테스트
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary btn-sm"
-          onClick={onSave}
-          disabled={!urlDirty && !saved}
-        >
-          {saved ? "저장됨" : "저장"}
         </button>
       </div>
 

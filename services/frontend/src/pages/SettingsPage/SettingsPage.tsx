@@ -19,12 +19,38 @@ export const SettingsPage: React.FC = () => {
     handleThemeChange,
     handleSave,
     handleReset,
+    handleCancel,
     handleTest,
   } = useSettingsPage();
 
   return (
     <div className="page-shell settings-page">
-      <PageHeader surface="plain" title="시스템 설정" />
+      <PageHeader
+        surface="plain"
+        title="시스템 설정"
+        action={
+          urlDirty ? (
+            <div className="settings-header-actions" role="group" aria-label="변경사항 제어">
+              <span className="settings-header-actions__dirty" aria-hidden="true">●</span>
+              <span className="settings-header-actions__label">저장되지 않은 변경</span>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={handleCancel}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={handleSave}
+              >
+                {saved ? "저장됨" : "저장"}
+              </button>
+            </div>
+          ) : null
+        }
+      />
 
       <section className="settings-section settings-section--1">
         <header className="settings-section__head">
@@ -33,13 +59,10 @@ export const SettingsPage: React.FC = () => {
         </header>
         <SettingsBackendSection
           url={url}
-          urlDirty={urlDirty}
-          saved={saved}
           testStatus={testStatus}
           testDetail={testDetail}
           onUrlChange={handleUrlChange}
           onTest={handleTest}
-          onSave={handleSave}
           onReset={handleReset}
         />
       </section>
