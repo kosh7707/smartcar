@@ -146,7 +146,7 @@ export const FileUploadView: React.FC<Props> = ({
               <> (기존 {selectedExisting.length} + 새 파일 {files.length})</>
             )}
           </span>
-          <button type="button" className="btn btn-primary" onClick={onStartAnalysis}>
+          <button type="button" className="btn btn-primary btn-sm" onClick={onStartAnalysis}>
             분석 시작
           </button>
         </div>

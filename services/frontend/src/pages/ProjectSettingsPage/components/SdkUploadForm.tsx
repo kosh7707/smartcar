@@ -143,7 +143,7 @@ export const SdkUploadForm: React.FC<SdkUploadFormProps> = ({ projectId, onRegis
       <div className="sdk-register-form__modes">
         {MODES.map((entry) => {
           return (
-            <button className={cn("btn btn-primary", "sdk-mode-btn", mode === entry.key && "active")} type="button" key={entry.key} variant={mode === entry.key ? "default" : "outline"} onClick={() => handleModeChange(entry.key)}
+            <button className={cn("btn btn-primary btn-sm", "sdk-mode-btn", mode === entry.key && "active")} type="button" key={entry.key} variant={mode === entry.key ? "default" : "outline"} onClick={() => handleModeChange(entry.key)}
             >
               {entry.icon} {entry.label}
             </button>

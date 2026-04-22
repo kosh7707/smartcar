@@ -51,7 +51,7 @@ export const DynamicAnalysisConfigView: React.FC<DynamicAnalysisConfigViewProps>
         </section>
 
         <div>
-          <button type="button" className="btn btn-primary" disabled={!selectedAdapterId || creating} onClick={onStart}>{creating ? <Spinner size={14} /> : <Plug size={16} />}모니터링 시작</button>
+          <button type="button" className="btn btn-primary btn-sm" disabled={!selectedAdapterId || creating} onClick={onStart}>{creating ? <Spinner size={14} /> : <Plug size={16} />}모니터링 시작</button>
         </div>
       </div>
     </div>

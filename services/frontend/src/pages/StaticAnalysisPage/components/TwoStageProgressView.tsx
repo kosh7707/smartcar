@@ -118,17 +118,17 @@ export const TwoStageProgressView: React.FC<Props> = ({
         </div>
         <div className="actions">
           {isComplete ? (
-            <button type="button" className="btn btn-primary" onClick={onViewResults}>
+            <button type="button" className="btn btn-primary btn-sm" onClick={onViewResults}>
               결과 보기
             </button>
           ) : isError ? (
-            <button type="button" className="btn btn-outline" onClick={onBack}>
+            <button type="button" className="btn btn-outline btn-sm" onClick={onBack}>
               돌아가기
             </button>
           ) : (
             <button
               type="button"
-              className="btn btn-danger"
+              className="btn btn-danger btn-sm"
               onClick={() => setShowAbortConfirm(true)}
             >
               <AlertTriangle size={14} />

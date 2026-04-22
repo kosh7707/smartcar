@@ -159,7 +159,7 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
     <PageHeader
       title="동적 테스트"
       action={
-        <button type="button" className="btn btn-primary"
+        <button type="button" className="btn btn-primary btn-sm"
           onClick={() => {
             if (!hasConnected) {
               setAdapterWarning(true);

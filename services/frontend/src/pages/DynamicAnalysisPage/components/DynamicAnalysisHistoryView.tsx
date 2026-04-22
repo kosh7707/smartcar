@@ -150,7 +150,7 @@ export const DynamicAnalysisHistoryView: React.FC<DynamicAnalysisHistoryViewProp
     <PageHeader
       title="동적 분석"
       action={
-        <button type="button" className="btn btn-primary"
+        <button type="button" className="btn btn-primary btn-sm"
           onClick={() => {
             if (!hasConnected) {
               setAdapterWarning(true);

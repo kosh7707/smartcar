@@ -107,8 +107,8 @@ export const BuildTargetCreateDialog: React.FC<Props> = ({
         </div>
 
         <footer className="build-target-create-dialog__footer">
-          <button type="button" className="btn btn-outline" onClick={onCancel}>취소</button>
-          <button type="button" className="btn btn-primary" onClick={handleCreate} disabled={creating || selectedCount === 0}>
+          <button type="button" className="btn btn-outline btn-sm" onClick={onCancel}>취소</button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={handleCreate} disabled={creating || selectedCount === 0}>
             {creating ? <Spinner size={14} /> : null}
             {submitLabel}
           </button>

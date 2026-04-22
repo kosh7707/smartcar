@@ -117,8 +117,8 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
       </div>
 
       <div className="finding-actions">
-        <button type="button" className="btn btn-outline" onClick={() => setShowTransition(true)}>상태 변경</button>
-        {canGeneratePoc && !pocData ? <button type="button" className="btn btn-outline" onClick={handleGeneratePoc} disabled={pocLoading}>{pocLoading ? <Spinner size={14} /> : null}PoC 생성</button> : null}
+        <button type="button" className="btn btn-outline btn-sm" onClick={() => setShowTransition(true)}>상태 변경</button>
+        {canGeneratePoc && !pocData ? <button type="button" className="btn btn-outline btn-sm" onClick={handleGeneratePoc} disabled={pocLoading}>{pocLoading ? <Spinner size={14} /> : null}PoC 생성</button> : null}
         {finding.location ? <span className="finding-chip">{finding.location}</span> : null}
       </div>
 

@@ -126,8 +126,8 @@ export const CustomReportModal: React.FC<Props> = ({ projectId, onClose }) => {
           />
         </div>
         <footer className="custom-report-modal__footer">
-          <button type="button" className="btn btn-outline" onClick={onClose} disabled={generating}>취소</button>
-          <button type="button" className="btn btn-primary" onClick={handleGenerate} disabled={generating}>
+          <button type="button" className="btn btn-outline btn-sm" onClick={onClose} disabled={generating}>취소</button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={handleGenerate} disabled={generating}>
             {generating ? <><Spinner size={14} /> 생성 중...</> : "보고서 생성"}
           </button>
         </footer>

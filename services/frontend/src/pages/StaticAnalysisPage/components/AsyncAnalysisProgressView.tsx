@@ -220,14 +220,14 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
 
           <div className="async-analysis-progress-view__actions">
             {isCompleted && (
-              <button type="button" className="btn btn-primary" onClick={() => onViewResult(progress.analysisId)}>
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => onViewResult(progress.analysisId)}>
                 <Eye size={16} />
                 결과 보기
                 {autoRedirect !== null && autoRedirect > 0 ? ` (${autoRedirect})` : ""}
               </button>
             )}
             {!isDone && (
-              <button type="button" className="btn btn-danger" onClick={() => setShowAbortConfirm(true)}>
+              <button type="button" className="btn btn-danger btn-sm" onClick={() => setShowAbortConfirm(true)}>
                 <XCircle size={16} />
                 분석 중단
               </button>

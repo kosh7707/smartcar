@@ -195,22 +195,22 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
 
           <div className="source-upload-actions">
             {onBrowseTree ? (
-              <button type="button" className="btn btn-outline" onClick={onBrowseTree}>
+              <button type="button" className="btn btn-outline btn-sm" onClick={onBrowseTree}>
                 <Search size={14} />
                 소스코드 탐색
               </button>
             ) : null}
             {onDiscoverTargets ? (
-              <button type="button" className="btn btn-outline" onClick={onDiscoverTargets}>
+              <button type="button" className="btn btn-outline btn-sm" onClick={onDiscoverTargets}>
                 <Crosshair size={14} />
                 타겟 탐색
               </button>
             ) : null}
-            <button type="button" className="btn btn-outline" onClick={handleReupload}>
+            <button type="button" className="btn btn-outline btn-sm" onClick={handleReupload}>
               <Upload size={14} />
               재업로드
             </button>
-            <button type="button" className="btn btn-primary" onClick={onAnalysisStart}>
+            <button type="button" className="btn btn-primary btn-sm" onClick={onAnalysisStart}>
               <Play size={14} />
               분석 실행
             </button>

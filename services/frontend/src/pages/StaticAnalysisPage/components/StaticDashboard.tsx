@@ -111,12 +111,12 @@ export const StaticDashboard: React.FC<Props> = ({
         </div>
         <div className="actions">
           {onBrowseTree && (
-            <button type="button" className="btn btn-outline" onClick={onBrowseTree}>
+            <button type="button" className="btn btn-outline btn-sm" onClick={onBrowseTree}>
               <Code size={16} />
               소스 탐색
             </button>
           )}
-          <button type="button" className="btn btn-primary" onClick={onNewAnalysis}>
+          <button type="button" className="btn btn-primary btn-sm" onClick={onNewAnalysis}>
             <Plus size={16} />
             새 분석
           </button>

@@ -164,7 +164,7 @@ export const LatestAnalysisTab: React.FC<Props> = ({
                   새 분석을 실행하면 품질 게이트 · 심각도 분포 · 탐지 항목이 여기에 채워집니다.
                 </p>
               </div>
-              <button type="button" className="btn btn-primary" onClick={onNewAnalysis}>
+              <button type="button" className="btn btn-primary btn-sm" onClick={onNewAnalysis}>
                 <Plus size={14} />
                 새 분석 실행
                 <ArrowRight size={14} />

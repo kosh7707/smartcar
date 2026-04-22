@@ -165,7 +165,7 @@ export const DynamicTestConfigView: React.FC<DynamicTestConfigViewProps> = ({
           </section>
 
           <div>
-            <button type="button" className="btn btn-primary" onClick={onStart} disabled={!targetEcu.trim() || !targetId.trim() || !selectedAdapterId}><Play size={16} /> 테스트 시작</button>
+            <button type="button" className="btn btn-primary btn-sm" onClick={onStart} disabled={!targetEcu.trim() || !targetId.trim() || !selectedAdapterId}><Play size={16} /> 테스트 시작</button>
           </div>
         </div>
       </div>
