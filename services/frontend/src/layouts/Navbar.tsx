@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Bell, ChevronDown, LogOut, Moon, Settings, ShieldCheck, Sun } from "lucide-react";
+import { Bell, ChevronDown, ChevronRight, LogOut, Moon, Settings, ShieldCheck, Sun } from "lucide-react";
 import type { Notification, User } from "@aegis/shared";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../contexts/AuthContext";
@@ -105,11 +105,6 @@ export const Navbar: React.FC = () => {
 
       <div className="nav-right">
         <div className="nav-cluster" role="group" aria-label="유틸리티">
-          <Link to="/settings" className="btn btn-ghost btn-icon-sm nav-icon" aria-label="설정">
-            <Settings />
-            <span className="sr-only">설정</span>
-          </Link>
-
           <button
             type="button"
             className="btn btn-ghost btn-icon-sm nav-icon"
@@ -152,37 +147,42 @@ export const Navbar: React.FC = () => {
       </div>
 
       {userMenuOpen ? (
-        <div className="nav-dropdown" style={{ position: "absolute", top: "calc(100% + 8px)", right: "16px", minWidth: 240 }}>
-          <div className="nav-dropdown-head">
-            <div>
-              <div className="nav-dropdown-title">{displayName}</div>
-              <div className="nav-dropdown-copy">
-                {user?.email ? <span style={{ fontFamily: "var(--font-mono)" }}>{user.email}</span> : null}
-                {user?.email ? <span style={{ margin: "0 6px" }}>·</span> : null}
-                <span>{roleLabel}</span>
-                {orgName ? <><span style={{ margin: "0 6px" }}>·</span><span>{orgName}</span></> : null}
-              </div>
+        <div
+          className="nav-dropdown nav-dropdown--user"
+          style={{ position: "absolute", top: "calc(100% + 8px)", right: "16px" }}
+        >
+          <div className="nav-user-head">
+            <span className="nav-user-head__avatar" aria-hidden="true">{avatarChar}</span>
+            <div className="nav-user-head__copy">
+              <span className="nav-user-head__name" title={displayName}>{displayName}</span>
+              <span className="nav-user-head__meta">
+                {orgName ? `${roleLabel} · ${orgName}` : roleLabel}
+              </span>
+              {user?.email ? (
+                <span className="nav-user-head__email" title={user.email}>{user.email}</span>
+              ) : null}
             </div>
           </div>
-          <div className="nav-dropdown-body" style={{ padding: "var(--space-3)" }}>
+          <div className="nav-user-menu">
             <Link
               to="/settings"
-              className="btn btn-ghost btn-sm btn-block"
-              style={{ justifyContent: "flex-start", width: "100%" }}
+              className="nav-menu-item"
               onClick={() => setUserMenuOpen(false)}
             >
-              <Settings aria-hidden="true" />
-              시스템 설정
+              <Settings className="nav-menu-item__icon" aria-hidden="true" />
+              <span className="nav-menu-item__label">시스템 설정</span>
+              <ChevronRight className="nav-menu-item__chevron" aria-hidden="true" />
             </Link>
             <button
               type="button"
-              className="btn btn-ghost btn-sm btn-block"
-              style={{ justifyContent: "flex-start", width: "100%" }}
+              className="nav-menu-item nav-menu-item--danger"
               onClick={() => void handleLogout()}
               disabled={loggingOut || !user}
             >
-              <LogOut aria-hidden="true" />
-              {loggingOut ? "로그아웃 중..." : "로그아웃"}
+              <LogOut className="nav-menu-item__icon" aria-hidden="true" />
+              <span className="nav-menu-item__label">
+                {loggingOut ? "로그아웃 중..." : "로그아웃"}
+              </span>
             </button>
           </div>
         </div>

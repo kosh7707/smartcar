@@ -110,14 +110,15 @@ describe("Navbar", () => {
     expect(mockMarkAllRead).toHaveBeenCalled();
   });
 
-  it("keeps the settings shortcut in the right action area", () => {
+  it("surfaces the settings link inside the profile menu", () => {
     render(
       <MemoryRouter initialEntries={["/dashboard"]}>
         <Navbar />
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("link", { name: "설정" })).toHaveAttribute("href", "/settings");
+    fireEvent.click(screen.getByRole("button", { name: "계정 · ACME Security Admin" }));
+    expect(screen.getByRole("link", { name: "시스템 설정" })).toHaveAttribute("href", "/settings");
   });
 
   it("opens the user menu and logs out", async () => {
