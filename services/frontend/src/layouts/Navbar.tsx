@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Bell, ChevronDown, ChevronRight, LogOut, Moon, Settings, ShieldCheck, Sun } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Moon, Settings, ShieldCheck, Sun } from "lucide-react";
 import type { Notification, User } from "@aegis/shared";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../contexts/AuthContext";
@@ -171,7 +171,6 @@ export const Navbar: React.FC = () => {
             >
               <Settings className="nav-menu-item__icon" aria-hidden="true" />
               <span className="nav-menu-item__label">시스템 설정</span>
-              <ChevronRight className="nav-menu-item__chevron" aria-hidden="true" />
             </Link>
             <button
               type="button"

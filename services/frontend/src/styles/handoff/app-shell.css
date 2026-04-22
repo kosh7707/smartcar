@@ -730,19 +730,6 @@
   min-width: 0;
 }
 
-.nav-menu-item__chevron {
-  width: 12px;
-  height: 12px;
-  color: var(--foreground-subtle);
-  flex-shrink: 0;
-  transition: transform 140ms ease, color 140ms ease;
-}
-
-.nav-menu-item:hover:not(:disabled) .nav-menu-item__chevron {
-  transform: translateX(2px);
-  color: var(--foreground-muted);
-}
-
 .nav-menu-item--danger {
   margin-top: 4px;
   padding-top: 10px;
