@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import type { Severity } from "@aegis/shared";
 import { useToast } from "../../contexts/ToastContext";
 import { FindingDetailView } from "../../shared/findings/FindingDetailView";
-import { EmptyState, Spinner } from "../../shared/ui";
+import { Spinner } from "../../shared/ui";
 import { VulnerabilitiesHeader } from "./components/VulnerabilitiesHeader";
 import { VulnerabilityGroups } from "./components/VulnerabilityGroups";
 import { VulnerabilityKeyboardHint } from "./components/VulnerabilityKeyboardHint";
@@ -46,9 +46,21 @@ export const VulnerabilitiesPage: React.FC = () => {
     );
   }
 
+  const showGrouped = state.groupBy !== "none" && state.groups.length > 0;
+  const showEmpty = !showGrouped && state.filtered.length === 0;
+  const emptyTitle = activeSeverity === "all"
+    ? "조건에 맞는 탐지 항목이 없습니다"
+    : `${SEVERITY_KO_LABELS[activeSeverity]} 수준의 탐지 항목이 없습니다`;
+  const emptyNote = state.hasActiveFilters
+    ? "필터를 해제하면 더 많은 항목이 보일 수 있습니다."
+    : "분석이 완료되면 이곳에 기록됩니다.";
+
   return (
-    <div className="page-shell">
-      <VulnerabilitiesHeader totalActiveFindings={state.counts.total} />
+    <div className="page-shell vuln-page">
+      <VulnerabilitiesHeader
+        totalActiveFindings={state.counts.total}
+        counts={state.counts}
+      />
 
       <VulnerabilitiesToolbar
         counts={state.counts}
@@ -81,7 +93,7 @@ export const VulnerabilitiesPage: React.FC = () => {
         onBulkAction={state.handleBulkAction}
       />
 
-      {state.groupBy !== "none" && state.groups.length > 0 && (
+      {showGrouped ? (
         <VulnerabilityGroups
           groups={state.groups}
           findings={state.findings}
@@ -90,17 +102,12 @@ export const VulnerabilitiesPage: React.FC = () => {
           onToggleGroup={state.toggleGroup}
           onOpenFinding={state.setSelectedFindingId}
         />
-      )}
-
-      {state.groupBy !== "none" && state.groups.length > 0 ? null : state.filtered.length === 0 ? (
-        <EmptyState
-          className="empty-state--workspace"
-          title={
-            activeSeverity === "all"
-              ? "조건에 맞는 탐지 항목이 없습니다"
-              : `${SEVERITY_KO_LABELS[activeSeverity]} 수준의 탐지 항목이 없습니다`
-          }
-        />
+      ) : showEmpty ? (
+        <div className="vuln-empty" role="status">
+          <span className="vuln-empty__stamp" aria-hidden="true">NO ENTRIES</span>
+          <p className="vuln-empty__title">{emptyTitle}</p>
+          <p className="vuln-empty__note">{emptyNote}</p>
+        </div>
       ) : (
         <VulnerabilityList
           findings={state.filtered}
