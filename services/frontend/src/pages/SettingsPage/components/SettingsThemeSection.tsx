@@ -1,19 +1,21 @@
 import React from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { ThemePreference } from "../../../utils/theme";
 
 type SettingsThemeSectionProps = {
   theme: ThemePreference;
   onThemeChange: (value: ThemePreference) => void;
 };
+
 const THEME_OPTIONS: Array<{
   value: ThemePreference;
   label: string;
   icon: React.ReactNode;
 }> = [
-  { value: "light", icon: <Sun size={16} />, label: "라이트" },
-  { value: "dark", icon: <Moon size={16} />, label: "다크" },
-  { value: "system", icon: <Monitor size={16} />, label: "시스템" },
+  { value: "light", icon: <Sun size={14} />, label: "라이트" },
+  { value: "dark", icon: <Moon size={14} />, label: "다크" },
+  { value: "system", icon: <Monitor size={14} />, label: "시스템" },
 ];
 
 export function SettingsThemeSection({
@@ -21,30 +23,30 @@ export function SettingsThemeSection({
   onThemeChange,
 }: SettingsThemeSectionProps) {
   return (
-    <div className="panel settings-theme-card">
-      <div className="panel-head settings-theme-card__head">
-        <div className="settings-theme-card__title-row">
-          <div className="settings-theme-card__icon-shell">
-            <Sun size={20} />
-          </div>
-          <div className="settings-theme-card__copy">
-            <h3 className="panel-title settings-theme-card__title">테마</h3>
-            <p className="settings-theme-card__description">
-              애플리케이션 테마를 설정합니다.
-            </p>
-          </div>
-        </div>
-      </div>
-      <div className="panel-body settings-theme-card__body">
-        <div className="settings-theme-card__options">
-          {THEME_OPTIONS.map((option) => (
-            <button type="button" key={option.value} variant={theme === option.value ? "default" : "outline"} className="btn btn-primary settings-theme-card__option" onClick={() => onThemeChange(option.value)}
+    <div className="settings-field">
+      <span className="settings-field__label">테마</span>
+      <p className="settings-field__hint">
+        시스템을 선택하면 OS 설정을 따릅니다.
+      </p>
+      <div className="settings-theme-seg" role="group" aria-label="테마 선택">
+        {THEME_OPTIONS.map((option) => {
+          const active = theme === option.value;
+          return (
+            <button
+              type="button"
+              key={option.value}
+              aria-pressed={active}
+              className={cn(
+                "settings-theme-seg__option",
+                active && "settings-theme-seg__option--active",
+              )}
+              onClick={() => onThemeChange(option.value)}
             >
               {option.icon}
               <span>{option.label}</span>
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
     </div>
   );

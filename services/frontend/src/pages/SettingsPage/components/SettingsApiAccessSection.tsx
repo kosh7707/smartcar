@@ -1,5 +1,4 @@
 import React from "react";
-import { Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TestStatus } from "../hooks/useSettingsPage";
 
@@ -10,6 +9,13 @@ function getStatusLabel(testStatus: TestStatus) {
   return "Idle";
 }
 
+function getStatusDotClass(testStatus: TestStatus) {
+  if (testStatus === "ok") return "settings-kv__dot--ok";
+  if (testStatus === "error") return "settings-kv__dot--error";
+  if (testStatus === "testing") return "settings-kv__dot--testing";
+  return "settings-kv__dot--idle";
+}
+
 export function SettingsApiAccessSection({
   url,
   testStatus,
@@ -17,37 +23,21 @@ export function SettingsApiAccessSection({
   url: string;
   testStatus: TestStatus;
 }) {
+  const base = url.trim() || "http://localhost:3000";
+  const endpoint = `${base.replace(/\/+$/, "")}/api/v1`;
+
   return (
-    <div className="panel settings-api-card">
-      <div className="panel-head settings-api-card__head">
-        <div className="settings-api-card__title-row">
-          <div className="settings-api-card__icon-shell">
-            <Settings size={20} />
-          </div>
-          <h3 className="panel-title settings-api-card__title">API 접근</h3>
-        </div>
+    <div className="settings-kv">
+      <div className="settings-kv__row">
+        <span className="settings-kv__key">Endpoint</span>
+        <span className="settings-kv__value settings-kv__value--mono">{endpoint}</span>
       </div>
-      <div className="panel-body settings-api-card__body">
-        <div className="settings-api-card__surface">
-          <div className="settings-api-card__surface-label">Endpoint</div>
-          <div className="settings-api-card__endpoint">
-            {url || "http://localhost:3000"}/api/v1
-          </div>
-        </div>
-        <div className="settings-api-card__surface">
-          <div className="settings-api-card__surface-label">Status</div>
-          <span
-            className={cn(
-              "settings-api-card__status-badge",
-              testStatus === "ok" && "settings-api-card__status-badge--ok",
-              testStatus === "error" && "settings-api-card__status-badge--error",
-              (testStatus === "idle" || testStatus === "testing") &&
-                "settings-api-card__status-badge--idle",
-            )}
-          >
-            {getStatusLabel(testStatus)}
-          </span>
-        </div>
+      <div className="settings-kv__row">
+        <span className="settings-kv__key">Status</span>
+        <span className="settings-kv__value">
+          <span className={cn("settings-kv__dot", getStatusDotClass(testStatus))} aria-hidden="true" />
+          <span className="settings-kv__value--mono">{getStatusLabel(testStatus)}</span>
+        </span>
       </div>
     </div>
   );
