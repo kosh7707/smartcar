@@ -8,7 +8,8 @@ import { SEVERITY_KO_LABELS } from "../vulnerabilitiesPresentation";
 
 interface VulnerabilitiesToolbarProps {
   counts: { total: number; critical: number; high: number; medium: number; low: number; info: number };
-  activeSeverity: Severity | "all";
+  activeSeverities: ReadonlySet<Severity>;
+  allSeveritiesSize: number;
   sourceTypeFilter: FindingSourceType | "all";
   statusFilter: FindingStatus | "all";
   searchQuery: string;
@@ -23,7 +24,8 @@ interface VulnerabilitiesToolbarProps {
   bulkStatus: FindingStatus | "";
   bulkReason: string;
   bulkProcessing: boolean;
-  setFilter: (severity: Severity | "all") => void;
+  toggleSeverity: (severity: Severity) => void;
+  resetSeverities: () => void;
   setSourceTypeFilter: (value: FindingSourceType | "all") => void;
   setStatusFilter: (value: FindingStatus | "all") => void;
   setSearchQuery: (value: string) => void;
@@ -43,9 +45,12 @@ const SORT_LABELS: Record<"severity" | "createdAt" | "location", string> = {
   location: "위치",
 };
 
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
 export const VulnerabilitiesToolbar: React.FC<VulnerabilitiesToolbarProps> = ({
   counts,
-  activeSeverity,
+  activeSeverities,
+  allSeveritiesSize,
   sourceTypeFilter,
   statusFilter,
   searchQuery,
@@ -60,7 +65,8 @@ export const VulnerabilitiesToolbar: React.FC<VulnerabilitiesToolbarProps> = ({
   bulkStatus,
   bulkReason,
   bulkProcessing,
-  setFilter,
+  toggleSeverity,
+  resetSeverities,
   setSourceTypeFilter,
   setStatusFilter,
   setSearchQuery,
@@ -73,42 +79,52 @@ export const VulnerabilitiesToolbar: React.FC<VulnerabilitiesToolbarProps> = ({
   clearSelection,
   onBulkAction,
 }) => {
+  const allActive = activeSeverities.size === allSeveritiesSize;
+  const selectedLabel = SEVERITY_ORDER
+    .filter((s) => activeSeverities.has(s))
+    .map(capitalize)
+    .join("+");
+  const singleSeverity = !allActive && activeSeverities.size === 1
+    ? (SEVERITY_ORDER.find((s) => activeSeverities.has(s)) ?? null)
+    : null;
+
   return (
     <>
       <div className="vuln-command" role="region" aria-label="분석 이력 필터와 요약">
         <div className="vuln-command__row">
           <span className="vuln-command__marker">§ SEVERITY</span>
-          <div className="vuln-command__sev-group" role="tablist" aria-label="심각도 필터">
+          <div className="vuln-command__sev-group" role="group" aria-label="심각도 필터 (다중선택)">
             <button
               type="button"
-              role="tab"
-              aria-selected={activeSeverity === "all"}
-              onClick={() => setFilter("all")}
+              aria-pressed={allActive}
+              onClick={resetSeverities}
               className={cn(
                 "vuln-sev-pill",
-                activeSeverity === "all" && "vuln-sev-pill--active",
+                allActive && "vuln-sev-pill--active",
               )}
             >
               {SEVERITY_KO_LABELS.all}
               <span className="vuln-sev-pill__count">{counts.total}</span>
             </button>
-            {SEVERITY_ORDER.map((severity) => (
-              <button
-                key={severity}
-                type="button"
-                role="tab"
-                aria-selected={activeSeverity === severity}
-                onClick={() => setFilter(severity)}
-                className={cn(
-                  "vuln-sev-pill",
-                  `vuln-sev-pill--${severity}`,
-                  activeSeverity === severity && "vuln-sev-pill--active",
-                )}
-              >
-                {SEVERITY_KO_LABELS[severity]}
-                <span className="vuln-sev-pill__count">{counts[severity as keyof typeof counts]}</span>
-              </button>
-            ))}
+            {SEVERITY_ORDER.map((severity) => {
+              const selected = !allActive && activeSeverities.has(severity);
+              return (
+                <button
+                  key={severity}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => toggleSeverity(severity)}
+                  className={cn(
+                    "vuln-sev-pill",
+                    `vuln-sev-pill--${severity}`,
+                    selected && "vuln-sev-pill--active",
+                  )}
+                >
+                  {SEVERITY_KO_LABELS[severity]}
+                  <span className="vuln-sev-pill__count">{counts[severity as keyof typeof counts]}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -200,13 +216,18 @@ export const VulnerabilitiesToolbar: React.FC<VulnerabilitiesToolbarProps> = ({
       {hasActiveFilters ? (
         <div className="vuln-active" aria-live="polite">
           <span className="vuln-active__summary">{`${filteredCount}건 / ${totalCount}건 표시`}</span>
-          {activeSeverity !== "all" ? (
-            <span className={cn("vuln-active__chip", `vuln-active__chip--${activeSeverity}`)}>
-              심각도: {activeSeverity.charAt(0).toUpperCase() + activeSeverity.slice(1)}
+          {!allActive ? (
+            <span
+              className={cn(
+                "vuln-active__chip",
+                singleSeverity && `vuln-active__chip--${singleSeverity}`,
+              )}
+            >
+              심각도: {selectedLabel}
               <button
                 type="button"
                 className="vuln-active__chip-x"
-                onClick={() => setFilter("all")}
+                onClick={resetSeverities}
                 aria-label="심각도 필터 해제"
               >
                 <X size={11} />

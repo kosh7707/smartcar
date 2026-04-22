@@ -13,8 +13,7 @@ type ToastApi = {
 
 export function useVulnerabilitiesPage(
   projectId: string | undefined,
-  activeSeverity: Severity | "all",
-  setSeverityFilter: (severity: Severity | "all") => void,
+  activeSeverities: ReadonlySet<Severity>,
   toast: ToastApi,
 ) {
   const [findings, setFindings] = useState<Finding[]>([]);
@@ -91,7 +90,9 @@ export function useVulnerabilitiesPage(
 
   const filtered = useMemo(() => {
     let result = findings;
-    if (activeSeverity !== "all") result = result.filter((finding) => finding.severity === activeSeverity);
+    if (activeSeverities.size < SEVERITY_ORDER.length) {
+      result = result.filter((finding) => activeSeverities.has(finding.severity));
+    }
     if (sourceTypeFilter !== "all") result = result.filter((finding) => finding.sourceType === sourceTypeFilter);
     if (statusFilter !== "all") result = result.filter((finding) => finding.status === statusFilter);
     if (searchQuery.trim()) {
@@ -115,7 +116,7 @@ export function useVulnerabilitiesPage(
       }
       return sortOrder === "asc" ? comparison : -comparison;
     });
-  }, [activeSeverity, findings, searchQuery, sortBy, sortOrder, sourceTypeFilter, statusFilter]);
+  }, [activeSeverities, findings, searchQuery, sortBy, sortOrder, sourceTypeFilter, statusFilter]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -161,7 +162,11 @@ export function useVulnerabilitiesPage(
     "?": () => setShowShortcutHelp((value) => !value),
   }, !selectedFindingId);
 
-  const hasActiveFilters = activeSeverity !== "all" || sourceTypeFilter !== "all" || statusFilter !== "all" || searchQuery.trim() !== "";
+  const hasActiveFilters =
+    activeSeverities.size < SEVERITY_ORDER.length ||
+    sourceTypeFilter !== "all" ||
+    statusFilter !== "all" ||
+    searchQuery.trim() !== "";
 
   const setGroupBy = useCallback((value: "none" | "ruleId" | "location") => {
     setGroupByState(value);
@@ -213,7 +218,6 @@ export function useVulnerabilitiesPage(
     toggleSelect,
     handleBulkAction,
     clearSelection: () => setSelectedIds(new Set()),
-    setFilter: setSeverityFilter,
     toggleGroup,
   };
 }

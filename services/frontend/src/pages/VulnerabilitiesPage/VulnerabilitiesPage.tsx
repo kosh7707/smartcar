@@ -1,29 +1,80 @@
-import React from "react";
+import React, { useCallback, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import type { Severity } from "@aegis/shared";
 import { useToast } from "../../contexts/ToastContext";
 import { FindingDetailView } from "../../shared/findings/FindingDetailView";
 import { Spinner } from "../../shared/ui";
+import { SEVERITY_ORDER } from "../../utils/severity";
 import { VulnerabilitiesHeader } from "./components/VulnerabilitiesHeader";
 import { VulnerabilityGroups } from "./components/VulnerabilityGroups";
 import { VulnerabilityKeyboardHint } from "./components/VulnerabilityKeyboardHint";
 import { VulnerabilityList } from "./components/VulnerabilityList";
 import { VulnerabilitiesToolbar } from "./components/VulnerabilitiesToolbar";
 import { useVulnerabilitiesPage } from "./hooks/useVulnerabilitiesPage";
-import { SEVERITY_KO_LABELS } from "./vulnerabilitiesPresentation";
 import "./VulnerabilitiesPage.css";
+
+const ALL_SEVERITIES: ReadonlySet<Severity> = new Set(SEVERITY_ORDER);
+
+function parseSeverityParam(raw: string | null): Set<Severity> {
+  if (!raw) return new Set(SEVERITY_ORDER);
+  const tokens = raw.split(",").map((t) => t.trim()).filter(Boolean);
+  const parsed = new Set<Severity>();
+  for (const token of tokens) {
+    if ((SEVERITY_ORDER as readonly string[]).includes(token)) {
+      parsed.add(token as Severity);
+    }
+  }
+  if (parsed.size === 0) return new Set(SEVERITY_ORDER);
+  return parsed;
+}
+
+function serializeSeverities(set: ReadonlySet<Severity>): string | null {
+  if (set.size === 0 || set.size === SEVERITY_ORDER.length) return null;
+  return SEVERITY_ORDER.filter((s) => set.has(s)).join(",");
+}
 
 export const VulnerabilitiesPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const toast = useToast();
-  const activeSeverity = (searchParams.get("severity") as Severity | "all") || "all";
-  const state = useVulnerabilitiesPage(
-    projectId,
-    activeSeverity,
-    (severity) => setSearchParams(severity === "all" ? {} : { severity }),
-    toast,
+
+  const severityParam = searchParams.get("severity");
+  const activeSeverities = useMemo(() => parseSeverityParam(severityParam), [severityParam]);
+
+  const commitSeverities = useCallback(
+    (next: ReadonlySet<Severity>) => {
+      const serialized = serializeSeverities(next);
+      setSearchParams(serialized ? { severity: serialized } : {});
+    },
+    [setSearchParams],
   );
+
+  const toggleSeverity = useCallback(
+    (severity: Severity) => {
+      if (activeSeverities.size === ALL_SEVERITIES.size) {
+        commitSeverities(new Set([severity]));
+        return;
+      }
+      const next = new Set(activeSeverities);
+      if (next.has(severity)) {
+        next.delete(severity);
+        if (next.size === 0) {
+          commitSeverities(ALL_SEVERITIES);
+          return;
+        }
+      } else {
+        next.add(severity);
+      }
+      commitSeverities(next);
+    },
+    [activeSeverities, commitSeverities],
+  );
+
+  const resetSeverities = useCallback(() => {
+    commitSeverities(ALL_SEVERITIES);
+  }, [commitSeverities]);
+
+  const state = useVulnerabilitiesPage(projectId, activeSeverities, toast);
 
   if (state.selectedFindingId) {
     return (
@@ -48,9 +99,10 @@ export const VulnerabilitiesPage: React.FC = () => {
 
   const showGrouped = state.groupBy !== "none" && state.groups.length > 0;
   const showEmpty = !showGrouped && state.filtered.length === 0;
-  const emptyTitle = activeSeverity === "all"
-    ? "조건에 맞는 탐지 항목이 없습니다"
-    : `${SEVERITY_KO_LABELS[activeSeverity]} 수준의 탐지 항목이 없습니다`;
+  const severityNarrowed = activeSeverities.size < ALL_SEVERITIES.size;
+  const emptyTitle = severityNarrowed
+    ? "선택한 심각도 수준의 탐지 항목이 없습니다"
+    : "조건에 맞는 탐지 항목이 없습니다";
   const emptyNote = state.hasActiveFilters
     ? "필터를 해제하면 더 많은 항목이 보일 수 있습니다."
     : "분석이 완료되면 이곳에 기록됩니다.";
@@ -64,7 +116,8 @@ export const VulnerabilitiesPage: React.FC = () => {
 
       <VulnerabilitiesToolbar
         counts={state.counts}
-        activeSeverity={activeSeverity}
+        activeSeverities={activeSeverities}
+        allSeveritiesSize={ALL_SEVERITIES.size}
         sourceTypeFilter={state.sourceTypeFilter}
         statusFilter={state.statusFilter}
         searchQuery={state.searchQuery}
@@ -79,7 +132,8 @@ export const VulnerabilitiesPage: React.FC = () => {
         bulkStatus={state.bulkStatus}
         bulkReason={state.bulkReason}
         bulkProcessing={state.bulkProcessing}
-        setFilter={state.setFilter}
+        toggleSeverity={toggleSeverity}
+        resetSeverities={resetSeverities}
         setSourceTypeFilter={state.setSourceTypeFilter}
         setStatusFilter={state.setStatusFilter}
         setSearchQuery={state.setSearchQuery}
