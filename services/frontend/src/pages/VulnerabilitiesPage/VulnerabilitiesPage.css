@@ -31,15 +31,6 @@
   min-width: 0;
 }
 
-.vuln-lede__eyebrow {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--foreground-subtle);
-}
-
 .vuln-lede__title {
   margin: 0;
   font-size: 28px;

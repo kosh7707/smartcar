@@ -32,7 +32,6 @@ export const VulnerabilitiesHeader: React.FC<VulnerabilitiesHeaderProps> = ({ to
   return (
     <header className="vuln-lede">
       <div className="vuln-lede__title-col">
-        <span className="vuln-lede__eyebrow">§ Security · Finding Register</span>
         <h1 className="vuln-lede__title">취약점 목록</h1>
         <span className="vuln-lede__count">
           <span className="vuln-lede__count-mark" aria-hidden="true">▸</span>
