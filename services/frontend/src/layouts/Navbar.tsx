@@ -166,6 +166,7 @@ export const Navbar: React.FC = () => {
           <div className="nav-user-menu">
             <Link
               to="/settings"
+              state={{ from: location.pathname }}
               className="nav-menu-item"
               onClick={() => setUserMenuOpen(false)}
             >

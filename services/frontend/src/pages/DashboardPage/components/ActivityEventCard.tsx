@@ -19,16 +19,12 @@ export const ActivityEventCard: React.FC<ActivityEventCardProps> = ({ event }) =
   const Icon = ICONS[event.icon];
 
   return (
-    <div className="activity-item">
+    <Link to={`/projects/${event.projectId}/overview`} className="activity-item">
       <span className={`activity-icon ${event.tone}`}><Icon /></span>
       <div className="activity-content">
-        <Link
-          to={`/projects/${event.projectId}/overview`}
-          className="line"
-          dangerouslySetInnerHTML={{ __html: event.html }}
-        />
+        <div className="line" dangerouslySetInnerHTML={{ __html: event.html }} />
         <div className="when"><Clock3 size={12} className="activity-when-icon" />{formatRelativeTime(event.timestamp)}</div>
       </div>
-    </div>
+    </Link>
   );
 };

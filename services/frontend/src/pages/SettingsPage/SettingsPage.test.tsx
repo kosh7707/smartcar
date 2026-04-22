@@ -1,6 +1,7 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render as rtlRender, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { SettingsPage } from "./SettingsPage";
 
 const mockGetBackendUrl = vi.fn();
@@ -15,11 +16,28 @@ vi.mock("../../api/client", () => ({
   healthFetch: (...args: unknown[]) => mockHealthFetch(...args),
 }));
 
+const mockApplyTheme = vi.fn();
+
 vi.mock("../../utils/theme", () => ({
   getThemePreference: () => mockGetThemePreference(),
   setThemePreference: (...args: unknown[]) => mockSetThemePreference(...args),
+  applyTheme: (...args: unknown[]) => mockApplyTheme(...args),
   isThemePreferenceEnabled: () => true,
 }));
+
+vi.mock("../../contexts/ProjectContext", () => ({
+  useProjects: () => ({
+    projects: [],
+    loading: false,
+    refreshProjects: vi.fn(),
+    createProject: vi.fn(),
+    getProject: () => null,
+  }),
+}));
+
+function render(ui: React.ReactElement) {
+  return rtlRender(<MemoryRouter>{ui}</MemoryRouter>);
+}
 
 describe("SettingsPage", () => {
   beforeEach(() => {
@@ -75,22 +93,29 @@ describe("SettingsPage", () => {
     expect(mockSetBackendUrl).toHaveBeenCalledWith("");
   });
 
-  it("updates theme preference", () => {
+  it("previews theme on click and persists only after save", () => {
     render(<SettingsPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "라이트" }));
 
+    expect(mockApplyTheme).toHaveBeenCalledWith("light");
+    expect(mockSetThemePreference).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "저장" }));
+
     expect(mockSetThemePreference).toHaveBeenCalledWith("light");
   });
 
-  it("allows selecting dark and system themes", () => {
+  it("reverts theme preview on cancel", () => {
     render(<SettingsPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "다크" }));
-    fireEvent.click(screen.getByRole("button", { name: "시스템" }));
+    expect(mockApplyTheme).toHaveBeenLastCalledWith("dark");
 
-    expect(mockSetThemePreference).toHaveBeenNthCalledWith(1, "dark");
-    expect(mockSetThemePreference).toHaveBeenNthCalledWith(2, "system");
+    fireEvent.click(screen.getByRole("button", { name: "취소" }));
+
+    expect(mockApplyTheme).toHaveBeenLastCalledWith("system");
+    expect(mockSetThemePreference).not.toHaveBeenCalled();
   });
 
   it("resets the backend URL to the default value and clears stale test status", async () => {

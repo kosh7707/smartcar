@@ -593,7 +593,9 @@ class AgentLoop:
             "suggestedSeverity, needsHumanReview, recommendedNextSteps, policyFlags.\n"
             "Never omit caveats or usedEvidenceRefs; output [] when there is no content for them.\n"
             "Each claim must be an object with statement, detail, supportingEvidenceRefs, and location.\n"
-            "Use only evidence refs listed by the user. If a claim cannot be grounded in those refs, "
+            "Use only project-local evidence refs listed by the user. Knowledge/CWE refs are contextual "
+            "background and must not be used in usedEvidenceRefs or claims[].supportingEvidenceRefs. "
+            "If a claim cannot be grounded in project-local refs, "
             "do not include that claim; put the limitation in caveats instead.\n"
             "If no grounded claims remain, output claims: [] with explicit caveats and needsHumanReview: true.\n"
         )
@@ -645,7 +647,10 @@ def _allowed_finalizer_refs(session: AgentSession) -> list[str]:
     refs.extend(sorted(session.extra_allowed_refs))
     refs.extend(session.evidence_catalog.ref_ids())
     refs.extend(ref for step in session.trace for ref in step.new_evidence_refs)
-    return [ref for ref in dict.fromkeys(refs) if isinstance(ref, str) and ref]
+    return [
+        ref for ref in dict.fromkeys(refs)
+        if isinstance(ref, str) and ref and not ref.startswith("eref-knowledge-")
+    ]
 
 
 def _should_retry_command_injection_false_negative(parsed: dict, session: AgentSession) -> bool:

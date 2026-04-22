@@ -6,10 +6,11 @@ interface Props {
   title: string;
   subtitle?: string;
   action?: React.ReactNode;
+  leading?: React.ReactNode;
   surface?: "card" | "plain";
 }
 
-export const PageHeader: React.FC<Props> = ({ title, subtitle, action, surface = "card" }) => {
+export const PageHeader: React.FC<Props> = ({ title, subtitle, action, leading, surface = "card" }) => {
   const headerClass =
     surface === "plain"
       ? "page-header page-header--plain page-head"
@@ -18,6 +19,7 @@ export const PageHeader: React.FC<Props> = ({ title, subtitle, action, surface =
   const body = (
     <>
       <div className="page-header__left">
+        {leading ? <div className="page-header__leading">{leading}</div> : null}
         <div className="page-header__text">
           <h1 className="page-header__title">{title}</h1>
           {subtitle ? <p className="page-header__subtitle">{subtitle}</p> : null}

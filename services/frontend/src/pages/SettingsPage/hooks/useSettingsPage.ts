@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getBackendUrl, healthFetch, setBackendUrl } from "../../../api/client";
-import { getThemePreference, setThemePreference, type ThemePreference } from "../../../utils/theme";
+import { applyTheme, getThemePreference, setThemePreference, type ThemePreference } from "../../../utils/theme";
 
 export type TestStatus = "idle" | "testing" | "ok" | "error";
 
 export function useSettingsPage() {
   const [url, setUrl] = useState(getBackendUrl);
+  const [storedUrl, setStoredUrl] = useState(getBackendUrl);
   const [saved, setSaved] = useState(false);
   const [testStatus, setTestStatus] = useState<TestStatus>("idle");
   const [testDetail, setTestDetail] = useState("");
   const [theme, setTheme] = useState<ThemePreference>(getThemePreference);
+  const [storedTheme, setStoredTheme] = useState<ThemePreference>(getThemePreference);
 
   useEffect(() => {
     document.title = "AEGIS — Settings";
@@ -17,7 +19,7 @@ export function useSettingsPage() {
 
   const handleThemeChange = useCallback((preference: ThemePreference) => {
     setTheme(preference);
-    setThemePreference(preference);
+    applyTheme(preference);
   }, []);
 
   const handleUrlChange = useCallback((value: string) => {
@@ -28,22 +30,31 @@ export function useSettingsPage() {
 
   const handleSave = useCallback(() => {
     setBackendUrl(url);
+    setStoredUrl(url);
+    if (theme !== storedTheme) {
+      setThemePreference(theme);
+      setStoredTheme(theme);
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-  }, [url]);
+  }, [url, theme, storedTheme]);
 
   const handleReset = useCallback(() => {
     setBackendUrl("");
-    setUrl(getBackendUrl());
+    const fresh = getBackendUrl();
+    setUrl(fresh);
+    setStoredUrl(fresh);
     setTestStatus("idle");
     setTestDetail("");
   }, []);
 
   const handleCancel = useCallback(() => {
-    setUrl(getBackendUrl());
+    setUrl(storedUrl);
+    setTheme(storedTheme);
+    applyTheme(storedTheme);
     setTestStatus("idle");
     setTestDetail("");
-  }, []);
+  }, [storedUrl, storedTheme]);
 
   const handleTest = useCallback(async () => {
     setTestStatus("testing");
@@ -59,7 +70,9 @@ export function useSettingsPage() {
     setTestDetail(ok ? "비정상 응답" : "연결 실패");
   }, [url]);
 
-  const urlDirty = useMemo(() => url !== getBackendUrl(), [url]);
+  const urlDirty = useMemo(() => url !== storedUrl, [url, storedUrl]);
+  const themeDirty = useMemo(() => theme !== storedTheme, [theme, storedTheme]);
+  const dirty = urlDirty || themeDirty;
 
   return {
     url,
@@ -68,6 +81,8 @@ export function useSettingsPage() {
     testDetail,
     theme,
     urlDirty,
+    themeDirty,
+    dirty,
     handleUrlChange,
     handleThemeChange,
     handleSave,

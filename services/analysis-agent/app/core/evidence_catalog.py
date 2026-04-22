@@ -49,6 +49,7 @@ class CommandInjectionBundle:
     refs: list[str]
     sast_refs: list[str]
     source_refs: list[str]
+    input_path_source_refs: list[str]
     caller_refs: list[str]
     reason: str = ""
 
@@ -120,14 +121,30 @@ class EvidenceCatalog:
         )
         location_entry = next((e for e in [*sast, *source, *callers] if e.file), None)
         location = _format_location(location_entry)
+        coherent_input_path_sources = _coherent_input_path_sources(
+            input_path_sources,
+            callers,
+            location_entry.file if location_entry else None,
+        )
+        coherent_callers = _coherent_callers(callers, coherent_input_path_sources)
 
+        coherent_source_files = {e.file for e in coherent_input_path_sources if e.file}
         refs = _unique([
             *(e.ref_id for e in sast[:2]),
-            *(e.ref_id for e in input_path_sources),
-            *(e.ref_id for e in source if e not in input_path_sources),
-            *(e.ref_id for e in callers[:4]),
+            *(e.ref_id for e in coherent_input_path_sources),
+            *(e.ref_id for e in source if e.file in coherent_source_files and e not in coherent_input_path_sources),
+            *(e.ref_id for e in coherent_callers[:4]),
         ])
-        complete = bool(sast and source and callers and has_user_input_path and location and refs)
+        complete = bool(
+            sast
+            and source
+            and callers
+            and has_user_input_path
+            and coherent_input_path_sources
+            and coherent_callers
+            and location
+            and refs
+        )
         missing = []
         if not sast:
             missing.append("sast")
@@ -137,6 +154,8 @@ class EvidenceCatalog:
             missing.append("caller")
         if not has_user_input_path:
             missing.append("user_input_path")
+        if has_user_input_path and not (coherent_input_path_sources and coherent_callers):
+            missing.append("coherent_path")
         if not location:
             missing.append("location")
         return CommandInjectionBundle(
@@ -146,7 +165,8 @@ class EvidenceCatalog:
             refs=refs,
             sast_refs=[e.ref_id for e in sast],
             source_refs=[e.ref_id for e in source],
-            caller_refs=[e.ref_id for e in callers],
+            input_path_source_refs=[e.ref_id for e in coherent_input_path_sources],
+            caller_refs=[e.ref_id for e in coherent_callers],
             reason="complete" if complete else f"missing:{','.join(missing)}",
         )
 
@@ -301,14 +321,18 @@ def _is_command_injection_entry(entry: EvidenceCatalogEntry) -> bool:
         entry.cwe_id,
         entry.summary,
     )).lower()
-    return any(marker in haystack for marker in (
-        "cwe-78",
-        "popen",
-        "system",
-        "shell",
-        "command injection",
-        "os command",
-    ))
+    return any(
+        re.search(pattern, haystack)
+        for pattern in (
+            r"\bcwe-78\b",
+            r"\bpopen\b",
+            r"\bsystem\b",
+            r"\bexec(?:ve|v|le|lp|l|p)?\b",
+            r"\bshell\b",
+            r"\bcommand injection\b",
+            r"\bos command\b",
+        )
+    )
 
 
 def _input_path_source_entries(source_entries: list[EvidenceCatalogEntry]) -> list[EvidenceCatalogEntry]:
@@ -319,6 +343,29 @@ def _input_path_source_entries(source_entries: list[EvidenceCatalogEntry]) -> li
         if _has_input_marker(summary, explicit_input_functions) and _has_command_construction_marker(summary):
             matched.append(entry)
     return matched
+
+
+def _coherent_input_path_sources(
+    input_path_sources: list[EvidenceCatalogEntry],
+    callers: list[EvidenceCatalogEntry],
+    location_file: str | None,
+) -> list[EvidenceCatalogEntry]:
+    caller_files = {entry.file for entry in callers if entry.file}
+    matched: list[EvidenceCatalogEntry] = []
+    for entry in input_path_sources:
+        if not entry.file:
+            continue
+        if entry.file == location_file and entry.file in caller_files:
+            matched.append(entry)
+    return matched
+
+
+def _coherent_callers(
+    callers: list[EvidenceCatalogEntry],
+    input_path_sources: list[EvidenceCatalogEntry],
+) -> list[EvidenceCatalogEntry]:
+    input_files = {entry.file for entry in input_path_sources if entry.file}
+    return [entry for entry in callers if entry.file in input_files]
 
 
 def _has_input_marker(text: str, explicit_input_functions: set[str]) -> bool:
@@ -339,8 +386,13 @@ def _has_command_construction_marker(text: str) -> bool:
 
 def _infer_sink(text: str) -> str | None:
     lowered = text.lower()
-    for sink in ("popen", "system", "exec"):
-        if sink in lowered:
+    patterns = {
+        "popen": r"\bpopen\b",
+        "system": r"\bsystem\b",
+        "exec": r"\bexec(?:ve|v|le|lp|l|p)?\b",
+    }
+    for sink, pattern in patterns.items():
+        if re.search(pattern, lowered):
             return sink
     return None
 

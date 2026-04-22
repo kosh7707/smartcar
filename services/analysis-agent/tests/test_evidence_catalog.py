@@ -214,3 +214,96 @@ def test_catalog_requires_separate_source_leg_beyond_sast():
 
     assert bundle.complete is False
     assert "source" in bundle.reason
+
+
+def test_catalog_rejects_unrelated_file_category_presence_as_complete_bundle():
+    catalog = EvidenceCatalog()
+    catalog.ingest_phase1_result(Phase1Result(
+        sast_findings=[{
+            "ruleId": "flawfinder:shell/popen",
+            "message": "CWE-78 popen",
+            "location": {"file": "main.cpp", "line": 35},
+            "metadata": {"name": "popen", "cweId": "CWE-78"},
+        }],
+        code_functions=[
+            {"name": "run", "file": "source.cpp", "line": 29, "calls": ["popen"]},
+            {"name": "create_ca", "file": "caller.cpp", "line": 143, "calls": ["run"]},
+        ],
+    ))
+    catalog.ingest_tool_result(
+        ToolCallRequest(id="read-third", name="code.read_file", arguments={"path": "third.cpp"}),
+        ToolResult(
+            tool_call_id="read-third",
+            name="code.read_file",
+            success=True,
+            content='std::getline(std::cin, cn); std::string cmd = "openssl -subj /CN=" + cn; FILE *p = popen(cmd.c_str(), "r"); // third.cpp:35',
+            new_evidence_refs=["eref-file-third.cpp"],
+        ),
+    )
+
+    bundle = catalog.command_injection_bundle()
+
+    assert bundle.complete is False
+    assert "coherent_path" in bundle.reason
+
+
+def test_catalog_rejects_source_and_caller_coherent_on_non_sast_file():
+    catalog = EvidenceCatalog()
+    catalog.ingest_phase1_result(Phase1Result(
+        sast_findings=[{
+            "ruleId": "flawfinder:shell/popen",
+            "message": "CWE-78 popen",
+            "location": {"file": "main.cpp", "line": 35},
+            "metadata": {"name": "popen", "cweId": "CWE-78"},
+        }],
+        code_functions=[
+            {"name": "run", "file": "third.cpp", "line": 29, "calls": ["popen"]},
+            {"name": "create_ca", "file": "third.cpp", "line": 143, "calls": ["run"]},
+        ],
+    ))
+    catalog.ingest_tool_result(
+        ToolCallRequest(id="read-third", name="code.read_file", arguments={"path": "third.cpp"}),
+        ToolResult(
+            tool_call_id="read-third",
+            name="code.read_file",
+            success=True,
+            content='std::getline(std::cin, cn); std::string cmd = "openssl -subj /CN=" + cn; FILE *p = popen(cmd.c_str(), "r"); // third.cpp:35',
+            new_evidence_refs=["eref-file-third.cpp"],
+        ),
+    )
+
+    bundle = catalog.command_injection_bundle()
+
+    assert bundle.complete is False
+    assert "coherent_path" in bundle.reason
+
+
+def test_catalog_treats_exec_sink_as_command_injection_bundle():
+    catalog = EvidenceCatalog()
+    catalog.ingest_phase1_result(Phase1Result(
+        sast_findings=[{
+            "ruleId": "flawfinder:shell/exec",
+            "message": "CWE-78 exec sink",
+            "location": {"file": "main.cpp", "line": 40},
+            "metadata": {"name": "exec", "cweId": "CWE-78"},
+        }],
+        code_functions=[
+            {"name": "run", "file": "main.cpp", "line": 29, "calls": ["exec"]},
+            {"name": "create_ca", "file": "main.cpp", "line": 143, "calls": ["run"]},
+        ],
+    ))
+    catalog.ingest_tool_result(
+        ToolCallRequest(id="read-main", name="code.read_file", arguments={"path": "main.cpp"}),
+        ToolResult(
+            tool_call_id="read-main",
+            name="code.read_file",
+            success=True,
+            content='std::getline(std::cin, cn); std::string cmd = "openssl -subj /CN=" + cn; exec(cmd.c_str()); // main.cpp:40',
+            new_evidence_refs=["eref-file-main.cpp"],
+        ),
+    )
+
+    bundle = catalog.command_injection_bundle()
+
+    assert bundle.complete is True
+    assert bundle.sink == "exec"

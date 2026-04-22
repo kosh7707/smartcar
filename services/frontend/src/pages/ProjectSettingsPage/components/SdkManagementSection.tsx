@@ -1,8 +1,7 @@
 import React, { useState } from "react";
-import { Archive, Binary, CheckCircle, ChevronDown, ChevronRight, FolderOpen, Loader, Plus, Settings, Trash2, XCircle } from "lucide-react";
+import { Archive, Binary, CheckCircle, ChevronDown, ChevronRight, FolderOpen, Loader, Plus, Trash2, XCircle } from "lucide-react";
 import type { RegisteredSdk, SdkAnalyzedProfile, SdkRegistryStatus } from "../../../api/sdk";
 import type { SdkProgressDetails } from "../../../hooks/useSdkProgress";
-import { EmptyState } from "../../../shared/ui";
 import { SdkUploadForm } from "./SdkUploadForm";
 
 const STATUS_CONFIG: Record<SdkRegistryStatus, { label: string; icon: "spin" | "check" | "fail"; tone: string }> = {
@@ -105,29 +104,32 @@ function artifactLabel(kind?: RegisteredSdk["artifactKind"]) {
 }
 
 export const SdkManagementSection: React.FC<SdkManagementSectionProps> = ({ projectId, registered, sdkProgressById, showForm, onToggleForm, onRegistered, onCancelForm, onRequestDelete }) => (
-  <div className="panel sdk-management-card">
-    <div className="panel-body">
-      <div className="sdk-management-toolbar">
-        <div className="sdk-management-head">
-          <div className="sdk-management-head-icon"><Settings size={18} /></div>
-          <div className="sdk-management-head-copy">
-            <div className="sdk-management-head-title">SDK 관리</div>
-            <div className="sdk-management-head-desc">크로스 컴파일 SDK를 등록하여 BuildTarget 분석에 사용합니다.</div>
-          </div>
-        </div>
-
-        <div className="sdk-management-actions">
-          <span className="sdk-management-meta">등록된 SDK {registered.length}개</span>
-          <button type="button" className="btn btn-primary btn-sm" onClick={onToggleForm}><Plus size={14} /> SDK 추가</button>
-        </div>
+  <section className="panel" role="tabpanel" aria-label="SDK 관리">
+    <div className="panel-head">
+      <h3>SDK 레지스트리 <span className="count">{registered.length}</span></h3>
+      <div className="panel-tools">
+        <button type="button" className="btn btn-primary btn-sm" onClick={onToggleForm}>
+          <Plus size={14} /> SDK 추가
+        </button>
       </div>
+    </div>
 
-      {showForm ? <div className="sdk-inline-panel"><SdkUploadForm projectId={projectId} onRegistered={onRegistered} onCancel={onCancelForm} /></div> : null}
+    {showForm ? (
+      <div className="panel-body ps-sdk__form-slot">
+        <SdkUploadForm projectId={projectId} onRegistered={onRegistered} onCancel={onCancelForm} />
+      </div>
+    ) : null}
+
+    <div className="panel-body">
+      <p className="form-hint ps-sdk__blurb">크로스 컴파일 SDK를 등록하여 BuildTarget 분석에 사용합니다.</p>
 
       {registered.length === 0 ? (
-        <EmptyState title="등록된 SDK가 없습니다" description="SDK 추가 버튼으로 크로스 컴파일 SDK를 등록하세요." />
+        <div className="ps-reserved ps-sdk__empty">
+          <p className="ps-reserved__title">등록된 SDK가 없습니다</p>
+          <p className="ps-reserved__desc">상단 <code>SDK 추가</code> 버튼으로 크로스 컴파일 SDK를 등록하세요.</p>
+        </div>
       ) : (
-        <div className="sdk-list">
+        <div className="ps-sdk__list">
           {registered.map((sdk) => {
             const cardClassName = ["sdk-card", "sdk-card--registered", sdk.status.endsWith("_failed") ? "sdk-card--failed" : "", sdk.status === "ready" ? "sdk-card--ready" : ""].filter(Boolean).join(" ");
             const kind = sdk.artifactKind ? artifactLabel(sdk.artifactKind) : null;
@@ -175,5 +177,5 @@ export const SdkManagementSection: React.FC<SdkManagementSectionProps> = ({ proj
         </div>
       )}
     </div>
-  </div>
+  </section>
 );

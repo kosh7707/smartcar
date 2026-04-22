@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useCallback, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
 import { CreateProjectForm } from "./CreateProjectForm";
 import type { DashboardProject } from "../dashboardTypes";
@@ -84,7 +84,19 @@ function ProjectCards({ projects }: { projects: DashboardProject[] }) {
 }
 
 export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ projects, filter, emptyState, onFilterChange, createFlow, layoutMode = "table" }) => {
+  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+
+  const handleRowActivate = useCallback((projectId: string) => {
+    navigate(`/projects/${projectId}/overview`);
+  }, [navigate]);
+
+  const handleRowKeyDown = useCallback((event: React.KeyboardEvent<HTMLTableRowElement>, projectId: string) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleRowActivate(projectId);
+    }
+  }, [handleRowActivate]);
 
   const displayProjects = useMemo(() => {
     switch (statusFilter) {
@@ -164,10 +176,18 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ projects, filt
                   const owner = projectOwner(project);
                   const running = projectIsRunning(project);
                   return (
-                    <tr key={project.id} className={running ? "running" : undefined}>
+                    <tr
+                      key={project.id}
+                      className={running ? "running" : undefined}
+                      role="link"
+                      tabIndex={0}
+                      aria-label={`${project.name} 프로젝트 열기`}
+                      onClick={() => handleRowActivate(project.id)}
+                      onKeyDown={(event) => handleRowKeyDown(event, project.id)}
+                    >
                       <td>
                         <div className="cell-name">
-                          <Link to={`/projects/${project.id}/overview`} className={`n ${running ? "running" : ""}`}>{project.name}</Link>
+                          <span className={`n ${running ? "running" : ""}`}>{project.name}</span>
                           <span className="slug">{project.description}</span>
                         </div>
                       </td>

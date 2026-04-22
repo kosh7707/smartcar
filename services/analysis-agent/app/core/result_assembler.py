@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
@@ -77,14 +78,27 @@ class ResultAssembler:
         for step in session.trace:
             allowed_refs.update(step.new_evidence_refs)
 
-        repairs = _repair_deep_command_injection_assessment(parsed, session, allowed_refs)
-        if repairs:
+        canonical_repairs, canonical_failure = _canonicalize_deep_assessment(
+            parsed,
+            session,
+            allowed_refs,
+        )
+        if canonical_repairs:
             agent_log(
                 logger,
-                "deep command-injection assessment repaired",
+                "deep assessment canonicalized",
                 component="result_assembler",
-                phase="result_repair",
-                repairs=repairs,
+                phase="result_canonicalize",
+                repairs=canonical_repairs,
+            )
+        if canonical_failure:
+            session.set_termination_reason("invalid_grounding")
+            return self.build_failure(
+                session,
+                TaskStatus.VALIDATION_FAILED,
+                FailureCode.INVALID_GROUNDING,
+                canonical_failure,
+                retryable=False,
             )
 
         incomplete_reason = _incomplete_command_injection_quality_failure(parsed, session)
@@ -294,6 +308,60 @@ class ResultAssembler:
         )
 
 
+def _canonicalize_deep_assessment(
+    parsed: dict,
+    session: AgentSession,
+    allowed_refs: set[str],
+) -> tuple[list[str], str]:
+    if str(session.request.taskType) != "deep-analyze":
+        return [], ""
+
+    repairs: list[str] = []
+    bundle = session.evidence_catalog.command_injection_bundle()
+    repairs.extend(_scaffold_deep_assessment(parsed, bundle))
+    repairs.extend(_repair_deep_command_injection_assessment(parsed, session, allowed_refs))
+    repairs.extend(_cleanup_contextual_knowledge_refs(parsed, session, allowed_refs))
+    repairs.extend(_sync_used_refs_with_claim_refs(parsed))
+    failure = _post_cleanup_grounding_failure(parsed, session, allowed_refs)
+    return list(dict.fromkeys(repairs)), failure
+
+
+def _scaffold_deep_assessment(parsed: dict, bundle) -> list[str]:
+    repairs: list[str] = []
+    scaffolded = False
+
+    for field in ("caveats", "usedEvidenceRefs", "recommendedNextSteps"):
+        if not isinstance(parsed.get(field), list):
+            parsed[field] = []
+            repairs.append(field)
+            scaffolded = True
+
+    if not isinstance(parsed.get("policyFlags"), list):
+        parsed["policyFlags"] = []
+        repairs.append("policyFlags")
+        scaffolded = True
+
+    if not isinstance(parsed.get("needsHumanReview"), bool):
+        parsed["needsHumanReview"] = True
+        repairs.append("needsHumanReview")
+        scaffolded = True
+
+    if not _valid_severity(parsed.get("suggestedSeverity")):
+        claims = parsed.get("claims")
+        if bundle.complete:
+            parsed["suggestedSeverity"] = "high"
+            repairs.append("suggestedSeverity")
+            scaffolded = True
+        elif isinstance(claims, list) and not claims:
+            parsed["suggestedSeverity"] = "info"
+            repairs.append("suggestedSeverity")
+            scaffolded = True
+
+    if scaffolded:
+        _append_policy_flag(parsed, "deterministic_schema_scaffold")
+    return repairs
+
+
 def _repair_deep_command_injection_assessment(
     parsed: dict,
     session: AgentSession,
@@ -364,6 +432,201 @@ def _repair_deep_command_injection_assessment(
         policy_flags.append("deterministic_command_injection_repair")
     parsed["policyFlags"] = policy_flags
     return list(dict.fromkeys(repairs))
+
+
+def _cleanup_contextual_knowledge_refs(
+    parsed: dict,
+    session: AgentSession,
+    allowed_refs: set[str],
+) -> list[str]:
+    repairs: list[str] = []
+    removed_refs: list[str] = []
+
+    used = parsed.get("usedEvidenceRefs")
+    if isinstance(used, list):
+        sanitized, removed = _remove_repairable_contextual_refs(used, session)
+        if removed:
+            parsed["usedEvidenceRefs"] = sanitized
+            removed_refs.extend(removed)
+            repairs.append("usedEvidenceRefs.contextualKnowledgeRefs")
+
+    claims = parsed.get("claims")
+    if isinstance(claims, list):
+        bundle = session.evidence_catalog.command_injection_bundle()
+        for index, claim in enumerate(claims):
+            if not isinstance(claim, dict):
+                continue
+            refs = claim.get("supportingEvidenceRefs")
+            if not isinstance(refs, list):
+                continue
+            sanitized, removed = _remove_repairable_contextual_refs(refs, session)
+            claim_had_contextual_cleanup = bool(removed)
+            if removed:
+                claim["supportingEvidenceRefs"] = sanitized
+                removed_refs.extend(removed)
+                repairs.append(f"claims[{index}].supportingEvidenceRefs.contextualKnowledgeRefs")
+            if (
+                claim_had_contextual_cleanup
+                and _is_command_injection_claim(claim)
+                and not _has_non_contextual_invalid_ref(claim.get("supportingEvidenceRefs", []), allowed_refs)
+                and not _claim_refs_have_command_injection_coherence(claim.get("supportingEvidenceRefs", []), bundle)
+                and bundle.complete
+            ):
+                claim["supportingEvidenceRefs"] = [ref for ref in bundle.refs if ref in allowed_refs]
+                repairs.append(f"claims[{index}].supportingEvidenceRefs.localRepopulation")
+
+    if removed_refs:
+        _append_policy_flag(parsed, "sanitized_contextual_knowledge_refs")
+        if any("localRepopulation" in repair for repair in repairs):
+            _append_policy_flag(parsed, "repopulated_local_grounding_refs")
+        if not _has_non_contextual_invalid_ref(parsed.get("usedEvidenceRefs", []), allowed_refs):
+            parsed["usedEvidenceRefs"] = _rebuilt_used_refs(parsed)
+            repairs.append("usedEvidenceRefs.rebuiltLocalRefs")
+
+    return repairs
+
+
+def _post_cleanup_grounding_failure(
+    parsed: dict,
+    session: AgentSession,
+    allowed_refs: set[str],
+) -> str:
+    claims = parsed.get("claims")
+    if not isinstance(claims, list):
+        return ""
+
+    bundle = session.evidence_catalog.command_injection_bundle()
+
+    for index, claim in enumerate(claims):
+        if not isinstance(claim, dict):
+            continue
+        refs = claim.get("supportingEvidenceRefs")
+        if not isinstance(refs, list):
+            continue
+
+        knowledge_ref = next((ref for ref in refs if isinstance(ref, str) and ref.startswith("eref-knowledge-")), None)
+        if knowledge_ref:
+            if knowledge_ref in allowed_refs:
+                return f"contextual knowledge ref not allowed in final grounding: '{knowledge_ref}'"
+            continue
+
+        if not _is_command_injection_claim(claim):
+            continue
+
+        if not session.evidence_catalog.has_command_injection_signal():
+            continue
+
+        if _has_non_contextual_invalid_ref(refs, allowed_refs):
+            continue
+        if not _claim_refs_have_command_injection_coherence(refs, bundle):
+            return (
+                "insufficient_command_injection_grounding: "
+                "requires SAST + source/input-path + caller local refs"
+            )
+
+    used = parsed.get("usedEvidenceRefs")
+    if isinstance(used, list):
+        knowledge_ref = next((ref for ref in used if isinstance(ref, str) and ref.startswith("eref-knowledge-")), None)
+        if knowledge_ref:
+            if knowledge_ref in allowed_refs:
+                return f"contextual knowledge ref not allowed in final grounding: '{knowledge_ref}'"
+            return ""
+
+    return ""
+
+
+_CONTEXTUAL_KNOWLEDGE_CWE_RE = re.compile(r"^eref-knowledge-(CWE-\d+)$")
+
+
+def _remove_repairable_contextual_refs(refs: list, session: AgentSession) -> tuple[list, list[str]]:
+    sanitized: list = []
+    removed: list[str] = []
+    for ref in refs:
+        if isinstance(ref, str) and _is_repairable_contextual_knowledge_ref(ref, session):
+            removed.append(ref)
+            continue
+        sanitized.append(ref)
+    return sanitized, removed
+
+
+def _is_repairable_contextual_knowledge_ref(ref: str, session: AgentSession) -> bool:
+    match = _CONTEXTUAL_KNOWLEDGE_CWE_RE.match(ref)
+    if not match:
+        return False
+    cwe = match.group(1).upper()
+    local_cwes = {
+        entry.cwe_id.upper()
+        for entry in session.evidence_catalog.entries()
+        if isinstance(entry.cwe_id, str) and entry.cwe_id
+    }
+    if cwe in local_cwes:
+        return True
+    return cwe == "CWE-78" and session.evidence_catalog.command_injection_bundle().complete
+
+
+def _has_non_contextual_invalid_ref(refs: list, allowed_refs: set[str]) -> bool:
+    return any(isinstance(ref, str) and ref not in allowed_refs for ref in refs)
+
+
+def _is_command_injection_claim(claim: dict) -> bool:
+    text = " ".join(str(claim.get(key) or "") for key in ("statement", "detail", "location")).lower()
+    return any(
+        re.search(pattern, text)
+        for pattern in (
+            r"\bpopen\b",
+            r"\bsystem\s*\(",
+            r"\bexec(?:ve|v|le|lp|l|p)?\s*\(",
+            r"\bshell\b",
+            r"\bos command\b",
+            r"\bcwe-78\b",
+            r"\bcommand injection\b",
+            r"명령",
+        )
+    )
+
+
+def _claim_refs_have_command_injection_coherence(refs: list, bundle) -> bool:
+    if not bundle.complete:
+        return False
+    ref_set = {ref for ref in refs if isinstance(ref, str)}
+    return (
+        bool(ref_set & set(bundle.sast_refs))
+        and bool(ref_set & set(bundle.input_path_source_refs))
+        and bool(ref_set & set(bundle.caller_refs))
+    )
+
+
+def _rebuilt_used_refs(parsed: dict) -> list[str]:
+    refs: list[str] = []
+    for claim in parsed.get("claims", []) or []:
+        if isinstance(claim, dict):
+            refs.extend(ref for ref in claim.get("supportingEvidenceRefs", []) if isinstance(ref, str))
+    for ref in parsed.get("usedEvidenceRefs", []) or []:
+        if isinstance(ref, str):
+            refs.append(ref)
+    return list(dict.fromkeys(refs))
+
+
+def _sync_used_refs_with_claim_refs(parsed: dict) -> list[str]:
+    used = parsed.get("usedEvidenceRefs")
+    if not isinstance(used, list):
+        return []
+    if any(not isinstance(ref, str) for ref in used):
+        return []
+    rebuilt = _rebuilt_used_refs(parsed)
+    if rebuilt != used:
+        parsed["usedEvidenceRefs"] = rebuilt
+        return ["usedEvidenceRefs.claimRefSync"]
+    return []
+
+
+def _append_policy_flag(parsed: dict, flag: str) -> None:
+    flags = parsed.get("policyFlags")
+    if not isinstance(flags, list):
+        flags = []
+    if flag not in flags:
+        flags.append(flag)
+    parsed["policyFlags"] = flags
 
 
 def _incomplete_command_injection_quality_failure(parsed: dict, session: AgentSession) -> str:

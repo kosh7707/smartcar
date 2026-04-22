@@ -22,31 +22,44 @@ export const ProjectSettingsPage: React.FC = () => {
   }
 
   return (
-    <div className="page-shell">
+    <div className="page-shell ps-page">
       <ConnectionStatusBanner connectionState={state.sdkConnectionState} />
-      <ProjectSettingsHeader />
 
-      <div
-        value={state.activeSection}
-        onValueChange={(value) => state.setActiveSection(value as typeof state.activeSection)}
-        orientation="vertical"
-        className="project-settings-layout"
-      >
-        <ProjectSettingsSidebar />
+      <ProjectSettingsHeader
+        project={state.project}
+        projectId={projectId}
+        sdkCount={state.registered.length}
+        dirty={state.dirty}
+        saving={state.saving}
+        onCancel={state.handleCancel}
+        onSave={state.handleSave}
+      />
 
-        <div className="project-settings-main">
-          <ProjectSettingsContent
-            activeSection={state.activeSection}
-            projectId={projectId}
-            registered={state.registered}
-            sdkProgressById={state.sdkProgressById}
-            showForm={state.showForm}
-            onToggleForm={() => state.setShowForm((prev) => !prev)}
-            onRegistered={state.handleRegistered}
-            onCancelForm={() => state.setShowForm(false)}
-            onRequestDelete={state.setDeleteTarget}
-          />
-        </div>
+      <div className="page-toolbar ps-toolbar">
+        <ProjectSettingsSidebar
+          active={state.activeSection}
+          onSelect={(value) => state.setActiveSection(value)}
+        />
+      </div>
+
+      <div className="page-section-stack">
+        <ProjectSettingsContent
+          activeSection={state.activeSection}
+          projectId={projectId}
+          registered={state.registered}
+          sdkProgressById={state.sdkProgressById}
+          showForm={state.showForm}
+          onToggleForm={() => state.setShowForm((prev) => !prev)}
+          onRegistered={state.handleRegistered}
+          onCancelForm={() => state.setShowForm(false)}
+          onRequestDelete={state.setDeleteTarget}
+          name={state.name}
+          description={state.description}
+          onNameChange={state.handleNameChange}
+          onDescriptionChange={state.handleDescriptionChange}
+          onRequestDeleteProject={() => state.setShowDeleteProject(true)}
+          deletingProject={state.deletingProject}
+        />
       </div>
 
       <ConfirmDialog
@@ -57,6 +70,18 @@ export const ProjectSettingsPage: React.FC = () => {
         danger
         onConfirm={() => state.deleteTarget && state.handleDelete(state.deleteTarget)}
         onCancel={() => state.setDeleteTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={state.showDeleteProject}
+        title="프로젝트 삭제"
+        message={state.project
+          ? `"${state.project.name}" 프로젝트를 영구적으로 삭제합니다. 이 작업은 되돌릴 수 없습니다.`
+          : "이 프로젝트를 영구적으로 삭제합니다. 이 작업은 되돌릴 수 없습니다."}
+        confirmLabel="삭제"
+        danger
+        onConfirm={() => void state.handleConfirmDeleteProject()}
+        onCancel={() => state.setShowDeleteProject(false)}
       />
     </div>
   );

@@ -29,6 +29,9 @@ class MockWebSocket {
 const mockFetchProjectSdks = vi.fn();
 const mockRegisterSdkByUpload = vi.fn();
 const mockDeleteSdk = vi.fn();
+const mockFetchProject = vi.fn();
+const mockUpdateProjectSettings = vi.fn();
+const mockDeleteProject = vi.fn();
 const mockToast = { error: vi.fn(), success: vi.fn(), info: vi.fn() };
 
 vi.mock("../../api/sdk", () => ({
@@ -36,6 +39,12 @@ vi.mock("../../api/sdk", () => ({
   registerSdkByUpload: (...args: unknown[]) => mockRegisterSdkByUpload(...args),
   deleteSdk: (...args: unknown[]) => mockDeleteSdk(...args),
   getSdkWsUrl: vi.fn(() => "ws://localhost:3000/ws/sdk?projectId=p-1"),
+}));
+
+vi.mock("../../api/projects", () => ({
+  fetchProject: (...args: unknown[]) => mockFetchProject(...args),
+  updateProjectSettings: (...args: unknown[]) => mockUpdateProjectSettings(...args),
+  deleteProject: (...args: unknown[]) => mockDeleteProject(...args),
 }));
 
 vi.mock("../../api/core", () => ({ logError: vi.fn() }));
@@ -76,6 +85,15 @@ describe("ProjectSettingsPage", () => {
       updatedAt: "2026-04-04T00:00:00Z",
     });
     mockDeleteSdk.mockResolvedValue(undefined);
+    mockFetchProject.mockResolvedValue({
+      id: "p-1",
+      name: "Test Project",
+      description: "",
+      createdAt: "2026-04-04T00:00:00Z",
+      updatedAt: "2026-04-04T00:00:00Z",
+    });
+    mockUpdateProjectSettings.mockResolvedValue({ id: "p-1" });
+    mockDeleteProject.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -108,9 +126,9 @@ describe("ProjectSettingsPage", () => {
     await waitFor(() => expect(mockFetchProjectSdks).toHaveBeenCalledWith("p-1"));
     activateSection(/위험 구역/i);
 
-    expect(screen.getByText("Delete this project")).toBeInTheDocument();
-    expect(screen.getByText(/Once deleted, all historical data/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Delete Project" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "프로젝트 삭제" })).toBeInTheDocument();
+    expect(screen.getByText(/삭제된 프로젝트는 분석 이력/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "프로젝트 삭제" })).toBeInTheDocument();
   });
 
   it("renders placeholder sections for not-yet-available settings areas", async () => {

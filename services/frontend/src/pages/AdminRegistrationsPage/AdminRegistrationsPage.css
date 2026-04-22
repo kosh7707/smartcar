@@ -1,0 +1,239 @@
+/* ═══════════════════════════════════════════════════════════════
+   Admin Registrations — Triage Queue
+   Page-local extensions on top of canonical components
+   (.panel / .status-chips / .filter-pills / .sev-chip / .form-*).
+   ═══════════════════════════════════════════════════════════════ */
+
+.admin-reg-page {
+  width: 100%;
+  padding-top: var(--space-5);
+  gap: var(--space-5);
+}
+
+/* ── KPI strip (대기/승인/반려) ──────────────────────────────── */
+
+.admin-reg-kpi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.admin-reg-kpi .status-chip--active {
+  background: var(--surface);
+  border-color: var(--border-strong);
+}
+
+.admin-reg-kpi .status-chip--pending  .status-chip__count { color: var(--severity-medium); }
+.admin-reg-kpi .status-chip--approved .status-chip__count { color: var(--success); }
+.admin-reg-kpi .status-chip--rejected .status-chip__count { color: var(--severity-critical); }
+
+/* ── Notices (load/action error) ─────────────────────────────── */
+
+.admin-reg-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px var(--space-4);
+  border: 1px solid var(--severity-critical-border);
+  border-radius: var(--radius-md);
+  background: var(--severity-critical-surface);
+  color: var(--severity-critical);
+  font-size: var(--text-sm);
+}
+
+.admin-reg-notice__body { flex: 1; }
+.admin-reg-notice__close { color: inherit; }
+
+/* ── Rows ────────────────────────────────────────────────────── */
+
+.admin-reg-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-reg-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.admin-reg-row:last-child { border-bottom: 0; }
+.admin-reg-row:hover { background: color-mix(in srgb, var(--surface-sunken) 40%, transparent); }
+
+.admin-reg-row--pending {
+  background: color-mix(in srgb, var(--severity-medium-surface) 35%, transparent);
+  border-bottom-color: var(--severity-medium-border);
+}
+
+.admin-reg-row--pending:hover {
+  background: color-mix(in srgb, var(--severity-medium-surface) 55%, transparent);
+}
+
+.admin-reg-row__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 320px;
+}
+
+.admin-reg-row__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.admin-reg-row__name {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--foreground);
+  letter-spacing: var(--tracking-tight);
+}
+
+.admin-reg-row__email {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--foreground-muted);
+  letter-spacing: 0.01em;
+}
+
+.admin-reg-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--space-4);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--foreground-subtle);
+  letter-spacing: 0.01em;
+}
+
+.admin-reg-row__reason {
+  padding: 6px var(--space-3);
+  border-left: 2px solid var(--severity-critical-border);
+  background: color-mix(in srgb, var(--severity-critical-surface) 60%, transparent);
+  font-size: 12px;
+  color: var(--foreground-muted);
+  line-height: var(--leading-relaxed);
+}
+
+.admin-reg-row__role-badge {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-subtle);
+  padding: 2px 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  background: var(--surface);
+}
+
+/* ── Actions (pending rows) ─────────────────────────────────── */
+
+.admin-reg-row__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.admin-reg-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-reg-role__label {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-subtle);
+}
+
+.admin-reg-role__select {
+  height: 28px;
+  padding: 0 var(--space-3);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  color: var(--foreground);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.admin-reg-role__select:hover:not(:disabled) { border-color: var(--border-strong); }
+.admin-reg-role__select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+/* ── Reject mode ────────────────────────────────────────────── */
+
+.admin-reg-reject {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 280px;
+  flex: 1 1 320px;
+}
+
+.admin-reg-reject__textarea {
+  width: 100%;
+  min-height: 72px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  color: var(--foreground);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.admin-reg-reject__textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.admin-reg-reject__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* ── Empty / loading states ─────────────────────────────────── */
+
+.admin-reg-empty {
+  padding: var(--space-8) var(--space-6);
+  text-align: center;
+  color: var(--foreground-subtle);
+  font-size: var(--text-sm);
+}
+
+.admin-reg-empty__title {
+  margin: 0 0 4px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--foreground);
+  letter-spacing: var(--tracking-tight);
+}
+
+.admin-reg-empty__desc {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--foreground-muted);
+  line-height: var(--leading-relaxed);
+}

@@ -134,3 +134,14 @@ class TestUtilities:
             .add_section("C", "c")
         )
         assert builder.section_count() == 3
+
+
+def test_phase2_prompt_lists_full_required_schema_and_omits_knowledge_ref_example():
+    from app.core.phase_one_prompt import build_phase2_prompt
+    from app.core.phase_one_types import Phase1Result
+
+    system_prompt, _ = build_phase2_prompt(Phase1Result(), {}, evidence_refs=[])
+
+    assert "summary, claims, caveats, usedEvidenceRefs, suggestedSeverity, needsHumanReview, recommendedNextSteps, policyFlags" in system_prompt
+    assert "eref-knowledge-CWE-78" not in system_prompt
+    assert "Knowledge/CWE ref" in system_prompt or "위협 지식" in system_prompt

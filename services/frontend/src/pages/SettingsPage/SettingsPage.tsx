@@ -1,11 +1,39 @@
-import React from "react";
-import { PageHeader } from "../../shared/ui";
+import React, { useMemo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { BackButton, PageHeader } from "../../shared/ui";
+import { useProjects } from "../../contexts/ProjectContext";
 import { SettingsApiAccessSection } from "./components/SettingsApiAccessSection";
 import { SettingsBackendSection } from "./components/SettingsBackendSection";
 import { SettingsPlatformSection } from "./components/SettingsPlatformSection";
 import { SettingsThemeSection } from "./components/SettingsThemeSection";
 import { useSettingsPage } from "./hooks/useSettingsPage";
 import "./SettingsPage.css";
+
+const PROJECT_ROUTE_RE = /^\/projects\/([^/]+)(?:\/|$)/;
+
+type BackTarget = {
+  label: string;
+  resolve: () => void;
+};
+
+function useBackTarget(): BackTarget {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { getProject } = useProjects();
+
+  return useMemo(() => {
+    const state = location.state as { from?: string } | null;
+    const from = state?.from;
+
+    if (from) {
+      const match = PROJECT_ROUTE_RE.exec(from);
+      const label = match ? (getProject(match[1])?.name ?? "뒤로") : "뒤로";
+      return { label, resolve: () => navigate(from) };
+    }
+
+    return { label: "뒤로", resolve: () => navigate(-1) };
+  }, [location.state, navigate, getProject]);
+}
 
 export const SettingsPage: React.FC = () => {
   const {
@@ -14,7 +42,7 @@ export const SettingsPage: React.FC = () => {
     testStatus,
     testDetail,
     theme,
-    urlDirty,
+    dirty,
     handleUrlChange,
     handleThemeChange,
     handleSave,
@@ -23,33 +51,14 @@ export const SettingsPage: React.FC = () => {
     handleTest,
   } = useSettingsPage();
 
+  const backTarget = useBackTarget();
+
   return (
     <div className="page-shell settings-page">
       <PageHeader
         surface="plain"
         title="시스템 설정"
-        action={
-          urlDirty ? (
-            <div className="settings-header-actions" role="group" aria-label="변경사항 제어">
-              <span className="settings-header-actions__dirty" aria-hidden="true">●</span>
-              <span className="settings-header-actions__label">저장되지 않은 변경</span>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={handleCancel}
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={handleSave}
-              >
-                {saved ? "저장됨" : "저장"}
-              </button>
-            </div>
-          ) : null
-        }
+        action={<BackButton onClick={backTarget.resolve} label={backTarget.label} />}
       />
 
       <section className="settings-section settings-section--1">
@@ -90,6 +99,23 @@ export const SettingsPage: React.FC = () => {
         </header>
         <SettingsPlatformSection />
       </section>
+
+      {dirty ? (
+        <div className="settings-savebar" role="group" aria-label="변경사항 제어">
+          <div className="settings-savebar__signal">
+            <span className="settings-savebar__dot" aria-hidden="true" />
+            <span className="settings-savebar__label">저장되지 않은 변경</span>
+          </div>
+          <div className="settings-savebar__actions">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={handleCancel}>
+              취소
+            </button>
+            <button type="button" className="btn btn-primary btn-sm" onClick={handleSave}>
+              {saved ? "저장됨" : "저장"}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

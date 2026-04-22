@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import type { Project } from "@aegis/shared";
 import type { RegisteredSdk, SdkRegistryStatus } from "../../../api/sdk";
+import { deleteProject, fetchProject, updateProjectSettings } from "../../../api/projects";
 import { deleteSdk, fetchProjectSdks } from "../../../api/sdk";
 import { logError } from "../../../api/core";
 import { useSdkProgress, type SdkProgressDetails } from "../../../hooks/useSdkProgress";
@@ -10,13 +13,39 @@ type ToastApi = {
   success: (message: string) => void;
 };
 
+const VALID_SECTIONS: SettingsSection[] = ["general", "sdk", "build-targets", "notifications", "adapters", "danger"];
+
+function parseSection(value: string | null): SettingsSection {
+  if (value && (VALID_SECTIONS as string[]).includes(value)) return value as SettingsSection;
+  return "general";
+}
+
 export function useProjectSettingsPage(projectId: string | undefined, toast: ToastApi) {
-  const [activeSection, setActiveSection] = useState<SettingsSection>("general");
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeSection = parseSection(searchParams.get("section"));
+  const setActiveSection = useCallback((next: SettingsSection) => {
+    setSearchParams((prev) => {
+      const copy = new URLSearchParams(prev);
+      if (next === "general") copy.delete("section");
+      else copy.set("section", next);
+      return copy;
+    }, { replace: true });
+  }, [setSearchParams]);
   const [registered, setRegistered] = useState<RegisteredSdk[]>([]);
   const [sdkProgressById, setSdkProgressById] = useState<Record<string, SdkProgressDetails>>({});
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<RegisteredSdk | null>(null);
+
+  const [project, setProject] = useState<Project | null>(null);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [storedName, setStoredName] = useState("");
+  const [storedDescription, setStoredDescription] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [showDeleteProject, setShowDeleteProject] = useState(false);
+  const [deletingProject, setDeletingProject] = useState(false);
 
   const { connectionState: sdkConnectionState } = useSdkProgress({
     projectId,
@@ -71,16 +100,33 @@ export function useProjectSettingsPage(projectId: string | undefined, toast: Toa
   const load = useCallback(async () => {
     if (!projectId) {
       setRegistered([]);
+      setProject(null);
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      const data = await fetchProjectSdks(projectId);
-      setRegistered(data.registered);
-    } catch (error) {
-      logError("Load SDKs", error);
-      toast.error("SDK 목록을 불러올 수 없습니다.");
+      const [sdks, fetched] = await Promise.allSettled([
+        fetchProjectSdks(projectId),
+        fetchProject(projectId),
+      ]);
+      if (sdks.status === "fulfilled") {
+        setRegistered(sdks.value.registered);
+      } else {
+        logError("Load SDKs", sdks.reason);
+        toast.error("SDK 목록을 불러올 수 없습니다.");
+      }
+      if (fetched.status === "fulfilled") {
+        setProject(fetched.value);
+        const nextName = fetched.value.name ?? "";
+        const nextDesc = fetched.value.description ?? "";
+        setName(nextName);
+        setDescription(nextDesc);
+        setStoredName(nextName);
+        setStoredDescription(nextDesc);
+      } else {
+        logError("Load project metadata", fetched.reason);
+      }
     } finally {
       setLoading(false);
     }
@@ -108,6 +154,53 @@ export function useProjectSettingsPage(projectId: string | undefined, toast: Toa
     setDeleteTarget(null);
   }, [projectId, toast]);
 
+  const dirty = useMemo(
+    () => name !== storedName || description !== storedDescription,
+    [name, storedName, description, storedDescription],
+  );
+
+  const handleNameChange = useCallback((value: string) => setName(value), []);
+  const handleDescriptionChange = useCallback((value: string) => setDescription(value), []);
+
+  const handleCancel = useCallback(() => {
+    setName(storedName);
+    setDescription(storedDescription);
+  }, [storedName, storedDescription]);
+
+  const handleSave = useCallback(async () => {
+    if (!projectId || !dirty || saving) return;
+    setSaving(true);
+    try {
+      await updateProjectSettings(projectId, { name: name.trim(), description: description.trim() });
+      setStoredName(name.trim());
+      setStoredDescription(description.trim());
+      setName(name.trim());
+      setDescription(description.trim());
+      toast.success("프로젝트 정보를 저장했습니다.");
+    } catch (error) {
+      logError("Save project settings", error);
+      toast.error("프로젝트 정보를 저장하지 못했습니다.");
+    } finally {
+      setSaving(false);
+    }
+  }, [projectId, dirty, saving, name, description, toast]);
+
+  const handleConfirmDeleteProject = useCallback(async () => {
+    if (!projectId) return;
+    setDeletingProject(true);
+    try {
+      await deleteProject(projectId);
+      toast.success("프로젝트를 삭제했습니다.");
+      setShowDeleteProject(false);
+      navigate("/");
+    } catch (error) {
+      logError("Delete project", error);
+      toast.error("프로젝트 삭제에 실패했습니다.");
+    } finally {
+      setDeletingProject(false);
+    }
+  }, [projectId, toast, navigate]);
+
   return {
     activeSection,
     setActiveSection,
@@ -121,5 +214,22 @@ export function useProjectSettingsPage(projectId: string | undefined, toast: Toa
     sdkConnectionState,
     handleRegistered,
     handleDelete,
+
+    project,
+    name,
+    description,
+    storedName,
+    storedDescription,
+    dirty,
+    saving,
+    handleNameChange,
+    handleDescriptionChange,
+    handleCancel,
+    handleSave,
+
+    showDeleteProject,
+    setShowDeleteProject,
+    deletingProject,
+    handleConfirmDeleteProject,
   };
 }

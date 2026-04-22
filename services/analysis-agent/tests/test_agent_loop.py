@@ -16,7 +16,7 @@ from agent_shared.llm.turn_summarizer import TurnSummarizer
 from agent_shared.policy.retry import RetryPolicy
 from app.policy.termination import TerminationPolicy
 from app.policy.tool_failure import ToolFailurePolicy
-from agent_shared.schemas.agent import BudgetState, LlmResponse, ToolCallRequest, ToolCostTier, ToolResult
+from agent_shared.schemas.agent import BudgetState, LlmResponse, ToolCallRequest, ToolCostTier, ToolResult, ToolTraceStep
 from app.schemas.request import Context, EvidenceRef, TaskRequest
 from agent_shared.tools.executor import ToolExecutor
 from app.tools.implementations.mock_tools import MockKnowledgeTool
@@ -273,7 +273,21 @@ async def test_two_turn_tool_then_content():
         ),
         # Turn 2: final content
         LlmResponse(
-            content=_final_assessment_json(include_retrieval_ref=True),
+                content=json.dumps({
+                    "summary": "Tool-backed control case completed without actionable claim.",
+                    "claims": [{
+                        "statement": "readlink path needs follow-up review.",
+                        "detail": "This non-command-injection control claim keeps the tool-turn test focused on loop behavior.",
+                        "supportingEvidenceRefs": ["eref-001", "eref-mock-CWE-78"],
+                        "location": "utils/fs.cpp:22",
+                    }],
+                    "caveats": ["knowledge.search was used only as contextual background."],
+                "usedEvidenceRefs": ["eref-001", "eref-mock-CWE-78"],
+                "suggestedSeverity": "info",
+                "needsHumanReview": True,
+                "recommendedNextSteps": [],
+                "policyFlags": [],
+            }),
             prompt_tokens=200, completion_tokens=80,
         ),
     ]
@@ -297,7 +311,21 @@ async def test_three_turn_scenario():
             tool_calls=[ToolCallRequest(id="c2", name="knowledge.search", arguments={"query": "CAPEC-88"})],
             finish_reason="tool_calls", prompt_tokens=200, completion_tokens=25,
         ),
-        LlmResponse(content=_final_assessment_json(include_retrieval_ref=True), prompt_tokens=300, completion_tokens=100),
+        LlmResponse(content=json.dumps({
+            "summary": "Tool-backed control case completed without actionable claim.",
+            "claims": [{
+                "statement": "readlink path needs follow-up review.",
+                "detail": "This non-command-injection control claim keeps the tool-turn test focused on loop behavior.",
+                "supportingEvidenceRefs": ["eref-001", "eref-mock-CWE-78"],
+                "location": "utils/fs.cpp:22",
+            }],
+            "caveats": ["knowledge.search was used only as contextual background."],
+            "usedEvidenceRefs": ["eref-001", "eref-mock-CWE-78", "eref-mock-CAPEC-88"],
+            "suggestedSeverity": "info",
+            "needsHumanReview": True,
+            "recommendedNextSteps": [],
+            "policyFlags": [],
+        }), prompt_tokens=300, completion_tokens=100),
     ]
     loop, session = _build_agent_loop(responses, {"max_steps": 10, "max_cheap_calls": 6})
     result = await loop.run(session)
@@ -422,11 +450,19 @@ async def test_command_injection_false_negative_triggers_quality_retry():
             "claims": [{
                 "statement": "User-controlled input reaches popen.",
                 "detail": "The command string reaches popen through run().",
-                "supportingEvidenceRefs": ["eref-sast-flawfinder:shell/popen"],
+                "supportingEvidenceRefs": [
+                    "eref-sast-flawfinder:shell/popen",
+                    "eref-file-main.cpp",
+                    "eref-caller-create_ca-main.cpp-143",
+                ],
                 "location": "main.cpp:35",
             }],
             "caveats": [],
-            "usedEvidenceRefs": ["eref-sast-flawfinder:shell/popen"],
+            "usedEvidenceRefs": [
+                "eref-sast-flawfinder:shell/popen",
+                "eref-file-main.cpp",
+                "eref-caller-create_ca-main.cpp-143",
+            ],
             "suggestedSeverity": "high",
             "needsHumanReview": True,
             "recommendedNextSteps": [],
@@ -680,3 +716,26 @@ async def test_grounding_nudge_does_not_fire_after_force_report_disables_tools()
     assert result.status == "completed"
     assert session.turn_count == 7
     assert result.result.policyFlags == ["low_confidence_claim_present"]
+
+
+def test_structured_finalizer_allowed_refs_exclude_knowledge_refs():
+    from app.core.agent_loop import _allowed_finalizer_refs
+
+    session = AgentSession(_make_request(evidenceRefs=[]), BudgetState())
+    session.extra_allowed_refs.update({"eref-sast-flawfinder:shell/popen", "eref-knowledge-CWE-78"})
+    session.trace.append(ToolTraceStep(
+        step_id="step-knowledge",
+        turn_number=1,
+        tool="knowledge.search",
+        args_hash="hash",
+        cost_tier=ToolCostTier.CHEAP,
+        duration_ms=1,
+        success=True,
+        new_evidence_refs=["eref-knowledge-CWE-78", "eref-caller-run"],
+    ))
+
+    refs = _allowed_finalizer_refs(session)
+
+    assert "eref-sast-flawfinder:shell/popen" in refs
+    assert "eref-caller-run" in refs
+    assert "eref-knowledge-CWE-78" not in refs
