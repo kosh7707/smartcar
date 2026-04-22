@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
-
 import pytest
 from fastapi.testclient import TestClient
 
@@ -33,29 +31,17 @@ def client_live():
 
 
 @pytest.fixture()
-def mock_pipeline():
-    """pipeline.execute 반환값을 직접 제어할 수 있는 MagicMock."""
-    pipeline = MagicMock()
-    pipeline.execute = AsyncMock()
-    return pipeline
-
-
-@pytest.fixture()
-def client(mock_pipeline):
-    """mock_pipeline이 주입된 TestClient."""
+def client():
+    """HTTP-level TestClient with external integrations disabled."""
     original_mode = settings.llm_mode
     original_rag = settings.rag_enabled
     object.__setattr__(settings, "llm_mode", "mock")
     object.__setattr__(settings, "rag_enabled", False)
 
     from app.main import app
-    from app.routers import tasks
 
     with TestClient(app) as c:
-        original_pipeline = tasks._pipeline
-        tasks._pipeline = mock_pipeline
         yield c
-        tasks._pipeline = original_pipeline
 
     object.__setattr__(settings, "llm_mode", original_mode)
     object.__setattr__(settings, "rag_enabled", original_rag)

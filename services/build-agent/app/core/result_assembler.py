@@ -698,33 +698,28 @@ class ResultAssembler:
                 return
             recursive_roots.append(normalized)
 
+        current_rel_dirs: list[str] = []
         for rel_dir in (build_dir, build_script_dir, build_command_dir):
-            if rel_dir:
+            rel_dir = rel_dir.strip().strip("/")
+            if rel_dir and rel_dir not in current_rel_dirs:
+                current_rel_dirs.append(rel_dir)
                 add_recursive_root(os.path.join(build_root, rel_dir))
 
-        try:
-            for entry in os.listdir(build_root):
-                if not entry.startswith("build-aegis-"):
-                    continue
-                add_recursive_root(os.path.join(build_root, entry))
-        except OSError:
-            pass
+        def is_under_current_dir(rel_path: str, rel_dir: str) -> bool:
+            rel_posix = rel_path.replace("\\", "/").strip("/")
+            rel_dir_posix = rel_dir.replace("\\", "/").strip("/")
+            return rel_posix == rel_dir_posix or rel_posix.startswith(f"{rel_dir_posix}/")
 
         for raw_path in contract.expected_artifact_paths:
-            candidates: list[str] = [os.path.join(build_root, raw_path)]
-            if build_dir:
-                candidates.append(os.path.join(build_root, build_dir, raw_path))
-            if build_script_dir and build_script_dir != build_dir:
-                candidates.append(os.path.join(build_root, build_script_dir, raw_path))
-            if build_command_dir and build_command_dir not in {build_dir, build_script_dir}:
-                candidates.append(os.path.join(build_root, build_command_dir, raw_path))
-            try:
-                for entry in os.listdir(build_root):
-                    if not entry.startswith("build-aegis-"):
-                        continue
-                    candidates.append(os.path.join(build_root, entry, raw_path))
-            except OSError:
-                pass
+            normalized_raw = raw_path.strip().replace("\\", "/").strip("/")
+            if not normalized_raw or normalized_raw.startswith("../") or "/../" in normalized_raw:
+                continue
+            candidates: list[str] = []
+            if any(is_under_current_dir(normalized_raw, rel_dir) for rel_dir in current_rel_dirs):
+                candidates.append(os.path.join(build_root, normalized_raw))
+            for rel_dir in current_rel_dirs:
+                if not is_under_current_dir(normalized_raw, rel_dir):
+                    candidates.append(os.path.join(build_root, rel_dir, normalized_raw))
 
             for candidate in candidates:
                 normalized_candidate = os.path.normpath(candidate)

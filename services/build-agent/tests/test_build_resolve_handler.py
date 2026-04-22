@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from app.config import settings
-from app.routers.build_resolve_handler import handle_build_resolve
+from app.routers.build_resolve_handler import _request_scoped_build_subdir, handle_build_resolve
 from app.schemas.request import Context, TaskRequest
 from app.types import TaskType
 
@@ -82,3 +82,54 @@ async def test_build_resolve_requests_async_ownership_on_toolless_turn(monkeypat
         assert seen["prefer_async_ownership"] is True
     finally:
         object.__setattr__(settings, "llm_mode", original_mode)
+
+
+def test_request_scoped_build_subdir_hashes_untrusted_request_id():
+    build_dir = _request_scoped_build_subdir("../evil/request-id-with-shared-prefix")
+
+    assert build_dir.startswith("build-aegis-")
+    assert "/" not in build_dir
+    assert ".." not in build_dir
+    assert build_dir != _request_scoped_build_subdir("../evil/request-id-with-shared-prefix-2")
+    assert len(build_dir.removeprefix("build-aegis-")) == 16
+
+
+@pytest.mark.asyncio
+async def test_build_script_hint_is_reference_only_not_directly_executed(monkeypatch, tmp_path: Path):
+    original_mode = settings.llm_mode
+    object.__setattr__(settings, "llm_mode", "mock")
+    (tmp_path / "README.md").write_text("no deterministic build files")
+    calls: list[dict] = []
+
+    async def fail_if_direct_hint_executed(self, arguments):
+        calls.append(arguments)
+        raise AssertionError("buildScriptHintText must not be executed directly")
+
+    monkeypatch.setattr(
+        "app.tools.implementations.try_build.TryBuildTool.execute",
+        fail_if_direct_hint_executed,
+    )
+
+    request = TaskRequest(
+        taskType=TaskType.BUILD_RESOLVE,
+        taskId="hint-direct-exec-check",
+        contractVersion="build-resolve-v1",
+        strictMode=True,
+        context=Context(trusted={
+            "projectPath": str(tmp_path),
+            "buildTargetPath": ".",
+            "buildTargetName": "hinted",
+            "build": {
+                "mode": "native",
+                "scriptHintText": "#!/bin/bash\necho should-not-run\n",
+            },
+            "expectedArtifacts": [{"kind": "file-set", "path": "hinted"}],
+        }),
+    )
+
+    try:
+        await handle_build_resolve(request)
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+    assert calls == []

@@ -187,7 +187,7 @@ async def test_generate_poc_repairs_orphaned_claim_fragment_via_strict_schema_re
             "claims": [
                 {
                     "statement": "PoC는 popen 경로를 통해 명령 주입 가능성을 증명한다.",
-                    "detail": "## Injection 분석\n- Quote Context: -subj '/CN=",
+                    "detail": "## Input analysis\n- Argument context: user-controlled field",
                 },
                 (
                     'supportingEvidenceRefs": ["eref-001"],\n'
@@ -207,7 +207,7 @@ async def test_generate_poc_repairs_orphaned_claim_fragment_via_strict_schema_re
             "claims": [
                 {
                     "statement": "PoC는 popen 경로를 통해 명령 주입 가능성을 증명한다.",
-                    "detail": "## Injection 분석\n- Quote Context: -subj '/CN='",
+                    "detail": "## Input analysis\n- Argument context: user-controlled field",
                     "supportingEvidenceRefs": ["eref-001"],
                     "location": "src/http_client.cpp:62",
                 }
@@ -300,7 +300,7 @@ async def test_generate_poc_schema_repair_scaffold_restores_required_shape(monke
         assert result.audit.retryCount == 1
         assert isinstance(result.result.caveats, list)
         assert result.result.usedEvidenceRefs == ["eref-001"]
-        assert result.result.suggestedSeverity == "high"
+        assert result.result.suggestedSeverity == "medium"
         assert result.result.needsHumanReview is True
         assert result.result.recommendedNextSteps == []
         assert "structured_finalizer" in result.result.policyFlags
@@ -692,14 +692,14 @@ def _make_poc_request_with_claim_refs_no_top_refs() -> TaskRequest:
             "claim": {
                 "statement": "User input reaches popen() via run() helper.",
                 "detail": "The run() helper wraps cmd.c_str() in popen. CN is concatenated into -subj.",
-                "location": "main.cpp:35",
+                "location": "src/main.c:12",
                 "supportingEvidenceRefs": [
                     "eref-sast-flawfinder:shell/popen",
                     "eref-caller-create_ca",
                     "eref-file-main.cpp",
                 ],
             },
-            "projectId": "certmaker",
+            "projectId": "demo-project",
             "projectPath": "/tmp/project",
             "files": [
                 {"path": "main.cpp", "content": "int run(const std::string& cmd){ return pclose(popen(cmd.c_str(), \"r\")); }"},
@@ -716,21 +716,21 @@ def _make_poc_request_with_build_prep() -> TaskRequest:
         taskId="poc-test-buildprep",
         context=Context(trusted={
             "claim": {
-                "statement": "CWE-78 OS command injection via popen.",
-                "detail": "User CN flows into openssl command without validation.",
-                "location": "main.cpp:35",
+                "statement": "Generated PoC uses provided build metadata.",
+                "detail": "The PoC should cite the build metadata without inventing artifact paths.",
+                "location": "src/main.c:12",
                 "supportingEvidenceRefs": ["eref-file-main.cpp"],
             },
-            "projectId": "certmaker",
+            "projectId": "demo-project",
             "projectPath": "/tmp/project",
-            "files": [{"path": "main.cpp", "content": "// stub"}],
+            "files": [{"path": "src/main.c", "content": "// stub"}],
             "buildPreparation": {
                 "declaredMode": "native",
-                "buildCommand": "bash /tmp/project/build-aegis-abc/aegis-build.sh",
-                "buildScript": "build-aegis-abc/aegis-build.sh",
-                "buildDir": "build-aegis-abc",
-                "expectedArtifacts": [{"artifactType": "executable", "name": "certificate-maker"}],
-                "producedArtifacts": [{"path": "build-aegis-abc/certificate-maker", "kind": "file"}],
+                "buildCommand": "bash /tmp/project/build-output/aegis-build.sh",
+                "buildScript": "build-output/aegis-build.sh",
+                "buildDir": "build-output",
+                "expectedArtifacts": [{"artifactType": "executable", "name": "demo-tool"}],
+                "producedArtifacts": [{"path": "build-output/demo-tool", "kind": "file"}],
             },
         }),
         evidenceRefs=[],
@@ -782,7 +782,7 @@ async def test_generate_poc_preserves_claim_supporting_evidence_refs(monkeypatch
                 "statement": "PoC triggers popen via crafted CN.",
                 "detail": "PoC injects CN that reaches popen.",
                 "supportingEvidenceRefs": ["eref-sast-flawfinder:shell/popen", "eref-file-main.cpp"],
-                "location": "main.cpp:35",
+                "location": "src/main.c:12",
             }],
             "caveats": [],
             "usedEvidenceRefs": ["eref-sast-flawfinder:shell/popen"],
@@ -813,47 +813,6 @@ async def test_generate_poc_preserves_claim_supporting_evidence_refs(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_generate_poc_system_prompt_has_quote_awareness_and_self_check(monkeypatch):
-    """Phase A.2: system prompt must contain shell-quoting and detection self-check sections."""
-    original_mode = settings.llm_mode
-    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
-        profileId="test", modelName="test-model", contextLimit=8192,
-        allowedTaskTypes=[TaskType.GENERATE_POC], endpoint="http://localhost:8000", apiKey="",
-    ))
-    object.__setattr__(settings, "llm_mode", "real")
-
-    captured = {}
-
-    async def fake_call(self, messages, *args, **kwargs):
-        captured["messages"] = messages
-        return _mock_llm_response(json.dumps({
-            "summary": "ok",
-            "claims": [{"statement": "s", "detail": "d", "supportingEvidenceRefs": ["eref-001"], "location": "x:1"}],
-            "caveats": [], "usedEvidenceRefs": ["eref-001"],
-            "suggestedSeverity": "low", "needsHumanReview": True,
-            "recommendedNextSteps": [], "policyFlags": [],
-        }))
-
-    async def fake_aclose(self):
-        return None
-
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
-    try:
-        await tasks._handle_generate_poc(_make_poc_request())
-
-        sys_msg = next(m["content"] for m in captured["messages"] if m["role"] == "system")
-        assert "Shell quoting awareness" in sys_msg
-        assert "Detection self-check" in sys_msg
-        assert "Target metadata honesty" in sys_msg
-        # concrete cues we want the LLM to learn
-        assert "quote context" in sys_msg
-        assert "side-effect" in sys_msg or "side effect" in sys_msg
-    finally:
-        object.__setattr__(settings, "llm_mode", original_mode)
-
-
-@pytest.mark.asyncio
 async def test_generate_poc_injects_build_preparation_into_user_message(monkeypatch):
     """Phase A.3: buildPreparation alias must appear in user message so LLM does not invent."""
     original_mode = settings.llm_mode
@@ -869,7 +828,7 @@ async def test_generate_poc_injects_build_preparation_into_user_message(monkeypa
         captured["messages"] = messages
         return _mock_llm_response(json.dumps({
             "summary": "ok",
-            "claims": [{"statement": "s", "detail": "d", "supportingEvidenceRefs": ["eref-file-main.cpp"], "location": "main.cpp:35"}],
+            "claims": [{"statement": "s", "detail": "d", "supportingEvidenceRefs": ["eref-file-main.cpp"], "location": "src/main.c:12"}],
             "caveats": [], "usedEvidenceRefs": ["eref-file-main.cpp"],
             "suggestedSeverity": "high", "needsHumanReview": True,
             "recommendedNextSteps": [], "policyFlags": [],
@@ -885,160 +844,11 @@ async def test_generate_poc_injects_build_preparation_into_user_message(monkeypa
 
         user_msg = next(m["content"] for m in captured["messages"] if m["role"] == "user")
         assert "Build metadata" in user_msg
-        assert "bash /tmp/project/build-aegis-abc/aegis-build.sh" in user_msg
+        assert "bash /tmp/project/build-output/aegis-build.sh" in user_msg
         assert "native" in user_msg
-        assert "build-aegis-abc" in user_msg
+        assert "build-output" in user_msg
         # expectedArtifacts name must be surfaced
-        assert "certificate-maker" in user_msg
-    finally:
-        object.__setattr__(settings, "llm_mode", original_mode)
-
-
-@pytest.mark.asyncio
-async def test_generate_poc_fp_heuristic_warns_on_single_quoted_injection(monkeypatch):
-    """Phase B: H2 — payload with ; inside '...' without breakout triggers caveat."""
-    original_mode = settings.llm_mode
-    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
-        profileId="test", modelName="test-model", contextLimit=8192,
-        allowedTaskTypes=[TaskType.GENERATE_POC], endpoint="http://localhost:8000", apiKey="",
-    ))
-    object.__setattr__(settings, "llm_mode", "real")
-
-    async def fake_call(self, *args, **kwargs):
-        # Mimic the failure mode S3 shipped on 2026-04-20: single-quote-wrapped CN with ; injection
-        return _mock_llm_response(json.dumps({
-            "summary": "PoC via crafted CN",
-            "claims": [{
-                "statement": "CN injection to popen",
-                "detail": (
-                    "## PoC 코드\n```python\n"
-                    "# openssl is invoked as: -subj '/CN=test; echo PWNED_1234'\n"
-                    "payload_inputs = ['1', '/tmp/x', 'test; echo PWNED_1234', '3650']\n"
-                    "```\n"
-                ),
-                "supportingEvidenceRefs": ["eref-001"],
-                "location": "main.cpp:35",
-            }],
-            "caveats": [],
-            "usedEvidenceRefs": ["eref-001"],
-            "suggestedSeverity": "critical",
-            "needsHumanReview": True,
-            "recommendedNextSteps": [],
-            "policyFlags": [],
-        }))
-
-    async def fake_aclose(self):
-        return None
-
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
-    try:
-        result = await tasks._handle_generate_poc(_make_poc_request())
-
-        assert result.status == "completed"
-        joined = " ".join(result.result.caveats)
-        assert "[auto-detected FP risk]" in joined
-        assert "single-quoted" in joined or "single quote" in joined
-    finally:
-        object.__setattr__(settings, "llm_mode", original_mode)
-
-
-@pytest.mark.asyncio
-async def test_generate_poc_fp_heuristic_warns_on_canary_echo_collision(monkeypatch):
-    """Phase B: H1 — canary present in both detection logic AND input payload triggers caveat."""
-    original_mode = settings.llm_mode
-    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
-        profileId="test", modelName="test-model", contextLimit=8192,
-        allowedTaskTypes=[TaskType.GENERATE_POC], endpoint="http://localhost:8000", apiKey="",
-    ))
-    object.__setattr__(settings, "llm_mode", "real")
-
-    async def fake_call(self, *args, **kwargs):
-        return _mock_llm_response(json.dumps({
-            "summary": "PoC",
-            "claims": [{
-                "statement": "Command injection",
-                "detail": (
-                    "```python\n"
-                    "payload = 'inject_VULNERABLE_FOUND_marker'\n"
-                    "if 'VULNERABLE_FOUND' in stdout:\n"
-                    "    print('SUCCESS')\n"
-                    "```\n"
-                ),
-                "supportingEvidenceRefs": ["eref-001"],
-                "location": "main.cpp:35",
-            }],
-            "caveats": [],
-            "usedEvidenceRefs": ["eref-001"],
-            "suggestedSeverity": "critical",
-            "needsHumanReview": True,
-            "recommendedNextSteps": [],
-            "policyFlags": [],
-        }))
-
-    async def fake_aclose(self):
-        return None
-
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
-    try:
-        result = await tasks._handle_generate_poc(_make_poc_request())
-
-        assert result.status == "completed"
-        joined = " ".join(result.result.caveats)
-        assert "[auto-detected FP risk]" in joined
-        assert "canary" in joined.lower()
-    finally:
-        object.__setattr__(settings, "llm_mode", original_mode)
-
-
-@pytest.mark.asyncio
-async def test_generate_poc_fp_heuristic_does_not_trigger_on_clean_poc(monkeypatch):
-    """Phase B backward-compat: a properly-structured PoC produces no auto caveats."""
-    original_mode = settings.llm_mode
-    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
-        profileId="test", modelName="test-model", contextLimit=8192,
-        allowedTaskTypes=[TaskType.GENERATE_POC], endpoint="http://localhost:8000", apiKey="",
-    ))
-    object.__setattr__(settings, "llm_mode", "real")
-
-    async def fake_call(self, *args, **kwargs):
-        return _mock_llm_response(json.dumps({
-            "summary": "PoC",
-            "claims": [{
-                "statement": "Side-effect based detection",
-                "detail": (
-                    "```python\n"
-                    "import os, uuid\n"
-                    "nonce = uuid.uuid4().hex\n"
-                    "# inject CN that escapes single quotes: test' && touch /tmp/pwned.$nonce && echo '\n"
-                    "payload = f\"test' && touch /tmp/pwned.{nonce} && echo '\"\n"
-                    "# detection: file existence\n"
-                    "assert os.path.exists(f'/tmp/pwned.{nonce}')\n"
-                    "```\n"
-                ),
-                "supportingEvidenceRefs": ["eref-001"],
-                "location": "main.cpp:35",
-            }],
-            "caveats": ["PoC relies on /tmp writeability"],
-            "usedEvidenceRefs": ["eref-001"],
-            "suggestedSeverity": "critical",
-            "needsHumanReview": True,
-            "recommendedNextSteps": [],
-            "policyFlags": [],
-        }))
-
-    async def fake_aclose(self):
-        return None
-
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
-    try:
-        result = await tasks._handle_generate_poc(_make_poc_request())
-
-        assert result.status == "completed"
-        auto_caveats = [c for c in result.result.caveats if "[auto-detected FP risk]" in c]
-        assert auto_caveats == [], f"unexpected auto caveats: {auto_caveats}"
+        assert "demo-tool" in user_msg
     finally:
         object.__setattr__(settings, "llm_mode", original_mode)
 

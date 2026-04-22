@@ -11,7 +11,7 @@ class MockKnowledgeTool:
     """knowledge.search의 mock 구현체."""
 
     async def execute(self, arguments: dict) -> ToolResult:
-        query = arguments.get("query", "unknown")
+        query = str(arguments.get("query") or "unknown")
         return ToolResult(
             tool_call_id="",  # router가 채워줌
             name="",          # router가 채워줌
@@ -19,15 +19,15 @@ class MockKnowledgeTool:
             content=json.dumps({
                 "hits": [
                     {
-                        "id": "CWE-78",
-                        "title": "OS Command Injection",
+                        "id": query,
+                        "title": f"Mock knowledge result: {query}",
                         "description": f"Mock result for: {query}",
-                        "related_capec": ["CAPEC-88"],
+                        "related_capec": [],
                     },
                 ],
                 "total": 1,
             }, ensure_ascii=False),
-            new_evidence_refs=[f"eref-mock-{query[:8]}"],
+            new_evidence_refs=[f"eref-mock-{query[:32]}"],
         )
 
 

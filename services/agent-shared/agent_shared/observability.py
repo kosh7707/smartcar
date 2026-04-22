@@ -12,6 +12,14 @@ from agent_shared.context import get_request_id
 
 _log_dir: Path | None = None
 
+_AEGIS_LEVEL_NUMBERS = {
+    logging.DEBUG: 20,
+    logging.INFO: 30,
+    logging.WARNING: 40,
+    logging.ERROR: 50,
+    logging.CRITICAL: 60,
+}
+
 
 class _JsonFormatter(logging.Formatter):
     """JSON structured log formatter with agent context support."""
@@ -22,7 +30,7 @@ class _JsonFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         log_record: dict = {
-            "level": record.levelname.lower(),
+            "level": _AEGIS_LEVEL_NUMBERS.get(record.levelno, record.levelno),
             "time": int(record.created * 1000),
             "service": self._service,
             "msg": record.getMessage(),

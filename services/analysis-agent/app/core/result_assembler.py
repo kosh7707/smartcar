@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import re
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
@@ -101,16 +100,6 @@ class ResultAssembler:
                 retryable=False,
             )
 
-        incomplete_reason = _incomplete_command_injection_quality_failure(parsed, session)
-        if incomplete_reason:
-            session.set_termination_reason("invalid_grounding")
-            return self.build_failure(
-                session,
-                TaskStatus.VALIDATION_FAILED,
-                FailureCode.INVALID_GROUNDING,
-                incomplete_reason,
-                retryable=False,
-            )
 
         schema_result = self._schema_validator.validate(parsed, session.request.taskType)
         if not schema_result.valid:
@@ -313,20 +302,21 @@ def _canonicalize_deep_assessment(
     session: AgentSession,
     allowed_refs: set[str],
 ) -> tuple[list[str], str]:
+    """Apply only CWE-agnostic Assessment shape canonicalization.
+
+    Semantic/root-cause repair belongs in a higher-level retry or future
+    evidence-role normalizer, not in ResultAssembler.
+    """
     if str(session.request.taskType) != "deep-analyze":
         return [], ""
 
     repairs: list[str] = []
-    bundle = session.evidence_catalog.command_injection_bundle()
-    repairs.extend(_scaffold_deep_assessment(parsed, bundle))
-    repairs.extend(_repair_deep_command_injection_assessment(parsed, session, allowed_refs))
-    repairs.extend(_cleanup_contextual_knowledge_refs(parsed, session, allowed_refs))
+    repairs.extend(_scaffold_deep_assessment(parsed))
     repairs.extend(_sync_used_refs_with_claim_refs(parsed))
-    failure = _post_cleanup_grounding_failure(parsed, session, allowed_refs)
-    return list(dict.fromkeys(repairs)), failure
+    return list(dict.fromkeys(repairs)), ""
 
 
-def _scaffold_deep_assessment(parsed: dict, bundle) -> list[str]:
+def _scaffold_deep_assessment(parsed: dict) -> list[str]:
     repairs: list[str] = []
     scaffolded = False
 
@@ -348,11 +338,7 @@ def _scaffold_deep_assessment(parsed: dict, bundle) -> list[str]:
 
     if not _valid_severity(parsed.get("suggestedSeverity")):
         claims = parsed.get("claims")
-        if bundle.complete:
-            parsed["suggestedSeverity"] = "high"
-            repairs.append("suggestedSeverity")
-            scaffolded = True
-        elif isinstance(claims, list) and not claims:
+        if isinstance(claims, list) and not claims:
             parsed["suggestedSeverity"] = "info"
             repairs.append("suggestedSeverity")
             scaffolded = True
@@ -360,260 +346,6 @@ def _scaffold_deep_assessment(parsed: dict, bundle) -> list[str]:
     if scaffolded:
         _append_policy_flag(parsed, "deterministic_schema_scaffold")
     return repairs
-
-
-def _repair_deep_command_injection_assessment(
-    parsed: dict,
-    session: AgentSession,
-    allowed_refs: set[str],
-) -> list[str]:
-    if str(session.request.taskType) != "deep-analyze":
-        return []
-    bundle = session.evidence_catalog.command_injection_bundle()
-    if not bundle.complete:
-        return []
-
-    repairs: list[str] = []
-    claims = parsed.get("claims")
-    if not isinstance(claims, list):
-        return []
-
-    if not claims:
-        parsed["claims"] = [{
-            "statement": (
-                "User-controlled input reaches command string construction and "
-                f"{bundle.sink}(...) execution, enabling CWE-78 OS Command Injection."
-            ),
-            "detail": (
-                f"Deterministic S3 repair found a complete command-injection evidence bundle: "
-                f"SAST refs {bundle.sast_refs[:2]}, source refs {bundle.source_refs[:3]}, "
-                f"caller refs {bundle.caller_refs[:4]}. The representative root cause is "
-                f"user-controlled command construction reaching {bundle.sink}."
-            ),
-            "supportingEvidenceRefs": [ref for ref in bundle.refs if ref in allowed_refs],
-            "location": bundle.location,
-        }]
-        parsed["summary"] = parsed.get("summary") or "CWE-78 OS Command Injection evidence is present."
-        parsed["suggestedSeverity"] = _valid_severity(parsed.get("suggestedSeverity")) or "high"
-        parsed["needsHumanReview"] = True
-        repairs.append("claims.commandInjectionBundle")
-    else:
-        for index, claim in enumerate(claims):
-            if not isinstance(claim, dict):
-                continue
-            claim_text = " ".join(str(claim.get(k) or "") for k in ("statement", "detail")).strip()
-            if claim_text and not _is_command_injection_claim(claim):
-                continue
-            supporting = claim.get("supportingEvidenceRefs")
-            if (
-                not isinstance(supporting, list)
-                or not supporting
-                or (
-                    _is_command_injection_claim(claim)
-                    and not _has_non_contextual_invalid_ref(supporting, allowed_refs)
-                    and not _claim_refs_have_command_injection_coherence(supporting, bundle)
-                    and not _has_incoherent_command_injection_local_refs(supporting, bundle)
-                )
-            ):
-                claim["supportingEvidenceRefs"] = [ref for ref in bundle.refs if ref in allowed_refs]
-                repairs.append(f"claims[{index}].supportingEvidenceRefs")
-            if not isinstance(claim.get("location"), str) or not claim.get("location", "").strip():
-                claim["location"] = bundle.location
-                repairs.append(f"claims[{index}].location")
-            if not isinstance(claim.get("detail"), str) or not claim.get("detail", "").strip():
-                claim["detail"] = f"Command-injection evidence bundle reaches {bundle.sink} at {bundle.location}."
-                repairs.append(f"claims[{index}].detail")
-
-    used = parsed.get("usedEvidenceRefs")
-    if not isinstance(used, list) or not used:
-        parsed["usedEvidenceRefs"] = [ref for ref in bundle.refs if ref in allowed_refs]
-        repairs.append("usedEvidenceRefs")
-    if not isinstance(parsed.get("caveats"), list):
-        parsed["caveats"] = []
-        repairs.append("caveats")
-    if not isinstance(parsed.get("recommendedNextSteps"), list):
-        parsed["recommendedNextSteps"] = []
-        repairs.append("recommendedNextSteps")
-    policy_flags = parsed.get("policyFlags")
-    if not isinstance(policy_flags, list):
-        policy_flags = []
-        repairs.append("policyFlags")
-    if "deterministic_command_injection_repair" not in policy_flags:
-        policy_flags.append("deterministic_command_injection_repair")
-    parsed["policyFlags"] = policy_flags
-    return list(dict.fromkeys(repairs))
-
-
-def _cleanup_contextual_knowledge_refs(
-    parsed: dict,
-    session: AgentSession,
-    allowed_refs: set[str],
-) -> list[str]:
-    repairs: list[str] = []
-    removed_refs: list[str] = []
-
-    used = parsed.get("usedEvidenceRefs")
-    if isinstance(used, list):
-        sanitized, removed = _remove_repairable_contextual_refs(used, session)
-        if removed:
-            parsed["usedEvidenceRefs"] = sanitized
-            removed_refs.extend(removed)
-            repairs.append("usedEvidenceRefs.contextualKnowledgeRefs")
-
-    claims = parsed.get("claims")
-    if isinstance(claims, list):
-        bundle = session.evidence_catalog.command_injection_bundle()
-        for index, claim in enumerate(claims):
-            if not isinstance(claim, dict):
-                continue
-            refs = claim.get("supportingEvidenceRefs")
-            if not isinstance(refs, list):
-                continue
-            sanitized, removed = _remove_repairable_contextual_refs(refs, session)
-            claim_had_contextual_cleanup = bool(removed)
-            if removed:
-                claim["supportingEvidenceRefs"] = sanitized
-                removed_refs.extend(removed)
-                repairs.append(f"claims[{index}].supportingEvidenceRefs.contextualKnowledgeRefs")
-            if (
-                claim_had_contextual_cleanup
-                and _is_command_injection_claim(claim)
-                and not _has_non_contextual_invalid_ref(claim.get("supportingEvidenceRefs", []), allowed_refs)
-                and not _claim_refs_have_command_injection_coherence(claim.get("supportingEvidenceRefs", []), bundle)
-                and not _has_incoherent_command_injection_local_refs(claim.get("supportingEvidenceRefs", []), bundle)
-                and bundle.complete
-            ):
-                claim["supportingEvidenceRefs"] = [ref for ref in bundle.refs if ref in allowed_refs]
-                repairs.append(f"claims[{index}].supportingEvidenceRefs.localRepopulation")
-
-    if removed_refs:
-        _append_policy_flag(parsed, "sanitized_contextual_knowledge_refs")
-        if any("localRepopulation" in repair for repair in repairs):
-            _append_policy_flag(parsed, "repopulated_local_grounding_refs")
-        if not _has_non_contextual_invalid_ref(parsed.get("usedEvidenceRefs", []), allowed_refs):
-            parsed["usedEvidenceRefs"] = _rebuilt_used_refs(parsed)
-            repairs.append("usedEvidenceRefs.rebuiltLocalRefs")
-
-    return repairs
-
-
-def _post_cleanup_grounding_failure(
-    parsed: dict,
-    session: AgentSession,
-    allowed_refs: set[str],
-) -> str:
-    claims = parsed.get("claims")
-    if not isinstance(claims, list):
-        return ""
-
-    bundle = session.evidence_catalog.command_injection_bundle()
-
-    for index, claim in enumerate(claims):
-        if not isinstance(claim, dict):
-            continue
-        refs = claim.get("supportingEvidenceRefs")
-        if not isinstance(refs, list):
-            continue
-
-        knowledge_ref = next((ref for ref in refs if isinstance(ref, str) and ref.startswith("eref-knowledge-")), None)
-        if knowledge_ref:
-            if knowledge_ref in allowed_refs:
-                return f"contextual knowledge ref not allowed in final grounding: '{knowledge_ref}'"
-            continue
-
-        if not _is_command_injection_claim(claim):
-            continue
-
-        if not session.evidence_catalog.has_command_injection_signal():
-            continue
-
-        if _has_non_contextual_invalid_ref(refs, allowed_refs):
-            continue
-        if not _claim_refs_have_command_injection_coherence(refs, bundle):
-            return (
-                "insufficient_command_injection_grounding: "
-                "requires SAST + source/input-path + caller local refs"
-            )
-
-    used = parsed.get("usedEvidenceRefs")
-    if isinstance(used, list):
-        knowledge_ref = next((ref for ref in used if isinstance(ref, str) and ref.startswith("eref-knowledge-")), None)
-        if knowledge_ref:
-            if knowledge_ref in allowed_refs:
-                return f"contextual knowledge ref not allowed in final grounding: '{knowledge_ref}'"
-            return ""
-
-    return ""
-
-
-_CONTEXTUAL_KNOWLEDGE_CWE_RE = re.compile(r"^eref-knowledge-(CWE-\d+)$")
-
-
-def _remove_repairable_contextual_refs(refs: list, session: AgentSession) -> tuple[list, list[str]]:
-    sanitized: list = []
-    removed: list[str] = []
-    for ref in refs:
-        if isinstance(ref, str) and _is_repairable_contextual_knowledge_ref(ref, session):
-            removed.append(ref)
-            continue
-        sanitized.append(ref)
-    return sanitized, removed
-
-
-def _is_repairable_contextual_knowledge_ref(ref: str, session: AgentSession) -> bool:
-    match = _CONTEXTUAL_KNOWLEDGE_CWE_RE.match(ref)
-    if not match:
-        return False
-    cwe = match.group(1).upper()
-    local_cwes = {
-        entry.cwe_id.upper()
-        for entry in session.evidence_catalog.entries()
-        if isinstance(entry.cwe_id, str) and entry.cwe_id
-    }
-    if cwe in local_cwes:
-        return True
-    return cwe == "CWE-78" and session.evidence_catalog.command_injection_bundle().complete
-
-
-def _has_non_contextual_invalid_ref(refs: list, allowed_refs: set[str]) -> bool:
-    return any(isinstance(ref, str) and ref not in allowed_refs for ref in refs)
-
-
-def _is_command_injection_claim(claim: dict) -> bool:
-    text = " ".join(str(claim.get(key) or "") for key in ("statement", "detail", "location")).lower()
-    return any(
-        re.search(pattern, text)
-        for pattern in (
-            r"\bpopen\b",
-            r"\bsystem\s*\(",
-            r"\bexec(?:ve|v|le|lp|l|p)?\s*\(",
-            r"\bshell\b",
-            r"\bos command\b",
-            r"\bcwe-78\b",
-            r"\bcommand injection\b",
-            r"명령",
-        )
-    )
-
-
-def _claim_refs_have_command_injection_coherence(refs: list, bundle) -> bool:
-    if not bundle.complete:
-        return False
-    ref_set = {ref for ref in refs if isinstance(ref, str)}
-    return (
-        bool(ref_set & set(bundle.sast_refs))
-        and bool(ref_set & set(bundle.input_path_source_refs))
-        and bool(ref_set & set(bundle.caller_refs))
-    )
-
-
-def _has_incoherent_command_injection_local_refs(refs: list, bundle) -> bool:
-    ref_set = {ref for ref in refs if isinstance(ref, str)}
-    source_refs = set(bundle.source_refs)
-    coherent_source_refs = set(bundle.input_path_source_refs)
-    caller_refs = {ref for ref in ref_set if ref.startswith("eref-caller-")}
-    coherent_caller_refs = set(bundle.caller_refs)
-    return bool((ref_set & (source_refs - coherent_source_refs)) or (caller_refs - coherent_caller_refs))
 
 
 def _rebuilt_used_refs(parsed: dict) -> list[str]:
@@ -647,21 +379,6 @@ def _append_policy_flag(parsed: dict, flag: str) -> None:
     if flag not in flags:
         flags.append(flag)
     parsed["policyFlags"] = flags
-
-
-def _incomplete_command_injection_quality_failure(parsed: dict, session: AgentSession) -> str:
-    if str(session.request.taskType) != "deep-analyze":
-        return ""
-    claims = parsed.get("claims")
-    if isinstance(claims, list) and claims:
-        return ""
-    catalog = session.evidence_catalog
-    if not catalog.has_command_injection_signal():
-        return ""
-    bundle = catalog.command_injection_bundle()
-    if bundle.complete:
-        return ""
-    return f"command_injection_evidence_incomplete: {bundle.reason}"
 
 
 def _valid_severity(value) -> str | None:

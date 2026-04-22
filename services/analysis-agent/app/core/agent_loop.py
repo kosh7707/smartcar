@@ -174,7 +174,6 @@ class AgentLoop:
         warned_approaching_limit = False
         structured_retry_used = False
         schema_repair_used = False
-        command_injection_quality_retry_used = False
         grounding_nudge_used = False
         response_parser = V1ResponseParser()
 
@@ -441,38 +440,6 @@ class AgentLoop:
                     )
                     return result
 
-                if (
-                    parsed_content is not None
-                    and not command_injection_quality_retry_used
-                    and _should_retry_command_injection_false_negative(parsed_content, session)
-                ):
-                    command_injection_quality_retry_used = True
-                    session.quality_retry_flags.add("command_injection_false_negative")
-                    bundle = session.evidence_catalog.command_injection_bundle()
-                    self._message_manager.add_assistant_content(final_content)
-                    self._message_manager.add_user_message(
-                        "[시스템] 방금 최종 보고서는 deterministic evidence와 충돌합니다. "
-                        "CWE-78/command-injection evidence bundle이 완전한데 claims가 비었습니다. "
-                        "사용자 입력이 command string construction을 거쳐 "
-                        f"{bundle.sink}(...) sink로 전달되는지 재평가하고, "
-                        "하나의 대표 root-cause claim을 순수 Assessment JSON으로 반환하십시오. "
-                        f"필수 location: {bundle.location}. "
-                        f"사용 가능한 supportingEvidenceRefs: {', '.join(bundle.refs)}. "
-                        "증거가 실제로 부족하다고 판단할 때만 claims: []를 유지하고 caveats에 그 이유를 명시하십시오."
-                    )
-                    agent_log(
-                        logger,
-                        "command-injection false-negative quality retry",
-                        component="agent_loop",
-                        phase="quality_retry",
-                        turn=turn,
-                        sink=bundle.sink,
-                        location=bundle.location,
-                        refCount=len(bundle.refs),
-                        level=logging.WARNING,
-                    )
-                    continue
-
                 if _should_request_extra_grounding_lookup(
                     final_content=final_content,
                     parsed=parsed_content,
@@ -651,19 +618,3 @@ def _allowed_finalizer_refs(session: AgentSession) -> list[str]:
         ref for ref in dict.fromkeys(refs)
         if isinstance(ref, str) and ref and not ref.startswith("eref-knowledge-")
     ]
-
-
-def _should_retry_command_injection_false_negative(parsed: dict, session: AgentSession) -> bool:
-    claims = parsed.get("claims")
-    if isinstance(claims, list) and claims:
-        return False
-    bundle = session.evidence_catalog.command_injection_bundle()
-    if not bundle.complete:
-        return False
-    text = " ".join([
-        str(parsed.get("summary") or ""),
-        " ".join(str(c) for c in parsed.get("caveats", []) if isinstance(c, str)),
-    ]).lower()
-    if not text:
-        return True
-    return any(marker in text for marker in ("false positive", "오탐", "no exploit", "존재하지", "없"))

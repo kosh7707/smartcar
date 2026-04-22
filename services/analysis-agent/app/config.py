@@ -10,7 +10,7 @@ _ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 class Settings(BaseSettings):
     # --- LLM (llm-gateway 동일) ---
     llm_mode: Literal["mock", "real"] = "mock"
-    llm_endpoint: str = "http://localhost:8080"
+    llm_endpoint: str = "http://localhost:8000"
     llm_model: str = "qwen-14b"
     llm_api_key: str = ""
     llm_concurrency: int = 4

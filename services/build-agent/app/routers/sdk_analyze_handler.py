@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+from datetime import datetime, timezone
 
 from app.config import settings
 from agent_shared.context import get_request_id
@@ -11,7 +13,44 @@ from app.routers.sdk_analyze_support import (
     discover_sdk_profile as _discover_sdk_profile,
 )
 from app.schemas.request import TaskRequest
-from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
+from app.schemas.response import AuditInfo, TaskFailureResponse, TaskSuccessResponse, TokenUsage
+from app.types import FailureCode, TaskStatus
+
+
+def _invalid_sdk_request(request: TaskRequest, detail: str) -> TaskFailureResponse:
+    input_str = json.dumps(request.model_dump(mode="json"), sort_keys=True)
+    return TaskFailureResponse(
+        taskId=request.taskId,
+        taskType=request.taskType,
+        status=TaskStatus.VALIDATION_FAILED,
+        failureCode=FailureCode.INVALID_SCHEMA,
+        failureDetail=detail,
+        retryable=False,
+        audit=AuditInfo(
+            inputHash=f"sha256:{__import__('hashlib').sha256(input_str.encode()).hexdigest()[:16]}",
+            latencyMs=0,
+            tokenUsage=TokenUsage(),
+            retryCount=0,
+            ragHits=0,
+            createdAt=datetime.now(timezone.utc).isoformat(),
+        ),
+    )
+
+
+def _validated_sdk_path(request: TaskRequest) -> tuple[str | None, TaskFailureResponse | None]:
+    trusted = request.context.trusted if isinstance(request.context.trusted, dict) else {}
+    raw_path = trusted.get("projectPath")
+    if not isinstance(raw_path, str) or not raw_path.strip():
+        return None, _invalid_sdk_request(request, "context.trusted.projectPath is required for sdk-analyze")
+    if not os.path.isabs(raw_path):
+        return None, _invalid_sdk_request(request, "context.trusted.projectPath must be an absolute path")
+    sdk_path = os.path.normpath(raw_path)
+    if not os.path.isdir(sdk_path):
+        return None, _invalid_sdk_request(
+            request,
+            "sdk-analyze requires context.trusted.projectPath to exist and be a directory",
+        )
+    return sdk_path, None
 
 
 async def handle_sdk_analyze(request: TaskRequest) -> TaskSuccessResponse | TaskFailureResponse:
@@ -35,8 +74,10 @@ async def handle_sdk_analyze(request: TaskRequest) -> TaskSuccessResponse | Task
     from app.tools.implementations.read_file import ReadFileTool
     from app.tools.implementations.try_build import TryBuildTool
 
-    trusted = request.context.trusted
-    sdk_path = trusted.get("projectPath", "/tmp/unknown")
+    sdk_path, failure = _validated_sdk_path(request)
+    if failure is not None:
+        return failure
+    assert sdk_path is not None
     request_id = get_request_id() or request.taskId
 
     # sdk-analyze는 list_files + read_file + try_build(컴파일러 버전 확인용)만 사용
@@ -135,8 +176,7 @@ async def handle_sdk_analyze(request: TaskRequest) -> TaskSuccessResponse | Task
             service_id="s3-build",
         )
     else:
-        from unittest.mock import AsyncMock, MagicMock
-        from agent_shared.schemas.agent import LlmResponse
+        from agent_shared.llm.static_caller import StaticLlmCaller
 
         mock_result = json.dumps({
             "summary": "[Mock] SDK 분석 mock 응답",
@@ -159,10 +199,11 @@ async def handle_sdk_analyze(request: TaskRequest) -> TaskSuccessResponse | Task
             "policyFlags": [],
         }, ensure_ascii=False)
 
-        llm_caller = MagicMock()
-        llm_caller.call = AsyncMock(return_value=LlmResponse(
-            content=mock_result, prompt_tokens=50, completion_tokens=40,
-        ))
+        llm_caller = StaticLlmCaller(
+            content=mock_result,
+            prompt_tokens=50,
+            completion_tokens=40,
+        )
 
     mm = MessageManager(system_prompt=system_prompt, initial_user_message=user_message)
 

@@ -5,7 +5,6 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from agent_shared.context import get_request_id, set_request_id
-from app.pipeline.task_pipeline import TaskPipeline
 from app.registry.model_registry import create_default_registry as create_model_registry
 from app.registry.prompt_registry import create_default_registry as create_prompt_registry
 from app.runtime.request_summary import request_summary_tracker
@@ -21,9 +20,6 @@ router = APIRouter(prefix="/v1", tags=["v1"])
 
 _prompt_registry = create_prompt_registry()
 _model_registry = create_model_registry()
-
-# 레거시 파이프라인 (기존 5개 task type용)
-_pipeline = TaskPipeline(_prompt_registry, _model_registry)
 
 
 def _failure_reason(result: TaskFailureResponse | TaskSuccessResponse) -> str:
@@ -101,19 +97,6 @@ def _http_status_for_task_result(
     if data.status == TaskStatus.MODEL_ERROR:
         return 503
     return 500
-
-
-def _rebuild_pipeline(threat_search=None, llm_client=None) -> None:
-    """lifespan에서 RAG/LLM 클라이언트 초기화 후 파이프라인 재구성."""
-    global _pipeline
-    enricher = None
-    if threat_search:
-        from app.rag.context_enricher import ContextEnricher
-        enricher = ContextEnricher(threat_search)
-    _pipeline = TaskPipeline(
-        _prompt_registry, _model_registry,
-        context_enricher=enricher, llm_client=llm_client,
-    )
 
 
 async def _handle_deep_analyze(request: TaskRequest) -> TaskSuccessResponse | TaskFailureResponse:

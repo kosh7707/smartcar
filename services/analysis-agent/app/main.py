@@ -36,25 +36,6 @@ async def lifespan(_app: FastAPI):
 
     _app.state.threat_search = threat_search
 
-    # real 모드: httpx 클라이언트 생성
-    llm_client = None
-    if settings.llm_mode == "real":
-        from app.clients.real import RealLlmClient
-        from app.registry.model_registry import create_default_registry as create_model_registry
-
-        registry = create_model_registry()
-        profile = registry.get_default()
-        llm_client = RealLlmClient(
-            endpoint=profile.endpoint if profile else settings.llm_endpoint,
-            model=profile.modelName if profile else settings.llm_model,
-            api_key=profile.apiKey if profile else settings.llm_api_key,
-            enable_thinking=False, json_mode=True,
-        )
-
-    # 레거시 파이프라인 재구성
-    from app.routers.tasks import _rebuild_pipeline
-    _rebuild_pipeline(threat_search, llm_client)
-
     logger.info(
         "Analysis Agent started (mode: %s, rag: %s, concurrency: %d)",
         settings.llm_mode,
@@ -63,8 +44,6 @@ async def lifespan(_app: FastAPI):
     )
     yield
 
-    if llm_client:
-        await llm_client.aclose()
     if threat_search:
         await threat_search.close()
 

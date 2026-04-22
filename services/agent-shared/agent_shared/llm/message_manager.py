@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import json
 from typing import TYPE_CHECKING
 
 from agent_shared.schemas.agent import ToolCallRequest, ToolResult
@@ -43,7 +44,7 @@ class MessageManager:
                     "type": "function",
                     "function": {
                         "name": tc.name,
-                        "arguments": __import__("json").dumps(tc.arguments, ensure_ascii=False),
+                        "arguments": json.dumps(tc.arguments, ensure_ascii=False),
                     },
                 }
                 for tc in tool_calls

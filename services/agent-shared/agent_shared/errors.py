@@ -11,14 +11,14 @@ class S3Error(Exception):
 
 
 class LlmTimeoutError(S3Error):
-    """S4 LLM 요청 시간 초과."""
+    """S7 LLM Gateway request timed out."""
 
     def __init__(self, message: str = "LLM 요청 시간 초과"):
         super().__init__(message, code="LLM_TIMEOUT", retryable=True)
 
 
 class LlmUnavailableError(S3Error):
-    """S4 LLM 서버 연결 불가."""
+    """S7 LLM Gateway is unavailable."""
 
     def __init__(self, message: str = "LLM 서버 연결 불가"):
         super().__init__(message, code="LLM_UNAVAILABLE", retryable=True)
@@ -35,7 +35,7 @@ class LlmInputTooLargeError(S3Error):
 
 
 class LlmHttpError(S3Error):
-    """S4 LLM 서버가 HTTP 오류를 반환."""
+    """S7 LLM Gateway returned a non-success HTTP status."""
 
     def __init__(
         self,

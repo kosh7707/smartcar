@@ -67,3 +67,33 @@ async def test_sdk_analyze_requests_async_ownership_on_toolless_turn(monkeypatch
         assert seen["prefer_async_ownership"] is True
     finally:
         object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
+async def test_sdk_analyze_rejects_relative_project_path():
+    request = TaskRequest(
+        taskType=TaskType.SDK_ANALYZE,
+        taskId="sdk-invalid-relative",
+        context=Context(trusted={"projectPath": "../sdk"}),
+    )
+
+    result = await handle_sdk_analyze(request)
+
+    assert result.status == "validation_failed"
+    assert result.failureCode == "INVALID_SCHEMA"
+    assert "absolute path" in result.failureDetail
+
+
+@pytest.mark.asyncio
+async def test_sdk_analyze_rejects_missing_project_directory(tmp_path):
+    request = TaskRequest(
+        taskType=TaskType.SDK_ANALYZE,
+        taskId="sdk-invalid-missing",
+        context=Context(trusted={"projectPath": str(tmp_path / "missing-sdk")}),
+    )
+
+    result = await handle_sdk_analyze(request)
+
+    assert result.status == "validation_failed"
+    assert result.failureCode == "INVALID_SCHEMA"
+    assert "exist and be a directory" in result.failureDetail

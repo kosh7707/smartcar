@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import glob
 import os
 from datetime import datetime, timezone
 
@@ -79,33 +78,6 @@ async def run_build_request_preflight(
     if preflight is None:
         return None, build_invalid_contract_failure(request, errors)
     return preflight, None
-
-
-def discover_build_files(project_path: str, target_path: str = "") -> list[str]:
-    """프로젝트 내 빌드 관련 파일을 탐색한다. depth 3 이내, 노이즈 디렉토리 제외."""
-    exclude_dirs = {
-        "build", "build-wsl", "build-aegis", "CMakeFiles", ".git", "__pycache__",
-        "test", "tests", "doc", "docs", "example", "examples", "unittest",
-        "third_party", "vendor", "external", "deps",
-    }
-
-    search_root = os.path.join(project_path, target_path) if target_path else project_path
-    if not os.path.isdir(search_root):
-        search_root = project_path
-
-    found: list[str] = []
-    for pattern in ("**/CMakeLists.txt", "**/Makefile", "**/*.sh", "**/*.cmake"):
-        matches = glob.glob(os.path.join(search_root, pattern), recursive=True)
-        for match in matches:
-            rel = os.path.relpath(match, project_path)
-            parts = rel.split(os.sep)
-            if len(parts) > 4:
-                continue
-            if any(part in exclude_dirs for part in parts):
-                continue
-            if rel not in found:
-                found.append(rel)
-    return sorted(found)[:20]
 
 
 def build_system_prompt(

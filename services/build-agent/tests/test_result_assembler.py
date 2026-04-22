@@ -386,6 +386,31 @@ def test_strict_build_infers_artifact_from_nested_build_directory(tmp_path) -> N
     assert resp.result.buildResult.artifactVerification.matched is True
 
 
+def test_strict_build_does_not_infer_stale_root_artifact(tmp_path) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir(parents=True)
+    (project_root / "certificate-maker").write_text("stale binary from previous build")
+    (project_root / "build-aegis").mkdir()
+
+    assembler = ResultAssembler()
+    session = _make_session(
+        metadata=_strict_metadata(expected_artifacts=["certificate-maker"]),
+        trusted={
+            "projectPath": str(project_root),
+            "buildTargetPath": ".",
+            "buildTargetName": "certificate-maker",
+        },
+    )
+    _record_build_success(session)
+
+    resp = assembler.build(_valid_build_json(produced_artifacts=[]), session)
+
+    assert isinstance(resp, TaskFailureResponse)
+    assert resp.failureCode == FailureCode.EXPECTED_ARTIFACTS_MISMATCH
+    assert resp.failureContext is not None
+    assert resp.failureContext.missingArtifacts == ["certificate-maker"]
+
+
 def test_exhaustion_max_steps() -> None:
     assembler = ResultAssembler()
     session = _make_session(termination_reason="max_steps")

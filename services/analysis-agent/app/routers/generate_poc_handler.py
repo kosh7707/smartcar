@@ -147,21 +147,6 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         "- PoC는 Python, curl, 또는 셸 스크립트로 작성하라 (재현 용이성 우선)\n"
         "- 실행 환경의 전제 조건 (타겟 서비스 기동, 포트, 인증 등)을 명시하라\n"
         "- 방어 우회가 필요한 경우 (ASLR, 스택 카나리 등) 그 한계를 caveat에 명시하라\n\n"
-        "## Shell quoting awareness (CRITICAL)\n"
-        "Target sink 분석 시, 사용자 입력이 shell command string에 어떻게 interpolate 되는지 반드시 단계적으로 추적하라:\n"
-        "1. `popen`/`system`/`exec` 등 shell-exec sink까지의 호출 체인을 식별\n"
-        "2. 각 interpolation 지점의 quote context를 명시: 단일따옴표 `'...'`, 이중따옴표 `\"...\"`, unquoted\n"
-        "3. 단일따옴표 안이라면 `;`, `|`, `$()`, backtick 등 shell metachar는 **literal로 해석되어 실행되지 않는다**. payload는 먼저 현재 quote 를 break out 해야 한다.\n"
-        "4. 예: `popen(\"openssl req ... -subj '/CN=\" + cn + \"'\")` — `cn` 이 단일따옴표 안. 단순 `test; echo X` 주입은 openssl의 CN 문자열 일부로 전달될 뿐 쉘에서 실행되지 않는다. 탈출 payload 예: `test' && echo X && echo '` (단일따옴표 구조를 깨지 않고 이어지게).\n"
-        "5. quote context 분석 결과를 claim.detail의 \"## Injection 분석\" 섹션에 명시적으로 적어라 (sink/quote context/escape 경로).\n\n"
-        "## Detection self-check (CRITICAL)\n"
-        "PoC의 탐지 로직이 **명령 에코와 실제 실행을 구별**할 수 있는지 반드시 검토하라:\n"
-        "- 타겟 프로그램이 verbose 모드로 `[exec] <cmd>` 같은 문자열을 stdout에 출력한다면, canary 문자열이 payload 자체의 일부로 stdout에 에코되어 탐지 로직이 false positive를 낸다.\n"
-        "- 단순 `\"CANARY\" in stdout` 탐지보다 **side-effect 기반 탐지를 우선하라**:\n"
-        "  - `touch /tmp/pwned.<random>` → 실행 후 파일 존재 검사\n"
-        "  - 비활성 포트로 `nc -z 127.0.0.1 PORT` → 연결 시도 관찰\n"
-        "  - 환경변수/파일시스템의 관찰 가능한 부작용\n"
-        "- stdout 기반 탐지가 불가피하다면, canary는 **입력 payload 문자열에 등장하지 않는 랜덤 토큰**(UUID, sha 해시 prefix)이어야 한다.\n\n"
         "## Target metadata honesty\n"
         "빌드 산출물 이름, 컴파일 명령, 실행 방식은 **context에 주어진 것만 사용하라. 없으면 추측하지 말고 명시하라**:\n"
         "- 입력에 `Build metadata` 섹션이 있으면 거기 적힌 `buildCommand`/`buildScript`/`declaredMode`/`buildDir` 값을 그대로 사용\n"
@@ -265,14 +250,13 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
             service_id="s3-agent",
         )
     else:
-        from unittest.mock import AsyncMock, MagicMock
-        from agent_shared.schemas.agent import LlmResponse as _LlmResp
-        llm = MagicMock()
-        llm.call = AsyncMock(return_value=_LlmResp(
+        from agent_shared.llm.static_caller import StaticLlmCaller
+
+        llm = StaticLlmCaller(
             content='{"summary":"Mock PoC","claims":[{"statement":"mock","detail":"mock poc code","supportingEvidenceRefs":["eref-file-00"],"location":"clients/http_client.cpp:62"}],"caveats":[],"usedEvidenceRefs":["eref-file-00"],"suggestedSeverity":"info","needsHumanReview":true,"recommendedNextSteps":[],"policyFlags":[]}',
-            prompt_tokens=100, completion_tokens=50,
-        ))
-        llm.aclose = AsyncMock()
+            prompt_tokens=100,
+            completion_tokens=50,
+        )
 
     schema_repair_used = False
     strict_json_retry_used = False
@@ -551,20 +535,6 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
             ),
         )
 
-    # Post-LLM heuristic FP scanner — catches common PoC footguns and surfaces as caveats.
-    # Always non-destructive (warnings only), never rejects the response.
-    fp_warnings = _poc_fp_heuristics(parsed)
-    if fp_warnings:
-        existing_caveats = parsed.get("caveats") or []
-        if not isinstance(existing_caveats, list):
-            existing_caveats = []
-        parsed["caveats"] = list(existing_caveats) + [f"[auto-detected FP risk] {w}" for w in fp_warnings]
-        agent_log(
-            logger, "generate-poc FP heuristic triggered",
-            component="generate_poc", phase="poc_fp_heuristic",
-            warningCount=len(fp_warnings),
-        )
-
     # raw grounding validation 이후의 방어적 ref cleanup
     from app.validators.evidence_sanitizer import EvidenceRefSanitizer
     sanitizer = EvidenceRefSanitizer()
@@ -574,21 +544,6 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         _agent_log(logger, "generate-poc evidence ref defensive cleanup",
                    component="generate_poc", phase="poc_sanitize",
                    corrections=sanitize_corrections[:10])
-
-    quality_repairs = _harden_generate_poc_quality(
-        parsed=parsed,
-        input_claim=claim,
-        files=files,
-        build_preparation=build_preparation,
-    )
-    if quality_repairs:
-        agent_log(
-            logger,
-            "generate-poc quality hardening applied",
-            component="generate_poc",
-            phase="poc_quality_harden",
-            repairs=quality_repairs,
-        )
 
     schema_validator = SchemaValidator()
     schema_result = schema_validator.validate(parsed, request.taskType)
@@ -961,26 +916,6 @@ def _infer_generate_poc_severity(partial: dict, input_claim: dict) -> str:
             value = source.get(key) if isinstance(source, dict) else None
             if isinstance(value, str) and value in allowed:
                 return value
-    haystack = " ".join(
-        [
-            *[
-                str(value)
-                for source in (partial, input_claim)
-                if isinstance(source, dict)
-                for value in (source.get("summary"), source.get("statement"), source.get("detail"))
-                if value
-            ],
-            *[
-                str(value)
-                for claim in (partial.get("claims") if isinstance(partial.get("claims"), list) else [])
-                if isinstance(claim, dict)
-                for value in (claim.get("statement"), claim.get("detail"))
-                if value
-            ],
-        ]
-    ).lower()
-    if any(marker in haystack for marker in ("critical", "rce", "remote code", "command injection", "cwe-78", "popen")):
-        return "high"
     return "medium"
 
 
@@ -995,206 +930,3 @@ def _strict_json_failure_detail(error) -> str:
     if getattr(error, "error_detail", None):
         parts.append(f"errorDetail={error.error_detail}")
     return "strict_json_contract_violation; " + "; ".join(parts)
-
-
-def _harden_generate_poc_quality(
-    *,
-    parsed: dict,
-    input_claim: dict,
-    files: list,
-    build_preparation: dict,
-) -> list[str]:
-    """Add non-evidence PoC quality guards without manufacturing grounding."""
-    repairs: list[str] = []
-
-    claims = parsed.get("claims")
-    valid_claims = [claim for claim in claims if isinstance(claim, dict)] if isinstance(claims, list) else []
-
-    if _looks_like_command_injection(parsed, input_claim):
-        target_binary = _infer_target_binary(build_preparation, files)
-        for i, claim in enumerate(valid_claims):
-            detail = str(claim.get("detail") or "")
-            addendum = _build_poc_quality_guard_addendum(
-                detail=detail,
-                target_binary=target_binary,
-            )
-            if addendum:
-                claim["detail"] = f"{detail.rstrip()}\n\n{addendum}" if detail.strip() else addendum
-                repairs.append(f"claims[{i}].qualityGuard")
-
-        caveats = parsed.get("caveats")
-        if not isinstance(caveats, list):
-            caveats = []
-        if not any("poc" in str(c).lower() or "detection" in str(c).lower() or "heuristic" in str(c).lower() for c in caveats):
-            caveats.append(
-                "PoC detection heuristic caveat: S3 added/verified side-effect based detection requirements "
-                "so the analyst should confirm the generated marker-file check in the target runtime."
-            )
-            parsed["caveats"] = caveats
-            repairs.append("caveats.qualityGuard")
-
-    return list(dict.fromkeys(repairs))
-
-
-def _looks_like_command_injection(parsed: dict, input_claim: dict) -> bool:
-    haystack = " ".join([
-        str(input_claim.get("statement") or ""),
-        str(input_claim.get("detail") or ""),
-        str(parsed.get("summary") or ""),
-        " ".join(
-            str(claim.get("statement") or "") + " " + str(claim.get("detail") or "")
-            for claim in (parsed.get("claims") or [])
-            if isinstance(claim, dict)
-        ),
-    ]).lower()
-    return any(marker in haystack for marker in (
-        "cwe-78",
-        "command injection",
-        "os command",
-        "shell",
-        "popen",
-        "system(",
-        "명령어 주입",
-    ))
-
-
-def _infer_target_binary(build_preparation: dict, files: list) -> str:
-    for key in ("producedArtifacts", "expectedArtifacts"):
-        raw_items = build_preparation.get(key) if isinstance(build_preparation, dict) else None
-        if isinstance(raw_items, list):
-            for item in raw_items:
-                if isinstance(item, str) and item.strip():
-                    return item.strip()
-                if isinstance(item, dict):
-                    value = item.get("path") or item.get("name") or item.get("artifactPath")
-                    if isinstance(value, str) and value.strip():
-                        return value.strip()
-
-    return "<binary-from-build-metadata>"
-
-
-def _build_poc_quality_guard_addendum(*, detail: str, target_binary: str) -> str:
-    missing: list[str] = []
-    lowered = detail.lower()
-    if "build-aegis" not in detail and target_binary != "<binary-from-build-metadata>":
-        missing.append("binary")
-    if not any(marker in detail for marker in ("os.path.exists", "exists(", "Path(")) and "-f " not in detail:
-        missing.append("side_effect")
-    if not any(marker in lowered for marker in ("uuid", "random")) and "$RANDOM" not in detail and "$(date" not in detail:
-        missing.append("randomized_canary")
-    if not any(marker in detail for marker in ("touch ", "echo ", " id ", "whoami")):
-        missing.append("non_destructive")
-    if "Quote" not in detail and "따옴표" not in detail and "escape" not in lowered:
-        missing.append("quote_awareness")
-
-    if not missing:
-        return ""
-
-    binary_hint = target_binary or "<binary-from-build-metadata>"
-    return (
-        "## S3 quality guard — side-effect based detection\n"
-        f"- Target binary hint: `{binary_hint}`. If this is relative, run it from the Build Agent workspace "
-        "or replace it with the concrete `build-aegis-*` artifact path.\n"
-        "- Quote/escape requirement: for `-subj '/CN=<input>'`, payloads must first break out of the single quote; "
-        "metacharacters inside `'...'` are literal.\n"
-        "- Non-destructive randomized canary pattern:\n"
-        "```python\n"
-        "from pathlib import Path\n"
-        "import subprocess, uuid\n"
-        "nonce = uuid.uuid4().hex\n"
-        "marker = Path(f\"/tmp/aegis_poc_{nonce}\")\n"
-        "payload = f\"test' && touch {marker} && echo '\"\n"
-        "# Feed `payload` to the vulnerable CN prompt and then assert the side effect.\n"
-        "assert marker.exists(), 'command injection side effect was not observed'\n"
-        "```\n"
-        "- This guard avoids echo-only false positives because success is based on a unique marker file side effect, "
-        "not merely on stdout containing a payload string."
-    )
-
-
-def _poc_fp_heuristics(parsed: dict) -> list[str]:
-    """Scan LLM-generated PoC claims for common false-positive patterns.
-
-    Returns a list of human-readable warnings to append to ``caveats``. Never raises
-    and never rejects the response — the analyst gets the PoC plus explicit caveats.
-
-    Heuristics (conservative — prefer false-negative over false-positive warnings):
-
-    H1 "echo-collision canary": PoC detects success by substring-matching a canary
-        token in stdout, AND the canary token also appears inside an injection
-        payload/input string on the same claim. When the target program echoes its
-        command line (verbose mode), the canary will appear in stdout regardless of
-        whether the injection actually executed — the detection will false-positive.
-
-    H2 "unescaped single-quote injection": PoC injects into a shell argument that is
-        wrapped in single quotes (pattern ``-<flag> '...<payload>...'``), AND the
-        payload contains shell metacharacters (``;|&$`` or backticks) but does NOT
-        contain a ``'`` to break out of the quote. Shell treats metacharacters inside
-        single quotes as literal, so the injection will not execute.
-    """
-    import re
-
-    warnings: list[str] = []
-    claims = parsed.get("claims", []) or []
-    if not isinstance(claims, list):
-        return warnings
-
-    detection_pattern = re.compile(
-        r"""["']([A-Z][A-Z0-9_]{3,})["'].{0,40}?\bin\s+(?:stdout|output|out|result)\b""",
-        re.IGNORECASE,
-    )
-    single_quoted_arg_pattern = re.compile(
-        r"""-\w+\s+'(/?[A-Za-z][A-Za-z0-9_]*=)?([^'\n]{0,200})'""",
-    )
-    shell_metachar_re = re.compile(r"[;|&`]|\$\(")
-
-    for i, claim_obj in enumerate(claims):
-        if not isinstance(claim_obj, dict):
-            continue
-        detail = str(claim_obj.get("detail") or "")
-        if not detail:
-            continue
-
-        # H1: canary both in detection logic AND in injection payload
-        for match in detection_pattern.finditer(detail):
-            canary = match.group(1)
-            # Ignore generic English words that could appear in any prose
-            if canary in {"TRUE", "FALSE", "NULL", "NONE", "OK", "ERROR"}:
-                continue
-            # Check whether the same token appears inside a quoted payload/input
-            # literal earlier in the detail. We scan all single/double-quoted strings
-            # and flag if any of them contains the canary token.
-            for lit in re.finditer(r"""["']([^"'\n]{3,200})["']""", detail):
-                body = lit.group(1)
-                if canary in body and "in stdout" not in body.lower() and "in output" not in body.lower():
-                    warnings.append(
-                        f"claim[{i}]: canary '{canary}' is used for stdout-substring detection "
-                        f"and also appears inside an injected/input string. If the target program "
-                        f"echoes its command line (verbose mode), '{canary}' will appear in stdout "
-                        f"whether or not the injection actually executed — detection may be false "
-                        f"positive. Prefer side-effect based detection (touch a unique file, "
-                        f"observable network call, etc.) or use a random/nonce canary not present "
-                        f"in the payload."
-                    )
-                    break
-            else:
-                continue
-            break  # one H1 warning per claim is enough
-
-        # H2: shell metachar injection inside a single-quoted arg without breakout
-        for match in single_quoted_arg_pattern.finditer(detail):
-            inner = match.group(2) or ""
-            if not inner:
-                continue
-            if shell_metachar_re.search(inner) and "'" not in inner:
-                warnings.append(
-                    f"claim[{i}]: injection payload contains shell metacharacters "
-                    f"(;|&`$) but sits inside a single-quoted shell argument "
-                    f"({match.group(0)[:80]}...) and does not contain a ' to break out. "
-                    f"Shell treats metacharacters inside '...' as literal — the injection "
-                    f"will not execute. Payload must close the single quote first "
-                    f"(e.g., `...'; <cmd>; echo '...`) or target an unquoted interpolation."
-                )
-                break  # one H2 warning per claim is enough
-
-    return warnings

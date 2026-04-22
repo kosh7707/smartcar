@@ -20,7 +20,6 @@ class AgentSession:
         self.extra_allowed_refs: set[str] = set()  # Phase 1 생성 refs 등
         self.evidence_catalog = EvidenceCatalog()
         self.evidence_catalog.ingest_request(request)
-        self.quality_retry_flags: set[str] = set()
         self._start_time = time.monotonic()
         self._termination_reason = ""
 

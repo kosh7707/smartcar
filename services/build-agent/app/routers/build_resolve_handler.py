@@ -20,6 +20,12 @@ from app.validators.build_request_contract import normalize_contract_version
 logger = logging.getLogger(__name__)
 
 
+def _request_scoped_build_subdir(request_id: str | None) -> str:
+    """Return a collision-resistant build workspace name for one request."""
+    digest = hashlib.sha256((request_id or "default").encode()).hexdigest()[:16]
+    return f"build-aegis-{digest}"
+
+
 async def handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | TaskFailureResponse:
     """build-resolve v2: 빌드 스크립트 작성 + 빌드 성공."""
     from app.budget.manager import BudgetManager
@@ -60,12 +66,14 @@ async def handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | Ta
 
     # ─── 0. Request-scoped 빌드 워크스페이스 (동시 요청 격리) ───
     import shutil
-    short_id = request_id[:8] if request_id else "default"
-    build_subdir = f"build-aegis-{short_id}"
+    build_subdir = _request_scoped_build_subdir(request_id)
     build_aegis_dir = os.path.join(effective_root, build_subdir)
     if os.path.isdir(build_aegis_dir):
         shutil.rmtree(build_aegis_dir, ignore_errors=True)
         logger.info("[build] 이전 빌드 캐시 정리: %s", build_aegis_dir)
+
+    # ─── 0b. 정책 엔진 (request-scoped build dir) ───
+    file_policy = FilePolicy(effective_root, build_dir=build_subdir)
 
     # ─── 1. Phase 0 결정론적 사전 분석 ───
     from app.core.phase_zero import Phase0Executor
@@ -83,30 +91,19 @@ async def handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | Ta
 
     # ─── 1b. 초기 빌드 스크립트 결정론적 생성 (cmake/make/autotools 템플릿) ───
     initial_script = phase0.generate_initial_script(preflight.contract.setupScript)
-    hint_preseeded = False
-    if not initial_script and preflight.contract.buildScriptHintText:
-        from app.policy.file_policy import FilePolicy
-        hint_warnings = FilePolicy.scan_content(preflight.contract.buildScriptHintText)
-        if not hint_warnings:
-            initial_script = preflight.contract.buildScriptHintText
-            hint_preseeded = True
-        else:
-            logger.warning("[build] caller build script hint ignored due to forbidden content: %s", hint_warnings)
     initial_script_hint = ""
     if initial_script:
         os.makedirs(os.path.join(effective_root, build_subdir), exist_ok=True)
         script_path = os.path.join(effective_root, build_subdir, "aegis-build.sh")
         with open(script_path, "w") as f:
             f.write(initial_script)
+        file_policy.record_created("aegis-build.sh")
         initial_script_hint = (
             f"\n\n[Phase 0 자동 생성] {build_subdir}/aegis-build.sh에 "
             f"{phase0_result.build_system} 템플릿 스크립트가 생성되었다. "
             "이 스크립트를 기반으로 수정하거나, 필요 시 새로 작성하라."
         )
         logger.info("[build] 초기 스크립트 생성: %s (%s)", script_path, phase0_result.build_system)
-
-    # ─── 2. 정책 엔진 (request-scoped build dir) ───
-    file_policy = FilePolicy(effective_root, build_dir=build_subdir)
 
     # ─── 3. 예산 구성 ───
     budget = BudgetState(
@@ -270,8 +267,7 @@ async def handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | Ta
             service_id="s3-build",
         )
     else:
-        from unittest.mock import AsyncMock, MagicMock
-        from agent_shared.schemas.agent import LlmResponse
+        from agent_shared.llm.static_caller import StaticLlmCaller
 
         mock_build_result = json.dumps({
             "summary": "[Mock] 빌드 에이전트 mock 응답",
@@ -290,12 +286,11 @@ async def handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | Ta
             "policyFlags": [],
         }, ensure_ascii=False)
 
-        llm_caller = MagicMock()
-        llm_caller.call = AsyncMock(return_value=LlmResponse(
+        llm_caller = StaticLlmCaller(
             content=mock_build_result,
             prompt_tokens=100,
             completion_tokens=80,
-        ))
+        )
 
     mm = MessageManager(system_prompt=system_prompt, initial_user_message=user_message)
 
@@ -313,59 +308,6 @@ async def handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | Ta
     )
 
     try:
-        if hint_preseeded:
-            from agent_shared.schemas.agent import ToolTraceStep
-
-            direct_command = f"bash {os.path.join(effective_root, build_subdir, 'aegis-build.sh')}"
-            direct_result = await build_tool.execute({"build_command": direct_command})
-            session.trace.append(
-                ToolTraceStep(
-                    step_id="step_hint_seed_01",
-                    turn_number=0,
-                    tool="try_build",
-                    args_hash=hashlib.sha256(direct_command.encode()).hexdigest()[:16],
-                    cost_tier="expensive",
-                    duration_ms=0,
-                    success=direct_result.success,
-                    new_evidence_refs=direct_result.new_evidence_refs,
-                    error=direct_result.error,
-                )
-            )
-            if direct_result.success:
-                direct_data = json.loads(direct_result.content)
-                build_evidence = direct_data.get("buildEvidence", {})
-                direct_content = json.dumps(
-                    {
-                        "summary": "caller build script hint를 참고해 생성한 build 스크립트로 빌드에 성공했다.",
-                        "claims": [
-                            {
-                                "statement": "caller hint 기반 초기 build script가 성공적으로 실행되었다.",
-                                "supportingEvidenceRefs": [],
-                            }
-                        ],
-                        "caveats": [],
-                        "usedEvidenceRefs": [],
-                        "needsHumanReview": False,
-                        "recommendedNextSteps": [],
-                        "policyFlags": [],
-                        "buildResult": {
-                            "success": True,
-                            "buildCommand": direct_command,
-                            "buildScript": f"{build_subdir}/aegis-build.sh",
-                            "buildDir": build_subdir,
-                            "errorLog": None,
-                            "producedArtifacts": [],
-                            "declaredMode": preflight.contract.buildMode.value if preflight.contract.buildMode else None,
-                            "sdkId": preflight.contract.sdkId,
-                        },
-                    },
-                    ensure_ascii=False,
-                )
-                return ResultAssembler(model_name=settings.llm_model, prompt_version="build-v3").build(
-                    direct_content,
-                    session,
-                )
-
         result = await loop.run(session)
         return result
     finally:
