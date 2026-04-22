@@ -1,6 +1,5 @@
 import React from "react";
 import type { ProjectReport } from "@aegis/shared";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CustomReportModal } from "./CustomReportModal";
 import { ReportApprovalsSection } from "./ReportApprovalsSection";
 import { ReportAuditLogSection } from "./ReportAuditLogSection";
@@ -75,26 +74,24 @@ export function ReportContent({
         />
       )}
 
-      <Tabs
+      <div
         value={activeTab}
         onValueChange={(value) => setActiveTab(value as ModuleTab)}
         className="report-content__tabs print-hide"
       >
-        <TabsList
-          variant="line"
-          className="report-module-tabs"
+        <div className="seg report-module-tabs" role="tablist"
         >
           {(Object.keys(MODULE_TAB_LABELS) as ModuleTab[]).map((tab) => (
-            <TabsTrigger
+            <button type="button" role="tab"
               key={tab}
               value={tab}
               className="report-module-tabs__trigger"
             >
               {MODULE_TAB_LABELS[tab]}
-            </TabsTrigger>
+            </button>
           ))}
-        </TabsList>
-      </Tabs>
+        </div>
+      </div>
 
       <div className="report-content__top-grid">
         <ReportExecutiveSummary

@@ -1,11 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { CanMessage, DynamicAlert, DynamicAnalysisSession } from "@aegis/shared";
 import { AlertTriangle, Clock, Plug, Radio } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { fetchDynamicSessionDetail, logError } from "../../../api/client";
 import { STATUS_LABELS } from "../../../constants/dynamic";
@@ -54,7 +49,7 @@ export const SessionDetailView: React.FC<Props> = ({ sessionId, onBack }) => {
         ? [
             {
               label: "상태",
-              value: <Badge variant="outline" className={cn("dynamic-session-summary-status", getSessionStatusClass(session.status))}>{STATUS_LABELS[session.status] ?? session.status}</Badge>,
+              value: <span className={cn("dynamic-session-summary-status", getSessionStatusClass(session.status))}>{STATUS_LABELS[session.status] ?? session.status}</span>,
             },
             { label: "시작", icon: <Clock size={14} />, value: formatDateTime(session.startedAt) },
             ...(session.endedAt ? [{ label: "종료", icon: <Clock size={14} />, value: formatDateTime(session.endedAt) }] : []),
@@ -83,100 +78,100 @@ export const SessionDetailView: React.FC<Props> = ({ sessionId, onBack }) => {
     <div className="dynamic-session-shell">
       <BackButton onClick={onBack} label="세션 목록으로" />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>세션 요약</CardTitle>
-          <CardDescription>동적 분석 세션의 상태, 시간 정보, 수집된 메시지 규모를 확인합니다.</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <div className="panel">
+        <div className="panel-head">
+          <h3 className="panel-title">세션 요약</h3>
+          <p className="panel-description">동적 분석 세션의 상태, 시간 정보, 수집된 메시지 규모를 확인합니다.</p>
+        </div>
+        <div className="panel-body">
           <div className="dynamic-session-summary-grid">
             {summaryItems.map((item) => (
-              <Card key={item.label} size="sm" className="dynamic-session-summary-item">
-                <CardContent>
+              <div className="panel dynamic-session-summary-item" key={item.label}>
+                <div className="panel-body">
                   {item.icon ? <div className="dynamic-session-summary-icon">{item.icon}</div> : null}
                   <div className="dynamic-session-summary-copy">
                     <div className="dynamic-session-summary-label">{item.label}</div>
                     <div className="dynamic-session-summary-value">{item.value}</div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>탐지 알림 ({alerts.length})</CardTitle>
-          <CardDescription>세션 중 기록된 이상 징후와 LLM 해석 결과를 확인합니다.</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <div className="panel">
+        <div className="panel-head">
+          <h3 className="panel-title">탐지 알림 ({alerts.length})</h3>
+          <p className="panel-description">세션 중 기록된 이상 징후와 LLM 해석 결과를 확인합니다.</p>
+        </div>
+        <div className="panel-body">
           {alerts.length === 0 ? (
             <EmptyState compact title="탐지된 이상이 없습니다" />
           ) : (
-            <ScrollArea className="dynamic-session-alert-scroll">
+            <div className="scroll-area dynamic-session-alert-scroll">
               <div className="dynamic-session-alert-list">
                 {alerts.map((alert) => (
-                  <Alert key={alert.id} className="dynamic-session-alert">
+                  <div className="panel panel-alert dynamic-session-alert" key={alert.id}>
                     <AlertTriangle size={16} className="dynamic-session-alert-icon" />
                     <div className="dynamic-session-alert-body">
                       <div>
                         <div className="dynamic-session-alert-head">
-                          <SeverityBadge severity={alert.severity} size="sm" />
-                          <AlertTitle>{alert.title}</AlertTitle>
+                          <SeverityBadge severity={alert.severity} />
+                          <strong className="alert-title">{alert.title}</strong>
                         </div>
-                        <AlertDescription>{alert.description}</AlertDescription>
+                        <span className="alert-description">{alert.description}</span>
                       </div>
                       {alert.llmAnalysis ? (
                         <div className="dynamic-session-alert-llm">
-                          <Badge variant="outline" className="dynamic-session-llm-badge">LLM</Badge>
+                          <span className="dynamic-session-llm-badge">LLM</span>
                           <p className="finding-body-text">{alert.llmAnalysis}</p>
                         </div>
                       ) : null}
                       <div className="dynamic-session-alert-time">{formatTime(alert.detectedAt)}</div>
                     </div>
-                  </Alert>
+                  </div>
                 ))}
               </div>
-            </ScrollArea>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>CAN 메시지 (최근 {messages.length}건)</CardTitle>
-          <CardDescription>세션 종료 시점 기준으로 저장된 최근 CAN 패킷을 표시합니다.</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <div className="panel">
+        <div className="panel-head">
+          <h3 className="panel-title">CAN 메시지 (최근 {messages.length}건)</h3>
+          <p className="panel-description">세션 종료 시점 기준으로 저장된 최근 CAN 패킷을 표시합니다.</p>
+        </div>
+        <div className="panel-body">
           {messages.length === 0 ? (
             <EmptyState compact title="수신된 메시지가 없습니다" />
           ) : (
-            <ScrollArea className="dynamic-session-message-scroll">
-              <Table>
-                <TableHeader className={tableHeadClass}>
-                  <TableRow>
-                    <TableHead className={tableHeadClass}>시간</TableHead>
-                    <TableHead className={tableHeadClass}>CAN ID</TableHead>
-                    <TableHead className="dynamic-session-table-head dynamic-session-table-head--center">DLC</TableHead>
-                    <TableHead className={tableHeadClass}>데이터</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+            <div className="scroll-area dynamic-session-message-scroll">
+              <table className="data-table">
+                <thead className={tableHeadClass}>
+                  <tr>
+                    <th className={tableHeadClass}>시간</th>
+                    <th className={tableHeadClass}>CAN ID</th>
+                    <th className="dynamic-session-table-head dynamic-session-table-head--center">DLC</th>
+                    <th className={tableHeadClass}>데이터</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {messages.map((message, index) => (
-                    <TableRow key={index} className={cn(message.flagged && "dynamic-session-table-flagged")}>
-                      <TableCell className="dynamic-session-table-time">{formatTime(message.timestamp)}</TableCell>
-                      <TableCell className="dynamic-session-table-id">{message.id}</TableCell>
-                      <TableCell className="dynamic-session-table-center">{message.dlc}</TableCell>
-                      <TableCell className="dynamic-session-table-data">{message.data}</TableCell>
-                    </TableRow>
+                    <tr key={index} className={cn(message.flagged && "dynamic-session-table-flagged")}>
+                      <td className="dynamic-session-table-time">{formatTime(message.timestamp)}</td>
+                      <td className="dynamic-session-table-id">{message.id}</td>
+                      <td className="dynamic-session-table-center">{message.dlc}</td>
+                      <td className="dynamic-session-table-data">{message.data}</td>
+                    </tr>
                   ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
+                </tbody>
+              </table>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };

@@ -1,7 +1,5 @@
 import React, { useState } from "react";
 import { Archive, Binary, CheckCircle, ChevronDown, ChevronRight, FolderOpen, Loader, Plus, Settings, Trash2, XCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import type { RegisteredSdk, SdkAnalyzedProfile, SdkRegistryStatus } from "../../../api/sdk";
 import type { SdkProgressDetails } from "../../../hooks/useSdkProgress";
 import { EmptyState } from "../../../shared/ui";
@@ -82,9 +80,9 @@ function ProfileDetail({ profile }: { profile: SdkAnalyzedProfile }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="sdk-profile-detail">
-      <Button variant="ghost" size="sm" className="sdk-profile-detail__toggle" onClick={() => setOpen((prev) => !prev)}>
+      <button type="button" className="btn btn-ghost btn-sm sdk-profile-detail__toggle" onClick={() => setOpen((prev) => !prev)}>
         {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}분석된 프로파일
-      </Button>
+      </button>
       {open ? (
         <div className="sdk-profile-detail__body">
           {profile.compiler ? <div><strong>컴파일러:</strong> {profile.compiler}</div> : null}
@@ -107,8 +105,8 @@ function artifactLabel(kind?: RegisteredSdk["artifactKind"]) {
 }
 
 export const SdkManagementSection: React.FC<SdkManagementSectionProps> = ({ projectId, registered, sdkProgressById, showForm, onToggleForm, onRegistered, onCancelForm, onRequestDelete }) => (
-  <Card className="sdk-management-card">
-    <CardContent>
+  <div className="panel sdk-management-card">
+    <div className="panel-body">
       <div className="sdk-management-toolbar">
         <div className="sdk-management-head">
           <div className="sdk-management-head-icon"><Settings size={18} /></div>
@@ -120,7 +118,7 @@ export const SdkManagementSection: React.FC<SdkManagementSectionProps> = ({ proj
 
         <div className="sdk-management-actions">
           <span className="sdk-management-meta">등록된 SDK {registered.length}개</span>
-          <Button size="sm" onClick={onToggleForm}><Plus size={14} /> SDK 추가</Button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={onToggleForm}><Plus size={14} /> SDK 추가</button>
         </div>
       </div>
 
@@ -143,7 +141,7 @@ export const SdkManagementSection: React.FC<SdkManagementSectionProps> = ({ proj
                   <span className="sdk-card__name">{sdk.name}</span>
                   {kind ? <span className="sdk-card__kind">{kind.icon}{kind.label}</span> : null}
                   <SdkStatusBadge status={sdk.status} />
-                  <Button variant="destructive" size="icon-sm" title="삭제" onClick={() => onRequestDelete(sdk)}><Trash2 size={14} /></Button>
+                  <button type="button" className="btn btn-danger btn-icon-sm" title="삭제" onClick={() => onRequestDelete(sdk)}><Trash2 size={14} /></button>
                 </div>
 
                 {sdk.description ? <p className="sdk-card__desc">{sdk.description}</p> : null}
@@ -176,6 +174,6 @@ export const SdkManagementSection: React.FC<SdkManagementSectionProps> = ({ proj
           })}
         </div>
       )}
-    </CardContent>
-  </Card>
+    </div>
+  </div>
 );

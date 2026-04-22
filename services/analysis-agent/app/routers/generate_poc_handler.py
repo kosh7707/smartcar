@@ -24,6 +24,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
     import httpx
 
     from agent_shared.context import get_request_id
+    from agent_shared.errors import StrictJsonContractError
     from agent_shared.observability import agent_log
     from app.pipeline.confidence import ConfidenceCalculator
     from app.pipeline.response_parser import V1ResponseParser
@@ -274,6 +275,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         llm.aclose = AsyncMock()
 
     schema_repair_used = False
+    strict_json_retry_used = False
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_message},
@@ -290,6 +292,67 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         prompt_tokens = llm_response.prompt_tokens
         completion_tokens = llm_response.completion_tokens
         request_summary_tracker.mark_phase_advancing(request_id, source="llm-response")
+    except StrictJsonContractError as e:
+        strict_json_retry_used = True
+        try:
+            retry_messages = [
+                *messages,
+                {
+                    "role": "user",
+                    "content": (
+                        "[시스템] S7 strict JSON contract violation이 발생했습니다. "
+                        "동일한 요청을 순수 JSON Assessment 객체로 한 번만 재시도합니다. "
+                        "설명문/코드펜스 없이 첫 문자는 반드시 `{`이어야 하며, 모든 required key를 포함하십시오."
+                    ),
+                },
+            ]
+            request_summary_tracker.mark_transport_only(request_id, source="llm-strict-json-retry")
+            llm_response = await llm.call(
+                retry_messages,
+                max_tokens=request.constraints.maxTokens or 8192,
+                temperature=0.0,
+                prefer_async_ownership=True,
+            )
+            raw = llm_response.content or ""
+            prompt_tokens = llm_response.prompt_tokens
+            completion_tokens = llm_response.completion_tokens
+            request_summary_tracker.mark_phase_advancing(request_id, source="llm-strict-json-retry-response")
+        except StrictJsonContractError as e2:
+            elapsed = int((time.monotonic() - start) * 1000)
+            if hasattr(llm, 'aclose'):
+                await llm.aclose()
+            return TaskFailureResponse(
+                taskId=request.taskId,
+                taskType=request.taskType,
+                status=TaskStatus.MODEL_ERROR,
+                failureCode=FailureCode.MODEL_UNAVAILABLE,
+                failureDetail=_strict_json_failure_detail(e2),
+                retryable=True,
+                audit=AuditInfo(
+                    inputHash="", latencyMs=elapsed,
+                    tokenUsage=TokenUsage(prompt=0, completion=0),
+                    retryCount=1, ragHits=0,
+                    createdAt=datetime.now(timezone.utc).isoformat(),
+                ),
+            )
+        except Exception as e2:
+            elapsed = int((time.monotonic() - start) * 1000)
+            if hasattr(llm, 'aclose'):
+                await llm.aclose()
+            return TaskFailureResponse(
+                taskId=request.taskId,
+                taskType=request.taskType,
+                status=TaskStatus.MODEL_ERROR,
+                failureCode=FailureCode.MODEL_UNAVAILABLE,
+                failureDetail=f"strict_json_retry_failed: {e2}",
+                retryable=True,
+                audit=AuditInfo(
+                    inputHash="", latencyMs=elapsed,
+                    tokenUsage=TokenUsage(prompt=0, completion=0),
+                    retryCount=1, ragHits=0,
+                    createdAt=datetime.now(timezone.utc).isoformat(),
+                ),
+            )
     except Exception as e:
         elapsed = int((time.monotonic() - start) * 1000)
         if hasattr(llm, 'aclose'):
@@ -336,7 +399,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
                     inputHash="",
                     latencyMs=elapsed,
                     tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
-                    retryCount=0,
+                    retryCount=1 if strict_json_retry_used else 0,
                     ragHits=len(kb_context_lines),
                     createdAt=datetime.now(timezone.utc).isoformat(),
                 ),
@@ -360,7 +423,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
                     inputHash="",
                     latencyMs=elapsed,
                     tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
-                    retryCount=1,
+                    retryCount=int(schema_repair_used) + int(strict_json_retry_used),
                     ragHits=len(kb_context_lines),
                     createdAt=datetime.now(timezone.utc).isoformat(),
                 ),
@@ -391,7 +454,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
                     inputHash="",
                     latencyMs=elapsed,
                     tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
-                    retryCount=0,
+                    retryCount=int(schema_repair_used) + int(strict_json_retry_used),
                     ragHits=len(kb_context_lines),
                     createdAt=datetime.now(timezone.utc).isoformat(),
                 ),
@@ -415,7 +478,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
                     inputHash="",
                     latencyMs=elapsed,
                     tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
-                    retryCount=1,
+                    retryCount=int(schema_repair_used) + int(strict_json_retry_used),
                     ragHits=len(kb_context_lines),
                     createdAt=datetime.now(timezone.utc).isoformat(),
                 ),
@@ -445,11 +508,17 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
                     inputHash="",
                     latencyMs=elapsed,
                     tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
-                    retryCount=1,
+                    retryCount=int(schema_repair_used) + int(strict_json_retry_used),
                     ragHits=len(kb_context_lines),
                     createdAt=datetime.now(timezone.utc).isoformat(),
                 ),
             )
+
+    if strict_json_retry_used:
+        policy_flags = parsed.get("policyFlags")
+        if isinstance(policy_flags, list) and "strict_json_retry" not in policy_flags:
+            policy_flags.append("strict_json_retry")
+            parsed["policyFlags"] = policy_flags
 
     if hasattr(llm, 'aclose'):
         await llm.aclose()
@@ -476,7 +545,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
                 inputHash=input_hash,
                 latencyMs=elapsed,
                 tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
-                retryCount=1 if schema_repair_used else 0,
+                retryCount=int(schema_repair_used) + int(strict_json_retry_used),
                 ragHits=len(kb_context_lines),
                 createdAt=datetime.now(timezone.utc).isoformat(),
             ),
@@ -567,7 +636,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
                 inputHash=input_hash,
                 latencyMs=elapsed,
                 tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
-                retryCount=1 if schema_repair_used else 0,
+                retryCount=int(schema_repair_used) + int(strict_json_retry_used),
                 ragHits=len(kb_context_lines),
                 createdAt=datetime.now(timezone.utc).isoformat(),
             ),
@@ -607,7 +676,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
             inputHash=input_hash,
             latencyMs=elapsed,
             tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
-            retryCount=1 if schema_repair_used else 0,
+            retryCount=int(schema_repair_used) + int(strict_json_retry_used),
             ragHits=len(kb_context_lines),
             createdAt=datetime.now(timezone.utc).isoformat(),
         ),
@@ -635,7 +704,24 @@ async def _repair_generate_poc_schema(
     schema_errors: list[str],
     request: TaskRequest,
 ) -> tuple[str, int, int]:
-    """Ask the same LLM surface to repair malformed generate-poc JSON once."""
+    """Repair malformed generate-poc JSON with a deterministic scaffold.
+
+    The LLM is allowed to refine wording, but the required Assessment object
+    shape is scaffolded before the retry and preserved after the retry. This
+    prevents a repair turn from repeating an invalid ``summary + claims``-only
+    shape.
+    """
+    import json
+
+    from app.pipeline.response_parser import V1ResponseParser
+
+    parser = V1ResponseParser()
+    partial = parser.parse(invalid_content) or {}
+    scaffold = _build_generate_poc_repair_scaffold(
+        partial=partial,
+        request=request,
+    )
+    scaffold_json = json.dumps(scaffold, ensure_ascii=False, indent=2)
     repair_messages = [
         *messages,
         {"role": "assistant", "content": invalid_content[:8000]},
@@ -643,13 +729,15 @@ async def _repair_generate_poc_schema(
             "role": "user",
             "content": (
                 "[시스템] 직전 응답은 generate-poc Assessment 스키마를 위반했습니다. "
-                "내용을 버리지 말고 하나의 유효한 JSON 객체로 재작성하십시오. "
+                "아래 S3가 제공하는 scaffold의 object shape와 모든 key를 유지한 채 하나의 유효한 JSON 객체로 재작성하십시오. "
                 "설명문/코드펜스 없이 첫 문자는 반드시 `{`이어야 합니다.\n\n"
                 f"Schema errors: {'; '.join(schema_errors)}\n\n"
                 "필수 top-level fields: summary, claims, caveats, usedEvidenceRefs, "
                 "suggestedSeverity, needsHumanReview, recommendedNextSteps, policyFlags.\n"
-                "caveats 또는 usedEvidenceRefs가 비어도 필드를 생략하지 말고 []로 출력하십시오.\n"
-                "각 claims[] 원소는 statement, detail, supportingEvidenceRefs, location을 가진 객체여야 합니다."
+                "각 claims[] 원소는 statement, detail, supportingEvidenceRefs, location을 가진 객체여야 합니다.\n"
+                "절대 key를 삭제하지 마십시오. supportingEvidenceRefs와 usedEvidenceRefs에는 scaffold에 있는 refId만 사용하십시오.\n\n"
+                "S3 deterministic scaffold:\n"
+                f"```json\n{scaffold_json}\n```"
             ),
         },
     ]
@@ -667,7 +755,246 @@ async def _repair_generate_poc_schema(
         get_request_id() or request.taskId,
         source="generate-poc-schema-repair-response",
     )
-    return response.content or "", response.prompt_tokens, response.completion_tokens
+    refinement = parser.parse(response.content or "")
+    repaired = _merge_generate_poc_repair_refinement(
+        scaffold=scaffold,
+        refinement=refinement,
+        request=request,
+    )
+    return (
+        json.dumps(repaired, ensure_ascii=False),
+        response.prompt_tokens,
+        response.completion_tokens,
+    )
+
+
+def _build_generate_poc_repair_scaffold(
+    *,
+    partial: dict,
+    request: TaskRequest,
+) -> dict:
+    trusted = request.context.trusted if isinstance(request.context.trusted, dict) else {}
+    input_claim = trusted.get("claim", {}) if isinstance(trusted.get("claim"), dict) else {}
+    allowed_refs = _allowed_generate_poc_ref_ids(request)
+    partial_claims = partial.get("claims")
+    claim_sources = [c for c in partial_claims if isinstance(c, dict)] if isinstance(partial_claims, list) else []
+    if not claim_sources:
+        claim_sources = [input_claim]
+
+    claims: list[dict] = []
+    for source in claim_sources:
+        refs = _valid_generate_poc_refs(source.get("supportingEvidenceRefs"), allowed_refs)
+        if not refs:
+            refs = _valid_generate_poc_refs(input_claim.get("supportingEvidenceRefs"), allowed_refs)
+        if not refs:
+            refs = _matching_request_refs_for_claim(request, input_claim)
+
+        claims.append({
+            "statement": _first_nonempty_string(
+                source.get("statement"),
+                input_claim.get("statement"),
+                "Generate a PoC for the supplied security claim.",
+            ),
+            "detail": _first_nonempty_string(
+                source.get("detail"),
+                input_claim.get("detail"),
+                source.get("statement"),
+                input_claim.get("statement"),
+                "PoC details require analyst review.",
+            ),
+            "supportingEvidenceRefs": refs,
+            "location": _first_nonempty_string(
+                source.get("location"),
+                input_claim.get("location"),
+                _location_from_request_evidence(request),
+            ),
+        })
+
+    used_refs = _valid_generate_poc_refs(partial.get("usedEvidenceRefs"), allowed_refs)
+    if not used_refs:
+        used_refs = list(dict.fromkeys(ref for claim in claims for ref in claim["supportingEvidenceRefs"]))
+
+    caveats = _string_list(partial.get("caveats"))
+    recommended_next_steps = _string_list(partial.get("recommendedNextSteps"))
+    policy_flags = _string_list(partial.get("policyFlags"))
+    if "structured_finalizer" not in policy_flags:
+        policy_flags.append("structured_finalizer")
+
+    return {
+        "summary": _first_nonempty_string(
+            partial.get("summary"),
+            input_claim.get("statement"),
+            "PoC generated from the supplied security claim.",
+        ),
+        "claims": claims,
+        "caveats": caveats,
+        "usedEvidenceRefs": used_refs,
+        "suggestedSeverity": _infer_generate_poc_severity(partial, input_claim),
+        "needsHumanReview": partial.get("needsHumanReview") if isinstance(partial.get("needsHumanReview"), bool) else True,
+        "recommendedNextSteps": recommended_next_steps,
+        "policyFlags": policy_flags,
+    }
+
+
+def _merge_generate_poc_repair_refinement(
+    *,
+    scaffold: dict,
+    refinement: dict | None,
+    request: TaskRequest,
+) -> dict:
+    if not isinstance(refinement, dict):
+        return scaffold
+
+    allowed_refs = _allowed_generate_poc_ref_ids(request)
+    repaired = {
+        **scaffold,
+        "claims": [dict(c) for c in scaffold.get("claims", []) if isinstance(c, dict)],
+    }
+
+    for field in ("summary",):
+        if isinstance(refinement.get(field), str) and refinement[field].strip():
+            repaired[field] = refinement[field]
+    for field in ("caveats", "recommendedNextSteps", "policyFlags"):
+        values = _string_list(refinement.get(field))
+        if values or field in refinement:
+            repaired[field] = values
+    severity = _infer_generate_poc_severity(refinement, {})
+    if severity:
+        repaired["suggestedSeverity"] = severity
+    if isinstance(refinement.get("needsHumanReview"), bool):
+        repaired["needsHumanReview"] = refinement["needsHumanReview"]
+
+    refined_claims = refinement.get("claims")
+    if isinstance(refined_claims, list):
+        for index, refined_claim in enumerate(c for c in refined_claims if isinstance(c, dict)):
+            if index >= len(repaired["claims"]):
+                repaired["claims"].append(dict(scaffold["claims"][-1]))
+            target = repaired["claims"][index]
+            for field in ("statement", "detail", "location"):
+                if isinstance(refined_claim.get(field), str) and refined_claim[field].strip():
+                    target[field] = refined_claim[field]
+            refs = _valid_generate_poc_refs(refined_claim.get("supportingEvidenceRefs"), allowed_refs)
+            if refs:
+                target["supportingEvidenceRefs"] = refs
+
+    used_refs = _valid_generate_poc_refs(refinement.get("usedEvidenceRefs"), allowed_refs)
+    if used_refs:
+        repaired["usedEvidenceRefs"] = used_refs
+    if not repaired.get("usedEvidenceRefs"):
+        repaired["usedEvidenceRefs"] = list(dict.fromkeys(
+            ref
+            for claim in repaired.get("claims", [])
+            if isinstance(claim, dict)
+            for ref in claim.get("supportingEvidenceRefs", [])
+            if isinstance(ref, str)
+        ))
+
+    if "structured_finalizer" not in repaired.get("policyFlags", []):
+        repaired["policyFlags"] = list(repaired.get("policyFlags", [])) + ["structured_finalizer"]
+    return repaired
+
+
+def _allowed_generate_poc_ref_ids(request: TaskRequest) -> list[str]:
+    trusted = request.context.trusted if isinstance(request.context.trusted, dict) else {}
+    input_claim = trusted.get("claim", {}) if isinstance(trusted.get("claim"), dict) else {}
+    refs: list[str] = []
+    raw_claim_refs = input_claim.get("supportingEvidenceRefs")
+    if isinstance(raw_claim_refs, list):
+        refs.extend(ref for ref in raw_claim_refs if isinstance(ref, str) and ref)
+    refs.extend(ref.refId for ref in request.evidenceRefs if isinstance(ref.refId, str) and ref.refId)
+    return list(dict.fromkeys(refs))
+
+
+def _matching_request_refs_for_claim(request: TaskRequest, input_claim: dict) -> list[str]:
+    location = input_claim.get("location") if isinstance(input_claim, dict) else None
+    location_file = location.split(":", 1)[0] if isinstance(location, str) and location else ""
+    if not location_file:
+        return []
+    matched: list[str] = []
+    for ref in request.evidenceRefs:
+        locator = ref.locator if isinstance(ref.locator, dict) else {}
+        ref_file = locator.get("file") or locator.get("path")
+        artifact_type = str(ref.artifactType or "").lower()
+        if artifact_type and not any(marker in artifact_type for marker in ("source", "sast", "code")):
+            continue
+        if location_file and isinstance(ref_file, str) and ref_file and ref_file != location_file:
+            continue
+        if ref.refId:
+            matched.append(ref.refId)
+    return list(dict.fromkeys(matched))
+
+
+def _valid_generate_poc_refs(raw_refs, allowed_refs: list[str]) -> list[str]:
+    allowed = set(allowed_refs)
+    if not isinstance(raw_refs, list):
+        return []
+    return list(dict.fromkeys(ref for ref in raw_refs if isinstance(ref, str) and ref in allowed))
+
+
+def _string_list(value) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str)]
+
+
+def _first_nonempty_string(*values) -> str:
+    for value in values:
+        if isinstance(value, str) and value.strip():
+            return value
+    return ""
+
+
+def _location_from_request_evidence(request: TaskRequest) -> str:
+    for ref in request.evidenceRefs:
+        locator = ref.locator if isinstance(ref.locator, dict) else {}
+        file_name = locator.get("file") or locator.get("path")
+        line = locator.get("startLine") or locator.get("fromLine") or locator.get("line")
+        if file_name:
+            return f"{file_name}:{line}" if line else str(file_name)
+    return ""
+
+
+def _infer_generate_poc_severity(partial: dict, input_claim: dict) -> str:
+    allowed = {"critical", "high", "medium", "low", "info"}
+    for source in (partial, input_claim):
+        for key in ("suggestedSeverity", "severity"):
+            value = source.get(key) if isinstance(source, dict) else None
+            if isinstance(value, str) and value in allowed:
+                return value
+    haystack = " ".join(
+        [
+            *[
+                str(value)
+                for source in (partial, input_claim)
+                if isinstance(source, dict)
+                for value in (source.get("summary"), source.get("statement"), source.get("detail"))
+                if value
+            ],
+            *[
+                str(value)
+                for claim in (partial.get("claims") if isinstance(partial.get("claims"), list) else [])
+                if isinstance(claim, dict)
+                for value in (claim.get("statement"), claim.get("detail"))
+                if value
+            ],
+        ]
+    ).lower()
+    if any(marker in haystack for marker in ("critical", "rce", "remote code", "command injection", "cwe-78", "popen")):
+        return "high"
+    return "medium"
+
+
+def _strict_json_failure_detail(error) -> str:
+    parts = [
+        f"blockedReason={getattr(error, 'blocked_reason', 'strict_json_contract_violation')}",
+    ]
+    if getattr(error, "async_request_id", None):
+        parts.append(f"asyncRequestId={error.async_request_id}")
+    if getattr(error, "gateway_request_id", None):
+        parts.append(f"gatewayRequestId={error.gateway_request_id}")
+    if getattr(error, "error_detail", None):
+        parts.append(f"errorDetail={error.error_detail}")
+    return "strict_json_contract_violation; " + "; ".join(parts)
 
 
 def _harden_generate_poc_quality(
@@ -743,20 +1070,13 @@ def _infer_target_binary(build_preparation: dict, files: list) -> str:
                     if isinstance(value, str) and value.strip():
                         return value.strip()
 
-    for file_info in files if isinstance(files, list) else []:
-        if not isinstance(file_info, dict):
-            continue
-        content = str(file_info.get("content") or "")
-        if "certificate-maker" in content or "certificate maker" in content.lower():
-            return "certificate-maker"
-
     return "<binary-from-build-metadata>"
 
 
 def _build_poc_quality_guard_addendum(*, detail: str, target_binary: str) -> str:
     missing: list[str] = []
     lowered = detail.lower()
-    if "build-aegis" not in detail and "certificate-maker" not in detail and target_binary != "<binary-from-build-metadata>":
+    if "build-aegis" not in detail and target_binary != "<binary-from-build-metadata>":
         missing.append("binary")
     if not any(marker in detail for marker in ("os.path.exists", "exists(", "Path(")) and "-f " not in detail:
         missing.append("side_effect")
@@ -771,8 +1091,6 @@ def _build_poc_quality_guard_addendum(*, detail: str, target_binary: str) -> str
         return ""
 
     binary_hint = target_binary or "<binary-from-build-metadata>"
-    if binary_hint == "<binary-from-build-metadata>" and "certificate maker" in detail.lower():
-        binary_hint = "certificate-maker"
     return (
         "## S3 quality guard — side-effect based detection\n"
         f"- Target binary hint: `{binary_hint}`. If this is relative, run it from the Build Agent workspace "

@@ -1,7 +1,5 @@
 import React from "react";
 import type { GateResult } from "@aegis/shared";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { formatDateTime } from "../../utils/format";
 
 interface Props {
@@ -12,17 +10,17 @@ interface Props {
 const STATUS_CONFIG = {
   pass: {
     label: "통과",
-    badgeClass: "gate-result-tone gate-result-tone--pass",
+    toneClass: "gate-result-tone gate-result-tone--pass",
     cardClass: "gate-result-card gate-result-card--pass",
   },
   fail: {
     label: "실패",
-    badgeClass: "gate-result-tone gate-result-tone--fail",
+    toneClass: "gate-result-tone gate-result-tone--fail",
     cardClass: "gate-result-card gate-result-card--fail",
   },
   warning: {
     label: "경고",
-    badgeClass: "gate-result-tone gate-result-tone--warning",
+    toneClass: "gate-result-tone gate-result-tone--warning",
     cardClass: "gate-result-card gate-result-card--warning",
   },
 } as const;
@@ -31,32 +29,29 @@ export const GateResultCard: React.FC<Props> = ({ gate, compact }) => {
   const cfg = STATUS_CONFIG[gate.status];
 
   if (compact) {
-    return (
-      <Badge variant="outline" className={cfg.badgeClass}>
-        {cfg.label}
-      </Badge>
-    );
+    return <span className={cfg.toneClass}>{cfg.label}</span>;
   }
 
   return (
-    <Card className={cfg.cardClass}>
-      <CardContent className="gate-result-card__body">
+    <div className={`panel ${cfg.cardClass}`}>
+      <div className="panel-body gate-result-card__body">
         <div className="gate-result-card__head">
           <span className="gate-result-card__title">Quality Gate: {cfg.label}</span>
           <span className="gate-result-card__time">{formatDateTime(gate.evaluatedAt)}</span>
         </div>
         <div className="gate-result-card__rules">
           {gate.rules.map((r) => {
-            const tone = r.result === "passed"
-              ? STATUS_CONFIG.pass.badgeClass
-              : r.result === "failed"
-                ? STATUS_CONFIG.fail.badgeClass
-                : STATUS_CONFIG.warning.badgeClass;
+            const tone =
+              r.result === "passed"
+                ? STATUS_CONFIG.pass.toneClass
+                : r.result === "failed"
+                  ? STATUS_CONFIG.fail.toneClass
+                  : STATUS_CONFIG.warning.toneClass;
             return (
               <div key={r.ruleId} className="gate-result-card__rule">
-                <Badge variant="outline" className={tone}>
+                <span className={tone}>
                   {r.result === "passed" ? "PASS" : r.result === "failed" ? "FAIL" : "WARN"}
-                </Badge>
+                </span>
                 <span className="gate-result-card__message">{r.message}</span>
               </div>
             );
@@ -67,7 +62,7 @@ export const GateResultCard: React.FC<Props> = ({ gate, compact }) => {
             Override by {gate.override.overriddenBy}: {gate.override.reason}
           </div>
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };

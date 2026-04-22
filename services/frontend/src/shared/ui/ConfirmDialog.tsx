@@ -1,15 +1,7 @@
 import React from "react";
 import { AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Modal } from "./Modal";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -33,38 +25,39 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   if (!open) return null;
 
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onCancel(); }}>
-      <DialogContent
-        className="confirm-dialog"
-        overlayClassName="confirm-overlay"
-        onOverlayClick={onCancel}
-        showCloseButton={false}
-      >
-        <DialogHeader className="confirm-dialog__header">
-          <div className={cn("confirm-dialog__icon", danger ? "is-danger" : "is-default")}>
-            <AlertTriangle size={17} />
-          </div>
-          <div className="confirm-dialog__copy">
-            <DialogTitle className="confirm-dialog__title">{title}</DialogTitle>
-            <DialogDescription className="confirm-dialog__description">
-              {message}
-            </DialogDescription>
-          </div>
-        </DialogHeader>
-        <DialogFooter className="confirm-dialog__footer">
-          <Button variant="outline" size="sm" onClick={onCancel}>
-            취소
-          </Button>
-          <Button
-            variant={danger ? "destructive" : "default"}
-            size="sm"
-            className={danger ? "confirm-dialog__btn--danger" : undefined}
-            onClick={onConfirm}
-          >
-            {confirmLabel}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <Modal
+      open={open}
+      onClose={onCancel}
+      labelledBy="confirm-dialog-title"
+      describedBy="confirm-dialog-desc"
+      className="confirm-dialog"
+      overlayClassName="confirm-overlay"
+    >
+      <header className="confirm-dialog__header">
+        <div className={cn("confirm-dialog__icon", danger ? "is-danger" : "is-default")}>
+          <AlertTriangle size={17} aria-hidden="true" />
+        </div>
+        <div className="confirm-dialog__copy">
+          <h2 id="confirm-dialog-title" className="confirm-dialog__title">
+            {title}
+          </h2>
+          <p id="confirm-dialog-desc" className="confirm-dialog__description">
+            {message}
+          </p>
+        </div>
+      </header>
+      <footer className="confirm-dialog__footer">
+        <button type="button" className="btn btn-outline btn-sm" onClick={onCancel}>
+          취소
+        </button>
+        <button className={cn("btn btn-primary btn-sm", "btn btn-sm",
+            danger ? "btn-danger confirm-dialog__btn--danger" : "btn-primary",)}
+          type="button"
+          onClick={onConfirm}
+        >
+          {confirmLabel}
+        </button>
+      </footer>
+    </Modal>
   );
 };

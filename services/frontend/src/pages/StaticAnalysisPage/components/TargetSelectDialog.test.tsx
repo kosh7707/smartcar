@@ -65,7 +65,7 @@ describe("TargetSelectDialog", () => {
   it("calls onCancel on overlay click", () => {
     const onCancel = vi.fn();
     render(<TargetSelectDialog open={true} targets={targets} onConfirm={vi.fn()} onCancel={onCancel} />);
-    fireEvent.click(document.querySelector('[data-slot="dialog-overlay"]')!);
+    fireEvent.click(document.querySelector(".modal-overlay")!);
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 

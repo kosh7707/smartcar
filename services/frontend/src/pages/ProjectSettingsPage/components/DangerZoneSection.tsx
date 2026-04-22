@@ -1,16 +1,14 @@
 import React from "react";
 import { AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
 
 export const DangerZoneSection: React.FC = () => (
-  <Card className="project-settings-danger">
-    <CardContent className="project-settings-danger__content">
+  <div className="panel project-settings-danger">
+    <div className="panel-body project-settings-danger__content">
       <div className="project-settings-danger__header">
         <AlertTriangle size={16} className="project-settings-danger__icon" />
-        <CardTitle className="project-settings-danger__title">
+        <h3 className="panel-title project-settings-danger__title">
           Danger Zone
-        </CardTitle>
+        </h3>
       </div>
 
       <div className="project-settings-danger__body">
@@ -23,13 +21,12 @@ export const DangerZoneSection: React.FC = () => (
             will be permanently removed. This action cannot be undone.
           </p>
         </div>
-        <Button
-          variant="destructive"
-          className="project-settings-danger__button"
+        <button type="button"
+          className="btn btn-danger project-settings-danger__button"
         >
           Delete Project
-        </Button>
+        </button>
       </div>
-    </CardContent>
-  </Card>
+    </div>
+  </div>
 );

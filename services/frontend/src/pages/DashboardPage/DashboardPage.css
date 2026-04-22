@@ -1,0 +1,15 @@
+
+
+/* ── Extracted from app-shell.css (Phase 1a.1 pass 3) ── */
+.recent-runs__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.recent-runs__item + .recent-runs__item { border-top: 1px solid var(--border-subtle); }
+
+
+/* ── Extracted from app-shell.css (Phase 1a.1 pass 4) ── */
+.gs-page-header__actions { display:flex; align-items:center; gap:8px; }

@@ -23,8 +23,8 @@ describe("SeverityBadge", () => {
   it("defaults to md size", () => {
     render(<SeverityBadge severity="low" />);
     const badge = screen.getByText("LOW");
-    expect(badge).toHaveAttribute("data-slot", "badge");
     expect(badge.className).toContain("badge-severity--low");
+    expect(badge.className).toContain("severity-badge--md");
   });
 
   it("handles info severity", () => {

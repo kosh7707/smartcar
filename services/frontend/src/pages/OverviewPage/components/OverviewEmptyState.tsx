@@ -10,7 +10,6 @@ import {
   TrendingUp,
   Upload,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 interface OverviewEmptyStateProps {
   onOpenFiles: () => void;
@@ -105,15 +104,23 @@ export const OverviewEmptyState: React.FC<OverviewEmptyStateProps> = ({ onOpenFi
         </ol>
 
         <div className="overview-empty__actions">
-          <Button size="lg" onClick={onOpenFiles} className="overview-empty__cta">
+          <button
+            type="button"
+            onClick={onOpenFiles}
+            className="btn btn-primary btn-lg overview-empty__cta"
+          >
             <Upload aria-hidden="true" />
             파일 업로드 시작
             <ArrowRight aria-hidden="true" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={onOpenSettings}>
+          </button>
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="btn btn-ghost btn-sm"
+          >
             <Settings aria-hidden="true" />
             프로젝트 설정 열기
-          </Button>
+          </button>
         </div>
       </div>
     </div>

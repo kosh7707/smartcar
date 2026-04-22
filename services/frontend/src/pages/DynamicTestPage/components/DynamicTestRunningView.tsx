@@ -1,8 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { DynamicTestFinding } from "@aegis/shared";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { PageHeader, SeverityBadge, StatCard } from "../../../shared/ui";
 import type { TestProgress } from "../../../hooks/useDynamicTest";
 import {
@@ -151,35 +148,35 @@ export const DynamicTestRunningView: React.FC<DynamicTestRunningViewProps> = ({
         <StatCard label="Findings" value={findings.length} accent />
       </div>
 
-      <Card className="dynamic-test-running-progress-card">
-        <CardContent className="dynamic-test-running-progress-body">
+      <div className="panel dynamic-test-running-progress-card">
+        <div className="panel-body dynamic-test-running-progress-body">
           <div className="dynamic-test-running-progress-row">
-            <Progress value={pct} className="dynamic-test-running-progress-bar" />
+            <div className="progress dynamic-test-running-progress-bar" value={pct} ><div className="progress__fill" /></div>
             <span className="dynamic-test-running-progress-value">{pct}%</span>
           </div>
           <p className="dynamic-test-running-progress-copy">{progress.message}</p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <div className="dynamic-test-running-grid">
-        <Card className="dynamic-test-running-card">
-          <CardContent className="dynamic-test-running-card-body">
-            <CardTitle>실시간 탐지 추이</CardTitle>
+        <div className="panel dynamic-test-running-card">
+          <div className="panel-body dynamic-test-running-card-body">
+            <h3 className="panel-title">실시간 탐지 추이</h3>
             <PerformanceChart snapshots={snapshots} total={progress.total} />
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card className="dynamic-test-running-card">
-          <CardContent className="dynamic-test-running-card-body">
-            <CardTitle>실시간 Findings ({findings.length})</CardTitle>
-            <ScrollArea className="dynamic-test-running-log-scroll">
+        <div className="panel dynamic-test-running-card">
+          <div className="panel-body dynamic-test-running-card-body">
+            <h3 className="panel-title">실시간 Findings ({findings.length})</h3>
+            <div className="scroll-area dynamic-test-running-log-scroll">
               <div className="dynamic-test-running-log" ref={logRef}>
                 {findings.length === 0 ? (
                   <p className="dynamic-test-running-empty">아직 발견된 이상 없음...</p>
                 ) : (
                   findings.map((finding) => (
                     <div key={finding.id} className="dynamic-test-running-log-item">
-                      <SeverityBadge severity={finding.severity} size="sm" />
+                      <SeverityBadge severity={finding.severity} />
                       <span className="dynamic-test-running-log-type">
                         {FINDING_TYPE_ICON[finding.type]}
                         {FINDING_TYPE_LABEL[finding.type]}
@@ -190,9 +187,9 @@ export const DynamicTestRunningView: React.FC<DynamicTestRunningViewProps> = ({
                   ))
                 )}
               </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

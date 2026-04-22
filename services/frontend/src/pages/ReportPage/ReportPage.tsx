@@ -5,6 +5,7 @@ import { Spinner } from "../../shared/ui";
 import { ReportContent } from "./components/ReportContent";
 import { ReportUnavailableState } from "./components/ReportUnavailableState";
 import { useReportPage } from "./hooks/useReportPage";
+import "./ReportPage.css";
 
 export const ReportPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();

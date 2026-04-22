@@ -1,7 +1,6 @@
 import React from "react";
 import type { BuildTargetStatus } from "@aegis/shared";
 import { Circle, CheckCircle, Loader, XCircle, Settings } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 const STATUS_CONFIG: Record<string, { label: string; description: string; color: string; icon: "dot" | "check" | "spin" | "partial" | "fail" | "settings" }> = {
@@ -42,14 +41,13 @@ export const TargetStatusBadge: React.FC<Props> = ({ status, size = "md" }) => {
   })();
 
   return (
-    <Badge
-      variant="outline"
+    <span
       className={cn("target-status-badge", size === "sm" ? "target-status-badge--sm" : "target-status-badge--md")}
       style={{ color: config.color, borderColor: config.color }}
       title={config.description}
     >
       {icon}
       {config.label}
-    </Badge>
+    </span>
   );
 };

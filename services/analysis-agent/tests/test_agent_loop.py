@@ -9,13 +9,14 @@ from app.budget.manager import BudgetManager
 from app.budget.token_counter import TokenCounter
 from app.core.agent_loop import AgentLoop
 from app.core.agent_session import AgentSession
+from app.core.phase_one_types import Phase1Result
 from app.core.result_assembler import ResultAssembler
 from agent_shared.llm.message_manager import MessageManager
 from agent_shared.llm.turn_summarizer import TurnSummarizer
 from agent_shared.policy.retry import RetryPolicy
 from app.policy.termination import TerminationPolicy
 from app.policy.tool_failure import ToolFailurePolicy
-from agent_shared.schemas.agent import BudgetState, LlmResponse, ToolCallRequest, ToolCostTier
+from agent_shared.schemas.agent import BudgetState, LlmResponse, ToolCallRequest, ToolCostTier, ToolResult
 from app.schemas.request import Context, EvidenceRef, TaskRequest
 from agent_shared.tools.executor import ToolExecutor
 from app.tools.implementations.mock_tools import MockKnowledgeTool
@@ -218,6 +219,34 @@ def _build_agent_loop(
     return loop, session
 
 
+def _add_command_injection_catalog(session: AgentSession) -> None:
+    session.evidence_catalog.ingest_phase1_result(Phase1Result(
+        sast_findings=[{
+            "ruleId": "flawfinder:shell/popen",
+            "message": "This causes a new program to execute and is difficult to use safely (CWE-78).",
+            "location": {"file": "main.cpp", "line": 35},
+            "metadata": {"name": "popen", "cweId": "CWE-78", "context": 'FILE *p = popen(cmd.c_str(), "r");'},
+        }],
+        code_functions=[
+            {"name": "run", "file": "main.cpp", "line": 29, "calls": ["fgets", "pclose", "popen"]},
+            {"name": "prompt", "file": "main.cpp", "line": 69, "calls": ["getline", "trim"]},
+            {"name": "create_ca", "file": "main.cpp", "line": 143, "calls": ["run", "to_string"]},
+            {"name": "main", "file": "main.cpp", "line": 257, "calls": ["prompt", "create_ca"]},
+        ],
+    ))
+    session.evidence_catalog.ingest_tool_result(
+        ToolCallRequest(id="read1", name="code.read_file", arguments={"path": "main.cpp"}),
+        ToolResult(
+            tool_call_id="read1",
+            name="code.read_file",
+            success=True,
+            content='std::getline(std::cin, cn); std::string cmd = "openssl -subj /CN=" + cn; FILE *p = popen(cmd.c_str(), "r"); // main.cpp:35',
+            new_evidence_refs=["eref-file-main.cpp"],
+        ),
+    )
+    session.extra_allowed_refs.update(session.evidence_catalog.ref_ids())
+
+
 @pytest.mark.asyncio
 async def test_single_turn_content_only():
     """LLM이 즉시 content를 반환하면 1턴에 종료."""
@@ -373,6 +402,46 @@ async def test_structured_zero_claim_control_case_still_completes():
     assert result.status == "completed"
     assert result.result.claims == []
     assert result.result.usedEvidenceRefs == ["eref-001"]
+
+
+@pytest.mark.asyncio
+async def test_command_injection_false_negative_triggers_quality_retry():
+    responses = [
+        LlmResponse(content=json.dumps({
+            "summary": "SAST popen finding is a false positive; no user input reaches command execution.",
+            "claims": [],
+            "caveats": ["오탐으로 판단"],
+            "usedEvidenceRefs": [],
+            "suggestedSeverity": "low",
+            "needsHumanReview": False,
+            "recommendedNextSteps": [],
+            "policyFlags": [],
+        }), prompt_tokens=100, completion_tokens=40),
+        LlmResponse(content=json.dumps({
+            "summary": "CWE-78 command injection is present.",
+            "claims": [{
+                "statement": "User-controlled input reaches popen.",
+                "detail": "The command string reaches popen through run().",
+                "supportingEvidenceRefs": ["eref-sast-flawfinder:shell/popen"],
+                "location": "main.cpp:35",
+            }],
+            "caveats": [],
+            "usedEvidenceRefs": ["eref-sast-flawfinder:shell/popen"],
+            "suggestedSeverity": "high",
+            "needsHumanReview": True,
+            "recommendedNextSteps": [],
+            "policyFlags": [],
+        }), prompt_tokens=120, completion_tokens=80),
+    ]
+    loop, session = _build_agent_loop(responses)
+    _add_command_injection_catalog(session)
+
+    result = await loop.run(session)
+
+    assert result.status == "completed"
+    assert session.turn_count == 2
+    assert "command_injection_false_negative" in session.quality_retry_flags
+    assert result.result.claims[0].location == "main.cpp:35"
 
 
 @pytest.mark.asyncio

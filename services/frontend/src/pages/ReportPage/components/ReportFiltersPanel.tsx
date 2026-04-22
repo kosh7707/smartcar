@@ -1,18 +1,8 @@
 import React from "react";
 import { Calendar, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { ReportFilters } from "../../../api/client";
 import { FINDING_STATUS_LABELS } from "../../../constants/finding";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/ui/select-primitives";
 
 interface ReportFiltersPanelProps {
   pendingFilters: ReportFilters;
@@ -32,34 +22,34 @@ export const ReportFiltersPanel: React.FC<ReportFiltersPanelProps> = ({
   onApply,
   onClear,
 }) => (
-  <Card className="print-hide report-filters-card">
-    <CardHeader className="report-filters-card__head">
-      <CardTitle className="report-filters-card__title">필터</CardTitle>
-    </CardHeader>
-    <CardContent className="report-filters-card__body">
+  <div className="panel print-hide report-filters-card">
+    <div className="panel-head report-filters-card__head">
+      <h3 className="panel-title report-filters-card__title">필터</h3>
+    </div>
+    <div className="panel-body report-filters-card__body">
       <div className="report-filters-card__grid">
         <div className="report-filters-card__field">
-          <Label className="report-filters-card__label">
+          <label className="form-label report-filters-card__label">
             <Calendar size={12} /> 시작일
-          </Label>
-          <Input
+          </label>
+          <input className="form-input"
             type="date"
             value={pendingFilters.from ?? ""}
             onChange={(e) => setPendingFilters({ ...pendingFilters, from: e.target.value || undefined })}
           />
         </div>
         <div className="report-filters-card__field">
-          <Label className="report-filters-card__label">
+          <label className="form-label report-filters-card__label">
             <Calendar size={12} /> 종료일
-          </Label>
-          <Input
+          </label>
+          <input className="form-input"
             type="date"
             value={pendingFilters.to ?? ""}
             onChange={(e) => setPendingFilters({ ...pendingFilters, to: e.target.value || undefined })}
           />
         </div>
         <div className="report-filters-card__field">
-          <Label className="report-filters-card__label">심각도</Label>
+          <label className="form-label report-filters-card__label">심각도</label>
           <Select
             value={pendingFilters.severity ?? ALL_SEVERITIES_VALUE}
             onValueChange={(value) =>
@@ -82,7 +72,7 @@ export const ReportFiltersPanel: React.FC<ReportFiltersPanelProps> = ({
           </Select>
         </div>
         <div className="report-filters-card__field">
-          <Label className="report-filters-card__label">상태</Label>
+          <label className="form-label report-filters-card__label">상태</label>
           <Select
             value={pendingFilters.status ?? ALL_STATUSES_VALUE}
             onValueChange={(value) =>
@@ -108,12 +98,12 @@ export const ReportFiltersPanel: React.FC<ReportFiltersPanelProps> = ({
       </div>
       <div className="report-filters-card__actions">
         {hasActiveFilters && (
-          <Button variant="outline" size="sm" onClick={onClear}>
+          <button type="button" className="btn btn-outline btn-sm" onClick={onClear}>
             <X size={12} /> 초기화
-          </Button>
+          </button>
         )}
-        <Button size="sm" onClick={onApply}>적용</Button>
+        <button type="button" className="btn btn-primary btn-sm" onClick={onApply}>적용</button>
       </div>
-    </CardContent>
-  </Card>
+    </div>
+  </div>
 );

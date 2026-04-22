@@ -1,19 +1,9 @@
 import React from "react";
 import type { BuildProfile } from "@aegis/shared";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { SourceFileEntry } from "../../../api/client";
 import { BuildProfileForm } from "./BuildProfileForm";
 import { formatFileSize } from "../../../utils/format";
-import { Spinner } from "../../../shared/ui";
+import { Spinner, Modal } from "../../../shared/ui";
 import { DEFAULT_PROFILE } from "../hooks/useBuildTargetSection";
 import { INCLUDED_PATHS_EDIT_UNSUPPORTED_TEXT, useBuildTargetCreateDialog } from "../hooks/useBuildTargetCreateDialog";
 import { BuildTargetTreeSelector } from "./BuildTargetTreeSelector";
@@ -77,27 +67,21 @@ export const BuildTargetCreateDialog: React.FC<Props> = ({
   if (!open) return null;
 
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onCancel(); }}>
-      <DialogContent
-        className="build-target-create-dialog"
-        overlayClassName="confirm-overlay"
-        onOverlayClick={onCancel}
-        showCloseButton={false}
-      >
-        <DialogHeader className="build-target-create-dialog__header">
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
+    <Modal open onClose={onCancel} className="build-target-create-dialog" overlayClassName="confirm-overlay" >
+        <header className="build-target-create-dialog__header">
+          <h2>{title}</h2>
+        </header>
 
         <div className="build-target-create-dialog__body">
-          <Label className="build-target-create-dialog__field">
+          <label className="form-label build-target-create-dialog__field">
             <span>BuildTarget 이름</span>
-            <Input
+            <input className="form-input"
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="예: gateway-module"
               autoFocus
             />
-          </Label>
+          </label>
 
           <div className="build-target-create-dialog__section">
             <span className="build-target-create-dialog__section-title">포함할 파일/폴더 선택</span>
@@ -122,14 +106,13 @@ export const BuildTargetCreateDialog: React.FC<Props> = ({
           <BuildProfileForm value={profile} onChange={setProfile} registeredSdks={registeredSdks} />
         </div>
 
-        <DialogFooter className="build-target-create-dialog__footer">
-          <Button variant="outline" onClick={onCancel}>취소</Button>
-          <Button onClick={handleCreate} disabled={creating || selectedCount === 0}>
+        <footer className="build-target-create-dialog__footer">
+          <button type="button" className="btn btn-outline" onClick={onCancel}>취소</button>
+          <button type="button" className="btn btn-primary" onClick={handleCreate} disabled={creating || selectedCount === 0}>
             {creating ? <Spinner size={14} /> : null}
             {submitLabel}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </button>
+        </footer>
+      </Modal>
   );
 };

@@ -1,6 +1,5 @@
 import React from "react";
 import type { Confidence, FindingSourceType } from "@aegis/shared";
-import { Badge } from "@/components/ui/badge";
 import { CONFIDENCE_LABELS, CONFIDENCE_DESCRIPTIONS, SOURCE_TYPE_LABELS } from "../../constants/finding";
 
 interface Props {
@@ -19,8 +18,8 @@ export const ConfidenceBadge: React.FC<Props> = ({ confidence, sourceType, confi
   ].filter(Boolean).join(" · ");
 
   return (
-    <Badge variant="outline" className={`badge-confidence--${confidence}`} title={tooltip}>
+    <span className={`badge-confidence--${confidence}`} title={tooltip}>
       {scoreText ?? CONFIDENCE_LABELS[confidence]}
-    </Badge>
+    </span>
   );
 };

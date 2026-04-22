@@ -8,7 +8,13 @@ import time
 import httpx
 
 from agent_shared.context import get_request_id
-from agent_shared.errors import LlmHttpError, LlmInputTooLargeError, LlmTimeoutError, LlmUnavailableError
+from agent_shared.errors import (
+    LlmHttpError,
+    LlmInputTooLargeError,
+    LlmTimeoutError,
+    LlmUnavailableError,
+    StrictJsonContractError,
+)
 from app.clients.base import LlmClient
 
 logger = logging.getLogger(__name__)
@@ -245,6 +251,14 @@ class RealLlmClient(LlmClient):
             )
 
             if blocked_reason or local_ack_state == "ack-break":
+                if blocked_reason == "strict_json_contract_violation":
+                    raise StrictJsonContractError(
+                        blocked_reason=blocked_reason,
+                        error_detail=status_data.get("errorDetail") or status_data.get("error"),
+                        async_request_id=async_request_id,
+                        gateway_request_id=status_data.get("requestId") or status_data.get("gatewayRequestId"),
+                        raw_excerpt=json.dumps(status_data, ensure_ascii=False)[:1000],
+                    )
                 raise LlmHttpError(409, blocked_reason or "Async chat request reached ack-break")
 
             if state in {"queued", "running"} and not result_ready:
@@ -300,6 +314,14 @@ class RealLlmClient(LlmClient):
                 return wrapped["choices"][0]["message"]["content"]
 
             if state in {"failed", "cancelled", "expired"}:
+                if blocked_reason == "strict_json_contract_violation":
+                    raise StrictJsonContractError(
+                        blocked_reason=blocked_reason,
+                        error_detail=status_data.get("errorDetail") or status_data.get("error"),
+                        async_request_id=async_request_id,
+                        gateway_request_id=status_data.get("requestId") or status_data.get("gatewayRequestId"),
+                        raw_excerpt=json.dumps(status_data, ensure_ascii=False)[:1000],
+                    )
                 raise LlmHttpError(409, blocked_reason or f"Async chat request ended with state={state}")
 
             raise LlmHttpError(502, f"알 수 없는 async chat 상태: {state}")

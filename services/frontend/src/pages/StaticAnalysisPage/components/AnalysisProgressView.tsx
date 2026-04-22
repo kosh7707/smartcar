@@ -1,8 +1,8 @@
 import React from "react";
 import { CheckCircle2 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { useElapsedTimer } from "../../../hooks/useElapsedTimer";
 import { PageHeader, Spinner } from "../../../shared/ui";
+import "./AnalysisProgressView.css";
 
 interface Props {
   progress: number;
@@ -22,8 +22,8 @@ export const AnalysisProgressView: React.FC<Props> = ({ progress, step }) => {
     <div className="page-shell analysis-progress-view">
       <PageHeader title="정적 분석" />
 
-      <Card className="analysis-progress-view__card">
-        <CardContent className="analysis-progress-view__body">
+      <div className="panel analysis-progress-view__card">
+        <div className="panel-body analysis-progress-view__body">
           <div className="analysis-progress-view__spinner">
             <Spinner size={40} />
           </div>
@@ -89,8 +89,8 @@ export const AnalysisProgressView: React.FC<Props> = ({ progress, step }) => {
 
           <p className="analysis-progress-view__message">{step}</p>
           <p className="analysis-progress-view__message">경과 시간: {timeStr}</p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };

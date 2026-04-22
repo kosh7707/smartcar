@@ -1,0 +1,57 @@
+/* ═══════════════════════════════════════════════════════════════
+   Form field — shared skeleton for InputField / TextareaField /
+   SelectField / CheckboxField / RadioGroupField / SwitchField.
+   ═══════════════════════════════════════════════════════════════ */
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.form-field--inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.form-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-subtle);
+}
+.form-label--required::after {
+  content: "*";
+  color: var(--severity-critical);
+}
+
+.form-hint {
+  font-size: var(--text-xs);
+  line-height: var(--leading-relaxed);
+  color: var(--foreground-muted);
+}
+
+.form-error {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--severity-critical);
+}
+
+.form-field[data-invalid="true"] .form-label {
+  color: var(--severity-critical);
+}
+
+.form-field[data-disabled="true"] {
+  opacity: 0.55;
+  pointer-events: none;
+}

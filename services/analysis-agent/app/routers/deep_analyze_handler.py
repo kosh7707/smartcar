@@ -278,19 +278,9 @@ async def handle_deep_analyze(request: TaskRequest, model_registry) -> TaskSucce
             prompt_tokens=100, completion_tokens=50,
         ))
 
-    # Phase 1에서 생성한 evidence refs (SAST findings 기반)
-    phase1_refs = []
-    for i, f in enumerate(phase1_result.sast_findings[:20]):
-        loc = f.get("location", {}) if isinstance(f, dict) else {}
-        rule = f.get("ruleId", f"finding-{i}") if isinstance(f, dict) else f"finding-{i}"
-        phase1_refs.append({
-            "refId": f"eref-sast-{rule}",
-            "artifactType": "sast-finding",
-            "locator": {"file": loc.get("file", ""), "line": loc.get("line", 0)},
-        })
-
-    all_evidence_refs = [ref.model_dump(mode="json") for ref in request.evidenceRefs] + phase1_refs
-    session.extra_allowed_refs = {r["refId"] for r in phase1_refs}
+    session.evidence_catalog.ingest_phase1_result(phase1_result)
+    session.extra_allowed_refs = set(session.evidence_catalog.ref_ids())
+    all_evidence_refs = session.evidence_catalog.as_evidence_refs()
 
     # 프롬프트 조립 — Phase 1 결과를 포함
     system_prompt, user_message = build_phase2_prompt(

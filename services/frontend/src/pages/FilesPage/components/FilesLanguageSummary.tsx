@@ -1,5 +1,4 @@
 import React from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { formatFileSize } from "../../../utils/format";
 
 interface FilesLanguageSummaryProps {
@@ -16,8 +15,8 @@ export const FilesLanguageSummary: React.FC<FilesLanguageSummaryProps> = ({
   if (langStats.length === 0) return null;
 
   return (
-    <Card className="files-language-summary-card">
-      <CardContent className="files-language-summary-card__body">
+    <div className="panel files-language-summary-card">
+      <div className="panel-body files-language-summary-card__body">
         <div className="files-language-summary-card__grid">
           <div className="files-language-summary-card__main">
             <div className="files-language-summary-card__bar">
@@ -51,7 +50,7 @@ export const FilesLanguageSummary: React.FC<FilesLanguageSummaryProps> = ({
             <span className="files-language-summary-card__stats-secondary">{formatFileSize(totalSize)}</span>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };

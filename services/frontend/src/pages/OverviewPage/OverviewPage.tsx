@@ -13,6 +13,7 @@ import { OverviewMetaPanel } from "./components/OverviewMetaPanel";
 import { SecurityPostureSection } from "./components/SecurityPostureSection";
 import { TrendSummaryCard } from "./components/TrendSummaryCard";
 import { useOverviewPage } from "./hooks/useOverviewPage";
+import "./OverviewPage.css";
 
 function toShortDate(iso?: string | null): string {
   if (!iso) return "—";

@@ -11,6 +11,7 @@ import { VulnerabilityList } from "./components/VulnerabilityList";
 import { VulnerabilitiesToolbar } from "./components/VulnerabilitiesToolbar";
 import { useVulnerabilitiesPage } from "./hooks/useVulnerabilitiesPage";
 import { SEVERITY_KO_LABELS } from "./vulnerabilitiesPresentation";
+import "./VulnerabilitiesPage.css";
 
 export const VulnerabilitiesPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();

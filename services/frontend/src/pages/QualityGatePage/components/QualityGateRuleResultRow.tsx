@@ -1,5 +1,4 @@
 import React from "react";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { GateRuleResult } from "../../../api/gate";
 import { RULE_INFO, RULE_RESULT_CONFIG } from "../qualityGatePresentation";
@@ -16,12 +15,11 @@ export function QualityGateRuleResultRow({ rule }: { rule: GateRuleResult }) {
       )}
     >
       <div className="quality-gate-rule__row">
-        <Badge
-          variant="outline"
+        <span
           className={cn(resultConfig.badgeClassName, "quality-gate-rule__badge")}
         >
           {resultConfig.label}
-        </Badge>
+        </span>
 
         <div className="quality-gate-rule__copy">
           <div className="quality-gate-rule__head">
@@ -29,12 +27,11 @@ export function QualityGateRuleResultRow({ rule }: { rule: GateRuleResult }) {
               {ruleInfo?.label ?? rule.ruleId}
             </span>
             {rule.linkedFindingIds.length > 0 && (
-              <Badge
-                variant="outline"
+              <span
                 className="quality-gate-rule__finding-count"
               >
                 탐지 항목 {rule.linkedFindingIds.length}건
-              </Badge>
+              </span>
             )}
           </div>
           <p className="quality-gate-rule__message">{rule.message}</p>

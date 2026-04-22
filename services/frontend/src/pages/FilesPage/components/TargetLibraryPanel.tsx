@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Library, FileWarning } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import type { TargetLibrary } from "../../../api/pipeline";
 import { fetchTargetLibraries, updateTargetLibraries } from "../../../api/pipeline";
 import { logError } from "../../../api/core";
@@ -94,18 +91,19 @@ export const TargetLibraryPanel: React.FC<Props> = ({ projectId, targetId, targe
             key={lib.id}
             className="target-library-panel__item"
           >
-            <Checkbox
+            <input
+              type="checkbox"
+              className="form-checkbox__input target-library-panel__checkbox"
               checked={lib.included}
-              onCheckedChange={() => handleToggle(lib.id)}
-              className="target-library-panel__checkbox"
+              onChange={() => handleToggle(lib.id)}
             />
             <div className="target-library-panel__item-copy">
               <div className="target-library-panel__item-head">
                 <span className="target-library-panel__item-name">{lib.name}</span>
                 {lib.version && (
-                  <Badge variant="outline" className="target-library-panel__item-version">
+                  <span className="target-library-panel__item-version">
                     {lib.version}
-                  </Badge>
+                  </span>
                 )}
               </div>
               <span className="target-library-panel__item-path">{lib.path}</span>
@@ -122,12 +120,12 @@ export const TargetLibraryPanel: React.FC<Props> = ({ projectId, targetId, targe
 
       {dirty && (
         <div className="target-library-panel__actions">
-          <Button size="sm" onClick={handleSave} disabled={saving}>
+          <button type="button" className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
             {saving ? "저장 중..." : "설정 저장"}
-          </Button>
-          <Button variant="outline" size="sm" onClick={load} disabled={saving}>
+          </button>
+          <button type="button" className="btn btn-outline btn-sm" onClick={load} disabled={saving}>
             취소
-          </Button>
+          </button>
         </div>
       )}
     </div>

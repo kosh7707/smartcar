@@ -1,7 +1,6 @@
 import React from "react";
 import type { Vulnerability } from "@aegis/shared";
 import { Shield } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState, ListItem, SeverityBadge } from "../../../shared/ui";
 
 interface FileDetailVulnerabilitiesSectionProps {
@@ -13,8 +12,8 @@ export const FileDetailVulnerabilitiesSection: React.FC<
   FileDetailVulnerabilitiesSectionProps
 > = ({ vulnerabilities, onSelect }) => (
   <section>
-    <Card className="file-detail-vulns-card">
-      <CardContent className="file-detail-vulns-card__body">
+    <div className="panel file-detail-vulns-card">
+      <div className="panel-body file-detail-vulns-card__body">
         <div className="file-detail-vulns-card__head">
           <Shield size={16} />
           발견된 취약점 ({vulnerabilities.length})
@@ -36,7 +35,7 @@ export const FileDetailVulnerabilitiesSection: React.FC<
                 }
               >
                 <div className="file-detail-vulns-card__item">
-                  <SeverityBadge severity={vulnerability.severity} size="sm" />
+                  <SeverityBadge severity={vulnerability.severity} />
                   <span className="file-detail-vulns-card__title">
                     {vulnerability.title}
                   </span>
@@ -48,7 +47,7 @@ export const FileDetailVulnerabilitiesSection: React.FC<
             ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   </section>
 );

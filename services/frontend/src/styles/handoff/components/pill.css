@@ -84,3 +84,14 @@
   color: var(--foreground-disabled);
   font-weight: var(--weight-normal);
 }
+
+
+/* ── Extracted from app-shell.css (Phase 1a.1) ── */
+.filter-pills--tabs {
+  padding: 3px;
+}
+.filter-pills--tabs .pill {
+  padding: 7px 14px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}

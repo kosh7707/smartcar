@@ -7,6 +7,7 @@ import { useToast } from "../../contexts/ToastContext";
 import { useSetAnalysisGuard } from "../../contexts/AnalysisGuardContext";
 import { StaticAnalysisViewRouter } from "./components/StaticAnalysisViewRouter";
 import { useStaticAnalysisPage } from "./hooks/useStaticAnalysisPage";
+import "./StaticAnalysisPage.css";
 
 export const StaticAnalysisPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();

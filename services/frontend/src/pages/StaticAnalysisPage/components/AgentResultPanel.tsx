@@ -9,9 +9,9 @@ import {
   Tag,
   Target,
 } from "lucide-react";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { highlightCVEs } from "../../../utils/cveHighlight";
+import "./AgentResultPanel.css";
 
 const TERMINATION_LABELS: Record<string, string> = {
   content_returned: "정상 완료",
@@ -84,11 +84,11 @@ export const AgentResultPanel: React.FC<Props> = ({ analysisResult }) => {
   return (
     <div className="agent-result-panel">
       {confidenceScore != null && (
-        <Card className="agent-result-card">
-          <CardContent className="agent-result-card-body">
-            <CardTitle className="agent-result-title">
+        <div className="panel agent-result-card">
+          <div className="panel-body agent-result-card-body">
+            <h3 className="panel-title agent-result-title">
               <Target size={16} /> 분석 신뢰도
-            </CardTitle>
+            </h3>
             <div className="agent-result-score-layout">
               <div className="agent-result-score-main">
                 <span className="agent-result-score-value">
@@ -123,46 +123,46 @@ export const AgentResultPanel: React.FC<Props> = ({ analysisResult }) => {
                 </div>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {caveats && caveats.length > 0 && (
-        <Card className="agent-result-card">
-          <CardContent className="agent-result-card-body">
-            <CardTitle className="agent-result-title">
+        <div className="panel agent-result-card">
+          <div className="panel-body agent-result-card-body">
+            <h3 className="panel-title agent-result-title">
               <AlertTriangle size={16} /> 분석 한계 ({caveats.length})
-            </CardTitle>
+            </h3>
             <ul className="agent-result-list agent-result-list--bulleted">
               {caveats.map((c, i) => (
                 <li key={i}>{highlightCVEs(c)}</li>
               ))}
             </ul>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {recommendedNextSteps && recommendedNextSteps.length > 0 && (
-        <Card className="agent-result-card">
-          <CardContent className="agent-result-card-body">
-            <CardTitle className="agent-result-title">
+        <div className="panel agent-result-card">
+          <div className="panel-body agent-result-card-body">
+            <h3 className="panel-title agent-result-title">
               <ClipboardList size={16} /> 수정 권고 ({recommendedNextSteps.length})
-            </CardTitle>
+            </h3>
             <ol className="agent-result-list agent-result-list--ordered">
               {recommendedNextSteps.map((step, i) => (
                 <li key={i}>{step}</li>
               ))}
             </ol>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {policyFlags && policyFlags.length > 0 && (
-        <Card className="agent-result-card">
-          <CardContent className="agent-result-card-body">
-            <CardTitle className="agent-result-title">
+        <div className="panel agent-result-card">
+          <div className="panel-body agent-result-card-body">
+            <h3 className="panel-title agent-result-title">
               <Tag size={16} /> 정책 플래그
-            </CardTitle>
+            </h3>
             <div className="agent-result-flags">
               {policyFlags.map((flag) => {
                 const isProvenance = flag in PROVENANCE_FLAGS;
@@ -177,16 +177,16 @@ export const AgentResultPanel: React.FC<Props> = ({ analysisResult }) => {
                 );
               })}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {scaLibraries && scaLibraries.length > 0 && (
-        <Card className="agent-result-card">
-          <CardContent className="agent-result-card-body">
-            <CardTitle className="agent-result-title">
+        <div className="panel agent-result-card">
+          <div className="panel-body agent-result-card-body">
+            <h3 className="panel-title agent-result-title">
               <Package size={16} /> 서드파티 라이브러리 ({scaLibraries.length})
-            </CardTitle>
+            </h3>
             <div className="agent-result-table-wrap">
               <table className="agent-result-table">
                 <thead>
@@ -222,13 +222,13 @@ export const AgentResultPanel: React.FC<Props> = ({ analysisResult }) => {
                 </tbody>
               </table>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {agentAudit && (
-        <Card className="agent-result-card">
-          <CardContent className="agent-result-card-body">
+        <div className="panel agent-result-card">
+          <div className="panel-body agent-result-card-body">
             <button
               type="button"
               className="agent-result-audit-toggle"
@@ -296,8 +296,8 @@ export const AgentResultPanel: React.FC<Props> = ({ analysisResult }) => {
                 )}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </div>
   );

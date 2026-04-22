@@ -1,0 +1,11 @@
+
+
+/* ── Extracted from app-shell.css (Phase 1a.1 pass 4) ── */
+.list-item { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; border-radius: var(--radius-md); font-size: var(--text-sm); }
+.list-item--clickable { cursor:pointer; }
+.list-item--clickable:hover { background: var(--surface-sunken); }
+.list-item--divider { border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+.list-item__content { min-width:0; flex:1; }
+.list-item__trailing { display:flex; flex-shrink:0; align-items:center; gap:8px; color: var(--foreground-muted); }
+.list-item__chevron { transition: transform var(--duration-fast); }
+.list-item--clickable:hover .list-item__chevron { transform: translateX(2px); }

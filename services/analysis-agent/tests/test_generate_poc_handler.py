@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 from starlette.requests import Request
 
+from agent_shared.errors import StrictJsonContractError
 from app.registry.model_registry import ModelProfile
 from app.routers import tasks
 from app.schemas.request import Context, EvidenceRef, TaskRequest
@@ -247,6 +248,196 @@ async def test_generate_poc_repairs_orphaned_claim_fragment_via_strict_schema_re
 
 
 @pytest.mark.asyncio
+async def test_generate_poc_schema_repair_scaffold_restores_required_shape(monkeypatch):
+    """Regression: repair retry must not preserve summary+claims-only invalid shape."""
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+
+    responses = [
+        {
+            "summary": "PoC summary without required Assessment fields.",
+            "claims": [{
+                "statement": "CN input reaches popen.",
+                "detail": "The vulnerable path shells out through popen.",
+            }],
+        },
+        {
+            # Simulates the hot-test failure: the LLM repair expands detail but
+            # keeps the same invalid summary+claims-only shape. S3 must preserve
+            # its deterministic scaffold instead of accepting this shape.
+            "summary": "Expanded PoC summary but still missing required keys.",
+            "claims": [{
+                "statement": "CN input reaches popen.",
+                "detail": "Expanded narrative PoC detail without refs or location.",
+            }],
+        },
+    ]
+    calls = {"count": 0}
+
+    async def fake_call(self, *args, **kwargs):
+        payload = responses[min(calls["count"], len(responses) - 1)]
+        calls["count"] += 1
+        return _mock_llm_response(json.dumps(payload))
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "completed"
+        assert calls["count"] == 2
+        assert result.audit.retryCount == 1
+        assert isinstance(result.result.caveats, list)
+        assert result.result.usedEvidenceRefs == ["eref-001"]
+        assert result.result.suggestedSeverity == "high"
+        assert result.result.needsHumanReview is True
+        assert result.result.recommendedNextSteps == []
+        assert "structured_finalizer" in result.result.policyFlags
+        assert result.result.claims[0].location == "src/http_client.cpp:62"
+        assert result.result.claims[0].supportingEvidenceRefs == ["eref-001"]
+        assert "Expanded narrative PoC detail" in result.result.claims[0].detail
+        assert result.validation.valid is True
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
+async def test_generate_poc_retries_strict_json_contract_violation(monkeypatch):
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+    calls = {"count": 0}
+
+    async def fake_call(self, *args, **kwargs):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise StrictJsonContractError(
+                async_request_id="acr-strict-1",
+                error_detail="model returned invalid json",
+            )
+        return _mock_llm_response(json.dumps({
+            "summary": "PoC after strict-json retry.",
+            "claims": [{
+                "statement": "PoC proves command injection.",
+                "detail": "The retry returns valid JSON.",
+                "supportingEvidenceRefs": ["eref-001"],
+                "location": "src/http_client.cpp:62",
+            }],
+            "caveats": [],
+            "usedEvidenceRefs": ["eref-001"],
+            "suggestedSeverity": "high",
+            "needsHumanReview": True,
+            "recommendedNextSteps": [],
+            "policyFlags": [],
+        }))
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "completed"
+        assert calls["count"] == 2
+        assert result.audit.retryCount == 1
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
+async def test_generate_poc_reports_strict_json_contract_violation_after_retry(monkeypatch):
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+
+    async def fake_call(self, *args, **kwargs):
+        raise StrictJsonContractError(
+            async_request_id="acr-strict-2",
+            gateway_request_id="req-gw-2",
+            error_detail="still invalid",
+        )
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "model_error"
+        assert result.failureCode == "MODEL_UNAVAILABLE"
+        assert result.retryable is True
+        assert result.audit.retryCount == 1
+        assert "strict_json_contract_violation" in result.failureDetail
+        assert "acr-strict-2" in result.failureDetail
+        assert "req-gw-2" in result.failureDetail
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
+async def test_generate_poc_scaffold_does_not_use_mismatched_request_refs(monkeypatch):
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+
+    async def fake_call(self, *args, **kwargs):
+        return _mock_llm_response(json.dumps({
+            "summary": "PoC summary without evidence refs.",
+            "claims": [{"statement": "s", "detail": "d"}],
+        }))
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request_without_claim_refs_or_location_mismatched_request_ref())
+
+        assert result.status == "validation_failed"
+        assert result.failureCode == "INVALID_GROUNDING"
+        assert "supportingEvidenceRefs가 비어 있음" in result.failureDetail
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
 async def test_generate_poc_rejects_schema_valid_evidence_empty_output(monkeypatch):
     original_mode = settings.llm_mode
     monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
@@ -384,7 +575,7 @@ async def test_generate_poc_requests_async_ownership_for_toolless_llm_call(monke
 
 
 @pytest.mark.asyncio
-async def test_generate_poc_rejects_unstructured_output(monkeypatch):
+async def test_generate_poc_repairs_unstructured_output_with_scaffold(monkeypatch):
     original_mode = settings.llm_mode
     monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
         profileId="test",
@@ -407,8 +598,12 @@ async def test_generate_poc_rejects_unstructured_output(monkeypatch):
     try:
         result = await tasks._handle_generate_poc(_make_poc_request())
 
-        assert result.status == "validation_failed"
-        assert result.failureCode == "INVALID_SCHEMA"
+        assert result.status == "completed"
+        assert result.audit.retryCount == 1
+        assert result.result.usedEvidenceRefs == ["eref-001"]
+        assert result.result.claims[0].supportingEvidenceRefs == ["eref-001"]
+        assert result.result.claims[0].location == "src/http_client.cpp:62"
+        assert "structured_finalizer" in result.result.policyFlags
     finally:
         object.__setattr__(settings, "llm_mode", original_mode)
 
@@ -539,6 +734,33 @@ def _make_poc_request_with_build_prep() -> TaskRequest:
             },
         }),
         evidenceRefs=[],
+    )
+
+
+def _make_poc_request_without_claim_refs_or_location_mismatched_request_ref() -> TaskRequest:
+    return TaskRequest(
+        taskType=TaskType.GENERATE_POC,
+        taskId="poc-test-mismatch",
+        context=Context(trusted={
+            "claim": {
+                "statement": "User-controlled URL reaches popen() leading to RCE",
+                "detail": "The URL is shell-expanded before reaching popen().",
+            },
+            "projectId": "gateway-webserver",
+            "projectPath": "/tmp/project",
+            "files": [
+                {"path": "src/http_client.cpp", "content": "int x(){ return popen(url, \"r\") != NULL; }"},
+            ],
+        }),
+        evidenceRefs=[
+            EvidenceRef(
+                refId="eref-unrelated",
+                artifactId="art-001",
+                artifactType="binary",
+                locatorType="file",
+                locator={"file": "other.cpp", "startLine": 1, "endLine": 2},
+            ),
+        ],
     )
 
 

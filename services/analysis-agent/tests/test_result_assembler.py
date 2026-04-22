@@ -1,7 +1,9 @@
 import json
 
 from agent_shared.schemas.agent import BudgetState
+from agent_shared.schemas.agent import ToolCallRequest, ToolResult
 from app.core.agent_session import AgentSession
+from app.core.phase_one_types import Phase1Result
 from app.core.result_assembler import ResultAssembler
 from app.schemas.request import Context, EvidenceRef, TaskRequest
 from app.types import TaskType
@@ -23,6 +25,34 @@ def _make_session() -> AgentSession:
         ],
     )
     return AgentSession(request, BudgetState())
+
+
+def _add_command_injection_catalog(session: AgentSession) -> None:
+    session.evidence_catalog.ingest_phase1_result(Phase1Result(
+        sast_findings=[{
+            "ruleId": "flawfinder:shell/popen",
+            "message": "This causes a new program to execute and is difficult to use safely (CWE-78).",
+            "location": {"file": "main.cpp", "line": 35},
+            "metadata": {"name": "popen", "cweId": "CWE-78", "context": 'FILE *p = popen(cmd.c_str(), "r");'},
+        }],
+        code_functions=[
+            {"name": "run", "file": "main.cpp", "line": 29, "calls": ["fgets", "pclose", "popen"]},
+            {"name": "prompt", "file": "main.cpp", "line": 69, "calls": ["getline", "trim"]},
+            {"name": "create_ca", "file": "main.cpp", "line": 143, "calls": ["run", "to_string"]},
+            {"name": "main", "file": "main.cpp", "line": 257, "calls": ["prompt", "create_ca"]},
+        ],
+    ))
+    session.evidence_catalog.ingest_tool_result(
+        ToolCallRequest(id="read1", name="code.read_file", arguments={"path": "main.cpp"}),
+        ToolResult(
+            tool_call_id="read1",
+            name="code.read_file",
+            success=True,
+            content='std::getline(std::cin, cn); std::string cmd = "openssl -subj /CN=" + cn; FILE *p = popen(cmd.c_str(), "r"); // main.cpp:35',
+            new_evidence_refs=["eref-file-main.cpp"],
+        ),
+    )
+    session.extra_allowed_refs.update(session.evidence_catalog.ref_ids())
 
 
 def test_unstructured_response_returns_failure():
@@ -295,3 +325,179 @@ def test_required_fields_with_null_values_fail_schema_validation_without_excepti
     assert "'needsHumanReview'가 bool이 아님" in result.failureDetail
     assert "'recommendedNextSteps'가 리스트가 아님" in result.failureDetail
     assert "'policyFlags'가 리스트가 아님" in result.failureDetail
+
+
+def test_command_injection_false_negative_empty_claims_is_repaired_from_catalog():
+    assembler = ResultAssembler()
+    session = _make_session()
+    _add_command_injection_catalog(session)
+    final_content = json.dumps({
+        "summary": "SAST의 popen finding은 오탐으로 판단했습니다.",
+        "claims": [],
+        "caveats": ["오탐으로 판단"],
+        "usedEvidenceRefs": [],
+        "suggestedSeverity": "low",
+        "needsHumanReview": False,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    result = assembler.build(final_content, session)
+
+    assert result.status == "completed"
+    assert len(result.result.claims) == 1
+    claim = result.result.claims[0]
+    assert "CWE-78" in claim.statement
+    assert claim.location == "main.cpp:35"
+    assert "eref-sast-flawfinder:shell/popen" in claim.supportingEvidenceRefs
+    assert "deterministic_command_injection_repair" in result.result.policyFlags
+
+
+def test_command_injection_claim_missing_fields_repaired_from_catalog():
+    assembler = ResultAssembler()
+    session = _make_session()
+    _add_command_injection_catalog(session)
+    final_content = json.dumps({
+        "summary": "CWE-78 finding exists.",
+        "claims": [{
+            "statement": "User input reaches popen and can cause command injection.",
+            "detail": "The command construction reaches popen.",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": [],
+        "suggestedSeverity": "high",
+        "needsHumanReview": True,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    result = assembler.build(final_content, session)
+
+    assert result.status == "completed"
+    claim = result.result.claims[0]
+    assert claim.location == "main.cpp:35"
+    assert "eref-sast-flawfinder:shell/popen" in claim.supportingEvidenceRefs
+
+
+def test_command_injection_repair_not_applied_without_complete_catalog():
+    assembler = ResultAssembler()
+    session = _make_session()
+    final_content = json.dumps({
+        "summary": "claims missing fields but no complete evidence catalog exists.",
+        "claims": [{
+            "statement": "User input reaches popen.",
+            "detail": "Missing refs and location should not be invented.",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": [],
+        "suggestedSeverity": "high",
+        "needsHumanReview": True,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    result = assembler.build(final_content, session)
+
+    assert result.status == "validation_failed"
+    assert result.failureCode == "INVALID_SCHEMA"
+
+
+def test_sast_only_command_injection_empty_claims_fails_quality_gate():
+    assembler = ResultAssembler()
+    session = _make_session()
+    session.evidence_catalog.ingest_phase1_result(Phase1Result(
+        sast_findings=[{
+            "ruleId": "flawfinder:shell/popen",
+            "message": "CWE-78 popen",
+            "location": {"file": "main.cpp", "line": 35},
+            "metadata": {"name": "popen", "cweId": "CWE-78"},
+        }],
+        code_functions=[],
+    ))
+    session.extra_allowed_refs.update(session.evidence_catalog.ref_ids())
+    final_content = json.dumps({
+        "summary": "popen finding appears to be a false positive.",
+        "claims": [],
+        "caveats": ["insufficient evidence"],
+        "usedEvidenceRefs": [],
+        "suggestedSeverity": "low",
+        "needsHumanReview": False,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    result = assembler.build(final_content, session)
+
+    assert result.status == "validation_failed"
+    assert result.failureCode == "INVALID_GROUNDING"
+    assert "command_injection_evidence_incomplete" in result.failureDetail
+
+
+def test_user_named_constant_popen_does_not_create_deterministic_claim():
+    assembler = ResultAssembler()
+    session = _make_session()
+    session.evidence_catalog.ingest_phase1_result(Phase1Result(
+        sast_findings=[{
+            "ruleId": "flawfinder:shell/popen",
+            "message": "CWE-78 popen",
+            "location": {"file": "main.cpp", "line": 35},
+            "metadata": {"name": "popen", "cweId": "CWE-78"},
+        }],
+        code_functions=[
+            {"name": "run", "file": "main.cpp", "line": 29, "calls": ["popen"]},
+            {"name": "user_status", "file": "main.cpp", "line": 80, "calls": ["run"]},
+        ],
+    ))
+    session.extra_allowed_refs.update(session.evidence_catalog.ref_ids())
+    final_content = json.dumps({
+        "summary": "No claim.",
+        "claims": [],
+        "caveats": [],
+        "usedEvidenceRefs": [],
+        "suggestedSeverity": "low",
+        "needsHumanReview": False,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    result = assembler.build(final_content, session)
+
+    assert result.status == "validation_failed"
+    assert result.failureCode == "INVALID_GROUNDING"
+    assert "user_input_path" in result.failureDetail
+
+
+def test_unrelated_prompt_path_does_not_create_deterministic_claim():
+    assembler = ResultAssembler()
+    session = _make_session()
+    session.evidence_catalog.ingest_phase1_result(Phase1Result(
+        sast_findings=[{
+            "ruleId": "flawfinder:shell/popen",
+            "message": "CWE-78 popen",
+            "location": {"file": "main.cpp", "line": 35},
+            "metadata": {"name": "popen", "cweId": "CWE-78"},
+        }],
+        code_functions=[
+            {"name": "run", "file": "main.cpp", "line": 29, "calls": ["popen"]},
+            {"name": "banner", "file": "main.cpp", "line": 249, "calls": ["run"]},
+            {"name": "prompt", "file": "main.cpp", "line": 69, "calls": ["getline"]},
+            {"name": "main", "file": "main.cpp", "line": 257, "calls": ["prompt"]},
+        ],
+    ))
+    session.extra_allowed_refs.update(session.evidence_catalog.ref_ids())
+    final_content = json.dumps({
+        "summary": "No claim.",
+        "claims": [],
+        "caveats": [],
+        "usedEvidenceRefs": [],
+        "suggestedSeverity": "low",
+        "needsHumanReview": False,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    result = assembler.build(final_content, session)
+
+    assert result.status == "validation_failed"
+    assert result.failureCode == "INVALID_GROUNDING"
+    assert "user_input_path" in result.failureDetail

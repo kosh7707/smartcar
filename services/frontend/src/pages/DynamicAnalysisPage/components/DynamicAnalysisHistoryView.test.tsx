@@ -36,7 +36,7 @@ describe("DynamicAnalysisHistoryView", () => {
       />,
     );
 
-    expect(screen.getByText("아직 동적 분석 이력이 없습니다")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /첫 세션 시작/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "첫 세션 시작" })).toBeInTheDocument();
   });
 

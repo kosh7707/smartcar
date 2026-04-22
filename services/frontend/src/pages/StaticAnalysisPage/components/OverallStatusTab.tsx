@@ -6,6 +6,7 @@ import { PeriodSelector, TrendChart } from "../../../shared/ui";
 import { TopFilesCard } from "./TopFilesCard";
 import { TopRulesCard } from "./TopRulesCard";
 import { RecentRunsList } from "./RecentRunsList";
+import "./OverallStatusTab.css";
 
 interface Props {
   summary: StaticAnalysisDashboardSummary;

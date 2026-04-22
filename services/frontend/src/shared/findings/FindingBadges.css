@@ -1,0 +1,13 @@
+
+
+/* ── Extracted from app-shell.css (Phase 1a.1 pass 2) ── */
+.finding-status-badge { border-radius:999px; font-weight:var(--weight-medium); }
+.finding-status-badge--md { min-height:28px; font-size:var(--text-sm); }
+.finding-status-badge--sm { min-height:24px; font-size:var(--text-xs); }
+.finding-status-badge--open { border-color:var(--aegis-status-open-border); background:var(--aegis-status-open-bg); color:var(--aegis-status-open); }
+.finding-status-badge--needs-review { border-color:var(--aegis-status-needs-review-border); background:var(--aegis-status-needs-review-bg); color:var(--aegis-status-needs-review); }
+.finding-status-badge--accepted-risk { border-color:var(--aegis-status-accepted-risk-border); background:var(--aegis-status-accepted-risk-bg); color:var(--aegis-status-accepted-risk); }
+.finding-status-badge--false-positive { border-color:var(--aegis-status-false-positive-border); background:var(--aegis-status-false-positive-bg); color:var(--aegis-status-false-positive); }
+.finding-status-badge--fixed { border-color:var(--aegis-status-fixed-border); background:var(--aegis-status-fixed-bg); color:var(--aegis-status-fixed); }
+.finding-status-badge--needs-revalidation { border-color:var(--aegis-status-needs-revalidation-border); background:var(--aegis-status-needs-revalidation-bg); color:var(--aegis-status-needs-revalidation); }
+.finding-status-badge--sandbox { border-color:var(--aegis-status-sandbox-border); background:var(--aegis-status-sandbox-bg); color:var(--aegis-status-sandbox); }

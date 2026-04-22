@@ -1,7 +1,6 @@
 import React from "react";
 import type { BuildTarget } from "@aegis/shared";
 import { Bot, FileText, Pencil, RotateCcw, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { TargetProgressStepper, TargetStatusBadge } from "../../../shared/ui";
 import { POST_BUILD_STATUSES } from "../hooks/useBuildTargetSection";
@@ -56,7 +55,7 @@ export function BuildTargetRow({
       <div className="build-target-row__main">
         <div className="build-target-row__head">
           <span className="build-target-row__title">{target.name}</span>
-          <TargetStatusBadge status={status} size="sm" />
+          <TargetStatusBadge status={status} />
         </div>
         <div className="build-target-row__meta">
           <span className="build-target-row__path">{target.relativePath}</span>
@@ -92,26 +91,26 @@ export function BuildTargetRow({
       </div>
       <div className="build-target-row__actions">
         {status !== "discovered" && status !== "resolving" && (
-          <Button variant="outline" size="icon-sm" onClick={() => onOpenLog({ id: target.id, name: target.name })} title="빌드 로그">
+          <button type="button" className="btn btn-outline btn-icon-sm" onClick={() => onOpenLog({ id: target.id, name: target.name })} title="빌드 로그">
             <FileText size={14} />
-          </Button>
+          </button>
         )}
         {isReady && canDeepAnalyze && (
-          <Button size="icon-sm" onClick={() => onDeepAnalyze(target.id)} title="심층 분석">
+          <button type="button" className="btn btn-primary btn-icon-sm" onClick={() => onDeepAnalyze(target.id)} title="심층 분석">
             <Bot size={14} />
-          </Button>
+          </button>
         )}
         {isFailed && (
-          <Button variant="outline" size="icon-sm" onClick={() => onRetry(target.id)} title="재실행">
+          <button type="button" className="btn btn-outline btn-icon-sm" onClick={() => onRetry(target.id)} title="재실행">
             <RotateCcw size={14} />
-          </Button>
+          </button>
         )}
-        <Button variant="ghost" size="icon-sm" title="편집" onClick={() => onEdit(target)} disabled={actionLocked}>
+        <button type="button" className="btn btn-ghost btn-icon-sm" title="편집" onClick={() => onEdit(target)} disabled={actionLocked}>
           <Pencil size={14} />
-        </Button>
-        <Button variant="destructive" size="icon-sm" title="삭제" onClick={() => onDelete(target)} disabled={actionLocked}>
+        </button>
+        <button type="button" className="btn btn-danger btn-icon-sm" title="삭제" onClick={() => onDelete(target)} disabled={actionLocked}>
           <Trash2 size={14} />
-        </Button>
+        </button>
       </div>
     </div>
   );

@@ -1,6 +1,5 @@
 import React from "react";
 import { Download, Filter, Settings2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { PageHeader } from "../../../shared/ui";
 import { formatDateTime } from "../../../utils/format";
 
@@ -24,18 +23,18 @@ export const ReportHeader: React.FC<ReportHeaderProps> = ({
     subtitle={`생성: ${formatDateTime(generatedAt)}`}
     action={
       <div className="report-header-actions">
-        <Button variant={hasActiveFilters ? "default" : "outline"} size="sm" onClick={onToggleFilters}>
+        <button type="button" className="btn btn-primary btn-sm" variant={hasActiveFilters ? "default" : "outline"} onClick={onToggleFilters}>
           <Filter size={14} />
           필터{hasActiveFilters ? " (적용됨)" : ""}
-        </Button>
-        <Button variant="outline" size="sm" className="print-hide" onClick={onOpenCustomReport}>
+        </button>
+        <button type="button" className="btn btn-outline btn-sm print-hide" onClick={onOpenCustomReport}>
           <Settings2 size={14} />
           커스텀 보고서
-        </Button>
-        <Button size="sm" className="print-hide" onClick={onPrint}>
+        </button>
+        <button type="button" className="btn btn-primary btn-sm print-hide" onClick={onPrint}>
           <Download size={14} />
           PDF 내보내기
-        </Button>
+        </button>
       </div>
     }
   />

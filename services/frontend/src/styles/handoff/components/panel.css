@@ -86,3 +86,33 @@
 .panel-foot a:hover {
   text-decoration: underline;
 }
+
+
+/* ── Extracted from app-shell.css (Phase 1a.1 pass 4) ── */
+.panel-body {
+  padding: var(--space-5) var(--space-6);
+}
+.panel-body--tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.panel-body--selection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-6);
+}
+.panel-body--chart {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}
+.panel-tools .search-inline { height: 28px; }
+.panel-body--flush { padding: 0; }

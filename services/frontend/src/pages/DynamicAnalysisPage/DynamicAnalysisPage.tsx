@@ -7,6 +7,7 @@ import { DynamicAnalysisHistoryView } from "./components/DynamicAnalysisHistoryV
 import { MonitoringView } from "./components/MonitoringView";
 import { SessionDetailView } from "./components/SessionDetailView";
 import { useDynamicAnalysisPage } from "./hooks/useDynamicAnalysisPage";
+import "./DynamicAnalysisPage.css";
 
 export const DynamicAnalysisPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();

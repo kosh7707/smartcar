@@ -1,15 +1,14 @@
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ProjectReport } from "@aegis/shared";
 import { formatDateTime } from "../../../utils/format";
 
 export function ReportAuditLogSection({ auditTrail }: { auditTrail: ProjectReport["auditTrail"] }) {
   return (
-    <Card className="report-audit-log-card">
-      <CardHeader className="report-audit-log-card__head">
-        <CardTitle>감사 추적 ({auditTrail.length})</CardTitle>
-      </CardHeader>
-      <CardContent className="report-audit-log-card__body">
+    <div className="panel report-audit-log-card">
+      <div className="panel-head report-audit-log-card__head">
+        <h3 className="panel-title">감사 추적 ({auditTrail.length})</h3>
+      </div>
+      <div className="panel-body report-audit-log-card__body">
         {auditTrail.map((entry) => (
           <div key={entry.id} className="report-audit-log-card__row">
             <div className="report-audit-log-card__meta">
@@ -22,7 +21,7 @@ export function ReportAuditLogSection({ auditTrail }: { auditTrail: ProjectRepor
             </div>
           </div>
         ))}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

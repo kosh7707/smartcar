@@ -71,7 +71,7 @@ describe("DynamicAnalysisPage", () => {
   it("shows adapter warning when starting without connected adapters", async () => {
     renderPage();
 
-    expect(await screen.findByText("아직 동적 분석 이력이 없습니다")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /첫 세션 시작/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "첫 세션 시작" }));
 
     expect(await screen.findByText(/연결된 어댑터가 없습니다/)).toBeInTheDocument();
@@ -82,7 +82,7 @@ describe("DynamicAnalysisPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("아직 동적 분석 이력이 없습니다")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /첫 세션 시작/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "첫 세션 시작" }));
 
     expect(await screen.findByText("새 세션")).toBeInTheDocument();
@@ -124,7 +124,7 @@ describe("DynamicAnalysisPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("아직 동적 분석 이력이 없습니다")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /첫 세션 시작/ })).toBeInTheDocument();
     await waitFor(() => expect(mockToast.error).toHaveBeenCalled());
   });
 
@@ -137,7 +137,7 @@ describe("DynamicAnalysisPage", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText("아직 동적 분석 이력이 없습니다")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /첫 세션 시작/ })).toBeInTheDocument();
     expect(mockFetchDynamicSessions).not.toHaveBeenCalled();
   });
 });

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Bell, ChevronDown, LogOut, Moon, Settings, ShieldCheck, Sun } from "lucide-react";
 import type { Notification, User } from "@aegis/shared";
-import { Button } from "../components/ui/button";
+import { cn } from "@/lib/utils";
 import { useAuth } from "../contexts/AuthContext";
 import { useNotifications } from "../contexts/NotificationContext";
 import { setThemePreference } from "../utils/theme";
@@ -90,47 +90,53 @@ export const Navbar: React.FC = () => {
         <span className="nav-divider" aria-hidden="true" />
 
         <div className="nav-cluster" role="group" aria-label="주요 탐색">
-          <Button asChild variant="ghost" size="sm"><Link to="/dashboard" aria-current={isDashboard ? "page" : undefined}>대시보드</Link></Button>
+          <Link to="/dashboard" className="btn btn-ghost btn-sm" aria-current={isDashboard ? "page" : undefined}>
+            대시보드
+          </Link>
 
           {isAdmin ? (
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/admin/registrations" aria-current={isAdminRegistrations ? "page" : undefined}>
-                <ShieldCheck aria-hidden="true" />
-                관리자
-              </Link>
-            </Button>
+            <Link to="/admin/registrations" className="btn btn-ghost btn-sm" aria-current={isAdminRegistrations ? "page" : undefined}>
+              <ShieldCheck aria-hidden="true" />
+              관리자
+            </Link>
           ) : null}
         </div>
       </div>
 
       <div className="nav-right">
         <div className="nav-cluster" role="group" aria-label="유틸리티">
-          <Button asChild variant="ghost" size="icon-sm" className="nav-icon" aria-label="설정">
-            <Link to="/settings"><Settings /><span className="sr-only">설정</span></Link>
-          </Button>
+          <Link to="/settings" className="btn btn-ghost btn-icon-sm nav-icon" aria-label="설정">
+            <Settings />
+            <span className="sr-only">설정</span>
+          </Link>
 
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="nav-icon"
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon-sm nav-icon"
             aria-label={darkMode ? "현재 다크 모드 · 라이트로 전환" : "현재 라이트 모드 · 다크로 전환"}
             title={darkMode ? "현재 다크 모드 · 라이트로 전환" : "현재 라이트 모드 · 다크로 전환"}
             onClick={toggleTheme}
           >
             {darkMode ? <Sun /> : <Moon />}
-          </Button>
+          </button>
 
-          <Button variant="ghost" size="icon-sm" className="nav-icon" aria-label={`알림${unreadCount > 0 ? ` (${unreadCount}건 읽지 않음)` : ""}`} title="알림" onClick={() => setNotificationsOpen((v) => !v)}>
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon-sm nav-icon"
+            aria-label={`알림${unreadCount > 0 ? ` (${unreadCount}건 읽지 않음)` : ""}`}
+            title="알림"
+            onClick={() => setNotificationsOpen((v) => !v)}
+          >
             <Bell />
             {unreadCount > 0 ? <span className="badge">{unreadCount > 99 ? "99+" : unreadCount}</span> : null}
-          </Button>
+          </button>
         </div>
 
         <span className="nav-divider" aria-hidden="true" />
 
         <button
           type="button"
-          className="nav-user"
+          className="btn btn-ghost btn-icon-sm nav-user"
           aria-label={user ? `계정 · ${displayName}` : "계정"}
           title={user ? `${displayName} · ${roleLabel}${orgName ? ` · ${orgName}` : ""}` : "계정"}
           onClick={() => setUserMenuOpen((v) => !v)}
@@ -159,17 +165,16 @@ export const Navbar: React.FC = () => {
             </div>
           </div>
           <div className="nav-dropdown-body" style={{ padding: "var(--space-3)" }}>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="btn-block"
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm btn-block"
               style={{ justifyContent: "flex-start", width: "100%" }}
               onClick={() => void handleLogout()}
               disabled={loggingOut || !user}
             >
               <LogOut aria-hidden="true" />
               {loggingOut ? "로그아웃 중..." : "로그아웃"}
-            </Button>
+            </button>
           </div>
         </div>
       ) : null}
@@ -181,7 +186,11 @@ export const Navbar: React.FC = () => {
               <div className="nav-dropdown-title">알림</div>
               <div className="nav-dropdown-copy">{isProjectRoute ? "현재 프로젝트 비동기 작업 상태" : "프로젝트 화면에서 알림을 확인할 수 있습니다"}</div>
             </div>
-            {unreadCount > 0 ? <Button variant="link" size="sm" onClick={() => void markAllRead()}>모두 읽음</Button> : null}
+            {unreadCount > 0 ? (
+              <button type="button" className="btn btn-link btn-sm" onClick={() => void markAllRead()}>
+                모두 읽음
+              </button>
+            ) : null}
           </div>
           <div className="nav-dropdown-body">
             {loading ? (
@@ -198,7 +207,11 @@ export const Navbar: React.FC = () => {
                   {notification.body ? <div className="nav-dropdown-item-copy">{notification.body}</div> : null}
                   <div className="nav-dropdown-item-meta"><span>{new Date(notification.createdAt).toLocaleString("ko-KR")}</span></div>
                 </div>
-                {!notification.read ? <Button variant="outline" size="xs" onClick={() => void markRead(notification.id)}>읽음</Button> : null}
+                {!notification.read ? (
+                  <button type="button" className="btn btn-outline btn-sm" onClick={() => void markRead(notification.id)}>
+                    읽음
+                  </button>
+                ) : null}
               </div>
             ))}
           </div>

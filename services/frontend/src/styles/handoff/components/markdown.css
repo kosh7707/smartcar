@@ -1,0 +1,101 @@
+
+
+/* ── Extracted from app-shell.css (Phase 1a.1 pass 4) ── */
+.markdown-content {
+  color: var(--foreground);
+}
+.markdown-heading {
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-3);
+  color: var(--foreground);
+}
+.markdown-heading:first-child {
+  margin-top: 0;
+}
+.markdown-heading--h1,
+.markdown-heading--h2,
+.markdown-heading--h3,
+.markdown-heading--h4,
+.markdown-heading--h5,
+.markdown-heading--h6 {
+  font-weight: var(--weight-semibold);
+}
+.markdown-paragraph {
+  margin: var(--space-3) 0;
+  line-height: 1.7;
+  color: var(--foreground-muted);
+}
+.markdown-list {
+  margin: var(--space-3) 0;
+  padding-left: var(--space-6);
+  line-height: 1.7;
+  color: var(--foreground-muted);
+}
+.markdown-list--unordered {
+  list-style: disc;
+}
+.markdown-list--ordered {
+  list-style: decimal;
+}
+.markdown-quote {
+  margin: var(--space-4) 0;
+  border-left: 3px solid var(--border-subtle);
+  padding: var(--space-3) var(--space-5);
+  font-style: italic;
+  color: var(--foreground-muted);
+}
+.markdown-rule {
+  margin: var(--space-5) 0;
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.markdown-table {
+  width: 100%;
+  margin: var(--space-4) 0;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.markdown-image {
+  max-width: 100%;
+  margin: var(--space-4) 0;
+  border-radius: var(--radius-sm);
+}
+.markdown-link {
+  color: var(--primary);
+  text-decoration: none;
+}
+.markdown-link:hover {
+  text-decoration: underline;
+}
+.markdown-inline-code {
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+.markdown-code-block {
+  position: relative;
+  overflow-x: auto;
+  white-space: pre;
+  margin: var(--space-4) 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  padding: 20px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+}
+.markdown-code-block__lang {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-4);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--foreground-subtle);
+}
+.markdown-code-block__code {
+  display: block;
+}

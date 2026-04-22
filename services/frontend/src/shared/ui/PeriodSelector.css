@@ -1,0 +1,5 @@
+
+
+/* ── Extracted from app-shell.css (Phase 1a.1 pass 4) ── */
+.period-selector { display:inline-flex; align-items:center; gap:4px; padding:4px; border:1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-sunken); }
+.period-selector__button.is-active { background: var(--primary); color: var(--primary-foreground); }

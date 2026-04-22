@@ -1,6 +1,5 @@
 import React from "react";
 import { Crosshair, Play, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Spinner } from "../../../shared/ui";
 
 type BuildTargetActionBarProps = {
@@ -26,19 +25,19 @@ export function BuildTargetActionBar({
 }: BuildTargetActionBarProps) {
   return (
     <div className="build-target-action-bar">
-      <Button variant="outline" size="sm" onClick={onDiscover} disabled={discovering || isRunning}>
+      <button type="button" className="btn btn-outline btn-sm" onClick={onDiscover} disabled={discovering || isRunning}>
         {discovering ? <Spinner size={14} /> : <Crosshair size={14} />}
         타겟 탐색
-      </Button>
-      <Button variant="outline" size="sm" onClick={onOpenAddForm} disabled={formLocked || isRunning}>
+      </button>
+      <button type="button" className="btn btn-outline btn-sm" onClick={onOpenAddForm} disabled={formLocked || isRunning}>
         <Plus size={14} />
         타겟 추가
-      </Button>
+      </button>
       {hasTargets && (
-        <Button size="sm" onClick={onRunPipeline} disabled={isRunning || configuredCount === 0}>
+        <button type="button" className="btn btn-primary btn-sm" onClick={onRunPipeline} disabled={isRunning || configuredCount === 0}>
           {isRunning ? <Spinner size={14} /> : <Play size={14} />}
           빌드 & 분석 실행
-        </Button>
+        </button>
       )}
     </div>
   );

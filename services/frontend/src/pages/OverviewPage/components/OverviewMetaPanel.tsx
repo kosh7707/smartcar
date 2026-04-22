@@ -1,7 +1,5 @@
 import React from "react";
 import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import type { RegisteredSdk } from "../../../api/sdk";
 import { formatFileSize } from "../../../utils/format";
 import type { GateCounts } from "../overviewModel";
@@ -29,13 +27,12 @@ interface MetaCardProps {
 
 function MetaCard({ title, onClick, children }: MetaCardProps) {
   return (
-    <Card
-      className={`overview-meta-card ${onClick ? "overview-meta-card--interactive" : ""}`}
+    <div className={"panel" + " " + `overview-meta-card ${onClick ? "overview-meta-card--interactive" : ""}`}
       onClick={onClick}
     >
       <div className="overview-meta-card__title">{title}</div>
       {children}
-    </Card>
+    </div>
   );
 }
 
@@ -77,15 +74,15 @@ export const OverviewMetaPanel: React.FC<OverviewMetaPanelProps> = ({
     {hasGates ? (
       <MetaCard title="Quality Gate" onClick={onOpenQualityGate}>
         <div className="overview-meta-panel__badges">
-          <Badge variant="outline" className="overview-gate-badge overview-gate-badge--pass">
+          <span className="overview-gate-badge overview-gate-badge--pass">
             <CheckCircle2 size={12} /> 통과 {gateCounts.pass}
-          </Badge>
-          <Badge variant="outline" className="overview-gate-badge overview-gate-badge--fail">
+          </span>
+          <span className="overview-gate-badge overview-gate-badge--fail">
             <XCircle size={12} /> 실패 {gateCounts.fail}
-          </Badge>
-          <Badge variant="outline" className="overview-gate-badge overview-gate-badge--warning">
+          </span>
+          <span className="overview-gate-badge overview-gate-badge--warning">
             <AlertTriangle size={12} /> 경고 {gateCounts.warning}
-          </Badge>
+          </span>
         </div>
       </MetaCard>
     ) : null}
@@ -110,9 +107,9 @@ export const OverviewMetaPanel: React.FC<OverviewMetaPanelProps> = ({
           {registeredSdks.slice(0, 4).map((sdk) => (
             <div key={sdk.id} className="overview-meta-panel__sdk-row">
               <span className="overview-meta-panel__sdk-name">{sdk.name}</span>
-              <Badge variant="outline" className={getSdkStatusToneClass(sdk.status)}>
+              <span className={getSdkStatusToneClass(sdk.status)}>
                 {getSdkStatusLabel(sdk.status)}
-              </Badge>
+              </span>
             </div>
           ))}
         </div>

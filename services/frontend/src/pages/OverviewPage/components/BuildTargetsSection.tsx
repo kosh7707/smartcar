@@ -1,7 +1,6 @@
 import React from "react";
 import type { BuildTarget } from "@aegis/shared";
 import { HardDrive } from "lucide-react";
-import { Card } from "@/components/ui/card";
 import { TargetStatusBadge } from "../../../shared/ui";
 import { OverviewSectionHeader } from "./OverviewSectionHeader";
 
@@ -18,9 +17,8 @@ export const BuildTargetsSection: React.FC<BuildTargetsSectionProps> = ({ target
       <OverviewSectionHeader title="빌드 타겟" />
       <div className="overview-build-targets__grid">
         {targets.map((target) => (
-          <Card
+          <div className="panel overview-build-targets__card"
             key={target.id}
-            className="overview-build-targets__card"
             onClick={onOpenFiles}
           >
             <div className="overview-build-targets__head">
@@ -35,7 +33,7 @@ export const BuildTargetsSection: React.FC<BuildTargetsSectionProps> = ({ target
                   </p>
                 </div>
               </div>
-              <TargetStatusBadge status={target.status ?? "discovered"} size="sm" />
+              <TargetStatusBadge status={target.status ?? "discovered"} />
             </div>
 
             <div className="overview-build-targets__foot">
@@ -45,7 +43,7 @@ export const BuildTargetsSection: React.FC<BuildTargetsSectionProps> = ({ target
               </div>
               <span className="overview-build-targets__cta">소스 보기</span>
             </div>
-          </Card>
+          </div>
         ))}
       </div>
     </section>

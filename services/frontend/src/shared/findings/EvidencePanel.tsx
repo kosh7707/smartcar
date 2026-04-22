@@ -1,10 +1,9 @@
 import React, { useState } from "react";
 import type { EvidenceRef } from "@aegis/shared";
 import { FileCheck, ChevronDown, ChevronUp } from "lucide-react";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { EvidenceItemRow } from "./EvidenceItemRow";
 import { EmptyState } from "../ui";
+import "./EvidencePanel.css";
 
 const COLLAPSE_THRESHOLD = 5;
 
@@ -22,12 +21,12 @@ export const EvidencePanel: React.FC<Props> = ({ evidenceRefs, onSelectEvidence 
   const hiddenCount = evidenceRefs.length - COLLAPSE_THRESHOLD;
 
   return (
-    <Card className="evidence-panel">
-      <CardContent className="evidence-panel__body">
-        <CardTitle className="evidence-panel__title">
+    <div className="panel evidence-panel">
+      <div className="panel-body evidence-panel__body">
+        <h3 className="panel-title evidence-panel__title">
           <FileCheck size={16} />
           증적 ({evidenceRefs.length})
-        </CardTitle>
+        </h3>
         <p className="evidence-panel__description">
           Finding과 연결된 코드 위치 및 분석 근거
         </p>
@@ -46,11 +45,7 @@ export const EvidencePanel: React.FC<Props> = ({ evidenceRefs, onSelectEvidence 
               ))}
             </div>
             {shouldCollapse && (
-              <Button
-                type="button"
-                variant="ghost"
-                className="evidence-panel__toggle"
-                onClick={() => setExpanded((prev) => !prev)}
+              <button type="button" className="btn btn-ghost evidence-panel__toggle" onClick={() => setExpanded((prev) => !prev)}
               >
                 {expanded ? (
                   <>
@@ -63,11 +58,11 @@ export const EvidencePanel: React.FC<Props> = ({ evidenceRefs, onSelectEvidence 
                     나머지 {hiddenCount}건 더 보기
                   </>
                 )}
-              </Button>
+              </button>
             )}
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };

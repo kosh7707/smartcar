@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import type { DynamicTestResult } from "@aegis/shared";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import {
   BackButton,
   EmptyState,
@@ -39,8 +38,8 @@ export const DynamicTestResultsView: React.FC<DynamicTestResultsViewProps> = ({
         <StatCard label="Findings" value={result.findings.length} accent />
       </div>
 
-      <Card className="dynamic-test-results-meta-card">
-        <CardContent className="dynamic-test-results-meta-grid">
+      <div className="panel dynamic-test-results-meta-card">
+        <div className="panel-body dynamic-test-results-meta-grid">
           <div className="dynamic-test-results-meta-item">
             <div className="dynamic-test-results-meta-label">유형</div>
             <div className="dynamic-test-results-meta-value">
@@ -61,25 +60,25 @@ export const DynamicTestResultsView: React.FC<DynamicTestResultsViewProps> = ({
             <div className="dynamic-test-results-meta-label">실행일시</div>
             <div className="dynamic-test-results-meta-value">{formatDateTime(result.createdAt)}</div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {result.findings.length > 0 ? (
-        <Card className="dynamic-test-results-findings-card">
-          <CardContent className="dynamic-test-results-findings-body">
-            <CardTitle>Findings ({result.findings.length})</CardTitle>
+        <div className="panel dynamic-test-results-findings-card">
+          <div className="panel-body dynamic-test-results-findings-body">
+            <h3 className="panel-title">Findings ({result.findings.length})</h3>
             <div className="dynamic-test-results-findings-list">
               {result.findings.map((finding) => {
                 const expanded = expandedId === finding.id;
                 return (
-                  <Card key={finding.id} className="dynamic-test-results-finding-card">
-                    <CardContent className="dynamic-test-results-finding-body">
+                  <div className="panel dynamic-test-results-finding-card" key={finding.id}>
+                    <div className="panel-body dynamic-test-results-finding-body">
                       <button
                         type="button"
                         className="dynamic-test-results-finding-toggle"
                         onClick={() => setExpandedId(expanded ? null : finding.id)}
                       >
-                        <SeverityBadge severity={finding.severity} size="sm" />
+                        <SeverityBadge severity={finding.severity} />
                         <span className="dynamic-test-results-finding-type">
                           {FINDING_TYPE_ICON[finding.type]}
                           {FINDING_TYPE_LABEL[finding.type]}
@@ -109,13 +108,13 @@ export const DynamicTestResultsView: React.FC<DynamicTestResultsViewProps> = ({
                           <p className="dynamic-test-results-finding-llm-copy">{finding.llmAnalysis}</p>
                         </div>
                       ) : null}
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 );
               })}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       ) : (
         <EmptyState title="발견된 이상이 없습니다" />
       )}

@@ -11,9 +11,6 @@ import {
   Terminal,
   Wrench,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatFileSize } from "../../../utils/format";
 import { getLangColorByName } from "../../../constants/languages";
@@ -60,47 +57,45 @@ export const FileDetailHeader: React.FC<FileDetailHeaderProps> = ({
   const languageColor = file.language ? getLangColorByName(file.language) : undefined;
 
   return (
-    <Card className="file-detail-header-card">
-      <CardHeader className="file-detail-header-card__head">
+    <div className="panel file-detail-header-card">
+      <div className="panel-head file-detail-header-card__head">
         <div className="file-detail-header-card__top">
           <div className="file-detail-header-card__identity">
             <div className="file-detail-header-card__icon-shell">
               <FileDetailIcon language={file.language} />
             </div>
             <div className="file-detail-header-card__title-wrap">
-              <CardTitle className="file-detail-header-card__title">{file.name}</CardTitle>
+              <h3 className="panel-title file-detail-header-card__title">{file.name}</h3>
               {file.path && file.path !== file.name ? (
                 <p className="file-detail-header-card__path">{file.path}</p>
               ) : null}
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={onDownload} className="file-detail-header-card__download">
+          <button type="button" onClick={onDownload} className="btn btn-outline btn-sm file-detail-header-card__download">
             <Download size={14} /> 다운로드
-          </Button>
+          </button>
         </div>
-      </CardHeader>
-      <CardContent className="file-detail-header-card__badges">
+      </div>
+      <div className="panel-body file-detail-header-card__badges">
         {file.language ? (
-          <Badge
-            variant="outline"
+          <span
             className="file-detail-header-card__badge"
             style={{ borderColor: languageColor }}
           >
             <span className="file-detail-header-card__badge-dot" style={{ background: languageColor }} />
             {file.language}
-          </Badge>
+          </span>
         ) : null}
         {file.size > 0 ? (
-          <Badge variant="outline" className="file-detail-header-card__badge">
+          <span className="file-detail-header-card__badge">
             {formatFileSize(file.size)}
-          </Badge>
+          </span>
         ) : null}
-        <Badge variant="outline" className="file-detail-header-card__badge">
+        <span className="file-detail-header-card__badge">
           {lineCount}줄
-        </Badge>
+        </span>
         {vulnerabilityCount > 0 ? (
-          <Badge
-            variant="outline"
+          <span
             className={cn(
               "file-detail-header-card__badge",
               "file-detail-header-card__badge--vulnerability",
@@ -108,9 +103,9 @@ export const FileDetailHeader: React.FC<FileDetailHeaderProps> = ({
           >
             <Shield size={12} />
             취약점 {vulnerabilityCount}건
-          </Badge>
+          </span>
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };

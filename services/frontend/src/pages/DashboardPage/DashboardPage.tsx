@@ -1,7 +1,6 @@
 import React from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useProjects } from "../../contexts/ProjectContext";
-import { Button } from "@/components/ui/button";
 import { NeedsAttentionSection } from "./components/NeedsAttentionSection";
 import { ProjectExplorer } from "./components/ProjectExplorer";
 import { RecentActivitySection } from "./components/RecentActivitySection";
@@ -11,6 +10,7 @@ import { useDashboardActivityFeed } from "./hooks/useDashboardActivityFeed";
 import { useDashboardCreateForm } from "./hooks/useDashboardCreateForm";
 import { useDashboardDocumentTitle } from "./hooks/useDashboardDocumentTitle";
 import { useDashboardExplorerState } from "./hooks/useDashboardExplorerState";
+import "./DashboardPage.css";
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
@@ -28,7 +28,7 @@ export const DashboardPage: React.FC = () => {
   const latestSync = latestSyncLabel(projects);
 
   return (
-    <main className="main">
+    <main className="main dashboard-main">
       <header className="page-head" data-chore>
         <div className="chore c-1">
           <h1>안녕하세요, {greetingName} <em>— 오늘 주의 필요 <span className="crit-n">{attentionProjects.length}건</span></em></h1>
@@ -43,7 +43,7 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
         <div className="actions chore c-2">
-          <Button type="button" size="sm" onClick={createFlow.onToggle}>새 프로젝트</Button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={createFlow.onToggle}>새 프로젝트</button>
         </div>
       </header>
 

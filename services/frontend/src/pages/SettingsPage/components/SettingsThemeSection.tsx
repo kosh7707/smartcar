@@ -1,7 +1,5 @@
 import React from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ThemePreference } from "../../../utils/theme";
 
 type SettingsThemeSectionProps = {
@@ -23,36 +21,31 @@ export function SettingsThemeSection({
   onThemeChange,
 }: SettingsThemeSectionProps) {
   return (
-    <Card className="settings-theme-card">
-      <CardHeader className="settings-theme-card__head">
+    <div className="panel settings-theme-card">
+      <div className="panel-head settings-theme-card__head">
         <div className="settings-theme-card__title-row">
           <div className="settings-theme-card__icon-shell">
             <Sun size={20} />
           </div>
           <div className="settings-theme-card__copy">
-            <CardTitle className="settings-theme-card__title">테마</CardTitle>
+            <h3 className="panel-title settings-theme-card__title">테마</h3>
             <p className="settings-theme-card__description">
               애플리케이션 테마를 설정합니다.
             </p>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="settings-theme-card__body">
+      </div>
+      <div className="panel-body settings-theme-card__body">
         <div className="settings-theme-card__options">
           {THEME_OPTIONS.map((option) => (
-            <Button
-              key={option.value}
-              type="button"
-              variant={theme === option.value ? "default" : "outline"}
-              className="settings-theme-card__option"
-              onClick={() => onThemeChange(option.value)}
+            <button type="button" key={option.value} variant={theme === option.value ? "default" : "outline"} className="btn btn-primary settings-theme-card__option" onClick={() => onThemeChange(option.value)}
             >
               {option.icon}
               <span>{option.label}</span>
-            </Button>
+            </button>
           ))}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -174,6 +174,7 @@ class AgentLoop:
         warned_approaching_limit = False
         structured_retry_used = False
         schema_repair_used = False
+        command_injection_quality_retry_used = False
         grounding_nudge_used = False
         response_parser = V1ResponseParser()
 
@@ -261,8 +262,13 @@ class AgentLoop:
                 )
                 self._message_manager.add_assistant_tool_calls(response.tool_calls)
                 results = await self._tool_router.execute(response.tool_calls, session)
+                by_call_id = {call.id: call for call in response.tool_calls}
                 # 도구가 생성한 evidence ref ID를 tool result에 주입 → LLM이 정확한 refId를 볼 수 있게 함
                 for r in results:
+                    call = by_call_id.get(r.tool_call_id)
+                    if call:
+                        session.evidence_catalog.ingest_tool_result(call, r)
+                        session.extra_allowed_refs.update(session.evidence_catalog.ref_ids())
                     if r.success and r.new_evidence_refs:
                         ref_list = ", ".join(f"`{ref}`" for ref in r.new_evidence_refs)
                         r.content += f"\n\n[Evidence Refs: {ref_list}]"
@@ -435,6 +441,38 @@ class AgentLoop:
                     )
                     return result
 
+                if (
+                    parsed_content is not None
+                    and not command_injection_quality_retry_used
+                    and _should_retry_command_injection_false_negative(parsed_content, session)
+                ):
+                    command_injection_quality_retry_used = True
+                    session.quality_retry_flags.add("command_injection_false_negative")
+                    bundle = session.evidence_catalog.command_injection_bundle()
+                    self._message_manager.add_assistant_content(final_content)
+                    self._message_manager.add_user_message(
+                        "[시스템] 방금 최종 보고서는 deterministic evidence와 충돌합니다. "
+                        "CWE-78/command-injection evidence bundle이 완전한데 claims가 비었습니다. "
+                        "사용자 입력이 command string construction을 거쳐 "
+                        f"{bundle.sink}(...) sink로 전달되는지 재평가하고, "
+                        "하나의 대표 root-cause claim을 순수 Assessment JSON으로 반환하십시오. "
+                        f"필수 location: {bundle.location}. "
+                        f"사용 가능한 supportingEvidenceRefs: {', '.join(bundle.refs)}. "
+                        "증거가 실제로 부족하다고 판단할 때만 claims: []를 유지하고 caveats에 그 이유를 명시하십시오."
+                    )
+                    agent_log(
+                        logger,
+                        "command-injection false-negative quality retry",
+                        component="agent_loop",
+                        phase="quality_retry",
+                        turn=turn,
+                        sink=bundle.sink,
+                        location=bundle.location,
+                        refCount=len(bundle.refs),
+                        level=logging.WARNING,
+                    )
+                    continue
+
                 if _should_request_extra_grounding_lookup(
                     final_content=final_content,
                     parsed=parsed_content,
@@ -605,5 +643,22 @@ def _allowed_finalizer_refs(session: AgentSession) -> list[str]:
     refs: list[str] = []
     refs.extend(ref.refId for ref in session.request.evidenceRefs)
     refs.extend(sorted(session.extra_allowed_refs))
+    refs.extend(session.evidence_catalog.ref_ids())
     refs.extend(ref for step in session.trace for ref in step.new_evidence_refs)
     return [ref for ref in dict.fromkeys(refs) if isinstance(ref, str) and ref]
+
+
+def _should_retry_command_injection_false_negative(parsed: dict, session: AgentSession) -> bool:
+    claims = parsed.get("claims")
+    if isinstance(claims, list) and claims:
+        return False
+    bundle = session.evidence_catalog.command_injection_bundle()
+    if not bundle.complete:
+        return False
+    text = " ".join([
+        str(parsed.get("summary") or ""),
+        " ".join(str(c) for c in parsed.get("caveats", []) if isinstance(c, str)),
+    ]).lower()
+    if not text:
+        return True
+    return any(marker in text for marker in ("false positive", "오탐", "no exploit", "존재하지", "없"))

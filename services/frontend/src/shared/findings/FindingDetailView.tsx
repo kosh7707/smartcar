@@ -1,8 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
 import type { Finding, EvidenceRef, AuditLogEntry, FindingStatus } from "@aegis/shared";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { BackButton, Spinner, SeverityBadge, FindingStatusBadge, ConfidenceBadge, SourceBadge, StateTransitionDialog } from "../ui";
 import { EvidencePanel } from "./EvidencePanel";
 import { EvidenceViewer } from "./EvidenceViewer";
@@ -11,6 +8,9 @@ import type { PocResponse, FindingHistoryEntry } from "../../api/client";
 import { useToast } from "../../contexts/ToastContext";
 import { formatDateTime } from "../../utils/format";
 import { renderMarkdown } from "../../utils/markdown";
+import "./FindingBadges.css";
+import "./FindingList.css";
+import "./FindingShared.css";
 
 interface Props { findingId: string; projectId: string; onBack: () => void; }
 
@@ -97,72 +97,72 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
       <BackButton onClick={onBack} label="뒤로" className="finding-back-link" />
       <p className="page-meta-inline">정적 분석 › Finding 상세</p>
 
-      <Card className="finding-banner-shell" data-severity={finding.severity}>
-        <CardContent>
+      <div className="panel finding-banner-shell" data-severity={finding.severity}>
+        <div className="panel-body">
           <div className="finding-banner__badges">
             <SeverityBadge severity={finding.severity} />
             <FindingStatusBadge status={finding.status} />
             <ConfidenceBadge confidence={finding.confidence} sourceType={finding.sourceType} confidenceScore={finding.confidenceScore} />
             <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
             {finding.cweId ? (
-              <Badge asChild variant="outline" className="badge-cwe"><a href={`https://cwe.mitre.org/data/definitions/${finding.cweId.replace("CWE-", "")}.html`} target="_blank" rel="noopener noreferrer" title={`MITRE ${finding.cweId} 상세`} onClick={(e) => e.stopPropagation()}>{finding.cweId}</a></Badge>
+              <span className="badge-cwe"><a href={`https://cwe.mitre.org/data/definitions/${finding.cweId.replace("CWE-", "")}.html`} target="_blank" rel="noopener noreferrer" title={`MITRE ${finding.cweId} 상세`} onClick={(e) => e.stopPropagation()}>{finding.cweId}</a></span>
             ) : null}
             {finding.cveIds?.length ? finding.cveIds.map((cve) => (
-              <Badge key={cve} asChild variant="outline" className="badge-cve"><a href={`https://nvd.nist.gov/vuln/detail/${cve}`} target="_blank" rel="noopener noreferrer" title={`NVD ${cve} 상세`} onClick={(e) => e.stopPropagation()}>{cve}</a></Badge>
+              <span key={cve} className="badge-cve"><a href={`https://nvd.nist.gov/vuln/detail/${cve}`} target="_blank" rel="noopener noreferrer" title={`NVD ${cve} 상세`} onClick={(e) => e.stopPropagation()}>{cve}</a></span>
             )) : null}
             {finding.fingerprint ? <span className="finding-chip" title="이전 분석에서도 발견된 취약점 (fingerprint 추적)">재발견{history.length > 1 ? ` (${history.length}회)` : ""}</span> : null}
             <h2 className="finding-banner__title">{finding.title}</h2>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <div className="finding-actions">
-        <Button variant="outline" onClick={() => setShowTransition(true)}>상태 변경</Button>
-        {canGeneratePoc && !pocData ? <Button variant="outline" onClick={handleGeneratePoc} disabled={pocLoading}>{pocLoading ? <Spinner size={14} /> : null}PoC 생성</Button> : null}
+        <button type="button" className="btn btn-outline" onClick={() => setShowTransition(true)}>상태 변경</button>
+        {canGeneratePoc && !pocData ? <button type="button" className="btn btn-outline" onClick={handleGeneratePoc} disabled={pocLoading}>{pocLoading ? <Spinner size={14} /> : null}PoC 생성</button> : null}
         {finding.location ? <span className="finding-chip">{finding.location}</span> : null}
       </div>
 
-      <Card className="finding-copy-card"><CardContent><div className="finding-copy-title">설명</div><p className="finding-body-text">{finding.description}</p></CardContent></Card>
+      <div className="panel finding-copy-card"><div className="panel-body"><div className="finding-copy-title">설명</div><p className="finding-body-text">{finding.description}</p></div></div>
 
-      {finding.detail ? <Card className="finding-copy-card"><CardContent><div className="finding-copy-title">상세 분석</div><div className="page-section-stack">{renderMarkdown(finding.detail)}</div></CardContent></Card> : null}
+      {finding.detail ? <div className="panel finding-copy-card"><div className="panel-body"><div className="finding-copy-title">상세 분석</div><div className="page-section-stack">{renderMarkdown(finding.detail)}</div></div></div> : null}
 
       {finding.suggestion ? (
-        <Card className="finding-copy-card">
-          <CardContent>
+        <div className="panel finding-copy-card">
+          <div className="panel-body">
             <div className="finding-copy-title">수정 가이드</div>
             <p className="finding-suggestion-text">{finding.suggestion}</p>
             {finding.fixCode ? (
               <div className="fix-code-wrap">
-                <Button variant="outline" size="sm" className="fix-code-wrap__copy-btn" title="코드 복사" onClick={() => navigator.clipboard.writeText(finding.fixCode!)}>
+                <button type="button" className="fix-code-wrap__copy-btn" title="코드 복사" onClick={() => navigator.clipboard.writeText(finding.fixCode!)}>
                   복사
-                </Button>
+                </button>
                 <div className="fix-code"><code>{finding.fixCode}</code></div>
               </div>
             ) : null}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       ) : null}
 
-      {pocLoading ? <Card className="finding-copy-card"><CardContent><div className="finding-copy-title">PoC 생성 중...</div><div className="page-loading-shell"><Spinner label="LLM이 PoC 코드를 생성하고 있습니다..." /></div></CardContent></Card> : null}
+      {pocLoading ? <div className="panel finding-copy-card"><div className="panel-body"><div className="finding-copy-title">PoC 생성 중...</div><div className="page-loading-shell"><Spinner label="LLM이 PoC 코드를 생성하고 있습니다..." /></div></div></div> : null}
 
       {pocData ? (
-        <Card className="finding-copy-card">
-          <CardContent>
+        <div className="panel finding-copy-card">
+          <div className="panel-body">
             <div className="finding-copy-title">PoC — {pocData.poc.statement}</div>
             <div className="page-section-stack">{renderMarkdown(pocData.poc.detail)}</div>
             <div className="page-meta-inline"><span>{(pocData.audit.latencyMs / 1000).toFixed(1)}초</span><span>{pocData.audit.tokenUsage.prompt + pocData.audit.tokenUsage.completion} tokens</span></div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       ) : null}
 
       <EvidencePanel evidenceRefs={finding.evidenceRefs} onSelectEvidence={setSelectedEvidence} />
 
       {history.length > 1 ? (
-        <Card className="finding-copy-card"><CardContent><div className="finding-copy-title">발견 이력 ({history.length}회)</div><div className="audit-timeline">{history.map((h) => <div key={h.findingId} className="audit-entry"><span className="audit-entry__time">{formatDateTime(h.createdAt)}</span><span className="audit-entry__body">Run {h.runId.slice(0, 8)} — 상태: {h.status}</span></div>)}</div></CardContent></Card>
+        <div className="panel finding-copy-card"><div className="panel-body"><div className="finding-copy-title">발견 이력 ({history.length}회)</div><div className="audit-timeline">{history.map((h) => <div key={h.findingId} className="audit-entry"><span className="audit-entry__time">{formatDateTime(h.createdAt)}</span><span className="audit-entry__body">Run {h.runId.slice(0, 8)} — 상태: {h.status}</span></div>)}</div></div></div>
       ) : null}
 
       {finding.auditLog.length > 0 ? (
-        <Card className="finding-copy-card"><CardContent><div className="finding-copy-title">감사 로그</div><div className="audit-timeline">{finding.auditLog.map((entry) => <div key={entry.id} className="audit-timeline__entry"><span className="audit-timeline__time">{formatDateTime(entry.timestamp)}</span><span><strong>{entry.actor}</strong> — {entry.action}{entry.detail?.from && entry.detail?.to ? <span className="finding-body-text"> ({String(entry.detail.from)} → {String(entry.detail.to)})</span> : null}{entry.detail?.reason ? <span className="finding-body-text"> "{String(entry.detail.reason)}"</span> : null}</span></div>)}</div></CardContent></Card>
+        <div className="panel finding-copy-card"><div className="panel-body"><div className="finding-copy-title">감사 로그</div><div className="audit-timeline">{finding.auditLog.map((entry) => <div key={entry.id} className="audit-timeline__entry"><span className="audit-timeline__time">{formatDateTime(entry.timestamp)}</span><span><strong>{entry.actor}</strong> — {entry.action}{entry.detail?.from && entry.detail?.to ? <span className="finding-body-text"> ({String(entry.detail.from)} → {String(entry.detail.to)})</span> : null}{entry.detail?.reason ? <span className="finding-body-text"> "{String(entry.detail.reason)}"</span> : null}</span></div>)}</div></div></div>
       ) : null}
 
       {selectedEvidence ? <EvidenceViewer evidence={selectedEvidence} onClose={() => setSelectedEvidence(null)} /> : null}

@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from "react";
 import type { AnalysisProgress } from "@aegis/shared";
 import { CheckCircle2, Eye, XCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { useElapsedTimer } from "../../../hooks/useElapsedTimer";
 import { BackButton, ConfirmDialog, PageHeader, Spinner } from "../../../shared/ui";
+import "./AsyncAnalysisProgressView.css";
 
 interface Props {
   progress: AnalysisProgress;
@@ -114,8 +113,8 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
       <BackButton onClick={onBack} label="대시보드로" />
       <PageHeader title="정적 분석" />
 
-      <Card className="async-analysis-progress-view__card">
-        <CardContent className="async-analysis-progress-view__body">
+      <div className="panel async-analysis-progress-view__card">
+        <div className="panel-body async-analysis-progress-view__body">
           {!isDone && (
             <div className="async-analysis-progress-view__spinner">
               <Spinner size={40} />
@@ -221,32 +220,32 @@ export const AsyncAnalysisProgressView: React.FC<Props> = ({
 
           <div className="async-analysis-progress-view__actions">
             {isCompleted && (
-              <Button onClick={() => onViewResult(progress.analysisId)}>
+              <button type="button" className="btn btn-primary" onClick={() => onViewResult(progress.analysisId)}>
                 <Eye size={16} />
                 결과 보기
                 {autoRedirect !== null && autoRedirect > 0 ? ` (${autoRedirect})` : ""}
-              </Button>
+              </button>
             )}
             {!isDone && (
-              <Button variant="destructive" onClick={() => setShowAbortConfirm(true)}>
+              <button type="button" className="btn btn-danger" onClick={() => setShowAbortConfirm(true)}>
                 <XCircle size={16} />
                 분석 중단
-              </Button>
+              </button>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {(progress.phase === "deep_submitting" || progress.phase === "deep_analyzing") && (
-        <Card className="async-analysis-progress-view__handoff-card">
-          <CardContent className="async-analysis-progress-view__handoff-body">
+        <div className="panel async-analysis-progress-view__handoff-card">
+          <div className="panel-body async-analysis-progress-view__handoff-body">
             <CheckCircle2 size={16} className="async-analysis-progress-view__handoff-icon" />
             <span>빠른 분석 결과가 준비되었습니다.</span>
-            <Button variant="outline" size="sm" onClick={onViewResult}>
+            <button type="button" className="btn btn-outline btn-sm" onClick={onViewResult}>
               먼저 확인하기
-            </Button>
-          </CardContent>
-        </Card>
+            </button>
+          </div>
+        </div>
       )}
 
       <ConfirmDialog

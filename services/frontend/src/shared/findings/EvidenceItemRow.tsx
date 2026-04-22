@@ -1,7 +1,6 @@
 import React from "react";
 import type { EvidenceRef } from "@aegis/shared";
 import { ChevronRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { ARTIFACT_TYPE_LABELS, LOCATOR_TYPE_LABELS } from "../../constants/evidence";
 import { formatDateTime } from "../../utils/format";
 
@@ -43,9 +42,9 @@ export const EvidenceItemRow: React.FC<Props> = ({ evidence, onClick }) => (
     onKeyDown={onClick ? (e) => { if (e.key === "Enter") onClick(); } : undefined}
   >
     <div className="evidence-item">
-      <Badge variant="outline" className="evidence-item__artifact">
+      <span className="evidence-item__artifact">
         {ARTIFACT_TYPE_LABELS[evidence.artifactType]}
-      </Badge>
+      </span>
       <span className="evidence-item__locator">
         {LOCATOR_TYPE_LABELS[evidence.locatorType]}
       </span>

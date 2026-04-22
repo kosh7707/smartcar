@@ -1,7 +1,5 @@
 import React from "react";
 import { AlertTriangle, Bell, Cable, FolderCog, Hammer, Package } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export type SettingsSection = "general" | "sdk" | "build-targets" | "notifications" | "adapters" | "danger";
 
@@ -20,18 +18,18 @@ const NAV_ITEMS: {
 
 export const ProjectSettingsSidebar: React.FC = () => (
   <nav aria-label="프로젝트 설정 섹션" className="project-settings-sidebar-shell">
-    <Card className="project-settings-sidebar-card">
-      <CardContent>
+    <div className="panel project-settings-sidebar-card">
+      <div className="panel-body">
         <div className="project-settings-sidebar-copy">
           <p className="project-settings-sidebar-eyebrow">워크스페이스 설정</p>
           <p className="project-settings-sidebar-text">프로젝트 운영 규칙과 SDK 준비 상태를 이곳에서 조정합니다.</p>
         </div>
 
-        <TabsList aria-label="프로젝트 설정 탭" variant="line" className="project-settings-sidebar-tabs">
+        <div className="seg project-settings-sidebar-tabs" role="tablist" aria-label="프로젝트 설정 탭">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             return (
-              <TabsTrigger key={item.id} value={item.id} className="project-settings-sidebar-tab">
+              <button type="button" role="tab" key={item.id} value={item.id} className="project-settings-sidebar-tab">
                 <div className="project-settings-sidebar-tab-body">
                   <span className="project-settings-sidebar-tab-icon"><Icon className="size-4" /></span>
                   <span className="project-settings-sidebar-tab-copy">
@@ -39,13 +37,13 @@ export const ProjectSettingsSidebar: React.FC = () => (
                     <span className="project-settings-sidebar-tab-desc">{item.description}</span>
                   </span>
                 </div>
-              </TabsTrigger>
+              </button>
             );
           })}
 
           <div aria-hidden="true" className="project-settings-sidebar-divider" />
 
-          <TabsTrigger value="danger" className="project-settings-sidebar-tab project-settings-sidebar-tab--danger">
+          <button type="button" role="tab" value="danger" className="project-settings-sidebar-tab project-settings-sidebar-tab--danger">
             <div className="project-settings-sidebar-tab-body">
               <span className="project-settings-sidebar-tab-icon"><AlertTriangle className="size-4" /></span>
               <span className="project-settings-sidebar-tab-copy">
@@ -53,9 +51,9 @@ export const ProjectSettingsSidebar: React.FC = () => (
                 <span className="project-settings-sidebar-tab-desc">되돌릴 수 없는 프로젝트 작업</span>
               </span>
             </div>
-          </TabsTrigger>
-        </TabsList>
-      </CardContent>
-    </Card>
+          </button>
+        </div>
+      </div>
+    </div>
   </nav>
 );

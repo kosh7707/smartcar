@@ -1,10 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Crosshair, Folder, FolderArchive, GitBranch, Play, Search, Upload } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { SourceFileEntry } from "../../../api/client";
 import { cloneSource, fetchSourceFiles, logError, uploadSource } from "../../../api/client";
@@ -14,6 +9,7 @@ import { useUploadProgress } from "../../../hooks/useUploadProgress";
 import { ConnectionStatusBanner, Spinner } from "../../../shared/ui";
 import { formatFileSize } from "../../../utils/format";
 import { buildTree, countFiles } from "../../../utils/tree";
+import "./SourceUploadView.css";
 
 type UploadTab = "zip" | "git";
 
@@ -162,13 +158,13 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
       <ConnectionStatusBanner connectionState={upload.connectionState} />
       {sourceFiles && sourceFiles.length > 0 ? (
         <>
-          <Card className="source-upload-summary-card">
-            <CardHeader className="source-upload-summary-head">
-              <CardTitle className="source-upload-summary-title">
+          <div className="panel source-upload-summary-card">
+            <div className="panel-head source-upload-summary-head">
+              <h3 className="panel-title source-upload-summary-title">
                 <FolderArchive size={16} />
                 소스코드 ({sourceFiles.length}개 파일 · {formatFileSize(totalSize)})
-              </CardTitle>
-            </CardHeader>
+              </h3>
+            </div>
             {langStats.length > 0 ? (
               <div className="source-upload-summary-bar">
                 {langStats.map((item) => (
@@ -185,7 +181,7 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
               </div>
             ) : null}
             {topDirs.length > 0 ? (
-              <CardContent className="source-upload-dir-list">
+              <div className="panel-body source-upload-dir-list">
                 {topDirs.map((directory) => (
                   <div key={directory.name} className="source-upload-dir-item">
                     <Folder size={14} className="source-upload-dir-icon" />
@@ -193,60 +189,59 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
                     <span className="source-upload-dir-count">{directory.count}개 파일</span>
                   </div>
                 ))}
-              </CardContent>
+              </div>
             ) : null}
-          </Card>
+          </div>
 
           <div className="source-upload-actions">
             {onBrowseTree ? (
-              <Button variant="outline" onClick={onBrowseTree}>
+              <button type="button" className="btn btn-outline" onClick={onBrowseTree}>
                 <Search size={14} />
                 소스코드 탐색
-              </Button>
+              </button>
             ) : null}
             {onDiscoverTargets ? (
-              <Button variant="outline" onClick={onDiscoverTargets}>
+              <button type="button" className="btn btn-outline" onClick={onDiscoverTargets}>
                 <Crosshair size={14} />
                 타겟 탐색
-              </Button>
+              </button>
             ) : null}
-            <Button variant="outline" onClick={handleReupload}>
+            <button type="button" className="btn btn-outline" onClick={handleReupload}>
               <Upload size={14} />
               재업로드
-            </Button>
-            <Button onClick={onAnalysisStart}>
+            </button>
+            <button type="button" className="btn btn-primary" onClick={onAnalysisStart}>
               <Play size={14} />
               분석 실행
-            </Button>
+            </button>
           </div>
         </>
       ) : (
         <>
-          <Tabs value={tab} onValueChange={(value) => setTab(value as UploadTab)}>
-            <TabsList className="source-upload-tabs">
-              <TabsTrigger value="zip" className="source-upload-tab">
+          <div value={tab} onValueChange={(value) => setTab(value as UploadTab)}>
+            <div className="seg source-upload-tabs" role="tablist">
+              <button type="button" role="tab" value="zip" className="btn btn-primary source-upload-tab">
                 <FolderArchive size={14} />
                 ZIP / tar.gz 업로드
-              </TabsTrigger>
-              <TabsTrigger value="git" className="source-upload-tab">
+              </button>
+              <button type="button" role="tab" value="git" className="source-upload-tab">
                 <GitBranch size={14} />
                 Git 클론
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+              </button>
+            </div>
+          </div>
 
           {uploading ? (
-            <Card className="source-upload-progress-card">
-              <CardContent className="source-upload-progress-body">
+            <div className="panel source-upload-progress-card">
+              <div className="panel-body source-upload-progress-body">
                 <Spinner
                   size={32}
                   label={upload.isActive ? upload.message : tab === "zip" ? "업로드 중..." : "클론 중..."}
                 />
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : tab === "zip" ? (
-            <Card
-              className={cn("source-upload-dropzone", dragOver && "is-dragover")}
+            <div className={"panel" + " " + cn("source-upload-dropzone", dragOver && "is-dragover")}
               onDrop={handleDrop}
               onDragOver={(event) => {
                 event.preventDefault();
@@ -255,7 +250,7 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
               onDragLeave={() => setDragOver(false)}
               onClick={() => document.getElementById("source-file-input")?.click()}
             >
-              <CardContent className="source-upload-dropzone-body">
+              <div className="panel-body source-upload-dropzone-body">
                 <div className="source-upload-dropzone-icon">
                   <Upload size={36} />
                 </div>
@@ -263,7 +258,7 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
                 <small className="source-upload-dropzone-copy">
                   지원 형식: .zip, .tar.gz, .tgz, .tar.bz2, .tar
                 </small>
-              </CardContent>
+              </div>
               <input
                 id="source-file-input"
                 type="file"
@@ -271,36 +266,35 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
                 className="source-upload-hidden-input"
                 onChange={handleFileSelect}
               />
-            </Card>
+            </div>
           ) : (
-            <Card className="source-upload-git-card">
-              <CardContent className="source-upload-git-body">
-                <Label className="source-upload-field">
+            <div className="panel source-upload-git-card">
+              <div className="panel-body source-upload-git-body">
+                <label className="form-label source-upload-field">
                   <span className="source-upload-field-label">Git URL *</span>
-                  <Input
-                    className="source-upload-input-mono"
+                  <input className="form-input source-upload-input-mono"
                     value={gitUrl}
                     onChange={(event) => setGitUrl(event.target.value)}
                     placeholder="https://github.com/org/repo.git"
                     spellCheck={false}
                   />
-                </Label>
-                <Label className="source-upload-field">
+                </label>
+                <label className="form-label source-upload-field">
                   <span className="source-upload-field-label">Branch</span>
-                  <Input
+                  <input className="form-input"
                     value={gitBranch}
                     onChange={(event) => setGitBranch(event.target.value)}
                     placeholder="main (기본)"
                   />
-                </Label>
+                </label>
                 <div className="source-upload-git-actions">
-                  <Button onClick={handleGitClone}>
+                  <button type="button" onClick={handleGitClone}>
                     <GitBranch size={14} />
                     클론
-                  </Button>
+                  </button>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
         </>
       )}

@@ -1,7 +1,5 @@
 import React from "react";
 import type { ProjectReport } from "@aegis/shared";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { FINDING_STATUS_LABELS } from "../../../constants/finding";
 import { formatDateTime } from "../../../utils/format";
@@ -26,11 +24,11 @@ export function ReportExecutiveSummary({ report, allRuns, summary, sevCounts, se
   const statusEntries = Object.entries(summary.byStatus).filter(([, count]) => count > 0);
 
   return (
-    <Card className="report-summary-card">
-      <CardHeader className="report-summary-head">
-        <CardTitle>요약</CardTitle>
-      </CardHeader>
-      <CardContent className="report-summary-body">
+    <div className="panel report-summary-card">
+      <div className="panel-head report-summary-head">
+        <h3 className="panel-title">요약</h3>
+      </div>
+      <div className="panel-body report-summary-body">
         <div className="report-summary-grid">
           <div className="report-summary-item">
             <p className="report-summary-label">분석 날짜</p>
@@ -38,9 +36,9 @@ export function ReportExecutiveSummary({ report, allRuns, summary, sevCounts, se
           </div>
           <div className="report-summary-item">
             <p className="report-summary-label">컴플라이언스</p>
-            <Badge variant="outline" className={cn(hasGateFailure ? "report-summary-compliance report-summary-compliance--fail" : "report-summary-compliance report-summary-compliance--pass")}>
+            <span className={cn(hasGateFailure ? "report-summary-compliance report-summary-compliance--fail" : "report-summary-compliance report-summary-compliance--pass")}>
               {hasGateFailure ? "FAIL" : "PASS"}
-            </Badge>
+            </span>
           </div>
           <div className="report-summary-item">
             <p className="report-summary-label">분석 실행</p>
@@ -80,9 +78,9 @@ export function ReportExecutiveSummary({ report, allRuns, summary, sevCounts, se
                 {(Object.keys(severityMeta) as Array<keyof typeof severityMeta>)
                   .filter((severity) => sevCounts[severity] > 0)
                   .map((severity) => (
-                    <Badge key={severity} variant="outline" className={severityMeta[severity].badgeClassName}>
+                    <span key={severity} className={severityMeta[severity].badgeClassName}>
                       {severityMeta[severity].label} {sevCounts[severity]}
-                    </Badge>
+                    </span>
                   ))}
               </div>
             </div>
@@ -92,15 +90,15 @@ export function ReportExecutiveSummary({ report, allRuns, summary, sevCounts, se
                 {statusEntries.length === 0 ? (
                   <span className="report-summary-label">표시할 상태가 없습니다.</span>
                 ) : statusEntries.map(([status, count]) => (
-                  <Badge key={status} variant="outline" className="report-summary-status-tag">
+                  <span key={status} className="report-summary-status-tag">
                     {(FINDING_STATUS_LABELS[status as keyof typeof FINDING_STATUS_LABELS] ?? status)}: {count}
-                  </Badge>
+                  </span>
                 ))}
               </div>
             </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

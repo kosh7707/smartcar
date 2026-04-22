@@ -1,6 +1,5 @@
 import React from "react";
 import type { FindingStatus } from "@aegis/shared";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { FINDING_STATUS_DESCRIPTIONS, FINDING_STATUS_LABELS } from "../../constants/finding";
 
@@ -31,8 +30,7 @@ export const findingStatusBadgeClass = (status: FindingStatus) => {
 };
 
 export const FindingStatusBadge: React.FC<Props> = ({ status, size = "md" }) => (
-  <Badge
-    variant="outline"
+  <span
     className={cn(
       findingStatusBadgeClass(status),
       `badge-status--${status}` ,
@@ -41,5 +39,5 @@ export const FindingStatusBadge: React.FC<Props> = ({ status, size = "md" }) => 
     title={FINDING_STATUS_DESCRIPTIONS[status]}
   >
     {FINDING_STATUS_LABELS[status]}
-  </Badge>
+  </span>
 );

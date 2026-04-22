@@ -6,6 +6,7 @@ import { getModuleRoute } from "../../constants/modules";
 import { AnalysisHistoryToolbar } from "./components/AnalysisHistoryToolbar";
 import { AnalysisHistoryRunsTable } from "./components/AnalysisHistoryRunsTable";
 import { useAnalysisHistoryPage } from "./hooks/useAnalysisHistoryPage";
+import "./AnalysisHistoryPage.css";
 
 export const AnalysisHistoryPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();

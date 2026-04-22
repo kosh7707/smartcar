@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { CreateProjectForm } from "./CreateProjectForm";
 import type { DashboardProject } from "../dashboardTypes";
 import { DashboardEmptySurface } from "./DashboardEmptySurface";
@@ -101,9 +100,9 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ projects, filt
   }, [projects, statusFilter]);
 
   const emptyAction = emptyState.actionKind === "clear-filter"
-    ? <Button type="button" variant="outline" size="sm" onClick={() => onFilterChange("")}>검색 초기화</Button>
+    ? <button type="button" className="btn btn-outline btn-sm" onClick={() => onFilterChange("")}>검색 초기화</button>
     : emptyState.actionKind === "start-project"
-      ? <Button type="button" variant="outline" size="sm" onClick={createFlow.onToggle}>새 프로젝트 시작</Button>
+      ? <button type="button" className="btn btn-outline btn-sm" onClick={createFlow.onToggle}>새 프로젝트 시작</button>
       : undefined;
 
   return (
@@ -137,7 +136,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ projects, filt
         ) : null}
 
         {displayProjects.length === 0 ? (
-          <DashboardEmptySurface title={emptyState.title} description={emptyState.description} action={emptyAction} variant="inline" />
+          <DashboardEmptySurface title={emptyState.title} description={emptyState.description} action={emptyAction} />
         ) : layoutMode === "table" ? (
           <div className="ptable-wrap">
             <table className="projects">

@@ -1,9 +1,5 @@
 import React from "react";
 import { Check, Server, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { Spinner } from "../../../shared/ui";
 import type { TestStatus } from "../hooks/useSettingsPage";
@@ -32,28 +28,28 @@ export function SettingsBackendSection({
   onReset,
 }: SettingsBackendSectionProps) {
   return (
-    <Card className="settings-backend-card">
-      <CardHeader className="settings-backend-card__head">
+    <div className="panel settings-backend-card">
+      <div className="panel-head settings-backend-card__head">
         <div className="settings-backend-card__title-row">
           <div className="settings-backend-card__icon-shell">
             <Server size={20} />
           </div>
-          <CardTitle className="settings-backend-card__title">백엔드 연결</CardTitle>
+          <h3 className="panel-title settings-backend-card__title">백엔드 연결</h3>
         </div>
-      </CardHeader>
-      <CardContent className="settings-backend-card__body">
-        <Label className="settings-backend-card__field" htmlFor="backend-url">
+      </div>
+      <div className="panel-body settings-backend-card__body">
+        <label className="form-label settings-backend-card__field" htmlFor="backend-url">
           <span className="settings-backend-card__label">API 서버 주소</span>
           <div className="settings-backend-card__controls">
             <div className="settings-backend-card__input-wrap">
-              <Input
+              <input
                 id="backend-url"
                 type="text"
                 value={url}
                 onChange={(event) => onUrlChange(event.target.value)}
                 placeholder="http://localhost:3000"
                 spellCheck={false}
-                className="settings-backend-card__input"
+                className="form-input settings-backend-card__input"
               />
               {testStatus === "ok" ? (
                 <span className="settings-backend-card__status-indicator settings-backend-card__status-indicator--ok">
@@ -72,20 +68,18 @@ export function SettingsBackendSection({
               ) : null}
             </div>
             <div className="settings-backend-card__actions">
-              <Button
-                variant="outline"
-                size="sm"
+              <button type="button" className="btn btn-outline btn-sm"
                 onClick={onTest}
                 disabled={testStatus === "testing" || !url.trim()}
               >
                 테스트
-              </Button>
-              <Button size="sm" onClick={onSave} disabled={!urlDirty && !saved}>
+              </button>
+              <button type="button" className="btn btn-primary btn-sm" onClick={onSave} disabled={!urlDirty && !saved}>
                 {saved ? "저장됨" : "저장"}
-              </Button>
+              </button>
             </div>
           </div>
-        </Label>
+        </label>
         {testStatus !== "idle" && testStatus !== "testing" ? (
           <div
             className={cn(
@@ -98,11 +92,11 @@ export function SettingsBackendSection({
           </div>
         ) : null}
         <div>
-          <Button variant="link" className="settings-backend-card__reset" onClick={onReset}>
+          <button type="button" className="btn btn-link settings-backend-card__reset" onClick={onReset}>
             기본값으로 초기화
-          </Button>
+          </button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

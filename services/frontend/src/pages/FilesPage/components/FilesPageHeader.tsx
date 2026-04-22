@@ -1,6 +1,5 @@
 import React from "react";
 import { Upload } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { PageHeader } from "../../../shared/ui";
 
 interface FilesPageHeaderProps {
@@ -19,10 +18,10 @@ export const FilesPageHeader: React.FC<FilesPageHeaderProps> = ({
     title="파일 탐색기"
     action={(
       <div className="files-page-header-actions">
-        <Button size="sm" onClick={onOpenUpload} title="소스코드 업로드">
+        <button type="button" className="btn btn-primary btn-sm" onClick={onOpenUpload} title="소스코드 업로드">
           <Upload size={14} />
           소스 업로드
-        </Button>
+        </button>
         <input
           ref={fileInputRef}
           type="file"

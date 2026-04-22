@@ -1,12 +1,12 @@
 import React from "react";
 import { useParams } from "react-router-dom";
-import { Tabs } from "@/components/ui/tabs";
 import { useToast } from "../../contexts/ToastContext";
 import { ConfirmDialog, ConnectionStatusBanner, Spinner } from "../../shared/ui";
 import { ProjectSettingsSidebar } from "./components/ProjectSettingsSidebar";
 import { ProjectSettingsHeader } from "./components/ProjectSettingsHeader";
 import { ProjectSettingsContent } from "./components/ProjectSettingsContent";
 import { useProjectSettingsPage } from "./hooks/useProjectSettingsPage";
+import "./ProjectSettingsPage.css";
 
 export const ProjectSettingsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -26,7 +26,7 @@ export const ProjectSettingsPage: React.FC = () => {
       <ConnectionStatusBanner connectionState={state.sdkConnectionState} />
       <ProjectSettingsHeader />
 
-      <Tabs
+      <div
         value={state.activeSection}
         onValueChange={(value) => state.setActiveSection(value as typeof state.activeSection)}
         orientation="vertical"
@@ -47,7 +47,7 @@ export const ProjectSettingsPage: React.FC = () => {
             onRequestDelete={state.setDeleteTarget}
           />
         </div>
-      </Tabs>
+      </div>
 
       <ConfirmDialog
         open={state.deleteTarget !== null}

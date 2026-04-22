@@ -1,0 +1,66 @@
+.form-switch {
+  position: relative;
+  display: inline-flex;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.form-switch__input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.form-switch__track {
+  display: inline-flex;
+  width: 36px;
+  height: 20px;
+  align-items: center;
+  padding: 2px;
+
+  background: var(--border-strong);
+  border-radius: 999px;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.form-switch__thumb {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--foreground) 20%, transparent);
+  transform: translateX(0);
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+.form-switch__input:checked + .form-switch__track {
+  background: var(--primary);
+}
+
+.form-switch__input:checked + .form-switch__track .form-switch__thumb {
+  transform: translateX(16px);
+}
+
+.form-switch__input:focus-visible + .form-switch__track {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.form-switch__input:disabled + .form-switch__track {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.form-switch__label {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--text-sm);
+  color: var(--foreground);
+  cursor: pointer;
+  user-select: none;
+}

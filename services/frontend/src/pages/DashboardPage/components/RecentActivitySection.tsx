@@ -1,5 +1,4 @@
 import React from "react";
-import { Button } from "@/components/ui/button";
 import type { ConnectionState } from "../../../utils/wsEnvelope";
 import type { ActivityEvent } from "../dashboardTypes";
 import { ActivityEventCard } from "./ActivityEventCard";
@@ -38,11 +37,11 @@ export const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
         <div className="panel-head"><h3>최근 활동</h3></div>
         <div className="activity-body">
           {visibleActivity.length === 0 ? (
-            <DashboardEmptySurface title="아직 활동 없음" description="첫 업로드, 분석, 승인 같은 작업이 시작되면 최근 흐름이 이 레인에 순서대로 쌓입니다." variant="panel" />
+            <DashboardEmptySurface title="아직 활동 없음" description="첫 업로드, 분석, 승인 같은 작업이 시작되면 최근 흐름이 이 레인에 순서대로 쌓입니다." />
           ) : (
             visibleActivity.map((event) => <ActivityEventCard key={event.id} event={event} />)
           )}
-          {hasMore ? <div className="activity-load-more"><Button type="button" variant="outline" size="sm" onClick={onLoadMore}>더 보기</Button></div> : null}
+          {hasMore ? <div className="activity-load-more"><button type="button" className="btn btn-outline btn-sm" onClick={onLoadMore}>더 보기</button></div> : null}
         </div>
         <div className={`activity-foot activity-foot--${liveSignal.tone}`} aria-live="polite">
           <span className="live-dot"></span>

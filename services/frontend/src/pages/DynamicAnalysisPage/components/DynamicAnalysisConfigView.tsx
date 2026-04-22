@@ -1,10 +1,6 @@
 import React from "react";
 import type { Adapter } from "@aegis/shared";
 import { Plug, Radio } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { AdapterSelector, BackButton, PageHeader, Spinner } from "../../../shared/ui";
 
 interface DynamicAnalysisConfigViewProps {
@@ -22,29 +18,29 @@ export const DynamicAnalysisConfigView: React.FC<DynamicAnalysisConfigViewProps>
     <BackButton onClick={onBack} label="이력으로" />
     <PageHeader title="새 세션" />
 
-    <Card>
-      <CardHeader>
-        <CardTitle>모니터링 설정</CardTitle>
-        <CardDescription>연결된 어댑터를 선택하고 실시간 CAN 트래픽 모니터링을 시작하세요.</CardDescription>
-      </CardHeader>
-      <CardContent className="dynamic-config-card">
+    <div className="panel">
+      <div className="panel-head">
+        <h3 className="panel-title">모니터링 설정</h3>
+        <p className="panel-description">연결된 어댑터를 선택하고 실시간 CAN 트래픽 모니터링을 시작하세요.</p>
+      </div>
+      <div className="panel-body dynamic-config-card">
         <section className="dynamic-config-section">
-          <Label className="dynamic-config-title">어댑터</Label>
+          <label className="form-label dynamic-config-title">어댑터</label>
           {connected.length === 0 ? (
-            <Alert variant="destructive">
+            <div className="panel panel-alert">
               <Plug size={16} />
-              <AlertTitle>연결된 어댑터가 없습니다.</AlertTitle>
-              <AlertDescription>
+              <strong className="alert-title">연결된 어댑터가 없습니다.</strong>
+              <span className="alert-description">
                 <a href={`#/projects/${projectId}/settings`} className="dynamic-config-inline-link">프로젝트 설정</a>에서 연결해주세요.
-              </AlertDescription>
-            </Alert>
+              </span>
+            </div>
           ) : (
             <AdapterSelector adapters={connected} selectedId={selectedAdapterId} onSelect={setSelectedAdapterId} disabled={creating} />
           )}
         </section>
 
         <section className="dynamic-config-section">
-          <Label className="dynamic-config-title">모니터링 모드</Label>
+          <label className="form-label dynamic-config-title">모니터링 모드</label>
           <div className="dynamic-config-mode">
             <div className="dynamic-config-mode-icon"><Radio size={16} /></div>
             <div className="dynamic-config-mode-copy">
@@ -55,10 +51,10 @@ export const DynamicAnalysisConfigView: React.FC<DynamicAnalysisConfigViewProps>
         </section>
 
         <div>
-          <Button disabled={!selectedAdapterId || creating} onClick={onStart}>{creating ? <Spinner size={14} /> : <Plug size={16} />}모니터링 시작</Button>
+          <button type="button" className="btn btn-primary" disabled={!selectedAdapterId || creating} onClick={onStart}>{creating ? <Spinner size={14} /> : <Plug size={16} />}모니터링 시작</button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
 
     {creating ? <div className="dynamic-config-loading page-loading-shell"><Spinner label="세션 생성 중..." /></div> : null}
   </div>

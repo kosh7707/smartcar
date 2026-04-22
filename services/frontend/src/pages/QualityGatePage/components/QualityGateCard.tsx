@@ -1,14 +1,4 @@
 import React from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import type { GateResult } from "../../../api/gate";
 import { formatDateTime } from "../../../utils/format";
@@ -43,29 +33,28 @@ export function QualityGateCard({
   ).length;
 
   return (
-    <Card className="gate-card quality-gate-card">
-      <CardHeader className="quality-gate-card__header">
+    <div className="panel gate-card quality-gate-card">
+      <div className="panel-head quality-gate-card__header">
         <div className="quality-gate-card__header-row">
           <div className="quality-gate-card__header-copy">
-            <Badge
-              variant="outline"
+            <span
               className={cn(config.badgeClassName)}
             >
               {config.label}
-            </Badge>
-            <CardTitle className="quality-gate-card__title">게이트 판정</CardTitle>
+            </span>
+            <h3 className="panel-title quality-gate-card__title">게이트 판정</h3>
           </div>
           <p className="quality-gate-card__timestamp">
             {formatDateTime(gate.evaluatedAt)}
           </p>
         </div>
-      </CardHeader>
+      </div>
 
-      <CardContent className="quality-gate-card__body">
+      <div className="panel-body quality-gate-card__body">
         <div className="quality-gate-card__rules">
           {[...gate.rules].sort(sortGateRules).map((rule, index) => (
             <React.Fragment key={rule.ruleId}>
-              {index > 0 ? <Separator /> : null}
+              {index > 0 ? <hr className="divider"  /> : null}
               <QualityGateRuleResultRow rule={rule} />
             </React.Fragment>
           ))}
@@ -90,7 +79,7 @@ export function QualityGateCard({
                   </div>
                 )}
                 <div className="quality-gate-card__override-grid">
-                  <Input
+                  <input className="form-input"
                     type="text"
                     placeholder="오버라이드 사유를 입력하세요 (최소 10자)"
                     value={overrideReason}
@@ -103,36 +92,31 @@ export function QualityGateCard({
                       onSubmitOverride()
                     }
                   />
-                  <Button
-                    size="sm"
-                    className="quality-gate-card__override-button"
+                  <button type="button"
+                    className="btn btn-primary btn-sm quality-gate-card__override-button"
                     onClick={onSubmitOverride}
                     disabled={overriding || overrideReason.trim().length < 10}
                   >
                     {overriding ? "처리 중..." : "오버라이드 확인"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="quality-gate-card__override-button"
+                  </button>
+                  <button type="button"
+                    className="btn btn-outline btn-sm quality-gate-card__override-button"
                     onClick={onCancelOverride}
                   >
                     취소
-                  </Button>
+                  </button>
                 </div>
               </div>
             ) : (
-              <Button
-                variant="outline"
-                size="sm"
+              <button type="button" className="btn btn-outline btn-sm"
                 onClick={() => onSetOverrideTarget(gate.id)}
               >
                 오버라이드
-              </Button>
+              </button>
             )}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

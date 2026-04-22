@@ -1,0 +1,14 @@
+
+
+/* ── Extracted from app-shell.css (Phase 1a.1 pass 2) ── */
+.state-transition-dialog { max-width:440px; }
+.state-transition-dialog__body { display:flex; flex-direction:column; gap:20px; }
+.state-transition-dialog__field { display:flex; flex-direction:column; gap:8px; }
+.state-transition-dialog__status { width:fit-content; }
+.state-transition-dialog__select { width:100%; }
+.state-transition-dialog__reason { min-height:72px; resize:vertical; }
+.state-transition-dialog__footer { flex-direction:row; justify-content:flex-end; gap:8px; }
+@media (max-width: 639px) {
+  .state-transition-dialog__footer { flex-direction:column-reverse; }
+  .state-transition-dialog__footer > * { width:100%; }
+}

@@ -1,7 +1,6 @@
 import React from "react";
 import type { AnalysisResult } from "@aegis/shared";
 import { FileSearch } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { ListItem, SeveritySummary } from "../../../shared/ui";
 import { formatDateTime } from "../../../utils/format";
 
@@ -14,8 +13,8 @@ export const FileDetailAnalysisHistorySection: React.FC<
   FileDetailAnalysisHistorySectionProps
 > = ({ analyses, onOpenAnalysis }) => (
   <section>
-    <Card className="file-detail-history-card">
-      <CardContent className="file-detail-history-card__body">
+    <div className="panel file-detail-history-card">
+      <div className="panel-body file-detail-history-card__body">
         <div className="file-detail-history-card__head">
           <FileSearch size={16} />
           관련 분석 이력 ({analyses.length})
@@ -46,7 +45,7 @@ export const FileDetailAnalysisHistorySection: React.FC<
             ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   </section>
 );

@@ -1,0 +1,10 @@
+
+
+/* ── Extracted from app-shell.css (Phase 1a.1 pass 4) ── */
+.inline-stack { display: inline-flex; align-items: center; gap: 8px; }
+
+.scroll-area {
+  position: relative;
+  overflow: auto;
+  min-height: 0;
+}

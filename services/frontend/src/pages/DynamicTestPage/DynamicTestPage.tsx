@@ -8,6 +8,7 @@ import { DynamicTestHistoryView } from "./components/DynamicTestHistoryView";
 import { DynamicTestResultsView } from "./components/DynamicTestResultsView";
 import { DynamicTestRunningView } from "./components/DynamicTestRunningView";
 import { useDynamicTestPage } from "./hooks/useDynamicTestPage";
+import "./DynamicTestPage.css";
 
 export const DynamicTestPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();

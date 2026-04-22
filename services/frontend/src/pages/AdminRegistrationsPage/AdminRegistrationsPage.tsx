@@ -2,8 +2,6 @@ import React, { useState } from "react";
 import type { RegistrationRequest, UserRole } from "@aegis/shared";
 import { AlertCircle, Check, RefreshCw, X } from "lucide-react";
 import { PageHeader } from "../../shared/ui";
-import { Button } from "../../components/ui/button";
-import { Badge } from "../../components/ui/badge";
 import { useAdminRegistrations } from "./hooks/useAdminRegistrations";
 
 const ROLE_OPTIONS: UserRole[] = ["viewer", "analyst", "admin"];
@@ -28,9 +26,9 @@ function formatDateTime(iso: string): string {
 }
 
 function StatusBadge({ status }: { status: RegistrationRequest["status"] }) {
-  if (status === "pending_admin_review") return <Badge variant="outline">pending</Badge>;
-  if (status === "approved") return <Badge>approved</Badge>;
-  return <Badge variant="destructive">rejected</Badge>;
+  if (status === "pending_admin_review") return <span>pending</span>;
+  if (status === "approved") return <span>approved</span>;
+  return <span>rejected</span>;
 }
 
 type RowProps = {
@@ -55,7 +53,7 @@ const RegistrationRow: React.FC<RowProps> = ({ request, busy, onApprove, onRejec
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
             <strong>{request.fullName}</strong>
             <StatusBadge status={request.status} />
-            {request.assignedRole ? <Badge variant="outline">{ROLE_LABELS[request.assignedRole]}</Badge> : null}
+            {request.assignedRole ? <span>{ROLE_LABELS[request.assignedRole]}</span> : null}
           </div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--foreground-subtle)", marginTop: 4 }}>
             {request.email}
@@ -89,12 +87,12 @@ const RegistrationRow: React.FC<RowProps> = ({ request, busy, onApprove, onRejec
                     ))}
                   </select>
                 </label>
-                <Button size="sm" onClick={() => onApprove(request.id, role)} disabled={isBusy}>
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => onApprove(request.id, role)} disabled={isBusy}>
                   {busy === "approve" ? "승인 중..." : (<><Check aria-hidden="true" />승인</>)}
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setRejectMode(true)} disabled={isBusy}>
+                </button>
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => setRejectMode(true)} disabled={isBusy}>
                   <X aria-hidden="true" />반려
-                </Button>
+                </button>
               </>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", minWidth: 320 }}>
@@ -107,10 +105,8 @@ const RegistrationRow: React.FC<RowProps> = ({ request, busy, onApprove, onRejec
                   style={{ padding: 8, background: "var(--surface-2)", color: "var(--foreground)", border: "1px solid var(--border)", borderRadius: 6, fontFamily: "inherit", fontSize: 13 }}
                 />
                 <div style={{ display: "flex", gap: "var(--space-2)", justifyContent: "flex-end" }}>
-                  <Button variant="ghost" size="sm" onClick={() => { setRejectMode(false); setReason(""); }} disabled={isBusy}>취소</Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setRejectMode(false); setReason(""); }} disabled={isBusy}>취소</button>
+                  <button type="button" className="btn btn-danger btn-sm"
                     onClick={async () => {
                       const ok = await onReject(request.id, reason);
                       if (ok) {
@@ -121,7 +117,7 @@ const RegistrationRow: React.FC<RowProps> = ({ request, busy, onApprove, onRejec
                     disabled={isBusy || !reason.trim()}
                   >
                     {busy === "reject" ? "반려 중..." : "반려 확정"}
-                  </Button>
+                  </button>
                 </div>
               </div>
             )}
@@ -152,17 +148,17 @@ export const AdminRegistrationsPage: React.FC = () => {
         surface="plain"
         title="가입 요청 관리"
         action={(
-          <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading}>
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => void refresh()} disabled={loading}>
             <RefreshCw aria-hidden="true" />
             {loading ? "불러오는 중..." : "새로고침"}
-          </Button>
+          </button>
         )}
       />
 
       <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
-        <Badge variant="outline">대기 {counts.pending}</Badge>
-        <Badge>승인 완료 {counts.approved}</Badge>
-        <Badge variant="destructive">반려 {counts.rejected}</Badge>
+        <span>대기 {counts.pending}</span>
+        <span>승인 완료 {counts.approved}</span>
+        <span>반려 {counts.rejected}</span>
       </div>
 
       {loadError ? (
@@ -176,7 +172,7 @@ export const AdminRegistrationsPage: React.FC = () => {
         <div className="notice" role="alert" style={{ borderColor: "var(--danger)", background: "var(--danger-surface)", display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
           <AlertCircle aria-hidden="true" />
           <div style={{ flex: 1 }}>{actionError}</div>
-          <Button variant="ghost" size="xs" onClick={clearActionError}>닫기</Button>
+          <button type="button" className="btn btn-ghost btn-xs" onClick={clearActionError}>닫기</button>
         </div>
       ) : null}
 

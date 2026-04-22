@@ -1,6 +1,4 @@
 import React from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 interface CreateProjectFormProps {
   name: string;
@@ -14,11 +12,11 @@ interface CreateProjectFormProps {
 export const CreateProjectForm: React.FC<CreateProjectFormProps> = ({ name, description, onNameChange, onDescriptionChange, onCreate, onCancel }) => (
   <div className="placeholder-card">
     <span className="eyebrow">new project</span>
-    <Input value={name} onChange={(event) => onNameChange(event.target.value)} placeholder="프로젝트 이름" autoFocus onKeyDown={(event) => event.key === "Enter" && onCreate()} />
-    <Input value={description} onChange={(event) => onDescriptionChange(event.target.value)} placeholder="설명 (선택)" onKeyDown={(event) => event.key === "Enter" && onCreate()} />
+    <input className="form-input" value={name} onChange={(event) => onNameChange(event.target.value)} placeholder="프로젝트 이름" autoFocus onKeyDown={(event) => event.key === "Enter" && onCreate()} />
+    <input className="form-input" value={description} onChange={(event) => onDescriptionChange(event.target.value)} placeholder="설명 (선택)" onKeyDown={(event) => event.key === "Enter" && onCreate()} />
     <div className="actions">
-      <Button type="button" variant="outline" size="sm" onClick={onCancel}>취소</Button>
-      <Button type="button" size="sm" onClick={onCreate}>만들기</Button>
+      <button type="button" className="btn btn-outline btn-sm" onClick={onCancel}>취소</button>
+      <button type="button" className="btn btn-primary btn-sm" onClick={onCreate}>만들기</button>
     </div>
   </div>
 );

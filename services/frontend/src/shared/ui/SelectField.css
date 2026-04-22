@@ -1,0 +1,92 @@
+.form-select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--foreground);
+
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  transition: border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.form-select-trigger[data-placeholder] {
+  color: var(--foreground-subtle);
+}
+
+.form-select-trigger:hover {
+  border-color: color-mix(in srgb, var(--border) 55%, var(--foreground-muted));
+}
+
+.form-select-trigger[data-state="open"],
+.form-select-trigger:focus,
+.form-select-trigger:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+.form-select-trigger[aria-invalid="true"] {
+  border-color: var(--severity-critical);
+}
+
+.form-select-trigger[data-disabled],
+.form-select-trigger:disabled {
+  background: var(--surface-sunken);
+  cursor: not-allowed;
+}
+
+.form-select-content {
+  z-index: 60;
+  min-width: var(--radix-select-trigger-width);
+  max-height: 320px;
+  padding: 4px;
+
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--foreground) 12%, transparent);
+  overflow: hidden;
+}
+
+.form-select-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 28px 8px 10px;
+
+  font-size: var(--text-sm);
+  color: var(--foreground);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  user-select: none;
+}
+
+.form-select-item[data-highlighted] {
+  background: var(--surface-sunken);
+  outline: none;
+}
+
+.form-select-item[data-disabled] {
+  color: var(--foreground-subtle);
+  pointer-events: none;
+}
+
+.form-select-indicator {
+  position: absolute;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+}

@@ -1,0 +1,42 @@
+
+
+/* ── Extracted from app-shell.css (Phase 1a.1) ── */
+.confirm-dialog { max-width:28rem; gap:0; border-color:var(--border); background:var(--card); padding:0; box-shadow:var(--shadow-lg); }
+.confirm-dialog__header { flex-direction:row; align-items:flex-start; gap:12px; padding:16px 20px; border-bottom:1px solid var(--border); }
+.confirm-dialog__icon { display:flex; align-items:center; justify-content:center; width:36px; height:36px; flex-shrink:0; margin-top:2px; border-radius:var(--radius-lg); }
+.confirm-dialog__icon.is-danger { background:color-mix(in srgb, var(--destructive) 10%, transparent); color:var(--destructive); }
+.confirm-dialog__icon.is-default { background:color-mix(in srgb, var(--primary) 10%, transparent); color:var(--primary); }
+.confirm-dialog__copy { min-width:0; }
+.confirm-dialog__title { font-size:var(--text-base); font-weight:var(--weight-semibold); color:var(--foreground); }
+.confirm-dialog__description { margin-top:4px; font-size:var(--text-sm); line-height:1.5rem; color:var(--foreground-muted); }
+.confirm-dialog__footer { flex-direction:row; justify-content:flex-end; gap:8px; padding:16px 20px; border-top:0; background:transparent; }
+@media (max-width: 639px) {
+  .confirm-dialog__footer { flex-direction:column-reverse; }
+  .confirm-dialog__footer > * { width:100%; }
+}
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-5);
+  background: var(--surface-overlay);
+  backdrop-filter: blur(2px);
+  animation: modal-overlay-in 160ms ease-out;
+}
+.modal-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 560px);
+  max-height: calc(100vh - var(--space-5) * 2);
+  background: var(--surface-raised);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  outline: none;
+  animation: modal-content-in 180ms var(--ease-out);
+}

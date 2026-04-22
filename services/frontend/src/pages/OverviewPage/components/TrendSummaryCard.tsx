@@ -1,6 +1,5 @@
 import React from "react";
 import { Activity, Minus, TrendingDown, TrendingUp } from "lucide-react";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import type { OverviewTrend } from "../overviewModel";
 import { hasTrendSignal } from "../overviewModel";
 
@@ -36,12 +35,12 @@ export const TrendSummaryCard: React.FC<TrendSummaryCardProps> = ({ trend }) => 
   if (!hasTrendSignal(trend)) return null;
 
   return (
-    <Card className="trend-summary-card">
-      <CardContent className="trend-summary-card__body">
-        <CardTitle className="trend-summary-card__title">
+    <div className="panel trend-summary-card">
+      <div className="panel-body trend-summary-card__body">
+        <h3 className="panel-title trend-summary-card__title">
           <Activity size={16} />
           이전 분석 대비 변화
-        </CardTitle>
+        </h3>
         <div className="trend-summary-card__grid">
           {trendItems.map((item) => {
             const Icon = item.icon;
@@ -57,7 +56,7 @@ export const TrendSummaryCard: React.FC<TrendSummaryCardProps> = ({ trend }) => 
             );
           })}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };

@@ -1,7 +1,5 @@
 import React from "react";
 import { Settings } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { TestStatus } from "../hooks/useSettingsPage";
 
@@ -20,16 +18,16 @@ export function SettingsApiAccessSection({
   testStatus: TestStatus;
 }) {
   return (
-    <Card className="settings-api-card">
-      <CardHeader className="settings-api-card__head">
+    <div className="panel settings-api-card">
+      <div className="panel-head settings-api-card__head">
         <div className="settings-api-card__title-row">
           <div className="settings-api-card__icon-shell">
             <Settings size={20} />
           </div>
-          <CardTitle className="settings-api-card__title">API 접근</CardTitle>
+          <h3 className="panel-title settings-api-card__title">API 접근</h3>
         </div>
-      </CardHeader>
-      <CardContent className="settings-api-card__body">
+      </div>
+      <div className="panel-body settings-api-card__body">
         <div className="settings-api-card__surface">
           <div className="settings-api-card__surface-label">Endpoint</div>
           <div className="settings-api-card__endpoint">
@@ -38,8 +36,7 @@ export function SettingsApiAccessSection({
         </div>
         <div className="settings-api-card__surface">
           <div className="settings-api-card__surface-label">Status</div>
-          <Badge
-            variant="outline"
+          <span
             className={cn(
               "settings-api-card__status-badge",
               testStatus === "ok" && "settings-api-card__status-badge--ok",
@@ -49,9 +46,9 @@ export function SettingsApiAccessSection({
             )}
           >
             {getStatusLabel(testStatus)}
-          </Badge>
+          </span>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

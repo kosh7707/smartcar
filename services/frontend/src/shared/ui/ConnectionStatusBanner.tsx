@@ -1,9 +1,8 @@
 import React from "react";
 import { WifiOff } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ConnectionState } from "../../utils/wsEnvelope";
+import "./ConnectionStatusBanner.css";
 
 interface Props {
   connectionState: ConnectionState;
@@ -20,26 +19,27 @@ export const ConnectionStatusBanner: React.FC<Props> = ({ connectionState, retry
     : `재연결 중...${retryCount != null ? ` (시도 ${retryCount})` : ""}`;
 
   return (
-    <Alert
+    <div
       role="status"
-      variant={isFailed ? "destructive" : "default"}
-      className={cn("connection-status-banner", isFailed ? "is-failed" : "is-reconnecting")}
+      className={cn(
+        "connection-status-banner",
+        isFailed ? "is-failed" : "is-reconnecting",
+      )}
     >
-      <WifiOff size={16} className="connection-status-banner__icon" />
+      <WifiOff size={16} className="connection-status-banner__icon" aria-hidden="true" />
       <div className="connection-status-banner__copy">
-        <AlertTitle>{title}</AlertTitle>
-        <AlertDescription>{description}</AlertDescription>
+        <strong className="connection-status-banner__title">{title}</strong>
+        <span className="connection-status-banner__description">{description}</span>
       </div>
       {isFailed ? (
-        <Button
+        <button
+          type="button"
           onClick={() => window.location.reload()}
-          className="connection-status-banner__action"
-          size="sm"
-          variant="outline"
+          className="btn btn-outline btn-sm connection-status-banner__action"
         >
           새로고침
-        </Button>
+        </button>
       ) : null}
-    </Alert>
+    </div>
   );
 };

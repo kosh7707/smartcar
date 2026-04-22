@@ -1,6 +1,4 @@
 import React from "react";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ProjectReport } from "@aegis/shared";
 import { formatDateTime } from "../../../utils/format";
 
@@ -12,20 +10,19 @@ const approvalStatusTone = {
 
 export function ReportApprovalsSection({ approvals }: { approvals: ProjectReport["approvals"] }) {
   return (
-    <Card className="report-approvals-card">
-      <CardHeader className="report-approvals-card__head">
-        <CardTitle>승인 이력 ({approvals.length})</CardTitle>
-      </CardHeader>
-      <CardContent className="report-approvals-card__body">
+    <div className="panel report-approvals-card">
+      <div className="panel-head report-approvals-card__head">
+        <h3 className="panel-title">승인 이력 ({approvals.length})</h3>
+      </div>
+      <div className="panel-body report-approvals-card__body">
         {approvals.map((approval) => (
           <div key={approval.id} className="report-approvals-card__row">
             <div className="report-approvals-card__meta">
-              <Badge
-                variant="outline"
+              <span
                 className={approvalStatusTone[approval.status as keyof typeof approvalStatusTone] ?? "report-approvals-card__status report-approvals-card__status--idle"}
               >
                 {approval.status}
-              </Badge>
+              </span>
               <span className="report-approvals-card__action">{approval.actionType}</span>
               <span className="report-approvals-card__copy">요청: {approval.requestedBy}</span>
               {approval.decision && (
@@ -35,7 +32,7 @@ export function ReportApprovalsSection({ approvals }: { approvals: ProjectReport
             <span className="report-approvals-card__timestamp">{formatDateTime(approval.createdAt)}</span>
           </div>
         ))}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

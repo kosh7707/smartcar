@@ -1,8 +1,6 @@
 import React, { useCallback } from "react";
 import { Upload, FileText, Check } from "lucide-react";
 import type { UploadedFile } from "@aegis/shared";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "../../../shared/ui";
 
 interface LocalFile {
@@ -58,17 +56,17 @@ export const FileUploadView: React.FC<Props> = ({
       <PageHeader surface="plain" title="소스 코드 업로드" />
 
       {existingFiles.length > 0 && (
-        <Card className="static-upload-view__existing-card">
-          <CardContent className="static-upload-view__existing-body">
-          <CardTitle className="static-upload-view__section-title">
+        <div className="panel static-upload-view__existing-card">
+          <div className="panel-body static-upload-view__existing-body">
+          <h3 className="panel-title static-upload-view__section-title">
             <FileText size={16} />
             프로젝트 파일에서 선택 ({selectedExisting.length}/{existingFiles.length})
             {onSelectAll && selectedExisting.length < existingFiles.length && (
-              <Button variant="outline" size="sm" className="static-upload-view__select-all" onClick={onSelectAll}>
+              <button type="button" className="btn btn-outline btn-sm static-upload-view__select-all" onClick={onSelectAll}>
                 전체 선택
-              </Button>
+              </button>
             )}
-          </CardTitle>
+          </h3>
           {existingFiles.map((file) => {
             const selected = selectedExisting.some((f) => f.id === file.id);
             return (
@@ -86,17 +84,16 @@ export const FileUploadView: React.FC<Props> = ({
               </div>
             );
           })}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
-      <Card
-        className="static-upload-view__dropzone"
+      <div className="panel static-upload-view__dropzone"
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
         onClick={() => document.getElementById("file-input")?.click()}
       >
-        <CardContent>
+        <div className="panel-body">
         <div className="static-upload-view__dropzone-body">
           <div className="static-upload-view__dropzone-icon">
             <Upload size={36} />
@@ -112,13 +109,13 @@ export const FileUploadView: React.FC<Props> = ({
           className="static-upload-view__hidden-input"
           onChange={handleFileSelect}
         />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {files.length > 0 && (
-        <Card className="static-upload-view__added-card">
-          <CardContent className="static-upload-view__added-body">
-          <CardTitle>새로 추가한 파일 ({files.length})</CardTitle>
+        <div className="panel static-upload-view__added-card">
+          <div className="panel-body static-upload-view__added-body">
+          <h3 className="panel-title">새로 추가한 파일 ({files.length})</h3>
           {files.map((f, i) => (
             <div key={f.info.id} className="static-upload-view__added-row">
               <div className="static-upload-view__added-info">
@@ -131,14 +128,14 @@ export const FileUploadView: React.FC<Props> = ({
                 <span className="static-upload-view__file-size">
                   {(f.info.size / 1024).toFixed(1)}KB
                 </span>
-                <Button variant="outline" size="sm" onClick={() => onRemoveFile(i)}>
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => onRemoveFile(i)}>
                   삭제
-                </Button>
+                </button>
               </div>
             </div>
           ))}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {totalSelected > 0 && (
@@ -149,9 +146,9 @@ export const FileUploadView: React.FC<Props> = ({
               <> (기존 {selectedExisting.length} + 새 파일 {files.length})</>
             )}
           </span>
-          <Button onClick={onStartAnalysis}>
+          <button type="button" className="btn btn-primary" onClick={onStartAnalysis}>
             분석 시작
-          </Button>
+          </button>
         </div>
       )}
     </div>

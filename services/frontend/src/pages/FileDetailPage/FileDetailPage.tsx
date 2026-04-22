@@ -10,6 +10,7 @@ import { FileDetailMissingState } from "./components/FileDetailMissingState";
 import { FileDetailSourcePanel } from "./components/FileDetailSourcePanel";
 import { FileDetailVulnerabilitiesSection } from "./components/FileDetailVulnerabilitiesSection";
 import { useFileDetailPage } from "./hooks/useFileDetailPage";
+import "./FileDetailPage.css";
 
 export const FileDetailPage: React.FC = () => {
   const { projectId, fileId } = useParams<{ projectId: string; fileId: string }>();

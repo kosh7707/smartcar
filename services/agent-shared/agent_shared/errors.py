@@ -52,6 +52,29 @@ class LlmHttpError(S3Error):
         self.retry_after = retry_after  # S7이 보내는 Retry-After 값 (초)
 
 
+class StrictJsonContractError(S3Error):
+    """S7 strict JSON contract failure with retry/audit metadata."""
+
+    def __init__(
+        self,
+        message: str = "strict_json_contract_violation",
+        *,
+        blocked_reason: str = "strict_json_contract_violation",
+        error_detail: str | None = None,
+        async_request_id: str | None = None,
+        gateway_request_id: str | None = None,
+        http_status: int = 409,
+        raw_excerpt: str | None = None,
+    ) -> None:
+        super().__init__(message, code="STRICT_JSON_CONTRACT_VIOLATION", retryable=True)
+        self.blocked_reason = blocked_reason
+        self.error_detail = error_detail
+        self.async_request_id = async_request_id
+        self.gateway_request_id = gateway_request_id
+        self.http_status = http_status
+        self.raw_excerpt = raw_excerpt
+
+
 class LlmPoolExhaustedError(S3Error):
     """HTTP 연결 풀 소진 — 동시 요청 과다."""
 

@@ -6,6 +6,7 @@ import { QualityGateCard } from "./components/QualityGateCard";
 import { QualityGateSidebar } from "./components/QualityGateSidebar";
 import { QualityGateStatusBanner } from "./components/QualityGateStatusBanner";
 import { useQualityGatePage } from "./hooks/useQualityGatePage";
+import "./QualityGatePage.css";
 
 export const QualityGatePage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -37,15 +38,7 @@ export const QualityGatePage: React.FC = () => {
 
   return (
     <div className="page-shell">
-      <PageHeader
-        surface="plain"
-        title="품질 게이트"
-        subtitle={
-          latestGate
-            ? "최근 평가 결과와 규칙 상태를 검토합니다."
-            : "분석 결과가 준비되면 게이트가 자동으로 평가됩니다."
-        }
-      />
+      <PageHeader surface="plain" title="품질 게이트" />
 
       {latestGate ? <QualityGateStatusBanner gate={latestGate} /> : null}
 

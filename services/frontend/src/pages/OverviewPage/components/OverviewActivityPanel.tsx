@@ -1,7 +1,5 @@
 import React from "react";
 import { Activity } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ActivityEntry } from "../../../api/projects";
 import { formatDateTime } from "../../../utils/format";
 import { OverviewSectionHeader } from "./OverviewSectionHeader";
@@ -13,13 +11,13 @@ interface OverviewActivityPanelProps {
 export const OverviewActivityPanel: React.FC<OverviewActivityPanelProps> = ({ activities }) => (
   <section className="overview-activity-panel">
     <OverviewSectionHeader title="최근 활동" />
-    <Card className="overview-activity-panel__card">
+    <div className="panel overview-activity-panel__card">
       {activities.length === 0 ? (
         <div className="overview-activity-panel__empty-wrap">
           <p className="overview-activity-panel__empty">아직 활동 이력이 없습니다.</p>
         </div>
       ) : (
-        <ScrollArea className="overview-activity-panel__scroll">
+        <div className="scroll-area overview-activity-panel__scroll">
           <div className="overview-activity-panel__list">
             {activities.map((activity, index) => (
               <div
@@ -38,8 +36,8 @@ export const OverviewActivityPanel: React.FC<OverviewActivityPanelProps> = ({ ac
               </div>
             ))}
           </div>
-        </ScrollArea>
+        </div>
       )}
-    </Card>
+    </div>
   </section>
 );

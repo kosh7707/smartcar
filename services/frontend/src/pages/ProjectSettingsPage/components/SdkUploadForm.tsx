@@ -1,9 +1,5 @@
 import React, { useCallback, useRef, useState } from "react";
 import { Archive, Binary, FolderOpen, Upload, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { RegisteredSdk, SdkArtifactKind } from "../../../api/sdk";
 import { registerSdkByUpload } from "../../../api/sdk";
@@ -142,42 +138,37 @@ export const SdkUploadForm: React.FC<SdkUploadFormProps> = ({ projectId, onRegis
   const accept = mode === "archive" ? ARCHIVE_ACCEPT : mode === "bin" ? BIN_ACCEPT : undefined;
 
   return (
-    <Card className="sdk-register-form">
-      <CardContent className="sdk-register-form__body">
+    <div className="panel sdk-register-form">
+      <div className="panel-body sdk-register-form__body">
       <div className="sdk-register-form__modes">
         {MODES.map((entry) => {
           return (
-            <Button
-              key={entry.key}
-              type="button"
-              variant={mode === entry.key ? "default" : "outline"}
-              className={cn("sdk-mode-btn", mode === entry.key && "active")}
-              onClick={() => handleModeChange(entry.key)}
+            <button className={cn("btn btn-primary", "sdk-mode-btn", mode === entry.key && "active")} type="button" key={entry.key} variant={mode === entry.key ? "default" : "outline"} onClick={() => handleModeChange(entry.key)}
             >
               {entry.icon} {entry.label}
-            </Button>
+            </button>
           );
         })}
       </div>
 
       <div className="sdk-register-form__fields">
-        <Label className="sdk-register-form__field">
+        <label className="form-label sdk-register-form__field">
           <span className="sdk-register-form__label">SDK 이름</span>
-          <Input
+          <input className="form-input"
             value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder="예: TI AM335x SDK"
             autoFocus
           />
-        </Label>
-        <Label className="sdk-register-form__field">
+        </label>
+        <label className="form-label sdk-register-form__field">
           <span className="sdk-register-form__label">설명 (선택)</span>
-          <Input
+          <input className="form-input"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             placeholder="SDK에 대한 간략한 설명"
           />
-        </Label>
+        </label>
       </div>
 
       {mode === "folder" ? (
@@ -221,9 +212,9 @@ export const SdkUploadForm: React.FC<SdkUploadFormProps> = ({ projectId, onRegis
         <div className="sdk-file-preview">
           <div className="sdk-file-preview__header">
             <span>{files.length}개 파일 선택됨</span>
-            <Button variant="ghost" size="icon-sm" onClick={clearFiles} title="선택 초기화" aria-label="선택 초기화">
+            <button type="button" className="btn btn-ghost btn-icon-sm" onClick={clearFiles} title="선택 초기화" aria-label="선택 초기화">
               <X size={14} />
-            </Button>
+            </button>
           </div>
           <div className="sdk-file-preview__list">
             {files.slice(0, 20).map((file, index) => (
@@ -244,12 +235,12 @@ export const SdkUploadForm: React.FC<SdkUploadFormProps> = ({ projectId, onRegis
       )}
 
       <div className="sdk-register-form__actions">
-        <Button variant="outline" size="sm" onClick={onCancel}>취소</Button>
-        <Button size="sm" onClick={handleSubmit} disabled={!canSubmit}>
+        <button type="button" className="btn btn-outline btn-sm" onClick={onCancel}>취소</button>
+        <button type="button" className="btn btn-primary btn-sm" onClick={handleSubmit} disabled={!canSubmit}>
           {submitting ? "등록 중..." : "등록"}
-        </Button>
+        </button>
       </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };

@@ -132,7 +132,7 @@ describe("DynamicTestPage", () => {
   it("shows the empty state and warns when no adapter is connected", async () => {
     renderPage();
 
-    expect(await screen.findByText("아직 테스트 이력이 없습니다")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /첫 세션 시작/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "새 세션" }));
 
     expect(screen.getByText(/연결된 어댑터가 없습니다/)).toBeInTheDocument();
@@ -149,7 +149,7 @@ describe("DynamicTestPage", () => {
 
     renderPage();
 
-    await screen.findByText("아직 테스트 이력이 없습니다");
+    await screen.findByRole("button", { name: /첫 세션 시작/ });
     fireEvent.click(screen.getByRole("button", { name: "새 세션" }));
 
     expect(await screen.findByText("새 세션")).toBeInTheDocument();
@@ -208,7 +208,7 @@ describe("DynamicTestPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("아직 테스트 이력이 없습니다")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /첫 세션 시작/ })).toBeInTheDocument();
     await waitFor(() => expect(mockToast.error).toHaveBeenCalled());
   });
 
@@ -221,7 +221,7 @@ describe("DynamicTestPage", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText("아직 테스트 이력이 없습니다")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /첫 세션 시작/ })).toBeInTheDocument();
     expect(mockGetDynamicTestResults).not.toHaveBeenCalled();
   });
 });

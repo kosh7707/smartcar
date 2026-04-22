@@ -1,5 +1,4 @@
 import React from "react";
-import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { SeveritySummary } from "../overviewModel";
 import { OverviewSectionHeader } from "./OverviewSectionHeader";
@@ -30,18 +29,17 @@ export const SecurityPostureSection: React.FC<SecurityPostureSectionProps> = ({
   <section className="overview-security-posture">
     <OverviewSectionHeader title="보안 현황" />
     <div className="overview-security-posture__grid">
-      <Card className="overview-security-posture__card overview-security-posture__card--total" onClick={onOpenAllFindings}>
+      <div className="panel overview-security-posture__card overview-security-posture__card--total" onClick={onOpenAllFindings}>
         <span className="overview-security-posture__eyebrow">총 Finding</span>
         <span className="overview-security-posture__value">{totalFindings}</span>
         <span className="overview-security-posture__copy">전체 취약점 보기</span>
-      </Card>
+      </div>
 
       {severityCards.map((card) => (
-        <Card
-          key={card.key}
-          className={cn(
+        <div className={"panel" + " " + cn(
             "overview-security-posture__card overview-security-posture__card--severity",
-            `overview-security-posture__card--${card.key}`,
+            `overview-security-posture__card--${card.key}
+          key={card.key}`,
           )}
           onClick={() => onOpenSeverity(card.key)}
         >
@@ -50,7 +48,7 @@ export const SecurityPostureSection: React.FC<SecurityPostureSectionProps> = ({
           </span>
           <span className="overview-security-posture__value">{severity[card.key] ?? 0}</span>
           <span className="overview-security-posture__copy">해당 심각도 보기</span>
-        </Card>
+        </div>
       ))}
     </div>
   </section>

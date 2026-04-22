@@ -73,8 +73,30 @@ class ResultAssembler:
         # 검증: 입력 제공 refs + Phase 1 refs + 도구가 생성한 refs 합집합
         allowed_refs = {ref.refId for ref in session.request.evidenceRefs}
         allowed_refs.update(session.extra_allowed_refs)
+        allowed_refs.update(session.evidence_catalog.ref_ids())
         for step in session.trace:
             allowed_refs.update(step.new_evidence_refs)
+
+        repairs = _repair_deep_command_injection_assessment(parsed, session, allowed_refs)
+        if repairs:
+            agent_log(
+                logger,
+                "deep command-injection assessment repaired",
+                component="result_assembler",
+                phase="result_repair",
+                repairs=repairs,
+            )
+
+        incomplete_reason = _incomplete_command_injection_quality_failure(parsed, session)
+        if incomplete_reason:
+            session.set_termination_reason("invalid_grounding")
+            return self.build_failure(
+                session,
+                TaskStatus.VALIDATION_FAILED,
+                FailureCode.INVALID_GROUNDING,
+                incomplete_reason,
+                retryable=False,
+            )
 
         schema_result = self._schema_validator.validate(parsed, session.request.taskType)
         if not schema_result.valid:
@@ -270,3 +292,94 @@ class ResultAssembler:
             createdAt=datetime.now(timezone.utc).isoformat(),
             agentAudit=agent_audit.model_dump(mode="json"),
         )
+
+
+def _repair_deep_command_injection_assessment(
+    parsed: dict,
+    session: AgentSession,
+    allowed_refs: set[str],
+) -> list[str]:
+    if str(session.request.taskType) != "deep-analyze":
+        return []
+    bundle = session.evidence_catalog.command_injection_bundle()
+    if not bundle.complete:
+        return []
+
+    repairs: list[str] = []
+    claims = parsed.get("claims")
+    if not isinstance(claims, list):
+        return []
+
+    if not claims:
+        parsed["claims"] = [{
+            "statement": (
+                "User-controlled input reaches command string construction and "
+                f"{bundle.sink}(...) execution, enabling CWE-78 OS Command Injection."
+            ),
+            "detail": (
+                f"Deterministic S3 repair found a complete command-injection evidence bundle: "
+                f"SAST refs {bundle.sast_refs[:2]}, source refs {bundle.source_refs[:3]}, "
+                f"caller refs {bundle.caller_refs[:4]}. The representative root cause is "
+                f"user-controlled command construction reaching {bundle.sink}."
+            ),
+            "supportingEvidenceRefs": [ref for ref in bundle.refs if ref in allowed_refs],
+            "location": bundle.location,
+        }]
+        parsed["summary"] = parsed.get("summary") or "CWE-78 OS Command Injection evidence is present."
+        parsed["suggestedSeverity"] = _valid_severity(parsed.get("suggestedSeverity")) or "high"
+        parsed["needsHumanReview"] = True
+        repairs.append("claims.commandInjectionBundle")
+    else:
+        for index, claim in enumerate(claims):
+            if not isinstance(claim, dict):
+                continue
+            claim_text = " ".join(str(claim.get(k) or "") for k in ("statement", "detail")).lower()
+            if claim_text and not any(marker in claim_text for marker in ("popen", "command", "cwe-78", "명령")):
+                continue
+            if not isinstance(claim.get("supportingEvidenceRefs"), list) or not claim.get("supportingEvidenceRefs"):
+                claim["supportingEvidenceRefs"] = [ref for ref in bundle.refs if ref in allowed_refs]
+                repairs.append(f"claims[{index}].supportingEvidenceRefs")
+            if not isinstance(claim.get("location"), str) or not claim.get("location", "").strip():
+                claim["location"] = bundle.location
+                repairs.append(f"claims[{index}].location")
+            if not isinstance(claim.get("detail"), str) or not claim.get("detail", "").strip():
+                claim["detail"] = f"Command-injection evidence bundle reaches {bundle.sink} at {bundle.location}."
+                repairs.append(f"claims[{index}].detail")
+
+    used = parsed.get("usedEvidenceRefs")
+    if not isinstance(used, list) or not used:
+        parsed["usedEvidenceRefs"] = [ref for ref in bundle.refs if ref in allowed_refs]
+        repairs.append("usedEvidenceRefs")
+    if not isinstance(parsed.get("caveats"), list):
+        parsed["caveats"] = []
+        repairs.append("caveats")
+    if not isinstance(parsed.get("recommendedNextSteps"), list):
+        parsed["recommendedNextSteps"] = []
+        repairs.append("recommendedNextSteps")
+    policy_flags = parsed.get("policyFlags")
+    if not isinstance(policy_flags, list):
+        policy_flags = []
+        repairs.append("policyFlags")
+    if "deterministic_command_injection_repair" not in policy_flags:
+        policy_flags.append("deterministic_command_injection_repair")
+    parsed["policyFlags"] = policy_flags
+    return list(dict.fromkeys(repairs))
+
+
+def _incomplete_command_injection_quality_failure(parsed: dict, session: AgentSession) -> str:
+    if str(session.request.taskType) != "deep-analyze":
+        return ""
+    claims = parsed.get("claims")
+    if isinstance(claims, list) and claims:
+        return ""
+    catalog = session.evidence_catalog
+    if not catalog.has_command_injection_signal():
+        return ""
+    bundle = catalog.command_injection_bundle()
+    if bundle.complete:
+        return ""
+    return f"command_injection_evidence_incomplete: {bundle.reason}"
+
+
+def _valid_severity(value) -> str | None:
+    return value if isinstance(value, str) and value in {"critical", "high", "medium", "low", "info"} else None

@@ -1,16 +1,6 @@
 import React from "react";
 import type { Run } from "@aegis/shared";
 import { ChevronRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "../../../shared/ui";
 import { MODULE_META } from "../../../constants/modules";
@@ -81,26 +71,26 @@ export const AnalysisHistoryRunsTable: React.FC<AnalysisHistoryRunsTableProps> =
   }
 
   return (
-    <Card className="analysis-history-runs">
-      <CardHeader className="analysis-history-runs__head">
-        <CardTitle>최근 실행</CardTitle>
+    <div className="panel analysis-history-runs">
+      <div className="panel-head analysis-history-runs__head">
+        <h3 className="panel-title">최근 실행</h3>
         <p className="analysis-history-runs__head-copy">분석 시점, 심각도 요약, 소요 시간을 한 번에 검토합니다.</p>
-      </CardHeader>
+      </div>
 
-      <CardContent className="analysis-history-runs__body">
-        <Table>
-          <TableHeader>
-            <TableRow className="analysis-history-runs__header-row">
-              <TableHead className="analysis-history-runs__cell-head">실행</TableHead>
-              <TableHead className="analysis-history-runs__cell-head">시각</TableHead>
-              <TableHead className="analysis-history-runs__cell-head">모듈</TableHead>
-              <TableHead className="analysis-history-runs__cell-head">상태</TableHead>
-              <TableHead className="analysis-history-runs__cell-head analysis-history-runs__cell-head--center">탐지 요약</TableHead>
-              <TableHead className="analysis-history-runs__cell-head">소요 시간</TableHead>
-              <TableHead className="analysis-history-runs__cell-head analysis-history-runs__cell-head--icon" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <div className="panel-body analysis-history-runs__body">
+        <table className="data-table">
+          <thead>
+            <tr className="analysis-history-runs__header-row">
+              <th className="analysis-history-runs__cell-head">실행</th>
+              <th className="analysis-history-runs__cell-head">시각</th>
+              <th className="analysis-history-runs__cell-head">모듈</th>
+              <th className="analysis-history-runs__cell-head">상태</th>
+              <th className="analysis-history-runs__cell-head analysis-history-runs__cell-head--center">탐지 요약</th>
+              <th className="analysis-history-runs__cell-head">소요 시간</th>
+              <th className="analysis-history-runs__cell-head analysis-history-runs__cell-head--icon" />
+            </tr>
+          </thead>
+          <tbody>
             {runs.map((run, index) => {
               const meta = MODULE_META[run.module] ?? { label: run.module, icon: null };
               const durationSec = run.startedAt && run.endedAt
@@ -108,25 +98,25 @@ export const AnalysisHistoryRunsTable: React.FC<AnalysisHistoryRunsTableProps> =
                 : 0;
               const severity = run.severitySummary;
               return (
-                <TableRow
+                <tr
                   key={run.id}
                   className="analysis-history-runs__row"
                   onClick={() => onOpenRun(run)}
                 >
-                  <TableCell className="analysis-history-runs__cell analysis-history-runs__cell--run">#{index + 1}</TableCell>
-                  <TableCell className="analysis-history-runs__cell analysis-history-runs__cell--meta">{formatDateTime(run.createdAt)}</TableCell>
-                  <TableCell className="analysis-history-runs__cell">
+                  <td className="analysis-history-runs__cell analysis-history-runs__cell--run">#{index + 1}</td>
+                  <td className="analysis-history-runs__cell analysis-history-runs__cell--meta">{formatDateTime(run.createdAt)}</td>
+                  <td className="analysis-history-runs__cell">
                     <span className="analysis-history-runs__module">
                       <span className="analysis-history-runs__module-icon">{meta.icon}</span>
                       {meta.label}
                     </span>
-                  </TableCell>
-                  <TableCell className="analysis-history-runs__cell">
-                    <Badge variant="outline" className={cn(getStatusClass(run.status))}>
+                  </td>
+                  <td className="analysis-history-runs__cell">
+                    <span className={cn(getStatusClass(run.status))}>
                       {STATUS_LABELS[run.status] ?? run.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="analysis-history-runs__cell analysis-history-runs__cell--center analysis-history-runs__cell--mono">
+                    </span>
+                  </td>
+                  <td className="analysis-history-runs__cell analysis-history-runs__cell--center analysis-history-runs__cell--mono">
                     {severity ? (
                       <span className="analysis-history-runs__severity-summary">
                         <span className={cn(getSeverityClass("critical", severity.critical))}>{severity.critical ?? 0}</span>
@@ -142,19 +132,19 @@ export const AnalysisHistoryRunsTable: React.FC<AnalysisHistoryRunsTableProps> =
                     ) : (
                       <span className="analysis-history-runs__cell--meta">—</span>
                     )}
-                  </TableCell>
-                  <TableCell className="analysis-history-runs__cell analysis-history-runs__cell--meta">
+                  </td>
+                  <td className="analysis-history-runs__cell analysis-history-runs__cell--meta">
                     {durationSec > 0 ? formatUptime(durationSec) : "—"}
-                  </TableCell>
-                  <TableCell className="analysis-history-runs__cell analysis-history-runs__cell--icon-cell">
+                  </td>
+                  <td className="analysis-history-runs__cell analysis-history-runs__cell--icon-cell">
                     <ChevronRight size={16} className="analysis-history-runs__chevron" />
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               );
             })}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 };

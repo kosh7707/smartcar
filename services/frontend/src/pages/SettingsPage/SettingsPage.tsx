@@ -6,6 +6,7 @@ import { SettingsHeaderActions } from "./components/SettingsHeaderActions";
 import { SettingsPlatformSection } from "./components/SettingsPlatformSection";
 import { SettingsThemeSection } from "./components/SettingsThemeSection";
 import { useSettingsPage } from "./hooks/useSettingsPage";
+import "./SettingsPage.css";
 
 export const SettingsPage: React.FC = () => {
   const {

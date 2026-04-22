@@ -1,18 +1,8 @@
 import React from "react";
 import type { Vulnerability } from "@aegis/shared";
 import { FileText, Maximize2, Minimize2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { Modal } from "../../../shared/ui/Modal";
 
 interface FileDetailSourcePanelProps {
   fileName: string;
@@ -51,8 +41,7 @@ export const FileDetailSourcePanel: React.FC<FileDetailSourcePanelProps> = ({
     fileLanguage === "md";
 
   const codeContent = (
-    <ScrollArea
-      className={cn(
+    <div className={"scroll-area" + " " + cn(
         "file-detail-source-code-scroll",
         maximized && "is-maximized",
       )}
@@ -92,12 +81,11 @@ export const FileDetailSourcePanel: React.FC<FileDetailSourcePanelProps> = ({
           );
         })}
       </div>
-    </ScrollArea>
+    </div>
   );
 
   const previewContent = (
-    <ScrollArea
-      className={cn(
+    <div className={"scroll-area" + " " + cn(
         "file-detail-source-preview-scroll",
         maximized && "is-maximized",
       )}
@@ -105,20 +93,18 @@ export const FileDetailSourcePanel: React.FC<FileDetailSourcePanelProps> = ({
       <div className="file-detail-markdown file-detail-source-preview-body">
         {renderedPreview}
       </div>
-    </ScrollArea>
+    </div>
   );
 
   const maximizeButton = (
-    <Button
-      variant="ghost"
-      size="icon-sm"
+    <button type="button"
       title={maximized ? "축소" : "전체 화면"}
       aria-label={maximized ? "축소" : "전체 화면"}
       onClick={onToggleMaximized}
-      className="file-detail-source-maximize"
+      className="btn btn-ghost btn-icon-sm file-detail-source-maximize"
     >
       {maximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-    </Button>
+    </button>
   );
 
   const nonMarkdownBody = (
@@ -140,71 +126,63 @@ export const FileDetailSourcePanel: React.FC<FileDetailSourcePanelProps> = ({
   );
 
   const markdownBody = (
-    <Tabs
+    <div
       value={viewTab}
       onValueChange={(value) => onViewTabChange(value as "code" | "preview")}
       className="file-detail-source-tabs"
     >
       <div className="file-detail-source-panel-head">
-        <TabsList variant="line" className="file-detail-source-tabs-list">
-          <TabsTrigger value="code" className="file-detail-source-tabs-trigger">
+        <div className="seg file-detail-source-tabs-list" role="tablist">
+          <button type="button" role="tab" value="code" className="file-detail-source-tabs-trigger">
             코드
-          </TabsTrigger>
-          <TabsTrigger value="preview" className="file-detail-source-tabs-trigger">
+          </button>
+          <button type="button" role="tab" value="preview" className="file-detail-source-tabs-trigger">
             프리뷰
-          </TabsTrigger>
-        </TabsList>
+          </button>
+        </div>
         {maximizeButton}
       </div>
       <div className="file-detail-source-panel-body">
-        <TabsContent value="code" className="file-detail-source-tabs-content">
+        <div role="tabpanel" value="code" className="file-detail-source-tabs-content">
           {codeContent}
-        </TabsContent>
-        <TabsContent value="preview" className="file-detail-source-tabs-content">
+        </div>
+        <div role="tabpanel" value="preview" className="file-detail-source-tabs-content">
           {previewContent}
-        </TabsContent>
+        </div>
       </div>
-    </Tabs>
+    </div>
   );
 
   const panelBody = isMarkdown ? markdownBody : nonMarkdownBody;
 
   if (maximized) {
     return (
-      <Dialog
+      <Modal
         open={maximized}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) {
-            onToggleMaximized();
-          }
-        }}
+        onClose={onToggleMaximized}
+        className="file-detail-source-dialog"
+        overlayClassName="file-detail-source-overlay"
       >
-        <DialogContent
-          showCloseButton={false}
-          className="file-detail-source-dialog"
-          overlayClassName="file-detail-source-overlay"
-        >
-          <DialogHeader className="sr-only">
-            <DialogTitle>{fileName} 전체 화면 보기</DialogTitle>
-            <DialogDescription>
+          <header className="sr-only">
+            <h2>{fileName} 전체 화면 보기</h2>
+            <p>
               파일 소스 코드와 마크다운 프리뷰를 전체 화면으로 확인합니다.
-            </DialogDescription>
-          </DialogHeader>
+            </p>
+          </header>
           <div className="file-detail-source-dialog-shell">
-            <Card className="file-detail-source-dialog-card">
-              <CardContent className="file-detail-source-dialog-card-body">
+            <div className="panel file-detail-source-dialog-card">
+              <div className="panel-body file-detail-source-dialog-card-body">
                 <div className="file-detail-source-dialog-content">{panelBody}</div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </Modal>
     );
   }
 
   return (
-    <Card className="file-detail-source-card">
-      <CardContent className="file-detail-source-card-body">{panelBody}</CardContent>
-    </Card>
+    <div className="panel file-detail-source-card">
+      <div className="panel-body file-detail-source-card-body">{panelBody}</div>
+    </div>
   );
 };

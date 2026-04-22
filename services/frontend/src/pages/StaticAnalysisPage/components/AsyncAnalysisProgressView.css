@@ -1,0 +1,42 @@
+
+
+/* ── Extracted from app-shell.css (Phase 1a.1 pass 2) ── */
+.async-analysis-progress-view { gap:20px; }
+.async-analysis-progress-view__card,
+.async-analysis-progress-view__handoff-card { box-shadow:none; }
+.async-analysis-progress-view__body { display:flex; flex-direction:column; gap:20px; padding:40px 32px; text-align:center; }
+.async-analysis-progress-view__spinner { display:flex; justify-content:center; }
+.async-analysis-progress-view__title { font-size:var(--text-lg); font-weight:var(--weight-semibold); color:var(--foreground); }
+.async-analysis-progress-view__steps { display:flex; align-items:flex-start; justify-content:center; gap:0; margin-bottom:28px; }
+.async-analysis-progress-view__step { display:flex; min-width:64px; flex-direction:column; align-items:center; gap:8px; }
+.async-analysis-progress-view__step-connector { margin-top:14px; width:36px; height:2px; flex-shrink:0; border-radius:999px; background:color-mix(in srgb, var(--border) 80%, transparent); transition:background-color 160ms ease; }
+.async-analysis-progress-view__step-connector.is-complete { background:#10b981; }
+.async-analysis-progress-view__step-indicator { display:flex; width:28px; height:28px; align-items:center; justify-content:center; border:2px solid var(--border); border-radius:999px; background:var(--background); font-size:var(--text-xs); font-weight:var(--weight-semibold); transition:all 160ms ease; }
+.async-analysis-progress-view__step-indicator.is-complete { border-color:#10b981; background:#10b981; color:white; }
+.async-analysis-progress-view__step-indicator.is-failed { border-color:var(--aegis-severity-critical); background:var(--aegis-severity-critical); color:white; }
+.async-analysis-progress-view__step-indicator.is-active { border-color:var(--primary); color:var(--primary); box-shadow:0 0 0 3px var(--cds-interactive-subtle); }
+.async-analysis-progress-view__step-indicator.is-pending { color:var(--foreground-muted); }
+.async-analysis-progress-view__step-label { white-space:nowrap; font-size:var(--text-xs); }
+.async-analysis-progress-view__step-label.is-complete { color:#10b981; }
+.dark .async-analysis-progress-view__step-label.is-complete { color:#86efac; }
+.async-analysis-progress-view__step-label.is-failed { color:var(--aegis-severity-critical); }
+.async-analysis-progress-view__step-label.is-active { font-weight:var(--weight-medium); color:var(--foreground); }
+.async-analysis-progress-view__step-label.is-pending { color:var(--foreground-muted); }
+.async-analysis-progress-view__chunk-copy { margin-bottom:20px; font-size:var(--text-sm); font-weight:var(--weight-medium); color:var(--primary); }
+.async-analysis-progress-view__progress-row { display:flex; width:100%; max-width:400px; align-items:center; gap:16px; margin-inline:auto; margin-bottom:16px; }
+.async-analysis-progress-view__progress-track { height:8px; flex:1; overflow:hidden; border-radius:999px; background:color-mix(in srgb, var(--border) 70%, transparent); }
+.async-analysis-progress-view__progress-fill { height:100%; border-radius:999px; transition:width 160ms ease; }
+.async-analysis-progress-view__progress-fill.is-running,
+.async-analysis-progress-view__progress-fill.is-complete { background:linear-gradient(90deg, var(--cds-interactive), var(--cds-interactive-hover)); }
+.async-analysis-progress-view__progress-fill.is-failed { background:var(--aegis-severity-critical); }
+.async-analysis-progress-view__progress-value { min-width:36px; text-align:right; font-size:var(--text-sm); font-weight:var(--weight-semibold); color:var(--primary); }
+.async-analysis-progress-view__copy { font-size:var(--text-sm); color:var(--foreground-muted); }
+.async-analysis-progress-view__error { max-width:400px; margin-inline:auto; margin-bottom:20px; border-radius:var(--radius-lg); background:var(--aegis-severity-critical-bg); padding:16px 20px; font-size:var(--text-sm); color:var(--aegis-severity-critical); }
+.async-analysis-progress-view__actions { display:flex; justify-content:center; gap:16px; margin-top:12px; }
+.async-analysis-progress-view__handoff-body { display:flex; align-items:center; gap:12px; padding:16px 20px; font-size:var(--text-sm); color:var(--foreground-muted); }
+.async-analysis-progress-view__handoff-icon { flex-shrink:0; color:#10b981; }
+@media (max-width: 639px) {
+  .async-analysis-progress-view__actions { flex-direction:column; }
+  .async-analysis-progress-view__actions > * { width:100%; }
+  .async-analysis-progress-view__handoff-body { flex-direction:column; align-items:flex-start; }
+}

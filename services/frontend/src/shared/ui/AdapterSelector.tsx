@@ -1,7 +1,8 @@
+import React from "react";
 import { Plug } from "lucide-react";
 import type { Adapter } from "@aegis/shared";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import "./AdapterSelector.css";
 
 interface Props {
   adapters: Adapter[];
@@ -13,14 +14,14 @@ interface Props {
 export const AdapterSelector: React.FC<Props> = ({ adapters, selectedId, onSelect, disabled }) => (
   <div className="adapter-selector">
     {adapters.map((adapter) => (
-      <Button
+      <button
         key={adapter.id}
         type="button"
-        variant="outline"
         className={cn(
           "adapter-selector__item",
           selectedId === adapter.id && "is-selected",
         )}
+        aria-pressed={selectedId === adapter.id}
         onClick={() => onSelect(adapter.id)}
         disabled={disabled}
       >
@@ -32,7 +33,7 @@ export const AdapterSelector: React.FC<Props> = ({ adapters, selectedId, onSelec
           </span>
         ) : null}
         <code className="adapter-selector__url">{adapter.url}</code>
-      </Button>
+      </button>
     ))}
   </div>
 );

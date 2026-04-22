@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from agent_shared.errors import LlmHttpError, LlmTimeoutError, LlmUnavailableError
+from agent_shared.errors import LlmHttpError, LlmTimeoutError, LlmUnavailableError, StrictJsonContractError
 from agent_shared.llm.caller import LlmCaller
 
 
@@ -187,6 +187,47 @@ async def test_async_ownership_returns_wrapped_result_for_toolless_calls():
 
     assert result.content == '{"summary":"async ok"}'
     assert result.has_tool_calls() is False
+
+
+@pytest.mark.asyncio
+async def test_async_ownership_strict_json_violation_raises_enriched_error():
+    caller = LlmCaller("http://fake:8000", "qwen")
+
+    async def fake_post(url, **kwargs):
+        if url.endswith("/v1/async-chat-requests"):
+            return _make_httpx_response({
+                "requestId": "acr_strict",
+                "traceRequestId": "gw-strict",
+                "status": "accepted",
+                "statusUrl": "/v1/async-chat-requests/acr_strict",
+                "resultUrl": "/v1/async-chat-requests/acr_strict/result",
+            }, status_code=202)
+        raise AssertionError(f"unexpected POST url: {url}")
+
+    async def fake_get(url, **kwargs):
+        if url.endswith("/v1/async-chat-requests/acr_strict"):
+            return _make_httpx_response({
+                "requestId": "acr_strict",
+                "state": "failed",
+                "localAckState": "ack-break",
+                "blockedReason": "strict_json_contract_violation",
+                "errorDetail": "invalid json",
+            })
+        raise AssertionError(f"unexpected GET url: {url}")
+
+    caller._client = MagicMock()
+    caller._client.post = AsyncMock(side_effect=fake_post)
+    caller._client.get = AsyncMock(side_effect=fake_get)
+
+    with pytest.raises(StrictJsonContractError) as exc_info:
+        await caller.call(
+            [{"role": "user", "content": "hi"}],
+            prefer_async_ownership=True,
+        )
+
+    assert exc_info.value.blocked_reason == "strict_json_contract_violation"
+    assert exc_info.value.async_request_id == "acr_strict"
+    assert exc_info.value.error_detail == "invalid json"
 
 
 @pytest.mark.asyncio

@@ -13,6 +13,7 @@ import { FilesLanguageSummary } from "./components/FilesLanguageSummary";
 import { FilesBuildTargetPanel } from "./components/FilesBuildTargetPanel";
 import { FilesSourceWorkspace } from "./components/FilesSourceWorkspace";
 import { useFilesPage } from "./hooks/useFilesPage";
+import "./FilesPage.css";
 
 export const FilesPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();

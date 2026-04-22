@@ -1,7 +1,6 @@
 import React from "react";
 import type { BuildTarget } from "@aegis/shared";
 import { Bot } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Spinner } from "../../../shared/ui";
 
 type BuildTargetSectionSummaryProps = {
@@ -44,10 +43,10 @@ export function BuildTargetSectionSummary({
     return (
       <div className="build-target-section-summary build-target-section-summary--ready">
         <span className="build-target-section-summary__label">{readyTargets.length}개 BuildTarget 분석 준비 완료</span>
-        <Button size="sm" onClick={() => onDeepAnalyzeAll(readyTargets.map((target) => target.id))}>
+        <button type="button" className="btn btn-primary btn-sm" onClick={() => onDeepAnalyzeAll(readyTargets.map((target) => target.id))}>
           <Bot size={14} />
           전체 심층 분석
-        </Button>
+        </button>
       </div>
     );
   }

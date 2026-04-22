@@ -34,6 +34,7 @@ import {
   FINDING_STATUS_ORDER,
   SOURCE_TYPE_LABELS,
 } from "../../../constants/finding";
+import "./LatestAnalysisTab.css";
 
 interface FindingWithEvidence {
   finding: Finding;

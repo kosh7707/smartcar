@@ -1,9 +1,5 @@
 import React from "react";
 import { ChevronsDownUp, ChevronsUpDown, Code2, FileText, Layers, Search, Shield } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import type { Finding } from "@aegis/shared";
 import type { SourceFileEntry } from "../../../api/client";
@@ -75,21 +71,21 @@ export const FilesSourceWorkspace: React.FC<FilesSourceWorkspaceProps> = ({
     data-testid="files-source-workspace"
     style={{ ["--files-tree-panel-width" as string]: `${treePanelWidth}px` } as React.CSSProperties}
   >
-    <Card className="files-workspace-panel">
-      <CardHeader className="files-workspace-head">
-        <CardContent>
+    <div className="panel files-workspace-panel">
+      <div className="panel-head files-workspace-head">
+        <div className="panel-body">
           <div className="files-workspace-search">
             <Search size={14} />
             <input type="text" placeholder="파일 검색..." value={search} onChange={(e) => onSearchChange(e.target.value)} />
           </div>
           <div className="files-workspace-tools">
-            <Button variant="ghost" size="icon-sm" title="폴더 전부 열기" onClick={onExpandAll}><ChevronsUpDown size={16} /></Button>
-            <Button variant="ghost" size="icon-sm" title="폴더 전부 접기" onClick={onCollapseAll}><ChevronsDownUp size={16} /></Button>
+            <button type="button" className="btn btn-ghost btn-icon-sm" title="폴더 전부 열기" onClick={onExpandAll}><ChevronsUpDown size={16} /></button>
+            <button type="button" className="btn btn-ghost btn-icon-sm" title="폴더 전부 접기" onClick={onCollapseAll}><ChevronsDownUp size={16} /></button>
           </div>
-        </CardContent>
-      </CardHeader>
-      <CardContent className="files-workspace-panel-body">
-        <ScrollArea className="files-workspace-tree">
+        </div>
+      </div>
+      <div className="panel-body files-workspace-panel-body">
+        <div className="scroll-area files-workspace-tree">
           <div className="files-workspace-tree-inner">
             {displayTree.children.length === 0 ? (
               <div className="files-workspace-tree-empty">검색 결과가 없습니다</div>
@@ -111,9 +107,9 @@ export const FilesSourceWorkspace: React.FC<FilesSourceWorkspaceProps> = ({
               ))
             )}
           </div>
-        </ScrollArea>
-      </CardContent>
-    </Card>
+        </div>
+      </div>
+    </div>
 
     <button
       type="button"
@@ -135,7 +131,7 @@ export const FilesSourceWorkspace: React.FC<FilesSourceWorkspaceProps> = ({
       }}
     />
 
-    <Card className="files-workspace-panel">
+    <div className="panel files-workspace-panel">
       {!selectedPath ? (
         <div className="files-workspace-empty-preview">
           <header className="files-workspace-empty-preview__eyebrow">
@@ -173,25 +169,25 @@ export const FilesSourceWorkspace: React.FC<FilesSourceWorkspaceProps> = ({
         </div>
       ) : (
         <>
-          <CardHeader className="files-workspace-preview-head">
-            <CardContent>
+          <div className="panel-head files-workspace-preview-head">
+            <div className="panel-body">
               <FileText size={14} />
-              <CardTitle className="files-workspace-preview-title">{selectedPath}</CardTitle>
-              {previewLang ? <Badge variant="outline" className="files-workspace-preview-lang">{previewLang}</Badge> : null}
-            </CardContent>
-          </CardHeader>
+              <h3 className="panel-title files-workspace-preview-title">{selectedPath}</h3>
+              {previewLang ? <span className="files-workspace-preview-lang">{previewLang}</span> : null}
+            </div>
+          </div>
 
-          <CardContent className="files-workspace-preview-body">
+          <div className="panel-body files-workspace-preview-body">
             {previewFileClass !== "text" && selectedPath ? (
               <FilesBinaryPreview path={selectedPath} size={previewSize} language={previewLang || null} fileClass={previewFileClass} />
             ) : (
-              <ScrollArea className="files-workspace-preview-scroll">
+              <div className="scroll-area files-workspace-preview-scroll">
                 {previewContent !== null ? (
                   <HighlightedCode code={previewContent} language={previewLang} highlightLineNos={highlightLines} />
                 ) : (
                   <div className="files-workspace-error-preview"><span className="files-workspace-error-preview-text">파일 내용을 불러올 수 없습니다</span></div>
                 )}
-              </ScrollArea>
+              </div>
             )}
 
             {selectedFileFindings.length > 0 ? (
@@ -210,9 +206,9 @@ export const FilesSourceWorkspace: React.FC<FilesSourceWorkspaceProps> = ({
                 </div>
               </div>
             ) : null}
-          </CardContent>
+          </div>
         </>
       )}
-    </Card>
+    </div>
   </div>
 );

@@ -1,9 +1,5 @@
 import React from "react";
 import { Crosshair } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ConfirmDialog, ConnectionStatusBanner, Spinner } from "../../../shared/ui";
 import { BuildProfileForm } from "./BuildProfileForm";
 import { BuildLogViewer } from "./BuildLogViewer";
@@ -22,21 +18,21 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
   const state = useBuildTargetSection(projectId, onStartDeepAnalysis);
 
   return (
-    <Card className="build-target-section-card">
-      <CardHeader className="build-target-section-card__head">
+    <div className="panel build-target-section-card">
+      <div className="panel-head build-target-section-card__head">
         <div className="build-target-section-card__title-row">
           <div className="build-target-section-card__icon-shell">
             <Crosshair size={18} />
           </div>
           <div className="build-target-section-card__copy">
-            <CardTitle>빌드 타겟</CardTitle>
-            <CardDescription className="build-target-section-card__description">
+            <h3 className="panel-title">빌드 타겟</h3>
+            <p className="panel-description build-target-section-card__description">
               프로젝트 내 독립 빌드 단위를 관리합니다. 타겟별로 SDK 설정 후 빌드 & 분석을 실행하세요.
-            </CardDescription>
+            </p>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="build-target-section-card__body">
+      </div>
+      <div className="panel-body build-target-section-card__body">
         <ConnectionStatusBanner connectionState={state.pipeline.connectionState} />
 
         <BuildTargetActionBar
@@ -53,19 +49,19 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
         {state.formMode === "add" && (
           <div className="build-target-section-card__form">
             <div className="build-target-section-card__form-grid">
-              <Label className="build-target-section-card__field">
+              <label className="form-label build-target-section-card__field">
                 <span className="build-target-section-card__field-label">타겟 이름</span>
-                <Input value={state.formName} onChange={(event) => state.setFormName(event.target.value)} placeholder="빌드 타겟 이름" autoFocus />
-              </Label>
-              <Label className="build-target-section-card__field">
+                <input className="form-input" value={state.formName} onChange={(event) => state.setFormName(event.target.value)} placeholder="빌드 타겟 이름" autoFocus />
+              </label>
+              <label className="form-label build-target-section-card__field">
                 <span className="build-target-section-card__field-label">상대 경로</span>
-                <Input className="build-target-section-card__path-input" value={state.formPath} onChange={(event) => state.setFormPath(event.target.value)} placeholder="src/module-dir/" spellCheck={false} />
-              </Label>
+                <input className="form-input build-target-section-card__path-input" value={state.formPath} onChange={(event) => state.setFormPath(event.target.value)} placeholder="src/module-dir/" spellCheck={false} />
+              </label>
             </div>
             <BuildProfileForm value={state.formProfile} onChange={state.setFormProfile} registeredSdks={state.registeredSdks} />
             <div className="build-target-section-card__form-actions">
-              <Button variant="outline" size="sm" onClick={state.closeForm}>취소</Button>
-              <Button size="sm" onClick={state.handleSave} disabled={state.saving}>{state.saving ? "저장 중..." : "추가"}</Button>
+              <button type="button" className="btn btn-outline btn-sm" onClick={state.closeForm}>취소</button>
+              <button type="button" className="btn btn-primary btn-sm" onClick={state.handleSave} disabled={state.saving}>{state.saving ? "저장 중..." : "추가"}</button>
             </div>
           </div>
         )}
@@ -143,7 +139,7 @@ export const BuildTargetSection: React.FC<Props> = ({ projectId, onStartDeepAnal
             onSubmit={state.handleEditSubmit}
           />
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };

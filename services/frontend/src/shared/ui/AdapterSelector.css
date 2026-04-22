@@ -1,0 +1,14 @@
+
+
+/* ── Extracted from app-shell.css (Phase 1a.1 pass 2) ── */
+.adapter-selector { display:flex; flex-direction:column; gap:12px; }
+.adapter-selector__item { width:100%; height:auto; justify-content:flex-start; gap:12px; border-color:var(--border); background:var(--surface); padding:12px; text-align:left; font-weight:var(--weight-regular); }
+.adapter-selector__item:hover:not(:disabled) { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 5%, var(--surface)); }
+.adapter-selector__item.is-selected { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 5%, var(--surface)); color:var(--foreground); }
+.adapter-selector__name { font-weight:var(--weight-medium); }
+.adapter-selector__meta { font-size:var(--text-sm); font-weight:var(--weight-medium); color:#047857; }
+.adapter-selector__url { margin-left:auto; max-width:45%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-radius:var(--radius-sm); background:var(--surface-sunken); padding:2px 6px; font-family:var(--font-mono); font-size:var(--text-xs); color:var(--foreground-muted); }
+@media (max-width: 639px) {
+  .adapter-selector__item { flex-wrap:wrap; }
+  .adapter-selector__url { margin-left:0; max-width:100%; }
+}

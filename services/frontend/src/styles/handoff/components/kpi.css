@@ -1,0 +1,26 @@
+
+
+/* ── Extracted from app-shell.css (Phase 1a.1 pass 3) ── */
+.kpi dt {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-subtle);
+  margin: 0;
+}
+.kpi dd {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+.kpi dd.is-warn { color: var(--severity-high); }
