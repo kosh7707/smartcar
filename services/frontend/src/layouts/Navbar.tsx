@@ -136,7 +136,7 @@ export const Navbar: React.FC = () => {
 
         <button
           type="button"
-          className="btn btn-ghost btn-icon-sm nav-user"
+          className="btn btn-ghost nav-user"
           aria-label={user ? `계정 · ${displayName}` : "계정"}
           title={user ? `${displayName} · ${roleLabel}${orgName ? ` · ${orgName}` : ""}` : "계정"}
           onClick={() => setUserMenuOpen((v) => !v)}

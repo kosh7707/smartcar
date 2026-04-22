@@ -551,6 +551,11 @@
   padding: 0;
 }
 
+.btn-icon-sm {
+  width: 32px;
+  padding: 0;
+}
+
 .section-head-title {
   font-size: var(--text-md);
   font-weight: var(--weight-semibold);
