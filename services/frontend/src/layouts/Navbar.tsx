@@ -165,6 +165,15 @@ export const Navbar: React.FC = () => {
             </div>
           </div>
           <div className="nav-dropdown-body" style={{ padding: "var(--space-3)" }}>
+            <Link
+              to="/settings"
+              className="btn btn-ghost btn-sm btn-block"
+              style={{ justifyContent: "flex-start", width: "100%" }}
+              onClick={() => setUserMenuOpen(false)}
+            >
+              <Settings aria-hidden="true" />
+              시스템 설정
+            </Link>
             <button
               type="button"
               className="btn btn-ghost btn-sm btn-block"
