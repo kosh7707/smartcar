@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from agent_shared.schemas.agent import ToolCallRequest, ToolResult
+from app.agent_runtime.schemas.agent import ToolCallRequest, ToolResult
 
 if TYPE_CHECKING:
     from app.core.agent_session import AgentSession

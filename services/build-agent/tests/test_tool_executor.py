@@ -6,8 +6,8 @@ import asyncio
 
 import pytest
 
-from agent_shared.schemas.agent import ToolCallRequest, ToolResult
-from agent_shared.tools.executor import ToolExecutor
+from app.agent_runtime.schemas.agent import ToolCallRequest, ToolResult
+from app.agent_runtime.tools.executor import ToolExecutor
 
 
 # ── 헬퍼 ──────────────────────────────────────────────────

@@ -3,21 +3,22 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 
 from app.budget.manager import BudgetManager
 from app.budget.token_counter import TokenCounter
 from app.core.agent_session import AgentSession
 from app.core.result_assembler import ResultAssembler
-from agent_shared.errors import S3Error
-from agent_shared.llm.caller import LlmCaller
-from agent_shared.llm.message_manager import MessageManager
-from agent_shared.llm.turn_summarizer import TurnSummarizer
-from agent_shared.observability import agent_log
-from agent_shared.policy.retry import RetryPolicy
+from app.agent_runtime.errors import LlmTimeoutError, S3Error, StrictJsonContractError
+from app.agent_runtime.llm.caller import LlmCaller
+from app.agent_runtime.llm.message_manager import MessageManager
+from app.agent_runtime.llm.turn_summarizer import TurnSummarizer
+from app.agent_runtime.observability import agent_log
+from app.agent_runtime.policy.retry import RetryPolicy
 from app.policy.termination import TerminationPolicy
 from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
-from agent_shared.tools.registry import ToolRegistry
+from app.agent_runtime.tools.registry import ToolRegistry
 from app.tools.router import ToolRouter
 from app.types import FailureCode, TaskStatus
 
@@ -37,6 +38,26 @@ def _budget_snapshot(session: AgentSession) -> dict:
         "medium": b.medium_calls,
         "expensive": b.expensive_calls,
     }
+
+
+def _output_deficient_build_content(detail: str) -> str:
+    return json.dumps({
+        "summary": "Build Agent 검토는 완료되었지만 LLM이 유효한 buildResult를 반환하지 못했습니다.",
+        "claims": [],
+        "caveats": [detail],
+        "usedEvidenceRefs": [],
+        "needsHumanReview": True,
+        "recommendedNextSteps": ["Review audit trace and rerun if a clean build pass is required."],
+        "policyFlags": ["state_machine_outcome", "output_deficient"],
+        "buildResult": {
+            "success": False,
+            "buildCommand": "",
+            "buildScript": "",
+            "buildDir": "build-aegis",
+            "errorLog": detail,
+            "producedArtifacts": [],
+        },
+    })
 
 
 class AgentLoop:
@@ -132,6 +153,37 @@ class AgentLoop:
                 response = await self._call_with_retry(session, current_tools)
             except S3Error as e:
                 logger.error("LLM 호출 실패 (재시도 소진): %s", e)
+                if isinstance(e, LlmTimeoutError):
+                    return self._result_assembler.build_failure(
+                        session,
+                        TaskStatus.TIMEOUT,
+                        FailureCode.TIMEOUT,
+                        str(e),
+                        retryable=e.retryable,
+                    )
+                if isinstance(e, StrictJsonContractError):
+                    return self._result_assembler.build(
+                        _output_deficient_build_content(
+                            f"LLM strict JSON output deficient: {e.error_detail or e}"
+                        ),
+                        session,
+                    )
+                if getattr(e, "code", "") == "INPUT_TOO_LARGE":
+                    return self._result_assembler.build_failure(
+                        session,
+                        TaskStatus.VALIDATION_FAILED,
+                        FailureCode.INPUT_TOO_LARGE,
+                        str(e),
+                        retryable=e.retryable,
+                    )
+                if getattr(e, "code", "") == "LLM_UNAVAILABLE":
+                    return self._result_assembler.build_failure(
+                        session,
+                        TaskStatus.MODEL_ERROR,
+                        FailureCode.MODEL_UNAVAILABLE,
+                        str(e),
+                        retryable=e.retryable,
+                    )
                 # 도구 결과가 이미 축적되어 있으면 부분 결과 시도
                 if session.total_tool_calls() > 0:
                     agent_log(
@@ -142,12 +194,9 @@ class AgentLoop:
                     )
                     session.set_termination_reason(f"llm_failure_partial:{e.code}")
                     return self._result_assembler.build_from_exhaustion(session)
-                return self._result_assembler.build_failure(
+                return self._result_assembler.build(
+                    _output_deficient_build_content(f"LLM output/call deficiency: {e}"),
                     session,
-                    TaskStatus.MODEL_ERROR,
-                    FailureCode.MODEL_UNAVAILABLE,
-                    str(e),
-                    retryable=e.retryable,
                 )
 
             # 토큰 기록
@@ -230,15 +279,13 @@ class AgentLoop:
                 final_content = response.content or ""
                 if not final_content.strip():
                     agent_log(
-                        logger, "LLM이 빈 응답 반환 — failure 처리",
+                        logger, "LLM이 빈 응답 반환 — output deficient 처리",
                         component="agent_loop", phase="empty_response",
                         turn=turn, level=logging.WARNING,
                     )
-                    return self._result_assembler.build_failure(
-                        session, TaskStatus.MODEL_ERROR,
-                        FailureCode.MODEL_UNAVAILABLE,
-                        "LLM이 유효한 tool_calls도 content도 반환하지 않음",
-                        retryable=True,
+                    return self._result_assembler.build(
+                        _output_deficient_build_content("LLM이 유효한 tool_calls도 content도 반환하지 않음"),
+                        session,
                     )
 
                 result = self._result_assembler.build(final_content, session)

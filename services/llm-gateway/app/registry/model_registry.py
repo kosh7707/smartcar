@@ -58,7 +58,7 @@ def create_default_registry() -> ModelProfileRegistry:
         ModelProfile(
             profileId=f"{settings.llm_model}-default",
             modelName=settings.llm_model,
-            contextLimit=262144,
+            contextLimit=131072,
             allowedTaskTypes=list(TaskType),
             status="available",
             endpoint=settings.llm_endpoint,

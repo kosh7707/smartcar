@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from agent_shared.errors import LlmHttpError, LlmTimeoutError, LlmUnavailableError, StrictJsonContractError
-from agent_shared.llm.caller import LlmCaller
+from app.agent_runtime.errors import LlmHttpError, LlmTimeoutError, LlmUnavailableError, StrictJsonContractError
+from app.agent_runtime.llm.caller import LlmCaller
 
 
 def _make_httpx_response(data: dict, status_code: int = 200):
@@ -187,6 +187,9 @@ async def test_async_ownership_returns_wrapped_result_for_toolless_calls():
 
     assert result.content == '{"summary":"async ok"}'
     assert result.has_tool_calls() is False
+    submit_args = caller._client.post.await_args_list[0]
+    submit_headers = submit_args.kwargs["headers"]
+    assert "X-Timeout-Seconds" in submit_headers
 
 
 @pytest.mark.asyncio
@@ -289,6 +292,44 @@ async def test_async_ownership_unsupported_surface_is_temporarily_cached():
 
 
 @pytest.mark.asyncio
+async def test_async_ownership_poll_deadline_raises_timeout_without_sync_fallback():
+    caller = LlmCaller("http://fake:8000", "qwen")
+    caller._async_poll_deadline_seconds = 0.0
+
+    async def fake_post(url, **kwargs):
+        if url.endswith("/v1/async-chat-requests"):
+            return _make_httpx_response({
+                "requestId": "acr_slow",
+                "traceRequestId": "gw-slow",
+                "status": "accepted",
+                "statusUrl": "/v1/async-chat-requests/acr_slow",
+                "resultUrl": "/v1/async-chat-requests/acr_slow/result",
+                "cancelUrl": "/v1/async-chat-requests/acr_slow",
+            }, status_code=202)
+        raise AssertionError(f"sync fallback must not be attempted: {url}")
+
+    caller._client = MagicMock()
+    caller._client.post = AsyncMock(side_effect=fake_post)
+    caller._client.get = AsyncMock()
+    caller._client.delete = AsyncMock(return_value=_make_httpx_response({
+        "requestId": "acr_slow",
+        "state": "cancelled",
+    }))
+
+    with pytest.raises(LlmTimeoutError) as exc_info:
+        await caller.call(
+            [{"role": "user", "content": "hi"}],
+            prefer_async_ownership=True,
+        )
+
+    assert "poll deadline exceeded" in str(exc_info.value)
+    caller._client.get.assert_not_awaited()
+    caller._client.delete.assert_awaited_once()
+    cancel_url = caller._client.delete.await_args.args[0]
+    assert cancel_url.endswith("/v1/async-chat-requests/acr_slow")
+
+
+@pytest.mark.asyncio
 async def test_tools_request_does_not_force_strict_json_header():
     caller = LlmCaller("http://fake:8000", "qwen")
     caller._client = MagicMock()
@@ -388,8 +429,8 @@ class TestAdaptiveTimeout:
         caller = LlmCaller("http://fake:8000", "qwen")
         messages = [{"role": "user", "content": "x" * 18000}]  # ~9000 토큰 (÷2)
         timeout = caller._estimate_timeout(messages, max_tokens=16384, has_tools=False)
-        # 병렬 부하 반영: capped at 900s
-        assert timeout == 900.0
+        # S7 Qwen3.6-27B guidance: large/deep finalizers may use the 1800s upper bound.
+        assert timeout == 1800.0
 
     def test_small_request_gets_minimum(self):
         """작은 요청도 최소 120초는 보장된다."""

@@ -503,7 +503,32 @@ describe("API Contract Tests", () => {
 
   describe("GET /api/projects/:pid/gates", () => {
     it("returns { success, data: GateResult[] }", async () => {
-      ctx.gateResultDAO.save(makeGateResult({ id: "g1", projectId: "p1", runId: "run-1" }));
+      ctx.runDAO.save(makeRun({
+        id: "run-1",
+        projectId: "p1",
+        module: "static_analysis",
+        buildTargetId: "t-modern",
+        analysisExecutionId: "exec-modern",
+      }));
+      ctx.gateResultDAO.save(makeGateResult({
+        id: "g1",
+        projectId: "p1",
+        runId: "run-1",
+        profileId: "prod-strict-v3",
+        commit: "f8a1c3d",
+        branch: "main",
+        requestedBy: "김민지",
+        rules: [{
+          ruleId: "high-threshold",
+          result: "warning",
+          message: "활성 high finding 9건 — 임계치 이내",
+          linkedFindingIds: [],
+          current: 9,
+          threshold: 10,
+          unit: "count",
+          meta: { current: 9, threshold: 10, unit: "count" },
+        }],
+      }));
 
       const res = await request(app).get("/api/projects/p1/gates");
       expect(res.status).toBe(200);
@@ -515,6 +540,13 @@ describe("API Contract Tests", () => {
         expect(gate).toHaveProperty("id");
         expect(gate).toHaveProperty("status");
         expect(gate).toHaveProperty("rules");
+        expect(gate).toMatchObject({
+          profileId: "prod-strict-v3",
+          commit: "f8a1c3d",
+          branch: "main",
+          requestedBy: "김민지",
+        });
+        expect(gate.rules[0]).toMatchObject({ current: 9, threshold: 10, unit: "count" });
         expect(gate).toHaveProperty("evaluatedAt");
       }
     });
@@ -593,6 +625,8 @@ describe("API Contract Tests", () => {
         id: "ap-1",
         projectId: "p1",
         targetId: "gate-ap-1",
+        impactSummary: { failedRules: 1, ignoredFindings: 3, severityBreakdown: { critical: 1, high: 2 } },
+        targetSnapshot: { runId: "run-ap-1", commit: "f8a1c3d", branch: "main", profile: "prod-strict-v3", action: "gate.override" },
         expiresAt: new Date(Date.now() + 86400000).toISOString(),
       }));
 
@@ -606,6 +640,10 @@ describe("API Contract Tests", () => {
         expect(approval).toHaveProperty("id");
         expect(approval).toHaveProperty("actionType");
         expect(approval).toHaveProperty("status");
+        expect(approval).toMatchObject({
+          impactSummary: { failedRules: 1, ignoredFindings: 3, severityBreakdown: { critical: 1, high: 2 } },
+          targetSnapshot: { runId: "run-ap-1", commit: "f8a1c3d", branch: "main", profile: "prod-strict-v3", action: "gate.override" },
+        });
         expect(approval).toHaveProperty("expiresAt");
       }
     });
@@ -1518,6 +1556,81 @@ describe("API Contract Tests", () => {
         logPath: expect.stringContaining(`/tmp/logs/${sdkId}.log`),
         content: expect.stringContaining("line 1"),
         truncated: false,
+        totalLines: 2,
+      });
+    });
+
+    it("GET /api/projects/:pid/sdk/:id/log supports pagination and download", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-sdk-log-page" }));
+
+      const createRes = await request(app)
+        .post("/api/projects/p-sdk-log-page/sdk")
+        .field("name", "Paged Log SDK")
+        .attach("file", Buffer.from("installer"), "ti-sdk.bin");
+
+      const sdkId = createRes.body.data.id as string;
+      const pageRes = await request(app).get(`/api/projects/p-sdk-log-page/sdk/${sdkId}/log?offset=0&limit=1`);
+      expect(pageRes.status).toBe(200);
+      expect(pageRes.body.data).toMatchObject({
+        sdkId,
+        content: "line 1",
+        truncated: true,
+        totalLines: 2,
+        nextOffset: 1,
+      });
+
+      const downloadRes = await request(app).get(`/api/projects/p-sdk-log-page/sdk/${sdkId}/log?download=true`);
+      expect(downloadRes.status).toBe(200);
+      expect(downloadRes.headers["content-disposition"]).toContain(`${sdkId}-install.log`);
+      expect(downloadRes.text).toContain("line 1");
+    });
+
+    it("GET /api/projects/:pid/sdk/quota and /metrics return SDK operational metadata", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-sdk-ops" }));
+
+      await request(app)
+        .post("/api/projects/p-sdk-ops/sdk")
+        .field("name", "Ops SDK")
+        .attach("file", Buffer.from("archive-content"), "ops-sdk.tar.gz");
+
+      const quotaRes = await request(app).get("/api/projects/p-sdk-ops/sdk/quota");
+      expect(quotaRes.status).toBe(200);
+      expect(quotaRes.body.data).toMatchObject({
+        usedBytes: expect.any(Number),
+        maxBytes: expect.any(Number),
+        sdkCount: 1,
+      });
+
+      const metricsRes = await request(app).get("/api/projects/p-sdk-ops/sdk/metrics");
+      expect(metricsRes.status).toBe(200);
+      expect(metricsRes.body.data).toMatchObject({
+        sdkCount: 1,
+        readyCount: 0,
+        failedCount: 0,
+        averagePhaseDurationMs: {},
+      });
+    });
+
+    it("POST /api/projects/:pid/sdk/:id/retry exposes server-side retry endpoint", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-sdk-retry" }));
+
+      const createRes = await request(app)
+        .post("/api/projects/p-sdk-retry/sdk")
+        .field("name", "Retry Route SDK")
+        .attach("file", Buffer.from("archive-content"), "retry-sdk.tar.gz");
+
+      const sdkId = createRes.body.data.id as string;
+      const retryRes = await request(app)
+        .post(`/api/projects/p-sdk-retry/sdk/${sdkId}/retry`)
+        .send({ fromPhase: "verifying" });
+      expect(retryRes.status).toBe(202);
+      expect(retryRes.body).toMatchObject({
+        success: true,
+        data: {
+          id: sdkId,
+          status: "ready",
+          retryCount: 1,
+        },
       });
     });
 
@@ -2124,14 +2237,14 @@ describe("API Contract Tests", () => {
         buildTargetId: "t-modern",
         analysisExecutionId: "exec-modern",
         findingCount: 1,
-        createdAt: "2026-03-25T00:00:00Z",
+        createdAt: "2026-04-20T00:00:00Z",
       }));
       ctx.gateResultDAO.save(makeGateResult({
         id: "gate-summary-modern",
         projectId: "p-analysis-summary-agg",
         runId: "run-summary-modern",
         status: "pass",
-        createdAt: "2026-03-25T00:00:00Z",
+        createdAt: "2026-04-20T00:00:00Z",
       }));
       ctx.findingDAO.save(makeFinding({
         id: "finding-summary-modern",
@@ -2145,7 +2258,7 @@ describe("API Contract Tests", () => {
         sourceType: "rule-engine",
         ruleId: "RULE-MODERN",
         location: "src/modern.c:10",
-        createdAt: "2026-03-25T00:00:00Z",
+        createdAt: "2026-04-20T00:00:00Z",
       }));
 
       ctx.runDAO.save(makeRun({
@@ -2156,14 +2269,14 @@ describe("API Contract Tests", () => {
         buildTargetId: undefined,
         analysisExecutionId: undefined,
         findingCount: 3,
-        createdAt: "2026-03-25T00:00:00Z",
+        createdAt: "2026-04-20T00:00:00Z",
       }));
       ctx.gateResultDAO.save(makeGateResult({
         id: "gate-summary-legacy",
         projectId: "p-analysis-summary-agg",
         runId: "run-summary-legacy",
         status: "fail",
-        createdAt: "2026-03-25T00:00:00Z",
+        createdAt: "2026-04-20T00:00:00Z",
       }));
       ctx.findingDAO.save(makeFinding({
         id: "finding-summary-legacy",
@@ -2187,7 +2300,7 @@ describe("API Contract Tests", () => {
       expect(res.body.data.topRules).toEqual([{ ruleId: "RULE-MODERN", hitCount: 1 }]);
       expect(res.body.data.gateStats).toMatchObject({ total: 1, passed: 1, failed: 0 });
       expect(res.body.data.trend).toEqual([
-        expect.objectContaining({ date: "2026-03-25", runCount: 1, findingCount: 1, gatePassCount: 1 }),
+        expect.objectContaining({ date: "2026-04-20", runCount: 1, findingCount: 1, gatePassCount: 1 }),
       ]);
     });
 
@@ -2799,6 +2912,8 @@ describe("API Contract Tests", () => {
         targetId: "gate-override",
         projectId: "p-gate-override",
         status: "pending",
+        impactSummary: expect.objectContaining({ failedRules: expect.any(Number), ignoredFindings: expect.any(Number) }),
+        targetSnapshot: expect.objectContaining({ runId: "run-gate-override", action: "gate.override" }),
       });
     });
   });

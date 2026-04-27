@@ -1,7 +1,7 @@
 import json
 
-from agent_shared.schemas.agent import BudgetState
-from agent_shared.schemas.agent import ToolCallRequest, ToolResult
+from app.agent_runtime.schemas.agent import BudgetState
+from app.agent_runtime.schemas.agent import ToolCallRequest, ToolCostTier, ToolResult, ToolTraceStep
 from app.core.agent_session import AgentSession
 from app.core.phase_one_types import Phase1Result
 from app.core.result_assembler import ResultAssembler
@@ -28,14 +28,17 @@ def _make_session() -> AgentSession:
 
 
 
-def test_unstructured_response_returns_failure():
+def test_unstructured_response_returns_completed_inconclusive_outcome():
     assembler = ResultAssembler()
     session = _make_session()
 
     result = assembler.build("## Phase A: 우선순위 수립\n1. popen 위험 분석", session)
 
-    assert result.status == "validation_failed"
-    assert result.failureCode == "INVALID_SCHEMA"
+    assert result.status == "completed"
+    assert result.validation.valid is True
+    assert result.result.analysisOutcome == "inconclusive"
+    assert result.result.qualityOutcome == "repair_exhausted"
+    assert result.result.recoveryTrace[0].deficiency == "LLM_OUTPUT_DEFICIENT"
 
 
 def test_legitimate_structured_zero_claim_response_is_allowed():
@@ -57,6 +60,151 @@ def test_legitimate_structured_zero_claim_response_is_allowed():
     assert result.status == "completed"
     assert result.validation.valid is True
     assert result.result.claims == []
+    assert result.result.analysisOutcome == "no_accepted_claims"
+
+
+def test_agent_v11_clean_pass_fields_and_contextual_refs_are_populated():
+    assembler = ResultAssembler()
+    session = _make_session()
+    session.trace.append(ToolTraceStep(
+        step_id="knowledge-1",
+        turn_number=1,
+        tool="knowledge.search",
+        args_hash="hash",
+        cost_tier=ToolCostTier.CHEAP,
+        duration_ms=1,
+        success=True,
+        new_evidence_refs=["eref-knowledge-CWE-78"],
+    ))
+    final_content = json.dumps({
+        "summary": "프로젝트 로컬 증거로 command injection claim이 확인되었습니다.",
+        "claims": [{
+            "statement": "사용자 입력이 popen 호출에 도달합니다.",
+            "detail": "source ref가 취약 호출 위치를 직접 지시합니다.",
+            "supportingEvidenceRefs": ["eref-001"],
+            "location": "clients/http_client.cpp:64",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": ["eref-001"],
+        "contextualEvidenceRefs": ["eref-knowledge-CWE-78"],
+        "suggestedSeverity": "high",
+        "needsHumanReview": True,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    result = assembler.build(final_content, session)
+
+    assert result.schemaVersion == "agent-v1.1"
+    assert result.result.cleanPass is True
+    assert result.result.evaluationVerdict.cleanPass is True
+    assert result.result.qualityGate.outcome == "accepted"
+    assert result.result.contextualEvidenceRefs == ["eref-knowledge-CWE-78"]
+    assert "eref-001" in result.result.evidenceDiagnostics.availableLocalRefs
+    assert "eref-knowledge-CWE-78" in result.result.evidenceDiagnostics.availableKnowledgeRefs
+
+
+def test_contextual_knowledge_ref_cannot_support_final_claim():
+    assembler = ResultAssembler()
+    session = _make_session()
+    session.trace.append(ToolTraceStep(
+        step_id="knowledge-1",
+        turn_number=1,
+        tool="knowledge.search",
+        args_hash="hash",
+        cost_tier=ToolCostTier.CHEAP,
+        duration_ms=1,
+        success=True,
+        new_evidence_refs=["eref-knowledge-CWE-78"],
+    ))
+    final_content = json.dumps({
+        "summary": "knowledge ref를 final claim support로 쓰면 안 됩니다.",
+        "claims": [{
+            "statement": "CWE 근거만으로 취약점을 확정합니다.",
+            "detail": "이 claim은 프로젝트 로컬 ref가 아닌 knowledge ref를 claim support로 사용합니다.",
+            "supportingEvidenceRefs": ["eref-knowledge-CWE-78"],
+            "location": "clients/http_client.cpp:64",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": ["eref-knowledge-CWE-78"],
+        "suggestedSeverity": "high",
+        "needsHumanReview": True,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    result = assembler.build(final_content, session)
+
+    assert result.status == "completed"
+    assert result.result.analysisOutcome == "no_accepted_claims"
+    assert result.result.cleanPass is False
+    assert result.result.evidenceDiagnostics.invalidRefRoles[0].refId == "eref-knowledge-CWE-78"
+    assert result.result.evidenceDiagnostics.invalidRefRoles[0].actualClass == "knowledge"
+
+
+def test_contextual_knowledge_ref_is_moved_when_local_ref_already_supports_claim():
+    assembler = ResultAssembler()
+    session = _make_session()
+    session.trace.append(ToolTraceStep(
+        step_id="knowledge-1",
+        turn_number=1,
+        tool="knowledge.search",
+        args_hash="hash",
+        cost_tier=ToolCostTier.CHEAP,
+        duration_ms=1,
+        success=True,
+        new_evidence_refs=["eref-knowledge-CWE-78"],
+    ))
+    final_content = json.dumps({
+        "summary": "프로젝트 로컬 증거와 CWE 컨텍스트가 함께 제공되었습니다.",
+        "claims": [{
+            "statement": "사용자 입력이 popen 호출에 도달합니다.",
+            "detail": "source ref가 취약 호출 위치를 직접 지시하고 CWE ref는 배경지식입니다.",
+            "supportingEvidenceRefs": ["eref-001", "eref-knowledge-CWE-78"],
+            "location": "clients/http_client.cpp:64",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": ["eref-001", "eref-knowledge-CWE-78"],
+        "suggestedSeverity": "high",
+        "needsHumanReview": True,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    result = assembler.build(final_content, session)
+
+    assert result.status == "completed"
+    assert result.result.analysisOutcome == "accepted_claims"
+    assert result.result.claims[0].supportingEvidenceRefs == ["eref-001"]
+    assert result.result.usedEvidenceRefs == ["eref-001"]
+    assert result.result.contextualEvidenceRefs == ["eref-knowledge-CWE-78"]
+    assert result.result.evidenceDiagnostics.invalidRefRoles == []
+    assert "evidence_role_normalized" in result.result.policyFlags
+
+
+def test_recoverable_loop_exhaustion_returns_completed_repair_exhausted():
+    assembler = ResultAssembler()
+    session = _make_session()
+    session.set_termination_reason("all_tiers_exhausted")
+
+    result = assembler.build_from_exhaustion(session)
+
+    assert result.status == "completed"
+    assert result.validation.valid is True
+    assert result.result.analysisOutcome == "inconclusive"
+    assert result.result.qualityOutcome == "repair_exhausted"
+    assert result.result.recoveryTrace[0].deficiency == "RECOVERY_EXHAUSTED"
+
+
+def test_timeout_exhaustion_remains_task_failure():
+    assembler = ResultAssembler()
+    session = _make_session()
+    session.set_termination_reason("timeout")
+
+    result = assembler.build_from_exhaustion(session)
+
+    assert result.status == "timeout"
+    assert result.failureCode == "TIMEOUT"
 
 
 def test_low_confidence_claim_shape_is_allowed_without_schema_change():
@@ -139,7 +287,7 @@ def test_missing_top_level_used_refs_is_synced_from_claim_refs_when_grounded():
     assert "deterministic_schema_scaffold" in result.result.policyFlags
 
 
-def test_missing_contract_required_metadata_fields_still_fail_when_severity_is_unsafe_to_infer():
+def test_missing_contract_required_metadata_fields_become_completed_schema_outcome():
     assembler = ResultAssembler()
     session = _make_session()
     final_content = json.dumps({
@@ -156,16 +304,15 @@ def test_missing_contract_required_metadata_fields_still_fail_when_severity_is_u
 
     result = assembler.build(final_content, session)
 
-    assert result.status == "validation_failed"
-    assert result.failureCode == "INVALID_SCHEMA"
-    assert "필수 필드 'suggestedSeverity' 누락" in result.failureDetail
-    assert "'suggestedSeverity'가 문자열이 아님" in result.failureDetail
-    assert "필수 필드 'needsHumanReview' 누락" not in result.failureDetail
-    assert "필수 필드 'recommendedNextSteps' 누락" not in result.failureDetail
-    assert "필수 필드 'policyFlags' 누락" not in result.failureDetail
+    assert result.status == "completed"
+    assert result.validation.valid is True
+    assert result.result.analysisOutcome == "inconclusive"
+    assert result.result.qualityOutcome == "repair_exhausted"
+    assert result.result.recoveryTrace[0].deficiency == "SCHEMA_DEFICIENT"
+    assert "필수 필드 'suggestedSeverity' 누락" in result.result.caveats
 
 
-def test_missing_claim_supporting_refs_remains_schema_failure_without_repair():
+def test_missing_claim_supporting_refs_become_completed_schema_outcome():
     assembler = ResultAssembler()
     session = _make_session()
     final_content = json.dumps({
@@ -185,12 +332,13 @@ def test_missing_claim_supporting_refs_remains_schema_failure_without_repair():
 
     result = assembler.build(final_content, session)
 
-    assert result.status == "validation_failed"
-    assert result.failureCode == "INVALID_SCHEMA"
-    assert "claims[0]: 'supportingEvidenceRefs' 누락" in result.failureDetail
+    assert result.status == "completed"
+    assert result.result.analysisOutcome == "inconclusive"
+    assert result.result.qualityOutcome == "repair_exhausted"
+    assert any("supportingEvidenceRefs" in c for c in result.result.caveats)
 
 
-def test_missing_claim_detail_and_location_remain_schema_failure_without_repair():
+def test_missing_claim_detail_and_location_become_completed_schema_outcome():
     assembler = ResultAssembler()
     session = _make_session()
     final_content = json.dumps({
@@ -209,13 +357,14 @@ def test_missing_claim_detail_and_location_remain_schema_failure_without_repair(
 
     result = assembler.build(final_content, session)
 
-    assert result.status == "validation_failed"
-    assert result.failureCode == "INVALID_SCHEMA"
-    assert "claims[0]: 'detail' 누락" in result.failureDetail
-    assert "claims[0]: 'location' 누락" in result.failureDetail
+    assert result.status == "completed"
+    assert result.result.analysisOutcome == "inconclusive"
+    assert result.result.qualityOutcome == "repair_exhausted"
+    assert any("'detail' 누락" in c for c in result.result.caveats)
+    assert any("'location' 누락" in c for c in result.result.caveats)
 
 
-def test_claim_with_only_hallucinated_refs_fails_grounding_after_sanitize():
+def test_claim_with_only_hallucinated_refs_becomes_completed_no_accepted_claims():
     assembler = ResultAssembler()
     session = _make_session()
     final_content = json.dumps({
@@ -236,12 +385,14 @@ def test_claim_with_only_hallucinated_refs_fails_grounding_after_sanitize():
 
     result = assembler.build(final_content, session)
 
-    assert result.status == "validation_failed"
-    assert result.failureCode == "INVALID_GROUNDING"
-    assert "eref-totally-fake" in result.failureDetail
+    assert result.status == "completed"
+    assert result.result.analysisOutcome == "no_accepted_claims"
+    assert result.result.qualityOutcome == "rejected"
+    assert result.result.recoveryTrace[0].deficiency == "REFS_OR_GROUNDING_DEFICIENT"
+    assert "eref-totally-fake" in (result.result.recoveryTrace[0].detail or "")
 
 
-def test_required_collection_fields_with_wrong_types_fail_schema_validation():
+def test_required_collection_fields_with_wrong_types_become_completed_schema_outcome():
     assembler = ResultAssembler()
     session = _make_session()
     final_content = json.dumps({
@@ -262,18 +413,15 @@ def test_required_collection_fields_with_wrong_types_fail_schema_validation():
 
     result = assembler.build(final_content, session)
 
-    assert result.status == "validation_failed"
-    assert result.failureCode == "INVALID_SCHEMA"
-    assert "caveats[0]가 문자열이 아님" in result.failureDetail
-    assert "usedEvidenceRefs[0]가 문자열이 아님" in result.failureDetail
-    assert "claims[0]: 'supportingEvidenceRefs'가 리스트가 아님" in result.failureDetail
-    assert "'suggestedSeverity'가 문자열이 아님" in result.failureDetail
-    assert "'needsHumanReview'가 bool이 아님" not in result.failureDetail
-    assert "recommendedNextSteps[0]가 문자열이 아님" in result.failureDetail
-    assert "policyFlags[0]가 문자열이 아님" in result.failureDetail
+    assert result.status == "completed"
+    assert result.result.analysisOutcome == "inconclusive"
+    assert result.result.qualityOutcome == "repair_exhausted"
+    assert any("caveats[0]가 문자열이 아님" in c for c in result.result.caveats)
+    assert any("usedEvidenceRefs[0]가 문자열이 아님" in c for c in result.result.caveats)
+    assert any("'supportingEvidenceRefs'가 리스트가 아님" in c for c in result.result.caveats)
 
 
-def test_required_fields_with_null_values_fail_schema_validation_without_exception():
+def test_required_fields_with_null_values_become_completed_schema_outcome_without_exception():
     assembler = ResultAssembler()
     session = _make_session()
     final_content = json.dumps({
@@ -289,13 +437,8 @@ def test_required_fields_with_null_values_fail_schema_validation_without_excepti
 
     result = assembler.build(final_content, session)
 
-    assert result.status == "validation_failed"
-    assert result.failureCode == "INVALID_SCHEMA"
-    assert "'summary'가 문자열이 아님" in result.failureDetail
-    assert "'claims'가 리스트가 아님" in result.failureDetail
-    assert "'caveats'가 리스트가 아님" not in result.failureDetail
-    assert "'usedEvidenceRefs'가 리스트가 아님" not in result.failureDetail
-    assert "'suggestedSeverity'가 문자열이 아님" in result.failureDetail
-    assert "'needsHumanReview'가 bool이 아님" not in result.failureDetail
-    assert "'recommendedNextSteps'가 리스트가 아님" not in result.failureDetail
-    assert "'policyFlags'가 리스트가 아님" not in result.failureDetail
+    assert result.status == "completed"
+    assert result.result.analysisOutcome == "inconclusive"
+    assert result.result.qualityOutcome == "repair_exhausted"
+    assert any("'summary'가 문자열이 아님" in c for c in result.result.caveats)
+    assert any("'claims'가 리스트가 아님" in c for c in result.result.caveats)

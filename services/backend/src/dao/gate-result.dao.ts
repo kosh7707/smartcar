@@ -9,6 +9,10 @@ interface GateResultRow {
   project_id: string;
   status: GateStatus;
   rules: string;
+  profile_id: string | null;
+  commit_sha: string | null;
+  branch: string | null;
+  requested_by: string | null;
   evaluated_at: string;
   override: string | null;
   created_at: string;
@@ -21,6 +25,10 @@ function rowToGateResult(row: GateResultRow): GateResult {
     projectId: row.project_id,
     status: row.status,
     rules: safeJsonParse(row.rules, []),
+    profileId: row.profile_id ?? undefined,
+    commit: row.commit_sha ?? undefined,
+    branch: row.branch ?? undefined,
+    requestedBy: row.requested_by ?? undefined,
     evaluatedAt: row.evaluated_at,
     override: row.override ? safeJsonParse(row.override, undefined) : undefined,
     createdAt: row.created_at,
@@ -36,8 +44,8 @@ export class GateResultDAO implements IGateResultDAO {
 
   constructor(private db: DatabaseType) {
     this.insertStmt = db.prepare(
-      `INSERT INTO gate_results (id, run_id, project_id, status, rules, evaluated_at, override, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO gate_results (id, run_id, project_id, status, rules, profile_id, commit_sha, branch, requested_by, evaluated_at, override, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     this.selectByIdStmt = db.prepare(`SELECT * FROM gate_results WHERE id = ?`);
     this.selectByRunStmt = db.prepare(`SELECT * FROM gate_results WHERE run_id = ?`);
@@ -56,6 +64,10 @@ export class GateResultDAO implements IGateResultDAO {
       result.projectId,
       result.status,
       JSON.stringify(result.rules),
+      result.profileId ?? null,
+      result.commit ?? null,
+      result.branch ?? null,
+      result.requestedBy ?? null,
       result.evaluatedAt,
       result.override ? JSON.stringify(result.override) : null,
       result.createdAt

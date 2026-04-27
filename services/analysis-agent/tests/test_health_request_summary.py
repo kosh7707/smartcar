@@ -17,6 +17,12 @@ def test_health_endpoint_includes_idle_request_summary(client_live):
     assert resp.status_code == 200
 
     data = resp.json()
+    assert data["activePromptVersions"]["deep-analyze"] == "agent-v1"
+    assert data["activeResponseSchemas"]["deep-analyze"] == "agent-v1.1"
+    assert data["agentConfig"]["taskDeadlineMs"] == 1_800_000
+    assert data["agentConfig"]["partialEnvelopeDeadlineMs"] == 1_740_000
+    assert data["agentConfig"]["llmAsyncPollDeadlineMs"] == 1_740_000
+    assert data["agentConfig"]["llmAsyncPollIntervalSeconds"] == 1.0
     assert data["activeRequestCount"] == 0
     assert data["requestSummary"]["requestId"] is None
     assert data["requestSummary"]["state"] == "idle"

@@ -8,7 +8,7 @@ from app.core.phase_one_types import Phase1Result
 from app.routers.deep_analyze_handler import _configure_phase2_graph_tools, handle_deep_analyze
 from app.schemas.request import Context, TaskRequest
 from app.types import TaskType
-from agent_shared.tools.registry import ToolRegistry, ToolSchema
+from app.agent_runtime.tools.registry import ToolRegistry, ToolSchema
 
 
 def _register_graph_tools(registry: ToolRegistry) -> None:
@@ -99,9 +99,12 @@ async def test_handle_deep_analyze_requests_async_ownership_on_toolless_turn(mon
     async def fake_phase1_execute(self, session):
         return Phase1Result()
 
+    async def fake_phase1_aclose(self):
+        seen["phase1_closed"] = True
+
     async def fake_call(self, *args, **kwargs):
         seen["prefer_async_ownership"] = kwargs.get("prefer_async_ownership")
-        from agent_shared.schemas.agent import LlmResponse
+        from app.agent_runtime.schemas.agent import LlmResponse
         return LlmResponse(
             content=json.dumps({
                 "summary": "Deep analysis completed",
@@ -121,12 +124,13 @@ async def test_handle_deep_analyze_requests_async_ownership_on_toolless_turn(mon
         return None
 
     monkeypatch.setattr(
-        "agent_shared.tools.registry.ToolRegistry.get_available_schemas",
+        "app.agent_runtime.tools.registry.ToolRegistry.get_available_schemas",
         lambda self, budget_manager: None,
     )
     monkeypatch.setattr("app.core.phase_one.Phase1Executor.execute", fake_phase1_execute)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr("app.core.phase_one.Phase1Executor.aclose", fake_phase1_aclose)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
 
     model_registry = MagicMock()
     model_registry.get_default.return_value = MagicMock(
@@ -139,5 +143,6 @@ async def test_handle_deep_analyze_requests_async_ownership_on_toolless_turn(mon
         result = await handle_deep_analyze(request, model_registry)
         assert result.status == "completed"
         assert seen["prefer_async_ownership"] is True
+        assert seen["phase1_closed"] is True
     finally:
         object.__setattr__(settings, "llm_mode", original_mode)

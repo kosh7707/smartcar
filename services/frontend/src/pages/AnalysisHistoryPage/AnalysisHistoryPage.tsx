@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { PageHeader, Spinner } from "../../shared/ui";
+import { Spinner } from "../../shared/ui";
 import { useToast } from "../../contexts/ToastContext";
 import { getModuleRoute } from "../../constants/modules";
 import { AnalysisHistoryToolbar } from "./components/AnalysisHistoryToolbar";
@@ -22,11 +22,13 @@ export const AnalysisHistoryPage: React.FC = () => {
     failedCount,
   } = useAnalysisHistoryPage(projectId, toast);
 
-  document.title = "AEGIS — 분석 이력";
+  useEffect(() => {
+    document.title = "AEGIS — 분석 이력";
+  }, []);
 
   if (loading) {
     return (
-      <div className="page-loading-shell">
+      <div className="page-shell history-page history-loading-shell">
         <Spinner size={36} label="분석 이력 로딩 중..." />
       </div>
     );
@@ -34,16 +36,26 @@ export const AnalysisHistoryPage: React.FC = () => {
 
   return (
     <div className="page-shell history-page">
-      <PageHeader surface="plain" title="분석 이력" />
+      {/* Page-level panel: heading + toolbar in panel-head */}
+      <div className="panel">
+        <div className="panel-head">
+          <h3>
+            분석 이력
+            <span className="count" aria-hidden="true">{runs.length}</span>
+          </h3>
+          <div className="panel-tools">
+            <AnalysisHistoryToolbar
+              filter={filter}
+              onFilterChange={setFilter}
+              totalCount={runs.length}
+              completedCount={completedCount}
+              failedCount={failedCount}
+            />
+          </div>
+        </div>
+      </div>
 
-      <AnalysisHistoryToolbar
-        filter={filter}
-        onFilterChange={setFilter}
-        totalCount={runs.length}
-        completedCount={completedCount}
-        failedCount={failedCount}
-      />
-
+      {/* Runs table panel */}
       <AnalysisHistoryRunsTable
         filter={filter}
         runs={filteredRuns}

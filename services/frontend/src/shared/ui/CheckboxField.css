@@ -45,8 +45,10 @@
   color: var(--primary-foreground);
 }
 
+/* Review-tone critical-review (--danger), NOT severity ramp.
+   Form invalid is workflow review state, not finding severity (handoff §2.2). */
 .form-checkbox__input[aria-invalid="true"] + .form-checkbox__mark {
-  border-color: var(--severity-critical);
+  border-color: var(--danger);
 }
 
 .form-checkbox__input:disabled + .form-checkbox__mark {

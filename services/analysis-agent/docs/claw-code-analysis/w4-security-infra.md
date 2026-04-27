@@ -414,10 +414,10 @@ Analysis Agent의 SAST 도구나 Knowledge 도구가 접근할 수 있는 파일
 
 현재 ToolRouter의 `_execute_single()`에 훅 호출 지점을 삽입한다. 외부 명령어 방식이 아닌, Python callable 체인으로 구현하면 간단하다.
 
-**구현 위치**: `agent_shared/tools/hook.py` (신규) + `ToolRouter._execute_single()` (수정)
+**구현 위치**: `agent_runtime/tools/hook.py` (신규) + `ToolRouter._execute_single()` (수정)
 
 ```python
-# agent_shared/tools/hook.py
+# agent_runtime/tools/hook.py
 from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol
@@ -466,13 +466,13 @@ class HookChain:
 - `SecretScanner`: 도구 출력에서 API 키, 토큰 패턴 마스킹
 - `AuditLogger`: 외부 감사 시스템(S2 Backend)에 모든 도구 호출 기록
 
-**영향 범위**: Analysis Agent, Build Agent 모두 동일한 ToolRouter를 사용하므로 agent-shared에 구현하면 양쪽에 즉시 적용된다.
+**영향 범위**: Analysis Agent, Build Agent 모두 동일한 ToolRouter를 사용하므로 agent-runtime에 구현하면 양쪽에 즉시 적용된다.
 
 #### 제안 2: 4분류 토큰 추적 도입
 
 TokenCounter를 확장하여 cache_creation/cache_read를 별도 추적한다.
 
-**구현 위치**: `agent_shared/schemas/agent.py` (BudgetState 수정)
+**구현 위치**: `agent_runtime/schemas/agent.py` (BudgetState 수정)
 
 ```python
 class BudgetState(BaseModel):
@@ -513,7 +513,7 @@ _FORBIDDEN_PATTERNS += [
 
 claw-code의 5단계 모델을 Python으로 적용한다. AEGIS의 에이전트는 서버 측에서 실행되므로 "사용자 프롬프트" 대신 "정책 기반 자동 판정"으로 변형한다.
 
-**구현 위치**: `agent_shared/policy/permission.py` (신규)
+**구현 위치**: `agent_runtime/policy/permission.py` (신규)
 
 ```python
 from enum import IntEnum

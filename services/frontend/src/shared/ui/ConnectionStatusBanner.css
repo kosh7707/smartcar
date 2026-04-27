@@ -3,7 +3,13 @@
 /* ── Extracted from app-shell.css (Phase 1a.1 pass 2) ── */
 .connection-status-banner { position:sticky; top:0; z-index:50; display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; border-bottom:1px solid var(--border); padding:8px 16px; font-weight:var(--weight-medium); }
 .connection-status-banner.is-failed { border-color:color-mix(in srgb, var(--destructive) 30%, transparent); background:color-mix(in srgb, var(--destructive) 10%, transparent); color:var(--destructive); }
-.connection-status-banner.is-reconnecting { border-color:#fcd34d; background:#fef3c7; color:#78350f; }
+/* Reconnecting state — review-tone caution (handoff §2.1).
+   Canonical --warning-* tokens auto-adapt across [data-theme="dark"]. */
+.connection-status-banner.is-reconnecting {
+  border-color: color-mix(in srgb, var(--warning) 32%, transparent);
+  background: var(--warning-surface);
+  color: var(--warning);
+}
 .connection-status-banner__icon { flex-shrink:0; }
 .connection-status-banner__copy { min-width:0; flex:1; }
 .connection-status-banner__action { margin-left:12px; border-color:currentColor; background:transparent; color:inherit; }

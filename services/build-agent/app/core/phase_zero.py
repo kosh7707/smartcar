@@ -7,7 +7,7 @@ import os
 import time
 from dataclasses import dataclass, field
 
-from agent_shared.observability import agent_log
+from app.agent_runtime.observability import agent_log
 
 logger = logging.getLogger(__name__)
 

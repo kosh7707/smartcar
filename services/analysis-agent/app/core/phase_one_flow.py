@@ -6,8 +6,8 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
-from agent_shared.context import get_request_id
-from agent_shared.observability import agent_log
+from app.agent_runtime.context import get_request_id
+from app.agent_runtime.observability import agent_log
 from app.core.phase_one_types import Phase1Result
 
 if TYPE_CHECKING:
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 def resolve_analysis_path(project_path: str | None, target_path: str | None, logger: logging.Logger) -> str | None:
     analysis_path = project_path
     if project_path and target_path:
-        from agent_shared.path_util import resolve_scoped_path
+        from app.agent_runtime.path_util import resolve_scoped_path
 
         scoped = resolve_scoped_path(project_path, target_path)
         if scoped is not None:

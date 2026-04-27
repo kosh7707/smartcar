@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING
 import httpx
 
 from app.clients.kb_error_utils import is_kb_not_ready_error, is_kb_timeout_error
-from agent_shared.context import get_request_id
-from agent_shared.observability import agent_log
+from app.agent_runtime.context import get_request_id
+from app.agent_runtime.observability import agent_log
 from app.config import settings
 
 if TYPE_CHECKING:

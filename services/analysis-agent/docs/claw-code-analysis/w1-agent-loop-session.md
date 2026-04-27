@@ -340,7 +340,7 @@ claw-code의 `UsageTracker`는 4종 토큰 (input, output, cache_creation, cache
 
 **개선점**: claw-code는 도구 에러 시 `is_error: true` 플래그를 명시적으로 설정한다 (conversation.rs 줄 224). AEGIS의 `ToolResult.success`가 이 역할을 하지만, OpenAI 호환 messages에서 `role: "tool"` 메시지에 에러 표시가 누락된다.
 
-**적용 대상**: `agent_shared/llm/message_manager.py` 줄 53-60 (`add_tool_results`)
+**적용 대상**: `agent_runtime/llm/message_manager.py` 줄 53-60 (`add_tool_results`)
 ```python
 # 현재
 self._messages.append({
@@ -372,7 +372,7 @@ any further questions. Resume directly -- do not acknowledge the summary,
 do not recap what was happening, and do not preface with continuation text."
 ```
 
-**적용 대상**: `agent_shared/llm/turn_summarizer.py`의 `_build_structured_summary()` 끝에 추가:
+**적용 대상**: `agent_runtime/llm/turn_summarizer.py`의 `_build_structured_summary()` 끝에 추가:
 ```python
 sections.append(
     "\n## 지시\n"
@@ -475,7 +475,7 @@ class HookRunner:
 - `collect_key_files()`: 메시지에서 파일 경로 패턴 추출, 확장자 필터링, 최대 8개 (줄 321-335)
 - `infer_pending_work()`: todo/next/pending/remaining 키워드로 미완료 작업 추론 (줄 300-319)
 
-**적용 대상**: `agent_shared/llm/turn_summarizer.py`의 `_build_structured_summary()`에 추가:
+**적용 대상**: `agent_runtime/llm/turn_summarizer.py`의 `_build_structured_summary()`에 추가:
 
 ```python
 # 파일 참조 추출
@@ -518,7 +518,7 @@ enum AssistantEvent {
 
 **AEGIS 적용 설계**:
 ```python
-# agent_shared/llm/events.py (신규)
+# agent_runtime/llm/events.py (신규)
 from dataclasses import dataclass
 from typing import Union
 
@@ -741,6 +741,6 @@ fn build_assistant_message(events: Vec<AssistantEvent>)
 | `services/analysis-agent/app/core/agent_session.py` | 77 | AEGIS Analysis Agent 세션 |
 | `services/build-agent/app/core/agent_loop.py` | 314 | AEGIS Build Agent 루프 |
 | `services/analysis-agent/app/policy/termination.py` | 83 | AEGIS 종료 정책 |
-| `services/agent-shared/agent_shared/policy/retry.py` | 51 | AEGIS 재시도 정책 |
-| `services/agent-shared/agent_shared/llm/message_manager.py` | 88 | AEGIS 메시지 관리 |
-| `services/agent-shared/agent_shared/llm/turn_summarizer.py` | 198 | AEGIS 턴 요약/압축 |
+| `services/agent-runtime/agent_runtime/policy/retry.py` | 51 | AEGIS 재시도 정책 |
+| `services/agent-runtime/agent_runtime/llm/message_manager.py` | 88 | AEGIS 메시지 관리 |
+| `services/agent-runtime/agent_runtime/llm/turn_summarizer.py` | 198 | AEGIS 턴 요약/압축 |

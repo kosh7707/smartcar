@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from agent_shared.errors import LlmHttpError, LlmTimeoutError, LlmUnavailableError
-from agent_shared.policy.retry import RetryPolicy
+from app.agent_runtime.errors import LlmHttpError, LlmTimeoutError, LlmUnavailableError
+from app.agent_runtime.policy.retry import RetryPolicy
 
 
 @pytest.fixture

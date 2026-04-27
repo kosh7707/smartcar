@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from agent_shared.llm.prompt_builder import DYNAMIC_BOUNDARY, SystemPromptBuilder
-from agent_shared.schemas.agent import BudgetState
+from app.agent_runtime.llm.prompt_builder import DYNAMIC_BOUNDARY, SystemPromptBuilder
+from app.agent_runtime.schemas.agent import BudgetState
 
 
 class TestBasicBuild:

@@ -4,8 +4,8 @@ from __future__ import annotations
 import json
 import os
 
-from agent_shared.path_util import resolve_scoped_path
-from agent_shared.schemas.agent import ToolResult
+from app.agent_runtime.path_util import resolve_scoped_path
+from app.agent_runtime.schemas.agent import ToolResult
 
 # 컨텍스트 폭발 방지: 파일 읽기 최대 8,000자 (~2K 토큰)
 _MAX_READ_CHARS = 8_000

@@ -39,3 +39,5 @@ export { RadioGroupField } from "./RadioGroupField";
 export type { RadioGroupFieldOption, RadioGroupFieldProps } from "./RadioGroupField";
 export { SwitchField } from "./SwitchField";
 export type { SwitchFieldProps } from "./SwitchField";
+export { OutcomeChip } from "./OutcomeChip";
+export type { OutcomeChipProps, OutcomeKind, OutcomeTone } from "./OutcomeChip";

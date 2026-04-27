@@ -1,5 +1,5 @@
 import React from "react";
-import type { ProjectReport } from "@aegis/shared";
+import type { AnalysisResult, ProjectReport } from "@aegis/shared";
 import { CustomReportModal } from "./CustomReportModal";
 import { ReportApprovalsSection } from "./ReportApprovalsSection";
 import { ReportAuditLogSection } from "./ReportAuditLogSection";
@@ -32,6 +32,7 @@ type ReportContentProps = {
   allRuns: Array<{ gate?: { status?: string | null } | null }>;
   sevCounts: { critical: number; high: number; medium: number; low: number };
   sevMax: number;
+  deepResult?: AnalysisResult | null;
 };
 
 export function ReportContent({
@@ -53,9 +54,10 @@ export function ReportContent({
   allRuns,
   sevCounts,
   sevMax,
+  deepResult,
 }: ReportContentProps) {
   return (
-    <div className="page-enter report-content">
+    <div className="page-enter page-shell report-content">
       <ReportHeader
         hasActiveFilters={hasActiveFilters}
         onToggleFilters={() => setShowFilters(!showFilters)}
@@ -73,25 +75,23 @@ export function ReportContent({
         />
       )}
 
-      <div
-        value={activeTab}
-        onValueChange={(value) => setActiveTab(value as ModuleTab)}
-        className="report-content__tabs print-hide"
-      >
-        <div className="seg report-module-tabs" role="tablist"
-        >
-          {(Object.keys(MODULE_TAB_LABELS) as ModuleTab[]).map((tab) => (
-            <button type="button" role="tab"
-              key={tab}
-              value={tab}
-              className="report-module-tabs__trigger"
-            >
-              {MODULE_TAB_LABELS[tab]}
-            </button>
-          ))}
-        </div>
+      {/* Module tab strip */}
+      <div className="report-module-tabs print-hide" role="tablist">
+        {(Object.keys(MODULE_TAB_LABELS) as ModuleTab[]).map((tab) => (
+          <button
+            type="button"
+            role="tab"
+            key={tab}
+            aria-selected={activeTab === tab}
+            className={`report-module-tabs__trigger${activeTab === tab ? " is-active" : ""}`}
+            onClick={() => setActiveTab(tab)}
+          >
+            {MODULE_TAB_LABELS[tab]}
+          </button>
+        ))}
       </div>
 
+      {/* Top grid: executive summary + audit timeline */}
       <div className="report-content__top-grid">
         <ReportExecutiveSummary
           report={report}
@@ -99,6 +99,7 @@ export function ReportContent({
           summary={activeTab === "all" ? report.totalSummary : moduleEntries[0]?.mod.summary ?? report.totalSummary}
           sevCounts={sevCounts}
           sevMax={sevMax}
+          deepResult={deepResult}
         />
         <ReportAuditTimelineCard auditTrail={report.auditTrail} />
       </div>

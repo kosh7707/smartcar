@@ -1,0 +1,105 @@
+/* ── RecoveryTracePanel — component-local stylesheet ── */
+/* canonical tokens only — non-severity context, no severity ramp use. */
+
+.recovery-trace-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── Compact variant ── */
+
+.recovery-trace-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--foreground-muted);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.recovery-trace-compact__label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-subtle);
+}
+
+.recovery-trace-compact__text {
+  color: var(--foreground-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 36ch;
+}
+
+/* ── Expanded variant ── */
+
+.recovery-trace-expanded {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recovery-trace-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.recovery-trace-entry__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--foreground-muted);
+  flex-shrink: 0;
+}
+
+.recovery-trace-entry__step-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+}
+
+.recovery-trace-entry__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.recovery-trace-entry__field {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.recovery-trace-entry__field-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-subtle);
+  flex-shrink: 0;
+  min-width: 36px;
+}
+
+.recovery-trace-entry__field-value {
+  color: var(--foreground-muted);
+  word-break: break-word;
+  flex: 1;
+}

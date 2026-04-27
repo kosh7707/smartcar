@@ -61,6 +61,17 @@ export interface AnalysisWarning {
   details?: string;
 }
 
+export type AgentAnalysisOutcome = "accepted_claims" | "no_accepted_claims" | "inconclusive";
+export type AgentQualityOutcome = "accepted" | "accepted_with_caveats" | "rejected" | "inconclusive" | "repair_exhausted";
+export type AgentPocOutcome = "poc_accepted" | "poc_rejected" | "poc_inconclusive" | "poc_not_requested";
+
+export interface AgentRecoveryTraceEntry {
+  deficiency?: string;
+  action?: string;
+  outcome?: string;
+  detail?: string;
+}
+
 export interface FileCoverageEntry {
   fileId: string;
   filePath: string;
@@ -95,6 +106,15 @@ export interface AnalysisResult {
   recommendedNextSteps?: string[];
   /** 정책 플래그 (CWE-78, ISO21434 등) */
   policyFlags?: string[];
+  /**
+   * S3 Analysis Agent result-level outcome fields.
+   * `status: "completed"` means S3 returned a valid review envelope; clean-pass
+   * decisions must inspect these fields instead of treating completion as success.
+   */
+  analysisOutcome?: AgentAnalysisOutcome;
+  qualityOutcome?: AgentQualityOutcome;
+  pocOutcome?: AgentPocOutcome;
+  recoveryTrace?: AgentRecoveryTraceEntry[];
   /** SCA 라이브러리 목록 */
   scaLibraries?: ScaLibrary[];
   /** 에이전트 감사 요약 */
@@ -221,7 +241,42 @@ export type SdkRegistryStatus =
   | "install_failed"
   | "verify_failed";
 
+export type SdkProgressPhase = Exclude<SdkRegistryStatus, "upload_failed" | "extract_failed" | "install_failed" | "verify_failed">;
+export type SdkErrorPhase = Extract<SdkRegistryStatus, "upload_failed" | "extract_failed" | "install_failed" | "verify_failed">;
+export type SdkPhase = SdkProgressPhase | SdkErrorPhase;
 export type SdkArtifactKind = "archive" | "bin" | "folder";
+
+export type SdkErrorCode =
+  | "UPLOAD_INVALID_INPUT"
+  | "EXTRACT_ARCHIVE_EMPTY"
+  | "EXTRACT_UNSAFE_ENTRY"
+  | "EXTRACT_FAILED"
+  | "INSTALL_ETXTBSY"
+  | "INSTALL_PROCESS_FAILED"
+  | "INSTALL_TIMEOUT"
+  | "VERIFY_PATH_ESCAPED"
+  | "VERIFY_PATH_MISSING"
+  | "VERIFY_CONTENT_EMPTY"
+  | "VERIFY_PROFILE_PATH_INVALID"
+  | "ANALYZE_UNAVAILABLE"
+  | "RETRY_UNSUPPORTED_PHASE"
+  | "RETRY_QUOTA_EXCEEDED"
+  | "RETRY_COOLDOWN_ACTIVE"
+  | "RETRY_ARTIFACT_UNAVAILABLE"
+  | "UNKNOWN_SDK_ERROR";
+
+export interface SdkPhaseDetail {
+  kind: string;
+  params?: Record<string, string | number | boolean>;
+}
+
+export interface SdkPhaseHistoryEntry {
+  phase: SdkPhase;
+  startedAt: number;
+  endedAt?: number;
+  durationMs?: number;
+  message?: string;
+}
 
 /** S3 Build Agent가 분석한 SDK 프로파일 */
 export interface SdkAnalyzedProfile {
@@ -255,6 +310,11 @@ export interface RegisteredSdk {
   targetSystem?: string;
   installLogPath?: string;
   status: SdkRegistryStatus;
+  currentPhaseStartedAt?: number;
+  phaseHistory?: SdkPhaseHistoryEntry[];
+  retryCount?: number;
+  retryable?: boolean;
+  retryExpiresAt?: number;
   /** SDK 검증 실패 사유 */
   verifyError?: string;
   verified: boolean;
@@ -885,11 +945,27 @@ export interface GateProfile {
   rules: GateProfileRule[];
 }
 
+export type GateRuleMetricUnit = "count" | "percent";
+
+export interface GateRuleMetric {
+  current: number;
+  threshold: number;
+  unit?: GateRuleMetricUnit;
+}
+
 export interface GateRuleResult {
   ruleId: GateRuleId;
   result: "passed" | "failed" | "warning";
   message: string;
   linkedFindingIds: string[];
+  /** Current measured policy value. */
+  current?: number;
+  /** Threshold used by the backend policy evaluation. */
+  threshold?: number;
+  /** Unit for current/threshold; omitted consumers should treat as count. */
+  unit?: GateRuleMetricUnit;
+  /** Structured metric mirror for clients that prefer grouped metadata. */
+  meta?: GateRuleMetric;
 }
 
 export interface GateResult {
@@ -898,6 +974,14 @@ export interface GateResult {
   projectId: string;
   status: GateStatus;
   rules: GateRuleResult[];
+  /** Gate policy profile used for this evaluation. */
+  profileId?: string;
+  /** Source commit identity when known by S2. */
+  commit?: string;
+  /** Source branch identity when known by S2. */
+  branch?: string;
+  /** Actor that requested/triggered the gate evaluation when known. */
+  requestedBy?: string;
   evaluatedAt: string;
   override?: {
     overriddenBy: string;
@@ -918,6 +1002,27 @@ export type ApprovalActionType =
   | "gate.override"
   | "finding.accepted_risk";
 
+export interface ApprovalImpactSummary {
+  failedRules: number;
+  ignoredFindings: number;
+  severityBreakdown?: Record<string, number>;
+}
+
+export type ApprovalTargetSnapshot =
+  | {
+      runId: string;
+      commit?: string;
+      branch?: string;
+      profile?: string;
+      action?: ApprovalActionType;
+    }
+  | {
+      findingId: string;
+      file?: string;
+      line?: number;
+      severity?: Severity;
+    };
+
 export interface ApprovalRequest {
   id: string;
   actionType: ApprovalActionType;
@@ -926,6 +1031,8 @@ export interface ApprovalRequest {
   projectId: string;
   reason: string;
   status: ApprovalStatus;
+  impactSummary?: ApprovalImpactSummary;
+  targetSnapshot?: ApprovalTargetSnapshot;
   decision?: {
     decidedBy: string;
     decidedAt: string;

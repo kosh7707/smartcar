@@ -32,6 +32,7 @@ export const ReportPage: React.FC = () => {
     summary,
     sevCounts,
     sevMax,
+    deepResult,
   } = useReportPage(projectId, toast);
 
   if (loading) {
@@ -74,6 +75,7 @@ export const ReportPage: React.FC = () => {
       allRuns={allRuns}
       sevCounts={sevCounts}
       sevMax={sevMax}
+      deepResult={deepResult}
     />
   );
 };

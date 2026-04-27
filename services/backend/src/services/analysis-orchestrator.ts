@@ -218,13 +218,23 @@ export class AnalysisOrchestrator {
       const deepResult = this.buildDeepResult(`deep-${analysisId}`, projectId, agentResponse, startedAt, quickResult.scaLibraries, target?.id, executionId);
       this.analysisResultDAO.save(deepResult);
       this.resultNormalizer.normalizeAgentResult(deepResult, agentResponse, { startedAt, agentEvidenceRefs: evidenceRefs });
+      const cleanPass = this.isCleanDeepPass(agentResponse);
       this.analysisTracker?.update(analysisId, {
         phase: "deep_complete",
-        message: "심층 분석 완료",
+        message: cleanPass ? "심층 분석 완료" : "심층 분석 완료 — 결과 품질/검토 상태 확인 필요",
       });
       this.broadcast(analysisId, {
         type: "analysis-deep-complete",
-        payload: { analysisId, buildTargetId: target?.id, executionId, findingCount: agentResponse.result.claims.length },
+        payload: {
+          analysisId,
+          buildTargetId: target?.id,
+          executionId,
+          findingCount: agentResponse.result.claims.length,
+          analysisOutcome: deepResult.analysisOutcome,
+          qualityOutcome: deepResult.qualityOutcome,
+          pocOutcome: deepResult.pocOutcome,
+          cleanPass,
+        },
       });
       await this.analysisExecutionDAO?.update(executionId, {
         deepStatus: "succeeded",
@@ -685,9 +695,10 @@ export class AnalysisOrchestrator {
 
         const ctx: NormalizerContext = { startedAt, agentEvidenceRefs: evidenceRefs };
         this.resultNormalizer.normalizeAgentResult(deepResult, agentResponse, ctx);
+        const cleanPass = this.isCleanDeepPass(agentResponse);
         this.analysisTracker?.update(wsAnalysisId, {
           phase: "deep_complete",
-          message: `${prefix}심층 분석 완료`,
+          message: cleanPass ? `${prefix}심층 분석 완료` : `${prefix}심층 분석 완료 — 결과 품질/검토 상태 확인 필요`,
         });
 
         this.broadcast(wsAnalysisId, {
@@ -697,11 +708,19 @@ export class AnalysisOrchestrator {
             buildTargetId: targetInfo?.id,
             executionId: wsAnalysisId,
             findingCount: agentResponse.result.claims.length,
+            analysisOutcome: deepResult.analysisOutcome,
+            qualityOutcome: deepResult.qualityOutcome,
+            pocOutcome: deepResult.pocOutcome,
+            cleanPass,
           },
         });
 
         logger.info({
           analysisId, claimCount: agentResponse.result.claims.length,
+          analysisOutcome: deepResult.analysisOutcome,
+          qualityOutcome: deepResult.qualityOutcome,
+          pocOutcome: deepResult.pocOutcome,
+          cleanPass,
           confidence: agentResponse.result.confidence,
           target: targetInfo?.name, requestId,
         }, "Deep phase completed");
@@ -817,6 +836,10 @@ export class AnalysisOrchestrator {
     const assessment = agentResponse.result;
     const audit = agentResponse.audit;
     const severity = this.validateSeverity(assessment.suggestedSeverity);
+    const analysisOutcome = assessment.analysisOutcome ?? (assessment.claims.length > 0 ? "accepted_claims" : "no_accepted_claims");
+    const qualityOutcome = assessment.qualityOutcome ?? (assessment.caveats?.length ? "accepted_with_caveats" : "accepted");
+    const pocOutcome = assessment.pocOutcome ?? "poc_not_requested";
+    const cleanPass = this.isCleanDeepPass(agentResponse);
 
     const vulns: Vulnerability[] = assessment.claims.map((claim, i) => ({
       id: `VULN-AGENT-${Date.now()}-${i}`,
@@ -841,12 +864,17 @@ export class AnalysisOrchestrator {
       status: "completed",
       vulnerabilities: vulns,
       summary,
+      warnings: this.buildOutcomeWarnings(analysisOutcome, qualityOutcome, pocOutcome),
       caveats: assessment.caveats,
       confidenceScore: assessment.confidence,
       confidenceBreakdown: assessment.confidenceBreakdown,
-      needsHumanReview: assessment.needsHumanReview,
+      needsHumanReview: assessment.needsHumanReview || !cleanPass,
       recommendedNextSteps: assessment.recommendedNextSteps,
       policyFlags: assessment.policyFlags,
+      analysisOutcome,
+      qualityOutcome,
+      pocOutcome,
+      recoveryTrace: assessment.recoveryTrace,
       scaLibraries: Array.isArray(scaLibraries) ? scaLibraries : undefined,
       agentAudit: {
         latencyMs: audit.latencyMs,
@@ -854,9 +882,47 @@ export class AnalysisOrchestrator {
         turnCount: audit.agentAudit?.turn_count,
         toolCallCount: audit.agentAudit?.tool_call_count,
         terminationReason: audit.agentAudit?.termination_reason,
+        modelName: agentResponse.modelProfile,
+        promptVersion: agentResponse.promptVersion,
       },
       createdAt: startedAt,
     };
+  }
+
+  private isCleanDeepPass(agentResponse: AgentResponseSuccess): boolean {
+    const assessment = agentResponse.result;
+    const analysisOutcome = assessment.analysisOutcome ?? (assessment.claims.length > 0 ? "accepted_claims" : "no_accepted_claims");
+    const qualityOutcome = assessment.qualityOutcome ?? (assessment.caveats?.length ? "accepted_with_caveats" : "accepted");
+    return agentResponse.status === "completed"
+      && analysisOutcome === "accepted_claims"
+      && qualityOutcome === "accepted";
+  }
+
+  private buildOutcomeWarnings(
+    analysisOutcome: NonNullable<AnalysisResult["analysisOutcome"]>,
+    qualityOutcome: NonNullable<AnalysisResult["qualityOutcome"]>,
+    pocOutcome: NonNullable<AnalysisResult["pocOutcome"]>,
+  ): AnalysisResult["warnings"] {
+    const warnings: NonNullable<AnalysisResult["warnings"]> = [];
+    if (analysisOutcome !== "accepted_claims") {
+      warnings.push({
+        code: `AGENT_ANALYSIS_OUTCOME_${analysisOutcome.toUpperCase()}`,
+        message: `S3 completed the task with analysisOutcome=${analysisOutcome}; this is not a clean deep pass.`,
+      });
+    }
+    if (qualityOutcome !== "accepted") {
+      warnings.push({
+        code: `AGENT_QUALITY_OUTCOME_${qualityOutcome.toUpperCase()}`,
+        message: `S3 completed the task with qualityOutcome=${qualityOutcome}; quality gate/UX must not treat completion as clean pass.`,
+      });
+    }
+    if (pocOutcome !== "poc_not_requested" && pocOutcome !== "poc_accepted") {
+      warnings.push({
+        code: `AGENT_POC_OUTCOME_${pocOutcome.toUpperCase()}`,
+        message: `S3 completed the task with pocOutcome=${pocOutcome}; PoC was not cleanly accepted.`,
+      });
+    }
+    return warnings;
   }
 
   private normalizeSastSeverity(toolSeverity: string): Severity {

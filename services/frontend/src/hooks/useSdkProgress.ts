@@ -1,5 +1,10 @@
 import { useEffect, useRef, useCallback, useState } from "react";
-import type { SdkRegistryStatus, RegisteredSdk } from "../api/sdk";
+import type {
+  SdkRegistryStatus,
+  RegisteredSdk,
+  SdkErrorCode,
+  SdkPhaseDetail,
+} from "../api/sdk";
 import { fetchProjectSdks, getSdkWsUrl } from "../api/sdk";
 import { logError } from "../api/core";
 import { createSeqTracker, parseWsMessage, createReconnectingWs } from "../utils/wsEnvelope";
@@ -10,6 +15,32 @@ export interface SdkProgressDetails {
   uploadedBytes?: number;
   totalBytes?: number;
   fileName?: string;
+  /** Backend ETA seconds (currently upload-only — see shared-models §4.5). */
+  etaSeconds?: number;
+  /** Backend epoch-ms when current phase started. */
+  phaseStartedAt?: number;
+  /** Structured phase detail (kind + params). Prefer over free-text `message`. */
+  phaseDetail?: SdkPhaseDetail;
+}
+
+export interface SdkErrorEventDetails {
+  code?: SdkErrorCode;
+  userMessage?: string;
+  technicalDetail?: string;
+  failedAt?: number;
+  correlationId?: string;
+  troubleshootingUrl?: string;
+  retryable?: boolean;
+  recoverable?: boolean;
+}
+
+export interface SdkLogEventPayload {
+  timestamp: string;
+  source: "aegis" | "installer";
+  kind: "lifecycle" | "heartbeat" | "output" | "terminal";
+  stream?: "stdout" | "stderr";
+  message: string;
+  logPath?: string;
 }
 
 export interface SdkProgressEvent {
@@ -20,13 +51,30 @@ export interface SdkProgressEvent {
   error?: string;
   details?: SdkProgressDetails;
   logPath?: string;
+  // Structured error fields (sdk-error only)
+  code?: SdkErrorCode;
+  userMessage?: string;
+  technicalDetail?: string;
+  failedAt?: number;
+  correlationId?: string;
+  troubleshootingUrl?: string;
+  retryable?: boolean;
+  recoverable?: boolean;
 }
 
 interface UseSdkProgressOptions {
   projectId: string | undefined;
   onProgress: (sdkId: string, phase: SdkRegistryStatus, details?: SdkProgressDetails) => void;
   onComplete: (sdkId: string, profile: RegisteredSdk["profile"]) => void;
-  onError: (sdkId: string, error: string, phase?: string, logPath?: string) => void;
+  onError: (
+    sdkId: string,
+    error: string,
+    phase?: string,
+    logPath?: string,
+    details?: SdkErrorEventDetails,
+  ) => void;
+  /** Optional sdk-log WS handler; backward-compat (callers may omit). */
+  onLog?: (sdkId: string, payload: SdkLogEventPayload) => void;
 }
 
 export function useSdkProgress({
@@ -34,11 +82,12 @@ export function useSdkProgress({
   onProgress,
   onComplete,
   onError,
+  onLog,
 }: UseSdkProgressOptions): ReconnectableHookResult {
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
   const rwsRef = useRef<ReturnType<typeof createReconnectingWs> | null>(null);
-  const callbacksRef = useRef({ onProgress, onComplete, onError });
-  callbacksRef.current = { onProgress, onComplete, onError };
+  const callbacksRef = useRef({ onProgress, onComplete, onError, onLog });
+  callbacksRef.current = { onProgress, onComplete, onError, onLog };
 
   const cleanup = useCallback(() => {
     if (rwsRef.current) {
@@ -71,11 +120,42 @@ export function useSdkProgress({
             if (payload.uploadedBytes != null) details.uploadedBytes = payload.uploadedBytes;
             if (payload.totalBytes != null) details.totalBytes = payload.totalBytes;
             if (payload.fileName != null) details.fileName = payload.fileName;
+            if (payload.etaSeconds != null) details.etaSeconds = payload.etaSeconds;
+            if (payload.phaseStartedAt != null) details.phaseStartedAt = payload.phaseStartedAt;
+            if (payload.phaseDetail != null) details.phaseDetail = payload.phaseDetail;
             callbacksRef.current.onProgress(payload.sdkId, payload.phase as SdkRegistryStatus, details);
           } else if (type === "sdk-complete") {
             callbacksRef.current.onComplete(payload.sdkId, payload.profile);
           } else if (type === "sdk-error") {
-            callbacksRef.current.onError(payload.sdkId, payload.error, payload.phase, payload.logPath);
+            const errDetails: SdkErrorEventDetails = {};
+            if (payload.code != null) errDetails.code = payload.code;
+            if (payload.userMessage != null) errDetails.userMessage = payload.userMessage;
+            if (payload.technicalDetail != null) errDetails.technicalDetail = payload.technicalDetail;
+            if (payload.failedAt != null) errDetails.failedAt = payload.failedAt;
+            if (payload.correlationId != null) errDetails.correlationId = payload.correlationId;
+            if (payload.troubleshootingUrl != null) errDetails.troubleshootingUrl = payload.troubleshootingUrl;
+            if (payload.retryable != null) errDetails.retryable = payload.retryable;
+            if (payload.recoverable != null) errDetails.recoverable = payload.recoverable;
+            callbacksRef.current.onError(
+              payload.sdkId,
+              payload.error,
+              payload.phase,
+              payload.logPath,
+              Object.keys(errDetails).length > 0 ? errDetails : undefined,
+            );
+          } else if (type === "sdk-log") {
+            const logCb = callbacksRef.current.onLog;
+            if (logCb) {
+              const logPayload: SdkLogEventPayload = {
+                timestamp: payload.timestamp,
+                source: payload.source,
+                kind: payload.kind,
+                message: payload.message,
+              };
+              if (payload.stream != null) logPayload.stream = payload.stream;
+              if (payload.logPath != null) logPayload.logPath = payload.logPath;
+              logCb(payload.sdkId, logPayload);
+            }
           }
         } catch (e) {
           console.warn("[WS:sdk] malformed message:", e);
@@ -93,7 +173,6 @@ export function useSdkProgress({
         // REST fallback: restore SDK list on reconnect
         try {
           const data = await fetchProjectSdks(projectId);
-          // Notify parent of any state changes via callbacks
           for (const sdk of data.registered) {
             if (sdk.status === "ready") {
               callbacksRef.current.onComplete(sdk.id, sdk.profile);

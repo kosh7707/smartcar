@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from agent_shared.schemas.agent import ToolCallRequest, ToolResult
+from app.agent_runtime.schemas.agent import ToolCallRequest, ToolResult
 from app.core.evidence_catalog import EvidenceCatalog
 from app.core.phase_one_types import Phase1Result
+from app.schemas.request import EvidenceRef, TaskRequest, Context
+from app.types import TaskType
 
 
 def test_catalog_indexes_request_and_phase1_sast_metadata():
@@ -72,3 +74,56 @@ def test_catalog_renders_evidence_refs_from_metadata_entries():
         "artifactType": "source",
         "locator": {"file": "src/main.c", "line": 1},
     }]
+
+
+def test_catalog_classifies_knowledge_refs_as_contextual_not_final_support():
+    catalog = EvidenceCatalog()
+    catalog.ingest_tool_result(
+        ToolCallRequest(id="k1", name="knowledge.search", arguments={"query": "CWE-78"}),
+        ToolResult(
+            tool_call_id="k1",
+            name="knowledge.search",
+            success=True,
+            content="CWE-78 command injection background",
+            new_evidence_refs=["eref-knowledge-CWE-78"],
+        ),
+    )
+
+    entry = catalog.get("eref-knowledge-CWE-78")
+
+    assert entry is not None
+    assert entry.evidence_class == "knowledge"
+    assert entry.roles == ("knowledge_context",)
+    assert "eref-knowledge-CWE-78" in catalog.contextual_ref_ids()
+    assert "eref-knowledge-CWE-78" not in catalog.final_ref_ids()
+
+
+def test_catalog_inferrs_request_source_refs_as_local_and_objectives_as_operational():
+    request = TaskRequest(
+        taskType=TaskType.DEEP_ANALYZE,
+        taskId="catalog-request",
+        context=Context(trusted={}),
+        evidenceRefs=[
+            EvidenceRef(
+                refId="eref-source-main",
+                artifactId="src",
+                artifactType="source",
+                locatorType="lineRange",
+                locator={"file": "src/main.c", "line": 7},
+            ),
+            EvidenceRef(
+                refId="eref-objective",
+                artifactId="obj",
+                artifactType="request-objective",
+                locatorType="jsonPointer",
+                locator={"path": "/context/trusted/objective"},
+            ),
+        ],
+    )
+    catalog = EvidenceCatalog()
+    catalog.ingest_request(request)
+
+    assert catalog.get("eref-source-main").evidence_class == "local"  # type: ignore[union-attr]
+    assert catalog.get("eref-objective").evidence_class == "operational"  # type: ignore[union-attr]
+    assert "eref-source-main" in catalog.final_ref_ids()
+    assert "eref-objective" not in catalog.final_ref_ids()

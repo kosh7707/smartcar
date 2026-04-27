@@ -26,30 +26,38 @@ export const ReportRunsSection: React.FC<ReportRunsSectionProps> = ({ runs }) =>
   if (runs.length === 0) return null;
 
   return (
-    <div className="panel report-runs-card">
-      <div className="panel-head report-runs-card__head">
-        <h3 className="panel-title">실행 이력 ({runs.length})</h3>
+    <div className="panel">
+      <div className="panel-head">
+        <h3>실행 이력 ({runs.length})</h3>
       </div>
-      <div className="panel-body report-runs-card__body">
+      <div className="panel-body report-list-body">
         {runs.map(({ run, gate }) => (
-          <div key={run.id} className="report-runs-card__row">
-            <div className="report-runs-card__meta">
+          <div key={run.id} className="report-list-row">
+            <div className="report-list-meta">
               <span
-                className={runStatusTone[run.status as keyof typeof runStatusTone] ?? "report-runs-card__status report-runs-card__status--idle"}
+                className={
+                  runStatusTone[run.status as keyof typeof runStatusTone] ??
+                  "report-status-tone"
+                }
               >
                 {run.status}
               </span>
-              <span className="report-runs-card__module">{MODULE_META[run.module]?.label ?? run.module}</span>
-              <span className="report-runs-card__finding-count">탐지 항목 {run.findingCount}건</span>
+              <span className="report-list-primary">
+                {MODULE_META[run.module]?.label ?? run.module}
+              </span>
+              <span className="report-list-secondary">탐지 항목 {run.findingCount}건</span>
               {gate?.status && (
                 <span
-                  className={gateStatusTone[gate.status as keyof typeof gateStatusTone] ?? "report-runs-card__status report-runs-card__status--idle"}
+                  className={
+                    gateStatusTone[gate.status as keyof typeof gateStatusTone] ??
+                    "report-status-tone"
+                  }
                 >
                   게이트: {gate.status}
                 </span>
               )}
             </div>
-            <span className="report-runs-card__timestamp">{formatDateTime(run.createdAt)}</span>
+            <span className="report-list-timestamp">{formatDateTime(run.createdAt)}</span>
           </div>
         ))}
       </div>

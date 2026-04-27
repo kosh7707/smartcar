@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { StaticAnalysisDashboardSummary, Run, AnalysisProgress, RunDetailResponse } from "@aegis/shared";
+import type { AnalysisResult, AnalysisProgress, Run, RunDetailResponse, StaticAnalysisDashboardSummary } from "@aegis/shared";
 import type { DashboardPeriod } from "../shared/ui/PeriodSelector";
 import {
   fetchStaticDashboardSummary,
@@ -8,6 +8,7 @@ import {
   fetchRunDetail,
   logError,
 } from "../api/client";
+import { fetchAnalysisResults } from "../api/analysis";
 import { POLL_ACTIVE_ANALYSIS_MS } from "../constants/defaults";
 
 export function useStaticDashboard(projectId?: string) {
@@ -16,6 +17,7 @@ export function useStaticDashboard(projectId?: string) {
   const [activeAnalysis, setActiveAnalysis] = useState<AnalysisProgress | null>(null);
   const [latestRunDetail, setLatestRunDetail] = useState<RunDetailResponse["data"] | null>(null);
   const [latestRunLoading, setLatestRunLoading] = useState(true);
+  const [latestAnalysisResult, setLatestAnalysisResult] = useState<AnalysisResult | null>(null);
   const [period, setPeriod] = useState<DashboardPeriod>("30d");
   const [loading, setLoading] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -44,9 +46,23 @@ export function useStaticDashboard(projectId?: string) {
             .then(setLatestRunDetail)
             .catch((e) => logError("Latest run detail", e))
             .finally(() => setLatestRunLoading(false));
+
+          // Fetch AnalysisResult for outcome chips + recoveryTrace (Deep runs only need it,
+          // but result fields are absent on static rows so it is safe to fetch unconditionally).
+          if (latestCompleted.analysisResultId) {
+            fetchAnalysisResults(latestCompleted.analysisResultId)
+              .then(setLatestAnalysisResult)
+              .catch((e) => {
+                logError("Latest analysis result", e);
+                setLatestAnalysisResult(null);
+              });
+          } else {
+            setLatestAnalysisResult(null);
+          }
         } else {
           setLatestRunDetail(null);
           setLatestRunLoading(false);
+          setLatestAnalysisResult(null);
         }
       } catch (e) {
         logError("Dashboard load", e);
@@ -120,6 +136,7 @@ export function useStaticDashboard(projectId?: string) {
     activeAnalysis,
     latestRunDetail,
     latestRunLoading,
+    latestAnalysisResult,
     period,
     loading,
     setPeriod,

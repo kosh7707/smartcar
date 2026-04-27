@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from agent_shared.schemas.agent import BudgetState, LlmResponse, TurnRecord
+from app.agent_runtime.schemas.agent import BudgetState, LlmResponse, TurnRecord
 from app.core.agent_session import AgentSession
 from app.policy.termination import TerminationPolicy
 from app.schemas.request import Context, TaskRequest

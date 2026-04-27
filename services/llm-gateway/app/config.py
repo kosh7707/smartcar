@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     llm_mode: Literal["mock", "real"] = "mock"
     llm_endpoint: str = "http://localhost:8080"
-    llm_model: str = "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4"
+    llm_model: str = "Qwen/Qwen3.6-27B"
     llm_api_key: str = ""
     llm_concurrency: int = 4
     llm_connect_timeout: float = 10.0  # LLM Engine 연결 타임아웃 (초). 장애 감지용

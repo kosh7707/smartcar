@@ -71,6 +71,22 @@ class BuildPreparation(BaseModel):
     producedArtifacts: list[str] = Field(default_factory=list)
 
 
+class BuildDiagnostics(BaseModel):
+    failureCode: str | None = None
+    failureCategory: str | None = None
+    expectedArtifacts: list[str] = Field(default_factory=list)
+    producedArtifacts: list[str] = Field(default_factory=list)
+    missingArtifacts: list[str] = Field(default_factory=list)
+    caveats: list[str] = Field(default_factory=list)
+
+
+class BuildOutcome(BaseModel):
+    outcome: str = "inconclusive"
+    taskCompleted: bool = True
+    cleanPass: bool = False
+    reasons: list[str] = Field(default_factory=list)
+
+
 class SdkProfile(BaseModel):
     compiler: str = ""
     compilerPrefix: str = ""
@@ -100,6 +116,9 @@ class AssessmentResult(BaseModel):
     buildResult: BuildResult | None = None
     buildPreparation: BuildPreparation | None = None
     sdkProfile: SdkProfile | None = None
+    buildOutcome: BuildOutcome | None = None
+    cleanPass: bool = False
+    buildDiagnostics: BuildDiagnostics | None = None
 
 
 class ValidationInfo(BaseModel):

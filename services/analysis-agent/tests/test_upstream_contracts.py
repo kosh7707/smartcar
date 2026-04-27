@@ -8,7 +8,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from agent_shared.schemas.upstream import (
+from app.agent_runtime.schemas.upstream import (
     CodeFunction,
     KbSearchHit,
     SastFinding,

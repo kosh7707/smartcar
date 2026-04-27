@@ -27,7 +27,7 @@ const FileDetailIcon: React.FC<{ language?: string }> = ({ language }) => {
     return <Terminal size={size} className="file-detail-header__icon-svg" style={{ color }} />;
   }
   if (["cmake", "make"].includes(lang)) {
-    return <Wrench size={size} className="file-detail-header__icon-svg" style={{ color: "#064f8c" }} />;
+    return <Wrench size={size} className="file-detail-header__icon-svg" style={{ color: "var(--cds-text-placeholder)" }} />;
   }
   if (["json", "yaml", "yml", "toml", "xml", "config"].includes(lang)) {
     return <Settings size={size} className="file-detail-header__icon-svg" style={{ color: "var(--cds-text-placeholder)" }} />;

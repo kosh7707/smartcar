@@ -1,7 +1,7 @@
 import json
 import logging
 
-from agent_shared.observability import _JsonFormatter
+from app.agent_runtime.observability import _JsonFormatter
 
 
 def test_json_formatter_emits_aegis_numeric_log_levels():

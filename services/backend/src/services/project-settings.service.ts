@@ -38,6 +38,7 @@ const JSON_KEYS = new Set<string>(["buildProfile"]);
 /** 인식하는 모든 설정 키 */
 const KNOWN_KEYS = new Set<string>([
   ...Object.keys(SCALAR_DEFAULTS),
+  "gateProfileId",
   ...JSON_KEYS,
 ]);
 

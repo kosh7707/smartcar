@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.core.agent_session import AgentSession
-    from agent_shared.schemas.agent import LlmResponse
+    from app.agent_runtime.schemas.agent import LlmResponse
 
 
 class TokenCounter:

@@ -98,6 +98,7 @@ export const OverviewPage: React.FC = () => {
             totalFindings={state.totalFindings}
             onOpenAllFindings={() => openProjectPath("vulnerabilities")}
             onOpenSeverity={(severity) => openProjectPath(`vulnerabilities?severity=${severity}`)}
+            deepResult={state.latestDeepResult}
           />
 
           <BuildTargetsSection targets={buildTargets.targets} onOpenFiles={() => openProjectPath("files")} />

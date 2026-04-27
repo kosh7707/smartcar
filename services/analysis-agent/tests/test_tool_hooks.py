@@ -1,6 +1,6 @@
 """ToolHook 프레임워크 단위 테스트."""
 
-from agent_shared.tools.hooks import (
+from app.agent_runtime.tools.hooks import (
     AuditLogHook,
     HookResult,
     HookRunner,

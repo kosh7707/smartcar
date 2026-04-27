@@ -8,7 +8,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from agent_shared.context import get_request_id, set_request_id
+from app.agent_runtime.context import get_request_id, set_request_id
 from app.routers.build_resolve_handler import handle_build_resolve as _handle_build_resolve
 from app.routers.build_route_support import json_response as _json_response
 from app.routers.sdk_analyze_handler import handle_sdk_analyze as _handle_sdk_analyze
@@ -74,9 +74,21 @@ async def health() -> dict:
         "status": "ok",
         "version": "1.0.0",
         "llmMode": settings.llm_mode,
+        "activeResponseSchemas": {
+            "build-resolve": "build-v1.0",
+            "sdk-analyze": "build-v1.0",
+        },
+        "proposedResponseSchemas": {
+            "build-resolve": "build-v1.1-proposal",
+            "sdk-analyze": "build-v1.1-proposal",
+        },
         "agentConfig": {
             "maxSteps": settings.agent_max_steps,
             "maxCompletionTokens": settings.agent_max_completion_tokens,
+            "taskDeadlineMs": settings.build_task_deadline_ms,
+            "partialEnvelopeDeadlineMs": settings.build_partial_envelope_deadline_ms,
+            "llmAsyncPollDeadlineMs": settings.llm_async_poll_deadline_ms,
+            "llmAsyncPollIntervalSeconds": settings.llm_async_poll_interval_seconds,
             "toolBudget": {
                 "cheap": settings.agent_max_cheap_calls,
                 "medium": settings.agent_max_medium_calls,

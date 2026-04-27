@@ -6,11 +6,11 @@ import pytest
 
 from app.budget.manager import BudgetManager
 from app.policy.tool_failure import ToolFailurePolicy
-from agent_shared.schemas.agent import BudgetState, ToolCallRequest, ToolCostTier
-from agent_shared.tools.executor import ToolExecutor
-from agent_shared.tools.hooks import HookResult, HookRunner
+from app.agent_runtime.schemas.agent import BudgetState, ToolCallRequest, ToolCostTier
+from app.agent_runtime.tools.executor import ToolExecutor
+from app.agent_runtime.tools.hooks import HookResult, HookRunner
 from app.tools.implementations.mock_tools import MockEchoTool, MockKnowledgeTool
-from agent_shared.tools.registry import ToolRegistry, ToolSchema
+from app.agent_runtime.tools.registry import ToolRegistry, ToolSchema
 from app.tools.router import ToolRouter
 
 

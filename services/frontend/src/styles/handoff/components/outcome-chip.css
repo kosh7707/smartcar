@@ -1,0 +1,103 @@
+/* ── Outcome chip — handoff-only extension ── */
+/* Non-severity review tone palette. Severity ramp 직접 사용 금지 (doctrine §6.2 CRITICAL). */
+
+.outcome-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+/* Size variants */
+.outcome-chip--sm {
+  padding: 1px 6px;
+  font-size: 10px;
+}
+
+.outcome-chip--md {
+  padding: 2px 8px;
+  font-size: 10.5px;
+}
+
+/* Optional dot prefix */
+.outcome-chip__dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Label */
+.outcome-chip__label {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+}
+
+/* ── Tones ── */
+
+/* positive — cleanPass / accepted / poc_accepted */
+.outcome-chip--positive {
+  color: var(--success);
+  background: var(--success-surface);
+}
+.outcome-chip--positive .outcome-chip__dot {
+  background: var(--success);
+}
+
+/* neutral-review — no_accepted_claims / poc_not_requested */
+.outcome-chip--neutral-review {
+  color: var(--foreground-muted);
+  background: var(--surface-sunken);
+}
+.outcome-chip--neutral-review .outcome-chip__dot {
+  background: var(--foreground-muted);
+}
+
+/* caution-review — accepted_with_caveats / inconclusive / poc_inconclusive */
+.outcome-chip--caution-review {
+  color: var(--warning);
+  background: var(--warning-surface);
+}
+.outcome-chip--caution-review .outcome-chip__dot {
+  background: var(--warning);
+}
+
+/* critical-review — rejected / repair_exhausted / poc_rejected */
+.outcome-chip--critical-review {
+  color: var(--danger);
+  background: var(--danger-surface);
+}
+.outcome-chip--critical-review .outcome-chip__dot {
+  background: var(--danger);
+}
+
+/* fallback-review — unknown enum / null / undefined */
+.outcome-chip--fallback-review {
+  color: var(--foreground-subtle);
+  background: var(--surface-sunken);
+}
+.outcome-chip--fallback-review .outcome-chip__dot {
+  background: var(--foreground-subtle);
+}
+
+/* workflow-active-pending — workflow-state axis (5 tones above = outcome-quality axis).
+   pending review queue / awaiting human decision. canonical primary tint, no severity ramp.
+   Whitelisted selectors only (handoff §2.1 6th slot): see review-tone palette in handoff/s1/readme.md. */
+.outcome-chip--workflow-active-pending {
+  color: var(--primary);
+  background: var(--primary-surface);
+}
+.outcome-chip--workflow-active-pending .outcome-chip__dot {
+  background: var(--primary);
+}

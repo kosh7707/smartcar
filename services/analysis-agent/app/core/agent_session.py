@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 
-from agent_shared.schemas.agent import BudgetState, LlmResponse, ToolResult, ToolTraceStep, TurnRecord
+from app.agent_runtime.schemas.agent import BudgetState, LlmResponse, ToolResult, ToolTraceStep, TurnRecord
 from app.core.evidence_catalog import EvidenceCatalog
 from app.schemas.request import TaskRequest
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from agent_shared.schemas.agent import BudgetState, ToolTraceStep
+from app.agent_runtime.schemas.agent import BudgetState, ToolTraceStep
 from app.core.agent_session import AgentSession
 from app.core.result_assembler import ResultAssembler
 from app.schemas.request import Context, EvidenceRef, TaskRequest
@@ -121,6 +121,9 @@ def test_build_success_from_valid_json() -> None:
     assert resp.result.buildResult is not None
     assert resp.result.buildResult.success is True
     assert resp.result.buildResult.declaredMode == "native"
+    assert resp.result.buildOutcome is not None
+    assert resp.result.buildOutcome.outcome == "built"
+    assert resp.result.cleanPass is True
 
 
 def test_build_success_includes_explicit_build_preparation_bundle() -> None:
@@ -155,19 +158,63 @@ def test_build_success_includes_explicit_build_preparation_bundle() -> None:
     assert resp.result.buildPreparation.producedArtifacts == ["build-aegis/gateway"]
 
 
-def test_build_fallback_on_invalid_json_becomes_strict_failure() -> None:
-    """strict compile contract에서는 비JSON fallback을 성공으로 처리하지 않는다."""
+def test_build_fallback_on_invalid_json_becomes_completed_inconclusive() -> None:
+    """비JSON output deficiency는 task failure가 아니라 completed buildOutcome으로 분리한다."""
     assembler = ResultAssembler()
     session = _make_session(metadata=_strict_metadata())
 
     resp = assembler.build("This is plain text, not JSON.", session)
 
-    assert isinstance(resp, TaskFailureResponse)
-    assert resp.status == TaskStatus.VALIDATION_FAILED
+    assert isinstance(resp, TaskSuccessResponse)
+    assert resp.status == TaskStatus.COMPLETED
     assert resp.contractVersion == "build-resolve-v1"
-    assert resp.failureCode == FailureCode.BUILD_SCRIPT_SYNTHESIS_FAILED
-    assert resp.failureContext is not None
-    assert resp.failureContext.strictMode is True
+    assert resp.result.buildOutcome is not None
+    assert resp.result.buildOutcome.outcome == "inconclusive"
+    assert resp.result.cleanPass is False
+    assert resp.result.buildDiagnostics is not None
+    assert resp.result.buildDiagnostics.failureCode == FailureCode.BUILD_SCRIPT_SYNTHESIS_FAILED.value
+
+
+def test_build_result_assembler_delegates_failure_outcome_to_quality_gate(monkeypatch) -> None:
+    """최종 build outcome/category 판정은 assembler 로컬 복제본이 아니라 Critic 모듈에 위임한다."""
+    from app.quality import build_quality_gate
+
+    calls: list[FailureCode | None] = []
+
+    def fake_outcome_value_for(code: FailureCode | None) -> str:
+        calls.append(code)
+        return "critic_sentinel"
+
+    monkeypatch.setattr(build_quality_gate, "build_outcome_value_for", fake_outcome_value_for)
+
+    assembler = ResultAssembler()
+    session = _make_session(metadata=_strict_metadata())
+    content = json.dumps({
+        "summary": "Compile failed",
+        "claims": [],
+        "caveats": [],
+        "usedEvidenceRefs": [],
+        "needsHumanReview": True,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+        "buildResult": {
+            "success": False,
+            "buildCommand": "cmake --build build-aegis",
+            "buildScript": "build-aegis/aegis-build.sh",
+            "buildDir": "build-aegis",
+            "errorLog": "compiler exited with error",
+            "producedArtifacts": [],
+        },
+    })
+
+    resp = assembler.build(content, session)
+
+    assert isinstance(resp, TaskSuccessResponse)
+    assert resp.result.buildOutcome is not None
+    assert resp.result.buildOutcome.outcome == "critic_sentinel"
+    assert resp.result.buildDiagnostics is not None
+    assert resp.result.buildDiagnostics.failureCategory == "critic_sentinel"
+    assert calls == [FailureCode.COMPILE_FAILED, FailureCode.COMPILE_FAILED]
 
 
 def test_build_sanitizes_invalid_evidence_refs() -> None:
@@ -221,10 +268,15 @@ def test_strict_build_requires_success_evidence() -> None:
 
     resp = assembler.build(_valid_build_json(), session)
 
-    assert isinstance(resp, TaskFailureResponse)
-    assert resp.failureCode == FailureCode.INVALID_GROUNDING
-    assert resp.failureContext is not None
-    assert resp.failureContext.buildCommand == "bash build-aegis/aegis-build.sh"
+    assert isinstance(resp, TaskSuccessResponse)
+    assert resp.status == TaskStatus.COMPLETED
+    assert resp.result.buildOutcome is not None
+    assert resp.result.buildOutcome.outcome == "inconclusive"
+    assert resp.result.cleanPass is False
+    assert resp.result.buildDiagnostics is not None
+    assert resp.result.buildDiagnostics.failureCode == FailureCode.INVALID_GROUNDING.value
+    assert resp.result.buildResult is not None
+    assert resp.result.buildResult.buildCommand == "bash build-aegis/aegis-build.sh"
 
 
 def test_strict_build_classifies_sdk_mismatch() -> None:
@@ -249,10 +301,46 @@ def test_strict_build_classifies_sdk_mismatch() -> None:
 
     resp = assembler.build(content, session)
 
-    assert isinstance(resp, TaskFailureResponse)
-    assert resp.failureCode == FailureCode.SDK_MISMATCH
-    assert resp.failureContext is not None
-    assert resp.failureContext.strictMode is True
+    assert isinstance(resp, TaskSuccessResponse)
+    assert resp.status == TaskStatus.COMPLETED
+    assert resp.result.buildOutcome is not None
+    assert resp.result.buildOutcome.outcome == "sdk_mismatch"
+    assert resp.result.cleanPass is False
+    assert resp.result.buildDiagnostics is not None
+    assert resp.result.buildDiagnostics.failureCode == FailureCode.SDK_MISMATCH.value
+
+
+def test_build_v11_additive_outcome_distinguishes_compile_failure_without_fake_success() -> None:
+    assembler = ResultAssembler()
+    session = _make_session(metadata={"strictMode": False})
+    content = json.dumps({
+        "summary": "Compile failed with complete materials.",
+        "claims": [],
+        "caveats": ["gcc exited non-zero"],
+        "usedEvidenceRefs": ["ref-001"],
+        "needsHumanReview": True,
+        "recommendedNextSteps": ["Inspect compile log"],
+        "policyFlags": [],
+        "buildResult": {
+            "success": False,
+            "buildCommand": "bash build-aegis/aegis-build.sh",
+            "buildScript": "build-aegis/aegis-build.sh",
+            "buildDir": "build-aegis",
+            "errorLog": "ld: undefined reference to foo",
+        },
+    })
+
+    resp = assembler.build(content, session)
+
+    assert isinstance(resp, TaskSuccessResponse)
+    assert resp.status == TaskStatus.COMPLETED
+    assert resp.result.buildResult is not None
+    assert resp.result.buildResult.success is False
+    assert resp.result.buildOutcome is not None
+    assert resp.result.buildOutcome.outcome == "missing_materials"
+    assert resp.result.cleanPass is False
+    assert resp.result.buildDiagnostics is not None
+    assert resp.result.buildDiagnostics.failureCode == FailureCode.MISSING_BUILD_MATERIALS.value
 
 
 def test_strict_build_detects_expected_artifact_mismatch() -> None:
@@ -265,11 +353,15 @@ def test_strict_build_detects_expected_artifact_mismatch() -> None:
         session,
     )
 
-    assert isinstance(resp, TaskFailureResponse)
-    assert resp.failureCode == FailureCode.EXPECTED_ARTIFACTS_MISMATCH
-    assert resp.failureContext is not None
-    assert resp.failureContext.expectedArtifacts == ["gateway"]
-    assert resp.failureContext.missingArtifacts == ["gateway"]
+    assert isinstance(resp, TaskSuccessResponse)
+    assert resp.status == TaskStatus.COMPLETED
+    assert resp.result.buildOutcome is not None
+    assert resp.result.buildOutcome.outcome == "artifact_mismatch"
+    assert resp.result.cleanPass is False
+    assert resp.result.buildDiagnostics is not None
+    assert resp.result.buildDiagnostics.failureCode == FailureCode.EXPECTED_ARTIFACTS_MISMATCH.value
+    assert resp.result.buildDiagnostics.expectedArtifacts == ["gateway"]
+    assert resp.result.buildDiagnostics.missingArtifacts == ["gateway"]
 
 
 def test_strict_build_records_artifact_verification_on_success() -> None:
@@ -386,6 +478,53 @@ def test_strict_build_infers_artifact_from_nested_build_directory(tmp_path) -> N
     assert resp.result.buildResult.artifactVerification.matched is True
 
 
+def test_strict_build_infers_artifact_from_project_build_dir_when_script_dir_differs(tmp_path) -> None:
+    """CMake scripts may emit artifacts into ./build even when buildScript lives elsewhere."""
+    project_root = tmp_path / "project"
+    script_dir = project_root / "build-aegis-generated"
+    output_dir = project_root / "build"
+    script_dir.mkdir(parents=True)
+    output_dir.mkdir(parents=True)
+    (script_dir / "aegis-build.sh").write_text("#!/usr/bin/env bash\ncmake -S . -B build\n")
+    (output_dir / "certificate-maker").write_text("binary")
+
+    assembler = ResultAssembler()
+    session = _make_session(
+        metadata=_strict_metadata(expected_artifacts=["certificate-maker"]),
+        trusted={
+            "projectPath": str(project_root),
+            "buildTargetPath": ".",
+            "buildTargetName": "certificate-maker",
+        },
+    )
+    _record_build_success(session)
+    content = json.dumps({
+        "summary": "Build complete",
+        "claims": [],
+        "usedEvidenceRefs": ["ref-001"],
+        "needsHumanReview": False,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+        "buildResult": {
+            "success": True,
+            "buildCommand": f"bash {script_dir}/aegis-build.sh",
+            "buildScript": "build-aegis-generated/aegis-build.sh",
+            "buildDir": "build-aegis-generated",
+            "errorLog": None,
+            "producedArtifacts": [],
+        },
+    })
+
+    resp = assembler.build(content, session)
+
+    assert isinstance(resp, TaskSuccessResponse)
+    assert resp.result.buildResult is not None
+    produced_paths = [artifact.path for artifact in resp.result.buildResult.producedArtifacts]
+    assert "build/certificate-maker" in produced_paths
+    assert resp.result.buildResult.artifactVerification is not None
+    assert resp.result.buildResult.artifactVerification.matched is True
+
+
 def test_strict_build_does_not_infer_stale_root_artifact(tmp_path) -> None:
     project_root = tmp_path / "project"
     project_root.mkdir(parents=True)
@@ -405,10 +544,14 @@ def test_strict_build_does_not_infer_stale_root_artifact(tmp_path) -> None:
 
     resp = assembler.build(_valid_build_json(produced_artifacts=[]), session)
 
-    assert isinstance(resp, TaskFailureResponse)
-    assert resp.failureCode == FailureCode.EXPECTED_ARTIFACTS_MISMATCH
-    assert resp.failureContext is not None
-    assert resp.failureContext.missingArtifacts == ["certificate-maker"]
+    assert isinstance(resp, TaskSuccessResponse)
+    assert resp.status == TaskStatus.COMPLETED
+    assert resp.result.buildOutcome is not None
+    assert resp.result.buildOutcome.outcome == "artifact_mismatch"
+    assert resp.result.cleanPass is False
+    assert resp.result.buildDiagnostics is not None
+    assert resp.result.buildDiagnostics.failureCode == FailureCode.EXPECTED_ARTIFACTS_MISMATCH.value
+    assert resp.result.buildDiagnostics.missingArtifacts == ["certificate-maker"]
 
 
 def test_exhaustion_max_steps() -> None:

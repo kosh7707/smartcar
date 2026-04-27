@@ -4,7 +4,7 @@ import json
 from unittest.mock import MagicMock
 
 from app.policy.tool_failure import ToolFailurePolicy
-from agent_shared.schemas.agent import ToolCallRequest
+from app.agent_runtime.schemas.agent import ToolCallRequest
 
 
 def test_handle_returns_error_result():

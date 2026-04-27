@@ -1,10 +1,10 @@
 """RetryPolicy 단위 테스트."""
 
-from agent_shared.errors import (
+from app.agent_runtime.errors import (
     LlmHttpError, LlmInputTooLargeError, LlmPoolExhaustedError,
     LlmTimeoutError, LlmUnavailableError,
 )
-from agent_shared.policy.retry import RetryPolicy
+from app.agent_runtime.policy.retry import RetryPolicy
 
 
 def test_retry_on_timeout():

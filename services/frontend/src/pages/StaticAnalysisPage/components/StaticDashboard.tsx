@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type {
   AnalysisProgress,
+  AnalysisResult,
   Run,
   RunDetailResponse,
   StaticAnalysisDashboardSummary,
@@ -22,6 +23,7 @@ interface Props {
   activeAnalysis: AnalysisProgress | null;
   latestRunDetail: RunDetailResponse["data"] | null;
   latestRunLoading: boolean;
+  latestAnalysisResult?: AnalysisResult | null;
   period: DashboardPeriod;
   onPeriodChange: (p: DashboardPeriod) => void;
   onNewAnalysis: () => void;
@@ -57,6 +59,7 @@ export const StaticDashboard: React.FC<Props> = ({
   activeAnalysis,
   latestRunDetail,
   latestRunLoading,
+  latestAnalysisResult,
   period,
   onPeriodChange,
   onNewAnalysis,
@@ -70,7 +73,6 @@ export const StaticDashboard: React.FC<Props> = ({
   const [searchParams] = useSearchParams();
   const initialTab: TabId = searchParams.get("tab") === "overall" ? "overall" : "latest";
   const [activeTab, setActiveTab] = useState<TabId>(initialTab);
-  const handleTab = setActiveTab;
 
   const lastRunIso = recentRuns[0]?.startedAt ?? recentRuns[0]?.endedAt ?? null;
   const totalFindings = Object.values(summary.bySeverity).reduce((a, b) => a + b, 0);
@@ -138,7 +140,7 @@ export const StaticDashboard: React.FC<Props> = ({
             role="tab"
             aria-selected={activeTab === "latest"}
             className={cn("pill", activeTab === "latest" && "active")}
-            onClick={() => handleTab("latest")}
+            onClick={() => setActiveTab("latest")}
           >
             최신 분석
           </button>
@@ -147,7 +149,7 @@ export const StaticDashboard: React.FC<Props> = ({
             role="tab"
             aria-selected={activeTab === "overall"}
             className={cn("pill", activeTab === "overall" && "active")}
-            onClick={() => handleTab("overall")}
+            onClick={() => setActiveTab("overall")}
           >
             전체 현황
           </button>
@@ -159,6 +161,7 @@ export const StaticDashboard: React.FC<Props> = ({
           <LatestAnalysisTab
             runDetail={latestRunDetail}
             loading={latestRunLoading}
+            analysisResult={latestAnalysisResult ?? null}
             onSelectFinding={onSelectFinding}
             onFileClick={onFileClick}
             onNewAnalysis={onNewAnalysis}

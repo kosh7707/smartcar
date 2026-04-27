@@ -8,15 +8,14 @@ import time
 from typing import TYPE_CHECKING
 
 from app.clients.kb_error_utils import is_kb_timeout_error
-from agent_shared.context import get_request_id
-from agent_shared.observability import agent_log
+from app.agent_runtime.observability import agent_log
 from app.runtime.request_summary import request_summary_tracker
 
 if TYPE_CHECKING:
     import httpx
 
     from app.core.phase_one_types import Phase1Result
-    from agent_shared.tools.base import ToolImplementation
+    from app.agent_runtime.tools.base import ToolImplementation
 
 
 def _s4_build_profile(build_profile) -> dict:

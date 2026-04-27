@@ -7,7 +7,7 @@ import os
 from datetime import datetime, timezone
 
 from app.config import settings
-from agent_shared.context import get_request_id
+from app.agent_runtime.context import get_request_id
 from app.routers.sdk_analyze_support import (
     build_sdk_analyze_prompt as _build_sdk_analyze_prompt,
     discover_sdk_profile as _discover_sdk_profile,
@@ -60,15 +60,15 @@ async def handle_sdk_analyze(request: TaskRequest) -> TaskSuccessResponse | Task
     from app.core.agent_loop import AgentLoop
     from app.core.agent_session import AgentSession
     from app.core.result_assembler import ResultAssembler
-    from agent_shared.llm.caller import LlmCaller
-    from agent_shared.llm.message_manager import MessageManager
-    from agent_shared.llm.turn_summarizer import TurnSummarizer
-    from agent_shared.policy.retry import RetryPolicy
+    from app.agent_runtime.llm.caller import LlmCaller
+    from app.agent_runtime.llm.message_manager import MessageManager
+    from app.agent_runtime.llm.turn_summarizer import TurnSummarizer
+    from app.agent_runtime.policy.retry import RetryPolicy
     from app.policy.termination import TerminationPolicy
     from app.policy.tool_failure import ToolFailurePolicy
-    from agent_shared.schemas.agent import BudgetState, ToolCostTier
-    from agent_shared.tools.executor import ToolExecutor
-    from agent_shared.tools.registry import ToolRegistry, ToolSchema, ToolSideEffect
+    from app.agent_runtime.schemas.agent import BudgetState, ToolCostTier
+    from app.agent_runtime.tools.executor import ToolExecutor
+    from app.agent_runtime.tools.registry import ToolRegistry, ToolSchema, ToolSideEffect
     from app.tools.router import ToolRouter
     from app.tools.implementations.list_files import ListFilesTool
     from app.tools.implementations.read_file import ReadFileTool
@@ -174,9 +174,11 @@ async def handle_sdk_analyze(request: TaskRequest) -> TaskSuccessResponse | Task
             api_key=settings.llm_api_key,
             default_max_tokens=settings.agent_llm_max_tokens,
             service_id="s3-build",
+            async_poll_deadline_seconds=settings.llm_async_poll_deadline_ms / 1000,
+            async_poll_interval_seconds=settings.llm_async_poll_interval_seconds,
         )
     else:
-        from agent_shared.llm.static_caller import StaticLlmCaller
+        from app.agent_runtime.llm.static_caller import StaticLlmCaller
 
         mock_result = json.dumps({
             "summary": "[Mock] SDK 분석 mock 응답",

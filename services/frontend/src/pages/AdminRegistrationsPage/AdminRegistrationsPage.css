@@ -2,6 +2,16 @@
    Admin Registrations — Triage Queue
    Page-local extensions on top of canonical components
    (.panel / .status-chips / .filter-pills / .sev-chip / .form-*).
+
+   Token discipline (handoff §2.1 / §2.2 / §3.3):
+     - status-chip workflow tones use canonical review-tone palette:
+         pending  → workflow-active-pending (--primary)
+         approved → review-tone positive    (--success)
+         rejected → review-tone critical-rev (--danger)
+     - admin-reg-row--pending row tint uses workflow-active-pending
+       (canonical --primary-surface), NOT severity ramp.
+     - admin-reg-row__reason quote uses review-tone caution surface
+       (--danger-* — rejection reason callout, not a severity signal).
    ═══════════════════════════════════════════════════════════════ */
 
 .admin-reg-page {
@@ -23,21 +33,27 @@
   border-color: var(--border-strong);
 }
 
-.admin-reg-kpi .status-chip--pending  .status-chip__count { color: var(--severity-medium); }
+/* Workflow status counts — review-tone palette (handoff §2.1).
+   pending  = workflow-active-pending (canonical --primary, 6th slot whitelist)
+   approved = review-tone positive
+   rejected = review-tone critical-review (--danger, NOT severity ramp). */
+.admin-reg-kpi .status-chip--pending  .status-chip__count { color: var(--primary); }
 .admin-reg-kpi .status-chip--approved .status-chip__count { color: var(--success); }
-.admin-reg-kpi .status-chip--rejected .status-chip__count { color: var(--severity-critical); }
+.admin-reg-kpi .status-chip--rejected .status-chip__count { color: var(--danger); }
 
 /* ── Notices (load/action error) ─────────────────────────────── */
 
+/* Load/action error notice — review-tone critical-review (--danger).
+   Workflow error surface, not a severity signal (handoff §2.1 / §2.2). */
 .admin-reg-notice {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   padding: 10px var(--space-4);
-  border: 1px solid var(--severity-critical-border);
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent);
   border-radius: var(--radius-md);
-  background: var(--severity-critical-surface);
-  color: var(--severity-critical);
+  background: var(--danger-surface);
+  color: var(--danger);
   font-size: var(--text-sm);
 }
 
@@ -64,13 +80,15 @@
 .admin-reg-row:last-child { border-bottom: 0; }
 .admin-reg-row:hover { background: color-mix(in srgb, var(--surface-sunken) 40%, transparent); }
 
+/* admin-reg-row--pending — workflow-active-pending tone (handoff §2.1 6th slot).
+   Active queue state row tint, NOT severity ramp. */
 .admin-reg-row--pending {
-  background: color-mix(in srgb, var(--severity-medium-surface) 35%, transparent);
-  border-bottom-color: var(--severity-medium-border);
+  background: color-mix(in srgb, var(--primary-surface) 60%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--primary) 22%, transparent);
 }
 
 .admin-reg-row--pending:hover {
-  background: color-mix(in srgb, var(--severity-medium-surface) 55%, transparent);
+  background: color-mix(in srgb, var(--primary-surface) 90%, transparent);
 }
 
 .admin-reg-row__body {
@@ -112,10 +130,12 @@
   letter-spacing: 0.01em;
 }
 
+/* Rejection reason quote — review-tone critical-review (--danger surface),
+   NOT severity ramp. Reason callout is review surface, not a severity signal. */
 .admin-reg-row__reason {
   padding: 6px var(--space-3);
-  border-left: 2px solid var(--severity-critical-border);
-  background: color-mix(in srgb, var(--severity-critical-surface) 60%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--danger) 28%, transparent);
+  background: color-mix(in srgb, var(--danger-surface) 70%, transparent);
   font-size: 12px;
   color: var(--foreground-muted);
   line-height: var(--leading-relaxed);

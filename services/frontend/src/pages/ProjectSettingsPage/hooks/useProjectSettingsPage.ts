@@ -1,12 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import type { Project } from "@aegis/shared";
-import type { RegisteredSdk, SdkRegistryStatus } from "../../../api/sdk";
+import type { RegisteredSdk, SdkRegistryStatus, SdkQuota } from "../../../api/sdk";
 import { deleteProject, fetchProject, updateProjectSettings } from "../../../api/projects";
-import { deleteSdk, fetchProjectSdks } from "../../../api/sdk";
+import {
+  deleteSdk,
+  fetchProjectSdks,
+  fetchSdkQuota,
+  retrySdk,
+} from "../../../api/sdk";
 import { logError } from "../../../api/core";
-import { useSdkProgress, type SdkProgressDetails } from "../../../hooks/useSdkProgress";
-import type { SettingsSection } from "../components/ProjectSettingsSidebar";
+import {
+  useSdkProgress,
+  type SdkProgressDetails,
+  type SdkErrorEventDetails,
+} from "../../../hooks/useSdkProgress";
+import type { SettingsSection } from "../components/ProjectSettingsTabStrip";
 
 type ToastApi = {
   error: (message: string) => void;
@@ -34,6 +43,9 @@ export function useProjectSettingsPage(projectId: string | undefined, toast: Toa
   }, [setSearchParams]);
   const [registered, setRegistered] = useState<RegisteredSdk[]>([]);
   const [sdkProgressById, setSdkProgressById] = useState<Record<string, SdkProgressDetails>>({});
+  const [sdkErrorDetailsById, setSdkErrorDetailsById] = useState<Record<string, SdkErrorEventDetails>>({});
+  const [sdkQuota, setSdkQuota] = useState<SdkQuota | null>(null);
+  const [retryingSdkIds, setRetryingSdkIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<RegisteredSdk | null>(null);
@@ -47,19 +59,47 @@ export function useProjectSettingsPage(projectId: string | undefined, toast: Toa
   const [showDeleteProject, setShowDeleteProject] = useState(false);
   const [deletingProject, setDeletingProject] = useState(false);
 
+  const refreshQuota = useCallback(() => {
+    if (!projectId) return;
+    void fetchSdkQuota(projectId)
+      .then((q) => setSdkQuota(q))
+      .catch((error) => logError("Fetch SDK quota", error));
+  }, [projectId]);
+
   const { connectionState: sdkConnectionState } = useSdkProgress({
     projectId,
     onProgress: useCallback((sdkId: string, phase: SdkRegistryStatus, details?: SdkProgressDetails) => {
-      setRegistered((prev) => prev.map((sdk) => (sdk.id === sdkId ? { ...sdk, status: phase } : sdk)));
+      setRegistered((prev) => prev.map((sdk) => (
+        sdk.id === sdkId
+          ? {
+              ...sdk,
+              status: phase,
+              currentPhaseStartedAt: details?.phaseStartedAt ?? sdk.currentPhaseStartedAt,
+            }
+          : sdk
+      )));
       setSdkProgressById((prev) => (
         details && Object.keys(details).length > 0
           ? { ...prev, [sdkId]: details }
           : prev
       ));
+      // clear previous error context when transitioning out of failed state
+      setSdkErrorDetailsById((prev) => {
+        if (!(sdkId in prev)) return prev;
+        const next = { ...prev };
+        delete next[sdkId];
+        return next;
+      });
     }, []),
     onComplete: useCallback((sdkId: string, profile: RegisteredSdk["profile"]) => {
       if (!projectId) return;
       setSdkProgressById((prev) => {
+        const next = { ...prev };
+        delete next[sdkId];
+        return next;
+      });
+      setSdkErrorDetailsById((prev) => {
+        if (!(sdkId in prev)) return prev;
         const next = { ...prev };
         delete next[sdkId];
         return next;
@@ -79,17 +119,35 @@ export function useProjectSettingsPage(projectId: string | undefined, toast: Toa
             sdk.id === sdkId ? { ...sdk, status: "ready", profile } : sdk
           )));
         });
-    }, [projectId]),
-    onError: useCallback((sdkId: string, error: string, phase?: string, logPath?: string) => {
+      refreshQuota();
+    }, [projectId, refreshQuota]),
+    onError: useCallback((
+      sdkId: string,
+      error: string,
+      phase?: string,
+      logPath?: string,
+      details?: SdkErrorEventDetails,
+    ) => {
       const errorStatus = (phase || "verify_failed") as SdkRegistryStatus;
       setRegistered((prev) => prev.map((sdk) => (
-        sdk.id === sdkId ? { ...sdk, status: errorStatus, verifyError: error, installLogPath: logPath } : sdk
+        sdk.id === sdkId
+          ? {
+              ...sdk,
+              status: errorStatus,
+              verifyError: error,
+              installLogPath: logPath ?? sdk.installLogPath,
+              retryable: details?.retryable ?? sdk.retryable,
+            }
+          : sdk
       )));
       setSdkProgressById((prev) => {
         const next = { ...prev };
         delete next[sdkId];
         return next;
       });
+      if (details && Object.keys(details).length > 0) {
+        setSdkErrorDetailsById((prev) => ({ ...prev, [sdkId]: details }));
+      }
     }, []),
   });
 
@@ -106,9 +164,10 @@ export function useProjectSettingsPage(projectId: string | undefined, toast: Toa
     }
     setLoading(true);
     try {
-      const [sdks, fetched] = await Promise.allSettled([
+      const [sdks, fetched, quota] = await Promise.allSettled([
         fetchProjectSdks(projectId),
         fetchProject(projectId),
+        fetchSdkQuota(projectId),
       ]);
       if (sdks.status === "fulfilled") {
         setRegistered(sdks.value.registered);
@@ -127,6 +186,12 @@ export function useProjectSettingsPage(projectId: string | undefined, toast: Toa
       } else {
         logError("Load project metadata", fetched.reason);
       }
+      if (quota.status === "fulfilled") {
+        setSdkQuota(quota.value);
+      } else {
+        // Quota fetch may fail in offline/mock; non-fatal
+        logError("Load SDK quota", quota.reason);
+      }
     } finally {
       setLoading(false);
     }
@@ -139,19 +204,57 @@ export function useProjectSettingsPage(projectId: string | undefined, toast: Toa
   const handleRegistered = useCallback((sdk: RegisteredSdk) => {
     setRegistered((prev) => [...prev, sdk]);
     setShowForm(false);
-  }, []);
+    refreshQuota();
+  }, [refreshQuota]);
 
   const handleDelete = useCallback(async (sdk: RegisteredSdk) => {
     if (!projectId) return;
     try {
       await deleteSdk(projectId, sdk.id);
       setRegistered((prev) => prev.filter((entry) => entry.id !== sdk.id));
+      setSdkErrorDetailsById((prev) => {
+        if (!(sdk.id in prev)) return prev;
+        const next = { ...prev };
+        delete next[sdk.id];
+        return next;
+      });
       toast.success(`SDK "${sdk.name}" 삭제 완료`);
+      refreshQuota();
     } catch (error) {
       logError("Delete SDK", error);
       toast.error("SDK 삭제에 실패했습니다.");
     }
     setDeleteTarget(null);
+  }, [projectId, toast, refreshQuota]);
+
+  const handleRetry = useCallback(async (sdk: RegisteredSdk) => {
+    if (!projectId) return;
+    setRetryingSdkIds((prev) => {
+      const next = new Set(prev);
+      next.add(sdk.id);
+      return next;
+    });
+    try {
+      const updated = await retrySdk(projectId, sdk.id);
+      setRegistered((prev) => prev.map((entry) => (entry.id === sdk.id ? updated : entry)));
+      setSdkErrorDetailsById((prev) => {
+        if (!(sdk.id in prev)) return prev;
+        const next = { ...prev };
+        delete next[sdk.id];
+        return next;
+      });
+      toast.success(`"${sdk.name}" 재시도를 시작했습니다.`);
+    } catch (error) {
+      logError("Retry SDK", error);
+      toast.error("SDK 재시도에 실패했습니다.");
+    } finally {
+      setRetryingSdkIds((prev) => {
+        if (!prev.has(sdk.id)) return prev;
+        const next = new Set(prev);
+        next.delete(sdk.id);
+        return next;
+      });
+    }
   }, [projectId, toast]);
 
   const dirty = useMemo(
@@ -159,8 +262,8 @@ export function useProjectSettingsPage(projectId: string | undefined, toast: Toa
     [name, storedName, description, storedDescription],
   );
 
-  const handleNameChange = useCallback((value: string) => setName(value), []);
-  const handleDescriptionChange = useCallback((value: string) => setDescription(value), []);
+  const handleNameChange = setName;
+  const handleDescriptionChange = setDescription;
 
   const handleCancel = useCallback(() => {
     setName(storedName);
@@ -206,6 +309,9 @@ export function useProjectSettingsPage(projectId: string | undefined, toast: Toa
     setActiveSection,
     registered,
     sdkProgressById,
+    sdkErrorDetailsById,
+    sdkQuota,
+    retryingSdkIds,
     loading,
     showForm,
     setShowForm,
@@ -214,12 +320,11 @@ export function useProjectSettingsPage(projectId: string | undefined, toast: Toa
     sdkConnectionState,
     handleRegistered,
     handleDelete,
+    handleRetry,
 
     project,
     name,
     description,
-    storedName,
-    storedDescription,
     dirty,
     saving,
     handleNameChange,

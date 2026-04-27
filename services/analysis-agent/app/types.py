@@ -35,3 +35,24 @@ class FailureCode(StrEnum):
     LLM_OVERLOADED = "LLM_OVERLOADED"
     INPUT_TOO_LARGE = "INPUT_TOO_LARGE"
     UNKNOWN_TASK_TYPE = "UNKNOWN_TASK_TYPE"
+
+
+class AnalysisOutcome(StrEnum):
+    ACCEPTED_CLAIMS = "accepted_claims"
+    NO_ACCEPTED_CLAIMS = "no_accepted_claims"
+    INCONCLUSIVE = "inconclusive"
+
+
+class QualityOutcome(StrEnum):
+    ACCEPTED = "accepted"
+    ACCEPTED_WITH_CAVEATS = "accepted_with_caveats"
+    REJECTED = "rejected"
+    INCONCLUSIVE = "inconclusive"
+    REPAIR_EXHAUSTED = "repair_exhausted"
+
+
+class PocOutcome(StrEnum):
+    POC_ACCEPTED = "poc_accepted"
+    POC_REJECTED = "poc_rejected"
+    POC_INCONCLUSIVE = "poc_inconclusive"
+    POC_NOT_REQUESTED = "poc_not_requested"

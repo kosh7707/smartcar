@@ -56,6 +56,10 @@ export function initSchema(db: DatabaseType): void {
       needs_human_review     INTEGER,
       recommended_next_steps TEXT NOT NULL DEFAULT '[]',
       policy_flags           TEXT NOT NULL DEFAULT '[]',
+      analysis_outcome       TEXT,
+      quality_outcome        TEXT,
+      poc_outcome            TEXT,
+      recovery_trace         TEXT NOT NULL DEFAULT '[]',
       sca_libraries          TEXT NOT NULL DEFAULT '[]',
       agent_audit            TEXT,
       created_at             TEXT NOT NULL,
@@ -244,6 +248,10 @@ export function initSchema(db: DatabaseType): void {
       project_id   TEXT NOT NULL,
       status       TEXT NOT NULL,
       rules        TEXT NOT NULL DEFAULT '[]',
+      profile_id   TEXT,
+      commit_sha   TEXT,
+      branch       TEXT,
+      requested_by TEXT,
       evaluated_at TEXT NOT NULL,
       override     TEXT,
       created_at   TEXT NOT NULL DEFAULT (datetime('now'))
@@ -260,6 +268,8 @@ export function initSchema(db: DatabaseType): void {
       project_id    TEXT NOT NULL,
       reason        TEXT NOT NULL,
       status        TEXT NOT NULL DEFAULT 'pending',
+      impact_summary TEXT,
+      target_snapshot TEXT,
       decision      TEXT,
       expires_at    TEXT NOT NULL,
       created_at    TEXT NOT NULL DEFAULT (datetime('now'))
@@ -329,6 +339,10 @@ export function initSchema(db: DatabaseType): void {
       status       TEXT NOT NULL DEFAULT 'uploading',
       verify_error TEXT,
       verified     INTEGER NOT NULL DEFAULT 0,
+      phase_history TEXT NOT NULL DEFAULT '[]',
+      current_phase_started_at INTEGER,
+      retry_count  INTEGER NOT NULL DEFAULT 0,
+      retry_expires_at INTEGER,
       created_at   TEXT NOT NULL,
       updated_at   TEXT NOT NULL
     );
@@ -615,6 +629,10 @@ export function initSchema(db: DatabaseType): void {
   try { db.exec(`ALTER TABLE analysis_results ADD COLUMN needs_human_review INTEGER`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE analysis_results ADD COLUMN recommended_next_steps TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE analysis_results ADD COLUMN policy_flags TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN analysis_outcome TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN quality_outcome TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN poc_outcome TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN recovery_trace TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE analysis_results ADD COLUMN sca_libraries TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE analysis_results ADD COLUMN agent_audit TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE findings ADD COLUMN detail TEXT`); } catch { /* 이미 존재 */ }
@@ -661,6 +679,16 @@ export function initSchema(db: DatabaseType): void {
   try { db.exec(`ALTER TABLE build_targets ADD COLUMN build_command TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE notifications ADD COLUMN job_kind TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE notifications ADD COLUMN correlation_id TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE sdk_registry ADD COLUMN phase_history TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE sdk_registry ADD COLUMN current_phase_started_at INTEGER`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE sdk_registry ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE sdk_registry ADD COLUMN retry_expires_at INTEGER`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE gate_results ADD COLUMN profile_id TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE gate_results ADD COLUMN commit_sha TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE gate_results ADD COLUMN branch TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE gate_results ADD COLUMN requested_by TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE approvals ADD COLUMN impact_summary TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE approvals ADD COLUMN target_snapshot TEXT`); } catch { /* 이미 존재 */ }
 
   // 레거시: rules 테이블이 남아있는 기존 DB에서 DROP
   try { db.exec(`DROP TABLE IF EXISTS rules`); } catch { /* 이미 제거됨 */ }

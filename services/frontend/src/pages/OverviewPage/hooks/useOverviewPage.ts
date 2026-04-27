@@ -72,6 +72,10 @@ export function useOverviewPage(projectId: string | undefined, toast: ToastApi) 
   }, [projectId, toast]);
 
   const recentAnalyses = overview?.recentAnalyses ?? [];
+  const latestDeepResult = useMemo(
+    () => recentAnalyses.find((a) => a.module === "deep_analysis") ?? null,
+    [recentAnalyses],
+  );
   const topVulnerabilities = useMemo(() => getTopVulnerabilities(recentAnalyses, 8), [recentAnalyses]);
   const gateCounts = useMemo(() => getGateCounts(gates), [gates]);
   const totalFileSize = useMemo(
@@ -103,6 +107,7 @@ export function useOverviewPage(projectId: string | undefined, toast: ToastApi) 
     severitySummary,
     totalFindings,
     empty,
+    latestDeepResult,
     openProjectPath,
   };
 }

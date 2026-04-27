@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import pytest
 
-from agent_shared.schemas.agent import (
+from app.agent_runtime.schemas.agent import (
     BudgetState,
     ToolCallRequest,
     ToolCostTier,
     ToolResult,
 )
-from agent_shared.tools.executor import ToolExecutor
-from agent_shared.tools.hooks import HookRunner
-from agent_shared.tools.registry import ToolRegistry, ToolSchema, ToolSideEffect
+from app.agent_runtime.tools.executor import ToolExecutor
+from app.agent_runtime.tools.hooks import HookRunner
+from app.agent_runtime.tools.registry import ToolRegistry, ToolSchema, ToolSideEffect
 from app.budget.manager import BudgetManager
 from app.core.agent_session import AgentSession
 from app.policy.tool_failure import ToolFailurePolicy

@@ -1,7 +1,8 @@
-"""Evidence ref 환각 → strict grounding failure 통합 테스트.
+"""Evidence ref 환각 → state-machine outcome classification 통합 테스트.
 
 mock LLM이 unsupported refId를 포함한 응답을 반환할 때,
-ResultAssembler가 successful response로 숨기지 않는지 검증한다.
+ResultAssembler가 public task failure 대신 completed negative outcome으로
+분류하되 accepted claim/evidence를 제조하지 않는지 검증한다.
 """
 
 import json
@@ -12,7 +13,7 @@ from app.core.agent_session import AgentSession
 from app.core.result_assembler import ResultAssembler
 from app.schemas.request import Context, EvidenceRef, TaskRequest
 from app.types import TaskType
-from agent_shared.schemas.agent import BudgetState, ToolCostTier, ToolTraceStep
+from app.agent_runtime.schemas.agent import BudgetState, ToolCostTier, ToolTraceStep
 
 
 def _make_session(
@@ -54,8 +55,8 @@ def _make_session(
 
 
 class TestHallucinationRejection:
-    def test_hallucinated_ref_causes_invalid_grounding(self):
-        """유사해 보이는 환각 refId도 성공 응답으로 숨기지 않는다."""
+    def test_hallucinated_ref_causes_no_accepted_claims_outcome(self):
+        """유사해 보이는 환각 refId도 accepted claim으로 숨기지 않는다."""
         session = _make_session(
             input_refs=["eref-001"],
             extra_allowed={"eref-sast-cmd-injection"},
@@ -82,12 +83,14 @@ class TestHallucinationRejection:
         assembler = ResultAssembler()
         result = assembler.build(final_content, session)
 
-        assert result.status == "validation_failed"
-        assert result.failureCode == "INVALID_GROUNDING"
-        assert "eref-knowledge-CWE78" in result.failureDetail
+        assert result.status == "completed"
+        assert result.result.analysisOutcome == "no_accepted_claims"
+        assert result.result.qualityOutcome == "rejected"
+        assert result.result.claims == []
+        assert "eref-knowledge-CWE78" in (result.result.recoveryTrace[0].detail or "")
 
-    def test_completely_fake_ref_causes_invalid_grounding(self):
-        """매칭 불가능한 환각 refId도 성공 응답으로 숨기지 않는다."""
+    def test_completely_fake_ref_causes_no_accepted_claims_outcome(self):
+        """매칭 불가능한 환각 refId도 accepted claim으로 숨기지 않는다."""
         session = _make_session(input_refs=["eref-001"])
 
         final_content = json.dumps({
@@ -109,9 +112,11 @@ class TestHallucinationRejection:
         assembler = ResultAssembler()
         result = assembler.build(final_content, session)
 
-        assert result.status == "validation_failed"
-        assert result.failureCode == "INVALID_GROUNDING"
-        assert "eref-code-graph-00" in result.failureDetail
+        assert result.status == "completed"
+        assert result.result.analysisOutcome == "no_accepted_claims"
+        assert result.result.qualityOutcome == "rejected"
+        assert result.result.claims == []
+        assert "eref-code-graph-00" in (result.result.recoveryTrace[0].detail or "")
 
     def test_all_valid_refs_pass_through(self):
         """유효한 refId만 있으면 그대로 통과."""
@@ -178,7 +183,9 @@ class TestHallucinationRejection:
         assembler = ResultAssembler()
         result = assembler.build(final_content, session)
 
-        assert result.status == "validation_failed"
-        assert result.failureCode == "INVALID_GROUNDING"
-        assert "eref-knowledge-CWE78" in result.failureDetail
-        assert "eref-totally-made-up" in result.failureDetail
+        assert result.status == "completed"
+        assert result.result.analysisOutcome == "no_accepted_claims"
+        assert result.result.qualityOutcome == "rejected"
+        assert result.result.claims == []
+        assert "eref-knowledge-CWE78" in (result.result.recoveryTrace[0].detail or "")
+        assert "eref-totally-made-up" in (result.result.recoveryTrace[0].detail or "")

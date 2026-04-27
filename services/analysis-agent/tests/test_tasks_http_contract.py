@@ -1,8 +1,23 @@
 from __future__ import annotations
 
 from app.routers import tasks
-from app.schemas.response import AuditInfo, TaskFailureResponse, TokenUsage
-from app.types import FailureCode, TaskStatus, TaskType
+from app.schemas.response import (
+    AssessmentResult,
+    AuditInfo,
+    RecoveryTraceEntry,
+    TaskFailureResponse,
+    TaskSuccessResponse,
+    TokenUsage,
+    ValidationInfo,
+)
+from app.types import (
+    AnalysisOutcome,
+    FailureCode,
+    PocOutcome,
+    QualityOutcome,
+    TaskStatus,
+    TaskType,
+)
 
 
 def _failure_response() -> TaskFailureResponse:
@@ -28,13 +43,54 @@ def _failure_response() -> TaskFailureResponse:
     )
 
 
+def _completed_negative_response(task_type: TaskType = TaskType.DEEP_ANALYZE) -> TaskSuccessResponse:
+    return TaskSuccessResponse(
+        taskId="deep-http-contract-001",
+        taskType=task_type,
+        status=TaskStatus.COMPLETED,
+        modelProfile="test",
+        promptVersion="agent-v1",
+        schemaVersion="agent-v1",
+        validation=ValidationInfo(valid=True, errors=[]),
+        result=AssessmentResult(
+            summary="review completed with negative outcome",
+            claims=[],
+            caveats=["schema deficiency recovered"],
+            usedEvidenceRefs=[],
+            suggestedSeverity="info",
+            analysisOutcome=AnalysisOutcome.INCONCLUSIVE,
+            qualityOutcome=QualityOutcome.REPAIR_EXHAUSTED,
+            pocOutcome=(
+                PocOutcome.POC_REJECTED
+                if task_type == TaskType.GENERATE_POC
+                else PocOutcome.POC_NOT_REQUESTED
+            ),
+            recoveryTrace=[
+                RecoveryTraceEntry(
+                    deficiency="SCHEMA_DEFICIENT",
+                    action="outcome_classification",
+                    outcome="inconclusive",
+                )
+            ],
+        ),
+        audit=AuditInfo(
+            inputHash="sha256:test",
+            latencyMs=0,
+            tokenUsage=TokenUsage(prompt=0, completion=0),
+            retryCount=1,
+            ragHits=0,
+            createdAt="2026-04-24T00:00:00Z",
+        ),
+    )
+
+
 def test_validation_failed_task_result_maps_to_http_422():
     assert tasks._http_status_for_task_result(_failure_response()) == 422
 
 
-def test_deep_analyze_validation_failure_is_not_http_200(client_live, monkeypatch):
+def test_deep_analyze_internal_deficiency_completed_is_http_200(client_live, monkeypatch):
     async def fake_deep(_request):
-        return _failure_response()
+        return _completed_negative_response()
 
     monkeypatch.setattr(tasks, "_handle_deep_analyze", fake_deep)
 
@@ -60,11 +116,46 @@ def test_deep_analyze_validation_failure_is_not_http_200(client_live, monkeypatc
         },
     )
 
-    assert response.status_code == 422
-    assert response.headers["x-aegis-task-ok"] == "false"
-    assert response.headers["x-aegis-task-status"] == "validation_failed"
+    assert response.status_code == 200
+    assert response.headers["x-aegis-task-ok"] == "true"
+    assert response.headers["x-aegis-task-status"] == "completed"
     body = response.json()
-    assert body["status"] == "validation_failed"
-    assert body["failureCode"] == "INVALID_SCHEMA"
-    assert body["failureDetail"] == "필수 필드 'caveats' 누락"
-    assert body.get("result") is None
+    assert body["status"] == "completed"
+    assert "failureCode" not in body
+    assert body["validation"]["valid"] is True
+    assert body["result"]["analysisOutcome"] == "inconclusive"
+    assert body["result"]["qualityOutcome"] == "repair_exhausted"
+    assert body["result"]["recoveryTrace"][0]["deficiency"] == "SCHEMA_DEFICIENT"
+
+
+def test_generate_poc_rejected_outcome_completed_is_http_200(client_live, monkeypatch):
+    async def fake_poc(_request):
+        return _completed_negative_response(TaskType.GENERATE_POC)
+
+    monkeypatch.setattr(tasks, "_handle_generate_poc", fake_poc)
+
+    response = client_live.post(
+        "/v1/tasks",
+        json={
+            "taskType": "generate-poc",
+            "taskId": "poc-http-contract-001",
+            "context": {
+                "trusted": {
+                    "objective": "Generate PoC",
+                    "claim": {
+                        "statement": "User input reaches popen",
+                        "detail": "The command is shell-expanded.",
+                        "location": "main.cpp:12",
+                    },
+                    "files": [{"path": "main.cpp", "content": "int main(){}"}],
+                },
+            },
+            "evidenceRefs": [],
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "completed"
+    assert body["result"]["pocOutcome"] == "poc_rejected"
+    assert "failureCode" not in body

@@ -18,6 +18,7 @@ type StaticAnalysisViewRouterProps = {
     activeAnalysis: unknown;
     latestRunDetail: unknown;
     latestRunLoading: boolean;
+    latestAnalysisResult: unknown;
     period: string;
     setPeriod: (period: never) => void;
   };
@@ -202,6 +203,7 @@ export function StaticAnalysisViewRouter({
         activeAnalysis={dashboard.activeAnalysis as never}
         latestRunDetail={dashboard.latestRunDetail as never}
         latestRunLoading={dashboard.latestRunLoading}
+        latestAnalysisResult={dashboard.latestAnalysisResult as never}
         period={dashboard.period as never}
         onPeriodChange={dashboard.setPeriod}
         onNewAnalysis={state.handleNewAnalysis}

@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import type { ApprovalRequest, ApprovalActionType, ApprovalStatus, AuditLogEntry } from "@aegis/shared";
+import type { ApprovalRequest, ApprovalActionType, ApprovalStatus, AuditLogEntry, Finding, GateResult } from "@aegis/shared";
 import type { IApprovalDAO, IAuditLogDAO } from "../dao/interfaces";
 import { createLogger } from "../lib/logger";
 import { NotFoundError, InvalidInputError } from "../lib/errors";
@@ -30,6 +30,7 @@ export class ApprovalService {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + EXPIRY_HOURS * 60 * 60 * 1000);
 
+    const targetContext = this.buildTargetContext(actionType, targetId);
     const request: ApprovalRequest = {
       id: `approval-${crypto.randomUUID()}`,
       actionType,
@@ -38,6 +39,8 @@ export class ApprovalService {
       projectId,
       reason,
       status: "pending",
+      impactSummary: targetContext.impactSummary,
+      targetSnapshot: targetContext.targetSnapshot,
       expiresAt: expiresAt.toISOString(),
       createdAt: now.toISOString(),
     };
@@ -144,6 +147,75 @@ export class ApprovalService {
       .findByProjectId(projectId)
       .filter((request) => this.isVisibleApproval(request))
       .map((r) => this.applyLazyExpiration(r));
+  }
+
+  private buildTargetContext(
+    actionType: ApprovalActionType,
+    targetId: string,
+  ): Pick<ApprovalRequest, "impactSummary" | "targetSnapshot"> {
+    if (actionType === "gate.override") {
+      const gate = this.gateService.getById(targetId);
+      return gate ? this.buildGateContext(gate, actionType) : {};
+    }
+
+    if (actionType === "finding.accepted_risk" && this.findingService) {
+      const finding = this.findingService.findById(targetId);
+      return finding ? this.buildFindingContext(finding) : {};
+    }
+
+    return {};
+  }
+
+  private buildGateContext(
+    gate: GateResult,
+    actionType: ApprovalActionType,
+  ): Pick<ApprovalRequest, "impactSummary" | "targetSnapshot"> {
+    const failedRules = gate.rules.filter((rule) => rule.result === "failed").length;
+    const ignoredFindingIds = new Set(
+      gate.rules
+        .filter((rule) => rule.result === "failed")
+        .flatMap((rule) => rule.linkedFindingIds),
+    );
+
+    return {
+      impactSummary: {
+        failedRules,
+        ignoredFindings: ignoredFindingIds.size,
+      },
+      targetSnapshot: {
+        runId: gate.runId,
+        commit: gate.commit,
+        branch: gate.branch,
+        profile: gate.profileId,
+        action: actionType,
+      },
+    };
+  }
+
+  private buildFindingContext(
+    finding: Finding,
+  ): Pick<ApprovalRequest, "impactSummary" | "targetSnapshot"> {
+    const { file, line } = this.parseFindingLocation(finding.location);
+    return {
+      impactSummary: {
+        failedRules: 0,
+        ignoredFindings: 1,
+        severityBreakdown: { [finding.severity]: 1 },
+      },
+      targetSnapshot: {
+        findingId: finding.id,
+        file,
+        line,
+        severity: finding.severity,
+      },
+    };
+  }
+
+  private parseFindingLocation(location?: string): { file?: string; line?: number } {
+    if (!location) return {};
+    const match = /^(.*?)(?::(\d+))(?:[:,-].*)?$/.exec(location);
+    if (!match) return { file: location };
+    return { file: match[1], line: Number(match[2]) };
   }
 
   /** 만료된 pending 요청을 expired로 전환 (lazy) */

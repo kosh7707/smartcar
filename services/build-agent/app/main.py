@@ -1,7 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from agent_shared.observability import setup_logging
+from app.agent_runtime.observability import setup_logging
 from app.routers import tasks
 
 _SERVICE_NAME = "aegis-build-agent"

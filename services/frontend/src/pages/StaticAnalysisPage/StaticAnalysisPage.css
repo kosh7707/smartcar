@@ -327,12 +327,14 @@
   color: var(--foreground-muted);
 }
 .two-stage-step__line { display: none; }
+/* Phase failure error — review-tone critical-review (--danger).
+   Workflow failure surface, not a severity signal (handoff §2.1 / §2.2). */
 .two-stage-error {
   padding: var(--space-6);
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  border-left: 3px solid var(--severity-critical);
+  border-left: 3px solid var(--danger);
 }
 .two-stage-error__head {
   display: flex;
@@ -340,7 +342,7 @@
   gap: 8px;
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
-  color: var(--severity-critical);
+  color: var(--danger);
 }
 .two-stage-error__head svg { width: 16px; height: 16px; }
 .two-stage-error__copy {

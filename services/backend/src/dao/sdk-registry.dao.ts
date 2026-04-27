@@ -1,5 +1,9 @@
-import type { RegisteredSdk, SdkRegistryStatus, SdkAnalyzedProfile } from "@aegis/shared";
+import fs from "fs";
+import type { RegisteredSdk, SdkRegistryStatus, SdkAnalyzedProfile, SdkPhaseHistoryEntry } from "@aegis/shared";
 import type { DatabaseType } from "../db";
+
+const SDK_RETRY_LIMIT = 3;
+const SDK_RETRY_COOLDOWN_MS = 30_000;
 
 function parseJson<T>(raw: string | null | undefined, fallback: T): T {
   if (!raw) return fallback;
@@ -16,12 +20,26 @@ interface SdkRegistryRow {
   status: SdkRegistryStatus;
   verify_error: string | null;
   verified: number;
+  phase_history: string | null;
+  current_phase_started_at: number | null;
+  retry_count: number | null;
+  retry_expires_at: number | null;
   created_at: string;
   updated_at: string;
 }
 
 function rowToSdk(row: SdkRegistryRow): RegisteredSdk {
   const profile = parseJson<SdkAnalyzedProfile | undefined>(row.profile, undefined);
+  const phaseHistory = parseJson<SdkPhaseHistoryEntry[]>(row.phase_history, []);
+  const updatedAtMs = Number.isFinite(Date.parse(row.updated_at)) ? Date.parse(row.updated_at) : 0;
+  const retryable = (row.status === "extract_failed"
+    || row.status === "install_failed"
+    || row.status === "verify_failed")
+    && (row.retry_count ?? 0) < SDK_RETRY_LIMIT
+    && typeof row.retry_expires_at === "number"
+    && Date.now() <= row.retry_expires_at
+    && Date.now() >= updatedAtMs + SDK_RETRY_COOLDOWN_MS
+    && fs.existsSync(row.path);
   return {
     id: row.id,
     projectId: row.project_id,
@@ -34,6 +52,11 @@ function rowToSdk(row: SdkRegistryRow): RegisteredSdk {
     targetSystem: profile?.targetSystem,
     installLogPath: profile?.installLogPath,
     status: row.status as SdkRegistryStatus,
+    currentPhaseStartedAt: row.current_phase_started_at ?? undefined,
+    phaseHistory,
+    retryCount: row.retry_count ?? 0,
+    retryable,
+    retryExpiresAt: row.retry_expires_at ?? undefined,
     verifyError: row.verify_error ?? undefined,
     verified: row.verified === 1,
     createdAt: row.created_at,
@@ -46,14 +69,19 @@ export class SdkRegistryDAO {
   private selectByProjectStmt;
   private selectByIdStmt;
   private updateStatusStmt;
+  private updateRetryStmt;
   private updateProfileStmt;
   private updatePathStmt;
   private deleteStmt;
 
   constructor(private db: DatabaseType) {
     this.insertStmt = db.prepare(
-      `INSERT INTO sdk_registry (id, project_id, name, description, path, profile, status, verified, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO sdk_registry (
+         id, project_id, name, description, path, profile, status, verified,
+         phase_history, current_phase_started_at, retry_count, retry_expires_at,
+         created_at, updated_at
+       )
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     this.selectByProjectStmt = db.prepare(
       `SELECT * FROM sdk_registry WHERE project_id = ? ORDER BY created_at DESC`,
@@ -62,7 +90,12 @@ export class SdkRegistryDAO {
       `SELECT * FROM sdk_registry WHERE id = ?`,
     );
     this.updateStatusStmt = db.prepare(
-      `UPDATE sdk_registry SET status = ?, verify_error = ?, verified = ?, updated_at = ? WHERE id = ?`,
+      `UPDATE sdk_registry
+       SET status = ?, verify_error = ?, verified = ?, phase_history = ?, current_phase_started_at = ?, retry_expires_at = ?, updated_at = ?
+       WHERE id = ?`,
+    );
+    this.updateRetryStmt = db.prepare(
+      `UPDATE sdk_registry SET retry_count = retry_count + 1, retry_expires_at = ?, updated_at = ? WHERE id = ?`,
     );
     this.updateProfileStmt = db.prepare(
       `UPDATE sdk_registry SET profile = ?, updated_at = ? WHERE id = ?`,
@@ -80,6 +113,10 @@ export class SdkRegistryDAO {
       sdk.id, sdk.projectId, sdk.name, sdk.description ?? null,
       sdk.path, JSON.stringify(sdk.profile ?? {}),
       sdk.status, sdk.verified ? 1 : 0,
+      JSON.stringify(sdk.phaseHistory ?? [{ phase: sdk.status, startedAt: sdk.currentPhaseStartedAt ?? Date.now() }]),
+      sdk.currentPhaseStartedAt ?? Date.now(),
+      sdk.retryCount ?? 0,
+      sdk.retryExpiresAt ?? null,
       sdk.createdAt, sdk.updatedAt,
     );
   }
@@ -93,9 +130,35 @@ export class SdkRegistryDAO {
     return row ? rowToSdk(row) : undefined;
   }
 
-  updateStatus(id: string, status: SdkRegistryStatus, verifyError?: string): void {
+  updateStatus(id: string, status: SdkRegistryStatus, verifyError?: string, message?: string): void {
+    const existing = this.findById(id);
+    if (!existing) return;
+    const nowMs = Date.now();
+    const phaseHistory = [...(existing.phaseHistory ?? [])];
+    const last = phaseHistory.length > 0 ? phaseHistory[phaseHistory.length - 1] : undefined;
+    if (last && !last.endedAt) {
+      last.endedAt = nowMs;
+      last.durationMs = Math.max(0, nowMs - last.startedAt);
+    }
+    phaseHistory.push({ phase: status, startedAt: nowMs, ...(message ? { message } : {}) });
     const verified = status === "ready" ? 1 : 0;
-    this.updateStatusStmt.run(status, verifyError ?? null, verified, new Date().toISOString(), id);
+    const retryExpiresAt = status.endsWith("_failed")
+      ? nowMs + 24 * 60 * 60 * 1000
+      : existing.retryExpiresAt ?? null;
+    this.updateStatusStmt.run(
+      status,
+      verifyError ?? null,
+      verified,
+      JSON.stringify(phaseHistory),
+      nowMs,
+      retryExpiresAt,
+      new Date().toISOString(),
+      id,
+    );
+  }
+
+  incrementRetry(id: string, retryExpiresAt?: number): void {
+    this.updateRetryStmt.run(retryExpiresAt ?? Date.now() + 24 * 60 * 60 * 1000, new Date().toISOString(), id);
   }
 
   updateProfile(id: string, profile: SdkAnalyzedProfile): void {

@@ -1,8 +1,8 @@
 """Compatibility wrapper for the shared ToolRouter core."""
 
-from agent_shared.schemas.agent import ToolCallRequest, ToolResult
-from agent_shared.tools.registry import ToolSchema, ToolSideEffect
-from agent_shared.tools.router_core import SharedToolRouter
+from app.agent_runtime.schemas.agent import ToolCallRequest, ToolResult
+from app.agent_runtime.tools.registry import ToolSchema, ToolSideEffect
+from app.agent_runtime.tools.router_core import SharedToolRouter
 
 
 class ToolRouter(SharedToolRouter):

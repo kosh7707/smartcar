@@ -207,6 +207,48 @@ export function createTestApp(): TestAppContext {
         truncated: tailLines < 2,
       };
     },
+    getInstallLogWindow(id: string, options?: { tailLines?: number; offset?: number; limit?: number }) {
+      const lines = ["line 1", "line 2"];
+      if (typeof options?.offset === "number" || typeof options?.limit === "number") {
+        const offset = Math.max(0, options?.offset ?? 0);
+        const limit = Math.max(1, options?.limit ?? 200);
+        const selected = lines.slice(offset, offset + limit);
+        const nextOffset = offset + selected.length < lines.length ? offset + selected.length : undefined;
+        return {
+          sdkId: id,
+          logPath: `/tmp/logs/${id}.log`,
+          content: selected.join("\n"),
+          truncated: typeof nextOffset === "number",
+          totalLines: lines.length,
+          nextOffset,
+        };
+      }
+      const tailLines = Math.max(1, options?.tailLines ?? 200);
+      const selected = lines.length > tailLines ? lines.slice(-tailLines) : lines;
+      return {
+        sdkId: id,
+        logPath: `/tmp/logs/${id}.log`,
+        content: selected.join("\n"),
+        truncated: lines.length > tailLines,
+        totalLines: lines.length,
+      };
+    },
+    getQuota(projectId: string) {
+      return {
+        usedBytes: 0,
+        maxBytes: 50 * 1024 * 1024 * 1024,
+        sdkCount: sdkStore.get(projectId)?.length ?? 0,
+      };
+    },
+    getMetrics(projectId: string) {
+      const registered = sdkStore.get(projectId) ?? [];
+      return {
+        sdkCount: registered.length,
+        readyCount: registered.filter((sdk) => sdk.status === "ready").length,
+        failedCount: registered.filter((sdk) => sdk.status.endsWith("_failed")).length,
+        averagePhaseDurationMs: {},
+      };
+    },
     async register(
       projectId: string,
       input: { sdkId?: string; name: string; description?: string; files: Array<{ originalName: string; storedPath: string; size: number; relativePath?: string }> },
@@ -234,6 +276,10 @@ export function createTestApp(): TestAppContext {
         },
         status: "uploaded",
         verified: false,
+        currentPhaseStartedAt: Date.now(),
+        phaseHistory: [{ phase: "uploaded", startedAt: Date.now() }],
+        retryCount: 0,
+        retryable: false,
         createdAt: now,
         updatedAt: now,
       };
@@ -248,6 +294,14 @@ export function createTestApp(): TestAppContext {
           sdkStore.set(projectId, filtered);
         }
       }
+    },
+    async retry(id: string) {
+      const sdk = [...sdkStore.values()].flat().find((item) => item.id === id);
+      if (!sdk) throw new Error(`SDK not found: ${id}`);
+      const retried = { ...sdk, status: "ready" as const, verified: true, retryCount: (sdk.retryCount ?? 0) + 1 };
+      const items = sdkStore.get(sdk.projectId) ?? [];
+      sdkStore.set(sdk.projectId, items.map((item) => item.id === id ? retried : item));
+      return retried;
     },
   };
   const testSourceService = {

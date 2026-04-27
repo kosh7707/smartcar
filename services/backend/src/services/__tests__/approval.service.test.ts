@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ApprovalService } from "../approval.service";
 import type { IApprovalDAO, IAuditLogDAO } from "../../dao/interfaces";
 import type { QualityGateService } from "../quality-gate.service";
-import { makeApproval } from "../../test/factories";
+import type { FindingService } from "../finding.service";
+import { makeApproval, makeFinding, makeGateResult } from "../../test/factories";
 import { NotFoundError, InvalidInputError } from "../../lib/errors";
 
 function createMockApprovalDAO(): IApprovalDAO {
@@ -36,18 +37,35 @@ function createMockGateService(): QualityGateService {
   } as any;
 }
 
+function createMockFindingService(): FindingService {
+  return {
+    findById: vi.fn(),
+  } as any;
+}
+
 describe("ApprovalService", () => {
   let service: ApprovalService;
   let approvalDAO: IApprovalDAO;
   let auditLogDAO: IAuditLogDAO;
   let gateService: QualityGateService;
+  let findingService: FindingService;
 
   beforeEach(() => {
     approvalDAO = createMockApprovalDAO();
     auditLogDAO = createMockAuditLogDAO();
     gateService = createMockGateService();
-    vi.mocked(gateService.getById).mockReturnValue({ id: "gate-1" } as any);
-    service = new ApprovalService(approvalDAO, auditLogDAO, gateService);
+    findingService = createMockFindingService();
+    vi.mocked(gateService.getById).mockReturnValue(makeGateResult({
+      id: "gate-1",
+      runId: "run-1",
+      profileId: "strict",
+      status: "fail",
+      rules: [
+        { ruleId: "no-critical", result: "failed", message: "critical", linkedFindingIds: ["f-1"], current: 1, threshold: 0, unit: "count" },
+        { ruleId: "high-threshold", result: "passed", message: "ok", linkedFindingIds: [], current: 2, threshold: 3, unit: "count" },
+      ],
+    }));
+    service = new ApprovalService(approvalDAO, auditLogDAO, gateService, undefined, findingService);
   });
 
   describe("createRequest", () => {
@@ -61,6 +79,8 @@ describe("ApprovalService", () => {
       expect(saved.projectId).toBe("proj-1");
       expect(saved.status).toBe("pending");
       expect(saved.requestedBy).toBe("analyst"); // default actor
+      expect(saved.impactSummary).toMatchObject({ failedRules: 1, ignoredFindings: 1 });
+      expect(saved.targetSnapshot).toMatchObject({ runId: "run-1", profile: "strict", action: "gate.override" });
 
       // expiry should be ~24h in the future
       const expiry = new Date(saved.expiresAt).getTime();
@@ -75,6 +95,29 @@ describe("ApprovalService", () => {
       const saved = vi.mocked(approvalDAO.save).mock.calls[0][0];
       expect(saved.requestedBy).toBe("alice");
     });
+
+    it("captures accepted-risk finding impact summary and target snapshot", () => {
+      vi.mocked(findingService.findById).mockReturnValue(makeFinding({
+        id: "finding-1",
+        severity: "critical",
+        location: "src/main.c:42",
+      }) as any);
+
+      service.createRequest("finding.accepted_risk", "finding-1", "proj-1", "accept risk", "alice");
+
+      const saved = vi.mocked(approvalDAO.save).mock.calls[0][0];
+      expect(saved.impactSummary).toMatchObject({
+        failedRules: 0,
+        ignoredFindings: 1,
+        severityBreakdown: { critical: 1 },
+      });
+      expect(saved.targetSnapshot).toMatchObject({
+        findingId: "finding-1",
+        file: "src/main.c",
+        line: 42,
+        severity: "critical",
+      });
+    });
   });
 
   describe("decide", () => {
@@ -86,6 +129,7 @@ describe("ApprovalService", () => {
         expiresAt: new Date(Date.now() + 86400000).toISOString(),
       });
       vi.mocked(approvalDAO.findById).mockReturnValue(request);
+      vi.mocked(findingService.findById).mockReturnValue(makeFinding({ id: request.targetId }) as any);
 
       const result = service.decide("ap-1", "approved", "admin", "looks good");
       expect(result.status).toBe("approved");
@@ -171,6 +215,7 @@ describe("ApprovalService", () => {
         expiresAt: new Date(Date.now() + 86400000).toISOString(),
       });
       vi.mocked(approvalDAO.findById).mockReturnValue(request);
+      vi.mocked(findingService.findById).mockReturnValue(makeFinding({ id: request.targetId }) as any);
 
       service.decide("ap-1", "approved", "admin");
       expect(gateService.applyOverride).not.toHaveBeenCalled();

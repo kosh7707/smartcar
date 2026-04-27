@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import Literal
 
-from agent_shared.schemas.agent import ToolCallRequest, ToolResult
+from app.agent_runtime.schemas.agent import ToolCallRequest, ToolResult
 from app.core.phase_one_types import Phase1Result
 from app.schemas.request import EvidenceRef, TaskRequest
 
@@ -22,6 +22,8 @@ EvidenceCategory = Literal[
     "request",
     "unknown",
 ]
+
+EvidenceClass = Literal["local", "knowledge", "derived", "operational", "unclassified"]
 
 _SINK_PATTERNS = {
     "access": r"\baccess\b",
@@ -58,6 +60,22 @@ class EvidenceCatalogEntry:
     cwe_id: str | None = None
     summary: str | None = None
     callees: tuple[str, ...] = field(default_factory=tuple)
+    evidence_class: EvidenceClass = "unclassified"
+    roles: tuple[str, ...] = field(default_factory=tuple)
+    source_local_refs: tuple[str, ...] = field(default_factory=tuple)
+    origin_service: str | None = None
+    operational_status: str | None = None
+    project_id: str | None = None
+    revision: str | None = None
+    build_snapshot: str | None = None
+
+    @property
+    def can_support_claim(self) -> bool:
+        if self.evidence_class == "local":
+            return True
+        if self.evidence_class == "derived" and self.source_local_refs:
+            return True
+        return False
 
 
 class EvidenceCatalog:
@@ -79,6 +97,18 @@ class EvidenceCatalog:
 
     def get(self, ref_id: str) -> EvidenceCatalogEntry | None:
         return self._entries.get(ref_id)
+
+    def final_ref_ids(self) -> set[str]:
+        return {entry.ref_id for entry in self.entries() if entry.can_support_claim}
+
+    def contextual_ref_ids(self) -> set[str]:
+        return {entry.ref_id for entry in self.entries() if entry.evidence_class == "knowledge"}
+
+    def unclassified_ref_ids(self) -> set[str]:
+        return {entry.ref_id for entry in self.entries() if entry.evidence_class == "unclassified"}
+
+    def local_ref_ids(self) -> set[str]:
+        return {entry.ref_id for entry in self.entries() if entry.evidence_class == "local"}
 
     def ingest_request(self, request: TaskRequest) -> None:
         for ref in request.evidenceRefs:
@@ -121,6 +151,9 @@ def _entry_from_request_ref(ref: EvidenceRef) -> EvidenceCatalogEntry:
         file=_str_or_none(locator.get("file") or locator.get("path")),
         line=_int_or_none(locator.get("line") or locator.get("startLine") or locator.get("fromLine")),
         summary=f"request evidence {ref.refId}",
+        evidence_class=_class_from_request_ref(ref),
+        roles=_roles_from_request_ref(ref),
+        origin_service="request",
     )
 
 
@@ -150,6 +183,9 @@ def _entry_from_sast_finding(finding: dict, index: int) -> EvidenceCatalogEntry:
         rule_id=rule_id,
         cwe_id=cwe,
         summary=_truncate(f"{finding.get('message', '')} {metadata.get('context', '')}"),
+        evidence_class="local",
+        roles=tuple(role for role in ("sast_finding", "source_location" if loc.get("file") else "", "sink_or_dangerous_api" if sink else "") if role),
+        origin_service="s4",
     )
 
 
@@ -167,6 +203,9 @@ def _entry_from_dangerous_caller(caller: dict, index: int) -> EvidenceCatalogEnt
         function=name,
         sink=_infer_sink(json.dumps(caller, ensure_ascii=False)),
         summary=_truncate(json.dumps(caller, ensure_ascii=False)),
+        evidence_class="local",
+        roles=("caller_chain", "function_symbol"),
+        origin_service="s5",
     )
 
 
@@ -189,6 +228,7 @@ def _entry_from_tool_result(call: ToolCallRequest, result: ToolResult, ref_id: s
     file, line = _extract_file_line(content)
     sink = _infer_sink(" ".join([call.name, json.dumps(call.arguments, ensure_ascii=False), content]))
     cwe = _extract_cwe(content)
+    evidence_class, roles = _class_and_roles_from_tool(call.name, category, file=file, sink=sink)
     return EvidenceCatalogEntry(
         ref_id=ref_id,
         category=category,
@@ -201,7 +241,75 @@ def _entry_from_tool_result(call: ToolCallRequest, result: ToolResult, ref_id: s
         sink=sink,
         cwe_id=cwe,
         summary=_truncate(content),
+        evidence_class=evidence_class,
+        roles=roles,
+        origin_service=_origin_from_tool(call.name),
     )
+
+
+def _class_from_request_ref(ref: EvidenceRef) -> EvidenceClass:
+    artifact = (ref.artifactType or "").lower()
+    locator = ref.locator if isinstance(ref.locator, dict) else {}
+    if any(token in artifact for token in ("cwe", "cve", "capec", "attack", "knowledge", "threat")):
+        return "knowledge"
+    if any(token in artifact for token in ("request", "objective", "constraint")):
+        return "operational"
+    if any(token in artifact for token in ("sast", "source", "file", "function", "build", "artifact")):
+        return "local"
+    if locator.get("file") or locator.get("path") or locator.get("line"):
+        return "local"
+    return "unclassified"
+
+
+def _roles_from_request_ref(ref: EvidenceRef) -> tuple[str, ...]:
+    artifact = (ref.artifactType or "").lower()
+    roles: list[str] = []
+    if "sast" in artifact:
+        roles.append("sast_finding")
+    if "source" in artifact or "file" in artifact:
+        roles.append("source_location")
+    if "build" in artifact:
+        roles.append("build_context")
+    if any(token in artifact for token in ("cwe", "cve", "capec", "attack", "knowledge", "threat")):
+        roles.append("knowledge_context")
+    return tuple(dict.fromkeys(roles))
+
+
+def _class_and_roles_from_tool(
+    tool_name: str,
+    category: EvidenceCategory,
+    *,
+    file: str | None,
+    sink: str | None,
+) -> tuple[EvidenceClass, tuple[str, ...]]:
+    if category == "knowledge":
+        return "knowledge", ("knowledge_context",)
+    if category in {"sast", "source", "caller", "callee"}:
+        roles: list[str] = []
+        if category == "sast":
+            roles.append("sast_finding")
+        if file:
+            roles.append("source_location")
+        if category == "source":
+            roles.append("source_slice")
+        if category == "caller":
+            roles.append("caller_chain")
+        if category == "callee" or sink:
+            roles.append("sink_or_dangerous_api")
+        return "local", tuple(dict.fromkeys(roles))
+    if category == "metadata":
+        return "local", ("build_context", "target_metadata")
+    return "unclassified", ()
+
+
+def _origin_from_tool(tool_name: str) -> str | None:
+    if tool_name.startswith("code_graph") or tool_name == "knowledge.search":
+        return "s5"
+    if tool_name in {"sast.scan", "build.metadata"}:
+        return "s4"
+    if tool_name == "code.read_file":
+        return "s3"
+    return None
 
 
 def _infer_sink(text: str) -> str | None:

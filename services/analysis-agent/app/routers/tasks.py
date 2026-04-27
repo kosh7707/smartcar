@@ -4,7 +4,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from agent_shared.context import get_request_id, set_request_id
+from app.agent_runtime.context import get_request_id, set_request_id
 from app.registry.model_registry import create_default_registry as create_model_registry
 from app.registry.prompt_registry import create_default_registry as create_prompt_registry
 from app.runtime.request_summary import request_summary_tracker
@@ -188,9 +188,17 @@ async def health(req: Request, requestId: str | None = Query(default=None)) -> d
             p["profileId"] for p in _model_registry.list_all()
         ],
         "activePromptVersions": prompt_versions,
+        "activeResponseSchemas": {
+            "deep-analyze": "agent-v1.1",
+            "generate-poc": "agent-v1.1",
+        },
         "agentConfig": {
             "maxSteps": settings.agent_max_steps,
             "maxCompletionTokens": settings.agent_max_completion_tokens,
+            "taskDeadlineMs": settings.analysis_task_deadline_ms,
+            "partialEnvelopeDeadlineMs": settings.analysis_partial_envelope_deadline_ms,
+            "llmAsyncPollDeadlineMs": settings.llm_async_poll_deadline_ms,
+            "llmAsyncPollIntervalSeconds": settings.llm_async_poll_interval_seconds,
             "toolBudget": {
                 "cheap": settings.agent_max_cheap_calls,
                 "medium": settings.agent_max_medium_calls,

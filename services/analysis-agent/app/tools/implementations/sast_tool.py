@@ -5,14 +5,13 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import time
 
 import httpx
 
-from agent_shared.context import get_request_id
-from agent_shared.observability import agent_log
-from agent_shared.schemas.agent import ToolResult
-from agent_shared.schemas.upstream import SastFinding
+from app.agent_runtime.context import get_request_id
+from app.agent_runtime.observability import agent_log
+from app.agent_runtime.schemas.agent import ToolResult
+from app.agent_runtime.schemas.upstream import SastFinding
 from app.runtime.request_summary import request_summary_tracker
 
 logger = logging.getLogger(__name__)

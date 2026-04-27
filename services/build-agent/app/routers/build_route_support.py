@@ -9,8 +9,8 @@ from datetime import datetime, timezone
 
 from fastapi.responses import JSONResponse
 
-from agent_shared.context import get_request_id
-from agent_shared.llm.prompt_builder import SystemPromptBuilder
+from app.agent_runtime.context import get_request_id
+from app.agent_runtime.llm.prompt_builder import SystemPromptBuilder
 from app.schemas.request import TaskRequest
 from app.schemas.response import AuditInfo, TaskFailureResponse, TaskSuccessResponse, TokenUsage
 from app.types import FailureCode, TaskStatus

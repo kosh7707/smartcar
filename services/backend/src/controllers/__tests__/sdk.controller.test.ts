@@ -14,6 +14,7 @@ describe("sdk.controller", () => {
         totalBytes: 1024,
         uploadedBytes: 512,
         lastPercent: 50,
+        startedAt: 1777100000000,
       },
     } as unknown as Request;
 
@@ -21,11 +22,15 @@ describe("sdk.controller", () => {
 
     expect(sdkWs.broadcast).toHaveBeenCalledWith("project-1", {
       type: "sdk-error",
-      payload: {
+      payload: expect.objectContaining({
         sdkId: "sdk-1234abcd",
         phase: "upload_failed",
         error: "Multipart transfer failed",
-      },
+        code: "UPLOAD_INVALID_INPUT",
+        retryable: false,
+        recoverable: false,
+        userMessage: "SDK 업로드 요청을 확인해 주세요.",
+      }),
     });
     expect(notificationService.emit).toHaveBeenCalledWith({
       projectId: "project-1",

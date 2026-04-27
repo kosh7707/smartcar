@@ -21,6 +21,10 @@ interface AnalysisResultRow {
   needs_human_review: number | null;
   recommended_next_steps: string | null;
   policy_flags: string | null;
+  analysis_outcome: string | null;
+  quality_outcome: string | null;
+  poc_outcome: string | null;
+  recovery_trace: string | null;
   sca_libraries: string | null;
   agent_audit: string | null;
   created_at: string;
@@ -34,6 +38,7 @@ function rowToResult(row: AnalysisResultRow): AnalysisResult {
   const confidenceBreakdown = safeJsonParse(row.confidence_breakdown, undefined);
   const recommendedNextSteps = safeJsonParse(row.recommended_next_steps, []);
   const policyFlags = safeJsonParse(row.policy_flags, []);
+  const recoveryTrace = safeJsonParse(row.recovery_trace, []);
   const scaLibraries = safeJsonParse(row.sca_libraries, []);
   const agentAudit = safeJsonParse(row.agent_audit, undefined);
 
@@ -55,6 +60,10 @@ function rowToResult(row: AnalysisResultRow): AnalysisResult {
     ...(row.needs_human_review != null ? { needsHumanReview: !!row.needs_human_review } : {}),
     ...(recommendedNextSteps.length > 0 ? { recommendedNextSteps } : {}),
     ...(policyFlags.length > 0 ? { policyFlags } : {}),
+    ...(row.analysis_outcome ? { analysisOutcome: row.analysis_outcome as AnalysisResult["analysisOutcome"] } : {}),
+    ...(row.quality_outcome ? { qualityOutcome: row.quality_outcome as AnalysisResult["qualityOutcome"] } : {}),
+    ...(row.poc_outcome ? { pocOutcome: row.poc_outcome as AnalysisResult["pocOutcome"] } : {}),
+    ...(recoveryTrace.length > 0 ? { recoveryTrace } : {}),
     ...(scaLibraries.length > 0 ? { scaLibraries } : {}),
     ...(agentAudit ? { agentAudit } : {}),
     createdAt: row.created_at,
@@ -72,8 +81,8 @@ export class AnalysisResultDAO implements IAnalysisResultDAO {
 
   constructor(private db: DatabaseType) {
     this.insertStmt = db.prepare(
-      `INSERT INTO analysis_results (id, project_id, build_target_id, analysis_execution_id, module, status, vulnerabilities, summary, warnings, analyzed_file_ids, file_coverage, caveats, confidence_score, confidence_breakdown, needs_human_review, recommended_next_steps, policy_flags, sca_libraries, agent_audit, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO analysis_results (id, project_id, build_target_id, analysis_execution_id, module, status, vulnerabilities, summary, warnings, analyzed_file_ids, file_coverage, caveats, confidence_score, confidence_breakdown, needs_human_review, recommended_next_steps, policy_flags, analysis_outcome, quality_outcome, poc_outcome, recovery_trace, sca_libraries, agent_audit, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     this.selectByIdStmt = db.prepare(
       `SELECT * FROM analysis_results WHERE id = ?`,
@@ -114,6 +123,10 @@ export class AnalysisResultDAO implements IAnalysisResultDAO {
       result.needsHumanReview != null ? (result.needsHumanReview ? 1 : 0) : null,
       JSON.stringify(result.recommendedNextSteps ?? []),
       JSON.stringify(result.policyFlags ?? []),
+      result.analysisOutcome ?? null,
+      result.qualityOutcome ?? null,
+      result.pocOutcome ?? null,
+      JSON.stringify(result.recoveryTrace ?? []),
       JSON.stringify(result.scaLibraries ?? []),
       result.agentAudit ? JSON.stringify(result.agentAudit) : null,
       result.createdAt,

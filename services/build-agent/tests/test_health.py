@@ -5,6 +5,12 @@ def test_health(client):
     assert data["service"] == "s3-build"
     assert data["status"] == "ok"
     assert data["version"] == "1.0.0"
+    assert data["activeResponseSchemas"]["build-resolve"] == "build-v1.0"
+    assert data["proposedResponseSchemas"]["build-resolve"] == "build-v1.1-proposal"
+    assert data["agentConfig"]["taskDeadlineMs"] == 1_800_000
+    assert data["agentConfig"]["partialEnvelopeDeadlineMs"] == 1_740_000
+    assert data["agentConfig"]["llmAsyncPollDeadlineMs"] == 1_740_000
+    assert data["agentConfig"]["llmAsyncPollIntervalSeconds"] == 1.0
 
 def test_build_resolve_mock(client):
     """build-resolve 요청이 200을 반환하고 유효한 응답 구조를 갖는지 확인."""

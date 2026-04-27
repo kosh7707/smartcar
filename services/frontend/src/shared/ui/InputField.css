@@ -31,12 +31,14 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
 }
 
+/* Review-tone critical-review (--danger), NOT severity ramp.
+   Form invalid is workflow review state, not finding severity (handoff §2.2). */
 .form-input[aria-invalid="true"] {
-  border-color: var(--severity-critical);
+  border-color: var(--danger);
 }
 .form-input[aria-invalid="true"]:focus,
 .form-input[aria-invalid="true"]:focus-visible {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--severity-critical) 22%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 22%, transparent);
 }
 
 .form-input:disabled {

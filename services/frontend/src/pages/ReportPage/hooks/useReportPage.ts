@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ProjectReport } from "@aegis/shared";
+import type { AnalysisResult, ProjectReport } from "@aegis/shared";
 import type { ReportFilters } from "../../../api/client";
 import { ApiError, fetchProjectReport, logError } from "../../../api/client";
+import { fetchAnalysisResults } from "../../../api/analysis";
 import { getReportModuleEntries, type ModuleTab } from "../reportPresentation";
 
 type ToastAction = { label: string; onClick: () => void } | undefined;
@@ -48,6 +49,35 @@ export function useReportPage(projectId: string | undefined, toast: ToastApi) {
   useEffect(() => {
     loadReport();
   }, [loadReport]);
+
+  const [deepResult, setDeepResult] = useState<AnalysisResult | null>(null);
+  useEffect(() => {
+    if (!report) {
+      setDeepResult(null);
+      return;
+    }
+    const deepRuns = report.modules.deep?.runs ?? [];
+    const latestRun = deepRuns
+      .map((entry) => entry.run)
+      .filter((run) => run.status === "completed" && run.analysisResultId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+    if (!latestRun?.analysisResultId) {
+      setDeepResult(null);
+      return;
+    }
+    let cancelled = false;
+    fetchAnalysisResults(latestRun.analysisResultId)
+      .then((result) => {
+        if (!cancelled) setDeepResult(result);
+      })
+      .catch((error) => {
+        logError("Load deep analysis result for report", error);
+        if (!cancelled) setDeepResult(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [report]);
 
   const handleApplyFilters = useCallback(() => {
     setFilters(pendingFilters);
@@ -109,5 +139,6 @@ export function useReportPage(projectId: string | undefined, toast: ToastApi) {
     summary,
     sevCounts,
     sevMax,
+    deepResult,
   };
 }

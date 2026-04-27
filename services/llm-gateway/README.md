@@ -23,7 +23,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 |------|--------|------|
 | AEGIS_LLM_MODE | mock | `mock` / `real` |
 | AEGIS_LLM_ENDPOINT | (`.env.example` 참조) | LLM Engine 엔드포인트 (vLLM) |
-| AEGIS_LLM_MODEL | Qwen/Qwen3.5-122B-A10B-GPTQ-Int4 | 사용할 모델명 |
+| AEGIS_LLM_MODEL | Qwen/Qwen3.6-27B | 사용할 모델명 (S7 품질 우선 기본값) |
 | AEGIS_LLM_API_KEY | (빈 문자열) | API 키 (vLLM: 불필요) |
 
 ## API

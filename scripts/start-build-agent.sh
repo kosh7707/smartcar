@@ -17,7 +17,6 @@ cmd=(
     --port 8003
     --reload
     --reload-dir app
-    --reload-dir ../agent-shared/agent_shared
 )
 
 if [[ "${AEGIS_PRINT_CMD:-0}" == "1" ]]; then

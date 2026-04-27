@@ -11,15 +11,18 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Any
 
-from agent_shared.observability import agent_log
-from agent_shared.schemas.agent import AgentAuditInfo
+from app.agent_runtime.observability import agent_log
+from app.agent_runtime.schemas.agent import AgentAuditInfo
 from app.pipeline.confidence import ConfidenceCalculator
 from app.pipeline.response_parser import V1ResponseParser
+from app.quality import build_quality_gate
 from app.schemas.response import (
     ArtifactVerification,
     AssessmentResult,
     AuditInfo,
     BuildArtifact,
+    BuildDiagnostics,
+    BuildOutcome,
     BuildPreparation,
     BuildResult,
     Claim,
@@ -142,14 +145,6 @@ class ResultAssembler:
             errorCount=len(schema_result.errors) + len(evidence_errors),
         )
 
-        if not evidence_valid:
-            return self.build_failure(
-                session,
-                TaskStatus.VALIDATION_FAILED,
-                FailureCode.INVALID_GROUNDING,
-                "; ".join(evidence_errors),
-            )
-
         finding = session.request.context.trusted.get("finding")
         rule_matches = session.request.context.trusted.get("ruleMatches", [])
         confidence, breakdown = self._confidence_calculator.calculate(
@@ -180,6 +175,15 @@ class ResultAssembler:
         build_result = self._parse_build_result(parsed)
         sdk_profile = self._parse_sdk_profile(parsed)
         contract = self._extract_contract(session)
+        if build_result is None and session.request.taskType == TaskType.BUILD_RESOLVE:
+            parsed["_contractDeficiencyCode"] = FailureCode.BUILD_SCRIPT_SYNTHESIS_FAILED.value
+            parsed["_contractDeficiencyDetail"] = "build-resolve 응답에 buildResult가 없어 빌드 결과를 확정할 수 없다."
+            build_result = BuildResult(
+                success=False,
+                declaredMode=contract.build_mode,
+                sdkId=contract.sdk_id,
+                errorLog=parsed["_contractDeficiencyDetail"],
+            )
         if build_result is not None:
             if build_result.declaredMode is None:
                 build_result.declaredMode = contract.build_mode
@@ -195,6 +199,8 @@ class ResultAssembler:
         )
         if contract_failure is not None:
             return contract_failure
+        build_outcome = self._build_outcome(build_result, contract, parsed)
+        build_diagnostics = self._build_diagnostics(build_result, contract, parsed)
 
         result = AssessmentResult(
             summary=parsed.get("summary", ""),
@@ -210,6 +216,9 @@ class ResultAssembler:
             buildResult=build_result,
             buildPreparation=self._build_preparation(session, build_result, contract),
             sdkProfile=sdk_profile,
+            buildOutcome=build_outcome,
+            cleanPass=build_outcome.cleanPass if build_outcome is not None else False,
+            buildDiagnostics=build_diagnostics,
         )
 
         agent_log(
@@ -449,67 +458,37 @@ class ResultAssembler:
         build_result: BuildResult | None,
         contract: _StrictContract,
     ) -> TaskFailureResponse | None:
+        """Apply strict build contract diagnostics without turning quality into task failure."""
         if session.request.taskType != TaskType.BUILD_RESOLVE:
             return None
         if not contract.strict_mode:
             return None
 
         if build_result is None:
-            return self.build_failure(
-                session,
-                TaskStatus.VALIDATION_FAILED,
-                FailureCode.BUILD_SCRIPT_SYNTHESIS_FAILED,
-                "strict compile contract에서는 buildResult가 필수다.",
-                failure_context=self._build_failure_context(
-                    build_result=None,
-                    contract=contract,
-                    missing_artifacts=contract.expected_artifacts,
-                ),
-            )
+            parsed["_contractDeficiencyCode"] = FailureCode.BUILD_SCRIPT_SYNTHESIS_FAILED.value
+            parsed["_contractDeficiencyDetail"] = "strict compile contract에서는 buildResult가 필수다."
+            return None
 
         if not build_result.buildCommand.strip() or not build_result.buildScript.strip():
-            return self.build_failure(
-                session,
-                TaskStatus.VALIDATION_FAILED,
-                FailureCode.BUILD_SCRIPT_SYNTHESIS_FAILED,
-                "strict compile contract에서는 재사용 가능한 buildCommand/buildScript가 필수다.",
-                failure_context=self._build_failure_context(build_result, contract),
+            parsed["_contractDeficiencyCode"] = FailureCode.BUILD_SCRIPT_SYNTHESIS_FAILED.value
+            parsed["_contractDeficiencyDetail"] = (
+                "strict compile contract에서는 재사용 가능한 buildCommand/buildScript가 필수다."
             )
+            return None
 
         if not build_result.success:
-            code, detail = self._classify_build_failure(build_result, parsed)
-            return self.build_failure(
-                session,
-                TaskStatus.VALIDATION_FAILED,
-                code,
-                detail,
-                failure_context=self._build_failure_context(build_result, contract),
-            )
+            return None
 
         if not self._has_build_success_evidence(session):
-            return self.build_failure(
-                session,
-                TaskStatus.VALIDATION_FAILED,
-                FailureCode.INVALID_GROUNDING,
-                "strict compile contract에서는 try_build 성공 evidence가 없는 success 응답을 허용하지 않는다.",
-                failure_context=self._build_failure_context(build_result, contract),
+            parsed["_contractDeficiencyCode"] = FailureCode.INVALID_GROUNDING.value
+            parsed["_contractDeficiencyDetail"] = (
+                "strict compile contract에서는 try_build 성공 evidence가 없는 success 응답을 clean pass로 허용하지 않는다."
             )
+            return None
 
         verification = self._verify_expected_artifacts(build_result, contract)
         if verification is not None:
             build_result.artifactVerification = verification
-            if not verification.matched:
-                return self.build_failure(
-                    session,
-                    TaskStatus.VALIDATION_FAILED,
-                    FailureCode.EXPECTED_ARTIFACTS_MISMATCH,
-                    "declared expectedArtifacts가 producedArtifacts와 일치하지 않는다.",
-                    failure_context=self._build_failure_context(
-                        build_result,
-                        contract,
-                        missing_artifacts=verification.missing,
-                    ),
-                )
 
         return None
 
@@ -542,6 +521,66 @@ class ResultAssembler:
         if any(keyword in lowered for keyword in _MISSING_MATERIALS_KEYWORDS):
             return (FailureCode.MISSING_BUILD_MATERIALS, detail_blob or "빌드에 필요한 파일/의존성이 누락되었다.")
         return (FailureCode.COMPILE_FAILED, detail_blob or "완전한 재료는 있었지만 compile/link 단계에서 실패했다.")
+
+    def _build_outcome(
+        self,
+        build_result: BuildResult | None,
+        contract: _StrictContract,
+        parsed: dict[str, Any],
+    ) -> BuildOutcome | None:
+        contract_code, contract_detail = _contract_deficiency(parsed)
+        if contract_code is not None:
+            return BuildOutcome(
+                outcome=build_quality_gate.build_outcome_value_for(contract_code),
+                cleanPass=False,
+                reasons=[contract_detail],
+            )
+        if build_result is None:
+            return None
+        if build_result.success:
+            verification = build_result.artifactVerification
+            if verification is not None and not verification.matched:
+                return BuildOutcome(
+                    outcome="artifact_mismatch",
+                    cleanPass=False,
+                    reasons=["expected artifacts did not match produced artifacts"],
+                )
+            return BuildOutcome(
+                outcome="built",
+                cleanPass=True,
+                reasons=["buildResult.success=true", "no strict artifact mismatch"],
+            )
+
+        code, detail = self._classify_build_failure(build_result, parsed)
+        return BuildOutcome(
+            outcome=build_quality_gate.build_outcome_value_for(code),
+            cleanPass=False,
+            reasons=[detail],
+        )
+
+    def _build_diagnostics(
+        self,
+        build_result: BuildResult | None,
+        contract: _StrictContract,
+        parsed: dict[str, Any],
+    ) -> BuildDiagnostics | None:
+        if build_result is None:
+            return None
+        code, _ = _contract_deficiency(parsed)
+        if code is None and not build_result.success:
+            code, _ = self._classify_build_failure(build_result, parsed)
+        produced = [artifact.path or artifact.kind for artifact in build_result.producedArtifacts]
+        verification = build_result.artifactVerification
+        if code is None and verification is not None and not verification.matched:
+            code = FailureCode.EXPECTED_ARTIFACTS_MISMATCH
+        return BuildDiagnostics(
+            failureCode=code.value if code is not None else None,
+            failureCategory=build_quality_gate.build_outcome_value_for(code) if code is not None else None,
+            expectedArtifacts=contract.expected_artifacts,
+            producedArtifacts=[item for item in produced if item],
+            missingArtifacts=verification.missing if verification is not None else [],
+            caveats=[item for item in parsed.get("caveats", []) if isinstance(item, str)],
+        )
 
     def _extract_contract(self, session: AgentSession) -> _StrictContract:
         request = session.request
@@ -704,6 +743,15 @@ class ResultAssembler:
             if rel_dir and rel_dir not in current_rel_dirs:
                 current_rel_dirs.append(rel_dir)
                 add_recursive_root(os.path.join(build_root, rel_dir))
+
+        # Some LLM-produced build scripts keep the reusable script under the
+        # caller-provided buildDir (for example build-aegis-<hash>/aegis-build.sh)
+        # but run CMake/Make with the conventional project-root build directory.
+        # The successful try_build evidence proves a fresh build ran in this
+        # request, so it is safe to search conventional output directories while
+        # still refusing stale project-root binaries.
+        for fallback_dir in ("build", "out", "bin", "dist"):
+            add_recursive_root(os.path.join(build_root, fallback_dir))
 
         def is_under_current_dir(rel_path: str, rel_dir: str) -> bool:
             rel_posix = rel_path.replace("\\", "/").strip("/")
@@ -903,3 +951,17 @@ class ResultAssembler:
         if path.name and path.name != ".":
             return path.name
         return text
+
+
+def _contract_deficiency(parsed: dict[str, Any]) -> tuple[FailureCode | None, str]:
+    raw_code = parsed.get("_contractDeficiencyCode")
+    if not isinstance(raw_code, str) or not raw_code:
+        return None, ""
+    try:
+        code = FailureCode(raw_code)
+    except ValueError:
+        return None, ""
+    detail = parsed.get("_contractDeficiencyDetail")
+    if not isinstance(detail, str) or not detail.strip():
+        detail = code.value
+    return code, detail

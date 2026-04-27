@@ -5,7 +5,7 @@ import json
 import os
 from typing import TYPE_CHECKING
 
-from agent_shared.schemas.agent import ToolResult
+from app.agent_runtime.schemas.agent import ToolResult
 
 if TYPE_CHECKING:
     from app.policy.file_policy import FilePolicy

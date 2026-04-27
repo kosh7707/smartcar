@@ -38,7 +38,7 @@ async def test_build_resolve_requests_async_ownership_on_toolless_turn(monkeypat
 
     async def fake_call(self, *args, **kwargs):
         seen["prefer_async_ownership"] = kwargs.get("prefer_async_ownership")
-        from agent_shared.schemas.agent import LlmResponse
+        from app.agent_runtime.schemas.agent import LlmResponse
         return LlmResponse(
             content=json.dumps({
                 "summary": "빌드 완료",
@@ -73,8 +73,8 @@ async def test_build_resolve_requests_async_ownership_on_toolless_turn(monkeypat
         "app.core.result_assembler.ResultAssembler._has_build_success_evidence",
         lambda self, session: True,
     )
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
 
     try:
         result = await handle_build_resolve(request)

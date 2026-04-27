@@ -76,8 +76,7 @@ The JSON map below is **authoritative**. All `wiki_handoff` / `design_system_ref
       "wiki_handoff": "wiki/canon/handoff/s3/readme.md",
       "owned_code_paths": [
         "services/analysis-agent",
-        "services/build-agent",
-        "services/agent-shared"
+        "services/build-agent"
       ]
     },
     "S4": {
@@ -117,7 +116,7 @@ The JSON map below is **authoritative**. All `wiki_handoff` / `design_system_ref
 | `S1` | `wiki/canon/handoff/s1/readme.md` | `wiki/canon/design-system/readme.md` | `services/frontend` |
 | `S1-QA` | `wiki/canon/handoff/s1/qa-guide.md` | `wiki/canon/design-system/readme.md` | none — browser/Playwright verification only |
 | `S2` | `wiki/canon/handoff/s2/readme.md` | — | `services/backend`, `services/shared`, `scripts` |
-| `S3` | `wiki/canon/handoff/s3/readme.md` | — | `services/analysis-agent`, `services/build-agent`, `services/agent-shared` |
+| `S3` | `wiki/canon/handoff/s3/readme.md` | — | `services/analysis-agent`, `services/build-agent` |
 | `S4` | `wiki/canon/handoff/s4/readme.md` | — | `services/sast-runner` |
 | `S5` | `wiki/canon/handoff/s5/readme.md` | — | `services/knowledge-base` |
 | `S6` | `wiki/canon/handoff/s6/readme.md` | — | `services/adapter`, `services/ecu-simulator` |

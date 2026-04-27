@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from agent_shared.path_util import resolve_scoped_path
+from app.agent_runtime.path_util import resolve_scoped_path
 from app.policy.file_policy import FilePolicy
 
 

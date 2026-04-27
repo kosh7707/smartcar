@@ -4,8 +4,8 @@ from __future__ import annotations
 import json
 import os
 
-from agent_shared.path_util import resolve_scoped_path
-from agent_shared.schemas.agent import ToolResult
+from app.agent_runtime.path_util import resolve_scoped_path
+from app.agent_runtime.schemas.agent import ToolResult
 
 _MAX_READ_CHARS = 8_000
 

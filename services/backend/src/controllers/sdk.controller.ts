@@ -20,6 +20,7 @@ interface SdkUploadContext {
   totalBytes: number;
   uploadedBytes: number;
   lastPercent: number;
+  startedAt: number;
 }
 
 type SdkUploadRequest = Request & { sdkUploadContext?: SdkUploadContext };
@@ -104,6 +105,8 @@ class SdkUploadStorage implements multer.StorageEngine {
         uploadedBytes: 0,
         totalBytes: totalBytes > 0 ? totalBytes : undefined,
         fileName,
+        phaseStartedAt: ctx.startedAt,
+        phaseDetail: { kind: "sdk.uploading", params: { fileName } },
       },
     });
 
@@ -114,6 +117,10 @@ class SdkUploadStorage implements multer.StorageEngine {
       const percent = Math.min(99, Math.floor((ctx.uploadedBytes / totalBytes) * 100));
       if (percent <= ctx.lastPercent) return;
       ctx.lastPercent = percent;
+      const elapsedSeconds = Math.max(1, (Date.now() - ctx.startedAt) / 1000);
+      const bytesPerSecond = ctx.uploadedBytes / elapsedSeconds;
+      const remainingBytes = Math.max(0, totalBytes - ctx.uploadedBytes);
+      const etaSeconds = bytesPerSecond > 0 ? Math.ceil(remainingBytes / bytesPerSecond) : undefined;
       this.sdkWs?.broadcast(ctx.projectId, {
         type: "sdk-progress",
         payload: {
@@ -124,6 +131,9 @@ class SdkUploadStorage implements multer.StorageEngine {
           uploadedBytes: ctx.uploadedBytes,
           totalBytes,
           fileName,
+          etaSeconds,
+          phaseStartedAt: ctx.startedAt,
+          phaseDetail: { kind: "sdk.uploading", params: { fileName, percent } },
         },
       });
     });
@@ -183,6 +193,7 @@ function ensureProjectAndUploadContext(projectDAO: IProjectDAO, uploadsDir: stri
       totalBytes: Number(req.headers["content-length"] ?? 0),
       uploadedBytes: 0,
       lastPercent: -1,
+      startedAt: Date.now(),
     };
     (req as SdkUploadRequest).sdkUploadContext = ctx;
     next();
@@ -222,6 +233,13 @@ export function emitUploadFailure(
       sdkId: ctx.sdkId,
       phase: "upload_failed",
       error: message,
+      code: "UPLOAD_INVALID_INPUT",
+      retryable: false,
+      recoverable: false,
+      userMessage: "SDK 업로드 요청을 확인해 주세요.",
+      technicalDetail: message,
+      failedAt: Date.now(),
+      correlationId: ctx.sdkId,
     },
   });
 
@@ -268,10 +286,22 @@ export function createSdkRouter(
     res.json({ success: true, data: result });
   }));
 
+  router.get("/quota", asyncHandler(async (req, res) => {
+    const pid = req.params.pid as string;
+    if (!projectDAO.findById(pid)) throw new NotFoundError(`Project not found: ${pid}`);
+    res.json({ success: true, data: sdkService.getQuota(pid) });
+  }));
+
+  router.get("/metrics", asyncHandler(async (req, res) => {
+    const pid = req.params.pid as string;
+    if (!projectDAO.findById(pid)) throw new NotFoundError(`Project not found: ${pid}`);
+    res.json({ success: true, data: sdkService.getMetrics(pid) });
+  }));
+
   router.get("/:id", asyncHandler(async (req, res) => {
     const id = req.params.id as string;
     const sdk = sdkService.findById(id);
-    if (!sdk) throw new NotFoundError(`SDK not found: ${id}`);
+    if (!sdk || sdk.projectId !== req.params.pid) throw new NotFoundError(`SDK not found: ${id}`);
     res.json({ success: true, data: sdk });
   }));
 
@@ -281,8 +311,31 @@ export function createSdkRouter(
     if (!sdk || sdk.projectId !== req.params.pid) throw new NotFoundError(`SDK not found: ${id}`);
 
     const tailLines = Number(req.query.tailLines ?? 200);
-    const data = sdkService.getInstallLog(id, Number.isFinite(tailLines) ? tailLines : 200);
+    const offset = req.query.offset == null ? undefined : Number(req.query.offset);
+    const limit = req.query.limit == null ? undefined : Number(req.query.limit);
+    const data = sdkService.getInstallLogWindow(id, {
+      tailLines: Number.isFinite(tailLines) ? tailLines : 200,
+      offset: Number.isFinite(offset) ? offset : undefined,
+      limit: Number.isFinite(limit) ? limit : undefined,
+    });
+    if (req.query.download === "true") {
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="${id}-install.log"`);
+      res.send(data.content);
+      return;
+    }
     res.json({ success: true, data });
+  }));
+
+  router.post("/:id/retry", asyncHandler(async (req, res) => {
+    const id = req.params.id as string;
+    const sdkBeforeRetry = sdkService.findById(id);
+    if (!sdkBeforeRetry || sdkBeforeRetry.projectId !== req.params.pid) {
+      throw new NotFoundError(`SDK not found: ${id}`);
+    }
+    const fromPhase = req.body?.fromPhase === "analyzing" ? "analyzing" : "verifying";
+    const sdk = await sdkService.retry(id, fromPhase, req.requestId);
+    res.status(202).json({ success: true, data: sdk });
   }));
 
   router.post(

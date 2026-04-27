@@ -6,10 +6,10 @@ from types import SimpleNamespace
 import pytest
 from starlette.requests import Request
 
-from agent_shared.errors import StrictJsonContractError
+from app.agent_runtime.errors import LlmTimeoutError, StrictJsonContractError
 from app.registry.model_registry import ModelProfile
-from app.routers import tasks
-from app.schemas.request import Context, EvidenceRef, TaskRequest
+from app.routers import generate_poc_handler, tasks
+from app.schemas.request import Constraints, Context, EvidenceRef, TaskRequest
 from app.schemas.response import AuditInfo, AssessmentResult, TaskSuccessResponse, TokenUsage, ValidationInfo
 from app.types import TaskStatus, TaskType
 from app.config import settings
@@ -54,6 +54,24 @@ def _mock_llm_response(content: str, prompt_tokens: int = 10, completion_tokens:
     )
 
 
+def test_generate_poc_async_poll_deadline_uses_explicit_advisory_timeout():
+    request = _make_poc_request()
+    assert (
+        generate_poc_handler._generate_poc_async_poll_deadline_seconds(request)
+        == settings.llm_async_poll_deadline_ms / 1000
+    )
+
+    base = _make_poc_request()
+    explicit = TaskRequest(
+        taskType=base.taskType,
+        taskId=base.taskId,
+        context=base.context,
+        evidenceRefs=base.evidenceRefs,
+        constraints=Constraints(maxTokens=6000, timeoutMs=600000),
+    )
+    assert generate_poc_handler._generate_poc_async_poll_deadline_seconds(explicit) == 595.0
+
+
 @pytest.mark.asyncio
 async def test_generate_poc_returns_structured_json_with_valid_claim(monkeypatch):
     original_mode = settings.llm_mode
@@ -87,8 +105,8 @@ async def test_generate_poc_returns_structured_json_with_valid_claim(monkeypatch
     async def fake_aclose(self):
         return None
 
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
     try:
         result = await tasks._handle_generate_poc(_make_poc_request())
 
@@ -153,8 +171,8 @@ async def test_generate_poc_repairs_missing_top_level_caveats(monkeypatch):
     async def fake_aclose(self):
         return None
 
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
     try:
         result = await tasks._handle_generate_poc(_make_poc_request())
 
@@ -230,8 +248,8 @@ async def test_generate_poc_repairs_orphaned_claim_fragment_via_strict_schema_re
     async def fake_aclose(self):
         return None
 
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
     try:
         result = await tasks._handle_generate_poc(_make_poc_request())
 
@@ -290,8 +308,8 @@ async def test_generate_poc_schema_repair_scaffold_restores_required_shape(monke
     async def fake_aclose(self):
         return None
 
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
     try:
         result = await tasks._handle_generate_poc(_make_poc_request())
 
@@ -308,6 +326,67 @@ async def test_generate_poc_schema_repair_scaffold_restores_required_shape(monke
         assert result.result.claims[0].supportingEvidenceRefs == ["eref-001"]
         assert "Expanded narrative PoC detail" in result.result.claims[0].detail
         assert result.validation.valid is True
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.parametrize(
+    "first_content",
+    [
+        pytest.param("not-json", id="non_json_initial_response"),
+        pytest.param(json.dumps({
+            "summary": "PoC summary without required Assessment fields.",
+            "claims": [{
+                "statement": "CN input reaches popen.",
+                "detail": "The vulnerable path shells out through popen.",
+            }],
+        }), id="schema_invalid_initial_response"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_generate_poc_classifies_schema_repair_strict_json_failure(monkeypatch, first_content):
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+    calls = {"count": 0}
+
+    async def fake_call(self, *args, **kwargs):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            return _mock_llm_response(first_content)
+        raise StrictJsonContractError(
+            async_request_id="acr-repair",
+            gateway_request_id="req-repair",
+            error_detail="schema repair produced invalid json",
+        )
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "completed"
+        assert calls["count"] == 2
+        assert result.validation.valid is True
+        assert not hasattr(result, "failureCode")
+        assert result.result.pocOutcome == "poc_inconclusive"
+        assert result.result.recoveryTrace[0].deficiency == "SCHEMA_DEFICIENT"
+        assert result.result.recoveryTrace[0].action == "schema_repair_call_failed"
+        assert result.audit.retryCount == 1
+        detail = result.result.recoveryTrace[0].detail or ""
+        assert "strict_json_contract_violation" in detail
+        assert "acr-repair" in detail
+        assert "req-repair" in detail
     finally:
         object.__setattr__(settings, "llm_mode", original_mode)
 
@@ -352,8 +431,8 @@ async def test_generate_poc_retries_strict_json_contract_violation(monkeypatch):
     async def fake_aclose(self):
         return None
 
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
     try:
         result = await tasks._handle_generate_poc(_make_poc_request())
 
@@ -365,7 +444,7 @@ async def test_generate_poc_retries_strict_json_contract_violation(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_generate_poc_reports_strict_json_contract_violation_after_retry(monkeypatch):
+async def test_generate_poc_classifies_strict_json_contract_violation_after_retry(monkeypatch):
     original_mode = settings.llm_mode
     monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
         profileId="test",
@@ -387,18 +466,132 @@ async def test_generate_poc_reports_strict_json_contract_violation_after_retry(m
     async def fake_aclose(self):
         return None
 
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
     try:
         result = await tasks._handle_generate_poc(_make_poc_request())
 
-        assert result.status == "model_error"
-        assert result.failureCode == "MODEL_UNAVAILABLE"
-        assert result.retryable is True
+        assert result.status == "completed"
+        assert result.result.pocOutcome == "poc_inconclusive"
+        assert result.result.recoveryTrace[0].deficiency == "LLM_OUTPUT_DEFICIENT"
         assert result.audit.retryCount == 1
-        assert "strict_json_contract_violation" in result.failureDetail
-        assert "acr-strict-2" in result.failureDetail
-        assert "req-gw-2" in result.failureDetail
+        detail = result.result.recoveryTrace[0].detail or ""
+        assert "strict_json_contract_violation" in detail
+        assert "acr-strict-2" in detail
+        assert "req-gw-2" in detail
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
+async def test_generate_poc_classifies_generic_initial_llm_failure_as_completed_outcome(monkeypatch):
+    """Unknown LLM/output failures should not escape as task failure for valid input."""
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+
+    async def fake_call(self, *args, **kwargs):
+        raise RuntimeError("client decoded no usable model output")
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "completed"
+        assert not hasattr(result, "failureCode")
+        assert result.result.pocOutcome == "poc_inconclusive"
+        assert result.result.cleanPass is False
+        assert result.result.recoveryTrace[0].deficiency == "LLM_OUTPUT_DEFICIENT"
+        assert result.result.recoveryTrace[0].action == "llm_call_failed"
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
+async def test_generate_poc_classifies_llm_timeout_as_completed_inconclusive(monkeypatch):
+    """A live-runtime LLM budget miss should still return a schema-valid completed envelope."""
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+
+    async def fake_call(self, *args, **kwargs):
+        raise LlmTimeoutError("async poll deadline exceeded")
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "completed"
+        assert not hasattr(result, "failureCode")
+        assert result.result.pocOutcome == "poc_inconclusive"
+        assert result.result.cleanPass is False
+        assert result.result.recoveryTrace[0].deficiency == "LLM_TIMEOUT_RECOVERED"
+        assert result.result.evaluationVerdict.taskCompleted is True
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
+async def test_generate_poc_classifies_generic_strict_retry_failure_as_completed_outcome(monkeypatch):
+    """Strict-json retry transport/output deficiency should become completed inconclusive."""
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+    calls = {"count": 0}
+
+    async def fake_call(self, *args, **kwargs):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise StrictJsonContractError(
+                async_request_id="acr-strict-unknown",
+                error_detail="initial strict-json violation",
+            )
+        raise RuntimeError("retry returned no usable model output")
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "completed"
+        assert calls["count"] == 2
+        assert not hasattr(result, "failureCode")
+        assert result.result.pocOutcome == "poc_inconclusive"
+        assert result.result.recoveryTrace[0].deficiency == "LLM_OUTPUT_DEFICIENT"
+        assert result.result.recoveryTrace[0].action == "strict_json_retry_failed"
+        assert result.audit.retryCount == 1
     finally:
         object.__setattr__(settings, "llm_mode", original_mode)
 
@@ -425,20 +618,20 @@ async def test_generate_poc_scaffold_does_not_use_mismatched_request_refs(monkey
     async def fake_aclose(self):
         return None
 
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
     try:
         result = await tasks._handle_generate_poc(_make_poc_request_without_claim_refs_or_location_mismatched_request_ref())
 
         assert result.status == "validation_failed"
-        assert result.failureCode == "INVALID_GROUNDING"
-        assert "supportingEvidenceRefs가 비어 있음" in result.failureDetail
+        assert result.failureCode == "INVALID_SCHEMA"
+        assert "context.trusted.claim" in result.failureDetail
     finally:
         object.__setattr__(settings, "llm_mode", original_mode)
 
 
 @pytest.mark.asyncio
-async def test_generate_poc_rejects_schema_valid_evidence_empty_output(monkeypatch):
+async def test_generate_poc_classifies_schema_valid_evidence_empty_output(monkeypatch):
     original_mode = settings.llm_mode
     monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
         profileId="test",
@@ -470,20 +663,23 @@ async def test_generate_poc_rejects_schema_valid_evidence_empty_output(monkeypat
     async def fake_aclose(self):
         return None
 
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
     try:
         result = await tasks._handle_generate_poc(_make_poc_request())
 
-        assert result.status == "validation_failed"
-        assert result.failureCode == "INVALID_GROUNDING"
-        assert "claims[0].supportingEvidenceRefs가 비어 있음" in result.failureDetail
+        assert result.status == "completed"
+        assert result.validation.valid is True
+        assert result.result.pocOutcome == "poc_rejected"
+        assert result.result.qualityOutcome == "rejected"
+        assert result.result.recoveryTrace[0].deficiency == "REFS_OR_GROUNDING_DEFICIENT"
+        assert "claims[0].supportingEvidenceRefs가 비어 있음" in (result.result.recoveryTrace[0].detail or "")
     finally:
         object.__setattr__(settings, "llm_mode", original_mode)
 
 
 @pytest.mark.asyncio
-async def test_generate_poc_rejects_hallucinated_refs_after_sanitization(monkeypatch):
+async def test_generate_poc_classifies_hallucinated_refs_after_sanitization(monkeypatch):
     original_mode = settings.llm_mode
     monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
         profileId="test",
@@ -515,14 +711,16 @@ async def test_generate_poc_rejects_hallucinated_refs_after_sanitization(monkeyp
     async def fake_aclose(self):
         return None
 
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
     try:
         result = await tasks._handle_generate_poc(_make_poc_request())
 
-        assert result.status == "validation_failed"
-        assert result.failureCode == "INVALID_GROUNDING"
-        assert "eref-hallucinated" in result.failureDetail
+        assert result.status == "completed"
+        assert result.validation.valid is True
+        assert result.result.pocOutcome == "poc_rejected"
+        assert result.result.recoveryTrace[0].deficiency == "REFS_OR_GROUNDING_DEFICIENT"
+        assert "eref-hallucinated" in (result.result.recoveryTrace[0].detail or "")
     finally:
         object.__setattr__(settings, "llm_mode", original_mode)
 
@@ -563,13 +761,61 @@ async def test_generate_poc_requests_async_ownership_for_toolless_llm_call(monke
     async def fake_aclose(self):
         return None
 
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
     try:
         result = await tasks._handle_generate_poc(_make_poc_request())
 
         assert result.status == "completed"
         assert seen["prefer_async_ownership"] is True
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
+async def test_generate_poc_verdict_reports_actual_quality_outcome(monkeypatch):
+    """Quality caveats must not be reported as a clean accepted gate."""
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+
+    async def fake_call(self, *args, **kwargs):
+        return _mock_llm_response(json.dumps({
+            "summary": "PoC requires analyst review.",
+            "claims": [{
+                "statement": "PoC demonstrates command injection.",
+                "detail": "PoC detail with non-destructive reproduction steps.",
+                "supportingEvidenceRefs": ["eref-001"],
+                "location": "src/http_client.cpp:62",
+            }],
+            "caveats": ["Binary path must be checked in the caller environment."],
+            "usedEvidenceRefs": ["eref-001"],
+            "suggestedSeverity": "high",
+            "needsHumanReview": True,
+            "recommendedNextSteps": [],
+            "policyFlags": [],
+        }))
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "completed"
+        assert result.result.qualityOutcome == "accepted_with_caveats"
+        assert result.result.cleanPass is False
+        assert "quality:accepted_with_caveats" in result.result.evaluationVerdict.gateOutcomes
+        assert "analysis, quality, and PoC gates accepted" not in result.result.evaluationVerdict.reasons
     finally:
         object.__setattr__(settings, "llm_mode", original_mode)
 
@@ -593,8 +839,8 @@ async def test_generate_poc_repairs_unstructured_output_with_scaffold(monkeypatc
     async def fake_aclose(self):
         return None
 
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
     try:
         result = await tasks._handle_generate_poc(_make_poc_request())
 
@@ -609,7 +855,7 @@ async def test_generate_poc_repairs_unstructured_output_with_scaffold(monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_generate_poc_rejects_zero_claim_json(monkeypatch):
+async def test_generate_poc_classifies_zero_claim_json(monkeypatch):
     original_mode = settings.llm_mode
     monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
         profileId="test",
@@ -636,13 +882,16 @@ async def test_generate_poc_rejects_zero_claim_json(monkeypatch):
     async def fake_aclose(self):
         return None
 
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
     try:
         result = await tasks._handle_generate_poc(_make_poc_request())
 
-        assert result.status == "validation_failed"
-        assert result.failureCode == "INVALID_SCHEMA"
+        assert result.status == "completed"
+        assert result.validation.valid is True
+        assert result.result.pocOutcome == "poc_rejected"
+        assert result.result.recoveryTrace[0].deficiency == "POC_DEFICIENT"
+        assert "최소 1개" in (result.result.recoveryTrace[0].detail or "")
     finally:
         object.__setattr__(settings, "llm_mode", original_mode)
 
@@ -795,8 +1044,8 @@ async def test_generate_poc_preserves_claim_supporting_evidence_refs(monkeypatch
     async def fake_aclose(self):
         return None
 
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
     try:
         result = await tasks._handle_generate_poc(_make_poc_request_with_claim_refs_no_top_refs())
 
@@ -837,8 +1086,8 @@ async def test_generate_poc_injects_build_preparation_into_user_message(monkeypa
     async def fake_aclose(self):
         return None
 
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
     try:
         await tasks._handle_generate_poc(_make_poc_request_with_build_prep())
 

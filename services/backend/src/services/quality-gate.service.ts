@@ -67,6 +67,8 @@ export class QualityGateService {
       projectId: run.projectId,
       status,
       rules,
+      profileId: profile.id,
+      requestedBy: "system",
       evaluatedAt: now,
       createdAt: now,
     };
@@ -160,6 +162,10 @@ export class QualityGateService {
     return !!run && isVisibleAnalysisArtifact(run);
   }
 
+  private metric(current: number, threshold: number, unit: "count" | "percent" = "count") {
+    return { current, threshold, unit, meta: { current, threshold, unit } };
+  }
+
   /** severity=critical AND 활성 상태 finding → fail */
   private noCritical(findings: Finding[]): GateRuleResult {
     const matched = findings.filter(
@@ -173,6 +179,7 @@ export class QualityGateService {
           ? `${matched.length}건의 활성 critical finding 존재`
           : "활성 critical finding 없음",
       linkedFindingIds: matched.map((f) => f.id),
+      ...this.metric(matched.length, 0),
     };
   }
 
@@ -189,6 +196,7 @@ export class QualityGateService {
           ? `활성 high finding ${matched.length}건 (임계치: ${threshold})`
           : `활성 high finding ${matched.length}건 — 임계치 이내`,
       linkedFindingIds: matched.length >= threshold ? matched.map((f) => f.id) : [],
+      ...this.metric(matched.length, threshold),
     };
   }
 
@@ -200,6 +208,10 @@ export class QualityGateService {
       const refs = this.evidenceRefDAO.findByFindingId(f.id);
       if (refs.length === 0) noEvidence.push(f.id);
     }
+    const activeFindings = findings.filter((f) => !EXCLUDED_STATUSES.has(f.status));
+    const coverage = activeFindings.length > 0
+      ? Math.round(((activeFindings.length - noEvidence.length) / activeFindings.length) * 100)
+      : 100;
     return {
       ruleId: "evidence-coverage" as GateRuleId,
       result: noEvidence.length > 0 ? "warning" : "passed",
@@ -208,6 +220,7 @@ export class QualityGateService {
           ? `${noEvidence.length}건의 finding에 증적(evidence) 없음`
           : "모든 활성 finding에 증적 존재",
       linkedFindingIds: noEvidence,
+      ...this.metric(coverage, 100, "percent"),
     };
   }
 
@@ -222,6 +235,7 @@ export class QualityGateService {
           ? `${matched.length}건의 LLM-only finding 미검증 (sandbox)`
           : "미검증 sandbox finding 없음",
       linkedFindingIds: matched.map((f) => f.id),
+      ...this.metric(matched.length, 0),
     };
   }
 }

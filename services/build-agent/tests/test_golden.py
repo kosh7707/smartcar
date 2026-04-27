@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from agent_shared.schemas.agent import BudgetState
+from app.agent_runtime.schemas.agent import BudgetState
 from app.core.agent_session import AgentSession
 from app.core.result_assembler import ResultAssembler
 from app.schemas.request import Context, EvidenceRef, TaskRequest

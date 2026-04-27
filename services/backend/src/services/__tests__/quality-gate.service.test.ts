@@ -101,7 +101,11 @@ describe("QualityGateService", () => {
       const result = service.evaluateRun("run-1");
       expect(result.status).toBe("pass");
       expect(result.rules).toHaveLength(4);
+      expect(result.profileId).toBe("default");
+      expect(result.requestedBy).toBe("system");
       expect(result.rules.every((r) => r.result === "passed")).toBe(true);
+      expect(result.rules.find((r) => r.ruleId === "no-critical")).toMatchObject({ current: 0, threshold: 0, unit: "count" });
+      expect(result.rules.find((r) => r.ruleId === "evidence-coverage")).toMatchObject({ current: 100, threshold: 100, unit: "percent" });
       expect(gateResultDAO.save).toHaveBeenCalledTimes(1);
     });
 
@@ -150,6 +154,8 @@ describe("QualityGateService", () => {
       const highThreshold = result.rules.find((r) => r.ruleId === "high-threshold");
       expect(highThreshold?.result).toBe("warning");
       expect(highThreshold?.linkedFindingIds).toHaveLength(5);
+      expect(highThreshold).toMatchObject({ current: 5, threshold: 5, unit: "count" });
+      expect(highThreshold?.meta).toMatchObject({ current: 5, threshold: 5, unit: "count" });
     });
 
     it("passes when <5 active high findings", () => {
@@ -179,6 +185,7 @@ describe("QualityGateService", () => {
       const evCov = result.rules.find((r) => r.ruleId === "evidence-coverage");
       expect(evCov?.result).toBe("warning");
       expect(evCov?.linkedFindingIds).toContain(finding.id);
+      expect(evCov).toMatchObject({ current: 0, threshold: 100, unit: "percent" });
     });
 
     it("passes evidence-coverage when all active findings have evidence", () => {

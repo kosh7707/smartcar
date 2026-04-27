@@ -32,13 +32,20 @@ const mockDeleteSdk = vi.fn();
 const mockFetchProject = vi.fn();
 const mockUpdateProjectSettings = vi.fn();
 const mockDeleteProject = vi.fn();
+const mockRetrySdk = vi.fn();
+const mockFetchSdkLog = vi.fn();
+const mockFetchSdkQuota = vi.fn();
 const mockToast = { error: vi.fn(), success: vi.fn(), info: vi.fn() };
 
 vi.mock("../../api/sdk", () => ({
   fetchProjectSdks: (...args: unknown[]) => mockFetchProjectSdks(...args),
   registerSdkByUpload: (...args: unknown[]) => mockRegisterSdkByUpload(...args),
   deleteSdk: (...args: unknown[]) => mockDeleteSdk(...args),
+  retrySdk: (...args: unknown[]) => mockRetrySdk(...args),
+  fetchSdkLog: (...args: unknown[]) => mockFetchSdkLog(...args),
+  fetchSdkQuota: (...args: unknown[]) => mockFetchSdkQuota(...args),
   getSdkWsUrl: vi.fn(() => "ws://localhost:3000/ws/sdk?projectId=p-1"),
+  getSdkLogDownloadUrl: vi.fn((pid: string, sdkId: string) => `http://localhost/api/projects/${pid}/sdk/${sdkId}/log?download=true`),
 }));
 
 vi.mock("../../api/projects", () => ({
@@ -94,6 +101,29 @@ describe("ProjectSettingsPage", () => {
     });
     mockUpdateProjectSettings.mockResolvedValue({ id: "p-1" });
     mockDeleteProject.mockResolvedValue(undefined);
+    mockRetrySdk.mockResolvedValue({
+      id: "sdk-1",
+      projectId: "p-1",
+      name: "Retry SDK",
+      path: "/uploads/p-1/sdk/sdk-1",
+      status: "verifying",
+      verified: false,
+      retryable: true,
+      retryCount: 1,
+      createdAt: "2026-04-04T00:00:00Z",
+      updatedAt: "2026-04-04T00:01:00Z",
+    });
+    mockFetchSdkLog.mockResolvedValue({
+      sdkId: "sdk-1",
+      content: "log line 1\nlog line 2",
+      truncated: false,
+      totalLines: 2,
+    });
+    mockFetchSdkQuota.mockResolvedValue({
+      usedBytes: 1024,
+      maxBytes: 50 * 1024 * 1024 * 1024,
+      sdkCount: 1,
+    });
   });
 
   afterEach(() => {
@@ -127,8 +157,8 @@ describe("ProjectSettingsPage", () => {
     activateSection(/위험 구역/i);
 
     expect(screen.getByRole("heading", { name: "프로젝트 삭제" })).toBeInTheDocument();
-    expect(screen.getByText(/삭제된 프로젝트는 분석 이력/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "프로젝트 삭제" })).toBeInTheDocument();
+    expect(screen.getByText(/분석 이력, 스캔 결과/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /프로젝트 삭제/i })).toBeInTheDocument();
   });
 
   it("renders placeholder sections for not-yet-available settings areas", async () => {
@@ -432,6 +462,180 @@ describe("ProjectSettingsPage", () => {
     await waitFor(() => expect(mockDeleteSdk).toHaveBeenCalledWith("p-1", "sdk-1"));
     await waitFor(() => expect(screen.queryByText("Delete Me SDK")).not.toBeInTheDocument());
     expect(mockToast.success).toHaveBeenCalledWith('SDK "Delete Me SDK" 삭제 완료');
+  });
+
+  it("renders Retry CTA enabled for failed retryable SDK and calls retrySdk on click", async () => {
+    mockFetchProjectSdks.mockResolvedValue({
+      builtIn: [],
+      registered: [{
+        id: "sdk-1",
+        projectId: "p-1",
+        name: "Retry SDK",
+        path: "/uploads/p-1/sdk/sdk-1",
+        status: "verify_failed",
+        verifyError: "검증 실패",
+        retryable: true,
+        retryCount: 0,
+        verified: false,
+        createdAt: "2026-04-04T00:00:00Z",
+        updatedAt: "2026-04-04T00:00:00Z",
+      }],
+    });
+
+    renderPage();
+
+    await waitFor(() => activateSection(/SDK 관리/i));
+    await waitFor(() => expect(screen.getByText("Retry SDK")).toBeInTheDocument());
+
+    const retryBtn = await screen.findByRole("button", { name: /^재시도$/ });
+    expect(retryBtn).not.toBeDisabled();
+    fireEvent.click(retryBtn);
+
+    await waitFor(() => expect(mockRetrySdk).toHaveBeenCalledWith("p-1", "sdk-1"));
+    expect(mockToast.success).toHaveBeenCalledWith('"Retry SDK" 재시도를 시작했습니다.');
+  });
+
+  it("disables Retry CTA when retryable=false and shows tooltip", async () => {
+    mockFetchProjectSdks.mockResolvedValue({
+      builtIn: [],
+      registered: [{
+        id: "sdk-1",
+        projectId: "p-1",
+        name: "No Retry SDK",
+        path: "/uploads/p-1/sdk/sdk-1",
+        status: "extract_failed",
+        verifyError: "압축해제 실패",
+        retryable: false,
+        retryCount: 0,
+        verified: false,
+        createdAt: "2026-04-04T00:00:00Z",
+        updatedAt: "2026-04-04T00:00:00Z",
+      }],
+    });
+
+    renderPage();
+
+    await waitFor(() => activateSection(/SDK 관리/i));
+    await waitFor(() => expect(screen.getByText("No Retry SDK")).toBeInTheDocument());
+
+    const retryBtn = await screen.findByRole("button", { name: /^재시도$/ });
+    expect(retryBtn).toBeDisabled();
+    expect(retryBtn).toHaveAttribute("title", expect.stringMatching(/재시도할 수 없습니다/));
+    expect(mockRetrySdk).not.toHaveBeenCalled();
+  });
+
+  it("renders quota indicator in panel head", async () => {
+    mockFetchProjectSdks.mockResolvedValue({
+      builtIn: [],
+      registered: [{
+        id: "sdk-1",
+        projectId: "p-1",
+        name: "Quota SDK",
+        path: "/uploads/p-1/sdk/sdk-1",
+        status: "ready",
+        verified: true,
+        createdAt: "2026-04-04T00:00:00Z",
+        updatedAt: "2026-04-04T00:00:00Z",
+      }],
+    });
+    mockFetchSdkQuota.mockResolvedValue({
+      usedBytes: 5 * 1024 * 1024 * 1024,
+      maxBytes: 50 * 1024 * 1024 * 1024,
+      sdkCount: 1,
+    });
+
+    renderPage();
+
+    await waitFor(() => activateSection(/SDK 관리/i));
+    await waitFor(() => expect(screen.getByText("Quota SDK")).toBeInTheDocument());
+
+    expect(screen.getByText("QUOTA")).toBeInTheDocument();
+    expect(screen.getByText(/5\.0 GB \/ 50\.0 GB/)).toBeInTheDocument();
+  });
+
+  it("renders structured error UX (userMessage + technicalDetail toggle + correlationId + troubleshooting link)", async () => {
+    mockFetchProjectSdks.mockResolvedValue({
+      builtIn: [],
+      registered: [{
+        id: "sdk-1",
+        projectId: "p-1",
+        name: "Error SDK",
+        path: "/uploads/p-1/sdk/sdk-1",
+        status: "verify_failed",
+        verifyError: "검증 실패",
+        retryable: false,
+        verified: false,
+        createdAt: "2026-04-04T00:00:00Z",
+        updatedAt: "2026-04-04T00:00:00Z",
+      }],
+    });
+
+    renderPage();
+
+    await waitFor(() => activateSection(/SDK 관리/i));
+    await waitFor(() => expect(screen.getByText("Error SDK")).toBeInTheDocument());
+
+    act(() => {
+      MockWebSocket.instances[0].onmessage?.({
+        data: JSON.stringify({
+          type: "sdk-error",
+          payload: {
+            sdkId: "sdk-1",
+            phase: "verify_failed",
+            error: "검증 실패",
+            code: "VERIFY_PATH_MISSING",
+            userMessage: "SDK 경로가 누락되었습니다.",
+            technicalDetail: "sysroot=/opt/x not found",
+            failedAt: 1714099299000,
+            correlationId: "sdk-1",
+            troubleshootingUrl: "https://example.test/troubleshoot/sdk#verify-path-missing",
+            retryable: false,
+            recoverable: false,
+          },
+        }),
+      });
+    });
+
+    expect(await screen.findByText("SDK 경로가 누락되었습니다.")).toBeInTheDocument();
+    expect(screen.getByText("VERIFY_PATH_MISSING")).toBeInTheDocument();
+    expect(screen.getByText("sdk-1")).toBeInTheDocument();
+    const guideLink = screen.getByRole("link", { name: /문제 해결 가이드/ });
+    expect(guideLink).toHaveAttribute("href", "https://example.test/troubleshoot/sdk#verify-path-missing");
+    // Tech detail collapsed by default
+    expect(screen.queryByText("sysroot=/opt/x not found")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /기술 상세/ }));
+    expect(await screen.findByText("sysroot=/opt/x not found")).toBeInTheDocument();
+  });
+
+  it("opens log panel and fetches log content from fetchSdkLog", async () => {
+    mockFetchProjectSdks.mockResolvedValue({
+      builtIn: [],
+      registered: [{
+        id: "sdk-1",
+        projectId: "p-1",
+        name: "Log SDK",
+        path: "/uploads/p-1/sdk/sdk-1",
+        status: "install_failed",
+        verifyError: "설치 실패",
+        installLogPath: "/var/log/sdk.log",
+        retryable: false,
+        verified: false,
+        createdAt: "2026-04-04T00:00:00Z",
+        updatedAt: "2026-04-04T00:00:00Z",
+      }],
+    });
+
+    renderPage();
+
+    await waitFor(() => activateSection(/SDK 관리/i));
+    await waitFor(() => expect(screen.getByText("Log SDK")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /로그 보기/ }));
+
+    await waitFor(() => expect(mockFetchSdkLog).toHaveBeenCalledWith("p-1", "sdk-1", { tailLines: 200 }));
+    expect(await screen.findByText(/log line 1/)).toBeInTheDocument();
+    // Download CTA renders as link
+    expect(screen.getByRole("link", { name: /로그 다운로드/ })).toBeInTheDocument();
   });
 
   it("shows the general section without fetching when no project id is present", async () => {

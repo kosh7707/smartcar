@@ -14,6 +14,8 @@ const logger = createLogger("ws");
 export class WsBroadcaster<T> {
   private clients = new Map<string, Set<WebSocket>>();
   private seqCounters = new Map<string, number>();
+  private heartbeatAlive = new WeakMap<WebSocket, boolean>();
+  private heartbeatTimer: ReturnType<typeof setInterval>;
   readonly wss: WebSocketServer;
 
   constructor(
@@ -28,6 +30,8 @@ export class WsBroadcaster<T> {
   ) {
     this.wss = new WebSocketServer({ noServer: true });
     this.wss.on("connection", (ws, req) => this.handleConnection(ws, req));
+    this.heartbeatTimer = setInterval(() => this.heartbeat(), 30_000);
+    this.wss.on("close", () => clearInterval(this.heartbeatTimer));
   }
 
   broadcast(key: string, message: T): void {
@@ -62,8 +66,13 @@ export class WsBroadcaster<T> {
       this.clients.set(key, new Set());
     }
     this.clients.get(key)!.add(ws);
+    this.heartbeatAlive.set(ws, true);
     logger.debug({ [this.paramName]: key, path: this.path }, "WS client connected");
     this.sendInitialSnapshot(key, ws);
+
+    ws.on("pong", () => {
+      this.heartbeatAlive.set(ws, true);
+    });
 
     ws.on("close", () => {
       this.removeClient(key, ws);
@@ -78,7 +87,36 @@ export class WsBroadcaster<T> {
 
   private removeClient(key: string, ws: WebSocket): void {
     this.clients.get(key)?.delete(ws);
+    this.heartbeatAlive.delete(ws);
     this.cleanupKeyIfEmpty(key);
+  }
+
+  private heartbeat(): void {
+    for (const [key, clients] of this.clients.entries()) {
+      for (const ws of [...clients]) {
+        if (ws.readyState !== WebSocket.OPEN) {
+          this.removeClient(key, ws);
+          continue;
+        }
+        if (this.heartbeatAlive.get(ws) === false) {
+          logger.debug({ [this.paramName]: key, path: this.path }, "WS heartbeat missed — terminating client");
+          ws.terminate();
+          this.removeClient(key, ws);
+          continue;
+        }
+        this.heartbeatAlive.set(ws, false);
+        try {
+          ws.send(JSON.stringify(this.withMeta(key, {
+            type: "heartbeat",
+            payload: { timestamp: Date.now() },
+          } as T)));
+          ws.ping();
+        } catch (err) {
+          logger.warn({ err, [this.paramName]: key, path: this.path }, "WS heartbeat ping failed — removing client");
+          this.removeClient(key, ws);
+        }
+      }
+    }
   }
 
   private cleanupKeyIfEmpty(key: string): void {

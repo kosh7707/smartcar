@@ -1,58 +1,59 @@
-import type { GateRuleResult, GateResult, GateStatus } from "../../api/gate";
+import type {
+  AgentQualityOutcome,
+} from "@aegis/shared";
+import type {
+  GateRuleResult,
+  GateResult,
+  GateStatus,
+  GateRuleMetric,
+} from "../../api/gate";
 
-const PASS_BADGE = "quality-gate-badge quality-gate-badge--pass";
-const FAIL_BADGE = "quality-gate-badge quality-gate-badge--fail";
-const WARNING_BADGE = "quality-gate-badge quality-gate-badge--warning";
+// QualityGatePage presentation logic — gate-context P3 exception per doctrine §2.2.
 
 type StatusConfig = {
   label: string;
-  badgeClassName: string;
-  bannerClassName: string;
-  accentClassName: string;
+  /** historyLabel — shorter sidebar variant (차단/경고/통과/실행) */
+  historyLabel: string;
+  /** canonical .gate / .cell-gate modifier — { blocked | warn | pass | running } */
+  gateMod: "blocked" | "warn" | "pass" | "running";
 };
 
 type RuleResultConfig = {
   label: string;
-  badgeClassName: string;
-  surfaceClassName: string;
+  /** canonical .cell-gate modifier */
+  gateMod: "blocked" | "warn" | "pass" | "running";
 };
 
 export const STATUS_CONFIG: Record<GateStatus, StatusConfig> = {
   pass: {
     label: "통과",
-    badgeClassName: PASS_BADGE,
-    bannerClassName: "quality-gate-status-banner quality-gate-status-banner--pass",
-    accentClassName: "",
+    historyLabel: "통과",
+    gateMod: "pass",
   },
   fail: {
     label: "실패",
-    badgeClassName: FAIL_BADGE,
-    bannerClassName: "quality-gate-status-banner quality-gate-status-banner--fail",
-    accentClassName: "",
+    historyLabel: "차단",
+    gateMod: "blocked",
   },
   warning: {
     label: "경고",
-    badgeClassName: WARNING_BADGE,
-    bannerClassName: "quality-gate-status-banner quality-gate-status-banner--warning",
-    accentClassName: "",
+    historyLabel: "경고",
+    gateMod: "warn",
   },
 };
 
 export const RULE_RESULT_CONFIG: Record<GateRuleResult["result"], RuleResultConfig> = {
   passed: {
     label: "PASS",
-    badgeClassName: PASS_BADGE,
-    surfaceClassName: "quality-gate-rule quality-gate-rule--passed",
+    gateMod: "pass",
   },
   failed: {
     label: "FAIL",
-    badgeClassName: FAIL_BADGE,
-    surfaceClassName: "quality-gate-rule quality-gate-rule--failed",
+    gateMod: "blocked",
   },
   warning: {
     label: "WARN",
-    badgeClassName: WARNING_BADGE,
-    surfaceClassName: "quality-gate-rule quality-gate-rule--warning",
+    gateMod: "warn",
   },
 };
 
@@ -87,4 +88,87 @@ export function sortGateRules(a: GateRuleResult, b: GateRuleResult) {
 
 export function sortGatesByEvaluatedAt(a: GateResult, b: GateResult) {
   return new Date(b.evaluatedAt).getTime() - new Date(a.evaluatedAt).getTime();
+}
+
+// Forward-compat: shared-models §2.6.1 reserves qualityOutcome; absent in v1 gate API.
+export function readQualityOutcome(
+  gate: GateResult,
+): AgentQualityOutcome | undefined {
+  const candidate = (gate as GateResult & { qualityOutcome?: unknown }).qualityOutcome;
+  if (typeof candidate !== "string") return undefined;
+  const known: AgentQualityOutcome[] = [
+    "accepted",
+    "accepted_with_caveats",
+    "rejected",
+    "inconclusive",
+    "repair_exhausted",
+  ];
+  return known.includes(candidate as AgentQualityOutcome)
+    ? (candidate as AgentQualityOutcome)
+    : undefined;
+}
+
+// shared-models §6.1.1: top-level fields take priority; meta is the alternate carrier. No self-mapping (handoff §9).
+export function resolveRuleMetric(rule: GateRuleResult): GateRuleMetric | undefined {
+  if (typeof rule.current === "number" && typeof rule.threshold === "number") {
+    return {
+      current: rule.current,
+      threshold: rule.threshold,
+      unit: rule.unit,
+    };
+  }
+  if (rule.meta && typeof rule.meta.current === "number" && typeof rule.meta.threshold === "number") {
+    return rule.meta;
+  }
+  return undefined;
+}
+
+function formatMetricValue(value: number, unit?: GateRuleMetric["unit"]): string {
+  if (unit === "percent") {
+    return `${value}%`;
+  }
+  return `${value}`;
+}
+
+export function formatThresholdCurrent(rule: GateRuleResult): string | null {
+  const metric = resolveRuleMetric(rule);
+  if (!metric) return null;
+  return formatMetricValue(metric.current, metric.unit);
+}
+
+export function formatThresholdLimit(rule: GateRuleResult): string | null {
+  const metric = resolveRuleMetric(rule);
+  if (!metric) return null;
+  return `/ ${formatMetricValue(metric.threshold, metric.unit)}`;
+}
+
+export function buildHeroSubLine(gate: GateResult): string {
+  const fail = gate.rules.filter((r) => r.result === "failed").length;
+  const warn = gate.rules.filter((r) => r.result === "warning").length;
+  const pass = gate.rules.filter((r) => r.result === "passed").length;
+  return `${fail} fail · ${warn} warn · ${pass} pass`;
+}
+
+export function buildHeroHeadline(status: GateStatus): string {
+  switch (status) {
+    case "pass":
+      return "이번 평가에서 모든 게이트가 통과되었습니다";
+    case "fail":
+      return "이번 평가에서 차단 사유가 발견되었습니다";
+    default:
+      return "이번 평가에서 검토가 필요한 항목이 있습니다";
+  }
+}
+
+// S2 contract §6.1.1: "system" = auto-evaluation marker.
+export function formatRequestedBy(requestedBy: string | undefined): string | null {
+  if (!requestedBy) return null;
+  if (requestedBy === "system") return "자동 평가";
+  return requestedBy;
+}
+
+export function sparkBarTone(status: GateStatus): "pass" | "fail" | "warn" {
+  if (status === "pass") return "pass";
+  if (status === "fail") return "fail";
+  return "warn";
 }

@@ -33,8 +33,10 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
 }
 
+/* Review-tone critical-review (--danger), NOT severity ramp.
+   Form invalid is workflow review state, not finding severity (handoff §2.2). */
 .form-textarea[aria-invalid="true"] {
-  border-color: var(--severity-critical);
+  border-color: var(--danger);
 }
 
 .form-textarea:disabled {

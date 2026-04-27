@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from agent_shared.schemas.agent import BudgetState
+from app.agent_runtime.schemas.agent import BudgetState
 
 
 @pytest.fixture

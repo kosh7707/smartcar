@@ -19,16 +19,28 @@ export const ReportHeader: React.FC<ReportHeaderProps> = ({
     title="보고서"
     action={
       <div className="report-header-actions">
-        <button type="button" className="btn btn-primary btn-sm" variant={hasActiveFilters ? "default" : "outline"} onClick={onToggleFilters}>
-          <Filter size={14} />
+        <button
+          type="button"
+          className={hasActiveFilters ? "btn btn-primary btn-sm" : "btn btn-outline btn-sm"}
+          onClick={onToggleFilters}
+        >
+          <Filter size={14} aria-hidden="true" />
           필터{hasActiveFilters ? " (적용됨)" : ""}
         </button>
-        <button type="button" className="btn btn-outline btn-sm print-hide" onClick={onOpenCustomReport}>
-          <Settings2 size={14} />
+        <button
+          type="button"
+          className="btn btn-outline btn-sm print-hide"
+          onClick={onOpenCustomReport}
+        >
+          <Settings2 size={14} aria-hidden="true" />
           커스텀 보고서
         </button>
-        <button type="button" className="btn btn-primary btn-sm print-hide" onClick={onPrint}>
-          <Download size={14} />
+        <button
+          type="button"
+          className="btn btn-primary btn-sm print-hide"
+          onClick={onPrint}
+        >
+          <Download size={14} aria-hidden="true" />
           PDF 내보내기
         </button>
       </div>

@@ -126,7 +126,130 @@ describe("useSdkProgress", () => {
       });
     });
 
-    expect(onError).toHaveBeenCalledWith("sdk-1", "분석 실패", undefined, undefined);
+    expect(onError).toHaveBeenCalledWith("sdk-1", "분석 실패", undefined, undefined, undefined);
+  });
+
+  it("calls onProgress with extended details (etaSeconds, phaseStartedAt, phaseDetail)", () => {
+    const onProgress = vi.fn();
+    renderHook(() =>
+      useSdkProgress({
+        projectId: "p-1",
+        onProgress,
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      simulateMessage({
+        type: "sdk-progress",
+        payload: {
+          sdkId: "sdk-1",
+          phase: "uploading",
+          percent: 42,
+          uploadedBytes: 100,
+          totalBytes: 200,
+          etaSeconds: 12,
+          phaseStartedAt: 1714099200000,
+          phaseDetail: { kind: "sdk.uploading", params: { fileName: "sdk.tar.gz" } },
+        },
+      });
+    });
+
+    expect(onProgress).toHaveBeenCalledWith("sdk-1", "uploading", {
+      percent: 42,
+      uploadedBytes: 100,
+      totalBytes: 200,
+      etaSeconds: 12,
+      phaseStartedAt: 1714099200000,
+      phaseDetail: { kind: "sdk.uploading", params: { fileName: "sdk.tar.gz" } },
+    });
+  });
+
+  it("calls onError with structured fields (code/userMessage/technicalDetail/failedAt/correlationId/troubleshootingUrl/retryable/recoverable)", () => {
+    const onError = vi.fn();
+    renderHook(() =>
+      useSdkProgress({
+        projectId: "p-1",
+        onProgress: vi.fn(),
+        onComplete: vi.fn(),
+        onError,
+      }),
+    );
+
+    act(() => {
+      simulateMessage({
+        type: "sdk-error",
+        payload: {
+          sdkId: "sdk-1",
+          phase: "verify_failed",
+          error: "검증 실패",
+          logPath: "/var/log/sdk.log",
+          code: "VERIFY_PATH_MISSING",
+          userMessage: "SDK 경로가 누락되었습니다.",
+          technicalDetail: "sysroot=/opt/x not found",
+          failedAt: 1714099299000,
+          correlationId: "sdk-1",
+          troubleshootingUrl: "wiki/canon/troubleshooting/sdk#verify-path-missing",
+          retryable: true,
+          recoverable: true,
+        },
+      });
+    });
+
+    expect(onError).toHaveBeenCalledWith(
+      "sdk-1",
+      "검증 실패",
+      "verify_failed",
+      "/var/log/sdk.log",
+      {
+        code: "VERIFY_PATH_MISSING",
+        userMessage: "SDK 경로가 누락되었습니다.",
+        technicalDetail: "sysroot=/opt/x not found",
+        failedAt: 1714099299000,
+        correlationId: "sdk-1",
+        troubleshootingUrl: "wiki/canon/troubleshooting/sdk#verify-path-missing",
+        retryable: true,
+        recoverable: true,
+      },
+    );
+  });
+
+  it("calls onLog when sdk-log WS message arrives and onLog is provided", () => {
+    const onLog = vi.fn();
+    renderHook(() =>
+      useSdkProgress({
+        projectId: "p-1",
+        onProgress: vi.fn(),
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+        onLog,
+      }),
+    );
+
+    act(() => {
+      simulateMessage({
+        type: "sdk-log",
+        payload: {
+          sdkId: "sdk-1",
+          timestamp: "2026-04-25T10:00:00Z",
+          source: "installer",
+          kind: "output",
+          stream: "stdout",
+          message: "extracting...",
+          logPath: "/var/log/sdk.log",
+        },
+      });
+    });
+
+    expect(onLog).toHaveBeenCalledWith("sdk-1", {
+      timestamp: "2026-04-25T10:00:00Z",
+      source: "installer",
+      kind: "output",
+      stream: "stdout",
+      message: "extracting...",
+      logPath: "/var/log/sdk.log",
+    });
   });
 
   it("calls onProgress with details when WS payload includes percent", () => {
@@ -212,7 +335,7 @@ describe("useSdkProgress", () => {
       });
     });
 
-    expect(onError).toHaveBeenCalledWith("sdk-1", "설치 실패", "install_failed", "/var/log/sdk.log");
+    expect(onError).toHaveBeenCalledWith("sdk-1", "설치 실패", "install_failed", "/var/log/sdk.log", undefined);
   });
 
   it("calls onError for all error phases (upload_failed, extract_failed, install_failed)", () => {
@@ -238,7 +361,7 @@ describe("useSdkProgress", () => {
 
     expect(onError).toHaveBeenCalledTimes(errorPhases.length);
     for (const phase of errorPhases) {
-      expect(onError).toHaveBeenCalledWith("sdk-1", `${phase} error`, phase, undefined);
+      expect(onError).toHaveBeenCalledWith("sdk-1", `${phase} error`, phase, undefined, undefined);
     }
   });
 

@@ -342,7 +342,7 @@ def _build_environment_section(trusted_context: dict) -> str:
 각 도구의 `execute()` 결과에 일관된 truncation을 적용한다.
 
 ```python
-# agent_shared/tools/base.py에 추가
+# agent_runtime/tools/base.py에 추가
 MAX_TOOL_RESULT_CHARS = 8_000  # 도구별 결과 상한
 
 class ToolImplementation(ABC):
@@ -480,8 +480,8 @@ def discover_instruction_files(project_path: str) -> list[dict]:
 
 ```python
 # app/tools/specs.py
-from agent_shared.schemas.agent import ToolCostTier
-from agent_shared.tools.registry import ToolSchema, ToolSideEffect
+from agent_runtime.schemas.agent import ToolCostTier
+from agent_runtime.tools.registry import ToolSchema, ToolSideEffect
 
 ANALYSIS_TOOL_SPECS: list[ToolSchema] = [
     ToolSchema(
@@ -704,6 +704,6 @@ def render_instruction_files(files: list[dict], max_total: int = 12_000, max_per
 | `claw-code/rust/crates/runtime/src/file_ops.rs` | 파일 읽기/쓰기/검색 + truncation |
 | `AEGIS/services/analysis-agent/app/core/phase_one.py` | Phase 1 실행 + `build_phase2_prompt` |
 | `AEGIS/services/analysis-agent/app/core/agent_loop.py` | 에이전트 메인 루프 + 도구 예산 제어 |
-| `AEGIS/services/agent-shared/agent_shared/tools/registry.py` | 공유 도구 레지스트리 |
+| `AEGIS/services/agent-runtime/agent_runtime/tools/registry.py` | 공유 도구 레지스트리 |
 | `AEGIS/services/analysis-agent/app/tools/implementations/sast_tool.py` | SAST 도구 (NDJSON 스트리밍) |
 | `AEGIS/services/analysis-agent/app/tools/implementations/knowledge_tool.py` | KB 검색 도구 |

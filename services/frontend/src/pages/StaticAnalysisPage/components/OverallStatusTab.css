@@ -62,7 +62,9 @@
   letter-spacing: -0.01em;
   color: var(--foreground);
 }
-.overall-status-stat dd.is-warn { color: var(--severity-high); }
+/* is-warn — review-tone caution (--warning), NOT severity ramp.
+   Threshold-near KPI signal, not a finding severity (handoff §2.1). */
+.overall-status-stat dd.is-warn { color: var(--warning); }
 .overall-status-stat__hint {
   font-family: var(--font-mono);
   font-size: 10.5px;

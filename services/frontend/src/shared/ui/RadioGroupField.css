@@ -51,8 +51,10 @@
   border-color: var(--primary);
 }
 
+/* Review-tone critical-review (--danger), NOT severity ramp.
+   Form invalid is workflow review state, not finding severity (handoff §2.2). */
 .form-radio[aria-invalid="true"] {
-  border-color: var(--severity-critical);
+  border-color: var(--danger);
 }
 
 .form-radio[data-disabled] {

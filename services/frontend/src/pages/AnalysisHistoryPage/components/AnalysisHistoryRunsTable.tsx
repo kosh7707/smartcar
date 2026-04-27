@@ -1,8 +1,14 @@
 import React from "react";
-import type { Run } from "@aegis/shared";
+import type {
+  AgentAnalysisOutcome,
+  AgentPocOutcome,
+  AgentQualityOutcome,
+  Run,
+} from "@aegis/shared";
 import { ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { EmptyState } from "../../../shared/ui";
+import { OutcomeChip } from "@/shared/ui/OutcomeChip";
+import { deriveDominantOutcome } from "@/shared/analysis/deepOutcome";
 import { MODULE_META } from "../../../constants/modules";
 import { formatDateTime, formatUptime } from "../../../utils/format";
 import type { AnalysisHistoryFilter } from "../hooks/useAnalysisHistoryPage";
@@ -14,6 +20,10 @@ type HistoryRun = Run & {
     medium?: number;
     low?: number;
   };
+  /** Optional Deep outcome enums when present on the run row (forward compat). */
+  analysisOutcome?: AgentAnalysisOutcome;
+  qualityOutcome?: AgentQualityOutcome;
+  pocOutcome?: AgentPocOutcome;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -21,6 +31,7 @@ const STATUS_LABELS: Record<string, string> = {
   running: "실행 중",
   failed: "실패",
   queued: "대기",
+  pending: "대기",
 };
 
 const EMPTY_TITLES: Record<AnalysisHistoryFilter, string> = {
@@ -29,23 +40,23 @@ const EMPTY_TITLES: Record<AnalysisHistoryFilter, string> = {
   deep_analysis: "해당 모듈의 분석 이력이 없습니다",
 };
 
-const getStatusClass = (status: string) =>
-  ({
-    completed: "analysis-history-runs__status analysis-history-runs__status--completed",
-    failed: "analysis-history-runs__status analysis-history-runs__status--failed",
-    running: "analysis-history-runs__status analysis-history-runs__status--running",
-    queued: "analysis-history-runs__status analysis-history-runs__status--queued",
-  })[status] ?? "analysis-history-runs__status analysis-history-runs__status--queued";
+const EMPTY_DESCRIPTIONS: Record<AnalysisHistoryFilter, string> = {
+  all: "소스 아카이브를 업로드하고 분석을 실행하면 이력, 심각도 분포, 소요 시간 정보를 이곳에서 확인할 수 있습니다.",
+  static_analysis: "정적 분석을 실행하면 이력이 이곳에 표시됩니다.",
+  deep_analysis: "심층 분석을 실행하면 이력이 이곳에 표시됩니다.",
+};
 
-const getSeverityClass = (tone: "critical" | "high" | "medium" | "low", value?: number) =>
-  !value
-    ? "analysis-history-runs__severity-value analysis-history-runs__severity-value--muted"
-    : {
-        critical: "analysis-history-runs__severity-value analysis-history-runs__severity-value--critical",
-        high: "analysis-history-runs__severity-value analysis-history-runs__severity-value--high",
-        medium: "analysis-history-runs__severity-value analysis-history-runs__severity-value--medium",
-        low: "analysis-history-runs__severity-value analysis-history-runs__severity-value--low",
-      }[tone];
+/** Map run.status to canonical .run-status--* modifier */
+const getRunStatusMod = (status: string): string => {
+  const map: Record<string, string> = {
+    completed: "completed",
+    running: "running",
+    failed: "failed",
+    queued: "pending",
+    pending: "pending",
+  };
+  return map[status] ?? "pending";
+};
 
 interface AnalysisHistoryRunsTableProps {
   filter: AnalysisHistoryFilter;
@@ -60,84 +71,135 @@ export const AnalysisHistoryRunsTable: React.FC<AnalysisHistoryRunsTableProps> =
 }) => {
   if (runs.length === 0) {
     return (
-      <section className="analysis-history-runs__empty-shell">
+      <div className="history-empty-shell">
         <EmptyState
           className="empty-state--workspace"
           title={EMPTY_TITLES[filter]}
-          description="분석이 실행되면 이력, 심각도 분포, 소요 시간 정보를 이곳에서 확인할 수 있습니다."
+          description={EMPTY_DESCRIPTIONS[filter]}
         />
-      </section>
+      </div>
     );
   }
 
   return (
-    <div className="panel analysis-history-runs">
-      <div className="panel-head analysis-history-runs__head">
-        <h3 className="panel-title">최근 실행</h3>
-        <p className="analysis-history-runs__head-copy">분석 시점, 심각도 요약, 소요 시간을 한 번에 검토합니다.</p>
+    <div className="panel">
+      <div className="panel-head">
+        <h3>
+          최근 실행
+          <span className="count">{runs.length}</span>
+        </h3>
+        <span className="panel-hint" aria-hidden="true">분석 시점, 심각도 요약, 소요 시간</span>
       </div>
 
-      <div className="panel-body analysis-history-runs__body">
-        <table className="data-table">
+      <div className="panel-body panel-body--scroll" style={{ padding: 0 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr className="analysis-history-runs__header-row">
-              <th className="analysis-history-runs__cell-head">실행</th>
-              <th className="analysis-history-runs__cell-head">시각</th>
-              <th className="analysis-history-runs__cell-head">모듈</th>
-              <th className="analysis-history-runs__cell-head">상태</th>
-              <th className="analysis-history-runs__cell-head analysis-history-runs__cell-head--center">탐지 요약</th>
-              <th className="analysis-history-runs__cell-head">소요 시간</th>
-              <th className="analysis-history-runs__cell-head analysis-history-runs__cell-head--icon" />
+            <tr>
+              <th>실행</th>
+              <th>시각</th>
+              <th>모듈</th>
+              <th>상태</th>
+              <th className="cell-center">탐지 요약 (치명/높음/보통/낮음)</th>
+              <th>소요 시간</th>
+              <th aria-hidden="true" />
             </tr>
           </thead>
           <tbody>
             {runs.map((run, index) => {
               const meta = MODULE_META[run.module] ?? { label: run.module, icon: null };
-              const durationSec = run.startedAt && run.endedAt
-                ? (new Date(run.endedAt).getTime() - new Date(run.startedAt).getTime()) / 1000
-                : 0;
-              const severity = run.severitySummary;
+              const durationSec =
+                run.startedAt && run.endedAt
+                  ? (new Date(run.endedAt).getTime() - new Date(run.startedAt).getTime()) / 1000
+                  : 0;
+              const sev = run.severitySummary;
+              const statusMod = getRunStatusMod(run.status);
+              const isDeepRun = run.module === "deep_analysis";
+              const deepOutcome = isDeepRun
+                ? deriveDominantOutcome({
+                    status: run.status,
+                    analysisOutcome: run.analysisOutcome,
+                    qualityOutcome: run.qualityOutcome,
+                  })
+                : null;
+
               return (
                 <tr
                   key={run.id}
-                  className="analysis-history-runs__row"
+                  className="run-row"
+                  tabIndex={0}
                   onClick={() => onOpenRun(run)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onOpenRun(run);
+                    }
+                  }}
+                  aria-label={`실행 #${index + 1} — ${meta.label} — ${STATUS_LABELS[run.status] ?? run.status}`}
                 >
-                  <td className="analysis-history-runs__cell analysis-history-runs__cell--run">#{index + 1}</td>
-                  <td className="analysis-history-runs__cell analysis-history-runs__cell--meta">{formatDateTime(run.createdAt)}</td>
-                  <td className="analysis-history-runs__cell">
-                    <span className="analysis-history-runs__module">
-                      <span className="analysis-history-runs__module-icon">{meta.icon}</span>
+                  <td>
+                    <span className="run-index">#{index + 1}</span>
+                  </td>
+                  <td>
+                    <span className="run-timestamp">{formatDateTime(run.createdAt)}</span>
+                  </td>
+                  <td>
+                    <span className="run-module-cell">
+                      <span className="run-module-cell__icon" aria-hidden="true">
+                        {meta.icon}
+                      </span>
                       {meta.label}
                     </span>
                   </td>
-                  <td className="analysis-history-runs__cell">
-                    <span className={cn(getStatusClass(run.status))}>
-                      {STATUS_LABELS[run.status] ?? run.status}
+                  <td>
+                    {/* Canonical run-status--* vocab from handoff/components/status.css */}
+                    <span className="history-run-status-cell">
+                      <span className={`run-status run-status--${statusMod}`}>
+                        <span className="run-status__dot" aria-hidden="true" />
+                        {STATUS_LABELS[run.status] ?? run.status}
+                      </span>
+                      {deepOutcome && (
+                        <OutcomeChip
+                          kind="cleanPass"
+                          value={null}
+                          tone={deepOutcome.tone}
+                          label={deepOutcome.label}
+                          size="sm"
+                        />
+                      )}
                     </span>
                   </td>
-                  <td className="analysis-history-runs__cell analysis-history-runs__cell--center analysis-history-runs__cell--mono">
-                    {severity ? (
-                      <span className="analysis-history-runs__severity-summary">
-                        <span className={cn(getSeverityClass("critical", severity.critical))}>{severity.critical ?? 0}</span>
-                        <span className="analysis-history-runs__severity-sep">/</span>
-                        <span className={cn(getSeverityClass("high", severity.high))}>{severity.high ?? 0}</span>
-                        <span className="analysis-history-runs__severity-sep">/</span>
-                        <span className={cn(getSeverityClass("medium", severity.medium))}>{severity.medium ?? 0}</span>
-                        <span className="analysis-history-runs__severity-sep">/</span>
-                        <span className={cn(getSeverityClass("low", severity.low))}>{severity.low ?? 0}</span>
+                  <td className="cell-center">
+                    {sev ? (
+                      <span className="hist-sev-summary" aria-label={`치명 ${sev.critical ?? 0} 높음 ${sev.high ?? 0} 보통 ${sev.medium ?? 0} 낮음 ${sev.low ?? 0}`}>
+                        <span className={`hist-sev-summary__val${(sev.critical ?? 0) > 0 ? " hist-sev-summary__val--critical" : ""}`}>
+                          {sev.critical ?? 0}
+                        </span>
+                        <span className="hist-sev-summary__sep" aria-hidden="true">/</span>
+                        <span className={`hist-sev-summary__val${(sev.high ?? 0) > 0 ? " hist-sev-summary__val--high" : ""}`}>
+                          {sev.high ?? 0}
+                        </span>
+                        <span className="hist-sev-summary__sep" aria-hidden="true">/</span>
+                        <span className={`hist-sev-summary__val${(sev.medium ?? 0) > 0 ? " hist-sev-summary__val--medium" : ""}`}>
+                          {sev.medium ?? 0}
+                        </span>
+                        <span className="hist-sev-summary__sep" aria-hidden="true">/</span>
+                        <span className={`hist-sev-summary__val${(sev.low ?? 0) > 0 ? " hist-sev-summary__val--low" : ""}`}>
+                          {sev.low ?? 0}
+                        </span>
                       </span>
                     ) : run.findingCount > 0 ? (
-                      <span className="analysis-history-runs__cell--meta">{run.findingCount}</span>
+                      <span className="run-duration">{run.findingCount}</span>
                     ) : (
-                      <span className="analysis-history-runs__cell--meta">—</span>
+                      <span className="run-timestamp">—</span>
                     )}
                   </td>
-                  <td className="analysis-history-runs__cell analysis-history-runs__cell--meta">
-                    {durationSec > 0 ? formatUptime(durationSec) : "—"}
+                  <td>
+                    <span className="run-duration">
+                      {durationSec > 0 ? formatUptime(durationSec) : "—"}
+                    </span>
                   </td>
-                  <td className="analysis-history-runs__cell analysis-history-runs__cell--icon-cell">
-                    <ChevronRight size={16} className="analysis-history-runs__chevron" />
+                  <td className="run-chev-cell" aria-hidden="true">
+                    <ChevronRight size={16} />
                   </td>
                 </tr>
               );

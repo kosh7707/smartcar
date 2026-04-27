@@ -5,22 +5,23 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.agent_runtime.errors import StrictJsonContractError
 from app.budget.manager import BudgetManager
 from app.budget.token_counter import TokenCounter
 from app.core.agent_loop import AgentLoop
 from app.core.agent_session import AgentSession
 from app.core.phase_one_types import Phase1Result
 from app.core.result_assembler import ResultAssembler
-from agent_shared.llm.message_manager import MessageManager
-from agent_shared.llm.turn_summarizer import TurnSummarizer
-from agent_shared.policy.retry import RetryPolicy
+from app.agent_runtime.llm.message_manager import MessageManager
+from app.agent_runtime.llm.turn_summarizer import TurnSummarizer
+from app.agent_runtime.policy.retry import RetryPolicy
 from app.policy.termination import TerminationPolicy
 from app.policy.tool_failure import ToolFailurePolicy
-from agent_shared.schemas.agent import BudgetState, LlmResponse, ToolCallRequest, ToolCostTier, ToolResult, ToolTraceStep
+from app.agent_runtime.schemas.agent import BudgetState, LlmResponse, ToolCallRequest, ToolCostTier, ToolResult, ToolTraceStep
 from app.schemas.request import Context, EvidenceRef, TaskRequest
-from agent_shared.tools.executor import ToolExecutor
+from app.agent_runtime.tools.executor import ToolExecutor
 from app.tools.implementations.mock_tools import MockKnowledgeTool
-from agent_shared.tools.registry import ToolRegistry, ToolSchema
+from app.agent_runtime.tools.registry import ToolRegistry, ToolSchema
 from app.tools.router import ToolRouter
 from app.types import TaskType
 
@@ -154,8 +155,7 @@ def _wrong_collection_types_json() -> str:
 
 def _gateway_webserver_low_confidence_json(*, include_retrieval_ref: bool) -> str:
     used_refs = ["eref-001"]
-    if include_retrieval_ref:
-        used_refs.append("eref-mock-CWE-36")
+    contextual_refs = ["eref-mock-CWE-36"] if include_retrieval_ref else []
     return json.dumps({
         "summary": "readlink 경로는 추가 검증이 필요하지만 보안상 무시하기엔 이릅니다.",
         "claims": [{
@@ -173,6 +173,7 @@ def _gateway_webserver_low_confidence_json(*, include_retrieval_ref: bool) -> st
         "needsHumanReview": True,
         "recommendedNextSteps": ["knowledge.search로 CWE/CVE 연결 근거를 보강", "코드 경로를 추가 확인"],
         "policyFlags": ["low_confidence_claim_present"],
+        "contextualEvidenceRefs": contextual_refs,
     })
 
 
@@ -309,7 +310,7 @@ async def test_three_turn_scenario():
 
 @pytest.mark.asyncio
 async def test_max_steps_exhaustion():
-    """max_steps에 도달하면 루프 강제 종료."""
+    """max_steps에 도달하면 completed repair_exhausted outcome으로 분류."""
     # max_steps=2인데 계속 tool_call만 반환
     responses = [
         LlmResponse(
@@ -321,13 +322,15 @@ async def test_max_steps_exhaustion():
     loop, session = _build_agent_loop(responses, {"max_steps": 2})
     result = await loop.run(session)
 
-    assert result.status == "budget_exceeded"
-    assert session.termination_reason == "max_steps"
+    assert result.status == "completed"
+    assert result.result.qualityOutcome == "repair_exhausted"
+    assert result.result.recoveryTrace[0].deficiency == "RECOVERY_EXHAUSTED"
+    assert session.termination_reason == "max_steps_recovered"
 
 
 @pytest.mark.asyncio
 async def test_token_budget_exhaustion():
-    """completion token 예산 초과 시 종료."""
+    """completion token 예산 초과는 hard timeout이 아니면 completed outcome으로 분류."""
     responses = [
         LlmResponse(
             tool_calls=[ToolCallRequest(id="c1", name="knowledge.search", arguments={"query": "a"})],
@@ -341,14 +344,16 @@ async def test_token_budget_exhaustion():
     loop, session = _build_agent_loop(responses, {"max_completion_tokens": 2000})
     result = await loop.run(session)
 
-    assert result.status == "budget_exceeded"
-    assert session.termination_reason == "budget_exhausted"
+    assert result.status == "completed"
+    assert result.result.qualityOutcome == "repair_exhausted"
+    assert result.result.recoveryTrace[0].deficiency == "RECOVERY_EXHAUSTED"
+    assert session.termination_reason == "budget_exhausted_recovered"
 
 
 @pytest.mark.asyncio
 async def test_llm_error_returns_failure():
     """LLM 호출이 재시도 후에도 실패하면 MODEL_ERROR 반환."""
-    from agent_shared.errors import LlmUnavailableError
+    from app.agent_runtime.errors import LlmUnavailableError
 
     llm_caller = MagicMock()
     llm_caller.call = AsyncMock(side_effect=LlmUnavailableError())
@@ -374,6 +379,84 @@ async def test_llm_error_returns_failure():
 
     assert result.status == "model_error"
     assert result.retryable is True
+
+
+@pytest.mark.asyncio
+async def test_llm_timeout_remains_task_failure_boundary():
+    """Hard LLM deadline is a public timeout boundary, not a recovered domain outcome."""
+    from app.agent_runtime.errors import LlmTimeoutError
+
+    llm_caller = MagicMock()
+    llm_caller.call = AsyncMock(side_effect=LlmTimeoutError("async poll deadline exceeded"))
+
+    budget = BudgetState()
+    bm = BudgetManager(budget)
+    registry = ToolRegistry()
+
+    loop = AgentLoop(
+        llm_caller=llm_caller,
+        message_manager=MessageManager("sys", "usr"),
+        tool_registry=registry,
+        tool_router=ToolRouter(registry, ToolExecutor(), bm, ToolFailurePolicy()),
+        termination_policy=TerminationPolicy(),
+        budget_manager=bm,
+        token_counter=TokenCounter(),
+        result_assembler=ResultAssembler(),
+        turn_summarizer=TurnSummarizer(),
+        retry_policy=RetryPolicy(max_retries=0),
+    )
+    session = AgentSession(_make_request(), budget)
+    result = await loop.run(session)
+
+    assert result.status == "timeout"
+    assert result.failureCode == "TIMEOUT"
+
+
+@pytest.mark.asyncio
+async def test_llm_overload_becomes_completed_output_deficient_outcome():
+    """LLM_BUSY/overload is an output/runtime deficiency, not MODEL_UNAVAILABLE."""
+    from app.agent_runtime.errors import LlmHttpError
+
+    llm_caller = MagicMock()
+    llm_caller.call = AsyncMock(side_effect=LlmHttpError(503, "busy"))
+
+    budget = BudgetState()
+    bm = BudgetManager(budget)
+    registry = ToolRegistry()
+
+    loop = AgentLoop(
+        llm_caller=llm_caller,
+        message_manager=MessageManager("sys", "usr"),
+        tool_registry=registry,
+        tool_router=ToolRouter(registry, ToolExecutor(), bm, ToolFailurePolicy()),
+        termination_policy=TerminationPolicy(),
+        budget_manager=bm,
+        token_counter=TokenCounter(),
+        result_assembler=ResultAssembler(),
+        turn_summarizer=TurnSummarizer(),
+        retry_policy=RetryPolicy(max_retries=0),
+    )
+    session = AgentSession(_make_request(), budget)
+    result = await loop.run(session)
+
+    assert result.status == "completed"
+    assert result.result.analysisOutcome == "inconclusive"
+    assert result.result.qualityOutcome == "repair_exhausted"
+    assert result.result.recoveryTrace[0].action == "llm_call_recovered"
+    assert not hasattr(result, "failureCode")
+
+
+@pytest.mark.asyncio
+async def test_empty_llm_content_becomes_completed_output_deficient_outcome():
+    responses = [LlmResponse(content="", prompt_tokens=100, completion_tokens=0)]
+    loop, session = _build_agent_loop(responses)
+
+    result = await loop.run(session)
+
+    assert result.status == "completed"
+    assert result.result.analysisOutcome == "inconclusive"
+    assert result.result.qualityOutcome == "repair_exhausted"
+    assert result.result.recoveryTrace[0].deficiencyClass == "empty_llm_output"
 
 
 @pytest.mark.asyncio
@@ -422,7 +505,7 @@ async def test_unstructured_content_retries_and_promotes_gateway_webserver_claim
 
 
 @pytest.mark.asyncio
-async def test_unstructured_content_twice_returns_validation_failure():
+async def test_unstructured_content_twice_returns_completed_inconclusive():
     responses = [
         LlmResponse(content=_gateway_webserver_plan_text(), prompt_tokens=100, completion_tokens=40),
         LlmResponse(content=_gateway_webserver_plan_text(), prompt_tokens=120, completion_tokens=35),
@@ -431,8 +514,10 @@ async def test_unstructured_content_twice_returns_validation_failure():
     loop, session = _build_agent_loop(responses)
     result = await loop.run(session)
 
-    assert result.status == "validation_failed"
-    assert result.failureCode == "INVALID_SCHEMA"
+    assert result.status == "completed"
+    assert result.result.analysisOutcome == "inconclusive"
+    assert result.result.qualityOutcome == "repair_exhausted"
+    assert result.result.recoveryTrace[0].deficiency == "LLM_OUTPUT_DEFICIENT"
     assert session.turn_count == 3
 
 
@@ -484,7 +569,28 @@ async def test_unstructured_content_twice_uses_strict_structured_finalizer():
     assert result.result.usedEvidenceRefs == ["eref-sast-flawfinder:shell/popen"]
     assert result.result.confidenceBreakdown.grounding == 1.0
     assert result.result.policyFlags == ["structured_finalizer"]
-    assert session.turn_count == 3
+
+
+@pytest.mark.asyncio
+async def test_structured_finalizer_strict_json_error_becomes_completed_outcome():
+    responses = [
+        LlmResponse(content=_gateway_webserver_plan_text(), prompt_tokens=100, completion_tokens=40),
+        LlmResponse(content=_gateway_webserver_plan_text(), prompt_tokens=120, completion_tokens=35),
+        StrictJsonContractError(
+            async_request_id="acr-finalizer",
+            gateway_request_id="req-finalizer",
+            error_detail="invalid json",
+        ),
+    ]
+    loop, session = _build_agent_loop(responses)
+    result = await loop.run(session)
+
+    assert result.status == "completed"
+    assert result.result.analysisOutcome == "inconclusive"
+    assert result.result.qualityOutcome == "repair_exhausted"
+    assert result.result.recoveryTrace[0].deficiency == "LLM_OUTPUT_DEFICIENT"
+    assert "strict_json_contract_violation" in (result.result.recoveryTrace[0].detail or "")
+    assert session.turn_count == 2
 
 
 @pytest.mark.asyncio
@@ -614,7 +720,8 @@ async def test_low_confidence_claim_triggers_one_shot_grounding_nudge():
     assert session.turn_count == 4
     assert result.result.policyFlags == ["low_confidence_claim_present"]
     assert "Exploitability is plausible but not fully confirmed" in result.result.claims[0].detail
-    assert "eref-mock-CWE-36" in result.result.usedEvidenceRefs
+    assert "eref-mock-CWE-36" in result.result.contextualEvidenceRefs
+    assert "eref-mock-CWE-36" not in result.result.usedEvidenceRefs
 
 
 @pytest.mark.asyncio

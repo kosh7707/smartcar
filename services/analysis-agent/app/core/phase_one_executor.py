@@ -28,7 +28,7 @@ from app.core.phase_one_types import CODEGRAPH_EXCLUDE_DIRS, Phase1Result
 
 if TYPE_CHECKING:
     from app.core.agent_session import AgentSession
-    from agent_shared.tools.base import ToolImplementation
+    from app.agent_runtime.tools.base import ToolImplementation
 
 logger = logging.getLogger(__name__)
 

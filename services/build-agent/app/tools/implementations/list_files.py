@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import os
 
-from agent_shared.path_util import resolve_scoped_path
-from agent_shared.schemas.agent import ToolResult
+from app.agent_runtime.path_util import resolve_scoped_path
+from app.agent_runtime.schemas.agent import ToolResult
 
 # read_file, tasks.py와 동일한 노이즈 디렉토리 목록
 _EXCLUDE_DIRS = frozenset({

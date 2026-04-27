@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 
-from agent_shared.schemas.agent import ToolResult
+from app.agent_runtime.schemas.agent import ToolResult
 from app.policy.file_policy import FilePolicy
 
 

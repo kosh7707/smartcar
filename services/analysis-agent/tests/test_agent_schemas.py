@@ -2,7 +2,7 @@
 
 import warnings
 
-from agent_shared.schemas.agent import (
+from app.agent_runtime.schemas.agent import (
     AgentAuditInfo,
     BudgetState,
     LlmResponse,

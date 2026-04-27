@@ -110,10 +110,37 @@ describe("DAO Integration Tests", () => {
   describe("GateResultDAO", () => {
     it("save → findByRunId → updateOverride", () => {
       const dao = new GateResultDAO(db);
-      const gate = makeGateResult({ id: "g1", runId: "run-1", projectId: "p1", status: "fail" });
+      const gate = makeGateResult({
+        id: "g1",
+        runId: "run-1",
+        projectId: "p1",
+        status: "fail",
+        profileId: "strict",
+        commit: "f8a1c3d",
+        branch: "main",
+        requestedBy: "김민지",
+        rules: [{
+          ruleId: "evidence-coverage",
+          result: "warning",
+          message: "coverage",
+          linkedFindingIds: ["f1"],
+          current: 75,
+          threshold: 100,
+          unit: "percent",
+          meta: { current: 75, threshold: 100, unit: "percent" },
+        }],
+      });
 
       dao.save(gate);
-      expect(dao.findByRunId("run-1")).toMatchObject({ id: "g1", status: "fail" });
+      expect(dao.findByRunId("run-1")).toMatchObject({
+        id: "g1",
+        status: "fail",
+        profileId: "strict",
+        commit: "f8a1c3d",
+        branch: "main",
+        requestedBy: "김민지",
+        rules: [expect.objectContaining({ current: 75, threshold: 100, unit: "percent" })],
+      });
       expect(dao.findByProjectId("p1")).toHaveLength(1);
 
       const override = { overriddenBy: "admin", reason: "ok", approvalId: "ap-1", overriddenAt: new Date().toISOString() };
@@ -126,12 +153,22 @@ describe("DAO Integration Tests", () => {
   describe("ApprovalDAO", () => {
     it("save → findPending → updateStatus", () => {
       const dao = new ApprovalDAO(db);
-      const approval = makeApproval({ id: "ap-1", projectId: "p1", status: "pending" });
+      const approval = makeApproval({
+        id: "ap-1",
+        projectId: "p1",
+        status: "pending",
+        impactSummary: { failedRules: 2, ignoredFindings: 7, severityBreakdown: { critical: 2, high: 5 } },
+        targetSnapshot: { findingId: "f1", file: "src/main.c", line: 42, severity: "critical" },
+      });
 
       dao.save(approval);
       expect(dao.findPending()).toHaveLength(1);
       expect(dao.findByProjectId("p1")).toHaveLength(1);
       expect(dao.findByProjectId("p1", "pending")).toHaveLength(1);
+      expect(dao.findById("ap-1")).toMatchObject({
+        impactSummary: { failedRules: 2, ignoredFindings: 7, severityBreakdown: { critical: 2, high: 5 } },
+        targetSnapshot: { findingId: "f1", file: "src/main.c", line: 42, severity: "critical" },
+      });
 
       const decision = { decidedBy: "admin", decidedAt: new Date().toISOString(), comment: "ok" };
       dao.updateStatus("ap-1", "approved", decision);
@@ -666,6 +703,10 @@ describe("DAO Integration Tests", () => {
         needsHumanReview: true,
         recommendedNextSteps: ["Step 1", "Step 2"],
         policyFlags: ["CWE-78"],
+        analysisOutcome: "no_accepted_claims",
+        qualityOutcome: "repair_exhausted",
+        pocOutcome: "poc_not_requested",
+        recoveryTrace: [{ deficiency: "SCHEMA_DEFICIENT", action: "deterministic_scaffold", outcome: "classified" }],
         scaLibraries: [{ name: "openssl", version: "1.1.1", path: "libs/openssl" }],
         agentAudit: { latencyMs: 12000, tokenUsage: { prompt: 3000, completion: 1500 }, turnCount: 2, toolCallCount: 3, terminationReason: "content_returned" },
       });
@@ -679,6 +720,10 @@ describe("DAO Integration Tests", () => {
       expect(loaded.needsHumanReview).toBe(true);
       expect(loaded.recommendedNextSteps).toEqual(["Step 1", "Step 2"]);
       expect(loaded.policyFlags).toEqual(["CWE-78"]);
+      expect(loaded.analysisOutcome).toBe("no_accepted_claims");
+      expect(loaded.qualityOutcome).toBe("repair_exhausted");
+      expect(loaded.pocOutcome).toBe("poc_not_requested");
+      expect(loaded.recoveryTrace?.[0]).toMatchObject({ deficiency: "SCHEMA_DEFICIENT" });
       expect(loaded.scaLibraries).toHaveLength(1);
       expect(loaded.scaLibraries![0].name).toBe("openssl");
       expect(loaded.agentAudit).toMatchObject({ latencyMs: 12000, turnCount: 2 });

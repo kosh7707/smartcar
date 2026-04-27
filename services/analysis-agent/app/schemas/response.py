@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from app.types import FailureCode, TaskStatus, TaskType
+from app.types import (
+    AnalysisOutcome,
+    FailureCode,
+    PocOutcome,
+    QualityOutcome,
+    TaskStatus,
+    TaskType,
+)
 
 
 class Claim(BaseModel):
@@ -32,6 +39,65 @@ class TestPlan(BaseModel):
     suggestedRiskLevel: str | None = None
 
 
+class RecoveryTraceEntry(BaseModel):
+    deficiency: str
+    action: str
+    outcome: str
+    detail: str | None = None
+    level: int | None = None
+    attempt: int | None = None
+    deficiencyClass: str | None = None
+    recoveryAction: str | None = None
+    result: str | None = None
+    dependencyState: str | None = None
+
+
+class EvidenceRefRoleDiagnostic(BaseModel):
+    refId: str
+    actualClass: str | None = None
+    requiredClass: str | None = None
+    path: str | None = None
+
+
+class EvidenceAcquisitionDiagnostic(BaseModel):
+    slot: str | None = None
+    tool: str | None = None
+    status: str | None = None
+    detail: str | None = None
+
+
+class EvidenceDiagnostics(BaseModel):
+    invalidRefs: list[str] = Field(default_factory=list)
+    invalidRefRoles: list[EvidenceRefRoleDiagnostic] = Field(default_factory=list)
+    missingSlots: list[str] = Field(default_factory=list)
+    attemptedAcquisitions: list[EvidenceAcquisitionDiagnostic] = Field(default_factory=list)
+    availableLocalRefs: list[str] = Field(default_factory=list)
+    availableKnowledgeRefs: list[str] = Field(default_factory=list)
+    unclassifiedRefs: list[str] = Field(default_factory=list)
+
+
+class QualityGateItem(BaseModel):
+    id: str
+    repairable: bool = False
+    requiredEvidenceSlots: list[str] = Field(default_factory=list)
+    repairAttempts: list[str] = Field(default_factory=list)
+    detail: str | None = None
+
+
+class QualityGateResult(BaseModel):
+    outcome: QualityOutcome = QualityOutcome.INCONCLUSIVE
+    failedItems: list[QualityGateItem] = Field(default_factory=list)
+    repairableItems: list[QualityGateItem] = Field(default_factory=list)
+    caveats: list[str] = Field(default_factory=list)
+
+
+class EvaluationVerdict(BaseModel):
+    taskCompleted: bool = True
+    cleanPass: bool = False
+    reasons: list[str] = Field(default_factory=list)
+    gateOutcomes: list[str] = Field(default_factory=list)
+
+
 class AssessmentResult(BaseModel):
     summary: str
     claims: list[Claim] = []
@@ -46,6 +112,15 @@ class AssessmentResult(BaseModel):
     recommendedNextSteps: list[str] = []
     policyFlags: list[str] = []
     plan: TestPlan | None = None
+    analysisOutcome: AnalysisOutcome = AnalysisOutcome.INCONCLUSIVE
+    qualityOutcome: QualityOutcome = QualityOutcome.INCONCLUSIVE
+    pocOutcome: PocOutcome = PocOutcome.POC_NOT_REQUESTED
+    recoveryTrace: list[RecoveryTraceEntry] = Field(default_factory=list)
+    cleanPass: bool = False
+    evaluationVerdict: EvaluationVerdict = Field(default_factory=EvaluationVerdict)
+    contextualEvidenceRefs: list[str] = Field(default_factory=list)
+    evidenceDiagnostics: EvidenceDiagnostics = Field(default_factory=EvidenceDiagnostics)
+    qualityGate: QualityGateResult = Field(default_factory=QualityGateResult)
 
 
 class ValidationInfo(BaseModel):

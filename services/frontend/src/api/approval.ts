@@ -1,9 +1,40 @@
 import { apiFetch } from "./core";
+import type { Severity } from "@aegis/shared";
 
 /* ── Types ── */
 
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
 export type ApprovalActionType = "gate.override" | "finding.accepted_risk";
+
+/**
+ * S2 contract (H4) — backend-populated impact summary. NEVER frontend-derived.
+ * historical rows may be absent → render dim placeholder, do not backfill.
+ */
+export interface ApprovalImpactSummary {
+  failedRules: number;
+  ignoredFindings: number;
+  severityBreakdown?: Record<string, number>;
+}
+
+/**
+ * S2 contract (H5) — backend-populated target snapshot. NEVER frontend-derived.
+ * gate.override → first variant, finding.accepted_risk → second variant.
+ * historical rows may be absent → render dim "—" placeholder per row.
+ */
+export type ApprovalTargetSnapshot =
+  | {
+      runId: string;
+      commit?: string;
+      branch?: string;
+      profile?: string;
+      action?: ApprovalActionType;
+    }
+  | {
+      findingId: string;
+      file?: string;
+      line?: number;
+      severity?: Severity;
+    };
 
 export interface ApprovalRequest {
   id: string;
@@ -13,6 +44,8 @@ export interface ApprovalRequest {
   projectId: string;
   reason: string;
   status: ApprovalStatus;
+  impactSummary?: ApprovalImpactSummary;
+  targetSnapshot?: ApprovalTargetSnapshot;
   decision?: {
     decidedBy: string;
     decidedAt: string;

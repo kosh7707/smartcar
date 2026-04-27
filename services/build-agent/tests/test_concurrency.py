@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from agent_shared.schemas.agent import BudgetState
+from app.agent_runtime.schemas.agent import BudgetState
 from app.budget.manager import BudgetManager
 from app.policy.file_policy import FilePolicy
 

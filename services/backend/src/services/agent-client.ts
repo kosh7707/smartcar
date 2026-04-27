@@ -11,7 +11,14 @@ import {
   AgentTimeoutError,
 } from "../lib/errors";
 import { buildHealthCheckUrl } from "../lib/downstream-health";
-import type { BuildProfile, SastFinding } from "@aegis/shared";
+import type {
+  AgentAnalysisOutcome,
+  AgentPocOutcome,
+  AgentQualityOutcome,
+  AgentRecoveryTraceEntry,
+  BuildProfile,
+  SastFinding,
+} from "@aegis/shared";
 
 const logger = createLogger("agent-client");
 
@@ -101,6 +108,14 @@ export interface AgentAssessmentResult {
   needsHumanReview: boolean;
   recommendedNextSteps: string[];
   policyFlags: string[];
+  /** completed is an honest envelope; this field decides accepted/no-accepted/inconclusive analysis outcome. */
+  analysisOutcome?: AgentAnalysisOutcome;
+  /** Result-level quality classifier; clean deep pass requires `accepted`. */
+  qualityOutcome?: AgentQualityOutcome;
+  /** PoC classifier for generate-poc; deep-analyze defaults to `poc_not_requested`. */
+  pocOutcome?: AgentPocOutcome;
+  /** Bounded public recovery/deficiency summaries. */
+  recoveryTrace?: AgentRecoveryTraceEntry[];
 }
 
 export interface AgentAudit {
@@ -180,6 +195,9 @@ export class AgentClient {
         {
           taskId: success.taskId,
           claimCount: success.result.claims.length,
+          analysisOutcome: success.result.analysisOutcome,
+          qualityOutcome: success.result.qualityOutcome,
+          pocOutcome: success.result.pocOutcome,
           confidence: success.result.confidence,
           latencyMs: success.audit.latencyMs,
           requestId,

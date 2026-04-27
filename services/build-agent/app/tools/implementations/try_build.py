@@ -10,7 +10,7 @@ import logging
 import re
 
 import httpx
-from agent_shared.schemas.agent import ToolResult
+from app.agent_runtime.schemas.agent import ToolResult
 
 logger = logging.getLogger(__name__)
 

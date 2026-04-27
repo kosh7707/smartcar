@@ -25,7 +25,7 @@ async def test_sdk_analyze_requests_async_ownership_on_toolless_turn(monkeypatch
 
     async def fake_call(self, *args, **kwargs):
         seen["prefer_async_ownership"] = kwargs.get("prefer_async_ownership")
-        from agent_shared.schemas.agent import LlmResponse
+        from app.agent_runtime.schemas.agent import LlmResponse
         return LlmResponse(
             content=json.dumps({
                 "summary": "SDK 분석 완료",
@@ -58,8 +58,8 @@ async def test_sdk_analyze_requests_async_ownership_on_toolless_turn(monkeypatch
         "app.budget.manager.BudgetManager.no_callable_tools_remaining",
         lambda self: True,
     )
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.call", fake_call)
-    monkeypatch.setattr("agent_shared.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
 
     try:
         result = await handle_sdk_analyze(request)

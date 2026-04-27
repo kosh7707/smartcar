@@ -86,18 +86,47 @@ describe("SdkService", () => {
     uploadsDir = makeTempDir();
     records = new Map<string, RegisteredSdk>();
     dao = {
-      save: vi.fn((sdk: RegisteredSdk) => records.set(sdk.id, { ...sdk })),
+      save: vi.fn((sdk: RegisteredSdk) => records.set(sdk.id, {
+        ...sdk,
+        currentPhaseStartedAt: Date.now(),
+        phaseHistory: sdk.phaseHistory ?? [{ phase: sdk.status, startedAt: Date.now() }],
+        retryCount: sdk.retryCount ?? 0,
+        retryable: false,
+      })),
       findByProjectId: vi.fn((projectId: string) => [...records.values()].filter((sdk) => sdk.projectId === projectId)),
       findById: vi.fn((id: string) => records.get(id)),
       updateStatus: vi.fn((id: string, status: RegisteredSdk["status"], verifyError?: string) => {
         const sdk = records.get(id);
         if (!sdk) return;
+        const nowMs = Date.now();
+        const phaseHistory = [...(sdk.phaseHistory ?? [])];
+        const last = phaseHistory.length > 0 ? phaseHistory[phaseHistory.length - 1] : undefined;
+        if (last && !last.endedAt) {
+          last.endedAt = nowMs;
+          last.durationMs = Math.max(0, nowMs - last.startedAt);
+        }
+        phaseHistory.push({ phase: status, startedAt: nowMs });
         records.set(id, {
           ...sdk,
           status,
           verifyError,
           verified: status === "ready",
+          currentPhaseStartedAt: nowMs,
+          phaseHistory,
+          retryable: (status === "extract_failed" || status === "install_failed" || status === "verify_failed")
+            && fs.existsSync(sdk.path),
+          retryExpiresAt: status.endsWith("_failed") ? nowMs + 24 * 60 * 60 * 1000 : sdk.retryExpiresAt,
           updatedAt: new Date().toISOString(),
+        });
+      }),
+      incrementRetry: vi.fn((id: string, retryExpiresAt?: number) => {
+        const sdk = records.get(id);
+        if (!sdk) return;
+        records.set(id, {
+          ...sdk,
+          retryCount: (sdk.retryCount ?? 0) + 1,
+          retryExpiresAt,
+          updatedAt: new Date(Date.now() - 31_000).toISOString(),
         });
       }),
       updateProfile: vi.fn((id: string, profile: SdkAnalyzedProfile) => {
@@ -168,9 +197,18 @@ describe("SdkService", () => {
     expect(stored.artifactKind).toBe("archive");
     expect(stored.sdkVersion).toBe("08.02.00.24");
     expect(stored.targetSystem).toBe("am335x");
+    expect(stored.currentPhaseStartedAt).toEqual(expect.any(Number));
+    expect(stored.phaseHistory?.map((entry) => entry.phase)).toEqual(
+      expect.arrayContaining(["uploaded", "extracting", "extracted", "analyzing", "verifying", "ready"]),
+    );
     expect(sdkWs.broadcast).toHaveBeenCalledWith("p-sdk", expect.objectContaining({
       type: "sdk-progress",
-      payload: expect.objectContaining({ sdkId: "sdk-archive", phase: "uploaded" }),
+      payload: expect.objectContaining({
+        sdkId: "sdk-archive",
+        phase: "uploaded",
+        phaseStartedAt: expect.any(Number),
+        phaseDetail: expect.objectContaining({ kind: "sdk.uploaded" }),
+      }),
     }));
     expect(sdkWs.broadcast).toHaveBeenCalledWith("p-sdk", expect.objectContaining({
       type: "sdk-progress",
@@ -280,7 +318,14 @@ describe("SdkService", () => {
 
     expect(sdkWs.broadcast).toHaveBeenCalledWith("p-bad", expect.objectContaining({
       type: "sdk-error",
-      payload: expect.objectContaining({ sdkId: "sdk-bad", phase: "extract_failed" }),
+      payload: expect.objectContaining({
+        sdkId: "sdk-bad",
+        phase: "extract_failed",
+        code: "EXTRACT_FAILED",
+        retryable: false,
+        recoverable: false,
+        troubleshootingUrl: "wiki/canon/troubleshooting/sdk#extract-failed",
+      }),
     }));
     expect(notificationService.emit).toHaveBeenCalledWith(expect.objectContaining({
       projectId: "p-bad",
@@ -310,7 +355,13 @@ describe("SdkService", () => {
     expect(installLog).toContain("install failed | phase=install_failed");
     expect(sdkWs.broadcast).toHaveBeenCalledWith("p-fail", expect.objectContaining({
       type: "sdk-error",
-      payload: expect.objectContaining({ sdkId: "sdk-fail", phase: "install_failed", logPath: expect.stringContaining("install.log") }),
+      payload: expect.objectContaining({
+        sdkId: "sdk-fail",
+        phase: "install_failed",
+        logPath: expect.stringContaining("install.log"),
+        code: "INSTALL_PROCESS_FAILED",
+        retryable: true,
+      }),
     }));
     expect(notificationService.emit.mock.calls.filter(([payload]: any[]) => payload.type === "sdk_failed")).toHaveLength(1);
   });
@@ -344,6 +395,42 @@ describe("SdkService", () => {
     expect(sdkWs.broadcast).toHaveBeenCalledWith("p-folder", expect.objectContaining({
       type: "sdk-progress",
       payload: expect.objectContaining({ sdkId: "sdk-folder", phase: "extracted" }),
+    }));
+  });
+
+  it("retries failed materialized SDKs and preserves retry counters", async () => {
+    const sdkPath = path.join(uploadsDir, "p-retry", "sdk", "sdk-retry", "content");
+    fs.mkdirSync(sdkPath, { recursive: true });
+    fs.writeFileSync(path.join(sdkPath, "README.txt"), "ok");
+    records.set("sdk-retry", {
+      id: "sdk-retry",
+      projectId: "p-retry",
+      name: "Retry SDK",
+      path: sdkPath,
+      profile: { artifactKind: "archive" },
+      status: "verify_failed",
+      verified: false,
+      retryCount: 0,
+      retryable: true,
+      retryExpiresAt: Date.now() + 60_000,
+      phaseHistory: [{ phase: "verify_failed", startedAt: Date.now() - 60_000, endedAt: Date.now() - 31_000, durationMs: 29_000 }],
+      currentPhaseStartedAt: Date.now() - 31_000,
+      createdAt: new Date(Date.now() - 60_000).toISOString(),
+      updatedAt: new Date(Date.now() - 31_000).toISOString(),
+    });
+
+    const retried = await service.retry("sdk-retry", "verifying", "req-retry");
+
+    expect(dao.incrementRetry).toHaveBeenCalledWith("sdk-retry", expect.any(Number));
+    expect(retried.status).toBe("ready");
+    expect(retried.retryCount).toBe(1);
+    expect(sdkWs.broadcast).toHaveBeenCalledWith("p-retry", expect.objectContaining({
+      type: "sdk-progress",
+      payload: expect.objectContaining({ sdkId: "sdk-retry", phase: "verifying", phaseDetail: { kind: "sdk.verifying.retry" } }),
+    }));
+    expect(sdkWs.broadcast).toHaveBeenCalledWith("p-retry", expect.objectContaining({
+      type: "sdk-complete",
+      payload: expect.objectContaining({ sdkId: "sdk-retry", path: sdkPath }),
     }));
   });
 });

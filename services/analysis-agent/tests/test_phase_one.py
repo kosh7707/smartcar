@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 from app.core.phase_one import Phase1Executor, Phase1Result, build_phase2_prompt
-from agent_shared.schemas.agent import ToolResult
+from app.agent_runtime.schemas.agent import ToolResult
 
 
 # ───────────────────────────────────────────────
@@ -484,7 +484,7 @@ class TestTargetPath:
                 }
             },
         })
-        from agent_shared.schemas.agent import BudgetState
+        from app.agent_runtime.schemas.agent import BudgetState
         budget = BudgetState(max_steps=1, max_completion_tokens=100)
         session = AgentSession(request, budget)
 
@@ -526,7 +526,7 @@ class TestTargetPath:
                 }
             },
         })
-        from agent_shared.schemas.agent import BudgetState
+        from app.agent_runtime.schemas.agent import BudgetState
         budget = BudgetState(max_steps=1, max_completion_tokens=100)
         session = AgentSession(request, budget)
 
@@ -568,7 +568,7 @@ class TestTargetPath:
                 }
             },
         })
-        from agent_shared.schemas.agent import BudgetState
+        from app.agent_runtime.schemas.agent import BudgetState
         budget = BudgetState(max_steps=1, max_completion_tokens=100)
         session = AgentSession(request, budget)
 
@@ -614,7 +614,7 @@ class TestTargetPath:
                 }
             },
         })
-        from agent_shared.schemas.agent import BudgetState
+        from app.agent_runtime.schemas.agent import BudgetState
         budget = BudgetState(max_steps=1, max_completion_tokens=100)
         session = AgentSession(request, budget)
 
@@ -667,7 +667,7 @@ class TestTargetPath:
                 }
             },
         })
-        from agent_shared.schemas.agent import BudgetState
+        from app.agent_runtime.schemas.agent import BudgetState
         budget = BudgetState(max_steps=1, max_completion_tokens=100)
         session = AgentSession(request, budget)
 
@@ -716,7 +716,7 @@ class TestTargetPath:
                 }
             },
         })
-        from agent_shared.schemas.agent import BudgetState
+        from app.agent_runtime.schemas.agent import BudgetState
         budget = BudgetState(max_steps=1, max_completion_tokens=100)
         session = AgentSession(request, budget)
 
@@ -757,7 +757,7 @@ class TestBuildAndAnalyzeFallback:
                 }
             },
         })
-        from agent_shared.schemas.agent import BudgetState
+        from app.agent_runtime.schemas.agent import BudgetState
         budget = BudgetState(max_steps=1, max_completion_tokens=100)
         session = AgentSession(request, budget)
 

@@ -1,33 +1,22 @@
-import type { GateProfile } from "@aegis/shared";
+import type {
+  GateProfile,
+  GateResult as SharedGateResult,
+  GateRuleResult as SharedGateRuleResult,
+  GateRuleMetric,
+  GateRuleMetricUnit,
+  GateRuleId as SharedGateRuleId,
+  GateStatus as SharedGateStatus,
+} from "@aegis/shared";
 import { apiFetch } from "./core";
 
 /* ── Types ── */
 
-export type GateStatus = "pass" | "fail" | "warning";
-export type GateRuleId = "no-critical" | "high-threshold" | "evidence-coverage" | "sandbox-unreviewed";
+export type GateStatus = SharedGateStatus;
+export type GateRuleId = SharedGateRuleId;
+export type { GateRuleMetric, GateRuleMetricUnit };
 
-export interface GateRuleResult {
-  ruleId: GateRuleId;
-  result: "passed" | "failed" | "warning";
-  message: string;
-  linkedFindingIds: string[];
-}
-
-export interface GateResult {
-  id: string;
-  runId: string;
-  projectId: string;
-  status: GateStatus;
-  rules: GateRuleResult[];
-  evaluatedAt: string;
-  override?: {
-    overriddenBy: string;
-    reason: string;
-    approvalId?: string;
-    overriddenAt: string;
-  };
-  createdAt: string;
-}
+export type GateRuleResult = SharedGateRuleResult;
+export type GateResult = SharedGateResult;
 
 /* ── API ── */
 

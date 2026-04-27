@@ -2,7 +2,6 @@ import React from "react";
 import { useParams } from "react-router-dom";
 import { useToast } from "../../contexts/ToastContext";
 import { ConfirmDialog, ConnectionStatusBanner, Spinner } from "../../shared/ui";
-import { ProjectSettingsSidebar } from "./components/ProjectSettingsSidebar";
 import { ProjectSettingsHeader } from "./components/ProjectSettingsHeader";
 import { ProjectSettingsContent } from "./components/ProjectSettingsContent";
 import { useProjectSettingsPage } from "./hooks/useProjectSettingsPage";
@@ -31,28 +30,27 @@ export const ProjectSettingsPage: React.FC = () => {
         sdkCount={state.registered.length}
         dirty={state.dirty}
         saving={state.saving}
+        activeSection={state.activeSection}
         onCancel={state.handleCancel}
         onSave={state.handleSave}
+        onSelectSection={(value) => state.setActiveSection(value)}
       />
 
-      <div className="page-toolbar ps-toolbar">
-        <ProjectSettingsSidebar
-          active={state.activeSection}
-          onSelect={(value) => state.setActiveSection(value)}
-        />
-      </div>
-
-      <div className="page-section-stack">
+      <div className="ps-page-body">
         <ProjectSettingsContent
           activeSection={state.activeSection}
           projectId={projectId}
           registered={state.registered}
           sdkProgressById={state.sdkProgressById}
+          sdkErrorDetailsById={state.sdkErrorDetailsById}
+          sdkQuota={state.sdkQuota}
+          retryingSdkIds={state.retryingSdkIds}
           showForm={state.showForm}
           onToggleForm={() => state.setShowForm((prev) => !prev)}
           onRegistered={state.handleRegistered}
           onCancelForm={() => state.setShowForm(false)}
           onRequestDelete={state.setDeleteTarget}
+          onRetry={state.handleRetry}
           name={state.name}
           description={state.description}
           onNameChange={state.handleNameChange}

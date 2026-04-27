@@ -7,7 +7,7 @@ import os
 import pytest
 
 from app.tools.implementations.write_file import WriteFileTool
-from agent_shared.schemas.agent import ToolResult
+from app.agent_runtime.schemas.agent import ToolResult
 
 
 # ---------------------------------------------------------------------------

@@ -12,6 +12,8 @@ import type {
   SdkErrorPhase,
   SdkArtifactKind,
   SdkRegistryStatus,
+  SdkErrorCode,
+  SdkPhaseDetail,
 } from "@aegis/shared";
 import type { SdkRegistryDAO } from "../dao/sdk-registry.dao";
 import type { BuildAgentClient } from "./build-agent-client";
@@ -28,6 +30,10 @@ const DEFAULT_INSTALL_TIMEOUT_MS = 30 * 60 * 1000;
 const DEFAULT_INSTALL_HEARTBEAT_MS = 5_000;
 const ETXTBSY_RETRY_COUNT = 5;
 const ETXTBSY_RETRY_DELAY_MS = 200;
+const SDK_RETRY_LIMIT = 3;
+const SDK_RETRY_COOLDOWN_MS = 30_000;
+const SDK_RETRY_RETENTION_MS = 24 * 60 * 60 * 1000;
+const SDK_STORAGE_QUOTA_BYTES = Number(process.env.AEGIS_SDK_STORAGE_QUOTA_BYTES ?? 50 * 1024 * 1024 * 1024);
 
 export interface UploadedSdkFile {
   originalName: string;
@@ -49,6 +55,9 @@ class SdkPipelineFailure extends Error {
     readonly phase: SdkErrorPhase,
     message: string,
     readonly logPath?: string,
+    readonly code: SdkErrorCode = "UNKNOWN_SDK_ERROR",
+    readonly retryable: boolean = phase !== "upload_failed",
+    readonly userMessage: string = "SDK 등록 중 문제가 발생했습니다. 로그를 확인한 뒤 다시 시도하세요.",
   ) {
     super(message);
     this.name = "SdkPipelineFailure";
@@ -182,6 +191,81 @@ export class SdkService {
     };
   }
 
+  getInstallLogWindow(
+    id: string,
+    options?: { tailLines?: number; offset?: number; limit?: number },
+  ): { sdkId: string; logPath: string; content: string; truncated: boolean; totalLines: number; nextOffset?: number } {
+    const sdk = this.dao.findById(id);
+    if (!sdk) throw new NotFoundError(`SDK not found: ${id}`);
+
+    const logPath = this.resolveInstallLogPath(sdk);
+    if (!fs.existsSync(logPath)) {
+      throw new NotFoundError(`SDK install log not found: ${id}`);
+    }
+
+    const content = fs.readFileSync(logPath, "utf-8");
+    const lines = content.split(/\r?\n/);
+    const totalLines = lines.length;
+
+    if (typeof options?.offset === "number" || typeof options?.limit === "number") {
+      const offset = Math.max(0, options?.offset ?? 0);
+      const limit = Math.min(10_000, Math.max(1, options?.limit ?? 200));
+      const selected = lines.slice(offset, offset + limit);
+      const nextOffset = offset + selected.length < totalLines ? offset + selected.length : undefined;
+      return {
+        sdkId: id,
+        logPath,
+        content: selected.join("\n").trimEnd(),
+        truncated: typeof nextOffset === "number",
+        totalLines,
+        nextOffset,
+      };
+    }
+
+    const tailLines = Math.min(10_000, Math.max(1, options?.tailLines ?? 200));
+    const selected = lines.length > tailLines ? lines.slice(-tailLines) : lines;
+    return {
+      sdkId: id,
+      logPath,
+      content: selected.join("\n").trimEnd(),
+      truncated: lines.length > tailLines,
+      totalLines,
+    };
+  }
+
+  getQuota(projectId: string): { usedBytes: number; maxBytes: number; sdkCount: number } {
+    return {
+      usedBytes: this.getDirectorySize(path.join(this.uploadsDir, projectId, "sdk")),
+      maxBytes: SDK_STORAGE_QUOTA_BYTES,
+      sdkCount: this.listRegistered(projectId).length,
+    };
+  }
+
+  getMetrics(projectId: string): {
+    sdkCount: number;
+    readyCount: number;
+    failedCount: number;
+    averagePhaseDurationMs: Record<string, number>;
+  } {
+    const registered = this.listRegistered(projectId);
+    const buckets = new Map<string, number[]>();
+    for (const sdk of registered) {
+      for (const entry of sdk.phaseHistory ?? []) {
+        if (typeof entry.durationMs !== "number") continue;
+        buckets.set(entry.phase, [...(buckets.get(entry.phase) ?? []), entry.durationMs]);
+      }
+    }
+    return {
+      sdkCount: registered.length,
+      readyCount: registered.filter((sdk) => sdk.status === "ready").length,
+      failedCount: registered.filter((sdk) => sdk.status.endsWith("_failed")).length,
+      averagePhaseDurationMs: Object.fromEntries([...buckets.entries()].map(([phase, values]) => [
+        phase,
+        Math.round(values.reduce((sum, value) => sum + value, 0) / values.length),
+      ])),
+    };
+  }
+
   async register(
     projectId: string,
     input: SdkRegistrationInput,
@@ -222,13 +306,16 @@ export class SdkService {
     this.dao.save(sdk);
     const logCtx = this.createLogContext(projectId, sdkId);
     this.appendLifecycleLog(logCtx, "upload completed", { fileName: primaryFile.originalName, fileCount: input.files.length });
-    this.broadcast(projectId, sdkId, "uploaded", "SDK 업로드 완료", { percent: 100, fileName: primaryFile.originalName });
+    this.broadcast(projectId, sdkId, "uploaded", "SDK 업로드 완료", { percent: 100, fileName: primaryFile.originalName }, {
+      kind: "sdk.uploaded",
+      params: { fileName: primaryFile.originalName, fileCount: input.files.length },
+    });
     const emitTerminalNotification = this.createTerminalNotificationEmitter(projectId, sdkId);
 
-      this.runPipeline(projectId, sdk, input.files, requestId).catch((err) => {
+    this.runPipeline(projectId, sdk, input.files, requestId).catch((err) => {
       const failure = err instanceof SdkPipelineFailure
         ? err
-        : new SdkPipelineFailure("verify_failed", "verify_failed", err instanceof Error ? err.message : String(err));
+        : new SdkPipelineFailure("verify_failed", "verify_failed", err instanceof Error ? err.message : String(err), undefined, "UNKNOWN_SDK_ERROR");
 
       const existing = this.dao.findById(sdkId);
       if (existing?.profile) {
@@ -237,7 +324,7 @@ export class SdkService {
       this.dao.updateStatus(sdkId, failure.status, failure.message);
       this.sdkWs.broadcast(projectId, {
         type: "sdk-error",
-        payload: { sdkId, phase: failure.phase, error: failure.message, logPath: failure.logPath },
+        payload: this.buildSdkErrorPayload(sdkId, failure),
       });
       const failureLogCtx = this.createLogContext(projectId, sdkId, failure.logPath);
       this.appendTerminalLog(failureLogCtx, "install failed", { phase: failure.phase, error: failure.message });
@@ -258,6 +345,82 @@ export class SdkService {
 
     this.dao.delete(id);
     logger.info({ sdkId: id }, "SDK removed");
+  }
+
+  async retry(id: string, fromPhase: "analyzing" | "verifying" = "verifying", requestId?: string): Promise<RegisteredSdk> {
+    const sdk = this.dao.findById(id);
+    if (!sdk) throw new NotFoundError(`SDK not found: ${id}`);
+    if (!sdk.status.endsWith("_failed")) {
+      throw new InvalidInputError(`SDK is not failed: ${id}`);
+    }
+    if ((sdk.retryCount ?? 0) >= SDK_RETRY_LIMIT) {
+      throw new InvalidInputError("SDK retry quota exceeded");
+    }
+    const updatedAtMs = Number.isFinite(Date.parse(sdk.updatedAt)) ? Date.parse(sdk.updatedAt) : 0;
+    const cooldownUntil = updatedAtMs + SDK_RETRY_COOLDOWN_MS;
+    if (Date.now() < cooldownUntil) {
+      throw new InvalidInputError("SDK retry cooldown is still active");
+    }
+    if (sdk.retryExpiresAt && Date.now() > sdk.retryExpiresAt) {
+      throw new InvalidInputError("SDK retry retention expired");
+    }
+    if (!fs.existsSync(sdk.path)) {
+      throw new InvalidInputError("SDK retry artifact unavailable");
+    }
+
+    this.dao.incrementRetry(id, Date.now() + SDK_RETRY_RETENTION_MS);
+    const profile = sdk.profile ?? {};
+    if (fromPhase === "analyzing") {
+      this.dao.updateStatus(id, "analyzing");
+      this.broadcast(sdk.projectId, id, "analyzing", "Build Agent가 SDK 구조를 다시 분석 중...", undefined, {
+        kind: "sdk.analyzing.retry",
+      });
+      try {
+        const resp = await this.buildAgentClient.submitTask(
+          {
+            taskType: "sdk-analyze",
+            taskId: `sdk-${id}-retry-${sdk.retryCount ?? 0}`,
+            context: { trusted: { projectPath: sdk.path } },
+            constraints: { timeoutMs: 300_000 },
+          },
+          requestId,
+        );
+        if (this.buildAgentClient.isSuccess(resp)) {
+          const analyzed = (resp.result as { sdkProfile?: SdkAnalyzedProfile }).sdkProfile ?? {};
+          this.dao.updateProfile(id, mergeProfiles(profile, analyzed));
+        }
+      } catch (err) {
+        logger.warn({ err, sdkId: id }, "Build Agent unavailable during SDK retry analysis — continuing");
+      }
+    }
+
+    this.dao.updateStatus(id, "verifying");
+    this.broadcast(sdk.projectId, id, "verifying", "S2가 SDK 구조를 다시 검증 중...", undefined, {
+      kind: "sdk.verifying.retry",
+    });
+
+    try {
+      const latest = this.dao.findById(id) ?? sdk;
+      this.verifyMaterializedSdk(latest.path, latest.profile ?? {});
+      this.dao.updateStatus(id, "ready");
+      this.broadcast(latest.projectId, id, "ready", "SDK 재시도 완료", undefined, { kind: "sdk.ready.retry" });
+      this.sdkWs.broadcast(latest.projectId, {
+        type: "sdk-complete",
+        payload: { sdkId: id, profile: latest.profile ?? {}, path: latest.path },
+      });
+      this.emitTerminalNotification(latest.projectId, id, "sdk_ready", "SDK 재시도 완료");
+      return this.dao.findById(id) ?? latest;
+    } catch (err) {
+      const failure = err instanceof SdkPipelineFailure
+        ? err
+        : new SdkPipelineFailure("verify_failed", "verify_failed", err instanceof Error ? err.message : String(err), this.resolveInstallLogPath(sdk), "VERIFY_PROFILE_PATH_INVALID");
+      this.dao.updateStatus(id, failure.status, failure.message);
+      this.sdkWs.broadcast(sdk.projectId, {
+        type: "sdk-error",
+        payload: this.buildSdkErrorPayload(id, failure),
+      });
+      return this.dao.findById(id) ?? sdk;
+    }
   }
 
   private async runPipeline(
@@ -284,7 +447,7 @@ export class SdkService {
     }
 
     this.dao.updateStatus(sdk.id, "analyzing");
-    this.broadcast(projectId, sdk.id, "analyzing", "Build Agent가 SDK 구조 분석 중...");
+    this.broadcast(projectId, sdk.id, "analyzing", "Build Agent가 SDK 구조 분석 중...", undefined, { kind: "sdk.analyzing" });
     this.appendLifecycleLog(logCtx, "analysis started");
 
     try {
@@ -314,13 +477,13 @@ export class SdkService {
     }
 
     this.dao.updateStatus(sdk.id, "verifying");
-    this.broadcast(projectId, sdk.id, "verifying", "S2가 SDK 구조를 검증 중...");
+    this.broadcast(projectId, sdk.id, "verifying", "S2가 SDK 구조를 검증 중...", undefined, { kind: "sdk.verifying" });
     this.appendLifecycleLog(logCtx, "verification started");
 
     try {
       this.verifyMaterializedSdk(materialized.path, profile);
       this.dao.updateStatus(sdk.id, "ready");
-      this.broadcast(projectId, sdk.id, "ready", "SDK 등록 완료");
+      this.broadcast(projectId, sdk.id, "ready", "SDK 등록 완료", undefined, { kind: "sdk.ready" });
       this.appendTerminalLog(this.createLogContext(projectId, sdk.id, materialized.logPath), "install completed", { path: materialized.path });
       this.sdkWs.broadcast(projectId, {
         type: "sdk-complete",
@@ -330,7 +493,7 @@ export class SdkService {
     } catch (err) {
       if (err instanceof SdkPipelineFailure) throw err;
       const msg = err instanceof Error ? err.message : String(err);
-      throw new SdkPipelineFailure("verify_failed", "verify_failed", msg, materialized.logPath);
+      throw new SdkPipelineFailure("verify_failed", "verify_failed", msg, materialized.logPath, "VERIFY_PROFILE_PATH_INVALID");
     }
   }
 
@@ -343,15 +506,18 @@ export class SdkService {
     const contentDir = path.join(sdkRoot, "content");
 
     this.dao.updateStatus(sdkId, "extracting");
-    this.broadcast(projectId, sdkId, "extracting", "SDK 압축 해제 중...", { fileName: file.originalName });
+    this.broadcast(projectId, sdkId, "extracting", "SDK 압축 해제 중...", { fileName: file.originalName }, {
+      kind: "sdk.extracting.archive",
+      params: { fileName: file.originalName },
+    });
 
     const entries = await this.listArchiveEntries(file.storedPath, file.originalName);
     if (!entries.length) {
-      throw new SdkPipelineFailure("extract_failed", "extract_failed", "Archive is empty");
+      throw new SdkPipelineFailure("extract_failed", "extract_failed", "Archive is empty", undefined, "EXTRACT_ARCHIVE_EMPTY");
     }
     const unsafe = entries.find((entry) => !isRelativeSafe(entry));
     if (unsafe) {
-      throw new SdkPipelineFailure("extract_failed", "extract_failed", `Unsafe archive entry detected: ${unsafe}`);
+      throw new SdkPipelineFailure("extract_failed", "extract_failed", `Unsafe archive entry detected: ${unsafe}`, undefined, "EXTRACT_UNSAFE_ENTRY");
     }
 
     fs.mkdirSync(contentDir, { recursive: true });
@@ -362,7 +528,7 @@ export class SdkService {
         await execFileAsync("tar", ["-xf", file.storedPath, "-C", contentDir]);
       }
     } catch (err) {
-      throw new SdkPipelineFailure("extract_failed", "extract_failed", err instanceof Error ? err.message : "Archive extraction failed");
+      throw new SdkPipelineFailure("extract_failed", "extract_failed", err instanceof Error ? err.message : "Archive extraction failed", undefined, "EXTRACT_FAILED");
     }
 
     this.ensureTreeWithinRoot(contentDir);
@@ -370,7 +536,7 @@ export class SdkService {
     fs.rmSync(file.storedPath, { force: true });
 
     this.dao.updateStatus(sdkId, "extracted");
-    this.broadcast(projectId, sdkId, "extracted", "SDK 압축 해제 완료");
+    this.broadcast(projectId, sdkId, "extracted", "SDK 압축 해제 완료", undefined, { kind: "sdk.extracted.archive" });
     return { path: canonicalPath };
   }
 
@@ -384,14 +550,14 @@ export class SdkService {
     fs.mkdirSync(contentDir, { recursive: true });
 
     this.dao.updateStatus(sdkId, "extracting");
-    this.broadcast(projectId, sdkId, "extracting", "SDK 폴더 업로드 정리 중...");
+    this.broadcast(projectId, sdkId, "extracting", "SDK 폴더 업로드 정리 중...", undefined, { kind: "sdk.extracting.folder" });
 
     for (const file of files) {
       const relativePath = sanitizeRelativePath(file.relativePath ?? file.originalName);
       const destination = path.join(contentDir, relativePath);
       const resolved = path.resolve(destination);
       if (!resolved.startsWith(path.resolve(contentDir))) {
-        throw new SdkPipelineFailure("extract_failed", "extract_failed", `Folder path escaped project boundary: ${relativePath}`);
+        throw new SdkPipelineFailure("extract_failed", "extract_failed", `Folder path escaped project boundary: ${relativePath}`, undefined, "EXTRACT_UNSAFE_ENTRY");
       }
       fs.mkdirSync(path.dirname(resolved), { recursive: true });
       fs.renameSync(file.storedPath, resolved);
@@ -400,7 +566,7 @@ export class SdkService {
     this.ensureTreeWithinRoot(contentDir);
     const canonicalPath = this.selectCanonicalContentPath(contentDir);
     this.dao.updateStatus(sdkId, "extracted");
-    this.broadcast(projectId, sdkId, "extracted", "SDK 폴더 업로드 정리 완료");
+    this.broadcast(projectId, sdkId, "extracted", "SDK 폴더 업로드 정리 완료", undefined, { kind: "sdk.extracted.folder" });
     return { path: canonicalPath };
   }
 
@@ -421,7 +587,10 @@ export class SdkService {
     fs.mkdirSync(tmpDir, { recursive: true });
 
     this.dao.updateStatus(sdkId, "installing");
-    this.broadcast(projectId, sdkId, "installing", "SDK 설치 파일 실행 중...", { fileName: file.originalName });
+    this.broadcast(projectId, sdkId, "installing", "SDK 설치 파일 실행 중...", { fileName: file.originalName }, {
+      kind: "sdk.installing.bin",
+      params: { fileName: file.originalName },
+    });
     this.appendLifecycleLog(logCtx, "install started", { fileName: file.originalName, installRoot });
 
     try {
@@ -433,6 +602,7 @@ export class SdkService {
         "install_failed",
         err instanceof Error ? err.message : "Installer execution failed",
         logPath,
+        err instanceof Error && err.message.includes("timed out") ? "INSTALL_TIMEOUT" : "INSTALL_PROCESS_FAILED",
       );
     }
 
@@ -441,7 +611,7 @@ export class SdkService {
     fs.rmSync(file.storedPath, { force: true });
 
     this.dao.updateStatus(sdkId, "installed");
-    this.broadcast(projectId, sdkId, "installed", "SDK 설치 완료");
+    this.broadcast(projectId, sdkId, "installed", "SDK 설치 완료", undefined, { kind: "sdk.installed.bin" });
     this.appendLifecycleLog(logCtx, "install materialization completed", { installedPath: canonicalPath });
     return { path: canonicalPath, logPath };
   }
@@ -453,7 +623,7 @@ export class SdkService {
         : await execFileAsync("tar", ["-tf", archivePath]);
       return stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
     } catch (err) {
-      throw new SdkPipelineFailure("extract_failed", "extract_failed", err instanceof Error ? err.message : "Failed to inspect archive");
+      throw new SdkPipelineFailure("extract_failed", "extract_failed", err instanceof Error ? err.message : "Failed to inspect archive", undefined, "EXTRACT_FAILED");
     }
   }
 
@@ -475,7 +645,7 @@ export class SdkService {
               logger.warn({ root: resolvedRoot, entry: entryPath, linkTarget }, "Removed SDK symlink that escaped project boundary");
               continue;
             }
-            throw new SdkPipelineFailure("extract_failed", "extract_failed", `Path escaped project boundary: ${entry.name}`);
+            throw new SdkPipelineFailure("extract_failed", "extract_failed", `Path escaped project boundary: ${entry.name}`, undefined, "EXTRACT_UNSAFE_ENTRY");
           }
           continue;
         }
@@ -500,15 +670,15 @@ export class SdkService {
     const resolvedRoot = path.resolve(rootPath);
     const uploadsRoot = path.resolve(this.uploadsDir);
     if (!resolvedRoot.startsWith(uploadsRoot)) {
-      throw new SdkPipelineFailure("verify_failed", "verify_failed", "SDK path escaped uploads root");
+      throw new SdkPipelineFailure("verify_failed", "verify_failed", "SDK path escaped uploads root", undefined, "VERIFY_PATH_ESCAPED");
     }
     if (!fs.existsSync(resolvedRoot)) {
-      throw new SdkPipelineFailure("verify_failed", "verify_failed", "SDK path does not exist");
+      throw new SdkPipelineFailure("verify_failed", "verify_failed", "SDK path does not exist", undefined, "VERIFY_PATH_MISSING");
     }
 
     const visibleEntries = fs.readdirSync(resolvedRoot).filter((entry) => !entry.startsWith("."));
     if (visibleEntries.length === 0) {
-      throw new SdkPipelineFailure("verify_failed", "verify_failed", "SDK content is empty");
+      throw new SdkPipelineFailure("verify_failed", "verify_failed", "SDK content is empty", undefined, "VERIFY_CONTENT_EMPTY");
     }
 
     const validateProfilePath = (candidate: string | undefined, fieldName: string): void => {
@@ -516,10 +686,10 @@ export class SdkService {
       const normalized = candidate.replace(/\\/g, "/");
       const resolved = path.resolve(resolvedRoot, normalized);
       if (!resolved.startsWith(resolvedRoot)) {
-        throw new SdkPipelineFailure("verify_failed", "verify_failed", `${fieldName} escaped SDK root`);
+        throw new SdkPipelineFailure("verify_failed", "verify_failed", `${fieldName} escaped SDK root`, undefined, "VERIFY_PROFILE_PATH_INVALID");
       }
       if (!fs.existsSync(resolved)) {
-        throw new SdkPipelineFailure("verify_failed", "verify_failed", `${fieldName} not found: ${candidate}`);
+        throw new SdkPipelineFailure("verify_failed", "verify_failed", `${fieldName} not found: ${candidate}`, undefined, "VERIFY_PROFILE_PATH_INVALID");
       }
     };
 
@@ -660,11 +830,59 @@ export class SdkService {
     phase: SdkProgressPhase,
     message: string,
     extra?: { percent?: number; uploadedBytes?: number; totalBytes?: number; fileName?: string },
+    phaseDetail?: SdkPhaseDetail,
   ): void {
+    const sdk = this.dao.findById(sdkId);
     this.sdkWs.broadcast(projectId, {
       type: "sdk-progress",
-      payload: { sdkId, phase, message, ...extra },
+      payload: {
+        sdkId,
+        phase,
+        message,
+        phaseStartedAt: sdk?.currentPhaseStartedAt,
+        phaseDetail,
+        ...extra,
+      },
     });
+  }
+
+  private buildSdkErrorPayload(sdkId: string, failure: SdkPipelineFailure): Extract<WsSdkMessage, { type: "sdk-error" }>["payload"] {
+    const failedAt = Date.now();
+    const retryable = this.dao.findById(sdkId)?.retryable ?? failure.retryable;
+    return {
+      sdkId,
+      phase: failure.phase,
+      error: failure.message,
+      logPath: failure.logPath,
+      code: failure.code,
+      retryable,
+      recoverable: retryable,
+      troubleshootingUrl: this.troubleshootingUrl(failure.code),
+      userMessage: failure.userMessage,
+      technicalDetail: failure.message,
+      failedAt,
+      correlationId: sdkId,
+    };
+  }
+
+  private troubleshootingUrl(code: SdkErrorCode): string {
+    return `wiki/canon/troubleshooting/sdk#${code.toLowerCase().replace(/_/g, "-")}`;
+  }
+
+  private getDirectorySize(root: string): number {
+    if (!fs.existsSync(root)) return 0;
+    let total = 0;
+    const stack = [root];
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+      for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+        const entryPath = path.join(current, entry.name);
+        const stat = fs.statSync(entryPath);
+        if (stat.isDirectory()) stack.push(entryPath);
+        else total += stat.size;
+      }
+    }
+    return total;
   }
 
   private emitTerminalNotification(

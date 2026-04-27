@@ -11,11 +11,13 @@ class Settings(BaseSettings):
     # --- LLM (llm-gateway 동일) ---
     llm_mode: Literal["mock", "real"] = "mock"
     llm_endpoint: str = "http://localhost:8000"
-    llm_model: str = "qwen-14b"
+    llm_model: str = "Qwen/Qwen3.6-27B"
     llm_api_key: str = ""
     llm_concurrency: int = 4
     llm_max_input_chars: int = 800_000
     llm_max_retries: int = 2
+    llm_async_poll_deadline_ms: int = 1_740_000
+    llm_async_poll_interval_seconds: float = 1.0
 
     # --- S4 SAST Runner ---
     sast_endpoint: str = "http://localhost:9000"
@@ -38,6 +40,10 @@ class Settings(BaseSettings):
     agent_llm_retry_max: int = 1
     agent_graph_depth: int = 2
     agent_max_prompt_tokens: int = 100_000
+    analysis_task_deadline_ms: int = 1_800_000
+    analysis_partial_envelope_deadline_ms: int = 1_740_000
+    agent_task_deadline_ms: int = 1_800_000
+    agent_partial_envelope_deadline_ms: int = 1_740_000
 
     # --- Phase 1 truncation 상한 ---
     phase1_max_cve_libraries: int = 20

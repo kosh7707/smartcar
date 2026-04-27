@@ -1,15 +1,23 @@
 from __future__ import annotations
 
+from app.core.evidence_catalog import EvidenceCatalog
+
 
 class EvidenceValidator:
-    """LLM 응답의 evidence ref가 입력 whitelist 내에 있는지 검증한다."""
+    """Validate final evidence refs against the allowed ledger and role policy."""
 
     def validate(
         self,
         parsed: dict,
         allowed_ref_ids: set[str],
+        evidence_catalog: EvidenceCatalog | None = None,
+        allowed_claim_ref_ids: set[str] | None = None,
     ) -> tuple[bool, list[str]]:
         errors: list[str] = []
+        if evidence_catalog is not None and allowed_claim_ref_ids is None:
+            allowed_claim_ref_ids = evidence_catalog.final_ref_ids()
+        if allowed_claim_ref_ids is None:
+            allowed_claim_ref_ids = allowed_ref_ids
 
         used_refs = parsed.get("usedEvidenceRefs", [])
         if isinstance(used_refs, list):
@@ -17,6 +25,13 @@ class EvidenceValidator:
                 if ref_id not in allowed_ref_ids:
                     errors.append(
                         f"usedEvidenceRefs에 허용되지 않은 refId: '{ref_id}'"
+                    )
+                    continue
+                if evidence_catalog is not None and ref_id not in allowed_claim_ref_ids:
+                    entry = evidence_catalog.get(ref_id)
+                    actual = entry.evidence_class if entry else "missing"
+                    errors.append(
+                        f"usedEvidenceRefs에 local/derived-local이 아닌 refId: '{ref_id}' ({actual})"
                     )
         else:
             errors.append("usedEvidenceRefs가 리스트가 아님")
@@ -37,6 +52,14 @@ class EvidenceValidator:
                             errors.append(
                                 f"claims[{i}].supportingEvidenceRefs에 "
                                 f"허용되지 않은 refId: '{ref_id}'"
+                            )
+                            continue
+                        if ref_id not in allowed_claim_ref_ids:
+                            entry = evidence_catalog.get(ref_id) if evidence_catalog is not None else None
+                            actual = entry.evidence_class if entry else "not_claim_support"
+                            errors.append(
+                                f"claims[{i}].supportingEvidenceRefs에 "
+                                f"local/derived-local이 아닌 refId: '{ref_id}' ({actual})"
                             )
                 else:
                     errors.append(

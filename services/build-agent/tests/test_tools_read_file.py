@@ -7,7 +7,7 @@ import os
 import pytest
 
 from app.tools.implementations.read_file import ReadFileTool
-from agent_shared.schemas.agent import ToolResult
+from app.agent_runtime.schemas.agent import ToolResult
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 import type { ApprovalRequest, ApprovalStatus, ApprovalActionType } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IApprovalDAO } from "./interfaces";
+import { safeJsonParse } from "../lib/utils";
 
 interface ApprovalRow {
   id: string;
@@ -10,6 +11,8 @@ interface ApprovalRow {
   project_id: string;
   reason: string;
   status: ApprovalStatus;
+  impact_summary: string | null;
+  target_snapshot: string | null;
   decision: string | null;
   expires_at: string;
   created_at: string;
@@ -24,7 +27,9 @@ function rowToApproval(row: ApprovalRow): ApprovalRequest {
     projectId: row.project_id,
     reason: row.reason,
     status: row.status,
-    decision: row.decision ? JSON.parse(row.decision) : undefined,
+    impactSummary: row.impact_summary ? safeJsonParse(row.impact_summary, undefined) : undefined,
+    targetSnapshot: row.target_snapshot ? safeJsonParse(row.target_snapshot, undefined) : undefined,
+    decision: row.decision ? safeJsonParse(row.decision, undefined) : undefined,
     expiresAt: row.expires_at,
     createdAt: row.created_at,
   };
@@ -41,8 +46,8 @@ export class ApprovalDAO implements IApprovalDAO {
 
   constructor(private db: DatabaseType) {
     this.insertStmt = db.prepare(
-      `INSERT INTO approvals (id, action_type, requested_by, target_id, project_id, reason, status, decision, expires_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO approvals (id, action_type, requested_by, target_id, project_id, reason, status, impact_summary, target_snapshot, decision, expires_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     this.selectByIdStmt = db.prepare(`SELECT * FROM approvals WHERE id = ?`);
     this.selectByTargetStmt = db.prepare(
@@ -71,6 +76,8 @@ export class ApprovalDAO implements IApprovalDAO {
       request.projectId,
       request.reason,
       request.status,
+      request.impactSummary ? JSON.stringify(request.impactSummary) : null,
+      request.targetSnapshot ? JSON.stringify(request.targetSnapshot) : null,
       request.decision ? JSON.stringify(request.decision) : null,
       request.expiresAt,
       request.createdAt

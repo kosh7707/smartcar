@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from app.config import settings
-from agent_shared.context import get_request_id
+from app.agent_runtime.context import get_request_id
 from app.runtime.request_summary import request_summary_tracker
 from app.schemas.request import TaskRequest
 from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
@@ -40,16 +40,16 @@ async def handle_deep_analyze(request: TaskRequest, model_registry) -> TaskSucce
     from app.core.agent_loop import AgentLoop
     from app.core.agent_session import AgentSession
     from app.core.result_assembler import ResultAssembler
-    from agent_shared.llm.caller import LlmCaller
-    from agent_shared.llm.message_manager import MessageManager
-    from agent_shared.llm.turn_summarizer import TurnSummarizer
-    from agent_shared.policy.retry import RetryPolicy
+    from app.agent_runtime.llm.caller import LlmCaller
+    from app.agent_runtime.llm.message_manager import MessageManager
+    from app.agent_runtime.llm.turn_summarizer import TurnSummarizer
+    from app.agent_runtime.policy.retry import RetryPolicy
     from app.policy.termination import TerminationPolicy
     from app.policy.tool_failure import ToolFailurePolicy
-    from agent_shared.schemas.agent import BudgetState, ToolCostTier
-    from agent_shared.tools.executor import ToolExecutor
+    from app.agent_runtime.schemas.agent import BudgetState, ToolCostTier
+    from app.agent_runtime.tools.executor import ToolExecutor
     from app.tools.implementations.mock_tools import MockKnowledgeTool
-    from agent_shared.tools.registry import ToolRegistry, ToolSchema
+    from app.agent_runtime.tools.registry import ToolRegistry, ToolSchema
     from app.tools.router import ToolRouter
 
     request_id = get_request_id() or request.taskId
@@ -215,7 +215,10 @@ async def handle_deep_analyze(request: TaskRequest, model_registry) -> TaskSucce
         sast_endpoint=settings.sast_endpoint,
         timeout_budget_ms=phase1_budget_ms,
     )
-    phase1_result = await phase1_executor.execute(session)
+    try:
+        phase1_result = await phase1_executor.execute(session)
+    finally:
+        await phase1_executor.aclose()
     degrade_reasons: list[str] = []
     if phase1_result.sast_partial_tools:
         degrade_reasons.append("phase1-partial-tools")
@@ -251,10 +254,12 @@ async def handle_deep_analyze(request: TaskRequest, model_registry) -> TaskSucce
             api_key=profile.apiKey if profile else settings.llm_api_key,
             default_max_tokens=settings.agent_llm_max_tokens,
             service_id="s3-agent",
+            async_poll_deadline_seconds=settings.llm_async_poll_deadline_ms / 1000,
+            async_poll_interval_seconds=settings.llm_async_poll_interval_seconds,
         )
     else:
         import json
-        from agent_shared.llm.static_caller import StaticLlmCaller
+        from app.agent_runtime.llm.static_caller import StaticLlmCaller
 
         ref_ids = [ref.refId for ref in request.evidenceRefs]
         llm_caller = StaticLlmCaller(

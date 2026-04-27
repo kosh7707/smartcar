@@ -149,3 +149,29 @@
   .latest-analysis-empty__preview { grid-template-columns: 1fr; }
   .latest-analysis-empty__preview-cell + .latest-analysis-empty__preview-cell { border-left: none; border-top: 1px solid var(--border-subtle); }
 }
+
+/* ── Deep outcome summary — chips + recoveryTrace expanded ── */
+.latest-deep-outcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.latest-deep-outcome__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.latest-deep-outcome__recovery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.latest-deep-outcome__recovery-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-subtle);
+}

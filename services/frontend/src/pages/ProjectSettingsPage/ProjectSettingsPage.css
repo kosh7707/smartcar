@@ -1,7 +1,13 @@
 /* ═══════════════════════════════════════════════════════════════
    Project Settings — page-local additions on top of canonical
    components. See wiki/canon/design-system/DESIGN.md for rules.
+
+   Mock v2 layout (Project Settings Mock v2.html, line 700-993)
+   is mirrored 1:1 here while reusing only canonical tokens
+   (severity ramp / --primary / --foreground-* / --surface-*).
+   No new tokens introduced.
    ═══════════════════════════════════════════════════════════════ */
+
 
 /* ── Page shell ─────────────────────────────────────────────── */
 
@@ -10,12 +16,89 @@
   max-width: 1100px;
   margin-inline: auto;
   padding: var(--space-7) var(--space-7) var(--space-10);
-  gap: var(--space-6);
+  gap: var(--space-7);
+}
+
+.ps-page-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-9);
 }
 
 @media (max-width: 960px) {
   .ps-page { padding: var(--space-6) var(--space-5) var(--space-9); }
 }
+
+
+/* ── Page head — title block + tab strip ───────────────────── */
+
+.ps-page-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0 0 0 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.ps-ph-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-7);
+  padding-bottom: var(--space-5);
+}
+
+.ps-ph-title {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Crumb (caps-mono) */
+.ps-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ps-crumb__sep {
+  opacity: 0.4;
+}
+
+/* ph-meta — caps-mono key + value pairs */
+.ps-ph-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin: 6px 0 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--foreground-subtle);
+}
+
+.ps-ph-meta__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ps-ph-meta__item b {
+  font-weight: var(--weight-medium);
+  color: var(--foreground-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+}
+
 
 /* ── Change bar (header action slot, primary-tinted) ────────── */
 
@@ -23,10 +106,11 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 3px 4px 3px 10px;
+  padding: 4px 4px 4px 10px;
   border: 1px solid var(--primary-border);
   border-radius: var(--radius-md);
   background: var(--primary-surface);
+  flex-shrink: 0;
   animation: ps-change-bar-in var(--duration-base) var(--ease-out) backwards;
 }
 
@@ -36,20 +120,21 @@
 }
 
 .ps-change-bar__dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 999px;
   background: var(--primary);
-  animation: ps-dot-pulse 1.4s ease-in-out infinite;
+  animation: ps-dot-pulse 1.5s ease-in-out infinite;
 }
 
 .ps-change-bar__label {
   font-family: var(--font-mono);
-  font-size: var(--text-2xs);
+  font-size: 10.5px;
   font-weight: var(--weight-semibold);
   text-transform: uppercase;
   letter-spacing: var(--tracking-caps);
   color: var(--foreground-muted);
+  white-space: nowrap;
 }
 
 @media (max-width: 640px) {
@@ -57,39 +142,342 @@
 }
 
 @keyframes ps-dot-pulse {
-  0%, 100% { opacity: 1;   box-shadow: 0 0 0 0   var(--primary-border); }
-  50%      { opacity: 0.5; box-shadow: 0 0 0 4px oklch(0.58 0.18 250 / 0); }
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
 }
 
-/* ── Toolbar row (holds section pill tabs) ──────────────────── */
 
-.ps-toolbar {
-  border-bottom: 0;
-  padding-bottom: 0;
+/* ── Tab strip — horizontal underline ───────────────────────── */
+
+.ps-tab-strip {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin-bottom: -1px;
+}
+.ps-tab-strip::-webkit-scrollbar { display: none; }
+
+.ps-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 11px;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: var(--foreground-muted);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 6px 6px 0 0;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
 }
 
-/* ── General form layout ────────────────────────────────────── */
+.ps-tab svg { opacity: 0.75; }
+.ps-tab:hover { color: var(--foreground); background: var(--surface-sunken); }
 
-.ps-form {
+.ps-tab--active {
+  color: var(--foreground);
+  border-bottom-color: var(--primary);
+  font-weight: var(--weight-medium);
+}
+.ps-tab--active svg { opacity: 1; color: var(--primary); }
+
+.ps-tab--soon { color: var(--foreground-subtle); }
+.ps-tab--soon:hover { color: var(--foreground-muted); }
+.ps-tab--soon.ps-tab--active { color: var(--foreground-muted); }
+
+/* Soon pill — neutral subtle (NOT severity-medium per spec §2.1, §3) */
+.ps-tab__pill-soon {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: var(--weight-semibold);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--foreground-subtle);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  line-height: 1.4;
+}
+
+/* Danger tab — pushed to the right; subtle accent (NOT severity-critical
+   directly per doctrine §3.4: severity color forbidden on non-severity UI).
+   We use foreground + a subtle border indicator on hover/active only. */
+.ps-tab--danger {
+  margin-left: auto;
+  color: var(--foreground-muted);
+}
+.ps-tab--danger:hover {
+  color: var(--foreground);
+  background: var(--surface-sunken);
+}
+.ps-tab--danger.ps-tab--active {
+  color: var(--foreground);
+  border-bottom-color: var(--foreground);
+}
+
+
+/* ── Section block ──────────────────────────────────────────── */
+
+.ps-section {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
 }
 
-/* ── Danger zone row ────────────────────────────────────────── */
+.ps-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+}
+
+.ps-section-head__title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  color: var(--foreground);
+  line-height: var(--leading-tight);
+}
+
+.ps-section-head__desc {
+  margin: 6px 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  color: var(--foreground-muted);
+  max-width: 66ch;
+}
+
+
+/* ── General form layout ────────────────────────────────────── */
+
+.ps-card-body {
+  padding: var(--space-6);
+}
+
+.ps-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.ps-form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+}
+
+@media (max-width: 640px) {
+  .ps-form-grid-2 { grid-template-columns: 1fr; }
+}
+
+.ps-id-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ps-chip-code {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--foreground);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.ps-visibility {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--foreground-muted);
+  padding: 4px 0;
+}
+
+
+/* ── Reserved (placeholder) — mock v2 line 929-966 ──────────── */
+
+.ps-reserved {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-5) var(--space-6);
+  align-items: start;
+  padding: var(--space-8);
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.ps-reserved__icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: var(--primary);
+  background: var(--primary-surface);
+  border: 1px solid var(--primary-border);
+  border-radius: var(--radius-md);
+}
+
+.ps-reserved__head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ps-reserved__title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  color: var(--foreground);
+}
+
+.ps-reserved__desc {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  color: var(--foreground-muted);
+  max-width: 64ch;
+}
+
+.ps-reserved__desc code {
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+}
+
+/* Version tag — neutral subtle (NOT severity-medium per doctrine §3.4) */
+.ps-ver-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-subtle);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+/* Console-style preview (build-targets only) */
+.ps-reserved__preview {
+  grid-column: 2;
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--foreground-subtle);
+  line-height: 1.8;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.ps-reserved__preview-line {
+  display: block;
+}
+
+.ps-reserved__preview-key {
+  display: inline-block;
+  width: 14px;
+  color: var(--foreground-muted);
+}
+
+
+/* ── Danger zone — 2-row (archive + delete) ───────────────────
+   Review-tone critical-review (--danger), NOT severity ramp.
+   Project archive/delete is workflow danger surface, not finding severity
+   (handoff §2.1 / §2.2 / doctrine §3.4). */
+
+.ps-danger {
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.ps-danger__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  background: var(--danger-surface);
+  border-bottom: 1px solid color-mix(in srgb, var(--danger) 28%, transparent);
+}
+
+.ps-danger__head-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--danger);
+}
+
+.ps-danger__tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  padding: 2px 7px;
+  border-radius: 3px;
+  color: var(--danger);
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  white-space: nowrap;
+}
 
 .ps-danger__row {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
+  justify-content: space-between;
   gap: var(--space-6);
+  padding: var(--space-5);
   flex-wrap: wrap;
+}
+
+.ps-danger__row + .ps-danger__row {
+  border-top: 1px solid var(--border-subtle);
 }
 
 .ps-danger__copy {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 4px;
   max-width: 58ch;
 }
 
@@ -108,32 +496,111 @@
   color: var(--foreground-muted);
 }
 
-/* ── Reserved / empty state ─────────────────────────────────── */
 
-.ps-reserved {
+/* ── SDK section ────────────────────────────────────────────── */
+
+.ps-sdk__upload-card {
+  margin-bottom: var(--space-5);
+}
+
+.ps-sdk__form-slot {
+  background: color-mix(in srgb, var(--surface-sunken) 40%, transparent);
+}
+
+.ps-sdk__empty {
+  padding: var(--space-7) var(--space-5);
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-7) var(--space-5);
+  gap: 6px;
+  align-items: center;
   text-align: center;
 }
 
-.ps-reserved__title {
-  margin: 0;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+.ps-sdk-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.ps-sdk-list > * + * {
+  border-top: 1px solid var(--border-subtle);
+}
+
+
+/* ── SDK row (READY, collapsed) — mock v2 line 909-923 ──────── */
+
+.sdk-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.sdk-row:hover { background: var(--surface-sunken); }
+
+.sdk-row__rail {
+  width: 3px;
+  height: 22px;
+  border-radius: 2px;
+  background: transparent;
+}
+
+.sdk-row--ready .sdk-row__rail {
+  background: var(--success);
+}
+
+.sdk-row__name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.sdk-row__title {
+  font-weight: var(--weight-medium);
   color: var(--foreground);
+  font-size: var(--text-sm);
   letter-spacing: var(--tracking-tight);
 }
 
-.ps-reserved__desc {
-  margin: 0;
-  font-size: var(--text-sm);
-  line-height: var(--leading-relaxed);
-  color: var(--foreground-muted);
+.sdk-row__kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.ps-reserved__desc code {
+.sdk-row__meta {
+  display: flex;
+  gap: var(--space-4);
+  white-space: nowrap;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--foreground-subtle);
+}
+
+.sdk-row__meta b {
+  color: var(--foreground-muted);
+  font-weight: var(--weight-medium);
+  margin-right: 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+}
+
+.sdk-row__meta code {
   padding: 1px 6px;
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
@@ -142,72 +609,72 @@
   border-radius: 3px;
 }
 
-/* ── SDK section ────────────────────────────────────────────── */
-
-.ps-sdk__blurb {
-  margin: 0 0 var(--space-4);
+.sdk-row__delete {
+  flex-shrink: 0;
 }
 
-.ps-sdk__form-slot {
-  border-bottom: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--surface-sunken) 40%, transparent);
+.sdk-row__profile {
+  grid-column: 2 / -1;
+  margin-top: var(--space-2);
 }
 
-.ps-sdk__empty {
-  padding: var(--space-6) var(--space-5);
+
+/* ── SDK expanded (ACTIVE / FAILED) — mock v2 line 839-906 ──── */
+
+.sdk-expanded {
+  display: grid;
+  grid-template-columns: 3px 1fr;
+  gap: 0;
+  background: var(--surface);
 }
 
-.ps-sdk__list {
+.sdk-expanded__rail {
+  background: var(--border);
+}
+
+.sdk-expanded--active .sdk-expanded__rail {
+  background: var(--primary);
+}
+
+/* SDK install failure rail — review-tone critical-review (--danger).
+   Workflow failure surface, not finding severity (handoff §2.1). */
+.sdk-expanded--failed .sdk-expanded__rail {
+  background: var(--danger);
+}
+
+.sdk-expanded__body {
+  padding: var(--space-5) var(--space-5);
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
 }
 
-/* ── SDK card + stepper (page-local, referenced by tests) ───── */
-
-.sdk-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4) var(--space-5);
-  border: 1px solid var(--border-subtle);
-  border-left: 2px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  transition: border-color var(--duration-fast) var(--ease-out);
-}
-
-.sdk-card:hover { border-color: var(--border); }
-.sdk-card--ready  { border-left-color: var(--success); }
-.sdk-card--failed { border-left-color: var(--severity-critical); }
-
-.sdk-card__header {
+.sdk-expanded__top {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--space-3);
+}
+
+.sdk-expanded__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
-.sdk-card__name {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  color: var(--foreground);
-  letter-spacing: var(--tracking-tight);
+.sdk-expanded__title > * {
+  flex-shrink: 0;
 }
 
-.sdk-card__kind {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 7px;
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-caps);
-  color: var(--foreground-subtle);
-  border: 1px solid var(--border-subtle);
-  border-radius: 3px;
+.sdk-expanded__actions {
+  display: flex;
+  gap: 6px;
 }
+
+
+/* ── SDK card details (kept from baseline, used inside expanded) ── */
 
 .sdk-card__desc {
   margin: 0;
@@ -224,10 +691,21 @@
   color: var(--foreground-muted);
 }
 
+.sdk-card__meta-key {
+  display: inline-block;
+  margin-right: 4px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-subtle);
+}
+
 .sdk-card__meta code,
 .sdk-card__path code,
-.sdk-card__logpath code,
-.sdk-profile-detail__body code {
+.sdk-profile-detail__body code,
+.sdk-err-block__log code {
   padding: 1px 6px;
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
@@ -236,8 +714,7 @@
   border-radius: 3px;
 }
 
-.sdk-card__path,
-.sdk-card__logpath {
+.sdk-card__path {
   padding: 6px 8px;
   font-size: var(--text-xs);
   color: var(--foreground-muted);
@@ -282,10 +759,33 @@
   transition: width var(--duration-base) var(--ease-out);
 }
 
-.sdk-card__error {
-  font-size: var(--text-sm);
-  color: var(--severity-critical);
+
+/* ── SDK error block (FAILED state — mock v2 line 897-904) ──── */
+
+.sdk-err-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
 }
+
+.sdk-err-block__msg {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--foreground);
+}
+
+.sdk-err-block__log {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--foreground-muted);
+}
+
+
+/* ── SDK profile detail (collapsible) ──────────────────────── */
 
 .sdk-profile-detail {
   display: flex;
@@ -308,88 +808,115 @@
   color: var(--foreground-muted);
 }
 
-/* Stepper (running status live signal per DESIGN.md §8.1) */
+
+/* ── Stepper — mock v2 line 850-860 ─────────────────────────── */
+
 .sdk-stepper {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0;
   flex-wrap: wrap;
+  padding: var(--space-2) 0 0;
 }
 
 .sdk-stepper__step {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-height: 22px;
-  padding: 2px 10px;
+  gap: 6px;
+  padding: 4px 10px;
   border-radius: 999px;
   border: 1px solid var(--border-subtle);
   background: var(--surface);
   font-family: var(--font-mono);
-  font-size: var(--text-2xs);
+  font-size: 10.5px;
   letter-spacing: 0.04em;
   color: var(--foreground-subtle);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.sdk-stepper__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border-strong);
 }
 
 .sdk-stepper__step--done {
-  border-color: oklch(0.62 0.14 150 / 0.30);
+  border-color: color-mix(in srgb, var(--success) 30%, transparent);
   background: var(--success-surface);
   color: var(--success);
 }
+.sdk-stepper__step--done .sdk-stepper__dot { background: var(--success); }
 
 .sdk-stepper__step--active {
   border-color: var(--primary-border);
   background: var(--primary-surface);
   color: var(--primary);
-  animation: ps-dot-pulse 1.6s ease-in-out infinite;
+}
+.sdk-stepper__step--active .sdk-stepper__dot {
+  background: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-surface);
+  animation: ps-dot-pulse 1.5s ease-in-out infinite;
 }
 
+/* SDK stepper failure — review-tone critical-review (--danger).
+   Workflow failure step, not finding severity (handoff §2.1). */
 .sdk-stepper__step--failed {
-  border-color: var(--severity-critical-border);
-  background: var(--severity-critical-surface);
-  color: var(--severity-critical);
+  border-color: color-mix(in srgb, var(--danger) 28%, transparent);
+  background: var(--danger-surface);
+  color: var(--danger);
 }
+.sdk-stepper__step--failed .sdk-stepper__dot { background: var(--danger); }
 
 .sdk-stepper__line {
-  width: 14px;
+  width: 16px;
   height: 1px;
-  background: var(--border-subtle);
+  background: var(--border);
 }
 
-.sdk-stepper__line--done { background: var(--success); }
+.sdk-stepper__line--done {
+  background: var(--success);
+}
 
-/* Status badge (mono caps, follows token palette) */
+
+/* ── SDK status badge ───────────────────────────────────────── */
+
 .sdk-status-badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  min-height: 22px;
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-radius: 999px;
   border: 1px solid transparent;
   font-family: var(--font-mono);
-  font-size: var(--text-2xs);
+  font-size: 10.5px;
   font-weight: var(--weight-medium);
   letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .sdk-status-badge--pending {
-  background: var(--severity-medium-surface);
-  color: var(--severity-medium);
-  border-color: var(--severity-medium-border);
+  background: var(--warning-surface);
+  color: var(--warning);
+  border-color: var(--warning-border);
 }
 
 .sdk-status-badge--ready {
   background: var(--success-surface);
   color: var(--success);
-  border-color: oklch(0.62 0.14 150 / 0.25);
+  border-color: color-mix(in srgb, var(--success) 25%, transparent);
 }
 
+/* SDK status failed — review-tone critical-review (--danger).
+   Workflow failure badge, not finding severity (handoff §2.1). */
 .sdk-status-badge--failed {
-  background: var(--severity-critical-surface);
-  color: var(--severity-critical);
-  border-color: var(--severity-critical-border);
+  background: var(--danger-surface);
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 28%, transparent);
 }
+
 
 /* ── SDK Upload Form (page-local) ───────────────────────────── */
 
@@ -471,7 +998,9 @@
 .sdk-upload-zone__icon { color: var(--foreground-subtle); }
 .sdk-upload-zone__input,
 .sdk-upload-zone__hidden-input { display: none; }
-.sdk-upload-zone__error { font-size: var(--text-sm); color: var(--severity-critical); }
+/* Upload zone error — review-tone critical-review (--danger).
+   Workflow error message, not finding severity (handoff §2.1). */
+.sdk-upload-zone__error { font-size: var(--text-sm); color: var(--danger); }
 
 .sdk-file-preview {
   display: flex;
@@ -533,10 +1062,252 @@
   .sdk-register-form__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* ── Reduced motion ─────────────────────────────────────────── */
+
+/* ── Responsive: 960px ──────────────────────────────────────── */
+
+@media (max-width: 960px) {
+  .sdk-row {
+    grid-template-columns: auto 1fr auto;
+    row-gap: var(--space-2);
+  }
+  .sdk-row__meta {
+    grid-column: 2 / -1;
+  }
+  .ps-reserved {
+    grid-template-columns: 1fr;
+  }
+  .ps-reserved__preview {
+    grid-column: 1;
+  }
+}
+
+
+/* ── SDK quota indicator (panel-head right-side, caps-mono) ───── */
+
+.sdk-quota {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--foreground-subtle);
+  white-space: nowrap;
+}
+
+.sdk-quota code {
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+}
+
+.sdk-quota--exceeded {
+  color: var(--foreground-muted);
+}
+
+.sdk-quota--exceeded code {
+  border-color: var(--border-strong);
+  font-weight: var(--weight-semibold);
+}
+
+
+/* ── SDK active-card live meta row (ETA / elapsed / phase detail) ── */
+
+.sdk-card__live-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--foreground-subtle);
+}
+
+.sdk-card__elapsed,
+.sdk-card__eta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sdk-card__phase-detail {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--foreground-muted);
+  word-break: break-all;
+}
+
+
+/* ── Stepper done-step duration label ─────────────────────────── */
+
+.sdk-stepper__duration {
+  margin-left: 4px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: inherit;
+  opacity: 0.75;
+}
+
+
+/* ── SDK error block — review-tone variants (NOT severity ramp) ── */
+
+.sdk-err-block--critical {
+  background: var(--danger-surface);
+  border-color: var(--danger-border);
+}
+
+.sdk-err-block--critical .sdk-err-block__msg {
+  color: var(--danger);
+}
+
+.sdk-err-block--caution,
+.sdk-err-block--fallback {
+  background: var(--surface);
+  border-color: var(--border-strong);
+}
+
+.sdk-err-block--caution .sdk-err-block__msg,
+.sdk-err-block--fallback .sdk-err-block__msg {
+  color: var(--foreground);
+}
+
+.sdk-err-block__attrs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--foreground-muted);
+}
+
+.sdk-err-block__attrs span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sdk-err-block__attrs code {
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+}
+
+.sdk-err-block__tech {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sdk-err-block__tech-toggle {
+  align-self: flex-start;
+  padding-left: 0;
+}
+
+.sdk-err-block__tech-body {
+  margin: 0;
+  padding: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--foreground-muted);
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.sdk-err-block__cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+
+/* ── SDK install log panel (failed err-block expand) ──────────── */
+
+.sdk-log-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.sdk-log-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sdk-log-panel__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--foreground-muted);
+}
+
+.sdk-log-panel__total {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--foreground-subtle);
+}
+
+.sdk-log-panel__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sdk-log-panel__error {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--foreground-muted);
+}
+
+.sdk-log-panel__pre {
+  margin: 0;
+  padding: var(--space-3);
+  max-height: 320px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--foreground);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.sdk-log-panel__more {
+  display: flex;
+  justify-content: flex-end;
+}
+
+
+/* ── Live pulse: body.no-live + prefers-reduced-motion kills ─── */
+
+body.no-live .ps-change-bar,
+body.no-live .ps-change-bar__dot,
+body.no-live .sdk-stepper__step--active,
+body.no-live .sdk-stepper__step--active .sdk-stepper__dot { animation: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .ps-change-bar,
   .ps-change-bar__dot,
-  .sdk-stepper__step--active { animation: none; }
+  .sdk-stepper__step--active,
+  .sdk-stepper__step--active .sdk-stepper__dot { animation: none; }
 }

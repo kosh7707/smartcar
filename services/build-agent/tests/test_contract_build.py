@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from agent_shared.schemas.agent import BudgetState, ToolTraceStep
+from app.agent_runtime.schemas.agent import BudgetState, ToolTraceStep
 from app.core.agent_session import AgentSession
 from app.core.result_assembler import ResultAssembler
 from app.schemas.request import TaskRequest

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from agent_shared.schemas.agent import BudgetState, ToolCostTier
+from app.agent_runtime.schemas.agent import BudgetState, ToolCostTier
 from app.budget.manager import BudgetManager
 
 

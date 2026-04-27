@@ -4,9 +4,9 @@ import json
 
 import pytest
 
-from agent_shared.llm.message_manager import MessageManager
-from agent_shared.llm.turn_summarizer import TurnSummarizer
-from agent_shared.schemas.agent import ToolCallRequest, ToolResult
+from app.agent_runtime.llm.message_manager import MessageManager
+from app.agent_runtime.llm.turn_summarizer import TurnSummarizer
+from app.agent_runtime.schemas.agent import ToolCallRequest, ToolResult
 
 
 def test_initial_messages():

@@ -5,10 +5,25 @@ from __future__ import annotations
 import logging
 
 from app.config import settings
-from agent_shared.context import get_request_id
+from app.agent_runtime.context import get_request_id
 from app.runtime.request_summary import request_summary_tracker
 from app.schemas.request import TaskRequest
-from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
+from app.schemas.response import (
+    AssessmentResult,
+    AuditInfo,
+    EvaluationVerdict,
+    QualityGateResult,
+    RecoveryTraceEntry,
+    TaskFailureResponse,
+    TaskSuccessResponse,
+    TokenUsage,
+    ValidationInfo,
+)
+from app.quality.poc_quality_gate import evaluate_poc_quality
+from app.state_machine.dependency_state import state_from_exception
+from app.state_machine.outcomes import clean_pass_for
+from app.state_machine.types import DependencyState
+from app.types import AnalysisOutcome, FailureCode, PocOutcome, QualityOutcome, TaskStatus
 
 logger = logging.getLogger(__name__)
 
@@ -23,19 +38,12 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
 
     import httpx
 
-    from agent_shared.context import get_request_id
-    from agent_shared.errors import StrictJsonContractError
-    from agent_shared.observability import agent_log
+    from app.agent_runtime.context import get_request_id
+    from app.agent_runtime.errors import StrictJsonContractError
+    from app.agent_runtime.observability import agent_log
     from app.pipeline.confidence import ConfidenceCalculator
     from app.pipeline.response_parser import V1ResponseParser
-    from app.schemas.response import (
-        AssessmentResult,
-        AuditInfo,
-        Claim,
-        TokenUsage,
-        ValidationInfo,
-    )
-    from app.types import FailureCode, TaskStatus
+    from app.schemas.response import Claim
     from app.validators.evidence_validator import EvidenceValidator
     from app.validators.schema_validator import SchemaValidator
 
@@ -61,6 +69,30 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         claimLocation=claim.get("location"),
         fileCount=len(files),
     )
+
+    if not _valid_input_claim(claim) or not isinstance(files, list) or not files:
+        elapsed = int((time.monotonic() - start) * 1000)
+        missing = []
+        if not _valid_input_claim(claim):
+            missing.append("context.trusted.claim(statement/detail/location)")
+        if not isinstance(files, list) or not files:
+            missing.append("context.trusted.files")
+        return TaskFailureResponse(
+            taskId=request.taskId,
+            taskType=request.taskType,
+            status=TaskStatus.VALIDATION_FAILED,
+            failureCode=FailureCode.INVALID_SCHEMA,
+            failureDetail="generate-poc invalid input: missing/invalid " + ", ".join(missing),
+            retryable=False,
+            audit=AuditInfo(
+                inputHash="",
+                latencyMs=elapsed,
+                tokenUsage=TokenUsage(prompt=0, completion=0),
+                retryCount=0,
+                ragHits=0,
+                createdAt=datetime.now(timezone.utc).isoformat(),
+            ),
+        )
 
     # ─── 미니 Phase 1: KB 컨텍스트 수집 ───
     kb_context_lines = []
@@ -238,19 +270,22 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
             user_message += f"- `{r}` (carried over from input claim)\n"
 
     # ─── LLM 호출 (LlmCaller — adaptive timeout + X-Timeout-Seconds 적용) ───
-    from agent_shared.llm.caller import LlmCaller
+    from app.agent_runtime.llm.caller import LlmCaller
 
     if settings.llm_mode == "real":
         profile = model_registry.get_default()
+        async_poll_deadline_seconds = _generate_poc_async_poll_deadline_seconds(request)
         llm = LlmCaller(
             endpoint=profile.endpoint if profile else settings.llm_endpoint,
             model=profile.modelName if profile else settings.llm_model,
             api_key=profile.apiKey if profile else settings.llm_api_key,
             default_max_tokens=request.constraints.maxTokens or 8192,
             service_id="s3-agent",
+            async_poll_deadline_seconds=async_poll_deadline_seconds,
+            async_poll_interval_seconds=settings.llm_async_poll_interval_seconds,
         )
     else:
-        from agent_shared.llm.static_caller import StaticLlmCaller
+        from app.agent_runtime.llm.static_caller import StaticLlmCaller
 
         llm = StaticLlmCaller(
             content='{"summary":"Mock PoC","claims":[{"statement":"mock","detail":"mock poc code","supportingEvidenceRefs":["eref-file-00"],"location":"clients/http_client.cpp:62"}],"caveats":[],"usedEvidenceRefs":["eref-file-00"],"suggestedSeverity":"info","needsHumanReview":true,"recommendedNextSteps":[],"policyFlags":[]}',
@@ -302,58 +337,45 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
             completion_tokens = llm_response.completion_tokens
             request_summary_tracker.mark_phase_advancing(request_id, source="llm-strict-json-retry-response")
         except StrictJsonContractError as e2:
-            elapsed = int((time.monotonic() - start) * 1000)
             if hasattr(llm, 'aclose'):
                 await llm.aclose()
-            return TaskFailureResponse(
-                taskId=request.taskId,
-                taskType=request.taskType,
-                status=TaskStatus.MODEL_ERROR,
-                failureCode=FailureCode.MODEL_UNAVAILABLE,
-                failureDetail=_strict_json_failure_detail(e2),
-                retryable=True,
-                audit=AuditInfo(
-                    inputHash="", latencyMs=elapsed,
-                    tokenUsage=TokenUsage(prompt=0, completion=0),
-                    retryCount=1, ragHits=0,
-                    createdAt=datetime.now(timezone.utc).isoformat(),
-                ),
+            return _build_poc_completed_outcome(
+                request,
+                start=start,
+                prompt_tokens=0,
+                completion_tokens=0,
+                retry_count=1,
+                rag_hits=0,
+                deficiency="LLM_OUTPUT_DEFICIENT",
+                action="strict_json_retry_exhausted",
+                outcome=PocOutcome.POC_INCONCLUSIVE,
+                detail=_strict_json_failure_detail(e2),
             )
         except Exception as e2:
-            elapsed = int((time.monotonic() - start) * 1000)
             if hasattr(llm, 'aclose'):
                 await llm.aclose()
-            return TaskFailureResponse(
-                taskId=request.taskId,
-                taskType=request.taskType,
-                status=TaskStatus.MODEL_ERROR,
-                failureCode=FailureCode.MODEL_UNAVAILABLE,
-                failureDetail=f"strict_json_retry_failed: {e2}",
-                retryable=True,
-                audit=AuditInfo(
-                    inputHash="", latencyMs=elapsed,
-                    tokenUsage=TokenUsage(prompt=0, completion=0),
-                    retryCount=1, ragHits=0,
-                    createdAt=datetime.now(timezone.utc).isoformat(),
-                ),
+            return _build_poc_llm_exception_response(
+                request,
+                start=start,
+                prompt_tokens=0,
+                completion_tokens=0,
+                retry_count=1,
+                rag_hits=len(kb_context_lines),
+                action="strict_json_retry_failed",
+                error=e2,
             )
     except Exception as e:
-        elapsed = int((time.monotonic() - start) * 1000)
         if hasattr(llm, 'aclose'):
             await llm.aclose()
-        return TaskFailureResponse(
-            taskId=request.taskId,
-            taskType=request.taskType,
-            status=TaskStatus.MODEL_ERROR,
-            failureCode=FailureCode.MODEL_UNAVAILABLE,
-            failureDetail=str(e),
-            retryable=True,
-            audit=AuditInfo(
-                inputHash="", latencyMs=elapsed,
-                tokenUsage=TokenUsage(prompt=0, completion=0),
-                retryCount=0, ragHits=0,
-                createdAt=datetime.now(timezone.utc).isoformat(),
-            ),
+        return _build_poc_llm_exception_response(
+            request,
+            start=start,
+            prompt_tokens=0,
+            completion_tokens=0,
+            retry_count=0,
+            rag_hits=len(kb_context_lines),
+            action="llm_call_failed",
+            error=e,
         )
 
     # ─── 파싱 + 검증 ───
@@ -371,22 +393,17 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         except Exception as e:
             if hasattr(llm, 'aclose'):
                 await llm.aclose()
-            elapsed = int((time.monotonic() - start) * 1000)
-            return TaskFailureResponse(
-                taskId=request.taskId,
-                taskType=request.taskType,
-                status=TaskStatus.MODEL_ERROR,
-                failureCode=FailureCode.MODEL_UNAVAILABLE,
-                failureDetail=f"generate-poc schema repair call failed: {e}",
-                retryable=True,
-                audit=AuditInfo(
-                    inputHash="",
-                    latencyMs=elapsed,
-                    tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
-                    retryCount=1 if strict_json_retry_used else 0,
-                    ragHits=len(kb_context_lines),
-                    createdAt=datetime.now(timezone.utc).isoformat(),
-                ),
+            return _build_poc_completed_outcome(
+                request,
+                start=start,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                retry_count=1 + int(strict_json_retry_used),
+                rag_hits=len(kb_context_lines),
+                deficiency="SCHEMA_DEFICIENT",
+                action="schema_repair_call_failed",
+                outcome=PocOutcome.POC_INCONCLUSIVE,
+                detail=_schema_repair_failure_detail(e),
             )
         schema_repair_used = True
         prompt_tokens += repair_prompt_tokens
@@ -395,22 +412,17 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         if parsed is None:
             if hasattr(llm, 'aclose'):
                 await llm.aclose()
-            elapsed = int((time.monotonic() - start) * 1000)
-            return TaskFailureResponse(
-                taskId=request.taskId,
-                taskType=request.taskType,
-                status=TaskStatus.VALIDATION_FAILED,
-                failureCode=FailureCode.INVALID_SCHEMA,
-                failureDetail="generate-poc가 strict schema repair 후에도 구조화된 JSON을 반환하지 않음",
-                retryable=False,
-                audit=AuditInfo(
-                    inputHash="",
-                    latencyMs=elapsed,
-                    tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
-                    retryCount=int(schema_repair_used) + int(strict_json_retry_used),
-                    ragHits=len(kb_context_lines),
-                    createdAt=datetime.now(timezone.utc).isoformat(),
-                ),
+            return _build_poc_completed_outcome(
+                request,
+                start=start,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                retry_count=int(schema_repair_used) + int(strict_json_retry_used),
+                rag_hits=len(kb_context_lines),
+                deficiency="SCHEMA_DEFICIENT",
+                action="outcome_classification",
+                outcome=PocOutcome.POC_INCONCLUSIVE,
+                detail="generate-poc strict schema repair did not return parseable JSON",
             )
 
     schema_probe = SchemaValidator().validate(parsed, request.taskType)
@@ -426,22 +438,17 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         except Exception as e:
             if hasattr(llm, 'aclose'):
                 await llm.aclose()
-            elapsed = int((time.monotonic() - start) * 1000)
-            return TaskFailureResponse(
-                taskId=request.taskId,
-                taskType=request.taskType,
-                status=TaskStatus.MODEL_ERROR,
-                failureCode=FailureCode.MODEL_UNAVAILABLE,
-                failureDetail=f"generate-poc schema repair call failed: {e}",
-                retryable=True,
-                audit=AuditInfo(
-                    inputHash="",
-                    latencyMs=elapsed,
-                    tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
-                    retryCount=int(schema_repair_used) + int(strict_json_retry_used),
-                    ragHits=len(kb_context_lines),
-                    createdAt=datetime.now(timezone.utc).isoformat(),
-                ),
+            return _build_poc_completed_outcome(
+                request,
+                start=start,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                retry_count=1 + int(schema_repair_used) + int(strict_json_retry_used),
+                rag_hits=len(kb_context_lines),
+                deficiency="SCHEMA_DEFICIENT",
+                action="schema_repair_call_failed",
+                outcome=PocOutcome.POC_INCONCLUSIVE,
+                detail=_schema_repair_failure_detail(e),
             )
         schema_repair_used = True
         prompt_tokens += repair_prompt_tokens
@@ -450,22 +457,17 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         if parsed is None:
             if hasattr(llm, 'aclose'):
                 await llm.aclose()
-            elapsed = int((time.monotonic() - start) * 1000)
-            return TaskFailureResponse(
-                taskId=request.taskId,
-                taskType=request.taskType,
-                status=TaskStatus.VALIDATION_FAILED,
-                failureCode=FailureCode.INVALID_SCHEMA,
-                failureDetail="generate-poc schema repair가 non-JSON 응답을 반환함",
-                retryable=False,
-                audit=AuditInfo(
-                    inputHash="",
-                    latencyMs=elapsed,
-                    tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
-                    retryCount=int(schema_repair_used) + int(strict_json_retry_used),
-                    ragHits=len(kb_context_lines),
-                    createdAt=datetime.now(timezone.utc).isoformat(),
-                ),
+            return _build_poc_completed_outcome(
+                request,
+                start=start,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                retry_count=int(schema_repair_used) + int(strict_json_retry_used),
+                rag_hits=len(kb_context_lines),
+                deficiency="SCHEMA_DEFICIENT",
+                action="outcome_classification",
+                outcome=PocOutcome.POC_INCONCLUSIVE,
+                detail="generate-poc schema repair returned non-JSON output",
             )
         agent_log(
             logger,
@@ -480,22 +482,17 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         if not repaired_schema.valid:
             if hasattr(llm, 'aclose'):
                 await llm.aclose()
-            elapsed = int((time.monotonic() - start) * 1000)
-            return TaskFailureResponse(
-                taskId=request.taskId,
-                taskType=request.taskType,
-                status=TaskStatus.VALIDATION_FAILED,
-                failureCode=FailureCode.INVALID_SCHEMA,
-                failureDetail="generate-poc schema repair failed: " + "; ".join(repaired_schema.errors),
-                retryable=False,
-                audit=AuditInfo(
-                    inputHash="",
-                    latencyMs=elapsed,
-                    tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
-                    retryCount=int(schema_repair_used) + int(strict_json_retry_used),
-                    ragHits=len(kb_context_lines),
-                    createdAt=datetime.now(timezone.utc).isoformat(),
-                ),
+            return _build_poc_completed_outcome(
+                request,
+                start=start,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                retry_count=int(schema_repair_used) + int(strict_json_retry_used),
+                rag_hits=len(kb_context_lines),
+                deficiency="SCHEMA_DEFICIENT",
+                action="outcome_classification",
+                outcome=PocOutcome.POC_REJECTED,
+                detail="generate-poc schema repair failed: " + "; ".join(repaired_schema.errors),
             )
 
     if strict_json_retry_used:
@@ -515,24 +512,17 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
     evidence_validator = EvidenceValidator()
     raw_evidence_valid, raw_evidence_errors = evidence_validator.validate(parsed, allowed_refs)
     if not raw_evidence_valid:
-        elapsed = int((time.monotonic() - start) * 1000)
-        input_str = json.dumps(request.model_dump(mode="json"), sort_keys=True)
-        input_hash = f"sha256:{hashlib.sha256(input_str.encode()).hexdigest()[:16]}"
-        return TaskFailureResponse(
-            taskId=request.taskId,
-            taskType=request.taskType,
-            status=TaskStatus.VALIDATION_FAILED,
-            failureCode=FailureCode.INVALID_GROUNDING,
-            failureDetail="; ".join(raw_evidence_errors),
-            retryable=False,
-            audit=AuditInfo(
-                inputHash=input_hash,
-                latencyMs=elapsed,
-                tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
-                retryCount=int(schema_repair_used) + int(strict_json_retry_used),
-                ragHits=len(kb_context_lines),
-                createdAt=datetime.now(timezone.utc).isoformat(),
-            ),
+        return _build_poc_completed_outcome(
+            request,
+            start=start,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            retry_count=int(schema_repair_used) + int(strict_json_retry_used),
+            rag_hits=len(kb_context_lines),
+            deficiency="REFS_OR_GROUNDING_DEFICIENT",
+            action="poc_reject_invalid_refs",
+            outcome=PocOutcome.POC_REJECTED,
+            detail="; ".join(raw_evidence_errors),
         )
 
     # raw grounding validation 이후의 방어적 ref cleanup
@@ -540,7 +530,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
     sanitizer = EvidenceRefSanitizer()
     parsed, sanitize_corrections = sanitizer.sanitize(parsed, allowed_refs)
     if sanitize_corrections:
-        from agent_shared.observability import agent_log as _agent_log
+        from app.agent_runtime.observability import agent_log as _agent_log
         _agent_log(logger, "generate-poc evidence ref defensive cleanup",
                    component="generate_poc", phase="poc_sanitize",
                    corrections=sanitize_corrections[:10])
@@ -575,26 +565,17 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         errors = schema_result.errors + evidence_errors
         if not claims:
             errors.append("generate-poc는 최소 1개 이상의 구조화된 claim을 반환해야 함")
-        failure_code = (
-            FailureCode.INVALID_SCHEMA
-            if not schema_result.valid or not claims
-            else FailureCode.INVALID_GROUNDING
-        )
-        return TaskFailureResponse(
-            taskId=request.taskId,
-            taskType=request.taskType,
-            status=TaskStatus.VALIDATION_FAILED,
-            failureCode=failure_code,
-            failureDetail="; ".join(errors),
-            retryable=False,
-            audit=AuditInfo(
-                inputHash=input_hash,
-                latencyMs=elapsed,
-                tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
-                retryCount=int(schema_repair_used) + int(strict_json_retry_used),
-                ragHits=len(kb_context_lines),
-                createdAt=datetime.now(timezone.utc).isoformat(),
-            ),
+        return _build_poc_completed_outcome(
+            request,
+            start=start,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            retry_count=int(schema_repair_used) + int(strict_json_retry_used),
+            rag_hits=len(kb_context_lines),
+            deficiency="POC_DEFICIENT",
+            action="poc_outcome_classification",
+            outcome=PocOutcome.POC_REJECTED if not claims else PocOutcome.POC_INCONCLUSIVE,
+            detail="; ".join(errors),
         )
 
     agent_log(
@@ -604,13 +585,27 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         promptTokens=prompt_tokens, completionTokens=completion_tokens,
     )
 
+    quality_gate = evaluate_poc_quality(claims=claims, caveats=parsed.get("caveats", []))
+    quality_outcome = quality_gate.outcome
+    clean_pass = clean_pass_for(
+        analysis_outcome=AnalysisOutcome.ACCEPTED_CLAIMS,
+        quality_outcome=quality_outcome,
+        poc_outcome=PocOutcome.POC_ACCEPTED,
+    )
+    evaluation_verdict = _poc_evaluation_verdict_for(
+        clean_pass=clean_pass,
+        analysis_outcome=AnalysisOutcome.ACCEPTED_CLAIMS,
+        quality_outcome=quality_outcome,
+        poc_outcome=PocOutcome.POC_ACCEPTED,
+    )
+
     return TaskSuccessResponse(
         taskId=request.taskId,
         taskType=request.taskType,
         status=TaskStatus.COMPLETED,
         modelProfile="poc-v1",
         promptVersion="generate-poc-v1",
-        schemaVersion="agent-v1",
+        schemaVersion="agent-v1.1",
         validation=ValidationInfo(
             valid=schema_result.valid and evidence_valid,
             errors=schema_result.errors + evidence_errors,
@@ -626,6 +621,13 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
             needsHumanReview=parsed.get("needsHumanReview", True),
             recommendedNextSteps=parsed.get("recommendedNextSteps", []),
             policyFlags=parsed.get("policyFlags", []),
+            analysisOutcome=AnalysisOutcome.ACCEPTED_CLAIMS,
+            qualityOutcome=quality_outcome,
+            pocOutcome=PocOutcome.POC_ACCEPTED,
+            recoveryTrace=[],
+            cleanPass=clean_pass,
+            evaluationVerdict=evaluation_verdict,
+            qualityGate=quality_gate,
         ),
         audit=AuditInfo(
             inputHash=input_hash,
@@ -649,6 +651,235 @@ def extract_function_from_claim(claim: dict) -> str | None:
     # 일반 함수명 패턴 (xxx() 형태)
     match = re.search(r"\b([a-zA-Z_]\w+)\(\)", text)
     return match.group(1) if match else None
+
+
+def _valid_input_claim(claim: object) -> bool:
+    if not isinstance(claim, dict):
+        return False
+    return all(
+        isinstance(claim.get(field), str) and claim[field].strip()
+        for field in ("statement", "detail", "location")
+    )
+
+
+def _build_poc_completed_outcome(
+    request: TaskRequest,
+    *,
+    start: float,
+    prompt_tokens: int,
+    completion_tokens: int,
+    retry_count: int,
+    rag_hits: int,
+    deficiency: str,
+    action: str,
+    outcome: PocOutcome,
+    detail: str,
+) -> TaskSuccessResponse:
+    """Return completed PoC outcome for valid-input/live-runtime deficiencies."""
+    import hashlib
+    import json
+    import time
+    from datetime import datetime, timezone
+
+    input_str = json.dumps(request.model_dump(mode="json"), sort_keys=True)
+    input_hash = f"sha256:{hashlib.sha256(input_str.encode()).hexdigest()[:16]}"
+    elapsed = int((time.monotonic() - start) * 1000)
+    trace = RecoveryTraceEntry(
+        deficiency=deficiency,
+        action=action,
+        outcome=outcome.value,
+        detail=detail,
+    )
+    return TaskSuccessResponse(
+        taskId=request.taskId,
+        taskType=request.taskType,
+        status=TaskStatus.COMPLETED,
+        modelProfile="poc-v1",
+        promptVersion="generate-poc-v1",
+        schemaVersion="agent-v1.1",
+        validation=ValidationInfo(valid=True, errors=[]),
+        result=AssessmentResult(
+            summary="S3 PoC 검토는 완료되었지만 PoC를 정직하게 accepted 상태로 확정하지 못했습니다.",
+            claims=[],
+            caveats=[detail] if detail else [],
+            usedEvidenceRefs=[],
+            suggestedSeverity="info",
+            confidence=0.0,
+            needsHumanReview=True,
+            recommendedNextSteps=[
+                "Review recoveryTrace/audit details before treating this as a clean PoC pass."
+            ],
+            policyFlags=["state_machine_outcome", "poc_recovery_classified"],
+            analysisOutcome=AnalysisOutcome.INCONCLUSIVE,
+            qualityOutcome=QualityOutcome.REJECTED,
+            pocOutcome=outcome,
+            recoveryTrace=[trace],
+            cleanPass=False,
+            evaluationVerdict=EvaluationVerdict(
+                taskCompleted=True,
+                cleanPass=False,
+                reasons=[f"pocOutcome={outcome.value}", detail] if detail else [f"pocOutcome={outcome.value}"],
+                gateOutcomes=[
+                    "analysis:inconclusive",
+                    "quality:rejected",
+                    f"poc:{outcome.value}",
+                ],
+            ),
+            qualityGate=QualityGateResult(
+                outcome=QualityOutcome.REJECTED,
+                caveats=[detail] if detail else [],
+            ),
+        ),
+        audit=AuditInfo(
+            inputHash=input_hash,
+            latencyMs=elapsed,
+            tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
+            retryCount=retry_count,
+            ragHits=rag_hits,
+            createdAt=datetime.now(timezone.utc).isoformat(),
+        ),
+    )
+
+
+def _build_poc_llm_exception_response(
+    request: TaskRequest,
+    *,
+    start: float,
+    prompt_tokens: int,
+    completion_tokens: int,
+    retry_count: int,
+    rag_hits: int,
+    action: str,
+    error: Exception,
+) -> TaskSuccessResponse | TaskFailureResponse:
+    """Classify generate-poc LLM exceptions without conflating output quality with availability.
+
+    Only invalid-input/true dependency/hard-deadline boundaries remain public
+    task failures. Unknown model-output/client deficiencies become completed
+    inconclusive envelopes so callers can still consume a stable result shape.
+    """
+    import time
+    from datetime import datetime, timezone
+
+    dependency_state = state_from_exception(error)
+    detail = f"{action}: {error}"
+    retryable = bool(getattr(error, "retryable", True))
+    error_code = getattr(error, "code", "")
+    elapsed = int((time.monotonic() - start) * 1000)
+
+    if error_code == "INPUT_TOO_LARGE":
+        return TaskFailureResponse(
+            taskId=request.taskId,
+            taskType=request.taskType,
+            status=TaskStatus.VALIDATION_FAILED,
+            failureCode=FailureCode.INPUT_TOO_LARGE,
+            failureDetail=detail,
+            retryable=False,
+            audit=AuditInfo(
+                inputHash="",
+                latencyMs=elapsed,
+                tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
+                retryCount=retry_count,
+                ragHits=rag_hits,
+                createdAt=datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+
+    if dependency_state == DependencyState.DEADLINE_EXCEEDED:
+        return _build_poc_completed_outcome(
+            request,
+            start=start,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            retry_count=retry_count,
+            rag_hits=rag_hits,
+            deficiency="LLM_TIMEOUT_RECOVERED",
+            action=action,
+            outcome=PocOutcome.POC_INCONCLUSIVE,
+            detail=(
+                detail
+                + "; S3 returned a completed inconclusive PoC envelope "
+                "because the valid-input/live-runtime path can still assemble a schema-valid response."
+            ),
+        )
+
+    if dependency_state == DependencyState.UNAVAILABLE:
+        return TaskFailureResponse(
+            taskId=request.taskId,
+            taskType=request.taskType,
+            status=TaskStatus.MODEL_ERROR,
+            failureCode=FailureCode.MODEL_UNAVAILABLE,
+            failureDetail=detail,
+            retryable=retryable,
+            audit=AuditInfo(
+                inputHash="",
+                latencyMs=elapsed,
+                tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
+                retryCount=retry_count,
+                ragHits=rag_hits,
+                createdAt=datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+
+    return _build_poc_completed_outcome(
+        request,
+        start=start,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        retry_count=retry_count,
+        rag_hits=rag_hits,
+        deficiency="LLM_OUTPUT_DEFICIENT",
+        action=action,
+        outcome=PocOutcome.POC_INCONCLUSIVE,
+        detail=detail,
+    )
+
+
+def _generate_poc_async_poll_deadline_seconds(request: TaskRequest) -> float:
+    """Size generate-poc's LLM wait budget from explicit caller guidance.
+
+    `constraints.timeoutMs` is an advisory budget, not a public hard-abort
+    contract. When the caller explicitly supplies it, use it to leave enough
+    time for S3 to return an honest completed/inconclusive envelope instead of
+    letting a client-side curl timeout observe HTTP 000. If omitted, keep the
+    service-level default.
+    """
+    configured = settings.llm_async_poll_deadline_ms / 1000
+    constraints_fields = getattr(request.constraints, "model_fields_set", set())
+    request_fields = getattr(request, "model_fields_set", set())
+    if "constraints" not in request_fields or "timeoutMs" not in constraints_fields:
+        return configured
+
+    advisory_seconds = max(1.0, (request.constraints.timeoutMs / 1000) - 5.0)
+    return max(1.0, min(configured, advisory_seconds))
+
+
+def _poc_evaluation_verdict_for(
+    *,
+    clean_pass: bool,
+    analysis_outcome: AnalysisOutcome,
+    quality_outcome: QualityOutcome,
+    poc_outcome: PocOutcome,
+) -> EvaluationVerdict:
+    reasons = (
+        ["analysis, quality, and PoC gates accepted"]
+        if clean_pass
+        else [
+            f"analysisOutcome={analysis_outcome.value}",
+            f"qualityOutcome={quality_outcome.value}",
+            f"pocOutcome={poc_outcome.value}",
+        ]
+    )
+    return EvaluationVerdict(
+        taskCompleted=True,
+        cleanPass=clean_pass,
+        reasons=reasons,
+        gateOutcomes=[
+            f"analysis:{analysis_outcome.value}",
+            f"quality:{quality_outcome.value}",
+            f"poc:{poc_outcome.value}",
+        ],
+    )
 
 
 async def _repair_generate_poc_schema(
@@ -930,3 +1161,12 @@ def _strict_json_failure_detail(error) -> str:
     if getattr(error, "error_detail", None):
         parts.append(f"errorDetail={error.error_detail}")
     return "strict_json_contract_violation; " + "; ".join(parts)
+
+
+def _schema_repair_failure_detail(error) -> str:
+    if (
+        getattr(error, "blocked_reason", None) == "strict_json_contract_violation"
+        or error.__class__.__name__ == "StrictJsonContractError"
+    ):
+        return "generate-poc schema repair call failed: " + _strict_json_failure_detail(error)
+    return f"generate-poc schema repair call failed: {error}"

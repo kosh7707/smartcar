@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from agent_shared.llm.prompt_builder import SystemPromptBuilder
+from app.agent_runtime.llm.prompt_builder import SystemPromptBuilder
 
 
 def _format_origin_label(func: dict) -> str:

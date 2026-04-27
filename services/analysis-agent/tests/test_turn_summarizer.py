@@ -2,7 +2,7 @@
 
 import pytest
 
-from agent_shared.llm.turn_summarizer import TurnSummarizer
+from app.agent_runtime.llm.turn_summarizer import TurnSummarizer
 
 
 @pytest.mark.asyncio
@@ -103,7 +103,7 @@ async def test_no_compaction_when_all_tools():
 
 # ── claw-code 패턴 추출 함수 테스트 ──
 
-from agent_shared.llm.turn_summarizer import (
+from app.agent_runtime.llm.turn_summarizer import (
     _extract_file_references,
     _extract_highlights,
     _infer_pending_work,

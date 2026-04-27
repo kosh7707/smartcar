@@ -61,7 +61,7 @@ describe("AgentClient contract", () => {
     taskId: "task-1",
     taskType: "deep-analyze",
     status: "completed",
-    modelProfile: "qwen3.5-122b",
+    modelProfile: "Qwen/Qwen3.6-27B",
     promptVersion: "v2",
     schemaVersion: "1.0",
     validation: { valid: true, errors: [] },
@@ -89,6 +89,10 @@ describe("AgentClient contract", () => {
       needsHumanReview: false,
       recommendedNextSteps: [],
       policyFlags: [],
+      analysisOutcome: "accepted_claims",
+      qualityOutcome: "accepted",
+      pocOutcome: "poc_not_requested",
+      recoveryTrace: [],
     },
     audit: {
       inputHash: "abc123",
@@ -149,6 +153,8 @@ describe("AgentClient contract", () => {
       expect(result.status).toBe("completed");
       expect(result.result.claims).toHaveLength(1);
       expect(result.result.confidence).toBe(0.85);
+      expect(result.result.analysisOutcome).toBe("accepted_claims");
+      expect(result.result.qualityOutcome).toBe("accepted");
       expect(result.audit.tokenUsage.prompt).toBe(3000);
     }
   });
@@ -171,12 +177,21 @@ describe("AgentClient contract", () => {
     }
   });
 
-  it("preserves structured finalizer policy flag and treats validation_failed as failure", async () => {
+  it("preserves completed S3-owned deficiency outcomes without treating completion as clean pass", async () => {
     globalThis.fetch = mockFetch({
       ...successResponse,
       result: {
         ...successResponse.result,
-        policyFlags: ["structured_finalizer"],
+        claims: [],
+        policyFlags: ["structured_finalizer", "recovery_classified"],
+        analysisOutcome: "no_accepted_claims",
+        qualityOutcome: "repair_exhausted",
+        recoveryTrace: [{
+          deficiency: "SCHEMA_DEFICIENT",
+          action: "deterministic_scaffold",
+          outcome: "classified",
+          detail: "missing final fields were scaffolded without fabricating evidence",
+        }],
       },
     });
 
@@ -190,47 +205,27 @@ describe("AgentClient contract", () => {
     expect(client.isSuccess(success)).toBe(true);
     if (client.isSuccess(success)) {
       expect(success.result.policyFlags).toContain("structured_finalizer");
-    }
-
-    globalThis.fetch = mockFetch({
-      taskId: "task-structured-finalizer-fail",
-      taskType: "deep-analyze",
-      status: "validation_failed",
-      failureCode: "INVALID_SCHEMA",
-      failureDetail: "Strict structured finalizer could not produce valid Assessment JSON",
-      retryable: false,
-    }, 422);
-
-    const failure = await client.submitTask({
-      taskType: "deep-analyze",
-      taskId: "task-structured-finalizer-fail",
-      context: { trusted: { objective: "analyze", projectId: "p-1", projectPath: "/tmp" } },
-      evidenceRefs: [],
-    });
-
-    expect(client.isSuccess(failure)).toBe(false);
-    if (!client.isSuccess(failure)) {
-      expect(failure.status).toBe("validation_failed");
-      expect(failure.failureCode).toBe("INVALID_SCHEMA");
-      expect(failure.failureDetail).toContain("Strict structured finalizer");
-      expect(failure.retryable).toBe(false);
+      expect(success.result.claims).toHaveLength(0);
+      expect(success.result.analysisOutcome).toBe("no_accepted_claims");
+      expect(success.result.qualityOutcome).toBe("repair_exhausted");
+      expect(success.result.recoveryTrace?.[0]?.deficiency).toBe("SCHEMA_DEFICIENT");
     }
   });
 
-  it("parses non-2xx strict grounding failures as terminal AgentResponseFailure", async () => {
+  it("parses non-2xx true task failures as terminal AgentResponseFailure", async () => {
     globalThis.fetch = mockFetch({
-      taskId: "task-invalid-grounding",
+      taskId: "task-invalid-input",
       taskType: "deep-analyze",
       status: "validation_failed",
-      failureCode: "INVALID_GROUNDING",
-      failureDetail: "Unsupported evidence ref: hallucinated-ref",
+      failureCode: "INVALID_CALLER_CONTRACT",
+      failureDetail: "Missing required trusted input: projectPath or files",
       retryable: false,
       audit: successResponse.audit,
     }, 422);
 
     const failure = await client.submitTask({
       taskType: "deep-analyze",
-      taskId: "task-invalid-grounding",
+      taskId: "task-invalid-input",
       context: { trusted: { objective: "analyze", projectId: "p-1", projectPath: "/tmp" } },
       evidenceRefs: [],
     });
@@ -238,8 +233,8 @@ describe("AgentClient contract", () => {
     expect(client.isSuccess(failure)).toBe(false);
     if (!client.isSuccess(failure)) {
       expect(failure.status).toBe("validation_failed");
-      expect(failure.failureCode).toBe("INVALID_GROUNDING");
-      expect(failure.failureDetail).toContain("Unsupported evidence ref");
+      expect(failure.failureCode).toBe("INVALID_CALLER_CONTRACT");
+      expect(failure.failureDetail).toContain("Missing required trusted input");
       expect(failure.audit?.latencyMs).toBe(12000);
     }
   });

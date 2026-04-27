@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useCallback } from "react";
 import type {
+  AnalysisResult,
   Run,
   Finding,
   FindingStatus,
@@ -27,6 +28,9 @@ import {
   SourceBadge,
 } from "../../../shared/ui";
 import { bulkUpdateFindingStatus } from "../../../api/analysis";
+import { OutcomeChip } from "@/shared/ui/OutcomeChip";
+import { RecoveryTracePanel } from "@/shared/analysis/RecoveryTracePanel";
+import { deriveCleanPass } from "@/shared/analysis/deepOutcome";
 import { TopFilesCard } from "./TopFilesCard";
 import { parseLocation } from "../../../utils/location";
 import {
@@ -48,6 +52,7 @@ interface Props {
     findings: FindingWithEvidence[];
   } | null;
   loading: boolean;
+  analysisResult?: AnalysisResult | null;
   onSelectFinding: (findingId: string) => void;
   onFileClick?: (filePath: string) => void;
   onNewAnalysis: () => void;
@@ -132,6 +137,7 @@ const GROUP_FNS: Record<GroupBy, (f: FindingWithEvidence[]) => FindingGroup[]> =
 export const LatestAnalysisTab: React.FC<Props> = ({
   runDetail,
   loading,
+  analysisResult,
   onSelectFinding,
   onFileClick,
   onNewAnalysis,
@@ -197,6 +203,7 @@ export const LatestAnalysisTab: React.FC<Props> = ({
   return (
     <LatestAnalysisContent
       runDetail={runDetail}
+      analysisResult={analysisResult}
       onSelectFinding={onSelectFinding}
       onFileClick={onFileClick}
       onBulkStatusDone={onBulkStatusDone}
@@ -206,11 +213,16 @@ export const LatestAnalysisTab: React.FC<Props> = ({
 
 const LatestAnalysisContent: React.FC<{
   runDetail: { run: Run; gate?: GateResult; findings: FindingWithEvidence[] };
+  analysisResult?: AnalysisResult | null;
   onSelectFinding: (findingId: string) => void;
   onFileClick?: (filePath: string) => void;
   onBulkStatusDone?: () => void;
-}> = ({ runDetail, onSelectFinding, onFileClick, onBulkStatusDone }) => {
-  const { gate, findings } = runDetail;
+}> = ({ runDetail, analysisResult, onSelectFinding, onFileClick, onBulkStatusDone }) => {
+  const { run, gate, findings } = runDetail;
+  const isDeepRun = run.module === "deep_analysis";
+  const deepResult = isDeepRun ? analysisResult : null;
+  const cleanPass = deepResult ? deriveCleanPass(deepResult) : null;
+  const recoveryTrace = deepResult?.recoveryTrace ?? [];
 
   const [severityFilter, setSeverityFilter] = useState<Severity | "all">("all");
   const [groupBy, setGroupBy] = useState<GroupBy>("severity");
@@ -351,6 +363,36 @@ const LatestAnalysisContent: React.FC<{
             <div className="panel-empty">
               <span className="panel-empty__eyebrow">NO GATE</span>
               <p className="panel-empty__copy">Quality Gate가 설정되지 않았습니다.</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {deepResult && (
+        <section className="chore c-1" aria-labelledby="latest-deep-outcome-head">
+          <div className="section-head">
+            <h2 id="latest-deep-outcome-head">Deep 결과</h2>
+          </div>
+          <div className="panel">
+            <div className="panel-body latest-deep-outcome">
+              <div className="latest-deep-outcome__chips">
+                {deepResult.analysisOutcome && (
+                  <OutcomeChip kind="analysis" value={deepResult.analysisOutcome} size="sm" />
+                )}
+                {deepResult.qualityOutcome && (
+                  <OutcomeChip kind="quality" value={deepResult.qualityOutcome} size="sm" />
+                )}
+                {deepResult.pocOutcome && deepResult.pocOutcome !== "poc_not_requested" && (
+                  <OutcomeChip kind="poc" value={deepResult.pocOutcome} size="sm" />
+                )}
+                <OutcomeChip kind="cleanPass" value={cleanPass} size="sm" />
+              </div>
+              {recoveryTrace.length > 0 && (
+                <div className="latest-deep-outcome__recovery">
+                  <span className="latest-deep-outcome__recovery-label">자동 복구 이력</span>
+                  <RecoveryTracePanel trace={recoveryTrace} variant="expanded" />
+                </div>
+              )}
             </div>
           </div>
         </section>

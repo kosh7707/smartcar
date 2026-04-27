@@ -23,4 +23,6 @@
   letter-spacing: -0.01em;
   color: var(--foreground);
 }
-.kpi dd.is-warn { color: var(--severity-high); }
+/* is-warn — review-tone caution (--warning), NOT severity ramp.
+   Threshold-near KPI signal, not a finding severity (handoff §2.1). */
+.kpi dd.is-warn { color: var(--warning); }

@@ -22,6 +22,10 @@ import {
   ProjectReport,
   AnalysisModule,
   SdkAnalyzedProfile,
+  SdkErrorCode,
+  SdkErrorPhase,
+  SdkPhaseDetail,
+  SdkProgressPhase,
 } from "./models";
 
 // ============================================================
@@ -196,6 +200,8 @@ export type WsEventType =
   | "pipeline-target-status" | "pipeline-complete" | "pipeline-error"
   // SDK 등록
   | "sdk-progress" | "sdk-log" | "sdk-complete" | "sdk-error"
+  // 공통 연결 상태
+  | "heartbeat"
   // 알림
   | "notification";
 
@@ -223,6 +229,14 @@ export interface WsEnvelopeMeta {
   timestamp: number;
   /** 메시지 일련번호 (채널별 단조증가, gap 감지용) */
   seq?: number;
+}
+
+export interface WsHeartbeat {
+  type: "heartbeat";
+  payload: {
+    /** epoch ms */
+    timestamp: number;
+  };
 }
 
 /**
@@ -271,7 +285,7 @@ export interface WsInjectionError {
   payload: { error: string };
 }
 
-export type WsMessage = WsCanMessage | WsAlert | WsStatus | WsInjectionResult | WsInjectionError;
+export type WsMessage = WsCanMessage | WsAlert | WsStatus | WsInjectionResult | WsInjectionError | WsHeartbeat;
 
 // ============================================================
 // 동적 테스트
@@ -331,7 +345,8 @@ export type WsTestMessage =
   | WsTestProgress
   | WsTestFinding
   | WsTestComplete
-  | WsTestError;
+  | WsTestError
+  | WsHeartbeat;
 
 // ============================================================
 // Quick → Deep 분석 WS 메시지 (/ws/analysis?analysisId=)
@@ -371,6 +386,15 @@ export interface WsAnalysisDeepComplete {
     buildTargetId?: string;
     executionId?: string;
     findingCount: number;
+    /**
+     * S3 result-level outcomes. `analysis-deep-complete` means S3 returned a
+     * schema-valid review envelope; consumers must use these fields for
+     * clean-pass / inconclusive / rejected UI and hot-gate interpretation.
+     */
+    analysisOutcome?: import("./models").AgentAnalysisOutcome;
+    qualityOutcome?: import("./models").AgentQualityOutcome;
+    pocOutcome?: import("./models").AgentPocOutcome;
+    cleanPass?: boolean;
   };
 }
 
@@ -392,7 +416,8 @@ export type WsAnalysisMessage =
   | WsAnalysisProgress
   | WsAnalysisQuickComplete
   | WsAnalysisDeepComplete
-  | WsAnalysisError;
+  | WsAnalysisError
+  | WsHeartbeat;
 
 // ============================================================
 // 소스코드 업로드 WS 메시지 (/ws/upload?uploadId=)
@@ -431,7 +456,7 @@ export interface WsUploadError {
   };
 }
 
-export type WsUploadMessage = WsUploadProgress | WsUploadComplete | WsUploadError;
+export type WsUploadMessage = WsUploadProgress | WsUploadComplete | WsUploadError | WsHeartbeat;
 
 export interface UploadStatus {
   uploadId: string;
@@ -509,7 +534,7 @@ export interface WsPipelineError {
   };
 }
 
-export type WsPipelineMessage = WsPipelineTargetStatus | WsPipelineComplete | WsPipelineError;
+export type WsPipelineMessage = WsPipelineTargetStatus | WsPipelineComplete | WsPipelineError | WsHeartbeat;
 
 export interface PipelineTargetStatusSnapshot {
   id: string;
@@ -555,22 +580,6 @@ export interface PipelinePrepareAcceptedResponse {
 // 실패: upload_failed | extract_failed | install_failed | verify_failed
 // ============================================================
 
-export type SdkProgressPhase =
-  | "uploading"
-  | "uploaded"
-  | "extracting"
-  | "extracted"
-  | "installing"
-  | "installed"
-  | "analyzing"
-  | "verifying"
-  | "ready";
-export type SdkErrorPhase =
-  | "upload_failed"
-  | "extract_failed"
-  | "install_failed"
-  | "verify_failed";
-
 export interface WsSdkProgress {
   type: "sdk-progress";
   payload: {
@@ -581,6 +590,9 @@ export interface WsSdkProgress {
     uploadedBytes?: number;
     totalBytes?: number;
     fileName?: string;
+    etaSeconds?: number;
+    phaseStartedAt?: number;
+    phaseDetail?: SdkPhaseDetail;
   };
 }
 
@@ -613,10 +625,18 @@ export interface WsSdkError {
     phase: SdkErrorPhase;
     error: string;
     logPath?: string;
+    code?: SdkErrorCode;
+    retryable?: boolean;
+    recoverable?: boolean;
+    troubleshootingUrl?: string;
+    userMessage?: string;
+    technicalDetail?: string;
+    failedAt?: number;
+    correlationId?: string;
   };
 }
 
-export type WsSdkMessage = WsSdkProgress | WsSdkLog | WsSdkComplete | WsSdkError;
+export type WsSdkMessage = WsSdkProgress | WsSdkLog | WsSdkComplete | WsSdkError | WsHeartbeat;
 
 // ============================================================
 // 공통
@@ -897,7 +917,7 @@ export interface WsNotification {
   payload: import("./models").Notification;
 }
 
-export type WsNotificationMessage = WsNotification;
+export type WsNotificationMessage = WsNotification | WsHeartbeat;
 
 // ============================================================
 // Auth
