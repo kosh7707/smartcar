@@ -105,7 +105,7 @@
 .dynamic-test-history__item-strategy { font-size:var(--text-sm); font-weight:var(--weight-medium); color:var(--foreground); }
 .dynamic-test-history__item-count { font-size:var(--text-sm); color:var(--foreground-muted); }
 .dynamic-test-history__item-metric { font-size:var(--text-sm); font-weight:var(--weight-medium); }
-.dynamic-test-history__item-metric--crash { color:var(--destructive); }
+.dynamic-test-history__item-metric--crash { color:var(--danger); }
 .dynamic-test-history__item-metric--anomaly { color:var(--aegis-severity-medium); }
 .dynamic-test-history__item-target { padding-left:4px; font-size:var(--text-sm); color:var(--foreground-muted); }
 .dynamic-test-history__item-time { white-space:nowrap; font-size:var(--text-sm); color:var(--foreground-muted); }
@@ -134,7 +134,7 @@
 .dynamic-test-history__item-strategy { font-size:var(--text-sm); font-weight:var(--weight-medium); color:var(--foreground); }
 .dynamic-test-history__item-count { font-size:var(--text-sm); color:var(--foreground-muted); }
 .dynamic-test-history__item-metric { font-size:var(--text-sm); font-weight:var(--weight-medium); }
-.dynamic-test-history__item-metric--crash { color:var(--destructive); }
+.dynamic-test-history__item-metric--crash { color:var(--danger); }
 .dynamic-test-history__item-metric--anomaly { color:var(--aegis-severity-medium); }
 .dynamic-test-history__item-target { padding-left:4px; font-size:var(--text-sm); color:var(--foreground-muted); }
 .dynamic-test-history__item-time { white-space:nowrap; font-size:var(--text-sm); color:var(--foreground-muted); }

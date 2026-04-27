@@ -204,8 +204,8 @@
 }
 
 .settings-url__indicator--error {
-  background: color-mix(in srgb, var(--destructive) 18%, transparent);
-  color: var(--destructive);
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  color: var(--danger);
 }
 
 .settings-url__indicator--testing {
@@ -233,8 +233,8 @@
 }
 
 .settings-status--error {
-  border-left-color: var(--destructive);
-  color: var(--destructive);
+  border-left-color: var(--danger);
+  color: var(--danger);
 }
 
 @keyframes settings-status-in {
@@ -362,7 +362,7 @@
 }
 
 .settings-kv__dot--ok { background: var(--success); box-shadow: 0 0 10px color-mix(in srgb, var(--success) 45%, transparent); }
-.settings-kv__dot--error { background: var(--destructive); }
+.settings-kv__dot--error { background: var(--danger); }
 .settings-kv__dot--idle { background: var(--foreground-subtle); opacity: 0.6; }
 .settings-kv__dot--testing {
   background: var(--info);

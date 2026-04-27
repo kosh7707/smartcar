@@ -190,9 +190,11 @@
 .two-stage-step-message { margin-top:8px; font-size:var(--text-sm); color:var(--foreground-muted); }
 .two-stage-step-line { position:absolute; left:15px; top:36px; bottom:0; width:2px; border-radius:999px; background:var(--border); }
 .two-stage-step-line.is-complete { background:var(--success); }
-.two-stage-error-card { border-color:var(--destructive); box-shadow:none; }
+/* Workflow error surface — review-tone critical-review (--danger), unified with
+   sibling .two-stage-error block (handoff §2.1). Was --destructive (shadcn legacy). */
+.two-stage-error-card { border-color:var(--danger); box-shadow:none; }
 .two-stage-error-body { display:flex; flex-direction:column; gap:12px; padding:20px; }
-.two-stage-error-head { display:flex; align-items:center; gap:12px; font-weight:var(--weight-semibold); color:var(--destructive); }
+.two-stage-error-head { display:flex; align-items:center; gap:12px; font-weight:var(--weight-semibold); color:var(--danger); }
 .two-stage-error-copy { font-size:var(--text-sm); color:var(--foreground-muted); }
 .two-stage-actions { display:flex; justify-content:flex-end; gap:16px; }
 .two-stage-handoff-body { display:flex; align-items:center; gap:16px; padding:16px 20px; font-size:var(--text-sm); color:var(--foreground-muted); }

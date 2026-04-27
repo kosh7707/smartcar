@@ -2,7 +2,7 @@
 
 /* ── Extracted from app-shell.css (Phase 1a.1 pass 3) ── */
 .error-boundary { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; padding:40px 24px; text-align:center; }
-.error-boundary__icon-shell { display:flex; width:48px; height:48px; align-items:center; justify-content:center; border-radius:var(--radius-lg); background:color-mix(in srgb, var(--destructive) 10%, transparent); color:var(--destructive); }
+.error-boundary__icon-shell { display:flex; width:48px; height:48px; align-items:center; justify-content:center; border-radius:var(--radius-lg); background:color-mix(in srgb, var(--danger) 10%, transparent); color:var(--danger); }
 .error-boundary__title { margin:0; font-size:var(--text-lg); font-weight:var(--weight-semibold); color:var(--foreground); }
 .error-boundary__description { margin:0; max-width:400px; font-size:var(--text-base); line-height:var(--leading-relaxed); color:var(--foreground-muted); }
 .error-boundary__action { gap:12px; }

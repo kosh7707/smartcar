@@ -750,12 +750,12 @@
 }
 
 .nav-menu-item--danger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--destructive) 8%, transparent);
-  color: var(--destructive);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: var(--danger);
 }
 
 .nav-menu-item--danger:hover:not(:disabled) .nav-menu-item__icon {
-  color: var(--destructive);
+  color: var(--danger);
 }
 
 @keyframes pulse {
