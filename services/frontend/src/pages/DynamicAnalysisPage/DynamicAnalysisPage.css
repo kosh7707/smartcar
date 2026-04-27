@@ -6,8 +6,7 @@
 .monitoring-status-row { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px; }
 .monitoring-status-badges { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
 .monitoring-connection-badge { min-height:28px; border-radius:999px; padding:4px 10px; font-size:var(--text-sm); }
-.monitoring-connection-badge--connected { border-color:color-mix(in srgb, #10b981 20%, transparent); background:color-mix(in srgb, #10b981 10%, transparent); color:#047857; }
-.dark .monitoring-connection-badge--connected { color:#86efac; }
+.monitoring-connection-badge--connected { border-color:color-mix(in srgb, var(--success) 20%, transparent); background:color-mix(in srgb, var(--success) 10%, transparent); color:var(--success); }
 .monitoring-connection-badge--disconnected { border-color:var(--border); background:color-mix(in srgb, var(--surface-sunken) 70%, transparent); color:var(--foreground-muted); }
 .monitoring-status-badge { min-height:28px; border-radius:999px; padding:4px 10px; font-size:var(--text-sm); }
 .monitoring-stop { width:100%; }
@@ -64,14 +63,10 @@
 .monitoring-injection-card .surface-panel-body { display:flex; flex-direction:column; gap:12px; padding-top:12px; }
 .monitoring-injection-head { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
 .monitoring-injection-badge { border-radius:999px; padding:4px 10px; }
-.monitoring-injection-badge--normal { border-color:color-mix(in srgb, #10b981 20%, transparent); background:color-mix(in srgb, #10b981 10%, transparent); color:#047857; }
-.dark .monitoring-injection-badge--normal { color:#86efac; }
-.monitoring-injection-badge--crash { border-color:color-mix(in srgb, #ef4444 20%, transparent); background:color-mix(in srgb, #ef4444 10%, transparent); color:#b91c1c; }
-.dark .monitoring-injection-badge--crash { color:#fca5a5; }
-.monitoring-injection-badge--anomaly { border-color:color-mix(in srgb, #f59e0b 20%, transparent); background:color-mix(in srgb, #f59e0b 10%, transparent); color:#b45309; }
-.dark .monitoring-injection-badge--anomaly { color:#fcd34d; }
-.monitoring-injection-badge--timeout { border-color:color-mix(in srgb, #0ea5e9 20%, transparent); background:color-mix(in srgb, #0ea5e9 10%, transparent); color:#0369a1; }
-.dark .monitoring-injection-badge--timeout { color:#7dd3fc; }
+.monitoring-injection-badge--normal { border-color:color-mix(in srgb, var(--success) 20%, transparent); background:color-mix(in srgb, var(--success) 10%, transparent); color:var(--success); }
+.monitoring-injection-badge--crash { border-color:color-mix(in srgb, var(--danger) 20%, transparent); background:color-mix(in srgb, var(--danger) 10%, transparent); color:var(--danger); }
+.monitoring-injection-badge--anomaly { border-color:color-mix(in srgb, var(--warning) 20%, transparent); background:color-mix(in srgb, var(--warning) 10%, transparent); color:var(--warning); }
+.monitoring-injection-badge--timeout { border-color:color-mix(in srgb, var(--primary) 20%, transparent); background:color-mix(in srgb, var(--primary) 10%, transparent); color:var(--primary); }
 .monitoring-injection-code { padding:4px 8px; border-radius:var(--radius-md); background: color-mix(in srgb, var(--surface-sunken) 50%, transparent); font-family:var(--font-mono); font-size:var(--text-xs); color:var(--primary); }
 .monitoring-injection-copy { display:flex; flex-direction:column; gap:4px; font-size:var(--text-sm); color:var(--foreground-muted); }
 .monitoring-injection-copy code { font-family:var(--font-mono); color:var(--foreground); }
@@ -125,8 +120,7 @@
 .dynamic-session-summary-value { font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--foreground); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .dynamic-session-summary-status { min-height:28px; border-radius:999px; padding:4px 10px; font-size: var(--text-sm); }
 .dynamic-status-badge { border-radius:999px; }
-.dynamic-status-badge--monitoring { border-color:color-mix(in srgb, #10b981 20%, transparent); background:color-mix(in srgb, #10b981 10%, transparent); color:#047857; }
-.dark .dynamic-status-badge--monitoring { color:#86efac; }
+.dynamic-status-badge--monitoring { border-color:color-mix(in srgb, var(--success) 20%, transparent); background:color-mix(in srgb, var(--success) 10%, transparent); color:var(--success); }
 .dynamic-status-badge--stopped { border-color:var(--border); background:color-mix(in srgb, var(--surface-sunken) 70%, transparent); color:var(--foreground-muted); }
 .dynamic-status-badge--connected { border-color:var(--border); background:color-mix(in srgb, var(--surface-sunken) 70%, transparent); color:var(--foreground); }
 .dynamic-status-badge--default { border-color:var(--border); background:var(--background); color:var(--foreground-muted); }

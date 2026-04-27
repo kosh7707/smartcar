@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+from typing import Any
 from uuid import uuid4
 
 import httpx
@@ -28,6 +29,12 @@ _STRICT_JSON_HEADER = "x-aegis-strict-json"
 _MAX_CHAT_TIMEOUT_SECONDS = 1800.0
 
 
+def _ensure_request_id(req: Request) -> str:
+    request_id = req.headers.get("x-request-id") or get_request_id() or f"gw-{uuid4().hex[:12]}"
+    set_request_id(request_id)
+    return request_id
+
+
 def _json_response(
     data: TaskSuccessResponse | TaskFailureResponse,
 ) -> JSONResponse:
@@ -37,6 +44,87 @@ def _json_response(
         content=data.model_dump(mode="json"),
         headers=headers,
     )
+
+
+def _error_response(
+    *,
+    status_code: int,
+    request_id: str,
+    code: str,
+    message: str,
+    retryable: bool,
+    headers: dict[str, str] | None = None,
+    extra: dict[str, Any] | None = None,
+    error_detail_extra: dict[str, Any] | None = None,
+) -> JSONResponse:
+    error_detail: dict[str, Any] = {
+        "code": code,
+        "message": message,
+        "requestId": request_id,
+        "retryable": retryable,
+    }
+    if error_detail_extra:
+        error_detail.update(error_detail_extra)
+    content: dict[str, Any] = {
+        "success": False,
+        "error": message,
+        "retryable": retryable,
+        "errorDetail": error_detail,
+    }
+    if extra:
+        content.update(extra)
+    response_headers = {"X-Request-Id": request_id} if request_id else {}
+    if headers:
+        response_headers.update(headers)
+    return JSONResponse(
+        status_code=status_code,
+        content=content,
+        headers=response_headers,
+    )
+
+
+def _exchange_payload_from_response(resp: httpx.Response, resp_data: Any) -> Any:
+    if isinstance(resp_data, (dict, list)):
+        return resp_data
+    text = resp.text
+    return {"rawText": text}
+
+
+def _log_llm_exchange(
+    *,
+    request_id: str,
+    exchange_type: str,
+    request_body: dict,
+    response: httpx.Response,
+    response_data: Any,
+    elapsed_ms: int,
+    strict_json: bool,
+    async_request_id: str | None = None,
+) -> None:
+    choices = response_data.get("choices", [{}]) if isinstance(response_data, dict) else [{}]
+    finish_reason = choices[0].get("finish_reason", "?") if choices else "?"
+    entry: dict[str, Any] = {
+        "service": "s7-gateway",
+        "level": 30,
+        "time": int(time.time() * 1000),
+        "requestId": request_id,
+        "msg": f"[LLM exchange] {exchange_type} {request_body.get('model', '')} latencyMs={elapsed_ms}",
+        "type": exchange_type,
+        "elapsedMs": elapsed_ms,
+        "latencyMs": elapsed_ms,
+        "status": "ok" if response.status_code == 200 else f"HTTP_{response.status_code}",
+        "model": request_body.get("model", ""),
+        "usage": response_data.get("usage") if isinstance(response_data, dict) else None,
+        "finishReason": finish_reason,
+        "strictJson": strict_json,
+        "toolChoice": request_body.get("tool_choice", "none"),
+        "toolCount": len(request_body.get("tools", [])),
+        "request": request_body,
+        "response": _exchange_payload_from_response(response, response_data),
+    }
+    if async_request_id:
+        entry["asyncRequestId"] = async_request_id
+    _exchange_logger.info(json.dumps(entry, ensure_ascii=False))
 
 
 def _is_truthy_header(value: str | None) -> bool:
@@ -91,20 +179,22 @@ def _strict_json_violation(
         request_id, elapsed_ms, detail,
         extra={"elapsedMs": elapsed_ms},
     )
-    return JSONResponse(
+    return _error_response(
         status_code=502,
-        content={
-            "error": "Strict JSON contract violated",
-            "errorDetail": detail,
-            "retryable": True,
-            "strictJson": True,
-        },
+        request_id=request_id,
+        code="LLM_PARSE_ERROR",
+        message="Strict JSON contract violated",
+        retryable=True,
         headers={
             "X-Request-Id": request_id,
             "X-Model": model,
             "X-Gateway-Latency-Ms": str(elapsed_ms),
             "X-AEGIS-Strict-JSON": "applied",
         },
+        extra={
+            "strictJson": True,
+        },
+        error_detail_extra={"detail": detail},
     )
 
 
@@ -157,8 +247,7 @@ def _apply_strict_json_response_contract(resp_data: dict) -> tuple[dict | None, 
 
 @router.post("/tasks")
 async def create_task(request: TaskRequest, req: Request) -> JSONResponse:
-    set_request_id(req.headers.get("x-request-id") or f"gw-{uuid4().hex[:12]}")
-    request_id = get_request_id() or ""
+    request_id = _ensure_request_id(req)
     logger.info(
         "[v1] Task received: taskId=%s, taskType=%s",
         request.taskId, request.taskType,
@@ -241,16 +330,27 @@ def _async_result_error(
     error_detail: str | None = None,
     retryable: bool = False,
 ) -> JSONResponse:
-    return JSONResponse(
+    code = "CONFLICT"
+    if status_code == 410:
+        code = "ASYNC_RESULT_EXPIRED"
+    elif status_code == 404:
+        code = "NOT_FOUND"
+    return _error_response(
         status_code=status_code,
-        content={
+        request_id=trace_request_id or request_id,
+        code=code,
+        message=error,
+        retryable=retryable,
+        extra={
             "requestId": request_id,
             "traceRequestId": trace_request_id,
             "state": state,
             "expiresAt": expires_at,
             "error": error,
-            "errorDetail": error_detail or blocked_reason or error,
-            "retryable": retryable,
+            "blockedReason": blocked_reason,
+        },
+        error_detail_extra={
+            "detail": error_detail or blocked_reason or error,
             "blockedReason": blocked_reason,
         },
     )
@@ -378,27 +478,16 @@ async def _run_async_chat_request(
     except Exception:
         resp_data = {}
 
-    choices = resp_data.get("choices", [{}]) if isinstance(resp_data, dict) else [{}]
-    finish_reason = choices[0].get("finish_reason", "?") if choices else "?"
-
-    _exchange_logger.info(json.dumps({
-        "service": "s7-gateway",
-        "level": 30,
-        "time": int(time.time() * 1000),
-        "requestId": record.trace_request_id,
-        "msg": f"[LLM exchange] async {body.get('model', '')} latencyMs={elapsed_ms}",
-        "type": "async_chat",
-        "asyncRequestId": record.request_id,
-        "elapsedMs": elapsed_ms,
-        "latencyMs": elapsed_ms,
-        "status": "ok" if resp.status_code == 200 else f"HTTP_{resp.status_code}",
-        "model": body.get("model", ""),
-        "usage": resp_data.get("usage") if isinstance(resp_data, dict) else None,
-        "finishReason": finish_reason,
-        "strictJson": strict_json,
-        "toolChoice": body.get("tool_choice", "none"),
-        "toolCount": len(body.get("tools", [])),
-    }, ensure_ascii=False))
+    _log_llm_exchange(
+        request_id=record.trace_request_id,
+        exchange_type="async_chat",
+        request_body=body,
+        response=resp,
+        response_data=resp_data,
+        elapsed_ms=elapsed_ms,
+        strict_json=strict_json,
+        async_request_id=record.request_id,
+    )
 
     if strict_json and resp.status_code == 200:
         normalized_resp_data, strict_error = _apply_strict_json_response_contract(
@@ -458,9 +547,7 @@ async def create_async_chat_request(
     request: AsyncChatSubmitRequest,
     req: Request,
 ) -> JSONResponse:
-    raw_id = req.headers.get("x-request-id") or f"gw-{uuid4().hex[:12]}"
-    set_request_id(raw_id)
-    trace_request_id = get_request_id() or ""
+    trace_request_id = _ensure_request_id(req)
     strict_json = _strict_json_requested(req)
     request_body = request.model_dump(mode="json", exclude_none=True)
 
@@ -486,31 +573,47 @@ async def create_async_chat_request(
 
 @router.get("/async-chat-requests/{request_id}")
 async def get_async_chat_request_status(request_id: str, req: Request) -> JSONResponse:
+    trace_request_id = _ensure_request_id(req)
     async_chat_manager = req.app.state.async_chat_manager
     status_payload = await async_chat_manager.status(request_id)
     if status_payload is None:
-        return JSONResponse(
+        return _error_response(
             status_code=404,
-            content={"requestId": request_id, "error": "Async request not found"},
+            request_id=trace_request_id,
+            code="NOT_FOUND",
+            message="Async request not found",
+            retryable=False,
+            extra={"requestId": request_id},
         )
 
     status_response = AsyncChatStatusResponse(**status_payload)
-    return JSONResponse(content=status_response.model_dump(mode="json"))
+    return JSONResponse(
+        content=status_response.model_dump(mode="json"),
+        headers={"X-Request-Id": trace_request_id},
+    )
 
 
 @router.get("/async-chat-requests/{request_id}/result")
 async def get_async_chat_request_result(request_id: str, req: Request) -> JSONResponse:
+    trace_request_id = _ensure_request_id(req)
     async_chat_manager = req.app.state.async_chat_manager
     record = await async_chat_manager.result(request_id)
     if record is None:
-        return JSONResponse(
+        return _error_response(
             status_code=404,
-            content={"requestId": request_id, "error": "Async request not found"},
+            request_id=trace_request_id,
+            code="NOT_FOUND",
+            message="Async request not found",
+            retryable=False,
+            extra={"requestId": request_id},
         )
 
     if record.state == "completed" and record.response_payload is not None:
         result_response = AsyncChatResultResponse(**record.to_result_response())
-        return JSONResponse(content=result_response.model_dump(mode="json"))
+        return JSONResponse(
+            content=result_response.model_dump(mode="json"),
+            headers={"X-Request-Id": trace_request_id},
+        )
 
     if record.state == "expired":
         return _async_result_error(
@@ -549,20 +652,29 @@ async def get_async_chat_request_result(request_id: str, req: Request) -> JSONRe
 
 @router.delete("/async-chat-requests/{request_id}")
 async def cancel_async_chat_request(request_id: str, req: Request) -> JSONResponse:
+    trace_request_id = _ensure_request_id(req)
     async_chat_manager = req.app.state.async_chat_manager
     record = await async_chat_manager.cancel(request_id)
     if record is None:
-        return JSONResponse(
+        return _error_response(
             status_code=404,
-            content={"requestId": request_id, "error": "Async request not found"},
+            request_id=trace_request_id,
+            code="NOT_FOUND",
+            message="Async request not found",
+            retryable=False,
+            extra={"requestId": request_id},
         )
 
     status_response = AsyncChatStatusResponse(**record.to_status_response())
-    return JSONResponse(content=status_response.model_dump(mode="json"))
+    return JSONResponse(
+        content=status_response.model_dump(mode="json"),
+        headers={"X-Request-Id": trace_request_id},
+    )
 
 
 @router.get("/health")
-async def health(req: Request) -> dict:
+async def health(req: Request) -> JSONResponse:
+    request_id = _ensure_request_id(req)
     model_registry = req.app.state.model_registry
     prompt_registry = req.app.state.prompt_registry
 
@@ -598,10 +710,10 @@ async def health(req: Request) -> dict:
 
     request_tracker = getattr(req.app.state, "request_tracker", None)
     if request_tracker:
-        request_id = req.query_params.get("requestId")
-        result.update(request_tracker.snapshot(request_id=request_id))
+        target_request_id = req.query_params.get("requestId")
+        result.update(request_tracker.snapshot(request_id=target_request_id))
 
-    return result
+    return JSONResponse(content=result, headers={"X-Request-Id": request_id})
 
 
 @router.post("/chat")
@@ -611,9 +723,7 @@ async def chat_proxy(req: Request) -> Response:
     S3 Agent 등 LLM 소비자가 이 엔드포인트를 통해 LLM Engine에 접근한다.
     Gateway가 단일 관문 역할을 하므로 LLM 벤더/API 변경 시 이곳만 수정하면 된다.
     """
-    raw_id = req.headers.get("x-request-id") or f"gw-{uuid4().hex[:12]}"
-    set_request_id(raw_id)
-    request_id = get_request_id() or ""
+    request_id = _ensure_request_id(req)
 
     original_body = await req.json()
     strict_json = _strict_json_requested(req)
@@ -662,9 +772,12 @@ async def chat_proxy(req: Request) -> Response:
                     ack_source="circuit-open",
                 )
                 request_tracker.clear(request_id)
-            return JSONResponse(
+            return _error_response(
                 status_code=503,
-                content={"error": "LLM Engine circuit open", "retryable": True},
+                request_id=request_id,
+                code="LLM_CIRCUIT_OPEN",
+                message="LLM Engine circuit open",
+                retryable=True,
                 headers={
                     "X-Request-Id": request_id,
                     "X-Model": body.get("model", ""),
@@ -718,9 +831,12 @@ async def chat_proxy(req: Request) -> Response:
                 ack_source="connect-error",
             )
             request_tracker.clear(request_id)
-        return JSONResponse(
+        return _error_response(
             status_code=503,
-            content={"error": "LLM Engine unreachable", "retryable": True},
+            request_id=request_id,
+            code="LLM_UNAVAILABLE",
+            message="LLM Engine unreachable",
+            retryable=True,
             headers={
                 "X-Request-Id": request_id,
                 "X-Model": body.get("model", ""),
@@ -743,9 +859,12 @@ async def chat_proxy(req: Request) -> Response:
                 ack_source="transport-timeout",
             )
             request_tracker.clear(request_id)
-        return JSONResponse(
+        return _error_response(
             status_code=504,
-            content={"error": "LLM Engine timeout", "retryable": True},
+            request_id=request_id,
+            code="LLM_TIMEOUT",
+            message="LLM Engine timeout",
+            retryable=True,
             headers={
                 "X-Request-Id": request_id,
                 "X-Model": body.get("model", ""),
@@ -766,23 +885,15 @@ async def chat_proxy(req: Request) -> Response:
     _choices = resp_data.get("choices", [{}]) if resp_data else [{}]
     _finish_reason = _choices[0].get("finish_reason", "?") if _choices else "?"
 
-    _exchange_logger.info(json.dumps({
-        "service": "s7-gateway",
-        "level": 30,
-        "time": int(time.time() * 1000),
-        "requestId": request_id,
-        "msg": f"[LLM exchange] {body.get('model', '')} latencyMs={elapsed_ms}",
-        "type": "chat_proxy",
-        "elapsedMs": elapsed_ms,
-        "latencyMs": elapsed_ms,
-        "status": "ok" if resp.status_code == 200 else f"HTTP_{resp.status_code}",
-        "model": body.get("model", ""),
-        "usage": resp_data.get("usage") if resp_data else None,
-        "finishReason": _finish_reason,
-        "strictJson": strict_json,
-        "toolChoice": body.get("tool_choice", "none"),
-        "toolCount": len(body.get("tools", [])),
-    }, ensure_ascii=False))
+    _log_llm_exchange(
+        request_id=request_id,
+        exchange_type="chat_proxy",
+        request_body=body,
+        response=resp,
+        response_data=resp_data,
+        elapsed_ms=elapsed_ms,
+        strict_json=strict_json,
+    )
 
     if strict_json and resp.status_code == 200:
         normalized_resp_data, strict_error = _apply_strict_json_response_contract(
@@ -879,21 +990,39 @@ async def _check_llm_backend(model_registry, proxy_client: httpx.AsyncClient) ->
 
 
 @router.get("/usage")
-async def usage(req: Request) -> dict:
+async def usage(req: Request) -> JSONResponse:
+    request_id = _ensure_request_id(req)
     token_tracker = getattr(req.app.state, "token_tracker", None)
     if token_tracker:
-        return await token_tracker.snapshot()
-    return {"error": "TokenTracker not initialized"}
+        return JSONResponse(
+            content=await token_tracker.snapshot(),
+            headers={"X-Request-Id": request_id},
+        )
+    return _error_response(
+        status_code=500,
+        request_id=request_id,
+        code="INTERNAL_ERROR",
+        message="TokenTracker not initialized",
+        retryable=False,
+    )
 
 
 @router.get("/models")
-async def list_models(req: Request) -> dict:
-    return {"profiles": req.app.state.model_registry.list_all()}
+async def list_models(req: Request) -> JSONResponse:
+    request_id = _ensure_request_id(req)
+    return JSONResponse(
+        content={"profiles": req.app.state.model_registry.list_all()},
+        headers={"X-Request-Id": request_id},
+    )
 
 
 @router.get("/prompts")
-async def list_prompts(req: Request) -> dict:
-    return {"prompts": req.app.state.prompt_registry.list_all()}
+async def list_prompts(req: Request) -> JSONResponse:
+    request_id = _ensure_request_id(req)
+    return JSONResponse(
+        content={"prompts": req.app.state.prompt_registry.list_all()},
+        headers={"X-Request-Id": request_id},
+    )
 
 
 # Prometheus 메트릭 — /v1 prefix 밖에 위치

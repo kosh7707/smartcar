@@ -1,14 +1,8 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Eye, EyeOff, Info, Lock } from "lucide-react";
-import { AuthConsoleBrandMark, AuthConsoleFooterMeta, AuthConsoleShell } from "../../shared/auth/AuthConsoleShell";
+import { AUTH_CONSOLE_STATUS_ROWS, AuthConsoleBrandMark, AuthConsoleFooterMeta, AuthConsoleShell } from "../../shared/auth/AuthConsoleShell";
 import { useResetPasswordForm } from "./hooks/useResetPasswordForm";
-
-const loginStatusRows = [
-  { key: "API", value: "api.aegis.local · v0.1.0" },
-  { key: "Orchestrator", value: "connected · 3 agents live" },
-  { key: "Analyzers", value: "SAST · Dynamic · Test queue idle" },
-];
 
 export const ResetPasswordPage: React.FC = () => {
   const navigate = useNavigate();
@@ -40,7 +34,7 @@ export const ResetPasswordPage: React.FC = () => {
             <h1 className="chore c-2">새 비밀번호<br /><em>설정</em></h1>
             <p className="chore c-3">받은 재설정 링크를 통해 접근했습니다. 안전한 새 비밀번호를 입력해 주세요. 최소 8자, 대·소문자·숫자·특수문자 조합을 권장합니다.</p>
             <dl className="status-block chore c-4">
-              {loginStatusRows.map((row) => (
+              {AUTH_CONSOLE_STATUS_ROWS.map((row) => (
                 <div className="row lit" key={row.key}>
                   <dt>{row.key}</dt>
                   <dd><span className="dot"></span>{row.value}</dd>

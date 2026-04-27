@@ -9,6 +9,7 @@ import {
   Spinner,
 } from "../../../shared/ui";
 import { formatDateTime } from "../../../utils/format";
+import type { ConnectionState } from "../../../utils/wsEnvelope";
 import { STRATEGY_LABELS, TEST_TYPE_ICON } from "../dynamicTestPresentation";
 
 const TEST_BOOT_LINES = [
@@ -127,7 +128,7 @@ const DynamicTestBootConsole: React.FC<DynamicTestBootConsoleProps> = ({ hasConn
 
 interface DynamicTestHistoryViewProps {
   projectId?: string;
-  connectionState: string;
+  connectionState: ConnectionState;
   hasConnected: boolean;
   adapterWarning: boolean;
   setAdapterWarning: (value: boolean) => void;
@@ -155,7 +156,7 @@ export const DynamicTestHistoryView: React.FC<DynamicTestHistoryViewProps> = ({
   onConfirmDelete,
 }) => (
   <div className="page-shell dynamic-test-history-shell">
-    <ConnectionStatusBanner connectionState={connectionState as any} />
+    <ConnectionStatusBanner connectionState={connectionState} />
     <PageHeader
       title="동적 테스트"
       action={

@@ -1,5 +1,24 @@
 import { describe, it, expect, vi } from "vitest";
-import { createSeqTracker, parseWsMessage } from "./wsEnvelope";
+import { createReconnectingWs, createSeqTracker, parseWsMessage, type ConnectionState } from "./wsEnvelope";
+
+class MockWebSocket {
+  static instances: MockWebSocket[] = [];
+  onopen: (() => void) | null = null;
+  onclose: ((event: { code: number }) => void) | null = null;
+  onerror: (() => void) | null = null;
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  readyState = 0;
+  constructor(public url: string) {
+    MockWebSocket.instances.push(this);
+  }
+  close() {
+    this.readyState = 3;
+  }
+  emitClose(code: number) {
+    this.readyState = 3;
+    this.onclose?.({ code });
+  }
+}
 
 describe("createSeqTracker", () => {
   it("returns 0 gap for first message", () => {
@@ -42,6 +61,48 @@ describe("createSeqTracker", () => {
     tracker.reset();
     // After reset, first message should not report gap
     expect(tracker.check({ channel: "analysis", timestamp: 2000, seq: 50 })).toBe(0);
+  });
+});
+
+describe("createReconnectingWs close code handling", () => {
+  it("does not retry on close code 4000 (missing subscription key)", () => {
+    MockWebSocket.instances = [];
+    const states: ConnectionState[] = [];
+    const onGiveUp = vi.fn();
+    const rws = createReconnectingWs(() => "ws://localhost/test", {
+      WebSocketCtor: MockWebSocket as unknown as typeof WebSocket,
+      onStateChange: (s) => states.push(s),
+      onGiveUp,
+      maxRetries: 5,
+    });
+    expect(MockWebSocket.instances).toHaveLength(1);
+    MockWebSocket.instances[0].emitClose(4000);
+    expect(states).toContain("failed");
+    expect(onGiveUp).toHaveBeenCalledOnce();
+    expect(MockWebSocket.instances).toHaveLength(1);
+    rws.close();
+  });
+
+  it("schedules retry on transient close (code 1006)", () => {
+    vi.useFakeTimers();
+    try {
+      MockWebSocket.instances = [];
+      const states: ConnectionState[] = [];
+      const rws = createReconnectingWs(() => "ws://localhost/test", {
+        WebSocketCtor: MockWebSocket as unknown as typeof WebSocket,
+        onStateChange: (s) => states.push(s),
+        initialDelay: 10,
+        jitterFactor: 0,
+        maxRetries: 3,
+      });
+      MockWebSocket.instances[0].emitClose(1006);
+      expect(states).toContain("reconnecting");
+      vi.advanceTimersByTime(20);
+      expect(MockWebSocket.instances).toHaveLength(2);
+      rws.close();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

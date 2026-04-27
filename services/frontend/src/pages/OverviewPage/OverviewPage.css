@@ -148,7 +148,7 @@
   color: var(--foreground);
 }
 .overview-identity__stat--info .overview-identity__value    { color: var(--info); }
-.overview-identity__stat--warn .overview-identity__value    { color: var(--warning, var(--info)); }
+.overview-identity__stat--warn .overview-identity__value    { color: var(--warning); }
 .overview-identity__stat--critical .overview-identity__value{ color: var(--danger); }
 .overview-identity__stat--ok .overview-identity__value      { color: var(--success); }
 @media (max-width: 800px) {

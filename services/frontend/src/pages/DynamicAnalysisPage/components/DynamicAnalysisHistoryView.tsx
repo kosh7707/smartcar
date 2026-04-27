@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { ConnectionStatusBanner, ConfirmDialog, ListItem, PageHeader, Spinner } from "../../../shared/ui";
 import { STATUS_LABELS } from "../../../constants/dynamic";
 import { formatDateTime } from "../../../utils/format";
+import type { ConnectionState } from "../../../utils/wsEnvelope";
 
 const ANALYSIS_BOOT_LINES = [
   { status: "ok" as const, slot: "aegis-monitor",    value: "loaded · kernel/can-v3" },
@@ -130,7 +131,7 @@ const getSessionBadgeClass = (status: string) =>
 
 interface DynamicAnalysisHistoryViewProps {
   projectId?: string;
-  connectionState?: string;
+  connectionState: ConnectionState;
   hasConnected: boolean;
   creating: boolean;
   adapterWarning: boolean;
@@ -146,7 +147,7 @@ interface DynamicAnalysisHistoryViewProps {
 
 export const DynamicAnalysisHistoryView: React.FC<DynamicAnalysisHistoryViewProps> = ({ projectId, connectionState, hasConnected, creating, adapterWarning, setAdapterWarning, historyLoading, sessions, confirmStopId, setConfirmStopId, onOpenConfig, onOpenSession, onConfirmStop }) => (
   <div className="dynamic-history-shell">
-    <ConnectionStatusBanner connectionState={connectionState as any} />
+    <ConnectionStatusBanner connectionState={connectionState} />
     <PageHeader
       title="동적 분석"
       action={

@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search } from "lucide-react";
+import { ArrowDown, ArrowUp, Search } from "lucide-react";
 import { CreateProjectForm } from "./CreateProjectForm";
 import type { DashboardProject } from "../dashboardTypes";
 import { DashboardEmptySurface } from "./DashboardEmptySurface";
@@ -34,11 +34,53 @@ interface ProjectExplorerProps {
 }
 
 type StatusFilter = "all" | "blocked" | "running" | "stale";
+type SortKey = "name" | "gate" | "critical" | "high" | "medium" | "open" | "approvals" | "recent";
+type SortOrder = "asc" | "desc";
 
 function isStale(project: DashboardProject): boolean {
   if (!project.lastAnalysisAt) return true;
   const ageDays = (Date.now() - new Date(project.lastAnalysisAt).getTime()) / 86_400_000;
   return ageDays >= 7;
+}
+
+const GATE_RANK: Record<string, number> = { fail: 0, warning: 1, running: 2, pass: 3 };
+
+const NATURAL_DESC: Record<SortKey, SortOrder> = {
+  name: "asc",
+  gate: "asc",
+  critical: "desc",
+  high: "desc",
+  medium: "desc",
+  open: "desc",
+  approvals: "desc",
+  recent: "desc",
+};
+
+function compareProjects(a: DashboardProject, b: DashboardProject, key: SortKey): number {
+  switch (key) {
+    case "recent": {
+      const at = a.lastAnalysisAt ? new Date(a.lastAnalysisAt).getTime() : 0;
+      const bt = b.lastAnalysisAt ? new Date(b.lastAnalysisAt).getTime() : 0;
+      return bt - at;
+    }
+    case "name":
+      return a.name.localeCompare(b.name, "ko");
+    case "critical":
+      return (b.severitySummary?.critical ?? 0) - (a.severitySummary?.critical ?? 0);
+    case "high":
+      return (b.severitySummary?.high ?? 0) - (a.severitySummary?.high ?? 0);
+    case "medium":
+      return (b.severitySummary?.medium ?? 0) - (a.severitySummary?.medium ?? 0);
+    case "open":
+      return totalFindings(b) - totalFindings(a);
+    case "approvals":
+      return projectPendingApprovals(b) - projectPendingApprovals(a);
+    case "gate": {
+      const ar = GATE_RANK[(a.gateStatus ?? "pass") as string] ?? 9;
+      const br = GATE_RANK[(b.gateStatus ?? "pass") as string] ?? 9;
+      return ar - br;
+    }
+  }
 }
 
 function gateLabel(project: DashboardProject): { cls: string; txt: string } {
@@ -86,6 +128,8 @@ function ProjectCards({ projects }: { projects: DashboardProject[] }) {
 export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ projects, filter, emptyState, onFilterChange, createFlow, layoutMode = "table" }) => {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("recent");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
 
   const handleRowActivate = useCallback((projectId: string) => {
     navigate(`/projects/${projectId}/overview`);
@@ -99,17 +143,52 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ projects, filt
   }, [handleRowActivate]);
 
   const displayProjects = useMemo(() => {
+    let list: DashboardProject[];
     switch (statusFilter) {
       case "blocked":
-        return projects.filter((project) => project.gateStatus === "fail");
+        list = projects.filter((project) => project.gateStatus === "fail");
+        break;
       case "running":
-        return projects.filter(projectIsRunning);
+        list = projects.filter(projectIsRunning);
+        break;
       case "stale":
-        return projects.filter(isStale);
+        list = projects.filter(isStale);
+        break;
       default:
-        return projects;
+        list = projects;
     }
-  }, [projects, statusFilter]);
+    const sorted = [...list].sort((a, b) => compareProjects(a, b, sortKey));
+    return sortOrder === NATURAL_DESC[sortKey] ? sorted : sorted.reverse();
+  }, [projects, statusFilter, sortKey, sortOrder]);
+
+  const handleSort = useCallback((key: SortKey) => {
+    setSortKey((prev) => {
+      if (prev === key) {
+        setSortOrder((order) => (order === "asc" ? "desc" : "asc"));
+        return prev;
+      }
+      setSortOrder(NATURAL_DESC[key]);
+      return key;
+    });
+  }, []);
+
+  const sortHeaderProps = (key: SortKey, extraClass?: string) => {
+    const active = sortKey === key;
+    const isAsc = active && sortOrder === "asc";
+    return {
+      className: ["sort", extraClass, active ? "active" : "", isAsc ? "asc" : ""].filter(Boolean).join(" "),
+      role: "button" as const,
+      tabIndex: 0,
+      "aria-sort": (active ? (isAsc ? "ascending" : "descending") : "none") as React.AriaAttributes["aria-sort"],
+      onClick: () => handleSort(key),
+      onKeyDown: (event: React.KeyboardEvent<HTMLTableCellElement>) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          handleSort(key);
+        }
+      },
+    };
+  };
 
   const emptyAction = emptyState.actionKind === "clear-filter"
     ? <button type="button" className="btn btn-outline btn-sm" onClick={() => onFilterChange("")}>검색 초기화</button>
@@ -132,6 +211,29 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ projects, filt
             <Search size={14} />
             <input type="search" placeholder="프로젝트 이름…" value={filter} onChange={(event) => onFilterChange(event.target.value)} />
           </div>
+          {layoutMode === "cards" ? (
+            <div className="filter-sort-wrap" aria-label="정렬">
+              <select
+                className="filter-select"
+                aria-label="정렬 기준"
+                value={sortKey}
+                onChange={(event) => handleSort(event.target.value as SortKey)}
+              >
+                <option value="recent">마지막 분석</option>
+                <option value="name">이름</option>
+                <option value="critical">크리티컬</option>
+                <option value="gate">게이트 상태</option>
+              </select>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
+                aria-label={sortOrder === "asc" ? "오름차순" : "내림차순"}
+              >
+                {sortOrder === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -154,14 +256,14 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ projects, filt
             <table className="projects">
               <thead>
                 <tr>
-                  <th>프로젝트</th>
-                  <th className="center">게이트</th>
-                  <th className="num">크리티컬</th>
-                  <th className="num">하이</th>
-                  <th className="num">미디엄</th>
-                  <th className="num">오픈</th>
-                  <th className="num">승인대기</th>
-                  <th>마지막 분석</th>
+                  <th {...sortHeaderProps("name")}>이름<span className="chev">▾</span></th>
+                  <th {...sortHeaderProps("gate", "center")}>게이트<span className="chev">▾</span></th>
+                  <th {...sortHeaderProps("critical", "num")}>크리티컬<span className="chev">▾</span></th>
+                  <th {...sortHeaderProps("high", "num")}>하이<span className="chev">▾</span></th>
+                  <th {...sortHeaderProps("medium", "num")}>미디엄<span className="chev">▾</span></th>
+                  <th {...sortHeaderProps("open", "num")}>오픈<span className="chev">▾</span></th>
+                  <th {...sortHeaderProps("approvals", "num")}>승인대기<span className="chev">▾</span></th>
+                  <th {...sortHeaderProps("recent")}>마지막 분석<span className="chev">▾</span></th>
                   <th>담당</th>
                 </tr>
               </thead>
@@ -214,8 +316,6 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ projects, filt
           <ProjectCards projects={displayProjects} />
         )}
       </div>
-
-      <div className="panel-foot"><span>{displayProjects.length} / {projects.length} 프로젝트 표시</span><a href="#" onClick={(event) => event.preventDefault()}>전체 보기 →</a></div>
     </section>
   );
 };

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Adapter, DynamicTestConfig, DynamicTestResult, TestStrategy } from "@aegis/shared";
 import { ApiError, deleteDynamicTestResult, getDynamicTestResult, getDynamicTestResults, logError } from "../../../api/client";
 import type { TestProgress } from "../../../hooks/useDynamicTest";
+import type { ConnectionState } from "../../../utils/wsEnvelope";
 
 type ToastAction = { label: string; onClick: () => void } | undefined;
 
@@ -15,7 +16,7 @@ type DynamicTestController = {
   findings: unknown[];
   result: DynamicTestResult | null;
   error: string | null;
-  connectionState: string;
+  connectionState: ConnectionState;
   startTest: (config: DynamicTestConfig, adapterId: string) => void;
   reset: () => void;
   viewResult: (result: DynamicTestResult) => void;

@@ -164,10 +164,17 @@ export function createReconnectingWs(
       if (wasReconnecting) opts.onReconnect?.();
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       if (closed) return;
       ws = null;
       opts.onDisconnect?.();
+      // S2 close code 4000 = missing subscription key (shared WsBroadcaster, applies to all WS channels).
+      // Permanent failure — retrying would loop forever.
+      if (event?.code === 4000) {
+        setState("failed");
+        opts.onGiveUp?.();
+        return;
+      }
       scheduleRetry();
     };
 

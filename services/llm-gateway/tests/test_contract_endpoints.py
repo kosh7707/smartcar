@@ -1,5 +1,7 @@
 """엔드포인트 계약 테스트 (/v1/health, /v1/models, /v1/prompts, /v1/chat)."""
 import asyncio
+import json
+import logging
 import time
 from threading import Event
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -11,6 +13,26 @@ from app.main import app
 from tests.conftest import ALL_TASK_TYPES, make_chat_body
 
 
+class _ListLogHandler(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        self.messages = []
+
+    def emit(self, record):
+        self.messages.append(record.getMessage())
+
+
+def _capture_exchange_logs():
+    logger = logging.getLogger("llm_exchange")
+    handler = _ListLogHandler()
+    logger.addHandler(handler)
+    return logger, handler
+
+
+def _release_exchange_logs(logger, handler):
+    logger.removeHandler(handler)
+
+
 # ---------------------------------------------------------------------------
 # GET /v1/health
 # ---------------------------------------------------------------------------
@@ -19,6 +41,7 @@ class TestHealthEndpoint:
     def test_health_required_fields(self, client_live):
         resp = client_live.get("/v1/health")
         assert resp.status_code == 200
+        assert resp.headers["x-request-id"].startswith("gw-")
         data = resp.json()
         for field in ("service", "status", "version", "llmMode",
                       "modelProfiles", "activePromptVersions", "rag",
@@ -148,6 +171,10 @@ class TestModelsEndpoint:
             for t in profile["allowedTaskTypes"]:
                 assert isinstance(t, str)
 
+    def test_models_includes_request_id_header(self, client_live):
+        resp = client_live.get("/v1/models", headers={"X-Request-Id": "rid-models-001"})
+        assert resp.headers["x-request-id"] == "rid-models-001"
+
 
 # ---------------------------------------------------------------------------
 # GET /v1/prompts
@@ -245,6 +272,36 @@ class TestChatProxy:
         assert data["choices"][0]["message"]["content"] == '{"test": true}'
         assert data["usage"]["prompt_tokens"] == 10
 
+    def test_chat_proxy_exchange_log_contains_full_request_and_response(self, client_live):
+        mock_llm_response = {
+            "choices": [{"message": {"content": "hello back"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 3, "completion_tokens": 2},
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+        logger, handler = _capture_exchange_logs()
+        try:
+            with patch.object(app.state, "proxy_client") as mock_client:
+                mock_client.post = AsyncMock(return_value=mock_resp)
+
+                resp = client_live.post(
+                    "/v1/chat",
+                    json={
+                        "model": "ignored-by-gateway",
+                        "messages": [{"role": "user", "content": "full prompt evidence"}],
+                        "max_tokens": 100,
+                    },
+                    headers={"X-Request-Id": "rid-chat-exchange-001"},
+                )
+        finally:
+            _release_exchange_logs(logger, handler)
+
+        assert resp.status_code == 200
+        entries = [json.loads(m) for m in handler.messages]
+        entry = next(e for e in entries if e.get("requestId") == "rid-chat-exchange-001")
+        assert entry["type"] == "chat_proxy"
+        assert entry["request"]["messages"][0]["content"] == "full prompt evidence"
+        assert entry["response"]["choices"][0]["message"]["content"] == "hello back"
+
     def test_chat_proxy_auto_request_id(self, client_live):
         """requestId가 없으면 Gateway가 gw- 접두사로 자동 생성한다."""
         mock_llm_response = {
@@ -301,7 +358,11 @@ class TestChatProxy:
             })
 
         assert resp.status_code == 503
-        assert resp.json()["retryable"] is True
+        data = resp.json()
+        assert data["success"] is False
+        assert data["retryable"] is True
+        assert data["errorDetail"]["code"] == "LLM_UNAVAILABLE"
+        assert resp.headers["x-request-id"].startswith("gw-")
 
     def test_chat_proxy_504_on_timeout(self, client_live):
         """LLM Engine 타임아웃 시 504 반환."""
@@ -314,7 +375,10 @@ class TestChatProxy:
             })
 
         assert resp.status_code == 504
-        assert resp.json()["retryable"] is True
+        data = resp.json()
+        assert data["success"] is False
+        assert data["retryable"] is True
+        assert data["errorDetail"]["code"] == "LLM_TIMEOUT"
 
     def test_chat_proxy_passes_tool_calls(self, client_live):
         """tool_calls가 포함된 응답을 그대로 전달한다."""
@@ -483,8 +547,10 @@ class TestChatProxy:
         assert resp.status_code == 502
         data = resp.json()
         assert data["error"] == "Strict JSON contract violated"
+        assert data["success"] is False
         assert data["retryable"] is True
         assert data["strictJson"] is True
+        assert data["errorDetail"]["code"] == "LLM_PARSE_ERROR"
 
 
 class TestAsyncChatOwnershipSurface:
@@ -556,6 +622,41 @@ class TestAsyncChatOwnershipSurface:
         assert result_data["response"]["choices"][0]["message"]["content"] == '{"ok": true}'
         assert result_data["response"]["usage"]["prompt_tokens"] == 8
 
+    def test_async_exchange_log_contains_full_request_and_response(self, client_live):
+        mock_llm_response = {
+            "choices": [{"message": {"content": "async answer"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 8, "completion_tokens": 4},
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+        logger, handler = _capture_exchange_logs()
+        try:
+            with patch.object(app.state, "proxy_client") as mock_client:
+                mock_client.post = AsyncMock(return_value=mock_resp)
+
+                submit = client_live.post(
+                    "/v1/async-chat-requests",
+                    json={
+                        "model": "ignored",
+                        "messages": [{"role": "user", "content": "async full prompt"}],
+                    },
+                    headers={"X-Request-Id": "trace-async-exchange-001"},
+                )
+                request_id = submit.json()["requestId"]
+                deadline = time.time() + 1.0
+                while time.time() < deadline:
+                    status_resp = client_live.get(f"/v1/async-chat-requests/{request_id}")
+                    if status_resp.json()["state"] == "completed":
+                        break
+                    time.sleep(0.01)
+        finally:
+            _release_exchange_logs(logger, handler)
+
+        entries = [json.loads(m) for m in handler.messages]
+        entry = next(e for e in entries if e.get("asyncRequestId") == request_id)
+        assert entry["type"] == "async_chat"
+        assert entry["request"]["messages"][0]["content"] == "async full prompt"
+        assert entry["response"]["choices"][0]["message"]["content"] == "async answer"
+
     def test_async_result_not_ready_is_explicit(self, client_live):
         async def delayed_response(*args, **kwargs):
             await asyncio.sleep(0.05)
@@ -577,7 +678,9 @@ class TestAsyncChatOwnershipSurface:
         assert result_resp.status_code == 409
         result_data = result_resp.json()
         assert result_data["requestId"] == request_id
+        assert result_data["success"] is False
         assert result_data["error"] == "Async result not ready"
+        assert result_data["errorDetail"]["code"] == "CONFLICT"
         assert result_data["state"] in {"queued", "running"}
 
     def test_async_cancel_returns_cancelled_state(self, client_live):
@@ -692,6 +795,6 @@ class TestAsyncChatOwnershipSurface:
         assert result_data["requestId"] == request_id
         assert result_data["state"] == "failed"
         assert result_data["error"] == "Strict JSON contract violated"
-        assert "valid JSON" in result_data["errorDetail"]
+        assert "valid JSON" in result_data["errorDetail"]["detail"]
         assert result_data["retryable"] is True
         assert result_data["blockedReason"] == "strict_json_contract_violation"

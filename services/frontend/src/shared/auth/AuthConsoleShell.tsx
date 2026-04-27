@@ -98,6 +98,12 @@ export function AuthConsoleBrandMark({ tagline, region, statusLabel }: AuthConso
   );
 }
 
+export const AUTH_CONSOLE_STATUS_ROWS: { key: string; value: string }[] = [
+  { key: "API", value: "api.aegis.local · v0.1.0" },
+  { key: "Orchestrator", value: "connected · 3 agents live" },
+  { key: "Analyzers", value: "SAST · Dynamic · Test queue idle" },
+];
+
 export function AuthConsoleFooterMeta({ items }: AuthConsoleFooterMetaProps) {
   return (
     <footer className="brand-meta chore c-5">

@@ -326,9 +326,12 @@
   font-size: var(--text-xs);
   color: var(--foreground-muted);
 
-  background: var(--surface-sunken);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
+}
+.search-inline:focus-within {
+  border-color: var(--primary-border);
 }
 .search-inline svg { width: 12px; height: 12px; }
 .search-inline input {

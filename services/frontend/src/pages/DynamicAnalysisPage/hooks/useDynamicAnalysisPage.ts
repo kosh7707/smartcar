@@ -8,6 +8,7 @@ import {
   startDynamicSession,
   stopDynamicSession,
 } from "../../../api/client";
+import type { ConnectionState } from "../../../utils/wsEnvelope";
 
 type ToastAction = { label: string; onClick: () => void } | undefined;
 
@@ -125,7 +126,7 @@ export function useDynamicAnalysisPage(
 
   const historyState = useMemo(() => ({
     projectId,
-    connectionState: hasConnected ? "connected" : "disconnected",
+    connectionState: (hasConnected ? "connected" : "disconnected") as ConnectionState,
     hasConnected,
     creating,
     adapterWarning,
