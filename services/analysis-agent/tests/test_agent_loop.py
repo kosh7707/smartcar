@@ -10,6 +10,7 @@ from app.budget.manager import BudgetManager
 from app.budget.token_counter import TokenCounter
 from app.core.agent_loop import AgentLoop
 from app.core.agent_session import AgentSession
+from app.core.evidence_catalog import EvidenceCatalogEntry
 from app.core.phase_one_types import Phase1Result
 from app.core.result_assembler import ResultAssembler
 from app.agent_runtime.llm.message_manager import MessageManager
@@ -70,6 +71,19 @@ def _structured_zero_claim_json() -> str:
         "claims": [],
         "caveats": ["style/info finding은 claim으로 승격하지 않았습니다."],
         "usedEvidenceRefs": ["eref-001"],
+        "suggestedSeverity": "info",
+        "needsHumanReview": True,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+
+def _structured_zero_claim_no_refs_json() -> str:
+    return json.dumps({
+        "summary": "검토 결과 actionable claim은 확인되지 않았습니다.",
+        "claims": [],
+        "caveats": ["duplicate retrieval attempt was blocked"],
+        "usedEvidenceRefs": [],
         "suggestedSeverity": "info",
         "needsHumanReview": True,
         "recommendedNextSteps": [],
@@ -220,6 +234,28 @@ def _build_agent_loop(
     return loop, session
 
 
+def _add_command_injection_supporting_slice(
+    session: AgentSession,
+    *,
+    ref_id: str = "eref-001",
+    file: str = "main.c",
+    line: int = 42,
+    sast_backed: bool = False,
+) -> None:
+    roles = ["source_location", "source_slice", "sink_or_dangerous_api"]
+    if sast_backed:
+        roles.append("sast_finding")
+    session.evidence_catalog.add(EvidenceCatalogEntry(
+        ref_id=ref_id,
+        evidence_class="local",
+        roles=tuple(roles),
+        file=file,
+        line=line,
+        sink="popen",
+        cwe_id="CWE-78",
+    ))
+
+
 
 @pytest.mark.asyncio
 async def test_single_turn_content_only():
@@ -306,6 +342,58 @@ async def test_three_turn_scenario():
 
     assert result.status == "completed"
     assert session.turn_count == 3
+
+
+@pytest.mark.asyncio
+async def test_multi_turn_planner_dedup_in_agent_loop(caplog):
+    duplicate_call = ToolCallRequest(id="c1", name="knowledge.search", arguments={"query": "CWE-78"})
+    responses = [
+        LlmResponse(
+            tool_calls=[duplicate_call],
+            finish_reason="tool_calls", prompt_tokens=100, completion_tokens=20,
+        ),
+        LlmResponse(
+            tool_calls=[ToolCallRequest(id="c2", name="knowledge.search", arguments={"query": "CWE-78"})],
+            finish_reason="tool_calls", prompt_tokens=110, completion_tokens=20,
+        ),
+        LlmResponse(content=_structured_zero_claim_no_refs_json(), prompt_tokens=120, completion_tokens=40),
+    ]
+    loop, session = _build_agent_loop(responses, {"max_steps": 10, "max_cheap_calls": 6})
+
+    with caplog.at_level("INFO", logger="app.agent_runtime.tools.router_core"):
+        result = await loop.run(session)
+
+    assert result.status == "completed"
+    assert session.turn_count == 3
+    assert session.total_tool_calls() == 1
+    assert "중복 tool 호출 차단" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_duplicate_tool_call_does_not_add_second_evidence_ref():
+    responses = [
+        LlmResponse(
+            tool_calls=[ToolCallRequest(id="c1", name="knowledge.search", arguments={"query": "CWE-78"})],
+            finish_reason="tool_calls", prompt_tokens=100, completion_tokens=20,
+        ),
+        LlmResponse(
+            tool_calls=[ToolCallRequest(id="c2", name="knowledge.search", arguments={"query": "CWE-78"})],
+            finish_reason="tool_calls", prompt_tokens=110, completion_tokens=20,
+        ),
+        LlmResponse(content=_structured_zero_claim_no_refs_json(), prompt_tokens=120, completion_tokens=40),
+    ]
+    loop, session = _build_agent_loop(responses, {"max_steps": 10, "max_cheap_calls": 6})
+
+    result = await loop.run(session)
+
+    assert result.status == "completed"
+    knowledge_refs = [
+        ref
+        for step in session.trace
+        for ref in step.new_evidence_refs
+        if ref.startswith("eref-mock-")
+    ]
+    assert knowledge_refs == ["eref-mock-CWE-78"]
 
 
 @pytest.mark.asyncio
@@ -466,6 +554,11 @@ async def test_audit_info_populated():
         LlmResponse(content=_final_assessment_json(), prompt_tokens=100, completion_tokens=50),
     ]
     loop, session = _build_agent_loop(responses)
+    _add_command_injection_supporting_slice(
+        session,
+        file="clients/http_client.cpp",
+        line=62,
+    )
     result = await loop.run(session)
 
     assert result.audit.agentAudit is not None
@@ -495,6 +588,11 @@ async def test_unstructured_content_retries_and_promotes_gateway_webserver_claim
         LlmResponse(content=_gateway_webserver_claim_json(), prompt_tokens=140, completion_tokens=90),
     ]
     loop, session = _build_agent_loop(responses)
+    _add_command_injection_supporting_slice(
+        session,
+        file="clients/http_client.cpp",
+        line=62,
+    )
     result = await loop.run(session)
 
     assert result.status == "completed"
@@ -559,6 +657,13 @@ async def test_unstructured_content_twice_uses_strict_structured_finalizer():
         evidenceRefs=[],
     )
     session.extra_allowed_refs = {"eref-sast-flawfinder:shell/popen"}
+    _add_command_injection_supporting_slice(
+        session,
+        ref_id="eref-sast-flawfinder:shell/popen",
+        file="main.cpp",
+        line=35,
+        sast_backed=True,
+    )
 
     result = await loop.run(session)
 
@@ -614,6 +719,7 @@ async def test_missing_caveats_uses_strict_schema_repair_not_normalize():
         }), prompt_tokens=130, completion_tokens=90),
     ]
     loop, session = _build_agent_loop(responses)
+    _add_command_injection_supporting_slice(session)
 
     result = await loop.run(session)
 
@@ -646,6 +752,7 @@ async def test_wrong_collection_types_use_strict_schema_repair():
         }), prompt_tokens=130, completion_tokens=90),
     ]
     loop, session = _build_agent_loop(responses)
+    _add_command_injection_supporting_slice(session)
 
     result = await loop.run(session)
 
@@ -677,6 +784,7 @@ async def test_malformed_claim_shape_uses_strict_schema_repair():
         }), prompt_tokens=130, completion_tokens=90),
     ]
     loop, session = _build_agent_loop(responses)
+    _add_command_injection_supporting_slice(session)
 
     result = await loop.run(session)
 

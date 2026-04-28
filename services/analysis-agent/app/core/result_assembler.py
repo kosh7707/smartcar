@@ -17,9 +17,12 @@ from app.schemas.response import (
     AssessmentResult,
     AuditInfo,
     Claim,
+    ClaimDiagnostics,
     EvaluationVerdict,
+    EvidenceAcquisitionDiagnostic,
     EvidenceDiagnostics,
     EvidenceRefRoleDiagnostic,
+    NonAcceptedClaimDiagnostic,
     QualityGateItem,
     QualityGateResult,
     RecoveryTraceEntry,
@@ -28,10 +31,11 @@ from app.schemas.response import (
     TokenUsage,
     ValidationInfo,
 )
-from app.state_machine.outcomes import clean_pass_for
+from app.state_machine.outcomes import TriageContext, clean_pass_for, outcome_for_deficiency
+from app.state_machine.claim import diagnose_claim_evidence, transition_claim_status
 from app.state_machine.recovery_triage import recovery_trace
 from app.state_machine.types import DeficiencyClass, DependencyState
-from app.types import AnalysisOutcome, FailureCode, PocOutcome, QualityOutcome, TaskStatus
+from app.types import AnalysisOutcome, ClaimStatus, FailureCode, PocOutcome, QualityOutcome, TaskStatus
 from app.validators.evidence_sanitizer import EvidenceRefSanitizer
 from app.validators.evidence_validator import EvidenceValidator
 from app.validators.schema_validator import SchemaValidator
@@ -72,11 +76,13 @@ class ResultAssembler:
 
         if parsed is None:
             session.set_termination_reason("invalid_final_output")
+            outcome = outcome_for_deficiency(DeficiencyClass.MALFORMED_LLM_OUTPUT)
             return self.build_completed_outcome(
                 session,
                 summary="S3 검토는 완료되었지만 구조화된 최종 Assessment를 확정할 수 없어 inconclusive로 분류했습니다.",
-                analysis_outcome=AnalysisOutcome.INCONCLUSIVE,
-                quality_outcome=QualityOutcome.REPAIR_EXHAUSTED,
+                analysis_outcome=outcome.analysis_outcome,
+                quality_outcome=outcome.quality_outcome,
+                poc_outcome=outcome.poc_outcome,
                 caveats=["LLM final output was not parseable as Assessment JSON after recovery."],
                 policy_flags=["recovery_classified", "schema_deficient"],
                 recovery_trace=[recovery_trace(
@@ -114,11 +120,13 @@ class ResultAssembler:
             )
         if canonical_failure:
             session.set_termination_reason("invalid_grounding")
+            outcome = outcome_for_deficiency(DeficiencyClass.GROUNDING)
             return self.build_completed_outcome(
                 session,
                 summary="S3 검토는 완료되었지만 claim grounding을 정직하게 수용할 수 없어 no_accepted_claims로 분류했습니다.",
-                analysis_outcome=AnalysisOutcome.NO_ACCEPTED_CLAIMS,
-                quality_outcome=QualityOutcome.REJECTED,
+                analysis_outcome=outcome.analysis_outcome,
+                quality_outcome=outcome.quality_outcome,
+                poc_outcome=outcome.poc_outcome,
                 caveats=[canonical_failure],
                 policy_flags=["recovery_classified", "grounding_deficient"],
                 recovery_trace=[recovery_trace(
@@ -142,11 +150,13 @@ class ResultAssembler:
                 errorCount=len(schema_result.errors),
             )
             session.set_termination_reason("invalid_final_output")
+            outcome = outcome_for_deficiency(DeficiencyClass.SCHEMA)
             return self.build_completed_outcome(
                 session,
                 summary="S3 검토는 완료되었지만 최종 Assessment 스키마 결함이 남아 inconclusive로 분류했습니다.",
-                analysis_outcome=AnalysisOutcome.INCONCLUSIVE,
-                quality_outcome=QualityOutcome.REPAIR_EXHAUSTED,
+                analysis_outcome=outcome.analysis_outcome,
+                quality_outcome=outcome.quality_outcome,
+                poc_outcome=outcome.poc_outcome,
                 caveats=schema_result.errors,
                 policy_flags=["recovery_classified", "schema_deficient"],
                 recovery_trace=[recovery_trace(
@@ -177,11 +187,13 @@ class ResultAssembler:
                 errorCount=len(evidence_errors),
             )
             session.set_termination_reason("invalid_grounding")
+            outcome = outcome_for_deficiency(DeficiencyClass.GROUNDING)
             return self.build_completed_outcome(
                 session,
                 summary="S3 검토는 완료되었지만 evidence grounding 결함으로 accepted claim을 확정하지 못했습니다.",
-                analysis_outcome=AnalysisOutcome.NO_ACCEPTED_CLAIMS,
-                quality_outcome=QualityOutcome.REJECTED,
+                analysis_outcome=outcome.analysis_outcome,
+                quality_outcome=outcome.quality_outcome,
+                poc_outcome=outcome.poc_outcome,
                 caveats=evidence_errors,
                 policy_flags=["recovery_classified", "grounding_deficient"],
                 recovery_trace=[recovery_trace(
@@ -194,6 +206,9 @@ class ResultAssembler:
                 )],
                 evidence_diagnostics=evidence_diagnostics,
                 contextual_evidence_refs=contextual_evidence_refs,
+                claim_diagnostics=_build_claim_lifecycle_outputs(
+                    parsed, session, allowed_claim_refs=allowed_claim_refs
+                )[1],
                 termination_reason="invalid_grounding_recovered",
             )
 
@@ -239,15 +254,9 @@ class ResultAssembler:
         )
 
         # AssessmentResult 조립
-        claims = [
-            Claim(
-                statement=c.get("statement", ""),
-                detail=c.get("detail"),
-                supportingEvidenceRefs=c.get("supportingEvidenceRefs", []),
-                location=c.get("location"),
-            )
-            for c in parsed.get("claims", [])
-        ]
+        claims, claim_diagnostics = _build_claim_lifecycle_outputs(
+            parsed, session, allowed_claim_refs=allowed_claim_refs
+        )
 
         analysis_outcome = (
             AnalysisOutcome.ACCEPTED_CLAIMS if claims else AnalysisOutcome.NO_ACCEPTED_CLAIMS
@@ -291,6 +300,7 @@ class ResultAssembler:
             evaluationVerdict=evaluation_verdict,
             contextualEvidenceRefs=contextual_evidence_refs,
             evidenceDiagnostics=evidence_diagnostics,
+            claimDiagnostics=claim_diagnostics,
             qualityGate=quality_gate,
         )
 
@@ -334,22 +344,22 @@ class ResultAssembler:
             "no_new_evidence",
             "all_tiers_exhausted",
         } or (reason or "").startswith("llm_failure_partial:"):
-            analysis_outcome = (
-                AnalysisOutcome.NO_ACCEPTED_CLAIMS
-                if reason == "no_new_evidence"
-                else AnalysisOutcome.INCONCLUSIVE
+            outcome = outcome_for_deficiency(
+                DeficiencyClass.REPAIR_EXHAUSTED,
+                TriageContext(no_accepted_claims=reason == "no_new_evidence"),
             )
             return self.build_completed_outcome(
                 session,
                 summary="S3 검토는 완료되었지만 복구/증거/도구 예산이 소진되어 negative outcome으로 분류했습니다.",
-                analysis_outcome=analysis_outcome,
-                quality_outcome=QualityOutcome.REPAIR_EXHAUSTED,
+                analysis_outcome=outcome.analysis_outcome,
+                quality_outcome=outcome.quality_outcome,
+                poc_outcome=outcome.poc_outcome,
                 caveats=[f"Agent loop ended with recoverable exhaustion reason: {reason}"],
                 policy_flags=["recovery_classified", "repair_exhausted"],
                 recovery_trace=[recovery_trace(
                     deficiency="RECOVERY_EXHAUSTED",
                     action="outcome_classification",
-                    outcome=analysis_outcome.value,
+                    outcome=outcome.analysis_outcome.value,
                     detail=f"termination_reason={reason}",
                     deficiency_class=DeficiencyClass.REPAIR_EXHAUSTED,
                     dependency_state=DependencyState.DEGRADED_PARTIAL,
@@ -380,6 +390,7 @@ class ResultAssembler:
         recovery_trace: list[RecoveryTraceEntry] | None = None,
         evidence_diagnostics: EvidenceDiagnostics | None = None,
         contextual_evidence_refs: list[str] | None = None,
+        claim_diagnostics: ClaimDiagnostics | None = None,
         termination_reason: str = "outcome_classified",
     ) -> TaskSuccessResponse:
         """Build a completed honest envelope for recoverable S3-owned deficiencies."""
@@ -434,6 +445,7 @@ class ResultAssembler:
                 _all_allowed_ref_ids(session),
             ),
             evidenceDiagnostics=diagnostics,
+            claimDiagnostics=claim_diagnostics or ClaimDiagnostics(),
             qualityGate=quality_gate,
         )
         return TaskSuccessResponse(
@@ -483,6 +495,10 @@ class ResultAssembler:
             created_at=datetime.now(timezone.utc).isoformat(),
             model_name=self._model_name,
             prompt_version=self._prompt_version,
+            evidenceCatalogDiagnostics={
+                "liveRecoveryTrace": session.live_recovery_trace_summary(),
+                "attemptHistory": _audit_evidence_catalog_attempts(session),
+            },
         )
 
         return AuditInfo(
@@ -527,7 +543,7 @@ def _allowed_claim_ref_ids(session: AgentSession, allowed_refs: set[str]) -> set
 def _looks_like_local_claim_ref(ref_id: str) -> bool:
     if not isinstance(ref_id, str):
         return False
-    if ref_id.startswith(("eref-knowledge-", "eref-metadata-", "eref-operational-")):
+    if ref_id.startswith(("eref-knowledge-", "eref-metadata-", "eref-operational-", "eref-negative-")):
         return False
     return ref_id.startswith((
         "eref-sast-",
@@ -548,6 +564,79 @@ def _contextual_evidence_refs(session: AgentSession, parsed: dict, allowed_refs:
     refs.extend(sorted(session.evidence_catalog.contextual_ref_ids()))
     refs.extend(sorted(ref for ref in allowed_refs if isinstance(ref, str) and ref.startswith("eref-knowledge-")))
     return list(dict.fromkeys(refs))
+
+
+def _build_claim_lifecycle_outputs(
+    parsed: dict,
+    session: AgentSession,
+    allowed_claim_refs: set[str] | None = None,
+) -> tuple[list[Claim], ClaimDiagnostics]:
+    final_claims: list[Claim] = []
+    non_accepted: list[NonAcceptedClaimDiagnostic] = []
+    lifecycle_counts: dict[str, int] = {}
+
+    raw_claims = parsed.get("claims", [])
+    if not isinstance(raw_claims, list):
+        raw_claims = []
+
+    for index, raw in enumerate(raw_claims):
+        if not isinstance(raw, dict):
+            logger.warning(
+                "non-dict claim entry skipped",
+                extra={
+                    "component": "result_assembler",
+                    "phase": "claim_lifecycle",
+                    "claimIndex": index,
+                    "rawType": type(raw).__name__,
+                },
+            )
+            continue
+        claim = Claim(
+            statement=raw.get("statement", ""),
+            detail=raw.get("detail"),
+            supportingEvidenceRefs=raw.get("supportingEvidenceRefs", []),
+            location=raw.get("location"),
+            claimId=raw.get("claimId") or f"claim-{index}",
+            status=raw.get("status", ClaimStatus.CANDIDATE),
+            requiredEvidence=raw.get("requiredEvidence", []),
+            presentEvidence=raw.get("presentEvidence", []),
+            missingEvidence=raw.get("missingEvidence", []),
+            evidenceTrail=raw.get("evidenceTrail", []),
+            queryHistory=raw.get("queryHistory", []),
+            revisionHistory=raw.get("revisionHistory", []),
+        )
+        diagnosis = diagnose_claim_evidence(
+            claim,
+            session.evidence_catalog,
+            allowed_local_refs=allowed_claim_refs or set(),
+        )
+        transitioned = transition_claim_status(claim, diagnosis)
+        lifecycle_counts[transitioned.status.value] = lifecycle_counts.get(transitioned.status.value, 0) + 1
+        if transitioned.status in {ClaimStatus.GROUNDED, ClaimStatus.NEEDS_HUMAN_REVIEW}:
+            final_claims.append(transitioned)
+            continue
+        non_accepted.append(NonAcceptedClaimDiagnostic(
+            claimId=transitioned.claimId,
+            status=transitioned.status,
+            family=diagnosis.family,
+            primaryLocation=transitioned.location,
+            missingEvidence=transitioned.missingEvidence,
+            invalidRefs=diagnosis.invalidRefs,
+            supportingEvidenceRefs=transitioned.supportingEvidenceRefs,
+            outcomeContribution="no_accepted_claims",
+            detail=_truncate_diagnostic_detail(transitioned.detail),
+        ))
+
+    return final_claims, ClaimDiagnostics(
+        lifecycleCounts=lifecycle_counts,
+        nonAcceptedClaims=non_accepted[:10],
+    )
+
+
+def _truncate_diagnostic_detail(value: str | None, limit: int = 500) -> str | None:
+    if value is None:
+        return None
+    return value[:limit]
 
 
 def _build_evidence_diagnostics(
@@ -577,6 +666,8 @@ def _build_evidence_diagnostics(
                 path=path,
             ))
 
+    attempted_acquisitions = _attempted_acquisition_diagnostics(session)
+    negative_attempts = _negative_attempt_diagnostics(session)
     return EvidenceDiagnostics(
         invalidRefs=list(dict.fromkeys(invalid_refs)),
         invalidRefRoles=_dedupe_role_diagnostics(invalid_roles),
@@ -587,7 +678,72 @@ def _build_evidence_diagnostics(
             ref for ref in allowed_refs if isinstance(ref, str) and ref.startswith("eref-knowledge-")
         }),
         unclassifiedRefs=sorted(session.evidence_catalog.unclassified_ref_ids()),
+        attemptedAcquisitions=attempted_acquisitions,
+        negativeAttempts=negative_attempts,
     )
+
+
+def _attempted_acquisition_diagnostics(session: AgentSession) -> list[EvidenceAcquisitionDiagnostic]:
+    attempts = [
+        _diagnostic_from_evidence_entry(entry)
+        for entry in session.evidence_catalog.history()
+        if entry.source_tool or entry.evidence_class in {"negative", "operational"}
+    ]
+    if len(attempts) <= 10:
+        return attempts
+    return attempts[:5] + attempts[-5:]
+
+
+def _negative_attempt_diagnostics(session: AgentSession) -> list[EvidenceAcquisitionDiagnostic]:
+    attempts = [
+        _diagnostic_from_evidence_entry(entry)
+        for entry in session.evidence_catalog.history()
+        if entry.evidence_class == "negative"
+    ]
+    if len(attempts) <= 10:
+        return attempts
+    return attempts[:5] + attempts[-5:]
+
+
+def _diagnostic_from_evidence_entry(entry) -> EvidenceAcquisitionDiagnostic:
+    return EvidenceAcquisitionDiagnostic(
+        slot=_slot_from_roles(entry.roles),
+        tool=entry.source_tool,
+        status=_status_from_entry(entry),
+        detail=entry.summary,
+    )
+
+
+def _slot_from_roles(roles: tuple[str, ...]) -> str | None:
+    for role in roles:
+        if role not in {"negative_outcome", "operational_status"}:
+            return role
+    return None
+
+
+def _status_from_entry(entry) -> str | None:
+    if entry.operational_status:
+        return entry.operational_status
+    if entry.summary and ": " in entry.summary:
+        return entry.summary.split(": ", 1)[1]
+    return None
+
+
+def _audit_evidence_catalog_attempts(session: AgentSession) -> list[dict]:
+    attempts: list[dict] = []
+    for entry in session.evidence_catalog.history():
+        if entry.evidence_class not in {"negative", "operational"}:
+            continue
+        attempts.append({
+            "refId": entry.ref_id,
+            "class": entry.evidence_class,
+            "sourceTool": entry.source_tool,
+            "status": _status_from_entry(entry),
+            "roles": list(entry.roles),
+            "summary": entry.summary,
+            "toolArguments": entry.tool_arguments or {},
+        })
+    return attempts
 
 
 def _iter_response_refs(parsed: dict) -> list[tuple[str, str]]:
@@ -615,6 +771,10 @@ def _fallback_evidence_class(ref_id: str) -> str:
         return "knowledge"
     if ref_id.startswith("eref-metadata-"):
         return "operational"
+    if ref_id.startswith("eref-operational-"):
+        return "operational"
+    if ref_id.startswith("eref-negative-"):
+        return "negative"
     if _looks_like_local_claim_ref(ref_id):
         return "local"
     return "unclassified"

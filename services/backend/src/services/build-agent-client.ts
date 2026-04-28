@@ -73,6 +73,20 @@ export interface BuildPreparationPayload {
   producedArtifacts?: Array<Record<string, unknown>>;
 }
 
+export interface BuildOutcomePayload {
+  outcome?: "built" | "compile_failed" | "missing_materials" | "sdk_mismatch" | "artifact_mismatch" | "inconclusive" | string;
+  cleanPass?: boolean;
+  [key: string]: unknown;
+}
+
+export interface BuildDiagnosticsPayload {
+  failureCode?: string;
+  expectedArtifacts?: unknown[];
+  producedArtifacts?: unknown[];
+  missingArtifacts?: unknown[];
+  [key: string]: unknown;
+}
+
 export interface BuildResolveResult {
   summary: string;
   claims: Array<{
@@ -93,6 +107,14 @@ export interface BuildResolveResult {
   buildResult: BuildResultPayload;
   /** explicit-step flow용 follow-up bundle (legacy buildResult와 병행 유지) */
   buildPreparation?: BuildPreparationPayload;
+  /** build-v1.1 domain outcome; status=completed is an envelope, not necessarily a clean build. */
+  buildOutcome?: BuildOutcomePayload;
+  /** Convenience mirror of buildOutcome.cleanPass. */
+  cleanPass?: boolean;
+  /** build-v1.1 domain diagnostics for completed-but-non-clean results. */
+  buildDiagnostics?: BuildDiagnosticsPayload;
+  /** sdk-analyze result payload (present for sdk-analyze tasks). */
+  sdkProfile?: Record<string, unknown>;
 }
 
 export interface BuildAgentAudit {
@@ -211,6 +233,12 @@ export class BuildAgentClient {
     response: BuildAgentResponse,
   ): response is BuildAgentResponseSuccess {
     return response.status === "completed";
+  }
+
+  isCleanSuccess(
+    response: BuildAgentResponse,
+  ): response is BuildAgentResponseSuccess {
+    return response.status === "completed" && response.result.cleanPass !== false;
   }
 
   async checkHealth(requestId?: string): Promise<Record<string, unknown> | null> {

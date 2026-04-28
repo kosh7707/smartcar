@@ -65,6 +65,14 @@ def evaluate_deep_quality(
                 requiredEvidenceSlots=["statement", "detail", "location", "supportingEvidenceRefs"],
                 detail="Claim is missing required consumability fields.",
             ))
+        missing_slots = _missing_required_slots(claim)
+        if missing_slots:
+            failed.append(QualityGateItem(
+                id=f"claim-{i}-evidence-slots",
+                repairable=True,
+                requiredEvidenceSlots=missing_slots,
+                detail="Claim has not filled all deterministic evidence slots required for its family.",
+            ))
 
     if failed:
         return QualityGateResult(
@@ -89,3 +97,20 @@ def evaluate_deep_quality(
         repairableItems=[],
         caveats=caveats,
     )
+
+
+def _missing_required_slots(claim: Claim) -> list[str]:
+    """Return missing-evidence slots for a claim.
+
+    PRECONDITION: production callers must run ``transition_claim_status``
+    first so ``claim.missingEvidence`` reflects the S3 claim lifecycle state.
+    Direct test/helper callers may still use required/present evidence fields,
+    but new runtime paths should not bypass the lifecycle transition.
+    """
+    declared = [slot for slot in claim.requiredEvidence if isinstance(slot, str) and slot]
+    if claim.missingEvidence:
+        return list(dict.fromkeys(slot for slot in claim.missingEvidence if isinstance(slot, str) and slot))
+    if not declared:
+        return []
+    present = {slot for slot in claim.presentEvidence if isinstance(slot, str) and slot}
+    return [slot for slot in declared if slot not in present]

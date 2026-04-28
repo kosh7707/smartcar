@@ -145,3 +145,51 @@ def test_phase2_prompt_lists_full_required_schema_and_omits_knowledge_ref_exampl
     assert "summary, claims, caveats, usedEvidenceRefs, suggestedSeverity, needsHumanReview, recommendedNextSteps, policyFlags" in system_prompt
     assert "eref-knowledge-CWE-78" not in system_prompt
     assert "Knowledge/CWE ref" in system_prompt or "위협 지식" in system_prompt
+
+
+def test_phase2_prompt_contains_live_recovery_ledger_summary():
+    from app.core.phase_one_prompt import build_phase2_prompt
+    from app.core.phase_one_types import Phase1Result
+
+    _, user = build_phase2_prompt(
+        Phase1Result(),
+        {"objective": "test"},
+        evidence_refs=[],
+        live_recovery_summary={
+            "totalAttempts": 1,
+            "shownAttempts": [{
+                "class": "negative",
+                "sourceTool": "knowledge.search",
+                "status": "no_hits",
+                "summary": "knowledge.search: no_hits",
+                "toolArguments": {"query": "CWE-78"},
+            }],
+            "truncated": False,
+            "negativeCount": 1,
+            "operationalCount": 0,
+        },
+    )
+
+    assert "Live Recovery / Evidence Ledger Summary" in user
+    assert "diagnostic only; not proof refs" in user
+    assert "knowledge.search" in user
+    assert '"negativeCount": 1' in user
+
+
+def test_phase2_prompt_contains_suggested_next_action_advisory():
+    from app.core.phase_one_prompt import build_phase2_prompt
+    from app.core.phase_one_types import Phase1Result
+
+    _, user = build_phase2_prompt(
+        Phase1Result(),
+        {"objective": "test"},
+        suggested_next_action={
+            "tool_name": "knowledge.search",
+            "arguments": {"query": "CWE-78", "top_k": 5},
+            "target_slot": "threat_knowledge",
+        },
+    )
+
+    assert "Suggested Next Evidence Acquisition Action" in user
+    assert "advisory" in user
+    assert "knowledge.search" in user

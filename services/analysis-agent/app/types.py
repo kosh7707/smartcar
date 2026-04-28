@@ -56,3 +56,11 @@ class PocOutcome(StrEnum):
     POC_REJECTED = "poc_rejected"
     POC_INCONCLUSIVE = "poc_inconclusive"
     POC_NOT_REQUESTED = "poc_not_requested"
+
+
+class ClaimStatus(StrEnum):
+    CANDIDATE = "candidate"
+    UNDER_EVIDENCED = "under_evidenced"
+    GROUNDED = "grounded"
+    REJECTED = "rejected"
+    NEEDS_HUMAN_REVIEW = "needs_human_review"

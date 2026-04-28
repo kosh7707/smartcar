@@ -1,5 +1,6 @@
 import {
   Project,
+  ProjectOwnerSummary,
   Adapter,
   AnalysisResult,
   AnalysisSummary,
@@ -53,6 +54,8 @@ export interface ProjectListItem extends Project {
   severitySummary?: { critical: number; high: number; medium: number; low: number };
   gateStatus?: "pass" | "fail" | "warning";
   unresolvedDelta?: number;
+  /** Primary project owner. Omitted when S2 has no creator/owner data for migrated rows. */
+  owner?: ProjectOwnerSummary;
 }
 
 export interface ProjectListResponse {

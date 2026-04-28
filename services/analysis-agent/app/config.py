@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -40,6 +41,7 @@ class Settings(BaseSettings):
     agent_llm_retry_max: int = 1
     agent_graph_depth: int = 2
     agent_max_prompt_tokens: int = 100_000
+    poc_quality_repair_max_attempts: int = Field(default=2, ge=0, le=5)
     analysis_task_deadline_ms: int = 1_800_000
     analysis_partial_envelope_deadline_ms: int = 1_740_000
     agent_task_deadline_ms: int = 1_800_000

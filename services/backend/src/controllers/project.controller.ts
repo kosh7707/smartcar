@@ -1,6 +1,24 @@
 import { Router } from "express";
+import type { ProjectOwnerSummary } from "@aegis/shared";
 import { ProjectService } from "../services/project.service";
 import { asyncHandler } from "../middleware/async-handler";
+
+function deriveAvatar(name: string): string | null {
+  const chars = Array.from(name.trim()).filter((char) => char.trim().length > 0);
+  return chars.length > 0 ? chars.slice(0, 2).join("") : null;
+}
+
+function resolveProjectOwner(req: Express.Request): ProjectOwnerSummary | undefined {
+  const user = req.user;
+  if (!user) return undefined;
+  const name = user.displayName || user.username;
+  return {
+    id: user.id || user.username,
+    name,
+    avatar: deriveAvatar(name),
+    kind: "user",
+  };
+}
 
 export function createProjectRouter(service: ProjectService): Router {
   const router = Router();
@@ -15,7 +33,7 @@ export function createProjectRouter(service: ProjectService): Router {
       res.status(400).json({ success: false, error: "name is required" });
       return;
     }
-    const project = service.create(name.trim(), description?.trim());
+    const project = service.create(name.trim(), description?.trim(), resolveProjectOwner(req));
     res.status(201).json({ success: true, data: project });
   });
 

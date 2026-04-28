@@ -92,3 +92,13 @@ def test_expensive_tier_budget():
     assert m.can_make_call(ToolCostTier.EXPENSIVE) is True
     m.record_tool_call(ToolCostTier.EXPENSIVE)
     assert m.can_make_call(ToolCostTier.EXPENSIVE) is False
+
+
+def test_would_exceed_after_repair_checks_step_and_completion_budget():
+    m = _make_manager(max_steps=2, max_completion_tokens=100)
+    m.record_tool_call(ToolCostTier.CHEAP)
+    m.record_tokens(0, 40)
+
+    assert m.would_exceed_after_repair(tool_steps=1, completion_tokens_estimate=60) is False
+    assert m.would_exceed_after_repair(tool_steps=2) is True
+    assert m.would_exceed_after_repair(completion_tokens=61) is True

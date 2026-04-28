@@ -436,6 +436,7 @@ class TestBuildPhase2Prompt:
 
         assert "code graph not ready" in user
         assert "code_graph.callers" in user
+        assert "unavailable in this session" in user
 
     def test_mentions_code_graph_semantic_search_not_ready(self):
         result = Phase1Result(
@@ -448,6 +449,15 @@ class TestBuildPhase2Prompt:
 
         assert "code graph semantic search not ready" in user
         assert "VECTOR_INDEX_INCOMPLETE" in user
+        assert "code_graph.search` is unavailable" in user
+
+    def test_mentions_knowledge_search_unavailable_when_kb_not_ready(self):
+        result = Phase1Result(kb_not_ready=True)
+
+        _, user = build_phase2_prompt(result, {"objective": "test"})
+
+        assert "KB not ready" in user
+        assert "knowledge.search` is unavailable" in user
 
     def test_phase_a_is_not_accepted_as_final_output(self):
         """Phase A 계획만 출력하고 종료하면 안 된다는 규칙이 포함된다."""
@@ -823,7 +833,77 @@ class TestBuildAndAnalyzeFallback:
         assert ba_result is None
         assert result.build_compile_commands_path == "/tmp/compile_commands.json"
         assert result.build_failure_detail["code"] == "DISALLOWED_TOOL_OMISSION"
-        await executor.aclose()
+
+
+@pytest.mark.asyncio
+async def test_phase1_sast_invoked_exactly_once_per_request_individual_path():
+    from app.core.agent_session import AgentSession
+    from app.schemas.request import Context, TaskRequest
+    from app.agent_runtime.schemas.agent import BudgetState
+
+    request = TaskRequest(
+        taskType="deep-analyze",
+        taskId="phase1-exactly-once-individual",
+        context=Context(trusted={
+            "files": [{"path": "src/http_client.cpp", "content": "int f(){ return popen(url, \"r\") != 0; }"}],
+        }),
+    )
+    session = AgentSession(request, BudgetState())
+    executor = Phase1Executor(kb_endpoint="http://localhost:8002")
+    individual_calls = {"count": 0}
+
+    async def fake_individual(result, *args, **kwargs):
+        individual_calls["count"] += 1
+        result.sast_findings = [{"ruleId": "CWE-78", "message": "popen"}]
+        return result
+
+    executor._fetch_project_memory = AsyncMock(return_value=[])
+    executor._run_build_and_analyze = AsyncMock(side_effect=AssertionError("build path should not run"))
+    executor._run_individual_tools = fake_individual
+    executor._run_threat_query = AsyncMock(side_effect=lambda result: result)
+    executor._run_dangerous_callers = AsyncMock(side_effect=lambda result, *_args, **_kwargs: result)
+
+    await executor.execute(session)
+
+    assert individual_calls["count"] == 1
+    executor._run_build_and_analyze.assert_not_called()
+    await executor.aclose()
+
+
+@pytest.mark.asyncio
+async def test_phase1_sast_invoked_exactly_once_per_request_build_path():
+    from app.core.agent_session import AgentSession
+    from app.schemas.request import Context, TaskRequest
+    from app.agent_runtime.schemas.agent import BudgetState
+
+    request = TaskRequest(
+        taskType="deep-analyze",
+        taskId="phase1-exactly-once-build",
+        context=Context(trusted={
+            "projectPath": "/uploads/project",
+            "buildCommand": "bash build.sh",
+        }),
+    )
+    session = AgentSession(request, BudgetState())
+    executor = Phase1Executor(kb_endpoint="http://localhost:8002")
+    build_calls = {"count": 0}
+
+    async def fake_build(result, *args, **kwargs):
+        build_calls["count"] += 1
+        result.sast_findings = [{"ruleId": "CWE-78", "message": "popen"}]
+        return result
+
+    executor._fetch_project_memory = AsyncMock(return_value=[])
+    executor._run_build_and_analyze = fake_build
+    executor._run_individual_tools = AsyncMock(side_effect=AssertionError("fallback should not run"))
+    executor._run_threat_query = AsyncMock(side_effect=lambda result: result)
+    executor._run_dangerous_callers = AsyncMock(side_effect=lambda result, *_args, **_kwargs: result)
+
+    await executor.execute(session)
+
+    assert build_calls["count"] == 1
+    executor._run_individual_tools.assert_not_called()
+    await executor.aclose()
 
 
 # ───────────────────────────────────────────────

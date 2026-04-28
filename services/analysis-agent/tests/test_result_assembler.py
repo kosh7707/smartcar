@@ -1,10 +1,12 @@
 import json
+import logging
 
-from app.agent_runtime.schemas.agent import BudgetState
+from app.agent_runtime.schemas.agent import AgentAuditInfo, BudgetState
 from app.agent_runtime.schemas.agent import ToolCallRequest, ToolCostTier, ToolResult, ToolTraceStep
 from app.core.agent_session import AgentSession
+from app.core.evidence_catalog import EvidenceCatalogEntry
 from app.core.phase_one_types import Phase1Result
-from app.core.result_assembler import ResultAssembler
+from app.core.result_assembler import ResultAssembler, _build_claim_lifecycle_outputs
 from app.schemas.request import Context, EvidenceRef, TaskRequest
 from app.types import TaskType
 
@@ -25,6 +27,17 @@ def _make_session() -> AgentSession:
         ],
     )
     return AgentSession(request, BudgetState())
+
+
+def _add_command_injection_slot_refs(session: AgentSession) -> None:
+    session.evidence_catalog.add(EvidenceCatalogEntry(
+        ref_id="eref-local-sink",
+        evidence_class="local",
+        roles=("sink_or_dangerous_api", "source_slice"),
+        file="clients/http_client.cpp",
+        line=64,
+        sink="popen",
+    ))
 
 
 
@@ -48,7 +61,7 @@ def test_legitimate_structured_zero_claim_response_is_allowed():
         "summary": "검토 결과 actionable claim으로 승격할 근거가 충분하지 않습니다.",
         "claims": [],
         "caveats": ["high-risk로 보였던 finding은 입력 검증과 호출 맥락상 false positive로 판단했습니다."],
-        "usedEvidenceRefs": ["eref-001"],
+        "usedEvidenceRefs": ["eref-001", "eref-local-sink"],
         "suggestedSeverity": "low",
         "needsHumanReview": True,
         "recommendedNextSteps": ["추가 런타임 검증 시나리오 검토"],
@@ -63,9 +76,178 @@ def test_legitimate_structured_zero_claim_response_is_allowed():
     assert result.result.analysisOutcome == "no_accepted_claims"
 
 
+def test_result_evidence_diagnostics_include_negative_attempts_and_audit_history():
+    assembler = ResultAssembler()
+    session = _make_session()
+    session.evidence_catalog.add_negative(
+        "knowledge.search",
+        {"query": "CWE-78"},
+        "no_hits",
+    )
+    final_content = json.dumps({
+        "summary": "검토 결과 accepted claim으로 승격할 근거가 충분하지 않습니다.",
+        "claims": [],
+        "caveats": ["knowledge.search returned no useful hit."],
+        "usedEvidenceRefs": [],
+        "suggestedSeverity": "info",
+        "needsHumanReview": True,
+        "recommendedNextSteps": ["수동 evidence 확인"],
+        "policyFlags": [],
+    })
+
+    result = assembler.build(final_content, session)
+
+    assert result.status == "completed"
+    assert result.result.evidenceDiagnostics.negativeAttempts
+    attempt = result.result.evidenceDiagnostics.negativeAttempts[0]
+    assert attempt.tool == "knowledge.search"
+    assert attempt.status == "no_hits"
+    assert result.result.evidenceDiagnostics.attemptedAcquisitions == [
+        attempt
+    ]
+    audit_diagnostics = result.audit.agentAudit["evidenceCatalogDiagnostics"]  # type: ignore[index]
+    assert audit_diagnostics["liveRecoveryTrace"]["negativeCount"] == 1
+    assert audit_diagnostics["attemptHistory"][0]["sourceTool"] == "knowledge.search"
+
+
+def test_agent_audit_envelope_includes_evidence_catalog_diagnostics():
+    assembler = ResultAssembler()
+    session = _make_session()
+    session.evidence_catalog.add_negative(
+        "knowledge.search",
+        {"query": "CWE-78"},
+        "no_hits",
+    )
+    final_content = json.dumps({
+        "summary": "검토 결과 accepted claim으로 승격할 근거가 충분하지 않습니다.",
+        "claims": [],
+        "caveats": [],
+        "usedEvidenceRefs": [],
+        "suggestedSeverity": "info",
+        "needsHumanReview": True,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    result = assembler.build(final_content, session)
+
+    agent_audit = AgentAuditInfo.model_validate(result.audit.agentAudit)
+    diagnostics = agent_audit.evidenceCatalogDiagnostics
+    assert diagnostics["liveRecoveryTrace"]["negativeCount"] == 1
+    assert diagnostics["attemptHistory"][0]["sourceTool"] == "knowledge.search"
+
+
+def test_attempted_acquisitions_distinct_from_negative_attempts():
+    assembler = ResultAssembler()
+    session = _make_session()
+    session.evidence_catalog.add(EvidenceCatalogEntry(
+        ref_id="eref-caller-run_curl",
+        category="caller",
+        source_tool="code_graph.callers",
+        tool_arguments={"function_name": "popen"},
+        artifact_type="code-graph",
+        function="run_curl",
+        evidence_class="local",
+        roles=("caller_chain",),
+    ))
+    session.evidence_catalog.add_negative(
+        "knowledge.search",
+        {"query": "CWE-78"},
+        "no_hits",
+    )
+    final_content = json.dumps({
+        "summary": "검토 결과 accepted claim으로 승격할 근거가 충분하지 않습니다.",
+        "claims": [],
+        "caveats": [],
+        "usedEvidenceRefs": [],
+        "suggestedSeverity": "info",
+        "needsHumanReview": True,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    result = assembler.build(final_content, session)
+
+    diagnostics = result.result.evidenceDiagnostics
+    assert diagnostics.attemptedAcquisitions != diagnostics.negativeAttempts
+    assert [attempt.tool for attempt in diagnostics.negativeAttempts] == ["knowledge.search"]
+    assert {attempt.tool for attempt in diagnostics.attemptedAcquisitions} == {
+        "code_graph.callers",
+        "knowledge.search",
+    }
+
+
+def test_negative_ref_is_not_reported_as_available_local_ref_when_cataloged():
+    assembler = ResultAssembler()
+    session = _make_session()
+    negative_ref = session.evidence_catalog.add_negative(
+        "knowledge.search",
+        {"query": "CWE-78"},
+        "no_hits",
+    )
+    final_content = json.dumps({
+        "summary": "negative diagnostic ref를 claim support로 쓰면 안 됩니다.",
+        "claims": [{
+            "statement": "no-hit diagnostic으로 취약점을 확정합니다.",
+            "detail": "negative evidence는 proof ref가 아닙니다.",
+            "supportingEvidenceRefs": [negative_ref],
+            "location": "clients/http_client.cpp:64",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": [negative_ref],
+        "suggestedSeverity": "info",
+        "needsHumanReview": True,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    result = assembler.build(final_content, session)
+
+    assert result.status == "completed"
+    assert negative_ref not in result.result.evidenceDiagnostics.availableLocalRefs
+    assert result.result.evidenceDiagnostics.invalidRefRoles[0].refId == negative_ref
+    assert result.result.evidenceDiagnostics.invalidRefRoles[0].actualClass == "negative"
+
+
+def test_legacy_negative_ref_prefix_is_not_fallback_classified_as_local():
+    assembler = ResultAssembler()
+    session = _make_session()
+    session.trace.append(ToolTraceStep(
+        step_id="negative-legacy",
+        turn_number=1,
+        tool="knowledge.search",
+        args_hash="hash",
+        cost_tier=ToolCostTier.CHEAP,
+        duration_ms=1,
+        success=True,
+        new_evidence_refs=["eref-negative-legacy"],
+    ))
+    final_content = json.dumps({
+        "summary": "legacy negative-looking ref를 claim support로 쓰면 안 됩니다.",
+        "claims": [{
+            "statement": "negative prefix diagnostic으로 취약점을 확정합니다.",
+            "detail": "negative evidence는 proof ref가 아닙니다.",
+            "supportingEvidenceRefs": ["eref-negative-legacy"],
+            "location": "clients/http_client.cpp:64",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": ["eref-negative-legacy"],
+        "suggestedSeverity": "info",
+        "needsHumanReview": True,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    result = assembler.build(final_content, session)
+
+    assert "eref-negative-legacy" not in result.result.evidenceDiagnostics.availableLocalRefs
+    assert result.result.evidenceDiagnostics.invalidRefRoles[0].actualClass == "negative"
+
+
 def test_agent_v11_clean_pass_fields_and_contextual_refs_are_populated():
     assembler = ResultAssembler()
     session = _make_session()
+    _add_command_injection_slot_refs(session)
     session.trace.append(ToolTraceStep(
         step_id="knowledge-1",
         turn_number=1,
@@ -81,7 +263,7 @@ def test_agent_v11_clean_pass_fields_and_contextual_refs_are_populated():
         "claims": [{
             "statement": "사용자 입력이 popen 호출에 도달합니다.",
             "detail": "source ref가 취약 호출 위치를 직접 지시합니다.",
-            "supportingEvidenceRefs": ["eref-001"],
+            "supportingEvidenceRefs": ["eref-001", "eref-local-sink"],
             "location": "clients/http_client.cpp:64",
         }],
         "caveats": [],
@@ -107,6 +289,7 @@ def test_agent_v11_clean_pass_fields_and_contextual_refs_are_populated():
 def test_contextual_knowledge_ref_cannot_support_final_claim():
     assembler = ResultAssembler()
     session = _make_session()
+    _add_command_injection_slot_refs(session)
     session.trace.append(ToolTraceStep(
         step_id="knowledge-1",
         turn_number=1,
@@ -145,6 +328,7 @@ def test_contextual_knowledge_ref_cannot_support_final_claim():
 def test_contextual_knowledge_ref_is_moved_when_local_ref_already_supports_claim():
     assembler = ResultAssembler()
     session = _make_session()
+    _add_command_injection_slot_refs(session)
     session.trace.append(ToolTraceStep(
         step_id="knowledge-1",
         turn_number=1,
@@ -160,11 +344,11 @@ def test_contextual_knowledge_ref_is_moved_when_local_ref_already_supports_claim
         "claims": [{
             "statement": "사용자 입력이 popen 호출에 도달합니다.",
             "detail": "source ref가 취약 호출 위치를 직접 지시하고 CWE ref는 배경지식입니다.",
-            "supportingEvidenceRefs": ["eref-001", "eref-knowledge-CWE-78"],
+            "supportingEvidenceRefs": ["eref-001", "eref-local-sink", "eref-knowledge-CWE-78"],
             "location": "clients/http_client.cpp:64",
         }],
         "caveats": [],
-        "usedEvidenceRefs": ["eref-001", "eref-knowledge-CWE-78"],
+        "usedEvidenceRefs": ["eref-001", "eref-local-sink", "eref-knowledge-CWE-78"],
         "suggestedSeverity": "high",
         "needsHumanReview": True,
         "recommendedNextSteps": [],
@@ -175,11 +359,44 @@ def test_contextual_knowledge_ref_is_moved_when_local_ref_already_supports_claim
 
     assert result.status == "completed"
     assert result.result.analysisOutcome == "accepted_claims"
-    assert result.result.claims[0].supportingEvidenceRefs == ["eref-001"]
-    assert result.result.usedEvidenceRefs == ["eref-001"]
+    assert result.result.claims[0].supportingEvidenceRefs == ["eref-001", "eref-local-sink"]
+    assert result.result.usedEvidenceRefs == ["eref-001", "eref-local-sink"]
     assert result.result.contextualEvidenceRefs == ["eref-knowledge-CWE-78"]
     assert result.result.evidenceDiagnostics.invalidRefRoles == []
     assert "evidence_role_normalized" in result.result.policyFlags
+
+
+def test_family_specific_slots_prevent_under_evidenced_clean_pass():
+    assembler = ResultAssembler()
+    session = _make_session()
+    final_content = json.dumps({
+        "summary": "source ref 하나만으로 command injection을 확정하면 안 됩니다.",
+        "claims": [{
+            "statement": "CWE-78 command injection reaches popen.",
+            "detail": "Only a source location ref was attached.",
+            "supportingEvidenceRefs": ["eref-001"],
+            "location": "clients/http_client.cpp:64",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": ["eref-001"],
+        "suggestedSeverity": "high",
+        "needsHumanReview": True,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    result = assembler.build(final_content, session)
+
+    assert result.status == "completed"
+    assert result.result.claims == []
+    assert result.result.cleanPass is False
+    assert result.result.analysisOutcome == "no_accepted_claims"
+    diagnostic = result.result.claimDiagnostics.nonAcceptedClaims[0]
+    assert diagnostic.status == "under_evidenced"
+    assert diagnostic.missingEvidence == [
+        "sink_or_dangerous_api",
+        "caller_chain_or_source_slice",
+    ]
 
 
 def test_recoverable_loop_exhaustion_returns_completed_repair_exhausted():
@@ -240,15 +457,16 @@ def test_low_confidence_claim_shape_is_allowed_without_schema_change():
 def test_missing_top_level_caveats_is_scaffolded_when_claim_is_grounded():
     assembler = ResultAssembler()
     session = _make_session()
+    _add_command_injection_slot_refs(session)
     final_content = json.dumps({
         "summary": "popen 호출 경로가 확인되어 command injection 가능성이 있습니다.",
         "claims": [{
             "statement": "사용자 입력이 popen 호출에 도달합니다.",
             "detail": "입력값이 shell command 문자열로 연결된 뒤 popen으로 실행됩니다.",
-            "supportingEvidenceRefs": ["eref-001"],
+            "supportingEvidenceRefs": ["eref-001", "eref-local-sink"],
             "location": "clients/http_client.cpp:64",
         }],
-        "usedEvidenceRefs": ["eref-001"],
+        "usedEvidenceRefs": ["eref-001", "eref-local-sink"],
         "suggestedSeverity": "high",
         "needsHumanReview": True,
         "recommendedNextSteps": ["shell escaping 제거 및 execve argv 배열로 대체"],
@@ -442,3 +660,15 @@ def test_required_fields_with_null_values_become_completed_schema_outcome_withou
     assert result.result.qualityOutcome == "repair_exhausted"
     assert any("'summary'가 문자열이 아님" in c for c in result.result.caveats)
     assert any("'claims'가 리스트가 아님" in c for c in result.result.caveats)
+
+
+def test_non_dict_claim_logged_and_skipped(caplog):
+    session = _make_session()
+    parsed = {"claims": ["not-a-claim"]}
+
+    with caplog.at_level(logging.WARNING, logger="app.core.result_assembler"):
+        claims, diagnostics = _build_claim_lifecycle_outputs(parsed, session)
+
+    assert claims == []
+    assert diagnostics.lifecycleCounts == {}
+    assert "non-dict claim entry skipped" in caplog.text

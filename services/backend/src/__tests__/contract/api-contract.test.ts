@@ -52,6 +52,36 @@ describe("API Contract Tests", () => {
       expect(proj).toHaveProperty("updatedAt");
     });
 
+    it("omits owner for migrated rows without owner data and returns creator profile for authenticated-created rows", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-owner-legacy", name: "Legacy" }));
+      ctx.userService.createUser("owner01", "Pass1234!", "김보안", "analyst", { email: "owner01@example.com" });
+      const login = ctx.userService.authenticate("owner01", "Pass1234!");
+
+      const createRes = await request(app)
+        .post("/api/projects")
+        .set("Authorization", `Bearer ${login.token}`)
+        .send({ name: "Owned Project", description: "owned" });
+      expect(createRes.status).toBe(201);
+      expect(createRes.body.data.owner).toEqual({
+        id: login.user.id,
+        name: "김보안",
+        avatar: "김보",
+        kind: "user",
+      });
+
+      const res = await request(app).get("/api/projects");
+      expect(res.status).toBe(200);
+      const legacy = res.body.data.find((project: any) => project.id === "p-owner-legacy");
+      const owned = res.body.data.find((project: any) => project.name === "Owned Project");
+      expect(legacy).not.toHaveProperty("owner");
+      expect(owned.owner).toEqual({
+        id: login.user.id,
+        name: "김보안",
+        avatar: "김보",
+        kind: "user",
+      });
+    });
+
     it("aggregates only BuildTarget-owned analysis records in project summaries", async () => {
       ctx.projectDAO.save(makeProject({ id: "p-agg", name: "Aggregate Project" }));
 
@@ -2168,6 +2198,35 @@ describe("API Contract Tests", () => {
       const deleteRes = await request(app).delete("/api/analysis/results/analysis-result-1");
       expect(deleteRes.status).toBe(200);
       expect(deleteRes.body).toEqual({ success: true });
+    });
+
+    it("preserves S3 claim and evidence diagnostics on analysis results", async () => {
+      ctx.analysisResultDAO.save(makeAnalysisResult({
+        id: "analysis-diagnostics-1",
+        projectId: "p-analysis-diagnostics",
+        module: "deep_analysis",
+        analysisOutcome: "no_accepted_claims",
+        qualityOutcome: "accepted_with_caveats",
+        claimDiagnostics: {
+          lifecycleCounts: { under_evidenced: 1 },
+          nonAcceptedClaims: [
+            {
+              claimId: "claim-0",
+              status: "under_evidenced",
+              outcomeContribution: "no_accepted_claims",
+            },
+          ],
+        },
+        evidenceDiagnostics: {
+          failedAcquisitions: [{ evidenceRef: "eref-1", reason: "not observed" }],
+        },
+      }));
+
+      const detailRes = await request(app).get("/api/analysis/results/analysis-diagnostics-1");
+      expect(detailRes.status).toBe(200);
+      expect(detailRes.body.data.claimDiagnostics.lifecycleCounts.under_evidenced).toBe(1);
+      expect(detailRes.body.data.claimDiagnostics.nonAcceptedClaims[0].claimId).toBe("claim-0");
+      expect(detailRes.body.data.evidenceDiagnostics.failedAcquisitions[0].reason).toBe("not observed");
     });
 
     it("GET /api/analysis/results hides legacy static/deep results without full BuildTarget execution lineage", async () => {

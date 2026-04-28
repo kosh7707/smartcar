@@ -15,6 +15,8 @@ import type {
   AgentAnalysisOutcome,
   AgentPocOutcome,
   AgentQualityOutcome,
+  AgentClaimDiagnosticsSummary,
+  AgentEvidenceDiagnosticsSummary,
   AgentRecoveryTraceEntry,
   BuildProfile,
   SastFinding,
@@ -116,6 +118,13 @@ export interface AgentAssessmentResult {
   pocOutcome?: AgentPocOutcome;
   /** Bounded public recovery/deficiency summaries. */
   recoveryTrace?: AgentRecoveryTraceEntry[];
+  /**
+   * S3 WP-1 shape: diagnostics object for non-accepted claim lifecycle candidates.
+   * `claims[]` remains accepted-final-only.
+   */
+  claimDiagnostics?: AgentClaimDiagnosticsSummary;
+  /** Evidence acquisition diagnostics; diagnostic-only refs must not be treated as supporting claim refs. */
+  evidenceDiagnostics?: AgentEvidenceDiagnosticsSummary;
 }
 
 export interface AgentAudit {

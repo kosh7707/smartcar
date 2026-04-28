@@ -5,6 +5,9 @@ from pydantic import BaseModel, Field
 from app.types import FailureCode, TaskStatus, TaskType
 
 
+BUILD_RESPONSE_SCHEMA_VERSION = "build-v1.1"
+
+
 class Claim(BaseModel):
     statement: str
     detail: str | None = None

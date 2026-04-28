@@ -12,7 +12,14 @@ from .types import (
     TaskFailureBoundary,
 )
 from .recovery_triage import triage_deficiency, recovery_trace
-from .outcomes import clean_pass_for
+from .outcomes import OutcomeDecision, TriageContext, clean_pass_for, outcome_for_deficiency
+from .claim import (
+    ClaimEvidenceDiagnosis,
+    derive_required_evidence,
+    diagnose_claim_evidence,
+    transition_claim_status,
+)
+from .acquisition_planner import PlannedAction, plan_next_action
 
 __all__ = [
     "DeficiencyClass",
@@ -22,4 +29,13 @@ __all__ = [
     "triage_deficiency",
     "recovery_trace",
     "clean_pass_for",
+    "OutcomeDecision",
+    "TriageContext",
+    "outcome_for_deficiency",
+    "ClaimEvidenceDiagnosis",
+    "derive_required_evidence",
+    "diagnose_claim_evidence",
+    "transition_claim_status",
+    "PlannedAction",
+    "plan_next_action",
 ]

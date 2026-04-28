@@ -260,6 +260,34 @@ describe("PipelineOrchestrator", () => {
     }));
   });
 
+  it("completed Build Agent envelope with cleanPass=false is treated as build-domain failure", async () => {
+    const { orchestrator, buildAgentClient, buildTargetDAO, sastClient, ws } = createMocks();
+    buildAgentClient.submitTask.mockResolvedValue({
+      ...resolveSuccess,
+      result: {
+        ...resolveSuccess.result,
+        cleanPass: false,
+        buildOutcome: { outcome: "artifact_mismatch", cleanPass: false },
+        buildDiagnostics: {
+          failureCode: "EXPECTED_ARTIFACTS_MISMATCH",
+          expectedArtifacts: [{ path: "firmware.elf" }],
+          producedArtifacts: [],
+          missingArtifacts: [{ path: "firmware.elf" }],
+        },
+      },
+    });
+    buildAgentClient.isSuccess.mockReturnValue(true);
+
+    await orchestrator.runPipeline("p1");
+
+    expect(buildTargetDAO.updatePipelineState).toHaveBeenCalledWith("t1", expect.objectContaining({
+      status: "resolve_failed",
+      buildLog: expect.stringContaining("EXPECTED_ARTIFACTS_MISMATCH"),
+    }));
+    expect(sastClient.build).not.toHaveBeenCalled();
+    expect(ws.broadcast).toHaveBeenCalledWith("p1", expect.objectContaining({ type: "pipeline-error" }));
+  });
+
   it("resolve failure without profile → throws", async () => {
     const { orchestrator, buildAgentClient, buildTargetDAO, ws } = createMocks();
     buildAgentClient.submitTask.mockResolvedValue(resolveFail);

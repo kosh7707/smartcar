@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import type {
   Project,
+  ProjectOwnerSummary,
   AnalysisSummary,
   AnalysisModule,
   AnalysisResult,
@@ -30,12 +31,13 @@ export class ProjectService {
     private projectDeletionService?: ProjectDeletionService,
   ) {}
 
-  create(name: string, description?: string): Project {
+  create(name: string, description?: string, owner?: ProjectOwnerSummary): Project {
     const now = new Date().toISOString();
     const project: Project = {
       id: `proj-${crypto.randomUUID()}`,
       name,
       description: description ?? "",
+      ...(owner ? { owner } : {}),
       createdAt: now,
       updatedAt: now,
     };

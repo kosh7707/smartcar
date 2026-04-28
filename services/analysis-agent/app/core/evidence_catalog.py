@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from hashlib import sha1
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Literal
@@ -23,7 +24,14 @@ EvidenceCategory = Literal[
     "unknown",
 ]
 
-EvidenceClass = Literal["local", "knowledge", "derived", "operational", "unclassified"]
+EvidenceClass = Literal[
+    "local",
+    "knowledge",
+    "derived",
+    "operational",
+    "unclassified",
+    "negative",
+]
 
 _SINK_PATTERNS = {
     "access": r"\baccess\b",
@@ -82,21 +90,26 @@ class EvidenceCatalog:
     """Append-only evidence metadata indexed by refId."""
 
     def __init__(self) -> None:
-        self._entries: dict[str, EvidenceCatalogEntry] = {}
+        self._history: list[EvidenceCatalogEntry] = []
+        self._latest: dict[str, EvidenceCatalogEntry] = {}
 
     def add(self, entry: EvidenceCatalogEntry) -> None:
         if not entry.ref_id:
             return
-        self._entries[entry.ref_id] = entry
+        self._history.append(entry)
+        self._latest[entry.ref_id] = entry
 
     def entries(self) -> list[EvidenceCatalogEntry]:
-        return list(self._entries.values())
+        return list(self._latest.values())
+
+    def history(self) -> list[EvidenceCatalogEntry]:
+        return list(self._history)
 
     def ref_ids(self) -> list[str]:
-        return list(self._entries)
+        return list(self._latest)
 
     def get(self, ref_id: str) -> EvidenceCatalogEntry | None:
-        return self._entries.get(ref_id)
+        return self._latest.get(ref_id)
 
     def final_ref_ids(self) -> set[str]:
         return {entry.ref_id for entry in self.entries() if entry.can_support_claim}
@@ -110,24 +123,143 @@ class EvidenceCatalog:
     def local_ref_ids(self) -> set[str]:
         return {entry.ref_id for entry in self.entries() if entry.evidence_class == "local"}
 
+    def negative_ref_ids(self) -> set[str]:
+        return {entry.ref_id for entry in self.entries() if entry.evidence_class == "negative"}
+
+    def operational_ref_ids(self) -> set[str]:
+        return {entry.ref_id for entry in self.entries() if entry.evidence_class == "operational"}
+
+    def add_negative(
+        self,
+        source_tool: str,
+        attempted_query: dict,
+        reason: str,
+        *,
+        roles: tuple[str, ...] = ("negative_outcome",),
+    ) -> str:
+        ref_id = _diagnostic_ref_id("negative", source_tool, attempted_query, reason)
+        self.add(EvidenceCatalogEntry(
+            ref_id=ref_id,
+            category="unknown",
+            source_tool=source_tool,
+            tool_arguments=dict(attempted_query),
+            artifact_type="negative-attempt",
+            summary=_truncate(f"{source_tool}: {reason}"),
+            evidence_class="negative",
+            roles=roles,
+            origin_service=_origin_from_tool(source_tool),
+        ))
+        return ref_id
+
+    def add_operational(
+        self,
+        source_tool: str,
+        attempted_query: dict,
+        reason: str,
+        *,
+        roles: tuple[str, ...] = ("operational_status",),
+    ) -> str:
+        ref_id = _diagnostic_ref_id("operational", source_tool, attempted_query, reason)
+        self.add(EvidenceCatalogEntry(
+            ref_id=ref_id,
+            category="metadata",
+            source_tool=source_tool,
+            tool_arguments=dict(attempted_query),
+            artifact_type="operational-diagnostic",
+            summary=_truncate(f"{source_tool}: {reason}"),
+            evidence_class="operational",
+            roles=roles,
+            operational_status=reason,
+            origin_service=_origin_from_tool(source_tool),
+        ))
+        return ref_id
+
     def ingest_request(self, request: TaskRequest) -> None:
         for ref in request.evidenceRefs:
             self.add(_entry_from_request_ref(ref))
 
     def ingest_phase1_result(self, result: Phase1Result) -> None:
+        if not result.sast_findings:
+            self.add_negative(
+                "sast",
+                {"phase": "phase1", "findingCount": 0},
+                "no_findings",
+                roles=("negative_outcome", "sast_no_findings"),
+            )
+
         for index, finding in enumerate(result.sast_findings):
             self.add(_entry_from_sast_finding(finding, index))
 
         for index, caller in enumerate(result.dangerous_callers):
             self.add(_entry_from_dangerous_caller(caller, index))
 
+        if result.sca_libraries:
+            attempted = {
+                "phase": "phase1",
+                "libraryCount": len(result.sca_libraries),
+            }
+            if result.cve_lookup_timed_out:
+                self.add_operational(
+                    "cve.batch_lookup",
+                    attempted,
+                    "timeout",
+                    roles=("operational_status", "cve_lookup_timeout"),
+                )
+            elif not result.cve_lookup:
+                self.add_negative(
+                    "cve.batch_lookup",
+                    attempted,
+                    "no_hits",
+                    roles=("negative_outcome", "cve_no_hits"),
+                )
+
+        cwe_ids = _extract_cwe_ids_from_findings(result.sast_findings)
+        if cwe_ids:
+            attempted = {"phase": "phase1", "cweIds": sorted(cwe_ids)}
+            if result.kb_timed_out:
+                self.add_operational(
+                    "kb.threat_query",
+                    attempted,
+                    "timeout",
+                    roles=("operational_status", "kb_timeout"),
+                )
+            elif result.kb_not_ready:
+                self.add_operational(
+                    "kb.threat_query",
+                    attempted,
+                    "not_ready",
+                    roles=("operational_status", "kb_not_ready"),
+                )
+            elif not result.threat_context:
+                self.add_negative(
+                    "kb.threat_query",
+                    attempted,
+                    "no_hits",
+                    roles=("negative_outcome", "kb_no_hits"),
+                )
+
     def ingest_tool_result(self, call: ToolCallRequest, result: ToolResult) -> None:
         for ref_id in result.new_evidence_refs:
             self.add(_entry_from_tool_result(call, result, ref_id))
+        if result.success:
+            if _is_acquisition_tool(call.name) and not result.new_evidence_refs:
+                self.add_negative(
+                    call.name,
+                    dict(call.arguments),
+                    _no_hit_reason(call, result),
+                )
+        else:
+            self.add_operational(
+                call.name,
+                dict(call.arguments),
+                _tool_error_reason(result),
+            )
 
     def as_evidence_refs(self) -> list[dict]:
         refs: list[dict] = []
         for entry in self.entries():
+            if entry.evidence_class == "negative":
+                continue
             locator: dict = {}
             if entry.file:
                 locator["file"] = entry.file
@@ -321,8 +453,83 @@ def _infer_sink(text: str) -> str | None:
 
 
 def _extract_cwe(text: str) -> str | None:
-    match = re.search(r"CWE-\\d+", text)
+    match = re.search(r"CWE-\d+", text)
     return match.group(0) if match else None
+
+
+def _extract_cwe_ids_from_findings(findings: list[dict]) -> set[str]:
+    cwe_ids: set[str] = set()
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+        for value in (
+            finding.get("ruleId"),
+            finding.get("message"),
+            finding.get("metadata", {}).get("cweId") if isinstance(finding.get("metadata"), dict) else None,
+        ):
+            if isinstance(value, str):
+                for match in re.finditer(r"CWE-\d+", value):
+                    cwe_ids.add(match.group(0))
+        metadata = finding.get("metadata", {})
+        raw_cwes = metadata.get("cwe") if isinstance(metadata, dict) else None
+        if isinstance(raw_cwes, list):
+            for cwe in raw_cwes:
+                if isinstance(cwe, str):
+                    for match in re.finditer(r"CWE-\d+", cwe):
+                        cwe_ids.add(match.group(0))
+    return cwe_ids
+
+
+def _diagnostic_ref_id(kind: str, source_tool: str, attempted_query: dict, reason: str) -> str:
+    payload = json.dumps({
+        "source_tool": source_tool,
+        "attempted_query": attempted_query,
+        "reason": reason,
+    }, ensure_ascii=False, sort_keys=True, default=str)
+    digest = sha1(payload.encode("utf-8")).hexdigest()[:12]
+    return _safe_ref_id(f"eref-{kind}-{source_tool}-{reason}-{digest}")
+
+
+def _is_acquisition_tool(tool_name: str) -> bool:
+    return tool_name in {
+        "knowledge.search",
+        "code_graph.callers",
+        "code_graph.callees",
+        "code_graph.search",
+        "sast.scan",
+        "build.metadata",
+    }
+
+
+def _no_hit_reason(call: ToolCallRequest, result: ToolResult) -> str:
+    data = _json_or_empty(result.content)
+    if isinstance(data.get("error"), str):
+        return data["error"].lower()
+    if call.name == "knowledge.search":
+        return "no_hits"
+    if call.name.startswith("code_graph"):
+        return "not_found"
+    if call.name == "sast.scan":
+        return "no_findings"
+    return "no_evidence_refs"
+
+
+def _tool_error_reason(result: ToolResult) -> str:
+    error = result.error or ""
+    if error:
+        return error.lower()
+    data = _json_or_empty(result.content)
+    if isinstance(data.get("error"), str):
+        return data["error"].lower()
+    return "tool_failure"
+
+
+def _json_or_empty(content: str) -> dict:
+    try:
+        value = json.loads(content or "{}")
+    except json.JSONDecodeError:
+        return {}
+    return value if isinstance(value, dict) else {}
 
 
 def _extract_file_line(text: str) -> tuple[str | None, int | None]:

@@ -385,7 +385,7 @@ export class SdkService {
           },
           requestId,
         );
-        if (this.buildAgentClient.isSuccess(resp)) {
+        if (this.buildAgentClient.isSuccess(resp) && resp.result.cleanPass !== false) {
           const analyzed = (resp.result as { sdkProfile?: SdkAnalyzedProfile }).sdkProfile ?? {};
           this.dao.updateProfile(id, mergeProfiles(profile, analyzed));
         }
@@ -461,7 +461,7 @@ export class SdkService {
         requestId,
       );
 
-      if (this.buildAgentClient.isSuccess(resp)) {
+      if (this.buildAgentClient.isSuccess(resp) && resp.result.cleanPass !== false) {
         const analyzed = (resp.result as { sdkProfile?: SdkAnalyzedProfile }).sdkProfile ?? {};
         profile = mergeProfiles(profile, analyzed);
         if (!profile.targetSystem) {

@@ -31,7 +31,6 @@ class DeficiencyClass(StrEnum):
 class RecoveryDecision(StrEnum):
     REPAIR = "repair"
     ACQUIRE_EVIDENCE = "acquire_evidence"
-    CLEAN_RETRY = "clean_retry"
     CLASSIFY_OUTCOME = "classify_outcome"
     TASK_FAIL = "task_fail"
 

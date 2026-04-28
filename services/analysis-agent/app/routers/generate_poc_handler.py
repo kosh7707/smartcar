@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import json
+import time
 
 from app.config import settings
 from app.agent_runtime.context import get_request_id
@@ -28,26 +30,39 @@ from app.types import AnalysisOutcome, FailureCode, PocOutcome, QualityOutcome, 
 logger = logging.getLogger(__name__)
 
 
+def _monotonic() -> float:
+    return time.monotonic()
+
+
+def _elapsed_ms(start: float) -> int:
+    return int((_monotonic() - start) * 1000)
+
+
+def _poc_quality_repair_max_attempts() -> int:
+    """Configured cap for bounded PoC quality repair attempts."""
+    return max(0, settings.poc_quality_repair_max_attempts)
+
+
 async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSuccessResponse | TaskFailureResponse:
     """generate-poc 요청: 미니 Phase 1(KB 조회) + 단일 LLM 호출로 PoC 생성."""
     import hashlib
-    import json
     import re
-    import time
     from datetime import datetime, timezone
 
     import httpx
 
     from app.agent_runtime.context import get_request_id
+    from app.agent_runtime.schemas.agent import BudgetState
     from app.agent_runtime.errors import StrictJsonContractError
     from app.agent_runtime.observability import agent_log
+    from app.budget.manager import BudgetManager
     from app.pipeline.confidence import ConfidenceCalculator
     from app.pipeline.response_parser import V1ResponseParser
     from app.schemas.response import Claim
     from app.validators.evidence_validator import EvidenceValidator
     from app.validators.schema_validator import SchemaValidator
 
-    start = time.monotonic()
+    start = _monotonic()
     trusted = request.context.trusted
     claim = trusted.get("claim", {})
     files = trusted.get("files", [])
@@ -71,7 +86,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
     )
 
     if not _valid_input_claim(claim) or not isinstance(files, list) or not files:
-        elapsed = int((time.monotonic() - start) * 1000)
+        elapsed = _elapsed_ms(start)
         missing = []
         if not _valid_input_claim(claim):
             missing.append("context.trusted.claim(statement/detail/location)")
@@ -501,9 +516,6 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
             policy_flags.append("strict_json_retry")
             parsed["policyFlags"] = policy_flags
 
-    if hasattr(llm, 'aclose'):
-        await llm.aclose()
-
     # allowed_refs: request-level EvidenceRef IDs ∪ input claim's supportingEvidenceRefs.
     # Input claim's refs come from a trusted upstream (deep-analyze) result, so they are
     # treated as allowed by default — without this, the sanitizer strips them and grounding
@@ -512,6 +524,8 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
     evidence_validator = EvidenceValidator()
     raw_evidence_valid, raw_evidence_errors = evidence_validator.validate(parsed, allowed_refs)
     if not raw_evidence_valid:
+        if hasattr(llm, 'aclose'):
+            await llm.aclose()
         return _build_poc_completed_outcome(
             request,
             start=start,
@@ -557,7 +571,6 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         if isinstance(c, dict)
     ]
 
-    elapsed = int((time.monotonic() - start) * 1000)
     input_str = json.dumps(request.model_dump(mode="json"), sort_keys=True)
     input_hash = f"sha256:{hashlib.sha256(input_str.encode()).hexdigest()[:16]}"
 
@@ -565,6 +578,8 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         errors = schema_result.errors + evidence_errors
         if not claims:
             errors.append("generate-poc는 최소 1개 이상의 구조화된 claim을 반환해야 함")
+        if hasattr(llm, 'aclose'):
+            await llm.aclose()
         return _build_poc_completed_outcome(
             request,
             start=start,
@@ -578,15 +593,121 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
             detail="; ".join(errors),
         )
 
+    quality_repair_attempts = 0
+    quality_repair_max_attempts = _poc_quality_repair_max_attempts()
+    quality_repair_budget_exhausted = False
+    quality_repair_failed = False
+    repair_budget = BudgetManager(BudgetState(
+        max_completion_tokens=settings.agent_max_completion_tokens,
+        max_prompt_tokens=settings.agent_max_prompt_tokens,
+    ))
+    repair_budget.record_tokens(prompt_tokens, completion_tokens)
+    repair_completion_estimate = min(
+        request.constraints.maxTokens or settings.agent_llm_max_tokens,
+        settings.agent_max_completion_tokens,
+    )
+    quality_gate = evaluate_poc_quality(claims=claims, caveats=parsed.get("caveats", []))
+    while (
+        quality_gate.outcome == QualityOutcome.REJECTED
+        and any(item.repairable for item in quality_gate.failedItems)
+        and quality_repair_attempts < quality_repair_max_attempts
+    ):
+        if repair_budget.would_exceed_after_repair(completion_tokens_estimate=repair_completion_estimate):
+            quality_repair_budget_exhausted = True
+            break
+        quality_repair_attempts += 1
+        try:
+            raw, repair_prompt_tokens, repair_completion_tokens = await _repair_generate_poc_quality(
+                llm=llm,
+                messages=messages,
+                parsed=parsed,
+                quality_gate=quality_gate,
+                request=request,
+            )
+        except Exception as e:
+            quality_repair_failed = True
+            logger.warning("PoC quality repair attempt %d failed: %s",
+                quality_repair_attempts,
+                e,
+                extra={
+                    "component": "generate_poc",
+                    "phase": "quality_repair_failure",
+                    "attempt": quality_repair_attempts,
+                    "error": str(e),
+                },
+            )
+            break
+        prompt_tokens += repair_prompt_tokens
+        completion_tokens += repair_completion_tokens
+        repair_budget.record_tokens(repair_prompt_tokens, repair_completion_tokens)
+        repaired = parser.parse(raw)
+        if repaired is None:
+            break
+        repaired_schema = schema_validator.validate(repaired, request.taskType)
+        if not repaired_schema.valid:
+            break
+        repaired_evidence_valid, repaired_evidence_errors = evidence_validator.validate(repaired, allowed_refs)
+        if not repaired_evidence_valid:
+            break
+        parsed = repaired
+        schema_result = repaired_schema
+        evidence_valid = repaired_evidence_valid
+        evidence_errors = repaired_evidence_errors
+        confidence, breakdown = confidence_calc.calculate(
+            parsed, input_ref_ids=allowed_refs,
+            schema_valid=schema_result.valid and evidence_valid,
+            has_rule_results=True, rag_hits=len(kb_context_lines),
+        )
+        claims = [
+            Claim(
+                statement=c.get("statement", ""),
+                detail=c.get("detail"),
+                supportingEvidenceRefs=c.get("supportingEvidenceRefs", []),
+                location=c.get("location"),
+            )
+            for c in parsed.get("claims", [])
+            if isinstance(c, dict)
+        ]
+        quality_gate = evaluate_poc_quality(claims=claims, caveats=parsed.get("caveats", []))
+
+    quality_outcome = quality_gate.outcome
+    if quality_gate.outcome == QualityOutcome.REJECTED:
+        if hasattr(llm, 'aclose'):
+            await llm.aclose()
+        # Only repairable quality gaps can become "repair exhausted".
+        # Hard safety failures must remain poc_rejected even when the
+        # configured repair cap is zero.
+        repairable_quality_failure = any(item.repairable for item in quality_gate.failedItems)
+        exhausted = repairable_quality_failure and (
+            quality_repair_budget_exhausted
+            or quality_repair_failed
+            or quality_repair_attempts >= quality_repair_max_attempts
+        )
+        return _build_poc_completed_outcome(
+            request,
+            start=start,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            retry_count=int(schema_repair_used) + int(strict_json_retry_used) + quality_repair_attempts,
+            rag_hits=len(kb_context_lines),
+            deficiency="POC_QUALITY_DEFICIENT",
+            action="poc_quality_repair_exhausted" if exhausted else "poc_quality_rejected",
+            outcome=PocOutcome.POC_INCONCLUSIVE if exhausted else PocOutcome.POC_REJECTED,
+            detail=_quality_failure_detail(quality_gate),
+            quality_outcome=QualityOutcome.REPAIR_EXHAUSTED if exhausted else QualityOutcome.REJECTED,
+            quality_gate=quality_gate,
+        )
+
+    if hasattr(llm, 'aclose'):
+        await llm.aclose()
+    elapsed = _elapsed_ms(start)
     agent_log(
         logger, "generate-poc 완료",
         component="generate_poc", phase="poc_end",
         claimCount=len(claims), latencyMs=elapsed,
         promptTokens=prompt_tokens, completionTokens=completion_tokens,
+        qualityRepairAttempts=quality_repair_attempts,
     )
-
-    quality_gate = evaluate_poc_quality(claims=claims, caveats=parsed.get("caveats", []))
-    quality_outcome = quality_gate.outcome
     clean_pass = clean_pass_for(
         analysis_outcome=AnalysisOutcome.ACCEPTED_CLAIMS,
         quality_outcome=quality_outcome,
@@ -633,7 +754,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
             inputHash=input_hash,
             latencyMs=elapsed,
             tokenUsage=TokenUsage(prompt=prompt_tokens, completion=completion_tokens),
-            retryCount=int(schema_repair_used) + int(strict_json_retry_used),
+            retryCount=int(schema_repair_used) + int(strict_json_retry_used) + quality_repair_attempts,
             ragHits=len(kb_context_lines),
             createdAt=datetime.now(timezone.utc).isoformat(),
         ),
@@ -674,10 +795,11 @@ def _build_poc_completed_outcome(
     action: str,
     outcome: PocOutcome,
     detail: str,
+    quality_outcome: QualityOutcome = QualityOutcome.REJECTED,
+    quality_gate: QualityGateResult | None = None,
 ) -> TaskSuccessResponse:
     """Return completed PoC outcome for valid-input/live-runtime deficiencies."""
     import hashlib
-    import json
     import time
     from datetime import datetime, timezone
 
@@ -690,6 +812,9 @@ def _build_poc_completed_outcome(
         outcome=outcome.value,
         detail=detail,
     )
+    policy_flags = ["state_machine_outcome", "poc_recovery_classified"]
+    if quality_outcome == QualityOutcome.REPAIR_EXHAUSTED:
+        policy_flags.append("repair_exhausted")
     return TaskSuccessResponse(
         taskId=request.taskId,
         taskType=request.taskType,
@@ -709,9 +834,9 @@ def _build_poc_completed_outcome(
             recommendedNextSteps=[
                 "Review recoveryTrace/audit details before treating this as a clean PoC pass."
             ],
-            policyFlags=["state_machine_outcome", "poc_recovery_classified"],
+            policyFlags=policy_flags,
             analysisOutcome=AnalysisOutcome.INCONCLUSIVE,
-            qualityOutcome=QualityOutcome.REJECTED,
+            qualityOutcome=quality_outcome,
             pocOutcome=outcome,
             recoveryTrace=[trace],
             cleanPass=False,
@@ -721,12 +846,12 @@ def _build_poc_completed_outcome(
                 reasons=[f"pocOutcome={outcome.value}", detail] if detail else [f"pocOutcome={outcome.value}"],
                 gateOutcomes=[
                     "analysis:inconclusive",
-                    "quality:rejected",
+                    f"quality:{quality_outcome.value}",
                     f"poc:{outcome.value}",
                 ],
             ),
-            qualityGate=QualityGateResult(
-                outcome=QualityOutcome.REJECTED,
+            qualityGate=quality_gate or QualityGateResult(
+                outcome=quality_outcome,
                 caveats=[detail] if detail else [],
             ),
         ),
@@ -882,6 +1007,50 @@ def _poc_evaluation_verdict_for(
     )
 
 
+async def _repair_generate_poc_quality(
+    *,
+    llm,
+    messages: list[dict],
+    parsed: dict,
+    quality_gate: QualityGateResult,
+    request: TaskRequest,
+) -> tuple[str, int, int]:
+    """Ask the producer to repair a quality-rejected PoC once, with critic feedback."""
+    failures = [
+        {
+            "id": item.id,
+            "requiredEvidenceSlots": item.requiredEvidenceSlots,
+            "detail": item.detail,
+        }
+        for item in quality_gate.failedItems
+    ]
+    repair_prompt = (
+        "[시스템] 이전 generate-poc JSON은 schema/ref 검증은 통과했지만 PoC QualityGate에서 거절되었습니다. "
+        "아래 실패 항목만 고치고, 같은 Assessment JSON 스키마로 다시 출력하십시오. "
+        "파괴적 동작을 제거하고, command-injection PoC라면 randomized non-destructive canary를 포함하십시오. "
+        "코드펜스 밖 설명문 없이 순수 JSON만 출력하십시오.\n\n"
+        f"repairHint:\n{quality_gate.repairHint or '(none)'}\n\n"
+        f"QualityGate failures:\n{json.dumps(failures, ensure_ascii=False, indent=2)}\n\n"
+        f"Previous JSON:\n{json.dumps(parsed, ensure_ascii=False)}"
+    )
+    response = await llm.call(
+        [*messages, {"role": "user", "content": repair_prompt}],
+        max_tokens=request.constraints.maxTokens or 8192,
+        temperature=0.0,
+        prefer_async_ownership=True,
+    )
+    return response.content or "", response.prompt_tokens, response.completion_tokens
+
+
+def _quality_failure_detail(quality_gate: QualityGateResult) -> str:
+    if not quality_gate.failedItems:
+        return "PoC quality gate rejected the output."
+    return "; ".join(
+        f"{item.id}: {item.detail or 'quality gate failed'}"
+        for item in quality_gate.failedItems
+    )
+
+
 async def _repair_generate_poc_schema(
     *,
     llm,
@@ -897,8 +1066,6 @@ async def _repair_generate_poc_schema(
     prevents a repair turn from repeating an invalid ``summary + claims``-only
     shape.
     """
-    import json
-
     from app.pipeline.response_parser import V1ResponseParser
 
     parser = V1ResponseParser()

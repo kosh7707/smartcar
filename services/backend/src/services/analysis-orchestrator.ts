@@ -875,6 +875,8 @@ export class AnalysisOrchestrator {
       qualityOutcome,
       pocOutcome,
       recoveryTrace: assessment.recoveryTrace,
+      claimDiagnostics: assessment.claimDiagnostics,
+      evidenceDiagnostics: assessment.evidenceDiagnostics,
       scaLibraries: Array.isArray(scaLibraries) ? scaLibraries : undefined,
       agentAudit: {
         latencyMs: audit.latencyMs,

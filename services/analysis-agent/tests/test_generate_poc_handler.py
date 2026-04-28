@@ -187,6 +187,459 @@ async def test_generate_poc_repairs_missing_top_level_caveats(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_generate_poc_quality_reject_then_repair_accepts(monkeypatch):
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+
+    responses = [
+        {
+            "summary": "PoC가 RCE 가능성을 재현한다.",
+            "claims": [{
+                "statement": "PoC는 popen 경로를 통해 명령 주입 가능성을 증명한다.",
+                "detail": "Run `id` through the popen path.",
+                "supportingEvidenceRefs": ["eref-001"],
+                "location": "src/http_client.cpp:62",
+            }],
+            "caveats": [],
+            "usedEvidenceRefs": ["eref-001"],
+            "suggestedSeverity": "high",
+            "needsHumanReview": True,
+            "recommendedNextSteps": ["escape 검증 추가"],
+            "policyFlags": [],
+        },
+        {
+            "summary": "PoC가 randomized canary로 RCE 가능성을 비파괴 재현한다.",
+            "claims": [{
+                "statement": "PoC는 popen 경로를 통해 명령 주입 가능성을 증명한다.",
+                "detail": "Generate a randomized canary token and echo it through the popen path without destructive commands.",
+                "supportingEvidenceRefs": ["eref-001"],
+                "location": "src/http_client.cpp:62",
+            }],
+            "caveats": [],
+            "usedEvidenceRefs": ["eref-001"],
+            "suggestedSeverity": "high",
+            "needsHumanReview": True,
+            "recommendedNextSteps": ["escape 검증 추가"],
+            "policyFlags": [],
+        },
+    ]
+    calls = {"count": 0}
+    monotonic_values = iter([100.0, 106.0])
+
+    async def fake_call(self, *args, **kwargs):
+        payload = responses[min(calls["count"], len(responses) - 1)]
+        calls["count"] += 1
+        return _mock_llm_response(json.dumps(payload))
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr(generate_poc_handler, "_monotonic", lambda: next(monotonic_values))
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "completed"
+        assert result.result.pocOutcome == "poc_accepted"
+        assert result.result.qualityOutcome == "accepted"
+        assert result.audit.retryCount == 1
+        assert result.audit.latencyMs == 6000
+        assert calls["count"] == 2
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
+async def test_generate_poc_quality_repair_exhausted_returns_completed_inconclusive(monkeypatch):
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+
+    bad = {
+        "summary": "PoC가 RCE 가능성을 재현한다.",
+        "claims": [{
+            "statement": "PoC는 popen 경로를 통해 명령 주입 가능성을 증명한다.",
+            "detail": "Run `id` through the popen path.",
+            "supportingEvidenceRefs": ["eref-001"],
+            "location": "src/http_client.cpp:62",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": ["eref-001"],
+        "suggestedSeverity": "high",
+        "needsHumanReview": True,
+        "recommendedNextSteps": ["escape 검증 추가"],
+        "policyFlags": [],
+    }
+    calls = {"count": 0}
+    repair_prompts: list[str] = []
+
+    async def fake_call(self, *args, **kwargs):
+        if calls["count"] > 0 and args:
+            repair_prompts.append(args[0][-1]["content"])
+        calls["count"] += 1
+        return _mock_llm_response(json.dumps(bad))
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "completed"
+        assert result.result.pocOutcome == "poc_inconclusive"
+        assert result.result.qualityOutcome == "repair_exhausted"
+        assert result.result.cleanPass is False
+        assert result.result.qualityGate.failedItems[0].id == "poc-randomized-canary"
+        assert result.audit.retryCount == 2
+        assert calls["count"] == 3
+        assert "repairHint" in repair_prompts[0]
+        assert "QualityGate failures" in repair_prompts[0]
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
+async def test_generate_poc_quality_repair_cap_is_configurable(monkeypatch):
+    original_mode = settings.llm_mode
+    original_repair_cap = settings.poc_quality_repair_max_attempts
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+    object.__setattr__(settings, "poc_quality_repair_max_attempts", 0)
+
+    bad = {
+        "summary": "PoC가 RCE 가능성을 재현한다.",
+        "claims": [{
+            "statement": "PoC는 popen 경로를 통해 명령 주입 가능성을 증명한다.",
+            "detail": "Run `id` through the popen path.",
+            "supportingEvidenceRefs": ["eref-001"],
+            "location": "src/http_client.cpp:62",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": ["eref-001"],
+        "suggestedSeverity": "high",
+        "needsHumanReview": True,
+        "recommendedNextSteps": ["escape 검증 추가"],
+        "policyFlags": [],
+    }
+    calls = {"count": 0}
+
+    async def fake_call(self, *args, **kwargs):
+        calls["count"] += 1
+        return _mock_llm_response(json.dumps(bad))
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "completed"
+        assert result.result.pocOutcome == "poc_inconclusive"
+        assert result.result.qualityOutcome == "repair_exhausted"
+        assert result.audit.retryCount == 0
+        assert calls["count"] == 1
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+        object.__setattr__(settings, "poc_quality_repair_max_attempts", original_repair_cap)
+
+
+@pytest.mark.asyncio
+async def test_generate_poc_quality_repair_budget_exhaustion_returns_repair_exhausted(monkeypatch):
+    original_mode = settings.llm_mode
+    original_max_completion = settings.agent_max_completion_tokens
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+    object.__setattr__(settings, "agent_max_completion_tokens", 20)
+
+    bad = {
+        "summary": "PoC가 RCE 가능성을 재현한다.",
+        "claims": [{
+            "statement": "PoC는 popen 경로를 통해 명령 주입 가능성을 증명한다.",
+            "detail": "Run `id` through the popen path.",
+            "supportingEvidenceRefs": ["eref-001"],
+            "location": "src/http_client.cpp:62",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": ["eref-001"],
+        "suggestedSeverity": "high",
+        "needsHumanReview": True,
+        "recommendedNextSteps": ["escape 검증 추가"],
+        "policyFlags": [],
+    }
+    calls = {"count": 0}
+
+    async def fake_call(self, *args, **kwargs):
+        calls["count"] += 1
+        return _mock_llm_response(json.dumps(bad), completion_tokens=20)
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "completed"
+        assert result.result.pocOutcome == "poc_inconclusive"
+        assert result.result.qualityOutcome == "repair_exhausted"
+        assert result.audit.retryCount == 0
+        assert calls["count"] == 1
+        assert result.result.recoveryTrace[0].action == "poc_quality_repair_exhausted"
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+        object.__setattr__(settings, "agent_max_completion_tokens", original_max_completion)
+
+
+@pytest.mark.asyncio
+async def test_poc_quality_repair_logs_warning_on_exception(monkeypatch, caplog):
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+
+    bad = {
+        "summary": "PoC가 RCE 가능성을 재현한다.",
+        "claims": [{
+            "statement": "PoC는 popen 경로를 통해 명령 주입 가능성을 증명한다.",
+            "detail": "Run `id` through the popen path.",
+            "supportingEvidenceRefs": ["eref-001"],
+            "location": "src/http_client.cpp:62",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": ["eref-001"],
+        "suggestedSeverity": "high",
+        "needsHumanReview": True,
+        "recommendedNextSteps": ["escape 검증 추가"],
+        "policyFlags": [],
+    }
+
+    async def fake_call(self, *args, **kwargs):
+        return _mock_llm_response(json.dumps(bad))
+
+    async def fake_aclose(self):
+        return None
+
+    async def fail_repair(**kwargs):
+        raise RuntimeError("repair transport failed")
+
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr(generate_poc_handler, "_repair_generate_poc_quality", fail_repair)
+    try:
+        with caplog.at_level("WARNING", logger="app.routers.generate_poc_handler"):
+            result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "completed"
+        assert "PoC quality repair attempt 1 failed" in caplog.text
+        assert "repair transport failed" in caplog.text
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
+async def test_poc_quality_repair_handles_llm_timeout_gracefully(monkeypatch, caplog):
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+
+    bad = {
+        "summary": "PoC가 RCE 가능성을 재현한다.",
+        "claims": [{
+            "statement": "PoC는 popen 경로를 통해 명령 주입 가능성을 증명한다.",
+            "detail": "Run `id` through the popen path.",
+            "supportingEvidenceRefs": ["eref-001"],
+            "location": "src/http_client.cpp:62",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": ["eref-001"],
+        "suggestedSeverity": "high",
+        "needsHumanReview": True,
+        "recommendedNextSteps": ["escape 검증 추가"],
+        "policyFlags": [],
+    }
+
+    async def fake_call(self, *args, **kwargs):
+        return _mock_llm_response(json.dumps(bad))
+
+    async def fake_aclose(self):
+        return None
+
+    async def timeout_repair(**kwargs):
+        raise LlmTimeoutError("repair timeout")
+
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr(generate_poc_handler, "_repair_generate_poc_quality", timeout_repair)
+    try:
+        with caplog.at_level("WARNING", logger="app.routers.generate_poc_handler"):
+            result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "completed"
+        assert result.result.pocOutcome == "poc_inconclusive"
+        assert result.result.qualityOutcome == "repair_exhausted"
+        assert "repair_exhausted" in result.result.policyFlags
+        assert result.result.recoveryTrace[0].action == "poc_quality_repair_exhausted"
+        assert result.audit.retryCount == 1
+        assert "repair timeout" in caplog.text
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
+async def test_poc_quality_repair_timeout_preserves_cleanpass_false(monkeypatch):
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+
+    bad = {
+        "summary": "PoC가 RCE 가능성을 재현한다.",
+        "claims": [{
+            "statement": "PoC는 popen 경로를 통해 명령 주입 가능성을 증명한다.",
+            "detail": "Run `id` through the popen path.",
+            "supportingEvidenceRefs": ["eref-001"],
+            "location": "src/http_client.cpp:62",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": ["eref-001"],
+        "suggestedSeverity": "high",
+        "needsHumanReview": True,
+        "recommendedNextSteps": ["escape 검증 추가"],
+        "policyFlags": [],
+    }
+
+    async def fake_call(self, *args, **kwargs):
+        return _mock_llm_response(json.dumps(bad))
+
+    async def fake_aclose(self):
+        return None
+
+    async def timeout_repair(**kwargs):
+        raise LlmTimeoutError("repair timeout")
+
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
+    monkeypatch.setattr(generate_poc_handler, "_repair_generate_poc_quality", timeout_repair)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "completed"
+        assert result.result.cleanPass is False
+        assert "quality:repair_exhausted" in result.result.evaluationVerdict.gateOutcomes
+        assert result.result.qualityGate.failedItems[0].id == "poc-randomized-canary"
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
+async def test_generate_poc_unsafe_quality_failure_is_rejected_without_repair(monkeypatch):
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test",
+        modelName="test-model",
+        contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC],
+        endpoint="http://localhost:8000",
+        apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+
+    unsafe = {
+        "summary": "PoC가 파괴적 명령을 포함한다.",
+        "claims": [{
+            "statement": "PoC는 파괴적 명령 실행을 제안한다.",
+            "detail": "Run rm -rf / to demonstrate command execution impact.",
+            "supportingEvidenceRefs": ["eref-001"],
+            "location": "src/http_client.cpp:62",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": ["eref-001"],
+        "suggestedSeverity": "critical",
+        "needsHumanReview": True,
+        "recommendedNextSteps": ["replace with non-destructive canary"],
+        "policyFlags": [],
+    }
+    calls = {"count": 0}
+
+    async def fake_call(self, *args, **kwargs):
+        calls["count"] += 1
+        return _mock_llm_response(json.dumps(unsafe))
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "completed"
+        assert result.result.pocOutcome == "poc_rejected"
+        assert result.result.qualityOutcome == "rejected"
+        assert result.result.qualityGate.failedItems[0].id == "poc-safety"
+        assert result.result.qualityGate.failedItems[0].repairable is False
+        assert result.result.recoveryTrace[0].action == "poc_quality_rejected"
+        assert result.audit.retryCount == 0
+        assert calls["count"] == 1
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
 async def test_generate_poc_repairs_orphaned_claim_fragment_via_strict_schema_repair(monkeypatch):
     original_mode = settings.llm_mode
     monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
@@ -833,8 +1286,27 @@ async def test_generate_poc_repairs_unstructured_output_with_scaffold(monkeypatc
     ))
     object.__setattr__(settings, "llm_mode", "real")
 
+    calls = {"count": 0}
+
     async def fake_call(self, *args, **kwargs):
-        return _mock_llm_response("### 계획\n1. PoC 아이디어를 정리한다.")
+        calls["count"] += 1
+        if calls["count"] == 1:
+            return _mock_llm_response("### 계획\n1. PoC 아이디어를 정리한다.")
+        return _mock_llm_response(json.dumps({
+            "summary": "PoC가 randomized canary로 RCE 가능성을 재현한다.",
+            "claims": [{
+                "statement": "PoC는 popen 경로를 통해 명령 주입 가능성을 증명한다.",
+                "detail": "Generate a randomized canary token and echo it through the popen path without destructive commands.",
+                "supportingEvidenceRefs": ["eref-001"],
+                "location": "src/http_client.cpp:62",
+            }],
+            "caveats": [],
+            "usedEvidenceRefs": ["eref-001"],
+            "suggestedSeverity": "high",
+            "needsHumanReview": True,
+            "recommendedNextSteps": ["escape 검증 추가"],
+            "policyFlags": [],
+        }))
 
     async def fake_aclose(self):
         return None
@@ -1029,7 +1501,7 @@ async def test_generate_poc_preserves_claim_supporting_evidence_refs(monkeypatch
             "summary": "PoC exercises popen via run() helper.",
             "claims": [{
                 "statement": "PoC triggers popen via crafted CN.",
-                "detail": "PoC injects CN that reaches popen.",
+                "detail": "PoC injects a randomized canary CN that reaches popen without destructive commands.",
                 "supportingEvidenceRefs": ["eref-sast-flawfinder:shell/popen", "eref-file-main.cpp"],
                 "location": "src/main.c:12",
             }],

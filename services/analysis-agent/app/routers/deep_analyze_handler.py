@@ -7,30 +7,110 @@ from app.config import settings
 from app.agent_runtime.context import get_request_id
 from app.runtime.request_summary import request_summary_tracker
 from app.schemas.request import TaskRequest
-from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
+from app.schemas.response import Claim, TaskFailureResponse, TaskSuccessResponse
+from app.state_machine import diagnose_claim_evidence, plan_next_action, transition_claim_status
+from app.types import ClaimStatus
 
 logger = logging.getLogger(__name__)
 
 
 def _configure_phase2_graph_tools(registry, phase1_result, project_id, callers_tool=None, callees_tool=None, search_tool=None) -> None:
-    neo4j_ready = phase1_result.code_graph_neo4j_ready is not False
-    graph_rag_ready = phase1_result.code_graph_graph_rag_ready is not False
+    from app.tools.router import register_tools_for_session
 
-    if neo4j_ready:
-        if callers_tool:
-            callers_tool.set_project_id(project_id)
-        if callees_tool:
-            callees_tool.set_project_id(project_id)
-    else:
-        registry.unregister("code_graph.callers")
-        registry.unregister("code_graph.callees")
+    register_tools_for_session(
+        registry,
+        phase1_result,
+        project_id=project_id,
+        callers_tool=callers_tool,
+        callees_tool=callees_tool,
+        search_tool=search_tool,
+    )
 
-    if graph_rag_ready:
-        if search_tool:
-            search_tool.set_project_id(project_id)
-    else:
-        registry.unregister("code_graph.search")
 
+def _suggest_next_evidence_action(phase1_result, session, registry) -> dict | None:
+    """Return one deterministic advisory acquisition action for an under-evidenced Phase 1 claim."""
+    claim = _phase1_claim_for_planner(phase1_result, session)
+    if claim is None:
+        return None
+
+    diagnosis = diagnose_claim_evidence(
+        claim,
+        session.evidence_catalog,
+        allowed_local_refs=set(session.evidence_catalog.ref_ids()),
+    )
+    transitioned = transition_claim_status(claim, diagnosis)
+    action = plan_next_action(
+        transitioned,
+        set(registry.list_names()),
+        session.planned_action_keys,
+        catalog=session.evidence_catalog,
+    )
+    if action is None:
+        return None
+
+    session.planned_action_keys.add(action.dedup_key)
+    return {
+        "tool_name": action.tool_name,
+        "arguments": action.arguments,
+        "rationale": action.rationale,
+        "target_slot": action.target_slot,
+        "dedup_key": action.dedup_key,
+    }
+
+
+def _phase1_claim_for_planner(phase1_result, session) -> Claim | None:
+    """Build a conservative planner-only claim from Phase 1 evidence."""
+    if not phase1_result.sast_findings:
+        return None
+
+    finding = phase1_result.sast_findings[0]
+    if not isinstance(finding, dict):
+        return None
+
+    supporting_ref = _first_sast_ref_id(session)
+    if supporting_ref is None:
+        return None
+
+    required = ["local_or_derived_support"]
+    if not phase1_result.threat_context and not phase1_result.kb_not_ready and not phase1_result.kb_timed_out:
+        required.append("threat_knowledge")
+    if not phase1_result.dangerous_callers and phase1_result.code_graph_neo4j_ready is not False:
+        required.append("caller_chain")
+
+    if len(required) == 1:
+        return None
+
+    loc = finding.get("location", {}) if isinstance(finding.get("location"), dict) else {}
+    metadata = finding.get("metadata", {}) if isinstance(finding.get("metadata"), dict) else {}
+    cwe = metadata.get("cweId") or metadata.get("cwe") or finding.get("ruleId") or ""
+    statement = " ".join(str(part) for part in (cwe, finding.get("message")) if part).strip()
+
+    return Claim(
+        statement=statement or "Phase 1 finding requires more evidence",
+        detail=finding.get("message") or statement,
+        supportingEvidenceRefs=[supporting_ref],
+        location=_format_planner_location(loc),
+        claimId="planner-phase1-0",
+        status=ClaimStatus.CANDIDATE,
+        requiredEvidence=required,
+    )
+
+
+def _first_sast_ref_id(session) -> str | None:
+    for entry in session.evidence_catalog.entries():
+        if entry.category == "sast":
+            return entry.ref_id
+    return None
+
+
+def _format_planner_location(location: dict) -> str | None:
+    file = location.get("file")
+    line = location.get("line")
+    if file and line:
+        return f"{file}:{line}"
+    if file:
+        return str(file)
+    return None
 
 
 async def handle_deep_analyze(request: TaskRequest, model_registry) -> TaskSuccessResponse | TaskFailureResponse:
@@ -169,7 +249,7 @@ async def handle_deep_analyze(request: TaskRequest, model_registry) -> TaskSucce
     if settings.llm_mode == "real":
         from app.tools.implementations.sast_tool import SastScanTool
         from app.tools.implementations.codegraph_phase1_tool import CodeGraphPhase1Tool
-        from app.tools.implementations.codegraph_tool import CodeGraphCallersTool
+        from app.tools.implementations.codegraph_callers_tool import CodeGraphCallersTool
         from app.tools.implementations.codegraph_callees_tool import CodeGraphCalleesTool
         from app.tools.implementations.codegraph_search_tool import CodeGraphSearchTool
         from app.tools.implementations.knowledge_tool import KnowledgeTool
@@ -285,12 +365,16 @@ async def handle_deep_analyze(request: TaskRequest, model_registry) -> TaskSucce
     session.evidence_catalog.ingest_phase1_result(phase1_result)
     session.extra_allowed_refs = set(session.evidence_catalog.ref_ids())
     all_evidence_refs = session.evidence_catalog.as_evidence_refs()
+    live_recovery_summary = session.live_recovery_trace_summary()
+    suggested_next_action = _suggest_next_evidence_action(phase1_result, session, registry)
 
     # 프롬프트 조립 — Phase 1 결과를 포함
     system_prompt, user_message = build_phase2_prompt(
         phase1_result, request.context.trusted,
         evidence_refs=all_evidence_refs,
         budget=session.budget,
+        live_recovery_summary=live_recovery_summary,
+        suggested_next_action=suggested_next_action,
     )
     mm = MessageManager(
         system_prompt=system_prompt,

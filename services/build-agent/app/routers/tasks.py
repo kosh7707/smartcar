@@ -13,6 +13,7 @@ from app.routers.build_resolve_handler import handle_build_resolve as _handle_bu
 from app.routers.build_route_support import json_response as _json_response
 from app.routers.sdk_analyze_handler import handle_sdk_analyze as _handle_sdk_analyze
 from app.schemas.request import TaskRequest
+from app.schemas.response import BUILD_RESPONSE_SCHEMA_VERSION
 from app.types import TaskType
 
 logger = logging.getLogger(__name__)
@@ -75,13 +76,10 @@ async def health() -> dict:
         "version": "1.0.0",
         "llmMode": settings.llm_mode,
         "activeResponseSchemas": {
-            "build-resolve": "build-v1.0",
-            "sdk-analyze": "build-v1.0",
+            "build-resolve": BUILD_RESPONSE_SCHEMA_VERSION,
+            "sdk-analyze": BUILD_RESPONSE_SCHEMA_VERSION,
         },
-        "proposedResponseSchemas": {
-            "build-resolve": "build-v1.1-proposal",
-            "sdk-analyze": "build-v1.1-proposal",
-        },
+        "proposedResponseSchemas": {},
         "agentConfig": {
             "maxSteps": settings.agent_max_steps,
             "maxCompletionTokens": settings.agent_max_completion_tokens,

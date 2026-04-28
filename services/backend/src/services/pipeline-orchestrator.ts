@@ -383,6 +383,19 @@ export class PipelineOrchestrator {
           const br = resolveResp.result.buildResult;
           const buildPreparation = resolveResp.result.buildPreparation;
           const resolvedBuildCommand = buildPreparation?.buildCommand ?? br.buildCommand;
+          const cleanPass = resolveResp.result.cleanPass ?? resolveResp.result.buildOutcome?.cleanPass ?? br.success;
+
+          if (cleanPass === false) {
+            const diagnostics = resolveResp.result.buildDiagnostics;
+            const failureCode = diagnostics?.failureCode ?? resolveResp.result.buildOutcome?.outcome ?? "BUILD_NOT_CLEAN";
+            const detail = br.errorLog ?? resolveResp.result.summary ?? failureCode;
+            this.buildTargetDAO.updatePipelineState(target.id, {
+              status: "resolve_failed",
+              buildLog: `${failureCode}: ${detail}`,
+            });
+            this.updateStatus(projectId, pipelineId, target, "resolve_failed", `빌드 준비 실패(${failureCode}): ${detail}`);
+            throw new PipelineStepError(`Build resolve did not clean-pass for ${target.name}: ${failureCode}`);
+          }
 
           if (!br.success) {
             // 에이전트가 빌드 시도했지만 실패

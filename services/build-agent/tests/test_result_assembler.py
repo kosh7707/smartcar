@@ -8,7 +8,7 @@ from app.agent_runtime.schemas.agent import BudgetState, ToolTraceStep
 from app.core.agent_session import AgentSession
 from app.core.result_assembler import ResultAssembler
 from app.schemas.request import Context, EvidenceRef, TaskRequest
-from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
+from app.schemas.response import BUILD_RESPONSE_SCHEMA_VERSION, TaskFailureResponse, TaskSuccessResponse
 from app.types import FailureCode, TaskStatus, TaskType
 
 
@@ -112,6 +112,7 @@ def test_build_success_from_valid_json() -> None:
     resp = assembler.build(_valid_build_json(), session)
 
     assert isinstance(resp, TaskSuccessResponse)
+    assert resp.schemaVersion == BUILD_RESPONSE_SCHEMA_VERSION
     assert resp.status == TaskStatus.COMPLETED
     assert resp.contractVersion == "build-resolve-v1"
     assert resp.strictMode is True

@@ -23,6 +23,10 @@ export function initSchema(db: DatabaseType): void {
       id          TEXT PRIMARY KEY,
       name        TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
+      owner_id    TEXT,
+      owner_name  TEXT,
+      owner_avatar TEXT,
+      owner_kind  TEXT,
       created_at  TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -60,6 +64,8 @@ export function initSchema(db: DatabaseType): void {
       quality_outcome        TEXT,
       poc_outcome            TEXT,
       recovery_trace         TEXT NOT NULL DEFAULT '[]',
+      claim_diagnostics      TEXT,
+      evidence_diagnostics   TEXT,
       sca_libraries          TEXT NOT NULL DEFAULT '[]',
       agent_audit            TEXT,
       created_at             TEXT NOT NULL,
@@ -633,8 +639,14 @@ export function initSchema(db: DatabaseType): void {
   try { db.exec(`ALTER TABLE analysis_results ADD COLUMN quality_outcome TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE analysis_results ADD COLUMN poc_outcome TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE analysis_results ADD COLUMN recovery_trace TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN claim_diagnostics TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE analysis_results ADD COLUMN evidence_diagnostics TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE analysis_results ADD COLUMN sca_libraries TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE analysis_results ADD COLUMN agent_audit TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE projects ADD COLUMN owner_id TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE projects ADD COLUMN owner_name TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE projects ADD COLUMN owner_avatar TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE projects ADD COLUMN owner_kind TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE findings ADD COLUMN detail TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE findings ADD COLUMN fingerprint TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE findings ADD COLUMN cwe_id TEXT`); } catch { /* 이미 존재 */ }

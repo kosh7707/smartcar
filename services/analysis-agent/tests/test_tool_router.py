@@ -1,5 +1,6 @@
 """ToolRouter 단위 테스트."""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -11,7 +12,7 @@ from app.agent_runtime.tools.executor import ToolExecutor
 from app.agent_runtime.tools.hooks import HookResult, HookRunner
 from app.tools.implementations.mock_tools import MockEchoTool, MockKnowledgeTool
 from app.agent_runtime.tools.registry import ToolRegistry, ToolSchema
-from app.tools.router import ToolRouter
+from app.tools.router import ToolRouter, register_tools_for_session
 
 
 def _make_router_with_budget(
@@ -45,12 +46,120 @@ def _make_session():
     return session
 
 
+def _register_phase2_tools(registry: ToolRegistry) -> None:
+    for name in (
+        "code_graph.callers",
+        "code_graph.callees",
+        "code_graph.search",
+        "knowledge.search",
+    ):
+        registry.register(ToolSchema(name=name, description=name, cost_tier=ToolCostTier.CHEAP))
+
+
+class _ProjectTool:
+    def __init__(self) -> None:
+        self.project_id = None
+
+    def set_project_id(self, project_id: str) -> None:
+        self.project_id = project_id
+
+
 class _DenyPreHook:
     def pre_tool_use(self, name: str, args: dict) -> HookResult:
         return HookResult.denied("blocked by test pre hook")
 
     def post_tool_use(self, name: str, args: dict, output: str, is_error: bool) -> HookResult:
         return HookResult.allowed()
+
+
+def test_codegraph_tools_excluded_when_neo4j_not_ready():
+    registry = ToolRegistry()
+    _register_phase2_tools(registry)
+    callers = _ProjectTool()
+    callees = _ProjectTool()
+    search = _ProjectTool()
+    session = SimpleNamespace(
+        code_graph_neo4j_ready=False,
+        code_graph_graph_rag_ready=True,
+        kb_not_ready=False,
+    )
+
+    register_tools_for_session(
+        registry,
+        session,
+        project_id="proj-1",
+        callers_tool=callers,
+        callees_tool=callees,
+        search_tool=search,
+    )
+
+    assert registry.get("code_graph.callers") is None
+    assert registry.get("code_graph.callees") is None
+    assert registry.get("code_graph.search") is None
+    assert registry.get("knowledge.search") is not None
+    assert callers.project_id is None
+    assert callees.project_id is None
+    assert search.project_id is None
+
+
+def test_knowledge_search_excluded_when_kb_not_ready():
+    registry = ToolRegistry()
+    _register_phase2_tools(registry)
+    callers = _ProjectTool()
+    callees = _ProjectTool()
+    search = _ProjectTool()
+    session = SimpleNamespace(
+        code_graph_neo4j_ready=True,
+        code_graph_graph_rag_ready=True,
+        kb_not_ready=True,
+    )
+
+    register_tools_for_session(
+        registry,
+        session,
+        project_id="proj-1",
+        callers_tool=callers,
+        callees_tool=callees,
+        search_tool=search,
+    )
+
+    assert registry.get("knowledge.search") is None
+    assert registry.get("code_graph.callers") is not None
+    assert registry.get("code_graph.callees") is not None
+    assert registry.get("code_graph.search") is not None
+    assert callers.project_id == "proj-1"
+    assert callees.project_id == "proj-1"
+    assert search.project_id == "proj-1"
+
+
+def test_codegraph_search_excluded_when_graph_rag_not_ready_but_call_graph_tools_remain():
+    registry = ToolRegistry()
+    _register_phase2_tools(registry)
+    callers = _ProjectTool()
+    callees = _ProjectTool()
+    search = _ProjectTool()
+    session = SimpleNamespace(
+        code_graph_neo4j_ready=True,
+        code_graph_graph_rag_ready=False,
+        kb_not_ready=False,
+    )
+
+    register_tools_for_session(
+        registry,
+        session,
+        project_id="proj-1",
+        callers_tool=callers,
+        callees_tool=callees,
+        search_tool=search,
+    )
+
+    assert registry.get("code_graph.callers") is not None
+    assert registry.get("code_graph.callees") is not None
+    assert registry.get("code_graph.search") is None
+    assert registry.get("knowledge.search") is not None
+    assert callers.project_id == "proj-1"
+    assert callees.project_id == "proj-1"
+    assert search.project_id is None
 
 
 class _DenyPostHook:

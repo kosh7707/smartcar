@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 from app.types import (
     AnalysisOutcome,
+    ClaimStatus,
     FailureCode,
     PocOutcome,
     QualityOutcome,
@@ -17,6 +18,14 @@ class Claim(BaseModel):
     detail: str | None = None
     supportingEvidenceRefs: list[str] = []
     location: str | None = None
+    claimId: str | None = None
+    status: ClaimStatus = ClaimStatus.CANDIDATE
+    requiredEvidence: list[str] = Field(default_factory=list)
+    presentEvidence: list[str] = Field(default_factory=list)
+    missingEvidence: list[str] = Field(default_factory=list)
+    evidenceTrail: list[str] = Field(default_factory=list)
+    queryHistory: list[dict] = Field(default_factory=list)
+    revisionHistory: list[dict] = Field(default_factory=list)
 
 
 class ConfidenceBreakdown(BaseModel):
@@ -71,9 +80,27 @@ class EvidenceDiagnostics(BaseModel):
     invalidRefRoles: list[EvidenceRefRoleDiagnostic] = Field(default_factory=list)
     missingSlots: list[str] = Field(default_factory=list)
     attemptedAcquisitions: list[EvidenceAcquisitionDiagnostic] = Field(default_factory=list)
+    negativeAttempts: list[EvidenceAcquisitionDiagnostic] = Field(default_factory=list)
     availableLocalRefs: list[str] = Field(default_factory=list)
     availableKnowledgeRefs: list[str] = Field(default_factory=list)
     unclassifiedRefs: list[str] = Field(default_factory=list)
+
+
+class NonAcceptedClaimDiagnostic(BaseModel):
+    claimId: str | None = None
+    status: ClaimStatus = ClaimStatus.CANDIDATE
+    family: str | None = None
+    primaryLocation: str | None = None
+    missingEvidence: list[str] = Field(default_factory=list)
+    invalidRefs: list[str] = Field(default_factory=list)
+    supportingEvidenceRefs: list[str] = Field(default_factory=list)
+    outcomeContribution: str | None = None
+    detail: str | None = None
+
+
+class ClaimDiagnostics(BaseModel):
+    lifecycleCounts: dict[str, int] = Field(default_factory=dict)
+    nonAcceptedClaims: list[NonAcceptedClaimDiagnostic] = Field(default_factory=list)
 
 
 class QualityGateItem(BaseModel):
@@ -88,6 +115,7 @@ class QualityGateResult(BaseModel):
     outcome: QualityOutcome = QualityOutcome.INCONCLUSIVE
     failedItems: list[QualityGateItem] = Field(default_factory=list)
     repairableItems: list[QualityGateItem] = Field(default_factory=list)
+    repairHint: str | None = None
     caveats: list[str] = Field(default_factory=list)
 
 
@@ -120,6 +148,7 @@ class AssessmentResult(BaseModel):
     evaluationVerdict: EvaluationVerdict = Field(default_factory=EvaluationVerdict)
     contextualEvidenceRefs: list[str] = Field(default_factory=list)
     evidenceDiagnostics: EvidenceDiagnostics = Field(default_factory=EvidenceDiagnostics)
+    claimDiagnostics: ClaimDiagnostics = Field(default_factory=ClaimDiagnostics)
     qualityGate: QualityGateResult = Field(default_factory=QualityGateResult)
 
 

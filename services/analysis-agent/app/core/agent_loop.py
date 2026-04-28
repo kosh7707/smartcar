@@ -25,7 +25,9 @@ from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.tools.router import ToolRouter
 from app.schemas.response import RecoveryTraceEntry
-from app.types import AnalysisOutcome, FailureCode, QualityOutcome, TaskStatus
+from app.state_machine.outcomes import outcome_for_deficiency
+from app.state_machine.types import DeficiencyClass
+from app.types import FailureCode, TaskStatus
 
 logger = logging.getLogger(__name__)
 
@@ -240,11 +242,13 @@ class AgentLoop:
                         retryable=e.retryable,
                     )
                 if isinstance(e, StrictJsonContractError):
+                    outcome = outcome_for_deficiency(DeficiencyClass.STRICT_JSON_VIOLATION)
                     return self._result_assembler.build_completed_outcome(
                         session,
                         summary="S3 검토는 완료되었지만 S7 strict JSON 계약을 만족하는 최종 Assessment를 확정하지 못해 inconclusive로 분류했습니다.",
-                        analysis_outcome=AnalysisOutcome.INCONCLUSIVE,
-                        quality_outcome=QualityOutcome.REPAIR_EXHAUSTED,
+                        analysis_outcome=outcome.analysis_outcome,
+                        quality_outcome=outcome.quality_outcome,
+                        poc_outcome=outcome.poc_outcome,
                         caveats=[f"Strict JSON contract violation: {e.error_detail or e}"],
                         policy_flags=["recovery_classified", "strict_json_deficient"],
                         recovery_trace=[RecoveryTraceEntry(
@@ -285,11 +289,13 @@ class AgentLoop:
                     )
                     session.set_termination_reason(f"llm_failure_partial:{e.code}")
                     return self._result_assembler.build_from_exhaustion(session)
+                outcome = outcome_for_deficiency(DeficiencyClass.MALFORMED_LLM_OUTPUT)
                 return self._result_assembler.build_completed_outcome(
                     session,
                     summary="S3 검토는 완료되었지만 LLM 호출이 정상 Assessment를 반환하지 못해 inconclusive로 분류했습니다.",
-                    analysis_outcome=AnalysisOutcome.INCONCLUSIVE,
-                    quality_outcome=QualityOutcome.REPAIR_EXHAUSTED,
+                    analysis_outcome=outcome.analysis_outcome,
+                    quality_outcome=outcome.quality_outcome,
+                    poc_outcome=outcome.poc_outcome,
                     caveats=[f"LLM output/call deficiency: {e}"],
                     policy_flags=["recovery_classified", "llm_output_deficient"],
                     recovery_trace=[RecoveryTraceEntry(
@@ -376,11 +382,13 @@ class AgentLoop:
                         component="agent_loop", phase="empty_response",
                         turn=turn, level=logging.WARNING,
                     )
+                    outcome = outcome_for_deficiency(DeficiencyClass.EMPTY_LLM_OUTPUT)
                     return self._result_assembler.build_completed_outcome(
                         session,
                         summary="S3 검토는 완료되었지만 LLM이 빈 최종 응답을 반환해 accepted claim을 확정하지 못했습니다.",
-                        analysis_outcome=AnalysisOutcome.INCONCLUSIVE,
-                        quality_outcome=QualityOutcome.REPAIR_EXHAUSTED,
+                        analysis_outcome=outcome.analysis_outcome,
+                        quality_outcome=outcome.quality_outcome,
+                        poc_outcome=outcome.poc_outcome,
                         caveats=["LLM returned neither tool_calls nor non-empty content."],
                         policy_flags=["recovery_classified", "empty_llm_output"],
                         recovery_trace=[RecoveryTraceEntry(
@@ -417,11 +425,13 @@ class AgentLoop:
                     try:
                         finalizer_response = await self._call_structured_finalizer(session, final_content)
                     except S3Error as e:
+                        outcome = outcome_for_deficiency(DeficiencyClass.MALFORMED_LLM_OUTPUT)
                         return self._result_assembler.build_completed_outcome(
                             session,
                             summary="S3 검토는 완료되었지만 structured finalizer가 유효한 Assessment를 확정하지 못해 inconclusive로 분류했습니다.",
-                            analysis_outcome=AnalysisOutcome.INCONCLUSIVE,
-                            quality_outcome=QualityOutcome.REPAIR_EXHAUSTED,
+                            analysis_outcome=outcome.analysis_outcome,
+                            quality_outcome=outcome.quality_outcome,
+                            poc_outcome=outcome.poc_outcome,
                             caveats=[f"Structured finalizer failed: {e}"],
                             policy_flags=["recovery_classified", "strict_json_deficient"],
                             recovery_trace=[RecoveryTraceEntry(
@@ -480,11 +490,13 @@ class AgentLoop:
                     try:
                         finalizer_response = await self._call_structured_finalizer(session, repair_input)
                     except S3Error as e:
+                        outcome = outcome_for_deficiency(DeficiencyClass.SCHEMA)
                         return self._result_assembler.build_completed_outcome(
                             session,
                             summary="S3 검토는 완료되었지만 structured schema repair가 유효한 Assessment를 확정하지 못해 inconclusive로 분류했습니다.",
-                            analysis_outcome=AnalysisOutcome.INCONCLUSIVE,
-                            quality_outcome=QualityOutcome.REPAIR_EXHAUSTED,
+                            analysis_outcome=outcome.analysis_outcome,
+                            quality_outcome=outcome.quality_outcome,
+                            poc_outcome=outcome.poc_outcome,
                             caveats=[f"Structured schema repair failed: {e}"],
                             policy_flags=["recovery_classified", "schema_deficient", "strict_json_deficient"],
                             recovery_trace=[RecoveryTraceEntry(

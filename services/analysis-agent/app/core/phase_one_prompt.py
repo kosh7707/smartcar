@@ -59,6 +59,8 @@ def build_phase2_prompt(
     trusted_context: dict,
     evidence_refs: list[dict] | None = None,
     budget: "BudgetState | None" = None,
+    live_recovery_summary: dict | None = None,
+    suggested_next_action: dict | None = None,
 ) -> tuple[str, str]:
     """Phase 1 결과를 포함한 Phase 2 프롬프트를 생성한다.
 
@@ -418,6 +420,7 @@ def build_phase2_prompt(
         sections.append(
             "## 위협 지식 (자동 조회 결과)\n"
             "**⚠ KB not ready**: Neo4j 또는 KB readiness 부족으로 위협 지식 조회를 건너뛰었습니다. "
+            "`knowledge.search` is unavailable in this session; do not ask for it. "
             "위협 그래프 보강이 빠졌음을 caveats에 반영하라."
         )
     elif phase1.kb_timed_out:
@@ -439,6 +442,7 @@ def build_phase2_prompt(
             "## 코드 그래프 준비 상태\n"
             "**⚠ code graph not ready**: S5 코드 그래프가 active/readable 상태가 아니어서 "
             "`code_graph.callers` / `code_graph.callees` / `dangerous-callers` 결과가 비어 있을 수 있습니다. "
+            "`code_graph.callers` and `code_graph.callees` are unavailable in this session; do not ask for them. "
             "호출 체인 부재를 단정 근거로 쓰지 말고 caveats에 한계를 명시하라."
         )
     elif phase1.code_graph_graph_rag_ready is False:
@@ -450,6 +454,7 @@ def build_phase2_prompt(
             f"**⚠ code graph semantic search not ready**{warning_text}: "
             "Neo4j 코드 그래프는 일부 읽을 수 있을 수 있지만 GraphRAG/vector readiness가 완전하지 않아 "
             "`code_graph.search` 결과가 비거나 불완전할 수 있습니다. "
+            "`code_graph.search` is unavailable in this session; do not ask for it. "
             "필요하면 `code_graph.callers`, `code_graph.callees`, `code.read_file` 중심으로 보강하고 caveats에 한계를 반영하라."
         )
 
@@ -518,6 +523,27 @@ def build_phase2_prompt(
                 f"- [{f.get('toolId','')}:{f.get('ruleId','')}] "
                 f"{loc.get('file','?')}:{loc.get('line','?')} — {f.get('message','')[:150]}"
             )
+
+    if live_recovery_summary and live_recovery_summary.get("totalAttempts", 0):
+        sections.append(
+            "## Live Recovery / Evidence Ledger Summary (diagnostic only; not proof refs)\n"
+            "아래 항목은 증거 획득 실패, no-hit, timeout/not-ready 같은 복구/획득 진단이다. "
+            "`claims[].supportingEvidenceRefs` 또는 `usedEvidenceRefs`의 근거로 사용하지 말고, "
+            "missing evidence 판단·caveat·후속 도구 선택에만 사용하라.\n\n"
+            "```json\n"
+            f"{json.dumps(live_recovery_summary, ensure_ascii=False, indent=2)}\n"
+            "```"
+        )
+
+    if suggested_next_action:
+        sections.append(
+            "## Suggested Next Evidence Acquisition Action (advisory)\n"
+            "이 제안은 deterministic controller가 산출한 다음 증거 획득 후보이다. "
+            "도구 선택을 강제하지는 않지만, 다른 도구를 선택한다면 그 이유를 내부 판단에 반영하라.\n\n"
+            "```json\n"
+            f"{json.dumps(suggested_next_action, ensure_ascii=False, indent=2)}\n"
+            "```"
+        )
 
     # 사용 가능한 Evidence Refs
     if evidence_refs:

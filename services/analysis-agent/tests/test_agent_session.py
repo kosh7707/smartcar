@@ -58,3 +58,25 @@ def test_set_termination_reason():
 def test_elapsed_ms():
     s = AgentSession(_make_request(), BudgetState())
     assert s.elapsed_ms() >= 0
+
+
+def test_live_recovery_trace_summary_truncates_first_and_last_attempts():
+    s = AgentSession(_make_request(), BudgetState())
+    for i in range(12):
+        s.evidence_catalog.add_negative(
+            "knowledge.search",
+            {"query": f"CWE-{i}"},
+            f"no_hits_{i}",
+        )
+
+    summary = s.live_recovery_trace_summary()
+
+    assert summary["totalAttempts"] == 12
+    assert summary["negativeCount"] == 12
+    assert summary["operationalCount"] == 0
+    assert summary["truncated"] is True
+    assert len(summary["shownAttempts"]) == 10
+    assert summary["shownAttempts"][0]["toolArguments"] == {"query": "CWE-0"}
+    assert summary["shownAttempts"][4]["toolArguments"] == {"query": "CWE-4"}
+    assert summary["shownAttempts"][5]["toolArguments"] == {"query": "CWE-7"}
+    assert summary["shownAttempts"][-1]["toolArguments"] == {"query": "CWE-11"}

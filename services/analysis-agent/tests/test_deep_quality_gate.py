@@ -43,3 +43,27 @@ def test_deep_quality_zero_claim_is_inconclusive_not_clean_pass():
 
     assert gate.outcome == "inconclusive"
     assert gate.repairableItems[0].id == "accepted-claim-coverage"
+
+
+def test_deep_quality_rejects_claim_with_unfilled_required_slots():
+    gate = evaluate_deep_quality(claims=[Claim(
+        statement="CWE-78 command injection reaches popen",
+        detail="Only a source location slot was filled.",
+        supportingEvidenceRefs=["eref-local-source"],
+        location="src/main.c:42",
+        requiredEvidence=[
+            "local_or_derived_support",
+            "source_location",
+            "sink_or_dangerous_api",
+            "caller_chain_or_source_slice",
+        ],
+        presentEvidence=["local_or_derived_support", "source_location"],
+        missingEvidence=["sink_or_dangerous_api", "caller_chain_or_source_slice"],
+    )])
+
+    assert gate.outcome == "rejected"
+    assert gate.failedItems[0].id == "claim-0-evidence-slots"
+    assert gate.failedItems[0].requiredEvidenceSlots == [
+        "sink_or_dangerous_api",
+        "caller_chain_or_source_slice",
+    ]

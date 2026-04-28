@@ -16,10 +16,25 @@ export type VulnerabilitySource = "rule" | "llm";
 // 프로젝트
 // ============================================================
 
+export type ProjectOwnerKind = "user" | "system";
+
+export interface ProjectOwnerSummary {
+  /** Stable user/system identifier. */
+  id: string;
+  /** Display name shown in project list ownership surfaces. */
+  name: string;
+  /** 1-2 character avatar initials; omitted/null lets clients derive from name. */
+  avatar?: string | null;
+  /** Human user vs system-created project owner. */
+  kind?: ProjectOwnerKind;
+}
+
 export interface Project {
   id: string;
   name: string;
   description: string;
+  /** Primary project owner/creator when known. Existing migrated rows may omit this. */
+  owner?: ProjectOwnerSummary;
   createdAt: string;
   updatedAt: string;
 }
@@ -72,6 +87,15 @@ export interface AgentRecoveryTraceEntry {
   detail?: string;
 }
 
+export interface AgentClaimDiagnosticsSummary {
+  lifecycleCounts?: Record<string, number>;
+  nonAcceptedClaims?: Array<Record<string, unknown>>;
+}
+
+export interface AgentEvidenceDiagnosticsSummary {
+  [key: string]: unknown;
+}
+
 export interface FileCoverageEntry {
   fileId: string;
   filePath: string;
@@ -115,6 +139,13 @@ export interface AnalysisResult {
   qualityOutcome?: AgentQualityOutcome;
   pocOutcome?: AgentPocOutcome;
   recoveryTrace?: AgentRecoveryTraceEntry[];
+  /**
+   * S3 Analysis Agent claim lifecycle diagnostics. `claims[]` stays accepted-final-only;
+   * non-accepted lifecycle candidates belong here.
+   */
+  claimDiagnostics?: AgentClaimDiagnosticsSummary;
+  /** S3 Analysis Agent evidence acquisition diagnostics, including failed/negative attempts. */
+  evidenceDiagnostics?: AgentEvidenceDiagnosticsSummary;
   /** SCA 라이브러리 목록 */
   scaLibraries?: ScaLibrary[];
   /** 에이전트 감사 요약 */
