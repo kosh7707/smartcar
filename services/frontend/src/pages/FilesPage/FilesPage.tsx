@@ -57,12 +57,6 @@ export const FilesPage: React.FC = () => {
         <FilesEmptyState />
       ) : (
         <>
-          <FilesLanguageSummary
-            totalFiles={state.sourceFiles.length}
-            totalSize={state.totalSize}
-            langStats={state.langStats}
-          />
-
           <FilesBuildTargetPanel
             targets={state.buildTargets.targets}
             onOpenLog={state.setLogTarget}
@@ -95,6 +89,12 @@ export const FilesPage: React.FC = () => {
             isResizing={state.workspaceLayout.isResizing}
             onStartResize={state.workspaceLayout.startResizing}
             onNudgeResize={state.workspaceLayout.nudgeResize}
+          />
+
+          <FilesLanguageSummary
+            totalFiles={state.sourceFiles.length}
+            totalSize={state.totalSize}
+            langStats={state.langStats}
           />
         </>
       )}

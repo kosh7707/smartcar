@@ -33,22 +33,50 @@ export function FilesBuildTargetPanel({
             아직 생성된 빌드 타겟이 없습니다.
           </div>
         ) : (
-          targets.map((target) => (
-            <div key={target.id} className="files-build-target-panel__row">
-              <span className="files-build-target-panel__name">{target.name}</span>
-              <TargetStatusBadge status={target.status ?? "discovered"} />
-              <span className="files-build-target-panel__path">{target.relativePath}</span>
-              {target.status && target.status !== "discovered" && (
-                <button type="button" className="btn btn-outline btn-sm"
-                  onClick={() => onOpenLog({ id: target.id, name: target.name })}
-                  title="빌드 로그"
-                >
-                  <ScrollText size={14} />
-                  빌드 로그
-                </button>
-              )}
-            </div>
-          ))
+          <table className="files-build-targets">
+            <colgroup>
+              <col style={{ width: "220px" }} />
+              <col style={{ width: "110px" }} />
+              <col />
+              <col style={{ width: "140px" }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>이름</th>
+                <th>상태</th>
+                <th>경로</th>
+                <th aria-label="액션" />
+              </tr>
+            </thead>
+            <tbody>
+              {targets.map((target) => {
+                const status = target.status ?? "discovered";
+                const actionable = target.status && target.status !== "discovered";
+                return (
+                  <tr key={target.id}>
+                    <td className="files-build-targets__name">{target.name}</td>
+                    <td>
+                      <TargetStatusBadge status={status} />
+                    </td>
+                    <td className="files-build-targets__path">{target.relativePath}</td>
+                    <td className="files-build-targets__action-cell">
+                      {actionable && (
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          onClick={() => onOpenLog({ id: target.id, name: target.name })}
+                          title="빌드 로그"
+                        >
+                          <ScrollText size={14} />
+                          빌드 로그
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </div>
     </div>
