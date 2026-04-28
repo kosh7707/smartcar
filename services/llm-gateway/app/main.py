@@ -110,7 +110,7 @@ async def lifespan(_app: FastAPI):
             endpoint=profile.endpoint if profile else settings.llm_endpoint,
             model=profile.modelName if profile else settings.llm_model,
             api_key=profile.apiKey if profile else settings.llm_api_key,
-            enable_thinking=False, json_mode=True,
+            enable_thinking=True, json_mode=True,
             circuit_breaker=circuit_breaker,
         )
 

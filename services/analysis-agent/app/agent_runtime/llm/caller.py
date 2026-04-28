@@ -45,7 +45,7 @@ class LlmCaller:
         model: str,
         api_key: str = "",
         *,
-        enable_thinking: bool = False,
+        enable_thinking: bool = True,
         default_max_tokens: int = 4096,
         service_id: str = "",
         async_poll_deadline_seconds: float | None = None,

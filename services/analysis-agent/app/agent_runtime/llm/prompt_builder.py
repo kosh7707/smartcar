@@ -31,7 +31,7 @@ class SystemPromptBuilder:
             .with_environment(platform="linux", cwd="/project", date="2026-04-02")
             .with_budget(budget_state)
             .add_section("규칙", "JSON만 출력하라.")
-            .set_suffix("/no_think")
+            .set_suffix("추가 지침: 최종 응답은 요구된 출력 형식을 엄격히 따른다.")
             .build()
         )
     """
@@ -80,7 +80,7 @@ class SystemPromptBuilder:
         return self
 
     def set_suffix(self, suffix: str) -> SystemPromptBuilder:
-        """프롬프트 끝에 추가할 접미사를 설정한다 (예: /no_think)."""
+        """프롬프트 끝에 추가할 접미사를 설정한다."""
         self._suffix = suffix
         return self
 

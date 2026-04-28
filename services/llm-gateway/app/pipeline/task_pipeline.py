@@ -340,7 +340,7 @@ class TaskPipeline:
 
                 client = RealLlmClient(
                     endpoint=endpoint, model=model, api_key=api_key,
-                    enable_thinking=False, json_mode=True,
+                    enable_thinking=True, json_mode=True,
                 )
 
             request_id = get_request_id()

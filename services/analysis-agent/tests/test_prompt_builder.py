@@ -90,10 +90,10 @@ class TestSuffix:
         result = (
             SystemPromptBuilder()
             .add_section("역할", "분석가")
-            .set_suffix("/no_think")
+            .set_suffix("추가 지침: JSON만 출력")
             .build()
         )
-        assert result.endswith("/no_think")
+        assert result.endswith("추가 지침: JSON만 출력")
 
 
 class TestDynamicBoundary:
@@ -145,6 +145,20 @@ def test_phase2_prompt_lists_full_required_schema_and_omits_knowledge_ref_exampl
     assert "summary, claims, caveats, usedEvidenceRefs, suggestedSeverity, needsHumanReview, recommendedNextSteps, policyFlags" in system_prompt
     assert "eref-knowledge-CWE-78" not in system_prompt
     assert "Knowledge/CWE ref" in system_prompt or "위협 지식" in system_prompt
+    forbidden = "/no" + "_think"
+    assert forbidden not in system_prompt
+    assert "thinking/reasoning" in system_prompt
+
+
+def test_legacy_task_prompt_registry_has_no_no_think_suffixes():
+    from app.registry.prompt_registry import create_default_registry
+
+    registry = create_default_registry()
+    forbidden = "/no" + "_think"
+
+    for entry in registry._entries.values():
+        assert forbidden not in entry.systemTemplate
+        assert "thinking/reasoning" in entry.systemTemplate
 
 
 def test_phase2_prompt_contains_live_recovery_ledger_summary():

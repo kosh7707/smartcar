@@ -289,6 +289,7 @@ def build_system_prompt(
     )
     builder.add_section(
         "출력 형식",
+        "S7 Gateway의 thinking/reasoning 분리는 활성화되어 있으므로 내부 추론은 충분히 사용하되, 최종 content는 아래 순수 JSON만 포함하라.\n"
         "**순수 JSON만 출력하라. 코드 펜스(```), 인사말, 설명문을 절대 붙이지 마라. 첫 문자는 반드시 `{`이어야 한다.**\n"
         "```json\n"
         "{\n"
@@ -309,5 +310,4 @@ def build_system_prompt(
         "}\n"
         "```",
     )
-    builder.set_suffix("/no_think")
     return builder.build()

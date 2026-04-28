@@ -27,6 +27,7 @@ _exchange_logger = logging.getLogger("llm_exchange")
 router = APIRouter(prefix="/v1", tags=["v1"])
 _STRICT_JSON_HEADER = "x-aegis-strict-json"
 _MAX_CHAT_TIMEOUT_SECONDS = 1800.0
+_DEFAULT_ENABLE_THINKING = True
 
 
 def _ensure_request_id(req: Request) -> str:
@@ -117,6 +118,7 @@ def _log_llm_exchange(
         "usage": response_data.get("usage") if isinstance(response_data, dict) else None,
         "finishReason": finish_reason,
         "strictJson": strict_json,
+        "effectiveThinking": _effective_enable_thinking(request_body),
         "toolChoice": request_body.get("tool_choice", "none"),
         "toolCount": len(request_body.get("tools", [])),
         "request": request_body,
@@ -156,6 +158,7 @@ def _prepare_chat_forward(
     profile = model_registry.get_default()
     llm_endpoint = profile.endpoint if profile else settings.llm_endpoint
     body["model"] = profile.modelName if profile else settings.llm_model
+    _apply_default_thinking_request_controls(body)
     if strict_json:
         _enforce_strict_json_request_controls(body)
     return body, llm_endpoint
@@ -198,13 +201,31 @@ def _strict_json_violation(
     )
 
 
-def _enforce_strict_json_request_controls(body: dict) -> None:
-    body["response_format"] = {"type": "json_object"}
+def _effective_enable_thinking(body: dict) -> bool:
+    chat_template_kwargs = body.get("chat_template_kwargs")
+    if not isinstance(chat_template_kwargs, dict):
+        return _DEFAULT_ENABLE_THINKING
+    value = chat_template_kwargs.get("enable_thinking", _DEFAULT_ENABLE_THINKING)
+    return value if isinstance(value, bool) else _DEFAULT_ENABLE_THINKING
+
+
+def _apply_default_thinking_request_controls(body: dict) -> None:
+    """Make Qwen thinking-on the effective default for every forwarded request.
+
+    A caller may still explicitly pass a boolean false for mechanical/non-reasoning
+    requests, but absent or malformed controls become enable_thinking=true.
+    """
     chat_template_kwargs = body.get("chat_template_kwargs")
     if not isinstance(chat_template_kwargs, dict):
         chat_template_kwargs = {}
-    chat_template_kwargs["enable_thinking"] = False
+    if not isinstance(chat_template_kwargs.get("enable_thinking"), bool):
+        chat_template_kwargs["enable_thinking"] = _DEFAULT_ENABLE_THINKING
     body["chat_template_kwargs"] = chat_template_kwargs
+
+
+def _enforce_strict_json_request_controls(body: dict) -> None:
+    body["response_format"] = {"type": "json_object"}
+    _apply_default_thinking_request_controls(body)
 
 
 def _apply_strict_json_response_contract(resp_data: dict) -> tuple[dict | None, str | None]:
@@ -962,6 +983,9 @@ async def chat_proxy(req: Request) -> Response:
         resp_headers["X-Request-Id"] = request_id
     resp_headers["X-Model"] = body.get("model", "")
     resp_headers["X-Gateway-Latency-Ms"] = str(elapsed_ms)
+    resp_headers["X-AEGIS-Effective-Thinking"] = (
+        "true" if _effective_enable_thinking(body) else "false"
+    )
     if strict_json:
         resp_headers["X-AEGIS-Strict-JSON"] = "applied"
 

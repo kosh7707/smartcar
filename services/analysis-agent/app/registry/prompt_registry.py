@@ -151,7 +151,8 @@ def create_default_registry() -> PromptRegistry:
 6. 코드를 직접 확인하지 않은 경로에 대해 claim을 작성하지 마라.
 7. suggestedSeverity를 선택한 근거를 detail 또는 caveats에 명시하라.
 
-/no_think""",
+## 내부 추론과 최종 출력
+S7 Gateway의 thinking/reasoning 분리는 활성화되어 있다. 내부 추론은 충분히 사용하되, 최종 응답 content에는 요구된 순수 JSON만 출력하라.""",
         userTemplate="""\
 [Finding 정보]
 ${finding_json}
@@ -203,7 +204,8 @@ END_UNTRUSTED_EVIDENCE
 5. 코드를 직접 확인하지 않은 경로에 대해 claim을 작성하지 마라.
 6. suggestedSeverity를 선택한 근거를 detail 또는 caveats에 명시하라.
 
-/no_think""",
+## 내부 추론과 최종 출력
+S7 Gateway의 thinking/reasoning 분리는 활성화되어 있다. 내부 추론은 충분히 사용하되, 최종 응답 content에는 요구된 순수 JSON만 출력하라.""",
         userTemplate="""\
 [이벤트 컨텍스트]
 ${trusted_context}
@@ -251,7 +253,8 @@ END_UNTRUSTED_EVIDENCE
    - 중단 조건 예시: "ECU 비응답 3회 연속", "워치독 리셋 감지 시 즉시 중단"
 5. 가설(hypotheses)은 테스트로 검증 가능한 형태로 작성하라 (예: "SecurityAccess 서비스가 brute-force에 lockout을 적용하는가").
 
-/no_think""",
+## 내부 추론과 최종 출력
+S7 Gateway의 thinking/reasoning 분리는 활성화되어 있다. 내부 추론은 충분히 사용하되, 최종 응답 content에는 요구된 순수 JSON만 출력하라.""",
         userTemplate="""\
 [테스트 목표 및 제약]
 ${trusted_context}
@@ -294,7 +297,8 @@ END_UNTRUSTED_EVIDENCE
 6. 증거에 기반한 주장(claim)만 하라. 확인되지 않은 사항은 caveat으로 명시하라.
 7. suggestedSeverity를 선택한 근거를 detail 또는 caveats에 명시하라.
 
-/no_think""",
+## 내부 추론과 최종 출력
+S7 Gateway의 thinking/reasoning 분리는 활성화되어 있다. 내부 추론은 충분히 사용하되, 최종 응답 content에는 요구된 순수 JSON만 출력하라.""",
         userTemplate="""\
 [Finding 목록]
 ${trusted_context}
@@ -345,7 +349,8 @@ summary에 다음 구조를 따라 보고서 초안을 작성하라:
 7. 코드를 직접 확인하지 않은 경로에 대해 claim을 작성하지 마라.
 8. suggestedSeverity를 선택한 근거를 detail 또는 caveats에 명시하라.
 
-/no_think""",
+## 내부 추론과 최종 출력
+S7 Gateway의 thinking/reasoning 분리는 활성화되어 있다. 내부 추론은 충분히 사용하되, 최종 응답 content에는 요구된 순수 JSON만 출력하라.""",
         userTemplate="""\
 [보고서 입력 데이터]
 ${trusted_context}
@@ -386,7 +391,8 @@ deep-analyze에서 발견된 특정 취약점(claim)에 대해:
 - 실행 환경의 전제 조건 (타겟 서비스 기동, 포트, 인증 등)을 명시하라
 - 방어 우회가 필요한 경우 (ASLR, 스택 카나리 등) 그 한계를 caveat에 명시하라
 
-/no_think""",
+## 내부 추론과 최종 출력
+S7 Gateway의 thinking/reasoning 분리는 활성화되어 있다. 내부 추론은 충분히 사용하되, 최종 응답 content에는 요구된 순수 JSON만 출력하라.""",
         userTemplate="""\
 [분석된 취약점 (Claim)]
 ${trusted_context}

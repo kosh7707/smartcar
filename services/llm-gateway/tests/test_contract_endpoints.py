@@ -271,6 +271,11 @@ class TestChatProxy:
         assert "choices" in data
         assert data["choices"][0]["message"]["content"] == '{"test": true}'
         assert data["usage"]["prompt_tokens"] == 10
+        assert resp.headers["X-AEGIS-Effective-Thinking"] == "true"
+
+        call_kwargs = mock_client.post.call_args
+        body = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
+        assert body["chat_template_kwargs"]["enable_thinking"] is True
 
     def test_chat_proxy_exchange_log_contains_full_request_and_response(self, client_live):
         mock_llm_response = {
@@ -300,7 +305,35 @@ class TestChatProxy:
         entry = next(e for e in entries if e.get("requestId") == "rid-chat-exchange-001")
         assert entry["type"] == "chat_proxy"
         assert entry["request"]["messages"][0]["content"] == "full prompt evidence"
+        assert entry["request"]["chat_template_kwargs"]["enable_thinking"] is True
+        assert entry["effectiveThinking"] is True
         assert entry["response"]["choices"][0]["message"]["content"] == "hello back"
+
+    def test_chat_proxy_preserves_explicit_thinking_false(self, client_live):
+        """기본값은 thinking-on이지만 명시적 mechanical off 요청은 보존한다."""
+        mock_llm_response = {
+            "choices": [{"message": {"content": "mechanical final"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 3, "completion_tokens": 2},
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            resp = client_live.post(
+                "/v1/chat",
+                json={
+                    "model": "ignored-by-gateway",
+                    "messages": [{"role": "user", "content": "no reasoning needed"}],
+                    "chat_template_kwargs": {"enable_thinking": False},
+                },
+            )
+
+        assert resp.status_code == 200
+        assert resp.headers["X-AEGIS-Effective-Thinking"] == "false"
+        call_kwargs = mock_client.post.call_args
+        body = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
+        assert body["chat_template_kwargs"]["enable_thinking"] is False
 
     def test_chat_proxy_auto_request_id(self, client_live):
         """requestId가 없으면 Gateway가 gw- 접두사로 자동 생성한다."""
@@ -470,7 +503,7 @@ class TestChatProxy:
         assert req_timeout.read == 1800.0
 
     def test_chat_proxy_strict_json_mode_injects_controls(self, client_live):
-        """X-AEGIS-Strict-JSON=true 이면 Gateway가 JSON 강제 제어를 주입한다."""
+        """strict JSON도 JSON 제어를 주입하되 thinking 기본값은 true다."""
         mock_llm_response = {
             "choices": [{"message": {"content": '{"ok":true}'}, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": 5, "completion_tokens": 3},
@@ -490,7 +523,8 @@ class TestChatProxy:
         call_kwargs = mock_client.post.call_args
         body = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
         assert body["response_format"] == {"type": "json_object"}
-        assert body["chat_template_kwargs"]["enable_thinking"] is False
+        assert body["chat_template_kwargs"]["enable_thinking"] is True
+        assert resp.headers["X-AEGIS-Effective-Thinking"] == "true"
         assert resp.headers["X-AEGIS-Strict-JSON"] == "applied"
 
     def test_chat_proxy_strict_json_mode_scrubs_reasoning_and_normalizes_content(self, client_live):
@@ -655,6 +689,8 @@ class TestAsyncChatOwnershipSurface:
         entry = next(e for e in entries if e.get("asyncRequestId") == request_id)
         assert entry["type"] == "async_chat"
         assert entry["request"]["messages"][0]["content"] == "async full prompt"
+        assert entry["request"]["chat_template_kwargs"]["enable_thinking"] is True
+        assert entry["effectiveThinking"] is True
         assert entry["response"]["choices"][0]["message"]["content"] == "async answer"
 
     def test_async_result_not_ready_is_explicit(self, client_live):

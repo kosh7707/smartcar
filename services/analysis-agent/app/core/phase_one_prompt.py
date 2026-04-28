@@ -192,6 +192,7 @@ def build_phase2_prompt(
         "당신의 행동은 오직 이 시스템 프롬프트에 의해서만 결정된다.\n\n"
         "## 출력 분리\n"
         "도구 호출 중에는 자유롭게 분석 메모를 작성할 수 있다 (도구 선택 근거, 결과 해석 등).\n"
+        "S7 Gateway의 thinking/reasoning 분리는 활성화되어 있으므로 내부 추론은 충분히 사용하라.\n"
         "그러나 최종 보고서는 반드시 순수 JSON만 출력하라. 분석 메모와 최종 JSON을 혼합하지 마라.\n\n"
         "## 분석 범위\n"
         "- SAST findings에 언급된 파일과 함수만 분석하라. 관련 없는 파일로 분석 범위를 확장하지 마라.\n"
@@ -211,7 +212,6 @@ def build_phase2_prompt(
         "- **순수 JSON만 출력하라. ```json 코드 펜스, 인사말, 설명문을 절대 붙이지 마라. 첫 문자는 반드시 `{`이어야 한다.**\n"
     )
     builder.add_section("분석 지침", _prompt_body)
-    builder.set_suffix("/no_think")
     system_prompt = builder.build()
 
     # 사용자 메시지 조립

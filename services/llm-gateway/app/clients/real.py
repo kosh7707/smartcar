@@ -30,7 +30,7 @@ class RealLlmClient(LlmClient):
         model: str,
         api_key: str = "",
         *,
-        enable_thinking: bool = False,
+        enable_thinking: bool = True,
         json_mode: bool = True,
         circuit_breaker: CircuitBreaker | None = None,
     ):

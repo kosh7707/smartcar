@@ -114,18 +114,24 @@ async def _call_llm(
         ],
         "max_tokens": max_tokens,
         "temperature": 0.3,
-        "chat_template_kwargs": {"enable_thinking": False},
+        "chat_template_kwargs": {"enable_thinking": True},
         "response_format": {"type": "json_object"},
     }
 
-    async_data = await _call_llm_via_async_ownership(client, gateway_url, body)
+    headers = {
+        "Content-Type": "application/json",
+        "X-Timeout-Seconds": "600",
+        "X-AEGIS-Strict-JSON": "true",
+    }
+
+    async_data = await _call_llm_via_async_ownership(client, gateway_url, body, headers=headers)
     if async_data is not None:
         return async_data
 
     resp = await client.post(
         f"{gateway_url}/v1/chat",
         json=body,
-        headers={"Content-Type": "application/json", "X-Timeout-Seconds": "600"},
+        headers=headers,
         timeout=httpx.Timeout(connect=10.0, read=660.0, write=10.0, pool=30.0),
     )
     resp.raise_for_status()
@@ -136,6 +142,8 @@ async def _call_llm_via_async_ownership(
     client: httpx.AsyncClient,
     gateway_url: str,
     body: dict,
+    *,
+    headers: dict[str, str] | None = None,
 ) -> dict | None:
     retry_at = client.__dict__.get("_aegis_async_retry_at", 0.0)
     if time.monotonic() < retry_at:
@@ -144,7 +152,7 @@ async def _call_llm_via_async_ownership(
     submit_resp = await client.post(
         f"{gateway_url}/v1/async-chat-requests",
         json=body,
-        headers={"Content-Type": "application/json"},
+        headers=headers or {"Content-Type": "application/json"},
         timeout=httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=30.0),
     )
 

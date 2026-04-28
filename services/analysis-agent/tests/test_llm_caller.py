@@ -126,6 +126,7 @@ async def test_tools_included_in_request_body():
     assert "tools" in body
     assert body["tool_choice"] == "auto"
     assert "response_format" not in body
+    assert body["chat_template_kwargs"] == {"enable_thinking": True}
 
 
 @pytest.mark.asyncio
@@ -140,6 +141,7 @@ async def test_no_tools_uses_json_mode():
     body = call_args.kwargs.get("json") or call_args[1].get("json")
     assert "tools" not in body
     assert body["response_format"] == {"type": "json_object"}
+    assert body["chat_template_kwargs"] == {"enable_thinking": True}
     headers = call_args.kwargs.get("headers") or call_args[1].get("headers")
     assert headers["X-AEGIS-Strict-JSON"] == "true"
 
@@ -189,7 +191,9 @@ async def test_async_ownership_returns_wrapped_result_for_toolless_calls():
     assert result.has_tool_calls() is False
     submit_args = caller._client.post.await_args_list[0]
     submit_headers = submit_args.kwargs["headers"]
+    submit_body = submit_args.kwargs["json"]
     assert "X-Timeout-Seconds" in submit_headers
+    assert submit_body["chat_template_kwargs"] == {"enable_thinking": True}
 
 
 @pytest.mark.asyncio
