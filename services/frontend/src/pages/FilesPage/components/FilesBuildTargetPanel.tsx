@@ -1,5 +1,5 @@
 import React from "react";
-import { HardDrive, Plus, ScrollText } from "lucide-react";
+import { Plus, ScrollText } from "lucide-react";
 import type { useBuildTargets } from "../../../hooks/useBuildTargets";
 import { TargetStatusBadge } from "../../../shared/ui";
 
@@ -15,13 +15,12 @@ export function FilesBuildTargetPanel({
   return (
     <div className="panel files-build-target-panel">
       <div className="panel-head files-build-target-panel__head">
-        <h3 className="panel-title files-build-target-panel__title">
-          <HardDrive size={16} />
-          빌드 타겟 현황
-          {targets.length > 0 && (
-            <span className="files-build-target-panel__title-count">({targets.length}개)</span>
-          )}
-        </h3>
+        <div className="files-build-target-panel__copy">
+          <h3 className="panel-title files-build-target-panel__title">빌드 타겟 현황</h3>
+          <span className="files-build-target-panel__summary">
+            {targets.length > 0 ? `${targets.length}개 타겟 · compile_commands 컨텍스트` : "타겟 생성 후 빌드 로그를 확인할 수 있습니다"}
+          </span>
+        </div>
         <button type="button" className="btn btn-primary btn-sm" onClick={onOpenCreateTarget}>
           <Plus size={14} />
           빌드 타겟 생성
@@ -36,7 +35,7 @@ export function FilesBuildTargetPanel({
           <table className="files-build-targets">
             <colgroup>
               <col style={{ width: "220px" }} />
-              <col style={{ width: "110px" }} />
+              <col style={{ width: "156px" }} />
               <col />
               <col style={{ width: "140px" }} />
             </colgroup>
@@ -56,7 +55,7 @@ export function FilesBuildTargetPanel({
                   <tr key={target.id}>
                     <td className="files-build-targets__name">{target.name}</td>
                     <td>
-                      <TargetStatusBadge status={status} />
+                      <TargetStatusBadge status={status} size="sm" />
                     </td>
                     <td className="files-build-targets__path">{target.relativePath}</td>
                     <td className="files-build-targets__action-cell">
