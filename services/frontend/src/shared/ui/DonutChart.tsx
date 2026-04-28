@@ -68,10 +68,10 @@ export const DonutChart: React.FC<Props> = ({
                   strokeDasharray={`${circumference}`}
                   strokeDashoffset={dashOffset}
                   strokeLinecap="butt"
+                  className="donut-chart__segment"
                   style={{
                     transform: `rotate(${(currentOffset / circumference) * 360}deg)`,
                     transformOrigin: `${cx}px ${cy}px`,
-                    transition: "stroke-dashoffset 600ms ease",
                   }}
                 />
               );

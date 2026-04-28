@@ -105,7 +105,6 @@ export const CustomReportModal: React.FC<Props> = ({ projectId, onClose }) => {
             onChange={(e) => setExecutiveSummary(e.target.value)}
             placeholder="보고서 서두에 포함할 요약문"
             rows={4}
-            style={{ resize: "vertical" }}
           />
           <span className="form-hint">보고서 서두에 삽입됩니다.</span>
         </div>

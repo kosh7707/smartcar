@@ -217,7 +217,7 @@ export function useFilesPage(
 
   const renderFileIcon = useCallback(
     (data: SourceFileEntry) => (
-      <FileText size={16} style={{ color: getLangColorByName(data.language), flexShrink: 0 }} />
+      <FileText size={16} className="ftree-file-icon" style={{ color: getLangColorByName(data.language) }} />
     ),
     [],
   );

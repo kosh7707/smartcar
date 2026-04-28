@@ -51,12 +51,11 @@ export function AuthConsoleShell({ brandPanel, children, onBack }: AuthConsoleSh
       <section className="form-panel" data-chore>
         {onBack ? (
           <button
-            className="theme-toggle chore c-1"
+            className="theme-toggle theme-toggle--back-offset chore c-1"
             type="button"
             onClick={onBack.onClick}
             aria-label={onBack.label}
             title={onBack.label}
-            style={{ right: "calc(var(--space-6) + 42px)" }}
           >
             <ArrowLeft />
           </button>

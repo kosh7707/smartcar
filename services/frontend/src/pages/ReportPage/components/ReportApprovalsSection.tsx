@@ -2,40 +2,52 @@ import React from "react";
 import type { ProjectReport } from "@aegis/shared";
 import { formatDateTime } from "../../../utils/format";
 
-const approvalStatusTone = {
-  approved: "report-status-tone report-status-tone--approved",
-  rejected: "report-status-tone report-status-tone--rejected",
-  pending:  "report-status-tone report-status-tone--pending",
-} as const;
+const STATUS_LABEL: Record<string, string> = {
+  pending: "대기",
+  approved: "승인",
+  rejected: "거부",
+  expired: "만료",
+};
 
-export function ReportApprovalsSection({ approvals }: { approvals: ProjectReport["approvals"] }) {
+interface Props {
+  approvals: ProjectReport["approvals"];
+}
+
+export const ReportApprovalsSection: React.FC<Props> = ({ approvals }) => {
+  if (approvals.length === 0) {
+    return <div className="report-empty-line">관련 승인 요청이 없습니다.</div>;
+  }
+
   return (
-    <div className="panel">
-      <div className="panel-head">
-        <h3>승인 이력 ({approvals.length})</h3>
-      </div>
-      <div className="panel-body report-list-body">
-        {approvals.map((approval) => (
-          <div key={approval.id} className="report-list-row">
-            <div className="report-list-meta">
-              <span
-                className={
-                  approvalStatusTone[approval.status as keyof typeof approvalStatusTone] ??
-                  "report-status-tone"
-                }
-              >
-                {approval.status}
-              </span>
-              <span className="report-list-primary">{approval.actionType}</span>
-              <span className="report-list-secondary">요청: {approval.requestedBy}</span>
-              {approval.decision && (
-                <span className="report-list-secondary">결정: {approval.decision.decidedBy}</span>
-              )}
-            </div>
-            <span className="report-list-timestamp">{formatDateTime(approval.createdAt)}</span>
-          </div>
-        ))}
-      </div>
+    <div className="report-table-wrap">
+      <table className="report-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>상태</th>
+            <th>유형</th>
+            <th>요청자</th>
+            <th>결정자</th>
+            <th>시각</th>
+          </tr>
+        </thead>
+        <tbody>
+          {approvals.map((a) => (
+            <tr key={a.id}>
+              <td className="mono">{a.id}</td>
+              <td>
+                <span className={`report-status-tag is-${a.status}`}>
+                  {STATUS_LABEL[a.status] ?? a.status}
+                </span>
+              </td>
+              <td className="mono">{a.actionType}</td>
+              <td>{a.requestedBy}</td>
+              <td className="muted">{a.decision?.decidedBy ?? "—"}</td>
+              <td className="muted nowrap mono">{formatDateTime(a.createdAt)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
-}
+};

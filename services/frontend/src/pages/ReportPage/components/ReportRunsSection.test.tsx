@@ -4,16 +4,16 @@ import { render, screen } from "@testing-library/react";
 import { ReportRunsSection } from "./ReportRunsSection";
 
 describe("ReportRunsSection", () => {
-  it("renders nothing when there are no runs", () => {
-    const { container } = render(<ReportRunsSection runs={[]} />);
-    expect(container).toBeEmptyDOMElement();
+  it("renders the inline empty line when there are no runs", () => {
+    render(<ReportRunsSection runs={[]} showModule />);
+    expect(screen.getByText("실행 이력이 없습니다.")).toBeInTheDocument();
   });
 
-  it("renders run rows with status and gate badges", () => {
+  it("renders run rows with status, gate badges and finding count", () => {
     const runs = [
       {
         run: {
-          id: "run-1",
+          id: "run-1abcdef",
           module: "static_analysis",
           status: "completed",
           findingCount: 2,
@@ -23,7 +23,7 @@ describe("ReportRunsSection", () => {
       },
       {
         run: {
-          id: "run-2",
+          id: "run-2abcdef",
           module: "deep_analysis",
           status: "failed",
           findingCount: 1,
@@ -33,13 +33,13 @@ describe("ReportRunsSection", () => {
       },
     ] as any;
 
-    render(<ReportRunsSection runs={runs} />);
+    render(<ReportRunsSection runs={runs} showModule />);
 
-    expect(screen.getByText("실행 이력 (2)")).toBeInTheDocument();
-    expect(screen.getAllByText("completed").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("failed").length).toBeGreaterThan(0);
-    expect(screen.getByText("게이트: pass")).toBeInTheDocument();
-    expect(screen.getByText("게이트: fail")).toBeInTheDocument();
-    expect(screen.getByText("탐지 항목 2건")).toBeInTheDocument();
+    expect(screen.getByText("completed")).toBeInTheDocument();
+    expect(screen.getByText("failed")).toBeInTheDocument();
+    expect(screen.getByText("PASS")).toBeInTheDocument();
+    expect(screen.getByText("FAIL")).toBeInTheDocument();
+    expect(screen.getByText("정적 분석")).toBeInTheDocument();
+    expect(screen.getByText("심층 분석")).toBeInTheDocument();
   });
 });

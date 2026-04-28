@@ -18,27 +18,33 @@ import { getLangColorByName } from "../../../constants/languages";
 const FileDetailIcon: React.FC<{ language?: string }> = ({ language }) => {
   const size = 28;
   const lang = language?.toLowerCase() ?? "";
-  const color = getLangColorByName(lang) || "var(--cds-text-placeholder)";
+  // Per-language brand color is genuinely runtime-derived. getLangColorByName
+  // always returns a string — for unknown languages it falls back to the CSS
+  // placeholder var, which we filter out so the CSS default (var(--foreground-subtle))
+  // can take over without a redundant inline style.
+  const langColor = getLangColorByName(lang);
+  const hasBrandColor = langColor !== "var(--cds-text-placeholder)";
+  const dynamicStyle = hasBrandColor ? { color: langColor } : undefined;
 
   if (["c", "cpp", "cc", "cxx", "h", "hpp", "hh", "hxx", "java", "python", "py", "javascript", "js", "typescript", "ts"].includes(lang)) {
-    return <FileCode size={size} className="file-detail-header__icon-svg" style={{ color }} />;
+    return <FileCode size={size} className="file-detail-header__icon-svg" style={dynamicStyle} />;
   }
   if (["shell", "sh", "bash", "powershell"].includes(lang)) {
-    return <Terminal size={size} className="file-detail-header__icon-svg" style={{ color }} />;
+    return <Terminal size={size} className="file-detail-header__icon-svg" style={dynamicStyle} />;
   }
   if (["cmake", "make"].includes(lang)) {
-    return <Wrench size={size} className="file-detail-header__icon-svg" style={{ color: "var(--cds-text-placeholder)" }} />;
+    return <Wrench size={size} className="file-detail-header__icon-svg" />;
   }
   if (["json", "yaml", "yml", "toml", "xml", "config"].includes(lang)) {
-    return <Settings size={size} className="file-detail-header__icon-svg" style={{ color: "var(--cds-text-placeholder)" }} />;
+    return <Settings size={size} className="file-detail-header__icon-svg" />;
   }
   if (["markdown", "md", "text", "txt"].includes(lang)) {
-    return <BookOpen size={size} className="file-detail-header__icon-svg" style={{ color: "var(--cds-text-placeholder)" }} />;
+    return <BookOpen size={size} className="file-detail-header__icon-svg" />;
   }
   if (["linker-script"].includes(lang)) {
-    return <Link2 size={size} className="file-detail-header__icon-svg" style={{ color: "var(--cds-text-placeholder)" }} />;
+    return <Link2 size={size} className="file-detail-header__icon-svg" />;
   }
-  return <FileText size={size} className="file-detail-header__icon-svg" style={{ color }} />;
+  return <FileText size={size} className="file-detail-header__icon-svg" style={dynamicStyle} />;
 };
 
 interface FileDetailHeaderProps {

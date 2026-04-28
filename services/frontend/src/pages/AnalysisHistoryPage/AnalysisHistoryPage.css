@@ -246,6 +246,11 @@ body.no-live .run-status--running .run-status__dot {
   }
 }
 
+/* .panel-body--flush is defined globally in handoff/components/panel.css.
+ * Page-level table just needs the basic table layout reset. */
+.history-runs-table { width: 100%; border-collapse: collapse; }
+
+
 /* ── PageHeader subtitle inline emphasis ───────────────────────────────── */
 .history-page__sub {
   display: inline;

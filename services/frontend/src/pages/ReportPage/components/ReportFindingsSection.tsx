@@ -1,75 +1,89 @@
 import React from "react";
 import type { ProjectReport } from "@aegis/shared";
-import { EmptyState, FindingStatusBadge, SeverityBadge, SourceBadge } from "../../../shared/ui";
 import { MODULE_META } from "../../../constants/modules";
+import { FINDING_STATUS_LABELS } from "../../../constants/finding";
 
 type FindingsEntry = ProjectReport["modules"][keyof ProjectReport["modules"]] extends infer T
-  ? T extends { findings: infer F } ? F extends Array<infer U> ? U : never : never
+  ? T extends { findings: infer F }
+    ? F extends Array<infer U>
+      ? U
+      : never
+    : never
   : never;
 
-interface ReportFindingsSectionProps {
+const SEV_LABEL: Record<string, string> = {
+  critical: "치명",
+  high: "높음",
+  medium: "보통",
+  low: "낮음",
+};
+
+interface Props {
   findings: FindingsEntry[];
+  showModule: boolean;
 }
 
-export const ReportFindingsSection: React.FC<ReportFindingsSectionProps> = ({ findings }) => (
-  <div className="panel">
-    <div className="panel-head">
-      <h3>탐지 항목 목록 ({findings.length})</h3>
-    </div>
-    <div className="panel-body report-findings-body">
-      {findings.length === 0 ? (
-        <div className="report-findings-empty">
-          <EmptyState compact title="해당 조건의 탐지 항목이 없습니다" />
-        </div>
-      ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th className="report-table-th">상태</th>
-              <th className="report-table-th">심각도</th>
-              <th className="report-table-th">제목</th>
-              <th className="report-table-th">출처</th>
-              <th className="report-table-th">모듈</th>
-              <th className="report-table-th report-table-th--center">증적</th>
-            </tr>
-          </thead>
-          <tbody>
-            {findings.map(({ finding, evidenceRefs }) => (
-              <tr key={finding.id}>
-                <td className="report-table-td">
-                  <FindingStatusBadge status={finding.status} />
-                </td>
-                <td className="report-table-td">
-                  <SeverityBadge severity={finding.severity} />
-                </td>
-                <td className="report-table-td report-table-td--wrap">
-                  <div className="report-finding-title-block">
-                    <p className="report-finding-title">{finding.title}</p>
-                    {finding.location && (
-                      <p className="report-finding-location">{finding.location}</p>
-                    )}
-                  </div>
-                </td>
-                <td className="report-table-td report-table-td--wrap">
-                  <SourceBadge sourceType={finding.sourceType} ruleId={finding.ruleId} />
-                </td>
-                <td className="report-table-td">
+export const ReportFindingsSection: React.FC<Props> = ({ findings, showModule }) => {
+  if (findings.length === 0) {
+    return (
+      <div className="report-empty-line">조건에 해당하는 탐지 항목이 없습니다.</div>
+    );
+  }
+
+  return (
+    <div className="report-table-wrap">
+      <table className="report-table">
+        <thead>
+          <tr>
+            <th>상태</th>
+            <th>심각도</th>
+            <th>제목</th>
+            <th>출처</th>
+            {showModule ? <th>모듈</th> : null}
+            <th className="center">증적</th>
+          </tr>
+        </thead>
+        <tbody>
+          {findings.map(({ finding, evidenceRefs }) => (
+            <tr key={finding.id}>
+              <td>
+                <span className={`report-status-tag is-${finding.status}`}>
+                  {FINDING_STATUS_LABELS[
+                    finding.status as keyof typeof FINDING_STATUS_LABELS
+                  ] ?? finding.status}
+                </span>
+              </td>
+              <td>
+                <span className={`report-sev is-${finding.severity}`}>
+                  {SEV_LABEL[finding.severity] ?? finding.severity}
+                </span>
+              </td>
+              <td>
+                <div>
+                  <p className="report-finding-title">{finding.title}</p>
+                  {finding.location ? (
+                    <p className="report-finding-loc">{finding.location}</p>
+                  ) : null}
+                </div>
+              </td>
+              <td className="muted nowrap">
+                <span className="report-source">
+                  <span className="name">{finding.sourceType}</span>
+                  {finding.ruleId ? ` · ${finding.ruleId}` : ""}
+                </span>
+              </td>
+              {showModule ? (
+                <td className="muted nowrap">
                   {MODULE_META[finding.module]?.label ?? finding.module}
                 </td>
-                <td className="report-table-td report-table-td--center">
-                  {evidenceRefs.length > 0 ? (
-                    <span className="report-evidence-chip">
-                      {evidenceRefs.length}건
-                    </span>
-                  ) : (
-                    <span className="report-table-empty-mark">&mdash;</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+              ) : null}
+              <td className="center mono">
+                {evidenceRefs.length > 0 ? evidenceRefs.length : "—"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
-  </div>
-);
+  );
+};

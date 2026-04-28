@@ -478,8 +478,9 @@
   background-size: 200% 100%;
   animation: overview-empty-shimmer 4s linear infinite;
 }
-.overview-empty__tile-bar:nth-child(2) { animation-delay: -0.8s; }
-.overview-empty__tile-bar:nth-child(3) { animation-delay: -1.6s; }
+.overview-empty__tile-bar:nth-child(1) { width: 72%; }
+.overview-empty__tile-bar:nth-child(2) { width: 48%; animation-delay: -0.8s; }
+.overview-empty__tile-bar:nth-child(3) { width: 60%; animation-delay: -1.6s; }
 .overview-empty__tile-caption {
   margin-top: auto;
   font-family: var(--font-mono);
@@ -557,6 +558,7 @@
 .donut-chart__label { font-size:14px; fill:var(--cds-text-placeholder); }
 .donut-chart__legend { display:flex; flex-direction:column; gap:12px; }
 .donut-chart__legend-item { display:flex; align-items:center; gap:12px; }
+.donut-chart__segment { transition: stroke-dashoffset 600ms ease; }
 .donut-chart__legend-dot { width:10px; height:10px; flex-shrink:0; border-radius:999px; }
 .donut-chart__legend-label { font-size:var(--text-sm); color:var(--foreground-muted); }
 .donut-chart__legend-value { font-size:var(--text-sm); font-weight:var(--weight-semibold); color:var(--foreground); }

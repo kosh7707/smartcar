@@ -78,7 +78,7 @@ export const ResetPasswordPage: React.FC = () => {
           </>
         ) : !hasToken ? (
           <>
-            <div className="notice chore c-5" role="alert" style={{ borderColor: "var(--danger)", background: "var(--danger-surface)" }}>
+            <div className="notice notice--danger chore c-5" role="alert">
               <Info aria-hidden="true" />
               <div>
                 <strong>재설정 링크가 유효하지 않습니다.</strong><br />
@@ -90,7 +90,7 @@ export const ResetPasswordPage: React.FC = () => {
             </div>
           </>
         ) : (
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
+          <form onSubmit={handleSubmit} className="auth-form-stack">
             <div className="field chore c-5">
               <label htmlFor="reset-password">새 비밀번호</label>
               <div className="input-wrap">
@@ -111,7 +111,7 @@ export const ResetPasswordPage: React.FC = () => {
                 </button>
               </div>
               {password.length > 0 && !meetsLength ? (
-                <div className="hint" style={{ color: "var(--danger)" }}>최소 8자 이상 입력해 주세요.</div>
+                <div className="hint hint--danger">최소 8자 이상 입력해 주세요.</div>
               ) : null}
             </div>
 
@@ -131,12 +131,12 @@ export const ResetPasswordPage: React.FC = () => {
                 />
               </div>
               {confirmPassword.length > 0 && !passwordsMatch ? (
-                <div className="hint" style={{ color: "var(--danger)" }}>비밀번호가 일치하지 않습니다.</div>
+                <div className="hint hint--danger">비밀번호가 일치하지 않습니다.</div>
               ) : null}
             </div>
 
             {error ? (
-              <div className="notice chore c-7" role="alert" style={{ borderColor: "var(--danger)", background: "var(--danger-surface)" }}>
+              <div className="notice notice--danger chore c-7" role="alert">
                 <Info aria-hidden="true" />
                 <div>{error}</div>
               </div>

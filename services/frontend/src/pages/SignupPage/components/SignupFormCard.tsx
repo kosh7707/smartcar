@@ -141,7 +141,7 @@ export function SignupFormCard({
             </div>
           </div>
 
-          <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--space-7)" }}>
+          <form onSubmit={onSubmit} className="signup-form-stack">
             <div className="section-group chore c-6">
               <div className="rail">
                 <div className="num">01</div>
@@ -196,11 +196,11 @@ export function SignupFormCard({
                 <div className="field">
                   <label htmlFor="signup-org-code">
                     <span>조직 코드</span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--foreground-subtle)" }}>CASE-SENSITIVE</span>
+                    <span className="label-caps">CASE-SENSITIVE</span>
                   </label>
                   <div className="input-wrap">
                     <Building2 className="leading" aria-hidden="true" />
-                    <input id="signup-org-code" className="input" type="text" placeholder="ACME-KR-SEC" autoComplete="off" value={orgCode} onChange={(event) => onOrgCodeChange(event.target.value)} style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.04em", paddingRight: 82 }} required />
+                    <input id="signup-org-code" className="input signup-org-input" type="text" placeholder="ACME-KR-SEC" autoComplete="off" value={orgCode} onChange={(event) => onOrgCodeChange(event.target.value)} required />
                     <button id="org-verify-btn" data-state={orgVerification.status} type="button" className="trailing-btn" onClick={onVerifyOrg} aria-label="조직 코드 검증">verify</button>
                   </div>
                 </div>
@@ -216,21 +216,21 @@ export function SignupFormCard({
               </div>
             </div>
 
-            <div className="chore c-9" style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", marginTop: "var(--space-2)" }}>
+            <div className="chore c-9 signup-consent-stack">
               <label className="checkbox-row">
                 <input type="checkbox" checked={termsAccepted} onChange={(event) => onTermsAcceptedChange(event.target.checked)} />
                 <span className="box"><Check /></span>
-                <span><button type="button" onClick={(event) => event.preventDefault()}>서비스 이용 약관</button>과 <button type="button" onClick={(event) => event.preventDefault()}>개인정보 처리방침</button>에 동의합니다. <span style={{ color: 'var(--danger)' }}>*</span></span>
+                <span><button type="button" onClick={(event) => event.preventDefault()}>서비스 이용 약관</button>과 <button type="button" onClick={(event) => event.preventDefault()}>개인정보 처리방침</button>에 동의합니다. <span className="signup-required-marker">*</span></span>
               </label>
               <label className="checkbox-row">
                 <input type="checkbox" checked={auditAccepted} onChange={(event) => onAuditAcceptedChange(event.target.checked)} />
                 <span className="box"><Check /></span>
-                <span>계정 활동은 감사 목적으로 기록되며, 조직 관리자가 열람할 수 있음을 이해합니다. <span style={{ color: 'var(--danger)' }}>*</span></span>
+                <span>계정 활동은 감사 목적으로 기록되며, 조직 관리자가 열람할 수 있음을 이해합니다. <span className="signup-required-marker">*</span></span>
               </label>
             </div>
 
             {submitError ? (
-              <div className="notice chore c-9" role="alert" style={{ borderColor: "var(--danger)", background: "var(--danger-surface)" }}>
+              <div className="notice notice--danger chore c-9" role="alert">
                 <AlertCircle aria-hidden="true" />
                 <div>{submitError}</div>
               </div>

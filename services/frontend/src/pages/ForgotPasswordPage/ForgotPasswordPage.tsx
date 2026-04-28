@@ -64,7 +64,7 @@ export const ForgotPasswordPage: React.FC = () => {
             <button className="btn btn-ghost btn-block chore c-9" type="button" onClick={reset}>다른 이메일로 다시 요청</button>
           </>
         ) : (
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
+          <form onSubmit={handleSubmit} className="auth-form-stack">
             <div className="field chore c-5">
               <label htmlFor="forgot-email">이메일</label>
               <div className="input-wrap">
@@ -85,7 +85,7 @@ export const ForgotPasswordPage: React.FC = () => {
             </div>
 
             {error ? (
-              <div className="notice chore c-6" role="alert" style={{ borderColor: "var(--danger)", background: "var(--danger-surface)" }}>
+              <div className="notice notice--danger chore c-6" role="alert">
                 <Info aria-hidden="true" />
                 <div>{error}</div>
               </div>

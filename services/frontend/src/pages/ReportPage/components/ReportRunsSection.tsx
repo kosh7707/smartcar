@@ -4,63 +4,69 @@ import { MODULE_META } from "../../../constants/modules";
 import { formatDateTime } from "../../../utils/format";
 
 type RunsEntry = ProjectReport["modules"][keyof ProjectReport["modules"]] extends infer T
-  ? T extends { runs: infer F } ? F extends Array<infer U> ? U : never : never
+  ? T extends { runs: infer F }
+    ? F extends Array<infer U>
+      ? U
+      : never
+    : never
   : never;
 
-interface ReportRunsSectionProps {
+interface Props {
   runs: RunsEntry[];
+  showModule: boolean;
 }
 
-const runStatusTone = {
-  completed: "report-status-tone report-status-tone--completed",
-  failed: "report-status-tone report-status-tone--failed",
-  running: "report-status-tone report-status-tone--running",
-} as const;
-
-const gateStatusTone = {
-  pass: "report-status-tone report-status-tone--pass",
-  fail: "report-status-tone report-status-tone--fail",
-} as const;
-
-export const ReportRunsSection: React.FC<ReportRunsSectionProps> = ({ runs }) => {
-  if (runs.length === 0) return null;
+export const ReportRunsSection: React.FC<Props> = ({ runs, showModule }) => {
+  if (runs.length === 0) {
+    return <div className="report-empty-line">실행 이력이 없습니다.</div>;
+  }
 
   return (
-    <div className="panel">
-      <div className="panel-head">
-        <h3>실행 이력 ({runs.length})</h3>
-      </div>
-      <div className="panel-body report-list-body">
-        {runs.map(({ run, gate }) => (
-          <div key={run.id} className="report-list-row">
-            <div className="report-list-meta">
-              <span
-                className={
-                  runStatusTone[run.status as keyof typeof runStatusTone] ??
-                  "report-status-tone"
-                }
-              >
-                {run.status}
-              </span>
-              <span className="report-list-primary">
-                {MODULE_META[run.module]?.label ?? run.module}
-              </span>
-              <span className="report-list-secondary">탐지 항목 {run.findingCount}건</span>
-              {gate?.status && (
-                <span
-                  className={
-                    gateStatusTone[gate.status as keyof typeof gateStatusTone] ??
-                    "report-status-tone"
-                  }
-                >
-                  게이트: {gate.status}
-                </span>
-              )}
-            </div>
-            <span className="report-list-timestamp">{formatDateTime(run.createdAt)}</span>
-          </div>
-        ))}
-      </div>
+    <div className="report-table-wrap">
+      <table className="report-table">
+        <thead>
+          <tr>
+            <th>실행</th>
+            {showModule ? <th>모듈</th> : null}
+            <th>상태</th>
+            <th>게이트</th>
+            <th className="center">탐지</th>
+            <th>시각</th>
+          </tr>
+        </thead>
+        <tbody>
+          {runs.map(({ run, gate }) => {
+            const gateStatus = gate?.status as "pass" | "fail" | undefined;
+            const gateClass = gateStatus
+              ? `report-gate-tag is-${gateStatus}`
+              : "report-gate-tag is-none";
+            return (
+              <tr key={run.id}>
+                <td className="mono">{run.id.slice(0, 8)}</td>
+                {showModule ? (
+                  <td className="muted nowrap">
+                    {MODULE_META[run.module]?.label ?? run.module}
+                  </td>
+                ) : null}
+                <td>
+                  <span className={`report-status-tag is-${run.status}`}>
+                    {run.status}
+                  </span>
+                </td>
+                <td>
+                  <span className={gateClass}>
+                    {gateStatus ? gateStatus.toUpperCase() : "—"}
+                  </span>
+                </td>
+                <td className="center mono">{run.findingCount}</td>
+                <td className="muted nowrap mono">
+                  {formatDateTime(run.createdAt)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 };

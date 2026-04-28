@@ -2,16 +2,41 @@ import React from "react";
 import type { AnalysisResult, ProjectReport } from "@aegis/shared";
 import { CustomReportModal } from "./CustomReportModal";
 import { ReportApprovalsSection } from "./ReportApprovalsSection";
-import { ReportAuditLogSection } from "./ReportAuditLogSection";
-import { ReportAuditTimelineCard } from "./ReportAuditTimelineCard";
-import { ReportExecutiveSummary } from "./ReportExecutiveSummary";
+import { ReportAuditTimeline } from "./ReportAuditTimeline";
+import { ReportCaveats } from "./ReportCaveats";
 import { ReportFiltersPanel } from "./ReportFiltersPanel";
 import { ReportFindingsSection } from "./ReportFindingsSection";
 import { ReportHeader } from "./ReportHeader";
 import { ReportModuleBreakdown } from "./ReportModuleBreakdown";
+import { ReportOutcomes } from "./ReportOutcomes";
 import { ReportRunsSection } from "./ReportRunsSection";
-import { MODULE_TAB_LABELS, type ModuleTab, type ReportModuleEntry } from "../reportPresentation";
+import { ReportSevRow } from "./ReportSevRow";
+import {
+  ReportStatStrip,
+  computeStatStripInputs,
+} from "./ReportStatStrip";
+import {
+  MODULE_TAB_LABELS,
+  type ModuleTab,
+  type ReportModuleEntry,
+} from "../reportPresentation";
 import type { ReportFilters } from "../../../api/client";
+
+type FindingsEntry = ProjectReport["modules"][keyof ProjectReport["modules"]] extends infer T
+  ? T extends { findings: infer F }
+    ? F extends Array<infer U>
+      ? U
+      : never
+    : never
+  : never;
+
+type RunsEntry = ProjectReport["modules"][keyof ProjectReport["modules"]] extends infer T
+  ? T extends { runs: infer F }
+    ? F extends Array<infer U>
+      ? U
+      : never
+    : never
+  : never;
 
 type ReportContentProps = {
   projectId?: string;
@@ -28,10 +53,9 @@ type ReportContentProps = {
   handleApplyFilters: () => void;
   handleClearFilters: () => void;
   moduleEntries: ReportModuleEntry[];
-  allFindings: ProjectReport["modules"][keyof ProjectReport["modules"]]["findings"];
-  allRuns: Array<{ gate?: { status?: string | null } | null }>;
+  allFindings: FindingsEntry[];
+  allRuns: RunsEntry[];
   sevCounts: { critical: number; high: number; medium: number; low: number };
-  sevMax: number;
   deepResult?: AnalysisResult | null;
 };
 
@@ -53,19 +77,42 @@ export function ReportContent({
   allFindings,
   allRuns,
   sevCounts,
-  sevMax,
   deepResult,
 }: ReportContentProps) {
+  const summary =
+    activeTab === "all"
+      ? report.totalSummary
+      : moduleEntries[0]?.mod?.summary ?? report.totalSummary;
+
+  const statInputs = computeStatStripInputs(
+    summary,
+    allRuns,
+    activeTab === "all" ? report.approvals : [],
+    sevCounts,
+  );
+
+  const scopeLabel = activeTab === "all" ? "모듈 합계" : MODULE_TAB_LABELS[activeTab];
+  const tabHintLabel = activeTab === "all" ? "전체" : MODULE_TAB_LABELS[activeTab];
+
+  const showOutcomes = activeTab === "all" || activeTab === "deep";
+  const caveats = deepResult?.caveats ?? [];
+  const showCaveats =
+    showOutcomes &&
+    deepResult?.qualityOutcome === "accepted_with_caveats" &&
+    caveats.length > 0;
+
   return (
-    <div className="page-enter page-shell report-content">
+    <div className="page-shell report-page page-enter">
       <ReportHeader
+        report={report}
+        projectId={projectId}
         hasActiveFilters={hasActiveFilters}
         onToggleFilters={() => setShowFilters(!showFilters)}
         onOpenCustomReport={() => setShowCustomReport(true)}
         onPrint={() => window.print()}
       />
 
-      {showFilters && (
+      {showFilters ? (
         <ReportFiltersPanel
           pendingFilters={pendingFilters}
           setPendingFilters={setPendingFilters}
@@ -73,53 +120,104 @@ export function ReportContent({
           onApply={handleApplyFilters}
           onClear={handleClearFilters}
         />
-      )}
+      ) : null}
 
-      {/* Module tab strip */}
-      <div className="report-module-tabs print-hide" role="tablist">
-        {(Object.keys(MODULE_TAB_LABELS) as ModuleTab[]).map((tab) => (
-          <button
-            type="button"
-            role="tab"
-            key={tab}
-            aria-selected={activeTab === tab}
-            className={`report-module-tabs__trigger${activeTab === tab ? " is-active" : ""}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {MODULE_TAB_LABELS[tab]}
-          </button>
-        ))}
+      <div className="report-frame">
+        <div
+          className="report-tabs print-hide"
+          role="tablist"
+          aria-label="보고서 모듈 필터"
+        >
+          {(Object.keys(MODULE_TAB_LABELS) as ModuleTab[]).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab}
+              className="report-tabs__tab"
+              onClick={() => setActiveTab(tab)}
+            >
+              {MODULE_TAB_LABELS[tab]}
+            </button>
+          ))}
+          <span className="report-tabs__hint" aria-hidden="true">
+            현재 <b>{tabHintLabel}</b> 기준
+          </span>
+        </div>
+
+        <div className="report-doc">
+          <ReportStatStrip {...statInputs} scopeLabel={scopeLabel} />
+
+          <ReportSevRow sevCounts={sevCounts} />
+
+          {showOutcomes && deepResult ? (
+            <div className="report-section">
+              <div className="report-section__h">심층 분석 결과</div>
+              <ReportOutcomes deepResult={deepResult} />
+            </div>
+          ) : null}
+
+          {showCaveats ? (
+            <div className="report-section">
+              <div className="report-section__h">
+                분석 한계
+                <span className="count">{caveats.length}</span>
+              </div>
+              <ReportCaveats caveats={caveats} />
+            </div>
+          ) : null}
+
+          {activeTab === "all" ? (
+            <div className="report-section">
+              <div className="report-section__h">모듈별 현황</div>
+              <ReportModuleBreakdown moduleEntries={moduleEntries} />
+            </div>
+          ) : null}
+
+          <div className="report-section">
+            <div className="report-section__h">
+              탐지 항목
+              <span className="count">{allFindings.length}</span>
+            </div>
+            <ReportFindingsSection
+              findings={allFindings}
+              showModule={activeTab === "all"}
+            />
+          </div>
+
+          <div className="report-section">
+            <div className="report-section__h">
+              실행 이력
+              <span className="count">{allRuns.length}</span>
+            </div>
+            <ReportRunsSection runs={allRuns} showModule={activeTab === "all"} />
+          </div>
+
+          {activeTab === "all" ? (
+            <div className="report-section">
+              <div className="report-section__h">
+                관련 승인
+                <span className="count">{report.approvals.length}</span>
+              </div>
+              <ReportApprovalsSection approvals={report.approvals} />
+            </div>
+          ) : null}
+
+          {activeTab === "all" ? (
+            <div className="report-section">
+              <div className="report-section__h">
+                감사 추적
+                <span className="count">{report.auditTrail.length}</span>
+              </div>
+              <ReportAuditTimeline auditTrail={report.auditTrail} />
+            </div>
+          ) : null}
+        </div>
       </div>
 
-      {/* Top grid: executive summary + audit timeline */}
-      <div className="report-content__top-grid">
-        <ReportExecutiveSummary
-          report={report}
-          allRuns={allRuns}
-          summary={activeTab === "all" ? report.totalSummary : moduleEntries[0]?.mod.summary ?? report.totalSummary}
-          sevCounts={sevCounts}
-          sevMax={sevMax}
-          deepResult={deepResult}
-        />
-        <ReportAuditTimelineCard auditTrail={report.auditTrail} />
-      </div>
-
-      {activeTab === "all" && <ReportModuleBreakdown moduleEntries={moduleEntries} />}
-
-      <ReportFindingsSection findings={allFindings} />
-      <ReportRunsSection runs={allRuns as never} />
-
-      {activeTab === "all" && report.approvals.length > 0 && (
-        <ReportApprovalsSection approvals={report.approvals} />
-      )}
-
-      {activeTab === "all" && report.auditTrail.length > 0 && (
-        <ReportAuditLogSection auditTrail={report.auditTrail} />
-      )}
-
-      {showCustomReport && projectId && (
+      {showCustomReport && projectId ? (
         <CustomReportModal projectId={projectId} onClose={() => setShowCustomReport(false)} />
-      )}
+      ) : null}
     </div>
   );
 }

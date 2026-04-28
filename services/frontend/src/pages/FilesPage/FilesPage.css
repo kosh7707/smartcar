@@ -110,7 +110,7 @@
 .file-detail-header-card__top { display:flex; flex-direction:column; gap:16px; }
 .file-detail-header-card__identity { display:flex; min-width:0; align-items:flex-start; gap:12px; }
 .file-detail-header-card__icon-shell { display:flex; width:44px; height:44px; flex-shrink:0; align-items:center; justify-content:center; border:1px solid color-mix(in srgb, var(--border) 60%, transparent); border-radius:var(--radius-xl); background:color-mix(in srgb, var(--surface-sunken) 40%, transparent); color:var(--foreground-muted); }
-.file-detail-header-card__icon-svg { flex-shrink:0; }
+.file-detail-header-card__icon-svg { flex-shrink:0; color: var(--foreground-subtle); }
 .file-detail-header-card__title-wrap { min-width:0; display:flex; flex-direction:column; gap:4px; }
 .file-detail-header-card__title { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:var(--font-mono); font-size:var(--text-lg); letter-spacing:-0.02em; color:var(--foreground); }
 .file-detail-header-card__path { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:var(--font-mono); font-size:var(--text-sm); color:var(--foreground-muted); }
@@ -282,6 +282,7 @@
 .ftree-chevron { flex-shrink:0; color:var(--foreground-muted); transition:transform 150ms ease; }
 .ftree-chevron--open { transform:rotate(90deg); }
 .ftree-folder-icon { flex-shrink:0; color:var(--severity-medium); }
+.ftree-file-icon   { flex-shrink:0; }
 .ftree-file-icon { flex-shrink:0; color:var(--foreground-muted); }
 .ftree-icon-spacer { width:14px; flex-shrink:0; }
 .ftree-name { min-width:0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--foreground); }

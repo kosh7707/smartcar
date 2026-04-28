@@ -4,10 +4,15 @@ import { render, screen } from "@testing-library/react";
 import { ReportApprovalsSection } from "./ReportApprovalsSection";
 
 describe("ReportApprovalsSection", () => {
-  it("renders approval rows with status badges", () => {
+  it("renders the inline empty line when no approvals exist", () => {
+    render(<ReportApprovalsSection approvals={[]} />);
+    expect(screen.getByText("관련 승인 요청이 없습니다.")).toBeInTheDocument();
+  });
+
+  it("renders approval rows with status, requester and decision", () => {
     const approvals = [
       {
-        id: "approval-1",
+        id: "APR-001",
         actionType: "gate.override",
         requestedBy: "alice",
         status: "approved",
@@ -15,7 +20,7 @@ describe("ReportApprovalsSection", () => {
         createdAt: "2026-04-10T01:30:00Z",
       },
       {
-        id: "approval-2",
+        id: "APR-002",
         actionType: "gate.override",
         requestedBy: "carol",
         status: "pending",
@@ -25,11 +30,10 @@ describe("ReportApprovalsSection", () => {
 
     render(<ReportApprovalsSection approvals={approvals} />);
 
-    expect(screen.getByText("승인 이력 (2)")).toBeInTheDocument();
-    expect(screen.getAllByText("gate.override").length).toBe(2);
-    expect(screen.getByText("요청: alice")).toBeInTheDocument();
-    expect(screen.getByText("결정: bob")).toBeInTheDocument();
-    expect(screen.getByText("approved")).toBeInTheDocument();
-    expect(screen.getByText("pending")).toBeInTheDocument();
+    expect(screen.getAllByText("gate.override")).toHaveLength(2);
+    expect(screen.getByText("alice")).toBeInTheDocument();
+    expect(screen.getByText("bob")).toBeInTheDocument();
+    expect(screen.getByText("승인")).toBeInTheDocument();
+    expect(screen.getByText("대기")).toBeInTheDocument();
   });
 });

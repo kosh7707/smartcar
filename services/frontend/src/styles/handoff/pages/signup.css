@@ -391,3 +391,31 @@
   text-decoration: none;
 }
 .org-alt a:hover { text-decoration: underline; }
+
+
+/* ── Form-level utility classes (replace inline style shortcuts) ── */
+
+.signup-form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+}
+
+.signup-consent-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.signup-required-marker {
+  color: var(--danger);
+}
+
+.signup-org-input {
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  padding-right: 82px;
+}
+
+/* .notice--danger lives in auth-console.css — used by every auth flow. */

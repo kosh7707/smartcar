@@ -138,9 +138,9 @@ export const OverviewEmptyState: React.FC<OverviewEmptyStateProps> = ({ onOpenFi
               <span className="overview-empty__tile-title">{tile.title}</span>
             </div>
             <div className="overview-empty__tile-skeleton">
-              <span className="overview-empty__tile-bar" style={{ width: "72%" }} />
-              <span className="overview-empty__tile-bar" style={{ width: "48%" }} />
-              <span className="overview-empty__tile-bar" style={{ width: "60%" }} />
+              <span className="overview-empty__tile-bar" />
+              <span className="overview-empty__tile-bar" />
+              <span className="overview-empty__tile-bar" />
             </div>
             <div className="overview-empty__tile-caption">{tile.caption}</div>
           </div>

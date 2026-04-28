@@ -4,12 +4,12 @@ import { render, screen } from "@testing-library/react";
 import { ReportModuleBreakdown } from "./ReportModuleBreakdown";
 
 describe("ReportModuleBreakdown", () => {
-  it("renders empty-state row when there are no module entries", () => {
+  it("renders the inline empty line when there are no module entries", () => {
     render(<ReportModuleBreakdown moduleEntries={[]} />);
-    expect(screen.getByText("해당 모듈 데이터 없음")).toBeInTheDocument();
+    expect(screen.getByText("실행된 모듈이 없습니다.")).toBeInTheDocument();
   });
 
-  it("renders module rows with gate status badge", () => {
+  it("renders module rows with gate status and pass/total counts", () => {
     const moduleEntries = [
       {
         key: "static",
@@ -32,7 +32,6 @@ describe("ReportModuleBreakdown", () => {
 
     render(<ReportModuleBreakdown moduleEntries={moduleEntries} />);
 
-    expect(screen.getByText("모듈별 분석 현황")).toBeInTheDocument();
     expect(screen.getByText("정적 분석")).toBeInTheDocument();
     expect(screen.getByText("심층 분석")).toBeInTheDocument();
     expect(screen.getByText("주의 필요")).toBeInTheDocument();

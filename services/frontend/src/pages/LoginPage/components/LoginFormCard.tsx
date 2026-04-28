@@ -43,7 +43,7 @@ export function LoginFormCard({
         </div>
       </div>
 
-      <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
+      <form onSubmit={onSubmit} className="auth-form-stack">
         <div className="field chore c-5">
           <label htmlFor="login-username">이메일</label>
           <div className="input-wrap">
@@ -95,7 +95,7 @@ export function LoginFormCard({
         </label>
 
         {error ? (
-          <div className="notice chore c-8" role="alert" style={{ borderColor: "var(--danger)", background: "var(--danger-surface)" }}>
+          <div className="notice notice--danger chore c-8" role="alert">
             <AlertCircle aria-hidden="true" />
             <div>{error}</div>
           </div>

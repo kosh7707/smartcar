@@ -157,19 +157,32 @@
    bars. Just a terminal that waits for the analyst to press Enter.)
    ═══════════════════════════════════════════════════════════════ */
 
+/* Page-local console palette — values defined here; consumers always
+ * reference via var(--console-*) so the dark/light overrides flow
+ * automatically. Raw hex outside this block is treated as slop. */
 :root {
-  --console-fg:       #d4ffe3;
-  --console-dim:      color-mix(in srgb, #d4ffe3 55%, transparent);
-  --console-green:    #4aff91;
-  --console-amber:    #ffb000;
-  --console-bg:       #05090a;
-  --console-bg-hi:    #0b1012;
-  --console-edge:     color-mix(in srgb, #4aff91 22%, transparent);
+  --console-fg:         #d4ffe3;
+  --console-dim:        color-mix(in srgb, var(--console-fg) 55%, transparent);
+  --console-green:      #4aff91;
+  --console-amber:      #ffb000;
+  --console-amber-hi:   #ffd76d;
+  --console-bg:         #05090a;
+  --console-bg-hi:      #0b1012;
+  --console-edge:       color-mix(in srgb, var(--console-green) 22%, transparent);
+  --console-shadow-ink: rgb(0 0 0);
+  --console-dot-red:    #ff5f56;
+  --console-dot-yellow: #ffbd2e;
+  --console-dot-green:  #27c93f;
+  --console-paper-glow: #ffdead;
+  /* Defaults derive from amber/bg; light theme below overrides them. */
+  --console-link-amber:        var(--console-amber);
+  --console-link-amber-active: var(--console-amber-hi);
+  --console-error-tint:        var(--console-bg);
 }
 
 [data-theme="dark"] .console-empty {
-  --console-bg:       #05090a;
-  --console-bg-hi:    #0b1012;
+  --console-bg:    #05090a;
+  --console-bg-hi: #0b1012;
 }
 
 .console-empty {
@@ -188,7 +201,7 @@
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--console-green) 8%, transparent),
     inset 0 0 80px -30px color-mix(in srgb, var(--console-green) 14%, transparent),
-    0 10px 48px -30px rgba(0, 0, 0, 0.6);
+    0 10px 48px -30px color-mix(in srgb, var(--console-shadow-ink) 60%, transparent);
   outline: none;
 }
 
@@ -259,9 +272,9 @@
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
 }
-.console-empty__bar-dot--r { background: #ff5f56; border-color: color-mix(in srgb, #ff5f56 50%, transparent); }
-.console-empty__bar-dot--y { background: #ffbd2e; border-color: color-mix(in srgb, #ffbd2e 50%, transparent); }
-.console-empty__bar-dot--g { background: #27c93f; border-color: color-mix(in srgb, #27c93f 50%, transparent); }
+.console-empty__bar-dot--r { background: var(--console-dot-red);    border-color: color-mix(in srgb, var(--console-dot-red) 50%, transparent); }
+.console-empty__bar-dot--y { background: var(--console-dot-yellow); border-color: color-mix(in srgb, var(--console-dot-yellow) 50%, transparent); }
+.console-empty__bar-dot--g { background: var(--console-dot-green);  border-color: color-mix(in srgb, var(--console-dot-green) 50%, transparent); }
 
 .console-empty__bar-label {
   margin-left: 8px;
@@ -346,7 +359,7 @@
 }
 
 .console-empty__value--warn {
-  color: color-mix(in srgb, var(--console-amber) 85%, #ffdead);
+  color: color-mix(in srgb, var(--console-amber) 85%, var(--console-paper-glow));
 }
 
 /* Prompt line with keystroke hint */
@@ -466,16 +479,19 @@
 [data-theme="light"] .console-empty, /* dual-match placeholder */
 [data-theme="light"] .console-empty {
   --console-fg:    #0d1210;
-  --console-dim:   color-mix(in srgb, #0d1210 55%, transparent);
+  --console-dim:   color-mix(in srgb, var(--console-fg) 55%, transparent);
   --console-bg:    #f4efe4;
   --console-bg-hi: #fbf7ee;
   --console-green: #2e7d4b;
   --console-amber: #a15c00;
+  --console-link-amber:        #8b4000;
+  --console-link-amber-active: #5a2a00;
+  --console-error-tint:        #fdeee8;
 
-  border-color: color-mix(in srgb, #0d1210 18%, transparent);
+  border-color: color-mix(in srgb, var(--console-fg) 18%, transparent);
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, #0d1210 6%, transparent),
-    0 6px 28px -18px rgba(0, 0, 0, 0.2);
+    inset 0 0 0 1px color-mix(in srgb, var(--console-fg) 6%, transparent),
+    0 6px 28px -18px color-mix(in srgb, var(--console-shadow-ink) 20%, transparent);
 }
 
 [data-theme="light"] .console-empty__log, /* dual-match placeholder */
@@ -515,18 +531,18 @@
 
   background:
     linear-gradient(180deg,
-      color-mix(in srgb, var(--console-red) 7%, #0b1012) 0%,
-      #05090a 100%);
+      color-mix(in srgb, var(--console-red) 7%, var(--console-bg-hi)) 0%,
+      var(--console-bg) 100%);
   border: 1px solid color-mix(in srgb, var(--console-red) 38%, transparent);
   border-radius: var(--radius-md);
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--console-red) 12%, transparent),
     inset 0 0 60px -20px color-mix(in srgb, var(--console-red) 22%, transparent),
-    0 8px 32px -24px rgba(0, 0, 0, 0.6);
+    0 8px 32px -24px color-mix(in srgb, var(--console-shadow-ink) 60%, transparent);
 
   font-family: var(--font-code, ui-monospace, "SF Mono", Menlo, monospace);
   font-size: 13px;
-  color: #d4ffe3;
+  color: var(--console-fg);
 
   animation: console-alert-in 180ms ease-out backwards;
 }
@@ -567,7 +583,7 @@
 }
 
 .console-alert__bracket {
-  color: color-mix(in srgb, #d4ffe3 55%, transparent);
+  color: color-mix(in srgb, var(--console-fg) 55%, transparent);
   font-weight: var(--weight-medium);
 }
 
@@ -599,13 +615,13 @@
 }
 
 .console-alert__slot {
-  color: #d4ffe3;
+  color: var(--console-fg);
   font-weight: var(--weight-medium);
   min-width: 11ch;
 }
 
 .console-alert__value {
-  color: color-mix(in srgb, var(--console-red-soft) 80%, #d4ffe3);
+  color: color-mix(in srgb, var(--console-red-soft) 80%, var(--console-fg));
   flex: 1;
   min-width: 0;
 }
@@ -616,29 +632,29 @@
   gap: 6px;
   margin-left: auto;
   padding: 0 2px;
-  color: #ffb000;
+  color: var(--console-amber);
   text-decoration: none;
   font-weight: var(--weight-medium);
-  border-bottom: 1px dashed color-mix(in srgb, #ffb000 50%, transparent);
-  text-shadow: 0 0 10px color-mix(in srgb, #ffb000 28%, transparent);
+  border-bottom: 1px dashed color-mix(in srgb, var(--console-amber) 50%, transparent);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--console-amber) 28%, transparent);
   transition: color 120ms ease, border-color 120ms ease, text-shadow 120ms ease;
 }
 
 .console-alert__link:hover,
 .console-alert__link:focus-visible {
-  color: #ffd76d;
-  border-bottom-color: color-mix(in srgb, #ffb000 90%, transparent);
-  text-shadow: 0 0 14px color-mix(in srgb, #ffb000 55%, transparent);
+  color: var(--console-amber-hi);
+  border-bottom-color: color-mix(in srgb, var(--console-amber) 90%, transparent);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--console-amber) 55%, transparent);
   outline: none;
 }
 
 .console-alert__link-arrow {
-  color: color-mix(in srgb, #d4ffe3 55%, transparent);
+  color: color-mix(in srgb, var(--console-fg) 55%, transparent);
   font-weight: var(--weight-regular);
 }
 
 .console-alert__comment {
-  color: color-mix(in srgb, #d4ffe3 55%, transparent);
+  color: color-mix(in srgb, var(--console-fg) 55%, transparent);
   font-size: 11.5px;
   letter-spacing: 0.01em;
   font-style: italic;
@@ -648,12 +664,12 @@
   --console-red:      #b22f0d;
   --console-red-soft: #b22f0d;
 
-  background: linear-gradient(180deg, #fdeee8 0%, #f4efe4 100%);
-  border-color: color-mix(in srgb, #b22f0d 45%, transparent);
+  background: linear-gradient(180deg, var(--console-error-tint) 0%, var(--console-bg) 100%);
+  border-color: color-mix(in srgb, var(--console-red) 45%, transparent);
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, #b22f0d 12%, transparent),
-    0 4px 20px -16px rgba(0, 0, 0, 0.25);
-  color: #0d1210;
+    inset 0 0 0 1px color-mix(in srgb, var(--console-red) 12%, transparent),
+    0 4px 20px -16px color-mix(in srgb, var(--console-shadow-ink) 25%, transparent);
+  color: var(--console-fg);
 }
 
 [data-theme="light"] .console-alert::before {
@@ -661,7 +677,7 @@
 }
 
 [data-theme="light"] .console-alert__bracket {
-  color: color-mix(in srgb, #0d1210 55%, transparent);
+  color: color-mix(in srgb, var(--console-fg) 55%, transparent);
 }
 
 [data-theme="light"] .console-alert__status {
@@ -670,28 +686,28 @@
 }
 
 [data-theme="light"] .console-alert__slot {
-  color: #0d1210;
+  color: var(--console-fg);
 }
 
 [data-theme="light"] .console-alert__value {
-  color: color-mix(in srgb, #b22f0d 75%, #0d1210);
+  color: color-mix(in srgb, var(--console-red) 75%, var(--console-fg));
 }
 
 [data-theme="light"] .console-alert__link {
-  color: #8b4000;
-  border-bottom-color: color-mix(in srgb, #8b4000 50%, transparent);
+  color: var(--console-link-amber);
+  border-bottom-color: color-mix(in srgb, var(--console-link-amber) 50%, transparent);
   text-shadow: none;
 }
 
 [data-theme="light"] .console-alert__link:hover,
 [data-theme="light"] .console-alert__link:focus-visible {
-  color: #5a2a00;
+  color: var(--console-link-amber-active);
   text-shadow: none;
 }
 
 [data-theme="light"] .console-alert__link-arrow,
 [data-theme="light"] .console-alert__comment {
-  color: color-mix(in srgb, #0d1210 55%, transparent);
+  color: color-mix(in srgb, var(--console-fg) 55%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {

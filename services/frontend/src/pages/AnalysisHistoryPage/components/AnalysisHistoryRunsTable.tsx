@@ -91,8 +91,8 @@ export const AnalysisHistoryRunsTable: React.FC<AnalysisHistoryRunsTableProps> =
         <span className="panel-hint" aria-hidden="true">분석 시점, 심각도 요약, 소요 시간</span>
       </div>
 
-      <div className="panel-body panel-body--scroll" style={{ padding: 0 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <div className="panel-body panel-body--scroll panel-body--flush">
+        <table className="history-runs-table">
           <thead>
             <tr>
               <th>실행</th>

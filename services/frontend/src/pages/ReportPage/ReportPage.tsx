@@ -29,9 +29,7 @@ export const ReportPage: React.FC = () => {
     moduleEntries,
     allFindings,
     allRuns,
-    summary,
     sevCounts,
-    sevMax,
     deepResult,
   } = useReportPage(projectId, toast);
 
@@ -74,7 +72,6 @@ export const ReportPage: React.FC = () => {
       allFindings={allFindings}
       allRuns={allRuns}
       sevCounts={sevCounts}
-      sevMax={sevMax}
       deepResult={deepResult}
     />
   );
