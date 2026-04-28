@@ -1,5 +1,6 @@
 import React from "react";
 import type { Severity } from "@aegis/shared";
+import { PageHeader } from "../../../shared/ui";
 import { SEVERITY_KO_LABELS } from "../vulnerabilitiesPresentation";
 
 interface Counts {
@@ -24,28 +25,35 @@ const SEGMENTS: Array<{ key: Severity; label: string }> = [
   { key: "info",     label: SEVERITY_KO_LABELS.info },
 ];
 
-export const VulnerabilitiesHeader: React.FC<VulnerabilitiesHeaderProps> = ({ totalActiveFindings, counts }) => {
-  const distributionTotal = counts.critical + counts.high + counts.medium + counts.low + counts.info;
+export const VulnerabilitiesHeader: React.FC<VulnerabilitiesHeaderProps> = ({
+  totalActiveFindings,
+  counts,
+}) => {
+  const distributionTotal =
+    counts.critical + counts.high + counts.medium + counts.low + counts.info;
   const segments = SEGMENTS.filter((segment) => counts[segment.key] > 0);
   const hasAny = distributionTotal > 0;
 
-  return (
-    <header className="vuln-lede">
-      <div className="vuln-lede__title-col">
-        <h1 className="vuln-lede__title">취약점 목록</h1>
-        <span className="vuln-lede__count">
-          <span className="vuln-lede__count-mark" aria-hidden="true">▸</span>
-          활성 탐지 항목:
-          <span className="vuln-lede__count-value">{totalActiveFindings}</span>
-        </span>
-      </div>
+  const subtitle = (
+    <span className="vuln-page__sub" aria-label="활성 탐지 항목 요약">
+      활성 탐지 항목 <span className="num">{totalActiveFindings}</span>건
+    </span>
+  );
 
-      <div className="vuln-dist" aria-label="심각도 분포">
+  return (
+    <>
+      <PageHeader title="취약점 목록" subtitle={subtitle} />
+
+      <section className="vuln-dist" aria-label="심각도 분포">
         <div className="vuln-dist__label">
           <span>§ Severity Distribution</span>
           <span className="vuln-dist__total">n = {distributionTotal}</span>
         </div>
-        <div className="vuln-dist__bar" role="img" aria-label={`심각도 분포: 치명 ${counts.critical}, 높음 ${counts.high}, 보통 ${counts.medium}, 낮음 ${counts.low}, 정보 ${counts.info}`}>
+        <div
+          className="vuln-dist__bar"
+          role="img"
+          aria-label={`심각도 분포: 치명 ${counts.critical}, 높음 ${counts.high}, 보통 ${counts.medium}, 낮음 ${counts.low}, 정보 ${counts.info}`}
+        >
           {hasAny ? (
             segments.map((segment, index) => {
               const value = counts[segment.key];
@@ -65,7 +73,7 @@ export const VulnerabilitiesHeader: React.FC<VulnerabilitiesHeaderProps> = ({ to
             <div className="vuln-dist__segment vuln-dist__segment--empty">no findings</div>
           )}
         </div>
-      </div>
-    </header>
+      </section>
+    </>
   );
 };

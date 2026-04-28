@@ -1,13 +1,23 @@
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { ApprovalRequest } from "../../api/approval";
-import { Spinner } from "../../shared/ui";
+import { PageHeader, Spinner } from "../../shared/ui";
 import { useToast } from "../../contexts/ToastContext";
-import { ApprovalHero } from "./components/ApprovalHero";
-import { ApprovalPanelLayout } from "./components/ApprovalPanelLayout";
-import { ApprovalToolbar } from "./components/ApprovalToolbar";
-import { useApprovalsPage } from "./hooks/useApprovalsPage";
+import { ApprovalListRail } from "./components/ApprovalListRail";
+import { ApprovalDocument } from "./components/ApprovalDocument";
+import {
+  useApprovalsPage,
+  type ApprovalFilterStatus,
+} from "./hooks/useApprovalsPage";
+import { formatRelative } from "./components/approvalFormat";
 import "./ApprovalsPage.css";
+
+const FILTER_TABS: { id: ApprovalFilterStatus; label: string }[] = [
+  { id: "pending", label: "대기" },
+  { id: "approved", label: "승인됨" },
+  { id: "rejected", label: "거부" },
+  { id: "expired", label: "만료" },
+];
 
 export const ApprovalsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -16,6 +26,7 @@ export const ApprovalsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const {
     loading,
+    approvals,
     filter,
     setFilter,
     filteredApprovals,
@@ -70,6 +81,28 @@ export const ApprovalsPage: React.FC = () => {
     [navigate, projectId],
   );
 
+  const selectedApproval = useMemo(
+    () => filteredApprovals.find((a) => a.id === selectedId) ?? filteredApprovals[0] ?? null,
+    [filteredApprovals, selectedId],
+  );
+
+  const oldestSubmittedIso = useMemo(() => {
+    if (oldestPendingAge === null) return null;
+    let ageMs = oldestPendingAge;
+    let iso: string | null = null;
+    for (const a of approvals) {
+      if (a.status !== "pending") continue;
+      const t = new Date(a.createdAt).getTime();
+      if (Number.isNaN(t)) continue;
+      const age = Date.now() - t;
+      if (age >= ageMs - 1) {
+        ageMs = age;
+        iso = a.createdAt;
+      }
+    }
+    return iso;
+  }, [approvals, oldestPendingAge]);
+
   if (loading) {
     return (
       <div className="page-loading-shell">
@@ -80,37 +113,74 @@ export const ApprovalsPage: React.FC = () => {
 
   const hasProject = Boolean(projectId);
 
+  const subtitleNode =
+    pendingCount > 0 ? (
+      <span className="approvals-page__sub" aria-label="승인 큐 현재 상태">
+        대기 <span className="num">{pendingCount}</span>건
+        {imminentCount > 0 ? (
+          <>
+            <span className="sep" aria-hidden="true"> · </span>
+            <span className="warn">
+              24시간 내 만료 <span className="num">{imminentCount}</span>건
+            </span>
+          </>
+        ) : null}
+        {oldestSubmittedIso ? (
+          <>
+            <span className="sep" aria-hidden="true"> · </span>
+            가장 오래된 항목{" "}
+            <span className="num">{formatRelative(oldestSubmittedIso)}</span> 제출
+          </>
+        ) : null}
+      </span>
+    ) : undefined;
+
   return (
     <div className="page-shell approvals-page">
-      <header className="page-head approvals-page__head">
-        <h1>승인 큐</h1>
-        <ApprovalHero
-          pendingCount={pendingCount}
-          imminentCount={imminentCount}
-          oldestPendingAge={oldestPendingAge}
-          sevenDayStats={sevenDayStats}
-          isEmpty={pendingCount === 0}
-        />
-      </header>
+      <PageHeader surface="plain" title="승인 큐" subtitle={subtitleNode} />
 
-      <ApprovalToolbar
-        filter={filter}
-        onChangeFilter={setFilter}
-        statusCounts={statusCounts}
-      />
+      <div className="approvals-page__frame">
+        <div
+          className="approvals-page__filters"
+          role="tablist"
+          aria-label="승인 요청 상태 필터"
+        >
+          {FILTER_TABS.map((tab) => {
+            const count = statusCounts[tab.id];
+            const isActive = filter === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                data-count={count}
+                className="approvals-page__tab"
+                onClick={() => setFilter(tab.id)}
+              >
+                {tab.label}
+                <span className="c">{count}</span>
+              </button>
+            );
+          })}
+        </div>
 
-      <div className="approvals-body">
-        <ApprovalPanelLayout
-          approvals={filteredApprovals}
-          filter={filter}
-          selectedId={selectedId}
-          decidingId={decidingId}
-          hasProject={hasProject}
-          sevenDayStats={sevenDayStats}
-          onSelect={setSelectedId}
-          onOpenTarget={handleTargetOpen}
-          onDecide={submitDecision}
-        />
+        <div className="approvals-page__work">
+          <ApprovalListRail
+            approvals={filteredApprovals}
+            filter={filter}
+            selectedId={selectedApproval?.id ?? null}
+            hasProject={hasProject}
+            sevenDayStats={sevenDayStats}
+            onSelect={setSelectedId}
+          />
+          <ApprovalDocument
+            approval={selectedApproval}
+            decidingId={decidingId}
+            onOpenTarget={handleTargetOpen}
+            onDecide={submitDecision}
+          />
+        </div>
       </div>
     </div>
   );

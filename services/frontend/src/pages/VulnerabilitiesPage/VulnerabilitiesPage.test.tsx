@@ -107,7 +107,7 @@ describe("VulnerabilitiesPage", () => {
 
     await waitFor(() => expect(mockFetchProjectFindings).toHaveBeenCalledWith("project-1"));
     expect(await screen.findByRole("heading", { name: "취약점 목록" })).toBeInTheDocument();
-    expect(screen.getByText(/활성 탐지 항목:/)).toHaveTextContent("2");
+    expect(screen.getByLabelText("활성 탐지 항목 요약")).toHaveTextContent("2");
     expect(screen.getByText("1건 / 3건 표시")).toBeInTheDocument();
     expect(screen.getByText("Buffer overflow in parser")).toBeInTheDocument();
     expect(screen.queryByText("Weak crypto defaults")).not.toBeInTheDocument();

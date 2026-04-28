@@ -13,56 +13,19 @@
   gap: 22px;
 }
 
-/* ── Lede (header) ──────────────────────────────────────────── */
+/* ── Header subtitle inline emphasis ───────────────────────── */
 
-.vuln-lede {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.85fr);
-  gap: 28px;
-  align-items: end;
-  padding: 4px 2px 20px;
-  border-bottom: 1px solid var(--border-subtle);
+.vuln-page__sub {
+  display: inline;
 }
 
-.vuln-lede__title-col {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
-}
-
-.vuln-lede__title {
-  margin: 0;
-  font-size: 28px;
-  font-weight: var(--weight-bold);
-  letter-spacing: -0.012em;
-  line-height: 1.1;
+.vuln-page__sub .num {
   color: var(--foreground);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
 }
 
-.vuln-lede__count {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 10px;
-  padding-top: 2px;
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  color: var(--foreground-muted);
-}
-
-.vuln-lede__count-value {
-  font-size: 22px;
-  font-weight: var(--weight-bold);
-  letter-spacing: -0.01em;
-  color: var(--foreground);
-}
-
-.vuln-lede__count-mark {
-  color: var(--foreground-subtle);
-  letter-spacing: 0.06em;
-}
-
-/* Distribution panel (right side of lede) */
+/* ── Severity distribution band (sits directly under PageHeader) ── */
 
 .vuln-dist {
   display: flex;
@@ -1037,13 +1000,6 @@
 }
 
 /* ── Responsive ───────────────────────────────────────────── */
-
-@media (max-width: 1040px) {
-  .vuln-lede {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-}
 
 @media (max-width: 820px) {
   .vuln-ledger__colhead,

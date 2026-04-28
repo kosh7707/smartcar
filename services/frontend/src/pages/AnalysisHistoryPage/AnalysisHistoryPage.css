@@ -3,19 +3,9 @@
 /* Canonical vocab: .page-shell / .panel / .panel-head / .filter-pills /   */
 /*   .status-chips / .run-row / .run-status--* from handoff/**              */
 
-/* ── Layout ─────────────────────────────────────────────────────────────── */
-.history-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  padding: var(--space-6) var(--space-9) var(--space-10);
-}
-
-/* ── Panel header row ────────────────────────────────────────────────────── */
-.history-page .panel-head {
-  flex-wrap: wrap;
-  gap: var(--space-4);
-}
+/* Layout inherits .page-shell (flex column, gap var(--space-7)) and the outer
+ * .page-region padding — no per-page overrides so the header and body align
+ * with every other project page. */
 
 /* ── Toolbar: filter pills + status chips ────────────────────────────────── */
 .history-toolbar {
@@ -254,4 +244,18 @@ body.no-live .run-status--running .run-status__dot {
   .run-status--running .run-status__dot {
     animation: none;
   }
+}
+
+/* ── PageHeader subtitle inline emphasis ───────────────────────────────── */
+.history-page__sub {
+  display: inline;
+}
+.history-page__sub .num {
+  color: var(--foreground);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+.history-page__sub .sep {
+  color: var(--border-strong);
+  user-select: none;
 }

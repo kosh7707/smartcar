@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Spinner } from "../../shared/ui";
+import { PageHeader, Spinner } from "../../shared/ui";
 import { useToast } from "../../contexts/ToastContext";
 import { getModuleRoute } from "../../constants/modules";
 import { AnalysisHistoryToolbar } from "./components/AnalysisHistoryToolbar";
@@ -34,28 +34,37 @@ export const AnalysisHistoryPage: React.FC = () => {
     );
   }
 
+  const subtitleNode =
+    runs.length > 0 ? (
+      <span className="history-page__sub" aria-label="분석 이력 요약">
+        총 <span className="num">{runs.length}</span>건
+        {completedCount > 0 ? (
+          <>
+            <span className="sep" aria-hidden="true"> · </span>
+            완료 <span className="num">{completedCount}</span>
+          </>
+        ) : null}
+        {failedCount > 0 ? (
+          <>
+            <span className="sep" aria-hidden="true"> · </span>
+            실패 <span className="num">{failedCount}</span>
+          </>
+        ) : null}
+      </span>
+    ) : undefined;
+
   return (
     <div className="page-shell history-page">
-      {/* Page-level panel: heading + toolbar in panel-head */}
-      <div className="panel">
-        <div className="panel-head">
-          <h3>
-            분석 이력
-            <span className="count" aria-hidden="true">{runs.length}</span>
-          </h3>
-          <div className="panel-tools">
-            <AnalysisHistoryToolbar
-              filter={filter}
-              onFilterChange={setFilter}
-              totalCount={runs.length}
-              completedCount={completedCount}
-              failedCount={failedCount}
-            />
-          </div>
-        </div>
-      </div>
+      <PageHeader title="분석 이력" subtitle={subtitleNode} />
 
-      {/* Runs table panel */}
+      <AnalysisHistoryToolbar
+        filter={filter}
+        onFilterChange={setFilter}
+        totalCount={runs.length}
+        completedCount={completedCount}
+        failedCount={failedCount}
+      />
+
       <AnalysisHistoryRunsTable
         filter={filter}
         runs={filteredRuns}
