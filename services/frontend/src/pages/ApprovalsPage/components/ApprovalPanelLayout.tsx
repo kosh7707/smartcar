@@ -1,8 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
-import { ShieldOff, AlertOctagon, ExternalLink, Clock, Inbox, CheckCheck } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ShieldOff, AlertOctagon, ExternalLink, Clock } from "lucide-react";
 import type { ApprovalRequest } from "../../../api/approval";
 import { formatDateTime } from "../../../utils/format";
-import type { ApprovalDecisionAction } from "../hooks/useApprovalsPage";
+import type {
+  ApprovalDecisionAction,
+  ApprovalFilterStatus,
+  ApprovalSevenDayStats,
+} from "../hooks/useApprovalsPage";
 import {
   ACTION_EYEBROW,
   ACTION_LABELS,
@@ -14,11 +18,33 @@ import {
 
 interface ApprovalPanelLayoutProps {
   approvals: ApprovalRequest[];
+  filter: ApprovalFilterStatus;
   selectedId: string | null;
+  decidingId: string | null;
+  hasProject: boolean;
+  sevenDayStats: ApprovalSevenDayStats;
   onSelect: (id: string | null) => void;
   onOpenTarget: (approval: ApprovalRequest) => void;
-  onStartDecision: (approvalId: string, action: ApprovalDecisionAction) => void;
-  emptyHint: { resolved: number; avgDecisionMs: number | null };
+  onDecide: (id: string, action: ApprovalDecisionAction, comment: string) => void | Promise<void>;
+}
+
+const EMPTY_TITLE: Record<ApprovalFilterStatus, string> = {
+  pending: "처리할 승인 요청이 없습니다",
+  approved: "승인된 요청이 없습니다",
+  rejected: "거부된 요청이 없습니다",
+  expired: "만료된 요청이 없습니다",
+  all: "승인 요청이 없습니다",
+};
+
+const EMPTY_HINT: Partial<Record<ApprovalFilterStatus, string>> = {
+  pending: "Gate 오버라이드 또는 위험 수용 요청이 생성되면 이 자리에 표시됩니다.",
+};
+
+function formatHoursPrecise(ms: number | null): string {
+  if (ms === null) return "—";
+  const hours = ms / (60 * 60 * 1000);
+  if (hours < 0.1) return "<0.1h";
+  return `${hours.toFixed(1)}h`;
 }
 
 function ActionIconNode({ approval }: { approval: ApprovalRequest }) {
@@ -35,25 +61,19 @@ function VerdictMini({ status }: { status: ApprovalRequest["status"] }) {
   );
 }
 
-function formatHoursPrecise(ms: number | null): string {
-  if (ms === null) return "—";
-  const hours = ms / (60 * 60 * 1000);
-  if (hours < 0.1) return "<0.1시간";
-  return `${hours.toFixed(1)}시간`;
-}
-
-// Keyboard nav per US-007: ArrowUp/Down navigate, roving tabindex.
 export const ApprovalPanelLayout: React.FC<ApprovalPanelLayoutProps> = ({
   approvals,
+  filter,
   selectedId,
+  decidingId,
+  hasProject,
+  sevenDayStats,
   onSelect,
   onOpenTarget,
-  onStartDecision,
-  emptyHint,
+  onDecide,
 }) => {
   const listRef = useRef<HTMLDivElement | null>(null);
 
-  // Falls back to first approval so the detail pane renders before the auto-select effect fires.
   const selected = useMemo(
     () =>
       approvals.find((approval) => approval.id === selectedId) ??
@@ -62,7 +82,6 @@ export const ApprovalPanelLayout: React.FC<ApprovalPanelLayoutProps> = ({
     [approvals, selectedId],
   );
 
-  // auto-select first when list non-empty and no current selection
   useEffect(() => {
     if (approvals.length === 0) {
       if (selectedId !== null) onSelect(null);
@@ -99,6 +118,10 @@ export const ApprovalPanelLayout: React.FC<ApprovalPanelLayoutProps> = ({
     [approvals, onSelect, selectedId],
   );
 
+  const isEmpty = approvals.length === 0;
+  const emptyTitle = EMPTY_TITLE[filter] ?? EMPTY_TITLE.all;
+  const emptyHint = EMPTY_HINT[filter];
+
   return (
     <div className="appr-panel-layout">
       <div className="appr-panel-layout__list">
@@ -110,21 +133,24 @@ export const ApprovalPanelLayout: React.FC<ApprovalPanelLayoutProps> = ({
         </div>
         <div
           className="appr-panel-layout__list-body"
-          role="tablist"
-          aria-orientation="vertical"
-          aria-label="승인 요청"
+          role={isEmpty ? undefined : "tablist"}
+          aria-orientation={isEmpty ? undefined : "vertical"}
+          aria-label={isEmpty ? undefined : "승인 요청"}
           onKeyDown={handleListKeyDown}
           ref={listRef}
         >
-          {approvals.length === 0 ? (
-            <div className="empty-state is-inline appr-panel-layout__empty" role="presentation">
-              <div className="empty-state__icon" aria-hidden="true">
-                <Inbox />
-              </div>
-              <div className="empty-state__copy">
-                <h3 className="empty-state__title">큐가 비어 있습니다</h3>
-                <p className="empty-state__desc">대기 중인 요청이 없습니다.</p>
-              </div>
+          {isEmpty ? (
+            <div className="appr-panel-layout__list-empty" role="status">
+              <p className="appr-panel-layout__list-empty-title">{emptyTitle}</p>
+              {emptyHint ? (
+                <p className="appr-panel-layout__list-empty-hint">{emptyHint}</p>
+              ) : null}
+              {hasProject && sevenDayStats.resolved > 0 ? (
+                <p className="appr-panel-layout__list-empty-audit">
+                  지난 7일 {sevenDayStats.resolved}건 결정 · 평균{" "}
+                  {formatHoursPrecise(sevenDayStats.avgDecisionMs)}
+                </p>
+              ) : null}
             </div>
           ) : (
             approvals.map((approval) => {
@@ -186,27 +212,13 @@ export const ApprovalPanelLayout: React.FC<ApprovalPanelLayoutProps> = ({
         {selected ? (
           <ApprovalDetailPane
             approval={selected}
+            decidingId={decidingId}
             onOpenTarget={onOpenTarget}
-            onStartDecision={onStartDecision}
+            onDecide={onDecide}
           />
         ) : (
-          <div className="empty-state appr-detail-pane__empty">
-            <div className="empty-state__icon" aria-hidden="true">
-              <CheckCheck />
-            </div>
-            <div className="empty-state__copy">
-              <h3 className="empty-state__title">선택된 요청이 없습니다</h3>
-              <p className="empty-state__desc">
-                좌측 목록에서 요청을 선택하면 상세 정보가 여기에 표시됩니다.
-              </p>
-            </div>
-            {emptyHint.resolved > 0 ? (
-              <div className="empty-state__hint">
-                <Clock aria-hidden="true" />
-                지난 7일간 <b>{emptyHint.resolved}</b>건 처리 완료 · 평균{" "}
-                <b>{formatHoursPrecise(emptyHint.avgDecisionMs)}</b>
-              </div>
-            ) : null}
+          <div className="appr-detail-pane__empty">
+            <p className="appr-detail-pane__empty-text">선택된 요청이 없습니다.</p>
           </div>
         )}
       </div>
@@ -216,15 +228,29 @@ export const ApprovalPanelLayout: React.FC<ApprovalPanelLayoutProps> = ({
 
 interface ApprovalDetailPaneProps {
   approval: ApprovalRequest;
+  decidingId: string | null;
   onOpenTarget: (approval: ApprovalRequest) => void;
-  onStartDecision: (approvalId: string, action: ApprovalDecisionAction) => void;
+  onDecide: (id: string, action: ApprovalDecisionAction, comment: string) => void | Promise<void>;
 }
+
+const DECISION_VERB: Record<ApprovalRequest["status"], string> = {
+  pending: "님이 결정",
+  approved: "님이 승인",
+  rejected: "님이 거부",
+  expired: "님의 결정 기록",
+};
 
 function ApprovalDetailPane({
   approval,
+  decidingId,
   onOpenTarget,
-  onStartDecision,
+  onDecide,
 }: ApprovalDetailPaneProps) {
+  const [comment, setComment] = useState("");
+  useEffect(() => {
+    setComment("");
+  }, [approval.id]);
+
   const isPending = approval.status === "pending";
   const expiresAtMs = new Date(approval.expiresAt).getTime();
   const isExpired = expiresAtMs < Date.now();
@@ -232,135 +258,136 @@ function ApprovalDetailPane({
     approval.actionType === "gate.override" ? "Gate 보기" : "Finding 보기";
   const impactText = formatImpactSummary(approval.impactSummary);
   const metaRows = buildTargetSnapshotRows(approval.targetSnapshot, approval.actionType);
+  const visibleMetaRows = metaRows.filter((row) => row.value !== null);
+  const isProcessing = decidingId === approval.id;
+  const canDecide = isPending && !isExpired;
 
   return (
     <>
-      <div className="appr-detail-pane__head">
+      <header className="appr-detail__head">
         <div
-          className={`appr-detail-pane__head-icon ${actionKind(approval.actionType)}`}
+          className={`appr-detail__icon ${actionKind(approval.actionType)}`}
           aria-hidden="true"
         >
           <ActionIconNode approval={approval} />
         </div>
-        <div className="appr-detail-pane__head-copy">
-          <div className="appr-detail-pane__eyebrow">
-            <span className="lab">
-              {ACTION_EYEBROW[approval.actionType] ?? approval.actionType.toUpperCase()}
+        <div className="appr-detail__head-copy">
+          <h3 className="appr-detail__title">
+            <span className="appr-detail__title-text">
+              {ACTION_LABELS[approval.actionType] ?? approval.actionType}
             </span>
-            <span className="id">{approval.id}</span>
-          </div>
-          <h3 className="appr-detail-pane__title">
-            {ACTION_LABELS[approval.actionType] ?? approval.actionType}
+            <span className="appr-detail__id">#{approval.id}</span>
           </h3>
-          <div className="appr-meta">
-            <span className="mi">
-              <b>REQ</b>
-              {approval.requestedBy}
-            </span>
-            <span className="mi">
-              <Clock aria-hidden="true" />
-              <b>CREATED</b>
-              {formatDateTime(approval.createdAt)}
-            </span>
+          <p className="appr-detail__byline">
+            <span className="appr-detail__author">{approval.requestedBy}</span>
+            <span aria-hidden="true" className="appr-detail__byline-sep"> · </span>
+            <span>{formatDateTime(approval.createdAt)} 등록</span>
             {isPending && !isExpired ? (
-              <span className="mi">
-                <b>EXP</b>
-                {formatDateTime(approval.expiresAt)}
-              </span>
+              <>
+                <span aria-hidden="true" className="appr-detail__byline-sep"> · </span>
+                <span>{formatDateTime(approval.expiresAt)} 만료</span>
+              </>
             ) : null}
-          </div>
+          </p>
         </div>
-        <div className="appr-detail-pane__head-aside">
-          <span
-            className={`approval-status approval-status--lg approval-status--${approval.status}`}
-          >
-            <span className="approval-status__dot" />
-            {STATUS_LABELS[approval.status]}
-          </span>
-        </div>
-      </div>
-      <div className="appr-detail-pane__body">
-        <section className="appr-detail-pane__section">
-          <div className="appr-detail-pane__section-lab">요청 사유</div>
-          <div className="appr-detail-pane__reason">{approval.reason}</div>
-        </section>
-        <section className="appr-detail-pane__section">
-          <div className="appr-detail-pane__section-lab">결정의 영향</div>
-          {impactText ? (
-            <div className="appr-detail-pane__impact">
-              <div className="appr-detail-pane__impact-body">
-                <div className="appr-detail-pane__impact-title">
-                  결정 영향 요약
-                </div>
-                <div className="appr-detail-pane__impact-text">{impactText}</div>
-              </div>
-            </div>
-          ) : (
-            <div className="appr-detail-pane__impact appr-detail-pane__impact--placeholder">
-              <span className="appr-detail-pane__impact-placeholder">
-                — 영향 요약 데이터 없음
-              </span>
-            </div>
-          )}
-        </section>
-        <section className="appr-detail-pane__section">
-          <div className="appr-detail-pane__section-lab">실행 정보</div>
-          <div className="appr-detail-pane__meta-grid">
-            {metaRows.map((row) => (
-              <div className="appr-detail-pane__meta-row" key={row.key}>
-                <span className="k">{row.label}</span>
-                <span className="v">
-                  {row.value ?? <span className="appr-detail-pane__meta-placeholder">—</span>}
-                </span>
-              </div>
-            ))}
+        <span
+          className={`approval-status approval-status--lg approval-status--${approval.status}`}
+        >
+          <span className="approval-status__dot" />
+          {STATUS_LABELS[approval.status]}
+        </span>
+      </header>
+
+      <div className="appr-detail__body">
+        <p className="appr-detail__reason">{approval.reason}</p>
+
+        <dl className="appr-detail__inline-meta">
+          <div className="appr-detail__inline-row">
+            <dt>영향</dt>
+            <dd>
+              {impactText ?? <span className="appr-detail__placeholder">—</span>}
+            </dd>
           </div>
-        </section>
+          <div className="appr-detail__inline-row">
+            <dt>타겟</dt>
+            <dd>
+              {visibleMetaRows.length === 0 ? (
+                <span className="appr-detail__placeholder">—</span>
+              ) : (
+                visibleMetaRows.map((row, index) => (
+                  <React.Fragment key={row.key}>
+                    {index > 0 ? (
+                      <span aria-hidden="true" className="appr-detail__inline-sep"> · </span>
+                    ) : null}
+                    <span className="appr-detail__inline-pair">
+                      <b className="appr-detail__inline-label">{row.label}</b>
+                      <span className="appr-detail__inline-value">{row.value}</span>
+                    </span>
+                  </React.Fragment>
+                ))
+              )}
+              <button
+                type="button"
+                className="appr-detail__target-link"
+                onClick={() => onOpenTarget(approval)}
+              >
+                <ExternalLink size={12} aria-hidden="true" />
+                {targetLabel}
+              </button>
+            </dd>
+          </div>
+        </dl>
+
         {approval.decision ? (
-          <section className="appr-detail-pane__section">
-            <div className="appr-detail-pane__section-lab">결정 이력</div>
-            <div className="appr-detail-pane__decision">
-              <span className="appr-detail-pane__decision-by">
-                {approval.decision.decidedBy} · {formatDateTime(approval.decision.decidedAt)}
-              </span>
-              {approval.decision.comment ? (
-                <span className="appr-detail-pane__decision-comment">
-                  "{approval.decision.comment}"
-                </span>
-              ) : null}
-            </div>
-          </section>
+          <blockquote className={`appr-detail__decision-quote s-${approval.status}`}>
+            <p className="appr-detail__decision-attr">
+              <b className="appr-detail__decision-by">{approval.decision.decidedBy}</b>
+              {DECISION_VERB[approval.status]}
+              <span aria-hidden="true" className="appr-detail__byline-sep"> · </span>
+              <span>{formatDateTime(approval.decision.decidedAt)}</span>
+            </p>
+            {approval.decision.comment ? (
+              <p className="appr-detail__decision-comment">
+                "{approval.decision.comment}"
+              </p>
+            ) : null}
+          </blockquote>
         ) : null}
       </div>
-      <div className="appr-detail-pane__foot">
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
-          onClick={() => onOpenTarget(approval)}
-        >
-          <ExternalLink size={14} aria-hidden="true" />
-          {targetLabel}
-        </button>
-        <div className="appr-detail-pane__foot-gap" aria-hidden="true" />
-        {isPending && !isExpired ? (
-          <>
+
+      {canDecide ? (
+        <footer className="appr-detail__decide">
+          <label className="appr-detail__decide-label" htmlFor="appr-decide-comment">
+            결정 사유<span className="appr-detail__decide-optional"> (선택)</span>
+          </label>
+          <textarea
+            id="appr-decide-comment"
+            className="appr-detail__decide-textarea"
+            placeholder="후속 조치 / 결정 근거를 남기면 감사 로그에 기록됩니다."
+            value={comment}
+            onChange={(event) => setComment(event.target.value)}
+            rows={3}
+          />
+          <div className="appr-detail__decide-actions">
             <button
               type="button"
               className="btn btn-danger btn-sm"
-              onClick={() => onStartDecision(approval.id, "rejected")}
+              onClick={() => onDecide(approval.id, "rejected", comment)}
+              disabled={isProcessing}
             >
-              거부
+              {isProcessing ? "처리 중..." : "거부"}
             </button>
             <button
               type="button"
               className="btn btn-primary btn-sm"
-              onClick={() => onStartDecision(approval.id, "approved")}
+              onClick={() => onDecide(approval.id, "approved", comment)}
+              disabled={isProcessing}
             >
-              승인
+              {isProcessing ? "처리 중..." : "승인"}
             </button>
-          </>
-        ) : null}
-      </div>
+          </div>
+        </footer>
+      ) : null}
     </>
   );
 }

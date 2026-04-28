@@ -105,28 +105,31 @@ describe("ApprovalsPage", () => {
     const approvedTab = within(filterTablist).getByRole("tab", { name: /승인됨/ });
     expect(within(approvedTab).getByText("1")).toBeInTheDocument();
 
-    expect(screen.getByText("Quality Gate 오버라이드")).toBeInTheDocument();
+    // master+detail render the action label twice (master li + detail pane title)
+    expect(screen.getAllByText("Quality Gate 오버라이드").length).toBeGreaterThan(0);
     // approved row is hidden under the default pending filter
     expect(screen.queryByText("Finding 위험 수용")).not.toBeInTheDocument();
   });
 
-  it("renders the hero verdict block with workflow-active-pending tone", async () => {
+  it("renders the inline status with workflow-active-pending tone", async () => {
     renderPage();
-    const hero = await screen.findByLabelText("승인 큐 현재 상태");
-    expect(hero).toHaveClass("hero-verdict", "v-pending");
-    // pending count is 1 (workflow-active-pending tone via approval-status--pending)
-    expect(within(hero).getByText("1")).toHaveClass("approval-status--pending");
+    const status = await screen.findByLabelText("승인 큐 현재 상태");
+    expect(status).toHaveClass("approvals-status");
+    // pending count is 1 — workflow-active-pending tone via approval-status--pending.
+    expect(within(status).getByText("1")).toHaveClass("approval-status--pending");
   });
 
   it("filters to approved approvals and shows the existing decision metadata", async () => {
     renderPage();
 
-    await waitFor(() => expect(screen.getByText("Quality Gate 오버라이드")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getAllByText("Quality Gate 오버라이드").length).toBeGreaterThan(0),
+    );
     const filterTablist = screen.getByRole("tablist", { name: "승인 요청 상태 필터" });
     fireEvent.click(within(filterTablist).getByRole("tab", { name: /승인됨/ }));
 
     await waitFor(() => expect(screen.queryByText("Quality Gate 오버라이드")).not.toBeInTheDocument());
-    expect(screen.getByText("Finding 위험 수용")).toBeInTheDocument();
+    expect(screen.getAllByText("Finding 위험 수용").length).toBeGreaterThan(0);
     expect(screen.getByText(/"확인함"/)).toBeInTheDocument();
 
     fireEvent.click(within(filterTablist).getByRole("tab", { name: /^거부/ }));
@@ -147,17 +150,15 @@ describe("ApprovalsPage", () => {
     expect(mockNavigate).toHaveBeenNthCalledWith(2, "/projects/p-1/vulnerabilities");
   });
 
-  it("submits an approval decision with an optional comment and reloads the list", async () => {
+  it("submits an approval decision with an inline comment and reloads the list", async () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByText("긴급 릴리즈 필요")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "승인" }));
-
-    const dialog = await screen.findByRole("dialog");
-    fireEvent.change(within(dialog).getByPlaceholderText("코멘트 (선택)"), {
+    // pending APR-0058 auto-selects → inline decision footer surfaces
+    fireEvent.change(screen.getByLabelText(/결정 사유/), {
       target: { value: "승인 사유" },
     });
-    fireEvent.click(within(dialog).getByRole("button", { name: "승인 확정" }));
+    fireEvent.click(screen.getByRole("button", { name: "승인" }));
 
     await waitFor(() =>
       expect(mockDecideApproval).toHaveBeenCalledWith("APR-0058", "approved", undefined, "승인 사유"),
@@ -169,12 +170,8 @@ describe("ApprovalsPage", () => {
   it("submits a rejection decision without a comment and reloads the list", async () => {
     renderPage();
 
-    const reason = await screen.findByText("긴급 릴리즈 필요");
-    const pendingCard = reason.closest(".appr-row") as HTMLElement;
-    fireEvent.click(within(pendingCard).getByRole("button", { name: "거부" }));
-
-    const dialog = await screen.findByRole("dialog");
-    fireEvent.click(within(dialog).getByRole("button", { name: "거부 확정" }));
+    await screen.findByText("긴급 릴리즈 필요");
+    fireEvent.click(screen.getByRole("button", { name: "거부" }));
 
     await waitFor(() =>
       expect(mockDecideApproval).toHaveBeenCalledWith("APR-0058", "rejected", undefined, undefined),
@@ -183,24 +180,20 @@ describe("ApprovalsPage", () => {
     expect(mockToast.success).toHaveBeenCalledWith("거부 완료");
   });
 
-  it("renders impactSummary preview and targetSnapshot meta in the decision dialog", async () => {
+  it("renders impactSummary and targetSnapshot meta inline in the detail pane", async () => {
     renderPage();
 
-    await waitFor(() => expect(screen.getByText("긴급 릴리즈 필요")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "승인" }));
-
-    const dialog = await screen.findByRole("dialog");
+    const tabPanel = await screen.findByRole("tabpanel");
     // impactSummary verbatim (S2 contract), no frontend derive
     expect(
-      within(dialog).getByText("차단 규칙 2 / 무시 발견 5 / critical 1, high 3"),
+      within(tabPanel).getByText("차단 규칙 2 / 무시 발견 5 / critical 1, high 3"),
     ).toBeInTheDocument();
-    // targetSnapshot meta rows
-    expect(within(dialog).getByText("Run")).toBeInTheDocument();
-    expect(within(dialog).getByText("#1284")).toBeInTheDocument();
-    expect(within(dialog).getByText("Commit")).toBeInTheDocument();
-    expect(within(dialog).getByText("f8a1c3d")).toBeInTheDocument();
-    expect(within(dialog).getByText("Profile")).toBeInTheDocument();
-    expect(within(dialog).getByText("prod-strict-v3")).toBeInTheDocument();
+    expect(within(tabPanel).getByText("Run")).toBeInTheDocument();
+    expect(within(tabPanel).getByText("#1284")).toBeInTheDocument();
+    expect(within(tabPanel).getByText("Commit")).toBeInTheDocument();
+    expect(within(tabPanel).getByText("f8a1c3d")).toBeInTheDocument();
+    expect(within(tabPanel).getByText("Profile")).toBeInTheDocument();
+    expect(within(tabPanel).getByText("prod-strict-v3")).toBeInTheDocument();
   });
 
   it("logs and toasts when approvals fail to load", async () => {
@@ -247,8 +240,10 @@ describe("ApprovalsPage", () => {
     renderPage();
 
     expect(await screen.findByText("처리할 승인 요청이 없습니다")).toBeInTheDocument();
-    // 7-day stats hint may appear in both hero (detail row) and empty state — both OK
-    expect(screen.getAllByText(/지난 7일간/).length).toBeGreaterThan(0);
+    // pending=0 → inline status hides; 7-day audit appears as a trailing
+    // span next to the empty-state primary line.
+    expect(screen.queryByLabelText("승인 큐 현재 상태")).not.toBeInTheDocument();
+    expect(screen.getByText(/지난 7일.+결정.+평균/)).toBeInTheDocument();
   });
 });
 
@@ -322,7 +317,8 @@ describe("ApprovalsPage — Panel variant (US-007)", () => {
     renderPage("/projects/p-1/approvals?view=panel");
 
     const tabPanel = await screen.findByRole("tabpanel");
-    // 5 placeholder rows for runId/commit/branch/profile/action when snapshot missing
-    expect(within(tabPanel).getAllByText("—").length).toBeGreaterThanOrEqual(5);
+    // No snapshot → 영향 + 타겟 inline rows both render the dim '—' placeholder.
+    // No backfill of runId/commit/etc. (handoff §9: never frontend-derive).
+    expect(within(tabPanel).getAllByText("—").length).toBeGreaterThanOrEqual(2);
   });
 });

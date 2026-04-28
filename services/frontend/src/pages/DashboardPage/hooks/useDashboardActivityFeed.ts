@@ -371,6 +371,7 @@ function buildPrimaryActivityEvent(project: DashboardProject): ActivityEvent | n
   }
 
   const owner = projectOwner(project);
+  const ownerDisplay = owner?.name ?? "담당자";
   const approvals = projectPendingApprovals(project);
   const critical = project.severitySummary?.critical ?? 0;
   const high = project.severitySummary?.high ?? 0;
@@ -420,7 +421,7 @@ function buildPrimaryActivityEvent(project: DashboardProject): ActivityEvent | n
       timestamp,
       tone: "muted",
       icon: "user",
-      html: `<b>${escapeHtml(owner.name)}</b>가 <b><span class="proj">${escapeHtml(project.name)}</span></b> 승인 요청 <span class="n">#A-${project.id.replace(/[^0-9]/g, "") || "101"}</span> 제출`,
+      html: `<b>${escapeHtml(ownerDisplay)}</b>가 <b><span class="proj">${escapeHtml(project.name)}</span></b> 승인 요청 <span class="n">#A-${project.id.replace(/[^0-9]/g, "") || "101"}</span> 제출`,
     };
   }
 

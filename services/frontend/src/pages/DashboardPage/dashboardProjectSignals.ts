@@ -1,16 +1,10 @@
 import { formatRelativeTime } from "../../utils/format";
 import type { DashboardProject } from "./dashboardTypes";
 
-const OWNER_POOL = [
-  { avatar: "김", name: "Kim" },
-  { avatar: "박", name: "Park" },
-  { avatar: "이", name: "Lee" },
-  { avatar: "최", name: "Choi" },
-  { avatar: "정", name: "Jung" },
-  { avatar: "강", name: "Kang" },
-  { avatar: "윤", name: "Yoon" },
-  { avatar: "서", name: "Seo" },
-] as const;
+export interface ProjectOwnerDisplay {
+  avatar: string;
+  name: string;
+}
 
 export function totalFindings(project: DashboardProject): number {
   return (project.severitySummary?.critical ?? 0)
@@ -69,16 +63,19 @@ export function projectPendingApprovals(project: DashboardProject): number {
   return 0;
 }
 
-export function projectOwner(project: DashboardProject): { avatar: string; name: string } {
-  const explicitAvatar = (project as { owner?: string }).owner;
-  const explicitName = (project as { ownerName?: string }).ownerName;
-  if (explicitAvatar && explicitName) {
-    return { avatar: explicitAvatar, name: explicitName };
-  }
-
-  const seed = `${project.id}:${project.name}`;
-  const hash = [...seed].reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  return OWNER_POOL[hash % OWNER_POOL.length];
+/**
+ * Return owner display block from S2 contract (`ProjectListItem.owner`).
+ * Returns null when S2 omits owner (migrated/legacy rows or unauthenticated
+ * dev creations) — caller renders dim placeholder.
+ *
+ * Avatar fallback rule (per s2→s1 reply WR 2026-04-27): when owner.avatar is
+ * absent or null, S1 derives from the first 1-2 chars of name.
+ */
+export function projectOwner(project: DashboardProject): ProjectOwnerDisplay | null {
+  const owner = project.owner;
+  if (!owner) return null;
+  const avatar = owner.avatar ?? Array.from(owner.name).slice(0, 2).join("");
+  return { avatar: avatar || owner.name.charAt(0), name: owner.name };
 }
 
 export function projectLanguage(project: DashboardProject): "c" | "cpp" | "rust" | "ts" | "py" {

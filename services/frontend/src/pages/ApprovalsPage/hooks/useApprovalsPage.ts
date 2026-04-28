@@ -5,8 +5,6 @@ import { logError } from "../../../api/core";
 
 export type ApprovalFilterStatus = "all" | "pending" | "approved" | "rejected" | "expired";
 export type ApprovalDecisionAction = "approved" | "rejected";
-export type ApprovalView = "list" | "panel";
-export type ApprovalSortMode = "expires" | "created";
 
 type ToastApi = {
   error: (message: string) => void;
@@ -45,13 +43,8 @@ export function useApprovalsPage(projectId: string | undefined, toast: ToastApi)
   const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<ApprovalFilterStatus>("pending");
-  const [view, setView] = useState<ApprovalView>("list");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [sortMode, setSortMode] = useState<ApprovalSortMode>("expires");
   const [decidingId, setDecidingId] = useState<string | null>(null);
-  const [decidingAction, setDecidingAction] = useState<ApprovalDecisionAction | null>(null);
-  const [comment, setComment] = useState("");
-  const [processing, setProcessing] = useState(false);
 
   const loadApprovals = useCallback(async () => {
     if (!projectId) {
@@ -78,48 +71,35 @@ export function useApprovalsPage(projectId: string | undefined, toast: ToastApi)
     void loadApprovals();
   }, [loadApprovals]);
 
-  const closeDecisionDialog = useCallback(() => {
-    setDecidingId(null);
-    setDecidingAction(null);
-    setComment("");
-  }, []);
-
-  const openDecisionDialog = useCallback((approvalId: string, action: ApprovalDecisionAction) => {
-    setDecidingId(approvalId);
-    setDecidingAction(action);
-  }, []);
-
-  const submitDecision = useCallback(async () => {
-    if (!decidingId || !decidingAction) return;
-
-    setProcessing(true);
-
-    try {
-      await decideApproval(decidingId, decidingAction, undefined, comment.trim() || undefined);
-      toast.success(decidingAction === "approved" ? "승인 완료" : "거부 완료");
-      closeDecisionDialog();
-      await loadApprovals();
-    } catch (error) {
-      logError("Decide approval", error);
-      toast.error("처리에 실패했습니다.");
-    } finally {
-      setProcessing(false);
-    }
-  }, [closeDecisionDialog, comment, decidingAction, decidingId, loadApprovals, toast]);
+  const submitDecision = useCallback(
+    async (approvalId: string, action: ApprovalDecisionAction, comment: string) => {
+      const trimmed = comment.trim() || undefined;
+      setDecidingId(approvalId);
+      try {
+        await decideApproval(approvalId, action, undefined, trimmed);
+        toast.success(action === "approved" ? "승인 완료" : "거부 완료");
+        await loadApprovals();
+      } catch (error) {
+        logError("Decide approval", error);
+        toast.error("처리에 실패했습니다.");
+      } finally {
+        setDecidingId(null);
+      }
+    },
+    [loadApprovals, toast],
+  );
 
   const filteredApprovals = useMemo(() => {
     const base = filter === "all" ? approvals : approvals.filter((approval) => approval.status === filter);
-    if (sortMode !== "expires") return base;
-    // imminent (lower expiresAt) first for pending; otherwise keep created-desc baseline
     return [...base].sort((a, b) => {
       if (a.status === "pending" && b.status !== "pending") return -1;
       if (a.status !== "pending" && b.status === "pending") return 1;
-      const aExp = new Date(a.expiresAt).getTime();
-      const bExp = new Date(b.expiresAt).getTime();
-      if (a.status === "pending" && b.status === "pending") return aExp - bExp;
+      if (a.status === "pending" && b.status === "pending") {
+        return new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime();
+      }
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-  }, [approvals, filter, sortMode]);
+  }, [approvals, filter]);
 
   const pendingCount = useMemo(
     () => approvals.filter((approval) => approval.status === "pending").length,
@@ -169,20 +149,10 @@ export function useApprovalsPage(projectId: string | undefined, toast: ToastApi)
     statusCounts,
     pendingCount,
     decidingId,
-    decidingAction,
-    comment,
-    setComment,
-    processing,
-    loadApprovals,
-    openDecisionDialog,
-    closeDecisionDialog,
     submitDecision,
-    view,
-    setView,
+    loadApprovals,
     selectedId,
     setSelectedId,
-    sortMode,
-    setSortMode,
     sevenDayStats,
     imminentCount,
     oldestPendingAge,
