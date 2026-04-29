@@ -44,22 +44,39 @@ function makeProps(overrides: Record<string, unknown> = {}) {
     isResizing: false,
     onStartResize: vi.fn(),
     onNudgeResize: vi.fn(),
+    sourceFiles: [{ relativePath: "src/main.c", size: 120, language: "C" }],
+    targetMapping: {},
+    targets: [],
+    findingsByFile: new Map(),
+    composition: {},
+    previewDrawerOpen: false,
+    onPreviewFile: vi.fn(),
+    onClosePreview: vi.fn(),
+    onOpenInDetail: vi.fn(),
+    onInsightHotspotClick: vi.fn(),
     ...overrides,
   };
 }
 
 describe("FilesSourceWorkspace", () => {
-  it("renders tree state and empty preview copy", () => {
+  it("renders manifest insights as the default right pane", () => {
     render(<FilesSourceWorkspace {...(makeProps() as any)} />);
-    expect(screen.getByText("파일을 선택하면 내용을 미리 볼 수 있습니다")).toBeInTheDocument();
+    expect(screen.getByText("1. 빌드 타겟 커버리지")).toBeInTheDocument();
+    expect(screen.getByText("4. Top hotspot files")).toBeInTheDocument();
     expect(screen.getByText("main.c")).toBeInTheDocument();
   });
 
-  it("renders loading preview and findings list when a file is selected", () => {
+  it("renders loading preview and findings list when the drawer is open", () => {
     const onSelectFinding = vi.fn();
     const finding = { id: "finding-1", title: "Unsafe copy", location: "src/main.c:2" } as any;
     const { rerender } = render(
-      <FilesSourceWorkspace {...(makeProps({ selectedPath: "src/main.c", previewLoading: true }) as any)} />,
+      <FilesSourceWorkspace
+        {...(makeProps({
+          selectedPath: "src/main.c",
+          previewDrawerOpen: true,
+          previewLoading: true,
+        }) as any)}
+      />,
     );
     expect(screen.getByText("로딩 중...")).toBeInTheDocument();
 
@@ -67,6 +84,7 @@ describe("FilesSourceWorkspace", () => {
       <FilesSourceWorkspace
         {...(makeProps({
           selectedPath: "src/main.c",
+          previewDrawerOpen: true,
           previewLoading: false,
           previewContent: "int main() {}",
           selectedFileFindings: [finding],

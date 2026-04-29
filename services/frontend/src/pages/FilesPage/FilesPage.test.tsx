@@ -53,6 +53,16 @@ vi.mock("../../contexts/ToastContext", () => ({
   useToast: () => mockToast,
 }));
 
+vi.mock("../../contexts/ProjectContext", () => ({
+  useProjects: () => ({
+    getProject: (id: string) => ({ id, name: `project-${id}` }),
+    projects: [],
+    loading: false,
+    refreshProjects: vi.fn(),
+    createProject: vi.fn(),
+  }),
+}));
+
 vi.mock("./components/BuildTargetCreateDialog", () => ({
   BuildTargetCreateDialog: () => null,
 }));
@@ -147,11 +157,10 @@ describe("FilesPage", () => {
     renderPage();
 
     await waitFor(() => expect(mockFetchProjectFindings).toHaveBeenCalledWith("p-1"));
-    expect(await screen.findByRole("heading", { name: "파일 탐색기" })).toBeInTheDocument();
-    expect(screen.getByText(/2개 파일/)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "분석 매니페스트" })).toBeInTheDocument();
     expect(screen.getByText("README.md")).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByText("main.c")[0]);
+    fireEvent.click(screen.getByLabelText(/src\/main\.c 미리 보기/));
 
     await waitFor(() => expect(mockFetchSourceFileContent).toHaveBeenCalledWith("p-1", "src/main.c"));
     expect(await screen.findByText("Unsafe copy")).toBeInTheDocument();
@@ -172,7 +181,7 @@ describe("FilesPage", () => {
 
     renderPage();
 
-    expect(await screen.findByRole("heading", { name: "파일 탐색기" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "분석 매니페스트" })).toBeInTheDocument();
     expect(screen.getByText("main.c")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle("폴더 전부 접기"));
@@ -206,7 +215,7 @@ describe("FilesPage", () => {
 
     renderPage();
 
-    expect(await screen.findByRole("heading", { name: "파일 탐색기" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "분석 매니페스트" })).toBeInTheDocument();
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     const archive = new File(["archive"], "project.zip", { type: "application/zip" });
@@ -227,7 +236,7 @@ describe("FilesPage", () => {
 
     renderPage();
 
-    expect(await screen.findByRole("heading", { name: "파일 탐색기" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "분석 매니페스트" })).toBeInTheDocument();
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(fileInput, { target: { files: [new File(["archive"], "project.zip", { type: "application/zip" })] } });

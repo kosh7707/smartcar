@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Finding } from "@aegis/shared";
+import type { Finding, Severity } from "@aegis/shared";
 import { FileText } from "lucide-react";
 import {
   fetchProjectFindings,
@@ -23,6 +23,14 @@ import type { useBuildTargets } from "../../../hooks/useBuildTargets";
 import type { useUploadProgress } from "../../../hooks/useUploadProgress";
 
 const getSourcePath = (file: SourceFileEntry) => file.relativePath;
+
+const SEVERITY_RANK: Record<Severity, number> = {
+  critical: 4,
+  high: 3,
+  medium: 2,
+  low: 1,
+  info: 0,
+};
 
 const collectFolderPaths = (node: TreeNode<SourceFileEntry>): Set<string> => {
   const paths = new Set<string>();
@@ -59,6 +67,7 @@ export function useFilesPage(
 ) {
   const [sourceFiles, setSourceFiles] = useState<SourceFileEntry[]>([]);
   const [targetMapping, setTargetMapping] = useState<Record<string, TargetMappingEntry>>({});
+  const [composition, setComposition] = useState<Record<string, { count: number; bytes: number }>>({});
   const [findings, setFindings] = useState<Finding[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -72,6 +81,8 @@ export function useFilesPage(
   const [previewLang, setPreviewLang] = useState("");
   const [previewFileClass, setPreviewFileClass] = useState<FileClass>("text");
   const [previewSize, setPreviewSize] = useState(0);
+  const [previewDrawerOpen, setPreviewDrawerOpen] = useState(false);
+  const [activeTargetFilters, setActiveTargetFilters] = useState<Set<string>>(() => new Set());
   const workspaceLayout = useFilesWorkspaceLayout();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -83,6 +94,7 @@ export function useFilesPage(
     if (!projectId) {
       setSourceFiles([]);
       setTargetMapping({});
+      setComposition({});
       setFindings([]);
       setLoading(false);
       return;
@@ -95,6 +107,7 @@ export function useFilesPage(
       .then(([filesRes, nextFindings]) => {
         setSourceFiles(filesRes.data);
         setTargetMapping(filesRes.targetMapping ?? {});
+        setComposition(filesRes.composition ?? {});
         setFindings(nextFindings);
       })
       .catch((error) => {
@@ -168,6 +181,42 @@ export function useFilesPage(
     [sourceFiles],
   );
 
+  const coveredCount = useMemo(() => {
+    let n = 0;
+    for (const file of sourceFiles) {
+      if (targetMapping[file.relativePath]) n += 1;
+    }
+    return n;
+  }, [sourceFiles, targetMapping]);
+
+  const coveragePct = useMemo(() => {
+    if (sourceFiles.length === 0) return 0;
+    return Math.round((coveredCount / sourceFiles.length) * 100);
+  }, [coveredCount, sourceFiles.length]);
+
+  const isUntargetedMajority = useMemo(() => {
+    if (sourceFiles.length === 0) return false;
+    return coveredCount * 2 < sourceFiles.length;
+  }, [coveredCount, sourceFiles.length]);
+
+  const findingsByFile = useMemo(() => {
+    const map = new Map<string, { total: number; topSeverity: Severity }>();
+    for (const finding of findings) {
+      const { fileName } = parseLocation(finding.location);
+      if (!fileName) continue;
+      const prev = map.get(fileName);
+      const sev = finding.severity;
+      if (!prev) {
+        map.set(fileName, { total: 1, topSeverity: sev });
+      } else {
+        const nextTop =
+          SEVERITY_RANK[sev] > SEVERITY_RANK[prev.topSeverity] ? sev : prev.topSeverity;
+        map.set(fileName, { total: prev.total + 1, topSeverity: nextTop });
+      }
+    }
+    return map;
+  }, [findings]);
+
   const handleFileClick = useCallback(async (file: SourceFileEntry) => {
     if (!projectId) return;
     setSelectedPath(file.relativePath);
@@ -192,6 +241,22 @@ export function useFilesPage(
       setPreviewLoading(false);
     }
   }, [projectId, toast]);
+
+  const openPreviewDrawer = useCallback(
+    async (path: string) => {
+      const file = sourceFiles.find((f) => f.relativePath === path);
+      if (!file) return;
+      setPreviewDrawerOpen(true);
+      await handleFileClick(file);
+    },
+    [handleFileClick, sourceFiles],
+  );
+
+  const closePreview = useCallback(() => {
+    setPreviewDrawerOpen(false);
+    setSelectedPath(null);
+    setPreviewContent(null);
+  }, []);
 
   const handleUpload = useCallback(async (fileList: FileList) => {
     if (!projectId || fileList.length === 0) return;
@@ -254,8 +319,23 @@ export function useFilesPage(
     });
   }, [tree]);
 
+  const toggleTargetFilter = useCallback((targetKey: string) => {
+    setActiveTargetFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(targetKey)) next.delete(targetKey);
+      else next.add(targetKey);
+      return next;
+    });
+  }, []);
+
+  const clearTargetFilters = useCallback(() => {
+    setActiveTargetFilters(new Set());
+  }, []);
+
   return {
     sourceFiles,
+    targetMapping,
+    composition,
     findings,
     loading,
     search,
@@ -272,6 +352,7 @@ export function useFilesPage(
     previewLang,
     previewFileClass,
     previewSize,
+    previewDrawerOpen,
     workspaceLayout,
     fileInputRef,
     displayTree,
@@ -280,11 +361,18 @@ export function useFilesPage(
     highlightLines,
     langStats,
     totalSize,
+    coveredCount,
+    coveragePct,
+    isUntargetedMajority,
+    findingsByFile,
+    activeTargetFilters,
     buildTargets,
     upload,
     handleDrop,
     handleUpload,
     handleFileClick,
+    openPreviewDrawer,
+    closePreview,
     renderFileIcon,
     renderFileMeta,
     renderFolderBadge,
@@ -292,6 +380,8 @@ export function useFilesPage(
     onExpandAll,
     onCollapseAll,
     onToggleFolder,
+    toggleTargetFilter,
+    clearTargetFilters,
     onBuildTargetCreated: () => {
       setShowBuildTargetDialog(false);
       void buildTargets.load();

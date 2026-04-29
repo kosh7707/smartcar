@@ -3,13 +3,13 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Upload } from "lucide-react";
 import { Spinner } from "../../shared/ui";
 import { useToast } from "../../contexts/ToastContext";
+import { useProjects } from "../../contexts/ProjectContext";
 import { useUploadProgress } from "../../hooks/useUploadProgress";
 import { useBuildTargets } from "../../hooks/useBuildTargets";
 import { FilesEmptyState } from "./components/FilesEmptyState";
 import { BuildTargetCreateDialog } from "./components/BuildTargetCreateDialog";
 import { BuildLogViewer } from "./components/BuildLogViewer";
 import { FilesPageHeader } from "./components/FilesPageHeader";
-import { FilesLanguageSummary } from "./components/FilesLanguageSummary";
 import { FilesBuildTargetPanel } from "./components/FilesBuildTargetPanel";
 import { FilesSourceWorkspace } from "./components/FilesSourceWorkspace";
 import { useFilesPage } from "./hooks/useFilesPage";
@@ -19,6 +19,7 @@ export const FilesPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const toast = useToast();
+  const { getProject } = useProjects();
   const upload = useUploadProgress();
   const bt = useBuildTargets(projectId);
   const state = useFilesPage(projectId, navigate, toast, upload, bt);
@@ -33,6 +34,12 @@ export const FilesPage: React.FC = () => {
 
   if (!projectId) return null;
 
+  const projectName = getProject(projectId)?.name ?? projectId;
+
+  const handleOpenInDetail = (path: string) => {
+    navigate(`/projects/${projectId}/files/${encodeURIComponent(path)}`);
+  };
+
   return (
     <div
       className="page-shell files-page"
@@ -44,6 +51,8 @@ export const FilesPage: React.FC = () => {
         onOpenUpload={() => state.fileInputRef.current?.click()}
         fileInputRef={state.fileInputRef}
         onFileInputChange={(event) => event.target.files && state.handleUpload(event.target.files)}
+        projectId={projectId}
+        projectName={projectName}
       />
 
       {state.upload.isActive && (
@@ -59,6 +68,11 @@ export const FilesPage: React.FC = () => {
         <>
           <FilesBuildTargetPanel
             targets={state.buildTargets.targets}
+            sourceFiles={state.sourceFiles}
+            targetMapping={state.targetMapping}
+            activeTargetFilters={state.activeTargetFilters}
+            onToggleFilter={state.toggleTargetFilter}
+            onClearFilters={state.clearTargetFilters}
             onOpenLog={state.setLogTarget}
             onOpenCreateTarget={() => state.setShowBuildTargetDialog(true)}
           />
@@ -89,12 +103,16 @@ export const FilesPage: React.FC = () => {
             isResizing={state.workspaceLayout.isResizing}
             onStartResize={state.workspaceLayout.startResizing}
             onNudgeResize={state.workspaceLayout.nudgeResize}
-          />
-
-          <FilesLanguageSummary
-            totalFiles={state.sourceFiles.length}
-            totalSize={state.totalSize}
-            langStats={state.langStats}
+            sourceFiles={state.sourceFiles}
+            targetMapping={state.targetMapping}
+            targets={state.buildTargets.targets}
+            findingsByFile={state.findingsByFile}
+            composition={state.composition}
+            previewDrawerOpen={state.previewDrawerOpen}
+            onPreviewFile={state.openPreviewDrawer}
+            onClosePreview={state.closePreview}
+            onOpenInDetail={handleOpenInDetail}
+            onInsightHotspotClick={state.openPreviewDrawer}
           />
         </>
       )}
