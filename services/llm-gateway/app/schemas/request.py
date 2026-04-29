@@ -22,7 +22,14 @@ class Context(BaseModel):
 
 
 class Constraints(BaseModel):
-    maxTokens: int = Field(2048, ge=1, le=8192)
+    enableThinking: bool
+    maxTokens: int = Field(ge=1, le=32768)
+    temperature: float = Field(ge=0.0, le=2.0)
+    topP: float = Field(ge=0.0, le=1.0)
+    topK: int = Field(ge=-1)
+    minP: float = Field(ge=0.0, le=1.0)
+    presencePenalty: float = Field(ge=-2.0, le=2.0)
+    repetitionPenalty: float = Field(ge=0.0, le=2.0)
     timeoutMs: int = Field(15000, ge=1000, le=300000)
     outputSchema: str | None = None
 
@@ -37,7 +44,7 @@ class TaskRequest(BaseModel):
     taskId: str
     context: Context
     evidenceRefs: list[EvidenceRef] = []
-    constraints: Constraints = Field(default_factory=Constraints)
+    constraints: Constraints
     metadata: RequestMetadata | None = None
 
 
@@ -46,5 +53,10 @@ class AsyncChatSubmitRequest(BaseModel):
 
     model: str | None = None
     messages: list[dict] = Field(min_length=1)
-    max_tokens: int | None = Field(default=None, ge=1)
-    temperature: float | None = None
+    max_tokens: int | None = Field(default=None, ge=1, le=32768)
+    temperature: float | None = Field(default=None, ge=0.0, le=2.0)
+    top_p: float | None = Field(default=None, ge=0.0, le=1.0)
+    top_k: int | None = Field(default=None, ge=-1)
+    min_p: float | None = Field(default=None, ge=0.0, le=1.0)
+    presence_penalty: float | None = Field(default=None, ge=-2.0, le=2.0)
+    repetition_penalty: float | None = Field(default=None, ge=0.0, le=2.0)

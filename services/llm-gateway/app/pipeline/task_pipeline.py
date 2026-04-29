@@ -340,7 +340,7 @@ class TaskPipeline:
 
                 client = RealLlmClient(
                     endpoint=endpoint, model=model, api_key=api_key,
-                    enable_thinking=True, json_mode=True,
+                    json_mode=True,
                 )
 
             request_id = get_request_id()
@@ -369,7 +369,14 @@ class TaskPipeline:
                     content = await client.generate(
                         messages,
                         max_tokens=request.constraints.maxTokens,
-                        temperature=0.3,
+                        temperature=request.constraints.temperature,
+                        top_p=request.constraints.topP,
+                        top_k=request.constraints.topK,
+                        min_p=request.constraints.minP,
+                        presence_penalty=request.constraints.presencePenalty,
+                        repetition_penalty=request.constraints.repetitionPenalty,
+                        enable_thinking=request.constraints.enableThinking,
+                        task_type=request.taskType.value,
                     )
                     usage = TokenUsage(
                         prompt=client.last_prompt_tokens,

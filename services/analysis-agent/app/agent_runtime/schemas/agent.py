@@ -75,6 +75,7 @@ class TurnRecord(BaseModel):
     """에이전트 턴 기록."""
 
     turn_number: int
+    audit_order: int = 0
     llm_response_type: str
     prompt_tokens: int = 0
     completion_tokens: int = 0

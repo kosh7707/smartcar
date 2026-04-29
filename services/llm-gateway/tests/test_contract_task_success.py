@@ -22,6 +22,21 @@ class TestSuccessTopLevel:
                       "result", "audit"):
             assert field in data, f"missing top-level field: {field}"
 
+    def test_full_generation_constraints_are_accepted(self, client_live):
+        body = make_task_body(
+            enable_thinking=True,
+            max_tokens=32768,
+            temperature=1.0,
+            top_p=0.95,
+            top_k=20,
+            min_p=0.0,
+            presence_penalty=0.0,
+            repetition_penalty=1.0,
+        )
+        resp = client_live.post("/v1/tasks", json=body)
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "completed"
+
     def test_success_status_completed(self, client_live):
         data = client_live.post("/v1/tasks", json=make_task_body()).json()
         assert data["status"] == "completed"

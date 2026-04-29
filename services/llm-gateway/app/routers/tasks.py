@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse, Response
 from app.async_chat_manager import AsyncChatRequestRecord
 from app.config import settings
 from app.context import get_request_id, set_request_id
+from app.generation_policy import TimeoutDefaults
 from app.metrics import prom
 from app.schemas.request import AsyncChatSubmitRequest, TaskRequest
 from app.schemas.response import (
@@ -26,7 +27,6 @@ _exchange_logger = logging.getLogger("llm_exchange")
 
 router = APIRouter(prefix="/v1", tags=["v1"])
 _STRICT_JSON_HEADER = "x-aegis-strict-json"
-_MAX_CHAT_TIMEOUT_SECONDS = 1800.0
 _DEFAULT_ENABLE_THINKING = True
 
 
@@ -104,6 +104,12 @@ def _log_llm_exchange(
 ) -> None:
     choices = response_data.get("choices", [{}]) if isinstance(response_data, dict) else [{}]
     finish_reason = choices[0].get("finish_reason", "?") if choices else "?"
+    generation = _generation_log_fields(request_body, task_type=None)
+    prom.record_generation_observability(
+        endpoint=exchange_type,
+        generation=generation,
+        response_data=response_data,
+    )
     entry: dict[str, Any] = {
         "service": "s7-gateway",
         "level": 30,
@@ -119,6 +125,7 @@ def _log_llm_exchange(
         "finishReason": finish_reason,
         "strictJson": strict_json,
         "effectiveThinking": _effective_enable_thinking(request_body),
+        "generation": generation,
         "toolChoice": request_body.get("tool_choice", "none"),
         "toolCount": len(request_body.get("tools", [])),
         "request": request_body,
@@ -127,6 +134,20 @@ def _log_llm_exchange(
     if async_request_id:
         entry["asyncRequestId"] = async_request_id
     _exchange_logger.info(json.dumps(entry, ensure_ascii=False))
+
+
+def _generation_log_fields(body: dict, *, task_type: str | None = None) -> dict[str, Any]:
+    return {
+        "maxTokens": body.get("max_tokens"),
+        "temperature": body.get("temperature"),
+        "topP": body.get("top_p"),
+        "topK": body.get("top_k"),
+        "minP": body.get("min_p"),
+        "presencePenalty": body.get("presence_penalty"),
+        "repetitionPenalty": body.get("repetition_penalty"),
+        "enableThinking": _effective_enable_thinking(body),
+        "taskType": task_type,
+    }
 
 
 def _is_truthy_header(value: str | None) -> bool:
@@ -166,9 +187,9 @@ def _prepare_chat_forward(
 
 def _chat_timeout_from_header(raw_value: str | None) -> float:
     try:
-        return min(float(raw_value or _MAX_CHAT_TIMEOUT_SECONDS), _MAX_CHAT_TIMEOUT_SECONDS)
+        return min(float(raw_value or TimeoutDefaults.CHAT_DEFAULT_SECONDS), TimeoutDefaults.CHAT_MAX_SECONDS)
     except (ValueError, TypeError):
-        return _MAX_CHAT_TIMEOUT_SECONDS
+        return TimeoutDefaults.CHAT_DEFAULT_SECONDS
 
 
 def _strict_json_violation(
@@ -395,7 +416,7 @@ async def _run_async_chat_request(
     fwd_headers = _build_forward_headers(record.trace_request_id)
     req_timeout = httpx.Timeout(
         connect=settings.llm_connect_timeout,
-        read=_MAX_CHAT_TIMEOUT_SECONDS,
+        read=TimeoutDefaults.CHAT_MAX_SECONDS,
         write=10.0,
         pool=10.0,
     )
@@ -726,6 +747,9 @@ async def health(req: Request) -> JSONResponse:
     result["rag"] = {
         "enabled": settings.rag_enabled,
         "kbEndpoint": settings.kb_endpoint,
+        "topK": settings.rag_top_k,
+        "minScore": settings.rag_min_score,
+        "policy": "task-pipeline-context-enrichment",
         "status": "ok" if threat_search else "disabled",
     }
 

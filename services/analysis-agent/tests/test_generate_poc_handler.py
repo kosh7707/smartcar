@@ -113,6 +113,8 @@ async def test_generate_poc_returns_structured_json_with_valid_claim(monkeypatch
         assert result.status == "completed"
         assert len(result.result.claims) == 1
         assert result.result.claims[0].supportingEvidenceRefs == ["eref-001"]
+        assert result.result.claims[0].status == "grounded"
+        assert "sink_or_dangerous_api" in result.result.claims[0].presentEvidence
     finally:
         object.__setattr__(settings, "llm_mode", original_mode)
 
@@ -1125,8 +1127,11 @@ async def test_generate_poc_classifies_schema_valid_evidence_empty_output(monkey
         assert result.validation.valid is True
         assert result.result.pocOutcome == "poc_rejected"
         assert result.result.qualityOutcome == "rejected"
-        assert result.result.recoveryTrace[0].deficiency == "REFS_OR_GROUNDING_DEFICIENT"
-        assert "claims[0].supportingEvidenceRefs가 비어 있음" in (result.result.recoveryTrace[0].detail or "")
+        assert result.result.analysisOutcome == "no_accepted_claims"
+        assert result.result.recoveryTrace[0].deficiency == "POC_GROUNDING_DEFICIENT"
+        diagnostic = result.result.claimDiagnostics.nonAcceptedClaims[0]
+        assert diagnostic.status == "under_evidenced"
+        assert "local_or_derived_support" in diagnostic.missingEvidence
     finally:
         object.__setattr__(settings, "llm_mode", original_mode)
 
@@ -1172,8 +1177,11 @@ async def test_generate_poc_classifies_hallucinated_refs_after_sanitization(monk
         assert result.status == "completed"
         assert result.validation.valid is True
         assert result.result.pocOutcome == "poc_rejected"
-        assert result.result.recoveryTrace[0].deficiency == "REFS_OR_GROUNDING_DEFICIENT"
-        assert "eref-hallucinated" in (result.result.recoveryTrace[0].detail or "")
+        assert result.result.analysisOutcome == "no_accepted_claims"
+        assert result.result.recoveryTrace[0].deficiency == "POC_GROUNDING_DEFICIENT"
+        diagnostic = result.result.claimDiagnostics.nonAcceptedClaims[0]
+        assert diagnostic.status == "rejected"
+        assert diagnostic.invalidRefs == ["eref-hallucinated"]
     finally:
         object.__setattr__(settings, "llm_mode", original_mode)
 
@@ -1486,8 +1494,8 @@ def _make_poc_request_without_claim_refs_or_location_mismatched_request_ref() ->
 
 
 @pytest.mark.asyncio
-async def test_generate_poc_preserves_claim_supporting_evidence_refs(monkeypatch):
-    """Phase A.1: refs from input claim pass sanitizer even when request.evidenceRefs is empty."""
+async def test_generate_poc_bare_claim_supporting_refs_do_not_fabricate_family_slots(monkeypatch):
+    """Bare upstream refs are allowed refs but cannot fabricate family-specific evidence slots."""
     original_mode = settings.llm_mode
     monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
         profileId="test", modelName="test-model", contextLimit=8192,
@@ -1522,13 +1530,13 @@ async def test_generate_poc_preserves_claim_supporting_evidence_refs(monkeypatch
         result = await tasks._handle_generate_poc(_make_poc_request_with_claim_refs_no_top_refs())
 
         assert result.status == "completed"
-        # Refs from input claim must survive the sanitizer
-        assert "eref-sast-flawfinder:shell/popen" in result.result.claims[0].supportingEvidenceRefs
-        assert "eref-file-main.cpp" in result.result.claims[0].supportingEvidenceRefs
-        # usedEvidenceRefs must also survive
-        assert "eref-sast-flawfinder:shell/popen" in result.result.usedEvidenceRefs
-        # Grounding ceiling (0.3) must be exceeded now that allowed_refs is non-empty
-        assert result.result.confidenceBreakdown.grounding > 0.3
+        assert result.result.claims == []
+        assert result.result.analysisOutcome == "no_accepted_claims"
+        diagnostic = result.result.claimDiagnostics.nonAcceptedClaims[0]
+        assert diagnostic.status == "under_evidenced"
+        assert "local_or_derived_support" in diagnostic.presentEvidence
+        assert "sink_or_dangerous_api" in diagnostic.missingEvidence
+        assert "caller_chain_or_source_slice" in diagnostic.missingEvidence
     finally:
         object.__setattr__(settings, "llm_mode", original_mode)
 
@@ -1598,3 +1606,147 @@ async def test_create_task_routes_deep_analyze_without_poc(monkeypatch):
 
     assert response.status_code == 200
     assert calls == {"deep": 1, "poc": 0}
+
+
+def _make_poc_request_with_source_location_only() -> TaskRequest:
+    request = _make_poc_request()
+    trusted = dict(request.context.trusted)
+    trusted["files"] = [{"path": "src/http_client.cpp", "content": "int x(){ return 0; }"}]
+    return request.model_copy(update={"context": Context(trusted=trusted)})
+
+
+@pytest.mark.asyncio
+async def test_generate_poc_source_location_only_command_injection_downgrades(monkeypatch):
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test", modelName="test-model", contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC], endpoint="http://localhost:8000", apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+
+    async def fake_call(self, *args, **kwargs):
+        return _mock_llm_response(json.dumps({
+            "summary": "PoC for command injection.",
+            "claims": [{
+                "statement": "CN input reaches popen and can trigger command injection.",
+                "detail": "PoC calls the vulnerable certificate maker with a crafted CN.",
+                "supportingEvidenceRefs": ["eref-001"],
+                "location": "src/http_client.cpp:62",
+            }],
+            "caveats": [],
+            "usedEvidenceRefs": ["eref-001"],
+            "suggestedSeverity": "critical",
+            "needsHumanReview": True,
+            "recommendedNextSteps": [],
+            "policyFlags": [],
+        }))
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request_with_source_location_only())
+
+        assert result.status == "completed"
+        assert result.result.claims == []
+        assert result.result.analysisOutcome == "no_accepted_claims"
+        diagnostic = result.result.claimDiagnostics.nonAcceptedClaims[0]
+        assert diagnostic.status == "under_evidenced"
+        assert "source_location" in diagnostic.presentEvidence
+        assert "caller_chain_or_source_slice" in diagnostic.presentEvidence
+        assert "sink_or_dangerous_api" in diagnostic.missingEvidence
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
+async def test_generate_poc_schema_repair_caps_max_tokens_to_remaining_budget(monkeypatch):
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test", modelName="test-model", contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC], endpoint="http://localhost:8000", apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+    request = _make_poc_request().model_copy(update={"constraints": Constraints(maxTokens=700)})
+    calls: list[dict] = []
+
+    async def fake_call(self, *args, **kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            return _mock_llm_response("not-json", completion_tokens=100)
+        return _mock_llm_response(json.dumps({
+            "summary": "PoC repaired.",
+            "claims": [{
+                "statement": "PoC proves command injection.",
+                "detail": "Generate a randomized canary token and echo it through popen.",
+                "supportingEvidenceRefs": ["eref-001"],
+                "location": "src/http_client.cpp:62",
+            }],
+            "caveats": [],
+            "usedEvidenceRefs": ["eref-001"],
+            "suggestedSeverity": "high",
+            "needsHumanReview": True,
+            "recommendedNextSteps": [],
+            "policyFlags": [],
+        }), completion_tokens=80)
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(request)
+
+        assert result.status == "completed"
+        assert calls[0]["max_tokens"] == 700
+        assert calls[1]["max_tokens"] == 600
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+
+@pytest.mark.asyncio
+async def test_generate_poc_needs_human_review_candidate_stays_diagnostic_only(monkeypatch):
+    original_mode = settings.llm_mode
+    monkeypatch.setattr(tasks._model_registry, "get_default", lambda: ModelProfile(
+        profileId="test", modelName="test-model", contextLimit=8192,
+        allowedTaskTypes=[TaskType.GENERATE_POC], endpoint="http://localhost:8000", apiKey="",
+    ))
+    object.__setattr__(settings, "llm_mode", "real")
+
+    async def fake_call(self, *args, **kwargs):
+        return _mock_llm_response(json.dumps({
+            "summary": "NHR PoC candidate.",
+            "claims": [{
+                "statement": "PoC requires manual review.",
+                "detail": "The producer marked the candidate for manual review.",
+                "supportingEvidenceRefs": ["eref-001"],
+                "location": "src/http_client.cpp:62",
+                "status": "needs_human_review",
+            }],
+            "caveats": [],
+            "usedEvidenceRefs": ["eref-001"],
+            "suggestedSeverity": "high",
+            "needsHumanReview": True,
+            "recommendedNextSteps": [],
+            "policyFlags": [],
+        }))
+
+    async def fake_aclose(self):
+        return None
+
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.call", fake_call)
+    monkeypatch.setattr("app.agent_runtime.llm.caller.LlmCaller.aclose", fake_aclose)
+    try:
+        result = await tasks._handle_generate_poc(_make_poc_request())
+
+        assert result.status == "completed"
+        assert result.result.claims == []
+        assert result.result.analysisOutcome == "no_accepted_claims"
+        diagnostic = result.result.claimDiagnostics.nonAcceptedClaims[0]
+        assert diagnostic.status == "needs_human_review"
+        assert diagnostic.outcomeContribution == "needs_human_review"
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)

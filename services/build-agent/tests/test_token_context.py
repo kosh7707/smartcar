@@ -6,8 +6,9 @@ import pytest
 
 from app.agent_runtime.llm.message_manager import MessageManager
 from app.agent_runtime.llm.turn_summarizer import TurnSummarizer
-from app.agent_runtime.schemas.agent import BudgetState
+from app.agent_runtime.schemas.agent import BudgetState, LlmResponse
 from app.budget.manager import BudgetManager
+from app.budget.token_counter import TokenCounter
 
 
 class TestTokenEstimate:
@@ -72,3 +73,14 @@ class TestPromptTokenTracking:
         bs = BudgetState()
         assert bs.total_prompt_tokens == 0
         assert bs.max_prompt_tokens == 100_000
+
+    def test_active_token_counter_records_prompt_and_completion(self):
+        """Build Agent active token counter도 prompt + completion 모두 누적한다."""
+        class Session:
+            budget = BudgetState()
+
+        session = Session()
+        TokenCounter().record(LlmResponse(prompt_tokens=42, completion_tokens=7), session)
+
+        assert session.budget.total_prompt_tokens == 42
+        assert session.budget.total_completion_tokens == 7

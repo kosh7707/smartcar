@@ -490,7 +490,7 @@ class ResultAssembler:
             turn_count=session.turn_count,
             tool_call_count=session.total_tool_calls(),
             trace=session.trace,
-            turns=session.turns,
+            turns=sorted([*session.turns, *session.recovery_turns], key=lambda turn: turn.audit_order),
             termination_reason=termination_reason,
             created_at=datetime.now(timezone.utc).isoformat(),
             model_name=self._model_name,
@@ -552,7 +552,7 @@ def _looks_like_local_claim_ref(ref_id: str) -> bool:
         "eref-file-",
         "eref-codesearch-",
         "eref-source-",
-        "eref-",
+        "eref-local-",
     ))
 
 
@@ -612,7 +612,7 @@ def _build_claim_lifecycle_outputs(
         )
         transitioned = transition_claim_status(claim, diagnosis)
         lifecycle_counts[transitioned.status.value] = lifecycle_counts.get(transitioned.status.value, 0) + 1
-        if transitioned.status in {ClaimStatus.GROUNDED, ClaimStatus.NEEDS_HUMAN_REVIEW}:
+        if transitioned.status == ClaimStatus.GROUNDED:
             final_claims.append(transitioned)
             continue
         non_accepted.append(NonAcceptedClaimDiagnostic(
@@ -620,10 +620,20 @@ def _build_claim_lifecycle_outputs(
             status=transitioned.status,
             family=diagnosis.family,
             primaryLocation=transitioned.location,
+            requiredEvidence=transitioned.requiredEvidence,
+            presentEvidence=transitioned.presentEvidence,
             missingEvidence=transitioned.missingEvidence,
+            evidenceTrail=transitioned.evidenceTrail,
+            revisionHistory=transitioned.revisionHistory,
             invalidRefs=diagnosis.invalidRefs,
             supportingEvidenceRefs=transitioned.supportingEvidenceRefs,
-            outcomeContribution="no_accepted_claims",
+            outcomeContribution=(
+                "rejected_unsupported"
+                if transitioned.status == ClaimStatus.REJECTED
+                else "needs_human_review"
+                if transitioned.status == ClaimStatus.NEEDS_HUMAN_REVIEW
+                else "no_accepted_claims"
+            ),
             detail=_truncate_diagnostic_detail(transitioned.detail),
         ))
 
@@ -687,7 +697,11 @@ def _attempted_acquisition_diagnostics(session: AgentSession) -> list[EvidenceAc
     attempts = [
         _diagnostic_from_evidence_entry(entry)
         for entry in session.evidence_catalog.history()
-        if entry.source_tool or entry.evidence_class in {"negative", "operational"}
+        if (
+            entry.source_tool
+            or entry.evidence_class in {"negative", "operational"}
+            or entry.category in {"sast", "source", "caller", "callee"}
+        )
     ]
     if len(attempts) <= 10:
         return attempts

@@ -4,16 +4,23 @@ from __future__ import annotations
 
 import logging
 import json
+import copy
+import re
 import time
 
 from app.config import settings
 from app.agent_runtime.context import get_request_id
+from app.agent_runtime.errors import BudgetExhaustedError
+from app.core.evidence_catalog import EvidenceCatalog, EvidenceCatalogEntry
 from app.runtime.request_summary import request_summary_tracker
 from app.schemas.request import TaskRequest
 from app.schemas.response import (
     AssessmentResult,
     AuditInfo,
+    Claim,
+    ClaimDiagnostics,
     EvaluationVerdict,
+    NonAcceptedClaimDiagnostic,
     QualityGateResult,
     RecoveryTraceEntry,
     TaskFailureResponse,
@@ -22,10 +29,11 @@ from app.schemas.response import (
     ValidationInfo,
 )
 from app.quality.poc_quality_gate import evaluate_poc_quality
+from app.state_machine.claim import diagnose_claim_evidence, transition_claim_status
 from app.state_machine.dependency_state import state_from_exception
 from app.state_machine.outcomes import clean_pass_for
 from app.state_machine.types import DependencyState
-from app.types import AnalysisOutcome, FailureCode, PocOutcome, QualityOutcome, TaskStatus
+from app.types import AnalysisOutcome, ClaimStatus, FailureCode, PocOutcome, QualityOutcome, TaskStatus
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +51,207 @@ def _poc_quality_repair_max_attempts() -> int:
     return max(0, settings.poc_quality_repair_max_attempts)
 
 
+def _generate_poc_completion_cap(request: TaskRequest) -> int:
+    requested = request.constraints.maxTokens or settings.agent_llm_max_tokens
+    return max(0, min(requested, settings.agent_max_completion_tokens))
+
+
+def _generate_poc_remaining_repair_tokens(request: TaskRequest, used_completion_tokens: int) -> int:
+    return max(0, _generate_poc_completion_cap(request) - max(0, used_completion_tokens))
+
+
+def _generate_poc_repair_max_tokens(
+    request: TaskRequest,
+    used_completion_tokens: int,
+    *,
+    useful_minimum: int = 512,
+) -> int:
+    remaining = _generate_poc_remaining_repair_tokens(request, used_completion_tokens)
+    if remaining < useful_minimum:
+        raise BudgetExhaustedError(
+            "generate-poc repair skipped: remaining completion-token budget below useful minimum"
+        )
+    return min(remaining, request.constraints.maxTokens or settings.agent_llm_max_tokens, settings.agent_llm_max_tokens)
+
+
+def _build_generate_poc_evidence_catalog(
+    *,
+    request: TaskRequest,
+    files: list,
+    claim_supporting: list[str],
+) -> EvidenceCatalog:
+    """Build a PoC-local evidence catalog without fabricating slot-bearing refs."""
+    catalog = EvidenceCatalog()
+    catalog.ingest_request(request)
+
+    for ref in request.evidenceRefs:
+        entry = catalog.get(ref.refId)
+        if entry is None:
+            continue
+        content = _generate_poc_file_content_for_ref(ref, files)
+        sink = _generate_poc_infer_sink(content or "")
+        roles = set(entry.roles)
+        if entry.file:
+            roles.add("source_location")
+        if content:
+            roles.add("source_slice")
+        if sink:
+            roles.add("sink_or_dangerous_api")
+        if roles == set(entry.roles) and sink == entry.sink:
+            continue
+        catalog.add(EvidenceCatalogEntry(
+            ref_id=entry.ref_id,
+            category=entry.category,
+            source_tool=entry.source_tool,
+            tool_arguments=entry.tool_arguments,
+            artifact_type=entry.artifact_type,
+            file=entry.file,
+            line=entry.line,
+            function=entry.function,
+            sink=sink or entry.sink,
+            rule_id=entry.rule_id,
+            cwe_id=entry.cwe_id,
+            summary=entry.summary,
+            callees=entry.callees,
+            evidence_class=entry.evidence_class,
+            roles=tuple(sorted(roles)),
+            source_local_refs=entry.source_local_refs,
+            origin_service=entry.origin_service,
+            operational_status=entry.operational_status,
+            project_id=entry.project_id,
+            revision=entry.revision,
+            build_snapshot=entry.build_snapshot,
+        ))
+
+    for ref_id in claim_supporting:
+        if catalog.get(ref_id) is not None:
+            continue
+        catalog.add(EvidenceCatalogEntry(
+            ref_id=ref_id,
+            category="request",
+            artifact_type="trusted-upstream-claim-ref",
+            summary="trusted upstream bare claim ref",
+            evidence_class="local",
+            roles=(),
+            origin_service="s3",
+        ))
+    return catalog
+
+
+def _generate_poc_file_content_for_ref(ref, files: list) -> str | None:
+    locator = ref.locator if isinstance(ref.locator, dict) else {}
+    ref_file = locator.get("file") or locator.get("path")
+    if not isinstance(ref_file, str) or not ref_file:
+        return None
+    ref_name = ref_file.rsplit("/", 1)[-1]
+    for file_entry in files:
+        if not isinstance(file_entry, dict):
+            continue
+        path = file_entry.get("path")
+        if not isinstance(path, str):
+            continue
+        if path == ref_file or path.endswith("/" + ref_file) or path.rsplit("/", 1)[-1] == ref_name:
+            content = file_entry.get("content")
+            return content if isinstance(content, str) and content else None
+    return None
+
+
+def _generate_poc_infer_sink(text: str) -> str | None:
+    patterns = {
+        "exec": r"\bexec(?:ve|v|le|lp|l|p)?\b",
+        "getenv": r"\bgetenv\b",
+        "gets": r"\bgets\b",
+        "memcpy": r"\bmemcpy\b",
+        "popen": r"\bpopen\b",
+        "readlink": r"\breadlink\b",
+        "sprintf": r"\bsprintf\b",
+        "strcpy": r"\bstrcpy\b",
+        "system": r"\bsystem\b",
+    }
+    lowered = text.lower()
+    for name, pattern in patterns.items():
+        if re.search(pattern, lowered):
+            return name
+    return None
+
+
+def _build_generate_poc_lifecycle_outputs(
+    parsed: dict,
+    catalog: EvidenceCatalog,
+) -> tuple[list[Claim], ClaimDiagnostics]:
+    final_claims: list[Claim] = []
+    non_accepted: list[NonAcceptedClaimDiagnostic] = []
+    lifecycle_counts: dict[str, int] = {}
+    raw_claims = parsed.get("claims", [])
+    if not isinstance(raw_claims, list):
+        raw_claims = []
+
+    for index, raw in enumerate(raw_claims):
+        if not isinstance(raw, dict):
+            logger.warning(
+                "generate-poc non-dict claim entry skipped",
+                extra={
+                    "component": "generate_poc",
+                    "phase": "poc_claim_lifecycle",
+                    "claimIndex": index,
+                    "rawType": type(raw).__name__,
+                },
+            )
+            continue
+        claim = Claim(
+            statement=raw.get("statement", ""),
+            detail=raw.get("detail"),
+            supportingEvidenceRefs=raw.get("supportingEvidenceRefs", []),
+            location=raw.get("location"),
+            claimId=raw.get("claimId") or f"poc-claim-{index}",
+            status=raw.get("status", ClaimStatus.CANDIDATE),
+            requiredEvidence=raw.get("requiredEvidence", []),
+            presentEvidence=raw.get("presentEvidence", []),
+            missingEvidence=raw.get("missingEvidence", []),
+            evidenceTrail=raw.get("evidenceTrail", []),
+            queryHistory=raw.get("queryHistory", []),
+            revisionHistory=raw.get("revisionHistory", []),
+        )
+        diagnosis = diagnose_claim_evidence(claim, catalog)
+        transitioned = transition_claim_status(claim, diagnosis)
+        lifecycle_counts[transitioned.status.value] = lifecycle_counts.get(transitioned.status.value, 0) + 1
+        if transitioned.status == ClaimStatus.GROUNDED:
+            final_claims.append(transitioned)
+            continue
+        non_accepted.append(NonAcceptedClaimDiagnostic(
+            claimId=transitioned.claimId,
+            status=transitioned.status,
+            family=diagnosis.family,
+            primaryLocation=transitioned.location,
+            requiredEvidence=transitioned.requiredEvidence,
+            presentEvidence=transitioned.presentEvidence,
+            missingEvidence=transitioned.missingEvidence,
+            evidenceTrail=transitioned.evidenceTrail,
+            revisionHistory=transitioned.revisionHistory,
+            invalidRefs=diagnosis.invalidRefs,
+            supportingEvidenceRefs=transitioned.supportingEvidenceRefs,
+            outcomeContribution=(
+                "rejected_unsupported"
+                if transitioned.status == ClaimStatus.REJECTED
+                else "needs_human_review"
+                if transitioned.status == ClaimStatus.NEEDS_HUMAN_REVIEW
+                else "no_accepted_claims"
+            ),
+            detail=_truncate_poc_diagnostic_detail(transitioned.detail),
+        ))
+
+    return final_claims, ClaimDiagnostics(
+        lifecycleCounts=lifecycle_counts,
+        nonAcceptedClaims=non_accepted[:10],
+    )
+
+
+def _truncate_poc_diagnostic_detail(value: str | None, limit: int = 500) -> str | None:
+    if value is None:
+        return None
+    return value[:limit]
+
+
 async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSuccessResponse | TaskFailureResponse:
     """generate-poc 요청: 미니 Phase 1(KB 조회) + 단일 LLM 호출로 PoC 생성."""
     import hashlib
@@ -58,7 +267,6 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
     from app.budget.manager import BudgetManager
     from app.pipeline.confidence import ConfidenceCalculator
     from app.pipeline.response_parser import V1ResponseParser
-    from app.schemas.response import Claim
     from app.validators.evidence_validator import EvidenceValidator
     from app.validators.schema_validator import SchemaValidator
 
@@ -398,12 +606,14 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
     parsed = parser.parse(raw)
     if parsed is None:
         try:
+            schema_repair_max_tokens = _generate_poc_repair_max_tokens(request, completion_tokens)
             raw, repair_prompt_tokens, repair_completion_tokens = await _repair_generate_poc_schema(
                 llm=llm,
                 messages=messages,
                 invalid_content=raw,
                 schema_errors=["non-JSON output"],
                 request=request,
+                max_tokens=schema_repair_max_tokens,
             )
         except Exception as e:
             if hasattr(llm, 'aclose'):
@@ -443,12 +653,14 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
     schema_probe = SchemaValidator().validate(parsed, request.taskType)
     if not schema_probe.valid:
         try:
+            schema_repair_max_tokens = _generate_poc_repair_max_tokens(request, completion_tokens)
             raw, repair_prompt_tokens, repair_completion_tokens = await _repair_generate_poc_schema(
                 llm=llm,
                 messages=messages,
                 invalid_content=raw,
                 schema_errors=schema_probe.errors,
                 request=request,
+                max_tokens=schema_repair_max_tokens,
             )
         except Exception as e:
             if hasattr(llm, 'aclose'):
@@ -516,6 +728,12 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
             policy_flags.append("strict_json_retry")
             parsed["policyFlags"] = policy_flags
 
+    evidence_catalog = _build_generate_poc_evidence_catalog(
+        request=request,
+        files=files,
+        claim_supporting=claim_supporting,
+    )
+
     # allowed_refs: request-level EvidenceRef IDs ∪ input claim's supportingEvidenceRefs.
     # Input claim's refs come from a trusted upstream (deep-analyze) result, so they are
     # treated as allowed by default — without this, the sanitizer strips them and grounding
@@ -524,20 +742,15 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
     evidence_validator = EvidenceValidator()
     raw_evidence_valid, raw_evidence_errors = evidence_validator.validate(parsed, allowed_refs)
     if not raw_evidence_valid:
-        if hasattr(llm, 'aclose'):
-            await llm.aclose()
-        return _build_poc_completed_outcome(
-            request,
-            start=start,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            retry_count=int(schema_repair_used) + int(strict_json_retry_used),
-            rag_hits=len(kb_context_lines),
-            deficiency="REFS_OR_GROUNDING_DEFICIENT",
-            action="poc_reject_invalid_refs",
-            outcome=PocOutcome.POC_REJECTED,
-            detail="; ".join(raw_evidence_errors),
+        agent_log(
+            logger,
+            "generate-poc raw evidence refs invalid; deferring to lifecycle diagnostics",
+            component="generate_poc",
+            phase="poc_raw_ref_invalid",
+            errors=raw_evidence_errors[:10],
+            level=logging.WARNING,
         )
+    lifecycle_source = copy.deepcopy(parsed)
 
     # raw grounding validation 이후의 방어적 ref cleanup
     from app.validators.evidence_sanitizer import EvidenceRefSanitizer
@@ -560,23 +773,33 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         has_rule_results=True, rag_hits=len(kb_context_lines),
     )
 
-    claims = [
-        Claim(
-            statement=c.get("statement", ""),
-            detail=c.get("detail"),
-            supportingEvidenceRefs=c.get("supportingEvidenceRefs", []),
-            location=c.get("location"),
-        )
-        for c in parsed.get("claims", [])
-        if isinstance(c, dict)
-    ]
+    claims, claim_diagnostics = _build_generate_poc_lifecycle_outputs(lifecycle_source, evidence_catalog)
 
     input_str = json.dumps(request.model_dump(mode="json"), sort_keys=True)
     input_hash = f"sha256:{hashlib.sha256(input_str.encode()).hexdigest()[:16]}"
 
-    if not schema_result.valid or not evidence_valid or not claims:
+    raw_claim_count = len([c for c in parsed.get("claims", []) or [] if isinstance(c, dict)])
+    if raw_claim_count > 0 and not claims:
+        if hasattr(llm, 'aclose'):
+            await llm.aclose()
+        return _build_poc_completed_outcome(
+            request,
+            start=start,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            retry_count=int(schema_repair_used) + int(strict_json_retry_used),
+            rag_hits=len(kb_context_lines),
+            deficiency="POC_GROUNDING_DEFICIENT",
+            action="poc_lifecycle_no_accepted_claims",
+            outcome=PocOutcome.POC_REJECTED,
+            detail="generate-poc lifecycle produced zero accepted claims; see claimDiagnostics.nonAcceptedClaims",
+            analysis_outcome=AnalysisOutcome.NO_ACCEPTED_CLAIMS,
+            claim_diagnostics=claim_diagnostics,
+        )
+
+    if not schema_result.valid or not evidence_valid or raw_claim_count == 0:
         errors = schema_result.errors + evidence_errors
-        if not claims:
+        if raw_claim_count == 0:
             errors.append("generate-poc는 최소 1개 이상의 구조화된 claim을 반환해야 함")
         if hasattr(llm, 'aclose'):
             await llm.aclose()
@@ -589,8 +812,9 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
             rag_hits=len(kb_context_lines),
             deficiency="POC_DEFICIENT",
             action="poc_outcome_classification",
-            outcome=PocOutcome.POC_REJECTED if not claims else PocOutcome.POC_INCONCLUSIVE,
+            outcome=PocOutcome.POC_REJECTED if raw_claim_count == 0 else PocOutcome.POC_INCONCLUSIVE,
             detail="; ".join(errors),
+            claim_diagnostics=claim_diagnostics,
         )
 
     quality_repair_attempts = 0
@@ -602,17 +826,20 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         max_prompt_tokens=settings.agent_max_prompt_tokens,
     ))
     repair_budget.record_tokens(prompt_tokens, completion_tokens)
-    repair_completion_estimate = min(
-        request.constraints.maxTokens or settings.agent_llm_max_tokens,
-        settings.agent_max_completion_tokens,
-    )
     quality_gate = evaluate_poc_quality(claims=claims, caveats=parsed.get("caveats", []))
     while (
         quality_gate.outcome == QualityOutcome.REJECTED
         and any(item.repairable for item in quality_gate.failedItems)
         and quality_repair_attempts < quality_repair_max_attempts
     ):
+        remaining_repair_tokens = _generate_poc_remaining_repair_tokens(request, completion_tokens)
+        repair_completion_estimate = min(remaining_repair_tokens, settings.agent_llm_max_tokens)
         if repair_budget.would_exceed_after_repair(completion_tokens_estimate=repair_completion_estimate):
+            quality_repair_budget_exhausted = True
+            break
+        try:
+            quality_repair_max_tokens = _generate_poc_repair_max_tokens(request, completion_tokens)
+        except BudgetExhaustedError:
             quality_repair_budget_exhausted = True
             break
         quality_repair_attempts += 1
@@ -623,6 +850,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
                 parsed=parsed,
                 quality_gate=quality_gate,
                 request=request,
+                max_tokens=quality_repair_max_tokens,
             )
         except Exception as e:
             quality_repair_failed = True
@@ -658,16 +886,9 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
             schema_valid=schema_result.valid and evidence_valid,
             has_rule_results=True, rag_hits=len(kb_context_lines),
         )
-        claims = [
-            Claim(
-                statement=c.get("statement", ""),
-                detail=c.get("detail"),
-                supportingEvidenceRefs=c.get("supportingEvidenceRefs", []),
-                location=c.get("location"),
-            )
-            for c in parsed.get("claims", [])
-            if isinstance(c, dict)
-        ]
+        claims, claim_diagnostics = _build_generate_poc_lifecycle_outputs(parsed, evidence_catalog)
+        if not claims:
+            break
         quality_gate = evaluate_poc_quality(claims=claims, caveats=parsed.get("caveats", []))
 
     quality_outcome = quality_gate.outcome
@@ -696,6 +917,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
             detail=_quality_failure_detail(quality_gate),
             quality_outcome=QualityOutcome.REPAIR_EXHAUSTED if exhausted else QualityOutcome.REJECTED,
             quality_gate=quality_gate,
+            claim_diagnostics=claim_diagnostics,
         )
 
     if hasattr(llm, 'aclose'):
@@ -749,6 +971,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
             cleanPass=clean_pass,
             evaluationVerdict=evaluation_verdict,
             qualityGate=quality_gate,
+            claimDiagnostics=claim_diagnostics,
         ),
         audit=AuditInfo(
             inputHash=input_hash,
@@ -795,8 +1018,10 @@ def _build_poc_completed_outcome(
     action: str,
     outcome: PocOutcome,
     detail: str,
+    analysis_outcome: AnalysisOutcome = AnalysisOutcome.INCONCLUSIVE,
     quality_outcome: QualityOutcome = QualityOutcome.REJECTED,
     quality_gate: QualityGateResult | None = None,
+    claim_diagnostics: ClaimDiagnostics | None = None,
 ) -> TaskSuccessResponse:
     """Return completed PoC outcome for valid-input/live-runtime deficiencies."""
     import hashlib
@@ -835,7 +1060,7 @@ def _build_poc_completed_outcome(
                 "Review recoveryTrace/audit details before treating this as a clean PoC pass."
             ],
             policyFlags=policy_flags,
-            analysisOutcome=AnalysisOutcome.INCONCLUSIVE,
+            analysisOutcome=analysis_outcome,
             qualityOutcome=quality_outcome,
             pocOutcome=outcome,
             recoveryTrace=[trace],
@@ -845,11 +1070,12 @@ def _build_poc_completed_outcome(
                 cleanPass=False,
                 reasons=[f"pocOutcome={outcome.value}", detail] if detail else [f"pocOutcome={outcome.value}"],
                 gateOutcomes=[
-                    "analysis:inconclusive",
+                    f"analysis:{analysis_outcome.value}",
                     f"quality:{quality_outcome.value}",
                     f"poc:{outcome.value}",
                 ],
             ),
+            claimDiagnostics=claim_diagnostics or ClaimDiagnostics(),
             qualityGate=quality_gate or QualityGateResult(
                 outcome=quality_outcome,
                 caveats=[detail] if detail else [],
@@ -1014,6 +1240,7 @@ async def _repair_generate_poc_quality(
     parsed: dict,
     quality_gate: QualityGateResult,
     request: TaskRequest,
+    max_tokens: int,
 ) -> tuple[str, int, int]:
     """Ask the producer to repair a quality-rejected PoC once, with critic feedback."""
     failures = [
@@ -1035,7 +1262,7 @@ async def _repair_generate_poc_quality(
     )
     response = await llm.call(
         [*messages, {"role": "user", "content": repair_prompt}],
-        max_tokens=request.constraints.maxTokens or 8192,
+        max_tokens=max_tokens,
         temperature=0.0,
         prefer_async_ownership=True,
     )
@@ -1058,6 +1285,7 @@ async def _repair_generate_poc_schema(
     invalid_content: str,
     schema_errors: list[str],
     request: TaskRequest,
+    max_tokens: int,
 ) -> tuple[str, int, int]:
     """Repair malformed generate-poc JSON with a deterministic scaffold.
 
@@ -1100,7 +1328,7 @@ async def _repair_generate_poc_schema(
     )
     response = await llm.call(
         repair_messages,
-        max_tokens=request.constraints.maxTokens or 8192,
+        max_tokens=max_tokens,
         temperature=0.0,
         prefer_async_ownership=True,
     )

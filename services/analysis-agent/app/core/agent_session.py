@@ -16,6 +16,7 @@ class AgentSession:
         self.request = request
         self.budget = budget
         self.turns: list[TurnRecord] = []
+        self.recovery_turns: list[TurnRecord] = []
         self.trace: list[ToolTraceStep] = []
         self.extra_allowed_refs: set[str] = set()  # Phase 1 생성 refs 등
         self.planned_action_keys: set[str] = set()  # deterministic acquisition planner dedup
@@ -23,6 +24,7 @@ class AgentSession:
         self.evidence_catalog.ingest_request(request)
         self._start_time = time.monotonic()
         self._termination_reason = ""
+        self._audit_turn_order = 0
 
     @property
     def turn_count(self) -> int:
@@ -41,6 +43,7 @@ class AgentSession:
         turn_steps = [s for s in self.trace if s.turn_number == self.turn_count + 1]
         self.turns.append(TurnRecord(
             turn_number=self.turn_count + 1,
+            audit_order=self._next_audit_order(),
             llm_response_type="tool_calls",
             prompt_tokens=response.prompt_tokens,
             completion_tokens=response.completion_tokens,
@@ -51,19 +54,34 @@ class AgentSession:
         """content 반환 턴을 기록한다."""
         self.turns.append(TurnRecord(
             turn_number=self.turn_count + 1,
+            audit_order=self._next_audit_order(),
             llm_response_type="content",
             prompt_tokens=response.prompt_tokens,
             completion_tokens=response.completion_tokens,
         ))
 
+    def record_recovery_turn(self, response: LlmResponse) -> None:
+        """Record a recovery-eligible content turn without consuming progress slots."""
+        self.recovery_turns.append(TurnRecord(
+            turn_number=self.turn_count + len(self.recovery_turns) + 1,
+            audit_order=self._next_audit_order(),
+            llm_response_type="recovery_content",
+            prompt_tokens=response.prompt_tokens,
+            completion_tokens=response.completion_tokens,
+        ))
+
+    def _next_audit_order(self) -> int:
+        self._audit_turn_order += 1
+        return self._audit_turn_order
+
     def elapsed_ms(self) -> int:
         return int((time.monotonic() - self._start_time) * 1000)
 
     def total_prompt_tokens(self) -> int:
-        return sum(t.prompt_tokens for t in self.turns)
+        return sum(t.prompt_tokens for t in [*self.turns, *self.recovery_turns])
 
     def total_completion_tokens(self) -> int:
-        return sum(t.completion_tokens for t in self.turns)
+        return sum(t.completion_tokens for t in [*self.turns, *self.recovery_turns])
 
     def total_tool_calls(self) -> int:
         return sum(len(t.tool_steps) for t in self.turns)
@@ -82,11 +100,11 @@ class AgentSession:
     def live_recovery_trace_summary(self, *, limit_each: int = 5) -> dict:
         """Return a bounded, proof-neutral summary of recovery/acquisition attempts."""
         attempts: list[dict] = []
-        for index, entry in enumerate(self.evidence_catalog.history()):
+        for entry in self.evidence_catalog.history():
             if entry.evidence_class not in {"negative", "operational"}:
                 continue
             attempts.append({
-                "index": index,
+                "index": len(attempts),
                 "refId": entry.ref_id,
                 "class": entry.evidence_class,
                 "sourceTool": entry.source_tool,
@@ -96,11 +114,11 @@ class AgentSession:
                 "toolArguments": entry.tool_arguments or {},
             })
 
-        for index, step in enumerate(self.trace):
+        for step in self.trace:
             if step.success and step.new_evidence_refs:
                 continue
             attempts.append({
-                "index": len(attempts) + index,
+                "index": len(attempts),
                 "refId": None,
                 "class": "operational" if not step.success else "negative",
                 "sourceTool": step.tool,
@@ -108,6 +126,18 @@ class AgentSession:
                 "roles": ["tool_trace"],
                 "summary": step.error or f"{step.tool} produced no new evidence refs",
                 "toolArguments": {"argsHash": step.args_hash},
+            })
+
+        for turn in self.recovery_turns:
+            attempts.append({
+                "index": len(attempts),
+                "refId": None,
+                "class": "operational",
+                "sourceTool": "llm.recovery_turn",
+                "status": turn.llm_response_type,
+                "roles": ["recovery_turn"],
+                "summary": "Recovery-eligible LLM content turn did not consume a forward-progress slot.",
+                "toolArguments": {"turnNumber": turn.turn_number, "auditOrder": turn.audit_order},
             })
 
         total = len(attempts)

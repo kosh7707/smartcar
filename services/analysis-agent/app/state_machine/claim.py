@@ -111,7 +111,10 @@ def diagnose_claim_evidence(
             present.update(_slots_filled_by_entry(entry))
 
     missing = [slot for slot in required if slot not in present]
-    status = ClaimStatus.GROUNDED if not missing and not invalid_refs else ClaimStatus.UNDER_EVIDENCED
+    if claim.supportingEvidenceRefs and len(invalid_refs) == len(claim.supportingEvidenceRefs):
+        status = ClaimStatus.REJECTED
+    else:
+        status = ClaimStatus.GROUNDED if not missing and not invalid_refs else ClaimStatus.UNDER_EVIDENCED
     return ClaimEvidenceDiagnosis(
         requiredEvidence=required,
         presentEvidence=[slot for slot in required if slot in present],
@@ -126,19 +129,21 @@ def diagnose_claim_evidence(
 def transition_claim_status(
     claim: Claim,
     diagnosis: ClaimEvidenceDiagnosis,
+    *,
+    timestamp_ms: int | None = None,
 ) -> Claim:
     """Apply deterministic lifecycle status and slot fields to a claim."""
     from_status = claim.status
     status = diagnosis.status
     if claim.status == ClaimStatus.REJECTED:
         status = ClaimStatus.REJECTED
-    elif claim.status == ClaimStatus.NEEDS_HUMAN_REVIEW and diagnosis.status == ClaimStatus.GROUNDED:
+    elif claim.status == ClaimStatus.NEEDS_HUMAN_REVIEW:
         status = ClaimStatus.NEEDS_HUMAN_REVIEW
     revision = {
         "fromStatus": _status_value(from_status),
         "toStatus": _status_value(status),
         "reason": _revision_reason(claim.status, status, diagnosis),
-        "timestampMs": int(time.time() * 1000),
+        "timestampMs": timestamp_ms if timestamp_ms is not None else int(time.time() * 1000),
     }
     return claim.model_copy(update={
         "status": status,
@@ -190,7 +195,11 @@ def _revision_reason(
     if previous_status == ClaimStatus.REJECTED:
         return "preserve_rejected"
     if previous_status == ClaimStatus.NEEDS_HUMAN_REVIEW and status == ClaimStatus.NEEDS_HUMAN_REVIEW:
+        if diagnosis.missingEvidence:
+            return "nhr_held_under_evidenced"
         return "preserve_human_review"
+    if status == ClaimStatus.REJECTED and diagnosis.invalidRefs:
+        return "rejected:all_invalid_refs"
     if diagnosis.missingEvidence:
         return f"missing:{','.join(diagnosis.missingEvidence)}"
     if diagnosis.invalidRefs:

@@ -1,10 +1,10 @@
 import React, { useMemo } from "react";
 import { Activity, FileCode2, Flame, Target } from "lucide-react";
 import type { Severity } from "@aegis/shared";
-import type { SourceFileEntry, TargetMappingEntry } from "../../../api/client";
-import type { useBuildTargets } from "../../../hooks/useBuildTargets";
-import { LANG_GROUPS } from "../../../constants/languages";
-import { formatFileSize } from "../../../utils/format";
+import type { SourceFileEntry, TargetMappingEntry } from "../../../../../api/client";
+import type { useBuildTargets } from "../../../../../hooks/useBuildTargets";
+import { LANG_GROUPS } from "../../../../../constants/languages";
+import { formatFileSize } from "../../../../../utils/format";
 
 const UNTARGETED_KEY = "__untargeted__";
 const SEVERITIES: Severity[] = ["critical", "high", "medium", "low", "info"];

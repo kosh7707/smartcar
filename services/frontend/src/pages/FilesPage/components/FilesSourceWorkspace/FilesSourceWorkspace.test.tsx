@@ -1,7 +1,7 @@
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import type { TreeNode } from "../../../utils/tree";
+import type { TreeNode } from "../../../../utils/tree";
 import { FilesSourceWorkspace } from "./FilesSourceWorkspace";
 
 const fileNode: TreeNode<any> = {
@@ -26,9 +26,6 @@ function makeProps(overrides: Record<string, unknown> = {}) {
     displayTree: tree,
     selectedPath: null,
     handleFileClick: vi.fn(),
-    renderFileIcon: () => <span data-testid="icon">i</span>,
-    renderFileMeta: () => <span data-testid="meta">m</span>,
-    renderFolderBadge: () => <span data-testid="badge">1</span>,
     previewLoading: false,
     previewLang: "C",
     previewContent: null,
@@ -47,6 +44,7 @@ function makeProps(overrides: Record<string, unknown> = {}) {
     sourceFiles: [{ relativePath: "src/main.c", size: 120, language: "C" }],
     targetMapping: {},
     targets: [],
+    findings: [],
     findingsByFile: new Map(),
     composition: {},
     previewDrawerOpen: false,

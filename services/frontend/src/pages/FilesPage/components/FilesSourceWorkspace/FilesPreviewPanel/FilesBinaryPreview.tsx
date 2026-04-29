@@ -1,8 +1,8 @@
 import React from "react";
 import { Binary, FileArchive, FileImage, FileMusic, FileText, FileType, FileVideo } from "lucide-react";
-import type { FileClass } from "../../../utils/fileClass";
-import { FILE_CLASS_LABEL } from "../../../utils/fileClass";
-import { formatFileSize } from "../../../utils/format";
+import type { FileClass } from "../../../../../utils/fileClass";
+import { FILE_CLASS_LABEL } from "../../../../../utils/fileClass";
+import { formatFileSize } from "../../../../../utils/format";
 
 interface FilesBinaryPreviewProps {
   path: string;

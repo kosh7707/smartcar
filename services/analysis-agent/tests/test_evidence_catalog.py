@@ -95,7 +95,7 @@ def test_history_preserves_duplicate_ref_id_entries():
     assert len(catalog.history()) == 2
 
 
-def test_entries_returns_latest_per_ref_id():
+def test_entries_preserve_support_capable_entry_on_later_downgrade():
     catalog = EvidenceCatalog()
     catalog.add(EvidenceCatalogEntry(
         ref_id="eref-duplicate",
@@ -108,10 +108,31 @@ def test_entries_returns_latest_per_ref_id():
         summary="second",
     ))
 
-    assert catalog.get("eref-duplicate").summary == "second"  # type: ignore[union-attr]
+    assert catalog.get("eref-duplicate").summary == "first"  # type: ignore[union-attr]
     assert [(entry.ref_id, entry.summary) for entry in catalog.entries()] == [
-        ("eref-duplicate", "second")
+        ("eref-duplicate", "first")
     ]
+
+
+def test_local_operational_collision_does_not_hide_final_support():
+    catalog = EvidenceCatalog()
+    catalog.add(EvidenceCatalogEntry(
+        ref_id="eref-collision",
+        evidence_class="local",
+        roles=("source_location",),
+        summary="source support",
+    ))
+    catalog.add(EvidenceCatalogEntry(
+        ref_id="eref-collision",
+        evidence_class="operational",
+        roles=("operational_status",),
+        operational_status="timeout",
+        summary="timeout",
+    ))
+
+    assert catalog.get("eref-collision").evidence_class == "local"  # type: ignore[union-attr]
+    assert "eref-collision" in catalog.final_ref_ids()
+    assert [entry.evidence_class for entry in catalog.history()] == ["local", "operational"]
 
 
 def test_negative_evidence_class_literal_preserves_existing_values():
@@ -125,7 +146,7 @@ def test_negative_evidence_class_literal_preserves_existing_values():
     }
 
 
-def test_as_evidence_refs_excludes_negative_entries():
+def test_as_evidence_refs_excludes_negative_and_operational_entries():
     catalog = EvidenceCatalog()
     catalog.add(EvidenceCatalogEntry(
         ref_id="eref-local-main",
@@ -143,14 +164,33 @@ def test_as_evidence_refs_excludes_negative_entries():
         source_tool="knowledge.search",
         summary="no hit",
     ))
+    catalog.add(EvidenceCatalogEntry(
+        ref_id="eref-operational-timeout",
+        category="metadata",
+        artifact_type="operational-diagnostic",
+        evidence_class="operational",
+        source_tool="knowledge.search",
+        summary="timeout",
+    ))
 
     assert catalog.negative_ref_ids() == {"eref-negative-no-hit"}
+    assert catalog.operational_ref_ids() == {"eref-operational-timeout"}
     assert catalog.final_ref_ids() == {"eref-local-main"}
     assert catalog.as_evidence_refs() == [{
         "refId": "eref-local-main",
         "artifactType": "source",
         "locator": {"file": "src/main.c", "line": 7},
     }]
+
+
+def test_empty_ref_id_logs_warning(caplog):
+    catalog = EvidenceCatalog()
+
+    with caplog.at_level("WARNING", logger="app.core.evidence_catalog"):
+        catalog.add(EvidenceCatalogEntry(ref_id="", evidence_class="local", summary="empty"))
+
+    assert catalog.history() == []
+    assert any("empty evidence ref_id skipped" in record.message for record in caplog.records)
 
 
 def test_sast_zero_findings_emits_negative_catalog_entry():

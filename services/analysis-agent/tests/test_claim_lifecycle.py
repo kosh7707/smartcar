@@ -75,6 +75,82 @@ def test_transition_appends_revision_history():
     assert second.revisionHistory[1]["reason"] == "grounded"
 
 
+def test_transition_accepts_deterministic_timestamp():
+    claim = Claim(statement="claim needs local proof", detail="detail", location="src/main.c:1")
+
+    transitioned = transition_claim_status(
+        claim,
+        diagnose_claim_evidence(claim, EvidenceCatalog()),
+        timestamp_ms=123456789,
+    )
+
+    assert transitioned.revisionHistory[0]["timestampMs"] == 123456789
+
+
+def test_all_invalid_refs_transition_to_rejected():
+    claim = Claim(
+        statement="fabricated ref claim",
+        detail="all refs are hallucinated",
+        supportingEvidenceRefs=["eref-file-does-not-exist"],
+        location="src/main.c:1",
+    )
+
+    diagnosis = diagnose_claim_evidence(claim, EvidenceCatalog())
+    transitioned = transition_claim_status(claim, diagnosis, timestamp_ms=7)
+
+    assert diagnosis.status == ClaimStatus.REJECTED
+    assert transitioned.status == ClaimStatus.REJECTED
+    assert transitioned.missingEvidence == ["local_or_derived_support"]
+    assert transitioned.revisionHistory[0]["reason"] == "rejected:all_invalid_refs"
+
+
+def test_mixed_valid_and_invalid_refs_are_under_evidenced_not_rejected():
+    catalog = EvidenceCatalog()
+    catalog.add(EvidenceCatalogEntry(
+        ref_id="eref-local-main",
+        evidence_class="local",
+        roles=("source_location",),
+        file="src/main.c",
+    ))
+    claim = Claim(
+        statement="mixed refs claim",
+        detail="one local ref and one hallucinated ref",
+        supportingEvidenceRefs=["eref-local-main", "eref-missing"],
+        location="src/main.c:1",
+    )
+
+    diagnosis = diagnose_claim_evidence(claim, catalog)
+    transitioned = transition_claim_status(claim, diagnosis)
+
+    assert diagnosis.invalidRefs == ["eref-missing"]
+    assert transitioned.status == ClaimStatus.UNDER_EVIDENCED
+
+
+@pytest.mark.parametrize("diagnosed_status", [
+    ClaimStatus.GROUNDED,
+    ClaimStatus.UNDER_EVIDENCED,
+    ClaimStatus.REJECTED,
+])
+def test_needs_human_review_is_sticky_for_automatic_diagnoses(diagnosed_status):
+    claim = Claim(
+        statement="manual gate",
+        detail="NHR must not be automatically demoted",
+        supportingEvidenceRefs=["eref-local-main"],
+        location="src/main.c:1",
+        status=ClaimStatus.NEEDS_HUMAN_REVIEW,
+    )
+    diagnosis = diagnose_claim_evidence(claim, EvidenceCatalog()).__class__(
+        status=diagnosed_status,
+        requiredEvidence=["local_or_derived_support"],
+        missingEvidence=["local_or_derived_support"] if diagnosed_status != ClaimStatus.GROUNDED else [],
+        invalidRefs=["eref-local-main"] if diagnosed_status == ClaimStatus.REJECTED else [],
+    )
+
+    transitioned = transition_claim_status(claim, diagnosis)
+
+    assert transitioned.status == ClaimStatus.NEEDS_HUMAN_REVIEW
+
+
 def test_local_ref_fills_slots_and_transitions_to_grounded():
     catalog = EvidenceCatalog()
     catalog.add(EvidenceCatalogEntry(
@@ -246,12 +322,92 @@ def test_non_accepted_claim_is_excluded_from_final_claims_and_diagnosed():
     assert result.result.claimDiagnostics.lifecycleCounts == {"under_evidenced": 1}
     diagnostic = result.result.claimDiagnostics.nonAcceptedClaims[0]
     assert diagnostic.status == ClaimStatus.UNDER_EVIDENCED
+    assert diagnostic.requiredEvidence == [
+        "local_or_derived_support",
+        "source_location",
+        "sink_or_dangerous_api",
+        "caller_chain_or_source_slice",
+    ]
+    assert diagnostic.presentEvidence == []
     assert diagnostic.missingEvidence == [
         "local_or_derived_support",
         "source_location",
         "sink_or_dangerous_api",
         "caller_chain_or_source_slice",
     ]
+    assert diagnostic.evidenceTrail == []
+    assert diagnostic.revisionHistory
+
+
+def test_rejected_claim_is_diagnosed_with_rejected_contribution():
+    request = TaskRequest(
+        taskType=TaskType.DEEP_ANALYZE,
+        taskId="claim-rejected-diagnostics-test",
+        context=Context(trusted={}),
+    )
+    session = AgentSession(request, BudgetState())
+    final_content = json.dumps({
+        "summary": "fabricated refs should be rejected.",
+        "claims": [{
+            "statement": "fabricated claim",
+            "detail": "no cited refs exist",
+            "supportingEvidenceRefs": ["eref-local-fiction"],
+            "location": "src/main.c:1",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": [],
+        "suggestedSeverity": "info",
+        "needsHumanReview": True,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    result = ResultAssembler().build(final_content, session)
+
+    assert result.result.claims == []
+    diagnostic = result.result.claimDiagnostics.nonAcceptedClaims[0]
+    assert diagnostic.status == ClaimStatus.REJECTED
+    assert diagnostic.invalidRefs == ["eref-local-fiction"]
+    assert diagnostic.outcomeContribution == "rejected_unsupported"
+
+
+def test_needs_human_review_candidate_stays_out_of_public_claims_without_acceptance_path():
+    request = TaskRequest(
+        taskType=TaskType.DEEP_ANALYZE,
+        taskId="claim-nhr-diagnostics-test",
+        context=Context(trusted={}),
+    )
+    session = AgentSession(request, BudgetState())
+    session.evidence_catalog.add(EvidenceCatalogEntry(
+        ref_id="eref-local-main",
+        evidence_class="local",
+        roles=("source_location",),
+        file="src/main.c",
+    ))
+    final_content = json.dumps({
+        "summary": "NHR candidate should remain diagnostic-only.",
+        "claims": [{
+            "statement": "Manual review requested claim",
+            "detail": "This claim is local but already marked needs_human_review.",
+            "supportingEvidenceRefs": ["eref-local-main"],
+            "location": "src/main.c:1",
+            "status": "needs_human_review",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": ["eref-local-main"],
+        "suggestedSeverity": "info",
+        "needsHumanReview": True,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    result = ResultAssembler().build(final_content, session)
+
+    assert result.result.claims == []
+    assert result.result.analysisOutcome == "no_accepted_claims"
+    diagnostic = result.result.claimDiagnostics.nonAcceptedClaims[0]
+    assert diagnostic.status == ClaimStatus.NEEDS_HUMAN_REVIEW
+    assert diagnostic.outcomeContribution == "needs_human_review"
 
 
 def test_claim_json_schema_exposes_additive_fields_with_old_fields():

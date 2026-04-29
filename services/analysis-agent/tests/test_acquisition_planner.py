@@ -111,3 +111,13 @@ def test_candidate_claim_without_transition_gets_no_plan():
     )
 
     assert plan_next_action(claim, {"knowledge.search"}, set()) is None
+
+
+def test_needs_human_review_claim_gets_no_automatic_plan_even_with_missing_evidence():
+    claim = Claim(
+        statement="CWE-78 command injection",
+        status=ClaimStatus.NEEDS_HUMAN_REVIEW,
+        missingEvidence=["threat_knowledge"],
+    )
+
+    assert plan_next_action(claim, {"knowledge.search"}, set()) is None

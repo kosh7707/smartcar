@@ -42,7 +42,16 @@ def _make_request(
             )
             for rid in ref_ids
         ],
-        constraints=Constraints(),
+        constraints=Constraints(
+            enableThinking=True,
+            maxTokens=2048,
+            temperature=1.0,
+            topP=0.95,
+            topK=20,
+            minP=0.0,
+            presencePenalty=0.0,
+            repetitionPenalty=1.0,
+        ),
     )
 
 
@@ -77,6 +86,14 @@ def _build_pipeline() -> TaskPipeline:
     return pipeline
 
 
+def _make_client_mock():
+    client = MagicMock()
+    client.generate = AsyncMock(return_value=_GOOD_LLM_RESPONSE)
+    client.last_prompt_tokens = 10
+    client.last_completion_tokens = 5
+    return client
+
+
 # --- tests ---
 
 
@@ -104,6 +121,44 @@ async def test_retry_on_invalid_schema_then_success(mock_settings):
     assert result.audit.retryCount == 1
     assert result.audit.tokenUsage.prompt == 200
     assert result.audit.tokenUsage.completion == 100
+
+
+@pytest.mark.asyncio
+@patch("app.pipeline.task_pipeline.settings")
+async def test_real_path_forwards_request_generation_controls(mock_settings):
+    mock_settings.llm_mode = "real"
+    mock_settings.llm_concurrency = 4
+
+    client = _make_client_mock()
+    pipeline = _build_pipeline()
+    pipeline._llm_client = client
+    request = _make_request()
+    request.constraints.enableThinking = False
+    request.constraints.maxTokens = 4096
+    request.constraints.temperature = 0.6
+    request.constraints.topP = 0.9
+    request.constraints.topK = 30
+    request.constraints.minP = 0.01
+    request.constraints.presencePenalty = 0.2
+    request.constraints.repetitionPenalty = 1.1
+
+    content, usage = await pipeline._call_llm(request, [{"role": "user", "content": "test"}])
+
+    assert content == _GOOD_LLM_RESPONSE
+    assert usage.prompt == 10
+    assert usage.completion == 5
+    client.generate.assert_awaited_once_with(
+        [{"role": "user", "content": "test"}],
+        max_tokens=4096,
+        temperature=0.6,
+        top_p=0.9,
+        top_k=30,
+        min_p=0.01,
+        presence_penalty=0.2,
+        repetition_penalty=1.1,
+        enable_thinking=False,
+        task_type="static-explain",
+    )
 
 
 @pytest.mark.asyncio

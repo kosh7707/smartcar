@@ -11,7 +11,14 @@ class LlmClient(ABC):
         self,
         messages: list[dict[str, str]],
         *,
-        max_tokens: int = 2048,
-        temperature: float = 0.7,
+        max_tokens: int,
+        temperature: float,
+        top_p: float,
+        top_k: int,
+        min_p: float,
+        presence_penalty: float,
+        repetition_penalty: float,
+        enable_thinking: bool,
+        task_type: str | None = None,
     ) -> str:
         """메시지를 LLM에 전달하고 응답 텍스트(JSON)를 반환한다."""

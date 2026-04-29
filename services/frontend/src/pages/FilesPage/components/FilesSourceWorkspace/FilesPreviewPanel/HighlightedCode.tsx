@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { highlightLines as hlLines } from "../../../utils/highlight";
+import { highlightLines as hlLines } from "../../../../../utils/highlight";
 
 export const HighlightedCode: React.FC<{
   code: string;

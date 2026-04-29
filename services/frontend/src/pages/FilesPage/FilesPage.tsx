@@ -9,8 +9,7 @@ import { FilesEmptyState } from "./components/FilesEmptyState";
 import { BuildTargetCreateDialog } from "./components/BuildTargetCreateDialog";
 import { BuildLogViewer } from "./components/BuildLogViewer";
 import { FilesPageHeader } from "./components/FilesPageHeader";
-import { FilesBuildTargetPanel } from "./components/FilesBuildTargetPanel";
-import { FilesSourceWorkspace } from "./components/FilesSourceWorkspace";
+import { FilesSourceWorkspace } from "./components/FilesSourceWorkspace/FilesSourceWorkspace";
 import { useFilesPage } from "./hooks/useFilesPage";
 import "./FilesPage.css";
 
@@ -60,17 +59,6 @@ export const FilesPage: React.FC = () => {
         <FilesEmptyState />
       ) : (
         <>
-          <FilesBuildTargetPanel
-            targets={state.buildTargets.targets}
-            sourceFiles={state.sourceFiles}
-            targetMapping={state.targetMapping}
-            activeTargetFilters={state.activeTargetFilters}
-            onToggleFilter={state.toggleTargetFilter}
-            onClearFilters={state.clearTargetFilters}
-            onOpenLog={state.setLogTarget}
-            onOpenCreateTarget={() => state.setShowBuildTargetDialog(true)}
-          />
-
           <FilesSourceWorkspace
             search={state.search}
             onSearchChange={state.setSearch}
@@ -79,9 +67,6 @@ export const FilesPage: React.FC = () => {
             displayTree={state.displayTree}
             selectedPath={state.selectedPath}
             handleFileClick={state.handleFileClick}
-            renderFileIcon={state.renderFileIcon}
-            renderFileMeta={state.renderFileMeta}
-            renderFolderBadge={state.renderFolderBadge}
             previewLoading={state.previewLoading}
             previewLang={state.previewLang}
             previewContent={state.previewContent}
@@ -100,6 +85,7 @@ export const FilesPage: React.FC = () => {
             sourceFiles={state.sourceFiles}
             targetMapping={state.targetMapping}
             targets={state.buildTargets.targets}
+            findings={state.findings}
             findingsByFile={state.findingsByFile}
             composition={state.composition}
             previewDrawerOpen={state.previewDrawerOpen}

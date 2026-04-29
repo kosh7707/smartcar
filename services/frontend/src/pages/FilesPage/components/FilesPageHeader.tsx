@@ -16,7 +16,7 @@ export const FilesPageHeader: React.FC<FilesPageHeaderProps> = ({
     <header className="page-header page-header--plain page-head files-page-header">
       <div className="page-header__left">
         <div className="page-header__text">
-          <h1 className="page-header__title">분석 매니페스트</h1>
+          <h1 className="page-header__title">파일 탐색기</h1>
         </div>
       </div>
       <div className="page-header__action actions files-page-header-actions">
@@ -27,7 +27,7 @@ export const FilesPageHeader: React.FC<FilesPageHeaderProps> = ({
           title="소스코드 업로드"
         >
           <Upload size={14} />
-          소스 코드 업로드
+          소스 업로드
         </button>
         <input
           ref={fileInputRef}

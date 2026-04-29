@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from app.rag.context_enricher import ContextEnricher
 from app.rag.threat_search import ThreatHit
-from app.schemas.request import Context, TaskRequest
+from app.schemas.request import Constraints, Context, TaskRequest
 from app.types import TaskType
 
 
@@ -14,6 +14,16 @@ def _make_request(task_type: TaskType, trusted: dict) -> TaskRequest:
         taskId="test-rag-001",
         context=Context(trusted=trusted),
         evidenceRefs=[],
+        constraints=Constraints(
+            enableThinking=True,
+            maxTokens=2048,
+            temperature=1.0,
+            topP=0.95,
+            topK=20,
+            minP=0.0,
+            presencePenalty=0.0,
+            repetitionPenalty=1.0,
+        ),
     )
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from hashlib import sha1
 from dataclasses import dataclass
@@ -12,6 +13,8 @@ from typing import Literal
 from app.agent_runtime.schemas.agent import ToolCallRequest, ToolResult
 from app.core.phase_one_types import Phase1Result
 from app.schemas.request import EvidenceRef, TaskRequest
+
+logger = logging.getLogger(__name__)
 
 EvidenceCategory = Literal[
     "sast",
@@ -95,8 +98,20 @@ class EvidenceCatalog:
 
     def add(self, entry: EvidenceCatalogEntry) -> None:
         if not entry.ref_id:
+            logger.warning(
+                "empty evidence ref_id skipped",
+                extra={
+                    "component": "evidence_catalog",
+                    "phase": "catalog_add",
+                    "evidenceClass": entry.evidence_class,
+                    "sourceTool": entry.source_tool,
+                },
+            )
             return
         self._history.append(entry)
+        current = self._latest.get(entry.ref_id)
+        if current and current.can_support_claim and not entry.can_support_claim:
+            return
         self._latest[entry.ref_id] = entry
 
     def entries(self) -> list[EvidenceCatalogEntry]:
@@ -258,7 +273,7 @@ class EvidenceCatalog:
     def as_evidence_refs(self) -> list[dict]:
         refs: list[dict] = []
         for entry in self.entries():
-            if entry.evidence_class == "negative":
+            if entry.evidence_class in {"negative", "operational"}:
                 continue
             locator: dict = {}
             if entry.file:

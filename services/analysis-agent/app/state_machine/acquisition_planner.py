@@ -30,7 +30,7 @@ def plan_next_action(
     catalog: EvidenceCatalog | None = None,
 ) -> PlannedAction | None:
     """Suggest one deterministic evidence acquisition action for an under-evidenced claim."""
-    if claim.status != ClaimStatus.UNDER_EVIDENCED and not claim.missingEvidence:
+    if claim.status != ClaimStatus.UNDER_EVIDENCED:
         return None
 
     for slot in claim.missingEvidence:

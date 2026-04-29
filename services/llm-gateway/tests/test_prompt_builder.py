@@ -2,7 +2,7 @@ import json
 
 from app.pipeline.prompt_builder import V1PromptBuilder
 from app.registry.prompt_registry import PromptEntry
-from app.schemas.request import Context, EvidenceRef, TaskRequest
+from app.schemas.request import Constraints, Context, EvidenceRef, TaskRequest
 from app.types import TaskType
 
 
@@ -22,6 +22,16 @@ def _make_request(
             untrusted=untrusted,
         ),
         evidenceRefs=evidence_refs or [],
+        constraints=Constraints(
+            enableThinking=True,
+            maxTokens=2048,
+            temperature=1.0,
+            topP=0.95,
+            topK=20,
+            minP=0.0,
+            presencePenalty=0.0,
+            repetitionPenalty=1.0,
+        ),
     )
 
 

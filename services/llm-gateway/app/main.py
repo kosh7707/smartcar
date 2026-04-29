@@ -12,6 +12,7 @@ from pythonjsonlogger import jsonlogger
 
 from app.config import settings
 from app.context import get_request_id
+from app.generation_policy import SamplingDefaults
 from app.routers import tasks
 
 
@@ -110,7 +111,7 @@ async def lifespan(_app: FastAPI):
             endpoint=profile.endpoint if profile else settings.llm_endpoint,
             model=profile.modelName if profile else settings.llm_model,
             api_key=profile.apiKey if profile else settings.llm_api_key,
-            enable_thinking=True, json_mode=True,
+            json_mode=True,
             circuit_breaker=circuit_breaker,
         )
 
@@ -141,10 +142,18 @@ async def lifespan(_app: FastAPI):
     # real 모드일 때 LLM Engine 워밍업 (torch.compile 캐시 생성)
     if llm_client:
         try:
+            warmup_sampling = SamplingDefaults.HEALTH_PROBE
             logger.info("LLM Engine 워밍업 시작...")
             await llm_client.generate(
                 [{"role": "user", "content": "Hello"}],
-                max_tokens=8, temperature=0.0,
+                max_tokens=8,
+                temperature=warmup_sampling.temperature,
+                top_p=warmup_sampling.top_p,
+                top_k=warmup_sampling.top_k,
+                min_p=warmup_sampling.min_p,
+                presence_penalty=warmup_sampling.presence_penalty,
+                repetition_penalty=warmup_sampling.repetition_penalty,
+                enable_thinking=warmup_sampling.enable_thinking,
             )
             logger.info("LLM Engine 워밍업 완료")
         except Exception as e:

@@ -13,7 +13,7 @@ from app.core.result_assembler import ResultAssembler
 from app.pipeline.response_parser import V1ResponseParser
 from app.validators.schema_validator import SchemaValidator
 from app.agent_runtime.context import get_request_id
-from app.agent_runtime.errors import LlmTimeoutError, S3Error, StrictJsonContractError
+from app.agent_runtime.errors import BudgetExhaustedError, LlmTimeoutError, S3Error, StrictJsonContractError
 from app.agent_runtime.llm.caller import LlmCaller
 from app.agent_runtime.llm.message_manager import MessageManager
 from app.agent_runtime.llm.turn_summarizer import TurnSummarizer
@@ -24,9 +24,10 @@ from app.runtime.request_summary import request_summary_tracker
 from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.tools.router import ToolRouter
-from app.schemas.response import RecoveryTraceEntry
 from app.state_machine.outcomes import outcome_for_deficiency
+from app.state_machine.recovery_triage import recovery_trace
 from app.state_machine.types import DeficiencyClass
+from app.state_machine.types import DependencyState
 from app.types import FailureCode, TaskStatus
 
 logger = logging.getLogger(__name__)
@@ -109,6 +110,10 @@ def _should_request_extra_grounding_lookup(
     grounding_nudge_used: bool,
 ) -> bool:
     if grounding_nudge_used or force_report or not current_tools_available:
+        return False
+    if session.budget.total_completion_tokens >= session.budget.max_completion_tokens:
+        return False
+    if session.budget.total_steps >= session.budget.max_steps:
         return False
     if session.total_tool_calls() == 0 or parsed is None:
         return False
@@ -251,15 +256,13 @@ class AgentLoop:
                         poc_outcome=outcome.poc_outcome,
                         caveats=[f"Strict JSON contract violation: {e.error_detail or e}"],
                         policy_flags=["recovery_classified", "strict_json_deficient"],
-                        recovery_trace=[RecoveryTraceEntry(
+                        recovery_trace=[recovery_trace(
                             deficiency="LLM_OUTPUT_DEFICIENT",
                             action="strict_json_contract_recovery",
                             outcome="inconclusive",
                             detail=str(e),
-                            deficiencyClass="strict_json_violation",
-                            recoveryAction="strict_json_contract_recovery",
-                            result="inconclusive",
-                            dependencyState="output_deficient",
+                            deficiency_class=DeficiencyClass.STRICT_JSON_VIOLATION,
+                            dependency_state=DependencyState.OUTPUT_DEFICIENT,
                         )],
                         termination_reason="strict_json_contract_recovered",
                     )
@@ -298,15 +301,13 @@ class AgentLoop:
                     poc_outcome=outcome.poc_outcome,
                     caveats=[f"LLM output/call deficiency: {e}"],
                     policy_flags=["recovery_classified", "llm_output_deficient"],
-                    recovery_trace=[RecoveryTraceEntry(
+                    recovery_trace=[recovery_trace(
                         deficiency="LLM_OUTPUT_DEFICIENT",
                         action="llm_call_recovered",
                         outcome="inconclusive",
                         detail=str(e),
-                        deficiencyClass="malformed_llm_output",
-                        recoveryAction="llm_call_recovered",
-                        result="inconclusive",
-                        dependencyState="output_deficient",
+                        deficiency_class=DeficiencyClass.MALFORMED_LLM_OUTPUT,
+                        dependency_state=DependencyState.OUTPUT_DEFICIENT,
                     )],
                     termination_reason="llm_call_recovered",
                 )
@@ -361,22 +362,21 @@ class AgentLoop:
                     component="agent_loop", phase="turn_branch",
                     turn=turn, responseType="content",
                 )
-                session.record_content_turn(response)
-
-                agent_log(
-                    logger, "턴 종료",
-                    component="agent_loop", phase="turn_end",
-                    turn=turn,
-                    promptTokens=response.prompt_tokens,
-                    completionTokens=response.completion_tokens,
-                )
-                request_summary_tracker.mark_phase_advancing(
-                    get_request_id() or session.request.taskId,
-                    source="turn-complete",
-                )
 
                 final_content = response.content or ""
                 if not final_content.strip():
+                    session.record_content_turn(response)
+                    agent_log(
+                        logger, "턴 종료",
+                        component="agent_loop", phase="turn_end",
+                        turn=turn,
+                        promptTokens=response.prompt_tokens,
+                        completionTokens=response.completion_tokens,
+                    )
+                    request_summary_tracker.mark_phase_advancing(
+                        get_request_id() or session.request.taskId,
+                        source="turn-complete-empty",
+                    )
                     agent_log(
                         logger, "LLM이 빈 응답 반환 — outcome 분류",
                         component="agent_loop", phase="empty_response",
@@ -391,15 +391,13 @@ class AgentLoop:
                         poc_outcome=outcome.poc_outcome,
                         caveats=["LLM returned neither tool_calls nor non-empty content."],
                         policy_flags=["recovery_classified", "empty_llm_output"],
-                        recovery_trace=[RecoveryTraceEntry(
+                        recovery_trace=[recovery_trace(
                             deficiency="LLM_OUTPUT_DEFICIENT",
                             action="empty_output_recovery",
                             outcome="inconclusive",
                             detail="LLM returned empty content without tool calls.",
-                            deficiencyClass="empty_llm_output",
-                            recoveryAction="empty_output_recovery",
-                            result="inconclusive",
-                            dependencyState="output_deficient",
+                            deficiency_class=DeficiencyClass.EMPTY_LLM_OUTPUT,
+                            dependency_state=DependencyState.OUTPUT_DEFICIENT,
                         )],
                         termination_reason="empty_llm_output_recovered",
                     )
@@ -408,6 +406,7 @@ class AgentLoop:
 
                 if parsed_content is None and not structured_retry_used:
                     structured_retry_used = True
+                    session.record_recovery_turn(response)
                     self._message_manager.add_assistant_content(final_content)
                     self._message_manager.add_user_message(
                         "[시스템] 방금 응답은 최종 Assessment JSON이 아니었습니다. "
@@ -420,8 +419,13 @@ class AgentLoop:
                         component="agent_loop", phase="structured_retry",
                         turn=turn, level=logging.WARNING,
                     )
+                    request_summary_tracker.mark_phase_advancing(
+                        get_request_id() or session.request.taskId,
+                        source="structured-retry-scheduled",
+                    )
                     continue
                 if parsed_content is None and structured_retry_used:
+                    session.record_recovery_turn(response)
                     try:
                         finalizer_response = await self._call_structured_finalizer(session, final_content)
                     except S3Error as e:
@@ -434,11 +438,13 @@ class AgentLoop:
                             poc_outcome=outcome.poc_outcome,
                             caveats=[f"Structured finalizer failed: {e}"],
                             policy_flags=["recovery_classified", "strict_json_deficient"],
-                            recovery_trace=[RecoveryTraceEntry(
+                            recovery_trace=[recovery_trace(
                                 deficiency="LLM_OUTPUT_DEFICIENT",
                                 action="structured_finalizer_recovery",
                                 outcome="inconclusive",
                                 detail=str(e),
+                                deficiency_class=DeficiencyClass.MALFORMED_LLM_OUTPUT,
+                                dependency_state=DependencyState.OUTPUT_DEFICIENT,
                             )],
                             termination_reason="structured_finalizer_recovered",
                         )
@@ -479,6 +485,7 @@ class AgentLoop:
                 )
                 if schema_repair_detail and not schema_repair_used:
                     schema_repair_used = True
+                    session.record_recovery_turn(response)
                     self._message_manager.add_assistant_content(final_content)
                     repair_input = (
                         "The previous response was valid JSON but failed the Assessment schema. "
@@ -499,11 +506,13 @@ class AgentLoop:
                             poc_outcome=outcome.poc_outcome,
                             caveats=[f"Structured schema repair failed: {e}"],
                             policy_flags=["recovery_classified", "schema_deficient", "strict_json_deficient"],
-                            recovery_trace=[RecoveryTraceEntry(
+                            recovery_trace=[recovery_trace(
                                 deficiency="SCHEMA_DEFICIENT",
                                 action="structured_schema_repair_recovery",
                                 outcome="inconclusive",
                                 detail=str(e),
+                                deficiency_class=DeficiencyClass.SCHEMA,
+                                dependency_state=DependencyState.OUTPUT_DEFICIENT,
                             )],
                             termination_reason="structured_schema_repair_recovered",
                         )
@@ -547,6 +556,7 @@ class AgentLoop:
                     grounding_nudge_used=grounding_nudge_used,
                 ):
                     grounding_nudge_used = True
+                    session.record_recovery_turn(response)
                     self._message_manager.add_assistant_content(final_content)
                     self._message_manager.add_user_message(
                         "[시스템] 방금 최종 보고서는 CWE/CVE 또는 exploitability grounding이 아직 약해 보입니다. "
@@ -561,8 +571,20 @@ class AgentLoop:
                         component="agent_loop", phase="grounding_nudge",
                         turn=turn, level=logging.WARNING,
                     )
+                    request_summary_tracker.mark_phase_advancing(
+                        get_request_id() or session.request.taskId,
+                        source="grounding-nudge-scheduled",
+                    )
                     continue
 
+                session.record_content_turn(response)
+                agent_log(
+                    logger, "턴 종료",
+                    component="agent_loop", phase="turn_end",
+                    turn=turn,
+                    promptTokens=response.prompt_tokens,
+                    completionTokens=response.completion_tokens,
+                )
                 result = self._result_assembler.build(final_content, session)
                 request_summary_tracker.mark_phase_advancing(
                     get_request_id() or session.request.taskId,
@@ -645,6 +667,14 @@ class AgentLoop:
 
     async def _call_structured_finalizer(self, session: AgentSession, non_json_content: str):
         """Ask S7 for a strict final Assessment JSON with tools disabled."""
+        remaining_completion_tokens = (
+            session.budget.max_completion_tokens - session.budget.total_completion_tokens
+        )
+        if remaining_completion_tokens < 512:
+            raise BudgetExhaustedError(
+                "structured finalizer skipped: remaining completion-token budget below useful minimum"
+            )
+        finalizer_max_tokens = min(remaining_completion_tokens, 6000)
         refs = _allowed_finalizer_refs(session)
         ref_lines = "\n".join(f"- `{ref}`" for ref in refs[:40]) or "- (no refs available)"
         state = session.analysis_state_summary()
@@ -690,6 +720,8 @@ class AgentLoop:
             component="agent_loop",
             phase="structured_finalizer_request",
             refCount=len(refs),
+            remainingCompletionTokens=remaining_completion_tokens,
+            maxTokens=finalizer_max_tokens,
             level=logging.WARNING,
         )
         request_summary_tracker.mark_transport_only(
@@ -700,7 +732,7 @@ class AgentLoop:
             [{"role": "system", "content": system}, {"role": "user", "content": user}],
             session,
             tools=None,
-            max_tokens=min(session.budget.max_completion_tokens, 6000),
+            max_tokens=finalizer_max_tokens,
             temperature=0.0,
             prefer_async_ownership=True,
         )

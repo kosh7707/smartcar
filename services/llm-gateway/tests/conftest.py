@@ -74,7 +74,14 @@ def make_task_body(
     *,
     trusted: dict | None = None,
     evidence_refs: list | None = None,
+    enable_thinking: bool = True,
     max_tokens: int = 2048,
+    temperature: float = 1.0,
+    top_p: float = 0.95,
+    top_k: int = 20,
+    min_p: float = 0.0,
+    presence_penalty: float = 0.0,
+    repetition_penalty: float = 1.0,
 ) -> dict:
     """API 계약서 형식의 POST /v1/tasks 요청 body."""
     return {
@@ -101,7 +108,16 @@ def make_task_body(
                 "locator": {"file": "src/main.c", "startLine": 1, "endLine": 50},
             },
         ],
-        "constraints": {"maxTokens": max_tokens},
+        "constraints": {
+            "enableThinking": enable_thinking,
+            "maxTokens": max_tokens,
+            "temperature": temperature,
+            "topP": top_p,
+            "topK": top_k,
+            "minP": min_p,
+            "presencePenalty": presence_penalty,
+            "repetitionPenalty": repetition_penalty,
+        },
     }
 
 
@@ -123,6 +139,13 @@ def make_chat_body() -> dict:
         "model": "ignored-by-gateway",
         "messages": [{"role": "user", "content": "hello async"}],
         "max_tokens": 64,
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "presence_penalty": 0.0,
+        "repetition_penalty": 1.0,
+        "chat_template_kwargs": {"enable_thinking": True},
     }
 
 

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Finding, Severity } from "@aegis/shared";
-import { FileText } from "lucide-react";
 import {
   fetchProjectFindings,
   fetchSourceFileContent,
@@ -9,13 +8,10 @@ import {
   uploadSource,
 } from "../../../api/client";
 import type { SourceFileEntry, TargetMappingEntry } from "../../../api/client";
-import { getLangColorByName, LANG_GROUPS } from "../../../constants/languages";
+import { LANG_GROUPS } from "../../../constants/languages";
 import { useFilesWorkspaceLayout } from "./useFilesWorkspaceLayout";
-import { computeFindingOverlay, getFindingCount } from "../../../utils/findingOverlay";
-import type { DirFindingCount } from "../../../utils/findingOverlay";
 import { getFileClass } from "../../../utils/fileClass";
 import type { FileClass } from "../../../utils/fileClass";
-import { formatFileSize } from "../../../utils/format";
 import { parseLocation } from "../../../utils/location";
 import { buildTree, filterTree } from "../../../utils/tree";
 import type { TreeNode } from "../../../utils/tree";
@@ -136,11 +132,6 @@ export function useFilesPage(
   const effectiveOpenPaths = useMemo(
     () => openPaths ?? collectDefaultOpenPaths(tree),
     [openPaths, tree],
-  );
-
-  const overlay = useMemo(
-    () => (findings.length > 0 ? computeFindingOverlay(findings) : new Map<string, DirFindingCount>()),
-    [findings],
   );
 
   const selectedFileFindings = useMemo(() => {
@@ -280,30 +271,6 @@ export function useFilesPage(
     }
   }, [handleUpload]);
 
-  const renderFileIcon = useCallback(
-    (data: SourceFileEntry) => (
-      <FileText size={16} className="ftree-file-icon" style={{ color: getLangColorByName(data.language) }} />
-    ),
-    [],
-  );
-
-  const renderFileMeta = useCallback((data: SourceFileEntry) => (
-    <span className="ftree-meta ftree-size">{formatFileSize(data.size)}</span>
-  ), []);
-
-  const renderFolderBadge = useCallback((node: TreeNode<SourceFileEntry>) => {
-    const counts = getFindingCount(node.path, overlay);
-    if (counts.total === 0) return null;
-    return (
-      <span className="ftree-folder-badge">
-        {counts.critical > 0 && <span className="ftree-finding-dot ftree-finding-dot--critical">{counts.critical}</span>}
-        {counts.high > 0 && <span className="ftree-finding-dot ftree-finding-dot--high">{counts.high}</span>}
-        {counts.medium > 0 && <span className="ftree-finding-dot ftree-finding-dot--medium">{counts.medium}</span>}
-        {counts.low > 0 && <span className="ftree-finding-dot ftree-finding-dot--low">{counts.low}</span>}
-      </span>
-    );
-  }, [overlay]);
-
   const handleSelectFinding = useCallback((findingId: string) => {
     navigate(`/projects/${projectId}/static-analysis?finding=${findingId}`);
   }, [navigate, projectId]);
@@ -373,9 +340,6 @@ export function useFilesPage(
     handleFileClick,
     openPreviewDrawer,
     closePreview,
-    renderFileIcon,
-    renderFileMeta,
-    renderFolderBadge,
     handleSelectFinding,
     onExpandAll,
     onCollapseAll,

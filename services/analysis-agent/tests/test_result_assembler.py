@@ -244,6 +244,43 @@ def test_legacy_negative_ref_prefix_is_not_fallback_classified_as_local():
     assert result.result.evidenceDiagnostics.invalidRefRoles[0].actualClass == "negative"
 
 
+def test_broad_eref_prefix_is_not_fallback_classified_as_local():
+    assembler = ResultAssembler()
+    session = _make_session()
+    session.trace.append(ToolTraceStep(
+        step_id="fake-ref",
+        turn_number=1,
+        tool="unknown.tool",
+        args_hash="hash",
+        cost_tier=ToolCostTier.CHEAP,
+        duration_ms=1,
+        success=True,
+        new_evidence_refs=["eref-totally-fake"],
+    ))
+    final_content = json.dumps({
+        "summary": "fake eref prefix should not be accepted.",
+        "claims": [{
+            "statement": "Fake ref proves a vulnerability.",
+            "detail": "The broad eref-* prefix is not sufficient.",
+            "supportingEvidenceRefs": ["eref-totally-fake"],
+            "location": "clients/http_client.cpp:64",
+        }],
+        "caveats": [],
+        "usedEvidenceRefs": ["eref-totally-fake"],
+        "suggestedSeverity": "info",
+        "needsHumanReview": True,
+        "recommendedNextSteps": [],
+        "policyFlags": [],
+    })
+
+    result = assembler.build(final_content, session)
+
+    assert result.status == "completed"
+    assert result.result.claims == []
+    assert "eref-totally-fake" not in result.result.evidenceDiagnostics.availableLocalRefs
+    assert result.result.evidenceDiagnostics.invalidRefRoles[0].actualClass == "unclassified"
+
+
 def test_agent_v11_clean_pass_fields_and_contextual_refs_are_populated():
     assembler = ResultAssembler()
     session = _make_session()

@@ -72,6 +72,9 @@ class TestHealthEndpoint:
         rag = data["rag"]
         assert isinstance(rag["enabled"], bool)
         assert isinstance(rag["kbEndpoint"], str)
+        assert isinstance(rag["topK"], int)
+        assert isinstance(rag["minScore"], float)
+        assert rag["policy"] == "task-pipeline-context-enrichment"
         assert isinstance(rag["status"], str)
 
     def test_health_mock_mode_no_llm_backend(self, client_live):
@@ -236,10 +239,82 @@ class TestMetricsEndpoint:
         assert "aegis_llm_requests_total" in body
         assert "aegis_llm_tokens_total" in body
         assert "aegis_llm_circuit_breaker_state" in body
+        assert "aegis_llm_temperature" in body
+        assert "aegis_llm_top_p" in body
+        assert "aegis_llm_top_k" in body
+        assert "aegis_llm_min_p" in body
+        assert "aegis_llm_presence_penalty" in body
+        assert "aegis_llm_repetition_penalty" in body
+        assert "aegis_llm_thinking_requests_total" in body
+        assert "aegis_llm_thinking_token_count" in body
+        assert "aegis_llm_finish_reason_total" in body
 
     def test_metrics_content_type(self, client_live):
         resp = client_live.get("/metrics")
         assert "text/plain" in resp.headers["content-type"] or "text/openmetrics" in resp.headers.get("content-type", "")
+
+    def test_generation_controls_are_recorded_as_metrics(self, client_live):
+        mock_llm_response = {
+            "choices": [{"message": {"content": '{"ok": true}'}, "finish_reason": "stop"}],
+            "usage": {
+                "prompt_tokens": 3,
+                "completion_tokens": 2,
+                "completion_tokens_details": {"reasoning_tokens": 1},
+            },
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+            resp = client_live.post(
+                "/v1/chat",
+                json={
+                    "model": "ignored-by-gateway",
+                    "messages": [{"role": "user", "content": "metrics"}],
+                    "max_tokens": 100,
+                    "temperature": 1.0,
+                    "top_p": 0.95,
+                    "top_k": 20,
+                    "min_p": 0.0,
+                    "presence_penalty": 0.0,
+                    "repetition_penalty": 1.0,
+                },
+            )
+
+        assert resp.status_code == 200
+        metrics = client_live.get("/metrics").text
+        assert 'aegis_llm_temperature_count{endpoint="chat_proxy",task_type="none"}' in metrics
+        assert 'aegis_llm_top_p_count{endpoint="chat_proxy",task_type="none"}' in metrics
+        assert 'aegis_llm_top_k_count{endpoint="chat_proxy",task_type="none"}' in metrics
+        assert 'aegis_llm_thinking_requests_total{enabled="true",endpoint="chat_proxy",task_type="none"}' in metrics
+        assert 'aegis_llm_thinking_token_count_count{endpoint="chat_proxy",task_type="none"}' in metrics
+        assert 'aegis_llm_finish_reason_total{endpoint="chat_proxy",reason="stop",task_type="none"}' in metrics
+
+    def test_chat_payload_task_type_does_not_become_metric_label(self, client_live):
+        mock_resp = httpx.Response(200, json={
+            "choices": [{"message": {"content": '{"ok": true}'}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+        })
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+            resp = client_live.post(
+                "/v1/chat",
+                json={
+                    "model": "ignored-by-gateway",
+                    "messages": [{"role": "user", "content": "cardinality"}],
+                    "max_tokens": 16,
+                    "temperature": 1.0,
+                    "top_p": 0.95,
+                    "top_k": 20,
+                    "task_type": "user-controlled-cardinality",
+                },
+            )
+
+        assert resp.status_code == 200
+        metrics = client_live.get("/metrics").text
+        assert 'task_type="user-controlled-cardinality"' not in metrics
+        assert 'aegis_llm_temperature_count{endpoint="chat_proxy",task_type="none"}' in metrics
 
 
 # ---------------------------------------------------------------------------
@@ -294,6 +369,12 @@ class TestChatProxy:
                         "model": "ignored-by-gateway",
                         "messages": [{"role": "user", "content": "full prompt evidence"}],
                         "max_tokens": 100,
+                        "temperature": 1.0,
+                        "top_p": 0.95,
+                        "top_k": 20,
+                        "min_p": 0.0,
+                        "presence_penalty": 0.0,
+                        "repetition_penalty": 1.0,
                     },
                     headers={"X-Request-Id": "rid-chat-exchange-001"},
                 )
@@ -307,7 +388,55 @@ class TestChatProxy:
         assert entry["request"]["messages"][0]["content"] == "full prompt evidence"
         assert entry["request"]["chat_template_kwargs"]["enable_thinking"] is True
         assert entry["effectiveThinking"] is True
+        assert entry["generation"] == {
+            "maxTokens": 100,
+            "temperature": 1.0,
+            "topP": 0.95,
+            "topK": 20,
+            "minP": 0.0,
+            "presencePenalty": 0.0,
+            "repetitionPenalty": 1.0,
+            "enableThinking": True,
+            "taskType": None,
+        }
         assert entry["response"]["choices"][0]["message"]["content"] == "hello back"
+
+    def test_chat_proxy_preserves_snake_case_generation_controls(self, client_live):
+        mock_llm_response = {
+            "choices": [{"message": {"content": '{"ok": true}'}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 3, "completion_tokens": 2},
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+
+        body = {
+            "model": "ignored-by-gateway",
+            "messages": [{"role": "user", "content": "generation controls"}],
+            "max_tokens": 321,
+            "temperature": 0.6,
+            "top_p": 0.9,
+            "top_k": 30,
+            "min_p": 0.01,
+            "presence_penalty": 0.2,
+            "repetition_penalty": 1.1,
+        }
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+            resp = client_live.post("/v1/chat", json=body)
+
+        assert resp.status_code == 200
+        call_kwargs = mock_client.post.call_args
+        forwarded = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
+        for key in (
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "top_k",
+            "min_p",
+            "presence_penalty",
+            "repetition_penalty",
+        ):
+            assert forwarded[key] == body[key]
+        assert forwarded["chat_template_kwargs"]["enable_thinking"] is True
 
     def test_chat_proxy_preserves_explicit_thinking_false(self, client_live):
         """기본값은 thinking-on이지만 명시적 mechanical off 요청은 보존한다."""
@@ -672,6 +801,13 @@ class TestAsyncChatOwnershipSurface:
                     json={
                         "model": "ignored",
                         "messages": [{"role": "user", "content": "async full prompt"}],
+                        "max_tokens": 100,
+                        "temperature": 1.0,
+                        "top_p": 0.95,
+                        "top_k": 20,
+                        "min_p": 0.0,
+                        "presence_penalty": 0.0,
+                        "repetition_penalty": 1.0,
                     },
                     headers={"X-Request-Id": "trace-async-exchange-001"},
                 )
@@ -691,7 +827,61 @@ class TestAsyncChatOwnershipSurface:
         assert entry["request"]["messages"][0]["content"] == "async full prompt"
         assert entry["request"]["chat_template_kwargs"]["enable_thinking"] is True
         assert entry["effectiveThinking"] is True
+        assert entry["generation"] == {
+            "maxTokens": 100,
+            "temperature": 1.0,
+            "topP": 0.95,
+            "topK": 20,
+            "minP": 0.0,
+            "presencePenalty": 0.0,
+            "repetitionPenalty": 1.0,
+            "enableThinking": True,
+            "taskType": None,
+        }
         assert entry["response"]["choices"][0]["message"]["content"] == "async answer"
+
+    def test_async_submit_preserves_snake_case_generation_controls(self, client_live):
+        mock_llm_response = {
+            "choices": [{"message": {"content": "async answer"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 8, "completion_tokens": 4},
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+        body = make_chat_body()
+        body.update({
+            "max_tokens": 321,
+            "temperature": 0.6,
+            "top_p": 0.9,
+            "top_k": 30,
+            "min_p": 0.01,
+            "presence_penalty": 0.2,
+            "repetition_penalty": 1.1,
+            "chat_template_kwargs": {"enable_thinking": False},
+        })
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+            submit = client_live.post("/v1/async-chat-requests", json=body)
+            request_id = submit.json()["requestId"]
+            deadline = time.time() + 1.0
+            while time.time() < deadline:
+                status_resp = client_live.get(f"/v1/async-chat-requests/{request_id}")
+                if status_resp.json()["state"] == "completed":
+                    break
+                time.sleep(0.01)
+
+        call_kwargs = mock_client.post.call_args
+        forwarded = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
+        for key in (
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "top_k",
+            "min_p",
+            "presence_penalty",
+            "repetition_penalty",
+        ):
+            assert forwarded[key] == body[key]
+        assert forwarded["chat_template_kwargs"]["enable_thinking"] is False
 
     def test_async_result_not_ready_is_explicit(self, client_live):
         async def delayed_response(*args, **kwargs):

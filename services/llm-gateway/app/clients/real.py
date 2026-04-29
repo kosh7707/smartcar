@@ -9,6 +9,7 @@ import httpx
 from app.context import get_request_id
 from app.errors import LlmHttpError, LlmInputTooLargeError, LlmTimeoutError, LlmUnavailableError
 from app.clients.base import LlmClient
+from app.metrics import prom
 
 if __import__("typing").TYPE_CHECKING:
     from app.circuit_breaker import CircuitBreaker
@@ -30,14 +31,12 @@ class RealLlmClient(LlmClient):
         model: str,
         api_key: str = "",
         *,
-        enable_thinking: bool = True,
         json_mode: bool = True,
         circuit_breaker: CircuitBreaker | None = None,
     ):
         self.endpoint = endpoint.rstrip("/")
         self.model = model
         self.api_key = api_key
-        self.enable_thinking = enable_thinking
         self.json_mode = json_mode
         self.last_prompt_tokens: int = 0
         self.last_completion_tokens: int = 0
@@ -57,8 +56,15 @@ class RealLlmClient(LlmClient):
         self,
         messages: list[dict[str, str]],
         *,
-        max_tokens: int = 2048,
-        temperature: float = 0.7,
+        max_tokens: int,
+        temperature: float,
+        top_p: float,
+        top_k: int,
+        min_p: float,
+        presence_penalty: float,
+        repetition_penalty: float,
+        enable_thinking: bool,
+        task_type: str | None = None,
     ) -> str:
         request_id = get_request_id()
 
@@ -73,12 +79,20 @@ class RealLlmClient(LlmClient):
             "messages": messages,
             "max_tokens": max_tokens,
             "temperature": temperature,
+            "top_p": top_p,
+            "top_k": top_k,
+            "min_p": min_p,
+            "presence_penalty": presence_penalty,
+            "repetition_penalty": repetition_penalty,
             "chat_template_kwargs": {
-                "enable_thinking": self.enable_thinking,
+                "enable_thinking": enable_thinking,
             },
         }
+        if task_type:
+            body["task_type"] = task_type
         if self.json_mode:
             body["response_format"] = {"type": "json_object"}
+        generation = _generation_log_fields(body)
 
         logger.info(
             "[LLM 호출 시작] requestId=%s, model=%s, maxTokens=%d",
@@ -97,6 +111,11 @@ class RealLlmClient(LlmClient):
             )
             resp.raise_for_status()
             data = resp.json()
+            prom.record_generation_observability(
+                endpoint="tasks",
+                generation=generation,
+                response_data=data,
+            )
             usage = data.get("usage", {})
             self.last_prompt_tokens = usage.get("prompt_tokens", 0)
             self.last_completion_tokens = usage.get("completion_tokens", 0)
@@ -116,6 +135,8 @@ class RealLlmClient(LlmClient):
                 "elapsedMs": latency_ms,
                 "latencyMs": latency_ms,
                 "status": "ok",
+                "generation": generation,
+                "effectiveThinking": enable_thinking,
                 "request": body,
                 "response": data,
             }, ensure_ascii=False))
@@ -139,6 +160,8 @@ class RealLlmClient(LlmClient):
                 "latencyMs": latency_ms,
                 "status": "error",
                 "error": "TIMEOUT",
+                "generation": generation,
+                "effectiveThinking": enable_thinking,
                 "request": body,
                 "response": None,
             }, ensure_ascii=False))
@@ -161,6 +184,8 @@ class RealLlmClient(LlmClient):
                 "latencyMs": latency_ms,
                 "status": "error",
                 "error": "UNAVAILABLE",
+                "generation": generation,
+                "effectiveThinking": enable_thinking,
                 "request": body,
                 "response": None,
             }, ensure_ascii=False))
@@ -185,6 +210,8 @@ class RealLlmClient(LlmClient):
                 "latencyMs": latency_ms,
                 "status": "error",
                 "error": f"HTTP_{status}",
+                "generation": generation,
+                "effectiveThinking": enable_thinking,
                 "request": body,
                 "response": resp_text,
             }, ensure_ascii=False))
@@ -199,6 +226,21 @@ class RealLlmClient(LlmClient):
                 "[LLM 호출 실패] requestId=%s, error=RESPONSE_MISMATCH, latencyMs=%d",
                 request_id, latency_ms,
             )
+            _exchange.info(json.dumps({
+                "service": "s7-gateway",
+                "level": 50,
+                "time": int(time.time() * 1000),
+                "msg": f"[LLM exchange] RESPONSE_MISMATCH latencyMs={latency_ms}",
+                "requestId": request_id,
+                "elapsedMs": latency_ms,
+                "latencyMs": latency_ms,
+                "status": "error",
+                "error": "RESPONSE_MISMATCH",
+                "generation": generation,
+                "effectiveThinking": enable_thinking,
+                "request": body,
+                "response": None,
+            }, ensure_ascii=False))
             raise LlmHttpError(
                 502, "LLM 응답 구조가 예상과 다릅니다"
             ) from e
@@ -206,3 +248,22 @@ class RealLlmClient(LlmClient):
     async def aclose(self) -> None:
         """httpx 클라이언트를 종료한다."""
         await self._client.aclose()
+
+
+def _generation_log_fields(body: dict) -> dict:
+    chat_template_kwargs = body.get("chat_template_kwargs")
+    enable_thinking = None
+    if isinstance(chat_template_kwargs, dict):
+        enable_thinking = chat_template_kwargs.get("enable_thinking")
+    task_type = body.get("task_type")
+    return {
+        "maxTokens": body.get("max_tokens"),
+        "temperature": body.get("temperature"),
+        "topP": body.get("top_p"),
+        "topK": body.get("top_k"),
+        "minP": body.get("min_p"),
+        "presencePenalty": body.get("presence_penalty"),
+        "repetitionPenalty": body.get("repetition_penalty"),
+        "enableThinking": enable_thinking,
+        "taskType": task_type if isinstance(task_type, str) else None,
+    }

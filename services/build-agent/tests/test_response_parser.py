@@ -68,6 +68,23 @@ def test_parse_with_think_tags(parser: V1ResponseParser) -> None:
     assert result["b"] == 2
 
 
+def test_parse_with_unclosed_think_tag(parser: V1ResponseParser) -> None:
+    """닫히지 않은 <think> 뒤 JSON도 안전하게 복구."""
+    raw = '<think>Let me reason about this...\n{"a": 1, "b": 2}'
+    result = parser.parse(raw)
+    assert result is not None
+    assert result["a"] == 1
+    assert result["b"] == 2
+
+
+def test_parse_fenced_json_with_trailing_prose(parser: V1ResponseParser) -> None:
+    """코드펜스 뒤 설명문이 붙어도 펜스 안 JSON 복구."""
+    raw = 'notes\n```json\n{"a": 1}\n```\nextra prose'
+    result = parser.parse(raw)
+    assert result is not None
+    assert result["a"] == 1
+
+
 # ── 리스트 반환 시 None ────────────────────────────────
 
 

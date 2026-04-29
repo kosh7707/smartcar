@@ -91,7 +91,11 @@ class NonAcceptedClaimDiagnostic(BaseModel):
     status: ClaimStatus = ClaimStatus.CANDIDATE
     family: str | None = None
     primaryLocation: str | None = None
+    requiredEvidence: list[str] = Field(default_factory=list)
+    presentEvidence: list[str] = Field(default_factory=list)
     missingEvidence: list[str] = Field(default_factory=list)
+    evidenceTrail: list[str] = Field(default_factory=list)
+    revisionHistory: list[dict] = Field(default_factory=list)
     invalidRefs: list[str] = Field(default_factory=list)
     supportingEvidenceRefs: list[str] = Field(default_factory=list)
     outcomeContribution: str | None = None
