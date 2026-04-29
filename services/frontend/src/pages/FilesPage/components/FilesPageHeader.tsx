@@ -5,29 +5,17 @@ interface FilesPageHeaderProps {
   onOpenUpload: () => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onFileInputChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  projectId: string;
-  projectName: string;
 }
 
 export const FilesPageHeader: React.FC<FilesPageHeaderProps> = ({
   onOpenUpload,
   fileInputRef,
   onFileInputChange,
-  projectId,
-  projectName,
 }) => {
-  const displayName = projectName || projectId;
   return (
     <header className="page-header page-header--plain page-head files-page-header">
       <div className="page-header__left">
         <div className="page-header__text">
-          <div className="page-eyebrow" aria-hidden="true">
-            <span>PROJECT</span>
-            <span className="page-eyebrow__sep">·</span>
-            <span className="page-eyebrow__name">{displayName}</span>
-            <span className="page-eyebrow__sep">·</span>
-            <span>MANIFEST</span>
-          </div>
           <h1 className="page-header__title">분석 매니페스트</h1>
         </div>
       </div>

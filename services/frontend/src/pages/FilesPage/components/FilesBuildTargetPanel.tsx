@@ -6,9 +6,28 @@ import type { SourceFileEntry, TargetMappingEntry } from "../../../api/client";
 
 const UNTARGETED_KEY = "__untargeted__";
 
-interface Coverage {
-  total: number;
-  uncovered: number;
+type StatusTone = "ready" | "failed" | "building" | "discovered";
+
+const TONE_BY_STATUS: Record<string, StatusTone> = {
+  ready: "ready",
+  built: "ready",
+  success: "ready",
+  failed: "failed",
+  error: "failed",
+  building: "building",
+  queued: "building",
+  pending: "building",
+  running: "building",
+  discovered: "discovered",
+};
+
+function toneFor(status: string): StatusTone {
+  return TONE_BY_STATUS[status.toLowerCase()] ?? "discovered";
+}
+
+interface TargetCoverage {
+  covered: number;
+  outside: number;
   pct: number;
 }
 
@@ -33,38 +52,44 @@ export function FilesBuildTargetPanel({
   onOpenLog,
   onOpenCreateTarget,
 }: FilesBuildTargetPanelProps) {
-  const coverageByTarget = useMemo(() => {
-    const map = new Map<string, Coverage>();
-    if (sourceFiles.length === 0) {
-      for (const t of targets) map.set(t.id, { total: 0, uncovered: 0, pct: 0 });
-      return map;
-    }
-    const targetCounts = new Map<string, number>();
+  const { coverageByTarget, totals } = useMemo(() => {
+    const totalFiles = sourceFiles.length;
+    const counts = new Map<string, number>();
     let untargetedCount = 0;
     for (const file of sourceFiles) {
       const mapping = targetMapping[file.relativePath];
       if (mapping?.targetId) {
-        targetCounts.set(mapping.targetId, (targetCounts.get(mapping.targetId) ?? 0) + 1);
+        counts.set(mapping.targetId, (counts.get(mapping.targetId) ?? 0) + 1);
       } else {
         untargetedCount += 1;
       }
     }
-    const totalFiles = sourceFiles.length;
+    const map = new Map<string, TargetCoverage>();
     for (const t of targets) {
-      const covered = targetCounts.get(t.id) ?? 0;
-      const uncovered = Math.max(0, totalFiles - covered);
+      const covered = counts.get(t.id) ?? 0;
+      const outside = Math.max(0, totalFiles - covered);
       const pct = totalFiles === 0 ? 0 : (covered / totalFiles) * 100;
-      map.set(t.id, { total: covered, uncovered, pct });
+      map.set(t.id, { covered, outside, pct });
     }
     map.set(UNTARGETED_KEY, {
-      total: untargetedCount,
-      uncovered: untargetedCount,
+      covered: untargetedCount,
+      outside: Math.max(0, totalFiles - untargetedCount),
       pct: totalFiles === 0 ? 0 : (untargetedCount / totalFiles) * 100,
     });
-    return map;
+    const targetedCount = totalFiles - untargetedCount;
+    const totalCoveragePct = totalFiles === 0 ? 0 : (targetedCount / totalFiles) * 100;
+    return {
+      coverageByTarget: map,
+      totals: {
+        totalFiles,
+        targetedCount,
+        untargetedCount,
+        totalCoveragePct,
+      },
+    };
   }, [sourceFiles, targetMapping, targets]);
 
-  const hasUntargeted = (coverageByTarget.get(UNTARGETED_KEY)?.total ?? 0) > 0;
+  const hasUntargeted = totals.untargetedCount > 0;
   const allActive = activeTargetFilters.size === 0;
 
   return (
@@ -89,6 +114,43 @@ export function FilesBuildTargetPanel({
           </div>
         ) : (
           <>
+            <div className="files-targets-summary" aria-label="전체 매핑 요약">
+              <div className="files-targets-summary__metric files-targets-summary__metric--lead">
+                <span className="files-targets-summary__pct">
+                  {totals.totalCoveragePct.toFixed(1)}
+                  <span className="files-targets-summary__pct-unit">%</span>
+                </span>
+                <span className="files-targets-summary__label">전체 커버리지</span>
+                <div className="files-targets-summary__lead-bar" aria-hidden="true">
+                  <span
+                    className="files-targets-summary__lead-bar-fill"
+                    style={{ width: `${Math.min(100, totals.totalCoveragePct)}%` }}
+                  />
+                </div>
+              </div>
+              <div className="files-targets-summary__divider" aria-hidden="true" />
+              <div className="files-targets-summary__metric">
+                <span className="files-targets-summary__count">{totals.targetedCount}</span>
+                <span className="files-targets-summary__label">covered files</span>
+              </div>
+              <div className="files-targets-summary__divider" aria-hidden="true" />
+              <div className="files-targets-summary__metric">
+                <span
+                  className={`files-targets-summary__count${
+                    totals.untargetedCount > 0 ? " is-warn" : ""
+                  }`}
+                >
+                  {totals.untargetedCount}
+                </span>
+                <span className="files-targets-summary__label">untargeted</span>
+              </div>
+              <div className="files-targets-summary__divider" aria-hidden="true" />
+              <div className="files-targets-summary__metric">
+                <span className="files-targets-summary__count">{targets.length}</span>
+                <span className="files-targets-summary__label">build targets</span>
+              </div>
+            </div>
+
             <div className="files-target-filter-row" role="group" aria-label="빌드 타겟 필터">
               <button
                 type="button"
@@ -123,63 +185,54 @@ export function FilesBuildTargetPanel({
                 </button>
               )}
             </div>
-            <table className="files-target-table">
-              <colgroup>
-                <col style={{ width: "26%" }} />
-                <col style={{ width: "120px" }} />
-                <col />
-                <col style={{ width: "120px" }} />
-                <col style={{ width: "140px" }} />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th>이름</th>
-                  <th>상태</th>
-                  <th>커버리지</th>
-                  <th>미커버 파일</th>
-                  <th className="files-target-table__action-col" aria-label="액션">액션</th>
-                </tr>
-              </thead>
-              <tbody>
-                {targets.map((target) => {
-                  const status = target.status ?? "discovered";
-                  const cov = coverageByTarget.get(target.id) ?? { total: 0, uncovered: 0, pct: 0 };
-                  const actionable = target.status && target.status !== "discovered";
-                  const uncovered = cov.uncovered;
-                  return (
-                    <tr key={target.id}>
-                      <td>
-                        <div className="files-target-table__name-cell">
-                          <span className="files-target-table__stripe" aria-hidden="true" />
-                          <span className="files-target-table__name">{target.name}</span>
+
+            <ul className="files-target-cards" aria-label="빌드 타겟 목록">
+              {targets.map((target) => {
+                const status = target.status ?? "discovered";
+                const tone = toneFor(status);
+                const cov = coverageByTarget.get(target.id) ?? { covered: 0, outside: 0, pct: 0 };
+                const actionable = target.status && target.status !== "discovered";
+                return (
+                  <li key={target.id} className="files-target-card" data-tone={tone}>
+                    <span className="files-target-card__stripe" aria-hidden="true" />
+                    <div className="files-target-card__body">
+                      <div className="files-target-card__row">
+                        <div className="files-target-card__heading">
+                          <span className="files-target-card__name" title={target.name}>
+                            {target.name}
+                          </span>
+                          <TargetStatusBadge status={status} size="sm" />
                         </div>
-                      </td>
-                      <td>
-                        <TargetStatusBadge status={status} size="sm" />
-                      </td>
-                      <td>
-                        <div className="files-target-table__coverage">
-                          <div className="files-target-table__bar" aria-hidden="true">
-                            <span
-                              className="files-target-table__bar-fill"
-                              style={{ width: `${Math.min(100, cov.pct)}%` }}
-                            />
-                          </div>
-                          <span className="files-target-table__pct">{cov.pct.toFixed(1)}%</span>
+                        <div className="files-target-card__pct">
+                          <span className="files-target-card__pct-value">
+                            {cov.pct.toFixed(1)}
+                          </span>
+                          <span className="files-target-card__pct-unit">%</span>
                         </div>
-                      </td>
-                      <td>
+                      </div>
+                      <div className="files-target-card__bar" aria-hidden="true">
                         <span
-                          className={`files-target-table__uncovered${uncovered > 0 ? " is-warn" : ""}`}
-                        >
-                          {uncovered}
+                          className="files-target-card__bar-fill"
+                          style={{ width: `${Math.min(100, cov.pct)}%` }}
+                        />
+                      </div>
+                      <div className="files-target-card__meta">
+                        <span className="files-target-card__meta-stat">
+                          <strong>{cov.covered}</strong>
+                          <span className="files-target-card__meta-divider">/</span>
+                          <span>{totals.totalFiles} files</span>
                         </span>
-                      </td>
-                      <td className="files-target-table__action-cell">
-                        <div className="files-target-table__actions">
+                        <span
+                          className={`files-target-card__meta-uncovered${
+                            cov.outside > 0 ? " is-warn" : ""
+                          }`}
+                        >
+                          {cov.outside} uncovered
+                        </span>
+                        <div className="files-target-card__actions">
                           <button
                             type="button"
-                            className="files-target-table__text-action"
+                            className="files-target-card__primary-action"
                             title="분석 실행"
                           >
                             <Play size={12} />
@@ -188,7 +241,7 @@ export function FilesBuildTargetPanel({
                           {actionable && (
                             <button
                               type="button"
-                              className="files-target-table__icon-btn"
+                              className="files-target-card__icon-btn"
                               onClick={() => onOpenLog({ id: target.id, name: target.name })}
                               aria-label="빌드 로그"
                               title="빌드 로그"
@@ -198,59 +251,58 @@ export function FilesBuildTargetPanel({
                           )}
                           <button
                             type="button"
-                            className="files-target-table__icon-btn"
+                            className="files-target-card__icon-btn"
                             aria-label="타겟 편집"
                             title="타겟 편집"
                           >
                             <Pencil size={14} />
                           </button>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {hasUntargeted && (
-                  <tr className="files-target-table__row--untargeted">
-                    <td>
-                      <div className="files-target-table__name-cell">
-                        <span className="files-target-table__stripe" aria-hidden="true" />
-                        <span className="files-target-table__name files-target-table__name--muted">
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+              {hasUntargeted && (
+                <li className="files-target-card files-target-card--untargeted" data-tone="untargeted">
+                  <span className="files-target-card__stripe" aria-hidden="true" />
+                  <div className="files-target-card__body">
+                    <div className="files-target-card__row">
+                      <div className="files-target-card__heading">
+                        <span className="files-target-card__name files-target-card__name--muted">
                           Untargeted
                         </span>
+                        <span className="files-target-card__untargeted-tag">미매핑</span>
                       </div>
-                    </td>
-                    <td>
-                      <span className="files-target-table__untargeted-chip">미매핑</span>
-                    </td>
-                    <td>
-                      <div className="files-target-table__coverage">
-                        <div className="files-target-table__bar" aria-hidden="true">
-                          <span
-                            className="files-target-table__bar-fill files-target-table__bar-fill--muted"
-                            style={{
-                              width: `${Math.min(100, coverageByTarget.get(UNTARGETED_KEY)?.pct ?? 0)}%`,
-                            }}
-                          />
-                        </div>
-                        <span className="files-target-table__pct">
-                          {(coverageByTarget.get(UNTARGETED_KEY)?.pct ?? 0).toFixed(1)}%
+                      <div className="files-target-card__pct files-target-card__pct--muted">
+                        <span className="files-target-card__pct-value">
+                          {(coverageByTarget.get(UNTARGETED_KEY)?.pct ?? 0).toFixed(1)}
                         </span>
+                        <span className="files-target-card__pct-unit">%</span>
                       </div>
-                    </td>
-                    <td>
-                      <span className="files-target-table__uncovered is-warn">
-                        {coverageByTarget.get(UNTARGETED_KEY)?.total ?? 0}
+                    </div>
+                    <div className="files-target-card__bar" aria-hidden="true">
+                      <span
+                        className="files-target-card__bar-fill files-target-card__bar-fill--muted"
+                        style={{
+                          width: `${Math.min(100, coverageByTarget.get(UNTARGETED_KEY)?.pct ?? 0)}%`,
+                        }}
+                      />
+                    </div>
+                    <div className="files-target-card__meta">
+                      <span className="files-target-card__meta-stat">
+                        <strong>{totals.untargetedCount}</strong>
+                        <span className="files-target-card__meta-divider">/</span>
+                        <span>{totals.totalFiles} files</span>
                       </span>
-                    </td>
-                    <td className="files-target-table__action-cell">
-                      <span className="files-target-table__action-placeholder" aria-hidden="true">
-                        —
+                      <span className="files-target-card__meta-help">
+                        어떤 빌드 타겟에도 속하지 않는 파일
                       </span>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                </li>
+              )}
+            </ul>
           </>
         )}
       </div>

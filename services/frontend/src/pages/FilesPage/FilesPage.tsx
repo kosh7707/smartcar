@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Upload } from "lucide-react";
 import { Spinner } from "../../shared/ui";
 import { useToast } from "../../contexts/ToastContext";
-import { useProjects } from "../../contexts/ProjectContext";
 import { useUploadProgress } from "../../hooks/useUploadProgress";
 import { useBuildTargets } from "../../hooks/useBuildTargets";
 import { FilesEmptyState } from "./components/FilesEmptyState";
@@ -19,7 +18,6 @@ export const FilesPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const toast = useToast();
-  const { getProject } = useProjects();
   const upload = useUploadProgress();
   const bt = useBuildTargets(projectId);
   const state = useFilesPage(projectId, navigate, toast, upload, bt);
@@ -33,8 +31,6 @@ export const FilesPage: React.FC = () => {
   }
 
   if (!projectId) return null;
-
-  const projectName = getProject(projectId)?.name ?? projectId;
 
   const handleOpenInDetail = (path: string) => {
     navigate(`/projects/${projectId}/files/${encodeURIComponent(path)}`);
@@ -51,8 +47,6 @@ export const FilesPage: React.FC = () => {
         onOpenUpload={() => state.fileInputRef.current?.click()}
         fileInputRef={state.fileInputRef}
         onFileInputChange={(event) => event.target.files && state.handleUpload(event.target.files)}
-        projectId={projectId}
-        projectName={projectName}
       />
 
       {state.upload.isActive && (
