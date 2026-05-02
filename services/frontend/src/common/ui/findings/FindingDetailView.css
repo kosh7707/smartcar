@@ -1,0 +1,104 @@
+
+
+/* ── Extracted from app-shell.css (Phase 1a.1 pass 2) ── */
+.finding-summary { margin-bottom:12px; }
+.finding-summary__bar { display:flex; height:10px; overflow:hidden; border-radius:999px; background:var(--surface-sunken); }
+.finding-summary__segment { min-width:0; transition:width 500ms ease-out; }
+.finding-summary__legend { display:flex; flex-wrap:wrap; gap:20px; margin-top:12px; }
+.finding-summary__legend-item { display:flex; align-items:center; gap:8px; }
+.finding-summary__legend-dot { width:8px; height:8px; flex-shrink:0; border-radius:999px; }
+.finding-summary__legend-label { font-size:var(--text-sm); color:var(--foreground-muted); }
+.finding-summary__legend-value { font-size:var(--text-sm); font-weight:var(--weight-semibold); color:var(--foreground); }
+.finding-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.finding-group .panel-head h3 svg {
+  width: 14px;
+  height: 14px;
+  color: var(--foreground-muted);
+}
+.finding-group__file {
+  font-family: var(--font-code);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  letter-spacing: -0.005em;
+  color: var(--foreground);
+}
+.finding-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+
+/* ── Extracted from app-shell.css (Phase 1a.1 pass 2) ── */
+.finding-row + .finding-row {
+  border-top: 1px solid var(--border-subtle);
+}
+.finding-row__btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px var(--space-6);
+  font: inherit;
+  color: var(--foreground);
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--duration-fast);
+}
+.finding-row__btn:hover { background: var(--surface-sunken); }
+.finding-row__title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.finding-row__line {
+  font-family: var(--font-code);
+  font-size: 11.5px;
+  color: var(--foreground-subtle);
+  font-variant-numeric: tabular-nums;
+}
+.finding-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.finding-row + .finding-row { border-top: 1px solid var(--border-subtle); }
+.finding-row__select {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-4) 0 var(--space-5);
+}
+.finding-row__select input {
+  accent-color: var(--primary);
+}
+.finding-row__fingerprint {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  color: var(--foreground-subtle);
+}
+
+
+/* ── Extracted from app-shell.css (Phase 1a.1 pass 2) ── */
+.finding-status-badge { border-radius:999px; font-weight:var(--weight-medium); }
+.finding-status-badge--md { min-height:28px; font-size:var(--text-sm); }
+.finding-status-badge--sm { min-height:24px; font-size:var(--text-xs); }
+.finding-status-badge--open { border-color:color-mix(in srgb, var(--status-open) 28%, transparent); background:var(--status-open-surface); color:var(--status-open); }
+.finding-status-badge--needs-review { border-color:color-mix(in srgb, var(--status-needs-review) 28%, transparent); background:var(--status-needs-review-surface); color:var(--status-needs-review); }
+.finding-status-badge--accepted-risk { border-color:color-mix(in srgb, var(--status-accepted-risk) 28%, transparent); background:var(--status-accepted-risk-surface); color:var(--status-accepted-risk); }
+.finding-status-badge--false-positive { border-color:color-mix(in srgb, var(--status-false-positive) 28%, transparent); background:var(--status-false-positive-surface); color:var(--status-false-positive); }
+.finding-status-badge--fixed { border-color:color-mix(in srgb, var(--status-fixed) 28%, transparent); background:var(--status-fixed-surface); color:var(--status-fixed); }
+.finding-status-badge--needs-revalidation { border-color:color-mix(in srgb, var(--status-needs-revalidation) 28%, transparent); background:var(--status-needs-revalidation-surface); color:var(--status-needs-revalidation); }
+.finding-status-badge--sandbox { border-color:color-mix(in srgb, var(--status-sandbox) 28%, transparent); background:var(--status-sandbox-surface); color:var(--status-sandbox); }

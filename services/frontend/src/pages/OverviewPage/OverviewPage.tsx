@@ -1,18 +1,18 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useBuildTargets } from "../../hooks/useBuildTargets";
-import { useToast } from "../../contexts/ToastContext";
-import { Spinner } from "../../shared/ui";
-import { BuildTargetsSection } from "./components/BuildTargetsSection";
-import { OverviewActivityPanel } from "./components/OverviewActivityPanel";
-import { OverviewBottomGrid } from "./components/OverviewBottomGrid";
-import { OverviewEmptyState } from "./components/OverviewEmptyState";
-import { OverviewFailureState } from "./components/OverviewFailureState";
-import { OverviewHeader } from "./components/OverviewHeader";
-import { OverviewMetaPanel } from "./components/OverviewMetaPanel";
-import { SecurityPostureSection } from "./components/SecurityPostureSection";
-import { TrendSummaryCard } from "./components/TrendSummaryCard";
-import { useOverviewPage } from "./hooks/useOverviewPage";
+import { useBuildTargets } from "@/common/hooks/useBuildTargets";
+import { useToast } from "@/common/contexts/ToastContext";
+import { Spinner } from "@/common/ui/primitives";
+import { BuildTargetsSection } from "./components/BuildTargetsSection/BuildTargetsSection";
+import { OverviewActivityPanel } from "./components/OverviewActivityPanel/OverviewActivityPanel";
+import { OverviewBottomGrid } from "./components/OverviewBottomGrid/OverviewBottomGrid";
+import { OverviewEmptyState } from "./components/OverviewEmptyState/OverviewEmptyState";
+import { OverviewFailureState } from "./components/OverviewFailureState/OverviewFailureState";
+import { OverviewHeader } from "./components/OverviewHeader/OverviewHeader";
+import { OverviewMetaPanel } from "./components/OverviewMetaPanel/OverviewMetaPanel";
+import { SecurityPostureSection } from "./components/SecurityPostureSection/SecurityPostureSection";
+import { TrendSummaryCard } from "./components/TrendSummaryCard/TrendSummaryCard";
+import { useOverviewPageController } from "./useOverviewPageController";
 import "./OverviewPage.css";
 
 function toShortDate(iso?: string | null): string {
@@ -48,7 +48,7 @@ export const OverviewPage: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const buildTargets = useBuildTargets(projectId);
-  const state = useOverviewPage(projectId, toast);
+  const state = useOverviewPageController(projectId, toast);
 
   if (state.loading) {
     return (

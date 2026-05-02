@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { ProjectListItem } from "@aegis/shared";
-import type { ActivityEntry } from "../../api/projects";
+import type { ActivityEntry } from "@/common/api/projects";
 import { DashboardPage } from "./DashboardPage";
 
 const mockNavigate = vi.fn();
@@ -19,11 +19,11 @@ vi.mock("react-router-dom", async () => {
   };
 });
 
-vi.mock("../../contexts/ProjectContext", () => ({
+vi.mock("@/common/contexts/ProjectContext", () => ({
   useProjects: () => mockUseProjects(),
 }));
 
-vi.mock("../../contexts/AuthContext", () => ({
+vi.mock("@/common/contexts/AuthContext", () => ({
   useAuth: () => ({
     user: { id: "u", username: "analyst", displayName: "김분석", role: "analyst", createdAt: "", updatedAt: "" },
     loading: false,
@@ -33,8 +33,8 @@ vi.mock("../../contexts/AuthContext", () => ({
   }),
 }));
 
-vi.mock("../../api/projects", async () => {
-  const actual = await vi.importActual<typeof import("../../api/projects")>("../../api/projects");
+vi.mock("@/common/api/projects", async () => {
+  const actual = await vi.importActual<typeof import("@/common/api/projects")>("@/common/api/projects");
   return {
     ...actual,
     fetchProjectActivity: (...args: Parameters<typeof actual.fetchProjectActivity>) => mockFetchProjectActivity(...args),

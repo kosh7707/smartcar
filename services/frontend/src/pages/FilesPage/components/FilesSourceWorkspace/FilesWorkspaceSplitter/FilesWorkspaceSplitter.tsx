@@ -1,5 +1,6 @@
+import "./FilesWorkspaceSplitter.css";
 import React from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/common/utils/cn";
 
 interface FilesWorkspaceSplitterProps {
   isResizing: boolean;

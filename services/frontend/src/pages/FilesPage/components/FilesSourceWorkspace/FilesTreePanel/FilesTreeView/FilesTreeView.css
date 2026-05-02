@@ -1,0 +1,13 @@
+.files-tree-eye-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  background: transparent;
+  color: var(--foreground-subtle);
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+}
+.files-tree-eye-btn:hover { background: color-mix(in srgb, var(--surface-sunken) 60%, transparent); color: var(--foreground); }

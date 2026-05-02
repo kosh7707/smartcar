@@ -10,7 +10,7 @@ const mockHealthFetch = vi.fn();
 const mockGetThemePreference = vi.fn();
 const mockSetThemePreference = vi.fn();
 
-vi.mock("../../api/client", () => ({
+vi.mock("@/common/api/client", () => ({
   getBackendUrl: () => mockGetBackendUrl(),
   setBackendUrl: (...args: unknown[]) => mockSetBackendUrl(...args),
   healthFetch: (...args: unknown[]) => mockHealthFetch(...args),
@@ -18,14 +18,14 @@ vi.mock("../../api/client", () => ({
 
 const mockApplyTheme = vi.fn();
 
-vi.mock("../../utils/theme", () => ({
+vi.mock("@/common/utils/theme", () => ({
   getThemePreference: () => mockGetThemePreference(),
   setThemePreference: (...args: unknown[]) => mockSetThemePreference(...args),
   applyTheme: (...args: unknown[]) => mockApplyTheme(...args),
   isThemePreferenceEnabled: () => true,
 }));
 
-vi.mock("../../contexts/ProjectContext", () => ({
+vi.mock("@/common/contexts/ProjectContext", () => ({
   useProjects: () => ({
     projects: [],
     loading: false,

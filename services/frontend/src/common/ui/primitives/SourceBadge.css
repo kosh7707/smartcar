@@ -1,0 +1,9 @@
+
+
+/* ── Extracted from app-shell.css (Phase 1a.1 pass 3) ── */
+.source-badge { border-radius:999px; font-weight:var(--weight-medium); }
+.source-badge--rule-engine { border-color:color-mix(in srgb, var(--source-rule) 28%, transparent); background:color-mix(in srgb, var(--source-rule) 10%, transparent); color:var(--source-rule); }
+.source-badge--llm-assist { border-color:color-mix(in srgb, var(--source-ai) 28%, transparent); background:color-mix(in srgb, var(--source-ai) 10%, transparent); color:var(--source-ai); }
+.source-badge--both { border-color:color-mix(in srgb, var(--source-both) 28%, transparent); background:color-mix(in srgb, var(--source-both) 10%, transparent); color:var(--source-both); }
+.source-badge--agent { border-color:color-mix(in srgb, var(--source-agent) 28%, transparent); background:color-mix(in srgb, var(--source-agent) 10%, transparent); color:var(--source-agent); }
+.source-badge--sast-tool { border-color:color-mix(in srgb, var(--source-sast) 28%, transparent); background:color-mix(in srgb, var(--source-sast) 10%, transparent); color:var(--source-sast); }

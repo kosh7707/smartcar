@@ -12,6 +12,7 @@ from app.core.agent_session import AgentSession
 from app.core.result_assembler import ResultAssembler
 from app.agent_runtime.errors import LlmTimeoutError, S3Error, StrictJsonContractError
 from app.agent_runtime.llm.caller import LlmCaller
+from app.agent_runtime.llm.generation_policy import THINKING_GENERAL, controls_from_constraints
 from app.agent_runtime.llm.message_manager import MessageManager
 from app.agent_runtime.llm.turn_summarizer import TurnSummarizer
 from app.agent_runtime.observability import agent_log
@@ -58,6 +59,21 @@ def _output_deficient_build_content(detail: str) -> str:
             "producedArtifacts": [],
         },
     })
+
+
+def _has_successful_tool_calls(session: AgentSession) -> bool:
+    return any(step.success for step in session.trace)
+
+
+def _tool_choice_for_turn(
+    *,
+    session: AgentSession,
+    current_tools: list[dict] | None,
+    force_report: bool,
+) -> str:
+    if not current_tools or force_report or _has_successful_tool_calls(session):
+        return "auto"
+    return "required"
 
 
 class AgentLoop:
@@ -150,7 +166,15 @@ class AgentLoop:
 
             # LLM 호출 (재시도 포함)
             try:
-                response = await self._call_with_retry(session, current_tools)
+                response = await self._call_with_retry(
+                    session,
+                    current_tools,
+                    tool_choice=_tool_choice_for_turn(
+                        session=session,
+                        current_tools=current_tools,
+                        force_report=force_report,
+                    ),
+                )
             except S3Error as e:
                 logger.error("LLM 호출 실패 (재시도 소진): %s", e)
                 if isinstance(e, LlmTimeoutError):
@@ -313,7 +337,7 @@ class AgentLoop:
         )
         return self._result_assembler.build_from_exhaustion(session)
 
-    async def _call_with_retry(self, session, tools_schema):
+    async def _call_with_retry(self, session, tools_schema, *, tool_choice: str = "auto"):
         """LLM 호출 + 재시도."""
         # 컨텍스트 압축: 토큰 추정치 초과 시 오래된 턴 제거
         token_est = self._message_manager.get_token_estimate()
@@ -339,7 +363,11 @@ class AgentLoop:
         for attempt in range(1 + self._retry_policy._max_retries):
             try:
                 return await self._llm_caller.call(
-                    messages, session, tools=tools_schema,
+                    messages,
+                    session,
+                    tools=tools_schema,
+                    tool_choice=tool_choice,
+                    generation=controls_from_constraints(THINKING_GENERAL, session.request.constraints),
                     prefer_async_ownership=tools_schema is None,
                 )
             except S3Error as e:

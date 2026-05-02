@@ -1,0 +1,77 @@
+.ftree-row {
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-height:26px;
+  padding:0 8px;
+  cursor:pointer;
+  transition:background-color 120ms ease, outline-color 120ms ease;
+}
+.ftree-row:hover { background:color-mix(in srgb, var(--surface-sunken) 60%, transparent); }
+.ftree-row:focus-visible { outline:1px solid var(--primary); outline-offset:-1px; }
+.ftree-row--selected { background:color-mix(in srgb, var(--primary) 14%, transparent); }
+.ftree-row--selected::before {
+  content:"";
+  position:absolute;
+  inset-block:0;
+  left:0;
+  width:2px;
+  background:var(--primary);
+}
+.ftree-indent { display:flex; flex-shrink:0; }
+.ftree-guide { position:relative; width:14px; height:26px; flex-shrink:0; }
+.ftree-guide::before {
+  content:"";
+  position:absolute;
+  inset-block:0;
+  left:6px;
+  width:1px;
+  background:color-mix(in srgb, var(--border) 70%, transparent);
+}
+.ftree-chevron { flex-shrink:0; color:var(--foreground-muted); transition:transform 150ms ease; }
+.ftree-chevron--open { transform:rotate(90deg); }
+.ftree-folder-icon { flex-shrink:0; color:var(--severity-medium); }
+.ftree-file-icon { flex-shrink:0; color:var(--foreground-muted); }
+.ftree-icon-spacer { width:14px; flex-shrink:0; }
+.ftree-name {
+  min-width:0;
+  flex:1;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-family:var(--font-code);
+  font-size:12.5px;
+  letter-spacing:0.005em;
+  color:var(--foreground);
+}
+.ftree-name--folder { font-weight:var(--weight-medium); }
+.ftree-name--file { font-weight:var(--weight-regular); }
+.ftree-meta { flex-shrink:0; font-size:var(--text-sm); }
+.ftree-count {
+  min-width:36px;
+  text-align:right;
+  font-family:var(--font-code);
+  font-size:11px;
+  color:var(--foreground-subtle);
+}
+.ftree-folder-badge { display:flex; flex-shrink:0; align-items:center; gap:3px; margin-left:auto; }
+.ftree-finding-dot {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:18px;
+  min-height:16px;
+  padding:0 5px;
+  border-radius:999px;
+  font-family:var(--font-code);
+  font-size:10.5px;
+  font-weight:var(--weight-semibold);
+  letter-spacing:0;
+}
+.ftree-finding-dot--critical { background:color-mix(in srgb, var(--severity-critical) 15%, transparent); color:var(--severity-critical); }
+.ftree-finding-dot--high { background:color-mix(in srgb, var(--severity-high) 15%, transparent); color:var(--severity-high); }
+.ftree-finding-dot--medium { background:color-mix(in srgb, var(--severity-medium) 15%, transparent); color:var(--severity-medium); }
+.ftree-finding-dot--low { background:color-mix(in srgb, var(--severity-low) 15%, transparent); color:var(--severity-low); }
+.ftree-actions { display:flex; flex-shrink:0; gap:4px; opacity:0; transition:opacity 120ms ease; }
+.ftree-row:hover .ftree-actions { opacity:1; }

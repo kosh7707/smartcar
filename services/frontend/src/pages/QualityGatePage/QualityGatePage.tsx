@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { ShieldQuestion, Settings2, Play, BookOpen, GitCommitHorizontal } from "lucide-react";
-import { useToast } from "../../contexts/ToastContext";
-import { PageHeader, Spinner } from "../../shared/ui";
-import { QualityGateCard } from "./components/QualityGateCard";
-import { QualityGateHeroVerdict } from "./components/QualityGateHeroVerdict";
-import { QualityGateOverrideModal } from "./components/QualityGateOverrideModal";
-import { QualityGateSidebar } from "./components/QualityGateSidebar";
-import { useQualityGatePage } from "./hooks/useQualityGatePage";
+import { useToast } from "@/common/contexts/ToastContext";
+import { PageHeader, Spinner } from "@/common/ui/primitives";
+import { QualityGateCard } from "./components/QualityGateCard/QualityGateCard";
+import { QualityGateHeroVerdict } from "./components/QualityGateHeroVerdict/QualityGateHeroVerdict";
+import { QualityGateOverrideModal } from "./components/QualityGateOverrideModal/QualityGateOverrideModal";
+import { QualityGateSidebar } from "./components/QualityGateSidebar/QualityGateSidebar";
+import { useQualityGatePageController } from "./useQualityGatePageController";
 import "./QualityGatePage.css";
 
 export const QualityGatePage: React.FC = () => {
@@ -25,7 +25,7 @@ export const QualityGatePage: React.FC = () => {
     resetOverrideDraft,
     handleOverride,
     gateProfilesById,
-  } = useQualityGatePage(projectId, toast);
+  } = useQualityGatePageController(projectId, toast);
 
   useEffect(() => {
     document.title = "AEGIS — 품질 게이트";

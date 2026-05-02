@@ -88,11 +88,11 @@
   to   { transform: scaleX(1); opacity: 1; }
 }
 
-.vuln-dist__segment--critical { background: var(--aegis-severity-critical-bg); color: var(--aegis-severity-critical); }
-.vuln-dist__segment--high     { background: var(--aegis-severity-high-bg);     color: var(--aegis-severity-high); }
-.vuln-dist__segment--medium   { background: var(--aegis-severity-medium-bg);   color: var(--aegis-severity-medium); }
-.vuln-dist__segment--low      { background: var(--aegis-severity-low-bg);      color: var(--aegis-severity-low); }
-.vuln-dist__segment--info     { background: var(--aegis-severity-info-bg);     color: var(--aegis-severity-info); }
+.vuln-dist__segment--critical { background: var(--severity-critical-surface); color: var(--severity-critical); }
+.vuln-dist__segment--high     { background: var(--severity-high-surface);     color: var(--severity-high); }
+.vuln-dist__segment--medium   { background: var(--severity-medium-surface);   color: var(--severity-medium); }
+.vuln-dist__segment--low      { background: var(--severity-low-surface);      color: var(--severity-low); }
+.vuln-dist__segment--info     { background: var(--severity-info-surface);     color: var(--severity-info); }
 .vuln-dist__segment--empty    { flex: 1 1 100%; color: var(--foreground-subtle); background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--foreground) 4%, transparent) 6px 7px); }
 
 .vuln-dist__segment-count {
@@ -190,16 +190,16 @@
 
 .vuln-sev-pill--active .vuln-sev-pill__count { color: var(--foreground); }
 
-.vuln-sev-pill--critical.vuln-sev-pill--active { background: var(--aegis-severity-critical-bg); border-color: var(--aegis-severity-critical-border); color: var(--aegis-severity-critical); }
-.vuln-sev-pill--critical.vuln-sev-pill--active .vuln-sev-pill__count { color: var(--aegis-severity-critical); }
-.vuln-sev-pill--high.vuln-sev-pill--active     { background: var(--aegis-severity-high-bg);     border-color: var(--aegis-severity-high-border);     color: var(--aegis-severity-high); }
-.vuln-sev-pill--high.vuln-sev-pill--active .vuln-sev-pill__count { color: var(--aegis-severity-high); }
-.vuln-sev-pill--medium.vuln-sev-pill--active   { background: var(--aegis-severity-medium-bg);   border-color: var(--aegis-severity-medium-border);   color: var(--aegis-severity-medium); }
-.vuln-sev-pill--medium.vuln-sev-pill--active .vuln-sev-pill__count { color: var(--aegis-severity-medium); }
-.vuln-sev-pill--low.vuln-sev-pill--active      { background: var(--aegis-severity-low-bg);      border-color: var(--aegis-severity-low-border);      color: var(--aegis-severity-low); }
-.vuln-sev-pill--low.vuln-sev-pill--active .vuln-sev-pill__count { color: var(--aegis-severity-low); }
-.vuln-sev-pill--info.vuln-sev-pill--active     { background: var(--aegis-severity-info-bg);     border-color: var(--aegis-severity-info-border);     color: var(--aegis-severity-info); }
-.vuln-sev-pill--info.vuln-sev-pill--active .vuln-sev-pill__count { color: var(--aegis-severity-info); }
+.vuln-sev-pill--critical.vuln-sev-pill--active { background: var(--severity-critical-surface); border-color: color-mix(in srgb, var(--severity-critical) 28%, transparent); color: var(--severity-critical); }
+.vuln-sev-pill--critical.vuln-sev-pill--active .vuln-sev-pill__count { color: var(--severity-critical); }
+.vuln-sev-pill--high.vuln-sev-pill--active     { background: var(--severity-high-surface);     border-color: color-mix(in srgb, var(--severity-high) 28%, transparent);     color: var(--severity-high); }
+.vuln-sev-pill--high.vuln-sev-pill--active .vuln-sev-pill__count { color: var(--severity-high); }
+.vuln-sev-pill--medium.vuln-sev-pill--active   { background: var(--severity-medium-surface);   border-color: color-mix(in srgb, var(--severity-medium) 28%, transparent);   color: var(--severity-medium); }
+.vuln-sev-pill--medium.vuln-sev-pill--active .vuln-sev-pill__count { color: var(--severity-medium); }
+.vuln-sev-pill--low.vuln-sev-pill--active      { background: var(--severity-low-surface);      border-color: color-mix(in srgb, var(--severity-low) 28%, transparent);      color: var(--severity-low); }
+.vuln-sev-pill--low.vuln-sev-pill--active .vuln-sev-pill__count { color: var(--severity-low); }
+.vuln-sev-pill--info.vuln-sev-pill--active     { background: var(--severity-info-surface);     border-color: color-mix(in srgb, var(--severity-info) 28%, transparent);     color: var(--severity-info); }
+.vuln-sev-pill--info.vuln-sev-pill--active .vuln-sev-pill__count { color: var(--severity-info); }
 
 .vuln-command__search {
   display: inline-flex;
@@ -395,11 +395,11 @@
 
 .vuln-active__chip-x:hover { background: var(--surface-sunken); color: var(--foreground); }
 
-.vuln-active__chip--critical { background: var(--aegis-severity-critical-bg); border-color: var(--aegis-severity-critical-border); color: var(--aegis-severity-critical); }
-.vuln-active__chip--high     { background: var(--aegis-severity-high-bg);     border-color: var(--aegis-severity-high-border);     color: var(--aegis-severity-high); }
-.vuln-active__chip--medium   { background: var(--aegis-severity-medium-bg);   border-color: var(--aegis-severity-medium-border);   color: var(--aegis-severity-medium); }
-.vuln-active__chip--low      { background: var(--aegis-severity-low-bg);      border-color: var(--aegis-severity-low-border);      color: var(--aegis-severity-low); }
-.vuln-active__chip--info     { background: var(--aegis-severity-info-bg);     border-color: var(--aegis-severity-info-border);     color: var(--aegis-severity-info); }
+.vuln-active__chip--critical { background: var(--severity-critical-surface); border-color: color-mix(in srgb, var(--severity-critical) 28%, transparent); color: var(--severity-critical); }
+.vuln-active__chip--high     { background: var(--severity-high-surface);     border-color: color-mix(in srgb, var(--severity-high) 28%, transparent);     color: var(--severity-high); }
+.vuln-active__chip--medium   { background: var(--severity-medium-surface);   border-color: color-mix(in srgb, var(--severity-medium) 28%, transparent);   color: var(--severity-medium); }
+.vuln-active__chip--low      { background: var(--severity-low-surface);      border-color: color-mix(in srgb, var(--severity-low) 28%, transparent);      color: var(--severity-low); }
+.vuln-active__chip--info     { background: var(--severity-info-surface);     border-color: color-mix(in srgb, var(--severity-info) 28%, transparent);     color: var(--severity-info); }
 
 /* ── Shortcut help (card appears when ? pressed) ──────────── */
 
@@ -518,11 +518,11 @@
   transition: width 160ms ease, background-color 140ms ease;
 }
 
-.vuln-finding-card--critical::before { background: var(--aegis-severity-critical); }
-.vuln-finding-card--high::before     { background: var(--aegis-severity-high); }
-.vuln-finding-card--medium::before   { background: var(--aegis-severity-medium); }
-.vuln-finding-card--low::before      { background: var(--aegis-severity-low); }
-.vuln-finding-card--info::before     { background: var(--aegis-severity-info); }
+.vuln-finding-card--critical::before { background: var(--severity-critical); }
+.vuln-finding-card--high::before     { background: var(--severity-high); }
+.vuln-finding-card--medium::before   { background: var(--severity-medium); }
+.vuln-finding-card--low::before      { background: var(--severity-low); }
+.vuln-finding-card--info::before     { background: var(--severity-info); }
 
 .vuln-finding-card:hover {
   background: color-mix(in srgb, var(--surface-sunken) 55%, transparent);
@@ -623,17 +623,17 @@
   display: inline-block;
 }
 
-.vuln-finding-card--critical .vuln-row__sev-mark { background: var(--aegis-severity-critical); }
-.vuln-finding-card--high     .vuln-row__sev-mark { background: var(--aegis-severity-high); }
-.vuln-finding-card--medium   .vuln-row__sev-mark { background: var(--aegis-severity-medium); }
-.vuln-finding-card--low      .vuln-row__sev-mark { background: var(--aegis-severity-low); }
-.vuln-finding-card--info     .vuln-row__sev-mark { background: var(--aegis-severity-info); }
+.vuln-finding-card--critical .vuln-row__sev-mark { background: var(--severity-critical); }
+.vuln-finding-card--high     .vuln-row__sev-mark { background: var(--severity-high); }
+.vuln-finding-card--medium   .vuln-row__sev-mark { background: var(--severity-medium); }
+.vuln-finding-card--low      .vuln-row__sev-mark { background: var(--severity-low); }
+.vuln-finding-card--info     .vuln-row__sev-mark { background: var(--severity-info); }
 
-.vuln-finding-card--critical .vuln-row__sev { color: var(--aegis-severity-critical); }
-.vuln-finding-card--high     .vuln-row__sev { color: var(--aegis-severity-high); }
-.vuln-finding-card--medium   .vuln-row__sev { color: var(--aegis-severity-medium); }
-.vuln-finding-card--low      .vuln-row__sev { color: var(--aegis-severity-low); }
-.vuln-finding-card--info     .vuln-row__sev { color: var(--aegis-severity-info); }
+.vuln-finding-card--critical .vuln-row__sev { color: var(--severity-critical); }
+.vuln-finding-card--high     .vuln-row__sev { color: var(--severity-high); }
+.vuln-finding-card--medium   .vuln-row__sev { color: var(--severity-medium); }
+.vuln-finding-card--low      .vuln-row__sev { color: var(--severity-low); }
+.vuln-finding-card--info     .vuln-row__sev { color: var(--severity-info); }
 
 .vuln-row__body {
   min-width: 0;
@@ -666,15 +666,15 @@
   align-items: center;
   gap: 4px;
   padding: 1px 7px;
-  border: 1px solid color-mix(in srgb, var(--aegis-severity-high) 38%, transparent);
+  border: 1px solid color-mix(in srgb, var(--severity-high) 38%, transparent);
   border-radius: 2px;
-  background: color-mix(in srgb, var(--aegis-severity-high) 10%, transparent);
+  background: color-mix(in srgb, var(--severity-high) 10%, transparent);
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: var(--weight-bold);
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--aegis-severity-high);
+  color: var(--severity-high);
   flex-shrink: 0;
 }
 

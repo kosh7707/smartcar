@@ -1,0 +1,99 @@
+.files-workspace-binary-preview {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 32px 28px;
+  text-align: center;
+  overflow: auto;
+}
+.files-workspace-binary-preview__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-subtle);
+  background: color-mix(in srgb, var(--surface-sunken) 80%, transparent);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+}
+.files-workspace-binary-preview__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--info);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--info) 22%, transparent);
+}
+.files-workspace-binary-preview__anchor {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--foreground-subtle);
+  background: color-mix(in srgb, var(--surface-sunken) 55%, transparent);
+  border: 1px solid var(--border-subtle);
+}
+.files-workspace-binary-preview__anchor svg { width: 34px; height: 34px; }
+.files-workspace-binary-preview__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 44ch;
+}
+.files-workspace-binary-preview__title {
+  color: var(--foreground);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+.files-workspace-binary-preview__text {
+  color: var(--foreground-muted);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+.files-workspace-binary-preview__meta {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 1px;
+  width: min(520px, 100%);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--border-subtle);
+  overflow: hidden;
+}
+.files-workspace-binary-preview__meta-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 8px 14px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  text-align: left;
+}
+.files-workspace-binary-preview__meta-row dt {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--foreground-subtle);
+}
+.files-workspace-binary-preview__meta-row dd {
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-code);
+  font-size: 12px;
+  color: var(--foreground);
+  word-break: break-all;
+
+}

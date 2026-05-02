@@ -1,16 +1,18 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Upload } from "lucide-react";
-import { Spinner } from "../../shared/ui";
-import { useToast } from "../../contexts/ToastContext";
-import { useUploadProgress } from "../../hooks/useUploadProgress";
-import { useBuildTargets } from "../../hooks/useBuildTargets";
-import { FilesEmptyState } from "./components/FilesEmptyState";
-import { BuildTargetCreateDialog } from "./components/BuildTargetCreateDialog";
-import { BuildLogViewer } from "./components/BuildLogViewer";
-import { FilesPageHeader } from "./components/FilesPageHeader";
+import { useToast } from "@/common/contexts/ToastContext";
+import { useUploadProgress } from "@/common/hooks/useUploadProgress";
+import { useBuildTargets } from "@/common/hooks/useBuildTargets";
+import { FilesEmptyState } from "./components/FilesPageChrome/FilesEmptyState/FilesEmptyState";
+import { BuildTargetCreateDialog } from "./components/BuildTargetCreateDialog/BuildTargetCreateDialog";
+import { FilesPageHeader } from "./components/FilesPageHeader/FilesPageHeader";
+import { FilesPageShell } from "./components/FilesPageChrome/FilesPageShell/FilesPageShell";
+import { FilesPageLoadingState } from "./components/FilesPageChrome/FilesPageLoadingState/FilesPageLoadingState";
+import { FilesUploadBanner } from "./components/FilesPageChrome/FilesUploadBanner/FilesUploadBanner";
+import { FilesDropOverlay } from "./components/FilesPageChrome/FilesDropOverlay/FilesDropOverlay";
+import { FilesBuildTargetBar } from "./components/FilesBuildTargetBar/FilesBuildTargetBar";
 import { FilesSourceWorkspace } from "./components/FilesSourceWorkspace/FilesSourceWorkspace";
-import { useFilesPage } from "./hooks/useFilesPage";
+import { useFilesPageController } from "./useFilesPageController";
 import "./FilesPage.css";
 
 export const FilesPage: React.FC = () => {
@@ -19,25 +21,19 @@ export const FilesPage: React.FC = () => {
   const toast = useToast();
   const upload = useUploadProgress();
   const bt = useBuildTargets(projectId);
-  const state = useFilesPage(projectId, navigate, toast, upload, bt);
+  const state = useFilesPageController(projectId, navigate, toast, upload, bt);
 
-  if (state.loading) {
-    return (
-      <div className="page-loading-shell">
-        <Spinner size={36} label="파일 로딩 중..." />
-      </div>
-    );
-  }
-
+  if (state.loading) return <FilesPageLoadingState />;
   if (!projectId) return null;
 
   const handleOpenInDetail = (path: string) => {
     navigate(`/projects/${projectId}/files/${encodeURIComponent(path)}`);
   };
 
+  const showEmpty = state.sourceFiles.length === 0 && !state.upload.isActive;
+
   return (
-    <div
-      className="page-shell files-page"
+    <FilesPageShell
       onDragOver={(event) => { event.preventDefault(); state.setDragOver(true); }}
       onDragLeave={(event) => { event.preventDefault(); state.setDragOver(false); }}
       onDrop={state.handleDrop}
@@ -46,63 +42,60 @@ export const FilesPage: React.FC = () => {
         onOpenUpload={() => state.fileInputRef.current?.click()}
         fileInputRef={state.fileInputRef}
         onFileInputChange={(event) => event.target.files && state.handleUpload(event.target.files)}
+        onOpenCreateDialog={() => state.setShowBuildTargetDialog(true)}
       />
 
-      {state.upload.isActive && (
-        <div className="files-upload-banner">
-          <Spinner size={18} />
-          <span>{state.upload.message}</span>
-        </div>
-      )}
+      {state.upload.isActive && <FilesUploadBanner message={state.upload.message} />}
 
-      {state.sourceFiles.length === 0 && !state.upload.isActive ? (
+      {showEmpty ? (
         <FilesEmptyState />
       ) : (
         <>
-          <FilesSourceWorkspace
-            search={state.search}
-            onSearchChange={state.setSearch}
-            onExpandAll={state.onExpandAll}
-            onCollapseAll={state.onCollapseAll}
-            displayTree={state.displayTree}
-            selectedPath={state.selectedPath}
-            handleFileClick={state.handleFileClick}
-            previewLoading={state.previewLoading}
-            previewLang={state.previewLang}
-            previewContent={state.previewContent}
-            previewFileClass={state.previewFileClass}
-            previewSize={state.previewSize}
-            highlightLines={state.highlightLines}
-            selectedFileFindings={state.selectedFileFindings}
-            onSelectFinding={state.handleSelectFinding}
-            openPaths={state.effectiveOpenPaths}
-            onToggleFolder={state.onToggleFolder}
-            layoutRef={state.workspaceLayout.layoutRef}
-            treePanelWidth={state.workspaceLayout.treePanelWidth}
-            isResizing={state.workspaceLayout.isResizing}
-            onStartResize={state.workspaceLayout.startResizing}
-            onNudgeResize={state.workspaceLayout.nudgeResize}
-            sourceFiles={state.sourceFiles}
-            targetMapping={state.targetMapping}
-            targets={state.buildTargets.targets}
-            findings={state.findings}
-            findingsByFile={state.findingsByFile}
-            composition={state.composition}
-            previewDrawerOpen={state.previewDrawerOpen}
-            onPreviewFile={state.openPreviewDrawer}
-            onClosePreview={state.closePreview}
-            onOpenInDetail={handleOpenInDetail}
-            onInsightHotspotClick={state.openPreviewDrawer}
-          />
+        <FilesBuildTargetBar
+          targets={state.buildTargets.targets}
+          activeTargetFilters={state.activeTargetFilters}
+          onToggleFilter={state.toggleTargetFilter}
+          onClearFilters={state.clearTargetFilters}
+        />
+        <FilesSourceWorkspace
+          search={state.search}
+          onSearchChange={state.setSearch}
+          onExpandAll={state.onExpandAll}
+          onCollapseAll={state.onCollapseAll}
+          displayTree={state.displayTree}
+          selectedPath={state.selectedPath}
+          handleFileClick={state.handleFileClick}
+          previewLoading={state.previewLoading}
+          previewLang={state.previewLang}
+          previewContent={state.previewContent}
+          previewFileClass={state.previewFileClass}
+          previewSize={state.previewSize}
+          highlightLines={state.highlightLines}
+          selectedFileFindings={state.selectedFileFindings}
+          onSelectFinding={state.handleSelectFinding}
+          openPaths={state.effectiveOpenPaths}
+          onToggleFolder={state.onToggleFolder}
+          layoutRef={state.workspaceLayout.layoutRef}
+          treePanelWidth={state.workspaceLayout.treePanelWidth}
+          isResizing={state.workspaceLayout.isResizing}
+          onStartResize={state.workspaceLayout.startResizing}
+          onNudgeResize={state.workspaceLayout.nudgeResize}
+          sourceFiles={state.sourceFiles}
+          targetMapping={state.targetMapping}
+          targets={state.buildTargets.targets}
+          findings={state.findings}
+          findingsByFile={state.findingsByFile}
+          composition={state.composition}
+          previewDrawerOpen={state.previewDrawerOpen}
+          onPreviewFile={state.openPreviewDrawer}
+          onClosePreview={state.closePreview}
+          onOpenInDetail={handleOpenInDetail}
+          onInsightHotspotClick={state.openPreviewDrawer}
+        />
         </>
       )}
 
-      {state.dragOver && (
-        <div className="files-drop-overlay">
-          <Upload size={40} />
-          <span>파일을 여기에 놓으세요</span>
-        </div>
-      )}
+      {state.dragOver && <FilesDropOverlay />}
 
       <BuildTargetCreateDialog
         open={state.showBuildTargetDialog}
@@ -111,15 +104,6 @@ export const FilesPage: React.FC = () => {
         onCreated={state.onBuildTargetCreated}
         onCancel={() => state.setShowBuildTargetDialog(false)}
       />
-
-      {state.logTarget && projectId && (
-        <BuildLogViewer
-          projectId={projectId}
-          targetId={state.logTarget.id}
-          targetName={state.logTarget.name}
-          onClose={() => state.setLogTarget(null)}
-        />
-      )}
-    </div>
+    </FilesPageShell>
   );
 };

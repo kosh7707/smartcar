@@ -1,9 +1,10 @@
+import "./FilesSourceWorkspace.css";
 import React from "react";
 import type { Finding, Severity } from "@aegis/shared";
-import type { SourceFileEntry, TargetMappingEntry } from "../../../../api/client";
-import type { useBuildTargets } from "../../../../hooks/useBuildTargets";
-import type { TreeNode } from "../../../../utils/tree";
-import type { FileClass } from "../../../../utils/fileClass";
+import type { SourceFileEntry, TargetMappingEntry } from "@/common/api/client";
+import type { useBuildTargets } from "@/common/hooks/useBuildTargets";
+import type { TreeNode } from "@/common/utils/tree";
+import type { FileClass } from "@/common/utils/fileClass";
 import { FilesTreePanel } from "./FilesTreePanel/FilesTreePanel";
 import { FilesPreviewPanel } from "./FilesPreviewPanel/FilesPreviewPanel";
 import { FilesWorkspaceSplitter } from "./FilesWorkspaceSplitter/FilesWorkspaceSplitter";
@@ -97,7 +98,6 @@ export const FilesSourceWorkspace: React.FC<FilesSourceWorkspaceProps> = ({
         onPreviewFile={onPreviewFile}
         openPaths={openPaths}
         onToggleFolder={onToggleFolder}
-        targetMapping={targetMapping}
         findings={findings}
       />
 

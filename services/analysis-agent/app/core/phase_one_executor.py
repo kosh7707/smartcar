@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 
+from app.agent_runtime.llm.generation_policy import TimeoutDefaults
 from app.core.phase_one_exec import (
     ingest_code_graph as _phase_one_ingest_code_graph,
     run_build_and_analyze as _phase_one_run_build_and_analyze,
@@ -50,7 +51,7 @@ class Phase1Executor:
         self._sca_tool = sca_tool
         self._kb_endpoint = kb_endpoint
         self._timeout_budget_ms = timeout_budget_ms
-        sast_timeout_s = max(120.0, timeout_budget_ms / 1000.0 * 0.8)
+        sast_timeout_s = max(TimeoutDefaults.TOOL_EXECUTION_SECONDS, timeout_budget_ms / 1000.0 * 0.8)
         kb_timeout_s = 100.0
         self._kb_client = httpx.AsyncClient(base_url=kb_endpoint, timeout=kb_timeout_s)
         self._sast_client = httpx.AsyncClient(base_url=sast_endpoint, timeout=sast_timeout_s)

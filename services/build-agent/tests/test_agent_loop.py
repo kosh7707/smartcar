@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from app.agent_runtime.errors import LlmHttpError, LlmTimeoutError, StrictJsonContractError
 from app.agent_runtime.schemas.agent import LlmResponse
-from app.core.agent_loop import AgentLoop
+from app.core.agent_loop import AgentLoop, _tool_choice_for_turn
 from app.types import FailureCode, TaskStatus
 
 
@@ -37,8 +38,33 @@ def _make_loop(llm_caller):
 def _make_session():
     session = MagicMock()
     session.turn_count = 0
+    session.trace = []
+    session.request = SimpleNamespace(
+        taskId="build-test-001",
+        constraints=SimpleNamespace(
+            enableThinking=None,
+            temperature=None,
+            topP=None,
+            topK=None,
+            minP=None,
+            presencePenalty=None,
+            repetitionPenalty=None,
+        ),
+    )
+    session.budget = SimpleNamespace(
+        max_steps=10,
+        total_steps=0,
+        total_completion_tokens=0,
+        cheap_calls=0,
+        medium_calls=0,
+        expensive_calls=0,
+        max_completion_tokens=20000,
+    )
     session.build_state_summary.return_value = "state"
     session.total_tool_calls.return_value = 0
+    session.total_prompt_tokens.return_value = 0
+    session.total_completion_tokens.return_value = 0
+    session.elapsed_ms.return_value = 0
     return session
 
 
@@ -52,6 +78,7 @@ async def test_call_with_retry_prefers_async_ownership_when_no_tools():
 
     kwargs = llm_caller.call.await_args.kwargs
     assert kwargs["prefer_async_ownership"] is True
+    assert kwargs["generation"].temperature == 1.0
 
 
 @pytest.mark.asyncio
@@ -64,6 +91,18 @@ async def test_call_with_retry_keeps_sync_path_when_tools_present():
 
     kwargs = llm_caller.call.await_args.kwargs
     assert kwargs["prefer_async_ownership"] is False
+
+
+def test_tool_choice_requires_first_successful_tool_acquisition_only():
+    session = MagicMock()
+    session.trace = []
+    assert _tool_choice_for_turn(session=session, current_tools=[{"name": "try_build"}], force_report=False) == "required"
+
+    session.trace = [MagicMock(success=False)]
+    assert _tool_choice_for_turn(session=session, current_tools=[{"name": "try_build"}], force_report=False) == "required"
+
+    session.trace = [MagicMock(success=True)]
+    assert _tool_choice_for_turn(session=session, current_tools=[{"name": "try_build"}], force_report=False) == "auto"
 
 
 @pytest.mark.asyncio

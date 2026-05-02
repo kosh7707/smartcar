@@ -50,14 +50,14 @@ const mockFetchGateProfile = vi.fn();
 const mockOverrideGate = vi.fn();
 const mockToast = { error: vi.fn(), success: vi.fn(), info: vi.fn() };
 
-vi.mock("../../api/gate", () => ({
+vi.mock("@/common/api/gate", () => ({
   fetchProjectGates: (...args: unknown[]) => mockFetchGates(...args),
   fetchGateProfile: (...args: unknown[]) => mockFetchGateProfile(...args),
   overrideGate: (...args: unknown[]) => mockOverrideGate(...args),
 }));
 
-vi.mock("../../api/core", () => ({ logError: vi.fn() }));
-vi.mock("../../contexts/ToastContext", () => ({
+vi.mock("@/common/api/core", () => ({ logError: vi.fn() }));
+vi.mock("@/common/contexts/ToastContext", () => ({
   useToast: () => mockToast,
 }));
 

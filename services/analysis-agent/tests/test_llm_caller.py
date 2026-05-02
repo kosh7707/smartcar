@@ -7,6 +7,7 @@ import pytest
 
 from app.agent_runtime.errors import LlmHttpError, LlmTimeoutError, LlmUnavailableError, StrictJsonContractError
 from app.agent_runtime.llm.caller import LlmCaller
+from app.agent_runtime.llm.generation_policy import THINKING_CODING
 
 
 def _make_httpx_response(data: dict, status_code: int = 200):
@@ -25,6 +26,17 @@ def _content_response(content: str, prompt_tokens=100, completion_tokens=50):
         }],
         "usage": {"prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens},
     }
+
+
+
+def _assert_complete_generation_tuple(body: dict, *, temperature: float = 1.0, enable_thinking: bool = True) -> None:
+    assert body["temperature"] == temperature
+    assert body["top_p"] == 0.95
+    assert body["top_k"] == 20
+    assert body["min_p"] == 0.0
+    assert body["presence_penalty"] == 0.0
+    assert body["repetition_penalty"] == 1.0
+    assert body["chat_template_kwargs"] == {"enable_thinking": enable_thinking}
 
 
 def _tool_calls_response(tool_calls: list[dict], prompt_tokens=100, completion_tokens=50):
@@ -126,7 +138,7 @@ async def test_tools_included_in_request_body():
     assert "tools" in body
     assert body["tool_choice"] == "auto"
     assert "response_format" not in body
-    assert body["chat_template_kwargs"] == {"enable_thinking": True}
+    _assert_complete_generation_tuple(body)
 
 
 @pytest.mark.asyncio
@@ -141,9 +153,29 @@ async def test_no_tools_uses_json_mode():
     body = call_args.kwargs.get("json") or call_args[1].get("json")
     assert "tools" not in body
     assert body["response_format"] == {"type": "json_object"}
-    assert body["chat_template_kwargs"] == {"enable_thinking": True}
+    _assert_complete_generation_tuple(body)
     headers = call_args.kwargs.get("headers") or call_args[1].get("headers")
     assert headers["X-AEGIS-Strict-JSON"] == "true"
+
+
+@pytest.mark.asyncio
+async def test_explicit_generation_controls_override_transitional_default():
+    caller = LlmCaller("http://fake:8000", "qwen", enable_thinking=False)
+    caller._client = MagicMock()
+    caller._client.post = AsyncMock(return_value=_make_httpx_response(_content_response("ok")))
+
+    await caller.call(
+        [{"role": "user", "content": "hi"}],
+        generation=THINKING_CODING,
+        max_tokens=1234,
+    )
+
+    body = caller._client.post.await_args.kwargs["json"]
+    assert body["max_tokens"] == 1234
+    assert body["temperature"] == 0.6
+    assert body["top_p"] == 0.95
+    assert body["top_k"] == 20
+    assert body["chat_template_kwargs"] == {"enable_thinking": True}
 
 
 @pytest.mark.asyncio
@@ -193,7 +225,7 @@ async def test_async_ownership_returns_wrapped_result_for_toolless_calls():
     submit_headers = submit_args.kwargs["headers"]
     submit_body = submit_args.kwargs["json"]
     assert "X-Timeout-Seconds" in submit_headers
-    assert submit_body["chat_template_kwargs"] == {"enable_thinking": True}
+    _assert_complete_generation_tuple(submit_body)
 
 
 @pytest.mark.asyncio

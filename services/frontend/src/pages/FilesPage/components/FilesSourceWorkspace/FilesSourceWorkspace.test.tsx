@@ -1,7 +1,7 @@
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import type { TreeNode } from "../../../../utils/tree";
+import type { TreeNode } from "@/common/utils/tree";
 import { FilesSourceWorkspace } from "./FilesSourceWorkspace";
 
 const fileNode: TreeNode<any> = {

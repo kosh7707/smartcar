@@ -1,13 +1,13 @@
 import React from "react";
 import { useParams } from "react-router-dom";
-import { useDynamicTest } from "../../hooks/useDynamicTest";
-import { useToast } from "../../contexts/ToastContext";
-import { useAdapters } from "../../hooks/useAdapters";
-import { DynamicTestConfigView } from "./components/DynamicTestConfigView";
-import { DynamicTestHistoryView } from "./components/DynamicTestHistoryView";
-import { DynamicTestResultsView } from "./components/DynamicTestResultsView";
-import { DynamicTestRunningView } from "./components/DynamicTestRunningView";
-import { useDynamicTestPage } from "./hooks/useDynamicTestPage";
+import { useDynamicTest } from "@/common/hooks/useDynamicTest";
+import { useToast } from "@/common/contexts/ToastContext";
+import { useAdapters } from "@/common/hooks/useAdapters";
+import { DynamicTestConfigView } from "./components/DynamicTestConfigView/DynamicTestConfigView";
+import { DynamicTestHistoryView } from "./components/DynamicTestHistoryView/DynamicTestHistoryView";
+import { DynamicTestResultsView } from "./components/DynamicTestResultsView/DynamicTestResultsView";
+import { DynamicTestRunningView } from "./components/DynamicTestRunningView/DynamicTestRunningView";
+import { useDynamicTestPageController } from "./useDynamicTestPageController";
 import "./DynamicTestPage.css";
 
 export const DynamicTestPage: React.FC = () => {
@@ -43,7 +43,7 @@ export const DynamicTestPage: React.FC = () => {
     handleViewResult,
     handleNewTest,
     openConfig,
-  } = useDynamicTestPage(projectId, test, toast, connected, hasConnected);
+  } = useDynamicTestPageController(projectId, test, toast, connected, hasConnected);
 
   if (test.view === "running") {
     return (

@@ -15,6 +15,7 @@ from app.agent_runtime.errors import (
     LlmHttpError, LlmInputTooLargeError, LlmPoolExhaustedError,
     LlmTimeoutError, LlmUnavailableError, StrictJsonContractError,
 )
+from app.agent_runtime.llm.generation_policy import DEFAULT_GENERATION, GenerationControls, TimeoutDefaults
 from app.agent_runtime.observability import agent_log, get_log_dir
 from app.agent_runtime.schemas.agent import LlmResponse, ToolCallRequest
 
@@ -32,11 +33,11 @@ class LlmCaller:
     _PREFILL_PER_1K_TOKENS = 15.0   # 병렬 시 prefill도 경합 → 여유 확보
     _OVERHEAD_SECONDS = 60.0        # 네트워크 + 스케줄링 + torch + 큐 대기
     _SAFETY_FACTOR = 2.0            # 안전 배수
-    _MIN_TIMEOUT = 120.0            # 최소 타임아웃
-    _MAX_TIMEOUT = 1800.0           # S7 /v1/chat X-Timeout-Seconds 상한
+    _MIN_TIMEOUT = TimeoutDefaults.TOOL_EXECUTION_SECONDS
+    _MAX_TIMEOUT = TimeoutDefaults.CHAT_MAX_SECONDS
     _ASYNC_SUBMIT_TIMEOUT = 30.0
     _ASYNC_POLL_INTERVAL = 1.0
-    _DEFAULT_ASYNC_POLL_DEADLINE = 1740.0
+    _DEFAULT_ASYNC_POLL_DEADLINE = TimeoutDefaults.CHAT_DEFAULT_SECONDS - 60.0
     _ASYNC_UNSUPPORTED_RETRY_SECONDS = 60.0
 
     def __init__(
@@ -105,20 +106,25 @@ class LlmCaller:
         tools: list[dict] | None = None,
         tool_choice: str = "auto",
         max_tokens: int | None = None,
-        temperature: float = 0.3,
+        generation: GenerationControls | None = None,
+        temperature: float | None = None,
         prefer_async_ownership: bool = False,
     ) -> LlmResponse:
         """LLM에 messages를 보내고 LlmResponse를 반환한다."""
         if max_tokens is None:
             max_tokens = self._default_max_tokens
 
+        controls = generation or DEFAULT_GENERATION.with_updates(enable_thinking=self._enable_thinking)
+        # Transitional compatibility for existing call sites that still pass a
+        # scalar temperature. Later call-site wiring should use named presets.
+        controls = controls.with_updates(temperature=temperature)
+
         body: dict = {
             "model": self._model,
             "messages": messages,
             "max_tokens": max_tokens,
-            "temperature": temperature,
-            "chat_template_kwargs": {"enable_thinking": self._enable_thinking},
         }
+        body.update(controls.to_gateway_fields())
 
         headers = {"Content-Type": "application/json"}
         if self._api_key:

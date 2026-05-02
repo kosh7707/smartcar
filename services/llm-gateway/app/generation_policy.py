@@ -11,7 +11,11 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class SamplingPreset:
-    """Qwen/vLLM sampling tuple that callers may copy into public contracts."""
+    """Qwen/vLLM sampling tuple that callers may copy into public contracts.
+
+    `max_tokens` is intentionally not part of this preset: token budget is
+    task/caller dependent even when the sampling family is shared.
+    """
 
     temperature: float
     top_p: float

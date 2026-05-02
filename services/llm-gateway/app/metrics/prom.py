@@ -8,6 +8,8 @@ from typing import Any
 
 from prometheus_client import Counter, Gauge, Histogram
 
+from app.generation_observability import normalize_tool_choice
+
 REQUEST_COUNT = Counter(
     "aegis_llm_requests_total",
     "Total LLM requests",
@@ -104,31 +106,57 @@ THINKING_TOKEN_COUNT = Histogram(
     buckets=(0, 16, 64, 256, 1024, 4096, 8192, 32768),
 )
 
+TOOL_CHOICE_COUNT = Counter(
+    "aegis_llm_tool_choice_total",
+    "Total LLM requests by bounded tool_choice bucket",
+    ["endpoint", "choice"],
+)
+
 
 def record_generation_observability(
     *,
     endpoint: str,
     generation: dict[str, Any],
     response_data: Any | None = None,
+    tool_choice: Any | None = None,
 ) -> None:
     """Record generation controls as low-cardinality Prometheus observations.
 
     S7 exchange logs keep the authoritative per-request payload. These metrics
     intentionally expose only numeric values and boolean thinking mode so that
-    sampling policy changes can be detected without creating high-cardinality
-    labels.
+    sampling/tool policy changes can be detected without creating
+    high-cardinality labels.
     """
 
-    task_type = generation.get("taskType") if isinstance(generation.get("taskType"), str) else "none"
-    _observe_numeric(GENERATION_TEMPERATURE, endpoint, task_type, generation.get("temperature"))
+    task_type = (
+        generation.get("taskType")
+        if isinstance(generation.get("taskType"), str)
+        else "none"
+    )
+    _observe_numeric(
+        GENERATION_TEMPERATURE,
+        endpoint,
+        task_type,
+        generation.get("temperature"),
+    )
     _observe_numeric(GENERATION_TOP_P, endpoint, task_type, generation.get("topP"))
     top_k = generation.get("topK")
     if top_k == -1:
         top_k = 0
     _observe_numeric(GENERATION_TOP_K, endpoint, task_type, top_k)
     _observe_numeric(GENERATION_MIN_P, endpoint, task_type, generation.get("minP"))
-    _observe_numeric(GENERATION_PRESENCE_PENALTY, endpoint, task_type, generation.get("presencePenalty"))
-    _observe_numeric(GENERATION_REPETITION_PENALTY, endpoint, task_type, generation.get("repetitionPenalty"))
+    _observe_numeric(
+        GENERATION_PRESENCE_PENALTY,
+        endpoint,
+        task_type,
+        generation.get("presencePenalty"),
+    )
+    _observe_numeric(
+        GENERATION_REPETITION_PENALTY,
+        endpoint,
+        task_type,
+        generation.get("repetitionPenalty"),
+    )
 
     enabled = generation.get("enableThinking")
     if isinstance(enabled, bool):
@@ -148,6 +176,12 @@ def record_generation_observability(
             endpoint=endpoint,
             task_type=task_type,
             reason=finish_reason,
+        ).inc()
+
+    if tool_choice is not None:
+        TOOL_CHOICE_COUNT.labels(
+            endpoint=endpoint,
+            choice=normalize_tool_choice(tool_choice),
         ).inc()
 
 

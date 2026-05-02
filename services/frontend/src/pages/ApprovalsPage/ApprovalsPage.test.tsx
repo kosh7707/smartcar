@@ -58,13 +58,13 @@ vi.mock("react-router-dom", async () => {
   };
 });
 
-vi.mock("../../api/approval", () => ({
+vi.mock("@/common/api/approval", () => ({
   fetchProjectApprovals: (...args: unknown[]) => mockFetchApprovals(...args),
   decideApproval: (...args: unknown[]) => mockDecideApproval(...args),
 }));
 
-vi.mock("../../api/core", () => ({ logError: vi.fn() }));
-vi.mock("../../contexts/ToastContext", () => ({
+vi.mock("@/common/api/core", () => ({ logError: vi.fn() }));
+vi.mock("@/common/contexts/ToastContext", () => ({
   useToast: () => mockToast,
 }));
 

@@ -12,6 +12,7 @@ from app.async_chat_manager import AsyncChatRequestRecord
 from app.config import settings
 from app.context import get_request_id, set_request_id
 from app.generation_policy import TimeoutDefaults
+from app.generation_observability import effective_enable_thinking, generation_log_fields
 from app.metrics import prom
 from app.schemas.request import AsyncChatSubmitRequest, TaskRequest
 from app.schemas.response import (
@@ -27,7 +28,24 @@ _exchange_logger = logging.getLogger("llm_exchange")
 
 router = APIRouter(prefix="/v1", tags=["v1"])
 _STRICT_JSON_HEADER = "x-aegis-strict-json"
-_DEFAULT_ENABLE_THINKING = True
+_REQUIRED_CHAT_GENERATION_FIELDS = (
+    "max_tokens",
+    "temperature",
+    "top_p",
+    "top_k",
+    "min_p",
+    "presence_penalty",
+    "repetition_penalty",
+)
+_CHAT_GENERATION_FIELD_RANGES: dict[str, tuple[type, float, float | None]] = {
+    "max_tokens": (int, 1, 32768),
+    "temperature": (float, 0.0, 2.0),
+    "top_p": (float, 0.0, 1.0),
+    "top_k": (int, -1, None),
+    "min_p": (float, 0.0, 1.0),
+    "presence_penalty": (float, -2.0, 2.0),
+    "repetition_penalty": (float, 0.0, 2.0),
+}
 
 
 def _ensure_request_id(req: Request) -> str:
@@ -104,11 +122,13 @@ def _log_llm_exchange(
 ) -> None:
     choices = response_data.get("choices", [{}]) if isinstance(response_data, dict) else [{}]
     finish_reason = choices[0].get("finish_reason", "?") if choices else "?"
-    generation = _generation_log_fields(request_body, task_type=None)
+    tool_choice = request_body.get("tool_choice", "none")
+    generation = generation_log_fields(request_body, task_type=None)
     prom.record_generation_observability(
         endpoint=exchange_type,
         generation=generation,
         response_data=response_data,
+        tool_choice=tool_choice,
     )
     entry: dict[str, Any] = {
         "service": "s7-gateway",
@@ -126,7 +146,7 @@ def _log_llm_exchange(
         "strictJson": strict_json,
         "effectiveThinking": _effective_enable_thinking(request_body),
         "generation": generation,
-        "toolChoice": request_body.get("tool_choice", "none"),
+        "toolChoice": tool_choice,
         "toolCount": len(request_body.get("tools", [])),
         "request": request_body,
         "response": _exchange_payload_from_response(response, response_data),
@@ -134,21 +154,6 @@ def _log_llm_exchange(
     if async_request_id:
         entry["asyncRequestId"] = async_request_id
     _exchange_logger.info(json.dumps(entry, ensure_ascii=False))
-
-
-def _generation_log_fields(body: dict, *, task_type: str | None = None) -> dict[str, Any]:
-    return {
-        "maxTokens": body.get("max_tokens"),
-        "temperature": body.get("temperature"),
-        "topP": body.get("top_p"),
-        "topK": body.get("top_k"),
-        "minP": body.get("min_p"),
-        "presencePenalty": body.get("presence_penalty"),
-        "repetitionPenalty": body.get("repetition_penalty"),
-        "enableThinking": _effective_enable_thinking(body),
-        "taskType": task_type,
-    }
-
 
 def _is_truthy_header(value: str | None) -> bool:
     if value is None:
@@ -179,7 +184,6 @@ def _prepare_chat_forward(
     profile = model_registry.get_default()
     llm_endpoint = profile.endpoint if profile else settings.llm_endpoint
     body["model"] = profile.modelName if profile else settings.llm_model
-    _apply_default_thinking_request_controls(body)
     if strict_json:
         _enforce_strict_json_request_controls(body)
     return body, llm_endpoint
@@ -222,31 +226,84 @@ def _strict_json_violation(
     )
 
 
-def _effective_enable_thinking(body: dict) -> bool:
+def _effective_enable_thinking(body: dict) -> bool | None:
+    return effective_enable_thinking(body)
+
+
+def _is_valid_chat_generation_value(
+    value: Any,
+    *,
+    expected_type: type,
+    minimum: float,
+    maximum: float | None,
+) -> bool:
+    if isinstance(value, bool):
+        return False
+    if expected_type is int:
+        if not isinstance(value, int):
+            return False
+        numeric = value
+    elif expected_type is float:
+        if not isinstance(value, (int, float)):
+            return False
+        numeric = float(value)
+    else:
+        return False
+    if numeric < minimum:
+        return False
+    return maximum is None or numeric <= maximum
+
+
+def _chat_generation_control_errors(body: dict) -> tuple[list[str], list[str]]:
+    missing = [
+        field
+        for field in _REQUIRED_CHAT_GENERATION_FIELDS
+        if field not in body or body.get(field) is None
+    ]
+    invalid = [
+        field
+        for field, (expected_type, minimum, maximum) in _CHAT_GENERATION_FIELD_RANGES.items()
+        if field not in missing
+        and not _is_valid_chat_generation_value(
+            body.get(field),
+            expected_type=expected_type,
+            minimum=minimum,
+            maximum=maximum,
+        )
+    ]
+
     chat_template_kwargs = body.get("chat_template_kwargs")
     if not isinstance(chat_template_kwargs, dict):
-        return _DEFAULT_ENABLE_THINKING
-    value = chat_template_kwargs.get("enable_thinking", _DEFAULT_ENABLE_THINKING)
-    return value if isinstance(value, bool) else _DEFAULT_ENABLE_THINKING
+        missing.append("chat_template_kwargs.enable_thinking")
+    elif not isinstance(chat_template_kwargs.get("enable_thinking"), bool):
+        invalid.append("chat_template_kwargs.enable_thinking")
+
+    return missing, invalid
 
 
-def _apply_default_thinking_request_controls(body: dict) -> None:
-    """Make Qwen thinking-on the effective default for every forwarded request.
-
-    A caller may still explicitly pass a boolean false for mechanical/non-reasoning
-    requests, but absent or malformed controls become enable_thinking=true.
-    """
-    chat_template_kwargs = body.get("chat_template_kwargs")
-    if not isinstance(chat_template_kwargs, dict):
-        chat_template_kwargs = {}
-    if not isinstance(chat_template_kwargs.get("enable_thinking"), bool):
-        chat_template_kwargs["enable_thinking"] = _DEFAULT_ENABLE_THINKING
-    body["chat_template_kwargs"] = chat_template_kwargs
+def _chat_generation_controls_error(
+    *,
+    request_id: str,
+    missing_fields: list[str],
+    invalid_fields: list[str],
+) -> JSONResponse:
+    detail_extra: dict[str, Any] = {}
+    if missing_fields:
+        detail_extra["missingFields"] = missing_fields
+    if invalid_fields:
+        detail_extra["invalidFields"] = invalid_fields
+    return _error_response(
+        status_code=422,
+        request_id=request_id,
+        code="INVALID_GENERATION_CONTROLS",
+        message="Invalid caller-owned generation controls",
+        retryable=False,
+        error_detail_extra=detail_extra,
+    )
 
 
 def _enforce_strict_json_request_controls(body: dict) -> None:
     body["response_format"] = {"type": "json_object"}
-    _apply_default_thinking_request_controls(body)
 
 
 def _apply_strict_json_response_contract(resp_data: dict) -> tuple[dict | None, str | None]:
@@ -772,6 +829,13 @@ async def chat_proxy(req: Request) -> Response:
 
     original_body = await req.json()
     strict_json = _strict_json_requested(req)
+    missing_generation_controls, invalid_generation_controls = _chat_generation_control_errors(original_body)
+    if missing_generation_controls or invalid_generation_controls:
+        return _chat_generation_controls_error(
+            request_id=request_id,
+            missing_fields=missing_generation_controls,
+            invalid_fields=invalid_generation_controls,
+        )
 
     model_registry = req.app.state.model_registry
     body, llm_endpoint = _prepare_chat_forward(

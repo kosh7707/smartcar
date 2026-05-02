@@ -1,12 +1,12 @@
 import React, { useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { BackButton, PageHeader } from "../../shared/ui";
-import { useProjects } from "../../contexts/ProjectContext";
-import { SettingsApiAccessSection } from "./components/SettingsApiAccessSection";
-import { SettingsBackendSection } from "./components/SettingsBackendSection";
-import { SettingsPlatformSection } from "./components/SettingsPlatformSection";
-import { SettingsThemeSection } from "./components/SettingsThemeSection";
-import { useSettingsPage } from "./hooks/useSettingsPage";
+import { BackButton, PageHeader } from "@/common/ui/primitives";
+import { useProjects } from "@/common/contexts/ProjectContext";
+import { SettingsApiAccessSection } from "./components/SettingsApiAccessSection/SettingsApiAccessSection";
+import { SettingsBackendSection } from "./components/SettingsBackendSection/SettingsBackendSection";
+import { SettingsPlatformSection } from "./components/SettingsPlatformSection/SettingsPlatformSection";
+import { SettingsThemeSection } from "./components/SettingsThemeSection/SettingsThemeSection";
+import { useSettingsPageController } from "./useSettingsPageController";
 import "./SettingsPage.css";
 
 const PROJECT_ROUTE_RE = /^\/projects\/([^/]+)(?:\/|$)/;
@@ -49,7 +49,7 @@ export const SettingsPage: React.FC = () => {
     handleReset,
     handleCancel,
     handleTest,
-  } = useSettingsPage();
+  } = useSettingsPageController();
 
   const backTarget = useBackTarget();
 

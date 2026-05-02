@@ -1,5 +1,6 @@
 """ToolRouter 단위 테스트."""
 
+import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -7,7 +8,7 @@ import pytest
 
 from app.budget.manager import BudgetManager
 from app.policy.tool_failure import ToolFailurePolicy
-from app.agent_runtime.schemas.agent import BudgetState, ToolCallRequest, ToolCostTier
+from app.agent_runtime.schemas.agent import BudgetState, ToolCallRequest, ToolCostTier, ToolResult
 from app.agent_runtime.tools.executor import ToolExecutor
 from app.agent_runtime.tools.hooks import HookResult, HookRunner
 from app.tools.implementations.mock_tools import MockEchoTool, MockKnowledgeTool
@@ -20,8 +21,28 @@ def _make_router_with_budget(
     hook_runner: HookRunner | None = None,
 ) -> tuple[ToolRouter, BudgetManager]:
     registry = ToolRegistry()
-    registry.register(ToolSchema(name="knowledge.search", description="test", cost_tier=ToolCostTier.CHEAP))
-    registry.register(ToolSchema(name="echo", description="echo", cost_tier=ToolCostTier.CHEAP))
+    registry.register(ToolSchema(
+        name="knowledge.search",
+        description="test",
+        parameters={
+            "type": "object",
+            "properties": {"query": {"type": "string"}},
+            "required": ["query"],
+        },
+        cost_tier=ToolCostTier.CHEAP,
+    ))
+    registry.register(ToolSchema(
+        name="echo",
+        description="echo",
+        parameters={
+            "type": "object",
+            "properties": {
+                "msg": {"type": "string"},
+                "x": {"type": "string"},
+            },
+        },
+        cost_tier=ToolCostTier.CHEAP,
+    ))
 
     budget = BudgetState(**(budget_overrides or {}))
     bm = BudgetManager(budget)
@@ -69,6 +90,34 @@ class _DenyPreHook:
         return HookResult.denied("blocked by test pre hook")
 
     def post_tool_use(self, name: str, args: dict, output: str, is_error: bool) -> HookResult:
+        return HookResult.allowed()
+
+
+class _TrackingImpl:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def execute(self, arguments: dict) -> ToolResult:
+        self.calls += 1
+        return ToolResult(
+            tool_call_id="",
+            name="",
+            success=True,
+            content='{"ok": true}',
+        )
+
+
+class _TrackingHook:
+    def __init__(self) -> None:
+        self.pre_calls = 0
+        self.post_calls = 0
+
+    def pre_tool_use(self, name: str, args: dict) -> HookResult:
+        self.pre_calls += 1
+        return HookResult.allowed()
+
+    def post_tool_use(self, name: str, args: dict, output: str, is_error: bool) -> HookResult:
+        self.post_calls += 1
         return HookResult.allowed()
 
 
@@ -324,3 +373,31 @@ async def test_post_hook_denial_marks_result_failed_and_records_trace():
     assert bm.state.total_steps == 1
     assert len(session.trace) == 1
     assert session.trace[0].success is False
+
+
+@pytest.mark.asyncio
+async def test_schema_violation_returns_error_without_execution_budget_or_trace():
+    hook_runner = HookRunner()
+    tracking_hook = _TrackingHook()
+    hook_runner.register(tracking_hook)
+    router, bm = _make_router_with_budget(hook_runner=hook_runner)
+    impl = _TrackingImpl()
+    router.register_implementation("knowledge.search", impl)
+    session = _make_session()
+
+    call = ToolCallRequest(id="c1", name="knowledge.search", arguments={"query": 123})
+    results = await router.execute([call], session)
+
+    assert results[0].success is False
+    assert results[0].error == "schema_violation"
+    payload = json.loads(results[0].content)
+    assert payload["tool"] == "knowledge.search"
+    assert payload["retryHint"]
+    assert any("$.query" in violation for violation in payload["violations"])
+    assert impl.calls == 0
+    assert tracking_hook.pre_calls == 0
+    assert tracking_hook.post_calls == 0
+    assert bm.state.total_steps == 0
+    assert bm.state.cheap_calls == 0
+    assert bm.is_duplicate_call(call.args_hash) is False
+    assert session.trace == []

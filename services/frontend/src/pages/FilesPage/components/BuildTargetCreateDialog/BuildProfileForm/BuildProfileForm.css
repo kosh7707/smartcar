@@ -1,0 +1,16 @@
+.build-profile-form { display:flex; flex-direction:column; gap:16px; }
+.build-profile-field { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+.build-profile-field__label { font-size:var(--text-sm); font-weight:var(--weight-semibold); color:var(--foreground); }
+.build-profile-note { font-size: var(--text-xs); color: var(--foreground-muted); }
+.build-profile-toggle { justify-content:flex-start; padding-left:0; }
+.build-profile-toggle__chevron { transition:transform 160ms ease; }
+.build-profile-toggle__chevron.is-open { transform:rotate(90deg); }
+.build-profile-advanced { display:flex; flex-direction:column; gap:16px; border:1px solid color-mix(in srgb, var(--border) 70%, transparent); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--surface-sunken) 30%, transparent); padding:16px; }
+.build-profile-grid { display:grid; gap:16px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+.build-profile-select, .build-profile-input { width:100%; }
+@media (max-width: 900px) {
+  .dynamic-test-option-grid--2,
+  .dynamic-test-option-grid--3,
+  .dynamic-test-field-grid,
+  .build-profile-grid { grid-template-columns:1fr; }
+}

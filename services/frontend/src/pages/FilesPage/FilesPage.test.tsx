@@ -33,7 +33,7 @@ vi.mock("react-router-dom", async () => {
   };
 });
 
-vi.mock("../../api/client", () => ({
+vi.mock("@/common/api/client", () => ({
   fetchSourceFilesWithComposition: (...args: unknown[]) => mockFetchSourceFilesWithComposition(...args),
   fetchSourceFileContent: (...args: unknown[]) => mockFetchSourceFileContent(...args),
   fetchProjectFindings: (...args: unknown[]) => mockFetchProjectFindings(...args),
@@ -41,19 +41,19 @@ vi.mock("../../api/client", () => ({
   logError: (...args: unknown[]) => mockLogError(...args),
 }));
 
-vi.mock("../../hooks/useBuildTargets", () => ({
+vi.mock("@/common/hooks/useBuildTargets", () => ({
   useBuildTargets: (...args: unknown[]) => mockUseBuildTargets(...args),
 }));
 
-vi.mock("../../hooks/useUploadProgress", () => ({
+vi.mock("@/common/hooks/useUploadProgress", () => ({
   useUploadProgress: (...args: unknown[]) => mockUseUploadProgress(...args),
 }));
 
-vi.mock("../../contexts/ToastContext", () => ({
+vi.mock("@/common/contexts/ToastContext", () => ({
   useToast: () => mockToast,
 }));
 
-vi.mock("../../contexts/ProjectContext", () => ({
+vi.mock("@/common/contexts/ProjectContext", () => ({
   useProjects: () => ({
     getProject: (id: string) => ({ id, name: `project-${id}` }),
     projects: [],
@@ -63,7 +63,7 @@ vi.mock("../../contexts/ProjectContext", () => ({
   }),
 }));
 
-vi.mock("./components/BuildTargetCreateDialog", () => ({
+vi.mock("./components/BuildTargetCreateDialog/BuildTargetCreateDialog", () => ({
   BuildTargetCreateDialog: () => null,
 }));
 

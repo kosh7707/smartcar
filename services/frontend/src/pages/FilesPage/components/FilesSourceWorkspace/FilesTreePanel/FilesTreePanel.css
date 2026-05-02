@@ -1,0 +1,6 @@
+.files-workspace-search { display:flex; flex:1; align-items:center; gap:8px; border:1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); padding:0 10px; height:32px; font-family: var(--font-sans); }
+.files-workspace-search input { height:32px; flex:1; border:0; background:transparent; font-family: var(--font-sans); font-size: var(--text-sm); }
+.files-workspace-tools { display:flex; align-items:center; gap:4px; }
+.files-workspace-tree { flex:1; min-height:0; height:100%; }
+.files-workspace-tree-inner { padding-block:8px; }
+.files-workspace-tree-empty { padding:24px 16px; text-align:center; font-size: var(--text-md); color: var(--foreground-muted); }

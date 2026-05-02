@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from app.config import settings
+from app.agent_runtime.llm.generation_policy import TimeoutDefaults
 from app.agent_runtime.context import get_request_id
 from app.runtime.request_summary import request_summary_tracker
 from app.schemas.request import TaskRequest
@@ -258,7 +259,7 @@ async def handle_deep_analyze(request: TaskRequest, model_registry) -> TaskSucce
         from app.tools.implementations.sca_tool import ScaTool
         # NDJSON 스트리밍 모드: inactivity timeout(60s)으로 제어.
         # X-Timeout-Ms는 S4 내부 도구별 예산으로 전달 (전체 데드라인 아님).
-        sast_tool_budget_s = max(120.0, request.constraints.timeoutMs / 1000.0 * 0.5)
+        sast_tool_budget_s = max(TimeoutDefaults.TOOL_EXECUTION_SECONDS, request.constraints.timeoutMs / 1000.0 * 0.5)
         sast_impl = SastScanTool(timeout_s=sast_tool_budget_s)
         codegraph_impl = CodeGraphPhase1Tool()  # Phase 1: S4 /v1/functions
         sca_impl = ScaTool()

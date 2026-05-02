@@ -6,7 +6,7 @@ import type {
   GateResult,
   GateStatus,
   GateRuleMetric,
-} from "../../api/gate";
+} from "@/common/api/gate";
 
 // QualityGatePage presentation logic — gate-context P3 exception per doctrine §2.2.
 

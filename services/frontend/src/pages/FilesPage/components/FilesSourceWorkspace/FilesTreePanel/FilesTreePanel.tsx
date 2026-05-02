@@ -1,9 +1,10 @@
+import "./FilesTreePanel.css";
 import React from "react";
 import type { Finding } from "@aegis/shared";
-import type { TreeNode } from "../../../../../utils/tree";
-import type { SourceFileEntry, TargetMappingEntry } from "../../../../../api/client";
-import { FilesTreePanelHeader } from "./FilesTreePanelHeader";
-import { FilesTreeView } from "./FilesTreeView";
+import type { TreeNode } from "@/common/utils/tree";
+import type { SourceFileEntry } from "@/common/api/client";
+import { FilesTreePanelHeader } from "./FilesTreePanelHeader/FilesTreePanelHeader";
+import { FilesTreeView } from "./FilesTreeView/FilesTreeView";
 
 interface FilesTreePanelProps {
   search: string;
@@ -16,7 +17,6 @@ interface FilesTreePanelProps {
   onPreviewFile: (path: string) => void;
   openPaths: Set<string>;
   onToggleFolder: (path: string, open: boolean) => void;
-  targetMapping: Record<string, TargetMappingEntry>;
   findings: Finding[];
 }
 
@@ -31,7 +31,6 @@ export const FilesTreePanel: React.FC<FilesTreePanelProps> = ({
   onPreviewFile,
   openPaths,
   onToggleFolder,
-  targetMapping,
   findings,
 }) => {
   const searchOpen = search.trim().length > 0;
@@ -51,7 +50,6 @@ export const FilesTreePanel: React.FC<FilesTreePanelProps> = ({
         onPreviewFile={onPreviewFile}
         openPaths={openPaths}
         onToggleFolder={onToggleFolder}
-        targetMapping={targetMapping}
         findings={findings}
         searchOpen={searchOpen}
       />

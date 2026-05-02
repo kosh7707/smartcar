@@ -7,6 +7,7 @@ import json
 from typing import TYPE_CHECKING
 
 from app.agent_runtime.schemas.agent import ToolCallRequest, ToolResult
+from app.agent_runtime.security.input_boundary import render_tool_result_for_llm
 
 if TYPE_CHECKING:
     from app.agent_runtime.llm.turn_summarizer import TurnSummarizer
@@ -57,7 +58,7 @@ class MessageManager:
             self._messages.append({
                 "role": "tool",
                 "tool_call_id": result.tool_call_id,
-                "content": result.content,
+                "content": render_tool_result_for_llm(result),
             })
 
     def message_count(self) -> int:

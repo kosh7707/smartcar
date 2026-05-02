@@ -39,3 +39,6 @@ uploads/
 
 # QA screenshots
 *.png
+
+# Local runtime logs
+nohup.out

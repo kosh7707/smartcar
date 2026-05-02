@@ -16,7 +16,7 @@
   "include": [
     "src/api",
     "src/types",
-    "src/test/setup.ts",
+    "src/test-setup/setup.ts",
     "e2e/fixtures"
   ]
 }

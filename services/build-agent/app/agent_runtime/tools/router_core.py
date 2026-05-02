@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Protocol
 
@@ -11,6 +12,7 @@ from app.agent_runtime.tools.base import ToolImplementation
 from app.agent_runtime.tools.executor import ToolExecutor
 from app.agent_runtime.tools.hooks import HookRunner, merge_hook_feedback, truncate_tool_result
 from app.agent_runtime.tools.registry import ToolRegistry, ToolSchema
+from app.agent_runtime.tools.schema_validator import validate_tool_arguments
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +94,25 @@ class SharedToolRouter:
         impl = self._implementations.get(call.name)
         if not impl:
             return self._failure_policy.handle(call, f"No implementation for {call.name}", session)
+
+        violations = validate_tool_arguments(call.arguments, schema.parameters)
+        if violations:
+            agent_log(
+                logger, "tool schema validation failed",
+                component="tool_router", phase="tool_blocked_schema",
+                turn=turn, tool=call.name, violations=violations, level=logging.WARNING,
+            )
+            return ToolResult(
+                tool_call_id=call.id,
+                name=call.name,
+                success=False,
+                content=json.dumps({
+                    "tool": call.name,
+                    "violations": violations,
+                    "retryHint": "Retry with arguments that satisfy the registered tool schema.",
+                }, ensure_ascii=False),
+                error="schema_violation",
+            )
 
         if self._budget_manager.is_duplicate_call(call.args_hash):
             agent_log(

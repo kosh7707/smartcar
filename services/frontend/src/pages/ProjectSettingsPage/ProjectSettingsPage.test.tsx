@@ -37,7 +37,7 @@ const mockFetchSdkLog = vi.fn();
 const mockFetchSdkQuota = vi.fn();
 const mockToast = { error: vi.fn(), success: vi.fn(), info: vi.fn() };
 
-vi.mock("../../api/sdk", () => ({
+vi.mock("@/common/api/sdk", () => ({
   fetchProjectSdks: (...args: unknown[]) => mockFetchProjectSdks(...args),
   registerSdkByUpload: (...args: unknown[]) => mockRegisterSdkByUpload(...args),
   deleteSdk: (...args: unknown[]) => mockDeleteSdk(...args),
@@ -48,14 +48,14 @@ vi.mock("../../api/sdk", () => ({
   getSdkLogDownloadUrl: vi.fn((pid: string, sdkId: string) => `http://localhost/api/projects/${pid}/sdk/${sdkId}/log?download=true`),
 }));
 
-vi.mock("../../api/projects", () => ({
+vi.mock("@/common/api/projects", () => ({
   fetchProject: (...args: unknown[]) => mockFetchProject(...args),
   updateProjectSettings: (...args: unknown[]) => mockUpdateProjectSettings(...args),
   deleteProject: (...args: unknown[]) => mockDeleteProject(...args),
 }));
 
-vi.mock("../../api/core", () => ({ logError: vi.fn() }));
-vi.mock("../../contexts/ToastContext", () => ({ useToast: () => mockToast }));
+vi.mock("@/common/api/core", () => ({ logError: vi.fn() }));
+vi.mock("@/common/contexts/ToastContext", () => ({ useToast: () => mockToast }));
 
 function renderPage() {
   return render(

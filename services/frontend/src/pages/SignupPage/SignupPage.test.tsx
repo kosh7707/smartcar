@@ -17,11 +17,11 @@ vi.mock("react-router-dom", async () => {
   };
 });
 
-vi.mock("../../contexts/AuthContext", () => ({
+vi.mock("@/common/contexts/AuthContext", () => ({
   useAuth: () => ({ login: mockLogin }),
 }));
 
-vi.mock("../../api/auth", () => ({
+vi.mock("@/common/api/auth", () => ({
   verifyOrgCode: (...args: unknown[]) => mockVerifyOrgCode(...args),
   register: (...args: unknown[]) => mockRegister(...args),
 }));

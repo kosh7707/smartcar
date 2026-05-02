@@ -1,0 +1,36 @@
+body {
+  overflow: hidden;
+  height: 100vh;
+  font-size: var(--text-base);
+}
+
+#root {
+  height: 100vh;
+}
+
+a {
+  text-decoration: none;
+}
+
+::selection {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--foreground-subtle);
+}

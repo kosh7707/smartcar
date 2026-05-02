@@ -1,10 +1,11 @@
+import "./FilesPreviewPanel.css";
 import React from "react";
 import type { Finding, Severity } from "@aegis/shared";
-import type { SourceFileEntry, TargetMappingEntry } from "../../../../../api/client";
-import type { useBuildTargets } from "../../../../../hooks/useBuildTargets";
-import type { FileClass } from "../../../../../utils/fileClass";
-import { FilesPreviewPanelHeader } from "./FilesPreviewPanelHeader";
-import { FilesPreviewBody } from "./FilesPreviewBody";
+import type { SourceFileEntry, TargetMappingEntry } from "@/common/api/client";
+import type { useBuildTargets } from "@/common/hooks/useBuildTargets";
+import type { FileClass } from "@/common/utils/fileClass";
+import { FilesPreviewPanelHeader } from "./FilesPreviewPanelHeader/FilesPreviewPanelHeader";
+import { FilesPreviewBody } from "./FilesPreviewBody/FilesPreviewBody";
 
 interface FilesPreviewPanelProps {
   selectedPath: string | null;

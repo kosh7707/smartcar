@@ -16,7 +16,7 @@ const mockToast = { error: vi.fn(), success: vi.fn(), info: vi.fn() };
 const mockUseDynamicTest = vi.fn();
 const mockUseAdapters = vi.fn();
 
-vi.mock("../../api/client", () => ({
+vi.mock("@/common/api/client", () => ({
   getDynamicTestResults: (...args: unknown[]) => mockGetDynamicTestResults(...args),
   getDynamicTestResult: (...args: unknown[]) => mockGetDynamicTestResult(...args),
   deleteDynamicTestResult: (...args: unknown[]) => mockDeleteDynamicTestResult(...args),
@@ -31,15 +31,15 @@ vi.mock("../../api/client", () => ({
   logError: (...args: unknown[]) => mockLogError(...args),
 }));
 
-vi.mock("../../hooks/useDynamicTest", () => ({
+vi.mock("@/common/hooks/useDynamicTest", () => ({
   useDynamicTest: (...args: unknown[]) => mockUseDynamicTest(...args),
 }));
 
-vi.mock("../../hooks/useAdapters", () => ({
+vi.mock("@/common/hooks/useAdapters", () => ({
   useAdapters: (...args: unknown[]) => mockUseAdapters(...args),
 }));
 
-vi.mock("../../contexts/ToastContext", () => ({
+vi.mock("@/common/contexts/ToastContext", () => ({
   useToast: () => mockToast,
 }));
 

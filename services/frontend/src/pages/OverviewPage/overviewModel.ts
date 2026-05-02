@@ -1,5 +1,5 @@
 import type { AnalysisResult, UploadedFile, Vulnerability } from "@aegis/shared";
-import type { GateResult } from "../../api/gate";
+import type { GateResult } from "@/common/api/gate";
 
 export interface SeveritySummary {
   critical?: number;

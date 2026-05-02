@@ -11,6 +11,8 @@ import time
 from app.config import settings
 from app.agent_runtime.context import get_request_id
 from app.agent_runtime.errors import BudgetExhaustedError
+from app.agent_runtime.llm.generation_policy import STRICT_JSON_REPAIR, THINKING_CODING, controls_from_constraints
+from app.agent_runtime.security.input_boundary import render_untrusted_source_for_llm
 from app.core.evidence_catalog import EvidenceCatalog, EvidenceCatalogEntry
 from app.runtime.request_summary import request_summary_tracker
 from app.schemas.request import TaskRequest
@@ -433,10 +435,18 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         "- usedEvidenceRefs가 없으면 필드를 생략하지 말고 반드시 `\"usedEvidenceRefs\": []`로 출력하라.\n"
     )
 
-    # 소스코드 포맷팅
+    # 소스코드 포맷팅 — source files are untrusted data, so render them through
+    # the LLM-facing boundary before interpolation. Raw request context remains
+    # unchanged for audit/evidence handling.
     source_sections = []
     for f in files[:5]:
-        source_sections.append(f"### {f.get('path', '?')}\n```cpp\n{f.get('content', '')}\n```")
+        source_sections.append(
+            render_untrusted_source_for_llm(
+                str(f.get('path', '?')),
+                str(f.get('content', '')),
+                language="cpp",
+            )
+        )
     source_text = "\n\n".join(source_sections) if source_sections else "(소스코드 없음)"
 
     # Build metadata from caller (buildPreparation alias). Prevents LLM from inventing
@@ -518,6 +528,14 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
 
     schema_repair_used = False
     strict_json_retry_used = False
+    # P7/§4.9: initial PoC drafting is a precise coding task, so it uses the
+    # Qwen3.6 thinking-coding preset (T=0.6) rather than the broad-analysis
+    # preset. Request constraints may override the tuple explicitly.
+    coding_generation = controls_from_constraints(THINKING_CODING, request.constraints)
+    # P7/§4.9: strict JSON retry, schema repair, and quality repair are narrow
+    # correction tasks over an existing artifact, so they use the greedy repair
+    # preset to avoid drifting away while the repair budget is bounded.
+    strict_generation = controls_from_constraints(STRICT_JSON_REPAIR, request.constraints)
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_message},
@@ -527,7 +545,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
         llm_response = await llm.call(
             messages,
             max_tokens=request.constraints.maxTokens or 8192,
-            temperature=0.3,
+            generation=coding_generation,
             prefer_async_ownership=True,
         )
         raw = llm_response.content or ""
@@ -552,7 +570,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
             llm_response = await llm.call(
                 retry_messages,
                 max_tokens=request.constraints.maxTokens or 8192,
-                temperature=0.0,
+                generation=strict_generation,
                 prefer_async_ownership=True,
             )
             raw = llm_response.content or ""
@@ -614,6 +632,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
                 schema_errors=["non-JSON output"],
                 request=request,
                 max_tokens=schema_repair_max_tokens,
+                generation=strict_generation,
             )
         except Exception as e:
             if hasattr(llm, 'aclose'):
@@ -661,6 +680,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
                 schema_errors=schema_probe.errors,
                 request=request,
                 max_tokens=schema_repair_max_tokens,
+                generation=strict_generation,
             )
         except Exception as e:
             if hasattr(llm, 'aclose'):
@@ -851,6 +871,7 @@ async def handle_generate_poc(request: TaskRequest, model_registry) -> TaskSucce
                 quality_gate=quality_gate,
                 request=request,
                 max_tokens=quality_repair_max_tokens,
+                generation=strict_generation,
             )
         except Exception as e:
             quality_repair_failed = True
@@ -1241,6 +1262,7 @@ async def _repair_generate_poc_quality(
     quality_gate: QualityGateResult,
     request: TaskRequest,
     max_tokens: int,
+    generation,
 ) -> tuple[str, int, int]:
     """Ask the producer to repair a quality-rejected PoC once, with critic feedback."""
     failures = [
@@ -1260,10 +1282,12 @@ async def _repair_generate_poc_quality(
         f"QualityGate failures:\n{json.dumps(failures, ensure_ascii=False, indent=2)}\n\n"
         f"Previous JSON:\n{json.dumps(parsed, ensure_ascii=False)}"
     )
+    # P7: quality repair is a local edit over a rejected candidate, not a fresh
+    # creative draft; callers pass STRICT_JSON_REPAIR unless explicitly overridden.
     response = await llm.call(
         [*messages, {"role": "user", "content": repair_prompt}],
         max_tokens=max_tokens,
-        temperature=0.0,
+        generation=generation,
         prefer_async_ownership=True,
     )
     return response.content or "", response.prompt_tokens, response.completion_tokens
@@ -1286,6 +1310,7 @@ async def _repair_generate_poc_schema(
     schema_errors: list[str],
     request: TaskRequest,
     max_tokens: int,
+    generation,
 ) -> tuple[str, int, int]:
     """Repair malformed generate-poc JSON with a deterministic scaffold.
 
@@ -1326,10 +1351,12 @@ async def _repair_generate_poc_schema(
         get_request_id() or request.taskId,
         source="generate-poc-schema-repair",
     )
+    # P7: schema/scaffold repair is mechanical narrowing; keep it on the strict
+    # repair tuple unless a caller deliberately supplies a different preset.
     response = await llm.call(
         repair_messages,
         max_tokens=max_tokens,
-        temperature=0.0,
+        generation=generation,
         prefer_async_ownership=True,
     )
     request_summary_tracker.mark_phase_advancing(

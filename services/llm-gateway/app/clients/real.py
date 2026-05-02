@@ -9,6 +9,7 @@ import httpx
 from app.context import get_request_id
 from app.errors import LlmHttpError, LlmInputTooLargeError, LlmTimeoutError, LlmUnavailableError
 from app.clients.base import LlmClient
+from app.generation_observability import generation_log_fields
 from app.metrics import prom
 
 if __import__("typing").TYPE_CHECKING:
@@ -92,7 +93,7 @@ class RealLlmClient(LlmClient):
             body["task_type"] = task_type
         if self.json_mode:
             body["response_format"] = {"type": "json_object"}
-        generation = _generation_log_fields(body)
+        generation = generation_log_fields(body, task_type=task_type)
 
         logger.info(
             "[LLM 호출 시작] requestId=%s, model=%s, maxTokens=%d",
@@ -248,22 +249,3 @@ class RealLlmClient(LlmClient):
     async def aclose(self) -> None:
         """httpx 클라이언트를 종료한다."""
         await self._client.aclose()
-
-
-def _generation_log_fields(body: dict) -> dict:
-    chat_template_kwargs = body.get("chat_template_kwargs")
-    enable_thinking = None
-    if isinstance(chat_template_kwargs, dict):
-        enable_thinking = chat_template_kwargs.get("enable_thinking")
-    task_type = body.get("task_type")
-    return {
-        "maxTokens": body.get("max_tokens"),
-        "temperature": body.get("temperature"),
-        "topP": body.get("top_p"),
-        "topK": body.get("top_k"),
-        "minP": body.get("min_p"),
-        "presencePenalty": body.get("presence_penalty"),
-        "repetitionPenalty": body.get("repetition_penalty"),
-        "enableThinking": enable_thinking,
-        "taskType": task_type if isinstance(task_type, str) else None,
-    }

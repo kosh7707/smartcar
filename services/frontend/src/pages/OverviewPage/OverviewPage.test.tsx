@@ -22,33 +22,33 @@ vi.mock("react-router-dom", async () => {
   };
 });
 
-vi.mock("../../api/client", () => ({
+vi.mock("@/common/api/client", () => ({
   fetchProjectOverview: (...args: unknown[]) => mockFetchProjectOverview(...args),
   fetchProjectFiles: (...args: unknown[]) => mockFetchProjectFiles(...args),
   logError: vi.fn(),
 }));
 
-vi.mock("../../api/projects", () => ({
+vi.mock("@/common/api/projects", () => ({
   fetchProjectActivity: (...args: unknown[]) => mockFetchProjectActivity(...args),
 }));
 
-vi.mock("../../api/sdk", () => ({
+vi.mock("@/common/api/sdk", () => ({
   fetchProjectSdks: (...args: unknown[]) => mockFetchProjectSdks(...args),
 }));
 
-vi.mock("../../api/gate", () => ({
+vi.mock("@/common/api/gate", () => ({
   fetchProjectGates: (...args: unknown[]) => mockFetchProjectGates(...args),
 }));
 
-vi.mock("../../api/approval", () => ({
+vi.mock("@/common/api/approval", () => ({
   fetchApprovalCount: (...args: unknown[]) => mockFetchApprovalCount(...args),
 }));
 
-vi.mock("../../hooks/useBuildTargets", () => ({
+vi.mock("@/common/hooks/useBuildTargets", () => ({
   useBuildTargets: (...args: unknown[]) => mockUseBuildTargets(...args),
 }));
 
-vi.mock("../../contexts/ToastContext", () => ({
+vi.mock("@/common/contexts/ToastContext", () => ({
   useToast: () => mockToast,
 }));
 

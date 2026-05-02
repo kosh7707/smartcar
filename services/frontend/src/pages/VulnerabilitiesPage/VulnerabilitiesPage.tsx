@@ -1,16 +1,16 @@
 import React, { useCallback, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import type { Severity } from "@aegis/shared";
-import { useToast } from "../../contexts/ToastContext";
-import { FindingDetailView } from "../../shared/findings/FindingDetailView";
-import { Spinner } from "../../shared/ui";
-import { SEVERITY_ORDER } from "../../utils/severity";
-import { VulnerabilitiesHeader } from "./components/VulnerabilitiesHeader";
-import { VulnerabilityGroups } from "./components/VulnerabilityGroups";
-import { VulnerabilityKeyboardHint } from "./components/VulnerabilityKeyboardHint";
-import { VulnerabilityList } from "./components/VulnerabilityList";
-import { VulnerabilitiesToolbar } from "./components/VulnerabilitiesToolbar";
-import { useVulnerabilitiesPage } from "./hooks/useVulnerabilitiesPage";
+import { useToast } from "@/common/contexts/ToastContext";
+import { FindingDetailView } from "@/common/ui/findings/FindingDetailView";
+import { Spinner } from "@/common/ui/primitives";
+import { SEVERITY_ORDER } from "@/common/utils/severity";
+import { VulnerabilitiesHeader } from "./components/VulnerabilitiesHeader/VulnerabilitiesHeader";
+import { VulnerabilityGroups } from "./components/VulnerabilityGroups/VulnerabilityGroups";
+import { VulnerabilityKeyboardHint } from "./components/VulnerabilityKeyboardHint/VulnerabilityKeyboardHint";
+import { VulnerabilityList } from "./components/VulnerabilityList/VulnerabilityList";
+import { VulnerabilitiesToolbar } from "./components/VulnerabilitiesToolbar/VulnerabilitiesToolbar";
+import { useVulnerabilitiesPageController } from "./useVulnerabilitiesPageController";
 import "./VulnerabilitiesPage.css";
 
 const ALL_SEVERITIES: ReadonlySet<Severity> = new Set(SEVERITY_ORDER);
@@ -74,7 +74,7 @@ export const VulnerabilitiesPage: React.FC = () => {
     commitSeverities(ALL_SEVERITIES);
   }, [commitSeverities]);
 
-  const state = useVulnerabilitiesPage(projectId, activeSeverities, toast);
+  const state = useVulnerabilitiesPageController(projectId, activeSeverities, toast);
 
   if (state.selectedFindingId) {
     return (

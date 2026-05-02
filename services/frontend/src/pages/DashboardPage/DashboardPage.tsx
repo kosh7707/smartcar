@@ -1,15 +1,15 @@
 import React from "react";
-import { useAuth } from "../../contexts/AuthContext";
-import { useProjects } from "../../contexts/ProjectContext";
-import { NeedsAttentionSection } from "./components/NeedsAttentionSection";
-import { ProjectExplorer } from "./components/ProjectExplorer";
-import { RecentActivitySection } from "./components/RecentActivitySection";
+import { useAuth } from "@/common/contexts/AuthContext";
+import { useProjects } from "@/common/contexts/ProjectContext";
+import { NeedsAttentionSection } from "./components/NeedsAttentionSection/NeedsAttentionSection";
+import { ProjectExplorer } from "./components/ProjectExplorer/ProjectExplorer";
+import { RecentActivitySection } from "./components/RecentActivitySection/RecentActivitySection";
 import { criticalOpenTotal, latestSyncLabel, pendingApprovalsTotal } from "./dashboardProjectSignals";
 import { getDashboardAttentionState } from "./dashboardAttentionState";
-import { useDashboardActivityFeed } from "./hooks/useDashboardActivityFeed";
-import { useDashboardCreateForm } from "./hooks/useDashboardCreateForm";
-import { useDashboardDocumentTitle } from "./hooks/useDashboardDocumentTitle";
-import { useDashboardExplorerState } from "./hooks/useDashboardExplorerState";
+import { useDashboardActivityFeed } from "./useDashboardActivityFeed";
+import { useDashboardCreateForm } from "./useDashboardCreateForm";
+import { useDashboardDocumentTitle } from "./useDashboardDocumentTitle";
+import { useDashboardExplorerState } from "./useDashboardExplorerState";
 import "./DashboardPage.css";
 
 export const DashboardPage: React.FC = () => {

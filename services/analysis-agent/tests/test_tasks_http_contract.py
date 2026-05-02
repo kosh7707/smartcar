@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from app.routers import tasks
 from app.schemas.response import (
     AssessmentResult,
@@ -159,3 +161,90 @@ def test_generate_poc_rejected_outcome_completed_is_http_200(client_live, monkey
     assert body["status"] == "completed"
     assert body["result"]["pocOutcome"] == "poc_rejected"
     assert "failureCode" not in body
+
+
+def test_deep_analyze_route_accepts_camel_case_generation_constraints(client_live, monkeypatch):
+    captured = {}
+
+    async def fake_deep(request):
+        captured["constraints"] = request.constraints
+        return _completed_negative_response()
+
+    monkeypatch.setattr(tasks, "_handle_deep_analyze", fake_deep)
+
+    response = client_live.post(
+        "/v1/tasks",
+        json={
+            "taskType": "deep-analyze",
+            "taskId": "deep-http-contract-constraints-001",
+            "context": {"trusted": {"projectPath": "/tmp/project"}},
+            "evidenceRefs": [],
+            "constraints": {
+                "maxTokens": 32768,
+                "enableThinking": False,
+                "temperature": 0.6,
+                "topP": 0.8,
+                "topK": 7,
+                "minP": 0.1,
+                "presencePenalty": 0.2,
+                "repetitionPenalty": 1.1,
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    constraints = captured["constraints"]
+    assert constraints.maxTokens == 32768
+    assert constraints.enableThinking is False
+    assert constraints.temperature == 0.6
+    assert constraints.topP == 0.8
+    assert constraints.topK == 7
+    assert constraints.minP == 0.1
+    assert constraints.presencePenalty == 0.2
+    assert constraints.repetitionPenalty == 1.1
+
+
+@pytest.mark.parametrize("field_name", ["top_p", "presence_penalty"])
+def test_deep_analyze_route_rejects_snake_case_generation_constraints(client_live, field_name):
+    response = client_live.post(
+        "/v1/tasks",
+        json={
+            "taskType": "deep-analyze",
+            "taskId": "deep-http-contract-constraints-bad-001",
+            "context": {"trusted": {"projectPath": "/tmp/project"}},
+            "evidenceRefs": [],
+            "constraints": {
+                "maxTokens": 1024,
+                field_name: 0.5,
+            },
+        },
+    )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert any(field_name in str(item.get("loc", ())) for item in detail)
+
+
+def test_generate_poc_route_rejects_max_tokens_above_32768(client_live):
+    response = client_live.post(
+        "/v1/tasks",
+        json={
+            "taskType": "generate-poc",
+            "taskId": "poc-http-contract-max-001",
+            "context": {
+                "trusted": {
+                    "objective": "Generate PoC",
+                    "claim": {
+                        "statement": "User input reaches popen",
+                        "detail": "The command is shell-expanded.",
+                        "location": "main.cpp:12",
+                    },
+                    "files": [{"path": "main.cpp", "content": "int main(){}"}],
+                },
+            },
+            "evidenceRefs": [],
+            "constraints": {"maxTokens": 32769},
+        },
+    )
+
+    assert response.status_code == 422

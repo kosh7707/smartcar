@@ -1,4 +1,4 @@
-import { formatRelativeTime } from "../../utils/format";
+import { formatRelativeTime } from "@/common/utils/format";
 import type { DashboardProject } from "./dashboardTypes";
 
 export interface ProjectOwnerDisplay {

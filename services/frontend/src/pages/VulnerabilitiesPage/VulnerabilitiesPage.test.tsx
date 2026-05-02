@@ -10,21 +10,21 @@ const mockBulkUpdateFindingStatus = vi.fn();
 const mockFetchFindingGroups = vi.fn();
 const mockToast = { error: vi.fn(), success: vi.fn(), info: vi.fn() };
 
-vi.mock("../../api/analysis", () => ({
+vi.mock("@/common/api/analysis", () => ({
   fetchProjectFindings: (...args: unknown[]) => mockFetchProjectFindings(...args),
   bulkUpdateFindingStatus: (...args: unknown[]) => mockBulkUpdateFindingStatus(...args),
   fetchFindingGroups: (...args: unknown[]) => mockFetchFindingGroups(...args),
 }));
 
-vi.mock("../../api/core", () => ({
+vi.mock("@/common/api/core", () => ({
   logError: vi.fn(),
 }));
 
-vi.mock("../../contexts/ToastContext", () => ({
+vi.mock("@/common/contexts/ToastContext", () => ({
   useToast: () => mockToast,
 }));
 
-vi.mock("../../shared/findings/FindingDetailView", () => ({
+vi.mock("@/common/ui/findings/FindingDetailView", () => ({
   FindingDetailView: ({ findingId, onBack }: { findingId: string; onBack: () => void }) => (
     <div>
       <p>Detail view: {findingId}</p>

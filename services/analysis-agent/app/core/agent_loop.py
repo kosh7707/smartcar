@@ -15,6 +15,7 @@ from app.validators.schema_validator import SchemaValidator
 from app.agent_runtime.context import get_request_id
 from app.agent_runtime.errors import BudgetExhaustedError, LlmTimeoutError, S3Error, StrictJsonContractError
 from app.agent_runtime.llm.caller import LlmCaller
+from app.agent_runtime.llm.generation_policy import STRICT_JSON_REPAIR, THINKING_GENERAL, controls_from_constraints
 from app.agent_runtime.llm.message_manager import MessageManager
 from app.agent_runtime.llm.turn_summarizer import TurnSummarizer
 from app.agent_runtime.observability import agent_log
@@ -136,6 +137,21 @@ def _schema_repair_detail(parsed: dict, task_type) -> str | None:
     return "; ".join(validation.errors)
 
 
+def _has_successful_tool_calls(session: AgentSession) -> bool:
+    return any(step.success for step in session.trace)
+
+
+def _tool_choice_for_turn(
+    *,
+    session: AgentSession,
+    current_tools: list[dict] | None,
+    force_report: bool,
+) -> str:
+    if not current_tools or force_report or _has_successful_tool_calls(session):
+        return "auto"
+    return "required"
+
+
 class AgentLoop:
     """멀티 턴 에이전트 루프를 실행한다."""
 
@@ -235,7 +251,15 @@ class AgentLoop:
 
             # LLM 호출 (재시도 포함)
             try:
-                response = await self._call_with_retry(session, current_tools)
+                response = await self._call_with_retry(
+                    session,
+                    current_tools,
+                    tool_choice=_tool_choice_for_turn(
+                        session=session,
+                        current_tools=current_tools,
+                        force_report=force_report,
+                    ),
+                )
             except S3Error as e:
                 logger.error("LLM 호출 실패 (재시도 소진): %s", e)
                 if isinstance(e, LlmTimeoutError):
@@ -614,7 +638,7 @@ class AgentLoop:
         )
         return self._result_assembler.build_from_exhaustion(session)
 
-    async def _call_with_retry(self, session, tools_schema):
+    async def _call_with_retry(self, session, tools_schema, *, tool_choice: str = "auto"):
         """LLM 호출 + 재시도."""
         # 컨텍스트 압축: 토큰 추정치 초과 시 오래된 턴 제거
         token_est = self._message_manager.get_token_estimate()
@@ -644,7 +668,11 @@ class AgentLoop:
                     source="llm-inference",
                 )
                 return await self._llm_caller.call(
-                    messages, session, tools=tools_schema,
+                    messages,
+                    session,
+                    tools=tools_schema,
+                    tool_choice=tool_choice,
+                    generation=controls_from_constraints(THINKING_GENERAL, session.request.constraints),
                     prefer_async_ownership=tools_schema is None,
                 )
             except S3Error as e:
@@ -733,7 +761,9 @@ class AgentLoop:
             session,
             tools=None,
             max_tokens=finalizer_max_tokens,
-            temperature=0.0,
+            # P7/§4.9: structured finalization is schema-enforced narrowing over
+            # prior notes, so use the strict repair tuple unless explicitly overridden.
+            generation=controls_from_constraints(STRICT_JSON_REPAIR, session.request.constraints),
             prefer_async_ownership=True,
         )
 

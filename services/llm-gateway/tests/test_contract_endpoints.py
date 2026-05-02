@@ -248,6 +248,7 @@ class TestMetricsEndpoint:
         assert "aegis_llm_thinking_requests_total" in body
         assert "aegis_llm_thinking_token_count" in body
         assert "aegis_llm_finish_reason_total" in body
+        assert "aegis_llm_tool_choice_total" in body
 
     def test_metrics_content_type(self, client_live):
         resp = client_live.get("/metrics")
@@ -278,6 +279,8 @@ class TestMetricsEndpoint:
                     "min_p": 0.0,
                     "presence_penalty": 0.0,
                     "repetition_penalty": 1.0,
+                    "chat_template_kwargs": {"enable_thinking": True},
+                    "tool_choice": "auto",
                 },
             )
 
@@ -289,6 +292,31 @@ class TestMetricsEndpoint:
         assert 'aegis_llm_thinking_requests_total{enabled="true",endpoint="chat_proxy",task_type="none"}' in metrics
         assert 'aegis_llm_thinking_token_count_count{endpoint="chat_proxy",task_type="none"}' in metrics
         assert 'aegis_llm_finish_reason_total{endpoint="chat_proxy",reason="stop",task_type="none"}' in metrics
+        assert 'aegis_llm_tool_choice_total{choice="auto",endpoint="chat_proxy"}' in metrics
+
+    def test_tool_choice_metrics_are_bounded(self, client_live):
+        mock_resp = httpx.Response(200, json={
+            "choices": [{"message": {"content": '{"ok": true}'}, "finish_reason": "tool_calls"}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+        })
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+            body = make_chat_body()
+            body.update({
+                "messages": [{"role": "user", "content": "tool choice"}],
+                "max_tokens": 16,
+                "tool_choice": {"type": "function", "function": {"name": "lookup_vin"}},
+            })
+            resp = client_live.post(
+                "/v1/chat",
+                json=body,
+            )
+
+        assert resp.status_code == 200
+        metrics = client_live.get("/metrics").text
+        assert 'aegis_llm_tool_choice_total{choice="named",endpoint="chat_proxy"}' in metrics
+        assert "lookup_vin" not in metrics
 
     def test_chat_payload_task_type_does_not_become_metric_label(self, client_live):
         mock_resp = httpx.Response(200, json={
@@ -298,17 +326,18 @@ class TestMetricsEndpoint:
 
         with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(return_value=mock_resp)
+            body = make_chat_body()
+            body.update({
+                "messages": [{"role": "user", "content": "cardinality"}],
+                "max_tokens": 16,
+                "temperature": 1.0,
+                "top_p": 0.95,
+                "top_k": 20,
+                "task_type": "user-controlled-cardinality",
+            })
             resp = client_live.post(
                 "/v1/chat",
-                json={
-                    "model": "ignored-by-gateway",
-                    "messages": [{"role": "user", "content": "cardinality"}],
-                    "max_tokens": 16,
-                    "temperature": 1.0,
-                    "top_p": 0.95,
-                    "top_k": 20,
-                    "task_type": "user-controlled-cardinality",
-                },
+                json=body,
             )
 
         assert resp.status_code == 200
@@ -335,11 +364,13 @@ class TestChatProxy:
         with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(return_value=mock_resp)
 
-            resp = client_live.post("/v1/chat", json={
+            body = make_chat_body()
+            body.update({
                 "model": "test-model",
                 "messages": [{"role": "user", "content": "hello"}],
                 "max_tokens": 100,
             })
+            resp = client_live.post("/v1/chat", json=body)
 
         assert resp.status_code == 200
         data = resp.json()
@@ -375,6 +406,7 @@ class TestChatProxy:
                         "min_p": 0.0,
                         "presence_penalty": 0.0,
                         "repetition_penalty": 1.0,
+                        "chat_template_kwargs": {"enable_thinking": True},
                     },
                     headers={"X-Request-Id": "rid-chat-exchange-001"},
                 )
@@ -418,6 +450,7 @@ class TestChatProxy:
             "min_p": 0.01,
             "presence_penalty": 0.2,
             "repetition_penalty": 1.1,
+            "chat_template_kwargs": {"enable_thinking": True},
         }
         with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(return_value=mock_resp)
@@ -439,7 +472,7 @@ class TestChatProxy:
         assert forwarded["chat_template_kwargs"]["enable_thinking"] is True
 
     def test_chat_proxy_preserves_explicit_thinking_false(self, client_live):
-        """기본값은 thinking-on이지만 명시적 mechanical off 요청은 보존한다."""
+        """명시적 mechanical off 요청은 S7 기본값 없이 그대로 보존한다."""
         mock_llm_response = {
             "choices": [{"message": {"content": "mechanical final"}, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": 3, "completion_tokens": 2},
@@ -449,13 +482,14 @@ class TestChatProxy:
         with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(return_value=mock_resp)
 
+            body = make_chat_body()
+            body.update({
+                "messages": [{"role": "user", "content": "no reasoning needed"}],
+                "chat_template_kwargs": {"enable_thinking": False},
+            })
             resp = client_live.post(
                 "/v1/chat",
-                json={
-                    "model": "ignored-by-gateway",
-                    "messages": [{"role": "user", "content": "no reasoning needed"}],
-                    "chat_template_kwargs": {"enable_thinking": False},
-                },
+                json=body,
             )
 
         assert resp.status_code == 200
@@ -475,10 +509,12 @@ class TestChatProxy:
         with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(return_value=mock_resp)
 
-            resp = client_live.post("/v1/chat", json={
+            body = make_chat_body()
+            body.update({
                 "model": "test-model",
                 "messages": [{"role": "user", "content": "test"}],
             })
+            resp = client_live.post("/v1/chat", json=body)
             # X-Request-Id 헤더 없이 요청
 
         assert resp.status_code == 200
@@ -496,9 +532,11 @@ class TestChatProxy:
         with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(return_value=mock_resp)
 
+            body = make_chat_body()
+            body.update({"model": "test", "messages": [{"role": "user", "content": "x"}]})
             resp = client_live.post(
                 "/v1/chat",
-                json={"model": "test", "messages": [{"role": "user", "content": "x"}]},
+                json=body,
                 headers={"X-Timeout-Seconds": "300"},
             )
 
@@ -514,10 +552,12 @@ class TestChatProxy:
         with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(side_effect=httpx.ConnectError("refused"))
 
-            resp = client_live.post("/v1/chat", json={
+            body = make_chat_body()
+            body.update({
                 "model": "test-model",
                 "messages": [{"role": "user", "content": "hello"}],
             })
+            resp = client_live.post("/v1/chat", json=body)
 
         assert resp.status_code == 503
         data = resp.json()
@@ -531,10 +571,12 @@ class TestChatProxy:
         with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("timeout"))
 
-            resp = client_live.post("/v1/chat", json={
+            body = make_chat_body()
+            body.update({
                 "model": "test-model",
                 "messages": [{"role": "user", "content": "hello"}],
             })
+            resp = client_live.post("/v1/chat", json=body)
 
         assert resp.status_code == 504
         data = resp.json()
@@ -563,11 +605,13 @@ class TestChatProxy:
         with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(return_value=mock_resp)
 
-            resp = client_live.post("/v1/chat", json={
+            body = make_chat_body()
+            body.update({
                 "model": "test-model",
                 "messages": [{"role": "user", "content": "analyze"}],
                 "tools": [{"type": "function", "function": {"name": "knowledge.search"}}],
             })
+            resp = client_live.post("/v1/chat", json=body)
 
         assert resp.status_code == 200
         data = resp.json()
@@ -583,10 +627,12 @@ class TestChatProxy:
         with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(return_value=mock_resp)
 
-            resp = client_live.post("/v1/chat", json={
+            body = make_chat_body()
+            body.update({
                 "model": "test-model",
                 "messages": [{"role": "user", "content": "hello"}],
             })
+            resp = client_live.post("/v1/chat", json=body)
 
         assert resp.status_code == 500
         assert cb.consecutive_failures == before + 1
@@ -601,10 +647,12 @@ class TestChatProxy:
         with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(return_value=mock_resp)
 
-            resp = client_live.post("/v1/chat", json={
+            body = make_chat_body()
+            body.update({
                 "model": "test-model",
                 "messages": [{"role": "user", "content": "hello"}],
             })
+            resp = client_live.post("/v1/chat", json=body)
 
         assert resp.status_code == 400
         assert cb.consecutive_failures == before
@@ -620,9 +668,11 @@ class TestChatProxy:
         with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(return_value=mock_resp)
 
+            body = make_chat_body()
+            body.update({"model": "test", "messages": [{"role": "user", "content": "x"}]})
             resp = client_live.post(
                 "/v1/chat",
-                json={"model": "test", "messages": [{"role": "user", "content": "x"}]},
+                json=body,
                 headers={"X-Timeout-Seconds": "not-a-number"},
             )
 
@@ -631,8 +681,8 @@ class TestChatProxy:
         req_timeout = call_kwargs.kwargs.get("timeout") or call_kwargs[1].get("timeout")
         assert req_timeout.read == 1800.0
 
-    def test_chat_proxy_strict_json_mode_injects_controls(self, client_live):
-        """strict JSON도 JSON 제어를 주입하되 thinking 기본값은 true다."""
+    def test_chat_proxy_strict_json_mode_injects_only_json_response_format(self, client_live):
+        """strict JSON은 JSON 제어만 주입하고 caller-owned thinking 값을 보존한다."""
         mock_llm_response = {
             "choices": [{"message": {"content": '{"ok":true}'}, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": 5, "completion_tokens": 3},
@@ -642,9 +692,11 @@ class TestChatProxy:
         with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(return_value=mock_resp)
 
+            body = make_chat_body()
+            body.update({"model": "test", "messages": [{"role": "user", "content": "x"}]})
             resp = client_live.post(
                 "/v1/chat",
-                json={"model": "test", "messages": [{"role": "user", "content": "x"}]},
+                json=body,
                 headers={"X-AEGIS-Strict-JSON": "true"},
             )
 
@@ -654,6 +706,32 @@ class TestChatProxy:
         assert body["response_format"] == {"type": "json_object"}
         assert body["chat_template_kwargs"]["enable_thinking"] is True
         assert resp.headers["X-AEGIS-Effective-Thinking"] == "true"
+        assert resp.headers["X-AEGIS-Strict-JSON"] == "applied"
+
+    def test_chat_proxy_strict_json_mode_preserves_thinking_false(self, client_live):
+        mock_llm_response = {
+            "choices": [{"message": {"content": '{"ok":true}'}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 5, "completion_tokens": 3},
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            body = make_chat_body()
+            body["chat_template_kwargs"] = {"enable_thinking": False}
+            resp = client_live.post(
+                "/v1/chat",
+                json=body,
+                headers={"X-AEGIS-Strict-JSON": "true"},
+            )
+
+        assert resp.status_code == 200
+        call_kwargs = mock_client.post.call_args
+        body = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
+        assert body["response_format"] == {"type": "json_object"}
+        assert body["chat_template_kwargs"]["enable_thinking"] is False
+        assert resp.headers["X-AEGIS-Effective-Thinking"] == "false"
         assert resp.headers["X-AEGIS-Strict-JSON"] == "applied"
 
     def test_chat_proxy_strict_json_mode_scrubs_reasoning_and_normalizes_content(self, client_live):
@@ -673,9 +751,11 @@ class TestChatProxy:
         with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(return_value=mock_resp)
 
+            body = make_chat_body()
+            body.update({"model": "test", "messages": [{"role": "user", "content": "x"}]})
             resp = client_live.post(
                 "/v1/chat",
-                json={"model": "test", "messages": [{"role": "user", "content": "x"}]},
+                json=body,
                 headers={"X-AEGIS-Strict-JSON": "true"},
             )
 
@@ -701,9 +781,11 @@ class TestChatProxy:
         with patch.object(app.state, "proxy_client") as mock_client:
             mock_client.post = AsyncMock(return_value=mock_resp)
 
+            body = make_chat_body()
+            body.update({"model": "test", "messages": [{"role": "user", "content": "x"}]})
             resp = client_live.post(
                 "/v1/chat",
-                json={"model": "test", "messages": [{"role": "user", "content": "x"}]},
+                json=body,
                 headers={"X-AEGIS-Strict-JSON": "true"},
             )
 
@@ -808,6 +890,7 @@ class TestAsyncChatOwnershipSurface:
                         "min_p": 0.0,
                         "presence_penalty": 0.0,
                         "repetition_penalty": 1.0,
+                        "chat_template_kwargs": {"enable_thinking": True},
                     },
                     headers={"X-Request-Id": "trace-async-exchange-001"},
                 )

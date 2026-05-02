@@ -1,9 +1,0 @@
-
-
-/* ── Extracted from app-shell.css (Phase 1a.1 pass 3) ── */
-.source-badge { border-radius:999px; font-weight:var(--weight-medium); }
-.source-badge--rule-engine { border-color:var(--aegis-source-rule-border); background:var(--aegis-source-rule-bg); color:var(--aegis-source-rule); }
-.source-badge--llm-assist { border-color:var(--aegis-source-ai-border); background:var(--aegis-source-ai-bg); color:var(--aegis-source-ai); }
-.source-badge--both { border-color:var(--aegis-source-both-border); background:var(--aegis-source-both-bg); color:var(--aegis-source-both); }
-.source-badge--agent { border-color:var(--aegis-source-agent-border); background:var(--aegis-source-agent-bg); color:var(--aegis-source-agent); }
-.source-badge--sast-tool { border-color:var(--aegis-source-sast-border); background:var(--aegis-source-sast-bg); color:var(--aegis-source-sast); }

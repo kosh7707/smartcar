@@ -1,10 +1,10 @@
 import React from "react";
 import { useParams } from "react-router-dom";
-import { useToast } from "../../contexts/ToastContext";
-import { Spinner } from "../../shared/ui";
-import { ReportContent } from "./components/ReportContent";
-import { ReportUnavailableState } from "./components/ReportUnavailableState";
-import { useReportPage } from "./hooks/useReportPage";
+import { useToast } from "@/common/contexts/ToastContext";
+import { Spinner } from "@/common/ui/primitives";
+import { ReportContent } from "./components/ReportContent/ReportContent";
+import { ReportUnavailableState } from "./components/ReportUnavailableState/ReportUnavailableState";
+import { useReportPageController } from "./useReportPageController";
 import "./ReportPage.css";
 
 export const ReportPage: React.FC = () => {
@@ -31,7 +31,7 @@ export const ReportPage: React.FC = () => {
     allRuns,
     sevCounts,
     deepResult,
-  } = useReportPage(projectId, toast);
+  } = useReportPageController(projectId, toast);
 
   if (loading) {
     return (

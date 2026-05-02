@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from app.agent_runtime.schemas.agent import (
@@ -71,6 +73,36 @@ class _FailingImpl:
             content='{"error": "fail"}',
             error="some_error",
         )
+
+
+class _TrackingImpl:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def execute(self, arguments: dict) -> ToolResult:
+        self.calls += 1
+        return ToolResult(
+            tool_call_id="",
+            name="",
+            success=True,
+            content='{"ok": true}',
+        )
+
+
+class _TrackingHook:
+    def __init__(self) -> None:
+        self.pre_calls = 0
+        self.post_calls = 0
+
+    def pre_tool_use(self, name: str, args: dict):
+        self.pre_calls += 1
+        from app.agent_runtime.tools.hooks import HookResult
+        return HookResult.allowed()
+
+    def post_tool_use(self, name: str, args: dict, output: str, is_error: bool):
+        self.post_calls += 1
+        from app.agent_runtime.tools.hooks import HookResult
+        return HookResult.allowed()
 
 
 def _build_router(
@@ -258,3 +290,30 @@ async def test_write_tool_success_clears_duplicate_hashes() -> None:
     r2 = await router.execute([call2], session)
     assert r2[0].success is True
     assert bm.state.total_steps == 2
+
+
+@pytest.mark.asyncio
+async def test_schema_violation_returns_error_without_execution_budget_or_trace() -> None:
+    hook_runner = HookRunner()
+    tracking_hook = _TrackingHook()
+    hook_runner.register(tracking_hook)
+    router, bm, session = _build_router(hook_runner=hook_runner)
+    impl = _TrackingImpl()
+    router.register_implementation("read_file", impl)
+
+    call = _make_call(args={"path": 123})
+    results = await router.execute([call], session)
+
+    assert results[0].success is False
+    assert results[0].error == "schema_violation"
+    payload = json.loads(results[0].content)
+    assert payload["tool"] == "read_file"
+    assert payload["retryHint"]
+    assert any("$.path" in violation for violation in payload["violations"])
+    assert impl.calls == 0
+    assert tracking_hook.pre_calls == 0
+    assert tracking_hook.post_calls == 0
+    assert bm.state.total_steps == 0
+    assert bm.state.cheap_calls == 0
+    assert bm.is_duplicate_call(call.args_hash) is False
+    assert session.trace == []

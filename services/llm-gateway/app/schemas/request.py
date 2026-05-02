@@ -48,15 +48,22 @@ class TaskRequest(BaseModel):
     metadata: RequestMetadata | None = None
 
 
+class ChatTemplateKwargs(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    enable_thinking: bool
+
+
 class AsyncChatSubmitRequest(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     model: str | None = None
     messages: list[dict] = Field(min_length=1)
-    max_tokens: int | None = Field(default=None, ge=1, le=32768)
-    temperature: float | None = Field(default=None, ge=0.0, le=2.0)
-    top_p: float | None = Field(default=None, ge=0.0, le=1.0)
-    top_k: int | None = Field(default=None, ge=-1)
-    min_p: float | None = Field(default=None, ge=0.0, le=1.0)
-    presence_penalty: float | None = Field(default=None, ge=-2.0, le=2.0)
-    repetition_penalty: float | None = Field(default=None, ge=0.0, le=2.0)
+    max_tokens: int = Field(ge=1, le=32768)
+    temperature: float = Field(ge=0.0, le=2.0)
+    top_p: float = Field(ge=0.0, le=1.0)
+    top_k: int = Field(ge=-1)
+    min_p: float = Field(ge=0.0, le=1.0)
+    presence_penalty: float = Field(ge=-2.0, le=2.0)
+    repetition_penalty: float = Field(ge=0.0, le=2.0)
+    chat_template_kwargs: ChatTemplateKwargs

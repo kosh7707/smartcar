@@ -1,0 +1,11 @@
+.files-upload-banner {
+  display:inline-flex;
+  align-items:center;
+  gap:12px;
+  padding:12px 16px;
+  border:1px solid color-mix(in srgb, var(--primary) 20%, transparent);
+  border-radius:var(--radius-xl);
+  background:color-mix(in srgb, var(--primary) 5%, transparent);
+  font-size:var(--text-sm);
+  color:var(--foreground);
+}

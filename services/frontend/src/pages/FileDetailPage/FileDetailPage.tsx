@@ -1,15 +1,15 @@
 import React from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { useToast } from "../../contexts/ToastContext";
-import { VulnerabilityDetailView } from "../../shared/findings/VulnerabilityDetailView";
-import { BackButton, Spinner } from "../../shared/ui";
-import { renderMarkdown } from "../../utils/markdown";
-import { FileDetailAnalysisHistorySection } from "./components/FileDetailAnalysisHistorySection";
-import { FileDetailHeader } from "./components/FileDetailHeader";
-import { FileDetailMissingState } from "./components/FileDetailMissingState";
-import { FileDetailSourcePanel } from "./components/FileDetailSourcePanel";
-import { FileDetailVulnerabilitiesSection } from "./components/FileDetailVulnerabilitiesSection";
-import { useFileDetailPage } from "./hooks/useFileDetailPage";
+import { useToast } from "@/common/contexts/ToastContext";
+import { VulnerabilityDetailView } from "@/common/ui/findings/VulnerabilityDetailView";
+import { BackButton, Spinner } from "@/common/ui/primitives";
+import { renderMarkdown } from "@/common/utils/markdown";
+import { FileDetailAnalysisHistorySection } from "./components/FileDetailAnalysisHistorySection/FileDetailAnalysisHistorySection";
+import { FileDetailHeader } from "./components/FileDetailHeader/FileDetailHeader";
+import { FileDetailMissingState } from "./components/FileDetailMissingState/FileDetailMissingState";
+import { FileDetailSourcePanel } from "./components/FileDetailSourcePanel/FileDetailSourcePanel";
+import { FileDetailVulnerabilitiesSection } from "./components/FileDetailVulnerabilitiesSection/FileDetailVulnerabilitiesSection";
+import { useFileDetailPageController } from "./useFileDetailPageController";
 import "./FileDetailPage.css";
 
 export const FileDetailPage: React.FC = () => {
@@ -18,7 +18,7 @@ export const FileDetailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const highlightLine = Number.parseInt(searchParams.get("line") ?? "0", 10) || 0;
   const toast = useToast();
-  const state = useFileDetailPage(projectId, fileId, highlightLine, toast);
+  const state = useFileDetailPageController(projectId, fileId, highlightLine, toast);
 
   if (state.selectedVulnerability) {
     return (

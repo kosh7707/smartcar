@@ -1,0 +1,83 @@
+
+
+/* ── Extracted from app-shell.css (Phase 1a.1 pass 4) ── */
+.toast-stack {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1000;
+  display: flex;
+  width: min(100%, 560px);
+  max-width: calc(100vw - 32px);
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface-raised) 90%, transparent);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-popover);
+  backdrop-filter: blur(12px);
+  font-size: var(--text-sm);
+  animation: fade-in 180ms ease;
+}
+.toast__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+}
+.toast__message {
+  flex: 1;
+  line-height: 1.4;
+}
+.toast__action,
+.toast__close {
+  flex-shrink: 0;
+  color: inherit;
+}
+.toast__action {
+  white-space: nowrap;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  padding: 3px 10px;
+  font-size: 13px;
+  font-weight: var(--weight-medium);
+  opacity: 0.82;
+  transition: opacity var(--duration-fast), background-color var(--duration-fast);
+}
+.toast__action:hover {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+.toast__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.65;
+  transition: opacity var(--duration-fast);
+}
+.toast__close:hover {
+  opacity: 1;
+}
+.toast--warning {
+  border-color: color-mix(in srgb, var(--severity-medium) 28%, transparent);
+  background: color-mix(in srgb, var(--surface-raised) 92%, var(--severity-medium) 8%);
+  color: var(--severity-medium);
+}
+.toast--error {
+  border-color: color-mix(in srgb, var(--severity-critical) 28%, transparent);
+  background: color-mix(in srgb, var(--surface-raised) 92%, var(--danger) 8%);
+  color: var(--severity-high);
+}
+.toast--success {
+  border-color: color-mix(in srgb, var(--status-fixed) 28%, transparent);
+  background: color-mix(in srgb, var(--surface-raised) 92%, var(--success) 8%);
+  color: var(--success);
+}

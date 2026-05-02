@@ -62,6 +62,12 @@ async def test_eval_runner_prefers_async_ownership_when_available():
 
     assert result["choices"][0]["message"]["content"] == '{"summary":"async ok"}'
     submit_args = client.post.await_args_list[0]
+    assert submit_args.kwargs["json"]["temperature"] == 1.0
+    assert submit_args.kwargs["json"]["top_p"] == 0.95
+    assert submit_args.kwargs["json"]["top_k"] == 20
+    assert submit_args.kwargs["json"]["min_p"] == 0.0
+    assert submit_args.kwargs["json"]["presence_penalty"] == 0.0
+    assert submit_args.kwargs["json"]["repetition_penalty"] == 1.0
     assert submit_args.kwargs["json"]["chat_template_kwargs"] == {"enable_thinking": True}
     assert submit_args.kwargs["headers"]["X-AEGIS-Strict-JSON"] == "true"
 
@@ -94,6 +100,12 @@ async def test_eval_runner_falls_back_to_sync_chat_when_async_unavailable():
     assert result["choices"][0]["message"]["content"] == '{"summary":"sync ok"}'
     assert client.post.await_count == 2
     sync_args = client.post.await_args_list[1]
+    assert sync_args.kwargs["json"]["temperature"] == 1.0
+    assert sync_args.kwargs["json"]["top_p"] == 0.95
+    assert sync_args.kwargs["json"]["top_k"] == 20
+    assert sync_args.kwargs["json"]["min_p"] == 0.0
+    assert sync_args.kwargs["json"]["presence_penalty"] == 0.0
+    assert sync_args.kwargs["json"]["repetition_penalty"] == 1.0
     assert sync_args.kwargs["json"]["chat_template_kwargs"] == {"enable_thinking": True}
     assert sync_args.kwargs["headers"]["X-AEGIS-Strict-JSON"] == "true"
 

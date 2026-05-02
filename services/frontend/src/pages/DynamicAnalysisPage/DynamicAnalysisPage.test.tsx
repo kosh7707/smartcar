@@ -11,7 +11,7 @@ const mockStopDynamicSession = vi.fn();
 const mockUseAdapters = vi.fn();
 const mockToast = { error: vi.fn(), success: vi.fn(), warning: vi.fn() };
 
-vi.mock("../../api/client", () => ({
+vi.mock("@/common/api/client", () => ({
   fetchDynamicSessions: (...args: unknown[]) => mockFetchDynamicSessions(...args),
   createDynamicSession: (...args: unknown[]) => mockCreateDynamicSession(...args),
   startDynamicSession: (...args: unknown[]) => mockStartDynamicSession(...args),
@@ -20,10 +20,10 @@ vi.mock("../../api/client", () => ({
   logError: vi.fn(),
 }));
 
-vi.mock("../../hooks/useAdapters", () => ({ useAdapters: (...args: unknown[]) => mockUseAdapters(...args) }));
-vi.mock("../../contexts/ToastContext", () => ({ useToast: () => mockToast }));
-vi.mock("./components/MonitoringView", () => ({ MonitoringView: () => <div>monitoring-view</div> }));
-vi.mock("./components/SessionDetailView", () => ({ SessionDetailView: () => <div>session-detail-view</div> }));
+vi.mock("@/common/hooks/useAdapters", () => ({ useAdapters: (...args: unknown[]) => mockUseAdapters(...args) }));
+vi.mock("@/common/contexts/ToastContext", () => ({ useToast: () => mockToast }));
+vi.mock("./components/MonitoringView/MonitoringView", () => ({ MonitoringView: () => <div>monitoring-view</div> }));
+vi.mock("./components/SessionDetailView/SessionDetailView", () => ({ SessionDetailView: () => <div>session-detail-view</div> }));
 
 function makeSession(overrides: Record<string, unknown> = {}) {
   return {

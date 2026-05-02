@@ -1,6 +1,9 @@
+from app.routers import tasks
 from app.schemas.request import BuildMode, BuildResolveContract, ContractVersion
+from app.schemas.response import AssessmentResult, AuditInfo, TaskSuccessResponse, TokenUsage, ValidationInfo
 from app.validators.build_request_contract import BuildRequestContractValidator, normalize_contract_version
 from app.schemas.request import Context, TaskRequest
+from app.types import TaskStatus
 from app.types import TaskType
 
 
@@ -9,6 +12,33 @@ def _request(trusted: dict) -> TaskRequest:
         taskType=TaskType.BUILD_RESOLVE,
         taskId="build-contract-test",
         context=Context(trusted=trusted),
+    )
+
+
+def _completed_response(task_type: TaskType = TaskType.BUILD_RESOLVE) -> TaskSuccessResponse:
+    return TaskSuccessResponse(
+        taskId="build-contract-http-001",
+        taskType=task_type,
+        status=TaskStatus.COMPLETED,
+        modelProfile="test",
+        promptVersion="build-agent-v1",
+        schemaVersion="build-v1.1",
+        validation=ValidationInfo(valid=True, errors=[]),
+        result=AssessmentResult(
+            summary="build completed",
+            claims=[],
+            caveats=[],
+            usedEvidenceRefs=[],
+            buildResult={"success": True, "buildCommand": "make", "buildScript": "build.sh"},
+        ),
+        audit=AuditInfo(
+            inputHash="sha256:test",
+            latencyMs=0,
+            tokenUsage=TokenUsage(prompt=0, completion=0),
+            retryCount=0,
+            ragHits=0,
+            createdAt="2026-04-29T00:00:00Z",
+        ),
     )
 
 
@@ -125,3 +155,91 @@ def test_strict_sdk_requires_materialization_source() -> None:
 
     assert preflight is None
     assert any("materialization source" in error for error in errors)
+
+
+def test_build_route_accepts_camel_case_generation_constraints(client, monkeypatch) -> None:
+    captured = {}
+
+    async def fake_build(request):
+        captured["constraints"] = request.constraints
+        return _completed_response()
+
+    monkeypatch.setattr(tasks, "_handle_build_resolve", fake_build)
+
+    response = client.post(
+        "/v1/tasks",
+        json={
+            "taskType": "build-resolve",
+            "taskId": "build-contract-http-constraints-001",
+            "context": {
+                "trusted": {
+                    "projectPath": "/tmp/project",
+                    "buildTargetPath": "gateway",
+                    "buildTargetName": "gateway",
+                },
+            },
+            "constraints": {
+                "maxTokens": 32768,
+                "enableThinking": False,
+                "temperature": 0.7,
+                "topP": 0.85,
+                "topK": 9,
+                "minP": 0.15,
+                "presencePenalty": 0.3,
+                "repetitionPenalty": 1.05,
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    constraints = captured["constraints"]
+    assert constraints.maxTokens == 32768
+    assert constraints.enableThinking is False
+    assert constraints.temperature == 0.7
+    assert constraints.topP == 0.85
+    assert constraints.topK == 9
+    assert constraints.minP == 0.15
+    assert constraints.presencePenalty == 0.3
+    assert constraints.repetitionPenalty == 1.05
+
+
+def test_build_route_rejects_snake_case_generation_constraints(client) -> None:
+    response = client.post(
+        "/v1/tasks",
+        json={
+            "taskType": "build-resolve",
+            "taskId": "build-contract-http-constraints-bad-001",
+            "context": {
+                "trusted": {
+                    "projectPath": "/tmp/project",
+                    "buildTargetPath": "gateway",
+                    "buildTargetName": "gateway",
+                },
+            },
+            "constraints": {"top_p": 0.8},
+        },
+    )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert any("top_p" in str(item.get("loc", ())) for item in detail)
+
+
+def test_build_route_rejects_max_tokens_above_32768(client) -> None:
+    response = client.post(
+        "/v1/tasks",
+        json={
+            "taskType": "build-resolve",
+            "taskId": "build-contract-http-max-001",
+            "context": {
+                "trusted": {
+                    "projectPath": "/tmp/project",
+                    "buildTargetPath": "gateway",
+                    "buildTargetName": "gateway",
+                },
+            },
+            "constraints": {"maxTokens": 32769},
+        },
+    )
+
+    assert response.status_code == 422

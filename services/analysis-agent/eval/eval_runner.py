@@ -27,12 +27,13 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from app.core.phase_one import Phase1Result, build_phase2_prompt
+from app.agent_runtime.llm.generation_policy import THINKING_GENERAL, TimeoutDefaults
 from eval.scorer import score_response
 
 _GOLDEN_DIR = Path(__file__).parent / "golden" / "cases"
 _RESULTS_DIR = Path(__file__).parent / "results"
 _ASYNC_UNSUPPORTED_RETRY_SECONDS = 60.0
-_ASYNC_POLL_DEADLINE_SECONDS = 1740.0
+_ASYNC_POLL_DEADLINE_SECONDS = TimeoutDefaults.CHAT_DEFAULT_SECONDS - 60.0
 
 
 def _load_golden_cases(golden_dir: Path, case_filter: str = "") -> list[dict]:
@@ -113,14 +114,13 @@ async def _call_llm(
             {"role": "user", "content": user_message},
         ],
         "max_tokens": max_tokens,
-        "temperature": 0.3,
-        "chat_template_kwargs": {"enable_thinking": True},
         "response_format": {"type": "json_object"},
     }
+    body.update(THINKING_GENERAL.to_gateway_fields())
 
     headers = {
         "Content-Type": "application/json",
-        "X-Timeout-Seconds": "600",
+        "X-Timeout-Seconds": str(int(TimeoutDefaults.TASK_CLIENT_READ_SECONDS)),
         "X-AEGIS-Strict-JSON": "true",
     }
 
@@ -132,7 +132,7 @@ async def _call_llm(
         f"{gateway_url}/v1/chat",
         json=body,
         headers=headers,
-        timeout=httpx.Timeout(connect=10.0, read=660.0, write=10.0, pool=30.0),
+        timeout=httpx.Timeout(connect=10.0, read=TimeoutDefaults.TASK_CLIENT_READ_SECONDS + 60.0, write=10.0, pool=30.0),
     )
     resp.raise_for_status()
     return resp.json()

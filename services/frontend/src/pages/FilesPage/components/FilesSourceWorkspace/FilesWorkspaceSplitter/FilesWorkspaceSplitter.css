@@ -1,0 +1,4 @@
+.files-workspace-splitter { align-self: stretch; }
+.files-workspace-splitter { position:relative; display:block; cursor:col-resize; border:0; background:transparent; }
+.files-workspace-splitter::after { content:""; position:absolute; inset:0 auto 0 50%; width:2px; transform:translateX(-50%); border-radius:999px; background: var(--border); }
+.files-workspace-splitter:hover::after, .files-workspace-splitter.is-resizing::after { background: var(--primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 8%, transparent); }

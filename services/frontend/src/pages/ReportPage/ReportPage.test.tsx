@@ -3,14 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import type { ProjectReport } from "@aegis/shared";
-import { ApiError } from "../../api/client";
+import { ApiError } from "@/common/api/client";
 import { ReportPage } from "./ReportPage";
 
 const mockFetchProjectReport = vi.fn();
 const mockToast = { error: vi.fn(), success: vi.fn(), info: vi.fn() };
 
-vi.mock("../../api/client", async () => {
-  const actual = await vi.importActual<typeof import("../../api/client")>("../../api/client");
+vi.mock("@/common/api/client", async () => {
+  const actual = await vi.importActual<typeof import("@/common/api/client")>("@/common/api/client");
   return {
     ...actual,
     fetchProjectReport: (...args: unknown[]) => mockFetchProjectReport(...args),
@@ -18,11 +18,11 @@ vi.mock("../../api/client", async () => {
   };
 });
 
-vi.mock("../../contexts/ToastContext", () => ({
+vi.mock("@/common/contexts/ToastContext", () => ({
   useToast: () => mockToast,
 }));
 
-vi.mock("./components/CustomReportModal", () => ({
+vi.mock("./components/CustomReportModal/CustomReportModal", () => ({
   CustomReportModal: ({ projectId, onClose }: { projectId: string; onClose: () => void }) => (
     <div data-testid="custom-report-modal">
       <span>custom report for {projectId}</span>

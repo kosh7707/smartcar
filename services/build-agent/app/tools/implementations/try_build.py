@@ -10,6 +10,7 @@ import logging
 import re
 
 import httpx
+from app.agent_runtime.llm.generation_policy import TimeoutDefaults
 from app.agent_runtime.schemas.agent import ToolResult
 
 logger = logging.getLogger(__name__)
@@ -97,7 +98,8 @@ class TryBuildTool:
         build_cmd = _BEAR_PREFIX_RE.sub("", build_cmd).strip()
 
         try:
-            headers = {"X-Request-Id": self._request_id, "X-Timeout-Ms": "120000"} if self._request_id else {"X-Timeout-Ms": "120000"}
+            timeout_ms = str(int(TimeoutDefaults.TOOL_EXECUTION_SECONDS * 1000))
+            headers = {"X-Request-Id": self._request_id, "X-Timeout-Ms": timeout_ms} if self._request_id else {"X-Timeout-Ms": timeout_ms}
             merged_environment = dict(self._default_build_environment)
             if build_environment:
                 merged_environment.update(build_environment)

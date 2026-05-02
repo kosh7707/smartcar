@@ -1,0 +1,17 @@
+.build-target-create-dialog { display:flex; flex-direction:column; max-height:85vh; max-width:600px; grid-template-rows:auto 1fr auto; gap:0; overflow:hidden; border-color:var(--border); background:var(--card); padding:0; box-shadow:var(--shadow-lg); }
+@media (min-width: 640px) {
+  .build-target-create-dialog { max-width:600px; }
+}
+.build-target-create-dialog__header { padding:16px 20px; border-bottom:1px solid var(--border); }
+.build-target-create-dialog__body { min-height:0; flex:1; display:flex; flex-direction:column; gap:16px; overflow-y:auto; padding:16px 20px; }
+.build-target-create-dialog__field { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+.build-target-create-dialog__section { display:flex; flex-direction:column; gap:12px; }
+.build-target-create-dialog__section-title { font-size:var(--text-sm); font-weight:var(--weight-medium); color:var(--foreground); }
+.build-target-create-dialog__help { font-size:var(--text-sm); line-height:1.5rem; color:var(--foreground-muted); }
+.build-target-create-dialog__selection-summary { padding-block:4px; font-size:var(--text-sm); color:var(--foreground-muted); }
+.build-target-create-dialog__selection-count { font-weight:var(--weight-semibold); color:var(--primary); }
+.build-target-create-dialog__footer { flex-direction:row; justify-content:flex-end; gap:8px; padding:16px 20px; border-top:1px solid var(--border); background:color-mix(in srgb, var(--surface-sunken) 30%, transparent); }
+@media (max-width: 639px) {
+  .build-target-create-dialog__footer { flex-direction:column-reverse; }
+  .build-target-create-dialog__footer > * { width:100%; }
+}

@@ -13,9 +13,18 @@ class Context(BaseModel):
     untrusted: dict | None = None
 
 class Constraints(BaseModel):
-    maxTokens: int = Field(8192, ge=1, le=16384)
+    model_config = ConfigDict(extra="forbid")
+
+    maxTokens: int = Field(8192, ge=1, le=32768)
     timeoutMs: int = Field(600000, ge=1000, le=900000)
     outputSchema: str | None = None
+    enableThinking: bool | None = None
+    temperature: float | None = Field(default=None, ge=0.0, le=2.0)
+    topP: float | None = Field(default=None, ge=0.0, le=1.0)
+    topK: int | None = Field(default=None, ge=1)
+    minP: float | None = Field(default=None, ge=0.0, le=1.0)
+    presencePenalty: float | None = Field(default=None, ge=-2.0, le=2.0)
+    repetitionPenalty: float | None = Field(default=None, ge=0.0, le=2.0)
 
 class EvidenceRef(BaseModel):
     refId: str

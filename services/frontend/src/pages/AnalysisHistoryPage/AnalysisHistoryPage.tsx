@@ -1,11 +1,11 @@
 import React, { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { PageHeader, Spinner } from "../../shared/ui";
-import { useToast } from "../../contexts/ToastContext";
-import { getModuleRoute } from "../../constants/modules";
-import { AnalysisHistoryToolbar } from "./components/AnalysisHistoryToolbar";
-import { AnalysisHistoryRunsTable } from "./components/AnalysisHistoryRunsTable";
-import { useAnalysisHistoryPage } from "./hooks/useAnalysisHistoryPage";
+import { PageHeader, Spinner } from "@/common/ui/primitives";
+import { useToast } from "@/common/contexts/ToastContext";
+import { getModuleRoute } from "@/common/constants/modules";
+import { AnalysisHistoryToolbar } from "./components/AnalysisHistoryToolbar/AnalysisHistoryToolbar";
+import { AnalysisHistoryRunsTable } from "./components/AnalysisHistoryRunsTable/AnalysisHistoryRunsTable";
+import { useAnalysisHistoryPageController } from "./useAnalysisHistoryPageController";
 import "./AnalysisHistoryPage.css";
 
 export const AnalysisHistoryPage: React.FC = () => {
@@ -20,7 +20,7 @@ export const AnalysisHistoryPage: React.FC = () => {
     filteredRuns,
     completedCount,
     failedCount,
-  } = useAnalysisHistoryPage(projectId, toast);
+  } = useAnalysisHistoryPageController(projectId, toast);
 
   useEffect(() => {
     document.title = "AEGIS — 분석 이력";

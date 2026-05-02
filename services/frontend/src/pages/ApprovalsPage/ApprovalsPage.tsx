@@ -1,15 +1,15 @@
 import React, { useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import type { ApprovalRequest } from "../../api/approval";
-import { PageHeader, Spinner } from "../../shared/ui";
-import { useToast } from "../../contexts/ToastContext";
-import { ApprovalListRail } from "./components/ApprovalListRail";
-import { ApprovalDocument } from "./components/ApprovalDocument";
+import type { ApprovalRequest } from "@/common/api/approval";
+import { PageHeader, Spinner } from "@/common/ui/primitives";
+import { useToast } from "@/common/contexts/ToastContext";
+import { ApprovalListRail } from "./components/ApprovalListRail/ApprovalListRail";
+import { ApprovalDocument } from "./components/ApprovalDocument/ApprovalDocument";
 import {
-  useApprovalsPage,
+  useApprovalsPageController,
   type ApprovalFilterStatus,
-} from "./hooks/useApprovalsPage";
-import { formatRelative } from "./components/approvalFormat";
+} from "./useApprovalsPageController";
+import { formatRelative } from "./approvalFormat";
 import "./ApprovalsPage.css";
 
 const FILTER_TABS: { id: ApprovalFilterStatus; label: string }[] = [
@@ -39,7 +39,7 @@ export const ApprovalsPage: React.FC = () => {
     sevenDayStats,
     imminentCount,
     oldestPendingAge,
-  } = useApprovalsPage(projectId, toast);
+  } = useApprovalsPageController(projectId, toast);
 
   useEffect(() => {
     document.title = "AEGIS — 승인 큐";

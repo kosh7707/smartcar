@@ -1,16 +1,16 @@
 import React from "react";
 import { useParams } from "react-router-dom";
-import { useToast } from "../../contexts/ToastContext";
-import { ConfirmDialog, ConnectionStatusBanner, Spinner } from "../../shared/ui";
-import { ProjectSettingsHeader } from "./components/ProjectSettingsHeader";
-import { ProjectSettingsContent } from "./components/ProjectSettingsContent";
-import { useProjectSettingsPage } from "./hooks/useProjectSettingsPage";
+import { useToast } from "@/common/contexts/ToastContext";
+import { ConfirmDialog, ConnectionStatusBanner, Spinner } from "@/common/ui/primitives";
+import { ProjectSettingsHeader } from "./components/ProjectSettingsHeader/ProjectSettingsHeader";
+import { ProjectSettingsContent } from "./components/ProjectSettingsContent/ProjectSettingsContent";
+import { useProjectSettingsPageController } from "./useProjectSettingsPageController";
 import "./ProjectSettingsPage.css";
 
 export const ProjectSettingsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const toast = useToast();
-  const state = useProjectSettingsPage(projectId, toast);
+  const state = useProjectSettingsPageController(projectId, toast);
 
   if (state.loading) {
     return (

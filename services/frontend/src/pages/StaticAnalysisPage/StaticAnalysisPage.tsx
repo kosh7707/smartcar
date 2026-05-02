@@ -1,12 +1,12 @@
 import React from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { useStaticDashboard } from "../../hooks/useStaticDashboard";
-import { useAnalysisWebSocket } from "../../hooks/useAnalysisWebSocket";
-import { useBuildTargets } from "../../hooks/useBuildTargets";
-import { useToast } from "../../contexts/ToastContext";
-import { useSetAnalysisGuard } from "../../contexts/AnalysisGuardContext";
-import { StaticAnalysisViewRouter } from "./components/StaticAnalysisViewRouter";
-import { useStaticAnalysisPage } from "./hooks/useStaticAnalysisPage";
+import { useStaticDashboard } from "@/common/hooks/useStaticDashboard";
+import { useAnalysisWebSocket } from "@/common/hooks/useAnalysisWebSocket";
+import { useBuildTargets } from "@/common/hooks/useBuildTargets";
+import { useToast } from "@/common/contexts/ToastContext";
+import { useSetAnalysisGuard } from "@/common/contexts/AnalysisGuardContext";
+import { StaticAnalysisViewRouter } from "./components/StaticAnalysisViewRouter/StaticAnalysisViewRouter";
+import { useStaticAnalysisPageController } from "./useStaticAnalysisPageController";
 import "./StaticAnalysisPage.css";
 
 export const StaticAnalysisPage: React.FC = () => {
@@ -18,7 +18,7 @@ export const StaticAnalysisPage: React.FC = () => {
   const dashboard = useStaticDashboard(projectId);
   const analysis = useAnalysisWebSocket();
   const buildTargets = useBuildTargets(projectId);
-  const state = useStaticAnalysisPage(
+  const state = useStaticAnalysisPageController(
     projectId,
     dashboard,
     analysis,

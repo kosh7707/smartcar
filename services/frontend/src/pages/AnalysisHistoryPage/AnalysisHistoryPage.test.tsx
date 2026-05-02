@@ -18,12 +18,12 @@ vi.mock("react-router-dom", async () => {
   };
 });
 
-vi.mock("../../api/client", () => ({
+vi.mock("@/common/api/client", () => ({
   fetchProjectRuns: (...args: unknown[]) => mockFetchProjectRuns(...args),
   logError: (...args: unknown[]) => mockLogError(...args),
 }));
 
-vi.mock("../../contexts/ToastContext", () => ({
+vi.mock("@/common/contexts/ToastContext", () => ({
   useToast: () => mockToast,
 }));
 

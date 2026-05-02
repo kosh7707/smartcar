@@ -12,12 +12,12 @@ const mockFetchRunDetail = vi.fn();
 const mockFetchAnalysisStatus = vi.fn();
 const mockFetchAnalysisResults = vi.fn();
 
-vi.mock("../../hooks/useStaticDashboard", () => ({ useStaticDashboard: (...args: unknown[]) => mockUseStaticDashboard(...args) }));
-vi.mock("../../hooks/useAnalysisWebSocket", () => ({ useAnalysisWebSocket: () => mockUseAnalysisWebSocket() }));
-vi.mock("../../hooks/useBuildTargets", () => ({ useBuildTargets: (...args: unknown[]) => mockUseBuildTargets(...args) }));
-vi.mock("../../contexts/ToastContext", () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn() }) }));
-vi.mock("../../contexts/AnalysisGuardContext", () => ({ useSetAnalysisGuard: () => ({ setBlocking: mockSetBlocking }) }));
-vi.mock("../../api/client", () => ({
+vi.mock("@/common/hooks/useStaticDashboard", () => ({ useStaticDashboard: (...args: unknown[]) => mockUseStaticDashboard(...args) }));
+vi.mock("@/common/hooks/useAnalysisWebSocket", () => ({ useAnalysisWebSocket: () => mockUseAnalysisWebSocket() }));
+vi.mock("@/common/hooks/useBuildTargets", () => ({ useBuildTargets: (...args: unknown[]) => mockUseBuildTargets(...args) }));
+vi.mock("@/common/contexts/ToastContext", () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn() }) }));
+vi.mock("@/common/contexts/AnalysisGuardContext", () => ({ useSetAnalysisGuard: () => ({ setBlocking: mockSetBlocking }) }));
+vi.mock("@/common/api/client", () => ({
   fetchProjectFiles: vi.fn(() => Promise.resolve([])),
   fetchProjectFindings: vi.fn(() => Promise.resolve([])),
   fetchSourceFiles: vi.fn(() => Promise.resolve([])),
@@ -26,7 +26,7 @@ vi.mock("../../api/client", () => ({
   fetchAnalysisResults: (...args: unknown[]) => mockFetchAnalysisResults(...args),
   logError: vi.fn(),
 }));
-vi.mock("./components/StaticAnalysisUploadScreen", () => ({
+vi.mock("./components/StaticAnalysisUploadScreen/StaticAnalysisUploadScreen", () => ({
   StaticAnalysisUploadScreen: ({ onAnalysisStart, onBrowseTree }: { onAnalysisStart: () => void; onBrowseTree: () => void }) => (
     <div>
       <div>source-upload-view</div>
@@ -35,7 +35,7 @@ vi.mock("./components/StaticAnalysisUploadScreen", () => ({
     </div>
   ),
 }));
-vi.mock("./components/StaticDashboard", () => ({
+vi.mock("./components/StaticDashboard/StaticDashboard", () => ({
   StaticDashboard: ({ onNewAnalysis, onViewRun }: { onNewAnalysis: () => void; onViewRun: (runId: string) => void }) => (
     <div>
       <div>static-dashboard-view</div>
@@ -44,12 +44,12 @@ vi.mock("./components/StaticDashboard", () => ({
     </div>
   ),
 }));
-vi.mock("./components/TwoStageProgressView", () => ({ TwoStageProgressView: () => <div>two-stage-progress-view</div> }));
-vi.mock("./components/RunDetailView", () => ({ RunDetailView: () => <div>run-detail-view</div> }));
-vi.mock("../../shared/findings/FindingDetailView", () => ({ FindingDetailView: () => <div>finding-detail-view</div> }));
-vi.mock("../../shared/findings/VulnerabilityDetailView", () => ({ VulnerabilityDetailView: () => <div>vulnerability-detail-view</div> }));
-vi.mock("./components/AnalysisResultsView", () => ({ AnalysisResultsView: () => <div>analysis-results-view</div> }));
-vi.mock("./components/TargetSelectDialog", () => ({ TargetSelectDialog: () => null }));
+vi.mock("./components/TwoStageProgressView/TwoStageProgressView", () => ({ TwoStageProgressView: () => <div>two-stage-progress-view</div> }));
+vi.mock("./components/RunDetailView/RunDetailView", () => ({ RunDetailView: () => <div>run-detail-view</div> }));
+vi.mock("@/common/ui/findings/FindingDetailView", () => ({ FindingDetailView: () => <div>finding-detail-view</div> }));
+vi.mock("@/common/ui/findings/VulnerabilityDetailView", () => ({ VulnerabilityDetailView: () => <div>vulnerability-detail-view</div> }));
+vi.mock("./components/AnalysisResultsView/AnalysisResultsView", () => ({ AnalysisResultsView: () => <div>analysis-results-view</div> }));
+vi.mock("./components/TargetSelectDialog/TargetSelectDialog", () => ({ TargetSelectDialog: () => null }));
 
 function renderPage(initialEntry = "/projects/p-1/static-analysis") {
   return render(

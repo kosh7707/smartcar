@@ -604,6 +604,32 @@ async def test_unstructured_content_retries_and_promotes_gateway_webserver_claim
 
 
 @pytest.mark.asyncio
+async def test_first_tool_turn_requires_tool_choice_then_relaxes_after_success():
+    responses = [
+        LlmResponse(
+            tool_calls=[ToolCallRequest(id="c1", name="knowledge.search", arguments={"query": "CWE-78"})],
+            finish_reason="tool_calls",
+            prompt_tokens=100,
+            completion_tokens=20,
+        ),
+        LlmResponse(
+            content=_final_assessment_json(include_retrieval_ref=True),
+            prompt_tokens=140,
+            completion_tokens=90,
+        ),
+    ]
+    loop, session = _build_agent_loop(responses)
+    result = await loop.run(session)
+
+    assert result.status == "completed"
+    first_call = loop._llm_caller.call.await_args_list[0]
+    second_call = loop._llm_caller.call.await_args_list[1]
+    assert first_call.kwargs["tool_choice"] == "required"
+    assert second_call.kwargs["tool_choice"] == "auto"
+    assert first_call.kwargs["generation"].temperature == 1.0
+
+
+@pytest.mark.asyncio
 async def test_unstructured_content_twice_returns_completed_inconclusive():
     responses = [
         LlmResponse(content=_gateway_webserver_plan_text(), prompt_tokens=100, completion_tokens=40),
@@ -692,6 +718,7 @@ async def test_structured_finalizer_caps_max_tokens_to_remaining_budget():
     assert result.status == "completed"
     finalizer_call = loop._llm_caller.call.call_args_list[-1]
     assert finalizer_call.kwargs["max_tokens"] == 600
+    assert finalizer_call.kwargs["generation"].temperature == 0.0
 
 
 @pytest.mark.asyncio

@@ -16,7 +16,7 @@ vi.mock("react-router-dom", async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
-vi.mock("../../api/client", () => ({
+vi.mock("@/common/api/client", () => ({
   fetchProjectFiles: (...args: unknown[]) => mockFetchProjectFiles(...args),
   fetchProjectOverview: (...args: unknown[]) => mockFetchProjectOverview(...args),
   fetchFileContent: (...args: unknown[]) => mockFetchFileContent(...args),
@@ -24,8 +24,8 @@ vi.mock("../../api/client", () => ({
   fetchSourceFiles: vi.fn(),
   logError: vi.fn(),
 }));
-vi.mock("../../contexts/ToastContext", () => ({ useToast: () => mockToast }));
-vi.mock("../../shared/findings/VulnerabilityDetailView", () => ({ VulnerabilityDetailView: () => <div>vuln-detail-view</div> }));
+vi.mock("@/common/contexts/ToastContext", () => ({ useToast: () => mockToast }));
+vi.mock("@/common/ui/findings/VulnerabilityDetailView", () => ({ VulnerabilityDetailView: () => <div>vuln-detail-view</div> }));
 
 function renderPage() {
   return render(

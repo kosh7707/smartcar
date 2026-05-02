@@ -1,12 +1,12 @@
 import React from "react";
 import { useParams } from "react-router-dom";
-import { useToast } from "../../contexts/ToastContext";
-import { useAdapters } from "../../hooks/useAdapters";
-import { DynamicAnalysisConfigView } from "./components/DynamicAnalysisConfigView";
-import { DynamicAnalysisHistoryView } from "./components/DynamicAnalysisHistoryView";
-import { MonitoringView } from "./components/MonitoringView";
-import { SessionDetailView } from "./components/SessionDetailView";
-import { useDynamicAnalysisPage } from "./hooks/useDynamicAnalysisPage";
+import { useToast } from "@/common/contexts/ToastContext";
+import { useAdapters } from "@/common/hooks/useAdapters";
+import { DynamicAnalysisConfigView } from "./components/DynamicAnalysisConfigView/DynamicAnalysisConfigView";
+import { DynamicAnalysisHistoryView } from "./components/DynamicAnalysisHistoryView/DynamicAnalysisHistoryView";
+import { MonitoringView } from "./components/MonitoringView/MonitoringView";
+import { SessionDetailView } from "./components/SessionDetailView/SessionDetailView";
+import { useDynamicAnalysisPageController } from "./useDynamicAnalysisPageController";
 import "./DynamicAnalysisPage.css";
 
 export const DynamicAnalysisPage: React.FC = () => {
@@ -27,7 +27,7 @@ export const DynamicAnalysisPage: React.FC = () => {
     handleCreateSession,
     handleSessionStopped,
     reloadSessions,
-  } = useDynamicAnalysisPage(projectId, toast, connected, hasConnected);
+  } = useDynamicAnalysisPageController(projectId, toast, connected, hasConnected);
 
   if (activeSession) {
     return (

@@ -1,0 +1,50 @@
+@media (max-width: 900px) {
+  .files-workspace-grid { grid-template-columns: 1fr; }
+  .files-workspace-splitter { display:none; }
+}
+@media (min-width: 901px) {
+  .files-workspace-splitter { display:block; }
+}
+.files-workspace-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(280px, var(--files-tree-panel-width)) 12px minmax(360px, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  /* Fixed height; small viewports just page-scroll. */
+  height: 720px;
+  min-height: 480px;
+}
+.files-workspace-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.files-workspace-panel > .files-workspace-panel-body,
+.files-workspace-panel > .files-workspace-preview-body,
+.files-workspace-panel > .files-workspace-empty-preview,
+.files-workspace-panel > .files-workspace-loading-preview {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.files-workspace-head,
+.files-workspace-preview-head,
+.files-workspace-insights-head {
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-sunken) 35%, transparent);
+  flex-shrink: 0;
+}
+.files-workspace-head > .panel-body,
+.files-workspace-preview-head > .panel-body,
+.files-workspace-insights-head > .panel-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  min-height: 48px;
+  box-sizing: border-box;
+}
