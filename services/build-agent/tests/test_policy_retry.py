@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from app.agent_runtime.errors import LlmHttpError, LlmTimeoutError, LlmUnavailableError
+from app.agent_runtime.errors import (
+    LlmContractViolationError,
+    LlmHttpError,
+    LlmTimeoutError,
+    LlmUnavailableError,
+    StrictJsonContractError,
+)
 from app.agent_runtime.policy.retry import RetryPolicy
 
 
@@ -41,6 +47,16 @@ def test_no_retry_after_max(policy: RetryPolicy) -> None:
     assert policy.should_retry(err, attempt=3) is False
 
 
+def test_retry_on_response_contract_violation(policy: RetryPolicy) -> None:
+    err = LlmContractViolationError(violation_reason="response_contract_violation")
+    assert policy.should_retry(err, attempt=0) is True
+
+
+def test_retry_on_strict_json_contract_violation(policy: RetryPolicy) -> None:
+    err = StrictJsonContractError(error_detail="invalid json")
+    assert policy.should_retry(err, attempt=0) is True
+
+
 # ── get_delay_seconds ──────────────────────────────────────
 
 
@@ -57,3 +73,8 @@ def test_delay_timeout_exponential_backoff(policy: RetryPolicy) -> None:
     assert policy.get_delay_seconds(err, attempt=1) == 4.0
     assert policy.get_delay_seconds(err, attempt=2) == 8.0
     assert policy.get_delay_seconds(err, attempt=3) == 8.0  # capped
+
+
+def test_delay_contract_violation_is_short(policy: RetryPolicy) -> None:
+    err = LlmContractViolationError(violation_reason="response_contract_violation")
+    assert policy.get_delay_seconds(err, attempt=0) == 2.0

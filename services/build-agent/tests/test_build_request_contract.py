@@ -1,3 +1,5 @@
+import pytest
+
 from app.routers import tasks
 from app.schemas.request import BuildMode, BuildResolveContract, ContractVersion
 from app.schemas.response import AssessmentResult, AuditInfo, TaskSuccessResponse, TokenUsage, ValidationInfo
@@ -50,7 +52,7 @@ def test_canonical_strict_contract_fields_parse() -> None:
             "buildTargetName": "gateway",
             "contractVersion": "build-resolve-v1",
             "strictMode": True,
-            "build": {"mode": "native", "scriptHintText": "make -j4\n"},
+            "build": {"mode": "native", "scriptHintPath": "scripts/build.sh"},
             "expectedArtifacts": [{"kind": "executable", "path": "build-aegis/gateway"}],
         }
     )
@@ -63,7 +65,62 @@ def test_canonical_strict_contract_fields_parse() -> None:
     assert contract.contractVersion == ContractVersion.BUILD_RESOLVE_V1
     assert normalize_contract_version(contract) == "build-resolve-v1"
     assert contract.expectedArtifacts[0].artifactType.value == "executable"
-    assert contract.buildScriptHintText == "make -j4"
+    assert contract.scriptHintPath == "scripts/build.sh"
+
+
+@pytest.mark.parametrize(
+    "build_blob",
+    [
+        {"mode": "native", "scriptHintText": "make -j4\n"},
+        {"mode": "native", "scriptHint": "make -j4\n"},
+    ],
+)
+def test_inline_build_script_hint_aliases_are_removed(build_blob) -> None:
+    with pytest.raises(ValueError, match="inline build script hints"):
+        BuildResolveContract.model_validate(
+            {
+                "projectPath": "/tmp/project",
+                "buildTargetPath": ".",
+                "buildTargetName": "project",
+                "contractVersion": "build-resolve-v1",
+                "strictMode": True,
+                "build": build_blob,
+                "expectedArtifacts": [{"kind": "file-set", "path": "out"}],
+            }
+        )
+
+
+@pytest.mark.parametrize("field_name", ["buildScriptHint", "buildScriptHintText"])
+def test_top_level_inline_build_script_hint_aliases_are_removed(field_name) -> None:
+    with pytest.raises(ValueError, match="inline build script hints"):
+        BuildResolveContract.model_validate(
+            {
+                "projectPath": "/tmp/project",
+                "buildTargetPath": ".",
+                "buildTargetName": "project",
+                "contractVersion": "build-resolve-v1",
+                "strictMode": True,
+                "build": {"mode": "native"},
+                field_name: "make -j4\n",
+                "expectedArtifacts": [{"kind": "file-set", "path": "out"}],
+            }
+        )
+
+
+def test_top_level_script_hint_path_alias_is_rejected() -> None:
+    with pytest.raises(ValueError, match="context.trusted.build.scriptHintPath"):
+        BuildResolveContract.model_validate(
+            {
+                "projectPath": "/tmp/project",
+                "buildTargetPath": ".",
+                "buildTargetName": "project",
+                "contractVersion": "build-resolve-v1",
+                "strictMode": True,
+                "build": {"mode": "native"},
+                "scriptHintPath": "scripts/build.sh",
+                "expectedArtifacts": [{"kind": "file-set", "path": "out"}],
+            }
+        )
 
 
 
@@ -155,6 +212,151 @@ def test_strict_sdk_requires_materialization_source() -> None:
 
     assert preflight is None
     assert any("materialization source" in error for error in errors)
+
+
+def test_strict_sdk_accepts_uploaded_project_script_hint_path(tmp_path) -> None:
+    project = tmp_path / "project"
+    target = project / "target"
+    scripts = target / "scripts"
+    scripts.mkdir(parents=True)
+    hint = scripts / "build.sh"
+    hint.write_text("#!/bin/bash\necho build\n")
+
+    validator = BuildRequestContractValidator()
+    preflight, errors = validator.validate(
+        _request(
+            {
+                "projectPath": str(project),
+                "buildTargetPath": "target",
+                "buildTargetName": "target",
+                "contractVersion": "build-resolve-v1",
+                "strictMode": True,
+                "build": {"mode": "sdk", "sdkId": "sdk-1", "scriptHintPath": "scripts/build.sh"},
+                "expectedArtifacts": [{"kind": "executable", "path": "target"}],
+            }
+        )
+    )
+
+    assert errors == []
+    assert preflight is not None
+    assert preflight.script_hint is not None
+    assert preflight.script_hint.path == "scripts/build.sh"
+    assert preflight.script_hint.content == "#!/bin/bash\necho build\n"
+    assert preflight.script_hint.size_bytes == len("#!/bin/bash\necho build\n".encode())
+    assert len(preflight.script_hint.sha256) == 64
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("", "must not be empty"),
+        ("/abs/build.sh", "relative uploaded-project path"),
+        ("C:/build.sh", "relative uploaded-project path"),
+        ("\\\\server\\share\\build.sh", "POSIX"),
+        ("../build.sh", "path traversal"),
+        ("scripts/../build.sh", "not contain path traversal"),
+    ],
+)
+def test_script_hint_path_rejects_unsafe_paths(tmp_path, path, expected) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+
+    validator = BuildRequestContractValidator()
+    preflight, errors = validator.validate(
+        _request(
+            {
+                "projectPath": str(project),
+                "buildTargetPath": ".",
+                "buildTargetName": "project",
+                "contractVersion": "build-resolve-v1",
+                "strictMode": True,
+                "build": {"mode": "native", "scriptHintPath": path},
+                "expectedArtifacts": [{"kind": "file-set", "path": "out"}],
+            }
+        )
+    )
+
+    assert preflight is None
+    assert any(expected in error for error in errors)
+
+
+def test_script_hint_path_is_relative_to_effective_build_target_root(tmp_path) -> None:
+    project = tmp_path / "project"
+    (project / "scripts").mkdir(parents=True)
+    (project / "scripts" / "build.sh").write_text("#!/bin/bash\necho root\n")
+    (project / "target").mkdir()
+
+    validator = BuildRequestContractValidator()
+    preflight, errors = validator.validate(
+        _request(
+            {
+                "projectPath": str(project),
+                "buildTargetPath": "target",
+                "buildTargetName": "target",
+                "contractVersion": "build-resolve-v1",
+                "strictMode": True,
+                "build": {"mode": "native", "scriptHintPath": "scripts/build.sh"},
+                "expectedArtifacts": [{"kind": "file-set", "path": "out"}],
+            }
+        )
+    )
+
+    assert preflight is None
+    assert any("regular file" in error for error in errors)
+
+
+def test_script_hint_path_rejects_symlink_escape(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    outside = tmp_path / "outside.sh"
+    outside.write_text("#!/bin/bash\necho outside\n")
+    (project / "hint.sh").symlink_to(outside)
+
+    validator = BuildRequestContractValidator()
+    preflight, errors = validator.validate(
+        _request(
+            {
+                "projectPath": str(project),
+                "buildTargetPath": ".",
+                "buildTargetName": "project",
+                "contractVersion": "build-resolve-v1",
+                "strictMode": True,
+                "build": {"mode": "native", "scriptHintPath": "hint.sh"},
+                "expectedArtifacts": [{"kind": "file-set", "path": "out"}],
+            }
+        )
+    )
+
+    assert preflight is None
+    assert any("inside the build target scope" in error for error in errors)
+
+
+def test_script_hint_path_rejects_binary_and_oversized_files(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "binary.sh").write_bytes(b"abc\x00def")
+    (project / "large.sh").write_text("x" * 20_001)
+    validator = BuildRequestContractValidator()
+
+    for path, expected in [
+        ("binary.sh", "text file without NUL"),
+        ("large.sh", "20000 byte limit"),
+    ]:
+        preflight, errors = validator.validate(
+            _request(
+                {
+                    "projectPath": str(project),
+                    "buildTargetPath": ".",
+                    "buildTargetName": "project",
+                    "contractVersion": "build-resolve-v1",
+                    "strictMode": True,
+                    "build": {"mode": "native", "scriptHintPath": path},
+                    "expectedArtifacts": [{"kind": "file-set", "path": "out"}],
+                }
+            )
+        )
+        assert preflight is None
+        assert any(expected in error for error in errors)
 
 
 def test_build_route_accepts_camel_case_generation_constraints(client, monkeypatch) -> None:

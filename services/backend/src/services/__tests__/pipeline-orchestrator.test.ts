@@ -155,9 +155,13 @@ describe("PipelineOrchestrator", () => {
         constraints: { timeoutMs: 600000 },
         context: {
           trusted: expect.objectContaining({
-            projectPath: "/uploads/p1/gateway/",
+            projectPath: "/uploads/p1",
             buildTargetPath: "gateway/",
             buildTargetName: "gateway",
+            build: {
+              mode: "sdk",
+              sdkId: "linux-x86_64-c",
+            },
             targetPath: "gateway/",
             targetName: "gateway",
           }),
@@ -230,6 +234,74 @@ describe("PipelineOrchestrator", () => {
       status: "superseded",
       supersededByExecutionId: expect.stringMatching(/^scan-/),
     }));
+  });
+
+  it("forwards selected scriptHintPath as Build Agent build context", async () => {
+    const { orchestrator, buildAgentClient, buildTargetDAO } = createMocks();
+    buildTargetDAO.findByProjectId.mockReturnValue([
+      makeTarget({
+        scriptHintPath: "scripts/build.sh",
+        sdkChoiceState: "sdk-none-explicit",
+        buildProfile: { sdkId: "none", compiler: "gcc", headerLanguage: "c" } as BuildProfile,
+      }),
+    ]);
+
+    await orchestrator.runPipeline("p1");
+
+    expect(buildAgentClient.submitTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: {
+          trusted: expect.objectContaining({
+            build: {
+              mode: "native",
+              scriptHintPath: "scripts/build.sh",
+            },
+          }),
+        },
+      }),
+      undefined,
+      undefined,
+    );
+  });
+
+  it("emits isolated BuildTarget roots without duplicating relativePath", async () => {
+    const { orchestrator, buildAgentClient, buildTargetDAO, sastClient } = createMocks();
+    buildTargetDAO.findByProjectId.mockReturnValue([
+      makeTarget({
+        sourcePath: "/tmp/aegis-targets/p1/t1",
+        relativePath: "gateway/",
+        scriptHintPath: "scripts/build.sh",
+        sdkChoiceState: "sdk-none-explicit",
+        buildProfile: { sdkId: "none", compiler: "gcc", headerLanguage: "c" } as BuildProfile,
+      }),
+    ]);
+
+    await orchestrator.runPipeline("p1");
+
+    expect(buildAgentClient.submitTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: {
+          trusted: expect.objectContaining({
+            projectPath: "/tmp/aegis-targets/p1/t1",
+            buildTargetPath: ".",
+            targetPath: ".",
+            build: {
+              mode: "native",
+              scriptHintPath: "scripts/build.sh",
+            },
+          }),
+        },
+      }),
+      undefined,
+      undefined,
+    );
+    expect(sastClient.build).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectPath: "/tmp/aegis-targets/p1/t1",
+      }),
+      undefined,
+      undefined,
+    );
   });
 
   it("skips resolve if target already has buildCommand", async () => {

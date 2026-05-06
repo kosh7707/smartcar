@@ -41,6 +41,12 @@ FINISH_REASON_COUNT = Counter(
     ["endpoint", "task_type", "reason"],
 )
 
+TOOL_CALL_EMPTY_COUNT = Counter(
+    "aegis_llm_tool_call_empty_total",
+    "Total LLM responses by finish reason and whether tool_calls is empty",
+    ["endpoint", "task_type", "reason", "tool_calls_empty"],
+)
+
 CIRCUIT_BREAKER_STATE = Gauge(
     "aegis_llm_circuit_breaker_state",
     "Circuit breaker state (0=closed, 0.5=half_open, 1=open)",
@@ -112,6 +118,12 @@ TOOL_CHOICE_COUNT = Counter(
     ["endpoint", "choice"],
 )
 
+RESPONSE_CONTRACT_VIOLATION_COUNT = Counter(
+    "aegis_llm_response_contract_violation_total",
+    "Total LLM response contract violations blocked by the Gateway",
+    ["endpoint", "reason"],
+)
+
 
 def record_generation_observability(
     *,
@@ -177,12 +189,27 @@ def record_generation_observability(
             task_type=task_type,
             reason=finish_reason,
         ).inc()
+        tool_calls_empty = _extract_tool_calls_empty(response_data)
+        if tool_calls_empty is not None:
+            TOOL_CALL_EMPTY_COUNT.labels(
+                endpoint=endpoint,
+                task_type=task_type,
+                reason=finish_reason,
+                tool_calls_empty=str(tool_calls_empty).lower(),
+            ).inc()
 
     if tool_choice is not None:
         TOOL_CHOICE_COUNT.labels(
             endpoint=endpoint,
             choice=normalize_tool_choice(tool_choice),
         ).inc()
+
+
+def record_response_contract_violation(*, endpoint: str, reason: str) -> None:
+    RESPONSE_CONTRACT_VIOLATION_COUNT.labels(
+        endpoint=endpoint,
+        reason=reason,
+    ).inc()
 
 
 def _observe_numeric(metric: Histogram, endpoint: str, task_type: str, value: Any) -> None:
@@ -219,3 +246,19 @@ def _extract_finish_reason(response_data: Any | None) -> str | None:
         return None
     reason = first.get("finish_reason")
     return reason if isinstance(reason, str) and reason else None
+
+
+def _extract_tool_calls_empty(response_data: Any | None) -> bool | None:
+    if not isinstance(response_data, dict):
+        return None
+    choices = response_data.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return None
+    first = choices[0]
+    if not isinstance(first, dict):
+        return None
+    message = first.get("message")
+    if not isinstance(message, dict):
+        return None
+    tool_calls = message.get("tool_calls")
+    return not (isinstance(tool_calls, list) and len(tool_calls) > 0)

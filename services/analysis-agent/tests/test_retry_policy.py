@@ -1,8 +1,9 @@
 """RetryPolicy 단위 테스트."""
 
 from app.agent_runtime.errors import (
+    LlmContractViolationError,
     LlmHttpError, LlmInputTooLargeError, LlmPoolExhaustedError,
-    LlmTimeoutError, LlmUnavailableError,
+    LlmTimeoutError, LlmUnavailableError, StrictJsonContractError,
 )
 from app.agent_runtime.policy.retry import RetryPolicy
 
@@ -65,6 +66,20 @@ def test_retry_on_pool_exhausted():
     policy = RetryPolicy(max_retries=2)
     assert policy.should_retry(LlmPoolExhaustedError(), attempt=0) is True
     assert policy.get_delay_seconds(LlmPoolExhaustedError(), 0) == 5.0
+
+
+def test_retry_on_response_contract_violation():
+    policy = RetryPolicy(max_retries=1)
+    error = LlmContractViolationError(violation_reason="response_contract_violation")
+    assert policy.should_retry(error, attempt=0) is True
+    assert policy.get_delay_seconds(error, 0) == 2.0
+
+
+def test_retry_on_strict_json_contract_violation():
+    policy = RetryPolicy(max_retries=1)
+    error = StrictJsonContractError(error_detail="invalid json")
+    assert policy.should_retry(error, attempt=0) is True
+    assert policy.get_delay_seconds(error, 0) == 2.0
 
 
 def test_429_retry_after_header():

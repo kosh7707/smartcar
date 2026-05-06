@@ -5,7 +5,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.agent_runtime.errors import LlmHttpError, LlmTimeoutError, LlmUnavailableError, StrictJsonContractError
+from app.agent_runtime.errors import (
+    LlmContractViolationError,
+    LlmHttpError,
+    LlmTimeoutError,
+    LlmUnavailableError,
+    StrictJsonContractError,
+)
 from app.agent_runtime.llm.caller import LlmCaller
 from app.agent_runtime.llm.generation_policy import THINKING_CODING
 
@@ -25,6 +31,16 @@ def _content_response(content: str, prompt_tokens=100, completion_tokens=50):
             "finish_reason": "stop",
         }],
         "usage": {"prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens},
+    }
+
+
+def _reasoning_only_response(reasoning: str, *, finish_reason: str = "stop"):
+    return {
+        "choices": [{
+            "message": {"role": "assistant", "content": None, "reasoning": reasoning},
+            "finish_reason": finish_reason,
+        }],
+        "usage": {"prompt_tokens": 100, "completion_tokens": 50},
     }
 
 
@@ -69,6 +85,20 @@ async def test_parse_content_response():
 
 
 @pytest.mark.asyncio
+async def test_parse_content_response_preserves_reasoning_diagnostics():
+    caller = LlmCaller("http://fake:8000", "qwen")
+    resp_data = _content_response('{"summary": "test"}')
+    resp_data["choices"][0]["message"]["reasoning"] = "diagnostic chain summary"
+    caller._client = MagicMock()
+    caller._client.post = AsyncMock(return_value=_make_httpx_response(resp_data))
+
+    result = await caller.call([{"role": "user", "content": "hi"}])
+
+    assert result.content == '{"summary": "test"}'
+    assert result.reasoning == "diagnostic chain summary"
+
+
+@pytest.mark.asyncio
 async def test_scalar_temperature_compatibility_warns():
     caller = LlmCaller("http://fake:8000", "qwen")
     caller._client = MagicMock()
@@ -105,6 +135,53 @@ async def test_parse_tool_calls_response():
     assert result.tool_calls[0].arguments == {"query": "CWE-78"}
     assert result.tool_calls[0].id == "call_001"
     assert result.finish_reason == "tool_calls"
+
+
+@pytest.mark.asyncio
+async def test_tool_call_finish_reason_with_empty_tool_calls_is_contract_violation():
+    caller = LlmCaller("http://fake:8000", "qwen")
+    caller._client = MagicMock()
+    caller._client.post = AsyncMock(return_value=_make_httpx_response(_tool_calls_response([])))
+
+    with pytest.raises(LlmContractViolationError) as exc_info:
+        await caller.call(
+            [{"role": "user", "content": "analyze"}],
+            tools=[{"type": "function", "function": {"name": "knowledge.search"}}],
+        )
+
+    assert exc_info.value.retryable is True
+    assert exc_info.value.violation_reason == "finish_reason_tool_calls_with_empty_array"
+    assert exc_info.value.finish_reason == "tool_calls"
+
+
+@pytest.mark.asyncio
+async def test_reasoning_only_response_without_actionable_content_is_contract_violation():
+    caller = LlmCaller("http://fake:8000", "qwen")
+    caller._client = MagicMock()
+    caller._client.post = AsyncMock(return_value=_make_httpx_response(_reasoning_only_response("planned tool call")))
+
+    with pytest.raises(LlmContractViolationError) as exc_info:
+        await caller.call([{"role": "user", "content": "hi"}])
+
+    assert exc_info.value.violation_reason == "all_output_absorbed_into_reasoning"
+    assert exc_info.value.reasoning_excerpt == "planned tool call"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("unsupported", ["required", {"type": "function", "function": {"name": "knowledge.search"}}])
+async def test_unsupported_tool_choice_is_rejected_before_http_call(unsupported):
+    caller = LlmCaller("http://fake:8000", "qwen")
+    caller._client = MagicMock()
+    caller._client.post = AsyncMock()
+
+    with pytest.raises(ValueError, match="auto.*none"):
+        await caller.call(
+            [{"role": "user", "content": "hi"}],
+            tools=[{"type": "function", "function": {"name": "knowledge.search"}}],
+            tool_choice=unsupported,  # type: ignore[arg-type]
+        )
+
+    caller._client.post.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -382,7 +459,11 @@ async def test_async_ownership_poll_deadline_raises_timeout_without_sync_fallbac
 async def test_tools_request_does_not_force_strict_json_header():
     caller = LlmCaller("http://fake:8000", "qwen")
     caller._client = MagicMock()
-    caller._client.post = AsyncMock(return_value=_make_httpx_response(_tool_calls_response([])))
+    caller._client.post = AsyncMock(return_value=_make_httpx_response(_tool_calls_response([{
+        "id": "call_001",
+        "type": "function",
+        "function": {"name": "tool", "arguments": "{}"},
+    }])))
 
     await caller.call(
         [{"role": "user", "content": "hi"}],
@@ -428,6 +509,42 @@ async def test_http_429_raises_retryable():
     with pytest.raises(LlmHttpError) as exc_info:
         await caller.call([{"role": "user", "content": "hi"}])
     assert exc_info.value.retryable is True
+
+
+@pytest.mark.asyncio
+async def test_http_422_invalid_tool_choice_is_non_retryable_caller_contract_failure():
+    caller = LlmCaller("http://fake:8000", "qwen")
+    caller._client = MagicMock()
+    resp = MagicMock()
+    resp.status_code = 422
+    resp.text = '{"code":"INVALID_TOOL_CHOICE","message":"unsupported tool_choice"}'
+    resp.headers = {}
+    caller._client.post = AsyncMock(return_value=resp)
+
+    with pytest.raises(LlmHttpError) as exc_info:
+        await caller.call([{"role": "user", "content": "hi"}])
+
+    assert exc_info.value.upstream_status == 422
+    assert exc_info.value.retryable is False
+    assert exc_info.value.code == "LLM_HTTP_ERROR"
+
+
+@pytest.mark.asyncio
+async def test_http_503_llm_parse_retry_remains_retryable_transport_failure():
+    caller = LlmCaller("http://fake:8000", "qwen")
+    caller._client = MagicMock()
+    resp = MagicMock()
+    resp.status_code = 503
+    resp.text = '{"code":"LLM_PARSE_RETRY","reason":"response_contract_violation"}'
+    resp.headers = {}
+    caller._client.post = AsyncMock(return_value=resp)
+
+    with pytest.raises(LlmHttpError) as exc_info:
+        await caller.call([{"role": "user", "content": "hi"}])
+
+    assert exc_info.value.upstream_status == 503
+    assert exc_info.value.retryable is True
+    assert exc_info.value.code == "LLM_OVERLOADED"
 
 
 @pytest.mark.asyncio

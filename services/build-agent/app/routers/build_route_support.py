@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from app.agent_runtime.context import get_request_id
 from app.agent_runtime.llm.prompt_builder import SystemPromptBuilder
+from app.agent_runtime.security.input_boundary import render_untrusted_source_for_llm
 from app.schemas.request import TaskRequest
 from app.schemas.response import AuditInfo, TaskFailureResponse, TaskSuccessResponse, TokenUsage
 from app.types import FailureCode, TaskStatus
@@ -100,7 +101,13 @@ def build_system_prompt(
         setup_script = build_material.get("setupScript", "")
         toolchain_triplet = build_material.get("toolchainTriplet", "")
         build_environment = build_material.get("buildEnvironment", {})
-        script_hint_text = build_material.get("buildScriptHintText", "")
+        script_hint = build_material.get("scriptHint")
+        if not isinstance(script_hint, dict):
+            script_hint = {}
+        script_hint_text = script_hint.get("content", "")
+        script_hint_path = script_hint.get("path", "")
+        script_hint_size = script_hint.get("sizeBytes")
+        script_hint_sha = script_hint.get("sha256", "")
 
         if setup_script:
             material_lines.append(f"- **setupScript**: `{setup_script}`")
@@ -120,12 +127,13 @@ def build_system_prompt(
                 if len(script_hint_text) > len(truncated) else ""
             )
             script_hint_section = (
-                "## 호출자 제공 build script hint (reference only)\n"
-                "아래 스크립트 텍스트는 **참고용**이다. 그대로 실행하지 말고, "
+                "## 호출자 제공 build script hint path (reference only)\n"
+                f"- **path**: `{script_hint_path}`\n"
+                f"- **sizeBytes**: {script_hint_size}\n"
+                f"- **sha256**: `{script_hint_sha}`\n"
+                "아래 스크립트는 업로드된 프로젝트 내부 파일에서 S3가 안전하게 읽은 **참고용** 텍스트다. 그대로 실행하지 말고, "
                 f"`{build_subdir}/aegis-build.sh`를 작성할 때만 참고하라.\n"
-                "```bash\n"
-                f"{truncated}{truncation_note}\n"
-                "```\n\n"
+                f"{render_untrusted_source_for_llm(script_hint_path or 'build-script-hint', truncated + truncation_note, language='bash')}\n\n"
             )
 
     build_file_section = ""
@@ -200,8 +208,11 @@ def build_system_prompt(
             f"- **declared build.sdkId**: {contract.sdkId or '(none)'}\n"
             f"- **expectedArtifacts**: {expected_artifacts}\n"
         )
-        if contract.buildScriptHintText:
-            contract_section += "- **caller build script hint**: provided (text-only, reference-only)\n"
+        if contract.scriptHintPath:
+            contract_section += (
+                "- **caller build script hint path**: "
+                f"`{contract.scriptHintPath}` (uploaded-project path, text-only, reference-only)\n"
+            )
         if contract.strictMode:
             contract_section += (
                 "- **선언되지 않은 SDK/native fallback을 하지 마라.**\n"

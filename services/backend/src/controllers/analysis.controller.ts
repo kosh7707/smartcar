@@ -5,10 +5,12 @@ import type { IAnalysisResultDAO, IFindingDAO, IRunDAO, IGateResultDAO } from ".
 import type { AnalysisTracker } from "../services/analysis-tracker";
 import type { AgentClient } from "../services/agent-client";
 import type { ProjectSourceService } from "../services/project-source.service";
+import type { AgentPocOutcome, AgentQualityOutcome, PocResponseData } from "@aegis/shared";
 import { asyncHandler } from "../middleware/async-handler";
 import { InvalidInputError, NotFoundError } from "../lib/errors";
 import { createLogger } from "../lib/logger";
 import { isVisibleAnalysisArtifact } from "../lib/analysis-visibility";
+import { toValidClaimDiagnostics } from "../lib/claim-diagnostics";
 
 const logger = createLogger("analysis-controller");
 
@@ -316,25 +318,9 @@ export function createAnalysisRouter(
     );
 
     if (agentClient.isSuccess(agentResponse)) {
-      const claims = agentResponse.result.claims;
-      if (claims.length === 0) {
-        res.json({ success: true, data: { findingId, poc: { statement: "", detail: "" }, audit: { latencyMs: agentResponse.audit.latencyMs } } });
-        return;
-      }
-      const poc = claims[0];
       res.json({
         success: true,
-        data: {
-          findingId,
-          poc: {
-            statement: poc.statement,
-            detail: poc.detail ?? "",
-          },
-          audit: {
-            latencyMs: agentResponse.audit.latencyMs,
-            tokenUsage: agentResponse.audit.tokenUsage,
-          },
-        },
+        data: buildPocResponseData(findingId, agentResponse),
       });
     } else {
       res.status(502).json({
@@ -350,6 +336,49 @@ export function createAnalysisRouter(
   }));
 
   return router;
+}
+
+function buildPocResponseData(
+  findingId: string,
+  agentResponse: Extract<Awaited<ReturnType<AgentClient["submitTask"]>>, { status: "completed" }>,
+): PocResponseData {
+  const claims = agentResponse.result.claims;
+  const poc = claims[0];
+  const hasAcceptedPocClaim = Boolean(poc);
+  const pocOutcome = resolvePocOutcome(agentResponse.result.pocOutcome, hasAcceptedPocClaim);
+  const qualityOutcome = resolveQualityOutcome(agentResponse.result.qualityOutcome, hasAcceptedPocClaim);
+  const cleanPass = agentResponse.result.cleanPass
+    ?? (pocOutcome === "poc_accepted" && qualityOutcome === "accepted");
+
+  return {
+    findingId,
+    poc: {
+      statement: poc?.statement ?? "",
+      detail: poc?.detail ?? "",
+    },
+    audit: {
+      latencyMs: agentResponse.audit.latencyMs,
+      tokenUsage: agentResponse.audit.tokenUsage,
+    },
+    pocOutcome,
+    qualityOutcome,
+    cleanPass,
+    claimDiagnostics: toValidClaimDiagnostics(agentResponse.result.claimDiagnostics),
+  };
+}
+
+function resolvePocOutcome(
+  outcome: AgentPocOutcome | undefined,
+  hasAcceptedPocClaim: boolean,
+): AgentPocOutcome {
+  return outcome ?? (hasAcceptedPocClaim ? "poc_accepted" : "poc_inconclusive");
+}
+
+function resolveQualityOutcome(
+  outcome: AgentQualityOutcome | undefined,
+  hasAcceptedPocClaim: boolean,
+): AgentQualityOutcome {
+  return outcome ?? (hasAcceptedPocClaim ? "accepted" : "inconclusive");
 }
 
 function periodToDate(period: string): string | undefined {

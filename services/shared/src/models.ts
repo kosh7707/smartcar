@@ -87,9 +87,74 @@ export interface AgentRecoveryTraceEntry {
   detail?: string;
 }
 
+export type NonAcceptedClaimLifecycleStage =
+  | "candidate"
+  | "under_evidenced"
+  | "needs_human_review"
+  | "rejected"
+  | "retried"
+  | "inconclusive"
+  | "repair_exhausted"
+  | "withdrawn";
+
+export type NonAcceptedClaimOutcomeContribution =
+  | "no_accepted_claims"
+  | "rejected_unsupported"
+  | "needs_human_review"
+  | "poc_rejected"
+  | "poc_inconclusive"
+  | (string & {});
+
+export interface NonAcceptedClaimEvidenceTrailEntry {
+  evidenceRef?: string;
+  evidenceRefId?: string;
+  refId?: string;
+  role?: string;
+  status?: string;
+  detail?: string;
+}
+
+export interface NonAcceptedClaimRevisionHistoryEntry {
+  fromStatus?: NonAcceptedClaimLifecycleStage | (string & {});
+  toStatus?: NonAcceptedClaimLifecycleStage | (string & {});
+  reason?: string;
+  timestampMs?: number;
+}
+
+export interface NonAcceptedClaim {
+  /** Stable S3 claim identifier when the state machine assigned one. */
+  claimId?: string;
+  /** Canonical S3 lifecycle stage for this diagnostic claim. */
+  status: NonAcceptedClaimLifecycleStage | (string & {});
+  /** Optional display/family classifier from S3, e.g. command_injection. */
+  family?: string;
+  /** Primary source location summary, if S3 could bind one. */
+  primaryLocation?: string;
+  /** Short open-string reason code. Unknown S3 codes must be displayed/fallback-handled, not rejected. */
+  rejectionCode?: string;
+  /** Human-readable rejection or non-acceptance reason. */
+  rejectionReason?: string;
+  /** Claim statement excerpt for triage display, if available. */
+  statement?: string;
+  /** Additional diagnostic detail or quality-repair note, if available. */
+  detail?: string;
+  /** Number of repair/retry attempts before this claim exited the accepted path. */
+  retryCount?: number;
+  /** Optional severity hint; clients must not treat it as a lifecycle/review tone. */
+  severity?: Severity;
+  requiredEvidence?: string[];
+  presentEvidence?: string[];
+  missingEvidence?: string[];
+  evidenceTrail?: NonAcceptedClaimEvidenceTrailEntry[];
+  revisionHistory?: NonAcceptedClaimRevisionHistoryEntry[];
+  invalidRefs?: string[];
+  supportingEvidenceRefs?: string[];
+  outcomeContribution?: NonAcceptedClaimOutcomeContribution;
+}
+
 export interface AgentClaimDiagnosticsSummary {
   lifecycleCounts?: Record<string, number>;
-  nonAcceptedClaims?: Array<Record<string, unknown>>;
+  nonAcceptedClaims?: NonAcceptedClaim[];
 }
 
 export interface AgentEvidenceDiagnosticsSummary {
@@ -151,6 +216,30 @@ export interface AnalysisResult {
   /** 에이전트 감사 요약 */
   agentAudit?: AgentAuditSummary;
   createdAt: string;
+}
+
+export interface PocResponseData {
+  findingId: string;
+  poc: {
+    statement: string;
+    detail: string;
+  };
+  audit: {
+    latencyMs: number;
+    tokenUsage?: { prompt: number; completion: number };
+  };
+  /**
+   * S3 result-level PoC outcome. `success: true` on the REST envelope is not
+   * a clean-PoC signal; consumers must inspect this field with `qualityOutcome`
+   * and `cleanPass`.
+   */
+  pocOutcome: AgentPocOutcome;
+  /** S3 result-level quality classifier for the PoC envelope. */
+  qualityOutcome: AgentQualityOutcome;
+  /** Strict clean PoC pass flag forwarded from S3 or conservatively derived by S2. */
+  cleanPass: boolean;
+  /** Diagnostic-only non-accepted claim lifecycle data from S3. */
+  claimDiagnostics?: AgentClaimDiagnosticsSummary;
 }
 
 /** Agent 신뢰도 세부 항목 */
@@ -583,6 +672,15 @@ export interface BuildTarget {
   sdkChoiceState: BuildTargetSdkChoiceState;
   /** 빌드 시스템 (S4 탐색 결과) */
   buildSystem?: "cmake" | "make" | "custom";
+  /**
+   * Optional build-script hint selected from uploaded project files.
+   *
+   * This path is relative to the effective BuildTarget root, not the host
+   * filesystem. S2 forwards it to S3 as `context.trusted.build.scriptHintPath`
+   * and neither S2 nor S3 treats the original uploaded file as directly
+   * executable.
+   */
+  scriptHintPath?: string;
   /** S3 Build Agent가 결정한 빌드 명령어 */
   buildCommand?: string;
   /** 라이프사이클 상태 */

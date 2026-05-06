@@ -147,6 +147,63 @@ async def test_allowed_cmake_make(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_request_scoped_build_dir_requires_generated_script(monkeypatch):
+    mock_client = _make_mock_client({"success": True, "buildEvidence": {"exitCode": 0, "entries": 5}})
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: mock_client)
+
+    tool = TryBuildTool(
+        sast_endpoint="http://localhost:9000",
+        project_path="/tmp/test",
+        build_dir="build-aegis-1234",
+    )
+
+    result = await tool.execute({"build_command": "bash build-aegis-1234/aegis-build.sh"})
+
+    assert result.success is True
+    call_args = mock_client.post.call_args
+    payload = call_args.kwargs.get("json") or call_args[1].get("json")
+    assert payload["buildCommand"] == "bash build-aegis-1234/aegis-build.sh"
+
+
+@pytest.mark.asyncio
+async def test_request_scoped_build_dir_rejects_direct_uploaded_script_execution(monkeypatch):
+    mock_client = _make_mock_client({"success": True, "buildEvidence": {"exitCode": 0, "entries": 5}})
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: mock_client)
+
+    tool = TryBuildTool(
+        sast_endpoint="http://localhost:9000",
+        project_path="/tmp/test",
+        build_dir="build-aegis-1234",
+    )
+
+    result = await tool.execute({"build_command": "bash scripts/build.sh"})
+
+    assert result.success is False
+    assert "must not execute uploaded/reference scripts directly" in (result.error or "")
+    mock_client.post.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_request_scoped_build_dir_rejects_chained_commands(monkeypatch):
+    mock_client = _make_mock_client({"success": True, "buildEvidence": {"exitCode": 0, "entries": 5}})
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: mock_client)
+
+    tool = TryBuildTool(
+        sast_endpoint="http://localhost:9000",
+        project_path="/tmp/test",
+        build_dir="build-aegis-1234",
+    )
+
+    result = await tool.execute({
+        "build_command": "bash build-aegis-1234/aegis-build.sh && bash scripts/build.sh",
+    })
+
+    assert result.success is False
+    assert "generated request-scoped script" in (result.error or "")
+    mock_client.post.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_empty_build_command():
     tool = TryBuildTool(sast_endpoint="http://localhost:9000", project_path="/tmp/test")
     result = await tool.execute({"build_command": ""})

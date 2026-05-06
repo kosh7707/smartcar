@@ -14,8 +14,11 @@ import type {
   FindingStatusUpdateRequest,
   EvidenceRef,
   AuditLogEntry,
+  PocResponseData,
 } from "@aegis/shared";
 import { apiFetch } from "./core";
+
+export type { PocResponseData } from "@aegis/shared";
 
 // ── Analysis Status (active analysis polling) ──
 
@@ -64,23 +67,11 @@ export async function runAnalysis(
   return res.data;
 }
 
-export interface PocResponse {
-  findingId: string;
-  poc: {
-    statement: string;
-    detail: string;
-  };
-  audit: {
-    latencyMs: number;
-    tokenUsage: { prompt: number; completion: number };
-  };
-}
-
 export async function generatePoc(
   projectId: string,
   findingId: string,
-): Promise<PocResponse> {
-  const res = await apiFetch<{ success: boolean; data: PocResponse }>(
+): Promise<PocResponseData> {
+  const res = await apiFetch<{ success: boolean; data: PocResponseData }>(
     "/api/analysis/poc",
     {
       method: "POST",

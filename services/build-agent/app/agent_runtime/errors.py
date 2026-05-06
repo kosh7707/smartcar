@@ -75,6 +75,38 @@ class StrictJsonContractError(S3Error):
         self.raw_excerpt = raw_excerpt
 
 
+class LlmContractViolationError(S3Error):
+    """Retryable S7 response-contract failure with diagnostic excerpts.
+
+    Used when the transport returned a nominal response, but the parsed OpenAI
+    message has no actionable assistant content/tool call because the gateway
+    detected or exposed a response-contract violation (for example
+    finish_reason=tool_calls with an empty tool_calls array, or all output being
+    absorbed into the reasoning field).
+    """
+
+    def __init__(
+        self,
+        message: str = "llm_response_contract_violation",
+        *,
+        violation_reason: str = "response_contract_violation",
+        finish_reason: str | None = None,
+        reasoning_excerpt: str | None = None,
+        content_excerpt: str | None = None,
+        raw_excerpt: str | None = None,
+        async_request_id: str | None = None,
+        gateway_request_id: str | None = None,
+    ) -> None:
+        super().__init__(message, code="LLM_RESPONSE_CONTRACT_VIOLATION", retryable=True)
+        self.violation_reason = violation_reason
+        self.finish_reason = finish_reason
+        self.reasoning_excerpt = reasoning_excerpt
+        self.content_excerpt = content_excerpt
+        self.raw_excerpt = raw_excerpt
+        self.async_request_id = async_request_id
+        self.gateway_request_id = gateway_request_id
+
+
 class LlmPoolExhaustedError(S3Error):
     """HTTP 연결 풀 소진 — 동시 요청 과다."""
 

@@ -36,7 +36,7 @@ export function createBuildTargetRouter(
     validateProjectId(pid);
     if (!projectDAO.findById(pid)) throw new NotFoundError(`Project not found: ${pid}`);
 
-    const { name, relativePath, buildProfile, buildSystem, includedPaths } = req.body;
+    const { name, relativePath, buildProfile, buildSystem, includedPaths, scriptHintPath } = req.body;
     if (!name || !relativePath) {
       throw new InvalidInputError("name and relativePath are required");
     }
@@ -52,7 +52,7 @@ export function createBuildTargetRouter(
       }
     }
 
-    const target = buildTargetService.create(pid, name, relativePath, buildProfile, buildSystem, includedPaths);
+    const target = buildTargetService.create(pid, name, relativePath, buildProfile, buildSystem, includedPaths, scriptHintPath);
     res.status(201).json({ success: true, data: target });
   }));
 
@@ -66,11 +66,11 @@ export function createBuildTargetRouter(
     if (!existing) throw new NotFoundError(`Build target not found: ${id}`);
     if (existing.projectId !== pid) throw new NotFoundError(`Build target not found: ${id}`);
 
-    const { name, relativePath, buildProfile, buildSystem, includedPaths } = req.body;
+    const { name, relativePath, buildProfile, buildSystem, includedPaths, scriptHintPath } = req.body;
     if (includedPaths !== undefined) {
       throw new InvalidInputError("includedPaths updates are not supported");
     }
-    const updated = buildTargetService.update(id, { name, relativePath, buildProfile, buildSystem });
+    const updated = buildTargetService.update(id, { name, relativePath, buildProfile, buildSystem, scriptHintPath });
     res.json({ success: true, data: updated });
   }));
 

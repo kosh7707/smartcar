@@ -91,7 +91,7 @@ class BuildResolveContract(BaseModel):
     setupScript: str | None = None
     toolchainTriplet: str | None = None
     buildEnvironment: dict[str, str] = Field(default_factory=dict)
-    buildScriptHintText: str | None = Field(default=None, max_length=20000)
+    scriptHintPath: str | None = Field(default=None, max_length=4096)
     expectedArtifacts: list[ExpectedArtifact] = Field(default_factory=list)
     contractVersion: ContractVersion | None = None
     strictMode: bool | None = None
@@ -122,14 +122,30 @@ class BuildResolveContract(BaseModel):
             normalized["toolchainTriplet"] = build_blob.get("toolchainTriplet")
         if normalized.get("buildEnvironment") in (None, {}) and build_blob.get("environment") is not None:
             normalized["buildEnvironment"] = build_blob.get("environment")
-        if normalized.get("buildScriptHintText") is None:
-            hint_value = build_blob.get("scriptHintText")
-            if hint_value is None:
-                hint_value = build_blob.get("scriptHint")
-            if hint_value is None:
-                hint_value = normalized.get("buildScriptHint")
-            if hint_value is not None:
-                normalized["buildScriptHintText"] = hint_value
+        legacy_hint_keys = [
+            key for key in ("scriptHintText", "scriptHint")
+            if key in build_blob
+        ]
+        legacy_top_level_hint_keys = [
+            key for key in ("buildScriptHint", "buildScriptHintText")
+            if key in normalized
+        ]
+        if legacy_hint_keys or legacy_top_level_hint_keys:
+            keys = ", ".join(legacy_hint_keys + legacy_top_level_hint_keys)
+            raise ValueError(
+                "inline build script hints are no longer supported; "
+                f"remove {keys} and use context.trusted.build.scriptHintPath",
+            )
+        if "scriptHintPath" in normalized:
+            raise ValueError(
+                "context.trusted.scriptHintPath is not supported; "
+                "use context.trusted.build.scriptHintPath",
+            )
+        if "scriptHintPath" in build_blob:
+            hint_path = build_blob.get("scriptHintPath")
+            if isinstance(hint_path, str) and not hint_path.strip():
+                raise ValueError("context.trusted.build.scriptHintPath must not be empty")
+            normalized["scriptHintPath"] = hint_path
 
         expected = normalized.get("expectedArtifacts")
         if isinstance(expected, list):
@@ -157,7 +173,7 @@ class BuildResolveContract(BaseModel):
         "sdkId",
         "setupScript",
         "toolchainTriplet",
-        "buildScriptHintText",
+        "scriptHintPath",
         mode="before",
     )
     @classmethod
@@ -263,11 +279,11 @@ class BuildResolveContract(BaseModel):
         if self.buildMode == BuildMode.SDK and not self.sdkId:
             raise ValueError("sdkId is required when buildMode is 'sdk'")
         if self.buildMode == BuildMode.SDK and not (
-            self.setupScript or self.buildEnvironment or self.buildScriptHintText
+            self.setupScript or self.buildEnvironment or self.scriptHintPath
         ):
             raise ValueError(
                 "sdk builds require at least one materialization source: "
-                "setupScript, buildEnvironment, or buildScriptHintText",
+                "setupScript, buildEnvironment, or scriptHintPath",
             )
         if self.buildMode == BuildMode.NATIVE and self.sdkId:
             raise ValueError("sdkId must be omitted when buildMode is 'native'")

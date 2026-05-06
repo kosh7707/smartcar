@@ -115,6 +115,72 @@ describe("useBuildTargets", () => {
     expect(result.current.targets[0].name).toBe("discovered-1");
   });
 
+  it("add forwards scriptHintPath when provided", async () => {
+    const newTarget = { ...mockTargets[0], id: "t-2", name: "body" };
+    mockCreateBuildTarget.mockResolvedValue(newTarget);
+
+    const { result } = renderHook(() => useBuildTargets("p-1"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.add("body", "body/", undefined, undefined, "scripts/build.sh");
+    });
+
+    expect(mockCreateBuildTarget).toHaveBeenCalledWith("p-1", expect.objectContaining({
+      name: "body",
+      relativePath: "body/",
+      scriptHintPath: "scripts/build.sh",
+    }));
+  });
+
+  it("add omits scriptHintPath when undefined or empty string", async () => {
+    const newTarget = { ...mockTargets[0], id: "t-2", name: "body" };
+    mockCreateBuildTarget.mockResolvedValue(newTarget);
+
+    const { result } = renderHook(() => useBuildTargets("p-1"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.add("body", "body/", undefined, undefined, undefined);
+    });
+    expect(mockCreateBuildTarget.mock.calls[0][1]).not.toHaveProperty("scriptHintPath");
+
+    mockCreateBuildTarget.mockClear();
+    mockCreateBuildTarget.mockResolvedValue(newTarget);
+    await act(async () => {
+      await result.current.add("body", "body/", undefined, undefined, "");
+    });
+    expect(mockCreateBuildTarget.mock.calls[0][1]).not.toHaveProperty("scriptHintPath");
+  });
+
+  it("update forwards scriptHintPath:null clear semantic to API", async () => {
+    const updated = { ...mockTargets[0], name: "gateway" };
+    mockUpdateBuildTarget.mockResolvedValue(updated);
+
+    const { result } = renderHook(() => useBuildTargets("p-1"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.update("t-1", { scriptHintPath: null });
+    });
+
+    expect(mockUpdateBuildTarget).toHaveBeenCalledWith("p-1", "t-1", { scriptHintPath: null });
+  });
+
+  it("update forwards scriptHintPath string while still stripping includedPaths", async () => {
+    const updated = { ...mockTargets[0], name: "gateway" };
+    mockUpdateBuildTarget.mockResolvedValue(updated);
+
+    const { result } = renderHook(() => useBuildTargets("p-1"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.update("t-1", { scriptHintPath: "scripts/build.sh", includedPaths: ["src/"] });
+    });
+
+    expect(mockUpdateBuildTarget).toHaveBeenCalledWith("p-1", "t-1", { scriptHintPath: "scripts/build.sh" });
+  });
+
   it("sets discovering flag during discover", async () => {
     let resolveDiscover: (value: BuildTarget[]) => void;
     mockDiscoverBuildTargets.mockImplementation(

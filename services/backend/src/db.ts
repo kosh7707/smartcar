@@ -303,6 +303,7 @@ export function initSchema(db: DatabaseType): void {
       last_built_at         TEXT,
       included_paths        TEXT NOT NULL DEFAULT '[]',
       source_path           TEXT,
+      script_hint_path      TEXT,
       build_command         TEXT,
       created_at            TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
@@ -688,6 +689,7 @@ export function initSchema(db: DatabaseType): void {
   try { db.exec(`ALTER TABLE build_targets ADD COLUMN last_built_at TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE build_targets ADD COLUMN included_paths TEXT NOT NULL DEFAULT '[]'`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE build_targets ADD COLUMN source_path TEXT`); } catch { /* 이미 존재 */ }
+  try { db.exec(`ALTER TABLE build_targets ADD COLUMN script_hint_path TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE build_targets ADD COLUMN build_command TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE notifications ADD COLUMN job_kind TEXT`); } catch { /* 이미 존재 */ }
   try { db.exec(`ALTER TABLE notifications ADD COLUMN correlation_id TEXT`); } catch { /* 이미 존재 */ }

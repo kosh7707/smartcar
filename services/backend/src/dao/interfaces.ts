@@ -418,7 +418,15 @@ export interface IBuildTargetDAO {
   findByProjectId(projectId: string): BuildTarget[];
   update(
     id: string,
-    fields: { name?: string; relativePath?: string; buildProfile?: BuildProfile; buildSystem?: string; status?: BuildTargetStatus; sdkChoiceState?: BuildTarget["sdkChoiceState"] },
+    fields: {
+      name?: string;
+      relativePath?: string;
+      buildProfile?: BuildProfile;
+      buildSystem?: string;
+      scriptHintPath?: string | null;
+      status?: BuildTargetStatus;
+      sdkChoiceState?: BuildTarget["sdkChoiceState"];
+    },
   ): BuildTarget | undefined;
   updatePipelineState(
     id: string,

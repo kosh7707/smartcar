@@ -17,7 +17,13 @@ export async function fetchBuildTargets(projectId: string): Promise<BuildTarget[
 
 export async function createBuildTarget(
   projectId: string,
-  body: { name: string; relativePath: string; buildProfile?: BuildProfile; includedPaths?: string[] },
+  body: {
+    name: string;
+    relativePath: string;
+    buildProfile?: BuildProfile;
+    includedPaths?: string[];
+    scriptHintPath?: string;
+  },
 ): Promise<BuildTarget> {
   const res = await apiFetch<{ success: boolean; data: BuildTarget }>(
     `/api/projects/${projectId}/targets`,
@@ -39,15 +45,18 @@ export async function updateBuildTarget(
     buildProfile?: BuildProfile;
     buildSystem?: BuildTarget["buildSystem"];
     includedPaths?: string[];
+    scriptHintPath?: string | null;
   },
 ): Promise<BuildTarget> {
-  const { name, relativePath, buildProfile, buildSystem } = body;
+  const { name, relativePath, buildProfile, buildSystem, scriptHintPath } = body;
+  const payload: Record<string, unknown> = { name, relativePath, buildProfile, buildSystem };
+  if (scriptHintPath !== undefined) payload.scriptHintPath = scriptHintPath;
   const res = await apiFetch<{ success: boolean; data: BuildTarget }>(
     `/api/projects/${projectId}/targets/${targetId}`,
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, relativePath, buildProfile, buildSystem }),
+      body: JSON.stringify(payload),
     },
   );
   return res.data;

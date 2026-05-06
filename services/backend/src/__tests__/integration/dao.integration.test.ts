@@ -281,8 +281,10 @@ describe("DAO Integration Tests", () => {
       const byProject = dao.findByProjectId("p1");
       expect(byProject).toHaveLength(1);
 
-      const updated = dao.update("t1", { name: "renamed" });
+      const updated = dao.update("t1", { name: "renamed", scriptHintPath: "scripts/build.sh" });
       expect(updated!.name).toBe("renamed");
+      expect(updated!.scriptHintPath).toBe("scripts/build.sh");
+      expect(dao.findById("t1")!.scriptHintPath).toBe("scripts/build.sh");
 
       expect(dao.delete("t1")).toBe(true);
       expect(dao.findById("t1")).toBeUndefined();
@@ -739,6 +741,53 @@ describe("DAO Integration Tests", () => {
       expect(loaded.caveats).toBeUndefined();
       expect(loaded.confidenceScore).toBeUndefined();
       expect(loaded.agentAudit).toBeUndefined();
+    });
+
+    it("persists only typed claim diagnostics and rejects malformed new writes", () => {
+      const dao = new AnalysisResultDAO(db);
+
+      const result = makeAnalysisResult({
+        id: "claim-diagnostics-valid",
+        module: "deep_analysis",
+        claimDiagnostics: {
+          lifecycleCounts: { under_evidenced: 1 },
+          nonAcceptedClaims: [
+            {
+              claimId: "claim-0",
+              status: "under_evidenced",
+              rejectionCode: "evidence_missing",
+              requiredEvidence: ["local_or_derived_support"],
+              revisionHistory: [{ fromStatus: "candidate", toStatus: "under_evidenced", timestampMs: 1710000000000 }],
+            },
+          ],
+        },
+      });
+
+      dao.save(result);
+
+      expect(dao.findById("claim-diagnostics-valid")?.claimDiagnostics).toEqual(result.claimDiagnostics);
+      expect(() => dao.save(makeAnalysisResult({
+        id: "claim-diagnostics-invalid-write",
+        claimDiagnostics: {
+          lifecycleCounts: { rejected: 1 },
+          nonAcceptedClaims: [{ claimId: "claim-without-status" }],
+        } as any,
+      }))).toThrow("Invalid claimDiagnostics shape");
+    });
+
+    it("omits malformed historical claim diagnostics instead of exposing untyped records", () => {
+      const dao = new AnalysisResultDAO(db);
+
+      dao.save(makeAnalysisResult({ id: "claim-diagnostics-historical" }));
+      db.prepare("UPDATE analysis_results SET claim_diagnostics = ? WHERE id = ?").run(
+        JSON.stringify({
+          lifecycleCounts: { rejected: 1 },
+          nonAcceptedClaims: [{ claimId: "legacy-without-status" }],
+        }),
+        "claim-diagnostics-historical",
+      );
+
+      expect(dao.findById("claim-diagnostics-historical")?.claimDiagnostics).toBeUndefined();
     });
   });
 

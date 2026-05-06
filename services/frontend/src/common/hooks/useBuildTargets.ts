@@ -34,16 +34,29 @@ export function useBuildTargets(projectId?: string) {
     relativePath: string,
     buildProfile?: BuildProfile,
     includedPaths?: string[],
+    scriptHintPath?: string,
   ) => {
     if (!projectId) return;
-    const created = await createBuildTarget(projectId, { name, relativePath, buildProfile, includedPaths });
+    const created = await createBuildTarget(projectId, {
+      name,
+      relativePath,
+      buildProfile,
+      includedPaths,
+      ...(scriptHintPath !== undefined && scriptHintPath !== "" ? { scriptHintPath } : {}),
+    });
     setTargets((prev) => [...prev, created]);
     return created;
   }, [projectId]);
 
   const update = useCallback(async (
     targetId: string,
-    body: { name?: string; relativePath?: string; buildProfile?: BuildProfile; includedPaths?: string[] },
+    body: {
+      name?: string;
+      relativePath?: string;
+      buildProfile?: BuildProfile;
+      includedPaths?: string[];
+      scriptHintPath?: string | null;
+    },
   ) => {
     if (!projectId) return;
     const { includedPaths: _ignoredIncludedPaths, ...supportedBody } = body;

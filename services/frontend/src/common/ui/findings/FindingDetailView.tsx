@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback } from "react";
-import type { Finding, EvidenceRef, AuditLogEntry, FindingStatus } from "@aegis/shared";
-import { BackButton, Spinner, SeverityBadge, FindingStatusBadge, ConfidenceBadge, SourceBadge, StateTransitionDialog } from "@/common/ui/primitives";
+import type { Finding, EvidenceRef, AuditLogEntry, FindingStatus, PocResponseData } from "@aegis/shared";
+import { BackButton, Spinner, SeverityBadge, FindingStatusBadge, ConfidenceBadge, SourceBadge, StateTransitionDialog, OutcomeChip } from "@/common/ui/primitives";
 import { EvidencePanel } from "./EvidencePanel";
 import { EvidenceViewer } from "./EvidenceViewer";
+import { NonAcceptedClaimsList } from "./NonAcceptedClaimsList";
 import { fetchFindingDetail, updateFindingStatus, generatePoc, fetchFindingHistory, logError } from "@/common/api/client";
-import type { PocResponse, FindingHistoryEntry } from "@/common/api/client";
+import type { FindingHistoryEntry } from "@/common/api/client";
 import { useToast } from "@/common/contexts/ToastContext";
 import { formatDateTime } from "@/common/utils/format";
 import { renderMarkdown } from "@/common/utils/markdown";
@@ -18,7 +19,7 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
   const [loading, setLoading] = useState(true);
   const [showTransition, setShowTransition] = useState(false);
   const [selectedEvidence, setSelectedEvidence] = useState<EvidenceRef | null>(null);
-  const [pocData, setPocData] = useState<PocResponse | null>(null);
+  const [pocData, setPocData] = useState<PocResponseData | null>(null);
   const [pocLoading, setPocLoading] = useState(false);
   const [history, setHistory] = useState<FindingHistoryEntry[]>([]);
 
@@ -146,9 +147,32 @@ export const FindingDetailView: React.FC<Props> = ({ findingId, projectId, onBac
       {pocData ? (
         <div className="panel finding-copy-card">
           <div className="panel-body">
+            <div className="finding-poc-outcome-row">
+              <OutcomeChip kind="cleanPass" value={pocData.cleanPass} showDot />
+              <OutcomeChip kind="poc" value={pocData.pocOutcome} size="sm" />
+              <OutcomeChip kind="quality" value={pocData.qualityOutcome} size="sm" />
+            </div>
             <div className="finding-copy-title">PoC — {pocData.poc.statement}</div>
             <div className="page-section-stack">{renderMarkdown(pocData.poc.detail)}</div>
-            <div className="page-meta-inline"><span>{(pocData.audit.latencyMs / 1000).toFixed(1)}초</span><span>{pocData.audit.tokenUsage.prompt + pocData.audit.tokenUsage.completion} tokens</span></div>
+            {!pocData.cleanPass && pocData.claimDiagnostics ? (
+              <div className="finding-poc-diagnostics">
+                <div className="finding-poc-diagnostics__title">claim 진단</div>
+                {pocData.claimDiagnostics.lifecycleCounts ? (
+                  <ul className="finding-poc-diagnostics__counts">
+                    {Object.entries(pocData.claimDiagnostics.lifecycleCounts).map(([code, count]) => (
+                      <li key={code}><span className="finding-poc-diagnostics__code">{code}</span><span className="finding-poc-diagnostics__count">{count}</span></li>
+                    ))}
+                  </ul>
+                ) : null}
+                {pocData.claimDiagnostics.nonAcceptedClaims && pocData.claimDiagnostics.nonAcceptedClaims.length > 0 ? (
+                  <NonAcceptedClaimsList claims={pocData.claimDiagnostics.nonAcceptedClaims} />
+                ) : null}
+              </div>
+            ) : null}
+            <div className="page-meta-inline">
+              <span>{pocData.audit.latencyMs < 100 ? "<0.1초" : `${(pocData.audit.latencyMs / 1000).toFixed(1)}초`}</span>
+              {pocData.audit.tokenUsage ? <span>{pocData.audit.tokenUsage.prompt + pocData.audit.tokenUsage.completion} tokens</span> : null}
+            </div>
           </div>
         </div>
       ) : null}

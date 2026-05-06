@@ -77,13 +77,13 @@ export async function uploadSource(projectId: string, fileOrFiles: File | File[]
   return res.data;
 }
 
-export async function cloneSource(projectId: string, url: string, branch?: string): Promise<SourceUploadResponse> {
+export async function cloneSource(projectId: string, gitUrl: string, branch?: string): Promise<SourceUploadResponse> {
   const res = await apiFetch<{ success: boolean; data: SourceUploadResponse }>(
     `/api/projects/${projectId}/source/clone`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url, branch: branch || undefined }),
+      body: JSON.stringify({ gitUrl, branch: branch || undefined }),
     },
   );
   return res.data;

@@ -248,7 +248,9 @@ class TestMetricsEndpoint:
         assert "aegis_llm_thinking_requests_total" in body
         assert "aegis_llm_thinking_token_count" in body
         assert "aegis_llm_finish_reason_total" in body
+        assert "aegis_llm_tool_call_empty_total" in body
         assert "aegis_llm_tool_choice_total" in body
+        assert "aegis_llm_response_contract_violation_total" in body
 
     def test_metrics_content_type(self, client_live):
         resp = client_live.get("/metrics")
@@ -294,14 +296,9 @@ class TestMetricsEndpoint:
         assert 'aegis_llm_finish_reason_total{endpoint="chat_proxy",reason="stop",task_type="none"}' in metrics
         assert 'aegis_llm_tool_choice_total{choice="auto",endpoint="chat_proxy"}' in metrics
 
-    def test_tool_choice_metrics_are_bounded(self, client_live):
-        mock_resp = httpx.Response(200, json={
-            "choices": [{"message": {"content": '{"ok": true}'}, "finish_reason": "tool_calls"}],
-            "usage": {"prompt_tokens": 1, "completion_tokens": 1},
-        })
-
+    def test_named_tool_choice_is_rejected_before_metrics_or_backend(self, client_live):
         with patch.object(app.state, "proxy_client") as mock_client:
-            mock_client.post = AsyncMock(return_value=mock_resp)
+            mock_client.post = AsyncMock()
             body = make_chat_body()
             body.update({
                 "messages": [{"role": "user", "content": "tool choice"}],
@@ -313,10 +310,11 @@ class TestMetricsEndpoint:
                 json=body,
             )
 
-        assert resp.status_code == 200
-        metrics = client_live.get("/metrics").text
-        assert 'aegis_llm_tool_choice_total{choice="named",endpoint="chat_proxy"}' in metrics
-        assert "lookup_vin" not in metrics
+        assert resp.status_code == 422
+        data = resp.json()
+        assert data["errorDetail"]["code"] == "INVALID_TOOL_CHOICE"
+        assert data["retryable"] is False
+        mock_client.post.assert_not_called()
 
     def test_chat_payload_task_type_does_not_become_metric_label(self, client_live):
         mock_resp = httpx.Response(200, json={
@@ -617,6 +615,87 @@ class TestChatProxy:
         data = resp.json()
         assert data["choices"][0]["message"]["tool_calls"][0]["function"]["name"] == "knowledge.search"
 
+    def test_chat_proxy_rejects_required_tool_choice_before_backend(self, client_live):
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock()
+
+            body = make_chat_body()
+            body.update({
+                "model": "test-model",
+                "messages": [{"role": "user", "content": "analyze"}],
+                "tools": [{"type": "function", "function": {"name": "knowledge.search"}}],
+                "tool_choice": "required",
+            })
+            resp = client_live.post("/v1/chat", json=body)
+
+        assert resp.status_code == 422
+        data = resp.json()
+        assert data["success"] is False
+        assert data["retryable"] is False
+        assert data["errorDetail"]["code"] == "INVALID_TOOL_CHOICE"
+        assert "required" in data["errorDetail"]["detail"]
+        mock_client.post.assert_not_called()
+
+    def test_chat_proxy_contract_violation_empty_tool_calls_is_retryable_503(self, client_live):
+        mock_llm_response = {
+            "choices": [{
+                "message": {
+                    "content": "",
+                    "tool_calls": [],
+                    "reasoning": "I should call a tool.\n",
+                },
+                "finish_reason": "tool_calls",
+            }],
+            "usage": {"prompt_tokens": 20, "completion_tokens": 15},
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            body = make_chat_body()
+            body.update({
+                "model": "test-model",
+                "messages": [{"role": "user", "content": "analyze"}],
+                "tools": [{"type": "function", "function": {"name": "knowledge.search"}}],
+                "tool_choice": "auto",
+            })
+            resp = client_live.post("/v1/chat", json=body)
+
+        assert resp.status_code == 503
+        data = resp.json()
+        assert data["success"] is False
+        assert data["retryable"] is True
+        assert data["errorDetail"]["code"] == "LLM_PARSE_RETRY"
+        assert data["errorDetail"]["violationReason"] == "finish_reason_tool_calls_with_empty_array"
+        assert data["violationReason"] == "finish_reason_tool_calls_with_empty_array"
+        metrics = client_live.get("/metrics").text
+        assert 'aegis_llm_response_contract_violation_total{endpoint="chat_proxy",reason="finish_reason_tool_calls_with_empty_array"}' in metrics
+        assert 'aegis_llm_tool_call_empty_total{endpoint="chat_proxy",reason="tool_calls",task_type="none",tool_calls_empty="true"}' in metrics
+
+    def test_chat_proxy_contract_violation_reasoning_only_is_retryable_503(self, client_live):
+        mock_llm_response = {
+            "choices": [{
+                "message": {
+                    "content": "",
+                    "tool_calls": [],
+                    "reasoning": "Final answer was swallowed by the reasoning parser.\n",
+                },
+                "finish_reason": "stop",
+            }],
+            "usage": {"prompt_tokens": 20, "completion_tokens": 15},
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+            resp = client_live.post("/v1/chat", json=make_chat_body())
+
+        assert resp.status_code == 503
+        data = resp.json()
+        assert data["errorDetail"]["code"] == "LLM_PARSE_RETRY"
+        assert data["errorDetail"]["violationReason"] == "all_output_absorbed_into_reasoning"
+
     def test_chat_proxy_records_cb_failure_on_500(self, client_live):
         """LLM Engine 500 응답 시 circuit breaker에 failure 기록."""
         mock_resp = httpx.Response(500, json={"error": "internal"})
@@ -825,6 +904,28 @@ class TestAsyncChatOwnershipSurface:
         assert data["cancelUrl"].endswith(data["requestId"])
         assert "acceptedAt" in data
         assert "expiresAt" in data
+
+    def test_async_submit_rejects_required_tool_choice_before_backend(self, client_live):
+        body = make_chat_body()
+        body.update({
+            "tools": [{"type": "function", "function": {"name": "knowledge.search"}}],
+            "tool_choice": "required",
+        })
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock()
+            resp = client_live.post(
+                "/v1/async-chat-requests",
+                json=body,
+                headers={"X-Request-Id": "trace-async-toolchoice-001"},
+            )
+
+        assert resp.status_code == 422
+        data = resp.json()
+        assert data["success"] is False
+        assert data["retryable"] is False
+        assert data["errorDetail"]["code"] == "INVALID_TOOL_CHOICE"
+        mock_client.post.assert_not_called()
 
     def test_async_status_and_result_wrap_chat_response(self, client_live):
         mock_llm_response = {
@@ -1107,3 +1208,61 @@ class TestAsyncChatOwnershipSurface:
         assert "valid JSON" in result_data["errorDetail"]["detail"]
         assert result_data["retryable"] is True
         assert result_data["blockedReason"] == "strict_json_contract_violation"
+
+    def test_async_response_contract_violation_is_failed_retryable(self, client_live):
+        mock_llm_response = {
+            "choices": [{
+                "message": {
+                    "content": "",
+                    "tool_calls": [],
+                    "reasoning": "I should call a tool.\n",
+                },
+                "finish_reason": "tool_calls",
+            }],
+            "usage": {"prompt_tokens": 8, "completion_tokens": 4},
+        }
+        mock_resp = httpx.Response(200, json=mock_llm_response)
+        body = make_chat_body()
+        body.update({
+            "tools": [{"type": "function", "function": {"name": "knowledge.search"}}],
+            "tool_choice": "auto",
+        })
+
+        with patch.object(app.state, "proxy_client") as mock_client:
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            submit = client_live.post(
+                "/v1/async-chat-requests",
+                json=body,
+                headers={"X-Request-Id": "trace-async-contract-001"},
+            )
+            request_id = submit.json()["requestId"]
+
+            deadline = time.time() + 1.0
+            status_data = None
+            while time.time() < deadline:
+                status_resp = client_live.get(f"/v1/async-chat-requests/{request_id}")
+                status_data = status_resp.json()
+                if status_data["state"] == "failed":
+                    break
+                time.sleep(0.01)
+
+            result_resp = client_live.get(f"/v1/async-chat-requests/{request_id}/result")
+
+        assert status_data is not None
+        assert status_data["state"] == "failed"
+        assert status_data["blockedReason"] == "response_contract_violation"
+        assert status_data["error"] == "LLM response contract violated"
+        assert status_data["errorDetail"] == "finish_reason_tool_calls_with_empty_array"
+        assert status_data["retryable"] is True
+
+        assert result_resp.status_code == 409
+        result_data = result_resp.json()
+        assert result_data["state"] == "failed"
+        assert result_data["error"] == "LLM response contract violated"
+        assert result_data["blockedReason"] == "response_contract_violation"
+        assert result_data["errorDetail"]["detail"] == "finish_reason_tool_calls_with_empty_array"
+        assert result_data["retryable"] is True
+
+        metrics = client_live.get("/metrics").text
+        assert 'aegis_llm_response_contract_violation_total{endpoint="async_chat",reason="finish_reason_tool_calls_with_empty_array"}' in metrics

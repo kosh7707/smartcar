@@ -13,7 +13,7 @@ import httpx
 
 from app.agent_runtime.context import get_request_id
 from app.agent_runtime.errors import (
-    LlmHttpError, LlmInputTooLargeError, LlmPoolExhaustedError,
+    LlmContractViolationError, LlmHttpError, LlmInputTooLargeError, LlmPoolExhaustedError,
     LlmTimeoutError, LlmUnavailableError, StrictJsonContractError,
 )
 from app.agent_runtime.llm.generation_policy import DEFAULT_GENERATION, GenerationControls, TimeoutDefaults
@@ -22,6 +22,14 @@ from app.agent_runtime.schemas.agent import LlmResponse, ToolCallRequest
 
 logger = logging.getLogger(__name__)
 _exchange_logger = logging.getLogger("llm_exchange")
+
+_ALLOWED_TOOL_CHOICE_VALUES = {"auto", "none"}
+_CONTRACT_VIOLATION_MARKERS = (
+    "llm_parse_retry",
+    "response_contract_violation",
+    "finish_reason_tool_calls_with_empty_array",
+    "all_output_absorbed_into_reasoning",
+)
 
 
 class LlmCaller:
@@ -114,6 +122,12 @@ class LlmCaller:
         """LLM에 messages를 보내고 LlmResponse를 반환한다."""
         if max_tokens is None:
             max_tokens = self._default_max_tokens
+
+        if not isinstance(tool_choice, str) or tool_choice not in _ALLOWED_TOOL_CHOICE_VALUES:
+            raise ValueError(
+                "S3 LlmCaller only supports tool_choice='auto' or 'none'; "
+                "do not send gateway-unsupported required/named function choices"
+            )
 
         controls = generation or DEFAULT_GENERATION.with_updates(enable_thinking=self._enable_thinking)
         # Transitional compatibility for existing call sites that still pass a
@@ -227,7 +241,21 @@ class LlmCaller:
         if resp.status_code != 200:
             text = resp.text[:500]
             is_circuit_open = resp.status_code == 503 and "circuit" in text.lower()
-            error_code = "CIRCUIT_OPEN" if is_circuit_open else f"HTTP_{resp.status_code}"
+            is_invalid_tool_choice = (
+                resp.status_code == 422
+                and ("invalid_tool_choice" in text.lower() or "tool_choice" in text.lower())
+            )
+            is_contract_violation = (
+                resp.status_code == 503 and self._is_response_contract_violation(text)
+            )
+            if is_circuit_open:
+                error_code = "CIRCUIT_OPEN"
+            elif is_invalid_tool_choice:
+                error_code = "INVALID_TOOL_CHOICE"
+            elif is_contract_violation:
+                error_code = "LLM_PARSE_RETRY"
+            else:
+                error_code = f"HTTP_{resp.status_code}"
             retryable = resp.status_code in (429, 503)
             agent_log(
                 logger, "LLM 에러",
@@ -270,6 +298,7 @@ class LlmCaller:
             component="llm_caller", phase="llm_response",
             turn=turn, finishReason=result.finish_reason,
             toolCallCount=len(result.tool_calls),
+            reasoningChars=len(result.reasoning or ""),
             promptTokens=result.prompt_tokens,
             completionTokens=result.completion_tokens,
             latencyMs=elapsed_ms,
@@ -432,6 +461,17 @@ class LlmCaller:
                         gateway_request_id=status_data.get("requestId") or status_data.get("gatewayRequestId"),
                         raw_excerpt=json.dumps(status_data, ensure_ascii=False)[:1000],
                     )
+                if self._is_response_contract_violation(
+                    blocked_reason,
+                    status_data.get("errorDetail"),
+                    status_data.get("error"),
+                ):
+                    raise LlmContractViolationError(
+                        violation_reason=blocked_reason or "response_contract_violation",
+                        async_request_id=async_request_id,
+                        gateway_request_id=status_data.get("requestId") or status_data.get("gatewayRequestId"),
+                        raw_excerpt=json.dumps(status_data, ensure_ascii=False)[:1000],
+                    )
                 raise LlmHttpError(409, blocked_reason or "Async chat request reached ack-break")
 
             if state in {"queued", "running"} and not result_ready:
@@ -475,6 +515,7 @@ class LlmCaller:
                     component="llm_caller", phase="llm_async_complete",
                     turn=turn, requestId=async_request_id,
                     finishReason=result.finish_reason,
+                    reasoningChars=len(result.reasoning or ""),
                     latencyMs=elapsed_ms,
                 )
 
@@ -496,6 +537,17 @@ class LlmCaller:
                     raise StrictJsonContractError(
                         blocked_reason=blocked_reason,
                         error_detail=status_data.get("errorDetail") or status_data.get("error"),
+                        async_request_id=async_request_id,
+                        gateway_request_id=status_data.get("requestId") or status_data.get("gatewayRequestId"),
+                        raw_excerpt=json.dumps(status_data, ensure_ascii=False)[:1000],
+                    )
+                if self._is_response_contract_violation(
+                    blocked_reason,
+                    status_data.get("errorDetail"),
+                    status_data.get("error"),
+                ):
+                    raise LlmContractViolationError(
+                        violation_reason=blocked_reason or "response_contract_violation",
                         async_request_id=async_request_id,
                         gateway_request_id=status_data.get("requestId") or status_data.get("gatewayRequestId"),
                         raw_excerpt=json.dumps(status_data, ensure_ascii=False)[:1000],
@@ -672,13 +724,61 @@ class LlmCaller:
                 continue
 
         content = message.get("content")
+        reasoning = message.get("reasoning")
+
+        if finish_reason == "tool_calls" and not tool_calls:
+            self._raise_contract_violation(
+                violation_reason="finish_reason_tool_calls_with_empty_array",
+                finish_reason=finish_reason,
+                reasoning=reasoning,
+                content=content,
+                data=data,
+            )
+
+        if not tool_calls and not self._has_actionable_content(content) and self._has_actionable_content(reasoning):
+            self._raise_contract_violation(
+                violation_reason="all_output_absorbed_into_reasoning",
+                finish_reason=finish_reason,
+                reasoning=reasoning,
+                content=content,
+                data=data,
+            )
 
         return LlmResponse(
             content=content,
+            reasoning=reasoning,
             tool_calls=tool_calls,
             finish_reason=finish_reason,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
+        )
+
+    @staticmethod
+    def _has_actionable_content(value: Any) -> bool:
+        return isinstance(value, str) and bool(value.strip())
+
+    @staticmethod
+    def _is_response_contract_violation(*values: Any) -> bool:
+        text = " ".join(str(value) for value in values if value is not None).lower()
+        return any(marker in text for marker in _CONTRACT_VIOLATION_MARKERS)
+
+    @staticmethod
+    def _raise_contract_violation(
+        *,
+        violation_reason: str,
+        finish_reason: str | None,
+        reasoning: Any,
+        content: Any,
+        data: dict,
+    ) -> None:
+        reasoning_text = reasoning if isinstance(reasoning, str) else None
+        content_text = content if isinstance(content, str) else None
+        raise LlmContractViolationError(
+            violation_reason=violation_reason,
+            finish_reason=finish_reason,
+            reasoning_excerpt=reasoning_text[:500] if reasoning_text else None,
+            content_excerpt=content_text[:500] if content_text else None,
+            raw_excerpt=json.dumps(data, ensure_ascii=False)[:1000],
         )
 
     async def aclose(self) -> None:

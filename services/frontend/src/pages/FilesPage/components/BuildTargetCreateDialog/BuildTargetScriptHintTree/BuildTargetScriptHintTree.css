@@ -1,0 +1,105 @@
+.script-hint-tree {
+  display: flex;
+  flex-direction: column;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+}
+.script-hint-tree--empty {
+  padding: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--foreground-muted);
+  text-align: center;
+}
+.script-hint-tree__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  user-select: none;
+  font-size: var(--text-sm);
+  color: var(--foreground);
+  border-left: 2px solid transparent;
+}
+.script-hint-tree__row:hover {
+  background: var(--surface-sunken);
+}
+.script-hint-tree__row--selected {
+  background: var(--surface-sunken);
+  border-left-color: var(--border-strong);
+  font-weight: var(--weight-semibold);
+}
+.script-hint-tree__row--disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.script-hint-tree__row--disabled:hover {
+  background: transparent;
+}
+.script-hint-tree__row:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+.script-hint-tree__indent {
+  flex: 0 0 auto;
+}
+.script-hint-tree__radio {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--foreground-muted);
+  width: 14px;
+  height: 14px;
+}
+.script-hint-tree__row--selected .script-hint-tree__radio {
+  color: var(--foreground);
+}
+.script-hint-tree__radio-spacer {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+}
+.script-hint-tree__chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--foreground-muted);
+  transition: transform 0.15s ease;
+}
+.script-hint-tree__chevron.is-open {
+  transform: rotate(90deg);
+}
+.script-hint-tree__chevron-spacer {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+}
+.script-hint-tree__folder-icon,
+.script-hint-tree__file-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--foreground-muted);
+  flex: 0 0 auto;
+}
+.script-hint-tree__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.script-hint-tree__name--folder {
+  color: var(--foreground);
+}
+.script-hint-tree__name--file {
+  font-family: var(--font-code);
+  font-size: var(--text-xs);
+}
+.script-hint-tree__count {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  color: var(--foreground-muted);
+  font-variant-numeric: tabular-nums;
+}

@@ -102,3 +102,151 @@
 .finding-status-badge--fixed { border-color:color-mix(in srgb, var(--status-fixed) 28%, transparent); background:var(--status-fixed-surface); color:var(--status-fixed); }
 .finding-status-badge--needs-revalidation { border-color:color-mix(in srgb, var(--status-needs-revalidation) 28%, transparent); background:var(--status-needs-revalidation-surface); color:var(--status-needs-revalidation); }
 .finding-status-badge--sandbox { border-color:color-mix(in srgb, var(--status-sandbox) 28%, transparent); background:var(--status-sandbox-surface); color:var(--status-sandbox); }
+
+/* ── PoC outcome row + non-clean diagnostics (caution-review tone, handoff §2.1) ── */
+.finding-poc-outcome-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.finding-poc-diagnostics {
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--warning) 28%, transparent);
+  background: var(--warning-surface);
+  border-radius: var(--radius-sm);
+}
+.finding-poc-diagnostics__title {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--warning);
+  margin-bottom: var(--space-2);
+}
+.finding-poc-diagnostics__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.finding-poc-diagnostics__counts li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--foreground-muted);
+}
+.finding-poc-diagnostics__code {
+  font-family: var(--font-code);
+  letter-spacing: -0.005em;
+}
+.finding-poc-diagnostics__count {
+  font-weight: var(--weight-semibold);
+  color: var(--foreground);
+}
+
+/* ── NonAcceptedClaimsList — collapsible per-claim diagnostics inside caution-review surface ── */
+.finding-poc-claims-list {
+  list-style: none;
+  margin: var(--space-3) 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.finding-poc-claim {
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-sunken);
+  border-radius: var(--radius-sm);
+}
+.finding-poc-claim__head {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
+  gap: var(--space-3);
+  align-items: center;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  color: var(--foreground);
+  font: inherit;
+}
+.finding-poc-claim__head:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+.finding-poc-claim__chip-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.finding-poc-claim__family {
+  font-family: var(--font-code);
+  font-size: var(--text-xs);
+  color: var(--foreground-muted);
+  letter-spacing: -0.005em;
+}
+.finding-poc-claim__code {
+  font-family: var(--font-code);
+  font-size: var(--text-xs);
+  color: var(--foreground-muted);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+.finding-poc-claim__primary {
+  font-size: var(--text-sm);
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.finding-poc-claim__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--foreground-muted);
+  font-family: var(--font-code);
+}
+.finding-poc-claim__body {
+  border-top: 1px solid var(--border-subtle);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.finding-poc-claim__field {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--foreground);
+}
+.finding-poc-claim__field strong {
+  color: var(--foreground-muted);
+  font-weight: var(--weight-semibold);
+  margin-right: var(--space-2);
+}
+.finding-poc-claim__evidence,
+.finding-poc-claim__trail,
+.finding-poc-claim__history {
+  list-style: none;
+  margin: var(--space-2) 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--foreground-muted);
+  font-family: var(--font-code);
+}
+.finding-poc-claim__evidence li.is-missing {
+  color: var(--warning);
+}
+.finding-poc-claim__evidence li.is-present {
+  color: var(--success);
+}

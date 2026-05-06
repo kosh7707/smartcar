@@ -11,6 +11,7 @@ import { BuildTargetSelectionSummary } from "./BuildTargetSelectionSummary/Build
 import { BuildTargetCreateDialogActions } from "./BuildTargetCreateDialogActions/BuildTargetCreateDialogActions";
 import { BuildTargetCreateDialogHeader } from "./BuildTargetCreateDialogHeader/BuildTargetCreateDialogHeader";
 import { BuildTargetCreateDialogBody } from "./BuildTargetCreateDialogBody/BuildTargetCreateDialogBody";
+import { BuildTargetScriptHintField } from "./BuildTargetScriptHintField/BuildTargetScriptHintField";
 
 interface Props {
   open: boolean;
@@ -18,12 +19,19 @@ interface Props {
   sourceFiles: SourceFileEntry[];
   onCancel: () => void;
   onCreated?: () => void;
-  onSubmit?: (payload: { name: string; profile: BuildProfile; includedPaths: string[] }) => Promise<void>;
+  onSubmit?: (payload: {
+    name: string;
+    profile: BuildProfile;
+    includedPaths: string[];
+    scriptHintPath: string | null;
+  }) => Promise<void>;
   title?: string;
   submitLabel?: string;
   initialName?: string;
   initialProfile?: BuildProfile;
   initialIncludedPaths?: string[];
+  initialRelativePath?: string;
+  initialScriptHintPath?: string | null;
   includedPathsEditable?: boolean;
   includedPathsHelpText?: string;
 }
@@ -42,6 +50,8 @@ export const BuildTargetCreateDialog: React.FC<Props> = ({
   initialName = "",
   initialProfile = DEFAULT_PROFILE,
   initialIncludedPaths = EMPTY_INCLUDED_PATHS,
+  initialRelativePath,
+  initialScriptHintPath = null,
   includedPathsEditable = true,
   includedPathsHelpText = !includedPathsEditable ? INCLUDED_PATHS_EDIT_UNSUPPORTED_TEXT : undefined,
 }) => {
@@ -57,6 +67,8 @@ export const BuildTargetCreateDialog: React.FC<Props> = ({
     selectedSize,
     handleToggle,
     handleCreate,
+    scriptHintPath,
+    setScriptHintPath,
   } = useBuildTargetCreateDialog({
     open,
     projectId,
@@ -64,11 +76,17 @@ export const BuildTargetCreateDialog: React.FC<Props> = ({
     initialName,
     initialProfile,
     initialIncludedPaths,
+    initialRelativePath,
+    initialScriptHintPath,
     onCreated,
     onSubmit,
   });
 
   if (!open) return null;
+
+  const buildTargetRoot = (initialRelativePath && initialRelativePath.length > 0)
+    ? (initialRelativePath.endsWith("/") ? initialRelativePath : `${initialRelativePath}/`)
+    : (name.trim() ? `${name.trim()}/` : "");
 
   return (
     <Modal open onClose={onCancel} className="build-target-create-dialog" overlayClassName="confirm-overlay">
@@ -83,6 +101,12 @@ export const BuildTargetCreateDialog: React.FC<Props> = ({
           helpText={includedPathsHelpText}
         />
         <BuildTargetSelectionSummary selectedCount={selectedCount} selectedSize={selectedSize} />
+        <BuildTargetScriptHintField
+          sourceFiles={sourceFiles}
+          selectedPath={scriptHintPath}
+          onSelect={setScriptHintPath}
+          buildTargetRoot={buildTargetRoot}
+        />
         <BuildProfileForm value={profile} onChange={setProfile} registeredSdks={registeredSdks} />
       </BuildTargetCreateDialogBody>
       <BuildTargetCreateDialogActions

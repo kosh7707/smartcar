@@ -13,6 +13,7 @@ interface BuildTargetRow {
   build_system: "cmake" | "make" | "custom" | null;
   included_paths: string | null;
   source_path: string | null;
+  script_hint_path: string | null;
   build_command: string | null;
   status: BuildTargetStatus | null;
   compile_commands_path: string | null;
@@ -39,6 +40,7 @@ function rowToBuildTarget(row: BuildTargetRow): BuildTarget {
     includedPaths: safeJsonParse<string[]>(row.included_paths, []).length > 0
       ? safeJsonParse<string[]>(row.included_paths, []) : undefined,
     sourcePath: row.source_path ?? undefined,
+    scriptHintPath: row.script_hint_path ?? undefined,
     buildCommand: row.build_command ?? undefined,
     status: (row.status ?? "discovered") as BuildTargetStatus,
     compileCommandsPath: row.compile_commands_path ?? undefined,
@@ -64,15 +66,15 @@ export class BuildTargetDAO implements IBuildTargetDAO {
 
   constructor(private db: DatabaseType) {
     this.insertStmt = db.prepare(
-      `INSERT INTO build_targets (id, project_id, name, relative_path, build_profile, sdk_choice_state, build_system, status, included_paths, source_path, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO build_targets (id, project_id, name, relative_path, build_profile, sdk_choice_state, build_system, status, included_paths, source_path, script_hint_path, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     this.selectByIdStmt = db.prepare(`SELECT * FROM build_targets WHERE id = ?`);
     this.selectByProjectStmt = db.prepare(
       `SELECT * FROM build_targets WHERE project_id = ? ORDER BY name ASC`,
     );
     this.updateStmt = db.prepare(
-      `UPDATE build_targets SET name = ?, relative_path = ?, build_profile = ?, sdk_choice_state = ?, build_system = ?, status = ?, updated_at = ? WHERE id = ?`,
+      `UPDATE build_targets SET name = ?, relative_path = ?, build_profile = ?, sdk_choice_state = ?, build_system = ?, script_hint_path = ?, status = ?, updated_at = ? WHERE id = ?`,
     );
     this.updateStatusStmt = db.prepare(
       `UPDATE build_targets SET status = ?, compile_commands_path = ?, build_log = ?, sast_scan_id = ?, sca_libraries = ?, code_graph_status = ?, code_graph_node_count = ?, last_built_at = ?, build_command = ?, sdk_choice_state = ?, updated_at = ? WHERE id = ?`,
@@ -93,6 +95,7 @@ export class BuildTargetDAO implements IBuildTargetDAO {
       target.status ?? "discovered",
       JSON.stringify(target.includedPaths ?? []),
       target.sourcePath ?? null,
+      target.scriptHintPath ?? null,
       target.createdAt,
       target.updatedAt,
     );
@@ -109,7 +112,15 @@ export class BuildTargetDAO implements IBuildTargetDAO {
 
   update(
     id: string,
-    fields: { name?: string; relativePath?: string; buildProfile?: BuildProfile; buildSystem?: string; status?: BuildTargetStatus; sdkChoiceState?: BuildTarget["sdkChoiceState"] },
+    fields: {
+      name?: string;
+      relativePath?: string;
+      buildProfile?: BuildProfile;
+      buildSystem?: string;
+      scriptHintPath?: string | null;
+      status?: BuildTargetStatus;
+      sdkChoiceState?: BuildTarget["sdkChoiceState"];
+    },
   ): BuildTarget | undefined {
     const existing = this.findById(id);
     if (!existing) return undefined;
@@ -119,11 +130,12 @@ export class BuildTargetDAO implements IBuildTargetDAO {
     const buildProfile = fields.buildProfile ?? existing.buildProfile;
     const sdkChoiceState = fields.sdkChoiceState ?? existing.sdkChoiceState;
     const buildSystem = fields.buildSystem ?? existing.buildSystem;
+    const scriptHintPath = fields.scriptHintPath === undefined ? existing.scriptHintPath : fields.scriptHintPath ?? undefined;
     const status = fields.status ?? existing.status;
     const updatedAt = new Date().toISOString();
 
-    this.updateStmt.run(name, relativePath, JSON.stringify(buildProfile), sdkChoiceState, buildSystem ?? null, status, updatedAt, id);
-    return { ...existing, name, relativePath, buildProfile, sdkChoiceState, buildSystem: buildSystem as BuildTarget["buildSystem"], status, updatedAt };
+    this.updateStmt.run(name, relativePath, JSON.stringify(buildProfile), sdkChoiceState, buildSystem ?? null, scriptHintPath ?? null, status, updatedAt, id);
+    return { ...existing, name, relativePath, buildProfile, sdkChoiceState, buildSystem: buildSystem as BuildTarget["buildSystem"], scriptHintPath, status, updatedAt };
   }
 
   /** 파이프라인 상태 전이용 (모든 파이프라인 관련 필드 일괄 업데이트) */

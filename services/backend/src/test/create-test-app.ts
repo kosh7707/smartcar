@@ -112,6 +112,7 @@ export interface TestAppContext {
   pipelinePrepareCalls: Array<{ projectId: string; targetIds?: string[]; requestId?: string; preparationId?: string }>;
   analysisQuickCalls: Array<{ projectId: string; analysisId: string; targetIds?: string[]; requestId?: string }>;
   analysisDeepCalls: Array<{ projectId: string; analysisId: string; buildTargetId: string; executionId: string; requestId?: string }>;
+  agentTaskResponses: Array<Record<string, unknown>>;
   projectUploadsRoot: string;
   dynamicTestRunningProjects: Set<string>;
 }
@@ -174,7 +175,15 @@ export function createTestApp(): TestAppContext {
     return adapterManager.findById(id);
   };
   const settingsService = new ProjectSettingsService(projectSettingsDAO, sdkRegistryDAO);
-  const buildTargetService = new BuildTargetService(buildTargetDAO, settingsService);
+  const buildTargetSourceService = {
+    getProjectPath(projectId: string) {
+      return `/tmp/${projectId}`;
+    },
+    copyToBuildTargetSource(projectId: string, targetId: string) {
+      return `/tmp/${projectId}/${targetId}`;
+    },
+  };
+  const buildTargetService = new BuildTargetService(buildTargetDAO, settingsService, buildTargetSourceService as any);
   const deleteSourceService = new ProjectSourceService(projectUploadsRoot);
 
   // ── Tier 1.5: 알림 + 사용자 서비스 ──
@@ -382,6 +391,7 @@ export function createTestApp(): TestAppContext {
   };
   const analysisQuickCalls: Array<{ projectId: string; analysisId: string; targetIds?: string[]; requestId?: string }> = [];
   const analysisDeepCalls: Array<{ projectId: string; analysisId: string; buildTargetId: string; executionId: string; requestId?: string }> = [];
+  const agentTaskResponses: Array<Record<string, unknown>> = [];
   const analysisTracker = new AnalysisTracker();
   const analysisOrchestrator = {
     async preflightQuickRequest() {},
@@ -395,9 +405,13 @@ export function createTestApp(): TestAppContext {
   };
   const agentClient = {
     async submitTask() {
-      return {
+      return agentTaskResponses.shift() ?? {
+        status: "completed",
         result: {
           claims: [{ statement: "demo poc", detail: "demo detail" }],
+          pocOutcome: "poc_accepted",
+          qualityOutcome: "accepted",
+          cleanPass: true,
         },
         audit: { latencyMs: 1 },
       };
@@ -604,6 +618,7 @@ export function createTestApp(): TestAppContext {
     organizationDAO, registrationRequestDAO, passwordResetTokenDAO, devPasswordResetDeliveryDAO,
     gateService, normalizer, buildTargetService,
     notificationService, userService, settingsService, analysisTracker, pipelineRunCalls, pipelinePrepareCalls, analysisQuickCalls, analysisDeepCalls,
+    agentTaskResponses,
     projectUploadsRoot, dynamicTestRunningProjects,
   };
 }

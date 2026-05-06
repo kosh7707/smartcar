@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from app.agent_runtime.errors import LlmHttpError, LlmPoolExhaustedError, LlmTimeoutError, LlmUnavailableError
+from app.agent_runtime.errors import (
+    LlmContractViolationError,
+    LlmHttpError,
+    LlmPoolExhaustedError,
+    LlmTimeoutError,
+    LlmUnavailableError,
+    StrictJsonContractError,
+)
 
 
 class RetryPolicy:
@@ -18,7 +25,13 @@ class RetryPolicy:
     def should_retry(self, error: Exception, attempt: int) -> bool:
         if attempt >= self._max_retries:
             return False
-        if isinstance(error, (LlmTimeoutError, LlmUnavailableError, LlmPoolExhaustedError)):
+        if isinstance(error, (
+            LlmTimeoutError,
+            LlmUnavailableError,
+            LlmPoolExhaustedError,
+            LlmContractViolationError,
+            StrictJsonContractError,
+        )):
             return True
         if isinstance(error, LlmHttpError) and error.retryable:
             return True
@@ -45,6 +58,11 @@ class RetryPolicy:
         # Pool 소진: 짧은 대기
         if isinstance(error, LlmPoolExhaustedError):
             return 5.0
+
+        # Gateway/parser contract violations are usually transient model/parser
+        # races; retry quickly rather than waiting for CB recovery.
+        if isinstance(error, (LlmContractViolationError, StrictJsonContractError)):
+            return 2.0
 
         # 기타 (timeout, unavailable): 지수 백오프
         return min(2.0 * (2 ** attempt), 8.0)

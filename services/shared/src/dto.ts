@@ -27,6 +27,7 @@ import {
   SdkErrorPhase,
   SdkPhaseDetail,
   SdkProgressPhase,
+  PocResponseData,
 } from "./models";
 
 // ============================================================
@@ -147,6 +148,17 @@ export interface StaticAnalysisRequest {
 export interface StaticAnalysisResponse {
   success: boolean;
   data?: AnalysisResult;
+  error?: string;
+}
+
+export interface GeneratePocRequest {
+  projectId: string;
+  findingId: string;
+}
+
+export interface GeneratePocResponse {
+  success: boolean;
+  data?: PocResponseData;
   error?: string;
 }
 

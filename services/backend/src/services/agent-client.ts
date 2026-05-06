@@ -116,6 +116,8 @@ export interface AgentAssessmentResult {
   qualityOutcome?: AgentQualityOutcome;
   /** PoC classifier for generate-poc; deep-analyze defaults to `poc_not_requested`. */
   pocOutcome?: AgentPocOutcome;
+  /** Strict clean evaluation pass flag. For generate-poc, true only for clean accepted PoC. */
+  cleanPass?: boolean;
   /** Bounded public recovery/deficiency summaries. */
   recoveryTrace?: AgentRecoveryTraceEntry[];
   /**

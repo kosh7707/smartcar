@@ -1,6 +1,7 @@
 import type { AnalysisResult, AnalysisModule, AnalysisStatus } from "@aegis/shared";
 import type { DatabaseType } from "../db";
 import type { IAnalysisResultDAO } from "./interfaces";
+import { assertValidClaimDiagnostics, parseClaimDiagnostics } from "../lib/claim-diagnostics";
 import { safeJsonParse } from "../lib/utils";
 
 interface AnalysisResultRow {
@@ -41,7 +42,7 @@ function rowToResult(row: AnalysisResultRow): AnalysisResult {
   const recommendedNextSteps = safeJsonParse(row.recommended_next_steps, []);
   const policyFlags = safeJsonParse(row.policy_flags, []);
   const recoveryTrace = safeJsonParse(row.recovery_trace, []);
-  const claimDiagnostics = safeJsonParse(row.claim_diagnostics, undefined);
+  const claimDiagnostics = parseClaimDiagnostics(row.claim_diagnostics);
   const evidenceDiagnostics = safeJsonParse(row.evidence_diagnostics, undefined);
   const scaLibraries = safeJsonParse(row.sca_libraries, []);
   const agentAudit = safeJsonParse(row.agent_audit, undefined);
@@ -133,7 +134,7 @@ export class AnalysisResultDAO implements IAnalysisResultDAO {
       result.qualityOutcome ?? null,
       result.pocOutcome ?? null,
       JSON.stringify(result.recoveryTrace ?? []),
-      result.claimDiagnostics ? JSON.stringify(result.claimDiagnostics) : null,
+      result.claimDiagnostics ? JSON.stringify(assertValidClaimDiagnostics(result.claimDiagnostics)) : null,
       result.evidenceDiagnostics ? JSON.stringify(result.evidenceDiagnostics) : null,
       JSON.stringify(result.scaLibraries ?? []),
       result.agentAudit ? JSON.stringify(result.agentAudit) : null,

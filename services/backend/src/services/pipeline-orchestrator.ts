@@ -20,7 +20,7 @@ import { NotFoundError, BuildAgentUnavailableError, BuildAgentTimeoutError, Pipe
 import type { ProjectSourceService } from "./project-source.service";
 import type { SastClient, SastScanResponse } from "./sast-client";
 import type { KbClient } from "./kb-client";
-import type { BuildAgentClient } from "./build-agent-client";
+import type { BuildAgentClient, BuildResolveRequest } from "./build-agent-client";
 import type { TargetLibraryDAO } from "../dao/target-library.dao";
 import type { IBuildTargetDAO, IAnalysisExecutionDAO, IAnalysisResultDAO } from "../dao/interfaces";
 import type { ResultNormalizer } from "./result-normalizer";
@@ -35,6 +35,14 @@ function statusToPhase(status: BuildTargetStatus): PipelinePhase {
   if (SETUP_STATUSES.includes(status)) return "setup";
   if (status === "ready") return "ready";
   return "build";
+}
+
+function resolveBuildMode(target: BuildTarget): "native" | "sdk" {
+  const sdkId = target.buildProfile?.sdkId;
+  if (target.sdkChoiceState === "sdk-selected" && sdkId && sdkId !== "none" && sdkId !== "custom") {
+    return "sdk";
+  }
+  return "native";
 }
 
 export class PipelineOrchestrator {
@@ -312,6 +320,39 @@ export class PipelineOrchestrator {
     // 격리된 BuildTarget 경로 우선 사용 (없으면 원본 프로젝트 내 상대경로)
     const scanPath = target.sourcePath ?? path.join(projectPath, target.relativePath);
     const isIsolated = !!target.sourcePath;
+    const buildAgentProjectPath = isIsolated ? scanPath : projectPath;
+    const buildResolveRequest = (taskId: string): BuildResolveRequest => {
+      const mode = resolveBuildMode(target);
+      return {
+        taskType: "build-resolve",
+        taskId,
+        contractVersion: "build-resolve-v1",
+        strictMode: true,
+        context: {
+          trusted: {
+            projectPath: buildAgentProjectPath,
+            buildTargetPath: isIsolated ? "." : target.relativePath,
+            buildTargetName: target.name,
+            build: {
+              mode,
+              ...(mode === "sdk" ? { sdkId: target.buildProfile.sdkId } : {}),
+              ...(target.scriptHintPath ? { scriptHintPath: target.scriptHintPath } : {}),
+            },
+            targetPath: isIsolated ? "." : target.relativePath,
+            targetName: target.name,
+            targets: [
+              {
+                name: target.name,
+                path: isIsolated ? "." : target.relativePath,
+                buildSystem: target.buildSystem ?? "cmake",
+                buildFiles: [],
+              },
+            ],
+          },
+        },
+        constraints: { timeoutMs: 600_000 },
+      };
+    };
 
     // ── Step 0: Build Resolve (S3 Build Agent) ──
     if (target.status === "discovered" || !target.buildCommand) {
@@ -319,30 +360,7 @@ export class PipelineOrchestrator {
 
       try {
         let resolveResp = await this.buildAgentClient.submitTask(
-          {
-            taskType: "build-resolve",
-            taskId: `resolve-${crypto.randomUUID().slice(0, 8)}`,
-            contractVersion: "build-resolve-v1",
-            strictMode: true,
-            context: {
-              trusted: {
-                projectPath: scanPath,
-                buildTargetPath: isIsolated ? "." : target.relativePath,
-                buildTargetName: target.name,
-                targetPath: isIsolated ? "." : target.relativePath,
-                targetName: target.name,
-                targets: [
-                  {
-                    name: target.name,
-                    path: isIsolated ? "." : target.relativePath,
-                    buildSystem: target.buildSystem ?? "cmake",
-                    buildFiles: [],
-                  },
-                ],
-              },
-            },
-            constraints: { timeoutMs: 600_000 },
-          },
+          buildResolveRequest(`resolve-${crypto.randomUUID().slice(0, 8)}`),
           requestId,
           signal,
         );
@@ -352,28 +370,7 @@ export class PipelineOrchestrator {
           logger.info({ targetId: target.id, failureCode: resolveResp.failureCode }, "Retryable build failure, attempting retry (1/1)");
           this.updateStatus(projectId, pipelineId, target, "resolving", "빌드 재시도 중...");
           resolveResp = await this.buildAgentClient.submitTask(
-            {
-              taskType: "build-resolve",
-              taskId: `resolve-retry-${crypto.randomUUID().slice(0, 8)}`,
-              contractVersion: "build-resolve-v1",
-              strictMode: true,
-              context: {
-                trusted: {
-                  projectPath: scanPath,
-                  buildTargetPath: isIsolated ? "." : target.relativePath,
-                  buildTargetName: target.name,
-                  targetPath: isIsolated ? "." : target.relativePath,
-                  targetName: target.name,
-                  targets: [{
-                    name: target.name,
-                    path: isIsolated ? "." : target.relativePath,
-                    buildSystem: target.buildSystem ?? "cmake",
-                    buildFiles: [],
-                  }],
-                },
-              },
-              constraints: { timeoutMs: 600_000 },
-            },
+            buildResolveRequest(`resolve-retry-${crypto.randomUUID().slice(0, 8)}`),
             requestId,
             signal,
           );

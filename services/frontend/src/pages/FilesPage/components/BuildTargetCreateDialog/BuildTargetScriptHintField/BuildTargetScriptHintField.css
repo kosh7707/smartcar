@@ -1,0 +1,84 @@
+.script-hint-field__selected {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+.script-hint-field__selected-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.script-hint-field__selected-label {
+  font-size: var(--text-xs);
+  color: var(--foreground-muted);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.script-hint-field__selected-path {
+  font-family: var(--font-code);
+  font-size: var(--text-sm);
+  color: var(--foreground);
+  font-weight: var(--weight-semibold);
+  word-break: break-all;
+  background: transparent;
+  padding: 0;
+}
+.script-hint-field__selected-relative {
+  font-size: var(--text-xs);
+  color: var(--foreground-muted);
+}
+.script-hint-field__selected-relative code {
+  font-family: var(--font-code);
+  background: transparent;
+  padding: 0;
+  color: var(--foreground);
+}
+.script-hint-field__selected-warning {
+  font-size: var(--text-xs);
+  color: var(--warning);
+  line-height: 1.4;
+}
+.script-hint-field__selected-warning code {
+  font-family: var(--font-code);
+  background: transparent;
+  padding: 0;
+  color: var(--warning);
+}
+.script-hint-field__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--foreground-muted);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.script-hint-field__clear:hover:not(:disabled) {
+  color: var(--foreground);
+  border-color: var(--border-strong);
+}
+.script-hint-field__clear:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.script-hint-field__placeholder {
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-sunken);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--foreground-muted);
+  font-style: italic;
+}

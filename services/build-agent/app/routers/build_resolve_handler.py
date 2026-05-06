@@ -79,13 +79,18 @@ async def handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | Ta
     from app.core.phase_zero import Phase0Executor
     phase0 = Phase0Executor(project_path, target_path)
     phase0_result = await phase0.execute(request_id)
-    if preflight.contract.buildScriptHintText:
+    if preflight.script_hint:
         phase0_result.build_system = "shell"
     build_material = {
         "setupScript": preflight.contract.setupScript or "",
         "toolchainTriplet": preflight.contract.toolchainTriplet or "",
         "buildEnvironment": preflight.contract.buildEnvironment,
-        "buildScriptHintText": preflight.contract.buildScriptHintText or "",
+        "scriptHint": {
+            "path": preflight.script_hint.path,
+            "content": preflight.script_hint.content,
+            "sizeBytes": preflight.script_hint.size_bytes,
+            "sha256": preflight.script_hint.sha256,
+        } if preflight.script_hint else None,
     }
     build_files = phase0_result.build_files
 
@@ -224,6 +229,7 @@ async def handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | Ta
         request_id,
         default_build_environment=preflight.contract.buildEnvironment,
         provenance=provenance,
+        build_dir=build_subdir,
     )
 
     tool_router.register_implementation("list_files", list_tool)
@@ -255,8 +261,12 @@ async def handle_build_resolve(request: TaskRequest) -> TaskSuccessResponse | Ta
             f"## 호출자 선언 contractVersion\n{normalize_contract_version(preflight.contract)}\n"
             f"## 호출자 선언 build.mode\n{preflight.contract.buildMode.value if preflight.contract.buildMode else 'unspecified'}\n"
         )
-    if preflight.contract.buildScriptHintText:
-        user_message += "## caller build script hint\nprovided (text-only, reference-only)\n"
+    if preflight.script_hint:
+        user_message += (
+            "## caller build script hint\n"
+            f"provided at `{preflight.script_hint.path}` "
+            "(uploaded-project path, text-only, reference-only)\n"
+        )
 
     if settings.llm_mode == "real":
         llm_caller = LlmCaller(

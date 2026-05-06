@@ -8,9 +8,12 @@ from __future__ import annotations
 import json
 import logging
 import re
+import shlex
+from pathlib import Path
 
 import httpx
 from app.agent_runtime.llm.generation_policy import TimeoutDefaults
+from app.agent_runtime.path_util import resolve_scoped_path
 from app.agent_runtime.schemas.agent import ToolResult
 
 logger = logging.getLogger(__name__)
@@ -69,12 +72,59 @@ class TryBuildTool:
         *,
         default_build_environment: dict[str, str] | None = None,
         provenance: dict[str, str] | None = None,
+        build_dir: str | None = None,
     ) -> None:
         self._sast_endpoint = sast_endpoint
         self._project_path = project_path
         self._request_id = request_id
         self._default_build_environment = dict(default_build_environment or {})
         self._provenance = dict(provenance or {})
+        self._build_dir = build_dir
+
+    def _validate_generated_script_command(self, build_cmd: str) -> str | None:
+        """Return an error if build_cmd does not execute the generated script only.
+
+        When Build Agent has a request-scoped build directory, the safety
+        contract is runtime-enforced here: uploaded/caller-provided scripts are
+        reference material only and must not be executed directly by try_build.
+        """
+        if not self._build_dir:
+            return None
+
+        try:
+            parts = shlex.split(build_cmd)
+        except ValueError as exc:
+            return f"invalid build command quoting: {exc}"
+
+        if len(parts) != 2 or parts[0] not in {"bash", "/bin/bash"}:
+            return (
+                "build_command must execute only the generated request-scoped "
+                f"script: bash {self._build_dir}/aegis-build.sh"
+            )
+
+        script_arg = parts[1]
+        expected_rel = f"{self._build_dir}/aegis-build.sh"
+        expected_abs = resolve_scoped_path(self._project_path, expected_rel)
+        if expected_abs is None:
+            return "generated build script path is outside project scope"
+
+        if Path(script_arg).is_absolute():
+            try:
+                candidate = str(Path(script_arg).resolve())
+            except OSError:
+                return "build_command script path could not be resolved"
+        else:
+            candidate = resolve_scoped_path(self._project_path, script_arg)
+            if candidate is None:
+                return "build_command script path must stay inside project scope"
+
+        if candidate != expected_abs:
+            return (
+                "build_command must not execute uploaded/reference scripts directly; "
+                f"use bash {self._build_dir}/aegis-build.sh"
+            )
+
+        return None
 
     async def execute(self, arguments: dict) -> ToolResult:
         build_cmd = arguments.get("build_command", "")
@@ -96,6 +146,14 @@ class TryBuildTool:
 
         # LLM이 넣은 bear 제거 (S4가 자동으로 감싸므로 이중 방지)
         build_cmd = _BEAR_PREFIX_RE.sub("", build_cmd).strip()
+
+        generated_script_error = self._validate_generated_script_command(build_cmd)
+        if generated_script_error:
+            return ToolResult(
+                tool_call_id="", name="", success=False,
+                content=json.dumps({"error": generated_script_error}, ensure_ascii=False),
+                error=generated_script_error,
+            )
 
         try:
             timeout_ms = str(int(TimeoutDefaults.TOOL_EXECUTION_SECONDS * 1000))

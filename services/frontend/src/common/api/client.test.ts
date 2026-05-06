@@ -17,6 +17,7 @@ Object.defineProperty(global, "localStorage", {
 import {
   fetchBuildTargets,
   createBuildTarget,
+  updateBuildTarget,
   deleteBuildTarget,
   discoverBuildTargets,
   runPipelineTarget,
@@ -24,6 +25,7 @@ import {
   generatePoc,
   fetchSourceFiles,
   fetchSourceFileContent,
+  cloneSource,
 } from "./client";
 
 function mockResponse(data: unknown, status = 200) {
@@ -69,6 +71,62 @@ describe("createBuildTarget", () => {
     const body = JSON.parse(opts.body);
     expect(body.name).toBe("body");
     expect(body.relativePath).toBe("body/");
+  });
+
+  it("forwards optional scriptHintPath when provided", async () => {
+    mockResponse({ success: true, data: { id: "t-3" } });
+
+    await createBuildTarget("proj-1", {
+      name: "body",
+      relativePath: "body/",
+      scriptHintPath: "scripts/build.sh",
+    });
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.scriptHintPath).toBe("scripts/build.sh");
+  });
+
+  it("omits scriptHintPath key when not provided", async () => {
+    mockResponse({ success: true, data: { id: "t-4" } });
+
+    await createBuildTarget("proj-1", { name: "body", relativePath: "body/" });
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body).not.toHaveProperty("scriptHintPath");
+  });
+});
+
+describe("updateBuildTarget", () => {
+  it("sends PUT with scriptHintPath when provided as a string", async () => {
+    mockResponse({ success: true, data: { id: "t-1" } });
+
+    await updateBuildTarget("proj-1", "t-1", { scriptHintPath: "scripts/build.sh" });
+
+    const [url, opts] = mockFetch.mock.calls[0];
+    expect(url).toContain("/api/projects/proj-1/targets/t-1");
+    expect(opts.method).toBe("PUT");
+    const body = JSON.parse(opts.body);
+    expect(body.scriptHintPath).toBe("scripts/build.sh");
+  });
+
+  it("sends PUT with scriptHintPath:null to clear (preserved through JSON.stringify)", async () => {
+    mockResponse({ success: true, data: { id: "t-1" } });
+
+    await updateBuildTarget("proj-1", "t-1", { scriptHintPath: null });
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body).toHaveProperty("scriptHintPath");
+    expect(body.scriptHintPath).toBeNull();
+  });
+
+  it("omits scriptHintPath key when undefined (no-op semantic)", async () => {
+    mockResponse({ success: true, data: { id: "t-1" } });
+
+    await updateBuildTarget("proj-1", "t-1", { name: "renamed" });
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body).not.toHaveProperty("scriptHintPath");
+    expect(body.name).toBe("renamed");
   });
 });
 
@@ -131,21 +189,46 @@ describe("runAnalysis", () => {
 });
 
 describe("generatePoc", () => {
-  it("sends POST with projectId and findingId", async () => {
+  it("sends POST with projectId and findingId and forwards outcome fields", async () => {
     const pocResult = {
       findingId: "f-1",
       poc: { statement: "PoC", detail: "```\ncode\n```" },
       audit: { latencyMs: 5000, tokenUsage: { prompt: 100, completion: 200 } },
+      pocOutcome: "poc_accepted",
+      qualityOutcome: "accepted",
+      cleanPass: true,
     };
     mockResponse({ success: true, data: pocResult });
 
     const result = await generatePoc("proj-1", "f-1");
     expect(result.poc.statement).toBe("PoC");
     expect(result.audit.latencyMs).toBe(5000);
+    expect(result.pocOutcome).toBe("poc_accepted");
+    expect(result.qualityOutcome).toBe("accepted");
+    expect(result.cleanPass).toBe(true);
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.projectId).toBe("proj-1");
     expect(body.findingId).toBe("f-1");
+  });
+
+  it("forwards non-clean PoC outcomes with claimDiagnostics", async () => {
+    const pocResult = {
+      findingId: "f-2",
+      poc: { statement: "", detail: "" },
+      audit: { latencyMs: 8000 },
+      pocOutcome: "poc_inconclusive",
+      qualityOutcome: "inconclusive",
+      cleanPass: false,
+      claimDiagnostics: { lifecycleCounts: { rejected: 2, retried: 1 } },
+    };
+    mockResponse({ success: true, data: pocResult });
+
+    const result = await generatePoc("proj-1", "f-2");
+    expect(result.cleanPass).toBe(false);
+    expect(result.pocOutcome).toBe("poc_inconclusive");
+    expect(result.claimDiagnostics?.lifecycleCounts).toEqual({ rejected: 2, retried: 1 });
+    expect(result.audit.tokenUsage).toBeUndefined();
   });
 });
 
@@ -168,5 +251,30 @@ describe("fetchSourceFileContent", () => {
 
     const url = mockFetch.mock.calls[0][0] as string;
     expect(url).toContain("path=src%2Fmain.c");
+  });
+});
+
+describe("cloneSource", () => {
+  it("sends POST source/clone with canonical { gitUrl, branch } body", async () => {
+    mockResponse({ success: true, data: { fileCount: 0, files: [] } });
+
+    await cloneSource("proj-1", "https://example.com/repo.git", "main");
+
+    const [url, opts] = mockFetch.mock.calls[0];
+    expect(url).toContain("/api/projects/proj-1/source/clone");
+    expect(opts.method).toBe("POST");
+    const body = JSON.parse(opts.body);
+    expect(body).toEqual({ gitUrl: "https://example.com/repo.git", branch: "main" });
+    expect(body.url).toBeUndefined();
+  });
+
+  it("omits branch when not provided", async () => {
+    mockResponse({ success: true, data: { fileCount: 0, files: [] } });
+
+    await cloneSource("proj-1", "https://example.com/repo.git");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.gitUrl).toBe("https://example.com/repo.git");
+    expect(body.branch).toBeUndefined();
   });
 });

@@ -1435,6 +1435,26 @@ describe("API Contract Tests", () => {
       expect(res.body.data.id).toMatch(/^target-/);
     });
 
+    it("POST /api/projects/:pid/targets accepts a BuildTarget-root-relative scriptHintPath", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-bt-script" }));
+      const targetRoot = path.join("/tmp", "p-bt-script", "gateway");
+      fs.mkdirSync(path.join(targetRoot, "scripts"), { recursive: true });
+      fs.writeFileSync(path.join(targetRoot, "scripts", "build.sh"), "#!/bin/sh\nmake all\n", "utf-8");
+
+      const res = await request(app)
+        .post("/api/projects/p-bt-script/targets")
+        .send({
+          name: "gateway",
+          relativePath: "gateway/",
+          buildSystem: "make",
+          scriptHintPath: "scripts/build.sh",
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.scriptHintPath).toBe("scripts/build.sh");
+      expect(ctx.buildTargetDAO.findById(res.body.data.id)?.scriptHintPath).toBe("scripts/build.sh");
+    });
+
     it("GET /api/projects/:pid/targets lists targets", async () => {
       ctx.projectDAO.save(makeProject({ id: "p-bt2" }));
       ctx.buildTargetDAO.save(makeBuildTarget({ id: "t1", projectId: "p-bt2", name: "a" }));
@@ -1457,6 +1477,53 @@ describe("API Contract Tests", () => {
       expect(res.body.data.name).toBe("new-name");
     });
 
+    it("PUT /api/projects/:pid/targets/:id validates and clears scriptHintPath", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-bt-script-update" }));
+      const targetRoot = path.join("/tmp", "p-bt-script-update", "src");
+      fs.mkdirSync(targetRoot, { recursive: true });
+      fs.writeFileSync(path.join(targetRoot, "build.sh"), "#!/bin/sh\nmake\n", "utf-8");
+      ctx.buildTargetDAO.save(makeBuildTarget({
+        id: "t-script-update",
+        projectId: "p-bt-script-update",
+        relativePath: "src/",
+      }));
+
+      const setRes = await request(app)
+        .put("/api/projects/p-bt-script-update/targets/t-script-update")
+        .send({ scriptHintPath: "build.sh" });
+      expect(setRes.status).toBe(200);
+      expect(setRes.body.data.scriptHintPath).toBe("build.sh");
+
+      const clearRes = await request(app)
+        .put("/api/projects/p-bt-script-update/targets/t-script-update")
+        .send({ scriptHintPath: null });
+      expect(clearRes.status).toBe(200);
+      expect(clearRes.body.data).not.toHaveProperty("scriptHintPath");
+    });
+
+    it("PUT rejects relativePath changes that would leave scriptHintPath stale", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-bt-script-stale" }));
+      const oldRoot = path.join("/tmp", "p-bt-script-stale", "old");
+      const newRoot = path.join("/tmp", "p-bt-script-stale", "new");
+      fs.mkdirSync(oldRoot, { recursive: true });
+      fs.mkdirSync(newRoot, { recursive: true });
+      fs.writeFileSync(path.join(oldRoot, "build.sh"), "#!/bin/sh\nmake old\n", "utf-8");
+      ctx.buildTargetDAO.save(makeBuildTarget({
+        id: "t-script-stale",
+        projectId: "p-bt-script-stale",
+        relativePath: "old/",
+        scriptHintPath: "build.sh",
+      }));
+
+      const res = await request(app)
+        .put("/api/projects/p-bt-script-stale/targets/t-script-stale")
+        .send({ relativePath: "new/" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain("scriptHintPath");
+      expect(ctx.buildTargetDAO.findById("t-script-stale")?.relativePath).toBe("old/");
+    });
+
     it("DELETE /api/projects/:pid/targets/:id deletes target", async () => {
       ctx.projectDAO.save(makeProject({ id: "p-bt4" }));
       ctx.buildTargetDAO.save(makeBuildTarget({ id: "t4", projectId: "p-bt4" }));
@@ -1474,6 +1541,17 @@ describe("API Contract Tests", () => {
         .send({ name: "evil", relativePath: "../etc/" });
 
       expect(res.status).toBe(400);
+    });
+
+    it("POST rejects unsafe scriptHintPath values", async () => {
+      ctx.projectDAO.save(makeProject({ id: "p-bt-script-unsafe" }));
+
+      const res = await request(app)
+        .post("/api/projects/p-bt-script-unsafe/targets")
+        .send({ name: "evil", relativePath: "src/", scriptHintPath: "../build.sh" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain("scriptHintPath");
     });
 
     it("returns 404 for wrong project ownership", async () => {
@@ -2385,6 +2463,159 @@ describe("API Contract Tests", () => {
           statement: "demo poc",
           detail: "demo detail",
         },
+        pocOutcome: "poc_accepted",
+        qualityOutcome: "accepted",
+        cleanPass: true,
+      });
+    });
+
+    it("POST /api/analysis/poc forwards non-clean S3 outcome fields as envelope success", async () => {
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-poc-non-clean",
+        projectId: "p-analysis-poc",
+        title: "Command injection",
+        description: "Potential command injection",
+        detail: "PoC requested",
+        location: "src/main.c:42",
+      }));
+      const nonAcceptedClaims = [
+        {
+          claimId: "claim-0",
+          status: "under_evidenced",
+          family: "command_injection",
+          primaryLocation: "src/main.c:42",
+          rejectionCode: "evidence_missing",
+          rejectionReason: "missing required sink evidence",
+          statement: "user-controlled input reaches system",
+          detail: "repair could not ground the command sink",
+          retryCount: 2,
+          severity: "high",
+          requiredEvidence: ["local_or_derived_support", "sink_or_dangerous_api"],
+          presentEvidence: ["local_or_derived_support"],
+          missingEvidence: ["sink_or_dangerous_api"],
+          evidenceTrail: [
+            { evidenceRef: "eref-1", role: "local_or_derived_support", status: "present" },
+          ],
+          revisionHistory: [
+            {
+              fromStatus: "candidate",
+              toStatus: "under_evidenced",
+              reason: "missing:sink_or_dangerous_api",
+              timestampMs: 1710000000000,
+            },
+          ],
+          invalidRefs: ["eref-hallucinated"],
+          supportingEvidenceRefs: ["eref-1"],
+          outcomeContribution: "no_accepted_claims",
+        },
+        {
+          claimId: "claim-1",
+          status: "rejected",
+          rejectionCode: "rejected_unsupported",
+          outcomeContribution: "rejected_unsupported",
+        },
+      ];
+      ctx.agentTaskResponses.push({
+        status: "completed",
+        result: {
+          claims: [],
+          pocOutcome: "poc_inconclusive",
+          qualityOutcome: "repair_exhausted",
+          cleanPass: false,
+          claimDiagnostics: {
+            lifecycleCounts: { under_evidenced: 1, rejected: 1 },
+            nonAcceptedClaims,
+          },
+        },
+        audit: {
+          latencyMs: 17,
+          tokenUsage: { prompt: 101, completion: 12 },
+        },
+      });
+
+      const res = await request(app)
+        .post("/api/analysis/poc")
+        .send({ projectId: "p-analysis-poc", findingId: "finding-poc-non-clean" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
+        findingId: "finding-poc-non-clean",
+        poc: {
+          statement: "",
+          detail: "",
+        },
+        audit: {
+          latencyMs: 17,
+          tokenUsage: { prompt: 101, completion: 12 },
+        },
+        pocOutcome: "poc_inconclusive",
+        qualityOutcome: "repair_exhausted",
+        cleanPass: false,
+        claimDiagnostics: {
+          lifecycleCounts: { under_evidenced: 1, rejected: 1 },
+        },
+      });
+      expect(res.body.data.claimDiagnostics.nonAcceptedClaims).toEqual(nonAcceptedClaims);
+    });
+
+    it("POST /api/analysis/poc omits malformed claim diagnostics instead of exposing untyped records", async () => {
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-poc-invalid-diagnostics",
+        projectId: "p-analysis-poc",
+        title: "Invalid diagnostics",
+        description: "S3 returned malformed optional diagnostics",
+      }));
+      ctx.agentTaskResponses.push({
+        status: "completed",
+        result: {
+          claims: [],
+          pocOutcome: "poc_inconclusive",
+          qualityOutcome: "repair_exhausted",
+          cleanPass: false,
+          claimDiagnostics: {
+            lifecycleCounts: { rejected: 1 },
+            nonAcceptedClaims: [{ claimId: "claim-without-status" }],
+          },
+        },
+        audit: { latencyMs: 4 },
+      });
+
+      const res = await request(app)
+        .post("/api/analysis/poc")
+        .send({ projectId: "p-analysis-poc", findingId: "finding-poc-invalid-diagnostics" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.claimDiagnostics).toBeUndefined();
+    });
+
+    it("POST /api/analysis/poc conservatively derives legacy outcome fields", async () => {
+      ctx.findingDAO.save(makeFinding({
+        id: "finding-poc-legacy-empty",
+        projectId: "p-analysis-poc",
+        title: "Legacy empty PoC",
+        description: "Legacy response has no accepted claim",
+      }));
+      ctx.agentTaskResponses.push({
+        status: "completed",
+        result: {
+          claims: [],
+        },
+        audit: { latencyMs: 3 },
+      });
+
+      const res = await request(app)
+        .post("/api/analysis/poc")
+        .send({ projectId: "p-analysis-poc", findingId: "finding-poc-legacy-empty" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
+        findingId: "finding-poc-legacy-empty",
+        pocOutcome: "poc_inconclusive",
+        qualityOutcome: "inconclusive",
+        cleanPass: false,
       });
     });
   });

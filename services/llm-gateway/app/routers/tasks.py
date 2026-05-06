@@ -28,6 +28,7 @@ _exchange_logger = logging.getLogger("llm_exchange")
 
 router = APIRouter(prefix="/v1", tags=["v1"])
 _STRICT_JSON_HEADER = "x-aegis-strict-json"
+_ALLOWED_TOOL_CHOICE_VALUES = {"auto", "none"}
 _REQUIRED_CHAT_GENERATION_FIELDS = (
     "max_tokens",
     "temperature",
@@ -302,6 +303,46 @@ def _chat_generation_controls_error(
     )
 
 
+def _tool_choice_error(body: dict) -> str | None:
+    if "tool_choice" not in body or body.get("tool_choice") is None:
+        return None
+    value = body.get("tool_choice")
+    if isinstance(value, str) and value in _ALLOWED_TOOL_CHOICE_VALUES:
+        return None
+    if isinstance(value, str):
+        return (
+            f"unsupported tool_choice value: {value!r}; "
+            "supported values are 'auto' and 'none'"
+        )
+    if isinstance(value, dict):
+        return (
+            "named tool_choice objects are not supported by the current "
+            "S7 Qwen/vLLM/MTP stack; use 'auto' or 'none'"
+        )
+    return (
+        f"unsupported tool_choice type: {type(value).__name__}; "
+        "supported values are 'auto' and 'none'"
+    )
+
+
+def _tool_choice_validation_error(
+    *,
+    request_id: str,
+    detail: str,
+) -> JSONResponse:
+    return _error_response(
+        status_code=422,
+        request_id=request_id,
+        code="INVALID_TOOL_CHOICE",
+        message="Unsupported tool_choice for current S7 LLM stack",
+        retryable=False,
+        error_detail_extra={
+            "detail": detail,
+            "allowedToolChoice": sorted(_ALLOWED_TOOL_CHOICE_VALUES),
+        },
+    )
+
+
 def _enforce_strict_json_request_controls(body: dict) -> None:
     body["response_format"] = {"type": "json_object"}
 
@@ -342,6 +383,114 @@ def _apply_strict_json_response_contract(resp_data: dict) -> tuple[dict | None, 
     normalized_choices[0] = normalized_choice
     normalized["choices"] = normalized_choices
     return normalized, None
+
+
+def _raw_response_excerpt(resp_data: Any) -> str:
+    try:
+        return json.dumps(resp_data, ensure_ascii=False)[:1000]
+    except TypeError:
+        return repr(resp_data)[:1000]
+
+
+def _is_empty_content(value: Any) -> bool:
+    return value is None or (isinstance(value, str) and not value.strip())
+
+
+def _validate_llm_response_contract(resp_data: dict) -> str | None:
+    choices = resp_data.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return None
+    first_choice = choices[0]
+    if not isinstance(first_choice, dict):
+        return None
+    finish_reason = first_choice.get("finish_reason")
+    message = first_choice.get("message")
+    if not isinstance(message, dict):
+        return None
+
+    tool_calls = message.get("tool_calls")
+    has_tool_calls = isinstance(tool_calls, list) and len(tool_calls) > 0
+    content = message.get("content")
+    reasoning = message.get("reasoning")
+
+    if finish_reason == "tool_calls" and not has_tool_calls:
+        return "finish_reason_tool_calls_with_empty_array"
+    if (
+        finish_reason in {"stop", "tool_calls"}
+        and not has_tool_calls
+        and _is_empty_content(content)
+        and isinstance(reasoning, str)
+        and reasoning.strip()
+    ):
+        return "all_output_absorbed_into_reasoning"
+    return None
+
+
+def _llm_response_contract_violation(
+    request_id: str,
+    model: str,
+    elapsed_ms: int,
+    reason: str,
+    resp_data: Any,
+) -> JSONResponse:
+    logger.warning(
+        "[chat proxy] LLM response contract violation requestId=%s, latencyMs=%d, reason=%s",
+        request_id, elapsed_ms, reason,
+        extra={"elapsedMs": elapsed_ms},
+    )
+    prom.record_response_contract_violation(
+        endpoint="chat_proxy",
+        reason=reason,
+    )
+    return _error_response(
+        status_code=503,
+        request_id=request_id,
+        code="LLM_PARSE_RETRY",
+        message="LLM response contract violated",
+        retryable=True,
+        headers={
+            "X-Request-Id": request_id,
+            "X-Model": model,
+            "X-Gateway-Latency-Ms": str(elapsed_ms),
+        },
+        extra={
+            "contractViolation": True,
+            "violationReason": reason,
+        },
+        error_detail_extra={
+            "violationReason": reason,
+            "rawResponseExcerpt": _raw_response_excerpt(resp_data),
+        },
+    )
+
+
+async def _record_contract_violation_failure(
+    *,
+    token_tracker,
+    request_tracker,
+    request_id: str,
+    endpoint: str,
+    duration_s: float,
+    reason: str,
+    resp_data: Any,
+) -> None:
+    usage = resp_data.get("usage", {}) if isinstance(resp_data, dict) else {}
+    if token_tracker:
+        await token_tracker.record(
+            endpoint=endpoint,
+            prompt_tokens=usage.get("prompt_tokens", 0),
+            completion_tokens=usage.get("completion_tokens", 0),
+            success=False,
+            duration_s=duration_s,
+            error_type="LLM_PARSE_RETRY",
+        )
+    if request_tracker and request_id:
+        request_tracker.mark_ack_break(
+            request_id,
+            blocked_reason="response_contract_violation",
+            ack_source="contract-validator",
+        )
+        request_tracker.clear(request_id)
 
 
 @router.post("/tasks")
@@ -588,6 +737,33 @@ async def _run_async_chat_request(
         async_request_id=record.request_id,
     )
 
+    if resp.status_code == 200 and isinstance(resp_data, dict):
+        contract_violation = _validate_llm_response_contract(resp_data)
+        if contract_violation:
+            prom.record_response_contract_violation(
+                endpoint="async_chat",
+                reason=contract_violation,
+            )
+            usage = resp_data.get("usage", {})
+            if token_tracker:
+                await token_tracker.record(
+                    endpoint="async_chat",
+                    prompt_tokens=usage.get("prompt_tokens", 0) if isinstance(usage, dict) else 0,
+                    completion_tokens=usage.get("completion_tokens", 0) if isinstance(usage, dict) else 0,
+                    success=False,
+                    duration_s=elapsed_ms / 1000,
+                    error_type="LLM_PARSE_RETRY",
+                )
+            await async_chat_manager.fail(
+                record.request_id,
+                blocked_reason="response_contract_violation",
+                ack_source="contract-validator",
+                error="LLM response contract violated",
+                error_detail=contract_violation,
+                retryable=True,
+            )
+            return
+
     if strict_json and resp.status_code == 200:
         normalized_resp_data, strict_error = _apply_strict_json_response_contract(
             resp_data if isinstance(resp_data, dict) else {},
@@ -649,6 +825,12 @@ async def create_async_chat_request(
     trace_request_id = _ensure_request_id(req)
     strict_json = _strict_json_requested(req)
     request_body = request.model_dump(mode="json", exclude_none=True)
+    tool_choice_error = _tool_choice_error(request_body)
+    if tool_choice_error:
+        return _tool_choice_validation_error(
+            request_id=trace_request_id,
+            detail=tool_choice_error,
+        )
 
     async_chat_manager = req.app.state.async_chat_manager
     record = await async_chat_manager.submit(
@@ -836,6 +1018,12 @@ async def chat_proxy(req: Request) -> Response:
             missing_fields=missing_generation_controls,
             invalid_fields=invalid_generation_controls,
         )
+    tool_choice_error = _tool_choice_error(original_body)
+    if tool_choice_error:
+        return _tool_choice_validation_error(
+            request_id=request_id,
+            detail=tool_choice_error,
+        )
 
     model_registry = req.app.state.model_registry
     body, llm_endpoint = _prepare_chat_forward(
@@ -1003,6 +1191,26 @@ async def chat_proxy(req: Request) -> Response:
         elapsed_ms=elapsed_ms,
         strict_json=strict_json,
     )
+
+    if resp.status_code == 200 and isinstance(resp_data, dict):
+        contract_violation = _validate_llm_response_contract(resp_data)
+        if contract_violation:
+            await _record_contract_violation_failure(
+                token_tracker=token_tracker,
+                request_tracker=request_tracker,
+                request_id=request_id,
+                endpoint="chat",
+                duration_s=elapsed_ms / 1000,
+                reason=contract_violation,
+                resp_data=resp_data,
+            )
+            return _llm_response_contract_violation(
+                request_id=request_id,
+                model=body.get("model", ""),
+                elapsed_ms=elapsed_ms,
+                reason=contract_violation,
+                resp_data=resp_data,
+            )
 
     if strict_json and resp.status_code == 200:
         normalized_resp_data, strict_error = _apply_strict_json_response_contract(

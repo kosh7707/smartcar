@@ -95,15 +95,17 @@ def test_request_scoped_build_subdir_hashes_untrusted_request_id():
 
 
 @pytest.mark.asyncio
-async def test_build_script_hint_is_reference_only_not_directly_executed(monkeypatch, tmp_path: Path):
+async def test_build_script_hint_path_is_reference_only_not_directly_executed(monkeypatch, tmp_path: Path):
     original_mode = settings.llm_mode
     object.__setattr__(settings, "llm_mode", "mock")
     (tmp_path / "README.md").write_text("no deterministic build files")
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "build.sh").write_text("#!/bin/bash\necho should-not-run\n")
     calls: list[dict] = []
 
     async def fail_if_direct_hint_executed(self, arguments):
         calls.append(arguments)
-        raise AssertionError("buildScriptHintText must not be executed directly")
+        raise AssertionError("scriptHintPath target must not be executed directly")
 
     monkeypatch.setattr(
         "app.tools.implementations.try_build.TryBuildTool.execute",
@@ -121,7 +123,7 @@ async def test_build_script_hint_is_reference_only_not_directly_executed(monkeyp
             "buildTargetName": "hinted",
             "build": {
                 "mode": "native",
-                "scriptHintText": "#!/bin/bash\necho should-not-run\n",
+                "scriptHintPath": "scripts/build.sh",
             },
             "expectedArtifacts": [{"kind": "file-set", "path": "hinted"}],
         }),
@@ -133,3 +135,43 @@ async def test_build_script_hint_is_reference_only_not_directly_executed(monkeyp
         object.__setattr__(settings, "llm_mode", original_mode)
 
     assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_build_resolve_configures_try_build_with_request_scoped_build_dir(monkeypatch, tmp_path: Path):
+    original_mode = settings.llm_mode
+    object.__setattr__(settings, "llm_mode", "mock")
+    (tmp_path / "README.md").write_text("test project")
+    seen: dict[str, object] = {}
+
+    from app.tools.implementations.try_build import TryBuildTool
+
+    original_init = TryBuildTool.__init__
+
+    def spy_init(self, *args, **kwargs):
+        seen["build_dir"] = kwargs.get("build_dir")
+        return original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(TryBuildTool, "__init__", spy_init)
+
+    request = TaskRequest(
+        taskType=TaskType.BUILD_RESOLVE,
+        taskId="build-dir-guard-check",
+        contractVersion="build-resolve-v1",
+        strictMode=True,
+        context=Context(trusted={
+            "projectPath": str(tmp_path),
+            "buildTargetPath": ".",
+            "buildTargetName": "guarded",
+            "build": {"mode": "native"},
+            "expectedArtifacts": [{"kind": "file-set", "path": "guarded"}],
+        }),
+    )
+
+    try:
+        await handle_build_resolve(request)
+    finally:
+        object.__setattr__(settings, "llm_mode", original_mode)
+
+    assert isinstance(seen["build_dir"], str)
+    assert seen["build_dir"].startswith("build-aegis-")

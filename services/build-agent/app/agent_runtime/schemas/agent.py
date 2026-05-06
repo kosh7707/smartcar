@@ -48,6 +48,7 @@ class LlmResponse(BaseModel):
     """단일 LLM 턴의 파싱된 응답."""
 
     content: str | None = None
+    reasoning: str | None = None
     tool_calls: list[ToolCallRequest] = Field(default_factory=list)
     finish_reason: str = "stop"
     prompt_tokens: int = 0

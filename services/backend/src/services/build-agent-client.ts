@@ -24,6 +24,13 @@ export interface BuildResolveTarget {
   buildFiles: string[];
 }
 
+export interface BuildResolveBuildContext {
+  mode: "native" | "sdk";
+  sdkId?: string;
+  scriptHintPath?: string;
+  environment?: Record<string, string>;
+}
+
 export interface BuildResolveRequest {
   taskType: "build-resolve" | "sdk-analyze";
   taskId: string;
@@ -34,6 +41,7 @@ export interface BuildResolveRequest {
       projectPath: string;
       buildTargetPath?: string;
       buildTargetName?: string;
+      build?: BuildResolveBuildContext;
       targetPath?: string;
       targetName?: string;
       targets?: BuildResolveTarget[];
