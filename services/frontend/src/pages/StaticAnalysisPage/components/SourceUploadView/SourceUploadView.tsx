@@ -10,7 +10,6 @@ import { useUploadProgress } from "@/common/hooks/useUploadProgress";
 import { ConnectionStatusBanner, Spinner } from "@/common/ui/primitives";
 import { formatFileSize } from "@/common/utils/format";
 import { buildTree, countFiles } from "@/common/utils/tree";
-import "./SourceUploadView.css";
 
 type UploadTab = "zip" | "git";
 
@@ -219,17 +218,27 @@ export const SourceUploadView: React.FC<Props> = ({ projectId, onAnalysisStart, 
         </>
       ) : (
         <>
-          <div value={tab} onValueChange={(value) => setTab(value as UploadTab)}>
-            <div className="seg source-upload-tabs" role="tablist">
-              <button type="button" role="tab" value="zip" className="btn btn-primary source-upload-tab">
-                <FolderArchive size={14} />
-                ZIP / tar.gz 업로드
-              </button>
-              <button type="button" role="tab" value="git" className="source-upload-tab">
-                <GitBranch size={14} />
-                Git 클론
-              </button>
-            </div>
+          <div className="seg source-upload-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "zip"}
+              className={cn("source-upload-tab", tab === "zip" && "btn btn-primary")}
+              onClick={() => setTab("zip")}
+            >
+              <FolderArchive size={14} />
+              ZIP / tar.gz 업로드
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "git"}
+              className={cn("source-upload-tab", tab === "git" && "btn btn-primary")}
+              onClick={() => setTab("git")}
+            >
+              <GitBranch size={14} />
+              Git 클론
+            </button>
           </div>
 
           {uploading ? (

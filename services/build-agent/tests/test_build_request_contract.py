@@ -183,7 +183,7 @@ def test_build_route_accepts_camel_case_generation_constraints(client, monkeypat
                 "enableThinking": False,
                 "temperature": 0.7,
                 "topP": 0.85,
-                "topK": 9,
+                "topK": -1,
                 "minP": 0.15,
                 "presencePenalty": 0.3,
                 "repetitionPenalty": 1.05,
@@ -197,7 +197,7 @@ def test_build_route_accepts_camel_case_generation_constraints(client, monkeypat
     assert constraints.enableThinking is False
     assert constraints.temperature == 0.7
     assert constraints.topP == 0.85
-    assert constraints.topK == 9
+    assert constraints.topK == -1
     assert constraints.minP == 0.15
     assert constraints.presencePenalty == 0.3
     assert constraints.repetitionPenalty == 1.05

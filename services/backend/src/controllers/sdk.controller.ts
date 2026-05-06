@@ -404,6 +404,10 @@ export function createSdkRouter(
 
   router.delete("/:id", asyncHandler(async (req, res) => {
     const id = req.params.id as string;
+    const sdk = sdkService.findById(id);
+    if (!sdk || sdk.projectId !== req.params.pid) {
+      throw new NotFoundError(`SDK not found: ${id}`);
+    }
     await sdkService.remove(id, req.requestId);
     res.json({ success: true });
   }));

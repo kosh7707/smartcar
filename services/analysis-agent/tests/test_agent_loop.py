@@ -604,7 +604,7 @@ async def test_unstructured_content_retries_and_promotes_gateway_webserver_claim
 
 
 @pytest.mark.asyncio
-async def test_first_tool_turn_requires_tool_choice_then_relaxes_after_success():
+async def test_first_tool_turn_uses_toolintent_path_then_relaxes_to_auto_after_success():
     responses = [
         LlmResponse(
             tool_calls=[ToolCallRequest(id="c1", name="knowledge.search", arguments={"query": "CWE-78"})],
@@ -624,7 +624,8 @@ async def test_first_tool_turn_requires_tool_choice_then_relaxes_after_success()
     assert result.status == "completed"
     first_call = loop._llm_caller.call.await_args_list[0]
     second_call = loop._llm_caller.call.await_args_list[1]
-    assert first_call.kwargs["tool_choice"] == "required"
+    assert first_call.kwargs["tools"] is None
+    assert "tool_choice" not in first_call.kwargs
     assert second_call.kwargs["tool_choice"] == "auto"
     assert first_call.kwargs["generation"].temperature == 1.0
 
@@ -940,7 +941,7 @@ async def test_grounding_nudge_does_not_fire_after_force_report_disables_tools()
             prompt_tokens=100 + i,
             completion_tokens=20,
         )
-        for i in range(6)
+        for i in range(4)
     ]
     responses.append(
         LlmResponse(
@@ -953,7 +954,7 @@ async def test_grounding_nudge_does_not_fire_after_force_report_disables_tools()
     result = await loop.run(session)
 
     assert result.status == "completed"
-    assert session.turn_count == 7
+    assert session.turn_count == 5
     assert result.result.policyFlags == ["low_confidence_claim_present"]
 
 

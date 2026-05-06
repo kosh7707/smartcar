@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import express from "express";
+import request from "supertest";
 import type { Request } from "express";
-import { emitUploadFailure } from "../sdk.controller";
+import { createSdkRouter, emitUploadFailure } from "../sdk.controller";
+import { errorHandlerMiddleware } from "../../middleware/error-handler.middleware";
 
 describe("sdk.controller", () => {
   it("emits websocket and project notification payloads for pre-registration upload failures", () => {
@@ -40,5 +43,32 @@ describe("sdk.controller", () => {
       jobKind: "sdk",
       correlationId: "sdk-1234abcd",
     });
+  });
+
+  it("rejects project-scoped SDK delete when the SDK belongs to another project", async () => {
+    const app = express();
+    const sdkService = {
+      findById: vi.fn().mockReturnValue({
+        id: "sdk-1",
+        projectId: "project-other",
+      }),
+      remove: vi.fn(),
+    };
+    const projectDAO = {
+      findById: vi.fn().mockReturnValue({ id: "project-1" }),
+    };
+
+    app.use(express.json());
+    app.use(
+      "/api/projects/:pid/sdk",
+      createSdkRouter(sdkService as any, projectDAO as any),
+    );
+    app.use(errorHandlerMiddleware);
+
+    const res = await request(app).delete("/api/projects/project-1/sdk/sdk-1");
+
+    expect(res.status).toBe(404);
+    expect(res.body.errorDetail.code).toBe("NOT_FOUND");
+    expect(sdkService.remove).not.toHaveBeenCalled();
   });
 });

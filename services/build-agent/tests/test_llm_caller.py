@@ -73,6 +73,19 @@ async def test_build_llm_caller_defaults_to_thinking_for_strict_json_finalizer()
 
 
 @pytest.mark.asyncio
+async def test_build_llm_caller_scalar_temperature_compatibility_warns():
+    caller = LlmCaller("http://fake:8000", "qwen")
+    caller._client = MagicMock()
+    caller._client.post = AsyncMock(return_value=_make_response(_content_response()))
+
+    with pytest.warns(DeprecationWarning, match="GenerationControls"):
+        await caller.call([{ "role": "user", "content": "build" }], temperature=0.25)
+
+    body = caller._client.post.await_args.kwargs["json"]
+    assert body["temperature"] == 0.25
+
+
+@pytest.mark.asyncio
 async def test_build_llm_caller_accepts_explicit_generation_controls():
     caller = LlmCaller("http://fake:8000", "qwen", enable_thinking=False)
     caller._client = MagicMock()

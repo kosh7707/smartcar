@@ -24,6 +24,13 @@ _SENTINEL_REPLACEMENTS = {
     "<|im_end|>": "‹|im_end|›",
 }
 
+_BOUNDARY_MARKER_REPLACEMENTS = {
+    _BEGIN_BOUNDARY: "[BOUNDARY-MARKER-NEUTRALIZED]",
+    _END_BOUNDARY: "[BOUNDARY-MARKER-NEUTRALIZED]",
+    _BEGIN_SOURCE_BOUNDARY: "[BOUNDARY-MARKER-NEUTRALIZED]",
+    _END_SOURCE_BOUNDARY: "[BOUNDARY-MARKER-NEUTRALIZED]",
+}
+
 _ROLE_MARKER_RE = re.compile(r"(?im)^([ \t]*)(system|assistant|developer|tool)\s*:")
 
 _INJECTION_PHRASES: list[tuple[re.Pattern[str], str]] = [
@@ -60,6 +67,11 @@ def sanitize_untrusted_tool_content(content: str) -> str:
 
     for sentinel, replacement in _SENTINEL_REPLACEMENTS.items():
         sanitized = sanitized.replace(sentinel, replacement)
+
+    # Defense-in-depth: untrusted content may try to inject literal wrapper
+    # delimiters and confuse the model about where the trusted boundary ends.
+    for marker, replacement in _BOUNDARY_MARKER_REPLACEMENTS.items():
+        sanitized = sanitized.replace(marker, replacement)
 
     sanitized = _ROLE_MARKER_RE.sub(lambda m: f"{m.group(1)}[role-{m.group(2)}] ", sanitized)
 

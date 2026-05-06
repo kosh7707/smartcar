@@ -30,7 +30,7 @@ class Constraints(BaseModel):
     enableThinking: bool | None = None
     temperature: float | None = Field(default=None, ge=0.0, le=2.0)
     topP: float | None = Field(default=None, ge=0.0, le=1.0)
-    topK: int | None = Field(default=None, ge=1)
+    topK: int | None = Field(default=None, ge=-1)
     minP: float | None = Field(default=None, ge=0.0, le=1.0)
     presencePenalty: float | None = Field(default=None, ge=-2.0, le=2.0)
     repetitionPenalty: float | None = Field(default=None, ge=0.0, le=2.0)

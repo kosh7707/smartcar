@@ -226,6 +226,13 @@ describe("SdkService", () => {
       correlationId: "sdk-archive",
     }));
     expect(notificationService.emit.mock.calls.filter(([payload]: any[]) => payload.type === "sdk_ready")).toHaveLength(1);
+    expect(buildAgentClient.submitTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskType: "sdk-analyze",
+        constraints: { timeoutMs: 300000 },
+      }),
+      "req-sdk-archive",
+    );
   });
 
   it("executes .bin installers into project-scoped installed output and persists install log path", async () => {

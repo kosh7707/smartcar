@@ -69,6 +69,19 @@ async def test_parse_content_response():
 
 
 @pytest.mark.asyncio
+async def test_scalar_temperature_compatibility_warns():
+    caller = LlmCaller("http://fake:8000", "qwen")
+    caller._client = MagicMock()
+    caller._client.post = AsyncMock(return_value=_make_httpx_response(_content_response('{"summary":"ok"}')))
+
+    with pytest.warns(DeprecationWarning, match="GenerationControls"):
+        await caller.call([{ "role": "user", "content": "hi" }], temperature=0.2)
+
+    body = caller._client.post.await_args.kwargs["json"]
+    assert body["temperature"] == 0.2
+
+
+@pytest.mark.asyncio
 async def test_parse_tool_calls_response():
     caller = LlmCaller("http://fake:8000", "qwen")
     resp_data = _tool_calls_response([{

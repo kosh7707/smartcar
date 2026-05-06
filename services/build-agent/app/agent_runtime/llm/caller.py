@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import time
+import warnings
 from typing import Any
 
 import httpx
@@ -116,7 +117,15 @@ class LlmCaller:
 
         controls = generation or DEFAULT_GENERATION.with_updates(enable_thinking=self._enable_thinking)
         # Transitional compatibility for existing call sites that still pass a
-        # scalar temperature. Later call-site wiring should use named presets.
+        # scalar temperature. Deprecation milestone: remove this argument after
+        # the S3 readiness gate proves all active callers pass GenerationControls.
+        if temperature is not None:
+            warnings.warn(
+                "LlmCaller.call(temperature=...) is deprecated; pass "
+                "generation=GenerationControls instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         controls = controls.with_updates(temperature=temperature)
 
         body: dict = {

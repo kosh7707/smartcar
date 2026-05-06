@@ -184,7 +184,7 @@ def test_deep_analyze_route_accepts_camel_case_generation_constraints(client_liv
                 "enableThinking": False,
                 "temperature": 0.6,
                 "topP": 0.8,
-                "topK": 7,
+                "topK": -1,
                 "minP": 0.1,
                 "presencePenalty": 0.2,
                 "repetitionPenalty": 1.1,
@@ -198,7 +198,7 @@ def test_deep_analyze_route_accepts_camel_case_generation_constraints(client_liv
     assert constraints.enableThinking is False
     assert constraints.temperature == 0.6
     assert constraints.topP == 0.8
-    assert constraints.topK == 7
+    assert constraints.topK == -1
     assert constraints.minP == 0.1
     assert constraints.presencePenalty == 0.2
     assert constraints.repetitionPenalty == 1.1

@@ -10,13 +10,21 @@ from app.budget.manager import BudgetManager
 from app.budget.token_counter import TokenCounter
 from app.core.agent_session import AgentSession
 from app.core.result_assembler import ResultAssembler
-from app.agent_runtime.errors import LlmTimeoutError, S3Error, StrictJsonContractError
+from app.agent_runtime.errors import LlmHttpError, LlmTimeoutError, S3Error, StrictJsonContractError
 from app.agent_runtime.llm.caller import LlmCaller
 from app.agent_runtime.llm.generation_policy import THINKING_GENERAL, controls_from_constraints
 from app.agent_runtime.llm.message_manager import MessageManager
 from app.agent_runtime.llm.turn_summarizer import TurnSummarizer
 from app.agent_runtime.observability import agent_log
 from app.agent_runtime.policy.retry import RetryPolicy
+from app.agent_runtime.schemas.agent import LlmResponse
+from app.agent_runtime.tools.tool_intent import (
+    ToolIntentError,
+    available_tool_names,
+    build_tool_intent_messages,
+    parse_tool_intent,
+    tool_intent_to_request,
+)
 from app.policy.termination import TerminationPolicy
 from app.schemas.response import TaskFailureResponse, TaskSuccessResponse
 from app.agent_runtime.tools.registry import ToolRegistry
@@ -71,9 +79,20 @@ def _tool_choice_for_turn(
     current_tools: list[dict] | None,
     force_report: bool,
 ) -> str:
-    if not current_tools or force_report or _has_successful_tool_calls(session):
-        return "auto"
-    return "required"
+    # P10 intent remains: before evidence is acquired, do not let the model
+    # silently finalize. The enforcement mechanism is now ToolIntent runtime
+    # dispatch, not vLLM `tool_choice="required"`; required+thinking is a known
+    # Qwen/vLLM failure path (rootcause-20260503).
+    return "auto"
+
+
+def _requires_tool_intent_dispatch(
+    *,
+    session: AgentSession,
+    current_tools: list[dict] | None,
+    force_report: bool,
+) -> bool:
+    return bool(current_tools) and not force_report and not _has_successful_tool_calls(session)
 
 
 class AgentLoop:
@@ -166,15 +185,22 @@ class AgentLoop:
 
             # LLM 호출 (재시도 포함)
             try:
-                response = await self._call_with_retry(
-                    session,
-                    current_tools,
-                    tool_choice=_tool_choice_for_turn(
-                        session=session,
-                        current_tools=current_tools,
-                        force_report=force_report,
-                    ),
-                )
+                if _requires_tool_intent_dispatch(
+                    session=session,
+                    current_tools=current_tools,
+                    force_report=force_report,
+                ):
+                    response = await self._call_tool_intent_with_retry(session, current_tools)
+                else:
+                    response = await self._call_with_retry(
+                        session,
+                        current_tools,
+                        tool_choice=_tool_choice_for_turn(
+                            session=session,
+                            current_tools=current_tools,
+                            force_report=force_report,
+                        ),
+                    )
             except S3Error as e:
                 logger.error("LLM 호출 실패 (재시도 소진): %s", e)
                 if isinstance(e, LlmTimeoutError):
@@ -337,8 +363,7 @@ class AgentLoop:
         )
         return self._result_assembler.build_from_exhaustion(session)
 
-    async def _call_with_retry(self, session, tools_schema, *, tool_choice: str = "auto"):
-        """LLM 호출 + 재시도."""
+    async def _messages_after_compaction(self, session) -> list[dict]:
         # 컨텍스트 압축: 토큰 추정치 초과 시 오래된 턴 제거
         token_est = self._message_manager.get_token_estimate()
         if token_est > _COMPACT_TOKEN_THRESHOLD:
@@ -356,7 +381,11 @@ class AgentLoop:
                     messagesRemoved=removed,
                 )
 
-        messages = self._message_manager.get_messages()
+        return self._message_manager.get_messages()
+
+    async def _call_with_retry(self, session, tools_schema, *, tool_choice: str = "auto"):
+        """LLM 호출 + 재시도."""
+        messages = await self._messages_after_compaction(session)
         turn = session.turn_count + 1
         last_error = None
 
@@ -387,3 +416,60 @@ class AgentLoop:
                 raise
 
         raise last_error  # type: ignore[misc]
+
+    async def _call_tool_intent_with_retry(self, session, tools_schema) -> LlmResponse:
+        """Plan one mandatory acquisition tool via JSON ToolIntent and dispatch it locally."""
+        base_messages = await self._messages_after_compaction(session)
+        messages = build_tool_intent_messages(base_messages, tools_schema)
+        names = available_tool_names(tools_schema)
+        turn = session.turn_count + 1
+        last_error: ToolIntentError | None = None
+
+        for attempt in range(1 + self._retry_policy._max_retries):
+            planner_response = await self._llm_caller.call(
+                messages,
+                session,
+                tools=None,
+                generation=controls_from_constraints(THINKING_GENERAL, session.request.constraints),
+                prefer_async_ownership=True,
+            )
+            # Unit tests and future compatibility shims may still inject already
+            # parsed tool calls or final content. Real ToolIntent calls pass
+            # tools=None, so live vLLM cannot produce OpenAI tool_calls here, but
+            # preserving this fallback keeps the runtime loop backward-compatible.
+            if planner_response.has_tool_calls():
+                return planner_response
+            try:
+                intent = parse_tool_intent(planner_response.content, available_tool_names=names)
+                tool_call = tool_intent_to_request(intent, turn=turn)
+                agent_log(
+                    logger, "ToolIntent 디스패치 준비",
+                    component="agent_loop", phase="tool_intent_dispatch",
+                    turn=turn, tool=tool_call.name,
+                )
+                return LlmResponse(
+                    tool_calls=[tool_call],
+                    finish_reason="tool_intent",
+                    prompt_tokens=planner_response.prompt_tokens,
+                    completion_tokens=planner_response.completion_tokens,
+                )
+            except ToolIntentError as e:
+                last_error = e
+                if planner_response.content is not None:
+                    return planner_response
+                if attempt < self._retry_policy._max_retries:
+                    messages = [
+                        *messages,
+                        {"role": "assistant", "content": planner_response.content or ""},
+                        {
+                            "role": "user",
+                            "content": (
+                                "The previous ToolIntent was invalid: "
+                                f"{e}. Return one valid ToolIntent JSON object now."
+                            ),
+                        },
+                    ]
+                    continue
+                break
+
+        raise LlmHttpError(502, f"Invalid ToolIntent response: {last_error}")

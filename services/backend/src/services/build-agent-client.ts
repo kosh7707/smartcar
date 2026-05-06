@@ -11,6 +11,7 @@ import {
   BuildAgentTimeoutError,
 } from "../lib/errors";
 import { buildHealthCheckUrl } from "../lib/downstream-health";
+import type { S3GenerationOverrides } from "@aegis/shared";
 
 const logger = createLogger("build-agent-client");
 
@@ -38,8 +39,7 @@ export interface BuildResolveRequest {
       targets?: BuildResolveTarget[];
     };
   };
-  constraints?: {
-    maxTokens?: number;
+  constraints?: S3GenerationOverrides & {
     timeoutMs?: number;
   };
   metadata?: {

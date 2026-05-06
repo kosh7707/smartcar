@@ -27,8 +27,8 @@ class GenerationControls:
     def __post_init__(self) -> None:
         _validate_range("temperature", self.temperature, 0.0, 2.0)
         _validate_range("top_p", self.top_p, 0.0, 1.0)
-        if not isinstance(self.top_k, int) or isinstance(self.top_k, bool) or self.top_k < 1:
-            raise ValueError("top_k must be an integer >= 1")
+        if not isinstance(self.top_k, int) or isinstance(self.top_k, bool) or self.top_k < -1:
+            raise ValueError("top_k must be an integer >= -1")
         _validate_range("min_p", self.min_p, 0.0, 1.0)
         _validate_range("presence_penalty", self.presence_penalty, -2.0, 2.0)
         _validate_range("repetition_penalty", self.repetition_penalty, 0.0, 2.0)
@@ -110,8 +110,10 @@ STRICT_JSON_REPAIR = GenerationControls(
     enable_thinking=True,
 )
 
-# Transitional default for legacy call sites during the foundation slice. Later
-# call-site wiring should pass a named preset explicitly.
+# Transitional default for legacy call sites during the foundation slice.
+# Deprecation milestone: once S3 regression-gate evidence shows every active
+# LlmCaller.call() site passes a named GenerationControls preset, remove the
+# scalar temperature compatibility argument from LlmCaller.call().
 DEFAULT_GENERATION = THINKING_GENERAL
 
 

@@ -136,6 +136,45 @@ describe("AgentClient contract", () => {
     const body = JSON.parse(opts.body);
     expect(body.taskType).toBe("deep-analyze");
     expect(body.taskId).toBe("task-1");
+    expect(body).not.toHaveProperty("constraints");
+  });
+
+  it("passes optional camelCase generation overrides without inventing defaults", async () => {
+    globalThis.fetch = mockFetch(successResponse);
+
+    await client.submitTask({
+      taskType: "deep-analyze",
+      taskId: "task-generation",
+      context: {
+        trusted: { objective: "analyze", projectId: "p-1", projectPath: "/tmp/test" },
+      },
+      evidenceRefs: [],
+      constraints: {
+        enableThinking: false,
+        maxTokens: 8192,
+        temperature: 0.2,
+        topP: 0.9,
+        topK: -1,
+        minP: 0.01,
+        presencePenalty: 0.1,
+        repetitionPenalty: 1.05,
+        timeoutMs: 300000,
+      },
+    });
+
+    const [, opts] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = JSON.parse(opts.body);
+    expect(body.constraints).toEqual({
+      enableThinking: false,
+      maxTokens: 8192,
+      temperature: 0.2,
+      topP: 0.9,
+      topK: -1,
+      minP: 0.01,
+      presencePenalty: 0.1,
+      repetitionPenalty: 1.05,
+      timeoutMs: 300000,
+    });
   });
 
   it("parses AgentResponseSuccess correctly", async () => {
@@ -720,6 +759,41 @@ describe("BuildAgentClient contract", () => {
       expect(result.result.buildResult.success).toBe(true);
       expect(result.result.confidence).toBe(0.92);
     }
+  });
+
+  it("passes optional camelCase generation overrides without inventing defaults", async () => {
+    globalThis.fetch = mockFetch(successResponse);
+
+    await client.submitTask({
+      taskType: "build-resolve",
+      taskId: "resolve-generation",
+      context: { trusted: { projectPath: "/tmp/project", targetPath: "src/" } },
+      constraints: {
+        enableThinking: true,
+        maxTokens: 12000,
+        temperature: 0.4,
+        topP: 0.92,
+        topK: -1,
+        minP: 0,
+        presencePenalty: 0,
+        repetitionPenalty: 1,
+        timeoutMs: 600000,
+      },
+    });
+
+    const [, opts] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = JSON.parse(opts.body);
+    expect(body.constraints).toEqual({
+      enableThinking: true,
+      maxTokens: 12000,
+      temperature: 0.4,
+      topP: 0.92,
+      topK: -1,
+      minP: 0,
+      presencePenalty: 0,
+      repetitionPenalty: 1,
+      timeoutMs: 600000,
+    });
   });
 
   it("parses failure response with failureCode", async () => {

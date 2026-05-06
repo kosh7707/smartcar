@@ -19,6 +19,7 @@ import type {
   AgentEvidenceDiagnosticsSummary,
   AgentRecoveryTraceEntry,
   BuildProfile,
+  S3GenerationOverrides,
   SastFinding,
 } from "@aegis/shared";
 
@@ -74,8 +75,7 @@ export interface AgentTaskRequest {
     };
   };
   evidenceRefs: AgentEvidenceRef[];
-  constraints?: {
-    maxTokens?: number;
+  constraints?: S3GenerationOverrides & {
     timeoutMs?: number;
   };
   metadata?: {

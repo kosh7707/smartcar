@@ -152,6 +152,7 @@ describe("PipelineOrchestrator", () => {
         taskType: "build-resolve",
         contractVersion: "build-resolve-v1",
         strictMode: true,
+        constraints: { timeoutMs: 600000 },
         context: {
           trusted: expect.objectContaining({
             projectPath: "/uploads/p1/gateway/",

@@ -585,6 +585,7 @@ describe("AnalysisOrchestrator", () => {
     expect(kbClient.getCodeGraphStats).toHaveBeenCalledWith("project-1", "req-1");
     expect(agentClient.submitTask).toHaveBeenCalledWith(
       expect.objectContaining({
+        constraints: { maxTokens: 4096, timeoutMs: 300000 },
         context: {
           trusted: expect.objectContaining({
             quickContext: expect.objectContaining({ executionId: "analysis-quick-1" }),
@@ -724,6 +725,7 @@ describe("AnalysisOrchestrator", () => {
     expect(kbClient.getCodeGraphStats).toHaveBeenCalledWith("project-1:gateway", "req-1");
     expect(agentClient.submitTask).toHaveBeenCalledWith(
       expect.objectContaining({
+        constraints: { maxTokens: 4096, timeoutMs: 300000 },
         context: {
           trusted: expect.objectContaining({
             objective: "project-1 보안 취약점 심층 분석 (gateway)",

@@ -12,6 +12,11 @@ import {
   LlmTimeoutError,
 } from "../lib/errors";
 import { buildHealthCheckUrl } from "../lib/downstream-health";
+import {
+  DEFAULT_S7_TASK_GENERATION_CONSTRAINTS,
+  type PartialS7TaskGenerationConstraints,
+  type S7TaskGenerationConstraints,
+} from "@aegis/shared";
 
 const logger = createLogger("llm-task-client");
 
@@ -43,8 +48,7 @@ export interface TaskRequest {
     untrusted?: Record<string, unknown>;
   };
   evidenceRefs: TaskEvidenceRef[];
-  constraints?: {
-    maxTokens?: number;
+  constraints?: PartialS7TaskGenerationConstraints & {
     timeoutMs?: number;
     outputSchema?: string;
   };
@@ -173,7 +177,7 @@ export class LlmTaskClient {
     };
     if (requestId) headers["X-Request-Id"] = requestId;
 
-    const res = await this.doFetch(url, headers, request, requestId, options?.signal);
+    const res = await this.doFetch(url, headers, this.withGenerationConstraints(request), requestId, options?.signal);
 
     let data: TaskResponse;
     try {
@@ -269,6 +273,21 @@ export class LlmTaskClient {
 
       return res;
     }
+  }
+
+  private withGenerationConstraints(request: TaskRequest): TaskRequest {
+    const constraints: S7TaskGenerationConstraints & {
+      timeoutMs?: number;
+      outputSchema?: string;
+    } = {
+      ...DEFAULT_S7_TASK_GENERATION_CONSTRAINTS,
+      ...request.constraints,
+    };
+
+    return {
+      ...request,
+      constraints,
+    };
   }
 
   private isRetryableBody(body: string): boolean {

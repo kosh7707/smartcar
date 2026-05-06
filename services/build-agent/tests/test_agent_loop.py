@@ -93,13 +93,13 @@ async def test_call_with_retry_keeps_sync_path_when_tools_present():
     assert kwargs["prefer_async_ownership"] is False
 
 
-def test_tool_choice_requires_first_successful_tool_acquisition_only():
+def test_tool_choice_avoids_required_after_toolintent_runtime_dispatch():
     session = MagicMock()
     session.trace = []
-    assert _tool_choice_for_turn(session=session, current_tools=[{"name": "try_build"}], force_report=False) == "required"
+    assert _tool_choice_for_turn(session=session, current_tools=[{"name": "try_build"}], force_report=False) == "auto"
 
     session.trace = [MagicMock(success=False)]
-    assert _tool_choice_for_turn(session=session, current_tools=[{"name": "try_build"}], force_report=False) == "required"
+    assert _tool_choice_for_turn(session=session, current_tools=[{"name": "try_build"}], force_report=False) == "auto"
 
     session.trace = [MagicMock(success=True)]
     assert _tool_choice_for_turn(session=session, current_tools=[{"name": "try_build"}], force_report=False) == "auto"
